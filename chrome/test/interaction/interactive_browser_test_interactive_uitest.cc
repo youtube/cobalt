@@ -57,15 +57,11 @@
 #include "ui/views/widget/widget_observer.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_WIN)
-#include "base/win/windows_version.h"
-#endif
-
 namespace {
 constexpr char kDocumentWithNamedElement[] = "/select.html";
 constexpr char kDocumentWithTitle[] = "/title3.html";
 constexpr char kDocumentWithTextField[] = "/form_interaction.html";
-}
+}  // namespace
 
 class InteractiveBrowserTestUiTest : public InteractiveBrowserTest {
  public:
@@ -93,39 +89,37 @@ IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest,
                        PressButtonAndMouseMoveClick) {
   RelativePositionSpecifier pos = CenterPoint();
 #if BUILDFLAG(IS_WIN)
-  if (base::win::OSInfo::GetInstance()->version() < base::win::Version::WIN11) {
-    // Handler for http://crbug.com/392854216 (menu may overlap button).
-    pos = base::BindOnce([](ui::TrackedElement* el) {
-      gfx::Rect bounds = el->GetScreenBounds();
-      auto* const menu_item =
-          ui::ElementTracker::GetElementTracker()->GetElementInAnyContext(
-              AppMenuModel::kMoreToolsMenuItem);
-      const gfx::Rect widget_bounds =
-          menu_item->AsA<views::TrackedElementViews>()
-              ->view()
-              ->GetWidget()
-              ->GetWindowBoundsInScreen();
+  // Handler for http://crbug.com/392854216 and https://crbug.com/432623498
+  // (menu may overlap button).
+  pos = base::BindOnce([](ui::TrackedElement* el) {
+    gfx::Rect bounds = el->GetScreenBounds();
+    auto* const menu_item =
+        ui::ElementTracker::GetElementTracker()->GetElementInAnyContext(
+            AppMenuModel::kMoreToolsMenuItem);
+    const gfx::Rect widget_bounds = menu_item->AsA<views::TrackedElementViews>()
+                                        ->view()
+                                        ->GetWidget()
+                                        ->GetWindowBoundsInScreen();
 
-      // Create a rectangle where all points are strictly inside the original
-      // bounds.
-      bounds.Inset(gfx::Insets::TLBR(1, 1, 2, 2));
+    // Create a rectangle where all points are strictly inside the original
+    // bounds.
+    bounds.Inset(gfx::Insets::TLBR(1, 1, 2, 2));
 
-      // Test points around the rectangle to find one that does not intersect
-      // the menu widget.
-      for (const auto& point :
-           {bounds.CenterPoint(), bounds.bottom_center(), bounds.left_center(),
-            bounds.right_center(), bounds.origin(), bounds.top_right(),
-            bounds.bottom_right(), bounds.bottom_left()}) {
-        if (!widget_bounds.Contains(point)) {
-          return point;
-        }
+    // Test points around the rectangle to find one that does not intersect
+    // the menu widget.
+    for (const auto& point :
+         {bounds.CenterPoint(), bounds.bottom_center(), bounds.left_center(),
+          bounds.right_center(), bounds.origin(), bounds.top_right(),
+          bounds.bottom_right(), bounds.bottom_left()}) {
+      if (!widget_bounds.Contains(point)) {
+        return point;
       }
+    }
 
-      NOTREACHED() << "Menu widget ()" << widget_bounds.ToString()
-                   << ") significantly overlaps menu button ("
-                   << bounds.ToString() << ") cannot target button.";
-    });
-  }
+    NOTREACHED() << "Menu widget ()" << widget_bounds.ToString()
+                 << ") significantly overlaps menu button ("
+                 << bounds.ToString() << ") cannot target button.";
+  });
 #endif
 
   RunTestSequence(
@@ -289,9 +283,7 @@ IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest,
                 WaitForHide(AppMenuModel::kDownloadsMenuItem)),
       ActivateSurface(kBrowserViewElementId),
       WaitForState(views::test::kCurrentWidgetFocus, [this]() {
-        return BrowserView::GetBrowserViewForBrowser(browser())
-            ->GetWidget()
-            ->GetNativeView();
+        return BrowserView::GetBrowserViewForBrowser(browser())->GetWidget();
       }));
 }
 
@@ -316,9 +308,7 @@ IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest,
       InstrumentTab(kWebContentsElementId),
       ActivateSurface(kWebContentsElementId),
       WaitForState(views::test::kCurrentWidgetFocus, [this]() {
-        return BrowserView::GetBrowserViewForBrowser(browser())
-            ->GetWidget()
-            ->GetNativeView();
+        return BrowserView::GetBrowserViewForBrowser(browser())->GetWidget();
       }));
 }
 
@@ -350,7 +340,7 @@ IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest,
   constexpr char kWebViewName[] = "Web View";
   auto* const incognito = CreateIncognitoBrowser();
 
-  gfx::NativeView expected_view = gfx::NativeView();
+  views::Widget* expected_widget = nullptr;
 
   RunTestSequence(
       SetOnIncompatibleAction(OnIncompatibleAction::kHaltTest,
@@ -370,10 +360,11 @@ IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest,
       InstrumentNonTabWebView(kWebContentsElementId, kWebViewName),
       ActivateSurface(kWebContentsElementId),
       WithView(kTabSearchBubbleElementId,
-               [&expected_view](views::View* view) {
-                 expected_view = view->GetWidget()->GetNativeView();
+               [&expected_widget](views::View* view) {
+                 expected_widget = view->GetWidget();
                }),
-      WaitForState(views::test::kCurrentWidgetFocus, std::ref(expected_view)));
+      WaitForState(views::test::kCurrentWidgetFocus,
+                   std::ref(expected_widget)));
 }
 
 IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest,
@@ -625,8 +616,7 @@ IN_PROC_BROWSER_TEST_F(InteractiveBrowserTestUiTest, InitialWindowActive) {
   views::test::WaitForWidgetActive(widget, true);
 
   RunTestSequence(ObserveState(views::test::kCurrentWidgetFocus),
-                  WaitForState(views::test::kCurrentWidgetFocus,
-                               [widget]() { return widget->GetNativeView(); }));
+                  WaitForState(views::test::kCurrentWidgetFocus, widget));
 }
 
 namespace {

@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "base/containers/adapters.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/no_destructor.h"
@@ -20,6 +19,7 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar_controller_util.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_action_callback.h"
@@ -27,8 +27,10 @@
 #include "chrome/browser/ui/views/toolbar/overflow_button.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_button_status_indicator.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
+#include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/gfx/paint_vector_icon.h"
@@ -160,7 +162,7 @@ ToolbarController::ToolbarController(
     const auto& overflow_id = element.overflow_id;
 
     std::visit(
-        base::Overloaded{
+        absl::Overload{
             [](actions::ActionId id) { return; },
             [&](ToolbarController::ElementIdInfo id) {
               auto* const toolbar_element = FindToolbarElementWithId(
@@ -455,7 +457,7 @@ bool ToolbarController::InOverflowMode() const {
 std::u16string ToolbarController::GetMenuText(
     const ResponsiveElementInfo& element_info) const {
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [this](actions::ActionId id) {
             return std::u16string(
                 pinned_actions_delegate_->GetActionItemFor(id)->GetText());
@@ -469,7 +471,7 @@ std::u16string ToolbarController::GetMenuText(
 std::optional<ui::ImageModel> ToolbarController::GetMenuIcon(
     const ResponsiveElementInfo& element_info) const {
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [this](actions::ActionId id) {
             // Resize the vector icon to `kDefaultIconSize`.
             const ui::ImageModel& pinned_icon_image =
@@ -533,7 +535,7 @@ bool ToolbarController::IsOverflowed(
     const ResponsiveElementInfo& element,
     const views::ProposedLayout* proposed_layout) const {
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&](actions::ActionId id) {
             CHECK(!proposed_layout);
             return pinned_actions_delegate_ &&
@@ -652,7 +654,7 @@ ToolbarController::CreateOverflowMenuModel() {
 
 bool ToolbarController::IsCommandIdEnabled(int command_id) const {
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [this](actions::ActionId id) {
             return pinned_actions_delegate_->GetActionItemFor(id)->GetEnabled();
           },
@@ -668,7 +670,7 @@ void ToolbarController::ExecuteCommand(int command_id, int event_flags) {
   const auto& element_info = responsive_elements_.at(command_id);
   std::variant<ui::ElementIdentifier, actions::ActionId> action_key;
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&, this](actions::ActionId id) {
             pinned_actions_delegate_->GetActionItemFor(id)->InvokeAction(
                 actions::ActionInvocationContext::Builder()

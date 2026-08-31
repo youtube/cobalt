@@ -17,9 +17,6 @@ namespace tab_groups {
 class TabGroupSyncServiceFactoryTest : public PlatformTest {
  public:
   TabGroupSyncServiceFactoryTest() {
-    scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{kTabGroupSync},
-        /*disable_features=*/{});
     TestProfileIOS::Builder builder;
     profile_ = std::move(builder).Build();
   }
@@ -33,10 +30,6 @@ class TabGroupSyncServiceFactoryTest : public PlatformTest {
 // Tests that TabGroupSyncServiceFactory does not create TabGroupSyncService
 // for TestProfileIOS.
 TEST_F(TabGroupSyncServiceFactoryTest, NoServiceForTests) {
-  if (!IsTabGroupInGridEnabled()) {
-    // Disabled on iPadOS 16.
-    return;
-  }
   TabGroupSyncService* service =
       TabGroupSyncServiceFactory::GetForProfile(profile_.get());
   EXPECT_FALSE(service);

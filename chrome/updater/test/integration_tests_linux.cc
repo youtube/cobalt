@@ -19,6 +19,7 @@
 #include "base/process/process_iterator.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/test/test_timeouts.h"
 #include "base/time/time.h"
@@ -250,6 +251,17 @@ void ExpectAppVersion(UpdaterScope scope,
           ->GetProductVersion(app_id);
   EXPECT_TRUE(app_version.IsValid());
   EXPECT_EQ(version, app_version);
+}
+
+void SetAppAllowsUsageStats(UpdaterScope scope,
+                            const std::string& identifier,
+                            bool allowed) {
+  ADD_FAILURE() << "Usage statistics are not supported on Linux.";
+}
+
+void ClearAppAllowsUsageStats(UpdaterScope scope,
+                              const std::string& identifier) {
+  ADD_FAILURE() << "Usage statistics are not supported on Linux.";
 }
 
 }  // namespace updater::test

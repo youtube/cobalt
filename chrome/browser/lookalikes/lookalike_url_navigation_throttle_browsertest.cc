@@ -20,9 +20,11 @@
 #include "chrome/browser/lookalikes/lookalike_url_blocking_page.h"
 #include "chrome/browser/lookalikes/lookalike_url_service.h"
 #include "chrome/browser/lookalikes/lookalike_url_service_factory.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -118,7 +120,10 @@ void SetEngagementScore(Browser* browser, const GURL& url, double score) {
 }
 
 bool IsUrlShowing(Browser* browser) {
-  return !browser->location_bar_model()->GetFormattedFullURL().empty();
+  return !browser->GetFeatures()
+              .location_bar_model()
+              ->GetFormattedFullURL()
+              .empty();
 }
 
 // Navigate to |url| and wait for the load to complete before returning.
@@ -459,6 +464,10 @@ class LookalikeUrlNavigationThrottleBrowserTest : public InProcessBrowserTest {
   net::EmbeddedTestServer* https_server() const { return https_server_.get(); }
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
   std::unique_ptr<LookalikeTestHelper> test_helper_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;

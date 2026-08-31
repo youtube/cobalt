@@ -10,6 +10,10 @@
 
 #include "modules/audio_processing/utility/delay_estimator.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+
 #include "modules/audio_processing/utility/delay_estimator_internal.h"
 #include "modules/audio_processing/utility/delay_estimator_wrapper.h"
 #include "test/gtest.h"
@@ -26,11 +30,11 @@ constexpr int kHistorySize = kMaxDelay + kLookahead;
 // Length of binary spectrum sequence.
 constexpr int kSequenceLength = 400;
 
-const int kDifferentHistorySize = 3;
-const int kDifferentLookahead = 1;
+constexpr int kDifferentHistorySize = 3;
+constexpr int kDifferentLookahead = 1;
 
-const int kEnable[] = {0, 1};
-const size_t kSizeEnable = sizeof(kEnable) / sizeof(*kEnable);
+constexpr int kEnable[] = {0, 1};
+constexpr size_t kSizeEnable = sizeof(kEnable) / sizeof(*kEnable);
 
 class DelayEstimatorTest : public ::testing::Test {
  protected:

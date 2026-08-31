@@ -431,7 +431,6 @@ class ProxyConfigServiceAndroid::Delegate
     // ProxyConfigServiceAndroid::JNIDelegate overrides.
     void ProxySettingsChangedTo(
         JNIEnv* env,
-        const JavaParamRef<jobject>& jself,
         const JavaParamRef<jstring>& jhost,
         jint jport,
         const JavaParamRef<jstring>& jpac_url,
@@ -439,15 +438,14 @@ class ProxyConfigServiceAndroid::Delegate
       std::string host = ConvertJavaStringToUTF8(env, jhost);
       std::string pac_url;
       if (jpac_url)
-        ConvertJavaStringToUTF8(env, jpac_url, &pac_url);
+        pac_url = ConvertJavaStringToUTF8(env, jpac_url);
       std::vector<std::string> exclusion_list;
       base::android::AppendJavaStringArrayToStringVector(
           env, jexclusion_list, &exclusion_list);
       delegate_->ProxySettingsChangedTo(host, jport, pac_url, exclusion_list);
     }
 
-    void ProxySettingsChanged(JNIEnv* env,
-                              const JavaParamRef<jobject>& self) override {
+    void ProxySettingsChanged(JNIEnv* env) override {
       delegate_->ProxySettingsChanged();
     }
 

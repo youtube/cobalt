@@ -74,6 +74,11 @@ std::optional<web::proto::WebStateStorage> SessionStorageToProto(
   return storage;
 }
 
+// Returns whether `web_state` has a SerializableUserDataManager.
+bool HasSerializableUserDataManager(const WebState* web_state) {
+  return SerializableUserDataManager::FromWebState(web_state) != nullptr;
+}
+
 // Key used to store an empty base::SupportsUserData::Data to all WebStateImpl
 // instances. Used by WebStateImpl::FromWebState(...) to assert the pointer is
 // pointing to a WebStateImpl instance and not another sub-class of WebState.
@@ -535,12 +540,27 @@ bool WebStateImpl::IsRealized() const {
   return !!pimpl_;
 }
 
-WebState* WebStateImpl::ForceRealized() {
+WebState* WebStateImpl::ForceRealizedWithPolicy(RealizationPolicy policy) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!is_being_destroyed_);
 
   if (!pimpl_) [[unlikely]] {
     DCHECK(saved_);
+
+    if (policy == RealizationPolicy::kEnforceNoAttachedData) {
+      // WebStateImpl attaches a base::SupportsUserData::Data object in its
+      // constructor (see AddWebStateImplMarker() method) in order to check
+      // the cast from WebState* to WebStateImpl* is valid.
+      //
+      // Additionally, if the legacy session storage is used then user data
+      // is attached to the instance via SerializableUserDataManager.
+      //
+      // This means that there should be at least one tab helpers attached
+      // to the current object, and at most two if legacy session storage
+      // is used (determined if a SerializableUserDataManager is attached).
+      const size_t expected = HasSerializableUserDataManager(this) ? 2u : 1u;
+      CHECK_EQ(UserDataCount(), expected, base::NotFatalUntil::M160);
+    }
 
     // Create the RealizedWebState. At this point the WebStateImpl has
     // both `pimpl_` and `saved_` that are non-null. This is one of the
@@ -568,11 +588,9 @@ WebState* WebStateImpl::ForceRealized() {
     // RealizedWebState in WebStateImpl destructor.
     saved.reset();
 
-    // Notify all observers that the WebState has become realized.
-    for (auto& observer : observers_) {
-      observer.WebStateRealized(this);
-    }
-
+    // Notify all observers that the WebState has become realized but take
+    // care to not notify any observer that is registered while iterating.
+    NotifyWebStateRealized(observers_);
     CheckForOverRealization();
   }
 
@@ -1087,7 +1105,7 @@ UIColor* WebStateImpl::GetUnderPageBackgroundColor() {
 WebStateImpl::RealizedWebState* WebStateImpl::RealizedState() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!IsRealized()) [[unlikely]] {
-    ForceRealized();
+    std::ignore = ForceRealized();
   }
 
   DCHECK(pimpl_);

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/commerce/price_insights_icon_view.h"
 
+#include "base/strings/string_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -39,7 +40,7 @@ class PriceInsightsIconViewBaseBrowserTest : public UiBrowserTest {
   explicit PriceInsightsIconViewBaseBrowserTest(
       bool is_migration_enabled = false)
       : is_migration_enabled_(is_migration_enabled) {
-    MockCommerceUiTabHelper::ReplaceFactory();
+    commerce_ui_override_ = MockCommerceUiTabHelper::ReplaceFactory();
   }
 
   // UiBrowserTest:
@@ -126,6 +127,7 @@ class PriceInsightsIconViewBaseBrowserTest : public UiBrowserTest {
   }
 
   bool is_migration_enabled_;
+  ui::UserDataFactory::ScopedOverride commerce_ui_override_;
 };
 
 class PriceInsightsIconViewBrowserTest

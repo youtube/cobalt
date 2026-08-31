@@ -7,23 +7,16 @@ package org.chromium.chrome.test.transit.quick_delete;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
-import static org.chromium.base.test.transit.ViewSpec.viewSpec;
-
 import android.util.Pair;
 import android.view.View;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import androidx.test.espresso.Espresso;
-
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.transit.ConditionStatus;
 import org.chromium.base.test.transit.Facility;
-import org.chromium.base.test.transit.Station;
 import org.chromium.base.test.transit.UiThreadCondition;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
-import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.browsing_data.ClearBrowsingDataFragment;
 import org.chromium.chrome.browser.browsing_data.TimePeriod;
 import org.chromium.chrome.browser.browsing_data.TimePeriodUtils;
@@ -31,20 +24,16 @@ import org.chromium.chrome.browser.browsing_data.TimePeriodUtils.TimePeriodSpinn
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.hub.RegularTabSwitcherStation;
 import org.chromium.chrome.test.transit.settings.SettingsStation;
-import org.chromium.components.browser_ui.modaldialog.ModalDialogView;
+import org.chromium.chrome.test.transit.ui.ModalDialogFacility;
 
 /** Confirmation dialog that appears when "Delete browsing data" is chosen from the app menu. */
-public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActivity>> {
+public class QuickDeleteDialogFacility extends ModalDialogFacility {
     private final int mTimePeriod;
 
-    public ViewElement<ModalDialogView> dialogElement;
-    public ViewElement<View> customViewElement;
     public ViewElement<Spinner> spinnerElement;
     public ViewElement<TextView> historyInfoElement;
     public ViewElement<TextView> tabsInfoElement;
     public ViewElement<View> moreOptionsElement;
-    public ViewElement<View> cancelButtonElement;
-    public ViewElement<View> deleteButtonElement;
 
     public QuickDeleteDialogFacility() {
         // Default selection is LAST_15_MINUTES.
@@ -52,12 +41,15 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
     }
 
     public QuickDeleteDialogFacility(@TimePeriod int timePeriod) {
+        super();
+
         mTimePeriod = timePeriod;
 
-        dialogElement =
-                declareView(viewSpec(ModalDialogView.class, withId(R.id.modal_dialog_view)));
-        customViewElement =
-                declareView(dialogElement.descendant(withId(R.id.custom_view_not_in_scrollable)));
+        declareCustomView();
+        declareNegativeButton("Cancel");
+        declarePositiveButton("Delete data");
+
+        // Not an actual ModalDialog title, so don't use declareTitle() here.
         declareView(dialogElement.descendant(withText(R.string.quick_delete_dialog_title)));
         spinnerElement =
                 declareView(
@@ -78,19 +70,8 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
                                         .quick_delete_dialog_cookies_cache_and_other_site_data_text)));
         moreOptionsElement =
                 declareView(dialogElement.descendant(withId(R.id.quick_delete_more_options)));
-        cancelButtonElement =
-                declareView(
-                        dialogElement.descendant(withId(R.id.negative_button), withText("Cancel")));
-        deleteButtonElement =
-                declareView(
-                        dialogElement.descendant(
-                                withId(R.id.positive_button), withText("Delete data")));
-        declareEnterCondition(new TimePeriodSelectedCondition());
-    }
 
-    /** Click Cancel to close the dialog with no action. */
-    public void clickCancel() {
-        mHostStation.exitFacilitySync(this, cancelButtonElement.getClickTrigger());
+        declareEnterCondition(new TimePeriodSelectedCondition());
     }
 
     /**
@@ -101,10 +82,8 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
                 new RegularTabSwitcherStation(
                         /* regularTabsExist= */ true, /* incognitoTabsExist= */ false);
         QuickDeleteSnackbarFacility snackbar = new QuickDeleteSnackbarFacility(mTimePeriod);
-        tabSwitcher.addInitialFacility(snackbar);
 
-        mHostStation.travelToSync(tabSwitcher, deleteButtonElement.getClickTrigger());
-
+        positiveButtonElement.clickTo().arriveAt(tabSwitcher, snackbar);
         return Pair.create(tabSwitcher, snackbar);
     }
 
@@ -114,12 +93,9 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
                 TimePeriodUtils.getTimePeriodSpinnerOptions(mHostStation.getActivity());
         final int positionToSet = getSpinnerPositionForTimePeriod(timePeriod, options);
 
-        return mHostStation.swapFacilitySync(
-                this,
-                new QuickDeleteDialogFacility(timePeriod),
-                () ->
-                        ThreadUtils.runOnUiThread(
-                                () -> spinnerElement.get().setSelection(positionToSet)));
+        return runOnUiThreadTo(() -> spinnerElement.get().setSelection(positionToSet))
+                .exitFacilityAnd()
+                .enterFacility(new QuickDeleteDialogFacility(timePeriod));
     }
 
     private static int getSpinnerPositionForTimePeriod(
@@ -133,16 +109,11 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
                 "Time period " + timePeriod + " not found in spinner options.");
     }
 
-    /** Press the back button to dismiss the dialog. */
-    public void pressBackToDismiss() {
-        mHostStation.exitFacilitySync(this, Espresso::pressBack);
-    }
-
     /** Click the "More options" button to open the in Settings. */
     public SettingsStation<ClearBrowsingDataFragment> clickMoreOptions() {
-        return mHostStation.travelToSync(
-                new SettingsStation<>(ClearBrowsingDataFragment.class),
-                moreOptionsElement.getClickTrigger());
+        return moreOptionsElement
+                .clickTo()
+                .arriveAt(new SettingsStation<>(ClearBrowsingDataFragment.class));
     }
 
     public void expectSearchHistoryDisambiguation(boolean shown) {
@@ -153,7 +124,7 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
         } else {
             facility.declareNoView(spec);
         }
-        mHostStation.enterFacilitySync(facility, /* trigger= */ null);
+        noopTo().enterFacility(facility);
     }
 
     public void expectMoreOnSyncedDevices(boolean shown) {
@@ -165,7 +136,7 @@ public class QuickDeleteDialogFacility extends Facility<Station<ChromeTabbedActi
         } else {
             facility.declareNoView(spec);
         }
-        mHostStation.enterFacilitySync(facility, /* trigger= */ null);
+        noopTo().enterFacility(facility);
     }
 
     private class TimePeriodSelectedCondition extends UiThreadCondition {

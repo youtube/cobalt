@@ -93,7 +93,7 @@ QuicTimeWaitListManager::~QuicTimeWaitListManager() {
   connection_id_clean_up_alarm_->Cancel();
 }
 
-QuicTimeWaitListManager::ConnectionIdData* /*absl_nullable*/
+QuicTimeWaitListManager::ConnectionIdData* absl_nullable
 QuicTimeWaitListManager::FindConnectionIdData(
     const QuicConnectionId& connection_id) {
   auto it = connection_id_data_map_.find(connection_id);
@@ -205,7 +205,7 @@ void QuicTimeWaitListManager::ProcessPacket(
                           connection_data->info.ietf_quic,
                           received_packet_length, std::move(packet_context));
           return;
-        case GOOGLE_QUIC_PACKET:
+        case GOOGLE_QUIC_Q043_PACKET:
           if (connection_data->info.ietf_quic) {
             QUIC_CODE_COUNT(quic_received_gquic_packet_for_ietf_quic);
           }

@@ -7,23 +7,99 @@
 
 #include <vector>
 
-#include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
-#include "components/autofill/core/browser/data_model/valuables/loyalty_card.h"
+#include "base/memory/weak_ptr.h"
+#include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
-#include "url/gurl.h"
+#include "components/autofill/core/browser/suggestions/suggestion_generator.h"
+
+class GURL;
 
 namespace autofill {
 
-// Generates loyalty card suggestions for given `origin`. Loyalty cards are
-// extracted from the `valuables_manager`.
-std::vector<Suggestion> GetLoyaltyCardSuggestions(
-    const ValuablesDataManager& valuables_manager,
-    const GURL& url);
+class ValuablesDataManager;
+
+// Generates loyalty card suggestions for the value of trigger `field` and the
+// last committed primary main frame URL obtained from `client`. Loyalty cards
+// are extracted from the `ValuablesDataManager` using `client`.
+// TODO(crbug.com/409962888): Remove after new suggestion generation logic is
+// launched.
+std::vector<Suggestion> GetSuggestionsForLoyaltyCards(
+    const FormData& form,
+    const FormStructure* form_structure,
+    const FormFieldData& field,
+    const AutofillField* autofill_field,
+    const AutofillClient& client);
 
 // Extends `email_suggestions` with loyalty cards suggestions.
+// TODO(crbug.com/409962888): Remove after new suggestion generation logic is
+// launched.
 void ExtendEmailSuggestionsWithLoyaltyCardSuggestions(
-    std::vector<Suggestion>& email_suggestions,
     const ValuablesDataManager& valuables_manager,
-    const GURL& url);
+    const GURL& url,
+    bool trigger_field_is_autofilled,
+    std::vector<Suggestion>& email_suggestions);
+
+class LoyaltyCardSuggestionGenerator : public SuggestionGenerator {
+ public:
+  LoyaltyCardSuggestionGenerator(
+      base::WeakPtr<const ValuablesDataManager> valuables_manager,
+      GURL main_frame_url);
+  ~LoyaltyCardSuggestionGenerator() override;
+
+  void FetchSuggestionData(
+      const FormData& form_data,
+      const FormFieldData& field_data,
+      const FormStructure* form,
+      const AutofillField* field,
+      const AutofillClient& client,
+      base::OnceCallback<
+          void(std::pair<FillingProduct,
+                         std::vector<SuggestionGenerator::SuggestionData>>)>
+          callback) override;
+
+  void GenerateSuggestions(
+      const FormData& form_data,
+      const FormFieldData& field_data,
+      const FormStructure* form,
+      const AutofillField* field,
+      const std::vector<std::pair<FillingProduct, std::vector<SuggestionData>>>&
+          all_suggestion_data,
+      base::OnceCallback<void(ReturnedSuggestions)> callback) override;
+
+  // Like SuggestionGenerator override, but takes a base::FunctionRef instead of
+  // a base::OnceCallback. Calls that callback exactly once.
+  // TODO(crbug.com/409962888): Clean up after launch.
+  void FetchSuggestionData(
+      const FormData& form_data,
+      const FormFieldData& field_data,
+      const FormStructure* form,
+      const AutofillField* field,
+      const AutofillClient& client,
+      base::FunctionRef<
+          void(std::pair<FillingProduct,
+                         std::vector<SuggestionGenerator::SuggestionData>>)>
+          callback);
+
+  // Like SuggestionGenerator override, but takes a base::FunctionRef instead of
+  // a base::OnceCallback. Calls that callback exactly once.
+  // TODO(crbug.com/409962888): Clean up after launch.
+  void GenerateSuggestions(
+      const FormData& form_data,
+      const FormFieldData& field_data,
+      const FormStructure* form,
+      const AutofillField* field,
+      const std::vector<std::pair<FillingProduct, std::vector<SuggestionData>>>&
+          all_suggestion_data,
+      base::FunctionRef<void(ReturnedSuggestions)> callback);
+
+ private:
+  base::WeakPtr<const ValuablesDataManager> valuables_manager_;
+  // The URL of the main frame containing the form.
+  GURL main_frame_url_;
+
+  base::WeakPtrFactory<LoyaltyCardSuggestionGenerator> weak_ptr_factory_{this};
+};
+
 }  // namespace autofill
+
 #endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_SUGGESTIONS_VALUABLES_VALUABLE_SUGGESTION_GENERATOR_H_

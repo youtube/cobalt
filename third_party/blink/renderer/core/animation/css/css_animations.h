@@ -133,6 +133,10 @@ class CORE_EXPORT CSSAnimations final {
                                    CSSAnimationUpdate&,
                                    ComputedStyleBuilder&);
 
+  static void UpdateNamedTriggers(const ComputedStyleBuilder& style_builder,
+                                  const CSSAnimationUpdate& update,
+                                  Element& element);
+
   const CSSAnimationUpdate& PendingUpdate() const { return pending_update_; }
   void SetPendingUpdate(const CSSAnimationUpdate& update) {
     ClearPendingUpdate();
@@ -465,11 +469,13 @@ class CORE_EXPORT CSSAnimations final {
       TransitionUpdateState& state,
       const PropertyHandle& transitioning_property);
 
-  static AnimationTrigger* ComputeTrigger(Element* element,
-                                          const CSSAnimationData* data,
-                                          wtf_size_t animation_index,
-                                          const CSSAnimationUpdate& update,
-                                          AnimationTrigger* existing_trigger);
+  static AnimationTrigger* ComputeTimelineTrigger(
+      const CSSAnimationData* data,
+      wtf_size_t animation_index,
+      const CSSAnimationUpdate& update,
+      float zoom,
+      Element* element,
+      AnimationTrigger* existing_trigger);
 
   class AnimationEventDelegate final : public AnimationEffect::EventDelegate {
    public:
@@ -525,7 +531,7 @@ class CORE_EXPORT CSSAnimations final {
     void Trace(Visitor*) const override;
 
    private:
-    void EnqueueEvent(const WTF::AtomicString& type,
+    void EnqueueEvent(const AtomicString& type,
                       const AnimationTimeDelta& elapsed_time);
 
     const Element& TransitionTarget() const { return *transition_target_; }

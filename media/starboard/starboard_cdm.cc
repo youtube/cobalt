@@ -94,6 +94,9 @@ StarboardCdm::StarboardCdm(
     const SessionKeysChangeCB& keys_change_cb,
     const SessionExpirationUpdateCB& expiration_update_cb)
     : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      key_system_(cdm_config.key_system.empty()
+                      ? std::nullopt
+                      : std::make_optional(cdm_config.key_system)),
       sb_drm_(SbDrmCreateSystem(cdm_config.key_system.c_str(),
                                 this,
                                 OnSessionUpdateRequestGeneratedFunc,
@@ -274,6 +277,10 @@ CdmContext* StarboardCdm::GetCdmContext() {
 
 SbDrmSystem StarboardCdm::GetSbDrmSystem() {
   return sb_drm_;
+}
+
+std::optional<std::string> StarboardCdm::GetKeySystem() const {
+  return key_system_;
 }
 
 bool StarboardCdm::HasValidSbDrm() {

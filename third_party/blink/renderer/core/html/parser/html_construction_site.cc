@@ -33,6 +33,7 @@
 #include "third_party/blink/renderer/core/dom/attribute_part.h"
 #include "third_party/blink/renderer/core/dom/child_node_part.h"
 #include "third_party/blink/renderer/core/dom/comment.h"
+#include "third_party/blink/renderer/core/dom/container_node.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/document_part_root.h"
 #include "third_party/blink/renderer/core/dom/document_type.h"
@@ -40,9 +41,12 @@
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/node_part.h"
+#include "third_party/blink/renderer/core/dom/parser_content_policy.h"
+#include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/dom/template_content_document_fragment.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/dom/throw_on_dynamic_markup_insertion_count_incrementer.h"
+#include "third_party/blink/renderer/core/dom/tree_scope.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -67,6 +71,7 @@
 #include "third_party/blink/renderer/core/html_element_factory.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
+#include "third_party/blink/renderer/core/patching/patch.h"
 #include "third_party/blink/renderer/core/script/ignore_destructive_write_count_incrementer.h"
 #include "third_party/blink/renderer/core/svg/svg_script_element.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
@@ -75,6 +80,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/text/text_break_iterator.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -207,7 +213,7 @@ static inline void Insert(HTMLConstructionSiteTask& task) {
   // instead be inside the template element's template contents, after its last
   // child (if any).
   if (auto* template_element = DynamicTo<HTMLTemplateElement>(*task.parent)) {
-    task.parent = template_element->TemplateContentOrDeclarativeShadowRoot();
+    task.parent = template_element->InsertionTarget();
     // If the Document was detached in the middle of parsing, The template
     // element won't be able to initialize its contents, so bail out.
     if (!task.parent)
@@ -491,12 +497,13 @@ HTMLConstructionSite::HTMLConstructionSite(
     HTMLParserReentryPermit* reentry_permit,
     Document& document,
     ParserContentPolicy parser_content_policy,
-    DocumentFragment* fragment,
+    ContainerNode* fragment_target,
     Element* context_element)
     : reentry_permit_(reentry_permit),
       document_(&document),
-      attachment_root_(fragment ? fragment
-                                : static_cast<ContainerNode*>(&document)),
+      attachment_root_(fragment_target && fragment_target->IsDocumentFragment()
+                           ? fragment_target
+                           : static_cast<ContainerNode*>(&document)),
       pending_dom_parts_(
           RuntimeEnabledFeatures::DOMPartsAPIEnabled()
               ? MakeGarbageCollected<PendingDOMParts>(attachment_root_)
@@ -504,16 +511,16 @@ HTMLConstructionSite::HTMLConstructionSite(
       parser_content_policy_(parser_content_policy),
       is_scripting_content_allowed_(
           ScriptingContentIsAllowed(parser_content_policy)),
-      is_parsing_fragment_(fragment),
+      is_parsing_fragment_(fragment_target),
       redirect_attach_to_foster_parent_(false),
       in_quirks_mode_(document.InQuirksMode()) {
   DCHECK(document_->IsHTMLDocument() || document_->IsXHTMLDocument() ||
          is_parsing_fragment_);
 
-  DCHECK_EQ(!fragment, !context_element);
-  if (fragment) {
-    DCHECK_EQ(document_, &fragment->GetDocument());
-    DCHECK_EQ(in_quirks_mode_, fragment->GetDocument().InQuirksMode());
+  DCHECK_EQ(!fragment_target, !context_element);
+  if (fragment_target) {
+    DCHECK_EQ(document_, &fragment_target->GetDocument());
+    DCHECK_EQ(in_quirks_mode_, fragment_target->GetDocument().InQuirksMode());
     if (!context_element->GetDocument().IsTemplateDocument()) {
       form_ = Traversal<HTMLFormElement>::FirstAncestorOrSelf(*context_element);
     }
@@ -529,6 +536,10 @@ HTMLConstructionSite::~HTMLConstructionSite() {
   DCHECK(pending_text_.IsEmpty());
 }
 
+void HTMLConstructionSite::SetPatchScope(ContainerNode* scope) {
+  patch_scope_ = scope;
+}
+
 void HTMLConstructionSite::Trace(Visitor* visitor) const {
   visitor->Trace(reentry_permit_);
   visitor->Trace(document_);
@@ -540,6 +551,7 @@ void HTMLConstructionSite::Trace(Visitor* visitor) const {
   visitor->Trace(task_queue_);
   visitor->Trace(pending_text_);
   visitor->Trace(pending_dom_parts_);
+  visitor->Trace(patch_scope_);
 }
 
 void HTMLConstructionSite::Detach() {
@@ -560,8 +572,9 @@ void HTMLConstructionSite::InsertHTMLHtmlStartTagBeforeHTML(
   DCHECK(document_);
   HTMLHtmlElement* element;
   if (const auto* is_attribute = token->GetAttributeItem(html_names::kIsAttr)) {
-    element = To<HTMLHtmlElement>(document_->CreateElement(
-        html_names::kHTMLTag, GetCreateElementFlags(), is_attribute->Value()));
+    element = To<HTMLHtmlElement>(
+        document_->CreateElement(html_names::kHTMLTag, GetCreateElementFlags(),
+                                 is_attribute->Value(), /*registry*/ nullptr));
   } else {
     element = MakeGarbageCollected<HTMLHtmlElement>(*document_);
   }
@@ -898,6 +911,37 @@ void HTMLConstructionSite::InsertHTMLTemplateElement(
   HTMLStackItem* template_stack_item =
       HTMLStackItem::Create(template_element, token);
   bool should_attach_template = true;
+  if (RuntimeEnabledFeatures::DocumentPatchingEnabled() &&
+      template_element->FastHasAttribute(html_names::kPatchforAttr)) {
+    const AtomicString& id =
+        template_element->FastGetAttribute(html_names::kPatchforAttr);
+    Element* patch_target = nullptr;
+    // If we have a patch scope, it is used as a scope to resolve patch
+    // target IDs.
+    if (patch_scope_) {
+      patch_target = patch_scope_->getElementById(id);
+    } else {
+      TreeScope* scope = &CurrentNode()->GetTreeScope();
+      if (HTMLTemplateElement* template_parent =
+              DynamicTo<HTMLTemplateElement>(CurrentNode())) {
+        if (ShadowRoot* shadow_root =
+                DynamicTo<ShadowRoot>(template_parent->InsertionTarget())) {
+          scope = shadow_root;
+        }
+      }
+
+      patch_target = scope->getElementById(id);
+    }
+
+    if (patch_target && template_element->ProcessPatch(*patch_target)) {
+      // For now, a template is either targeting a shadow root or a patch.
+      declarative_shadow_root_mode = String();
+
+      // Like with shadowrootmode, the template is discarded.
+      should_attach_template = false;
+    }
+  }
+
   if (!declarative_shadow_root_mode.IsNull() &&
       IsA<Element>(open_elements_.TopStackItem()->GetNode())) {
     auto focus_delegation = template_stack_item->GetAttributeItem(
@@ -922,9 +966,15 @@ void HTMLConstructionSite::InsertHTMLTemplateElement(
     const auto& reference_target =
         reference_target_attr ? reference_target_attr->Value() : g_null_atom;
 
+    bool waiting_for_scoped_registry =
+        RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled() &&
+        template_stack_item->GetAttributeItem(
+            html_names::kShadowrootcustomelementregistryAttr);
+
     bool success = host->AttachDeclarativeShadowRoot(
         *template_element, declarative_shadow_root_mode, focus_delegation,
-        slot_assignment_mode, serializable, clonable, reference_target);
+        slot_assignment_mode, serializable, clonable, reference_target,
+        waiting_for_scoped_registry);
     // If the shadow root attachment fails, e.g. if the host element isn't a
     // valid shadow host, then we leave should_attach_template true, so that
     // a "normal" template element gets attached to the DOM tree.
@@ -933,7 +983,7 @@ void HTMLConstructionSite::InsertHTMLTemplateElement(
       UseCounter::Count(host->GetDocument(),
                         WebFeature::kStreamingDeclarativeShadowDOM);
       should_attach_template = false;
-      template_element->SetDeclarativeShadowRoot(*host->AuthorShadowRoot());
+      template_element->SetOverrideInsertionTarget(*host->AuthorShadowRoot());
     }
   }
   if (should_attach_template) {
@@ -994,7 +1044,8 @@ void HTMLConstructionSite::InsertScriptElement(AtomicHTMLToken* token) {
   HTMLScriptElement* element = nullptr;
   if (const auto* is_attribute = token->GetAttributeItem(html_names::kIsAttr)) {
     element = To<HTMLScriptElement>(OwnerDocumentForCurrentNode().CreateElement(
-        html_names::kScriptTag, flags, is_attribute->Value()));
+        html_names::kScriptTag, flags, is_attribute->Value(),
+        /*registry*/ nullptr));
   } else {
     element = MakeGarbageCollected<HTMLScriptElement>(
         OwnerDocumentForCurrentNode(), flags);
@@ -1025,6 +1076,13 @@ void HTMLConstructionSite::InsertForeignElement(
 
 void HTMLConstructionSite::InsertTextNode(const StringView& string,
                                           WhitespaceMode whitespace_mode) {
+  if (HTMLTemplateElement* current =
+          DynamicTo<HTMLTemplateElement>(CurrentNode())) {
+    if (Patch* patch = current->OutgoingPatch()) {
+      patch->Append(string.ToString());
+      return;
+    }
+  }
   HTMLConstructionSiteTask dummy_task(HTMLConstructionSiteTask::kInsert);
   dummy_task.parent = CurrentNode();
 
@@ -1035,9 +1093,8 @@ void HTMLConstructionSite::InsertTextNode(const StringView& string,
           DynamicTo<HTMLTemplateElement>(*dummy_task.parent)) {
     // If the Document was detached in the middle of parsing, the template
     // element won't be able to initialize its contents.
-    if (auto* content =
-            template_element->TemplateContentOrDeclarativeShadowRoot()) {
-      dummy_task.parent = content;
+    if (auto* insertion_target = template_element->InsertionTarget()) {
+      dummy_task.parent = insertion_target;
     }
   }
 
@@ -1098,9 +1155,8 @@ Document& HTMLConstructionSite::OwnerDocumentForCurrentNode() {
     // If the Document was detached in the middle of parsing, The template
     // element won't be able to initialize its contents. Fallback to the
     // current node's document in that case..
-    if (auto* content =
-            template_element->TemplateContentOrDeclarativeShadowRoot()) {
-      return content->GetDocument();
+    if (auto* insertion_target = template_element->InsertionTarget()) {
+      return insertion_target->GetDocument();
     }
   }
   return CurrentNode()->GetDocument();
@@ -1210,7 +1266,8 @@ Element* HTMLConstructionSite::CreateElement(
                                           GetCreateElementFlags());
     } else {
       element = CustomElement::CreateUncustomizedOrUndefinedElement(
-          document, tag_name, GetCreateElementFlags(), is);
+          document, tag_name, GetCreateElementFlags(), is,
+          /*registry*/ nullptr);
     }
     // Definition for the created element does not exist here and it cannot be
     // custom, precustomized, or failed.
@@ -1279,14 +1336,8 @@ HTMLStackItem* HTMLConstructionSite::CreateElementFromSavedToken(
     HTMLStackItem* item) {
   Element* element;
   // NOTE: Moving from item -> token -> item copies the Attribute vector twice!
-  Vector<Attribute> attributes;
-  attributes.ReserveInitialCapacity(
-      static_cast<wtf_size_t>(item->Attributes().size()));
-  for (Attribute& attr : item->Attributes()) {
-    attributes.push_back(std::move(attr));
-  }
   AtomicHTMLToken fake_token(HTMLToken::kStartTag, item->GetTokenName(),
-                             std::move(attributes));
+                             item->TakeAttributes());
   element = CreateElement(&fake_token, item->NamespaceURI());
   return HTMLStackItem::Create(element, &fake_token, item->NamespaceURI());
 }

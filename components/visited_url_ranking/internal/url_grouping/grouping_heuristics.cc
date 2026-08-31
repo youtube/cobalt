@@ -11,6 +11,7 @@
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/flat_map.h"
 #include "base/json/json_writer.h"
+#include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
@@ -294,9 +295,9 @@ bool IsGroupVisible(const GroupSuggestion& suggestion,
     }
   }
 
-  // Return false if all tabs in the suggestion do not have a score, or if any
+  // Return false if any tab in the suggestion does not have a score, or if any
   // tab is not visible.
-  if (suggestion_tabs_visibility.empty()) {
+  if (suggestion_tabs_visibility.size() != suggestion.tab_ids.size()) {
     return false;
   }
   for (const auto& [tab_id, is_visible] : suggestion_tabs_visibility) {

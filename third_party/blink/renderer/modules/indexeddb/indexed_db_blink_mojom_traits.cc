@@ -28,7 +28,7 @@ bool StructTraits<blink::mojom::IDBDatabaseMetadataDataView,
                   blink::IDBDatabaseMetadata>::
     Read(blink::mojom::IDBDatabaseMetadataDataView data,
          blink::IDBDatabaseMetadata* out) {
-  String name;
+  blink::String name;
   if (!data.ReadName(&name))
     return false;
   out->name = name;
@@ -38,7 +38,7 @@ bool StructTraits<blink::mojom::IDBDatabaseMetadataDataView,
       object_stores;
   data.GetObjectStoresDataView(&object_stores);
   out->object_stores.ReserveCapacityForSize(
-      base::checked_cast<wtf_size_t>(object_stores.size()));
+      base::checked_cast<blink::wtf_size_t>(object_stores.size()));
   for (size_t i = 0; i < object_stores.size(); ++i) {
     const int64_t key = object_stores.keys()[i];
     scoped_refptr<blink::IDBObjectStoreMetadata> object_store;
@@ -69,7 +69,7 @@ bool StructTraits<blink::mojom::IDBIndexMetadataDataView,
   scoped_refptr<blink::IDBIndexMetadata> value =
       blink::IDBIndexMetadata::Create();
   value->id = data.id();
-  String name;
+  blink::String name;
   if (!data.ReadName(&name))
     return false;
   value->name = name;
@@ -114,7 +114,7 @@ bool UnionTraits<blink::mojom::IDBKeyDataView, std::unique_ptr<blink::IDBKey>>::
          std::unique_ptr<blink::IDBKey>* out) {
   switch (data.tag()) {
     case blink::mojom::IDBKeyDataView::Tag::kKeyArray: {
-      Vector<std::unique_ptr<blink::IDBKey>> array;
+      blink::Vector<std::unique_ptr<blink::IDBKey>> array;
       if (!data.ReadKeyArray(&array))
         return false;
       *out = blink::IDBKey::CreateArray(std::move(array));
@@ -124,15 +124,15 @@ bool UnionTraits<blink::mojom::IDBKeyDataView, std::unique_ptr<blink::IDBKey>>::
       ArrayDataView<uint8_t> bytes;
       data.GetBinaryDataView(&bytes);
       *out = blink::IDBKey::CreateBinary(
-          base::MakeRefCounted<base::RefCountedData<Vector<char>>>(
-              Vector<char>(base::as_chars(base::span(bytes)))));
+          base::MakeRefCounted<base::RefCountedData<blink::Vector<char>>>(
+              blink::Vector<char>(base::as_chars(base::span(bytes)))));
       return true;
     }
     case blink::mojom::IDBKeyDataView::Tag::kString: {
-      String string;
+      blink::String string;
       if (!data.ReadString(&string))
         return false;
-      *out = blink::IDBKey::CreateString(String(string));
+      *out = blink::IDBKey::CreateString(blink::String(string));
       return true;
     }
     case blink::mojom::IDBKeyDataView::Tag::kDate:
@@ -150,7 +150,7 @@ bool UnionTraits<blink::mojom::IDBKeyDataView, std::unique_ptr<blink::IDBKey>>::
 }
 
 // static
-const Vector<std::unique_ptr<blink::IDBKey>>&
+const blink::Vector<std::unique_ptr<blink::IDBKey>>&
 UnionTraits<blink::mojom::IDBKeyDataView, std::unique_ptr<blink::IDBKey>>::
     key_array(const std::unique_ptr<blink::IDBKey>& key) {
   return key->Array();
@@ -171,27 +171,27 @@ StructTraits<blink::mojom::IDBValueDataView, std::unique_ptr<blink::IDBValue>>::
 }
 
 // static
-Vector<blink::mojom::blink::IDBExternalObjectPtr>
+blink::Vector<blink::mojom::blink::IDBExternalObjectPtr>
 StructTraits<blink::mojom::IDBValueDataView, std::unique_ptr<blink::IDBValue>>::
     external_objects(const std::unique_ptr<blink::IDBValue>& input) {
-  Vector<blink::mojom::blink::IDBExternalObjectPtr> external_objects;
+  blink::Vector<blink::mojom::blink::IDBExternalObjectPtr> external_objects;
   external_objects.ReserveInitialCapacity(
       input->BlobInfo().size() + input->FileSystemAccessTokens().size());
   for (const blink::WebBlobInfo& info : input->BlobInfo()) {
     auto blob_info = blink::mojom::blink::IDBBlobInfo::New();
     if (info.IsFile()) {
       blob_info->file = blink::mojom::blink::IDBFileInfo::New();
-      String name = info.FileName();
+      blink::String name = info.FileName();
       if (name.IsNull())
-        name = g_empty_string;
+        name = blink::g_empty_string;
       blob_info->file->name = name;
       blob_info->file->last_modified =
           info.LastModified().value_or(base::Time());
     }
     blob_info->size = info.size();
-    String mime_type = info.GetType();
+    blink::String mime_type = info.GetType();
     if (mime_type.IsNull())
-      mime_type = g_empty_string;
+      mime_type = blink::g_empty_string;
     blob_info->mime_type = mime_type;
     blob_info->blob = info.CloneBlobRemote();
     external_objects.push_back(
@@ -211,8 +211,8 @@ bool StructTraits<blink::mojom::IDBValueDataView,
                   std::unique_ptr<blink::IDBValue>>::
     Read(blink::mojom::IDBValueDataView data,
          std::unique_ptr<blink::IDBValue>* out) {
-  Vector<char> value_bits;
-  if (!data.ReadBits(reinterpret_cast<Vector<uint8_t>*>(&value_bits))) {
+  blink::Vector<char> value_bits;
+  if (!data.ReadBits(reinterpret_cast<blink::Vector<uint8_t>*>(&value_bits))) {
     return false;
   }
 
@@ -221,12 +221,12 @@ bool StructTraits<blink::mojom::IDBValueDataView,
     return true;
   }
 
-  Vector<blink::mojom::blink::IDBExternalObjectPtr> external_objects;
+  blink::Vector<blink::mojom::blink::IDBExternalObjectPtr> external_objects;
   if (!data.ReadExternalObjects(&external_objects))
     return false;
 
-  Vector<blink::WebBlobInfo> value_blob_info;
-  Vector<
+  blink::Vector<blink::WebBlobInfo> value_blob_info;
+  blink::Vector<
       mojo::PendingRemote<blink::mojom::blink::FileSystemAccessTransferToken>>
       file_system_access_tokens;
 
@@ -240,12 +240,12 @@ bool StructTraits<blink::mojom::IDBValueDataView,
         // TODO(crbug.com/40529364): remove the UUID parameter from WebBlobInfo.
         if (info->file) {
           value_blob_info.emplace_back(
-              WTF::CreateCanonicalUUIDString(), info->file->name,
+              blink::CreateCanonicalUUIDString(), info->file->name,
               info->mime_type,
               blink::NullableTimeToOptionalTime(info->file->last_modified),
               info->size, std::move(info->blob));
         } else {
-          value_blob_info.emplace_back(WTF::CreateCanonicalUUIDString(),
+          value_blob_info.emplace_back(blink::CreateCanonicalUUIDString(),
                                        info->mime_type, info->size,
                                        std::move(info->blob));
         }
@@ -274,16 +274,16 @@ StructTraits<blink::mojom::IDBKeyPathDataView, blink::IDBKeyPath>::data(
 
   switch (key_path.GetType()) {
     case blink::mojom::IDBKeyPathType::String: {
-      String key_path_string = key_path.GetString();
+      blink::String key_path_string = key_path.GetString();
       if (key_path_string.IsNull())
-        key_path_string = g_empty_string;
+        key_path_string = blink::g_empty_string;
       return blink::mojom::blink::IDBKeyPathData::NewString(key_path_string);
     }
     case blink::mojom::IDBKeyPathType::Array: {
       const auto& array = key_path.Array();
-      Vector<String> result;
+      blink::Vector<blink::String> result;
       result.ReserveInitialCapacity(
-          base::checked_cast<wtf_size_t>(array.size()));
+          base::checked_cast<blink::wtf_size_t>(array.size()));
       for (const auto& item : array)
         result.push_back(item);
       return blink::mojom::blink::IDBKeyPathData::NewStringArray(
@@ -310,14 +310,14 @@ bool StructTraits<blink::mojom::IDBKeyPathDataView, blink::IDBKeyPath>::Read(
 
   switch (data_view.tag()) {
     case blink::mojom::IDBKeyPathDataDataView::Tag::kString: {
-      String string;
+      blink::String string;
       if (!data_view.ReadString(&string))
         return false;
       *out = blink::IDBKeyPath(string);
       return true;
     }
     case blink::mojom::IDBKeyPathDataDataView::Tag::kStringArray: {
-      Vector<String> array;
+      blink::Vector<blink::String> array;
       if (!data_view.ReadStringArray(&array))
         return false;
       *out = blink::IDBKeyPath(array);
@@ -336,7 +336,7 @@ bool StructTraits<blink::mojom::IDBObjectStoreMetadataDataView,
   scoped_refptr<blink::IDBObjectStoreMetadata> value =
       blink::IDBObjectStoreMetadata::Create();
   value->id = data.id();
-  String name;
+  blink::String name;
   if (!data.ReadName(&name))
     return false;
   value->name = name;
@@ -347,7 +347,7 @@ bool StructTraits<blink::mojom::IDBObjectStoreMetadataDataView,
   MapDataView<int64_t, blink::mojom::IDBIndexMetadataDataView> indexes;
   data.GetIndexesDataView(&indexes);
   value->indexes.ReserveCapacityForSize(
-      base::checked_cast<wtf_size_t>(indexes.size()));
+      base::checked_cast<blink::wtf_size_t>(indexes.size()));
   for (size_t i = 0; i < indexes.size(); ++i) {
     const int64_t key = indexes.keys()[i];
     scoped_refptr<blink::IDBIndexMetadata> index;

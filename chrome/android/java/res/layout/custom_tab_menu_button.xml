@@ -10,6 +10,7 @@ found in the LICENSE file.
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/menu_button_wrapper"
+    android:clipToPadding="false"
     android:layout_height="match_parent"
     android:layout_width="@dimen/toolbar_button_width">
 
@@ -24,5 +25,14 @@ found in the LICENSE file.
         android:tooltipText="@string/accessibility_toolbar_btn_menu"
         android:background="@null"
         app:tint="@color/default_icon_color_tint_list" />
+    <ImageView
+        android:id="@+id/menu_dot"
+        android:layout_height="8dp"
+        android:layout_width="8dp"
+        android:src="@drawable/menu_dot"
+        android:importantForAccessibility="no"
+        android:layout_gravity="top|end"
+        android:background="@null"
+        android:visibility="gone" />
 </org.chromium.chrome.browser.toolbar.menu_button.MenuButton>
 <!-- LINT.ThenChange(//chrome/android/java/res/layout/custom_tabs_toolbar.xml:MenuButton) -->

@@ -27,10 +27,6 @@
 #include "third_party/blink/public/mojom/shared_storage/shared_storage_worklet_service.mojom.h"
 #include "third_party/blink/public/mojom/worker/worklet_global_scope_creation_params.mojom.h"
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-#include "content/public/browser/browser_message_filter.h"
-#endif
-
 namespace content {
 
 namespace {
@@ -241,20 +237,6 @@ void AgentSchedulingGroupHost::OnAssociatedInterfaceRequest(
       &*process_, bad_message::ASGH_ASSOCIATED_INTERFACE_REQUEST);
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-void AgentSchedulingGroupHost::AddFilter(BrowserMessageFilter* filter) {
-  DCHECK(filter);
-  // When MBI mode is disabled, we forward these kinds of requests straight to
-  // the underlying `RenderProcessHost`.
-  if (GetMBIMode() == features::MBIMode::kLegacy) {
-    process_->AddFilter(filter);
-    return;
-  }
-
-  channel_->AddFilter(filter->GetFilter());
-}
-#endif
-
 RenderProcessHost* AgentSchedulingGroupHost::GetProcess() {
   // `process_` can still be accessed here even if `state_` has been set to
   // `kRenderProcessHostDestroyed`. This is because a `RenderProcessHostImpl` is
@@ -291,26 +273,6 @@ ChannelProxy* AgentSchedulingGroupHost::GetChannel() {
 
   DCHECK(channel_);
   return channel_.get();
-}
-
-bool AgentSchedulingGroupHost::Send(IPC::Message* message) {
-  DCHECK_EQ(state_, LifecycleState::kBound);
-
-  std::unique_ptr<IPC::Message> msg(message);
-
-  if (GetMBIMode() == features::MBIMode::kLegacy)
-    return process_->Send(msg.release());
-
-  // This DCHECK is too idealistic for now - messages that are handled by
-  // filters are sent as control messages since they are intercepted before
-  // routing. It is put here as documentation for now, since this code would not
-  // be reached until we activate
-  // `features::MBIMode::kEnabledPerRenderProcessHost` or
-  // `features::MBIMode::kEnabledPerSiteInstance`.
-  DCHECK_NE(message->routing_id(), MSG_ROUTING_CONTROL);
-
-  DCHECK(channel_);
-  return channel_->Send(msg.release());
 }
 
 void AgentSchedulingGroupHost::AddRoute(int32_t routing_id,
@@ -451,8 +413,7 @@ void AgentSchedulingGroupHost::SetUpIPC() {
     // TODO(crbug.com/40142495): Add necessary filters.
     // Most of the filters currently installed on the process-wide channel are:
     // 1. "Process-bound", that is, they do not handle messages sent using ASG,
-    // 2. Pepper/NaCl-related, that are going away, and are not supported, or
-    // 3. Related to Android WebViews, which are not currently supported.
+    // 2. Related to Android WebViews, which are not currently supported.
 
     channel_->GetRemoteAssociatedInterface(&mojo_remote_);
   }

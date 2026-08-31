@@ -16,8 +16,10 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "base/trace_event/memory_allocator_dump_guid.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
+#include "storage/common/database/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -31,7 +33,7 @@ std::vector<uint8_t> StdStringToUint8Vector(const std::string& s) {
   return std::vector<uint8_t>(s.begin(), s.end());
 }
 
-MATCHER(OKStatus, "Equality matcher for type OK leveldb::Status") {
+MATCHER(OKStatus, "Equality matcher for type OK DbStatus") {
   return arg.ok();
 }
 
@@ -53,7 +55,7 @@ class MockListener : public SessionStorageDataMap::Listener {
                void(const std::vector<uint8_t>& map_id,
                     SessionStorageDataMap* map));
   MOCK_METHOD1(OnDataMapDestruction, void(const std::vector<uint8_t>& map_id));
-  MOCK_METHOD1(OnCommitResult, void(leveldb::Status status));
+  MOCK_METHOD1(OnCommitResult, void(DbStatus status));
 };
 
 void GetAllDataCallback(base::OnceClosure callback,
@@ -76,7 +78,7 @@ class SessionStorageDataMapTest : public testing::Test {
     database_ = AsyncDomStorageDatabase::OpenInMemory(
         std::nullopt, "SessionStorageDataMapTest",
         base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
-        base::BindLambdaForTesting([&](leveldb::Status status) {
+        base::BindLambdaForTesting([&](DbStatus status) {
           ASSERT_TRUE(status.ok());
           loop.Quit();
         }));
@@ -85,8 +87,7 @@ class SessionStorageDataMapTest : public testing::Test {
     database_->database().PostTaskWithThisObject(
         base::BindOnce([](const DomStorageDatabase& db) {
           // Should show up in first map.
-          leveldb::Status status =
-              db.Put(MakeBytes("map-1-key1"), MakeBytes("data1"));
+          DbStatus status = db.Put(MakeBytes("map-1-key1"), MakeBytes("data1"));
           ASSERT_TRUE(status.ok());
 
           // Dummy data to verify we don't delete everything.
@@ -102,7 +103,7 @@ class SessionStorageDataMapTest : public testing::Test {
     base::RunLoop loop;
     database_->database().PostTaskWithThisObject(
         base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
-          leveldb::Status status = db.GetPrefixed({}, &entries);
+          DbStatus status = db.GetPrefixed({}, &entries);
           ASSERT_TRUE(status.ok());
           loop.Quit();
         }));

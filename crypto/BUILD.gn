@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 import("//build/buildflag_header.gni")
-import("//components/nacl/toolchain.gni")
 import("//crypto/features.gni")
 import("//testing/test.gni")
 
@@ -26,12 +25,8 @@ component("crypto") {
     "aes_ctr.cc",
     "aes_ctr.h",
     "crypto_export.h",
-    "ec_private_key.cc",
-    "ec_private_key.h",
-    "ec_signature_creator.cc",
-    "ec_signature_creator.h",
-    "ec_signature_creator_impl.cc",
-    "ec_signature_creator_impl.h",
+    "evp.cc",
+    "evp.h",
     "features.cc",
     "features.h",
     "hash.cc",
@@ -63,8 +58,6 @@ component("crypto") {
     "sha2.h",
     "sign.cc",
     "sign.h",
-    "signature_creator.cc",
-    "signature_creator.h",
     "signature_verifier.cc",
     "signature_verifier.h",
     "subtle_passkey.cc",
@@ -88,20 +81,20 @@ component("crypto") {
 
   if (is_apple) {
     sources += [
-      "apple_keychain.cc",
-      "apple_keychain.h",
-      "apple_keychain_secitem.h",
-      "apple_keychain_secitem.mm",
-      "apple_keychain_util.h",
-      "apple_keychain_util.mm",
-      "apple_keychain_v2.h",
-      "apple_keychain_v2.mm",
+      "apple/keychain.cc",
+      "apple/keychain.h",
+      "apple/keychain_secitem.h",
+      "apple/keychain_secitem.mm",
+      "apple/keychain_util.h",
+      "apple/keychain_util.mm",
+      "apple/keychain_v2.h",
+      "apple/keychain_v2.mm",
     ]
 
     if (is_mac) {
       sources += [
-        "apple_keychain_seckeychain.cc",
-        "apple_keychain_seckeychain.h",
+        "apple/keychain_seckeychain.cc",
+        "apple/keychain_seckeychain.h",
         "mac_security_services_lock.cc",
         "mac_security_services_lock.h",
         "scoped_lacontext.h",
@@ -148,11 +141,10 @@ component("crypto") {
       "nss_util.h",
       "nss_util_internal.h",
     ]
-    deps += [ "//components/nacl/common:buildflags" ]
     configs += [ "//build/config/linux/nss" ]
   }
 
-  if (is_chromeos && !is_minimal_toolchain) {
+  if (is_chromeos) {
     sources += [
       "chaps_support.cc",
       "chaps_support.h",
@@ -164,10 +156,11 @@ component("crypto") {
 }
 
 if (is_apple) {
+  # TODO(https://crbug.com/431952820): move this into a crypto/apple/BUILD.gn
   source_set("mock_apple_keychain") {
     sources = [
-      "mock_apple_keychain.cc",
-      "mock_apple_keychain.h",
+      "apple/mock_keychain.cc",
+      "apple/mock_keychain.h",
     ]
 
     deps = [
@@ -182,8 +175,7 @@ test("crypto_unittests") {
     "aead_unittest.cc",
     "aes_cbc_unittest.cc",
     "aes_ctr_unittest.cc",
-    "ec_private_key_unittest.cc",
-    "ec_signature_creator_unittest.cc",
+    "evp_unittest.cc",
     "hash_unittest.cc",
     "hmac_unittest.cc",
     "kdf_unittest.cc",
@@ -195,7 +187,6 @@ test("crypto_unittests") {
     "secure_hash_unittest.cc",
     "sha2_unittest.cc",
     "sign_unittest.cc",
-    "signature_creator_unittest.cc",
     "signature_verifier_unittest.cc",
     "unexportable_key_unittest.cc",
   ]
@@ -205,15 +196,27 @@ test("crypto_unittests") {
   }
 
   if (is_apple) {
-    sources += [ "mock_apple_keychain_unittest.cc" ]
+    sources += [ "apple/mock_keychain_unittest.cc" ]
+  }
+
+  if (is_ios) {
+    sources += [ "apple/keychain_secitem_ios_unittest.mm" ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   if (is_mac) {
     sources += [
-      "apple_keychain_util_unittest.mm",
+      "apple/keychain_util_unittest.mm",
       "unexportable_key_mac_unittest.mm",
       "user_verifying_key_mac_unittest.mm",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   # Some files are built when NSS is used for the platform certificate library.
@@ -274,10 +277,10 @@ static_library("test_support") {
 
   if (is_mac) {
     sources += [
-      "fake_apple_keychain_v2.h",
-      "fake_apple_keychain_v2.mm",
-      "scoped_fake_apple_keychain_v2.h",
-      "scoped_fake_apple_keychain_v2.mm",
+      "apple/fake_keychain_v2.h",
+      "apple/fake_keychain_v2.mm",
+      "apple/scoped_fake_keychain_v2.h",
+      "apple/scoped_fake_keychain_v2.mm",
     ]
     frameworks = [
       "CoreFoundation.framework",
@@ -291,4 +294,8 @@ static_library("test_support") {
     ":crypto",
     "//base",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

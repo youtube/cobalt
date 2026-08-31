@@ -11,8 +11,9 @@
 #include "common_audio/smoothing_filter.h"
 
 #include <cmath>
-#include <memory>
+#include <cstdint>
 
+#include "api/units/time_delta.h"
 #include "rtc_base/fake_clock.h"
 #include "test/gtest.h"
 

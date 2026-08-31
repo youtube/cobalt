@@ -27,6 +27,7 @@ class CredentialManagerBridge {
 
   virtual void Get(bool is_auto_select_allowed,
                    bool include_passwords,
+                   const std::vector<GURL>& federations,
                    const std::string& origin,
                    GetCallback completion_callback) = 0;
 
@@ -47,14 +48,12 @@ class ThirdPartyCredentialManagerBridge : public CredentialManagerBridge {
    public:
     virtual ~JniDelegate() = default;
 
-    // Creates the JNI bridge.
-    virtual void CreateBridge() = 0;
-
     // Gets a credential from the Android Credential Manager.
     // The `completion_callback` should always be invoked on completion, passing
     // the PasswordCredentialResponse.
     virtual void Get(bool is_auto_select_allowed,
                      bool include_passwords,
+                     const std::vector<GURL>& federations,
                      const std::string& origin,
                      base::OnceCallback<void(PasswordCredentialResponse)>
                          completion_callback) = 0;
@@ -80,10 +79,9 @@ class ThirdPartyCredentialManagerBridge : public CredentialManagerBridge {
 
   ~ThirdPartyCredentialManagerBridge() override;
 
-  void Create();
-
   void Get(bool is_auto_select_allowed,
            bool include_passwords,
+           const std::vector<GURL>& federations,
            const std::string& origin,
            GetCallback completion_callback) override;
 

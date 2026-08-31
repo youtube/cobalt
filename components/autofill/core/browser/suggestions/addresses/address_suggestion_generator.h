@@ -54,9 +54,8 @@ Suggestion CreateManageAddressesSuggestion();
 // Exposes `GetProfilesToSuggest` in tests.
 std::vector<AutofillProfile> GetProfilesToSuggestForTest(
     const AddressDataManager& address_data,
+    const FormFieldData& trigger_field,
     FieldType trigger_field_type,
-    const std::u16string& field_contents,
-    bool field_is_autofilled,
     const FieldTypeSet& field_types);
 
 // Exposes `CreateSuggestionsFromProfiles` in tests.
@@ -65,7 +64,7 @@ std::vector<Suggestion> CreateSuggestionsFromProfilesForTest(
     const FieldTypeSet& field_types,
     SuggestionType suggestion_type,
     FieldType trigger_field_type,
-    uint64_t trigger_field_max_length,
+    const FormFieldData& trigger_field,
     const std::string& app_locale = "en-US",
     std::optional<std::string> plus_address_email_override = std::nullopt,
     const std::string& gaia_email = "");

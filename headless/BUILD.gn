@@ -270,6 +270,9 @@ component("headless_non_renderer") {
     "lib/browser/headless_screen_orientation_delegate.h",
     "lib/browser/headless_web_contents_impl.cc",
     "lib/browser/headless_web_contents_impl.h",
+    "lib/browser/headless_window.cc",
+    "lib/browser/headless_window.h",
+    "lib/browser/headless_window_delegate.h",
     "lib/browser/headless_window_state.cc",
     "lib/browser/headless_window_tree_host.h",
     "lib/browser/protocol/browser_handler.cc",
@@ -354,13 +357,14 @@ component("headless_non_renderer") {
     "//build:branding_buildflags",
     "//build/config/linux/dbus:buildflags",
     "//components/cookie_config",
-    "//components/crash/core/common:common",
+    "//components/crash/core/common",
     "//components/devtools/devtools_pipe",
     "//components/embedder_support",
     "//components/embedder_support:user_agent",
     "//components/embedder_support/origin_trials",
     "//components/headless/clipboard",
     "//components/headless/command_handler:switches",
+    "//components/headless/console_message_logger",
     "//components/headless/display_util",
     "//components/headless/screen_info",
     "//components/headless/select_file_dialog",
@@ -431,7 +435,7 @@ component("headless_non_renderer") {
       "//components/printing/browser/headless",
       "//components/printing/browser/print_to_pdf",
       "//components/printing/common:mojo_interfaces",
-      "//components/printing/renderer:renderer",
+      "//components/printing/renderer",
       "//components/services/print_compositor",
       "//components/services/print_compositor/public/mojom",
       "//printing",
@@ -538,7 +542,11 @@ component("headless_non_renderer") {
   }
 
   if (use_dbus) {
-    deps += [ "//device/bluetooth" ]
+    deps += [
+      "//components/dbus",
+      "//dbus",
+      "//device/bluetooth",
+    ]
   }
 
   configs += [ ":inside_headless_component" ]
@@ -573,7 +581,7 @@ test("headless_unittests") {
     "//components/embedder_support:user_agent",
     "//components/security_state/content",
     "//content/public/app",
-    "//content/public/child:child",
+    "//content/public/child",
     "//content/public/common",
     "//device/bluetooth/public/cpp",
     "//testing/gmock",
@@ -661,6 +669,7 @@ test("headless_browsertests") {
     "test/dom_tree_extraction_expected_styles.txt",
     "$root_out_dir/headless_lib_data.pak",
     "$root_out_dir/headless_lib_strings.pak",
+    "//components/headless/test/data",
     "//net/tools/testserver/",
     "//third_party/blink/web_tests/http/tests/inspector-protocol/",
     "//third_party/pywebsocket3/",
@@ -707,6 +716,8 @@ test("headless_browsertests") {
     "//components/embedder_support:user_agent",
     "//components/headless/select_file_dialog",
     "//components/headless/test",
+    "//components/headless/test:meta_info",
+    "//components/headless/test:shared_test",
     "//components/infobars/content",
     "//components/infobars/core",
     "//components/policy/core/browser",
@@ -765,6 +776,10 @@ test("headless_browsertests") {
   }
 
   configs += [ ":headless_defines_config" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_win) {
@@ -779,7 +794,7 @@ if (is_win) {
       ":headless_non_renderer",
       "//base/version_info",
       "//build:branding_buildflags",
-      "//components/crash/core/app:app",
+      "//components/crash/core/app",
       "//components/crash/core/app:run_as_crashpad_handler",
       "//components/devtools/simple_devtools_protocol_client",
       "//components/embedder_support",
@@ -798,7 +813,7 @@ if (is_win) {
       ]
     }
     if (enable_printing) {
-      deps += [ "//components/printing/browser/headless:headless" ]
+      deps += [ "//components/printing/browser/headless" ]
     }
     if (headless_enable_commands) {
       deps += [ "//components/headless/command_handler" ]
@@ -837,7 +852,7 @@ static_library("headless_shell_lib") {
     "//content",
     "//content/public/app",
     "//content/public/browser",
-    "//content/public/child:child",
+    "//content/public/child",
     "//content/public/common",
     "//content/public/utility",
     "//printing/buildflags",
@@ -860,7 +875,7 @@ static_library("headless_shell_lib") {
   if (enable_printing) {
     deps += [
       "//components/printing/browser",
-      "//components/printing/browser/headless:headless",
+      "//components/printing/browser/headless",
       "//components/printing/renderer",
       "//components/services/print_compositor",
       "//components/services/print_compositor/public/mojom",

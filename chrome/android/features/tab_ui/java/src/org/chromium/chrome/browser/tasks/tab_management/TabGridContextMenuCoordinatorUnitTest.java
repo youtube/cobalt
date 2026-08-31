@@ -23,7 +23,6 @@ import android.content.res.Resources;
 import android.os.SystemClock;
 import android.view.MotionEvent;
 
-import androidx.core.content.res.ResourcesCompat;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
 import org.junit.Before;
@@ -70,7 +69,10 @@ import java.util.List;
 
 /** Unit tests for {@link TabGridContextMenuCoordinator}. */
 @RunWith(BaseRobolectricTestRunner.class)
-@EnableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
+@EnableFeatures({
+    ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID,
+    ChromeFeatureList.ANDROID_PINNED_TABS
+})
 public class TabGridContextMenuCoordinatorUnitTest {
     private static @TabId final int TAB_ID = 1;
     private static final int MENU_WIDTH = 300;
@@ -163,14 +165,14 @@ public class TabGridContextMenuCoordinatorUnitTest {
                         anyInt(),
                         any(),
                         anyBoolean());
-        mCoordinator.showMenu(rectProvider, TAB_ID);
+        mCoordinator.showMenu(rectProvider, TAB_ID, /* focusable= */ true);
         verify(mCoordinator)
                 .createAndShowMenu(
                         eq(rectProvider),
                         eq(TAB_ID),
                         eq(true),
                         eq(false),
-                        eq(ResourcesCompat.ID_NULL),
+                        eq(Resources.ID_NULL),
                         eq(HorizontalOrientation.LAYOUT_DIRECTION),
                         eq(mActivity),
                         eq(false));
@@ -291,6 +293,44 @@ public class TabGridContextMenuCoordinatorUnitTest {
     }
 
     @Test
+    public void testGetMenuItemClickedCallback_pinTab() {
+        TabGridContextMenuCoordinator.OnItemClickedCallback<Integer> callback =
+                TabGridContextMenuCoordinator.getMenuItemClickedCallback(
+                        mTabBookmarkerSupplier,
+                        mTabGroupModelFilter,
+                        mTabGroupListBottomSheetCoordinator,
+                        mTabGroupCreationDialogManager,
+                        mShareDelegateSupplier,
+                        mShowTabListEditor);
+
+        callback.onClick(
+                R.id.pin_tab,
+                TAB_ID,
+                /* collaborationId= */ null,
+                /* listViewTouchTracker= */ null);
+        verify(mTabModel).pinTab(TAB_ID);
+    }
+
+    @Test
+    public void testGetMenuItemClickedCallback_unpinTab() {
+        TabGridContextMenuCoordinator.OnItemClickedCallback<Integer> callback =
+                TabGridContextMenuCoordinator.getMenuItemClickedCallback(
+                        mTabBookmarkerSupplier,
+                        mTabGroupModelFilter,
+                        mTabGroupListBottomSheetCoordinator,
+                        mTabGroupCreationDialogManager,
+                        mShareDelegateSupplier,
+                        mShowTabListEditor);
+
+        callback.onClick(
+                R.id.unpin_tab,
+                TAB_ID,
+                /* collaborationId= */ null,
+                /* listViewTouchTracker= */ null);
+        verify(mTabModel).unpinTab(TAB_ID);
+    }
+
+    @Test
     public void testGetMenuItemClickedCallback_closeTab_nullListViewTouchTracker() {
         testGetMenuItemClickedCallback_closeTab(
                 /* listViewTouchTracker= */ null, /* shouldAllowUndo= */ true);
@@ -390,12 +430,29 @@ public class TabGridContextMenuCoordinatorUnitTest {
         when(mTab.getUrl()).thenReturn(mUrl);
         mCoordinator.buildMenuActionItems(mMenuItemList, TAB_ID);
 
-        assertEquals(5, mMenuItemList.size());
+        assertEquals(6, mMenuItemList.size());
         assertEquals(R.string.share, getMenuItemTitleId(0));
         assertEquals(R.string.menu_move_tab_to_group, getMenuItemTitleId(1));
         assertEquals(R.string.add_to_bookmarks, getMenuItemTitleId(2));
         assertEquals(R.string.select_tab, getMenuItemTitleId(3));
-        assertEquals(R.string.close_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.pin_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.close_tab, getMenuItemTitleId(5));
+    }
+
+    @Test
+    public void testBuildMenuActionItems_withUnpinning() {
+        mUrl = new GURL(LOCALHOST_URL);
+        when(mTab.getUrl()).thenReturn(mUrl);
+        when(mTab.getIsPinned()).thenReturn(true);
+        mCoordinator.buildMenuActionItems(mMenuItemList, TAB_ID);
+
+        assertEquals(6, mMenuItemList.size());
+        assertEquals(R.string.share, getMenuItemTitleId(0));
+        assertEquals(R.string.menu_move_tab_to_group, getMenuItemTitleId(1));
+        assertEquals(R.string.add_to_bookmarks, getMenuItemTitleId(2));
+        assertEquals(R.string.select_tab, getMenuItemTitleId(3));
+        assertEquals(R.string.unpin_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.close_tab, getMenuItemTitleId(5));
     }
 
     @Test
@@ -405,12 +462,13 @@ public class TabGridContextMenuCoordinatorUnitTest {
         when(mTab.getTabGroupId()).thenReturn(null);
         mCoordinator.buildMenuActionItems(mMenuItemList, TAB_ID);
 
-        assertEquals(5, mMenuItemList.size());
+        assertEquals(6, mMenuItemList.size());
         assertEquals(R.string.share, getMenuItemTitleId(0));
         assertEquals(R.string.menu_add_tab_to_group, getMenuItemTitleId(1));
         assertEquals(R.string.add_to_bookmarks, getMenuItemTitleId(2));
         assertEquals(R.string.select_tab, getMenuItemTitleId(3));
-        assertEquals(R.string.close_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.pin_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.close_tab, getMenuItemTitleId(5));
     }
 
     @Test
@@ -420,12 +478,13 @@ public class TabGridContextMenuCoordinatorUnitTest {
         when(mTabGroupModelFilter.getTabGroupCount()).thenReturn(0);
         mCoordinator.buildMenuActionItems(mMenuItemList, TAB_ID);
 
-        assertEquals(5, mMenuItemList.size());
+        assertEquals(6, mMenuItemList.size());
         assertEquals(R.string.share, getMenuItemTitleId(0));
         assertEquals(R.string.menu_add_tab_to_new_group, getMenuItemTitleId(1));
         assertEquals(R.string.add_to_bookmarks, getMenuItemTitleId(2));
         assertEquals(R.string.select_tab, getMenuItemTitleId(3));
-        assertEquals(R.string.close_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.pin_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.close_tab, getMenuItemTitleId(5));
     }
 
     @Test
@@ -437,12 +496,13 @@ public class TabGridContextMenuCoordinatorUnitTest {
         when(mTabGroupModelFilter.getTabGroupCount()).thenReturn(0);
         mCoordinator.buildMenuActionItems(mMenuItemList, TAB_ID);
 
-        assertEquals(5, mMenuItemList.size());
+        assertEquals(6, mMenuItemList.size());
         assertEquals(R.string.share, getMenuItemTitleId(0));
         assertEquals(R.string.menu_add_tab_to_new_group, getMenuItemTitleId(1));
         assertEquals(R.string.edit_bookmark, getMenuItemTitleId(2));
         assertEquals(R.string.select_tab, getMenuItemTitleId(3));
-        assertEquals(R.string.close_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.pin_tab, getMenuItemTitleId(4));
+        assertEquals(R.string.close_tab, getMenuItemTitleId(5));
     }
 
     @Test
@@ -452,11 +512,12 @@ public class TabGridContextMenuCoordinatorUnitTest {
         when(mTab.getUrl()).thenReturn(mUrl);
         mCoordinator.buildMenuActionItems(mMenuItemList, TAB_ID);
 
-        assertEquals(4, mMenuItemList.size());
+        assertEquals(5, mMenuItemList.size());
         assertEquals(R.string.menu_add_tab_to_group, getMenuItemTitleId(0));
         assertEquals(R.string.add_to_bookmarks, getMenuItemTitleId(1));
         assertEquals(R.string.select_tab, getMenuItemTitleId(2));
-        assertEquals(R.string.close_tab, getMenuItemTitleId(3));
+        assertEquals(R.string.pin_tab, getMenuItemTitleId(3));
+        assertEquals(R.string.close_tab, getMenuItemTitleId(4));
     }
 
     @Test

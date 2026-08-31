@@ -12,12 +12,12 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/values.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/common/features/feature.h"
 #include "extensions/common/mojom/context_type.mojom-forward.h"
 #include "extensions/common/mojom/frame.mojom.h"
 #include "extensions/common/mojom/service_worker_host.mojom.h"
-#include "ipc/ipc_sender.h"
 
 namespace content {
 class BrowserContext;
@@ -121,7 +121,8 @@ class ExtensionFunctionDispatcher {
   // `params`.
   // Does not set subclass properties, or include_incognito.
   scoped_refptr<ExtensionFunction> CreateExtensionFunction(
-      const mojom::RequestParams& params,
+      const mojom::RequestParams& params_without_args,
+      base::ListValue arguments,
       const Extension* extension,
       int requesting_process_id,
       bool is_worker_request,
@@ -132,7 +133,7 @@ class ExtensionFunctionDispatcher {
       content::RenderFrameHost* render_frame_host);
 
   void DispatchWithCallbackInternal(
-      const mojom::RequestParams& params,
+      mojom::RequestParamsPtr params,
       content::RenderFrameHost* render_frame_host,
       content::RenderProcessHost& render_process_host,
       ExtensionFunction::ResponseCallback callback);

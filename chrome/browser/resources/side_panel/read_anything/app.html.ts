@@ -45,15 +45,21 @@ export function getHtml(this: AppElement) {
         id="toolbar">
     </read-anything-toolbar>
   </div>
-  <div id="containerParent" class="sp-card sp-scroller"
+  <div id="containerParent" class="sp-card"
       ?hidden="${!this.hasContent_}">
-    <div id="container"
-        class="user-select-disabled-when-speech-active-${this.isSpeechActive_}">
+    <div id="containerScroller" class="sp-scroller"
+        @scroll="${this.onContainerScroll_}"
+        @scrollend="${this.onContainerScrollEnd_}">
+      <div id="container"
+        class=
+          "user-select-disabled-when-speech-active-${this.isSpeechActive_}">
+      </div>
     </div>
+    <!-- TODO: crbug.com/324143642- Localize the "Load More" string. -->
     <cr-button id="docs-load-more-button" tabindex="0"
         @click="${this.onDocsLoadMoreButtonClick_}"
         ?hidden="${!this.isDocsLoadMoreButtonVisible_}">
-        Load More
+      Load More
     </cr-button>
   </div>
   <div id="empty-state-container" ?hidden="${this.hasContent_}">

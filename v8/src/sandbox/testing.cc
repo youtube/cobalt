@@ -10,6 +10,7 @@
 #include "src/execution/isolate-inl.h"
 #include "src/heap/factory.h"
 #include "src/objects/backing-store.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/templates.h"
 #include "src/sandbox/sandbox.h"
@@ -17,12 +18,24 @@
 #ifdef V8_OS_LINUX
 #include <signal.h>
 #include <sys/mman.h>
+#include <sys/ucontext.h>
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
 #ifdef V8_USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
 #endif  // V8_USE_ADDRESS_SANITIZER
+#ifdef V8_USE_MEMORY_SANITIZER
+#include <sanitizer/msan_interface.h>
+#endif  // V8_USE_MEMORY_SANITIZER
+#ifdef V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
+#include <sanitizer/ubsan_interface.h>
+#endif  // V8_USE_UNDEFINED_BEHAVIOR_SANITIZER
+
+#if defined(V8_USE_ADDRESS_SANITIZER) || defined(V8_USE_MEMORY_SANITIZER) || \
+    defined(V8_USE_UNDEFINED_BEHAVIOR_SANITIZER)
+#define V8_USE_ANY_SANITIZER 1
+#endif
 
 namespace v8 {
 namespace internal {
@@ -563,14 +576,14 @@ void UninstallCrashFilter() {
   sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
 
   // We should also uninstall the sanitizer death callback as our crash filter
-  // may hand a crash over to ASan, which should then not enter our crash
+  // may hand a crash over to sanitizers, which should then not enter our crash
   // filtering logic a second time.
-#ifdef V8_USE_ADDRESS_SANITIZER
+#ifdef V8_USE_ANY_SANITIZER
   __sanitizer_set_death_callback(nullptr);
-#endif
+#endif  // V8_USE_ANY_SANITIZER
 }
 
-void CrashFilter(int signal, siginfo_t* info, void* void_context) {
+void CrashFilter(int signal, siginfo_t* info, void* context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
 
@@ -702,31 +715,50 @@ void CrashFilter(int signal, siginfo_t* info, void* void_context) {
   UninstallCrashFilter();
 
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
+
+#ifdef V8_HOST_ARCH_X64
+  ucontext_t* ctx = reinterpret_cast<ucontext_t*>(context);
+  // Matches X86_PF_WRITE in x86_pf_error_code.
+  static constexpr greg_t kWriteAccessBit = 1;
+  const bool write_access =
+      ctx->uc_mcontext.gregs[REG_ERR] & (1 << kWriteAccessBit);
+  if (!write_access) {
+    PrintToStderr(
+        "Access type was read though which is technically not a sandbox "
+        "violation. This requires manual investigation.\n");
+  }
+#endif  // V8_HOST_ARCH_X64
 }
 
+#ifdef V8_USE_ANY_SANITIZER
+void SanitizerFaultHandler() {
 #ifdef V8_USE_ADDRESS_SANITIZER
-void AsanFaultHandler() {
-  Address faultaddr = reinterpret_cast<Address>(__asan_get_report_address());
+  if (__asan_report_present()) {
+    Address faultaddr = reinterpret_cast<Address>(__asan_get_report_address());
 
-  if (faultaddr == kNullAddress) {
-    FilterCrash(
-        "Caught ASan fault without a fault address. Ignoring it as we cannot "
-        "check if it is a sandbox violation. Exiting process...\n");
+    if (faultaddr == kNullAddress) {
+      FilterCrash(
+          "Caught ASan fault without a fault address. Ignoring it as we cannot "
+          "check if it is a sandbox violation. Exiting process...\n");
+    }
+
+    if (Sandbox::current()->Contains(faultaddr)) {
+      FilterCrash(
+          "Caught harmless ASan fault (inside sandbox address space). Exiting "
+          "process...\n");
+    }
   }
+#endif  // V8_USE_ADDRESS_SANITIZER
 
-  if (Sandbox::current()->Contains(faultaddr)) {
-    FilterCrash(
-        "Caught harmless ASan fault (inside sandbox address space). Exiting "
-        "process...\n");
-  }
-
-  // Asan may report the failure via abort(), so we should also restore the
-  // original signal handlers here.
+  // Sanitizers may report the failure via abort(), so we should also restore
+  // the original signal handlers here.
   UninstallCrashFilter();
 
+  // In case of a sanitizer issue we opt for conservatively reporting a sandbox
+  // violation that needs to be investigated.
   PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 }
-#endif  // V8_USE_ADDRESS_SANITIZER
+#endif  // V8_USE_ANY_SANITIZER
 
 void InstallCrashFilter() {
   // Register an alternate stack for signal delivery so that signal handlers
@@ -735,17 +767,7 @@ void InstallCrashFilter() {
   // Note that the alternate stack is currently only registered for the main
   // thread. Stack pointer corruption or stack overflows on background threads
   // may therefore still cause the signal handler to crash.
-  VirtualAddressSpace* vas = GetPlatformVirtualAddressSpace();
-  Address alternate_stack =
-      vas->AllocatePages(VirtualAddressSpace::kNoHint, SIGSTKSZ,
-                         vas->page_size(), PagePermissions::kReadWrite);
-  CHECK_NE(alternate_stack, kNullAddress);
-  stack_t signalstack = {
-      .ss_sp = reinterpret_cast<void*>(alternate_stack),
-      .ss_flags = 0,
-      .ss_size = static_cast<size_t>(SIGSTKSZ),
-  };
-  CHECK_EQ(sigaltstack(&signalstack, nullptr), 0);
+  base::OS::EnsureAlternativeSignalStackIsAvailableForCurrentThread();
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));
@@ -760,13 +782,14 @@ void InstallCrashFilter() {
   success &= (sigaction(SIGSEGV, &action, &g_old_sigsegv_handler) == 0);
   CHECK(success);
 
-#if defined(V8_USE_ADDRESS_SANITIZER)
-  __sanitizer_set_death_callback(&AsanFaultHandler);
-#elif defined(V8_USE_MEMORY_SANITIZER) || \
-    defined(V8_USE_UNDEFINED_BEHAVIOR_SANITIZER)
-  // TODO(saelo): can we also test for the other sanitizers here somehow?
-  FATAL("The sandbox crash filter currently only supports AddressSanitizer");
-#endif
+#ifdef V8_USE_ANY_SANITIZER
+  // We install sanitizer specific crash handlers. These can only check for
+  // in-sandbox crashes on certain configurations.
+  //
+  // The crash handler also resets the signal handler as sanitizer may use
+  // `abort()` via `abort_on_error=1` option to signal problems.
+  __sanitizer_set_death_callback(&SanitizerFaultHandler);
+#endif  // V8_USE_ANY_SANITIZER
 }
 
 #endif  // V8_OS_LINUX
@@ -812,11 +835,16 @@ SandboxTesting::InstanceTypeMap& SandboxTesting::GetInstanceTypeMap() {
     types["CONS_ONE_BYTE_STRING_TYPE"] = CONS_ONE_BYTE_STRING_TYPE;
     types["SHARED_FUNCTION_INFO_TYPE"] = SHARED_FUNCTION_INFO_TYPE;
     types["SCRIPT_TYPE"] = SCRIPT_TYPE;
+    types["JS_PROMISE_TYPE"] = JS_PROMISE_TYPE;
+    types["PROMISE_REACTION"] = PROMISE_REACTION_TYPE;
+    types["JS_FUNCTION"] = JS_FUNCTION_TYPE;
+    types["SHARED_FUNCTION_INFO"] = SHARED_FUNCTION_INFO_TYPE;
 #ifdef V8_ENABLE_WEBASSEMBLY
     types["WASM_MODULE_OBJECT_TYPE"] = WASM_MODULE_OBJECT_TYPE;
     types["WASM_INSTANCE_OBJECT_TYPE"] = WASM_INSTANCE_OBJECT_TYPE;
     types["WASM_FUNC_REF_TYPE"] = WASM_FUNC_REF_TYPE;
     types["WASM_TABLE_OBJECT_TYPE"] = WASM_TABLE_OBJECT_TYPE;
+    types["WASM_RESUME_DATA"] = WASM_RESUME_DATA_TYPE;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return types;
@@ -839,7 +867,6 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         JSFunction::kSharedFunctionInfoOffset;
     fields[JS_ARRAY_TYPE]["elements"] = JSArray::kElementsOffset;
     fields[JS_ARRAY_TYPE]["length"] = JSArray::kLengthOffset;
-    fields[JS_TYPED_ARRAY_TYPE]["length"] = JSTypedArray::kRawLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_length"] =
         JSTypedArray::kRawByteLengthOffset;
     fields[JS_TYPED_ARRAY_TYPE]["byte_offset"] =
@@ -869,6 +896,14 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         SharedFunctionInfo::kFormalParameterCountOffset;
     fields[SCRIPT_TYPE]["wasm_managed_native_module"] =
         Script::kEvalFromPositionOffset;
+    fields[JS_PROMISE_TYPE]["reactions_or_result"] =
+        JSPromise::kReactionsOrResultOffset;
+    fields[PROMISE_REACTION_TYPE]["fulfill_handler"] =
+        PromiseReaction::kFulfillHandlerOffset;
+    fields[JS_FUNCTION_TYPE]["shared_function_info"] =
+        JSFunction::kSharedFunctionInfoOffset;
+    fields[SHARED_FUNCTION_INFO_TYPE]["function_data"] =
+        SharedFunctionInfo::kUntrustedFunctionDataOffset;
 #ifdef V8_ENABLE_WEBASSEMBLY
     fields[WASM_MODULE_OBJECT_TYPE]["managed_native_module"] =
         WasmModuleObject::kManagedNativeModuleOffset;
@@ -884,6 +919,8 @@ SandboxTesting::FieldOffsetMap& SandboxTesting::GetFieldOffsetMap() {
         WasmTableObject::kMaximumLengthOffset;
     fields[WASM_TABLE_OBJECT_TYPE]["raw_type"] =
         WasmTableObject::kRawTypeOffset;
+    fields[WASM_RESUME_DATA_TYPE]["trusted_suspender"] =
+        WasmResumeData::kTrustedSuspenderOffset;
 #endif  // V8_ENABLE_WEBASSEMBLY
   }
   return fields;

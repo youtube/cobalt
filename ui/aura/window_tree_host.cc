@@ -14,6 +14,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/observer_list.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -609,9 +610,7 @@ void WindowTreeHost::OnHostResizedInPixels(
   // from GetBoundsInPixels() on Windows to contain extra space for window
   // transition animations and should be used to set compositor size instead of
   // GetBoundsInPixels() in such case.
-#if !BUILDFLAG(IS_STARBOARD)
   UpdateCompositorScaleAndSize(new_size_in_pixels);
-#endif
 
   observers_.Notify(&WindowTreeHostObserver::OnHostResized, this);
 }

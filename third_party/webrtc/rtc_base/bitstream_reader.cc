@@ -10,9 +10,9 @@
 
 #include "rtc_base/bitstream_reader.h"
 
-#include <stdint.h>
-
-#include <limits>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 
 #include "absl/numeric/bits.h"
 #include "rtc_base/checks.h"

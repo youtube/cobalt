@@ -1078,8 +1078,10 @@ void SourceBuffer::ChangeType_Locked(
   //    previously) of SourceBuffer objects in the sourceBuffers attribute of
   //    the parent media source, then throw a NotSupportedError exception and
   //    abort these steps.
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   ContentType content_type(type);
   String codecs = content_type.Parameter("codecs");
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(wolenetz): Refactor and use a less-strict version of isTypeSupported
   // here. As part of that, CanChangeType in Chromium should inherit relaxation
   // of impl's StreamParserFactory (since it returns true iff a stream parser
@@ -1087,7 +1089,11 @@ void SourceBuffer::ChangeType_Locked(
   if (!MediaSource::IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* allow underspecified codecs in |type| */) ||
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      !web_source_buffer_->CanChangeType(type)) {
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
       !web_source_buffer_->CanChangeType(content_type.GetType(), codecs)) {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     MediaSource::LogAndThrowDOMException(
         *exception_state, DOMExceptionCode::kNotSupportedError,
         "Changing to the type provided ('" + type + "') is not supported.");
@@ -1108,7 +1114,11 @@ void SourceBuffer::ChangeType_Locked(
   //    value in the "Generate Timestamps Flag" column of the byte stream format
   //    registry entry that is associated with type.
   // This call also updates the pipeline to switch bytestream parser and codecs.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  web_source_buffer_->ChangeType(type);
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   web_source_buffer_->ChangeType(content_type.GetType(), codecs);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // 8. If the generate timestamps flag equals true: Set the mode attribute on
   //    this SourceBuffer object to "sequence", including running the associated
@@ -1392,7 +1402,7 @@ T* FindExistingTrackById(const TrackListBase<T>& track_list, const String& id) {
 }
 
 const TrackDefault* SourceBuffer::GetTrackDefault(
-    const AtomicString& track_type,
+    V8TrackDefaultType::Enum track_type,
     const AtomicString& byte_stream_track_id) const {
   // This is a helper for implementation of default track label and default
   // track language algorithms.
@@ -1425,7 +1435,7 @@ const TrackDefault* SourceBuffer::GetTrackDefault(
 }
 
 AtomicString SourceBuffer::DefaultTrackLabel(
-    const AtomicString& track_type,
+    V8TrackDefaultType::Enum track_type,
     const AtomicString& byte_stream_track_id) const {
   // Spec: https://w3c.github.io/media-source/#sourcebuffer-default-track-label
   const TrackDefault* track_default =
@@ -1434,7 +1444,7 @@ AtomicString SourceBuffer::DefaultTrackLabel(
 }
 
 AtomicString SourceBuffer::DefaultTrackLanguage(
-    const AtomicString& track_type,
+    V8TrackDefaultType::Enum track_type,
     const AtomicString& byte_stream_track_id) const {
   // Spec:
   // https://w3c.github.io/media-source/#sourcebuffer-default-track-language
@@ -1469,13 +1479,13 @@ void SourceBuffer::AddPlaceholderCrossThreadTracks(
     if (track_info.track_type == WebMediaPlayer::kAudioTrack) {
       WebString label = track_info.label;
       if (label.IsEmpty()) {
-        label = DefaultTrackLabel(TrackDefault::AudioKeyword(),
+        label = DefaultTrackLabel(V8TrackDefaultType::Enum::kAudio,
                                   track_info.byte_stream_track_id);
       }
 
       WebString language = track_info.language;
       if (language.IsEmpty()) {
-        language = DefaultTrackLanguage(TrackDefault::AudioKeyword(),
+        language = DefaultTrackLanguage(V8TrackDefaultType::Enum::kAudio,
                                         track_info.byte_stream_track_id);
       }
 
@@ -1491,13 +1501,13 @@ void SourceBuffer::AddPlaceholderCrossThreadTracks(
     } else if (track_info.track_type == WebMediaPlayer::kVideoTrack) {
       WebString label = track_info.label;
       if (label.IsEmpty()) {
-        label = DefaultTrackLabel(TrackDefault::VideoKeyword(),
+        label = DefaultTrackLabel(V8TrackDefaultType::Enum::kVideo,
                                   track_info.byte_stream_track_id);
       }
 
       WebString language = track_info.language;
       if (language.IsEmpty()) {
-        language = DefaultTrackLanguage(TrackDefault::VideoKeyword(),
+        language = DefaultTrackLanguage(V8TrackDefaultType::Enum::kVideo,
                                         track_info.byte_stream_track_id);
       }
       attachment->AddMainThreadVideoTrackToMediaElement(
@@ -1706,7 +1716,7 @@ bool SourceBuffer::InitializationSegmentReceived(
       //       to "audio" and assign the value returned by the algorithm to
       //       audio language.
       if (language.IsEmpty() || language == "und")
-        language = DefaultTrackLanguage(TrackDefault::AudioKeyword(),
+        language = DefaultTrackLanguage(V8TrackDefaultType::Enum::kAudio,
                                         byte_stream_track_id);
       // 5.2.4 Let audio label be a label specified in the initialization
       //       segment for this track or an empty string if no label info is
@@ -1717,7 +1727,7 @@ bool SourceBuffer::InitializationSegmentReceived(
       //       track ID and type set to "audio" and assign the value returned by
       //       the algorithm to audio label.
       if (label.IsEmpty())
-        label = DefaultTrackLabel(TrackDefault::AudioKeyword(),
+        label = DefaultTrackLabel(V8TrackDefaultType::Enum::kAudio,
                                   byte_stream_track_id);
       // 5.2.6 Let audio kinds be an array of kind strings specified in the
       //       initialization segment for this track or an empty array if no
@@ -1769,7 +1779,7 @@ bool SourceBuffer::InitializationSegmentReceived(
       //       to "video" and assign the value returned by the algorithm to
       //       video language.
       if (language.IsEmpty() || language == "und")
-        language = DefaultTrackLanguage(TrackDefault::VideoKeyword(),
+        language = DefaultTrackLanguage(V8TrackDefaultType::Enum::kVideo,
                                         byte_stream_track_id);
       // 5.3.4 Let video label be a label specified in the initialization
       //       segment for this track or an empty string if no label info is
@@ -1780,7 +1790,7 @@ bool SourceBuffer::InitializationSegmentReceived(
       //       track ID and type set to "video" and assign the value returned by
       //       the algorithm to video label.
       if (label.IsEmpty())
-        label = DefaultTrackLabel(TrackDefault::VideoKeyword(),
+        label = DefaultTrackLabel(V8TrackDefaultType::Enum::kVideo,
                                   byte_stream_track_id);
       // 5.3.6 Let video kinds be an array of kind strings specified in the
       //       initialization segment for this track or an empty array if no

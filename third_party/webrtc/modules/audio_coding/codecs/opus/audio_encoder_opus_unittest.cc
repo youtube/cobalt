@@ -25,6 +25,7 @@
 #include "api/audio_codecs/opus/audio_encoder_opus_config.h"
 #include "api/call/bitrate_allocation.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/field_trials_view.h"
 #include "api/rtp_parameters.h"
 #include "api/units/data_rate.h"
@@ -39,14 +40,13 @@
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/fake_clock.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 namespace {
-using test::ExplicitKeyValueConfig;
 using ::testing::NiceMock;
 using ::testing::Return;
 
@@ -282,8 +282,7 @@ TEST_P(AudioEncoderOpusTest,
 
 TEST_P(AudioEncoderOpusTest,
        InvokeAudioNetworkAdaptorOnReceivedUplinkBandwidth) {
-  ExplicitKeyValueConfig field_trials(
-      "WebRTC-Audio-StableTargetAdaptation/Disabled/");
+  FieldTrials field_trials = CreateTestFieldTrials("");
   auto states = CreateCodec(sample_rate_hz_, 2, &field_trials);
   states->encoder->EnableAudioNetworkAdaptor("", nullptr);
 
@@ -316,12 +315,10 @@ TEST_P(AudioEncoderOpusTest,
 
   BitrateAllocationUpdate update;
   update.target_bitrate = DataRate::BitsPerSec(30000);
-  update.stable_target_bitrate = DataRate::BitsPerSec(20000);
   update.bwe_period = TimeDelta::Millis(200);
   EXPECT_CALL(*states->mock_audio_network_adaptor,
               SetTargetAudioBitrate(update.target_bitrate.bps()));
-  EXPECT_CALL(*states->mock_audio_network_adaptor,
-              SetUplinkBandwidth(update.stable_target_bitrate.bps()));
+
   states->encoder->OnReceivedUplinkAllocation(update);
 
   CheckEncoderRuntimeConfig(states->encoder.get(), config);
@@ -503,8 +500,7 @@ TEST_P(AudioEncoderOpusTest, EmptyConfigDoesNotAffectEncoderSettings) {
 }
 
 TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
-  ExplicitKeyValueConfig field_trials(
-      "WebRTC-Audio-StableTargetAdaptation/Disabled/");
+  FieldTrials field_trials = CreateTestFieldTrials("");
   auto states = CreateCodec(sample_rate_hz_, 2, &field_trials);
   states->encoder->EnableAudioNetworkAdaptor("", nullptr);
   const size_t opus_rate_khz = CheckedDivExact(sample_rate_hz_, 1000);

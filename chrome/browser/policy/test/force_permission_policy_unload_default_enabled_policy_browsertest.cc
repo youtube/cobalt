@@ -5,6 +5,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/policy/policy_test_utils.h"
 #include "components/policy/policy_constants.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -70,7 +71,7 @@ INSTANTIATE_TEST_SUITE_P(
     &ForcePermissionPolicyUnloadDefaultEnabledPolicyBrowserTest::
         DescribeParams);
 
-// Enabled unload deprecation and the tests that unload events continue to fire
+// Enables unload deprecation and then tests that unload events continue to fire
 // if the enterprise policy requests that.
 IN_PROC_BROWSER_TEST_P(
     ForcePermissionPolicyUnloadDefaultEnabledPolicyBrowserTest,

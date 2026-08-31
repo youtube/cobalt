@@ -50,6 +50,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) WebTransport final
       const net::NetworkAnonymizationKey& key,
       const std::vector<mojom::WebTransportCertificateFingerprintPtr>&
           fingerprints,
+      const std::vector<std::string>& application_protocols,
       NetworkContext* context,
       mojo::PendingRemote<mojom::WebTransportHandshakeClient> handshake_client);
   ~WebTransport() override;
@@ -72,6 +73,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) WebTransport final
   void Close(mojom::WebTransportCloseInfoPtr close_info) override;
 
   // WebTransportClientVisitor implementation:
+  void OnBeforeConnect(const net::IPEndPoint& server_address) override;
   void OnConnected(
       scoped_refptr<net::HttpResponseHeaders> response_headers) override;
   void OnConnectionFailed(const net::WebTransportError& error) override;

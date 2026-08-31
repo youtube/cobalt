@@ -10,7 +10,6 @@
 #include "content/public/browser/child_process_id.h"
 
 namespace content {
-class BrowserMessageFilter;
 class RenderProcessHost;
 
 namespace bad_message {
@@ -352,10 +351,16 @@ enum BadMessageReason {
   MDDH_SET_PREFERRED_SINK_ID_WITHOUT_FEATURE = 323,
   MH_MULTIPLE_MIDI_SESSIONS = 324,
   RFHI_INVALID_NET_ERROR_CODE = 325,
-  MSDH_DISABLED_FEATURE_IS_SET = 326,
+  MSDH_RESTRICT_OWN_AUDIO_IS_SET_WHEN_UNSUPPORTED = 326,
+  RFH_SAME_DOC_INSECURE_REQUEST_POLICY_CHANGE = 327,
+  RFH_SAME_DOC_INSECURE_NAV_SET_CHANGE = 328,
+  RFH_ORIGIN_TO_COMMIT_MISMATCH = 329,
+  RFH_CRASH_REPORT_STORAGE_SIZE_TOO_LARGE = 330,
+  RFH_CRASH_REPORT_STORAGE_ALREADY_INITIALIZED = 331,
+
   // Please add new elements here. The naming convention is abbreviated class
   // name (e.g. RenderFrameHost becomes RFH) plus a unique description of the
-  // reason. After making changes, you MUST update histograms.xml by running:
+  // reason. After making changes, you MUST update enums.xml by running:
   // "python tools/metrics/histograms/update_bad_message_reasons.py"
   BAD_MESSAGE_MAX
 };
@@ -372,13 +377,6 @@ void ReceivedBadMessage(ChildProcessId render_process_id,
 // TODO(crbug.com/379869738): Deprecated, please use ReceivedBadMessage with
 // ChildProcessId above.
 void ReceivedBadMessage(int render_process_id, BadMessageReason reason);
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-// Called when a browser message filter receives a bad IPC message from a
-// renderer or other child process. Logs the event, records a histogram metric
-// for the |reason|, and terminates the process for |filter|.
-void ReceivedBadMessage(BrowserMessageFilter* filter, BadMessageReason reason);
-#endif
 
 // Site isolation. These keys help debug renderer kills such as
 // https://crbug.com/773140.

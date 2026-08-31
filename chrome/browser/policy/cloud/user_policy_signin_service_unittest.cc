@@ -27,7 +27,6 @@
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/signin/test_signin_client_builder.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/account_id/account_id.h"
@@ -142,7 +141,7 @@ class UserPolicySigninServiceTest : public testing::Test {
         test_url_loader_factory_.GetSafeWeakWrapper());
 
     g_browser_process->browser_policy_connector()->Init(
-        scoped_testing_local_state_.Get(),
+        TestingBrowserProcess::GetGlobal()->local_state(),
         test_url_loader_factory_.GetSafeWeakWrapper());
 
     // Create a testing profile with cloud-policy-on-signin enabled, and bring
@@ -184,9 +183,6 @@ class UserPolicySigninServiceTest : public testing::Test {
     // Free the profile before we clear out the browser prefs.
     identity_test_env_adaptor_.reset();
     profile_.reset();
-    TestingBrowserProcess* testing_browser_process =
-        TestingBrowserProcess::GetGlobal();
-    testing_browser_process->ShutdownBrowserPolicyConnector();
     base::RunLoop run_loop;
     run_loop.RunUntilIdle();
   }
@@ -245,7 +241,7 @@ class UserPolicySigninServiceTest : public testing::Test {
 
     // Sign in to Chrome.
     identity_test_env()->SetPrimaryAccount(kTestUser,
-                                           signin::ConsentLevel::kSync);
+                                           signin::ConsentLevel::kSignin);
 
     // Mimic successful oauth token fetch.
     MakeOAuthTokenFetchSucceed();
@@ -321,8 +317,6 @@ class UserPolicySigninServiceTest : public testing::Test {
   FakeDeviceManagementService device_management_service_{
       &job_creation_handler_};
 
-  ScopedTestingLocalState scoped_testing_local_state_{
-      TestingBrowserProcess::GetGlobal()};
   network::TestURLLoaderFactory test_url_loader_factory_;
 
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -336,7 +330,7 @@ class UserPolicySigninServiceSignedInTest : public UserPolicySigninServiceTest {
 
     // Set the user as signed in.
     identity_test_env()->SetPrimaryAccount(kTestUser,
-                                           signin::ConsentLevel::kSync);
+                                           signin::ConsentLevel::kSignin);
 
     // Let the SigninService know that the profile has been created.
 #if BUILDFLAG(IS_ANDROID)
@@ -379,7 +373,7 @@ TEST_F(UserPolicySigninServiceTest, InitRefreshTokenAvailableBeforeSignin) {
 
   // Sign in to Chrome.
   identity_test_env()->SetPrimaryAccount(kTestUser,
-                                         signin::ConsentLevel::kSync);
+                                         signin::ConsentLevel::kSignin);
 
   // Complete initialization of the store.
   mock_store_->NotifyStoreLoaded();
@@ -448,7 +442,7 @@ TEST_F(UserPolicySigninServiceTest, SignInAfterInit) {
 
   // Now sign in the user.
   identity_test_env()->SetPrimaryAccount(kTestUser,
-                                         signin::ConsentLevel::kSync);
+                                         signin::ConsentLevel::kSignin);
 
   // Complete initialization of the store.
   mock_store_->NotifyStoreLoaded();
@@ -472,7 +466,7 @@ TEST_F(UserPolicySigninServiceTest, SignInWithNonEnterpriseUser) {
 
   // Now sign in a non-enterprise user (gmail.com domain).
   identity_test_env()->SetPrimaryAccount("non_enterprise_user@gmail.com",
-                                         signin::ConsentLevel::kSync);
+                                         signin::ConsentLevel::kSignin);
 
   // Complete initialization of the store.
   mock_store_->NotifyStoreLoaded();
@@ -494,7 +488,7 @@ TEST_F(UserPolicySigninServiceTest, UnregisteredClient) {
 
   // Now sign in the user.
   identity_test_env()->SetPrimaryAccount(kTestUser,
-                                         signin::ConsentLevel::kSync);
+                                         signin::ConsentLevel::kSignin);
 
   // Make oauth token available.
   identity_test_env()->SetRefreshTokenForPrimaryAccount();
@@ -522,7 +516,7 @@ TEST_F(UserPolicySigninServiceTest, RegisteredClient) {
 
   // Now sign in the user.
   identity_test_env()->SetPrimaryAccount(kTestUser,
-                                         signin::ConsentLevel::kSync);
+                                         signin::ConsentLevel::kSignin);
 
   // Make oauth token available.
   identity_test_env()->SetRefreshTokenForPrimaryAccount();

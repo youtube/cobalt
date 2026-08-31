@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_WEBID_FEDCM_ACCOUNT_SELECTION_VIEW_DESKTOP_H_
 #define CHROME_BROWSER_UI_VIEWS_WEBID_FEDCM_ACCOUNT_SELECTION_VIEW_DESKTOP_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_observer.h"
 #include "chrome/browser/picture_in_picture/scoped_picture_in_picture_occlusion_observation.h"
@@ -119,8 +120,12 @@ class FedCmAccountSelectionView : public AccountSelectionView,
   // this method from being called.
   void OnPopupWindowDestroyed() override;
 
-  // Programmatically closes the widget. This is never from user action.
-  void Close(bool notify_delegate);
+  // Close always destroys the widget. If `hide_widget` is true, the contents
+  // view is extracted from the widget and parked (see comment for
+  // parked_dialog_view_). This view is possibly used later if the dialog is
+  // recreated and shown with the same content. This is never called from a user
+  // action.
+  void Close(bool notify_delegate, bool hide_widget);
 
   // content::WebContentsObserver
   void PrimaryPageChanged(content::Page& page) override;
@@ -200,6 +205,9 @@ class FedCmAccountSelectionView : public AccountSelectionView,
   // Gets the dialog widget from the account selection view, if available.
   // Otherwise, return a nullptr.
   views::Widget* GetDialogWidget();
+
+  // Returns whether the dialog widget exists and is visible.
+  bool IsDialogWidgetVisible() const;
 
   // Called when the tab will be removed from the window.
   // Public for testing.
@@ -393,7 +401,9 @@ class FedCmAccountSelectionView : public AccountSelectionView,
 
   // Synchronously closes dialog_widget_. This method can result in synchronous
   // destruction of `this`.
-  void CloseWidget(bool notify_delegate, views::Widget::ClosedReason reason);
+  void CloseWidget(bool notify_delegate,
+                   views::Widget::ClosedReason reason,
+                   bool hide_widget);
 
   // Called when the user closes the dialog. This is called by
   // OnCloseButtonClicked() if the user clicks the close button, and directly

@@ -50,7 +50,7 @@ class ScopedAmountOfPhysicalMemoryOverride;
 }
 
 class FilePath;
-struct SystemMemoryInfoKB;
+struct SystemMemoryInfo;
 
 class BASE_EXPORT SysInfo {
  public:
@@ -297,6 +297,11 @@ class BASE_EXPORT SysInfo {
 
   // Returns the Android hardware EGL system property.
   static std::string GetAndroidHardwareEGL();
+
+  // Returns the Android hardware class system property. Unlike individual
+  // component Hardware ID, this is at a device level to capture a class of
+  // devices with similar hardware components.
+  static std::string GetAndroidHardwareClass();
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_IOS)
@@ -369,7 +374,7 @@ class BASE_EXPORT SysInfo {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_AIX)
   static uint64_t AmountOfAvailablePhysicalMemory(
-      const SystemMemoryInfoKB& meminfo);
+      const SystemMemoryInfo& meminfo);
 #endif
 
   // Sets the amount of physical memory in MB for testing, thus allowing tests

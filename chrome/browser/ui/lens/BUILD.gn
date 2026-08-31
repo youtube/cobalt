@@ -11,6 +11,7 @@ source_set("lens") {
   # The public interface is intentionally minimal. There should be a small
   # number of entry points and publicly used headers.
   public = [
+    "lens_composebox_controller.h",
     "lens_overlay_controller.h",
     "lens_overlay_entry_point_controller.h",
     "lens_overlay_gen204_controller.h",
@@ -20,9 +21,11 @@ source_set("lens") {
     "lens_search_controller.h",
     "lens_searchbox_controller.h",
     "lens_side_panel_untrusted_ui.h",
+    "lens_string_utils.h",
   ]
   friend = [ ":*" ]
   sources = [
+    "lens_composebox_handler.h",
     "lens_help_menu_utils.h",
     "lens_overlay_blur_layer_delegate.h",
     "lens_overlay_colors.h",
@@ -31,7 +34,6 @@ source_set("lens") {
     "lens_overlay_languages_controller.h",
     "lens_overlay_proto_converter.h",
     "lens_overlay_query_controller.h",
-    "lens_overlay_request_id_generator.h",
     "lens_overlay_side_panel_coordinator.h",
     "lens_overlay_side_panel_web_view.h",
     "lens_overlay_theme_utils.h",
@@ -40,10 +42,10 @@ source_set("lens") {
     "lens_permission_bubble_controller.h",
     "lens_preselection_bubble.h",
     "lens_search_contextualization_controller.h",
+    "lens_search_feature_flag_utils.h",
     "lens_session_metrics_logger.h",
     "lens_url_matcher.h",
     "page_content_type_conversions.h",
-    "ref_counted_lens_overlay_client_logs.h",
   ]
 
   public_deps = [
@@ -59,6 +61,7 @@ source_set("lens") {
     "//chrome/browser/ui/views/side_panel",
     "//chrome/browser/ui/webui/searchbox",
     "//chrome/browser/ui/webui/top_chrome",
+    "//components/content_extraction/content/browser",
     "//components/endpoint_fetcher",
     "//components/find_in_page",
     "//components/lens",
@@ -68,6 +71,7 @@ source_set("lens") {
     "//content/public/browser",
     "//third_party/lens_server_proto:lens_overlay_proto",
     "//ui/base/mojom:ui_base_types",
+    "//ui/base/unowned_user_data",
     "//ui/views",
   ]
 
@@ -81,6 +85,8 @@ source_set("lens") {
 
 source_set("impl") {
   sources = [
+    "lens_composebox_controller.cc",
+    "lens_composebox_handler.cc",
     "lens_help_menu_utils.cc",
     "lens_overlay_blur_layer_delegate.cc",
     "lens_overlay_controller.cc",
@@ -91,7 +97,6 @@ source_set("impl") {
     "lens_overlay_languages_controller.cc",
     "lens_overlay_proto_converter.cc",
     "lens_overlay_query_controller.cc",
-    "lens_overlay_request_id_generator.cc",
     "lens_overlay_side_panel_coordinator.cc",
     "lens_overlay_side_panel_navigation_throttle.cc",
     "lens_overlay_side_panel_web_view.cc",
@@ -102,9 +107,11 @@ source_set("impl") {
     "lens_preselection_bubble.cc",
     "lens_search_contextualization_controller.cc",
     "lens_search_controller.cc",
+    "lens_search_feature_flag_utils.cc",
     "lens_searchbox_controller.cc",
     "lens_session_metrics_logger.cc",
     "lens_side_panel_untrusted_ui.cc",
+    "lens_string_utils.cc",
     "lens_url_matcher.cc",
     "page_content_type_conversions.cc",
   ]
@@ -116,6 +123,7 @@ source_set("impl") {
     "//chrome/app/theme:theme_resources_grit",
     "//chrome/app/vector_icons",
     "//chrome/browser:browser_process",
+    "//chrome/browser:global_features",
     "//chrome/browser:primitives",
     "//chrome/browser/feedback",
     "//chrome/browser/lens/region_search",
@@ -141,6 +149,7 @@ source_set("impl") {
     "//chrome/browser/ui/webui/util",
     "//chrome/common",
     "//chrome/common:channel_info",
+    "//components/application_locale_storage",
     "//components/base32",
     "//components/constrained_window",
     "//components/feature_engagement/public",
@@ -149,7 +158,7 @@ source_set("impl") {
     "//components/lens:enterprise_policy",
     "//components/lens:features",
     "//components/lens/proto/server:proto",
-    "//components/metrics_services_manager:metrics_services_manager",
+    "//components/metrics_services_manager",
     "//components/optimization_guide/content/browser",
     "//components/optimization_guide/content/browser:page_context_eligibility",
     "//components/prefs",
@@ -162,7 +171,7 @@ source_set("impl") {
     "//components/variations",
     "//components/variations:variations_mojom",
     "//components/version_info:channel",
-    "//components/web_modal:web_modal",
+    "//components/web_modal",
     "//components/zoom",
     "//google_apis",
     "//google_apis/common",
@@ -205,6 +214,8 @@ source_set("test_support") {
     "test_lens_overlay_query_controller.h",
     "test_lens_overlay_side_panel_coordinator.cc",
     "test_lens_overlay_side_panel_coordinator.h",
+    "test_lens_search_contextualization_controller.cc",
+    "test_lens_search_contextualization_controller.h",
     "test_lens_search_controller.cc",
     "test_lens_search_controller.h",
   ]
@@ -243,6 +254,7 @@ source_set("browser_tests") {
     "//chrome/browser/ui/find_bar",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/hats:test_support",
+    "//chrome/browser/ui/location_bar",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/browser/ui/views/page_action",
     "//chrome/browser/ui/views/side_panel",
@@ -268,6 +280,7 @@ source_set("browser_tests") {
     "//third_party/lens_server_proto:lens_overlay_proto",
     "//ui/base",
     "//ui/base:types",
+    "//ui/base/unowned_user_data",
     "//ui/compositor",
     "//ui/events:events_base",
     "//ui/views",
@@ -278,6 +291,10 @@ source_set("browser_tests") {
   if (enable_pdf) {
     deps += [ "//chrome/browser/pdf" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("interactive_ui_tests") {
@@ -294,6 +311,7 @@ source_set("interactive_ui_tests") {
     "//chrome/browser",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search_engines",
+    "//chrome/browser/signin",
     "//chrome/browser/sync",
     "//chrome/browser/themes",
     "//chrome/browser/ui",
@@ -311,7 +329,7 @@ source_set("interactive_ui_tests") {
     "//testing/gtest",
   ]
   if (enable_pdf) {
-    deps += [ "//components/pdf/browser:browser" ]
+    deps += [ "//components/pdf/browser" ]
   }
 }
 
@@ -323,7 +341,6 @@ source_set("unit_tests") {
     "lens_overlay_languages_controller_unittest.cc",
     "lens_overlay_proto_converter_unittest.cc",
     "lens_overlay_query_controller_unittest.cc",
-    "lens_overlay_request_id_generator_unittest.cc",
     "lens_overlay_side_panel_navigation_throttle_unittest.cc",
     "lens_overlay_url_builder_unittest.cc",
     "lens_url_matcher_unittest.cc",
@@ -337,6 +354,7 @@ source_set("unit_tests") {
     "//chrome/browser:browser_process",
     "//chrome/browser/lens/core/mojom:mojo_bindings",
     "//chrome/browser/search_engines",
+    "//chrome/browser/signin",
     "//chrome/browser/themes",
     "//chrome/test:test_support",
     "//components/base32",
@@ -360,4 +378,8 @@ source_set("unit_tests") {
     "//ui/gfx/geometry",
     "//url",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

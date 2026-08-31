@@ -17,7 +17,6 @@
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -93,9 +92,8 @@ NetEqTest::NetEqTest(const NetEq::Config& config,
                      absl::string_view field_trials)
     : input_(std::move(input)),
       clock_(Timestamp::Millis(input_->NextEventTime().value_or(0))),
-      env_(CreateEnvironment(
-          &clock_,
-          FieldTrials::CreateNoGlobal(std::string(field_trials)))),
+      env_(CreateEnvironment(&clock_,
+                             std::make_unique<FieldTrials>(field_trials))),
       neteq_(
           neteq_factory
               ? neteq_factory->Create(env_, config, std::move(decoder_factory))

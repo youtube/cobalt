@@ -70,6 +70,7 @@ mojom("test_interfaces") {
     "ping_service.test-mojom",
     "rect.test-mojom",
     "regression_tests.test-mojom",
+    "result.test-mojom",
     "sample_factory.test-mojom",
     "sample_interfaces.test-mojom",
     "sample_service.test-mojom",
@@ -208,7 +209,7 @@ mojom("test_interfaces_for_containers_of_optionals") {
       types = [
         {
           mojom =
-              "mojo.test.containers_of_nullable_types.mojom.TypemappedStruct"
+              "mojo.test.containers_of_nullable_types.mojom.TypemappedContainer"
           cpp = "::mojo::test::containers_of_nullable_types::NativeStruct"
         },
       ]

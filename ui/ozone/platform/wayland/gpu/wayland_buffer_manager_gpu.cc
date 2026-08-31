@@ -10,6 +10,7 @@
 #include "base/process/process.h"
 #include "base/task/current_thread.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/trace_event/trace_event.h"
 #include "base/version.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rrect_f.h"
@@ -17,7 +18,6 @@
 #include "ui/gfx/overlay_priority_hint.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_surface_egl.h"
-#include "ui/gl/startup_trace.h"
 #include "ui/ozone/platform/wayland/common/wayland_overlay_config.h"
 #include "ui/ozone/platform/wayland/gpu/wayland_surface_gpu.h"
 #include "ui/ozone/public/overlay_plane.h"
@@ -325,24 +325,17 @@ GbmDevice* WaylandBufferManagerGpu::GetGbmDevice() {
     return nullptr;
   }
 
-  if (gbm_device_ || use_fake_gbm_device_for_test_)
-    return gbm_device_.get();
-
-  if (!drm_render_node_fd_.is_valid()) {
-    supports_dmabuf_ = false;
-    return nullptr;
-  }
-
-  GPU_STARTUP_TRACE_EVENT("ui::CreateGbmDevice");
-  gbm_device_ = CreateGbmDevice(drm_render_node_fd_.get());
-  if (!gbm_device_) {
-    supports_dmabuf_ = false;
-    LOG(WARNING) << "Failed to initialize gbm device.";
-    return nullptr;
-  }
+  MaybeCreateGbmDevice();
   return gbm_device_.get();
 }
 #endif  // defined(WAYLAND_GBM)
+
+gl::EGLDisplayPlatform WaylandBufferManagerGpu::GetNativeDisplay() {
+#if defined(WAYLAND_GBM)
+  MaybeCreateGbmDevice();
+#endif
+  return native_display_;
+}
 
 void WaylandBufferManagerGpu::AddBindingWaylandBufferManagerGpu(
     mojo::PendingReceiver<ozone::mojom::WaylandBufferManagerGpu> receiver) {
@@ -450,6 +443,30 @@ void WaylandBufferManagerGpu::OpenAndStoreDrmRenderNodeFd(
   }
 
   drm_render_node_fd_ = handle.PassFD();
+}
+
+void WaylandBufferManagerGpu::MaybeCreateGbmDevice() {
+  if (use_fake_gbm_device_for_test_) {
+    return;
+  }
+  CHECK_EQ(!!gbm_device_, native_display_.Valid());
+  if (gbm_device_) {
+    return;
+  }
+  if (!drm_render_node_fd_.is_valid()) {
+    supports_dmabuf_ = false;
+    return;
+  }
+  TRACE_EVENT("gpu,startup", "ui::CreateGbmDevice");
+  gbm_device* device = gbm_create_device(drm_render_node_fd_.get());
+  if (!device) {
+    supports_dmabuf_ = false;
+    LOG(WARNING) << "Failed to initialize gbm device.";
+    return;
+  }
+  native_display_ = gl::EGLDisplayPlatform(
+      reinterpret_cast<EGLNativeDisplayType>(device), EGL_PLATFORM_GBM_KHR);
+  gbm_device_ = WrapGbmDevice(device);
 }
 #endif
 

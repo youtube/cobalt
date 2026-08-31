@@ -9,6 +9,7 @@
 
 #include "base/bits.h"
 #include "base/containers/adapters.h"
+#include "base/i18n/rtl.h"
 #include "base/types/to_address.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/tabs/features.h"
@@ -34,6 +35,7 @@
 #include "components/tab_groups/tab_group_id.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
+#include "ui/base/resource/resource_bundle.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_operations.h"
@@ -758,9 +760,10 @@ void TabContainerImpl::SetTabSlotVisibility() {
   bool last_tab_visible = false;
   std::optional<tab_groups::TabGroupId> last_tab_group = std::nullopt;
   std::vector<Tab*> tabs = layout_helper_->GetTabs();
-  for (Tab* tab : base::Reversed(tabs)) {
-    std::optional<tab_groups::TabGroupId> current_group = tab->group();
-    if (current_group != last_tab_group && last_tab_group.has_value()) {
+  for (auto it = tabs.rbegin(); true; ++it) {
+    Tab* tab = it != tabs.rend() ? *it : nullptr;
+    if (last_tab_group.has_value() &&
+        (!tab || tab->group() != last_tab_group)) {
       TabGroupViews* group_view = group_views_.at(last_tab_group.value()).get();
 
       // If we change the visibility of a group header, we must recalculate that
@@ -768,14 +771,20 @@ void TabContainerImpl::SetTabSlotVisibility() {
       if (last_tab_visible != group_view->header()->GetVisible()) {
         visibility_changed_groups.insert(last_tab_group.value());
       }
-
       group_view->header()->SetVisible(last_tab_visible);
+
       // Hide underlines if they would underline an invisible tab, but don't
       // show underlines if they're hidden during a header drag session.
       if (!group_view->header()->dragging()) {
         group_view->underline()->MaybeSetVisible(last_tab_visible);
       }
     }
+
+    if (!tab) {
+      break;
+    }
+
+    std::optional<tab_groups::TabGroupId> current_group = tab->group();
     last_tab_visible = ShouldTabBeVisible(tab);
     last_tab_group = tab->closing() ? std::nullopt : current_group;
 
@@ -793,7 +802,6 @@ void TabContainerImpl::SetTabSlotVisibility() {
     if (should_be_visible != tab->GetVisible() && tab->group().has_value()) {
       visibility_changed_groups.insert(tab->group().value());
     }
-
     tab->SetVisible(should_be_visible);
   }
 
@@ -820,6 +828,16 @@ TabGroupViews* TabContainerImpl::GetGroupViews(
 const std::map<tab_groups::TabGroupId, std::unique_ptr<TabGroupViews>>&
 TabContainerImpl::get_group_views_for_testing() const {
   return group_views_;
+}
+
+std::map<tab_groups::TabGroupId, TabGroupHeader*>
+TabContainerImpl::GetGroupHeaders() const {
+  std::map<tab_groups::TabGroupId, TabGroupHeader*> header_map;
+  for (const auto& entry : group_views_) {
+    header_map[entry.first] = entry.second->header();
+  }
+
+  return header_map;
 }
 
 gfx::Rect TabContainerImpl::GetIdealBounds(int model_index) const {

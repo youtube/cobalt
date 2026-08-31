@@ -18,7 +18,6 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "components/user_manager/known_user.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 
@@ -53,20 +52,6 @@ bool IsDeviceOwnedByChild() {
   return device_owner->IsChild();
 }
 
-// Returns true is any parent code config is available on the device.
-bool IsParentCodeConfigAvailable() {
-  const user_manager::UserList& users =
-      user_manager::UserManager::Get()->GetPersistedUsers();
-  user_manager::KnownUser known_user(g_browser_process->local_state());
-  for (const user_manager::User* user : users) {
-    if (known_user.FindPath(user->GetAccountId(),
-                            prefs::kKnownUserParentAccessCodeConfig)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 }  // namespace
 
 // static
@@ -90,14 +75,6 @@ bool ParentAccessService::IsApprovalRequired(SupervisedAction action) {
       }
       return IsDeviceOwnedByChild();
     case SupervisedAction::kAddUser:
-      return IsDeviceOwnedByChild();
-    case SupervisedAction::kReauth:
-      if (!features::IsParentAccessCodeForReauthEnabled()) {
-        return false;
-      }
-      if (!IsParentCodeConfigAvailable()) {
-        return false;
-      }
       return IsDeviceOwnedByChild();
     case SupervisedAction::kUnlockTimeLimits:
       DCHECK(user_manager::UserManager::Get()->IsUserLoggedIn());

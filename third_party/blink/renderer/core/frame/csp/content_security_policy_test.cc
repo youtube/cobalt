@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/with_feature_override.h"
 #include "services/network/public/cpp/features.h"
@@ -674,8 +675,8 @@ TEST_F(ContentSecurityPolicyTest, RequestsAllowedWhenBypassingCSP) {
       ResourceRequest::RedirectStatus::kNoRedirect,
       ReportingDisposition::kSuppressReporting));
 
-  SchemeRegistry::RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicy(
-      "https");
+  SchemeRegistry::
+      RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicyForTest("https");
 }
 TEST_F(ContentSecurityPolicyTest, FilesystemAllowedWhenBypassingCSP) {
   const KURL base;
@@ -726,8 +727,8 @@ TEST_F(ContentSecurityPolicyTest, FilesystemAllowedWhenBypassingCSP) {
       ResourceRequest::RedirectStatus::kNoRedirect,
       ReportingDisposition::kSuppressReporting));
 
-  SchemeRegistry::RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicy(
-      "https");
+  SchemeRegistry::
+      RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicyForTest("https");
 }
 
 TEST_F(ContentSecurityPolicyTest, BlobAllowedWhenBypassingCSP) {
@@ -778,8 +779,8 @@ TEST_F(ContentSecurityPolicyTest, BlobAllowedWhenBypassingCSP) {
       ResourceRequest::RedirectStatus::kNoRedirect,
       ReportingDisposition::kSuppressReporting));
 
-  SchemeRegistry::RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicy(
-      "https");
+  SchemeRegistry::
+      RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicyForTest("https");
 }
 
 TEST_F(ContentSecurityPolicyTest, CSPBypassDisabledWhenSchemeIsPrivileged) {
@@ -823,9 +824,9 @@ TEST_F(ContentSecurityPolicyTest, CSPBypassDisabledWhenSchemeIsPrivileged) {
       filesystem_url, ResourceRequest::RedirectStatus::kNoRedirect,
       ReportingDisposition::kSuppressReporting));
 
-  SchemeRegistry::RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicy(
-      "http");
-  SchemeRegistry::RemoveURLSchemeAsNotAllowingJavascriptURLs("https");
+  SchemeRegistry::
+      RemoveURLSchemeRegisteredAsBypassingContentSecurityPolicyForTest("http");
+  SchemeRegistry::RemoveURLSchemeAsNotAllowingJavascriptURLsForTest("https");
 }
 
 TEST_F(ContentSecurityPolicyTest, TrustedTypesNoDirective) {
@@ -1419,6 +1420,53 @@ TEST_F(ContentSecurityPolicyTest, UnsafeHashesMetric) {
   }
 }
 
+TEST_F(ContentSecurityPolicyTest, UrlEvalHashesMetric) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({network::features::kCSPScriptSrcHashesInV1},
+                                {});
+  struct TestCase {
+    const char* header;
+    bool expected_url_hashes;
+    bool expected_eval_hashes;
+  } cases[] = {
+      {"object-src 'none'", false, false},
+      {"script-src 'none'", false, false},
+      {"script-src 'nonce-abc'", false, false},
+      {"script-src 'sha256-abc'", false, false},
+      {"script-src 'nonce-abc' 'strict-dynamic'", false, false},
+      {"script-src 'sha256-abc' 'strict-dynamic'", false, false},
+      {"script-src 'sha256-abc' https://example.com/", false, false},
+      {"script-src 'sha256-abc' https://example.com/ 'strict-dynamic'", false,
+       false},
+      {"script-src 'unsafe-hashes' 'url-sha256-abc'", true, false},
+      {"default-src 'unsafe-hashes' 'url-sha256-abc'", true, false},
+      {"script-src 'unsafe-hashes' 'eval-sha256-abc'", false, true},
+      {"default-src 'eval-sha256-abc'", false, true},
+      {"script-src 'url-sha256-abc' 'eval-sha256-abc'", true, true},
+      {"default-src 'url-sha256-abc' 'eval-sha256-abc'", true, true},
+
+      // url and eval hashes don't apply to any other directive:
+      {"object-src 'url-sha256-abc' 'eval-sha256-abc", false, false},
+  };
+
+  for (const auto& test : cases) {
+    SCOPED_TRACE(testing::Message()
+                 << "[Enforce] Header: `" << test.header << "`");
+    csp = MakeGarbageCollected<ContentSecurityPolicy>();
+    csp->AddPolicies(ParseContentSecurityPolicies(
+        test.header, ContentSecurityPolicyType::kEnforce,
+        ContentSecurityPolicySource::kHTTP, *secure_origin));
+    auto dummy = std::make_unique<DummyPageHolder>();
+    csp->BindToDelegate(
+        dummy->GetFrame().DomWindow()->GetContentSecurityPolicyDelegate());
+
+    EXPECT_EQ(test.expected_url_hashes,
+              dummy->GetDocument().IsUseCounted(WebFeature::kCSPUrlHashes));
+    EXPECT_EQ(test.expected_eval_hashes,
+              dummy->GetDocument().IsUseCounted(WebFeature::kCSPEvalHashes));
+  }
+}
+
 TEST_F(ContentSecurityPolicyTest, ReasonableRestrictionMetrics) {
   struct TestCase {
     const char* header;
@@ -1607,4 +1655,203 @@ TEST_F(ContentSecurityPolicyTest, ExemptSpeculationRulesFromHeader) {
       ReportingDisposition::kSuppressReporting));
 }
 
+class SyntheticResponseContentSecurityPolicyTest
+    : public ContentSecurityPolicyTest {
+ protected:
+  using InlineType = ContentSecurityPolicy::InlineType;
+  void SetUp() override {
+    dummy_ = std::make_unique<DummyPageHolder>();
+    secure_origin = secure_origin->DeriveNewOpaqueOrigin();
+    CreateExecutionContext();
+    csp->BindToDelegate(execution_context->GetContentSecurityPolicyDelegate());
+  }
+
+  bool AllowInline(ContentSecurityPolicy::InlineType type,
+                   const String& nonce) {
+    String context_url;
+    String content;
+    auto* element = MakeGarbageCollected<HTMLScriptElement>(
+        *window()->document(), CreateElementFlags());
+    OrdinalNumber context_line = OrdinalNumber::First();
+    return csp->AllowInline(type, element, content, nonce, context_url,
+                            context_line);
+  }
+
+  void ExpectBlockedInlineResourceTypeHistogram(InlineType type, int count) {
+    histogram_tester().ExpectBucketCount(
+        kSyntheticResponseBlockedInlineResourceTypeHistogramName, type, count);
+  }
+
+  void ExpectBlockedSrcTypeHistogram(SyntheticResponseBlockedSrcType type,
+                                     int count) {
+    histogram_tester().ExpectBucketCount(
+        kSyntheticResponseBlockedSrcTypeHistogramName, type, count);
+  }
+
+  const base::HistogramTester& histogram_tester() const {
+    return histogram_tester_;
+  }
+
+ private:
+  LocalDOMWindow* window() const { return dummy_->GetFrame().DomWindow(); }
+  std::unique_ptr<DummyPageHolder> dummy_;
+  base::HistogramTester histogram_tester_;
+};
+
+TEST_F(SyntheticResponseContentSecurityPolicyTest, DisallowScript) {
+  String nonce;
+  const KURL example_url("http://example.com");
+
+  // Script executions are allowed if there are no policies.
+  EXPECT_TRUE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+  EXPECT_TRUE(
+      AllowInline(ContentSecurityPolicy::InlineType::kScriptAttribute, nonce));
+  EXPECT_TRUE(AllowInline(
+      ContentSecurityPolicy::InlineType::kScriptSpeculationRules, nonce));
+  EXPECT_TRUE(
+      AllowInline(ContentSecurityPolicy::InlineType::kNavigation, nonce));
+  EXPECT_TRUE(csp->AllowScriptFromSource(
+      example_url, nonce, IntegrityMetadataSet(), kParserInserted, example_url,
+      ResourceRequest::RedirectStatus::kNoRedirect,
+      ReportingDisposition::kReport,
+      ContentSecurityPolicy::CheckHeaderType::kCheckReportOnly));
+
+  // `DisallowScriptForSyntheticResponse()` does not allow any scripts to be
+  // executed until the new CSP is added via <meta> tag.
+  csp->DisallowScriptForSyntheticResponse();
+  EXPECT_FALSE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+  EXPECT_FALSE(
+      AllowInline(ContentSecurityPolicy::InlineType::kScriptAttribute, nonce));
+  EXPECT_FALSE(AllowInline(
+      ContentSecurityPolicy::InlineType::kScriptSpeculationRules, nonce));
+  EXPECT_FALSE(
+      AllowInline(ContentSecurityPolicy::InlineType::kNavigation, nonce));
+  EXPECT_FALSE(csp->AllowScriptFromSource(
+      example_url, nonce, IntegrityMetadataSet(), kParserInserted, example_url,
+      ResourceRequest::RedirectStatus::kNoRedirect,
+      ReportingDisposition::kReport,
+      ContentSecurityPolicy::CheckHeaderType::kCheckReportOnly));
+
+  // Add new policy allowing inline scripts with the valid nonce string.
+  // The enforcement is not applied after `AddPolicies()`. The above script-src
+  // policy is applied instead.
+  nonce = "jDHFShrQe4XmmH47DWyhaQ";
+  csp->AddPolicies(ParseContentSecurityPolicies(
+      "script-src 'nonce-" + nonce + "'", ContentSecurityPolicyType::kEnforce,
+      ContentSecurityPolicySource::kMeta, *secure_origin));
+  EXPECT_FALSE(AllowInline(ContentSecurityPolicy::InlineType::kScript, ""));
+  EXPECT_TRUE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+  EXPECT_TRUE(
+      AllowInline(ContentSecurityPolicy::InlineType::kScriptAttribute, nonce));
+  EXPECT_TRUE(AllowInline(
+      ContentSecurityPolicy::InlineType::kScriptSpeculationRules, nonce));
+  EXPECT_TRUE(
+      AllowInline(ContentSecurityPolicy::InlineType::kNavigation, nonce));
+  EXPECT_TRUE(csp->AllowScriptFromSource(
+      example_url, nonce, IntegrityMetadataSet(), kParserInserted, example_url,
+      ResourceRequest::RedirectStatus::kNoRedirect,
+      ReportingDisposition::kReport,
+      ContentSecurityPolicy::CheckHeaderType::kCheckReportOnly));
+
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScript, 1);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScriptAttribute, 1);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScriptSpeculationRules,
+                                           1);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kNavigation, 1);
+  ExpectBlockedSrcTypeHistogram(SyntheticResponseBlockedSrcType::kScriptSrcElm,
+                                1);
+  histogram_tester().ExpectTotalCount(
+      kSyntheticResponseBlockedResourceCountHistogramName, 1);
+  EXPECT_EQ(histogram_tester().GetTotalSum(
+                kSyntheticResponseBlockedResourceCountHistogramName),
+            5);
+}
+
+TEST_F(SyntheticResponseContentSecurityPolicyTest,
+       DisallowScript_ScriptSrcFromHeader) {
+  const KURL example_url("http://example.com");
+  // Simulate the case that there is a script-src added via header.
+  const String nonce = "jDHFShrQe4XmmH47DWyhaQ";
+  csp->AddPolicies(ParseContentSecurityPolicies(
+      "script-src 'nonce-" + nonce + "'", ContentSecurityPolicyType::kEnforce,
+      ContentSecurityPolicySource::kHTTP, *secure_origin));
+
+  // Even if there is an script-src directive already,
+  // `DisallowScriptForSyntheticResponse()` blocks scripts.
+  csp->DisallowScriptForSyntheticResponse();
+  EXPECT_FALSE(AllowInline(ContentSecurityPolicy::InlineType::kScript, ""));
+  EXPECT_FALSE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+  EXPECT_FALSE(
+      AllowInline(ContentSecurityPolicy::InlineType::kScriptAttribute, nonce));
+  EXPECT_FALSE(AllowInline(
+      ContentSecurityPolicy::InlineType::kScriptSpeculationRules, nonce));
+  EXPECT_FALSE(
+      AllowInline(ContentSecurityPolicy::InlineType::kNavigation, nonce));
+  EXPECT_FALSE(csp->AllowScriptFromSource(
+      example_url, nonce, IntegrityMetadataSet(), kParserInserted, example_url,
+      ResourceRequest::RedirectStatus::kNoRedirect,
+      ReportingDisposition::kReport,
+      ContentSecurityPolicy::CheckHeaderType::kCheckReportOnly));
+
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScript, 2);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScriptAttribute, 1);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScriptSpeculationRules,
+                                           1);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kNavigation, 1);
+  ExpectBlockedSrcTypeHistogram(SyntheticResponseBlockedSrcType::kScriptSrcElm,
+                                1);
+  // The total count is not recorded until the new policy is added via <meta>.
+  histogram_tester().ExpectTotalCount(
+      kSyntheticResponseBlockedResourceCountHistogramName, 0);
+}
+
+TEST_F(SyntheticResponseContentSecurityPolicyTest,
+       DisallowScript_ResetWithNewCSP) {
+  const String nonce;
+  const KURL example_url("http://example.com");
+
+  // `DisallowInlineForSyntheticResponse()` does not allow any scripts to be
+  // executed until another script-src policy is added via <meta>.
+  csp->DisallowScriptForSyntheticResponse();
+  EXPECT_FALSE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+
+  // The new policy via HTTP header does not reset
+  // `disallow_script_for_synthetic_response_`.
+  csp->AddPolicies(ParseContentSecurityPolicies(
+      "img-src http://example.com", ContentSecurityPolicyType::kEnforce,
+      ContentSecurityPolicySource::kHTTP, *secure_origin));
+  EXPECT_FALSE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+
+  // Add new policy is added but this is not script-src via <meta> tag.
+  csp->AddPolicies(ParseContentSecurityPolicies(
+      "img-src http://example.com", ContentSecurityPolicyType::kEnforce,
+      ContentSecurityPolicySource::kMeta, *secure_origin));
+
+  // Any new CSP resets `disallow_script_for_synthetic_response_`.
+  EXPECT_TRUE(AllowInline(ContentSecurityPolicy::InlineType::kScript, nonce));
+  EXPECT_TRUE(
+      AllowInline(ContentSecurityPolicy::InlineType::kScriptAttribute, nonce));
+  EXPECT_TRUE(AllowInline(
+      ContentSecurityPolicy::InlineType::kScriptSpeculationRules, nonce));
+  EXPECT_TRUE(
+      AllowInline(ContentSecurityPolicy::InlineType::kNavigation, nonce));
+  EXPECT_TRUE(csp->AllowScriptFromSource(
+      example_url, nonce, IntegrityMetadataSet(), kParserInserted, example_url,
+      ResourceRequest::RedirectStatus::kNoRedirect,
+      ReportingDisposition::kReport,
+      ContentSecurityPolicy::CheckHeaderType::kCheckReportOnly));
+
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScript, 2);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScriptAttribute, 0);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kScriptSpeculationRules,
+                                           0);
+  ExpectBlockedInlineResourceTypeHistogram(InlineType::kNavigation, 0);
+  ExpectBlockedSrcTypeHistogram(SyntheticResponseBlockedSrcType::kScriptSrcElm,
+                                0);
+  histogram_tester().ExpectTotalCount(
+      kSyntheticResponseBlockedResourceCountHistogramName, 1);
+  EXPECT_EQ(histogram_tester().GetTotalSum(
+                kSyntheticResponseBlockedResourceCountHistogramName),
+            2);
+}
 }  // namespace blink

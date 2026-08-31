@@ -39,6 +39,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/referrer.h"
 #include "content/public/common/url_constants.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "net/base/isolation_info.h"
@@ -252,7 +253,9 @@ void WorkerScriptFetcher::CreateAndStart(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(client_security_state);
   DCHECK(storage_partition);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DCHECK(devtools_agent_host);
+#endif
   DCHECK(request_destination == network::mojom::RequestDestination::kWorker ||
          request_destination ==
              network::mojom::RequestDestination::kSharedWorker)
@@ -396,7 +399,9 @@ void WorkerScriptFetcher::CreateScriptLoader(
     bool require_cross_site_request_for_cookies,
     WorkerScriptFetcher::CompletionCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+#if BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
   DCHECK(devtools_agent_host);
+#endif
   DCHECK(client_security_state);
   TRACE_EVENT("loading", "WorkerScriptFetcher::CreateScriptLoader");
 
@@ -590,7 +595,7 @@ WorkerScriptFetcher::CreateFactoryBundle(
       GetContentClient()
           ->browser()
           ->RegisterNonNetworkSubresourceURLLoaderFactories(
-              worker_process_id, MSG_ROUTING_NONE,
+              worker_process_id, IPC::mojom::kRoutingIdNone,
               request_initiator_storage_key.origin(), &non_network_factories);
       break;
   }

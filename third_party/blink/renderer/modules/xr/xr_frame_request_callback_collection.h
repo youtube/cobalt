@@ -43,14 +43,14 @@ class XRFrameRequestCallbackCollection final
   }
 
   void Trace(Visitor*) const;
-  const char* NameInHeapSnapshot() const override {
+  const char* GetHumanReadableName() const override {
     return "XRFrameRequestCallbackCollection";
   }
 
  private:
   bool IsValidCallbackId(int id) {
     using Traits = HashTraits<CallbackId>;
-    return !WTF::IsHashTraitsEmptyOrDeletedValue<Traits, CallbackId>(id);
+    return !IsHashTraitsEmptyOrDeletedValue<Traits, CallbackId>(id);
   }
 
   using CallbackFrameRequestMap =

@@ -28,7 +28,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_ARRAY_BUFFER_ARRAY_BUFFER_CONTENTS_H_
 
 #include "base/containers/span.h"
-#include "base/memory/platform_shared_memory_region.h"
 #include "base/memory/scoped_refptr.h"
 #include "partition_alloc/partition_alloc_constants.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -37,6 +36,10 @@
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 #include "third_party/blink/renderer/platform/wtf/wtf.h"
 #include "v8/include/v8.h"
+
+namespace base::subtle {
+class PlatformSharedMemoryRegion;
+}
 
 namespace blink {
 
@@ -168,19 +171,15 @@ class CORE_EXPORT ArrayBufferContents {
   std::shared_ptr<v8::BackingStore> backing_store_;
 };
 
-}  // namespace blink
-
-namespace WTF {
-
 template <>
-struct CrossThreadCopier<blink::ArrayBufferContents> {
+struct CrossThreadCopier<ArrayBufferContents> {
   STATIC_ONLY(CrossThreadCopier);
-  using Type = blink::ArrayBufferContents;
+  using Type = ArrayBufferContents;
   static Type Copy(Type handle) {
     return handle;  // This is in fact a move.
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_TYPED_ARRAYS_ARRAY_BUFFER_ARRAY_BUFFER_CONTENTS_H_

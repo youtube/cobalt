@@ -34,11 +34,16 @@ BASE_FEATURE(kBookmarksTreeView,
              "BookmarksTreeView",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// This flag is used for enabling Bookmark triggered prerendering. See
-// crbug.com/1422819 for more details of Bookmark triggered prerendering.
-BASE_FEATURE(kBookmarkTriggerForPrerender2,
-             "BookmarkTriggerForPrerender2",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// This is used as a kill switch for Bookmark triggered prerendering. See
+// crbug.com/40259793 for more details of Bookmark triggered prerendering.
+BASE_FEATURE(kBookmarkTriggerForPrerender2KillSwitch,
+             "BookmarkTriggerForPrerender2KillSwitch",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// This flag is used for enabling BookmarkBar triggered preconnect.
+BASE_FEATURE(kBookmarkTriggerForPreconnect,
+             "BookmarkTriggerForPreconnect",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables Certificate Transparency on Desktop and Android Browser (CT is
 // disabled in Android Webview, see aw_browser_context.cc).
@@ -87,7 +92,7 @@ BASE_FEATURE(kDbusSecretPortal,
 // compatible with the synchronous backend.
 BASE_FEATURE(kUseFreedesktopSecretKeyProvider,
              "UseFreedesktopSecretKeyProvider",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_LINUX)
 
 // Destroy profiles when their last browser window is closed, instead of when
@@ -132,7 +137,11 @@ BASE_FEATURE(kFlexOrgManagementDisclosure,
 // https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/Notifications/notifications_actions_customization.md
 BASE_FEATURE(kIncomingCallNotifications,
              "IncomingCallNotifications",
+#if BUILDFLAG(IS_WIN)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 #if !BUILDFLAG(IS_ANDROID)
 // Adds a "Snooze" action to mute notifications during screen sharing sessions.
@@ -146,7 +155,7 @@ BASE_FEATURE(kMuteNotificationSnoozeAction,
 // network request controlled by that policy is observed.
 BASE_FEATURE(kNetworkAnnotationMonitoring,
              "NetworkAnnotationMonitoring",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This flag is used for enabling New Tab Page triggered prerendering. See
 // crbug.com/1462832 for more details of New Tab Page triggered prerendering.
@@ -175,16 +184,6 @@ BASE_FEATURE(kPromoBrowserCommands,
 // should map to one of the browser commands specified in:
 // ui/webui/resources/js/browser_command/browser_command.mojom
 const char kBrowserCommandIdParam[] = "BrowserCommandIdParam";
-
-#if !BUILDFLAG(IS_ANDROID)
-// Keeps accessibility enabled for WebContents as ReadAnything observes changes
-// to the active WebContents. This is a holdback study to evaluate the impact of
-// the new behavior, whereby the accessibility modes required by ReadyAnything
-// are cleared on a WebContents when ReadAnything loses interest in it.
-BASE_FEATURE(kReadAnythingPermanentAccessibility,
-             "ReadAnythingPermanentAccessibility",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
 // When this feature is enabled, Chrome will register os_update_handler with

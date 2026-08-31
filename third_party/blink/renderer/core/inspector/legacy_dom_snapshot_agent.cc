@@ -61,11 +61,11 @@ std::unique_ptr<protocol::DOM::Rect> LegacyBuildRectForPhysicalRect(
 }  // namespace
 
 struct LegacyDOMSnapshotAgent::VectorStringHashTraits
-    : public WTF::GenericHashTraits<Vector<String>> {
+    : public GenericHashTraits<Vector<String>> {
   static unsigned GetHash(const Vector<String>& vec) {
-    unsigned h = WTF::GetHash(vec.size());
+    unsigned h = blink::GetHash(vec.size());
     for (const String& s : vec) {
-      h = WTF::HashInts(h, WTF::GetHash(s));
+      h = HashInts(h, blink::GetHash(s));
     }
     return h;
   }
@@ -81,8 +81,8 @@ struct LegacyDOMSnapshotAgent::VectorStringHashTraits
   }
 
   static void ConstructDeletedValue(Vector<String>& vec) {
-    new (WTF::NotNullTag::kNotNull, &vec)
-        Vector<String>(WTF::kHashTableDeletedValue);
+    new (base::NotNullTag::kNotNull, &vec)
+        Vector<String>(kHashTableDeletedValue);
   }
 
   static bool IsDeletedValue(const Vector<String>& vec) {
@@ -341,14 +341,15 @@ LegacyDOMSnapshotAgent::VisitPseudoElements(
       !parent->GetPseudoElement(kPseudoIdCheckMark) &&
       !parent->GetPseudoElement(kPseudoIdBefore) &&
       !parent->GetPseudoElement(kPseudoIdAfter) &&
-      !parent->GetPseudoElement(kPseudoIdPickerIcon)) {
+      !parent->GetPseudoElement(kPseudoIdPickerIcon) &&
+      !parent->GetPseudoElement(kPseudoIdInterestHint)) {
     return nullptr;
   }
 
   auto pseudo_elements = std::make_unique<protocol::Array<int>>();
   for (PseudoId pseudo_id :
        {kPseudoIdFirstLetter, kPseudoIdCheckMark, kPseudoIdBefore,
-        kPseudoIdAfter, kPseudoIdPickerIcon}) {
+        kPseudoIdAfter, kPseudoIdPickerIcon, kPseudoIdInterestHint}) {
     if (Node* pseudo_node = parent->GetPseudoElement(pseudo_id)) {
       pseudo_elements->emplace_back(VisitNode(pseudo_node,
                                               include_event_listeners,
@@ -381,7 +382,7 @@ int LegacyDOMSnapshotAgent::VisitLayoutTreeNode(LayoutObject* layout_object,
     return -1;
 
   if (node->IsPseudoElement()) {
-    // For pseudo elements, visit the children of the layout object.
+    // For pseudo-elements, visit the children of the layout object.
     for (LayoutObject* child = layout_object->SlowFirstChild(); child;
          child = child->NextSibling()) {
       if (child->IsAnonymous())

@@ -61,13 +61,14 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.android_webview.AwDisplayCutoutController.Delegate;
+import org.chromium.android_webview.AwDisplayCutoutController.Insets;
 import org.chromium.android_webview.autofill.AndroidAutofillSafeModeAction;
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.AwSwitches;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.android_webview.gfx.AwDrawFnImpl;
-import org.chromium.android_webview.gfx.AwFunctor;
-import org.chromium.android_webview.gfx.AwGLFunctor;
 import org.chromium.android_webview.gfx.AwPicture;
 import org.chromium.android_webview.metrics.AwOriginVisitLogger;
 import org.chromium.android_webview.metrics.BackForwardCacheNotRestoredReason;
@@ -98,6 +99,7 @@ import org.chromium.components.content_capture.OnscreenContentProvider;
 import org.chromium.components.embedder_support.util.TouchEventFilter;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.components.navigation_interception.InterceptNavigationDelegate;
+import org.chromium.components.origin_matcher.OriginMatcher;
 import org.chromium.components.sensitive_content.SensitiveContentFeatures;
 import org.chromium.components.stylus_handwriting.StylusHandwritingFeatureMap;
 import org.chromium.components.stylus_handwriting.StylusWritingController;
@@ -288,11 +290,13 @@ public class AwContents implements SmartClipProvider {
     }
 
     /**
-     * Interface that consumers of {@link AwContents} must implement to allow the proper
-     * dispatching of view methods through the containing view.
+     * Interface that consumers of {@link AwContents} must implement to allow the proper dispatching
+     * of view methods through the containing view.
      */
     public interface InternalAccessDelegate extends ViewEventSink.InternalAccessDelegate {
-        /** @see View#overScrollBy(int, int, int, int, int, int, int, int, boolean); */
+        /**
+         * @see View#overScrollBy(int, int, int, int, int, int, int, int, boolean);
+         */
         void overScrollBy(
                 int deltaX,
                 int deltaY,
@@ -304,70 +308,30 @@ public class AwContents implements SmartClipProvider {
                 int maxOverScrollY,
                 boolean isTouchEvent);
 
-        /** @see View#scrollTo(int, int) */
+        /**
+         * @see View#scrollTo(int, int)
+         */
         void super_scrollTo(int scrollX, int scrollY);
 
-        /** @see View#setMeasuredDimension(int, int) */
+        /**
+         * @see View#setMeasuredDimension(int, int)
+         */
         void setMeasuredDimension(int measuredWidth, int measuredHeight);
 
-        /** @see View#getScrollBarStyle() */
+        /**
+         * @see View#getScrollBarStyle()
+         */
         int super_getScrollBarStyle();
 
-        /** @see View#startActivityForResult(Intent, int) */
+        /**
+         * @see View#startActivityForResult(Intent, int)
+         */
         void super_startActivityForResult(Intent intent, int requestCode);
 
-        /** @see View#onConfigurationChanged(Configuration) */
+        /**
+         * @see View#onConfigurationChanged(Configuration)
+         */
         void super_onConfigurationChanged(Configuration newConfig);
-    }
-
-    /**
-     * Factory interface used for constructing functors that the Android framework uses for
-     * calling back into Chromium code to render the the contents of a Chromium frame into
-     * an Android view.
-     */
-    public interface NativeDrawFunctorFactory {
-        /** Create a GL functor associated with native context |context|. */
-        NativeDrawGLFunctor createGLFunctor(long context);
-
-        /**
-         * Used for draw_fn functor. Only one of these methods need to return non-null.
-         * Prefer this over createGLFunctor.
-         */
-        AwDrawFnImpl.DrawFnAccess getDrawFnAccess();
-    }
-
-    /**
-     * Interface that consumers of {@link AwContents} must implement to support
-     * native GL rendering.
-     */
-    public interface NativeDrawGLFunctor {
-        /**
-         * Requests a callback on the native DrawGL method (see getAwDrawGLFunction).
-         *
-         * If called from within onDraw, |canvas| should be non-null and must be hardware
-         * accelerated. |releasedCallback| should be null if |canvas| is null.
-         *
-         * @return false indicates the GL draw request was not accepted, and the caller
-         *         should fallback to the SW path.
-         */
-        boolean requestDrawGL(Canvas canvas, Runnable releasedCallback);
-
-        /**
-         * Requests a callback on the native DrawGL method (see getAwDrawGLFunction).
-         *
-         * |containerView| must be hardware accelerated. If |waitForCompletion| is true, this method
-         * will not return until functor has returned.
-         */
-        boolean requestInvokeGL(View containerView, boolean waitForCompletion);
-
-        /** Detaches the GLFunctor from the view tree. */
-        void detach(View containerView);
-
-        /**
-         * Destroy this functor instance and any native objects associated with it. No method is
-         * called after destroy.
-         */
-        void destroy();
     }
 
     /**
@@ -401,7 +365,7 @@ public class AwContents implements SmartClipProvider {
     private long mNativeAwContents;
     private AwBrowserContext mBrowserContext;
     private ViewGroup mContainerView;
-    private AwFunctor mDrawFunctor;
+    private AwDrawFnImpl mDrawFunctor;
     private final Context mContext;
     private final int mAppTargetSdkVersion;
     private AwViewAndroidDelegate mViewAndroidDelegate;
@@ -419,7 +383,7 @@ public class AwContents implements SmartClipProvider {
     private final AwContentsIoThreadClient mIoThreadClient;
     private final InterceptNavigationDelegateImpl mInterceptNavigationDelegate;
     private InternalAccessDelegate mInternalAccessAdapter;
-    private final NativeDrawFunctorFactory mNativeDrawFunctorFactory;
+    private final AwDrawFnImpl.DrawFnAccess mDrawFnAccess;
     private final AwLayoutSizer mLayoutSizer;
     private final AwZoomControls mZoomControls;
     private final AwScrollOffsetManager mScrollOffsetManager;
@@ -486,7 +450,7 @@ public class AwContents implements SmartClipProvider {
     private @RendererPriority int mRendererPriority;
     private boolean mRendererPriorityWaivedWhenNotVisible;
 
-    private Bitmap mFavicon;
+    protected Bitmap mFavicon;
     private boolean mHasRequestedVisitedHistoryFromClient;
     // Whether this WebView is a popup.
     private boolean mIsPopupWindow;
@@ -950,7 +914,7 @@ public class AwContents implements SmartClipProvider {
      * @param containerView the view-hierarchy item this object will be bound to.
      * @param context the context to use, usually containerView.getContext().
      * @param internalAccessAdapter to access private methods on containerView.
-     * @param nativeDrawFunctorFactory to access the functor provided by the WebView.
+     * @param drawFnAccess to access the draw functor provided by the WebView.
      * @param contentsClient will receive API callbacks from this WebView Contents.
      * @param awSettings AwSettings instance used to configure the AwContents.
      *     <p>This constructor uses the default view sizing policy.
@@ -960,7 +924,7 @@ public class AwContents implements SmartClipProvider {
             ViewGroup containerView,
             Context context,
             InternalAccessDelegate internalAccessAdapter,
-            NativeDrawFunctorFactory nativeDrawFunctorFactory,
+            AwDrawFnImpl.DrawFnAccess drawFnAccess,
             AwContentsClient contentsClient,
             AwSettings awSettings) {
         this(
@@ -968,7 +932,7 @@ public class AwContents implements SmartClipProvider {
                 containerView,
                 context,
                 internalAccessAdapter,
-                nativeDrawFunctorFactory,
+                drawFnAccess,
                 contentsClient,
                 awSettings,
                 new DependencyFactory());
@@ -985,7 +949,7 @@ public class AwContents implements SmartClipProvider {
             ViewGroup containerView,
             Context context,
             InternalAccessDelegate internalAccessAdapter,
-            NativeDrawFunctorFactory nativeDrawFunctorFactory,
+            AwDrawFnImpl.DrawFnAccess drawFnAccess,
             AwContentsClient contentsClient,
             AwSettings settings,
             DependencyFactory dependencyFactory) {
@@ -1030,8 +994,8 @@ public class AwContents implements SmartClipProvider {
                             },
                             containerView);
             mDisplayCutoutController =
-                    AwDisplayCutoutController.maybeCreate(
-                            new AwDisplayCutoutController.Delegate() {
+                    new AwDisplayCutoutController(
+                            new Delegate() {
                                 @Override
                                 public float getDipScale() {
                                     WindowAndroid windowAndroid = mWindowAndroid.getWindowAndroid();
@@ -1039,8 +1003,7 @@ public class AwContents implements SmartClipProvider {
                                 }
 
                                 @Override
-                                public void setDisplayCutoutSafeArea(
-                                        AwDisplayCutoutController.Insets insets) {
+                                public void setDisplayCutoutSafeArea(Insets insets) {
                                     if (mWebContents == null) return;
                                     mWebContents.setDisplayCutoutSafeArea(
                                             insets.toRect(mCachedSafeAreaRect));
@@ -1060,7 +1023,7 @@ public class AwContents implements SmartClipProvider {
             mContext = context;
             mAppTargetSdkVersion = mContext.getApplicationInfo().targetSdkVersion;
             mInternalAccessAdapter = internalAccessAdapter;
-            mNativeDrawFunctorFactory = nativeDrawFunctorFactory;
+            mDrawFnAccess = drawFnAccess;
             mContentsClient = contentsClient;
             mContentsClient
                     .getCallbackHelper()
@@ -1580,9 +1543,9 @@ public class AwContents implements SmartClipProvider {
         }
     }
 
-    private void setFunctor(AwFunctor functor) {
+    private void setFunctor(AwDrawFnImpl functor) {
         if (mDrawFunctor == functor) return;
-        AwFunctor oldFunctor = mDrawFunctor;
+        AwDrawFnImpl oldFunctor = mDrawFunctor;
         mDrawFunctor = functor;
         updateNativeAwGLFunctor();
 
@@ -1627,7 +1590,8 @@ public class AwContents implements SmartClipProvider {
 
         mWindowAndroid = getWindowAndroid(mContext);
         mViewAndroidDelegate =
-                new AwViewAndroidDelegate(mContainerView, mContentsClient, mScrollOffsetManager);
+                new AwViewAndroidDelegate(
+                        mContainerView, mContentsClient, mScrollOffsetManager, mWebContents);
         mWebContentsInternalsHolder = new WebContentsInternalsHolder(this);
         AutofillSelectionActionMenuDelegate selectionActionMenuDelegate =
                 SelectionActionMenuDelegateProvider.getSelectionActionMenuDelegate();
@@ -1765,12 +1729,24 @@ public class AwContents implements SmartClipProvider {
                 previousState.javascriptInterfaces.entrySet()) {
             @SuppressWarnings("unchecked")
             JavascriptInjector.InjectedInterface injected = entry.getValue();
-            getJavascriptInjector()
-                    .addPossiblyUnsafeInterface(
-                            injected.getInjectedObject(),
-                            entry.getKey(),
-                            injected.getRequiredAnnotation(),
-                            injected.getOriginAllowlist());
+
+            OriginMatcher matcher = new OriginMatcher();
+            try {
+                List<String> badRules = matcher.setRuleList(injected.getMatcherRules());
+                // We should only be storing well formed rules at this point.
+                assert badRules.size() == 0;
+
+                getJavascriptInjector()
+                        .addPossiblyUnsafeInterfaceToOrigins(
+                                injected.getInjectedObject(),
+                                entry.getKey(),
+                                injected.getRequiredAnnotation(),
+                                matcher);
+            } finally {
+                // The matcher has a native counter part so we need to clean it
+                // after we are done with it. The injector will copy whatever it uses.
+                matcher.destroy();
+            }
         }
 
         // Restore injected WebMessageListeners.
@@ -2032,14 +2008,6 @@ public class AwContents implements SmartClipProvider {
 
     public static void setAwDrawSWFunctionTable(long functionTablePointer) {
         AwContentsJni.get().setAwDrawSWFunctionTable(functionTablePointer);
-    }
-
-    public static void setAwDrawGLFunctionTable(long functionTablePointer) {
-        AwContentsJni.get().setAwDrawGLFunctionTable(functionTablePointer);
-    }
-
-    public static long getAwDrawGLFunction() {
-        return AwGLFunctor.getAwDrawGLFunction();
     }
 
     public static void setShouldDownloadFavicons() {
@@ -2976,7 +2944,7 @@ public class AwContents implements SmartClipProvider {
         }
 
         return new ScriptHandler(
-                AwContents.this,
+                this,
                 AwContentsJni.get()
                         .addDocumentStartJavaScript(mNativeAwContents, script, allowedOriginRules));
     }
@@ -3561,8 +3529,6 @@ public class AwContents implements SmartClipProvider {
 
     public List<String> addJavascriptInterface(
             Object object, String name, @NonNull List<String> originAllowlist) {
-        // TODO(crbug.com/383099115): Get rid of this allowlist version of addJavascriptInterface
-        // and instead rely on some allowlist state.
         if (TRACE) Log.i(TAG, "%s addJavascriptInterface=%s", this, name);
         if (isDestroyed(WARN)) return Collections.emptyList();
 
@@ -3580,8 +3546,24 @@ public class AwContents implements SmartClipProvider {
             requiredAnnotation = JavascriptInterface.class;
         }
 
-        return getJavascriptInjector()
-                .addPossiblyUnsafeInterface(object, name, requiredAnnotation, originAllowlist);
+        // If any rules were ill-formed, we will skip injection and return the
+        // bad rules.
+        OriginMatcher matcher = new OriginMatcher();
+        try {
+            List<String> badRules = matcher.setRuleList(originAllowlist);
+            if (badRules.size() != 0) {
+                return badRules;
+            }
+
+            getJavascriptInjector()
+                    .addPossiblyUnsafeInterfaceToOrigins(object, name, requiredAnnotation, matcher);
+        } finally {
+            // The matcher has a native counter part so we need to clean it
+            // after we are done with it. The injector will copy whatever it uses.
+            matcher.destroy();
+        }
+
+        return Collections.emptyList();
     }
 
     /**
@@ -3674,7 +3656,7 @@ public class AwContents implements SmartClipProvider {
                     assert false;
             }
         }
-        mWebContents.setPrimaryMainFrameImportance(effectiveImportance);
+        mWebContents.setPrimaryPageImportance(effectiveImportance, ChildProcessImportance.NORMAL);
     }
 
     @RendererPriority
@@ -4153,6 +4135,10 @@ public class AwContents implements SmartClipProvider {
         return false;
     }
 
+    public AwViewAndroidDelegate getViewAndroidDelegateForTesting() {
+        return mViewAndroidDelegate;
+    }
+
     @VisibleForTesting
     public void onTrimMemory(final int level) {
         try (TraceEvent e = TraceEvent.scoped("onTrimMemory", String.valueOf(level))) {
@@ -4169,7 +4155,6 @@ public class AwContents implements SmartClipProvider {
                             postDelayedTaskWithOverride(
                                     this::maybeRecordMemory, METRICS_COLLECTION_DELAY_MS);
                             if (mDrawFunctor != null) {
-                                mDrawFunctor.trimMemory();
                                 setFunctor(null);
                             }
                         }
@@ -4276,7 +4261,7 @@ public class AwContents implements SmartClipProvider {
             }
         }
 
-        @SuppressLint("DrawAllocation") // For new AwFunctor.
+        @SuppressLint("DrawAllocation") // For new AwDrawFnImpl.
         private void onDrawInner(Canvas canvas) {
             if (isDestroyed(NO_WARN)) {
                 TraceEvent.instant("EarlyOut_destroyed");
@@ -4292,15 +4277,7 @@ public class AwContents implements SmartClipProvider {
             }
 
             if (canvas.isHardwareAccelerated() && mDrawFunctor == null) {
-                AwFunctor newFunctor;
-                AwDrawFnImpl.DrawFnAccess drawFnAccess =
-                        mNativeDrawFunctorFactory.getDrawFnAccess();
-                if (drawFnAccess != null) {
-                    newFunctor = new AwDrawFnImpl(drawFnAccess);
-                } else {
-                    newFunctor = new AwGLFunctor(mNativeDrawFunctorFactory, mContainerView);
-                }
-                setFunctor(newFunctor);
+                setFunctor(new AwDrawFnImpl(mDrawFnAccess));
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
@@ -4441,7 +4418,7 @@ public class AwContents implements SmartClipProvider {
         public boolean onKeyUp(int keyCode, KeyEvent event) {
             return isDestroyed(NO_WARN)
                     ? false
-                    : mWebContents.getEventForwarder().onKeyUp(keyCode, event);
+                    : mWebContents.getEventForwarder().onKeyUp(event);
         }
 
         @Override
@@ -4778,8 +4755,6 @@ public class AwContents implements SmartClipProvider {
         boolean hasRequiredHardwareExtensions();
 
         void setAwDrawSWFunctionTable(long functionTablePointer);
-
-        void setAwDrawGLFunctionTable(long functionTablePointer);
 
         int getNativeInstanceCount();
 

@@ -9,6 +9,7 @@
 
 #include "base/check.h"
 #include "base/lazy_instance.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "components/version_info/version_info.h"
 #include "extensions/common/core_extensions_api_provider.h"
@@ -70,7 +71,7 @@ ShellExtensionsClient::~ShellExtensionsClient() {
 }
 
 void ShellExtensionsClient::Initialize() {
-  // TODO(jamescook): Do we need to whitelist any extensions?
+  // TODO(jamescook): Do we need to allowlist any extensions?
 }
 
 void ShellExtensionsClient::InitializeWebStoreUrls(

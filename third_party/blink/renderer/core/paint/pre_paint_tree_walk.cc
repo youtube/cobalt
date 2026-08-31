@@ -22,7 +22,6 @@
 #include "third_party/blink/renderer/core/layout/layout_box_model_object.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_html_canvas.h"
-#include "third_party/blink/renderer/core/layout/layout_multi_column_flow_thread.h"
 #include "third_party/blink/renderer/core/layout/layout_shift_tracker.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/pagination_utils.h"
@@ -35,6 +34,8 @@
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_property_tree_printer.h"
 #include "third_party/blink/renderer/core/paint/pre_paint_disable_side_effects_scope.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_heuristics.h"
+#include "third_party/blink/renderer/core/timing/soft_navigation_paint_attribution_tracker.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
@@ -48,6 +49,15 @@ bool IsLinkHighlighted(const LayoutObject& object) {
 
 bool IsInFragmentationContext(const PhysicalBoxFragment* fragment) {
   return fragment && fragment->IsFragmentainerBox();
+}
+
+SoftNavigationPaintAttributionTracker*
+GetSoftNavigationPaintAttrubutionTrackerIfEnabled(LocalFrameView& frame_view) {
+  if (auto* heuristics =
+          frame_view.GetFrame().DomWindow()->GetSoftNavigationHeuristics()) {
+    return heuristics->GetPaintAttributionTracker();
+  }
+  return nullptr;
 }
 
 }  // anonymous namespace
@@ -134,6 +144,11 @@ void PrePaintTreeWalk::Walk(LocalFrameView& frame_view,
 
   // Block fragmentation doesn't cross frame boundaries.
   context.ResetFragmentation();
+
+  // Soft navigation tracking doesn't cross frame boundaries.
+  context.ResetSoftNavigationContext();
+  context.soft_navigation_paint_attribution_tracker =
+      GetSoftNavigationPaintAttrubutionTrackerIfEnabled(frame_view);
 
   if (context.tree_builder_context) {
     PaintPropertyTreeBuilder::SetupContextForFrame(
@@ -270,6 +285,63 @@ void PrePaintTreeWalk::InvalidatePaintForHitTesting(
   // invalidate the display item client.
 }
 
+void PrePaintTreeWalk::UpdateSoftNavigationContext(
+    const LayoutObject& object,
+    PrePaintTreeWalk::PrePaintTreeWalkContext& context) {
+  if (!context.soft_navigation_paint_attribution_tracker) {
+    return;
+  }
+
+  if (object.SoftNavigationContextChanged()) {
+    context.soft_navigation_context_changed = true;
+  }
+
+  // For text nodes, text paint timing is aggregated up to the element that
+  // determines the containing block of the node
+  // (https://www.w3.org/TR/paint-timing/#sec-modifications-dom). We push such
+  // candidates down while walking the tree so that the soft navigations layer
+  // can associated text nodes with the containing box without walking up.
+  //
+  // TODO(crbug.com/423670827): Consider moving this check to
+  // TextPaintTimingDetector.
+  if (auto* node = object.GetNode(); node && object.IsBox()) {
+    context.soft_navigation_text_aggregation_node = node;
+  }
+
+  // This node is either a new "container root" (a node having a different
+  // `SoftNavigationContext` than its parent), or will inherit the context of
+  // the container root being propagated. This is determined by
+  // `SoftNavigationPaintAttributionTracker::UpdateOnPrePaint()`, the result of
+  // which is cached in the `LayoutObject`'s ShouldInheritSoftNavigationContext
+  // bit, so that subsequent tree walks can quickly determine which node should
+  // be propagated to children.
+  if (context.soft_navigation_context_changed) {
+    using PrePaintUpdateResult =
+        SoftNavigationPaintAttributionTracker::PrePaintUpdateResult;
+    PrePaintUpdateResult result =
+        context.soft_navigation_paint_attribution_tracker->UpdateOnPrePaint(
+            object, context.soft_navigation_context_container_root,
+            context.soft_navigation_text_aggregation_node);
+    switch (result) {
+      case PrePaintUpdateResult::kPropagateCurrentNode:
+        object.GetMutableForPainting().SetShouldInheritSoftNavigationContext(
+            false);
+        context.soft_navigation_context_container_root = object.GetNode();
+        break;
+      case PrePaintUpdateResult::kPropagateAncestorNode:
+        // No need to change the source node, just continue propagating it.
+        object.GetMutableForPainting().SetShouldInheritSoftNavigationContext(
+            true);
+        break;
+    }
+  } else if (!object.ShouldInheritSoftNavigationContext()) {
+    // Anonymous nodes should always inherit the parent context, so this should
+    // not be reached.
+    CHECK(object.GetNode());
+    context.soft_navigation_context_container_root = object.GetNode();
+  }
+}
+
 bool PrePaintTreeWalk::NeedsTreeBuilderContextUpdate(
     const LocalFrameView& frame_view,
     const PrePaintTreeWalkContext& context) {
@@ -295,14 +367,17 @@ bool PrePaintTreeWalk::ObjectRequiresPrePaint(const LayoutObject& object) {
          object.EffectiveAllowedTouchActionChanged() ||
          object.DescendantEffectiveAllowedTouchActionChanged() ||
          object.BlockingWheelEventHandlerChanged() ||
-         object.DescendantBlockingWheelEventHandlerChanged();
+         object.DescendantBlockingWheelEventHandlerChanged() ||
+         object.SoftNavigationContextChanged() ||
+         object.DescendantSoftNavigationContextChanged();
 }
 
 bool PrePaintTreeWalk::ContextRequiresChildPrePaint(
     const PrePaintTreeWalkContext& context) {
   return context.paint_invalidator_context.NeedsSubtreeWalk() ||
          context.effective_allowed_touch_action_changed ||
-         context.blocking_wheel_event_handler_changed;
+         context.blocking_wheel_event_handler_changed ||
+         context.soft_navigation_context_changed;
 }
 
 bool PrePaintTreeWalk::ObjectRequiresTreeBuilderContext(
@@ -491,12 +566,6 @@ void PrePaintTreeWalk::UpdateContextForOOFContainer(
     const LayoutObject& object,
     PrePaintTreeWalkContext& context,
     const PhysicalBoxFragment* fragment) {
-  // Flow threads don't exist, as far as LayoutNG is concerned. Yet, we
-  // encounter them here when performing an NG fragment accompanied LayoutObject
-  // subtree walk. Just ignore.
-  if (object.IsLayoutFlowThread())
-    return;
-
   // If we're in a fragmentation context, the parent fragment of OOFs is the
   // fragmentainer, unless the object is monolithic, in which case nothing
   // contained by the object participates in the current block fragmentation
@@ -558,6 +627,8 @@ void PrePaintTreeWalk::WalkInternal(const LayoutObject& object,
   UpdateEffectiveAllowedTouchAction(object, context);
   UpdateBlockingWheelEventHandler(object, context);
 
+  UpdateSoftNavigationContext(object, context);
+
   if (paint_invalidator_.InvalidatePaint(
           object, pre_paint_info,
           base::OptionalToPtr(context.tree_builder_context),
@@ -613,11 +684,6 @@ const PhysicalBoxFragment* PrePaintTreeWalk::RebuildContextForMissedDescendant(
   const PhysicalBoxFragment* search_fragment =
       RebuildContextForMissedDescendant(ancestor, *object.Parent(),
                                         update_tree_builder_context, context);
-
-  if (object.IsLayoutFlowThread()) {
-    // A flow threads doesn't create fragments. Just ignore it.
-    return search_fragment;
-  }
 
   const PhysicalBoxFragment* box_fragment = nullptr;
   if (context.tree_builder_context && update_tree_builder_context) {
@@ -828,21 +894,6 @@ void PrePaintTreeWalk::WalkFragmentationContextRootChildren(
 
     WalkFragmentainer(object, child, parent_context);
   }
-
-  if (!To<LayoutBlockFlow>(&object)->MultiColumnFlowThread()) {
-    return;
-  }
-  // Multicol containers only contain special legacy children invisible to
-  // LayoutNG, so we need to clean them manually.
-  if (fragment.GetBreakToken()) {
-    return;  // Wait until we've reached the end.
-  }
-  for (const LayoutObject* child = object.SlowFirstChild(); child;
-       child = child->NextSibling()) {
-    DCHECK(child->IsLayoutFlowThread() || child->IsLayoutMultiColumnSet() ||
-           child->IsLayoutMultiColumnSpannerPlaceholder());
-    child->GetMutableForPainting().ClearPaintFlags();
-  }
 }
 
 void PrePaintTreeWalk::WalkPageContainer(
@@ -978,12 +1029,7 @@ void PrePaintTreeWalk::WalkFragmentainer(
     }
   }
 
-  // If this is a multicol container, the actual children are inside the flow
-  // thread child of |parent_object|.
-  const auto* flow_thread =
-      To<LayoutBlockFlow>(&parent_object)->MultiColumnFlowThread();
-  const auto& actual_parent = flow_thread ? *flow_thread : parent_object;
-  WalkChildren(actual_parent, &fragmentainer, fragmentainer_context);
+  WalkChildren(parent_object, &fragmentainer, fragmentainer_context);
 
   if (containing_block_context) {
     containing_block_context->paint_offset -= child_link.offset;
@@ -1004,12 +1050,6 @@ void PrePaintTreeWalk::WalkLayoutObjectChildren(
       // fragmentation, and it also works fine if there's no block fragmentation
       // involved at all (in such cases we can either to do this, or perform the
       // PhysicalBoxFragment-accompanied walk that we do further down).
-
-      if (child->IsLayoutMultiColumnSpannerPlaceholder()) {
-        child->GetMutableForPainting().ClearPaintFlags();
-        continue;
-      }
-
       Walk(*child, context, /* pre_paint_info */ nullptr);
       continue;
     }
@@ -1104,10 +1144,11 @@ void PrePaintTreeWalk::WalkLayoutObjectChildren(
       const auto* layout_inline_child = DynamicTo<LayoutInline>(child);
 
       if (!layout_inline_child) {
-        // We end up here for collapsed text nodes. Just clear the paint flags.
+        // We end up here for collapsed text nodes, and also SVG subtrees that
+        // have forcefully been fragment-traversed due to repeated content. Just
+        // clear the paint flags.
         for (const LayoutObject* fragmentless = child; fragmentless;
              fragmentless = fragmentless->NextInPreOrder(child)) {
-          DCHECK(fragmentless->IsText());
           DCHECK(!fragmentless->HasInlineFragments());
           fragmentless->GetMutableForPainting().ClearPaintFlags();
         }
@@ -1205,23 +1246,30 @@ void PrePaintTreeWalk::WalkChildren(
   const LayoutBox* box = DynamicTo<LayoutBox>(&object);
   if (box) {
     if (traversable_fragment) {
-      if (!box->IsLayoutFlowThread() &&
-          (!box->IsLayoutNGObject() || !box->PhysicalFragmentCount())) {
-        // We can traverse PhysicalFragments in LayoutMedia though it's not
-        // a LayoutNGObject.
-        if (!box->IsMedia()) {
-          // Leave PhysicalBoxFragment-accompanied child LayoutObject traversal,
-          // since this object doesn't support that (or has no fragments
-          // (happens for table columns)). We need to switch back to plain
-          // LayoutObject traversal for its children. We're then also assuming
-          // that we're either not block-fragmenting, or that this is monolithic
-          // content. We may re-enter PhysicalBoxFragment-accompanied traversal
-          // if we get to a descendant that supports that.
-          DCHECK(!box->ContainingFragmentationContextRoot() ||
-                 box->IsMonolithic());
-
-          traversable_fragment = nullptr;
-        }
+      // Check if we are allowed to traverse child fragments.
+      // CanTraversePhysicalFragments() essentially has the answer, but make an
+      // exception if there are multiple fragments. This happens inside repeated
+      // content, such as repeated table headers and footers. Creating multiple
+      // fragments for something that isn't fragment-traversable isn't great.
+      //
+      // TODO(crbug.com/434108536): Ideally, we should make everything
+      // fragment-traversable, but we're still not ready for that.
+      //
+      // Note that when we forcefully fragment-traverse something that has
+      // custom stuff on the LayoutObject side of things, there may be
+      // correctness issues, such as e.g. event handling in repeated text input
+      // fields (but how's that supposed to work anyway...).
+      if (!box->CanTraversePhysicalFragments() &&
+          box->PhysicalFragmentCount() <= 1) {
+        // Leave PhysicalBoxFragment-accompanied child LayoutObject traversal,
+        // since this object doesn't support that. We need to switch back to
+        // plain LayoutObject traversal for its children. We're then also
+        // assuming that we're either not block-fragmenting, or that this is
+        // monolithic content. We may re-enter PhysicalBoxFragment-accompanied
+        // traversal if we get to a descendant that supports that.
+        DCHECK(!box->ContainingFragmentationContextRoot() ||
+               box->IsMonolithic());
+        traversable_fragment = nullptr;
       }
     } else if (box->PhysicalFragmentCount()) {
       // Enter LayoutNGBoxFragment-accompanied child LayoutObject traversal if
@@ -1239,9 +1287,10 @@ void PrePaintTreeWalk::WalkChildren(
       const auto* first_fragment =
           To<PhysicalBoxFragment>(box->GetPhysicalFragment(0));
       DCHECK(!first_fragment->GetBreakToken());
-      if (first_fragment->IsFragmentationContextRoot() &&
-          box->CanTraversePhysicalFragments())
+      if (first_fragment->IsFragmentationContextRoot()) {
+        DCHECK(box->CanTraversePhysicalFragments());
         traversable_fragment = first_fragment;
+      }
     }
   }
 
@@ -1259,10 +1308,19 @@ void PrePaintTreeWalk::WalkChildren(
     // box-tree-wise. This is only an issue for OOF descendants, though, so only
     // examine OOF containing blocks.
     if (box && box->CanContainAbsolutePositionObjects() &&
-        box->IsLayoutNGObject() && box->PhysicalFragmentCount()) {
+        box->CanTraversePhysicalFragments() && box->PhysicalFragmentCount()) {
       DCHECK_EQ(box->PhysicalFragmentCount(), 1u);
       fragment = box->GetPhysicalFragment(0);
     }
+
+    // Checking above if we have physical fragments even when the box is
+    // fragment-traversable seems nonsensical, but the web test runner always
+    // ends up with a document only containing a fragment-less LayoutView
+    // (before loading the actual test). No idea why, but let's assert that
+    // we're dealing with a LayoutView in such cases.
+    DCHECK(!box || !box->CanTraversePhysicalFragments() ||
+           box->PhysicalFragmentCount() ||
+           (box->IsLayoutView() && !box->SlowFirstChild()));
   }
   if (fragment) {
     // If we are at a block fragment, collect any missable children.
@@ -1337,13 +1395,15 @@ void PrePaintTreeWalk::Walk(const LayoutObject& object,
   // same bits on the context.
   if (child_walk_blocked && (ContextRequiresChildTreeBuilderContext(context) ||
                              ContextRequiresChildPrePaint(context))) {
-    // Note that |effective_allowed_touch_action_changed| and
-    // |blocking_wheel_event_handler_changed| are special in that they requires
-    // us to specifically recalculate this value on each subtree element. Other
-    // flags simply need a subtree walk.
+    // Note that |effective_allowed_touch_action_changed|,
+    // |blocking_wheel_event_handler_changed|, and
+    // |soft_navigation_context_changed| are special in that they requires us to
+    // specifically recalculate this value on each subtree element. Other flags
+    // simply need a subtree walk.
     object.GetDisplayLockContext()->SetNeedsPrePaintSubtreeWalk(
         context.effective_allowed_touch_action_changed,
-        context.blocking_wheel_event_handler_changed);
+        context.blocking_wheel_event_handler_changed,
+        context.soft_navigation_context_changed);
   }
 
   if (!child_walk_blocked) {

@@ -10,7 +10,6 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/functional/overloaded.h"
 #include "base/strings/to_string.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
@@ -20,8 +19,6 @@
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/install_isolated_web_app_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
@@ -32,9 +29,12 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
+#include "components/webapps/isolated_web_apps/types/source.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace web_app {
 namespace {
@@ -139,23 +139,22 @@ IN_PROC_BROWSER_TEST_P(IsolatedWebAppUninstallBrowserTest, Succeeds) {
   ASSERT_TRUE(web_app_before);
   ASSERT_TRUE(web_app_before->isolation_data().has_value());
 
-  std::visit(
-      base::Overloaded{[&](const IwaStorageOwnedBundle& location) {
-                         // Verify that .swbn file was copied to the profile
-                         // directory.
-                         base::FilePath path =
-                             location.GetPath(profile()->GetPath());
-                         base::ScopedAllowBlockingForTesting allow_blocking;
-                         EXPECT_NE(path, src_bundle_path_);
-                         EXPECT_THAT(location, test::OwnedIwaBundleExists(
-                                                   profile()->GetPath()));
-                         path_to_iwa_in_profile = path;
-                       },
-                       [&](const IwaStorageUnownedBundle& location) {
-                         EXPECT_EQ(location.path(), src_bundle_path_);
-                       },
-                       [&](const IwaStorageProxy& location) { FAIL(); }},
-      web_app_before->isolation_data()->location().variant());
+  std::visit(absl::Overload{
+                 [&](const IwaStorageOwnedBundle& location) {
+                   // Verify that .swbn file was copied to the profile
+                   // directory.
+                   base::FilePath path = location.GetPath(profile()->GetPath());
+                   base::ScopedAllowBlockingForTesting allow_blocking;
+                   EXPECT_NE(path, src_bundle_path_);
+                   EXPECT_THAT(location, test::OwnedIwaBundleExists(
+                                             profile()->GetPath()));
+                   path_to_iwa_in_profile = path;
+                 },
+                 [&](const IwaStorageUnownedBundle& location) {
+                   EXPECT_EQ(location.path(), src_bundle_path_);
+                 },
+                 [&](const IwaStorageProxy& location) { FAIL(); }},
+             web_app_before->isolation_data()->location().variant());
 
   // Uninstall the app and check that the copied to profile directory
   // file has been removed.

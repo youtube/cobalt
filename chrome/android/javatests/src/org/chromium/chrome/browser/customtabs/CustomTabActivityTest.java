@@ -108,6 +108,7 @@ import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.base.test.transit.Triggers;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
@@ -119,6 +120,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
+import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.MinAndroidSdkLevel;
@@ -127,7 +129,6 @@ import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.LaunchIntentDispatcher;
-import org.chromium.chrome.browser.TabsOpenedFromExternalAppTest;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -169,12 +170,13 @@ import org.chromium.chrome.browser.toolbar.menu_button.MenuButton;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
-import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
 import org.chromium.chrome.test.ChromeActivityTestRule;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
+import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.ReferrerCondition;
 import org.chromium.chrome.test.util.ActivityTestUtils;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.browser.contextmenu.ContextMenuUtils;
@@ -253,8 +255,7 @@ public class CustomTabActivityTest {
             ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule
-    public AutomotiveContextWrapperTestRule mAutomotiveRule =
-            new AutomotiveContextWrapperTestRule();
+    public OverrideContextWrapperTestRule mAutomotiveRule = new OverrideContextWrapperTestRule();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -476,6 +477,10 @@ public class CustomTabActivityTest {
     @Test
     @SmallTest
     @Feature({"StatusBar"})
+    // TODO(crbug.com/428056054): Do not read color from system window bars on B+.
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            message = "crbug.com/428056054")
     public void testToolbarColor() {
         Intent intent = createMinimalCustomTabIntent();
         final int expectedColor = Color.RED;
@@ -508,6 +513,31 @@ public class CustomTabActivityTest {
                         ? BrandedColorScheme.DARK_BRANDED_THEME
                         : BrandedColorScheme.LIGHT_BRANDED_THEME,
                 menuButtonView.getBrandedColorSchemeForTesting());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
+    public void testOptionalButton_supportedOnDefaultType() {
+        Intent intent = createMinimalCustomTabIntent();
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        var dataProvider = mCustomTabActivityTestRule.getActivity().getIntentDataProvider();
+        assertTrue(
+                "Normal CCT should support optional button",
+                dataProvider.isOptionalButtonSupported());
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.CCT_ADAPTIVE_BUTTON)
+    public void testOptionalButton_notSupportedOnNonDefaultType() {
+        Intent intent = createMinimalCustomTabIntent();
+        CustomTabIntentDataProvider.addReaderModeUiExtras(intent);
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        var dataProvider = mCustomTabActivityTestRule.getActivity().getIntentDataProvider();
+        assertFalse(
+                "Reader mode CCT should not support optional button",
+                dataProvider.isOptionalButtonSupported());
     }
 
     /**
@@ -1091,8 +1121,54 @@ public class CustomTabActivityTest {
     @Test
     @SmallTest
     public void testCallbacksAreSent() throws Exception {
+        final Semaphore tabShownSemaphore = new Semaphore(0);
         final Semaphore navigationStartSemaphore = new Semaphore(0);
         final Semaphore navigationFinishedSemaphore = new Semaphore(0);
+        Intent intent =
+                createIntentWithCallback(
+                        tabShownSemaphore, navigationStartSemaphore, navigationFinishedSemaphore);
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        Assert.assertTrue(
+                tabShownSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationStartSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationFinishedSemaphore.tryAcquire(
+                        TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+    }
+
+    /** Tests that the navigation callbacks are sent for pre-warmed CCT. */
+    @Test
+    @SmallTest
+    public void testCallbacksAreSentForPreWarmedCCT() throws Exception {
+        final Semaphore tabShownSemaphore = new Semaphore(0);
+        final Semaphore navigationStartSemaphore = new Semaphore(0);
+        final Semaphore navigationFinishedSemaphore = new Semaphore(0);
+        CustomTabsConnection connection = CustomTabsTestUtils.warmUpAndWait();
+        Intent intent =
+                createIntentWithCallback(
+                        tabShownSemaphore, navigationStartSemaphore, navigationFinishedSemaphore);
+        final var token = SessionHolder.getSessionHolderFromIntent(intent);
+        Assert.assertTrue(connection.newSession(token.getSessionAsCustomTab()));
+        Assert.assertTrue(
+                connection.mayLaunchUrl(
+                        token.getSessionAsCustomTab(), Uri.parse(mTestPage), null, null));
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+
+        Assert.assertTrue(
+                tabShownSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationStartSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        Assert.assertTrue(
+                navigationFinishedSemaphore.tryAcquire(
+                        TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+    }
+
+    private Intent createIntentWithCallback(
+            Semaphore tabShownSemaphore,
+            Semaphore navigationStartSemaphore,
+            Semaphore navigationFinishedSemaphore)
+            throws Exception {
         CustomTabsSession session =
                 CustomTabsTestUtils.bindWithCallback(
                                 new CustomTabsCallback() {
@@ -1105,7 +1181,9 @@ public class CustomTabActivityTest {
                                         Assert.assertNotEquals(
                                                 CustomTabsCallback.NAVIGATION_ABORTED,
                                                 navigationEvent);
-                                        if (navigationEvent
+                                        if (navigationEvent == CustomTabsCallback.TAB_SHOWN) {
+                                            tabShownSemaphore.release();
+                                        } else if (navigationEvent
                                                 == CustomTabsCallback.NAVIGATION_STARTED) {
                                             navigationStartSemaphore.release();
                                         } else if (navigationEvent
@@ -1121,13 +1199,7 @@ public class CustomTabActivityTest {
                 new ComponentName(
                         ApplicationProvider.getApplicationContext(), ChromeLauncherActivity.class));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-
-        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
-        Assert.assertTrue(
-                navigationStartSemaphore.tryAcquire(TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
-        Assert.assertTrue(
-                navigationFinishedSemaphore.tryAcquire(
-                        TIMEOUT_PAGE_LOAD_SECONDS, TimeUnit.SECONDS));
+        return intent;
     }
 
     /** Tests that page load metrics are sent. */
@@ -1649,7 +1721,7 @@ public class CustomTabActivityTest {
         var sessionHolder = new SessionHolder<>(token);
         connection.newSession(token);
         setCanUseHiddenTabForSession(sessionHolder, true);
-        connection.warmup(0);
+        connection.warmup();
 
         // Needs the browser process to be initialized.
         ThreadUtils.runOnUiThreadBlocking(
@@ -1815,8 +1887,7 @@ public class CustomTabActivityTest {
         CriteriaHelper.pollInstrumentationThread(
                 new ElementContentCriteria(tab, "visibility", "hidden"), 2000, 200);
         // The Referrer is correctly set.
-        CriteriaHelper.pollInstrumentationThread(
-                new TabsOpenedFromExternalAppTest.ReferrerCriteria(tab, referrer), 2000, 200);
+        Triggers.noopTo().waitFor(new ReferrerCondition(() -> tab, referrer));
     }
 
     /**
@@ -1837,8 +1908,7 @@ public class CustomTabActivityTest {
         CriteriaHelper.pollInstrumentationThread(
                 new ElementContentCriteria(tab, "visibility", "visible"), 2000, 200);
         // The Referrer is correctly set.
-        CriteriaHelper.pollInstrumentationThread(
-                new TabsOpenedFromExternalAppTest.ReferrerCriteria(tab, launchReferrer), 2000, 200);
+        Triggers.noopTo().waitFor(new ReferrerCondition(() -> tab, launchReferrer));
     }
 
     /** Tests that a client can set a referrer, without speculating. */
@@ -1851,8 +1921,7 @@ public class CustomTabActivityTest {
 
         Tab tab = getActivity().getActivityTab();
         // The Referrer is correctly set.
-        CriteriaHelper.pollInstrumentationThread(
-                new TabsOpenedFromExternalAppTest.ReferrerCriteria(tab, referrerUrl), 2000, 200);
+        Triggers.noopTo().waitFor(new ReferrerCondition(() -> tab, referrerUrl));
     }
 
     @Test
@@ -2162,11 +2231,12 @@ public class CustomTabActivityTest {
     @SmallTest
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
     @EnableFeatures({ChromeFeatureList.CCT_RESIZABLE_FOR_THIRD_PARTIES})
+    // TODO(crbug.com/428056054): Test assume view hierarchy, does not work with e2e everywhere.
+    @DisableFeatures(ChromeFeatureList.EDGE_TO_EDGE_EVERYWHERE)
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            message = "crbug.com/428056054")
     public void testLaunchPartialCustomTabActivity_BottomSheet() throws Exception {
-        doTestLaunchPartialCustomTabWithInitialHeight();
-    }
-
-    private void doTestLaunchPartialCustomTabWithInitialHeight() throws Exception {
         Intent intent = createMinimalCustomTabIntent();
         var token = SessionHolder.getSessionHolderFromIntent(intent);
         CustomTabsConnection connection = CustomTabsConnection.getInstance();
@@ -2224,9 +2294,8 @@ public class CustomTabActivityTest {
     @SmallTest
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
     @EnableFeatures({ChromeFeatureList.CCT_RESIZABLE_FOR_THIRD_PARTIES})
-    @MinAndroidSdkLevel(Build.VERSION_CODES.O_MR1)
     // crbug.com/350394860
-    @DisableIf.Device(DeviceFormFactor.TABLET)
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET)
     public void testLaunchPartialCustomTabActivity_SideSheet() throws Exception {
         Intent intent = createMinimalCustomTabIntent();
         var token = SessionHolder.getSessionHolderFromIntent(intent);
@@ -2281,7 +2350,6 @@ public class CustomTabActivityTest {
     @EnableFeatures({ChromeFeatureList.CCT_RESIZABLE_FOR_THIRD_PARTIES})
     // Screen rotation is not relevant on automotive.
     @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
-    @MinAndroidSdkLevel(Build.VERSION_CODES.O_MR1)
     // Bug in O that's been fixed in 8.1
     // https://issuetracker.google.com/issues/68427483
     public void testLaunchPartialCustomTabActivity_Transition() throws Exception {
@@ -3043,5 +3111,14 @@ public class CustomTabActivityTest {
                     PartialCustomTabBaseStrategy.PartialCustomTabType.BOTTOM_SHEET,
                     displayManager.getActiveStrategyType());
         }
+    }
+
+    @Test
+    @MediumTest
+    public void testDisableLoadDrops() {
+        Intent intent = createMinimalCustomTabIntent();
+        mCustomTabActivityTestRule.startCustomTabActivityWithIntent(intent);
+        var tab = getActivity().getActivityTab();
+        assertFalse(tab.getWebContents().getCanAcceptLoadDropsForTesting());
     }
 }

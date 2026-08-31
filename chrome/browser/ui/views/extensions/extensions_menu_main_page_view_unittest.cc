@@ -195,6 +195,10 @@ void ExtensionsMenuMainPageViewUnitTest::SetUp() {
 }
 
 void ExtensionsMenuMainPageViewUnitTest::TearDown() {
+  if (views::Widget* menu_widget =
+          menu_coordinator()->GetExtensionsMenuWidget()) {
+    menu_widget->CloseNow();
+  }
   web_contents_tester_ = nullptr;
   ExtensionsToolbarUnitTest::TearDown();
 }
@@ -717,10 +721,11 @@ TEST_F(ExtensionsMenuMainPageViewUnitTest,
             l10n_util::GetStringUTF16(
                 IDS_EXTENSIONS_MENU_MAIN_PAGE_EXTENSION_SITE_ACCESS_ON_CLICK));
 
+  auto reload_page_dialog_reset =
+      extensions::ReloadPageDialogController::AcceptDialogForTesting(false);
   auto* action_runner =
       extensions::ExtensionActionRunner::GetForWebContents(web_contents);
   ASSERT_TRUE(action_runner);
-  action_runner->accept_bubble_for_testing(false);
 
   // When extension is granted tab permissions it has:
   //   - site interaction is "granted".

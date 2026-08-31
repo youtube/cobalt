@@ -166,7 +166,7 @@ TEST_P(FindTextTest, FindVisibleCroppedTextRepeatedly) {
 }
 
 TEST_P(FindTextTest, SelectFindResult) {
-  FindTextTestClient client(/*expected_case_sensitive=*/true);
+  NiceMock<FindTextTestClient> client(/*expected_case_sensitive=*/true);
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("hello_world2.pdf"));
   ASSERT_TRUE(engine);
@@ -243,7 +243,8 @@ TEST_P(FindTextDrawSelectionTest, DrawFindResult) {
   engine->PluginSizeUpdated({500, 500});
 
   constexpr int kPageIndex = 0;
-  DrawSelectionAndCompare(*engine, kPageIndex, "hello_world_blank.png");
+  DrawAndExpectBlank(*engine, kPageIndex,
+                     /*expected_visible_page_size=*/gfx::Size(266, 266));
 
   engine->StartFind(u"o", /*case_sensitive=*/false);
   EXPECT_TRUE(engine->SelectFindResult(/*forward=*/true));
@@ -283,7 +284,8 @@ TEST_P(FindTextDrawSelectionTest, DrawFindResultInAnnotationMode) {
   engine->PluginSizeUpdated({500, 500});
 
   constexpr int kPageIndex = 0;
-  DrawSelectionAndCompare(*engine, kPageIndex, "hello_world_blank.png");
+  DrawAndExpectBlank(*engine, kPageIndex,
+                     /*expected_visible_page_size=*/gfx::Size(266, 266));
 
   engine->StartFind(u"o", /*case_sensitive=*/false);
   EXPECT_TRUE(engine->SelectFindResult(/*forward=*/true));

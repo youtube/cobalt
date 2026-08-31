@@ -29,6 +29,7 @@
 #include "components/autofill/core/browser/metrics/log_event.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
+#include "components/autofill/core/browser/ui/autofill_image_fetcher_base.h"
 #include "components/autofill/core/browser/ui/popup_interaction.h"
 #include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
@@ -455,6 +456,21 @@ class AutofillMetrics {
     kMaxValue = kPassword
   };
 
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // Represents the status of Autofill prompts when at least one prompt can be
+  // displayed.
+  enum class AutofillPromptStatus {
+    // Both prompts could have been displayed.
+    kAddressAndCreditCardShown = 0,
+    // Only the address prompt could have been displayed.
+    kAddressShown = 1,
+    // Only the credit card prompt could have been displayed.
+    kCreditCardShown = 2,
+    kMaxValue = kCreditCardShown,
+  };
+
   // Utility class for determining the seamlessness of a credit card fill.
   class CreditCardSeamlessness {
    public:
@@ -722,10 +738,6 @@ class AutofillMetrics {
   // used.
   static void LogAutocompleteDaysSinceLastUse(size_t days);
 
-  // Logs the number of days since an unaccepted Autocomplete suggestion was
-  // last used.
-  static void LogUnacceptedAutocompleteSuggestionDaysSinceLastUse(size_t days);
-
   // Logs the fact that an autocomplete popup was shown.
   static void OnAutocompleteSuggestionsShown();
 
@@ -905,6 +917,9 @@ class AutofillMetrics {
   static void LogDataListSuggestionsUpdated();
 
   static void LogDataListSuggestionsInserted();
+
+  // Logs the status of Autofill prompts.
+  static void LogAutofillPromptStatus(AutofillPromptStatus status);
 };
 
 #if defined(UNIT_TEST)

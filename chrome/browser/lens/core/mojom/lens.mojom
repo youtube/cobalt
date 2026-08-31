@@ -41,6 +41,7 @@ enum UserAction {
   kCopyAsImage = 15,
   kSaveAsImage = 16,
   kMathSelection = 17,
+  kFullScreenshotRegionSelection = 18,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/lens/enums.xml:LensOverlayUserAction)
@@ -92,6 +93,9 @@ interface LensPageHandler {
   // When this method is called, the C++ coordinator will add a blur to the
   // tab contents.
   AddBackgroundBlur();
+
+  // Enables/disables the live blurring of the background
+  SetLiveBlur(bool enabled);
 
   // When this method is called, the C++ coordinator will show the feedback
   // dialog.

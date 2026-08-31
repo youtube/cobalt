@@ -15,6 +15,12 @@ BOOL IsAutomaticPasskeyUpgradeEnabled();
 // Whether passkey PRF support is enabled.
 BOOL IsPasskeyPRFEnabled();
 
+// Whether passkey Large Blob support is enabled.
+BOOL IsPasskeyLargeBlobEnabled();
+
+// Whether signal API is enabled.
+BOOL IsSignalAPIEnabled();
+
 // Whether password creation is enabled for this user by preference.
 BOOL IsPasswordCreationUserEnabled();
 
@@ -31,8 +37,5 @@ BOOL IsPasswordSyncEnabled();
 // policy. IMPORTANT: If `IsPasswordCreationUserEnabled()` is `NO`, that
 // supersedes this policy.
 std::optional<bool> GetPasskeyCreationPolicy();
-
-// Whether the passkeys M2 feature is currently enabled.
-BOOL IsPasskeysM2Enabled();
 
 #endif  // IOS_CHROME_CREDENTIAL_PROVIDER_EXTENSION_UI_FEATURE_FLAGS_H_

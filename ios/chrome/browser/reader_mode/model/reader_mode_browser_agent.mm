@@ -4,23 +4,82 @@
 
 #import "ios/chrome/browser/reader_mode/model/reader_mode_browser_agent.h"
 
+#import "base/task/single_thread_task_runner.h"
+#import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/crash_report/model/crash_keys_helper.h"
+#import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
+#import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
+#import "ios/chrome/browser/shared/public/commands/page_side_swipe_commands.h"
+#import "ios/chrome/browser/shared/public/commands/reader_mode_chip_commands.h"
 #import "ios/chrome/browser/shared/public/commands/reader_mode_commands.h"
+#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util_mac.h"
+
+namespace {
+
+// Delay for the Reader mode chip presentation. This makes the transition
+// between the "contextual" Reader mode chip (presented while Reader mode is
+// inactive) and this Reader mode chip (presented while Reader mode is active)
+// smoother. This is the amount of time it takes for the Reader mode contextual
+// chip to contract when it is tapped.
+constexpr base::TimeDelta kShowReaderModeChipAnimatedDelay =
+    base::Milliseconds(300);
+
+}  // namespace
 
 #pragma mark - Public
 
 ReaderModeBrowserAgent::~ReaderModeBrowserAgent() = default;
 
-void ReaderModeBrowserAgent::SetReaderModeHandler(
-    id<ReaderModeCommands> reader_mode_handler) {
-  reader_mode_handler_ = reader_mode_handler;
+void ReaderModeBrowserAgent::SetDelegate(
+    id<ReaderModeBrowserAgentDelegate> delegate) {
+  delegate_ = delegate;
 }
 
 #pragma mark - Private
 
-ReaderModeBrowserAgent::ReaderModeBrowserAgent(Browser* browser,
-                                               WebStateList* web_state_list)
+ReaderModeBrowserAgent::ReaderModeBrowserAgent(Browser* browser)
     : BrowserUserData(browser) {
-  web_state_list_scoped_observation_.Observe(web_state_list);
+  web_state_list_scoped_observation_.Observe(browser->GetWebStateList());
+}
+
+void ReaderModeBrowserAgent::ShowReaderModeUI(BOOL animated) {
+  crash_keys::SetCurrentlyInReaderMode(true);
+  [delegate_ readerModeBrowserAgent:this showContentAnimated:animated];
+
+  __weak id<ReaderModeChipCommands> weak_reader_mode_chip_handler =
+      HandlerForProtocol(browser_->GetCommandDispatcher(),
+                         ReaderModeChipCommands);
+  auto show_reader_mode_chip = base::BindOnce(^{
+    [weak_reader_mode_chip_handler showReaderModeChip];
+  });
+
+  if (animated) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE, std::move(show_reader_mode_chip),
+        kShowReaderModeChipAnimatedDelay);
+  } else {
+    std::move(show_reader_mode_chip).Run();
+  }
+  UpdateHandlersOnActiveWebState();
+}
+
+void ReaderModeBrowserAgent::HideReaderModeUI(BOOL animated) {
+  crash_keys::SetCurrentlyInReaderMode(false);
+  id<ReaderModeChipCommands> reader_mode_chip_handler = HandlerForProtocol(
+      browser_->GetCommandDispatcher(), ReaderModeChipCommands);
+  [reader_mode_chip_handler hideReaderModeChip];
+  [delegate_ readerModeBrowserAgent:this hideContentAnimated:animated];
+
+  UpdateHandlersOnActiveWebState();
+}
+
+void ReaderModeBrowserAgent::UpdateHandlersOnActiveWebState() {
+  CommandDispatcher* dispatcher = browser_->GetCommandDispatcher();
+  id<PageSideSwipeCommands> pageSideSwipeHandler =
+      HandlerForProtocol(dispatcher, PageSideSwipeCommands);
+  [pageSideSwipeHandler updateEdgeSwipePrecedenceForActiveWebState];
 }
 
 #pragma mark - WebStateListObserver
@@ -54,15 +113,15 @@ void ReaderModeBrowserAgent::WebStateListDidChange(
 
   // Show or hide the Reader mode UI if necessary.
   const bool old_reader_mode_web_state_available =
-      old_tab_helper && old_tab_helper->IsReaderModeWebStateAvailable();
+      old_tab_helper && (old_tab_helper->GetReaderModeWebState() != nullptr);
   const bool new_reader_mode_web_state_available =
-      new_tab_helper && new_tab_helper->IsReaderModeWebStateAvailable();
+      new_tab_helper && (new_tab_helper->GetReaderModeWebState() != nullptr);
   if (!old_reader_mode_web_state_available &&
       new_reader_mode_web_state_available) {
-    [reader_mode_handler_ showReaderMode];
+    ShowReaderModeUI(/* animated= */ NO);
   } else if (old_reader_mode_web_state_available &&
              !new_reader_mode_web_state_available) {
-    [reader_mode_handler_ hideReaderMode];
+    HideReaderModeUI(/* animated= */ NO);
   }
 }
 
@@ -74,18 +133,38 @@ void ReaderModeBrowserAgent::WebStateListDestroyed(
 
 #pragma mark - ReaderModeTabHelper::Observer
 
-void ReaderModeBrowserAgent::ReaderModeWebStateDidBecomeAvailable(
+void ReaderModeBrowserAgent::ReaderModeWebStateDidLoadContent(
     ReaderModeTabHelper* tab_helper) {
+  FullscreenController* fullscreen_controller =
+      FullscreenController::FromBrowser(browser_);
+  tab_helper->SetFullscreenController(fullscreen_controller);
   // If Reader mode becomes active in the active WebState, show the Reader mode
   // UI.
-  [reader_mode_handler_ showReaderMode];
+  ShowReaderModeUI(/* animated= */ YES);
 }
 
 void ReaderModeBrowserAgent::ReaderModeWebStateWillBecomeUnavailable(
-    ReaderModeTabHelper* tab_helper) {
+    ReaderModeTabHelper* tab_helper,
+    ReaderModeDeactivationReason reason) {
+  tab_helper->SetFullscreenController(nullptr);
   // If Reader mode becomes inactive in the active WebState, hide the Reader
   // mode UI.
-  [reader_mode_handler_ hideReaderMode];
+  const bool animated =
+      reason == ReaderModeDeactivationReason::kUserDeactivated;
+  HideReaderModeUI(animated);
+}
+
+void ReaderModeBrowserAgent::ReaderModeDistillationFailed(
+    ReaderModeTabHelper* tab_helper) {
+  // Show distillation failure snackbar.
+  id<SnackbarCommands> snackbar_handler =
+      static_cast<id<SnackbarCommands>>(browser_->GetCommandDispatcher());
+  [snackbar_handler
+      showSnackbarWithMessage:l10n_util::GetNSString(
+                                  IDS_IOS_READER_MODE_SNACKBAR_FAILURE_MESSAGE)
+                   buttonText:l10n_util::GetNSString(IDS_DONE)
+                messageAction:nil
+             completionAction:nil];
 }
 
 void ReaderModeBrowserAgent::ReaderModeTabHelperDestroyed(

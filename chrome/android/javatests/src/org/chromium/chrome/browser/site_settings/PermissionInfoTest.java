@@ -5,13 +5,11 @@
 package org.chromium.chrome.browser.site_settings;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 import androidx.test.filters.SmallTest;
 
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,10 +29,11 @@ import org.chromium.chrome.browser.profiles.OtrProfileId;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.components.browser_ui.site_settings.GeolocationSetting;
 import org.chromium.components.browser_ui.site_settings.PermissionInfo;
-import org.chromium.components.browser_ui.site_settings.PermissionInfo.GeolocationSetting;
+import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridge;
 import org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni;
 import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
@@ -52,20 +51,17 @@ import java.util.concurrent.TimeoutException;
     ContentSwitches.HOST_RESOLVER_RULES + "=MAP * 127.0.0.1",
     "ignore-certificate-errors"
 })
-@Batch(SiteSettingsTest.SITE_SETTINGS_BATCH_NAME)
+@Batch(Batch.PER_CLASS)
 public class PermissionInfoTest {
     private static final String DSE_ORIGIN = "https://www.google.com";
 
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     @Before
     public void setUp() throws TimeoutException {
+        mActivityTestRule.startOnBlankPage();
         clearPermissions();
     }
 
@@ -281,24 +277,64 @@ public class PermissionInfoTest {
     @SmallTest
     @Feature({"Preferences"})
     @EnableFeatures("ApproximateGeolocationPermission")
+    public void testGeolocationSetting() throws Throwable {
+        Profile regularProfile = getRegularProfile();
+        var info =
+                new PermissionInfo(
+                        ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
+                        "https://example.com",
+                        "https://example.com",
+                        false,
+                        SessionModel.DURABLE);
+
+        var defaultSetting =
+                new GeolocationSetting(ContentSettingValues.ASK, ContentSettingValues.ASK);
+        var allowApproximate =
+                new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.BLOCK);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(defaultSetting, info.getGeolocationSetting(regularProfile));
+                    info.setGeolocationSetting(regularProfile, allowApproximate);
+                    assertEquals(allowApproximate, info.getGeolocationSetting(regularProfile));
+                });
+    }
+
+    @Test
+    @SmallTest
+    @Feature({"Preferences"})
+    @EnableFeatures("ApproximateGeolocationPermission")
     public void testGeolocationPermissionMockValues() throws Throwable {
         PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_SAMPLE_DATA.setForTesting(true);
         Profile regularProfile = getRegularProfile();
-        var permissionSiteInfo =
+        var info =
                 new PermissionInfo(
-                        ContentSettingsType.GEOLOCATION,
+                        ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
                         "https://permission.site",
                         "https://permission.site",
                         false,
                         SessionModel.DURABLE);
-        assertEquals(
-                new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.BLOCK),
-                permissionSiteInfo.getGeolocationSetting(regularProfile));
 
-        GeolocationSetting allow_precise =
+        var allowApproximate =
+                new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.BLOCK);
+        var allowPrecise =
                 new GeolocationSetting(ContentSettingValues.ALLOW, ContentSettingValues.ALLOW);
-        permissionSiteInfo.setGeolocationSetting(regularProfile, allow_precise);
-        assertEquals(allow_precise, permissionSiteInfo.getGeolocationSetting(regularProfile));
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    assertEquals(allowApproximate, info.getGeolocationSetting(regularProfile));
+                    info.setGeolocationSetting(regularProfile, allowPrecise);
+                    assertEquals(allowPrecise, info.getGeolocationSetting(regularProfile));
+
+                    var permissions =
+                            new WebsitePreferenceBridge()
+                                    .getPermissionInfo(
+                                            regularProfile,
+                                            ContentSettingsType.GEOLOCATION_WITH_OPTIONS);
+                    assertEquals(1, permissions.size());
+                    assertEquals(
+                            allowPrecise, permissions.get(0).getGeolocationSetting(regularProfile));
+                });
     }
 
     @Test
@@ -308,13 +344,18 @@ public class PermissionInfoTest {
     public void testGeolocationPermissionDefault() throws Throwable {
         PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_SAMPLE_DATA.setForTesting(false);
         Profile regularProfile = getRegularProfile();
-        var permissionSiteInfo =
+        var info =
                 new PermissionInfo(
-                        ContentSettingsType.GEOLOCATION,
+                        ContentSettingsType.GEOLOCATION_WITH_OPTIONS,
                         "https://permission.site",
                         "https://permission.site",
                         false,
                         SessionModel.DURABLE);
-        assertNull(permissionSiteInfo.getGeolocationSetting(regularProfile));
+
+        var defaultSetting =
+                new GeolocationSetting(ContentSettingValues.ASK, ContentSettingValues.ASK);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> assertEquals(defaultSetting, info.getGeolocationSetting(regularProfile)));
     }
 }

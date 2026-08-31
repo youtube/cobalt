@@ -1,16 +1,12 @@
 // Copyright 2024 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#include "base/base64.h"
-#include "components/enterprise/common/proto/connectors.pb.h"
-#include "net/http/http_status_code.h"
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
+#include "chrome/browser/safe_browsing/cloud_content_scanning/resumable_uploader.h"
 
 #include <memory>
 
+#include "base/base64.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
@@ -25,9 +21,10 @@
 #include "chrome/browser/enterprise/connectors/test/uploader_test_utils.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/connector_upload_request.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/resumable_uploader.h"
+#include "components/enterprise/common/proto/connectors.pb.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/net_errors.h"
+#include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -106,7 +103,8 @@ class ResumableUploadRequestTest : public testing::Test {
     base::MappedReadOnlyRegion region =
         base::ReadOnlySharedMemoryRegion::Create(content.size());
     EXPECT_TRUE(region.IsValid());
-    std::memcpy(region.mapping.memory(), content.data(), content.size());
+    UNSAFE_TODO(
+        std::memcpy(region.mapping.memory(), content.data(), content.size()));
     return std::move(region.region);
   }
 
@@ -587,6 +585,59 @@ TEST_P(ResumableUploadSendContentRequestTest, HandlesFailedContentScan) {
       /*name=*/"SafeBrowsing.ResumableUploader.NetworkResult.DummySuffix",
       /*sample=*/net::HTTP_UNAUTHORIZED,
       /*expected_bucket_count=*/1);
+}
+
+TEST_P(ResumableUploadSendContentRequestTest,
+       HandlesEncryptedFileContentUploadIfEnabled) {
+  base::RunLoop run_loop;
+  base::RunLoop async_content_upload_run_loop;
+
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      enterprise_connectors::kEnableEncryptedFileUpload);
+
+  auto verdict_callback = base::BindLambdaForTesting(
+      [&](bool success, int http_status, const std::string& response_data) {
+        run_loop.Quit();
+      });
+
+  auto content_callback =
+      base::BindLambdaForTesting([&async_content_upload_run_loop]() {
+        async_content_upload_run_loop.Quit();
+      });
+
+  auto mock_request = CreateRequest<MockResumableUploadRequest>(
+      BinaryUploadService::Result::FILE_ENCRYPTED, std::move(verdict_callback),
+      std::move(content_callback), false);
+
+  test_url_loader_factory_.SetInterceptor(
+      base::BindLambdaForTesting([&](const network::ResourceRequest& request) {
+        if (request.url == GURL("https://google.com")) {
+          auto metadata_response_head =
+              network::CreateURLResponseHead(net::HTTP_OK);
+          metadata_response_head->headers->AddHeader("X-Goog-Upload-Status",
+                                                     "active");
+          metadata_response_head->headers->AddHeader("X-Goog-Upload-URL",
+                                                     kUploadUrl);
+          test_url_loader_factory_.AddResponse(
+              GURL("https://google.com"), std::move(metadata_response_head),
+              "metadata_response", network::URLLoaderCompletionStatus(net::OK));
+        } else if (request.url == GURL(kUploadUrl)) {
+          ASSERT_EQ(request.method, "POST");
+          auto content_response_head =
+              network::CreateURLResponseHead(net::HTTP_OK);
+          content_response_head->headers->AddHeader("X-Goog-Upload-Status",
+                                                    "final");
+          test_url_loader_factory_.AddResponse(
+              GURL(kUploadUrl), std::move(content_response_head),
+              "final_response", network::URLLoaderCompletionStatus(net::OK));
+        } else {
+          NOTREACHED();
+        }
+      }));
+  mock_request->Start();
+  run_loop.Run();
+  async_content_upload_run_loop.Run();
 }
 
 struct AsyncUploadResult {

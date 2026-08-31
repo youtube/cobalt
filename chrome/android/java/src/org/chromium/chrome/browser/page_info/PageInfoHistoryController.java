@@ -19,6 +19,7 @@ import org.chromium.chrome.browser.history.HistoryProvider;
 import org.chromium.chrome.browser.history.HistoryUmaRecorder;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tabmodel.document.ChromeAsyncTabLauncher;
 import org.chromium.components.browser_ui.util.date.CalendarUtils;
 import org.chromium.components.browser_ui.util.date.StringUtils;
 import org.chromium.components.page_info.PageInfoAction;
@@ -101,7 +102,9 @@ public class PageInfoHistoryController
                         null,
                         /* launchedForApp= */ false,
                         /* showAppFilter= */ false,
-                        /* openHistoryItemCallback= */ null);
+                        /* openHistoryItemCallback= */ null,
+                        new ChromeAsyncTabLauncher(/* incognito= */ false),
+                        new ChromeAsyncTabLauncher(/* incognito= */ true));
         mContentManager.startLoadingItems();
         return mContentManager.getRecyclerView();
     }

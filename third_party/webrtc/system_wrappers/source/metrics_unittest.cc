@@ -10,7 +10,11 @@
 
 #include "system_wrappers/include/metrics.h"
 
+#include <map>
+#include <string>
+
 #include "absl/strings/string_view.h"
+#include "rtc_base/checks.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -21,7 +25,7 @@ using ::testing::Pair;
 #if RTC_METRICS_ENABLED
 namespace webrtc {
 namespace {
-const int kSample = 22;
+constexpr int kSample = 22;
 
 void AddSparseSample(absl::string_view name, int sample) {
   RTC_HISTOGRAM_COUNTS_SPARSE_100(name, sample);

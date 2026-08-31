@@ -20,7 +20,6 @@ class Rect;
 namespace viz {
 
 #if BUILDFLAG(IS_ANDROID)
-VIZ_COMMON_EXPORT bool PreferRGB565ResourcesForDisplay();
 VIZ_COMMON_EXPORT bool AlwaysUseWideColorGamut();
 #endif
 
@@ -66,7 +65,7 @@ VIZ_COMMON_EXPORT bool QuadRoundedCornersBoundsIntersects(
     const gfx::RectF& target_quad);
 
 // Customizes the output sizes of a `CopyOutputRequest`.
-VIZ_COMMON_EXPORT void SetCopyOutoutRequestResultSize(
+VIZ_COMMON_EXPORT void SetCopyOutputRequestResultSize(
     CopyOutputRequest* request,
     const gfx::Rect& src_rect,
     const gfx::Size& output_size,

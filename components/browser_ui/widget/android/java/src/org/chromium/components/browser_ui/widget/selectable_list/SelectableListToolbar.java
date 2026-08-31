@@ -19,6 +19,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.Window;
+import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
 import android.widget.EditText;
@@ -328,7 +329,11 @@ public class SelectableListToolbar<E> extends Toolbar
                 });
 
         mClearTextButton = findViewById(R.id.clear_text_button);
-        mClearTextButton.setOnClickListener(v -> mSearchEditText.setText(""));
+        mClearTextButton.setOnClickListener(
+                v -> {
+                    mSearchEditText.setText("");
+                    mSearchEditText.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED);
+                });
     }
 
     @Override
@@ -519,12 +524,14 @@ public class SelectableListToolbar<E> extends Toolbar
 
         showSearchViewInternal();
 
-        mSearchEditText.requestFocus();
-        if (showKeyboard) {
-            KeyboardVisibilityDelegate.getInstance().showKeyboard(mSearchEditText);
-        }
-
         setTitle(null);
+        mSearchEditText.post(
+                () -> {
+                    mSearchEditText.requestFocus();
+                    if (showKeyboard) {
+                        KeyboardVisibilityDelegate.getInstance().showKeyboard(mSearchEditText);
+                    }
+                });
     }
 
     /** Hides the search edit text box and related views. Notifies delegate of the change. */

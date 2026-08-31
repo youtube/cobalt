@@ -85,7 +85,6 @@ include_rules = [
   "+chrome/browser/ui/tabs",
   "+chrome/browser/ui/web_applications",
   "+chrome/browser/ui/webui/ash",
-  "+chrome/browser/ui/webui/chrome_web_ui_controller_factory.h",
   "+chrome/browser/ui/webui/plural_string_handler.h",
   "+chrome/browser/ui/webui/sanitized_image_source.h",
   "+chrome/browser/web_applications/extension_status_utils.h",
@@ -98,7 +97,6 @@ include_rules = [
   "+chrome/browser/web_applications/web_app_registrar.h",
   "+chrome/browser/web_applications/web_app_tab_helper.h",
   "+chrome/browser/web_applications/web_app_utils.h",
-  "+chrome/common/channel_info.h",
   "+chrome/common/chrome_constants.h",
   "+chrome/common/chrome_paths.h",
   "+chrome/common/chrome_switches.h",
@@ -130,5 +128,8 @@ specific_include_rules = {
   ],
   "personalization_app_utils_unittest.cc": [
     "+chrome/browser/signin/identity_manager_factory.h",
+  ],
+  "demo_mode_app_integration_browsertest.cc": [
+    "+chrome/browser/ash/policy/core/device_local_account.h",
   ],
 }

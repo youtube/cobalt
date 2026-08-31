@@ -375,14 +375,21 @@ void MediaKeys::SetServerCertificateTask(
   WebContentDecryptionModule* cdm = ContentDecryptionModule();
 
   // 5.2 Use the cdm to process certificate.
-  cdm->SetServerCertificate(
-      static_cast<unsigned char*>(server_certificate->Data()),
-      server_certificate->ByteLength(), result->Result());
+  cdm->SetServerCertificate(server_certificate->ByteSpan(), result->Result());
 
   // 5.3 If any of the preceding steps failed, reject promise with a
   //     new DOMException whose name is the appropriate error name.
   // 5.4 Resolve promise.
   // (These are handled by Chromium and the CDM.)
+
+  // Log the usage of setServerCertificate().
+  // TODO(crbug.com/436274254): `is_persistent_session` is unknown at the time
+  // of setting server certificate. Consider updating `is_persistent_session` to
+  // enum or optional type.
+  EncryptedMediaUtils::ReportUsage(EmeApiType::kSetServerCertificate,
+                                   GetExecutionContext(), config_.key_system,
+                                   config_.use_hardware_secure_codecs,
+                                   /*is_persistent_session=*/false);
 }
 
 ScriptPromise<V8MediaKeyStatus> MediaKeys::getStatusForPolicy(

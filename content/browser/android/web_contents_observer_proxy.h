@@ -24,14 +24,16 @@ class RenderFrameHost;
 // the calls it receives.
 class WebContentsObserverProxy : public WebContentsObserver {
  public:
-  WebContentsObserverProxy(JNIEnv* env, jobject obj, WebContents* web_contents);
+  WebContentsObserverProxy(JNIEnv* env,
+                           const base::android::JavaRef<jobject>& obj,
+                           WebContents* web_contents);
 
   WebContentsObserverProxy(const WebContentsObserverProxy&) = delete;
   WebContentsObserverProxy& operator=(const WebContentsObserverProxy&) = delete;
 
   ~WebContentsObserverProxy() override;
 
-  void Destroy(JNIEnv* env, const base::android::JavaParamRef<jobject>& obj);
+  void Destroy(JNIEnv* env);
 
  private:
   void RenderFrameCreated(RenderFrameHost* render_frame_host) override;

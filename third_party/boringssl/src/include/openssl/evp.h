@@ -18,7 +18,6 @@
 #include <openssl/base.h>   // IWYU pragma: export
 
 #include <openssl/evp_errors.h>  // IWYU pragma: export
-#include <openssl/thread.h>
 
 // OpenSSL included digest and cipher functions in this header so we include
 // them for users that still expect that.
@@ -687,16 +686,16 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get_rsa_padding(EVP_PKEY_CTX *ctx,
                                                 int *out_padding);
 
 // EVP_PKEY_CTX_set_rsa_pss_saltlen sets the length of the salt in a PSS-padded
-// signature. A value of -1 cause the salt to be the same length as the digest
-// in the signature. A value of -2 causes the salt to be the maximum length
-// that will fit when signing and recovered from the signature when verifying.
-// Otherwise the value gives the size of the salt in bytes.
+// signature. A value of |RSA_PSS_SALTLEN_DIGEST| causes the salt to be the same
+// length as the digest in the signature. A value of |RSA_PSS_SALTLEN_AUTO|
+// causes the salt to be the maximum length that will fit when signing and
+// recovered from the signature when verifying. Otherwise the value gives the
+// size of the salt in bytes.
 //
-// If unsure, use -1.
+// If unsure, use |RSA_PSS_SALTLEN_DIGEST|, which is the default. Note this
+// differs from OpenSSL, which defaults to |RSA_PSS_SALTLEN_AUTO|.
 //
 // Returns one on success or zero on error.
-//
-// TODO(davidben): The default is currently -2. Switch it to -1.
 OPENSSL_EXPORT int EVP_PKEY_CTX_set_rsa_pss_saltlen(EVP_PKEY_CTX *ctx,
                                                     int salt_len);
 
@@ -716,7 +715,9 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_set_rsa_keygen_bits(EVP_PKEY_CTX *ctx,
                                                     int bits);
 
 // EVP_PKEY_CTX_set_rsa_keygen_pubexp sets |e| as the public exponent for key
-// generation. Returns one on success or zero on error.
+// generation. Returns one on success or zero on error. On success, |ctx| takes
+// ownership of |e|. The library will then call |BN_free| on |e| when |ctx| is
+// destroyed.
 OPENSSL_EXPORT int EVP_PKEY_CTX_set_rsa_keygen_pubexp(EVP_PKEY_CTX *ctx,
                                                       BIGNUM *e);
 
@@ -766,6 +767,14 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_get0_rsa_oaep_label(EVP_PKEY_CTX *ctx,
 
 
 // EC specific control functions.
+
+// EVP_PKEY_get_ec_curve_nid returns |pkey|'s curve as a NID constant, such as
+// |NID_X9_62_prime256v1|, or |NID_undef| if |pkey| is not an EC key.
+OPENSSL_EXPORT int EVP_PKEY_get_ec_curve_nid(const EVP_PKEY *pkey);
+
+// EVP_PKEY_get_ec_point_conv_form returns |pkey|'s point conversion form as a
+// |POINT_CONVERSION_*| constant, or zero if |pkey| is not an EC key.
+OPENSSL_EXPORT int EVP_PKEY_get_ec_point_conv_form(const EVP_PKEY *pkey);
 
 // EVP_PKEY_CTX_set_ec_paramgen_curve_nid sets the curve used for
 // |EVP_PKEY_keygen| or |EVP_PKEY_paramgen| operations to |nid|. It returns one

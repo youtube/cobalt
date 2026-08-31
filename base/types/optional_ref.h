@@ -203,6 +203,15 @@ class optional_ref {
     return has_value() && value() == t;
   }
 
+  // Three-way comparison (homogeneous). Mirrors that of std::optional<T>.
+  friend constexpr auto operator<=>(const optional_ref<T> x,
+                                    const optional_ref<T> y)
+    requires std::three_way_comparable<T>
+  {
+    return (!x.ptr_ || !y.ptr_) ? (!!x.ptr_) <=> (!!y.ptr_)
+                                : *x.ptr_ <=> *y.ptr_;
+  }
+
  private:
   raw_ptr<T> const ptr_ = nullptr;
 };

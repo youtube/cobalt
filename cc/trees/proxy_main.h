@@ -132,8 +132,6 @@ class CC_EXPORT ProxyMain : public Proxy {
           offset_tag_modifications) override;
   void RequestBeginMainFrameNotExpected(bool new_state) override;
   void SetSourceURL(ukm::SourceId source_id, const GURL& url) override;
-  void SetUkmSmoothnessDestination(
-      base::WritableSharedMemoryMapping ukm_smoothness_data) override;
   void SetUkmDroppedFramesDestination(
       base::WritableSharedMemoryMapping ukm_dropped_frames_data) override;
   void SetRenderFrameObserver(
@@ -141,7 +139,9 @@ class CC_EXPORT ProxyMain : public Proxy {
   void CompositeImmediatelyForTest(base::TimeTicks frame_begin_time,
                                    bool raster,
                                    base::OnceClosure callback) override;
-  double GetPercentDroppedFrames() const override;
+  double GetAverageThroughput() const override;
+  bool IsRenderingPaused() const override;
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused() override;
 
   // Returns |true| if the request was actually sent, |false| if one was
   // already outstanding.

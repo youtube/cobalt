@@ -31,10 +31,13 @@ bool GetDefaultTabSearchRightAligned() {
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
   registry->RegisterBooleanPref(prefs::kTabSearchRightAligned,
                                 GetDefaultTabSearchRightAligned());
+  registry->RegisterBooleanPref(
+      prefs::kVerticalTabsEnabled, false,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 }
 
 bool GetTabSearchTrailingTabstrip(const Profile* profile) {
-  if (features::IsTabSearchMoving()) {
+  if (features::HasTabSearchToolbarButton()) {
     return true;
   }
 

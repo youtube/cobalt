@@ -11,7 +11,7 @@
 #include "base/containers/contains.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/trace_event/typed_macros.h"
 #include "content/browser/bad_message.h"
@@ -24,6 +24,7 @@
 #include "content/browser/storage_partition_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/features.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_or_resource_context.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/site_isolation_policy.h"
@@ -71,7 +72,7 @@ SiteInstanceId::Generator g_site_instance_id_generator;
 // unnecessarily creating a process.
 BASE_FEATURE(kTraceSiteInstanceGetProcessCreation,
              "TraceSiteInstanceGetProcessCreation",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Whether to crash if GetProcess is called on a SiteInstance without a process.
 const base::FeatureParam<bool> kCrashOnGetProcessCreation{
@@ -84,10 +85,8 @@ const GURL& SiteInstanceImpl::GetDefaultSiteURL() {
   struct DefaultSiteURL {
     const GURL url = GURL("http://unisolated.invalid");
   };
-  static base::LazyInstance<DefaultSiteURL>::Leaky default_site_url =
-      LAZY_INSTANCE_INITIALIZER;
-
-  return default_site_url.Get().url;
+  static base::NoDestructor<DefaultSiteURL> default_site_url;
+  return default_site_url->url;
 }
 
 class SiteInstanceImpl::DefaultSiteInstanceState {
@@ -488,7 +487,13 @@ RenderProcessHost* SiteInstanceImpl::GetOrCreateProcess(
   return site_instance_group_->process();
 }
 
-RenderProcessHost* SiteInstanceImpl::GetOrCreateProcess() {
+RenderProcessHost* SiteInstanceImpl::GetOrCreateProcess(
+    base::PassKey<SiteInstanceProcessCreationClient>) {
+  return GetOrCreateProcess(
+      ProcessAllocationContext{ProcessAllocationSource::kEmbedder});
+}
+
+RenderProcessHost* SiteInstanceImpl::GetOrCreateProcessForTesting() {
   CHECK_IS_TEST();
   return GetOrCreateProcess(
       ProcessAllocationContext{ProcessAllocationSource::kTest});
@@ -621,7 +626,8 @@ void SiteInstanceImpl::SetSiteInfoToDefault(
   original_url_ = GetDefaultSiteURL();
   SetSiteInfoInternal(SiteInfo::CreateForDefaultSiteInstance(
       GetIsolationContext(), storage_partition_config,
-      GetWebExposedIsolationInfo()));
+      GetWebExposedIsolationInfo(),
+      /*cross_origin_isolation_key=*/std::nullopt));
 }
 
 void SiteInstanceImpl::SetSiteInfoInternal(const SiteInfo& site_info) {
@@ -646,8 +652,9 @@ void SiteInstanceImpl::SetSiteInfoInternal(const SiteInfo& site_info) {
   // BrowsingInstance can script each other.
   browsing_instance_->RegisterSiteInstance(this);
 
-  if (site_info_.requires_origin_keyed_process() &&
-      !site_info_.requires_origin_keyed_process_by_default()) {
+  if (site_info_.oac_status() ==
+      AgentClusterKey::OACStatus::kOriginKeyedByHeader) {
+    CHECK(site_info_.agent_cluster_key().IsOriginKeyed());
     // Track this origin's isolation in the current BrowsingInstance, if it has
     // received an origin-keyed process due to an explicit opt-in. This is
     // needed to consistently isolate future navigations to this origin in this
@@ -661,10 +668,11 @@ void SiteInstanceImpl::SetSiteInfoInternal(const SiteInfo& site_info) {
     // This site handles the case where OAC isolation gets a separate process.
     // In future, when SiteInstance Groups are complete, this may revert to
     // being the only call site.
-    policy->AddOriginIsolationStateForBrowsingInstance(
+    policy->AddOriginAgentClusterStateForBrowsingInstance(
         browsing_instance_->isolation_context(), origin,
-        true /* is_origin_agent_cluster */,
-        true /* requires_origin_keyed_process */);
+        OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
+            true /* had_oac_request */,
+            true /* requires_origin_keyed_process */));
   }
 
   if (site_info_.does_site_request_dedicated_process_for_coop()) {
@@ -1407,9 +1415,8 @@ bool SiteInstanceImpl::DoesSiteInfoForURLMatch(const UrlInfo& url_info) {
   }
 
   // Similarly, the CrossOriginIsolationKeys should match.
-  if (GetSiteInfo().agent_cluster_key() &&
-      GetSiteInfo().agent_cluster_key()->GetCrossOriginIsolationKey() !=
-          url_info.cross_origin_isolation_key) {
+  if (GetSiteInfo().agent_cluster_key().GetCrossOriginIsolationKey() !=
+      url_info.cross_origin_isolation_key) {
     return false;
   }
 
@@ -1428,7 +1435,8 @@ bool SiteInstanceImpl::DoesSiteInfoForURLMatch(const UrlInfo& url_info) {
                                               url_info.url, site_info)) {
     site_info = SiteInfo::CreateForDefaultSiteInstance(
         GetIsolationContext(), site_info.storage_partition_config(),
-        GetWebExposedIsolationInfo());
+        GetWebExposedIsolationInfo(),
+        site_info.agent_cluster_key().GetCrossOriginIsolationKey());
   }
 
   return site_info_.IsExactMatch(site_info);
@@ -1509,9 +1517,12 @@ void SiteInstanceImpl::LockProcessIfNeeded() {
     // current SiteInstance's IsolationContext, so that the corresponding
     // BrowsingInstance can be associated with |process_|.  See
     // https://crbug.com/1135539.
+    // Note that the CrossOriginIsolationKey passed here is null because a
+    // non-assigned SiteInstance cannot have non-default COOP/COEP/DIP values.
     if (process_lock.is_invalid()) {
       auto new_process_lock = ProcessLock::CreateAllowAnySite(
-          storage_partition->GetConfig(), GetWebExposedIsolationInfo());
+          storage_partition->GetConfig(), GetWebExposedIsolationInfo(),
+          /*cross_origin_isolation_key=*/std::nullopt);
       process->SetProcessLock(GetIsolationContext(), new_process_lock);
     } else {
       CHECK(process_lock.allows_any_site())
@@ -1563,8 +1574,12 @@ void SiteInstanceImpl::LockProcessIfNeeded() {
     } else if (process_lock.is_invalid()) {
       // Update the process lock state to signal that the process has been
       // associated with a SiteInstance that is not locked to a site yet.
+      // TODO(crbug.com/342365083): When COOP and COEP transition to using
+      // CrossOriginIsolationKeys, pass the CrossOriginIsolationKey shared by
+      // all documents in the Browsing Instance with COOP and COEP.
       auto new_process_lock = ProcessLock::CreateAllowAnySite(
-          storage_partition->GetConfig(), GetWebExposedIsolationInfo());
+          storage_partition->GetConfig(), GetWebExposedIsolationInfo(),
+          /*cross_origin_isolation_key=*/std::nullopt);
       process->SetProcessLock(GetIsolationContext(), new_process_lock);
     } else {
       CHECK(process_lock.allows_any_site())
@@ -1599,12 +1614,7 @@ const WebExposedIsolationInfo& SiteInstanceImpl::GetWebExposedIsolationInfo()
 
 bool SiteInstanceImpl::IsCrossOriginIsolated() const {
   return GetWebExposedIsolationInfo().is_isolated() ||
-         (site_info_.agent_cluster_key() &&
-          site_info_.agent_cluster_key()->GetCrossOriginIsolationKey() &&
-          site_info_.agent_cluster_key()
-                  ->GetCrossOriginIsolationKey()
-                  ->cross_origin_isolation_mode ==
-              CrossOriginIsolationMode::kConcrete);
+         site_info_.agent_cluster_key().IsCrossOriginIsolated();
 }
 
 // static

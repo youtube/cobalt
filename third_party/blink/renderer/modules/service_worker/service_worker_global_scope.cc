@@ -34,6 +34,7 @@
 #include <memory>
 #include <utility>
 
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -47,6 +48,7 @@
 #include "services/network/public/mojom/cookie_manager.mojom-blink.h"
 #include "services/network/public/mojom/cross_origin_embedder_policy.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-blink.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/notifications/notification.mojom-blink.h"
 #include "third_party/blink/public/mojom/push_messaging/push_messaging.mojom-blink.h"
@@ -88,6 +90,7 @@
 #include "third_party/blink/renderer/core/workers/worker_backing_thread.h"
 #include "third_party/blink/renderer/core/workers/worker_classic_script_loader.h"
 #include "third_party/blink/renderer/core/workers/worker_clients.h"
+#include "third_party/blink/renderer/core/workers/worker_navigator.h"
 #include "third_party/blink/renderer/core/workers/worker_reporting_proxy.h"
 #include "third_party/blink/renderer/modules/background_fetch/background_fetch_event.h"
 #include "third_party/blink/renderer/modules/background_fetch/background_fetch_registration.h"
@@ -148,6 +151,7 @@
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_policy.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -519,7 +523,9 @@ void ServiceWorkerGlobalScope::Initialize(
 
   // This should be called after OriginTrialContext::AddTokens() to install
   // origin trial features in JavaScript's global object.
-  ScriptController()->PrepareForEvaluation();
+  if (!defer_prepare_for_evaluation_) {
+    ScriptController()->PrepareForEvaluation();
+  }
 }
 
 void ServiceWorkerGlobalScope::LoadAndRunInstalledClassicScript(
@@ -859,9 +865,9 @@ void ServiceWorkerGlobalScope::importScripts(
       DCHECK(installed_scripts_manager_->IsScriptInstalled(Url()));
       exception_state.ThrowDOMException(
           DOMExceptionCode::kNetworkError,
-          "Failed to import '" + completed_url.ElidedString() +
-              "'. importScripts() of new scripts after service worker "
-              "installation is not allowed.");
+          StrCat({"Failed to import '", completed_url.ElidedString(),
+                  "'. importScripts() of new scripts after service worker "
+                  "installation is not allowed."}));
       return;
     }
   }
@@ -1166,8 +1172,15 @@ void ServiceWorkerGlobalScope::DidHandlePushEvent(
       TRACE_ID_WITH_SCOPE(kServiceWorkerGlobalScopeTraceScope,
                           TRACE_ID_LOCAL(event_id)),
       TRACE_EVENT_FLAG_FLOW_IN, "status", MojoEnumToString(status));
-  RunEventCallback(&push_event_callbacks_, event_queue_.get(), event_id,
-                   status);
+  if (should_record_network_requests_ ==
+      mojom::blink::RecordNetworkRequestsDuringPushEvent::kRecord) {
+    RunEventCallback(&push_event_recording_network_requests_callback_,
+                     event_queue_.get(), event_id, status,
+                     std::make_optional(push_event_network_request_urls_));
+  } else {
+    RunEventCallback(&push_event_callbacks_, event_queue_.get(), event_id,
+                     status);
+  }
 }
 
 void ServiceWorkerGlobalScope::DidHandlePushSubscriptionChangeEvent(
@@ -1737,6 +1750,21 @@ void ServiceWorkerGlobalScope::ResumeEvaluation() {
     ReadyToRunWorkerScript();
 }
 
+void ServiceWorkerGlobalScope::DeferPrepareForEvaluation() {
+  DCHECK(IsContextThread());
+  CHECK(!defer_prepare_for_evaluation_);
+
+  defer_prepare_for_evaluation_ = true;
+}
+
+void ServiceWorkerGlobalScope::RunDeferredPrepareForEvaluation() {
+  DCHECK(IsContextThread());
+  CHECK(defer_prepare_for_evaluation_);
+
+  defer_prepare_for_evaluation_ = false;
+  ScriptController()->PrepareForEvaluation();
+}
+
 void ServiceWorkerGlobalScope::DispatchInstallEvent(
     DispatchInstallEventCallback callback) {
   DCHECK(IsContextThread());
@@ -2126,13 +2154,38 @@ void ServiceWorkerGlobalScope::DispatchPushEvent(
   DCHECK(IsContextThread());
   const int event_id = event_queue_->NextEventId();
   push_event_callbacks_.Set(event_id, std::move(callback));
-
   event_queue_->EnqueueNormal(
       event_id,
       WTF::BindOnce(&ServiceWorkerGlobalScope::StartPushEvent,
                     WrapWeakPersistent(this), std::move(payload)),
       CreateAbortCallback(&push_event_callbacks_),
       base::Seconds(mojom::blink::kPushEventTimeoutSeconds));
+}
+
+void ServiceWorkerGlobalScope::DispatchPushEventRecordingNetworkRequests(
+    const String& payload,
+    DispatchPushEventRecordingNetworkRequestsCallback callback) {
+  DCHECK(IsContextThread());
+  should_record_network_requests_ =
+      mojom::blink::RecordNetworkRequestsDuringPushEvent::kRecord;
+  const int event_id = event_queue_->NextEventId();
+  push_event_recording_network_requests_callback_.Set(event_id,
+                                                      std::move(callback));
+  event_queue_->EnqueueNormal(
+      event_id,
+      WTF::BindOnce(&ServiceWorkerGlobalScope::StartPushEvent,
+                    WrapWeakPersistent(this), std::move(payload)),
+      CreateAbortCallback(&push_event_recording_network_requests_callback_,
+                          std::nullopt),
+      base::Seconds(mojom::blink::kPushEventTimeoutSeconds));
+}
+
+void ServiceWorkerGlobalScope::MaybeRecordNetworkRequestUrlForPushEvents(
+    const KURL& url) {
+  if (should_record_network_requests_ ==
+      mojom::blink::RecordNetworkRequestsDuringPushEvent::kRecord) {
+    push_event_network_request_urls_.push_back(url);
+  }
 }
 
 void ServiceWorkerGlobalScope::StartPushEvent(String payload, int event_id) {

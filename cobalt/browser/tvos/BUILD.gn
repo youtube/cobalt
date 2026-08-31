@@ -12,6 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("plist_info") {
+  sources = [
+    "plist_info.h",
+    "plist_info.mm",
+  ]
+  deps = [ "//base" ]
+  frameworks = [ "Foundation.framework" ]
+}
+
 source_set("deep_link_support_tvos") {
   sources = [
     "deep_link_support_tvos.h",
@@ -19,6 +28,7 @@ source_set("deep_link_support_tvos") {
   ]
 
   deps = [
+    ":plist_info",
     "//base",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
   ]

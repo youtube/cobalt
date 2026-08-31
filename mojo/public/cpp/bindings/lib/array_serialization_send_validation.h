@@ -74,7 +74,7 @@ template <typename MojomType,
           typename MaybeConstUserType,
           SendValidation send_validation,
           typename UserTypeIterator>
-  requires(!base::is_instantiation<std::optional, typename MojomType::Element>)
+  requires(!base::is_instantiation<typename MojomType::Element, std::optional>)
 struct SendValidationArraySerializer<
     MojomType,
     MaybeConstUserType,
@@ -121,7 +121,7 @@ template <typename MojomType,
           typename MaybeConstUserType,
           SendValidation send_validation,
           typename UserTypeIterator>
-  requires(base::is_instantiation<std::optional, typename MojomType::Element>)
+  requires(base::is_instantiation<typename MojomType::Element, std::optional>)
 struct SendValidationArraySerializer<
     MojomType,
     MaybeConstUserType,
@@ -135,7 +135,7 @@ struct SendValidationArraySerializer<
   using Element = typename MojomType::Element;
   using Traits = ArrayTraits<UserType>;
 
-  static_assert(IsAbslOptional<typename Traits::Element>::value,
+  static_assert(IsStdOptional<typename Traits::Element>::value,
                 "Output type should be optional");
   static_assert(sizeof(Element) == sizeof(DataElement),
                 "Incorrect array serializer");

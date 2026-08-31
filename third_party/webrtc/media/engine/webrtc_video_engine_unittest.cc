@@ -32,6 +32,7 @@
 #include "api/crypto/crypto_options.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_types.h"
 #include "api/priority.h"
@@ -46,7 +47,6 @@
 #include "api/test/mock_video_encoder_factory.h"
 #include "api/test/video/function_video_decoder_factory.h"
 #include "api/transport/bitrate_settings.h"
-#include "api/transport/field_trial_based_config.h"
 #include "api/transport/rtp/rtp_source.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
@@ -115,12 +115,12 @@
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/time_utils.h"
+#include "test/create_test_field_trials.h"
 #include "test/fake_decoder.h"
 #include "test/frame_forwarder.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/rtcp_packet_parser.h"
-#include "test/scoped_key_value_config.h"
 #include "test/time_controller/simulated_time_controller.h"
 #include "video/config/encoder_stream_factory.h"
 #include "video/config/simulcast.h"
@@ -146,33 +146,32 @@ using ::testing::SizeIs;
 using ::testing::StrNe;
 using ::testing::Values;
 using ::testing::WithArg;
+using ::webrtc::CreateTestFieldTrials;
+using ::webrtc::FieldTrials;
 using ::webrtc::test::FrameForwarder;
 using ::webrtc::test::FunctionVideoDecoderFactory;
 using ::webrtc::test::RtcpPacketParser;
-using ::webrtc::test::ScopedKeyValueConfig;
 
+constexpr uint8_t kRedRtxPayloadType = 125;
 
-static const uint8_t kRedRtxPayloadType = 125;
+constexpr uint32_t kSsrc = 1234u;
+constexpr uint32_t kSsrcs4[] = {1, 2, 3, 4};
+constexpr int kVideoWidth = 640;
+constexpr int kVideoHeight = 360;
+constexpr int kFramerate = 30;
+constexpr TimeDelta kFrameDuration = TimeDelta::Millis(1000 / kFramerate);
 
-static const uint32_t kSsrc = 1234u;
-static const uint32_t kSsrcs4[] = {1, 2, 3, 4};
-static const int kVideoWidth = 640;
-static const int kVideoHeight = 360;
-static const int kFramerate = 30;
-static constexpr TimeDelta kFrameDuration =
-    TimeDelta::Millis(1000 / kFramerate);
-
-static const uint32_t kSsrcs1[] = {1};
-static const uint32_t kSsrcs3[] = {1, 2, 3};
-static const uint32_t kRtxSsrcs1[] = {4};
-static const uint32_t kFlexfecSsrc = 5;
-static const uint32_t kIncomingUnsignalledSsrc = 0xC0FFEE;
-static const int64_t kUnsignalledReceiveStreamCooldownMs = 500;
+constexpr uint32_t kSsrcs1[] = {1};
+constexpr uint32_t kSsrcs3[] = {1, 2, 3};
+constexpr uint32_t kRtxSsrcs1[] = {4};
+constexpr uint32_t kFlexfecSsrc = 5;
+constexpr uint32_t kIncomingUnsignalledSsrc = 0xC0FFEE;
+constexpr int64_t kUnsignalledReceiveStreamCooldownMs = 500;
 
 constexpr uint32_t kRtpHeaderSize = 12;
 constexpr size_t kNumSimulcastStreams = 3;
 
-static const char kUnsupportedExtensionName[] =
+constexpr char kUnsupportedExtensionName[] =
     "urn:ietf:params:rtp-hdrext:unsupported";
 
 Codec RemoveFeedbackParams(Codec&& codec) {
@@ -383,7 +382,7 @@ class WebRtcVideoEngineTest : public ::testing::Test {
  public:
   WebRtcVideoEngineTest() : WebRtcVideoEngineTest("") {}
   explicit WebRtcVideoEngineTest(const std::string& field_trials)
-      : field_trials_(field_trials),
+      : field_trials_(CreateTestFieldTrials(field_trials)),
         time_controller_(Timestamp::Millis(4711)),
         env_(CreateEnvironment(&field_trials_,
                                time_controller_.CreateTaskQueueFactory(),
@@ -424,7 +423,7 @@ class WebRtcVideoEngineTest : public ::testing::Test {
 
   void ExpectRtpCapabilitySupport(const char* uri, bool supported) const;
 
-  ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   GlobalSimulatedTimeController time_controller_;
   Environment env_;
   // Used in WebRtcVideoEngineVoiceTest, but defined here so it's properly
@@ -1000,8 +999,7 @@ void WebRtcVideoEngineTest::ExpectRtpCapabilitySupport(const char* uri,
 }
 
 TEST_F(WebRtcVideoEngineTest, ReceiveBufferSizeViaFieldTrial) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-ReceiveBufferSize/size_bytes:10000/");
+  field_trials_.Set("WebRTC-ReceiveBufferSize", "size_bytes:10000");
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_.CreateReceiveChannel(call_.get(), GetMediaConfig(),
                                    VideoOptions(), CryptoOptions());
@@ -1014,8 +1012,7 @@ TEST_F(WebRtcVideoEngineTest, ReceiveBufferSizeViaFieldTrial) {
 TEST_F(WebRtcVideoEngineTest, TooLowReceiveBufferSizeViaFieldTrial) {
   // 10000001 is too high, it will revert to the default
   // kVideoRtpRecvBufferSize.
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-ReceiveBufferSize/size_bytes:10000001/");
+  field_trials_.Set("WebRTC-ReceiveBufferSize", "size_bytes:10000001");
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_.CreateReceiveChannel(call_.get(), GetMediaConfig(),
                                    VideoOptions(), CryptoOptions());
@@ -1027,8 +1024,7 @@ TEST_F(WebRtcVideoEngineTest, TooLowReceiveBufferSizeViaFieldTrial) {
 
 TEST_F(WebRtcVideoEngineTest, TooHighReceiveBufferSizeViaFieldTrial) {
   // 9999 is too low, it will revert to the default kVideoRtpRecvBufferSize.
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-ReceiveBufferSize/size_bytes:9999/");
+  field_trials_.Set("WebRTC-ReceiveBufferSize", "size_bytes:9999");
   std::unique_ptr<VideoMediaReceiveChannelInterface> receive_channel =
       engine_.CreateReceiveChannel(call_.get(), GetMediaConfig(),
                                    VideoOptions(), CryptoOptions());
@@ -1266,8 +1262,7 @@ TEST_F(WebRtcVideoEngineTest, Flexfec03SendCodecEnablesWithFieldTrial) {
 
   EXPECT_THAT(engine_.LegacySendCodecs(), Not(Contains(flexfec)));
 
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-FlexFEC-03-Advertised/Enabled/");
+  field_trials_.Set("WebRTC-FlexFEC-03-Advertised", "Enabled");
   EXPECT_THAT(engine_.LegacySendCodecs(), Contains(flexfec));
 }
 
@@ -1278,12 +1273,11 @@ TEST_F(WebRtcVideoEngineTest, Flexfec03LowerPayloadTypeRange) {
   auto flexfec = Field("name", &Codec::name, "flexfec-03");
 
   // FlexFEC is active with field trial.
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-FlexFEC-03-Advertised/Enabled/");
+  field_trials_.Set("WebRTC-FlexFEC-03-Advertised", "Enabled");
   auto send_codecs = engine_.LegacySendCodecs();
   auto it = std::find_if(
       send_codecs.begin(), send_codecs.end(),
-      [](const webrtc::Codec& codec) { return codec.name == "flexfec-03"; });
+      [](const Codec& codec) { return codec.name == "flexfec-03"; });
   ASSERT_NE(it, send_codecs.end());
   EXPECT_LE(35, it->id);
   EXPECT_GE(65, it->id);
@@ -1394,7 +1388,7 @@ TEST_F(WebRtcVideoEngineTest, GetSourcesWithNonExistingSsrc) {
 TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, NullFactories) {
   std::unique_ptr<VideoEncoderFactory> encoder_factory;
   std::unique_ptr<VideoDecoderFactory> decoder_factory;
-  FieldTrialBasedConfig trials;
+  FieldTrials trials = CreateTestFieldTrials();
   WebRtcVideoEngine engine(std::move(encoder_factory),
                            std::move(decoder_factory), trials);
   EXPECT_EQ(0u, engine.LegacySendCodecs().size());
@@ -1405,7 +1399,7 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, EmptyFactories) {
   // `engine` take ownership of the factories.
   MockVideoEncoderFactory* encoder_factory = new MockVideoEncoderFactory();
   MockVideoDecoderFactory* decoder_factory = new MockVideoDecoderFactory();
-  FieldTrialBasedConfig trials;
+  FieldTrials trials = CreateTestFieldTrials();
   WebRtcVideoEngine engine(
       (std::unique_ptr<VideoEncoderFactory>(encoder_factory)),
       (std::unique_ptr<VideoDecoderFactory>(decoder_factory)), trials);
@@ -1431,7 +1425,7 @@ TEST(WebRtcVideoEngineNewVideoCodecFactoryTest, Vp8) {
   EXPECT_CALL(*rate_allocator_factory,
               Create(_, Field(&VideoCodec::codecType, kVideoCodecVP8)))
       .WillOnce([] { return std::make_unique<MockVideoBitrateAllocator>(); });
-  FieldTrialBasedConfig trials;
+  FieldTrials trials = CreateTestFieldTrials();
   WebRtcVideoEngine engine(
       (std::unique_ptr<VideoEncoderFactory>(encoder_factory)),
       (std::unique_ptr<VideoDecoderFactory>(decoder_factory)), trials);
@@ -1595,8 +1589,6 @@ TEST_F(WebRtcVideoEngineTest, SetVideoRtxEnabled) {
   std::vector<Codec> send_codecs;
   std::vector<Codec> recv_codecs;
 
-  ScopedKeyValueConfig field_trials;
-
   // Don't want RTX
   send_codecs = engine_.LegacySendCodecs(false);
   EXPECT_FALSE(HasAnyRtxCodec(send_codecs));
@@ -1613,7 +1605,8 @@ TEST_F(WebRtcVideoEngineTest, SetVideoRtxEnabled) {
 class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
  protected:
   WebRtcVideoChannelEncodedFrameCallbackTest()
-      : env_(CreateEnvironment(&field_trials_,
+      : field_trials_(CreateTestFieldTrials()),
+        env_(CreateEnvironment(&field_trials_,
                                time_controller_.CreateTaskQueueFactory(),
                                time_controller_.GetClock())),
         call_(Call::Create(CallConfig(env_))),
@@ -1663,7 +1656,7 @@ class WebRtcVideoChannelEncodedFrameCallbackTest : public ::testing::Test {
 
   static const std::vector<SdpVideoFormat> kSdpVideoFormats;
   GlobalSimulatedTimeController time_controller_{Timestamp::Seconds(1000)};
-  ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   Environment env_;
   std::unique_ptr<Call> call_;
   std::unique_ptr<VideoBitrateAllocatorFactory>
@@ -1783,7 +1776,8 @@ TEST_F(WebRtcVideoChannelEncodedFrameCallbackTest, DoesNotDecodeWhenDisabled) {
 class WebRtcVideoChannelBaseTest : public ::testing::Test {
  protected:
   WebRtcVideoChannelBaseTest()
-      : env_(CreateEnvironment(&field_trials_,
+      : field_trials_(CreateTestFieldTrials()),
+        env_(CreateEnvironment(&field_trials_,
                                time_controller_.CreateTaskQueueFactory(),
                                time_controller_.GetClock())),
         video_bitrate_allocator_factory_(
@@ -2001,8 +1995,7 @@ class WebRtcVideoChannelBaseTest : public ::testing::Test {
 
   GlobalSimulatedTimeController time_controller_{Timestamp::Seconds(1000)};
 
-  ScopedKeyValueConfig field_trials_;
-  std::unique_ptr<ScopedKeyValueConfig> override_field_trials_;
+  FieldTrials field_trials_;
   Environment env_;
   std::unique_ptr<Call> call_;
   std::unique_ptr<VideoBitrateAllocatorFactory>
@@ -2556,8 +2549,8 @@ TEST_F(WebRtcVideoChannelBaseTest, TwoStreamsSendAndReceive) {
 
 TEST_F(WebRtcVideoChannelBaseTest,
        RequestEncoderFallbackNextCodecFollowNegotiatedOrder) {
-  webrtc::test::ScopedKeyValueConfig field_trials(
-      field_trials_, "WebRTC-SwitchEncoderFollowCodecPreferenceOrder/Enabled/");
+  field_trials_.Set("WebRTC-SwitchEncoderFollowCodecPreferenceOrder",
+                    "Enabled");
   VideoSenderParameters parameters;
   parameters.codecs.push_back(GetEngineCodec("VP9"));
   parameters.codecs.push_back(GetEngineCodec("AV1"));
@@ -2755,7 +2748,7 @@ class WebRtcVideoChannelTest : public WebRtcVideoEngineTest {
     return static_cast<WebRtcVideoSendChannel*>(send_channel_.get());
   }
 
-  // Casts a shim channel to a webrtc::Transport. Used once.
+  // Casts a shim channel to a Transport. Used once.
   Transport* ChannelImplAsTransport(VideoMediaSendChannelInterface* channel) {
     return static_cast<WebRtcVideoSendChannel*>(channel)->transport();
   }
@@ -3178,8 +3171,7 @@ TEST_F(WebRtcVideoChannelTest, RecvAbsoluteSendTimeHeaderExtensions) {
 }
 
 TEST_F(WebRtcVideoChannelTest, FiltersExtensionsPicksTransportSeqNum) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-FilterAbsSendTimeExtension/Enabled/");
+  field_trials_.Set("WebRTC-FilterAbsSendTimeExtension", "Enabled");
   // Enable three redundant extensions.
   std::vector<std::string> extensions;
   extensions.push_back(RtpExtension::kAbsSendTimeUri);
@@ -3412,15 +3404,13 @@ TEST_F(WebRtcVideoChannelTest, LossNotificationIsDisabledByDefault) {
 }
 
 TEST_F(WebRtcVideoChannelTest, LossNotificationIsEnabledByFieldTrial) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-RtcpLossNotification/Enabled/");
+  field_trials_.Set("WebRTC-RtcpLossNotification", "Enabled");
   ResetTest();
   TestLossNotificationState(true);
 }
 
 TEST_F(WebRtcVideoChannelTest, LossNotificationCanBeEnabledAndDisabled) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-RtcpLossNotification/Enabled/");
+  field_trials_.Set("WebRTC-RtcpLossNotification", "Enabled");
   ResetTest();
 
   AssignDefaultCodec();
@@ -3863,7 +3853,7 @@ class Vp9SettingsTest : public WebRtcVideoChannelTest {
       : WebRtcVideoChannelTest(field_trials) {
     encoder_factory_->AddSupportedVideoCodecType("VP9");
   }
-  virtual ~Vp9SettingsTest() {}
+  ~Vp9SettingsTest() override {}
 
  protected:
   void TearDown() override {
@@ -4227,9 +4217,8 @@ TEST_F(WebRtcVideoChannelTest, VerifyMinBitrate) {
 }
 
 TEST_F(WebRtcVideoChannelTest, VerifyMinBitrateWithForcedFallbackFieldTrial) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_,
-      "WebRTC-VP8-Forced-Fallback-Encoder-v2/Enabled-1,2,34567/");
+  field_trials_.Set("WebRTC-VP8-Forced-Fallback-Encoder-v2",
+                    "Enabled-1,2,34567");
   std::vector<VideoStream> streams = AddSendStream()->GetVideoStreams();
   ASSERT_EQ(1u, streams.size());
   EXPECT_EQ(34567, streams[0].min_bitrate_bps);
@@ -4237,8 +4226,7 @@ TEST_F(WebRtcVideoChannelTest, VerifyMinBitrateWithForcedFallbackFieldTrial) {
 
 TEST_F(WebRtcVideoChannelTest,
        BalancedDegradationPreferenceNotSupportedWithoutFieldtrial) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-Video-BalancedDegradation/Disabled/");
+  field_trials_.Set("WebRTC-Video-BalancedDegradation", "Disabled");
   const bool kResolutionScalingEnabled = true;
   const bool kFpsScalingEnabled = false;
   TestDegradationPreference(kResolutionScalingEnabled, kFpsScalingEnabled);
@@ -4246,8 +4234,7 @@ TEST_F(WebRtcVideoChannelTest,
 
 TEST_F(WebRtcVideoChannelTest,
        BalancedDegradationPreferenceSupportedBehindFieldtrial) {
-  ScopedKeyValueConfig override_field_trials(
-      field_trials_, "WebRTC-Video-BalancedDegradation/Enabled/");
+  field_trials_.Set("WebRTC-Video-BalancedDegradation", "Enabled");
   const bool kResolutionScalingEnabled = true;
   const bool kFpsScalingEnabled = true;
   TestDegradationPreference(kResolutionScalingEnabled, kFpsScalingEnabled);
@@ -7635,7 +7622,7 @@ TEST_F(WebRtcVideoChannelTest, ReceiveDifferentUnsignaledSsrc) {
   parameters.codecs.push_back(GetEngineCodec("VP9"));
 
 #if defined(WEBRTC_USE_H264)
-  webrtc::Codec H264codec = webrtc::CreateVideoCodec(126, "H264");
+  Codec H264codec = CreateVideoCodec(126, "H264");
   parameters.codecs.push_back(H264codec);
 #endif
 
@@ -7694,12 +7681,12 @@ TEST_F(WebRtcVideoChannelTest, ReceiveDifferentUnsignaledSsrc) {
   recv_stream = fake_call_->GetVideoReceiveStreams()[0];
   EXPECT_EQ(rtp_packet.Ssrc(), recv_stream->GetConfig().rtp.remote_ssrc);
   // Verify that the receive stream sinks to a renderer.
-  webrtc::VideoFrame video_frame3 =
-      webrtc::VideoFrame::Builder()
+  VideoFrame video_frame3 =
+      VideoFrame::Builder()
           .set_video_frame_buffer(CreateBlackFrameBuffer(4, 4))
           .set_rtp_timestamp(300)
           .set_timestamp_us(0)
-          .set_rotation(webrtc::kVideoRotation_0)
+          .set_rotation(kVideoRotation_0)
           .build();
   recv_stream->InjectFrame(video_frame3);
   EXPECT_EQ(3, renderer.num_rendered_frames());
@@ -8083,7 +8070,7 @@ class WebRtcVideoChannelScaleResolutionDownByTest
 TEST_P(WebRtcVideoChannelScaleResolutionDownByTest, ScaleResolutionDownBy) {
   ScaleResolutionDownByTestParameters test_params = std::get<0>(GetParam());
   std::string codec_name = std::get<1>(GetParam());
-  ScopedKeyValueConfig field_trial(field_trials_, test_params.field_trials);
+  field_trials_.Merge(FieldTrials(test_params.field_trials));
   // Set up WebRtcVideoChannel for 3-layer simulcast.
   encoder_factory_->AddSupportedVideoCodecType(codec_name);
   VideoSenderParameters parameters;
@@ -9108,8 +9095,7 @@ TEST_F(WebRtcVideoChannelTest,
 }
 
 TEST_F(WebRtcVideoChannelTest, SetMixedCodecSimulcastStreamConfig) {
-  ScopedKeyValueConfig field_trials(field_trials_,
-                                    "WebRTC-MixedCodecSimulcast/Enabled/");
+  field_trials_.Set("WebRTC-MixedCodecSimulcast", "Enabled");
 
   StreamParams sp = CreateSimStreamParams("cname", {123, 456, 789});
 
@@ -9158,8 +9144,7 @@ TEST_F(WebRtcVideoChannelTest, SetMixedCodecSimulcastStreamConfig) {
 #if RTC_DCHECK_IS_ON && GTEST_HAS_DEATH_TEST && !defined(WEBRTC_ANDROID)
 TEST_F(WebRtcVideoChannelTest,
        SetMixedCodecSimulcastWithDifferentConfigSettingsSizes) {
-  test::ScopedKeyValueConfig field_trials(
-      field_trials_, "WebRTC-MixedCodecSimulcast/Enabled/");
+  field_trials_.Set("WebRTC-MixedCodecSimulcast", "Enabled");
   AddSendStream();
 
   VideoSenderParameters parameters;
@@ -9699,7 +9684,8 @@ TEST_F(WebRtcVideoChannelTest, GenerateKeyFrameSimulcast) {
 class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
  public:
   WebRtcVideoChannelSimulcastTest()
-      : fake_call_(CreateEnvironment(&field_trials_)),
+      : field_trials_(CreateTestFieldTrials()),
+        fake_call_(CreateEnvironment(&field_trials_)),
         encoder_factory_(new FakeWebRtcVideoEncoderFactory),
         decoder_factory_(new FakeWebRtcVideoDecoderFactory),
         mock_rate_allocator_factory_(
@@ -9863,7 +9849,7 @@ class WebRtcVideoChannelSimulcastTest : public ::testing::Test {
     return streams[streams.size() - 1];
   }
 
-  ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   FakeCall fake_call_;
   FakeWebRtcVideoEncoderFactory* encoder_factory_;
   FakeWebRtcVideoDecoderFactory* decoder_factory_;

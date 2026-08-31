@@ -1,4 +1,4 @@
-# tags: [ Android Fuchsia Linux Mac Mac11 Mac12 Mac13 Mac13-arm64 Mac14 Mac14-arm64 Mac15 Mac15-arm64 Win Win10.20h2 Win11 Win11-arm64 ]
+# tags: [ Android Fuchsia Linux Mac Mac12 Mac13 Mac13-arm64 Mac14 Mac14-arm64 Mac15 Mac15-arm64 Win Win10.20h2 Win11 Win11-arm64 ]
 # tags: [ Release Debug ]
 # results: [ Timeout Crash Pass Failure Slow Skip ]
 
@@ -22,6 +22,7 @@ crbug.com/388081043 external/wpt/editing/other/paste-clipboard-change.tentative.
 # finder:enable-general
 
 # ====== New tests from wpt-importer added here ======
+crbug.com/431036874 virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/new-content-is-inline.html [ Failure ]
 crbug.com/414691618 virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/dequantizeLinear.https.any.html?cpu [ Crash ]
 crbug.com/414691618 virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/expand.https.any.html?cpu [ Crash ]
 crbug.com/414691618 virtual/webnn-service-on-cpu/external/wpt/webnn/conformance_tests/gather.https.any.html?cpu [ Crash ]
@@ -68,3 +69,5 @@ crbug.com/403641201 external/wpt/css/css-pseudo/active-selection-021.html [ Fail
 external/wpt/urlpattern/urlpattern.https.any.worker.html [ Crash Failure ]
 crbug.com/397523920 external/wpt/trusted-types/modify-attributes-in-callback.html [ Crash ]
 crbug.com/396958489 external/wpt/trusted-types/set-attributes-mutations-in-callback.tentative.html [ Crash ]
+
+[ Mac14-arm64 ] external/wpt/clear-site-data/clear-cache.https.html [ Failure ]  # Flaky output

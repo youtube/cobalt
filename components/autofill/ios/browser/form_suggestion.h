@@ -35,7 +35,7 @@ enum class SuggestionFeatureForIPH {
   // Denoting IPH for the plus address create suggestion.
   kPlusAddressCreation = 2,
   // Denoting IPH for the home and work address suggestion.
-  kHomeWorkAddressSuggestion = 3
+  kHomeAndWorkAddressSuggestion = 3
 };
 
 // Enum class used to determine the icon for the suggestion.
@@ -45,7 +45,9 @@ enum class SuggestionIconType {
   // Home address profile icon.
   kAccountHome = 1,
   // Work address profile icon.
-  kAccountWork = 2
+  kAccountWork = 2,
+  // Backup password icon.
+  kBackupPassword = 3,
 };
 
 // Represents a user-selectable suggestion for a single field within a form

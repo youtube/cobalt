@@ -2,9 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//third_party/libpng/visibility.gni")
+
 import("//build/config/arm.gni")
-import("//build/config/mips.gni")
 import("//build/config/loongarch64.gni")
+import("//build/config/mips.gni")
 
 if (build_with_chromium) {
   import("//testing/libfuzzer/fuzzer_test.gni")

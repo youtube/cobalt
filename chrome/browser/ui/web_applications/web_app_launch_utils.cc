@@ -103,8 +103,8 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_browser_controller_ash.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
+#include "chrome/browser/chromeos/app_mode/kiosk_web_app_browser_controller.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/web_applications/chromeos_web_app_experiments.h"
 #include "chromeos/ash/experiences/system_web_apps/types/system_web_app_delegate.h"
@@ -138,7 +138,7 @@ Browser* ReparentWebContentsIntoAppBrowser(content::WebContents* contents,
 
   ReparentWebContentsIntoBrowserImpl(
       source_browser, contents, target_browser,
-      /*insert_as_pinned_first_tab=*/insert_as_pinned_home_tab);
+      /*insert_as_pinned_home_tab=*/insert_as_pinned_home_tab);
   return target_browser;
 }
 
@@ -161,8 +161,8 @@ std::unique_ptr<AppBrowserController> CreateWebKioskBrowserController(
     Browser* browser,
     WebAppProvider* provider,
     const webapps::AppId& app_id) {
-  return std::make_unique<ash::WebKioskBrowserControllerAsh>(*provider, browser,
-                                                             app_id);
+  return std::make_unique<chromeos::KioskWebAppBrowserController>(
+      *provider, browser, app_id);
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -354,12 +354,8 @@ void ReparentWebContentsIntoBrowserImpl(Browser* source_browser,
   CHECK_EQ(web_contents,
            target_browser->tab_strip_model()->GetActiveWebContents());
 
-  if (insert_as_pinned_home_tab) {
-    if (target_has_pinned_home_tab) {
-      target_browser->tab_strip_model()->DetachAndDeleteWebContentsAt(1);
-    }
-    SetWebContentsIsPinnedHomeTab(
-        target_browser->tab_strip_model()->GetWebContentsAt(0));
+  if (insert_as_pinned_home_tab && target_has_pinned_home_tab) {
+    target_browser->tab_strip_model()->DetachAndDeleteWebContentsAt(1);
   }
 
   if (!target_app_id) {
@@ -596,11 +592,6 @@ Browser* ReparentWebContentsIntoAppBrowser(
   return reparented_browser;
 }
 
-void SetWebContentsIsPinnedHomeTab(content::WebContents* contents) {
-  auto* helper = WebAppTabHelper::FromWebContents(contents);
-  helper->set_is_pinned_home_tab(true);
-}
-
 std::unique_ptr<AppBrowserController> MaybeCreateAppBrowserController(
     Browser* browser) {
   std::unique_ptr<AppBrowserController> controller;
@@ -646,13 +637,6 @@ void MaybeAddPinnedHomeTab(Browser* browser, const std::string& app_id) {
     home_tab_nav_params.disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
     home_tab_nav_params.tabstrip_add_types |= AddTabTypes::ADD_PINNED;
     Navigate(&home_tab_nav_params);
-
-    content::WebContents* const web_contents =
-        home_tab_nav_params.navigated_or_inserted_contents;
-
-    if (web_contents) {
-      SetWebContentsIsPinnedHomeTab(web_contents);
-    }
   }
 }
 

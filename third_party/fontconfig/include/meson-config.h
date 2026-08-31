@@ -26,6 +26,12 @@
 
 #define FC_TEMPLATEDIR "/usr/share/fontconfig/conf.avail"
 
+#define FC_VERSION_MAJOR 2
+
+#define FC_VERSION_MICRO 1
+
+#define FC_VERSION_MINOR 17
+
 #define FLEXIBLE_ARRAY_MEMBER /**/
 
 #define FONTCONFIG_PATH "/etc/fonts"
@@ -148,17 +154,19 @@
 
 #define PACKAGE_NAME "fontconfig"
 
-#define PACKAGE_STRING "fontconfig 2.16.2"
+#define PACKAGE_STRING "fontconfig 2.17.1"
 
 #define PACKAGE_TARNAME "fontconfig"
 
 #define PACKAGE_URL ""
 
-#define PACKAGE_VERSION "2.16.2"
+#define PACKAGE_VERSION "2.17.1"
 
 #define SIZEOF_VOID_P 8
 
 #define USE_ICONV 0
 
 #define WORDS_BIGENDIAN 0
+
+#define _GNU_SOURCE 1
 

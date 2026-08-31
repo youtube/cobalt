@@ -12,10 +12,6 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
-namespace WTF {
-class String;
-}  // namespace WTF
-
 namespace blink {
 
 class KURL;
@@ -28,9 +24,9 @@ enum PrivateRegistryFilter {
   kExcludePrivateRegistries,
 };
 
-PLATFORM_EXPORT bool IsReservedIPAddress(const WTF::StringView& host);
+PLATFORM_EXPORT bool IsReservedIPAddress(const StringView& host);
 
-PLATFORM_EXPORT WTF::String GetDomainAndRegistry(const WTF::StringView& host,
+PLATFORM_EXPORT WTF::String GetDomainAndRegistry(const StringView& host,
                                                  PrivateRegistryFilter);
 
 // Returns the decoded data url as ResourceResponse and SharedBuffer if parsing

@@ -24,8 +24,8 @@
 #include "content/public/browser/storage_partition.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chromeos/ash/components/channel/channel_info.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace manta {
@@ -60,7 +60,7 @@ std::unique_ptr<KeyedService>
 MantaServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* const context) const {
 #if BUILDFLAG(IS_CHROMEOS)
-  bool is_demo_mode = ash::DemoSession::IsDeviceInDemoMode();
+  bool is_demo_mode = ash::demo_mode::IsDeviceInDemoMode();
   version_info::Channel chrome_channel = ash::GetChannel();
 #else
   bool is_demo_mode = false;
@@ -71,7 +71,7 @@ MantaServiceFactory::BuildServiceInstanceForBrowserContext(
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
 
   bool is_signed_in = identity_manager && identity_manager->HasPrimaryAccount(
-                                              signin::ConsentLevel::kSync);
+                                              signin::ConsentLevel::kSignin);
   bool is_otr_profile = !profile->IsRegularProfile() || !is_signed_in;
 
   std::string chrome_version = version_info::GetVersion().GetString();

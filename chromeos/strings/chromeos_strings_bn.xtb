@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">আপনি এখন শুধু ক্লাস টুল ব্যবহার করতে পারবেন</translation>
 <translation id="1762483337755424125">ট্রানস্ক্রিপ্ট</translation>
 <translation id="1765169783255151332">ঝটপট একটি 'কী' থেকে আরেকটিতে পাল্টে নিন</translation>
 <translation id="1768959921651994223">যাচাইকরণের প্রকার</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">লেআউট সুইচ করার বোতাম</translation>
 <translation id="224421911978987610">লং এক্সপোজার</translation>
 <translation id="2244834438220057800">সবুজ</translation>
+<translation id="2248689665683494517">কালো ব্যাকগ্রাউন্ডে কাচের ফুলদানিতে কিছু পাপাভার রিয়া ফুলের ন্যূনতম নির্দিষ্ট জীবনকাল</translation>
 <translation id="225692081236532131">সক্রিয়করণ স্থিতি</translation>
 <translation id="2267285889943769271">স্ক্রিনশট যোগ করুন</translation>
 <translation id="2268044343513325586">রিফাইন করুন</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">প্রিন্ট করা যায়নি - প্রিন্টার বন্ধ হয়ে গেছে</translation>
 <translation id="3102119246920354026">ক্যাশে</translation>
 <translation id="3103783611481501187">অপার্থিব</translation>
+<translation id="3119672627216736407">অনুবাদ উপলভ্য রয়েছে</translation>
 <translation id="3122464029669770682">সিপিইউ</translation>
 <translation id="3122614491980756867">পুল</translation>
 <translation id="3122883569442693641">আরও বিবরণ</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">শিফন</translation>
 <translation id="4310735698903592804">Google AI দ্বারা পরিচালিত সাম্প্রতিক ওয়ালপেপার</translation>
 <translation id="4320904097188876154">নিয়ন পিঙ্ক</translation>
+<translation id="432961742358282111">সংজ্ঞা, অনুবাদ বা ইউনিটের কনভার্সন পেতে ডানদিকের বোতামে ক্লিক করুন বা প্রেস করে ধরে রাখুন। এই ফিচার ম্যানেজ করতে, বাঁদিক বা ডানদিকের তীরচিহ্ন কী বোতাম ব্যবহার করুন।</translation>
 <translation id="4333390807948134856"><ph name="KEY_NAME" /> কী প্রেস করা হয়েছে</translation>
 <translation id="4334293042716981313">এছাড়া, আপনি <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />নিজেই প্রম্পট লিখতে<ph name="END_LINK_FREEFORM_SUBPAGE" /> পারেন</translation>
 <translation id="4354430579665871434">কী</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">সম্পূর্ণ করতে, আপনার পুরনো ও নতুন পাসওয়ার্ড লিখুন</translation>
 <translation id="6061772781719867950">HTTP অনুরোধ সফল হয়নি</translation>
 <translation id="6073292342939316679">কীবোর্ডের উজ্জ্বলতা কমান</translation>
+<translation id="6074608334942655098">অনুবাদ করা বন্ধ করুন</translation>
 <translation id="6074752328838739425">সারাংশ লুকান</translation>
 <translation id="6075872808778243331">(Android) HTTP লেটেন্সি</translation>
 <translation id="6078323886959318429">শর্টকাট যোগ করুন</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Chromebook সহায়তা ফোরামের বিশেষজ্ঞদের জিজ্ঞাসা করুন</translation>
-<translation id="7309823890857024809">কালো ব্যাকগ্রাউন্ডে কাচের ফুলদানিতে কিছু পাপাভার রিয়া স্টিমের ন্যূনতম নির্দিষ্ট জীবনকাল</translation>
 <translation id="7311368985037279727">কীবোর্ডের কালার</translation>
 <translation id="7317831949569936035">স্কুলে নথিভুক্ত করা</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">রেকর্ড করতে প্রেস করুন</translation>
 <translation id="8094062939584182041">এই সমস্যা সম্পর্কে আপনাকে ইমেল পাঠানোর জন্য Google-কে অনুমতি দিন</translation>
 <translation id="8104083085214006426">আপনি একটি ওপেন এবং নিরাপদ নয় এমন নেটওয়ার্ক ব্যবহার করছেন</translation>
+<translation id="8108879170356113798">আপনি মাত্র <ph name="NUM_SECONDS" /> সেকেন্ড পরেই ক্লাস টুল ব্যবহার করতে পারবেন</translation>
 <translation id="811820734797650957">(Android) গেটওয়ে পিং করা যেতে পারে</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° সেঃ</translation>
 <translation id="8131740175452115882">নিশ্চিত হন</translation>

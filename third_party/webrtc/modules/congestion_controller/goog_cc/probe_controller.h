@@ -146,13 +146,13 @@ class ProbeController {
   // SetBitrates.
   void EnableRepeatedInitialProbing(bool enable);
 
-  void SetAlrStartTimeMs(std::optional<int64_t> alr_start_time);
-  void SetAlrEndedTimeMs(int64_t alr_end_time);
+  void SetAlrStartTime(std::optional<Timestamp> alr_start_time);
+  void SetAlrEndedTime(Timestamp alr_end_time);
 
   ABSL_MUST_USE_RESULT std::vector<ProbeClusterConfig> RequestProbe(
       Timestamp at_time);
 
-  void SetNetworkStateEstimate(webrtc::NetworkStateEstimate estimate);
+  void SetNetworkStateEstimate(NetworkStateEstimate estimate);
 
   // Resets the ProbeController to a state equivalent to as if it was just
   // created EXCEPT for configuration settings like
@@ -195,7 +195,7 @@ class ProbeController {
   DataRate min_bitrate_to_probe_further_ = DataRate::PlusInfinity();
   Timestamp time_last_probing_initiated_ = Timestamp::MinusInfinity();
   DataRate estimated_bitrate_ = DataRate::Zero();
-  std::optional<webrtc::NetworkStateEstimate> network_estimate_;
+  std::optional<NetworkStateEstimate> network_estimate_;
   DataRate start_bitrate_ = DataRate::Zero();
   DataRate max_bitrate_ = DataRate::PlusInfinity();
   Timestamp last_bwe_drop_probing_time_ = Timestamp::Zero();

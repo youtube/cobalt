@@ -24,6 +24,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "content/browser/renderer_host/media/video_capture_controller.h"
 #include "media/base/video_frame.h"
 #include "media/capture/video/video_capture_buffer_pool_impl.h"
@@ -41,7 +42,7 @@
 
 #include "base/win/scoped_handle.h"
 #include "media/base/win/dxgi_device_manager.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #endif
 
 namespace content {
@@ -457,12 +458,8 @@ TEST_P(VideoCaptureBufferPoolTest, BufferPoolExternalWin) {
 namespace {
 
 gfx::GpuMemoryBufferHandle CreateIOSurfaceHandle() {
-  gfx::GpuMemoryBufferHandle result;
-  result.type = gfx::GpuMemoryBufferType::IO_SURFACE_BUFFER;
-  result.id = gfx::GpuMemoryBufferHandle::kInvalidId;
-  result.io_surface =
-      gfx::CreateIOSurface(kDefaultTextureSize, gfx::BufferFormat::BGRA_8888);
-  return result;
+  return gfx::GpuMemoryBufferHandle(gfx::CreateIOSurface(
+      kDefaultTextureSize, viz::SinglePlaneFormat::kBGRA_8888));
 }
 
 }  // namespace
@@ -482,10 +479,10 @@ TEST_P(VideoCaptureBufferPoolTest, BufferPoolExternal) {
   EXPECT_NE(buffer_id0, kInvalidId);
   EXPECT_EQ(buffer_id_to_drop, kInvalidId);
   EXPECT_FALSE(IOSurfaceIsInUse(
-      pool_->GetGpuMemoryBufferHandle(buffer_id0).io_surface.get()));
+      pool_->GetGpuMemoryBufferHandle(buffer_id0).io_surface().get()));
   pool_->HoldForConsumers(buffer_id0, 1);
   EXPECT_TRUE(IOSurfaceIsInUse(
-      pool_->GetGpuMemoryBufferHandle(buffer_id0).io_surface.get()));
+      pool_->GetGpuMemoryBufferHandle(buffer_id0).io_surface().get()));
   pool_->RelinquishProducerReservation(buffer_id0);
   // We should get a new buffer for handle1.
   int buffer_id1 = kInvalidId;

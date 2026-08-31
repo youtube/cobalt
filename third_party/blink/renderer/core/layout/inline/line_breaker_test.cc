@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/core/layout/inline/inline_node.h"
 #include "third_party/blink/renderer/core/layout/inline/line_info.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/positioned_float.h"
 #include "third_party/blink/renderer/core/layout/unpositioned_float.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
@@ -1251,6 +1252,20 @@ struct CanBreakInsideTestData {
     {true, "<span>a</span> b"},
     {true, "<span>a </span>b"},
     {true, "a<span> </span>b"},
+    {false, "a<span></span>b"},
+    {false, "<span> </span>", "span { position: absolute; }"},
+    {false, "a<span></span>", "span { position: absolute; }"},
+    {false, "a<span></span>b", "span { position: absolute; }"},
+    {false, "a<span></span><span></span>b", "span { position: absolute; }"},
+    {true, "<span></span>a b", "span { position: absolute; }"},
+    {true, "a <span></span>b", "span { position: absolute; }"},
+    {true, "a<span></span> b", "span { position: absolute; }"},
+    {false, "a<span></span><span></span>", "span { position: absolute; }"},
+    {true, "ab c<span></span>", "span { position: absolute; }"},
+    {false, "ab <span></span> <span></span> <span></span>",
+     "span { position: absolute; }"},
+    {false, "a<span></span>b", "span { flaot: left; }"},
+    {true, "a <span></span>b", "span { flaot: left; }"},
     {false, "<ib></ib>", nullptr, "ib { display: inline-block; }"},
     {true, "<ib></ib><ib></ib>", nullptr, "ib { display: inline-block; }"},
     {true, "a<ib></ib>", nullptr, "ib { display: inline-block; }"},

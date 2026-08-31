@@ -27,8 +27,8 @@
 
 #include <array>
 #include <limits>
+#include <string_view>
 
-#include "base/compiler_specific.h"
 #include "base/rand_util.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 
@@ -97,9 +97,9 @@ inline void AppendNormalized(Vector<char>& buffer, const std::string& string) {
 
 }  // namespace
 
-WTF::TextEncoding FormDataEncoder::EncodingFromAcceptCharset(
+TextEncoding FormDataEncoder::EncodingFromAcceptCharset(
     const String& accept_charset,
-    const WTF::TextEncoding& fallback_encoding) {
+    const TextEncoding& fallback_encoding) {
   DCHECK(fallback_encoding.IsValid());
 
   String normalized_accept_charset = accept_charset;
@@ -109,7 +109,7 @@ WTF::TextEncoding FormDataEncoder::EncodingFromAcceptCharset(
   normalized_accept_charset.Split(' ', charsets);
 
   for (const String& name : charsets) {
-    WTF::TextEncoding encoding(name);
+    TextEncoding encoding(name);
     if (encoding.IsValid())
       return encoding;
   }
@@ -176,10 +176,9 @@ void FormDataEncoder::AddBoundaryToMultiPartHeader(Vector<char>& buffer,
   Append(buffer, "\r\n");
 }
 
-void FormDataEncoder::AddFilenameToMultiPartHeader(
-    Vector<char>& buffer,
-    const WTF::TextEncoding& encoding,
-    const String& filename) {
+void FormDataEncoder::AddFilenameToMultiPartHeader(Vector<char>& buffer,
+                                                   const TextEncoding& encoding,
+                                                   const String& filename) {
   // Characters that cannot be encoded using the form's encoding will
   // be escaped using numeric character references, e.g. &#128514; for
   // 😂.
@@ -208,9 +207,10 @@ void FormDataEncoder::AddFilenameToMultiPartHeader(
   // https://tools.ietf.org/html/rfc7578#section-4.2
   // https://tools.ietf.org/html/rfc5987#section-3.2
   Append(buffer, "; filename=\"");
-  AppendQuotedString(buffer,
-                     encoding.Encode(filename, WTF::kEntitiesForUnencodables),
-                     kDoNotNormalizeCRLF);
+  AppendQuotedString(
+      buffer,
+      encoding.Encode(filename, UnencodableHandling::kEntitiesForUnencodables),
+      kDoNotNormalizeCRLF);
   buffer.push_back('"');
 }
 
@@ -249,7 +249,7 @@ void FormDataEncoder::EncodeStringAsFormData(Vector<char>& buffer,
                                              const std::string& string,
                                              Mode mode) {
   // Same safe characters as Netscape for compatibility.
-  static const char kSafeCharacters[] = "-._*";
+  static constexpr std::string_view kSafeCharacters = "-._*";
 
   // http://www.w3.org/TR/html4/interact/forms.html#h-17.13.4.1
   const size_t length = string.length();
@@ -258,7 +258,7 @@ void FormDataEncoder::EncodeStringAsFormData(Vector<char>& buffer,
 
     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
         (c >= '0' && c <= '9') ||
-        (c != '\0' && UNSAFE_TODO(strchr(kSafeCharacters, c)))) {
+        (c != '\0' && kSafeCharacters.find(c) != std::string_view::npos)) {
       buffer.push_back(c);
     } else if (c == ' ') {
       buffer.push_back('+');

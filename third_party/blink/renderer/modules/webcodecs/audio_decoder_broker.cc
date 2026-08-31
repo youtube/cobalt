@@ -34,7 +34,7 @@
 
 using DecoderDetails = blink::AudioDecoderBroker::DecoderDetails;
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<media::AudioDecoderConfig>
@@ -53,10 +53,6 @@ struct CrossThreadCopier<std::optional<DecoderDetails>>
     : public CrossThreadCopierPassThrough<std::optional<DecoderDetails>> {
   STATIC_ONLY(CrossThreadCopier);
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 // Wrapper class for state and API calls that must be made from the
 // |media_task_runner_|. Construction must happen on blink main thread to safely
@@ -96,9 +92,9 @@ class MediaAudioTaskWrapper {
     // runner.
     PostCrossThreadTask(
         *media_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(&MediaAudioTaskWrapper::BindOnTaskRunner,
-                                 WTF::CrossThreadUnretained(this),
-                                 std::move(media_interface_factory)));
+        CrossThreadBindOnce(&MediaAudioTaskWrapper::BindOnTaskRunner,
+                            WTF::CrossThreadUnretained(this),
+                            std::move(media_interface_factory)));
   }
 
   virtual ~MediaAudioTaskWrapper() {
@@ -209,8 +205,8 @@ class MediaAudioTaskWrapper {
     // Fire |init_cb|.
     PostCrossThreadTask(
         *main_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnInitialize,
-                                 weak_client_, status, decoder_details));
+        CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnInitialize,
+                            weak_client_, status, decoder_details));
   }
 
   void OnDecodeOutput(scoped_refptr<media::AudioBuffer> buffer) {
@@ -219,8 +215,8 @@ class MediaAudioTaskWrapper {
 
     PostCrossThreadTask(
         *main_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnDecodeOutput,
-                                 weak_client_, std::move(buffer)));
+        CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnDecodeOutput,
+                            weak_client_, std::move(buffer)));
   }
 
   void OnDecodeDone(int cb_id, media::DecoderStatus status) {
@@ -228,8 +224,8 @@ class MediaAudioTaskWrapper {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     PostCrossThreadTask(
         *main_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnDecodeDone,
-                                 weak_client_, cb_id, std::move(status)));
+        CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnDecodeDone,
+                            weak_client_, cb_id, std::move(status)));
   }
 
   void OnReset(int cb_id) {
@@ -237,8 +233,8 @@ class MediaAudioTaskWrapper {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     PostCrossThreadTask(
         *main_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnReset,
-                                 weak_client_, cb_id));
+        CrossThreadBindOnce(&CrossThreadAudioDecoderClient::OnReset,
+                            weak_client_, cb_id));
   }
 
   base::WeakPtr<CrossThreadAudioDecoderClient> weak_client_;
@@ -310,9 +306,9 @@ void AudioDecoderBroker::Initialize(const media::AudioDecoderConfig& config,
 
   PostCrossThreadTask(
       *media_task_runner_, FROM_HERE,
-      WTF::CrossThreadBindOnce(&MediaAudioTaskWrapper::Initialize,
-                               WTF::CrossThreadUnretained(media_tasks_.get()),
-                               config));
+      CrossThreadBindOnce(&MediaAudioTaskWrapper::Initialize,
+                          WTF::CrossThreadUnretained(media_tasks_.get()),
+                          config));
 }
 
 int AudioDecoderBroker::CreateCallbackId() {
@@ -346,9 +342,9 @@ void AudioDecoderBroker::Decode(scoped_refptr<media::DecoderBuffer> buffer,
 
   PostCrossThreadTask(
       *media_task_runner_, FROM_HERE,
-      WTF::CrossThreadBindOnce(&MediaAudioTaskWrapper::Decode,
-                               WTF::CrossThreadUnretained(media_tasks_.get()),
-                               buffer, callback_id));
+      CrossThreadBindOnce(&MediaAudioTaskWrapper::Decode,
+                          WTF::CrossThreadUnretained(media_tasks_.get()),
+                          buffer, callback_id));
 }
 
 void AudioDecoderBroker::OnDecodeDone(int cb_id, media::DecoderStatus status) {
@@ -374,9 +370,9 @@ void AudioDecoderBroker::Reset(base::OnceClosure reset_cb) {
 
   PostCrossThreadTask(
       *media_task_runner_, FROM_HERE,
-      WTF::CrossThreadBindOnce(&MediaAudioTaskWrapper::Reset,
-                               WTF::CrossThreadUnretained(media_tasks_.get()),
-                               callback_id));
+      CrossThreadBindOnce(&MediaAudioTaskWrapper::Reset,
+                          WTF::CrossThreadUnretained(media_tasks_.get()),
+                          callback_id));
 }
 
 bool AudioDecoderBroker::NeedsBitstreamConversion() const {

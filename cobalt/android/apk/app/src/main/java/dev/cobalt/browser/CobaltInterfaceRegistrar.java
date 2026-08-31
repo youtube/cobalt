@@ -23,21 +23,18 @@ import org.jni_zero.CalledByNative;
 
 /** Registers Mojo interface implementations exposed to C++ code at the Cobalt layer. */
 class CobaltInterfaceRegistrar {
-    @CalledByNative
-    private static void registerMojoInterfaces() {
-        InterfaceRegistrar.Registry.addRenderFrameHostRegistrar(
-            new CobaltRenderFrameHostInterfaceRegistrar());
-    }
+  @CalledByNative
+  private static void registerMojoInterfaces() {
+    InterfaceRegistrar.Registry.addRenderFrameHostRegistrar(
+        new CobaltRenderFrameHostInterfaceRegistrar());
+  }
 
-    private static class CobaltRenderFrameHostInterfaceRegistrar
-            implements InterfaceRegistrar<RenderFrameHost> {
-        @Override
-        public void registerInterfaces(
-                InterfaceRegistry registry,
-                final RenderFrameHost renderFrameHost) {
-            registry.addInterface(
-                CrashAnnotator.MANAGER,
-                new CrashAnnotatorImplFactory(renderFrameHost));
-        }
+  private static class CobaltRenderFrameHostInterfaceRegistrar
+      implements InterfaceRegistrar<RenderFrameHost> {
+    @Override
+    public void registerInterfaces(
+        InterfaceRegistry registry, final RenderFrameHost renderFrameHost) {
+      registry.addInterface(CrashAnnotator.MANAGER, new CrashAnnotatorImplFactory(renderFrameHost));
     }
+  }
 }

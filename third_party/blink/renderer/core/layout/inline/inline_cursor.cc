@@ -20,7 +20,6 @@
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/paint/inline_paint_context.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 class HTMLBRElement;
@@ -92,7 +91,7 @@ bool ShouldIgnoreForPositionForPoint(const FragmentItem& item) {
           // "label-contains-other-interactive-content.html" reaches here.
           return false;
         }
-        // Skip pseudo element ::before/::after
+        // Skip pseudo-element ::before/::after
         // All/LayoutViewHitTestTest.PseudoElementAfter* needs this.
         return !item.GetLayoutObject()->NonPseudoNode();
       }
@@ -129,7 +128,6 @@ bool ShouldIgnoreForPositionForPoint(const InlineCursor& line) {
       //  * editing/selection/click-after-nested-block.html
       return false;
     }
-    // See also |InlineCursor::TryMoveToFirstInlineLeafChild()|.
     if (cursor.Current().IsInlineLeaf())
       return false;
   }
@@ -239,7 +237,6 @@ const LayoutBlockFlow* InlineCursor::GetLayoutBlockFlow() const {
     const LayoutObject* layout_object =
         root_box_fragment_->GetSelfOrContainerLayoutObject();
     DCHECK(layout_object);
-    DCHECK(!layout_object->IsLayoutFlowThread());
     return To<LayoutBlockFlow>(layout_object);
   }
   NOTREACHED();
@@ -524,49 +521,7 @@ PhysicalRect InlineCursor::CurrentLocalSelectionRectForReplaced() const {
   return physical_rect;
 }
 
-PhysicalRect InlineCursor::CurrentRectInBlockFlow() const {
-  DCHECK(!RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled());
-  PhysicalRect rect = Current().RectInContainerFragment();
-  // We'll now convert the offset from being relative to the containing fragment
-  // to being relative to the containing LayoutBlockFlow. For writing modes that
-  // don't flip the block direction, this is easy: just add the block-size
-  // consumed in previous fragments.
-  auto writing_direction = ContainerFragment().Style().GetWritingDirection();
-  switch (writing_direction.GetWritingMode()) {
-    case WritingMode::kHorizontalTb:
-      rect.offset.top += previously_consumed_block_size_;
-      break;
-    case WritingMode::kSidewaysLr:
-    case WritingMode::kVerticalLr:
-      rect.offset.left += previously_consumed_block_size_;
-      break;
-    case WritingMode::kSidewaysRl:
-    case WritingMode::kVerticalRl: {
-      // For vertical-rl writing-mode it's a bit more complicated. We need to
-      // convert to logical coordinates in the containing box fragment, in order
-      // to add the consumed block-size to make it relative to the
-      // LayoutBlockFlow ("flow thread coordinate space"), and then we convert
-      // back to physical coordinates.
-      const LayoutBlock* containing_block =
-          Current().GetLayoutObject()->ContainingBlock();
-      DCHECK_EQ(containing_block->StyleRef().GetWritingDirection(),
-                ContainerFragment().Style().GetWritingDirection());
-      LogicalOffset logical_offset =
-          WritingModeConverter(writing_direction, ContainerFragment().Size())
-              .ToLogical(rect.offset, rect.size);
-      LogicalOffset logical_offset_in_flow_thread(
-          logical_offset.inline_offset,
-          logical_offset.block_offset + previously_consumed_block_size_);
-      rect.offset = logical_offset_in_flow_thread.ConvertToPhysical(
-          writing_direction, PhysicalSize(containing_block->Size()), rect.size);
-      break;
-    }
-  };
-  return rect;
-}
-
 PhysicalRect InlineCursor::CurrentRectInFirstContainerFragment() const {
-  DCHECK(RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled());
   PhysicalRect rect = Current().RectInContainerFragment();
   if (ContainerFragment().IsFirstForNode()) {
     return rect;
@@ -944,18 +899,6 @@ inline wtf_size_t InlineCursor::SpanBeginItemIndex() const {
   return delta;
 }
 
-inline wtf_size_t InlineCursor::SpanIndexFromItemIndex(unsigned index) const {
-  DCHECK(HasRoot());
-  DCHECK(!items_.empty());
-  DCHECK(fragment_items_->IsSubSpan(items_));
-  if (items_.data() == fragment_items_->Items().data())
-    return index;
-  const wtf_size_t span_index = base::checked_cast<wtf_size_t>(
-      fragment_items_->Items().data() - items_.data() + index);
-  DCHECK_LT(span_index, items_.size());
-  return span_index;
-}
-
 void InlineCursor::MoveTo(const InlineCursorPosition& position) {
   CheckValid(position);
   current_ = position;
@@ -1086,10 +1029,9 @@ void InlineCursor::MoveToFirstNonPseudoLeaf() {
     if (!cursor.Current().GetLayoutObject()->NonPseudoNode())
       continue;
     if (cursor.Current().IsText()) {
-      // Note: We should not skip bidi control only text item to return
-      // position after bibi control character, e.g.
-      // <p dir=rtl>&#x202B;xyz ABC.&#x202C;</p>
-      // See "editing/selection/home-end.html".
+      if (cursor.Current().IsLayoutGeneratedText()) {
+        continue;
+      }
       DCHECK(!cursor.Current().IsLayoutGeneratedText()) << cursor;
       if (cursor.Current().IsLineBreak()) {
         // We ignore line break character, e.g. newline with white-space:pre,
@@ -1294,15 +1236,6 @@ bool InlineCursor::TryMoveToFirstChild() {
     return false;
   MoveToItem(current_.item_iter_ + 1);
   return true;
-}
-
-bool InlineCursor::TryMoveToFirstInlineLeafChild() {
-  while (IsNotNull()) {
-    if (Current().IsInlineLeaf())
-      return true;
-    MoveToNext();
-  }
-  return false;
 }
 
 bool InlineCursor::TryMoveToLastChild() {

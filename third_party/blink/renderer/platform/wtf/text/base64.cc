@@ -30,7 +30,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
 #include "third_party/modp_b64/modp_b64.h"
 
-namespace WTF {
+namespace blink {
 
 namespace {
 
@@ -56,9 +56,9 @@ ModpDecodePolicy GetModpPolicy(Base64DecodePolicy policy) {
 bool Base64DecodeRaw(const StringView& in,
                      Vector<uint8_t>& out,
                      Base64DecodePolicy policy) {
-  // Using StringUTF8Adaptor means we avoid allocations if the string is 8-bit
+  // Using StringUtf8Adaptor means we avoid allocations if the string is 8-bit
   // ascii, which is likely given that base64 is required to be ascii.
-  StringUTF8Adaptor adaptor(in);
+  StringUtf8Adaptor adaptor(in);
   out.resize(modp_b64_decode_len(adaptor.size()));
   base::span<char> write_buffer = base::as_writable_chars(base::span(out));
   size_t output_size = modp_b64_decode(write_buffer.data(), adaptor.data(),
@@ -137,4 +137,4 @@ String NormalizeToBase64(const String& encoding) {
   return String(encoding).Replace('-', '+').Replace('_', '/');
 }
 
-}  // namespace WTF
+}  // namespace blink

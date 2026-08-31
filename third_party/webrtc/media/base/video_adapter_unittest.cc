@@ -18,13 +18,14 @@
 #include <string>
 #include <utility>
 
+#include "api/field_trials.h"
 #include "api/video/resolution.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_source_interface.h"
 #include "media/base/fake_frame_source.h"
 #include "media/base/video_common.h"
 #include "rtc_base/time_utils.h"
-#include "test/field_trial.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -34,7 +35,6 @@ constexpr int kWidth = 1280;
 constexpr int kHeight = 720;
 constexpr int kDefaultFps = 30;
 
-using test::ScopedFieldTrials;
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::Pair;
@@ -79,7 +79,7 @@ class VideoAdapterTest : public ::testing::Test,
   VideoAdapterTest() : VideoAdapterTest("", 1) {}
   explicit VideoAdapterTest(const std::string& field_trials,
                             int source_resolution_alignment)
-      : override_field_trials_(field_trials),
+      : field_trials_(CreateTestFieldTrials(field_trials)),
         frame_source_(std::make_unique<FakeFrameSource>(
             kWidth,
             kHeight,
@@ -176,7 +176,7 @@ class VideoAdapterTest : public ::testing::Test,
     return std::make_pair(out, cropped);
   }
 
-  ScopedFieldTrials override_field_trials_;
+  FieldTrials field_trials_;
   const std::unique_ptr<FakeFrameSource> frame_source_;
   VideoAdapter adapter_;
   int64_t timestamp_ns_ = 0;

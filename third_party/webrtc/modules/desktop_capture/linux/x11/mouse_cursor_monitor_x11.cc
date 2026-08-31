@@ -10,13 +10,14 @@
 
 #include "modules/desktop_capture/linux/x11/mouse_cursor_monitor_x11.h"
 
+#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/extensions/Xfixes.h>
 #include <X11/extensions/xfixeswire.h>
-#include <stddef.h>
-#include <stdint.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "modules/desktop_capture/desktop_capture_options.h"
@@ -132,7 +133,7 @@ void MouseCursorMonitorX11::Capture() {
   x_display_->ProcessPendingXEvents();
 
   // cursor_shape_| is set only if we were notified of a cursor shape change.
-  if (cursor_shape_.get())
+  if (cursor_shape_)
     callback_->OnMouseCursor(cursor_shape_.release());
 
   // Get cursor position if necessary.

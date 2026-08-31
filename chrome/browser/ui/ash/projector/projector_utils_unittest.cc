@@ -13,7 +13,6 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/test/base/fake_gaia_mixin.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/account_id/account_id.h"
@@ -57,7 +56,7 @@ class ScopedLogIn {
       case user_manager::UserType::kPublicAccount:
         LogInAsPublicAccount();
         break;
-      case user_manager::UserType::kWebKioskApp:
+      case user_manager::UserType::kKioskWebApp:
         LogInWebKioskApp();
         break;
       case user_manager::UserType::kChild:
@@ -88,7 +87,7 @@ class ScopedLogIn {
   }
 
   void LogInWebKioskApp() {
-    fake_user_manager_->AddWebKioskAppUser(account_id_);
+    fake_user_manager_->AddKioskWebAppUser(account_id_);
     fake_user_manager_->LoginUser(account_id_);
   }
 
@@ -150,7 +149,6 @@ class ProjectorUtilsTest : public testing::Test {
   virtual bool is_managed() const { return false; }
 
  private:
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   content::BrowserTaskEnvironment task_environment_;
   base::ScopedTempDir data_dir_;
   user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
@@ -221,7 +219,7 @@ TEST_F(ProjectorUtilsTest, IsProjectorAllowedForProfile_DemoAccount) {
 TEST_F(ProjectorUtilsTest, IsProjectorAllowedForProfile_KioskAppAccount) {
   ScopedLogIn login(GetFakeUserManager(),
                     AccountId::FromUserEmail(profile()->GetProfileUserName()),
-                    user_manager::UserType::kWebKioskApp);
+                    user_manager::UserType::kKioskWebApp);
   EXPECT_FALSE(IsProjectorAllowedForProfile(profile()));
 }
 
@@ -264,7 +262,7 @@ TEST_F(ProjectorUtilsTest, IsProjectorAppEnabled_DemoAccount) {
 TEST_F(ProjectorUtilsTest, IsProjectorAppEnabled_KioskAppAccount) {
   ScopedLogIn login(GetFakeUserManager(),
                     AccountId::FromUserEmail(profile()->GetProfileUserName()),
-                    user_manager::UserType::kWebKioskApp);
+                    user_manager::UserType::kKioskWebApp);
   EXPECT_FALSE(IsProjectorAppEnabled(profile()));
 }
 

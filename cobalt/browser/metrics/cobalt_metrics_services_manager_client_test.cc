@@ -243,9 +243,7 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
 
 TEST_F(CobaltMetricsServicesManagerClientTest,
        CreateVariationsServiceReturnsNullAndDoesNotCrash) {
-  EXPECT_THAT(
-      manager_client_->CreateVariationsService(synthetic_trial_registry_.get()),
-      IsNull());
+  EXPECT_THAT(manager_client_->CreateVariationsService(), IsNull());
 }
 
 TEST_F(CobaltMetricsServicesManagerClientTest,

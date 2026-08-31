@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "base/containers/span.h"
-#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/country_type.h"
@@ -27,6 +26,7 @@
 #include "components/autofill/core/browser/data_model/usage_history_information.h"
 #include "components/autofill/core/browser/data_quality/addresses/profile_token_quality.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/signin/public/identity_manager/account_info.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
@@ -58,7 +58,12 @@ class AutofillProfile : public FormGroup {
     kAccount = 1,
     kAccountHome = 2,
     kAccountWork = 3,
-    kMaxValue = kAccountWork,
+    // This profile is stored locally. Data for this profile comes from the
+    // account. Not synced at all.
+    // TODO(crbug.com/356845298): Update the comment with the name of the
+    // manager handling the metadata updates once implemented.
+    kAccountNameEmail = 4,
+    kMaxValue = kAccountNameEmail,
   };
 
   // These fields are, by default, the only candidates for being added to the
@@ -108,6 +113,8 @@ class AutofillProfile : public FormGroup {
                   AddressCountryCode country_code);
   AutofillProfile(RecordType record_type, AddressCountryCode country_code);
   explicit AutofillProfile(AddressCountryCode country_code);
+  // This constructor creates a profile of type `kAccountNameEmail`.
+  AutofillProfile(const AccountInfo& info, AddressCountryCode country_code);
 
   AutofillProfile(const AutofillProfile& profile);
   ~AutofillProfile() override;
@@ -141,6 +148,7 @@ class AutofillProfile : public FormGroup {
   void GetMatchingTypes(const std::u16string& text,
                         const std::string& app_locale,
                         FieldTypeSet* matching_types) const override;
+  using FormGroup::GetInfo;
   std::u16string GetInfo(const AutofillType& type,
                          const std::string& app_locale) const override;
   std::u16string GetRawInfo(FieldType type) const override;
@@ -248,8 +256,7 @@ class AutofillProfile : public FormGroup {
   // 4. Phone.
   // 5. Company name.
   static std::vector<std::u16string> CreateDifferentiatingLabels(
-      const std::vector<raw_ptr<const AutofillProfile, VectorExperimental>>&
-          profiles,
+      base::span<const AutofillProfile* const> profiles,
       const std::string& app_locale);
 
   // Creates inferred labels for `profiles`, according to the rules above and
@@ -270,8 +277,7 @@ class AutofillProfile : public FormGroup {
   // TODO(crbug.com/380273791): Possibly make `suggested_fields` non-optional
   // after launch.
   static std::vector<std::u16string> CreateInferredLabels(
-      const std::vector<raw_ptr<const AutofillProfile, VectorExperimental>>&
-          profiles,
+      base::span<const AutofillProfile* const> profiles,
       const std::optional<FieldTypeSet> suggested_fields,
       std::optional<FieldType> triggering_field_type,
       FieldTypeSet excluded_fields,
@@ -330,6 +336,9 @@ class AutofillProfile : public FormGroup {
   // profiles are considered local profiles.
   bool IsAccountProfile() const;
 
+  // Whether the profile's record type is kAccountHome or kAccountWork.
+  bool IsHomeAndWorkProfile() const;
+
   int initial_creator_id() const { return initial_creator_id_; }
   void set_initial_creator_id(int creator_id) {
     initial_creator_id_ = creator_id;
@@ -353,6 +362,13 @@ class AutofillProfile : public FormGroup {
   // Clears all specified |fields| from the profile.
   void ClearFields(const FieldTypeSet& fields);
 
+  // If a regular name is written in phonetic spelling, the contents
+  // of the regular name tree should be moved to the phonetic name tree and the
+  // regular name tree should be cleared. The incorrect assignment happened in
+  // the past when we did not have proper support for phonetic names.
+  // TODO(crbug.com/359768803): Remove this method once the migration is done.
+  void MigrateRegularNameToPhoneticName();
+
   const ProfileTokenQuality& token_quality() const { return token_quality_; }
   ProfileTokenQuality& token_quality() { return token_quality_; }
 
@@ -368,8 +384,7 @@ class AutofillProfile : public FormGroup {
   // profiles, if possible; and also at least |num_fields_to_include| fields, if
   // possible. The label fields are drawn from |field_types|.
   static void CreateInferredLabelsHelper(
-      const std::vector<raw_ptr<const AutofillProfile, VectorExperimental>>&
-          profiles,
+      base::span<const AutofillProfile* const> profiles,
       const std::list<size_t>& indices,
       const std::vector<FieldType>& field_types,
       size_t num_fields_to_include,

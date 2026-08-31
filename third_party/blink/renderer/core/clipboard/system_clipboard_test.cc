@@ -571,9 +571,6 @@ TEST_F(SystemClipboardTest, SequenceNumberWithUnboundClipboardHost) {
 }
 
 TEST_F(SystemClipboardTest, ClipboardChangeNotification) {
-  // GIVEN: Feature flag is enabled
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kClipboardChangeEvent);
   auto* mock_controller = controller();
 
   // EXPECT: Controller should receive exactly one update notification
@@ -589,9 +586,6 @@ TEST_F(SystemClipboardTest, ClipboardChangeNotification) {
 }
 
 TEST_F(SystemClipboardTest, ClipboardChangeNotification_MultipleRegistrations) {
-  // GIVEN: Feature flag is enabled
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kClipboardChangeEvent);
   auto* mock_controller = controller();
 
   // EXPECT: Controller should receive notifications after each registration
@@ -651,5 +645,29 @@ TEST_F(SystemClipboardTest, ScopedSnapshotReadWriteBehavior) {
   // reflect the state of the clipboard host.
   EXPECT_EQ(system_clipboard().ReadPlainText(), "mocked");
 }
+
+#if BUILDFLAG(IS_MAC)
+TEST_F(SystemClipboardTest, GetPlatformPermissionStateCallback) {
+  // Test callback is called with the permission state
+  bool callback_called = false;
+  mojom::blink::PlatformClipboardPermissionState received_state;
+
+  mock_clipboard_host()->SetPlatformPermissionState(
+      mojom::blink::PlatformClipboardPermissionState::kAllow);
+  system_clipboard().GetPlatformPermissionState(WTF::BindOnce(
+      [](bool* called, mojom::blink::PlatformClipboardPermissionState* state,
+         mojom::blink::PlatformClipboardPermissionState result) {
+        *called = true;
+        *state = result;
+      },
+      WTF::Unretained(&callback_called), WTF::Unretained(&received_state)));
+
+  test::RunPendingTasks();
+
+  EXPECT_TRUE(callback_called);
+  EXPECT_EQ(received_state,
+            mojom::blink::PlatformClipboardPermissionState::kAllow);
+}
+#endif  // BUILDFLAG(IS_MAC)
 
 }  // namespace blink

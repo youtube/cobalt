@@ -55,11 +55,11 @@ import org.chromium.build.annotations.CheckDiscard;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.util.KeyNavigationUtil;
 import org.chromium.components.browser_ui.share.ShareHelper;
 import org.chromium.components.browser_ui.util.FirstDrawDetector;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.KeyboardVisibilityDelegate;
+import org.chromium.ui.base.KeyNavigationUtil;
 import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayUtil;
 
@@ -91,6 +91,8 @@ public class UrlBar extends AutocompleteEditText {
     // over truncating text for large tablets and external displays. Also, tests can continue to
     // check for text equality, instead of worrying about partial equality with truncated text.
     static final int MIN_LENGTH_FOR_TRUNCATION = 100;
+
+    private static final int MULTILINE_EDIT_MAX_LINES = 5;
 
     /**
      * The text direction of the URL or query: LAYOUT_DIRECTION_LOCALE, LAYOUT_DIRECTION_LTR, or
@@ -217,11 +219,7 @@ public class UrlBar extends AutocompleteEditText {
         setFocusableInTouchMode(false);
         setHorizontalFadingEdgeEnabled(true);
         setVerticalScrollBarEnabled(false);
-        // Disable elegant text height for now. We calculate font size at runtime, and try to
-        // respect the user's need to increase the font size.
-        // Enabling elegant text for UrlBar will likely produce smaller font when users ask for a
-        // larger one.
-        setElegantTextHeight(OmniboxFeatures.sElegantTextHeight.isEnabled());
+        setElegantTextHeight(true);
         // Use a global draw instead of View#onDraw in case this View is not visible.
         FirstDrawDetector.waitForFirstDraw(
                 this,
@@ -331,6 +329,17 @@ public class UrlBar extends AutocompleteEditText {
         if (!mFocused) mFocusEventEmitted = false;
         super.onFocusChanged(focused, direction, previouslyFocusedRect);
 
+        // TODO(crbug.com432311666): Confirm with UX if any of these settings could be persisted as
+        // the default height of the UrlBar.
+        setMinHeight(
+                getResources()
+                        .getDimensionPixelSize(
+                                focused
+                                        ? R.dimen.url_bar_default_height_active
+                                        : R.dimen.url_bar_default_height_inactive));
+
+        setSingleLine(true);
+        setMaxLines(1);
         setHorizontalFadingEdgeEnabled(!focused);
 
         if (focused) {
@@ -445,20 +454,34 @@ public class UrlBar extends AutocompleteEditText {
         // See crbug.com/410642190
         super.onTextChanged(text, start, lengthBefore, lengthAfter);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Due to crbug.com/1103555, Autofill had to be disabled on the UrlBar to work around
-            // an issue on Android Q+. With Autofill disabled, the Autofill compat mode no longer
-            // learns of changes to the UrlBar, which prevents it from cancelling the session if
-            // the domain changes. We restore this behavior by mimicking the relevant part of
-            // TextView.notifyListeningManagersAfterTextChanged().
-            // https://cs.android.com/android/platform/superproject/+/5d123b67756dffcfdebdb936ab2de2b29c799321:frameworks/base/core/java/android/widget/TextView.java;l=10618;drc=master;bpv=0
-            final AutofillManager afm = getContext().getSystemService(AutofillManager.class);
-            if (afm != null) {
-                afm.notifyValueChanged(this);
-            }
+        // Due to crbug.com/1103555, Autofill had to be disabled on the UrlBar to work around
+        // an issue on Android Q+. With Autofill disabled, the Autofill compat mode no longer
+        // learns of changes to the UrlBar, which prevents it from cancelling the session if
+        // the domain changes. We restore this behavior by mimicking the relevant part of
+        // TextView.notifyListeningManagersAfterTextChanged().
+        // https://cs.android.com/android/platform/superproject/+/5d123b67756dffcfdebdb936ab2de2b29c799321:frameworks/base/core/java/android/widget/TextView.java;l=10618;drc=master;bpv=0
+        final AutofillManager afm = getContext().getSystemService(AutofillManager.class);
+        if (afm != null) {
+            afm.notifyValueChanged(this);
         }
 
         limitDisplayableLength();
+
+        if (OmniboxFeatures.allowMultilineEditField()) {
+            // Observe the user input alone, to prevent autocompletion from taking over the input.
+            boolean isMultilineEligible = TextUtils.indexOf(getTextWithoutAutocomplete(), ' ') >= 0;
+            boolean wasMultilineEligible = !isSingleLine();
+            if (isMultilineEligible != wasMultilineEligible) {
+                // Toggling between single- and multi-line edit fields appears to make the EditText
+                // restart and reposition the cursor.
+                // TODO(crbug.com/432311666): verify if selection restart is caused by our own
+                // logic. If it is, see if this can be fixed and remove selection management below.
+                int cursor = getSelectionStart();
+                setSingleLine(!isMultilineEligible);
+                setMaxLines(isMultilineEligible ? MULTILINE_EDIT_MAX_LINES : 1);
+                setSelection(cursor);
+            }
+        }
     }
 
     @Override
@@ -1109,7 +1132,7 @@ public class UrlBar extends AutocompleteEditText {
         // TextView internally attempts to keep the selection visible, but in the unfocused state
         // this class ensures that the TLD is visible.
         if (!mFocused) return false;
-        assert !mPendingScroll;
+        assert !mPendingScroll || hasFocus();
 
         return super.bringPointIntoView(offset);
     }
@@ -1240,6 +1263,14 @@ public class UrlBar extends AutocompleteEditText {
     @VisibleForTesting
     void enforceMaxTextHeight() {
         if (mUseSmallTextHeight) return;
+        // Our viewHeight calculation may not be correct if layout is requested, e.g. if our padding
+        // and height change simultaneously. The padding change will be reflected immediately, but
+        // the height change requires a layout cycle to be reflected.
+        if (isLayoutRequested()) {
+            post(mEnforceMaxTextHeight);
+            return;
+        }
+
         int viewHeight = getHeight() - getPaddingTop() - getPaddingBottom();
         // Don't touch the text size if the view has not measured and shown yet, or if it's a
         // subject to custom layout constraints (e.g. CCT) that might result with font size being
@@ -1248,16 +1279,9 @@ public class UrlBar extends AutocompleteEditText {
 
         float effectiveFontHeightPx = getMaxHeightOfFont();
 
-        if (getPaint().isElegantTextHeight()) {
-            // http://go/ui-font-deprecation: when enabled, line height will be increased by up to
-            // 60%.
-            effectiveFontHeightPx *= getLineHeight() / getTextSize();
-        } else {
-            // Otherwise, scale the font down a little bit so it doesn't extend edge to edge.
-            // This ensures we present the user with properly rendered UI and that we respect their
-            // choice to use larger font (within the bounds permitted by url bar height).
-            effectiveFontHeightPx *= LINE_HEIGHT_FACTOR;
-        }
+        // http://go/ui-font-deprecation: when enabled, line height will be increased by up to
+        // 60%.
+        effectiveFontHeightPx *= getLineHeight() / getTextSize();
 
         if (effectiveFontHeightPx > viewHeight) {
             // we need to shrink the text to fit in the text field.

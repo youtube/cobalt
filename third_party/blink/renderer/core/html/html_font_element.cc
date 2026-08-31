@@ -85,7 +85,7 @@ static std::optional<int> ParseFontSize(
   int value = CharactersToInt(
       characters.subspan(digits_start,
                          static_cast<size_t>(position - digits_start)),
-      WTF::NumberParsingOptions(), nullptr);
+      NumberParsingOptions(), nullptr);
 
   // Step 9
   if (mode == kRelativePlus) {
@@ -109,8 +109,8 @@ static std::optional<int> ParseFontSize(const String& input) {
   if (input.empty()) {
     return std::nullopt;
   }
-  return WTF::VisitCharacters(input,
-                              [](auto chars) { return ParseFontSize(chars); });
+  return VisitCharacters(input,
+                         [](auto chars) { return ParseFontSize(chars); });
 }
 
 static const CSSValueList* CreateFontFaceValueWithPool(

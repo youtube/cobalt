@@ -18,7 +18,7 @@
 #include "ui/android/menu_model_bridge_jni_headers/MenuModelBridge_jni.h"
 
 using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
+using base::android::ScopedJavaGlobalRef;
 using base::android::ToJniCallback;
 
 namespace ui {
@@ -39,9 +39,13 @@ void MenuModelBridge::AddExtensionItems(ui::MenuModel* menu_model) {
       case MenuModel::TYPE_COMMAND:
       case MenuModel::TYPE_HIGHLIGHTED: {
         /* Translate both of these to basic items for now. */
+        ImageModel image = menu_model->GetIconAt(i);
+        std::optional<SkBitmap> optional_bitmap;
+        if (image.IsImage()) {
+          optional_bitmap = image.GetImage().AsBitmap();
+        }
         Java_MenuModelBridge_addCommand(
-            env, java_obj_, menu_model->GetLabelAt(i),
-            menu_model->GetIconAt(i).GetImage().AsBitmap(),
+            env, java_obj_, menu_model->GetLabelAt(i), optional_bitmap,
             menu_model->IsEnabledAt(i),
             ToJniCallback(
                 env,
@@ -77,9 +81,20 @@ void MenuModelBridge::AddExtensionItems(ui::MenuModel* menu_model) {
       }
       /* Don't handle TYPE_BUTTON_ITEM for now; it's not available in the Chrome
        * extensions API. */
-      case MenuModel::TYPE_SUBMENU:
-        // TODO(jhimawan): Call Java MenuModelBridge to add submenu item.
+      case MenuModel::TYPE_SUBMENU: {
+        ImageModel image = menu_model->GetIconAt(i);
+        std::optional<SkBitmap> optional_bitmap;
+        if (image.IsImage()) {
+          optional_bitmap = image.GetImage().AsBitmap();
+        }
+        MenuModelBridge* submenu_model_bridge = new MenuModelBridge();
+        submenu_model_bridge->AddExtensionItems(
+            menu_model->GetSubmenuModelAt(i));
+        Java_MenuModelBridge_addSubmenu(
+            env, java_obj_, menu_model->GetLabelAt(i), optional_bitmap,
+            menu_model->IsEnabledAt(i), submenu_model_bridge->java_obj_);
         break;
+      }
       /* Don't handle TYPE_ACTIONABLE_SUBMENU for now; it's not available in the
        * Chrome extensions API. */
       case MenuModel::TYPE_TITLE:
@@ -90,6 +105,10 @@ void MenuModelBridge::AddExtensionItems(ui::MenuModel* menu_model) {
         /* Do nothing. */
     }
   }
+}
+
+ScopedJavaGlobalRef<jobject> MenuModelBridge::GetJavaObject() {
+  return java_obj_;
 }
 
 // private

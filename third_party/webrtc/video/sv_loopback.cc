@@ -8,9 +8,7 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdio.h>
-
-#include <memory>
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>
@@ -25,10 +23,8 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
-#include "system_wrappers/include/field_trial.h"
 #include "test/gtest.h"
 #include "test/run_test.h"
-#include "test/test_flags.h"
 #include "video/video_quality_test.h"
 
 // Flags for video.
@@ -666,7 +662,7 @@ void Loopback() {
     params.ss[screenshare_idx].infer_streams = true;
   }
 
-  VideoQualityTest fixture(nullptr);
+  VideoQualityTest fixture;
 
   std::vector<std::string> stream_descriptors;
   stream_descriptors.push_back(ScreenshareStream0());
@@ -703,11 +699,6 @@ int main(int argc, char* argv[]) {
   absl::ParseCommandLine(argc, argv);
 
   webrtc::LogMessage::SetLogToStderr(absl::GetFlag(FLAGS_logs));
-
-  // InitFieldTrialsFromString stores the char*, so the char array must outlive
-  // the application.
-  const std::string field_trials = absl::GetFlag(FLAGS_force_fieldtrials);
-  webrtc::field_trial::InitFieldTrialsFromString(field_trials.c_str());
 
   webrtc::test::RunTest(webrtc::Loopback);
   return 0;

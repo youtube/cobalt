@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/run_until.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
@@ -10,8 +11,10 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "extensions/browser/event_router.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "extensions/test/result_catcher.h"
+#include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 
@@ -19,8 +22,6 @@
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/test/base/ui_test_utils.h"
 #endif
 
 using content::WebContents;
@@ -85,17 +86,77 @@ IN_PROC_BROWSER_TEST_F(IncognitoApiTest, NoCrashWithMultipleExtensions) {
   // No crash.
 }
 
+// Tests that when listeners in the `incognito` service worker are not removed
+// when the `regular` service worker stops.
+IN_PROC_BROWSER_TEST_F(IncognitoApiTest, IncognitoSplitKeepListener) {
+  constexpr char kEvent[] = "tabs.onCreated";
+
+  // Prepare a test extension.
+  TestExtensionDir test_dir;
+  constexpr char kManifest[] =
+      R"({
+           "name": "Test Extension",
+           "version": "0.1",
+           "manifest_version": 3,
+           "background": {
+             "service_worker": "background.js"
+           },
+           "incognito": "split",
+           "permissions": ["tabs"]
+         })";
+  test_dir.WriteManifest(kManifest);
+  constexpr char kBackgroundJs[] =
+      R"(
+        chrome.tabs.onCreated.addListener(() => {});
+
+        self.addEventListener('install', e => e.waitUntil(skipWaiting()));
+        self.addEventListener('activate', e => {
+          chrome.test.sendMessage(
+              chrome.extension.inIncognitoContext ? "waiting_incognito"
+                                                  : "waiting");
+        });
+      )";
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), kBackgroundJs);
+
+  ExtensionTestMessageListener listener("waiting", ReplyBehavior::kWontReply);
+  ExtensionTestMessageListener listener_incognito("waiting_incognito",
+                                                  ReplyBehavior::kWontReply);
+
+  PlatformOpenURLOffTheRecord(
+      profile(), embedded_test_server()->GetURL("/extensions/test_file.html"));
+
+  const Extension* extension = LoadExtension(
+      test_dir.UnpackedPath(),
+      {.allow_in_incognito = true, .wait_for_registration_stored = true});
+  ASSERT_TRUE(extension);
+
+  // Waits for both `regular` and `incognito` instances.
+  EXPECT_TRUE(listener.WaitUntilSatisfied());
+  EXPECT_TRUE(listener_incognito.WaitUntilSatisfied());
+
+  EventRouter* event_router = EventRouter::Get(profile());
+  ASSERT_TRUE(base::test::RunUntil([&] {
+    return event_router->ExtensionHasEventListener(extension->id(), kEvent);
+  }));
+
+  // Stops the `regular` service worker.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(profile(),
+                                                             extension->id());
+  // The `incognito` service worker should have active listeners.
+  EXPECT_TRUE(event_router->HasNonLazyEventListenerForTesting(kEvent));
+}
+
 #if !BUILDFLAG(IS_ANDROID)
 // Tests that an extension which is enabled for incognito mode doesn't
 // accidentally create an incognito profile.
 // TODO(https://crbug.com/390226690): Enable on Android when chrome.windows
 // is supported.
 IN_PROC_BROWSER_TEST_F(IncognitoApiTest, DontCreateIncognitoProfile) {
-  ASSERT_FALSE(browser()->profile()->HasPrimaryOTRProfile());
+  ASSERT_FALSE(profile()->HasPrimaryOTRProfile());
   ASSERT_TRUE(RunExtensionTest("incognito/dont_create_profile", {},
                                {.allow_in_incognito = true}))
       << message_;
-  ASSERT_FALSE(browser()->profile()->HasPrimaryOTRProfile());
+  ASSERT_FALSE(profile()->HasPrimaryOTRProfile());
 }
 
 // TODO(https://crbug.com/390226690): Enable on Android when chrome.windows
@@ -105,8 +166,7 @@ IN_PROC_BROWSER_TEST_F(IncognitoApiTest, Incognito) {
 
   // Open incognito window and navigate to test page.
   OpenURLOffTheRecord(
-      browser()->profile(),
-      embedded_test_server()->GetURL("/extensions/test_file.html"));
+      profile(), embedded_test_server()->GetURL("/extensions/test_file.html"));
 
   ASSERT_TRUE(
       LoadExtension(test_data_dir_.AppendASCII("incognito").AppendASCII("apis"),
@@ -123,18 +183,18 @@ IN_PROC_BROWSER_TEST_F(IncognitoApiTest, IncognitoSplitMode) {
   // We need 2 ResultCatchers because we'll be running the same test in both
   // regular and incognito mode.
   ResultCatcher catcher;
-  catcher.RestrictToBrowserContext(browser()->profile());
+  catcher.RestrictToBrowserContext(profile());
   ResultCatcher catcher_incognito;
   catcher_incognito.RestrictToBrowserContext(
-      browser()->profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true));
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true));
 
   ExtensionTestMessageListener listener("waiting", ReplyBehavior::kWillReply);
   ExtensionTestMessageListener listener_incognito("waiting_incognito",
                                                   ReplyBehavior::kWillReply);
 
   // Open incognito window and navigate to test page.
-  OpenURLOffTheRecord(browser()->profile(), embedded_test_server()->GetURL(
-                                                "/extensions/test_file.html"));
+  OpenURLOffTheRecord(
+      profile(), embedded_test_server()->GetURL("/extensions/test_file.html"));
 
   ASSERT_TRUE(LoadExtension(
       test_data_dir_.AppendASCII("incognito").AppendASCII("split"),
@@ -160,14 +220,14 @@ IN_PROC_BROWSER_TEST_F(IncognitoApiTest, IncognitoDisabled) {
                                         ReplyBehavior::kWillReply);
 
   // Open incognito window and navigate to test page.
-  OpenURLOffTheRecord(browser()->profile(), embedded_test_server()->GetURL(
-                                                "/extensions/test_file.html"));
+  OpenURLOffTheRecord(
+      profile(), embedded_test_server()->GetURL("/extensions/test_file.html"));
 
   ASSERT_TRUE(LoadExtension(test_data_dir_
       .AppendASCII("incognito").AppendASCII("apis_disabled")));
 
   EXPECT_TRUE(listener.WaitUntilSatisfied());
-  OpenURLOffTheRecord(browser()->profile(), GURL("about:blank"));
+  OpenURLOffTheRecord(profile(), GURL("about:blank"));
   listener.Reply("created");
 
   EXPECT_TRUE(catcher.GetNextResult()) << catcher.message();
@@ -185,8 +245,7 @@ IN_PROC_BROWSER_TEST_F(IncognitoApiTest, DISABLED_IncognitoPopup) {
 
   // Open incognito window and navigate to test page.
   Browser* incognito_browser = OpenURLOffTheRecord(
-      browser()->profile(),
-      embedded_test_server()->GetURL("/extensions/test_file.html"));
+      profile(), embedded_test_server()->GetURL("/extensions/test_file.html"));
 
   // Simulate the incognito's browser action being clicked.
   ExtensionActionTestHelper::Create(incognito_browser)->Press(extension->id());

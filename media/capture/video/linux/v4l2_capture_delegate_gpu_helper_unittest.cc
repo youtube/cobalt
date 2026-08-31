@@ -6,12 +6,13 @@
 // TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
 #pragma allow_unsafe_buffers
 #endif
+
 #include "media/capture/video/linux/v4l2_capture_delegate_gpu_helper.h"
 
 #include "base/command_line.h"
+#include "base/containers/span.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
-#include "gpu/command_buffer/client/fake_gpu_memory_buffer.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/test_data_util.h"
 #include "media/capture/video/video_capture_gpu_channel_host.h"
@@ -106,7 +107,8 @@ class MockCaptureHandleProvider
     : public VideoCaptureDevice::Client::Buffer::HandleProvider {
  public:
   MockCaptureHandleProvider(const gfx::Size& size, gfx::BufferFormat format) {
-    gmb_handle_ = gpu::CreatePixmapHandleForTesting(size, format);
+    gmb_handle_ =
+        gpu::TestSharedImageInterface::CreatePixmapHandle(size, format);
   }
   // Duplicate as an writable (unsafe) shared memory region.
   base::UnsafeSharedMemoryRegion DuplicateAsUnsafeRegion() override {
@@ -207,10 +209,7 @@ TEST_F(V4l2CaptureDelegateGpuHelperTest,
 
   if (sample) {
     // corrupt the sample data
-    uint8_t* data = sample->data();
-    for (size_t i = 0; i < 0xff && i < sample->size(); i++) {
-      data[i] = 0xff;
-    }
+    std::fill(sample->begin(), sample->end(), 0xff);
   }
 
   EXPECT_CALL(client, ReserveOutputBuffer)

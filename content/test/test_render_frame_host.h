@@ -112,7 +112,9 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
   void ClearConsoleMessages() override;
   int GetHeavyAdIssueCount(HeavyAdIssueType type) override;
   void SimulateManifestURLUpdate(const GURL& manifest_url) override;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   TestRenderFrameHost* AppendFencedFrame() override;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #if !BUILDFLAG(IS_COBALT)
   void CreateWebUsbServiceForTesting(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) override;
@@ -300,6 +302,7 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
       std::unique_ptr<blink::PendingURLLoaderFactoryBundle>
           subresource_loader_factories,
       const blink::DocumentToken& document_token,
+      const base::UnguessableToken& devtools_navigation_token,
       blink::mojom::PolicyContainerPtr policy_container) override;
   void SendBeforeUnload(bool is_reload,
                         base::WeakPtr<RenderFrameHostImpl> impl,

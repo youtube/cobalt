@@ -105,16 +105,6 @@ const std::optional<PhysicalSize> LayoutEmbeddedContent::FrozenFrameSize()
 
 PhysicalNaturalSizingInfo LayoutEmbeddedContent::GetNaturalDimensions() const {
   NOT_DESTROYED();
-  if (RuntimeEnabledFeatures::
-          LayoutReplacedReturnExplicitDefaultNaturalSizeEnabled()) {
-    // 300x150, no aspect ratio. (Should probably be none.)
-    PhysicalSize natural_size{LayoutUnit(kDefaultWidth),
-                              LayoutUnit(kDefaultHeight)};
-    natural_size.Scale(StyleRef().EffectiveZoom());
-    PhysicalNaturalSizingInfo sizing_info;
-    sizing_info.size = natural_size;
-    return sizing_info;
-  }
   return PhysicalNaturalSizingInfo::None();
 }
 
@@ -133,6 +123,11 @@ AffineTransform LayoutEmbeddedContent::EmbeddedContentTransform() const {
   translate_and_scale.Scale(replaced_rect.Width() / frozen_size->width,
                             replaced_rect.Height() / frozen_size->height);
   return translate_and_scale;
+}
+
+bool LayoutEmbeddedContent::ShowsUnavailablePluginIndicator() const {
+  NOT_DESTROYED();
+  return false;
 }
 
 PhysicalOffset LayoutEmbeddedContent::EmbeddedContentFromBorderBox(
@@ -382,6 +377,17 @@ PhysicalRect LayoutEmbeddedContent::ReplacedContentRectFrom(
   if (ChildFrameView() && View() && IsEffectiveRootScroller()) {
     content_rect.offset = PhysicalOffset();
     content_rect.size = View()->ViewRect().size;
+  }
+
+  // SVG documents in <object>/<embed> elements should behave like images,
+  // respecting CSS properties like object-fit and object-position.
+  // To achieve this, we apply the base class' replaced element sizing logic
+  // with pixel snapping.
+  if (RuntimeEnabledFeatures::SVGEmbeddedAsReplacedElementEnabled() &&
+      GetFrameOwnerElement() && GetFrameOwnerElement()->contentDocument() &&
+      GetFrameOwnerElement()->contentDocument()->IsSVGDocument()) {
+    return PreSnappedRectForPersistentSizing(
+        LayoutReplaced::ReplacedContentRectFrom(base_content_rect));
   }
 
   if (const std::optional<PhysicalSize> frozen_size = FrozenFrameSize()) {

@@ -430,6 +430,8 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
       send_buffer().stream_offset() + header.size());
   QUIC_DVLOG(1) << ENDPOINT << "Stream " << id()
                 << " is writing DATA frame header of length " << header.size();
+  // TODO: b/417402601 - once we always use inlining send buffer, the code below
+  // should always use WriteOrBufferData.
   if (can_write) {
     // Save one copy and allocation if send buffer can accomodate the header.
     quiche::QuicheMemSlice header_slice(std::move(header));
@@ -1247,6 +1249,11 @@ void QuicSpdyStream::OnWebTransportStreamFrameType(
 
 bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
                                           QuicByteCount payload_length) {
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMetadataFrameStart(header_length,
+                                                         payload_length);
+  }
+
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFrameStart(
         static_cast<uint64_t>(quic::HttpFrameType::METADATA), header_length,
@@ -1266,6 +1273,10 @@ bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
 }
 
 bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMetadataFramePayload(payload);
+  }
+
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFramePayload(payload);
   }
@@ -1284,6 +1295,10 @@ bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
 }
 
 bool QuicSpdyStream::OnMetadataFrameEnd() {
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMetadataFrameEnd();
+  }
+
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFrameEnd();
   }

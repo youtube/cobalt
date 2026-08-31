@@ -18,6 +18,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup;
+import org.chromium.chrome.browser.toolbar.top.ToolbarUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.util.ClickWithMetaStateCallback;
@@ -54,7 +55,8 @@ public class BackButtonCoordinator {
             ObservableSupplier<@Nullable Tab> tabSupplier,
             ObservableSupplier<Boolean> enabledSupplier,
             Runnable onNavigationPopupShown,
-            NavigationPopup.HistoryDelegate historyDelegate) {
+            NavigationPopup.HistoryDelegate historyDelegate,
+            boolean isWebApp) {
         mView = view;
         mTabSupplier = tabSupplier;
         mHistoryDelegate = historyDelegate;
@@ -79,7 +81,8 @@ public class BackButtonCoordinator {
                         enabledSupplier,
                         this::showNavigationPopup,
                         mView.getResources(),
-                        mView.getContext());
+                        mView.getContext(),
+                        isWebApp);
         PropertyModelChangeProcessor.create(model, view, BackButtonViewBinder::bind);
     }
 
@@ -105,7 +108,10 @@ public class BackButtonCoordinator {
      * @return {@link ObjectAnimator} that animates view's alpha
      */
     public ObjectAnimator getFadeAnimator(boolean shouldShow) {
-        return mMediator.getFadeAnimator(shouldShow);
+        ObjectAnimator fadeAnimator = mMediator.getFadeAnimator(shouldShow);
+        return shouldShow
+                ? ToolbarUtils.asFadeInAnimation(fadeAnimator)
+                : ToolbarUtils.asFadeOutAnimation(fadeAnimator);
     }
 
     /**

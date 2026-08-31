@@ -46,7 +46,9 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.browser.webapps.WebappTestPage;
 import org.chromium.components.webapk.proto.WebApkProto;
 import org.chromium.components.webapps.WebApkDistributor;
@@ -74,7 +76,10 @@ import java.util.Map;
 })
 public class WebApkUpdateManagerTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
+
+    private WebPageStation mPage;
 
     /** The parameters for the App Identity tests (for which flag is enabled). */
     public static class FeatureResolveParams implements ParameterProvider {
@@ -286,7 +291,7 @@ public class WebApkUpdateManagerTest {
         creationData.name = WEBAPK_NAME;
         creationData.shortName = WEBAPK_SHORT_NAME;
 
-        creationData.iconUrlToMurmur2HashMap = new HashMap<String, String>();
+        creationData.iconUrlToMurmur2HashMap = new HashMap<>();
         creationData.iconUrlToMurmur2HashMap.put(
                 mTestServer.getURL(WEBAPK_ICON_URL), WEBAPK_ICON_MURMUR2_HASH);
 
@@ -304,9 +309,9 @@ public class WebApkUpdateManagerTest {
 
     @Before
     public void setUp() throws Exception {
-        mActivityTestRule.startMainActivityOnBlankPage();
-        mActivity = mActivityTestRule.getActivity();
-        mTab = mActivity.getActivityTab();
+        mPage = mActivityTestRule.startOnBlankPage();
+        mActivity = mPage.getActivity();
+        mTab = mPage.getTab();
         mTestServer = mActivityTestRule.getTestServer();
 
         TestFetchStorageCallback callback = new TestFetchStorageCallback();
@@ -448,7 +453,7 @@ public class WebApkUpdateManagerTest {
         CreationData creationData = defaultCreationData();
         creationData.manifestUrl = mTestServer.getURL(WEBAPK_MANIFEST_WITH_MASKABLE_ICON_URL);
 
-        creationData.iconUrlToMurmur2HashMap = new HashMap<String, String>();
+        creationData.iconUrlToMurmur2HashMap = new HashMap<>();
         creationData.iconUrlToMurmur2HashMap.put(
                 mTestServer.getURL("/chrome/test/data/banners/launcher-icon-4x.png"),
                 "8692598279279335241");
@@ -513,7 +518,7 @@ public class WebApkUpdateManagerTest {
         creationData.startUrl =
                 mTestServer.getURL("/chrome/test/data/banners/manifest_test_page.html");
 
-        List<Integer> expectedUpdateReasons = new ArrayList<Integer>();
+        List<Integer> expectedUpdateReasons = new ArrayList<>();
         creationData.name += "!";
         creationData.shortName += "!";
         creationData.backgroundColor -= 1;
@@ -554,7 +559,7 @@ public class WebApkUpdateManagerTest {
         creationData.startUrl =
                 mTestServer.getURL("/chrome/test/data/banners/manifest_test_page.html");
 
-        List<Integer> expectedUpdateReasons = new ArrayList<Integer>();
+        List<Integer> expectedUpdateReasons = new ArrayList<>();
 
         boolean expectIconChange = false;
 

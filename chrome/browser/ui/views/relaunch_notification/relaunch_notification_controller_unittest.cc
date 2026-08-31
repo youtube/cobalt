@@ -23,16 +23,19 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
+#include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/shell.h"
 #include "ash/test/ash_test_helper.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
+#include "components/account_id/account_id.h"
+#include "components/user_manager/fake_user_manager_delegate.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "components/user_manager/test_helper.h"
+#include "components/user_manager/user_manager_impl.h"
 #include "content/public/test/browser_task_environment.h"
 #include "ui/display/manager/display_configurator.h"
 #include "ui/display/manager/test/action_logger.h"
@@ -188,7 +191,6 @@ class RelaunchNotificationControllerTest : public ::testing::Test {
       : task_environment_(
             base::test::TaskEnvironment::TimeSource::MOCK_TIME,
             base::test::TaskEnvironment::ThreadPoolExecutionMode::QUEUED),
-        scoped_local_state_(TestingBrowserProcess::GetGlobal()),
         upgrade_detector_(task_environment_.GetMockClock(),
                           task_environment_.GetMockTickClock()) {
     // Unittests failed when the system is on battery. This class is using a
@@ -203,7 +205,7 @@ class RelaunchNotificationControllerTest : public ::testing::Test {
   // Sets the browser.relaunch_notification preference in Local State to
   // |value|.
   void SetNotificationPref(int value) {
-    scoped_local_state_.Get()->SetManagedPref(
+    TestingBrowserProcess::GetGlobal()->GetTestingLocalState()->SetManagedPref(
         prefs::kRelaunchNotification, std::make_unique<base::Value>(value));
   }
 
@@ -228,7 +230,6 @@ class RelaunchNotificationControllerTest : public ::testing::Test {
   base::test::ScopedPowerMonitorTestSource power_monitor_source_;
 
   base::test::TaskEnvironment task_environment_;
-  ScopedTestingLocalState scoped_local_state_;
   FakeUpgradeDetector upgrade_detector_;
 };
 
@@ -932,29 +933,34 @@ class RelaunchNotificationControllerPlatformImplTest : public ::testing::Test {
   ~RelaunchNotificationControllerPlatformImplTest() override = default;
 
   void SetUp() override {
+    // Set up Ash global instances.
     ash::AshTestHelper::InitParams init_params;
     init_params.start_session = false;
     ash_test_helper_ = std::make_unique<ash::AshTestHelper>();
     ash_test_helper_->SetUp(std::move(init_params));
 
-    user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
+    user_manager_.Reset(std::make_unique<user_manager::UserManagerImpl>(
+        std::make_unique<user_manager::FakeUserManagerDelegate>(),
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        /*cros_settings=*/nullptr));
     auto* session_manager = session_manager::SessionManager::Get();
     session_manager->OnUserManagerCreated(user_manager_.Get());
 
-    const char test_user_email[] = "test_user@example.com";
-    const AccountId test_account_id(AccountId::FromUserEmail(test_user_email));
-    auto* user = user_manager_->AddUser(test_account_id);
-    user_manager_->LoginUser(test_account_id);
+    // Register the primary user.
+    const auto account_id = AccountId::FromUserEmailGaiaId(
+        "test_user@example.com", GaiaId("123456789"));
+    ASSERT_TRUE(user_manager::TestHelper(user_manager_.Get())
+                    .AddRegularUser(account_id));
 
-    // SessionManager is created by
-    // |AshTestHelper::bluetooth_config_test_helper()|.
+    // Log-in as the primary user, and start the session.
     session_manager::SessionManager::Get()->CreateSession(
-        user->GetAccountId(), test_user_email,
+        account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id),
         /*new_user=*/false,
         /*has_active_session=*/false);
     session_manager::SessionManager::Get()->SetSessionState(
         session_manager::SessionState::ACTIVE);
 
+    // Set up test objects.
     logger_ = std::make_unique<display::test::ActionLogger>();
     native_display_delegate_ =
         new display::test::TestNativeDisplayDelegate(logger_.get());
@@ -1009,8 +1015,7 @@ class RelaunchNotificationControllerPlatformImplTest : public ::testing::Test {
   FakeRelaunchNotificationControllerPlatformImpl impl_;
 
   std::unique_ptr<ash::AshTestHelper> ash_test_helper_;
-  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
-      user_manager_;
+  user_manager::ScopedUserManager user_manager_;
   std::unique_ptr<display::test::ActionLogger> logger_;
   raw_ptr<display::NativeDisplayDelegate> native_display_delegate_;
 };

@@ -14,7 +14,6 @@
 #include "base/check_is_test.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
-#include "base/functional/overloaded.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
@@ -26,14 +25,11 @@
 #include "chrome/browser/ash/policy/core/device_local_account_external_cache.h"
 #include "chrome/browser/ash/policy/core/file_util.h"
 #include "chrome/browser/ash/policy/external_data/device_local_account_external_data_manager.h"
-#include "chrome/browser/ash/policy/invalidation/affiliated_cloud_policy_invalidator.h"
-#include "chrome/browser/ash/policy/invalidation/affiliated_invalidation_service_provider.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/chromeos/extensions/external_loader/device_local_account_external_policy_loader.h"
 #include "chrome/browser/extensions/external_loader.h"
 #include "chrome/browser/extensions/policy_handlers.h"
 #include "chrome/browser/policy/cloud/cloud_policy_invalidator.h"
-#include "components/invalidation/invalidation_factory.h"
 #include "components/invalidation/invalidation_listener.h"
 #include "components/policy/core/common/chrome_schema.h"
 #include "components/policy/core/common/cloud/cloud_policy_client.h"
@@ -131,12 +127,8 @@ DeviceLocalAccountPolicyBroker::DeviceLocalAccountPolicyBroker(
     const base::RepeatingClosure& policy_update_callback,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const scoped_refptr<base::SequencedTaskRunner>& resource_cache_task_runner,
-    std::variant<AffiliatedInvalidationServiceProvider*,
-                 invalidation::InvalidationListener*>
-        invalidation_service_provider_or_listener)
-    : invalidation_service_provider_or_listener_(
-          invalidation::PointerVariantToRawPointer(
-              invalidation_service_provider_or_listener)),
+    invalidation::InvalidationListener* invalidation_listener)
+    : invalidation_listener_(invalidation_listener),
       account_id_(account.account_id),
       user_id_(account.user_id),
       component_policy_cache_path_(component_policy_cache_path),
@@ -176,14 +168,6 @@ DeviceLocalAccountPolicyBroker::~DeviceLocalAccountPolicyBroker() {
   store_->RemoveObserver(this);
   external_data_manager_->SetPolicyStore(nullptr);
   external_data_manager_->Disconnect();
-
-  std::visit(base::Overloaded{[](AffiliatedCloudPolicyInvalidator*) {
-                                // Do nothing.
-                              },
-                              [](CloudPolicyInvalidator* invalidator) {
-                                invalidator->Shutdown();
-                              }},
-             invalidation::UniquePointerVariantToPointer(invalidator_));
 }
 
 void DeviceLocalAccountPolicyBroker::Initialize() {
@@ -200,7 +184,7 @@ DeviceLocalAccountPolicyBroker::extension_loader() const {
 }
 
 bool DeviceLocalAccountPolicyBroker::HasInvalidatorForTest() const {
-  return std::visit([](const auto& i) { return !!i; }, invalidator_);
+  return !!invalidator_;
 }
 
 void DeviceLocalAccountPolicyBroker::ConnectIfPossible(
@@ -222,23 +206,11 @@ void DeviceLocalAccountPolicyBroker::ConnectIfPossible(
   external_data_manager_->Connect(url_loader_factory);
   core_.StartRefreshScheduler();
   UpdateRefreshDelay();
-  std::visit(
-      base::Overloaded{
-          [this](AffiliatedInvalidationServiceProvider* service_provider) {
-            invalidator_ = std::make_unique<AffiliatedCloudPolicyInvalidator>(
-                PolicyInvalidationScope::kDeviceLocalAccount, &core_,
-                service_provider, account_id_);
-          },
-          [this](invalidation::InvalidationListener* listener) {
-            auto policy_invalidator = std::make_unique<CloudPolicyInvalidator>(
-                PolicyInvalidationScope::kDeviceLocalAccount, &core_,
-                base::SingleThreadTaskRunner::GetCurrentDefault(),
-                base::DefaultClock::GetInstance(),
-                /*highest_handled_invalidation_version=*/0, account_id_);
-            policy_invalidator->Initialize(listener);
-            invalidator_ = std::move(policy_invalidator);
-          }},
-      invalidation_service_provider_or_listener_);
+  invalidator_ = std::make_unique<CloudPolicyInvalidator>(
+      PolicyInvalidationScope::kDeviceLocalAccount, invalidation_listener_,
+      &core_, base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::DefaultClock::GetInstance(),
+      /*highest_handled_invalidation_version=*/0, account_id_);
 }
 
 void DeviceLocalAccountPolicyBroker::UpdateRefreshDelay() {

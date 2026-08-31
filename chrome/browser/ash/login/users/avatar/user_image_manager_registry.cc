@@ -94,9 +94,10 @@ void UserImageManagerRegistry::OnUserLoggedIn(const user_manager::User& user) {
       user_is_local = true;
       break;
     case user_manager::UserType::kGuest:
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
+    case user_manager::UserType::kKioskArcvmApp:
       // Ignore these users.
       return;
   }

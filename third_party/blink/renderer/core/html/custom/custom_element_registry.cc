@@ -58,7 +58,7 @@ bool ThrowIfInvalidName(const AtomicString& name,
     return false;
   exception_state.ThrowDOMException(
       DOMExceptionCode::kSyntaxError,
-      WTF::StrCat({"\"", name, "\" is not a valid custom element name"}));
+      StrCat({"\"", name, "\" is not a valid custom element name"}));
   return true;
 }
 
@@ -69,7 +69,7 @@ bool ThrowIfValidName(const AtomicString& name,
     return false;
   exception_state.ThrowDOMException(
       DOMExceptionCode::kNotSupportedError,
-      WTF::StrCat({"\"", name, "\" is a valid custom element name"}));
+      StrCat({"\"", name, "\" is a valid custom element name"}));
   return true;
 }
 
@@ -105,6 +105,7 @@ void CustomElementRegistry::Trace(Visitor* visitor) const {
   visitor->Trace(when_defined_promise_map_);
   visitor->Trace(associated_documents_);
   ScriptWrappable::Trace(visitor);
+  ElementRareDataField::Trace(visitor);
 }
 
 CustomElementDefinition* CustomElementRegistry::define(
@@ -137,8 +138,8 @@ CustomElementDefinition* CustomElementRegistry::DefineInternal(
   if (NameIsDefined(name)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
-        WTF::StrCat({"the name \"", name,
-                     "\" has already been used with this registry"}));
+        StrCat({"the name \"", name,
+                "\" has already been used with this registry"}));
     return nullptr;
   }
 
@@ -165,7 +166,7 @@ CustomElementDefinition* CustomElementRegistry::DefineInternal(
         HTMLElementType::kHTMLUnknownElement) {
       exception_state.ThrowDOMException(
           DOMExceptionCode::kNotSupportedError,
-          WTF::StrCat({"\"", extends, "\" is an HTMLUnknownElement"}));
+          StrCat({"\"", extends, "\" is an HTMLUnknownElement"}));
       return nullptr;
     }
     // 7.3. Set localName to extends
@@ -370,7 +371,7 @@ void CustomElementRegistry::CollectCandidates(
     if (!element || !desc.Matches(*element))
       continue;
     if (RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
-      if (CustomElement::Registry(*element) != this) {
+      if ((*element).customElementRegistry() != this) {
         // The element has been moved away from the original tree scope and no
         // longer uses this registry.
         continue;

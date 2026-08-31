@@ -9,88 +9,164 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
+#include "base/notreached.h"
 #include "chrome/common/actor.mojom.h"
-#include "chrome/common/actor/actor_logging.h"
+#include "chrome/common/actor/action_result.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/renderer/actor/click_tool.h"
 #include "chrome/renderer/actor/drag_and_release_tool.h"
+#include "chrome/renderer/actor/journal.h"
 #include "chrome/renderer/actor/mouse_move_tool.h"
+#include "chrome/renderer/actor/script_tool.h"
 #include "chrome/renderer/actor/scroll_tool.h"
 #include "chrome/renderer/actor/select_tool.h"
 #include "chrome/renderer/actor/tool_utils.h"
 #include "chrome/renderer/actor/type_tool.h"
 #include "content/public/renderer/render_frame.h"
+#include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_node.h"
 
+using blink::WebLocalFrame;
 using content::RenderFrame;
 
 namespace actor {
 
-ToolExecutor::ToolExecutor(RenderFrame* frame) : frame_(*frame) {
-  // TODO(crbug.com/398260855): Currently, this is created only for the main
-  // frame but eventually this will have to support all local roots in a page.
-  CHECK(frame->IsMainFrame());
-  CHECK(!frame->IsInFencedFrameTree());
+ToolExecutor::ToolExecutor(RenderFrame* frame, Journal& journal)
+    : frame_(*frame), journal_(journal) {}
+
+ToolExecutor::~ToolExecutor() {
+  if (completion_callback_) {
+    std::move(completion_callback_)
+        .Run(MakeResult(mojom::ActionResultCode::kExecutorDestroyed,
+                        "The tool executor was destroyed before invocation "
+                        "could complete."));
+  }
 }
 
-ToolExecutor::~ToolExecutor() = default;
-
-void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr request,
+void ToolExecutor::InvokeTool(mojom::ToolInvocationPtr invocation,
                               ToolExecutorCallback callback) {
-  CHECK(!tool_);
-  switch (request->action->which()) {
+  if (tool_) {
+    std::move(callback).Run(
+        MakeResult(mojom::ActionResultCode::kExecutorBusy,
+                   "Another tool invocation is still running."));
+    return;
+  }
+
+  CHECK(!completion_callback_);
+  completion_callback_ = std::move(callback);
+  invoke_journal_entry_ =
+      journal_->CreatePendingAsyncEntry(invocation->task_id, "InvokeTool", "");
+
+  WebLocalFrame* web_frame = frame_->GetWebFrame();
+
+  // Tool calls should only be routed to local root frames.
+  CHECK(!web_frame || web_frame->LocalRoot() == web_frame);
+
+  // Check LocalRoot in case the frame is a subframe.
+  if (!web_frame || !web_frame->FrameWidget()) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&ToolExecutor::PageStabilized,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       MakeResult(mojom::ActionResultCode::kFrameWentAway)));
+    return;
+  }
+
+  switch (invocation->action->which()) {
     case actor::mojom::ToolAction::Tag::kClick: {
-      // Check the mojom we received is in good shape.
-      CHECK(request->action->get_click());
       tool_ = std::make_unique<ClickTool>(
-          std::move(request->action->get_click()), frame_.get());
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->action->get_click()),
+          std::move(invocation->target),
+          std::move(invocation->observed_target));
       break;
     }
     case actor::mojom::ToolAction::Tag::kMouseMove: {
-      CHECK(request->action->get_mouse_move());
       tool_ = std::make_unique<MouseMoveTool>(
-          std::move(request->action->get_mouse_move()), frame_.get());
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->action->get_mouse_move()),
+          std::move(invocation->target),
+          std::move(invocation->observed_target));
       break;
     }
     case actor::mojom::ToolAction::Tag::kType: {
-      CHECK(request->action->get_type());
-      tool_ = std::make_unique<TypeTool>(std::move(request->action->get_type()),
-                                         frame_.get());
+      tool_ = std::make_unique<TypeTool>(
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->action->get_type()),
+          std::move(invocation->target),
+          std::move(invocation->observed_target));
       break;
     }
     case actor::mojom::ToolAction::Tag::kScroll: {
-      CHECK(request->action->get_scroll());
       tool_ = std::make_unique<ScrollTool>(
-          std::move(request->action->get_scroll()), frame_.get());
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->action->get_scroll()),
+          std::move(invocation->target),
+          std::move(invocation->observed_target));
       break;
     }
     case actor::mojom::ToolAction::Tag::kSelect: {
-      CHECK(request->action->get_select());
       tool_ = std::make_unique<SelectTool>(
-          std::move(request->action->get_select()), frame_.get());
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->action->get_select()),
+          std::move(invocation->target),
+          std::move(invocation->observed_target));
       break;
     }
     case actor::mojom::ToolAction::Tag::kDragAndRelease: {
-      CHECK(request->action->get_drag_and_release());
       tool_ = std::make_unique<DragAndReleaseTool>(
-          std::move(request->action->get_drag_and_release()), frame_.get());
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->action->get_drag_and_release()),
+          std::move(invocation->target),
+          std::move(invocation->observed_target));
       break;
     }
+    case actor::mojom::ToolAction::Tag::kScriptTool: {
+      // We could consider not waiting for stabilization since the API has an
+      // explicit async hook to know when the tool is done. Or having the
+      // stabilization only delay until a new frame is produced.
+      tool_ = std::make_unique<ScriptTool>(
+          frame_.get(), invocation->task_id, journal_.get(),
+          std::move(invocation->target), std::move(invocation->observed_target),
+          std::move(invocation->action->get_script_tool()));
+      break;
+    }
+    default:
+      NOTREACHED();
   }
 
-  ACTOR_LOG() << "Renderer InvokeTool: " << tool_->DebugString();
+  page_stability_monitor_ = std::make_unique<PageStabilityMonitor>(*frame_);
 
-  // It's safe to use base::Unretained as tool_ is owned by this object and
-  // tool_ has its own weak factory to manage the callback.
+  if (features::kGlicActorScrollTargetIntoView.Get()) {
+    tool_->EnsureTargetInView();
+  }
+
+  execute_journal_entry_ = journal_->CreatePendingAsyncEntry(
+      invocation->task_id, "ExecuteTool", tool_->DebugString());
   tool_->Execute(base::BindOnce(&ToolExecutor::ToolFinished,
-                                base::Unretained(this), std::move(callback)));
+                                weak_ptr_factory_.GetWeakPtr(),
+                                invocation->task_id));
 }
 
-void ToolExecutor::ToolFinished(ToolExecutorCallback callback,
+void ToolExecutor::ToolFinished(int32_t task_id,
                                 mojom::ActionResultPtr result) {
+  execute_journal_entry_.reset();
+  page_stability_monitor_->WaitForStable(
+      *tool_, task_id, *journal_,
+      base::BindOnce(&ToolExecutor::PageStabilized,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(result)));
+}
+
+void ToolExecutor::PageStabilized(mojom::ActionResultPtr result) {
+  CHECK(completion_callback_);
+  page_stability_monitor_.reset();
+
   CHECK(tool_);
   // Release current tool so we can accept a new tool invocation.
   tool_.reset();
-  std::move(callback).Run(std::move(result));
+
+  invoke_journal_entry_.reset();
+  std::move(completion_callback_).Run(std::move(result));
 }
 
 }  // namespace actor

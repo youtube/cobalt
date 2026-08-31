@@ -25,6 +25,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
+#include "ipc/constants.mojom.h"
 #include "media/mojo/mojom/speech_recognizer.mojom.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -112,7 +113,7 @@ void SpeechRecognitionDispatcherHost::StartRequestOnUI(
     media::mojom::StartSpeechRecognitionRequestParamsPtr params) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   int embedder_render_process_id = 0;
-  int embedder_render_frame_id = MSG_ROUTING_NONE;
+  int embedder_render_frame_id = IPC::mojom::kRoutingIdNone;
 
   RenderFrameHostImpl* rfh =
       RenderFrameHostImpl::FromID(render_process_id, render_frame_id);
@@ -155,13 +156,17 @@ void SpeechRecognitionDispatcherHost::StartRequestOnUI(
         embedder_frame->GetProcess()->GetDeprecatedID();
     DCHECK_NE(embedder_render_process_id, 0);
     embedder_render_frame_id = embedder_frame->GetRoutingID();
-    DCHECK_NE(embedder_render_frame_id, MSG_ROUTING_NONE);
+    DCHECK_NE(embedder_render_frame_id, IPC::mojom::kRoutingIdNone);
   }
 
   content::BrowserContext* browser_context = web_contents->GetBrowserContext();
   StoragePartition* storage_partition =
       browser_context->GetStoragePartition(web_contents->GetSiteInstance());
 
+  bool can_render_frame_use_on_device =
+      storage_partition == browser_context->GetDefaultStoragePartition()
+          ? true
+          : !rfh->GetLastCommittedURL().SchemeIsHTTPOrHTTPS();
   GetIOThreadTaskRunner({})->PostTask(
       FROM_HERE,
       base::BindOnce(
@@ -170,7 +175,8 @@ void SpeechRecognitionDispatcherHost::StartRequestOnUI(
           embedder_render_process_id, embedder_render_frame_id,
           rfh->GetLastCommittedOrigin(),
           storage_partition->GetURLLoaderFactoryForBrowserProcessIOThread(),
-          GetContentClient()->browser()->GetAcceptLangs(browser_context)));
+          GetContentClient()->browser()->GetAcceptLangs(browser_context),
+          can_render_frame_use_on_device));
 }
 
 void SpeechRecognitionDispatcherHost::StartSessionOnIO(
@@ -180,7 +186,8 @@ void SpeechRecognitionDispatcherHost::StartSessionOnIO(
     const url::Origin& origin,
     std::unique_ptr<network::PendingSharedURLLoaderFactory>
         pending_shared_url_loader_factory,
-    const std::string& accept_language) {
+    const std::string& accept_language,
+    bool can_render_frame_use_on_device) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   SpeechRecognitionSessionContext context;
@@ -215,11 +222,12 @@ void SpeechRecognitionDispatcherHost::StartSessionOnIO(
     // Use on-device speech recognition, bypassing the browser process. The
     // speech recognition session will live in the speech recognition service
     // process.
-    SpeechRecognitionManager::GetInstance()->CreateSession(
-        config, std::move(params->session_receiver), std::move(params->client),
-        std::make_optional<SpeechRecognitionAudioForwarderConfig>(
-            std::move(params->audio_forwarder), params->channel_count,
-            params->sample_rate));
+    CreateSession(config, std::move(params->session_receiver),
+                  std::move(params->client),
+                  std::make_optional<SpeechRecognitionAudioForwarderConfig>(
+                      std::move(params->audio_forwarder), params->channel_count,
+                      params->sample_rate),
+                  can_render_frame_use_on_device);
   } else {
     // Create the speech recognition session in the browser if cloud-based
     // speech recognition is used or if microphone audio input is used.
@@ -227,13 +235,14 @@ void SpeechRecognitionDispatcherHost::StartSessionOnIO(
         std::make_unique<SpeechRecognitionSession>(std::move(params->client));
     config.event_listener = session->AsWeakPtr();
 
-    int session_id = SpeechRecognitionManager::GetInstance()->CreateSession(
+    int session_id = CreateSession(
         config, mojo::NullReceiver(), mojo::NullRemote(),
         params->audio_forwarder.is_valid()
             ? std::make_optional<SpeechRecognitionAudioForwarderConfig>(
                   std::move(params->audio_forwarder), params->channel_count,
                   params->sample_rate)
-            : std::nullopt);
+            : std::nullopt,
+        can_render_frame_use_on_device);
     DCHECK_NE(session_id, SpeechRecognitionManager::kSessionIDInvalid);
     session->SetSessionId(session_id);
     mojo::MakeSelfOwnedReceiver(std::move(session),
@@ -241,6 +250,33 @@ void SpeechRecognitionDispatcherHost::StartSessionOnIO(
 
     SpeechRecognitionManager::GetInstance()->StartSession(session_id);
   }
+}
+int SpeechRecognitionDispatcherHost::CreateSession(
+    const SpeechRecognitionSessionConfig& config,
+    mojo::PendingReceiver<media::mojom::SpeechRecognitionSession>
+        session_receiver,
+    mojo::PendingRemote<media::mojom::SpeechRecognitionSessionClient>
+        client_remote,
+    std::optional<SpeechRecognitionAudioForwarderConfig> audio_forwarder_config,
+    bool can_render_frame_use_on_device) {
+  bool use_fake_manager = SpeechRecognitionManager::GetInstance() !=
+                          SpeechRecognitionManagerImpl::GetInstance();
+  if (use_fake_manager) {
+    return SpeechRecognitionManager::GetInstance()->CreateSession(
+        config, std::move(session_receiver), std::move(client_remote),
+        audio_forwarder_config.has_value()
+            ? std::make_optional<SpeechRecognitionAudioForwarderConfig>(
+                  audio_forwarder_config.value())
+            : std::nullopt);
+  }
+
+  return SpeechRecognitionManagerImpl::GetInstance()->CreateSession(
+      config, std::move(session_receiver), std::move(client_remote),
+      audio_forwarder_config.has_value()
+          ? std::make_optional<SpeechRecognitionAudioForwarderConfig>(
+                audio_forwarder_config.value())
+          : std::nullopt,
+      can_render_frame_use_on_device);
 }
 
 }  // namespace content

@@ -8,10 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <initializer_list>
 #include <iostream>  // TODO(zijiehe): Remove once flaky has been resolved.
 #include <memory>

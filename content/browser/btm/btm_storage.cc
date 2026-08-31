@@ -155,9 +155,7 @@ void BtmStorage::RemoveRowsWithoutProtectiveEvent(
 
 // BtmTabHelper Function Impls ------------------------------------------------
 
-void BtmStorage::RecordStorage(const GURL& url,
-                               base::Time time,
-                               BtmCookieMode mode) {
+void BtmStorage::RecordStorage(const GURL& url, base::Time time) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(db_);
 
@@ -165,9 +163,7 @@ void BtmStorage::RecordStorage(const GURL& url,
   state.update_site_storage_time(time);
 }
 
-void BtmStorage::RecordUserActivation(const GURL& url,
-                                      base::Time time,
-                                      BtmCookieMode mode) {
+void BtmStorage::RecordUserActivation(const GURL& url, base::Time time) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(db_);
 
@@ -175,9 +171,7 @@ void BtmStorage::RecordUserActivation(const GURL& url,
   state.update_user_activation_time(time);
 }
 
-void BtmStorage::RecordWebAuthnAssertion(const GURL& url,
-                                         base::Time time,
-                                         BtmCookieMode mode) {
+void BtmStorage::RecordWebAuthnAssertion(const GURL& url, base::Time time) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(db_);
 
@@ -195,13 +189,25 @@ void BtmStorage::RecordBounce(const GURL& url, base::Time time, bool stateful) {
   }
 }
 
+std::pair<std::set<std::string>, std::set<std::string>>
+BtmStorage::FilterSitesWithProtectiveEvent(
+    const std::set<std::string>& sites) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  DCHECK(db_);
+
+  return {
+      db_->FilterSites(sites, BtmDatabase::BounceFilterType::kUserActivation),
+      db_->FilterSites(sites,
+                       BtmDatabase::BounceFilterType::kWebAuthnAssertion)};
+}
+
 std::set<std::string> BtmStorage::FilterSitesWithoutProtectiveEvent(
     std::set<std::string> sites) const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(db_);
 
   std::set<std::string> interacted_sites =
-      db_->FilterSitesWithProtectiveEvent(sites);
+      db_->FilterSites(sites, BtmDatabase::BounceFilterType::kProtectiveEvent);
 
   for (const auto& site : interacted_sites) {
     if (sites.count(site)) {
@@ -219,20 +225,6 @@ std::vector<std::string> BtmStorage::GetSitesThatBounced(
   return db_->GetSitesThatBounced(grace_period);
 }
 
-std::vector<std::string> BtmStorage::GetSitesThatBouncedWithState(
-    base::TimeDelta grace_period) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(db_);
-  return db_->GetSitesThatBouncedWithState(grace_period);
-}
-
-std::vector<std::string> BtmStorage::GetSitesThatUsedStorage(
-    base::TimeDelta grace_period) const {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(db_);
-  return db_->GetSitesThatUsedStorage(grace_period);
-}
-
 std::vector<std::string> BtmStorage::GetSitesToClear(
     std::optional<base::TimeDelta> custom_period) const {
   std::vector<std::string> sites_to_clear;
@@ -243,16 +235,8 @@ std::vector<std::string> BtmStorage::GetSitesToClear(
     case BtmTriggeringAction::kNone: {
       return {};
     }
-    case BtmTriggeringAction::kStorage: {
-      sites_to_clear = GetSitesThatUsedStorage(grace_period);
-      break;
-    }
     case BtmTriggeringAction::kBounce: {
       sites_to_clear = GetSitesThatBounced(grace_period);
-      break;
-    }
-    case BtmTriggeringAction::kStatefulBounce: {
-      sites_to_clear = GetSitesThatBouncedWithState(grace_period);
       break;
     }
   }

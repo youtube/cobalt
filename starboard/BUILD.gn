@@ -49,7 +49,6 @@ if (!is_cobalt) {
       deps += [
         "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
         "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
-        "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
       ]
     }
 
@@ -258,8 +257,8 @@ if (current_toolchain == starboard_toolchain) {
     if (platform_tests_path != "" && !(is_android && is_starboard)) {
       deps += [ platform_tests_path ]
     }
-    if (sb_filter_based_player) {
-      deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests" ]
+    if (sb_filter_based_player && !is_android) {
+      deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests_sources" ]
     }
     if (use_evergreen && use_crashpad) {
       deps += [ "//starboard/crashpad_wrapper:crashpad_wrapper_test" ]

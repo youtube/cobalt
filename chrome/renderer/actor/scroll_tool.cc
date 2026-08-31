@@ -10,6 +10,7 @@
 #include "base/strings/to_string.h"
 #include "base/time/time.h"
 #include "chrome/common/actor/action_result.h"
+#include "chrome/common/actor/actor_constants.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/renderer/actor/tool_utils.h"
 #include "content/public/renderer/render_frame.h"
@@ -28,9 +29,23 @@ using ::blink::WebElement;
 using ::blink::WebLocalFrame;
 using ::blink::WebNode;
 
-ScrollTool::ScrollTool(mojom::ScrollActionPtr action,
-                       content::RenderFrame& frame)
-    : frame_(frame), action_(std::move(action)) {}
+namespace {
+// The default maximum duration for a scroll animation is 700ms.
+constexpr base::TimeDelta kSmoothScrollDelay = base::Milliseconds(700);
+}  // namespace
+
+ScrollTool::ScrollTool(content::RenderFrame& frame,
+                       Journal::TaskId task_id,
+                       Journal& journal,
+                       mojom::ScrollActionPtr action,
+                       mojom::ToolTargetPtr target,
+                       mojom::ObservedToolTargetPtr observed_target)
+    : ToolBase(frame,
+               task_id,
+               journal,
+               std::move(target),
+               std::move(observed_target)),
+      action_(std::move(action)) {}
 
 ScrollTool::~ScrollTool() = default;
 
@@ -49,9 +64,19 @@ void ScrollTool::Execute(ToolFinishedCallback callback) {
       gfx::ScaleVector2d(offset_physical, physical_to_css, physical_to_css);
 
   gfx::Vector2dF start_offset_css = scrolling_element.GetScrollOffset();
-  scrolling_element.SetScrollOffset(start_offset_css + offset_css);
+  bool did_scroll =
+      scrolling_element.SetScrollOffset(start_offset_css + offset_css);
 
-  bool did_scroll = scrolling_element.GetScrollOffset() != start_offset_css;
+  targeting_smooth_scroller_ = scrolling_element.HasScrollBehaviorSmooth();
+
+  journal_->Log(
+      task_id_, "ScrollTool::Execute",
+      absl::StrFormat("Scrolling element %s from %s by offset %s (CSS "
+                      "pixels). Smooth scroll: %v.",
+                      base::ToString(scrolling_element),
+                      start_offset_css.ToString(), offset_css.ToString(),
+                      targeting_smooth_scroller_));
+
   std::move(callback).Run(
       did_scroll
           ? MakeOkResult()
@@ -60,45 +85,45 @@ void ScrollTool::Execute(ToolFinishedCallback callback) {
 
 std::string ScrollTool::DebugString() const {
   return absl::StrFormat("ScrollTool[%s;direction(%s);distance(%f)]",
-                         ToDebugString(action_->target),
+                         ToDebugString(target_),
                          base::ToString(action_->direction), action_->distance);
 }
 
+base::TimeDelta ScrollTool::ExecutionObservationDelay() const {
+  return targeting_smooth_scroller_ ? kSmoothScrollDelay
+                                    : ToolBase::ExecutionObservationDelay();
+}
+
 ScrollTool::ValidatedResult ScrollTool::Validate() const {
+  WebLocalFrame* web_frame = frame_->GetWebFrame();
+  CHECK(web_frame);
+  CHECK(web_frame->FrameWidget());
+
   // The scroll distance should always be positive.
   if (action_->distance <= 0.0) {
     return base::unexpected(MakeResult(
         mojom::ActionResultCode::kArgumentsInvalid, "Negative Distance"));
   }
 
-  WebLocalFrame* web_frame = frame_->GetWebFrame();
-  if (!web_frame || !web_frame->FrameWidget()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kFrameWentAway));
+  if (target_->is_coordinate()) {
+    NOTIMPLEMENTED() << "Coordinate-based target not yet supported.";
+    return base::unexpected(MakeErrorResult());
   }
 
   WebElement scrolling_element;
-  if (!action_->target) {
+  int32_t dom_node_id = target_->get_dom_node_id();
+  if (dom_node_id == kRootElementDomNodeId) {
     scrolling_element = web_frame->GetDocument().ScrollingElement();
-
     if (scrolling_element.IsNull()) {
       return base::unexpected(
           MakeResult(mojom::ActionResultCode::kScrollNoScrollingElement));
     }
   } else {
-    if (action_->target->is_coordinate()) {
-      NOTIMPLEMENTED() << "Coordinate-based target not yet supported.";
-      return base::unexpected(MakeErrorResult());
+    auto resolved_target = ValidateAndResolveTarget();
+    if (!resolved_target.has_value()) {
+      return base::unexpected(std::move(resolved_target.error()));
     }
-
-    int32_t dom_node_id = action_->target->get_dom_node_id();
-    scrolling_element =
-        GetNodeFromId(frame_.get(), dom_node_id).DynamicTo<WebElement>();
-
-    if (scrolling_element.IsNull()) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
-    }
+    scrolling_element = resolved_target->node.DynamicTo<WebElement>();
   }
 
   gfx::Vector2dF offset_physical;

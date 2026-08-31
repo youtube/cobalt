@@ -10,15 +10,26 @@
 
 #include "base/callback_list.h"
 #include "base/containers/flat_set.h"
+#include "base/scoped_observation.h"
+#include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
-#include "content/public/browser/web_contents_observer.h"
+#include "chrome/browser/ui/tabs/contents_observing_tab_feature.h"
+#include "chrome/browser/vr/vr_tab_helper.h"
+#include "components/tabs/public/tab_interface.h"
 
 namespace content {
 enum class WebContentsCapabilityType;
 class WebContents;
 }  // namespace content
 
+namespace glic {
+class FocusedTabData;
+class GlicKeyedService;
+}  // namespace glic
+
 namespace tabs {
+class TabInterface;
+
 // Comparator used to determine which tab alert has a higher priority to be
 // shown.
 struct CompareAlerts {
@@ -28,9 +39,14 @@ struct CompareAlerts {
 // Observes the corresponding web contents for the tab to keep track of all
 // active alerts. Callers can subscribe and be notified when the tab alert that
 // should be shown changes.
-class TabAlertController : public content::WebContentsObserver {
+class TabAlertController : public tabs::ContentsObservingTabFeature,
+                           public MediaStreamCaptureIndicator::Observer,
+                           public vr::VrTabHelper::Observer {
  public:
-  explicit TabAlertController(content::WebContents* web_contents);
+  explicit TabAlertController(TabInterface& tab);
+
+  TabAlertController(TabInterface& tab,
+                     glic::GlicKeyedService* glic_keyed_service);
   TabAlertController(const TabAlertController&) = delete;
   TabAlertController& operator=(const TabAlertController&) = delete;
   ~TabAlertController() override;
@@ -45,15 +61,47 @@ class TabAlertController : public content::WebContentsObserver {
   // to lowest priority to be shown.
   std::vector<TabAlert> GetAllActiveAlerts();
 
-  // WebContentsObserver override:
+  // Returns true if `alert` is currently active for this tab and false
+  // otherwise.
+  bool IsAlertActive(TabAlert alert) const;
+
+  // WebContentsObserver:
+  void OnDiscardContents(TabInterface* tab_interface,
+                         content::WebContents* old_contents,
+                         content::WebContents* new_contents) override;
   void OnCapabilityTypesChanged(
       content::WebContentsCapabilityType capability_type,
       bool used) override;
   void MediaPictureInPictureChanged(bool is_picture_in_picture) override;
   void DidUpdateAudioMutingState(bool muted) override;
-  void OnAudioStateChanged(bool audible) override;
+
+  // MediaStreamCaptureIndicator::Observer:
+  void OnIsCapturingVideoChanged(content::WebContents* contents,
+                                 bool is_capturing_video) override;
+  void OnIsCapturingAudioChanged(content::WebContents* contents,
+                                 bool is_capturing_audio) override;
+  void OnIsBeingMirroredChanged(content::WebContents* contents,
+                                bool is_being_mirrored) override;
+  void OnIsCapturingWindowChanged(content::WebContents* contents,
+                                  bool is_capturing_window) override;
+  void OnIsCapturingDisplayChanged(content::WebContents* contents,
+                                   bool is_capturing_display) override;
+
+  // VrTabHelper::Observer:
+  void OnIsContentDisplayedInHeadsetChanged(bool state) override;
 
  private:
+#if BUILDFLAG(ENABLE_GLIC)
+  void OnGlicContextAccessIndicatorStatusChanged(bool is_accessing);
+  void OnGlicSharingFocusedTabChanged(
+      const glic::FocusedTabData& focused_tab_data);
+  void OnGlicTabPinningChanged(tabs::TabInterface* tab_interface,
+                               bool is_sharing);
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
+  void OnActorTabIndicatorStateChanged(bool is_accessing);
+  void OnRecentlyAudibleStateChanged(bool was_audible);
+
   // Adds `alert` to the set of already active alerts for this tab if it isn't
   // currently active. Otherwise, removes `alert` from the set and is considered
   // inactive.
@@ -66,6 +114,21 @@ class TabAlertController : public content::WebContentsObserver {
   // Maintains a sorted collection of all active tab alerts from highest
   // priority to lowest priority to be shown.
   base::flat_set<TabAlert, CompareAlerts> active_alerts_;
+
+  // Observes the MediaStreamCaptureIndicator so the alert controller will be
+  // notified when a media stream capture has changed.
+  base::ScopedObservation<MediaStreamCaptureIndicator,
+                          MediaStreamCaptureIndicator::Observer>
+      media_stream_capture_indicator_observation_{this};
+
+  // Observes the VrTabHelper so that the controller will be notified when a tab
+  // is displaying content to a headset.
+  base::ScopedObservation<vr::VrTabHelper, vr::VrTabHelper::Observer>
+      vr_tab_helper_observation_{this};
+
+  // Subscriptions to be notified when an alert status has changed.
+  base::CallbackListSubscription recently_audible_subscription_;
+  std::vector<base::CallbackListSubscription> callback_subscriptions_;
 };
 }  // namespace tabs
 

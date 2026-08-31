@@ -20,8 +20,6 @@
 #if defined(OPENBSD)
 #include <netinet/in_systm.h>
 #endif
-#if !defined(__native_client__)
-#endif
 #endif
 
 #include "absl/strings/string_view.h"
@@ -228,6 +226,22 @@ bool SocketAddress::IsPrivateIP() const {
 
 bool SocketAddress::IsUnresolvedIP() const {
   return IPIsUnspec(ip_) && !literal_ && !hostname_.empty();
+}
+
+IPAddressType SocketAddress::GetIPAddressType() const {
+  if (IsUnresolvedIP()) {
+    return IPAddressType::kUnknown;
+  }
+  if (IsAnyIP()) {
+    return IPAddressType::kAny;
+  }
+  if (IsLoopbackIP()) {
+    return IPAddressType::kLoopback;
+  }
+  if (IsPrivateIP()) {
+    return IPAddressType::kPrivate;
+  }
+  return IPAddressType::kPublic;
 }
 
 bool SocketAddress::operator==(const SocketAddress& addr) const {

@@ -61,6 +61,7 @@ namespace blink {
 
 class AtomicHTMLToken;
 class BackgroundHTMLScanner;
+class ContainerNode;
 class Document;
 class DocumentFragment;
 class Element;
@@ -91,7 +92,7 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   HTMLDocumentParser(HTMLDocument&,
                      ParserSynchronizationPolicy,
                      ParserPrefetchPolicy prefetch_policy = kAllowPrefetching);
-  HTMLDocumentParser(DocumentFragment*,
+  HTMLDocumentParser(ContainerNode* fragment_target,
                      Element* context_element,
                      ParserContentPolicy,
                      ParserPrefetchPolicy prefetch_policy = kAllowPrefetching);
@@ -135,6 +136,8 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   // Start pausing the parser while waiting for the performance.mark() call.
   void NotifyParserPauseByUserTiming() override;
   void NotifyParserResumeByUserTiming() override;
+
+  void SetPatchScope(ContainerNode* scope);
 
  protected:
   void insert(const String&) final;
@@ -280,7 +283,7 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
   std::unique_ptr<HTMLPreloadScanner> preload_scanner_;
   // A scanner used only for input provided to the insert() method.
   std::unique_ptr<HTMLPreloadScanner> insertion_preload_scanner_;
-  WTF::SequenceBound<BackgroundHTMLScanner> background_script_scanner_;
+  SequenceBound<BackgroundHTMLScanner> background_script_scanner_;
   HTMLPreloadScanner::BackgroundPtr background_scanner_;
   using BackgroundScanFn =
       WTF::CrossThreadRepeatingFunction<void(const KURL&, const String&)>;
@@ -306,9 +309,6 @@ class CORE_EXPORT HTMLDocumentParser : public ScriptableDocumentParser,
 
   // Set to true if PumpTokenizer() was called at least once.
   bool did_pump_tokenizer_ = false;
-
-  // Cached result of ShouldSkipPreloadScan()
-  bool should_skip_preload_scan_ = false;
 
   // Counts how many CSP meta tags have been seen (but not necessarily processed
   // yet). This is used to compare the number of seen tags with the number of

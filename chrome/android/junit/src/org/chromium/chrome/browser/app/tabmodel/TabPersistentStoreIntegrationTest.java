@@ -62,6 +62,7 @@ import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.ChromeTabCreator;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
+import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
@@ -70,8 +71,8 @@ import org.chromium.chrome.browser.tabmodel.TabModelJniBridge;
 import org.chromium.chrome.browser.tabmodel.TabModelJniBridgeJni;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
-import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabModelSelectorMetadata;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabPersistentStoreObserver;
+import org.chromium.chrome.browser.tabpersistence.TabMetadataFileManager.TabModelSelectorMetadata;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
@@ -95,7 +96,6 @@ public class TabPersistentStoreIntegrationTest {
     private static final WebContentsState WEB_CONTENTS_STATE =
             new WebContentsState(ByteBuffer.allocateDirect(100));
 
-    private TabbedModeTabModelOrchestrator mOrchestrator;
     private TabModelSelector mTabModelSelector;
     private TabPersistentStore mTabPersistentStore;
 
@@ -128,6 +128,7 @@ public class TabPersistentStoreIntegrationTest {
         when(mResources.getInteger(org.chromium.ui.R.integer.min_screen_width_bucket))
                 .thenReturn(1);
         when(mTabCreatorManager.getTabCreator(anyBoolean())).thenReturn(mChromeTabCreator);
+        when(mNextTabPolicySupplier.get()).thenReturn(NextTabPolicy.LOCATIONAL);
 
         // Pretend native was loaded, creating TabModelImpls.
         OneshotSupplierImpl<ProfileProvider> profileProviderSupplier = new OneshotSupplierImpl<>();
@@ -136,12 +137,12 @@ public class TabPersistentStoreIntegrationTest {
         when(mProfile.getOriginalProfile()).thenReturn(mProfile);
         PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(false);
 
-        mOrchestrator =
+        TabbedModeTabModelOrchestrator orchestrator =
                 new TabbedModeTabModelOrchestrator(
                         /* tabMergingEnabled= */ true,
                         mActivityLifecycleDispatcher,
                         new CipherFactory());
-        mOrchestrator.createTabModels(
+        orchestrator.createTabModels(
                 mChromeActivity,
                 mModalDialogManager,
                 profileProviderSupplier,
@@ -149,15 +150,15 @@ public class TabPersistentStoreIntegrationTest {
                 mNextTabPolicySupplier,
                 mMismatchedIndicesHandler,
                 0);
-        mTabModelSelector = mOrchestrator.getTabModelSelector();
-        mTabPersistentStore = mOrchestrator.getTabPersistentStore();
+        mTabModelSelector = orchestrator.getTabModelSelector();
+        mTabPersistentStore = orchestrator.getTabPersistentStore();
 
         TabModelJniBridgeJni.setInstanceForTesting(mTabModelJniBridgeJni);
         RecentlyClosedBridgeJni.setInstanceForTesting(mRecentlyClosedBridgeJni);
         PersistedTabDataJni.setInstanceForTesting(mPersistedTabDataJni);
         TabGroupSyncServiceFactory.setForTesting(mTabGroupSyncService);
         TabTestUtils.mockTabJni();
-        mOrchestrator.onNativeLibraryReady(mTabContentManager);
+        orchestrator.onNativeLibraryReady(mTabContentManager);
     }
 
     @After

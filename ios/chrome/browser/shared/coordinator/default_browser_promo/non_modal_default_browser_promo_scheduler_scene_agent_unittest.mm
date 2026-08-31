@@ -119,6 +119,8 @@ class NonModalDefaultBrowserPromoSchedulerSceneAgentTest : public PlatformTest {
     [application_ stopMocking];
     [scene_state_ shutdown];
     scene_state_ = nil;
+    EXPECT_OCMOCK_VERIFY(promo_commands_handler_);
+    EXPECT_OCMOCK_VERIFY(application_);
   }
 
   void TearDown() override {
@@ -888,11 +890,6 @@ TEST_F(NonModalDefaultBrowserPromoSchedulerSceneAgentTest,
 TEST_F(NonModalDefaultBrowserPromoSchedulerSceneAgentTest,
        TestBackgroundingDoesNotRecordIfCannotDisplayPromo) {
   base::test::ScopedFeatureList feature_list(kTailoredNonModalDBPromo);
-
-  // Make sure the impression limit is met.
-  for (int i = 0; i < GetNonModalDefaultBrowserPromoImpressionLimit(); i++) {
-    LogUserInteractionWithNonModalPromo(i);
-  }
 
   // Mock the FET tracker.
   EXPECT_CALL(*mock_tracker_,

@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/audio/android/aaudio_stream_wrapper.h"
 
 #include <aaudio/AAudio.h>
+
+#include <array>
 
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -29,7 +26,7 @@ namespace media {
 
 // Used to circumvent issues where the AAudio thread callbacks continue
 // after AAudioStream_requestStop() completes. See crbug.com/1183255.
-class REQUIRES_ANDROID_API(AAUDIO_MIN_API) LOCKABLE AAudioDestructionHelper {
+class LOCKABLE AAudioDestructionHelper {
  public:
   explicit AAudioDestructionHelper(AAudioStreamWrapper* wrapper)
       : wrapper_(wrapper) {}
@@ -63,11 +60,11 @@ class REQUIRES_ANDROID_API(AAUDIO_MIN_API) LOCKABLE AAudioDestructionHelper {
   bool is_closing_ GUARDED_BY(lock_) = false;
 };
 
-static REQUIRES_ANDROID_API(AAUDIO_MIN_API) aaudio_data_callback_result_t
-    OnAudioDataRequestedCallback(AAudioStream* stream,
-                                 void* user_data,
-                                 void* audio_data,
-                                 int32_t num_frames) {
+static aaudio_data_callback_result_t OnAudioDataRequestedCallback(
+    AAudioStream* stream,
+    void* user_data,
+    void* audio_data,
+    int32_t num_frames) {
   AAudioDestructionHelper* destruction_helper =
       reinterpret_cast<AAudioDestructionHelper*>(user_data);
 
@@ -83,10 +80,9 @@ static REQUIRES_ANDROID_API(AAUDIO_MIN_API) aaudio_data_callback_result_t
   return result;
 }
 
-static REQUIRES_ANDROID_API(AAUDIO_MIN_API) void OnStreamErrorCallback(
-    AAudioStream* stream,
-    void* user_data,
-    aaudio_result_t error) {
+static void OnStreamErrorCallback(AAudioStream* stream,
+                                  void* user_data,
+                                  aaudio_result_t error) {
   AAudioDestructionHelper* destruction_helper =
       reinterpret_cast<AAudioDestructionHelper*>(user_data);
 
@@ -100,8 +96,9 @@ static REQUIRES_ANDROID_API(AAUDIO_MIN_API) void OnStreamErrorCallback(
 }
 
 // Matches the ordering of media::Channels.
-static constexpr REQUIRES_ANDROID_API(AAUDIO_CHANNEL_MASK_MIN_API) uint32_t
-    kMediaChannelToAAudioChannel[] = {
+static constexpr REQUIRES_ANDROID_API(
+    AAUDIO_CHANNEL_MASK_MIN_API) auto kMediaChannelToAAudioChannel =
+    std::to_array<uint32_t>({
         AAUDIO_CHANNEL_FRONT_LEFT,
         AAUDIO_CHANNEL_FRONT_RIGHT,
         AAUDIO_CHANNEL_FRONT_CENTER,
@@ -113,7 +110,7 @@ static constexpr REQUIRES_ANDROID_API(AAUDIO_CHANNEL_MASK_MIN_API) uint32_t
         AAUDIO_CHANNEL_BACK_CENTER,
         AAUDIO_CHANNEL_SIDE_LEFT,
         AAUDIO_CHANNEL_SIDE_RIGHT,
-};
+    });
 
 REQUIRES_ANDROID_API(AAUDIO_CHANNEL_MASK_MIN_API)
 std::optional<aaudio_channel_mask_t> ChannelMaskFromChannelLayout(

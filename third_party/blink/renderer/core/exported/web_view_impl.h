@@ -131,15 +131,14 @@ class CORE_EXPORT WebViewImpl final : public WebView,
       std::optional<SkColor> page_base_background_color,
       const base::UnguessableToken& browsing_context_group_token,
       const ColorProviderColorMaps* color_provider_colors,
-      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params);
+      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
+      int32_t history_index,
+      int32_t history_length);
 
   // All calls to Create() should be balanced with a call to Close(). This
   // synchronously destroys the WebViewImpl.
   void Close() override;
   static HashSet<WebViewImpl*>& AllInstances();
-  // Returns true if popup menus should be rendered by the browser, false if
-  // they should be rendered by WebKit (which is the default).
-  static bool UseExternalPopupMenus();
 
   // Returns whether frames under this WebView are backed by a compositor.
   bool does_composite() const { return does_composite_; }
@@ -208,8 +207,6 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   void EnableAutoResizeForTesting(const gfx::Size& min_window_size,
                                   const gfx::Size& max_window_size) override;
   void DisableAutoResizeForTesting(const gfx::Size& new_window_size) override;
-  WebHitTestResult HitTestResultForTap(const gfx::Point&,
-                                       const gfx::Size&) override;
   void EnableDeviceEmulation(const DeviceEmulationParams&) override;
   void DisableDeviceEmulation() override;
   void PerformCustomContextMenuAction(unsigned action) override;
@@ -466,8 +463,8 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   void ZoomToFindInPageRect(const gfx::Rect&);
 
   void ComputeScaleAndScrollForBlockRect(
-      const gfx::Point& hit_point,
-      const gfx::Rect& block_rect,
+      gfx::Rect hit_rect_in_root_frame,
+      gfx::Rect block_rect_in_root_frame,
       float padding,
       float default_scale_when_already_legible,
       float& scale,
@@ -723,7 +720,9 @@ class CORE_EXPORT WebViewImpl final : public WebView,
       std::optional<SkColor> page_base_background_color,
       const base::UnguessableToken& browsing_context_group_token,
       const ColorProviderColorMaps* color_provider_colors,
-      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params);
+      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
+      int32_t history_index,
+      int32_t history_length);
   ~WebViewImpl() override;
 
   void ConfigureAutoResizeMode();
@@ -891,8 +890,8 @@ class CORE_EXPORT WebViewImpl final : public WebView,
   // The RenderView's current impression of the history length.  This includes
   // any items that have committed in this process, but because of cross-process
   // navigations, the history may have some entries that were committed in other
-  // processes.  We won't know about them until the next navigation in this
-  // process.
+  // processes. History information from other processes in the frame tree are
+  // broadcasted to this process once the navigation commimts.
   int32_t history_list_length_ = 0;
 
   // The popup associated with an input/select element. The popup is owned via

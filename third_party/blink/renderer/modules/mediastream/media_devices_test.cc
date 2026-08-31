@@ -31,6 +31,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_dom_exception.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_audio_output_options.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_capture_handle_config.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_crop_target.h"
@@ -113,42 +114,68 @@ class MockMediaDevicesDispatcherHost final
             }
             // clang-format on
         }) {
-    // TODO(crbug.com/935960): add missing mocked capabilities and related
-    // tests when media::AudioParameters is visible in this context.
-
-    mojom::blink::VideoInputDeviceCapabilitiesPtr capabilities =
+    mojom::blink::VideoInputDeviceCapabilitiesPtr video_capabilities =
         mojom::blink::VideoInputDeviceCapabilities::New();
-    capabilities->device_id = String(enumeration_[1][0].device_id);
-    capabilities->group_id = String(enumeration_[1][0].group_id);
-    capabilities->facing_mode =
+    video_capabilities->device_id = String(enumeration_[1][0].device_id);
+    video_capabilities->group_id = String(enumeration_[1][0].group_id);
+    video_capabilities->facing_mode =
         enumeration_[1][0].video_facing;  // mojom::blink::FacingMode::kNone;
-    capabilities->formats.push_back(media::VideoCaptureFormat(
+    video_capabilities->formats.push_back(media::VideoCaptureFormat(
         gfx::Size(640, 480), 30.0, media::VideoPixelFormat::PIXEL_FORMAT_I420));
-    capabilities->availability = static_cast<media::mojom::CameraAvailability>(
-        *enumeration_[1][0].availability);
-    video_input_capabilities_.push_back(std::move(capabilities));
+    video_capabilities->availability =
+        static_cast<media::mojom::CameraAvailability>(
+            *enumeration_[1][0].availability);
+    video_input_capabilities_.push_back(std::move(video_capabilities));
 
-    capabilities = mojom::blink::VideoInputDeviceCapabilities::New();
-    capabilities->device_id = String(enumeration_[1][1].device_id);
-    capabilities->group_id = String(enumeration_[1][1].group_id);
-    capabilities->formats.push_back(media::VideoCaptureFormat(
+    video_capabilities = mojom::blink::VideoInputDeviceCapabilities::New();
+    video_capabilities->device_id = String(enumeration_[1][1].device_id);
+    video_capabilities->group_id = String(enumeration_[1][1].group_id);
+    video_capabilities->formats.push_back(media::VideoCaptureFormat(
         gfx::Size(640, 480), 30.0, media::VideoPixelFormat::PIXEL_FORMAT_I420));
-    capabilities->facing_mode = enumeration_[1][1].video_facing;
+    video_capabilities->facing_mode = enumeration_[1][1].video_facing;
     media::VideoCaptureFormat format;
-    video_input_capabilities_.push_back(std::move(capabilities));
+    video_input_capabilities_.push_back(std::move(video_capabilities));
 
-    capabilities = mojom::blink::VideoInputDeviceCapabilities::New();
-    capabilities->device_id = String(enumeration_[1][2].device_id);
-    capabilities->group_id = String(enumeration_[1][2].group_id);
-    capabilities->formats.push_back(media::VideoCaptureFormat(
+    video_capabilities = mojom::blink::VideoInputDeviceCapabilities::New();
+    video_capabilities->device_id = String(enumeration_[1][2].device_id);
+    video_capabilities->group_id = String(enumeration_[1][2].group_id);
+    video_capabilities->formats.push_back(media::VideoCaptureFormat(
         gfx::Size(640, 480), 30.0, media::VideoPixelFormat::PIXEL_FORMAT_I420));
-    capabilities->formats.push_back(
+    video_capabilities->formats.push_back(
         media::VideoCaptureFormat(gfx::Size(1920, 1080), 60.0,
                                   media::VideoPixelFormat::PIXEL_FORMAT_I420));
-    capabilities->facing_mode = enumeration_[1][2].video_facing;
-    capabilities->availability = static_cast<media::mojom::CameraAvailability>(
-        *enumeration_[1][2].availability);
-    video_input_capabilities_.push_back(std::move(capabilities));
+    video_capabilities->facing_mode = enumeration_[1][2].video_facing;
+    video_capabilities->availability =
+        static_cast<media::mojom::CameraAvailability>(
+            *enumeration_[1][2].availability);
+    video_input_capabilities_.push_back(std::move(video_capabilities));
+
+    mojom::blink::AudioInputDeviceCapabilitiesPtr audio_capabilities =
+        mojom::blink::AudioInputDeviceCapabilities::New();
+    audio_capabilities->device_id = String(enumeration_[0][0].device_id);
+    audio_capabilities->group_id = String(enumeration_[0][0].group_id);
+    audio_capabilities->parameters =
+        media::AudioParameters::UnavailableDeviceParams();
+    audio_capabilities->is_valid = true;
+    audio_input_capabilities_.push_back(std::move(audio_capabilities));
+
+    audio_capabilities = mojom::blink::AudioInputDeviceCapabilities::New();
+    audio_capabilities->device_id = String(enumeration_[0][1].device_id);
+    audio_capabilities->group_id = String(enumeration_[0][1].group_id);
+    audio_capabilities->parameters =
+        media::AudioParameters::UnavailableDeviceParams();
+    audio_capabilities->is_valid = true;
+    audio_input_capabilities_.push_back(std::move(audio_capabilities));
+
+    audio_capabilities = mojom::blink::AudioInputDeviceCapabilities::New();
+    audio_capabilities->device_id = String(enumeration_[0][2].device_id);
+    audio_capabilities->group_id = String(enumeration_[0][2].group_id);
+    audio_capabilities->parameters =
+        media::AudioParameters::UnavailableDeviceParams();
+    audio_capabilities->parameters.set_effects(
+        media::AudioParameters::PlatformEffectsMask::ECHO_CANCELLER);
+    audio_capabilities->is_valid = true;
+    audio_input_capabilities_.push_back(std::move(audio_capabilities));
   }
 
   ~MockMediaDevicesDispatcherHost() override {
@@ -287,7 +314,6 @@ class MockMediaDevicesDispatcherHost final
     }
   }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   void CloseFocusWindowOfOpportunity(const String& label) override {}
 
   void ProduceSubCaptureTargetId(
@@ -308,7 +334,7 @@ class MockMediaDevicesDispatcherHost final
     std::vector<String>& queue = next_ids_[type];
     queue.push_back(std::move(next_id));
   }
-#endif
+
   void SetOutputDeviceStatus(media::OutputDeviceStatus status) {
     output_device_status_ = status;
   }
@@ -369,6 +395,10 @@ class MockMediaDevicesDispatcherHost final
   const Vector<mojom::blink::VideoInputDeviceCapabilitiesPtr>&
   VideoInputCapabilities() {
     return video_input_capabilities_;
+  }
+  const Vector<mojom::blink::AudioInputDeviceCapabilitiesPtr>&
+  AudioInputCapabilities() {
+    return audio_input_capabilities_;
   }
 
  private:
@@ -479,7 +509,59 @@ void VerifyVideoInputCapabilities(
   }
 }
 
+EchoCancellationMode ToEchoCancellationMode(
+    const V8UnionBooleanOrString* value) {
+  if (value->IsBoolean()) {
+    return value->GetAsBoolean() ? EchoCancellationMode::kBrowserDecides
+                                 : EchoCancellationMode::kDisabled;
+  }
+  CHECK(value->IsString());
+  if (value->GetAsString() == "remote-only") {
+    return EchoCancellationMode::kRemoteOnly;
+  }
+  CHECK_EQ(value->GetAsString(), "all");
+  return EchoCancellationMode::kAll;
+}
+
+void VerifyAudioInputCapabilities(
+    const MediaDeviceInfo* device,
+    const WebMediaDeviceInfo& expected_device_info,
+    const mojom::blink::AudioInputDeviceCapabilitiesPtr&
+        expected_capabilities) {
+  CHECK_EQ(device->kind(), V8MediaDeviceKind::Enum::kAudioinput);
+  const InputDeviceInfo* info = static_cast<const InputDeviceInfo*>(device);
+  MediaTrackCapabilities* capabilities = info->getCapabilities();
+  EXPECT_EQ(capabilities->hasDeviceId(), expected_device_info.IsAvailable());
+  EXPECT_EQ(capabilities->hasGroupId(), expected_device_info.IsAvailable());
+  if (expected_device_info.IsAvailable()) {
+    EXPECT_EQ(capabilities->deviceId().Utf8(), expected_device_info.device_id);
+    EXPECT_EQ(capabilities->groupId().Utf8(), expected_device_info.group_id);
+    Vector<EchoCancellationMode> echo_cancellation;
+    for (auto value : capabilities->echoCancellation()) {
+      echo_cancellation.push_back(ToEchoCancellationMode(value));
+    }
+    EXPECT_TRUE(base::Contains(echo_cancellation,
+                               EchoCancellationMode::kBrowserDecides));
+    EXPECT_TRUE(
+        base::Contains(echo_cancellation, EchoCancellationMode::kDisabled));
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+    EXPECT_TRUE(
+        base::Contains(echo_cancellation, EchoCancellationMode::kRemoteOnly));
+#endif
+    int effects = expected_capabilities->parameters.effects();
+    // On some platforms, capabilities are not queried because it is costly.
+    // In this case, device parameters are unknown. See crbug.com/40945999
+    if (!base::FeatureList::IsEnabled(
+            kEnumerateDevicesRequestAudioCapabilities)) {
+      effects = media::AudioParameters::PlatformEffectsMask::NO_EFFECTS;
+    }
+    if (EchoCanceller::IsSystemWideAecAvailable(effects)) {
+      EXPECT_TRUE(
+          base::Contains(echo_cancellation, EchoCancellationMode::kAll));
+    }
+  }
+}
+
 SubCaptureTarget* ToSubCaptureTarget(const blink::ScriptValue& value) {
   if (CropTarget* crop_target =
           V8CropTarget::ToWrappable(value.GetIsolate(), value.V8Value())) {
@@ -493,7 +575,6 @@ SubCaptureTarget* ToSubCaptureTarget(const blink::ScriptValue& value) {
 
   NOTREACHED();
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 bool ProduceSubCaptureTargetAndGetPromise(V8TestingScope& scope,
                                           SubCaptureTarget::Type type,
@@ -514,7 +595,6 @@ bool ProduceSubCaptureTargetAndGetPromise(V8TestingScope& scope,
   }
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 void ProduceSubCaptureTargetAndGetTester(
     V8TestingScope& scope,
     SubCaptureTarget::Type type,
@@ -536,7 +616,6 @@ void ProduceSubCaptureTargetAndGetTester(
       return;
   }
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 class MockMediaPermission : public media::MediaPermission {
  public:
@@ -714,7 +793,10 @@ TEST_F(MediaDevicesTest, EnumerateDevices) {
 
   const auto& video_input_capabilities =
       dispatcher_host().VideoInputCapabilities();
-  for (wtf_size_t i = 0, result_index = 0, video_input_index = 0;
+  const auto& audio_input_capabilities =
+      dispatcher_host().AudioInputCapabilities();
+  for (wtf_size_t i = 0, result_index = 0, video_input_index = 0,
+                  audio_input_index = 0;
        i < static_cast<wtf_size_t>(MediaDeviceType::kNumMediaDeviceTypes);
        ++i) {
     for (const auto& expected_device_info :
@@ -729,6 +811,12 @@ TEST_F(MediaDevicesTest, EnumerateDevices) {
             device_infos[result_index], expected_device_info,
             video_input_capabilities[video_input_index]);
         video_input_index++;
+      } else if (i ==
+                 static_cast<wtf_size_t>(MediaDeviceType::kMediaAudioInput)) {
+        VerifyAudioInputCapabilities(
+            device_infos[result_index], expected_device_info,
+            audio_input_capabilities[audio_input_index]);
+        audio_input_index++;
       }
       result_index++;
     }
@@ -1228,6 +1316,20 @@ class ProduceSubCaptureTargetTest
   ScopedElementCaptureForTest scoped_element_capture_;
 };
 
+/*
+kRestrictionTarget is related to Element Capture. When Element Capture is
+enabled for android as well this condition will be simplified to have the same
+tests set for all platforms.
+*/
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+INSTANTIATE_TEST_SUITE_P(
+    _,
+    ProduceSubCaptureTargetTest,
+    ::testing::Values(std::make_pair(SubCaptureTarget::Type::kCropTarget,
+                                     /* Element Capture enabled: */ false),
+                      std::make_pair(SubCaptureTarget::Type::kCropTarget,
+                                     /* Element Capture enabled: */ true)));
+#else
 INSTANTIATE_TEST_SUITE_P(
     _,
     ProduceSubCaptureTargetTest,
@@ -1237,21 +1339,20 @@ INSTANTIATE_TEST_SUITE_P(
                                      /* Element Capture enabled: */ true),
                       std::make_pair(SubCaptureTarget::Type::kRestrictionTarget,
                                      /* Element Capture enabled: */ true)));
+#endif
 
-// Note: This test runs on non-Android too in order to prove that the test
+// Note: This test runs on non-IOS too in order to prove that the test
 // itself is sane. (Rather than, for example, an exception always being thrown.)
-TEST_P(ProduceSubCaptureTargetTest, IdUnsupportedOnAndroid) {
+TEST_P(ProduceSubCaptureTargetTest, IdUnsupportedOnIos) {
   V8TestingScope scope;
   auto* media_devices = GetMediaDevices(*GetDocument().domWindow());
   ASSERT_TRUE(media_devices);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   // Note that the test will NOT produce false-positive on failure to call this.
   // Rather, GTEST_FAIL would be called by ProduceCropTarget or
   // ProduceRestrictionTarget if it ends up being called.
   dispatcher_host().SetNextId(
       type_, String(base::Uuid::GenerateRandomV4().AsLowercaseString()));
-#endif
 
   SetBodyContent(R"HTML(
     <div id='test-div'></div>
@@ -1263,16 +1364,10 @@ TEST_P(ProduceSubCaptureTargetTest, IdUnsupportedOnAndroid) {
   bool got_promise =
       ProduceSubCaptureTargetAndGetPromise(scope, type_, media_devices, div);
   platform()->RunUntilIdle();
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
-  EXPECT_FALSE(got_promise);
-  EXPECT_TRUE(scope.GetExceptionState().HadException());
-#else  // Non-Android shown to work, proving the test is sane.
   EXPECT_TRUE(got_promise);
   EXPECT_FALSE(scope.GetExceptionState().HadException());
-#endif
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 TEST_P(ProduceSubCaptureTargetTest, IdWithValidElement) {
   V8TestingScope scope;
   auto* media_devices = GetMediaDevices(*GetDocument().domWindow());
@@ -1444,7 +1539,6 @@ TEST_P(ProduceSubCaptureTargetTest, IdStringFormat) {
   EXPECT_TRUE(id.ContainsOnlyASCIIOrEmpty());
   EXPECT_TRUE(base::Uuid::ParseLowercase(id.Ascii()).is_valid());
 }
-#endif
 
 // TODO(crbug.com/1418194): Add tests after MediaDevicesDispatcherHost
 // has been updated.

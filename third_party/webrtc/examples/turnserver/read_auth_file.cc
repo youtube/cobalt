@@ -10,7 +10,10 @@
 
 #include "examples/turnserver/read_auth_file.h"
 
-#include <stddef.h>
+#include <cstddef>
+#include <istream>
+#include <map>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"

@@ -16,6 +16,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
+#include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/actions/actions.h"
 #include "ui/base/metadata/metadata_types.h"
 #include "ui/base/mojom/menu_source_type.mojom-forward.h"
@@ -410,8 +411,9 @@ class VIEWS_EXPORT Button : public View, public AnimationDelegateViews {
   std::unique_ptr<ButtonController> button_controller_;
 
   base::CallbackListSubscription enabled_changed_subscription_{
-      AddEnabledChangedCallback(base::BindRepeating(&Button::OnEnabledChanged,
-                                                    base::Unretained(this)))};
+      AddEnabledInViewsSubtreeChangedCallback(
+          base::BindRepeating(&Button::OnEnabledChanged,
+                              base::Unretained(this)))};
 
   size_t anchor_count_ = 0;
 

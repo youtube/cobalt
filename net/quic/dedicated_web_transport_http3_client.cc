@@ -508,6 +508,11 @@ int DedicatedWebTransportHttp3Client::DoInit() {
   if (!IsPortAllowedForScheme(url_.EffectiveIntPort(), url_.scheme_piece()))
     return ERR_UNSAFE_PORT;
 
+  if (!application_protocols_.empty() &&
+      !webtransport::ValidateSubprotocolList(application_protocols_)) {
+    return ERR_INVALID_ARGUMENT;
+  }
+
   // TODO(vasilvv): check if QUIC is disabled by policy.
 
   // Ensure that RFC 9000 is always supported.
@@ -565,7 +570,7 @@ int DedicatedWebTransportHttp3Client::DoResolveHostComplete(int rv) {
   if (rv != OK)
     return rv;
 
-  DCHECK(resolve_host_request_->GetAddressResults());
+  DCHECK(!resolve_host_request_->GetAddressResults().empty());
   next_connect_state_ = CONNECT_STATE_CONNECT;
   return OK;
 }
@@ -584,7 +589,8 @@ int DedicatedWebTransportHttp3Client::DoConnect() {
   socket_->UseNonBlockingIO();
 
   IPEndPoint server_address =
-      *resolve_host_request_->GetAddressResults()->begin();
+      resolve_host_request_->GetAddressResults().front();
+  visitor_->OnBeforeConnect(server_address);
   return socket_->ConnectAsync(
       server_address, base::BindOnce(&DedicatedWebTransportHttp3Client::DoLoop,
                                      base::Unretained(this)));
@@ -597,7 +603,7 @@ void DedicatedWebTransportHttp3Client::CreateConnection() {
   packet_reader_ = nullptr;
 
   IPEndPoint server_address =
-      *resolve_host_request_->GetAddressResults()->begin();
+      resolve_host_request_->GetAddressResults().front();
   quic::QuicConnectionId connection_id =
       quic::QuicUtils::CreateRandomConnectionId(
           quic_context_->random_generator());

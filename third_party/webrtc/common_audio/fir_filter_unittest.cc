@@ -10,9 +10,8 @@
 
 #include "common_audio/fir_filter.h"
 
-#include <string.h>
-
 #include <array>
+#include <cstring>
 #include <memory>
 
 #include "common_audio/fir_filter_factory.h"
@@ -21,13 +20,13 @@
 namespace webrtc {
 namespace {
 
-static constexpr size_t kCoefficientsSize = 5;
-static const std::array<float, kCoefficientsSize> kCoefficients = {
-    0.2f, 0.3f, 0.5f, 0.7f, 0.11f};
+constexpr size_t kCoefficientsSize = 5;
+const std::array<float, kCoefficientsSize> kCoefficients = {0.2f, 0.3f, 0.5f,
+                                                            0.7f, 0.11f};
 
-static constexpr size_t kInputSize = 10;
-static const std::array<float, kInputSize> kInput = {1.f, 2.f, 3.f, 4.f, 5.f,
-                                                     6.f, 7.f, 8.f, 9.f, 10.f};
+constexpr size_t kInputSize = 10;
+const std::array<float, kInputSize> kInput = {1.f, 2.f, 3.f, 4.f, 5.f,
+                                              6.f, 7.f, 8.f, 9.f, 10.f};
 
 }  // namespace
 

@@ -18,6 +18,7 @@
 #include "third_party/blink/renderer/platform/text/icu_error.h"
 #include "third_party/blink/renderer/platform/text/locale_to_script_mapping.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
+#include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/case_folding_hash.h"
 #include "third_party/blink/renderer/platform/wtf/thread_specific.h"
@@ -25,6 +26,32 @@
 namespace blink {
 
 namespace {
+
+using CaseFoldingHashSet = HashSet<String, CaseFoldingHashTraits<String>>;
+
+CaseFoldingHashSet CreateMacrolanguageChineseLanguageTags() {
+  // This list is from the IANA language-subtag-registry:
+  // https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry
+  // where "Type: language" and "Macrolanguage: zh".
+  return CaseFoldingHashSet{"cdo", "cjy", "cmn", "cnp", "cpx", "csp", "czh",
+                            "czo", "gan", "hak", "hnm", "hsn", "luh", "lzh",
+                            "mnp", "nan", "sjc", "wuu", "yue", "zh"};
+}
+
+CaseFoldingHashSet MacrolanguageChineseLanguageTags() {
+  DEFINE_THREAD_SAFE_STATIC_LOCAL(CaseFoldingHashSet, tags,
+                                  (CreateMacrolanguageChineseLanguageTags()));
+  return tags;
+}
+
+bool ComputeIsMacrolanguageChinese(const String& value) {
+  const wtf_size_t separater = value.find('-');
+  if (separater == kNotFound) {
+    return MacrolanguageChineseLanguageTags().Contains(value);
+  }
+  const StringView language{value, 0, separater};
+  return MacrolanguageChineseLanguageTags().Contains(language.ToString());
+}
 
 struct PerThreadData {
   HashMap<AtomicString,
@@ -210,6 +237,12 @@ const char* LayoutLocale::LocaleForHanForSkFontMgr() const {
   return locale;
 }
 
+bool LayoutLocale::IsMacrolanguageChineseSlow() const {
+  is_macrolanguage_chinese_computed_ = true;
+  is_macrolanguage_chinese_ = ComputeIsMacrolanguageChinese(string_);
+  return is_macrolanguage_chinese_;
+}
+
 void LayoutLocale::ComputeCaseMapLocale() const {
   DCHECK(!case_map_computed_);
   case_map_computed_ = true;
@@ -219,12 +252,7 @@ void LayoutLocale::ComputeCaseMapLocale() const {
 LayoutLocale::LayoutLocale(const AtomicString& locale)
     : string_(locale),
       harfbuzz_language_(ToHarfbuzLanguage(locale)),
-      script_(LocaleToScriptCodeForFontSelection(locale)),
-      script_for_han_(USCRIPT_COMMON),
-      has_script_for_han_(false),
-      hyphenation_computed_(false),
-      quotes_data_computed_(false),
-      case_map_computed_(false) {}
+      script_(LocaleToScriptCodeForFontSelection(locale)) {}
 
 // static
 const LayoutLocale* LayoutLocale::Get(const AtomicString& locale) {

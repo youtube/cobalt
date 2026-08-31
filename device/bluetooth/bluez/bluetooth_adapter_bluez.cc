@@ -129,13 +129,8 @@ UMABluetoothDiscoverySessionOutcome TranslateDiscoveryErrorToUMA(
 
 #if BUILDFLAG(IS_CHROMEOS)
 device::BluetoothDevice::ServiceDataMap ConvertServiceDataMap(
-    const base::flat_map<std::string, std::vector<uint8_t>>& input) {
-  device::BluetoothDevice::ServiceDataMap output;
-  for (auto& i : input) {
-    output[BluetoothUUID(i.first)] = i.second;
-  }
-
-  return output;
+    const base::flat_map<device::BluetoothUUID, std::vector<uint8_t>>& input) {
+  return device::BluetoothDevice::ServiceDataMap(input.begin(), input.end());
 }
 
 device::BluetoothDevice::ManufacturerDataMap ConvertManufacturerDataMap(
@@ -1639,6 +1634,15 @@ void BluetoothAdapterBlueZ::SetServiceAllowList(const UUIDList& uuids,
                                            std::move(error_callback)));
 }
 
+void BluetoothAdapterBlueZ::SetSimpleSecurePairingEnabled(
+    bool enabled,
+    base::OnceClosure callback,
+    ErrorCallback error_callback) {
+  // TODO(b/428178579) - Implement DBUS changes and wire them up the bluetooth
+  // stack.
+  std::move(error_callback).Run();
+}
+
 std::unique_ptr<device::BluetoothLowEnergyScanSession>
 BluetoothAdapterBlueZ::StartLowEnergyScanSession(
     std::unique_ptr<device::BluetoothLowEnergyScanFilter> filter,
@@ -1742,6 +1746,7 @@ void BluetoothAdapterBlueZ::SetStandardChromeOSAdapterName() {
   std::string alias = ash::GetDeviceBluetoothName(GetAddress());
   SetName(alias, base::DoNothing(), base::DoNothing());
 }
+
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 dbus::ObjectPath BluetoothAdapterBlueZ::GetApplicationObjectPath() const {

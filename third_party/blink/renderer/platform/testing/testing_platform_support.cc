@@ -104,7 +104,7 @@ TestingPlatformSupport::TestingPlatformSupport()
     : old_platform_(Platform::Current()),
       interface_broker_(base::MakeRefCounted<TestingBrowserInterfaceBroker>()) {
   DCHECK(old_platform_);
-  DCHECK(WTF::IsMainThread());
+  DCHECK(IsMainThread());
 }
 
 TestingPlatformSupport::~TestingPlatformSupport() {
@@ -185,7 +185,7 @@ class V8ValueConverterForTest final : public WebV8ValueConverter {
     };
 
     return value.Visit(Visitor{.converter = this,
-                               .isolate = context->GetIsolate(),
+                               .isolate = v8::Isolate::GetCurrent(),
                                .creation_context = context->Global()});
   }
 
@@ -195,7 +195,7 @@ class V8ValueConverterForTest final : public WebV8ValueConverter {
     CHECK(!val.IsEmpty());
 
     v8::Context::Scope context_scope(context);
-    auto* isolate = context->GetIsolate();
+    auto* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope handle_scope(isolate);
 
     if (val->IsBoolean()) {
@@ -308,8 +308,8 @@ ScopedUnittestsEnvironmentSetup::ScopedUnittestsEnvironmentSetup(int argc,
   base::DiscardableMemoryAllocator::SetInstance(
       discardable_memory_allocator_.get());
 
-  // FeatureList must be initialized before WTF::Partitions::Initialize(),
-  // because WTF::Partitions::Initialize() uses base::FeatureList to obtain
+  // FeatureList must be initialized before Partitions::Initialize(),
+  // because Partitions::Initialize() uses base::FeatureList to obtain
   // PartitionOptions.
   // NOTE: InitScopedFeatureListForTesting() deliberately removes
   // `--enable-features` and `--disable-features` from the command line of the
@@ -332,8 +332,8 @@ ScopedUnittestsEnvironmentSetup::ScopedUnittestsEnvironmentSetup(int argc,
   dummy_platform_ = std::make_unique<Platform>();
   Platform::SetCurrentPlatformForTesting(dummy_platform_.get());
 
-  WTF::Partitions::Initialize();
-  WTF::Initialize();
+  Partitions::Initialize();
+  InitializeWtf();
   Length::Initialize();
 
   // This must be called after WTF::Initialize(), because ThreadSpecific<>

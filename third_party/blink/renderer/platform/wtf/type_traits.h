@@ -32,7 +32,7 @@
 #include "build/build_config.h"
 #include "v8/include/cppgc/type-traits.h"  // nogncheck
 
-namespace WTF {
+namespace blink {
 
 // Returns a string that contains the type name of |T| as a substring.
 template <typename T>
@@ -111,11 +111,20 @@ template <typename T>
 struct IsTraceable : cppgc::internal::IsTraceable<T> {};
 
 template <typename T>
+concept IsTraceableV = IsTraceable<T>::value;
+
+template <typename T>
 struct IsGarbageCollectedType
     : cppgc::internal::IsGarbageCollectedOrMixinType<T> {};
 
 template <typename T>
+concept IsGarbageCollectedTypeV = IsGarbageCollectedType<T>::value;
+
+template <typename T>
 struct IsWeak : cppgc::internal::IsWeak<T> {};
+
+template <typename T>
+concept IsWeakV = IsWeak<T>::value;
 
 template <typename T>
 struct IsMemberType : std::bool_constant<cppgc::IsMemberTypeV<T>> {};
@@ -216,8 +225,6 @@ class IsStackAllocatedType<std::variant<Ts...>> {
 template <typename T>
 concept IsStackAllocatedTypeV = IsStackAllocatedType<T>::value;
 
-}  // namespace WTF
-
-using WTF::IsGarbageCollectedType;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TYPE_TRAITS_H_

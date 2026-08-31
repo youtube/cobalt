@@ -119,12 +119,14 @@ struct WordBox {
 // content isolation.
 [RuntimeFeature=ax.mojom.features.kScreenAIOCREnabled]
 interface ScreenAIAnnotator {
-  // Receives an image, such as a screenshot or a page from a PDF file, as well
-  // as the ID of the accessibility tree that contains the image
-  // (`parent_tree_id`). It then asks the Screen AI library to perform OCR on
-  // the image. It returns an AXTreeUpdate with nodes built from OCR results.
+  // Receives an image, such as a screenshot or a page from a PDF file and asks
+  // the Screen AI library to perform OCR on the image. It returns an
+  // AXTreeUpdate with nodes built from OCR results.
   // The returned AXTreeUpdate is not a properly serialized update and is only
   // a container for the root id of a subtree and nodes built from OCR results.
+  // This function is currently only used on ChromeOS Media App and other
+  //  clients use `PerformOcrAndReturnAnnotation` instead.
+  [EnableIf=is_chromeos]
   PerformOcrAndReturnAXTreeUpdate(skia.mojom.BitmapN32 image) =>
     (ax.mojom.AXTreeUpdate update);
 
@@ -140,6 +142,15 @@ interface ScreenAIAnnotator {
   // downsampling. This value is not expected to change after initialization of
   // the service and is expected to be non-zero.
   GetMaxImageDimension() => (uint32 max_dimension);
+
+  // Turns the light model on or off for current client. Switching between light
+  // and normal mode has some light overhead to reinitialize the pipeline.
+  SetOCRLightMode(bool enabled);
+
+  // Tells if OCR service has another client or not. This function can be used
+  // by batch jobs to consider postponing their tasks to when OCR has no other
+  // client.
+  IsOCRBusy() => (bool busy);
 };
 
 // Main interface a client uses for Main Content Extraction function of Screen

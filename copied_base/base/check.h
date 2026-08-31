@@ -82,6 +82,7 @@ class BASE_EXPORT CheckError {
   static CheckError NotImplemented(const char* file,
                                    int line,
                                    const char* function);
+  static CheckError NotImplemented(const char* function);
 
   // Stream for adding optional details to the error message.
   std::ostream& stream();

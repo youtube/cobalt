@@ -7,10 +7,10 @@
 #include <memory>
 #include <utility>
 
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
-#include "chrome/browser/ui/tabs/test_util.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "content/public/browser/web_contents.h"
@@ -21,7 +21,7 @@
 using content::WebContents;
 
 class TabStripModelStatsRecorderTest : public ChromeRenderViewHostTestHarness {
-  tabs::PreventTabFeatureInitialization prevent_;
+  const tabs::TabModel::PreventFeatureInitializationForTesting prevent_;
 };
 
 TEST_F(TabStripModelStatsRecorderTest,
@@ -89,6 +89,39 @@ TEST_F(TabStripModelStatsRecorderTest,
   tabstrip.ActivateTabAt(tabstrip.GetIndexOfWebContents(raw_contents2),
                          TabStripUserGestureDetails(
                              TabStripUserGestureDetails::GestureType::kOther));
+
+  tabstrip.RemoveObserver(&recorder);
+  tabstrip.CloseAllTabs();
+}
+
+TEST_F(TabStripModelStatsRecorderTest, TabSelectionCount) {
+  base::HistogramTester histogram_tester;
+  TestTabStripModelDelegate delegate;
+  TabStripModel tabstrip(&delegate, profile());
+
+  TabStripModelStatsRecorder recorder;
+  tabstrip.AddObserver(&recorder);
+
+  // Create first tab
+  std::unique_ptr<WebContents> contents0 = CreateTestWebContents();
+  tabstrip.InsertWebContentsAt(0, std::move(contents0),
+                               AddTabTypes::ADD_ACTIVE);
+  histogram_tester.ExpectBucketCount("Tabs.Selections.Count", 1, 1);
+
+  // Add 2 more tabs.
+  for (int i = 1; i < 3; ++i) {
+    tabstrip.InsertWebContentsAt(i, CreateTestWebContents(),
+                                 AddTabTypes::ADD_NONE);
+  }
+
+  // Select all three tabs.
+  ui::ListSelectionModel selection_model;
+  selection_model.set_active(0);
+  selection_model.AddIndexToSelection(0);
+  selection_model.AddIndexToSelection(1);
+  selection_model.AddIndexToSelection(2);
+  tabstrip.SetSelectionFromModel(selection_model);
+  histogram_tester.ExpectBucketCount("Tabs.Selections.Count", 3, 1);
 
   tabstrip.RemoveObserver(&recorder);
   tabstrip.CloseAllTabs();

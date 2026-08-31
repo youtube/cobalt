@@ -9,7 +9,7 @@
 
 #include "base/fuchsia/fuchsia_logging.h"
 #include "base/memory/ptr_util.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 
 namespace base {
 
@@ -68,8 +68,8 @@ ProcessMetrics::GetMemoryInfo() const {
   return memory_info;
 }
 
-bool GetSystemMemoryInfo(SystemMemoryInfoKB* meminfo) {
-  // TODO(crbug.com/42050627).
+bool GetSystemMemoryInfo(SystemMemoryInfo* meminfo) {
+  // TODO(https://crbug.com/42050627).
   return false;
 }
 

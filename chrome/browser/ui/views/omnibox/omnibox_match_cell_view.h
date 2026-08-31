@@ -101,6 +101,7 @@ class OmniboxMatchCellView : public views::View {
   void Layout(PassKey) override;
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
+  gfx::Size GetMinimumSize() const override;
 
  private:
   enum class LayoutStyle {
@@ -109,6 +110,7 @@ class OmniboxMatchCellView : public views::View {
     SEARCH_SUGGESTION_WITH_IMAGE,
     IPH_SUGGESTION,
     HISTORY_EMBEDDING_ANSWER,
+    TOOLBELT,
   };
 
   // How far to indent the icon, entity, or answer image from the left side of

@@ -11,30 +11,26 @@
 #ifndef TEST_PC_E2E_ANALYZER_VIDEO_VIDEO_QUALITY_ANALYZER_INJECTION_HELPER_H_
 #define TEST_PC_E2E_ANALYZER_VIDEO_VIDEO_QUALITY_ANALYZER_INJECTION_HELPER_H_
 
-#include <stdio.h>
-
-#include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/test/pclf/media_configuration.h"
 #include "api/test/stats_observer_interface.h"
+#include "api/test/video/video_frame_writer.h"
 #include "api/test/video_quality_analyzer_interface.h"
-#include "api/video/video_frame.h"
-#include "api/video/video_sink_interface.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_encoder_factory.h"
-#include "rtc_base/synchronization/mutex.h"
 #include "system_wrappers/include/clock.h"
 #include "test/pc/e2e/analyzer/video/analyzing_video_sink.h"
 #include "test/pc/e2e/analyzer/video/analyzing_video_sinks_helper.h"
 #include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
 #include "test/pc/e2e/analyzer/video/quality_analyzing_video_encoder.h"
 #include "test/test_video_capturer.h"
-#include "test/testsupport/video_frame_writer.h"
 
 namespace webrtc {
 namespace webrtc_pc_e2e {

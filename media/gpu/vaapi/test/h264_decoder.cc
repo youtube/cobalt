@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/gpu/vaapi/test/h264_decoder.h"
 
 #include <va/va.h>
 
 #include <algorithm>
 
+#include "base/compiler_specific.h"
 #include "base/notreached.h"
 #include "media/base/subsample_entry.h"
 #include "media/gpu/macros.h"
@@ -498,11 +494,7 @@ bool H264Decoder::InitCurrPicture(const H264SliceHeader* slice_hdr) {
   // process after this picture is decoded, store required data for that
   // purpose.
   if (slice_hdr->adaptive_ref_pic_marking_mode_flag) {
-    static_assert(sizeof(curr_picture_->ref_pic_marking) ==
-                      sizeof(slice_hdr->ref_pic_marking),
-                  "Array sizes of ref pic marking do not match.");
-    memcpy(curr_picture_->ref_pic_marking, slice_hdr->ref_pic_marking,
-           sizeof(curr_picture_->ref_pic_marking));
+    curr_picture_->ref_pic_marking = slice_hdr->ref_pic_marking;
   }
 
   curr_picture_->visible_rect = visible_rect_;
@@ -895,12 +887,12 @@ bool H264Decoder::ModifyReferencePicList(const H264SliceHeader* slice_hdr,
     ref_pic_list_modification_flag_lX =
         slice_hdr->ref_pic_list_modification_flag_l0;
     num_ref_idx_lX_active_minus1 = slice_hdr->num_ref_idx_l0_active_minus1;
-    list_mod = slice_hdr->ref_list_l0_modifications;
+    list_mod = slice_hdr->ref_list_l0_modifications.data();
   } else {
     ref_pic_list_modification_flag_lX =
         slice_hdr->ref_pic_list_modification_flag_l1;
     num_ref_idx_lX_active_minus1 = slice_hdr->num_ref_idx_l1_active_minus1;
-    list_mod = slice_hdr->ref_list_l1_modifications;
+    list_mod = slice_hdr->ref_list_l1_modifications.data();
   }
 
   // Resize the list to the size requested in the slice header.
@@ -1024,7 +1016,7 @@ bool H264Decoder::ModifyReferencePicList(const H264SliceHeader* slice_hdr,
         break;
     }
 
-    ++list_mod;
+    UNSAFE_TODO(++list_mod);
   }
 
   // Per NOTE 2 in 8.2.4.3.2, the ref_pic_listx size in the above loop is

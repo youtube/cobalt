@@ -10,13 +10,13 @@
 
 #include "p2p/base/transport_description_factory.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/field_trials.h"
 #include "api/scoped_refptr.h"
 #include "p2p/base/ice_credentials_iterator.h"
 #include "p2p/base/p2p_constants.h"
@@ -27,21 +27,22 @@
 #include "rtc_base/ssl_certificate.h"
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/ssl_identity.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
+
+namespace webrtc {
+namespace {
 
 using ::testing::Contains;
 using ::testing::Not;
 using ::testing::NotNull;
-using ::webrtc::TransportDescription;
-using ::webrtc::TransportDescriptionFactory;
-using ::webrtc::TransportOptions;
 
 class TransportDescriptionFactoryTest : public ::testing::Test {
  public:
   TransportDescriptionFactoryTest()
-      : ice_credentials_({}),
+      : field_trials_(CreateTestFieldTrials()),
+        ice_credentials_({}),
         f1_(field_trials_),
         f2_(field_trials_),
         cert1_(
@@ -143,12 +144,12 @@ class TransportDescriptionFactoryTest : public ::testing::Test {
     // The initial offer / answer exchange.
     std::unique_ptr<TransportDescription> offer =
         f1_.CreateOffer(options, nullptr, &ice_credentials_);
-    ASSERT_TRUE(offer);
+    ASSERT_THAT(offer, NotNull());
     EXPECT_THAT(offer->transport_options, Not(Contains("renomination")));
 
     std::unique_ptr<TransportDescription> answer = f2_.CreateAnswer(
         offer.get(), options, true, nullptr, &ice_credentials_);
-    ASSERT_TRUE(answer);
+    ASSERT_THAT(answer, NotNull());
     EXPECT_THAT(answer->transport_options, Not(Contains("renomination")));
 
     options.enable_ice_renomination = true;
@@ -179,7 +180,7 @@ class TransportDescriptionFactoryTest : public ::testing::Test {
     f2_.set_certificate(nullptr);
   }
 
-  webrtc::test::ScopedKeyValueConfig field_trials_;
+  FieldTrials field_trials_;
   webrtc::IceCredentialsIterator ice_credentials_;
   TransportDescriptionFactory f1_;
   TransportDescriptionFactory f2_;
@@ -399,3 +400,6 @@ TEST_F(TransportDescriptionFactoryTest, CreateAnswerToDtlsPassiveOffer) {
       f2_.CreateAnswer(offer.get(), options, false, nullptr, &ice_credentials_);
   EXPECT_EQ(answer->connection_role, webrtc::CONNECTIONROLE_ACTIVE);
 }
+
+}  // namespace
+}  // namespace webrtc

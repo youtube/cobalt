@@ -27,16 +27,7 @@ if '--quiet' not in sys.argv:
   cmd += ['--quiet']
 cmd += sys.argv[1:]
 
-output_dir = '.'
-for i, arg in enumerate(cmd):
-  if arg == '-C':
-    output_dir = sys.argv[i + 1]
-    break
-  if arg.startswith('-C'):
-    output_dir = arg[2:]
-    break
-
-proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, encoding='utf-8')
 lines = proc.stdout.readlines()
 
 # Limit output so as to not confuse the model. It generally can work (well) on

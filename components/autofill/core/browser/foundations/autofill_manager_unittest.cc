@@ -26,7 +26,7 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/form_data_test_api.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/translate/core/common/language_detection_details.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -349,7 +349,7 @@ TEST_F(AutofillManagerTest, ObserverReceiveCalls) {
   EXPECT_CALL(observer, OnBeforeLoadedServerPredictions).Times(0);
   EXPECT_CALL(observer, OnAfterLoadedServerPredictions).Times(0);
   EXPECT_CALL(observer, OnFieldTypesDetermined).Times(0);
-  EXPECT_CALL(observer, OnFillOrPreviewDataModelForm).Times(0);
+  EXPECT_CALL(observer, OnFillOrPreviewForm).Times(0);
   EXPECT_CALL(observer, OnFormSubmitted).Times(0);
 
   EXPECT_CALL(manager(), ShouldParseForms)
@@ -452,7 +452,7 @@ TEST_F(AutofillManagerTest, ObserverReceiveCalls) {
   manager().OnJavaScriptChangedAutofilledValue(form, field.global_id(), {});
 
   // TODO(crbug.com/) Test in browser_autofill_manager_unittest.cc that
-  // FillOrPreviewForm() triggers OnFillOrPreviewDataModelForm().
+  // FillOrPreviewForm() triggers OnFillOrPreviewForm().
 
   EXPECT_CALL(observer, OnFormSubmitted(m, Ref(form)));
   manager().OnFormSubmitted(form, mojom::SubmissionSource::FORM_SUBMISSION);

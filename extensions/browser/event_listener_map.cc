@@ -12,9 +12,10 @@
 #include "base/memory/ptr_util.h"
 #include "content/public/browser/render_process_host.h"
 #include "extensions/browser/event_router.h"
+#include "extensions/browser/service_worker/worker_id.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/extension_id.h"
-#include "ipc/ipc_message.h"
+#include "ipc/constants.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -182,7 +183,7 @@ std::unique_ptr<EventMatcher> EventListenerMap::ParseEventMatcher(
     const base::Value::Dict& filter_dict) {
   return std::make_unique<EventMatcher>(
       std::make_unique<base::Value::Dict>(filter_dict.Clone()),
-      MSG_ROUTING_NONE);
+      IPC::mojom::kRoutingIdNone);
 }
 
 bool EventListenerMap::RemoveListener(const EventListener* listener) {
@@ -302,13 +303,17 @@ void EventListenerMap::RemoveListenersForExtension(
 }
 
 void EventListenerMap::RemoveActiveServiceWorkerListenersForExtension(
-    const ExtensionId& extension_id) {
+    const WorkerId& worker_id) {
   RemoveListenersForExtensionImpl(
-      extension_id, /*removal_predicate=*/base::BindRepeating(
-          [](const ExtensionId& extension_id, EventListener* listener) {
-            return listener->extension_id() == extension_id &&
-                   listener->is_for_service_worker() && !listener->IsLazy();
-          }));
+      worker_id.extension_id, /*removal_predicate=*/base::BindRepeating(
+          [](const WorkerId& worker_id, const ExtensionId& extension_id,
+             EventListener* listener) {
+            return listener->extension_id() == worker_id.extension_id &&
+                   listener->is_for_service_worker() && !listener->IsLazy() &&
+                   listener->process()->GetDeprecatedID() ==
+                       worker_id.render_process_id;
+          },
+          worker_id));
 }
 
 void EventListenerMap::LoadUnfilteredLazyListeners(
@@ -357,7 +362,7 @@ std::set<const EventListener*> EventListenerMap::GetEventListeners(
   if (IsFilteredEvent(event)) {
     // Look up the interested listeners via the EventFilter.
     std::set<MatcherID> ids = event_filter_.MatchEvent(
-        event.event_name, *event.filter_info, MSG_ROUTING_NONE);
+        event.event_name, *event.filter_info, IPC::mojom::kRoutingIdNone);
     for (const MatcherID& id : ids) {
       EventListener* listener = listeners_by_matcher_id_[id];
       CHECK(listener);

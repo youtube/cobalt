@@ -7,6 +7,12 @@
 namespace autofill::features {
 
 #if BUILDFLAG(IS_IOS)
+// When enabled, users are given the option to use their phone camera to scan
+// their credit card when adding it via Autofill iOS settings.
+BASE_FEATURE(kAutofillCreditCardScannerIos,
+             "AutofillCreditCardScannerIos",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, save card fix flow values for missing cardholder name and
 // expiry date won't be defaulted as detected on iOS.
 BASE_FEATURE(kAutofillDisableDefaultSaveCardFixFlowDetection,
@@ -32,18 +38,42 @@ BASE_FEATURE(kAutofillEnableAmountExtractionAllowlistDesktop,
 // of the allowlisted merchant websites.
 BASE_FEATURE(kAutofillEnableAmountExtractionDesktop,
              "AutofillEnableAmountExtractionDesktop",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
 
-// Enables logging of the result of checkout amount extraction on desktop.
+// Enables testing of the result of checkout amount extraction on desktop.
 // This flag will allow amount extraction to run on any website when a CC
 // form is clicked. This flag should never be enabled.
-BASE_FEATURE(kAutofillEnableAmountExtractionDesktopLogging,
-             "AutofillEnableAmountExtractionDesktopLogging",
+BASE_FEATURE(kAutofillEnableAmountExtractionTesting,
+             "AutofillEnableAmountExtractionTesting",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, buy now pay later (BNPL) in Autofill will be offered.
 BASE_FEATURE(kAutofillEnableBuyNowPayLater,
              "AutofillEnableBuyNowPayLater",
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_CHROMEOS)
+
+// When enabled, additional steps are required to autofill buy now pay later
+// (BNPL) issuers that are externally linked.
+BASE_FEATURE(kAutofillEnableBuyNowPayLaterForExternallyLinked,
+             "AutofillEnableBuyNowPayLaterForExternallyLinked",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, buy now pay later (BNPL) for Klarna in Autofill will be
+// offered.
+BASE_FEATURE(kAutofillEnableBuyNowPayLaterForKlarna,
+             "AutofillEnableBuyNowPayLaterForKlarna",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, buy now pay later (BNPL) data will be synced to Chrome clients.
@@ -55,7 +85,7 @@ BASE_FEATURE(kAutofillEnableBuyNowPayLaterSyncing,
 // Payments Autofill UI.
 BASE_FEATURE(kAutofillEnableCardBenefitsForAmericanExpress,
              "AutofillEnableCardBenefitsForAmericanExpress",
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS)
              base::FEATURE_DISABLED_BY_DEFAULT);
 #else
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -70,7 +100,7 @@ BASE_FEATURE(kAutofillEnableCardBenefitsForBmo,
 // When enabled, card benefits IPH will be shown in Payments Autofill UI.
 BASE_FEATURE(kAutofillEnableCardBenefitsIph,
              "AutofillEnableCardBenefitsIph",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, card benefit source will be synced to Chrome clients.
 BASE_FEATURE(kAutofillEnableCardBenefitsSourceSync,
@@ -91,11 +121,7 @@ BASE_FEATURE(kAutofillEnableCardBenefitsSync,
 // from issuer for enrolled cards will be enabled during form fill.
 BASE_FEATURE(kAutofillEnableCardInfoRuntimeRetrieval,
              "AutofillEnableCardInfoRuntimeRetrieval",
-#if BUILDFLAG(IS_IOS)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
 
 // When enabled, we will store CVC for both local and server credit cards. This
 // will also allow the users to autofill their CVCs on checkout pages.
@@ -123,11 +149,17 @@ BASE_FEATURE(kAutofillEnableCvcStorageAndFillingStandaloneFormEnhancement,
              "AutofillEnableCvcStorageAndFillingStandaloneFormEnhancement",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, in-product help UI will be shown the first time a card added
+// outside of Chrome appears in Autofill card suggestions."
+BASE_FEATURE(kAutofillEnableDownstreamCardAwarenessIph,
+             "AutofillEnableDownstreamCardAwarenessIph",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, card flat rate benefit will not be shown on merchants in the
 // blocklist.
 BASE_FEATURE(kAutofillEnableFlatRateCardBenefitsBlocklist,
              "AutofillEnableFlatRateCardBenefitsBlocklist",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, flat rate card benefits sourced from Curinos will be shown in
 // Payments Autofill UI.
@@ -154,12 +186,10 @@ BASE_FEATURE(kAutofillEnableVirtualCardJavaPaymentsDataManager,
              "AutofillEnableVirtualCardJavaPaymentsDataManager",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// When enabled, a form event will log to all of the parsed forms of the same
-// type on a webpage. This means credit card form events will log to all credit
-// card form types and address form events will log to all address form types."
-// TODO(crbug.com/359934323): Clean up when launched
-BASE_FEATURE(kAutofillEnableLogFormEventsToAllParsedFormTypes,
-             "AutofillEnableLogFormEventsToAllParsedFormTypes",
+// When enabled, Buy now pay later issuer allow lists will be loaded after
+// payment data syncing instead of credit card form parsing.
+BASE_FEATURE(kAutofillEnableLoadBnplAllowlistAfterSyncing,
+             "AutofillEnableLoadBnplAllowlistAfterSyncing",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, virtual card downstream enrollment will support multiple
@@ -211,10 +241,10 @@ BASE_FEATURE(kAutofillEnableSaveAndFill,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
-// When enabled, save card securely message be displayed on upload card
-// UI message.
-BASE_FEATURE(kAutofillEnableShowSaveCardSecurelyMessage,
-             "AutofillEnableShowSaveCardSecurelyMessage",
+// When enabled, show Pix settings as a separate preference menu item instead of
+// bundling them together with the non-card payment preference menu item.
+BASE_FEATURE(kAutofillEnableSeparatePixPreferenceItem,
+             "AutofillEnableSeparatePixPreferenceItem",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, Pix bank accounts are synced from Chrome Sync backend and
@@ -238,6 +268,14 @@ BASE_FEATURE(kAutofillLocalSaveCardBottomSheet,
              "AutofillLocalSaveCardBottomSheet",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+// When enabled, if credit card upload save encounters a card with the same four
+// digits as an existing server card but a different expiration date, it
+// requires that CVC was found in the flow before offering to save/update the
+// card.
+BASE_FEATURE(kAutofillRequireCvcForPossibleCardUpdate,
+             "AutofillRequireCvcForPossibleCardUpdate",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, Chrome will try to fetch payment account image resources again
 // upon failure. The number of attempts is a controllable parameter. This is a
@@ -298,15 +336,6 @@ BASE_FEATURE(kAutofillUpstream,
              "AutofillUpstream",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// When enabled, adds a timeout on the network request for VcnEnroll requests.
-BASE_FEATURE(kAutofillVcnEnrollRequestTimeout,
-             "AutofillVcnEnrollRequestTimeout",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<int> kAutofillVcnEnrollRequestTimeoutMilliseconds{
-    &kAutofillVcnEnrollRequestTimeout,
-    "autofill_vcn_enroll_request_timeout_milliseconds",
-    /*default_value=*/6500};
-
 // When enabled, updates the VCN strike database with different values of
 // kExpiryTimeDelta as part of of the VCN strike optimization experiment.
 // See go/vcn-strike-optimization-design.
@@ -322,8 +351,14 @@ const base::FeatureParam<int> kAutofillVcnEnrollStrikeExpiryTimeDays{
 // and displayed on the payment methods settings page.
 BASE_FEATURE(kAutofillSyncEwalletAccounts,
              "AutofillSyncEwalletAccounts",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// If enabled, the Autofill strike system will not block features. Intended for
+// debugging/testing use only and should never be launched to users.
+BASE_FEATURE(kDisableAutofillStrikeSystem,
+             "DisableAutofillStrikeSystem",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool ShouldShowImprovedUserConsentForCreditCardSave() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_LINUX)

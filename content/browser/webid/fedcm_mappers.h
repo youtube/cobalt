@@ -12,8 +12,8 @@
 #include "content/browser/webid/fedcm_metrics.h"
 #include "content/browser/webid/idp_network_request_manager.h"
 #include "content/common/content_export.h"
-#include "content/public/browser/federated_identity_api_permission_context_delegate.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
 
@@ -103,6 +103,12 @@ IdAssertionFetchStatusToRequestResultAndTokenStatus(
 // empty, we should not show a permission request dialog.
 CONTENT_EXPORT std::vector<IdentityRequestDialogDisclosureField>
 GetDisclosureFields(const std::optional<std::vector<std::string>>& fields);
+
+// Computes the effective fields for an account based on the requested fields,
+// the login state and the available account data.
+CONTENT_EXPORT void ComputeAccountFields(
+    const std::vector<IdentityRequestDialogDisclosureField>& rp_fields,
+    std::vector<IdentityRequestAccountPtr>& accounts);
 
 }  // namespace content
 

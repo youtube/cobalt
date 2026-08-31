@@ -39,6 +39,7 @@
 #include "ash/root_window_controller.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shelf/login_shelf_view.h"
+#include "ash/shelf/login_shelf_widget.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_navigation_widget.h"
 #include "ash/shelf/shelf_widget.h"
@@ -518,7 +519,7 @@ TEST_F(LockContentsViewKeyboardUnitTest,
   // Check if the previous focus is set correctly to the shelf widget.
   EXPECT_EQ(delegate->GetViewAccessibility().GetPreviousWindowFocus(),
             Shelf::ForWindow(delegate->GetWidget()->GetNativeWindow())
-                ->shelf_widget());
+                ->login_shelf_widget());
 }
 
 TEST_F(LockContentsViewKeyboardUnitTest, AutoLayoutSmallUsersListForKeyboard) {
@@ -810,7 +811,7 @@ TEST_F(LockContentsViewUnitTest, ShowStatusIndicatorIfEnrolledDevice) {
 }
 
 // Show bottom status indicator if device is enrolled
-TEST_F(LockContentsViewUnitTest, ShowManagementBubbleOnClickIfEnrolledDevice) {
+TEST_F(LockContentsViewUnitTest, ShowManagementDialogOnClickIfEnrolledDevice) {
   // If the device is enrolled, bottom_status_indicator should be visible.
   Shell::Get()->system_tray_model()->SetDeviceEnterpriseInfo(
       DeviceEnterpriseInfo{"BestCompanyEver", ManagementDeviceMode::kNone});
@@ -824,27 +825,18 @@ TEST_F(LockContentsViewUnitTest, ShowManagementBubbleOnClickIfEnrolledDevice) {
   LockContentsViewTestApi test_api(contents);
 
   EXPECT_TRUE(test_api.bottom_status_indicator()->GetVisible());
-  EXPECT_FALSE(test_api.management_bubble()->GetVisible());
-
-  // Make the management bubble appear on click.
+  EXPECT_FALSE(test_api.management_disclosure_dialog());
+  // Make the management dialog appear on click.
   ui::test::EventGenerator* generator = GetEventGenerator();
   generator->MoveMouseTo(
       test_api.bottom_status_indicator()->GetBoundsInScreen().CenterPoint());
   generator->ClickLeftButton();
-  EXPECT_TRUE(test_api.management_bubble()->GetVisible());
-
-  // Click somewhere else to make the management bubble disappear.
-  generator->MoveMouseTo(test_api.primary_big_view()
-                             ->GetUserView()
-                             ->GetBoundsInScreen()
-                             .CenterPoint());
-  generator->ClickLeftButton();
-  EXPECT_FALSE(test_api.management_bubble()->GetVisible());
+  EXPECT_TRUE(test_api.management_disclosure_dialog()->GetVisible());
 }
 
 // Do not show the management bubble on click if ADB sideloading is enabled and
 // device is enrolled.
-TEST_F(LockContentsViewUnitTest, DoNotShowManagementBubbleOnClickIfAdb) {
+TEST_F(LockContentsViewUnitTest, DoNotShowManagementDialogOnClickIfAdb) {
   // If the device is enrolled, bottom_status_indicator should be visible.
   Shell::Get()->system_tray_model()->SetDeviceEnterpriseInfo(
       DeviceEnterpriseInfo{"BestCompanyEver", ManagementDeviceMode::kNone});
@@ -876,7 +868,7 @@ TEST_F(LockContentsViewUnitTest, DoNotShowManagementBubbleOnClickIfAdb) {
   generator->MoveMouseTo(
       test_api.bottom_status_indicator()->GetBoundsInScreen().CenterPoint());
   generator->ClickLeftButton();
-  EXPECT_FALSE(test_api.management_bubble()->GetVisible());
+  EXPECT_FALSE(test_api.management_disclosure_dialog());
 }
 
 TEST_F(LockContentsViewUnitTest, ShowErrorBubbleOnAuthFailure) {
@@ -3356,7 +3348,7 @@ TEST_F(LockContentsViewUnitTest, LoginAccessibleProperties) {
   EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
             l10n_util::GetStringUTF16(IDS_ASH_LOGIN_SCREEN_ACCESSIBLE_NAME));
   EXPECT_EQ(contents->GetViewAccessibility().GetNextWindowFocus(),
-            shelf->shelf_widget());
+            shelf->login_shelf_widget());
   EXPECT_EQ(contents->GetViewAccessibility().GetPreviousWindowFocus(),
             shelf->GetStatusAreaWidget());
 }
@@ -3374,7 +3366,7 @@ TEST_F(LockContentsViewUnitTest, LockAccessibleProperties) {
   EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
             l10n_util::GetStringUTF16(IDS_ASH_LOCK_SCREEN_ACCESSIBLE_NAME));
   EXPECT_EQ(contents->GetViewAccessibility().GetNextWindowFocus(),
-            shelf->shelf_widget());
+            shelf->login_shelf_widget());
   EXPECT_EQ(contents->GetViewAccessibility().GetPreviousWindowFocus(),
             shelf->GetStatusAreaWidget());
 }

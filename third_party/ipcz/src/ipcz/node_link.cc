@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
-#include "ipcz/node_link.h"
-
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
@@ -26,6 +19,7 @@
 #include "ipcz/message.h"
 #include "ipcz/node.h"
 #include "ipcz/node_connector.h"
+#include "ipcz/node_link.h"
 #include "ipcz/node_link_memory.h"
 #include "ipcz/node_messages.h"
 #include "ipcz/parcel.h"
@@ -38,6 +32,7 @@
 #include "util/log.h"
 #include "util/ref_counted.h"
 #include "util/safe_math.h"
+#include "util/unsafe_buffers.h"
 
 namespace ipcz {
 
@@ -278,8 +273,9 @@ void NodeLink::RelayMessage(const NodeName& to_node, Message& message) {
   relay.v0()->destination = to_node;
   relay.v0()->data = relay.AllocateArray<uint8_t>(message.data_view().size());
   relay.v0()->padding = 0;
-  memcpy(relay.GetArrayData(relay.v0()->data), message.data_view().data(),
-         message.data_view().size());
+  IPCZ_UNSAFE_TODO(memcpy(relay.GetArrayData(relay.v0()->data),
+                          message.data_view().data(),
+                          message.data_view().size()));
   relay.v0()->driver_objects =
       relay.AppendDriverObjects(message.driver_objects());
   Transmit(relay);
@@ -350,6 +346,25 @@ void NodeLink::Transmit(Message& message) {
 
   message.header().sequence_number = GenerateOutgoingSequenceNumber();
   transport_->Transmit(message);
+}
+
+void NodeLink::AcceptEarlyParcelsForSublink(SublinkId sublink_id) {
+  std::vector<std::unique_ptr<Parcel>> early_parcels;
+  {
+    absl::MutexLock lock(&mutex_);
+    auto it = early_parcels_for_sublink_.find(sublink_id);
+    if (it != early_parcels_for_sublink_.end()) {
+      // TODO(crbug.com/410594534): Add CQ coverage for this condition. As of
+      // 2025-06 one known way to exercise it is to "upgrade" ChannelLinux to
+      // sending messages using eventfd and an additional shared memory region
+      // (crrev.com/c/6316751). A simpler reproducer is needed.
+      early_parcels.swap(it->second);
+      early_parcels_for_sublink_.erase(it);
+    }
+  }
+  for (auto& early_parcel : early_parcels) {
+    AcceptCompleteParcel(sublink_id, std::move(early_parcel));
+  }
 }
 
 SequenceNumber NodeLink::GenerateOutgoingSequenceNumber() {
@@ -972,10 +987,12 @@ bool NodeLink::AcceptCompleteParcel(SublinkId for_sublink,
                                     std::unique_ptr<Parcel> parcel) {
   const std::optional<Sublink> sublink = GetSublink(for_sublink);
   if (!sublink) {
-    DVLOG(4) << "Dropping " << parcel->Describe() << " at "
+    DVLOG(4) << "Queuing " << parcel->Describe() << " at "
              << local_node_name_.ToString() << ", arriving from "
              << remote_node_name_.ToString() << " via unknown sublink "
              << for_sublink;
+    absl::MutexLock lock(&mutex_);
+    early_parcels_for_sublink_[for_sublink].emplace_back(std::move(parcel));
     return true;
   }
 

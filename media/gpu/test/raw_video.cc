@@ -11,6 +11,7 @@
 
 #include <array>
 
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/files/memory_mapped_file.h"
 #include "base/functional/bind.h"
@@ -246,13 +247,15 @@ class RawVideo::VP9Decoder {
     LOG_ASSERT(i420_frame.format() == VideoPixelFormat::PIXEL_FORMAT_I420);
     std::vector<uint8_t> buffer(video_frame_size_);
     if (layout_.format() == PIXEL_FORMAT_NV12) {
-      uint8_t* nv12_frame = buffer.data();
+      base::span<uint8_t> nv12_frame = buffer;
       int ret = libyuv::I420ToNV12(
           i420_frame.data(0), i420_frame.stride(0), i420_frame.data(1),
           i420_frame.stride(1), i420_frame.data(2), i420_frame.stride(2),
-          nv12_frame + layout_.planes()[0].offset, layout_.planes()[0].stride,
-          nv12_frame + layout_.planes()[1].offset, layout_.planes()[1].stride,
-          layout_.coded_size().width(), layout_.coded_size().height());
+          nv12_frame.subspan(layout_.planes()[0].offset).data(),
+          layout_.planes()[0].stride,
+          nv12_frame.subspan(layout_.planes()[1].offset).data(),
+          layout_.planes()[1].stride, layout_.coded_size().width(),
+          layout_.coded_size().height());
       LOG_ASSERT(ret == 0) << "Failed converting from I420 to NV12";
     } else {
       CHECK_EQ(layout_.format(), PIXEL_FORMAT_I420);
@@ -314,24 +317,22 @@ std::unique_ptr<RawVideo::VP9Decoder> RawVideo::VP9Decoder::Create(
   FFmpegGlue glue(&protocol);
   LOG_ASSERT(glue.OpenContext()) << "Failed to open AVFormatContext";
   // Find the first VP9 stream in the file.
-  std::optional<size_t> vp9_stream_index;
   VideoDecoderConfig config;
-  for (size_t i = 0; i < glue.format_context()->nb_streams; ++i) {
-    AVStream* stream = glue.format_context()->streams[i];
+  base::span<AVStream*> format_context =
+      AVFormatContextToSpan(glue.format_context());
+  auto iter = std::ranges::find_if(format_context, [&config](AVStream* stream) {
     const AVCodecParameters* codec_parameters = stream->codecpar;
     const AVMediaType codec_type = codec_parameters->codec_type;
     const AVCodecID codec_id = codec_parameters->codec_id;
-    if (codec_type == AVMEDIA_TYPE_VIDEO && codec_id == AV_CODEC_ID_VP9 &&
-        AVStreamToVideoDecoderConfig(stream, &config) &&
-        config.IsValidConfig()) {
-      vp9_stream_index = i;
-      break;
-    }
-  }
-  if (!vp9_stream_index) {
+    return codec_type == AVMEDIA_TYPE_VIDEO && codec_id == AV_CODEC_ID_VP9 &&
+           AVStreamToVideoDecoderConfig(stream, &config) &&
+           config.IsValidConfig();
+  });
+  if (iter == format_context.end()) {
     return nullptr;
   }
-
+  std::optional<size_t> vp9_stream_index =
+      std::distance(format_context.begin(), iter);
   auto vp9_data_mmap_file = CreateMemoryMappedFile(vp9_webm_data.size());
   uint8_t* const vp9_data = vp9_data_mmap_file->data();
   size_t vp9_data_size = 0;

@@ -87,10 +87,12 @@ class MODULES_EXPORT WebTransport final
   ScriptPromise<WebTransportConnectionStats> getStats(ScriptState*);
 
   // WebTransportHandshakeClient implementation
+  void OnBeforeConnect(const net::IPEndPoint& server_address) override;
   void OnConnectionEstablished(
       mojo::PendingRemote<network::mojom::blink::WebTransport>,
       mojo::PendingReceiver<network::mojom::blink::WebTransportClient>,
       network::mojom::blink::HttpResponseHeadersPtr response_headers,
+      const String& selected_application_protocol,
       network::mojom::blink::WebTransportStatsPtr initial_stats) override;
   void OnHandshakeFailed(network::mojom::blink::WebTransportErrorPtr) override;
 

@@ -21,11 +21,6 @@
  *
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 #include "base/numerics/safe_conversions.h"
@@ -36,7 +31,7 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
 
-namespace WTF {
+namespace blink {
 
 ASSERT_SIZE(AtomicString, String);
 
@@ -55,7 +50,8 @@ AtomicString::AtomicString(base::span<const UChar> chars,
 AtomicString::AtomicString(const UChar* chars)
     : string_(AtomicStringTable::Instance().Add(
           chars,
-          chars ? LengthOfNullTerminatedString(chars) : 0,
+          // SAFETY: safe when `chars` points to a null-terminated cstring.
+          chars ? UNSAFE_BUFFERS(LengthOfNullTerminatedString(chars)) : 0,
           AtomicStringUCharEncoding::kUnknown)) {}
 
 AtomicString::AtomicString(const StringView& string_view)
@@ -79,8 +75,7 @@ AtomicString AtomicString::FromUTF8(base::span<const uint8_t> bytes) {
   if (bytes.empty()) {
     return g_empty_atom;
   }
-  return AtomicString(AtomicStringTable::Instance().AddUTF8(
-      bytes.data(), bytes.data() + bytes.size()));
+  return AtomicString(AtomicStringTable::Instance().AddUTF8(bytes));
 }
 
 AtomicString AtomicString::FromUTF8(const char* chars) {
@@ -89,7 +84,7 @@ AtomicString AtomicString::FromUTF8(const char* chars) {
   if (!*chars)
     return g_empty_atom;
   return AtomicString(AtomicStringTable::Instance().AddUTF8(
-      reinterpret_cast<const uint8_t*>(chars), nullptr));
+      base::as_byte_span(std::string_view(chars))));
 }
 
 AtomicString AtomicString::FromUTF8(std::string_view utf8_string) {
@@ -138,4 +133,4 @@ void AtomicString::Show() const {
 }
 #endif
 
-}  // namespace WTF
+}  // namespace blink

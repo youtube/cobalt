@@ -25,7 +25,6 @@
 #include "chrome/browser/sync/test/integration/encryption_helper.h"
 #include "chrome/browser/sync/test/integration/password_sharing_invitation_helper.h"
 #include "chrome/browser/sync/test/integration/passwords_helper.h"
-#include "chrome/browser/sync/test/integration/secondary_account_helper.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_disabled_checker.h"
@@ -71,7 +70,6 @@
 #include "components/variations/variations_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_launcher.h"
-#include "crypto/ec_private_key.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "google_apis/gaia/gaia_switches.h"
 #include "google_apis/gaia/gaia_urls.h"
@@ -85,6 +83,8 @@
 #include "ash/constants/ash_switches.h"
 #include "chrome/browser/ash/sync/sync_error_notifier.h"
 #include "chrome/browser/ash/sync/sync_error_notifier_factory.h"
+#include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "components/trusted_vault/features.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/any_widget_observer.h"
@@ -111,6 +111,12 @@ using testing::NotNull;
 using testing::SizeIs;
 
 constexpr int kKeyPairVersion = 0;
+
+// This constant matches SyncSigninDelegate's internal implementation when using
+// fake accounts. Ideally it shouldn't be hardcoded here and instead the fake
+// server that implements the retrieval page should be able to determine the
+// gaia ID from cookies, but this is currently not implemented.
+constexpr GaiaId::Literal kDefaultGaiaId("gaia_id_for_user1_gmail.com");
 
 MATCHER_P(IsDataEncryptedWith, key_params, "") {
   const sync_pb::EncryptedData& encrypted_data = arg;
@@ -142,10 +148,6 @@ MATCHER_P4(StatusLabelsMatch,
     return false;
   }
   return true;
-}
-
-GaiaId GetDefaultUserGaiaID() {
-  return signin::GetTestGaiaIdForEmail(SyncTest::kDefaultUserEmail);
 }
 
 std::string ComputeKeyName(const KeyParamsForTesting& key_params) {
@@ -1149,7 +1151,7 @@ class SingleClientNigoriWithWebApiTest : public SyncTest {
         base::Unretained(security_domains_server_.get())));
 
     encryption_helper::SetupFakeTrustedVaultPages(
-        GetDefaultUserGaiaID(), kTestEncryptionKey, kTestEncryptionKeyVersion,
+        kDefaultGaiaId, kTestEncryptionKey, kTestEncryptionKeyVersion,
         kTestRecoveryMethodPublicKey, &embedded_https_test_server());
 
     embedded_https_test_server().StartAcceptingConnections();
@@ -1219,6 +1221,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
   // to be closeable via javascript.
   chrome::AddTabAt(GetBrowser(0), GURL(url::kAboutBlankURL), /*index=*/0,
                    /*foreground=*/true);
+
+  ASSERT_EQ(GetSyncService(0)->GetAccountInfo().gaia, kDefaultGaiaId);
 
   // Mimic opening a web page where the user can interact with the retrieval
   // flow.
@@ -1313,13 +1317,15 @@ IN_PROC_BROWSER_TEST_F(
 class SingleClientNigoriWithWebApiAndDialogUIParamTest
     : public SingleClientNigoriWithWebApiTest {
  public:
-  SingleClientNigoriWithWebApiAndDialogUIParamTest() = default;
+  SingleClientNigoriWithWebApiAndDialogUIParamTest() {
+    SetUsePrimaryUserProfile(true);
+  }
   ~SingleClientNigoriWithWebApiAndDialogUIParamTest() override = default;
 
   bool WaitForTrustedVaultReauthCompletion() {
-      return TabClosedChecker(
-                 GetBrowser(0)->tab_strip_model()->GetActiveWebContents())
-          .Wait();
+    auto* browser = chrome::FindTabbedBrowser(GetProfile(0), false);
+    return TabClosedChecker(browser->tab_strip_model()->GetActiveWebContents())
+        .Wait();
   }
 };
 
@@ -1330,7 +1336,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiAndDialogUIParamTest,
                         GetFakeServer());
 
   ASSERT_TRUE(SetupClients());
-
+  ASSERT_TRUE(GetBrowser(0));
   NotificationDisplayServiceTester display_service(GetProfile(0));
 
   // SyncErrorNotifier needs explicit instantiation in tests, because the test
@@ -1389,8 +1395,7 @@ IN_PROC_BROWSER_TEST_F(
                         GetFakeServer());
   ASSERT_TRUE(SetupClients());
   GetSyncTrustedVaultClient()->StoreKeys(
-      GetDefaultUserGaiaID(),
-      GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
+      kDefaultGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
 
   NotificationDisplayServiceTester display_service(GetProfile(0));
@@ -1844,8 +1849,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
       GetFakeServer());
   ASSERT_TRUE(SetupClients());
   GetSyncTrustedVaultClient()->StoreKeys(
-      GetDefaultUserGaiaID(),
-      GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
+      kDefaultGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
   ASSERT_TRUE(SetupSync());
 
@@ -1941,15 +1945,14 @@ IN_PROC_BROWSER_TEST_F(
   GetSecurityDomainsServer()->RequirePublicKeyToAvoidRecoverabilityDegraded(
       kTestRecoveryMethodPublicKey);
   GetSyncTrustedVaultClient()->StoreKeys(
-      GetDefaultUserGaiaID(),
-      GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
+      kDefaultGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
 
   // Mimic a recovery method being added before or during sign-in, which should
   // be deferred until sign-in completes.
   base::RunLoop run_loop;
   GetSyncTrustedVaultClient()->AddTrustedRecoveryMethod(
-      GetDefaultUserGaiaID(), kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
+      kDefaultGaiaId, kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
       run_loop.QuitClosure());
 
   ASSERT_TRUE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
@@ -1985,8 +1988,7 @@ IN_PROC_BROWSER_TEST_F(
   GetSecurityDomainsServer()->RequirePublicKeyToAvoidRecoverabilityDegraded(
       kTestRecoveryMethodPublicKey);
   GetSyncTrustedVaultClient()->StoreKeys(
-      GetDefaultUserGaiaID(),
-      GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
+      kDefaultGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
   ASSERT_TRUE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
 
@@ -2001,7 +2003,7 @@ IN_PROC_BROWSER_TEST_F(
   // should be deferred until the auth error is resolved.
   base::RunLoop run_loop;
   GetSyncTrustedVaultClient()->AddTrustedRecoveryMethod(
-      GetDefaultUserGaiaID(), kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
+      kDefaultGaiaId, kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
       run_loop.QuitClosure());
 
   // Mimic the auth error state being resolved.
@@ -2031,8 +2033,7 @@ IN_PROC_BROWSER_TEST_F(
                         GetFakeServer());
   ASSERT_TRUE(SetupClients());
   GetSyncTrustedVaultClient()->StoreKeys(
-      GetDefaultUserGaiaID(),
-      GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
+      kDefaultGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
   ASSERT_TRUE(SetupSync());
   ASSERT_FALSE(GetSecurityDomainsServer()->IsRecoverabilityDegraded());
@@ -2172,7 +2173,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
   // Mimic a recovery method being added.
   base::RunLoop run_loop;
   GetSyncTrustedVaultClient()->AddTrustedRecoveryMethod(
-      GetDefaultUserGaiaID(), kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
+      kDefaultGaiaId, kTestRecoveryMethodPublicKey, kTestMethodTypeHint,
       run_loop.QuitClosure());
   run_loop.Run();
 
@@ -2271,10 +2272,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientNigoriWithWebApiTest,
                         GetFakeServer());
 
   ASSERT_TRUE(SetupClients());
-
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(0), &test_url_loader_factory_, SyncTest::kDefaultUserEmail);
-
+  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
   ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
 
@@ -2325,12 +2323,10 @@ IN_PROC_BROWSER_TEST_F(
                         GetFakeServer());
   ASSERT_TRUE(SetupClients());
   GetSyncTrustedVaultClient()->StoreKeys(
-      GetDefaultUserGaiaID(),
-      GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
+      kDefaultGaiaId, GetSecurityDomainsServer()->GetAllTrustedVaultKeys(),
       /*last_key_version=*/GetSecurityDomainsServer()->GetCurrentEpoch());
 
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(0), &test_url_loader_factory_, SyncTest::kDefaultUserEmail);
+  ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
   ASSERT_TRUE(GetClient(0)->AwaitSyncTransportActive());
   ASSERT_FALSE(GetSyncService(0)->IsSyncFeatureEnabled());
 

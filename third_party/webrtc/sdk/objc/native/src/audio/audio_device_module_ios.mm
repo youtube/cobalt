@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "api/environment/environment.h"
-#include "modules/audio_device/audio_device_config.h"
 #include "modules/audio_device/audio_device_generic.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"

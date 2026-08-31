@@ -5,6 +5,7 @@
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_controller.h"
 
 #include "base/feature_list.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_features.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_navigation_observer.h"
 #include "chrome/browser/enterprise/watermark/settings.h"
 #include "chrome/browser/profiles/profile.h"
@@ -43,8 +44,8 @@ namespace enterprise_data_protection {
 
 DataProtectionNavigationController::DataProtectionNavigationController(
     tabs::TabInterface* tab_interface)
-    : content::WebContentsObserver(nullptr), tab_interface_(tab_interface) {
-  Observe(tab_interface->GetContents());
+    : content::WebContentsObserver(tab_interface->GetContents()),
+      tab_interface_(tab_interface) {
   tab_subscriptions_.push_back(tab_interface_->RegisterDidActivate(
       base::BindRepeating(&DataProtectionNavigationController::TabForegrounded,
                           weak_ptr_factory_.GetWeakPtr())));
@@ -93,18 +94,25 @@ void DataProtectionNavigationController::DidStartNavigation(
     return;
   }
 
-  enterprise_data_protection::DataProtectionNavigationObserver::
-      CreateForNavigationIfNeeded(
-          browser->profile(), navigation_handle,
+  auto navigation_observer = enterprise_data_protection::
+      DataProtectionNavigationObserver::CreateForNavigationIfNeeded(
+          this, browser->profile(), navigation_handle,
           base::BindOnce(&DataProtectionNavigationController::
                              ApplyDataProtectionSettingsOrDelayIfEmpty,
                          weak_ptr_factory_.GetWeakPtr(),
-                         web_contents()->GetWeakPtr()));
+                         web_contents()->GetWeakPtr(),
+                         navigation_handle->IsSameDocument()));
+
+  if (navigation_observer) {
+    navigation_observers_.emplace(navigation_handle->GetNavigationId(),
+                                  std::move(navigation_observer));
+  }
 }
 
 void DataProtectionNavigationController::
     ApplyDataProtectionSettingsOrDelayIfEmpty(
         base::WeakPtr<content::WebContents> expected_web_contents,
+        bool is_same_document,
         const enterprise_data_protection::UrlSettings& settings) {
   // If discarded, do nothing.
   if (!expected_web_contents || expected_web_contents.get() != web_contents()) {
@@ -138,10 +146,14 @@ void DataProtectionNavigationController::
   // Regardless of whether watermark text is empty, attach it as web contents
   // user data so that other browser process code can draw watermarks outside
   // of the context of a navigation (ex. when printing).
+  Profile* profile =
+      Profile::FromBrowserContext(expected_web_contents->GetBrowserContext());
   enterprise_watermark::WatermarkBlock block =
       enterprise_watermark::DrawWatermarkToPaintRecord(
-          settings.watermark_text, enterprise_watermark::GetFillColor(),
-          enterprise_watermark::GetOutlineColor());
+          settings.watermark_text,
+          enterprise_watermark::GetFillColor(profile->GetPrefs()),
+          enterprise_watermark::GetOutlineColor(profile->GetPrefs()),
+          enterprise_watermark::GetFontSize(profile->GetPrefs()));
   enterprise_watermark::WatermarkTextContainer::CreateForWebContents(
       expected_web_contents.get());
   enterprise_watermark::WatermarkTextContainer::FromWebContents(
@@ -150,12 +162,13 @@ void DataProtectionNavigationController::
           block.record.ToSkPicture(SkRect::MakeWH(block.width, block.height)),
           block.width, block.height);
 
-  if (!settings.watermark_text.empty()) {
+  // For same document navigations, watermark clearing has to happen here,
+  // because there is no document onload event that is invoked.
+  clear_watermark_text_on_page_load_ =
+      settings.watermark_text.empty() && !is_same_document;
+
+  if (!clear_watermark_text_on_page_load_) {
     browser_view->ApplyWatermarkSettings(settings.watermark_text);
-  } else {
-    // The watermark string should be cleared.  Delay that until the page
-    // finishes loading.
-    clear_watermark_text_on_page_load_ = true;
   }
 
   if (!on_delay_apply_data_protection_settings_if_empty_called_for_testing_
@@ -245,6 +258,13 @@ void DataProtectionNavigationController::
     clear_screenshot_protection_on_page_load_ = false;
   }
 #endif
+}
+
+void DataProtectionNavigationController::Cleanup(int64_t navigation_id) {
+  // Not all navigation IDs passed to this cleanup will have been added to the
+  // map, DataProtectionNavigationObserver tracks all navigations that happen
+  // during its lifetime.
+  navigation_observers_.erase(navigation_id);
 }
 
 // Called when the associated tab will enter the background.

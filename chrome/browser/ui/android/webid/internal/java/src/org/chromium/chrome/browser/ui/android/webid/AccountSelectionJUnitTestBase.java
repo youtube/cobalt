@@ -152,6 +152,7 @@ public class AccountSelectionJUnitTestBase {
     Account mBobAccount;
     Account mCarlAccount;
     Account mNewUserAccount;
+    Account mNewUserAccountWithoutFields;
     Account mNoOneAccount;
     Account mFilteredOutAccount;
     Account mFilteredOutAccountWithUseDifferentAccount;
@@ -266,9 +267,10 @@ public class AccountSelectionJUnitTestBase {
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ Bitmap.createBitmap(
                                 100, 100, Bitmap.Config.ARGB_4444),
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpData);
         mAnaAccountWithUseDifferentAccount =
                 new Account(
@@ -280,9 +282,10 @@ public class AccountSelectionJUnitTestBase {
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ Bitmap.createBitmap(
                                 100, 100, Bitmap.Config.ARGB_4444),
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpDataWithUseDifferentAccount);
         mAnaAccountWithoutBrandIcons =
                 new Account(
@@ -294,9 +297,10 @@ public class AccountSelectionJUnitTestBase {
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ Bitmap.createBitmap(
                                 100, 100, Bitmap.Config.ARGB_4444),
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpDataWithoutIcons);
         mBobAccount =
                 new Account(
@@ -307,9 +311,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpData);
         mCarlAccount =
                 new Account(
@@ -320,9 +325,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpData);
         mNewUserAccount =
                 new Account(
@@ -334,10 +340,28 @@ public class AccountSelectionJUnitTestBase {
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ Bitmap.createBitmap(
                                 100, 100, Bitmap.Config.ARGB_4444),
-                        /* isSignIn= */ false,
+                        /* isIdpClaimedSignIn= */ false,
                         /* isBrowserTrustedSignIn= */ false,
                         /* isFilteredOut= */ false,
+                        DEFAULT_DISCLOSURE_FIELDS,
                         mIdpData);
+
+        mNewUserAccountWithoutFields =
+                new Account(
+                        "602214076",
+                        "goto@email.example",
+                        "Sam E. Goto",
+                        "Sam",
+                        /* secondaryDescription= */ "email.example",
+                        /* pictureBitmap= */ null,
+                        /* circledBadgedPictureBitmap= */ Bitmap.createBitmap(
+                                100, 100, Bitmap.Config.ARGB_4444),
+                        /* isIdpClaimedSignIn= */ false,
+                        /* isBrowserTrustedSignIn= */ false,
+                        /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
+                        mIdpData);
+
         mNoOneAccount =
                 new Account(
                         "",
@@ -347,9 +371,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpData);
         mFilteredOutAccount =
                 new Account(
@@ -360,9 +385,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ true,
+                        /* fields= */ new int[0],
                         mIdpData);
         mFilteredOutAccountWithUseDifferentAccount =
                 new Account(
@@ -373,9 +399,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ true,
+                        /* fields= */ new int[0],
                         mIdpDataWithUseDifferentAccount);
         mNicolasAccount =
                 new Account(
@@ -386,9 +413,10 @@ public class AccountSelectionJUnitTestBase {
                         "email.com",
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ false,
+                        /* fields= */ new int[0],
                         mIdpData);
 
         mSingleIdentifierAccount =
@@ -400,9 +428,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ false,
+                        /* isIdpClaimedSignIn= */ false,
                         /* isBrowserTrustedSignIn= */ false,
                         /* isFilteredOut= */ false,
+                        DEFAULT_DISCLOSURE_FIELDS,
                         mIdpData);
 
         mSingleIdentifierAccountFilteredOut =
@@ -414,9 +443,10 @@ public class AccountSelectionJUnitTestBase {
                         /* secondaryDescription= */ null,
                         /* pictureBitmap= */ null,
                         /* circledBadgedPictureBitmap= */ null,
-                        /* isSignIn= */ true,
+                        /* isIdpClaimedSignIn= */ true,
                         /* isBrowserTrustedSignIn= */ true,
                         /* isFilteredOut= */ true,
+                        /* fields= */ new int[0],
                         mIdpData);
 
         mNewAccountsSingleReturningAccount = Arrays.asList(mAnaAccount);

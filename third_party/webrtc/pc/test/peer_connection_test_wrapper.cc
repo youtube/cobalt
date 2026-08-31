@@ -10,8 +10,7 @@
 
 #include "pc/test/peer_connection_test_wrapper.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <string>
@@ -19,6 +18,7 @@
 #include <vector>
 
 #include "absl/strings/match.h"
+#include "absl/strings/str_cat.h"
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
@@ -66,7 +66,6 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/rtc_certificate_generator.h"
 #include "rtc_base/socket_server.h"
-#include "rtc_base/string_encode.h"
 #include "rtc_base/time_utils.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -77,7 +76,7 @@ namespace {
 using ::webrtc::Environment;
 using ::webrtc::FakeVideoTrackRenderer;
 using ::webrtc::FieldTrialsView;
-using ::webrtc::IceCandidateInterface;
+using ::webrtc::IceCandidate;
 using ::webrtc::MediaStreamInterface;
 using ::webrtc::MediaStreamTrackInterface;
 using ::webrtc::MockSetSessionDescriptionObserver;
@@ -281,10 +280,8 @@ void PeerConnectionTestWrapper::OnAddTrack(
   }
 }
 
-void PeerConnectionTestWrapper::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
-  std::string sdp;
-  EXPECT_TRUE(candidate->ToString(&sdp));
+void PeerConnectionTestWrapper::OnIceCandidate(const IceCandidate* candidate) {
+  std::string sdp = candidate->ToString();
   SignalOnIceCandidateReady(candidate->sdp_mid(), candidate->sdp_mline_index(),
                             sdp);
 }
@@ -301,8 +298,7 @@ void PeerConnectionTestWrapper::OnSuccess(SessionDescriptionInterface* desc) {
   EXPECT_TRUE(desc->ToString(&sdp));
 
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_ << ": "
-                   << webrtc::SdpTypeToString(desc->GetType())
-                   << " sdp created: " << sdp;
+                   << desc->GetType() << " sdp created: " << sdp;
 
   SetLocalDescription(desc->GetType(), sdp);
 
@@ -336,8 +332,7 @@ void PeerConnectionTestWrapper::ReceiveAnswerSdp(const std::string& sdp) {
 void PeerConnectionTestWrapper::SetLocalDescription(SdpType type,
                                                     const std::string& sdp) {
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_
-                   << ": SetLocalDescription " << webrtc::SdpTypeToString(type)
-                   << " " << sdp;
+                   << ": SetLocalDescription " << type << " " << sdp;
 
   auto observer = webrtc::make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetLocalDescription(
@@ -347,8 +342,7 @@ void PeerConnectionTestWrapper::SetLocalDescription(SdpType type,
 void PeerConnectionTestWrapper::SetRemoteDescription(SdpType type,
                                                      const std::string& sdp) {
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_
-                   << ": SetRemoteDescription " << webrtc::SdpTypeToString(type)
-                   << " " << sdp;
+                   << ": SetRemoteDescription " << type << " " << sdp;
 
   auto observer = webrtc::make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetRemoteDescription(
@@ -358,7 +352,7 @@ void PeerConnectionTestWrapper::SetRemoteDescription(SdpType type,
 void PeerConnectionTestWrapper::AddIceCandidate(const std::string& sdp_mid,
                                                 int sdp_mline_index,
                                                 const std::string& candidate) {
-  std::unique_ptr<webrtc::IceCandidateInterface> owned_candidate(
+  std::unique_ptr<webrtc::IceCandidate> owned_candidate(
       webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, nullptr));
   EXPECT_TRUE(peer_connection_->AddIceCandidate(owned_candidate.get()));
 }

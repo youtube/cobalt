@@ -21,17 +21,16 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/webplugininfo.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_embedder.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/skia/include/core/SkColor.h"
 
 #if BUILDFLAG(ENABLE_PDF)
-#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "components/grit/components_resources.h"
 #include "components/pdf/common/constants.h"
@@ -104,7 +103,6 @@ std::string MimeHandlerViewAttachHelper::CreateTemplateMimeHandlerPage(
     const GURL& resource_url,
     const std::string& mime_type,
     const std::string& internal_id) {
-  auto color = GetBackgroundColorStringForMimeType(resource_url, mime_type);
 #if BUILDFLAG(ENABLE_PDF)
   if (chrome_pdf::features::IsOopifPdfEnabled() &&
       mime_type == pdf::kPDFMimeType) {
@@ -112,14 +110,11 @@ std::string MimeHandlerViewAttachHelper::CreateTemplateMimeHandlerPage(
         ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
             IDR_PDF_EMBEDDER_HTML);
     return base::ReplaceStringPlaceholders(
-        pdf_embedder_html,
-        {base::NumberToString(SkColorGetR(color)),
-         base::NumberToString(SkColorGetG(color)),
-         base::NumberToString(SkColorGetB(color)), internal_id, mime_type,
-         internal_id},
+        pdf_embedder_html, {internal_id, mime_type, internal_id},
         /*offsets=*/nullptr);
   }
 #endif
+  auto color = GetBackgroundColorStringForMimeType(resource_url, mime_type);
   return base::StringPrintf(kFullPageMimeHandlerViewHTML, SkColorGetR(color),
                             SkColorGetG(color), SkColorGetB(color),
                             internal_id.c_str(), mime_type.c_str(),

@@ -8,7 +8,10 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.listmenu.ListMenuDelegate;
 import org.chromium.ui.modelutil.PropertyKey;
@@ -21,6 +24,23 @@ class InstanceSwitcherItemViewBinder {
         if (InstanceSwitcherItemProperties.FAVICON == propertyKey) {
             ((ImageView) view.findViewById(R.id.favicon))
                     .setImageDrawable(model.get(InstanceSwitcherItemProperties.FAVICON));
+
+        } else if (InstanceSwitcherItemProperties.IS_SELECTED == propertyKey) {
+            ImageView faviconView = view.findViewById(R.id.favicon);
+            boolean isSelected = model.get(InstanceSwitcherItemProperties.IS_SELECTED);
+
+            view.setSelected(isSelected);
+            view.findViewById(R.id.title).setSelected(isSelected);
+            view.findViewById(R.id.desc).setSelected(isSelected);
+            view.findViewById(R.id.last_accessed).setSelected(isSelected);
+            view.findViewById(R.id.more).setSelected(isSelected);
+
+            // Show check mark if selected, otherwise fallback to favicon.
+            faviconView.setImageDrawable(
+                    isSelected
+                            ? ContextCompat.getDrawable(
+                                    view.getContext(), R.drawable.checkmark_circle_24dp)
+                            : model.get(InstanceSwitcherItemProperties.FAVICON));
 
         } else if (InstanceSwitcherItemProperties.TITLE == propertyKey) {
             TextView titleView = view.findViewById(R.id.title);
@@ -55,10 +75,21 @@ class InstanceSwitcherItemViewBinder {
 
         } else if (InstanceSwitcherItemProperties.ENABLE_COMMAND == propertyKey) {
             View newWindow = view.findViewById(R.id.new_window);
-            View maxInfo = view.findViewById(R.id.max_info);
             boolean enabled = model.get(InstanceSwitcherItemProperties.ENABLE_COMMAND);
             newWindow.setVisibility(enabled ? View.VISIBLE : View.GONE);
-            maxInfo.setVisibility(enabled ? View.GONE : View.VISIBLE);
+            if (!ChromeFeatureList.isEnabled(ChromeFeatureList.INSTANCE_SWITCHER_V2)) {
+                View maxInfo = view.findViewById(R.id.max_info);
+                maxInfo.setVisibility(enabled ? View.GONE : View.VISIBLE);
+            }
+
+        } else if (InstanceSwitcherItemProperties.MAX_INFO_TEXT == propertyKey) {
+            TextView maxInfo = view.findViewById(R.id.max_info);
+            maxInfo.setText(model.get(InstanceSwitcherItemProperties.MAX_INFO_TEXT));
+
+        } else if (InstanceSwitcherItemProperties.LAST_ACCESSED == propertyKey) {
+            TextView lastAccessedView = view.findViewById(R.id.last_accessed);
+            String text = model.get(InstanceSwitcherItemProperties.LAST_ACCESSED);
+            lastAccessedView.setText(text);
         }
     }
 }

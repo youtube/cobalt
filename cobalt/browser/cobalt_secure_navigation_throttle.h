@@ -12,7 +12,8 @@
 namespace content {
 class CobaltSecureNavigationThrottle : public content::NavigationThrottle {
  public:
-  explicit CobaltSecureNavigationThrottle(content::NavigationHandle* handle);
+  explicit CobaltSecureNavigationThrottle(
+      content::NavigationThrottleRegistry& registry);
   ~CobaltSecureNavigationThrottle() override;
 
   CobaltSecureNavigationThrottle(const CobaltSecureNavigationThrottle&) =

@@ -16,6 +16,7 @@
 #include "base/process/memory.h"
 #include "base/trace_event/trace_event.h"
 #include "cc/paint/paint_flags.h"
+#include "cc/paint/tone_map_util.h"
 #include "cc/tiles/mipmap_util.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkImage.h"
@@ -48,15 +49,34 @@ gfx::Rect GetSrcRect(const DrawImage& image) {
   return gfx::Rect(x, y, right - x, bottom - y);
 }
 
-// Does *not* return nullptr.
-std::unique_ptr<base::DiscardableMemory> AllocateDiscardable(
+// Allocate `memory` as discardable, and back `image` with that memory.
+// On failure, sets `image` to nullptr.
+void AllocateDiscardableSkImage(
     const SkImageInfo& info,
-    base::OnceClosure on_no_memory) {
+    base::OnceClosure on_no_memory,
+    std::unique_ptr<base::DiscardableMemory>& memory,
+    sk_sp<SkImage>& image) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"), "AllocateDiscardable");
   size_t size = info.minRowBytes() * info.height();
-  auto* allocator = base::DiscardableMemoryAllocator::GetInstance();
-  return allocator->AllocateLockedDiscardableMemoryWithRetryOrDie(
-      size, std::move(on_no_memory));
+  memory = base::DiscardableMemoryAllocator::GetInstance()
+               ->AllocateLockedDiscardableMemoryWithRetryOrDie(
+                   size, std::move(on_no_memory));
+  if (!memory->data()) {
+    image = nullptr;
+    return;
+  }
+  // SAFETY: The base::DiscardableMemory functionality should provide a safe
+  // interface. Fixing it is tracked in https://crbug.com/40586428. This use is
+  // safe because we are using the same size parameter here as in the allocation
+  // a few lines earlier.
+  UNSAFE_BUFFERS(
+      base::span<uint8_t> memory_as_span(memory->data_as<uint8_t>(), size));
+
+  // A more robust scheme would be to unlock `memory` when `image` falls out of
+  // scope.
+  SkPixmap pixmap(info, memory_as_span.data(), info.minRowBytes());
+  image = SkImages::RasterFromPixmap(
+      pixmap, [](const void* pixels, void* context) {}, nullptr);
 }
 
 }  // namespace
@@ -72,16 +92,31 @@ SoftwareImageDecodeCacheUtils::DoDecodeImage(
   const SkISize target_size =
       SkISize::Make(key.target_size().width(), key.target_size().height());
   DCHECK(target_size == paint_image.GetSupportedDecodeSize(target_size));
-  sk_sp<SkColorSpace> target_color_space =
-      key.target_color_params().color_space.ToSkColorSpace();
-  SkImageInfo target_info = SkImageInfo::Make(
-      target_size, color_type, kPremul_SkAlphaType, target_color_space);
-  std::unique_ptr<base::DiscardableMemory> target_pixels =
-      AllocateDiscardable(target_info, std::move(on_no_memory));
-  if (!target_pixels->data())
+
+  SkImageInfo target_info =
+      SkImageInfo::Make(target_size, color_type, kPremul_SkAlphaType,
+                        key.target_color_params().color_space.ToSkColorSpace());
+  sk_sp<SkImage> target_image;
+  std::unique_ptr<base::DiscardableMemory> target_pixels;
+
+  AllocateDiscardableSkImage(target_info, std::move(on_no_memory),
+                             target_pixels, target_image);
+  if (!target_image) {
     return nullptr;
-  SkPixmap target_pixmap(target_info, target_pixels->data(),
-                         target_info.minRowBytes());
+  }
+  SkPixmap target_pixmap;
+  target_image->peekPixels(&target_pixmap);
+
+  // Temporary workaround for migrating HLG and PQ color spaces. The round-trip
+  // through gfx::ColorSpace destroys the distinction between HLG and HLGish,
+  // and PQ and PQish. Ensure that the decode of these spaces does no
+  // conversion. https://issues.skia.org/issues/420956739
+  if (key.target_color_params().color_space.GetTransferID() ==
+          gfx::ColorSpace::TransferID::PQ ||
+      key.target_color_params().color_space.GetTransferID() ==
+          gfx::ColorSpace::TransferID::HLG) {
+    target_pixmap.setColorSpace(paint_image.GetSkImageInfo().refColorSpace());
+  }
 
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("cc.debug"),
                "SoftwareImageDecodeCacheUtils::DoDecodeImage - "
@@ -92,7 +127,7 @@ SoftwareImageDecodeCacheUtils::DoDecodeImage(
     target_pixels->Unlock();
     return nullptr;
   }
-  return std::make_unique<CacheEntry>(target_info, std::move(target_pixels),
+  return std::make_unique<CacheEntry>(target_image, std::move(target_pixels),
                                       SkSize::Make(0, 0));
 }
 
@@ -103,62 +138,70 @@ SoftwareImageDecodeCacheUtils::GenerateCacheEntryFromCandidate(
     const DecodedDrawImage& candidate_image,
     bool needs_extract_subset,
     SkColorType color_type) {
-  SkISize target_size =
-      SkISize::Make(key.target_size().width(), key.target_size().height());
+  // Let `decoded_pixmap` be the candidate image's pixels that we will be
+  // copying and potentially scaling.
+  SkPixmap decoded_pixmap;
+  bool result = candidate_image.image()->peekPixels(&decoded_pixmap);
+  DCHECK(result) << key.ToString();
+
   SkImageInfo target_info =
-      SkImageInfo::Make(target_size, color_type, kPremul_SkAlphaType);
+      SkImageInfo::Make(gfx::SizeToSkISize(key.target_size()), color_type,
+                        kPremul_SkAlphaType, decoded_pixmap.refColorSpace());
+  sk_sp<SkImage> target_image;
+  std::unique_ptr<base::DiscardableMemory> target_pixels;
   // TODO(crbug.com/40095682): If this turns into a crasher, pass an actual
   // "free memory" closure.
-  std::unique_ptr<base::DiscardableMemory> target_pixels =
-      AllocateDiscardable(target_info, base::DoNothing());
+  AllocateDiscardableSkImage(target_info, base::DoNothing(), target_pixels,
+                             target_image);
+  if (!target_image) {
+    return nullptr;
+  }
+  TRACE_EVENT0(
+      TRACE_DISABLED_BY_DEFAULT("cc.debug"),
+      "SoftwareImageDecodeCacheUtils::GenerateCacheEntryFromCandidate - "
+      "scale");
 
+  // Populate the pixels of `target_pixmap` from `decoded_pixmap`.
+  SkPixmap target_pixmap;
+  target_image->peekPixels(&target_pixmap);
+  // Setting the pixmap to have a nullptr color space shouldn't affect the below
+  // operations, but is being done to preserve existing behavior.
+  target_pixmap.setColorSpace(nullptr);
   if (key.type() == CacheKey::kSubrectOriginal) {
     DCHECK(needs_extract_subset);
     TRACE_EVENT0(
         TRACE_DISABLED_BY_DEFAULT("cc.debug"),
         "SoftwareImageDecodeCacheUtils::GenerateCacheEntryFromCandidate - "
         "subrect");
-    bool result = candidate_image.image()->readPixels(
-        target_info, target_pixels->data(), target_info.minRowBytes(),
-        key.src_rect().x(), key.src_rect().y(), SkImage::kDisallow_CachingHint);
+    result = decoded_pixmap.readPixels(target_pixmap, key.src_rect().x(),
+                                       key.src_rect().y());
     // We have a decoded image, and we're reading into already allocated memory.
     // This should never fail.
     DCHECK(result) << key.ToString();
-    return std::make_unique<CacheEntry>(
-        target_info.makeColorSpace(candidate_image.image()->refColorSpace()),
-        std::move(target_pixels),
-        SkSize::Make(-key.src_rect().x(), -key.src_rect().y()));
-  }
+  } else {
+    DCHECK_EQ(key.type(), CacheKey::kSubrectAndScale);
+    TRACE_EVENT0(
+        TRACE_DISABLED_BY_DEFAULT("cc.debug"),
+        "SoftwareImageDecodeCacheUtils::GenerateCacheEntryFromCandidate - "
+        "scale");
+    if (needs_extract_subset) {
+      result = decoded_pixmap.extractSubset(&decoded_pixmap,
+                                            gfx::RectToSkIRect(key.src_rect()));
+      DCHECK(result) << key.ToString();
+    }
 
-  DCHECK_EQ(key.type(), CacheKey::kSubrectAndScale);
-  TRACE_EVENT0(
-      TRACE_DISABLED_BY_DEFAULT("cc.debug"),
-      "SoftwareImageDecodeCacheUtils::GenerateCacheEntryFromCandidate - "
-      "scale");
-  SkPixmap decoded_pixmap;
-  // We don't need to subrect this image, since all candidates passed in would
-  // already have a src_rect applied to them.
-  bool result = candidate_image.image()->peekPixels(&decoded_pixmap);
-  DCHECK(result) << key.ToString();
-  if (needs_extract_subset) {
-    result = decoded_pixmap.extractSubset(&decoded_pixmap,
-                                          gfx::RectToSkIRect(key.src_rect()));
+    // Nearest neighbor would only be set in the unscaled case.
+    DCHECK(!key.is_nearest_neighbor());
+    PaintFlags::FilterQuality filter_quality =
+        PaintFlags::FilterQuality::kMedium;
+    result = decoded_pixmap.scalePixels(
+        target_pixmap,
+        PaintFlags::FilterQualityToSkSamplingOptions(filter_quality));
     DCHECK(result) << key.ToString();
   }
 
-  // Nearest neighbor would only be set in the unscaled case.
-  DCHECK(!key.is_nearest_neighbor());
-  SkPixmap target_pixmap(target_info, target_pixels->data(),
-                         target_info.minRowBytes());
-  PaintFlags::FilterQuality filter_quality = PaintFlags::FilterQuality::kMedium;
-  result = decoded_pixmap.scalePixels(
-      target_pixmap,
-      PaintFlags::FilterQualityToSkSamplingOptions(filter_quality));
-  DCHECK(result) << key.ToString();
-
   return std::make_unique<CacheEntry>(
-      target_info.makeColorSpace(candidate_image.image()->refColorSpace()),
-      std::move(target_pixels),
+      target_image, std::move(target_pixels),
       SkSize::Make(-key.src_rect().x(), -key.src_rect().y()));
 }
 
@@ -169,8 +212,30 @@ SoftwareImageDecodeCacheUtils::CacheKey::FromDrawImage(const DrawImage& image,
                                                        SkColorType color_type) {
   DCHECK(!image.paint_image().IsTextureBacked());
 
+  const auto& paint_image = image.paint_image();
   const PaintImage::FrameKey frame_key = image.frame_key();
-  const PaintImage::Id stable_id = image.paint_image().stable_id();
+  const PaintImage::Id stable_id = paint_image.stable_id();
+
+  // If the image will be tone mapped or contains a gain map, then do not bake
+  // the tone mapping or color conversion in at decode time. This is an explicit
+  // trade-off to:
+  // * Avoid re-decoding an image every time it is drawn with a different HDR
+  //   headroom (improving performance when transitioning to HDR).
+  // * Require running tone mapping shader at every draw (degrading performance
+  //   when drawing repeatedly at the same target headroom).
+  // * Maximize the code sharing between the software and GPU raster path. This
+  //   is the honest motivation for making the trade-off in this direction.
+  // * A better solution could be to separately cache decode and tone map
+  //   results (and only ever cache one tone mapping for a given image).
+  TargetColorParams target_color_params = image.target_color_params();
+  target_color_params.hdr_headroom = std::nullopt;
+  if (paint_image.HasGainmapInfo() ||
+      ToneMapUtil::UseGlobalToneMapFilter(paint_image.color_space())) {
+    if (paint_image.color_space()) {
+      target_color_params.color_space =
+          gfx::ColorSpace(*paint_image.color_space());
+    }
+  }
 
   const SkSize& scale = image.scale();
   // If the src_rect falls outside of the image, we need to clip it since
@@ -190,8 +255,8 @@ SoftwareImageDecodeCacheUtils::CacheKey::FromDrawImage(const DrawImage& image,
   // the filter quality doesn't matter. Early out instead.
   if (target_size.IsEmpty()) {
     return CacheKey(frame_key, stable_id, kSubrectAndScale, false,
-                    image.paint_image().may_be_lcp_candidate(), src_rect,
-                    target_size, image.target_color_params());
+                    paint_image.may_be_lcp_candidate(), src_rect, target_size,
+                    target_color_params);
   }
 
   ProcessingType type = kOriginal;
@@ -209,8 +274,7 @@ SoftwareImageDecodeCacheUtils::CacheKey::FromDrawImage(const DrawImage& image,
       !image.matrix_is_decomposable()) {
     type = kOriginal;
     // Update the size to be the original image size.
-    target_size =
-        gfx::Size(image.paint_image().width(), image.paint_image().height());
+    target_size = gfx::Size(paint_image.width(), paint_image.height());
   } else {
     type = kSubrectAndScale;
     // Update the target size to be a mip level size.
@@ -219,12 +283,11 @@ SoftwareImageDecodeCacheUtils::CacheKey::FromDrawImage(const DrawImage& image,
 
   // If the original image is large, we might want to do a subrect instead if
   // the subrect would be kMemoryRatioToSubrect times smaller.
-  if (type == kOriginal &&
-      (image.paint_image().width() >= kMinDimensionToSubrect ||
-       image.paint_image().height() >= kMinDimensionToSubrect)) {
+  if (type == kOriginal && (paint_image.width() >= kMinDimensionToSubrect ||
+                            paint_image.height() >= kMinDimensionToSubrect)) {
     base::CheckedNumeric<size_t> checked_original_size = 4u;
-    checked_original_size *= image.paint_image().width();
-    checked_original_size *= image.paint_image().height();
+    checked_original_size *= paint_image.width();
+    checked_original_size *= paint_image.height();
     size_t original_size = checked_original_size.ValueOrDefault(
         std::numeric_limits<size_t>::max());
 
@@ -246,7 +309,7 @@ SoftwareImageDecodeCacheUtils::CacheKey::FromDrawImage(const DrawImage& image,
 
   return CacheKey(frame_key, stable_id, type, is_nearest_neighbor,
                   image.paint_image().may_be_lcp_candidate(), src_rect,
-                  target_size, image.target_color_params());
+                  target_size, target_color_params);
 }
 
 SoftwareImageDecodeCacheUtils::CacheKey::CacheKey(
@@ -317,19 +380,17 @@ std::string SoftwareImageDecodeCacheUtils::CacheKey::ToString() const {
 // CacheEntry ------------------------------------------------------------------
 SoftwareImageDecodeCacheUtils::CacheEntry::CacheEntry()
     : tracing_id_(g_next_tracing_id_.GetNext()) {}
+
 SoftwareImageDecodeCacheUtils::CacheEntry::CacheEntry(
-    const SkImageInfo& info,
+    sk_sp<SkImage> image,
     std::unique_ptr<base::DiscardableMemory> in_memory,
     const SkSize& src_rect_offset)
     : is_locked(true),
       memory(std::move(in_memory)),
-      image_info_(info),
+      image_(std::move(image)),
       src_rect_offset_(src_rect_offset),
       tracing_id_(g_next_tracing_id_.GetNext()) {
   DCHECK(memory);
-  SkPixmap pixmap(image_info_, memory->data(), image_info_.minRowBytes());
-  image_ = SkImages::RasterFromPixmap(
-      pixmap, [](const void* pixels, void* context) {}, nullptr);
 }
 
 SoftwareImageDecodeCacheUtils::CacheEntry::~CacheEntry() {
@@ -347,7 +408,6 @@ void SoftwareImageDecodeCacheUtils::CacheEntry::MoveImageMemoryTo(
   is_locked = false;
 
   entry->memory = std::move(memory);
-  entry->image_info_ = std::move(image_info_);
   entry->src_rect_offset_ = std::move(src_rect_offset_);
   entry->image_ = std::move(image_);
 }

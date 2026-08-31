@@ -14,6 +14,7 @@
 #include "ash/accelerators/rapid_key_sequence_recorder.h"
 #include "ash/accelerators/shortcut_input_handler.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_paths.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/keyboard/ui/resources/keyboard_resource_util.h"
 #include "ash/public/ash_interfaces.h"
@@ -61,6 +62,7 @@
 #include "chrome/browser/ash/bluetooth/bluetooth_log_controller.h"
 #include "chrome/browser/ash/bluetooth/hats_bluetooth_revamp_trigger_impl.h"
 #include "chrome/browser/ash/boot_times_recorder/boot_times_recorder.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller_impl.h"
 #include "chrome/browser/ash/camera/camera_general_survey_handler.h"
 #include "chrome/browser/ash/certs/system_token_cert_db_initializer.h"
 #include "chrome/browser/ash/crosapi/browser_manager.h"
@@ -94,7 +96,6 @@
 #include "chrome/browser/ash/dbus/vm/vm_wl_service_provider.h"
 #include "chrome/browser/ash/device_name/device_name_store.h"
 #include "chrome/browser/ash/diagnostics/diagnostics_browser_delegate_impl.h"
-#include "chrome/browser/ash/display/quirks_manager_delegate_impl.h"
 #include "chrome/browser/ash/events/event_rewriter_delegate_impl.h"
 #include "chrome/browser/ash/events/shortcut_mapping_pref_service.h"
 #include "chrome/browser/ash/extensions/default_app_order.h"
@@ -180,11 +181,9 @@
 #include "chrome/browser/task_manager/task_manager_interface.h"
 #include "chrome/browser/tracing/chrome_tracing_delegate.h"
 #include "chrome/browser/ui/ash/assistant/assistant_browser_delegate_impl.h"
-#include "chrome/browser/ui/ash/assistant/assistant_state_client.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "chrome/browser/ui/webui/ash/emoji/emoji_ui.h"
-#include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
@@ -212,7 +211,6 @@
 #include "chromeos/ash/components/dbus/userdataauth/fake_userdataauth_client.h"
 #include "chromeos/ash/components/disks/disk_mount_manager.h"
 #include "chromeos/ash/components/drivefs/fake_drivefs_launcher_client.h"
-#include "chromeos/ash/components/file_manager/indexing/file_index_service_registry.h"
 #include "chromeos/ash/components/fwupd/firmware_update_manager.h"
 #include "chromeos/ash/components/geolocation/simple_geolocation_provider.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
@@ -242,6 +240,7 @@
 #include "chromeos/ash/components/wifi_p2p/wifi_p2p_controller.h"
 #include "chromeos/ash/experiences/arc/arc_features.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/policy/handlers/quirks/quirks_policy_controller.h"
 #include "chromeos/ash/services/cros_healthd/private/cpp/data_collector.h"
 #include "chromeos/ash/services/cros_healthd/public/cpp/service_connection.h"
 #include "chromeos/components/sensors/ash/sensor_hal_dispatcher.h"
@@ -279,6 +278,7 @@
 #include "dbus/object_path.h"
 #include "device/bluetooth/bluetooth_adapter_factory.h"
 #include "extensions/common/switches.h"
+#include "google_apis/google_api_keys.h"
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_passive.h"
 #include "printing/backend/print_backend.h"
@@ -548,8 +548,8 @@ class DBusServices {
     chromeos::sensors::SensorHalDispatcher::GetInstance()
         ->TryToEstablishMojoChannelByServiceManager();
 
-    DeviceSettingsService::Get()->SetSessionManager(
-        SessionManagerClient::Get(),
+    DeviceSettingsService::Get()->StartProcessing(
+        g_browser_process->local_state(), SessionManagerClient::Get(),
         OwnerSettingsServiceAshFactory::GetInstance()->GetOwnerKeyUtil());
   }
 
@@ -806,12 +806,26 @@ int ChromeBrowserMainPartsAsh::PreMainMessageLoopRun() {
   content::MediaCaptureDevices::GetInstance()->AddVideoCaptureObserver(
       CrasAudioHandler::Get());
 
+#if !BUILDFLAG(IS_CHROMEOS_DEVICE)
+  // While on ChromeOS devices in production, /var/cache/display_profiles
+  // is used, but it is not available in linux-chromeos.
+  // So, we'll use "${DIR_USER_DATA}/display_profiles" in linux-chromeos
+  // then.
+  base::FilePath user_data_dir;
+  base::PathService::Get(chrome::DIR_USER_DATA, &user_data_dir);
+  CHECK(user_data_dir.IsAbsolute());
+  CHECK(base::PathService::OverrideAndCreateIfNeeded(
+      ash::DIR_DEVICE_DISPLAY_PROFILES,
+      user_data_dir.Append("display_profiles"),
+      /*is_absolute=*/true,
+      /*create=*/false));
+#endif
   quirks::QuirksManager::Initialize(
-      base::WrapUnique<quirks::QuirksManager::Delegate>(
-          new quirks::QuirksManagerDelegateImpl()),
-      g_browser_process->local_state(),
+      google_apis::GetAPIKey(), g_browser_process->local_state(),
       g_browser_process->system_network_context_manager()
           ->GetSharedURLLoaderFactory());
+  quirks_policy_controller_ = std::make_unique<policy::QuirksPolicyController>(
+      quirks::QuirksManager::Get(), ash::CrosSettings::Get());
 
   // Start loading machine statistics here. StatisticsProvider::Shutdown()
   // will ensure that loading is aborted on early exit.
@@ -962,13 +976,6 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
   // Has to be initialized before |assistant_delegate_|;
   image_downloader_ = std::make_unique<ImageDownloaderImpl>();
 
-  // Requires UserManager.
-  assistant_state_client_ = std::make_unique<AssistantStateClient>();
-
-  // Assistant has to be initialized before
-  // ChromeBrowserMainExtraPartsAsh::session_controller_client_ to avoid race of
-  // SessionChanged event and assistant_client initialization. It must come
-  // after AssistantStateClient.
   assistant_delegate_ = std::make_unique<AssistantBrowserDelegateImpl>();
 
   quick_pair_delegate_ =
@@ -1054,8 +1061,8 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
   // CoralController depends on machine_learning::ServiceConnection, so needs to
   // be initialized after it.
   if (features::IsCoralFeatureEnabled()) {
-    Shell::Get()->coral_controller()->Initialize(
-        l10n_util::GetLanguage(g_browser_process->GetApplicationLocale()));
+    Shell::Get()->coral_controller()->Initialize(std::string(
+        l10n_util::GetLanguage(g_browser_process->GetApplicationLocale())));
   }
 
   // Needs to be initialized after crosapi_manager_.
@@ -1240,16 +1247,15 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
           std::make_unique<ash::HatsBluetoothRevampTriggerImpl>();
     }
 
-    file_index_service_registry_ =
-        std::make_unique<::ash::file_manager::FileIndexServiceRegistry>(
-            user_manager::UserManager::Get());
-
     // Initialize the NetworkHealth aggregator.
     network_health::NetworkHealthManager::GetInstance();
 
     // Create cros_healthd data collector.
     cros_healthd_data_collector_ =
         std::make_unique<cros_healthd::internal::DataCollector>();
+
+    // Create the BrowserController instance.
+    browser_controller_ = std::make_unique<ash::BrowserControllerImpl>();
 
     // Create the service connection to CrosHealthd platform service instance.
     cros_healthd::ServiceConnection::GetInstance();
@@ -1332,7 +1338,11 @@ void ChromeBrowserMainPartsAsh::PostProfileInit(Profile* profile,
 
     ash::ShillManagerClient::Get()->SetProperty(
         shill::kUseLegacyDHCPCDProperty,
-        base::Value(base::FeatureList::IsEnabled(features::kUseLegacyDHCPCD)),
+        // The shill property UseLegacyDHCPCD is currently enabled by default.
+        // However, for the Finch study that aims to migrate to dhcpcd10, we
+        // need a Chrome flag that is disabled by default. That is why we use an
+        // opposite flag UseDHCPCD10 in Chrome and flip it here.
+        base::Value(!base::FeatureList::IsEnabled(features::kUseDHCPCD10)),
         base::DoNothing(),
         base::BindOnce(ShillSetPropertyErrorCallback,
                        shill::kUseLegacyDHCPCDProperty));
@@ -1409,7 +1419,10 @@ void ChromeBrowserMainPartsAsh::PreBrowserStart() {
 void ChromeBrowserMainPartsAsh::PostBrowserStart() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   report_controller_initializer_ =
-      std::make_unique<ReportControllerInitializer>();
+      std::make_unique<ReportControllerInitializer>(
+          g_browser_process->local_state(),
+          g_browser_process->shared_url_loader_factory(),
+          g_browser_process->platform_part()->browser_policy_connector_ash());
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
   // Construct a delegate to connect the accessibility component extensions and
@@ -1568,8 +1581,6 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   // correctly remove the observer.
   assistant_delegate_.reset();
 
-  assistant_state_client_.reset();
-
   if (pre_profile_init_called_) {
     Shell::Get()->RemovePreTargetHandler(MagnificationManager::Get());
   }
@@ -1587,7 +1598,7 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   // Tell DeviceSettingsService to stop talking to session_manager. Do not
   // shutdown DeviceSettingsService yet, it might still be accessed by
   // BrowserPolicyConnector (owned by g_browser_process).
-  DeviceSettingsService::Get()->UnsetSessionManager();
+  DeviceSettingsService::Get()->StopProcessing();
 
   // Destroy the CrosUsb detector so it stops trying to reconnect to the
   // UsbDeviceManager
@@ -1621,10 +1632,6 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   }
   bluetooth_pref_state_observer_.reset();
   auth_events_recorder_.reset();
-  if (file_index_service_registry_) {
-    file_index_service_registry_->Shutdown();
-    file_index_service_registry_.reset();
-  }
 
   // Detach D-Bus clients before DBusThreadManager is shut down.
   idle_action_warning_observer_.reset();
@@ -1780,6 +1787,8 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   // Shutdown after PostMainMessageLoopRun() which should destroy all observers.
   CrasAudioHandler::Shutdown();
 
+  // Disconnect quirks from policy just before destroying the quirks manager.
+  quirks_policy_controller_.reset();
   quirks::QuirksManager::Shutdown();
 
   // Called after ChromeBrowserMainPartsLinux::PostMainMessageLoopRun() (which

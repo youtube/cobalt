@@ -18,7 +18,6 @@
 
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/omnibox_client.h"
@@ -149,6 +148,27 @@ class OmniboxView {
   // explicitly focused the omnibox, and false when the omnibox was
   // automatically focused (like for browser startup or NTP load).
   virtual void SetFocus(bool is_user_initiated) = 0;
+
+  // Requests focus for the implementation of the omnibox view only, skipping
+  // all of the bookkeeping done by `SetFocus()`. Used to return focus to the
+  // omnibox from the AI mode button.
+  virtual void RequestViewFocus() = 0;
+
+  // Requests focus for the AIM button in the location bar view.
+  virtual void RequestAimButtonFocus() {}
+
+  bool focus_is_going_to_aim_button() const {
+    return focus_is_going_to_aim_button_;
+  }
+  void set_focus_is_going_to_aim_button(bool value) {
+    focus_is_going_to_aim_button_ = value;
+  }
+  bool focus_is_returning_from_aim_button() const {
+    return focus_is_returning_from_aim_button_;
+  }
+  void set_focus_is_returning_from_aim_button(bool value) {
+    focus_is_returning_from_aim_button_ = value;
+  }
 
   // Shows or hides the caret based on whether the model's is_caret_visible() is
   // true.
@@ -283,6 +303,14 @@ class OmniboxView {
   friend class TestOmniboxView;
 
   std::unique_ptr<OmniboxController> controller_;
+
+  // These sentinel values are used to prevent the omnibox view from doing the
+  // usual bookkeeping when it loses or gains focus. This is necessary because
+  // when focus is transferred to the AIM button, we want to still consider the
+  // omnibox view to have focus for purposes of keeping the popup open and
+  // tracking the `OmniboxPopupSelection`.
+  bool focus_is_going_to_aim_button_ = false;
+  bool focus_is_returning_from_aim_button_ = false;
 };
 
 #endif  // COMPONENTS_OMNIBOX_BROWSER_OMNIBOX_VIEW_H_

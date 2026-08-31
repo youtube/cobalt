@@ -30,7 +30,7 @@
 #include "components/history_embeddings/history_embeddings_features.h"
 #include "components/history_embeddings/sql_database.h"
 #include "components/history_embeddings/vector_database.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/os_crypt/async/browser/os_crypt_async.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
 #include "components/passage_embeddings/passage_embeddings_types.h"
@@ -296,23 +296,16 @@ void HistoryEmbeddingsService::ComputeAndStorePassageEmbeddings(
     history::VisitID visit_id,
     base::Time visit_time,
     std::vector<std::string> passages) {
-  if (history_embeddings::GetFeatureParameters().use_database_before_embedder) {
-    GetUrlData(url_id, base::BindOnce(
-                           &HistoryEmbeddingsService::
-                               ComputeAndStorePassageEmbeddingsWithExistingData,
-                           weak_ptr_factory_.GetWeakPtr(),
-                           UrlData(url_id, visit_id, visit_time),
-                           std::move(passages), base::ElapsedTimer()));
-  } else {
-    ComputeAndStorePassageEmbeddingsWithExistingData(
-        UrlData(url_id, visit_id, visit_time), std::move(passages),
-        std::nullopt, std::nullopt);
-  }
+  GetUrlData(url_id, base::BindOnce(
+                         &HistoryEmbeddingsService::
+                             ComputeAndStorePassageEmbeddingsWithExistingData,
+                         weak_ptr_factory_.GetWeakPtr(),
+                         UrlData(url_id, visit_id, visit_time),
+                         std::move(passages), base::ElapsedTimer()));
 }
 
 void HistoryEmbeddingsService::OnOsCryptAsyncReady(
-    os_crypt_async::Encryptor encryptor,
-    bool success) {
+    os_crypt_async::Encryptor encryptor) {
   storage_.AsyncCall(&Storage::SetEmbedderMetadata)
       .WithArgs(embedder_metadata_, std::move(encryptor));
 
@@ -593,7 +586,7 @@ void HistoryEmbeddingsService::EmbedderMetadataUpdated(
     return;
   }
   embedder_metadata_ = metadata;
-  os_crypt_async_subscription_ = os_crypt_async_->GetInstance(
+  os_crypt_async_->GetInstance(
       base::BindOnce(&HistoryEmbeddingsService::OnOsCryptAsyncReady,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -811,7 +804,7 @@ QualityLogEntry HistoryEmbeddingsService::PrepareQualityLogEntry() {
 void HistoryEmbeddingsService::ComputeAndStorePassageEmbeddingsWithExistingData(
     UrlData url_data,
     std::vector<std::string> passages,
-    std::optional<base::ElapsedTimer> database_access_timer,
+    base::ElapsedTimer database_access_timer,
     std::optional<UrlData> existing_url_data) {
   VLOG(4) << "All " << passages.size() << " passages for url_id "
           << url_data.url_id << ":";
@@ -819,11 +812,9 @@ void HistoryEmbeddingsService::ComputeAndStorePassageEmbeddingsWithExistingData(
     VLOG(4) << i << ": \"" << passages[i] << '"';
   }
 
-  if (database_access_timer.has_value()) {
-    base::UmaHistogramTimes(
-        "History.Embeddings.DatabaseAsCacheAccessTime.TotalWait",
-        database_access_timer->Elapsed());
-  }
+  base::UmaHistogramTimes(
+      "History.Embeddings.DatabaseAsCacheAccessTime.TotalWait",
+      database_access_timer.Elapsed());
 
   // Move existing passages and associated embeddings into map for quick
   // hash-based lookup instead of many string comparisons.

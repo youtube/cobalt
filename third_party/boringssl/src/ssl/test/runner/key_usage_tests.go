@@ -15,37 +15,17 @@
 package runner
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"math/big"
-	"time"
 )
 
 func addECDSAKeyUsageTests() {
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		panic(err)
-	}
-
-	template := &x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Organization: []string{"Acme Co"},
-		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now(),
-
-		// An ECC certificate with only the keyAgreement key usgae may
+	cert := rootCA.Issue(X509Info{
+		PrivateKey: &ecdsaP256Key,
+		DNSNames:   []string{"test"},
+		// An ECC certificate with only the keyAgreement key usage may
 		// be used with ECDH, but not ECDSA.
-		KeyUsage:              x509.KeyUsageKeyAgreement,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	cert := generateSingleCertChain(template, &ecdsaP256Key)
+		KeyUsage: x509.KeyUsageKeyAgreement,
+	}).ToCredential()
 
 	for _, ver := range tlsVersions {
 		if ver.version < VersionTLS12 {
@@ -80,41 +60,16 @@ func addECDSAKeyUsageTests() {
 }
 
 func addRSAKeyUsageTests() {
-	priv := rsaCertificate.PrivateKey.(*rsa.PrivateKey)
-
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		panic(err)
-	}
-
-	dsTemplate := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Organization: []string{"Acme Co"},
-		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now(),
-
-		KeyUsage:              x509.KeyUsageDigitalSignature,
-		BasicConstraintsValid: true,
-	}
-
-	encTemplate := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			Organization: []string{"Acme Co"},
-		},
-		NotBefore: time.Now(),
-		NotAfter:  time.Now(),
-
-		KeyUsage:              x509.KeyUsageKeyEncipherment,
-		BasicConstraintsValid: true,
-	}
-
-	dsCert := generateSingleCertChain(&dsTemplate, priv)
-
-	encCert := generateSingleCertChain(&encTemplate, priv)
+	dsCert := rootCA.Issue(X509Info{
+		PrivateKey: &rsa2048Key,
+		DNSNames:   []string{"test"},
+		KeyUsage:   x509.KeyUsageDigitalSignature,
+	}).ToCredential()
+	encCert := rootCA.Issue(X509Info{
+		PrivateKey: &rsa2048Key,
+		DNSNames:   []string{"test"},
+		KeyUsage:   x509.KeyUsageKeyEncipherment,
+	}).ToCredential()
 
 	dsSuites := []uint16{
 		TLS_AES_128_GCM_SHA256,

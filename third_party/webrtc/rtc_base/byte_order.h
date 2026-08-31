@@ -11,15 +11,16 @@
 #ifndef RTC_BASE_BYTE_ORDER_H_
 #define RTC_BASE_BYTE_ORDER_H_
 
-#include <stdint.h>
-
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 
-#if defined(WEBRTC_POSIX) && !defined(__native_client__)
-#include <arpa/inet.h>
+#include "rtc_base/system/arch.h"  // IWYU pragma: keep
+
+#if defined(WEBRTC_POSIX)
+#include <arpa/inet.h>  // IWYU pragma: keep
 #endif
 
-#include "rtc_base/system/arch.h"
 
 #if defined(WEBRTC_MAC)
 #include <libkern/OSByteOrder.h>
@@ -38,10 +39,9 @@
 #define le32toh(v) OSSwapLittleToHostInt32(v)
 #define le64toh(v) OSSwapLittleToHostInt64(v)
 
-#elif defined(WEBRTC_WIN) || defined(__native_client__)
+#elif defined(WEBRTC_WIN)
 
 #if defined(WEBRTC_WIN)
-#include <stdlib.h>
 #include <winsock2.h>
 #else
 #include <netinet/in.h>  // no-presubmit-check
@@ -62,10 +62,6 @@
 #define htobe64(v) _byteswap_uint64(v)
 #define be64toh(v) _byteswap_uint64(v)
 #endif  // defined(WEBRTC_WIN)
-#if defined(__native_client__)
-#define htobe64(v) __builtin_bswap64(v)
-#define be64toh(v) __builtin_bswap64(v)
-#endif  // defined(__native_client__)
 
 #elif defined(WEBRTC_ARCH_BIG_ENDIAN)
 #define htobe16(v) (v)
@@ -82,10 +78,6 @@
 #define htobe64(v) (v)
 #define be64toh(v) (v)
 #endif  // defined(WEBRTC_WIN)
-#if defined(__native_client__)
-#define htobe64(v) (v)
-#define be64toh(v) (v)
-#endif  // defined(__native_client__)
 #else
 #error WEBRTC_ARCH_BIG_ENDIAN or WEBRTC_ARCH_LITTLE_ENDIAN must be defined.
 #endif  // defined(WEBRTC_ARCH_LITTLE_ENDIAN)
@@ -209,32 +201,5 @@ inline uint64_t NetworkToHost64(uint64_t n) {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::Get8;
-using ::webrtc::GetBE16;
-using ::webrtc::GetBE32;
-using ::webrtc::GetBE64;
-using ::webrtc::GetLE16;
-using ::webrtc::GetLE32;
-using ::webrtc::GetLE64;
-using ::webrtc::HostToNetwork16;
-using ::webrtc::HostToNetwork32;
-using ::webrtc::HostToNetwork64;
-using ::webrtc::IsHostBigEndian;
-using ::webrtc::NetworkToHost16;
-using ::webrtc::NetworkToHost32;
-using ::webrtc::NetworkToHost64;
-using ::webrtc::Set8;
-using ::webrtc::SetBE16;
-using ::webrtc::SetBE32;
-using ::webrtc::SetBE64;
-using ::webrtc::SetLE16;
-using ::webrtc::SetLE32;
-using ::webrtc::SetLE64;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_BYTE_ORDER_H_

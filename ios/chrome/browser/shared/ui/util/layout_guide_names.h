@@ -56,9 +56,9 @@ extern GuideName* const kTabGridPageControlGuide;
 // A guide that is constrained to match the frame of the incognito page of the
 // Tab Grid page control.
 extern GuideName* const kTabGridPageControlIncognitoGuide;
-// A guide that is constrained to match the frame of the third panel page of the
+// A guide that is constrained to match the frame of the tab groups page of the
 // Tab Grid page control.
-extern GuideName* const kTabGridPageControlThirdPanelGuide;
+extern GuideName* const kTabGridPageControlTabGroupsGuide;
 // A guide that is constrained to match the frame of the first Autofill result.
 extern GuideName* const kAutofillFirstSuggestionGuide;
 // A guide that is constrained to match the frame of the Lens button in the
@@ -75,6 +75,9 @@ extern GuideName* const kFakeboxLensIconGuide;
 // A guide that is constrained to match the frame of the lens overlay
 // entrypoint.
 extern GuideName* const kLensOverlayEntrypointGuide;
+// A guide that is constrained to match the frame of the PageActionMenu
+// entrypoint.
+extern GuideName* const kPageActionMenuEntrypointGuide;
 // A guide that is constrained to match the frame of the identity disc button on
 // the New Tab page.
 extern GuideName* const kNTPIdentityDiscButtonGuide;

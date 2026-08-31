@@ -11,7 +11,6 @@
 #include "base/functional/callback_forward.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/extensions/mv2_disabled_dialog_controller.h"
-#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension_id.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/mojom/dialog_button.mojom.h"
@@ -21,8 +20,6 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "base/files/safe_base_name.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-static_assert(BUILDFLAG(ENABLE_EXTENSIONS));
 
 class Browser;
 class SettingsOverriddenDialogController;
@@ -44,12 +41,11 @@ namespace extensions {
 
 class Extension;
 
+DECLARE_ELEMENT_IDENTIFIER_VALUE(kExtensionInstallFrictionLearnMoreLink);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kMv2DisabledDialogManageButtonElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kMv2DisabledDialogParagraphElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kMv2DisabledDialogRemoveButtonElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kMv2KeepDialogOkButtonElementId);
-DECLARE_ELEMENT_IDENTIFIER_VALUE(kReloadPageDialogCancelButtonElementId);
-DECLARE_ELEMENT_IDENTIFIER_VALUE(kReloadPageDialogOkButtonElementId);
 DECLARE_ELEMENT_IDENTIFIER_VALUE(kParentBlockedDialogMessage);
 
 void ShowConstrainedDeviceChooserDialog(
@@ -108,14 +104,6 @@ void ShowMv2DeprecationReEnableDialog(
     const ExtensionId& extension_id,
     const std::string& extension_name,
     base::OnceCallback<void(bool)> done_callback);
-
-// Shows a dialog when extensions require a refresh for their action
-// to be run or blocked. When the dialog is accepted, `callback` is
-// invoked.
-void ShowReloadPageDialog(
-    Browser* browser,
-    const std::vector<extensions::ExtensionId>& extension_ids,
-    base::OnceClosure callback);
 
 // Shows a dialog with a warning to the user that their settings have been
 // overridden by an extension.

@@ -27,7 +27,6 @@
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
-#import "ios/chrome/browser/shared/public/commands/tos_commands.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
@@ -39,8 +38,8 @@
     FullscreenSigninScreenMediatorDelegate,
     FullscreenSigninScreenViewControllerDelegate,
     IdentityChooserCoordinatorDelegate,
-    TOSCommands,
     UIAdaptivePresentationControllerDelegate,
+    TOSCoordinatorDelegate,
     UMACoordinatorDelegate>
 
 // First run screen delegate.
@@ -105,14 +104,8 @@
 #pragma mark - ChromeCoordinator
 
 - (void)start {
-  [self.browser->GetCommandDispatcher()
-      startDispatchingToTarget:self
-                   forProtocol:@protocol(TOSCommands)];
-  id<TOSCommands> TOSHandler =
-      HandlerForProtocol(self.browser->GetCommandDispatcher(), TOSCommands);
   self.viewController = [[FullscreenSigninScreenViewController alloc]
       initWithContextStyle:_contextStyle];
-  self.viewController.TOSHandler = TOSHandler;
   self.viewController.delegate = self;
 
   ProfileIOS* profile = self.profile->GetOriginalProfile();
@@ -153,8 +146,6 @@
 }
 
 - (void)stop {
-  [self.browser->GetCommandDispatcher()
-      stopDispatchingForProtocol:@protocol(TOSCommands)];
   [self stopAddAccountCoordinator];
   [self stopIdentityChooserCoordinator];
   self.delegate = nil;
@@ -199,6 +190,10 @@
 // Starts the coordinator to present the Add Account module.
 - (void)triggerAddAccount {
   [self.mediator userAttemptedToSignin];
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signinCompletion. See crbug.com/395959814
+  [self.addAccountSigninCoordinator stop];
   self.addAccountSigninCoordinator = [SigninCoordinator
       addAccountCoordinatorWithBaseViewController:self.viewController
                                           browser:self.browser
@@ -251,7 +246,7 @@
 
 // Shows the UMA dialog so the user can manage metric reporting.
 - (void)showUMADialog {
-  DCHECK(!self.UMACoordinator);
+  CHECK(!self.UMACoordinator, base::NotFatalUntil::M144);
   self.UMACoordinator = [[UMACoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser
@@ -260,12 +255,28 @@
   [self.UMACoordinator start];
 }
 
+- (void)showTOSPage {
+  CHECK(!self.TOSCoordinator, base::NotFatalUntil::M144);
+  self.mediator.TOSLinkWasTapped = YES;
+  self.TOSCoordinator =
+      [[TOSCoordinator alloc] initWithBaseViewController:self.viewController
+                                                 browser:self.browser];
+  self.TOSCoordinator.delegate = self;
+  [self.TOSCoordinator start];
+}
+
 #pragma mark - FullscreenSigninScreenMediatorDelegate
 
 - (void)fullscreenSigninScreenMediatorDidFinishSignin:
     (FullscreenSigninScreenMediator*)mediator {
   CHECK_EQ(mediator, self.mediator, base::NotFatalUntil::M140);
   [self finishPresentingWithSignIn:YES];
+}
+
+- (void)fullscreenSigninScreenMediatorSigninIsNotForced:
+    (FullscreenSigninScreenMediator*)mediator {
+  CHECK_EQ(mediator, self.mediator, base::NotFatalUntil::M141);
+  [self finishPresentingWithSignIn:NO];
 }
 
 #pragma mark - IdentityChooserCoordinatorDelegate
@@ -292,20 +303,14 @@
 #pragma mark - PromoStyleViewControllerDelegate
 
 - (void)didTapPrimaryActionButton {
-  switch (self.authenticationService->GetServiceStatus()) {
-    case AuthenticationService::ServiceStatus::SigninForcedByPolicy:
-    case AuthenticationService::ServiceStatus::SigninAllowed:
-      if (self.mediator.selectedIdentity) {
-        [self startSignIn];
-      } else {
-        [self triggerAddAccount];
-      }
-      break;
-    case AuthenticationService::ServiceStatus::SigninDisabledByUser:
-    case AuthenticationService::ServiceStatus::SigninDisabledByPolicy:
-    case AuthenticationService::ServiceStatus::SigninDisabledByInternal:
-      [self finishPresentingWithSignIn:NO];
-      return;
+  if (self.authenticationService->SigninEnabled()) {
+    if (self.mediator.selectedIdentity) {
+      [self startSignIn];
+    } else {
+      [self triggerAddAccount];
+    }
+  } else {
+    [self finishPresentingWithSignIn:NO];
   }
 }
 
@@ -332,7 +337,10 @@
 #pragma mark - FullscreenSigninScreenViewControllerDelegate
 
 - (void)showAccountPickerFromPoint:(CGPoint)point {
-  DCHECK(!self.identityChooserCoordinator);
+  if (self.identityChooserCoordinator) {
+    // This may occur if the user double tap on the identity button.
+    return;
+  }
   self.identityChooserCoordinator = [[IdentityChooserCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser];
@@ -343,20 +351,12 @@
       self.mediator.selectedIdentity;
 }
 
-#pragma mark - TOSCommands
+#pragma mark - TOSCoordinatorDelegate
 
-- (void)showTOSPage {
-  DCHECK(!self.TOSCoordinator);
-  self.mediator.TOSLinkWasTapped = YES;
-  self.TOSCoordinator =
-      [[TOSCoordinator alloc] initWithBaseViewController:self.viewController
-                                                 browser:self.browser];
-  [self.TOSCoordinator start];
-}
-
-- (void)closeTOSPage {
-  DCHECK(self.TOSCoordinator);
+- (void)TOSCoordinatorWantsToBeStopped:(TOSCoordinator*)coordinator {
+  CHECK_EQ(self.TOSCoordinator, coordinator, base::NotFatalUntil::M144);
   [self.TOSCoordinator stop];
+  self.TOSCoordinator.delegate = nil;
   self.TOSCoordinator = nil;
 }
 

@@ -10,19 +10,30 @@
 
 #include "modules/desktop_capture/linux/wayland/egl_dmabuf.h"
 
+#include <EGL/egl.h>
 #include <EGL/eglext.h>
+#include <EGL/eglplatform.h>
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include <asm/ioctl.h>
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <gbm.h>
 #include <libdrm/drm_fourcc.h>
-#include <linux/types.h>
-#include <spa/param/video/format-utils.h>
+#include <spa/param/video/raw.h>
 #include <unistd.h>
 #include <xf86drm.h>
 
+#include <algorithm>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
 #include <optional>
+#include <string>
+#include <vector>
 
-#include "absl/memory/memory.h"
+#include "absl/strings/string_view.h"
+#include "modules/desktop_capture/desktop_geometry.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/sanitizer.h"
@@ -498,7 +509,7 @@ bool EglDmaBuf::GetClientExtensions(EGLDisplay dpy, EGLint name) {
   }
 
   std::vector<absl::string_view> client_extensions =
-      webrtc::split(client_extensions_cstring, ' ');
+      split(client_extensions_cstring, ' ');
   for (const auto& extension : client_extensions) {
     egl_.extensions.push_back(std::string(extension));
   }
@@ -518,7 +529,7 @@ bool EglDmaBuf::ImageFromDmaBuf(const DesktopSize& size,
     return false;
   }
 
-  if (plane_datas.size() <= 0) {
+  if (plane_datas.empty()) {
     RTC_LOG(LS_ERROR) << "Failed to process buffer: invalid number of planes";
     return false;
   }
@@ -533,7 +544,7 @@ bool EglDmaBuf::ImageFromDmaBuf(const DesktopSize& size,
   attribs[atti++] = EGL_LINUX_DRM_FOURCC_EXT;
   attribs[atti++] = SpaPixelFormatToDrmFormat(format);
 
-  if (plane_datas.size() > 0) {
+  if (!plane_datas.empty()) {
     attribs[atti++] = EGL_DMA_BUF_PLANE0_FD_EXT;
     attribs[atti++] = plane_datas[0].fd;
     attribs[atti++] = EGL_DMA_BUF_PLANE0_OFFSET_EXT;

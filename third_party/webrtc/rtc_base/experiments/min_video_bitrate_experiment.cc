@@ -10,9 +10,13 @@
 
 #include "rtc_base/experiments/min_video_bitrate_experiment.h"
 
+#include <cstdio>
+#include <optional>
 #include <string>
 
 #include "api/field_trials_view.h"
+#include "api/units/data_rate.h"
+#include "api/video/video_codec_type.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"

@@ -40,7 +40,6 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/storage_partition.h"
-#include "content/public/browser/vpn_service_proxy.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
@@ -70,6 +69,7 @@
 #include "extensions/common/switches.h"
 #include "pdf/buildflags.h"
 #include "third_party/blink/public/common/features_generated.h"
+#include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -83,7 +83,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GUEST_VIEW)
-#include "components/guest_view/common/guest_view.mojom.h"
+#include "components/guest_view/common/guest_view.mojom.h"  // nogncheck
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "extensions/browser/guest_view/web_view/web_view_renderer_state.h"
 #endif
@@ -157,9 +157,8 @@ bool AllowServiceWorker(const GURL& scope,
 
   // If an extension is service-worker based, only the script specified in the
   // manifest can be registered at the root scope.
-  const std::string& sw_script =
-      BackgroundInfo::GetBackgroundServiceWorkerScript(extension);
-  return script_url == extension->GetResourceURL(sw_script);
+  return script_url ==
+         BackgroundInfo::GetBackgroundServiceWorkerScriptURL(extension);
 }
 
 // Returns the extension associated with the given `scope` if and only if it's
@@ -688,21 +687,6 @@ std::vector<url::Origin> ChromeContentBrowserClientExtensionsPart::
 }
 
 // static
-std::unique_ptr<content::VpnServiceProxy>
-ChromeContentBrowserClientExtensionsPart::GetVpnServiceProxy(
-    content::BrowserContext* browser_context) {
-#if BUILDFLAG(IS_CHROMEOS)
-  chromeos::VpnServiceInterface* vpn_service =
-      chromeos::VpnServiceFactory::GetForBrowserContext(browser_context);
-  if (!vpn_service)
-    return nullptr;
-  return vpn_service->GetVpnServiceProxy();
-#else
-  return nullptr;
-#endif
-}
-
-// static
 void ChromeContentBrowserClientExtensionsPart::OverrideURLLoaderFactoryParams(
     content::BrowserContext* browser_context,
     const url::Origin& origin,
@@ -866,6 +850,14 @@ void ChromeContentBrowserClientExtensionsPart::OverrideWebPreferences(
     WebPreferences* web_prefs) {
   OverrideWebPreferencesAfterNavigation(web_contents, main_frame_site,
                                         web_prefs);
+
+  // Ensure to disable text autosizing for extension popups since it is
+  // fundamentally incompatible with frame autoresizing.
+  // See: https://crbug.com/422896512
+  mojom::ViewType view_type = GetViewType(web_contents->GetPrimaryMainFrame());
+  if (view_type == mojom::ViewType::kExtensionPopup) {
+    web_prefs->text_autosizing_enabled = false;
+  }
 }
 
 void ChromeContentBrowserClientExtensionsPart::BrowserURLHandlerCreated(

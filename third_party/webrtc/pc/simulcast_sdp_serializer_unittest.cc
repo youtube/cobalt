@@ -10,8 +10,7 @@
 
 #include "pc/simulcast_sdp_serializer.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <map>
 #include <string>
 #include <vector>

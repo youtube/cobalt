@@ -9,6 +9,11 @@
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/scoped_java_ref.h"
+#include "components/autofill/android/main_autofill_jni_headers/FillingProductBridge_jni.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace autofill {
 
 // LINT.IfChange(FillingProductToString)
@@ -38,7 +43,11 @@ std::string FillingProductToString(FillingProduct filling_product) {
       return "LoyaltyCard";
     case FillingProduct::kIdentityCredential:
       return "IdentityCredential";
-  };
+    case FillingProduct::kDataList:
+      return "DataList";
+    case FillingProduct::kOneTimePassword:
+      return "OneTimePassword";
+  }
   NOTREACHED();
 }
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/histograms.xml:Autofill.FillingProduct)
@@ -52,7 +61,6 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kDevtoolsTestAddressEntry:
     case SuggestionType::kManageAddress:
-    case SuggestionType::kHomeAndWorkAddressEntry:
       return FillingProduct::kAddress;
     case SuggestionType::kBnplEntry:
     case SuggestionType::kCreditCardEntry:
@@ -73,6 +81,9 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kFillPassword:
     case SuggestionType::kGeneratePasswordEntry:
     case SuggestionType::kPasswordEntry:
+    case SuggestionType::kBackupPasswordEntry:
+    case SuggestionType::kTroubleSigningInEntry:
+    case SuggestionType::kFreeformFooter:
     case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kViewPasswordDetails:
     case SuggestionType::kWebauthnCredential:
@@ -93,6 +104,7 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kPlusAddressError:
       return FillingProduct::kPlusAddresses;
     case SuggestionType::kDatalistEntry:
+      return FillingProduct::kDataList;
     case SuggestionType::kInsecureContextPaymentDisabledMessage:
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kSeePromoCodeDetails:
@@ -103,14 +115,27 @@ FillingProduct GetFillingProductFromSuggestionType(SuggestionType type) {
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kManageAutofillAi:
       return FillingProduct::kAutofillAi;
+    case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kLoyaltyCardEntry:
     case SuggestionType::kManageLoyaltyCard:
       return FillingProduct::kLoyaltyCard;
     case SuggestionType::kIdentityCredential:
       return FillingProduct::kIdentityCredential;
+    case SuggestionType::kOneTimePasswordEntry:
+      return FillingProduct::kOneTimePassword;
   }
   NOTREACHED();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+static jint JNI_FillingProductBridge_GetFillingProductFromSuggestionType(
+    JNIEnv* env,
+    jint type) {
+  SuggestionType suggestion_type = static_cast<SuggestionType>(type);
+  return static_cast<jint>(
+      GetFillingProductFromSuggestionType(suggestion_type));
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 FillingProduct GetFillingProductFromFieldTypeGroup(
     FieldTypeGroup field_type_group) {
@@ -138,20 +163,10 @@ FillingProduct GetFillingProductFromFieldTypeGroup(
       return FillingProduct::kAutofillAi;
     case kLoyaltyCard:
       return FillingProduct::kLoyaltyCard;
+    case kOneTimePassword:
+      return FillingProduct::kOneTimePassword;
   }
   NOTREACHED();
-}
-
-FillingProduct GetPreferredSuggestionFillingProduct(
-    FieldType trigger_field_type,
-    AutofillSuggestionTriggerSource suggestion_trigger_source) {
-  FillingProduct filling_product = GetFillingProductFromFieldTypeGroup(
-      GroupTypeOfFieldType(trigger_field_type));
-  // Autofill suggestions fallbacks to autocomplete if no product could be
-  // inferred from the suggestion context.
-  return filling_product == FillingProduct::kNone
-             ? FillingProduct::kAutocomplete
-             : filling_product;
 }
 
 }  // namespace autofill

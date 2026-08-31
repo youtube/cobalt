@@ -20,7 +20,6 @@ import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.tasks.tab_management.MessageCardViewProperties.DESCRIPTION_TEXT;
 import static org.chromium.chrome.browser.tasks.tab_management.MessageCardViewProperties.UI_DISMISS_ACTION_PROVIDER;
-import static org.chromium.chrome.browser.tasks.tab_management.MessageService.MessageType.ALL;
 import static org.chromium.chrome.browser.tasks.tab_management.TabGroupRowProperties.COLOR_INDEX;
 import static org.chromium.chrome.browser.tasks.tab_management.TabGroupRowProperties.DELETE_RUNNABLE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabGroupRowProperties.LEAVE_RUNNABLE;
@@ -143,6 +142,7 @@ public class TabGroupListMediatorUnitTest {
     @Mock private MessagingBackendService mMessagingBackendService;
     @Mock private Runnable mFinishBlocking;
     @Mock private DataSharingTabManager mDataSharingTabManager;
+    @Mock private PersistentVersioningMessageMediator mPersistentVersioningMessageMediator;
 
     @Captor private ArgumentCaptor<TabModelObserver> mTabModelObserver;
     @Captor private ArgumentCaptor<TabGroupSyncService.Observer> mTabGroupSyncObserverCaptor;
@@ -167,6 +167,7 @@ public class TabGroupListMediatorUnitTest {
     private Context mContext;
     private SharedGroupTestHelper mSharedGroupTestHelper;
     private SyncedGroupTestHelper mSyncedGroupTestHelper;
+    private TabGroupRemovedMessageMediator mTabGroupRemovedMessageMediator;
 
     @Before
     public void setUp() {
@@ -188,6 +189,9 @@ public class TabGroupListMediatorUnitTest {
         when(mCollaborationService.getServiceStatus()).thenReturn(mServiceStatus);
         when(mServiceStatus.isAllowedToJoin()).thenReturn(true);
         when(mDataSharingService.getUiDelegate()).thenReturn(mDataSharingUiDelegate);
+
+        mTabGroupRemovedMessageMediator =
+                new TabGroupRemovedMessageMediator(mContext, mMessagingBackendService, mModelList);
     }
 
     private TabGroupListMediator createMediator() {
@@ -207,7 +211,9 @@ public class TabGroupListMediatorUnitTest {
                         mActionConfirmationManager,
                         mSyncService,
                         /* enableContainment= */ true,
-                        mDataSharingTabManager);
+                        mDataSharingTabManager,
+                        mTabGroupRemovedMessageMediator,
+                        mPersistentVersioningMessageMediator);
         verify(mSyncService).addSyncStateChangedListener(mSyncStateChangedListenerCaptor.capture());
         return mediator;
     }
@@ -329,9 +335,11 @@ public class TabGroupListMediatorUnitTest {
         group3.savedTabs = SyncedGroupTestHelper.tabsFromCount(1);
         group3.localId = null;
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID2))
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID2))
                 .thenReturn(Tab.INVALID_TAB_ID);
+        when(mTabGroupModelFilter.tabGroupExists(LOCAL_GROUP_ID1)).thenReturn(true);
+        when(mTabGroupModelFilter.tabGroupExists(LOCAL_GROUP_ID2)).thenReturn(false);
         when(mComprehensiveModel.getCount()).thenReturn(1);
         when(mComprehensiveModel.getTabAtChecked(0)).thenReturn(mTab1);
         when(mTab1.getRootId()).thenReturn(ROOT_ID1);
@@ -364,9 +372,11 @@ public class TabGroupListMediatorUnitTest {
         group2.savedTabs = SyncedGroupTestHelper.tabsFromCount(1);
         group2.localId = null;
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID2))
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID2))
                 .thenReturn(Tab.INVALID_TAB_ID);
+        when(mTabGroupModelFilter.tabGroupExists(LOCAL_GROUP_ID1)).thenReturn(true);
+        when(mTabGroupModelFilter.tabGroupExists(LOCAL_GROUP_ID2)).thenReturn(false);
         when(mComprehensiveModel.getCount()).thenReturn(1);
         when(mComprehensiveModel.getTabAtChecked(0)).thenReturn(mTab1);
         when(mTab1.getRootId()).thenReturn(ROOT_ID1);
@@ -390,7 +400,9 @@ public class TabGroupListMediatorUnitTest {
                             updatedGroup2.savedTabs = SyncedGroupTestHelper.tabsFromCount(1);
                             updatedGroup2.localId = new LocalTabGroupId(LOCAL_GROUP_ID2);
 
-                            when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID2))
+                            when(mTabGroupModelFilter.tabGroupExists(LOCAL_GROUP_ID2))
+                                    .thenReturn(true);
+                            when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID2))
                                     .thenReturn(ROOT_ID2);
                         })
                 .when(mTabGroupUiActionHandler)
@@ -427,7 +439,7 @@ public class TabGroupListMediatorUnitTest {
         MockitoHelper.doRunnable(
                         () -> {
                             group1.localId = new LocalTabGroupId(LOCAL_GROUP_ID1);
-                            when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1))
+                            when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1))
                                     .thenReturn(ROOT_ID1);
                         })
                 .when(mTabGroupUiActionHandler)
@@ -457,7 +469,7 @@ public class TabGroupListMediatorUnitTest {
 
         assertEquals(1, mModelList.size());
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
 
         PropertyModel model1 = mModelList.get(0).model;
         model1.get(OPEN_RUNNABLE).run();
@@ -479,7 +491,7 @@ public class TabGroupListMediatorUnitTest {
         when(mTab1.getTabGroupId()).thenReturn(LOCAL_GROUP_ID1);
         when(mTab2.getRootId()).thenReturn(ROOT_ID1);
         when(mTab2.getTabGroupId()).thenReturn(LOCAL_GROUP_ID1);
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
 
         createMediator();
         assertEquals(1, mModelList.size());
@@ -513,8 +525,8 @@ public class TabGroupListMediatorUnitTest {
         group2.savedTabs = SyncedGroupTestHelper.tabsFromCount(1);
         group2.localId = null;
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID2))
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID2))
                 .thenReturn(Tab.INVALID_TAB_ID);
         when(mTabGroupModelFilter.getTabsInGroup(LOCAL_GROUP_ID1)).thenReturn(Arrays.asList(mTab1));
         when(mComprehensiveModel.getCount()).thenReturn(1);
@@ -558,7 +570,7 @@ public class TabGroupListMediatorUnitTest {
         group1.savedTabs = SyncedGroupTestHelper.tabsFromIds(ROOT_ID1);
         group1.localId = new LocalTabGroupId(LOCAL_GROUP_ID1);
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
         when(mTabGroupModelFilter.getTabsInGroup(LOCAL_GROUP_ID1)).thenReturn(Arrays.asList(mTab1));
         when(mComprehensiveModel.getCount()).thenReturn(1);
         when(mComprehensiveModel.getTabAtChecked(0)).thenReturn(mTab1);
@@ -632,7 +644,7 @@ public class TabGroupListMediatorUnitTest {
         group1.localId = new LocalTabGroupId(LOCAL_GROUP_ID1);
         group1.collaborationId = COLLABORATION_ID1;
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
         when(mTabGroupModelFilter.getTabsInGroup(LOCAL_GROUP_ID1)).thenReturn(Arrays.asList(mTab1));
         when(mComprehensiveModel.getCount()).thenReturn(1);
         when(mComprehensiveModel.getTabAtChecked(0)).thenReturn(mTab1);
@@ -661,7 +673,7 @@ public class TabGroupListMediatorUnitTest {
         group1.localId = new LocalTabGroupId(LOCAL_GROUP_ID1);
         group1.collaborationId = COLLABORATION_ID1;
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
         when(mTabGroupModelFilter.getTabsInGroup(LOCAL_GROUP_ID1)).thenReturn(List.of(mTab1));
         when(mComprehensiveModel.getCount()).thenReturn(1);
         when(mComprehensiveModel.getTabAtChecked(0)).thenReturn(mTab1);
@@ -690,7 +702,7 @@ public class TabGroupListMediatorUnitTest {
         group1.localId = new LocalTabGroupId(LOCAL_GROUP_ID1);
         group1.collaborationId = COLLABORATION_ID1;
 
-        when(mTabGroupModelFilter.getRootIdFromTabGroupId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
+        when(mTabGroupModelFilter.getGroupLastShownTabId(LOCAL_GROUP_ID1)).thenReturn(ROOT_ID1);
         when(mTabGroupModelFilter.getTabsInGroup(LOCAL_GROUP_ID1)).thenReturn(Arrays.asList(mTab1));
         when(mComprehensiveModel.getCount()).thenReturn(1);
         when(mComprehensiveModel.getTabAtChecked(0)).thenReturn(mTab1);
@@ -843,6 +855,59 @@ public class TabGroupListMediatorUnitTest {
     }
 
     @Test
+    @EnableFeatures({
+        ChromeFeatureList.DATA_SHARING,
+        ChromeFeatureList.ANDROID_TAB_DECLUTTER_ARCHIVE_TAB_GROUPS
+    })
+    public void testTabGroupRemovedMessageCardsAndTabGroupsOrdering_ByRecency() {
+        List<PersistentMessage> messageList =
+                List.of(
+                        makeTabGroupRemovedMessage(MESSAGE_ID1, GROUP_NAME1),
+                        makeTabGroupRemovedMessage(MESSAGE_ID2, GROUP_NAME2));
+        when(mMessagingBackendService.getMessages(any())).thenReturn(messageList);
+
+        SavedTabGroup fooGroup = mSyncedGroupTestHelper.newTabGroup(SYNC_GROUP_ID1);
+        fooGroup.title = "Foo";
+        fooGroup.color = TabGroupColorId.BLUE;
+        fooGroup.savedTabs = SyncedGroupTestHelper.tabsFromCount(2);
+        fooGroup.creationTimeMs = 1;
+        fooGroup.savedTabs.get(0).updateTimeMs = 3;
+        fooGroup.savedTabs.get(1).updateTimeMs = 2;
+
+        SavedTabGroup barGroup = mSyncedGroupTestHelper.newTabGroup(SYNC_GROUP_ID2);
+        barGroup.title = "Bar";
+        barGroup.color = TabGroupColorId.RED;
+        barGroup.savedTabs = SyncedGroupTestHelper.tabsFromCount(3);
+        barGroup.creationTimeMs = 2;
+        barGroup.savedTabs.get(0).updateTimeMs = 2;
+        barGroup.savedTabs.get(1).updateTimeMs = 1;
+        barGroup.savedTabs.get(2).updateTimeMs = 0;
+
+        createMediator();
+
+        assertEquals(3, mModelList.size());
+
+        PropertyModel model1 = mModelList.get(0).model;
+        assertEquals(
+                "\"Shopping\" and \"Travel\" tab groups no longer available",
+                model1.get(DESCRIPTION_TEXT));
+        assertEquals(MESSAGE, model1.get(CARD_TYPE));
+
+        // Ensure the tab groups are sorted by update time and NOT creation time.
+        PropertyModel fooModel = mModelList.get(1).model;
+        assertEquals(
+                new TabGroupRowViewTitleData("Foo", 2, R.plurals.tab_group_row_accessibility_text),
+                fooModel.get(TITLE_DATA));
+        assertEquals(TabGroupColorId.BLUE, fooModel.get(COLOR_INDEX));
+
+        PropertyModel barModel = mModelList.get(2).model;
+        assertEquals(
+                new TabGroupRowViewTitleData("Bar", 3, R.plurals.tab_group_row_accessibility_text),
+                barModel.get(TITLE_DATA));
+        assertEquals(TabGroupColorId.RED, barModel.get(COLOR_INDEX));
+    }
+
+    @Test
     @EnableFeatures(ChromeFeatureList.DATA_SHARING)
     public void testTabGroupRemovedMessageCardDismissed() {
         List<PersistentMessage> messageList =
@@ -867,7 +932,7 @@ public class TabGroupListMediatorUnitTest {
 
         // Dismiss the message card.
         PropertyModel modelToBeRemoved = mModelList.get(0).model;
-        modelToBeRemoved.get(UI_DISMISS_ACTION_PROVIDER).dismiss(ALL);
+        modelToBeRemoved.get(UI_DISMISS_ACTION_PROVIDER).action();
 
         assertEquals(2, mModelList.size());
         verify(mMessagingBackendService)
@@ -917,6 +982,12 @@ public class TabGroupListMediatorUnitTest {
         when(mMessagingBackendService.getMessages(any())).thenReturn(List.of());
         mSyncStateChangedListenerCaptor.getValue().syncStateChanged();
         assertEquals(0, mModelList.size());
+    }
+
+    @Test
+    public void testPersistentVersioningMessagePossiblyQueued() {
+        createMediator();
+        verify(mPersistentVersioningMessageMediator, times(2)).queueMessageIfNeeded();
     }
 
     private PersistentMessage makeTabGroupRemovedMessage(String messageId, String groupName) {

@@ -31,7 +31,8 @@ enum class ProcessAllocationSource : uint8_t {
   // process.
   kNoProcessCreationExpected = 8,
   kTest = 9,
-  kMaxValue = kTest,
+  kEmbedder = 10,
+  kMaxValue = kEmbedder,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/browser/enums.xml:ProcessAllocationSource)
 
@@ -62,12 +63,15 @@ struct NavigationProcessAllocationContext {
   // TODO(crbug.com/394732486): The field is added to investigate
   // the process reuse failure when navigating to COOP sites.
   bool requires_new_process_for_coop;
+  // Whether the navigation is for an outermost main frame.
+  bool is_outermost_main_frame;
 };
 
 struct ProcessAllocationContext {
   static ProcessAllocationContext CreateForNavigationRequest(
       ProcessAllocationNavigationStage stage,
-      int64_t navigation_id);
+      int64_t navigation_id,
+      bool is_outermost_main_frame);
 
   bool IsForNavigation() const;
 

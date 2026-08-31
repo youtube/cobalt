@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/viz/common/quads/render_pass_io.h"
 
 #include <optional>
@@ -17,6 +12,7 @@
 
 #include "base/base64.h"
 #include "base/bit_cast.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr_exclusion.h"
@@ -249,7 +245,7 @@ bool FloatArrayFromList(const base::Value::List& list,
     double_data[ii] = list[ii].GetDouble();
   }
   for (size_t ii = 0; ii < count; ++ii)
-    data[ii] = static_cast<float>(double_data[ii]);
+    UNSAFE_TODO(data[ii]) = static_cast<float>(double_data[ii]);
   return true;
 }
 
@@ -464,7 +460,7 @@ bool TransformFromList(const base::Value::List& list,
   for (size_t ii = 0; ii < 16; ++ii) {
     if (!list[ii].is_double())
       return false;
-    data[ii] = list[ii].GetDouble();
+    UNSAFE_TODO(data[ii]) = list[ii].GetDouble();
   }
   *transform = gfx::Transform::ColMajorF(data);
   return true;
@@ -855,7 +851,7 @@ uint8_t StringToColorSpaceRangeId(const std::string& token) {
 
 base::Value::List Matrix3x3ToList(const skcms_Matrix3x3& mat) {
   float data[9];
-  memcpy(data, mat.vals, sizeof(mat));
+  UNSAFE_TODO(memcpy(data, mat.vals, sizeof(mat)));
   return FloatArrayToList(data);
 }
 
@@ -1096,7 +1092,6 @@ void ContentDrawQuadCommonToDict(const ContentDrawQuadBase* draw_quad,
   DCHECK(draw_quad);
   DCHECK(dict);
   dict->Set("tex_coord_rect", RectFToDict(draw_quad->tex_coord_rect));
-  dict->Set("texture_size", SizeToDict(draw_quad->texture_size));
   dict->Set("nearest_neighbor", draw_quad->nearest_neighbor);
   dict->Set("force_anti_aliasing_off", draw_quad->force_anti_aliasing_off);
 }
@@ -1153,7 +1148,6 @@ std::optional<DrawQuadCommon> GetDrawQuadCommonFromDict(
 
 struct ContentDrawQuadCommon {
   gfx::RectF tex_coord_rect;
-  gfx::Size texture_size;
   bool is_premultiplied;
   bool nearest_neighbor;
   bool force_anti_aliasing_off;
@@ -1162,26 +1156,23 @@ struct ContentDrawQuadCommon {
 std::optional<ContentDrawQuadCommon> GetContentDrawQuadCommonFromDict(
     const base::Value::Dict& dict) {
   const base::Value::Dict* tex_coord_rect = dict.FindDict("tex_coord_rect");
-  const base::Value::Dict* texture_size = dict.FindDict("texture_size");
   std::optional<bool> is_premultiplied = dict.FindBool("is_premultiplied");
   std::optional<bool> nearest_neighbor = dict.FindBool("nearest_neighbor");
   std::optional<bool> force_anti_aliasing_off =
       dict.FindBool("force_anti_aliasing_off");
 
-  if (!tex_coord_rect || !texture_size || !is_premultiplied ||
-      !nearest_neighbor || !force_anti_aliasing_off) {
+  if (!tex_coord_rect || !is_premultiplied || !nearest_neighbor ||
+      !force_anti_aliasing_off) {
     return std::nullopt;
   }
   gfx::RectF t_tex_coord_rect;
-  gfx::Size t_texture_size;
-  if (!RectFFromDict(*tex_coord_rect, &t_tex_coord_rect) ||
-      !SizeFromDict(*texture_size, &t_texture_size)) {
+  if (!RectFFromDict(*tex_coord_rect, &t_tex_coord_rect)) {
     return std::nullopt;
   }
 
-  return ContentDrawQuadCommon{
-      t_tex_coord_rect, t_texture_size, is_premultiplied.value(),
-      nearest_neighbor.value(), force_anti_aliasing_off.value()};
+  return ContentDrawQuadCommon{t_tex_coord_rect, is_premultiplied.value(),
+                               nearest_neighbor.value(),
+                               force_anti_aliasing_off.value()};
 }
 
 void CompositorRenderPassDrawQuadToDict(
@@ -1494,11 +1485,11 @@ bool TileDrawQuadFromDict(const base::Value::Dict& dict,
 
   ResourceId resource_id = common.resource_id;
 
-  draw_quad->SetAll(
-      common.shared_quad_state, common.rect, common.visible_rect,
-      common.needs_blending, resource_id, content_common->tex_coord_rect,
-      content_common->texture_size, content_common->nearest_neighbor,
-      content_common->force_anti_aliasing_off);
+  draw_quad->SetAll(common.shared_quad_state, common.rect, common.visible_rect,
+                    common.needs_blending, resource_id,
+                    content_common->tex_coord_rect,
+                    content_common->nearest_neighbor,
+                    content_common->force_anti_aliasing_off);
   return true;
 }
 

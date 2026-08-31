@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chromeos/ash/experiences/arc/session/arc_vm_client_adapter.h"
 
 #include <inttypes.h>
@@ -22,7 +17,9 @@
 #include <vector>
 
 #include "ash/constants/ash_features.h"
+#include "base/byte_count.h"
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -260,8 +257,9 @@ class TestArcVmBootNotificationServer
         << "abstract_addr is too long: " << abstract_addr;
     ASSERT_EQ('\0', abstract_addr[0])
         << "abstract_addr is not abstract: " << abstract_addr;
-    memset(addr.sun_path, 0, sizeof(addr.sun_path));
-    memcpy(addr.sun_path, abstract_addr.data(), abstract_addr.size());
+    UNSAFE_TODO(memset(addr.sun_path, 0, sizeof(addr.sun_path)));
+    UNSAFE_TODO(
+        memcpy(addr.sun_path, abstract_addr.data(), abstract_addr.size()));
     LOG(INFO) << "Abstract address: \\0" << &(addr.sun_path[1]);
 
     ASSERT_EQ(HANDLE_EINTR(bind(fd_.get(), reinterpret_cast<sockaddr*>(&addr),
@@ -2147,9 +2145,9 @@ TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeEnabledBig) {
   base::FieldTrialParams params;
   params["shift_mib"] = "0";
   feature_list.InitAndEnableFeatureWithParameters(kVmMemorySize, params);
-  base::SystemMemoryInfoKB info;
+  base::SystemMemoryInfo info;
   ASSERT_TRUE(base::GetSystemMemoryInfo(&info));
-  const uint32_t total_mib = info.total / 1024;
+  const int64_t total_mib = info.total.InMiB();
   StartParams start_params(GetPopulatedStartParams());
   StartMiniArcWithParams(true, std::move(start_params));
   const auto& request = GetTestConciergeClient()->start_arc_vm_request();
@@ -2163,9 +2161,9 @@ TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeEnabledSmall) {
   base::FieldTrialParams params;
   params["shift_mib"] = "-1024";
   feature_list.InitAndEnableFeatureWithParameters(kVmMemorySize, params);
-  base::SystemMemoryInfoKB info;
+  base::SystemMemoryInfo info;
   ASSERT_TRUE(base::GetSystemMemoryInfo(&info));
-  const uint32_t total_mib = info.total / 1024;
+  const int64_t total_mib = info.total.InMiB();
   StartParams start_params(GetPopulatedStartParams());
   StartMiniArcWithParams(true, std::move(start_params));
   const auto& request = GetTestConciergeClient()->start_arc_vm_request();
@@ -2210,9 +2208,9 @@ TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeWithPercentageParam) {
   base::FieldTrialParams params;
   params["ram_percentage"] = "25";
   feature_list.InitAndEnableFeatureWithParameters(kVmMemorySize, params);
-  base::SystemMemoryInfoKB info;
+  base::SystemMemoryInfo info;
   ASSERT_TRUE(base::GetSystemMemoryInfo(&info));
-  const uint32_t total_mib = info.total / 1024;
+  const int64_t total_mib = info.total.InMiB();
   StartParams start_params(GetPopulatedStartParams());
   StartMiniArcWithParams(true, std::move(start_params));
   const auto& request = GetTestConciergeClient()->start_arc_vm_request();
@@ -2227,9 +2225,9 @@ TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeWithPercentageParamAndShiftMiB) {
   params["ram_percentage"] = "25";
   params["shift_mib"] = "-512";
   feature_list.InitAndEnableFeatureWithParameters(kVmMemorySize, params);
-  base::SystemMemoryInfoKB info;
+  base::SystemMemoryInfo info;
   ASSERT_TRUE(base::GetSystemMemoryInfo(&info));
-  const uint32_t total_mib = info.total / 1024;
+  const int64_t total_mib = info.total.InMiB();
   StartParams start_params(GetPopulatedStartParams());
   StartMiniArcWithParams(true, std::move(start_params));
   const auto& request = GetTestConciergeClient()->start_arc_vm_request();
@@ -2241,7 +2239,7 @@ TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeWithPercentageParamAndShiftMiB) {
 TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeEnabledNoSystemMemoryInfo) {
   // Inject the failure.
   class TestDelegate : public ArcVmClientAdapterDelegate {
-    bool GetSystemMemoryInfo(base::SystemMemoryInfoKB* info) override {
+    bool GetSystemMemoryInfo(base::SystemMemoryInfo* info) override {
       return false;
     }
   };
@@ -2263,10 +2261,10 @@ TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeEnabledNoSystemMemoryInfo) {
 // TODO(khmel): Remove this once crosvm becomes 64 bit binary on ARM.
 TEST_F(ArcVmClientAdapterTest, ArcVmMemorySizeEnabledOn32Bit) {
   class TestDelegate : public ArcVmClientAdapterDelegate {
-    bool GetSystemMemoryInfo(base::SystemMemoryInfoKB* info) override {
+    bool GetSystemMemoryInfo(base::SystemMemoryInfo* info) override {
       // Return a value larger than k32bitVmRamMaxMib to verify that the VM
       // memory size is actually limited.
-      info->total = (k32bitVmRamMaxMib + 1000) * 1024;
+      info->total = base::MiB(k32bitVmRamMaxMib + 1000);
       return true;
     }
     bool IsCrosvm32bit() override { return true; }
@@ -2549,8 +2547,8 @@ TEST_F(ArcVmClientAdapterTest, ArcGuestZramSwappinessValid) {
 
 TEST_F(ArcVmClientAdapterTest, ArcGuestZramSizeByPercentage_5GbSystem) {
   class TestDelegate : public ArcVmClientAdapterDelegate {
-    bool GetSystemMemoryInfo(base::SystemMemoryInfoKB* info) override {
-      info->total = 5 * 1024 * 1024;
+    bool GetSystemMemoryInfo(base::SystemMemoryInfo* info) override {
+      info->total = base::GiB(5);
       return true;
     }
     bool IsCrosvm32bit() override { return false; }
@@ -2574,8 +2572,8 @@ TEST_F(ArcVmClientAdapterTest, ArcGuestZramSizeByPercentage_5GbSystem) {
 
 TEST_F(ArcVmClientAdapterTest, ArcGuestZramSizeByPercentage_4GbSystem) {
   class TestDelegate : public ArcVmClientAdapterDelegate {
-    bool GetSystemMemoryInfo(base::SystemMemoryInfoKB* info) override {
-      info->total = 4 * 1024 * 1024;
+    bool GetSystemMemoryInfo(base::SystemMemoryInfo* info) override {
+      info->total = base::GiB(4);
       return true;
     }
     bool IsCrosvm32bit() override { return false; }
@@ -2599,8 +2597,8 @@ TEST_F(ArcVmClientAdapterTest, ArcGuestZramSizeByPercentage_4GbSystem) {
 
 TEST_F(ArcVmClientAdapterTest, ArcGuestZramSizeByPercentage_CustomMem) {
   class TestDelegate : public ArcVmClientAdapterDelegate {
-    bool GetSystemMemoryInfo(base::SystemMemoryInfoKB* info) override {
-      info->total = 6 * 1024 * 1024;
+    bool GetSystemMemoryInfo(base::SystemMemoryInfo* info) override {
+      info->total = base::GiB(6);
       return true;
     }
     bool IsCrosvm32bit() override { return false; }

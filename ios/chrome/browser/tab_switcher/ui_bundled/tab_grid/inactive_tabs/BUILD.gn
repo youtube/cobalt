@@ -69,6 +69,7 @@ source_set("inactive_tabs_ui") {
     ":inactive_tabs_button_ui",
     ":inactive_tabs_delegate",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui",
     "//ios/chrome/browser/tab_switcher/ui_bundled",
     "//ios/chrome/browser/tab_switcher/ui_bundled:items",
     "//ios/chrome/browser/tab_switcher/ui_bundled/tab_grid:tab_grid_ui_constants",
@@ -137,6 +138,7 @@ source_set("eg2_tests") {
   deps = [
     ":inactive_tabs_constants",
     "//base",
+    "//components/strings:components_strings_grit",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/reading_list/ui_bundled:eg_test_support+eg2",
     "//ios/chrome/browser/settings/ui_bundled/tabs:tabs_constants",

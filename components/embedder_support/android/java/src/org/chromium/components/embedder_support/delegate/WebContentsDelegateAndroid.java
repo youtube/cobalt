@@ -9,9 +9,9 @@ import android.view.KeyEvent;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
-import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
+import org.chromium.base.JniOnceCallback;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -91,6 +91,11 @@ public class WebContentsDelegateAndroid {
     }
 
     @CalledByNative
+    public boolean preHandleKeyboardEvent(long nativeKeyEvent) {
+        return false;
+    }
+
+    @CalledByNative
     public void handleKeyboardEvent(KeyEvent event) {
         // TODO(bulach): we probably want to re-inject the KeyEvent back into
         // the system. Investigate if this is at all possible.
@@ -119,7 +124,8 @@ public class WebContentsDelegateAndroid {
     public void showRepostFormWarningDialog() {}
 
     @CalledByNative
-    public void enterFullscreenModeForTab(boolean prefersNavigationBar, boolean prefersStatusBar) {}
+    public void enterFullscreenModeForTab(
+            long requestingFrame, boolean prefersNavigationBar, boolean prefersStatusBar) {}
 
     @CalledByNative
     public void fullscreenStateChangedForTab(
@@ -133,8 +139,15 @@ public class WebContentsDelegateAndroid {
         return false;
     }
 
+    @CalledByNative
+    public void requestKeyboardLock(boolean escKeyLocked) {}
+
+    @CalledByNative
+    public void cancelKeyboardLockRequest() {}
+
     /**
      * Called when BrowserMediaPlayerManager wants to load a media resource.
+     *
      * @param url the URL of media resource to load.
      * @return true to prevent the resource from being loaded.
      */
@@ -207,12 +220,14 @@ public class WebContentsDelegateAndroid {
     public void didBackForwardTransitionAnimationChange() {}
 
     @CalledByNative
-    private boolean maybeCopyContentAreaAsBitmap(long nativeCallback) {
-        return maybeCopyContentAreaAsBitmap(
-                (bitmap) -> {
-                    WebContentsDelegateAndroidJni.get()
-                            .maybeCopyContentAreaAsBitmapOutcome(nativeCallback, bitmap);
-                });
+    private boolean maybeCopyContentAreaAsBitmap(JniOnceCallback<@Nullable Bitmap> callback) {
+        boolean result = maybeCopyContentAreaAsBitmap((Callback<@Nullable Bitmap>) callback);
+        if (!result) {
+            // If the method returns false, the callback won't be called, so we need to destroy it
+            // to prevent memory leaks and match the previous behavior of no callback.
+            callback.destroy();
+        }
+        return result;
     }
 
     /**
@@ -293,8 +308,37 @@ public class WebContentsDelegateAndroid {
     @CalledByNative
     public void didChangeCloseSignalInterceptStatus() {}
 
-    @NativeMethods
-    public interface Natives {
-        void maybeCopyContentAreaAsBitmapOutcome(long callbackPtr, @Nullable Bitmap bitmap);
-    }
+    /**
+     * Requests that the web contents obtain a pointer lock.
+     *
+     * <p>A pointer lock restricts the mouse cursor to the bounds of the view and provides relative
+     * motion events as the user moves the mouse.
+     *
+     * @param webContents The {@link WebContents} for which to request the pointer lock.
+     * @param userGesture {@code true} if the request is a result of a user gesture, {@code false}
+     *     otherwise. A user gesture is required for the pointer lock to be granted.
+     * @param lastUnlockedByTarget {@code true} if the pointer was previously unlocked by the target
+     *     (website) itself, {@code false} if it was unlocked by the system or user action. This
+     *     flag helps to prevent websites from instantly re-locking the pointer after it has been
+     *     released by the user or system.
+     */
+    public void requestPointerLock(
+            WebContents webContents, boolean userGesture, boolean lastUnlockedByTarget) {}
+
+    /**
+     * Called when the pointer lock is lost, either by a system event, user action or when the
+     * focused view changes.
+     *
+     * <p>This method is invoked when the pointer lock, previously requested via {@link
+     * #requestPointerLock}, is no longer active. This can occur for several reasons:
+     *
+     * <ul>
+     *   <li>The user pressed the escape key or a system-defined key to release the lock.
+     *   <li>The application called {@code document.exitPointerLock()} in JavaScript.
+     *   <li>The window lost focus.
+     *   <li>The view hierarchy capturing the pointer went out of focus.
+     *   <li>The system released the pointer lock for other reasons.
+     * </ul>
+     */
+    public void lostPointerLock() {}
 }

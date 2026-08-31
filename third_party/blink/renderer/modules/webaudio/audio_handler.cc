@@ -45,23 +45,25 @@ AudioHandler::AudioHandler(NodeType node_type,
       stderr,
       "[%16p]: %16p: %2d: AudioHandler::AudioHandler() %d [%d] total: %u\n",
       Context(), this, GetNodeType(), connection_ref_count_,
-      node_count_[GetNodeType()],
+      UNSAFE_TODO(node_count_[static_cast<int>(GetNodeType())]),
       InstanceCounters::CounterValue(InstanceCounters::kAudioHandlerCounter));
 #endif
   node.context()->WarnIfContextClosed(this);
+  uma_reporter_ = std::make_unique<AudioHandlerUmaReporter>(
+      std::string(NodeTypeName().Utf8()), sample_rate);
 }
 
 AudioHandler::~AudioHandler() {
   DCHECK(IsMainThread());
   InstanceCounters::DecrementCounter(InstanceCounters::kAudioHandlerCounter);
 #if DEBUG_AUDIONODE_REFERENCES
-  --node_count_[GetNodeType()];
+  UNSAFE_TODO(--node_count_[static_cast<int>(GetNodeType())]);
   fprintf(
       stderr,
       "[%16p]: %16p: %2d: AudioHandler::~AudioHandler() %d [%d] remaining: "
       "%u\n",
       Context(), this, GetNodeType(), connection_ref_count_,
-      node_count_[GetNodeType()],
+      UNSAFE_TODO(node_count_[static_cast<int>(GetNodeType())]),
       InstanceCounters::CounterValue(InstanceCounters::kAudioHandlerCounter));
 #endif
 }
@@ -159,9 +161,10 @@ void AudioHandler::SetNodeType(NodeType type) {
   node_type_ = type;
 
 #if DEBUG_AUDIONODE_REFERENCES
-  ++node_count_[type];
+  UNSAFE_TODO(++node_count_[static_cast<int>(type)]);
   fprintf(stderr, "[%16p]: %16p: %2d: AudioHandler::AudioHandler [%3d]\n",
-          Context(), this, GetNodeType(), node_count_[GetNodeType()]);
+          Context(), this, GetNodeType(),
+          UNSAFE_TODO(node_count_[static_cast<int>(GetNodeType())]));
 #endif
 }
 
@@ -189,7 +192,7 @@ const AudioNodeOutput& AudioHandler::Output(unsigned i) const {
   return *outputs_[i];
 }
 
-unsigned AudioHandler::ChannelCount() {
+unsigned AudioHandler::ChannelCount() const {
   return channel_count_;
 }
 
@@ -228,7 +231,7 @@ void AudioHandler::SetChannelCount(unsigned channel_count,
   }
 }
 
-V8ChannelCountMode::Enum AudioHandler::GetChannelCountMode() {
+V8ChannelCountMode::Enum AudioHandler::GetChannelCountMode() const {
   // Because we delay the actual setting of the mode to the pre or post
   // rendering phase, we want to return the value that was set, not the actual
   // current mode.
@@ -246,7 +249,7 @@ void AudioHandler::SetChannelCountMode(V8ChannelCountMode::Enum mode,
   }
 }
 
-V8ChannelInterpretation::Enum AudioHandler::ChannelInterpretation() {
+V8ChannelInterpretation::Enum AudioHandler::ChannelInterpretation() const {
   // Because we delay the actual setting of the interpretation to the pre or
   // post rendering phase, we want to return the value that was set, not the
   // actual current interpretation.
@@ -324,7 +327,11 @@ void AudioHandler::ProcessIfNecessary(uint32_t frames_to_process) {
       // the downstream nodes.  (For example, a Gain node with a gain of 0 will
       // want to silence its output.)
       UnsilenceOutputs();
+      base::TimeTicks process_start_time = base::TimeTicks::Now();
       Process(frames_to_process);
+      base::TimeDelta process_duration =
+          base::TimeTicks::Now() - process_start_time;
+      uma_reporter_->AddProcessDuration(process_duration, frames_to_process);
     }
 
     if (!silent_inputs) {
@@ -368,7 +375,7 @@ void AudioHandler::PullInputs(uint32_t frames_to_process) {
   }
 }
 
-bool AudioHandler::InputsAreSilent() {
+bool AudioHandler::InputsAreSilent() const {
   for (auto& input : inputs_) {
     if (!input->Bus()->IsSilent()) {
       return false;
@@ -474,7 +481,8 @@ void AudioHandler::MakeConnection() {
       stderr,
       "[%16p]: %16p: %2d: AudioHandler::MakeConnection   %3d [%3d] @%.15g\n",
       Context(), this, GetNodeType(), connection_ref_count_,
-      node_count_[GetNodeType()], Context()->currentTime());
+      UNSAFE_TODO(node_count_[static_cast<int>(GetNodeType())]),
+      Context()->currentTime());
 #endif
 
   // See the disabling code in disableOutputsIfNecessary(). This handles
@@ -492,7 +500,8 @@ void AudioHandler::BreakConnectionWithLock() {
           "[%16p]: %16p: %2d: AudioHandler::BreakConnectionWitLock %3d [%3d] "
           "@%.15g\n",
           Context(), this, GetNodeType(), connection_ref_count_,
-          node_count_[GetNodeType()], Context()->currentTime());
+          UNSAFE_TODO(node_count_[static_cast<int>(GetNodeType())]),
+          Context()->currentTime());
 #endif
 
   if (!connection_ref_count_) {
@@ -503,7 +512,7 @@ void AudioHandler::BreakConnectionWithLock() {
 #if DEBUG_AUDIONODE_REFERENCES
 
 bool AudioHandler::is_node_count_initialized_ = false;
-int AudioHandler::node_count_[kNodeTypeEnd];
+int AudioHandler::node_count_[static_cast<int>(NodeType::kNodeTypeEnd)];
 
 void AudioHandler::PrintNodeCounts() {
   fprintf(stderr, "\n\n");
@@ -511,8 +520,9 @@ void AudioHandler::PrintNodeCounts() {
   fprintf(stderr, "AudioNode: reference counts\n");
   fprintf(stderr, "===========================\n");
 
-  for (unsigned i = 0; i < kNodeTypeEnd; ++i)
-    fprintf(stderr, "%2d: %d\n", i, node_count_[i]);
+  for (unsigned i = 0; i < static_cast<unsigned>(NodeType::kNodeTypeEnd); ++i) {
+    fprintf(stderr, "%2d: %d\n", i, UNSAFE_TODO(node_count_[i]));
+  }
 
   fprintf(stderr, "===========================\n\n\n");
 }
@@ -521,9 +531,9 @@ void AudioHandler::PrintNodeCounts() {
 
 #if DEBUG_AUDIONODE_REFERENCES > 1
 void AudioHandler::TailProcessingDebug(const char* note, bool flag) {
-  fprintf(stderr, "[%16p]: %16p: %2d: %s %d @%.15g flag=%d", Context(), this,
-          GetNodeType(), note, connection_ref_count_, Context()->currentTime(),
-          flag);
+  UNSAFE_TODO(fprintf(stderr, "[%16p]: %16p: %2d: %s %d @%.15g flag=%d",
+                      Context(), this, GetNodeType(), note,
+                      connection_ref_count_, Context()->currentTime(), flag));
 
   // If we're on the audio thread, we can print out the tail and
   // latency times (because these methods can only be called from the
@@ -559,9 +569,8 @@ unsigned AudioHandler::NumberOfOutputChannels() const {
   // nodes where you can have an output with 0 channels.  All other nodes have
   // at least one output channel, so there's no reason other nodes should
   // ever call this function.
-  DCHECK(0) << "numberOfOutputChannels() not valid for node type "
-            << NodeTypeName();
-  return 1;
+  NOTREACHED() << "numberOfOutputChannels() not valid for node type "
+               << NodeTypeName();
 }
 
 void AudioHandler::SendLogMessage(const char* const function_name,

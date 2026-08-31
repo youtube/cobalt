@@ -12,6 +12,7 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/views/profiles/profile_management_step_controller.h"
+#include "chrome/browser/ui/views/profiles/profile_management_types.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 
@@ -30,7 +31,9 @@ ProfilePickerGlicFlowController::ProfilePickerGlicFlowController(
     ProfilePickerWebContentsHost* host,
     ClearHostClosure clear_host_callback,
     base::OnceCallback<void(Profile*)> picked_profile_callback)
-    : ProfileManagementFlowController(host, std::move(clear_host_callback)),
+    : ProfileManagementFlowController(host,
+                                      std::move(clear_host_callback),
+                                      /*flow_type_string=*/"GlicFlow"),
       picked_profile_callback_(std::move(picked_profile_callback)) {
   CHECK(picked_profile_callback_);
 }
@@ -50,17 +53,28 @@ void ProfilePickerGlicFlowController::Init() {
 
 void ProfilePickerGlicFlowController::PickProfile(
     const base::FilePath& profile_path,
-    ProfilePicker::ProfilePickingArgs args) {
+    ProfilePicker::ProfilePickingArgs args,
+    base::OnceCallback<void(bool)> pick_profile_complete_callback) {
   g_browser_process->profile_manager()->LoadProfileByPath(
       profile_path, /*incognito=*/false,
       base::BindOnce(&ProfilePickerGlicFlowController::OnPickedProfileLoaded,
-                     base::Unretained(this)));
+                     base::Unretained(this),
+                     std::move(pick_profile_complete_callback)));
 }
 
-void ProfilePickerGlicFlowController::OnPickedProfileLoaded(Profile* profile) {
+void ProfilePickerGlicFlowController::OnPickedProfileLoaded(
+    base::OnceCallback<void(bool)> pick_profile_complete_callback,
+    Profile* profile) {
   if (!profile) {
+    if (pick_profile_complete_callback) {
+      std::move(pick_profile_complete_callback).Run(false);
+    }
     Clear();
     return;
+  }
+
+  if (pick_profile_complete_callback) {
+    std::move(pick_profile_complete_callback).Run(true);
   }
 
   loaded_profile_ = profile;

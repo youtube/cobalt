@@ -22,7 +22,7 @@
 
 namespace webrtc {
 
-// tl;dr: webrtc::ArrayView is the same thing as gsl::span from the Guideline
+// tl;dr: ArrayView is the same thing as gsl::span from the Guideline
 //        Support Library.
 //
 // Many functions read from or write to arrays. The obvious way to do this is
@@ -37,7 +37,7 @@ namespace webrtc {
 //   }
 //
 // This is flexible, since it doesn't matter how the array is stored (C array,
-// std::vector, webrtc::Buffer, ...), but it's error-prone because the caller
+// std::vector, Buffer, ...), but it's error-prone because the caller
 // has to correctly specify the array length:
 //
 //   Contains17(arr, std::size(arr));     // C array
@@ -48,11 +48,11 @@ namespace webrtc {
 // It's also kind of messy to have two separate arguments for what is
 // conceptually a single thing.
 //
-// Enter webrtc::ArrayView<T>. It contains a T pointer (to an array it doesn't
+// Enter ArrayView<T>. It contains a T pointer (to an array it doesn't
 // own) and a count, and supports the basic things you'd expect, such as
 // indexing and iteration. It allows us to write our function like this:
 //
-//   bool Contains17(webrtc::ArrayView<const int> arr) {
+//   bool Contains17(ArrayView<const int> arr) {
 //     for (auto e : arr) {
 //       if (e == 17)
 //         return true;
@@ -65,7 +65,7 @@ namespace webrtc {
 //
 //   Contains17(arr);                             // C array
 //   Contains17(arr);                             // std::vector
-//   Contains17(webrtc::ArrayView<int>(arr, size));  // pointer + size
+//   Contains17(ArrayView<int>(arr, size));  // pointer + size
 //   Contains17(nullptr);                         // nullptr -> empty ArrayView
 //   ...
 //
@@ -239,8 +239,8 @@ class ArrayView final : public array_view_internal::ArrayViewBase<T, Size> {
   // ArrayView<T, N> to ArrayView<T> or ArrayView<const T>,
   // std::vector<T> to ArrayView<T> or ArrayView<const T>,
   // const std::vector<T> to ArrayView<const T>,
-  // webrtc::Buffer to ArrayView<uint8_t> or ArrayView<const uint8_t>, and
-  // const webrtc::Buffer to ArrayView<const uint8_t>.
+  // Buffer to ArrayView<uint8_t> or ArrayView<const uint8_t>, and
+  // const Buffer to ArrayView<const uint8_t>.
   template <
       typename U,
       typename std::enable_if<Size == array_view_internal::kArrayViewVarSize &&
@@ -332,16 +332,5 @@ inline ArrayView<U, Size> reinterpret_array_view(ArrayView<T, Size> view) {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-template <typename T,
-          std::ptrdiff_t Size = webrtc::array_view_internal::kArrayViewVarSize>
-using ArrayView = ::webrtc::ArrayView<T, Size>;
-using ::webrtc::MakeArrayView;
-using ::webrtc::reinterpret_array_view;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_ARRAY_VIEW_H_

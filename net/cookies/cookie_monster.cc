@@ -62,6 +62,7 @@
 #include "base/check_is_test.h"
 #include "base/compiler_specific.h"
 #include "base/containers/flat_map.h"
+#include "base/dcheck_is_on.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -298,7 +299,7 @@ void SplitCookieVectorIntoSecureAndNonSecure(
 }
 
 bool LowerBoundAccessDateComparator(const CookieMonster::CookieMap::iterator it,
-                                    const Time& access_date) {
+                                    Time access_date) {
   return it->second->LastAccessDate() < access_date;
 }
 
@@ -309,7 +310,7 @@ bool LowerBoundAccessDateComparator(const CookieMonster::CookieMap::iterator it,
 CookieMonster::CookieItVector::iterator LowerBoundAccessDate(
     const CookieMonster::CookieItVector::iterator its_begin,
     const CookieMonster::CookieItVector::iterator its_end,
-    const Time& access_date) {
+    Time access_date) {
   return std::lower_bound(its_begin, its_end, access_date,
                           LowerBoundAccessDateComparator);
 }
@@ -527,7 +528,10 @@ void CookieMonster::SetCanonicalCookieAsync(
     const CookieOptions& options,
     SetCookiesCallback callback,
     std::optional<CookieAccessResult> cookie_access_result) {
-  DCHECK(cookie->IsCanonical());
+  if constexpr (DCHECK_IS_ON()) {
+    CanonicalCookie::CanonicalizationResult result = cookie->IsCanonical();
+    DCHECK(result) << result;
+  }
 
   std::string domain = cookie->Domain();
   DoCookieCallbackForHostOrDomain(
@@ -544,7 +548,8 @@ void CookieMonster::SetCanonicalCookieAsync(
 void CookieMonster::SetUnsafeCanonicalCookieForTestAsync(
     std::unique_ptr<CanonicalCookie> cookie,
     SetCookiesCallback callback) {
-  CHECK(cookie->IsCanonical());
+  CanonicalCookie::CanonicalizationResult result = cookie->IsCanonical();
+  CHECK(result) << result;
 
   std::string domain = cookie->Domain();
   DoCookieCallbackForHostOrDomain(
@@ -1526,8 +1531,7 @@ bool CookieMonster::MaybeDeleteEquivalentCookieAndUpdateStatus(
     }
     // If cookie's domain is in legacy mode, check to make sure we are not
     // setting an aliasing cookie.
-    if (cookie_being_set.IsEquivalent(cookie_being_set_key,
-                                      *cur_existing_cookie) ||
+    if (cookie_being_set_key == cur_existing_cookie->RefUniqueKey() ||
         (cookie_being_set_scope_semantics == CookieScopeSemantics::LEGACY &&
          cookie_being_set.LegacyUniqueKey() ==
              cur_existing_cookie->LegacyUniqueKey())) {
@@ -1954,7 +1958,7 @@ void CookieMonster::SetUnsafeCanonicalCookieForTest(
 }
 
 void CookieMonster::InternalUpdateCookieAccessTime(CanonicalCookie& cc,
-                                                   const Time& current) {
+                                                   Time current) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // Based off the Mozilla code.  When a cookie has been accessed recently,
@@ -2094,8 +2098,7 @@ void CookieMonster::InternalDeletePartitionedCookie(
 
 // Domain expiry behavior is unchanged by key/expiry scheme (the
 // meaning of the key is different, but that's not visible to this routine).
-size_t CookieMonster::GarbageCollect(const Time& current,
-                                     const std::string& key) {
+size_t CookieMonster::GarbageCollect(Time current, const std::string& key) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   size_t num_deleted = 0;
@@ -2277,7 +2280,7 @@ size_t CookieMonster::GarbageCollect(const Time& current,
 }
 
 size_t CookieMonster::GarbageCollectPartitionedCookies(
-    const base::Time& current,
+    base::Time current,
     const CookiePartitionKey& cookie_partition_key,
     const std::string& key) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -2528,7 +2531,7 @@ size_t CookieMonster::PurgeLeastRecentMatchesForOBC(
   return removed;
 }
 
-size_t CookieMonster::GarbageCollectExpired(const Time& current,
+size_t CookieMonster::GarbageCollectExpired(Time current,
                                             const CookieMapItPair& itpair,
                                             CookieItVector* cookie_its) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -2550,7 +2553,7 @@ size_t CookieMonster::GarbageCollectExpired(const Time& current,
 }
 
 size_t CookieMonster::GarbageCollectExpiredPartitionedCookies(
-    const Time& current,
+    Time current,
     const PartitionedCookieMap::iterator& cookie_partition_it,
     const CookieMapItPair& itpair,
     CookieItVector* cookie_its) {
@@ -2573,8 +2576,7 @@ size_t CookieMonster::GarbageCollectExpiredPartitionedCookies(
   return num_deleted;
 }
 
-void CookieMonster::GarbageCollectAllExpiredPartitionedCookies(
-    const Time& current) {
+void CookieMonster::GarbageCollectAllExpiredPartitionedCookies(Time current) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (auto it = partitioned_cookies_.begin();
        it != partitioned_cookies_.end();) {
@@ -2592,7 +2594,7 @@ void CookieMonster::GarbageCollectAllExpiredPartitionedCookies(
 }
 
 size_t CookieMonster::GarbageCollectDeleteRange(
-    const Time& current,
+    Time current,
     DeletionCause cause,
     CookieItVector::iterator it_begin,
     CookieItVector::iterator it_end) {
@@ -2605,8 +2607,8 @@ size_t CookieMonster::GarbageCollectDeleteRange(
 }
 
 size_t CookieMonster::GarbageCollectLeastRecentlyAccessed(
-    const base::Time& current,
-    const base::Time& safe_date,
+    base::Time current,
+    base::Time safe_date,
     size_t purge_goal,
     CookieItVector cookie_its,
     base::Time& earliest_time) {
@@ -2812,7 +2814,7 @@ void CookieMonster::UpdateMostRecentCookie(
 // last_statistic_record_time_ is initialized to Now() rather than null
 // in the constructor so that we won't take statistics right after
 // startup, to avoid bias from browsers that are started but not used.
-void CookieMonster::RecordPeriodicStats(const base::Time& current_time) {
+void CookieMonster::RecordPeriodicStats(base::Time current_time) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   const base::TimeDelta kRecordStatisticsIntervalTime(

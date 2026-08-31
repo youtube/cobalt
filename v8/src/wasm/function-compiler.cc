@@ -59,10 +59,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
     // - eager compilation mode,
     // - with lazy validation,
     // - with PGO (which compiles some functions eagerly), or
-    // - with compilation hints (which also compiles some functions eagerly).
     DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
-           v8_flags.experimental_wasm_pgo_from_file ||
-           v8_flags.experimental_wasm_compilation_hints);
+           v8_flags.experimental_wasm_pgo_from_file);
     Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
     if (ValidateFunctionBody(&validation_zone, env->enabled_features,
                              env->module, detected, func_body)
@@ -116,6 +114,10 @@ WasmCompilationResult WasmCompilationUnit::ExecuteCompilation(
                          (1 << declared_index)) != 0)) {
           options.set_debug_sidetable(&unused_debug_sidetable);
           if (!for_debugging_) options.set_for_debugging(kForDebugging);
+        }
+        if (v8_flags.wasm_code_coverage &&
+            options.for_debugging == kNotForDebugging) {
+          options.set_for_debugging(kForDebugging);
         }
         result = ExecuteLiftoffCompilation(env, func_body, options);
         if (result.succeeded()) break;

@@ -10,27 +10,27 @@
 
 #include "modules/congestion_controller/goog_cc/robust_throughput_estimator.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/field_trials.h"
 #include "api/transport/network_types.h"
 #include "api/units/data_rate.h"
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/congestion_controller/goog_cc/acknowledged_bitrate_estimator_interface.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 
 RobustThroughputEstimatorSettings CreateRobustThroughputEstimatorSettings(
     absl::string_view field_trial_string) {
-  test::ExplicitKeyValueConfig trials(field_trial_string);
+  FieldTrials trials = CreateTestFieldTrials(field_trial_string);
   RobustThroughputEstimatorSettings settings(&trials);
   return settings;
 }

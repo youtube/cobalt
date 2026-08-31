@@ -30,6 +30,7 @@
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -82,7 +83,7 @@ bool IsValidTrackNamespaceChar(char c) {
   return absl::ascii_isalnum(c) || c == '-' || c == '_';
 }
 
-bool IsValidTrackNamespace(FullTrackName track_namespace) {
+bool IsValidTrackNamespace(TrackNamespace track_namespace) {
   for (const auto& element : track_namespace.tuple()) {
     if (!absl::c_all_of(element, IsValidTrackNamespaceChar)) {
       return false;
@@ -91,8 +92,8 @@ bool IsValidTrackNamespace(FullTrackName track_namespace) {
   return true;
 }
 
-FullTrackName CleanUpTrackNamespace(FullTrackName track_namespace) {
-  FullTrackName output;
+TrackNamespace CleanUpTrackNamespace(TrackNamespace track_namespace) {
+  TrackNamespace output;
   for (auto& it : track_namespace.tuple()) {
     std::string element = it;
     for (char& c : element) {
@@ -117,7 +118,7 @@ class MoqtIngestionHandler {
 
   // TODO(martinduke): Handle when |announce| is false (UNANNOUNCE).
   std::optional<MoqtAnnounceErrorReason> OnAnnounceReceived(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<VersionSpecificParameters> /*parameters*/) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
@@ -153,10 +154,9 @@ class MoqtIngestionHandler {
     std::vector<absl::string_view> tracks_to_subscribe =
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
-      FullTrackName full_track_name = track_namespace;
-      full_track_name.AddElement(track);
-      session_->JoiningFetch(full_track_name, &it->second, 0,
-                             VersionSpecificParameters());
+      FullTrackName full_track_name(track_namespace, track);
+      session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
+                                     VersionSpecificParameters());
     }
 
     return std::nullopt;
@@ -181,12 +181,12 @@ class MoqtIngestionHandler {
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
     void OnObjectFragment(const FullTrackName& full_track_name,
-                          Location sequence,
-                          MoqtPriority /*publisher_priority*/,
-                          MoqtObjectStatus /*status*/, absl::string_view object,
+                          const PublishedObjectMetadata& metadata,
+                          absl::string_view object,
                           bool /*end_of_message*/) override {
-      std::string file_name = absl::StrCat(sequence.group, "-", sequence.object,
-                                           ".", full_track_name.tuple().back());
+      std::string file_name =
+          absl::StrCat(metadata.location.group, "-", metadata.location.object,
+                       ".", full_track_name.track_namespace().tuple().back());
       std::string file_path = quiche::JoinPath(directory_, file_name);
       std::ofstream output(file_path, std::ios::binary | std::ios::ate);
       output.write(object.data(), object.size());
@@ -194,6 +194,7 @@ class MoqtIngestionHandler {
     }
 
     void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
    private:
     std::string directory_;
@@ -201,7 +202,7 @@ class MoqtIngestionHandler {
 
   MoqtSession* session_;  // Not owned.
   std::string output_root_;
-  absl::node_hash_map<FullTrackName, NamespaceHandler> subscribed_namespaces_;
+  absl::node_hash_map<TrackNamespace, NamespaceHandler> subscribed_namespaces_;
 };
 
 absl::StatusOr<MoqtConfigureSessionCallback> IncomingSessionHandler(

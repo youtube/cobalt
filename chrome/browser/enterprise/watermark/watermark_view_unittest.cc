@@ -4,7 +4,9 @@
 
 #include "chrome/browser/enterprise/watermark/watermark_view.h"
 
+#include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/views/accessibility/view_accessibility.h"
 
 namespace enterprise_watermark {
@@ -17,8 +19,10 @@ TEST(WatermarkViewTest, InvisibleToAccessibility) {
   }
   {
     ui::AXNodeData node_data;
-    WatermarkView("foo").GetViewAccessibility().GetAccessibleNodeData(
-        &node_data);
+    WatermarkView view;
+    view.SetString("foo", SK_ColorBLACK, SK_ColorWHITE,
+                   enterprise_connectors::kWatermarkStyleFontSizeDefault);
+    view.GetViewAccessibility().GetAccessibleNodeData(&node_data);
     ASSERT_TRUE(node_data.HasState(ax::mojom::State::kInvisible));
   }
 }

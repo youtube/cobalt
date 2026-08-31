@@ -649,6 +649,12 @@
   <message name="IDS_OS_SETTINGS_TAG_POWER_ADAPTIVE_CHARGING" desc="Text for search result item which, when clicked, navigates the user to power settings, with an option to enable adaptive charging.">
     Adaptive charging
   </message>
+  <message name="IDS_OS_SETTINGS_TAG_POWER_OPTIMIZED_CHARGING" desc="Text for search result item which, when clicked, navigates the user to power settings, with an option to enable optimized charging." translateable="false">
+    Optimized charging
+  </message>
+  <message name="IDS_OS_SETTINGS_TAG_POWER_CHARGE_LIMIT" desc="Text for search result item which, when clicked, navigates the user to power settings, with an option to enable a charge limit." translateable="false">
+    Charge limit
+  </message>
   <message name="IDS_OS_SETTINGS_TAG_TOUCHPAD" desc="Text for search result item which, when clicked, navigates the user to touchpad settings. Alternate phrase for: 'Trackpad'">
     Touchpad
   </message>
@@ -854,45 +860,6 @@
   <message name="IDS_OS_SETTINGS_TAG_QUICK_ANSWERS_UNIT_CONVERSION" desc="Text for search result item which, when clicked, navigates the user to Quick Answers settings, with a toggle to enable/disable the Quick Answers unit conversion functionality.">
     Quick Answers unit conversion
   </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings.">
-    Google Assistant
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_RELATED_INFO" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable letting Assistant show info related to what's on the screen.">
-    Google Assistant related information
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_QUICK_ANSWERS" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable letting Assistant show related info when the user right-clicks.">
-    Google Assistant quick answers
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_OK_GOOGLE" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable letting users summon the Assistant by saying 'Ok Google' out loud. Alternate phrase for: 'Okay Google', 'Hey Google'">
-    Google Assistant &quot;Ok Google&quot;
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_OK_GOOGLE_ALT1" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable letting users summon the Assistant by saying 'Ok Google' out loud. Alternate phrase for: 'Google Assistant 'Ok Google'', 'Hey Google'">
-    Okay Google
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_OK_GOOGLE_ALT2" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable letting users summon the Assistant by saying 'Ok Google' out loud. Alternate phrase for: 'Google Assistant 'Ok Google'', 'Okay Google'">
-    Hey Google
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_NOTIFICATIONS" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable Assistant notifications.">
-    Google Assistant Notifications
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_PREFERRED_INPUT" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with a toggle to enable/disable having the preferred input be voice instead of keyboard.">
-    Google Assistant voice input
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_TURN_OFF" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with an option to turn functionality off. Alternate phrase for: 'Disable Google Assistant'">
-    Turn off Google Assistant
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_TURN_OFF_ALT1" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with an option to turn functionality off. Alternate phrase for: 'Turn off Google Assistant'">
-    Disable Google Assistant
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_TURN_ON" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with an option to turn functionality on. Alternate phrase for: 'Enable Google Assistant'">
-    Turn on Google Assistant
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_TURN_ON_ALT1" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with an option to turn functionality on. Alternate phrase for: 'Turn on Google Assistant'">
-    Enable Google Assistant
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_ASSISTANT_TRAIN_VOICE_MODEL" desc="Text for search result item which, when clicked, navigates the user to Google Assistant settings, with an option to train a voice model to listen for commands such as 'Okay Google' or 'Hey Google'">
-    Train Google Assistant voice model
-  </message>
 
   <message name="IDS_OS_SETTINGS_TAG_MAGIC_BOOST" desc="Text for search result item which, when clicked, navigates the user to Google AI settings, with an option to turn functionality on.">
     Google AI
@@ -902,6 +869,12 @@
   </message>
   <message name="IDS_OS_SETTINGS_TAG_MAGIC_BOOST_HMW" desc="Text for search result item which, when clicked, navigates the user to Help Me Write settings, with an option to turn functionality on.">
     Help Me Write
+  </message>
+  <message name="IDS_OS_SETTINGS_TAG_MAGIC_BOOST_LOBSTER" desc="Text for search result item which, when clicked, navigates the user to Create Image settings, with an option to turn functionality on.">
+    Create Image
+  </message>
+  <message name="IDS_OS_SETTINGS_TAG_SUGGESTED_ACTIONS" desc="Text for search result item which, when clicked, navigates the user to Suggested actions when searching your screen settings, with an option to turn functionality on.">
+    Suggested actions when searching your screen
   </message>
 
   <!-- Apps section. -->
@@ -1192,9 +1165,6 @@
   </message>
   <message name="IDS_OS_SETTINGS_TAG_LANGUAGES_PERSONAL_INFORMATION_SUGGESTIONS" desc="Text for search result item which, when clicked, navigates the user to suggestions settings, which with a toggle to enable/disable showing personal information suggestions.">
     Personal information suggestions
-  </message>
-  <message name="IDS_OS_SETTINGS_TAG_LANGUAGES_HELP_ME_WRITE_SUGGESTIONS" desc="Text for search result item which, when clicked, navigates the user to suggestions settings, with a section having a toggle to enable/disable showing Help me write after an user types a word.">
-    Help me write
   </message>
   <message name="IDS_OS_SETTINGS_TAG_LANGUAGES_EMOJI_SUGGESTIONS" desc="Text for search result item which, when clicked, navigates the user to suggestions settings, with a section having a toggle to enable/disable showing emoji suggestions after an user types a word.">
     Emoji suggestions

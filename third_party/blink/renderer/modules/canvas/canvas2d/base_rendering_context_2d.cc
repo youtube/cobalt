@@ -40,7 +40,6 @@
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_font_variant_caps.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_canvas_text_rendering.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_format.h"
-#include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_enums.h"
 #include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_helper.h"
 #include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
@@ -82,7 +81,7 @@
 #include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/blend_mode.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_host.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_high_entropy_op_type.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #if !BUILDFLAG(IS_COBALT)
@@ -115,6 +114,9 @@
 // IWYU pragma: no_include "base/numerics/clamped_math.h"
 
 namespace blink {
+
+class MemoryManagedPaintCanvas;
+
 namespace {
 
 #if !BUILDFLAG(IS_COBALT)
@@ -185,50 +187,6 @@ CanvasRenderingContext2DSettings* BaseRenderingContext2D::getContextAttributes()
   return ToCanvasRenderingContext2DSettings(CreationAttributes());
 }
 
-bool BaseRenderingContext2D::IsDrawElementEligible(
-    Element* element,
-    ExceptionState& exception_state) {
-  HTMLCanvasElement* canvas_element = HostAsHTMLCanvasElement();
-  if (!canvas_element || !canvas_element->GetDocument().View()) {
-    return false;
-  }
-
-  if (!GetOrCreatePaintCanvas()) {
-    return false;
-  }
-
-  if (element->parentElement() != canvas_element) {
-    exception_state.ThrowTypeError(
-        "Only immediate children of the <canvas> element can be passed to "
-        "drawElement().");
-    return false;
-  }
-
-  if (!canvas_element->layoutSubtree()) {
-    exception_state.ThrowTypeError(
-        "<canvas> elements without layoutsubtree do not support "
-        "drawElement().");
-    return false;
-  }
-
-  if (!element->GetLayoutObject()) {
-    exception_state.ThrowTypeError(
-        "The canvas and element used with drawElement() must have been laid "
-        "out. Detached canvases are not supported, nor canvas or children that "
-        "are `display: none`.");
-    return false;
-  }
-
-  // TODO(crbug.com/413728246): Maybe we can support canvas element.
-  if (IsA<HTMLCanvasElement>(element)) {
-    exception_state.ThrowTypeError(
-        "<canvas> children of a <canvas> cannot be passed to drawElement().");
-    return false;
-  }
-
-  return true;
-}
-
 void BaseRenderingContext2D::DispatchContextLostEvent(TimerBase*) {
   // If `need_dispatch_context_restored_` is `true`, the context has been
   // restored already (e.g. by fixing a `kInvalidCanvasSize` context loss), but
@@ -287,7 +245,7 @@ void BaseRenderingContext2D::DispatchContextRestoredEvent(TimerBase*) {
     return;
   }
 
-  host->ClearLayerTexture();
+  host->ClearCanvas2DLayerTexture();
   ResetInternal();
   context_lost_mode_ = CanvasRenderingContext::kNotLostContext;
   Event* event(Event::Create(event_type_names::kContextrestored));
@@ -310,7 +268,7 @@ void BaseRenderingContext2D::TryRestoreContextEvent(TimerBase* timer) {
   // The canvas was changed to an invalid size since the context was lost. We
   // can't restore the context until the canvas is given a valid size. Abort
   // here to avoid creating a shared GPU context we would not use.
-  if (!IsValidImageSize(host->Size()) && !host->Size().IsEmpty()) {
+  if (!host->IsValidImageSize() && !host->Size().IsEmpty()) {
     context_lost_mode_ = kInvalidCanvasSize;
     try_restore_context_event_timer_.Stop();
     return;
@@ -346,9 +304,9 @@ void BaseRenderingContext2D::RestoreFromInvalidSizeIfNeeded() {
       !host) {
     return;
   }
-  DCHECK(!host->ResourceProvider());
+  DCHECK(!GetResourceProviderForCanvas2D());
 
-  if (IsValidImageSize(host->Size())) {
+  if (host->IsValidImageSize()) {
     if (dispatch_context_lost_event_timer_.IsActive()) {
       // An oncontextlost event is still pending. We can't send the
       // oncontextrestored right away because the oncontextlost callback could
@@ -536,11 +494,9 @@ ImageData* BaseRenderingContext2D::getImageDataInternal(
       GetImage(FlushReason::kGetImageData);
 
   bool noised = false;
-  if (auto* host = GetCanvasRenderingContextHost()) {
-    if (snapshot) {
-      noised = CanvasInterventionsHelper::MaybeNoiseSnapshot(
-          host->RenderingContext(), GetTopExecutionContext(), snapshot);
-    }
+  if (snapshot) {
+    noised = CanvasInterventionsHelper::MaybeNoiseSnapshot(
+        GetTopExecutionContext(), snapshot);
   }
 
   TRACE_EVENT_INSTANT(
@@ -723,9 +679,6 @@ void BaseRenderingContext2D::putImageData(ImageData* data,
 void BaseRenderingContext2D::PutByteArray(const SkPixmap& source,
                                           const gfx::Rect& source_rect,
                                           const gfx::Vector2d& dest_offset) {
-  if (!IsCanvas2DBufferValid())
-    return;
-
   DCHECK(gfx::Rect(source.width(), source.height()).Contains(source_rect));
   int dest_x = dest_offset.x() + source_rect.x();
   DCHECK_GE(dest_x, 0);
@@ -839,6 +792,12 @@ void BaseRenderingContext2D::Trace(Visitor* visitor) const {
   Canvas2DRecorderContext::Trace(visitor);
 }
 
+bool BaseRenderingContext2D::Is2DCanvasAccelerated() const {
+  auto* resource_provider = GetResourceProviderForCanvas2D();
+  return resource_provider ? resource_provider->IsAccelerated()
+                           : Host()->ShouldTryToUseGpuRaster();
+}
+
 void BaseRenderingContext2D::RestoreCanvasMatrixClipStack(
     cc::PaintCanvas* c) const {
   RestoreMatrixClipStack(c);
@@ -846,6 +805,19 @@ void BaseRenderingContext2D::RestoreCanvasMatrixClipStack(
 
 void BaseRenderingContext2D::Reset() {
   ResetInternal();
+}
+
+scoped_refptr<StaticBitmapImage>
+BaseRenderingContext2D::PaintRenderingResultsToSnapshot(
+    SourceDrawingBuffer source_buffer,
+    FlushReason reason) {
+  if (!IsCanvas2DResourceProviderValid()) {
+    return nullptr;
+  }
+
+  CanvasResourceProvider* provider = GetResourceProviderForCanvas2D();
+  provider->FlushCanvas(reason);
+  return provider->Snapshot(reason);
 }
 
 void BaseRenderingContext2D::WillUseCurrentFont() const {
@@ -1208,17 +1180,11 @@ void BaseRenderingContext2D::DrawTextInternal(
     location.set_x(location.x() / ClampTo<float>(width / font_width));
   }
 
-  // Only fill and stroke are used for DrawTextInternal.
-  AddTriggersForCanvasIntervention(
-      paint_type == CanvasRenderingContext2DState::kFillPaintType
-          ? CanvasOperationType::kFillText
-          : CanvasOperationType::kStrokeText);
-
   Draw<OverdrawOp::kNone>(
+      /*draw_func=*/
       [font, text = std::move(text), direction, bidi_override, location,
-       run_start, run_end, canvas, text_painter](
-          cc::PaintCanvas* c, const cc::PaintFlags* flags)  // draw lambda
-      {
+       run_start, run_end, canvas, text_painter,
+       paint_type](MemoryManagedPaintCanvas* c, const cc::PaintFlags* flags) {
         TextRun text_run(text, direction, bidi_override,
                          /* normalize_space */ true);
         // Font::DrawType::kGlyphsAndClusters is required for printing to PDF,
@@ -1233,6 +1199,11 @@ void BaseRenderingContext2D::DrawTextInternal(
         Font::DrawType draw_type = (canvas && canvas->IsPrinting())
                                        ? Font::DrawType::kGlyphsAndClusters
                                        : Font::DrawType::kGlyphsOnly;
+        // Only fill and stroke are used for DrawTextInternal.
+        c->AddHighEntropyCanvasOpTypes(
+            paint_type == CanvasRenderingContext2DState::kFillPaintType
+                ? HighEntropyCanvasOpType::kFillText
+                : HighEntropyCanvasOpType::kStrokeText);
         if (text_painter) {
           text_painter->DrawWithBidiReorder(text_run, run_start, run_end, *font,
                                             Font::kUseFallbackIfFontNotReady,
@@ -1246,9 +1217,7 @@ void BaseRenderingContext2D::DrawTextInternal(
                                        draw_type);
         }
       },
-      [](const SkIRect& rect)  // overdraw test lambda
-      { return false; },
-      bounds, paint_type, CanvasRenderingContext2DState::kNoImage,
+      NoOverdraw, bounds, paint_type, CanvasRenderingContext2DState::kNoImage,
       CanvasPerformanceMonitor::DrawType::kText);
 
   if (use_max_width) {
@@ -1533,13 +1502,13 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   // host is already accelerated.
   // TODO(crbug.com/340911120): if the user requested WillReadFrequently, do we
   // want to behave differently here?
-  const bool host_is_accelerated = host->EnableAcceleration();
+  EnableAccelerationIfPossible();
 
   // A texture needs to exist on the GPU. If we aren't able to enable
   // acceleration, the canvas pixels live on the CPU and we weren't able to
   // transfer them; in that case, WebGPU access is not possible.
   CanvasResourceProvider* provider = GetOrCreateCanvas2DResourceProvider();
-  if (!host_is_accelerated || !provider || !provider->IsAccelerated()) {
+  if (!provider || !provider->IsAccelerated()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Unable to transfer canvas to GPU.");
     return nullptr;
@@ -1552,11 +1521,12 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   gpu::SyncToken canvas_access_sync_token;
   bool performed_copy = false;
   scoped_refptr<gpu::ClientSharedImage> client_si =
-      host->ResourceProvider()->GetBackingClientSharedImageForExternalWrite(
-          &canvas_access_sync_token,
-          gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
-              gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
-          &performed_copy);
+      GetResourceProviderForCanvas2D()
+          ->GetBackingClientSharedImageForExternalWrite(
+              &canvas_access_sync_token,
+              gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
+                  gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
+              &performed_copy);
   if (access_options->requireZeroCopy() && performed_copy) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
@@ -1598,7 +1568,7 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
   // It also gives us a mechanism to detect post-transfer-out draws, which is
   // used in `transferBackFromWebGPU` to raise an exception.
   resource_provider_from_webgpu_access_ =
-      host->ReplaceResourceProvider(nullptr);
+      ReplaceResourceProviderForCanvas2D(nullptr);
 
   // The user isn't obligated to ever transfer back, which means this resource
   // provider might stick around for while. Jettison any unnecessary resources.
@@ -1634,7 +1604,7 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
   // If this canvas already has a resource provider, this means that drawing has
   // occurred after `transferToWebGPU`. We disallow transferring back in this
   // case, and raise an exception instead.
-  if (host->ResourceProvider()) {
+  if (GetResourceProviderForCanvas2D()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "The canvas was touched after transferToGPUTexture.");
@@ -1657,9 +1627,9 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
   // surrendering our temporary ownership of the provider.
   CanvasResourceProvider* resource_provider =
       resource_provider_from_webgpu_access_.get();
-  host->ReplaceResourceProvider(
+  ReplaceResourceProviderForCanvas2D(
       std::move(resource_provider_from_webgpu_access_));
-  resource_provider->SetCanvasResourceHost(host);
+  resource_provider->SetDelegate(host);
 
   // Disassociate the WebGPU texture from the SharedImage to end its
   // SharedImage access.

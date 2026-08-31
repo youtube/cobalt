@@ -25,7 +25,6 @@ TilingSetRasterQueueAll::IterationStage::IterationStage(
 // static
 std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
     PictureLayerTilingSet* tiling_set,
-    bool prioritize_low_res,
     bool is_drawing_layer) {
   DCHECK(tiling_set);
 
@@ -36,18 +35,17 @@ std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
     }
   } else {
     if (!tiling_set->num_tilings()) {
-      return base::WrapUnique(new TilingSetRasterQueueAll(
-          nullptr, nullptr, nullptr, is_drawing_layer));
+      return base::WrapUnique(
+          new TilingSetRasterQueueAll(nullptr, nullptr, is_drawing_layer));
     }
   }
 
   const PictureLayerTilingClient* client = tiling_set->client();
   WhichTree tree = tiling_set->tree();
-  // Find high and low res tilings and initialize the iterators.
+  // Find high res tiling and initialize the iterator.
   PictureLayerTiling* high_res_tiling = nullptr;
-  PictureLayerTiling* low_res_tiling = nullptr;
-  // This variable would point to a tiling that has a NON_IDEAL_RESOLUTION or
-  // LOW_RESOLUTION on the active tree, but HIGH_RESOLUTION on the pending tree.
+  // This variable would point to a tiling that has a NON_IDEAL_RESOLUTION on
+  // the active tree, but HIGH_RESOLUTION on the pending tree.
   // These tilings are the only non-high res tilings that could have required
   // for activation tiles, so they need to be considered for rasterization.
   PictureLayerTiling* active_non_ideal_pending_high_res_tiling = nullptr;
@@ -55,8 +53,6 @@ std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
     PictureLayerTiling* tiling = tiling_set->tiling_at(i);
     if (tiling->resolution() == HIGH_RESOLUTION)
       high_res_tiling = tiling;
-    if (prioritize_low_res && tiling->resolution() == LOW_RESOLUTION)
-      low_res_tiling = tiling;
     if (tree == ACTIVE_TREE && tiling->resolution() != HIGH_RESOLUTION) {
       const PictureLayerTiling* twin =
           client->GetPendingOrActiveTwinTiling(tiling);
@@ -65,8 +61,6 @@ std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
     }
   }
 
-  bool use_low_res_tiling = low_res_tiling && low_res_tiling->has_tiles() &&
-                            !low_res_tiling->all_tiles_done();
   bool use_high_res_tiling = high_res_tiling && high_res_tiling->has_tiles() &&
                              !high_res_tiling->all_tiles_done();
   bool use_active_non_ideal_pending_high_res_tiling =
@@ -74,15 +68,13 @@ std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
       active_non_ideal_pending_high_res_tiling->has_tiles() &&
       !active_non_ideal_pending_high_res_tiling->all_tiles_done();
 
-  if (!use_low_res_tiling && !use_high_res_tiling &&
-      !use_active_non_ideal_pending_high_res_tiling &&
+  if (!use_high_res_tiling && !use_active_non_ideal_pending_high_res_tiling &&
       features::IsCCSlimmingEnabled()) {
     return nullptr;
   }
 
   return base::WrapUnique(new TilingSetRasterQueueAll(
       use_high_res_tiling ? high_res_tiling : nullptr,
-      use_low_res_tiling ? low_res_tiling : nullptr,
       use_active_non_ideal_pending_high_res_tiling
           ? active_non_ideal_pending_high_res_tiling
           : nullptr,
@@ -91,22 +83,15 @@ std::unique_ptr<TilingSetRasterQueueAll> TilingSetRasterQueueAll::Create(
 
 TilingSetRasterQueueAll::TilingSetRasterQueueAll(
     PictureLayerTiling* high_res_tiling,
-    PictureLayerTiling* low_res_tiling,
     PictureLayerTiling* active_non_ideal_pending_high_res_tiling,
     bool is_drawing_layer)
     : current_stage_(0), is_drawing_layer_(is_drawing_layer) {
-  if (!high_res_tiling && !low_res_tiling &&
-      !active_non_ideal_pending_high_res_tiling) {
+  if (!high_res_tiling && !active_non_ideal_pending_high_res_tiling) {
     DCHECK(!features::IsCCSlimmingEnabled());
     return;
   }
 
   // Make the tiling iterators.
-  if (low_res_tiling) {
-    MakeTilingIterator(LOW_RES, low_res_tiling);
-  } else if (!features::IsCCSlimmingEnabled()) {
-    iterators_[LOW_RES].emplace();
-  }
   if (high_res_tiling) {
     MakeTilingIterator(HIGH_RES, high_res_tiling);
   } else if (!features::IsCCSlimmingEnabled()) {
@@ -120,10 +105,6 @@ TilingSetRasterQueueAll::TilingSetRasterQueueAll(
   }
 
   // Set up the stages.
-  if (low_res_tiling) {
-    stages_.push_back(IterationStage(LOW_RES, TilePriority::NOW));
-  }
-
   if (high_res_tiling) {
     stages_.push_back(IterationStage(HIGH_RES, TilePriority::NOW));
   }

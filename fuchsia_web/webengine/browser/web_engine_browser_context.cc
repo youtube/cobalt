@@ -14,6 +14,7 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/fuchsia/fuchsia_logging.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/strings/string_split.h"
 #include "base/threading/thread_restrictions.h"
@@ -122,7 +123,11 @@ WebEngineBrowserContext::GetPlatformNotificationService() {
 
 content::PushMessagingService*
 WebEngineBrowserContext::GetPushMessagingService() {
+#ifdef WEB_ENGINE_ENABLE_PUSH_MESSAGING_API
+  return &push_messaging_service_;
+#else
   return nullptr;
+#endif
 }
 
 content::StorageNotificationService*
@@ -176,8 +181,7 @@ WebEngineBrowserContext::CreateVideoDecodePerfHistory() {
   // Return in-memory VideoDecodePerfHistory.
   return std::make_unique<media::VideoDecodePerfHistory>(
       std::make_unique<media::InMemoryVideoDecodeStatsDBImpl>(
-          nullptr /* seed_db_provider */),
-      media::learning::FeatureProviderFactoryCB());
+          nullptr /* seed_db_provider */));
 }
 
 base::RepeatingCallback<bool(const GURL&)> IsJavaScriptAllowedCallback() {
@@ -194,7 +198,12 @@ WebEngineBrowserContext::WebEngineBrowserContext(
       client_hints_delegate_(network_quality_tracker,
                              IsJavaScriptAllowedCallback(),
                              embedder_support::GetUserAgentMetadata()),
-      reduce_accept_language_delegate_(GetAcceptLanguages()) {
+      reduce_accept_language_delegate_(GetAcceptLanguages())
+#ifdef WEB_ENGINE_ENABLE_PUSH_MESSAGING_API
+      ,
+      push_messaging_service_(*this)
+#endif
+{
   SimpleKeyMap::GetInstance()->Associate(this, &simple_factory_key_);
 
   profile_metrics::SetBrowserProfileType(

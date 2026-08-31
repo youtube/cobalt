@@ -153,10 +153,21 @@ struct Manifest {
   // experiment. See: https://github.com/WICG/isolated-web-apps
   mojo_base.mojom.String16? version;
 
-  // Represent a string value which when provided will be used to trigger a
-  // manifest update.
-  // TODO(crbug.com/403252969): Add explainer here once complete.
-  mojo_base.mojom.String16? update_token;
+  // Localized fields map locales with localized value.
+  // See: https://www.w3.org/TR/appmanifest/#x_localized-members
+  map<mojo_base.mojom.String16, ManifestLocalizedTextObject> name_localized;
+  map<mojo_base.mojom.String16, ManifestLocalizedTextObject> short_name_localized;
+  map<mojo_base.mojom.String16, ManifestLocalizedTextObject> description_localized;
+  map<mojo_base.mojom.String16, array<ManifestImageResource>> icons_localized;
+};
+
+struct ManifestLocalizedTextObject {
+  // value is required
+  mojo_base.mojom.String16 value;
+
+  Manifest.TextDirection? dir;
+
+  mojo_base.mojom.String16? lang;
 };
 
 // Structure representing a Shortcut Item per the Manifest specification, see:
@@ -175,6 +186,11 @@ struct ManifestShortcutItem {
   url.mojom.Url url;
 
   array<ManifestImageResource> icons;
+
+  map<mojo_base.mojom.String16, ManifestLocalizedTextObject> name_localized;
+  map<mojo_base.mojom.String16, ManifestLocalizedTextObject> short_name_localized;
+  map<mojo_base.mojom.String16, ManifestLocalizedTextObject> description_localized;
+  map<mojo_base.mojom.String16, array<ManifestImageResource>> icons_localized;
 };
 
 // Structure representing an icon as per the Manifest specification, see:

@@ -28,6 +28,7 @@
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/browser/content_settings_utils.h"
 #include "components/content_settings/core/browser/user_modifiable_provider.h"
+#include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_constraints.h"
 #include "components/content_settings/core/common/content_settings_metadata.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
@@ -115,10 +116,16 @@ class HostContentSettingsMap : public content_settings::Observer,
       ContentSettingsType content_type,
       ProviderType* provider_id = nullptr) const;
 
+  // Like GetDefaultContentSetting but returns a permission setting.
+  // Returns null if no default setting is set.
+  PermissionSetting GetDefaultPermissionSetting(
+      ContentSettingsType content_type,
+      ProviderType* provider_id = nullptr) const;
+
   // Returns a single |ContentSetting| which applies to the given URLs.  Note
   // that certain internal schemes are allowlisted. For |CONTENT_TYPE_COOKIES|,
   // |CookieSettings| should be used instead. For content types that can't be
-  // converted to a |ContentSetting|, |GetContentSettingValue| should be called.
+  // converted to a |ContentSetting|, |GetWebsiteSetting| should be called.
   // If there is no content setting, returns CONTENT_SETTING_DEFAULT. |info| is
   // populated as explained in |GetWebsiteSetting()|.
   //
@@ -135,6 +142,15 @@ class HostContentSettingsMap : public content_settings::Observer,
       const GURL& primary_url,
       const GURL& secondary_url,
       ContentSettingsType content_type) const;
+
+  // Same as |GetContentSetting| but returns a variant for either
+  // ContentSettings or other more complex permission state. May be called on
+  // any thread.
+  PermissionSetting GetPermissionSetting(
+      const GURL& primary_url,
+      const GURL& secondary_url,
+      ContentSettingsType content_type,
+      content_settings::SettingInfo* info = nullptr) const;
 
   // Returns a single content setting |Value| which applies to the given URLs.
   // If |info| is not NULL, then the |source| field of |info| is set to the
@@ -229,6 +245,24 @@ class HostContentSettingsMap : public content_settings::Observer,
       ContentSetting setting,
       const content_settings::ContentSettingConstraints& constraints = {});
 
+  // Like SetContentSettingCustomScope but accepts PermissionSettings. An empty
+  // setting means that the setting should be deleted.
+  void SetPermissionSettingCustomScope(
+      const ContentSettingsPattern& primary_pattern,
+      const ContentSettingsPattern& secondary_pattern,
+      ContentSettingsType content_type,
+      std::optional<PermissionSetting> setting,
+      const content_settings::ContentSettingConstraints& constraints = {});
+
+  // Like SetContentSettingDefaultScope but accepts PermissionSettings. An empty
+  // setting means that the setting should be deleted.
+  void SetPermissionSettingDefaultScope(
+      const GURL& primary_url,
+      const GURL& secondary_url,
+      ContentSettingsType content_type,
+      std::optional<PermissionSetting> setting,
+      const content_settings::ContentSettingConstraints& constraints = {});
+
   // Sets the |value| for the default scope of the url that is appropriate for
   // the given |content_type| applying any provided |constraints|. Setting the
   // value to NONE (base::Value()) removes the default pattern pair for this
@@ -275,7 +309,7 @@ class HostContentSettingsMap : public content_settings::Observer,
       const GURL& primary_url,
       const GURL& secondary_url,
       ContentSettingsType type,
-      ContentSetting setting,
+      std::optional<PermissionSetting> setting,
       const content_settings::ContentSettingConstraints& constraints = {});
 
   // Updates the last used time to a recent timestamp.
@@ -338,7 +372,6 @@ class HostContentSettingsMap : public content_settings::Observer,
       const ContentSettingsPattern& secondary_pattern,
       ContentSettingsTypeSet content_type_set) override;
 
-
   // Whether this settings map is for an incognito or guest session.
   bool IsOffTheRecord() const { return is_off_the_record_; }
 
@@ -395,13 +428,13 @@ class HostContentSettingsMap : public content_settings::Observer,
 
   ~HostContentSettingsMap() override;
 
-  ContentSetting GetDefaultContentSettingFromProvider(
+  std::optional<PermissionSetting> GetDefaultPermissionSettingFromProvider(
       ContentSettingsType content_type,
       content_settings::ProviderInterface* provider) const;
 
   // Retrieves default content setting for |content_type|, and writes the
   // provider's type to |provider_type| (must not be null).
-  ContentSetting GetDefaultContentSettingInternal(
+  PermissionSetting GetDefaultPermissionSettingInternal(
       ContentSettingsType content_type,
       ProviderType* provider_type) const;
 

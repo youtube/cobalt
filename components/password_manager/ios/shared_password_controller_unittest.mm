@@ -94,7 +94,7 @@ using ::testing::_;
 using ::testing::Return;
 
 const std::string kTestURL = "https://www.chromium.org/";
-NSString* kTestFrameID = @"dummy-frame-id";
+NSString* kTestFrameID = @"11111111111111111111111111111111";
 constexpr uint64_t kMaxPasswordLength = 10;
 constexpr char16_t kGeneratedPassword[] = u"testpassword";
 
@@ -195,10 +195,15 @@ class SharedPasswordControllerTest : public PlatformTest {
                                           suggestionHelper:suggestion_helper_
                                               driverHelper:driver_helper_];
     controller_.delegate = delegate_;
-    [suggestion_helper_ verify];
-    [form_helper_ verify];
 
     web_state_.SetCurrentURL(GURL(kTestURL));
+  }
+
+  ~SharedPasswordControllerTest() override {
+    EXPECT_OCMOCK_VERIFY(form_helper_);
+    EXPECT_OCMOCK_VERIFY(suggestion_helper_);
+    EXPECT_OCMOCK_VERIFY(driver_helper_);
+    EXPECT_OCMOCK_VERIFY(delegate_);
   }
 
   void SetUp() override {
@@ -275,45 +280,18 @@ TEST_F(SharedPasswordControllerTest,
       autofill_manager_injector_->GetForFrame(frame);
   ASSERT_TRUE(manager);
   FormData test_form = autofill::test::CreateTestPersonalInformationFormData();
+  test_form.set_host_frame(
+      AutofillDriverIOS::FromWebStateAndWebFrame(&web_state_, frame)
+          ->GetFrameToken());
   // `OnFormsSeen` emits a `OnFieldTypesDetermined` event, but with source
   // heuristics - this should be ignored by the `SharedPasswordController`.
   manager->OnFormsSeen(/*updated_forms=*/{test_form}, /*removed_forms=*/{});
-}
-
-// Tests that the password manager of a single main frame is notified about
-// server predictions for a form.
-TEST_F(SharedPasswordControllerTest,
-       PasswordManagerIsNotifiedAboutServerPredictions_SingleFrame) {
-  auto web_frame =
-      web::FakeWebFrame::Create(SysNSStringToUTF8(kTestFrameID),
-                                /*is_main_frame=*/true, GURL(kTestURL));
-  web::WebFrame* frame = web_frame.get();
-  AddWebFrame(std::move(web_frame));
-
-  EXPECT_CALL(password_manager_, ProcessAutofillPredictions);
-
-  // Simulate seeing a form.
-  TestBrowserAutofillManager* manager =
-      autofill_manager_injector_->GetForFrame(frame);
-  ASSERT_TRUE(manager);
-  FormData test_form = autofill::test::CreateTestPersonalInformationFormData();
-  manager->OnFormsSeen(/*updated_forms=*/{test_form}, /*removed_forms=*/{});
-
-  // Trigger `OnFieldTypesDetetermined` with source `kAutofillServer` explicitly
-  // to simulate receiving server predictions.
-  using Observer = autofill::AutofillManager::Observer;
-  manager->NotifyObservers(&Observer::OnFieldTypesDetermined,
-                           test_form.global_id(),
-                           Observer::FieldTypeSource::kAutofillServer);
 }
 
 // Tests that the password manager of each frame is notified about server
 // predictions when a form streches across multiple frames.
 TEST_F(SharedPasswordControllerTest,
        PasswordManagerIsNotifiedAboutServerPredictions_AcrossFrames) {
-  base::test::ScopedFeatureList feature_list(
-      autofill::features::kAutofillAcrossIframesIos);
-
   const LocalFrameToken main_frame_local_frame_token(MakeLocalFrameToken());
   const LocalFrameToken child_frame_local_token(MakeLocalFrameToken());
   const RemoteFrameToken child_frame_remote_token(MakeRemoteFrameToken());
@@ -423,28 +401,40 @@ TEST_F(SharedPasswordControllerTest,
 // form.
 TEST_F(SharedPasswordControllerTest,
        PasswordManagerIsNotifiedAboutModelPredictions) {
-  base::test::ScopedFeatureList features(
-      password_manager::features::kPasswordFormClientsideClassifier);
-  auto web_frame =
-      web::FakeWebFrame::Create(SysNSStringToUTF8(kTestFrameID),
-                                /*is_main_frame=*/true, GURL(kTestURL));
-  web::WebFrame* frame = web_frame.get();
-  AddWebFrame(std::move(web_frame));
+  base::test::ScopedFeatureList features;
+  features.InitWithFeatures(
+      {password_manager::features::kPasswordFormClientsideClassifier,
+       password_manager::features::
+           kApplyClientsideModelPredictionsForPasswordTypes},
+      /*disabled_features=*/{});
 
-  // Simulate seeing a form and expect that PasswordManager gets notified once
-  // the parsing is complete,
-  TestBrowserAutofillManager* manager =
-      autofill_manager_injector_->GetForFrame(frame);
-  ASSERT_TRUE(manager);
-  FormData test_form = autofill::test::CreateTestPersonalInformationFormData();
+  const LocalFrameToken main_frame_local_frame_token(MakeLocalFrameToken());
+
+  GURL url(kTestURL);
+
+  auto main_frame =
+      web::FakeWebFrame::Create(main_frame_local_frame_token.ToString(),
+                                /*is_main_frame=*/true, url);
+  web::WebFrame* main_frame_ptr = main_frame.get();
+  AddWebFrame(std::move(main_frame));
+
+  FormData main_form = CreateFormDataForRenderFrameHost(
+      main_frame_ptr, url, main_frame_local_frame_token,
+      {CreateTestFormField("Search", "search", "",
+                           autofill::FormControlType::kInputText)});
+
   auto* password_driver =
       IOSPasswordManagerDriverFactory::FromWebStateAndWebFrame(&web_state_,
-                                                               frame);
+                                                               main_frame_ptr);
   EXPECT_CALL(password_manager_,
               ProcessClassificationModelPredictions(
-                  password_driver, test_form,
-                  ::testing::SizeIs(test_form.fields().size())));
-  manager->OnFormsSeen(/*updated_forms=*/{test_form}, /*removed_forms=*/{});
+                  password_driver, main_form,
+                  ::testing::SizeIs(main_form.fields().size())));
+
+  auto* driver =
+      AutofillDriverIOS::FromWebStateAndWebFrame(&web_state_, main_frame_ptr);
+  driver->FormsSeen(/*updated_forms=*/{main_form},
+                    /*removed_forms=*/{});
 }
 
 // Test that PasswordManager is notified of main frame navigation.
@@ -473,11 +463,9 @@ TEST_F(SharedPasswordControllerTest, FormsArePropagatedOnHTMLPageLoad) {
   auto web_frame =
       web::FakeWebFrame::Create("dummy-frame-id",
                                 /*is_main_frame=*/true, GURL(kTestURL));
-  web::WebFrame* frame = web_frame.get();
 
   id mock_completion_handler = [OCMArg checkWithBlock:^(void (
       ^completionHandler)(const std::vector<FormData>& forms, uint32_t maxID)) {
-    OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
     EXPECT_CALL(password_manager_, OnPasswordFormsParsed);
     EXPECT_CALL(password_manager_, OnPasswordFormsRendered);
     FormData form_data = test_helpers::MakeSimpleFormData();
@@ -487,9 +475,6 @@ TEST_F(SharedPasswordControllerTest, FormsArePropagatedOnHTMLPageLoad) {
   AddWebFrame(std::move(web_frame), mock_completion_handler);
 
   web_state_.OnPageLoaded(web::PageLoadCompletionStatus::SUCCESS);
-
-  [suggestion_helper_ verify];
-  [form_helper_ verify];
 }
 
 // Tests form finding and parsing is not triggered for non HTML pages.
@@ -506,15 +491,11 @@ TEST_F(SharedPasswordControllerTest, NoFormsArePropagatedOnNonHTMLPageLoad) {
 
   [[form_helper_ reject] findPasswordFormsInFrame:frame
                                 completionHandler:[OCMArg any]];
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
   OCMExpect([[suggestion_helper_ ignoringNonObjectArgs]
                 processWithNoSavedCredentialsWithFrameId:""])
       .andCompareStringAtIndex(web_frame_id, 0);
   EXPECT_CALL(password_manager_, OnPasswordFormsRendered);
   web_state_.OnPageLoaded(web::PageLoadCompletionStatus::SUCCESS);
-
-  [suggestion_helper_ verify];
-  [form_helper_ verify];
 }
 
 // Tests that suggestions are reported as unavailable for nonpassword forms.
@@ -557,8 +538,6 @@ TEST_F(SharedPasswordControllerTest,
                                   completion_was_called = YES;
                                 }];
   EXPECT_TRUE(completion_was_called);
-
-  [suggestion_helper_ verify];
 }
 
 // Tests that no suggestions are returned if PasswordSuggestionHelper has none.
@@ -586,7 +565,6 @@ TEST_F(SharedPasswordControllerTest, ReturnsNoSuggestionsIfNoneAreAvailable) {
       isPasswordFieldOnForm:form_query
                    webFrame:frame]);
 
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
   EXPECT_CALL(password_generation_helper_, IsGenerationEnabled(true))
       .WillOnce(Return(true));
 
@@ -616,16 +594,7 @@ TEST_F(SharedPasswordControllerTest, ReturnsNoSuggestionsIfFrameDestroyed) {
                frameID:kTestFrameID
           onlyPassword:NO];
 
-  web::WebFrame* frame = nullptr;
   const std::string frame_id = "";
-
-  OCMExpect([suggestion_helper_ retrieveSuggestionsWithForm:form_query])
-      .andReturn(@[]);
-  OCMExpect([[suggestion_helper_ ignoringNonObjectArgs]
-      isPasswordFieldOnForm:form_query
-                   webFrame:frame]);
-
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
 
   __block BOOL completion_was_called = NO;
   [controller_
@@ -675,7 +644,6 @@ TEST_F(SharedPasswordControllerTest, ReturnsSuggestionsIfAvailable) {
       isPasswordFieldOnForm:form_query
                    webFrame:frame]);
 
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
   EXPECT_CALL(password_generation_helper_, IsGenerationEnabled(true))
       .WillOnce(Return(true));
 
@@ -729,7 +697,6 @@ TEST_F(SharedPasswordControllerTest,
   [controller_ formEligibleForGenerationFound:form_generation_data];
   __block BOOL completion_was_called = NO;
 
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
   EXPECT_CALL(password_generation_helper_, IsGenerationEnabled(true))
       .WillOnce(Return(true));
   [controller_
@@ -790,8 +757,6 @@ TEST_F(SharedPasswordControllerTest, SuggestsGeneratedPassword) {
                       inFrame:frame
             completionHandler:extract_completion_handler_arg]);
 
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
-
   // Mock generating a valid password and verify that GeneratePassword() is
   // correctly called.
   autofill::FormSignature form_signature =
@@ -822,8 +787,6 @@ TEST_F(SharedPasswordControllerTest, SuggestsGeneratedPassword) {
                    fieldRendererID:field_id
                            frameID:kTestFrameID
                  completionHandler:nil];
-
-  EXPECT_OCMOCK_VERIFY(delegate_);
 }
 
 // Tests that generated passwords are presaved.
@@ -915,8 +878,6 @@ TEST_F(SharedPasswordControllerTest, PresavesGeneratedPassword) {
                    fieldRendererID:password_field_id
                            frameID:kTestFrameID
                  completionHandler:nil];
-
-  EXPECT_OCMOCK_VERIFY(delegate_);
 
   histogram_tester.ExpectUniqueSample(
       "PasswordGeneration.Event",
@@ -1014,8 +975,6 @@ TEST_F(SharedPasswordControllerTest, PresavesGeneratedPassword_Empty) {
                            frameID:kTestFrameID
                  completionHandler:nil];
 
-  EXPECT_OCMOCK_VERIFY(delegate_);
-
   histogram_tester.ExpectUniqueSample(
       "PasswordGeneration.Event",
       autofill::password_generation::PASSWORD_ACCEPTED, 1);
@@ -1073,13 +1032,10 @@ TEST_F(SharedPasswordControllerTest, TriggerPasswordGeneration) {
       extractPasswordFormData:params.form_renderer_id
                       inFrame:frame
             completionHandler:extract_completion_handler_arg]);
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
   EXPECT_CALL(password_generation_helper_, GeneratePassword)
       .WillOnce(Return(u"testpass"));
 
   [controller_ triggerPasswordGeneration];
-
-  EXPECT_OCMOCK_VERIFY(delegate_);
 
   // Verify that the metrics that verify the emptyness of the generated password
   // are recorded.
@@ -1135,8 +1091,6 @@ TEST_F(SharedPasswordControllerTest, TriggerPasswordGeneration_Proactively) {
                       inFrame:frame
             completionHandler:extract_completion_handler_arg]);
 
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
-
   // Emulate generating a non-empty password.
   EXPECT_CALL(password_generation_helper_, GeneratePassword)
       .WillOnce(Return(u"testpass"));
@@ -1148,8 +1102,6 @@ TEST_F(SharedPasswordControllerTest, TriggerPasswordGeneration_Proactively) {
                                   fieldIdentifier:password_field_id
                                           inFrame:frame
                                         proactive:YES];
-
-  EXPECT_OCMOCK_VERIFY(delegate_);
 
   // Verify that the metrics that verify the emptyness of the generated password
   // are recorded.
@@ -1189,8 +1141,6 @@ TEST_F(SharedPasswordControllerTest, LastFocusedFieldData) {
                      decisionHandler:[OCMArg any]]);
 
   [controller_ triggerPasswordGeneration];
-
-  [delegate_ verify];
 }
 
 // Tests that detecting element additions (form_changed events) is not
@@ -1211,7 +1161,6 @@ TEST_F(SharedPasswordControllerTest,
   auto web_frame = web::FakeWebFrame::Create("frame-id", /*is_main_frame=*/true,
                                              GURL(kTestURL));
   web::FakeWebFrame* frame = web_frame.get();
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
 
   AddWebFrame(std::move(web_frame));
 
@@ -1223,9 +1172,6 @@ TEST_F(SharedPasswordControllerTest,
   [controller_ webState:&web_state_
       didRegisterFormActivity:params
                       inFrame:frame];
-
-  [suggestion_helper_ verify];
-  [form_helper_ verify];
 }
 
 class SharedPasswordControllerTestWithRealSuggestionHelper
@@ -1261,7 +1207,6 @@ class SharedPasswordControllerTestWithRealSuggestionHelper
                                                 formHelper:form_helper_
                                           suggestionHelper:suggestion_helper_
                                               driverHelper:driver_helper];
-    [form_helper_ verify];
 
     controller_.delegate = delegate_;
 
@@ -1272,6 +1217,11 @@ class SharedPasswordControllerTestWithRealSuggestionHelper
 
     EXPECT_CALL(password_manager_, GetPasswordFormCache)
         .WillRepeatedly(Return(&password_form_cache_));
+  }
+
+  ~SharedPasswordControllerTestWithRealSuggestionHelper() override {
+    EXPECT_OCMOCK_VERIFY(form_helper_);
+    EXPECT_OCMOCK_VERIFY(delegate_);
   }
 
   void SetUp() override {
@@ -1572,8 +1522,6 @@ TEST_F(SharedPasswordControllerTestWithRealSuggestionHelper,
                                 forFrameId:web_frame_id
                                isMainFrame:frame->IsMainFrame()
                          forSecurityOrigin:frame->GetSecurityOrigin()];
-
-  [delegate_ verify];
 }
 
 // Tests frameDidBecomeAvailable supports cross-origin iframes.
@@ -1594,7 +1542,6 @@ TEST_F(SharedPasswordControllerTest,
 
   ASSERT_TRUE(IsCrossOriginIframe(&web_state_, frame->IsMainFrame(),
                                   frame->GetSecurityOrigin()));
-  [form_helper_ verify];
 }
 
 // Tests frameWillBecomeUnavailable supports cross-origin iframes.
@@ -1704,7 +1651,6 @@ TEST_F(SharedPasswordControllerTest,
                completionHandler:^(NSArray<FormSuggestion*>* suggestions,
                                    id<FormSuggestionProvider> delegate){
                }];
-  [suggestion_helper_ verify];
 }
 
 // Tests formHelper didSubmitForm supports cross-origin iframes.
@@ -1721,8 +1667,6 @@ TEST_F(SharedPasswordControllerTest,
 
   ASSERT_TRUE(IsCrossOriginIframe(&web_state_, frame->IsMainFrame(),
                                   frame->GetSecurityOrigin()));
-
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
 
   EXPECT_CALL(password_manager_, OnSubframeFormSubmission).Times(1);
 
@@ -1758,8 +1702,6 @@ TEST_F(SharedPasswordControllerTest,
   [controller_ webState:&web_state_
       didRegisterFormActivity:params
                       inFrame:frame];
-
-  [form_helper_ verify];
 }
 
 // Tests didRegisterFormRemoval supports cross-origin iframes.
@@ -1777,7 +1719,6 @@ TEST_F(SharedPasswordControllerTest,
   ASSERT_TRUE(IsCrossOriginIframe(&web_state_, frame->IsMainFrame(),
                                   frame->GetSecurityOrigin()));
 
-  OCMExpect([driver_helper_ PasswordManagerDriver:frame]);
   EXPECT_CALL(password_manager_, OnPasswordFormsRemoved).Times(1);
 
   autofill::FormRemovalParams params;
@@ -1894,5 +1835,4 @@ TEST_F(SharedPasswordControllerTest, DidFillField) {
 }
 
 // TODO(crbug.com/40701292): Finish unit testing the rest of the public API.
-
 }  // namespace password_manager

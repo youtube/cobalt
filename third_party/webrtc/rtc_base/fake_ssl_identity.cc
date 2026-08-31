@@ -106,7 +106,7 @@ const SSLCertificate& FakeSSLIdentity::certificate() const {
 }
 
 const SSLCertChain& FakeSSLIdentity::cert_chain() const {
-  return *cert_chain_.get();
+  return *cert_chain_;
 }
 
 std::string FakeSSLIdentity::PrivateKeyToPEMString() const {

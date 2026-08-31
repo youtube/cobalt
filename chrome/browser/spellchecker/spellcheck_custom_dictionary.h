@@ -179,6 +179,8 @@ class SpellcheckCustomDictionary final : public SpellcheckDictionary,
       const base::Location& from_here,
       const syncer::SyncChangeList& change_list) override;
   base::WeakPtr<SyncableService> AsWeakPtr() override;
+  std::string GetClientTag(
+      const syncer::EntityData& entity_data) const override;
 
  private:
   friend class DictionarySyncIntegrationTestHelper;

@@ -30,7 +30,7 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-namespace WTF {
+namespace blink {
 
 struct IdentityExtractor;
 
@@ -88,11 +88,11 @@ class HashSet {
 
   void swap(HashSet& ref) { impl_.swap(ref.impl_); }
 
-  unsigned size() const;
-  unsigned Capacity() const;
+  wtf_size_t size() const;
+  wtf_size_t Capacity() const;
   bool empty() const;
 
-  void ReserveCapacityForSize(unsigned size) {
+  void ReserveCapacityForSize(wtf_size_t size) {
     impl_.ReserveCapacityForSize(size);
   }
 
@@ -145,7 +145,7 @@ class HashSet {
   void clear();
   template <typename Collection>
   void RemoveAll(const Collection& to_be_removed) {
-    WTF::RemoveAll(*this, to_be_removed);
+    blink::RemoveAll(*this, to_be_removed);
   }
 
   ValueType Take(iterator);
@@ -267,12 +267,12 @@ inline bool operator!=(const HashSet<T, U, V>& a, const HashSet<T, U, V>& b) {
 }
 
 template <typename T, typename U, typename V>
-inline unsigned HashSet<T, U, V>::size() const {
+inline wtf_size_t HashSet<T, U, V>::size() const {
   return impl_.size();
 }
 
 template <typename T, typename U, typename V>
-inline unsigned HashSet<T, U, V>::Capacity() const {
+inline wtf_size_t HashSet<T, U, V>::Capacity() const {
   return impl_.Capacity();
 }
 
@@ -378,8 +378,11 @@ inline auto HashSet<T, U, V>::TakeAny() -> ValueType {
   return Take(begin());
 }
 
-}  // namespace WTF
+}  // namespace blink
 
-using WTF::HashSet;
+// TODO(crbug.com/422768753): Remove this `using` directive.
+namespace WTF {
+using blink::HashSet;
+}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_SET_H_

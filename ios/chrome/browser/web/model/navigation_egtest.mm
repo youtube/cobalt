@@ -608,6 +608,13 @@ std::unique_ptr<net::test_server::HttpResponse> WindowLocationHashHandlers(
 }
 
 - (void)testEdgeSwipe {
+#if !defined(__IPHONE_26_0) || __IPHONE_OS_VERSION_MAX_ALLOWED < __IPHONE_26_0
+  if (iOS26_OR_ABOVE()) {
+    EARL_GREY_TEST_SKIPPED(@"The swipe gesture when running iOS26 simulators "
+                           @"with Xcode 16 is difficult. Skip this edge case.");
+  }
+#endif
+
   GREYAssertTrue(self.testServer->Start(), @"Test server failed to start.");
   [ChromeEarlGrey loadURL:self.testServer->GetURL(kSimpleFileBasedTestURL)];
   [ChromeEarlGrey waitForWebStateContainingText:"pony"];
@@ -625,8 +632,19 @@ std::unique_ptr<net::test_server::HttpResponse> WindowLocationHashHandlers(
       [leftEdgeCoord coordinateWithOffset:CGVectorMake(600, 0.5)];
 
   // Swipe back twice.
-  [leftEdgeCoord pressForDuration:0.1f thenDragToCoordinate:swipeRight];
+  if (iOS26_OR_ABOVE()) {
+    XCUICoordinate* swipeRightiOS26 =
+        [leftEdgeCoord coordinateWithOffset:CGVectorMake(50, 0.5)];
+    [leftEdgeCoord pressForDuration:0.1f
+               thenDragToCoordinate:swipeRightiOS26
+                       withVelocity:XCUIGestureVelocityFast
+                thenHoldForDuration:0.001];
+  } else {
+    [leftEdgeCoord pressForDuration:0.1f thenDragToCoordinate:swipeRight];
+  }
   GREYWaitForAppToIdle(@"App failed to idle");
+
+  // Use pressForDuration for the back-to-NTP swipe.
   [leftEdgeCoord pressForDuration:0.1f thenDragToCoordinate:swipeRight];
   GREYWaitForAppToIdle(@"App failed to idle");
 
@@ -652,9 +670,19 @@ std::unique_ptr<net::test_server::HttpResponse> WindowLocationHashHandlers(
 
   XCUICoordinate* rightEdgeCoord =
       [app coordinateWithNormalizedOffset:CGVectorMake(rightEdge, 0.5)];
-  XCUICoordinate* swipeLeft =
-      [rightEdgeCoord coordinateWithOffset:CGVectorMake(-600, 0.5)];
-  [rightEdgeCoord pressForDuration:0.1f thenDragToCoordinate:swipeLeft];
+  if (iOS26_OR_ABOVE()) {
+    XCUICoordinate* swipeLeft =
+        [rightEdgeCoord coordinateWithOffset:CGVectorMake(-50, 0.5)];
+    [rightEdgeCoord pressForDuration:0.1f
+                thenDragToCoordinate:swipeLeft
+                        withVelocity:XCUIGestureVelocityFast
+                 thenHoldForDuration:0.001];
+
+  } else {
+    XCUICoordinate* swipeLeft =
+        [rightEdgeCoord coordinateWithOffset:CGVectorMake(-600, 0.5)];
+    [rightEdgeCoord pressForDuration:0.1f thenDragToCoordinate:swipeLeft];
+  }
   GREYWaitForAppToIdle(@"App failed to idle");
   [ChromeEarlGrey waitForWebStateContainingText:"onload"];
 }

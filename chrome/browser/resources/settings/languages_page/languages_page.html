@@ -60,6 +60,7 @@
   }
 </if>
 </style>
+<settings-section page-title="$i18n{languagesCardTitle}">
 <div id="languagesSection">
   <div class="cr-row continuation">
     <div id="languagesSectionHeader" class="flex">
@@ -163,7 +164,6 @@
 </div>
 <template is="dom-if" if="[[showAddLanguagesDialog_]]" restamp>
   <settings-add-languages-dialog languages="[[addLanguagesDialogLanguages_]]"
-      language-helper="[[languageHelper]]"
       on-languages-added="onLanguagesAdded_"
       on-close="onAddLanguagesDialogClose_">
   </settings-add-languages-dialog>
@@ -179,3 +179,4 @@
       on-close="onRelaunchDialogClose">
   </relaunch-confirmation-dialog>
 </template>
+</settings-section>

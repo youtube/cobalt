@@ -90,6 +90,7 @@ source_set("ui") {
     ":password_constants",
     ":title_view",
     "//base",
+    "//components/application_locale_storage",
     "//components/device_reauth",
     "//components/feature_engagement/public",
     "//components/google/core/common",
@@ -198,6 +199,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//components/affiliations/core/browser:test_support",
+    "//components/application_locale_storage",
     "//components/feature_engagement/public",
     "//components/feature_engagement/test:test_support",
     "//components/google/core/common",
@@ -226,6 +228,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/table_view:test_support",
     "//ios/chrome/browser/shared/ui/table_view/cells",
     "//ios/chrome/browser/shared/ui/util",
@@ -297,6 +300,10 @@ source_set("eg_app_support+eg2") {
     "//ios/third_party/material_components_ios",
     "//url",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("eg_test_support+eg2") {
@@ -333,6 +340,7 @@ source_set("eg2_tests") {
     "//components/sync/service",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/authentication/ui_bundled:eg_test_support+eg2",
+    "//ios/chrome/browser/credential_provider/model:features",
     "//ios/chrome/browser/metrics/model:eg_test_support+eg2",
     "//ios/chrome/browser/passwords/model:eg_test_support+eg2",
     "//ios/chrome/browser/passwords/model/metrics",
@@ -351,6 +359,7 @@ source_set("eg2_tests") {
     "//ios/chrome/common/ui/confirmation_alert:constants",
     "//ios/chrome/common/ui/reauthentication",
     "//ios/chrome/common/ui/table_view:cells_constants",
+    "//ios/chrome/test:eg_test_support+eg2",
     "//ios/chrome/test/earl_grey:eg_test_support+eg2",
     "//ios/chrome/test/earl_grey:switches",
     "//ios/testing/earl_grey:eg_test_support+eg2",

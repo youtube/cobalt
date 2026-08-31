@@ -36,6 +36,7 @@ import androidx.annotation.StringRes;
 import androidx.lifecycle.Lifecycle.State;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
+import org.chromium.base.DeviceInfo;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -63,7 +64,6 @@ import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.PayloadCallbackHelper;
-import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -92,12 +92,12 @@ import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefsJni;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
@@ -229,7 +229,7 @@ public class AndroidShareSheetControllerUnitTest {
                 "Custom action is empty.",
                 intent.getParcelableArrayExtra(Intent.EXTRA_CHOOSER_CUSTOM_ACTIONS));
 
-        if (BuildConfig.IS_DESKTOP_ANDROID) {
+        if (DeviceInfo.isDesktop()) {
             assertCustomActions(
                     intent,
                     R.string.sharing_long_screenshot,
@@ -270,8 +270,8 @@ public class AndroidShareSheetControllerUnitTest {
     public void choosePrintAction() throws CanceledException {
         Assume.assumeFalse(
                 "Test ignored in the desktop mode because the Print action is not showed in the"
-                    + " Share UI.",
-                BuildConfig.IS_DESKTOP_ANDROID);
+                        + " Share UI.",
+                DeviceInfo.isDesktop());
 
         CallbackHelper callbackHelper = new CallbackHelper();
         TargetChosenCallback callback =
@@ -756,7 +756,7 @@ public class AndroidShareSheetControllerUnitTest {
         mController.showShareSheet(params, chromeShareExtras, 1L);
 
         Intent intent = Shadows.shadowOf((Activity) mActivity).peekNextStartedActivity();
-        if (BuildConfig.IS_DESKTOP_ANDROID) {
+        if (DeviceInfo.isDesktop()) {
             assertCustomActions(
                     intent,
                     R.string.sharing_long_screenshot,

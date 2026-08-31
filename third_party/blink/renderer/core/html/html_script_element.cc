@@ -26,6 +26,8 @@
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_htmlscriptelement_svgscriptelement.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_string_trustedscript.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_trustedscripturl_usvstring.h"
 #include "third_party/blink/renderer/core/dom/attribute.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_node_ids.h"
@@ -64,7 +66,8 @@ HTMLScriptElement::HTMLScriptElement(Document& document,
 const AttrNameToTrustedType& HTMLScriptElement::GetCheckedAttributeTypes()
     const {
   DEFINE_STATIC_LOCAL(AttrNameToTrustedType, attribute_map,
-                      ({{"src", SpecificTrustedType::kScriptURL}}));
+                      ({{"src", std::pair{SpecificTrustedType::kScriptURL,
+                                          "HTMLScriptElement"}}}));
   return attribute_map;
 }
 
@@ -160,10 +163,6 @@ void HTMLScriptElement::DidNotifySubtreeInsertionsToDocument() {
   loader_->DidNotifySubtreeInsertionsToDocument();
 }
 
-void HTMLScriptElement::setText(const String& string) {
-  setTextContent(string);
-}
-
 void HTMLScriptElement::setInnerTextForBinding(
     const V8UnionStringLegacyNullToEmptyStringOrTrustedScript*
         string_or_trusted_script,
@@ -197,6 +196,42 @@ void HTMLScriptElement::setTextContent(const String& string) {
   // the stringified attribute value. Perform the usual attribute setter steps."
   script_text_internal_slot_ = ParkableString(string.Impl());
   Node::setTextContent(string);
+}
+
+V8UnionStringOrTrustedScript* HTMLScriptElement::text() {
+  return MakeGarbageCollected<V8UnionStringOrTrustedScript>(TextFromChildren());
+}
+
+void HTMLScriptElement::setText(V8UnionStringOrTrustedScript* value,
+                                ExceptionState& exception_state) {
+  String compliant_value =
+      TrustedTypesCheckForScript(value, GetExecutionContext(),
+                                 "HTMLScriptElement", "text", exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  setTextContent(compliant_value);
+}
+
+void HTMLScriptElement::setTextWithoutTrustedTypes(const String& value) {
+  setTextContent(value);
+}
+
+V8UnionTrustedScriptURLOrUSVString* HTMLScriptElement::src() {
+  return MakeGarbageCollected<V8UnionTrustedScriptURLOrUSVString>(
+      GetURLAttribute(html_names::kSrcAttr));
+}
+
+void HTMLScriptElement::setSrc(const V8UnionTrustedScriptURLOrUSVString* value,
+                               ExceptionState& exception_state) {
+  String compliant_value = TrustedTypesCheckForScriptURL(
+      value, GetExecutionContext(), "HTMLScriptElement", "src",
+      exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetAttributeWithoutValidation(html_names::kSrcAttr,
+                                AtomicString(compliant_value));
 }
 
 void HTMLScriptElement::setAsync(bool async) {
@@ -309,7 +344,7 @@ const AtomicString& HTMLScriptElement::GetNonceForElement() const {
 
 bool HTMLScriptElement::AllowInlineScriptForCSP(
     const AtomicString& nonce,
-    const WTF::OrdinalNumber& context_line,
+    const OrdinalNumber& context_line,
     const String& script_content) {
   // Support 'inline-speculation-rules' source.
   // https://wicg.github.io/nav-speculation/speculation-rules.html#content-security-policy
@@ -362,7 +397,8 @@ Element& HTMLScriptElement::CloneWithoutAttributesAndChildren(
   CreateElementFlags flags =
       CreateElementFlags::ByCloneNode().SetAlreadyStarted(
           loader_->AlreadyStarted());
-  return *factory.CreateElement(TagQName(), flags, IsValue());
+  return *factory.CreateElement(TagQName(), flags, IsValue(),
+                                /*registry*/ nullptr);
 }
 
 bool HTMLScriptElement::IsPotentiallyRenderBlocking() const {

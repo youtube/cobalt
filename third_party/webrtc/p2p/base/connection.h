@@ -11,8 +11,7 @@
 #ifndef P2P_BASE_CONNECTION_H_
 #define P2P_BASE_CONNECTION_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -151,8 +150,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   // Register as a recipient of received packets. There can only be one.
   void RegisterReceivedPacketCallback(
-      absl::AnyInvocable<void(webrtc::Connection*,
-                              const webrtc::ReceivedIpPacket&)>
+      absl::AnyInvocable<void(Connection*, const ReceivedIpPacket&)>
           received_packet_callback);
   void DeregisterReceivedPacketCallback();
 
@@ -160,7 +158,7 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   // Called when a packet is received on this connection.
   void OnReadPacket(const ReceivedIpPacket& packet);
-  [[deprecated("Pass a webrtc::ReceivedIpPacket")]] void
+  [[deprecated("Pass a ReceivedIpPacket")]] void
   OnReadPacket(const char* data, size_t size, int64_t packet_time_us);
 
   // Called when the socket is currently able to send.
@@ -350,8 +348,8 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 
   void SetStunDictConsumer(
       std::function<std::unique_ptr<StunAttribute>(
-          const webrtc::StunByteStringAttribute*)> goog_delta_consumer,
-      std::function<void(RTCErrorOr<const webrtc::StunUInt64Attribute*>)>
+          const StunByteStringAttribute*)> goog_delta_consumer,
+      std::function<void(RTCErrorOr<const StunUInt64Attribute*>)>
           goog_delta_ack_consumer) {
     goog_delta_consumer_ = std::move(goog_delta_consumer);
     goog_delta_ack_consumer_ = std::move(goog_delta_ack_consumer);
@@ -513,15 +511,17 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
       RTC_GUARDED_BY(network_thread_);
 
   std::optional<std::function<std::unique_ptr<StunAttribute>(
-      const webrtc::StunByteStringAttribute*)>>
+      const StunByteStringAttribute*)>>
       goog_delta_consumer_;
-  std::optional<
-      std::function<void(RTCErrorOr<const webrtc::StunUInt64Attribute*>)>>
+  std::optional<std::function<void(RTCErrorOr<const StunUInt64Attribute*>)>>
       goog_delta_ack_consumer_;
-  absl::AnyInvocable<void(webrtc::Connection*, const webrtc::ReceivedIpPacket&)>
+  absl::AnyInvocable<void(Connection*, const ReceivedIpPacket&)>
       received_packet_callback_;
 
   void MaybeAddDtlsPiggybackingAttributes(StunMessage* msg);
+  void MaybeHandleDtlsPiggybackingAttributes(
+      const StunMessage* msg,
+      const StunRequest* original_request);
   DtlsStunPiggybackCallbacks dtls_stun_piggyback_callbacks_;
 };
 
@@ -543,15 +543,5 @@ class ProxyConnection : public Connection {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::Connection;
-using ::webrtc::kGoogPingVersion;
-using ::webrtc::kMaxStunBindingLength;
-using ::webrtc::ProxyConnection;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_CONNECTION_H_

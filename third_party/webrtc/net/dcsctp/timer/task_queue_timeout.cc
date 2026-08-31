@@ -9,8 +9,13 @@
  */
 #include "net/dcsctp/timer/task_queue_timeout.h"
 
+#include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "net/dcsctp/public/types.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace dcsctp {

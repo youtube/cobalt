@@ -58,6 +58,7 @@
 #include "services/network/public/mojom/clear_data_filter.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "storage/browser/quota/special_storage_policy.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 #include "url/url_util.h"
@@ -442,9 +443,6 @@ void BrowsingDataRemoverImpl::RemoveImpl(
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_INDEXEDDB;
   }
-  if (remove_mask & DATA_TYPE_WEB_SQL) {
-    storage_partition_remove_mask |= StoragePartition::REMOVE_DATA_MASK_WEBSQL;
-  }
   if (remove_mask & DATA_TYPE_SERVICE_WORKERS) {
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_SERVICE_WORKERS;
@@ -508,6 +506,11 @@ void BrowsingDataRemoverImpl::RemoveImpl(
   if (remove_mask & DATA_TYPE_DEVICE_BOUND_SESSIONS) {
     storage_partition_remove_mask |=
         StoragePartition::REMOVE_DATA_MASK_DEVICE_BOUND_SESSIONS;
+  }
+
+  if ((remove_mask & DATA_TYPE_COOKIES) || (remove_mask & DATA_TYPE_CACHE)) {
+    storage_partition_remove_mask |=
+        StoragePartition::REMOVE_KEEPALIVE_LOADS_ATTEMPTING_RETRY;
   }
 
   if (storage_partition_remove_mask) {
@@ -930,11 +933,10 @@ void BrowsingDataRemoverImpl::OnTaskComplete(TracingDataType data_type,
   size_t num_erased = pending_sub_tasks_.erase(data_type);
   DCHECK_EQ(num_erased, 1U);
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      "browsing_data", "BrowsingDataRemoverImpl",
-      TRACE_ID_WITH_SCOPE("BrowsingDataRemoverImpl",
-                          static_cast<int>(data_type)),
-      "data_type", static_cast<int>(data_type));
+  TRACE_EVENT_END("browsing_data",
+                  perfetto::NamedTrack("BrowsingDataRemoverImpl",
+                                       static_cast<int>(data_type)),
+                  "data_type", static_cast<int>(data_type));
 
   base::UmaHistogramMediumTimes(
       base::StrCat({"History.ClearBrowsingData.Duration.Task.",
@@ -1043,11 +1045,10 @@ base::OnceClosure BrowsingDataRemoverImpl::CreateTaskCompletionClosure(
   auto result = pending_sub_tasks_.insert(data_type);
   DCHECK(result.second) << "Task already started: "
                         << static_cast<int>(data_type);
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      "browsing_data", "BrowsingDataRemoverImpl",
-      TRACE_ID_WITH_SCOPE("BrowsingDataRemoverImpl",
-                          static_cast<int>(data_type)),
-      "data_type", static_cast<int>(data_type));
+  TRACE_EVENT_BEGIN("browsing_data", "BrowsingDataRemoverImpl",
+                    perfetto::NamedTrack("BrowsingDataRemoverImpl",
+                                         static_cast<int>(data_type)),
+                    "data_type", static_cast<int>(data_type));
   return base::BindOnce(&BrowsingDataRemoverImpl::OnTaskComplete, GetWeakPtr(),
                         data_type, base::TimeTicks::Now());
 }

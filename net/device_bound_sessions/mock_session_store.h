@@ -5,9 +5,6 @@
 #ifndef NET_DEVICE_BOUND_SESSIONS_MOCK_SESSION_STORE_H_
 #define NET_DEVICE_BOUND_SESSIONS_MOCK_SESSION_STORE_H_
 
-#include <string>
-#include <utility>
-
 #include "base/functional/callback.h"
 #include "net/base/schemeful_site.h"
 #include "net/device_bound_sessions/session.h"
@@ -26,15 +23,11 @@ class SessionStoreMock : public SessionStore {
               SaveSession,
               (const SchemefulSite& site, const Session& session),
               (override));
-  MOCK_METHOD(void,
-              DeleteSession,
-              (const SchemefulSite& site, const Session::Id& session_id),
-              (override));
+  MOCK_METHOD(void, DeleteSession, (const SessionKey& key), (override));
   MOCK_METHOD(SessionStore::SessionsMap, GetAllSessions, (), (const, override));
   MOCK_METHOD(void,
               RestoreSessionBindingKey,
-              (const SchemefulSite& site,
-               const Session::Id& session_id,
+              (const SessionKey& session_key,
                RestoreSessionBindingKeyCallback callback),
               (override));
 };

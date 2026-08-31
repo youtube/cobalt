@@ -8,6 +8,7 @@
 
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/permission_request_description.h"
 #include "content/public/browser/render_frame_host.h"
@@ -118,7 +119,7 @@ class CapturedSurfaceControlPermissionManagerTest
   std::unique_ptr<TestWebContents> MakeTestWebContents() {
     scoped_refptr<SiteInstance> instance =
         SiteInstance::Create(GetBrowserContext());
-    instance->GetOrCreateProcess()->Init();
+    instance->GetOrCreateProcessForTesting()->Init();
     return TestWebContents::Create(GetBrowserContext(), std::move(instance));
   }
 

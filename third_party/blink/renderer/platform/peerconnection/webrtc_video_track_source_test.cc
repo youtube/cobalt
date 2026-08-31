@@ -13,7 +13,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
-#include "gpu/command_buffer/client/fake_gpu_memory_buffer.h"
+#include "gpu/command_buffer/client/client_shared_image.h"
 #include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/format_utils.h"
 #include "media/base/media_switches.h"
@@ -60,8 +60,7 @@ TEST(WebRtcVideoTrackSourceRefreshFrameTest, CallsRefreshFrame) {
 
 class WebRtcVideoTrackSourceTest
     : public ::testing::TestWithParam<
-          std::tuple<media::VideoFrame::StorageType, media::VideoPixelFormat>>,
-      public gpu::FakeGpuMemoryBuffer::MapCallbackController {
+          std::tuple<media::VideoFrame::StorageType, media::VideoPixelFormat>> {
  public:
   WebRtcVideoTrackSourceTest()
       : shared_resources_(
@@ -98,7 +97,7 @@ class WebRtcVideoTrackSourceTest
     media::VideoPixelFormat pixel_format;
   };
 
-  void RegisterCallback(base::OnceCallback<void(bool)> result_cb) override {
+  void RegisterCallback(base::OnceCallback<void(bool)> result_cb) {
     map_callbacks_.push_back(std::move(result_cb));
   }
 
@@ -131,11 +130,13 @@ class WebRtcVideoTrackSourceTest
     // Setting some default usage in order to get a mappable shared image.
     auto si_usage = gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY |
                     gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
-    auto shared_image = test_sii_->CreateSharedImageWithMapCallbackController(
+    auto shared_image = test_sii_->CreateSharedImageWithAsyncMapControl(
         {viz::GetSharedImageFormat(*buffer_format), frame_parameters.coded_size,
          gfx::ColorSpace(), gpu::SharedImageUsageSet(si_usage),
          "WebRtcVideoTrackSourceTest"},
-        gfx::BufferUsage::GPU_READ_CPU_READ_WRITE, premapped, this);
+        gfx::BufferUsage::GPU_READ_CPU_READ_WRITE, premapped,
+        base::BindRepeating(&WebRtcVideoTrackSourceTest::RegisterCallback,
+                            base::Unretained(this)));
     CHECK(shared_image) << "Failed to create a mappable shared image.";
     auto frame = media::VideoFrame::WrapMappableSharedImage(
         std::move(shared_image), test_sii_->GenVerifiedSyncToken(),
@@ -174,7 +175,8 @@ class WebRtcVideoTrackSourceTest
     scoped_refptr<media::VideoFrame> frame = CreateTestFrame(
         frame_parameters.coded_size, frame_parameters.visible_rect,
         frame_parameters.natural_size, frame_parameters.storage_type,
-        frame_parameters.pixel_format, base::TimeDelta(), test_sii_.get());
+        frame_parameters.pixel_format, base::TimeDelta(), test_sii_.get(),
+        color_space);
     frame->set_color_space(color_space);
     track_source_->OnFrameCaptured(frame);
   }
@@ -228,7 +230,7 @@ class WebRtcVideoTrackSourceTest
   scoped_refptr<WebRtcVideoFrameAdapter::SharedResources> shared_resources_;
   scoped_refptr<WebRtcVideoTrackSource> track_source_;
   media::VideoCaptureFeedback feedback_;
-  WTF::Deque<base::OnceCallback<void(bool)>> map_callbacks_;
+  Deque<base::OnceCallback<void(bool)>> map_callbacks_;
   scoped_refptr<gpu::TestSharedImageInterface> test_sii_;
 };
 
@@ -338,14 +340,18 @@ TEST_P(WebRtcVideoTrackSourceTest, TestColorSpaceSettings) {
         EXPECT_EQ(frame.color_space().value().range(),
                   webrtc::ColorSpace::RangeID::kFull);
       }));
-
-  // For default REC709{BT709,BT709,BT709,Limited}, we will not set color space
-  // and transmit it by RTP since decoder side would guess it if color space is
-  // invalid.
   EXPECT_CALL(mock_sink_, OnFrame(_))
       .InSequence(s)
       .WillOnce(Invoke([](const webrtc::VideoFrame& frame) {
-        ASSERT_FALSE(frame.color_space().has_value());
+        ASSERT_TRUE(frame.color_space().has_value());
+        EXPECT_EQ(frame.color_space().value().matrix(),
+                  webrtc::ColorSpace::MatrixID::kSMPTE170M);
+        EXPECT_EQ(frame.color_space().value().transfer(),
+                  webrtc::ColorSpace::TransferID::kSMPTE170M);
+        EXPECT_EQ(frame.color_space().value().primaries(),
+                  webrtc::ColorSpace::PrimaryID::kSMPTE170M);
+        EXPECT_EQ(frame.color_space().value().range(),
+                  webrtc::ColorSpace::RangeID::kLimited);
       }));
 
   gfx::ColorSpace color_range_limited(
@@ -358,10 +364,11 @@ TEST_P(WebRtcVideoTrackSourceTest, TestColorSpaceSettings) {
       gfx::ColorSpace::MatrixID::BT709, gfx::ColorSpace::RangeID::FULL);
   SendTestFrameWithColorSpace(frame_parameters, color_range_full);
 
-  gfx::ColorSpace default_bt709_color_space(
-      gfx::ColorSpace::PrimaryID::BT709, gfx::ColorSpace::TransferID::BT709,
-      gfx::ColorSpace::MatrixID::BT709, gfx::ColorSpace::RangeID::LIMITED);
-  SendTestFrameWithColorSpace(frame_parameters, default_bt709_color_space);
+  gfx::ColorSpace default_bt601_color_space(
+      gfx::ColorSpace::PrimaryID::SMPTE170M,
+      gfx::ColorSpace::TransferID::SMPTE170M,
+      gfx::ColorSpace::MatrixID::SMPTE170M, gfx::ColorSpace::RangeID::LIMITED);
+  SendTestFrameWithColorSpace(frame_parameters, default_bt601_color_space);
 }
 
 TEST_P(WebRtcVideoTrackSourceTest, SetsFeedback) {

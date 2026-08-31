@@ -509,7 +509,7 @@ class ServiceWorkerMainResourceLoaderTest : public testing::Test {
         ServiceWorkerVersion::FetchHandlerType::kNotSkippable);
     version_->SetStatus(ServiceWorkerVersion::ACTIVATED);
     PolicyContainerPolicies policies;
-    policies.ip_address_space = network::mojom::IPAddressSpace::kPrivate;
+    policies.ip_address_space = network::mojom::IPAddressSpace::kLocal;
     version_->SetPolicyContainerHost(
         base::MakeRefCounted<PolicyContainerHost>(std::move(policies)));
     registration_->SetActiveVersion(version_);
@@ -518,7 +518,7 @@ class ServiceWorkerMainResourceLoaderTest : public testing::Test {
     registration_->set_last_update_check(base::Time::Now());
     std::optional<blink::ServiceWorkerStatusCode> status;
     base::RunLoop run_loop;
-    registry()->StoreRegistration(
+    registry().StoreRegistration(
         registration_.get(), version_.get(),
         ReceiveServiceWorkerStatus(&status, run_loop.QuitClosure()));
     run_loop.Run();
@@ -548,7 +548,7 @@ class ServiceWorkerMainResourceLoaderTest : public testing::Test {
     }
   }
 
-  ServiceWorkerRegistry* registry() { return helper_->context()->registry(); }
+  ServiceWorkerRegistry& registry() { return helper_->context()->registry(); }
   mojo::Remote<storage::mojom::ServiceWorkerStorageControl>&
   GetStorageControl() {
     return helper_->context()->GetStorageControl();
@@ -700,8 +700,9 @@ class ServiceWorkerMainResourceLoaderTest : public testing::Test {
     base::RunLoop run_loop;
     cache_storage->Open(
         kTestCacheNameU16, /* trace_id= */ 0,
-        base::BindLambdaForTesting([&](blink::mojom::OpenResultPtr result) {
-          EXPECT_TRUE(result->is_cache());
+        base::BindLambdaForTesting([&](blink::mojom::CacheStorage::OpenResult
+                                           result) {
+          EXPECT_TRUE(result.has_value());
 
           std::vector<blink::mojom::BatchOperationPtr> operation_ptr_vec;
           operation_ptr_vec.push_back(blink::mojom::BatchOperation::New());
@@ -712,7 +713,7 @@ class ServiceWorkerMainResourceLoaderTest : public testing::Test {
               OkResponse(nullptr /* blob_body */,
                          network::mojom::FetchResponseSource::kUnspecified,
                          cache_response_time, kTestCacheName);
-          cache.Bind(std::move(result->get_cache()));
+          cache.Bind(std::move(result.value()));
           cache->Batch(
               std::move(operation_ptr_vec), /* trace_id= */ 0,
               base::BindOnce(
@@ -754,7 +755,7 @@ class ServiceWorkerMainResourceLoaderTest : public testing::Test {
         expected_info.was_fetched_via_service_worker;
     network::mojom::IPAddressSpace expected_client_address_space =
         expected_info.was_fetched_via_service_worker
-            ? network::mojom::IPAddressSpace::kPrivate
+            ? network::mojom::IPAddressSpace::kLocal
             : network::mojom::IPAddressSpace::kUnknown;
     if (expected_info.service_worker_router_info) {
       if (expected_info.service_worker_router_info->actual_source_type ==
@@ -1049,7 +1050,8 @@ TEST_F(ServiceWorkerMainResourceLoaderTest, BrokenBlobResponse) {
   // However, since the blob is broken we should get an error while transferring
   // the body.
   client_.RunUntilComplete();
-  EXPECT_EQ(net::ERR_OUT_OF_MEMORY, client_.completion_status().error_code);
+  EXPECT_EQ(net::ERR_BLOB_OUT_OF_MEMORY,
+            client_.completion_status().error_code);
 
   if (LoaderRecordsTimingMetrics()) {
     // Timing histograms shouldn't be recorded on broken response.
@@ -1749,8 +1751,7 @@ TEST_F(ServiceWorkerMainResourceLoaderTest, StaticRoutingCache) {
   EXPECT_FALSE(info->load_timing.receive_headers_start.is_null());
   EXPECT_FALSE(info->load_timing.receive_headers_end.is_null());
   EXPECT_FALSE(info->load_timing.service_worker_cache_lookup_start.is_null());
-  EXPECT_EQ(info->client_address_space,
-            network::mojom::IPAddressSpace::kPrivate);
+  EXPECT_EQ(info->client_address_space, network::mojom::IPAddressSpace::kLocal);
   EXPECT_TRUE(info->was_fetched_via_service_worker);
   auto expected_info = CreateResponseInfoFromServiceWorker();
   expected_info->service_worker_response_source =
@@ -1955,8 +1956,7 @@ TEST_F(ServiceWorkerMainResourceLoaderTest,
   EXPECT_FALSE(info->load_timing.receive_headers_start.is_null());
   EXPECT_FALSE(info->load_timing.receive_headers_end.is_null());
   EXPECT_FALSE(info->load_timing.service_worker_cache_lookup_start.is_null());
-  EXPECT_EQ(info->client_address_space,
-            network::mojom::IPAddressSpace::kPrivate);
+  EXPECT_EQ(info->client_address_space, network::mojom::IPAddressSpace::kLocal);
   EXPECT_TRUE(info->was_fetched_via_service_worker);
   auto expected_info = CreateResponseInfoFromServiceWorker();
   expected_info->service_worker_response_source =
@@ -2015,8 +2015,7 @@ TEST_F(ServiceWorkerMainResourceLoaderTest,
   EXPECT_FALSE(info->load_timing.receive_headers_start.is_null());
   EXPECT_FALSE(info->load_timing.receive_headers_end.is_null());
   EXPECT_FALSE(info->load_timing.service_worker_cache_lookup_start.is_null());
-  EXPECT_EQ(info->client_address_space,
-            network::mojom::IPAddressSpace::kPrivate);
+  EXPECT_EQ(info->client_address_space, network::mojom::IPAddressSpace::kLocal);
   EXPECT_TRUE(info->was_fetched_via_service_worker);
   auto expected_info = CreateResponseInfoFromServiceWorker();
   expected_info->service_worker_response_source =

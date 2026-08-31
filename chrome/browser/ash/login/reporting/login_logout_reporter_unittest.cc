@@ -12,7 +12,6 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/policy/reporting/user_event_reporter_helper_testing.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/login/auth/public/auth_failure.h"
@@ -86,7 +85,7 @@ class LoginLogoutTestHelper {
     AccountId account_id =
         AccountId::FromUserEmail(GenerateDeviceLocalAccountUserId(
             "kiosk", policy::DeviceLocalAccountType::kKioskApp));
-    auto* const user = fake_user_manager_->AddKioskAppUser(account_id);
+    auto* const user = fake_user_manager_->AddKioskChromeAppUser(account_id);
     return CreateProfile(user);
   }
 
@@ -94,7 +93,7 @@ class LoginLogoutTestHelper {
     AccountId account_id =
         AccountId::FromUserEmail(GenerateDeviceLocalAccountUserId(
             "webkiosk", policy::DeviceLocalAccountType::kWebKioskApp));
-    auto* const user = fake_user_manager_->AddWebKioskAppUser(account_id);
+    auto* const user = fake_user_manager_->AddKioskWebAppUser(account_id);
     return CreateProfile(user);
   }
 
@@ -107,9 +106,9 @@ class LoginLogoutTestHelper {
         return CreateGuestProfile();
       case user_manager::UserType::kPublicAccount:
         return CreatePublicAccountProfile();
-      case user_manager::UserType::kKioskApp:
+      case user_manager::UserType::kKioskChromeApp:
         return CreateKioskAppProfile();
-      case user_manager::UserType::kWebKioskApp:
+      case user_manager::UserType::kKioskWebApp:
         return CreateWebKioskAppProfile();
       default:
         NOTREACHED();
@@ -168,16 +167,13 @@ struct LoginLogoutReporterTestCase {
 class LoginLogoutReporterTest
     : public ::testing::TestWithParam<LoginLogoutReporterTestCase> {
  protected:
-  LoginLogoutReporterTest()
-      : local_state_(TestingBrowserProcess::GetGlobal()) {}
+  LoginLogoutReporterTest() = default;
 
   void SetUp() override { test_helper_.Init(); }
 
   void TearDown() override { test_helper_.Shutdown(); }
 
   LoginLogoutTestHelper test_helper_;
-
-  ScopedTestingLocalState local_state_;
 };
 
 TEST_F(LoginLogoutReporterTest, ReportAffiliatedLogin) {
@@ -339,23 +335,20 @@ INSTANTIATE_TEST_SUITE_P(All,
                                LoginLogoutSessionType::GUEST_SESSION},
                               {user_manager::UserType::kPublicAccount,
                                LoginLogoutSessionType::PUBLIC_ACCOUNT_SESSION},
-                              {user_manager::UserType::kKioskApp,
+                              {user_manager::UserType::kKioskChromeApp,
                                LoginLogoutSessionType::KIOSK_SESSION},
-                              {user_manager::UserType::kWebKioskApp,
+                              {user_manager::UserType::kKioskWebApp,
                                LoginLogoutSessionType::KIOSK_SESSION}}));
 
 class LoginFailureReporterTest : public ::testing::TestWithParam<AuthFailure> {
  protected:
-  LoginFailureReporterTest()
-      : local_state_(TestingBrowserProcess::GetGlobal()) {}
+  LoginFailureReporterTest() = default;
 
   void SetUp() override { test_helper_.Init(); }
 
   void TearDown() override { test_helper_.Shutdown(); }
 
   LoginLogoutTestHelper test_helper_;
-
-  ScopedTestingLocalState local_state_;
 };
 
 TEST_F(LoginFailureReporterTest, ReportAffiliatedLoginFailure_OwnerRequired) {

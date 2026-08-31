@@ -38,9 +38,8 @@ enum class RequestType {
   kIdleDetection,
 #if !BUILDFLAG(IS_ANDROID)
   kLocalFonts,
-  // TODO(crbug.com/400455013): Add Android support.
-  kLocalNetworkAccess,
 #endif
+  kLocalNetworkAccess,
   kMicStream,
   kMidiSysex,
   kMultipleDownloads,
@@ -69,12 +68,8 @@ enum class RequestType {
 #if BUILDFLAG(IS_CHROMEOS) && BUILDFLAG(USE_CUPS)
   kWebPrinting,
 #endif
-#if !BUILDFLAG(IS_ANDROID)
   kWindowManagement,
   kMaxValue = kWindowManagement
-#else
-  kMaxValue = kVrSession
-#endif
 };
 
 #if BUILDFLAG(IS_ANDROID)

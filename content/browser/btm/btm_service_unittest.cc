@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -65,7 +66,7 @@ class BtmServiceTest : public testing::Test {
       std::string_view final_url,
       base::Time time,
       bool stateful,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback) {
+      BtmServiceImpl::StatefulBounceCallback stateful_bounce_callback) {
     BtmRedirectChainInfo chain(
         MakeUrlAndId(initial_url), MakeUrlAndId(final_url),
         /*length=*/3,
@@ -107,9 +108,9 @@ TEST_F(BtmServiceTest, DontCreateServiceIfFeatureDisabled) {
   EXPECT_EQ(BtmServiceImpl::Get(&profile), nullptr);
 }
 
-// Verifies that if the BTM feature is enabled, BTM database files are created
-// when a (non-OTR) profile is created.
-TEST_F(BtmServiceTest, CreateDbFilesIfBtmEnabled) {
+// Verifies that if the BTM feature is enabled, BTM database is created when a
+// (non-OTR) profile is created.
+TEST_F(BtmServiceTest, CreateBTMDatabaseIfBtmEnabled) {
   base::FilePath data_path = base::CreateUniqueTempDirectoryScopedToTest();
   BtmServiceImpl* service;
   std::unique_ptr<TestBrowserContext> profile;
@@ -125,12 +126,26 @@ TEST_F(BtmServiceTest, CreateDbFilesIfBtmEnabled) {
   // enabled.
   WaitOnStorage(service);
   BrowserContextImpl::From(profile.get())->WaitForBtmCleanupForTesting();
+#if BUILDFLAG(IS_FUCHSIA) && defined(IS_WEB_ENGINE)
+  // See crbug.com/434764000, file based BTM is disabled on web engine on
+  // fuchsia due to the storage constraint.
+  EXPECT_FALSE(base::PathExists(GetBtmFilePath(profile.get())));
+#else
   EXPECT_TRUE(base::PathExists(GetBtmFilePath(profile.get())));
+#endif
 }
 
+#if BUILDFLAG(IS_FUCHSIA) && defined(IS_WEB_ENGINE)
+// See crbug.com/434764000, file based BTM is disabled on web engine on fuchsia
+// due to the storage constraint.
+#define MAYBE_PreserveRegularProfileDbFiles \
+  DISABLED_PreserveRegularProfileDbFiles
+#else
+#define MAYBE_PreserveRegularProfileDbFiles PreserveRegularProfileDbFiles
+#endif
 // Verifies that when an OTR profile is opened, the BTM database file for
 // the underlying regular profile is NOT deleted.
-TEST_F(BtmServiceTest, PreserveRegularProfileDbFiles) {
+TEST_F(BtmServiceTest, MAYBE_PreserveRegularProfileDbFiles) {
   base::FilePath data_path = base::CreateUniqueTempDirectoryScopedToTest();
 
   // Ensure the BTM feature is enabled.
@@ -168,8 +183,73 @@ TEST_F(BtmServiceTest, PreserveRegularProfileDbFiles) {
   // to delete that folder (`profile` will).
   otr_profile->TakePath();
 }
+#if BUILDFLAG(IS_FUCHSIA) && defined(IS_WEB_ENGINE)
+// See crbug.com/434764000, file based BTM is disabled on web engine on
+// fuchsia due to the storage constraint. But the leftover file previously
+// created should be deleted.
+TEST_F(BtmServiceTest, DeleteLeftoverDatabaseFileOnWebEngineOnFuchsia) {
+  base::FilePath user_data_dir;
+  base::FilePath db_path;
 
-TEST_F(BtmServiceTest, DatabaseFileIsDeletedIfFeatureIsDisabled) {
+  // First, create a browser context and create a mock database file at the
+  // correct path.
+  {
+    TestBrowserContext browser_context;
+    db_path = GetBtmFilePath(&browser_context);
+    // Ensure the BtmService (and its database) are initialized.
+    BrowserContextImpl::From(&browser_context)
+        ->GetBtmService()->WaitForFuchsiaCleanupForTesting();
+
+    // Create a mock database file where one would be if the platform wasn't
+    // WebEngine on Fuchsia.
+    ASSERT_TRUE(base::WriteFile(db_path, "test"));
+    ASSERT_TRUE(base::PathExists(db_path));
+
+    // Take ownership of the browser context's directory so we can reuse it.
+    user_data_dir = browser_context.TakePath();
+
+    // Confirm that WaitForBtmCleanupForTesting() returns and the file still
+    // exists.
+    BrowserContextImpl::From(&browser_context)->WaitForBtmCleanupForTesting();
+    ASSERT_TRUE(base::PathExists(db_path));
+  }
+
+  // Confirm the file still exists after the browser context is destroyed.
+  ASSERT_TRUE(base::PathExists(db_path));
+
+  // Create another browser context for the same directory and confirm the
+  // database file is deleted.
+  {
+    TestBrowserContext browser_context(user_data_dir);
+    BrowserContextImpl::From(&browser_context)
+        ->GetBtmService()->WaitForFuchsiaCleanupForTesting();
+    ASSERT_FALSE(base::PathExists(db_path));
+  }
+}
+
+TEST_F(BtmServiceTest, BtmServiceCanStartWithoutDatabaseFile) {
+  TestBrowserContext browser_context;
+  base::FilePath db_path = GetBtmFilePath(&browser_context);
+  ASSERT_FALSE(base::PathExists(db_path));
+  // Wait for the database to be created.
+  BrowserContextImpl::From(&browser_context)
+      ->GetBtmService()
+      ->storage()
+      ->FlushPostedTasksForTesting();
+  ASSERT_FALSE(base::PathExists(db_path));
+}
+#endif
+
+#if BUILDFLAG(IS_FUCHSIA) && defined(IS_WEB_ENGINE)
+// See crbug.com/434764000, file based BTM is disabled on web engine on
+// fuchsia due to the storage constraint.
+#define MAYBE_DatabaseFileIsDeletedIfFeatureIsDisabled \
+  DISABLED_DatabaseFileIsDeletedIfFeatureIsDisabled
+#else
+#define MAYBE_DatabaseFileIsDeletedIfFeatureIsDisabled \
+  DatabaseFileIsDeletedIfFeatureIsDisabled
+#endif
+TEST_F(BtmServiceTest, MAYBE_DatabaseFileIsDeletedIfFeatureIsDisabled) {
   base::FilePath user_data_dir;
   base::FilePath db_path;
 
@@ -219,8 +299,7 @@ TEST_F(BtmServiceTest, EmptySiteEventsIgnored) {
   GURL url;
   base::Time bounce = base::Time::FromSecondsSinceUnixEpoch(2);
   RecordBounce(profile.get(), url.spec(), "https://initial.com",
-               "https://final.com", bounce, false,
-               base::BindRepeating([](const GURL& final_url) {}));
+               "https://final.com", bounce, false, base::DoNothing());
   WaitOnStorage(service);
 
   // Verify that an entry is not returned when querying for an empty URL,
@@ -316,7 +395,7 @@ class BtmServiceStateRemovalTest : public testing::Test {
       std::string_view final_url,
       base::Time time,
       bool stateful,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback) {
+      BtmServiceImpl::StatefulBounceCallback stateful_bounce_callback) {
     BtmRedirectChainInfo chain(
         MakeUrlAndId(initial_url), MakeUrlAndId(final_url),
         /*length=*/3,
@@ -389,9 +468,9 @@ TEST_F(BtmServiceStateRemovalTest,
   btm::Populate3PcExceptions(GetProfile(), /*web_contents=*/nullptr,
                              complete_chain->initial_url.url,
                              complete_chain->final_url.url, complete_redirects);
-  GetService()->HandleRedirectChain(
-      std::move(complete_redirects), std::move(complete_chain),
-      base::BindRepeating([](const GURL& final_url) {}));
+  GetService()->HandleRedirectChain(std::move(complete_redirects),
+                                    std::move(complete_chain),
+                                    base::DoNothing());
   WaitOnStorage(GetService());
   // Expect one call to Observer.OnChainHandled when handling a complete chain.
   EXPECT_EQ(chain_counter.count(), 1u);
@@ -418,9 +497,9 @@ TEST_F(BtmServiceStateRemovalTest,
   btm::Populate3PcExceptions(GetProfile(), /*web_contents=*/nullptr,
                              partial_chain->initial_url.url,
                              partial_chain->final_url.url, partial_redirects);
-  GetService()->HandleRedirectChain(
-      std::move(partial_redirects), std::move(partial_chain),
-      base::BindRepeating([](const GURL& final_url) {}));
+  GetService()->HandleRedirectChain(std::move(partial_redirects),
+                                    std::move(partial_chain),
+                                    base::DoNothing());
   WaitOnStorage(GetService());
   // Expect no calls to Observer.OnChainHandled when handling a partial chain.
   EXPECT_EQ(chain_counter.count(), 0u);
@@ -440,7 +519,7 @@ TEST_F(BtmServiceStateRemovalTest, DISABLED_BrowsingDataDeletion_Enabled) {
   GURL url("https://example.com");
   base::Time bounce = base::Time::FromSecondsSinceUnixEpoch(2);
   RecordBounce(url.spec(), "https://initial.com", "https://final.com", bounce,
-               false, base::BindRepeating([](const GURL& final_url) {}));
+               false, base::DoNothing());
   WaitOnStorage(GetService());
   EXPECT_TRUE(GetBtmState(GetService(), url).has_value());
 
@@ -502,7 +581,7 @@ TEST_F(BtmServiceStateRemovalTest,
   browser_client_.GrantCookieAccessTo3pSite(excepted_3p_url);
 
   int stateful_bounce_count = 0;
-  base::RepeatingCallback<void(const GURL&)> increment_bounce =
+  BtmServiceImpl::StatefulBounceCallback increment_bounce =
       base::BindLambdaForTesting(
           [&](const GURL& final_url) { stateful_bounce_count++; });
 
@@ -550,7 +629,7 @@ TEST_F(BtmServiceStateRemovalTest,
   Add3PCException(scoped_excepted_1p_url, redirect_url_1);
 
   int stateful_bounce_count = 0;
-  base::RepeatingCallback<void(const GURL&)> increment_bounce =
+  BtmServiceImpl::StatefulBounceCallback increment_bounce =
       base::BindLambdaForTesting(
           [&](const GURL& final_url) { stateful_bounce_count++; });
 
@@ -578,7 +657,7 @@ TEST_F(BtmServiceStateRemovalTest,
   GetService()
       ->storage()
       ->AsyncCall(&BtmStorage::RecordUserActivation)
-      .WithArgs(redirect_url_3, bounce, GetService()->GetCookieMode());
+      .WithArgs(redirect_url_3, bounce);
   WaitOnStorage(GetService());
 
   // Expect no recorded BtmState for redirect_url_1, since every
@@ -641,7 +720,7 @@ TEST_F(BtmServiceStateRemovalTest,
       ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS, CONTENT_SETTING_ALLOW);
   */
   int stateful_bounce_count = 0;
-  base::RepeatingCallback<void(const GURL&)> increment_bounce =
+  BtmServiceImpl::StatefulBounceCallback increment_bounce =
       base::BindLambdaForTesting(
           [&](const GURL& final_url) { stateful_bounce_count++; });
 
@@ -666,7 +745,7 @@ TEST_F(BtmServiceStateRemovalTest,
   GetService()
       ->storage()
       ->AsyncCall(&BtmStorage::RecordUserActivation)
-      .WithArgs(redirect_url_3, bounce, GetService()->GetCookieMode());
+      .WithArgs(redirect_url_3, bounce);
   WaitOnStorage(GetService());
 
   // Expect no recorded BtmState for redirect_url_1, since every
@@ -719,7 +798,7 @@ TEST_F(
   browser_client_.BlockThirdPartyCookies(redirect_url_1, scoped_blocked_1p_url);
 
   int stateful_bounce_count = 0;
-  base::RepeatingCallback<void(const GURL&)> increment_bounce =
+  BtmServiceImpl::StatefulBounceCallback increment_bounce =
       base::BindLambdaForTesting(
           [&](const GURL& final_url) { stateful_bounce_count++; });
 
@@ -735,7 +814,7 @@ TEST_F(
   GetService()
       ->storage()
       ->AsyncCall(&BtmStorage::RecordUserActivation)
-      .WithArgs(redirect_url_2, bounce, GetService()->GetCookieMode());
+      .WithArgs(redirect_url_2, bounce);
   WaitOnStorage(GetService());
   // Record a bounce through redirect_url_3 that starts on a non-blocked URL.
   RecordBounce(redirect_url_3.spec(), non_blocked_url.spec(),
@@ -782,7 +861,7 @@ TEST_F(BtmServiceStateRemovalTest, ImmediateEnforcement) {
   GURL url("https://example.com");
   base::Time bounce = Now();
   RecordBounce(url.spec(), "https://initial.com", "https://final.com", bounce,
-               false, base::BindRepeating([](const GURL& final_url) {}));
+               false, base::DoNothing());
   WaitOnStorage(GetService());
   EXPECT_TRUE(GetBtmState(GetService(), url).has_value());
 
@@ -870,7 +949,7 @@ TEST_F(BtmServiceHistogramTest, DeletionLatency) {
   GURL url("https://example.com");
   base::Time bounce = base::Time::FromSecondsSinceUnixEpoch(2);
   RecordBounce(url.spec(), "https://initial.com", "https://final.com", bounce,
-               false, base::BindRepeating([](const GURL& final_url) {}));
+               false, base::DoNothing());
   WaitOnStorage(GetService());
 
   // Set the current time to just after the bounce happened.
@@ -910,8 +989,7 @@ TEST_F(BtmServiceHistogramTest, Deletion_ExceptedAs1P) {
   browser_client_.AllowThirdPartyCookiesOnSite(excepted_1p_url);
   base::Time bounce_time = base::Time::FromSecondsSinceUnixEpoch(2);
   RecordBounce(url.spec(), excepted_1p_url.spec(), "https://final.com",
-               bounce_time, true,
-               base::BindRepeating([](const GURL& final_url) {}));
+               bounce_time, true, base::DoNothing());
   WaitOnStorage(GetService());
 
   // Time-travel to after the grace period has ended for the bounce.
@@ -944,8 +1022,7 @@ TEST_F(BtmServiceHistogramTest, Deletion_ExceptedAs3P) {
   browser_client_.GrantCookieAccessTo3pSite(excepted_3p_url);
   base::Time bounce_time = base::Time::FromSecondsSinceUnixEpoch(2);
   RecordBounce(excepted_3p_url.spec(), "https://initial.com",
-               "https://final.com", bounce_time, true,
-               base::BindRepeating([](const GURL& final_url) {}));
+               "https://final.com", bounce_time, true, base::DoNothing());
   WaitOnStorage(GetService());
 
   // Time-travel to after the grace period has ended for the bounce.
@@ -977,8 +1054,7 @@ TEST_F(BtmServiceHistogramTest, DISABLED_Deletion_Enforced) {
   GURL url("https://example.com");
   base::Time bounce_time = base::Time::FromSecondsSinceUnixEpoch(2);
   RecordBounce(url.spec(), "https://initial.com", "https://final.com",
-               bounce_time, true,
-               base::BindRepeating([](const GURL& final_url) {}));
+               bounce_time, true, base::DoNothing());
   WaitOnStorage(GetService());
 
   // Time-travel to after the grace period has ended for the bounce.

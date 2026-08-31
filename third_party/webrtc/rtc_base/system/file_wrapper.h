@@ -11,12 +11,10 @@
 #ifndef RTC_BASE_SYSTEM_FILE_WRAPPER_H_
 #define RTC_BASE_SYSTEM_FILE_WRAPPER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdio.h>
-
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
 #include <optional>
-#include <string>
 
 #include "absl/strings/string_view.h"
 

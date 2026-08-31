@@ -12,6 +12,7 @@
 #import "components/password_manager/core/browser/password_manager_util.h"
 #import "components/prefs/scoped_user_pref_update.h"
 #import "components/signin/public/base/signin_metrics.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/sync/base/pref_names.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "ios/chrome/browser/default_browser/model/utils.h"
@@ -35,9 +36,9 @@
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity_manager.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
-#import "ios/web/public/test/fakes/fake_browser_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
@@ -73,13 +74,12 @@ class SetUpListTest : public PlatformTest {
   // Builds a new instance of SetUpList.
   void BuildSetUpList() {
     [set_up_list_ disconnect];
-    set_up_list_ =
-        [SetUpList buildFromPrefs:prefs_
-                            localState:GetLocalState()
-                           syncService:SyncServiceFactory::GetForProfile(
-                                           GetProfile())
-                 authenticationService:auth_service_
-            contentNotificationEnabled:content_notification_feature_enabled_];
+
+    signin::IdentityManager* identity_manager =
+        IdentityManagerFactory::GetForProfile(GetProfile());
+    set_up_list_ = [SetUpList buildFromPrefs:prefs_
+                             identityManager:identity_manager
+                                  localState:GetLocalState()];
   }
 
   // Fakes a sign-in with a fake identity.
@@ -307,8 +307,6 @@ TEST_F(SetUpListTest, AllItemsComplete) {
                                      0);
 
   set_up_list_prefs::MarkItemComplete(GetLocalState(),
-                                      SetUpListItemType::kSignInSync);
-  set_up_list_prefs::MarkItemComplete(GetLocalState(),
                                       SetUpListItemType::kDefaultBrowser);
   set_up_list_prefs::MarkItemComplete(GetLocalState(),
                                       SetUpListItemType::kAutofill);
@@ -326,8 +324,6 @@ TEST_F(SetUpListTest, RecordsAllItemsCompleteOnce) {
   histogram_tester.ExpectBucketCount("IOS.SetUpList.AllItemsCompleted", true,
                                      0);
 
-  set_up_list_prefs::MarkItemComplete(GetLocalState(),
-                                      SetUpListItemType::kSignInSync);
   set_up_list_prefs::MarkItemComplete(GetLocalState(),
                                       SetUpListItemType::kDefaultBrowser);
   set_up_list_prefs::MarkItemComplete(GetLocalState(),

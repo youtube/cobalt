@@ -6,7 +6,6 @@
 
 #include <utility>
 
-#include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
@@ -26,7 +25,6 @@
 #include "content/test/test_navigation_url_loader.h"
 #include "content/test/test_render_frame_host.h"
 #include "content/test/test_web_contents.h"
-#include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/load_flags.h"
@@ -46,12 +44,12 @@ namespace {
 class NavigationThrottleCallbackRunner : public NavigationThrottle {
  public:
   NavigationThrottleCallbackRunner(
-      NavigationHandle* handle,
+      NavigationThrottleRegistry& registry,
       base::OnceClosure on_will_start_request,
       const base::RepeatingClosure& on_will_redirect_request,
       base::OnceClosure on_will_fail_request,
       base::OnceClosure on_will_process_response)
-      : NavigationThrottle(handle),
+      : NavigationThrottle(registry),
         on_will_start_request_(std::move(on_will_start_request)),
         on_will_redirect_request_(on_will_redirect_request),
         on_will_fail_request_(std::move(on_will_fail_request)),
@@ -427,20 +425,22 @@ void NavigationSimulatorImpl::RegisterTestThrottle() {
 
   // Page activating navigations don't run throttles so we don't need to
   // register it in that case.
-  if (request_->IsPageActivation())
+  if (request_->IsPageActivation()) {
     return;
+  }
 
-  request_->RegisterThrottleForTesting(
-      std::make_unique<NavigationThrottleCallbackRunner>(
-          request_,
-          base::BindOnce(&NavigationSimulatorImpl::OnWillStartRequest,
-                         weak_factory_.GetWeakPtr()),
-          base::BindRepeating(&NavigationSimulatorImpl::OnWillRedirectRequest,
-                              weak_factory_.GetWeakPtr()),
-          base::BindOnce(&NavigationSimulatorImpl::OnWillFailRequest,
-                         weak_factory_.GetWeakPtr()),
-          base::BindOnce(&NavigationSimulatorImpl::OnWillProcessResponse,
-                         weak_factory_.GetWeakPtr())));
+  NavigationThrottleRegistry& registry =
+      *request_->GetNavigationThrottleRegistryForTesting();
+  registry.AddThrottle(std::make_unique<NavigationThrottleCallbackRunner>(
+      registry,
+      base::BindOnce(&NavigationSimulatorImpl::OnWillStartRequest,
+                     weak_factory_.GetWeakPtr()),
+      base::BindRepeating(&NavigationSimulatorImpl::OnWillRedirectRequest,
+                          weak_factory_.GetWeakPtr()),
+      base::BindOnce(&NavigationSimulatorImpl::OnWillFailRequest,
+                     weak_factory_.GetWeakPtr()),
+      base::BindOnce(&NavigationSimulatorImpl::OnWillProcessResponse,
+                     weak_factory_.GetWeakPtr())));
 }
 
 void NavigationSimulatorImpl::Start() {
@@ -1136,7 +1136,7 @@ NavigationRequest* NavigationSimulatorImpl::GetNavigationHandle() {
 
 NavigationThrottleRegistry&
 NavigationSimulatorImpl::GetNavigationThrottleRegistry() {
-  return *GetNavigationHandle()->GetNavigationThrottleRunnerForTesting();
+  return *GetNavigationHandle()->GetNavigationThrottleRegistryForTesting();
 }
 
 content::GlobalRequestID NavigationSimulatorImpl::GetGlobalRequestID() {
@@ -1587,12 +1587,16 @@ NavigationSimulatorImpl::BuildDidCommitProvisionalLoadParams(
 
   if (failed_navigation) {
     params->url_is_unreachable = true;
+    params->should_update_history = false;
   } else if (same_document) {
     params->should_update_history = true;
   } else {
     // TODO(crbug.com/40161149): Reconsider how we calculate
     // should_update_history.
-    params->should_update_history = response_headers_->response_code() != 404;
+    bool are_404_navigations_saved_in_history = base::FeatureList::IsEnabled(
+        blink::features::kVisitedLinksOnErrorNavigation);
+    params->should_update_history = are_404_navigations_saved_in_history ||
+                                    response_headers_->response_code() != 404;
   }
 
   // This mirrors the calculation in
@@ -1603,7 +1607,8 @@ NavigationSimulatorImpl::BuildDidCommitProvisionalLoadParams(
   if (same_document) {
     params->origin = current_rfh->GetLastCommittedOrigin();
   } else {
-    params->origin = origin_.value_or(request_->GetOriginToCommit().value());
+    params->origin =
+        origin_.value_or(request_->commit_params().origin_to_commit);
   }
 
   if (same_document) {

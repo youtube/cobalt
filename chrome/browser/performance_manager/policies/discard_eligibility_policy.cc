@@ -4,11 +4,17 @@
 
 #include "chrome/browser/performance_manager/policies/discard_eligibility_policy.h"
 
+#include "chrome/common/chrome_features.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/performance_manager/public/graph/node_data_describer_registry.h"
 #include "components/url_matcher/url_matcher.h"
 #include "components/url_matcher/url_util.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "components/tabs/public/tab_interface.h"
+#endif
 
 namespace performance_manager::policies {
 
@@ -16,6 +22,13 @@ namespace {
 
 BASE_FEATURE(kIgnoreDiscardAttemptMarker,
              "IgnoreDiscardAttemptMarker",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Not intended for launch.
+// This feature can be used during testing to ensure realistic priority
+// ordering of tabs even when devtools is connected.
+BASE_FEATURE(kAllowDevtoolsConnectedDiscard,
+             "AllowDevtoolsConnectedDiscard",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // NodeAttachedData used to indicate that there's already been an attempt to
@@ -116,6 +129,10 @@ CanDiscardResult DiscardEligibilityPolicy::CanDiscard(
     DiscardReason discard_reason,
     base::TimeDelta minimum_time_in_background,
     std::vector<CannotDiscardReason>* cannot_discard_reasons) const {
+  if (always_discard_for_testing_) {
+    return CanDiscardResult::kEligible;
+  }
+
   auto add_reason = [&](CannotDiscardReason reason) {
     if (cannot_discard_reasons) {
       cannot_discard_reasons->push_back(reason);
@@ -217,6 +234,23 @@ CanDiscardResult DiscardEligibilityPolicy::CanDiscard(
                                  CanDiscardResult::kProtected);
   }
 
+#if BUILDFLAG(ENABLE_GLIC)
+  // Do not discard pages that are pin-shared with Glic.
+  if (page_node->GetWebContents() && is_proactive_or_suggested) {
+    auto* tab_interface = tabs::TabInterface::MaybeGetFromContents(
+        page_node->GetWebContents().get());
+    if (tab_interface) {
+      auto* glic_service = glic::GlicKeyedServiceFactory::GetGlicKeyedService(
+          page_node->GetWebContents()->GetBrowserContext());
+      if (glic_service && glic_service->sharing_manager().IsTabPinned(
+                              tab_interface->GetHandle())) {
+        add_reason_and_update_result(CannotDiscardReason::kGlicShared,
+                                     CanDiscardResult::kProtected);
+      }
+    }
+  }
+#endif
+
   // Only discard http(s) pages and internal pages to make sure that we don't
   // discard extensions or other PageNode that don't correspond to a tab.
   //
@@ -299,7 +333,8 @@ CanDiscardResult DiscardEligibilityPolicy::CanDiscard(
     // Don't discard pages with devtools attached, because when it's restored
     // the devtools window won't come back. The user may be monitoring the page
     // in the background with devtools.
-    if (live_state_data->IsDevToolsOpen()) {
+    if (live_state_data->IsDevToolsOpen() &&
+        !base::FeatureList::IsEnabled(kAllowDevtoolsConnectedDiscard)) {
       add_reason_and_update_result(CannotDiscardReason::kDevToolsOpen,
                                    CanDiscardResult::kProtected);
     }

@@ -81,12 +81,10 @@ class EarlyFeatureAccessTracker {
   void Fail(const Feature* feature) {
     // TODO(crbug.com/1358639): Enable this check on all platforms.
 #if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-#if !BUILDFLAG(IS_NACL)
     // Create a crash key with the name of the feature accessed too early, to
     // facilitate crash triage.
     SCOPED_CRASH_KEY_STRING256("FeatureList", "feature-accessed-too-early",
                                feature->name);
-#endif  // !BUILDFLAG(IS_NACL)
     // Fail if DCHECKs are enabled.
     DCHECK(!feature) << "Accessed feature " << feature->name
                      << " before FeatureList registration.";
@@ -566,10 +564,8 @@ void FeatureList::SetInstance(std::unique_ptr<FeatureList> instance) {
 
   EarlyFeatureAccessTracker::GetInstance()->AssertNoAccess();
 
-#if !BUILDFLAG(IS_NACL)
   // Configured first because it takes precedence over the getrandom() trial.
   internal::ConfigureBoringSSLBackedRandBytesFieldTrial();
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   internal::ConfigureRandBytesFieldTrial();
@@ -778,11 +774,9 @@ void FeatureList::RegisterOverridesFromCommandLine(
     if (pos != std::string::npos) {
       feature_name = StringPiece(value.data(), pos);
       trial = FieldTrialList::Find(value.substr(pos + 1));
-#if !BUILDFLAG(IS_NACL)
       // If the below DCHECK fires, it means a non-existent trial name was
       // specified via the "Feature<Trial" command-line syntax.
       DCHECK(trial) << "trial='" << value.substr(pos + 1) << "' does not exist";
-#endif  // !BUILDFLAG(IS_NACL)
     }
 
     RegisterOverride(feature_name, overridden_state, trial);

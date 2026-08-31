@@ -14,11 +14,11 @@
 // This file contains classes for dealing with the STUN protocol, as specified
 // in RFC 5389, and its descendants.
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -507,6 +507,7 @@ class StunByteStringAttribute : public StunAttribute {
   explicit StunByteStringAttribute(uint16_t type);
   StunByteStringAttribute(uint16_t type, absl::string_view str);
   StunByteStringAttribute(uint16_t type, const void* bytes, size_t length);
+  StunByteStringAttribute(uint16_t type, const std::vector<uint32_t>& values);
   StunByteStringAttribute(uint16_t type, uint16_t length);
   ~StunByteStringAttribute() override;
 
@@ -529,6 +530,8 @@ class StunByteStringAttribute : public StunAttribute {
   [[deprecated]] std::string GetString() const {
     return std::string(reinterpret_cast<const char*>(bytes_), length());
   }
+
+  std::optional<std::vector<uint32_t>> GetUInt32Vector() const;
 
   void CopyBytes(const void* bytes, size_t length);
   void CopyBytes(absl::string_view bytes);
@@ -759,149 +762,5 @@ class IceMessage : public StunMessage {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::ComputeStunCredentialHash;
-using ::webrtc::CopyStunAttribute;
-using ::webrtc::GetStunErrorResponseType;
-using ::webrtc::GetStunSuccessResponseType;
-using ::webrtc::GOOG_PING_ERROR_RESPONSE;
-using ::webrtc::GOOG_PING_REQUEST;
-using ::webrtc::GOOG_PING_RESPONSE;
-using ::webrtc::IceAttributeType;
-using ::webrtc::IceErrorCode;
-using ::webrtc::IceGoogMiscInfoBindingRequestAttributeIndex;
-using ::webrtc::IceGoogMiscInfoBindingResponseAttributeIndex;
-using ::webrtc::IceMessage;
-using ::webrtc::IsStunErrorResponseType;
-using ::webrtc::IsStunIndicationType;
-using ::webrtc::IsStunRequestType;
-using ::webrtc::IsStunSuccessResponseType;
-using ::webrtc::kStunAttributeHeaderSize;
-using ::webrtc::kStunHeaderSize;
-using ::webrtc::kStunLegacyTransactionIdLength;
-using ::webrtc::kStunMagicCookie;
-using ::webrtc::kStunMagicCookieLength;
-using ::webrtc::kStunMessageIntegrity32Size;
-using ::webrtc::kStunMessageIntegritySize;
-using ::webrtc::kStunTransactionIdLength;
-using ::webrtc::kStunTransactionIdOffset;
-using ::webrtc::kStunTypeMask;
-using ::webrtc::SERVER_NOT_REACHABLE_ERROR;
-using ::webrtc::STUN_ADDRESS_IPV4;
-using ::webrtc::STUN_ADDRESS_IPV6;
-using ::webrtc::STUN_ADDRESS_UNDEF;
-using ::webrtc::STUN_ALLOCATE_ERROR_RESPONSE;
-using ::webrtc::STUN_ALLOCATE_REQUEST;
-using ::webrtc::STUN_ALLOCATE_RESPONSE;
-using ::webrtc::STUN_ATTR_ALTERNATE_SERVER;
-using ::webrtc::STUN_ATTR_CHANNEL_NUMBER;
-using ::webrtc::STUN_ATTR_DATA;
-using ::webrtc::STUN_ATTR_DONT_FRAGMENT;
-using ::webrtc::STUN_ATTR_ERROR_CODE;
-using ::webrtc::STUN_ATTR_EVEN_PORT;
-using ::webrtc::STUN_ATTR_FINGERPRINT;
-using ::webrtc::STUN_ATTR_GOOG_CONNECTION_ID;
-using ::webrtc::STUN_ATTR_GOOG_DELTA;
-using ::webrtc::STUN_ATTR_GOOG_DELTA_ACK;
-using ::webrtc::STUN_ATTR_GOOG_DELTA_SYNC_REQ;
-using ::webrtc::STUN_ATTR_GOOG_LAST_ICE_CHECK_RECEIVED;
-using ::webrtc::STUN_ATTR_GOOG_MESSAGE_INTEGRITY_32;
-using ::webrtc::STUN_ATTR_GOOG_MISC_INFO;
-using ::webrtc::STUN_ATTR_GOOG_NETWORK_INFO;
-using ::webrtc::STUN_ATTR_GOOG_OBSOLETE_1;
-using ::webrtc::STUN_ATTR_ICE_CONTROLLED;
-using ::webrtc::STUN_ATTR_ICE_CONTROLLING;
-using ::webrtc::STUN_ATTR_LIFETIME;
-using ::webrtc::STUN_ATTR_MAPPED_ADDRESS;
-using ::webrtc::STUN_ATTR_MESSAGE_INTEGRITY;
-using ::webrtc::STUN_ATTR_META_DTLS_IN_STUN;
-using ::webrtc::STUN_ATTR_META_DTLS_IN_STUN_ACK;
-using ::webrtc::STUN_ATTR_NOMINATION;
-using ::webrtc::STUN_ATTR_NONCE;
-using ::webrtc::STUN_ATTR_PRIORITY;
-using ::webrtc::STUN_ATTR_REALM;
-using ::webrtc::STUN_ATTR_REQUESTED_TRANSPORT;
-using ::webrtc::STUN_ATTR_RESERVATION_TOKEN;
-using ::webrtc::STUN_ATTR_RETRANSMIT_COUNT;
-using ::webrtc::STUN_ATTR_SOFTWARE;
-using ::webrtc::STUN_ATTR_UNKNOWN_ATTRIBUTES;
-using ::webrtc::STUN_ATTR_USE_CANDIDATE;
-using ::webrtc::STUN_ATTR_USERNAME;
-using ::webrtc::STUN_ATTR_XOR_MAPPED_ADDRESS;
-using ::webrtc::STUN_ATTR_XOR_PEER_ADDRESS;
-using ::webrtc::STUN_ATTR_XOR_RELAYED_ADDRESS;
-using ::webrtc::STUN_BINDING_ERROR_RESPONSE;
-using ::webrtc::STUN_BINDING_INDICATION;
-using ::webrtc::STUN_BINDING_REQUEST;
-using ::webrtc::STUN_BINDING_RESPONSE;
-using ::webrtc::STUN_ERROR_ALLOCATION_MISMATCH;
-using ::webrtc::STUN_ERROR_BAD_REQUEST;
-using ::webrtc::STUN_ERROR_FORBIDDEN;
-using ::webrtc::STUN_ERROR_GLOBAL_FAILURE;
-using ::webrtc::STUN_ERROR_NOT_AN_ERROR;
-using ::webrtc::STUN_ERROR_REASON_ALLOCATION_MISMATCH;
-using ::webrtc::STUN_ERROR_REASON_BAD_REQUEST;
-using ::webrtc::STUN_ERROR_REASON_FORBIDDEN;
-using ::webrtc::STUN_ERROR_REASON_ROLE_CONFLICT;
-using ::webrtc::STUN_ERROR_REASON_SERVER_ERROR;
-using ::webrtc::STUN_ERROR_REASON_STALE_NONCE;
-using ::webrtc::STUN_ERROR_REASON_TRY_ALTERNATE_SERVER;
-using ::webrtc::STUN_ERROR_REASON_UNAUTHORIZED;
-using ::webrtc::STUN_ERROR_REASON_UNKNOWN_ATTRIBUTE;
-using ::webrtc::STUN_ERROR_REASON_UNSUPPORTED_PROTOCOL;
-using ::webrtc::STUN_ERROR_REASON_WRONG_CREDENTIALS;
-using ::webrtc::STUN_ERROR_ROLE_CONFLICT;
-using ::webrtc::STUN_ERROR_SERVER_ERROR;
-using ::webrtc::STUN_ERROR_SERVER_NOT_REACHABLE;
-using ::webrtc::STUN_ERROR_STALE_NONCE;
-using ::webrtc::STUN_ERROR_TRY_ALTERNATE;
-using ::webrtc::STUN_ERROR_UNAUTHORIZED;
-using ::webrtc::STUN_ERROR_UNKNOWN_ATTRIBUTE;
-using ::webrtc::STUN_ERROR_UNSUPPORTED_PROTOCOL;
-using ::webrtc::STUN_ERROR_WRONG_CREDENTIALS;
-using ::webrtc::STUN_INVALID_MESSAGE_TYPE;
-using ::webrtc::STUN_VALUE_ADDRESS;
-using ::webrtc::STUN_VALUE_BYTE_STRING;
-using ::webrtc::STUN_VALUE_ERROR_CODE;
-using ::webrtc::STUN_VALUE_UINT16_LIST;
-using ::webrtc::STUN_VALUE_UINT32;
-using ::webrtc::STUN_VALUE_UINT64;
-using ::webrtc::STUN_VALUE_UNKNOWN;
-using ::webrtc::STUN_VALUE_XOR_ADDRESS;
-using ::webrtc::StunAddressAttribute;
-using ::webrtc::StunAddressFamily;
-using ::webrtc::StunAttribute;
-using ::webrtc::StunAttributeType;
-using ::webrtc::StunAttributeValueType;
-using ::webrtc::StunByteStringAttribute;
-using ::webrtc::StunErrorCode;
-using ::webrtc::StunErrorCodeAttribute;
-using ::webrtc::StunMessage;
-using ::webrtc::StunMessageType;
-using ::webrtc::StunMethodToString;
-using ::webrtc::StunUInt16ListAttribute;
-using ::webrtc::StunUInt32Attribute;
-using ::webrtc::StunUInt64Attribute;
-using ::webrtc::StunXorAddressAttribute;
-using ::webrtc::TURN_CHANNEL_BIND_ERROR_RESPONSE;
-using ::webrtc::TURN_CHANNEL_BIND_REQUEST;
-using ::webrtc::TURN_CHANNEL_BIND_RESPONSE;
-using ::webrtc::TURN_CREATE_PERMISSION_ERROR_RESPONSE;
-using ::webrtc::TURN_CREATE_PERMISSION_REQUEST;
-using ::webrtc::TURN_CREATE_PERMISSION_RESPONSE;
-using ::webrtc::TURN_DATA_INDICATION;
-using ::webrtc::TURN_REFRESH_ERROR_RESPONSE;
-using ::webrtc::TURN_REFRESH_REQUEST;
-using ::webrtc::TURN_REFRESH_RESPONSE;
-using ::webrtc::TURN_SEND_INDICATION;
-using ::webrtc::TurnAttributeType;
-using ::webrtc::TurnErrorType;
-using ::webrtc::TurnMessage;
-using ::webrtc::TurnMessageType;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // API_TRANSPORT_STUN_H_

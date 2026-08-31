@@ -17,7 +17,6 @@
 #include "content/public/browser/permission_result.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/guest_view/web_view/web_view_permission_types.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
 
 namespace url {
@@ -109,6 +108,15 @@ class WebViewPermissionHelper {
 
   void RequestFullscreenPermission(const url::Origin& requesting_origin,
                                    PermissionResponseCallback callback);
+
+  void RequestClipboardReadWritePermission(
+      const GURL& requesting_frame_url,
+      bool user_gesture,
+      base::OnceCallback<void(bool)> callback);
+
+  void RequestClipboardSanitizedWritePermission(
+      const GURL& requesting_frame_url,
+      base::OnceCallback<void(bool)> callback);
 
   std::optional<content::PermissionResult> OverridePermissionResult(
       ContentSettingsType type);

@@ -21,15 +21,15 @@
 #include "base/task/single_thread_task_runner.h"
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_info.h"
-#include "gpu/gpu_export.h"
 #include "gpu/ipc/client/gpu_channel_observer.h"
+#include "gpu/ipc/client/gpu_ipc_client_export.h"
 #include "gpu/ipc/client/image_decode_accelerator_proxy.h"
 #include "gpu/ipc/client/shared_image_interface_proxy.h"
 #include "gpu/ipc/common/gpu_channel.mojom.h"
 #include "ipc/ipc_listener.h"
 #include "mojo/public/cpp/base/shared_memory_version.h"
 #include "mojo/public/cpp/bindings/shared_associated_remote.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace IPC {
 class ChannelMojo;
@@ -43,7 +43,7 @@ class GpuChannelHost;
 using GpuChannelEstablishedCallback =
     base::OnceCallback<void(scoped_refptr<GpuChannelHost>)>;
 
-class GPU_EXPORT GpuChannelEstablishFactory {
+class GPU_IPC_CLIENT_EXPORT GpuChannelEstablishFactory {
  public:
   virtual ~GpuChannelEstablishFactory() = default;
 
@@ -55,7 +55,7 @@ class GPU_EXPORT GpuChannelEstablishFactory {
 // On the GPU process side there's a corresponding GpuChannel.
 // Every method can be called on any thread with a message loop, except for the
 // IO thread.
-class GPU_EXPORT GpuChannelHost
+class GPU_IPC_CLIENT_EXPORT GpuChannelHost
     : public base::RefCountedThreadSafe<GpuChannelHost> {
  public:
   GpuChannelHost(
@@ -139,28 +139,17 @@ class GPU_EXPORT GpuChannelHost
                              gfx::BufferUsage buffer_usage,
                              gfx::GpuMemoryBufferHandle* handle);
 
-  void GetGpuMemoryBufferHandleInfo(const Mailbox& mailbox,
-                                    gfx::GpuMemoryBufferHandle* handle,
-                                    viz::SharedImageFormat* format,
-                                    gfx::Size* size,
-                                    gfx::BufferUsage* buffer_usage);
-
 #if BUILDFLAG(IS_WIN)
   void CopyToGpuMemoryBufferAsync(
       const Mailbox& mailbox,
       std::vector<SyncToken> sync_token_dependencies,
       uint64_t release_count,
       base::OnceCallback<void(bool)> callback);
-  void CopyNativeGmbToSharedMemorySync(
-      gfx::GpuMemoryBufferHandle buffer_handle,
-      base::UnsafeSharedMemoryRegion memory_region,
-      bool* status);
   void CopyNativeGmbToSharedMemoryAsync(
       gfx::GpuMemoryBufferHandle buffer_handle,
       base::UnsafeSharedMemoryRegion memory_region,
       base::OnceCallback<void(bool)> callback);
-  bool IsConnected();
-#endif
+#endif  // BUILDFLAG(IS_WIN)
 
   // Crashes the GPU process. This functionality is added here because
   // of instability when creating a new tab just to navigate to
@@ -237,7 +226,7 @@ class GPU_EXPORT GpuChannelHost
   // A filter used internally to route incoming messages from the IO thread
   // to the correct message loop. It also maintains some shared state between
   // all the contexts.
-  class GPU_EXPORT Listener : public IPC::Listener {
+  class GPU_IPC_CLIENT_EXPORT Listener : public IPC::Listener {
    public:
     Listener();
     ~Listener() override;
@@ -252,7 +241,6 @@ class GPU_EXPORT GpuChannelHost
 
     // IPC::Listener implementation
     // (called on the IO thread):
-    bool OnMessageReceived(const IPC::Message& msg) override;
     void OnChannelError() override;
 
    private:

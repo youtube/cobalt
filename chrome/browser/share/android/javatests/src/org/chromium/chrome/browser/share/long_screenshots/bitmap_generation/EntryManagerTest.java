@@ -13,7 +13,9 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.when;
 
 import android.graphics.Bitmap;
+import android.graphics.Point;
 import android.graphics.Rect;
+import android.util.Size;
 
 import org.junit.After;
 import org.junit.Before;
@@ -100,6 +102,8 @@ public class EntryManagerTest {
         when(mLongScreenshotsCompositorMock.requestBitmap(
                         any(), anyFloat(), mErrorCaptor.capture(), mCompleteCaptor.capture()))
                 .thenReturn(0);
+        when(mLongScreenshotsCompositorMock.getContentSize()).thenReturn(new Size(50, 50));
+        when(mLongScreenshotsCompositorMock.getScrollOffset()).thenReturn(new Point(20, 20));
     }
 
     @After
@@ -111,6 +115,7 @@ public class EntryManagerTest {
     /** Tests capture through to generation of the fullpage entry. */
     @Test
     public void testGenerateFullpageEntry() {
+        when(mBoundsManagerMock.getFullEntryBounds()).thenReturn(new Rect(0, 100, 0, 100));
         mProcessor.processCapturedTab(FAKE_CAPTURE_ADDR, Status.OK);
         mOnCompositorResultCallback.onResult(CompositorStatus.OK);
         mInOrder.verify(mObserverMock).onStatusChange(eq(EntryStatus.CAPTURE_COMPLETE));

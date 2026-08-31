@@ -13,9 +13,8 @@
 #include "base/memory/raw_ref.h"
 #include "pdf/pdf_ink_constants.h"
 #include "pdf/pdf_ink_conversions.h"
-#include "pdf/pdf_ink_transform.h"
 #include "pdf/pdf_transform.h"
-#include "pdf/pdfium/pdfium_rotation.h"
+#include "pdf/pdfium/pdfium_ink_transform.h"
 #include "third_party/ink/src/ink/brush/brush_coat.h"
 #include "third_party/ink/src/ink/brush/brush_tip.h"
 #include "third_party/ink/src/ink/geometry/mesh.h"
@@ -125,17 +124,7 @@ std::vector<ScopedFPDFPageObject> WriteShapeToNewPathsOnPage(
     FPDF_PAGE page) {
   CHECK(page);
 
-  // Get the intersection between the page's MediaBox and CropBox, to find
-  // the translation offset for the shape's transform.
-  FS_RECTF bounding_box;
-  auto result = FPDF_GetPageBoundingBox(page, &bounding_box);
-  CHECK(result);
-  const gfx::Vector2dF offset(bounding_box.left, bounding_box.bottom);
-
-  const gfx::Transform transform = GetCanonicalToPdfTransform(
-      {FPDF_GetPageWidthF(page), FPDF_GetPageHeightF(page)},
-      GetPageRotation(page).value_or(PageRotation::kRotate0), offset);
-
+  const gfx::Transform transform = GetCanonicalToPdfTransformForPage(page);
   std::vector<ScopedFPDFPageObject> results;
   ModeledShapeOutlinesIterator it(shape);
   for (std::optional<ModeledShapeOutlinesIterator::OutlineData> outline_data =
@@ -167,11 +156,10 @@ void SetBrushPropertiesForPath(const ink::Brush& brush, FPDF_PAGEOBJECT path) {
 
 }  // namespace
 
-std::vector<FPDF_PAGEOBJECT> WriteStrokeToPage(FPDF_DOCUMENT document,
-                                               FPDF_PAGE page,
+std::vector<FPDF_PAGEOBJECT> WriteStrokeToPage(FPDF_PAGE page,
                                                const ink::Stroke& stroke) {
   std::vector<FPDF_PAGEOBJECT> results;
-  if (!document || !page) {
+  if (!page) {
     return results;
   }
 

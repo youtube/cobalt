@@ -24,6 +24,11 @@
 #import "ios/web/public/test/http_server/response_provider.h"
 #import "ui/base/l10n/l10n_util_mac.h"
 
+namespace {
+// The text of the Share Sheet item for the Open Extension.
+NSString* const kEGOpenExtension = @"EGOpenExtension";
+}  // namespace
+
 // Earl grey integration tests for Activity Service Controller.
 @interface ActivityServiceControllerTestCase : WebHttpServerChromeTestCase
 @end
@@ -63,7 +68,43 @@
     [ChromeEarlGreyUI openShareMenu];
 
     [ChromeEarlGrey verifyActivitySheetVisible];
-    [ChromeEarlGrey tapButtonInActivitySheetWithID:@"EGOpenExtension"];
+
+    if (@available(iOS 19.0, *)) {
+      // On iOS26 an additional click on "More" button needs to be performed.
+      // Clicking on Activity Sheet doesn't work with EG if there are multiple
+      // buttons with the same identifier, use XCUI directly.
+      XCUIApplication* app = [[XCUIApplication alloc] init];
+      XCUIElementQuery* more_buttons =
+          [[app staticTexts] matchingIdentifier:@"More"];
+      if (more_buttons.count == 2) {
+        // There are two "More" buttons, select the one at the bottom.
+        XCUIElement* more_button_0 = [more_buttons elementBoundByIndex:0];
+        XCUIElement* more_button_1 = [more_buttons elementBoundByIndex:1];
+        XCUIElement* more_button =
+            more_button_0.frame.origin.x > more_button_1.frame.origin.x
+                ? more_button_0
+                : more_button_1;
+        [more_button tap];
+      }
+
+      // TODO(crbug.com/432223861): Revisit using
+      // `tapButtonInActivitySheetWithID` if it can be fixed to work better on
+      // iOS 26, or if Apple fixes a bug that caused the item to not be
+      // hittable.
+      [ChromeEarlGrey verifyTextVisibleInActivitySheetWithID:kEGOpenExtension];
+      XCUIElement* button = app.otherElements[@"ActivityListView"]
+                                .staticTexts[kEGOpenExtension]
+                                .firstMatch;
+      // Tap the coordinates of the center of the button instead of calling
+      // `[button tap]`. This avoids an issue where calling `tap` on the button
+      // might cause it to try to scroll to the button and inadvertently cause
+      // the button in question to become not hittable.
+      XCUICoordinate* buttonCenter =
+          [button coordinateWithNormalizedOffset:CGVectorMake(0.5, 0.5)];
+      [buttonCenter tap];
+    } else {
+      [ChromeEarlGrey tapButtonInActivitySheetWithID:kEGOpenExtension];
+    }
 
     GREYCondition* tabCountCheck =
         [GREYCondition conditionWithName:@"Tab count"

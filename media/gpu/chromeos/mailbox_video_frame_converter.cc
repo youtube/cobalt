@@ -30,55 +30,8 @@
 #include "media/gpu/macros.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/gpu_fence.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gl/gl_bindings.h"
-
-namespace {
-
-// Based on `buffer_format` support by VideoPixelFormatToGfxBufferFormat.
-viz::SharedImageFormat GetSharedImageFormat(gfx::BufferFormat buffer_format) {
-  viz::SharedImageFormat format;
-  switch (buffer_format) {
-    case gfx::BufferFormat::RGBA_8888:
-      format = viz::SinglePlaneFormat::kRGBA_8888;
-      break;
-    case gfx::BufferFormat::RGBX_8888:
-      format = viz::SinglePlaneFormat::kRGBX_8888;
-      break;
-    case gfx::BufferFormat::BGRA_8888:
-      format = viz::SinglePlaneFormat::kBGRA_8888;
-      break;
-    case gfx::BufferFormat::BGRX_8888:
-      format = viz::SinglePlaneFormat::kBGRX_8888;
-      break;
-    case gfx::BufferFormat::YVU_420:
-      format = viz::MultiPlaneFormat::kYV12;
-      break;
-    case gfx::BufferFormat::YUV_420_BIPLANAR:
-      format = viz::MultiPlaneFormat::kNV12;
-      break;
-    case gfx::BufferFormat::YUVA_420_TRIPLANAR:
-      format = viz::MultiPlaneFormat::kNV12A;
-      break;
-    case gfx::BufferFormat::P010:
-      format = viz::MultiPlaneFormat::kP010;
-      break;
-    default:
-      DLOG(WARNING) << "Unsupported buffer_format: "
-                    << static_cast<int>(buffer_format);
-      NOTREACHED();
-  }
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
-  // If format is true multiplanar format, we prefer external sampler on
-  // ChromeOS and Linux.
-  if (format.is_multi_plane()) {
-    format.SetPrefersExternalSampler();
-  }
-#endif
-  return format;
-}
-
-}  // namespace
 
 namespace media {
 class MailboxVideoFrameConverter::ScopedSharedImage {
@@ -234,11 +187,9 @@ void MailboxVideoFrameConverter::WrapSharedImageAndVideoFrameAndOutput(
 
   input_frame_queue_.pop();
 
-  const auto buffer_format = VideoPixelFormatToGfxBufferFormat(frame->format());
   // GenerateSharedImage() should have checked the |origin_frame|'s format
   // (which should be the same as the |frame|'s format).
   CHECK_EQ(frame->format(), origin_frame->format());
-  CHECK(buffer_format);
 
   VideoFrame::ReleaseMailboxCB release_mailbox_cb = base::BindOnce(
       [](scoped_refptr<base::SequencedTaskRunner> parent_task_runner,
@@ -289,7 +240,7 @@ void MailboxVideoFrameConverter::WrapSharedImageAndVideoFrameAndOutput(
       frame->format(), shared_image, shared_image_sync_token,
       std::move(release_mailbox_cb), coded_size, frame->visible_rect(),
       frame->natural_size(), frame->timestamp());
-  mailbox_frame->set_color_space(frame->ColorSpace());
+  mailbox_frame->set_color_space(shared_image->color_space());
   mailbox_frame->set_hdr_metadata(frame->hdr_metadata());
   mailbox_frame->set_metadata(frame->metadata());
   mailbox_frame->metadata().read_lock_fences_enabled = true;
@@ -364,13 +315,19 @@ bool MailboxVideoFrameConverter::GenerateSharedImage(
     return false;
   }
 
-  const auto buffer_format =
-      VideoPixelFormatToGfxBufferFormat(origin_frame->format());
-  if (!buffer_format) {
+  auto si_format = VideoPixelFormatToSharedImageFormat(origin_frame->format());
+  if (!si_format) {
     OnError(FROM_HERE, "Unsupported format: " +
                            VideoPixelFormatToString(origin_frame->format()));
     return false;
   }
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+  // If format is true multiplanar format, we prefer external sampler on
+  // ChromeOS and Linux.
+  if (si_format->is_multi_plane()) {
+    si_format->SetPrefersExternalSampler();
+  }
+#endif
 
   auto gpu_memory_buffer_handle = origin_frame->CreateGpuMemoryBufferHandle();
   DCHECK(!gpu_memory_buffer_handle.is_null());
@@ -397,9 +354,11 @@ bool MailboxVideoFrameConverter::GenerateSharedImage(
   }
 
   // The allocated SharedImages should be usable for the (Display) compositor
-  // and, potentially, for overlays (Scanout).
+  // and, potentially, for overlays (Scanout). The shared image can be copied to
+  // GL texture over WebGL either directly or over raster interface.
   gpu::SharedImageUsageSet shared_image_usage =
-      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
+      gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT |
+      gpu::SHARED_IMAGE_USAGE_GLES2_READ | gpu::SHARED_IMAGE_USAGE_RASTER_READ;
 
   // These SharedImages might also be used for zero-copy import into WebGPU to
   // serve as the sources of WebGPU reads (e.g., for video effects processing).
@@ -410,8 +369,8 @@ bool MailboxVideoFrameConverter::GenerateSharedImage(
 
   scoped_refptr<gpu::ClientSharedImage> client_shared_image =
       shared_image_interface_->CreateSharedImage(
-          {GetSharedImageFormat(*buffer_format), shared_image_size,
-           src_color_space, shared_image_usage, "MailboxVideoFrameConverter"},
+          {*si_format, shared_image_size, src_color_space, shared_image_usage,
+           "MailboxVideoFrameConverter"},
           std::move(gpu_memory_buffer_handle));
   if (!client_shared_image) {
     OnError(FROM_HERE, "Failed to create shared image.");

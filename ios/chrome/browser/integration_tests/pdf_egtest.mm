@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
 
@@ -30,7 +35,14 @@ const char kGreenPDFPath[] = "/green.pdf";
 // Regression test for crbug/981893. Repro steps: open a PDF in a new
 // tab, switch back and forth betweeen the new tab and the old one by
 // swiping in the toolbar. The regression is a crash.
+// TODO(crbug.com/435094983): Reenable this test.
 - (void)testSwitchToAndFromPDF {
+  if ([ChromeEarlGrey isIPhoneIdiom]) {
+    if (!@available(iOS 18, *)) {
+      EARL_GREY_TEST_DISABLED(@"Failing on iPhone Simulator");
+    }
+  }
+
   // Compact width only.
   if (![ChromeEarlGrey isCompactWidth]) {
     EARL_GREY_TEST_DISABLED(@"Disabled on iPad -- depends on swiping in the "
@@ -124,7 +136,7 @@ const char kGreenPDFPath[] = "/green.pdf";
 
 // Tests the center color of the grid tab showing a PDF. (physical device only)
 - (void)testCenterColorOfPDFTabGrid {
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
   EARL_GREY_TEST_SKIPPED(@"The API to take a snapshot is not working correctly "
                          @"and it becomes black on simulator.");
 #endif

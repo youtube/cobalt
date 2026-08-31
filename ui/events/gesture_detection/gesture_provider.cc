@@ -79,8 +79,7 @@ gfx::RectF ClampBoundingBox(const gfx::RectF& bounds,
 
 float EffectiveSlopDistance(const MotionEvent& event,
                             const GestureProvider::Config& config) {
-  return (base::FeatureList::IsEnabled(features::kStylusSpecificTapSlop) &&
-          event.GetToolType() == MotionEvent::ToolType::STYLUS)
+  return event.GetToolType() == MotionEvent::ToolType::STYLUS
              ? config.gesture_detector_config.stylus_slop
              : config.gesture_detector_config.touch_slop;
 }
@@ -940,6 +939,7 @@ bool GestureProvider::CanHandle(const MotionEvent& event) const {
 }
 
 void GestureProvider::OnTouchEventHandlingBegin(const MotionEvent& event) {
+  last_event_without_history_ = event.Clone(/*with_history=*/false);
   switch (event.GetAction()) {
     case MotionEvent::Action::DOWN:
       current_down_event_ = event.Clone();

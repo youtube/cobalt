@@ -11,6 +11,10 @@ namespace content {
 class WebContents;
 }
 
+namespace page_actions {
+class PageActionController;
+}
+
 namespace zoom {
 
 // This class updates the corresponding page action to reflect the current zoom
@@ -18,7 +22,9 @@ namespace zoom {
 // on the current state.
 class ZoomViewController {
  public:
-  explicit ZoomViewController(tabs::TabInterface& tab_interface);
+  explicit ZoomViewController(
+      tabs::TabInterface& tab_interface,
+      page_actions::PageActionController& page_action_controller);
 
   ZoomViewController(const ZoomViewController&) = delete;
   ZoomViewController& operator=(const ZoomViewController&) = delete;
@@ -33,7 +39,7 @@ class ZoomViewController {
   // Updates the page action icon, tooltip, and visibility based on
   // the current zoom state (below/above default). Does NOT show/hide the
   // bubble.
-  void UpdatePageActionIcon();
+  void UpdatePageActionIcon(bool is_bubble_visible);
 
   // Shows or hides the bubble depending on whether `prefer_to_show_bubble` is
   // true and whether we are at default zoom, etc. When showing the bubble,
@@ -55,6 +61,10 @@ class ZoomViewController {
   // Because zoom settings are per-tab, we store the tab interface by reference.
   // The TabInterface is guaranteed valid for this object’s lifetime.
   const raw_ref<tabs::TabInterface> tab_interface_;
+
+  // Unowned reference to the page action controller that will coordinate
+  // requests from this object.
+  const raw_ref<page_actions::PageActionController> page_action_controller_;
 };
 
 }  // namespace zoom

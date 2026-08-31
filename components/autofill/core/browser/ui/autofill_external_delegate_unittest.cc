@@ -30,7 +30,6 @@
 #include "components/autofill/core/browser/data_manager/personal_data_manager_observer.h"
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
-#include "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/filling/autofill_ai/field_filling_entity_util.h"
 #include "components/autofill/core/browser/filling/field_filling_util.h"
@@ -41,7 +40,7 @@
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
 #include "components/autofill/core/browser/foundations/test_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/test_browser_autofill_manager.h"
-#include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_delegate.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/mock_autofill_ai_manager.h"
 #include "components/autofill/core/browser/integrators/compose/autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/compose/mock_autofill_compose_delegate.h"
 #include "components/autofill/core/browser/integrators/identity_credential/mock_identity_credential_delegate.h"
@@ -50,11 +49,14 @@
 #include "components/autofill/core/browser/metrics/autofill_in_devtools_metrics.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/log_event.h"
+#include "components/autofill/core/browser/metrics/payments/save_and_fill_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
+#include "components/autofill/core/browser/payments/constants.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
 #include "components/autofill/core/browser/payments/mock_iban_access_manager.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test/mock_bnpl_manager.h"
+#include "components/autofill/core/browser/payments/test/mock_save_and_fill_manager.h"
 #include "components/autofill/core/browser/payments/test_payments_autofill_client.h"
 #include "components/autofill/core/browser/single_field_fillers/mock_single_field_fill_router.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
@@ -131,6 +133,13 @@ auto PopupOpenArgsAre(
                Field(&PopupOpenArgs::trigger_source, trigger_source));
 }
 
+MATCHER_P(OtpPayloadPointeeEq, expected_otp_payload, "") {
+  if (const auto* payload_ptr = std::get_if<const OtpFillData*>(&arg)) {
+    return *payload_ptr && **payload_ptr == expected_otp_payload;
+  }
+  return false;
+}
+
 class MockAutofillDriver : public TestAutofillDriver {
  public:
   using TestAutofillDriver::TestAutofillDriver;
@@ -156,7 +165,8 @@ class MockAutofillDriver : public TestAutofillDriver {
                mojom::ActionPersistence action_persistence,
                base::span<const FormFieldData> data,
                const url::Origin& triggered_origin,
-               (const base::flat_map<FieldGlobalId, FieldType>&)),
+               (const base::flat_map<FieldGlobalId, FieldType>&),
+               (const Section&)),
               (override));
   MOCK_METHOD(void,
               ApplyFieldAction,
@@ -557,15 +567,13 @@ TEST_F(AutofillExternalDelegateTest, GetMainFillingProduct) {
   EXPECT_EQ(external_delegate().GetMainFillingProduct(),
             FillingProduct::kAutocomplete);
 
-  // Show only datalist suggestion with autocomplete suggestion in the popup.
+  // Show only datalist suggestion in the popup.
   OnSuggestionsReturned(
       queried_field().global_id(),
       {test::CreateAutofillSuggestion(SuggestionType::kDatalistEntry,
-                                      u"datalist"),
-       test::CreateAutofillSuggestion(SuggestionType::kAutocompleteEntry,
-                                      u"autocomplete")});
+                                      u"datalist")});
   EXPECT_EQ(external_delegate().GetMainFillingProduct(),
-            FillingProduct::kAutocomplete);
+            FillingProduct::kDataList);
 
   // Show auxiliary helper suggestion in the popup.
   OnSuggestionsReturned(
@@ -672,8 +680,7 @@ TEST_F(AutofillExternalDelegateTest, UpdateDataListWhileShowingPopup) {
   EXPECT_CALL(client(), ShowAutofillSuggestions(
                             PopupOpenArgsAre(kExpectedSuggestions), _));
   std::vector<Suggestion> autofill_item;
-  autofill_item.emplace_back();
-  autofill_item[0].type = SuggestionType::kAddressEntry;
+  autofill_item.emplace_back(SuggestionType::kAddressEntry);
   OnSuggestionsReturned(queried_field().global_id(), autofill_item);
 
   // This would normally get called from ShowAutofillSuggestions, but it is
@@ -710,11 +717,10 @@ TEST_F(AutofillExternalDelegateTest, DuplicateAutofillDatalistValues) {
 
   // Have an Autofill item that is identical to one of the datalist entries.
   std::vector<Suggestion> autofill_item;
-  autofill_item.emplace_back();
+  autofill_item.emplace_back(SuggestionType::kAddressEntry);
   autofill_item[0].main_text =
       Suggestion::Text(u"Rick", Suggestion::Text::IsPrimary(true));
   autofill_item[0].labels = {{Suggestion::Text(u"Deckard")}};
-  autofill_item[0].type = SuggestionType::kAddressEntry;
   OnSuggestionsReturned(queried_field().global_id(), autofill_item);
 }
 
@@ -743,14 +749,12 @@ TEST_F(AutofillExternalDelegateTest, DuplicateAutocompleteDatalistValues) {
   // Have an Autocomplete item that is identical to one of the datalist entries
   // and one that is distinct.
   std::vector<Suggestion> autocomplete_items;
-  autocomplete_items.emplace_back();
+  autocomplete_items.emplace_back(SuggestionType::kAutocompleteEntry);
   autocomplete_items[0].main_text =
       Suggestion::Text(u"Rick", Suggestion::Text::IsPrimary(true));
-  autocomplete_items[0].type = SuggestionType::kAutocompleteEntry;
-  autocomplete_items.emplace_back();
+  autocomplete_items.emplace_back(SuggestionType::kAutocompleteEntry);
   autocomplete_items[1].main_text =
       Suggestion::Text(u"Cain", Suggestion::Text::IsPrimary(true));
-  autocomplete_items[1].type = SuggestionType::kAutocompleteEntry;
   OnSuggestionsReturned(queried_field().global_id(), autocomplete_items);
 }
 
@@ -788,7 +792,7 @@ TEST_F(AutofillExternalDelegateTest, BnplSuggestionsShownWithCreditCardEntry) {
 TEST_F(AutofillExternalDelegateTest, AcceptedBnplEntry_FormIsFilled) {
   IssueOnQuery();
   CreditCard card = test::GetVirtualCard();
-  card.set_issuer_id(payments::BnplManager::GetSupportedBnplIssuerIds()[0]);
+  card.set_issuer_id(kBnplAffirmIssuerId);
 
   const uint64_t expected_amount = 50'000'000;
 
@@ -824,9 +828,8 @@ TEST_F(AutofillExternalDelegateTest, AutofillWarnings) {
 
   // This should call ShowAutofillSuggestions.
   std::vector<Suggestion> autofill_item;
-  autofill_item.emplace_back();
-  autofill_item[0].type =
-      SuggestionType::kInsecureContextPaymentDisabledMessage;
+  autofill_item.emplace_back(
+      SuggestionType::kInsecureContextPaymentDisabledMessage);
   OnSuggestionsReturned(queried_field().global_id(), autofill_item);
 
   EXPECT_THAT(open_args.suggestions,
@@ -847,12 +850,11 @@ TEST_F(AutofillExternalDelegateTest, AutofillWarningsNotShown_WithSuggestions) {
                                           SuggestionType::kAutocompleteEntry)),
                                       _));
   std::vector<Suggestion> suggestions;
-  suggestions.emplace_back();
-  suggestions[0].type = SuggestionType::kInsecureContextPaymentDisabledMessage;
-  suggestions.emplace_back();
+  suggestions.emplace_back(
+      SuggestionType::kInsecureContextPaymentDisabledMessage);
+  suggestions.emplace_back(SuggestionType::kAutocompleteEntry);
   suggestions[1].main_text =
       Suggestion::Text(u"Rick", Suggestion::Text::IsPrimary(true));
-  suggestions[1].type = SuggestionType::kAutocompleteEntry;
   OnSuggestionsReturned(queried_field().global_id(), suggestions);
 }
 
@@ -1424,6 +1426,33 @@ TEST_F(AutofillExternalDelegateTest, AcceptManageAutofillAi) {
   EXPECT_CALL(client(),
               ShowAutofillSettings(SuggestionType::kManageAutofillAi));
   external_delegate().DidAcceptSuggestion(manage_suggestion, {});
+}
+
+TEST_F(AutofillExternalDelegateTest, AcceptedOtpSuggestion) {
+  IssueOnQuery();
+
+  std::u16string otp_value = u"123456";
+  Suggestion::OneTimePasswordPayload otp_payload(
+      {{queried_field().global_id(), otp_value}});
+
+  // Expect that suggestion trigger source translates to source `kPopup` or
+  // `kKeyboardAccessory`, depending on the platform.
+  auto expected_source =
+#if BUILDFLAG(IS_ANDROID)
+      AutofillTriggerSource::kKeyboardAccessory;
+#else
+      AutofillTriggerSource::kPopup;
+#endif
+  EXPECT_CALL(manager(),
+              FillOrPreviewForm(mojom::ActionPersistence::kFill,
+                                HasQueriedFormId(), IsQueriedFieldId(),
+                                OtpPayloadPointeeEq(otp_payload.filling_data),
+                                expected_source));
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(SuggestionType::kOneTimePasswordEntry,
+                                     /*main_text_value=*/otp_value,
+                                     otp_payload),
+      {});
 }
 
 class AutofillExternalDelegatePlusAddressTest
@@ -2339,6 +2368,52 @@ TEST_F(AutofillExternalDelegateTest,
 }
 
 TEST_F(AutofillExternalDelegateTest,
+       AcceptSaveAndFillCreditCardSuggestion_CallsSaveAndFillManager) {
+  IssueOnQuery();
+
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              OnDidAcceptCreditCardSaveAndFillSuggestion(_));
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(
+          SuggestionType::kSaveAndFillCreditCardEntry),
+      SuggestionPosition{.row = 0});
+}
+
+TEST_F(AutofillExternalDelegateTest, AcceptedSaveAndFillEntry_FillForm) {
+  IssueOnQuery();
+  CreditCard card = test::GetCreditCard();
+
+  EXPECT_CALL(*client().GetPaymentsAutofillClient()->GetSaveAndFillManager(),
+              OnDidAcceptCreditCardSaveAndFillSuggestion)
+      .WillOnce([&](MockSaveAndFillManager::FillCardCallback callback) {
+        std::move(callback).Run(card);
+      });
+  EXPECT_CALL(manager(),
+              FillOrPreviewForm(mojom::ActionPersistence::kFill,
+                                HasQueriedFormId(), IsQueriedFieldId(), _,
+                                AutofillTriggerSource::kCreditCardSaveAndFill));
+
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(
+          SuggestionType::kSaveAndFillCreditCardEntry),
+      SuggestionPosition{.row = 0});
+}
+
+TEST_F(AutofillExternalDelegateTest, SaveAndFillMetrics_SuggestionAccepted) {
+  base::HistogramTester histogram;
+  IssueOnQuery();
+
+  external_delegate().DidAcceptSuggestion(
+      test::CreateAutofillSuggestion(
+          SuggestionType::kSaveAndFillCreditCardEntry),
+      SuggestionPosition{.row = 0});
+
+  histogram.ExpectBucketCount(
+      "Autofill.FormEvents.CreditCard.SaveAndFill",
+      autofill_metrics::SaveAndFillFormEvent::kSuggestionAccepted, 1);
+}
+
+TEST_F(AutofillExternalDelegateTest,
        Compose_AcceptNeverShowOnThisWebsiteAgain_CallsComposeDelegate) {
   MockAutofillComposeDelegate compose_delegate;
   ON_CALL(client(), GetComposeDelegate)
@@ -2485,8 +2560,7 @@ TEST_F(AutofillExternalDelegateTest, IgnoreAutocompleteOffForAutofill) {
                               kDefaultTriggerSource, /*update_datalist=*/false);
 
   std::vector<Suggestion> autofill_items;
-  autofill_items.emplace_back();
-  autofill_items[0].type = SuggestionType::kAutocompleteEntry;
+  autofill_items.emplace_back(SuggestionType::kAutocompleteEntry);
 
   // Ensure the popup tries to show itself, despite autocomplete="off".
   EXPECT_CALL(client(), ShowAutofillSuggestions);
@@ -2511,7 +2585,10 @@ TEST_F(AutofillExternalDelegateTest,
           mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
           HasQueriedFormId(), HasQueriedFieldId(), dummy_autocomplete_string,
           SuggestionType::kAutocompleteEntry, std::optional<FieldType>()));
-  EXPECT_CALL(*client().GetAutocompleteHistoryManager(),
+  MockAutocompleteHistoryManager* autocomplete_history_manager =
+  static_cast<MockAutocompleteHistoryManager*>(
+      client().GetAutocompleteHistoryManager());
+  EXPECT_CALL(*autocomplete_history_manager,
               OnSingleFieldSuggestionSelected(suggestion));
 
   external_delegate().DidAcceptSuggestion(
@@ -2695,8 +2772,8 @@ TEST_F(AutofillExternalDelegateTest, RemoveSuggestion_Autocomplete) {
               OnRemoveCurrentSingleFieldSuggestion);
   client().set_single_field_fill_router(
       std::move(mock_single_field_fill_router));
-  EXPECT_TRUE(
-      external_delegate().RemoveSuggestion(Suggestion(u"autocomplete")));
+  EXPECT_TRUE(external_delegate().RemoveSuggestion(
+      Suggestion(u"autocomplete", SuggestionType::kAutocompleteEntry)));
 }
 
 TEST_F(AutofillExternalDelegateTest, RemoveSuggestion_Address) {
@@ -2750,34 +2827,6 @@ TEST_F(AutofillExternalDelegateTest, RemoveSuggestion_ServerCard) {
       pdm().payments_data_manager().GetCreditCardByGUID(server_card.guid()));
 }
 
-// Tests that the home and address suggestions are not removed.
-TEST_F(AutofillExternalDelegateTest, RemoveHomeAndWorkAddressSuggestion) {
-  autofill::AutofillProfile profile1 = autofill::test::GetFullProfile();
-  test_api(profile1).set_record_type(
-      autofill::AutofillProfile::RecordType::kAccountHome);
-
-  autofill::AutofillProfile profile2 = autofill::test::GetFullProfile2();
-  test_api(profile2).set_record_type(
-      autofill::AutofillProfile::RecordType::kAccountWork);
-
-  pdm().address_data_manager().AddProfile(profile1);
-  pdm().address_data_manager().AddProfile(profile2);
-  ASSERT_TRUE(pdm().address_data_manager().GetProfileByGUID(profile1.guid()));
-  ASSERT_TRUE(pdm().address_data_manager().GetProfileByGUID(profile2.guid()));
-
-  EXPECT_FALSE(external_delegate().RemoveSuggestion(
-      test::CreateAutofillSuggestion(SuggestionType::kAddressEntry, u"address1",
-                                     Suggestion::AutofillProfilePayload(
-                                         Suggestion::Guid(profile1.guid())))));
-  EXPECT_TRUE(pdm().address_data_manager().GetProfileByGUID(profile1.guid()));
-
-  EXPECT_FALSE(external_delegate().RemoveSuggestion(
-      test::CreateAutofillSuggestion(SuggestionType::kAddressEntry, u"address2",
-                                     Suggestion::AutofillProfilePayload(
-                                         Suggestion::Guid(profile2.guid())))));
-  EXPECT_TRUE(pdm().address_data_manager().GetProfileByGUID(profile2.guid()));
-}
-
 TEST_F(AutofillExternalDelegateTest, RecordSuggestionTypeOnSuggestionAccepted) {
   base::HistogramTester histogram_tester;
   IssueOnQuery();
@@ -2799,8 +2848,10 @@ TEST_F(AutofillExternalDelegateTest, RecordSuggestionTypeOnSuggestionAccepted) {
 TEST_F(AutofillExternalDelegateTest, UpdateSuggestions) {
   IssueOnQuery();
 
-  std::vector<Suggestion> suggestions1 = {Suggestion(u"Some suggestion")};
-  std::vector<Suggestion> suggestions2 = {Suggestion(u"Other suggestion")};
+  std::vector<Suggestion> suggestions1 = {
+      Suggestion(u"Some suggestion", SuggestionType::kAutocompleteEntry)};
+  std::vector<Suggestion> suggestions2 = {
+      Suggestion(u"Other suggestion", SuggestionType::kAutocompleteEntry)};
 
   {
     InSequence s;

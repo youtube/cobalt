@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_PERMISSIONS_TEST_MOCK_PERMISSION_REQUEST_H_
 #define COMPONENTS_PERMISSIONS_TEST_MOCK_PERMISSION_REQUEST_H_
 
+#include <vector>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/permissions/permission_request.h"
@@ -66,8 +68,7 @@ class MockPermissionRequest : public PermissionRequest {
   void RegisterOnPermissionDecidedCallback(base::OnceClosure callback);
 
   void PermissionDecided(
-      ContentSetting result,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision,
       const permissions::PermissionRequestData& request_data);
 

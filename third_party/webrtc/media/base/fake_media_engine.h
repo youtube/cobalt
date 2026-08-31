@@ -70,7 +70,7 @@
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/system/file_wrapper.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 
 namespace webrtc {
 
@@ -162,7 +162,7 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
     return RtpParameters();
   }
 
-  const std::vector<webrtc::StreamParams>& recv_streams() const {
+  const std::vector<StreamParams>& recv_streams() const {
     return receive_streams_;
   }
   bool HasRecvStream(uint32_t ssrc) const {
@@ -189,12 +189,12 @@ class RtpReceiveChannelHelper : public Base, public MediaChannelUtil {
   }
 
   void SetFrameDecryptor(uint32_t /* ssrc */,
-                         scoped_refptr<webrtc::FrameDecryptorInterface>
+                         scoped_refptr<FrameDecryptorInterface>
                          /* frame_decryptor */) override {}
 
   void SetDepacketizerToDecoderFrameTransformer(
       uint32_t /* ssrc */,
-      scoped_refptr<webrtc::FrameTransformerInterface> /* frame_transformer */)
+      scoped_refptr<FrameTransformerInterface> /* frame_transformer */)
       override {}
 
   void SetInterface(MediaChannelNetworkInterface* iface) override {
@@ -331,7 +331,10 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
   RtpParameters GetRtpSendParameters(uint32_t ssrc) const override {
     auto parameters_iterator = rtp_send_parameters_.find(ssrc);
     if (parameters_iterator != rtp_send_parameters_.end()) {
-      return parameters_iterator->second;
+      // Take header extensions from channel global, not iterated.
+      auto parameters = parameters_iterator->second;
+      parameters.header_extensions = send_extensions_;
+      return parameters;
     }
     return RtpParameters();
   }
@@ -341,15 +344,14 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
     auto parameters_iterator = rtp_send_parameters_.find(ssrc);
     if (parameters_iterator != rtp_send_parameters_.end()) {
       auto result = CheckRtpParametersInvalidModificationAndValues(
-          parameters_iterator->second, parameters,
-          test::ExplicitKeyValueConfig(""));
+          parameters_iterator->second, parameters, CreateTestFieldTrials());
       if (!result.ok()) {
-        return webrtc::InvokeSetParametersCallback(callback, result);
+        return InvokeSetParametersCallback(callback, result);
       }
 
       parameters_iterator->second = parameters;
 
-      return webrtc::InvokeSetParametersCallback(callback, RTCError::OK());
+      return InvokeSetParametersCallback(callback, RTCError::OK());
     }
     // Replicate the behavior of the real media channel: return false
     // when setting parameters for unknown SSRCs.
@@ -366,7 +368,7 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
     }
     return ret;
   }
-  const std::vector<webrtc::StreamParams>& send_streams() const {
+  const std::vector<StreamParams>& send_streams() const {
     return send_streams_;
   }
   bool HasSendStream(uint32_t ssrc) const {
@@ -403,11 +405,11 @@ class RtpSendChannelHelper : public Base, public MediaChannelUtil {
 
   // Stuff that deals with encryptors, transformers and the like
   void SetFrameEncryptor(uint32_t /* ssrc */,
-                         scoped_refptr<webrtc::FrameEncryptorInterface>
+                         scoped_refptr<FrameEncryptorInterface>
                          /* frame_encryptor */) override {}
   void SetEncoderToPacketizerFrameTransformer(
       uint32_t /* ssrc */,
-      scoped_refptr<webrtc::FrameTransformerInterface> /* frame_transformer */)
+      scoped_refptr<FrameTransformerInterface> /* frame_transformer */)
       override {}
 
   void SetInterface(MediaChannelNetworkInterface* iface) override {
@@ -956,21 +958,5 @@ class FakeMediaEngine : public CompositeMediaEngine {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::CompareDtmfInfo;
-using ::webrtc::FakeMediaEngine;
-using ::webrtc::FakeVideoEngine;
-using ::webrtc::FakeVideoMediaReceiveChannel;
-using ::webrtc::FakeVideoMediaSendChannel;
-using ::webrtc::FakeVoiceEngine;
-using ::webrtc::FakeVoiceMediaReceiveChannel;
-using ::webrtc::FakeVoiceMediaSendChannel;
-using ::webrtc::RtpReceiveChannelHelper;
-using ::webrtc::RtpSendChannelHelper;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_FAKE_MEDIA_ENGINE_H_

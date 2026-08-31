@@ -50,7 +50,6 @@
 #include "third_party/blink/renderer/core/paint/object_painter.h"
 #include "third_party/blink/renderer/core/paint/outline_painter.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/size_assertions.h"
 #include "ui/gfx/geometry/quad_f.h"
 
@@ -66,6 +65,7 @@ bool CanBeHitTestTargetPseudoNodeStyle(const ComputedStyle& style) {
     case kPseudoIdCheckMark:
     case kPseudoIdAfter:
     case kPseudoIdPickerIcon:
+    case kPseudoIdInterestHint:
     case kPseudoIdFirstLetter:
       return true;
     default:
@@ -264,7 +264,7 @@ void LayoutInline::UpdateShouldCreateBoxFragment() {
   }
 }
 
-PhysicalRect LayoutInline::LocalCaretRect(int) const {
+PhysicalRect LayoutInline::LocalCaretRect(int, CaretShape caret_shape) const {
   NOT_DESTROYED();
   if (FirstChild()) {
     // This condition is possible if the LayoutInline is at an editing boundary,
@@ -276,8 +276,8 @@ PhysicalRect LayoutInline::LocalCaretRect(int) const {
     return PhysicalRect();
   }
 
-  LogicalRect logical_caret_rect =
-      LocalCaretRectForEmptyElement(BorderAndPaddingInlineSize(), LayoutUnit());
+  LogicalRect logical_caret_rect = LocalCaretRectForEmptyElement(
+      BorderAndPaddingInlineSize(), LayoutUnit(), caret_shape);
 
   if (IsInLayoutNGInlineFormattingContext()) {
     InlineCursor cursor;
@@ -309,29 +309,7 @@ void LayoutInline::AddChild(LayoutObject* new_child,
   // same table as beforeChild.
   while (before_child && before_child->IsTablePart())
     before_child = before_child->Parent();
-  return AddChildIgnoringContinuation(new_child, before_child);
-}
 
-void LayoutInline::BlockInInlineBecameFloatingOrOutOfFlow(
-    LayoutBlockFlow* anonymous_block_child) {
-  NOT_DESTROYED();
-  // Look for in-flow children. Any in-flow child will prevent the wrapper from
-  // being deleted.
-  for (const LayoutObject* grandchild = anonymous_block_child->FirstChild();
-       grandchild; grandchild = grandchild->NextSibling()) {
-    if (!grandchild->IsFloating() && !grandchild->IsOutOfFlowPositioned()) {
-      return;
-    }
-  }
-  // There are no longer any in-flow children inside the anonymous block wrapper
-  // child. Get rid of it.
-  anonymous_block_child->MoveAllChildrenTo(this, anonymous_block_child);
-  anonymous_block_child->Destroy();
-}
-
-void LayoutInline::AddChildIgnoringContinuation(LayoutObject* new_child,
-                                                LayoutObject* before_child) {
-  NOT_DESTROYED();
   // Make sure we don't append things after :after-generated content if we have
   // it.
   if (!before_child && IsAfterContent(LastChild()))
@@ -360,6 +338,23 @@ void LayoutInline::AddChildIgnoringContinuation(LayoutObject* new_child,
 
   new_child->SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
       layout_invalidation_reason::kChildChanged);
+}
+
+void LayoutInline::BlockInInlineBecameFloatingOrOutOfFlow(
+    LayoutBlockFlow* anonymous_block_child) {
+  NOT_DESTROYED();
+  // Look for in-flow children. Any in-flow child will prevent the wrapper from
+  // being deleted.
+  for (const LayoutObject* grandchild = anonymous_block_child->FirstChild();
+       grandchild; grandchild = grandchild->NextSibling()) {
+    if (!grandchild->IsFloating() && !grandchild->IsOutOfFlowPositioned()) {
+      return;
+    }
+  }
+  // There are no longer any in-flow children inside the anonymous block wrapper
+  // child. Get rid of it.
+  anonymous_block_child->MoveAllChildrenTo(this, anonymous_block_child);
+  anonymous_block_child->Destroy();
 }
 
 void LayoutInline::AddChildAsBlockInInline(LayoutObject* new_child,
@@ -453,29 +448,9 @@ void LayoutInline::CollectLineBoxRects(
   cursor.MoveToIncludingCulledInline(*this);
   for (; cursor; cursor.MoveToNextForSameLayoutObject()) {
     if (!IsInChildRubyText(*this, cursor.Current().GetLayoutObject())) {
-      PhysicalRect rect;
-      if (RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
-        rect = cursor.CurrentRectInFirstContainerFragment();
-      } else {
-        rect = cursor.CurrentRectInBlockFlow();
-      }
-      yield(rect);
+      yield(cursor.CurrentRectInFirstContainerFragment());
     }
   }
-}
-
-bool LayoutInline::AbsoluteTransformDependsOnPoint(
-    const LayoutObject& object) const {
-  NOT_DESTROYED();
-  const LayoutObject* current = &object;
-  const LayoutObject* container = object.Container();
-  while (container) {
-    if (current->OffsetForContainerDependsOnPoint(container))
-      return true;
-    current = container;
-    container = container->Container();
-  }
-  return false;
 }
 
 void LayoutInline::QuadsInAncestorInternal(Vector<gfx::QuadF>& quads,
@@ -491,29 +466,12 @@ void LayoutInline::QuadsForSelfInternal(Vector<gfx::QuadF>& quads,
                                         bool map_to_ancestor) const {
   NOT_DESTROYED();
   std::optional<gfx::Transform> mapping_to_ancestor;
-  // Set to true if the transform to absolute space depends on the point
-  // being mapped (in which case we can't use LocalToAncestorTransform).
-  bool transform_depends_on_point = false;
-  bool transform_depends_on_point_computed = false;
-  auto PushAncestorQuad = [&transform_depends_on_point,
-                           &transform_depends_on_point_computed,
-                           &mapping_to_ancestor, &quads, ancestor, mode,
+  auto PushAncestorQuad = [&mapping_to_ancestor, &quads, ancestor, mode,
                            this](const PhysicalRect& rect) {
-    if (!transform_depends_on_point_computed) {
-      transform_depends_on_point_computed = true;
-      transform_depends_on_point =
-          !RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled() &&
-          AbsoluteTransformDependsOnPoint(*this);
-      if (!transform_depends_on_point)
-        mapping_to_ancestor.emplace(LocalToAncestorTransform(ancestor, mode));
+    if (!mapping_to_ancestor) {
+      mapping_to_ancestor.emplace(LocalToAncestorTransform(ancestor, mode));
     }
-    if (transform_depends_on_point) {
-      quads.push_back(
-          LocalToAncestorQuad(gfx::QuadF(gfx::RectF(rect)), ancestor, mode));
-    } else {
-      quads.push_back(
-          mapping_to_ancestor->MapQuad(gfx::QuadF(gfx::RectF(rect))));
-    }
+    quads.push_back(mapping_to_ancestor->MapQuad(gfx::QuadF(gfx::RectF(rect))));
   };
 
   CollectLineBoxRects(
@@ -541,9 +499,6 @@ std::optional<PhysicalOffset> LayoutInline::FirstLineBoxTopLeftInternal()
     cursor.MoveToIncludingCulledInline(*this);
     if (!cursor)
       return std::nullopt;
-    if (!RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
-      return cursor.CurrentOffsetInBlockFlow();
-    }
     return cursor.CurrentOffsetInFirstContainerFragment();
   }
   return std::nullopt;
@@ -594,25 +549,8 @@ LayoutUnit LayoutInline::OffsetTop(const Element* parent) const {
   return AdjustedPositionRelativeTo(FirstLineBoxTopLeft(), parent).top;
 }
 
-LayoutUnit LayoutInline::OffsetWidth() const {
-  NOT_DESTROYED();
-  if (RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
-    return LayoutBoxModelObject::OffsetWidth();
-  }
-  return PhysicalLinesBoundingBox().Width();
-}
-
-LayoutUnit LayoutInline::OffsetHeight() const {
-  NOT_DESTROYED();
-  if (RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
-    return LayoutBoxModelObject::OffsetHeight();
-  }
-  return PhysicalLinesBoundingBox().Height();
-}
-
 PhysicalRect LayoutInline::BoundingBoxRelativeToFirstFragment() const {
   NOT_DESTROYED();
-  DCHECK(RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled());
   DCHECK(IsInLayoutNGInlineFormattingContext());
   InlineCursor cursor;
   cursor.MoveToIncludingCulledInline(*this);

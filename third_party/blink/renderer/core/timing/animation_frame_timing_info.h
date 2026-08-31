@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
 
@@ -77,8 +78,8 @@ class ScriptTimingInfo : public GarbageCollected<ScriptTimingInfo> {
 
  private:
   InvokerType invoker_type_;
-  AtomicString class_like_name_ = WTF::g_empty_atom;
-  AtomicString property_like_name_ = WTF::g_empty_atom;
+  AtomicString class_like_name_ = g_empty_atom;
+  AtomicString property_like_name_ = g_empty_atom;
   base::TimeTicks start_time_;
   base::TimeTicks execution_start_time_;
   base::TimeTicks end_time_;

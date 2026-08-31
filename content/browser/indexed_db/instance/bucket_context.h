@@ -9,9 +9,11 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <string>
 
+#include "base/auto_reset.h"
 #include "base/containers/flat_map.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -155,6 +157,13 @@ class CONTENT_EXPORT BucketContext
 
   ~BucketContext() override;
 
+  // All `BucketContext` instances created during the lifetime of the returned
+  // object will use SQLite iff `use_sqlite` is true.
+  static base::AutoReset<std::optional<bool>> OverrideShouldUseSqliteForTesting(
+      bool use_sqlite);
+
+  bool ShouldUseSqlite() const { return should_use_sqlite_; }
+
   void QueueRunTasks();
 
   // Normally, in-memory bucket contexts never self-close. If this is called
@@ -200,6 +209,7 @@ class CONTENT_EXPORT BucketContext
 
   // Create external objects from |objects| and store the results in
   // |mojo_objects|. |mojo_objects| must be the same length as |objects|.
+  // Only used for LevelDB.
   void CreateAllExternalObjects(
       const std::vector<IndexedDBExternalObject>& objects,
       std::vector<blink::mojom::IDBExternalObjectPtr>* mojo_objects);
@@ -289,7 +299,10 @@ class CONTENT_EXPORT BucketContext
   // Called when a fatal error has occurred that should result in tearing down
   // the backing store. `BucketContext` *may* be synchronously destroyed after
   // this is invoked. The string, if non-empty, is used as an error message.
-  void OnDatabaseError(Status status, const std::string& message);
+  // `database` is used in SQLite mode only.
+  void OnDatabaseError(Database* database,
+                       Status status,
+                       const std::string& message);
 
   // Called when the backing store has been corrupted.
   void HandleBackingStoreCorruption(const std::string& error_message);
@@ -334,8 +347,7 @@ class CONTENT_EXPORT BucketContext
         client_state_checker_remote;
   };
 
-  Database* AddDatabase(const std::u16string& name,
-                        std::unique_ptr<Database> database);
+  Database* CreateAndAddDatabase(const std::u16string& name);
 
   void OnHandleCreated();
   void OnHandleDestruction();
@@ -382,8 +394,6 @@ class CONTENT_EXPORT BucketContext
 
   std::string SanitizeErrorMessage(const std::string& message);
 
-  bool ShouldUseSqliteBackingStore();
-
   SEQUENCE_CHECKER(sequence_checker_);
 
   const storage::BucketInfo bucket_info_;
@@ -394,6 +404,9 @@ class CONTENT_EXPORT BucketContext
 
   // Base directory for blobs and backing store files.
   const base::FilePath data_path_;
+
+  // True if the backing store is SQLite, or would be SQLite if it existed.
+  bool should_use_sqlite_ = false;
 
   // True if there are blobs referencing this backing store that are still
   // alive. This is used as closing criteria for this object, see CanClose.
@@ -411,6 +424,7 @@ class CONTENT_EXPORT BucketContext
   // Databases in the backing store which are already loaded/represented by
   // Database objects. The backing store may have other databases which
   // have not yet been loaded.
+  uint32_t next_database_id_for_locks_ = 0;
   DBMap databases_;
   // This is the refcount for the number of BucketContextHandle's given out for
   // this bucket context using OpenReference. This is used as closing criteria

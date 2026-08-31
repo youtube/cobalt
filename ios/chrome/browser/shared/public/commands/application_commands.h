@@ -14,6 +14,7 @@
 enum class AccountMenuAccessPoint;
 class GURL;
 @class OpenNewTabCommand;
+@protocol SafariDataImportUIHandler;
 @class ShowSigninCommand;
 @class UIViewController;
 namespace password_manager {
@@ -23,6 +24,7 @@ enum class WarningType;
 namespace signin_metrics {
 enum class AccessPoint;
 }  // namespace signin_metrics
+enum class SafariDataImportEntryPoint;
 namespace syncer {
 enum class TrustedVaultUserActionTriggerForUMA;
 }  // namespace syncer
@@ -169,6 +171,17 @@ enum class TabGridOpeningMode {
 // the promo is dismissed.
 - (void)showSigninUpgradePromoWithCompletion:
     (SigninCoordinatorCompletionCallback)dismissalCompletion;
+
+// Shows the user the modal that contains a button to start the workflow to
+// import Safari data to Chrome. Optionally attach a UI handler for the
+// workflow.
+- (void)displaySafariDataImportFromEntryPoint:
+            (SafariDataImportEntryPoint)entryPoint
+                                withUIHandler:
+                                    (id<SafariDataImportUIHandler>)UIHandler;
+
+// Shows the application App Store page, if any.
+- (void)showAppStorePage;
 
 @end
 

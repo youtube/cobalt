@@ -273,13 +273,15 @@ void PasswordManualFallbackFlow::DidAcceptSuggestion(
                   GetUsernameFromLabel(suggestion.labels[0][0].value),
                   payload.password,
                   autofill::AutofillSuggestionTriggerSource::
-                      kManualFallbackPasswords)));
+                      kManualFallbackPasswords),
+              /*is_password_filled_in_non_password_field=*/false));
       break;
     }
     case autofill::SuggestionType::kPasswordFieldByFieldFilling:
       password_manager_driver_->FillField(
-          suggestion.main_text.value,
-          autofill::AutofillSuggestionTriggerSource::kManualFallbackPasswords);
+          field_id_, suggestion.main_text.value,
+          autofill::FieldPropertiesFlags::
+              kAutofilledPasswordFormFilledViaManualFallback);
       break;
     case autofill::SuggestionType::kFillPassword: {
       Suggestion::PasswordSuggestionDetails payload =
@@ -288,11 +290,14 @@ void PasswordManualFallbackFlow::DidAcceptSuggestion(
           payload, /*on_allowed=*/base::BindOnce(
               &PasswordManualFallbackFlow::MaybeAuthenticateBeforeFilling,
               weak_ptr_factory_.GetWeakPtr(),
-              base::BindOnce(&PasswordManagerDriver::FillField,
-                             base::Unretained(password_manager_driver_),
-                             payload.password,
-                             autofill::AutofillSuggestionTriggerSource::
-                                 kManualFallbackPasswords)));
+              base::BindOnce(
+                  &PasswordManagerDriver::FillField,
+                  base::Unretained(password_manager_driver_), field_id_,
+                  payload.password,
+                  autofill::FieldPropertiesFlags::
+                      kAutofilledPasswordFormFilledViaManualFallback),
+              // Request reauth if filling the password on a non password field.
+              form ? field_id_ != form->password_element_renderer_id : true));
       break;
     }
     case autofill::SuggestionType::kViewPasswordDetails: {
@@ -374,13 +379,19 @@ void PasswordManualFallbackFlow::RunFlowImpl(
 }
 
 void PasswordManualFallbackFlow::MaybeAuthenticateBeforeFilling(
-    base::OnceClosure fill_fields) {
+    base::OnceClosure fill_fields,
+    bool is_password_filled_in_non_password_field) {
   CancelBiometricReauthIfOngoing();
   std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
       password_client_->GetDeviceAuthenticator();
   // Note: this is currently only implemented on Android, Mac and Windows.
   // For other platforms, the `authenticator` will be null.
-  if (!password_client_->IsReauthBeforeFillingRequired(authenticator.get())) {
+  // Authentication is always required if the user is entering their password on
+  // a non password field.
+  bool authentication_required =
+      password_client_->IsReauthBeforeFillingRequired(authenticator.get()) ||
+      is_password_filled_in_non_password_field;
+  if (!authenticator || !authentication_required) {
     std::move(fill_fields).Run();
   } else {
     authenticator_ = std::move(authenticator);
@@ -429,11 +440,12 @@ void PasswordManualFallbackFlow::EnsureCrossDomainPasswordUsageGetsConsent(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
     BUILDFLAG(IS_CHROMEOS)
   if (payload.is_cross_domain) {
+    CHECK(payload.display_signon_realm);
     cross_domain_confirmation_popup_controller_ =
         password_client_->ShowCrossDomainConfirmationPopup(
             bounds_, text_direction_,
             password_manager_driver_->GetLastCommittedURL(),
-            payload.display_signon_realm, /*show_warning_text=*/false,
+            payload.display_signon_realm.value(), /*show_warning_text=*/false,
             std::move(on_allowed));
     return;
   }

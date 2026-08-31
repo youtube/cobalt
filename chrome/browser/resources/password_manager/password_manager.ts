@@ -12,6 +12,7 @@ export {CrExpandButtonElement} from 'chrome://resources/cr_elements/cr_expand_bu
 export {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 export {OpenWindowProxyImpl} from 'chrome://resources/js/open_window_proxy.js';
 export {PluralStringProxy, PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
+export {BackupPasswordDetailsCardElement} from './credential_details/backup_password_details_card.js';
 export {CredentialFieldElement} from './credential_details/credential_field.js';
 export {CredentialNoteElement} from './credential_details/credential_note.js';
 export {PasskeyDetailsCardElement} from './credential_details/passkey_details_card.js';
@@ -29,7 +30,7 @@ export {PasskeysBrowserProxy, PasskeysBrowserProxyImpl} from './passkeys_browser
 export {PasswordDetailsSectionElement} from './password_details_section.js';
 export {PasswordListItemElement} from './password_list_item.js';
 export {PasswordManagerAppElement} from './password_manager_app.js';
-export {AccountStorageEnabledStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckInteraction, PasswordCheckStatusChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerImpl, PasswordManagerProxy, PasswordsFileExportProgressListener, PasswordViewPageInteractions} from './password_manager_proxy.js';
+export {AccountStorageEnabledStateChangedListener, BlockedSite, BlockedSitesListChangedListener, CredentialsChangedListener, PasswordCheckInteraction, PasswordCheckStatusChangedListener, PasswordManagerAuthTimeoutListener, PasswordManagerImpl, PasswordManagerProxy, PasswordsFileExportProgressListener, PasswordViewPageInteractions, ShouldShowAccountStorageToggleChangedListener} from './password_manager_proxy.js';
 export {PasswordsExporterElement} from './passwords_exporter.js';
 export {PasswordsImporterElement} from './passwords_importer.js';
 export {PasswordsSectionElement} from './passwords_section.js';

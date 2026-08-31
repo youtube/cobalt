@@ -10,20 +10,37 @@
 
 #include "modules/video_capture/linux/pipewire_session.h"
 
+#include <pipewire/pipewire.h>
 #include <spa/monitor/device.h>
 #include <spa/param/format-utils.h>
 #include <spa/param/format.h>
+#include <spa/param/param.h>
 #include <spa/param/video/raw.h>
-#include <spa/pod/parser.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
+#include <spa/utils/defs.h>
+#include <spa/utils/dict.h>
+#include <spa/utils/hook.h>
+#include <spa/utils/type.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <memory>
+#include <optional>
 
+#include "absl/strings/string_view.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "modules/video_capture/device_info_impl.h"
+#include "modules/portal/pipewire_utils.h"
+#include "modules/portal/portal_request_response.h"
+#include "modules/video_capture/linux/camera_portal.h"
+#include "modules/video_capture/video_capture_defines.h"
+#include "modules/video_capture/video_capture_options.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/sanitizer.h"
-#include "rtc_base/string_encode.h"
 #include "rtc_base/string_to_number.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 namespace videocapturemodule {

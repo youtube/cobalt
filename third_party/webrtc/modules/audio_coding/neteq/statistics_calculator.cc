@@ -10,10 +10,9 @@
 
 #include "modules/audio_coding/neteq/statistics_calculator.h"
 
-#include <string.h>  // memset
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>  // memset
 
 #include "absl/strings/string_view.h"
 #include "api/neteq/neteq.h"
@@ -391,7 +390,7 @@ void StatisticsCalculator::GetNetworkStatistics(size_t samples_per_packet,
                         static_cast<uint32_t>(discarded_secondary_samples +
                                               secondary_decoded_samples_));
 
-  if (waiting_times_.size() == 0) {
+  if (waiting_times_.empty()) {
     stats->mean_waiting_time_ms = -1;
     stats->median_waiting_time_ms = -1;
     stats->min_waiting_time_ms = -1;

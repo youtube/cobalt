@@ -14,11 +14,15 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/browser/browser_features.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
+#include "chrome/browser/enterprise/util/managed_browser_utils.h"
+#include "chrome/browser/new_tab_page/feature_promo_helper/new_tab_page_feature_promo_helper.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_service.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/drive_suggestion_handler.h"
 #include "chrome/browser/new_tab_page/modules/file_suggestion/microsoft_files_page_handler.h"
@@ -26,6 +30,7 @@
 #include "chrome/browser/new_tab_page/modules/v2/calendar/google_calendar_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/calendar/outlook_calendar_page_handler.h"
 #include "chrome/browser/new_tab_page/modules/v2/most_relevant_tab_resumption/most_relevant_tab_resumption_page_handler.h"
+#include "chrome/browser/new_tab_page/modules/v2/tab_groups/tab_groups_page_handler.h"
 #include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/page_image_service/image_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -47,14 +52,21 @@
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons_handler.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter_service.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/composebox_handler.h"
+#include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
+#include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/untrusted_source.h"
 #include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
 #include "chrome/browser/ui/webui/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/theme_source.h"
+#include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
+#include "chrome/common/channel_info.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/search/instant_types.h"
 #include "chrome/common/url_constants.h"
@@ -70,6 +82,9 @@
 #include "components/google/core/common/google_util.h"
 #include "components/grit/components_scaled_resources.h"
 #include "components/history_clusters/core/features.h"
+#include "components/omnibox/browser/omnibox_prefs.h"
+#include "components/omnibox/composebox/composebox_metrics_recorder.h"
+#include "components/omnibox/composebox/composebox_query_controller.h"
 #include "components/page_image_service/image_service.h"
 #include "components/page_image_service/image_service_handler.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -80,11 +95,13 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/sync/service/sync_service.h"
+#include "components/user_education/common/user_education_features.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "google_apis/gaia/core_account_id.h"
 #include "media/base/media_switches.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
 #include "skia/ext/skia_utils_base.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -162,19 +179,11 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
                         .spec());
 
   source->AddInteger(
-      "prerenderStartTimeThreshold",
-      features::kNewTabPagePrerenderStartDelayOnMouseHoverByMiliSeconds.Get());
-  source->AddInteger(
       "preconnectStartTimeThreshold",
       features::kNewTabPagePreconnectStartDelayOnMouseHoverByMiliSeconds.Get());
   source->AddBoolean(
       "prerenderOnPressEnabled",
-      base::FeatureList::IsEnabled(features::kNewTabPageTriggerForPrerender2) &&
-          features::kPrerenderNewTabPageOnMousePressedTrigger.Get());
-  source->AddBoolean(
-      "prerenderOnHoverEnabled",
-      base::FeatureList::IsEnabled(features::kNewTabPageTriggerForPrerender2) &&
-          features::kPrerenderNewTabPageOnMouseHoverTrigger.Get());
+      base::FeatureList::IsEnabled(features::kNewTabPageTriggerForPrerender2));
 
   source->AddBoolean(
       "oneGoogleBarEnabled",
@@ -218,6 +227,7 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"doneButton", IDS_DONE},
+      {"dismissButton", IDS_NTP_DISMISS},
       {"title", IDS_NEW_TAB_TITLE},
       {"undo", IDS_NEW_TAB_UNDO_THUMBNAIL_REMOVE},
       {"controlledSettingPolicy", IDS_CONTROLLED_SETTING_POLICY},
@@ -357,6 +367,8 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       {"modulesDummyTitle", IDS_NTP_MODULES_DUMMY_TITLE},
       {"modulesDismissForHoursButtonText",
        IDS_NTP_MODULES_DISMISS_FOR_HOURS_BUTTON_TEXT},
+      {"modulesDismissForDaysButtonText",
+       IDS_NTP_MODULES_DISMISS_FOR_DAYS_BUTTON_TEXT},
       {"modulesGoogleCalendarDismissToastMessage",
        IDS_NTP_MODULES_GOOGLE_CALENDAR_DISMISS_TOAST_MESSAGE},
       {"modulesGoogleCalendarDisableToastMessage",
@@ -412,6 +424,12 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       {"modulesJourneysOpenAllInNewTabGroupButtonText",
        IDS_NTP_MODULES_HISTORY_CLUSTERS_OPEN_ALL_IN_NEW_TAB_GROUP_BUTTON_TEXT},
       {"modulesMoreActions", IDS_NTP_MODULES_MORE_ACTIONS},
+      {"modulesSetupListDisableToastMessage",
+       IDS_NTP_MODULES_SETUP_LIST_DISABLE_TOAST_MESSAGE},
+      {"modulesSetupListDismissToastMessage",
+       IDS_NTP_MODULES_SETUP_LIST_DISMISS_TOAST_MESSAGE},
+      {"modulesSetupListInfo", IDS_NTP_MODULES_SETUP_LIST_INFO},
+      {"modulesSetupListTitle", IDS_NTP_MODULES_SETUP_LIST_TITLE},
       {"modulesTabResumptionDismissButton",
        IDS_NTP_MODULES_TAB_RESUMPTION_DISMISS_BUTTON},
       {"modulesTabResumptionTitle",
@@ -446,6 +464,17 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
        IDS_NTP_MICROSOFT_AUTHENTICATION_SUBHEADING},
       {"modulesMicrosoftAuthSignIn",
        IDS_NTP_MICROSOFT_AUTHENTICATION_SIGN_IN_BUTTON_TEXT},
+      {"modulesTabGroupsDismissToastMessage",
+       IDS_NTP_MODULES_TAB_GROUPS_DISMISS_TOAST_MESSAGE},
+      {"modulesTabGroupsDisableToastMessage",
+       IDS_NTP_MODULES_TAB_GROUPS_DISABLE_TOAST_MESSAGE},
+      {"modulesTabGroupsInfo", IDS_NTP_MODULES_TAB_GROUPS_INFO},
+      {"modulesTabGroupsCreateNewTabGroup", IDS_CREATE_NEW_TAB_GROUP},
+      {"modulesTabGroupsTitle", IDS_NTP_MODULES_TAB_GROUPS_TITLE},
+      {"modulesTabGroupsZeroStateTitle",
+       IDS_NTP_MODULES_TAB_GROUPS_ZERO_STATE_TITLE},
+      {"modulesTabGroupsZeroStateText",
+       IDS_NTP_MODULES_TAB_GROUPS_ZERO_STATE_TEXT},
 
       // Middle slot promo.
       {"undoDismissPromoButtonToast", IDS_NTP_UNDO_DISMISS_PROMO_BUTTON_TOAST},
@@ -456,7 +485,34 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
       // Webstore toast.
       {"webstoreThemesToastMessage", IDS_NTP_WEBSTORE_TOAST_MESSAGE},
       {"webstoreThemesToastButtonText", IDS_NTP_WEBSTORE_TOAST_BUTTON_TEXT},
+
+      // Composebox.
+      {"composeboxCancelButtonTitle", IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL},
+      {"composeboxCancelButtonTitleInput",
+       IDS_NTP_COMPOSE_CANCEL_BUTTON_A11Y_LABEL_INPUT},
+      {"composeboxImageUploadButtonTitle",
+       IDS_NTP_COMPOSE_IMAGE_UPLOAD_BUTTON_A11Y_LABEL},
+      {"composeboxPdfUploadButtonTitle",
+       IDS_NTP_COMPOSE_PDF_UPLOAD_BUTTON_A11Y_LABEL},
+      {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
+      {"composeboxSubmitButtonTitle", IDS_NTP_COMPOSE_SUBMIT_BUTTON_A11Y_LABEL},
+      {"composeboxDeleteFileTitle", IDS_NTP_COMPOSE_DELETE_FILE_A11Y_LABEL},
+      {"composeboxFileUploadStartedText",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_STARTED_A11Y_TEXT},
+      {"composeboxFileUploadCompleteText",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_COMPLETE_A11Y_TEXT},
+      {"composeboxFileUploadInvalidEmptySize",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_EMPTY_SIZE},
+      {"composeboxFileUploadInvalidTooLarge",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_INVALID_TOO_LARGE},
+      {"composeboxFileUploadImageProcessingError",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_IMAGE_PROCESSING_ERROR},
+      {"composeboxFileUploadValidationFailed",
+       IDS_NTP_COMPOSE_FILE_UPLOAD_VALIDATION_FAILED},
+      {"composeboxFileUploadFailed", IDS_NTP_COMPOSE_FILE_UPLOAD_FAILED},
+      {"composeboxFileUploadExpired", IDS_NTP_COMPOSE_FILE_UPLOAD_EXPIRED},
   };
+
   source->AddLocalizedStrings(kStrings);
 
   source->AddString(
@@ -466,11 +522,50 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
   source->AddString(
       "fileSuggestionDismissHours",
       base::NumberToString(DriveService::kDismissDuration.InHours()));
+  source->AddString(
+      "setupListModuleDismissDays",
+      base::NumberToString(
+          user_education::features::GetNtpSetupListSnoozeTime().InDays()));
+  source->AddString(
+      "tabGroupsModuleDismissHours",
+      base::NumberToString(
+          ntp_features::kNtpTabGroupsModuleWindowEndDeltaParam.Get()
+              .InHours()));
 
   bool microsoft_module_enabled = IsMicrosoftModuleEnabledForProfile(profile);
   source->AddBoolean("microsoftModuleEnabled", microsoft_module_enabled);
   source->AddBoolean("modulesReloadable", microsoft_module_enabled);
   source->AddBoolean("waitToLoadModules", microsoft_module_enabled);
+
+  // ComposeBox LoadTimeData
+  auto composebox_config =
+      ntp_composebox::FeatureConfig::Get().config.composebox();
+  const std::string image_mime_types =
+      composebox_config.image_upload().mime_types_allowed();
+  source->AddString("composeboxImageFileTypes", image_mime_types);
+  const std::string attachment_mime_types =
+      composebox_config.attachment_upload().mime_types_allowed();
+  source->AddString("composeboxAttachmentFileTypes", attachment_mime_types);
+  source->AddInteger("composeboxFileMaxSize",
+                     composebox_config.attachment_upload().max_size_bytes());
+  source->AddInteger("composeboxFileMaxCount",
+                     composebox_config.max_num_files());
+
+  source->AddBoolean("searchboxShowComposeEntrypoint",
+                     (ntp_composebox::IsNtpSearchboxComposeEntrypointEnabled(
+                          g_browser_process) ||
+                      ntp_composebox::FeatureConfig::Get().enabled) &&
+                         omnibox::IsAimAllowedByPolicy(profile->GetPrefs()));
+  source->AddBoolean("searchboxShowComposebox",
+                     ntp_composebox::FeatureConfig::Get().enabled &&
+                         omnibox::IsAimAllowedByPolicy(profile->GetPrefs()));
+  source->AddBoolean("composeboxShowZps",
+                     ntp_composebox::kShowComposeboxZps.Get());
+
+  source->AddBoolean("composeboxCloseByEscape",
+                     composebox_config.close_by_escape());
+  source->AddBoolean("composeboxCloseByClickOutside",
+                     composebox_config.close_by_click_outside());
 
   SearchboxHandler::SetupWebUIDataSource(
       source, profile,
@@ -501,12 +596,16 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(Profile* profile) {
 
 }  // namespace
 
+// static
+int NewTabPageUI::instance_count_ = 0;
+
 NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
     : ui::MojoWebUIController(web_ui, /*enable_chrome_send=*/true),
       content::WebContentsObserver(web_ui->GetWebContents()),
       page_factory_receiver_(this),
       customize_buttons_factory_receiver_(this),
       most_visited_page_factory_receiver_(this),
+      composebox_page_factory_receiver_(this),
       browser_command_factory_receiver_(this),
       profile_(Profile::FromWebUI(web_ui)),
       theme_service_(ThemeServiceFactory::GetForProfile(profile_)),
@@ -519,6 +618,8 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
       module_id_details_(
           ntp::MakeModuleIdDetails(NewTabPageUI::IsManagedProfile(profile_),
                                    profile_)) {
+  instance_count_++;
+  base::UmaHistogramCounts100("NewTabPage.Count", instance_count_);
   auto* source = CreateAndAddNewTabPageUiHtmlSource(profile_);
   bool wallpaper_search_button_enabled =
       base::FeatureList::IsEnabled(ntp_features::kNtpWallpaperSearchButton) &&
@@ -593,6 +694,7 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
 WEB_UI_CONTROLLER_TYPE_IMPL(NewTabPageUI)
 
 NewTabPageUI::~NewTabPageUI() {
+  instance_count_--;
   // Deregister customize chrome entry on unified side panel, unless the
   // WebContents is showing another NewTabPageUI (e.g. in case of reloads).
   if (auto* web_ui = web_contents()->GetWebUI()) {
@@ -631,8 +733,8 @@ bool NewTabPageUI::IsManagedProfile(Profile* profile) {
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
   return /* Can be null if Chrome signin is disabled. */ identity_manager &&
          identity_manager
-             ->FindExtendedPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-             .IsManaged();
+                 ->FindExtendedPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+                 .IsManaged() == signin::Tribool::kTrue;
 }
 
 void NewTabPageUI::BindInterface(
@@ -704,6 +806,13 @@ void NewTabPageUI::BindInterface(
 #endif
 
 void NewTabPageUI::BindInterface(
+    mojo::PendingReceiver<ntp::tab_groups::mojom::PageHandler>
+        pending_page_handler) {
+  tab_groups_handler_ = std::make_unique<TabGroupsPageHandler>(
+      std::move(pending_page_handler), web_contents());
+}
+
+void NewTabPageUI::BindInterface(
     mojo::PendingReceiver<ntp::most_relevant_tab_resumption::mojom::PageHandler>
         pending_page_handler) {
   most_relevant_tab_resumption_handler_ =
@@ -740,6 +849,15 @@ void NewTabPageUI::BindInterface(
 }
 
 void NewTabPageUI::BindInterface(
+    mojo::PendingReceiver<composebox::mojom::PageHandlerFactory>
+        pending_receiver) {
+  if (composebox_page_factory_receiver_.is_bound()) {
+    composebox_page_factory_receiver_.reset();
+  }
+  composebox_page_factory_receiver_.Bind(std::move(pending_receiver));
+}
+
+void NewTabPageUI::BindInterface(
     mojo::PendingReceiver<page_image_service::mojom::PageImageServiceHandler>
         pending_page_handler) {
   base::WeakPtr<page_image_service::ImageService> image_service_weak;
@@ -760,6 +878,15 @@ void NewTabPageUI::BindInterface(
     help_bubble_handler_factory_receiver_.reset();
   }
   help_bubble_handler_factory_receiver_.Bind(std::move(pending_receiver));
+}
+
+void NewTabPageUI::BindInterface(
+    mojo::PendingReceiver<ntp_promo::mojom::NtpPromoHandlerFactory>
+        pending_receiver) {
+  if (ntp_promo_handler_factory_receiver_.is_bound()) {
+    ntp_promo_handler_factory_receiver_.reset();
+  }
+  ntp_promo_handler_factory_receiver_.Bind(std::move(pending_receiver));
 }
 
 void NewTabPageUI::CreatePageHandler(
@@ -805,8 +932,9 @@ void NewTabPageUI::CreateCustomizeButtonsHandler(
     mojo::PendingReceiver<customize_buttons::mojom::CustomizeButtonsHandler>
         pending_page_handler) {
   customize_buttons_handler_ = std::make_unique<CustomizeButtonsHandler>(
-      std::move(pending_page_handler), std::move(pending_page), profile_,
-      web_contents(), std::make_unique<NewTabPageFeaturePromoHelper>());
+      std::move(pending_page_handler), std::move(pending_page), web_ui(),
+      webui::GetTabInterface(web_contents()),
+      std::make_unique<NewTabPageFeaturePromoHelper>());
 }
 
 void NewTabPageUI::CreatePageHandler(
@@ -822,6 +950,32 @@ void NewTabPageUI::CreatePageHandler(
   most_visited_page_handler_->SetShortcutsVisible(IsShortcutsVisible());
 }
 
+void NewTabPageUI::CreatePageHandler(
+    mojo::PendingRemote<composebox::mojom::Page> pending_page,
+    mojo::PendingReceiver<composebox::mojom::PageHandler> pending_page_handler,
+    mojo::PendingRemote<searchbox::mojom::Page> pending_searchbox_page,
+    mojo::PendingReceiver<searchbox::mojom::PageHandler>
+        pending_searchbox_handler) {
+  DCHECK(pending_page.is_valid());
+  MetricsReporterService* service =
+      MetricsReporterService::GetFromWebContents(web_ui()->GetWebContents());
+  composebox_handler_ = std::make_unique<ComposeboxHandler>(
+      std::move(pending_page_handler), std::move(pending_page),
+      std::move(pending_searchbox_handler),
+      std::make_unique<ComposeboxQueryController>(
+          IdentityManagerFactory::GetForProfile(profile_),
+          g_browser_process->shared_url_loader_factory(), chrome::GetChannel(),
+          g_browser_process->GetApplicationLocale(),
+          TemplateURLServiceFactory::GetForProfile(profile_),
+          profile_->GetVariationsClient(),
+          ntp_composebox::kSendLnsSurfaceParam.Get()),
+      std::make_unique<ComposeboxMetricsRecorder>("NewTabPage."), profile_,
+      web_contents(), service->metrics_reporter());
+
+  // TODO(crbug.com/435288212): Move searchbox mojom to use factory pattern.
+  composebox_handler_->SetPage(std::move(pending_searchbox_page));
+}
+
 void NewTabPageUI::CreateHelpBubbleHandler(
     mojo::PendingRemote<help_bubble::mojom::HelpBubbleClient> client,
     mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandler> handler) {
@@ -830,6 +984,14 @@ void NewTabPageUI::CreateHelpBubbleHandler(
       std::vector<ui::ElementIdentifier>{
           NewTabPageUI::kCustomizeChromeButtonElementId,
           NewTabPageUI::kModulesCustomizeIPHAnchorElement});
+}
+
+void NewTabPageUI::CreateNtpPromoHandler(
+    mojo::PendingRemote<ntp_promo::mojom::NtpPromoClient> client,
+    mojo::PendingReceiver<ntp_promo::mojom::NtpPromoHandler> handler) {
+  ntp_promo_handler_ =
+      NtpPromoHandler::Create(std::move(client), std::move(handler),
+                              webui::GetBrowserWindowInterface(web_contents()));
 }
 
 // OnColorProviderChanged can be called during the destruction process and
@@ -914,10 +1076,29 @@ void NewTabPageUI::OnLoad() {
   base::Value::Dict update;
   update.Set("navigationStartTime",
              navigation_start_time_.InMillisecondsFSinceUnixEpoch());
-  update.Set(
-      "modulesEnabled",
-      ntp::HasModulesEnabled(module_id_details_,
-                             IdentityManagerFactory::GetForProfile(profile_)));
+  const bool modules_enabled = ntp::HasModulesEnabled(
+      module_id_details_, IdentityManagerFactory::GetForProfile(profile_));
+  update.Set("modulesEnabled", modules_enabled);
+
+  auto* ntp_promo_controller =
+      UserEducationServiceFactory::GetForBrowserContext(profile_)
+          ->ntp_promo_controller();
+  std::string ntp_promo_type;
+  if (!modules_enabled && ntp_promo_controller &&
+      ntp_promo_controller->HasShowablePromos(profile_)) {
+    switch (user_education::features::GetNtpBrowserPromoType()) {
+      case user_education::features::NtpBrowserPromoType::kSimple:
+        ntp_promo_type = "simple";
+        break;
+      case user_education::features::NtpBrowserPromoType::kSetupList:
+        ntp_promo_type = "setuplist";
+        break;
+      case user_education::features::NtpBrowserPromoType::kNone:
+        break;
+    }
+  }
+  update.Set("browserPromoType", ntp_promo_type);
+
   content::WebUIDataSource::Update(profile_, chrome::kChromeUINewTabPageHost,
                                    std::move(update));
 }

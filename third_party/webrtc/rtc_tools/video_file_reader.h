@@ -10,8 +10,7 @@
 #ifndef RTC_TOOLS_VIDEO_FILE_READER_H_
 #define RTC_TOOLS_VIDEO_FILE_READER_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdio>
 #include <iterator>
 #include <string>

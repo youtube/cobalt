@@ -69,6 +69,7 @@
 #include "ui/native_theme/native_theme.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+#include "url/url_constants.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/apps/icon_standardizer.h"
@@ -134,8 +135,8 @@ std::optional<int> AppBrowserController::FindTabIndexForApp(
     const webapps::AppId& app_id,
     bool for_focus_existing,
     HomeTabScope home_tab_scope) {
-  auto is_valid_tab = [&app_id, home_tab_scope,
-                       for_focus_existing](content::WebContents* contents) {
+  auto is_valid_tab = [&app_id, home_tab_scope, for_focus_existing,
+                       browser](content::WebContents* contents) {
     WebAppTabHelper* tab_helper = WebAppTabHelper::FromWebContents(contents);
     if (app_id != tab_helper->app_id() || contents->HasOpener()) {
       return false;
@@ -147,7 +148,7 @@ std::optional<int> AppBrowserController::FindTabIndexForApp(
       return true;
     }
     return (home_tab_scope == HomeTabScope::kInScope) ==
-           tab_helper->is_pinned_home_tab();
+           (browser->app_controller()->GetPinnedHomeTab() == contents);
   };
   // The active web contents should have preference if it is in scope.
   if (browser->tab_strip_model()->active_index() != TabStripModel::kNoTab) {
@@ -281,6 +282,19 @@ bool AppBrowserController::ShouldShowCustomTabBar() const {
     return should_show_toolbar_for_url(initial_url());
   }
 
+  // Special case for about:blank app popup windows. If an app window creates a
+  // popup window to about:blank from a document within app scope, the toolbar
+  // should not be shown.
+  if (last_committed_url.spec() == url::kAboutBlankURL) {
+    auto* primary_main_frame = web_contents->GetPrimaryMainFrame();
+    if (primary_main_frame &&
+        primary_main_frame->GetLastCommittedOrigin().IsSameOriginWith(
+            start_url) &&
+        browser()->is_type_app_popup()) {
+      return false;
+    }
+  }
+
   if (should_show_toolbar_for_url(visible_url) ||
       should_show_toolbar_for_url(last_committed_url)) {
     return true;
@@ -342,6 +356,7 @@ std::vector<actions::ActionId> AppBrowserController::GetTitleBarPageActions()
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   std::vector<actions::ActionId> types_enabled = {
+      kActionShowPasswordsBubbleOrPage,
       kActionShowTranslate,
       kActionZoomNormal,
       kActionShowFileSystemAccess,
@@ -420,6 +435,10 @@ bool AppBrowserController::HasReloadButton() const {
   return true;
 }
 
+bool AppBrowserController::HasPendingUpdate() const {
+  return false;
+}
+
 bool AppBrowserController::IsPreventCloseEnabled() const {
   auto* provider = WebAppProvider::GetForWebApps(browser()->profile());
   if (!provider) {
@@ -453,10 +472,6 @@ std::u16string AppBrowserController::GetLaunchFlashText() const {
     return GetAppShortName();
   }
   return GetFormattedUrlOrigin();
-}
-
-bool AppBrowserController::IsHostedApp() const {
-  return false;
 }
 
 WebAppBrowserController* AppBrowserController::AsWebAppBrowserController() {
@@ -582,8 +597,12 @@ std::string AppBrowserController::GetTitleForMediaControls() const {
   return std::string();
 }
 
-GURL AppBrowserController::GetAppNewTabUrl() const {
+const GURL& AppBrowserController::GetAppNewTabUrl() const {
   return GetAppStartUrl();
+}
+
+content::WebContents* AppBrowserController::GetPinnedHomeTab() const {
+  return nullptr;
 }
 
 bool AppBrowserController::ShouldHideNewTabButton() const {
@@ -746,6 +765,14 @@ void AppBrowserController::AddColorMixers(
       {ui::kColorSysStateDisabled}, {kColorToolbar})};
 #endif
   mixer[kColorToolbarButtonIconInactive] = {kColorToolbarButtonIconDisabled};
+
+  // App menu highlight colors in PWA window should be derived from the (active)
+  // frame color, as that is what it is drawn on top of.
+  mixer[kColorAppMenuHighlightDefault] =
+      ui::PickGoogleColor(ui::kColorFrameActiveUnthemed, kColorToolbar,
+                          color_utils::kMinimumVisibleContrastRatio);
+  mixer[kColorAppMenuExpandedForegroundDefault] =
+      ui::GetColorWithMaxContrast(kColorAppMenuHighlightDefault);
 }
 
 void AppBrowserController::OnReceivedInitialURL() {

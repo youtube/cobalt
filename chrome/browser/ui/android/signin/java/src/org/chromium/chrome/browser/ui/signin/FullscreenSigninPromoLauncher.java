@@ -11,19 +11,22 @@ import android.text.TextUtils;
 import org.chromium.base.BuildInfo;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.SigninPreferencesManager;
 import org.chromium.components.signin.AccountManagerFacade;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountUtils;
+import org.chromium.components.signin.SigninFeatureMap;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.user_prefs.UserPrefs;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /** Helper class responsible of launching the re-FRE with {@link SigninAndHistorySyncActivity}. */
 @NullMarked
@@ -59,6 +62,9 @@ public final class FullscreenSigninPromoLauncher {
         }
 
         context.startActivity(intent);
+        prefManager.setSigninPromoNextShowTime(
+                System.currentTimeMillis()
+                        + TimeUnit.DAYS.toMillis(getDurationBetweenPromoTriggers()));
         prefManager.setSigninPromoLastShownVersion(currentMajorVersion);
         var accounts =
                 AccountUtils.getAccountsIfFulfilledOrEmpty(
@@ -70,7 +76,7 @@ public final class FullscreenSigninPromoLauncher {
 
     private static boolean shouldLaunchPromo(
             Profile profile, SigninPreferencesManager prefManager, final int currentMajorVersion) {
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.FORCE_STARTUP_SIGNIN_PROMO)) {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.FORCE_STARTUP_SIGNIN_PROMO)) {
             return true;
         }
 
@@ -78,12 +84,20 @@ public final class FullscreenSigninPromoLauncher {
             return false;
         }
 
+        final long nextShowTime = prefManager.getSigninPromoNextShowTime();
+        // We just store the next show time for now to ramp up clients for the experiment later.
+        // See crbug.com/408962000.
+        if (nextShowTime == 0) {
+            prefManager.setSigninPromoNextShowTime(
+                    System.currentTimeMillis()
+                            + TimeUnit.DAYS.toMillis(getDurationBetweenPromoTriggers()));
+        }
+
         final int lastPromoMajorVersion = prefManager.getSigninPromoLastShownVersion();
         if (lastPromoMajorVersion == 0) {
             prefManager.setSigninPromoLastShownVersion(currentMajorVersion);
             return false;
         }
-
         if (currentMajorVersion < lastPromoMajorVersion + 2) {
             // Promo can be shown at most once every 2 Chrome major versions.
             return false;
@@ -109,6 +123,12 @@ public final class FullscreenSigninPromoLauncher {
         // Don't show if no new accounts have been added after the last time promo was shown.
         return previousAccountEmails == null
                 || !previousAccountEmails.containsAll(currentAccountEmails);
+    }
+
+    /** Returns the number of days between promo triggers. */
+    private static int getDurationBetweenPromoTriggers() {
+        // The duration between two promo trigger is randomly chosen between [53..67] days.
+        return 53 + new Random().nextInt(15);
     }
 
     private FullscreenSigninPromoLauncher() {}

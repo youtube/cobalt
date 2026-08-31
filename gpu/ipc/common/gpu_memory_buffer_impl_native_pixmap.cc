@@ -7,8 +7,8 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/buffer_usage_util.h"
 #include "ui/gfx/client_native_pixmap_factory.h"
@@ -28,13 +28,10 @@ void FreeNativePixmapForTesting(
 }  // namespace
 
 GpuMemoryBufferImplNativePixmap::GpuMemoryBufferImplNativePixmap(
-    gfx::GpuMemoryBufferId id,
     const gfx::Size& size,
     gfx::BufferFormat format,
-    DestructionCallback callback,
     std::unique_ptr<gfx::ClientNativePixmap> pixmap)
-    : GpuMemoryBufferImpl(id, size, format, std::move(callback)),
-      pixmap_(std::move(pixmap)) {}
+    : GpuMemoryBufferImpl(size, format), pixmap_(std::move(pixmap)) {}
 
 GpuMemoryBufferImplNativePixmap::~GpuMemoryBufferImplNativePixmap() = default;
 
@@ -45,9 +42,7 @@ GpuMemoryBufferImplNativePixmap::CreateFromHandle(
     gfx::GpuMemoryBufferHandle handle,
     const gfx::Size& size,
     gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    DestructionCallback callback) {
-  const auto id = handle.id;
+    gfx::BufferUsage usage) {
   std::unique_ptr<gfx::ClientNativePixmap> native_pixmap =
       client_native_pixmap_factory->ImportFromHandle(
           std::move(handle).native_pixmap_handle(), size, format, usage);
@@ -55,7 +50,7 @@ GpuMemoryBufferImplNativePixmap::CreateFromHandle(
     return nullptr;
 
   return base::WrapUnique(new GpuMemoryBufferImplNativePixmap(
-      id, size, format, std::move(callback), std::move(native_pixmap)));
+      size, format, std::move(native_pixmap)));
 }
 
 // static
@@ -91,12 +86,12 @@ bool GpuMemoryBufferImplNativePixmap::Map() {
   if (map_count_++)
     return true;
 
-  if (gfx::NumberOfPlanesForLinearBufferFormat(GetFormat()) !=
+  if (gfx::NumberOfPlanesForLinearBufferFormat(format_) !=
       pixmap_->GetNumberOfPlanes()) {
     // RGBX8888 and BGR_565 allocates 2 planes while the gfx function returns 1
     LOG(WARNING) << "Mismatched plane count "
-                 << gfx::BufferFormatToString(GetFormat()) << " expected "
-                 << gfx::NumberOfPlanesForLinearBufferFormat(GetFormat())
+                 << gfx::BufferFormatToString(format_) << " expected "
+                 << gfx::NumberOfPlanesForLinearBufferFormat(format_)
                  << " value " << pixmap_->GetNumberOfPlanes();
   }
 
@@ -135,7 +130,6 @@ gfx::GpuMemoryBufferType GpuMemoryBufferImplNativePixmap::GetType() const {
 gfx::GpuMemoryBufferHandle GpuMemoryBufferImplNativePixmap::CloneHandle()
     const {
   gfx::GpuMemoryBufferHandle handle(pixmap_->CloneHandleForIPC());
-  handle.id = id_;
   return handle;
 }
 

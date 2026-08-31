@@ -15,10 +15,15 @@
 #include <android/asset_manager.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <sys/stat.h>
+#include <unistd.h>
+
+#include <string>
 
 #include "starboard/android/shared/file_internal.h"
 
+using starboard::FallbackPath;
 using starboard::IsAndroidAssetPath;
 using starboard::OpenAndroidAsset;
 using starboard::OpenAndroidAssetDir;
@@ -38,7 +43,22 @@ int __wrap_stat(const char* path, struct stat* info) {
 
 int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
   if (!IsAndroidAssetPath(path)) {
-    return __real_fstatat(dirfd, path, info, flags);
+    int retval = __real_fstatat(dirfd, path, info, flags);
+    if (retval == 0 && (flags & AT_SYMLINK_NOFOLLOW) &&
+        S_ISLNK(info->st_mode)) {
+      // POSIX requires a symlink's st_size to be the length of the target path.
+      // Android's /data filesystem reports a different value, so normalize it
+      // via readlinkat. Save and restore errno so a readlinkat failure doesn't
+      // pollute fstatat's result.
+      int saved_errno = errno;
+      char buf[PATH_MAX];
+      ssize_t len = readlinkat(dirfd, path, buf, sizeof(buf));
+      if (len >= 0) {
+        info->st_size = len;
+      }
+      errno = saved_errno;
+    }
+    return retval;
   }
 
   if (info == NULL) {
@@ -66,6 +86,11 @@ int __wrap_fstatat(int dirfd, const char* path, struct stat* info, int flags) {
     info->st_size = 0;
     AAssetDir_close(asset_dir);
     return 0;
+  }
+
+  std::string fallback_path = FallbackPath(path);
+  if (!fallback_path.empty()) {
+    return __real_fstatat(dirfd, fallback_path.c_str(), info, flags);
   }
 
   errno = ENOENT;

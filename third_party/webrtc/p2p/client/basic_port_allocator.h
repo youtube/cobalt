@@ -24,6 +24,7 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/enums.h"
@@ -55,7 +56,9 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
       NetworkManager* absl_nonnull network_manager,
       PacketSocketFactory* absl_nonnull socket_factory,
       TurnCustomizer* absl_nullable turn_customizer = nullptr,
-      RelayPortFactoryInterface* absl_nullable relay_port_factory = nullptr);
+      RelayPortFactoryInterface* absl_nullable relay_port_factory = nullptr,
+      std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+          absl_nullable lna_permission_factory = nullptr);
 
   BasicPortAllocator(const BasicPortAllocator&) = delete;
   BasicPortAllocator& operator=(const BasicPortAllocator&) = delete;
@@ -76,6 +79,11 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
   PacketSocketFactory* socket_factory() {
     CheckRunOnValidThreadIfInitialized();
     return socket_factory_;
+  }
+
+  LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory() {
+    CheckRunOnValidThreadIfInitialized();
+    return lna_permission_factory_.get();
   }
 
   PortAllocatorSession* CreateSessionInternal(
@@ -103,10 +111,13 @@ class RTC_EXPORT BasicPortAllocator : public PortAllocator {
   NetworkManager* network_manager_;
   // Always externally-owned pointer to a socket factory.
   PacketSocketFactory* const socket_factory_;
-  int network_ignore_mask_ = webrtc::kDefaultNetworkIgnoreMask;
+  int network_ignore_mask_ = kDefaultNetworkIgnoreMask;
 
   AlwaysValidPointer<RelayPortFactoryInterface, TurnPortFactory>
       relay_port_factory_;
+
+  std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface>
+      lna_permission_factory_;
 };
 
 struct PortConfiguration;
@@ -143,7 +154,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   // the type of candidates to gather and the candidate filter only controls the
   // signaling of candidates. As a result, with the candidate filter changed
   // alone, all newly allowed candidates for signaling should already be
-  // gathered by the respective webrtc::Port.
+  // gathered by the respective Port.
   void SetCandidateFilter(uint32_t filter) override;
   void StartGettingPorts() override;
   void StopGettingPorts() override;
@@ -151,7 +162,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   bool IsGettingPorts() override;
   bool IsCleared() const override;
   bool IsStopped() const override;
-  // These will all be webrtc::Ports.
+  // These will all be Ports.
   std::vector<PortInterface*> ReadyPorts() const override;
   std::vector<Candidate> ReadyCandidates() const override;
   bool CandidatesAllocationDone() const override;
@@ -236,7 +247,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   void OnConfigStop();
   void AllocatePorts();
   void OnAllocate(int allocation_epoch);
-  void DoAllocate(bool disable_equivalent_phases);
+  void DoAllocate();
   void OnNetworksChanged();
   void OnAllocationSequenceObjectsCreated();
   void DisableEquivalentPhases(const Network* network,
@@ -255,7 +266,6 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   std::vector<const Network*> GetNetworks();
   std::vector<const Network*> GetFailedNetworks();
   void Regather(const std::vector<const Network*>& networks,
-                bool disable_equivalent_phases,
                 IceRegatheringReason reason);
 
   bool CheckCandidateFilter(const Candidate& c) const;
@@ -286,7 +296,7 @@ class RTC_EXPORT BasicPortAllocatorSession : public PortAllocatorSession {
   std::vector<AllocationSequence*> sequences_;
   std::vector<PortData> ports_;
   std::vector<IceCandidateErrorEvent> candidate_error_events_;
-  uint32_t candidate_filter_ = webrtc::CF_ALL;
+  uint32_t candidate_filter_ = CF_ALL;
   // Policy on how to prune turn ports, taken from the port allocator.
   PortPrunePolicy turn_port_prune_policy_;
   SessionState state_ = SessionState::CLEARED;
@@ -416,16 +426,5 @@ class AllocationSequence {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::AllocationSequence;
-using ::webrtc::BasicPortAllocator;
-using ::webrtc::BasicPortAllocatorSession;
-using ::webrtc::PortConfiguration;
-using ::webrtc::SessionState;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_CLIENT_BASIC_PORT_ALLOCATOR_H_

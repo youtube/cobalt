@@ -151,6 +151,7 @@ DEFINE_STATIC_QUIC_TAG(IW03);  // Force ICWND to 3
 DEFINE_STATIC_QUIC_TAG(IW10);  // Force ICWND to 10
 DEFINE_STATIC_QUIC_TAG(IW20);  // Force ICWND to 20
 DEFINE_STATIC_QUIC_TAG(IW50);  // Force ICWND to 50
+DEFINE_STATIC_QUIC_TAG(IW2X);  // Force ICWND to 2x its default value.
 DEFINE_STATIC_QUIC_TAG(B2ON);  // Enable BBRv2
 DEFINE_STATIC_QUIC_TAG(B2NA);  // For BBRv2, do not add ack
                                // height to queueing threshold
@@ -216,6 +217,8 @@ DEFINE_STATIC_QUIC_TAG(AFF1);  // Use SRTT in building
                                // AckFrequencyFrame.
 DEFINE_STATIC_QUIC_TAG(AFF2);  // Send AckFrequencyFrame upon
                                // handshake completion.
+DEFINE_STATIC_QUIC_TAG(AFIA);  // Send MinAckDelay transport parameter to allow
+                               // receipt of ACK_FREQUENCY and IMMEDIATE_ACK
 DEFINE_STATIC_QUIC_TAG(SSLR);  // Slow Start Large Reduction.
 DEFINE_STATIC_QUIC_TAG(NPRR);  // Pace at unity instead of PRR
 DEFINE_STATIC_QUIC_TAG(5RTO);  // Close connection on 5 RTOs
@@ -444,6 +447,13 @@ DEFINE_STATIC_QUIC_TAG(ROWF);  // Send first 1-RTT packet on
                                // ROWP timeout.
 DEFINE_STATIC_QUIC_TAG(ROWR);  // Send random bytes on ROWP
                                // timeout.
+
+// Retransmittable on wire timeout experiment.
+// TODO: b/427246911 - Remove these tags once the experiment is complete.
+DEFINE_STATIC_QUIC_TAG(ROW1);  // Set retransmittable on wire timeout to 1*PTO.
+DEFINE_STATIC_QUIC_TAG(ROW2);  // Set retransmittable on wire timeout to 2*PTO.
+DEFINE_STATIC_QUIC_TAG(ROW3);  // Set retransmittable on wire timeout to 3*PTO.
+
 // Selective Resumption variants.
 DEFINE_STATIC_QUIC_TAG(GSR0);
 DEFINE_STATIC_QUIC_TAG(GSR1);
@@ -519,6 +529,16 @@ DEFINE_STATIC_QUIC_TAG(FPPE);
 
 // Fix timeouts experiment.
 DEFINE_STATIC_QUIC_TAG(FTOE);
+
+// Path degradation experiments.
+DEFINE_STATIC_QUIC_TAG(PDE2);  // 2 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(PDE3);  // 3 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(PDE5);  // 5 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(MPR1);  // Probe for multi-port path on RTO.
+
+// Experiment for explicit connection close packet for silent idle timeout from
+// server.
+DEFINE_STATIC_QUIC_TAG(ECCP);
 
 #undef DEFINE_STATIC_QUIC_TAG
 

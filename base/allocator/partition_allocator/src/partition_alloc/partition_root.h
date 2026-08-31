@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ROOT_H_
 #define PARTITION_ALLOC_PARTITION_ROOT_H_
 
@@ -42,7 +47,6 @@
 #include "partition_alloc/build_config.h"
 #include "partition_alloc/buildflags.h"
 #include "partition_alloc/in_slot_metadata.h"
-#include "partition_alloc/lightweight_quarantine.h"
 #include "partition_alloc/page_allocator.h"
 #include "partition_alloc/partition_address_space.h"
 #include "partition_alloc/partition_alloc-inl.h"
@@ -70,8 +74,8 @@
 #include "partition_alloc/partition_lock.h"
 #include "partition_alloc/partition_oom.h"
 #include "partition_alloc/partition_page.h"
-#include "partition_alloc/partition_shared_mutex.h"
 #include "partition_alloc/reservation_offset_table.h"
+#include "partition_alloc/scheduler_loop_quarantine.h"
 #include "partition_alloc/tagging.h"
 #include "partition_alloc/thread_cache.h"
 #include "partition_alloc/thread_isolation/thread_isolation.h"
@@ -187,7 +191,17 @@ struct PartitionOptions {
   // compression ratio of freed memory inside partially allocated pages (due to
   // fragmentation).
   EnableToggle eventually_zero_freed_memory = kDisabled;
-  EnableToggle fewer_memory_regions = kDisabled;
+  // Linux-based systems have a limited per-process VMA limit, be more
+  // conservative there. This matches the feature setting in
+  // partition_alloc_features.cc, but not all clients use Chromium's feature
+  // system to configure PartitionAlloc.
+  EnableToggle fewer_memory_regions =
+#if PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_ANDROID) || \
+    PA_BUILDFLAG(IS_CHROMEOS)
+      kEnabled;
+#else
+      kDisabled;
+#endif
 
   struct {
     EnableToggle enabled = kDisabled;
@@ -198,8 +212,6 @@ struct PartitionOptions {
 #if PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
   ThreadIsolationOption thread_isolation;
 #endif
-
-  EnableToggle use_small_single_slot_spans = kDisabled;
 };
 
 constexpr PartitionOptions::PartitionOptions() = default;
@@ -218,20 +230,11 @@ enum class StraightenLargerSlotSpanFreeListsMode {
 // Never instantiate a PartitionRoot directly, instead use
 // PartitionAllocator.
 struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
-  using ReadOnlySlotSpanMetadata =
-      internal::SlotSpanMetadata<internal::MetadataKind::kReadOnly>;
-  using WritableSlotSpanMetadata =
-      internal::SlotSpanMetadata<internal::MetadataKind::kWritable>;
+  using SlotSpanMetadata = internal::SlotSpanMetadata;
   using Bucket = internal::PartitionBucket;
   using FreeListEntry = internal::FreelistEntry;
-  using WritableSuperPageExtentEntry = internal::PartitionSuperPageExtentEntry<
-      internal::MetadataKind::kWritable>;
-  using ReadOnlySuperPageExtentEntry = internal::PartitionSuperPageExtentEntry<
-      internal::MetadataKind::kReadOnly>;
-  using WritableDirectMapExtent =
-      internal::PartitionDirectMapExtent<internal::MetadataKind::kWritable>;
-  using ReadOnlyDirectMapExtent =
-      internal::PartitionDirectMapExtent<internal::MetadataKind::kReadOnly>;
+  using SuperPageExtentEntry = internal::PartitionSuperPageExtentEntry;
+  using DirectMapExtent = internal::PartitionDirectMapExtent;
 
   enum class BucketDistribution : uint8_t { kNeutral, kDenser };
 
@@ -259,10 +262,6 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 #endif  // PA_BUILDFLAG(USE_PARTITION_COOKIE)
 #if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
     bool brp_enabled_ = false;
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-    bool mac11_malloc_size_hack_enabled_ = false;
-    size_t mac11_malloc_size_hack_usable_size_ = 0;
-#endif  // PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
     size_t in_slot_metadata_size = 0;
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
@@ -270,6 +269,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 #if PA_BUILDFLAG(HAS_64_BIT_POINTERS)
     internal::PoolOffsetLookup offset_lookup;
 #endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+    internal::ReservationOffsetTable reservation_offset_table;
 
     bool eventually_zero_freed_memory = false;
     internal::SchedulerLoopQuarantineConfig
@@ -293,8 +293,8 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
     static inline constexpr uint32_t extras_size = 0;
 #endif  // PA_CONFIG(EXTRAS_REQUIRED)
 
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-    std::ptrdiff_t shadow_pool_offset_ = 0;
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+    std::ptrdiff_t metadata_offset_ = 0;
 #endif
   };
 
@@ -364,11 +364,11 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   uintptr_t next_super_page = 0;
   uintptr_t next_partition_page = 0;
   uintptr_t next_partition_page_end = 0;
-  ReadOnlySuperPageExtentEntry* current_extent = nullptr;
-  ReadOnlySuperPageExtentEntry* first_extent = nullptr;
-  ReadOnlyDirectMapExtent* direct_map_list
+  SuperPageExtentEntry* current_extent = nullptr;
+  SuperPageExtentEntry* first_extent = nullptr;
+  DirectMapExtent* direct_map_list
       PA_GUARDED_BY(internal::PartitionRootLock(this)) = nullptr;
-  ReadOnlySlotSpanMetadata* global_empty_slot_span_ring
+  SlotSpanMetadata* global_empty_slot_span_ring
       [internal::kMaxEmptySlotSpanRingSize] PA_GUARDED_BY(
           internal::PartitionRootLock(this)) = {};
   int16_t global_empty_slot_span_ring_index
@@ -392,20 +392,14 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   internal::Lock thread_cache_construction_lock;
 
   size_t scheduler_loop_quarantine_branch_capacity_in_bytes = 0;
-  internal::LightweightQuarantineRoot scheduler_loop_quarantine_root;
-  internal::SchedulerLoopQuarantineBranch scheduler_loop_quarantine;
+  internal::SchedulerLoopQuarantineRoot scheduler_loop_quarantine_root;
+  internal::GlobalSchedulerLoopQuarantineBranch scheduler_loop_quarantine;
 
   static constexpr internal::base::TimeDelta kMaxPurgeDuration =
       internal::base::Milliseconds(2);
   // Not overriding the global one to only change it for this partition.
   internal::base::TimeTicks (*now_maybe_overridden_for_testing)() =
       internal::base::TimeTicks::Now;
-
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-  // Locks not to run EnableShadowMetadata() and PartitionDirectMap()
-  // at the same time.
-  static internal::SharedMutex g_shadow_metadata_init_mutex_;
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
 
   PartitionRoot();
   explicit PartitionRoot(PartitionOptions opts);
@@ -423,12 +417,6 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 
   void DecommitEmptySlotSpansForTesting();
 
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-  void EnableMac11MallocSizeHackIfNeeded();
-  void EnableMac11MallocSizeHackForTesting();
-  void InitMac11MallocSizeHackUsableSize();
-#endif  // PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-
   // Public API
   //
   // Allocates out of the given bucket. Properly, this function should probably
@@ -439,14 +427,13 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   //
   // Moving it a layer lower couples PartitionRoot and PartitionBucket, but
   // preserves the layering of the includes.
-  void Init(PartitionOptions);
+  void Init(PartitionOptions) PA_LOCKS_EXCLUDED(lock_);
 
-  void EnableThreadCacheIfSupported();
+  void EnableThreadCacheIfSupported()
+      PA_LOCKS_EXCLUDED(thread_cache_construction_lock, lock_);
 
   PA_ALWAYS_INLINE static PartitionRoot* FromSlotSpanMetadata(
-      const ReadOnlySlotSpanMetadata* slot_span);
-  PA_ALWAYS_INLINE static PartitionRoot* FromSlotSpanMetadata(
-      WritableSlotSpanMetadata* slot_span);
+      const SlotSpanMetadata* slot_span);
 
   // These two functions work unconditionally for normal buckets.
   // For direct map, they only work for the first super page of a reservation,
@@ -581,22 +568,22 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 
   // Immediately frees the pointer bypassing the quarantine. |slot_start| is the
   // beginning of the slot that contains |object|.
-  PA_ALWAYS_INLINE void FreeNoHooksImmediate(
-      void* object,
-      ReadOnlySlotSpanMetadata* slot_span,
-      uintptr_t slot_start);
+  template <FreeFlags flags>
+  PA_ALWAYS_INLINE void FreeNoHooksImmediate(void* object,
+                                             SlotSpanMetadata* slot_span,
+                                             uintptr_t slot_start);
 
-  PA_ALWAYS_INLINE size_t
-  GetSlotUsableSize(const ReadOnlySlotSpanMetadata* slot_span) {
+#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  // Actual free operation on BRP dequarantine.
+  PA_ALWAYS_INLINE static void FreeAfterBRPQuarantine(uintptr_t slot_start,
+                                                      size_t slot_size);
+#endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+
+  PA_ALWAYS_INLINE size_t GetSlotUsableSize(const SlotSpanMetadata* slot_span) {
     return AdjustSizeForExtrasSubtract(slot_span->GetUtilizedSlotSize());
   }
 
   PA_ALWAYS_INLINE static size_t GetUsableSize(const void* ptr);
-
-  // Same as GetUsableSize() except it adjusts the return value for macOS 11
-  // malloc_size() hack.
-  PA_ALWAYS_INLINE static size_t GetUsableSizeWithMac11MallocSizeHack(
-      void* ptr);
 
   PA_ALWAYS_INLINE PageAccessibilityConfiguration
   GetPageAccessibility(bool request_tagging) const;
@@ -657,18 +644,17 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
                                     BucketDistribution bucket_distribution);
 
   PA_ALWAYS_INLINE void FreeInSlotSpan(uintptr_t slot_start,
-                                       ReadOnlySlotSpanMetadata* slot_span)
+                                       SlotSpanMetadata* slot_span)
       PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(this));
 
   // Frees memory, with |slot_start| as returned by |RawAlloc()|.
   PA_ALWAYS_INLINE void RawFree(uintptr_t slot_start,
-                                ReadOnlySlotSpanMetadata* slot_span)
+                                SlotSpanMetadata* slot_span)
       PA_LOCKS_EXCLUDED(internal::PartitionRootLock(this));
 
-  PA_ALWAYS_INLINE void RawFreeWithThreadCache(
-      uintptr_t slot_start,
-      void* object,
-      ReadOnlySlotSpanMetadata* slot_span);
+  PA_ALWAYS_INLINE void RawFreeWithThreadCache(uintptr_t slot_start,
+                                               void* object,
+                                               SlotSpanMetadata* slot_span);
 
 #if PA_BUILDFLAG(HAS_MEMORY_TAGGING)
   // Sets a new MTE tag on the slot. This must not be called when an object
@@ -721,6 +707,10 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
     return settings.offset_lookup;
   }
 #endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)
+  PA_ALWAYS_INLINE const internal::ReservationOffsetTable&
+  GetReservationOffsetTable() const {
+    return settings.reservation_offset_table;
+  }
 
   PA_ALWAYS_INLINE static PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR size_t
   GetDirectMapMetadataAndGuardPagesSize() {
@@ -757,9 +747,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   }
 
   PA_ALWAYS_INLINE bool IsDirectMapped(
-      partition_alloc::internal::SlotSpanMetadata<
-          partition_alloc::internal::MetadataKind::kReadOnly>* slot_span)
-      const {
+      partition_alloc::internal::SlotSpanMetadata* slot_span) const {
     return IsDirectMappedBucket(slot_span->bucket);
   }
 
@@ -804,7 +792,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   }
 
   PA_ALWAYS_INLINE uintptr_t SlotStartToObjectAddr(uintptr_t slot_start) const {
-    return internal::SlotStart::FromUntaggedAddr(slot_start)
+    return internal::SlotStart::FromUntaggedAddr(slot_start, this)
         .untagged_slot_start_;
   }
 
@@ -815,7 +803,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   PA_ALWAYS_INLINE uintptr_t ObjectToSlotStart(void* object) const {
     uintptr_t untagged_slot_start =
         internal::UntagAddr(reinterpret_cast<uintptr_t>(object));
-    return internal::SlotStart::FromUntaggedAddr(untagged_slot_start)
+    return internal::SlotStart::FromUntaggedAddr(untagged_slot_start, this)
         .untagged_slot_start_;
   }
 
@@ -872,11 +860,6 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
     return straighten_larger_slot_span_free_lists_;
   }
 
-  internal::SchedulerLoopQuarantineBranch&
-  GetSchedulerLoopQuarantineBranchForTesting() {
-    return GetSchedulerLoopQuarantineBranch();
-  }
-
   void ReconfigureSchedulerLoopQuarantineForCurrentThread(
       const internal::SchedulerLoopQuarantineConfig& config) {
     ThreadCache* thread_cache = this->EnsureThreadCache();
@@ -885,19 +868,15 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
         scheduler_loop_quarantine_root, config);
   }
 
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-  // TODO(crbug.com/40238514) This is an unused function. Start using it in
-  // tests and/or in production code.
-  static void EnableShadowMetadata(internal::PoolHandleMask mask);
-
-  PA_ALWAYS_INLINE std::ptrdiff_t ShadowPoolOffset() const {
-    return settings.shadow_pool_offset_;
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  PA_ALWAYS_INLINE std::ptrdiff_t MetadataOffset() const {
+    return settings.metadata_offset_;
   }
 #else
-  PA_ALWAYS_INLINE constexpr std::ptrdiff_t ShadowPoolOffset() const {
-    return 0;
-  }
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
+  PA_ALWAYS_INLINE
+  PAGE_ALLOCATOR_CONSTANTS_DECLARE_CONSTEXPR
+  size_t MetadataOffset() const { return internal::SystemPageSize(); }
+#endif  // PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
 
   PA_NOINLINE static void CheckMetadataIntegrity(const void* object);
 
@@ -1006,17 +985,20 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   }
 
   bool TryReallocInPlaceForNormalBuckets(void* object,
-                                         ReadOnlySlotSpanMetadata* slot_span,
-                                         size_t new_size);
-  bool TryReallocInPlaceForDirectMap(ReadOnlySlotSpanMetadata* slot_span,
+                                         SlotSpanMetadata* slot_span,
+                                         size_t new_size)
+      PA_LOCKS_EXCLUDED(thread_cache_construction_lock);
+  bool TryReallocInPlaceForDirectMap(SlotSpanMetadata* slot_span,
                                      size_t requested_size)
       PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(this));
   void DecommitEmptySlotSpans()
       PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(this));
   PA_ALWAYS_INLINE void RawFreeLocked(uintptr_t slot_start)
       PA_EXCLUSIVE_LOCKS_REQUIRED(internal::PartitionRootLock(this));
-  ThreadCache* MaybeInitThreadCache();
-  ThreadCache* ForceInitThreadCache();
+  ThreadCache* MaybeInitThreadCache()
+      PA_LOCKS_EXCLUDED(thread_cache_construction_lock);
+  ThreadCache* ForceInitThreadCache()
+      PA_LOCKS_EXCLUDED(thread_cache_construction_lock);
 
   // May return an invalid thread cache.
   PA_ALWAYS_INLINE ThreadCache* GetOrCreateThreadCache();
@@ -1027,9 +1009,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   // Must NOT be used inside (de)allocation code path.
   PA_ALWAYS_INLINE ThreadCache* EnsureThreadCache();
 
-  PA_ALWAYS_INLINE internal::SchedulerLoopQuarantineBranch&
-  GetSchedulerLoopQuarantineBranch();
-  PA_ALWAYS_INLINE internal::LightweightQuarantineRoot&
+  PA_ALWAYS_INLINE internal::SchedulerLoopQuarantineRoot&
   GetSchedulerLoopQuarantineRoot();
 
   PA_ALWAYS_INLINE AllocationNotificationData
@@ -1042,7 +1022,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
   CreateFreeNotificationData(void* address) const;
 
 #if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
-  PA_NOINLINE void QuarantineForBrp(ReadOnlySlotSpanMetadata* slot_span,
+  PA_NOINLINE void QuarantineForBrp(const SlotSpanMetadata* slot_span,
                                     void* object);
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
@@ -1059,6 +1039,7 @@ struct alignas(64) PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionRoot {
 #if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
   friend class internal::InSlotMetadata;
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+  template <bool>
   friend class internal::SchedulerLoopQuarantineBranch;
 };
 
@@ -1105,36 +1086,34 @@ struct SlotAddressAndSize {
 PA_ALWAYS_INLINE SlotAddressAndSize
 PartitionAllocGetDirectMapSlotStartAndSizeInBRPPool(uintptr_t address) {
   PA_DCHECK(IsManagedByPartitionAllocBRPPool(address));
-#if PA_BUILDFLAG(HAS_64_BIT_POINTERS)
-  // Use this variant of GetDirectMapReservationStart as it has better
-  // performance.
-  uintptr_t offset = OffsetInBRPPool(address);
   uintptr_t reservation_start =
-      GetDirectMapReservationStart(address, kBRPPoolHandle, offset);
-#else  // PA_BUILDFLAG(HAS_64_BIT_POINTERS)
-  uintptr_t reservation_start = GetDirectMapReservationStart(address);
-#endif
+      ReservationOffsetTable::Get(pool_handle::kBRPPoolHandle)
+          .GetDirectMapReservationStart(address);
   if (!reservation_start) {
     return SlotAddressAndSize{.slot_start = uintptr_t(0), .size = size_t(0)};
   }
 
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  std::ptrdiff_t metadata_offset =
+      PartitionAddressSpace::MetadataOffset(pool_handle::kBRPPoolHandle);
+#else
+  constexpr std::ptrdiff_t metadata_offset = 0;
+#endif
   // The direct map allocation may not start exactly from the first page, as
   // there may be padding for alignment. The first page metadata holds an offset
   // to where direct map metadata, and thus direct map start, are located.
-  auto* first_page_metadata =
-      PartitionPageMetadata<MetadataKind::kReadOnly>::FromAddr(
-          reservation_start + PartitionPageSize());
+  auto* first_page_metadata = PartitionPageMetadata::FromAddr(
+      reservation_start + PartitionPageSize(), metadata_offset);
   auto* page_metadata =
       first_page_metadata + first_page_metadata->slot_span_metadata_offset;
   PA_DCHECK(page_metadata->is_valid);
   PA_DCHECK(!page_metadata->slot_span_metadata_offset);
   auto* slot_span = &page_metadata->slot_span_metadata;
   uintptr_t slot_start =
-      SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(slot_span);
+      SlotSpanMetadata::ToSlotSpanStart(slot_span, metadata_offset);
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   auto* direct_map_metadata =
-      PartitionDirectMapMetadata<MetadataKind::kReadOnly>::FromSlotSpanMetadata(
-          slot_span);
+      PartitionDirectMapMetadata::FromSlotSpanMetadata(slot_span);
   size_t padding_for_alignment =
       direct_map_metadata->direct_map_extent.padding_for_alignment;
   PA_DCHECK(padding_for_alignment ==
@@ -1156,7 +1135,9 @@ PartitionAllocGetDirectMapSlotStartAndSizeInBRPPool(uintptr_t address) {
 // the in-slot metadata is in place for this allocation.
 PA_ALWAYS_INLINE SlotAddressAndSize
 PartitionAllocGetSlotStartAndSizeInBRPPool(uintptr_t address) {
-  PA_DCHECK(IsManagedByNormalBucketsOrDirectMap(address));
+  PA_DCHECK(
+      ReservationOffsetTable::Get(address).IsManagedByNormalBucketsOrDirectMap(
+          address));
   DCheckIfManagedByPartitionAllocBRPPool(address);
 
   auto directmap_slot_info =
@@ -1165,8 +1146,14 @@ PartitionAllocGetSlotStartAndSizeInBRPPool(uintptr_t address) {
     return directmap_slot_info;
   }
 
-  auto* slot_span =
-      SlotSpanMetadata<MetadataKind::kReadOnly>::FromAddr(address);
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  std::ptrdiff_t metadata_offset =
+      PartitionAddressSpace::MetadataOffset(pool_handle::kBRPPoolHandle);
+#else
+  constexpr std::ptrdiff_t metadata_offset = 0;
+#endif
+  auto* slot_span = SlotSpanMetadata::FromAddr(address, metadata_offset);
+
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
   auto* root = PartitionRoot::FromSlotSpanMetadata(slot_span);
   // Double check that in-slot metadata is indeed present. Currently that's the
@@ -1176,7 +1163,7 @@ PartitionAllocGetSlotStartAndSizeInBRPPool(uintptr_t address) {
 
   // Get the offset from the beginning of the slot span.
   uintptr_t slot_span_start =
-      SlotSpanMetadata<MetadataKind::kReadOnly>::ToSlotSpanStart(slot_span);
+      SlotSpanMetadata::ToSlotSpanStart(slot_span, metadata_offset);
   size_t offset_in_slot_span = address - slot_span_start;
 
   auto* bucket = slot_span->bucket;
@@ -1216,43 +1203,6 @@ PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 PtrPosWithinAlloc IsPtrWithinSameAlloc(uintptr_t orig_address,
                                        uintptr_t test_address,
                                        size_t type_size);
-
-PA_ALWAYS_INLINE void PartitionAllocFreeForRefCounting(uintptr_t slot_start) {
-  auto* slot_span =
-      SlotSpanMetadata<MetadataKind::kReadOnly>::FromSlotStart(slot_start);
-  auto* root = PartitionRoot::FromSlotSpanMetadata(slot_span);
-  // Currently, InSlotMetadata is allocated when BRP is used.
-  PA_DCHECK(root->brp_enabled());
-  PA_DCHECK(!PartitionRoot::InSlotMetadataPointerFromSlotStartAndSize(
-                 slot_start, slot_span->bucket->slot_size)
-                 ->IsAlive());
-
-  // Iterating over the entire slot can be really expensive.
-#if PA_BUILDFLAG(EXPENSIVE_DCHECKS_ARE_ON)
-#if !PA_BUILDFLAG(IS_IOS)
-  auto hook = PartitionAllocHooks::GetQuarantineOverrideHook();
-  // If we have a hook the object segment is not necessarily filled
-  // with |kQuarantinedByte|.
-  if (!hook) [[likely]] {
-    unsigned char* object =
-        static_cast<unsigned char*>(root->SlotStartToObject(slot_start));
-    for (size_t i = 0; i < root->GetSlotUsableSize(slot_span); ++i) {
-      PA_DCHECK(object[i] == kQuarantinedByte);
-    }
-  }
-#endif  //  !PA_BUILDFLAG(IS_IOS)
-  DebugMemset(SlotStartAddr2Ptr(slot_start), kFreedByte,
-              slot_span->GetUtilizedSlotSize());
-#endif  // PA_BUILDFLAG(EXPENSIVE_DCHECKS_ARE_ON)
-
-  root->total_size_of_brp_quarantined_bytes.fetch_sub(
-      slot_span->GetSlotSizeForBookkeeping(), std::memory_order_relaxed);
-  root->total_count_of_brp_quarantined_slots.fetch_sub(
-      1, std::memory_order_relaxed);
-
-  root->RawFreeWithThreadCache(slot_start, SlotStartAddr2Ptr(slot_start),
-                               slot_span);
-}
 #endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
 
 }  // namespace internal
@@ -1267,7 +1217,7 @@ PartitionRoot::AllocFromBucket(Bucket* bucket,
                                bool* is_already_zeroed) {
   PA_DCHECK((slot_span_alignment >= internal::PartitionPageSize()) &&
             internal::base::bits::HasSingleBit(slot_span_alignment));
-  ReadOnlySlotSpanMetadata* slot_span = bucket->active_slot_spans_head;
+  SlotSpanMetadata* slot_span = bucket->active_slot_spans_head;
   // There always must be a slot span on the active list (could be a sentinel).
   PA_DCHECK(slot_span);
   // Check that it isn't marked full, which could only be true if the span was
@@ -1296,7 +1246,7 @@ PartitionRoot::AllocFromBucket(Bucket* bucket,
     PA_DCHECK(!slot_span->CanStoreRawSize());
     PA_DCHECK(!slot_span->bucket->is_direct_mapped());
 
-    void* entry = slot_span->ToWritable(this)->PopForAlloc(bucket->slot_size);
+    void* entry = slot_span->PopForAlloc(bucket->slot_size);
 
     PA_DCHECK(internal::SlotStartPtr2Addr(entry) == slot_start);
 
@@ -1308,7 +1258,7 @@ PartitionRoot::AllocFromBucket(Bucket* bucket,
     if (!slot_start) [[unlikely]] {
       return 0;
     }
-    PA_DCHECK(slot_span == ReadOnlySlotSpanMetadata::FromSlotStart(slot_start));
+    PA_DCHECK(slot_span == SlotSpanMetadata::FromSlotStart(slot_start, this));
     PA_CHECK(DeducedRootIsValid(slot_span));
     // For direct mapped allocations, |bucket| is the sentinel.
     PA_DCHECK((slot_span->bucket == bucket) ||
@@ -1478,13 +1428,13 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeInline(void* object) {
   PA_CHECK(IsManagedByPartitionAlloc(object_addr));
 #endif
 
-  ReadOnlySlotSpanMetadata* slot_span =
-      ReadOnlySlotSpanMetadata::FromObject(object);
+  SlotSpanMetadata* slot_span = SlotSpanMetadata::FromObject(object, this);
   PA_DCHECK(PartitionRoot::FromSlotSpanMetadata(slot_span) == this);
 
-  internal::SlotStart slot_start = internal::SlotStart::FromObject(object);
-  PA_DCHECK(slot_span == ReadOnlySlotSpanMetadata::FromSlotStart(
-                             slot_start.untagged_slot_start_));
+  internal::SlotStart slot_start =
+      internal::SlotStart::FromObject(object, this);
+  PA_DCHECK(slot_span == SlotSpanMetadata::FromSlotStart(
+                             slot_start.untagged_slot_start_, this));
 
   // We are going to read from |*slot_span| in all branches, but haven't done it
   // yet.
@@ -1495,28 +1445,14 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeInline(void* object) {
   // (or batch fill) will *write* to |slot_span->freelist_head|, leading to
   // cacheline ping-pong.
   PA_PREFETCH(slot_span);
-
-  if constexpr (ContainsFlags(flags, FreeFlags::kSchedulerLoopQuarantine)) {
-    ThreadCache* thread_cache = GetThreadCache();
-    if (ThreadCache::IsValid(thread_cache)) [[likely]] {
-      thread_cache->GetSchedulerLoopQuarantineBranch()
-          .QuarantineWithoutAcquiringLock(object, slot_span,
-                                          slot_start.untagged_slot_start_,
-                                          GetSlotUsableSize(slot_span));
-    } else {
-      scheduler_loop_quarantine.QuarantineWithAcquiringLock(
-          object, slot_span, slot_start.untagged_slot_start_,
-          GetSlotUsableSize(slot_span));
-    }
-    return;
-  }
-
-  FreeNoHooksImmediate(object, slot_span, slot_start.untagged_slot_start_);
+  FreeNoHooksImmediate<flags>(object, slot_span,
+                              slot_start.untagged_slot_start_);
 }
 
+template <FreeFlags flags>
 PA_ALWAYS_INLINE void PartitionRoot::FreeNoHooksImmediate(
     void* object,
-    ReadOnlySlotSpanMetadata* slot_span,
+    SlotSpanMetadata* slot_span,
     uintptr_t slot_start) {
   // The thread cache is added "in the middle" of the main allocator, that is:
   // - After all the cookie/in-slot metadata management
@@ -1583,6 +1519,11 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeNoHooksImmediate(
           slot_span->GetSlotSizeForBookkeeping(), std::memory_order_relaxed);
       cumulative_count_of_brp_quarantined_slots.fetch_add(
           1, std::memory_order_relaxed);
+
+      if constexpr (ContainsFlags(flags, FreeFlags::kSchedulerLoopQuarantine)) {
+        // This flag is to be read on `FreeAfterBRPQuarantine()`.
+        ref_count->SetQuarantineRequest();
+      }
       return;
     }
   }
@@ -1593,18 +1534,86 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeNoHooksImmediate(
   internal::DebugMemset(internal::SlotStartAddr2Ptr(slot_start),
                         internal::kFreedByte, slot_span->GetUtilizedSlotSize());
 #endif  // PA_BUILDFLAG(EXPENSIVE_DCHECKS_ARE_ON)
+
+  if constexpr (ContainsFlags(flags, FreeFlags::kSchedulerLoopQuarantine)) {
+    ThreadCache* thread_cache = GetThreadCache();
+    if (ThreadCache::IsValid(thread_cache)) [[likely]] {
+      thread_cache->GetSchedulerLoopQuarantineBranch().Quarantine(
+          object, slot_span, slot_start);
+    } else {
+      scheduler_loop_quarantine.Quarantine(object, slot_span, slot_start);
+    }
+    return;
+  }
+
   // TODO(keishi): Create function to convert |object| to |slot_start_ptr|.
   void* slot_start_ptr = object;
   RawFreeWithThreadCache(slot_start, slot_start_ptr, slot_span);
 }
 
+#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+// static
+PA_ALWAYS_INLINE void PartitionRoot::FreeAfterBRPQuarantine(
+    uintptr_t slot_start,
+    size_t slot_size) {
+  auto* slot_span = internal::SlotSpanMetadata::FromSlotStart(slot_start);
+  auto* root = PartitionRoot::FromSlotSpanMetadata(slot_span);
+  // Currently, InSlotMetadata is allocated when BRP is used.
+  PA_DCHECK(root->brp_enabled());
+  PA_DCHECK(!PartitionRoot::InSlotMetadataPointerFromSlotStartAndSize(
+                 slot_start, slot_span->bucket->slot_size)
+                 ->IsAlive());
+
+  // Iterating over the entire slot can be really expensive.
+#if PA_BUILDFLAG(EXPENSIVE_DCHECKS_ARE_ON)
+#if !PA_BUILDFLAG(IS_IOS)
+  auto hook = PartitionAllocHooks::GetQuarantineOverrideHook();
+  // If we have a hook the object segment is not necessarily filled
+  // with |kQuarantinedByte|.
+  if (!hook) [[likely]] {
+    unsigned char* object =
+        static_cast<unsigned char*>(root->SlotStartToObject(slot_start));
+    for (size_t i = 0; i < root->GetSlotUsableSize(slot_span); ++i) {
+      PA_DCHECK(object[i] == internal::kQuarantinedByte);
+    }
+  }
+#endif  //  !PA_BUILDFLAG(IS_IOS)
+  internal::DebugMemset(internal::SlotStartAddr2Ptr(slot_start),
+                        internal::kFreedByte, slot_span->GetUtilizedSlotSize());
+#endif  // PA_BUILDFLAG(EXPENSIVE_DCHECKS_ARE_ON)
+
+  root->total_size_of_brp_quarantined_bytes.fetch_sub(
+      slot_span->GetSlotSizeForBookkeeping(), std::memory_order_relaxed);
+  root->total_count_of_brp_quarantined_slots.fetch_sub(
+      1, std::memory_order_relaxed);
+
+  void* const object = internal::SlotStartAddr2Ptr(slot_start);
+  internal::InSlotMetadata* metadata =
+      internal::InSlotMetadataPointer(slot_start, slot_size);
+
+  // `FreeFlags::kSchedulerLoopQuarantine` was used for the original `Free()`
+  // call. Send the allocation to yet another quarantine.
+  if (metadata->PopQuarantineRequest()) {
+    ThreadCache* thread_cache = root->GetThreadCache();
+    if (ThreadCache::IsValid(thread_cache)) [[likely]] {
+      thread_cache->GetSchedulerLoopQuarantineBranch().Quarantine(
+          object, slot_span, slot_start);
+    } else {
+      root->scheduler_loop_quarantine.Quarantine(object, slot_span, slot_start);
+    }
+  } else {
+    root->RawFreeWithThreadCache(slot_start, object, slot_span);
+  }
+}
+#endif  // PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+
 PA_ALWAYS_INLINE void PartitionRoot::FreeInSlotSpan(
     uintptr_t slot_start,
-    ReadOnlySlotSpanMetadata* slot_span) {
+    SlotSpanMetadata* slot_span) {
   DecreaseTotalSizeOfAllocatedBytes(slot_start,
                                     slot_span->GetSlotSizeForBookkeeping());
 
-  return slot_span->ToWritable(this)->Free(slot_start, this);
+  return slot_span->Free(slot_start, this);
 }
 
 #if PA_CONFIG(IS_NONCLANG_MSVC)
@@ -1615,9 +1624,8 @@ PA_ALWAYS_INLINE void PartitionRoot::FreeInSlotSpan(
 // a no-op or similar. The documentation doesn't say.
 #pragma optimize("", off)
 #endif
-PA_ALWAYS_INLINE void PartitionRoot::RawFree(
-    uintptr_t slot_start,
-    ReadOnlySlotSpanMetadata* slot_span) {
+PA_ALWAYS_INLINE void PartitionRoot::RawFree(uintptr_t slot_start,
+                                             SlotSpanMetadata* slot_span) {
   void* ptr = internal::SlotStartAddr2Ptr(slot_start);
   // At this point we are about to acquire the lock, so we try to minimize the
   // risk of blocking inside the locked section.
@@ -1703,7 +1711,7 @@ PA_ALWAYS_INLINE void PartitionRoot::RetagSlotIfNeeded(void* slot_start_ptr,
 PA_ALWAYS_INLINE void PartitionRoot::RawFreeWithThreadCache(
     uintptr_t slot_start,
     void* slot_start_ptr,
-    ReadOnlySlotSpanMetadata* slot_span) {
+    SlotSpanMetadata* slot_span) {
 #if PA_BUILDFLAG(HAS_MEMORY_TAGGING)
   RetagSlotIfNeeded(slot_start_ptr, slot_span->bucket->slot_size);
 #endif
@@ -1741,8 +1749,8 @@ PA_ALWAYS_INLINE void PartitionRoot::RawFreeWithThreadCache(
 }
 
 PA_ALWAYS_INLINE void PartitionRoot::RawFreeLocked(uintptr_t slot_start) {
-  ReadOnlySlotSpanMetadata* slot_span =
-      ReadOnlySlotSpanMetadata::FromSlotStart(slot_start);
+  SlotSpanMetadata* slot_span =
+      SlotSpanMetadata::FromSlotStart(slot_start, this);
   // Direct-mapped deallocation releases then re-acquires the lock. The caller
   // may not expect that, but we never call this function on direct-mapped
   // allocations.
@@ -1751,23 +1759,24 @@ PA_ALWAYS_INLINE void PartitionRoot::RawFreeLocked(uintptr_t slot_start) {
 }
 
 PA_ALWAYS_INLINE PartitionRoot* PartitionRoot::FromSlotSpanMetadata(
-    const ReadOnlySlotSpanMetadata* slot_span) {
-  auto* extent_entry = reinterpret_cast<ReadOnlySuperPageExtentEntry*>(
-      reinterpret_cast<uintptr_t>(slot_span) & internal::SystemPageBaseMask());
-  return extent_entry->root;
-}
-
-PA_ALWAYS_INLINE PartitionRoot* PartitionRoot::FromSlotSpanMetadata(
-    WritableSlotSpanMetadata* slot_span) {
-  auto* extent_entry = reinterpret_cast<WritableSuperPageExtentEntry*>(
+    const SlotSpanMetadata* slot_span) {
+  auto* extent_entry = reinterpret_cast<SuperPageExtentEntry*>(
       reinterpret_cast<uintptr_t>(slot_span) & internal::SystemPageBaseMask());
   return extent_entry->root;
 }
 
 PA_ALWAYS_INLINE PartitionRoot* PartitionRoot::FromFirstSuperPage(
     uintptr_t super_page) {
-  PA_DCHECK(internal::IsReservationStart(super_page));
-  auto* extent_entry = internal::PartitionSuperPageToExtent(super_page);
+  PA_DCHECK(internal::ReservationOffsetTable::Get(super_page)
+                .IsReservationStart(super_page));
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  // Slow
+  std::ptrdiff_t offset =
+      internal::PartitionAddressSpace::MetadataOffsetFromAddr(super_page);
+#else
+  std::ptrdiff_t offset = 0;
+#endif
+  auto* extent_entry = internal::PartitionSuperPageToExtent(super_page, offset);
   PartitionRoot* root = extent_entry->root;
   PA_DCHECK(root->inverted_self == ~reinterpret_cast<uintptr_t>(root));
   return root;
@@ -1776,7 +1785,8 @@ PA_ALWAYS_INLINE PartitionRoot* PartitionRoot::FromFirstSuperPage(
 PA_ALWAYS_INLINE PartitionRoot* PartitionRoot::FromAddrInFirstSuperpage(
     uintptr_t address) {
   uintptr_t super_page = address & internal::kSuperPageBaseMask;
-  PA_DCHECK(internal::IsReservationStart(super_page));
+  PA_DCHECK(internal::ReservationOffsetTable::Get(super_page)
+                .IsReservationStart(super_page));
   return FromFirstSuperPage(super_page);
 }
 
@@ -1924,37 +1934,16 @@ PA_ALWAYS_INLINE size_t PartitionRoot::GetUsableSize(const void* ptr) {
   if (!ptr) {
     return 0;
   }
-  auto* slot_span = ReadOnlySlotSpanMetadata::FromObjectInnerPtr(ptr);
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  std::ptrdiff_t offset =
+      internal::PartitionAddressSpace::MetadataOffsetFromAddr(
+          internal::ObjectInnerPtr2Addr(ptr));
+#else
+  constexpr std::ptrdiff_t offset = 0;
+#endif
+  auto* slot_span = SlotSpanMetadata::FromObjectInnerPtr(ptr, offset);
   auto* root = FromSlotSpanMetadata(slot_span);
   return root->GetSlotUsableSize(slot_span);
-}
-
-PA_ALWAYS_INLINE size_t
-PartitionRoot::GetUsableSizeWithMac11MallocSizeHack(void* ptr) {
-  // malloc_usable_size() is expected to handle NULL gracefully and return 0.
-  if (!ptr) {
-    return 0;
-  }
-  auto* slot_span = ReadOnlySlotSpanMetadata::FromObjectInnerPtr(ptr);
-  auto* root = FromSlotSpanMetadata(slot_span);
-  size_t usable_size = root->GetSlotUsableSize(slot_span);
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-  // Check |mac11_malloc_size_hack_enabled_| flag first as this doesn't
-  // concern OS versions other than macOS 11.
-  if (root->settings.mac11_malloc_size_hack_enabled_ &&
-      usable_size == root->settings.mac11_malloc_size_hack_usable_size_)
-      [[unlikely]] {
-    auto [slot_start, slot_size] =
-        internal::PartitionAllocGetSlotStartAndSizeInBRPPool(UntagPtr(ptr));
-    auto* ref_count =
-        InSlotMetadataPointerFromSlotStartAndSize(slot_start, slot_size);
-    if (ref_count->NeedsMac11MallocSizeHack()) {
-      return internal::kMac11MallocSizeHackRequestedSize;
-    }
-  }
-#endif  // PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-
-  return usable_size;
 }
 
 // Returns the page configuration to use when mapping slot spans for a given
@@ -1991,7 +1980,7 @@ PartitionRoot::PageAccessibilityWithThreadIsolationIfEnabled(
 // the same amount of underlying memory.
 PA_ALWAYS_INLINE size_t
 PartitionRoot::AllocationCapacityFromSlotStart(uintptr_t slot_start) const {
-  auto* slot_span = ReadOnlySlotSpanMetadata::FromSlotStart(slot_start);
+  auto* slot_span = SlotSpanMetadata::FromSlotStart(slot_start, this);
   return AdjustSizeForExtrasSubtract(slot_span->bucket->slot_size);
 }
 
@@ -2005,7 +1994,7 @@ PartitionRoot::InSlotMetadataPointerFromSlotStartAndSize(uintptr_t slot_start,
 PA_ALWAYS_INLINE internal::InSlotMetadata*
 PartitionRoot::InSlotMetadataPointerFromObjectForTesting(void* object) const {
   uintptr_t slot_start = ObjectToSlotStart(object);
-  auto* slot_span = ReadOnlySlotSpanMetadata::FromSlotStart(slot_start);
+  auto* slot_span = SlotSpanMetadata::FromSlotStart(slot_start, this);
   return InSlotMetadataPointerFromSlotStartAndSize(
       slot_start, slot_span->bucket->slot_size);
 }
@@ -2145,8 +2134,8 @@ PA_ALWAYS_INLINE void* PartitionRoot::AllocInternalNoHooks(
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
       // Make sure that the allocated pointer comes from the same place it would
       // for a non-thread cache allocation.
-      ReadOnlySlotSpanMetadata* slot_span =
-          ReadOnlySlotSpanMetadata::FromSlotStart(slot_start);
+      SlotSpanMetadata* slot_span =
+          SlotSpanMetadata::FromSlotStart(slot_start, this);
       PA_DCHECK(DeducedRootIsValid(slot_span));
       PA_DCHECK(slot_span->bucket == &bucket_at(bucket_index));
       PA_DCHECK(slot_span->bucket->slot_size == slot_size);
@@ -2239,19 +2228,9 @@ PA_ALWAYS_INLINE void* PartitionRoot::AllocInternalNoHooks(
 
 #if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
   if (brp_enabled()) [[likely]] {
-    bool needs_mac11_malloc_size_hack = false;
-#if PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
-    // Only apply hack to size 32 allocations on macOS 11. There is a buggy
-    // assertion that malloc_size() equals sizeof(class_rw_t) which is 32.
-    if (settings.mac11_malloc_size_hack_enabled_ &&
-        requested_size == internal::kMac11MallocSizeHackRequestedSize)
-        [[unlikely]] {
-      needs_mac11_malloc_size_hack = true;
-    }
-#endif  // PA_CONFIG(MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK)
     auto* ref_count =
         new (InSlotMetadataPointerFromSlotStartAndSize(slot_start, slot_size))
-            internal::InSlotMetadata(needs_mac11_malloc_size_hack);
+            internal::InSlotMetadata();
 #if PA_CONFIG(IN_SLOT_METADATA_STORE_REQUESTED_SIZE)
     ref_count->SetRequestedSize(requested_size);
 #else
@@ -2403,8 +2382,7 @@ void* PartitionRoot::ReallocInline(void* ptr,
   }
   if (!overridden) [[likely]] {
     // |ptr| may have been allocated in another root.
-    ReadOnlySlotSpanMetadata* slot_span =
-        ReadOnlySlotSpanMetadata::FromObject(ptr);
+    SlotSpanMetadata* slot_span = SlotSpanMetadata::FromObject(ptr);
     auto* old_root = PartitionRoot::FromSlotSpanMetadata(slot_span);
     bool success = false;
     bool tried_in_place_for_direct_map = false;
@@ -2446,7 +2424,7 @@ void* PartitionRoot::ReallocInline(void* ptr,
   // factor to the new size to avoid this issue. This workaround is only
   // intended to be used for Skia bots, and is not intended to be a general
   // solution.
-  if (new_size > old_usable_size && new_size > 12 << 20) {
+  if (new_size > old_usable_size) {
     // 1.5x growth factor.
     // Note that in case of integer overflow, the std::max ensures that the
     // new_size is at least as large as the old_usable_size.
@@ -2499,7 +2477,8 @@ PartitionRoot::AllocationCapacityFromRequestedSize(size_t size) const {
 #endif
 }
 
-ThreadCache* PartitionRoot::GetOrCreateThreadCache() {
+ThreadCache* PartitionRoot::GetOrCreateThreadCache()
+    PA_LOCKS_EXCLUDED(thread_cache_construction_lock) {
   ThreadCache* thread_cache = nullptr;
   if (settings.with_thread_cache) [[likely]] {
     thread_cache = ThreadCache::Get();
@@ -2517,7 +2496,8 @@ ThreadCache* PartitionRoot::GetThreadCache() {
   return nullptr;
 }
 
-ThreadCache* PartitionRoot::EnsureThreadCache() {
+ThreadCache* PartitionRoot::EnsureThreadCache()
+    PA_LOCKS_EXCLUDED(thread_cache_construction_lock) {
   ThreadCache* thread_cache = nullptr;
   if (settings.with_thread_cache) [[likely]] {
     thread_cache = ThreadCache::Get();
@@ -2528,18 +2508,7 @@ ThreadCache* PartitionRoot::EnsureThreadCache() {
   return thread_cache;
 }
 
-// private.
-internal::SchedulerLoopQuarantineBranch&
-PartitionRoot::GetSchedulerLoopQuarantineBranch() {
-  ThreadCache* thread_cache = GetThreadCache();
-  if (ThreadCache::IsValid(thread_cache)) [[likely]] {
-    return thread_cache->GetSchedulerLoopQuarantineBranch();
-  } else {
-    return scheduler_loop_quarantine;
-  }
-}
-
-internal::LightweightQuarantineRoot&
+internal::SchedulerLoopQuarantineRoot&
 PartitionRoot::GetSchedulerLoopQuarantineRoot() {
   return scheduler_loop_quarantine_root;
 }

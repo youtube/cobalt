@@ -1,9 +1,9 @@
 diff --git a/source/data/lang/ay.txt b/source/data/lang/ay.txt
 new file mode 100644
-index 000000000..e118426fd
+index 000000000..19beb6cdb
 --- /dev/null
 +++ b/source/data/lang/ay.txt
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,7 @@
 +// © 2016 and later: Unicode, Inc. and others.
 +// License & terms of use: http://www.unicode.org/copyright.html
 +ay{
@@ -11,13 +11,12 @@ index 000000000..e118426fd
 +        ay{"Aymar"}
 +    }
 +}
-+
 diff --git a/source/data/lang/dv.txt b/source/data/lang/dv.txt
 new file mode 100644
-index 000000000..e48526146
+index 000000000..d68a41aca
 --- /dev/null
 +++ b/source/data/lang/dv.txt
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,7 @@
 +// © 2016 and later: Unicode, Inc. and others.
 +// License & terms of use: http://www.unicode.org/copyright.html
 +dv{
@@ -25,13 +24,12 @@ index 000000000..e48526146
 +        dv{"ދިވެހި"}
 +    }
 +}
-+
 diff --git a/source/data/lang/ilo.txt b/source/data/lang/ilo.txt
 new file mode 100644
-index 000000000..6d92107d4
+index 000000000..c424c065d
 --- /dev/null
 +++ b/source/data/lang/ilo.txt
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,7 @@
 +// © 2016 and later: Unicode, Inc. and others.
 +// License & terms of use: http://www.unicode.org/copyright.html
 +ilo{
@@ -39,13 +37,12 @@ index 000000000..6d92107d4
 +        ilo{"Ilokano"}
 +    }
 +}
-+
 diff --git a/source/data/lang/lus.txt b/source/data/lang/lus.txt
 new file mode 100644
-index 000000000..1f76020a9
+index 000000000..487c73384
 --- /dev/null
 +++ b/source/data/lang/lus.txt
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,7 @@
 +// © 2016 and later: Unicode, Inc. and others.
 +// License & terms of use: http://www.unicode.org/copyright.html
 +lus{
@@ -53,13 +50,12 @@ index 000000000..1f76020a9
 +        lus{"Mizo tawng"}
 +    }
 +}
-+
 diff --git a/source/data/lang/ts.txt b/source/data/lang/ts.txt
 new file mode 100644
-index 000000000..a9928e3f2
+index 000000000..8c723a169
 --- /dev/null
 +++ b/source/data/lang/ts.txt
-@@ -0,0 +1,8 @@
+@@ -0,0 +1,7 @@
 +// © 2016 and later: Unicode, Inc. and others.
 +// License & terms of use: http://www.unicode.org/copyright.html
 +ts{
@@ -67,4 +63,3 @@ index 000000000..a9928e3f2
 +        ts{"Xitsonga"}
 +    }
 +}
-+

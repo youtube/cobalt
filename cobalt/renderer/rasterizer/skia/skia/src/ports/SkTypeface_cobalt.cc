@@ -39,10 +39,9 @@ sk_sp<SkTypeface> SkTypeface_Cobalt::onMakeClone(
   return sk_ref_sp(this);
 }
 
-void SkTypeface_Cobalt::onCharsToGlyphs(const SkUnichar uni[],
-                                        int count,
-                                        SkGlyphID glyphs[]) const {
-  for (int i = 0; i < count; ++i) {
+void SkTypeface_Cobalt::onCharsToGlyphs(SkSpan<const SkUnichar> uni,
+                                        SkSpan<SkGlyphID> glyphs) const {
+  for (size_t i = 0; i < uni.size(); ++i) {
     glyphs[i] = characterMapGetGlyphIdForCharacter(uni[i]);
   }
 }
@@ -59,7 +58,7 @@ SkGlyphID SkTypeface_Cobalt::characterMapGetGlyphIdForCharacter(
 
   // If the character isn't there, look it up with FreeType, then cache it.
   SkGlyphID glyphs[1] = {0};
-  SkTypeface_FreeType::onCharsToGlyphs(&character, 1, glyphs);
+  SkTypeface_FreeType::onCharsToGlyphs({&character, 1}, glyphs);
   if (character_map_) {
     character_map_->Insert(character, glyphs[0]);
   }
@@ -87,9 +86,16 @@ SkTypeface_CobaltStream::SkTypeface_CobaltStream(
     SkFontStyle style,
     bool is_fixed_pitch,
     const SkString& family_name,
-    scoped_refptr<font_character_map::CharacterMap> character_map)
+    scoped_refptr<font_character_map::CharacterMap> character_map,
+    bool disable_synthetic_bolding /*=false*/,
+    const ComputedVariationPosition& computed_variation_position
+    /*=ComputedVariationPosition()*/)
     : INHERITED(face_index, style, is_fixed_pitch, family_name, character_map),
       stream_(std::move(stream)) {
+  if (disable_synthetic_bolding) {
+    synthesizes_bold_ = false;
+  }
+  computed_variation_position_ = computed_variation_position;
   LOG(INFO) << "Created SkTypeface_CobaltStream: " << family_name.c_str() << "("
             << style.weight() << ", " << style.width() << ", " << style.slant()
             << "); Size: " << stream_->getLength() << " bytes";

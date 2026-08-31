@@ -10,6 +10,7 @@
 #include "modules/audio_processing/capture_levels_adjuster/audio_samples_scaler.h"
 
 #include <algorithm>
+#include <cstddef>
 
 #include "api/array_view.h"
 #include "modules/audio_processing/audio_buffer.h"

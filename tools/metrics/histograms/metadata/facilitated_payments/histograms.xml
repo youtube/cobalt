@@ -27,6 +27,7 @@ reviewer.
 <variants name="EwalletScheme">
   <variant name="DuitNow"
       summary="Scheme DuitNow that supports eWallet payflow."/>
+  <variant name="Momo" summary="Scheme Momo that supports eWallet payflow."/>
   <variant name="ShopeePay"
       summary="Scheme ShopeePay that supports eWallet payflow."/>
   <variant name="Tngd" summary="Scheme Tngd that supports eWallet payflow."/>
@@ -49,7 +50,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.FopSelector.UserAction.{AvailableEwalletsConfiguration}"
-    enum="FacilitatedPayments.FopSelectorAction" expires_after="2025-07-01">
+    enum="FacilitatedPayments.FopSelectorAction" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -76,7 +77,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.FopSelectorShown.LatencyAfterDetectingPaymentLink"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -92,7 +93,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.FopSelectorShown.LatencyAfterDetectingPaymentLink.{Scheme}"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -109,7 +110,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.GetClientToken.{Result}.Latency.{Scheme}"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -125,7 +126,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Ewallet.InitiatePayment.Attempt.{Scheme}"
-    enum="BooleanAttempted" expires_after="2025-07-01">
+    enum="BooleanAttempted" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -141,7 +142,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.InitiatePayment.{Result}.Latency.{Scheme}"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -157,7 +158,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.InitiatePurchaseAction.Attempt.{Scheme}"
-    enum="BooleanAttempted" expires_after="2025-07-01">
+    enum="BooleanAttempted" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -175,7 +176,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.InitiatePurchaseAction.{Result}.Latency.{Scheme}.{IsDeviceBound}"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -200,7 +201,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.IsApiAvailable.{Result}.Latency.{Scheme}"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -218,7 +219,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Ewallet.LoadRiskData.{Result}.Latency.{Scheme}"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -236,7 +237,7 @@ reviewer.
 
 <histogram name="FacilitatedPayments.Ewallet.PayflowExitedReason"
     enum="FacilitatedPayments.EwalletFlowExitedReason"
-    expires_after="2025-07-01">
+    expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -250,7 +251,7 @@ reviewer.
 
 <histogram name="FacilitatedPayments.Ewallet.PayflowExitedReason.{Scheme}"
     enum="FacilitatedPayments.EwalletFlowExitedReason"
-    expires_after="2025-07-01">
+    expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -264,7 +265,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Ewallet.PaymentLinkDetected"
-    enum="Boolean" expires_after="2025-07-01">
+    enum="Boolean" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -278,7 +279,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Ewallet.UiScreenShown.{Scheme}"
-    enum="FacilitatedPayments.UiScreen" expires_after="2025-07-01">
+    enum="FacilitatedPayments.UiScreen" expires_after="2026-06-01">
   <owner>junhuihe@google.com</owner>
   <owner>qihuizhao@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -293,8 +294,79 @@ reviewer.
   <token key="Scheme" variants="EwalletScheme"/>
 </histogram>
 
+<histogram name="FacilitatedPayments.Pix.AccountLinking.FlowExitedReason"
+    enum="FacilitatedPayments.Pix.AccountLinking.FlowExitedReason"
+    expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    This histogram logs the reasons as to why the Pix account linking flow was
+    exited. The flow is said to be completed if Chrome successfully opens
+    Wallet's Pix account linking page. [Trigger] Pix account linking flow was
+    exited early. [Frequency] Logged at most once per payflow.
+  </summary>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.Pix.AccountLinking.GetDetailsForCreatePaymentInstrument.Latency"
+    units="ms" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the amount of time that it takes to receive a response from the
+    server endpoint that checks the Pix account linking eligibility
+    (GetDetailsForCreatePaymentInstrument). [Frequency] Logged once per Pix
+    account linking flow. [Trigger] The histogram is logged when the server
+    endpoint returns a response.
+  </summary>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.Pix.AccountLinking.GetDetailsForCreatePaymentInstrument.Result"
+    enum="BooleanEligible" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Records the eligibility response received from the server endpoint that
+    checks the Pix account linking eligibility
+    (GetDetailsForCreatePaymentInstrument). [Frequency] Logged once per Pix
+    account linking flow. [Trigger] The histogram is logged when the server
+    endpoint returns a response.
+  </summary>
+</histogram>
+
+<histogram name="FacilitatedPayments.Pix.AccountLinking.PromptAccepted"
+    enum="BooleanAccepted" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    The count for the number of times user accepted the Pix account linking
+    prompt. 'Accepted' is logged when the prompt is accpeted and `Not accepted`
+    is not logged. [Frequency] Logged once per Pix account linking flow.
+    [Trigger] User clicks the Accept button on Pix account linking prompt.
+  </summary>
+</histogram>
+
+<histogram name="FacilitatedPayments.Pix.AccountLinking.PromptShown"
+    enum="BooleanShown" expires_after="2026-06-01">
+  <owner>longsheng@google.com</owner>
+  <owner>siashah@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    The count for the number of times the Pix account linking prompt is shown.
+    'Shown' is logged when the prompt is shown and `Not shown` is not logged.
+    [Frequency] Logged once per Pix account linking flow. [Trigger] The
+    histogram is logged when the prompt appears after user completes the payment
+    on their bank/payment app and return back to Chrome.
+  </summary>
+</histogram>
+
 <histogram name="FacilitatedPayments.Pix.FopSelected.Latency" units="ms"
-    expires_after="2025-09-14">
+    expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -309,7 +381,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Pix.FopSelector.UserAction"
-    enum="FacilitatedPayments.FopSelectorAction" expires_after="2025-09-14">
+    enum="FacilitatedPayments.FopSelectorAction" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -323,7 +395,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Pix.FopSelectorShown.LatencyAfterCopy"
-    units="ms" expires_after="2025-11-16">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -339,7 +411,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Pix.InitiatePurchaseAction.{Result}.Latency"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -356,7 +428,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Pix.PayflowExitedReason"
-    enum="FacilitatedPayments.PixFlowExitedReason" expires_after="2025-11-02">
+    enum="FacilitatedPayments.PixFlowExitedReason" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -370,7 +442,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.Pix.PaymentCodeValidation.{PaymentCodeValidationResult}.Latency"
-    units="ms" expires_after="2025-11-02">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -394,24 +466,24 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.Pix.PixCodeCopied" enum="Boolean"
-    expires_after="2025-11-02">
+    expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
   <owner>payments-autofill-team@google.com</owner>
   <summary>
     A Pix specific histogram. Emits true when a likely Pix code is copied to the
-    clipboard on an allowlisted merchant website. A likely Pix code contains
-    substring &quot;0014br.gov.bcb.pix&quot;, but this is logged before the code
-    validation, which could thereafter fail and not trigger a PIX FOP selector
-    UI. [Trigger] User copies a likely Pix code to the clipboard. [Frequency]
-    Logged once per Pix payflow. Pix payflow is triggered at most once per page
-    load.
+    clipboard on any merchant webiste. A likely Pix code contains substring
+    &quot;0014br.gov.bcb.pix&quot;, but this is logged before the merchant
+    allowlist check, which could thereafter fail and not trigger a PIX FOP
+    selector UI. [Trigger] User copies a likely Pix code to the clipboard.
+    [Frequency] Logged once per Pix payflow. Pix payflow is triggered at most
+    once per page load.
   </summary>
 </histogram>
 
 <histogram name="FacilitatedPayments.Pix.Transaction.{Result}.Latency"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -433,8 +505,56 @@ reviewer.
   <token key="Result" variants="PurchaseActionResult"/>
 </histogram>
 
+<histogram
+    name="FacilitatedPayments.SettingsPage.NonCardPaymentMethodsManagement.A2A.ToggleUpdated"
+    enum="Boolean" expires_after="2026-07-01">
+  <owner>joshuatan@google.com</owner>
+  <owner>junhuihe@google.com</owner>
+  <owner>tushartushar@google.com</owner>
+  <owner>rouslan@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs true when the toggle for A2A is enabled and false otherwise. Does not
+    log if the toggle is not updated. [Trigger] User updates the toggle for A2A
+    from the &quot;Pay with non-card payment methods&quot; settings page.
+    [Frequency] Logged once per toggle update.
+  </summary>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.SettingsPage.NonCardPaymentMethodsManagement.Ewallet.ToggleUpdated"
+    enum="Boolean" expires_after="2026-07-01">
+  <owner>joshuatan@google.com</owner>
+  <owner>junhuihe@google.com</owner>
+  <owner>tushartushar@google.com</owner>
+  <owner>rouslan@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Logs true when the toggle for Ewallet is enabled and false otherwise. Does
+    not log if the toggle is not updated. [Trigger] User updates the toggle for
+    Ewallet from the &quot;Pay with non-card payment methods&quot; settings
+    page. [Frequency] Logged once per toggle update.
+  </summary>
+</histogram>
+
+<histogram
+    name="FacilitatedPayments.SettingsPage.NonCardPaymentMethodsManagement.Shown"
+    enum="BooleanShown" expires_after="2026-07-01">
+  <owner>joshuatan@google.com</owner>
+  <owner>junhuihe@google.com</owner>
+  <owner>tushartushar@google.com</owner>
+  <owner>rouslan@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <summary>
+    Emits true when the &quot;Pay with non-card payment methods&quot; settings
+    page is shown. Never emits false. [Trigger] User selects the Pay with
+    non-card payment methods preference from the Payment Methods settings page.
+    [Frequency] Logged once for every time the page is shown.
+  </summary>
+</histogram>
+
 <histogram name="FacilitatedPayments.SettingsPage.Shown" enum="BooleanShown"
-    expires_after="2025-11-09">
+    expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -449,7 +569,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.SettingsPage.{FacilitatedPaymentsType}.ToggleUpdated"
-    enum="Boolean" expires_after="2025-07-01">
+    enum="Boolean" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -465,7 +585,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.{FacilitatedPaymentsType}.GetClientToken.{Result}.Latency"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -484,7 +604,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.{FacilitatedPaymentsType}.InitiatePayment.Attempt"
-    enum="BooleanAttempted" expires_after="2025-09-14">
+    enum="BooleanAttempted" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -500,7 +620,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.{FacilitatedPaymentsType}.InitiatePayment.{Result}.Latency"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -518,7 +638,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.{FacilitatedPaymentsType}.InitiatePurchaseAction.Attempt"
-    enum="BooleanAttempted" expires_after="2025-09-14">
+    enum="BooleanAttempted" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -536,7 +656,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.{FacilitatedPaymentsType}.IsApiAvailable.{Result}.Latency"
-    units="ms" expires_after="2025-11-16">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -555,7 +675,7 @@ reviewer.
 
 <histogram
     name="FacilitatedPayments.{FacilitatedPaymentsType}.LoadRiskData.{Result}.Latency"
-    units="ms" expires_after="2025-09-14">
+    units="ms" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>
@@ -572,7 +692,7 @@ reviewer.
 </histogram>
 
 <histogram name="FacilitatedPayments.{FacilitatedPaymentsType}.UiScreenShown"
-    enum="FacilitatedPayments.UiScreen" expires_after="2025-11-16">
+    enum="FacilitatedPayments.UiScreen" expires_after="2026-06-01">
   <owner>siashah@google.com</owner>
   <owner>vishwasuppoor@google.com</owner>
   <owner>rouslan@google.com</owner>

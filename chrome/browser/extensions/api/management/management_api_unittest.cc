@@ -176,7 +176,7 @@ void ManagementApiUnitTest::SetUp() {
   Browser::CreateParams params(profile(), true);
   params.type = Browser::TYPE_NORMAL;
   params.window = browser_window_.get();
-  browser_.reset(Browser::Create(params));
+  browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
 }
 
 void ManagementApiUnitTest::TearDown() {
@@ -903,8 +903,9 @@ class ManagementApiUnitTestMV2DisableWithReEnableUnitTest
     : public ManagementApiUnitTest {
  public:
   ManagementApiUnitTestMV2DisableWithReEnableUnitTest() {
-    feature_list_.InitAndEnableFeature(
-        extensions_features::kExtensionManifestV2Disabled);
+    feature_list_.InitWithFeatures(
+        {extensions_features::kExtensionManifestV2Disabled},
+        {extensions_features::kExtensionManifestV2Unsupported});
   }
   ~ManagementApiUnitTestMV2DisableWithReEnableUnitTest() override = default;
 
@@ -1239,7 +1240,7 @@ class ManagementApiSupervisedUserTest : public ManagementApiUnitTest {
     ManagementApiUnitTest::SetUp();
 
     // Set up custodians (parents) for the child.
-    supervised_user_test_util::AddCustodians(browser()->profile());
+    supervised_user_test_util::AddCustodians(profile());
 
     // Set the pref to allow the child to request extension install.
     supervised_user_test_util::

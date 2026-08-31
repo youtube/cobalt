@@ -6,14 +6,16 @@ package org.chromium.chrome.test.transit;
 
 import androidx.test.espresso.Espresso;
 
+import org.chromium.base.Log;
 import org.chromium.base.test.transit.Facility;
 import org.chromium.base.test.transit.Station;
-import org.chromium.base.test.transit.Transition;
+import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.ui.test.transit.SoftKeyboardElement;
 
 /** Represents the soft keyboard shown, expecting it to hide after exiting the Facility. */
 public class SoftKeyboardFacility extends Facility<Station<?>> {
+    private static final String TAG = "Transit";
     public SoftKeyboardElement softKeyboardElement;
 
     @Override
@@ -35,18 +37,21 @@ public class SoftKeyboardFacility extends Facility<Station<?>> {
 
         if (softKeyboardElement.get()) {
             // Keyboard was expected to be shown
+            Log.i(TAG, "Recheck soft keyboard is on screen and close it.");
 
             // If this fails, the keyboard was closed before, but not by this facility.
             recheckActiveConditions();
-            Transition.TransitionOptions.Builder options = Transition.newOptions();
-            options.withRetry();
+
+            TripBuilder tripBuilder = runTo(Espresso::closeSoftKeyboard);
             for (ViewElement<?> viewElement : viewElementsToSettle) {
-                options.withCondition(viewElement.createSettleCondition());
+                tripBuilder = tripBuilder.waitForAnd(viewElement.createSettleCondition());
             }
-            mHostStation.exitFacilitySync(this, options.build(), Espresso::closeSoftKeyboard);
+            tripBuilder.withRetry().exitFacility();
+            Log.i(TAG, "Close soft keyboard.");
         } else {
             // Keyboard was not expected to be shown
-            mHostStation.exitFacilitySync(this, /* trigger= */ null);
+            Log.i(TAG, "Keyboard was not expected to be shown, do not try to close it.");
+            noopTo().exitFacility();
         }
     }
 }

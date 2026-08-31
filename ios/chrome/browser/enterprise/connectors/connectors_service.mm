@@ -4,7 +4,6 @@
 
 #import "ios/chrome/browser/enterprise/connectors/connectors_service.h"
 
-#import "base/feature_list.h"
 #import "base/types/expected.h"
 #import "components/enterprise/browser/controller/browser_dm_token_storage.h"
 #import "components/enterprise/connectors/core/common.h"
@@ -17,7 +16,6 @@
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "google_apis/gaia/gaia_auth_util.h"
 #import "ios/chrome/browser/enterprise/connectors/connectors_util.h"
-#import "ios/chrome/browser/enterprise/connectors/features.h"
 #import "ios/chrome/browser/policy/model/browser_policy_connector_ios.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -56,15 +54,11 @@ std::string ConnectorsService::GetManagementDomain() {
   std::optional<policy::PolicyScope> policy_scope = std::nullopt;
 
   // Check the scope of the Url Filtering policy.
-  if (base::FeatureList::IsEnabled(kIOSEnterpriseRealtimeUrlFiltering)) {
-    if (std::optional<DmToken> dm_token =
-            GetDmToken(kEnterpriseRealTimeUrlCheckScope)) {
-      policy_scope = dm_token.value().scope;
-    }
+  if (std::optional<DmToken> dm_token =
+          GetDmToken(kEnterpriseRealTimeUrlCheckScope)) {
+    policy_scope = dm_token.value().scope;
   }
 
-  // Check the scope of Event Reporting policy.
-  if (base::FeatureList::IsEnabled(kEnterpriseRealtimeEventReportingOnIOS)) {
     // Machine scope has precedence, only update the scope if the previous
     // policy is not already machine-scoped.
     if (policy_scope != policy::PolicyScope::POLICY_SCOPE_MACHINE) {
@@ -73,7 +67,6 @@ std::string ConnectorsService::GetManagementDomain() {
         policy_scope = dm_token.value().scope;
       }
     }
-  }
 
   // Return empty string if none of the policies are enabled.
   if (!policy_scope) {
@@ -179,7 +172,6 @@ std::unique_ptr<ClientMetadata> ConnectorsService::BuildClientMetadata(
 
   if (include_device_info) {
     PopulateDeviceMetadata(
-        reporting_settings.value(),
         policy::BrowserDMTokenStorage::Get()->RetrieveClientId(),
         metadata->mutable_device());
   }

@@ -11,9 +11,11 @@
 #ifndef NET_DCSCTP_PACKET_BOUNDED_BYTE_READER_H_
 #define NET_DCSCTP_PACKET_BOUNDED_BYTE_READER_H_
 
+#include <cstddef>
 #include <cstdint>
 
 #include "api/array_view.h"
+#include "rtc_base/checks.h"
 
 namespace dcsctp {
 

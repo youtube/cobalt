@@ -23,13 +23,19 @@ namespace actor {
 // A tool that can be invoked to perform a scroll over a target.
 class ScrollTool : public ToolBase {
  public:
-  ScrollTool(mojom::ScrollActionPtr action, content::RenderFrame& frame);
+  ScrollTool(content::RenderFrame& frame,
+             Journal::TaskId task_id,
+             Journal& journal,
+             mojom::ScrollActionPtr action,
+             mojom::ToolTargetPtr target,
+             mojom::ObservedToolTargetPtr observed_target);
 
   ~ScrollTool() override;
 
   // actor::ToolBase
   void Execute(ToolFinishedCallback callback) override;
   std::string DebugString() const override;
+  base::TimeDelta ExecutionObservationDelay() const override;
 
  private:
   struct ScrollerAndDistance {
@@ -41,9 +47,8 @@ class ScrollTool : public ToolBase {
 
   ValidatedResult Validate() const;
 
-  // Raw ref since this is owned by ToolExecutor whose lifetime is tied to
-  // RenderFrame.
-  base::raw_ref<content::RenderFrame> frame_;
+  bool targeting_smooth_scroller_ = false;
+
   mojom::ScrollActionPtr action_;
 };
 

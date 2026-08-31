@@ -9,9 +9,8 @@
  */
 #include "video/video_quality_test.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <tuple>
 #include <utility>
@@ -20,7 +19,6 @@
 #include "api/audio/create_audio_device_module.h"
 #include "api/call/transport.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
 #include "api/rtc_event_log/rtc_event_log.h"
@@ -52,6 +50,7 @@
 #include "rtc_base/logging.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/system/file_wrapper.h"
+#include "test/call_test.h"
 #include "test/direct_transport.h"
 #include "test/frame_generator_capturer.h"
 #include "test/gtest.h"
@@ -186,7 +185,7 @@ class QualityTestVideoEncoder : public VideoEncoder,
 
   // Implement VideoEncoder
   void SetFecControllerOverride(
-      FecControllerOverride* fec_controller_override) {
+      FecControllerOverride* fec_controller_override) override {
     // Ignored.
   }
 
@@ -205,7 +204,7 @@ class QualityTestVideoEncoder : public VideoEncoder,
   int32_t Release() override { return encoder_->Release(); }
 
   int32_t Encode(const VideoFrame& frame,
-                 const std::vector<VideoFrameType>* frame_types) {
+                 const std::vector<VideoFrameType>* frame_types) override {
     if (analyzer_) {
       analyzer_->PreEncodeOnFrame(frame);
     }
@@ -407,9 +406,8 @@ std::unique_ptr<VideoEncoder> VideoQualityTest::CreateVideoEncoder(
   return encoder;
 }
 
-VideoQualityTest::VideoQualityTest(
-    std::unique_ptr<InjectionComponents> injection_components)
-    : env_(CreateEnvironment()),
+VideoQualityTest::VideoQualityTest(InjectionComponents injection_components)
+    : CallTest(injection_components.field_trials),
       video_decoder_factory_(
           [this](const Environment& env, const SdpVideoFormat& format) {
             return this->CreateVideoDecoder(env, format);
@@ -428,26 +426,23 @@ VideoQualityTest::VideoQualityTest(
       send_logs_(0),
       injection_components_(std::move(injection_components)),
       num_video_streams_(0) {
-  if (injection_components_ == nullptr) {
-    injection_components_ = std::make_unique<InjectionComponents>();
-  }
-  if (injection_components_->video_decoder_factory != nullptr) {
-    decoder_factory_ = std::move(injection_components_->video_decoder_factory);
+  if (injection_components_.video_decoder_factory != nullptr) {
+    decoder_factory_ = std::move(injection_components_.video_decoder_factory);
   } else {
     decoder_factory_ = std::make_unique<InternalDecoderFactory>();
   }
-  if (injection_components_->video_encoder_factory != nullptr) {
-    encoder_factory_ = std::move(injection_components_->video_encoder_factory);
+  if (injection_components_.video_encoder_factory != nullptr) {
+    encoder_factory_ = std::move(injection_components_.video_encoder_factory);
   } else {
     encoder_factory_ = std::make_unique<InternalEncoderFactory>();
   }
 
   fec_controller_factory_ =
-      std::move(injection_components_->fec_controller_factory);
+      std::move(injection_components_.fec_controller_factory);
   network_state_predictor_factory_ =
-      std::move(injection_components_->network_state_predictor_factory);
+      std::move(injection_components_.network_state_predictor_factory);
   network_controller_factory_ =
-      std::move(injection_components_->network_controller_factory);
+      std::move(injection_components_.network_controller_factory);
 
   // Register header extensions that are used by transport to identify
   // extensions when parsing incomig packets.
@@ -464,10 +459,6 @@ VideoQualityTest::VideoQualityTest(
   RegisterRtpExtension(
       RtpExtension(RtpExtension::kVideoTimingUri, kVideoTimingExtensionId));
 }
-
-VideoQualityTest::InjectionComponents::InjectionComponents() = default;
-
-VideoQualityTest::InjectionComponents::~InjectionComponents() = default;
 
 void VideoQualityTest::TestBody() {}
 
@@ -487,18 +478,15 @@ std::string VideoQualityTest::GenerateGraphTitle() const {
 }
 
 void VideoQualityTest::CheckParamsAndInjectionComponents() {
-  if (injection_components_ == nullptr) {
-    injection_components_ = std::make_unique<InjectionComponents>();
-  }
-  if (!params_.config && injection_components_->sender_network == nullptr &&
-      injection_components_->receiver_network == nullptr) {
+  if (!params_.config && injection_components_.sender_network == nullptr &&
+      injection_components_.receiver_network == nullptr) {
     params_.config = BuiltInNetworkBehaviorConfig();
   }
   RTC_CHECK(
-      (params_.config && injection_components_->sender_network == nullptr &&
-       injection_components_->receiver_network == nullptr) ||
-      (!params_.config && injection_components_->sender_network != nullptr &&
-       injection_components_->receiver_network != nullptr));
+      (params_.config && injection_components_.sender_network == nullptr &&
+       injection_components_.receiver_network == nullptr) ||
+      (!params_.config && injection_components_.sender_network != nullptr &&
+       injection_components_.receiver_network != nullptr));
   for (size_t video_idx = 0; video_idx < num_video_streams_; ++video_idx) {
     // Iterate over primary and secondary video streams.
     if (!params_.video[video_idx].enabled)
@@ -1200,10 +1188,10 @@ void VideoQualityTest::StopThumbnails() {
 std::unique_ptr<test::LayerFilteringTransport>
 VideoQualityTest::CreateSendTransport() {
   std::unique_ptr<NetworkBehaviorInterface> network_behavior = nullptr;
-  if (injection_components_->sender_network == nullptr) {
+  if (injection_components_.sender_network == nullptr) {
     network_behavior = std::make_unique<SimulatedNetwork>(*params_.config);
   } else {
-    network_behavior = std::move(injection_components_->sender_network);
+    network_behavior = std::move(injection_components_.sender_network);
   }
   return std::make_unique<test::LayerFilteringTransport>(
       task_queue(),
@@ -1221,10 +1209,10 @@ VideoQualityTest::CreateSendTransport() {
 std::unique_ptr<test::DirectTransport>
 VideoQualityTest::CreateReceiveTransport() {
   std::unique_ptr<NetworkBehaviorInterface> network_behavior = nullptr;
-  if (injection_components_->receiver_network == nullptr) {
+  if (injection_components_.receiver_network == nullptr) {
     network_behavior = std::make_unique<SimulatedNetwork>(*params_.config);
   } else {
-    network_behavior = std::move(injection_components_->receiver_network);
+    network_behavior = std::move(injection_components_.receiver_network);
   }
   return std::make_unique<test::DirectTransport>(
       task_queue(),

@@ -10,6 +10,8 @@
 
 #include "modules/desktop_capture/win/desktop_capture_utils.h"
 
+#include <string>
+
 #include "rtc_base/strings/string_builder.h"
 
 namespace webrtc {

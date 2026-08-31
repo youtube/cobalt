@@ -38,12 +38,13 @@
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/browser/ash/app_mode/kiosk_controller.h"
 #include "chrome/browser/ash/app_mode/kiosk_system_session.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_data.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_data.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
 #include "chrome/browser/ash/login/screens/app_launch_splash_screen.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
+#include "chrome/browser/chromeos/app_mode/kiosk_app_level_logs_manager_wrapper.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/common/chrome_switches.h"
@@ -60,9 +61,9 @@ namespace ash {
 
 namespace {
 
-std::optional<KioskApp> WebAppById(const WebKioskAppManager& manager,
+std::optional<KioskApp> WebAppById(const KioskWebAppManager& manager,
                                    const AccountId& account_id) {
-  const WebKioskAppData* data = manager.GetAppByAccountId(account_id);
+  const KioskWebAppData* data = manager.GetAppByAccountId(account_id);
   if (!data) {
     return std::nullopt;
   }
@@ -139,6 +140,7 @@ std::vector<KioskApp> KioskControllerImpl::GetApps() const {
   AppendWebApps(apps);
   AppendChromeApps(apps);
   AppendIsolatedWebApps(apps);
+  AppendArcvmApps(apps);
   return apps;
 }
 
@@ -206,10 +208,8 @@ void KioskControllerImpl::InitializeKioskSystemSession(
       iwa_manager_.OnKioskSessionStarted(kiosk_app_id);
       break;
     case KioskAppType::kArcvmApp:
-      // TODO(crbug.com/418950414): Add background for Kiosk system session not
-      // getting created for ARCVM Kiosk. We might need Kiosk system session
-      // for ARCVM kiosk.
-      NOTREACHED();
+      arcvm_app_manager_.OnKioskSessionStarted(kiosk_app_id);
+      break;
   }
 }
 
@@ -226,6 +226,9 @@ void KioskControllerImpl::StartSession(const KioskAppId& app_id,
   // TODO(b/306117645) change to CHECK and drop `value_or`.
   DUMP_WILL_BE_CHECK(app_maybe.has_value());
   KioskApp app = std::move(app_maybe).value_or(EmptyKioskApp(app_id));
+
+  kiosk_log_manager_wrapper_ =
+      std::make_unique<chromeos::KioskAppLevelLogsManagerWrapper>(app_id);
 
   launch_controller_ = std::make_unique<KioskLaunchController>(
       host,
@@ -250,6 +253,10 @@ void KioskControllerImpl::StartSessionAfterCrash(const KioskAppId& app,
                  << " flag.";
     return;
   }
+
+  kiosk_log_manager_wrapper_ =
+      std::make_unique<chromeos::KioskAppLevelLogsManagerWrapper>(profile, app);
+
   crash_recovery_launcher_ =
       std::make_unique<CrashRecoveryLauncher>(CHECK_DEREF(profile), app);
   crash_recovery_launcher_->Start(
@@ -305,16 +312,6 @@ KioskSystemSession* KioskControllerImpl::GetKioskSystemSession() {
     return nullptr;
   }
   return &system_session_.value();
-}
-
-kiosk_vision::TelemetryProcessor*
-KioskControllerImpl::GetKioskVisionTelemetryProcessor() {
-  return nullptr;
-}
-
-kiosk_vision::InternalsPageProcessor*
-KioskControllerImpl::GetKioskVisionInternalsPageProcessor() {
-  return nullptr;
 }
 
 void KioskControllerImpl::OnUserLoggedIn(const user_manager::User& user) {
@@ -447,6 +444,14 @@ void KioskControllerImpl::AppendIsolatedWebApps(
   for (const KioskAppManagerBase::App& iwa_app : iwa_manager_.GetApps()) {
     apps.emplace_back(KioskAppId::ForIsolatedWebApp(iwa_app.account_id),
                       iwa_app.name, iwa_app.icon);
+  }
+}
+
+void KioskControllerImpl::AppendArcvmApps(std::vector<KioskApp>& apps) const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (const KioskAppManagerBase::App& iwa_app : arcvm_app_manager_.GetApps()) {
+    apps.emplace_back(KioskAppId::ForArcvmApp(iwa_app.account_id), iwa_app.name,
+                      iwa_app.icon);
   }
 }
 

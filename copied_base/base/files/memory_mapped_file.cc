@@ -31,7 +31,6 @@ MemoryMappedFile::~MemoryMappedFile() {
   CloseHandles();
 }
 
-#if !BUILDFLAG(IS_NACL)
 bool MemoryMappedFile::Initialize(const FilePath& file_name, Access access) {
   if (IsValid())
     return false;
@@ -143,6 +142,5 @@ void MemoryMappedFile::CalculateVMAlignedBoundaries(int64_t start,
   *aligned_size =
       (size + static_cast<size_t>(*offset) + static_cast<size_t>(mask)) & ~mask;
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 }  // namespace base

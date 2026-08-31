@@ -10,9 +10,8 @@
 
 #include "pc/ice_server_parsing.h"
 
-#include <stddef.h>
-
-#include <cctype>  // For std::isdigit.
+#include <cctype>
+#include <cstddef>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -26,7 +25,6 @@
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
 #include "p2p/base/port_interface.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
@@ -66,7 +64,7 @@ enum class ServiceType {
   INVALID,   // Unknown.
 };
 static_assert(static_cast<size_t>(ServiceType::INVALID) ==
-                  arraysize(kValidIceServiceTypes),
+                  std::size(kValidIceServiceTypes),
               "kValidIceServiceTypes must have as many strings as ServiceType "
               "has values.");
 
@@ -90,7 +88,7 @@ std::tuple<ServiceType, absl::string_view> GetServiceTypeAndHostnameFromUri(
     RTC_LOG(LS_WARNING) << "Empty hostname in ICE URI: " << in_str;
     return {ServiceType::INVALID, ""};
   }
-  for (size_t i = 0; i < arraysize(kValidIceServiceTypes); ++i) {
+  for (size_t i = 0; i < std::size(kValidIceServiceTypes); ++i) {
     if (in_str.compare(0, colonpos, kValidIceServiceTypes[i]) == 0) {
       return {static_cast<ServiceType>(i), in_str.substr(colonpos + 1)};
     }

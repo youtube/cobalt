@@ -10,9 +10,8 @@
 
 #include "examples/peerconnection/client/defaults.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
 #include <string>
 

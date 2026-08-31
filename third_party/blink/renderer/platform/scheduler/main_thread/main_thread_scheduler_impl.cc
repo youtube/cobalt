@@ -60,6 +60,7 @@
 #include "third_party/blink/renderer/platform/scheduler/main_thread/page_scheduler_impl.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/pending_user_input.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/task_type_names.h"
+#include "third_party/blink/renderer/platform/scheduler/main_thread/use_case.h"
 #include "third_party/blink/renderer/platform/scheduler/main_thread/widget_scheduler_impl.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -68,7 +69,7 @@
 #include "v8/include/v8.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/pre_freeze_background_memory_trimmer.h"
+#include "base/android/self_compaction_manager.h"
 #endif
 
 namespace base {
@@ -177,14 +178,12 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    base::Milliseconds(2));
 
 void MaybeSetBusyLoop(raw_ptr<base::MessagePump> message_pump,
-                      bool backgrounded) {
+                      double scale_factor) {
   if (!message_pump || !base::FeatureList::IsEnabled(kBusyLoopOnRendererMain)) {
     return;
   }
 
-  base::TimeDelta busy_loop_duration =
-      backgrounded ? base::Microseconds(0) : kBusyLoopTime.Get();
-  message_pump->SetBusyLoop(busy_loop_duration);
+  message_pump->SetBusyLoop(kBusyLoopTime.Get() * scale_factor);
 }
 
 }  // namespace
@@ -194,7 +193,7 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
     : MainThreadSchedulerImpl(sequence_manager.get()) {
   owned_sequence_manager_ = std::move(sequence_manager);
   MaybeSetBusyLoop(main_thread_only().message_pump,
-                   main_thread_only().renderer_backgrounded);
+                   main_thread_only().renderer_backgrounded ? 0. : 1.);
 }
 
 MainThreadSchedulerImpl::MainThreadSchedulerImpl(
@@ -581,27 +580,25 @@ scoped_refptr<WidgetScheduler> MainThreadSchedulerImpl::CreateWidgetScheduler(
     WidgetScheduler::Delegate* delegate) {
   auto widget_scheduler = base::MakeRefCounted<WidgetSchedulerImpl>(
       this, &render_widget_scheduler_signals_, delegate);
-  if (base::FeatureList::IsEnabled(kUseWidgetSchedulerForIdlePeriodSignals)) {
-    CHECK(delegate);
-    main_thread_only().widget_schedulers.insert(widget_scheduler);
-    // If we're already receiving BeginMainFrameNotExpectedUntil signals from
-    // the other `WidgetScheduler`s, we need to receive these signals from this
-    // new one as well, otherwise idle periods might unexpectedly stop once
-    // frames stop being produced.
-    //
-    // Note: by default `widget_scheduler` will not receive these signals, so
-    // initialization is only needed if the signals are needed. If that changes,
-    // as a result of idle tasks being posted, the signals will be requested in
-    // `DispatchRequestBeginMainFrameNotExpected()`.
-    if (main_thread_only().compositor_will_send_main_frame_not_expected) {
-      // Defer this until after the current task to allow `delegate` to complete
-      // initialization.
-      control_task_queue_->GetTaskRunnerWithDefaultTaskType()->PostTask(
-          FROM_HERE,
-          base::BindOnce(&MainThreadSchedulerImpl::
-                             InitializeRequestBeginMainFrameNotExpected,
-                         weak_factory_.GetWeakPtr(), widget_scheduler));
-    }
+  CHECK(delegate);
+  main_thread_only().widget_schedulers.insert(widget_scheduler);
+  // If we're already receiving BeginMainFrameNotExpectedUntil signals from
+  // the other `WidgetScheduler`s, we need to receive these signals from this
+  // new one as well, otherwise idle periods might unexpectedly stop once
+  // frames stop being produced.
+  //
+  // Note: by default `widget_scheduler` will not receive these signals, so
+  // initialization is only needed if the signals are needed. If that changes,
+  // as a result of idle tasks being posted, the signals will be requested in
+  // `DispatchRequestBeginMainFrameNotExpected()`.
+  if (main_thread_only().compositor_will_send_main_frame_not_expected) {
+    // Defer this until after the current task to allow `delegate` to complete
+    // initialization.
+    control_task_queue_->GetTaskRunnerWithDefaultTaskType()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MainThreadSchedulerImpl::
+                           InitializeRequestBeginMainFrameNotExpected,
+                       weak_factory_.GetWeakPtr(), widget_scheduler));
   }
   return widget_scheduler;
 }
@@ -994,7 +991,7 @@ void MainThreadSchedulerImpl::SetRendererBackgrounded(bool backgrounded) {
   base::TimeTicks now = NowTicks();
   main_thread_only().background_status_changed_at = now;
   main_thread_only().metrics_helper.SetRendererBackgrounded(backgrounded, now);
-  MaybeSetBusyLoop(main_thread_only().message_pump, backgrounded);
+  MaybeSetBusyLoop(main_thread_only().message_pump, backgrounded ? 0. : 1.);
 
   UpdatePolicy();
 
@@ -1446,6 +1443,17 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
   } else {
     main_thread_only().current_policy_expiration_time = base::TimeTicks();
   }
+
+  double busy_loop_scale_factor;
+  if (main_thread_only().renderer_backgrounded) {
+    busy_loop_scale_factor = 0.;
+  } else if (main_thread_only().current_use_case != UseCase::kNone ||
+             main_thread_only().blocking_input_expected_soon) {
+    busy_loop_scale_factor = 1.;
+  } else {
+    busy_loop_scale_factor = 0.5;
+  }
+  MaybeSetBusyLoop(main_thread_only().message_pump, busy_loop_scale_factor);
 
   // Avoid prioritizing main thread compositing (e.g., rAF) if it is extremely
   // slow, because that can cause starvation in other task sources.
@@ -1907,27 +1915,16 @@ void MainThreadSchedulerImpl::DispatchRequestBeginMainFrameNotExpected(
       TRACE_DISABLED_BY_DEFAULT("renderer.scheduler"),
       "MainThreadSchedulerImpl::DispatchRequestBeginMainFrameNotExpected",
       "has_tasks", has_tasks);
-  bool success = false;
-  if (base::FeatureList::IsEnabled(kUseWidgetSchedulerForIdlePeriodSignals)) {
-    // If idle tasks are posted before compositing is initialized, the scheduler
-    // will request these signals as soon as it is.
-    for (auto& widget_scheduler : main_thread_only().widget_schedulers) {
-      widget_scheduler->RequestBeginMainFrameNotExpected(has_tasks);
-    }
-    success = true;
-  } else {
-    for (PageSchedulerImpl* page_scheduler :
-         main_thread_only().page_schedulers) {
-      success |= page_scheduler->RequestBeginMainFrameNotExpected(has_tasks);
-    }
+  // If idle tasks are posted before compositing is initialized, the scheduler
+  // will request these signals as soon as it is.
+  for (auto& widget_scheduler : main_thread_only().widget_schedulers) {
+    widget_scheduler->RequestBeginMainFrameNotExpected(has_tasks);
   }
-  main_thread_only().compositor_will_send_main_frame_not_expected =
-      success && has_tasks;
+  main_thread_only().compositor_will_send_main_frame_not_expected = has_tasks;
 }
 
 void MainThreadSchedulerImpl::InitializeRequestBeginMainFrameNotExpected(
     scoped_refptr<WidgetSchedulerImpl> widget_scheduler) {
-  CHECK(base::FeatureList::IsEnabled(kUseWidgetSchedulerForIdlePeriodSignals));
   if (main_thread_only().widget_schedulers.Contains(widget_scheduler)) {
     widget_scheduler->RequestBeginMainFrameNotExpected(
         main_thread_only().compositor_will_send_main_frame_not_expected);
@@ -2269,8 +2266,8 @@ void MainThreadSchedulerImpl::RemovePageScheduler(
 void MainThreadSchedulerImpl::OnPageFrozen(
     base::MemoryReductionTaskContext called_from) {
 #if BUILDFLAG(IS_ANDROID)
-  base::android::PreFreezeBackgroundMemoryTrimmer::
-      SetOnStartSelfCompactionCallback(base::BindRepeating(
+  base::android::SelfCompactionManager::SetOnStartSelfCompactionCallback(
+      base::BindRepeating(
           [](scoped_refptr<base::SequencedTaskRunner> task_runner,
              base::WeakPtr<MainThreadSchedulerImpl> s) {
             task_runner->PostTask(
@@ -2781,10 +2778,6 @@ const IdleHelper& MainThreadSchedulerImpl::GetIdleHelperForTesting() const {
 
 void MainThreadSchedulerImpl::OnWidgetSchedulerWillShutdown(
     WidgetSchedulerImpl* scheduler) {
-  if (!base::FeatureList::IsEnabled(kUseWidgetSchedulerForIdlePeriodSignals)) {
-    return;
-  }
-
   auto iter = main_thread_only().widget_schedulers.find(scheduler);
   CHECK_NE(iter, main_thread_only().widget_schedulers.end());
   main_thread_only().widget_schedulers.erase(iter);

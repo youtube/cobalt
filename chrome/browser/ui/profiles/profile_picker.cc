@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <string>
 
+#include "base/command_line.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
@@ -18,6 +20,8 @@
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/prefs/pref_service.h"
@@ -62,6 +66,14 @@ ProfilePicker::Params ProfilePicker::Params::FromEntryPoint(
   return ProfilePicker::Params(entry_point, GetPickerProfilePath());
 }
 
+ProfilePicker::Params ProfilePicker::Params::FromStartupWithEmail(
+    const std::string& email) {
+  Params params = ProfilePicker::Params::FromEntryPoint(
+      EntryPoint::kOnStartupCreateProfileWithEmail);
+  params.initial_email_ = email;
+  return params;
+}
+
 // static
 ProfilePicker::Params ProfilePicker::Params::ForBackgroundManager(
     const GURL& on_select_profile_target_url) {
@@ -74,11 +86,7 @@ ProfilePicker::Params ProfilePicker::Params::ForBackgroundManager(
 ProfilePicker::Params ProfilePicker::Params::ForFirstRun(
     const base::FilePath& profile_path,
     FirstRunExitedCallback first_run_exited_callback) {
-  Params params(
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-      EntryPoint::kFirstRun,
-#endif
-      profile_path);
+  Params params(EntryPoint::kFirstRun, profile_path);
   params.first_run_exited_callback_ = std::move(first_run_exited_callback);
   return params;
 }
@@ -151,6 +159,26 @@ StartupProfileModeReason ProfilePicker::GetStartupModeReason() {
   }
 
   ProfileManager* profile_manager = g_browser_process->profile_manager();
+
+  // Only launch the profile creation flow at startup if the user has specified
+  // both a profile email address and the switch to create a new profile. Only
+  // launch the profile creation flow if and a profile with this email does not already
+  // exist.
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kProfileEmail)) {
+    std::string switch_email =
+        command_line->GetSwitchValueASCII(switches::kProfileEmail);
+    if (!switch_email.empty()) {
+      if (!profile_manager->GetProfileDirForEmail(switch_email).empty()) {
+        return StartupProfileModeReason::kProfileEmailSwitch;
+      } else if (command_line->HasSwitch(
+                     switches::kCreateProfileEmailIfNotExists) &&
+                 base::FeatureList::IsEnabled(
+                     features::kCreateProfileIfNoneExists)) {
+        return StartupProfileModeReason::kProfileEmailSwitchCreateProfile;
+      }
+    }
+  }
 
   size_t number_of_profiles = profile_manager->GetNumberOfProfiles();
   // Need to consider 0 profiles as this is what happens in some browser-tests.

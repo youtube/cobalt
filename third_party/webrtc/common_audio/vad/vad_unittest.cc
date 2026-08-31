@@ -10,9 +10,8 @@
 
 #include "common_audio/vad/vad_unittest.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 #include <iterator>
 
 #include "common_audio/signal_processing/include/signal_processing_library.h"

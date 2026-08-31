@@ -6,10 +6,7 @@
 
 namespace net::device_bound_sessions {
 
-SessionError::SessionError(SessionError::ErrorType type,
-                           net::SchemefulSite site,
-                           std::optional<std::string> session_id)
-    : type(type), site(std::move(site)), session_id(std::move(session_id)) {}
+SessionError::SessionError(SessionError::ErrorType type) : type(type) {}
 
 SessionError::~SessionError() = default;
 
@@ -36,11 +33,49 @@ bool SessionError::IsFatal() const {
     case kScopeOriginSameSiteMismatch:
     case kRefreshUrlSameSiteMismatch:
     case kInvalidScopeOrigin:
+    case kMismatchedSessionId:
+    case kInvalidRefreshInitiators:
+    case kInvalidScopeRule:
+    case kMissingScope:
+    case kNoCredentials:
+    case kInvalidScopeIncludeSite:
       return true;
 
     case kNetError:
     case kTransientHttpError:
       return false;
+  }
+}
+
+bool SessionError::IsServerError() const {
+  using enum ErrorType;
+
+  switch (type) {
+    case kSuccess:
+    case kKeyError:
+    case kSigningError:
+    case kNetError:
+      return false;
+    case kServerRequestedTermination:
+    case kInvalidConfigJson:
+    case kInvalidSessionId:
+    case kInvalidCredentials:
+    case kInvalidChallenge:
+    case kTooManyChallenges:
+    case kInvalidFetcherUrl:
+    case kInvalidRefreshUrl:
+    case kPersistentHttpError:
+    case kScopeOriginSameSiteMismatch:
+    case kRefreshUrlSameSiteMismatch:
+    case kInvalidScopeOrigin:
+    case kTransientHttpError:
+    case kMismatchedSessionId:
+    case kInvalidRefreshInitiators:
+    case kInvalidScopeRule:
+    case kMissingScope:
+    case kNoCredentials:
+    case kInvalidScopeIncludeSite:
+      return true;
   }
 }
 

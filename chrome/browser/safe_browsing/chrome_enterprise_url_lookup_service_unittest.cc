@@ -6,6 +6,7 @@
 
 #include "base/functional/bind.h"
 #include "base/test/bind.h"
+#include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
@@ -40,8 +41,10 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
+#include "services/network/test/test_utils.h"
 #include "testing/platform_test.h"
 
+using base::test::RunOnceClosure;
 using ::testing::_;
 using testing::DoAll;
 using testing::Return;
@@ -55,6 +58,7 @@ constexpr char kRealTimeLookupUrl[] =
     "realtime";
 
 constexpr char kTestProfileEmail[] = "test@example.com";
+constexpr char kContentAreaAccountEmail[] = "area@example.com";
 
 class MockReferrerChainProvider : public ReferrerChainProvider {
  public:
@@ -181,6 +185,9 @@ class ChromeEnterpriseRealTimeUrlLookupServiceTest : public PlatformTest {
         /*webui_delegate=*/nullptr, identity_test_env_.identity_manager(),
         management_service_.get(), is_off_the_record, is_guest_session,
         base::BindRepeating([]() -> std::string { return kTestProfileEmail; }),
+        base::BindRepeating([](const GURL& tab_url) -> std::string {
+          return kContentAreaAccountEmail;
+        }),
         base::BindRepeating([] { return true; }),
         /*is_command_line_switch_supported=*/true);
 
@@ -311,6 +318,7 @@ TEST_F(ChromeEnterpriseRealTimeUrlLookupServiceTest,
 
 TEST_F(ChromeEnterpriseRealTimeUrlLookupServiceTest,
        TestStartLookup_RequestWithDmTokenAndAccessToken) {
+  base::HistogramTester histogram_tester;
   EnableLocalIpAddressInEvents();
   GURL url("http://example.test/");
   SetUpRTLookupResponse(RTLookupResponse::ThreatInfo::DANGEROUS,
@@ -342,6 +350,8 @@ TEST_F(ChromeEnterpriseRealTimeUrlLookupServiceTest,
         EXPECT_EQ("test@example.com", request_proto.email());
         EXPECT_EQ("dm_token", request_proto.browser_dm_token());
         EXPECT_TRUE(request_proto.has_client_reporting_metadata());
+        EXPECT_EQ(kContentAreaAccountEmail,
+                  request_proto.content_area_account_email());
         EXPECT_EQ("", request_proto.profile_dm_token());
         EXPECT_FALSE(request_proto.local_ips().empty());
         EXPECT_EQ(ChromeUserPopulation::SAFE_BROWSING,
@@ -367,6 +377,46 @@ TEST_F(ChromeEnterpriseRealTimeUrlLookupServiceTest,
 
   // Check the response is cached.
   EXPECT_NE(nullptr, GetCachedRealTimeUrlVerdict(url));
+
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.RT.HasAccessTokenFromFetcher", /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectUniqueSample(
+      "SafeBrowsing.RT.HasAccessTokenFromFetcher.Enterprise", /*sample=*/true,
+      /*expected_bucket_count=*/1);
+  histogram_tester.ExpectTotalCount("SafeBrowsing.RT.GetToken.TimeTaken",
+                                    /*expected_count=*/1);
+  histogram_tester.ExpectTotalCount(
+      "SafeBrowsing.RT.GetToken.TimeTaken.Enterprise", /*expected_count=*/1);
+}
+
+TEST_F(ChromeEnterpriseRealTimeUrlLookupServiceTest,
+       TestStartLookup_OnInvalidAccessTokenCalledResponseCodeUnauthorized) {
+  SetDMTokenForTesting(policy::DMToken::CreateValidToken("dm_token"));
+
+  test_url_loader_factory_.ClearResponses();
+  auto head = network::CreateURLResponseHead(net::HTTP_UNAUTHORIZED);
+  network::URLLoaderCompletionStatus status(net::OK);
+  test_url_loader_factory_.AddResponse(GURL(kRealTimeLookupUrl),
+                                       std::move(head), "", status);
+
+  GURL url("http://example.test/");
+  base::MockCallback<RTLookupResponseCallback> response_callback;
+  enterprise_rt_service()->StartLookup(
+      url, response_callback.Get(), content::GetIOThreadTaskRunner({}),
+      SessionID::InvalidValue(), /*referring_app_info=*/std::nullopt);
+
+  EXPECT_TRUE(raw_token_fetcher()->WasStartCalled());
+  FulfillAccessTokenRequest("invalid_token_string");
+  EXPECT_CALL(*raw_token_fetcher(),
+              OnInvalidAccessToken("invalid_token_string"))
+      .Times(1);
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(response_callback, Run(/* is_rt_lookup_successful */ false,
+                                     /* is_cached_response */ false, _))
+      .WillOnce(RunOnceClosure(run_loop.QuitClosure()));
+  run_loop.Run();
 }
 
 TEST_F(ChromeEnterpriseRealTimeUrlLookupServiceTest,

@@ -460,7 +460,7 @@ int PropertyTreeManager::EnsureCompositorTransformNode(
 
   compositor_node.should_undo_overscroll =
       transform_node.RequiresCompositingForFixedToViewport();
-  if (transform_node.NodeChangeAffectsRaster()) {
+  if (transform_node.NodeChanged() != PaintPropertyChangeType::kUnchanged) {
     compositor_node.SetTransformChanged(cc::DamageReason::kUntracked);
   } else {
     compositor_node.ClearTransformChanged();
@@ -475,13 +475,9 @@ int PropertyTreeManager::EnsureCompositorTransformNode(
     compositor_node.moved_by_outer_viewport_bounds_delta_y = true;
     transform_tree_.AddNodeAffectedByOuterViewportBoundsDelta(id);
   }
-
-  if (base::FeatureList::IsEnabled(
-          features::kDynamicSafeAreaInsetsSupportedByCC)) {
-    if (transform_node.IsAffectedBySafeAreaBottom()) {
-      compositor_node.moved_by_safe_area_bottom = true;
-      transform_tree_.AddNodeAffectedBySafeAreaInsetBottom(id);
-    }
+  if (transform_node.IsAffectedBySafeAreaBottom()) {
+    compositor_node.moved_by_safe_area_bottom = true;
+    transform_tree_.AddNodeAffectedBySafeAreaInsetBottom(id);
   }
 
   compositor_node.in_subtree_of_page_scale_layer =
@@ -1051,6 +1047,9 @@ int PropertyTreeManager::SynthesizeCcEffectsForClipsIfNeeded(
     cc::EffectNode& synthetic_effect = *effect_tree_.Node(
         effect_tree_.Insert(cc::EffectNode(), current_.effect_id));
 
+    const auto& clip_transform =
+        pending_clip.clip->LocalTransformSpace().Unalias();
+
     const auto& transform =
         should_realize_backdrop_effect
             ? next_effect->LocalTransformSpace().Unalias()
@@ -1096,9 +1095,12 @@ int PropertyTreeManager::SynthesizeCcEffectsForClipsIfNeeded(
       // For non-trivial clip, isolation_effect.element_id will be assigned
       // later when the effect is closed. For now the default value ElementId()
       // is used. See PropertyTreeManager::EmitClipMaskLayer().
-      if (std::optional<gfx::RRectF> rrect = ShaderBasedRRect(
-              *pending_clip.clip, pending_clip.type, transform, next_effect)) {
+      if (std::optional<gfx::RRectF> rrect =
+              ShaderBasedRRect(*pending_clip.clip, pending_clip.type,
+                               clip_transform, next_effect)) {
         synthetic_effect.mask_filter_info = gfx::MaskFilterInfo(*rrect);
+        synthetic_effect.mask_filter_info.set_clip_id(
+            EnsureCompositorClipNode(*pending_clip.clip));
         synthetic_effect.is_fast_rounded_corner = true;
 
         // Nested rounded corner clips need to force render surfaces for
@@ -1323,7 +1325,8 @@ void PropertyTreeManager::PopulateCcEffectNode(
     effect_node.filters = filter->AsCcFilterOperations();
   }
   effect_node.double_sided = !transform.IsBackfaceHidden();
-  effect_node.effect_changed = effect.NodeChangeAffectsRaster();
+  effect_node.effect_changed =
+      effect.NodeChanged() != PaintPropertyChangeType::kUnchanged;
 
   effect_node.view_transition_element_resource_id =
       effect.ViewTransitionElementResourceId();

@@ -84,6 +84,7 @@
 #include "third_party/blink/renderer/core/keywords.h"
 #include "third_party/blink/renderer/core/layout/adjust_for_absolute_zoom.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_theme_font_provider.h"
 #include "third_party/blink/renderer/core/page/chrome_client.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
@@ -173,7 +174,7 @@ bool HTMLInputElement::HasPendingActivity() const {
 HTMLImageLoader& HTMLInputElement::EnsureImageLoader() {
   if (!image_loader_) {
     image_loader_ = MakeGarbageCollected<HTMLImageLoader>(this);
-    RegisterActiveScriptWrappable(GetExecutionContext()->GetIsolate());
+    RegisterActiveScriptWrappable();
   }
   return *image_loader_;
 }
@@ -307,12 +308,6 @@ bool HTMLInputElement::HasCustomFocusLogic() const {
 
 bool HTMLInputElement::IsKeyboardFocusableSlow(
     UpdateBehavior update_behavior) const {
-  // Interest invoker targets with partial interest aren't keyboard focusable.
-  if (IsInPartialInterestPopover()) {
-    CHECK(RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
-        GetDocument().GetExecutionContext()));
-    return false;
-  }
   return input_type_->IsKeyboardFocusableSlow(update_behavior);
 }
 
@@ -691,9 +686,9 @@ void HTMLInputElement::setSelectionStartForBinding(
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
   TextControlElement::setSelectionStart(start.value_or(0));
@@ -705,9 +700,9 @@ void HTMLInputElement::setSelectionEndForBinding(
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
   TextControlElement::setSelectionEnd(end.value_or(0));
@@ -719,9 +714,9 @@ void HTMLInputElement::setSelectionDirectionForBinding(
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
   TextControlElement::setSelectionDirection(direction);
@@ -734,9 +729,9 @@ void HTMLInputElement::setSelectionRangeForBinding(
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
   TextControlElement::setSelectionRangeForBinding(start, end);
@@ -750,9 +745,9 @@ void HTMLInputElement::setSelectionRangeForBinding(
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
   TextControlElement::setSelectionRangeForBinding(start, end, direction);
@@ -768,9 +763,9 @@ void HTMLInputElement::SetSelectionRangeForTesting(
   if (FormControlType() != FormControlType::kInputNumber) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') is not a number input."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') is not a number input."}));
   }
   TextControlElement::setSelectionRangeForBinding(start, end);
 }
@@ -1181,9 +1176,8 @@ unsigned HTMLInputElement::size() const {
   return size_;
 }
 
-bool HTMLInputElement::SizeShouldIncludeDecoration(int& preferred_size) const {
-  return input_type_view_->SizeShouldIncludeDecoration(kDefaultSize,
-                                                       preferred_size);
+bool HTMLInputElement::GetSizeWithDecoration(int& preferred_size) const {
+  return input_type_view_->GetSizeWithDecoration(kDefaultSize, preferred_size);
 }
 
 void HTMLInputElement::CloneNonAttributePropertiesFrom(const Element& source,
@@ -2098,8 +2092,7 @@ bool HTMLInputElement::ShouldAppearIndeterminate() const {
   return input_type_->ShouldAppearIndeterminate();
 }
 
-HTMLFormControlElement::PopoverTriggerSupport
-HTMLInputElement::SupportsPopoverTriggering() const {
+PopoverTriggerSupport HTMLInputElement::SupportsPopoverTriggering() const {
   return input_type_->SupportsPopoverTriggering();
 }
 
@@ -2169,9 +2162,9 @@ void HTMLInputElement::setRangeText(const String& replacement,
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
 
@@ -2186,9 +2179,9 @@ void HTMLInputElement::setRangeText(const String& replacement,
   if (!input_type_->SupportsSelectionAPI()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        WTF::StrCat({"The input element's type ('",
-                     input_type_->FormControlTypeAsString(),
-                     "') does not support selection."}));
+        StrCat({"The input element's type ('",
+                input_type_->FormControlTypeAsString(),
+                "') does not support selection."}));
     return;
   }
 
@@ -2301,9 +2294,6 @@ void HTMLInputElement::AdjustStyle(ComputedStyleBuilder& builder) {
 
 void HTMLInputElement::DidNotifySubtreeInsertionsToDocument() {
   input_type_view_->ListAttributeTargetChanged();
-  if (!RuntimeEnabledFeatures::DOMInsertionFasterEnabled()) {
-    PseudoStateChanged(CSSSelector::kPseudoHasDatalist);
-  }
 }
 
 AXObject* HTMLInputElement::PopupRootAXObject() {
@@ -2482,6 +2472,12 @@ void HTMLInputElement::SetFocused(bool is_focused,
   if (!is_focused && !input_type_view_->IsMultipleFieldsTemporal() &&
       UserHasEditedTheField()) {
     SetUserHasEditedTheFieldAndBlurred();
+  }
+
+  if (RuntimeEnabledFeatures::RadioKeyboardFocusableOptimizeEnabled()) {
+    if (RadioButtonGroupScope* scope = GetRadioButtonGroupScope()) {
+      scope->UpdateLastFocusedState(this);
+    }
   }
 }
 

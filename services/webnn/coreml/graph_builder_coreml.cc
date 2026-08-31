@@ -28,7 +28,6 @@
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/functional/overloaded.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
@@ -38,6 +37,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
@@ -47,6 +47,7 @@
 #include "base/values.h"
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "services/webnn/public/cpp/context_properties.h"
+#include "services/webnn/public/cpp/ml_number.h"
 #include "services/webnn/public/cpp/operand_descriptor.h"
 #include "services/webnn/public/cpp/supported_data_types.h"
 #include "services/webnn/public/cpp/supported_tensors.h"
@@ -56,6 +57,7 @@
 #include "services/webnn/public/mojom/webnn_graph.mojom.h"
 #include "services/webnn/webnn_constant_operand.h"
 #include "services/webnn/webnn_utils.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/coremltools/mlmodel/format/FeatureTypes.pb.h"
 #include "third_party/coremltools/mlmodel/format/MIL.pb.h"
 #include "third_party/fp16/src/include/fp16.h"
@@ -192,6 +194,7 @@ constexpr char kOpCosTypeName[] = "cos";
 constexpr char kOpExpTypeName[] = "exp";
 constexpr char kOpFloorTypeName[] = "floor";
 constexpr char kOpIdentityTypeName[] = "identity";
+constexpr char kOpSignTypeName[] = "sign";
 constexpr char kOpSinTypeName[] = "sin";
 constexpr char kOpTanTypeName[] = "tan";
 constexpr char kOpErfTypeName[] = "erf";
@@ -674,6 +677,16 @@ CoreML::Specification::MILSpec::Value CreateFloatValue(
              ? CreateScalarImmediateValue(value)
              : CreateScalarImmediateValue(
                    static_cast<Float16>(fp16_ieee_from_fp32_value(value)));
+}
+
+CoreML::Specification::MILSpec::Value CreateFloatValue(
+    CoreML::Specification::MILSpec::DataType mil_data_type,
+    MLNumber value) {
+  CHECK(kFloatDataTypes.contains(mil_data_type));
+  return mil_data_type == CoreML::Specification::MILSpec::DataType::FLOAT32
+             ? CreateScalarImmediateValue(value.AsFloat32())
+             : CreateScalarImmediateValue(
+                   static_cast<Float16>(value.AsFloat16()));
 }
 
 // Activation param name used in lstm.
@@ -1192,8 +1205,6 @@ ContextProperties GraphBuilderCoreml::GetContextProperties() {
        {DataTypeConstraint::kFloat16To32, SupportedRanks::Exactly(1)},
        /*cumulative_sum_input=*/
        {kFloatsAndInt32, kMaxRank},
-       // TODO(crbug.com/396176047): Make scale and zero_point's rank match with
-       // input.
        // TODO(crbug.com/361603703): Support constant (u)int4 inputs via
        // https://apple.github.io/coremltools/source/coremltools.converters.mil.mil.ops.defs.html#coremltools.converters.mil.mil.ops.defs.iOS18.compression.constexpr_blockwise_shift_scale
        /*dequantize_linear_input=*/{kInts8Ints32, kMaxRank},
@@ -1241,8 +1252,8 @@ ContextProperties GraphBuilderCoreml::GetContextProperties() {
        /*neg_input=*/{kFloatsAndInt32, kMaxRank},
        /*reciprocal_input=*/
        {DataTypeConstraint::kFloat16To32, kMaxRank},
-       // Sign is not implemented.
-       /*sign_input=*/{},
+       /*sign_input=*/
+       {kFloatsAndInt32, kMaxRank},
        /*sin_input=*/
        {DataTypeConstraint::kFloat16To32, kMaxRank},
        /*sqrt_input=*/
@@ -2152,13 +2163,15 @@ GraphBuilderCoreml::AddOperationForCast(
 GraphBuilderCoreml::AddOperationForClamp(
     OperandId input_operand_id,
     OperandId output_operand_id,
-    float min_value,
-    float max_value,
+    MLNumber min_value,
+    MLNumber max_value,
     CoreML::Specification::MILSpec::Block& block) {
   const OperandInfo& input_operand_info = GetOperandInfo(input_operand_id);
   CHECK(context_properties_.data_type_limits.clamp_input.data_types.Has(
       MILDataTypeToOperandType(input_operand_info.mil_data_type)));
 
+  // TODO(crbug.com/421927615): Emulate with min() and max() when
+  // min_value == max_value.
   CoreML::Specification::MILSpec::Operation* op = block.add_operations();
   op->set_type(kOpClipTypeName);
 
@@ -2397,19 +2410,18 @@ GraphBuilderCoreml::AddOperationForDequantizeLinear(
   // or vector scale whose size matches with one axis of input.
   base::span<const uint32_t> scale_dimensions = scale_operand_info.dimensions;
   base::span<const uint32_t> input_dimensions = input_operand_info.dimensions;
-  CHECK_LE(scale_dimensions.size(), input_dimensions.size());
+  CHECK_EQ(scale_dimensions.size(), input_dimensions.size());
   uint32_t scale_vector_size = 0;
   size_t axis = 0;
   bool has_matching_dimension = false;
   for (size_t i = 0; i < scale_dimensions.size(); ++i) {
-    size_t current_axis = input_dimensions.size() + i - scale_dimensions.size();
     if (scale_dimensions[i] != 1) {
       // Only allow at most one matching dimension, otherwise emulate.
-      if (scale_dimensions[i] != input_dimensions[current_axis] ||
+      if (scale_dimensions[i] != input_dimensions[i] ||
           has_matching_dimension) {
         return AddOperationForDequantizeLinearEmulate(operation, block);
       } else {
-        axis = current_axis;
+        axis = i;
         scale_vector_size = scale_dimensions[i];
         has_matching_dimension = true;
       }
@@ -2555,22 +2567,14 @@ GraphBuilderCoreml::AddOperationForDequantizeLinearConstBlockwise(
   bool input_needs_reshape = input_operand_info.dimensions.empty();
   std::vector<uint32_t> input_shape = input_operand_info.dimensions;
   std::vector<uint32_t> scale_shape = scale_operand_info.dimensions;
-  CHECK_GE(input_shape.size(), scale_shape.size());
+  CHECK_EQ(input_shape.size(), scale_shape.size());
   CHECK(std::ranges::equal(scale_shape, zero_point_operand_info.dimensions));
 
   if (input_needs_reshape) {
     input_shape = {1};
+    scale_shape = {1};
   }
 
-  // TODO(crbug.com/396176047): Remove this logic after WebNN requires scale and
-  // zero_point's rank match with input.
-  if (scale_shape.size() < input_shape.size()) {
-    std::vector<uint32_t> scale_reshaped(
-        input_shape.size() - scale_shape.size(), 1);
-    scale_reshaped.insert(scale_reshaped.end(), scale_shape.begin(),
-                          scale_shape.end());
-    scale_shape = std::move(scale_reshaped);
-  }
   static constexpr char kParamOffset[] = "offset";
   RETURN_IF_ERROR(
       SetInputFromConstantOperand(*op->mutable_inputs(), kOpParamData,
@@ -2656,17 +2660,15 @@ GraphBuilderCoreml::ExpandForBlockwise(
       GetOperandInfo(input_operand_id).dimensions;
   base::span<const uint32_t> scale_dimensions =
       GetOperandInfo(scale_operand_id).dimensions;
-  CHECK_LE(scale_dimensions.size(), input_dimensions.size());
+  CHECK_EQ(scale_dimensions.size(), input_dimensions.size());
 
   // When zero_point and scale on a dimension is not
   // input_dimension or 1, this is a blockwise dequantization, the zero_point
   // and scale need to be expanded.
   for (size_t i = 0; i < scale_dimensions.size(); ++i) {
     uint32_t scale_vector_size = scale_dimensions[i];
-    size_t current_axis = input_dimensions.size() + i - scale_dimensions.size();
 
-    if (scale_vector_size != 1 &&
-        scale_vector_size != input_dimensions[current_axis]) {
+    if (scale_vector_size != 1 && scale_vector_size != input_dimensions[i]) {
       // For blockwise dequantization we need to expand the shape by 1 during
       // `ExpandDimForBlockwise`, so the original shape needs to be <=4.
       if (scale_dimensions.size() > 4) {
@@ -2674,9 +2676,8 @@ GraphBuilderCoreml::ExpandForBlockwise(
             "Unsupported rank for scale. It should "
             "be between 0 and 4 for blockwise (de)quantization.");
       }
-      CHECK_EQ(input_dimensions[current_axis] % scale_vector_size, 0u);
-      const int32_t repetitions =
-          input_dimensions[current_axis] / scale_vector_size;
+      CHECK_EQ(input_dimensions[i] % scale_vector_size, 0u);
+      const int32_t repetitions = input_dimensions[i] / scale_vector_size;
       OperandId prev_scale = scale_operand_id;
       ASSIGN_OR_RETURN(
           scale_operand_id,
@@ -2749,7 +2750,7 @@ GraphBuilderCoreml::AddOperationForElementwiseBinary(
     const mojom::ElementWiseBinary::Kind kind,
     CoreML::Specification::MILSpec::Block& block) {
   CoreML::Specification::MILSpec::DataType mil_data_type;
-  std::visit(base::Overloaded{
+  std::visit(absl::Overload{
                  [&](OperandId lhs_operand_id) {
                    const OperandInfo& lhs_operand_info =
                        GetOperandInfo(lhs_operand_id);
@@ -2894,34 +2895,33 @@ GraphBuilderCoreml::AddOperationForElementwiseBinary(
   op->set_type(op_type_name);
   std::optional<mojom::ErrorPtr> set_input_error;
   std::visit(
-      base::Overloaded{[&](OperandId lhs_operand_id) {
-                         auto result = SetInputFromOperand(
-                             *op->mutable_inputs(), kOpParamX, lhs_operand_id);
-                         if (!result.has_value()) {
-                           set_input_error = std::move(result.error());
-                         }
-                       },
-                       [&](CoreML::Specification::MILSpec::Value lhs_value) {
-                         SetInputWithValue(*op->mutable_inputs(), kOpParamX,
-                                           lhs_value);
-                       }},
+      absl::Overload{[&](OperandId lhs_operand_id) {
+                       auto result = SetInputFromOperand(
+                           *op->mutable_inputs(), kOpParamX, lhs_operand_id);
+                       if (!result.has_value()) {
+                         set_input_error = std::move(result.error());
+                       }
+                     },
+                     [&](CoreML::Specification::MILSpec::Value lhs_value) {
+                       SetInputWithValue(*op->mutable_inputs(), kOpParamX,
+                                         lhs_value);
+                     }},
       lhs_operand);
   std::visit(
-      base::Overloaded{[&](OperandId rhs_operand_id) {
-                         const OperandInfo& rhs_operand_info =
-                             GetOperandInfo(rhs_operand_id);
-                         CHECK_EQ(mil_data_type,
-                                  rhs_operand_info.mil_data_type);
-                         auto result = SetInputFromOperand(
-                             *op->mutable_inputs(), kOpParamY, rhs_operand_id);
-                         if (!result.has_value()) {
-                           set_input_error = std::move(result.error());
-                         }
-                       },
-                       [&](CoreML::Specification::MILSpec::Value rhs_value) {
-                         SetInputWithValue(*op->mutable_inputs(), kOpParamY,
-                                           rhs_value);
-                       }},
+      absl::Overload{[&](OperandId rhs_operand_id) {
+                       const OperandInfo& rhs_operand_info =
+                           GetOperandInfo(rhs_operand_id);
+                       CHECK_EQ(mil_data_type, rhs_operand_info.mil_data_type);
+                       auto result = SetInputFromOperand(
+                           *op->mutable_inputs(), kOpParamY, rhs_operand_id);
+                       if (!result.has_value()) {
+                         set_input_error = std::move(result.error());
+                       }
+                     },
+                     [&](CoreML::Specification::MILSpec::Value rhs_value) {
+                       SetInputWithValue(*op->mutable_inputs(), kOpParamY,
+                                         rhs_value);
+                     }},
       rhs_operand);
 
   if (set_input_error) {
@@ -3002,8 +3002,10 @@ GraphBuilderCoreml::AddOperationForElementwiseUnary(
                                output_operand_id, block);
     }
     case mojom::ElementWiseUnary::Kind::kSign: {
-      // Sign is not implemented.
-      NOTREACHED();
+      CHECK(context_properties_.data_type_limits.sign_input.data_types.Has(
+          input_operand_data_type));
+      return AddUnaryOperation(kOpSignTypeName, input_operand_id,
+                               output_operand_id, block);
     }
     case mojom::ElementWiseUnary::Kind::kSin: {
       CHECK(context_properties_.data_type_limits.sin_input.data_types.Has(
@@ -4584,7 +4586,7 @@ base::expected<void, mojom::ErrorPtr> GraphBuilderCoreml::AddOperationForPad(
   constexpr char kParamConstantVal[] = "constant_val";
 
   std::string_view mode;
-  float constant = 0;
+  MLNumber constant = MLNumber::FromFloat64(0);
   switch (operation.mode->which()) {
     case mojom::PaddingMode::Tag::kConstant:
       mode = "constant";
@@ -4797,14 +4799,13 @@ GraphBuilderCoreml::AddOperationForQuantizeLinear(
   size_t axis = 0;
   bool has_matching_dimension = false;
   for (size_t i = 0; i < scale_dimensions.size(); ++i) {
-    size_t current_axis = input_dimensions.size() + i - scale_dimensions.size();
     if (scale_dimensions[i] != 1) {
       // Only allow at most one matching dimension, otherwise emulate.
-      if (scale_dimensions[i] != input_dimensions[current_axis] ||
+      if (scale_dimensions[i] != input_dimensions[i] ||
           has_matching_dimension) {
         return AddOperationForQuantizeLinearEmulate(operation, block);
       } else {
-        axis = current_axis;
+        axis = i;
         scale_vector_size = scale_dimensions[i];
         has_matching_dimension = true;
       }
@@ -4912,27 +4913,35 @@ GraphBuilderCoreml::AddOperationForQuantizeLinearEmulate(
   ASSIGN_OR_RETURN(OperandId result_clamped,
                    GenerateInternalOperandInfo(input_operand_info.mil_data_type,
                                                input_operand_info.dimensions));
-  float min_value;
-  float max_value;
+  MLNumber min_value = webnn::MLNumber::NegativeInfinity();
+  MLNumber max_value = webnn::MLNumber::Infinity();
   switch (MILDataTypeToOperandType(zero_point_operand_info.mil_data_type)) {
     case OperandDataType::kInt8: {
-      min_value = -128.0f;
-      max_value = 127.0f;
+      min_value =
+          webnn::MLNumber::FromInt64(std::numeric_limits<int8_t>::min());
+      max_value =
+          webnn::MLNumber::FromInt64(std::numeric_limits<int8_t>::max());
       break;
     }
     case OperandDataType::kUint8: {
-      min_value = 0.0f;
-      max_value = 255.0f;
+      min_value =
+          webnn::MLNumber::FromUint64(std::numeric_limits<uint8_t>::min());
+      max_value =
+          webnn::MLNumber::FromUint64(std::numeric_limits<uint8_t>::max());
       break;
     }
     case OperandDataType::kInt32: {
-      min_value = -2147483648.0f;
-      max_value = 2147483647.0f;
+      min_value =
+          webnn::MLNumber::FromInt64(std::numeric_limits<int32_t>::min());
+      max_value =
+          webnn::MLNumber::FromInt64(std::numeric_limits<int32_t>::max());
       break;
     }
     case OperandDataType::kUint32: {
-      min_value = 0.0f;
-      max_value = 4294967295.0f;
+      min_value =
+          webnn::MLNumber::FromUint64(std::numeric_limits<uint32_t>::min());
+      max_value =
+          webnn::MLNumber::FromUint64(std::numeric_limits<uint32_t>::max());
       break;
     }
     default:

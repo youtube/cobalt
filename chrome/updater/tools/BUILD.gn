@@ -18,6 +18,7 @@ executable("tag_exe") {
     "//base",
     "//chrome/updater:tagging",
   ]
+  assert_no_deps = [ "//third_party/libaom" ]
 }
 
 copy("tag") {
@@ -46,6 +47,7 @@ if (is_mac) {
     ]
 
     frameworks = [ "Foundation.framework" ]
+    assert_no_deps = [ "//third_party/libaom" ]
   }
 }
 
@@ -63,4 +65,7 @@ executable("${updater_product_full_name}Util") {
     "//components/update_client",
     "//components/update_client:in_process_unzipper",
   ]
+  if (!is_component_build) {
+    assert_no_deps = [ "//third_party/libaom" ]
+  }
 }

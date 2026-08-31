@@ -9,17 +9,14 @@
 
 #include "system_wrappers/include/field_trial.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <map>
 #include <string>
 #include <utility>
+#include <vector>
 
-#include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "experiments/registered_field_trials.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/containers/flat_set.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
 
@@ -33,11 +30,6 @@ static const char* trials_init_string = nullptr;
 namespace {
 
 constexpr char kPersistentStringSeparator = '/';
-
-flat_set<std::string>& TestKeys() {
-  static auto* test_keys = new flat_set<std::string>();
-  return *test_keys;
-}
 
 // Validates the given field trial string.
 //  E.g.:
@@ -114,51 +106,6 @@ std::string MergeFieldTrialsStrings(absl::string_view first,
   return merged;
 }
 
-#ifndef WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT
-std::string FindFullName(absl::string_view name) {
-#if WEBRTC_STRICT_FIELD_TRIALS == 1
-  RTC_DCHECK(absl::c_linear_search(kRegisteredFieldTrials, name) ||
-             TestKeys().contains(name))
-      << name << " is not registered, see g3doc/field-trials.md.";
-#elif WEBRTC_STRICT_FIELD_TRIALS == 2
-  RTC_LOG_IF(LS_WARNING,
-             !(absl::c_linear_search(kRegisteredFieldTrials, name) ||
-               TestKeys().contains(name)))
-      << name << " is not registered, see g3doc/field-trials.md.";
-#endif
-
-  if (trials_init_string == nullptr)
-    return std::string();
-
-  absl::string_view trials_string(trials_init_string);
-  if (trials_string.empty())
-    return std::string();
-
-  size_t next_item = 0;
-  while (next_item < trials_string.length()) {
-    // Find next name/value pair in field trial configuration string.
-    size_t field_name_end =
-        trials_string.find(kPersistentStringSeparator, next_item);
-    if (field_name_end == trials_string.npos || field_name_end == next_item)
-      break;
-    size_t field_value_end =
-        trials_string.find(kPersistentStringSeparator, field_name_end + 1);
-    if (field_value_end == trials_string.npos ||
-        field_value_end == field_name_end + 1)
-      break;
-    absl::string_view field_name =
-        trials_string.substr(next_item, field_name_end - next_item);
-    absl::string_view field_value = trials_string.substr(
-        field_name_end + 1, field_value_end - field_name_end - 1);
-    next_item = field_value_end + 1;
-
-    if (name == field_name)
-      return std::string(field_value);
-  }
-  return std::string();
-}
-#endif  // WEBRTC_EXCLUDE_FIELD_TRIAL_DEFAULT
-
 // Optionally initialize field trial from a string.
 void InitFieldTrialsFromString(const char* trials_string) {
   RTC_LOG(LS_INFO) << "Setting field trial string:" << trials_string;
@@ -171,15 +118,6 @@ void InitFieldTrialsFromString(const char* trials_string) {
 
 const char* GetFieldTrialString() {
   return trials_init_string;
-}
-
-FieldTrialsAllowedInScopeForTesting::FieldTrialsAllowedInScopeForTesting(
-    flat_set<std::string> keys) {
-  TestKeys() = std::move(keys);
-}
-
-FieldTrialsAllowedInScopeForTesting::~FieldTrialsAllowedInScopeForTesting() {
-  TestKeys().clear();
 }
 
 }  // namespace field_trial

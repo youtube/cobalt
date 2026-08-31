@@ -14,7 +14,7 @@
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/extensions/extensions_dialogs.h"
+#include "chrome/browser/ui/extensions/reload_page_dialog_controller.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_controller.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_coordinator.h"
 #include "chrome/browser/ui/views/extensions/extensions_menu_main_page_view.h"
@@ -1413,19 +1413,15 @@ IN_PROC_BROWSER_TEST_F(ExtensionsMenuMainPageViewInteractiveTest,
 
   auto extension =
       InstallExtensionWithHostPermissions("All Urls Extension", "<all_urls>");
+  // Automatically accept the reload page dialog that appears when changing site
+  // access.
+  auto reload_page_dialog_reset =
+      extensions::ReloadPageDialogController::AcceptDialogForTesting(true);
 
   RunTestSequence(
       InstrumentTab(kTab),
       NavigateWebContents(
           kTab, embedded_test_server()->GetURL("example.com", "/title1.html")),
-      // Automatically accept the reload page dialog that appears when
-      // changing site access.
-      Do([&]() {
-        content::WebContents* web_contents =
-            browser()->tab_strip_model()->GetActiveWebContents();
-        extensions::ExtensionActionRunner::GetForWebContents(web_contents)
-            ->accept_bubble_for_testing(true);
-      }),
 
       OpenExtensionsMenu(),
       CheckView(

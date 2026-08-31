@@ -31,6 +31,7 @@
 
 #include "base/bits.h"
 #include "base/feature_list.h"
+#include "base/memory/platform_shared_memory_region.h"
 #include "base/system/sys_info.h"
 #include "gin/array_buffer.h"
 #include "partition_alloc/oom.h"
@@ -248,11 +249,11 @@ void* ArrayBufferContents::AllocateMemory(size_t size,
 #endif
   void* data;
   if (policy == kZeroInitialize) {
-    data = WTF::Partitions::ArrayBufferPartition()
+    data = Partitions::ArrayBufferPartition()
                ->Alloc<new_flags | partition_alloc::AllocFlags::kZeroFill>(
                    size, WTF_HEAP_PROFILER_TYPE_NAME(ArrayBufferContents));
   } else {
-    data = WTF::Partitions::ArrayBufferPartition()->Alloc<new_flags>(
+    data = Partitions::ArrayBufferPartition()->Alloc<new_flags>(
         size, WTF_HEAP_PROFILER_TYPE_NAME(ArrayBufferContents));
   }
 
@@ -276,10 +277,10 @@ void ArrayBufferContents::FreeMemory(void* data) {
       InstanceCounters::kArrayBufferContentsCounter);
 #ifdef V8_ENABLE_SANDBOX
   // See |AllocateMemory|.
-  WTF::Partitions::ArrayBufferPartition()
+  Partitions::ArrayBufferPartition()
       ->Free<partition_alloc::FreeFlags::kNoMemoryToolOverride>(data);
 #else
-  WTF::Partitions::ArrayBufferPartition()->Free(data);
+  Partitions::ArrayBufferPartition()->Free(data);
 #endif
 }
 

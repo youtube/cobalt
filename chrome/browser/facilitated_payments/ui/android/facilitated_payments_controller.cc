@@ -5,13 +5,16 @@
 #include "chrome/browser/facilitated_payments/ui/android/facilitated_payments_controller.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
 #include "base/containers/span.h"
 #include "base/functional/callback_helpers.h"
 #include "components/autofill/core/browser/data_model/payments/bank_account.h"
 #include "components/autofill/core/browser/data_model/payments/ewallet.h"
+#include "components/facilitated_payments/core/browser/facilitated_payments_app_info_list.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -44,16 +47,23 @@ void FacilitatedPaymentsController::Show(
   on_payment_account_selected_ = std::move(on_payment_account_selected);
 }
 
-void FacilitatedPaymentsController::ShowForEwallet(
+void FacilitatedPaymentsController::ShowForPaymentLink(
     base::span<const autofill::Ewallet> ewallet_suggestions,
-    base::OnceCallback<void(int64_t)> on_payment_account_selected) {
-  // Abort if there are no eWallets.
-  if (ewallet_suggestions.empty()) {
+    std::unique_ptr<payments::facilitated::FacilitatedPaymentsAppInfoList>
+        app_suggestions,
+    base::OnceCallback<void(int64_t)> on_payment_account_selected,
+    base::OnceCallback<void(std::string_view, std::string_view)>
+        on_payment_app_selected) {
+  // Abort if there are no eWallets and no payment apps.
+  if (ewallet_suggestions.empty() &&
+      (app_suggestions == nullptr || app_suggestions->Size() == 0)) {
     return;
   }
 
-  view_->RequestShowContentForEwallet(std::move(ewallet_suggestions));
+  view_->RequestShowContentForPaymentLink(std::move(ewallet_suggestions),
+                                          std::move(app_suggestions));
   on_payment_account_selected_ = std::move(on_payment_account_selected);
+  on_payment_app_selected_ = std::move(on_payment_app_selected);
 }
 
 void FacilitatedPaymentsController::ShowProgressScreen() {
@@ -84,6 +94,7 @@ void FacilitatedPaymentsController::OnUiEvent(JNIEnv* env, jint event) {
   payments::facilitated::UiEvent ui_event =
       static_cast<payments::facilitated::UiEvent>(event);
   switch (ui_event) {
+    case payments::facilitated::UiEvent::kScreenCouldNotBeShown:
     case payments::facilitated::UiEvent::kScreenClosedNotByUser:
     case payments::facilitated::UiEvent::kScreenClosedByUser:
       ClearJavaViewComponents();
@@ -110,18 +121,37 @@ void FacilitatedPaymentsController::OnEwalletSelected(JNIEnv* env,
   }
 }
 
-void FacilitatedPaymentsController::ShowPixAccountLinkingPrompt() {
+void FacilitatedPaymentsController::OnPaymentAppSelected(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jstring>& j_package_name,
+    const base::android::JavaParamRef<jstring>& j_activity_name) {
+  if (on_payment_app_selected_) {
+    std::move(on_payment_app_selected_)
+        .Run(base::android::ConvertJavaStringToUTF8(env, j_package_name),
+             base::android::ConvertJavaStringToUTF8(env, j_activity_name));
+  }
+}
+
+void FacilitatedPaymentsController::ShowPixAccountLinkingPrompt(
+    base::OnceCallback<void()> on_accepted,
+    base::OnceCallback<void()> on_declined) {
+  on_pix_account_linking_prompt_accepted_ = std::move(on_accepted);
+  on_pix_account_linking_prompt_declined_ = std::move(on_declined);
   view_->ShowPixAccountLinkingPrompt();
 }
 
 void FacilitatedPaymentsController::OnPixAccountLinkingPromptAccepted(
     JNIEnv* env) {
-  // TODO(crbug.com/417330610): Implement the callback.
+  if (on_pix_account_linking_prompt_accepted_) {
+    std::move(on_pix_account_linking_prompt_accepted_).Run();
+  }
 }
 
 void FacilitatedPaymentsController::OnPixAccountLinkingPromptDeclined(
     JNIEnv* env) {
-  // TODO(crbug.com/417330610): Implement the callback.
+  if (on_pix_account_linking_prompt_declined_) {
+    std::move(on_pix_account_linking_prompt_declined_).Run();
+  }
 }
 
 base::android::ScopedJavaLocalRef<jobject>

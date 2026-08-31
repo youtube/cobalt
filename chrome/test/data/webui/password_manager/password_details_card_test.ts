@@ -352,7 +352,6 @@ suite('PasswordDetailsCardTest', function() {
   // <if expr="_google_chrome">
   test('share button available when sync enabled', async function() {
     syncProxy.syncInfo = {
-      isEligibleForAccountStorage: false,
       isSyncingPasswords: true,
     };
 
@@ -374,7 +373,6 @@ suite('PasswordDetailsCardTest', function() {
 
   test('share button available for account store users', async function() {
     syncProxy.syncInfo = {
-      isEligibleForAccountStorage: true,
       isSyncingPasswords: false,
     };
 
@@ -390,7 +388,6 @@ suite('PasswordDetailsCardTest', function() {
 
   test('sharing disabled by policy', async function() {
     syncProxy.syncInfo = {
-      isEligibleForAccountStorage: false,
       isSyncingPasswords: true,
     };
 
@@ -409,7 +406,6 @@ suite('PasswordDetailsCardTest', function() {
 
   test('sharing unavailable for federated credentials', async function() {
     syncProxy.syncInfo = {
-      isEligibleForAccountStorage: false,
       isSyncingPasswords: true,
     };
 
@@ -425,7 +421,6 @@ suite('PasswordDetailsCardTest', function() {
 
   test('share button unavailable when sync disabled', async function() {
     syncProxy.syncInfo = {
-      isEligibleForAccountStorage: false,
       isSyncingPasswords: false,
     };
 
@@ -444,7 +439,6 @@ suite('PasswordDetailsCardTest', function() {
       async function() {
         passwordManager.data.isAccountStorageEnabled = true;
         syncProxy.syncInfo = {
-          isEligibleForAccountStorage: true,
           isSyncingPasswords: false,
         };
 

@@ -54,7 +54,8 @@ TEST_F(ReplaceSelectionCommandTest, pastingEmptySpan) {
       GetDocument(), fragment, options);
 
   EXPECT_TRUE(command->Apply()) << "the replace command should have succeeded";
-  EXPECT_EQ("foo", GetDocument().body()->innerHTML()) << "no DOM tree mutation";
+  EXPECT_EQ("foo", GetDocument().body()->GetInnerHTMLString())
+      << "no DOM tree mutation";
 }
 
 // This is a regression test for https://crbug.com/668808
@@ -79,7 +80,7 @@ TEST_F(ReplaceSelectionCommandTest, pasteSpanInText) {
       GetDocument(), fragment, options);
 
   EXPECT_TRUE(command->Apply()) << "the replace command should have succeeded";
-  EXPECT_EQ("<b>t</b>bar<b>ext</b>", GetDocument().body()->innerHTML())
+  EXPECT_EQ("<b>t</b>bar<b>ext</b>", GetDocument().body()->GetInnerHTMLString())
       << "'bar' should have been inserted";
 }
 
@@ -314,6 +315,32 @@ TEST_F(ReplaceSelectionCommandTest, InsertLineFeedsToTextArea) {
         GetSelectionTextInFlatTreeFromBody(
             Selection().ComputeVisibleSelectionInFlatTree().AsSelection()));
   }
+}
+
+TEST_F(ReplaceSelectionCommandTest, TrivialFragmentTextDataForInputEvent) {
+  SetBodyContent("<textarea></textarea>");
+  Element* textarea = QuerySelector("textarea");
+  textarea->Focus();
+
+  // Create a fragment with span wrapper around text content
+  DocumentFragment& fragment = *GetDocument().createDocumentFragment();
+  Element* span = GetDocument().CreateRawElement(html_names::kSpanTag);
+  span->appendChild(Text::Create(GetDocument(), "test content"));
+  fragment.appendChild(span);
+
+  // Use insertFromDrop input type to test the TextDataForInputEvent
+  // functionality
+  auto& command = *MakeGarbageCollected<ReplaceSelectionCommand>(
+      GetDocument(), &fragment, /* options */ 0,
+      InputEvent::InputType::kInsertFromDrop);
+
+  // Apply the command
+  EXPECT_TRUE(command.Apply()) << "ReplaceSelectionCommand should succeed";
+
+  // After Apply(), verify TextDataForInputEvent returns the correct text.
+  String result = command.TextDataForInputEvent();
+  EXPECT_EQ("test content", result) << "TextDataForInputEvent should return "
+                                       "the correct trivial text after Apply";
 }
 
 }  // namespace blink

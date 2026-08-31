@@ -32,7 +32,6 @@
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/web_contents.h"
-#include "ipc/ipc_message.h"
 #include "url/gurl.h"
 
 using content::BrowserThread;
@@ -242,8 +241,7 @@ bool SafeBrowsingUIManager::ShouldSendHitReport(HitReport* hit_report,
                                                 WebContents* web_contents) {
   return web_contents &&
          hit_report->extended_reporting_level != SBER_LEVEL_OFF &&
-         !web_contents->GetBrowserContext()->IsOffTheRecord() &&
-         delegate_->IsSendingOfHitReportsEnabled();
+         !web_contents->GetBrowserContext()->IsOffTheRecord();
 }
 
 bool SafeBrowsingUIManager::ShouldSendClientSafeBrowsingWarningShownReport(

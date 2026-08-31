@@ -186,6 +186,8 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
   BOOL _isDarkMode;
   /// The last commited progress to the loading bar.
   float _lastCommitedProgress;
+  /// Most recent loaded HTTP headers.
+  NSDictionary<NSString*, NSString*>* _latestHttpHeaders;
 }
 
 - (instancetype)
@@ -252,13 +254,14 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
     // The web view is hidden until the page fully loads to prevent a brief
     // flash of mixed dark and light UI elements.
     [_consumer setWebViewHidden:YES];
-    [self loadResultsURL:latestLoadedURL];
+    [self loadResultsURL:latestLoadedURL httpHeaders:_latestHttpHeaders];
   }
 }
 
 #pragma mark - LensOverlayResultConsumer
 
-- (void)loadResultsURL:(GURL)URL {
+- (void)loadResultsURL:(GURL)URL
+           httpHeaders:(NSDictionary<NSString*, NSString*>*)httpHeaders {
   CHECK(_webState, kLensOverlayNotFatalUntil);
 
   // Add light/dark mode query parameter.
@@ -272,9 +275,16 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
   web::NavigationManager::WebLoadParams webParams =
       web::NavigationManager::WebLoadParams(URL);
 
-  // Add variation headers.
-  webParams.extra_headers =
-      web_navigation_util::VariationHeadersForURL(URL, _isIncognito);
+  // Keep track of the latest non-nil headers.
+  if (httpHeaders) {
+    _latestHttpHeaders = [httpHeaders copy];
+  }
+  NSMutableDictionary<NSString*, NSString*>* headers =
+      [_latestHttpHeaders mutableCopy] ?: [NSMutableDictionary dictionary];
+  // Add variation headers last, because they have precedence.
+  [headers addEntriesFromDictionary:web_navigation_util::VariationHeadersForURL(
+                                        URL, _isIncognito)];
+  webParams.extra_headers = headers;
 
   _webState->GetNavigationManager()->LoadURLWithParams(webParams);
 }
@@ -331,10 +341,15 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
         didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kWebNavigation];
   } else if (lens::IsLensAIMSRP(URL) &&
              !base::FeatureList::IsEnabled(kLensLoadAIMInLensResultPage)) {
+    decisionHandler(web::WebStatePolicyDecider::PolicyDecision::Cancel());
+
+    // AIM SRP requires lns_surface, but we can't use Chromnient's (4), so use
+    // CHROME_SEARCH.
+    URL = net::AppendOrReplaceQueryParameter(URL, "lns_surface", "45");
     [self.delegate lensResultPageOpenURLInNewTabRequsted:URL];
     [self.delegate
          lensResultPageMediator:self
-        didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kWebNavigation];
+        didOpenNewTabFromSource:lens::LensOverlayNewTabSource::kExploreBarTab];
   } else {
     decisionHandler(web::WebStatePolicyDecider::PolicyDecision::Allow());
   }
@@ -418,8 +433,7 @@ inline constexpr char kDarkModeParameterDarkValue[] = "1";
 }
 
 - (void)closeWebState:(web::WebState*)webState {
-  // This should not happen in the result page.
-  NOTREACHED(kLensOverlayNotFatalUntil);
+  [self.delegate lensResultPageWebStateDestroyed];
 }
 
 - (web::WebState*)webState:(web::WebState*)webState

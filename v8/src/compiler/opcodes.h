@@ -235,6 +235,7 @@
   V(JSForInNext)                       \
   V(JSForInPrepare)                    \
   V(JSGetIterator)                     \
+  V(JSForOfNext)                       \
   V(JSLoadMessage)                     \
   V(JSStoreMessage)                    \
   V(JSLoadModule)                      \
@@ -271,6 +272,7 @@
   V(ChangeTaggedToUint32)                     \
   V(ChangeTaggedToFloat64)                    \
   V(ChangeTaggedToTaggedSigned)               \
+  V(ChangeNumberOrHoleToFloat64)              \
   V(ChangeInt31ToTaggedSigned)                \
   V(ChangeInt32ToTagged)                      \
   V(ChangeInt64ToTagged)                      \
@@ -284,7 +286,8 @@
   V(ChangeInt64ToBigInt)                      \
   V(ChangeUint64ToBigInt)                     \
   V(TruncateBigIntToWord64)                   \
-  V(TruncateTaggedToWord32)                   \
+  V(TruncateNumberOrOddballToWord32)          \
+  V(TruncateNumberOrOddballOrHoleToWord32)    \
   V(TruncateTaggedToFloat64)                  \
   V(TruncateTaggedToFloat64PreserveUndefined) \
   V(TruncateTaggedToBit)                      \
@@ -307,6 +310,7 @@
   V(CheckedInt64Mod)                     \
   V(CheckedInt32ToTaggedSigned)          \
   V(CheckedInt64ToInt32)                 \
+  V(CheckedInt64ToAdditiveSafeInteger)   \
   V(CheckedInt64ToTaggedSigned)          \
   V(CheckedUint32Bounds)                 \
   V(CheckedUint32ToInt32)                \
@@ -342,6 +346,7 @@
   V(StringEqual)                         \
   V(StringLessThan)                      \
   V(StringLessThanOrEqual)               \
+  V(StringOrOddballStrictEqual)          \
   V(BigIntEqual)                         \
   V(BigIntLessThan)                      \
   V(BigIntLessThanOrEqual)               \
@@ -475,6 +480,7 @@
   V(CheckSmi)                               \
   V(CheckString)                            \
   V(CheckStringOrStringWrapper)             \
+  V(CheckStringOrOddball)                   \
   V(CheckSymbol)                            \
   V(CheckTurboshaftTypeOf)                  \
   V(CompareMaps)                            \
@@ -1474,6 +1480,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
       case kJSForInNext:
       case kJSForInPrepare:
       case kJSGetIterator:
+      case kJSForOfNext:
       case kJSGetTemplateObject:
       case kJSHasProperty:
       case kJSInstanceOf:

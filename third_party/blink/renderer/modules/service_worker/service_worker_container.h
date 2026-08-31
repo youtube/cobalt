@@ -56,12 +56,12 @@ namespace blink {
 
 class ExecutionContext;
 class ExceptionState;
-class LocalDOMWindow;
 class ServiceWorkerRegistration;
+class V8UnionTrustedScriptURLOrUSVString;
 
 class MODULES_EXPORT ServiceWorkerContainer final
     : public EventTarget,
-      public Supplement<LocalDOMWindow>,
+      public Supplement<ExecutionContext>,
       public ExecutionContextLifecycleObserver,
       public WebServiceWorkerProviderClient {
   DEFINE_WRAPPERTYPEINFO();
@@ -69,13 +69,13 @@ class MODULES_EXPORT ServiceWorkerContainer final
  public:
   static const char kSupplementName[];
 
-  static ServiceWorkerContainer* From(LocalDOMWindow&);
+  static ServiceWorkerContainer* From(ExecutionContext&);
 
   static ServiceWorkerContainer* CreateForTesting(
-      LocalDOMWindow&,
+      ExecutionContext&,
       std::unique_ptr<WebServiceWorkerProvider>);
 
-  explicit ServiceWorkerContainer(LocalDOMWindow&);
+  explicit ServiceWorkerContainer(ExecutionContext&);
   ~ServiceWorkerContainer() override;
 
   void Trace(Visitor*) const override;
@@ -85,13 +85,19 @@ class MODULES_EXPORT ServiceWorkerContainer final
 
   ScriptPromise<ServiceWorkerRegistration> registerServiceWorker(
       ScriptState*,
-      const String& pattern,
-      const RegistrationOptions*);
+      const V8UnionTrustedScriptURLOrUSVString* scriptURL,
+      const RegistrationOptions*,
+      ExceptionState&);
   ScriptPromise<ServiceWorkerRegistration> getRegistration(
       ScriptState*,
       const String& document_url);
   ScriptPromise<IDLSequence<ServiceWorkerRegistration>> getRegistrations(
       ScriptState*);
+
+  ScriptPromise<ServiceWorkerRegistration>
+  registerServiceWorkerWithoutTrustedTypes(ScriptState*,
+                                           const String& scriptURL,
+                                           const RegistrationOptions*);
 
   void startMessages();
 

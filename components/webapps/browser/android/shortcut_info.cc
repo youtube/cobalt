@@ -9,6 +9,7 @@
 
 #include "base/android/build_info.h"
 #include "base/feature_list.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/android_buildflags.h"
 #include "components/webapps/browser/android/webapps_icon_utils.h"
@@ -305,10 +306,6 @@ void ShortcutInfo::UpdateDisplayMode(bool webapk_compatible) {
   if (webapk_compatible) {
     if (!IsWebApkDisplayMode(display)) {
       display = DisplayMode::kMinimalUi;
-    }
-  } else if (base::android::BuildInfo::GetInstance()->is_desktop()) {
-    if (!IsWebApkDisplayMode(display)) {
-      display = DisplayMode::kStandalone;
     }
   } else {
     if (IsWebApkDisplayMode(display)) {

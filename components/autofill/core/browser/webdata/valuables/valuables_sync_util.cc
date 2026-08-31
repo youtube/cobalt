@@ -4,7 +4,6 @@
 
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 
-#include "base/uuid.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
 #include "url/gurl.h"
 
@@ -68,6 +67,7 @@ bool AreAutofillLoyaltyCardSpecificsValid(
 
   return !specifics.id().empty() && specifics.has_loyalty_card() &&
          !specifics.loyalty_card().loyalty_card_number().empty() &&
+         !specifics.loyalty_card().merchant_name().empty() &&
          HasEmptyOrValidProgramLogo(specifics);
 }
 

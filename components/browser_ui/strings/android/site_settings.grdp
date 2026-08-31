@@ -127,6 +127,15 @@
   <message name="IDS_STORAGE_ACCESS_PERMISSION_TITLE" desc="Title of the permission to allow embedded content to access cookies and site data [CHAR_LIMIT=32]">
     Embedded content
   </message>
+  <message name="IDS_LOCAL_NETWORK_ACCESS_PERMISSION_TITLE" desc="Title of the permission for Local Network Access [CHAR_LIMIT=32]">
+    Local network access
+  </message>
+  <message name="IDS_WINDOW_MANAGEMENT_PERMISSION_TITLE" desc="Title of the permission for Window Management [CHAR_LIMIT=32]">
+    Window management
+  </message>
+  <message name="IDS_AUTO_PICTURE_IN_PICTURE_PERMISSION_TITLE" desc="Title of the permission for Automatic Picture-in-Picture [CHAR_LIMIT=32]">
+    Automatic picture-in-picture
+  </message>
 
   <!-- Site settings global toggles -->
 
@@ -179,6 +188,9 @@
   </message>
   <message name="IDS_WEBSITE_SETTINGS_CATEGORY_PERMISSION_TITLE" desc="Label as the title for the CPSS permission prompt.">
     How to show requests
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_REVOKE_PERMISSION" desc="Label for X button to revoke one time permission.">
+    Revoke permission
   </message>
 
   <!-- Site settings: general category strings -->
@@ -254,6 +266,12 @@
   <message name="IDS_WEBSITE_SETTINGS_PERMISSIONS_BLOCK" desc="Summary text explaining that Chrome will block a website from accessing some permission, e.g. JavaScript: block.">
     Block
   </message>
+  <message name="IDS_WEBSITE_SETTINGS_PERMISSIONS_GEOLOCATION_APPROXIMATE" desc="Summary text explaining that Chrome will allow a website to access approximate geolocation.">
+    Approximate
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_PERMISSIONS_GEOLOCATION_PRECISE" desc="Summary text explaining that Chrome will allow a website to access precise geolocation.">
+    Precise
+  </message>
   <message name="IDS_WEBSITE_SETTINGS_DOMAIN_EXCEPTION_LABEL" desc="The label for site exceptions that apply to the entire domain.">
     All sites under <ph name="DOMAIN">%1$s<ex>google.com</ex></ph>
   </message>
@@ -295,6 +313,9 @@
   </message>
   <message name="IDS_WEBSITE_SETTINGS_EDIT_SITE_DIALOG_DESCRIPTION" desc="The description of the dialog to edit permissions for a website from a list.">
     Select an option for <ph name="SITE_NAME">%1$s<ex>google.com</ex></ph>
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_EDIT_SITE_DIALOG_GEOLOCATION_ACCESS_DESCRIPTION" desc="The description of the dialog to edit geolocation access for a website from a list.">
+    Location access for this site
   </message>
 
   <!-- Site settings Delete Data Dialog and other ways of resetting permissions -->
@@ -525,6 +546,10 @@
   </message>
   <message name="IDS_WEBSITE_SETTINGS_JAVASCRIPT_OPTIMIZER_BLOCKED" desc="Primary text corresponding to the block button in the V8 optimizer permission radio button group.">
     Do not speed up sites with Chrome's V8 engine but make Chrome slightly more resistant to attacks
+  </message>
+
+  <message name="IDS_WEBSITE_SETTINGS_JS_OPT_ADD_EXCEPTIONS_DISABLED_REASON" desc="Explains that the add-exception button is disabled because the Android device does not have enough RAM.">
+    Exceptions for specific websites disallowed because Android device does not have enough RAM.
   </message>
 
   <!-- Bluetooth -->
@@ -1193,6 +1218,68 @@
     Don't allow sites to connect to serial ports
   </message>
 
+  <!-- Local Network Access -->
+  <message name="IDS_WEBSITE_SETTINGS_LOCAL_NETWORK_ACCESS_PAGE_DESCRIPTION" desc="Description of the local network access content setting.">
+    Sites can use this feature to look for and connect to any device on your local network
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_LOCAL_NETWORK_ACCESS_ASK" desc="Summary text explaining that sites need to ask for permission before they can connect to any devices on the user's local network.">
+    Sites can ask to connect to any device on your local network
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_LOCAL_NETWORK_ACCESS_BLOCKED" desc="Summary text explaining that sites are blocked from making local network requests.">
+    Don’t allow sites to connect to any device on your local network
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_LOCAL_NETWORK_ACCESS_A11Y" desc="The screen reader announcement describing a toggle with two states, controling whether sites can request permission to connect to devices on the user's local network. It is important to keep this string as two full sentences terminated by a period.">
+    When on, sites can ask to connect to any device on your local network. When off, sites can’t connect to devices on your local network.
+  </message>
+
+  <message name="IDS_WEBSITE_SETTINGS_LOCAL_NETWORK_ACCESS_ASK" desc="Primary text corresponding to the ask button in the Local Network Access permission radio button group.">
+    Sites can ask to connect to any device on your local network
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_LOCAL_NETWORK_ACCESS_BLOCK" desc="Primary text corresponding to the block button in the Local Network Access permission radio button group.">
+    Don’t allow sites to connect to any device on your local network
+  </message>
+
+  <!-- Window Management -->
+  <message name="IDS_WEBSITE_SETTINGS_WINDOW_MANAGEMENT_PAGE_DESCRIPTION" desc="Description of the window management content setting.">
+    Sites can use this feature to manage windows on all your displays
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_WINDOW_MANAGEMENT_ASK" desc="Summary text explaining that sites need to ask for permission before they can manage windows on all user's displays.">
+    Sites can ask to manage windows on all your displays
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_WINDOW_MANAGEMENT_BLOCKED" desc="Summary text explaining that sites are blocked from making manage windows requests.">
+    Don’t allow sites to manage windows on all your displays
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_WINDOW_MANAGEMENT_A11Y" desc="The screen reader announcement describing a toggle with two states, controling whether sites can request permission to manage windows on all user's displays. It is important to keep this string as two full sentences terminated by a period.">
+    When on, sites can ask to manage windows on all your displays. When off, sites can’t manage windows on all your displays.
+  </message>
+
+  <message name="IDS_WEBSITE_SETTINGS_WINDOW_MANAGEMENT_ASK" desc="Primary text corresponding to the ask button in the window management permission radio button group.">
+    Sites can ask to manage windows on all your displays
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_WINDOW_MANAGEMENT_BLOCK" desc="Primary text corresponding to the block button in the window management permission radio button group.">
+    Don’t allow sites to manage windows on all your displays
+  </message>
+
+    <!-- Automatic Picture-in-Picture -->
+  <message name="IDS_WEBSITE_SETTINGS_AUTOMATIC_PICTURE_IN_PICTURE_PAGE_DESCRIPTION" desc="Description of the automatic picture-in-picture content setting.">
+    Sites use this feature to enter picture-in-picture automatically. This lets you continue watching a video, while freeing up your screen for other tasks.
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_AUTOMATIC_PICTURE_IN_PICTURE_ALLOWED" desc="Summary text explaining that sites are alllowed to enter picture-in-picture automatically.">
+   Sites can enter picture-in-picture automatically
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_AUTOMATIC_PICTURE_IN_PICTURE_BLOCKED" desc="Summary text explaining that sites are blocked from entering picture-in-picture automatically.">
+    Don't allow sites to enter picture-in-picture automatically
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_CATEGORY_AUTOMATIC_PICTURE_IN_PICTURE_A11Y" desc="The screen reader announcement describing a toggle with two states, controling whether sites can enter picture-in-picture automatically. It is important to keep this string as two full sentences terminated by a period.">
+    When on, sites can enter picture-in-picture automatically. When off, sites can’t enter picture-in-picture automatically.
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_AUTOMATIC_PICTURE_IN_PICTURE_ALLOW" desc="Primary text corresponding to the ask button in the automatic picture-in-picture permission radio button group.">
+    Sites can enter picture-in-picture automatically
+  </message>
+  <message name="IDS_WEBSITE_SETTINGS_AUTOMATIC_PICTURE_IN_PICTURE_BLOCK" desc="Primary text corresponding to the block button in the automatic picture-in-picture permission radio button group.">
+    Don't allow sites to enter picture-in-picture automatically
+  </message>
+
   <!-- Advanced protection -->
   <message name="IDS_SETTINGS_PRIVACY_AND_SECURITY_ADVANCED_PROTECTION_SECTION_TITLE" desc="Title for section on privacy settings page. Section displays information about how Android-OS advanced-protection 'on' setting affects Chrome settings. Section is shown for for a few days after the user has turned on advanced-protection in Android-OS-settings.">
     Advanced Protection is on
@@ -1203,5 +1290,40 @@ Manage in <ph name="BEGIN_LINK1">&lt;link_android_advanced_protection&gt;</ph>An
 Advanced Protection controls these Chrome settings:
 • "Always use secure connections" is on.
 • "Javascript optimizer" is off. <ph name="BEGIN_LINK2">&lt;link_javascript_optimizer&gt;</ph>Manage Site exceptions<ph name="END_LINK2">&lt;/link_javascript_optimizer&gt;</ph>
+  </message>
+
+  <!-- Permission result announcement -->
+  <message name="IDS_PERMISSIONS_NOTIFICATION_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a notification permission requested has been granted.">
+    Notifications allowed
+  </message>
+  <message name="IDS_PERMISSIONS_NOTIFICATION_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a notification permission requested has been denied.">
+    Notifications not allowed
+  </message>
+  <message name="IDS_PERMISSIONS_GEOLOCATION_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a location permission requested has been granted.">
+    Location allowed
+  </message>
+  <message name="IDS_PERMISSIONS_GEOLOCATION_ALLOWED_ONCE_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a location permission requested has been granted once.">
+      Location allowed this time
+  </message>
+  <message name="IDS_PERMISSIONS_GEOLOCATION_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a location permission requested has been denied.">
+    Location not allowed
+  </message>
+  <message name="IDS_PERMISSIONS_CAMERA_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a camera permission requested has been granted.">
+    Camera allowed
+  </message>
+  <message name="IDS_PERMISSIONS_CAMERA_ALLOWED_ONCE_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a camera permission requested has been granted once.">
+      Camera allowed this time
+  </message>
+  <message name="IDS_PERMISSIONS_CAMERA_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a camera permission requested has been denied.">
+    Camera not allowed
+  </message>
+  <message name="IDS_PERMISSIONS_MICROPHONE_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a microphone permission requested has been granted.">
+    Microphone allowed
+  </message>
+  <message name="IDS_PERMISSIONS_MICROPHONE_ALLOWED_ONCE_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a microphone permission requested has been granted once.">
+      Microphone allowed this time
+  </message>
+  <message name="IDS_PERMISSIONS_MICROPHONE_NOT_ALLOWED_CONFIRMATION_SCREENREADER_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Announcement to screen readers confirming that a microphone permission requested has been denied.">
+    Microphone not allowed
   </message>
 </grit-part>

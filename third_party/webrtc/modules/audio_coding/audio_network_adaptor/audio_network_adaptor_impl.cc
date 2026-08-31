@@ -10,9 +10,8 @@
 
 #include "modules/audio_coding/audio_network_adaptor/audio_network_adaptor_impl.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <optional>

@@ -33,7 +33,7 @@ public class AddressEditorCoordinator {
     private @Nullable PropertyModel mEditorModel;
 
     /** Delegate used to subscribe to AddressEditor user interactions. */
-    public static interface Delegate {
+    public interface Delegate {
         /**
          * The user has tapped "Done" button.
          *
@@ -50,6 +50,12 @@ public class AddressEditorCoordinator {
          * @param autofillAddress the initial autofill address with no user changes.
          */
         default void onDelete(AutofillAddress autofillAddress) {}
+
+        /**
+         * The user has requested to edit an address which cannot be modified in Chrome, such as a
+         * Home or Work profile address.
+         */
+        default void onExternalEdit(AutofillProfile profile) {}
     }
 
     /** Different types of user flows this editor supports. */

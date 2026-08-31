@@ -135,7 +135,15 @@ SK_API void SkDebugf_FileLine(const char* file,
 
 #define SK_AVOID_SLOW_RASTER_PIPELINE_BLURS
 
-#define SK_USE_LEGACY_UNIFORM_LIFTING_GRAPHITE
+#define SK_SUPPORT_UNSPANNED_APIS
+
+#define SK_DISABLE_LEGACY_NONRECORDER_IMAGE_APIS
+
+#define SK_DISABLE_BLUR_OVERSCALING
+
+#define SK_SUPPORT_LEGACY_RRECT_TRANSFORM
+
+#define SK_ENABLE_SKOTTIE_FILLRULE
 
 ///////////////////////// Imported from BUILD.gn and skia_common.gypi
 

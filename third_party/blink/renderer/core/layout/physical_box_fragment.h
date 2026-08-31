@@ -444,10 +444,11 @@ class CORE_EXPORT PhysicalBoxFragment final : public PhysicalFragment {
     return bit_field_.get<IsMonolithicOverflowPropagationDisabledFlag>();
   }
 
-  // Returns true if we've called moved children in the block direction (for
-  // alignment). See: `BoxFragmentBuilder::MoveChildrenInBlockDirection`.
-  bool HasMovedChildrenInBlockDirection() const {
-    return bit_field_.get<HasMovedChildrenInBlockDirectionFlag>();
+  // Returns true if we've called moved children in the block or inline
+  // direction (for alignment). See:
+  // `BoxFragmentBuilder::MoveChildrenInDirection`.
+  bool HasMovedChildren() const {
+    return bit_field_.get<HasMovedChildrenFlag>();
   }
 
 #if DCHECK_IS_ON()
@@ -615,9 +616,9 @@ class CORE_EXPORT PhysicalBoxFragment final : public PhysicalFragment {
 #endif
 
  private:
-  using BitField = WTF::ConcurrentlyReadBitField<uint32_t>;
+  using BitField = ConcurrentlyReadBitField<uint32_t>;
   using ConstHasFragmentItemsFlag =
-      BitField::DefineFirstValue<bool, 1, WTF::BitFieldValueConstness::kConst>;
+      BitField::DefineFirstValue<bool, 1, BitFieldValueConstness::kConst>;
   using IsInlineFormattingContextFlag =
       ConstHasFragmentItemsFlag::DefineNextValue<bool, 1>;
   using IncludeBorderTopFlag =
@@ -636,7 +637,7 @@ class CORE_EXPORT PhysicalBoxFragment final : public PhysicalFragment {
       IsFragmentationContextRootFlag::DefineNextValue<bool, 1>;
   using IsMonolithicOverflowPropagationDisabledFlag =
       IsMonolithicFlag::DefineNextValue<bool, 1>;
-  using HasMovedChildrenInBlockDirectionFlag =
+  using HasMovedChildrenFlag =
       IsMonolithicOverflowPropagationDisabledFlag::DefineNextValue<bool, 1>;
 
   bool IncludeBorderTop() const {

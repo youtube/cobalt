@@ -26,14 +26,16 @@ static_library("safe_browsing") {
     "//chrome/browser:browser_process",
     "//chrome/browser/google",
     "//chrome/browser/optimization_guide",
+    "//chrome/browser/password_manager/factories",
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/browser/sync",
     "//chrome/browser/ui/autofill",
     "//chrome/common",
     "//chrome/common:constants",
     "//components/browser_sync",
-    "//components/enterprise:enterprise",
+    "//components/enterprise",
     "//components/enterprise/buildflags",
     "//components/enterprise/common:strings",
     "//components/enterprise/obfuscation/core:enterprise_obfuscation",
@@ -48,9 +50,10 @@ static_library("safe_browsing") {
     "//components/resources:components_resources_grit",
     "//components/safe_browsing:buildflags",
     "//components/safe_browsing/content/browser",
-    "//components/safe_browsing/content/browser/notification_content_detection:notification_content_detection",
+    "//components/safe_browsing/content/browser/notification_content_detection",
     "//components/safe_browsing/content/browser/triggers:suspicious_site_trigger",
     "//components/safe_browsing/content/browser/web_ui",
+    "//components/safe_browsing/content/browser/web_ui:local_state_delegate",
     "//components/safe_browsing/core/browser",
     "//components/safe_browsing/core/browser:download_check_result",
     "//components/safe_browsing/core/browser:referrer_chain_provider",
@@ -68,11 +71,16 @@ static_library("safe_browsing") {
     "//components/sessions",
     "//components/signin/public/identity_manager",
     "//components/url_formatter",
-    "//components/vector_icons:vector_icons",
+    "//components/vector_icons",
     "//mojo/public/cpp/platform",
     "//mojo/public/cpp/system",
+    "//services/metrics/public/cpp:ukm_builders",
     "//services/preferences/public/cpp",
   ]
+
+  if (enable_extensions) {
+    deps += [ "//chrome/browser/ui/web_applications" ]
+  }
 
   # Note: is_android is not equivalent to safe_browsing_mode == 2.
   # Sources and dependencies added to this block must not depend on anything
@@ -95,7 +103,7 @@ static_library("safe_browsing") {
   if (is_win || is_mac || is_linux || is_chromeos) {
     deps += [
       "//chrome/browser/ui/browser_window",
-      "//chrome/browser/ui/toasts:toasts",
+      "//chrome/browser/ui/toasts",
       "//chrome/browser/ui/toasts/api:toasts",
     ]
   }
@@ -132,6 +140,8 @@ static_library("safe_browsing") {
       "chrome_user_population_helper.h",
       "chrome_v4_protocol_config_provider.cc",
       "chrome_v4_protocol_config_provider.h",
+      "client_side_detection_intelligent_scan_delegate_factory.cc",
+      "client_side_detection_intelligent_scan_delegate_factory.h",
       "client_side_detection_service_factory.cc",
       "client_side_detection_service_factory.h",
       "delayed_warning_navigation_throttle.cc",
@@ -162,8 +172,6 @@ static_library("safe_browsing") {
       "download_protection/file_analyzer.h",
       "download_protection/file_system_access_metadata.cc",
       "download_protection/file_system_access_metadata.h",
-      "download_protection/ppapi_download_request.cc",
-      "download_protection/ppapi_download_request.h",
       "external_app_redirect_checking.cc",
       "external_app_redirect_checking.h",
       "network_context_service.cc",
@@ -207,6 +215,17 @@ static_library("safe_browsing") {
       "user_interaction_observer.cc",
       "user_interaction_observer.h",
     ]
+    if (is_android) {
+      sources += [
+        "android/client_side_detection_intelligent_scan_delegate_android.cc",
+        "android/client_side_detection_intelligent_scan_delegate_android.h",
+      ]
+    } else {
+      sources += [
+        "client_side_detection_intelligent_scan_delegate_desktop.cc",
+        "client_side_detection_intelligent_scan_delegate_desktop.h",
+      ]
+    }
     deps += [
       ":advanced_protection",
       ":metrics_collector",
@@ -214,7 +233,6 @@ static_library("safe_browsing") {
       "//build:branding_buildflags",
       "//build:chromeos_buildflags",
       "//chrome/browser:browser_process",
-      "//chrome/browser/content_extraction:content_extraction",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/download",
       "//chrome/browser/enterprise/connectors/analysis:features",
@@ -227,6 +245,7 @@ static_library("safe_browsing") {
       "//chrome/common/safe_browsing:download_type_util",
       "//chrome/common/safe_browsing:proto",
       "//components/autofill/core/browser",
+      "//components/content_extraction/content/browser",
       "//components/content_settings/core/browser",
       "//components/enterprise/connectors/core",
       "//components/no_state_prefetch/browser",
@@ -241,6 +260,7 @@ static_library("safe_browsing") {
       "//components/safe_browsing/content/browser:safe_browsing_blocking_page",
       "//components/safe_browsing/content/browser:safe_browsing_service",
       "//components/safe_browsing/content/browser/download:download_stats",
+      "//components/safe_browsing/content/browser/notification_content_detection:notifications_global_cache_list",
       "//components/safe_browsing/content/browser/password_protection",
       "//components/safe_browsing/content/browser/triggers",
       "//components/safe_browsing/content/browser/triggers:ad_sampler_trigger",
@@ -267,12 +287,11 @@ static_library("safe_browsing") {
       "//components/site_engagement/core/mojom:mojo_bindings",
       "//components/sync_user_events",
       "//components/unified_consent",
-      "//components/url_matcher:url_matcher",
+      "//components/url_matcher",
       "//components/variations/service",
       "//components/version_info",
-      "//components/webdata/common",
       "//content/public/browser",
-      "//services/preferences/public/mojom:mojom",
+      "//services/preferences/public/mojom",
     ]
 
     allow_circular_includes_from += [ "//chrome/browser/ui/safety_hub" ]
@@ -433,7 +452,7 @@ static_library("safe_browsing") {
         ":verdict_cache_manager_factory",
         "//build:branding_buildflags",
         "//build:chromeos_buildflags",
-        "//chrome/app/vector_icons:vector_icons",
+        "//chrome/app/vector_icons",
         "//chrome/browser/ui/hats",
         "//chrome/common",
         "//chrome/services/file_util/public/cpp",
@@ -461,7 +480,7 @@ static_library("safe_browsing") {
         "//content/public/browser",
         "//extensions/browser",
         "//net",
-        "//services/network/public/cpp:cpp",
+        "//services/network/public/cpp",
         "//third_party/abseil-cpp:absl",
       ]
       if (is_mac) {
@@ -474,9 +493,9 @@ static_library("safe_browsing") {
       }
       if (is_chromeos) {
         deps += [
-          "//ash/constants:constants",
-          "//chromeos/ash/components/browser_context_helper:browser_context_helper",
-          "//chromeos/components/mgs:mgs",
+          "//ash/constants",
+          "//chromeos/ash/components/browser_context_helper",
+          "//chromeos/components/mgs",
         ]
       }
       if (!is_android) {
@@ -490,6 +509,8 @@ static_library("safe_browsing") {
         "android/services_delegate_android.h",
         "download_protection/download_protection_delegate_android.cc",
         "download_protection/download_protection_delegate_android.h",
+        "download_protection/rate_limiting_key_manager.cc",
+        "download_protection/rate_limiting_key_manager.h",
         "tailored_security/consented_message_android.cc",
         "tailored_security/consented_message_android.h",
         "tailored_security/unconsented_message_android.cc",
@@ -498,14 +519,14 @@ static_library("safe_browsing") {
         "telemetry/android/android_telemetry_service.h",
       ]
       deps += [
-        "//chrome/app/vector_icons:vector_icons",
+        "//chrome/app/vector_icons",
         "//chrome/browser/safe_browsing/android",
-        "//components/messages/android:android",
+        "//components/messages/android",
         "//components/safe_browsing:buildflags",
         "//components/safe_browsing/android:remote_database_manager",
         "//components/safe_browsing/android:safe_browsing_mobile",
         "//google_apis/common:request_util",
-        "//ui/android:android",
+        "//ui/android",
 
         # TODO(crbug.com/41437292): Use //chrome/browser after fixing cyclic
         # dependency.
@@ -565,6 +586,7 @@ static_library("advanced_protection") {
   deps = [
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//components/keyed_service/content",
     "//components/prefs",
     "//components/safe_browsing/core/common",
@@ -642,15 +664,15 @@ source_set("test_support") {
 
     deps += [
       ":safe_browsing",
-      "//chrome/browser:browser",
+      "//chrome/browser",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/profiles:profile",
-      "//chrome/browser/ui:ui",
+      "//chrome/browser/ui",
       "//chrome/common",
       "//chrome/common/safe_browsing:proto",
       "//components/enterprise/common/proto:connectors_proto",
       "//components/safe_browsing:buildflags",
-      "//components/safe_browsing/content/browser:browser",
+      "//components/safe_browsing/content/browser",
       "//components/safe_browsing/content/browser:safe_browsing_blocking_page",
       "//components/safe_browsing/content/browser:safe_browsing_service",
       "//components/safe_browsing/core/browser/db:database_manager",

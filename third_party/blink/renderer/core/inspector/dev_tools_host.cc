@@ -59,6 +59,7 @@
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
 namespace blink {
@@ -96,8 +97,8 @@ class FrontendMenuProvider final : public ContextMenuProvider {
   void ContextMenuItemSelected(unsigned action) override {
     if (!devtools_host_ || action >= DevToolsHost::kMaxContextMenuAction)
       return;
-    devtools_host_->EvaluateScript("DevToolsAPI.contextMenuItemSelected(" +
-                                   String::Number(action) + ")");
+    devtools_host_->EvaluateScript(StrCat(
+        {"DevToolsAPI.contextMenuItemSelected(", String::Number(action), ")"}));
   }
 
  private:
@@ -169,8 +170,8 @@ String DevToolsHost::platform() const {
 void DevToolsHost::sendMessageToEmbedder(const String& message) {
   if (client_) {
     // Strictly convert, as we expect message to be serialized JSON.
-    auto value = base::JSONReader::ReadDict(
-        message.Utf8(WTF::Utf8ConversionMode::kStrict));
+    auto value =
+        base::JSONReader::ReadDict(message.Utf8(Utf8ConversionMode::kStrict));
     if (!value) {
       ScriptState* script_state = ToScriptStateForMainWorld(frontend_frame_);
       if (!script_state)
@@ -196,6 +197,12 @@ static std::u16string GetLabel(const Member<ShowContextMenuItem> item) {
   return std::u16string(label.View16());
 }
 
+static std::u16string GetFeatureName(const Member<ShowContextMenuItem>& item) {
+  String feature_name = item->getFeatureNameOr(String());
+  feature_name.Ensure16Bit();
+  return std::u16string(feature_name.View16());
+}
+
 static std::vector<MenuItemInfo> PopulateContextMenuItems(
     const HeapVector<Member<ShowContextMenuItem>>& item_array) {
   std::vector<MenuItemInfo> items;
@@ -212,6 +219,7 @@ static std::vector<MenuItemInfo> PopulateContextMenuItems(
       item_info.action = DevToolsHost::kMaxContextMenuAction;
       item_info.sub_menu_items = PopulateContextMenuItems(item->subItems());
       item_info.label = GetLabel(item);
+      item_info.feature_name = GetFeatureName(item);
     } else {
       if (!item->hasId() || item->id() >= DevToolsHost::kMaxContextMenuAction) {
         return std::vector<MenuItemInfo>();
@@ -223,6 +231,7 @@ static std::vector<MenuItemInfo> PopulateContextMenuItems(
         item_info.type = MenuItemInfo::kOption;
       }
       item_info.label = GetLabel(item);
+      item_info.feature_name = GetFeatureName(item);
       if (item->hasAccelerator()) {
         AcceleratorContainer accelerator;
         accelerator.key_code = item->accelerator()->keyCode();

@@ -14,6 +14,7 @@
 
 #include "client/crash_report_database.h"
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 
 namespace crashpad {

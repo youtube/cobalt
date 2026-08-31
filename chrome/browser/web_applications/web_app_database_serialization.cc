@@ -12,15 +12,13 @@
 
 #include "base/check.h"
 #include "base/containers/contains.h"
-#include "base/functional/overloaded.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/pickle.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_version.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolation_data.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom-shared.h"
 #include "chrome/browser/web_applications/mojom/user_display_mode.mojom.h"
@@ -46,9 +44,12 @@
 #include "components/sync/base/time.h"
 #include "components/webapps/browser/installable/installable_metrics.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/iwa_version.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/common/permissions_policy/policy_helper_public.h"
 #include "third_party/blink/public/common/safe_url_pattern.h"
@@ -364,7 +365,7 @@ template <typename T>
 void IsolationDataLocationToProto(const IsolatedWebAppStorageLocation& location,
                                   T* proto) {
   std::visit(
-      base::Overloaded{
+      absl::Overload{
           [&proto](const IwaStorageOwnedBundle& bundle) {
             proto->mutable_owned_bundle()->set_dir_name_ascii(
                 bundle.dir_name_ascii());
@@ -1193,11 +1194,12 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
   }
 
   if (proto.has_isolation_data()) {
-    auto version = ParseIwaVersion(proto.isolation_data().version());
-    if (!version.has_value()) {
+    auto iwa_version = IwaVersion::Create(proto.isolation_data().version());
+
+    if (!iwa_version.has_value()) {
       DLOG(ERROR) << "WebApp proto isolation_data.version parse error: cannot "
                      "deserialize version: "
-                  << IwaVersionParseErrorToString(version.error());
+                  << IwaVersion::GetErrorString(iwa_version.error());
       return nullptr;
     }
 
@@ -1208,8 +1210,8 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
       return nullptr;
     }
 
-    auto isolation_data_builder =
-        IsolationData::Builder(std::move(*location), std::move(*version));
+    auto isolation_data_builder = IsolationData::Builder(
+        std::move(*location), std::move(*(iwa_version.value())));
 
     const google::protobuf::RepeatedPtrField<std::string>& partitions =
         proto.isolation_data().controlled_frame_partitions();
@@ -1238,13 +1240,14 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
         return nullptr;
       }
 
-      auto pending_version =
-          ParseIwaVersion(pending_update_info_proto.version());
-      if (!pending_version.has_value()) {
+      auto pending_iwa_version =
+          IwaVersion::Create(pending_update_info_proto.version());
+
+      if (!pending_iwa_version.has_value()) {
         DLOG(ERROR)
             << "WebApp proto isolation_data.pending_update_info.version parse "
                "error: cannot deserialize version: "
-            << IwaVersionParseErrorToString(pending_version.error());
+            << IwaVersion::GetErrorString(pending_iwa_version.error());
         return nullptr;
       }
 
@@ -1265,7 +1268,8 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
 
       isolation_data_builder.SetPendingUpdateInfo(
           IsolationData::PendingUpdateInfo(
-              std::move(*pending_location), std::move(*pending_version),
+              std::move(*pending_location),
+              std::move(*(pending_iwa_version.value())),
               std::move(pending_integrity_block_data)));
     }
 
@@ -1302,10 +1306,13 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
       }
       isolation_data_builder.SetUpdateChannel(std::move(*update_channel));
     }
-
+    if (proto.isolation_data().has_opened_tabs_counter_notification_state()) {
+      isolation_data_builder.SetOpenedTabsCounterNotificationState(
+          IsolationData::OpenedTabsCounterNotificationState(
+              proto.isolation_data().opened_tabs_counter_notification_state()));
+    }
     web_app->SetIsolationData(std::move(isolation_data_builder).Build());
   }
-
   if (proto.has_user_link_capturing_preference()) {
     web_app->SetLinkCapturingUserPreference(
         proto.user_link_capturing_preference());
@@ -1357,6 +1364,61 @@ std::unique_ptr<WebApp> ParseWebAppProto(const proto::WebApp& proto) {
     related_applications.push_back(std::move(related_application));
   }
   web_app->SetRelatedApplications(std::move(related_applications));
+
+  if (proto.has_pending_update_info()) {
+    // Exit early if there is a `PendingUpdateInfo` that is completely empty.
+    if (!proto.pending_update_info().has_name() &&
+        proto.pending_update_info().trusted_icons().empty() &&
+        proto.pending_update_info().manifest_icons().empty()) {
+      return nullptr;
+    }
+
+    // Exit early if trusted icons is populated but manifest icons is not, and
+    // vice versa.
+    if (proto.pending_update_info().trusted_icons().empty() !=
+        proto.pending_update_info().manifest_icons().empty()) {
+      return nullptr;
+    }
+
+    // Populate manifest_icons and trusted_icons only if both are populated.
+    if (!proto.pending_update_info().manifest_icons().empty() &&
+        !proto.pending_update_info().trusted_icons().empty()) {
+      for (const auto& icon : proto.pending_update_info().manifest_icons()) {
+        if (!icon.has_url() || !icon.has_size_in_px() || !icon.has_purpose()) {
+          return nullptr;
+        }
+      }
+      for (const auto& icon : proto.pending_update_info().trusted_icons()) {
+        if (!icon.has_url() || !icon.has_size_in_px() || !icon.has_purpose()) {
+          return nullptr;
+        }
+      }
+    }
+    web_app->SetPendingUpdateInfo(proto.pending_update_info());
+  }
+
+  std::optional<std::vector<apps::IconInfo>> parsed_trusted_icons =
+      ParseAppIconInfos("WebApp", proto.trusted_icons());
+  if (!parsed_trusted_icons) {
+    // ParseWebAppIconInfos() reports any errors.
+    return nullptr;
+  }
+  web_app->SetTrustedIcons(std::move(parsed_trusted_icons.value()));
+
+  std::vector<SquareSizePx> trusted_icon_sizes_any;
+  for (int32_t size : proto.stored_trusted_icon_sizes_any()) {
+    trusted_icon_sizes_any.push_back(size);
+  }
+  web_app->SetStoredTrustedIconSizes(
+      IconPurpose::ANY, SortedSizesPx(std::move(trusted_icon_sizes_any)));
+
+  std::vector<SquareSizePx> trusted_icon_sizes_maskable;
+  for (int32_t size : proto.stored_trusted_icon_sizes_maskable()) {
+    trusted_icon_sizes_maskable.push_back(size);
+  }
+  web_app->SetStoredTrustedIconSizes(
+      IconPurpose::MASKABLE,
+      SortedSizesPx(std::move(trusted_icon_sizes_maskable)));
 
   return web_app;
 }
@@ -1803,7 +1865,6 @@ std::unique_ptr<proto::WebApp> WebAppToProto(const WebApp& web_app) {
       auto* mutable_pending_update_info =
           mutable_data->mutable_pending_update_info();
 
-      // Add this check:
       CHECK_EQ(isolation_data.location().dev_mode(),
                pending_update_info.location.dev_mode(),
                base::NotFatalUntil::M138)
@@ -1818,6 +1879,12 @@ std::unique_ptr<proto::WebApp> WebAppToProto(const WebApp& web_app) {
         *mutable_pending_update_info->mutable_integrity_block_data() =
             pending_update_info.integrity_block_data->ToProto();
       }
+    }
+
+    if (const auto& notification_state =
+            isolation_data.opened_tabs_counter_notification_state()) {
+      *mutable_data->mutable_opened_tabs_counter_notification_state() =
+          notification_state->GetState();
     }
 
     if (isolation_data.integrity_block_data()) {
@@ -1874,6 +1941,36 @@ std::unique_ptr<proto::WebApp> WebAppToProto(const WebApp& web_app) {
       related_application_proto->set_id(
           base::UTF16ToUTF8(related_application.id.value()));
     }
+  }
+
+  if (web_app.pending_update_info().has_value()) {
+    CHECK(web_app.pending_update_info()->has_name() ||
+          (!web_app.pending_update_info()->trusted_icons().empty() &&
+           !web_app.pending_update_info()->manifest_icons().empty()));
+    if (!web_app.pending_update_info()->manifest_icons().empty() &&
+        !web_app.pending_update_info()->trusted_icons().empty()) {
+      for (const auto& icon : web_app.pending_update_info()->manifest_icons()) {
+        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
+      }
+      for (const auto& icon : web_app.pending_update_info()->trusted_icons()) {
+        CHECK(icon.has_url() && icon.has_size_in_px() && icon.has_purpose());
+      }
+    }
+    *local_data->mutable_pending_update_info() = *web_app.pending_update_info();
+  }
+
+  for (const apps::IconInfo& trusted_icon_info : web_app.trusted_icons()) {
+    *(local_data->add_trusted_icons()) =
+        AppIconInfoToSyncProto(trusted_icon_info);
+  }
+
+  for (SquareSizePx size :
+       web_app.stored_trusted_icon_sizes(IconPurpose::ANY)) {
+    local_data->add_stored_trusted_icon_sizes_any(size);
+  }
+  for (SquareSizePx size :
+       web_app.stored_trusted_icon_sizes(IconPurpose::MASKABLE)) {
+    local_data->add_stored_trusted_icon_sizes_maskable(size);
   }
 
   return local_data;

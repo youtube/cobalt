@@ -12,17 +12,18 @@
 #include "chrome/browser/ash/browser_delegate/browser_type.h"
 #include "chrome/browser/ash/browser_delegate/browser_type_conversion.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
-#include "components/user_manager/user.h"
-#include "components/user_manager/user_manager.h"
+#include "components/account_id/account_id.h"
 #include "ui/aura/window.h"
 
 namespace {
@@ -68,9 +69,13 @@ BrowserDelegate* BrowserControllerImpl::GetDelegate(Browser* browser) {
   return it->second.get();
 }
 
+BrowserDelegate* BrowserControllerImpl::GetLastUsedBrowser() {
+  return GetDelegate(BrowserList::GetInstance()->GetLastActive());
+}
+
 BrowserDelegate* BrowserControllerImpl::GetLastUsedVisibleBrowser() {
   for (Browser* browser : BrowserList::GetInstance()->OrderedByActivation()) {
-    if (browser->window()->GetNativeWindow()->IsVisible()) {
+    if (browser->window()->IsVisible()) {
       return GetDelegate(browser);
     }
   }
@@ -87,13 +92,19 @@ BrowserDelegate* BrowserControllerImpl::GetLastUsedVisibleOnTheRecordBrowser() {
   return nullptr;
 }
 
-BrowserDelegate* BrowserControllerImpl::FindWebApp(
-    const user_manager::User& user,
-    webapps::AppId app_id,
-    BrowserType browser_type,
-    const GURL& url) {
+BrowserDelegate* BrowserControllerImpl::GetBrowserForWindow(
+    aura::Window* window) {
+  BrowserView* browser_view =
+      BrowserView::GetBrowserViewForNativeWindow(window);
+  return GetDelegate(browser_view ? browser_view->browser() : nullptr);
+}
+
+BrowserDelegate* BrowserControllerImpl::FindWebApp(const AccountId& account_id,
+                                                   webapps::AppId app_id,
+                                                   BrowserType browser_type,
+                                                   const GURL& url) {
   Profile* profile = Profile::FromBrowserContext(
-      BrowserContextHelper::Get()->GetBrowserContextByUser(&user));
+      BrowserContextHelper::Get()->GetBrowserContextByAccountId(account_id));
   CHECK(profile);
 
   CHECK(browser_type == BrowserType::kApp ||
@@ -111,12 +122,12 @@ BrowserDelegate* BrowserControllerImpl::FindWebApp(
 }
 
 BrowserDelegate* BrowserControllerImpl::NewTabWithPostData(
-    const user_manager::User& user,
+    const AccountId& account_id,
     const GURL& url,
     base::span<const uint8_t> post_data,
     std::string_view extra_headers) {
   Profile* profile = Profile::FromBrowserContext(
-      BrowserContextHelper::Get()->GetBrowserContextByUser(&user));
+      BrowserContextHelper::Get()->GetBrowserContextByAccountId(account_id));
   CHECK(profile);
 
   NavigateParams navigate_params(
@@ -145,7 +156,7 @@ BrowserDelegate* BrowserControllerImpl::NewTabWithPostData(
 }
 
 BrowserDelegate* BrowserControllerImpl::CreateWebApp(
-    const user_manager::User& user,
+    const AccountId& account_id,
     webapps::AppId app_id,
     BrowserType browser_type,
     const CreateParams& params) {
@@ -155,7 +166,7 @@ BrowserDelegate* BrowserControllerImpl::CreateWebApp(
   const bool popup = browser_type == BrowserType::kAppPopup;
 
   Profile* profile = Profile::FromBrowserContext(
-      BrowserContextHelper::Get()->GetBrowserContextByUser(&user));
+      BrowserContextHelper::Get()->GetBrowserContextByAccountId(account_id));
   CHECK(profile);
 
   if (Browser::GetCreationStatusForProfile(profile) !=
@@ -180,10 +191,10 @@ BrowserDelegate* BrowserControllerImpl::CreateWebApp(
 }
 
 BrowserDelegate* BrowserControllerImpl::CreateCustomTab(
-    const user_manager::User& user,
+    const AccountId& account_id,
     std::unique_ptr<content::WebContents> contents) {
   Profile* profile = Profile::FromBrowserContext(
-      BrowserContextHelper::Get()->GetBrowserContextByUser(&user));
+      BrowserContextHelper::Get()->GetBrowserContextByAccountId(account_id));
   CHECK(profile);
 
   if (Browser::GetCreationStatusForProfile(profile) !=
@@ -200,9 +211,27 @@ BrowserDelegate* BrowserControllerImpl::CreateCustomTab(
   return GetDelegate(browser);
 }
 
+void BrowserControllerImpl::AddObserver(Observer* observer) {
+  observers_.AddObserver(observer);
+}
+
+void BrowserControllerImpl::RemoveObserver(Observer* observer) {
+  observers_.RemoveObserver(observer);
+}
+
 void BrowserControllerImpl::OnBrowserRemoved(Browser* browser) {
+  if (BrowserList::GetInstance()->empty()) {
+    for (auto& observer : observers_) {
+      observer.OnLastBrowserClosed();
+    }
+  }
   browsers_.erase(browser);
   // The corresponding BrowserDelegateImpl, if any, is now dead.
+}
+
+void BrowserControllerImpl::CreateAutofillClientForWebContents(
+    content::WebContents* web_contents) {
+  autofill::ChromeAutofillClient::CreateForWebContents(web_contents);
 }
 
 }  // namespace ash

@@ -178,7 +178,8 @@ class WindowPerformanceTest : public testing::Test,
 
     return PerformanceEventTiming::Create(
         name, reporting_info, false, nullptr,
-        LocalDOMWindow::From(GetScriptState()));
+        LocalDOMWindow::From(GetScriptState()),
+        performance_->NavigationId());
   }
 
   HeapVector<Member<PerformanceEventTiming>>*
@@ -296,6 +297,7 @@ TEST(PerformanceLifetimeTest, SurviveContextSwitch) {
   WindowPerformance* perf =
       DOMWindowPerformance::performance(*page_holder->GetFrame().DomWindow());
   PerformanceTiming* timing = perf->timing();
+  uint64_t navigation_id = perf->NavigationId();
 
   auto* document_loader = page_holder->GetFrame().Loader().GetDocumentLoader();
   ASSERT_TRUE(document_loader);
@@ -317,6 +319,7 @@ TEST(PerformanceLifetimeTest, SurviveContextSwitch) {
 
   EXPECT_EQ(perf, DOMWindowPerformance::performance(
                       *page_holder->GetFrame().DomWindow()));
+  EXPECT_EQ(navigation_id, perf->NavigationId());
   EXPECT_EQ(timing, perf->timing());
   EXPECT_EQ(page_holder->GetFrame().DomWindow(), perf->DomWindow());
   EXPECT_EQ(page_holder->GetFrame().DomWindow(), timing->DomWindow());
@@ -1715,6 +1718,40 @@ TEST_P(WindowPerformanceTest, InteractionID) {
   }
 }
 
+TEST_P(WindowPerformanceTest, ContainerTimingTraceEvent) {
+  using trace_analyzer::Query;
+  trace_analyzer::Start("*");
+  performance_->AddContainerTiming(
+      DOMPaintTimingInfo{.paint_time = 2000, .presentation_time = 2000},
+      gfx::Rect(10, 20, 30, 40), 1200, AtomicString("identifier"),
+      /*element*/ nullptr,
+      DOMPaintTimingInfo{.paint_time = 1000, .presentation_time = 1000});
+  auto analyzer = trace_analyzer::Stop();
+  trace_analyzer::TraceEventVector events;
+  Query q = Query::EventNameIs("PerformanceContainerTiming");
+  analyzer->FindEvents(q, &events);
+  EXPECT_EQ(1u, events.size());
+  EXPECT_EQ("loading", events[0]->category);
+  EXPECT_TRUE(events[0]->HasStringArg("frame"));
+
+  ASSERT_TRUE(events[0]->HasDictArg("data"));
+  base::Value::Dict arg_dict = events[0]->GetKnownArgAsDict("data");
+  std::string* element_type = arg_dict.FindString("elementType");
+  ASSERT_TRUE(element_type);
+  EXPECT_EQ(*element_type, "container-paints");
+  EXPECT_EQ(arg_dict.FindInt("startTime").value_or(-1), 2000);
+  EXPECT_EQ(arg_dict.FindInt("firstRenderTime").value_or(-1), 1000);
+  EXPECT_EQ(arg_dict.FindInt("duration").value_or(-1), 0);
+  EXPECT_EQ(arg_dict.FindDouble("rectLeft").value_or(-1), 10);
+  EXPECT_EQ(arg_dict.FindDouble("rectTop").value_or(-1), 20);
+  EXPECT_EQ(arg_dict.FindDouble("rectWidth").value_or(-1), 30);
+  EXPECT_EQ(arg_dict.FindDouble("rectHeight").value_or(-1), 40);
+  EXPECT_EQ(arg_dict.FindDouble("size").value_or(-1), 1200);
+  std::string* identifier = arg_dict.FindString("identifier");
+  ASSERT_TRUE(identifier);
+  EXPECT_EQ(*identifier, "identifier");
+}
+
 INSTANTIATE_TEST_SUITE_P(All, WindowPerformanceTest, ::testing::Bool());
 
 class InteractionIdTest : public WindowPerformanceTest {
@@ -2153,39 +2190,48 @@ TEST_P(InteractionIdTest, ClickIncorrectPointerId) {
   CheckUKMValues({{40, 40, UserInteractionType::kTapOrClick}});
 }
 
-TEST_P(WindowPerformanceTest, ContainerTimingTraceEvent) {
-  using trace_analyzer::Query;
-  trace_analyzer::Start("*");
-  performance_->AddContainerTiming(
-      DOMPaintTimingInfo{.paint_time = 2000, .presentation_time = 2000},
-      gfx::Rect(10, 20, 30, 40), 1200, AtomicString("identifier"),
-      /*element*/ nullptr,
-      DOMPaintTimingInfo{.paint_time = 1000, .presentation_time = 1000});
-  auto analyzer = trace_analyzer::Stop();
-  trace_analyzer::TraceEventVector events;
-  Query q = Query::EventNameIs("PerformanceContainerTiming");
-  analyzer->FindEvents(q, &events);
-  EXPECT_EQ(1u, events.size());
-  EXPECT_EQ("loading", events[0]->category);
-  EXPECT_TRUE(events[0]->HasStringArg("frame"));
+INSTANTIATE_TEST_SUITE_P(All, InteractionIdTest, ::testing::Bool());
 
-  ASSERT_TRUE(events[0]->HasDictArg("data"));
-  base::Value::Dict arg_dict = events[0]->GetKnownArgAsDict("data");
-  std::string* element_type = arg_dict.FindString("elementType");
-  ASSERT_TRUE(element_type);
-  EXPECT_EQ(*element_type, "container-paints");
-  EXPECT_EQ(arg_dict.FindInt("startTime").value_or(-1), 2000);
-  EXPECT_EQ(arg_dict.FindInt("firstRenderTime").value_or(-1), 1000);
-  EXPECT_EQ(arg_dict.FindInt("duration").value_or(-1), 0);
-  EXPECT_EQ(arg_dict.FindDouble("rectLeft").value_or(-1), 10);
-  EXPECT_EQ(arg_dict.FindDouble("rectTop").value_or(-1), 20);
-  EXPECT_EQ(arg_dict.FindDouble("rectWidth").value_or(-1), 30);
-  EXPECT_EQ(arg_dict.FindDouble("rectHeight").value_or(-1), 40);
-  EXPECT_EQ(arg_dict.FindDouble("size").value_or(-1), 1200);
-  std::string* identifier = arg_dict.FindString("identifier");
-  ASSERT_TRUE(identifier);
-  EXPECT_EQ(*identifier, "identifier");
+class WindowPerformanceNavigationIdTest : public testing::Test {
+ protected:
+  test::TaskEnvironment task_environment_;
+};
+
+TEST_F(WindowPerformanceNavigationIdTest, NavigationIdHardNavigations) {
+  // Initial navigation: randomly generated IDs, assumed to be hard nav.
+  std::vector<uint32_t> ids;
+  for (int i = 0; i < 100; ++i) {
+    // Making a new scope is like a hard nav (the ID gets generated via the
+    // constructor of LocalDOMWindow).
+    V8TestingScope scope;
+    const WindowPerformance* performance =
+        DOMWindowPerformance::performance(*scope.GetFrame().DomWindow());
+    ASSERT_TRUE(performance);
+    ids.push_back(performance->NavigationId());
+  }
+  // We allow 10 collisions, since the IDs are randomly generated between 100
+  // and 10000.
+  auto last = std::unique(ids.begin(), ids.end());
+  auto num_collisions = std::distance(last, ids.end());
+  EXPECT_LT(num_collisions, 10u);
+  ids.erase(last, ids.end());
+  // The IDs are not in sorted order.
+  std::vector<uint32_t> sorted_ids(ids.begin(), ids.end());
+  std::sort(sorted_ids.begin(), sorted_ids.end());
+  EXPECT_NE(sorted_ids, ids);
 }
 
-INSTANTIATE_TEST_SUITE_P(All, InteractionIdTest, ::testing::Bool());
+TEST_F(WindowPerformanceNavigationIdTest, NavigationIdSoftNavigations) {
+  // Initial navigation: randomly generated ID, assumed to be hard nav.
+  V8TestingScope scope;
+  WindowPerformance* performance =
+      DOMWindowPerformance::performance(*scope.GetFrame().DomWindow());
+  uint32_t navigation_id1 = performance->NavigationId();
+
+  // Soft navigation or back-forward cache restoration: incremented ID.
+  performance->IncrementNavigationId();
+  uint32_t navigation_id3 = performance->NavigationId();
+  EXPECT_NE(navigation_id1, navigation_id3);
+  EXPECT_LT(navigation_id1, navigation_id3);
+}
 }  // namespace blink

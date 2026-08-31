@@ -8,6 +8,7 @@
 
 #import "base/i18n/rtl.h"
 #import "base/test/bind.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_test.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
@@ -60,7 +61,7 @@
 
 namespace {
 
-class SideSwipeMediatorTest : public PlatformTest {
+class SideSwipeMediatorTest : public ReaderModeTest {
  public:
   SideSwipeMediatorTest()
       : web_view_([[WKWebView alloc]
@@ -69,7 +70,10 @@ class SideSwipeMediatorTest : public PlatformTest {
         content_view_([[CRWWebViewContentView alloc]
             initWithWebView:web_view_
                  scrollView:web_view_.scrollView
-            fullscreenState:CrFullscreenState::kNotInFullScreen]) {
+            fullscreenState:CrFullscreenState::kNotInFullScreen]) {}
+
+  void SetUp() override {
+    ReaderModeTest::SetUp();
     auto original_web_state(std::make_unique<web::FakeWebState>());
     original_web_state->SetView(content_view_);
     CRWWebViewScrollViewProxy* scroll_view_proxy =
@@ -80,15 +84,15 @@ class SideSwipeMediatorTest : public PlatformTest {
     [[[web_view_proxy_mock stub] andReturn:scroll_view_proxy] scrollViewProxy];
     original_web_state->SetWebViewProxy(web_view_proxy_mock);
 
-    profile_ = TestProfileIOS::Builder().Build();
-    browser_ = std::make_unique<TestBrowser>(profile_.get());
+    browser_ = std::make_unique<TestBrowser>(profile());
 
-    original_web_state->SetBrowserState(profile_.get());
+    original_web_state->SetBrowserState(profile());
     original_web_state_ = original_web_state.get();
 
-    int web_state_index = browser_->GetWebStateList()->InsertWebState(
+    active_web_state_index_ = browser_->GetWebStateList()->InsertWebState(
         std::move(original_web_state));
-    browser_->GetWebStateList()->ActivateWebStateAt(web_state_index);
+    browser_->GetWebStateList()->ActivateWebStateAt(
+        active_web_state_index_.value());
 
     side_swipe_mediator_ = [[SideSwipeMediator alloc]
         initWithWebStateList:browser_->GetWebStateList()];
@@ -99,9 +103,12 @@ class SideSwipeMediatorTest : public PlatformTest {
 
   ~SideSwipeMediatorTest() override { [side_swipe_mediator_ disconnect]; }
 
-  web::WebTaskEnvironment task_environment_{
-      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  std::unique_ptr<TestProfileIOS> profile_;
+  void CloseActiveWebState() {
+    browser_->GetWebStateList()->CloseWebStateAt(
+        active_web_state_index_.value(), WebStateList::ClosingReason::kDefault);
+    active_web_state_index_.reset();
+  }
+
   std::unique_ptr<Browser> browser_;
   UIView* view_;
   SideSwipeMediator* side_swipe_mediator_;
@@ -110,16 +117,17 @@ class SideSwipeMediatorTest : public PlatformTest {
   WKWebView* web_view_ = nil;
   CRWWebViewContentView* content_view_ = nil;
   raw_ptr<web::WebState> original_web_state_ = nil;
+  std::optional<int> active_web_state_index_;
 };
 
 TEST_F(SideSwipeMediatorTest, TestConstructor) {
   EXPECT_TRUE(side_swipe_mediator_);
 }
 
-// Tests that pages that need to use Chromium native swipe
+// Tests pages that need to use Chromium native swipe.
 TEST_F(SideSwipeMediatorTest, TestEdgeNavigationEnabled) {
   auto fake_web_state = std::make_unique<web::FakeWebState>();
-  fake_web_state->SetBrowserState(profile_.get());
+  fake_web_state->SetBrowserState(profile());
   auto fake_navigation_manager = std::make_unique<web::FakeNavigationManager>();
   std::unique_ptr<web::NavigationItem> item = web::NavigationItem::Create();
   fake_navigation_manager->SetVisibleItem(item.get());
@@ -170,6 +178,29 @@ TEST_F(SideSwipeMediatorTest, TestEdgeNavigationEnabled) {
   EXPECT_TRUE(fake_swipe_ui_controller_.trailingEdgeNavigationEnabled);
 }
 
+// Tests that pages with Reader Mode enabled will use Chromium native swipe.
+TEST_F(SideSwipeMediatorTest, TestEdgeNavigationEnabledForReaderMode) {
+  auto fake_web_state = CreateWebState();
+  auto fake_navigation_manager = std::make_unique<web::FakeNavigationManager>();
+  std::unique_ptr<web::NavigationItem> item = web::NavigationItem::Create();
+  fake_navigation_manager->SetVisibleItem(item.get());
+  fake_web_state->SetNavigationManager(std::move(fake_navigation_manager));
+
+  // Set up Reading Mode for web page.
+  GURL test_url("http://wwww.test.test");
+  SetReaderModeState(fake_web_state.get(), test_url,
+                     ReaderModeHeuristicResult::kReaderModeEligible, "content");
+  LoadWebpage(fake_web_state.get(), test_url);
+  EnableReaderMode(fake_web_state.get(),
+                   ReaderModeAccessPoint::kContextualChip);
+  WaitForAvailableReaderModeContentInWebState(fake_web_state.get());
+
+  [side_swipe_mediator_
+      updateNavigationEdgeSwipeForWebState:fake_web_state.get()];
+  EXPECT_TRUE(fake_swipe_ui_controller_.leadingEdgeNavigationEnabled);
+  EXPECT_TRUE(fake_swipe_ui_controller_.trailingEdgeNavigationEnabled);
+}
+
 // Tests that when the active webState is changed or when the active webState
 // finishes navigation, the edge state will be updated accordingly.
 TEST_F(SideSwipeMediatorTest, ObserversTriggerStateUpdate) {
@@ -177,7 +208,7 @@ TEST_F(SideSwipeMediatorTest, ObserversTriggerStateUpdate) {
   ASSERT_FALSE(fake_swipe_ui_controller_.trailingEdgeNavigationEnabled);
 
   auto fake_web_state = std::make_unique<web::FakeWebState>();
-  fake_web_state->SetBrowserState(profile_.get());
+  fake_web_state->SetBrowserState(profile());
   fake_web_state->SetView(content_view_);
   CRWWebViewScrollViewProxy* scroll_view_proxy =
       [[CRWWebViewScrollViewProxy alloc] init];
@@ -229,6 +260,22 @@ TEST_F(SideSwipeMediatorTest, SnapshotUpdatedWithoutTabHelper) {
 }
 
 // Tests that the snapshot update runs the provided callback that updates
+// the snapshot state when the active web state is null.
+TEST_F(SideSwipeMediatorTest, SnapshotUpdatedWithoutActiveWebState) {
+  base::RunLoop run_loop;
+  int snapshot_updated = 0;
+  CloseActiveWebState();
+  [side_swipe_mediator_
+      updateActiveTabSnapshot:base::CallbackToBlock(
+                                  base::BindLambdaForTesting([&]() {
+                                    snapshot_updated++;
+                                    run_loop.Quit();
+                                  }))];
+  run_loop.Run();
+  EXPECT_EQ(1, snapshot_updated);
+}
+
+// Tests that the snapshot update runs the provided callback that updates
 // the snapshot state only once on completion.
 TEST_F(SideSwipeMediatorTest, SnapshotUpdatedOnceOnCallback) {
   SnapshotTabHelper::CreateForWebState(original_web_state_);
@@ -242,7 +289,7 @@ TEST_F(SideSwipeMediatorTest, SnapshotUpdatedOnceOnCallback) {
                                   }))];
 
   // Move the clock past the update snapshot timeout delay.
-  task_environment_.FastForwardBy(base::Seconds(1));
+  task_environment()->FastForwardBy(base::Seconds(1));
   run_loop.Run();
   EXPECT_EQ(1, snapshot_updated);
 }

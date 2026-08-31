@@ -133,25 +133,12 @@ void DeduplicateProfiles(const AutofillProfileComparator& comparator,
 // 2) Merges pairs of mergeable profiles into each other.
 //   To prevent silently introducing new information into the account,
 //   local profiles are never merged into account profiles.
-// H/W profiles are not supported for deduplication.
 // TODO(crbug.com/357074792): Once the feature is launched, remove the
 // `DeduplicateProfiles()` function and rename this function to
 // `DeduplicateProfiles()`.
 void DeduplicateWithAccountProfiles(const AutofillProfileComparator& comparator,
                                     std::vector<AutofillProfile> profiles,
                                     AddressDataManager& adm) {
-  // H/W profiles are not supported for deduplication.
-  std::erase_if(profiles, [](const AutofillProfile& p) {
-    switch (p.record_type()) {
-      case AutofillProfile::RecordType::kLocalOrSyncable:
-      case AutofillProfile::RecordType::kAccount:
-        return false;
-      case AutofillProfile::RecordType::kAccountHome:
-      case AutofillProfile::RecordType::kAccountWork:
-        return true;
-    }
-  });
-
   std::set<std::string> guids_to_delete;
   for (const AutofillProfile& profile : profiles) {
     const bool is_subset = std::ranges::any_of(
@@ -278,7 +265,7 @@ void AddressDataCleaner::MaybeCleanupAddressData() {
       chrome_version_major) {
     pref_service_->SetInteger(prefs::kAutofillLastVersionDeduped,
                               chrome_version_major);
-    // Since the milesone changed the extra deduplication can be run again.
+    // Since the milestone changed the extra deduplication can be run again.
     pref_service_->ClearPref(
         prefs::kAutofillRanExtraDeduplication);
     ApplyDeduplicationRoutine();
@@ -292,6 +279,7 @@ void AddressDataCleaner::MaybeCleanupAddressData() {
   }
 
   // Other cleanups are performed on every browser start.
+  MigratePhoneticNames();
   DeleteDisusedAddresses();
 }
 
@@ -348,8 +336,25 @@ void AddressDataCleaner::ApplyDeduplicationRoutine() {
   }
 }
 
+void AddressDataCleaner::MigratePhoneticNames() {
+  if (!base::FeatureList::IsEnabled(
+          features::kAutofillSupportPhoneticNameForJP)) {
+    return;
+  }
+  int migrated_names = 0;
+  for (const AutofillProfile* profile : address_data_manager_->GetProfiles()) {
+    if (profile->GetNameInfo().HasNameEligibleForPhoneticNameMigration()) {
+      AutofillProfile profile_to_migrate = *profile;
+      profile_to_migrate.MigrateRegularNameToPhoneticName();
+      address_data_manager_->UpdateProfile(profile_to_migrate);
+      migrated_names++;
+    }
+  }
+  autofill_metrics::LogNumberOfNamesMigratedDuringCleanup(migrated_names);
+}
+
 void AddressDataCleaner::DeleteDisusedAddresses() {
-  const std::vector<const AutofillProfile*>& profiles =
+  std::vector<const AutofillProfile*> profiles =
       base::FeatureList::IsEnabled(
           features::kAutofillDeduplicateAccountAddresses)
           ? address_data_manager_->GetProfiles()

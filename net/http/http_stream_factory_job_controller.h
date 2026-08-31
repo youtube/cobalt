@@ -42,7 +42,7 @@ class HttpStreamFactory::JobController
                 const HttpRequestInfo& http_request_info,
                 bool is_preconnect,
                 bool is_websocket,
-                bool enable_ip_based_pooling,
+                bool enable_ip_based_pooling_for_h2,
                 bool enable_alternative_services,
                 bool delay_main_job_with_available_spdy_session,
                 const std::vector<SSLConfig::CertAndStatus>& allowed_bad_certs);
@@ -301,10 +301,6 @@ class HttpStreamFactory::JobController
   // the preconnect completed. Used to notify the factory of completion.
   void OnPoolPreconnectsComplete(int rv);
 
-  // Used to call HttpStreamRequest::OnSwitchesToHttpStreamPool() later.
-  void CallOnSwitchesToHttpStreamPool(HttpStreamPoolRequestInfo request_info,
-                                      base::TimeTicks post_task_time);
-
   const raw_ptr<HttpStreamFactory> factory_;
   const raw_ptr<HttpNetworkSession> session_;
   const raw_ptr<JobFactory> job_factory_;
@@ -325,7 +321,8 @@ class HttpStreamFactory::JobController
 
   // Enable pooling to a SpdySession with matching IP and certificate even if
   // the SpdySessionKey is different.
-  const bool enable_ip_based_pooling_;
+  // Note that this does nothing with QUIC.
+  const bool enable_ip_based_pooling_for_h2_;
 
   // Enable using alternative services for the request. If false, the
   // JobController will only create a |main_job_|.

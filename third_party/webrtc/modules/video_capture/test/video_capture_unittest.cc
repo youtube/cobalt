@@ -10,9 +10,8 @@
 
 #include "modules/video_capture/video_capture.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <sstream>

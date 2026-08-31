@@ -29,7 +29,7 @@ namespace webrtc {
 
 namespace {
 
-static const int kBufferAlignment = 64;
+const int kBufferAlignment = 64;
 
 int NV12DataSize(int width, int height, int stride_y, int stride_uv) {
   CheckValidDimensions(width, height, stride_y, stride_uv, stride_uv);

@@ -86,12 +86,13 @@ class LayerTreeHostAnimationTest : public LayerTreeTest {
     EXPECT_TRUE(animation_child_impl_);
   }
 
-  void CleanupBeforeDestroy() override {
+  void AfterTest() override {
     // This needs to happen on the main thread (so can't happen in
     // EndTest()), and needs to happen before DestroyLayerTreeHost()
     // (which will trigger assertions if we don't do this), so it can't
     // happen in AfterTest().
     DetachAnimationsFromTimeline();
+    LayerTreeTest::AfterTest();
   }
 
   AnimationHost* GetImplAnimationHost(
@@ -219,7 +220,10 @@ class LayerTreeHostAnimationTestAddKeyframeModel
     EndTest();
   }
 
-  void AfterTest() override { EXPECT_TRUE(update_animation_state_was_called_); }
+  void AfterTest() override {
+    EXPECT_TRUE(update_animation_state_was_called_);
+    LayerTreeHostAnimationTest::AfterTest();
+  }
 
  private:
   bool update_animation_state_was_called_;
@@ -476,6 +480,7 @@ class LayerTreeHostAnimationTestSynchronizeAnimationStartTimes
   void AfterTest() override {
     EXPECT_EQ(impl_start_time_, main_start_time_);
     EXPECT_LT(base::TimeTicks(), impl_start_time_);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -554,6 +559,7 @@ class LayerTreeHostAnimationTestDoNotSkipLayersWithAnimatedOpacity
 
     // clear update_check_layer_ so LayerTreeHost dies.
     update_check_layer_ = nullptr;
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -635,6 +641,7 @@ class LayerTreeHostAnimationTestCancelAnimateCommit
     EXPECT_EQ(2, num_begin_frames_);
     EXPECT_EQ(1, num_commit_calls_);
     EXPECT_EQ(1, num_draw_calls_);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -672,6 +679,7 @@ class LayerTreeHostAnimationTestForceRedraw
     // by the animation was not cancelled.
     EXPECT_EQ(2, num_draw_layers_);
     EXPECT_EQ(2, num_animate_);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -706,6 +714,7 @@ class LayerTreeHostAnimationTestAnimateAfterSetNeedsCommit
     // by the SetNeedsCommit was not cancelled.
     EXPECT_EQ(2, num_draw_layers_);
     EXPECT_GE(num_animate_, 2);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -781,6 +790,7 @@ class LayerTreeHostAnimationTestCheckerboardDoesntStartAnimations
     // The first animation should be started, but the second should not because
     // of checkerboard.
     EXPECT_EQ(1, started_times_);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
   int prevented_draw_;
@@ -1081,9 +1091,8 @@ class LayerTreeHostPresentationDuringAnimation
     EXPECT_GT(received_token_, request_token_);
     EXPECT_GE(received_token_, 5u);
     EXPECT_TRUE(base::StatisticsRecorder::FindHistogram(
-        "CompositorLatency.TotalLatency"));
-    EXPECT_FALSE(base::StatisticsRecorder::FindHistogram(
-        "CompositorLatency.Universal.TotalLatency"));
+        "CompositorLatency2.TotalLatency"));
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -1189,6 +1198,7 @@ class LayerTreeHostAnimationTestScrollOffsetAnimationRemoval
 
   void AfterTest() override {
     EXPECT_EQ(final_postion_, scroll_layer_->scroll_offset());
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -1291,9 +1301,10 @@ class LayerTreeHostAnimationTestScrollOffsetAnimationCompletion
     }
     KeyframeModel* keyframe_model =
         animation_child_impl_->GetKeyframeModel(TargetProperty::SCROLL_OFFSET);
-    if (!keyframe_model || keyframe_model->run_state() ==
-                               KeyframeModel::RunState::WAITING_FOR_DELETION)
+    if (!keyframe_model) {
+      impl_animation_cleaned_up_ = true;
       EndTest();
+    }
   }
 
   void DidFinishImplFrameOnThread(LayerTreeHostImpl* host_impl) override {
@@ -1311,15 +1322,17 @@ class LayerTreeHostAnimationTestScrollOffsetAnimationCompletion
     // The animation should have run for some frames.
     EXPECT_TRUE(ran_animation_);
 
-    // The finished KeyframeModel should have been removed from both the
-    // main and impl side animations.
+    // The finished KeyframeModel should have been removed from the
+    // main side animation.
     EXPECT_EQ(nullptr, animation_child_->GetKeyframeModel(
                            TargetProperty::SCROLL_OFFSET));
-    EXPECT_EQ(nullptr, animation_child_impl_->GetKeyframeModel(
-                           TargetProperty::SCROLL_OFFSET));
+
+    // The impl-side animation should have been completely cleaned up.
+    EXPECT_TRUE(impl_animation_cleaned_up_);
 
     // The scroll should have been completed.
     EXPECT_EQ(final_position_, scroll_layer_->scroll_offset());
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -1327,6 +1340,7 @@ class LayerTreeHostAnimationTestScrollOffsetAnimationCompletion
   scoped_refptr<FakePictureLayer> scroll_layer_;
   const gfx::PointF final_position_;
   bool ran_animation_ = false;
+  bool impl_animation_cleaned_up_ = false;
 };
 
 MULTI_THREAD_TEST_F(LayerTreeHostAnimationTestScrollOffsetAnimationCompletion);
@@ -2135,6 +2149,7 @@ class LayerTreeHostAnimationTestNotifyAnimationFinished
   void AfterTest() override {
     EXPECT_TRUE(called_animation_started_);
     EXPECT_TRUE(called_animation_finished_);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
  private:
@@ -2220,6 +2235,7 @@ class LayerTreeHostAnimationTestSetPotentiallyAnimatingOnLacDestruction
 
   void AfterTest() override {
     EXPECT_TRUE(screen_space_transform_animation_stopped_);
+    LayerTreeHostAnimationTest::AfterTest();
   }
 
   bool prev_screen_space_transform_is_animating_;

@@ -62,8 +62,6 @@ class BrowserNonClientFrameViewChromeOS
       const gfx::Size& tabstrip_minimum_size) const override;
   gfx::Rect GetBoundsForWebAppFrameToolbar(
       const gfx::Size& toolbar_preferred_size) const override;
-  void LayoutWebAppWindowTitle(const gfx::Rect& available_space,
-                               views::Label& window_title_label) const override;
   int GetTopInset(bool restored) const override;
   void UpdateThrobber(bool running) override;
   bool CanUserExitFullscreen() const override;
@@ -127,6 +125,9 @@ class BrowserNonClientFrameViewChromeOS
   void OnAppRegistryCacheWillBeDestroyed(
       apps::AppRegistryCache* cache) override;
 
+  // Helper to check whether we should enable immersive mode in current state.
+  bool ShouldEnableImmersiveModeController() const;
+
   chromeos::FrameCaptionButtonContainerView* caption_button_container() {
     return caption_button_container_;
   }
@@ -134,13 +135,13 @@ class BrowserNonClientFrameViewChromeOS
  protected:
   // BrowserNonClientFrameView:
   void PaintAsActiveChanged() override;
-  void OnProfileAvatarChanged(const base::FilePath& profile_path) override;
   void AddedToWidget() override;
 
  private:
   friend class BrowserNonClientFrameViewChromeOSTestApi;
   FRIEND_TEST_ALL_PREFIXES(ImmersiveModeBrowserViewTestNoWebUiTabStrip,
                            ImmersiveFullscreen);
+  class ProfileChangeObserver;
 
   // App is a PWA and has borderless in its manifest. This doesn't yet mean
   // that the `window-management` permission has been granted and borderless
@@ -210,15 +211,11 @@ class BrowserNonClientFrameViewChromeOS
   // Returns whether the associated window is currently floated or not.
   bool IsFloated() const;
 
-  // Helper to check whether we should enable immersive mode.`on_tablet_enabled`
-  // is set to true only when it is called when tablet mode is just toggled on
-  // notified from OnTabletModeToggled.
-  bool ShouldEnableImmersiveModeController(bool on_tablet_enabled) const;
+  // Returns whether the associated window is currently snapped or not.
+  bool IsSnapped() const;
 
-  // Helper to check whether we should enable fullscreen mode.
-  // `on_tablet_enabled` is set to true only when tablet mode is just toggled
-  // on notified from OnTabletModeToggled.
-  bool ShouldEnableFullscreenMode(bool on_tablet_enabled) const;
+  // Returns whether the associated window is in TrustedPinned state.
+  bool IsTrustedPinned() const;
 
   // True if the the associated browser window should be using the WebUI tab
   // strip.

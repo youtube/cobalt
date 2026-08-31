@@ -10,9 +10,13 @@
 
 #include "rtc_base/copy_on_write_buffer.h"
 
-#include <stddef.h>
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
+#include <utility>
 
 #include "absl/strings/string_view.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 

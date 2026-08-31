@@ -13,6 +13,7 @@
 #include "chrome/browser/extensions/extension_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/version_info/channel.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/api/offscreen/audio_lifetime_enforcer.h"
@@ -427,7 +428,8 @@ IN_PROC_BROWSER_TEST_F(OffscreenApiTest,
   extension = SetExtensionIncognitoEnabled(*extension, *profile());
   ASSERT_TRUE(extension);
 
-  Profile* incognito_profile = GetOrCreateIncognitoProfile();
+  Profile* incognito_profile =
+      profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true);
 
   // We're going to be executing scripts in the service worker context, so
   // ensure the service worker is active.

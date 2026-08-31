@@ -8,8 +8,15 @@
 #include <optional>
 #include <utility>
 
+#include "ash/annotator/annotation_tray.h"
+#include "ash/annotator/annotator_controller.h"
 #include "ash/constants/ash_features.h"
+#include "ash/root_window_controller.h"
+#include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/webui/annotator/test/mock_annotator_client.h"
+#include "ash/webui/boca_ui/boca_util.h"
+#include "ash/webui/boca_ui/mojom/boca.mojom-data-view.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom-forward.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom-shared.h"
 #include "ash/webui/boca_ui/mojom/boca.mojom.h"
@@ -69,6 +76,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/aura/window.h"
 #include "ui/base/resource/resource_bundle.h"
 
@@ -360,6 +368,9 @@ class FakePage : public mojom::Page {
     session_caption_disabled_cb_ = std::move(session_caption_disabled_cb);
   }
 
+  void OnSpotlightCrdSessionStatusUpdated(
+      mojom::CrdConnectionState state) override {}
+
  private:
   // mojom::Page:
   void OnStudentActivityUpdated(
@@ -385,6 +396,7 @@ class FakePage : public mojom::Page {
       std::move(session_caption_disabled_cb_).Run(is_error);
     }
   }
+  void OnFrameDataReceived(const SkBitmap& frame_data) override {}
 
   ActivityInterceptorCallback student_activity_updated_cb_;
   SessionConfigInterceptorCallback session_config_updated_cb_;
@@ -398,8 +410,11 @@ class BocaAppPageHandlerTest : public testing::Test {
  public:
   BocaAppPageHandlerTest() = default;
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({ash::features::kBoca},
-                                          /*disabled_features=*/{});
+    scoped_feature_list_.InitWithFeatures(
+        {ash::features::kBoca},
+        // TODO:crbug.com/424867979 - Re-enable feature flag after adding unit
+        // tests.
+        /*disabled_features=*/{ash::features::kBocaSpotlightRobotRequester});
     // Set up UserManager related modules.
     user_manager::UserManagerImpl::RegisterPrefs(local_state_.registry());
     ash::boca_util::RegisterPrefs(local_state_.registry());
@@ -2969,6 +2984,40 @@ TEST_F(BocaAppPageHandlerProducerTest,
   EXPECT_TRUE(enable_captions_notified.translations_enabled());
   EXPECT_FALSE(disable_captions_notified.captions_enabled());
   EXPECT_TRUE(disable_captions_notified.translations_enabled());
+}
+
+class BocaAppPageHandlerProducerMarkerModeTest : public AshTestBase {
+ public:
+  BocaAppPageHandlerProducerMarkerModeTest() = default;
+  void SetUp() override {
+    ui::ResourceBundle::CleanupSharedInstance();
+    AshTestSuite::LoadTestResources();
+    AshTestBase::SetUp();
+
+    AnnotatorController* annotator_controller =
+        ash::Shell::Get()->annotator_controller();
+    annotator_controller->SetToolClient(&client_);
+  }
+
+  void TearDown() override { AshTestBase::TearDown(); }
+
+ protected:
+  AnnotationTray* annotator_tray() {
+    return ash::Shell::GetPrimaryRootWindowController()
+        ->GetStatusAreaWidget()
+        ->annotation_tray();
+  }
+
+ private:
+  MockAnnotatorClient client_;
+};
+
+TEST_F(BocaAppPageHandlerProducerMarkerModeTest, EnableAndDisableMarkerMode) {
+  ash::boca::util::EnableOrDisableMarkerMode(/*enable=*/true);
+  EXPECT_TRUE(annotator_tray()->visible_preferred());
+
+  ash::boca::util::EnableOrDisableMarkerMode(/*enable=*/false);
+  EXPECT_FALSE(annotator_tray()->visible_preferred());
 }
 
 }  // namespace

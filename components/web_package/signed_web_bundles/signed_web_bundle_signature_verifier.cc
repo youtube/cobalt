@@ -12,7 +12,6 @@
 #include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/overloaded.h"
 #include "base/notreached.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
@@ -24,7 +23,6 @@
 #include "components/cbor/values.h"
 #include "components/cbor/writer.h"
 #include "components/web_package/signed_web_bundles/constants.h"
-#include "components/web_package/signed_web_bundles/ecdsa_p256_utils.h"
 #include "components/web_package/signed_web_bundles/identity_validator.h"
 #include "components/web_package/signed_web_bundles/integrity_block_parser.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
@@ -32,7 +30,8 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_signature_stack_entry.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_utils.h"
-#include "crypto/secure_hash.h"
+#include "crypto/hash.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 
 namespace web_package {
@@ -120,8 +119,7 @@ SignedWebBundleSignatureVerifier::CalculateHashOfUnsignedWebBundle(
     return base::unexpected(base::File::ErrorToString(file.GetLastFileError()));
   }
 
-  auto secure_hash =
-      crypto::SecureHash::Create(crypto::SecureHash::Algorithm::SHA512);
+  crypto::hash::Hasher hash(crypto::hash::kSha512);
 
   // Calculate the hash of the Signed Web Bundle excluding its integrity block.
   // The file might be too big to read it into memory all at once, which is why
@@ -138,16 +136,15 @@ SignedWebBundleSignatureVerifier::CalculateHashOfUnsignedWebBundle(
           base::File::ErrorToString(file.GetLastFileError()));
     }
     data.resize(*bytes_read);
-    secure_hash->Update(data.data(), data.size());
+    hash.Update(data);
 
     if (!base::CheckAdd(offset, *bytes_read).AssignIfValid(&offset)) {
       return base::unexpected("The Signed Web Bundle is too large.");
     }
   }
 
-  CHECK_EQ(kSHA512DigestLength, secure_hash->GetHashLength());
   SHA512Digest digest;
-  secure_hash->Finish(digest.data(), digest.size());
+  hash.Finish(digest);
   return digest;
 }
 
@@ -202,20 +199,20 @@ SignedWebBundleSignatureVerifier::VerifyWithHashForIntegrityBlock(
     });
 
     bool valid_signature = std::visit(
-        base::Overloaded{[&payload_to_verify](const auto& signature_info) {
-                           return signature_info.signature().Verify(
-                               payload_to_verify, signature_info.public_key());
-                         },
-                         [&](const SignedWebBundleSignatureInfoUnknown&) {
-                           // For the v2 integrity block, unknown signatures
-                           // imply something that the current version of the
-                           // browser cannot really process; such entries can
-                           // thus be safely skipped.
-                           // Note that SignedWebBundleIntegrityBlock can only
-                           // be created if there's at least one valid signature
-                           // with a known type in the list.
-                           return true;
-                         }},
+        absl::Overload{[&payload_to_verify](const auto& signature_info) {
+                         return signature_info.signature().Verify(
+                             payload_to_verify, signature_info.public_key());
+                       },
+                       [&](const SignedWebBundleSignatureInfoUnknown&) {
+                         // For the v2 integrity block, unknown signatures
+                         // imply something that the current version of the
+                         // browser cannot really process; such entries can
+                         // thus be safely skipped.
+                         // Note that SignedWebBundleIntegrityBlock can only
+                         // be created if there's at least one valid signature
+                         // with a known type in the list.
+                         return true;
+                       }},
         signature_stack_entry.signature_info());
 
     if (!valid_signature) {

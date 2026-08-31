@@ -4,6 +4,8 @@
 
 #include "components/signin/public/base/signin_client.h"
 
+#include "components/signin/public/base/bound_session_oauth_multilogin_delegate.h"
+
 void SigninClient::PreSignOut(
     base::OnceCallback<void(SignoutDecision)> on_signout_decision_reached,
     signin_metrics::ProfileSignout signout_source_metric,
@@ -27,4 +29,9 @@ bool SigninClient::IsRevokeSyncConsentAllowed() const {
 bool SigninClient::is_clear_primary_account_allowed_for_testing() const {
   return is_clear_primary_account_allowed_for_testing_ ==
          SignoutDecision::ALLOW;
+}
+
+std::unique_ptr<signin::BoundSessionOAuthMultiLoginDelegate>
+SigninClient::CreateBoundSessionOAuthMultiloginDelegate() const {
+  return nullptr;
 }

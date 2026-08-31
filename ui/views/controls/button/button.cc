@@ -10,9 +10,9 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_forward.h"
-#include "base/functional/overloaded.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/actions/actions.h"
@@ -130,7 +130,7 @@ Button::PressedCallback::operator bool() const {
 
 void Button::PressedCallback::Run(const ui::Event& event) {
   return std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](base::OnceClosure& closure) { std::move(closure).Run(); },
           [](const base::RepeatingClosure& closure) { closure.Run(); },
           [&](const Callback& callback) { callback.Run(event); },
@@ -778,11 +778,12 @@ base::WeakPtr<Button> Button::GetWeakPtr() {
 }
 
 void Button::OnEnabledChanged() {
-  if (GetEnabled() ? (state_ != STATE_DISABLED) : (state_ == STATE_DISABLED)) {
+  if (GetEnabledInViewsSubtree() ? (state_ != STATE_DISABLED)
+                                 : (state_ == STATE_DISABLED)) {
     return;
   }
 
-  if (GetEnabled()) {
+  if (GetEnabledInViewsSubtree()) {
     bool should_enter_hover_state = ShouldEnterHoveredState();
     SetState(should_enter_hover_state ? STATE_HOVERED : STATE_NORMAL);
     InkDrop::Get(ink_drop_view_)
@@ -818,7 +819,7 @@ void Button::SetDefaultActionVerb(ax::mojom::DefaultActionVerb verb) {
 }
 
 void Button::UpdateAccessibleDefaultActionVerb() {
-  if (GetEnabled()) {
+  if (GetEnabledInViewsSubtree()) {
     GetViewAccessibility().SetDefaultActionVerb(default_action_verb_);
   } else {
     GetViewAccessibility().RemoveDefaultActionVerb();

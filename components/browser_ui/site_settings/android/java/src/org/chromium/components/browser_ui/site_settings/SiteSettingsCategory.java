@@ -78,6 +78,8 @@ public class SiteSettingsCategory {
         Type.FILE_EDITING,
         Type.JAVASCRIPT_OPTIMIZER,
         Type.SERIAL_PORT,
+        Type.LOCAL_NETWORK_ACCESS,
+        Type.WINDOW_MANAGEMENT,
         Type.NUM_ENTRIES
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -119,9 +121,11 @@ public class SiteSettingsCategory {
         int FILE_EDITING = 32;
         int JAVASCRIPT_OPTIMIZER = 33;
         int SERIAL_PORT = 34;
+        int LOCAL_NETWORK_ACCESS = 35;
+        int WINDOW_MANAGEMENT = 36;
 
         /** Number of handled categories used for calculating array sizes. */
-        int NUM_ENTRIES = 35;
+        int NUM_ENTRIES = 37;
     }
 
     private final BrowserContextHandle mBrowserContextHandle;
@@ -242,6 +246,8 @@ public class SiteSettingsCategory {
                 return ContentSettingsType.JAVASCRIPT;
             case Type.JAVASCRIPT_OPTIMIZER:
                 return ContentSettingsType.JAVASCRIPT_OPTIMIZER;
+            case Type.LOCAL_NETWORK_ACCESS:
+                return ContentSettingsType.LOCAL_NETWORK_ACCESS;
             case Type.MICROPHONE:
                 return ContentSettingsType.MEDIASTREAM_MIC;
             case Type.NFC:
@@ -264,6 +270,8 @@ public class SiteSettingsCategory {
                 return ContentSettingsType.USB_GUARD;
             case Type.VIRTUAL_REALITY:
                 return ContentSettingsType.VR;
+            case Type.WINDOW_MANAGEMENT:
+                return ContentSettingsType.WINDOW_MANAGEMENT;
             case Type.ALL_SITES:
             case Type.USE_STORAGE:
             case Type.ZOOM:
@@ -333,6 +341,8 @@ public class SiteSettingsCategory {
                 return "javascript";
             case Type.JAVASCRIPT_OPTIMIZER:
                 return "javascript_optimizer";
+            case Type.LOCAL_NETWORK_ACCESS:
+                return "local_network_access";
             case Type.MICROPHONE:
                 return "microphone";
             case Type.NFC:
@@ -363,6 +373,8 @@ public class SiteSettingsCategory {
                 return "third_party_cookies";
             case Type.TRACKING_PROTECTION:
                 return "tracking_protection";
+            case Type.WINDOW_MANAGEMENT:
+                return "window_management";
             case Type.ZOOM:
                 return "zoom";
             default:
@@ -558,6 +570,14 @@ public class SiteSettingsCategory {
     /** Returns whether to disable the category toggle. */
     protected boolean shouldDisableToggle() {
         return false;
+    }
+
+    /**
+     * Returns resource id for message about why adding exceptions is blocked. 0 should be returned
+     * if no message should be shown.
+     */
+    protected int getBlockAddingExceptionsReasonResourceId() {
+        return 0;
     }
 
     /**

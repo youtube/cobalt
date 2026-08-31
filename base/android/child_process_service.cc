@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/android/child_process_service.h"
+
 #include <optional>
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/android/library_loader/library_loader_hooks.h"
-#include "base/android/pre_freeze_background_memory_trimmer.h"
+#include "base/android/self_compaction_manager.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/file_descriptor_store.h"
 #include "base/logging.h"
@@ -21,6 +23,31 @@ using base::android::JavaParamRef;
 
 namespace base {
 namespace android {
+
+void RegisterFileDescriptors(std::vector<std::optional<std::string>>& keys,
+                             std::vector<int>& ids,
+                             std::vector<int>& fds,
+                             std::vector<int64_t>& offsets,
+                             std::vector<int64_t>& sizes) {
+  DCHECK_EQ(keys.size(), ids.size());
+  DCHECK_EQ(ids.size(), fds.size());
+  DCHECK_EQ(fds.size(), offsets.size());
+  DCHECK_EQ(offsets.size(), sizes.size());
+
+  for (size_t i = 0; i < ids.size(); i++) {
+    base::MemoryMappedFile::Region region = {offsets.at(i),
+                                             static_cast<size_t>(sizes.at(i))};
+    const std::optional<std::string>& key = keys.at(i);
+    const auto id = static_cast<GlobalDescriptors::Key>(ids.at(i));
+    int fd = fds.at(i);
+    if (key) {
+      base::FileDescriptorStore::GetInstance().Set(*key, base::ScopedFD(fd),
+                                                   region);
+    } else {
+      base::GlobalDescriptors::GetInstance()->Set(id, fd, region);
+    }
+  }
+}
 
 void JNI_ChildProcessService_RegisterFileDescriptors(
     JNIEnv* env,
@@ -48,25 +75,7 @@ void JNI_ChildProcessService_RegisterFileDescriptors(
   base::android::JavaLongArrayToInt64Vector(env, j_offsets, &offsets);
   std::vector<int64_t> sizes;
   base::android::JavaLongArrayToInt64Vector(env, j_sizes, &sizes);
-
-  DCHECK_EQ(keys.size(), ids.size());
-  DCHECK_EQ(ids.size(), fds.size());
-  DCHECK_EQ(fds.size(), offsets.size());
-  DCHECK_EQ(offsets.size(), sizes.size());
-
-  for (size_t i = 0; i < ids.size(); i++) {
-    base::MemoryMappedFile::Region region = {offsets.at(i),
-                                             static_cast<size_t>(sizes.at(i))};
-    const std::optional<std::string>& key = keys.at(i);
-    const auto id = static_cast<GlobalDescriptors::Key>(ids.at(i));
-    int fd = fds.at(i);
-    if (key) {
-      base::FileDescriptorStore::GetInstance().Set(*key, base::ScopedFD(fd),
-                                                   region);
-    } else {
-      base::GlobalDescriptors::GetInstance()->Set(id, fd, region);
-    }
-  }
+  RegisterFileDescriptors(keys, ids, fds, offsets, sizes);
 }
 
 void JNI_ChildProcessService_ExitChildProcess(JNIEnv* env) {
@@ -79,12 +88,20 @@ void JNI_ChildProcessService_ExitChildProcess(JNIEnv* env) {
 // the function body unique by adding a log line, so it doesn't get merged
 // with other functions by link time optimizations (ICF).
 NOINLINE void JNI_ChildProcessService_DumpProcessStack(JNIEnv* env) {
+  DumpProcessStack();
+}
+
+void DumpProcessStack() {
   LOG(ERROR) << "Dumping as requested.";
   base::debug::DumpWithoutCrashing();
 }
 
 void JNI_ChildProcessService_OnSelfFreeze(JNIEnv* env) {
-  PreFreezeBackgroundMemoryTrimmer::OnSelfFreeze();
+  OnSelfFreeze();
+}
+
+void OnSelfFreeze() {
+  SelfCompactionManager::OnSelfFreeze();
 }
 
 }  // namespace android

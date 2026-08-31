@@ -11,10 +11,10 @@
 #ifndef MODULES_AUDIO_PROCESSING_AEC3_SUBTRACTOR_H_
 #define MODULES_AUDIO_PROCESSING_AEC3_SUBTRACTOR_H_
 
-#include <math.h>
-#include <stddef.h>
-
 #include <array>
+#include <cmath>
+#include <cstddef>
+#include <memory>
 #include <vector>
 
 #include "api/array_view.h"

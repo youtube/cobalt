@@ -75,7 +75,10 @@ enum class PrefetchRedirectNetworkContextTransition {
 // checking the eligibility of the prefetch, making the network request for the
 // prefetch, and provide prefetched resources to URL loader interceptor when
 // needed.
-class CONTENT_EXPORT PrefetchService {
+//
+// `PrefetchService` is an `PrefetchContainer::Observer` to `PrefetchContainer`s
+// in `owned_prefetches_`.
+class CONTENT_EXPORT PrefetchService : public PrefetchContainer::Observer {
  public:
   static PrefetchService* GetFromFrameTreeNodeId(
       FrameTreeNodeId frame_tree_node_id);
@@ -87,7 +90,7 @@ class CONTENT_EXPORT PrefetchService {
   // be true, since |PrefetchService| will be indirectly owned by
   // |BrowserContext|.
   explicit PrefetchService(BrowserContext* browser_context);
-  virtual ~PrefetchService();
+  ~PrefetchService() override;
 
   PrefetchService(const PrefetchService&) = delete;
   const PrefetchService& operator=(const PrefetchService&) = delete;
@@ -226,29 +229,17 @@ class CONTENT_EXPORT PrefetchService {
  private:
   friend class PrefetchURLLoaderInterceptorTestBase;
 
+  struct CheckEligibilityParams;
+
   // Checks whether the given |prefetch_container| is eligible for prefetch.
   // Once the eligibility is determined then |OnGotEligibility()| will be
   // called.
-  void CheckEligibilityOfPrefetch(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      const GURL& url,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data);
+  void CheckEligibilityOfPrefetch(CheckEligibilityParams params);
 
-  void CheckHasServiceWorker(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      const GURL& url,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data);
+  void CheckHasServiceWorker(CheckEligibilityParams params);
 
   void OnGotServiceWorkerResult(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      const GURL& url,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data,
+      CheckEligibilityParams params,
       base::Time check_has_service_worker_start_time,
       ServiceWorkerCapability service_worker_capability);
 
@@ -256,33 +247,19 @@ class CONTENT_EXPORT PrefetchService {
   // |prefetch_container|. If there are any cookies, then the prefetch is not
   // eligible.
   void OnGotCookiesForEligibilityCheck(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      const GURL& url,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data,
+      CheckEligibilityParams params,
       const net::CookieAccessResultList& cookie_list,
       const net::CookieAccessResultList& excluded_cookies);
 
   // Starts the check for whether or not there is a proxy configured for the URL
   // of |prefetch_container|. If there is an existing proxy, then the prefetch
   // is not eligible.
-  void StartProxyLookupCheck(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      const GURL& url,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data);
+  void StartProxyLookupCheck(CheckEligibilityParams params);
 
   // Called after looking up the proxy configuration for the URL of
   // |prefetch_container|. If there is an existing proxy, then the prefetch is
   // not eligible.
-  void OnGotProxyLookupResult(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data,
-      bool has_proxy);
+  void OnGotProxyLookupResult(CheckEligibilityParams params, bool has_proxy);
 
   // Called when the eligibility is determined for each fetch of prefetch, i.e.
   // initial fetch and redirects.
@@ -292,24 +269,21 @@ class CONTENT_EXPORT PrefetchService {
   // If the initial fetch (respectively, the redirect) is eligible or the
   // prefetch is decoy, the prefetch is added to `prefetch_queue_`
   // (respectively, is retained in the queue) and proceeds to the next fetch.
-  void OnGotEligibility(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      std::optional<
-          std::pair<net::RedirectInfo, network::mojom::URLResponseHeadPtr>>
-          redirect_data,
-      PreloadingEligibility eligibility);
-  void OnGotEligibilityForNonRedirect(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      PreloadingEligibility eligibility);
+  void OnGotEligibilityForNonRedirect(CheckEligibilityParams params,
+                                      PreloadingEligibility eligibility);
   void OnGotEligibilityForRedirect(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
       net::RedirectInfo redirect_info,
       network::mojom::URLResponseHeadPtr redirect_head,
+      CheckEligibilityParams params,
       PreloadingEligibility eligibility);
 
   // Adds `prefetch_container` to the cache but doesn't initiate prefetching.
   // Use `AddPrefetchContainerWithHandle()` for non-test cases.
   void AddPrefetchContainerWithoutStartingPrefetch(
+      std::unique_ptr<PrefetchContainer> prefetch_container);
+
+  // Adds to `owned_prefetches_`.
+  void AddPrefetchContainerToOwnedPrefetches(
       std::unique_ptr<PrefetchContainer> prefetch_container);
 
   // Starts the network requests for as many prefetches in |prefetch_queue_| as
@@ -367,11 +341,15 @@ class CONTENT_EXPORT PrefetchService {
       base::WeakPtr<PrefetchContainer> prefetch_container,
       network::mojom::URLResponseHead* head);
 
-  // Called when the response for |prefetch_container| has completed when using
-  // the streaming URL loader.
-  void OnPrefetchResponseCompleted(
-      base::WeakPtr<PrefetchContainer> prefetch_container,
-      const network::URLLoaderCompletionStatus& completion_status);
+  // PrefetchContainer::Observer overrides:
+  void OnWillBeDestroyed(PrefetchContainer& prefetch_container) override;
+  void OnGotInitialEligibility(PrefetchContainer& prefetch_container,
+                               PreloadingEligibility eligibility) override;
+  void OnDeterminedHead(PrefetchContainer& prefetch_container) override;
+  void OnPrefetchCompletedOrFailed(
+      PrefetchContainer& prefetch_container,
+      const network::URLLoaderCompletionStatus& completion_status,
+      const std::optional<int>& response_code) override;
 
   // Called when the cookies from |prefetch_conatiner| are read from the
   // isolated network context and are ready to be written to the default network
@@ -434,7 +412,7 @@ class CONTENT_EXPORT PrefetchService {
   // |prefetch_container| but from a different referring RenderFrameHost.
   // Records the result to a UMA histogram.
   void RecordExistingPrefetchWithMatchingURL(
-      base::WeakPtr<PrefetchContainer> prefetch_container) const;
+      const PrefetchContainer& prefetch_container) const;
 
   // If `should_progress` is true, calls `PrefetchScheduler::ProgressAsync()`
   // (implicitly). This argument is meaningful only if `UsePrefetchScheduler()`.
@@ -470,6 +448,14 @@ class CONTENT_EXPORT PrefetchService {
 
   void DumpPrefetchesForDebug() const;
 
+  // Wrappers for `owned_prefetches_`. Use these wrappers and do not directly
+  // access `owned_prefetches_`, to avoid accidentally destructing existing
+  // `PrefetchContainer` e.g. by writing to `owned_prefetches_[key]`.
+  const std::map<PrefetchContainer::Key, std::unique_ptr<PrefetchContainer>>&
+  owned_prefetches() const {
+    return owned_prefetches_;
+  }
+
   raw_ptr<BrowserContext> browser_context_;
 
   // Delegate provided by embedder that controls specific behavior of |this|.
@@ -500,6 +486,19 @@ class CONTENT_EXPORT PrefetchService {
 
   // Prefetches owned by `this`. All `PrefetchContainer`s added by
   // `AddPrefetchContainer*` will be stored here.
+  //
+  // `PrefetchContainer`s in `owned_prefetches_` must be always:
+  // - Added by `AddPrefetchContainerToOwnedPrefetches()`.
+  // - Destructed either by:
+  //   - `ResetPrefetchContainer()` or
+  //   - `~PrefetchService()` dtor.
+  //
+  // Use `owned_prefetches()` wherever possible, to avoid unintentional
+  // destruction of `PrefetchContainer`s in `owned_prefetches_`.
+  //
+  // Note that `PrefetchContainer` not added to `owned_prefetches_` can be
+  // destroyed elsewhere even if it has a relevant `PrefetchService` (e.g. in
+  // `PrefetchContainer::MigrateNewlyAdded()`).
   std::map<PrefetchContainer::Key, std::unique_ptr<PrefetchContainer>>
       owned_prefetches_;
 

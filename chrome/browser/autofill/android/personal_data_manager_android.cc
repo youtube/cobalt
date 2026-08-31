@@ -15,7 +15,6 @@
 #include "base/command_line.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -41,6 +40,7 @@
 #include "components/autofill/core/browser/geo/country_names.h"
 #include "components/autofill/core/browser/studies/autofill_experiments.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator.h"
+#include "components/autofill/core/browser/ui/addresses/autofill_address_util.h"
 #include "components/autofill/core/browser/ui/autofill_resource_utils.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_constants.h"
@@ -144,7 +144,7 @@ PersonalDataManagerAndroid::CreateJavaCreditCardFromNative(
       static_cast<jint>(card.virtual_card_enrollment_state()),
       card.product_description(), card.CardNameForAutofillDisplay(),
       card.ObfuscatedNumberWithVisibleLastFourDigits(), card.cvc(),
-      card.issuer_id(),
+      card.issuer_id(), card.benefit_source(),
       url::GURLAndroid::FromNativeGURL(env, card.product_terms_url()));
 }
 
@@ -195,6 +195,11 @@ void PersonalDataManagerAndroid::PopulateNativeCreditCardFromJava(
       Java_CreditCard_getIssuerId(env, jcard);
   if (issuer_id) {
     card->set_issuer_id(ConvertJavaStringToUTF8(env, issuer_id));
+  }
+  ScopedJavaLocalRef<jstring> benefit_source =
+      Java_CreditCard_getBenefitSource(env, jcard);
+  if (benefit_source) {
+    card->set_benefit_source(ConvertJavaStringToUTF8(env, benefit_source));
   }
   ScopedJavaLocalRef<jobject> java_product_terms_url =
       Java_CreditCard_getProductTermsUrl(env, jcard);
@@ -285,21 +290,23 @@ std::string PersonalDataManagerAndroid::SetProfileToLocal(
 ScopedJavaLocalRef<jobjectArray>
 PersonalDataManagerAndroid::GetProfileLabelsForSettings(JNIEnv* env) {
   return GetProfileLabels(env, false /* address_only */,
-                          false /* include_name_in_label */,
-                          true /* include_organization_in_label */,
-                          true /* include_country_in_label */,
                           address_data_manager().GetProfilesForSettings());
 }
 
-ScopedJavaLocalRef<jobjectArray>
-PersonalDataManagerAndroid::GetProfileLabelsToSuggest(
+std::u16string PersonalDataManagerAndroid::GetProfileDescriptionForEditor(
     JNIEnv* env,
-    jboolean include_name_in_label,
-    jboolean include_organization_in_label,
-    jboolean include_country_in_label) {
-  return GetProfileLabels(env, true /* address_only */, include_name_in_label,
-                          include_organization_in_label,
-                          include_country_in_label,
+    std::string& guid) {
+  const AutofillProfile* profile =
+      address_data_manager().GetProfileByGUID(guid);
+  return profile ? GetProfileDescription(
+                       *profile, g_browser_process->GetApplicationLocale(),
+                       /*include_address_and_contacts=*/true)
+                 : std::u16string();
+}
+
+ScopedJavaLocalRef<jobjectArray>
+PersonalDataManagerAndroid::GetProfileLabelsToSuggest(JNIEnv* env) {
+  return GetProfileLabels(env, true /* address_only */,
                           address_data_manager().GetProfilesToSuggest());
 }
 
@@ -423,24 +430,6 @@ void PersonalDataManagerAndroid::RecordAndLogCreditCardUse(JNIEnv* env,
           payments_data_manager().GetCreditCardByGUID(guid)) {
     payments_data_manager().RecordUseOfCard(*card);
   }
-}
-
-jboolean PersonalDataManagerAndroid::HasProfiles(JNIEnv* env) {
-  return !address_data_manager().GetProfiles().empty();
-}
-
-jboolean PersonalDataManagerAndroid::HasCreditCards(JNIEnv* env) {
-  return !payments_data_manager().GetCreditCards().empty();
-}
-
-jboolean PersonalDataManagerAndroid::IsFidoAuthenticationAvailable(
-    JNIEnv* env) {
-  // Don't show toggle switch if user is unable to downstream cards.
-  if (!payments_data_manager().IsPaymentsDownloadActive()) {
-    return false;
-  }
-  // Show the toggle switch only if FIDO authentication is available.
-  return IsCreditCardFidoAuthenticationEnabled();
 }
 
 // static
@@ -643,20 +632,12 @@ ScopedJavaLocalRef<jobjectArray> PersonalDataManagerAndroid::GetCreditCardGUIDs(
 ScopedJavaLocalRef<jobjectArray> PersonalDataManagerAndroid::GetProfileLabels(
     JNIEnv* env,
     bool address_only,
-    bool include_name_in_label,
-    bool include_organization_in_label,
-    bool include_country_in_label,
     std::vector<const AutofillProfile*> profiles) {
   FieldTypeSet suggested_fields;
   size_t minimal_fields_shown = 2;
   if (address_only) {
     suggested_fields = FieldTypeSet();
-    if (include_name_in_label) {
-      suggested_fields.insert(NAME_FULL);
-    }
-    if (include_organization_in_label) {
-      suggested_fields.insert(COMPANY_NAME);
-    }
+    suggested_fields.insert(COMPANY_NAME);
     suggested_fields.insert(ADDRESS_HOME_LINE1);
     suggested_fields.insert(ADDRESS_HOME_LINE2);
     suggested_fields.insert(ADDRESS_HOME_DEPENDENT_LOCALITY);
@@ -664,20 +645,14 @@ ScopedJavaLocalRef<jobjectArray> PersonalDataManagerAndroid::GetProfileLabels(
     suggested_fields.insert(ADDRESS_HOME_STATE);
     suggested_fields.insert(ADDRESS_HOME_ZIP);
     suggested_fields.insert(ADDRESS_HOME_SORTING_CODE);
-    if (include_country_in_label) {
-      suggested_fields.insert(ADDRESS_HOME_COUNTRY);
-    }
+    suggested_fields.insert(ADDRESS_HOME_COUNTRY);
     minimal_fields_shown = suggested_fields.size();
   }
 
-  FieldType excluded_field = include_name_in_label ? UNKNOWN_TYPE : NAME_FULL;
-
-  // TODO(crbug.com/40283168): Replace by `profiles`.
   std::vector<std::u16string> labels = AutofillProfile::CreateInferredLabels(
-      std::vector<raw_ptr<const AutofillProfile, VectorExperimental>>(
-          profiles.begin(), profiles.end()),
+      profiles,
       address_only ? std::make_optional(suggested_fields) : std::nullopt,
-      /*triggering_field_type=*/std::nullopt, {excluded_field},
+      /*triggering_field_type=*/std::nullopt, /*excluded_fields=*/{NAME_FULL},
       minimal_fields_shown, g_browser_process->GetApplicationLocale());
 
   return base::android::ToJavaArrayOfStrings(env, labels);
@@ -857,6 +832,16 @@ static jlong JNI_PersonalDataManager_Init(JNIEnv* env,
           env, obj, PersonalDataManagerFactory::GetForBrowserContext(profile),
           profile->GetPrefs());
   return reinterpret_cast<intptr_t>(personal_data_manager_android);
+}
+
+jboolean PersonalDataManagerAndroid::IsCardEligibleForBenefits(
+    JNIEnv* env,
+    const std::string& guid) {
+  if (const CreditCard* card =
+          payments_data_manager().GetCreditCardByGUID(guid)) {
+    return payments_data_manager().IsCardEligibleForBenefits(*card);
+  }
+  return false;
 }
 
 }  // namespace autofill

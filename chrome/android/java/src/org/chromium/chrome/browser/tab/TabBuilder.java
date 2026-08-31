@@ -37,6 +37,7 @@ public class TabBuilder {
     private boolean mInitializeRenderer;
     private @Nullable TabState mTabState;
     private @Nullable Callback<Tab> mPreInitializeAction;
+    private boolean mIsPinned;
 
     public TabBuilder(Profile profile) {
         mProfile = profile;
@@ -54,10 +55,11 @@ public class TabBuilder {
 
     /**
      * Sets the tab from which the new one is opened.
+     *
      * @param parent The parent Tab.
      * @return {@link TabBuilder} creating the Tab.
      */
-    public TabBuilder setParent(Tab parent) {
+    public TabBuilder setParent(@Nullable Tab parent) {
         mParent = parent;
         return this;
     }
@@ -103,22 +105,24 @@ public class TabBuilder {
     }
 
     /**
-     * Sets a {@link WebContents} object to be used on the Tab. If not set, a new one
-     * will be created.
+     * Sets a {@link WebContents} object to be used on the Tab. If not set, a new one will be
+     * created.
+     *
      * @param webContents {@link WebContents} object.
      * @return {@link TabBuilder} creating the Tab.
      */
-    public TabBuilder setWebContents(WebContents webContents) {
+    public TabBuilder setWebContents(@Nullable WebContents webContents) {
         mWebContents = webContents;
         return this;
     }
 
     /**
      * Sets a {@link TabDelegateFactory} object.
+     *
      * @param delegateFactory The factory delegated to create various Tab-related objects.
      * @return {@link TabBuilder} creating the Tab.
      */
-    public TabBuilder setDelegateFactory(TabDelegateFactory delegateFactory) {
+    public TabBuilder setDelegateFactory(@Nullable TabDelegateFactory delegateFactory) {
         mDelegateFactory = delegateFactory;
         return this;
     }
@@ -151,6 +155,11 @@ public class TabBuilder {
      */
     public TabBuilder setTabState(TabState tabState) {
         mTabState = tabState;
+        return this;
+    }
+
+    public TabBuilder setInitialPinState(boolean isPinned) {
+        mIsPinned = isPinned;
         return this;
     }
 
@@ -188,6 +197,7 @@ public class TabBuilder {
 
         // Initializes Tab. Its user data objects are also initialized through the event
         // |onInitialized| of TabObserver they register.
+        assert mDelegateFactory != null;
         tab.initialize(
                 parent,
                 mCreationType,
@@ -197,7 +207,8 @@ public class TabBuilder {
                 mDelegateFactory,
                 mInitiallyHidden,
                 mTabState,
-                mInitializeRenderer);
+                mInitializeRenderer,
+                mIsPinned);
         return tab;
     }
 

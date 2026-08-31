@@ -321,6 +321,9 @@ ProfileIOSImpl::ProfileIOSImpl(
 
 ProfileIOSImpl::~ProfileIOSImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Notify the callback of the profile destruction before destroying anything.
+  NotifyProfileDestroyed();
+
   BrowserStateDependencyManager::GetInstance()->DestroyBrowserStateServices(
       this);
   // Warning: the order for shutting down the BrowserState objects is important
@@ -451,7 +454,8 @@ void ProfileIOSImpl::PrefsInitStage1(InitInfo init_info, bool success) {
       state_path, GetIOTaskRunner(),
       init_info.creation_mode == CreationMode::kSynchronous);
 
-  init_info.supervised_user_prefs->Init(supervised_user_settings);
+  init_info.supervised_user_prefs->Init(supervised_user_settings,
+                                        /*content_filters_service=*/nullptr);
 
   auto supervised_provider =
       std::make_unique<supervised_user::SupervisedUserContentSettingsProvider>(

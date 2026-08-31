@@ -21,8 +21,12 @@ promise_test(async t => {
 
 promise_test(async (t) => {
   const summarizer = await createSummarizer();
+  const stream = summarizer.summarizeStreaming(kTestPrompt);
+
   summarizer.destroy();
-  assert_throws_dom('InvalidStateError', () => summarizer.summarizeStreaming(kTestPrompt));
+
+  await promise_rejects_dom(
+    t, 'AbortError', stream.pipeTo(new WritableStream()));
 }, 'Summarizer.summarizeStreaming() fails after destroyed');
 
 promise_test(async t => {
@@ -43,3 +47,17 @@ promise_test(async () => {
     summarizer.summarizeStreaming(kTestPrompt)
   ]);
 }, 'Multiple Summarizer.summarizeStreaming() calls are resolved successfully');
+
+promise_test(async t => {
+  const summarizer = await createSummarizer();
+  const streamingResponse = summarizer.summarizeStreaming(kTestPrompt);
+  gc();
+  assert_equals(Object.prototype.toString.call(streamingResponse),
+                '[object ReadableStream]');
+  let result = '';
+  for await (const value of streamingResponse) {
+    result += value;
+    gc();
+  }
+assert_greater_than(result.length, 0, 'The result should not be empty.');
+}, 'Summarize Streaming API must continue even after GC has been performed.');

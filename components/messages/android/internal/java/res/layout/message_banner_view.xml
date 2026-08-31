@@ -87,7 +87,7 @@ found in the LICENSE file.
             android:id="@+id/message_divider"
             android:layout_marginTop="@dimen/message_divider_margin"
             android:layout_marginBottom="@dimen/message_divider_margin"
-            android:background="@macro/divider_line_bg_color"
+            android:background="@drawable/divider_line_bg"
             android:visibility="gone"
             android:importantForAccessibility="no"
             android:layout_width="1dp"
@@ -118,7 +118,9 @@ found in the LICENSE file.
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:indeterminate="true"
-                android:visibility="gone"/>
+                android:visibility="gone"
+                app:indicatorSize="@dimen/message_progress_indicator_size"
+                app:trackThickness="@dimen/message_progress_indicator_thickness" />
         </FrameLayout>
     </org.chromium.components.browser_ui.widget.BoundedLinearLayout>
 

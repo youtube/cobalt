@@ -104,6 +104,9 @@ foo:
 	// comment.
 	fcmp d0, #0.0
 
+  # cnth allows a 4-bit immediate.
+  cnth x10, all, mul #15
+
 local_function:
 
 // BSS data

@@ -9,6 +9,7 @@
 #include "base/containers/span_writer.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/checked_math.h"
+#include "base/strings/string_view_util.h"
 #include "net/base/hash_value.h"
 #include "net/base/io_buffer.h"
 #include "services/network/shared_dictionary/shared_dictionary_constants.h"
@@ -17,8 +18,7 @@ namespace network {
 
 SharedDictionaryWriterInMemory::SharedDictionaryWriterInMemory(
     FinishCallback finish_callback)
-    : finish_callback_(std::move(finish_callback)),
-      secure_hash_(crypto::SecureHash::Create(crypto::SecureHash::SHA256)) {}
+    : finish_callback_(std::move(finish_callback)) {}
 
 SharedDictionaryWriterInMemory::~SharedDictionaryWriterInMemory() {
   if (finish_callback_) {
@@ -44,7 +44,7 @@ void SharedDictionaryWriterInMemory::Append(base::span<const uint8_t> data) {
   }
   total_size_ = checked_total_size.ValueOrDie();
 
-  secure_hash_->Update(data);
+  hash_.Update(data);
   data_.emplace_back(base::as_string_view(data));
 }
 
@@ -54,7 +54,7 @@ void SharedDictionaryWriterInMemory::Finish() {
   }
 
   net::SHA256HashValue sha256;
-  secure_hash_->Finish(sha256);
+  hash_.Finish(sha256);
 
   if (total_size_ == 0) {
     std::move(finish_callback_)

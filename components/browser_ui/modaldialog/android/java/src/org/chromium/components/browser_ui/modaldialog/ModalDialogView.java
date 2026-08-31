@@ -13,10 +13,13 @@ import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.view.KeyEvent;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -36,6 +39,7 @@ import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modaldialog.ModalDialogProperties.ButtonType;
 import org.chromium.ui.widget.ButtonCompat;
+import org.chromium.ui.widget.TextViewWithLeading;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,14 +60,15 @@ public class ModalDialogView extends BoundedLinearLayout implements View.OnClick
     private ViewGroup mTitleContainer;
     private TextView mTitleView;
     private ImageView mTitleIcon;
-    private TextView mMessageParagraph1;
-    private TextView mMessageParagraph2;
+    private LinearLayout mMessageParagraphsContainer;
+    private View mMessageParagraphsSpacer;
     private ViewGroup mCustomViewContainer;
     private ViewGroup mCustomButtonBarViewContainer;
     private View mButtonBar;
     private LinearLayout mButtonGroup;
     private Button mPositiveButton;
     private Button mNegativeButton;
+    private CheckBox mCheckboxView;
     private @Nullable Callback<Integer> mOnButtonClickedCallback;
     private @Nullable Runnable mOnEscapeCallback;
     private boolean mTitleScrollable;
@@ -131,10 +136,11 @@ public class ModalDialogView extends BoundedLinearLayout implements View.OnClick
         mTitleContainer = findViewById(R.id.title_container);
         mTitleView = mTitleContainer.findViewById(R.id.title);
         mTitleIcon = mTitleContainer.findViewById(R.id.title_icon);
-        mMessageParagraph1 = findViewById(R.id.message_paragraph_1);
-        mMessageParagraph2 = findViewById(R.id.message_paragraph_2);
+        mMessageParagraphsContainer = findViewById(R.id.message_paragraphs_container);
+        mMessageParagraphsSpacer = findViewById(R.id.message_paragraphs_bottom_spacer);
         mCustomViewContainer = findViewById(R.id.custom_view_not_in_scrollable);
         mCustomButtonBarViewContainer = findViewById(R.id.custom_button_bar);
+        mCheckboxView = findViewById(R.id.modal_dialog_checkbox);
         mButtonBar = findViewById(R.id.button_bar);
         mPositiveButton = findViewById(R.id.positive_button);
         mNegativeButton = findViewById(R.id.negative_button);
@@ -147,6 +153,7 @@ public class ModalDialogView extends BoundedLinearLayout implements View.OnClick
         mFooterContainer.setBackgroundColor(
                 SemanticColorUtils.getColorSurfaceContainerLow(getContext()));
         updateContentVisibility();
+        updateCheckboxVisibility();
         updateButtonVisibility();
 
         // If the scroll view can not be scrolled, make the scroll view not focusable so that the
@@ -419,24 +426,79 @@ public class ModalDialogView extends BoundedLinearLayout implements View.OnClick
     }
 
     /**
-     * @param message The message in the dialog content.
+     * Fills the dialog's message area with multiple paragraphs of text. This will clear any message
+     * text previously set by other methods.
+     *
+     * @param paragraphs An {@link ArrayList} of {@link CharSequence} to display as paragraphs.
      */
-    void setMessageParagraph1(CharSequence message) {
-        mMessageParagraph1.setText(message);
-        UiUtils.maybeSetLinkMovementMethod(mMessageParagraph1);
+    public void setMessageParagraphs(@Nullable ArrayList<CharSequence> paragraphs) {
+        mMessageParagraphsContainer.removeAllViews();
+
+        if (paragraphs == null || paragraphs.isEmpty()) {
+            updateContentVisibility();
+            return;
+        }
+
+        LayoutInflater inflater = LayoutInflater.from(getContext());
+
+        for (CharSequence paragraphText : paragraphs) {
+            TextViewWithLeading paragraphView =
+                    (TextViewWithLeading)
+                            inflater.inflate(
+                                    R.layout.modal_dialog_paragraph_view,
+                                    mMessageParagraphsContainer,
+                                    false);
+            paragraphView.setText(paragraphText);
+            UiUtils.maybeSetLinkMovementMethod(paragraphView);
+            mMessageParagraphsContainer.addView(paragraphView);
+        }
         updateContentVisibility();
+    }
+
+    public TextView getMessageParagraphAtIndexForTesting(int index) {
+        int childCount = mMessageParagraphsContainer.getChildCount();
+        assert index >= 0 && index < childCount
+                : "Index "
+                        + index
+                        + " is out of bounds. The container has "
+                        + childCount
+                        + " children.";
+        return (TextView) mMessageParagraphsContainer.getChildAt(index);
+    }
+
+    /** Sets the listener for the checkbox. */
+    void setOnCheckboxCheckedChangeListener(
+            CompoundButton.@Nullable OnCheckedChangeListener listener) {
+        mCheckboxView.setOnCheckedChangeListener(listener);
     }
 
     /**
-     * @param message The message shown below the text set via
-     *         {@link #setMessageParagraph1(CharSequence)} when both are set.
+     * @param text The text of the checkbox.
      */
-    void setMessageParagraph2(CharSequence message) {
-        mMessageParagraph2.setText(message);
-        updateContentVisibility();
+    void setCheckboxText(CharSequence text) {
+        mCheckboxView.setText(text);
+        updateCheckboxVisibility();
     }
 
-    /** @param view The customized view in the dialog content. */
+    /**
+     * @param checked The checked state of the checkbox.
+     */
+    void setCheckboxChecked(boolean checked) {
+        if (mCheckboxView.isChecked() != checked) {
+            mCheckboxView.setChecked(checked);
+        }
+    }
+
+    /**
+     * @return Whether the checkbox is checked.
+     */
+    public boolean isCheckboxChecked() {
+        return mCheckboxView.isChecked();
+    }
+
+    /**
+     * @param view The customized view in the dialog content.
+     */
     void setCustomView(View view) {
         if (mCustomViewContainer.getChildCount() > 0) mCustomViewContainer.removeAllViews();
 
@@ -573,12 +635,12 @@ public class ModalDialogView extends BoundedLinearLayout implements View.OnClick
         boolean titleVisible = !TextUtils.isEmpty(mTitleView.getText());
         boolean titleIconVisible = mTitleIcon.getDrawable() != null;
         boolean titleContainerVisible = titleVisible || titleIconVisible;
-        boolean messageParagraph1Visibile = !TextUtils.isEmpty(mMessageParagraph1.getText());
-        boolean messageParagraph2Visible = !TextUtils.isEmpty(mMessageParagraph2.getText());
+        boolean messageParagraphsVisible = mMessageParagraphsContainer.getChildCount() > 0;
+        boolean multipleParagraphsVisible = mMessageParagraphsContainer.getChildCount() > 1;
+
         boolean scrollViewVisible =
-                (mTitleScrollable && titleContainerVisible)
-                        || messageParagraph1Visibile
-                        || messageParagraph2Visible;
+                (mTitleScrollable && titleContainerVisible) || messageParagraphsVisible;
+
         boolean footerMessageVisible = !TextUtils.isEmpty(mFooterMessageView.getText());
         boolean modalDialogScrollViewVisible =
                 mShouldWrapCustomViewScrollable || mButtonGroup.getVisibility() == View.VISIBLE;
@@ -586,12 +648,20 @@ public class ModalDialogView extends BoundedLinearLayout implements View.OnClick
         mTitleView.setVisibility(titleVisible ? View.VISIBLE : View.GONE);
         mTitleIcon.setVisibility(titleIconVisible ? View.VISIBLE : View.GONE);
         mTitleContainer.setVisibility(titleContainerVisible ? View.VISIBLE : View.GONE);
-        mMessageParagraph1.setVisibility(messageParagraph1Visibile ? View.VISIBLE : View.GONE);
+        mMessageParagraphsContainer.setVisibility(
+                messageParagraphsVisible ? View.VISIBLE : View.GONE);
+        mMessageParagraphsSpacer.setVisibility(
+                multipleParagraphsVisible ? View.VISIBLE : View.GONE);
         mTitleScrollView.setVisibility(scrollViewVisible ? View.VISIBLE : View.GONE);
-        mMessageParagraph2.setVisibility(messageParagraph2Visible ? View.VISIBLE : View.GONE);
         mModalDialogScrollView.setVisibility(
                 modalDialogScrollViewVisible ? View.VISIBLE : View.GONE);
         mFooterContainer.setVisibility(footerMessageVisible ? View.VISIBLE : View.GONE);
+    }
+
+    private void updateCheckboxVisibility() {
+        if (mCheckboxView == null) return;
+        boolean checkboxVisible = !TextUtils.isEmpty(mCheckboxView.getText());
+        mCheckboxView.setVisibility(checkboxVisible ? View.VISIBLE : View.GONE);
     }
 
     private void updateButtonVisibility() {

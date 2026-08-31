@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
@@ -897,6 +898,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Union(Type::Name(), Type::Undefined(), zone));
       break;
 
+    case IrOpcode::kJSForOfNext:
+      UNREACHABLE();
+
     case IrOpcode::kJSLoadMessage:
     case IrOpcode::kJSStoreMessage:
       break;
@@ -1216,6 +1220,11 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::String());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kStringOrOddballStrictEqual:
+      CheckValueInputIs(node, 0, Type::StringOrOddball());
+      CheckValueInputIs(node, 1, Type::StringOrOddball());
+      CheckTypeIs(node, Type::Boolean());
+      break;
     case IrOpcode::kStringToNumber:
       CheckValueInputIs(node, 0, Type::String());
       CheckTypeIs(node, Type::Number());
@@ -1438,6 +1447,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
+    case IrOpcode::kChangeNumberOrHoleToFloat64: {
+      // NumberOrHole /\ Tagged -> Number /\ UntaggedFloat64
+      // TODO(neis): Activate once ChangeRepresentation works in typer.
+      // Type from = Type::Intersect(Type::NumberOrHole(), Type::Tagged());
+      // Type to = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
+      // CheckValueInputIs(node, 0, from));
+      // CheckTypeIs(node, to));
+      break;
+    }
     case IrOpcode::kChangeTaggedToTaggedSigned:      // Fall through.
       break;
     case IrOpcode::kTruncateTaggedToFloat64PreserveUndefined:
@@ -1513,7 +1531,16 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // CheckTypeIs(node, to));
       break;
     }
-    case IrOpcode::kTruncateTaggedToWord32: {
+    case IrOpcode::kTruncateNumberOrOddballToWord32: {
+      // Number /\ Tagged -> Signed32 /\ UntaggedInt32
+      // TODO(neis): Activate once ChangeRepresentation works in typer.
+      // Type from = Type::Intersect(Type::Number(), Type::Tagged());
+      // Type to = Type::Intersect(Type::Number(), Type::UntaggedInt32());
+      // CheckValueInputIs(node, 0, from));
+      // CheckTypeIs(node, to));
+      break;
+    }
+    case IrOpcode::kTruncateNumberOrOddballOrHoleToWord32: {
       // Number /\ Tagged -> Signed32 /\ UntaggedInt32
       // TODO(neis): Activate once ChangeRepresentation works in typer.
       // Type from = Type::Intersect(Type::Number(), Type::Tagged());
@@ -1598,6 +1625,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::StringOrStringWrapper());
       break;
+    case IrOpcode::kCheckStringOrOddball:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::StringOrOddball());
+      break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
@@ -1618,6 +1649,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedInt32Mul:
     case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedInt64ToInt32:
+    case IrOpcode::kCheckedInt64ToAdditiveSafeInteger:
     case IrOpcode::kCheckedInt64ToTaggedSigned:
     case IrOpcode::kCheckedUint32Bounds:
     case IrOpcode::kCheckedUint32ToInt32:

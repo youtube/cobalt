@@ -5,8 +5,8 @@
 #include "chrome/browser/glic/widget/glic_widget.h"
 
 #include "base/memory/ptr_util.h"
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/glic/widget/glic_view.h"
+#include "chrome/browser/shell_integration_linux.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/views/chrome_widget_sublevel.h"
@@ -16,8 +16,13 @@
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/outsets.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/widget/native_widget.h"
 #include "ui/views/widget/widget_delegate.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 #if BUILDFLAG(IS_WIN)
 #include "chrome/installer/util/install_util.h"
@@ -41,18 +46,13 @@ gfx::Outsets GetTargetOutsets(const gfx::Rect& bounds) {
   gfx::Outsets outsets;
 #if BUILDFLAG(IS_WIN)
   RECT bounds_rect = bounds.ToRECT();
-  int frame_thickness = ui::GetFrameThickness(
+  int frame_thickness = ui::GetResizableFrameThicknessFromMonitorInDIP(
       MonitorFromRect(&bounds_rect, MONITOR_DEFAULTTONEAREST),
       /*has_caption=*/false);
-  display::Display display =
-      display::Screen::GetScreen()->GetDisplayMatching(bounds);
-  frame_thickness = frame_thickness / display.device_scale_factor();
-  // On Windows, the presence of a frame means that we need to adjust both the
-  // width and height of the widget by 2*frame thickness, and center the content
-  // horizontally.
-  outsets.set_left(frame_thickness);
-  outsets.set_right(frame_thickness);
-  outsets.set_bottom(2 * frame_thickness);
+  // On Windows, the presence of a frame means that we need to adjust the left,
+  // right and bottom by frame thickness.
+  outsets.set_left_right(frame_thickness, frame_thickness);
+  outsets.set_bottom(frame_thickness);
 #endif
   return outsets;
 }
@@ -103,6 +103,15 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
       views::Widget::InitParams::CLIENT_OWNS_WIDGET,
       views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
   params.bounds = initial_bounds;
+#if BUILDFLAG(IS_OZONE)
+  // Some platforms don't allow accelerated widgets to be positioned from
+  // client-side. Don't set an origin in that case.
+  if (!ui::OzonePlatform::GetInstance()
+           ->GetPlatformProperties()
+           .supports_global_screen_coordinates) {
+    params.bounds.set_origin({});
+  }
+#endif
   if (user_resizable) {
     params.bounds.Outset(GetTargetOutsets(initial_bounds));
   }
@@ -118,12 +127,16 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
   // Don't change this name. This is used by other code to identify the glic
   // window. See b/404947780.
   params.name = "GlicWidget";
+#if BUILDFLAG(IS_LINUX)
+  params.wm_class_class = shell_integration_linux::GetProgramClassClass();
+  params.wayland_app_id = params.wm_class_class + "-glic";
+#endif
   // Support of rounded corners varies across platforms. See
-  // Widget::InitParams::corner_radius. DO NOT apply this radius using
+  // Widget::InitParams::rounded_corners. DO NOT apply this radius using
   // views::Background or in the web client because it will mismatch with
   // the window's actual corner radius. e.g. on win10 resizable windows
   // do have rounded corners.
-  params.corner_radius = kGlicWidgetCornerRadius;
+  params.rounded_corners = gfx::RoundedCornersF(kGlicWidgetCornerRadius);
 #if BUILDFLAG(IS_MAC)
   params.animation_enabled = true;
 #endif
@@ -150,8 +163,8 @@ std::unique_ptr<GlicWidget> GlicWidget::Create(
       ui::win::SetAppIdForWindow(
           ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()), hwnd);
     }
-  }  // BUILDFLAG(IS_WIN)
-#endif  //
+  }
+#endif  // BUILDFLAG(IS_WIN)
   return widget;
 }
 

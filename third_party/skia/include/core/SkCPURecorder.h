@@ -12,6 +12,7 @@
 #include "include/core/SkRefCnt.h"
 #include "include/private/base/SkAPI.h"
 
+class SkCanvas;
 class SkSurface;
 class SkSurfaceProps;
 struct SkImageInfo;
@@ -27,7 +28,8 @@ public:
      */
     static Recorder* TODO();
 
-    SkRecorder::Type type() const final { return SkRecorder::Type::kRaster; }
+    SkRecorder::Type type() const final { return SkRecorder::Type::kCPU; }
+    skcpu::Recorder* cpuRecorder() final { return this; }
 
     /** Allocates a bitmap-backed SkSurface. SkCanvas returned by SkSurface draws directly into
      *  those allocated pixels, which are zeroed before use. Pixel memory size is imageInfo.height()
@@ -51,7 +53,21 @@ public:
                                        const SkSurfaceProps* surfaceProps);
     sk_sp<SkSurface> makeBitmapSurface(const SkImageInfo& imageInfo,
                                        const SkSurfaceProps* surfaceProps = nullptr);
+
+private:
+    // TODO (b/412351769): Implement this so we can capture from a CPU Recorder.
+    SkCanvas* makeCaptureCanvas(SkCanvas*) final { return nullptr; }
 };
+
+inline Recorder* AsRecorder(SkRecorder* recorder) {
+    if (!recorder) {
+        return nullptr;
+    }
+    if (recorder->type() != SkRecorder::Type::kCPU) {
+        return nullptr;
+    }
+    return static_cast<Recorder*>(recorder);
+}
 
 }  // namespace skcpu
 

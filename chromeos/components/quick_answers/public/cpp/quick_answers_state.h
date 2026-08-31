@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
@@ -113,7 +114,7 @@ class QuickAnswersState : chromeos::MagicBoostState::Observer {
   void RemoveObserver(QuickAnswersStateObserver* observer);
 
   // chromeos::MagicBoostState::Observer:
-  void OnMagicBoostAvailableUpdated(bool available) override;
+  void OnUserEligibleForGenAIFeaturesUpdated(bool eligible) override;
   void OnHMREnabledUpdated(bool enabled) override;
   void OnHMRConsentStatusUpdated(
       chromeos::HMRConsentStatus consent_status) override;
@@ -135,7 +136,7 @@ class QuickAnswersState : chromeos::MagicBoostState::Observer {
 
   bool ShouldUseQuickAnswersTextAnnotator();
 
-  bool IsSupportedLanguage(const std::string& language) const;
+  bool IsSupportedLanguage(std::string_view language) const;
 
   const std::string& application_locale() const {
     return resolved_application_locale_;

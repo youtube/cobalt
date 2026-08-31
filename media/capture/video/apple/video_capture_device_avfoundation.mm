@@ -424,9 +424,7 @@ AVCaptureDeviceFormat* FindBestCaptureFormat(
     [self stopPhotoOutput];
     if (_captureDeviceInput) {
       DCHECK(_captureDevice);
-      if (@available(macOS 12.0, *)) {
-        [_captureDevice removeObserver:self forKeyPath:@"portraitEffectActive"];
-      }
+      [_captureDevice removeObserver:self forKeyPath:@"portraitEffectActive"];
       [_captureSession stopRunning];
       [_captureSession removeInput:_captureDeviceInput];
       _captureDeviceInput = nil;
@@ -469,12 +467,10 @@ AVCaptureDeviceFormat* FindBestCaptureFormat(
   [_captureVideoDataOutput setSampleBufferDelegate:self queue:_sampleQueue];
   [_captureSession addOutput:_captureVideoDataOutput];
 
-  if (@available(macOS 12.0, *)) {
-    [_captureDevice addObserver:self
-                     forKeyPath:@"portraitEffectActive"
-                        options:0
-                        context:(__bridge void*)_captureDevice];
-  }
+  [_captureDevice addObserver:self
+                   forKeyPath:@"portraitEffectActive"
+                      options:0
+                      context:(__bridge void*)_captureDevice];
 
 #if BUILDFLAG(IS_IOS)
   _orientation = [[UIDevice currentDevice] orientation];
@@ -970,10 +966,8 @@ AVCaptureDeviceFormat* FindBestCaptureFormat(
                                       colorSpace:
                                           (const gfx::ColorSpace&)colorSpace {
   DCHECK(ioSurface);
-  gfx::GpuMemoryBufferHandle handle;
-  handle.id = gfx::GpuMemoryBufferHandle::kInvalidId;
-  handle.type = gfx::GpuMemoryBufferType::IO_SURFACE_BUFFER;
-  handle.io_surface.reset(ioSurface, base::scoped_policy::RETAIN);
+  gfx::GpuMemoryBufferHandle handle(
+      gfx::ScopedIOSurface(ioSurface, base::scoped_policy::RETAIN));
 
   // The BT709_APPLE color space is stored as an ICC profile, which is parsed
   // every frame in the GPU process. For this particularly common case, go back
@@ -1244,10 +1238,7 @@ AVCaptureDeviceFormat* FindBestCaptureFormat(
   if (_isPortraitEffectSupportedForTesting.has_value()) {
     return _isPortraitEffectSupportedForTesting.value();
   }
-  if (@available(macOS 12.0, *)) {
-    return _captureDevice.activeFormat.portraitEffectSupported;
-  }
-  return false;
+  return _captureDevice.activeFormat.portraitEffectSupported;
 }
 
 - (void)setIsPortraitEffectActiveForTesting:
@@ -1268,20 +1259,15 @@ AVCaptureDeviceFormat* FindBestCaptureFormat(
   if (_isPortraitEffectActiveForTesting.has_value()) {
     return _isPortraitEffectActiveForTesting.value();
   }
-  if (@available(macOS 12.0, *)) {
-    return _captureDevice.portraitEffectActive;
-  }
-  return false;
+  return _captureDevice.portraitEffectActive;
 }
 
 - (void)observeValueForKeyPath:(NSString*)keyPath
                       ofObject:(id)object
                         change:(NSDictionary*)change
                        context:(void*)context {
-  if (@available(macOS 12.0, *)) {
-    if ([keyPath isEqual:@"portraitEffectActive"]) {
-      [self captureConfigurationChanged];
-    }
+  if ([keyPath isEqual:@"portraitEffectActive"]) {
+    [self captureConfigurationChanged];
   }
 }
 

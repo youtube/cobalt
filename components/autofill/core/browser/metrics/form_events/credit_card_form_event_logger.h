@@ -6,6 +6,7 @@
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_FORM_EVENTS_CREDIT_CARD_FORM_EVENT_LOGGER_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "components/autofill/core/browser/autofill_field.h"
@@ -28,6 +29,8 @@ namespace autofill_metrics {
 
 class CreditCardFormEventLogger : public FormEventLoggerBase {
  public:
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
   enum class UnmaskAuthFlowEvent {
     // Authentication prompt is shown.
     kPromptShown = 0,
@@ -79,7 +82,8 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   void OnDidShowSuggestions(const FormStructure& form,
                             const AutofillField& field,
                             base::TimeTicks form_parsed_timestamp,
-                            bool off_the_record) override;
+                            bool off_the_record,
+                            base::span<const Suggestion> suggestions) override;
 
   void OnDidSelectCardSuggestion(
       const CreditCard& credit_card,
@@ -137,6 +141,14 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   // Logging when a BNPL suggestion was accepted.
   void OnDidAcceptBnplSuggestion();
 
+  // Called by BrowserAutofillManager after the Save and Fill suggestion is
+  // shown.
+  void OnSaveAndFillSuggestionShown();
+
+  // Called by AutofillExternalDelegate after the Save and Fill suggestion is
+  // accepted.
+  void OnDidAcceptSaveAndFillSuggestion();
+
   std::optional<CreditCard> GetFilledCreditCardForTesting();
 
  protected:
@@ -151,9 +163,6 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   void LogUkmInteractedWithForm(FormSignature form_signature) override;
   void OnSuggestionsShownOnce(const FormStructure& form) override;
   void OnSuggestionsShownSubmittedOnce(const FormStructure& form) override;
-  void OnLog(const std::string& name,
-             FormEvent event,
-             const FormStructure& form) const override;
   bool HasLoggedDataToFillAvailable() const override;
   DenseSet<FormTypeNameForLogging> GetSupportedFormTypeNamesForLogging()
       const override;
@@ -207,8 +216,6 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   // was a masked server card. False for all other card types.
   bool latest_filled_card_was_masked_server_card_ = false;
   std::vector<Suggestion> suggestions_;
-  bool has_eligible_offer_ = false;
-  bool card_selected_has_offer_ = false;
   // If true, the selected server card was filled and it had an equivalent local
   // version on file.
   bool server_card_with_local_duplicate_filled_ = false;
@@ -235,6 +242,12 @@ class CreditCardFormEventLogger : public FormEventLoggerBase {
   // If true, the metrics for a form submitted with a BNPL issuer VCN were
   // already logged and should not log again.
   bool has_logged_form_submitted_with_bnpl_vcn_ = false;
+  // If true, the Save and Fill suggestion has already been logged as shown and
+  // should not be logged again.
+  bool has_logged_save_and_fill_suggestion_shown_ = false;
+  // If true, the Save and Fill suggestion has already been logged as accepted
+  // and should not be logged again.
+  bool has_logged_save_and_fill_suggestion_accepted_ = false;
 
   CardMetadataLoggingContext metadata_logging_context_;
 

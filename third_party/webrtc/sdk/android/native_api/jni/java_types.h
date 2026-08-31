@@ -19,8 +19,9 @@
 
 #include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <map>
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -29,6 +30,7 @@
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 // Abort the process if `jni` has a Java exception pending.
 // This macros uses the comma operator to execute ExceptionDescribe

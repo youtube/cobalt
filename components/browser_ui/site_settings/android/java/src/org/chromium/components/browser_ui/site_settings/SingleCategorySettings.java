@@ -77,6 +77,8 @@ import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.content_settings.CookieControlsMode;
 import org.chromium.components.content_settings.ProviderType;
 import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.components.permissions.PermissionsAndroidFeatureList;
+import org.chromium.components.permissions.PermissionsAndroidFeatureMap;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.BrowserContextHandle;
@@ -238,6 +240,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     public static final String DESKTOP_SITE_WINDOW_TOGGLE_KEY = "desktop_site_window";
     public static final String EXPLAIN_PROTECTED_MEDIA_KEY = "protected_content_learn_more";
     public static final String ADD_EXCEPTION_KEY = "add_exception";
+    public static final String ADD_EXCEPTION_DISABLED_REASON_KEY = "add_exception_disabled_reason";
     public static final String INFO_TEXT_KEY = "info_text";
     public static final String ANTI_ABUSE_WHEN_ON_HEADER = "anti_abuse_when_on_header";
     public static final String ANTI_ABUSE_WHEN_ON_SECTION_ONE = "anti_abuse_when_on_section_one";
@@ -625,11 +628,10 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 websitePreference.setFragment(SingleWebsiteSettings.class.getName());
                 websitePreference.putSiteAddressIntoExtras(
                         SingleWebsiteSettings.EXTRA_SITE_ADDRESS);
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
-                    && mCategory.getType() == SiteSettingsCategory.Type.NOTIFICATIONS) {
-                // In  Android O+, users can manage Notification channels through App Info. If this
-                // is the case we send the user directly to Android Settings to modify the
-                // Notification exception.
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.NOTIFICATIONS) {
+                // Per-origin notification permission state is mapped to Android notification
+                // channels since Android O, send the user directly to Android Settings to modify
+                // the state.
                 getSiteSettingsDelegate()
                         .getChannelIdForOrigin(
                                 websitePreference.site().getAddress().getOrigin(),
@@ -938,7 +940,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
 
         configureGlobalToggles();
 
-        boolean allowSpecifyingExceptions = false;
+        boolean shouldAddExceptionButton = false;
 
         switch (mCategory.getType()) {
             case SiteSettingsCategory.Type.SOUND:
@@ -947,38 +949,54 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
             case SiteSettingsCategory.Type.FEDERATED_IDENTITY_API:
             case SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE:
             case SiteSettingsCategory.Type.JAVASCRIPT_OPTIMIZER:
-                allowSpecifyingExceptions = true;
+                shouldAddExceptionButton = true;
                 break;
             case SiteSettingsCategory.Type.BACKGROUND_SYNC:
             case SiteSettingsCategory.Type.AUTOMATIC_DOWNLOADS:
-                allowSpecifyingExceptions = !isCategoryEnabled();
+                shouldAddExceptionButton = !isCategoryEnabled();
                 break;
             case SiteSettingsCategory.Type.AUTO_DARK_WEB_CONTENT:
-                allowSpecifyingExceptions = isCategoryEnabled();
+                shouldAddExceptionButton = isCategoryEnabled();
                 break;
             case SiteSettingsCategory.Type.THIRD_PARTY_COOKIES:
-                allowSpecifyingExceptions = getCookieControlsMode() != CookieControlsMode.OFF;
+                shouldAddExceptionButton = getCookieControlsMode() != CookieControlsMode.OFF;
                 break;
             default:
                 break;
         }
 
         int exceptionDialogMessageResourceId = getAddExceptionDialogMessageResourceId();
-        assert allowSpecifyingExceptions == (exceptionDialogMessageResourceId != 0);
-        if (allowSpecifyingExceptions) {
+        assert shouldAddExceptionButton == (exceptionDialogMessageResourceId != 0);
+
+        if (shouldAddExceptionButton) {
+            int blockAddingExceptionsReasonResourceId =
+                    mCategory.getBlockAddingExceptionsReasonResourceId();
             boolean enableAddExceptionButton =
                     (!mCategory.isManaged()
-                            || mCategory.getType()
-                                    == SiteSettingsCategory.Type.THIRD_PARTY_COOKIES);
+                                    || mCategory.getType()
+                                            == SiteSettingsCategory.Type.THIRD_PARTY_COOKIES)
+                            && blockAddingExceptionsReasonResourceId == 0;
+            String exceptionDialogMessage =
+                    exceptionDialogMessageResourceId != 0
+                            ? getString(exceptionDialogMessageResourceId)
+                            : "";
             getPreferenceScreen()
                     .addPreference(
                             new AddExceptionPreference(
                                     getStyledContext(),
                                     ADD_EXCEPTION_KEY,
-                                    getString(exceptionDialogMessageResourceId),
+                                    exceptionDialogMessage,
                                     enableAddExceptionButton,
                                     mCategory,
                                     this));
+
+            if (blockAddingExceptionsReasonResourceId != 0) {
+                ChromeBasePreference reason = new ChromeBasePreference(getStyledContext());
+                reason.setKey(ADD_EXCEPTION_DISABLED_REASON_KEY);
+                reason.setTitle(getString(blockAddingExceptionsReasonResourceId));
+                reason.setIcon(mCategory.getDisabledInAndroidIcon(getContext()));
+                getPreferenceScreen().addPreference(reason);
+            }
         }
     }
 
@@ -1117,10 +1135,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                     Pair<ArrayList<ChosenObjectInfo>, ArrayList<Website>> entry =
                             objects.get(info.getObject());
                     if (entry == null) {
-                        entry =
-                                Pair.create(
-                                        new ArrayList<ChosenObjectInfo>(),
-                                        new ArrayList<Website>());
+                        entry = Pair.create(new ArrayList<>(), new ArrayList<>());
                         objects.put(info.getObject(), entry);
                     }
                     entry.first.add(info);
@@ -1231,6 +1246,10 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 return R.string.website_settings_file_editing_page_description;
             } else if (mCategory.getType() == SiteSettingsCategory.Type.SERIAL_PORT) {
                 return R.string.website_settings_serial_port_page_description;
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS) {
+                return R.string.website_settings_local_network_access_page_description;
+            } else if (mCategory.getType() == SiteSettingsCategory.Type.WINDOW_MANAGEMENT) {
+                return R.string.website_settings_window_management_page_description;
             }
         }
         return -1;
@@ -1745,7 +1764,17 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         // RadioButtonWithDescriptionLayout.
         var inflater =
                 (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        var contentView = (LinearLayout) inflater.inflate(R.layout.edit_site_dialog_content, null);
+        boolean isLocationPermission =
+                PermissionsAndroidFeatureMap.isEnabled(
+                                PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)
+                        && contentSettingsType == ContentSettingsType.GEOLOCATION_WITH_OPTIONS;
+        var contentView =
+                (LinearLayout)
+                        inflater.inflate(
+                                isLocationPermission
+                                        ? R.layout.approximate_geolocation_permission_dialog
+                                        : R.layout.edit_site_dialog_content,
+                                null);
 
         TextView messageView = contentView.findViewById(R.id.message);
         messageView.setText(
@@ -1789,6 +1818,15 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                     getInfoForOrigins();
                     alertDialog.dismiss();
                 });
+
+        if (isLocationPermission) {
+            RadioButtonWithDescriptionLayout location_access =
+                    contentView.findViewById(R.id.location_access_group);
+            // TODO(crbug.com/410752725): Fetch the geolocation permission from the backend and set
+            // whether the location access radio group should be enabled or disabled as well as the
+            // precise/approximate selection.
+            location_access.setEnabled(false);
+        }
         alertDialog.setView(contentView);
         return alertDialog;
     }

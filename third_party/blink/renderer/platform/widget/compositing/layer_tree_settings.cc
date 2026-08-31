@@ -20,7 +20,6 @@
 #include "cc/trees/layer_tree_settings.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/switches.h"
-#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "media/base/media_switches.h"
 #include "third_party/blink/public/common/features.h"
@@ -169,11 +168,11 @@ cc::ManagedMemoryPolicy GetGpuMemoryPolicy(
   // If the value was overridden on the command line, use the specified value.
   static bool client_hard_limit_bytes_overridden =
       base::CommandLine::ForCurrentProcess()->HasSwitch(
-          ::switches::kForceGpuMemAvailableMb);
+          switches::kForceGpuMemAvailableMb);
   if (client_hard_limit_bytes_overridden) {
     if (base::StringToSizeT(
             base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
-                ::switches::kForceGpuMemAvailableMb),
+                switches::kForceGpuMemAvailableMb),
             &actual.bytes_limit_when_visible)) {
       actual.bytes_limit_when_visible *= 1024 * 1024;
     }
@@ -250,11 +249,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
       !cmd.HasSwitch(::switches::kDisableCheckerImaging) && is_threaded;
 
 #if BUILDFLAG(IS_ANDROID)
-  // WebView should always raster in the default color space.
-  // Synchronous compositing indicates WebView.
-  if (!platform->IsSynchronousCompositingEnabledForAndroidWebView())
-    settings.prefer_raster_in_srgb = ::features::IsDynamicColorGamutEnabled();
-
   // We can use a more aggressive limit on Android since decodes tend to take
   // longer on these devices.
   settings.min_image_bytes_to_checker = 512 * 1024;  // 512kB
@@ -494,9 +488,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     settings.max_memory_for_prepaint_percentage = 50;
   }
 
-  // TODO(danakj): Only do this on low end devices.
-  settings.create_low_res_tiling = true;
-
 #else   // BUILDFLAG(IS_ANDROID)
   const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
 
@@ -508,8 +499,15 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
     settings.scrollbar_animator = cc::LayerTreeSettings::AURA_OVERLAY;
     settings.scrollbar_thinning_duration =
         ui::kOverlayScrollbarThinningDuration;
-    settings.scrollbar_flash_after_any_scroll_update =
-        !settings.enable_fluent_overlay_scrollbar;
+    if (!settings.enable_fluent_overlay_scrollbar) {
+      // Set scrollbar flash behavior based on feature flags
+      const bool flash_once_enabled = base::FeatureList::IsEnabled(
+          ::features::kOverlayScrollbarFlashOnlyOnceVisibleOnViewport);
+      settings.scrollbar_flash_once_after_scroll_update = flash_once_enabled;
+      settings.scrollbar_flash_after_any_scroll_update = !flash_once_enabled;
+      settings.scrollbar_flash_once_visible_on_viewport =
+          settings.scrollbar_flash_once_after_scroll_update;
+    }
     // Avoid animating in web tests to improve reliability.
     if (settings.enable_fluent_overlay_scrollbar) {
       settings.scrollbar_thinning_duration =
@@ -532,6 +530,12 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
   settings.decoded_image_working_set_budget_bytes =
       cc::ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
           /*for_renderer=*/true);
+#if BUILDFLAG(IS_COBALT)
+  settings.decoded_image_persistent_cache_budget_count =
+      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
+  settings.decoded_image_persistent_cache_budget_bytes =
+      cc::ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
+#endif
 
   if (using_low_memory_policy) {
     // RGBA_4444 textures are only enabled:
@@ -557,11 +561,6 @@ cc::LayerTreeSettings GenerateLayerTreeSettings(
       settings.max_gpu_raster_tile_size = gfx::Size(512, 256);
     }
   }
-
-  if (cmd.HasSwitch(switches::kEnableLowResTiling))
-    settings.create_low_res_tiling = true;
-  if (cmd.HasSwitch(switches::kDisableLowResTiling))
-    settings.create_low_res_tiling = false;
 
   if (cmd.HasSwitch(switches::kEnableRGBA4444Textures) &&
       !cmd.HasSwitch(switches::kDisableRGBA4444Textures)) {

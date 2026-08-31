@@ -29,6 +29,8 @@ std::optional<protocol::Preload::RuleSetErrorType> GetProtocolRuleSetErrorType(
       return protocol::Preload::RuleSetErrorTypeEnum::SourceIsNotJsonObject;
     case SpeculationRuleSetErrorType::kInvalidRulesSkipped:
       return protocol::Preload::RuleSetErrorTypeEnum::InvalidRulesSkipped;
+    case SpeculationRuleSetErrorType::kInvalidRulesetLevelTag:
+      return protocol::Preload::RuleSetErrorTypeEnum::InvalidRulesetLevelTag;
   }
 }
 
@@ -38,6 +40,7 @@ String GetProtocolRuleSetErrorMessage(const SpeculationRuleSet& rule_set) {
       return String();
     case SpeculationRuleSetErrorType::kSourceIsNotJsonObject:
     case SpeculationRuleSetErrorType::kInvalidRulesSkipped:
+    case SpeculationRuleSetErrorType::kInvalidRulesetLevelTag:
       return rule_set.error_message();
   }
 }
@@ -57,11 +60,11 @@ bool operator==(const PreloadingAttemptKey& a, const PreloadingAttemptKey& b) {
 }
 
 struct PreloadingAttemptKeyHashTraits
-    : WTF::GenericHashTraits<PreloadingAttemptKey> {
+    : GenericHashTraits<PreloadingAttemptKey> {
   static unsigned GetHash(const PreloadingAttemptKey& key) {
-    unsigned hash = WTF::GetHash(key.action);
-    hash = WTF::HashInts(hash, WTF::GetHash(key.url));
-    hash = WTF::HashInts(hash, WTF::GetHash(key.target_hint));
+    unsigned hash = blink::GetHash(key.action);
+    hash = HashInts(hash, blink::GetHash(key.url));
+    hash = HashInts(hash, blink::GetHash(key.target_hint));
     return hash;
   }
 
@@ -94,6 +97,7 @@ protocol::Preload::SpeculationAction GetProtocolSpeculationAction(
     case mojom::blink::SpeculationAction::kPrefetch:
       return protocol::Preload::SpeculationActionEnum::Prefetch;
     case mojom::blink::SpeculationAction::kPrefetchWithSubresources:
+    case mojom::blink::SpeculationAction::kPrerenderUntilScript:
       NOTREACHED();
   }
 }
@@ -243,10 +247,14 @@ void InspectorPreloadAgent::SpeculationCandidatesUpdated(
       preloading_attempts;
   for (SpeculationCandidate* candidate : candidates) {
     // We are explicitly not reporting candidates for kPrefetchWithSubresources
-    // to clients, they are currently only interested in kPrefetch and
-    // kPrerender.
+    // and kPrerenderUntilScript to clients, they are currently only interested
+    // in kPrefetch, kPrerender.
+    // TODO(https://crbug.com/428500219): Report kPrerenderUntilScript to
+    // clients.
     if (candidate->action() ==
-        mojom::blink::SpeculationAction::kPrefetchWithSubresources) {
+            mojom::blink::SpeculationAction::kPrefetchWithSubresources ||
+        candidate->action() ==
+            mojom::blink::SpeculationAction::kPrerenderUntilScript) {
       continue;
     }
     PreloadingAttemptKey key = {candidate->action(), candidate->url(),

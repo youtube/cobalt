@@ -76,6 +76,10 @@ BASE_FEATURE(kContextualPageActionShareModel,
              "ContextualPageActionShareModel",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kContextualPageActionTabGrouping,
+             "ContextualPageActionTabGrouping",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSegmentationDefaultReportingSegments,
              "SegmentationDefaultReportingSegments",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -128,10 +132,6 @@ BASE_FEATURE(kSegmentationPlatformTimeDelaySampling,
              "SegmentationPlatformTimeDelaySampling",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSegmentationPlatformCollectTabRankData,
-             "SegmentationPlatformCollectTabRankData",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSegmentationPlatformModelInitializationDelay,
              "SegmentationPlatformModelInitializationDelay",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -151,7 +151,7 @@ BASE_FEATURE(kSegmentationPlatformComposePromotion,
 
 BASE_FEATURE(kSegmentationPlatformUmaFromSqlDb,
              "SegmentationPlatformUmaFromSqlDb",
-#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_CHROMEOS)
+#if !BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -251,6 +251,18 @@ constexpr base::FeatureParam<int> kMaxHistorySyncCardImpressions{
     &kEducationalTipModule, "max_history_sync_card_impressions",
     /*default_value=*/10};
 
+constexpr base::FeatureParam<int> KDaysToShowEphemeralCardOnce{
+    &kEducationalTipModule, "days_to_show_ephemeral_card_once",
+    /*default_value=*/1};
+
+constexpr base::FeatureParam<int> KDaysToShowEachEphemeralCardOnce{
+    &kEducationalTipModule, "days_to_show_each_ephemeral_card_once",
+    /*default_value=*/7};
+
+constexpr base::FeatureParam<std::string> KNamesOfEphemeralCardsToShow{
+    &kEducationalTipModule, "names_of_ephemeral_cards_to_show",
+    /*default_value=*/""};
+
 BASE_FEATURE(kAndroidAppIntegrationModule,
              "AndroidAppIntegrationModule",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -265,6 +277,10 @@ constexpr base::FeatureParam<int> kMaxAuxiliarySearchCardImpressions{
 
 BASE_FEATURE(kSegmentationPlatformFedCmUser,
              "SegmentationPlatformFedCmUser",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDefaultBrowserPromoPropensityModel,
+             "DefaultBrowserPromoPropensityModel",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace segmentation_platform::features

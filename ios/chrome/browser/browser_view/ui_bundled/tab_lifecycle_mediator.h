@@ -11,7 +11,6 @@
 @class CommandDispatcher;
 @protocol DownloadManagerTabHelperDelegate;
 @protocol PasswordControllerDelegate;
-class PrerenderService;
 @class PrintCoordinator;
 @protocol RepostFormTabHelperDelegate;
 @class SadTabCoordinator;
@@ -22,6 +21,7 @@ class WebStateList;
 @protocol NewTabPageTabHelperDelegate;
 @protocol OverscrollActionsControllerDelegate;
 @protocol EditMenuBuilder;
+class Browser;
 
 // Mediator that handles the setup of tab helpers that require UI-layer
 // dependencies not available when AttachTabHelpers() is called.
@@ -32,7 +32,6 @@ class WebStateList;
 
 @property(nonatomic, weak) id<DownloadManagerTabHelperDelegate>
     downloadManagerTabHelperDelegate;
-@property(nonatomic, assign) PrerenderService* prerenderService;
 @property(nonatomic, weak) UIViewController* baseViewController;
 @property(nonatomic, weak) CommandDispatcher* commandDispatcher;
 @property(nonatomic, weak) id<NetExportTabHelperDelegate> tabHelperDelegate;
@@ -49,6 +48,8 @@ class WebStateList;
 @property(nonatomic, weak) id<AppLauncherTabHelperBrowserPresentationProvider>
     appLauncherBrowserPresentationProvider;
 @property(nonatomic, weak) id<EditMenuBuilder> editMenuBuilder;
+// The source browser.
+@property(nonatomic, assign) Browser* browser;
 
 // Creates an instance of the mediator. Delegates will be installed into all
 // existing web states in `webStateList`. While the mediator is alive,

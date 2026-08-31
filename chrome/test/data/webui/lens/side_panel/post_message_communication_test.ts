@@ -8,6 +8,7 @@ import {loadTimeData} from '//resources/js/load_time_data.js';
 import {MessageType, ParamType, PostMessageReceiver} from 'chrome-untrusted://lens/side_panel/post_message_communication.js';
 import {SidePanelBrowserProxyImpl} from 'chrome-untrusted://lens/side_panel/side_panel_browser_proxy.js';
 import {assertDeepEquals, assertEquals} from 'chrome-untrusted://webui-test/chai_assert.js';
+import {flushTasks} from 'chrome-untrusted://webui-test/polymer_test_util.js';
 
 import {TestLensSidePanelBrowserProxy} from './test_side_panel_browser_proxy.js';
 
@@ -17,6 +18,7 @@ const RESULTS_SEARCH_URL_ORIGIN = 'https://www.google.com';
 suite('PostMessageCommunication', () => {
   let testBrowserProxy: TestLensSidePanelBrowserProxy;
   let postMessageReceiver: PostMessageReceiver;
+  let resultsFrame: HTMLIFrameElement;
 
   function dispatchMessageEvent(data: string, origin: string) {
     // Dispatch a MessageEvent with the data and origin.
@@ -31,17 +33,17 @@ suite('PostMessageCommunication', () => {
     SidePanelBrowserProxyImpl.setInstance(testBrowserProxy);
 
     loadTimeData.overrideValues({
-      'scrollToEnabled': true,
       'resultsSearchURL': RESULTS_SEARCH_URL,
     });
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    postMessageReceiver = new PostMessageReceiver(testBrowserProxy);
+    resultsFrame = document.createElement('iframe');
+    document.body.appendChild(resultsFrame);
+    postMessageReceiver =
+        new PostMessageReceiver(testBrowserProxy, resultsFrame);
   });
 
   test('ListenCallsCorrectProxyFunctions', async () => {
-    postMessageReceiver.listen();
-
     const textFragments = ['hello', 'world'];
     const pdfPageNumber = 0;
     const data = JSON.stringify({
@@ -58,25 +60,7 @@ suite('PostMessageCommunication', () => {
     assertEquals(pdfPageNumber, page);
   });
 
-  test('ListenOnlyWorksIfScrollToEnabled', () => {
-    loadTimeData.overrideValues({'scrollToEnabled': false});
-    postMessageReceiver.listen();
-
-    const textFragments = ['hello', 'world'];
-    const pdfPageNumber = 0;
-    const data = JSON.stringify({
-      [ParamType.MESSAGE_TYPE]: MessageType.SCROLL_TO,
-      [ParamType.TEXT_FRAGMENTS]: textFragments,
-      [ParamType.PDF_PAGE_NUMBER]: pdfPageNumber,
-    });
-
-    dispatchMessageEvent(data, RESULTS_SEARCH_URL_ORIGIN);
-    assertEquals(0, testBrowserProxy.handler.getCallCount('onScrollToMessage'));
-  });
-
   test('ListenOnlyWorksForExpectedOrigin', () => {
-    postMessageReceiver.listen();
-
     const textFragments = ['hello', 'world'];
     const pdfPageNumber = 0;
     const data = JSON.stringify({
@@ -90,7 +74,6 @@ suite('PostMessageCommunication', () => {
   });
 
   test('DetachRemovesAllListeners', () => {
-    postMessageReceiver.listen();
     postMessageReceiver.detach();
 
     const textFragments = ['hello', 'world'];
@@ -103,5 +86,25 @@ suite('PostMessageCommunication', () => {
 
     dispatchMessageEvent(data, RESULTS_SEARCH_URL_ORIGIN);
     assertEquals(0, testBrowserProxy.handler.getCallCount('onScrollToMessage'));
+  });
+
+  test('SendMessagePostMessagesToIframe', async () => {
+    const message = [1, 2, 3, 4];
+
+    // Setup postMessage listener on the iframe.
+    let receivedMessage: any;
+    let receivedOrigin: string = '';
+    resultsFrame.contentWindow!.postMessage = (message, origin) => {
+      receivedMessage = message;
+      receivedOrigin = origin as string;
+    };
+
+    // Call onSendMessage to simulate a message being sent from the browser.
+    testBrowserProxy.page.sendClientMessageToAim(message);
+    await flushTasks();
+
+    // Verify that the message was sent to the iframe.
+    assertDeepEquals(message, receivedMessage);
+    assertEquals(RESULTS_SEARCH_URL_ORIGIN, receivedOrigin);
   });
 });

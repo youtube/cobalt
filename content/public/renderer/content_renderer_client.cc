@@ -194,22 +194,6 @@ ContentRendererClient::CreatePrescientNetworking(RenderFrame* render_frame) {
   return nullptr;
 }
 
-bool ContentRendererClient::IsExternalPepperPlugin(
-    const std::string& module_name) {
-  return false;
-}
-
-bool ContentRendererClient::IsOriginIsolatedPepperPlugin(
-    const base::FilePath& plugin_path) {
-  // Hosting plugins in-process is inherently incompatible with attempting to
-  // process-isolate plugins from different origins.
-  auto* cmdline = base::CommandLine::ForCurrentProcess();
-  if (cmdline->HasSwitch(switches::kPpapiInProcess))
-    return false;
-
-  return true;
-}
-
 std::unique_ptr<media::KeySystemSupportRegistration>
 ContentRendererClient::GetSupportedKeySystems(
     RenderFrame* render_frame,
@@ -234,6 +218,10 @@ bool ContentRendererClient::IsEncoderSupportedVideoType(
     const media::VideoType& type) {
   // Defer to media's default support.
   return ::media::IsDefaultEncoderSupportedVideoType(type);
+}
+
+bool ContentRendererClient::ShouldSuppressAudioTracks() {
+  return false;
 }
 
 media::ExternalMemoryAllocator* ContentRendererClient::GetMediaAllocator() {
@@ -277,11 +265,6 @@ ContentRendererClient::CreateSpeechRecognitionClient(
 }
 #endif
 
-bool ContentRendererClient::IsPluginAllowedToUseCameraDeviceAPI(
-    const GURL& url) {
-  return false;
-}
-
 bool ContentRendererClient::AllowScriptExtensionForServiceWorker(
     const url::Origin& script_origin) {
   return false;
@@ -311,8 +294,10 @@ blink::WebFrame* ContentRendererClient::FindFrame(
   return nullptr;
 }
 
-bool ContentRendererClient::IsSafeRedirectTarget(const GURL& from_url,
-                                                 const GURL& to_url) {
+bool ContentRendererClient::IsSafeRedirectTarget(
+    const GURL& from_url,
+    const GURL& to_url,
+    const std::optional<url::Origin>& request_initiator) {
   return true;
 }
 

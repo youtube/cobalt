@@ -45,43 +45,30 @@ enum class PasswordAccountStorageUsageLevel {
   kSyncing = 2,
 };
 
-// Whether to instantiate a second PasswordStore whose data is account-scoped.
-// This doesn't necessarily mean the store is being used, e.g. this predicate
-// can return true for a signed-out user. For whether the store can be used,
-// see IsAccountStorageEnabled() instead.
-// On Android, if the internal backend is not present (i.e. in a public build),
-// this method will return true, but the store itself will not be created.
-bool CanCreateAccountStore(const PrefService* pref_service);
-
 // Whether the Google account storage for passwords is enabled for the current
 // signed-in user. This always returns false for sync-the-feature users and
 // signed out users. Account storage can be enabled/disabled via
 // syncer::SyncUserSettings::SetSelectedType().
 //
-// |pref_service| must not be null.
 // |sync_service| may be null (commonly the case in incognito mode), in which
 // case this will simply return false.
 // See PasswordFeatureManager::IsAccountStorageEnabled.
-bool IsAccountStorageEnabled(const PrefService* pref_service,
-                             const syncer::SyncService* sync_service);
+bool IsAccountStorageEnabled(const syncer::SyncService* sync_service);
 
 // See definition of PasswordAccountStorageUserState.
 PasswordAccountStorageUserState ComputePasswordAccountStorageUserState(
-    const PrefService* pref_service,
     const syncer::SyncService* sync_service);
 
 // Returns the "usage level" of the account-scoped password storage. See
 // definition of PasswordAccountStorageUsageLevel.
 // See PasswordFeatureManager::ComputePasswordAccountStorageUsageLevel.
 PasswordAccountStorageUsageLevel ComputePasswordAccountStorageUsageLevel(
-    const PrefService* pref_service,
     const syncer::SyncService* sync_service);
 
 #if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
 
 // Whether the user toggle for account storage is shown in settings.
 bool ShouldShowAccountStorageSettingToggle(
-    const PrefService* pref_service,
     const syncer::SyncService* sync_service);
 
 // Users with account storage enabled used to have the choice of saving new
@@ -97,6 +84,18 @@ bool ShouldShowAccountStorageSettingToggle(
 inline constexpr char kObsoleteAccountStorageDefaultStoreKey[] =
     "default_store";
 void MigrateDefaultProfileStorePref(PrefService* pref_service);
+
+// Password change HaTS product-specific data fields.
+//
+// Note: Counts and runtime should use bucketing.
+inline constexpr char kPasswordChangeSuggestedPasswordsAdoption[] =
+    "Has user ever adopted suggested passwords";
+inline constexpr char kPasswordChangeBreachedPasswordsCount[] =
+    "Number of breached passwords";
+inline constexpr char kPasswordChangeSavedPasswordsCount[] =
+    "Number of saved passwords";
+inline constexpr char kPasswordChangeRuntime[] =
+    "Password change feature runtime, in milliseconds";
 
 #endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
 

@@ -31,9 +31,7 @@ namespace viz {
 
 class VulkanContextProvider;
 
-class VIZ_SERVICE_EXPORT CompositorGpuThread
-    : public base::Thread,
-      public gpu::MemoryTracker::Observer {
+class VIZ_SERVICE_EXPORT CompositorGpuThread : public base::Thread {
  public:
   struct CreateParams {
     raw_ptr<gpu::GpuChannelManager> gpu_channel_manager = nullptr;
@@ -48,7 +46,7 @@ class VIZ_SERVICE_EXPORT CompositorGpuThread
 #endif
   };
 
-  static std::unique_ptr<CompositorGpuThread> MaybeCreate(
+  static std::unique_ptr<CompositorGpuThread> Create(
       const CreateParams& params);
 
   // Disallow copy and assign.
@@ -66,13 +64,6 @@ class VIZ_SERVICE_EXPORT CompositorGpuThread
   // base::Thread implementation.
   void Init() override;
   void CleanUp() override;
-
-  // gpu::MemoryTracker::Observer implementation.
-  void OnMemoryAllocatedChange(
-      gpu::CommandBufferId id,
-      uint64_t old_size,
-      uint64_t new_size,
-      gpu::GpuPeakMemoryAllocationSource source) override;
 
   // These methods are called when chrome application is backgrounded and
   // foregrounded.

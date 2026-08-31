@@ -67,19 +67,19 @@ struct RTC_EXPORT VideoSinkWants {
   // resolutions per frame.
   //
   // The sink is always configured to consume a subset of the
-  // webrtc::VideoFrame's resolution. In the case of encoding, we usually encode
-  // at webrtc::VideoFrame's resolution but this may not always be the case due
+  // VideoFrame's resolution. In the case of encoding, we usually encode
+  // at VideoFrame's resolution but this may not always be the case due
   // to scaleResolutionDownBy or turning off simulcast or SVC layers.
   //
   // For example, we may capture at 720p and due to adaptation (e.g. applying
-  // `max_pixel_count` constraints) create webrtc::VideoFrames of size 480p, but
+  // `max_pixel_count` constraints) create VideoFrames of size 480p, but
   // if we do scaleResolutionDownBy:2 then the only resolution we end up
-  // encoding is 240p. In this case we still need to provide webrtc::VideoFrames
+  // encoding is 240p. In this case we still need to provide VideoFrames
   // of size 480p but we can optimize internal buffers for 240p, avoiding
   // downsampling to 480p if possible.
   //
   // Note that the `resolutions` can change while frames are in flight and
-  // should only be used as a hint when constructing the webrtc::VideoFrame.
+  // should only be used as a hint when constructing the VideoFrame.
   std::vector<FrameSize> resolutions;
 
   // This is the resolution requested by the user using RtpEncodingParameters,
@@ -134,12 +134,4 @@ class VideoSourceInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::VideoSinkWants;
-using ::webrtc::VideoSourceInterface;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 #endif  // API_VIDEO_VIDEO_SOURCE_INTERFACE_H_

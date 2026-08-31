@@ -135,7 +135,7 @@ public class Clipboard {
     }
 
     @CalledByNative
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     protected boolean hasCoercedText() {
         return false;
     }
@@ -167,21 +167,21 @@ public class Clipboard {
     }
 
     @CalledByNative
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     boolean hasUrl() {
         return false;
     }
 
     /**
-     * On Pre S, we return the whole clipboard content if the clipboard content is a URL.
-     * On S+, we return the first URL in the content. ex, If clipboard contains "text www.foo.com
+     * On Pre S, we return the whole clipboard content if the clipboard content is a URL. On S+, we
+     * return the first URL in the content. ex, If clipboard contains "text www.foo.com
      * www.bar.com", then "www.foo.com" will be returned.
+     *
      * @return The URL in the clipboard, or the first URL on the clipbobard.
      */
     @CalledByNative
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    @Nullable
-    String getUrl() {
+    @VisibleForTesting
+    @Nullable String getUrl() {
         return null;
     }
 
@@ -279,14 +279,13 @@ public class Clipboard {
     }
 
     /**
-     * Writes HTML to the clipboard, together with a plain-text representation
-     * of that very data.
+     * Writes HTML to the clipboard, together with a plain-text representation of that very data.
      *
-     * @param html  The HTML content to be pasted to the clipboard.
-     * @param text  Plain-text representation of the HTML content.
+     * @param html The HTML content to be pasted to the clipboard.
+     * @param text Plain-text representation of the HTML content.
      */
     @CalledByNative
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     void setHTMLText(final String html, final String text) {
         Log.w(TAG, "setHTMLText is a no-op because Clipboard service isn't available");
     }
@@ -403,12 +402,12 @@ public class Clipboard {
 
     protected void notifyPrimaryClipChanged() {
         if (mNativeClipboard == 0) return;
-        ClipboardJni.get().onPrimaryClipChanged(mNativeClipboard, this);
+        ClipboardJni.get().onPrimaryClipChanged(mNativeClipboard);
     }
 
     protected void notifyPrimaryClipTimestampInvalidated(long timestamp) {
         if (mNativeClipboard == 0) return;
-        ClipboardJni.get().onPrimaryClipTimestampInvalidated(mNativeClipboard, this, timestamp);
+        ClipboardJni.get().onPrimaryClipTimestampInvalidated(mNativeClipboard, timestamp);
     }
 
     protected long getLastModifiedTimeToJavaTime() {
@@ -418,10 +417,9 @@ public class Clipboard {
 
     @NativeMethods
     interface Natives {
-        void onPrimaryClipChanged(long nativeClipboardAndroid, Clipboard caller);
+        void onPrimaryClipChanged(long nativeClipboardAndroid);
 
-        void onPrimaryClipTimestampInvalidated(
-                long nativeClipboardAndroid, Clipboard caller, long timestamp);
+        void onPrimaryClipTimestampInvalidated(long nativeClipboardAndroid, long timestamp);
 
         long getLastModifiedTimeToJavaTime(long nativeClipboardAndroid);
 

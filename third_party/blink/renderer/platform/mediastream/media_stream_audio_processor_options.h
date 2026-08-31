@@ -11,18 +11,20 @@
 
 namespace blink {
 
-// Simple struct with audio-processing properties.
-struct PLATFORM_EXPORT AudioProcessingProperties {
-  enum class EchoCancellationType {
-    // Echo cancellation disabled.
-    kEchoCancellationDisabled,
-    // The WebRTC-provided AEC3 echo canceller.
-    kEchoCancellationAec3,
-    // System echo canceller, for example an OS-provided or hardware echo
-    // canceller.
-    kEchoCancellationSystem
-  };
+enum class EchoCancellationMode {
+  kDisabled,
+  kBrowserDecides,
+  kRemoteOnly,
+  kAll
+};
 
+extern PLATFORM_EXPORT const char kEchoCancellationModeAll[];
+extern PLATFORM_EXPORT const char kEchoCancellationModeRemoteOnly[];
+
+const char* EchoCancellationModeToString(EchoCancellationMode);
+
+// The result of parsing media stream constraints.
+struct PLATFORM_EXPORT AudioProcessingProperties {
   enum class VoiceIsolationType {
     // Voice isolation behavior selected by the system is used.
     kVoiceIsolationDefault,
@@ -33,7 +35,7 @@ struct PLATFORM_EXPORT AudioProcessingProperties {
   };
 
   // Disables properties that are enabled by default.
-  void DisableDefaultProperties();
+  static const AudioProcessingProperties& Disabled();
 
   bool HasSameReconfigurableSettings(
       const AudioProcessingProperties& other) const;
@@ -43,12 +45,64 @@ struct PLATFORM_EXPORT AudioProcessingProperties {
 
   std::string ToString() const;
 
-  EchoCancellationType echo_cancellation_type =
-      EchoCancellationType::kEchoCancellationAec3;
+  EchoCancellationMode echo_cancellation_mode =
+      EchoCancellationMode::kBrowserDecides;
   bool auto_gain_control = true;
   bool noise_suppression = true;
   VoiceIsolationType voice_isolation =
       VoiceIsolationType::kVoiceIsolationDefault;
+};
+
+// Which echo canceller to run and where - based on AudioProcessingProperties.
+class PLATFORM_EXPORT EchoCanceller {
+ public:
+  enum class Type {
+    kNone,
+    kPlatformProvided,
+    kChromeWide,
+    kLoopbackBased,
+    kPeerConnection
+  };
+
+  enum class ApmLocation { kRenderer, kAudioService };
+
+  static bool IsSystemWideAecAvailable(int available_platform_effects);
+
+  static EchoCanceller From(const AudioProcessingProperties& properties,
+                            int available_platform_effects);
+
+  static EchoCanceller From(EchoCancellationMode mode,
+                            int available_platform_effects);
+
+  static EchoCanceller MakeForTesting(EchoCanceller::Type type);
+
+  Type type() const { return type_; }
+
+  bool IsEnabled() const { return type_ != Type::kNone; }
+
+  bool IsPlatformProvided() const { return type_ == Type::kPlatformProvided; }
+
+  bool IsChromeProvided() const {
+    return type_ == Type::kChromeWide || type_ == Type::kLoopbackBased ||
+           type_ == Type::kPeerConnection;
+  }
+
+  bool NeedSystemLoopback() const { return type_ == Type::kLoopbackBased; }
+
+  ApmLocation GetApmLocation() const;
+
+  const char* ToString() const;
+
+ private:
+  friend class MediaStreamAudioProcessingLayout;
+
+  explicit EchoCanceller(Type type) : type_(type) {}
+
+  static Type GetPreferredAec(int available_platform_effects);
+  static Type GetSystemWideAec(int available_platform_effects);
+  static bool IsPlatformAecAvailable(int available_platform_effects);
+
+  const Type type_ = Type::kNone;
 };
 
 }  // namespace blink

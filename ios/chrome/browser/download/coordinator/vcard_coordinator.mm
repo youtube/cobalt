@@ -10,14 +10,11 @@
 #import "ios/chrome/browser/download/model/vcard_tab_helper.h"
 #import "ios/chrome/browser/download/model/vcard_tab_helper_delegate.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installer_bridge.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 #import "ios/web/public/web_state_observer_bridge.h"
 
-@interface VcardCoordinator () <DependencyInstalling, VcardTabHelperDelegate> {
-  // Bridge which observes WebStateList and alerts this coordinator when this
-  // needs to register the Mediator with a new WebState.
-  std::unique_ptr<WebStateDependencyInstallerBridge> _dependencyInstallerBridge;
-}
+@interface VcardCoordinator () <TabsDependencyInstalling,
+                                VcardTabHelperDelegate>
 
 // NavigationController that contains a viewController used to display a
 // contact.
@@ -25,35 +22,47 @@
 
 @end
 
-@implementation VcardCoordinator
+@implementation VcardCoordinator {
+  // Bridge which observes WebStateList and alerts this coordinator when this
+  // needs to register the Mediator with a new WebState.
+  TabsDependencyInstallerBridge _dependencyInstallerBridge;
+}
 
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
                                    browser:(Browser*)browser {
   if ((self = [super initWithBaseViewController:baseViewController
                                         browser:browser])) {
-    _dependencyInstallerBridge =
-        std::make_unique<WebStateDependencyInstallerBridge>(
-            self, browser->GetWebStateList());
+    _dependencyInstallerBridge.StartObserving(
+        self, browser->GetWebStateList(),
+        TabsDependencyInstaller::Policy::kOnlyRealized);
   }
   return self;
 }
 
 - (void)stop {
-  // Reset this observer manually. We want this to go out of scope now, to
-  // ensure it detaches before `browser` and its WebStateList get destroyed.
-  _dependencyInstallerBridge.reset();
+  // Stop observing the WebStateList before destroying the bridge object.
+  _dependencyInstallerBridge.StopObserving();
 
   self.navigationViewController = nil;
 }
 
-#pragma mark - DependencyInstalling methods
+#pragma mark - TabsDependencyInstalling methods
 
-- (void)installDependencyForWebState:(web::WebState*)webState {
+- (void)webStateInserted:(web::WebState*)webState {
   VcardTabHelper::FromWebState(webState)->set_delegate(self);
 }
 
-- (void)uninstallDependencyForWebState:(web::WebState*)webState {
+- (void)webStateRemoved:(web::WebState*)webState {
   VcardTabHelper::FromWebState(webState)->set_delegate(nil);
+}
+
+- (void)webStateDeleted:(web::WebState*)webState {
+  // Nothing to do.
+}
+
+- (void)newWebStateActivated:(web::WebState*)newActive
+           oldActiveWebState:(web::WebState*)oldActive {
+  // Nothing to do.
 }
 
 #pragma mark - Private

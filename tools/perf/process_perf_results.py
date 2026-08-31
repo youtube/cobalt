@@ -430,49 +430,49 @@ def process_perf_results(output_json,
   return return_code, benchmark_upload_result_map
 
 
-def _merge_chartjson_results(chartjson_dicts):
-  merged_results = chartjson_dicts[0]
-  for chartjson_dict in chartjson_dicts[1:]:
-    for key in chartjson_dict:
-      if key == 'charts':
-        for add_key in chartjson_dict[key]:
-          merged_results[key][add_key] = chartjson_dict[key][add_key]
-  return merged_results
-
-
-def _merge_histogram_results(histogram_lists):
-  merged_results = []
-  for histogram_list in histogram_lists:
-    merged_results += histogram_list
-
-  return merged_results
+def _chartjson_results(charts_results, json_dict):
+  for key in json_dict:
+    if key == 'charts':
+      for add_key in json_dict[key]:
+        charts_results[key][add_key] = json_dict[key][add_key]
+    else:
+      charts_results.setdefault(key, json_dict[key])
 
 
 def _merge_perf_results(benchmark_name, results_filename, directories):
   begin_time = time.time()
-  collected_results = []
+  charts_count = 0
+  charts_results = {'charts': {}}
+  histograms_results = []
   for directory in directories:
     filename = os.path.join(directory, 'perf_results.json')
     try:
       with open(filename) as pf:
-        collected_results.append(json.load(pf))
+        json_obj = json.load(pf)
+        if isinstance(json_obj, dict):
+          # The Charts results format.
+          _chartjson_results(charts_results, json_obj)
+          charts_count += 1
+        elif isinstance(json_obj, list):
+          # The Histograms results format.
+          histograms_results += json_obj
     except IOError as e:
       # TODO(crbug.com/40615891): Figure out how to surface these errors. Should
       # we have a non-zero exit code if we error out?
       logging.error('Failed to obtain perf results from %s: %s',
                     directory, e)
-  if not collected_results:
+  if len(histograms_results) == 0 and charts_count == 0:
     logging.error('Failed to obtain any perf results from %s.',
                   benchmark_name)
-    return
-
-  # Assuming that multiple shards will only be chartjson or histogram set
-  # Non-telemetry benchmarks only ever run on one shard
-  merged_results = []
-  if isinstance(collected_results[0], dict):
-    merged_results = _merge_chartjson_results(collected_results)
-  elif isinstance(collected_results[0], list):
-    merged_results =_merge_histogram_results(collected_results)
+    return False, 0, 0
+  if len(histograms_results) > 0:
+    # Ignoring Charts, as uploading mixed results isn't supported.
+    merged_results = histograms_results
+  else:
+    # Skip uploading Charts due to crbug.com/418674022#comment19
+    logging.warning('Skip uploading Charts results to legacy dashboard: %s.',
+                    benchmark_name)
+    return True, charts_count, 0
 
   with open(results_filename, 'w') as rf:
     json.dump(merged_results, rf)
@@ -480,6 +480,7 @@ def _merge_perf_results(benchmark_name, results_filename, directories):
   end_time = time.time()
   print_duration(('%s results merging' % (benchmark_name)),
                  begin_time, end_time)
+  return True, charts_count, len(histograms_results)
 
 
 def _upload_individual(benchmark_name, directories, configuration_name,
@@ -501,22 +502,18 @@ def _upload_individual(benchmark_name, directories, configuration_name,
   logdog_dict = {}
   logdog_dict[base_benchmark_name] = {}
   tmpfile_dir = tempfile.mkdtemp()
+  merge_perf_dir = os.path.join(os.path.abspath(tmpfile_dir), benchmark_name)
+  if not os.path.exists(merge_perf_dir):
+    os.makedirs(merge_perf_dir)
+  results_filename = os.path.join(merge_perf_dir, 'perf_results.json')
   try:
     upload_begin_time = time.time()
-    # There are potentially multiple directores with results, re-write and
-    # merge them if necessary
-    if len(directories) > 1:
-      merge_perf_dir = os.path.join(
-          os.path.abspath(tmpfile_dir), benchmark_name)
-      if not os.path.exists(merge_perf_dir):
-        os.makedirs(merge_perf_dir)
-      results_filename = os.path.join(
-          merge_perf_dir, 'merged_perf_results.json')
-      _merge_perf_results(benchmark_name, results_filename, directories)
-    else:
-      # It was only written to one shard, use that shards data
-      results_filename = os.path.join(directories[0], 'perf_results.json')
-
+    success, charts_count, _ = _merge_perf_results(benchmark_name,
+                                                   results_filename,
+                                                   directories)
+    if not success or charts_count > 0:
+      # Skip uploading Charts due to crbug.com/418674022#comment19
+      return (benchmark_name, success, logdog_dict)
     results_size_in_mib = os.path.getsize(results_filename) / (2 ** 20)
     logging.info('Uploading perf results from %s benchmark (size %s Mib)' %
           (benchmark_name, results_size_in_mib))
@@ -578,6 +575,8 @@ def _upload_skia_json(benchmark_name: str,
                       build_properties: Dict[str, Any],
                       logdog_benchmark_dict: Dict[str, Any]) -> int:
   """Converts result2 json to skia json and uploads to gcs.
+
+  This function currently supports Histograms results, but not Charts.
 
   Args:
     benchmark_name: The name of the benchmark.

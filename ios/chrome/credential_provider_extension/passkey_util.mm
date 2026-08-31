@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/credential_provider_extension/passkey_util.h"
 
 #import <AuthenticationServices/AuthenticationServices.h>
@@ -80,13 +85,10 @@ NSMutableArray<NSData*>* PRFOutputsFromExtensionOutputData(
 
 // Wrapper around passkey_model_utils's MakeAuthenticatorDataForAssertion
 // function.
-NSData* MakeAuthenticatorDataForAssertion(
-    NSString* rp_id,
-    const webauthn::passkey_model_utils::ExtensionInputData&
-        extension_input_data) {
+NSData* MakeAuthenticatorDataForAssertion(NSString* rp_id) {
   std::vector<uint8_t> authenticator_data =
       webauthn::passkey_model_utils::MakeAuthenticatorDataForAssertion(
-          SysNSStringToUTF8(rp_id), extension_input_data);
+          SysNSStringToUTF8(rp_id));
   return [NSData dataWithBytes:authenticator_data.data()
                         length:authenticator_data.size()];
 }
@@ -113,8 +115,8 @@ NSData* GenerateSignature(NSData* authenticator_data,
   return [NSData dataWithBytes:signature->data() length:signature->size()];
 }
 
-void SaveToIdentityStore(id<Credential> credential, ProceduralBlock completion)
-    API_AVAILABLE(ios(17.0)) {
+void SaveToIdentityStore(id<Credential> credential,
+                         ProceduralBlock completion) {
   auto stateCompletion = ^(ASCredentialIdentityStoreState* state) {
     if (state.enabled) {
       // Update ASCredentialIdentityStore to make the passkey immediately
@@ -156,12 +158,10 @@ void SaveCredential(id<Credential> credential) {
       return;
     }
 
-    if (@available(iOS 17.0, *)) {
-      SaveToIdentityStore(credential, ^{
-        // Notify Chrome that a new passkey was created
-        [CredentialProviderCreationNotifier notifyCredentialCreated];
-      });
-    }
+    SaveToIdentityStore(credential, ^{
+      // Notify Chrome that a new passkey was created
+      [CredentialProviderCreationNotifier notifyCredentialCreated];
+    });
   }];
 }
 
@@ -235,7 +235,7 @@ PasskeyCreationOutput PerformPasskeyCreation(
     NSData* user_handle,
     NSString* gaia,
     NSArray<NSData*>* security_domain_secrets,
-    NSArray<NSData*>* prf_inputs) API_AVAILABLE(ios(17.0)) {
+    NSArray<NSData*>* prf_inputs) {
   if ([security_domain_secrets count] == 0) {
     return {};
   }
@@ -271,7 +271,7 @@ PasskeyCreationOutput PerformPasskeyCreation(
                                          length:cred_id.size()];
   std::vector<uint8_t> attestation_object_for_creation =
       webauthn::passkey_model_utils::MakeAttestationObjectForCreation(
-          rp_id_str, cred_id, public_key_spki_der, extension_input_data);
+          rp_id_str, cred_id, public_key_spki_der);
   NSData* attestation_object =
       [NSData dataWithBytes:attestation_object_for_creation.data()
                      length:attestation_object_for_creation.size()];
@@ -293,7 +293,7 @@ PasskeyAssertionOutput PerformPasskeyAssertion(
     NSData* client_data_hash,
     NSArray<NSData*>* allowed_credentials,
     NSArray<NSData*>* security_domain_secrets,
-    NSArray<NSData*>* prf_inputs) API_AVAILABLE(ios(17.0)) {
+    NSArray<NSData*>* prf_inputs) {
   if ([security_domain_secrets count] == 0) {
     return {};
   }
@@ -315,7 +315,7 @@ PasskeyAssertionOutput PerformPasskeyAssertion(
   webauthn::passkey_model_utils::ExtensionInputData extension_input_data =
       ExtensionInputDataFromPRFInputs(prf_inputs);
   NSData* authenticatorData =
-      MakeAuthenticatorDataForAssertion(credential.rpId, extension_input_data);
+      MakeAuthenticatorDataForAssertion(credential.rpId);
   NSData* signature = GenerateSignature(authenticatorData, client_data_hash,
                                         credential_secrets->private_key());
 

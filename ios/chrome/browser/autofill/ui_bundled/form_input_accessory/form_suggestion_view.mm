@@ -20,6 +20,8 @@
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
+#import "ios/chrome/common/ui/colors/semantic_color_names.h"
+#import "ios/chrome/common/ui/elements/form_input_accessory_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
 using autofill::FillingProduct;
@@ -52,6 +54,12 @@ constexpr CGFloat kScrollHintDuration = 0.5;
 // Leading horizontal offset.
 constexpr CGFloat kLeadingOffset = 16;
 
+// Top and bottom padding when using liquid glass.
+constexpr CGFloat kLiquidGlassVerticalPadding = 10;
+
+// Width of the suggestion separator when using liquid glass.
+constexpr CGFloat kLiquidGlassSeparatorWidth = 1.0;
+
 // Logs the right histogram when a suggestion from the keyboard accessory is
 // selected. `suggestion_type` is the type of the selected suggestion and
 // `index` is the position of the selected position among the available
@@ -70,12 +78,14 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
     case FillingProduct::kPassword:
     case FillingProduct::kNone:
     case FillingProduct::kAutocomplete:
+    case FillingProduct::kDataList:
       filling_product_bucket = FillingProductToString(filling_product);
       break;
     case FillingProduct::kCompose:
     case FillingProduct::kAutofillAi:
     case FillingProduct::kMerchantPromoCode:
     case FillingProduct::kIdentityCredential:
+    case FillingProduct::kOneTimePassword:
       // These cases are currently not available on iOS.
       NOTREACHED();
   }
@@ -205,13 +215,13 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
 #pragma mark - FormSuggestionLabelDelegate
 
 - (void)didTapFormSuggestionLabel:(FormSuggestionLabel*)formSuggestionLabel {
-  NSUInteger index =
-      [self.stackView.arrangedSubviews indexOfObject:formSuggestionLabel];
-  DCHECK(index != NSNotFound);
-  FormSuggestion* suggestion = [self.suggestions objectAtIndex:index];
+  NSUInteger index = formSuggestionLabel.suggestionIndex;
+  FormSuggestion* suggestion = formSuggestionLabel.suggestion;
   LogSelectedSuggestionIndexMetric(suggestion.type, index);
-  base::RecordAction(
-      base::UserMetricsAction("KeyboardAccessory_SuggestionAccepted"));
+  base::RecordAction(base::UserMetricsAction(
+      suggestion.type == SuggestionType::kBackupPasswordEntry
+          ? "KeyboardAccessory_SuggestionAccepted_BackupPassword"
+          : "KeyboardAccessory_SuggestionAccepted"));
   [self.formSuggestionViewDelegate formSuggestionView:self
                                   didAcceptSuggestion:suggestion
                                               atIndex:index];
@@ -235,9 +245,15 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
                           : kSuggestionHorizontalMargin;
   stackView.translatesAutoresizingMaskIntoConstraints = NO;
   [self addSubview:stackView];
-  AddSameConstraints(stackView, self);
+  if (IsLiquidGlassEffectEnabled()) {
+    AddSameConstraintsToSides(
+        stackView, self,
+        LayoutSides::kTop | LayoutSides::kLeading | LayoutSides::kTrailing);
+  } else {
+    AddSameConstraints(stackView, self);
+  }
   [stackView.heightAnchor constraintEqualToAnchor:self.heightAnchor].active =
-      true;
+      YES;
 
   // Rotate the UIScrollView and its UIStackView subview 180 degrees so that the
   // first suggestion actually shows up first.
@@ -251,15 +267,59 @@ void LogSelectedSuggestionIndexMetric(SuggestionType suggestion_type,
   self.accessibilityIdentifier = kFormSuggestionsViewAccessibilityIdentifier;
 }
 
+// Creates a tiny vertical separator.
+- (UIView*)createSeparatorView {
+  UIView* wrapperContainer = [[UIView alloc] init];
+  wrapperContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  UIView* separator = [[UIView alloc] init];
+  separator.backgroundColor = [UIColor colorNamed:kSeparatorColor];
+  separator.translatesAutoresizingMaskIntoConstraints = NO;
+  [wrapperContainer addSubview:separator];
+  [NSLayoutConstraint activateConstraints:@[
+    [separator.widthAnchor
+        constraintEqualToConstant:kLiquidGlassSeparatorWidth],
+    [separator.bottomAnchor
+        constraintEqualToAnchor:wrapperContainer.bottomAnchor
+                       constant:-kLiquidGlassVerticalPadding],
+    [separator.topAnchor constraintEqualToAnchor:wrapperContainer.topAnchor
+                                        constant:kLiquidGlassVerticalPadding],
+  ]];
+  return wrapperContainer;
+}
+
+// Adds a FormSuggestionLabel to this FormSuggestionView's stack view.
+- (void)addFormSuggestionLabel:(FormSuggestionLabel*)label
+                       atIndex:(NSUInteger)idx {
+  if (IsLiquidGlassEffectEnabled()) {
+    if (idx > 0) {
+      [self.stackView addArrangedSubview:[self createSeparatorView]];
+    }
+
+    // This constraint is added to ensure that the keyboard accessory's
+    // suggestion label maintains its height when a hardware keyboard is
+    // connected and the keyboard accessory is located at the bottom of the
+    // screen. Without this constraint, the label's height is reduced and looks
+    // squeezed.
+    [label.heightAnchor
+        constraintEqualToConstant:kLargeKeyboardAccessoryHeight -
+                                  (2 * kSuggestionVerticalMargin)]
+        .active = YES;
+  }
+
+  [self.stackView addArrangedSubview:label];
+}
+
+// Creates a FormSuggestionLabel for each suggestion and adds them to this
+// FormSuggestionView's stack view, along with the trailing view, if any.
 - (void)createAndInsertArrangedSubviews {
   auto setupBlock = ^(FormSuggestion* suggestion, NSUInteger idx, BOOL* stop) {
-    UIView* label = [[FormSuggestionLabel alloc]
+    FormSuggestionLabel* label = [[FormSuggestionLabel alloc]
            initWithSuggestion:suggestion
                         index:idx
                numSuggestions:[self.suggestions count]
         accessoryTrailingView:self.accessoryTrailingView
                      delegate:self];
-    [self.stackView addArrangedSubview:label];
+    [self addFormSuggestionLabel:label atIndex:idx];
     if (idx == 0 &&
         suggestion.featureForIPH != SuggestionFeatureForIPH::kUnknown) {
       // Track the first element.

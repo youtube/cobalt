@@ -31,8 +31,9 @@ public interface OmniboxActionFactory {
      * @param hint the title displayed on the chip
      * @param accessibilityHint the text to be announced to the accessibility-enabled users
      * @param actionType the specific type of an action matching the {@link
-     *     EntityInfoProto.ActionInfo.ActionType}
+     *     SuggestTemplateInfo.TemplateAction.ActionType}
      * @param actionUri the corresponding action URI/URL (serialized intent)
+     * @param showAsActionButton whether to show it as action button
      * @return new instance of an OmniboxActionInSuggest
      */
     @CalledByNative
@@ -40,8 +41,9 @@ public interface OmniboxActionFactory {
             long instance,
             String hint,
             String accessibilityHint,
-            /* EntityInfoProto.ActionInfo.ActionType */ int actionType,
-            String actionUri);
+            /* SuggestTemplateInfo.TemplateAction.ActionType */ int actionType,
+            String actionUri,
+            boolean showAsActionButton);
 
     /**
      * Construct a new OmniboxAnswerAction.

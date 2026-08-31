@@ -6,11 +6,11 @@
  */
 
 #include "include/core/SkFontMgr.h"
+#include "include/core/SkFontScanner.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkTypeface.h"
 #include "include/core/SkTypes.h"
 #include "include/ports/SkFontMgr_android_ndk.h"
-#include "include/ports/SkFontScanner_FreeType.h"
 #include "include/private/base/SkTArray.h"
 #include "include/private/base/SkTemplates.h"
 #include "src/base/SkTSearch.h"
@@ -18,6 +18,7 @@
 #include "src/core/SkFontDescriptor.h"
 #include "src/core/SkOSFile.h"
 #include "src/core/SkTHash.h"
+#include "src/ports/SkFontMgr_android_parser.h"
 #include "src/ports/SkTypeface_proxy.h"
 
 #include <android/api-level.h>
@@ -258,12 +259,14 @@ public:
                                              const SkFontStyle& style,
                                              bool isFixedPitch,
                                              const SkString& familyName,
+                                             TArray<SkString>&& extraFamilyNames,
                                              TArray<SkLanguage>&& lang) {
         SkASSERT(realTypeface);
         return sk_sp<SkTypeface_AndroidNDK>(new SkTypeface_AndroidNDK(std::move(realTypeface),
                                                                       style,
                                                                       isFixedPitch,
                                                                       familyName,
+                                                                      std::move(extraFamilyNames),
                                                                       std::move(lang)));
     }
 
@@ -272,9 +275,11 @@ private:
                           const SkFontStyle& style,
                           bool isFixedPitch,
                           const SkString& familyName,
+                          TArray<SkString>&& extraFamilyNames,
                           TArray<SkLanguage>&& lang)
         : SkTypeface_proxy(std::move(realTypeface), style, isFixedPitch)
         , fFamilyName(familyName)
+        , fExtraFamilyNames(std::move(extraFamilyNames))
         , fLang(std::move(lang))
     { }
 
@@ -301,6 +306,7 @@ private:
                 this->fontStyle(),
                 this->isFixedPitch(),
                 fFamilyName,
+                TArray<SkString>(fExtraFamilyNames),
                 TArray<SkLanguage>());
     }
 
@@ -312,8 +318,41 @@ private:
         return SkTypeface::onGetFixedPitch();
     }
 
+    SkTypeface::LocalizedStrings* onCreateFamilyNameIterator() const override {
+        class ALocalizedStrings : public SkTypeface::LocalizedStrings {
+        public:
+            ALocalizedStrings(sk_sp<SkTypeface_AndroidNDK> typeface,
+                              sk_sp<SkTypeface::LocalizedStrings> base)
+                : fTypeface(std::move(typeface))
+                , fBase(std::move(base))
+                , fExtraFamilyName(nullptr) {}
+        private:
+            sk_sp<SkTypeface_AndroidNDK> fTypeface;
+            sk_sp<SkTypeface::LocalizedStrings> fBase;
+            const SkString* fExtraFamilyName;
+
+            bool next(LocalizedString* localizedString) override {
+                if (!fExtraFamilyName) {
+                    if (fBase->next(localizedString)) {
+                        return true;
+                    }
+                    fExtraFamilyName = fTypeface->fExtraFamilyNames.begin();
+                }
+                if (fExtraFamilyName == fTypeface->fExtraFamilyNames.end()) {
+                    return false;
+                }
+                *localizedString = {*fExtraFamilyName, SkString()};
+                ++fExtraFamilyName;
+                return true;
+            }
+        };
+        sk_sp<SkTypeface::LocalizedStrings> base(SkTypeface_proxy::onCreateFamilyNameIterator());
+        return new ALocalizedStrings(sk_ref_sp(this), std::move(base));
+    }
+
 public:
     const SkString fFamilyName;
+    const TArray<SkString> fExtraFamilyNames;
     const STArray<4, SkLanguage> fLang;
 };
 
@@ -397,7 +436,7 @@ class SkFontMgr_AndroidNDK : public SkFontMgr {
 
 public:
     SkFontMgr_AndroidNDK(const AndroidFontAPI& androidFontAPI, bool const cacheFontFiles,
-                          std::unique_ptr<SkFontScanner> scanner)
+                         std::unique_ptr<SkFontScanner> scanner)
         : fAPI(androidFontAPI)
         , fScanner(std::move(scanner))
     {
@@ -407,11 +446,62 @@ public:
             return;
         }
 
+        SkTDArray<FontFamily*> xmlFamilies;
+        SkFontMgr_Android_Parser::GetSystemFontFamilies(xmlFamilies);
+
         skia_private::THashMap<SkString, std::unique_ptr<SkStreamAsset>> streamForPath;
 
         if constexpr (kSkFontMgrVerbose) { SkDebugf("SKIA: Iterating over AFonts\n"); }
         while (SkAFont font = fontIter.next()) {
-            sk_sp<SkTypeface_AndroidNDK> typeface = this->make(std::move(font), streamForPath);
+
+            // The NDK does not report aliases like 'serif', 'sans-serif`, 'monospace', etc.
+            // If a font matches an entry in fonts.xml, add the fonts.xml family name as well.
+            TArray<SkString> extraFamilyNames;
+            for (FontFamily* xmlFamily : xmlFamilies) {
+                if (xmlFamily->fNames.empty()) {
+                    continue;
+                }
+
+                for (const FontFileInfo& xmlFont : xmlFamily->fFonts) {
+                    SkString pathName(xmlFamily->fBasePath);
+                    pathName.append(xmlFont.fFileName);
+                    if (!pathName.equals(font.getFontFilePath())) {
+                        continue;
+                    }
+
+                    if (font.getCollectionIndex() != static_cast<size_t>(xmlFont.fIndex)) {
+                        continue;
+                    }
+
+                    auto&& xmlVariation = xmlFont.fVariationDesignPosition;
+                    if (font.getAxisCount() != static_cast<size_t>(xmlVariation.size())) {
+                        continue;
+                    }
+                    using Coordinate = SkFontArguments::VariationPosition::Coordinate;
+                    auto&& fontHasCoord = [&font](const Coordinate& c) -> bool {
+                        for (size_t i = 0; i < font.getAxisCount(); ++i) {
+                            if (font.getAxisTag(i) == c.axis && font.getAxisValue(i) == c.value) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    if (!std::all_of(xmlVariation.begin(), xmlVariation.end(), fontHasCoord)) {
+                        continue;
+                    }
+
+                    if (xmlFont.fWeight != 0 && xmlFont.fWeight != font.getWeight()) {
+                        continue;
+                    }
+
+                    for (auto&& xmlName : xmlFamily->fNames) {
+                        extraFamilyNames.push_back(xmlName);
+                    }
+                }
+            }
+
+            sk_sp<SkTypeface_AndroidNDK> typeface = this->make(font, std::move(extraFamilyNames),
+                                                               streamForPath);
             if (!typeface) {
                 continue;
             }
@@ -428,10 +518,12 @@ public:
                     this->addSystemTypeface(typeface, localeName.fString);
                 }
             }
-
-            // There nothing in the NDK to indicate how to handle generic font names like 'serif',
-            // 'sans-serif`, 'monospace', etc.
         }
+        for (FontFamily* p : xmlFamilies) {
+            delete p;
+        }
+        xmlFamilies.reset();
+
 
         if (fStyleSets.empty()) {
             if constexpr (kSkFontMgrVerbose) { SkDebugf("SKIA: No fonts!"); }
@@ -486,8 +578,11 @@ protected:
         return sset->matchStyle(style);
     }
 
-    sk_sp<SkTypeface_AndroidNDK> make(SkAFont font, skia_private::THashMap<SkString,
-                                      std::unique_ptr<SkStreamAsset>>& streamForPath) const {
+    sk_sp<SkTypeface_AndroidNDK> make(
+        const SkAFont& font,
+        TArray<SkString>&& extraFamilyNames,
+        skia_private::THashMap<SkString, std::unique_ptr<SkStreamAsset>>& streamForPath) const
+    {
         SkString filePath(font.getFontFilePath());
 
         std::unique_ptr<SkStreamAsset>* streamPtr = streamForPath.find(filePath);
@@ -600,7 +695,8 @@ protected:
         }
 
         return SkTypeface_AndroidNDK::Make(
-                proxy, style, proxy->isFixedPitch(), familyName, std::move(skLangs));
+            proxy, style, proxy->isFixedPitch(),
+            familyName, std::move(extraFamilyNames), std::move(skLangs));
     }
 
 
@@ -781,12 +877,8 @@ private:
 
 }  // namespace
 
-sk_sp<SkFontMgr> SkFontMgr_New_AndroidNDK(bool cacheFontFiles) {
-    return SkFontMgr_New_AndroidNDK(cacheFontFiles, SkFontScanner_Make_FreeType());
-}
-
 sk_sp<SkFontMgr> SkFontMgr_New_AndroidNDK(bool cacheFontFiles,
-                                           std::unique_ptr<SkFontScanner> scanner)
+                                          std::unique_ptr<SkFontScanner> scanner)
 {
     AndroidFontAPI const * const androidFontAPI = GetAndroidFontAPI();
     if (!androidFontAPI) {

@@ -43,13 +43,14 @@ constexpr char kTestDomain[] = "a.test";
 
 constexpr char kJsErrorPrefix[] = "a JavaScript error: \"";
 
-MATCHER_P(IsJsError, name, "") {
-  return base::StartsWith(arg.error, base::StrCat({kJsErrorPrefix, name}));
+auto IsJsError(std::string_view name) {
+  return content::EvalJsResult::ErrorIs(
+      testing::StartsWith(base::StrCat({kJsErrorPrefix, name})));
 }
 
-MATCHER_P2(IsJsErrorWithMessage, name, message, "") {
-  return base::StrCat({kJsErrorPrefix, name, ": ", message, "\"\n"}) ==
-         arg.error;
+auto IsJsErrorWithMessage(std::string_view name, std::string_view message) {
+  return content::EvalJsResult::ErrorIs(
+      base::StrCat({kJsErrorPrefix, name, ": ", message, "\"\n"}));
 }
 
 class WebAuthenticationProxyApiTest : public ExtensionApiTest {
@@ -77,7 +78,7 @@ class WebAuthenticationProxyApiTest : public ExtensionApiTest {
             browser(), https_test_server_.GetURL(test_domain_, "/page.html"))) {
       ADD_FAILURE() << "Failed to navigate to test URL";
     }
-    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+    return content::EvalJs(GetActiveWebContents(),
                            "PublicKeyCredential."
                            "isUserVerifyingPlatformAuthenticatorAvailable();")
         .ExtractBool();
@@ -126,9 +127,9 @@ class WebAuthenticationProxyApiTest : public ExtensionApiTest {
               let err = await createPromise;
               return err;
             })();)";
-    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                           kMakeCredentialJs)
-               .error.find("AbortError") >= 0;
+    return testing::Value(
+        content::EvalJs(GetActiveWebContents(), kMakeCredentialJs),
+        content::EvalJsResult::ErrorIs(testing::HasSubstr("AbortError")));
   }
 
   content::EvalJsResult NavigateAndCallGetAssertion() {
@@ -144,8 +145,7 @@ class WebAuthenticationProxyApiTest : public ExtensionApiTest {
               }});
               return credential.id;
             })();)";
-    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                           kGetAssertionJs);
+    return content::EvalJs(GetActiveWebContents(), kGetAssertionJs);
   }
 
   bool NavigateAndCallGetAssertionThenCancel() {
@@ -166,9 +166,9 @@ class WebAuthenticationProxyApiTest : public ExtensionApiTest {
               let err = await getPromise;
               return err;
             })();)";
-    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                           kGetAssertionJs)
-               .error.find("AbortError") >= 0;
+    return testing::Value(
+        content::EvalJs(GetActiveWebContents(), kGetAssertionJs),
+        content::EvalJsResult::ErrorIs(testing::HasSubstr("AbortError")));
   }
 
   bool ProxyIsActive() { return ProxyIsActiveForContext(profile()); }

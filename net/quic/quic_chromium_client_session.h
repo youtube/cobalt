@@ -745,7 +745,6 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
 
   // quic::QuicSession methods:
   QuicChromiumClientStream* CreateOutgoingBidirectionalStream() override;
-  QuicChromiumClientStream* CreateOutgoingUnidirectionalStream() override;
   const quic::QuicCryptoClientStream* GetCryptoStream() const override;
   quic::QuicCryptoClientStream* GetMutableCryptoStream() override;
   void SetDefaultEncryptionLevel(quic::EncryptionLevel level) override;
@@ -983,7 +982,6 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
   // quic::QuicSession methods:
   bool ShouldCreateIncomingStream(quic::QuicStreamId id) override;
   bool ShouldCreateOutgoingBidirectionalStream() override;
-  bool ShouldCreateOutgoingUnidirectionalStream() override;
 
   QuicChromiumClientStream* CreateIncomingStream(
       quic::QuicStreamId id) override;
@@ -1247,6 +1245,10 @@ class NET_EXPORT_PRIVATE QuicChromiumClientSession
   std::set<url::SchemeHostPort> received_origins_;
 
   std::vector<uint8_t> ech_config_list_;
+
+  // The list of TLS Trust Anchor IDs, each in binary representation, advertised
+  // by the server in DNS.
+  std::vector<std::vector<uint8_t>> trust_anchor_ids_;
 
   const bool allow_server_preferred_address_;
 

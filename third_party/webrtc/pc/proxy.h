@@ -56,20 +56,13 @@
 #ifndef PC_PROXY_H_
 #define PC_PROXY_H_
 
-#include <stddef.h>
-
-#include <memory>
-#include <string>
+#include <cstddef>
+#include <string>  // IWYU pragma: keep
 #include <tuple>
-#include <type_traits>
 #include <utility>
 
-#include "api/make_ref_counted.h"
-#include "api/scoped_refptr.h"
-#include "api/task_queue/task_queue_base.h"
 #include "rtc_base/event.h"
-#include "rtc_base/string_utils.h"
-#include "rtc_base/system/rtc_export.h"
+#include "rtc_base/string_utils.h"  // IWYU pragma: keep
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 

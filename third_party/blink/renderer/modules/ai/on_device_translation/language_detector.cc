@@ -26,19 +26,22 @@ namespace {
 // TODO(crbug.com/410949688): Figure out how to retrieve these from the model.
 static constexpr auto kSupportedLanguages =
     base::MakeFixedFlatSet<std::string_view>({
-        "af",      "am",  "ar",  "ar-Latn", "az", "be", "bg", "bg-Latn", "bn",
-        "bs",      "ca",  "ceb", "co",      "cs", "cy", "da", "de",      "el",
-        "el-Latn", "en",  "eo",  "es",      "et", "eu", "fa", "fi",      "fil",
-        "fr",      "fy",  "ga",  "gd",      "gl", "gu", "ha", "haw",     "hi",
-        "hi-Latn", "hmn", "hr",  "ht",      "hu", "hy", "id", "ig",      "is",
-        "it",      "iw",  "ja",  "ja-Latn", "jv", "ka", "kk", "km",      "kn",
-        "ko",      "ku",  "ky",  "la",      "lb", "lo", "lt", "lv",      "mg",
-        "mi",      "mk",  "ml",  "mn",      "mr", "ms", "mt", "my",      "ne",
-        "nl",      "no",  "ny",  "pa",      "pl", "ps", "pt", "ro",      "ru",
-        "ru-Latn", "sd",  "si",  "sk",      "sl", "sm", "sn", "so",      "sq",
-        "sr",      "st",  "su",  "sv",      "sw", "ta", "te", "tg",      "th",
-        "tr",      "uk",  "ur",  "uz",      "vi", "xh", "yi", "yo",      "zh",
-        "zh-Latn", "zu",
+        "af",      "am", "ar",      "ar-Latn", "az",      "be",  "bg",
+        "bg-Latn", "bn", "bs",      "ca",      "ceb",     "co",  "cs",
+        "cy",      "da", "de",      "el",      "el-Latn", "en",  "eo",
+        "es",      "et", "eu",      "fa",      "fi",      "fil", "fr",
+        "fy",      "ga", "gd",      "gl",      "gu",      "ha",  "haw",
+        "he",      "hi", "hi-Latn", "hmn",     "hr",      "ht",  "hu",
+        "hy",      "id", "ig",      "is",      "it",      "ja",  "ja-Latn",
+        "jv",      "ka", "kk",      "km",      "kn",      "ko",  "ku",
+        "ky",      "la", "lb",      "lo",      "lt",      "lv",  "mg",
+        "mi",      "mk", "ml",      "mn",      "mr",      "ms",  "mt",
+        "my",      "ne", "nl",      "no",      "ny",      "pa",  "pl",
+        "ps",      "pt", "ro",      "ru",      "ru-Latn", "sd",  "si",
+        "sk",      "sl", "sm",      "sn",      "so",      "sq",  "sr",
+        "st",      "su", "sv",      "sw",      "ta",      "te",  "tg",
+        "th",      "tr", "uk",      "ur",      "uz",      "vi",  "xh",
+        "yi",      "yo", "zh",      "zh-Latn", "zu",
     });
 
 bool RequiresUserActivation(
@@ -53,18 +56,6 @@ bool RequiresUserActivation(
         kNotAvailable:
       return false;
   }
-}
-
-// Rejects if the OnceClosure is destroyed before it is ran.
-template <typename T>
-base::OnceClosure RejectOnDestruction(ScriptPromiseResolver<T>* resolver) {
-  RunOnDestruction run_on_destruction(WTF::BindOnce(
-      [](ScriptPromiseResolver<T>* resolver) { resolver->Reject(); },
-      WrapPersistent(resolver)));
-
-  return WTF::BindOnce(
-      [](RunOnDestruction resolver_holder) { resolver_holder.Reset(); },
-      std::move(run_on_destruction));
 }
 
 class LanguageDetectorCreateTask
@@ -83,8 +74,8 @@ class LanguageDetectorCreateTask
         task_runner_(AIInterfaceProxy::GetTaskRunner(GetExecutionContext())),
         options_(options) {
     if (options->hasMonitor()) {
-      monitor_ = MakeGarbageCollected<CreateMonitor>(GetExecutionContext(),
-                                                     task_runner_);
+      monitor_ = MakeGarbageCollected<CreateMonitor>(
+          GetExecutionContext(), options->getSignalOr(nullptr), task_runner_);
 
       // If an exception is thrown, don't initiate language detection model
       // download. `CreateMonitorCallback`'s `Invoke` will automatically
@@ -462,12 +453,11 @@ HeapVector<Member<LanguageDetectionResult>> LanguageDetector::ConvertResult(
     return results;
   }
 
-  const WTF::UncheckedIterator<LanguageDetectionModel::LanguagePrediction>&
-      unknown_iter = std::find_if(
-          predictions.begin(), predictions.end(),
-          [](const LanguageDetectionModel::LanguagePrediction& prediction) {
-            return prediction.language == "unknown";
-          });
+  const auto& unknown_iter = std::find_if(
+      predictions.begin(), predictions.end(),
+      [](const LanguageDetectionModel::LanguagePrediction& prediction) {
+        return prediction.language == "unknown";
+      });
 
   CHECK_NE(unknown_iter, predictions.end());
   double unknown = unknown_iter->score;
@@ -489,7 +479,15 @@ HeapVector<Member<LanguageDetectionResult>> LanguageDetector::ConvertResult(
 
     auto* result = MakeGarbageCollected<LanguageDetectionResult>();
     results.push_back(result);
-    result->setDetectedLanguage(String(prediction.language));
+
+    // The language detection model returns the outdated language code "iw"
+    // instead of the canonical "he", so we correct it here.
+    if (prediction.language == "iw") {
+      result->setDetectedLanguage("he");
+    } else {
+      result->setDetectedLanguage(String(prediction.language));
+    }
+
     result->setConfidence(prediction.score);
 
     cumulative_confidence += prediction.score;

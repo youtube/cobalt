@@ -45,7 +45,7 @@ class Cursor;
 }  // namespace ui
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 }  // namespace viz
 
 namespace blink {
@@ -95,10 +95,6 @@ class PLATFORM_EXPORT FrameWidget {
   virtual void NotifyPresentationTime(
       base::OnceCallback<void(const viz::FrameTimingDetails&)>
           presentation_callback) = 0;
-
-  // Enable or disable BeginMainFrameNotExpected signals from the compositor,
-  // which are consumed by the blink scheduler.
-  virtual void RequestBeginMainFrameNotExpected(bool request) = 0;
 
   // A stable numeric Id for the local root's compositor. For tracing/debugging
   // purposes.
@@ -228,6 +224,10 @@ class PLATFORM_EXPORT FrameWidget {
 
   // Returns information about available screens and the current screen.
   virtual const display::ScreenInfos& GetScreenInfos() = 0;
+
+  // Returns information about the screen that would be showing the widget
+  // without DevTools emulation applied.
+  virtual const display::ScreenInfo& GetOriginalScreenInfo() = 0;
 
   // Called to get the position of the widget's window in screen
   // coordinates. Note, the window includes any decorations such as borders,

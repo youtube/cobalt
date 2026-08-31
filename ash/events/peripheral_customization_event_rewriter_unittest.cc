@@ -24,6 +24,7 @@
 #include "base/containers/adapters.h"
 #include "base/containers/flat_map.h"
 #include "base/notreached.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -400,31 +401,37 @@ class TestAcceleratorObserver : public AcceleratorController::Observer {
 struct EventRewriterTestData {
   std::vector<TestEventVariant> incoming_events;
   std::vector<TestEventVariant> rewritten_events;
-  std::optional<mojom::Button> pressed_button;
+  mojom::ButtonPtr pressed_button;
 
   EventRewriterTestData(std::vector<TestEventVariant> incoming_events,
                         std::vector<TestEventVariant> rewritten_events)
-      : incoming_events(incoming_events),
-        rewritten_events(rewritten_events),
-        pressed_button(std::nullopt) {}
+      : incoming_events(incoming_events), rewritten_events(rewritten_events) {}
 
   EventRewriterTestData(std::vector<TestEventVariant> incoming_events,
                         std::vector<TestEventVariant> rewritten_events,
                         mojom::CustomizableButton button)
-      : incoming_events(incoming_events), rewritten_events(rewritten_events) {
-    pressed_button = mojom::Button();
-    pressed_button->set_customizable_button(button);
-  }
+      : incoming_events(incoming_events),
+        rewritten_events(rewritten_events),
+        pressed_button(mojom::Button::NewCustomizableButton(button)) {}
 
   EventRewriterTestData(std::vector<TestEventVariant> incoming_events,
                         std::vector<TestEventVariant> rewritten_events,
                         ui::KeyboardCode key_code)
-      : incoming_events(incoming_events), rewritten_events(rewritten_events) {
-    pressed_button = mojom::Button();
-    pressed_button->set_vkey(key_code);
-  }
+      : incoming_events(incoming_events),
+        rewritten_events(rewritten_events),
+        pressed_button(mojom::Button::NewVkey(key_code)) {}
 
-  EventRewriterTestData(const EventRewriterTestData& data) = default;
+  EventRewriterTestData(const EventRewriterTestData& other)
+      : incoming_events(other.incoming_events),
+        rewritten_events(other.rewritten_events),
+        pressed_button(other.pressed_button.Clone()) {}
+
+  EventRewriterTestData& operator=(const EventRewriterTestData& other) {
+    incoming_events = other.incoming_events;
+    rewritten_events = other.rewritten_events;
+    pressed_button = other.pressed_button.Clone();
+    return *this;
+  }
 };
 
 // Before test suites are initialized, paraterized data gets generated.
@@ -483,16 +490,12 @@ std::string ConvertToString(const ui::Event& event) {
   NOTREACHED();
 }
 
-mojom::Button GetButton(ui::KeyboardCode key_code) {
-  mojom::Button button;
-  button.set_vkey(key_code);
-  return button;
+mojom::ButtonPtr GetButton(ui::KeyboardCode key_code) {
+  return mojom::Button::NewVkey(key_code);
 }
 
-mojom::Button GetButton(mojom::CustomizableButton customizable_button) {
-  mojom::Button button;
-  button.set_customizable_button(customizable_button);
-  return button;
+mojom::ButtonPtr GetButton(mojom::CustomizableButton customizable_button) {
+  return mojom::Button::NewCustomizableButton(customizable_button);
 }
 
 }  // namespace
@@ -510,8 +513,7 @@ class PeripheralCustomizationEventRewriterTest : public AshTestBase {
 
   // testing::Test:
   void SetUp() override {
-    scoped_feature_list_.InitWithFeatures({features::kPeripheralCustomization,
-                                           features::kInputDeviceSettingsSplit},
+    scoped_feature_list_.InitWithFeatures({features::kPeripheralCustomization},
                                           {});
     AshTestBase::SetUp();
     controller_scoped_resetter_ = std::make_unique<
@@ -1515,63 +1517,82 @@ TEST_P(GraphicsTabletButtonObserverTest, RewriteEvent) {
                                               kGraphicsTabletDeviceId));
 }
 
+struct ButtonRewriteTestCase {
+  ButtonRewriteTestCase(mojom::ButtonPtr button,
+                        mojom::KeyEvent key_event,
+                        EventRewriterTestData test_data)
+      : button(std::move(button)), key_event(key_event), test_data(test_data) {}
+
+  ButtonRewriteTestCase(const ButtonRewriteTestCase& other)
+      : button(other.button.Clone()),
+        key_event(other.key_event),
+        test_data(other.test_data) {}
+
+  ButtonRewriteTestCase& operator=(const ButtonRewriteTestCase& other) {
+    button = other.button.Clone();
+    key_event = other.key_event;
+    test_data = other.test_data;
+    return *this;
+  }
+
+  mojom::ButtonPtr button;
+  mojom::KeyEvent key_event;
+  EventRewriterTestData test_data;
+};
+
 class ButtonRewritingTest
     : public PeripheralCustomizationEventRewriterTest,
-      public testing::WithParamInterface<
-          std::tuple<std::pair<mojom::Button, mojom::KeyEvent>,
-                     EventRewriterTestData>> {};
+      public testing::WithParamInterface<ButtonRewriteTestCase> {};
 
 INSTANTIATE_TEST_SUITE_P(
     All,
     ButtonRewritingTest,
-    testing::ValuesIn(std::vector<
-                      std::tuple<std::pair<mojom::Button, mojom::KeyEvent>,
-                                 EventRewriterTestData>>{
+    testing::ValuesIn(std::vector<ButtonRewriteTestCase>{
         // KeyEvent rewriting test cases:
         // Remap A -> B.
-        {{GetButton(ui::VKEY_A),
-          mojom::KeyEvent(ui::VKEY_B,
-                          static_cast<int>(ui::DomCode::US_B),
-                          static_cast<int>(ui::DomKey::FromCharacter('b')),
-                          ui::EF_NONE,
-                          /*key_display=*/"")},
+        {GetButton(ui::VKEY_A),
+         mojom::KeyEvent(ui::VKEY_B,
+                         static_cast<int>(ui::DomCode::US_B),
+                         static_cast<int>(ui::DomKey::FromCharacter('b')),
+                         ui::EF_NONE,
+                         /*key_display=*/""),
          {KeyA::Typed(), KeyB::Typed()}},
 
         // Remap A -> B, Pressing B is no-op.
-        {{GetButton(ui::VKEY_A),
-          mojom::KeyEvent(ui::VKEY_B,
-                          static_cast<int>(ui::DomCode::US_B),
-                          static_cast<int>(ui::DomKey::FromCharacter('b')),
-                          ui::EF_NONE,
-                          /*key_display=*/"")},
+        {GetButton(ui::VKEY_A),
+         mojom::KeyEvent(ui::VKEY_B,
+                         static_cast<int>(ui::DomCode::US_B),
+                         static_cast<int>(ui::DomKey::FromCharacter('b')),
+                         ui::EF_NONE,
+                         /*key_display=*/""),
          {KeyB::Typed(), KeyB::Typed()}},
 
         // Remap CTRL -> ALT.
-        {{GetButton(ui::VKEY_CONTROL),
-          mojom::KeyEvent(ui::VKEY_MENU,
-                          static_cast<int>(ui::DomCode::ALT_LEFT),
-                          static_cast<int>(ui::DomKey::ALT),
-                          ui::EF_ALT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(ui::VKEY_CONTROL),
+         mojom::KeyEvent(ui::VKEY_MENU,
+                         static_cast<int>(ui::DomCode::ALT_LEFT),
+                         static_cast<int>(ui::DomKey::ALT),
+                         ui::EF_ALT_DOWN,
+                         /*key_display=*/""),
          {KeyLControl::Typed(), KeyLAlt::Typed()}},
 
         // Remap CTRL -> ALT and press with shift down.
-        {{GetButton(ui::VKEY_CONTROL),
-          mojom::KeyEvent(ui::VKEY_MENU,
-                          static_cast<int>(ui::DomCode::ALT_LEFT),
-                          static_cast<int>(ui::DomKey::ALT),
-                          ui::EF_ALT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(ui::VKEY_CONTROL),
+         mojom::KeyEvent(ui::VKEY_MENU,
+                         static_cast<int>(ui::DomCode::ALT_LEFT),
+                         static_cast<int>(ui::DomKey::ALT),
+                         ui::EF_ALT_DOWN,
+                         /*key_display=*/""),
          {KeyLControl::Typed(ui::EF_SHIFT_DOWN),
           KeyLAlt::Typed(ui::EF_SHIFT_DOWN)}},
 
         // Remap A -> CTRL + SHIFT + B.
-        {{GetButton(ui::VKEY_A),
-          mojom::KeyEvent(ui::VKEY_B,
-                          static_cast<int>(ui::DomCode::US_B),
-                          static_cast<int>(ui::DomKey::FromCharacter('b')),
-                          ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(ui::VKEY_A),
+         mojom::KeyEvent(ui::VKEY_B,
+                         static_cast<int>(ui::DomCode::US_B),
+                         static_cast<int>(ui::DomKey::FromCharacter('b')),
+                         ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
+                         /*key_display=*/""),
          {KeyA::Typed(),
           std::vector<TestEventVariant>{
               KeyLControl::Pressed(), KeyLShift::Pressed(ui::EF_CONTROL_DOWN),
@@ -1582,12 +1603,12 @@ INSTANTIATE_TEST_SUITE_P(
 
         // MouseEvent rewriting test cases:
         // Remap Middle -> CTRL + SHIFT + B.
-        {{GetButton(mojom::CustomizableButton::kMiddle),
-          mojom::KeyEvent(ui::VKEY_B,
-                          static_cast<int>(ui::DomCode::US_B),
-                          static_cast<int>(ui::DomKey::FromCharacter('b')),
-                          ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(mojom::CustomizableButton::kMiddle),
+         mojom::KeyEvent(ui::VKEY_B,
+                         static_cast<int>(ui::DomCode::US_B),
+                         static_cast<int>(ui::DomKey::FromCharacter('b')),
+                         ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
+                         /*key_display=*/""),
          {ButtonMiddle::Typed(),
           std::vector<TestEventVariant>{
               KeyLControl::Pressed(), KeyLShift::Pressed(ui::EF_CONTROL_DOWN),
@@ -1597,12 +1618,12 @@ INSTANTIATE_TEST_SUITE_P(
               KeyLControl::Released()}}},
 
         // Remap Middle -> CTRL + SHIFT + B with ALT down.
-        {{GetButton(mojom::CustomizableButton::kMiddle),
-          mojom::KeyEvent(ui::VKEY_B,
-                          static_cast<int>(ui::DomCode::US_B),
-                          static_cast<int>(ui::DomKey::FromCharacter('b')),
-                          ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(mojom::CustomizableButton::kMiddle),
+         mojom::KeyEvent(ui::VKEY_B,
+                         static_cast<int>(ui::DomCode::US_B),
+                         static_cast<int>(ui::DomKey::FromCharacter('b')),
+                         ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
+                         /*key_display=*/""),
          {ButtonMiddle::Typed(ui::EF_ALT_DOWN),
           std::vector<TestEventVariant>{
               KeyLControl::Pressed(ui::EF_ALT_DOWN),
@@ -1615,32 +1636,32 @@ INSTANTIATE_TEST_SUITE_P(
               KeyLControl::Released(ui::EF_ALT_DOWN)}}},
 
         // Remap Back -> Meta.
-        {{GetButton(mojom::CustomizableButton::kBack),
-          mojom::KeyEvent(ui::VKEY_LWIN,
-                          static_cast<int>(ui::DomCode::META_LEFT),
-                          static_cast<int>(ui::DomKey::META),
-                          ui::EF_COMMAND_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(mojom::CustomizableButton::kBack),
+         mojom::KeyEvent(ui::VKEY_LWIN,
+                         static_cast<int>(ui::DomCode::META_LEFT),
+                         static_cast<int>(ui::DomKey::META),
+                         ui::EF_COMMAND_DOWN,
+                         /*key_display=*/""),
          {ButtonBack::Typed(), KeyLMeta::Typed()}},
 
         // Remap Middle -> B and check left mouse button is a no-op.
-        {{GetButton(mojom::CustomizableButton::kMiddle),
-          mojom::KeyEvent(ui::VKEY_B,
-                          static_cast<int>(ui::DomCode::US_B),
-                          static_cast<int>(ui::DomKey::FromCharacter('b')),
-                          ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(mojom::CustomizableButton::kMiddle),
+         mojom::KeyEvent(ui::VKEY_B,
+                         static_cast<int>(ui::DomCode::US_B),
+                         static_cast<int>(ui::DomKey::FromCharacter('b')),
+                         ui::EF_CONTROL_DOWN | ui::EF_SHIFT_DOWN,
+                         /*key_display=*/""),
          {ButtonLeft::Typed(ui::EF_ALT_DOWN),
           ButtonLeft::Typed(ui::EF_ALT_DOWN)}},
 
         // Scroll Wheel tests:
-        {{GetButton(mojom::CustomizableButton::kScrollLeft),
-          mojom::KeyEvent(ui::VKEY_Z,
-                          static_cast<int>(ui::DomCode::US_Z),
-                          static_cast<int>(ui::DomKey::FromCharacter('z')),
-                          ui::EF_COMMAND_DOWN | ui::EF_CONTROL_DOWN |
-                              ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(mojom::CustomizableButton::kScrollLeft),
+         mojom::KeyEvent(ui::VKEY_Z,
+                         static_cast<int>(ui::DomCode::US_Z),
+                         static_cast<int>(ui::DomKey::FromCharacter('z')),
+                         ui::EF_COMMAND_DOWN | ui::EF_CONTROL_DOWN |
+                             ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN,
+                         /*key_display=*/""),
          {ScrollLeft::Typed(),
           std::vector<TestEventVariant>{
               KeyLMeta::Pressed(), KeyLControl::Pressed(ui::EF_COMMAND_DOWN),
@@ -1657,12 +1678,12 @@ INSTANTIATE_TEST_SUITE_P(
               KeyLControl::Released(ui::EF_COMMAND_DOWN),
               KeyLMeta::Released()}}},
 
-        {{GetButton(mojom::CustomizableButton::kScrollLeft),
-          mojom::KeyEvent(ui::VKEY_Z,
-                          static_cast<int>(ui::DomCode::US_Z),
-                          static_cast<int>(ui::DomKey::FromCharacter('z')),
-                          ui::EF_COMMAND_DOWN,
-                          /*key_display=*/"")},
+        {GetButton(mojom::CustomizableButton::kScrollLeft),
+         mojom::KeyEvent(ui::VKEY_Z,
+                         static_cast<int>(ui::DomCode::US_Z),
+                         static_cast<int>(ui::DomKey::FromCharacter('z')),
+                         ui::EF_COMMAND_DOWN,
+                         /*key_display=*/""),
          {ScrollLeft::Typed(),
           std::vector<TestEventVariant>{
               KeyLMeta::Pressed(), KeyZ::Pressed(ui::EF_COMMAND_DOWN),
@@ -1670,8 +1691,7 @@ INSTANTIATE_TEST_SUITE_P(
     }));
 
 TEST_P(ButtonRewritingTest, GraphicsPenRewriteEvent) {
-  auto [tuple, data] = GetParam();
-  auto& [button, key_event] = tuple;
+  auto [button, key_event, data] = GetParam();
   if (data.incoming_events != data.rewritten_events) {
     ApplyCustomizationFlag(data.rewritten_events);
   }
@@ -1687,8 +1707,7 @@ TEST_P(ButtonRewritingTest, GraphicsPenRewriteEvent) {
 }
 
 TEST_P(ButtonRewritingTest, GraphicsTabletRewriteEvent) {
-  auto [tuple, data] = GetParam();
-  auto& [button, key_event] = tuple;
+  auto [button, key_event, data] = GetParam();
   if (data.incoming_events != data.rewritten_events) {
     ApplyCustomizationFlag(data.rewritten_events);
   }
@@ -1704,8 +1723,7 @@ TEST_P(ButtonRewritingTest, GraphicsTabletRewriteEvent) {
 }
 
 TEST_P(ButtonRewritingTest, MouseRewriteEvent) {
-  auto [tuple, data] = GetParam();
-  auto& [button, key_event] = tuple;
+  auto [button, key_event, data] = GetParam();
   if (data.incoming_events != data.rewritten_events) {
     ApplyCustomizationFlag(data.rewritten_events);
   }
@@ -1715,7 +1733,6 @@ TEST_P(ButtonRewritingTest, MouseRewriteEvent) {
       mojom::RemappingAction::NewKeyEvent(key_event.Clone())));
 
   EXPECT_EQ(data.rewritten_events,
-
             RunRewriter(data.incoming_events));
 }
 

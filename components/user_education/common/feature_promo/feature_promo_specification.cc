@@ -117,12 +117,12 @@ bool IsAllowedToastWithoutScreenreaderText(const base::Feature& promo_feature) {
   //
   // TODO(dfried): Merge legacy promos into this category, eliminating the entry
   // point and promo type entirely.
-  //
-  // Add exceptions here:
-  // static constexpr auto kAllowedPromoNames =
-  //     base::MakeFixedFlatSet<std::string_view>({ });
-  // return kAllowedPromoNames.contains(promo_feature.name);
-  return false;
+
+  // TODO(crbug.com/421471598): Remove this exemption once we have a separate
+  // string for screenreader.
+  static constexpr auto kAllowedPromoNames =
+      base::MakeFixedFlatSet<std::string_view>({"IPH_TabSearchToolbarButton"});
+  return kAllowedPromoNames.contains(promo_feature.name);
 }
 
 bool IsAllowedPreconditionExemption(const base::Feature& promo_feature) {
@@ -467,8 +467,24 @@ FeaturePromoSpecification& FeaturePromoSpecification::SetBubbleIcon(
 
 FeaturePromoSpecification& FeaturePromoSpecification::SetBubbleArrow(
     HelpBubbleArrow bubble_arrow) {
+  CHECK(bubble_arrow_callback_.is_null());
   bubble_arrow_ = bubble_arrow;
   return *this;
+}
+
+FeaturePromoSpecification& FeaturePromoSpecification::SetBubbleArrowCallback(
+    HelpBubbleArrowCallback bubble_arrow_callback) {
+  CHECK(bubble_arrow_callback_.is_null());
+  bubble_arrow_callback_ = std::move(bubble_arrow_callback);
+  return *this;
+}
+
+HelpBubbleArrow FeaturePromoSpecification::GetBubbleArrow(
+    const ui::TrackedElement* anchor_element) const {
+  if (!bubble_arrow_callback_.is_null()) {
+    return bubble_arrow_callback_.Run(anchor_element);
+  }
+  return bubble_arrow_;
 }
 
 FeaturePromoSpecification& FeaturePromoSpecification::OverrideFocusOnShow(
@@ -615,12 +631,10 @@ FeaturePromoSpecification::CreateRotatingPromoForTesting(
 
 FeaturePromoSpecification::CustomHelpBubbleResult
 FeaturePromoSpecification::BuildCustomHelpBubble(
-    ui::ElementContext from_context,
-    HelpBubbleArrow arrow,
+    const UserEducationContextPtr& from_context,
     BuildHelpBubbleParams params) const {
   CHECK_EQ(PromoType::kCustomUi, promo_type_);
-  return custom_ui_factory_callback_.Run(from_context, arrow,
-                                         std::move(params));
+  return custom_ui_factory_callback_.Run(from_context, std::move(params));
 }
 
 std::ostream& operator<<(std::ostream& oss,

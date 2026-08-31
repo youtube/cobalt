@@ -97,4 +97,21 @@ ProductMessagingData& ProductMessagingData::operator=(
     ProductMessagingData&&) noexcept = default;
 ProductMessagingData::~ProductMessagingData() = default;
 
+NtpPromoData::NtpPromoData() = default;
+NtpPromoData::NtpPromoData(const NtpPromoData&) = default;
+NtpPromoData::NtpPromoData(NtpPromoData&&) noexcept = default;
+NtpPromoData& NtpPromoData::operator=(const NtpPromoData&) = default;
+NtpPromoData& NtpPromoData::operator=(NtpPromoData&&) noexcept = default;
+NtpPromoData::~NtpPromoData() = default;
+
+NtpPromoPreferences::NtpPromoPreferences() = default;
+NtpPromoPreferences::NtpPromoPreferences(const NtpPromoPreferences&) = default;
+NtpPromoPreferences::NtpPromoPreferences(NtpPromoPreferences&&) noexcept =
+    default;
+NtpPromoPreferences& NtpPromoPreferences::operator=(
+    const NtpPromoPreferences&) = default;
+NtpPromoPreferences& NtpPromoPreferences::operator=(
+    NtpPromoPreferences&&) noexcept = default;
+NtpPromoPreferences::~NtpPromoPreferences() = default;
+
 }  // namespace user_education

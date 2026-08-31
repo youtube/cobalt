@@ -23,7 +23,6 @@
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/controls/rich_hover_button.h"
 #include "chrome/browser/ui/views/page_info/chosen_object_view.h"
-#include "chrome/browser/ui/views/page_info/page_info_history_controller.h"
 #include "chrome/browser/ui/views/page_info/page_info_navigation_handler.h"
 #include "chrome/browser/ui/views/page_info/page_info_security_content_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
@@ -88,11 +87,13 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PageInfoMainView, kPermissionsElementId);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PageInfoMainView,
                                       kMerchantTrustElementId);
 
-PageInfoMainView::ContainerView::ContainerView() {
+PageInfoMainView::ContainerView::ContainerView(bool set_extra_right_margin) {
   auto box_layout = std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical);
-  box_layout->set_inside_border_insets(
-      gfx::Insets::TLBR(0, 0, 0, kContainerExtraRightMargin));
+  if (set_extra_right_margin) {
+    box_layout->set_inside_border_insets(
+        gfx::Insets::TLBR(0, 0, 0, kContainerExtraRightMargin));
+  }
   SetLayoutManager(std::move(box_layout));
 }
 
@@ -107,7 +108,6 @@ PageInfoMainView::PageInfoMainView(
     PageInfo* presenter,
     ChromePageInfoUiDelegate* ui_delegate,
     PageInfoNavigationHandler* navigation_handler,
-    PageInfoHistoryController* history_controller,
     base::OnceClosure initialized_callback,
     bool allow_extended_site_info)
     : presenter_(presenter),
@@ -145,8 +145,7 @@ PageInfoMainView::PageInfoMainView(
 
   int link_text_id = 0;
   int tooltip_text_id = 0;
-  if (ui_delegate_->ShouldShowSiteSettings(&link_text_id, &tooltip_text_id) &&
-      !base::FeatureList::IsEnabled(page_info::kPageInfoHideSiteSettings)) {
+  if (ui_delegate_->ShouldShowSiteSettings(&link_text_id, &tooltip_text_id)) {
     site_settings_link_ = AddChildView(std::make_unique<RichHoverButton>(
         base::BindRepeating(
             [](PageInfoMainView* view) {
@@ -165,11 +164,10 @@ PageInfoMainView::PageInfoMainView(
         l10n_util::GetStringUTF16(tooltip_text_id));
   }
 
-  if (base::FeatureList::IsEnabled(page_info::kPageInfoHistoryDesktop)) {
-    history_controller->InitRow(AddChildView(CreateContainerView()));
-  }
-
-  extended_site_info_section_ = AddChildView(CreateContainerView());
+  // No extra right margins since the children are also containers and will have
+  // the extra margin set.
+  extended_site_info_section_ =
+      AddChildView(CreateContainerView(/*set_extra_right_margin=*/false));
   extended_site_info_section_->AddChildView(
       PageInfoViewFactory::CreateSeparator(GetSeparatorPadding()));
   extended_site_info_section_->SetID(
@@ -194,7 +192,7 @@ PageInfoMainView::PageInfoMainView(
 
 PageInfoMainView::~PageInfoMainView() = default;
 
-void PageInfoMainView::SetCookieInfo(const CookiesNewInfo& cookie_info) {
+void PageInfoMainView::SetCookieInfo(const CookiesInfo& cookie_info) {
   // Ensure we don't add this button multiple times in error.
   if (cookie_button_ != nullptr) {
     return;
@@ -245,6 +243,8 @@ void PageInfoMainView::SetPermissionInfo(
     const PermissionInfoList& permission_info_list,
     ChosenObjectInfoList chosen_object_info_list) {
   if (permission_info_list.empty() && chosen_object_info_list.empty()) {
+    toggle_rows_.clear();
+    syncable_permission_rows_.clear();
     permissions_view_->RemoveAllChildViews();
     return;
   }
@@ -376,8 +376,7 @@ void PageInfoMainView::UpdateResetButton(
         permission.source == content_settings::SettingSource::kUser &&
         (ui_delegate_->ShouldShowAllow(permission.type) ||
          ui_delegate_->ShouldShowAsk(permission.type));
-    if (is_permission_user_managed &&
-        permission.setting != CONTENT_SETTING_DEFAULT) {
+    if (is_permission_user_managed && permission.setting) {
       reset_button_->SetEnabled(true);
       reset_button_->SetVisible(true);
     }
@@ -558,8 +557,9 @@ void PageInfoMainView::OnChosenObjectDeleted(
   PreferredSizeChanged();
 }
 
-std::unique_ptr<views::View> PageInfoMainView::CreateContainerView() {
-  return std::make_unique<ContainerView>();
+std::unique_ptr<views::View> PageInfoMainView::CreateContainerView(
+    bool set_extra_right_margin) {
+  return std::make_unique<ContainerView>(set_extra_right_margin);
 }
 
 void PageInfoMainView::HandleMoreInfoRequest(views::View* source) {

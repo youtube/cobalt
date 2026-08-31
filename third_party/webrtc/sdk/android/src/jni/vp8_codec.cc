@@ -14,7 +14,7 @@
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "sdk/android/generated_libvpx_vp8_jni/LibvpxVp8Decoder_jni.h"
 #include "sdk/android/generated_libvpx_vp8_jni/LibvpxVp8Encoder_jni.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/java_types.h"
 
 namespace webrtc {
 namespace jni {

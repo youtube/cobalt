@@ -5,15 +5,12 @@
 #ifndef IOS_CHROME_BROWSER_OMNIBOX_COORDINATOR_POPUP_OMNIBOX_POPUP_COORDINATOR_H_
 #define IOS_CHROME_BROWSER_OMNIBOX_COORDINATOR_POPUP_OMNIBOX_POPUP_COORDINATOR_H_
 
-#include <memory>
-
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 
 class AutocompleteController;
 @class OmniboxAutocompleteController;
 @protocol OmniboxKeyboardDelegate;
 @protocol OmniboxPopupPresenterDelegate;
-class OmniboxPopupViewIOS;
 @protocol ToolbarOmniboxConsumer;
 
 /// Coordinator for the Omnibox Popup.
@@ -23,11 +20,9 @@ class OmniboxPopupViewIOS;
                                    browser:(Browser*)browser
                     autocompleteController:
                         (AutocompleteController*)autocompleteController
-                                 popupView:
-                                     (std::unique_ptr<OmniboxPopupViewIOS>)
-                                         popupView
              omniboxAutocompleteController:
                  (OmniboxAutocompleteController*)omniboxAutocompleteController
+                             isLensOverlay:(BOOL)isLensOverlay
     NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController

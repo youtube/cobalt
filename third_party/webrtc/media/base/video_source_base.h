@@ -81,13 +81,5 @@ class VideoSourceBaseGuarded : public VideoSourceInterface<VideoFrame> {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::VideoSourceBase;
-using ::webrtc::VideoSourceBaseGuarded;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_VIDEO_SOURCE_BASE_H_

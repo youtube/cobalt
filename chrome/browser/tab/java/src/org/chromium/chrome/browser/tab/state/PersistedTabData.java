@@ -54,8 +54,7 @@ public abstract class PersistedTabData implements UserData {
     private final String mPersistedTabDataId;
     private long mLastUpdatedMs = LAST_UPDATE_UNKNOWN;
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    public @Nullable ObservableSupplierImpl<Boolean> mIsTabSaveEnabledSupplier;
+    @VisibleForTesting public @Nullable ObservableSupplierImpl<Boolean> mIsTabSaveEnabledSupplier;
 
     private @Nullable Callback<Boolean> mTabSaveEnabledToggleCallback;
     private boolean mFirstSaveDone;
@@ -407,7 +406,7 @@ public abstract class PersistedTabData implements UserData {
     @VisibleForTesting
     protected Serializer<ByteBuffer> getOomAndMetricsWrapper() {
         final Serializer<ByteBuffer> serializer = getSerializerWithOomSoftFallback();
-        return new Serializer<ByteBuffer>() {
+        return new Serializer<>() {
             @Override
             public @Nullable ByteBuffer get() {
                 if (serializer == null) return null;

@@ -16,7 +16,6 @@
   --zero-state-promo-background-color: var(--color-button-foreground);
   --zero-state-promo-foreground-color: var(--color-button-background);
   --container-gap: 8px;
-  --top-container-padding: 20px;
 
   border-radius: 12px;
   display: flex;
@@ -24,7 +23,7 @@
   justify-content: center;
   gap: var(--container-gap);
   padding: 20px;
-  width: 300px;
+  width: 290px;
   background-color: var(--zero-state-promo-background-color);
   color: var(--zero-state-promo-foreground-color);
 }
@@ -41,7 +40,7 @@
   font-weight: 500;
   line-height: 24px;
   margin: 0px;
-  width: calc(100% - var(--top-container-padding) * 2);
+  width: 260px;
 }
 
 #dismissButton {
@@ -52,10 +51,11 @@
 }
 
 #sectionHeaderContainer {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 400;
   line-height: 20px;
   padding-bottom: 4px;
+  width: 272px;
 }
 
 #labelContainer, #buttonContainer {
@@ -75,8 +75,7 @@
   display: block;
   font-size: 14px;
   line-height: 20px;
-  padding-top: 4px;
-  width: calc(100% - var(--top-container-padding) * 2);
+  width: 267px;
 }
 
 #anchorContainer a {

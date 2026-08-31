@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/rtcp_sender.h"
 
-#include <string.h>  // memcpy
-
-#include <algorithm>  // std::min
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -119,17 +118,12 @@ RTCPSender::FeedbackState::~FeedbackState() = default;
 class RTCPSender::RtcpContext {
  public:
   RtcpContext(const FeedbackState& feedback_state,
-              int32_t nack_size,
-              const uint16_t* nack_list,
+              ArrayView<const uint16_t> nacks,
               Timestamp now)
-      : feedback_state_(feedback_state),
-        nack_size_(nack_size),
-        nack_list_(nack_list),
-        now_(now) {}
+      : feedback_state_(feedback_state), nacks_(nacks), now_(now) {}
 
   const FeedbackState& feedback_state_;
-  const int32_t nack_size_;
-  const uint16_t* nack_list_;
+  const ArrayView<const uint16_t> nacks_;
   const Timestamp now_;
 };
 
@@ -262,8 +256,7 @@ int32_t RTCPSender::SendLossNotification(const FeedbackState& feedback_state,
 
     sender.emplace(callback, max_packet_size_);
     auto result = ComputeCompoundRTCPPacket(
-        feedback_state, RTCPPacketType::kRtcpLossNotification, 0, nullptr,
-        *sender);
+        feedback_state, RTCPPacketType::kRtcpLossNotification, {}, *sender);
     if (result) {
       return *result;
     }
@@ -538,11 +531,11 @@ void RTCPSender::BuildNACK(const RtcpContext& ctx, PacketSender& sender) {
   rtcp::Nack nack;
   nack.SetSenderSsrc(ssrc_);
   nack.SetMediaSsrc(remote_ssrc_);
-  nack.SetPacketIds(ctx.nack_list_, ctx.nack_size_);
+  nack.SetPacketIds(ctx.nacks_.data(), ctx.nacks_.size());
 
   // Report stats.
-  for (int idx = 0; idx < ctx.nack_size_; ++idx) {
-    nack_stats_.ReportRequest(ctx.nack_list_[idx]);
+  for (uint16_t sequence_number : ctx.nacks_) {
+    nack_stats_.ReportRequest(sequence_number);
   }
   packet_type_counter_.nack_requests = nack_stats_.requests();
   packet_type_counter_.unique_nack_requests = nack_stats_.unique_requests();
@@ -593,8 +586,7 @@ void RTCPSender::BuildExtendedReports(const RtcpContext& ctx,
 
 int32_t RTCPSender::SendRTCP(const FeedbackState& feedback_state,
                              RTCPPacketType packet_type,
-                             int32_t nack_size,
-                             const uint16_t* nack_list) {
+                             ArrayView<const uint16_t> nacks) {
   int32_t error_code = -1;
   auto callback = [&](ArrayView<const uint8_t> packet) {
     if (transport_->SendRtcp(packet, /*packet_options=*/{})) {
@@ -607,8 +599,8 @@ int32_t RTCPSender::SendRTCP(const FeedbackState& feedback_state,
   {
     MutexLock lock(&mutex_rtcp_sender_);
     sender.emplace(callback, max_packet_size_);
-    auto result = ComputeCompoundRTCPPacket(feedback_state, packet_type,
-                                            nack_size, nack_list, *sender);
+    auto result =
+        ComputeCompoundRTCPPacket(feedback_state, packet_type, nacks, *sender);
     if (result) {
       return *result;
     }
@@ -621,8 +613,7 @@ int32_t RTCPSender::SendRTCP(const FeedbackState& feedback_state,
 std::optional<int32_t> RTCPSender::ComputeCompoundRTCPPacket(
     const FeedbackState& feedback_state,
     RTCPPacketType packet_type,
-    int32_t nack_size,
-    const uint16_t* nack_list,
+    ArrayView<const uint16_t> nacks,
     PacketSender& sender) {
   if (method_ == RtcpMode::kOff) {
     RTC_LOG(LS_WARNING) << "Can't send RTCP if it is disabled.";
@@ -649,8 +640,7 @@ std::optional<int32_t> RTCPSender::ComputeCompoundRTCPPacket(
   }
 
   // We need to send our NTP even if we haven't received any reports.
-  RtcpContext context(feedback_state, nack_size, nack_list,
-                      env_.clock().CurrentTime());
+  RtcpContext context(feedback_state, nacks, env_.clock().CurrentTime());
 
   PrepareReport(feedback_state);
 

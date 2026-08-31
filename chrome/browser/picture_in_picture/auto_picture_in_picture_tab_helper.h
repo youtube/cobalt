@@ -5,11 +5,11 @@
 #ifndef CHROME_BROWSER_PICTURE_IN_PICTURE_AUTO_PICTURE_IN_PICTURE_TAB_HELPER_H_
 #define CHROME_BROWSER_PICTURE_IN_PICTURE_AUTO_PICTURE_IN_PICTURE_TAB_HELPER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/clock.h"
 #include "base/time/time.h"
 #include "chrome/browser/picture_in_picture/auto_picture_in_picture_safe_browsing_checker_client.h"
-#include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
@@ -20,11 +20,17 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "ui/views/bubble/bubble_border.h"
 
+// TODO(crbug.com/421608904): integrate setting helper with auto-pip on Android
+// once permission UX is finalized.
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace permissions {
 class PermissionDecisionAutoBlockerBase;
 }  // namespace permissions
 
-class AutoPictureInPictureTabStripObserverHelper;
+class AutoPictureInPictureTabObserverHelperBase;
 class AutoPipSettingOverlayView;
 class HostContentSettingsMap;
 class MediaEngagementService;
@@ -119,9 +125,11 @@ class AutoPictureInPictureTabHelper
     // If we're clearing the auto blocker, then also drop any setting helper we
     // have, since it might also know about it.  This is intended during test
     // cleanup to prevent dangling raw ptrs.
+#if !BUILDFLAG(IS_ANDROID)
     if (auto_pip_setting_helper_ && !auto_blocker) {
       auto_pip_setting_helper_.reset();
     }
+#endif  //! BUILDFLAG(IS_ANDROID)
   }
 
   // Create and return the allow/block overlay view if we should show it for
@@ -132,11 +140,13 @@ class AutoPictureInPictureTabHelper
   // `close_pip_cb` should be a callback to close the pip window, in case it
   // should be blocked.  This may be called before this returned, or later, or
   // never.  The other parameters are described in AutoPipSettingHelper.
+#if !BUILDFLAG(IS_ANDROID)
   std::unique_ptr<AutoPipSettingOverlayView>
   CreateOverlayPermissionViewIfNeeded(
       base::OnceClosure close_pip_cb,
       views::View* anchor_view,
       views::BubbleBorder::Arrow arrow);
+#endif  //! BUILDFLAG(IS_ANDROID)
 
   // Should be called when the user closes the pip window manually, so that we
   // can keep the auto-pip setting embargo up to date.
@@ -155,6 +165,21 @@ class AutoPictureInPictureTabHelper
           auto_pip_trigger_reason) {
     auto_pip_trigger_reason_ = auto_pip_trigger_reason;
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  // Overrides the media engagement check for testing. This is necessary for
+  // Android JNI tests where mocking MediaEngagementService is difficult due
+  // to framework initialization order complexities.
+  void set_has_high_engagement_for_testing(bool value) {
+    has_high_engagement_for_testing_ = value;
+  }
+
+  // Manually sets the audio focus state for testing. This is necessary for
+  // Android JNI tests because programmatically playing media may not properly
+  // acquire audio focus. This allows tests to mimic the real-world conditions
+  // required for auto-PiP to trigger.
+  void set_has_audio_focus_for_testing(bool value) { has_audio_focus_ = value; }
+#endif  // BUILDFLAG(IS_ANDROID)
 
   media::PictureInPictureEventsInfo::AutoPipReason GetAutoPipTriggerReason()
       const;
@@ -295,8 +320,8 @@ class AutoPictureInPictureTabHelper
 
   // Notifies us when our tab either becomes the active tab on its tabstrip or
   // becomes an inactive tab on its tabstrip.
-  std::unique_ptr<AutoPictureInPictureTabStripObserverHelper>
-      tab_strip_observer_helper_;
+  std::unique_ptr<AutoPictureInPictureTabObserverHelperBase>
+      tab_observer_helper_;
 
   // True if the tab is the activated tab on its tab strip.
   bool is_tab_activated_ = false;
@@ -348,8 +373,10 @@ class AutoPictureInPictureTabHelper
   mojo::Receiver<media_session::mojom::MediaSessionObserver>
       media_session_observer_receiver_{this};
 
+#if !BUILDFLAG(IS_ANDROID)
   // If non-null, this is the setting helper for the permission setting UI.
   std::unique_ptr<AutoPipSettingHelper> auto_pip_setting_helper_;
+#endif  //! BUILDFLAG(IS_ANDROID)
 
   // Implementation of the Safe Browsing client, used to check and report URL
   // safety.
@@ -394,6 +421,12 @@ class AutoPictureInPictureTabHelper
   // or incognito, false otherwise. The value is used to prevent recording
   // duplicate entries for blocking metrics.
   bool blocked_due_to_content_setting_ = false;
+
+#if BUILDFLAG(IS_ANDROID)
+  // If set, this value overrides the result of the real MediaEngagementService
+  // check. Intended for Android JNI tests only.
+  std::optional<bool> has_high_engagement_for_testing_ = std::nullopt;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // WeakPtrFactory used only for requesting URL safety. This weak ptr factory
   // is invalidated during calls to `StopAndResetAsyncTasks`.

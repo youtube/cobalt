@@ -18,7 +18,6 @@
 #include "chromeos/ash/experiences/arc/arc_util.h"
 #include "chromeos/ash/experiences/arc/dlc_installer/arc_dlc_install_hardware_checker.h"
 #include "chromeos/ash/experiences/arc/dlc_installer/arc_dlc_install_notification_manager.h"
-#include "chromeos/ash/experiences/arc/dlc_installer/arc_dlc_notification_manager_factory.h"
 
 namespace arc {
 
@@ -27,22 +26,20 @@ namespace {
 constexpr const char kArcvmDlcId[] = "android-vm-dlc";
 constexpr const char kArcvmBindMountDlcPath[] =
     "arcvm_2dbind_2dmount_2ddlc_2dpath";
-
+constexpr const char kVmConciergeServiceName[] = "vm_5fconcierge";
 }  // namespace
 
 ArcDlcInstaller::ArcDlcInstaller(
-    std::unique_ptr<ArcDlcNotificationManagerFactory>
-        notification_manager_factory,
     std::unique_ptr<ArcDlcInstallHardwareChecker> hardware_checker,
     ash::CrosSettings* cros_settings)
-    : notification_manager_factory_(std::move(notification_manager_factory)),
-      hardware_checker_(std::move(hardware_checker)),
+    : hardware_checker_(std::move(hardware_checker)),
       cros_settings_(std::move(cros_settings)) {}
 
 ArcDlcInstaller::~ArcDlcInstaller() = default;
 
 void ArcDlcInstaller::PrepareArc(base::OnceCallback<void(bool)> callback) {
   if (!IsDlcRequired()) {
+    std::move(callback).Run(false);
     return;
   }
 
@@ -60,18 +57,37 @@ void ArcDlcInstaller::OnHardwareCheckComplete(
     return;
   }
 
+  VLOG(1) << "Device is compatible for ARC. Checking DLC service.";
+  prepare_arc_callback_ = std::move(callback);
+  ash::DlcserviceClient::Get()->WaitForServiceToBeAvailable(base::BindOnce(
+      &ArcDlcInstaller::OnDlcServiceAvailable, weak_ptr_factory_.GetWeakPtr()));
+}
+
+void ArcDlcInstaller::OnDlcServiceAvailable(bool service_available) {
+  DCHECK(prepare_arc_callback_);
+
+  if (!service_available) {
+    LOG(ERROR) << "DLC service is not available, cannot install ARCVM DLC.";
+    arc_dlc_install_notification_manager::Show(
+        arc_dlc_install_notification_manager::NotificationType::
+            kArcVmPreloadFailed);
+    base::UmaHistogramBoolean("Arc.DlcInstaller.Install", false);
+    std::move(prepare_arc_callback_).Run(false);
+    return;
+  }
+
   auto installation_triggered = std::make_unique<bool>(false);
   auto* installation_triggered_ptr = installation_triggered.get();
   dlcservice::InstallRequest install_request;
   install_request.set_id(kArcvmDlcId);
 
-  VLOG(1) << "Device is compatible for ARC. Installing ARCVM DLC.";
+  VLOG(1) << "Device service is available. Installing ARCVM DLC.";
   base::TimeTicks start_installation_time = base::TimeTicks::Now();
   ash::DlcserviceClient::Get()->Install(
       install_request,
       base::BindOnce(&ArcDlcInstaller::OnDlcInstalled,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(callback),
-                     start_installation_time,
+                     weak_ptr_factory_.GetWeakPtr(),
+                     std::move(prepare_arc_callback_), start_installation_time,
                      std::move(installation_triggered)),
       base::BindRepeating(&ArcDlcInstaller::OnDlcProgress,
                           weak_ptr_factory_.GetWeakPtr(),
@@ -105,25 +121,6 @@ bool ArcDlcInstaller::IsDlcRequired() {
   return true;
 }
 
-void ArcDlcInstaller::MaybeShowDlcInstallNotification(NotificationType type) {
-  if (!arc_dlc_install_notification_manager_) {
-    VLOG(1) << "Notification manager not initialized. Queueing notification.";
-    dlc_install_pending_notifications_.push_back(type);
-    return;
-  }
-  arc_dlc_install_notification_manager_->Show(type);
-}
-
-void ArcDlcInstaller::OnPrimaryUserSessionStarted(const AccountId& account_id) {
-  arc_dlc_install_notification_manager_ =
-      notification_manager_factory_->CreateNotificationManager(account_id);
-
-  for (const auto& notification : dlc_install_pending_notifications_) {
-    arc_dlc_install_notification_manager_->Show(notification);
-  }
-  dlc_install_pending_notifications_.clear();
-}
-
 void ArcDlcInstaller::OnDlcProgress(bool* installation_triggered_ptr,
                                     double progress) {
   CHECK(installation_triggered_ptr);
@@ -131,7 +128,9 @@ void ArcDlcInstaller::OnDlcProgress(bool* installation_triggered_ptr,
     return;
   }
 
-  MaybeShowDlcInstallNotification(NotificationType::kArcVmPreloadStarted);
+  arc_dlc_install_notification_manager::Show(
+      arc_dlc_install_notification_manager::NotificationType::
+          kArcVmPreloadStarted);
   *installation_triggered_ptr = true;
 }
 
@@ -142,12 +141,15 @@ void ArcDlcInstaller::OnDlcInstalled(
     const ash::DlcserviceClient::InstallResult& install_result) {
   if (install_result.error != dlcservice::kErrorNone) {
     VLOG(1) << "Failed to install ARCVM DLC: " << install_result.error;
-    MaybeShowDlcInstallNotification(NotificationType::kArcVmPreloadFailed);
+    arc_dlc_install_notification_manager::Show(
+        arc_dlc_install_notification_manager::NotificationType::
+            kArcVmPreloadFailed);
     base::UmaHistogramBoolean("Arc.DlcInstaller.Install", false);
     std::move(callback).Run(false);
     return;
   }
 
+  VLOG(1) << "ARCVM DLC installed successfully.";
   base::TimeDelta install_duration =
       base::TimeTicks::Now() - start_installation_time;
   base::UmaHistogramLongTimes("Arc.DlcInstaller.InstallTime", install_duration);
@@ -159,15 +161,12 @@ void ArcDlcInstaller::OnDlcInstalled(
   // installation succeeds.
   CHECK(installation_triggered);
   if (*installation_triggered) {
-    MaybeShowDlcInstallNotification(NotificationType::kArcVmPreloadSucceeded);
+    arc_dlc_install_notification_manager::Show(
+        arc_dlc_install_notification_manager::NotificationType::
+            kArcVmPreloadSucceeded);
   }
 
   OnPrepareArcDlc(std::move(callback), true);
-}
-
-const std::vector<NotificationType>&
-ArcDlcInstaller::GetDlcInstallPendingNotificationsForTesting() const {
-  return dlc_install_pending_notifications_;
 }
 
 void ArcDlcInstaller::OnPrepareArcDlc(base::OnceCallback<void(bool)> callback,
@@ -178,8 +177,13 @@ void ArcDlcInstaller::OnPrepareArcDlc(base::OnceCallback<void(bool)> callback,
     return;
   }
 
+  // Restarting vm_concierge is required because its sandboxed mount, created at
+  // startup, does not see later ARC root path bind-mounts. The restart forces
+  // it to re-initialize its mounts to find the new DLC content.
   std::deque<JobDesc> jobs = {
       JobDesc{kArcvmBindMountDlcPath, UpstartOperation::JOB_STOP_AND_START, {}},
+      JobDesc{
+          kVmConciergeServiceName, UpstartOperation::JOB_STOP_AND_START, {}},
   };
 
   ConfigureUpstartJobs(

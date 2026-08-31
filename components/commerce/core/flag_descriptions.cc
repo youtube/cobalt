@@ -6,11 +6,6 @@
 
 namespace commerce::flag_descriptions {
 
-const char kCommerceLocalPDPDetectionName[] = "Local Product Page Detection";
-const char kCommerceLocalPDPDetectionDescription[] =
-    "Allow Chrome to attempt to detect product pages on the client, without "
-    "server support.";
-
 const char kProductSpecificationsName[] = "Product Specifications";
 const char kProductSpecificationsDescription[] =
     "Enable the Product Specifications feature.";
@@ -21,11 +16,6 @@ const char kCompareConfirmationToastDescription[] =
 
 const char kShoppingListName[] = "Shopping List";
 const char kShoppingListDescription[] = "Enable shopping list in bookmarks.";
-
-const char kChromeCartDomBasedHeuristicsName[] =
-    "ChromeCart DOM-based heuristics";
-const char kChromeCartDomBasedHeuristicsDescription[] =
-    "Enable DOM-based heuristics for ChromeCart.";
 
 const char kPriceInsightsName[] = "Price Insights";
 const char kPriceInsightsDescription[] = "Enable price insights experiment.";
@@ -47,10 +37,6 @@ extern const char kPriceInsightsHighPriceIosDescription[] =
     "is high.";
 #endif
 
-const char kShoppingPageTypesName[] = "Shopping Page Types";
-const char kShoppingPageTypesDescription[] =
-    "Enable shopping page types experiment.";
-
 const char kTrackByDefaultOnMobileName[] =
     "Product Tracking by Default on Mobile";
 const char kTrackByDefaultOnMobileDescription[] =
@@ -70,5 +56,9 @@ const char kPriceTrackingSubscriptionServiceProductVersionDescription[] =
 const char kDiscountAutofillName[] = "Discount Autofill";
 const char kDiscountAutofillDescription[] =
     "Enable discount autofill experiment.";
+
+const char kShoppingAlternateServerName[] = "Alternate Shopping Server.";
+const char kShoppingAlternateServerDescription[] =
+    "Enable using the alternate shopping server for testing.";
 
 }  // namespace commerce::flag_descriptions

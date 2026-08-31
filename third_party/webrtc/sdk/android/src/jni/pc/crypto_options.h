@@ -21,7 +21,7 @@
 namespace webrtc {
 namespace jni {
 
-std::optional<CryptoOptions> JavaToNativeOptionalCryptoOptions(
+CryptoOptions JavaToNativeCryptoOptions(
     JNIEnv* jni,
     const JavaRef<jobject>& j_crypto_options);
 

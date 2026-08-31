@@ -85,17 +85,9 @@ generate_grd("build_grd") {
       "$target_gen_dir/cr_components/most_visited/resources.grdp",
     ]
 
-    if (use_blink) {
-      if (use_nss_certs || chrome_root_store_cert_management_ui) {
-        public_deps += [ "cr_components/certificate_manager:build_grdp" ]
-        grdp_files += [
-          "$target_gen_dir/cr_components/certificate_manager/resources.grdp",
-        ]
-      }
-    }
-
     if (!is_android) {
       public_deps += [
+        "cr_components/composebox:build_grdp",
         "cr_components/history:build_grdp",
         "cr_components/history_clusters:build_grdp",
         "cr_components/history_embeddings:build_grdp",
@@ -107,6 +99,7 @@ generate_grd("build_grd") {
         "$target_gen_dir/cr_components/history_clusters/resources.grdp",
         "$target_gen_dir/cr_components/history_embeddings/resources.grdp",
         "$target_gen_dir/cr_components/searchbox/resources.grdp",
+        "$target_gen_dir/cr_components/composebox/resources.grdp",
         "$target_gen_dir/cr_components/searchbox/icons/resources.grdp",
       ]
 

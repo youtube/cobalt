@@ -38,10 +38,10 @@ import org.chromium.chrome.browser.compositor.layouts.eventfilter.OverlayPanelEv
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.ui.InsetObserver;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 
 /** Class responsible for testing the OverlayPanelEventFilter. */
@@ -242,7 +242,7 @@ public class OverlayPanelEventFilterTest {
         }
 
         @Override
-        public void click(float x, float y, int buttons) {
+        public void click(float x, float y, int buttons, int modifiers) {
             mWasTapDetectedOnPanel = true;
         }
 

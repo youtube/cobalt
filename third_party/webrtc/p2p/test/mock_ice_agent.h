@@ -33,27 +33,20 @@ class MockIceAgent : public IceAgentInterface {
   MOCK_METHOD(void, UpdateState, (), (override));
   MOCK_METHOD(void,
               ForgetLearnedStateForConnections,
-              (webrtc::ArrayView<const webrtc::Connection* const>),
+              (ArrayView<const Connection* const>),
               (override));
-  MOCK_METHOD(void, SendPingRequest, (const webrtc::Connection*), (override));
+  MOCK_METHOD(void, SendPingRequest, (const Connection*), (override));
   MOCK_METHOD(void,
               SwitchSelectedConnection,
-              (const webrtc::Connection*, webrtc::IceSwitchReason),
+              (const Connection*, IceSwitchReason),
               (override));
   MOCK_METHOD(bool,
               PruneConnections,
-              (webrtc::ArrayView<const webrtc::Connection* const>),
+              (ArrayView<const Connection* const>),
               (override));
 };
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::MockIceAgent;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_TEST_MOCK_ICE_AGENT_H_

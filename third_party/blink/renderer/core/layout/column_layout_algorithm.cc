@@ -300,12 +300,6 @@ const LayoutResult* ColumnLayoutAlgorithm::Layout() {
   used_column_count_ =
       ResolveUsedColumnCount(Style(), ChildAvailableSize().inline_size);
 
-  // Write the column count back to the legacy flow thread if we're at the first
-  // fragment. The legacy fragmentainer group machinery needs the count.
-  if (!IsBreakInside(GetBreakToken())) {
-    node_.StoreColumnCount(used_column_count_);
-  }
-
   // If we know the block-size of the fragmentainers in an outer fragmentation
   // context (if any), our columns may be constrained by that, meaning that we
   // may have to fragment earlier than what we would have otherwise, and, if
@@ -1330,8 +1324,8 @@ const LayoutResult* ColumnLayoutAlgorithm::LayoutRow(
     container_builder_.AddChild(column, result_with_offset.offset);
     PropagateBaselineFromChild(column, result_with_offset.offset.block_offset);
 
-    // Create a ::column pseudo element, and, if needed, also a
-    // ::column::scroll-marker pseudo element child of ::column.
+    // Create a ::column pseudo-element, and, if needed, also a
+    // ::column::scroll-marker pseudo-element child of ::column.
     LogicalRect column_logical_rect(result_with_offset.offset, column_size);
     const WritingModeConverter converter(
         GetConstraintSpace().GetWritingDirection(),
@@ -1800,7 +1794,7 @@ LayoutUnit ColumnLayoutAlgorithm::ConstrainColumnBlockSize(
 
   const Length& block_length = style.LogicalHeight();
   const Length& auto_length = space.IsBlockAutoBehaviorStretch()
-                                  ? Length::FillAvailable()
+                                  ? Length::Stretch()
                                   : Length::FitContent();
 
   extent = ResolveMainBlockLength(space, style, BorderPadding(), block_length,

@@ -10,7 +10,9 @@
 #include "rtc_tools/network_tester/config_reader.h"
 
 #include <fstream>
+#include <ios>
 #include <iterator>
+#include <optional>
 #include <string>
 
 #include "rtc_base/checks.h"
@@ -26,7 +28,7 @@ ConfigReader::ConfigReader(const std::string& config_file_path)
   RTC_DCHECK(config_stream.good());
   std::string config_data((std::istreambuf_iterator<char>(config_stream)),
                           (std::istreambuf_iterator<char>()));
-  if (config_data.size() > 0) {
+  if (!config_data.empty()) {
     proto_all_configs_.ParseFromString(config_data);
   }
 }

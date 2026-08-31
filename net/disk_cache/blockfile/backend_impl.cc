@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/disk_cache/blockfile/backend_impl.h"
 
 #include <algorithm>
@@ -16,6 +11,8 @@
 #include <utility>
 
 #include "base/containers/heap_array.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -28,6 +25,7 @@
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -40,8 +38,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/trace_event/trace_event.h"
 #include "net/base/net_errors.h"
-#include "net/base/tracing.h"
 #include "net/disk_cache/backend_cleanup_tracker.h"
 #include "net/disk_cache/blockfile/disk_format.h"
 #include "net/disk_cache/blockfile/entry_impl.h"
@@ -65,6 +63,23 @@ const int kBaseTableLen = 64 * 1024;
 
 // Avoid trimming the cache for the first 5 minutes (10 timer ticks).
 const int kTrimDelay = 10;
+
+BASE_FEATURE(kBlockfileCacheBackendDumpWithoutCrashing,
+             "BlockfileCacheBackendDumpWithoutCrashing",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(double,
+                   kBlockfileCacheBackendDumpWithoutCrashingFrequency,
+                   &kBlockfileCacheBackendDumpWithoutCrashing,
+                   "dump_without_crashing_frequency",
+                   0.01);
+
+BASE_FEATURE_PARAM(
+    double,
+    kBlockfileCacheBackendDumpWithoutCrashingFrequencyOnInvalidLinks,
+    &kBlockfileCacheBackendDumpWithoutCrashing,
+    "dump_without_crashing_frequency_on_invalid_links",
+    0.01);
 
 int DesiredIndexTableLen(int32_t storage_size) {
   if (storage_size <= k64kEntriesStore)
@@ -249,8 +264,25 @@ int BackendImpl::SyncInit() {
     new_eviction_ = (GetCacheType() == net::DISK_CACHE);
   }
 
-  if (!CheckIndex()) {
+  BackendImpl::CheckIndexResult check_index_result = CheckIndex();
+  if (check_index_result != BackendImpl::CheckIndexResult::kOk) {
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "check_index_result",
+                            static_cast<int>(check_index_result));
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "current_index_size",
+                            index_->GetLength());
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "table_len", data_->header.table_len);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "index_size",
+                            GetIndexSize(data_->header.table_len));
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "num_entries",
+                            data_->header.num_entries);
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "last_file_num",
+                            data_->header.last_file);
     ReportError(ERR_INIT_FAILED);
+    return net::ERR_FAILED;
+  }
+
+  if (data_->header.corruption_detected) {
+    ReportError(ERR_PREVIOUS_CORRUPTION);
     return net::ERR_FAILED;
   }
 
@@ -532,7 +564,7 @@ scoped_refptr<EntryImpl> BackendImpl::CreateEntryImpl(const std::string& key) {
   uint32_t hash = base::PersistentHash(key);
 
   scoped_refptr<EntryImpl> parent;
-  Addr entry_address(data_->table[hash & mask_]);
+  Addr entry_address(index_table_[hash & mask_]);
   if (entry_address.is_initialized()) {
     // We have an entry already. It could be the one we are looking for, or just
     // a hash conflict.
@@ -544,7 +576,7 @@ scoped_refptr<EntryImpl> BackendImpl::CreateEntryImpl(const std::string& key) {
 
     parent = MatchEntry(key, hash, true, Addr(), &error);
     DCHECK(!error);
-    if (!parent && data_->table[hash & mask_]) {
+    if (!parent && index_table_[hash & mask_]) {
       // We should have corrected the problem.
       DLOG(WARNING) << "Unable to correct hash collision";
       return nullptr;
@@ -606,7 +638,7 @@ scoped_refptr<EntryImpl> BackendImpl::CreateEntryImpl(const std::string& key) {
   if (parent.get()) {
     parent->SetNextAddress(entry_address);
   } else {
-    data_->table[hash & mask_] = entry_address.value();
+    index_table_[hash & mask_] = entry_address.value();
   }
 
   // Link this entry through the lists.
@@ -786,10 +818,11 @@ void BackendImpl::RecoveredEntry(CacheRankingsBlock* rankings) {
   cache_entry = nullptr;
 
   // Anything on the table means that this entry is there.
-  if (data_->table[hash & mask_])
+  if (index_table_[hash & mask_]) {
     return;
+  }
 
-  data_->table[hash & mask_] = address.value();
+  index_table_[hash & mask_] = address.value();
   FlushIndex();
 }
 
@@ -816,7 +849,7 @@ void BackendImpl::InternalDoomEntry(EntryImpl* entry) {
     parent_entry->SetNextAddress(Addr(child));
     parent_entry = nullptr;
   } else if (!error) {
-    data_->table[hash & mask_] = child;
+    index_table_[hash & mask_] = child;
   }
 
   FlushIndex();
@@ -841,7 +874,7 @@ CacheAddr BackendImpl::GetNextAddr(Addr address) {
 void BackendImpl::NotLinked(EntryImpl* entry) {
   Addr entry_addr = entry->entry()->address();
   uint32_t i = entry->GetHash() & mask_;
-  Addr address(data_->table[i]);
+  Addr address(index_table_[i]);
   if (!address.is_initialized())
     return;
 
@@ -905,7 +938,7 @@ int32_t BackendImpl::GetCurrentEntryId() const {
 }
 
 int64_t BackendImpl::MaxFileSize() const {
-  return GetCacheType() == net::PNACL_CACHE ? max_size_ : max_size_ / 8;
+  return max_size_ / 8;
 }
 
 void BackendImpl::ModifyStorageSize(int32_t old_size, int32_t new_size) {
@@ -975,8 +1008,9 @@ bool BackendImpl::ShouldUpdateStats() {
 
 void BackendImpl::FirstEviction() {
   DCHECK(data_->header.create_time);
-  if (!GetEntryCount())
+  if (!GetEntryCountSync()) {
     return;  // This is just for unit tests.
+  }
 
   stats_.ResetRatios();
 }
@@ -1009,6 +1043,40 @@ void BackendImpl::ReportError(int error) {
   // We transmit positive numbers, instead of direct error codes.
   DCHECK_LE(error, 0);
   if (GetCacheType() == net::DISK_CACHE) {
+    SCOPED_CRASH_KEY_NUMBER("DiskCache", "disk_cache_error", error * -1);
+    // TODO(crbug.com/433551601): Remove this once sufficient crash reports have
+    // been gathered, and definitely before stable.
+    if (error == ERR_INIT_FAILED) {
+      static bool has_considered_dumping = false;
+      // We want to DumpWithoutCrashing() only for X% of processes (configured
+      // by kBlockfileCacheBackendDumpWithoutCrashingFrequency), and only once
+      // per process, to avoid overwhelming the crash service.
+      if (!has_considered_dumping) {
+        has_considered_dumping = true;
+        if (base::FeatureList::IsEnabled(
+                kBlockfileCacheBackendDumpWithoutCrashing) &&
+            base::ShouldRecordSubsampledMetric(
+                kBlockfileCacheBackendDumpWithoutCrashingFrequency.Get())) {
+          // Capture the last file error. This may or may not be related to the
+          // reason why init failed.
+          base::File::Error file_error = base::File::GetLastFileError();
+          SCOPED_CRASH_KEY_NUMBER("DiskCache", "file_error", file_error);
+          base::debug::DumpWithoutCrashing();
+        }
+      }
+    } else if (error == ERR_INVALID_LINKS) {
+      static bool has_considered_dumping = false;
+      if (!has_considered_dumping) {
+        has_considered_dumping = true;
+        if (base::FeatureList::IsEnabled(
+                kBlockfileCacheBackendDumpWithoutCrashing) &&
+            base::ShouldRecordSubsampledMetric(
+                kBlockfileCacheBackendDumpWithoutCrashingFrequencyOnInvalidLinks
+                    .Get())) {
+          base::debug::DumpWithoutCrashing();
+        }
+      }
+    }
     base::UmaHistogramExactLinear("DiskCache.0.Error", error * -1, 50);
   }
 }
@@ -1155,7 +1223,12 @@ void BackendImpl::FlushIndex() {
 
 // ------------------------------------------------------------------------
 
-int32_t BackendImpl::GetEntryCount() const {
+int32_t BackendImpl::GetEntryCount(
+    net::Int32CompletionOnceCallback callback) const {
+  return GetEntryCountSync();
+}
+
+int32_t BackendImpl::GetEntryCountSync() const {
   if (!index_.get() || disabled_)
     return 0;
   // num_entries includes entries already evicted.
@@ -1307,8 +1380,9 @@ bool BackendImpl::CreateBackingStore(disk_cache::File* file) {
   header.table_len = DesiredIndexTableLen(max_size_);
   header.create_time = Time::Now().ToInternalValue();
 
-  if (!file->Write(&header, sizeof(header), 0))
+  if (!file->Write(base::byte_span_from_ref(header), 0)) {
     return false;
+  }
 
   size_t size = GetIndexSize(header.table_len);
   if (!file->SetLength(size))
@@ -1322,17 +1396,17 @@ bool BackendImpl::CreateBackingStore(disk_cache::File* file) {
   // header), to force allocation now and fail cleanly if there is no space.
   //
   // See https://crbug.com/1097518
-  const int kPageSize = 4096;
+  static constexpr size_t kPageSize = 4096;
   static_assert(sizeof(disk_cache::IndexHeader) < kPageSize,
                 "Code below assumes it wouldn't overwrite header by starting "
                 "at kPageSize");
-  auto page = std::make_unique<char[]>(kPageSize);
-  memset(page.get(), 0, kPageSize);
+  auto page = base::HeapArray<uint8_t>::WithSize(kPageSize);
 
   for (size_t offset = kPageSize; offset < size; offset += kPageSize) {
     size_t end = std::min(offset + kPageSize, size);
-    if (!file->Write(page.get(), end - offset, offset))
+    if (!file->Write(page.as_span().first(end - offset), offset)) {
       return false;
+    }
   }
   return true;
 }
@@ -1363,6 +1437,11 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
 
   index_ = base::MakeRefCounted<MappedFile>();
   data_ = static_cast<Index*>(index_->Init(index_name, 0));
+#if BUILDFLAG(IS_WIN)
+  // Experimentally enable flush for the index file on Windows
+  // (crbug.com/433551601).
+  index_->EnableFlush();
+#endif
   if (!data_) {
     LOG(ERROR) << "Unable to map Index file";
     return false;
@@ -1374,6 +1453,14 @@ bool BackendImpl::InitBackingStore(bool* file_created) {
     LOG(ERROR) << "Corrupt Index file";
     return false;
   }
+
+  auto hash_table_memory = index_->as_span().subspan(offsetof(Index, table));
+  // SAFETY: offsetof above ensures that hash_table_memory beginning is aligned
+  // properly to store CacheAddr[]; the overall bounds come from MappedFile
+  // returning what it actually mapped.
+  index_table_ = UNSAFE_BUFFERS(
+      base::span(reinterpret_cast<CacheAddr*>(hash_table_memory.data()),
+                 hash_table_memory.size() / sizeof(CacheAddr)));
 
   return true;
 }
@@ -1435,7 +1522,7 @@ bool BackendImpl::InitStats() {
   auto data = base::HeapArray<uint8_t>::Uninit(size);
   size_t offset = address.start_block() * address.BlockSize() +
                   kBlockHeaderSize;
-  if (!file->Read(data.data(), size, offset)) {
+  if (!file->Read(data.as_span(), offset)) {
     return false;
   }
 
@@ -1463,7 +1550,8 @@ void BackendImpl::StoreStats() {
 
   size_t offset = address.start_block() * address.BlockSize() +
                   kBlockHeaderSize;
-  file->Write(data.data(), size, offset);  // ignore result.
+  file->Write(data.as_span().first(static_cast<size_t>(size)),
+              offset);  // ignore result.
 }
 
 void BackendImpl::RestartCache(bool failure) {
@@ -1585,7 +1673,7 @@ scoped_refptr<EntryImpl> BackendImpl::MatchEntry(const std::string& key,
                                                  bool* match_error) {
   TRACE_EVENT0("disk_cache", "BackendImpl::MatchEntry");
 
-  Addr address(data_->table[hash & mask_]);
+  Addr address(index_table_[hash & mask_]);
   scoped_refptr<EntryImpl> cache_entry, parent_entry;
   bool found = false;
   std::set<CacheAddr> visited;
@@ -1621,7 +1709,7 @@ scoped_refptr<EntryImpl> BackendImpl::MatchEntry(const std::string& key,
         parent_entry->SetNextAddress(child);
         parent_entry = nullptr;
       } else {
-        data_->table[hash & mask_] = child.value();
+        index_table_[hash & mask_] = child.value();
       }
 
       if (!error) {
@@ -1632,12 +1720,21 @@ scoped_refptr<EntryImpl> BackendImpl::MatchEntry(const std::string& key,
       }
 
       // Restart the search.
-      address.set_value(data_->table[hash & mask_]);
+      address.set_value(index_table_[hash & mask_]);
       visited.clear();
       continue;
     }
 
-    DCHECK_EQ(hash & mask_, cache_entry->entry()->Data()->hash & mask_);
+    bool hash_ok =
+        (hash & mask_) == (cache_entry->entry()->Data()->hash & mask_);
+    if (!hash_ok) {
+      data_->header.corruption_detected = 1;
+    }
+
+    if (base::ShouldRecordSubsampledMetric(0.01)) {
+      UMA_HISTOGRAM_BOOLEAN("DiskCache.HashBucketOK.Sampled", hash_ok);
+    }
+
     if (cache_entry->IsSameEntry(key, hash)) {
       if (!cache_entry->Update())
         cache_entry = nullptr;
@@ -1839,8 +1936,9 @@ void BackendImpl::UpdateStats() {
   if (use_hours)
     use_hours = total_hours - use_hours;
 
-  if (!use_hours || !GetEntryCount() || !data_->header.num_bytes)
+  if (!use_hours || !GetEntryCountSync() || !data_->header.num_bytes) {
     return;
+  }
 
   stats_.ResetRatios();
   stats_.SetCounter(Stats::TRIM_ENTRY, 0);
@@ -1862,18 +1960,18 @@ void BackendImpl::UpgradeTo3_0() {
   data_->header.num_bytes = data_->header.old_v2_num_bytes;
 }
 
-bool BackendImpl::CheckIndex() {
+BackendImpl::CheckIndexResult BackendImpl::CheckIndex() {
   DCHECK(data_);
 
   size_t current_size = index_->GetLength();
   if (current_size < sizeof(Index)) {
     LOG(ERROR) << "Corrupt Index file";
-    return false;
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInIndexLength;
   }
 
   if (data_->header.magic != kIndexMagic) {
     LOG(ERROR) << "Invalid file magic";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidFileMagic;
   }
 
   // 2.0 + new_eviction needs conversion to 2.1.
@@ -1889,18 +1987,22 @@ bool BackendImpl::CheckIndex() {
 
   if (kCurrentVersion != data_->header.version) {
     LOG(ERROR) << "Invalid file version";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidFileVersion;
   }
 
   if (!data_->header.table_len) {
     LOG(ERROR) << "Invalid table size";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidTableSize;
   }
 
-  if (current_size < GetIndexSize(data_->header.table_len) ||
-      data_->header.table_len & (kBaseTableLen - 1)) {
+  if (current_size < GetIndexSize(data_->header.table_len)) {
     LOG(ERROR) << "Corrupt Index file";
-    return false;
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInTableLength1;
+  }
+
+  if (data_->header.table_len & (kBaseTableLen - 1)) {
+    LOG(ERROR) << "Corrupt Index file";
+    return BackendImpl::CheckIndexResult::kCorruptIndexFileInTableLength2;
   }
 
   AdjustMaxCacheSize(data_->header.table_len);
@@ -1910,20 +2012,22 @@ bool BackendImpl::CheckIndex() {
       (max_size_ < std::numeric_limits<int32_t>::max() - kDefaultCacheSize &&
        data_->header.num_bytes > max_size_ + kDefaultCacheSize)) {
     LOG(ERROR) << "Invalid cache (current) size";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidCacheSize;
   }
 #endif
 
   if (data_->header.num_entries < 0) {
     LOG(ERROR) << "Invalid number of entries";
-    return false;
+    return BackendImpl::CheckIndexResult::kInvalidNumberOfEntries;
   }
 
-  if (!mask_)
+  if (!mask_) {
     mask_ = data_->header.table_len - 1;
+  }
 
   // Load the table into memory.
-  return index_->Preload();
+  return index_->Preload() ? BackendImpl::CheckIndexResult::kOk
+                           : BackendImpl::CheckIndexResult::kFailedOnPreload;
 }
 
 int BackendImpl::CheckAllEntries() {
@@ -1931,7 +2035,7 @@ int BackendImpl::CheckAllEntries() {
   int num_entries = 0;
   DCHECK(mask_ < std::numeric_limits<uint32_t>::max());
   for (unsigned int i = 0; i <= mask_; i++) {
-    Addr address(data_->table[i]);
+    Addr address(index_table_[i]);
     if (!address.is_initialized())
       continue;
     for (;;) {
@@ -1973,8 +2077,9 @@ bool BackendImpl::CheckEntry(EntryImpl* cache_entry) {
   for (size_t i = 0; i < std::size(data->data_addr); i++) {
     if (data->data_addr[i]) {
       Addr address(data->data_addr[i]);
-      if (address.is_block_file())
+      if (address.is_block_file()) {
         ok = ok && block_files_.IsValid(address);
+      }
     }
   }
 

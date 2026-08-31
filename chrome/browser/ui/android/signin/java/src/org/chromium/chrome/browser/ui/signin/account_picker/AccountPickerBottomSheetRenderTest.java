@@ -9,6 +9,13 @@ import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.core.AllOf.allOf;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
+
+import static org.chromium.ui.test.util.MockitoHelper.doCallback;
 
 import android.view.View;
 
@@ -20,6 +27,7 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.quality.Strictness;
@@ -27,27 +35,35 @@ import org.mockito.quality.Strictness;
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.params.ParameterAnnotations;
+import org.chromium.base.test.params.ParameterAnnotations.UseMethodParameter;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.night_mode.ChromeNightModeTestUtils;
+import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
+import org.chromium.components.signin.test.util.FakeIdentityManager;
+import org.chromium.components.signin.test.util.SigninMatchers;
 import org.chromium.ui.test.util.DeviceRestriction;
 import org.chromium.ui.test.util.NightModeTestUtils;
 import org.chromium.ui.test.util.RenderTestRule;
 import org.chromium.ui.test.util.ViewUtils;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Render tests of account picker bottom sheet. */
 @RunWith(ParameterizedRunner.class)
@@ -62,61 +78,7 @@ public class AccountPickerBottomSheetRenderTest {
     private static final String GIVEN_NAME1 = "Account1";
     private static final String TEST_EMAIL2 = "test.account2@gmail.com";
 
-    private static final class CustomAccountPickerDelegate implements AccountPickerDelegate {
-        private boolean mSwitchToTryAgainView;
-        private boolean mSwitchToAuthErrorView;
-        private boolean mIsAccountManaged;
-
-        CustomAccountPickerDelegate() {}
-
-        void setSwitchToTryAgainView(boolean tryAgain) {
-            mSwitchToTryAgainView = tryAgain;
-        }
-
-        void setSwitchToAuthErrorView(boolean authError) {
-            mSwitchToAuthErrorView = authError;
-        }
-
-        void setAccountManaged(boolean managed) {
-            mIsAccountManaged = managed;
-        }
-
-        @Override
-        public void onAccountPickerDestroy() {}
-
-        @Override
-        public boolean canHandleAddAccount() {
-            return false;
-        }
-
-        @Override
-        public void addAccount() {
-            throw new UnsupportedOperationException(
-                    "CustomAccountPickerDelegate.addAccount() should never be called.");
-        }
-
-        @Override
-        public void signIn(CoreAccountInfo accountInfo, AccountPickerBottomSheetMediator mediator) {
-            if (mSwitchToTryAgainView) {
-                mediator.switchToTryAgainView();
-            } else if (mSwitchToAuthErrorView) {
-                mediator.switchToAuthErrorView();
-            }
-        }
-
-        @Override
-        public void isAccountManaged(CoreAccountInfo accountInfo, Callback<Boolean> callback) {
-            callback.onResult(mIsAccountManaged);
-        }
-
-        @Override
-        public void setUserAcceptedAccountManagement(boolean confirmed) {}
-
-        @Override
-        public String extractDomainName(String accountEmail) {
-            return accountEmail;
-        }
-    }
+    private final FakeIdentityManager mIdentityManager = new FakeIdentityManager();
 
     @Rule
     public final RenderTestRule mRenderTestRule =
@@ -129,15 +91,20 @@ public class AccountPickerBottomSheetRenderTest {
     public final AccountManagerTestRule mAccountManagerTestRule = new AccountManagerTestRule();
 
     @Rule
-    public final ChromeTabbedActivityTestRule mActivityTestRule =
-            new ChromeTabbedActivityTestRule();
+    public final FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
 
-    private final CustomAccountPickerDelegate mAccountPickerDelegate =
-            new CustomAccountPickerDelegate();
+    @Mock private AccountPickerDelegate mAccountPickerDelegateMock;
 
+    // TODO(crbug.com/433919394): Use FakeSigninManager instead.
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    private SigninManager mSigninManagerMock;
+
+    private final AtomicReference<Boolean> mIsNextSigninSuccessful = new AtomicReference<>();
+    private WebPageStation mPage;
     private @SigninAccessPoint int mSigninAccessPoint;
     private AccountPickerBottomSheetCoordinator mCoordinator;
 
@@ -158,7 +125,27 @@ public class AccountPickerBottomSheetRenderTest {
     @Before
     public void setUp() {
         mSigninAccessPoint = SigninAccessPoint.WEB_SIGNIN;
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
+
+        doCallback(/* index= */ 1, (Callback<Boolean> callback) -> callback.onResult(false))
+                .when(mSigninManagerMock)
+                .isAccountManaged(any(), any());
+        doCallback(
+                        /* index= */ 2,
+                        (SigninManager.SignInCallback callback) -> {
+                            Boolean result = mIsNextSigninSuccessful.get();
+                            if (result == null) {
+                                return;
+                            } else if (result) {
+                                callback.onSignInComplete();
+                            } else {
+                                callback.onSignInAborted();
+                            }
+                        })
+                .when(mSigninManagerMock)
+                .signin(any(), anyInt(), any());
+        when(mSigninManagerMock.isSigninAllowed()).thenReturn(true);
+        when(mSigninManagerMock.extractDomainName(any())).thenReturn(TEST_EMAIL1);
     }
 
     @AfterClass
@@ -169,12 +156,14 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testCollapsedSheetWithAccountViewForWebSigninEntryPoint(boolean nightModeEnabled)
             throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1, FULL_NAME1, GIVEN_NAME1, null);
         buildAndShowCollapsedBottomSheet();
-        ViewUtils.waitForVisibleView(allOf(withText(TEST_EMAIL1), isDisplayed()));
+        ViewUtils.waitForVisibleView(
+                allOf(SigninMatchers.withFormattedEmailText(TEST_EMAIL1), isDisplayed()));
         ViewUtils.waitForVisibleView(allOf(withText(FULL_NAME1), isDisplayed()));
         mRenderTestRule.render(
                 mCoordinator.getBottomSheetViewForTesting(), "collapsed_sheet_with_account");
@@ -183,13 +172,15 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testCollapsedSheetWithAccountViewForSendTabToSelfEntryPoint(
             boolean nightModeEnabled) throws IOException {
         mSigninAccessPoint = SigninAccessPoint.SEND_TAB_TO_SELF_PROMO;
         mAccountManagerTestRule.addAccount(TEST_EMAIL1, FULL_NAME1, GIVEN_NAME1, null);
         buildAndShowCollapsedBottomSheet();
-        ViewUtils.waitForVisibleView(allOf(withText(TEST_EMAIL1), isDisplayed()));
+        ViewUtils.waitForVisibleView(
+                allOf(SigninMatchers.withFormattedEmailText(TEST_EMAIL1), isDisplayed()));
         ViewUtils.waitForVisibleView(allOf(withText(FULL_NAME1), isDisplayed()));
         mRenderTestRule.render(
                 mCoordinator.getBottomSheetViewForTesting(),
@@ -199,13 +190,15 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testCollapsedSheetWithAccountViewForBookmarksEntryPoint(boolean nightModeEnabled)
             throws IOException {
         mSigninAccessPoint = SigninAccessPoint.BOOKMARK_MANAGER;
         mAccountManagerTestRule.addAccount(TEST_EMAIL1, FULL_NAME1, GIVEN_NAME1, null);
         buildAndShowCollapsedBottomSheet();
-        ViewUtils.waitForVisibleView(allOf(withText(TEST_EMAIL1), isDisplayed()));
+        ViewUtils.waitForVisibleView(
+                allOf(SigninMatchers.withFormattedEmailText(TEST_EMAIL1), isDisplayed()));
         ViewUtils.waitForVisibleView(allOf(withText(FULL_NAME1), isDisplayed()));
         mRenderTestRule.render(
                 mCoordinator.getBottomSheetViewForTesting(),
@@ -215,7 +208,8 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testExpandedSheetViewForWebSigninEntryPoint(boolean nightModeEnabled)
             throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1);
@@ -228,7 +222,8 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testExpandedSheetViewForSendTabToSelfEntryPoint(boolean nightModeEnabled)
             throws IOException {
         mSigninAccessPoint = SigninAccessPoint.SEND_TAB_TO_SELF_PROMO;
@@ -243,7 +238,8 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testExpandedSheetViewForBookmarksEntryPoint(boolean nightModeEnabled)
             throws IOException {
         mSigninAccessPoint = SigninAccessPoint.BOOKMARK_MANAGER;
@@ -258,7 +254,8 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testSignInInProgressView(boolean nightModeEnabled) throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1);
         buildAndShowCollapsedBottomSheet();
@@ -269,14 +266,15 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testTryAgainButtonOnSignInGeneralErrorSheet(boolean nightModeEnabled)
             throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1);
-        mAccountPickerDelegate.setSwitchToTryAgainView(true);
+        mIsNextSigninSuccessful.set(false);
         buildAndShowCollapsedBottomSheet();
         clickContinueButtonAndWaitForErrorView();
-        mAccountPickerDelegate.setSwitchToTryAgainView(false);
+        doNothing().when(mSigninManagerMock).signin(any(), anyInt(), any());
         clickContinueButtonAndCheckSigninInProgressView(
                 "signin_in_progress_sheet_after_error_sheet");
     }
@@ -284,10 +282,11 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testSigninGeneralErrorView(boolean nightModeEnabled) throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1);
-        mAccountPickerDelegate.setSwitchToTryAgainView(true);
+        mIsNextSigninSuccessful.set(false);
         buildAndShowCollapsedBottomSheet();
         clickContinueButtonAndWaitForErrorView();
         mRenderTestRule.render(
@@ -297,10 +296,20 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
-    @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
+    @UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testSigninAuthErrorView(boolean nightModeEnabled) throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1);
-        mAccountPickerDelegate.setSwitchToAuthErrorView(true);
+        mIsNextSigninSuccessful.set(true);
+        doAnswer(
+                        invocation -> {
+                            AccountPickerDelegate.SigninStateController controller =
+                                    invocation.getArgument(1);
+                            controller.showAuthError();
+                            return null;
+                        })
+                .when(mAccountPickerDelegateMock)
+                .onSignInComplete(any(), any());
         buildAndShowCollapsedBottomSheet();
         clickContinueButtonAndWaitForErrorView();
         mRenderTestRule.render(
@@ -310,10 +319,13 @@ public class AccountPickerBottomSheetRenderTest {
     @Test
     @MediumTest
     @Feature("RenderTest")
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testConfirmManagementView(boolean nightModeEnabled) throws IOException {
         mAccountManagerTestRule.addAccount(TEST_EMAIL1);
-        mAccountPickerDelegate.setAccountManaged(true);
+        doCallback(/* index= */ 1, (Callback<Boolean> callback) -> callback.onResult(true))
+                .when(mSigninManagerMock)
+                .isAccountManaged(any(), any());
         buildAndShowCollapsedBottomSheet();
 
         View bottomSheetView = mCoordinator.getBottomSheetViewForTesting();
@@ -396,8 +408,10 @@ public class AccountPickerBottomSheetRenderTest {
                     mCoordinator =
                             new AccountPickerBottomSheetCoordinator(
                                     mActivityTestRule.getActivity().getWindowAndroid(),
+                                    mIdentityManager,
+                                    mSigninManagerMock,
                                     getBottomSheetController(),
-                                    mAccountPickerDelegate,
+                                    mAccountPickerDelegateMock,
                                     AccountPickerBottomSheetTestUtil.getBottomSheetStrings(
                                             mSigninAccessPoint),
                                     null,

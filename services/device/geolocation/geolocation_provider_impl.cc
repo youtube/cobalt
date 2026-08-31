@@ -13,10 +13,10 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
-#include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/singleton.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_tick_clock.h"
@@ -38,11 +38,25 @@
 namespace device {
 
 namespace {
-base::LazyInstance<CustomLocationProviderCallback>::Leaky
-    g_custom_location_provider_callback = LAZY_INSTANCE_INITIALIZER;
-base::LazyInstance<std::unique_ptr<network::PendingSharedURLLoaderFactory>>::
-    Leaky g_pending_url_loader_factory = LAZY_INSTANCE_INITIALIZER;
-base::LazyInstance<std::string>::Leaky g_api_key = LAZY_INSTANCE_INITIALIZER;
+
+CustomLocationProviderCallback& GetCustomLocationProviderCallback() {
+  static base::NoDestructor<CustomLocationProviderCallback> callback;
+  return *callback;
+}
+
+std::unique_ptr<network::PendingSharedURLLoaderFactory>&
+GetPendingURLLoaderFactory() {
+  static base::NoDestructor<
+      std::unique_ptr<network::PendingSharedURLLoaderFactory>>
+      factory;
+  return *factory;
+}
+
+std::string& GetApiKey() {
+  static base::NoDestructor<std::string> api_key;
+  return *api_key;
+}
+
 GeolocationSystemPermissionManager* g_geolocation_system_permission_manager =
     nullptr;
 }  // namespace
@@ -71,10 +85,11 @@ void GeolocationProviderImpl::SetGeolocationConfiguration(
     const CustomLocationProviderCallback& custom_location_provider_getter,
     GeolocationSystemPermissionManager* geolocation_system_permission_manager,
     bool use_gms_core_location_provider) {
-  if (url_loader_factory)
-    g_pending_url_loader_factory.Get() = url_loader_factory->Clone();
-  g_api_key.Get() = api_key;
-  g_custom_location_provider_callback.Get() = custom_location_provider_getter;
+  if (url_loader_factory) {
+    GetPendingURLLoaderFactory() = url_loader_factory->Clone();
+  }
+  GetApiKey() = api_key;
+  GetCustomLocationProviderCallback() = custom_location_provider_getter;
   g_geolocation_system_permission_manager =
       geolocation_system_permission_manager;
   if (use_gms_core_location_provider) {
@@ -176,8 +191,8 @@ GeolocationProviderImpl::GeolocationProviderImpl()
 #if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
   if (features::IsOsLevelGeolocationPermissionSupportEnabled() &&
       g_geolocation_system_permission_manager) {
-    observers_ = g_geolocation_system_permission_manager->GetObserverList();
-    observers_->AddObserver(this);
+    geolocation_permission_observation_.Observe(
+        g_geolocation_system_permission_manager);
     system_permission_status_ =
         g_geolocation_system_permission_manager->GetSystemPermission();
   } else {
@@ -191,11 +206,6 @@ GeolocationProviderImpl::GeolocationProviderImpl()
 }
 
 GeolocationProviderImpl::~GeolocationProviderImpl() {
-#if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
-  if (features::IsOsLevelGeolocationPermissionSupportEnabled() && observers_) {
-    observers_->RemoveObserver(this);
-  }
-#endif
   Stop();
   DCHECK(!location_provider_manager_);
 }
@@ -384,17 +394,17 @@ void GeolocationProviderImpl::Init() {
                           base::Unretained(this));
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory;
-  if (g_pending_url_loader_factory.Get()) {
+  if (GetPendingURLLoaderFactory()) {
     url_loader_factory = network::SharedURLLoaderFactory::Create(
-        std::move(g_pending_url_loader_factory.Get()));
+        std::move(GetPendingURLLoaderFactory()));
   }
 
   DCHECK(!net::NetworkChangeNotifier::CreateIfNeeded())
       << "PositionCacheImpl needs a global NetworkChangeNotifier";
   location_provider_manager_ = std::make_unique<LocationProviderManager>(
-      g_custom_location_provider_callback.Get(),
+      GetCustomLocationProviderCallback(),
       g_geolocation_system_permission_manager, std::move(url_loader_factory),
-      g_api_key.Get(),
+      GetApiKey(),
       std::make_unique<PositionCacheImpl>(
           base::DefaultTickClock::GetInstance()),
       base::BindRepeating(&GeolocationProviderImpl::OnInternalsUpdated,
@@ -492,6 +502,10 @@ void GeolocationProviderImpl::OnSystemPermissionUpdated(
   system_permission_status_ = new_status;
 }
 
+void GeolocationProviderImpl::OnPermissionManagerShuttingDown() {
+  geolocation_permission_observation_.Reset();
+}
+
 void GeolocationProviderImpl::NotifyClientsSystemPermissionDenied() {
   CHECK(main_task_runner_->BelongsToCurrentThread());
   auto error_result =
@@ -501,7 +515,8 @@ void GeolocationProviderImpl::NotifyClientsSystemPermissionDenied() {
           kSystemPermissionDeniedErrorTechnical));
   NotifyClients(std::move(error_result));
 }
-#endif
+
+#endif  // BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
 
 void GeolocationProviderImpl::DoStartProvidersOnGeolocationThread() {
   CHECK(main_task_runner_->BelongsToCurrentThread());

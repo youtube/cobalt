@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/formats/webm/webm_stream_parser.h"
 
 #include <memory>
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
@@ -158,9 +154,8 @@ StreamParser::ParseStatus WebMStreamParser::Parse(
 
   int result = 0;
   int bytes_parsed = 0;
-  const uint8_t* cur = nullptr;
-  int queue_size = 0;
-  byte_queue_.Peek(&cur, &queue_size);
+  const uint8_t* cur = byte_queue_.Data().data();
+  int queue_size = byte_queue_.Data().size();
 
   // First, determine the amount of bytes not yet popped, though already
   // inspected by previous call(s) to Parse().
@@ -204,7 +199,7 @@ StreamParser::ParseStatus WebMStreamParser::Parse(
       break;
 
     DCHECK_GE(result, 0);
-    cur += result;
+    UNSAFE_TODO(cur += result);
     cur_size -= result;
     bytes_parsed += result;
   }
@@ -283,7 +278,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8_t* data, int size) {
   if (result <= 0)
     return result;
 
-  cur += result;
+  UNSAFE_TODO(cur += result);
   cur_size -= result;
   bytes_parsed += result;
 

@@ -186,16 +186,15 @@ void AudioSinkAndroidAudioTrackImpl::PreventDelegateCalls() {
 
 void AudioSinkAndroidAudioTrackImpl::CacheDirectBufferAddress(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& pcm_byte_buffer,
     const JavaParamRef<jobject>& rendering_delay_byte_buffer,
     const JavaParamRef<jobject>& audio_track_timestamp_byte_buffer) {
   direct_pcm_buffer_address_ =
-      static_cast<uint8_t*>(env->GetDirectBufferAddress(pcm_byte_buffer));
+      static_cast<uint8_t*>(env->GetDirectBufferAddress(pcm_byte_buffer.obj()));
   direct_rendering_delay_address_ = static_cast<uint64_t*>(
-      env->GetDirectBufferAddress(rendering_delay_byte_buffer));
+      env->GetDirectBufferAddress(rendering_delay_byte_buffer.obj()));
   direct_audio_track_timestamp_address_ = static_cast<uint64_t*>(
-      env->GetDirectBufferAddress(audio_track_timestamp_byte_buffer));
+      env->GetDirectBufferAddress(audio_track_timestamp_byte_buffer.obj()));
 }
 
 void AudioSinkAndroidAudioTrackImpl::WritePcm(

@@ -86,25 +86,25 @@ ScopedJavaLocalRef<jobjectArray> ToJavaArrayOfContentCaptureFrame(
         ToJavaObjectOfContentCaptureFrame(env, session[i], offset_y);
     env->SetObjectArrayElement(joa, i, item.obj());
   }
-  return ScopedJavaLocalRef<jobjectArray>(env, joa);
+  return ScopedJavaLocalRef<jobjectArray>::Adopt(env, joa);
 }
 
 }  // namespace
 
 static jlong JNI_OnscreenContentProvider_Init(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
-    const base::android::JavaParamRef<jobject>& jwebContents) {
-  auto* web_contents = content::WebContents::FromJavaWebContents(jwebContents);
+    const base::android::JavaParamRef<jobject>& obj,
+    const base::android::JavaParamRef<jobject>& jweb_contents) {
+  auto* web_contents = content::WebContents::FromJavaWebContents(jweb_contents);
   DCHECK(web_contents);
   auto* provider = new content_capture::OnscreenContentProviderAndroid(
-      env, jcaller, web_contents);
+      env, obj, web_contents);
   return reinterpret_cast<intptr_t>(provider);
 }
 
 OnscreenContentProviderAndroid::OnscreenContentProviderAndroid(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jobject,
+    const jni_zero::JavaParamRef<jobject>& jobject,
     content::WebContents* web_contents)
     : java_ref_(jobject) {
   AttachToWebContents(web_contents);

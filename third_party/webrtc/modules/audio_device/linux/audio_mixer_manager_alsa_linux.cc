@@ -10,8 +10,14 @@
 
 #include "modules/audio_device/linux/audio_mixer_manager_alsa_linux.h"
 
+#include <cstdint>
+#include <cstring>
+
+#include "api/audio/audio_device_defines.h"
 #include "modules/audio_device/linux/audio_device_alsa_linux.h"
+#include "modules/audio_device/linux/latebindingsymboltable_linux.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/synchronization/mutex.h"
 
 // Accesses ALSA functions through our late-binding symbol table instead of
 // directly. This way we don't have to link to libasound, which means our binary

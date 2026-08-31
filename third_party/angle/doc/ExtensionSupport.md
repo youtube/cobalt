@@ -85,6 +85,9 @@ using data from registry_xml.py and gl.xml.
 | [GL_NV_fence](https://khronos.org/registry/OpenGL/extensions/NV/NV_fence.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |
 | [GL_EXT_float_blend](https://khronos.org/registry/OpenGL/extensions/EXT/EXT_float_blend.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |  |
 | [GL_EXT_frag_depth](https://khronos.org/registry/OpenGL/extensions/EXT/EXT_frag_depth.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |
+| [GL_EXT_fragment_shading_rate](https://khronos.org/registry/OpenGL/extensions/EXT/EXT_fragment_shading_rate.txt) |  |  |  |  |  |  |  |
+| [GL_EXT_fragment_shading_rate_attachment](https://khronos.org/registry/OpenGL/extensions/EXT/EXT_fragment_shading_rate_attachment.txt) |  |  |  |  |  |  |  |
+| [GL_EXT_fragment_shading_rate_primitive](https://khronos.org/registry/OpenGL/extensions/EXT/EXT_fragment_shading_rate_primitive.txt) |  |  |  |  |  |  |  |
 | [GL_ANGLE_framebuffer_blit](https://khronos.org/registry/OpenGL/extensions/ANGLE/ANGLE_framebuffer_blit.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |
 | [GL_NV_framebuffer_blit](https://khronos.org/registry/OpenGL/extensions/NV/NV_framebuffer_blit.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |
 | [GL_MESA_framebuffer_flip_y](https://khronos.org/registry/OpenGL/extensions/MESA/MESA_framebuffer_flip_y.txt) |  |  |  |  |  |  |  |
@@ -262,7 +265,6 @@ using data from registry_xml.py and gl.xml.
 | [GL_ANGLE_shader_pixel_local_storage](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/ANGLE_shader_pixel_local_storage.txt) |  |  |  |  |  |  |  |
 | [GL_ANGLE_shader_pixel_local_storage_coherent](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/ANGLE_shader_pixel_local_storage.txt) |  |  |  |  |  |  |  |
 | [GL_ANGLE_stencil_texturing](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/ANGLE_stencil_texturing.txt) |  |  |  |  |  |  |  |
-| [GL_CHROMIUM_sync_query](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/CHROMIUM_sync_query.txt) |  |  |  |  |  |  |  |
 | [GL_ANGLE_texture_compression_dxt3](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/ANGLE_texture_compression_dxt3.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |  |  |
 | [GL_ANGLE_texture_compression_dxt5](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/ANGLE_texture_compression_dxt5.txt) | &#x2714; | &#x2714; | &#x2714; | &#x2714; | &#x2714; |  |  |
 | [GL_ANGLE_texture_external_update](https://chromium.googlesource.com/angle/angle/+/refs/heads/main/extensions/ANGLE_texture_external_update.txt) |  |  |  |  |  |  |  |

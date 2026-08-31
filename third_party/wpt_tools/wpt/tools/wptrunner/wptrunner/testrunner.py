@@ -313,7 +313,7 @@ class TestSource:
         if not self.current_group.group or len(self.current_group.group) == 0:
             try:
                 self.current_group = self.test_queue.get()
-                self.logger.debug(f"Got new test group subsuite:{self.current_group[1]} "
+                self.logger.debug(f"Got new test group subsuite:{self.current_group[1]!r} "
                                   f"test_type:{self.current_group[2]}")
             except Empty:
                 return testloader.TestGroup(None, None, None, None)
@@ -343,7 +343,7 @@ class TestRunnerManager(threading.Thread):
                  pause_after_test=False, pause_on_unexpected=False,
                  restart_on_unexpected=True, debug_info=None,
                  capture_stdio=True, restart_on_new_group=True, recording=None,
-                 max_restarts=5, max_restart_backoff=0):
+                 max_restarts=5, max_restart_backoff=0, update_status_on_crash=True):
         """Thread that owns a single TestRunner process and any processes required
         by the TestRunner (e.g. the Firefox binary).
 
@@ -381,6 +381,7 @@ class TestRunnerManager(threading.Thread):
         self.restart_on_new_group = restart_on_new_group
         self.max_restarts = max_restarts
         self.max_restart_backoff = max_restart_backoff
+        self.update_status_on_crash = update_status_on_crash
 
         assert recording is not None
         self.recording = recording
@@ -473,11 +474,11 @@ class TestRunnerManager(threading.Thread):
 
             if skipped_tests:
                 self.logger.critical(
-                    f"Tests left in the queue: {subsuite}:{skipped_tests[0].id!r} "
+                    f"Tests left in the queue: {subsuite!r}:{skipped_tests[0].id!r} "
                     f"and {len(skipped_tests) - 1} others"
                 )
                 for test in skipped_tests[1:]:
-                    self.logger.debug(f"Test left in the queue: {subsuite}:{test.id!r}")
+                    self.logger.debug(f"Test left in the queue: {subsuite!r}:{test.id!r}")
 
             force_stop = (not isinstance(self.state, RunnerManagerState.stop) or
                           self.state.force_stop)
@@ -797,11 +798,11 @@ class TestRunnerManager(threading.Thread):
         status = file_result.status
 
         if self.browser.check_crash(test.id) and status != "CRASH":
-            if test.test_type in ["crashtest", "wdspec"] or status == "EXTERNAL-TIMEOUT":
+            if self.update_status_on_crash:
                 self.logger.info("Found a crash dump file; changing status to CRASH")
                 status = "CRASH"
             else:
-                self.logger.warning(f"Found a crash dump; should change status from {status} to CRASH but this causes instability")
+                self.logger.warning(f"Found a crash dump; but keeping status {status}")
 
         # We have a couple of status codes that are used internally, but not exposed to the
         # user. These are used to indicate that some possibly-broken state was reached
@@ -900,7 +901,7 @@ class TestRunnerManager(threading.Thread):
             if test is None:
                 return RunnerManagerState.stop(force_stop)
             if subsuite != self.state.subsuite:
-                self.logger.info(f"Restarting browser for new subsuite:{subsuite}")
+                self.logger.info(f"Restarting browser for new subsuite:{subsuite!r}")
                 restart = True
             elif self.restart_on_new_group and test_group is not self.state.test_group:
                 self.logger.info("Restarting browser for new test group")
@@ -1047,7 +1048,8 @@ class ManagerGroup:
                  restart_on_new_group=True,
                  recording=None,
                  max_restarts=5,
-                 max_restart_backoff=0):
+                 max_restart_backoff=0,
+                 update_status_on_crash=False):
         self.suite_name = suite_name
         self.test_queue_builder = test_queue_builder
         self.test_implementations = test_implementations
@@ -1063,6 +1065,7 @@ class ManagerGroup:
         assert recording is not None
         self.max_restarts = max_restarts
         self.max_restart_backoff = max_restart_backoff
+        self.update_status_on_crash = update_status_on_crash
 
         self.pool = set()
         self.stop_flag = None
@@ -1096,7 +1099,8 @@ class ManagerGroup:
                                         self.restart_on_new_group,
                                         recording=self.recording,
                                         max_restarts=self.max_restarts,
-                                        max_restart_backoff=self.max_restart_backoff)
+                                        max_restart_backoff=self.max_restart_backoff,
+                                        update_status_on_crash=self.update_status_on_crash)
             manager.start()
             self.pool.add(manager)
         self.wait()

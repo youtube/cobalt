@@ -391,7 +391,7 @@ source_set("ip_protection_token_direct_fetcher") {
     ":ip_protection_data_types",
     ":ip_protection_telemetry",
     ":ip_protection_token_fetcher_helper",
-    "//components/signin/public/identity_manager:identity_manager",
+    "//components/signin/public/identity_manager",
     "//net/third_party/quiche:blind_sign_auth",
   ]
 }
@@ -410,6 +410,10 @@ source_set("ip_protection_token_direct_fetcher_unittest") {
     "//services/network:test_support",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("ip_protection_token_fetcher") {
@@ -471,6 +475,10 @@ source_set("ip_protection_token_manager_impl_unittest") {
     "//net",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("masked_domain_list_manager") {
@@ -480,7 +488,6 @@ source_set("masked_domain_list_manager") {
   ]
   public_deps = [
     ":masked_domain_list",
-    ":url_matcher_with_bypass",
     "//base",
     "//components/privacy_sandbox/masked_domain_list:masked_domain_list_proto",
     "//net",
@@ -508,6 +515,10 @@ source_set("masked_domain_list_manager_unittest") {
     "//testing/gtest",
     "//url",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("masked_domain_list") {
@@ -535,7 +546,7 @@ source_set("masked_domain_list_unittest") {
     "//components/ip_protection/common/flat:masked_domain_list",
     "//testing/gtest",
     "//third_party/flatbuffers",
-    "//url:url",
+    "//url",
   ]
 }
 
@@ -551,37 +562,6 @@ source_set("mock_blind_sign_auth") {
   ]
 }
 
-source_set("url_matcher_with_bypass") {
-  sources = [
-    "url_matcher_with_bypass.cc",
-    "url_matcher_with_bypass.h",
-  ]
-  public_deps = [
-    "//base",
-    "//components/privacy_sandbox/masked_domain_list:masked_domain_list_proto",
-    "//net",
-    "//url",
-  ]
-  deps = [
-    ":ip_protection_data_types",
-    "//services/network/public/cpp",
-  ]
-}
-
-source_set("url_matcher_with_bypass_unittest") {
-  testonly = true
-  sources = [ "url_matcher_with_bypass_unittest.cc" ]
-  deps = [
-    ":ip_protection_data_types",
-    ":url_matcher_with_bypass",
-    "//base",
-    "//components/privacy_sandbox/masked_domain_list:masked_domain_list_proto",
-    "//net",
-    "//testing/gtest",
-    "//url",
-  ]
-}
-
 source_set("ip_protection_probabilistic_reveal_token_direct_fetcher") {
   sources = [
     "ip_protection_probabilistic_reveal_token_direct_fetcher.cc",
@@ -590,7 +570,6 @@ source_set("ip_protection_probabilistic_reveal_token_direct_fetcher") {
   public_deps = [
     ":ip_protection_probabilistic_reveal_token_fetcher",
     "//base",
-    "//base/version_info:channel",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
   ]
@@ -613,7 +592,6 @@ source_set("ip_protection_probabilistic_reveal_token_direct_fetcher_unittest") {
     ":probabilistic_reveal_token_test_issuer",
     "//base",
     "//base/test:test_support",
-    "//base/version_info:channel",
     "//components/ip_protection:get_probabilistic_reveal_token_proto",
     "//net",
     "//services/network:test_support",

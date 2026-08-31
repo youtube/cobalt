@@ -9,12 +9,10 @@
  */
 #include "rtc_base/experiments/quality_scaling_experiment.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <optional>
 #include <string>
 
-#include "absl/strings/match.h"
 #include "api/field_trials_view.h"
 #include "api/video/video_codec_type.h"
 #include "api/video_codecs/video_encoder.h"
@@ -87,9 +85,9 @@ bool QualityScalingExperiment::Enabled(const FieldTrialsView& field_trials) {
   WebRTCH265QualityScaling h265_quality_scaling(field_trials);
   return
 #if defined(WEBRTC_IOS)
-      absl::StartsWith(field_trials.Lookup(kFieldTrial), "Enabled") ||
+      field_trials.IsEnabled(kFieldTrial) ||
 #else
-      !absl::StartsWith(field_trials.Lookup(kFieldTrial), "Disabled") ||
+      !field_trials.IsDisabled(kFieldTrial) ||
 #endif
       h265_quality_scaling.IsEnabled();
 }

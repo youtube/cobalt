@@ -35,7 +35,7 @@ static_library("child_accounts") {
   public_deps = [
     "//base",
     "//net:test_support",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
   ]
 }
 
@@ -54,6 +54,8 @@ source_set("live_tests") {
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/signin/e2e_tests:test_support",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/signin",
     "//components/supervised_user/core/browser/proto",
     "//components/supervised_user/test_support:account_repository",
   ]

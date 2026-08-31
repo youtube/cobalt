@@ -29,7 +29,6 @@ static_assert(sizeof(base::stat_wrapper_t::st_size) >= 8);
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
-#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/posix/eintr_wrapper.h"
@@ -39,7 +38,14 @@ static_assert(sizeof(base::stat_wrapper_t::st_size) >= 8);
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/content_uri_utils.h"
+#include "base/android/virtual_document_path.h"
+#include "base/files/file_android.h"
+#include "base/files/file_util.h"
 #include "base/os_compat_android.h"
+#endif
+
+#if BUILDFLAG(IS_AIX)
+#include "base/notimplemented.h"
 #endif
 
 namespace base {
@@ -73,17 +79,41 @@ std::atomic<MacFileFlushMechanism> g_mac_file_flush_mechanism{
     MacFileFlushMechanism::kFullFsync};
 #endif  // BUILDFLAG(IS_APPLE)
 
-// NaCl doesn't provide the following system calls, so either simulate them or
+#if BUILDFLAG(IS_ANDROID)
+#define OffsetType off64_t
+// In case __USE_FILE_OFFSET64 is not used, the `File` methods in this file need
+// to call lseek64(), pread64() and pwrite64() instead of lseek(), pread() and
+// pwrite();
+#define LSeekFunc lseek64
+#define PReadFunc pread64
+#define PWriteFunc pwrite64
+#else
+#define OffsetType off_t
+#define LSeekFunc lseek
+#define PReadFunc pread
+#define PWriteFunc pwrite
+#endif
+
+static_assert(sizeof(int64_t) == sizeof(OffsetType));
+
+bool IsReadWriteRangeValid(int64_t offset, int size) {
+  if (size < 0 || !CheckAdd(offset, size - 1).IsValid() ||
+      !IsValueInRangeForNumericType<OffsetType>(offset + size - 1)) {
+    return false;
+  }
+
+  return true;
+}
+
+// AIX doesn't provide the following system calls, so either simulate them or
 // wrap them in order to minimize the number of #ifdef's in this file.
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_AIX)
+#if !BUILDFLAG(IS_AIX)
 bool IsOpenAppend(PlatformFile file) {
   return (fcntl(file, F_GETFL) & O_APPEND) != 0;
 }
 
 int CallFtruncate(PlatformFile file, int64_t length) {
 #if BUILDFLAG(IS_BSD) || BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FUCHSIA)
-  static_assert(sizeof(off_t) >= sizeof(int64_t),
-                "off_t is not a 64-bit integer");
   return HANDLE_EINTR(ftruncate(file, length));
 #else
   return HANDLE_EINTR(ftruncate64(file, length));
@@ -138,31 +168,31 @@ File::Error CallFcntlFlock(PlatformFile file,
 }
 #endif
 
-#else   // BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_AIX)
+#else   // !BUILDFLAG(IS_AIX)
 
 bool IsOpenAppend(PlatformFile file) {
-  // NaCl doesn't implement fcntl. Since NaCl's write conforms to the POSIX
+  // AIX doesn't implement fcntl. Since AIX's write conforms to the POSIX
   // standard and always appends if the file is opened with O_APPEND, just
   // return false here.
   return false;
 }
 
 int CallFtruncate(PlatformFile file, int64_t length) {
-  NOTIMPLEMENTED();  // NaCl doesn't implement ftruncate.
+  NOTIMPLEMENTED();  // AIX doesn't implement ftruncate.
   return 0;
 }
 
 int CallFutimes(PlatformFile file, const struct timeval times[2]) {
-  NOTIMPLEMENTED();  // NaCl doesn't implement futimes.
+  NOTIMPLEMENTED();  // AIX doesn't implement futimes.
   return 0;
 }
 
 File::Error CallFcntlFlock(PlatformFile file,
                            std::optional<File::LockMode> mode) {
-  NOTIMPLEMENTED();  // NaCl doesn't implement flock struct.
+  NOTIMPLEMENTED();  // AIX doesn't implement flock struct.
   return File::FILE_ERROR_INVALID_OPERATION;
 }
-#endif  // BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(IS_AIX)
 
 #if BUILDFLAG(IS_ANDROID)
 bool GetContentUriInfo(const base::FilePath& path, File::Info* info) {
@@ -271,22 +301,14 @@ int64_t File::Seek(Whence whence, int64_t offset) {
   DCHECK(IsValid());
 
   SCOPED_FILE_TRACE_WITH_SIZE("Seek", offset);
-
-#if BUILDFLAG(IS_ANDROID)
-  static_assert(sizeof(int64_t) == sizeof(off64_t), "off64_t must be 64 bits");
-  return lseek64(file_.get(), static_cast<off64_t>(offset),
-                 static_cast<int>(whence));
-#else
-  static_assert(sizeof(int64_t) == sizeof(off_t), "off_t must be 64 bits");
-  return lseek(file_.get(), static_cast<off_t>(offset),
-               static_cast<int>(whence));
-#endif
+  return LSeekFunc(file_.get(), static_cast<OffsetType>(offset),
+                   static_cast<int>(whence));
 }
 
 int File::Read(int64_t offset, char* data, int size) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
-  if (size < 0 || !IsValueInRangeForNumericType<off_t>(offset + size - 1)) {
+  if (!IsReadWriteRangeValid(offset, size)) {
     return -1;
   }
 
@@ -295,9 +317,9 @@ int File::Read(int64_t offset, char* data, int size) {
   int bytes_read = 0;
   long rv;
   do {
-    rv = HANDLE_EINTR(pread(file_.get(), data + bytes_read,
-                            static_cast<size_t>(size - bytes_read),
-                            static_cast<off_t>(offset + bytes_read)));
+    rv = HANDLE_EINTR(PReadFunc(file_.get(), data + bytes_read,
+                                static_cast<size_t>(size - bytes_read),
+                                static_cast<OffsetType>(offset + bytes_read)));
     if (rv <= 0) {
       break;
     }
@@ -365,7 +387,7 @@ int File::Write(int64_t offset, const char* data, int size) {
   }
 
   DCHECK(IsValid());
-  if (size < 0) {
+  if (!IsReadWriteRangeValid(offset, size)) {
     return -1;
   }
 
@@ -374,19 +396,10 @@ int File::Write(int64_t offset, const char* data, int size) {
   int bytes_written = 0;
   long rv;
   do {
-#if BUILDFLAG(IS_ANDROID)
-    // In case __USE_FILE_OFFSET64 is not used, we need to call pwrite64()
-    // instead of pwrite().
-    static_assert(sizeof(int64_t) == sizeof(off64_t),
-                  "off64_t must be 64 bits");
-    rv = HANDLE_EINTR(pwrite64(file_.get(), data + bytes_written,
-                               static_cast<size_t>(size - bytes_written),
-                               offset + bytes_written));
-#else
-    rv = HANDLE_EINTR(pwrite(file_.get(), data + bytes_written,
-                             static_cast<size_t>(size - bytes_written),
-                             offset + bytes_written));
-#endif
+    rv = HANDLE_EINTR(
+        PWriteFunc(file_.get(), data + bytes_written,
+                   static_cast<size_t>(size - bytes_written),
+                   static_cast<OffsetType>(offset + bytes_written)));
     if (rv <= 0) {
       break;
     }
@@ -551,9 +564,7 @@ File::Error File::OSErrorToFileError(int saved_errno) {
     case EPERM:
       return FILE_ERROR_ACCESS_DENIED;
     case EBUSY:
-#if !BUILDFLAG(IS_NACL)  // ETXTBSY not defined by NaCl.
     case ETXTBSY:
-#endif
       return FILE_ERROR_IN_USE;
     case EEXIST:
       return FILE_ERROR_EXISTS;
@@ -577,8 +588,6 @@ File::Error File::OSErrorToFileError(int saved_errno) {
   }
 }
 
-// NaCl doesn't implement system calls to open files directly.
-#if !BUILDFLAG(IS_NACL)
 // TODO(erikkay): does it make sense to support FLAG_EXCLUSIVE_* here?
 void File::DoInitialize(const FilePath& path, uint32_t flags) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
@@ -637,20 +646,20 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  if (path.IsContentUri()) {
-    java_parcel_file_descriptor_ = internal::OpenContentUri(path, flags);
-    int fd = internal::ContentUriGetFd(java_parcel_file_descriptor_);
-    if (fd < 0) {
-      error_details_ = FILE_ERROR_FAILED;
+  if (path.IsContentUri() || path.IsVirtualDocumentPath()) {
+    auto result = files_internal::OpenAndroidFile(path, flags);
+    if (!result.has_value()) {
+      error_details_ = result.error();
       return;
     }
 
     // Save path for any call to GetInfo().
-    path_ = path;
-    created_ = (flags & (FLAG_CREATE_ALWAYS | FLAG_CREATE));
+    path_ = result->content_uri;
+    file_.reset(result->fd);
+    java_parcel_file_descriptor_ = result->java_parcel_file_descriptor;
+    created_ = result->created;
     async_ = (flags & FLAG_ASYNC);
     error_details_ = FILE_OK;
-    file_.reset(fd);
     return;
   }
 #endif
@@ -684,17 +693,13 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   error_details_ = FILE_OK;
   file_.reset(descriptor);
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 bool File::Flush() {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   DCHECK(IsValid());
   SCOPED_FILE_TRACE("Flush");
 
-#if BUILDFLAG(IS_NACL)
-  NOTIMPLEMENTED();  // NaCl doesn't implement fsync.
-  return true;
-#elif BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || \
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX)
   return !HANDLE_EINTR(fdatasync(file_.get()));
 #elif BUILDFLAG(IS_APPLE)
@@ -755,10 +760,15 @@ File::Error File::GetLastFileError() {
 int File::Stat(const FilePath& path, stat_wrapper_t* sb) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
 #if BUILDFLAG(IS_ANDROID)
-  if (path.IsContentUri()) {
+  if (path.IsContentUri() || path.IsVirtualDocumentPath()) {
+    std::optional<FilePath> p = base::ResolveToContentUri(path);
+    if (!p) {
+      errno = ENOENT;
+      return -1;
+    }
     // Attempt to open the file and call GetInfo(), otherwise call Java code
     // with the path which is required for dirs.
-    File file(path, base::File::FLAG_OPEN | base::File::FLAG_READ);
+    File file(*p, base::File::FLAG_OPEN | base::File::FLAG_READ);
     Info info;
     if ((file.IsValid() && file.GetInfo(&info)) ||
         GetContentUriInfo(path, &info)) {
@@ -789,6 +799,21 @@ int File::Fstat(int fd, stat_wrapper_t* sb) {
 int File::Lstat(const FilePath& path, stat_wrapper_t* sb) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   return lstat(path.value().c_str(), sb);
+}
+
+int File::Mkdir(const FilePath& path, mode_t mode) {
+#if BUILDFLAG(IS_ANDROID)
+  if (path.IsVirtualDocumentPath()) {
+    std::optional<files_internal::VirtualDocumentPath> vp =
+        files_internal::VirtualDocumentPath::Parse(path.value());
+    if (!vp) {
+      errno = ENOENT;
+      return -1;
+    }
+    return vp->Mkdir(mode) ? 0 : -1;
+  }
+#endif
+  return mkdir(path.value().c_str(), mode);
 }
 
 }  // namespace base

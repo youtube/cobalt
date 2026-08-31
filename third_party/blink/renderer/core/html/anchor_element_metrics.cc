@@ -118,10 +118,10 @@ bool IsStringIncrementedByOne(const String& source, const String& target) {
 
   int source_number =
       CharactersToInt(StringView(source, left, source_right - left),
-                      WTF::NumberParsingOptions(), /*ok=*/nullptr);
+                      NumberParsingOptions(), /*ok=*/nullptr);
   int target_number =
       CharactersToInt(StringView(target, left, target_right - left),
-                      WTF::NumberParsingOptions(), /*ok=*/nullptr);
+                      NumberParsingOptions(), /*ok=*/nullptr);
 
   // The second number should increment by one and the rest of the strings
   // should be the same.
@@ -180,8 +180,8 @@ bool HasTextSibling(const HTMLAnchorElementBase& anchor_element) {
 // destroyed and a new one is created with the same address. We don't mind this
 // issue as the anchor ID is only used for metric collection.
 uint32_t AnchorElementId(const HTMLAnchorElementBase& element) {
-  uint32_t id = WTF::GetHash(&element);
-  if (WTF::IsHashTraitsEmptyOrDeletedValue<HashTraits<uint32_t>>(id)) {
+  uint32_t id = GetHash(&element);
+  if (IsHashTraitsEmptyOrDeletedValue<HashTraits<uint32_t>>(id)) {
     // Anchor IDs are used in HashMaps, so we can't have sentinel values. If the
     // hash happens to be a sentinel value, we return an arbitrary value
     // instead.

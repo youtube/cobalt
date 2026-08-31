@@ -18,7 +18,6 @@
 #include "chrome/browser/ash/policy/core/device_local_account.h"
 #include "chrome/browser/ash/settings/device_settings_test_helper.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/ash/components/install_attributes/stub_install_attributes.h"
@@ -27,6 +26,7 @@
 #include "components/policy/core/common/cloud/test/policy_builder.h"
 #include "components/policy/proto/chrome_device_policy.pb.h"
 #include "components/policy/proto/device_management_backend.pb.h"
+#include "components/prefs/testing_pref_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -58,8 +58,7 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
 
  protected:
   DeviceSettingsProviderTest()
-      : local_state_(TestingBrowserProcess::GetGlobal()),
-        user_data_dir_override_(chrome::DIR_USER_DATA) {}
+      : user_data_dir_override_(chrome::DIR_USER_DATA) {}
 
   void SetUp() override {
     DeviceSettingsTestBase::SetUp();
@@ -73,7 +72,8 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
     provider_ = std::make_unique<DeviceSettingsProvider>(
         base::BindRepeating(&DeviceSettingsProviderTest::SettingChanged,
                             base::Unretained(this)),
-        device_settings_service_.get(), local_state_.Get());
+        device_settings_service_.get(),
+        TestingBrowserProcess::GetGlobal()->local_state());
     Mock::VerifyAndClearExpectations(this);
   }
 
@@ -445,8 +445,6 @@ class DeviceSettingsProviderTest : public DeviceSettingsTestBase {
 
   base::test::ScopedFeatureList feature_list_;
 
-  ScopedTestingLocalState local_state_;
-
   std::unique_ptr<DeviceSettingsProvider> provider_;
 
   base::ScopedPathOverride user_data_dir_override_;
@@ -559,7 +557,7 @@ TEST_F(DeviceSettingsProviderTest, SetPrefFailed) {
 
 TEST_F(DeviceSettingsProviderTest, SetPrefSucceed) {
   owner_key_util_->ImportPrivateKeyAndSetPublicKey(
-      device_policy_->GetSigningKey());
+      *device_policy_->GetSigningKey());
   InitOwner(AccountId::FromUserEmail(device_policy_->policy_data().username()),
             true);
   FlushDeviceSettings();
@@ -589,7 +587,7 @@ TEST_F(DeviceSettingsProviderTest, SetPrefSucceed) {
 
 TEST_F(DeviceSettingsProviderTest, SetPrefTwice) {
   owner_key_util_->ImportPrivateKeyAndSetPublicKey(
-      device_policy_->GetSigningKey());
+      *device_policy_->GetSigningKey());
   InitOwner(AccountId::FromUserEmail(device_policy_->policy_data().username()),
             true);
   FlushDeviceSettings();
@@ -1227,6 +1225,16 @@ TEST_F(DeviceSettingsProviderTest, DeviceAllowedBluetoothServices) {
             provider_->Get(kDeviceAllowedBluetoothServices)->GetList());
 }
 
+TEST_F(DeviceSettingsProviderTest, DeviceBluetoothJustWorksPairingEnabled) {
+  em::BooleanPolicyProto* proto =
+      device_policy_->payload()
+          .mutable_devicebluetoothjustworkspairingenabled();
+  proto->set_value(true);
+  BuildAndInstallDevicePolicy();
+  EXPECT_EQ(base::Value(true),
+            *provider_->Get(kDeviceBluetoothJustWorksPairingEnabled));
+}
+
 // Check valid JSON for DeviceScheduledReboot.
 TEST_F(DeviceSettingsProviderTest, DeviceScheduledReboot) {
   const std::string json_string =
@@ -1377,6 +1385,18 @@ TEST_F(DeviceSettingsProviderTest, DeviceUserInitiatedFirmwareUpdatesEnabled) {
   BuildAndInstallDevicePolicy();
   EXPECT_EQ(base::Value(true),
             *provider_->Get(kDeviceUserInitiatedFirmwareUpdatesEnabled));
+}
+
+TEST_F(DeviceSettingsProviderTest,
+       DeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled) {
+  em::BooleanPolicyProto* proto =
+      device_policy_->payload()
+          .mutable_deviceuserinitiatedflexsystemfirmwareupdatesenabled();
+  proto->set_value(true);
+  BuildAndInstallDevicePolicy();
+  EXPECT_EQ(
+      base::Value(true),
+      *provider_->Get(kDeviceUserInitiatedFlexSystemFirmwareUpdatesEnabled));
 }
 
 TEST_F(DeviceSettingsProviderTest, DeviceDlcPredownloadListUnset) {

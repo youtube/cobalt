@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/h264_sprop_parameter_sets.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>

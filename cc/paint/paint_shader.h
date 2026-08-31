@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "base/gtest_prod_util.h"
-#include "base/types/optional_util.h"
 #include "cc/paint/image_analysis_state.h"
 #include "cc/paint/paint_export.h"
 #include "cc/paint/paint_flags.h"
@@ -152,7 +151,8 @@ class CC_PAINT_EXPORT PaintShader : public SkRefCnt {
       std::vector<FloatUniform> float_uniforms,
       std::vector<Float2Uniform> float2_uniforms,
       std::vector<Float4Uniform> float4_uniforms,
-      std::vector<IntUniform> int_uniforms);
+      std::vector<IntUniform> int_uniforms,
+      sk_sp<PaintShader> cached_paint_shader);
 
   static size_t GetSerializedSize(const PaintShader* shader);
 
@@ -185,9 +185,8 @@ class CC_PAINT_EXPORT PaintShader : public SkRefCnt {
     return image_;
   }
 
-  const PaintRecord* paint_record() const {
-    return base::OptionalToPtr(record_);
-  }
+  const PaintRecord* paint_record() const;
+
   bool GetRasterizationTileRect(const SkMatrix& ctm, SkRect* tile_rect) const {
     return GetClampedRasterizationTileRect(ctm, /*max_texture_size=*/0,
                                            tile_rect);
@@ -206,6 +205,7 @@ class CC_PAINT_EXPORT PaintShader : public SkRefCnt {
   bool IsValid() const;
 
   bool EqualsForTesting(const PaintShader& other) const;
+  bool MatchingCachedRuntimeEffectForTesting(const PaintShader& other) const;
 
   RecordShaderId paint_record_shader_id() const {
     DCHECK(id_ == kInvalidRecordShaderId || shader_type_ == Type::kPaintRecord);

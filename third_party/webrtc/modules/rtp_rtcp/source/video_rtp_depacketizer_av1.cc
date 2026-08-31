@@ -10,10 +10,9 @@
 
 #include "modules/rtp_rtcp/source/video_rtp_depacketizer_av1.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <iterator>
 #include <optional>
@@ -369,7 +368,7 @@ scoped_refptr<EncodedImageBuffer> VideoRtpDepacketizerAv1::AssembleFrame(
 
 std::optional<VideoRtpDepacketizer::ParsedRtpPayload>
 VideoRtpDepacketizerAv1::Parse(CopyOnWriteBuffer rtp_payload) {
-  if (rtp_payload.size() == 0) {
+  if (rtp_payload.empty()) {
     RTC_DLOG(LS_ERROR) << "Empty rtp payload.";
     return std::nullopt;
   }

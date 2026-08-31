@@ -7,6 +7,7 @@
 #import <Foundation/Foundation.h>
 
 #import <string>
+#import <variant>
 
 #import "base/functional/callback_helpers.h"
 #import "base/strings/strcat.h"
@@ -45,21 +46,30 @@ using SaveCreditCardPromptResultIOS =
 const std::string kSaveCreditCardPromptResultIOSPrefix =
     "Autofill.SaveCreditCardPromptResult.IOS.Server.BottomSheet.NumStrikes.0."
     "NoFixFlow";
+const std::string kSaveCreditCardPromptResultIOSPrefixForLocalSave =
+    "Autofill.SaveCreditCardPromptResult.IOS.Local.BottomSheet.NumStrikes.0."
+    "NoFixFlow";
+const std::string kCreditCardUploadLoadingShownPrefix =
+    "Autofill.CreditCardUpload.LoadingShown";
 const std::string kCreditCardUploadLoadingResultPrefix =
     "Autofill.CreditCardUpload.LoadingResult";
+const std::string kCreditCardUploadSuccessConfirmationShownPrefix =
+    "Autofill.CreditCardUpload.ConfirmationShown";
 const std::string kCreditCardUploadSuccessConfirmationResultPrefix =
-    "Autofill.CreditCardUpload.ConfirmationResult.CardUploaded";
+    "Autofill.CreditCardUpload.ConfirmationResult";
 
-autofill::AutofillSaveCardUiInfo CreateAutofillSaveCardUiInfo() {
+autofill::AutofillSaveCardUiInfo CreateAutofillSaveCardUiInfo(bool for_upload) {
   autofill::AutofillSaveCardUiInfo ui_info = autofill::AutofillSaveCardUiInfo();
   ui_info.title_text = std::u16string(u"Title");
   ui_info.description_text = std::u16string(u"Description Text");
-  ui_info.logo_icon_id = IDR_AUTOFILL_GOOGLE_PAY;
+  ui_info.logo_icon_id = IDR_INFOBAR_AUTOFILL_CC;
   ui_info.logo_icon_description = std::u16string(u"Logo description");
   ui_info.confirm_text =
       l10n_util::GetStringUTF16(IDS_AUTOFILL_SAVE_CARD_INFOBAR_ACCEPT);
   ui_info.cancel_text =
-      l10n_util::GetStringUTF16(IDS_AUTOFILL_NO_THANKS_MOBILE_UPLOAD_SAVE);
+      for_upload
+          ? l10n_util::GetStringUTF16(IDS_AUTOFILL_NO_THANKS_MOBILE_UPLOAD_SAVE)
+          : l10n_util::GetStringUTF16(IDS_AUTOFILL_NO_THANKS_MOBILE_LOCAL_SAVE);
   ui_info.card_label = std::u16string(u"CardName ****2345");
   ui_info.card_sub_label = std::u16string(u"MM/YY");
   ui_info.card_description = std::u16string(u"Card description");
@@ -116,13 +126,16 @@ autofill::AutofillSaveCardUiInfo CreateAutofillSaveCardUiInfo() {
 
 class MockSaveCardBottomSheetModel : public autofill::SaveCardBottomSheetModel {
  public:
-  MockSaveCardBottomSheetModel(autofill::AutofillSaveCardUiInfo ui_info)
+  MockSaveCardBottomSheetModel(
+      autofill::AutofillSaveCardUiInfo ui_info,
+      std::variant<autofill::payments::PaymentsAutofillClient::
+                       LocalSaveCardPromptCallback,
+                   autofill::payments::PaymentsAutofillClient::
+                       UploadSaveCardPromptCallback> save_card_callback)
       : SaveCardBottomSheetModel(
             std::move(ui_info),
             std::make_unique<autofill::AutofillSaveCardDelegate>(
-                static_cast<autofill::payments::PaymentsAutofillClient::
-                                UploadSaveCardPromptCallback>(
-                    base::DoNothing()),
+                std::move(save_card_callback),
                 autofill::payments::PaymentsAutofillClient::
                     SaveCreditCardOptions()
                         .with_num_strikes(0))) {}
@@ -133,31 +146,72 @@ class MockSaveCardBottomSheetModel : public autofill::SaveCardBottomSheetModel {
 
 class SaveCardBottomSheetMediatorTest : public PlatformTest {
  public:
-  SaveCardBottomSheetMediatorTest() {
+  SaveCardBottomSheetMediatorTest(bool for_upload = true) {
     task_environment_ = std::make_unique<web::WebTaskEnvironment>(
         base::test::TaskEnvironment::TimeSource::MOCK_TIME);
     mock_autofill_commands_handler_ =
         OCMProtocolMock(@protocol(AutofillCommands));
+    using Variant = std::variant<
+        autofill::payments::PaymentsAutofillClient::LocalSaveCardPromptCallback,
+        autofill::payments::PaymentsAutofillClient::
+            UploadSaveCardPromptCallback>;
     std::unique_ptr<MockSaveCardBottomSheetModel> model =
         std::make_unique<MockSaveCardBottomSheetModel>(
-            CreateAutofillSaveCardUiInfo());
+            CreateAutofillSaveCardUiInfo(for_upload),
+            for_upload
+                ? Variant(
+                      static_cast<autofill::payments::PaymentsAutofillClient::
+                                      UploadSaveCardPromptCallback>(
+                          base::DoNothing()))
+                : Variant(
+                      static_cast<autofill::payments::PaymentsAutofillClient::
+                                      LocalSaveCardPromptCallback>(
+                          base::DoNothing())));
     model_ = model.get();
     mediator_ = [[SaveCardBottomSheetMediator alloc]
                 initWithUIModel:std::move(model)
         autofillCommandsHandler:mock_autofill_commands_handler_];
   }
 
-  ~SaveCardBottomSheetMediatorTest() override { [mediator_ disconnect]; }
+  ~SaveCardBottomSheetMediatorTest() override {
+    [mediator_ disconnect];
+    EXPECT_OCMOCK_VERIFY((id)mock_autofill_commands_handler_);
+    EXPECT_OCMOCK_VERIFY(mock_consumer_);
+  }
 
   web::WebTaskEnvironment* task_environment() {
     return task_environment_.get();
   }
 
  protected:
+  void TestCommonAttributesOfConsumer(
+      FakeSaveCardBottomSheetConsumer* consumer) {
+    ASSERT_NE(nil, consumer.aboveTitleImage);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->logo_icon_description()),
+                consumer.aboveTitleImageDescription);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->title()), consumer.title);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->subtitle()),
+                consumer.subtitle);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->accept_button_text()),
+                consumer.acceptActionText);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->cancel_button_text()),
+                consumer.cancelActionText);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->card_name_last_four_digits()),
+                consumer.cardNameAndLastFourDigits);
+    EXPECT_NSEQ(base::SysUTF16ToNSString(model_->card_expiry_date()),
+                consumer.expiryDate);
+    EXPECT_NSEQ(
+        base::SysUTF16ToNSString(model_->card_accessibility_description()),
+        consumer.cardAccessibilityLabel);
+    ASSERT_NE(nil, consumer.issuerIcon);
+  }
+
   std::unique_ptr<web::WebTaskEnvironment> task_environment_;
   id<AutofillCommands> mock_autofill_commands_handler_;
   raw_ptr<MockSaveCardBottomSheetModel> model_ = nil;
   SaveCardBottomSheetMediator* mediator_ = nil;
+  id<SaveCardBottomSheetConsumer> mock_consumer_ =
+      OCMProtocolMock(@protocol(SaveCardBottomSheetConsumer));
 };
 
 TEST_F(SaveCardBottomSheetMediatorTest, SetConsumer) {
@@ -166,23 +220,7 @@ TEST_F(SaveCardBottomSheetMediatorTest, SetConsumer) {
   FakeSaveCardBottomSheetConsumer* consumer =
       [[FakeSaveCardBottomSheetConsumer alloc] init];
   mediator_.consumer = consumer;
-  EXPECT_TRUE(consumer.aboveTitleImage);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->logo_icon_description()),
-              consumer.aboveTitleImageDescription);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->title()), consumer.title);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->subtitle()), consumer.subtitle);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->accept_button_text()),
-              consumer.acceptActionText);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->cancel_button_text()),
-              consumer.cancelActionText);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->card_name_last_four_digits()),
-              consumer.cardNameAndLastFourDigits);
-  EXPECT_NSEQ(base::SysUTF16ToNSString(model_->card_expiry_date()),
-              consumer.expiryDate);
-  EXPECT_NSEQ(
-      base::SysUTF16ToNSString(model_->card_accessibility_description()),
-      consumer.cardAccessibilityLabel);
-  EXPECT_TRUE(consumer.issuerIcon);
+  TestCommonAttributesOfConsumer(consumer);
   NSMutableArray<SaveCardMessageWithLinks*>* messages =
       [SaveCardMessageWithLinks convertFrom:model_->legal_messages()];
   for (NSUInteger index = 0; index < [messages count]; index++) {
@@ -199,6 +237,15 @@ TEST_F(SaveCardBottomSheetMediatorTest, SetConsumer) {
                                       /*expected_count=*/1);
 }
 
+// Test that mediator provides logoType and logoAccessibilityLabel as a data
+// source for upload save bottomsheet.
+TEST_F(SaveCardBottomSheetMediatorTest, DataSource) {
+  EXPECT_EQ(kGooglePayLogo, mediator_.logoType);
+  EXPECT_NSEQ(base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+                  IDS_AUTOFILL_GOOGLE_PAY_LOGO_ACCESSIBLE_NAME)),
+              mediator_.logoAccessibilityLabel);
+}
+
 // Test that `OnAccepted` is called on the model when bottomsheet is accepted.
 TEST_F(SaveCardBottomSheetMediatorTest, OnAccept) {
   EXPECT_CALL(*model_, OnAccepted());
@@ -208,11 +255,9 @@ TEST_F(SaveCardBottomSheetMediatorTest, OnAccept) {
 
 // Test that pushing accept button calls the consumer to show the loading state.
 TEST_F(SaveCardBottomSheetMediatorTest, OnAcceptShowLoadingState) {
-  id<SaveCardBottomSheetConsumer> mock_consumer =
-      OCMProtocolMock(@protocol(SaveCardBottomSheetConsumer));
-  mediator_.consumer = mock_consumer;
+  mediator_.consumer = mock_consumer_;
 
-  OCMExpect([mock_consumer
+  OCMExpect([mock_consumer_
       showLoadingStateWithAccessibilityLabel:[OCMArg checkWithBlock:^BOOL(
                                                          NSString* label) {
         EXPECT_NSEQ(label, @"Loading description");
@@ -221,7 +266,7 @@ TEST_F(SaveCardBottomSheetMediatorTest, OnAcceptShowLoadingState) {
 
   [mediator_ didAccept];
 
-  EXPECT_OCMOCK_VERIFY((id)mock_consumer);
+  EXPECT_OCMOCK_VERIFY((id)mock_consumer_);
 }
 
 // Test that pushing accept button logs bottomsheet result `kAccepted` and
@@ -235,21 +280,19 @@ TEST_F(SaveCardBottomSheetMediatorTest,
   histogram_tester.ExpectUniqueSample(kSaveCreditCardPromptResultIOSPrefix,
                                       SaveCreditCardPromptResultIOS::kAccepted,
                                       /*expected_count=*/1);
-  histogram_tester.ExpectUniqueSample("Autofill.CreditCardUpload.LoadingShown",
-                                      true, 1);
+  histogram_tester.ExpectUniqueSample(kCreditCardUploadLoadingShownPrefix, true,
+                                      1);
 }
 
 // Test that successful credit card upload completion calls the consumer to show
 // the confirmation state.
 TEST_F(SaveCardBottomSheetMediatorTest, OnSuccessShowConfirmationState) {
-  id<SaveCardBottomSheetConsumer> mock_consumer =
-      OCMProtocolMock(@protocol(SaveCardBottomSheetConsumer));
-  mediator_.consumer = mock_consumer;
+  mediator_.consumer = mock_consumer_;
 
-  OCMExpect([mock_consumer showConfirmationState]);
+  OCMExpect([mock_consumer_ showConfirmationState]);
   [mediator_ onCreditCardUploadCompleted:YES];
 
-  EXPECT_OCMOCK_VERIFY((id)mock_consumer);
+  EXPECT_OCMOCK_VERIFY((id)mock_consumer_);
 }
 
 // Test that on successful credit card upload completion, loading result
@@ -263,24 +306,23 @@ TEST_F(SaveCardBottomSheetMediatorTest,
   histogram_tester.ExpectUniqueSample(kCreditCardUploadLoadingResultPrefix,
                                       SaveCardPromptResult::kNotInteracted, 1);
   histogram_tester.ExpectUniqueSample(
-      "Autofill.CreditCardUpload.ConfirmationShown.CardUploaded",
+      base::StrCat(
+          {kCreditCardUploadSuccessConfirmationShownPrefix, ".CardUploaded"}),
       /*is_shown=*/true, 1);
 }
 
 // Test that unsuccessful credit card upload completion dismisses the
 // bottomsheet.
 TEST_F(SaveCardBottomSheetMediatorTest, OnFailureDismissBottomSheet) {
-  id<SaveCardBottomSheetConsumer> mock_consumer =
-      OCMProtocolMock(@protocol(SaveCardBottomSheetConsumer));
-  mediator_.consumer = mock_consumer;
+  mediator_.consumer = mock_consumer_;
 
   EXPECT_EQ([mediator_ isDismissingForTesting], NO);
-  OCMReject([mock_consumer showConfirmationState]);
+  OCMReject([mock_consumer_ showConfirmationState]);
   OCMExpect([mock_autofill_commands_handler_ dismissSaveCardBottomSheet]);
   [mediator_ onCreditCardUploadCompleted:NO];
   EXPECT_EQ([mediator_ isDismissingForTesting], YES);
 
-  EXPECT_OCMOCK_VERIFY((id)mock_consumer);
+  EXPECT_OCMOCK_VERIFY((id)mock_consumer_);
 }
 
 // Test that on unsuccessful credit card upload completion, loading result
@@ -297,12 +339,10 @@ TEST_F(SaveCardBottomSheetMediatorTest, OnFailureLogs_LoadingResult) {
 // Tests that bottomsheet is auto-dismissed when the timer for confirmation
 // state times out.
 TEST_F(SaveCardBottomSheetMediatorTest, ConfirmationAutoDismissed_OnTimeOut) {
-  id<SaveCardBottomSheetConsumer> mock_consumer =
-      OCMProtocolMock(@protocol(SaveCardBottomSheetConsumer));
-  mediator_.consumer = mock_consumer;
+  mediator_.consumer = mock_consumer_;
 
   EXPECT_EQ([mediator_ isDismissingForTesting], NO);
-  OCMExpect([mock_consumer showConfirmationState]);
+  OCMExpect([mock_consumer_ showConfirmationState]);
   [mediator_ onCreditCardUploadCompleted:YES];
 
   OCMExpect([mock_autofill_commands_handler_ dismissSaveCardBottomSheet]);
@@ -314,11 +354,9 @@ TEST_F(SaveCardBottomSheetMediatorTest, ConfirmationAutoDismissed_OnTimeOut) {
 // confirmation state times out.
 TEST_F(SaveCardBottomSheetMediatorTest,
        ConfirmationNotAutoDismissed_BeforeTimeout) {
-  id<SaveCardBottomSheetConsumer> mock_consumer =
-      OCMProtocolMock(@protocol(SaveCardBottomSheetConsumer));
-  mediator_.consumer = mock_consumer;
+  mediator_.consumer = mock_consumer_;
 
-  OCMExpect([mock_consumer showConfirmationState]);
+  OCMExpect([mock_consumer_ showConfirmationState]);
   [mediator_ onCreditCardUploadCompleted:YES];
 
   OCMReject([mock_autofill_commands_handler_ dismissSaveCardBottomSheet]);
@@ -326,6 +364,7 @@ TEST_F(SaveCardBottomSheetMediatorTest,
   // Advance timer slightly less than the actual timeout duration i.e
   // `kConfirmationDismissDelay`.
   task_environment()->FastForwardBy(kConfirmationDismissDelay * 0.99);
+  EXPECT_OCMOCK_VERIFY(mock_consumer_);
 }
 
 // Test that on bottomsheet's autodismissal due to timeout in confirmation
@@ -340,7 +379,8 @@ TEST_F(SaveCardBottomSheetMediatorTest,
   task_environment()->FastForwardBy(kConfirmationDismissDelay);
 
   histogram_tester.ExpectUniqueSample(
-      kCreditCardUploadSuccessConfirmationResultPrefix,
+      base::StrCat(
+          {kCreditCardUploadSuccessConfirmationResultPrefix, ".CardUploaded"}),
       autofill::autofill_metrics::SaveCardPromptResult::kNotInteracted, 1);
 }
 
@@ -490,6 +530,149 @@ TEST_F(SaveCardBottomSheetMediatorTest,
   EXPECT_EQ([mediator_ isDismissingForTesting], YES);
 
   histogram_tester.ExpectUniqueSample(
-      kCreditCardUploadSuccessConfirmationResultPrefix,
+      base::StrCat(
+          {kCreditCardUploadSuccessConfirmationResultPrefix, ".CardUploaded"}),
+      autofill::autofill_metrics::SaveCardPromptResult::kClosed, 1);
+}
+
+class SaveCardBottomSheetMediatorTestForLocalSave
+    : public SaveCardBottomSheetMediatorTest {
+ public:
+  SaveCardBottomSheetMediatorTestForLocalSave()
+      : SaveCardBottomSheetMediatorTest(/*for_upload=*/false) {}
+};
+
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave, SetConsumer) {
+  base::HistogramTester histogram_tester;
+
+  FakeSaveCardBottomSheetConsumer* consumer =
+      [[FakeSaveCardBottomSheetConsumer alloc] init];
+  mediator_.consumer = consumer;
+  TestCommonAttributesOfConsumer(consumer);
+  ASSERT_EQ(nil, consumer.legalMessages);
+
+  histogram_tester.ExpectUniqueSample(
+      kSaveCreditCardPromptResultIOSPrefixForLocalSave,
+      SaveCreditCardPromptResultIOS::kShown,
+      /*expected_count=*/1);
+}
+
+// Test that mediator provides logoType and logoAccessibilityLabel as a data
+// source for local save bottomsheet.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave, DataSource) {
+  EXPECT_EQ(kChromeLogo, mediator_.logoType);
+  EXPECT_NSEQ(base::SysUTF16ToNSString(l10n_util::GetStringUTF16(
+                  IDS_AUTOFILL_CHROME_LOGO_ACCESSIBLE_NAME)),
+              mediator_.logoAccessibilityLabel);
+}
+
+// Test that `OnAccepted` is called on the model when bottomsheet is accepted
+// for local save.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave, OnAccept) {
+  EXPECT_CALL(*model_, OnAccepted());
+  EXPECT_CALL(*model_, OnCanceled()).Times(0);
+  [mediator_ didAccept];
+}
+
+// Test that pushing accept button logs bottomsheet result `kAccepted` for local
+// save.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave,
+       OnAcceptLogs_AcceptedMetric) {
+  base::HistogramTester histogram_tester;
+
+  [mediator_ didAccept];
+
+  histogram_tester.ExpectUniqueSample(
+      kSaveCreditCardPromptResultIOSPrefixForLocalSave,
+      SaveCreditCardPromptResultIOS::kAccepted,
+      /*expected_count=*/1);
+}
+
+// Test that pushing accept button does not show the loading state for local
+// save.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave,
+       OnAcceptDoNotShowLoadingState) {
+  base::HistogramTester histogram_tester;
+  mediator_.consumer = mock_consumer_;
+
+  OCMReject(
+      [mock_consumer_ showLoadingStateWithAccessibilityLabel:[OCMArg any]]);
+  [mediator_ didAccept];
+
+  EXPECT_OCMOCK_VERIFY((id)mock_consumer_);
+
+  histogram_tester.ExpectUniqueSample(kCreditCardUploadLoadingShownPrefix, true,
+                                      /*expected_count=*/0);
+}
+
+// Test that pushing accept button shows the confirmation state for local save.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave,
+       OnAcceptShowConfirmationState) {
+  base::HistogramTester histogram_tester;
+  mediator_.consumer = mock_consumer_;
+
+  OCMExpect([mock_consumer_ showConfirmationState]);
+  [mediator_ didAccept];
+
+  EXPECT_OCMOCK_VERIFY((id)mock_consumer_);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({kCreditCardUploadSuccessConfirmationShownPrefix,
+                    ".CardNotUploaded"}),
+      /*is_shown=*/true, 1);
+}
+
+// Test that local save bottomsheet is auto-dismissed when the timer for
+// confirmation state times out.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave,
+       ConfirmationAutoDismissed_OnTimeOut) {
+  mediator_.consumer = mock_consumer_;
+
+  EXPECT_EQ([mediator_ isDismissingForTesting], NO);
+  OCMExpect([mock_consumer_ showConfirmationState]);
+  [mediator_ didAccept];
+
+  OCMExpect([mock_autofill_commands_handler_ dismissSaveCardBottomSheet]);
+  task_environment()->FastForwardBy(kConfirmationDismissDelay);
+  EXPECT_EQ([mediator_ isDismissingForTesting], YES);
+}
+
+// Test that on local save bottomsheet's autodismissal due to timeout in
+// confirmation state, confirmation result `kNotInteracted` is logged.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave,
+       OnConfirmationAutoDismissedLogs_ConfirmationResult) {
+  base::HistogramTester histogram_tester;
+
+  [mediator_ didAccept];
+  // Advance timer by the actual timeout duration for bottomsheet to be
+  // autodismissed.
+  task_environment()->FastForwardBy(kConfirmationDismissDelay);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({kCreditCardUploadSuccessConfirmationResultPrefix,
+                    ".CardNotUploaded"}),
+      autofill::autofill_metrics::SaveCardPromptResult::kNotInteracted, 1);
+}
+
+// Test that local save bottomsheet dismissal before timeout in confirmation
+// state is logged with confirmation result `kClosed`.
+TEST_F(SaveCardBottomSheetMediatorTestForLocalSave,
+       BottomSheetDismissedBeforeTimeoutInSuccessStateLogs_ConfirmationResult) {
+  base::HistogramTester histogram_tester;
+
+  EXPECT_EQ([mediator_ isDismissingForTesting], NO);
+  EXPECT_CALL(*model_, OnAccepted()).WillOnce(testing::InvokeWithoutArgs([&]() {
+    model_->SetSaveCardStateForTesting(
+        autofill::SaveCardBottomSheetModel::SaveCardState::kSaved);
+  }));
+  [mediator_ didAccept];
+  EXPECT_EQ(model_->save_card_state(),
+            autofill::SaveCardBottomSheetModel::SaveCardState::kSaved);
+  [mediator_ onBottomSheetDismissedWithLinkClicked:NO];
+  EXPECT_EQ([mediator_ isDismissingForTesting], YES);
+
+  histogram_tester.ExpectUniqueSample(
+      base::StrCat({kCreditCardUploadSuccessConfirmationResultPrefix,
+                    ".CardNotUploaded"}),
       autofill::autofill_metrics::SaveCardPromptResult::kClosed, 1);
 }

@@ -8,18 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <math.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
-
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 #include <memory>
 
 #include "absl/memory/memory.h"
 #include "api/units/time_delta.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/async_udp_socket.h"
 #include "rtc_base/fake_clock.h"
@@ -33,7 +31,6 @@
 #include "rtc_base/task_utils/repeating_task.h"
 #include "rtc_base/test_client.h"
 #include "rtc_base/test_utils.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
@@ -87,7 +84,7 @@ struct Sender {
   char dummy[4096];
 };
 
-struct Receiver : public sigslot::has_slots<> {
+struct Receiver {
   Receiver(Thread* th, Socket* s, uint32_t bw)
       : thread(th),
         socket(std::make_unique<AsyncUDPSocket>(s)),
@@ -113,7 +110,7 @@ struct Receiver : public sigslot::has_slots<> {
         });
   }
 
-  ~Receiver() override { periodic.Stop(); }
+  ~Receiver() { periodic.Stop(); }
 
   void OnReadPacket(AsyncPacketSocket* s, const ReceivedIpPacket& packet) {
     ASSERT_EQ(socket.get(), s);
@@ -1084,17 +1081,16 @@ TEST_F(VirtualSocketServerTest, CreatesStandardDistribution) {
   const double kTestDev[] = {0.25, 0.1, 0.01};
   // TODO(deadbeef): The current code only works for 1000 data points or more.
   const uint32_t kTestSamples[] = {/*10, 100,*/ 1000};
-  for (size_t midx = 0; midx < arraysize(kTestMean); ++midx) {
-    for (size_t didx = 0; didx < arraysize(kTestDev); ++didx) {
-      for (size_t sidx = 0; sidx < arraysize(kTestSamples); ++sidx) {
-        ASSERT_LT(0u, kTestSamples[sidx]);
-        const uint32_t kStdDev =
-            static_cast<uint32_t>(kTestDev[didx] * kTestMean[midx]);
+  for (uint32_t test_mean : kTestMean) {
+    for (double test_dev : kTestDev) {
+      for (uint32_t test_sample : kTestSamples) {
+        ASSERT_LT(0u, test_sample);
+        const uint32_t kStdDev = static_cast<uint32_t>(test_dev * test_mean);
         std::unique_ptr<VirtualSocketServer::Function> f =
-            VirtualSocketServer::CreateDistribution(kTestMean[midx], kStdDev,
-                                                    kTestSamples[sidx]);
+            VirtualSocketServer::CreateDistribution(test_mean, kStdDev,
+                                                    test_sample);
         ASSERT_TRUE(nullptr != f.get());
-        ASSERT_EQ(kTestSamples[sidx], f->size());
+        ASSERT_EQ(test_sample, f->size());
         double sum = 0;
         for (uint32_t i = 0; i < f->size(); ++i) {
           sum += (*f)[i].second;
@@ -1106,12 +1102,10 @@ TEST_F(VirtualSocketServerTest, CreatesStandardDistribution) {
           sum_sq_dev += dev * dev;
         }
         const double stddev = sqrt(sum_sq_dev / f->size());
-        EXPECT_NEAR(kTestMean[midx], mean, 0.1 * kTestMean[midx])
-            << "M=" << kTestMean[midx] << " SD=" << kStdDev
-            << " N=" << kTestSamples[sidx];
+        EXPECT_NEAR(test_mean, mean, 0.1 * test_mean)
+            << "M=" << test_mean << " SD=" << kStdDev << " N=" << test_sample;
         EXPECT_NEAR(kStdDev, stddev, 0.1 * kStdDev)
-            << "M=" << kTestMean[midx] << " SD=" << kStdDev
-            << " N=" << kTestSamples[sidx];
+            << "M=" << test_mean << " SD=" << kStdDev << " N=" << test_sample;
       }
     }
   }

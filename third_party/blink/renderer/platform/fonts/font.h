@@ -88,19 +88,6 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
     kUseFallbackIfFontNotReady
   };
 
-  // Deprecated: Use PlainTextPainter.
-  void DeprecatedDrawText(cc::PaintCanvas*,
-                          const TextRun&,
-                          const gfx::PointF&,
-                          const cc::PaintFlags&,
-                          DrawType = DrawType::kGlyphsOnly) const;
-  // Deprecated: Use PlainTextPainter.
-  void DeprecatedDrawText(cc::PaintCanvas*,
-                          const TextRun&,
-                          const gfx::PointF&,
-                          cc::NodeId node_id,
-                          const cc::PaintFlags&,
-                          DrawType = DrawType::kGlyphsOnly) const;
   void DrawText(cc::PaintCanvas*,
                 const TextFragmentPaintInfo&,
                 const gfx::PointF&,
@@ -149,18 +136,6 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
                               unsigned to,
                               gfx::RectF* glyph_bounds = nullptr) const;
 
-  // Deprecated: Use PlainTextPainter.
-  int DeprecatedOffsetForPosition(const TextRun&,
-                                  float position,
-                                  IncludePartialGlyphsOption,
-                                  BreakGlyphsOption) const;
-  // Deprecated: Use PlainTextPainter.
-  gfx::RectF DeprecatedSelectionRectForText(const TextRun&,
-                                            const gfx::PointF&,
-                                            float height,
-                                            int from = 0,
-                                            int to = -1) const;
-
   // Metrics that we query the FontFallbackList for.
   float SpaceWidth() const {
     DCHECK(PrimaryFont());
@@ -180,6 +155,10 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   int EmphasisMarkAscent(const AtomicString&) const;
   int EmphasisMarkDescent(const AtomicString&) const;
   int EmphasisMarkHeight(const AtomicString&) const;
+
+  // The inter-script spacing by the CSS `text-autospace` property.
+  // https://drafts.csswg.org/css-text-4/#inter-script-spacing
+  float TextAutoSpaceInlineSize() const;
 
   // This may fail and return a nullptr in case the last resort font cannot be
   // loaded. This *should* not happen but in reality it does ever now and then
@@ -232,6 +211,9 @@ class PLATFORM_EXPORT Font : public GarbageCollected<Font> {
   enum ForTextEmphasisOrNot { kNotForTextEmphasis, kForTextEmphasis };
 
   GlyphData GetEmphasisMarkGlyphData(const AtomicString&) const;
+
+  std::pair<float, bool> TabWidthInternal(const SimpleFontData* font_data,
+                                          const TabSize& tab_size) const;
 
  public:
   FontSelector* GetFontSelector() const;
@@ -291,22 +273,15 @@ inline FontSelector* Font::GetFontSelector() const {
 
 inline float Font::TabWidth(const SimpleFontData* font_data,
                             const TabSize& tab_size) const {
-  if (!font_data)
-    return GetFontDescription().LetterSpacing();
-  float base_tab_width = tab_size.GetPixelSize(font_data->SpaceWidth());
-  return base_tab_width ? base_tab_width : GetFontDescription().LetterSpacing();
+  auto [base_tab_width, is_successed] = TabWidthInternal(font_data, tab_size);
+  return base_tab_width;
 }
 
-}  // namespace blink
-
-namespace WTF {
-
 template <>
-struct CrossThreadCopier<blink::Font>
-    : public CrossThreadCopierPassThrough<blink::Font> {
+struct CrossThreadCopier<Font> : public CrossThreadCopierPassThrough<Font> {
   STATIC_ONLY(CrossThreadCopier);
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_H_

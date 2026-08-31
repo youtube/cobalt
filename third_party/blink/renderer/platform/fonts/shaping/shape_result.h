@@ -111,14 +111,6 @@ struct DeprecatedInkBounds : public GarbageCollected<DeprecatedInkBounds> {
   gfx::RectF ink_bounds;
 };
 
-// There are two options for how OffsetForPosition behaves:
-// IncludePartialGlyphs - decides what to do when the position hits more than
-// 50% of the glyph. If enabled, we count that glyph, if disable we don't.
-enum IncludePartialGlyphsOption {
-  kOnlyFullGlyphs,
-  kIncludePartialGlyphs,
-};
-
 // BreakGlyphsOption - allows OffsetForPosition to consider graphemes
 // separations inside a glyph. It allows the function to return a point inside
 // a glyph when multiple graphemes share a glyph (for example, in a ligature)
@@ -226,30 +218,15 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
 
   // Returns the offset, relative to StartIndex, whose (origin,
   // origin+advance) contains |x|.
-  unsigned OffsetForPosition(float x, BreakGlyphsOption) const;
+  unsigned OffsetForPosition(float x) const;
   // Returns the offset whose glyph boundary is nearest to |x|. Depends on
   // whether |x| is on the left-half or the right-half of the glyph, it
   // determines the left-boundary or the right-boundary, then computes the
   // offset from the bidi direction.
-  unsigned CaretOffsetForHitTest(float x,
-                                 const StringView& text,
-                                 BreakGlyphsOption) const;
+  unsigned CaretOffsetForHitTest(float x, const StringView& text) const;
   // Returns the offset that can fit to between |x| and the left or the right
   // edge. The side of the edge is determined by |line_direction|.
   unsigned OffsetToFit(float x, TextDirection line_direction) const;
-  unsigned OffsetForPosition(float x,
-                             const StringView& text,
-                             IncludePartialGlyphsOption include_partial_glyphs,
-                             BreakGlyphsOption break_glyphs) const {
-    if (include_partial_glyphs == kOnlyFullGlyphs) {
-      // TODO(kojii): Consider prohibiting OnlyFullGlyphs +
-      // BreakGlyphsOption(true), sed only in tests.
-      if (break_glyphs)
-        EnsureGraphemes(text);
-      return OffsetForPosition(x, break_glyphs);
-    }
-    return CaretOffsetForHitTest(x, text, break_glyphs);
-  }
 
   // Returns the position for a given offset, relative to StartIndex.
   float PositionForOffset(unsigned offset,
@@ -424,6 +401,8 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
 #endif
 
  protected:
+  friend class ShapeResultCursor;
+
   // Ensure |grapheme_| is computed. |BreakGlyphs| is valid only when
   // |grapheme_| is computed.
   void EnsureGraphemes(const StringView& text) const;
@@ -539,6 +518,10 @@ class PLATFORM_EXPORT ShapeResult : public GarbageCollected<ShapeResult> {
   friend class ShapeResultView;
   friend class ShapeResultTest;
   friend class StretchyOperatorShaper;
+
+  static void AddRunInfoRanges(const ShapeResultRun& run_info,
+                               float offset,
+                               Vector<CharacterRange>* ranges);
 
   template <bool has_non_zero_glyph_offsets>
   float ForEachGlyphImpl(float initial_advance,

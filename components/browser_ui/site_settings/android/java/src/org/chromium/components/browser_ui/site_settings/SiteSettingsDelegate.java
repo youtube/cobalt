@@ -64,6 +64,11 @@ public interface SiteSettingsDelegate {
     boolean isIncognitoModeEnabled();
 
     /**
+     * @return true if the delegate is for an incognito-branded profile.
+     */
+    boolean isIncognito();
+
+    /**
      * @return true if the QuietNotificationPrompts Feature is enabled.
      */
     boolean isQuietNotificationPromptsFeatureEnabled();
@@ -187,6 +192,11 @@ public interface SiteSettingsDelegate {
      */
     boolean isBlockAll3pcEnabledInTrackingProtection();
 
+    /**
+     * @return true if wildcards should be shown in content settings patterns.
+     */
+    boolean isDisplayWildcardInContentSettingsEnabled();
+
     /** Enables/disables Related Website Sets data access. */
     void setRelatedWebsiteSetsDataAccessEnabled(boolean enabled);
 
@@ -221,11 +231,6 @@ public interface SiteSettingsDelegate {
     void getBrowsingDataModel(Callback<BrowsingDataModel> callback);
 
     /**
-     * @return whether the Privacy Sandbox Rws UI should be shown in the Settings.
-     */
-    boolean shouldShowPrivacySandboxRwsUi();
-
-    /**
      * @return whether the Safety Hub is enabled.
      */
     boolean isSafetyHubEnabled();
@@ -234,6 +239,11 @@ public interface SiteSettingsDelegate {
      * @return whether the unused site permission autorevocation is enabled.
      */
     boolean isPermissionAutorevocationEnabled();
+
+    /**
+     * @return whether the related website sets UI is enabled.
+     */
+    boolean isRelatedWebsiteSetsUiEnabled();
 
     /** Enable/Disable unused site permission autorevocation. */
     void setPermissionAutorevocationEnabled(boolean isEnabled);

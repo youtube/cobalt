@@ -27,6 +27,9 @@ BASE_DECLARE_FEATURE(kSyncAutofillLoyaltyCard);
 // Enables syncing account-local metadata for shared tab groups.
 BASE_DECLARE_FEATURE(kSyncSharedTabGroupAccountData);
 
+// Enables syncing comments for shared contexts.
+BASE_DECLARE_FEATURE(kSyncSharedComment);
+
 #if BUILDFLAG(IS_ANDROID)
 // Flag that controls Uno fast-follow features which are:
 // - Batch upload of left-behind bookmarks from the bookmark manager
@@ -84,11 +87,6 @@ constexpr bool IsReadingListAccountStorageEnabled() {
   return true;
 }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-
-// Flags to allow AUTOFILL_WALLET_METADATA and AUTOFILL_WALLET_OFFER,
-// respectively, to run in transport mode.
-BASE_DECLARE_FEATURE(kSyncEnableWalletMetadataInTransportMode);
-BASE_DECLARE_FEATURE(kSyncEnableWalletOfferInTransportMode);
 
 // Flag to enable clean up of password deletions that may be unintentional.
 BASE_DECLARE_FEATURE(kSyncPasswordCleanUpAccidentalBatchDeletions);

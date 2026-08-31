@@ -23,19 +23,16 @@
  *
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 
 #include <algorithm>
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/functional/callback.h"
 #include "base/i18n/string_search.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_view_util.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/partitions.h"
 #include "third_party/blink/renderer/platform/wtf/dynamic_annotations.h"
 #include "third_party/blink/renderer/platform/wtf/leak_annotations.h"
@@ -55,7 +52,7 @@
 
 using std::numeric_limits;
 
-namespace WTF {
+namespace blink {
 
 namespace {
 
@@ -135,7 +132,7 @@ void CopyStringFragment(const StringView& fragment,
 
 void* StringImpl::operator new(size_t size) {
   DCHECK_EQ(size, sizeof(StringImpl));
-  return Partitions::BufferMalloc(size, "WTF::StringImpl");
+  return Partitions::BufferMalloc(size, "blink::StringImpl");
 }
 
 void StringImpl::operator delete(void* ptr) {
@@ -167,9 +164,9 @@ void StringImpl::DestroyIfNeeded() const {
 }
 
 unsigned StringImpl::ComputeASCIIFlags() const {
-  ASCIIStringAttributes ascii_attributes = VisitCharacters(
+  AsciiStringAttributes ascii_attributes = VisitCharacters(
       *this, [](auto chars) { return CharacterAttributes(chars); });
-  uint32_t new_flags = ASCIIStringAttributesToFlags(ascii_attributes);
+  uint32_t new_flags = AsciiStringAttributesToFlags(ascii_attributes);
   const uint32_t previous_flags =
       hash_and_flags_.fetch_or(new_flags, std::memory_order_relaxed);
   static constexpr uint32_t mask =
@@ -276,7 +273,8 @@ StringImpl* StringImpl::CreateStatic(base::span<const char> string) {
 
   StaticStringsTable::const_iterator it = StaticStrings().find(hash);
   if (it != StaticStrings().end()) {
-    DCHECK_EQ(it->value->Span8(), base::as_bytes(string));
+    DCHECK_EQ(base::as_string_view(it->value->Span8()),
+              base::as_string_view(string));
     return it->value;
   }
   const wtf_size_t narrowed_length = static_cast<wtf_size_t>(string.size());
@@ -338,12 +336,12 @@ scoped_refptr<StringImpl> StringImpl::Create(
 
 scoped_refptr<StringImpl> StringImpl::Create(
     base::span<const LChar> characters,
-    ASCIIStringAttributes ascii_attributes) {
+    AsciiStringAttributes ascii_attributes) {
   scoped_refptr<StringImpl> ret = Create(characters);
   if (!characters.empty()) {
     // If length is 0 then `ret` is empty_ and should not have its
     // attributes calculated or changed.
-    uint32_t new_flags = ASCIIStringAttributesToFlags(ascii_attributes);
+    uint32_t new_flags = AsciiStringAttributesToFlags(ascii_attributes);
     ret->hash_and_flags_.fetch_or(new_flags, std::memory_order_relaxed);
   }
 
@@ -374,22 +372,9 @@ bool StringImpl::ContainsOnlyWhitespaceOrEmpty() {
   // FIXME: The definition of whitespace here includes a number of characters
   // that are not whitespace from the point of view of LayoutText; I wonder if
   // that's a problem in practice.
-  if (Is8Bit()) {
-    for (wtf_size_t i = 0; i < length_; ++i) {
-      UChar c = Characters8()[i];
-      if (!IsASCIISpace(c))
-        return false;
-    }
-
-    return true;
-  }
-
-  for (wtf_size_t i = 0; i < length_; ++i) {
-    UChar c = Characters16()[i];
-    if (!IsASCIISpace(c))
-      return false;
-  }
-  return true;
+  return VisitCharacters(*this, [](const auto& str) {
+    return std::ranges::all_of(str, [](auto ch) { return IsASCIISpace(ch); });
+  });
 }
 
 scoped_refptr<StringImpl> StringImpl::Substring(wtf_size_t start,
@@ -445,11 +430,11 @@ class StringImplAllocator {
 };
 
 scoped_refptr<StringImpl> StringImpl::LowerASCII() {
-  return ConvertASCIICase(*this, LowerConverter(), StringImplAllocator());
+  return ConvertAsciiCase(*this, LowerConverter(), StringImplAllocator());
 }
 
 scoped_refptr<StringImpl> StringImpl::UpperASCII() {
-  return ConvertASCIICase(*this, UpperConverter(), StringImplAllocator());
+  return ConvertAsciiCase(*this, UpperConverter(), StringImplAllocator());
 }
 
 scoped_refptr<StringImpl> StringImpl::Fill(UChar character) {
@@ -538,31 +523,30 @@ using CharacterRange = std::pair<size_t, size_t>;
 template <class UCharPredicate>
 inline CharacterRange StrippedMatchedCharactersRange(const StringImpl& impl,
                                                      UCharPredicate predicate) {
-  return WTF::VisitCharacters(
-      impl, [predicate](auto characters) -> CharacterRange {
-        if (characters.empty()) {
-          return {0, 0};
-        }
+  return VisitCharacters(impl, [predicate](auto characters) -> CharacterRange {
+    if (characters.empty()) {
+      return {0, 0};
+    }
 
-        size_t start = 0;
-        size_t end = characters.size() - 1;
+    size_t start = 0;
+    size_t end = characters.size() - 1;
 
-        // Skip white space from the start.
-        while (start <= end && predicate(characters[start])) {
-          ++start;
-        }
+    // Skip white space from the start.
+    while (start <= end && predicate(characters[start])) {
+      ++start;
+    }
 
-        // String only contains matching characters.
-        if (start > end) {
-          return {0, 0};
-        }
+    // String only contains matching characters.
+    if (start > end) {
+      return {0, 0};
+    }
 
-        // Skip white space from the end.
-        while (end && predicate(characters[end])) {
-          --end;
-        }
-        return {start, end + 1};
-      });
+    // Skip white space from the end.
+    while (end && predicate(characters[end])) {
+      --end;
+    }
+    return {start, end + 1};
+  });
 }
 
 }  // namespace
@@ -599,7 +583,9 @@ class SpaceOrNewlinePredicate final {
   STACK_ALLOCATED();
 
  public:
-  inline bool operator()(UChar ch) const { return IsSpaceOrNewline(ch); }
+  inline bool operator()(UChar ch) const {
+    return unicode::IsSpaceOrNewline(ch);
+  }
 };
 
 wtf_size_t StringImpl::LengthWithStrippedWhiteSpace() const {
@@ -891,8 +877,8 @@ bool DeprecatedEqualIgnoringCase(base::span<const UChar> a,
 wtf_size_t StringImpl::Find(CharacterMatchFunctionPtr match_function,
                             wtf_size_t start) const {
   if (Is8Bit())
-    return WTF::Find(Span8(), match_function, start);
-  return WTF::Find(Span16(), match_function, start);
+    return blink::Find(Span8(), match_function, start);
+  return blink::Find(Span16(), match_function, start);
 }
 
 wtf_size_t StringImpl::Find(base::RepeatingCallback<bool(UChar)> match_callback,
@@ -960,8 +946,8 @@ wtf_size_t StringImpl::Find(const StringView& match_string,
   // Optimization 1: fast case for strings of length 1.
   if (match_length == 1) {
     if (Is8Bit())
-      return WTF::Find(Span8(), match_string[0], index);
-    return WTF::Find(Span16(), match_string[0], index);
+      return blink::Find(Span8(), match_string[0], index);
+    return blink::Find(Span16(), match_string[0], index);
   }
 
   if (!match_length) [[unlikely]] {
@@ -1089,8 +1075,8 @@ wtf_size_t StringImpl::FindIgnoringASCIICase(const StringView& match_string,
 
 wtf_size_t StringImpl::ReverseFind(UChar c, wtf_size_t index) const {
   if (Is8Bit())
-    return WTF::ReverseFind(Span8(), c, index);
-  return WTF::ReverseFind(Span16(), c, index);
+    return blink::ReverseFind(Span8(), c, index);
+  return blink::ReverseFind(Span16(), c, index);
 }
 
 template <typename SearchCharacterType, typename MatchCharacterType>
@@ -1147,8 +1133,8 @@ wtf_size_t StringImpl::ReverseFind(const StringView& match_string,
   // Optimization 1: fast case for strings of length 1.
   if (match_length == 1) {
     if (Is8Bit())
-      return WTF::ReverseFind(Span8(), match_string[0], index);
-    return WTF::ReverseFind(Span16(), match_string[0], index);
+      return blink::ReverseFind(Span8(), match_string[0], index);
+    return blink::ReverseFind(Span16(), match_string[0], index);
   }
 
   // Check index & matchLength are in range.
@@ -1195,7 +1181,7 @@ bool StringImpl::DeprecatedStartsWithIgnoringCase(
 bool StringImpl::StartsWithIgnoringCaseAndAccents(
     const StringView& prefix) const {
   std::u16string s = ToU16String();
-  std::u16string p = ::WTF::ToU16String(prefix);
+  std::u16string p = blink::ToU16String(prefix);
   size_t match_index = 1U;
 
   if (base::i18n::StringSearchIgnoringCaseAndAccents(
@@ -1208,7 +1194,7 @@ bool StringImpl::StartsWithIgnoringCaseAndAccents(
 }
 
 std::u16string StringImpl::ToU16String() const {
-  return ::WTF::ToU16String(StringView(*this));
+  return blink::ToU16String(StringView(*this));
 }
 
 bool StringImpl::StartsWithIgnoringASCIICase(const StringView& prefix) const {
@@ -1525,8 +1511,9 @@ bool Equal(const StringImpl* a, base::span<const UChar> b) {
   return EqualInternal(a, b);
 }
 
+// SAFETY: Safe only when latin1 is null-terminated cstring.
 template <typename StringType>
-bool EqualToCString(const StringType* a, const LChar* b) {
+UNSAFE_BUFFER_USAGE bool EqualToCString(const StringType* a, const LChar* b) {
   DCHECK(b);
   return VisitCharacters(*a, [b](auto chars) {
     for (wtf_size_t i = 0; auto ac : chars) {
@@ -1539,14 +1526,18 @@ bool EqualToCString(const StringType* a, const LChar* b) {
   });
 }
 
-bool EqualToCString(const StringImpl* a, const char* latin1) {
+// SAFETY: Safe only when latin1 is null-terminated cstring.
+UNSAFE_BUFFER_USAGE bool EqualToCString(const StringImpl* a,
+                                        const char* latin1) {
   if (!a) {
     return !latin1;
   }
   return EqualToCString(a, reinterpret_cast<const LChar*>(latin1));
 }
 
-bool EqualToCString(const StringView& a, const char* latin1) {
+// SAFETY: Safe only when latin1 is null-terminated cstring.
+UNSAFE_BUFFER_USAGE bool EqualToCString(const StringView& a,
+                                        const char* latin1) {
   return EqualToCString(&a, reinterpret_cast<const LChar*>(latin1));
 }
 
@@ -1603,4 +1594,4 @@ int CodeUnitCompareIgnoringASCIICase(const StringImpl* string1,
   });
 }
 
-}  // namespace WTF
+}  // namespace blink

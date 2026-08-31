@@ -10,9 +10,11 @@
 
 #include "modules/audio_processing/agc2/cpu_features.h"
 
+#include <string>
+
+#include "rtc_base/cpu_info.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/system/arch.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 
 namespace webrtc {
 
@@ -41,8 +43,8 @@ std::string AvailableCpuFeatures::ToString() const {
 // Detects available CPU features.
 AvailableCpuFeatures GetAvailableCpuFeatures() {
 #if defined(WEBRTC_ARCH_X86_FAMILY)
-  return {/*sse2=*/GetCPUInfo(kSSE2) != 0,
-          /*avx2=*/GetCPUInfo(kAVX2) != 0,
+  return {/*sse2=*/cpu_info::Supports(cpu_info::ISA::kSSE2),
+          /*avx2=*/cpu_info::Supports(cpu_info::ISA::kAVX2),
           /*neon=*/false};
 #elif defined(WEBRTC_HAS_NEON)
   return {/*sse2=*/false,

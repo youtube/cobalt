@@ -25,6 +25,8 @@ source_set("identity_manager") {
     "diagnostics_provider_impl.h",
     "gaia_cookie_manager_service.cc",
     "gaia_cookie_manager_service.h",
+    "oauth_consumer_registry.cc",
+    "oauth_consumer_registry.h",
     "oauth_multilogin_helper.cc",
     "oauth_multilogin_helper.h",
     "oauth_multilogin_token_fetcher.cc",
@@ -66,6 +68,7 @@ source_set("identity_manager") {
     "//components/signin/public/identity_manager:tribool",
     "//components/signin/public/webdata",
     "//components/supervised_user/core/common:features",
+    "//components/unexportable_keys",
     "//components/version_info",
     "//crypto",
     "//services/network/public/cpp",
@@ -95,6 +98,10 @@ source_set("identity_manager") {
     sources += [
       "mutable_profile_oauth2_token_service_delegate.cc",
       "mutable_profile_oauth2_token_service_delegate.h",
+      "token_binding_helper.cc",
+      "token_binding_helper.h",
+      "token_binding_oauth2_access_token_fetcher.cc",
+      "token_binding_oauth2_access_token_fetcher.h",
     ]
   }
 
@@ -107,16 +114,6 @@ source_set("identity_manager") {
       "//ash/constants",
       "//components/account_manager_core",
     ]
-  }
-
-  if (enable_bound_session_credentials) {
-    sources += [
-      "token_binding_helper.cc",
-      "token_binding_helper.h",
-      "token_binding_oauth2_access_token_fetcher.cc",
-      "token_binding_oauth2_access_token_fetcher.h",
-    ]
-    deps += [ "//components/unexportable_keys" ]
   }
 
   if (!is_android && !is_ios) {
@@ -172,6 +169,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/image_fetcher/core",
     "//components/image_fetcher/core:test_support",
+    "//components/os_crypt/async/browser:key_provider_interface",
     "//components/os_crypt/async/browser:test_support",
     "//components/prefs",
     "//components/prefs:test_support",
@@ -216,23 +214,23 @@ source_set("unit_tests") {
   }
 
   if (enable_dice_support) {
-    sources += [ "mutable_profile_oauth2_token_service_delegate_unittest.cc" ]
-
-    deps += [ "//components/os_crypt/async/browser:test_support" ]
-  }
-
-  if (enable_bound_session_credentials) {
     sources += [
+      "mutable_profile_oauth2_token_service_delegate_unittest.cc",
       "token_binding_helper_unittest.cc",
       "token_binding_oauth2_access_token_fetcher_unittest.cc",
     ]
 
     deps += [
+      "//components/os_crypt/async/browser:test_support",
       "//components/unexportable_keys",
       "//components/unexportable_keys:test_support",
       "//crypto:test_support",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # This target contains test support that backs the test support for

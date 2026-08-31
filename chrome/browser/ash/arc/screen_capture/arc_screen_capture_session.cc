@@ -36,7 +36,7 @@
 #include "ui/display/display.h"
 #include "ui/display/manager/display_manager.h"
 #include "ui/display/screen.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/linux/client_native_pixmap_factory_dmabuf.h"
 
 namespace arc {
@@ -304,7 +304,7 @@ void ArcScreenCaptureSession::OnDesktopCaptured(
 
   DCHECK_EQ(result->format(), viz::CopyOutputResult::Format::RGBA);
   DCHECK_EQ(result->destination(),
-            viz::CopyOutputResult::Destination::kNativeTextures);
+            viz::CopyOutputResult::Destination::kSharedImage);
 
   auto* ri = GetContextProvider()->RasterInterface();
   if (!ri) {
@@ -313,11 +313,11 @@ void ArcScreenCaptureSession::OnDesktopCaptured(
   }
   // Get the source texture - RGBA format is guaranteed to have 1 valid texture
   // if the CopyOutputRequest succeeded:
-  gpu::Mailbox result_mailbox = result->GetTextureResult()->mailbox;
+  gpu::Mailbox result_mailbox = result->GetSharedImage()->mailbox();
   CHECK(!result_mailbox.IsZero());
 
   viz::CopyOutputResult::ReleaseCallbacks release_callbacks =
-      result->TakeTextureOwnership();
+      result->TakeSharedImageOwnership();
   CHECK_EQ(1u, release_callbacks.size());
 
   std::unique_ptr<DesktopTexture> desktop_texture =
@@ -394,7 +394,7 @@ void ArcScreenCaptureSession::OnAnimationStep(base::TimeTicks timestamp) {
   std::unique_ptr<viz::CopyOutputRequest> request =
       std::make_unique<viz::CopyOutputRequest>(
           viz::CopyOutputRequest::ResultFormat::RGBA,
-          viz::CopyOutputRequest::ResultDestination::kNativeTextures,
+          viz::CopyOutputRequest::ResultDestination::kSharedImage,
           base::BindOnce(&ArcScreenCaptureSession::OnDesktopCaptured,
                          weak_ptr_factory_.GetWeakPtr()));
   // Clip the requested area to the desktop area. See b/118675936.

@@ -37,7 +37,6 @@
 #include "content/child/child_thread_impl.h"
 #include "content/common/agent_scheduling_group.mojom.h"
 #include "content/common/content_export.h"
-#include "content/common/frame.mojom.h"
 #include "content/common/render_message_filter.mojom.h"
 #include "content/common/renderer.mojom.h"
 #include "content/common/renderer_host.mojom.h"
@@ -156,17 +155,6 @@ class CONTENT_EXPORT RenderThreadImpl
   // base::trace_event::TraceLog::AsyncEnabledStateObserver implementation:
   void OnTraceLogEnabled() override;
   void OnTraceLogDisabled() override;
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  IPC::SyncMessageFilter* GetSyncMessageFilter() override;
-  void AddRoute(int32_t routing_id, IPC::Listener* listener) override;
-  void AttachTaskRunnerToRoute(
-      int32_t routing_id,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner) override;
-  void RemoveRoute(int32_t routing_id) override;
-  void AddFilter(IPC::MessageFilter* filter) override;
-  void RemoveFilter(IPC::MessageFilter* filter) override;
-#endif
 
   bool GenerateFrameRoutingID(int32_t& routing_id,
                               blink::LocalFrameToken& frame_token,
@@ -384,9 +372,6 @@ class CONTENT_EXPORT RenderThreadImpl
   void OnChannelError() override;
 
   // ChildThread
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  bool OnControlMessageReceived(const IPC::Message& msg) override;
-#endif
   void RecordAction(const base::UserMetricsAction& action) override;
   void RecordComputedAction(const std::string& action) override;
 
@@ -550,6 +535,8 @@ class CONTENT_EXPORT RenderThreadImpl
   HistogramCustomizer histogram_customizer_;
 
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+  std::unique_ptr<base::SyncMemoryPressureListener>
+      sync_memory_pressure_listener_;
 
   std::unique_ptr<viz::Gpu> gpu_;
 

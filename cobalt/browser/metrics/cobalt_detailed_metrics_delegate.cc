@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
 
+#include <string_view>
+
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "third_party/abseil-cpp/absl/strings/match.h"
@@ -22,22 +24,22 @@ namespace cobalt {
 
 namespace {
 
-bool MatchStartsWith(absl::string_view name, absl::string_view pattern) {
+bool MatchStartsWith(std::string_view name, std::string_view pattern) {
   return absl::StartsWith(name, pattern);
 }
 
-bool MatchContains(absl::string_view name, absl::string_view pattern) {
+bool MatchContains(std::string_view name, std::string_view pattern) {
   return absl::StrContains(name, pattern);
 }
 
-bool MatchEndsWith(absl::string_view name, absl::string_view pattern) {
+bool MatchEndsWith(std::string_view name, std::string_view pattern) {
   return absl::EndsWith(name, pattern);
 }
 
 struct CategoryPattern {
   const char* label;
   const char* pattern;
-  bool (*match_func)(absl::string_view, absl::string_view);
+  bool (*match_func)(std::string_view, std::string_view);
 };
 
 // Ordered by probability/impact for early exit optimization.
@@ -78,9 +80,9 @@ CobaltDetailedMetricsDelegate::CobaltDetailedMetricsDelegate() = default;
 CobaltDetailedMetricsDelegate::~CobaltDetailedMetricsDelegate() = default;
 
 void CobaltDetailedMetricsDelegate::OnSmapsEntry(
-    absl::string_view name,
+    std::string_view name,
     const memory_instrumentation::SmapsMetrics& metrics) {
-  absl::string_view label = "other";
+  std::string_view label = "other";
 
   if (name.empty()) {
     label = "anonymous_other";

@@ -41,7 +41,7 @@ struct CORE_EXPORT BlinkTransferableMessage : BlinkCloneableMessage {
   mojom::blink::DelegatedCapability delegated_capability =
       mojom::blink::DelegatedCapability::kNone;
 
-  std::optional<scheduler::TaskAttributionId> parent_task_id;
+  std::optional<scheduler::TaskAttributionId> task_state_id;
 };
 
 CORE_EXPORT scoped_refptr<blink::StaticBitmapImage> ToStaticBitmapImage(
@@ -50,19 +50,15 @@ CORE_EXPORT scoped_refptr<blink::StaticBitmapImage> ToStaticBitmapImage(
 CORE_EXPORT scoped_refptr<blink::StaticBitmapImage> WrapAcceleratedBitmapImage(
     AcceleratedImageInfo image);
 
-}  // namespace blink
-
-namespace WTF {
-
 template <>
-struct CrossThreadCopier<blink::BlinkTransferableMessage> {
+struct CrossThreadCopier<BlinkTransferableMessage> {
   STATIC_ONLY(CrossThreadCopier);
-  using Type = blink::BlinkTransferableMessage;
+  using Type = BlinkTransferableMessage;
   static Type Copy(Type pointer) {
     return pointer;  // This is in fact a move.
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_MESSAGING_BLINK_TRANSFERABLE_MESSAGE_H_

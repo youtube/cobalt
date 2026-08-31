@@ -78,6 +78,7 @@ config("tflite_flags") {
     "-Wno-shadow",
     "-Wno-deprecated-anon-enum-enum-conversion",
     "-Wno-unused-function",
+    "-Wno-unreachable-code-return",
 
     # TODO(crbug.com/1147556): Try to clean/remove no-sign-compare if possible.
     "-Wno-sign-compare",
@@ -248,6 +249,31 @@ tflite_static_library("tflite_builtin_op_resolver") {
   conditional_deps = [ ":tflite" ]
 }
 
+flatbuffer("mutable_schema_tflite_path") {
+  sources = [ "src/tensorflow/compiler/mlir/lite/schema/schema.fbs" ]
+  flatc_out_dir = "src/tensorflow/lite/schema/mutable"
+  args = [ "--gen-object-api" ]
+  mutable = true
+}
+
+# TFLite's model_serialize.cc expects the mutable schema to be in two different
+# places in the source tree. :/
+copy("mutable_schema_compiler_path") {
+  sources = [
+    "$target_gen_dir/src/tensorflow/lite/schema/mutable/schema_generated.h",
+  ]
+  outputs =
+      [ "$target_gen_dir/src/tensorflow/compiler/mlir/lite/schema/mutable" ]
+  deps = [ ":mutable_schema_tflite_path" ]
+}
+
+source_set("mutable_schema") {
+  public_deps = [
+    ":mutable_schema_compiler_path",
+    ":mutable_schema_tflite_path",
+  ]
+}
+
 source_set("tflite_public_headers") {
   public = [
     "src/tensorflow/compiler/mlir/lite/schema/schema_generated.h",
@@ -307,6 +333,7 @@ source_set("tflite_kernel_common_headers") {
     "src/tensorflow/lite/kernels/kernel_util.h",
     "src/tensorflow/lite/kernels/op_macros.h",
     "src/tensorflow/lite/kernels/stablehlo_elementwise.h",
+    "src/tensorflow/lite/type_to_tflitetype.h",
   ]
 
   configs += [ ":tflite_flags" ]
@@ -377,7 +404,6 @@ source_set("tflite_kernel_internals") {
     "src/tensorflow/lite/kernels/internal/optimized/4bit/fully_connected_reference.cc",
     "src/tensorflow/lite/kernels/internal/optimized/4bit/fully_connected_reference.h",
     "src/tensorflow/lite/kernels/internal/optimized/4bit/fully_connected_reference_impl.h",
-    "src/tensorflow/lite/kernels/internal/optimized/batch_matmul.h",
     "src/tensorflow/lite/kernels/internal/optimized/cpu_check.cc",
     "src/tensorflow/lite/kernels/internal/optimized/cpu_check.h",
     "src/tensorflow/lite/kernels/internal/optimized/depthwiseconv_3x3_filter_common.h",
@@ -660,6 +686,39 @@ tflite_static_library("tflite_kernels") {
     "//third_party/eigen3:eigen_includes",
   ]
   visibility = [ ":*" ]
+}
+
+if (!is_fuchsia) {
+  tflite_static_library("tflite_op_shim") {
+    sources = [
+      "src/tensorflow/lite/kernels/shim/shape.cc",
+      "src/tensorflow/lite/kernels/shim/tflite_op_shim.cc",
+      "src/tensorflow/lite/kernels/shim/tflite_tensor_view.cc",
+      "src/third_party/xla/xla/tsl/platform/default/logging.cc",
+      "src/third_party/xla/xla/tsl/platform/default/logging.h",
+    ]
+
+    if (is_win) {
+      sources += [ "src/third_party/xla/xla/tsl/platform/windows/env_time.cc" ]
+    } else {
+      sources += [ "src/third_party/xla/xla/tsl/platform/default/env_time.cc" ]
+    }
+
+    deps = [
+      ":tflite_kernel_common_headers",
+      ":tflite_public_headers",
+      "//third_party/abseil-cpp:absl",
+      "//third_party/flatbuffers",
+    ]
+
+    configs_to_add = [
+      ":tflite_config",
+      ":tflite_flags",
+      "//third_party/eigen3:eigen_includes",
+      "//third_party/ml_dtypes:ml_dtypes-includes",
+    ]
+    visibility = [ ":*" ]
+  }
 }
 
 # The two below TFLite logging targets are separate since the Chromium one
@@ -1205,7 +1264,6 @@ tflite_static_library("tflite") {
     "src/tensorflow/lite/tools/versioning/gpu_compatibility.h",
     "src/tensorflow/lite/tools/versioning/op_signature.cc",
     "src/tensorflow/lite/tools/versioning/op_signature.h",
-    "src/tensorflow/lite/type_to_tflitetype.h",
     "src/tensorflow/lite/util.cc",
     "src/tensorflow/lite/version.h",
     "src/third_party/xla/xla/tsl/util/stats_calculator.cc",
@@ -1230,10 +1288,14 @@ tflite_static_library("tflite") {
     sources += [
       "src/tensorflow/lite/delegates/xnnpack/file_util.cc",
       "src/tensorflow/lite/delegates/xnnpack/file_util.h",
+      "src/tensorflow/lite/delegates/xnnpack/mmap_handle.cc",
+      "src/tensorflow/lite/delegates/xnnpack/mmap_handle.h",
       "src/tensorflow/lite/delegates/xnnpack/quantization_util.cc",
       "src/tensorflow/lite/delegates/xnnpack/quantization_util.h",
       "src/tensorflow/lite/delegates/xnnpack/weight_cache.cc",
       "src/tensorflow/lite/delegates/xnnpack/weight_cache.h",
+      "src/tensorflow/lite/delegates/xnnpack/windows_util.cc",
+      "src/tensorflow/lite/delegates/xnnpack/windows_util.h",
       "src/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.cc",
       "src/tensorflow/lite/delegates/xnnpack/xnnpack_delegate.h",
     ]
@@ -1305,8 +1367,14 @@ tflite_static_library("tflite") {
     ":tflite_kernels",
     ":tflite_litert",
   ]
+  if (!is_fuchsia) {
+    # absl::Cord::CopyToArray is not available on fuchsia but is required by
+    # this library.
+    conditional_public_deps += [ ":tflite_op_shim" ]
+  }
 
   public_deps = [
+    ":mutable_schema",
     ":tflite_compiler_utils",
     ":tflite_kernel_common_headers",
     ":tflite_kernel_internals",
@@ -1367,8 +1435,8 @@ executable("tflite_benchmark") {
     "src/tensorflow/lite/tools/utils.h",
   ]
   deps = [
-    ":tflite_builtin_op_resolver_standalone",
-    ":tflite_standalone",
+    ":tflite",
+    ":tflite_builtin_op_resolver",
     ":tflite_tools_proto",
     "//third_party/abseil-cpp:absl",
     "//third_party/ruy",

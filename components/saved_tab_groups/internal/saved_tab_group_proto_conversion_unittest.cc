@@ -37,6 +37,7 @@ class SavedTabGroupConversionTest : public testing::Test {
               sp2.creation_time_windows_epoch_micros());
     EXPECT_EQ(sp1.update_time_windows_epoch_micros(),
               sp2.update_time_windows_epoch_micros());
+    EXPECT_EQ(sp1.group().bookmark_node_id(), sp2.group().bookmark_node_id());
   }
 
   void CompareTabSpecifics(const sync_pb::SavedTabGroupSpecifics& sp1,
@@ -85,6 +86,7 @@ class SavedTabGroupConversionTest : public testing::Test {
     EXPECT_EQ(group1.created_before_syncing_tab_groups(),
               group2.created_before_syncing_tab_groups());
     EXPECT_EQ(group1.archival_time(), group2.archival_time());
+    EXPECT_EQ(group1.bookmark_node_id(), group2.bookmark_node_id());
   }
 
   void CompareTabs(const SavedTabGroupTab& tab1, const SavedTabGroupTab& tab2) {
@@ -120,9 +122,13 @@ TEST_F(SavedTabGroupConversionTest, GroupToDataRetainsData) {
   group.SetIsHidden(true);
   group.SetArchivalTime(time_);
 
+  group.SetBookmarkNodeId(base::Uuid::GenerateRandomV4());
+
   proto::SavedTabGroupData proto =
       SavedTabGroupSyncBridge::SavedTabGroupToDataForTest(group);
-  EXPECT_EQ(1, proto.version());
+  EXPECT_EQ(kCurrentSavedTabGroupDataProtoVersion, proto.version());
+  EXPECT_EQ(kCurrentSavedTabGroupSpecificsProtoVersion,
+            proto.specifics().version());
 
   CompareGroups(group,
                 SavedTabGroupSyncBridge::DataToSavedTabGroupForTest(proto));
@@ -136,7 +142,9 @@ TEST_F(SavedTabGroupConversionTest, TabToDataRetainsData) {
 
   proto::SavedTabGroupData proto =
       SavedTabGroupSyncBridge::SavedTabGroupTabToDataForTest(tab);
-  EXPECT_EQ(1, proto.version());
+  EXPECT_EQ(kCurrentSavedTabGroupDataProtoVersion, proto.version());
+  EXPECT_EQ(kCurrentSavedTabGroupSpecificsProtoVersion,
+            proto.specifics().version());
 
   CompareTabs(tab,
               SavedTabGroupSyncBridge::DataToSavedTabGroupTabForTest(proto));
@@ -154,6 +162,9 @@ TEST_F(SavedTabGroupConversionTest, DataToGroupRetainsData) {
   sync_pb::SavedTabGroup* pb_group = pb_specific->mutable_group();
   pb_group->set_color(sync_pb::SavedTabGroup::SAVED_TAB_GROUP_COLOR_BLUE);
   pb_group->set_title("Another test title");
+
+  pb_group->set_bookmark_node_id(
+      base::Uuid::GenerateRandomV4().AsLowercaseString());
 
   // Turn a data into a group and back into data.
   CompareGroupSpecifics(

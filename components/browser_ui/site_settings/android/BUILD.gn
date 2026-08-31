@@ -6,7 +6,10 @@ import("//build/config/android/rules.gni")
 import("//third_party/jni_zero/jni_zero.gni")
 
 generate_jni("site_settings_jni_headers") {
-  sources = [ "java/src/org/chromium/components/browser_ui/site_settings/WebsitePreferenceBridge.java" ]
+  sources = [
+    "java/src/org/chromium/components/browser_ui/site_settings/GeolocationSetting.java",
+    "java/src/org/chromium/components/browser_ui/site_settings/WebsitePreferenceBridge.java",
+  ]
 }
 
 source_set("android") {
@@ -26,6 +29,7 @@ source_set("android") {
     "//components/content_settings/core/browser",
     "//components/content_settings/core/browser:cookie_settings",
     "//components/permissions",
+    "//components/site_isolation",
     "//components/subresource_filter/android",
     "//components/user_prefs",
     "//content/public/browser",
@@ -49,10 +53,7 @@ source_set("unit_tests") {
 
 # Constants only target without dependencies to allow embedders to only include relevant code.
 android_library("constants_java") {
-  sources = [
-    "java/src/org/chromium/components/browser_ui/site_settings/SingleCategorySettingsConstants.java",
-    "java/src/org/chromium/components/browser_ui/site_settings/WebsiteSettingsConstants.java",
-  ]
+  sources = [ "java/src/org/chromium/components/browser_ui/site_settings/SingleCategorySettingsConstants.java" ]
 }
 
 android_library("java") {
@@ -72,6 +73,7 @@ android_library("java") {
     "java/src/org/chromium/components/browser_ui/site_settings/DesktopSiteMetrics.java",
     "java/src/org/chromium/components/browser_ui/site_settings/FileEditingInfo.java",
     "java/src/org/chromium/components/browser_ui/site_settings/ForwardingManagedPreferenceDelegate.java",
+    "java/src/org/chromium/components/browser_ui/site_settings/GeolocationSetting.java",
     "java/src/org/chromium/components/browser_ui/site_settings/GroupedWebsitesSettings.java",
     "java/src/org/chromium/components/browser_ui/site_settings/JavascriptOptimizerCategory.java",
     "java/src/org/chromium/components/browser_ui/site_settings/LocalStorageInfo.java",
@@ -246,6 +248,7 @@ android_resources("java_resources") {
     "java/res/drawable/settings_v8.xml",
     "java/res/drawable/web_24.xml",
     "java/res/layout/add_site_dialog.xml",
+    "java/res/layout/approximate_geolocation_permission_dialog.xml",
     "java/res/layout/binary_state_permission_preference.xml",
     "java/res/layout/clear_data_dialog.xml",
     "java/res/layout/clear_reset_dialog.xml",

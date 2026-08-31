@@ -13,6 +13,7 @@
 #include "base/location.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
@@ -20,7 +21,9 @@
 #include "net/http/http_byte_range.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/cpp/cors/cors.h"
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
+#include "services/network/public/mojom/cors.mojom-blink.h"
+#include "services/network/public/mojom/fetch_api.mojom-blink.h"
+#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/platform/web_network_state_notifier.h"
 #include "third_party/blink/public/platform/web_url.h"
 #include "third_party/blink/public/platform/web_url_error.h"
@@ -85,11 +88,12 @@ void ResourceMultiBufferDataProvider::Start() {
   // Prepare the request.
   WebURLRequest request(url_data_->url());
   request.SetRequestContext(is_client_audio_element_
-                                ? mojom::RequestContextType::AUDIO
-                                : mojom::RequestContextType::VIDEO);
+                                ? mojom::blink::RequestContextType::AUDIO
+                                : mojom::blink::RequestContextType::VIDEO);
   request.SetRequestDestination(
-      is_client_audio_element_ ? network::mojom::RequestDestination::kAudio
-                               : network::mojom::RequestDestination::kVideo);
+      is_client_audio_element_
+          ? network::mojom::blink::RequestDestination::kAudio
+          : network::mojom::blink::RequestDestination::kVideo);
   request.SetHttpHeaderField(
       WebString::FromUTF8(net::HttpRequestHeaders::kRange),
       WebString::FromUTF8(
@@ -112,11 +116,12 @@ void ResourceMultiBufferDataProvider::Start() {
     options.expose_all_response_headers = true;
     // The author header set is empty, no preflight should go ahead.
     options.preflight_policy =
-        network::mojom::CorsPreflightPolicy::kPreventPreflight;
+        network::mojom::blink::CorsPreflightPolicy::kPreventPreflight;
 
-    request.SetMode(network::mojom::RequestMode::kCors);
+    request.SetMode(network::mojom::blink::RequestMode::kCors);
     if (url_data_->cors_mode() != UrlData::CORS_USE_CREDENTIALS) {
-      request.SetCredentialsMode(network::mojom::CredentialsMode::kSameOrigin);
+      request.SetCredentialsMode(
+          network::mojom::blink::CredentialsMode::kSameOrigin);
     }
   }
 
@@ -166,18 +171,6 @@ scoped_refptr<media::DataBuffer> ResourceMultiBufferDataProvider::Read() {
 void ResourceMultiBufferDataProvider::SetDeferred(bool deferred) {
   if (active_loader_) {
     active_loader_->SetDefersLoading(deferred);
-  }
-
-  if (deferred) {
-    if (!cleanup_timer_.IsRunning()) {
-      // Note: Timeout chosen based arbitrarily.
-      cleanup_timer_.Start(
-          FROM_HERE, base::Seconds(1),
-          WTF::BindOnce(&ResourceMultiBufferDataProvider::SetStale,
-                        weak_factory_.GetWeakPtr()));
-    }
-  } else {
-    cleanup_timer_.Stop();
   }
 }
 
@@ -513,10 +506,6 @@ void ResourceMultiBufferDataProvider::DidFail(const WebURLError& error) {
   }
 }
 
-bool ResourceMultiBufferDataProvider::IsStale() const {
-  return is_stale_;
-}
-
 bool ResourceMultiBufferDataProvider::ParseContentRange(
     const std::string& content_range_str,
     int64_t* first_byte_position,
@@ -603,11 +592,6 @@ bool ResourceMultiBufferDataProvider::VerifyPartialResponse(
   bytes_to_discard_ = byte_pos() - first_byte_position;
 
   return true;
-}
-
-void ResourceMultiBufferDataProvider::SetStale() {
-  is_stale_ = true;
-  url_data_->multibuffer()->OnDataProviderEvent(this);
 }
 
 }  // namespace blink

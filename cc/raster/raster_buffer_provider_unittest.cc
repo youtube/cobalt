@@ -52,7 +52,6 @@
 #include "gpu/command_buffer/client/gles2_interface.h"
 #include "gpu/command_buffer/client/raster_implementation_gles.h"
 #include "gpu/command_buffer/client/raster_interface.h"
-#include "gpu/ipc/client/client_shared_image_interface.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/axis_transform2d.h"
 #include "url/gurl.h"
@@ -367,6 +366,10 @@ class RasterBufferProviderTest
   std::unique_ptr<FakeLayerTreeFrameSink> layer_tree_frame_sink_;
   std::unique_ptr<viz::ClientResourceProvider> resource_provider_;
   std::unique_ptr<TileTaskManager> tile_task_manager_;
+  std::unique_ptr<RasterQueryQueue> pending_raster_queries_;
+  // Some subclasses of RasterBufferProvider (GpuRasterBufferProvider) hold a
+  // raw_ptr to pending_raster_queries_, so it must be declared after
+  // pending_raster_queries_ to avoid having a dangling ptr.
   std::unique_ptr<RasterBufferProvider> raster_buffer_provider_;
   SynchronousTaskGraphRunner task_graph_runner_;
   UniqueNotifier all_tile_tasks_finished_;
@@ -376,7 +379,6 @@ class RasterBufferProviderTest
   std::vector<RasterTaskResult> completed_tasks_;
   std::vector<ResourcePool::InUsePoolResource> resources_;
   TaskGraph graph_;
-  std::unique_ptr<RasterQueryQueue> pending_raster_queries_;
 };
 
 TEST_P(RasterBufferProviderTest, Basic) {

@@ -9,13 +9,16 @@
  */
 #include "net/dcsctp/packet/tlv_trait.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "api/array_view.h"
-#include "rtc_base/buffer.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/gunit.h"
+#include "net/dcsctp/packet/bounded_byte_reader.h"
+#include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "test/gmock.h"
+#include "test/gtest.h"
 
 namespace dcsctp {
 namespace {

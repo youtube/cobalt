@@ -25,13 +25,13 @@
 #include "chrome/browser/chromeos/platform_keys/extension_key_permissions_service_factory.h"
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service.h"
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service_factory.h"
-#include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chrome/browser/extensions/api/platform_keys/platform_keys_api.h"
 #include "chrome/browser/extensions/api/platform_keys/platform_keys_test_base.h"
 #include "chrome/browser/extensions/api/platform_keys/verify_trust_api_base.h"
 #include "chrome/browser/net/nss_service.h"
 #include "chrome/browser/net/nss_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chromeos/ash/components/platform_keys/platform_keys.h"
 #include "components/policy/policy_constants.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -228,7 +228,7 @@ class PlatformKeysTest : public PlatformKeysTestBase {
     auto* extension_key_permissions_service_unowned =
         extension_key_permissions_service.get();
     std::vector<uint8_t> subject_public_key_info =
-        chromeos::platform_keys::GetSubjectPublicKeyInfoBlob(client_cert1_);
+        chromeos::platform_keys::GetSubjectPublicKeyInfo(client_cert1_);
 
     // Mimics the behaviour of the ExtensionPlatformKeysService, which sets the
     // one-time signing permission when the key is registered for corporate

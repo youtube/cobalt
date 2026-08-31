@@ -7,7 +7,7 @@
 
 #include "content/browser/webid/idp_network_request_manager.h"
 #include "content/common/content_export.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom.h"
@@ -387,7 +387,8 @@ class CONTENT_EXPORT FedCmMetrics {
       std::optional<FedCmVerifyingDialogResult> verifying_dialog_result,
       FedCmThirdPartyCookiesStatus tpc_status,
       const FedCmRequesterFrameType& requester_frame_type,
-      std::optional<bool> has_signin_account);
+      std::optional<bool> has_signin_account,
+      bool did_show_ui);
 
   // Records whether user sign-in states between IDP and browser match.
   void RecordSignInStateMatchStatus(const GURL& provider,

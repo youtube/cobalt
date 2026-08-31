@@ -1,4 +1,4 @@
-# tags: [ Android Fuchsia Linux Mac Mac11 Mac11-arm64 Mac12 Mac12-arm64 Mac13 Mac13-arm64 Mac14 Mac14-arm64 Mac15 Mac15-arm64 Win Win10.20h2 Win11 Win11-arm64 iOS18-simulator ]
+# tags: [ Android Fuchsia Linux Mac Mac12 Mac12-arm64 Mac13 Mac13-arm64 Mac14 Mac14-arm64 Mac15 Mac15-arm64 Win Win10.20h2 Win11 Win11-arm64 iOS26-simulator ]
 # tags: [ Release Debug ]
 # results: [ Skip Pass ]
 
@@ -34,19 +34,19 @@
 # Chrome Win/Linux/iOS doesn't support emacs key-bindings.
 [ Win ] editing/pasteboard/emacs-cntl-y-001.html [ Skip ]
 [ Linux ] editing/pasteboard/emacs-cntl-y-001.html [ Skip ]
-[ iOS18-simulator ] editing/pasteboard/emacs-cntl-y-001.html [ Skip ]
+[ iOS26-simulator ] editing/pasteboard/emacs-cntl-y-001.html [ Skip ]
 [ Win ] editing/pasteboard/emacs-ctrl-a-k-y.html [ Skip ]
 [ Linux ] editing/pasteboard/emacs-ctrl-a-k-y.html [ Skip ]
-[ iOS18-simulator ] editing/pasteboard/emacs-ctrl-a-k-y.html [ Skip ]
+[ iOS26-simulator ] editing/pasteboard/emacs-ctrl-a-k-y.html [ Skip ]
 [ Win ] editing/pasteboard/emacs-ctrl-k-with-move.html [ Skip ]
 [ Linux ] editing/pasteboard/emacs-ctrl-k-with-move.html [ Skip ]
-[ iOS18-simulator ] editing/pasteboard/emacs-ctrl-k-with-move.html [ Skip ]
+[ iOS26-simulator ] editing/pasteboard/emacs-ctrl-k-with-move.html [ Skip ]
 [ Win ] editing/pasteboard/emacs-ctrl-k-y-001.html [ Skip ]
 [ Linux ] editing/pasteboard/emacs-ctrl-k-y-001.html [ Skip ]
-[ iOS18-simulator ] editing/pasteboard/emacs-ctrl-k-y-001.html [ Skip ]
+[ iOS26-simulator ] editing/pasteboard/emacs-ctrl-k-y-001.html [ Skip ]
 [ Win ] editing/input/emacs-ctrl-o.html [ Skip ]
 [ Linux ] editing/input/emacs-ctrl-o.html [ Skip ]
-[ iOS18-simulator ] editing/input/emacs-ctrl-o.html [ Skip ]
+[ iOS26-simulator ] editing/input/emacs-ctrl-o.html [ Skip ]
 [ Win ] fast/events/inputevents/inputevent-yank.html [ Skip ]
 [ Linux ] fast/events/inputevents/inputevent-yank.html [ Skip ]
 
@@ -100,7 +100,7 @@
 [ Mac ] dark-mode/colors/select-popup.html [ Skip ]
 
 # IOS's popup behavior is different.
-[ iOS18-simulator ] fast/forms/select-popup/* [ Skip ]
+[ iOS26-simulator ] fast/forms/select-popup/* [ Skip ]
 
 # These tests are specific to Windows and Linux.
 [ Mac ] fast/forms/calendar-picker/date-open-picker-with-f4-key.html [ Skip ]
@@ -119,18 +119,43 @@
 [ Mac ] fast/events/menu-key-context-menu.html [ Skip ]
 
 # Mac does not support touch, so all touch-related tests are skipped there.
-crbug.com/613672 [ Mac ] compositing/gestures/gesture-tapHighlight-lines-and-float-in-multicol.html [ Skip ]
-crbug.com/613672 [ Mac ] external/wpt/pointerevents/coalesced_events_attributes_under_load.https.optional.html?touch [ Skip ]
-crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_appended.html?touch [ Skip ]
-crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_removed.html?touch [ Skip ]
-crbug.com/613672 [ Mac ] external/wpt/pointerevents/pointerevent_contextmenu_is_a_pointerevent.html?touch [ Skip ]
-crbug.com/613672 [ Mac ] external/wpt/pointerevents/touch-action-with-swipe-dir-change.html?touch [ Skip ]
-crbug.com/613672 [ Mac ] fast/events/pointerevents/multi-pointer-event-in-slop-region.html [ Skip ]
-crbug.com/613672 [ Mac ] fast/events/pointerevents/pointer-event-in-slop-region.html [ Skip ]
-crbug.com/613672 [ Mac ] fast/events/touch/gesture/* [ Skip ]
-crbug.com/613672 [ Mac ] fast/scrolling/resize-corner-tracking-touch.html [ Skip ]
-crbug.com/613672 [ Mac ] fast/scrolling/scrollbars/touch-scrolling-on-root-scrollbar.html [ Skip ]
-crbug.com/613672 [ Mac ] virtual/threaded/synthetic_gestures/synthetic-pinch-zoom-gesture-touchscreen.html [ Skip ]
+crbug.com/41254976 [ Mac ] compositing/gestures/gesture-tapHighlight-lines-and-float-in-multicol.html [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/capturing_boundary_event_handler_at_ua_shadowdom.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/coalesced_events_attributes.https.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/coalesced_events_attributes_on_redispatch.https.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/coalesced_events_attributes_under_load.https.optional.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_appended.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_appended_interleaved.tentative.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_removed.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_after_target_removed_interleaved.tentative.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_attributes.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_boundary_events_in_capturing.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_click_is_a_pointerevent.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_click_is_a_pointerevent_multiple_clicks.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_contextmenu_is_a_pointerevent.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_disabled_form_control.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_element_haspointercapture.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_element_haspointercapture_release_pending_capture.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_fractional_coordinates.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_movementxy.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_pointercapture_in_frame.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_pointermove_isprimary_same_as_pointerdown.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_range_input.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_releasepointercapture_events_to_original_target.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_releasepointercapture_release_right_after_capture.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_sequence_at_implicit_release_on_click.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_setpointercapture_override_pending_capture_element.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_setpointercapture_to_same_element_twice.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerevent_to_slotted_target.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/pointerup_after_pointerdown_target_removed.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/predicted_events_attributes.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] external/wpt/pointerevents/touch-action-with-swipe-dir-change.html?touch [ Skip ]
+crbug.com/41254976 [ Mac ] fast/events/pointerevents/multi-pointer-event-in-slop-region.html [ Skip ]
+crbug.com/41254976 [ Mac ] fast/events/pointerevents/pointer-event-in-slop-region.html [ Skip ]
+crbug.com/41254976 [ Mac ] fast/events/touch/gesture/* [ Skip ]
+crbug.com/41254976 [ Mac ] fast/scrolling/resize-corner-tracking-touch.html [ Skip ]
+crbug.com/41254976 [ Mac ] fast/scrolling/scrollbars/touch-scrolling-on-root-scrollbar.html [ Skip ]
+crbug.com/41254976 [ Mac ] virtual/threaded/synthetic_gestures/synthetic-pinch-zoom-gesture-touchscreen.html [ Skip ]
 
 # Thumb snapping is not supported on Linux and Mac.
 [ Linux ] fast/scrolling/scrollbars/scrollbar-thumb-snapping.html [ Skip ]
@@ -377,14 +402,6 @@ external/wpt/css/css-text/letter-spacing/letter-spacing-bidi-004.xht [ Skip ]
 external/wpt/css/css-text/letter-spacing/letter-spacing-bidi-005.xht [ Skip ]
 external/wpt/css/css-text/letter-spacing/letter-spacing-nesting-003.xht [ Skip ]
 
-# No active plans to implement the line breaker spec change for out-of-flow objects.
-crbug.com/1024331 external/wpt/css/CSS2/text/white-space-processing-049.xht [ Skip ]
-crbug.com/1024331 external/wpt/css/CSS2/text/white-space-processing-048.xht [ Skip ]
-crbug.com/1024331 external/wpt/css/css-text/line-breaking/line-breaking-016.html [ Skip ]
-crbug.com/1024331 external/wpt/css/css-text/line-breaking/line-breaking-017.html [ Skip ]
-crbug.com/1024331 external/wpt/css/css-text/line-breaking/line-breaking-018.html [ Skip ]
-crbug.com/1024331 external/wpt/css/css-text/line-breaking/line-breaking-019.html [ Skip ]
-
 # CSS Text features that are not planned to implement.
 external/wpt/css/css-text/text-justify/text-justify-006.html [ Skip ]
 external/wpt/css/css-text/text-spacing-trim/text-spacing-trim-trim-all-001.html?class=chws,htb [ Skip ]
@@ -427,6 +444,9 @@ external/wpt/css/css-text/white-space/seg-break-transformation-019.tentative.htm
 external/wpt/css/css-text/white-space/trailing-ogham-001.html [ Skip ]
 external/wpt/css/css-text/white-space/trailing-ogham-002.html [ Skip ]
 external/wpt/css/css-text/white-space/trailing-ogham-003.html [ Skip ]
+
+# This test conflicts with UAX#24.
+crbug.com/378692756 external/wpt/css/css-text/shaping/shaping-arabic-diacritics-002.html [ Skip ]
 
 # 1px pixel differences that are not relevant to the tests.
 external/wpt/css/CSS2/text/text-transform-bicameral-007.xht [ Skip ]
@@ -1190,13 +1210,6 @@ external/wpt/html/editing/dnd/the-datatransfer-interface/protectedDragDataTransf
 external/wpt/html/editing/dnd/the-datatransfer-interface/protectedPasteDataTransfer-manual.html [ Skip ]
 external/wpt/html/editing/dnd/the-datatransfer-interface/setData-manual.html [ Skip ]
 external/wpt/html/editing/dnd/the-datatransfer-interface/types-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-direction-down-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-direction-left-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-direction-right-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-direction-up-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-scrollamount-effect-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-start-manual.html [ Skip ]
-external/wpt/html/obsolete/requirements-for-implementations/the-marquee-element-0/marquee-stop-manual.html [ Skip ]
 external/wpt/html/semantics/embedded-content/media-elements/audio_controls_present-manual.html [ Skip ]
 external/wpt/html/semantics/embedded-content/media-elements/audio_muted_overriding_volume-manual.html [ Skip ]
 external/wpt/html/semantics/embedded-content/media-elements/audio_muted_present-manual.html [ Skip ]
@@ -1613,7 +1626,6 @@ crbug.com/509989 [ Linux ] virtual/text-antialias/font-synthesis-style-local-win
 crbug.com/509989 [ Mac ] virtual/text-antialias/font-synthesis-style-local-win.html [ Skip ]
 crbug.com/509989 [ Fuchsia ] virtual/text-antialias/font-synthesis-style-local-win.html [ Skip ]
 crbug.com/509989 [ Android ] virtual/text-antialias/font-synthesis-style-local-win.html [ Skip ]
-crbug.com/626703 [ Mac11 ] virtual/fsa-incognito/external/wpt/file-system-access/local_FileSystemBaseHandle-postMessage-windows-manual.https.html [ Skip ]
 
 # This test requires a special browser flag and seems not suitable for a wpt test, see bug.
 crbug.com/691944 external/wpt/service-workers/service-worker/update-after-oneday.https.html [ Skip ]
@@ -1641,8 +1653,6 @@ crbug.com/1267606 [ Linux ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.
 crbug.com/1267606 [ Win ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
 crbug.com/1267606 [ Fuchsia ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
 crbug.com/1267606 [ Android ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
-crbug.com/1267606 [ Mac11 ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
-crbug.com/1267606 [ Mac11-arm64 ] wpt_internal/css/css-fonts/font-glyph-synthesis-mac.html [ Skip ]
 
 # The AnimationWorklet feature is not enabled for tests
 animations/animationworklet/* [ Skip ]
@@ -1740,13 +1750,14 @@ crbug.com/1197087 [ Debug ] external/wpt/web-animations/interfaces/Animation/fin
 [ Mac ] external/wpt/webdriver/tests/* [ Skip ]
 [ Win ] external/wpt/webdriver/tests/* [ Skip ]
 
-# WebNN GPU backend is only supported on Win11/Intel by default.
+# WebNN DirectML GPU backend is only supported on Win11/Intel by default.
 crbug.com/40288082 [ Win10.20h2 ] virtual/webnn-service-with-gpu/* [ Skip ]
 crbug.com/323752584 [ Win11-arm64 ] virtual/webnn-service-with-gpu/* [ Skip ]
 
+# WebNN TFLite GPU backend is only supported on official builds.
+[ Linux ] virtual/webnn-service-with-gpu/* [ Skip ]
+
 # WebNN is only supported on macOS 14 and newer versions.
-[ Mac11 ] external/wpt/webnn/* [ Skip ]
-[ Mac11-arm64 ] external/wpt/webnn/* [ Skip ]
 [ Mac12 ] external/wpt/webnn/* [ Skip ]
 [ Mac12-arm64 ] external/wpt/webnn/* [ Skip ]
 [ Mac13 ] external/wpt/webnn/* [ Skip ]
@@ -1872,7 +1883,7 @@ external/wpt/infrastructure/* [ Skip ]
 # Web Bluetooth Emulation is not supported on Android, Fuchsia and iOS due to binary size constraints.
 crbug.com/342191615 [ Android ] inspector-protocol/bluetooth/* [ Skip ]
 crbug.com/342191615 [ Fuchsia ] inspector-protocol/bluetooth/* [ Skip ]
-crbug.com/342191615 [ iOS18-simulator ] inspector-protocol/bluetooth/* [ Skip ]
+crbug.com/342191615 [ iOS26-simulator ] inspector-protocol/bluetooth/* [ Skip ]
 
 # These html5lib parser tests always time out.
 html5lib/generated/run-foreign-fragment-data.html [ Skip ]
@@ -1893,7 +1904,30 @@ virtual/view-transition-mpa-serialization/external/wpt/css/css-view-transitions/
 external/wpt/html/webappapis/animation-frames/spurious-frame-callbacks-optimization.html [ Skip ]
 
 # Clipboardchange is not yet supported on these platforms.
-crbug.com/41442253 [ Android ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
 crbug.com/41442253 [ Fuchsia ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
 crbug.com/41442253 [ Mac ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
-crbug.com/41442253 [ iOS18-simulator ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
+crbug.com/41442253 [ iOS26-simulator ] external/wpt/clipboard-apis/async-navigator-clipboard-change-event.tentative.https.html [ Skip ]
+
+# These tests are run exclusively in the prefetch-proxy VirtualTestSuite.
+external/wpt/speculation-rules/prefetch/anonymous-client.https.html [ Skip ]
+external/wpt/speculation-rules/prefetch/cross-origin-cookies-anonymous-client-ip-duplicate.https.html [ Skip ]
+
+# These tests test origin trial behavior that is only enabled on windows.
+[ Mac ] http/tests/origin_trials/webexposed/incoming-call-notifications-origin-trial-interfaces.html [ Skip ]
+[ Linux ] http/tests/origin_trials/webexposed/incoming-call-notifications-origin-trial-interfaces.html [ Skip ]
+
+# restrictOwnAudio is supported only on recent versions of Windows and Mac.
+[ Linux ] external/wpt/screen-capture/getdisplaymedia-restrictOwnAudio.https.html [ Skip ]
+[ Win10.20h2 ] external/wpt/screen-capture/getdisplaymedia-restrictOwnAudio.https.html [ Skip ]
+[ Mac12 ] external/wpt/screen-capture/getdisplaymedia-restrictOwnAudio.https.html [ Skip ]
+[ Mac13 ] external/wpt/screen-capture/getdisplaymedia-restrictOwnAudio.https.html [ Skip ]
+[ Android ] external/wpt/screen-capture/getdisplaymedia-restrictOwnAudio.https.html [ Skip ]
+[ Fuchsia ] external/wpt/screen-capture/getdisplaymedia-restrictOwnAudio.https.html [ Skip ]
+
+# EchoCancellation mode "all" is not supported on Linux
+[ Linux ] external/wpt/mediacapture-streams/GUM-echoCancellation-all.https.html [ Skip ]
+
+# Soft navigation heuristics tests that only work with pre-paint-based attribution.
+virtual/soft-navs-pre-paint-attribution-disabled/external/wpt/soft-navigation-heuristics/smoke/tentative/late-url-change.html [ Skip ]
+virtual/soft-navs-pre-paint-attribution-disabled/external/wpt/soft-navigation-heuristics/detection/tentative/overwriting-text.html [ Skip ]
+virtual/soft-navs-pre-paint-attribution-disabled/external/wpt/soft-navigation-heuristics/detection/tentative/overwriting-text-once-per-interaction.html [ Skip ]

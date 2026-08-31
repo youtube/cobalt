@@ -63,9 +63,7 @@ public class ArtworkDownloaderDefaultTest {
     final CountDownLatch latch = new CountDownLatch(1);
 
     ArtworkLoader artworkLoader =
-        new ArtworkLoader(
-            mock(ArtworkLoader.Callback.class),
-            mDownloader) {
+        new ArtworkLoader(mock(ArtworkLoader.Callback.class), mDownloader) {
           @Override
           public synchronized void onDownloadFinished(Pair<String, Bitmap> urlBitmapPair) {
             super.onDownloadFinished(urlBitmapPair);

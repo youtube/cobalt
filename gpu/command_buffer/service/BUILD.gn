@@ -13,12 +13,13 @@ if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
 
-group("service") {
-  if (is_component_build) {
-    public_deps = [ "//gpu" ]
-  } else {
-    public_deps = [ ":service_sources" ]
-  }
+config("implementation") {
+  defines = [ "GPU_COMMAND_BUFFER_SERVICE_IMPLEMENTATION" ]
+  configs = [ "//build/config/compiler:wexit_time_destructors" ]
+}
+
+component("service") {
+  public_deps = [ ":service_sources" ]
 }
 
 group("gles2") {
@@ -34,10 +35,10 @@ if (is_component_build) {
 } else {
   link_target_type = "static_library"
 }
-target(link_target_type, "service_sources") {
+source_set("service_sources") {
   # External code should depend on this via //gpu/command_buffer/service above
   # rather than depending on this directly or the component build will break.
-  visibility = [ "//gpu/*" ]
+  visibility = [ ":service" ]
 
   sources = [
     "async_api_interface.h",
@@ -50,6 +51,7 @@ target(link_target_type, "service_sources") {
     "common_decoder.cc",
     "common_decoder.h",
     "decoder_client.h",
+    "gpu_command_buffer_service_export.h",
     "gpu_switches.cc",
     "gpu_switches.h",
     "memory_tracking.cc",
@@ -73,21 +75,20 @@ target(link_target_type, "service_sources") {
 
   configs += [
     "//build/config:precompiled_headers",
-    "//gpu:gpu_implementation",
+    ":implementation",
     "//third_party/khronos:khronos_headers",
   ]
 
   public_deps = [
     "//base",
-    "//gpu/command_buffer/common:common_sources",
-    "//url:url",
+    "//gpu/command_buffer/common",
+    "//url",
   ]
   deps = [
     "//base",
-    "//gpu/command_buffer/client:client_sources",
-    "//gpu/config:config_sources",
-    "//gpu/ipc/common:ipc_common_sources",
-    "//gpu/ipc/common:surface_handle_type",
+    "//gpu/command_buffer/client",
+    "//gpu/config",
+    "//gpu/ipc/common",
     "//ui/gfx",
     "//ui/gfx/geometry",
     "//ui/gfx/ipc/color",
@@ -171,12 +172,8 @@ target(link_target_type, "gles2_sources") {
     "gles2_cmd_validation.h",
     "gles2_cmd_validation_autogen.h",
     "gles2_cmd_validation_implementation_autogen.h",
-    "gles2_external_framebuffer.cc",
-    "gles2_external_framebuffer.h",
     "gles2_query_manager.cc",
     "gles2_query_manager.h",
-    "gpu_command_buffer_memory_tracker.cc",
-    "gpu_command_buffer_memory_tracker.h",
     "gpu_fence_manager.cc",
     "gpu_fence_manager.h",
     "gpu_state_tracer.cc",
@@ -252,6 +249,8 @@ target(link_target_type, "gles2_sources") {
     "shared_image/compound_image_backing.h",
     "shared_image/copy_image_plane.cc",
     "shared_image/copy_image_plane.h",
+    "shared_image/cpu_readback_upload_copy_strategy.cc",
+    "shared_image/cpu_readback_upload_copy_strategy.h",
     "shared_image/egl_image_backing.cc",
     "shared_image/egl_image_backing.h",
     "shared_image/egl_image_backing_factory.cc",
@@ -276,6 +275,9 @@ target(link_target_type, "gles2_sources") {
     "shared_image/shared_image_backing.h",
     "shared_image/shared_image_backing_factory.cc",
     "shared_image/shared_image_backing_factory.h",
+    "shared_image/shared_image_copy_manager.cc",
+    "shared_image/shared_image_copy_manager.h",
+    "shared_image/shared_image_copy_strategy.h",
     "shared_image/shared_image_factory.cc",
     "shared_image/shared_image_factory.h",
     "shared_image/shared_image_format_service_utils.cc",
@@ -304,6 +306,8 @@ target(link_target_type, "gles2_sources") {
     "shared_image/wrapped_sk_image_backing_factory.h",
     "shared_image_interface_in_process.cc",
     "shared_image_interface_in_process.h",
+    "shared_image_interface_in_process_base.cc",
+    "shared_image_interface_in_process_base.h",
     "shared_memory_region_wrapper.cc",
     "shared_memory_region_wrapper.h",
     "single_task_sequence.h",
@@ -369,8 +373,9 @@ target(link_target_type, "gles2_sources") {
     "//third_party/khronos:khronos_headers",
   ]
 
-  # Prefer mesa GL headers to system headers, which cause problems on Win.
-  include_dirs = [ "//third_party/mesa_headers" ]
+  # This target pulls in angle headers that can't be built with this
+  # warning active: crbug.com/430317494
+  cflags_cc = [ "-Wno-thread-safety" ]
 
   public_deps = [
     "//base",
@@ -395,6 +400,7 @@ target(link_target_type, "gles2_sources") {
     "//gpu/config",
     "//gpu/ipc/common",
     "//gpu/vulkan:buildflags",
+    "//ipc:mojom_constants",
     "//skia:buildflags",
     "//third_party/angle:angle_image_util",
     "//third_party/angle:angle_version_info",
@@ -410,6 +416,7 @@ target(link_target_type, "gles2_sources") {
     "//ui/gfx/geometry",
     "//ui/gl",
     "//ui/gl:buildflags",
+    "//ui/gl:gl_headers",
     "//ui/gl/init",
   ]
 
@@ -524,12 +531,17 @@ target(link_target_type, "gles2_sources") {
     configs -= [ "//build/config/compiler:enable_arc" ]
 
     if (skia_use_metal) {
-      deps += [ "//components/viz/common:metal_context_provider" ]
+      sources += [
+        "metal_context_provider.h",
+        "metal_context_provider.mm",
+      ]
+      deps += [ "//components/metal_util" ]
     }
 
     # Required by gles2_cmd_decoder.cc on Apple.
     frameworks = [
       "CoreVideo.framework",
+      "Foundation.framework",
       "IOSurface.framework",
       "Metal.framework",
     ]
@@ -588,11 +600,7 @@ target(link_target_type, "gles2_sources") {
       "shared_image/skia_vk_android_image_representation.h",
       "shared_image/video_image_reader_image_backing.cc",
       "shared_image/video_image_reader_image_backing.h",
-      "shared_image/video_surface_texture_image_backing.cc",
-      "shared_image/video_surface_texture_image_backing.h",
       "stream_texture_shared_image_interface.h",
-      "surface_texture_gl_owner.cc",
-      "surface_texture_gl_owner.h",
       "texture_owner.cc",
       "texture_owner.h",
     ]
@@ -652,6 +660,7 @@ target(link_target_type, "gles2_sources") {
       "onecore.lib",
     ]
     all_dependent_configs = [ ":service_win_linker_flags" ]
+    deps += [ "//services/webnn:webnn_headers" ]
   }
 }
 
@@ -683,11 +692,7 @@ if (is_android) {
 if (is_android) {
   source_set("android_texture_owner_unittests") {
     testonly = true
-    sources = [
-      "image_reader_gl_owner_unittest.cc",
-      "surface_texture_gl_owner_unittest.cc",
-      "surface_texture_transform_unittest.cc",
-    ]
+    sources = [ "image_reader_gl_owner_unittest.cc" ]
 
     # For AImageReader_getFormat()
     libs = [ "mediandk" ]

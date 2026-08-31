@@ -5,11 +5,11 @@
 #ifndef UI_OZONE_PLATFORM_WAYLAND_TEST_MOCK_SURFACE_H_
 #define UI_OZONE_PLATFORM_WAYLAND_TEST_MOCK_SURFACE_H_
 
-#include <linux-explicit-synchronization-unstable-v1-server-protocol.h>
 #include <wayland-server-protocol.h>
 
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "ui/gfx/gpu_fence_handle.h"
 #include "ui/ozone/platform/wayland/test/mock_xdg_surface.h"
@@ -97,22 +97,12 @@ class MockSurface : public ServerObject {
 
   void set_frame_callback(wl_resource* callback_resource) {
     if (allow_resetting_frame_callback_ && frame_callback_) {
-      wl_resource_destroy(frame_callback_);
+      wl_resource_destroy(frame_callback_.ExtractAsDangling());
       frame_callback_ = nullptr;
     }
     DCHECK(!frame_callback_);
     frame_callback_ = callback_resource;
   }
-
-  void set_linux_buffer_release(wl_resource* buffer,
-                                wl_resource* linux_buffer_release) {
-    DCHECK(!linux_buffer_releases_.contains(buffer));
-    linux_buffer_releases_.emplace(buffer, linux_buffer_release);
-  }
-  bool has_linux_buffer_release() const {
-    return !linux_buffer_releases_.empty();
-  }
-  void ClearBufferReleases();
 
   wl_resource* attached_buffer() const { return attached_buffer_; }
   wl_resource* prev_attached_buffer() const { return prev_attached_buffer_; }
@@ -124,36 +114,36 @@ class MockSurface : public ServerObject {
   void AttachNewBuffer(wl_resource* buffer_resource, int32_t x, int32_t y);
   void DestroyPrevAttachedBuffer();
   void ReleaseBuffer(wl_resource* buffer);
-  void ReleaseBufferFenced(wl_resource* buffer,
-                           gfx::GpuFenceHandle release_fence);
   void SendFrameCallback();
   void AllowResettingFrameCallback() { allow_resetting_frame_callback_ = true; }
 
   int32_t buffer_scale() const { return buffer_scale_; }
   void set_buffer_scale(int32_t buffer_scale) { buffer_scale_ = buffer_scale; }
 
+  base::WeakPtr<MockSurface> GetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
-  raw_ptr<MockXdgSurface, AcrossTasksDanglingUntriaged> xdg_surface_ = nullptr;
-  raw_ptr<TestSubSurface, AcrossTasksDanglingUntriaged> sub_surface_ = nullptr;
-  raw_ptr<TestViewport, AcrossTasksDanglingUntriaged> viewport_ = nullptr;
+  raw_ptr<MockXdgSurface> xdg_surface_ = nullptr;
+  raw_ptr<TestSubSurface> sub_surface_ = nullptr;
+  raw_ptr<TestViewport> viewport_ = nullptr;
   raw_ptr<TestFractionalScale> fractional_scale_ = nullptr;
-  raw_ptr<TestAlphaBlending, AcrossTasksDanglingUntriaged> blending_ = nullptr;
-  raw_ptr<TestOverlayPrioritizedSurface, AcrossTasksDanglingUntriaged>
-      prioritized_surface_ = nullptr;
+  raw_ptr<TestAlphaBlending> blending_ = nullptr;
+  raw_ptr<TestOverlayPrioritizedSurface> prioritized_surface_ = nullptr;
   raw_ptr<MockLinuxDrmSyncobjSurface> linux_drm_syncobj_surface_ = nullptr;
   gfx::Rect opaque_region_ = {-1, -1, 0, 0};
   gfx::Rect input_region_ = {-1, -1, 0, 0};
 
-  raw_ptr<wl_resource, AcrossTasksDanglingUntriaged> frame_callback_ = nullptr;
+  raw_ptr<wl_resource> frame_callback_ = nullptr;
   bool allow_resetting_frame_callback_ = false;
-  base::flat_map<wl_resource*, raw_ptr<wl_resource, CtnExperimental>>
-      linux_buffer_releases_;
 
   raw_ptr<wl_resource, AcrossTasksDanglingUntriaged> attached_buffer_ = nullptr;
   raw_ptr<wl_resource, AcrossTasksDanglingUntriaged> prev_attached_buffer_ =
       nullptr;
 
   int32_t buffer_scale_ = -1;
+  base::WeakPtrFactory<MockSurface> weak_ptr_factory_{this};
 };
 
 }  // namespace wl

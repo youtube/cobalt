@@ -740,7 +740,7 @@ class GPU_GLES2_EXPORT TextureManager
     kNumDefaultTextures
   };
 
-  TextureManager(MemoryTracker* memory_tracker,
+  TextureManager(scoped_refptr<MemoryTracker> memory_tracker,
                  FeatureInfo* feature_info,
                  GLsizei max_texture_size,
                  GLsizei max_cube_map_texture_size,
@@ -1201,7 +1201,6 @@ class GPU_GLES2_EXPORT TextureManager
 
   MemoryTypeTracker* GetMemTracker();
   std::unique_ptr<MemoryTypeTracker> memory_type_tracker_;
-  raw_ptr<MemoryTracker> memory_tracker_;
 
   scoped_refptr<FeatureInfo> feature_info_;
 
@@ -1235,7 +1234,7 @@ class GPU_GLES2_EXPORT TextureManager
   // Black (0,0,0,1) textures for when non-renderable textures are used.
   // NOTE: There is no corresponding Texture for these textures.
   // TextureInfos are only for textures the client side can access.
-  GLuint black_texture_ids_[kNumDefaultTextures];
+  std::array<GLuint, kNumDefaultTextures> black_texture_ids_;
 
   // The default textures for each target (texture name = 0)
   std::array<scoped_refptr<TextureRef>, kNumDefaultTextures> default_textures_;

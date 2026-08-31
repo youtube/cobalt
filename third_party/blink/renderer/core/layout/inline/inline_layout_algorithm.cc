@@ -11,7 +11,10 @@
 #include "base/metrics/histogram_macros.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/settings.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
+#include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/layout/block_break_token.h"
 #include "third_party/blink/renderer/core/layout/constraint_space.h"
 #include "third_party/blink/renderer/core/layout/disable_layout_side_effects_scope.h"
@@ -46,7 +49,9 @@
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_inline_text.h"
 #include "third_party/blink/renderer/core/layout/unpositioned_float.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
+#include "third_party/blink/renderer/core/style/fit_text.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -232,6 +237,209 @@ void PlaceRelativePositionedItems(const ConstraintSpace& constraint_space,
   }
 }
 
+// Show a console message with ConsoleMessage::Source::kRendering and
+// discard_duplicates==true.
+void AddConsoleMessage(const InlineNode node,
+                       ConsoleMessage::Level level,
+                       const String& message) {
+  node.GetDocument().AddConsoleMessage(
+      MakeGarbageCollected<ConsoleMessage>(ConsoleMessage::Source::kRendering,
+                                           level, message),
+      /* discard_duplicates */ true);
+}
+
+// Returns true if LogicalLineBuilder needs to scale line-height.
+bool ScaleLine(bool is_grow,
+               float scale_factor,
+               bool is_scaled_inline_only,
+               std::optional<float> limit,
+               LineInfo& line_info) {
+  bool should_scale_line_height = false;
+  for (auto& item : *line_info.MutableResults()) {
+    if (item.item->Type() != InlineItem::kText) {
+      continue;
+    }
+    if (!item.fit_text_scale) {
+      item.fit_text_scale = MakeGarbageCollected<FitTextScale>();
+    }
+    if (limit) {
+      if (is_grow) {
+        float max_scale = *limit / item.item->Style()->ComputedFontSize();
+        item.fit_text_scale->scale = std::min(scale_factor, max_scale);
+      } else {
+        float min_scale = *limit / item.item->Style()->ComputedFontSize();
+        item.fit_text_scale->scale = std::max(scale_factor, min_scale);
+      }
+    } else {
+      item.fit_text_scale->scale = scale_factor;
+    }
+    item.fit_text_scale->is_scaled_inline_only = is_scaled_inline_only;
+    if (item.fit_text_scale->scale != 1.0f) {
+      should_scale_line_height = true;
+    }
+  }
+  return !is_scaled_inline_only && should_scale_line_height;
+}
+
+ShapeResult* ShapeForFit(const InlineItemResult& item,
+                         const HarfBuzzShaper& shaper,
+                         const Font& font,
+                         const InlineItemSegments* segments) {
+  ShapeOptions options;  // TODO(crbug.com/417306102): Pass correct options.
+  if (segments) {
+    return segments->ShapeText(&shaper, &font, item.item->Direction(),
+                               item.StartOffset(), item.EndOffset(),
+                               item.item->Index(), options);
+  }
+  RunSegmenter::RunSegmenterRange range = item.item->CreateRunSegmenterRange();
+  range.end = item.item->EndOffset();
+  return shaper.Shape(&font, item.item->Direction(), item.item->StartOffset(),
+                      item.item->EndOffset(), range, options);
+}
+
+// Updates text scaling factor of InlineItemResults in `line_info`.
+// Returns true if LogicalLineBuilder needs to scale line-height.
+//
+// `NOINLINE` prevents the size growth in the fuchsia-binary-size bot.
+NOINLINE bool FitLine(const InlineNode node, LineInfo& line_info) {
+  const double device_pixel_ratio =
+      node.GetDocument().GetFrame()->DevicePixelRatio();
+  LayoutUnit epsilon = LayoutUnit(2.0 * device_pixel_ratio);
+  LayoutUnit original_width = line_info.Width();
+  LayoutUnit container_width = line_info.AvailableWidth();
+  LayoutUnit diff = container_width - original_width;
+  if (diff.Abs() < epsilon) {
+    return false;
+  }
+  const FitText& text_grow = node.Style().TextGrow();
+  const FitText& text_shrink = node.Style().TextShrink();
+  bool apply_text_grow = text_grow.Target() == FitTextTarget::kPerLine;
+  bool apply_text_shrink = text_shrink.Target() == FitTextTarget::kPerLine;
+  if ((diff > LayoutUnit() && !apply_text_grow) ||
+      (diff < LayoutUnit() && !apply_text_shrink)) {
+    return false;
+  }
+  const bool is_grow = diff > LayoutUnit();
+  const FitText& fit_text = is_grow ? text_grow : text_shrink;
+
+  // Measure the static parts and the flexible parts in the items.
+  LayoutUnit static_total_size;
+  LayoutUnit flexible_total_size;
+  const auto& items_data = node.ItemsData(line_info.UseFirstLineStyle());
+  HarfBuzzShaper shaper(items_data.text_content);
+  ShapeResultSpacing<String> spacing(items_data.text_content);
+  // TODO(crbug.com/4173061029): Apply TextAutoSpace as well as letter-spacing
+  // and word-spacing.
+  for (auto& item : *line_info.MutableResults()) {
+    if (item.item->Type() == InlineItem::kText) {
+      if (fit_text.Method() == FitTextMethod::kFontSize &&
+          spacing.SetSpacing(item.item->Style()->GetFontDescription())) {
+        ShapeResult* nospacing_shape =
+            ShapeForFit(item, shaper, *item.item->Style()->GetFont(),
+                        items_data.segments.get());
+        LayoutUnit size = nospacing_shape->SnappedWidth().ClampNegativeToZero();
+        flexible_total_size += size;
+        static_total_size += item.inline_size - size;
+      } else {
+        flexible_total_size += item.inline_size;
+      }
+    } else {
+      static_total_size += item.inline_size;
+    }
+  }
+  if (flexible_total_size <= 0) {
+    return false;
+  }
+
+  float scale_factor =
+      (container_width - static_total_size) / flexible_total_size;
+  auto limit = fit_text.SizeLimit();
+  if (!is_grow) {
+    if (const auto* settings = node.GetDocument().GetSettings()) {
+      if (int min_size = settings->GetMinimumFontSize(); min_size > 0) {
+        float physical_min = min_size * device_pixel_ratio;
+        limit = limit ? std::max(*limit, physical_min) : physical_min;
+      }
+    }
+  }
+
+  switch (fit_text.Method()) {
+    case FitTextMethod::kScale:
+      return ScaleLine(is_grow, scale_factor,
+                       /* is_scaled_inline_only */ false, limit, line_info);
+
+    case FitTextMethod::kScaleInline:
+      return ScaleLine(is_grow, scale_factor,
+                       /* is_scaled_inline_only */ true, limit, line_info);
+
+    case FitTextMethod::kFontSize: {
+      flexible_total_size = LayoutUnit();
+      bool restricted = false;
+      for (auto& item : *line_info.MutableResults()) {
+        if (item.item->Type() != InlineItem::kText) {
+          continue;
+        }
+        float item_scale = scale_factor;
+        if (limit) {
+          if (is_grow) {
+            float max_scale = *limit / item.item->Style()->ComputedFontSize();
+            item_scale = std::min(scale_factor, max_scale);
+          } else {
+            float min_scale = *limit / item.item->Style()->ComputedFontSize();
+            item_scale = std::max(scale_factor, min_scale);
+          }
+          if (item_scale != scale_factor) {
+            restricted = true;
+          }
+        }
+        const Font& font = *item.item->Style()->GetFont();
+        FontDescription scaled_desc(font.GetFontDescription());
+        scaled_desc.SetComputedSize(font.GetFontDescription().ComputedSize() *
+                                    item_scale);
+        Font* scaled_font =
+            MakeGarbageCollected<Font>(scaled_desc, font.GetFontSelector());
+        ShapeResult* shape_result =
+            ShapeForFit(item, shaper, *scaled_font, items_data.segments.get());
+        LayoutUnit size_without_spacing =
+            shape_result->SnappedWidth().ClampNegativeToZero();
+        if (spacing.SetSpacing(scaled_desc)) {
+          shape_result->ApplySpacing(spacing);
+          item.inline_size = shape_result->SnappedWidth().ClampNegativeToZero();
+        } else {
+          item.inline_size = size_without_spacing;
+        }
+        item.shape_result = ShapeResultView::Create(shape_result);
+        if (!item.fit_text_scale) {
+          item.fit_text_scale = MakeGarbageCollected<FitTextScale>();
+        }
+        item.fit_text_scale->font = scaled_font;
+        item.fit_text_scale->scale = 1.0f;
+        item.fit_text_scale->is_scaled_inline_only = false;
+        flexible_total_size += size_without_spacing;
+      }
+      // Final adjustment by paint-time scaling. We skip it if font-size
+      // scaling for an item was restricted by specifying a minimum or maximum
+      // value.
+      if (!restricted &&
+          (container_width - line_info.ComputeWidth()).Abs() >= epsilon) {
+        scale_factor =
+            (container_width - static_total_size) / flexible_total_size;
+        ScaleLine(is_grow, scale_factor, /* is_scaled_inline_only */ false,
+                  limit, line_info);
+      }
+      return true;
+    }
+
+    case FitTextMethod::kLetterSpacing:
+      AddConsoleMessage(
+          node, ConsoleMessage::Level::kInfo,
+          StrCat({"`text-", is_grow ? StringView("grow") : StringView("shrink"),
+                  ": ... letter-spacing` is not implemented yet."}));
+      break;
+  }
+  return false;
+}
+
 }  // namespace
 
 InlineLayoutAlgorithm::InlineLayoutAlgorithm(
@@ -262,6 +470,7 @@ InlineLayoutAlgorithm::~InlineLayoutAlgorithm() = default;
 // Prepare InlineLayoutStateStack for a new line.
 void InlineLayoutAlgorithm::PrepareBoxStates(
     const LineInfo& line_info,
+    bool should_scale_line_height,
     const InlineBreakToken* break_token) {
 #if EXPENSIVE_DCHECKS_ARE_ON()
   is_box_states_from_context_ = false;
@@ -277,7 +486,7 @@ void InlineLayoutAlgorithm::PrepareBoxStates(
   // If the previous line was ::first-line, always rebuild because box states
   // have ::first-line styles.
   const InlineItems& items = line_info.ItemsData().items;
-  if (!break_token->UseFirstLineStyle()) {
+  if (!break_token->UseFirstLineStyle() && !apply_fit_text_) {
     box_states_ = context_->BoxStatesIfValidForItemIndex(
         items, break_token->StartItemIndex());
     if (box_states_) {
@@ -291,7 +500,7 @@ void InlineLayoutAlgorithm::PrepareBoxStates(
   // If not, rebuild the box states for the break token.
   box_states_ = context_->ResetBoxStates();
   LogicalLineBuilder(Node(), GetConstraintSpace(), nullptr, box_states_,
-                     context_)
+                     context_, should_scale_line_height)
       .RebuildBoxStates(line_info, 0u, break_token->StartItemIndex());
 }
 
@@ -306,16 +515,20 @@ static LayoutUnit AdjustLineOffsetForHanging(LineInfo* line_info) {
 }
 
 #if EXPENSIVE_DCHECKS_ARE_ON()
-void InlineLayoutAlgorithm::CheckBoxStates(const LineInfo& line_info) const {
+void InlineLayoutAlgorithm::CheckBoxStates(
+    const LineInfo& line_info,
+    bool should_scale_line_height) const {
   if (!is_box_states_from_context_) {
     return;
   }
   InlineLayoutStateStack rebuilt;
-  LogicalLineBuilder(Node(), GetConstraintSpace(), nullptr, &rebuilt, context_)
+  LogicalLineBuilder(Node(), GetConstraintSpace(), nullptr, &rebuilt, context_,
+                     should_scale_line_height)
       .RebuildBoxStates(line_info, 0u, GetBreakToken()->StartItemIndex());
   LogicalLineItems& line_box = context_->AcquireTempLogicalLineItems();
-  rebuilt.OnBeginPlaceItems(Node(), line_info.LineStyle(), baseline_type_,
-                            quirks_mode_, &line_box);
+  rebuilt.OnBeginPlaceItems(Node(), line_info.LineStyle(), line_info.Results(),
+                            baseline_type_, quirks_mode_,
+                            should_scale_line_height, &line_box);
   DCHECK(box_states_);
   box_states_->CheckSame(rebuilt);
   context_->ReleaseTempLogicalLineItems(line_box);
@@ -346,6 +559,7 @@ InlineLayoutAlgorithm::GetLineClampState(const LineInfo* line_info,
 
 void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
                                        LineInfo* line_info,
+                                       bool should_scale_line_height,
                                        LogicalLineContainer* line_container) {
   LogicalLineItems* line_box = &line_container->BaseLine();
   // Apply justification before placing items, because it affects size/position
@@ -356,7 +570,8 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
   line_container->Shrink();
 
   LogicalLineBuilder line_builder(Node(), GetConstraintSpace(), GetBreakToken(),
-                                  box_states_, context_);
+                                  box_states_, context_,
+                                  should_scale_line_height);
   line_builder.CreateLine(line_info, line_box, this);
 
   const LayoutUnit hang_width = line_info->HangWidth();
@@ -374,9 +589,10 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
   // metrics, so that is has a height.
   if (line_info->HasLineEvenIfEmpty() || !box_states_->RubyColumnList().empty())
       [[unlikely]] {
+    // No scaling because of no text.
     box_states_->LineBoxState().EnsureTextMetrics(
         line_info->LineStyle(), *box_states_->LineBoxState().font,
-        baseline_type_);
+        baseline_type_, FitTextBlockScale::kFixed);
   } else if (line_builder.InitialLetterItemResult() &&
              box_states_->LineBoxState().metrics.IsEmpty()) [[unlikely]] {
     box_states_->LineBoxState().metrics = FontHeight();
@@ -541,9 +757,8 @@ void InlineLayoutAlgorithm::CreateLine(const LineLayoutOpportunity& opportunity,
       space.ShouldTextBoxTrimFragmentainerEnd() ||
       space.ShouldTextBoxTrimInsideWhenLineClamp()) [[unlikely]] {
     LineClampData line_clamp_data = space.GetLineClampData();
-    bool is_truncated =
-        line_clamp_data.IsAtClampPoint() ||
-        line_clamp_data.state == LineClampData::kMeasureLinesUntilBfcOffset;
+    bool is_truncated = line_clamp_data.IsAtClampPoint() ||
+                        line_clamp_data.IsMeasureUntilBfcOffset();
     ApplyTextBoxTrim(*line_info, is_truncated);
   }
 
@@ -1003,24 +1218,30 @@ bool InlineLayoutAlgorithm::AddAnyClearanceAfterLine(
   return true;
 }
 
-LayoutUnit InlineLayoutAlgorithm::SetupLineClampEllipsis() {
+// static
+InlineLayoutAlgorithm::LineClampEllipsis
+InlineLayoutAlgorithm::ShapeLineClampEllipsis(const InlineNode& node) {
   DCHECK(RuntimeEnabledFeatures::CSSLineClampLineBreakingEllipsisEnabled());
-  const Font* font = node_.Style().GetFont();
+  const Font* font = node.Style().GetFont();
   const SimpleFontData* font_data = font->PrimaryFont();
   DCHECK(font_data);
   String ellipsis_text =
-      font_data && font_data->GlyphForCharacter(kHorizontalEllipsisCharacter)
-          ? String(base::span_from_ref(kHorizontalEllipsisCharacter))
+      font_data && font_data->GlyphForCharacter(uchar::kHorizontalEllipsis)
+          ? String(base::span_from_ref(uchar::kHorizontalEllipsis))
           : String(u"...");
   HarfBuzzShaper shaper(ellipsis_text);
-  const ShapeResult* shape_result = shaper.Shape(font, Node().BaseDirection());
+  const ShapeResult* shape_result = shaper.Shape(font, node.BaseDirection());
   DCHECK(shape_result);
 
-  FontHeight text_metrics = font_data->GetFontMetrics().GetFontHeight(
-      Node().Style().GetFontBaseline());
+  FontHeight text_metrics =
+      font_data->GetFontMetrics().GetFontHeight(node.Style().GetFontBaseline());
 
-  line_clamp_ellipsis_.emplace(ellipsis_text, shape_result, text_metrics);
-  return shape_result->SnappedWidth();
+  return LineClampEllipsis(ellipsis_text, shape_result, text_metrics);
+}
+
+LayoutUnit InlineLayoutAlgorithm::SetupLineClampEllipsis() {
+  line_clamp_ellipsis_.emplace(ShapeLineClampEllipsis(Node()));
+  return line_clamp_ellipsis_->shape_result->SnappedWidth();
 }
 
 const LayoutResult* InlineLayoutAlgorithm::Layout() {
@@ -1102,6 +1323,46 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
 
   if (break_token && break_token->IsInParallelBlockFlow()) {
     container_builder_.SetIsLineForParallelFlow();
+  }
+
+  if (RuntimeEnabledFeatures::CssFitWidthTextEnabled()) {
+    const ComputedStyle& style = Node().Style();
+    bool apply_text_grow = style.TextGrow().Target() != FitTextTarget::kNone;
+    bool apply_text_shrink =
+        style.TextShrink().Target() != FitTextTarget::kNone;
+    if (apply_text_grow || apply_text_shrink) {
+      if (Node().HasFloats() || Node().HasInitialLetterBox() ||
+          Node().HasRuby()) {
+        if (apply_text_grow) {
+          Node().GetDocument().AddConsoleMessage(
+              MakeGarbageCollected<ConsoleMessage>(
+                  ConsoleMessage::Source::kRendering,
+                  ConsoleMessage::Level::kInfo,
+                  "Disable `text-grow` due to `float`, `initial-letter`, or "
+                  "ruby annotations."),
+              /* discard_duplicates */ true);
+          apply_text_grow = false;
+        }
+        if (apply_text_shrink) {
+          AddConsoleMessage(Node(), ConsoleMessage::Level::kInfo,
+                            "Disable `text-shrink` due to `float`, "
+                            "`initial-letter`, or ruby annotations.");
+          apply_text_shrink = false;
+        }
+      }
+
+      if (style.TextGrow().Target() == FitTextTarget::kConsistent) {
+        AddConsoleMessage(Node(), ConsoleMessage::Level::kInfo,
+                          "`text-grow: consistent` is not implemented yet.");
+        apply_text_grow = false;
+      }
+      if (style.TextShrink().Target() == FitTextTarget::kConsistent) {
+        AddConsoleMessage(Node(), ConsoleMessage::Level::kInfo,
+                          "`text-shrink: consistent` is not implemented yet.");
+        apply_text_shrink = false;
+      }
+    }
+    apply_fit_text_ = apply_text_grow || apply_text_shrink;
   }
 
   FragmentItemsBuilder* const items_builder = context_->ItemsBuilder();
@@ -1292,9 +1553,13 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
       // to overflow in that case.
     }
 
-    PrepareBoxStates(line_info, break_token);
+    bool should_scale_line_height =
+        apply_fit_text_ && FitLine(Node(), line_info);
 
-    CreateLine(line_opportunity, &line_info, line_container);
+    PrepareBoxStates(line_info, should_scale_line_height, break_token);
+
+    CreateLine(line_opportunity, &line_info, should_scale_line_height,
+               line_container);
     is_line_created = true;
     is_end_paragraph = line_info.IsEndParagraph();
 
@@ -1420,12 +1685,11 @@ const LayoutResult* InlineLayoutAlgorithm::Layout() {
         end_margin_strut_ = MarginStrut();
 
         if (lines_until_clamp_) {
-          if (constraint_space.GetLineClampData().state ==
-              LineClampData::kClampByLines) {
+          if (constraint_space.GetLineClampData().IsClampByLines()) {
             *lines_until_clamp_ = *lines_until_clamp_ - 1;
           } else {
-            DCHECK_EQ(constraint_space.GetLineClampData().state,
-                      LineClampData::kMeasureLinesUntilBfcOffset);
+            DCHECK(
+                constraint_space.GetLineClampData().IsMeasureUntilBfcOffset());
             *lines_until_clamp_ = *lines_until_clamp_ + 1;
           }
         }
@@ -1528,11 +1792,10 @@ InlineLayoutAlgorithm::DoesRemainderFitInLineWithoutEllipsis(
     if (item.IsForcedLineBreak() || item.Type() == InlineItem::kBlockInInline) {
       return false;
     } else if (item.Type() == InlineItem::kText ||
-               item.Type() == InlineItem::kControl ||
-               item.Type() == InlineItem::kBidiControl) {
+               item.Type() == InlineItem::kControl) {
       if (breakpoint_status != kHasBreakpoints &&
           item.Type() == InlineItem::kControl &&
-          text[item.StartOffset()] == kZeroWidthSpaceCharacter) {
+          text[item.StartOffset()] == uchar::kZeroWidthSpace) {
         breakpoint_status = kHasBreakpoints;
       }
       if (current.text_offset == item.EndOffset()) {
@@ -1586,8 +1849,10 @@ InlineLayoutAlgorithm::DoesRemainderFitInLineWithoutEllipsis(
       if (bmp_width) {
         can_hang_or_collapse = LayoutUnit();
       }
-    } else if (item.Type() == InlineItem::kOutOfFlowPositioned) {
-      // Doesn't affect the line layout.
+    } else if (item.Type() == InlineItem::kBidiControl ||
+               item.Type() == InlineItem::kOutOfFlowPositioned) {
+      // These items don't add line width or affect whitespace
+      // hanging/collapsing.
     } else {
       DCHECK(item.Type() == InlineItem::kAtomicInline ||
              item.Type() == InlineItem::kFloating ||

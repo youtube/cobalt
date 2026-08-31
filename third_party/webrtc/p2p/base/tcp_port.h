@@ -174,7 +174,7 @@ class TCPConnection : public Connection, public sigslot::has_slots<> {
   void OnDestroyed(Connection* c);
 
   TCPPort* tcp_port() {
-    RTC_DCHECK_EQ(port()->GetProtocol(), webrtc::PROTO_TCP);
+    RTC_DCHECK_EQ(port()->GetProtocol(), PROTO_TCP);
     return static_cast<TCPPort*>(port());
   }
 
@@ -201,13 +201,5 @@ class TCPConnection : public Connection, public sigslot::has_slots<> {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::TCPConnection;
-using ::webrtc::TCPPort;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_TCP_PORT_H_

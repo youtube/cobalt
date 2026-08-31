@@ -63,7 +63,7 @@ class HTMLCanvasElementModuleTest : public ::testing::Test,
  protected:
   void SetUp() override {
     web_view_helper_.Initialize();
-    GetDocument().documentElement()->setInnerHTML(
+    GetDocument().documentElement()->SetInnerHTMLWithoutTrustedTypes(
         String::FromUTF8("<body><canvas id='c'></canvas></body>"));
     canvas_element_ =
         To<HTMLCanvasElement>(GetDocument().getElementById(AtomicString("c")));
@@ -171,9 +171,10 @@ TEST_P(HTMLCanvasElementModuleTest, LowLatencyCanvasCompositorFrameOpacity) {
       ->set_supports_gpu_memory_buffer_format(buffer_format, true);
   InitializeSharedGpuContextGLES2(context_provider.get());
 
-  // To intercept SubmitCompositorFrame/SubmitCompositorFrameSync messages sent
-  // by a canvas's CanvasResourceDispatcher, we have to override the Mojo
-  // EmbeddedFrameSinkProvider interface impl and its CompositorFrameSinkClient.
+  // To intercept SubmitCompositorFrame messages sent by a canvas's
+  // CanvasResourceDispatcher, we have to override the Mojo
+  // EmbeddedFrameSinkProvider interface impl and its
+  // CompositorFrameSinkClient.
   MockEmbeddedFrameSinkProvider mock_embedded_frame_sink_provider;
   mojo::Receiver<mojom::blink::EmbeddedFrameSinkProvider>
       embedded_frame_sink_provider_receiver(&mock_embedded_frame_sink_provider);
@@ -212,7 +213,7 @@ TEST_P(HTMLCanvasElementModuleTest, LowLatencyCanvasCompositorFrameOpacity) {
             EXPECT_NE(shared_quad_state_list.front()->are_contents_opaque,
                       context_alpha);
           })));
-  canvas_element().PreFinalizeFrame();
+  context_->PreFinalizeFrame();
   context_->FinalizeFrame(FlushReason::kTesting);
   canvas_element().PostFinalizeFrame(FlushReason::kTesting);
   platform->RunUntilIdle();

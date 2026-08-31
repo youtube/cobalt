@@ -18,21 +18,16 @@ use std::pin::Pin;
 #[cxx::bridge(namespace = "webrtc")]
 mod ffi {
     #[repr(u8)]
-    enum Base64DecodeOptions {
-        kStrict,
-        kForgiving,
-    }
-
-    extern "C++" {
-        include!("rtc_base/base64.h");
-        type Base64DecodeOptions;
+    enum Base64DecodeSetting {
+        Strict,
+        Forgiving,
     }
 
     extern "Rust" {
         fn rs_base64_encode(data: &[u8]) -> String;
         fn rs_base64_decode(
             data: &[u8],
-            options: Base64DecodeOptions,
+            options: Base64DecodeSetting,
             output: Pin<&mut CxxString>,
         ) -> bool;
     }
@@ -50,12 +45,12 @@ const FORGIVING_ENGINE: general_purpose::GeneralPurpose = general_purpose::Gener
 
 fn rs_base64_decode(
     data: &[u8],
-    options: ffi::Base64DecodeOptions,
+    options: ffi::Base64DecodeSetting,
     output: Pin<&mut CxxString>,
 ) -> bool {
     let result = match options {
-        ffi::Base64DecodeOptions::kStrict => general_purpose::STANDARD.decode(data),
-        ffi::Base64DecodeOptions::kForgiving => {
+        ffi::Base64DecodeSetting::Strict => general_purpose::STANDARD.decode(data),
+        ffi::Base64DecodeSetting::Forgiving => {
             let data_without_whitespace: Vec<u8> =
                 data.iter().filter(|&c| !c.is_ascii_whitespace()).copied().collect();
             FORGIVING_ENGINE.decode(data_without_whitespace)

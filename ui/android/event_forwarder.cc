@@ -15,10 +15,13 @@
 #include "ui/events/android/gesture_event_android.h"
 #include "ui/events/android/gesture_event_type.h"
 #include "ui/events/android/key_event_android.h"
+#include "ui/events/android/motion_event_android_factory.h"
 #include "ui/events/android/motion_event_android_java.h"
+#include "ui/events/android/motion_event_android_source_java.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "ui/android/ui_android_jni_headers/EventForwarder_jni.h"
+#include "ui/events/motionevent_jni_headers/MotionEvent_jni.h"
 
 namespace ui {
 namespace {
@@ -51,40 +54,24 @@ ScopedJavaLocalRef<jobject> EventForwarder::GetJavaObject() {
 }
 
 jboolean EventForwarder::OnTouchEvent(JNIEnv* env,
-                                      const JavaParamRef<jobject>& obj,
                                       const JavaParamRef<jobject>& motion_event,
                                       jlong oldest_event_time_ns,
                                       jlong latest_event_time_ns,
-                                      jlong down_time_ms,
                                       jint android_action,
-                                      jint pointer_count,
-                                      jint history_size,
-                                      jint action_index,
-                                      jfloat pos_x_0,
-                                      jfloat pos_y_0,
-                                      jfloat pos_x_1,
-                                      jfloat pos_y_1,
-                                      jint pointer_id_0,
-                                      jint pointer_id_1,
                                       jfloat touch_major_0,
                                       jfloat touch_major_1,
                                       jfloat touch_minor_0,
                                       jfloat touch_minor_1,
-                                      jfloat pressure_0,
-                                      jfloat pressure_1,
-                                      jfloat orientation_0,
-                                      jfloat orientation_1,
-                                      jfloat tilt_0,
-                                      jfloat tilt_1,
-                                      jfloat raw_pos_x,
-                                      jfloat raw_pos_y,
-                                      jint android_tool_type_0,
-                                      jint android_tool_type_1,
                                       jint android_gesture_classification,
-                                      jint android_button_state,
-                                      jint android_meta_state,
                                       jboolean for_touch_handle,
                                       jboolean is_latest_event_resampled) {
+  std::unique_ptr<MotionEventAndroidSource> source =
+      MotionEventAndroidSourceJava::Create(motion_event,
+                                           is_latest_event_resampled);
+  jint pointer_count =
+      JNI_MotionEvent::Java_MotionEvent_getPointerCount(env, motion_event);
+  jint history_size =
+      JNI_MotionEvent::Java_MotionEvent_getHistorySize(env, motion_event);
   TRACE_EVENT(
       "input", "EventForwarder::OnTouchEvent", [&](perfetto::EventContext ctx) {
         auto* event = ctx.event<perfetto::protos::pbzero::ChromeTrackEvent>();
@@ -97,6 +84,8 @@ jboolean EventForwarder::OnTouchEvent(JNIEnv* env,
         if (oldest_event_time_ns != latest_event_time_ns) {
           forwarder->set_oldest_time_ns(oldest_event_time_ns);
         }
+        jfloat pos_x_0 = source->GetXPix(0);
+        jfloat pos_y_0 = source->GetYPix(0);
         forwarder->set_x_pixel(pos_x_0);
         forwarder->set_y_pixel(pos_y_0);
         // Only record if there was movement for Action::Move (we'll update the
@@ -108,6 +97,8 @@ jboolean EventForwarder::OnTouchEvent(JNIEnv* env,
           forwarder->set_has_y_movement(
               !base::IsApproximatelyEqual(pos_y_0, last_y_pos_, kEpsilon));
         }
+        jlong down_time_ms =
+            JNI_MotionEvent::Java_MotionEvent_getDownTime(env, motion_event);
         forwarder->set_down_time_ns(down_time_ms *
                                     base::Time::kNanosecondsPerMillisecond);
         forwarder->set_action(
@@ -115,37 +106,52 @@ jboolean EventForwarder::OnTouchEvent(JNIEnv* env,
                 perfetto::protos::pbzero::EventForwarder::AMotionEventAction>(
                 android_action));
       });
+  jfloat pos_x_0 = source->GetXPix(0);
+  jfloat pos_y_0 = source->GetYPix(0);
   last_x_pos_ = pos_x_0;
   last_y_pos_ = pos_y_0;
 
   MotionEventAndroid::Pointer pointer0(
-      /*id=*/pointer_id_0, /*pos_x_pixels=*/pos_x_0, /*pos_y_pixels=*/pos_y_0,
+      source->GetPointerId(0),
+      /*pos_x_pixels=*/pos_x_0,
+      /*pos_y_pixels=*/pos_y_0,
       /*touch_major_pixels=*/touch_major_0,
-      /*touch_minor_pixels=*/touch_minor_0, /*pressure=*/pressure_0,
-      /*orientation_rad=*/orientation_0, /*tilt_rad=*/tilt_0,
-      /*tool_type=*/android_tool_type_0);
+      /*touch_minor_pixels=*/touch_minor_0, source->GetPressure(0),
+      source->GetRawOrientation(0), source->GetRawTilt(0),
+      MotionEventAndroid::GetAndroidToolType(source->GetToolType(0)));
   std::unique_ptr<MotionEventAndroid::Pointer> pointer1;
   if (pointer_count > 1) {
     pointer1 = std::make_unique<MotionEventAndroid::Pointer>(
-        /*id=*/pointer_id_1, /*pos_x_pixels=*/pos_x_1, /*pos_y_pixels=*/pos_y_1,
+        source->GetPointerId(1),
+        /*pos_x_pixels=*/source->GetXPix(1),
+        /*pos_y_pixels=*/source->GetYPix(1),
         /*touch_major_pixels=*/touch_major_1,
-        /*touch_minor_pixels=*/touch_minor_1,
-        /*pressure=*/pressure_1, /*orientation_rad=*/orientation_1,
-        /*tilt_rad=*/tilt_1, /*tool_type=*/android_tool_type_1);
+        /*touch_minor_pixels=*/touch_minor_1, source->GetPressure(1),
+        source->GetRawOrientation(1), source->GetRawTilt(1),
+        MotionEventAndroid::GetAndroidToolType(source->GetToolType(1)));
   }
   // Java |MotionEvent.getDownTime| returns the value in milliseconds, use
   // base::TimeTicks::FromUptimeMillis to get base::TimeTicks for this
   // milliseconds timestamp.
-  base::TimeTicks down_time = base::TimeTicks::FromUptimeMillis(down_time_ms);
-  ui::MotionEventAndroidJava event(
-      env, motion_event.obj(), 1.f / view_->GetDipScale(), 0.f, 0.f, 0.f,
+  base::TimeTicks down_time = base::TimeTicks::FromUptimeMillis(
+      JNI_MotionEvent::Java_MotionEvent_getDownTime(env, motion_event));
+  auto event = ui::MotionEventAndroidFactory::CreateFromJava(
+      env, /*event=*/motion_event,
+      /*pix_to_dip=*/1.f / view_->GetDipScale(),
+      /*ticks_x=*/0.f,
+      /*ticks_y=*/0.f,
+      /*tick_multiplier=*/0.f,
       base::TimeTicks::FromJavaNanoTime(oldest_event_time_ns),
       base::TimeTicks::FromJavaNanoTime(latest_event_time_ns), down_time,
-      android_action, pointer_count, history_size, action_index,
-      0 /* action_button */, android_gesture_classification,
-      android_button_state, android_meta_state, 0 /* source */,
-      raw_pos_x - pos_x_0, raw_pos_y - pos_y_0, for_touch_handle, &pointer0,
-      pointer1.get(), is_latest_event_resampled);
+      android_action, pointer_count, history_size,
+      JNI_MotionEvent::Java_MotionEvent_getActionIndex(env, motion_event),
+      /*android_action_button=*/0, android_gesture_classification,
+      JNI_MotionEvent::Java_MotionEvent_getButtonState(env, motion_event),
+      /*raw_offset_x_pixels=*/
+      JNI_MotionEvent::Java_MotionEvent_getRawX(env, motion_event) - pos_x_0,
+      /*raw_offset_y_pixels=*/
+      JNI_MotionEvent::Java_MotionEvent_getRawY(env, motion_event) - pos_y_0,
+      for_touch_handle, &pointer0, pointer1.get(), is_latest_event_resampled);
 
   if (send_touch_moves_to_observers ||
       android_action !=
@@ -156,50 +162,58 @@ jboolean EventForwarder::OnTouchEvent(JNIEnv* env,
     // cleanup the observer API.
     // TODO(b/328601354): Confirm touch moves are not required, and if they are
     // not required cleanup the observer API.
-    observers_.Notify(&Observer::OnTouchEvent, event);
+    observers_.Notify(&Observer::OnTouchEvent, *event);
   }
 
-  return view_->OnTouchEvent(event);
+  return view_->OnTouchEvent(*event);
 }
 
-void EventForwarder::OnMouseEvent(JNIEnv* env,
-                                  const JavaParamRef<jobject>& obj,
-                                  jlong time_ns,
-                                  jint android_action,
-                                  jfloat x,
-                                  jfloat y,
-                                  jint pointer_id,
-                                  jfloat pressure,
-                                  jfloat orientation,
-                                  jfloat tilt,
-                                  jint android_action_button,
-                                  jint android_button_state,
-                                  jint android_meta_state,
-                                  jint android_tool_type) {
+void EventForwarder::OnMouseEvent(
+    JNIEnv* env,
+    const base::android::JavaParamRef<jobject>& motion_event,
+    jlong time_ns,
+    jint android_action,
+    jint android_action_button,
+    jint android_tool_type) {
+  std::unique_ptr<MotionEventAndroidSource> source =
+      MotionEventAndroidSourceJava::Create(
+          motion_event, /*is_latest_event_time_resampled=*/false);
   // Construct a motion_event object minimally, only to convert the raw
   // parameters to ui::MotionEvent values. Since we used only the cached values
   // at index=0, it is okay to even pass a null event to the constructor.
   ui::MotionEventAndroid::Pointer pointer(
-      /*id=*/pointer_id, /*pos_x_pixels=*/x, /*pos_y_pixels=*/y,
+      source->GetPointerId(0),
+      /*pos_x_pixels=*/source->GetXPix(0),
+      /*pos_y_pixels=*/source->GetYPix(0),
       /*touch_major_pixels=*/0.0f, /*touch_minor_pixels=*/0.0f,
-      /*pressure=*/pressure, /*orientation_rad=*/orientation, /*tilt_rad=*/tilt,
+      source->GetPressure(0), source->GetRawOrientation(0),
+      source->GetRawTilt(0),
       /*tool_type=*/android_tool_type);
-  ui::MotionEventAndroidJava event(
-      env, nullptr /* event */, 1.f / view_->GetDipScale(), 0.f, 0.f, 0.f,
-      base::TimeTicks::FromJavaNanoTime(time_ns), android_action,
-      1 /* pointer_count */, 0 /* history_size */, 0 /* action_index */,
-      android_action_button, 0 /* gesture_classification */,
-      android_button_state, android_meta_state, 0 /* source */,
-      0 /* raw_offset_x_pixels */, 0 /* raw_offset_y_pixels */,
-      false /* for_touch_handle */, &pointer, nullptr);
+  auto event = ui::MotionEventAndroidFactory::CreateFromJava(
+      env, /*event=*/motion_event,
+      /*pix_to_dip=*/1.f / view_->GetDipScale(),
+      /*ticks_x=*/0.f,
+      /*ticks_y=*/0.f,
+      /*tick_multiplier=*/0.f,
+      /*oldest_event_time=*/base::TimeTicks::FromJavaNanoTime(time_ns),
+      android_action,
+      /*pointer_count=*/1,
+      /*history_size=*/0,
+      /*action_index=*/0, android_action_button,
+      /*android_gesture_classification=*/0,
+      JNI_MotionEvent::Java_MotionEvent_getButtonState(env, motion_event),
+      /*raw_offset_x_pixels=*/0,
+      /*raw_offset_y_pixels=*/0,
+      /*for_touch_handle=*/false,
+      /*pointer0=*/&pointer,
+      /*pointer1=*/nullptr);
 
-  observers_.Notify(&Observer::OnMouseEvent, event);
+  observers_.Notify(&Observer::OnMouseEvent, *event);
 
-  view_->OnMouseEvent(event);
+  view_->OnMouseEvent(*event);
 }
 
 void EventForwarder::OnDragEvent(JNIEnv* env,
-                                 const JavaParamRef<jobject>& jobj,
                                  jint action,
                                  jfloat x,
                                  jfloat y,
@@ -218,13 +232,11 @@ void EventForwarder::OnDragEvent(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, j_mimeTypes, &mime_types);
 
   DragEventAndroid event(env, action, location, root_location, mime_types,
-                         j_content.obj(), j_filenames.obj(), j_text.obj(),
-                         j_html.obj(), j_url.obj());
+                         j_content, j_filenames, j_text, j_html, j_url);
   view_->OnDragEvent(event);
 }
 
 jboolean EventForwarder::OnGestureEvent(JNIEnv* env,
-                                        const JavaParamRef<jobject>& jobj,
                                         jint type,
                                         jlong time_ms,
                                         jfloat scale) {
@@ -242,7 +254,6 @@ jboolean EventForwarder::OnGestureEvent(JNIEnv* env,
 
 jboolean EventForwarder::OnGenericMotionEvent(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     const JavaParamRef<jobject>& motion_event,
     jlong event_time_ns,
     jlong down_time_ms) {
@@ -257,47 +268,58 @@ jboolean EventForwarder::OnGenericMotionEvent(
   // base::TimeTicks::FromUptimeMillis to get base::TimeTicks for this
   // milliseconds timestamp.
   base::TimeTicks down_time = base::TimeTicks::FromUptimeMillis(down_time_ms);
-  ui::MotionEventAndroidJava event(
-      env, motion_event.obj(), 1.f / view_->GetDipScale(), 0.f, 0.f, 0.f,
-      base::TimeTicks::FromJavaNanoTime(event_time_ns),
-      base::TimeTicks::FromJavaNanoTime(event_time_ns), down_time, 0, 1, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, false, &pointer0, nullptr, false);
+  auto event = ui::MotionEventAndroidFactory::CreateFromJava(
+      env, /*event=*/motion_event,
+      /*pix_to_dip=*/1.f / view_->GetDipScale(),
+      /*ticks_x=*/0.f,
+      /*ticks_y=*/0.f,
+      /*tick_multiplier=*/0.f,
+      /*oldest_event_time=*/base::TimeTicks::FromJavaNanoTime(event_time_ns),
+      /*latest_event_time=*/base::TimeTicks::FromJavaNanoTime(event_time_ns),
+      down_time,
+      /*android_action=*/0,
+      /*pointer_count=*/1,
+      /*history_size=*/0,
+      /*action_index=*/0,
+      /*android_action_button=*/0,
+      /*android_gesture_classification=*/0,
+      /*android_button_state=*/0,
+      /*raw_offset_x_pixels=*/0,
+      /*raw_offset_y_pixels=*/0,
+      /*for_touch_handle=*/false,
+      /*pointer0=*/&pointer0,
+      /*pointer1=*/nullptr,
+      /*is_latest_event_time_resampled=*/false);
 
-  observers_.Notify(&Observer::OnGenericMotionEvent, event);
+  observers_.Notify(&Observer::OnGenericMotionEvent, *event);
 
-  return view_->OnGenericMotionEvent(event);
+  return view_->OnGenericMotionEvent(*event);
 }
 
 jboolean EventForwarder::OnKeyUp(JNIEnv* env,
-                                 const JavaParamRef<jobject>& obj,
-                                 const JavaParamRef<jobject>& key_event,
-                                 jint key_code) {
-  return view_->OnKeyUp(KeyEventAndroid(env, key_event, key_code));
+                                 const ui::KeyEventAndroid& key_event) {
+  return view_->OnKeyUp(key_event);
 }
 
 jboolean EventForwarder::DispatchKeyEvent(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    const JavaParamRef<jobject>& key_event) {
-  return view_->DispatchKeyEvent(KeyEventAndroid(env, key_event, 0));
+    const ui::KeyEventAndroid& key_event) {
+  return view_->DispatchKeyEvent(key_event);
 }
 
 void EventForwarder::ScrollBy(JNIEnv* env,
-                              const JavaParamRef<jobject>& jobj,
                               jfloat delta_x,
                               jfloat delta_y) {
   view_->ScrollBy(delta_x, delta_y);
 }
 
 void EventForwarder::ScrollTo(JNIEnv* env,
-                              const JavaParamRef<jobject>& jobj,
                               jfloat x,
                               jfloat y) {
   view_->ScrollTo(x, y);
 }
 
 void EventForwarder::DoubleTap(JNIEnv* env,
-                               const JavaParamRef<jobject>& jobj,
                                jlong time_ms,
                                jint x,
                                jint y) {
@@ -309,13 +331,12 @@ void EventForwarder::DoubleTap(JNIEnv* env,
 }
 
 void EventForwarder::StartFling(JNIEnv* env,
-                                const JavaParamRef<jobject>& jobj,
                                 jlong time_ms,
                                 jfloat velocity_x,
                                 jfloat velocity_y,
                                 jboolean synthetic_scroll,
                                 jboolean prevent_boosting) {
-  CancelFling(env, jobj, time_ms, prevent_boosting);
+  CancelFling(env, time_ms, prevent_boosting);
 
   if (velocity_x == 0 && velocity_y == 0)
     return;
@@ -334,7 +355,6 @@ void EventForwarder::StartFling(JNIEnv* env,
 }
 
 void EventForwarder::CancelFling(JNIEnv* env,
-                                 const JavaParamRef<jobject>& jobj,
                                  jlong time_ms,
                                  jboolean prevent_boosting) {
   view_->OnGestureEvent(GestureEventAndroid(

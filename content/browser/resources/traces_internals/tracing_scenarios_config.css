@@ -6,25 +6,22 @@
  * #type=style-lit
  * #import=//resources/cr_elements/cr_shared_vars.css.js
  * #import=//resources/cr_elements/cr_spinner_style_lit.css.js
+ * #import=./config_toggle.css.js
  * #scheme=relative
- * #include=cr-spinner-style-lit
+ * #include=cr-spinner-style-lit config-toggle
  * #css_wrapper_metadata_end */
 
 :host {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   color: var(--cr-primary-text-color);
   padding: 8px 12px;
+  overflow-y: auto;
 }
 
 :host h3 {
   color: var(--cr-secondary-text-color);
-}
-
-.label {
-  font-size: 1.2em;
-}
-
-.config-row {
-  padding: 4px 0;
 }
 
 .action-panel {
@@ -33,12 +30,10 @@
   gap: 16px;
 }
 
-.config-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
-  grid-column-gap: 20px;
-  grid-row-gap: 15px;
-  margin-bottom: 20px;
+.scenario-list-container {
+  flex-direction: column;
+  display: flex;
+  margin: 0 8px;
 }
 
 .loading-spinner {
@@ -50,30 +45,6 @@
 
 .spinner {
   --cr-spinner-size: 20px;
-}
-
-.config-toggle-container {
-  align-items: center;
-  font-size: 1.2em;
-  border-radius: 4px;
-  box-sizing: border-box;
-  display: flex;
-}
-
-.config-toggle-description {
-  padding-inline-end: 12px;
-}
-
-.config-toggle-description em {
-  display: block;
-}
-
-.config-toggle {
-  flex: none;
-}
-
-.config-toggle:not(:defined) {
-  width: 34px;
 }
 
 <if expr="is_win">

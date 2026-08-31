@@ -55,6 +55,7 @@
 #include "chrome/browser/ash/extensions/media_player_api.h"
 #include "chrome/browser/ash/file_manager/volume_manager_factory.h"
 #include "chrome/browser/ash/file_system_provider/service_factory.h"
+#include "chrome/browser/ash/file_system_provider/service_worker_lifetime_manager.h"
 #include "chrome/browser/ash/fileapi/file_change_service_factory.h"
 #include "chrome/browser/ash/fileapi/recent_model_factory.h"
 #include "chrome/browser/ash/floating_workspace/floating_workspace_service_factory.h"
@@ -79,6 +80,7 @@
 #include "chrome/browser/ash/login/signin/oauth2_login_manager_factory.h"
 #include "chrome/browser/ash/login/signin/offline_signin_limiter_factory.h"
 #include "chrome/browser/ash/login/signin/signin_error_notifier_factory.h"
+#include "chrome/browser/ash/login/signin/token_handle_service_factory.h"
 #include "chrome/browser/ash/login/signin_partition_manager.h"
 #include "chrome/browser/ash/login/smart_lock/smart_lock_service_factory.h"
 #include "chrome/browser/ash/multidevice_setup/auth_token_validator_factory.h"
@@ -187,6 +189,7 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
   file_manager::EventRouterFactory::GetInstance();
   file_manager::VolumeManagerFactory::GetInstance();
   file_system_provider::ServiceFactory::GetInstance();
+  file_system_provider::ServiceWorkerLifetimeManagerFactory::GetInstance();
   FileChangeServiceFactory::GetInstance();
   FloatingWorkspaceServiceFactory::GetInstance();
   full_restore::FullRestoreServiceFactory::GetInstance();
@@ -258,6 +261,7 @@ void EnsureBrowserContextKeyedServiceFactoriesBuilt() {
   tether::TetherServiceFactory::GetInstance();
   LegacyTokenHandleFetcher::EnsureFactoryBuilt();
   TtsEngineExtensionObserverChromeOSFactory::GetInstance();
+  TokenHandleServiceFactory::GetInstance();
 }
 
 }  // namespace ash

@@ -8,6 +8,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/inspector/protocol/accessibility.h"
+#include "third_party/blink/renderer/modules/accessibility/ax_enums.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object-inl.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
@@ -26,49 +27,6 @@ namespace {
 std::unique_ptr<AXProperty> CreateProperty(const String& name,
                                            std::unique_ptr<AXValue> value) {
   return AXProperty::create().setName(name).setValue(std::move(value)).build();
-}
-
-String IgnoredReasonName(AXIgnoredReason reason) {
-  switch (reason) {
-    case kAXActiveFullscreenElement:
-      return "activeFullscreenElement";
-    case kAXActiveModalDialog:
-      return "activeModalDialog";
-    case kAXAriaModalDialog:
-      return "activeAriaModalDialog";
-    case kAXAriaHiddenElement:
-      return "ariaHiddenElement";
-    case kAXAriaHiddenSubtree:
-      return "ariaHiddenSubtree";
-    case kAXEmptyAlt:
-      return "emptyAlt";
-    case kAXEmptyText:
-      return "emptyText";
-    case kAXInertElement:
-      return "inertElement";
-    case kAXInertSubtree:
-      return "inertSubtree";
-    case kAXInertStyle:
-      // TODO(crbug.com/370065759): Should either use "inertStyle" when devtools
-      // can handle that, or just drop kAXInertStyle and use kAXInertElement to
-      // indicate that the computed value of interactivity is 'inert'.
-      return "inertElement";
-    case kAXLabelContainer:
-      return "labelContainer";
-    case kAXLabelFor:
-      return "labelFor";
-    case kAXNotRendered:
-      return "notRendered";
-    case kAXNotVisible:
-      return "notVisible";
-    case kAXPresentational:
-      return "presentationalRole";
-    case kAXProbablyPresentational:
-      return "probablyPresentational";
-    case kAXUninteresting:
-      return "uninteresting";
-  }
-  NOTREACHED();
 }
 
 std::unique_ptr<AXValue> CreateValue(
@@ -797,7 +755,7 @@ void FillSparseAttributes(AXObject& ax_object,
 void FillCoreProperties(AXObject& ax_object, AXNode* node_object) {
   ax::mojom::blink::NameFrom name_from;
   AXObject::AXObjectVector name_objects;
-  ax_object.GetName(name_from, &name_objects);
+  ax_object.GetName(name_from, &name_objects, /*name_sources=*/nullptr);
 
   ax::mojom::blink::DescriptionFrom description_from;
   AXObject::AXObjectVector description_objects;
@@ -892,8 +850,10 @@ std::unique_ptr<AXNode> BuildProtocolAXNodeForIgnoredAXObject(
 
   if (force_name_and_role) {
     // Compute accessible name and sources and attach to protocol node:
+    ax::mojom::blink::NameFrom name_from;
     AXObject::NameSources name_sources;
-    String computed_name = ax_object.GetName(&name_sources);
+    String computed_name =
+        ax_object.GetName(name_from, /*name_objects=*/nullptr, &name_sources);
     std::unique_ptr<AXValue> name =
         CreateValue(computed_name, AXValueTypeEnum::ComputedString);
     ignored_node_object->setName(std::move(name));
@@ -934,31 +894,29 @@ std::unique_ptr<AXNode> BuildProtocolAXNodeForUnignoredAXObject(
   FillRelationships(ax_object, *(properties.get()));
   FillSparseAttributes(ax_object, node_data, *(properties.get()));
 
+  ax::mojom::blink::NameFrom name_from;
   AXObject::NameSources name_sources;
-  String computed_name = ax_object.GetName(&name_sources);
+  String computed_name =
+      ax_object.GetName(name_from, /*name_objects=*/nullptr, &name_sources);
+  std::unique_ptr<AXValue> name =
+      CreateValue(computed_name, AXValueTypeEnum::ComputedString);
   if (!name_sources.empty()) {
-    std::unique_ptr<AXValue> name =
-        CreateValue(computed_name, AXValueTypeEnum::ComputedString);
-    if (!name_sources.empty()) {
-      auto name_source_properties =
-          std::make_unique<protocol::Array<AXValueSource>>();
-      for (NameSource& name_source : name_sources) {
-        name_source_properties->emplace_back(CreateValueSource(name_source));
-        if (name_source.text.IsNull() || name_source.superseded) {
-          continue;
-        }
-        if (!name_source.related_objects.empty()) {
-          properties->emplace_back(CreateRelatedNodeListProperty(
-              AXPropertyNameEnum::Labelledby, name_source.related_objects));
-        }
+    auto name_source_properties =
+        std::make_unique<protocol::Array<AXValueSource>>();
+    for (NameSource& name_source : name_sources) {
+      name_source_properties->emplace_back(CreateValueSource(name_source));
+      if (name_source.text.IsNull() || name_source.superseded) {
+        continue;
       }
-      name->setSources(std::move(name_source_properties));
+      if (!name_source.related_objects.empty()) {
+        properties->emplace_back(CreateRelatedNodeListProperty(
+            AXPropertyNameEnum::Labelledby, name_source.related_objects));
+      }
     }
-    node_object->setProperties(std::move(properties));
-    node_object->setName(std::move(name));
-  } else {
-    node_object->setProperties(std::move(properties));
+    name->setSources(std::move(name_source_properties));
   }
+  node_object->setProperties(std::move(properties));
+  node_object->setName(std::move(name));
 
   FillCoreProperties(ax_object, node_object.get());
   return node_object;

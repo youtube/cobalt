@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASTREAM_MEDIA_DEVICES_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASTREAM_MEDIA_DEVICES_H_
 
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/gtest_prod_util.h"
 #include "base/sequence_checker.h"
@@ -32,6 +33,8 @@
 #include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
+
+MODULES_EXPORT BASE_DECLARE_FEATURE(kEnumerateDevicesRequestAudioCapabilities);
 
 class AudioOutputOptions;
 class CaptureHandleConfig;
@@ -202,6 +205,9 @@ class MODULES_EXPORT MediaDevices final
                                                        CaptureController*);
   void CloseFocusWindowOfOpportunity(const String&, CaptureController*);
 
+  void ResolveRestrictionTargetPromise(Element* element, const WTF::String& id);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
   bool MayProduceSubCaptureTarget(ScriptState* script_state,
                                   Element* element,
                                   ExceptionState& exception_state,
@@ -211,8 +217,6 @@ class MODULES_EXPORT MediaDevices final
   // the base::Token which is backing a SubCaptureTarget (either CropTarget
   // or RestrictionTarget).
   void ResolveCropTargetPromise(Element* element, const WTF::String& id);
-  void ResolveRestrictionTargetPromise(Element* element, const WTF::String& id);
-#endif
 
   SEQUENCE_CHECKER(sequence_checker_);
   // True if the associated execution context is alive and valid, reset
@@ -229,12 +233,16 @@ class MODULES_EXPORT MediaDevices final
                                               IDLSequence<MediaDeviceInfo>>>>
       enumerate_device_requests_;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  using ElementToCropTargetResolverMap =
-      HeapHashMap<Member<Element>, Member<ScriptPromiseResolver<CropTarget>>>;
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
   using ElementToRestrictionTargetResolverMap =
       HeapHashMap<Member<Element>,
                   Member<ScriptPromiseResolver<RestrictionTarget>>>;
+
+  ElementToRestrictionTargetResolverMap restriction_target_resolvers_;
+#endif  // !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_ANDROID)
+
+  using ElementToCropTargetResolverMap =
+      HeapHashMap<Member<Element>, Member<ScriptPromiseResolver<CropTarget>>>;
 
   // 1. When CropTarget.fromElement() is first called for an Element,
   //    it has no CropTarget associated with it, and similarly for
@@ -256,8 +264,6 @@ class MODULES_EXPORT MediaDevices final
   //    a token has already been assigned. They immediately return a resolved
   //    Promise with the relevant token.
   ElementToCropTargetResolverMap crop_target_resolvers_;
-  ElementToRestrictionTargetResolverMap restriction_target_resolvers_;
-#endif
 
   bool starting_observation_ = false;
   Vector<Vector<WebMediaDeviceInfo>> current_device_infos_;

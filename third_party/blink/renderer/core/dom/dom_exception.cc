@@ -30,7 +30,6 @@
 
 #include "base/notreached.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
@@ -190,11 +189,6 @@ uint16_t ToLegacyErrorCode(DOMExceptionCode exception_code) {
       exception_code <= DOMExceptionCode::kLegacyErrorCodeMax) {
     return static_cast<uint16_t>(exception_code);
   }
-  if (!RuntimeEnabledFeatures::QuotaExceededErrorUpdateEnabled() &&
-      exception_code == DOMExceptionCode::kQuotaExceededError) {
-    // Return legacy error code.
-    return 22;
-  }
   return 0;
 }
 
@@ -284,7 +278,7 @@ String DOMException::ToStringForConsole() const {
       !unsanitized_message_.empty() ? unsanitized_message_ : sanitized_message_;
   return message_for_console.empty()
              ? String()
-             : WTF::StrCat({"Uncaught ", name(), ": ", message_for_console});
+             : StrCat({"Uncaught ", name(), ": ", message_for_console});
 }
 
 void DOMException::AddContextToMessages(v8::ExceptionContext type,

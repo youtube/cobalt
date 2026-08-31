@@ -121,10 +121,10 @@ void LeakDetectionDelegate::OnLeakDetectionDone(bool is_leaked,
   }
 
   if (base::FeatureList::IsEnabled(features::kMarkAllCredentialsAsLeaked)) {
-    auto leak_details =
-        PrepareLeakDetails(PasswordForm::Store::kNotSet, IsReused(false), url,
-                           std::move(username), std::move(password),
-                           /*all_urls_with_leaked_credentials=*/{url});
+    auto leak_details = PrepareLeakDetails(
+        PasswordForm::Store::kNotSet, IsReused(false), IsSavedAsBackup(false),
+        url, std::move(username), std::move(password),
+        /*all_urls_with_leaked_credentials=*/{url});
     barrier_callback.Run(std::move(leak_details));
   } else {
     // Query the helper to asynchronously determine the `CredentialLeakType`.
@@ -141,6 +141,7 @@ void LeakDetectionDelegate::OnLeakDetectionDone(bool is_leaked,
 LeakedPasswordDetails LeakDetectionDelegate::PrepareLeakDetails(
     PasswordForm::Store in_stores,
     IsReused is_reused,
+    IsSavedAsBackup is_saved_as_backup,
     GURL url,
     std::u16string username,
     std::u16string password,
@@ -166,26 +167,17 @@ LeakedPasswordDetails LeakDetectionDelegate::PrepareLeakDetails(
     is_syncing = IsSyncing{true};
   } else {
     // Credential saved to the local-or-syncable store.
-#if BUILDFLAG(IS_ANDROID)
-    // After login db deprecation, all users have split stores on Android.
-    const bool uses_split_stores_for_sync_users =
-        base::FeatureList::IsEnabled(features::kLoginDbDeprecationAndroid) ||
-        UsesSplitStoresAndUPMForLocal(client_->GetPrefs());
-#else
-    const bool uses_split_stores_for_sync_users = false;
-#endif  // BUILDFLAG(IS_ANDROID)
-
-    if (!uses_split_stores_for_sync_users) {
-      // TODO(crbug.com/40066949): Remove this codepath once
-      // IsSyncFeatureEnabled() is fully deprecated.
-      is_syncing = IsSyncing(sync_util::IsSyncFeatureEnabledIncludingPasswords(
-          client_->GetSyncService()));
-    }
+#if !BUILDFLAG(IS_ANDROID)
+    // TODO(crbug.com/40066949): Remove this codepath once
+    // IsSyncFeatureEnabled() is fully deprecated.
+    is_syncing = IsSyncing(sync_util::IsSyncFeatureEnabledIncludingPasswords(
+        client_->GetSyncService()));
+#endif
   }
 
-  CredentialLeakType leak_type =
-      CreateLeakType(IsSaved(in_stores != PasswordForm::Store::kNotSet),
-                     is_reused, is_syncing, HasChangePasswordUrl(false));
+  CredentialLeakType leak_type = CreateLeakType(
+      IsSaved(in_stores != PasswordForm::Store::kNotSet), is_reused, is_syncing,
+      HasChangePasswordUrl(false), is_saved_as_backup);
   return LeakedPasswordDetails(leak_type, std::move(url), std::move(username),
                                std::move(password), in_account_store);
 }
@@ -199,7 +191,7 @@ void LeakDetectionDelegate::NotifyUserCredentialsWereLeaked(
   HasChangePasswordUrl has_change_url(
       client_->GetPasswordChangeService() &&
       client_->GetPasswordChangeService()->IsPasswordChangeSupported(
-          details.origin));
+          details.origin, client_->GetPageLanguage()));
   if (has_change_url) {
     details.leak_type |= CredentialLeakFlags::kHasChangePasswordUrl;
   }

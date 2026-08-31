@@ -13,6 +13,7 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
 import org.chromium.chrome.browser.omnibox.styles.OmniboxImageSupplier;
 import org.chromium.chrome.browser.omnibox.suggestions.answer.AnswerSuggestionProcessor;
@@ -24,6 +25,7 @@ import org.chromium.chrome.browser.omnibox.suggestions.entity.EntitySuggestionPr
 import org.chromium.chrome.browser.omnibox.suggestions.groupseparator.GroupSeparatorProcessor;
 import org.chromium.chrome.browser.omnibox.suggestions.header.HeaderProcessor;
 import org.chromium.chrome.browser.omnibox.suggestions.mostvisited.MostVisitedTilesProcessor;
+import org.chromium.chrome.browser.omnibox.suggestions.tabgroup.TabGroupSuggestionProcessor;
 import org.chromium.chrome.browser.omnibox.suggestions.tail.TailSuggestionProcessor;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.share.ShareDelegate;
@@ -50,13 +52,38 @@ class DropdownItemViewInfoListBuilder {
     private @Nullable Supplier<ShareDelegate> mShareDelegateSupplier;
     private Optional<OmniboxImageSupplier> mImageSupplier;
     private final BookmarkState mBookmarkState;
+    private final Supplier<@ControlsPosition Integer> mToolbarPositionSupplier;
 
     DropdownItemViewInfoListBuilder(
-            Supplier<@Nullable Tab> tabSupplier, BookmarkState bookmarkState) {
+            Supplier<@Nullable Tab> tabSupplier,
+            BookmarkState bookmarkState,
+            Supplier<@ControlsPosition Integer> toolbarPositionSupplier) {
         mPriorityOrderedSuggestionProcessors = new ArrayList<>();
         mActivityTabSupplier = tabSupplier;
         mImageSupplier = Optional.empty();
         mBookmarkState = bookmarkState;
+        mToolbarPositionSupplier = toolbarPositionSupplier;
+    }
+
+    /**
+     * Creates a UI context object containing common dependencies for suggestion processors.
+     *
+     * @param context Current context
+     * @param host Component creating suggestion view delegates and responding to suggestion events
+     * @param textProvider Provider of querying/editing the Omnibox
+     * @return AutocompleteUIContext with all necessary dependencies
+     */
+    private AutocompleteUIContext createUIContext(
+            Context context, SuggestionHost host, UrlBarEditingTextStateProvider textProvider) {
+        return new AutocompleteUIContext(
+                context,
+                host,
+                textProvider,
+                mImageSupplier,
+                mBookmarkState,
+                mActivityTabSupplier,
+                mShareDelegateSupplier,
+                mToolbarPositionSupplier);
     }
 
     /**
@@ -76,27 +103,20 @@ class DropdownItemViewInfoListBuilder {
                         ? Optional.empty()
                         : Optional.of(new OmniboxImageSupplier(context));
 
-        mGroupSeparatorProcessor = new GroupSeparatorProcessor(context);
-        mHeaderProcessor = new HeaderProcessor(context);
-        registerSuggestionProcessor(
-                new EditUrlSuggestionProcessor(
-                        context,
-                        host,
-                        mImageSupplier,
-                        mActivityTabSupplier,
-                        mShareDelegateSupplier));
-        registerSuggestionProcessor(
-                new AnswerSuggestionProcessor(context, host, textProvider, mImageSupplier));
-        registerSuggestionProcessor(
-                new ClipboardSuggestionProcessor(context, host, mImageSupplier));
-        registerSuggestionProcessor(
-                new EntitySuggestionProcessor(
-                        context, host, textProvider, mImageSupplier, mBookmarkState));
-        registerSuggestionProcessor(new TailSuggestionProcessor(context, host));
-        registerSuggestionProcessor(new MostVisitedTilesProcessor(context, host, mImageSupplier));
-        registerSuggestionProcessor(
-                new BasicSuggestionProcessor(
-                        context, host, textProvider, mImageSupplier, mBookmarkState));
+        AutocompleteUIContext uiContext = createUIContext(context, host, textProvider);
+
+        mGroupSeparatorProcessor = new GroupSeparatorProcessor(uiContext.context);
+        mHeaderProcessor = new HeaderProcessor(uiContext.context);
+        registerSuggestionProcessor(new EditUrlSuggestionProcessor(uiContext));
+        registerSuggestionProcessor(new AnswerSuggestionProcessor(uiContext));
+        registerSuggestionProcessor(new ClipboardSuggestionProcessor(uiContext));
+        registerSuggestionProcessor(new EntitySuggestionProcessor(uiContext));
+        registerSuggestionProcessor(new TailSuggestionProcessor(uiContext));
+        registerSuggestionProcessor(new MostVisitedTilesProcessor(uiContext));
+        if (OmniboxFeatures.sAndroidHubSearchTabGroups.isEnabled()) {
+            registerSuggestionProcessor(new TabGroupSuggestionProcessor(uiContext));
+        }
+        registerSuggestionProcessor(new BasicSuggestionProcessor(uiContext));
     }
 
     void destroy() {
@@ -110,7 +130,7 @@ class DropdownItemViewInfoListBuilder {
      *
      * @param processor SuggestionProcessor that handles OmniboxSuggestions.
      */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     void registerSuggestionProcessor(SuggestionProcessor processor) {
         mPriorityOrderedSuggestionProcessors.add(processor);
     }

@@ -33,7 +33,6 @@
 #include "base/hash/hash.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
-#include "third_party/blink/renderer/platform/heap/weak_cell.h"
 #include "third_party/blink/renderer/platform/text/text_run.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
@@ -56,7 +55,7 @@ class ShapeCache : public GarbageCollected<ShapeCache> {
         : length_(kEmptyValueLength),
           direction_(static_cast<unsigned>(TextDirection::kLtr)) {}
 
-    SmallStringKey(WTF::HashTableDeletedValueType)
+    SmallStringKey(HashTableDeletedValueType)
         : length_(kDeletedValueLength),
           direction_(static_cast<unsigned>(TextDirection::kLtr)) {}
 
@@ -189,14 +188,14 @@ class ShapeCache : public GarbageCollected<ShapeCache> {
     return nullptr;
   }
 
-  struct SmallStringKeyHashTraits : WTF::SimpleClassHashTraits<SmallStringKey> {
+  struct SmallStringKeyHashTraits : SimpleClassHashTraits<SmallStringKey> {
     STATIC_ONLY(SmallStringKeyHashTraits);
     static unsigned GetHash(const SmallStringKey& key) { return key.GetHash(); }
     static const bool kEmptyValueIsZero = false;
     static bool IsEmptyValue(const SmallStringKey& key) {
       return key.IsHashTableEmptyValue();
     }
-    static const unsigned kMinimumTableSize = 16;
+    static const wtf_size_t kMinimumTableSize = 16;
   };
 
   friend bool operator==(const SmallStringKey&, const SmallStringKey&);

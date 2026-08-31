@@ -63,9 +63,9 @@ Pre-built data files are generated and checked in with the following steps
      viii) cast/patch_locale.sh
        Modify the file for cast, android, ios and flutter.
 
-     ix) Repeat step iii) - vi) for cast, andriod and ios to produce
+     ix) Repeat step iii) - vi) for cast, android and ios to produce
        cast/icudtl.dat
-       andriod/icudtl.dat
+       android/icudtl.dat
        ios/icudtl.dat
 
      x) flutter/patch_brkitr.sh

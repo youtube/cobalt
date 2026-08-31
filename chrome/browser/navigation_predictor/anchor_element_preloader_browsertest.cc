@@ -2,23 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/navigation_predictor/anchor_element_preloader.h"
+
 #include "base/metrics/field_trial_params.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "chrome/browser/navigation_predictor/anchor_element_preloader.h"
 #include "chrome/browser/predictors/loading_predictor.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
-#include "chrome/browser/predictors/preconnect_manager.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
 #include "chrome/browser/preloading/preloading_prefs.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/subresource_filter/subresource_filter_browser_test_harness.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/ukm/test_ukm_recorder.h"
+#include "content/public/browser/preconnect_manager.h"
 #include "content/public/browser/preloading.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_test.h"
@@ -39,7 +41,7 @@ using ukm::builders::Preloading_Attempt;
 
 class AnchorElementPreloaderBrowserTest
     : public subresource_filter::SubresourceFilterBrowserTest,
-      public predictors::PreconnectManager::Observer {
+      public content::PreconnectManager::Observer {
  public:
   static constexpr char kOrigin1[] = "https://www.origin1.com/";
   static constexpr char kOrigin2[] = "https://www.origin2.com/";
@@ -111,7 +113,7 @@ class AnchorElementPreloaderBrowserTest
     run_loop.Run();
   }
 
-  // predictors::PreconnectManager::Observer
+  // content::PreconnectManager::Observer
   // We observe DNS preresolution instead of preconnect, because test
   // servers all resolve to localhost and Chrome won't preconnect
   // given it already has a warm connection.
@@ -149,11 +151,15 @@ class AnchorElementPreloaderBrowserTest
 
  protected:
   int preresolve_count_;
-  base::test::ScopedFeatureList feature_list_;
   // Disable sampling of UKM preloading logs.
   content::test::PreloadingConfigOverride preloading_config_override_;
 
  private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
+  base::test::ScopedFeatureList feature_list_;
   base::ScopedMockElapsedTimersForTest test_timer_;
   std::unique_ptr<net::EmbeddedTestServer> https_server_;
   std::unique_ptr<base::RunLoop> run_loop_;

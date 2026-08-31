@@ -58,9 +58,11 @@ import org.chromium.chrome.browser.commerce.ShoppingServiceFactoryJni;
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabController;
+import org.chromium.chrome.browser.customtabs.content.CustomTabActivityTabProvider;
 import org.chromium.chrome.browser.customtabs.features.minimizedcustomtab.CustomTabMinimizeDelegate;
 import org.chromium.chrome.browser.customtabs.features.toolbar.BrowserServicesThemeColorProvider;
 import org.chromium.chrome.browser.customtabs.features.toolbar.CustomTabToolbarCoordinator;
+import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
@@ -111,10 +113,13 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
     @Mock private ObservableSupplier<ShareDelegate> mShareDelegateSupplier;
     @Mock private ActivityTabProvider mTabProvider;
+    @Mock private CustomTabActivityTabProvider mCustomTabProvider;
     @Mock private ObservableSupplier<Profile> mProfileSupplier;
     @Mock private ObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
     @Mock private ObservableSupplier<TabBookmarker> mTabBookmarkerSupplier;
     @Mock private ObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
+
+    @Mock private ObservableSupplierImpl<EphemeralTabCoordinator> mEphemeralTabCoordinatorSupplier;
     @Mock private BrowserControlsManager mBrowserControlsManager;
 
     @Mock
@@ -146,7 +151,6 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private BackPressManager mBackPressManager;
     @Mock private Supplier<CustomTabActivityTabController> mTabController;
     @Mock private Supplier<CustomTabMinimizeDelegate> mMinimizeDelegateSupplier;
-    @Mock private Supplier<CustomTabFeatureOverridesManager> mFeatureOverridesManagerSupplier;
     @Mock private Profile mProfile;
     @Mock private GoogleBottomBarCoordinator mGoogleBottomBarCoordinator;
     @Mock private ShoppingService mShoppingService;
@@ -186,6 +190,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         mActivity,
                         mShareDelegateSupplier,
                         mTabProvider,
+                        mCustomTabProvider,
                         mProfileSupplier,
                         mBookmarkModelSupplier,
                         mTabBookmarkerSupplier,
@@ -210,13 +215,13 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
                         mIsInOverviewModeSupplier,
                         mAppMenuDelegate,
                         mStatusBarColorProvider,
+                        mEphemeralTabCoordinatorSupplier,
                         mIntentRequestTracker,
                         mCustomTabToolbarCoordinator,
                         mIntentDataProvider,
                         mBackPressManager,
                         mTabController,
                         mMinimizeDelegateSupplier,
-                        mFeatureOverridesManagerSupplier,
                         CallbackUtils.emptyRunnable(),
                         mEdgeToEdgeManager,
                         mDesktopWindowStateManager,
@@ -280,10 +285,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
     @Test
     @Config(sdk = 30)
-    @EnableFeatures({
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgeForMediaViewer() {
         doReturn(true)
                 .when(mBrowserServicesIntentDataProvider)
@@ -293,10 +295,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
     @Test
     @Config(sdk = 30)
-    @DisableFeatures({
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-    })
+    @DisableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgeForMediaViewer_DisabledFeatures() {
         doReturn(true)
                 .when(mBrowserServicesIntentDataProvider)
@@ -308,10 +307,7 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
     @Test
     @Config(sdk = 30)
-    @EnableFeatures({
-        ChromeFeatureList.DRAW_KEY_NATIVE_EDGE_TO_EDGE,
-        ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN
-    })
+    @EnableFeatures({ChromeFeatureList.EDGE_TO_EDGE_BOTTOM_CHIN})
     public void testEdgeToEdgeForMediaViewer_NotMediaViewer() {
         doReturn(false)
                 .when(mBrowserServicesIntentDataProvider)

@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/data_sharing/data_sharing_service_factory.h"
 #include "chrome/browser/tab_group_sync/tab_group_sync_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/tabs/test/tab_strip_interactive_test_mixin.h"
 #include "chrome/browser/ui/views/tabs/recent_activity_bubble_dialog_view.h"
 #include "chrome/browser/ui/views/tabs/tab_group_header.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/browser/ui/views/test/tab_strip_interactive_test_mixin.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/collaboration/public/features.h"
@@ -176,7 +177,7 @@ class RecentActivityBubbleDialogViewInteractiveUiTest
   }
 
   SavedTabGroup ShareTabGroup(TabGroupId group_id,
-                              std::string collaboration_id) {
+                              syncer::CollaborationId collaboration_id) {
     TabGroupSyncService* tab_group_sync_service =
         TabGroupSyncServiceFactory::GetForProfile(browser()->profile());
     tab_group_sync_service->MakeTabGroupSharedForTesting(group_id,
@@ -191,7 +192,7 @@ class RecentActivityBubbleDialogViewInteractiveUiTest
   // the page action, which is driven by live data.
   auto TriggerDialog(std::vector<ActivityLogItem> activity_log) {
     return WithView(kTabStripElementId, [&, activity_log](TabStrip* tab_strip) {
-      bubble_coordinator_.Show(
+      BubbleCoordinator()->Show(
           tab_strip, browser()->tab_strip_model()->GetWebContentsAt(0),
           activity_log, browser()->profile());
     });
@@ -200,7 +201,7 @@ class RecentActivityBubbleDialogViewInteractiveUiTest
   // Same as above, but for current tab version of the dialog.
   auto TriggerCurrentTabDialog(std::vector<ActivityLogItem> activity_log) {
     return WithView(kTabStripElementId, [&, activity_log](TabStrip* tab_strip) {
-      bubble_coordinator_.ShowForCurrentTab(
+      BubbleCoordinator()->ShowForCurrentTab(
           tab_strip, browser()->tab_strip_model()->GetWebContentsAt(0), {},
           activity_log, browser()->profile());
     });
@@ -239,14 +240,17 @@ class RecentActivityBubbleDialogViewInteractiveUiTest
   }
 
   RecentActivityBubbleDialogView* bubble() {
-    return bubble_coordinator_.GetBubble();
+    return BubbleCoordinator()->GetBubble();
+  }
+
+  RecentActivityBubbleCoordinator* BubbleCoordinator() {
+    return RecentActivityBubbleCoordinator::From(browser());
   }
 
  private:
   const std::string avatar_url_ =
       base::StringPrintf("/avatar=s%d-cc-rp-ns", kAvatarSize);
   base::test::ScopedFeatureList scoped_feature_list_;
-  RecentActivityBubbleCoordinator bubble_coordinator_;
 };
 
 // Take a screenshot of the recent activity dialog.
@@ -255,8 +259,7 @@ IN_PROC_BROWSER_TEST_F(RecentActivityBubbleDialogViewInteractiveUiTest,
   // Set up tab group.
   tabs::TabInterface* tab = CreateTab();
   TabGroupId group_id = CreateTabGroup({tab});
-  std::string collaboration_id = "fake_collaboration_id";
-  ShareTabGroup(group_id, collaboration_id);
+  ShareTabGroup(group_id, syncer::CollaborationId("fake_collaboration_id"));
 
   // Create mock activity log.
   std::vector<ActivityLogItem> activity_log;
@@ -279,8 +282,7 @@ IN_PROC_BROWSER_TEST_F(RecentActivityBubbleDialogViewInteractiveUiTest,
   tabs::TabInterface* tab = CreateTab();
   tabs::TabInterface* tab2 = CreateTab();
   TabGroupId group_id = CreateTabGroup({tab, tab2});
-  std::string collaboration_id = "fake_collaboration_id";
-  ShareTabGroup(group_id, collaboration_id);
+  ShareTabGroup(group_id, syncer::CollaborationId("fake_collaboration_id"));
 
   // Create mock activity log.
   std::vector<ActivityLogItem> activity_log;

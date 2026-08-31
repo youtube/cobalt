@@ -9,9 +9,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <utility>
 
+#include "base/check.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_span.h"
@@ -25,6 +25,7 @@
 #include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/color/color_variant.h"
+#include "ui/compositor/layer_type.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/bubble/bubble_frame_view.h"
 #include "ui/views/metadata/view_factory.h"
@@ -249,6 +250,11 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
       Widget::InitParams::Ownership ownership =
           Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
 
+  static Widget* CreateBubble(
+      BubbleDialogDelegate* bubble_delegate,
+      Widget::InitParams::Ownership ownership =
+          Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+
   //////////////////////////////////////////////////////////////////////////////
   // The anchor view and rectangle:
   //
@@ -450,11 +456,6 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   ui::ColorVariant background_color() const { return color_; }
   void SetBackgroundColor(ui::ColorVariant color);
 
-  void set_force_create_contents_background(
-      bool force_create_contents_background) {
-    force_create_contents_background_ = force_create_contents_background;
-  }
-
   void set_title_margins(const gfx::Insets& title_margins) {
     title_margins_ = title_margins;
   }
@@ -467,8 +468,13 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   // Sets the content margins to a default picked for smaller bubbles.
   void UseCompactMargins();
 
-  // Override to configure the layer type of the bubble widget.
-  virtual ui::LayerType GetLayerType() const;
+  // Set/Get the layer type of the bubble widget and client view.
+  ui::LayerType layer_type() const { return layer_type_; }
+  void set_layer_type(ui::LayerType layer_type) {
+    CHECK(layer_type == ui::LAYER_TEXTURED ||
+          layer_type == ui::LAYER_NOT_DRAWN);
+    layer_type_ = layer_type;
+  }
 
   // Override to provide custom parameters before widget initialization.
   virtual void OnBeforeBubbleWidgetInit(Widget::InitParams* params,
@@ -499,6 +505,10 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   // TODO(crbug.com/41493925) Not recommended; Use autosize in the constructor
   // instead.
   void SizeToContents();
+
+  // Override this method if you want to position the bubble regardless of its
+  // anchor, while retaining the other anchor view logic.
+  virtual gfx::Rect GetBubbleBounds();
 
  protected:
   // A helper class for logging UMA metrics related to bubbles.
@@ -540,10 +550,6 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
         allowed_class_names_for_testing_;
     base::WeakPtrFactory<BubbleUmaLogger> weak_factory_{this};
   };
-
-  // Override this method if you want to position the bubble regardless of its
-  // anchor, while retaining the other anchor view logic.
-  virtual gfx::Rect GetBubbleBounds();
 
   // Override this to perform initialization after the Widget is created but
   // before it is shown.
@@ -633,6 +639,7 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
   ui::ImageModel main_image_;
   std::u16string subtitle_;
   bool subtitle_allow_character_break_ = false;
+  ui::LayerType layer_type_ = ui::LayerType::LAYER_TEXTURED;
 
   // Whether the bubble should automatically resize to match its contents'
   // preferred size.
@@ -653,13 +660,6 @@ class VIEWS_EXPORT BubbleDialogDelegate : public DialogDelegate {
 
   // By default, all BubbleDialogDelegates have parent windows.
   bool has_parent_ = true;
-
-  // Pointer to this bubble's ClientView.
-  raw_ptr<ClientView> client_view_ = nullptr;
-
-  // If true, contents view will be forced to create a solid color background in
-  // `UpdateFrameColor()`.
-  bool force_create_contents_background_ = false;
 
 #if BUILDFLAG(IS_MAC)
   // Special handler for close_on_deactivate() on Mac. Window (de)activation is

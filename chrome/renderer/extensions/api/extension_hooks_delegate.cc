@@ -6,6 +6,7 @@
 
 #include <string_view>
 
+#include "base/strings/string_util.h"
 #include "content/public/renderer/v8_value_converter.h"
 #include "extensions/common/api/messaging/message.h"
 #include "extensions/common/constants.h"
@@ -58,7 +59,7 @@ void GetAliasedFeature(v8::Local<v8::Name> property_name,
   v8::Isolate* isolate = info.GetIsolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context =
-      info.Holder()->GetCreationContextChecked(isolate);
+      info.HolderV2()->GetCreationContextChecked(isolate);
 
   v8::TryCatch try_catch(isolate);
   v8::Local<v8::Value> chrome;
@@ -157,8 +158,8 @@ RequestResult ExtensionHooksDelegate::HandleRequest(
     return RequestResult(RequestResult::NOT_HANDLED);
 
   if (method_name == kSendExtensionRequest) {
-    messaging_util::MassageSendMessageArguments(context->GetIsolate(), false,
-                                                arguments);
+    messaging_util::MassageSendMessageArguments(v8::Isolate::GetCurrent(),
+                                                false, arguments);
   }
 
   APISignature::V8ParseResult parse_result =
@@ -184,7 +185,7 @@ void ExtensionHooksDelegate::InitializeTemplate(
 void ExtensionHooksDelegate::InitializeInstance(
     v8::Local<v8::Context> context,
     v8::Local<v8::Object> instance) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   ScriptContext* script_context = GetScriptContextFromV8ContextChecked(context);
 
   // Throw access errors for deprecated sendRequest-related properties. This

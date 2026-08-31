@@ -5,7 +5,7 @@
 // clang-format off
 import {html, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import type {SearchManager} from 'chrome://settings/settings.js';
-import {BaseMixin, getSearchManager, getTrustedHTML as getTrustedStaticHtml} from 'chrome://settings/settings.js';
+import {BaseMixin, getSearchManager, getTrustedHTML as getTrustedStaticHtml, showBubble} from 'chrome://settings/settings.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {getTrustedHtml} from 'chrome://webui-test/trusted_html.js';
 
@@ -224,11 +224,11 @@ suite('SearchSettingsTest', function() {
 
     return Promise.all(sections.map(s => searchManager.search('there', s)))
         .then(function(requests) {
-          assertTrue(requests[0]!.didFindMatches());
+          assertEquals(1, requests[0]!.getSearchResult().matchCount);
           assertFalse(sections[0]!.hiddenBySearch);
-          assertTrue(requests[1]!.didFindMatches());
+          assertEquals(1, requests[1]!.getSearchResult().matchCount);
           assertFalse(sections[1]!.hiddenBySearch);
-          assertFalse(requests[2]!.didFindMatches());
+          assertEquals(0, requests[2]!.getSearchResult().matchCount);
           assertTrue(sections[2]!.hiddenBySearch);
         });
   });
@@ -286,9 +286,9 @@ suite('SearchSettingsTest', function() {
 
   test('associated control causes search highlight bubble', async () => {
     document.body.innerHTML = getTrustedStaticHtml`
-        <settings-section>
+        <settings-section section="foo">
           <button></button>
-          <settings-subpage>
+          <settings-subpage page-title="Title">
             hello
           </settings-subpage>
         </settings-section>`;
@@ -302,7 +302,7 @@ suite('SearchSettingsTest', function() {
 
   test('bubble result count', async () => {
     document.body.innerHTML = getTrustedStaticHtml`
-        <settings-section>
+        <settings-section section="foo">
           <select>
             <option>nohello</option>
             <option>hello dolly!</option>
@@ -311,7 +311,7 @@ suite('SearchSettingsTest', function() {
           </select>
 
           <button></button>
-          <settings-subpage>
+          <settings-subpage page-title="Title">
             hello there!
           </settings-subpage>
         </setting-section>`;
@@ -327,14 +327,31 @@ suite('SearchSettingsTest', function() {
     assertEquals('1 result', bubbles[0]!.textContent);
   });
 
+  test('showBubble() result count', () => {
+    function assertResults(results: number) {
+      const bubble = document.body.querySelector<HTMLElement>('.search-bubble');
+      assertTrue(!!bubble);
+      assertEquals(results, Number(bubble.dataset['results']));
+      assertEquals(`${results} results`, bubble.textContent);
+    }
+
+    const element = document.createElement('div');
+    document.body.appendChild(element);
+
+    showBubble(element, 10, new Set(), false);
+    assertResults(10);
+    showBubble(element, 20, new Set(), false);
+    assertResults(30);
+  });
+
   test('diacritics', async () => {
     document.body.innerHTML = getTrustedStaticHtml`
-        <settings-section>
+        <settings-section section="foo">
           <select>
             <option>año de oro</option>
           </select>
           <button></button>
-          <settings-subpage>
+          <settings-subpage page-title="Title">
             malibu cañon
           </settings-subpage>
           danger zone

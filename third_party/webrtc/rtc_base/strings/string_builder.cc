@@ -10,12 +10,12 @@
 
 #include "rtc_base/strings/string_builder.h"
 
-#include <stdarg.h>
-
+#include <cstdarg>
 #include <cstdio>
 #include <cstring>
 
 #include "absl/strings/string_view.h"
+#include "api/array_view.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 

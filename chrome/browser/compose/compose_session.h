@@ -12,13 +12,14 @@
 
 #include "base/check_op.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/timer/timer.h"
 #include "base/types/optional_ref.h"
-#include "chrome/browser/content_extraction/inner_text.h"
 #include "chrome/common/compose/compose.mojom.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/compose/core/browser/compose_metrics.h"
+#include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/core/model_quality/model_quality_logs_uploader_service.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -154,6 +155,10 @@ class ComposeSession
   // Opens the Compose Learn More page in a new tab when the "Learn more" link
   // is clicked in the FRE or Compose dialog.
   void OpenComposeLearnMorePage() override;
+
+  // Opens the Chrome Generative AI features and policies page in a new tab when
+  // the "Learn more" link is clicked in the FRE or Compose dialog.
+  void OpenEnterpriseComposeLearnMorePage() override;
 
   // Opens the Compose feedback survey page in a new tab. This implementation is
   // designed for Dogfood only.

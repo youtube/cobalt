@@ -10,11 +10,16 @@
 
 #include "test/drifting_clock.h"
 
+#include <cstdint>
+
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "rtc_base/checks.h"
+#include "system_wrappers/include/clock.h"
+#include "system_wrappers/include/ntp_time.h"
 
 namespace webrtc {
 namespace test {
-constexpr float DriftingClock::kNoDrift;
 
 DriftingClock::DriftingClock(Clock* clock, float speed)
     : clock_(clock), drift_(speed - 1.0f), start_time_(clock_->CurrentTime()) {

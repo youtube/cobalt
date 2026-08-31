@@ -18,17 +18,13 @@
 
 namespace storage {
 
-BASE_FEATURE(kDomStorageSmartFlushing,
-             "DomStorageSmartFlushing",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 StorageAreaImpl::Delegate::~Delegate() = default;
 
 void StorageAreaImpl::Delegate::PrepareToCommit(
     std::vector<DomStorageDatabase::KeyValuePair>* extra_entries_to_add,
     std::vector<DomStorageDatabase::Key>* extra_keys_to_delete) {}
 
-void StorageAreaImpl::Delegate::OnMapLoaded(leveldb::Status) {}
+void StorageAreaImpl::Delegate::OnMapLoaded(DbStatus) {}
 
 bool StorageAreaImpl::s_aggressive_flushing_enabled_ = false;
 
@@ -97,7 +93,7 @@ StorageAreaImpl::~StorageAreaImpl() {
 void StorageAreaImpl::InitializeAsEmpty() {
   DCHECK_EQ(map_state_, MapState::UNLOADED);
   map_state_ = MapState::LOADING_FROM_DATABASE;
-  OnMapLoaded(leveldb::Status::OK(), {});
+  OnMapLoaded(DbStatus::OK(), {});
 }
 
 void StorageAreaImpl::Bind(
@@ -531,7 +527,7 @@ void StorageAreaImpl::GetAll(
     AddObserver(std::move(new_observer));
 }
 
-base::OnceCallback<void(leveldb::Status)>
+base::OnceCallback<void(DbStatus)>
 StorageAreaImpl::GetCommitCompleteCallback() {
   return base::BindOnce(&StorageAreaImpl::OnCommitComplete,
                         weak_ptr_factory_.GetWeakPtr());
@@ -552,18 +548,6 @@ void StorageAreaImpl::SetCacheMode(CacheMode cache_mode) {
   // other hand if only keys are desired, the keys and values map can still be
   // used. Consider not unloading when the map is still useful.
   UnloadMapIfPossible();
-}
-
-void StorageAreaImpl::Checkpoint() {
-  if (!base::FeatureList::IsEnabled(kDomStorageSmartFlushing)) {
-    return;
-  }
-
-  base::TimeDelta elapsed_time = base::TimeTicks::Now() - start_time_;
-  if (commit_rate_limiter_.ComputeDelayNeeded(elapsed_time).is_zero() &&
-      data_rate_limiter_.ComputeDelayNeeded(elapsed_time).is_zero()) {
-    ScheduleImmediateCommit();
-  }
 }
 
 void StorageAreaImpl::OnConnectionError() {
@@ -604,16 +588,15 @@ void StorageAreaImpl::LoadMap(base::OnceClosure completion_callback) {
   map_state_ = MapState::LOADING_FROM_DATABASE;
 
   if (!database_) {
-    OnMapLoaded(leveldb::Status::IOError(""), {});
+    OnMapLoaded(DbStatus::IOError("Database no longer valid."), {});
     return;
   }
 
   database_->RunDatabaseTask(
       base::BindOnce(
-          [](const DomStorageDatabase::Key& prefix,
-             const DomStorageDatabase& db) {
+          [](const DomStorageDatabase::Key& prefix, DomStorageDatabase& db) {
             std::vector<DomStorageDatabase::KeyValuePair> data;
-            leveldb::Status status = db.GetPrefixed(prefix, &data);
+            DbStatus status = db.GetPrefixed(prefix, &data);
             return std::make_tuple(status, std::move(data));
           },
           prefix_),
@@ -622,7 +605,7 @@ void StorageAreaImpl::LoadMap(base::OnceClosure completion_callback) {
 }
 
 void StorageAreaImpl::OnMapLoaded(
-    leveldb::Status status,
+    DbStatus status,
     std::vector<DomStorageDatabase::KeyValuePair> data) {
   DCHECK(keys_values_map_.empty());
   DCHECK_EQ(map_state_, MapState::LOADING_FROM_DATABASE);
@@ -820,26 +803,21 @@ StorageAreaImpl::CollectCommit() {
     commit.copy_to_prefix = std::move(commit_batch_->copy_to_prefix);
   }
 
-  base::UmaHistogramCustomCounts("DOMStorage.CommitSizeBytes", data_size,
-                                 /*min=*/100,
-                                 /*exclusive_max=*/12 * 1024 * 1024,
-                                 /*buckets=*/100);
-
   data_rate_limiter_.add_samples(data_size);
-  commit.data_size = data_size;
 
   ++commit_batches_in_flight_;
   commit_batch_.reset();
   return commit;
 }
 
-void StorageAreaImpl::OnCommitComplete(leveldb::Status status) {
+void StorageAreaImpl::OnCommitComplete(DbStatus status) {
   has_committed_data_ = true;
   --commit_batches_in_flight_;
   StartCommitTimer();
 
-  if (!status.ok())
+  if (!status.ok()) {
     SetCacheMode(CacheMode::KEYS_AND_VALUES);
+  }
 
   // Call before |DidCommit| as delegate can destroy this object.
   UnloadMapIfPossible();

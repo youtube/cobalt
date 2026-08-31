@@ -14,7 +14,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.hamcrest.Matcher;
 
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.transit.ViewConditions.DisplayedCondition;
 import org.chromium.base.test.transit.ViewConditions.NotDisplayedAnymoreCondition;
 import org.chromium.base.test.util.ForgivingClickAction;
@@ -129,53 +128,55 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> {
         return mViewSpec.ancestor(viewClass, viewMatcher);
     }
 
-    /** Trigger an Espresso action on this View. */
-    public Transition.Trigger getPerformTrigger(ViewAction action) {
-        return () -> Espresso.onView(mViewSpec.getViewMatcher()).perform(action);
+    /**
+     * Start a Transition by clicking this View.
+     *
+     * <p>Requires the View to be >90% displayed.
+     */
+    public TripBuilder clickTo() {
+        return performViewActionTo(ViewActions.click());
+    }
+
+    /** Start a Transition by long pressing this View. */
+    public TripBuilder longPressTo() {
+        return performViewActionTo(ViewActions.longClick());
     }
 
     /**
-     * Trigger an Espresso click on this View.
+     * Start a Transition by clicking this View even if partially occluded.
      *
-     * <p>Requires it to be >90% displayed.
+     * <p>Does not require the View to be >90% displayed like {@link #clickTo()}.
      */
-    public Transition.Trigger getClickTrigger() {
-        return getPerformTrigger(ViewActions.click());
+    public TripBuilder clickEvenIfPartiallyOccludedTo() {
+        return performViewActionTo(ForgivingClickAction.forgivingClick());
     }
 
-    /**
-     * Trigger an Espresso click on this View.
-     *
-     * <p>Does not require the View to be > 90% displayed like {@link #getClickTrigger()}.
-     *
-     * <p>TODO(crbug.com/411140394): Rename clickTrigger() to strictClickTrigger() and rename this
-     * to clickTrigger().
-     */
-    public Transition.Trigger getForgivingClickTrigger() {
-        return getPerformTrigger(ForgivingClickAction.forgivingClick());
-    }
-
-    /**
-     * Trigger an Espresso long press on this View.
-     *
-     * <p>Requires it to be >90% displayed.
-     */
-    public Transition.Trigger getLongPressTrigger() {
-        return getPerformTrigger(ViewActions.longClick());
-    }
-
-    /** Send keycodes to the View to type |text|. */
-    public Transition.Trigger getTypeTextTrigger(String text) {
-        return () ->
-                ThreadUtils.runOnUiThread(
+    /** Start a Transition by typing |text| into this View. */
+    public TripBuilder typeTextTo(String text) {
+        return new TripBuilder()
+                .withContext(this)
+                .withRunOnUiThread()
+                .withTrigger(
                         () ->
                                 KeyUtils.typeTextIntoView(
                                         InstrumentationRegistry.getInstrumentation(), get(), text));
     }
 
+    /** Start a Transition by performing an Espresso ViewAction on this View. */
+    public TripBuilder performViewActionTo(ViewAction action) {
+        return new TripBuilder()
+                .withContext(this)
+                .withTrigger(() -> Espresso.onView(mViewSpec.getViewMatcher()).perform(action));
+    }
+
     /** Trigger an Espresso ViewAssertion on this View. */
     public void check(ViewAssertion assertion) {
         Espresso.onView(mViewSpec.getViewMatcher()).check(assertion);
+    }
+
+    /** Creates a Condition fulfilled if the View matches the |matcher|. */
+    public Condition matches(Matcher<View> matcher) {
+        return new ViewElementMatchesCondition(this, matcher);
     }
 
     /** Extra options for declaring ViewElements. */

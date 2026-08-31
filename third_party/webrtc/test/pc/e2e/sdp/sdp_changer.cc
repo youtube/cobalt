@@ -268,7 +268,6 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Offer(
       ++ext_it;
     }
 
-    prototype_media_desc->ClearRtpHeaderExtensions();
     prototype_media_desc->set_rtp_header_extensions(extensions);
 
     // We support only single stream inside video section with simulcast
@@ -447,7 +446,6 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp8Answer(
     extensions.push_back(info.mid_extension);
     extensions.push_back(info.rid_extension);
     // extensions.push_back(info.rrid_extension);
-    media_desc->ClearRtpHeaderExtensions();
     media_desc->set_rtp_header_extensions(extensions);
 
     // Add StreamParams with rids for receive.
@@ -535,10 +533,10 @@ LocalAndRemoteSdp SignalingInterceptor::PatchVp9Answer(
   return LocalAndRemoteSdp(std::move(answer), std::move(answer_for_remote));
 }
 
-std::vector<std::unique_ptr<IceCandidateInterface>>
+std::vector<std::unique_ptr<IceCandidate>>
 SignalingInterceptor::PatchOffererIceCandidates(
-    ArrayView<const IceCandidateInterface* const> candidates) {
-  std::vector<std::unique_ptr<IceCandidateInterface>> out;
+    ArrayView<const IceCandidate* const> candidates) {
+  std::vector<std::unique_ptr<IceCandidate>> out;
   for (auto* candidate : candidates) {
     auto simulcast_info_it =
         context_.simulcast_infos_by_mid.find(candidate->sdp_mid());
@@ -559,10 +557,10 @@ SignalingInterceptor::PatchOffererIceCandidates(
   return out;
 }
 
-std::vector<std::unique_ptr<IceCandidateInterface>>
+std::vector<std::unique_ptr<IceCandidate>>
 SignalingInterceptor::PatchAnswererIceCandidates(
-    ArrayView<const IceCandidateInterface* const> candidates) {
-  std::vector<std::unique_ptr<IceCandidateInterface>> out;
+    ArrayView<const IceCandidate* const> candidates) {
+  std::vector<std::unique_ptr<IceCandidate>> out;
   for (auto* candidate : candidates) {
     auto simulcast_info_it =
         context_.simulcast_infos_by_rid.find(candidate->sdp_mid());

@@ -23,6 +23,7 @@
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
+#include "base/time/time.h"
 #include "components/update_client/update_client_errors.h"
 
 namespace crx_file {
@@ -78,13 +79,15 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
 
   // Begins the actual unpacking of the files. Calls `callback` with the result.
 #if BUILDFLAG(IS_STARBOARD)
-  static void Unpack(const std::vector<uint8_t>& pk_hash,
+  static void Unpack(const std::string& app_id,
+                     const std::vector<uint8_t>& pk_hash,
                      const OperationResult& crx_operation_result,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,
                      base::OnceCallback<void(const Result& result)> callback);
 #else
-  static void Unpack(const std::vector<uint8_t>& pk_hash,
+  static void Unpack(const std::string& app_id,
+                     const std::vector<uint8_t>& pk_hash,
                      const base::FilePath& path,
                      std::unique_ptr<Unzipper> unzipper,
                      crx_file::VerifierFormat crx_format,
@@ -99,11 +102,13 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // the unpacker accepts any developer key. `path` is the current location
   // of the CRX.
 #if BUILDFLAG(IS_STARBOARD)
-  Unpacker(const OperationResult& crx_operation_result,
+  Unpacker(const std::string& app_id,
+           const OperationResult& crx_operation_result,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
 #else
-  Unpacker(const base::FilePath& path,
+  Unpacker(const std::string& app_id,
+           const base::FilePath& path,
            std::unique_ptr<Unzipper> unzipper,
            base::OnceCallback<void(const Result& result)> callback);
 #endif
@@ -134,6 +139,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   // callback provided in `Unpack`.
   void EndUnpacking(UnpackerError error, int extended_error = 0);
 
+  const std::string app_id_;
 #if BUILDFLAG(IS_STARBOARD)
   OperationResult result_;
 #endif
@@ -144,6 +150,7 @@ class Unpacker : public base::RefCountedThreadSafe<Unpacker> {
   base::OnceCallback<void(const Result& result)> callback_;
   base::FilePath unpack_path_;
   std::string public_key_;
+  base::TimeTicks unzip_begin_time_;
 
   // The compressed verified contents extracted from the CRX header.
   std::vector<uint8_t> compressed_verified_contents_;

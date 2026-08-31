@@ -24,7 +24,6 @@
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "gpu/ipc/service/gpu_channel_manager_delegate.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "ui/gl/gl_bindings.h"
 #include "ui/gl/gl_context.h"
@@ -70,8 +69,7 @@ gpu::ContextResult RasterCommandBufferStub::Initialize(
   }
 
   if (init_params.attribs.gpu_preference != gl::GpuPreference::kLowPower ||
-      init_params.attribs.context_type != CONTEXT_TYPE_OPENGLES2 ||
-      init_params.attribs.bind_generates_resource) {
+      init_params.attribs.context_type != CONTEXT_TYPE_OPENGLES2) {
     LOG(ERROR) << "ContextResult::kFatalFailure: Incompatible creation attribs "
                   "used with RasterDecoder";
     return ContextResult::kFatalFailure;
@@ -99,9 +97,9 @@ gpu::ContextResult RasterCommandBufferStub::Initialize(
       std::make_unique<CommandBufferService>(this, memory_tracker_.get());
   std::unique_ptr<raster::RasterDecoder> decoder(raster::RasterDecoder::Create(
       this, command_buffer_.get(), manager->outputter(),
-      manager->gpu_feature_info(), manager->gpu_preferences(),
-      memory_tracker_.get(), manager->shared_image_manager(),
-      shared_context_state, channel()->is_gpu_host()));
+      manager->gpu_feature_info(), manager->gpu_preferences(), memory_tracker_,
+      manager->shared_image_manager(), shared_context_state,
+      channel()->is_gpu_host()));
 
   scoped_sync_point_client_state_ =
       channel_->scheduler()->CreateSyncPointClientState(

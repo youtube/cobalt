@@ -6,15 +6,12 @@
 
 #include "base/check_op.h"
 #include "base/debug/alias.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/debugging_buildflags.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
-
-#if !BUILDFLAG(IS_NACL)
-#include "base/debug/crash_logging.h"
-#endif  // !BUILDFLAG(IS_NACL)
 
 namespace logging {
 
@@ -36,19 +33,15 @@ void DumpWithoutCrashing(LogMessage* log_message,
 
 void NotReachedDumpWithoutCrashing(LogMessage* log_message,
                                    const base::Location& location) {
-#if !BUILDFLAG(IS_NACL)
   SCOPED_CRASH_KEY_STRING1024("Logging", "NOTREACHED_MESSAGE",
                               log_message->BuildCrashString());
-#endif  // !BUILDFLAG(IS_NACL)
   DumpWithoutCrashing(log_message, location);
 }
 
 void DCheckDumpWithoutCrashing(LogMessage* log_message,
                                const base::Location& location) {
-#if !BUILDFLAG(IS_NACL)
   SCOPED_CRASH_KEY_STRING1024("Logging", "DCHECK_MESSAGE",
                               log_message->BuildCrashString());
-#endif  // !BUILDFLAG(IS_NACL)
   DumpWithoutCrashing(log_message, location);
 }
 
@@ -179,6 +172,12 @@ CheckError CheckError::NotImplemented(const char* file,
                                       int line,
                                       const char* function) {
   auto* const log_message = new LogMessage(file, line, LOGGING_ERROR);
+  log_message->stream() << "Not implemented reached in " << function;
+  return CheckError(log_message);
+}
+
+CheckError CheckError::NotImplemented(const char* function) {
+  auto* const log_message = new LogMessage(__FILE__, __LINE__, LOGGING_ERROR);
   log_message->stream() << "Not implemented reached in " << function;
   return CheckError(log_message);
 }

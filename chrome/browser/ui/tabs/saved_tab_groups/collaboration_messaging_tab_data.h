@@ -7,6 +7,7 @@
 
 #include "base/callback_list.h"
 #include "base/check_is_test.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/collaboration/public/messaging/message.h"
 #include "ui/base/models/image_model.h"
@@ -63,9 +64,16 @@ class CollaborationMessagingTabData {
     return given_name_;
   }
 
+  // TODO(crbug.com/430025519): Remove this method after migrating to new page
+  // actions.
   // Get the image to use when displaying the current message in the
   // page action.
   ui::ImageModel GetPageActionImage(const views::Widget* widget) const;
+
+  // Helper method for getting page action image.
+  ui::ImageModel GetPageActionImage(
+      float scale_factor,
+      const ui::ColorProvider* color_provider) const;
 
   // Get the image to use when displaying the current message in the
   // hovercard container.
@@ -88,6 +96,13 @@ class CollaborationMessagingTabData {
   FRIEND_TEST_ALL_PREFIXES(CollaborationMessagingTabDataTest,
                            IgnoresMessageWithoutUser);
 
+  // Creates the image model for the collaboration avatar, falling back to a
+  // generic icon if needed.
+  ui::ImageModel GetImage(float scale_factor,
+                          const ui::ColorProvider* color_provider,
+                          int icon_width,
+                          bool add_border) const;
+
   // Notify callback list that a new message has been committed.
   void NotifyMessageChanged();
 
@@ -98,7 +113,8 @@ class CollaborationMessagingTabData {
   void CommitMessage(PersistentMessage message, const gfx::Image& avatar);
 
   // Create image to use as the fallback when the avatar image is empty.
-  ui::ImageModel CreateSizedFallback(const views::Widget* widget,
+  ui::ImageModel CreateSizedFallback(float scale_factor,
+                                     const ui::ColorProvider* color_provider,
                                      int icon_width,
                                      bool add_border) const;
 

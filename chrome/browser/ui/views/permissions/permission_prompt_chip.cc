@@ -28,9 +28,8 @@
 PermissionPromptChip::PermissionPromptChip(Browser* browser,
                                            content::WebContents* web_contents,
                                            Delegate* delegate)
-    : PermissionPromptDesktop(browser, web_contents, delegate),
-      delegate_(delegate) {
-  DCHECK(delegate_);
+    : PermissionPromptDesktop(browser, web_contents, delegate) {
+  DCHECK(delegate);
   LocationBarView* lbv = GetLocationBarView();
 
   // Before showing a chip make sure the LocationBar is in a valid state. That
@@ -38,7 +37,7 @@ PermissionPromptChip::PermissionPromptChip(Browser* browser,
   lbv->InvalidateLayout();
 
   if (delegate->ShouldCurrentRequestUseQuietUI()) {
-    PreemptivelyResolvePermissionRequest(web_contents, delegate);
+    ModulatePermissionPromiseLifetime();
   }
 
   chip_controller_ = lbv->GetChipController();
@@ -69,7 +68,7 @@ bool PermissionPromptChip::UpdateAnchor() {
   if (chip_controller_->IsPermissionPromptChipVisible() &&
       !is_location_bar_drawn) {
     chip_controller_->ResetPermissionPromptChip();
-    if (delegate_) {
+    if (delegate()) {
       return false;
     }
   }
@@ -109,42 +108,35 @@ views::Widget* PermissionPromptChip::GetPromptBubbleWidgetForTesting() {
              : nullptr;
 }
 
-void PermissionPromptChip::PreemptivelyResolvePermissionRequest(
-    content::WebContents* web_contents,
-    Delegate* delegate) {
-  DCHECK(delegate->ShouldCurrentRequestUseQuietUI());
+void PermissionPromptChip::ModulatePermissionPromiseLifetime() {
+  // Lifetime modulation is allowed only for the quiet chip. The quiet chip is
+  // enabled only for `NOTIFICATIONS` and `GEOLOCATION`.
+  DCHECK(delegate()->ShouldCurrentRequestUseQuietUI());
 
-  bool is_subscribed_to_permission_change_event = true;
+#if !BUILDFLAG(IS_ANDROID)
+  // TODO(crbug.com/412616723): Support Android
+  if (base::FeatureList::IsEnabled(
+          permissions::features::kPermissionPromiseLifetimeModulation)) {
+    delegate()->PreIgnoreQuietPrompt();
+    return;
+  }
+#endif
   content::PermissionController* permission_controller =
-      web_contents->GetBrowserContext()->GetPermissionController();
+      web_contents()->GetBrowserContext()->GetPermissionController();
 
   // If at least one RFH is not subscribed to the PermissionChange event, we
   // should not preemptively resolve a prompt.
-  for (const auto& request : delegate->Requests()) {
-    content::RenderFrameHost* rfh =
-        content::RenderFrameHost::FromID(request->get_requesting_frame_id());
-    if (rfh == nullptr) {
+  for (const auto& request : delegate()->Requests()) {
+    DCHECK(request->request_type() ==
+               permissions::RequestType::kNotifications ||
+           request->request_type() == permissions::RequestType::kGeolocation);
+
+    if (!request->IsSourceSubscribedToPermissionChangeEvent(
+            permission_controller)) {
       return;
     }
-
-    ContentSettingsType type = request->GetContentSettingsType();
-
-    blink::PermissionType permission_type =
-        permissions::PermissionUtil::ContentSettingsTypeToPermissionType(type);
-
-    // Pre-ignore is allowed only for the quiet chip. The quiet chip is
-    // enabled only for `NOTIFICATIONS` and `GEOLOCATION`.
-    DCHECK(permission_type == blink::PermissionType::NOTIFICATIONS ||
-           permission_type == blink::PermissionType::GEOLOCATION);
-
-    is_subscribed_to_permission_change_event &=
-        permission_controller->IsSubscribedToPermissionChangeEvent(
-            permission_type, rfh);
-
-    if (is_subscribed_to_permission_change_event) {
-      // This will resolve a promise so an origin is not waiting for the user's
-      // decision.
-      delegate->PreIgnoreQuietPrompt();
-    }
   }
+  // This will resolve a promise so an origin is not waiting for the user's
+  // decision.
+  delegate()->PreIgnoreQuietPrompt();
 }

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <optional>
 #include <string_view>
+#include <tuple>
 
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
@@ -20,6 +21,8 @@
 #include "net/http/http_status_code.h"
 
 namespace {
+
+using DeviceBoundSession = ::OAuthMultiloginResult::DeviceBoundSession;
 
 // Response body that has a form of JSON contains protection characters
 // against XSSI that have to be removed. See go/xssi.
@@ -36,6 +39,17 @@ void RecordMultiloginResponseEncryptionError(
     TokenBindingResponseEncryptionError error) {
   base::UmaHistogramEnumeration("Signin.OAuthMultiloginResponseEncryptionError",
                                 error);
+}
+
+DeviceBoundSession::Domain ParseDeviceBoundSessionDomain(
+    std::string_view domain) {
+  if (base::EqualsCaseInsensitiveASCII(domain, "GOOGLE_COM")) {
+    return DeviceBoundSession::Domain::kGoogle;
+  }
+  if (base::EqualsCaseInsensitiveASCII(domain, "YOUTUBE_COM")) {
+    return DeviceBoundSession::Domain::kYoutube;
+  }
+  return DeviceBoundSession::Domain::kUnknown;
 }
 
 }  // namespace
@@ -58,11 +72,6 @@ OAuthMultiloginResponseStatus ParseOAuthMultiloginResponseStatus(
 
   return OAuthMultiloginResponseStatus::kUnknownStatus;
 }
-
-OAuthMultiloginResult::OAuthMultiloginResult(
-    const OAuthMultiloginResult& other) = default;
-OAuthMultiloginResult& OAuthMultiloginResult::operator=(
-    const OAuthMultiloginResult& other) = default;
 
 OAuthMultiloginResult::OAuthMultiloginResult(
     OAuthMultiloginResponseStatus status)
@@ -183,7 +192,8 @@ void OAuthMultiloginResult::TryParseCookiesFromValue(
     net::CookieSameSiteString samesite_string =
         net::CookieSameSiteString::kUnspecified;
     if (same_site) {
-      samesite_mode = net::StringToCookieSameSite(*same_site, &samesite_string);
+      std::tie(samesite_mode, samesite_string) =
+          net::StringToCookieSameSite(*same_site);
     }
     net::RecordCookieSameSiteAttributeValueHistogram(samesite_string);
     // TODO(crbug.com/40160040) Consider using CreateSanitizedCookie instead.
@@ -205,6 +215,72 @@ void OAuthMultiloginResult::TryParseCookiesFromValue(
       LOG(ERROR) << "Non-canonical cookie found.";
     }
   }
+}
+
+// TODO(crbug.com/312719798): Update the status to `kUnknownStatus` if failed to
+// parse device-bound sessions.
+void OAuthMultiloginResult::TryParseDeviceBoundSessionsFromValue(
+    const base::Value::Dict& json_value) {
+  CHECK_EQ(status_, OAuthMultiloginResponseStatus::kOk);
+  const base::Value::List* device_bound_sessions_list =
+      json_value.FindList("device_bound_session_info");
+  if (!device_bound_sessions_list) {
+    // No device-bound sessions info, nothing to do.
+    return;
+  }
+
+  std::vector<DeviceBoundSession> device_bound_sessions;
+  for (const base::Value& device_bound_session_val :
+       *device_bound_sessions_list) {
+    const base::Value::Dict* device_bound_session_dict =
+        device_bound_session_val.GetIfDict();
+    if (!device_bound_session_dict) {
+      continue;
+    }
+
+    if (!device_bound_session_dict->FindBool("is_device_bound")
+             .value_or(false)) {
+      // Not a device-bound session, nothing to do.
+      continue;
+    }
+
+    DeviceBoundSession device_bound_session;
+    device_bound_session.is_device_bound = true;
+
+    const std::string* domain = device_bound_session_dict->FindString("domain");
+    if (!domain) {
+      // Malformed response, domain is required.
+      return;
+    }
+    device_bound_session.domain = ParseDeviceBoundSessionDomain(*domain);
+    if (device_bound_session.domain == DeviceBoundSession::Domain::kUnknown) {
+      // Unknown domain, nothing to do.
+      continue;
+    }
+
+    const base::Value::Dict* register_session_payload_dict =
+        device_bound_session_dict->FindDict("register_session_payload");
+    if (!register_session_payload_dict) {
+      // Missing register session payload signals the client to reuse the
+      // existing session.
+      device_bound_sessions.push_back(std::move(device_bound_session));
+      continue;
+    }
+    base::expected<RegisterBoundSessionPayload,
+                   RegisterBoundSessionPayload::ParserError>
+        register_session_payload = RegisterBoundSessionPayload::ParseFromJson(
+            *register_session_payload_dict);
+    if (!register_session_payload.has_value()) {
+      // Malformed response, failed to parse register session payload.
+      return;
+    }
+    device_bound_session.register_session_payload =
+        *std::move(register_session_payload);
+
+    device_bound_sessions.push_back(std::move(device_bound_session));
+  }
+
+  device_bound_sessions_ = std::move(device_bound_sessions);
 }
 
 OAuthMultiloginResult::OAuthMultiloginResult(
@@ -229,8 +305,13 @@ OAuthMultiloginResult::OAuthMultiloginResult(
   status_ =
       ParseOAuthMultiloginResponseStatus(*status_string, http_response_code);
   if (status_ == OAuthMultiloginResponseStatus::kOk) {
-    // Sets status_ to `kUnknownStatus` if cookies cannot be parsed.
+    // Sets `status_` to `kUnknownStatus` if cookies cannot be parsed.
     TryParseCookiesFromValue(json_dict, cookie_decryptor);
+    // Check the `status_` again, as `TryParseCookiesFromValue` may have set it
+    // to to `kUnknownStatus` if cookies cannot be parsed.
+    if (status_ == OAuthMultiloginResponseStatus::kOk) {
+      TryParseDeviceBoundSessionsFromValue(json_dict);
+    }
   } else if (status_ == OAuthMultiloginResponseStatus::kInvalidTokens ||
              status_ == OAuthMultiloginResponseStatus::
                             kRetryWithTokenBindingChallenge) {
@@ -242,3 +323,10 @@ OAuthMultiloginResult::OAuthMultiloginResult(
 }
 
 OAuthMultiloginResult::~OAuthMultiloginResult() = default;
+
+DeviceBoundSession::DeviceBoundSession::DeviceBoundSession() = default;
+DeviceBoundSession::DeviceBoundSession::~DeviceBoundSession() = default;
+
+DeviceBoundSession::DeviceBoundSession(DeviceBoundSession&& other) = default;
+DeviceBoundSession& DeviceBoundSession::operator=(DeviceBoundSession&& other) =
+    default;

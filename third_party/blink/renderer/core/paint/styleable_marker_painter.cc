@@ -88,12 +88,12 @@ PaintRecord RecordMarker(Color blink_color) {
 #endif  // !BUILDFLAG(IS_APPLE)
 
 void DrawDocumentMarker(GraphicsContext& context,
-                        const gfx::PointF& pt,
-                        float width,
-                        float zoom,
+                        const gfx::RectF& line_rect,
                         PaintRecord marker) {
   // Position already includes zoom and device scale factor.
-  const gfx::PointF origin = ClampNonFiniteToZero(pt);
+  const gfx::PointF origin = ClampNonFiniteToZero(line_rect.origin());
+  float width = line_rect.width();
+  const float zoom = line_rect.height();
 
 #if BUILDFLAG(IS_APPLE)
   // Make sure to draw only complete dots, and finish inside the marked text.
@@ -118,6 +118,23 @@ void DrawDocumentMarker(GraphicsContext& context,
   context.DrawRect(rect, flags, AutoDarkMode::Disabled());
 }
 
+StrokeStyle StyleForMarkerUnderline(
+    ui::mojom::blink::ImeTextSpanUnderlineStyle marker_style) {
+  using UnderlineStyle = ui::mojom::blink::ImeTextSpanUnderlineStyle;
+  switch (marker_style) {
+    case UnderlineStyle::kDash:
+      return kDashedStroke;
+    case UnderlineStyle::kDot:
+      return kDottedStroke;
+    case UnderlineStyle::kSolid:
+      return kSolidStroke;
+    case UnderlineStyle::kSquiggle:
+      return kWavyStroke;
+    case UnderlineStyle::kNone:
+      NOTREACHED();
+  }
+}
+
 }  // namespace
 
 bool StyleableMarkerPainter::ShouldPaintUnderline(
@@ -140,8 +157,8 @@ void StyleableMarkerPainter::PaintUnderline(const StyleableMarker& marker,
                                             LayoutUnit logical_height,
                                             bool in_dark_mode) {
   // start of line to draw, relative to box_origin.X()
-  LayoutUnit start = LayoutUnit(marker_rect.LineLeft());
-  LayoutUnit width = LayoutUnit(marker_rect.InlineSize());
+  LayoutUnit start = marker_rect.LineLeft();
+  LayoutUnit width = marker_rect.InlineSize();
 
   // We need to have some space between underlines of subsequent clauses,
   // because some input methods do not use different underline styles for those.
@@ -149,6 +166,10 @@ void StyleableMarkerPainter::PaintUnderline(const StyleableMarker& marker,
   // the first and last clauses, too.
   start += 1;
   width -= 2;
+
+  if (width <= 0) {
+    return;
+  }
 
   // Thick marked text underlines are 2px (before zoom) thick as long as there
   // is room for the 2px line under the baseline.  All other marked text
@@ -169,37 +190,19 @@ void StyleableMarkerPainter::PaintUnderline(const StyleableMarker& marker,
       (marker.UseTextColor() || in_dark_mode)
           ? style.VisitedDependentColor(GetCSSPropertyWebkitTextFillColor())
           : marker.UnderlineColor();
+  const gfx::PointF start_point(
+      (box_origin.left + start).ToFloat(),
+      (box_origin.top + logical_height.ToInt() - line_thickness).ToFloat());
+  const gfx::RectF line_rect(start_point, gfx::SizeF(width, line_thickness));
+  const StrokeStyle marker_style =
+      StyleForMarkerUnderline(marker.UnderlineStyle());
 
-  using UnderlineStyle = ui::mojom::blink::ImeTextSpanUnderlineStyle;
-  if (marker.UnderlineStyle() != UnderlineStyle::kSquiggle) {
-    StyledStrokeData styled_stroke;
-    styled_stroke.SetThickness(line_thickness);
-    // Set the style of the underline if there is any.
-    switch (marker.UnderlineStyle()) {
-      case UnderlineStyle::kDash:
-        styled_stroke.SetStyle(StrokeStyle::kDashedStroke);
-        break;
-      case UnderlineStyle::kDot:
-        styled_stroke.SetStyle(StrokeStyle::kDottedStroke);
-        break;
-      case UnderlineStyle::kSolid:
-        styled_stroke.SetStyle(StrokeStyle::kSolidStroke);
-        break;
-      case UnderlineStyle::kSquiggle:
-        // Wavy stroke style is not implemented in DrawLineForText so we handle
-        // it specially in the else condition below only for composition
-        // markers.
-      case UnderlineStyle::kNone:
-        NOTREACHED();
-    }
-    context.SetStrokeColor(marker_color);
-
-    DecorationLinePainter::DrawLineForText(
-        context,
-        gfx::PointF(box_origin.left + start,
-                    (box_origin.top + logical_height.ToInt() - line_thickness)
-                        .ToFloat()),
-        width, styled_stroke,
+  if (marker_style != kWavyStroke) {
+    auto marker_geometry =
+        DecorationGeometry::Make(marker_style, line_rect, 0, 0, nullptr);
+    marker_geometry.antialias = true;
+    DecorationLinePainter(context).Paint(
+        marker_geometry, marker_color,
         PaintAutoDarkMode(style, DarkModeFilter::ElementRole::kForeground));
   } else {
     // For wavy underline format we use this logic that is very similar to
@@ -207,12 +210,7 @@ void StyleableMarkerPainter::PaintUnderline(const StyleableMarker& marker,
     // markers for now.
     if (marker.GetType() == DocumentMarker::kComposition) {
       PaintRecord composition_marker = RecordMarker(marker_color);
-      DrawDocumentMarker(
-          context,
-          gfx::PointF((box_origin.left + start).ToFloat(),
-                      (box_origin.top + logical_height.ToInt() - line_thickness)
-                          .ToFloat()),
-          width, line_thickness, std::move(composition_marker));
+      DrawDocumentMarker(context, line_rect, std::move(composition_marker));
     }
   }
 }

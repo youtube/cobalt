@@ -12,13 +12,13 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.view.View;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
 import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.listmenu.BasicListMenu;
-import org.chromium.ui.listmenu.BasicListMenu.ListMenuItemType;
+import org.chromium.ui.listmenu.ListItemType;
 import org.chromium.ui.listmenu.ListMenuItemProperties;
 import org.chromium.ui.listmenu.ListSectionDividerProperties;
 import org.chromium.ui.modelutil.MVCListAdapter;
@@ -31,8 +31,9 @@ import org.chromium.ui.widget.RectProvider;
  * Chrome implementation of dropdown context menu which leverages {@link BasicListMenu}
  * and {@link AnchoredPopupWindow}.
  */
+@NullMarked
 public class ChromeSelectionDropdownMenuDelegate implements SelectionDropdownMenuDelegate {
-    @Nullable private AnchoredPopupWindow mPopupWindow;
+    private @Nullable AnchoredPopupWindow mPopupWindow;
 
     @Override
     public void show(
@@ -56,9 +57,11 @@ public class ChromeSelectionDropdownMenuDelegate implements SelectionDropdownMen
                         menu.getContentView(),
                         new RectProvider(dropdownRect),
                         null);
+        // Create a local alias for mPopupWindow to be used in the lambda.
+        AnchoredPopupWindow popupWindow = mPopupWindow;
         AnchoredPopupWindow.LayoutObserver layoutObserver =
                 (positionBelow, x2, y2, width, height, anchorRect) ->
-                        mPopupWindow.setAnimationStyle(
+                        popupWindow.setAnimationStyle(
                                 positionBelow
                                         ? R.style.StartIconMenuAnim
                                         : R.style.StartIconMenuAnimBottom);
@@ -92,16 +95,15 @@ public class ChromeSelectionDropdownMenuDelegate implements SelectionDropdownMen
                 itemModel, ListMenuItemProperties.MENU_ITEM_ID, 0);
     }
 
-    @Nullable
     @Override
-    public Intent getItemIntent(PropertyModel itemModel) {
-        return PropertyModel.getFromModelOrDefault(itemModel, ListMenuItemProperties.INTENT, null);
+    public @Nullable Intent getItemIntent(PropertyModel itemModel) {
+        return PropertyModel.<@Nullable Intent>getFromModelOrDefault(
+                itemModel, ListMenuItemProperties.INTENT, null);
     }
 
-    @Nullable
     @Override
-    public View.OnClickListener getClickListener(PropertyModel itemModel) {
-        return PropertyModel.getFromModelOrDefault(
+    public View.@Nullable OnClickListener getClickListener(PropertyModel itemModel) {
+        return PropertyModel.<View.@Nullable OnClickListener>getFromModelOrDefault(
                 itemModel, ListMenuItemProperties.CLICK_LISTENER, null);
     }
 
@@ -115,12 +117,12 @@ public class ChromeSelectionDropdownMenuDelegate implements SelectionDropdownMen
                         .with(
                                 ListSectionDividerProperties.RIGHT_PADDING_DIMEN_ID,
                                 R.dimen.list_menu_item_horizontal_padding);
-        return new ListItem(ListMenuItemType.DIVIDER, builder.build());
+        return new ListItem(ListItemType.DIVIDER, builder.build());
     }
 
     @Override
     public ListItem getMenuItem(
-            String title,
+            @Nullable String title,
             @Nullable String contentDescription,
             int groupId,
             int id,
@@ -128,7 +130,7 @@ public class ChromeSelectionDropdownMenuDelegate implements SelectionDropdownMen
             boolean isIconTintable,
             boolean groupContainsIcon,
             boolean enabled,
-            @Nullable View.OnClickListener clickListener,
+            View.@Nullable OnClickListener clickListener,
             @Nullable Intent intent) {
         PropertyModel.Builder modelBuilder =
                 new PropertyModel.Builder(ListMenuItemProperties.ALL_KEYS)
@@ -151,6 +153,6 @@ public class ChromeSelectionDropdownMenuDelegate implements SelectionDropdownMen
                     ListMenuItemProperties.ICON_TINT_COLOR_STATE_LIST_ID,
                     BrowserUiListMenuUtils.getDefaultIconTintColorStateListId());
         }
-        return new ListItem(ListMenuItemType.MENU_ITEM, modelBuilder.build());
+        return new ListItem(ListItemType.MENU_ITEM, modelBuilder.build());
     }
 }

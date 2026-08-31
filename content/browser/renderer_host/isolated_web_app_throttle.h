@@ -19,10 +19,10 @@ class CONTENT_EXPORT IsolatedWebAppThrottle : public NavigationThrottle {
   using NavigationThrottle::ThrottleAction;
   using NavigationThrottle::ThrottleCheckResult;
 
-  static std::unique_ptr<IsolatedWebAppThrottle> MaybeCreateThrottleFor(
-      NavigationHandle* handle);
+  static void MaybeCreateAndAdd(
+      NavigationThrottleRegistry& registry);
 
-  explicit IsolatedWebAppThrottle(NavigationHandle* navigation_handle);
+  explicit IsolatedWebAppThrottle(NavigationThrottleRegistry& registry);
   ~IsolatedWebAppThrottle() override;
   IsolatedWebAppThrottle() = delete;
   IsolatedWebAppThrottle(const IsolatedWebAppThrottle&) = delete;
@@ -58,7 +58,7 @@ class CONTENT_EXPORT IsolatedWebAppThrottle : public NavigationThrottle {
       ThrottleAction block_action);
 
   // Opens a url in the systems' default application for the given url.
-  bool OpenUrlExternal(const GURL& url);
+  void OpenUrlExternal(const GURL& url);
 
   // These two fields store the starting and destination origins of the most
   // recent step in the navigation's redirect chain, including the initial

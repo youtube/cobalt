@@ -7,12 +7,13 @@ include_rules = [
   "+third_party/libyuv/include/libyuv/planar_functions.h",
   "+third_party/skia",
   "+components/crash/core/common/crash_key.h",
-  "+components/viz/common/gpu/metal_context_provider.h",
+  "+components/metal_util",
   "+components/viz/common/gpu/vulkan_context_provider.h",
   "+components/viz/common/resources/shared_image_format.h",
   "+components/viz/common/resources/resource_sizes.h",
   "+components/viz/common/resources/shared_image_format.h",
   "+components/viz/common/resources/shared_image_format_utils.h",
+  "+services/webnn/d3d12_backend.h",
   "+ui/base/ozone_buildflags.h",
 ]
 

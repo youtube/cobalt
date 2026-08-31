@@ -193,10 +193,17 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
                      output_register_count, subject_index);
 }
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+// Hardware sandboxing is incompatible with ASAN, see crbug.com/432168626.
+DISABLE_ASAN
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 int32_t ExperimentalRegExp::MatchForCallFromJs(
     Address subject, int32_t start_position, Address input_start,
     Address input_end, int* output_registers, int32_t output_register_count,
     RegExp::CallOrigin call_origin, Isolate* isolate, Address regexp_data) {
+  // TODO(422992937): investigate running the interpreter in sandboxed mode.
+  ExitSandboxScope unsandboxed;
+
   DCHECK(v8_flags.enable_experimental_regexp_engine);
   DCHECK_NOT_NULL(isolate);
   DCHECK_NOT_NULL(output_registers);

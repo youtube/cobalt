@@ -8,7 +8,8 @@ import type { PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/poly
 import {beforeNextRender, dedupingMixin} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {BaseMixin} from '../base_mixin.js';
-import type {SettingsIdleLoadElement} from '../controls/settings_idle_load.js';
+import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
+import type {SettingsViewMixinInterface} from '../settings_page/settings_view_mixin.js';
 import {ensureLazyLoaded} from '../ensure_lazy_loaded.js';
 import {loadTimeData} from '../i18n_setup.js';
 import {routes} from '../route.js';
@@ -35,7 +36,7 @@ export enum RouteState {
 }
 
 let guestTopLevelRoute = routes.SEARCH;
-// <if expr="chromeos_ash">
+// <if expr="is_chromeos">
 guestTopLevelRoute = routes.PRIVACY;
 // </if>
 
@@ -68,8 +69,8 @@ type Constructor<T> = new (...args: any[]) => T;
  */
 export const MainPageMixin = dedupingMixin(
     <T extends Constructor<PolymerElement>>(superClass: T): T&
-    Constructor<MainPageMixinInterface> => {
-      const superClassBase = BaseMixin(superClass);
+    Constructor<MainPageMixinInterface&SettingsViewMixinInterface> => {
+      const superClassBase = SettingsViewMixin(BaseMixin(superClass));
 
       class MainPageMixin extends superClassBase {
         scroller: HTMLElement|null = null;
@@ -126,12 +127,6 @@ export const MainPageMixin = dedupingMixin(
           return false;
         }
 
-        private shouldExpandAdvanced_(route: Route): boolean {
-          const routes = Router.getInstance().getRoutes();
-          return this.tagName === 'SETTINGS-BASIC-PAGE' && !!routes.ADVANCED &&
-              routes.ADVANCED.contains(route);
-        }
-
         /**
          * Finds the settings section corresponding to the given route. If the
          * section is lazily loaded it force-renders it.
@@ -145,23 +140,11 @@ export const MainPageMixin = dedupingMixin(
             return Promise.resolve(section);
           }
 
-          // The function to use to wait for <dom-if>s to render.
-          const waitFn = beforeNextRender.bind(null, this);
-
           return new Promise<HTMLElement>(resolve => {
-            if (this.shouldExpandAdvanced_(route)) {
-              this.fire('hide-container');
-              waitFn(() => {
-                this.$$<SettingsIdleLoadElement>('#advancedPageTemplate')!.get()
-                    .then(() => {
-                      resolve(this.getSection(route.section)!);
-                    });
-              });
-            } else {
-              waitFn(() => {
-                resolve(this.getSection(route.section)!);
-              });
-            }
+            // Wait for <dom-if>s to render.
+            beforeNextRender(this, () => {
+              resolve(this.getSection(route.section)!);
+            });
           });
         }
 
@@ -178,27 +161,19 @@ export const MainPageMixin = dedupingMixin(
             return Promise.resolve(sections);
           }
 
-          // The function to use to wait for <dom-if>s to render.
-          const waitFn = beforeNextRender.bind(null, this);
-
           return new Promise(resolve => {
-            if (this.shouldExpandAdvanced_(route)) {
-              this.fire('hide-container');
-              waitFn(() => {
-                this.$$<SettingsIdleLoadElement>('#advancedPageTemplate')!.get()
-                    .then(() => {
-                      resolve(this.querySettingsSections_(route.section));
-                    });
-              });
-            } else {
-              waitFn(() => {
-                resolve(this.querySettingsSections_(route.section));
-              });
-            }
+            // Wait for <dom-if>s to render.
+            beforeNextRender(this, () => {
+              resolve(this.querySettingsSections_(route.section));
+            });
           });
         }
 
         private enterSubpage_(route: Route) {
+          if (route.hasMigratedToPlugin) {
+            return;
+          }
+
           this.lastScrollTop_ = this.scroller!.scrollTop;
           this.scroller!.scrollTop = 0;
           this.classList.add('showing-subpage');
@@ -221,6 +196,11 @@ export const MainPageMixin = dedupingMixin(
           const oldSection = this.getSection(oldRoute.section)!;
           oldSection.classList.remove('expanded');
           this.classList.remove('showing-subpage');
+
+          if (oldRoute.hasMigratedToPlugin) {
+            return Promise.resolve();
+          }
+
           return new Promise((res) => {
             requestAnimationFrame(() => {
               if (Router.getInstance().lastRouteChangeWasPopstate()) {
@@ -237,6 +217,10 @@ export const MainPageMixin = dedupingMixin(
          * previously |active| section(s), if any.
          */
         private switchToSections_(newRoute: Route) {
+          if (newRoute.hasMigratedToPlugin) {
+            return;
+          }
+
           this.ensureSectionsForRoute_(newRoute).then(sections => {
             // Clear any previously |active| section.
             const oldSections =
@@ -290,10 +274,11 @@ export const MainPageMixin = dedupingMixin(
           return [classifyRoute(oldRoute), classifyRoute(newRoute)];
         }
 
-        // TODO(dpapad): Figure out why adding the |override| keyword here
-        // throws an error.
-        currentRouteChanged(newRoute: Route, oldRoute: Route|null) {
-          const transition = this.getStateTransition_(newRoute, oldRoute);
+        override currentRouteChanged(newRoute: Route, oldRoute?: Route) {
+          super.currentRouteChanged(newRoute, oldRoute);
+
+          const transition =
+              this.getStateTransition_(newRoute, oldRoute || null);
           if (transition === null) {
             return;
           }
@@ -362,6 +347,7 @@ export const MainPageMixin = dedupingMixin(
               // sub-subpage entry point.
             } else if (newState === RouteState.TOP_LEVEL) {
               this.enterMainPage_(oldRoute!);
+              this.switchToSections_(TOP_LEVEL_EQUIVALENT_ROUTE);
             } else if (newState === RouteState.DIALOG) {
               // The only known cases currently for such a transition are from
               // 1) /synceSetup to /signOut

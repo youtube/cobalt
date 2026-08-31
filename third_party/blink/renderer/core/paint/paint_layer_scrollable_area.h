@@ -357,13 +357,13 @@ class CORE_EXPORT PaintLayerScrollableArea final
   gfx::Point ScrollOrigin() const { return scroll_origin_; }
   bool ScrollOriginChanged() const { return scroll_origin_changed_; }
 
-  void ScrollToAbsolutePosition(const gfx::PointF& position,
+  bool ScrollToAbsolutePosition(const gfx::PointF& position,
                                 mojom::blink::ScrollBehavior scroll_behavior =
                                     mojom::blink::ScrollBehavior::kInstant,
                                 mojom::blink::ScrollType scroll_type =
                                     mojom::blink::ScrollType::kProgrammatic) {
-    SetScrollOffset(ScrollOffset(position - gfx::PointF(ScrollOrigin())),
-                    scroll_type, scroll_behavior);
+    return SetScrollOffset(ScrollOffset(position - gfx::PointF(ScrollOrigin())),
+                           scroll_type, scroll_behavior);
   }
 
   // This will set the scroll position without clamping, and it will do all
@@ -411,10 +411,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // movement is relative to the original position rather than the updated
   // position.
   void Resize(const gfx::Point& pos,
-              const gfx::Vector2d& old_offset,
               const gfx::Transform& position_to_size_transform);
-  gfx::Vector2d OffsetFromResizeCorner(const gfx::Point& absolute_point) const;
-
   gfx::Transform InitializeResizeTransform(
       const gfx::Point& absolute_drag_start_point);
 
@@ -554,6 +551,8 @@ class CORE_EXPORT PaintLayerScrollableArea final
 
   bool HasHorizontalOverflow() const;
   bool HasVerticalOverflow() const;
+
+  bool CanPropagateScroll() const;
 
   void Trace(Visitor*) const override;
 
@@ -874,7 +873,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
 
    private:
     String DebugName() const final;
-    DOMNodeId OwnerNodeId() const final;
+    DOMNodeId OwnerNodeId(bool is_internal_content = false) const final;
 
     Member<const PaintLayerScrollableArea> scrollable_area_;
   };
@@ -894,7 +893,7 @@ class CORE_EXPORT PaintLayerScrollableArea final
 
    private:
     String DebugName() const final;
-    DOMNodeId OwnerNodeId() const final;
+    DOMNodeId OwnerNodeId(bool is_internal_content = false) const final;
 
     Member<const PaintLayerScrollableArea> scrollable_area_;
   };
@@ -919,6 +918,13 @@ class CORE_EXPORT PaintLayerScrollableArea final
   // the closest ancestor scrollable area. Hence, there can be multiple
   // ScrollMarkerGroupData.
   HeapHashSet<Member<ScrollMarkerGroupData>> scroll_marker_group_data_set_;
+};
+
+template <>
+struct DowncastTraits<PaintLayerScrollableArea> {
+  static bool AllowFrom(const ScrollableArea& from) {
+    return from.IsPaintLayerScrollableArea();
+  }
 };
 
 }  // namespace blink

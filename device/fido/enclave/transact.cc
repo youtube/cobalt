@@ -89,7 +89,9 @@ struct Transaction : base::RefCounted<Transaction> {
         return;
       }
 
-      FIDO_LOG(EVENT) << "<- " << cbor::DiagnosticWriter::Write(request_);
+      FIDO_LOG(EVENT) << "<- "
+                      << cbor::DiagnosticWriter::Write(
+                             RedactEnclaveRequest(request_));
       BuildCommandRequestBody(
           std::move(request_), std::move(signing_callback_), *handshake_hash_,
           base::BindOnce(&Transaction::RequestReady, scoped_refptr(this)));
@@ -99,9 +101,6 @@ struct Transaction : base::RefCounted<Transaction> {
         if (!crypter_->Decrypt(data, &plaintext)) {
           FIDO_LOG(ERROR) << "Failed to decrypt enclave response";
           RecordTransactionResult(EnclaveTransactionResult::kDecryptionFailed);
-          base::UmaHistogramCounts10000(
-              "WebAuthentication.EnclaveTransactionDecryptFailureSize",
-              data.size());
           std::move(callback_).Run(base::unexpected(TransactError::kOther));
           break;
         }
@@ -114,7 +113,9 @@ struct Transaction : base::RefCounted<Transaction> {
           break;
         }
 
-        FIDO_LOG(EVENT) << "-> " << cbor::DiagnosticWriter::Write(*response);
+        FIDO_LOG(EVENT) << "-> "
+                        << cbor::DiagnosticWriter::Write(
+                               RedactEnclaveResponse(*response));
         if (!response->is_map()) {
           RecordTransactionResult(EnclaveTransactionResult::kParseFailure);
           std::move(callback_).Run(base::unexpected(TransactError::kOther));

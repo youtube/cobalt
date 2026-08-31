@@ -200,6 +200,10 @@ def _GetTypemapImport(typemap):
   return Path(typemap['converter_import']).with_suffix('.js').name
 
 
+def _NameToFieldTag(name):
+  return generator.ToUpperSnakeCase(name)
+
+
 class TypeScriptStylizer(generator.Stylizer):
   def StylizeConstant(self, mojom_name):
     return generator.ToUpperSnakeCase(mojom_name)
@@ -272,6 +276,7 @@ class Generator(generator.Generator):
         "ts_type": self._TypescriptType,
         "ts_type_maybe_nullable": self._TypescriptTypeMaybeNullable,
         "sanitize_identifier": self._TypeScriptSanitizeIdentifier,
+        "to_union_field_tag_name": _NameToFieldTag,
     }
     return ts_filters
 
@@ -469,7 +474,12 @@ class Generator(generator.Generator):
 
     if (mojom.IsEnumKind(kind) or mojom.IsStructKind(kind)
         or mojom.IsUnionKind(kind)):
-      return [make_import(kind.name), make_import(kind.name, 'Spec')]
+      imports = [make_import(kind.name, 'Spec')]
+      # if the type is typemapped, the typemap import will replace the
+      # mojo type, so no need to import it here.
+      if not kind.qualified_name in self.typemap:
+        imports += [make_import(kind.name)]
+      return imports
     if mojom.IsInterfaceKind(kind):
       # Typescript will output an error if types are included
       # that are not used or are double included. Only include
@@ -733,7 +743,8 @@ class Generator(generator.Generator):
   def _ConverterImports(self):
 
     def needs_import(kind):
-      return mojom.IsStructKind(kind) or mojom.IsUnionKind(kind)
+      return mojom.IsStructKind(kind) or mojom.IsUnionKind(
+          kind) or mojom.IsEnumKind(kind)
 
     class Import:
 
@@ -762,6 +773,12 @@ class Generator(generator.Generator):
     for qualified_name, typemap in self.typemap.items():
       qualified_type_to_import[qualified_name] = Import(typemap['typename'],
                                                         typemap['type_import'])
+
+    for struct in self.module.structs:
+      for enum in struct.enums:
+        qualified_type_to_import[enum.qualified_name] = Import(
+            self._TypescriptType(enum),
+            './' + Path(self._GetModuleFilename('js')).name)
 
     # Now we create the list of imports, based on the struct deps.
     imports = {}

@@ -186,6 +186,14 @@ public class MinimizeAppAndCloseTabBackPressHandlerUnitTest {
         histogram.assertExpected();
     }
 
+    @Test
+    @SmallTest
+    public void testInvokeBackActionOnEscape() {
+        Assert.assertFalse(
+                "invokeBackActionOnEscape should return false.",
+                mHandler.invokeBackActionOnEscape());
+    }
+
     private void createBackPressHandler() {
         createBackPressHandler(false, false);
     }
@@ -199,6 +207,8 @@ public class MinimizeAppAndCloseTabBackPressHandlerUnitTest {
             MinimizeAppAndCloseTabBackPressHandler.setVersionForTesting(VERSION_CODES.BAKLAVA);
         } else if (systemBack) {
             MinimizeAppAndCloseTabBackPressHandler.setVersionForTesting(VERSION_CODES.TIRAMISU);
+        } else {
+            MinimizeAppAndCloseTabBackPressHandler.setVersionForTesting(VERSION_CODES.S_V2);
         }
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

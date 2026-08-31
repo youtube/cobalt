@@ -9,11 +9,13 @@
  */
 #include "net/dcsctp/socket/state_cookie.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
 
 #include "api/array_view.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "net/dcsctp/socket/capabilities.h"
@@ -24,7 +26,6 @@ namespace dcsctp {
 // Magic values, which the state cookie is prefixed with.
 constexpr uint32_t kMagic1 = 1684230979;
 constexpr uint32_t kMagic2 = 1414541360;
-constexpr size_t StateCookie::kCookieSize;
 
 std::vector<uint8_t> StateCookie::Serialize() {
   std::vector<uint8_t> cookie;

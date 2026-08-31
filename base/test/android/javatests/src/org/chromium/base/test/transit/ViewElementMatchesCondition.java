@@ -4,6 +4,8 @@
 
 package org.chromium.base.test.transit;
 
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+
 import android.view.View;
 
 import org.hamcrest.Matcher;
@@ -14,17 +16,23 @@ import org.chromium.build.annotations.NullMarked;
 @NullMarked
 public class ViewElementMatchesCondition extends InstrumentationThreadCondition {
 
-    private final ViewElement<View> mViewElement;
+    private final ViewElement<? extends View> mViewElement;
     private final Matcher<View> mViewMatcher;
 
-    public ViewElementMatchesCondition(ViewElement<View> viewElement, Matcher<View> viewMatcher) {
+    public ViewElementMatchesCondition(
+            ViewElement<? extends View> viewElement, Matcher<View> viewMatcher) {
         mViewElement = dependOnSupplier(viewElement, "ViewElement");
         mViewMatcher = viewMatcher;
     }
 
     @Override
     protected ConditionStatus checkWithSuppliers() throws Exception {
-        return whether(mViewMatcher.matches(mViewElement.get()));
+        try {
+            mViewElement.check(matches(mViewMatcher));
+            return fulfilled();
+        } catch (AssertionError e) {
+            return notFulfilled(e.getMessage());
+        }
     }
 
     @Override

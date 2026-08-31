@@ -15,7 +15,7 @@
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 #include "components/permissions/permission_decision_auto_blocker.h"
 #include "components/permissions/permission_request_id.h"
 #include "components/permissions/permission_util.h"
@@ -37,7 +37,7 @@ class RenderProcessHost;
 class WebContents;
 struct PermissionRequestDescription;
 struct PermissionResult;
-}
+}  // namespace content
 
 class GeolocationPermissionContextDelegateTests;
 class SubscriptionInterceptingPermissionManager;
@@ -141,7 +141,8 @@ class PermissionManager : public KeyedService,
       const url::Origin& requesting_origin) override;
   bool IsPermissionOverridable(
       blink::PermissionType permission,
-      const std::optional<url::Origin>& origin) override;
+      base::optional_ref<const url::Origin> requesting_origin,
+      base::optional_ref<const url::Origin> embedding_origin) override;
   void OnPermissionStatusChangeSubscriptionAdded(
       content::PermissionController::SubscriptionId subscription_id) override;
   void UnsubscribeFromPermissionStatusChange(
@@ -158,7 +159,7 @@ class PermissionManager : public KeyedService,
   void OnPermissionsRequestResponseStatus(
       PendingRequestLocalId request_local_id,
       int permission_id,
-      ContentSetting status);
+      PermissionStatus status);
 
   // permissions::Observer:
   void OnPermissionChanged(const ContentSettingsPattern& primary_pattern,

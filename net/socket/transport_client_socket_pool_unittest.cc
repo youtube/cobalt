@@ -78,13 +78,11 @@ const RequestPriority kDefaultPriority = LOW;
 class SOCKS5MockData {
  public:
   explicit SOCKS5MockData(IoMode mode) {
-    writes_[0] =
-        MockWrite(mode, kSOCKS5GreetRequest, kSOCKS5GreetRequestLength);
-    writes_[1] = MockWrite(mode, kSOCKS5OkRequest, kSOCKS5OkRequestLength);
+    writes_[0] = MockWrite(mode, kSOCKS5GreetRequest);
+    writes_[1] = MockWrite(mode, kSOCKS5OkRequest);
 
-    reads_[0] =
-        MockRead(mode, kSOCKS5GreetResponse, kSOCKS5GreetResponseLength);
-    reads_[1] = MockRead(mode, kSOCKS5OkResponse, kSOCKS5OkResponseLength);
+    reads_[0] = MockRead(mode, kSOCKS5GreetResponse);
+    reads_[1] = MockRead(mode, kSOCKS5OkResponse);
 
     data_ = std::make_unique<StaticSocketDataProvider>(reads_, writes_);
   }
@@ -1592,7 +1590,8 @@ TEST_F(TransportClientSocketPoolTest, SpdyOneConnectJobTwoRequestsError) {
 
   SpdyTestUtil spdy_util;
   spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair::FromSchemeHostPort(kEndpoint)));
 
   MockWrite writes[] = {
@@ -1683,7 +1682,8 @@ TEST_F(TransportClientSocketPoolTest, SpdyAuthOneConnectJobTwoRequests) {
 
   SpdyTestUtil spdy_util;
   spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair::FromSchemeHostPort(kEndpoint)));
 
   MockWrite writes[] = {
@@ -1695,12 +1695,12 @@ TEST_F(TransportClientSocketPoolTest, SpdyAuthOneConnectJobTwoRequests) {
   // ERROR_CODE_HTTP_1_1_REQUIRED.
 
   const char kAuthStatus[] = "407";
-  const char* const kAuthChallenge[] = {
+  const std::string_view kAuthChallenge[] = {
       "proxy-authenticate",
       "NTLM",
   };
-  spdy::SpdySerializedFrame connect_auth_resp(spdy_util.ConstructSpdyReplyError(
-      kAuthStatus, kAuthChallenge, std::size(kAuthChallenge) / 2, 1));
+  spdy::SpdySerializedFrame connect_auth_resp(
+      spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge, 1));
   spdy::SpdySerializedFrame reset(
       spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_HTTP_1_1_REQUIRED));
   MockRead reads[] = {
@@ -1812,7 +1812,7 @@ TEST_F(TransportClientSocketPoolTest, HttpTunnelSetupRedirect) {
                     "User-Agent: test-ua\r\n\r\n"),
       };
       MockRead reads[] = {
-          MockRead(ASYNC, 1, kResponseText.c_str()),
+          MockRead(ASYNC, 1, kResponseText),
       };
 
       SequencedSocketData data(reads, writes);
@@ -2816,7 +2816,7 @@ TEST_F(TransportClientSocketPoolTest, TagHttpProxyTunnel) {
       "Proxy-Connection: keep-alive\r\n"
       "User-Agent: test-ua\r\n\r\n";
   MockWrite writes[] = {
-      MockWrite(SYNCHRONOUS, 0, request.c_str()),
+      MockWrite(SYNCHRONOUS, 0, request),
   };
   MockRead reads[] = {
       MockRead(SYNCHRONOUS, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),

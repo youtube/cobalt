@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ios/web/web_thread_impl.h"
 
 #include <string>
 #include <utility>
 
-#include "base/atomicops.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -33,7 +37,12 @@ enum WebThreadState {
 };
 
 struct WebThreadGlobals {
-  WebThreadGlobals() {}
+  static WebThreadGlobals& Get() {
+    static base::NoDestructor<WebThreadGlobals> instance;
+    return *instance;
+  }
+
+  static bool IsCreated() { return is_created; }
 
   // This lock protects `threads` and `states`. Do not read or modify those
   // arrays without holding this lock. Do not block while holding this lock.
@@ -46,10 +55,16 @@ struct WebThreadGlobals {
 
   // This array is protected by `lock`. Holds the state of each WebThread::ID.
   WebThreadState states[WebThread::ID_COUNT] GUARDED_BY(lock) = {};
+
+ private:
+  friend class base::NoDestructor<WebThreadGlobals>;
+
+  static bool is_created;
+
+  WebThreadGlobals() { is_created = true; }
 };
 
-base::LazyInstance<WebThreadGlobals>::Leaky g_globals =
-    LAZY_INSTANCE_INITIALIZER;
+bool WebThreadGlobals::is_created = false;
 
 bool PostTaskHelper(WebThread::ID identifier,
                     const base::Location& from_here,
@@ -69,7 +84,7 @@ bool PostTaskHelper(WebThread::ID identifier,
       WebThread::GetCurrentThreadIdentifier(&current_thread) &&
       current_thread >= identifier;
 
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
   if (!target_thread_outlives_current) {
     globals.lock.Acquire();
   }
@@ -207,7 +222,7 @@ WebThreadImpl::WebThreadImpl(
     : identifier_(identifier) {
   DCHECK(task_runner);
 
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
 
   base::AutoLock lock(globals.lock);
   DCHECK_GE(identifier_, 0);
@@ -221,7 +236,7 @@ WebThreadImpl::WebThreadImpl(
 }
 
 WebThreadImpl::~WebThreadImpl() {
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
   base::AutoLock lock(globals.lock);
 
   DCHECK_EQ(globals.states[identifier_], WebThreadState::RUNNING);
@@ -230,7 +245,7 @@ WebThreadImpl::~WebThreadImpl() {
 
 // static
 void WebThreadImpl::ResetGlobalsForTesting(WebThread::ID identifier) {
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
 
   base::AutoLock lock(globals.lock);
   DCHECK_EQ(globals.states[identifier], WebThreadState::SHUTDOWN);
@@ -254,11 +269,11 @@ const char* WebThreadImpl::GetThreadName(WebThread::ID thread) {
 
 // static
 bool WebThreadImpl::IsThreadInitialized(ID identifier) {
-  if (!g_globals.IsCreated()) {
+  if (!WebThreadGlobals::IsCreated()) {
     return false;
   }
 
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
   base::AutoLock lock(globals.lock);
   DCHECK_GE(identifier, 0);
   DCHECK_LT(identifier, ID_COUNT);
@@ -267,7 +282,7 @@ bool WebThreadImpl::IsThreadInitialized(ID identifier) {
 
 // static
 bool WebThreadImpl::CurrentlyOn(ID identifier) {
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
   base::AutoLock lock(globals.lock);
   DCHECK_GE(identifier, 0);
   DCHECK_LT(identifier, ID_COUNT);
@@ -292,11 +307,11 @@ std::string WebThreadImpl::GetCurrentlyOnErrorMessage(ID expected) {
 
 // static
 bool WebThreadImpl::GetCurrentThreadIdentifier(ID* identifier) {
-  if (!g_globals.IsCreated()) {
+  if (!WebThreadGlobals::IsCreated()) {
     return false;
   }
 
-  WebThreadGlobals& globals = g_globals.Get();
+  WebThreadGlobals& globals = WebThreadGlobals::Get();
   base::AutoLock lock(globals.lock);
   for (int i = 0; i < ID_COUNT; ++i) {
     if (globals.task_runners[i] &&

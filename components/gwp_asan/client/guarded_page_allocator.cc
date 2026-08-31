@@ -57,10 +57,6 @@ T RandomEviction(std::vector<T>* list) {
 
 }  // namespace
 
-// TODO: Delete out-of-line constexpr defininitons once C++17 is in use.
-constexpr size_t GuardedPageAllocator::kOutOfMemoryCount;
-constexpr size_t GuardedPageAllocator::kGpaAllocAlignment;
-
 template <typename T>
 void GuardedPageAllocator::SimpleFreeList<T>::Initialize(T max_entries) {
   max_entries_ = max_entries;
@@ -147,7 +143,7 @@ void GuardedPageAllocator::PartitionAllocSlotFreeList::Free(
 
 GuardedPageAllocator::GuardedPageAllocator() = default;
 
-void GuardedPageAllocator::Init(const AllocatorSettings& settings,
+bool GuardedPageAllocator::Init(const AllocatorSettings& settings,
                                 OutOfMemoryCallback oom_callback,
                                 bool is_partition_alloc) {
   CHECK_GT(settings.max_allocated_pages, 0U);
@@ -182,7 +178,7 @@ void GuardedPageAllocator::Init(const AllocatorSettings& settings,
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_GWP_ASAN_STORE)
 
   if (!region)
-    PLOG(FATAL) << "Failed to reserve allocator region";
+    return false;
 
   state_.pages_base_addr = reinterpret_cast<uintptr_t>(region);
   state_.first_page_addr = state_.pages_base_addr + state_.page_size;
@@ -235,6 +231,8 @@ void GuardedPageAllocator::Init(const AllocatorSettings& settings,
     }
   }
 #endif
+
+  return true;
 }
 
 void GuardedPageAllocator::DestructForTesting() {

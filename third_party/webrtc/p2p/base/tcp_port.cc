@@ -66,8 +66,7 @@
 
 #include "p2p/base/tcp_port.h"
 
-#include <errno.h>
-
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <list>

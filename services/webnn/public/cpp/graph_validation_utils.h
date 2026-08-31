@@ -37,6 +37,10 @@ enum class RoundingType { kFloor, kCeil };
 // direction of the input sequence.
 enum class RecurrentNetworkDirection { kForward, kBackward, kBoth };
 
+// Represents the `MLPaddingMode` that specifies the padding mode of the pad
+// operation.
+enum class PaddingMode { kConstant, kEdge, kReflection };
+
 enum class ReduceKind {
   kL1,
   kL2,
@@ -394,6 +398,18 @@ struct COMPONENT_EXPORT(WEBNN_PUBLIC_CPP) SplitAttribute {
   std::string label = "";
 };
 
+// Calculate the output size for conv2d based on WebNN spec:
+// https://www.w3.org/TR/webnn/#api-mlgraphbuilder-conv2d
+// Return the calculated output size if no error.
+base::expected<double, std::string> COMPONENT_EXPORT(WEBNN_PUBLIC_CPP)
+    CalculateConv2dOutputSize(uint32_t input_size,
+                              uint32_t filter_size,
+                              uint32_t beginning_padding,
+                              uint32_t ending_padding,
+                              uint32_t stride,
+                              uint32_t dilation,
+                              std::string_view label);
+
 // Validate argMin and argMax operators defined in WebIDL here:
 // https://www.w3.org/TR/webnn/#api-mlgraphbuilder-argminmax.
 base::expected<OperandDescriptor, std::string> COMPONENT_EXPORT(
@@ -620,6 +636,7 @@ base::expected<OperandDescriptor, std::string> COMPONENT_EXPORT(
                               const OperandDescriptor& input,
                               base::span<const uint32_t> beginning_padding,
                               base::span<const uint32_t> ending_padding,
+                              PaddingMode mode,
                               std::string_view label);
 
 // Validate and infer output information of 2-D pooling operator defined in

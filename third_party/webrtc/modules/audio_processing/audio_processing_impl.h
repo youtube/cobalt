@@ -11,11 +11,10 @@
 #ifndef MODULES_AUDIO_PROCESSING_AUDIO_PROCESSING_IMPL_H_
 #define MODULES_AUDIO_PROCESSING_AUDIO_PROCESSING_IMPL_H_
 
-#include <stdio.h>
-
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <utility>

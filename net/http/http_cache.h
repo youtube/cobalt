@@ -458,6 +458,10 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
                                             bool is_partial,
                                             bool is_match) const;
 
+    // Returns the priority-based task runner, considering request priority
+    // among all transactions.
+    const scoped_refptr<base::SingleThreadTaskRunner>& GetTaskRunner() const;
+
    private:
     friend class base::RefCounted<ActiveEntry>;
 
@@ -538,6 +542,10 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory {
       bool is_mainframe_navigation,
       bool is_shared_resource,
       std::optional<url::Origin> initiator);
+
+  // Generates a cache key for `request_info` and informs the backend it should
+  // consider it used if it exists.
+  void OnExternalCacheHitForRequest(const HttpRequestInfo& request_info);
 
   // Creates a WorkItem and sets it as the |pending_op|'s writer, or adds it to
   // the queue if a writer already exists.

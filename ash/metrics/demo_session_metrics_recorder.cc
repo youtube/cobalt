@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 
+#include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/app_types_util.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shelf/shelf_window_watcher.h"
@@ -89,6 +90,13 @@ const AppHistogramSuffix kAppsHistogramSuffix[] = {
     {DemoModeApp::kOtherArcApp, "OtherArcApp"},
     {DemoModeApp::kBrowser, "Browser"},
     {DemoModeApp::kYoutubePwa, "YouTubePwa"},
+    {DemoModeApp::kZoom, "Zoom"},
+    {DemoModeApp::kGoogleDocsPwa, "GoogleDocs"},
+    {DemoModeApp::kSumo, "Sumo"},
+    {DemoModeApp::kBeFunky, "BeFunky"},
+    {DemoModeApp::kSpotify, "Spotify"},
+    {DemoModeApp::kFiles, "FilesManager"},
+    {DemoModeApp::kGemini, "Gemini"},
 };
 
 // How many periods to wait for user activity before discarding samples.
@@ -101,7 +109,8 @@ constexpr int kMaxPeriodsWithoutActivity = base::Seconds(15) / kSamplePeriod;
 DemoModeApp GetAppFromAppId(const std::string& app_id) {
   // Each version of the Highlights app is bucketed into the same value.
   if (app_id == extension_misc::kHighlightsAppId ||
-      app_id == extension_misc::kNewHighlightsAppId) {
+      app_id == extension_misc::kNewHighlightsAppId ||
+      app_id == extension_misc::kDemoModeSWA) {
     return DemoModeApp::kHighlights;
   }
 
@@ -114,7 +123,8 @@ DemoModeApp GetAppFromAppId(const std::string& app_id) {
   if (app_id == app_constants::kChromeAppId) {
     return DemoModeApp::kBrowser;
   }
-  if (app_id == extension_misc::kFilesManagerAppId) {
+  if (app_id == extension_misc::kFilesManagerAppId ||
+      app_id == extension_misc::kFilesManagerSWAId) {
     return DemoModeApp::kFiles;
   }
   if (app_id == extension_misc::kCalculatorAppId) {
@@ -123,10 +133,14 @@ DemoModeApp GetAppFromAppId(const std::string& app_id) {
   if (app_id == extension_misc::kCalendarDemoAppId) {
     return DemoModeApp::kCalendar;
   }
+  if (app_id == extension_misc::kCameraAppId) {
+    return DemoModeApp::kCamera;
+  }
   if (app_id == extension_misc::kGoogleDocsDemoAppId) {
     return DemoModeApp::kGoogleDocsChromeApp;
   }
-  if (app_id == extension_misc::kGoogleDocsPwaAppId) {
+  if (app_id == extension_misc::kGoogleDocsPwaAppId ||
+      app_id == ash::kGoogleDocsAppId) {
     return DemoModeApp::kGoogleDocsPwa;
   }
   if (app_id == extension_misc::kGoogleMeetPwaAppId) {
@@ -176,6 +190,10 @@ DemoModeApp GetAppFromAppId(const std::string& app_id) {
   }
   if (app_id == extension_misc::kAdobeSparkAppId) {
     return DemoModeApp::kAdobeSpark;
+  }
+  if (app_id == extension_misc::kGeminiAppId ||
+      app_id == extension_misc::kGeminiAppByPolicyId) {
+    return DemoModeApp::kGemini;
   }
 
   return DemoModeApp::kOtherChromeApp;
@@ -558,7 +576,6 @@ DemoSessionMetricsRecorder::~DemoSessionMetricsRecorder() {
   g_demo_session_metrics_recorder = nullptr;
 }
 
-// TODO(crbug.com/393457908): This metric is under reported.
 void DemoSessionMetricsRecorder::RecordAppLaunch(const std::string& id,
                                                  chromeos::AppType app_type) {
   if (!ShouldRecordAppLaunch(id)) {

@@ -19,6 +19,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/task/single_thread_task_runner.h"
@@ -37,7 +38,6 @@
 #include "chrome/browser/predictors/lcp_critical_path_predictor/lcp_critical_path_predictor_util.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
 #include "chrome/browser/predictors/loading_test_util.h"
-#include "chrome/browser/predictors/preconnect_manager.h"
 #include "chrome/browser/predictors/predictors_enums.h"
 #include "chrome/browser/predictors/predictors_features.h"
 #include "chrome/browser/predictors/predictors_switches.h"
@@ -56,14 +56,18 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/page_navigator.h"
+#include "content/public/browser/preconnect_manager.h"
+#include "content/public/browser/preconnect_request.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/referrer.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/fenced_frame_test_util.h"
+#include "content/public/test/preconnect_test_util.h"
 #include "content/public/test/prerender_test_util.h"
 #include "content/public/test/simple_url_loader_test_helper.h"
 #include "content/public/test/test_frame_navigation_observer.h"
@@ -95,6 +99,7 @@
 #include "url/origin.h"
 
 using content::BrowserThread;
+using content::PreconnectRequest;
 using testing::Optional;
 using testing::SizeIs;
 
@@ -207,10 +212,11 @@ class LcpTimingPredictedWaiter : public TestObserver {
   std::optional<std::string> lcp_element_locator_;
 };
 
-class TestPreconnectManagerObserver : public PreconnectManager::Observer {
+class TestPreconnectManagerObserver
+    : public content::PreconnectManager::Observer {
  public:
   explicit TestPreconnectManagerObserver(
-      PreconnectManager* preconnect_manager) {
+      content::PreconnectManager* preconnect_manager) {
     preconnect_manager->SetObserverForTesting(this);
   }
 
@@ -2545,9 +2551,9 @@ class LoadingPredictorPrefetchBrowserTest
  private:
   void MonitorRequest(const net::test_server::HttpRequest& request) {
     // Monitor only prefetches.
-    if (request.headers.find(blink::kPurposeHeaderName) ==
+    if (request.headers.find(blink::kSecPurposeHeaderName) ==
             request.headers.end() ||
-        (request.headers.at(blink::kPurposeHeaderName) !=
+        (request.headers.at(blink::kSecPurposeHeaderName) !=
          blink::kSecPurposePrefetchHeaderValue)) {
       return;
     }
@@ -2747,7 +2753,7 @@ IN_PROC_BROWSER_TEST_P(
               Optional(network::CorsErrorStatus(
                   network::mojom::CorsError::kInsecurePrivateNetwork,
                   network::mojom::IPAddressSpace::kUnknown,
-                  network::mojom::IPAddressSpace::kLocal)));
+                  network::mojom::IPAddressSpace::kLoopback)));
 }
 
 // This fixture is for disabling prefetching via test suite instantiation to

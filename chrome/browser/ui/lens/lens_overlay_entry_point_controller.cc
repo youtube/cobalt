@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/system/sys_info.h"
 #include "chrome/browser/command_updater.h"
@@ -12,6 +13,7 @@
 #include "chrome/browser/search/search.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -21,6 +23,7 @@
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_triggers.h"
 #include "chrome/browser/ui/views/toolbar/pinned_toolbar_actions_container.h"
@@ -32,6 +35,7 @@
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_entry.h"
 
@@ -52,7 +56,8 @@ bool IsNewTabPage(content::WebContents* const web_contents) {
   const GURL& url = entry->GetURL();
   return NewTabUI::IsNewTab(url) || NewTabPageUI::IsNewTabPageOrigin(url) ||
          NewTabPageThirdPartyUI::IsNewTabPageOrigin(url) ||
-         search::NavEntryIsInstantNTP(web_contents, entry);
+         search::NavEntryIsInstantNTP(web_contents, entry) ||
+         search::IsSplitViewNewTabPage(url);
 }
 
 }  // namespace
@@ -134,22 +139,12 @@ bool LensOverlayEntryPointController::IsEnabled() const {
 
   const PrefService* pref_service =
       browser_window_interface_->GetProfile()->GetPrefs();
-  // Lens Overlay is disabled via the legacy enterprise policy.
-  lens::prefs::LensOverlaySettingsPolicyValue old_policy_value =
+  // Lens Overlay is disabled via the enterprise policy.
+  lens::prefs::LensOverlaySettingsPolicyValue policy_value =
       static_cast<lens::prefs::LensOverlaySettingsPolicyValue>(
           pref_service->GetInteger(lens::prefs::kLensOverlaySettings));
-  if (old_policy_value ==
-      lens::prefs::LensOverlaySettingsPolicyValue::kDisabled) {
-    return false;
-  }
-
-  // Lens Overlay is disabled via the GenAI enterprise policy.
-  lens::prefs::GenAiLensOverlaySettingsPolicyValue policy_value =
-      static_cast<lens::prefs::GenAiLensOverlaySettingsPolicyValue>(
-          pref_service->GetInteger(lens::prefs::kGenAiLensOverlaySettings));
   if (policy_value ==
-      lens::prefs::GenAiLensOverlaySettingsPolicyValue::kDisabled) {
-    // Disabled via the enterprise policy.
+      lens::prefs::LensOverlaySettingsPolicyValue::kDisabled) {
     return false;
   }
 
@@ -166,7 +161,8 @@ bool LensOverlayEntryPointController::IsEnabled() const {
 }
 
 bool LensOverlayEntryPointController::AreVisible() const {
-  return IsEnabled() && !IsOverlayActive();
+  return IsEnabled() && !IsOverlayActive() &&
+         !base::FeatureList::IsEnabled(omnibox::kAiModeOmniboxEntryPoint);
 }
 
 void LensOverlayEntryPointController::UpdateEntryPointsState(
@@ -187,6 +183,14 @@ void LensOverlayEntryPointController::UpdateEntryPointsState(
     }
   }
   UpdatePageActionState();
+
+  // Update the homework action chip.
+  // TODO(crbug.com/433813408): Remove GetBrowserForMigrationOnly after Page
+  // Actions migration.
+  CHECK(browser_window_interface_);
+  browser_window_interface_->GetBrowserForMigrationOnly()
+      ->window()
+      ->UpdatePageActionIcon(PageActionIconType::kLensOverlayHomework);
 }
 
 bool LensOverlayEntryPointController::IsUrlEduEligible(const GURL& url) const {
@@ -201,7 +205,7 @@ void LensOverlayEntryPointController::InvokeAction(
     tabs::TabInterface* active_tab,
     const actions::ActionInvocationContext& context) {
   LensSearchController* search_controller =
-      active_tab->GetTabFeatures()->lens_search_controller();
+      LensSearchController::From(active_tab);
   LensOverlayController* overlay_controller =
       active_tab->GetTabFeatures()->lens_overlay_controller();
 
@@ -211,25 +215,25 @@ void LensOverlayEntryPointController::InvokeAction(
   // (e.g., toolbar, page action, etc.). Triggers from a page action will have a
   // valid PageActionTrigger property set.
   if (page_action_trigger != page_actions::kInvalidPageActionTrigger) {
-    switch (static_cast<page_actions::PageActionTrigger>(page_action_trigger)) {
-      case page_actions::PageActionTrigger::kKeyboard:
-        active_tab->GetBrowserWindowInterface()
-            ->GetFeatures()
-            .lens_region_search_controller()
-            ->Start(active_tab->GetContents(), /*use_fullscreen_capture=*/true,
-                    /*is_google_default_search_provider=*/true,
-                    lens::AmbientSearchEntryPoint::
-                        LENS_OVERLAY_LOCATION_BAR_ACCESSIBILITY_FALLBACK);
+    if (static_cast<page_actions::PageActionTrigger>(page_action_trigger) ==
+            page_actions::PageActionTrigger::kKeyboard &&
+        !lens::features::IsLensOverlayKeyboardSelectionEnabled()) {
+      active_tab->GetBrowserWindowInterface()
+          ->GetFeatures()
+          .lens_region_search_controller()
+          ->Start(active_tab->GetContents(), /*use_fullscreen_capture=*/true,
+                  /*is_google_default_search_provider=*/true,
+                  lens::AmbientSearchEntryPoint::
+                      LENS_OVERLAY_LOCATION_BAR_ACCESSIBILITY_FALLBACK);
 
-        break;
-      default:
-        lens::RecordAmbientSearchQuery(
-            lens::AmbientSearchEntryPoint::LENS_OVERLAY_LOCATION_BAR);
-        search_controller->OpenLensOverlay(
-            lens::LensOverlayInvocationSource::kOmnibox);
-        active_tab->GetBrowserWindowInterface()
-            ->GetUserEducationInterface()
-            ->NotifyNewBadgeFeatureUsed(lens::features::kLensOverlay);
+    } else {
+      lens::RecordAmbientSearchQuery(
+          lens::AmbientSearchEntryPoint::LENS_OVERLAY_LOCATION_BAR);
+      search_controller->OpenLensOverlay(
+          lens::LensOverlayInvocationSource::kOmnibox);
+      BrowserUserEducationInterface::From(
+          active_tab->GetBrowserWindowInterface())
+          ->NotifyNewBadgeFeatureUsed(lens::features::kLensOverlay);
     }
     return;
   }
@@ -298,11 +302,17 @@ void LensOverlayEntryPointController::UpdatePageActionState() {
 
   tabs::TabInterface* active_tab =
       browser_window_interface_->GetActiveTabInterface();
-  // Possible during browser window initialization or teardown.
-  if (!active_tab) {
+  // Possible during browser window initialization or teardown, or tab
+  // detachment.
+  // TODO(crbug.com/422807364): `UpdatePageActionState` shouldn't be called
+  // during tab destruction in the first place, but there are multiple
+  // TabFeatures that update UI (and therefore focus) during destruction of the
+  // tab. Once these TabFeatures are updated to only modify UI during
+  // `TabWillDetach` instead of the destructor, it should be safe to assume
+  // that TabFeatures exists for the active tab.
+  if (!active_tab || !active_tab->GetTabFeatures()) {
     return;
   }
-  CHECK(active_tab->GetTabFeatures());
 
   page_actions::PageActionController* page_action_controller =
       active_tab->GetTabFeatures()->page_action_controller();

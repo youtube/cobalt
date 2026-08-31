@@ -12,9 +12,9 @@
 #include "chrome/browser/background/startup_launch_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/global_features.h"
@@ -246,12 +246,11 @@ IN_PROC_BROWSER_TEST_F(GlicBackgroundModeManagerUiTest, DeleteEligibleProfile) {
 
   // Create a second browser with a different profile that didn't complete Glic
   // fre yet.
+  glic_test_environment().SetFreStatusForNewProfiles(std::nullopt);
   ProfileManager* const profile_manager = g_browser_process->profile_manager();
   Profile& second_profile = profiles::testing::CreateProfileSync(
       profile_manager, profile_manager->GenerateNextProfileDirectoryPath());
   Browser* const second_browser = CreateBrowser(&second_profile);
-  SigninWithPrimaryAccount(&second_profile);
-  SetModelExecutionCapability(&second_profile, true);
 
   // Delete the first profile and the glic launcher should not be in the
   // background since there are no profiles that are eligible to use glic.

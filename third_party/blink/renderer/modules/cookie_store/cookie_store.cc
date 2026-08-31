@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -69,7 +70,8 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
     const KURL& cookie_url,
     const CookieInit* options,
     ExceptionState& exception_state,
-    net::CookieInclusionStatus& status_out) {
+    net::CookieInclusionStatus& status_out,
+    ExecutionContext* execution_context) {
   const String& name = options->name();
   const String& value = options->value();
   if (name.empty() && value.Contains('=')) {
@@ -82,6 +84,10 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
         "Cookie name and value both cannot be empty");
     return nullptr;
   }
+  if (name.Contains('=')) {
+    exception_state.ThrowTypeError("Cookie name cannot contain '='");
+    return nullptr;
+  }
 
   base::Time expires = options->hasExpiresNonNull()
                            ? base::Time::FromMillisecondsSinceUnixEpoch(
@@ -90,8 +96,27 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
 
   String cookie_url_host = cookie_url.Host().ToString();
   String domain;
+  // Trying to set `__http-` prefixed cookie will be rejected further down by
+  // CreateSanitizedCookie regardless of the condition below. Its role is to
+  // provide a more meaningful exception message than "Cookie was malformed..".
+  const bool is_http_prefix =
+      base::FeatureList::IsEnabled(net::features::kPrefixCookieHttp) &&
+      name.StartsWithIgnoringASCIICase("__http-");
+  const bool is_host_http_prefix =
+      base::FeatureList::IsEnabled(net::features::kPrefixCookieHostHttp) &&
+      name.StartsWithIgnoringASCIICase("__hosthttp-");
+  if (is_http_prefix || is_host_http_prefix) {
+    StringBuilder builder;
+    builder.AppendFormat(
+        "Cookies with \"%s\" prefix cannot be set using the CookieStore API.",
+        is_http_prefix ? "__Http-" : "__HostHttp-");
+    exception_state.ThrowTypeError(builder.ToString());
+    return nullptr;
+  }
+  const bool is_host_prefixed_cookie =
+      name.StartsWithIgnoringASCIICase("__host-");
   if (!options->domain().IsNull()) {
-    if (name.StartsWith("__Host-")) {
+    if (is_host_prefixed_cookie) {
       exception_state.ThrowTypeError(
           "Cookies with \"__Host-\" prefix cannot have a domain");
       return nullptr;
@@ -104,18 +129,24 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
       return nullptr;
     }
 
-    domain = String(".") + options->domain();
+    domain = StrCat({".", options->domain()}).LowerASCII();
     if (!cookie_url_host.EndsWith(domain) &&
-        cookie_url_host != options->domain()) {
+        cookie_url_host != options->domain().LowerASCII()) {
       exception_state.ThrowTypeError(
           "Cookie domain must domain-match current host");
       return nullptr;
     }
   }
 
+  // If `options` has a supplied `path`, and the `path` is empty, this implies
+  // the caller intentionally set this option to be the empty string.
+  // We log when this happens to see how common it is for scripts to do this.
+  if (options->hasPath() && options->path().empty()) {
+    UseCounter::Count(execution_context, WebFeature::kCookieStoreEmptyPath);
+  }
   String path = options->path();
   if (!path.empty()) {
-    if (name.StartsWith("__Host-") && path != "/") {
+    if (is_host_prefixed_cookie && path != "/") {
       exception_state.ThrowTypeError(
           "Cookies with \"__Host-\" prefix cannot have a non-\"/\" path");
       return nullptr;
@@ -125,7 +156,7 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
       return nullptr;
     }
     if (!path.EndsWith("/")) {
-      path = path + String("/");
+      path = StrCat({path, "/"});
     }
   }
 
@@ -146,13 +177,16 @@ std::unique_ptr<net::CanonicalCookie> ToCanonicalCookie(
   }
 
   net::CookieSameSite same_site;
-  if (options->sameSite() == "strict") {
-    same_site = net::CookieSameSite::STRICT_MODE;
-  } else if (options->sameSite() == "lax") {
-    same_site = net::CookieSameSite::LAX_MODE;
-  } else {
-    DCHECK_EQ(options->sameSite(), "none");
-    same_site = net::CookieSameSite::NO_RESTRICTION;
+  switch (options->sameSite().AsEnum()) {
+    case V8CookieSameSite::Enum::kStrict:
+      same_site = net::CookieSameSite::STRICT_MODE;
+      break;
+    case V8CookieSameSite::Enum::kLax:
+      same_site = net::CookieSameSite::LAX_MODE;
+      break;
+    case V8CookieSameSite::Enum::kNone:
+      same_site = net::CookieSameSite::NO_RESTRICTION;
+      break;
   }
 
   std::optional<net::CookiePartitionKey> cookie_partition_key = std::nullopt;
@@ -203,6 +237,7 @@ KURL CookieUrlForRead(const CookieStoreGetOptions* options,
     return default_cookie_url;
 
   KURL cookie_url = KURL(default_cookie_url, options->url());
+  cookie_url.RemoveFragmentIdentifier();
 
   if (auto* window = DynamicTo<LocalDOMWindow>(context)) {
     DCHECK_EQ(default_cookie_url, window->document()->CookieURL());
@@ -379,7 +414,7 @@ ScriptPromise<IDLUndefined> CookieStore::Delete(
 
   CookieInit* set_options = CookieInit::Create();
   set_options->setName(name);
-  set_options->setValue("deleted");
+  set_options->setValue(name.empty() ? "deleted" : "");
   set_options->setExpires(0);
   return DoWrite(script_state, set_options, exception_state);
 }
@@ -390,11 +425,11 @@ ScriptPromise<IDLUndefined> CookieStore::Delete(
     ExceptionState& exception_state) {
   CookieInit* set_options = CookieInit::Create();
   set_options->setName(options->name());
-  set_options->setValue("deleted");
+  set_options->setValue(options->name().empty() ? "deleted" : "");
   set_options->setExpires(0);
   set_options->setDomain(options->domain());
   set_options->setPath(options->path());
-  set_options->setSameSite("strict");
+  set_options->setSameSite(V8CookieSameSite::Enum::kStrict);
   set_options->setPartitioned(options->partitioned());
   return DoWrite(script_state, set_options, exception_state);
 }
@@ -543,8 +578,8 @@ ScriptPromise<IDLUndefined> CookieStore::DoWrite(
   }
 
   net::CookieInclusionStatus status;
-  std::unique_ptr<net::CanonicalCookie> canonical_cookie =
-      ToCanonicalCookie(default_cookie_url_, options, exception_state, status);
+  std::unique_ptr<net::CanonicalCookie> canonical_cookie = ToCanonicalCookie(
+      default_cookie_url_, options, exception_state, status, context);
 
   if (!canonical_cookie) {
     DCHECK(exception_state.HadException());

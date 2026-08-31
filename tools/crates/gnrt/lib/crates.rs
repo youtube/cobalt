@@ -38,38 +38,51 @@ impl std::default::Default for Visibility {
     }
 }
 
-/// A normalized version as used in third_party/rust crate paths.
+/// An `Epoch` represents a set of crate versions where no API breaking changes
+/// are expected. For example, `png-0.17.15` doesn't make any API breaking
+/// changes on top of `png-0.17.14` and therefore both of those versions are
+/// considered to be in the same `Epoch`: `png-v0_17`. (Note that `png-0.17.15`
+/// adds new APIs and therefore downgrading to 0.17.14 *would* be a breaking
+/// change.)
 ///
-/// A crate version is identified by the major version, if it's >= 1, or the
-/// minor version, if the major version is 0. There is a many-to-one
-/// relationship between crate versions and epochs.
+/// An `Epoch` is used in paths like: `//third_party/rust/png/v0_18` and
+/// `//third_party/rust/chromium_crates_io/vendor/png-v0_18'.
 ///
-/// `Epoch` is serialized as a version string: e.g. "1" or "0.2".
+/// The implementation below tries to ensure that `Epoch` matches the following
+/// wording from https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html#default-requirements:
+/// "Versions are considered compatible if their left-most non-zero
+/// major/minor/patch component is the same.".
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(from = "EpochString", into = "EpochString")]
 pub enum Epoch {
-    /// Epoch with major version == 0. The field is the minor version.
-    Minor(u64),
-    /// Epoch with major version >= 1.
+    /// Epoch when major version >= 1.
     Major(NonZero<u64>),
+    /// Epoch when major version is 0. The field is the minor version.
+    Minor(NonZero<u64>),
+    /// Epoch when major and minor version are 0. The field is the patch
+    /// version.
+    Patch(u64),
 }
 
 impl Epoch {
     /// Get the semver version string for this Epoch. This will only have a
-    /// non-zero major component, or a zero major component and a non-zero minor
-    /// component. Note this differs from Epoch's `fmt::Display` impl.
+    /// non-zero major component, or a zero major component and a non-zero
+    /// minor component, or a zero major+minor components and a non-zero
+    /// patch component. Note this differs from Epoch's `fmt::Display` impl.
     pub fn to_version_string(&self) -> String {
         match *self {
-            Epoch::Minor(minor) => format!("0.{minor}"),
             Epoch::Major(major) => format!("{major}"),
+            Epoch::Minor(minor) => format!("0.{minor}"),
+            Epoch::Patch(patch) => format!("0.0.{patch}"),
         }
     }
 
     /// A `semver::VersionReq` that matches any version of this epoch.
     pub fn to_version_req(&self) -> semver::VersionReq {
-        let (major, minor) = match self {
-            Self::Minor(x) => (0, Some(*x)),
-            Self::Major(x) => (x.get(), None),
+        let (major, minor, patch) = match self {
+            Self::Major(x) => (x.get(), None, None),
+            Self::Minor(x) => (0, Some(x.get()), None),
+            Self::Patch(x) => (0, Some(0), Some(*x)),
         };
         semver::VersionReq {
             comparators: vec![semver::Comparator {
@@ -77,7 +90,7 @@ impl Epoch {
                 op: semver::Op::Caret,
                 major,
                 minor,
-                patch: None,
+                patch,
                 pre: semver::Prerelease::EMPTY,
             }],
         }
@@ -88,9 +101,13 @@ impl Epoch {
     /// `semver` library.
     pub fn from_version(version: &Version) -> Self {
         if let Ok(nonzero_major) = version.major.try_into() {
-            Self::Major(nonzero_major)
+            return Self::Major(nonzero_major);
+        }
+
+        if let Ok(nonzero_minor) = version.minor.try_into() {
+            Self::Minor(nonzero_minor)
         } else {
-            Self::Minor(version.minor)
+            Self::Patch(version.patch)
         }
     }
 
@@ -112,7 +129,11 @@ impl Epoch {
         assert_eq!(comp.op, semver::Op::Caret);
         match (comp.major.try_into(), comp.minor) {
             (Ok(nonzero_major), _) => Epoch::Major(nonzero_major),
-            (Err(_zero_major), Some(minor)) => Epoch::Minor(minor),
+            (Err(_zero_major), Some(minor)) => match (minor.try_into(), comp.patch) {
+                (Ok(nonzero_minor), _) => Epoch::Minor(nonzero_minor),
+                (Err(_zero_minor), Some(patch)) => Epoch::Patch(patch),
+                (Err(_zero_major), None) => panic!("invalid version req {req}"),
+            },
             (Err(_zero_major), None) => panic!("invalid version req {req}"),
         }
     }
@@ -124,8 +145,9 @@ impl Display for Epoch {
         match *self {
             // These should never return Err since formatting an integer is
             // infallible.
-            Epoch::Minor(minor) => f.write_fmt(format_args!("v0_{minor}")).unwrap(),
             Epoch::Major(major) => f.write_fmt(format_args!("v{major}")).unwrap(),
+            Epoch::Minor(minor) => f.write_fmt(format_args!("v0_{minor}")).unwrap(),
+            Epoch::Patch(patch) => f.write_fmt(format_args!("v0_0_{patch}")).unwrap(),
         }
 
         Ok(())
@@ -138,41 +160,40 @@ impl FromStr for Epoch {
     /// A valid input string is of the form:
     /// * "v{i}", where i >= 1, or
     /// * "v0_{i}", where i >= 1
+    /// * "v0_0_{i}", where i >= 1
     ///
     /// Any other string is invalid. If the "v" is missing, there are extra
     /// underscore-separated components, or there are two numbers but both
     /// are 0 or greater than zero are all invalid strings.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         // Split off the "v" prefix.
-        let mut iter = s.split_inclusive('v');
-        if iter.next() != Some("v") {
+        let Some(s) = s.strip_prefix('v') else {
             return Err(EpochParseError::BadFormat);
-        }
-        let s = iter.next().ok_or(EpochParseError::BadFormat)?;
-        if iter.next().is_some() {
-            return Err(EpochParseError::BadFormat);
-        }
-
-        // Split the major and minor version numbers.
-        let mut parts = s.split('_');
-        let major: Option<u64> =
-            parts.next().map(|s| s.parse().map_err(EpochParseError::InvalidInt)).transpose()?;
-        let minor: Option<u64> =
-            parts.next().map(|s| s.parse().map_err(EpochParseError::InvalidInt)).transpose()?;
-
-        // Get the final epoch, checking that the (major, minor) pair is valid.
-        let result = match (major.map(|x| x.try_into()), minor) {
-            (Some(Ok(nonzero_major)), None) => Epoch::Major(nonzero_major),
-            (Some(Ok(_nonzero_major)), Some(_)) => return Err(EpochParseError::BadVersion),
-            (Some(Err(_zero_major)), Some(minor)) => Epoch::Minor(minor),
-            _ => return Err(EpochParseError::BadFormat),
         };
 
-        // Ensure there's no remaining parts.
-        if parts.next().is_none() {
-            Ok(result)
-        } else {
-            Err(EpochParseError::BadFormat)
+        // Split and parse the major, minor, and patch version numbers.
+        let parts = s
+            .split('_')
+            .map(|substr| substr.parse::<u64>().map_err(EpochParseError::InvalidInt))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Get the final epoch.
+        match parts.as_slice() {
+            &[major] => {
+                let Ok(nonzero_major) = major.try_into() else {
+                    return Err(EpochParseError::BadVersion);
+                };
+                Ok(Epoch::Major(nonzero_major))
+            }
+            &[0, minor] => {
+                let Ok(nonzero_minor) = minor.try_into() else {
+                    return Err(EpochParseError::BadVersion);
+                };
+                Ok(Epoch::Minor(nonzero_minor))
+            }
+            &[0, 0, patch] => Ok(Epoch::Patch(patch)),
+            &[_, _] | &[_, _, _] => Err(EpochParseError::BadVersion),
+            _ => Err(EpochParseError::BadFormat),
         }
     }
 }
@@ -295,12 +316,16 @@ impl CrateFiles {
     }
 
     /// Sorts the CrateFiles for a deterministic output.
-    fn sort(&mut self) {
-        self.sources.sort_unstable();
-        self.inputs.sort_unstable();
-        self.native_libs.sort_unstable();
-        self.build_script_sources.sort_unstable();
-        self.build_script_inputs.sort_unstable();
+    fn sort_and_dedup(&mut self) {
+        fn doit(vec: &mut Vec<PathBuf>) {
+            vec.sort_unstable();
+            vec.dedup();
+        }
+        doit(&mut self.sources);
+        doit(&mut self.inputs);
+        doit(&mut self.native_libs);
+        doit(&mut self.build_script_sources);
+        doit(&mut self.build_script_inputs);
     }
 }
 
@@ -375,7 +400,7 @@ pub fn collect_crate_files(
             )
         })?;
     }
-    files.sort();
+    files.sort_and_dedup();
 
     let crate_id = VendoredCrate { name: p.package_name.clone(), version: p.version.clone() };
     Ok((crate_id, files))
@@ -470,7 +495,8 @@ fn collect_crate_file(files: &mut CrateFiles, mode: CollectCrateFiles, filepath:
         // h: cxxbridge_cmd include!()'s its .h file into it.
         // json: json files are include!()'d into source code in the wycheproof crate
         // data: .rs.data files used by ICU4X
-        Some("md") | Some("h") | Some("json") | Some("data") => match mode {
+        // dat: zoneinfo.dat file from jiff-tzdb
+        Some("md") | Some("h") | Some("json") | Some("data") | Some("dat") => match mode {
             Internal | ExternalSourcesAndInputs | ExternalInputsOnly => {
                 files.inputs.push(filepath.to_owned())
             }
@@ -560,18 +586,26 @@ mod tests {
         Major(NonZero::new(major).unwrap())
     }
 
+    fn new_minor(minor: u64) -> Epoch {
+        Minor(NonZero::new(minor).unwrap())
+    }
+
     #[test]
     fn epoch_from_str() {
         use EpochParseError::*;
         assert_eq!(Epoch::from_str("v1"), Ok(new_major(1)));
         assert_eq!(Epoch::from_str("v2"), Ok(new_major(2)));
-        assert_eq!(Epoch::from_str("v0_3"), Ok(Minor(3)));
+        assert_eq!(Epoch::from_str("v0_3"), Ok(new_minor(3)));
         assert_eq!(Epoch::from_str("0_1"), Err(BadFormat));
         assert_eq!(Epoch::from_str("v1_9"), Err(BadVersion));
-        assert_eq!(Epoch::from_str("v0_0"), Ok(Minor(0)));
-        assert_eq!(Epoch::from_str("v0_1_2"), Err(BadFormat));
-        assert_eq!(Epoch::from_str("v0_0_0"), Err(BadFormat));
+        assert_eq!(Epoch::from_str("v0_0"), Err(BadVersion));
+        assert_eq!(Epoch::from_str("v0_1_2"), Err(BadVersion));
+        assert_eq!(Epoch::from_str("v0_0_0_0"), Err(BadFormat));
+        assert_eq!(Epoch::from_str("v0_0_0"), Ok(Patch(0)));
+        assert_eq!(Epoch::from_str("v0_0_1"), Ok(Patch(1)));
+        assert_eq!(Epoch::from_str("v0_0_2"), Ok(Patch(2)));
         assert_eq!(Epoch::from_str("v1_0"), Err(BadVersion));
+        assert_eq!(Epoch::from_str("v0_1_0"), Err(BadVersion));
         assert!(matches!(Epoch::from_str("v1_0foo"), Err(InvalidInt(_))));
         assert!(matches!(Epoch::from_str("vx_1"), Err(InvalidInt(_))));
     }
@@ -580,23 +614,25 @@ mod tests {
     fn epoch_to_string() {
         assert_eq!(new_major(1).to_string(), "v1");
         assert_eq!(new_major(2).to_string(), "v2");
-        assert_eq!(Minor(3).to_string(), "v0_3");
-        assert_eq!(Minor(0).to_string(), "v0_0");
+        assert_eq!(new_minor(3).to_string(), "v0_3");
+        assert_eq!(Patch(5).to_string(), "v0_0_5");
     }
 
     #[test]
     fn epoch_from_version() {
         use semver::Version;
 
-        assert_eq!(Epoch::from_version(&Version::new(0, 0, 0)), Minor(0));
-        assert_eq!(Epoch::from_version(&Version::new(0, 1, 0)), Minor(1));
+        assert_eq!(Epoch::from_version(&Version::new(0, 0, 0)), Patch(0));
+        assert_eq!(Epoch::from_version(&Version::new(0, 0, 1)), Patch(1));
+        assert_eq!(Epoch::from_version(&Version::new(0, 1, 2)), new_minor(1));
         assert_eq!(Epoch::from_version(&Version::new(1, 2, 0)), new_major(1));
     }
 
     #[test]
     fn epoch_from_version_req_string() {
-        assert_eq!(Epoch::from_version_req_str("0.0.0"), Minor(0));
-        assert_eq!(Epoch::from_version_req_str("0.1.0"), Minor(1));
+        assert_eq!(Epoch::from_version_req_str("0.0.0"), Patch(0));
+        assert_eq!(Epoch::from_version_req_str("0.0.1"), Patch(1));
+        assert_eq!(Epoch::from_version_req_str("0.1.0"), new_minor(1));
         assert_eq!(Epoch::from_version_req_str("1.0.0"), new_major(1));
         assert_eq!(Epoch::from_version_req_str("2.3.0"), new_major(2));
     }

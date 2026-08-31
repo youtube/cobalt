@@ -42,7 +42,7 @@
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
 #include "extensions/test/extension_test_message_listener.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
+#include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/test_data_directory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
@@ -185,22 +185,23 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, URLLoaderIsProxied) {
       if (!frame || !frame.request) {
         return 'FAIL: frame or frame.request is undefined';
       }
-      frame.request.onBeforeRequest.addListener(() => {
-        return { cancel: true };
-      }, { urls: ['https://*/controlled_frame_cancel.html'] }, ['blocking']);
-      frame.request.onBeforeRequest.addListener(() => {
-        return { cancel: false };
-      }, { urls: ['https://*/controlled_frame_success.html'] }, ['blocking']);
-      frame.request.onBeforeRequest.addListener(() => {
-        return {
-          redirectUrl: 'https://' + $1 + '/controlled_frame_redirect_target.html'
-        };
-      }, { urls: ['https://*/controlled_frame_redirect.html'] }, ['blocking']);
+      frame.request.createWebRequestInterceptor({
+        urlPatterns: ['*://*/*'],
+        resourceTypes: ['main-frame'],
+        blocking: true,
+      }).addEventListener('beforerequest', (e) => {
+        if (e.request.url.endsWith('cancel.html')) {
+          e.preventDefault();
+        }
+        if (e.request.url.endsWith('redirect.html')) {
+          e.redirect('https://' + $1 + '/controlled_frame_redirect_target.html');
+        }
+      });
       return 'SUCCESS';
     })();
   )",
                                                           kServerHostPort)));
-  EXPECT_EQ(3u, web_request_event_router->GetListenerCountForTesting(
+  EXPECT_EQ(1u, web_request_event_router->GetListenerCountForTesting(
                     profile(), kWebRequestOnBeforeRequestEventName));
 
   auto* web_view_guest = GetWebViewGuest(app_frame);
@@ -279,14 +280,15 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, AuthRequestIsProxied) {
 
       const expectedUsername = 'test';
       const expectedPassword = 'pass';
-      frame.request.onAuthRequired.addListener(() => {
-        return {
-          authCredentials: {
-            username: expectedUsername,
-            password: expectedPassword
-          }
-        };
-      }, { urls: [`https://*/auth-basic*`] }, ['blocking']);
+      frame.request.createWebRequestInterceptor({
+        urlPatterns: [`https://*/auth-basic*`],
+        blocking: true,
+      }).addEventListener('authrequired', (e) => {
+        e.setCredentials({
+          username: expectedUsername,
+          password: expectedPassword
+        });
+      });
       return true;
     })();
   )"));
@@ -501,8 +503,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, ElementHasExpectedProperties) {
     [...new Set(methods).values()].sort()
   )");
 
-  ASSERT_THAT(result, content::EvalJsResult::IsOk());
-  EXPECT_EQ(result.value, expected_properties.value());
+  EXPECT_EQ(result, expected_properties.value());
 }
 
 // This and related tests are based on a WebView test at:
@@ -554,7 +555,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsGetSetAttributes) {
         }
       }
 
-      const frame = new ControlledFrame();
+      const frame = new HTMLControlledFrameElement();
       const url = 'data:text/html,<body>Guest</body>';
       frame.src = url;
       assertEq(url, frame.src);
@@ -587,7 +588,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsBackForward) {
 
   ASSERT_THAT(EvalJs(app_frame, R"(
     new Promise((resolve, reject) => {
-      const frame = new ControlledFrame();
+      const frame = new HTMLControlledFrameElement();
       // The back and forward methods are implemented in terms of go. Make sure
       // they don't call an overwritten version.
       frame.go = makeUnreached();
@@ -617,6 +618,34 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsFocus) {
       document.body.savedAppendChild(frame);
     });
   )"),
+              content::EvalJsResult::IsOk());
+}
+
+IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, MangledJsWebRequest) {
+  web_app::IsolatedWebAppUrlInfo url_info =
+      CreateAndInstallEmptyApp(web_app::ManifestBuilder());
+  content::RenderFrameHost* app_frame = OpenApp(url_info.app_id());
+  ASSERT_TRUE(SetUseMangledJs(app_frame));
+
+  GURL url = embedded_https_test_server().GetURL("/index.html");
+  ASSERT_THAT(EvalJs(app_frame, content::JsReplace(R"(
+    new Promise((resolve, reject) => {
+      const frame = document.savedCreateElement('controlledframe');
+      frame.src = $1;
+      frame.savedAddEventListener('loadabort', reject);
+      frame.savedAddEventListener('loadstop', () => {
+        frame.request.createWebRequestInterceptor({
+          urlPatterns: ['*://*/*'],
+          includeHeaders: 'all',
+        }).addEventListener('completed', (e) => {
+          resolve();
+        });
+        frame.reload();
+      });
+      document.body.savedAppendChild(frame);
+    });
+  )",
+                                                   url)),
               content::EvalJsResult::IsOk());
 }
 
@@ -679,7 +708,7 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, Histograms) {
       guest_view::GuestViewHistogramValue::kControlledFrame, 0);
   histogram_tester.ExpectBucketCount(
       "Blink.UseCounter.Features",
-      blink::mojom::WebFeature::kControlledFrameElement, 0);
+      blink::mojom::WebFeature::kHTMLControlledFrameElement, 0);
 
   ASSERT_TRUE(CreateControlledFrame(
       app_frame, embedded_https_test_server().GetURL("/index.html")));
@@ -691,30 +720,29 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameApiTest, Histograms) {
       guest_view::GuestViewHistogramValue::kControlledFrame, 1);
   histogram_tester.ExpectBucketCount(
       "Blink.UseCounter.Features",
-      blink::mojom::WebFeature::kControlledFrameElement, 1);
+      blink::mojom::WebFeature::kHTMLControlledFrameElement, 1);
 }
 
 class ControlledFrameWebSocketApiTest : public ControlledFrameApiTest {
  public:
   void SetUpOnMainThread() override {
     ControlledFrameApiTest::SetUpOnMainThread();
-    websocket_test_server_ = std::make_unique<net::SpawnedTestServer>(
-        net::SpawnedTestServer::TYPE_WS, net::GetWebSocketTestDataDirectory());
-    ASSERT_TRUE(websocket_test_server_->Start());
+    websocket_test_server_.AddDefaultHandlers(GetChromeTestDataDir());
+    net::test_server::InstallDefaultWebSocketHandlers(&websocket_test_server_);
+    ASSERT_TRUE(websocket_test_server_.Start());
   }
 
-  net::SpawnedTestServer* websocket_test_server() {
-    return websocket_test_server_.get();
+  net::EmbeddedTestServer& websocket_test_server() {
+    return websocket_test_server_;
   }
 
-  GURL GetWebSocketUrl(const std::string& path) {
-    GURL::Replacements replacements;
-    replacements.SetSchemeStr("ws");
-    return websocket_test_server_->GetURL(path).ReplaceComponents(replacements);
+  GURL GetWebSocketUrl(const std::string& path) const {
+    return net::test_server::GetWebSocketURL(websocket_test_server_, path);
   }
 
  private:
-  std::unique_ptr<net::SpawnedTestServer> websocket_test_server_;
+  net::EmbeddedTestServer websocket_test_server_{
+      net::EmbeddedTestServer ::Type::TYPE_HTTP};
 };
 
 IN_PROC_BROWSER_TEST_F(ControlledFrameWebSocketApiTest, WebSocketIsProxied) {
@@ -737,9 +765,9 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameWebSocketApiTest, WebSocketIsProxied) {
   content::WebContents* guest_web_contents = web_view_guest->web_contents();
   GURL::Replacements http_scheme_replacement;
   http_scheme_replacement.SetSchemeStr("http");
-  const GURL& kWebSocketConnectCheckUrl =
+  const GURL kWebSocketConnectCheckUrl =
       websocket_test_server()
-          ->GetURL("/connect_check.html")
+          .GetURL("/websocket/connect_check.html")
           .ReplaceComponents(http_scheme_replacement);
   {
     content::TitleWatcher title_watcher(guest_web_contents, u"PASS");
@@ -779,9 +807,13 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameWebSocketApiTest, WebSocketIsProxied) {
       if (!frame || !frame.request) {
         return false;
       }
-      frame.request.onBeforeRequest.addListener(() => {
-        return { cancel: true };
-      }, { urls: ['ws://*/*'] }, ['blocking']);
+
+      frame.request.createWebRequestInterceptor({
+        urlPatterns: ['ws://*/*'],
+        blocking: true,
+      }).addEventListener('beforerequest', (e) => {
+        e.preventDefault();
+      });
       return true;
     })();
   )"));
@@ -865,10 +897,12 @@ IN_PROC_BROWSER_TEST_F(ControlledFrameWebTransportApiTest,
       if (!frame || !frame.request) {
         return false;
       }
-      const onBeforeRequestHandler =
-      frame.request.onBeforeRequest.addListener(() => {
-        return { cancel: true };
-      }, { urls: ['https://localhost/*'] }, ['blocking']);
+      frame.request.createWebRequestInterceptor({
+        urlPatterns: ['https://localhost/*'],
+        blocking: true,
+      }).addEventListener('beforerequest', (e) => {
+        e.preventDefault();
+      });
       return true;
     })();
   )"));
@@ -1046,30 +1080,7 @@ class ControlledFrameAvailabilityTest
   // via defaults but instead by overrides. As a result, any feature that's
   // enabled or disabled by ScopedFeatureList will appear as an override.
   bool DetermineExpectedState() {
-    if (feature_setting() == FeatureSetting::DISABLED) {
-      return false;
-    }
-
-    if (feature_setting() == FeatureSetting::NONE &&
-        flag_setting() == FlagSetting::NONE) {
-      return false;
-    }
-
-    if (feature_setting() == FeatureSetting::ENABLED &&
-        (flag_setting() == FlagSetting::EXPERIMENTAL ||
-         flag_setting() == FlagSetting::CONTROLLED_FRAME)) {
-      return true;
-    }
-
-    // In Blink's runtime flags, if the base::Feature is overridden and that
-    // feature is enabled via the override, then the corresponding Blink
-    // runtime flag is also enabled.
-    if (feature_setting() == FeatureSetting::ENABLED &&
-        flag_setting() == FlagSetting::NONE) {
-      return true;
-    }
-
-    return false;
+    return feature_setting() != FeatureSetting::DISABLED;
   }
 };
 

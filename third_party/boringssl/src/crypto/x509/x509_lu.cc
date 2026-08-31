@@ -16,7 +16,6 @@
 
 #include <openssl/err.h>
 #include <openssl/mem.h>
-#include <openssl/thread.h>
 #include <openssl/x509.h>
 
 #include "../internal.h"

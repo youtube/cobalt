@@ -137,6 +137,9 @@ bool IsEmptyNTP(const web::WebState* web_state) {
 }
 
 - (void)showStartSurfaceIfNecessary {
+  if (IsDiamondPrototypeEnabled()) {
+    return;
+  }
   if (self.sceneState.profileState.initStage < ProfileInitStage::kFinal) {
     // NO if the app is not yet ready to present normal UI that is required by
     // Start Surface.
@@ -350,8 +353,19 @@ bool IsEmptyNTP(const web::WebState* web_state) {
 
   // Close the excessive NTPs.
   webStateList->CloseWebStatesAtIndices(
-      WebStateList::CLOSE_NO_FLAGS,
+      WebStateList::ClosingReason::kDefault,
       RemovingIndexes(std::move(indicesToRemove)));
+
+  if (IsDiamondPrototypeEnabled()) {
+    for (int index = webStateList->count() - 1; index >= 0; --index) {
+      const web::WebState* webState = webStateList->GetWebStateAt(index);
+      const TabGroup* tabGroup = webStateList->GetGroupOfWebStateAt(index);
+      if (IsNTP(webState) && !tabGroup) {
+        webStateList->CloseWebStateAt(index,
+                                      WebStateList::ClosingReason::kDefault);
+      }
+    }
+  }
 }
 
 // Returns YES if the WebState at the given index has been activated. Only
@@ -360,9 +374,9 @@ bool IsEmptyNTP(const web::WebState* web_state) {
                            atIndex:(int)index {
   web::WebState* lastKnownWebState = webStateList->GetWebStateAt(index);
   if (IsUrlNtp(lastKnownWebState->GetVisibleURL())) {
+    webStateList->ActivateWebStateAt(index);
     NewTabPageTabHelper::FromWebState(lastKnownWebState)
         ->SetShowStartSurface(true);
-    webStateList->ActivateWebStateAt(index);
     return YES;
   }
   return NO;

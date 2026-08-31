@@ -284,6 +284,8 @@
 //media/test/data/bear_audio_longer_than_video_vp8.ogv
 //media/test/data/bear_audio_shorter_than_video.ogv
 //media/test/data/bear_audio_shorter_than_video_vp8.ogv
+//media/test/data/bear_av1_720p_444_10bit.ivf
+//media/test/data/bear_av1_720p_444_8bit.ivf
 //media/test/data/bear_dtsc.mp4
 //media/test/data/bear_dtse.mp4
 //media/test/data/bear_dtsx.mp4
@@ -354,6 +356,7 @@
 //media/test/data/eme_player_js/widevine_player.js
 //media/test/data/eme_remove_session_test.html
 //media/test/data/encrypted_frame_size_change.html
+//media/test/data/extra-nalu.ts
 //media/test/data/four-colors-aspect-4x3.mp4
 //media/test/data/four-colors-av1.mp4
 //media/test/data/four-colors-hevc.mp4

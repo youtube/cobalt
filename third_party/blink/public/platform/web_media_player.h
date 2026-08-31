@@ -145,6 +145,8 @@ class WebMediaPlayer {
   enum class PauseReason {
     // The player's tab is in the background.
     kPageHidden,
+    // The player's frame is frozen.
+    kFrameFrozen,
     // The player's frame is not rendered.
     kFrameHidden,
     // The player has been backgrounded for too long and will be paused to save
@@ -385,7 +387,7 @@ class WebMediaPlayer {
   virtual void SetIsEffectivelyFullscreen(WebFullscreenVideoStatus) {}
 
   virtual void EnabledAudioTracksChanged(
-      const std::vector<TrackId>& enabled_track_ids) {}
+      std::optional<TrackId> enabled_track_id) {}
   virtual void SelectedVideoTrackChanged(
       std::optional<TrackId> selected_track_id) {}
 

@@ -14,6 +14,7 @@
 
 #include "base/bits.h"
 #include "base/memory/raw_ptr.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "components/viz/common/resources/resource_sizes.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -27,7 +28,6 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_gl_utils.h"
 #include "gpu/command_buffer/service/shared_image/skia_gl_image_representation.h"
 #include "gpu/command_buffer/service/skia_utils.h"
-#include "gpu/ipc/common/vulkan_ycbcr_info.h"
 #include "gpu/vulkan/vma_wrapper.h"
 #include "gpu/vulkan/vulkan_command_buffer.h"
 #include "gpu/vulkan/vulkan_command_pool.h"
@@ -275,9 +275,10 @@ std::unique_ptr<ExternalVkImageBacking> ExternalVkImageBacking::CreateFromGMB(
     SharedImageUsageSet usage,
     std::string debug_label,
     std::optional<gfx::BufferUsage> buffer_usage) {
-  if (!gpu::IsImageSizeValidForGpuMemoryBufferFormat(size,
-                                                     ToBufferFormat(format))) {
-    DLOG(ERROR) << "Invalid image size for format.";
+  // TOOD(hitawala): Move this size check to IsSupported.
+  if (!IsSizeForBufferHandleValid(size, format)) {
+    LOG(ERROR) << "Invalid image size " << size.ToString() << " for "
+               << format.ToString();
     return nullptr;
   }
 

@@ -13,7 +13,7 @@
 #include "base/check.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "cc/layers/layer.h"
 #include "cc/slim/layer.h"
 #include "components/input/features.h"
@@ -63,6 +63,9 @@ using base::android::ScopedJavaLocalRef;
 namespace content {
 
 namespace {
+
+WebContentsViewAndroid::RenderWidgetHostViewCreateFunction
+    g_create_render_widget_host_view = nullptr;
 
 // Returns the minimum distance in DIPs, for drag event being considered as an
 // intentional drag.
@@ -117,6 +120,13 @@ std::unique_ptr<WebContentsView> CreateWebContentsView(
                                                      std::move(delegate));
   *render_view_host_delegate_view = rv.get();
   return rv;
+}
+
+// static
+void WebContentsViewAndroid::InstallCreateHookForTests(
+    RenderWidgetHostViewCreateFunction create_render_widget_host_view) {
+  CHECK_EQ(nullptr, g_create_render_widget_host_view);
+  g_create_render_widget_host_view = create_render_widget_host_view;
 }
 
 WebContentsViewAndroid::WebContentsViewAndroid(
@@ -264,8 +274,11 @@ RenderWidgetHostViewBase* WebContentsViewAndroid::CreateViewForWidget(
   // native view (i.e. ContentView) how to obtain a reference to this widget in
   // order to paint it.
   RenderWidgetHostImpl* rwhi = RenderWidgetHostImpl::From(render_widget_host);
-  auto* rwhv = new RenderWidgetHostViewAndroid(
-      rwhi, &view_, parent_for_web_page_widgets_.get());
+  auto* rwhv = g_create_render_widget_host_view
+                   ? g_create_render_widget_host_view(
+                         rwhi, &view_, parent_for_web_page_widgets_.get())
+                   : new RenderWidgetHostViewAndroid(
+                         rwhi, &view_, parent_for_web_page_widgets_.get());
   rwhv->SetSynchronousCompositorClient(synchronous_compositor_client_);
   return rwhv;
 }
@@ -292,8 +305,10 @@ void WebContentsViewAndroid::RenderViewHostChanged(RenderViewHost* old_host,
   if (old_host) {
     auto* rwhv = old_host->GetWidget()->GetView();
     if (rwhv && rwhv->GetNativeView()) {
-      static_cast<RenderWidgetHostViewAndroid*>(rwhv)->UpdateNativeViewTree(
-          /*parent_native_view=*/nullptr, /*parent_layer=*/nullptr);
+      auto* rwhva = static_cast<RenderWidgetHostViewAndroid*>(rwhv);
+      rwhva->UpdateNativeViewTree(/*parent_native_view=*/nullptr,
+                                  /*parent_layer=*/nullptr);
+      rwhva->UpdateTooltip(std::u16string());
     }
   }
 
@@ -324,9 +339,6 @@ void WebContentsViewAndroid::FullscreenStateChanged(bool is_fullscreen) {
   if (is_fullscreen && select_popup_)
     select_popup_->HideMenu();
 }
-
-void WebContentsViewAndroid::UpdateWindowControlsOverlay(
-    const gfx::Rect& bounding_rect) {}
 
 BackForwardTransitionAnimationManager*
 WebContentsViewAndroid::GetBackForwardTransitionAnimationManager() {
@@ -907,14 +919,6 @@ void WebContentsViewAndroid::NotifyVirtualKeyboardOverlayRect(
   auto* rwhv = GetRenderWidgetHostViewAndroid();
   if (rwhv)
     rwhv->NotifyVirtualKeyboardOverlayRect(keyboard_rect);
-}
-
-void WebContentsViewAndroid::NotifyContextMenuInsetsObservers(
-    const gfx::Rect& safe_area) {
-  auto* rwhv = GetRenderWidgetHostViewAndroid();
-  if (rwhv) {
-    rwhv->NotifyContextMenuInsetsObservers(safe_area);
-  }
 }
 
 void WebContentsViewAndroid::ShowInterestInElement(int nodeID) {

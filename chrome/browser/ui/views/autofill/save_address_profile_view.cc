@@ -41,6 +41,7 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
+#include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/flex_layout.h"
@@ -278,11 +279,18 @@ void SaveAddressProfileView::AddedToWidget() {
   std::optional<SaveAddressBubbleController::HeaderImages> images =
       controller_->GetHeaderImages();
   if (images) {
-    GetBubbleFrameView()->SetHeaderView(
-        std::make_unique<ThemeTrackingNonAccessibleImageView>(
-            images->light, images->dark,
-            base::BindRepeating(&views::BubbleDialogDelegate::background_color,
-                                base::Unretained(this))));
+    if (!images->lottie.IsEmpty()) {
+      auto image_view = std::make_unique<views::ImageView>(images->lottie);
+      image_view->GetViewAccessibility().SetIsInvisible(true);
+      GetBubbleFrameView()->SetHeaderView(std::move(image_view));
+    } else {
+      GetBubbleFrameView()->SetHeaderView(
+          std::make_unique<ThemeTrackingNonAccessibleImageView>(
+              images->light, images->dark,
+              base::BindRepeating(
+                  &views::BubbleDialogDelegate::background_color,
+                  base::Unretained(this))));
+    }
   }
 }
 

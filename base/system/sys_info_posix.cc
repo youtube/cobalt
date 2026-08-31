@@ -21,14 +21,15 @@
 
 #include <algorithm>
 #include <iostream>
+#include <type_traits>
 
 #include "base/check.h"
 #include "base/files/file_util.h"
-#include "base/lazy_instance.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/system/sys_info_internal.h"
@@ -61,10 +62,8 @@ uint64_t AmountOfVirtualMemory() {
   }
   return limit.rlim_cur == RLIM_INFINITY ? 0 : limit.rlim_cur;
 }
-
-base::LazyInstance<
-    base::internal::LazySysInfoValue<uint64_t, AmountOfVirtualMemory>>::Leaky
-    g_lazy_virtual_memory = LAZY_INSTANCE_INITIALIZER;
+using LazyVirtualMemory =
+    base::internal::LazySysInfoValue<uint64_t, AmountOfVirtualMemory>;
 
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))  && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 bool IsStatsZeroIfUnlimited(const base::FilePath& path) {
@@ -203,7 +202,9 @@ int SysInfo::NumberOfProcessors() {
 
 // static
 uint64_t SysInfo::AmountOfVirtualMemory() {
-  return g_lazy_virtual_memory.Get().value();
+  static_assert(std::is_trivially_destructible<LazyVirtualMemory>::value);
+  static LazyVirtualMemory virtual_memory;
+  return virtual_memory.value();
 }
 
 // static
@@ -315,7 +316,7 @@ int SysInfo::NumberOfEfficientProcessorsImpl() {
       return 0;
     }
     if (!StringToUint(
-            content,
+            base::TrimWhitespaceASCII(content, TRIM_ALL),
             &max_core_frequencies_khz[static_cast<size_t>(core_index)])) {
       return 0;
     }

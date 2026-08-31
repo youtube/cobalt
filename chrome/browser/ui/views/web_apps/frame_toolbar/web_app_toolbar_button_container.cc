@@ -6,10 +6,10 @@
 
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/download/bubble/download_bubble_prefs.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_content_setting_bubble_model_delegate.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/view_ids.h"
@@ -250,8 +250,8 @@ WebAppToolbarButtonContainer::WebAppToolbarButtonContainer(
     web_app_menu_button_ =
         AddChildView(std::make_unique<WebAppMenuButton>(browser_view_));
     web_app_menu_button_->SetID(VIEW_ID_APP_MENU);
-    ConfigureWebAppToolbarButton(web_app_menu_button_,
-                                 toolbar_button_provider_);
+    web_app_menu_button_->SetMinSize(
+        toolbar_button_provider_->GetToolbarButtonSize());
     web_app_menu_button_->SetProperty(views::kFlexBehaviorKey,
                                       views::FlexSpecification());
   }
@@ -418,7 +418,9 @@ WebAppToolbarButtonContainer::GetContentSettingWebContents() {
 
 ContentSettingBubbleModelDelegate*
 WebAppToolbarButtonContainer::GetContentSettingBubbleModelDelegate() {
-  return browser_view_->browser()->content_setting_bubble_model_delegate();
+  return browser_view_->browser()
+      ->GetFeatures()
+      .content_setting_bubble_model_delegate();
 }
 
 // ImmersiveModeController::Observer:

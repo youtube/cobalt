@@ -100,8 +100,7 @@ TEST_P(PDFiumInkWriterTest, BasicWriteAndRead) {
       CreateInkInputBatch(kBasicInputs);
   ASSERT_TRUE(inputs.has_value());
   ink::Stroke stroke(brush->ink_brush(), inputs.value());
-  std::vector<FPDF_PAGEOBJECT> results =
-      WriteStrokeToPage(engine->doc(), page, stroke);
+  std::vector<FPDF_PAGEOBJECT> results = WriteStrokeToPage(page, stroke);
   EXPECT_EQ(1u, results.size());
 
   ASSERT_TRUE(FPDFPage_GenerateContent(page));
@@ -184,8 +183,7 @@ TEST_P(PDFiumInkWriterTest, WriteToCroppedPage) {
       CreateInkInputBatch(kBasicInputs);
   ASSERT_TRUE(inputs.has_value());
   ink::Stroke stroke(brush->ink_brush(), inputs.value());
-  std::vector<FPDF_PAGEOBJECT> results =
-      WriteStrokeToPage(engine->doc(), page, stroke);
+  std::vector<FPDF_PAGEOBJECT> results = WriteStrokeToPage(page, stroke);
   EXPECT_EQ(results.size(), 1u);
 
   ASSERT_TRUE(FPDFPage_GenerateContent(page));
@@ -195,7 +193,7 @@ TEST_P(PDFiumInkWriterTest, WriteToCroppedPage) {
 
   base::FilePath expectation_path = GetInkTestDataFilePath(
       GetTestDataPathWithPlatformSuffix("ink_writer_cropped.png"));
-  CheckPdfRendering(saved_pdf_data, /*page_index=*/0, gfx::Size(145, 97),
+  CheckPdfRendering(saved_pdf_data, /*page_index=*/0, gfx::Size(135, 90),
                     expectation_path);
 
   // Load `saved_pdf_data` into `saved_engine` and get a handle to the one and
@@ -247,12 +245,11 @@ TEST_P(PDFiumInkWriterTest, EmptyStroke) {
 
   auto brush = CreateTestBrush();
   ink::Stroke unused_stroke(brush->ink_brush());
-  std::vector<FPDF_PAGEOBJECT> results =
-      WriteStrokeToPage(engine->doc(), page, unused_stroke);
+  std::vector<FPDF_PAGEOBJECT> results = WriteStrokeToPage(page, unused_stroke);
   EXPECT_TRUE(results.empty());
 }
 
-TEST_P(PDFiumInkWriterTest, NoDocumentNoPage) {
+TEST_P(PDFiumInkWriterTest, NoPage) {
   TestClient client;
   std::unique_ptr<PDFiumEngine> engine =
       InitializeEngine(&client, FILE_PATH_LITERAL("blank.pdf"));
@@ -265,11 +262,7 @@ TEST_P(PDFiumInkWriterTest, NoDocumentNoPage) {
   auto brush = CreateTestBrush();
   ink::Stroke unused_stroke(brush->ink_brush());
   std::vector<FPDF_PAGEOBJECT> results =
-      WriteStrokeToPage(/*document=*/nullptr, /*page=*/nullptr, unused_stroke);
-  EXPECT_TRUE(results.empty());
-  results = WriteStrokeToPage(/*document=*/nullptr, page, unused_stroke);
-  EXPECT_TRUE(results.empty());
-  results = WriteStrokeToPage(engine->doc(), /*page=*/nullptr, unused_stroke);
+      WriteStrokeToPage(/*page=*/nullptr, unused_stroke);
   EXPECT_TRUE(results.empty());
 }
 

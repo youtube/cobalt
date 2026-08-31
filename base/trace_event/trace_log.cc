@@ -140,9 +140,8 @@ void WriteDebugAnnotations(base::trace_event::TraceEvent* trace_event,
 // using an override here.
 // TODO(crbug.com/343404899): Remove when all embedders migrate to Perfetto.
 void OnAddLegacyTraceEvent(TraceEvent* trace_event) {
-  perfetto::DynamicCategory category(
-      TraceLog::GetInstance()->GetCategoryGroupName(
-          trace_event->category_group_enabled()));
+  perfetto::DynamicCategory category(TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(
+      trace_event->category_group_enabled()));
 
   auto phase = trace_event->phase();
   if (phase == TRACE_EVENT_PHASE_COMPLETE) {
@@ -174,6 +173,11 @@ void OnAddLegacyTraceEvent(TraceEvent* trace_event) {
       default:
         break;
     }
+    if (trace_event->flags() & TRACE_EVENT_FLAG_HAS_PROCESS_ID) {
+      legacy_event->set_pid_override(
+          trace_event->thread_id().truncate_to_int32_for_display_only());
+      legacy_event->set_tid_override(static_cast<int32_t>(-1));
+    }
   };
 
   auto flags = trace_event->flags();
@@ -199,7 +203,8 @@ void OnAddLegacyTraceEvent(TraceEvent* trace_event) {
     }
   }
   if (trace_event->thread_id() != kInvalidThreadId &&
-      trace_event->thread_id() != base::PlatformThread::CurrentId()) {
+      trace_event->thread_id() != base::PlatformThread::CurrentId() &&
+      !(trace_event->flags() & TRACE_EVENT_FLAG_HAS_PROCESS_ID)) {
     PERFETTO_INTERNAL_LEGACY_EVENT_ON_TRACK(
         phase, category, trace_event->name(),
         perfetto::ThreadTrack::ForThread(trace_event->thread_id().raw()),
@@ -220,7 +225,7 @@ void OnUpdateLegacyTraceEventDuration(
     const TimeTicks& now,
     const ThreadTicks& thread_now) {
   perfetto::DynamicCategory category(
-      TraceLog::GetInstance()->GetCategoryGroupName(category_group_enabled));
+      TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(category_group_enabled));
   auto phase = TRACE_EVENT_PHASE_END;
   base::TimeTicks timestamp =
       explicit_timestamps ? now : TRACE_TIME_TICKS_NOW();
@@ -363,27 +368,13 @@ void TraceLog::ResetForTesting() {
 }
 
 TraceLog::TraceLog() : process_id_(base::kNullProcessId) {
-#if BUILDFLAG(IS_NACL)  // NaCl shouldn't expose the process id.
-  SetProcessID(0);
-#else
   SetProcessID(GetCurrentProcId());
-#endif
   TrackEvent::AddSessionObserver(this);
   g_trace_log_for_testing = this;
 }
 
 TraceLog::~TraceLog() {
   TrackEvent::RemoveSessionObserver(this);
-}
-
-const unsigned char* TraceLog::GetCategoryGroupEnabled(
-    const char* category_group) {
-  return TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(category_group);
-}
-
-const char* TraceLog::GetCategoryGroupName(
-    const unsigned char* category_group_enabled) {
-  return TRACE_EVENT_API_GET_CATEGORY_GROUP_NAME(category_group_enabled);
 }
 
 void TraceLog::SetEnabled(const TraceConfig& trace_config) {
@@ -417,12 +408,12 @@ void TraceLog::SetEnabled(const TraceConfig& trace_config) {
   // TODO(khokhlov): Avoid duplication between this code and
   // services/tracing/public/cpp/perfetto/perfetto_config.cc.
   perfetto::TraceConfig perfetto_config;
-  size_t size_limit = trace_config.GetTraceBufferSizeInKb();
-  if (size_limit == 0) {
-    size_limit = 200 * 1024;
+  ByteCount size_limit = trace_config.GetTraceBufferSizeInBytes();
+  if (size_limit.is_zero()) {
+    size_limit = MiB(200);
   }
   auto* buffer_config = perfetto_config.add_buffers();
-  buffer_config->set_size_kb(checked_cast<uint32_t>(size_limit));
+  buffer_config->set_size_kb(checked_cast<uint32_t>(size_limit.InKiB()));
   switch (trace_config.GetTraceRecordMode()) {
     case base::trace_event::RECORD_UNTIL_FULL:
     case base::trace_event::RECORD_AS_MUCH_AS_POSSIBLE:
@@ -481,15 +472,6 @@ std::vector<TraceLog::TrackEventSession> TraceLog::GetTrackEventSessions()
     const {
   AutoLock lock(track_event_lock_);
   return track_event_sessions_;
-}
-
-perfetto::DataSourceConfig TraceLog::GetCurrentTrackEventDataSourceConfig()
-    const {
-  AutoLock lock(track_event_lock_);
-  if (track_event_sessions_.empty()) {
-    return perfetto::DataSourceConfig();
-  }
-  return track_event_sessions_[0].config;
 }
 
 void TraceLog::InitializePerfettoIfNeeded() {
@@ -567,12 +549,6 @@ void TraceLog::SetMetadataFilterPredicate(
 MetadataFilterPredicate TraceLog::GetMetadataFilterPredicate() const {
   AutoLock lock(lock_);
   return metadata_filter_predicate_;
-}
-
-TraceConfig TraceLog::GetCurrentTraceConfig() const {
-  const auto chrome_config =
-      GetCurrentTrackEventDataSourceConfig().chrome_config();
-  return TraceConfig(chrome_config.trace_config());
 }
 
 void TraceLog::SetDisabled() {

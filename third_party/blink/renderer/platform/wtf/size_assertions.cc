@@ -41,24 +41,24 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-namespace WTF {
+namespace blink {
 
 struct SameSizeAsRefCounted {
   uint32_t a;
   // Don't add anything here because this should stay small.
 };
 
-template <typename T, unsigned inlineCapacity = 0>
+template <typename T, wtf_size_t inlineCapacity = 0>
 struct SameSizeAsVectorWithInlineCapacity;
 
 template <typename T>
 struct SameSizeAsVectorWithInlineCapacity<T, 0> {
   void* buffer_pointer;
-  unsigned capacity;
-  unsigned size;
+  wtf_size_t capacity;
+  wtf_size_t size;
 };
 
-template <typename T, unsigned inlineCapacity>
+template <typename T, wtf_size_t inlineCapacity>
 struct SameSizeAsVectorWithInlineCapacity {
   SameSizeAsVectorWithInlineCapacity<T, 0> base_capacity;
 #if !defined(ANNOTATE_CONTIGUOUS_CONTAINER)
@@ -87,4 +87,4 @@ ASSERT_SIZE(Vector<INLINE_CAPACITY_PARAMS(3)>,
 static_assert(sizeof(wtf_size_t) <= sizeof(size_t));
 static_assert(std::is_signed_v<wtf_size_t> == std::is_signed_v<size_t>);
 
-}  // namespace WTF
+}  // namespace blink

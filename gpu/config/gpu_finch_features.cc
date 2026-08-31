@@ -6,7 +6,9 @@
 
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "build/build_config.h"
+#include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_switches.h"
 #include "ui/gl/gl_features.h"
 #include "ui/gl/gl_surface_egl.h"
@@ -14,7 +16,6 @@
 #include "ui/gl/gl_utils.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/android_image_reader_compat.h"
 #include "base/android/build_info.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/strings/pattern.h"
@@ -165,7 +166,12 @@ BASE_FEATURE(kDefaultEnableGpuRasterization,
 // Enables the use of MSAA in skia on Ice Lake and later intel architectures.
 BASE_FEATURE(kEnableMSAAOnNewIntelGPUs,
              "EnableMSAAOnNewIntelGPUs",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 #if BUILDFLAG(IS_WIN)
 BASE_FEATURE(kNoUndamagedOverlayPromotion,
@@ -221,7 +227,11 @@ BASE_FEATURE(kEnableDrDc,
              "EnableDrDc",
 #if BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT
+#elif BUILDFLAG(IS_MAC)
+             // DrDC will not be running if Graphite is disabled on Mac.
+             base::FEATURE_DISABLED_BY_DEFAULT
 #else
+             // NOT SUPPORTED. DO NOT ENABLE!
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
@@ -265,14 +275,17 @@ const base::FeatureParam<std::string> kWebGPUUnsafeFeatures{
 const base::FeatureParam<std::string> kWGSLUnsafeFeatures{
     &kWebGPUService, "UnsafeWGSLFeatures", ""};
 
-BASE_FEATURE(kWebGPUUseTintIR,
-             "WebGPUUseTintIR",
-             base::FEATURE_ENABLED_BY_DEFAULT
-);
-
 BASE_FEATURE(kWebGPUUseVulkanMemoryModel,
              "WebGPUUseVulkanMemoryModel",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebGPUEnableRangeAnalysisForRobustness,
+             "WebGPUEnableRangeAnalysisForRobustness",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebGPUUseSpirv14,
+            "WebGPUUseSpirv14",
+            base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 
@@ -381,15 +394,18 @@ const base::FeatureParam<bool> kSkiaGraphiteDawnBackendDebugLabels{
     &kSkiaGraphite, "dawn_backend_debug_labels", DCHECK_IS_ON()};
 
 #if BUILDFLAG(IS_WIN)
+// Whether the we should DumpWithoutCrashing when D3D related errors are detected.
+const base::FeatureParam<bool> kSkiaGraphiteDawnDumpWCOnD3DError{
+    &kSkiaGraphite, "dawn_dumpwc_d3d_errors", false};
+
+// Whether the Dawn D3D11 flush should be delayed until the end of the frame.
+const base::FeatureParam<bool> kSkiaGraphiteDawnD3D11DelayFlush{
+    &kSkiaGraphite, "dawn_d3d11_delay_flush", true};
+
 BASE_FEATURE(kSkiaGraphiteDawnUseD3D12,
              "SkiaGraphiteDawnUseD3D12",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
-// Enable persistent storage of VkPipelineCache data.
-BASE_FEATURE(kEnableVkPipelineCache,
-             "EnableVkPipelineCache",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enabling this will make the GPU decode path use a mock implementation of
 // discardable memory.
@@ -513,67 +529,12 @@ bool IsUsingVulkan() {
 #endif
 }
 
-bool IsDrDcEnabled() {
-#if BUILDFLAG(IS_ANDROID)
-  // Enabled on android P+.
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_P) {
-    return false;
-  }
-
-  // DrDc is supported on android MediaPlayer and MCVD path only when
-  // AImageReader is enabled. Also DrDc requires AImageReader max size to be
-  // at least 2 for each gpu thread. Hence DrDc is disabled on devices which has
-  // only 1 image.
-  if (!base::android::EnableAndroidImageReader() ||
-      LimitAImageReaderMaxSizeToOne()) {
-    return false;
-  }
-
-  // Check block list against build info.
-  const auto* build_info = base::android::BuildInfo::GetInstance();
-  if (IsDeviceBlocked(build_info->device(), kDrDcBlockListByDevice.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->model(), kDrDcBlockListByModel.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->hardware(), kDrDcBlockListByHardware.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->brand(), kDrDcBlockListByBrand.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->android_build_id(),
-                      kDrDcBlockListByAndroidBuildId.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->manufacturer(),
-                      kDrDcBlockListByManufacturer.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->board(), kDrDcBlockListByBoard.Get()))
-    return false;
-  if (IsDeviceBlocked(build_info->android_build_fp(),
-                      kDrDcBlockListByAndroidBuildFP.Get()))
-    return false;
-
-  // Chrome on Android desktop aims to be Vulkan-only, which can result
-  // in crashes when enabled together with DrDc. Re-enable DrDc after
-  // crbug.com/380295059 is fixed if it is shown beneficial on desktop.
-  if (build_info->is_desktop())
-    return false;
-
-  if (!base::FeatureList::IsEnabled(kEnableDrDc))
-    return false;
-
-  return true;
-#else
-  return false;
-#endif
-}
-
 bool IsUsingThreadSafeMediaForWebView() {
 #if BUILDFLAG(IS_ANDROID)
-  // SurfaceTexture can't be thread-safe. Also thread safe media code currently
+  // Thread safe media code currently
   // requires AImageReader max size to be at least 2 since one image could be
   // accessed by each gpu thread in webview.
-  if (!base::android::EnableAndroidImageReader() ||
-      LimitAImageReaderMaxSizeToOne()) {
+  if (LimitAImageReaderMaxSizeToOne()) {
     return false;
   }
 
@@ -595,7 +556,10 @@ bool IsUsingThreadSafeMediaForWebView() {
 // now as the lock shouldn't have much overhead and is limited to only few gpus.
 // This should be fixed/updated later to account for disabled gpus.
 bool NeedThreadSafeAndroidMedia() {
-  return IsDrDcEnabled() || IsUsingThreadSafeMediaForWebView();
+  // If GpuFeatureInfo is available, replace ShouldEnableDrDc() with
+  // IsDrDcEnabled(gpu_feature_info) which is set after checking drdc
+  // workarounds;
+  return ShouldEnableDrDc() || IsUsingThreadSafeMediaForWebView();
 }
 
 namespace {
@@ -612,6 +576,10 @@ bool IsSkiaGraphiteSupportedByDevice(const base::CommandLine* command_line) {
     return false;
   }
 #if BUILDFLAG(IS_MAC)
+  // This function only works in the Browser process on Macs. Calling
+  // HardwareModelName() from the Renderer or GPU processes will result in an
+  // empty hardware model name and an inability to detect unsupported devices.
+
   // The following code tries to match angle::IsMetalRendererAvailable().
   auto model_name_split = base::SysInfo::SplitHardwareModelNameDoNotUse(
       base::SysInfo::HardwareModelName());
@@ -630,11 +598,11 @@ bool IsSkiaGraphiteSupportedByDevice(const base::CommandLine* command_line) {
                               model_name_split->variant == 1;
     if (!is_imac_15_1) {
       static constexpr struct {
-        const char* category;
+        std::string category;
         int32_t min_supported_model;
       } kModelSupportData[] = {
           {"MacBookPro", 13}, {"MacBookAir", 8}, {"MacBook", 9},
-          {"iMac", 17},       {"MacPro", 6},
+          {"iMac", 17},       {"iMacPro", 1},    {"Macmini", 8},
       };
       for (const auto& [category, min_supported_model] : kModelSupportData) {
         if (model_name_split->category == category) {
@@ -682,6 +650,11 @@ bool IsSkiaGraphiteSupportedByDevice(const base::CommandLine* command_line) {
 }
 }  // namespace
 
+// This function should be called only from the browser process on all platforms
+// so that the finch flag check will happen in exactly one place and then the
+// Graphite enabled state will be propagated elsewhere via GpuPreferences to GPU
+// process launch and then later to renderer processes via GpuFeatureInfo.
+
 bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
   // Force disabling graphite if --disable-skia-graphite flag is specified.
   if (command_line->HasSwitch(switches::kDisableSkiaGraphite)) {
@@ -700,6 +673,68 @@ bool IsSkiaGraphiteEnabled(const base::CommandLine* command_line) {
   }
 
   return base::FeatureList::IsEnabled(features::kSkiaGraphite);
+}
+
+bool IsDrDcEnabled(const gpu::GpuFeatureInfo& gpu_feature_info) {
+  return gpu_feature_info.status_values
+             [gpu::GPU_FEATURE_TYPE_DIRECT_RENDERING_DISPLAY_COMPOSITOR] ==
+         gpu::kGpuFeatureStatusEnabled;
+}
+
+bool ShouldEnableDrDc() {
+#if BUILDFLAG(IS_ANDROID)
+  // Enabled on android P+.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() <
+      base::android::SDK_VERSION_P) {
+    return false;
+  }
+
+  // DrDc requires AImageReader max size to be
+  // at least 2 for each gpu thread. Hence DrDc is disabled on devices which has
+  // only 1 image.
+  if (LimitAImageReaderMaxSizeToOne()) {
+    return false;
+  }
+
+  // Check block list against build info.
+  const auto* build_info = base::android::BuildInfo::GetInstance();
+  if (IsDeviceBlocked(build_info->device(), kDrDcBlockListByDevice.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->model(), kDrDcBlockListByModel.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->hardware(), kDrDcBlockListByHardware.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->brand(), kDrDcBlockListByBrand.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->android_build_id(),
+                      kDrDcBlockListByAndroidBuildId.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->manufacturer(),
+                      kDrDcBlockListByManufacturer.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->board(), kDrDcBlockListByBoard.Get())) {
+    return false;
+  }
+  if (IsDeviceBlocked(build_info->android_build_fp(),
+                      kDrDcBlockListByAndroidBuildFP.Get())) {
+    return false;
+  }
+
+  // Chrome on Android desktop aims to be Vulkan-only, which can result
+  // in crashes when enabled together with DrDc. Re-enable DrDc after
+  // crbug.com/380295059 is fixed if it is shown beneficial on desktop.
+  if (build_info->is_desktop()) {
+    return false;
+  }
+#endif
+
+  return base::FeatureList::IsEnabled(kEnableDrDc);
 }
 
 bool IsSkiaGraphitePrecompilationEnabled(
@@ -747,11 +782,6 @@ bool IsAndroidSurfaceControlEnabled() {
 
   if (!gfx::SurfaceControl::IsSupported())
     return false;
-
-  // We can use surface control only with AImageReader.
-  if (!base::android::EnableAndroidImageReader()) {
-    return false;
-  }
 
   // SurfaceControl requires at least 3 frames in flight.
   if (LimitAImageReaderMaxSizeToOne())
@@ -828,7 +858,6 @@ bool IncreaseBufferCountForHighFrameRate() {
       base::android::BuildInfo::GetInstance()->sdk_int() >=
           base::android::SdkVersion::SDK_VERSION_R &&
       IsAndroidSurfaceControlEnabled() &&
-      base::android::EnableAndroidImageReader() &&
       base::SysInfo::AmountOfPhysicalMemoryMB() > RAM_8GB_CUTOFF;
   return increase;
 }
@@ -864,19 +893,26 @@ BASE_FEATURE(kIOSurfaceMultiThreading,
 // graphite::context as well as its wrapper class GraphiteSharedContext between
 // GpuMain and CompositorGpuThread. Note: When this feature is disabled,
 // each thread creates its own graphite::context and the context wrapper.
-//
-// Feature incomplete. DO NOT ENABLE!
 BASE_FEATURE(kGraphiteContextIsThreadSafe,
              "GraphiteContextIsThreadSafe",
+#if BUILDFLAG(IS_MAC)
+             // DrDC needs a thread-safe graphite context to work correctly.
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#else
+             // Feature incomplete. DO NOT ENABLE!
              base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 bool IsGraphiteContextThreadSafe() {
-  return base::FeatureList::IsEnabled(features::kGraphiteContextIsThreadSafe) &&
-         features::IsDrDcEnabled();
+  return base::FeatureList::IsEnabled(features::kGraphiteContextIsThreadSafe);
 }
 
 BASE_FEATURE(kWebGPUCompatibilityMode,
              "WebGPUCompatibilityMode",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebGPUAndroidOpenGLES,
+             "WebGPUAndroidOpenGLES",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

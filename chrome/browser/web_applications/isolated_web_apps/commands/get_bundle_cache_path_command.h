@@ -40,10 +40,18 @@ class GetBundleCachePathSuccess {
   base::Version cached_version_;
 };
 
+// These are used in histograms, do not remove/renumber entries. If you're
+// adding to this enum with the intention that it will be logged, update the
+// `IsolatedWebAppGetBundleCachePathError` enum listing in
+// tools/metrics/histograms/metadata/webapps/enums.xml.
 enum class GetBundleCachePathError {
+  // The system was shut down before the command could complete.
   kSystemShutdown = 0,
+  // The specified version of the IWA was not found in the cache.
   kProvidedVersionNotFound = 1,
+  // The IWA is not present in the cache.
   kIwaNotCached = 2,
+  kMaxValue = kIwaNotCached,
 };
 
 std::string GetBundleCachePathErrorToString(GetBundleCachePathError error);

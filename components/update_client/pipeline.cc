@@ -16,6 +16,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
@@ -338,7 +339,7 @@ std::queue<Operation> MakeOperations(
       }
       ops.push(SkipIfCached(
           cache_check,
-          base::BindOnce(&DownloadOperation, config, get_available_space,
+          base::BindOnce(&DownloadOperation, config, id, get_available_space,
                          is_foreground, operation.urls, operation.size,
                          operation.sha256_out, event_adder, state_tracker,
 #if defined(IN_MEMORY_UPDATES)

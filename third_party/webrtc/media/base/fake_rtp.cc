@@ -10,9 +10,8 @@
 
 #include "media/base/fake_rtp.h"
 
-#include <stdint.h>
-#include <string.h>
-
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "absl/algorithm/container.h"

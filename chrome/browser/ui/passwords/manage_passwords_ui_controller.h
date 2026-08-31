@@ -14,6 +14,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/passwords/manage_passwords_state.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
 #include "chrome/browser/ui/passwords/passwords_leak_dialog_delegate.h"
@@ -56,6 +57,7 @@ class ManagePasswordsIconView;
 class CredentialLeakDialogController;
 class CredentialManagerDialogController;
 class PasswordBaseDialogController;
+class ManagePasswordsPageActionController;
 
 // Per-tab class to control the Omnibox password icon and bubble.
 class ManagePasswordsUIController
@@ -179,6 +181,8 @@ class ManagePasswordsUIController
   bool BubbleIsManualFallbackForSaving() const override;
   bool GpmPinCreatedDuringRecentPasskeyCreation() const override;
   const std::string& PasskeyRpId() const override;
+  const std::u16string& PasswordChangeUsername() const override;
+  const std::u16string& PasswordChangeNewPassword() const override;
   void OnBubbleShown() override;
   void OnBubbleHidden() override;
   void OnNoInteraction() override;
@@ -223,9 +227,13 @@ class ManagePasswordsUIController
   }
 #endif  // defined(UNIT_TEST)
 
-  // Hides/Shows the bubble if opened. Mocked in the tests.
+  // Hides the bubble if opened. Mocked in the tests.
   virtual void HidePasswordBubble();
-  virtual void ShowChangePasswordBubble();
+
+  // Opens change password bubble and passes `username` and `new_password` that
+  // should be displayed on it.
+  void ShowChangePasswordBubble(const std::u16string& username,
+                                const std::u16string& new_password);
 
   bool IsShowingBubble() const {
     return bubble_status_ == BubbleStatus::SHOWN ||
@@ -239,6 +247,13 @@ class ManagePasswordsUIController
   // submitted, or when a navigation occurs to update the visibility of the
   // manage passwords icon and bubble.
   virtual void UpdateBubbleAndIconVisibility();
+
+  // Called when the manage passwords icon needs to be shown and it sets the
+  // state of the icon, and shows the associated bubble without user
+  // interaction.
+  void UpdatePasswordIconAndBubbleState(
+      ManagePasswordsPageActionController* controller,
+      actions::ActionItem* passwords_action_item);
 
   // Called to create the account chooser dialog. Mocked in tests.
   virtual AccountChooserPrompt* CreateAccountChooser(
@@ -353,6 +368,16 @@ class ManagePasswordsUIController
   // Returns true if password changing is currently running.
   bool IsPasswordChangeOngoing() const;
 
+  // Invoked after a user accepted the update bubble. If the credentials were
+  // not manually modified and if `password` is the backup password of an
+  // existing credential, then records the end of the password recovery flow and
+  // attempts to display a hats survey. Has to be called before `SavePassword`
+  // because otherwise we cannot tell if the credentials were modified manually.
+  void HandlePasswordRecoveryFinished(
+      const std::u16string& username,
+      const std::u16string& password,
+      const std::u16string& password_backup) const;
+
   // Timeout in seconds for the manual fallback for saving.
   static int save_fallback_timeout_in_seconds_;
 
@@ -383,6 +408,10 @@ class ManagePasswordsUIController
 
   // Used to bypass user authentication in integration tests.
   bool bypass_user_auth_for_testing_ = false;
+
+  password_manager::ui::State last_page_action_state_ =
+      password_manager::ui::INACTIVE_STATE;
+  bool last_page_action_is_blocklisted_ = false;
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   bool was_biometric_authentication_for_filling_promo_shown_ = false;

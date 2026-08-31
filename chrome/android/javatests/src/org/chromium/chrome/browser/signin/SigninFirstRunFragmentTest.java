@@ -77,6 +77,7 @@ import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
+import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.ScalableTimeout;
@@ -99,8 +100,8 @@ import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignInCallback;
 import org.chromium.chrome.browser.ui.signin.fullscreen_signin.FullscreenSigninMediator;
 import org.chromium.chrome.browser.ui.signin.fullscreen_signin.FullscreenSigninMediator.LoadPoint;
-import org.chromium.chrome.test.AutomotiveContextWrapperTestRule;
 import org.chromium.chrome.test.ChromeJUnit4RunnerDelegate;
+import org.chromium.chrome.test.OverrideContextWrapperTestRule;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.util.ActivityTestUtils;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
@@ -109,12 +110,14 @@ import org.chromium.chrome.test.util.browser.signin.SigninTestUtil;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.externalauth.ExternalAuthUtils;
 import org.chromium.components.prefs.PrefService;
+import org.chromium.components.signin.SigninFeatures;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.signin.test.util.FakeAccountManagerFacade;
+import org.chromium.components.signin.test.util.SigninMatchers;
 import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.test.NativeLibraryTestUtils;
@@ -148,7 +151,7 @@ public class SigninFirstRunFragmentTest {
     @Rule public final SigninTestRule mSigninTestRule = new SigninTestRule();
 
     @Rule
-    public AutomotiveContextWrapperTestRule mAutoTestRule = new AutomotiveContextWrapperTestRule();
+    public OverrideContextWrapperTestRule mAutoTestRule = new OverrideContextWrapperTestRule();
 
     @Rule
     public final BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
@@ -318,7 +321,7 @@ public class SigninFirstRunFragmentTest {
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         launchActivityWithFragment();
         checkFragmentWithSelectedAccount(TestAccounts.ACCOUNT1);
-        onView(withText(TestAccounts.ACCOUNT1.getEmail())).perform(click());
+        onView(withText(TestAccounts.ACCOUNT1.getFullName())).perform(click());
         onView(withText(R.string.signin_account_picker_dialog_title))
                 .inRoot(isDialog())
                 .check(matches(isDisplayed()));
@@ -477,8 +480,9 @@ public class SigninFirstRunFragmentTest {
         launchActivityWithFragment();
         checkFragmentWithSelectedAccount(TestAccounts.ACCOUNT1);
 
-        onView(withText(TestAccounts.ACCOUNT1.getEmail())).perform(click());
-        onView(withText(TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail()))
+        onView(SigninMatchers.withFormattedEmailText(TestAccounts.ACCOUNT1.getEmail()))
+                .perform(click());
+        onView(SigninMatchers.withFormattedEmailText(TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail()))
                 .inRoot(isDialog())
                 .perform(click());
 
@@ -679,8 +683,9 @@ public class SigninFirstRunFragmentTest {
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         mSigninTestRule.addAccount(TestAccounts.TEST_ACCOUNT_NO_NAME);
         launchActivityWithFragment();
-        onView(withText(TestAccounts.ACCOUNT1.getEmail())).perform(click());
-        onView(withText(TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail()))
+        onView(SigninMatchers.withFormattedEmailText(TestAccounts.ACCOUNT1.getEmail()))
+                .perform(click());
+        onView(SigninMatchers.withFormattedEmailText(TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail()))
                 .inRoot(isDialog())
                 .perform(click());
         final String continueAsText =
@@ -809,6 +814,7 @@ public class SigninFirstRunFragmentTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    @Features.EnableFeatures(SigninFeatures.SMART_EMAIL_LINE_BREAKING)
     public void testDismissButtonWithDefaultAccount() {
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         launchActivityWithFragment();
@@ -1077,12 +1083,16 @@ public class SigninFirstRunFragmentTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    // TODO(crbug.com/428056054): The top content is blocked by system UI on B+.
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            message = "crbug.com/428056054")
     public void testFragmentWhenAddingAnotherAccount() {
         mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
         launchActivityWithFragment();
         checkFragmentWithSelectedAccount(TestAccounts.ACCOUNT1);
 
-        onView(withText(TestAccounts.ACCOUNT1.getEmail())).perform(click());
+        onView(withText(TestAccounts.ACCOUNT1.getFullName())).perform(click());
         onView(withText(R.string.signin_add_account_to_device)).perform(click());
         mSigninTestRule.setAddAccountFlowResult(TestAccounts.TEST_ACCOUNT_NO_NAME);
         onViewWaiting(AccountManagerTestRule.ADD_ACCOUNT_BUTTON_MATCHER).perform(click());
@@ -1095,6 +1105,10 @@ public class SigninFirstRunFragmentTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    // TODO(crbug.com/428056054): The top content is blocked by system UI on B+.
+    @DisableIf.Build(
+            sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            message = "crbug.com/428056054")
     public void testFragmentWhenAddingDefaultAccount() {
         launchActivityWithFragment();
 
@@ -1116,8 +1130,7 @@ public class SigninFirstRunFragmentTest {
     public void testFragmentSigninWhenAddedAccountIsNotYetAvailable() {
         // This will freeze AccountManagerFacade with the currently available list of accounts.
         // The added account from add account flow later on will not be available.
-        try (var ignored =
-                mSigninTestRule.blockGetCoreAccountInfosUpdate(/* populateCache= */ true)) {
+        try (var ignored = mSigninTestRule.blockGetAccountsUpdate(/* populateCache= */ true)) {
             launchActivityWithFragment();
             onView(withText(R.string.signin_add_account_to_device)).perform(click());
             mSigninTestRule.setAddAccountFlowResult(TestAccounts.TEST_ACCOUNT_NO_NAME);
@@ -1218,7 +1231,7 @@ public class SigninFirstRunFragmentTest {
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
     public void testFragmentWhenAccountsAreLoadedAfterChildStatusAndNativeAndPolicy() {
         FakeAccountManagerFacade.UpdateBlocker blocker =
-                mSigninTestRule.blockGetCoreAccountInfosUpdate(/* populateCache= */ false);
+                mSigninTestRule.blockGetAccountsUpdate(/* populateCache= */ false);
         launchActivityWithFragment();
         checkFragmentWhenLoading();
 
@@ -1369,7 +1382,8 @@ public class SigninFirstRunFragmentTest {
         } else {
             onView(withId(R.id.subtitle)).check(matches(not(isDisplayed())));
         }
-        onView(withText(accountInfo.getEmail())).check(matches(isDisplayed()));
+        onView(SigninMatchers.withFormattedEmailText(accountInfo.getEmail()))
+                .check(matches(isDisplayed()));
         if (!TextUtils.isEmpty(accountInfo.getFullName())) {
             onView(withText(accountInfo.getFullName())).check(matches(isDisplayed()));
         }
@@ -1418,9 +1432,11 @@ public class SigninFirstRunFragmentTest {
         Assert.assertFalse(
                 mFragment.getView().findViewById(R.id.signin_fre_selected_account).isEnabled());
         if (hasDisplayableEmail) {
-            onView(withText(accountInfo.getEmail())).check(matches(isDisplayed()));
+            onView(SigninMatchers.withFormattedEmailText(accountInfo.getEmail()))
+                    .check(matches(isDisplayed()));
         } else {
-            onView(withText(accountInfo.getEmail())).check(doesNotExist());
+            onView(SigninMatchers.withFormattedEmailText(accountInfo.getEmail()))
+                    .check(doesNotExist());
         }
         if (hasDisplayableFullName) {
             onView(withText(accountInfo.getFullName())).check(matches(isDisplayed()));

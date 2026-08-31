@@ -23,6 +23,8 @@ blink_modules_sources("indexeddb") {
     "idb_factory.h",
     "idb_factory_client.cc",
     "idb_factory_client.h",
+    "idb_get_all_options_helper.cc",
+    "idb_get_all_options_helper.h",
     "idb_index.cc",
     "idb_index.h",
     "idb_key.cc",
@@ -97,7 +99,7 @@ source_set("unit_tests") {
     "//third_party/blink/public:test_headers",
     "//third_party/blink/renderer/controller:blink_bindings_test_sources",
     "//third_party/blink/renderer/core:testing",
-    "//third_party/blink/renderer/modules:modules",
+    "//third_party/blink/renderer/modules",
     "//third_party/blink/renderer/platform:test_support",
   ]
 }

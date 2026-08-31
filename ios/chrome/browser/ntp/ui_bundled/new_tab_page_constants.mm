@@ -26,6 +26,20 @@ NSString* const kNTPCustomizationMenuButtonIdentifier =
 NSString* const kNTPFeedHeaderIdentityDiscBadge =
     @"kNTPFeedHeaderIdentityDiscBadge";
 
+NSString* const kNTPFakeOmniboxAccessibilityButton =
+    @"kNTPFakeOmniboxAccessibilityButton";
+
+NSString* const kNTPMIAIdentifier = @"kNTPMIAIdentifier";
+
+NSString* const kNTPLensQuickActionIdentifier =
+    @"kNTPLensQuickActionIdentifier";
+
+NSString* const kNTPVoiceSearchQuickActionIdentifier =
+    @"kNTPVoiceSearchQuickActionIdentifier";
+
+NSString* const kNTPIncognitoQuickActionIdentifier =
+    @"kNTPIncognitoQuickActionIdentifier";
+
 const CGFloat kHomeModuleContainerCornerRadius = 24.0f;
 
 const CGFloat kHomeModuleMinimumPadding = 4;

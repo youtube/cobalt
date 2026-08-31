@@ -87,8 +87,9 @@ String EmailInputType::ConvertEmailAddressToASCII(const ScriptRegexp& regexp,
   // build.) TODO(jshin): In an unlikely case this is a perf-issue, treat
   // 8bit and non-8bit strings separately.
   host.Ensure16Bit();
-  icu::UnicodeString idn_domain_name(UNSAFE_TODO(host.Characters16()),
-                                     host.length());
+
+  auto host_span = host.Span16();
+  icu::UnicodeString idn_domain_name(host_span.data(), host_span.size());
   icu::UnicodeString domain_name;
 
   // Leak |idna| at the end.
@@ -104,7 +105,7 @@ String EmailInputType::ConvertEmailAddressToASCII(const ScriptRegexp& regexp,
 
   StringBuilder builder;
   builder.Append(address, 0, at_position + 1);
-  builder.Append(WTF::unicode::ToSpan(domain_name));
+  builder.Append(unicode::ToSpan(domain_name));
   String ascii_email = builder.ToString();
   return IsValidEmailAddress(regexp, ascii_email) ? ascii_email : address;
 }

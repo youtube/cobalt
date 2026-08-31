@@ -4,22 +4,21 @@
 
 package org.chromium.chrome.browser.app.appmenu;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.view.ContextThemeWrapper;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.View;
 
 import org.junit.Assert;
@@ -35,13 +34,10 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.LooperMode;
 
 import org.chromium.base.ContextUtils;
-import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
-import org.chromium.build.BuildConfig;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl.MenuGroup;
@@ -69,7 +65,7 @@ import org.chromium.chrome.browser.toolbar.ToolbarManager;
 import org.chromium.chrome.browser.toolbar.menu_button.MenuUiState;
 import org.chromium.chrome.browser.translate.TranslateBridge;
 import org.chromium.chrome.browser.translate.TranslateBridgeJni;
-import org.chromium.chrome.browser.ui.appmenu.AppMenuHandler;
+import org.chromium.chrome.browser.ui.appmenu.AppMenuItemProperties;
 import org.chromium.chrome.browser.webapps.WebappRegistry;
 import org.chromium.components.bookmarks.BookmarkId;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
@@ -89,6 +85,8 @@ import org.chromium.components.webapps.AppBannerManager;
 import org.chromium.components.webapps.AppBannerManagerJni;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.modelutil.MVCListAdapter;
+import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
 
 import java.util.ArrayList;
@@ -209,16 +207,14 @@ public class AppMenuPropertiesDelegateUnitTest {
                                 mBookmarkModelSupplier,
                                 mReadAloudControllerSupplier) {
                             @Override
-                            public void prepareMenu(Menu menu, AppMenuHandler handler) {
-                                fail("Preparing menu is unsupported on this delegate");
+                            public MVCListAdapter.ModelList buildMenuModelList() {
+                                return new MVCListAdapter.ModelList();
                             }
                         });
 
         CommerceFeatureUtilsJni.setInstanceForTesting(mCommerceFeatureUtilsJniMock);
         ShoppingServiceFactoryJni.setInstanceForTesting(mShoppingServiceFactoryJniMock);
         doReturn(mShoppingService).when(mShoppingServiceFactoryJniMock).getForProfile(any());
-        BuildConfig.IS_DESKTOP_ANDROID = false;
-        ResettersForTesting.register(() -> BuildConfig.IS_DESKTOP_ANDROID = false);
     }
 
     private void setupFeatureDefaults() {
@@ -257,7 +253,6 @@ public class AppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.HIDE_TABLET_TOOLBAR_DOWNLOAD_BUTTON})
     @Config(qualifiers = "sw600dp")
     public void testShouldShowDownloadPageMenuItem_Tablet_WithFeatureOnAndEnabledDownloadPage() {
         when(mAppMenuPropertiesDelegate.shouldEnableDownloadPage(any(Tab.class))).thenReturn(true);
@@ -268,18 +263,6 @@ public class AppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @DisableFeatures({ChromeFeatureList.HIDE_TABLET_TOOLBAR_DOWNLOAD_BUTTON})
-    @Config(qualifiers = "sw600dp")
-    public void testShouldShowDownloadPageMenuItem_Tablet_WithFeatureOffAndEnabledDownloadPage() {
-        when(mAppMenuPropertiesDelegate.shouldEnableDownloadPage(any(Tab.class))).thenReturn(true);
-        when(mActivityTabProvider.get()).thenReturn(mTab);
-        assertFalse(
-                mAppMenuPropertiesDelegate.shouldShowDownloadPageMenuItem(
-                        mActivityTabProvider.get()));
-    }
-
-    @Test
-    @EnableFeatures({ChromeFeatureList.HIDE_TABLET_TOOLBAR_DOWNLOAD_BUTTON})
     @Config(qualifiers = "sw600dp")
     public void testShouldShowDownloadPageMenuItem_Tablet_WithFeatureOnAndDisabledDownloadPage() {
         when(mAppMenuPropertiesDelegate.shouldEnableDownloadPage(any(Tab.class))).thenReturn(false);
@@ -290,7 +273,6 @@ public class AppMenuPropertiesDelegateUnitTest {
     }
 
     @Test
-    @EnableFeatures({ChromeFeatureList.HIDE_TABLET_TOOLBAR_DOWNLOAD_BUTTON})
     @Config(qualifiers = "sw320dp")
     public void testShouldShowDownloadPageMenuItem_Phone_WithFeatureOnAndEnabledDownloadPage() {
         when(mAppMenuPropertiesDelegate.shouldEnableDownloadPage(any(Tab.class))).thenReturn(true);
@@ -304,38 +286,25 @@ public class AppMenuPropertiesDelegateUnitTest {
     public void updateBookmarkMenuItemShortcut() {
         doReturn(true).when(mBookmarkModel).isEditBookmarksEnabled();
 
-        MenuItem bookmarkMenuItemShortcut = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(
-                bookmarkMenuItemShortcut, mTab, /* fromCct= */ false);
-        verify(bookmarkMenuItemShortcut).setEnabled(true);
-    }
-
-    @Test
-    public void updateBookmarkMenuItemShortcut_fromCct() {
-        doReturn(true).when(mBookmarkModel).isEditBookmarksEnabled();
-
-        MenuItem bookmarkMenuItemShortcut = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(
-                bookmarkMenuItemShortcut, mTab, /* fromCct= */ true);
-        verify(bookmarkMenuItemShortcut).setEnabled(true);
+        PropertyModel bookmarkPropertyModel = new PropertyModel(AppMenuItemProperties.ALL_KEYS);
+        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(bookmarkPropertyModel, mTab);
+        assertTrue(bookmarkPropertyModel.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
     public void updateBookmarkMenuItemShortcut_NullTab() {
-        MenuItem bookmarkMenuItemShortcut = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(
-                bookmarkMenuItemShortcut, null, /* fromCct= */ false);
-        verify(bookmarkMenuItemShortcut).setEnabled(false);
+        PropertyModel bookmarkPropertyModel = new PropertyModel(AppMenuItemProperties.ALL_KEYS);
+        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(bookmarkPropertyModel, null);
+        assertFalse(bookmarkPropertyModel.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
     public void updateBookmarkMenuItemShortcut_NullBookmarkModel() {
         mBookmarkModelSupplier.set(null);
 
-        MenuItem bookmarkMenuItemShortcut = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(
-                bookmarkMenuItemShortcut, mTab, /* fromCct= */ false);
-        verify(bookmarkMenuItemShortcut).setEnabled(false);
+        PropertyModel bookmarkPropertyModel = new PropertyModel(AppMenuItemProperties.ALL_KEYS);
+        mAppMenuPropertiesDelegate.updateBookmarkMenuItemShortcut(bookmarkPropertyModel, mTab);
+        assertFalse(bookmarkPropertyModel.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
@@ -352,13 +321,13 @@ public class AppMenuPropertiesDelegateUnitTest {
                         .build();
         doReturn(meta).when(mBookmarkModel).getPowerBookmarkMeta(any());
 
-        MenuItem startPriceTrackingMenuItem = mock(MenuItem.class);
-        MenuItem stopPriceTrackingMenuItem = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updatePriceTrackingMenuItemRow(
-                startPriceTrackingMenuItem, stopPriceTrackingMenuItem, mTab);
-        verify(startPriceTrackingMenuItem).setVisible(true);
-        verify(startPriceTrackingMenuItem).setEnabled(true);
-        verify(stopPriceTrackingMenuItem).setVisible(false);
+        MVCListAdapter.ListItem item =
+                mAppMenuPropertiesDelegate.maybeBuildPriceTrackingListItem(mTab, true);
+        assertNotNull(item);
+        assertEquals(
+                R.id.enable_price_tracking_menu_id,
+                item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+        assertTrue(item.model.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
@@ -367,12 +336,9 @@ public class AppMenuPropertiesDelegateUnitTest {
         PowerBookmarkUtils.setPriceTrackingEligibleForTesting(true);
         mBookmarkModelSupplier.set(null);
 
-        MenuItem startPriceTrackingMenuItem = mock(MenuItem.class);
-        MenuItem stopPriceTrackingMenuItem = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updatePriceTrackingMenuItemRow(
-                startPriceTrackingMenuItem, stopPriceTrackingMenuItem, mTab);
-        verify(startPriceTrackingMenuItem).setVisible(false);
-        verify(stopPriceTrackingMenuItem).setVisible(false);
+        MVCListAdapter.ListItem item =
+                mAppMenuPropertiesDelegate.maybeBuildPriceTrackingListItem(mTab, true);
+        assertNull(item);
     }
 
     @Test
@@ -389,13 +355,13 @@ public class AppMenuPropertiesDelegateUnitTest {
                         .build();
         doReturn(meta).when(mBookmarkModel).getPowerBookmarkMeta(any());
 
-        MenuItem startPriceTrackingMenuItem = mock(MenuItem.class);
-        MenuItem stopPriceTrackingMenuItem = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updatePriceTrackingMenuItemRow(
-                startPriceTrackingMenuItem, stopPriceTrackingMenuItem, mTab);
-        verify(startPriceTrackingMenuItem).setVisible(true);
-        verify(startPriceTrackingMenuItem).setEnabled(true);
-        verify(stopPriceTrackingMenuItem).setVisible(false);
+        MVCListAdapter.ListItem item =
+                mAppMenuPropertiesDelegate.maybeBuildPriceTrackingListItem(mTab, true);
+        assertNotNull(item);
+        assertEquals(
+                R.id.enable_price_tracking_menu_id,
+                item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+        assertTrue(item.model.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
@@ -436,13 +402,13 @@ public class AppMenuPropertiesDelegateUnitTest {
         PowerBookmarkUtils.setPowerBookmarkMetaForTesting(meta);
         doReturn(meta).when(mBookmarkModel).getPowerBookmarkMeta(any());
 
-        MenuItem startPriceTrackingMenuItem = mock(MenuItem.class);
-        MenuItem stopPriceTrackingMenuItem = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updatePriceTrackingMenuItemRow(
-                startPriceTrackingMenuItem, stopPriceTrackingMenuItem, mTab);
-        verify(stopPriceTrackingMenuItem).setVisible(true);
-        verify(stopPriceTrackingMenuItem).setEnabled(true);
-        verify(startPriceTrackingMenuItem).setVisible(false);
+        MVCListAdapter.ListItem item =
+                mAppMenuPropertiesDelegate.maybeBuildPriceTrackingListItem(mTab, true);
+        assertNotNull(item);
+        assertEquals(
+                R.id.disable_price_tracking_menu_id,
+                item.model.get(AppMenuItemProperties.MENU_ITEM_ID));
+        assertTrue(item.model.get(AppMenuItemProperties.ENABLED));
     }
 
     @Test
@@ -454,16 +420,13 @@ public class AppMenuPropertiesDelegateUnitTest {
 
         BookmarkId bookmarkId = mock(BookmarkId.class);
         doReturn(bookmarkId).when(mBookmarkModel).getUserBookmarkIdForTab(any());
-        doReturn(new ArrayList<BookmarkId>())
+        doReturn(new ArrayList<>())
                 .when(mBookmarkModel)
                 .getBookmarksOfType(eq(PowerBookmarkType.SHOPPING));
 
-        MenuItem startPriceTrackingMenuItem = mock(MenuItem.class);
-        MenuItem stopPriceTrackingMenuItem = mock(MenuItem.class);
-        mAppMenuPropertiesDelegate.updatePriceTrackingMenuItemRow(
-                startPriceTrackingMenuItem, stopPriceTrackingMenuItem, mTab);
-        verify(stopPriceTrackingMenuItem).setVisible(false);
-        verify(startPriceTrackingMenuItem).setVisible(false);
+        MVCListAdapter.ListItem item =
+                mAppMenuPropertiesDelegate.maybeBuildPriceTrackingListItem(mTab, true);
+        assertNull(item);
     }
 
     @Test
@@ -478,16 +441,37 @@ public class AppMenuPropertiesDelegateUnitTest {
         Assert.assertFalse(mAppMenuPropertiesDelegate.shouldCheckBookmarkStar(mTab));
     }
 
+    @Test
+    public void readAloud_CanBeAddedOnMultipleCreatedMenus() {
+        when(mReadAloudController.isReadable(any(Tab.class))).thenReturn(true);
+
+        MVCListAdapter.ModelList modelList = mAppMenuPropertiesDelegate.getMenuItems();
+        mAppMenuPropertiesDelegate.observeAndMaybeAddReadAloud(modelList, mTab);
+        Assert.assertEquals(1, modelList.size());
+        Assert.assertEquals(
+                R.id.readaloud_menu_id,
+                modelList.get(0).model.get(AppMenuItemProperties.MENU_ITEM_ID));
+
+        MVCListAdapter.ModelList modelList2 = mAppMenuPropertiesDelegate.getMenuItems();
+        mAppMenuPropertiesDelegate.observeAndMaybeAddReadAloud(modelList2, mTab);
+        Assert.assertEquals(1, modelList2.size());
+        Assert.assertEquals(
+                R.id.readaloud_menu_id,
+                modelList2.get(0).model.get(AppMenuItemProperties.MENU_ITEM_ID));
+    }
+
     private void setUpMocksForPageMenu() {
         when(mActivityTabProvider.get()).thenReturn(mTab);
         when(mLayoutStateProvider.isLayoutVisible(LayoutType.TAB_SWITCHER)).thenReturn(false);
         doReturn(false).when(mAppMenuPropertiesDelegate).shouldCheckBookmarkStar(any(Tab.class));
         doReturn(false).when(mAppMenuPropertiesDelegate).shouldEnableDownloadPage(any(Tab.class));
         doReturn(false).when(mAppMenuPropertiesDelegate).shouldShowReaderModePrefs(any(Tab.class));
+        doReturn(true)
+                .when(mAppMenuPropertiesDelegate)
+                .shouldShowAutoDarkItem(any(Tab.class), eq(false));
         doReturn(false)
                 .when(mAppMenuPropertiesDelegate)
-                .shouldShowManagedByMenuItem(any(Tab.class));
-        doReturn(true).when(mAppMenuPropertiesDelegate).isAutoDarkWebContentsEnabled();
+                .shouldShowAutoDarkItem(any(Tab.class), eq(true));
         setUpIncognitoMocks();
     }
 

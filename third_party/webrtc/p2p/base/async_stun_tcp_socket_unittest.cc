@@ -10,9 +10,8 @@
 
 #include "p2p/base/async_stun_tcp_socket.h"
 
-#include <stdint.h>
-#include <string.h>
-
+#include <cstddef>
+#include <cstring>
 #include <list>
 #include <memory>
 #include <string>
@@ -81,7 +80,7 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
   AsyncStunTCPSocketTest()
       : vss_(new VirtualSocketServer()), thread_(vss_.get()) {}
 
-  virtual void SetUp() { CreateSockets(); }
+  void SetUp() override { CreateSockets(); }
 
   void CreateSockets() {
     std::unique_ptr<Socket> server =
@@ -132,7 +131,7 @@ class AsyncStunTCPSocketTest : public ::testing::Test,
 
   bool CheckData(const void* data, int len) {
     bool ret = false;
-    if (recv_packets_.size()) {
+    if (!recv_packets_.empty()) {
       std::string packet = recv_packets_.front();
       recv_packets_.pop_front();
       ret = (memcmp(data, packet.c_str(), len) == 0);

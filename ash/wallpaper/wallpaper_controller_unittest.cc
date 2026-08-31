@@ -2840,7 +2840,7 @@ TEST_P(WallpaperControllerTest, SetDefaultWallpaperCallbackTiming) {
 
 TEST_P(WallpaperControllerTest, IgnoreWallpaperRequestInKioskMode) {
   gfx::ImageSkia image = CreateImage(640, 480, kWallpaperColor);
-  SimulateUserLogin({"kiosk", user_manager::UserType::kKioskApp});
+  SimulateUserLogin({"kiosk", user_manager::UserType::kKioskChromeApp});
 
   // Verify that |SetDecodedCustomWallpaper| doesn't set wallpaper in kiosk
   // mode, and |kAccountId1|'s wallpaper info is not updated.
@@ -5159,14 +5159,10 @@ TEST_P(WallpaperControllerTest, UpdateWallpaperOnScheduleCheckpointChanged) {
 }
 
 TEST_P(WallpaperControllerAutoScheduleTest, UpdateWallpaperOnAutoColorMode) {
-  base::expected<base::Time, GeolocationController::SunRiseSetError>
-      sunrise_time = Shell::Get()->geolocation_controller()->GetSunriseTime();
-  base::expected<base::Time, GeolocationController::SunRiseSetError>
-      sunset_time = Shell::Get()->geolocation_controller()->GetSunsetTime();
-  ASSERT_TRUE(sunrise_time.has_value());
-  ASSERT_TRUE(sunset_time.has_value());
+  auto time = Shell::Get()->geolocation_controller()->GetSunRiseSetTime();
+  ASSERT_TRUE(time.has_value());
 
-  SetSimulatedStartTime(sunrise_time.value());
+  SetSimulatedStartTime(time->sunrise);
   SimulateUserLogin(kAccountId1);
 
   ClearWallpaperCount();
@@ -5191,8 +5187,8 @@ TEST_P(WallpaperControllerAutoScheduleTest, UpdateWallpaperOnAutoColorMode) {
   base::Time original_timestamp = actual.date;
 
   // Forward time to trigger checkpoints.
-  ASSERT_GT(sunset_time.value(), Now());
-  task_environment()->FastForwardBy(sunset_time.value() - Now());
+  ASSERT_GT(time->sunset, Now());
+  task_environment()->FastForwardBy(time->sunset - Now());
   RunAllTasksUntilIdle();
 
   WallpaperInfo expected = WallpaperInfo(

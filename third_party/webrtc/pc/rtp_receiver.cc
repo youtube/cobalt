@@ -10,9 +10,8 @@
 
 #include "pc/rtp_receiver.h"
 
-#include <stddef.h>
-
 #include <atomic>
+#include <cstddef>
 #include <string>
 #include <utility>
 #include <vector>

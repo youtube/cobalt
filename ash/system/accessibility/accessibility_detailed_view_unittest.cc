@@ -163,7 +163,6 @@ class AccessibilityDetailedViewTest : public AshTestBase,
   AccessibilityDetailedViewTest() {
     scoped_feature_list_.InitWithFeatures(
         {ash::features::kOnDeviceSpeechRecognition,
-         ::features::kAccessibilityFaceGaze,
          ::features::kAccessibilityReducedAnimationsInKiosk},
         {});
   }
@@ -502,7 +501,7 @@ class AccessibilityDetailedViewTest : public AshTestBase,
 
     UserSession session;
     session.session_id = 1;
-    session.user_info.type = user_manager::UserType::kKioskApp;
+    session.user_info.type = user_manager::UserType::kKioskChromeApp;
     session_controller->UpdateUserSession(session);
   }
 

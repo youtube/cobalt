@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/simple_message_box.h"
 #include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/settings/cros_settings.h"
 #include "chromeos/ash/experiences/arc/arc_features.h"
@@ -288,13 +289,6 @@ ArcStatus GetArcStatusForProfile(const Profile* profile,
   if (ash::switches::IsRevenBranding()) {
     CHECK(g_is_arcvm_dlc_image_available.has_value());
 
-    if (ash::features::ShouldIgnoreDeviceFlexArcEnabledPolicy()) {
-      VLOG_IF(1, should_report_reason)
-          << "ARC unavailable on reven board due to the VPN app enabling "
-             "policy was ignored.";
-      return ArcStatus::kNotAvailable;
-    }
-
     if (!g_is_arcvm_dlc_image_available.value()) {
       VLOG_IF(1, should_report_reason)
           << "ARC unavailable on reven board due to no arcvm dlc images.";
@@ -369,7 +363,7 @@ bool IsArcAllowedForProfileInternal(const Profile* profile,
 }
 
 void ShowContactAdminDialog() {
-  chrome::ShowWarningMessageBox(
+  chrome::ShowWarningMessageBoxAsync(
       nullptr, l10n_util::GetStringUTF16(IDS_ARC_OPT_IN_CONTACT_ADMIN_TITLE),
       l10n_util::GetStringUTF16(IDS_ARC_OPT_IN_CONTACT_ADMIN_CONTEXT));
 }
@@ -495,10 +489,15 @@ bool IsArcBlockedDueToIncompatibleFileSystem(const Profile* profile) {
   const user_manager::User* user =
       ash::ProfileHelper::Get()->GetUserByProfile(profile);
 
-  // Do not block ARC for public accounts as they only have ext4.
-  // Without this check it fails to start after browser crash as compatibility
-  // info is stored in RAM.
-  if (user && user->GetType() == user_manager::UserType::kPublicAccount) {
+  // Unblock Arc for public accounts as they only have ext4 and
+  // for ARC kiosk as migration to ext4 should always be triggered.
+  // Without this check it fails to start after browser crash as
+  // compatibility info is stored in RAM.
+  // In the other kiosk types we do not/should not start ARCVM or allow android
+  // apps to run hence this method should evaluate the actual file system and
+  // not be bypassed here.
+  if (user && (user->GetType() == user_manager::UserType::kPublicAccount ||
+               user->GetType() == user_manager::UserType::kKioskArcvmApp)) {
     return false;
   }
 
@@ -757,7 +756,7 @@ void UpdateArcFileSystemCompatibilityPrefIfNeeded(
   // old devices without ARC. We can always safely remove the following 4 lines
   // without changing any functionality when, say, the code clarity becomes
   // more important in the future.
-  if (!IsArcAvailable()) {
+  if (!IsArcAvailable() && !IsArcvmKioskAvailable()) {
     std::move(callback).Run();
     return;
   }
@@ -816,7 +815,7 @@ bool IsPlayStoreAvailable() {
   }
 
   // Demo Mode is the only public session scenario that can launch Play.
-  return ash::DemoSession::IsDeviceInDemoMode();
+  return ash::demo_mode::IsDeviceInDemoMode();
 }
 
 bool ShouldStartArcSilentlyForManagedProfile(const Profile* profile) {

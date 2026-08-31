@@ -64,7 +64,7 @@ class RectF;
 }  // namespace gfx
 
 namespace viz {
-struct FrameTimingDetails;
+class FrameTimingDetails;
 class LocalSurfaceId;
 }  // namespace viz
 
@@ -260,6 +260,12 @@ class WebFrameWidget : public WebWidget {
 
   // Update the LocalSurfaceId used for frames produced by this widget.
   virtual void ApplyLocalSurfaceIdUpdate(const viz::LocalSurfaceId& id) = 0;
+
+  // Requests that the callback be invoked after the next frame is generated and
+  // presented in the display compositor. Returns true if the callback was
+  // queued, false if the widget doesn't have a compositor and the callback is
+  // dropped without being invoked.
+  virtual bool InsertVisualStateRequest(base::OnceClosure callback) = 0;
 
  private:
   // This is a private virtual method so we don't expose cc::LayerTreeHost

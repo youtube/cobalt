@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/app/vector_icons/vector_icons.h"
@@ -28,7 +29,7 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/download/bubble/download_bubble_navigation_handler.h"
 #include "chrome/browser/ui/views/download/bubble/download_bubble_row_list_view.h"
-#include "chrome/browser/ui/views/download/download_shelf_context_menu_view.h"
+#include "chrome/browser/ui/views/download/download_ui_context_menu_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/download/public/common/download_item.h"
@@ -73,10 +74,6 @@
 #include "ui/views/view_targeter.h"
 #include "ui/views/widget/root_view.h"
 #include "ui/views/widget/widget.h"
-
-#if BUILDFLAG(IS_CHROMEOS)
-#include "base/notreached.h"
-#endif
 
 namespace {
 
@@ -222,16 +219,11 @@ bool DownloadBubbleRowView::StartLoadFileIcon() {
     OnFileIconLoaded(*image);
     return true;
   }
-#if BUILDFLAG(IS_CHROMEOS)
-  // On ChromeOS the LookupIconFromFilepath() call should always succeed.
-  NOTREACHED();
-#else
   im->LoadIcon(file_path, icon_loader_size, current_scale_,
                base::BindOnce(&DownloadBubbleRowView::OnFileIconLoaded,
                               weak_factory_.GetWeakPtr()),
                &cancelable_task_tracker_);
   return false;
-#endif
 }
 
 void DownloadBubbleRowView::OnFileIconLoaded(gfx::Image icon) {
@@ -326,7 +318,7 @@ DownloadBubbleRowView::DownloadBubbleRowView(
     base::WeakPtr<Browser> browser,
     int fixed_width)
     : info_(info),
-      context_menu_(std::make_unique<DownloadShelfContextMenuView>(
+      context_menu_(std::make_unique<DownloadUiContextMenuView>(
           info_->model()->GetWeakPtr(),
           bubble_controller)),
       bubble_controller_(std::move(bubble_controller)),
@@ -578,9 +570,12 @@ void DownloadBubbleRowView::OnMouseCaptureLost() {
 }
 
 gfx::Size DownloadBubbleRowView::CalculatePreferredSize(
-    const views::SizeBounds& /*available_size*/) const {
-  return {fixed_width_,
-          GetLayoutManager()->GetPreferredHeightForWidth(this, fixed_width_)};
+    const views::SizeBounds& available_size) const {
+  // Use the available width if it's constrained. This is necessary to calculate
+  // the height for cases where the available width is narrowed after setting
+  // the fixed width. (i.e: if the parent view has a scrollbar).
+  const int width = available_size.width().value_or(fixed_width_);
+  return {width, GetLayoutManager()->GetPreferredHeightForWidth(this, width)};
 }
 
 void DownloadBubbleRowView::AddLayerToRegion(ui::Layer* layer,
@@ -642,7 +637,8 @@ void DownloadBubbleRowView::OnMainButtonPressed(const ui::Event& event) {
       !info_->main_button_enabled() || !info_->model()) {
     return;
   }
-  if (input_protector_->IsPossiblyUnintendedInteraction(event)) {
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/true)) {
     return;
   }
   if (info_->has_subpage()) {
@@ -660,7 +656,8 @@ void DownloadBubbleRowView::OnActionButtonPressed(
     DownloadCommands::Command command,
     const ui::Event& event) {
   if (!bubble_controller_ || !info_->model() ||
-      input_protector_->IsPossiblyUnintendedInteraction(event)) {
+      input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/true)) {
     return;
   }
   bubble_controller_->ProcessDownloadButtonPress(info_->model()->GetWeakPtr(),

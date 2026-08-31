@@ -11,6 +11,7 @@
 #include <tuple>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "base/cancelable_callback.h"
 #include "base/containers/flat_set.h"
@@ -27,10 +28,10 @@
 #include "components/commerce/core/commerce_types.h"
 #include "components/commerce/core/compare/cluster_manager.h"
 #include "components/commerce/core/product_specifications/product_specifications_cache.h"
-#include "components/commerce/core/product_specifications/product_specifications_service.h"
 #include "components/commerce/core/product_specifications/product_specifications_set.h"
 #include "components/commerce/core/proto/cart_db_content.pb.h"
 #include "components/commerce/core/proto/commerce_subscription_db_content.pb.h"
+#include "components/commerce/core/proto/discount_infos_db_content.pb.h"
 #include "components/commerce/core/proto/discounts_db_content.pb.h"
 #include "components/commerce/core/proto/parcel_tracking_db_content.pb.h"
 #include "components/commerce/core/subscriptions/commerce_subscription.h"
@@ -38,7 +39,7 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_service_observer.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/core/optimization_guide_decision.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decision.h"
 #include "components/unified_consent/consent_throttle.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -116,6 +117,7 @@ class ScheduledMetricsManager;
 }  // namespace metrics
 
 class BookmarkUpdateManager;
+class DiscountInfosStorage;
 class ProductSpecificationsServerProxy;
 class ProductSpecificationsService;
 class ShoppingPowerBookmarkDataProvider;
@@ -219,6 +221,8 @@ class ShoppingService : public KeyedService,
       SessionProtoStorage<discounts_db::DiscountsContentProto>*
           discounts_proto_db,
       SessionProtoStorage<cart_db::ChromeCartContentProto>* cart_proto_db,
+      SessionProtoStorage<discount_infos_db::DiscountInfosContentProto>*
+          discount_infos_db,
       SessionProtoStorage<parcel_tracking_db::ParcelTrackingContent>*
           parcel_tracking_proto_db,
       history::HistoryService* history_service,
@@ -287,6 +291,12 @@ class ShoppingService : public KeyedService,
   virtual void GetDiscountInfoForUrl(const GURL& url,
                                      DiscountInfoCallback callback);
 
+  // This API fetches available valid discounts information on the provided
+  // |url| and passes the payload back to the caller via |callback|.
+  // Call will run after the fetch is completed.
+  virtual void GetAvailableDiscountInfoForUrl(const GURL& url,
+                                          DiscountInfoCallback callback);
+
   virtual void GetProductSpecificationsForUrls(
       const std::vector<GURL>& urls,
       ProductSpecificationsCallback callback);
@@ -350,9 +360,7 @@ class ShoppingService : public KeyedService,
   // locale is enabled. This method is a proxy for the utility method by the
   // same name in commerce_feature_list but provides the country and locale as
   // determined by this service at startup.
-  bool IsRegionLockedFeatureEnabled(
-      const base::Feature& feature,
-      const base::Feature& region_specific_feature);
+  bool IsRegionLockedFeatureEnabled(const base::Feature& feature);
 
   // This is a feature check for the "shopping list". This will only return true
   // if the user has the feature flag enabled, is signed-in, has MSBB enabled,
@@ -634,6 +642,9 @@ class ShoppingService : public KeyedService,
   // The service's means of providing data to power bookmarks.
   std::unique_ptr<ShoppingPowerBookmarkDataProvider>
       shopping_power_bookmark_data_provider_;
+
+  // The object handling discounts storage.
+  std::unique_ptr<DiscountInfosStorage> discount_infos_storage_;
 
   // A cache that retains commerce information for a URL as long as at least one
   // instance of the URL is open in a tab or mainteined by some other subsystem.

@@ -366,6 +366,8 @@ TEST_F(DiscardEligibilityPolicyTest, TestCannotDiscardPdf) {
   EXPECT_TRUE(reasons_vec.empty());
 }
 
+// TODO(crbug.com/422767952): Add a test case for Glic-pinned tabs.
+
 TEST_F(DiscardEligibilityPolicyTest, TestCannotDiscardPageWithoutMainFrame) {
   ResetFrameNode();
   std::vector<CannotDiscardReason> reasons_vec;
@@ -860,6 +862,17 @@ TEST_F(DiscardEligibilityPolicyTest, TestCannotDiscardWithPictureInPicture) {
   reasons_vec.clear();
   EXPECT_EQ(kEligible,
             CanDiscard(page_node(), DiscardReason::EXTERNAL, &reasons_vec));
+  EXPECT_TRUE(reasons_vec.empty());
+}
+
+TEST_F(DiscardEligibilityPolicyTest, TestAlwaysDiscardForTesting) {
+  DiscardEligibilityPolicy::GetFromGraph(graph())
+      ->set_always_discard_for_testing(true);
+  PageLiveStateDecorator::Data::GetOrCreateForPageNode(page_node())
+      ->SetIsActiveTabForTesting(true);
+  std::vector<CannotDiscardReason> reasons_vec;
+  EXPECT_EQ(kEligible,
+            CanDiscard(page_node(), DiscardReason::PROACTIVE, &reasons_vec));
   EXPECT_TRUE(reasons_vec.empty());
 }
 

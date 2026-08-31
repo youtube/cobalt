@@ -15,7 +15,6 @@
 #include "build/build_config.h"
 #include "components/input/render_input_router.mojom.h"
 #include "components/viz/common/vertical_scroll_direction.h"
-#include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
 #include "content/common/content_export.h"
 #include "content/public/common/drop_data.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
@@ -56,6 +55,7 @@ namespace content {
 
 class RenderFrameProxyHost;
 class RenderWidgetHostImpl;
+class RenderWidgetHostViewBase;
 class RenderViewHostDelegateView;
 class TextInputManager;
 class VisibleTimeRequestTrigger;
@@ -215,12 +215,10 @@ class CONTENT_EXPORT RenderWidgetHostDelegate {
 
   // Requests to lock the mouse. Once the request is approved or rejected,
   // GotResponseToLockPointerRequest() will be called on the requesting render
-  // widget host. |privileged| means that the request is always granted, used
-  // for Pepper Flash.
+  // widget host.
   virtual void RequestToLockPointer(RenderWidgetHostImpl* render_widget_host,
                                     bool user_gesture,
-                                    bool last_unlocked_by_target,
-                                    bool privileged) {}
+                                    bool last_unlocked_by_target) {}
 
   virtual void UnlockPointer(RenderWidgetHostImpl* render_widget_host) {}
 
@@ -373,10 +371,6 @@ class CONTENT_EXPORT RenderWidgetHostDelegate {
 
   // Notifies when an input event is ignored.
   virtual void OnInputIgnored(const blink::WebInputEvent& event) {}
-
-  // Get remote for making calls to RenderInputRouterDelegate interface.
-  virtual input::mojom::RenderInputRouterDelegate*
-  GetRenderInputRouterDelegateRemote();
 
 #if BUILDFLAG(IS_ANDROID)
   // Get the y value by which the touch sequence is offsetted by. For e.g.

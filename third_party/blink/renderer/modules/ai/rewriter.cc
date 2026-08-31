@@ -34,6 +34,18 @@ void AIWritingAssistanceCreateClient<
                                     ToMojoRewriterCreateOptions(options_));
 }
 
+template <>
+void AIWritingAssistanceCreateClient<
+    mojom::blink::AIRewriter,
+    mojom::blink::AIManagerCreateRewriterClient,
+    RewriterCreateOptions,
+    Rewriter>::RemoteCanCreate(CanCreateCallback callback) {
+  HeapMojoRemote<mojom::blink::AIManager>& ai_manager_remote =
+      AIInterfaceProxy::GetAIManagerRemote(GetExecutionContext());
+  ai_manager_remote->CanCreateRewriter(ToMojoRewriterCreateOptions(options_),
+                                       std::move(callback));
+}
+
 // static
 template <>
 AIMetrics::AISessionType RewriterBase::GetSessionType() {
@@ -135,7 +147,7 @@ void RewriterBase::RecordCreateOptionMetrics(
   }
 }
 
-Rewriter::Rewriter(ExecutionContext* execution_context,
+Rewriter::Rewriter(ScriptState* script_state,
                    scoped_refptr<base::SequencedTaskRunner> task_runner,
                    mojo::PendingRemote<mojom::blink::AIRewriter> pending_remote,
                    RewriterCreateOptions* options)
@@ -145,7 +157,7 @@ Rewriter::Rewriter(ExecutionContext* execution_context,
                               RewriterCreateCoreOptions,
                               RewriterCreateOptions,
                               RewriterRewriteOptions>(
-          execution_context,
+          script_state,
           task_runner,
           std::move(pending_remote),
           std::move(options),
@@ -170,8 +182,7 @@ ScriptPromise<IDLString> Rewriter::rewrite(
     const RewriterRewriteOptions* options,
     ExceptionState& exception_state) {
   return AIWritingAssistanceBase::execute(script_state, writing_task, options,
-                                          exception_state,
-                                          AIMetrics::AIAPI::kRewriterRewrite);
+                                          exception_state);
 }
 
 ReadableStream* Rewriter::rewriteStreaming(
@@ -179,9 +190,8 @@ ReadableStream* Rewriter::rewriteStreaming(
     const String& writing_task,
     const RewriterRewriteOptions* options,
     ExceptionState& exception_state) {
-  return AIWritingAssistanceBase::executeStreaming(
-      script_state, writing_task, options, exception_state,
-      AIMetrics::AIAPI::kRewriterRewriteStreaming);
+  return AIWritingAssistanceBase::executeStreaming(script_state, writing_task,
+                                                   options, exception_state);
 }
 
 ScriptPromise<IDLDouble> Rewriter::measureInputUsage(

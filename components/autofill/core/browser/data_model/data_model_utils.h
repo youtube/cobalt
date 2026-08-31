@@ -15,6 +15,7 @@ namespace autofill::data_util {
 // Zero values represent that the value is absent.
 struct Date {
   friend bool operator==(const Date&, const Date&) = default;
+  friend auto operator<=>(const Date&, const Date&) = default;
 
   int year = 0;
   int month = 0;
@@ -114,6 +115,18 @@ bool IsValidDateForFormat(const Date& date, std::u16string_view format);
 // This function is minimalistic and cheap (~400x cheaper than parsing with
 // ICU without caching the SimpleDateFormat).
 std::u16string FormatDate(Date date, std::u16string_view format);
+
+inline constexpr size_t kMinAffixLengthForFormatString = 3;
+inline constexpr size_t kMaxAffixLengthForFormatString = 8;
+
+// Indicates if `format` presents the length of prefix or suffix:
+// - u"N" means the value is a prefix of length `N`;
+// - u"-N" means the value is a suffix of length `N`;
+// - u"0" means the value is a full value;
+// where `3 <= N <= 8`.
+// Excludes the clause for u"0" if `exclude_full_value == true`.
+bool IsValidAffixFormat(std::u16string_view format,
+                        bool exclude_full_value = false);
 
 // Converts the integer |expiration_month| to std::u16string. Returns a value
 // between ["01"-"12"].

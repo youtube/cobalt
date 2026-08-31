@@ -35,15 +35,15 @@ enum SpsMode {
   kRewriteRequired_VuiSuboptimal,
 };
 
-static const size_t kSpsBufferMaxSize = 256;
-static const size_t kWidth = 640;
-static const size_t kHeight = 480;
+constexpr size_t kSpsBufferMaxSize = 256;
+constexpr size_t kWidth = 640;
+constexpr size_t kHeight = 480;
 
-static const uint8_t kStartSequence[] = {0x00, 0x00, 0x00, 0x01};
-static const uint8_t kAud[] = {H264::NaluType::kAud, 0x09, 0x10};
-static const uint8_t kSpsNaluType[] = {H264::NaluType::kSps};
-static const uint8_t kIdr1[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x00, 0x04};
-static const uint8_t kIdr2[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x11};
+constexpr uint8_t kStartSequence[] = {0x00, 0x00, 0x00, 0x01};
+constexpr uint8_t kAud[] = {H264::NaluType::kAud, 0x09, 0x10};
+constexpr uint8_t kSpsNaluType[] = {H264::NaluType::kSps};
+constexpr uint8_t kIdr1[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x00, 0x04};
+constexpr uint8_t kIdr2[] = {H264::NaluType::kIdr, 0xFF, 0x00, 0x11};
 
 struct VuiHeader {
   uint32_t vui_parameters_present_flag;
@@ -58,7 +58,7 @@ struct VuiHeader {
   uint8_t matrix_coefficients;
 };
 
-static const VuiHeader kVuiNotPresent = {
+const VuiHeader kVuiNotPresent = {
     /* vui_parameters_present_flag= */ 0,
     /* bitstream_restriction_flag= */ 0,
     /* max_num_reorder_frames= */ 0,
@@ -70,7 +70,7 @@ static const VuiHeader kVuiNotPresent = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiNoBitstreamRestriction = {
+const VuiHeader kVuiNoBitstreamRestriction = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 0,
     /* max_num_reorder_frames= */ 0,
@@ -82,7 +82,7 @@ static const VuiHeader kVuiNoBitstreamRestriction = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiNoFrameBuffering = {
+const VuiHeader kVuiNoFrameBuffering = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 1,
     /* max_num_reorder_frames= */ 0,
@@ -94,7 +94,7 @@ static const VuiHeader kVuiNoFrameBuffering = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiFrameBuffering = {
+const VuiHeader kVuiFrameBuffering = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 1,
     /* max_num_reorder_frames= */ 3,
@@ -106,7 +106,7 @@ static const VuiHeader kVuiFrameBuffering = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiNoVideoSignalType = {
+const VuiHeader kVuiNoVideoSignalType = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 1,
     /* max_num_reorder_frames= */ 0,
@@ -118,7 +118,7 @@ static const VuiHeader kVuiNoVideoSignalType = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiLimitedRangeNoColourDescription = {
+const VuiHeader kVuiLimitedRangeNoColourDescription = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 1,
     /* max_num_reorder_frames= */ 0,
@@ -130,7 +130,7 @@ static const VuiHeader kVuiLimitedRangeNoColourDescription = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiFullRangeNoColourDescription = {
+const VuiHeader kVuiFullRangeNoColourDescription = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 1,
     /* max_num_reorder_frames= */ 0,
@@ -142,7 +142,7 @@ static const VuiHeader kVuiFullRangeNoColourDescription = {
     /* transfer_characteristics= */ 0,
     /* matrix_coefficients= */ 0};
 
-static const VuiHeader kVuiLimitedRangeBt709Color = {
+const VuiHeader kVuiLimitedRangeBt709Color = {
     /* vui_parameters_present_flag= */ 1,
     /* bitstream_restriction_flag= */ 1,
     /* max_num_reorder_frames= */ 0,
@@ -154,41 +154,35 @@ static const VuiHeader kVuiLimitedRangeBt709Color = {
     /* transfer_characteristics= */ 1,
     /* matrix_coefficients= */ 1};
 
-static const ColorSpace kColorSpaceH264Default(
-    ColorSpace::PrimaryID::kUnspecified,
-    ColorSpace::TransferID::kUnspecified,
-    ColorSpace::MatrixID::kUnspecified,
-    ColorSpace::RangeID::kLimited);
+const ColorSpace kColorSpaceH264Default(ColorSpace::PrimaryID::kUnspecified,
+                                        ColorSpace::TransferID::kUnspecified,
+                                        ColorSpace::MatrixID::kUnspecified,
+                                        ColorSpace::RangeID::kLimited);
 
-static const ColorSpace kColorSpacePrimariesBt709(
-    ColorSpace::PrimaryID::kBT709,
-    ColorSpace::TransferID::kUnspecified,
-    ColorSpace::MatrixID::kUnspecified,
-    ColorSpace::RangeID::kLimited);
+const ColorSpace kColorSpacePrimariesBt709(ColorSpace::PrimaryID::kBT709,
+                                           ColorSpace::TransferID::kUnspecified,
+                                           ColorSpace::MatrixID::kUnspecified,
+                                           ColorSpace::RangeID::kLimited);
 
-static const ColorSpace kColorSpaceTransferBt709(
-    ColorSpace::PrimaryID::kUnspecified,
-    ColorSpace::TransferID::kBT709,
-    ColorSpace::MatrixID::kUnspecified,
-    ColorSpace::RangeID::kLimited);
+const ColorSpace kColorSpaceTransferBt709(ColorSpace::PrimaryID::kUnspecified,
+                                          ColorSpace::TransferID::kBT709,
+                                          ColorSpace::MatrixID::kUnspecified,
+                                          ColorSpace::RangeID::kLimited);
 
-static const ColorSpace kColorSpaceMatrixBt709(
-    ColorSpace::PrimaryID::kUnspecified,
-    ColorSpace::TransferID::kUnspecified,
-    ColorSpace::MatrixID::kBT709,
-    ColorSpace::RangeID::kLimited);
+const ColorSpace kColorSpaceMatrixBt709(ColorSpace::PrimaryID::kUnspecified,
+                                        ColorSpace::TransferID::kUnspecified,
+                                        ColorSpace::MatrixID::kBT709,
+                                        ColorSpace::RangeID::kLimited);
 
-static const ColorSpace kColorSpaceFullRange(
-    ColorSpace::PrimaryID::kBT709,
-    ColorSpace::TransferID::kUnspecified,
-    ColorSpace::MatrixID::kUnspecified,
-    ColorSpace::RangeID::kFull);
+const ColorSpace kColorSpaceFullRange(ColorSpace::PrimaryID::kBT709,
+                                      ColorSpace::TransferID::kUnspecified,
+                                      ColorSpace::MatrixID::kUnspecified,
+                                      ColorSpace::RangeID::kFull);
 
-static const ColorSpace kColorSpaceBt709LimitedRange(
-    ColorSpace::PrimaryID::kBT709,
-    ColorSpace::TransferID::kBT709,
-    ColorSpace::MatrixID::kBT709,
-    ColorSpace::RangeID::kLimited);
+const ColorSpace kColorSpaceBt709LimitedRange(ColorSpace::PrimaryID::kBT709,
+                                              ColorSpace::TransferID::kBT709,
+                                              ColorSpace::MatrixID::kBT709,
+                                              ColorSpace::RangeID::kLimited);
 }  // namespace
 
 // Generates a fake SPS with basically everything empty and with characteristics

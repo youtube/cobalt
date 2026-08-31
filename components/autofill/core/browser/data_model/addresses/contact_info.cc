@@ -11,6 +11,7 @@
 #include <string>
 
 #include "base/check_op.h"
+#include "base/i18n/char_iterator.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -26,6 +27,10 @@
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_l10n_util.h"
 #include "components/autofill/core/common/autofill_regexes.h"
+#include "third_party/icu/source/common/unicode/uchar.h"
+#include "third_party/icu/source/common/unicode/uscript.h"
+#include "third_party/icu/source/common/unicode/utypes.h"
+#include "third_party/re2/src/re2/re2.h"
 
 namespace autofill {
 namespace {
@@ -102,6 +107,64 @@ void NameInfo::MergeStructuredNameValidationStatuses(const NameInfo& newer) {
   }
 }
 
+bool NameInfo::HasNameEligibleForPhoneticNameMigration() const {
+  // A full name is eligible to be migrated into a phonetic name if it contains
+  // only Katakana or Hiragana characters (Japanese phonetic symbols) and
+  // whitespaces or separators, but no Kanji (regular Japanese characters),
+  // Latin characters, etc.
+  bool phonetic_characters_found = false;
+  UErrorCode error = U_ZERO_ERROR;
+
+  std::string full_name = base::UTF16ToUTF8(name_->GetValue());
+  re2::RE2::GlobalReplace(&full_name, autofill::kCjkNameSeparatorsRe, "");
+  const std::u16string processed_full_name = base::UTF8ToUTF16(full_name);
+
+  for (base::i18n::UTF16CharIterator iter(processed_full_name); !iter.end();
+       iter.Advance()) {
+    UScriptCode character = uscript_getScript(iter.get(), &error);
+    if (U_FAILURE(error)) {
+      DLOG(ERROR) << "uscript_getScript failed, error code: "
+                  << u_errorName(error);
+      return false;
+    }
+
+    // Whitespaces, dashes and hyphens (e.g. katakana dot) are separators that
+    // can be ignored.
+    if (u_isUWhiteSpace(character) ||
+        u_hasBinaryProperty(character, UCHAR_DASH) ||
+        u_hasBinaryProperty(character, UCHAR_HYPHEN)) {
+      continue;
+    }
+
+    if (character == USCRIPT_KATAKANA_OR_HIRAGANA ||
+        character == USCRIPT_KATAKANA || character == USCRIPT_HIRAGANA) {
+      phonetic_characters_found = true;
+      continue;
+    }
+
+    // If the character is none of the above (e.g. Kanji, Latin alphabet etc.),
+    // the string does not meet either condition.
+    return false;
+  }
+
+  return phonetic_characters_found;
+}
+
+void NameInfo::MigrateRegularNameToPhoneticName() {
+  DCHECK(HasNameEligibleForPhoneticNameMigration());
+  alternative_name_->SetValueForType(ALTERNATIVE_FULL_NAME,
+                                     name_->GetValueForType(NAME_FULL),
+                                     VerificationStatus::kNoStatus);
+  alternative_name_->SetValueForType(ALTERNATIVE_FAMILY_NAME,
+                                     name_->GetValueForType(NAME_LAST),
+                                     VerificationStatus::kNoStatus);
+  alternative_name_->SetValueForType(ALTERNATIVE_GIVEN_NAME,
+                                     name_->GetValueForType(NAME_FIRST),
+                                     VerificationStatus::kNoStatus);
+
+  name_->UnsetAddressComponentAndItsSubcomponents();
+}
+
 bool NameInfo::IsStructuredNameMergeable(const NameInfo& newer) const {
   if (base::FeatureList::IsEnabled(
           features::kAutofillSupportPhoneticNameForJP)) {
@@ -156,32 +219,28 @@ FieldTypeSet NameInfo::GetSupportedTypes() const {
 
 std::u16string NameInfo::GetInfo(const AutofillType& type,
                                  const std::string& app_locale) const {
-  return GetRawInfo(type.GetStorableType());
+  return GetRawInfo(type.GetAddressType());
 }
 
 bool NameInfo::SetInfoWithVerificationStatus(const AutofillType& type,
                                              const std::u16string& value,
                                              const std::string& app_locale,
                                              VerificationStatus status) {
-  if (type.GetStorableType() == NAME_FULL ||
-      (type.GetStorableType() == ALTERNATIVE_FULL_NAME &&
-       base::FeatureList::IsEnabled(
-           features::kAutofillSupportPhoneticNameForJP))) {
+  const FieldType ft = type.GetAddressType();
+  if (ft == NAME_FULL || (ft == ALTERNATIVE_FULL_NAME &&
+                          base::FeatureList::IsEnabled(
+                              features::kAutofillSupportPhoneticNameForJP))) {
     // If the set string is token equivalent to the old one, the value can
     // just be updated, otherwise create a new name record and complete it in
     // the end.
     // TODO(crbug.com/40266145): Move this logic to the data model.
-    AreStringTokenEquivalent(value,
-                             GetRootForType(type.GetStorableType())
-                                 ->GetValueForType(type.GetStorableType()))
-        ? GetRootForType(type.GetStorableType())
-              ->SetValueForType(type.GetStorableType(), value, status)
-        : GetRootForType(type.GetStorableType())
-              ->SetValueForType(type.GetStorableType(), value, status,
-                                /*invalidate_child_nodes=*/true);
+    AreStringTokenEquivalent(value, GetRootForType(ft)->GetValueForType(ft))
+        ? GetRootForType(ft)->SetValueForType(ft, value, status)
+        : GetRootForType(ft)->SetValueForType(ft, value, status,
+                                              /*invalidate_child_nodes=*/true);
     return true;
   }
-  SetRawInfoWithVerificationStatus(type.GetStorableType(), value, status);
+  SetRawInfoWithVerificationStatus(ft, value, status);
   return true;
 }
 
@@ -221,7 +280,7 @@ FieldTypeSet EmailInfo::GetSupportedTypes() const {
 
 std::u16string EmailInfo::GetInfo(const AutofillType& type,
                                   const std::string& app_locale) const {
-  return GetRawInfo(type.GetStorableType());
+  return GetRawInfo(type.GetAddressType());
 }
 
 std::u16string EmailInfo::GetRawInfo(FieldType type) const {
@@ -243,7 +302,7 @@ bool EmailInfo::SetInfoWithVerificationStatus(const AutofillType& type,
                                               const std::u16string& value,
                                               const std::string& app_locale,
                                               const VerificationStatus status) {
-  SetRawInfoWithVerificationStatus(type.GetStorableType(), value, status);
+  SetRawInfoWithVerificationStatus(type.GetAddressType(), value, status);
   return true;
 }
 
@@ -279,7 +338,7 @@ void CompanyInfo::GetMatchingTypes(const std::u16string& text,
 
 std::u16string CompanyInfo::GetInfo(const AutofillType& type,
                                     const std::string& app_locale) const {
-  return GetRawInfo(type.GetStorableType());
+  return GetRawInfo(type.GetAddressType());
 }
 
 std::u16string CompanyInfo::GetRawInfo(FieldType type) const {
@@ -298,7 +357,7 @@ bool CompanyInfo::SetInfoWithVerificationStatus(
     const std::u16string& value,
     const std::string& app_locale,
     const VerificationStatus status) {
-  SetRawInfoWithVerificationStatus(type.GetStorableType(), value, status);
+  SetRawInfoWithVerificationStatus(type.GetAddressType(), value, status);
   return true;
 }
 

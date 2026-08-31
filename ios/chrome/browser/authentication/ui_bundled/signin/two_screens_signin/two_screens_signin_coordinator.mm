@@ -94,6 +94,12 @@ using base::UserMetricsAction;
   CHECK(!_upgradeSigninLogger, base::NotFatalUntil::M146);
 }
 
+#pragma mark - SigninCoordinator
+
+- (BOOL)isAtRiskOfASWViewBug {
+  return NO;
+}
+
 #pragma mark - ChromeCoordinator
 
 - (void)start {
@@ -208,7 +214,10 @@ using base::UserMetricsAction;
     case kDockingPromo:
     case kBestFeatures:
     case kLensInteractivePromo:
+    case kLensAnimatedPromo:
     case kStepsCompleted:
+    case kGuidedTour:
+    case kSafariImport:
       break;
   }
   NOTREACHED() << static_cast<int>(type);

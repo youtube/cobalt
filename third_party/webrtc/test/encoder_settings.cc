@@ -10,11 +10,20 @@
 #include "test/encoder_settings.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <string>
+#include <vector>
 
+#include "api/field_trials_view.h"
+#include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "call/rtp_config.h"
+#include "call/video_receive_stream.h"
+#include "call/video_send_stream.h"
 #include "rtc_base/checks.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 namespace test {

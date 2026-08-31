@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/deprecated/frame_buffer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 #include "api/video/encoded_image.h"

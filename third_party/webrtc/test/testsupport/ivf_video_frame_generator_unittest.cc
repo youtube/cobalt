@@ -10,27 +10,36 @@
 
 #include "test/testsupport/ivf_video_frame_generator.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/scoped_refptr.h"
 #include "api/test/create_frame_generator.h"
+#include "api/test/frame_generator_interface.h"
 #include "api/units/time_delta.h"
 #include "api/video/encoded_image.h"
+#include "api/video/video_bitrate_allocation.h"
 #include "api/video/video_codec_type.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
 #include "api/video_codecs/video_codec.h"
 #include "api/video_codecs/video_encoder.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
-#include "media/base/codec.h"
-#include "media/base/media_constants.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/utility/ivf_file_writer.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/event.h"
+#include "rtc_base/system/file_wrapper.h"
+#include "rtc_base/thread_annotations.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
 #include "test/video_codec_settings.h"
@@ -50,7 +59,7 @@ constexpr int kHeight = 240;
 constexpr int kVideoFramesCount = 30;
 constexpr int kMaxFramerate = 30;
 constexpr TimeDelta kMaxFrameEncodeWaitTimeout = TimeDelta::Seconds(2);
-static const VideoEncoder::Capabilities kCapabilities(false);
+const VideoEncoder::Capabilities kCapabilities(false);
 
 #if defined(WEBRTC_ANDROID) || defined(WEBRTC_IOS) || defined(WEBRTC_ARCH_ARM64)
 constexpr double kExpectedMinPsnr = 35;
@@ -69,7 +78,9 @@ class IvfFileWriterEncodedCallback : public EncodedImageCallback {
         expected_frames_count_(expected_frames_count) {
     EXPECT_TRUE(file_writer_.get());
   }
-  ~IvfFileWriterEncodedCallback() { EXPECT_TRUE(file_writer_->Close()); }
+  ~IvfFileWriterEncodedCallback() override {
+    EXPECT_TRUE(file_writer_->Close());
+  }
 
   Result OnEncodedImage(const EncodedImage& encoded_image,
                         const CodecSpecificInfo* codec_specific_info) override {

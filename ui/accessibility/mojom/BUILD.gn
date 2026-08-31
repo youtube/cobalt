@@ -67,7 +67,7 @@ mojom("mojom") {
     {
       types = [
         {
-          mojom = "ax.mojom.AXEventIntent"
+          mojom = "ax.mojom.EventIntent"
           cpp = "::ui::AXEventIntent"
         },
       ]
@@ -266,6 +266,6 @@ source_set("mojom_traits") {
     "//ui/accessibility/mojom:mojom_shared_cpp_sources",
     "//ui/gfx",
     "//ui/gfx/geometry/mojom:mojom_traits",
-    "//ui/gfx/mojom:mojom",
+    "//ui/gfx/mojom",
   ]
 }

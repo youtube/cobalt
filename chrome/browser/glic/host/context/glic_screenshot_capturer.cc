@@ -11,7 +11,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/media/webrtc/desktop_media_picker_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -138,7 +137,9 @@ void GlicScreenshotCapturer::OnSourceSelected(const std::string& err,
 }
 
 void GlicScreenshotCapturer::OnCaptureStarted(content::DesktopMediaID id) {
-  desktop_capturer_ = content::desktop_capture::CreateScreenCapturer();
+  desktop_capturer_ = content::desktop_capture::CreateScreenCapturer(
+      content::desktop_capture::CreateDesktopCaptureOptions(),
+      /*for_snapshot=*/true);
   desktop_capturer_->Start(this);
   if (!desktop_capturer_->SelectSource(id.id)) {
     SignalError(glic::mojom::CaptureScreenshotErrorReason::kUnknown);

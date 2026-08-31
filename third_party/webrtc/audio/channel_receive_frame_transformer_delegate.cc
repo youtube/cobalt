@@ -26,7 +26,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "rtc_base/buffer.h"
-#include "rtc_base/string_encode.h"
+#include "rtc_base/checks.h"
 #include "system_wrappers/include/ntp_time.h"
 
 namespace webrtc {
@@ -112,7 +112,7 @@ class TransformableIncomingAudioFrame
 
   std::optional<Timestamp> CaptureTime() const override {
     if (header_.extension.absolute_capture_time) {
-      return Timestamp::Millis(UQ32x32ToInt64Ms(
+      return Timestamp::Micros(UQ32x32ToInt64Us(
           header_.extension.absolute_capture_time->absolute_capture_timestamp));
     }
     return std::nullopt;
@@ -122,8 +122,8 @@ class TransformableIncomingAudioFrame
     if (header_.extension.absolute_capture_time &&
         header_.extension.absolute_capture_time
             ->estimated_capture_clock_offset) {
-      return TimeDelta::Millis(
-          Q32x32ToInt64Ms(*header_.extension.absolute_capture_time
+      return TimeDelta::Micros(
+          Q32x32ToInt64Us(*header_.extension.absolute_capture_time
                                ->estimated_capture_clock_offset));
     }
     return std::nullopt;

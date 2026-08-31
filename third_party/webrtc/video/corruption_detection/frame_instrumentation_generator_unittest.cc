@@ -18,7 +18,7 @@
 
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
-#include "api/video/corruption_detection_filter_settings.h"
+#include "api/video/corruption_detection/corruption_detection_filter_settings.h"
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_codec_type.h"

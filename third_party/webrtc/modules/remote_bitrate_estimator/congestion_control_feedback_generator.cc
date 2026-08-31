@@ -54,12 +54,13 @@ void CongestionControlFeedbackGenerator::OnReceivedPacket(
   RTC_DCHECK_RUN_ON(&sequence_checker_);
 
   marker_bit_seen_ |= packet.Marker();
+  Timestamp now = env_.clock().CurrentTime();
   if (!first_arrival_time_since_feedback_) {
-    first_arrival_time_since_feedback_ = packet.arrival_time();
+    first_arrival_time_since_feedback_ = now;
   }
   feedback_trackers_[packet.Ssrc()].ReceivedPacket(packet);
-  if (NextFeedbackTime() < packet.arrival_time()) {
-    SendFeedback(env_.clock().CurrentTime());
+  if (NextFeedbackTime() < now) {
+    SendFeedback(now);
   }
 }
 

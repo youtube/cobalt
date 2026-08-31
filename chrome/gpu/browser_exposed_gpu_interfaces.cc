@@ -25,6 +25,8 @@
 #include "chromeos/ash/experiences/arc/video_accelerator/gpu_arc_video_protected_buffer_allocator.h"
 #include "chromeos/ash/experiences/arc/video_accelerator/protected_buffer_manager.h"
 #include "chromeos/ash/experiences/arc/video_accelerator/protected_buffer_manager_proxy.h"
+#include "components/viz/service/gl/gpu_service_impl.h"  // nogncheck
+#include "gpu/ipc/service/arc_shared_image_interface.h"
 #endif  // BUILDFLAG(IS_CHROMEOS) &&
         // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
@@ -52,12 +54,15 @@ void CreateArcVideoDecoder(
 }
 
 void CreateArcVideoEncodeAccelerator(
+    viz::GpuServiceImpl* gpu_service,
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     mojo::PendingReceiver<::arc::mojom::VideoEncodeAccelerator> receiver) {
   mojo::MakeSelfOwnedReceiver(
-      std::make_unique<arc::GpuArcVideoEncodeAccelerator>(gpu_preferences,
-                                                          gpu_workarounds),
+      std::make_unique<arc::GpuArcVideoEncodeAccelerator>(
+          gpu::ArcSharedImageInterface::Create(
+              gpu_service->gpu_channel_manager()),
+          gpu_preferences, gpu_workarounds),
       std::move(receiver));
 }
 
@@ -89,6 +94,7 @@ void CreateProtectedBufferManager(
 
 void ExposeChromeGpuInterfacesToBrowser(
     ChromeContentGpuClient* client,
+    viz::GpuServiceImpl* gpu_service,
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
     mojo::BinderMap* binders) {
@@ -101,8 +107,8 @@ void ExposeChromeGpuInterfacesToBrowser(
       base::BindRepeating(&CreateArcVideoDecoder, client),
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<::arc::mojom::VideoEncodeAccelerator>(
-      base::BindRepeating(&CreateArcVideoEncodeAccelerator, gpu_preferences,
-                          gpu_workarounds),
+      base::BindRepeating(&CreateArcVideoEncodeAccelerator, gpu_service,
+                          gpu_preferences, gpu_workarounds),
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<::arc::mojom::VideoProtectedBufferAllocator>(
       base::BindRepeating(&CreateArcVideoProtectedBufferAllocator, client),

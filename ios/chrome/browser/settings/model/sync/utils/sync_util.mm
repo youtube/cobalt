@@ -9,6 +9,7 @@
 #import "base/strings/strcat.h"
 #import "base/strings/utf_string_conversions.h"
 #import "components/infobars/core/infobar_manager.h"
+#import "components/signin/public/base/signin_switches.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/strings/grit/components_strings.h"
@@ -74,14 +75,20 @@ std::optional<InfobarSyncError> InfobarSyncErrorFromUserActionableError(
     case syncer::SyncService::UserActionableError::
         kTrustedVaultRecoverabilityDegradedForEverything:
       return SYNC_TRUSTED_VAULT_RECOVERABILITY_DEGRADED;
+    // TODO(crbug.com/370026230): Update this case once GetAccountErrorUIInfo()
+    // returns a non-nil value for it.
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
+      NOTREACHED();
   }
-  NOTREACHED();
 }
 
 // Gets the the title of the identity error info bar for the given `error`.
 std::u16string GetIdentityErrorInfoBarTitle(
     syncer::SyncService::UserActionableError error) {
   switch (error) {
+    case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
+      return l10n_util::GetStringUTF16(
+          IDS_IOS_IDENTITY_ERROR_INFOBAR_VERIFY_ITS_YOU_TITLE);
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
       return l10n_util::GetStringUTF16(
           IDS_IOS_IDENTITY_ERROR_INFOBAR_ENTER_PASSPHRASE_TITLE);
@@ -102,7 +109,7 @@ std::u16string GetIdentityErrorInfoBarTitle(
       return l10n_util::GetStringUTF16(
           IDS_IOS_IDENTITY_ERROR_INFOBAR_VERIFY_ITS_YOU_TITLE);
     case syncer::SyncService::UserActionableError::kNone:
-    case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       NOTREACHED();
   }
 }
@@ -112,6 +119,7 @@ NSString* GetIdentityErrorInfoBarMessage(
     syncer::SyncService::UserActionableError error,
     const std::u16string& email) {
   switch (error) {
+    case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
     case syncer::SyncService::UserActionableError::
         kNeedsTrustedVaultKeyForEverything:
@@ -146,7 +154,7 @@ NSString* GetIdentityErrorInfoBarMessage(
       return l10n_util::GetNSString(
           IDS_IOS_IDENTITY_ERROR_INFOBAR_MAKE_SURE_YOU_CAN_ALWAYS_USE_CHROME_DATA_MESSAGE);
     case syncer::SyncService::UserActionableError::kNone:
-    case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       NOTREACHED();
   }
 }
@@ -154,6 +162,9 @@ NSString* GetIdentityErrorInfoBarMessage(
 NSString* GetIdentityErrorInfoBarButtonLabel(
     syncer::SyncService::UserActionableError error) {
   switch (error) {
+    case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
+      return l10n_util::GetNSString(
+          IDS_IOS_IDENTITY_ERROR_INFOBAR_VERIFY_BUTTON_LABEL);
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
       return l10n_util::GetNSString(
           IDS_IOS_IDENTITY_ERROR_INFOBAR_ENTER_BUTTON_LABEL);
@@ -174,7 +185,7 @@ NSString* GetIdentityErrorInfoBarButtonLabel(
       return l10n_util::GetNSString(
           IDS_IOS_IDENTITY_ERROR_INFOBAR_VERIFY_BUTTON_LABEL);
     case syncer::SyncService::UserActionableError::kNone:
-    case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       NOTREACHED();
   }
 }
@@ -220,6 +231,9 @@ NSString* GetSyncErrorDescriptionForSyncService(
       // syncer::AlwaysEncryptedUserTypes().
       return l10n_util::GetNSString(
           IDS_IOS_GOOGLE_SERVICES_SETTINGS_SYNC_FIX_RECOVERABILITY_DEGRADED_FOR_PASSWORDS);
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
+      // UI not implemented for this case.
+      return nil;
   }
 }
 
@@ -266,6 +280,9 @@ NSString* GetSyncErrorMessageForProfile(ProfileIOS* profile) {
     case syncer::SyncService::UserActionableError::
         kTrustedVaultRecoverabilityDegradedForEverything:
       return GetSyncErrorDescriptionForSyncService(syncService);
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
+      // UI not implemented for this case.
+      return nil;
   }
 }
 
@@ -297,6 +314,8 @@ NSString* GetSyncErrorButtonTitleForProfile(ProfileIOS* profile) {
         kTrustedVaultRecoverabilityDegradedForEverything:
       return l10n_util::GetNSString(IDS_IOS_SYNC_VERIFY_ITS_YOU_BUTTON);
     case syncer::SyncService::UserActionableError::kNone:
+    // UI not implemented for this case.
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       return nil;
   }
 }
@@ -315,6 +334,8 @@ bool ShouldShowSyncSettings(syncer::SyncService::UserActionableError error) {
         kTrustedVaultRecoverabilityDegradedForPasswords:
     case syncer::SyncService::UserActionableError::
         kTrustedVaultRecoverabilityDegradedForEverything:
+    // UI not implemented for this case.
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       return false;
   }
 }

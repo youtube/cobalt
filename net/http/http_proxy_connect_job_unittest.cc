@@ -579,11 +579,12 @@ TEST_P(HttpProxyConnectJobTest, HasEstablishedConnectionTunnel) {
 
   // SPDY proxy CONNECT request / response, with a pause during the read.
   spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   MockWrite spdy_writes[] = {CreateMockWrite(req, 0)};
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   MockRead spdy_reads[] = {
       // Pause at first read.
       MockRead(ASYNC, ERR_IO_PENDING, 1),
@@ -676,7 +677,7 @@ TEST_P(HttpProxyConnectJobTest, ProxyDelegateExtraHeaders) {
       "%s: %s\r\n\r\n",
       kTestHeaderName, proxy_server_uri.c_str());
   MockWrite writes[] = {
-      MockWrite(ASYNC, 0, http1_request.c_str()),
+      MockWrite(ASYNC, 0, http1_request),
   };
 
   const char kResponseHeaderName[] = "bar";
@@ -686,26 +687,25 @@ TEST_P(HttpProxyConnectJobTest, ProxyDelegateExtraHeaders) {
       "%s: %s\r\n\r\n",
       kResponseHeaderName, kResponseHeaderValue);
   MockRead reads[] = {
-      MockRead(ASYNC, 1, http1_response.c_str()),
+      MockRead(ASYNC, 1, http1_response),
   };
 
-  const char* const kExtraRequestHeaders[] = {
+  const std::string_view kExtraRequestHeaders[] = {
       kTestSpdyHeaderName,
       proxy_server_uri.c_str(),
       "user-agent",
       "test-ua",
   };
-  const char* const kExtraResponseHeaders[] = {
+  const std::string_view kExtraResponseHeaders[] = {
       kResponseHeaderName,
       kResponseHeaderValue,
   };
   spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyConnect(
-      kExtraRequestHeaders, std::size(kExtraRequestHeaders) / 2, 1,
-      HttpProxyConnectJob::kH2QuicTunnelPriority,
+      kExtraRequestHeaders, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   MockWrite spdy_writes[] = {CreateMockWrite(req, 0)};
-  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
-      kExtraResponseHeaders, std::size(kExtraResponseHeaders) / 2, 1));
+  spdy::SpdySerializedFrame resp(
+      spdy_util_.ConstructSpdyGetReply(kExtraResponseHeaders, 1));
   MockRead spdy_reads[] = {
       CreateMockRead(resp, 1, ASYNC),
       MockRead(SYNCHRONOUS, ERR_IO_PENDING, 2),
@@ -769,44 +769,43 @@ TEST_P(HttpProxyConnectJobTest, NestedProxyProxyDelegateExtraHeaders) {
       kResponseHeaderName, second_hop_proxy_server_uri.c_str());
 
   MockWrite writes[] = {
-      MockWrite(ASYNC, 0, first_hop_http1_request.c_str()),
-      MockWrite(ASYNC, 2, second_hop_http1_request.c_str()),
+      MockWrite(ASYNC, 0, first_hop_http1_request),
+      MockWrite(ASYNC, 2, second_hop_http1_request),
   };
 
   MockRead reads[] = {
-      MockRead(ASYNC, 1, first_hop_http1_response.c_str()),
-      MockRead(ASYNC, 3, second_hop_http1_response.c_str()),
+      MockRead(ASYNC, 1, first_hop_http1_response),
+      MockRead(ASYNC, 3, second_hop_http1_response),
   };
 
-  const char* const kFirstHopExtraRequestHeaders[] = {
+  const std::string_view kFirstHopExtraRequestHeaders[] = {
       kTestSpdyHeaderName,
-      first_hop_proxy_server_uri.c_str(),
+      first_hop_proxy_server_uri,
       "user-agent",
       "test-ua",
   };
-  const char* const kSecondHopExtraRequestHeaders[] = {
+  const std::string_view kSecondHopExtraRequestHeaders[] = {
       kTestSpdyHeaderName,
-      second_hop_proxy_server_uri.c_str(),
+      second_hop_proxy_server_uri,
       "user-agent",
       "test-ua",
   };
-  const char* const kFirstHopExtraResponseHeaders[] = {
+  const std::string_view kFirstHopExtraResponseHeaders[] = {
       kResponseHeaderName,
-      first_hop_proxy_server_uri.c_str(),
+      first_hop_proxy_server_uri,
   };
-  const char* const kSecondHopExtraResponseHeaders[] = {
+  const std::string_view kSecondHopExtraResponseHeaders[] = {
       kResponseHeaderName,
-      second_hop_proxy_server_uri.c_str(),
+      second_hop_proxy_server_uri,
   };
 
   spdy::SpdySerializedFrame first_hop_req(spdy_util_.ConstructSpdyConnect(
-      kFirstHopExtraRequestHeaders, std::size(kFirstHopExtraRequestHeaders) / 2,
-      1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      kFirstHopExtraRequestHeaders, 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       second_hop_proxy_server.host_port_pair()));
 
-  spdy::SpdySerializedFrame first_hop_resp(spdy_util_.ConstructSpdyGetReply(
-      kFirstHopExtraResponseHeaders,
-      std::size(kFirstHopExtraResponseHeaders) / 2, 1));
+  spdy::SpdySerializedFrame first_hop_resp(
+      spdy_util_.ConstructSpdyGetReply(kFirstHopExtraResponseHeaders, 1));
 
   // Use a new `SpdyTestUtil()` instance for the second hop response and request
   // because otherwise, the serialized frames that get generated for these will
@@ -816,8 +815,7 @@ TEST_P(HttpProxyConnectJobTest, NestedProxyProxyDelegateExtraHeaders) {
   SpdyTestUtil new_spdy_util;
 
   spdy::SpdySerializedFrame second_hop_req(new_spdy_util.ConstructSpdyConnect(
-      kSecondHopExtraRequestHeaders,
-      std::size(kSecondHopExtraRequestHeaders) / 2, 1,
+      kSecondHopExtraRequestHeaders, 1,
       HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
 
@@ -827,9 +825,8 @@ TEST_P(HttpProxyConnectJobTest, NestedProxyProxyDelegateExtraHeaders) {
   spdy::SpdySerializedFrame wrapped_second_hop_req(
       spdy_util_.ConstructWrappedSpdyFrame(second_hop_req, 1));
 
-  spdy::SpdySerializedFrame second_hop_resp(new_spdy_util.ConstructSpdyGetReply(
-      kSecondHopExtraResponseHeaders,
-      std::size(kSecondHopExtraResponseHeaders) / 2, 1));
+  spdy::SpdySerializedFrame second_hop_resp(
+      new_spdy_util.ConstructSpdyGetReply(kSecondHopExtraResponseHeaders, 1));
 
   spdy::SpdySerializedFrame wrapped_second_hop_resp(
       spdy_util_.ConstructWrappedSpdyFrame(second_hop_resp, 1));
@@ -901,6 +898,7 @@ TEST_P(HttpProxyConnectJobTest, NeedAuth) {
         // No credentials.
         MockRead(io_mode, 1, "HTTP/1.1 407 Proxy Authentication Required\r\n"),
         MockRead(io_mode, 2,
+
                  "Proxy-Authenticate: Basic realm=\"MyRealm1\"\r\n"),
         MockRead(io_mode, 3, "Content-Length: 10\r\n\r\n"),
         MockRead(io_mode, 4, "0123456789"),
@@ -909,7 +907,8 @@ TEST_P(HttpProxyConnectJobTest, NeedAuth) {
 
     SpdyTestUtil spdy_util;
     spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
-        nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+        base::span<const std::string_view>(), 1,
+        HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
     spdy::SpdySerializedFrame rst(
         spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
@@ -917,15 +916,14 @@ TEST_P(HttpProxyConnectJobTest, NeedAuth) {
 
     // After calling trans.RestartWithAuth(), this is the request we should
     // be issuing -- the final header line contains the credentials.
-    const char* const kSpdyAuthCredentials[] = {
+    const std::string_view kSpdyAuthCredentials[] = {
         "user-agent",
         "test-ua",
         "proxy-authorization",
         "Basic Zm9vOmJhcg==",
     };
     spdy::SpdySerializedFrame connect2(spdy_util.ConstructSpdyConnect(
-        kSpdyAuthCredentials, std::size(kSpdyAuthCredentials) / 2, 3,
-        HttpProxyConnectJob::kH2QuicTunnelPriority,
+        kSpdyAuthCredentials, 3, HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
 
     MockWrite spdy_writes[] = {
@@ -937,16 +935,15 @@ TEST_P(HttpProxyConnectJobTest, NeedAuth) {
     // The proxy responds to the connect with a 407, using a persistent
     // connection.
     const char kAuthStatus[] = "407";
-    const char* const kAuthChallenge[] = {
+    const std::string_view kAuthChallenge[] = {
         "proxy-authenticate",
         "Basic realm=\"MyRealm1\"",
     };
     spdy::SpdySerializedFrame connect_auth_resp(
-        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge,
-                                          std::size(kAuthChallenge) / 2, 1));
+        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge, 1));
 
-    spdy::SpdySerializedFrame connect2_resp(
-        spdy_util.ConstructSpdyGetReply(nullptr, 0, 3));
+    spdy::SpdySerializedFrame connect2_resp(spdy_util.ConstructSpdyGetReply(
+        base::span<const std::string_view>(), 3));
     MockRead spdy_reads[] = {
         CreateMockRead(connect_auth_resp, 1, ASYNC),
         CreateMockRead(connect2_resp, 4, ASYNC),
@@ -1032,7 +1029,8 @@ TEST_P(HttpProxyConnectJobTest, NeedAuthTwice) {
 
     SpdyTestUtil spdy_util;
     spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
-        nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+        base::span<const std::string_view>(), 1,
+        HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
     spdy::SpdySerializedFrame rst(
         spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
@@ -1040,23 +1038,21 @@ TEST_P(HttpProxyConnectJobTest, NeedAuthTwice) {
 
     // After calling trans.RestartWithAuth(), this is the request we should
     // be issuing -- the final header line contains the credentials.
-    const char* const kSpdyAuthCredentials[] = {
+    const std::string_view kSpdyAuthCredentials[] = {
         "user-agent",
         "test-ua",
         "proxy-authorization",
         "Basic Zm9vOmJhcg==",
     };
     spdy::SpdySerializedFrame connect2(spdy_util.ConstructSpdyConnect(
-        kSpdyAuthCredentials, std::size(kSpdyAuthCredentials) / 2, 3,
-        HttpProxyConnectJob::kH2QuicTunnelPriority,
+        kSpdyAuthCredentials, 3, HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
     spdy::SpdySerializedFrame rst2(
         spdy_util.ConstructSpdyRstStream(3, spdy::ERROR_CODE_CANCEL));
     spdy_util.UpdateWithStreamDestruction(3);
 
     spdy::SpdySerializedFrame connect3(spdy_util.ConstructSpdyConnect(
-        kSpdyAuthCredentials, std::size(kSpdyAuthCredentials) / 2, 5,
-        HttpProxyConnectJob::kH2QuicTunnelPriority,
+        kSpdyAuthCredentials, 5, HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
     MockWrite spdy_writes[] = {
         CreateMockWrite(connect, 0, io_mode),
@@ -1069,18 +1065,16 @@ TEST_P(HttpProxyConnectJobTest, NeedAuthTwice) {
     // The proxy responds to the connect with a 407, using a persistent
     // connection.
     const char kAuthStatus[] = "407";
-    const char* const kAuthChallenge[] = {
+    const std::string_view kAuthChallenge[] = {
         "proxy-authenticate",
         "Basic realm=\"MyRealm1\"",
     };
     spdy::SpdySerializedFrame connect_auth_resp(
-        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge,
-                                          std::size(kAuthChallenge) / 2, 1));
+        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge, 1));
     spdy::SpdySerializedFrame connect2_auth_resp(
-        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge,
-                                          std::size(kAuthChallenge) / 2, 3));
-    spdy::SpdySerializedFrame connect3_resp(
-        spdy_util.ConstructSpdyGetReply(nullptr, 0, 5));
+        spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge, 3));
+    spdy::SpdySerializedFrame connect3_resp(spdy_util.ConstructSpdyGetReply(
+        base::span<const std::string_view>(), 5));
     MockRead spdy_reads[] = {
         CreateMockRead(connect_auth_resp, 1, ASYNC),
         CreateMockRead(connect2_auth_resp, 4, ASYNC),
@@ -1168,7 +1162,7 @@ TEST_P(HttpProxyConnectJobTest, HaveAuth) {
         MockRead(io_mode, 1, "HTTP/1.1 200 Connection Established\r\n\r\n"),
     };
 
-    const char* const kSpdyAuthCredentials[] = {
+    const std::string_view kSpdyAuthCredentials[] = {
         "user-agent",
         "test-ua",
         "proxy-authorization",
@@ -1176,16 +1170,15 @@ TEST_P(HttpProxyConnectJobTest, HaveAuth) {
     };
     SpdyTestUtil spdy_util;
     spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
-        kSpdyAuthCredentials, std::size(kSpdyAuthCredentials) / 2, 1,
-        HttpProxyConnectJob::kH2QuicTunnelPriority,
+        kSpdyAuthCredentials, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
 
     MockWrite spdy_writes[] = {
         CreateMockWrite(connect, 0, ASYNC),
     };
 
-    spdy::SpdySerializedFrame connect_resp(
-        spdy_util.ConstructSpdyGetReply(nullptr, 0, 1));
+    spdy::SpdySerializedFrame connect_resp(spdy_util.ConstructSpdyGetReply(
+        base::span<const std::string_view>(), 1));
     MockRead spdy_reads[] = {
         // SpdySession starts trying to read from the socket as soon as it's
         // created, so this cannot be SYNCHRONOUS.
@@ -1282,11 +1275,12 @@ TEST_P(HttpProxyConnectJobTest, SpdySessionKeyDisableSecureDns) {
 
   // SPDY proxy CONNECT request / response, with a pause during the read.
   spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   MockWrite spdy_writes[] = {CreateMockWrite(req, 0)};
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   MockRead spdy_reads[] = {CreateMockRead(resp, 1), MockRead(ASYNC, 0, 2)};
   SequencedSocketData spdy_data(spdy_reads, spdy_writes);
   spdy_data.set_connect_data(MockConnect(ASYNC, OK));
@@ -1306,7 +1300,7 @@ TEST_P(HttpProxyConnectJobTest, SpdySessionKeyDisableSecureDns) {
                          SessionUsage::kProxy, SocketTag(),
                          NetworkAnonymizationKey(), SecureDnsPolicy::kDisable,
                          /*disable_cert_verification_network_fetches=*/true),
-          /* enable_ip_based_pooling = */ false,
+          /* enable_ip_based_pooling_for_h2 = */ false,
           /* is_websocket = */ false, NetLogWithSource()));
   EXPECT_FALSE(
       common_connect_job_params_->spdy_session_pool->FindAvailableSession(
@@ -1315,7 +1309,7 @@ TEST_P(HttpProxyConnectJobTest, SpdySessionKeyDisableSecureDns) {
                          SessionUsage::kProxy, SocketTag(),
                          NetworkAnonymizationKey(), SecureDnsPolicy::kAllow,
                          /*disable_cert_verification_network_fetches=*/true),
-          /* enable_ip_based_pooling = */ false,
+          /* enable_ip_based_pooling_for_h2 = */ false,
           /* is_websocket = */ false, NetLogWithSource()));
 }
 
@@ -1331,12 +1325,12 @@ TEST_P(HttpProxyConnectJobTest, SetSpdySessionSocketRequestPriority) {
   // even though the ConnectJob's priority is set to HIGHEST after connection
   // establishment.
   spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyConnect(
-      nullptr /* extra_headers */, 0 /* extra_header_count */,
-      1 /* stream_id */, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1 /* stream_id */,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   MockWrite spdy_writes[] = {CreateMockWrite(req, 0, ASYNC)};
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   MockRead spdy_reads[] = {CreateMockRead(resp, 1, ASYNC),
                            MockRead(ASYNC, 0, 2)};
 
@@ -1392,7 +1386,7 @@ TEST_P(HttpProxyConnectJobTest, SpdyInadequateTransportSecurity) {
                          SessionUsage::kProxy, SocketTag(),
                          NetworkAnonymizationKey(), SecureDnsPolicy::kDisable,
                          /*disable_cert_verification_network_fetches=*/true),
-          /*enable_ip_based_pooling=*/false,
+          /*enable_ip_based_pooling_for_h2=*/false,
           /*is_websocket=*/false, NetLogWithSource()));
 }
 
@@ -1416,11 +1410,12 @@ TEST_P(HttpProxyConnectJobTest, SpdyValidAlps) {
 
   // SPDY proxy CONNECT request / response, with a pause during the read.
   spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   MockWrite spdy_writes[] = {CreateMockWrite(req, 0)};
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   MockRead spdy_reads[] = {CreateMockRead(resp, 1), MockRead(ASYNC, 0, 2)};
   SequencedSocketData spdy_data(spdy_reads, spdy_writes);
   spdy_data.set_connect_data(MockConnect(ASYNC, OK));
@@ -1440,7 +1435,7 @@ TEST_P(HttpProxyConnectJobTest, SpdyValidAlps) {
                          SessionUsage::kProxy, SocketTag(),
                          NetworkAnonymizationKey(), SecureDnsPolicy::kDisable,
                          /*disable_cert_verification_network_fetches=*/true),
-          /*enable_ip_based_pooling=*/false,
+          /*enable_ip_based_pooling_for_h2=*/false,
           /*is_websocket=*/false, NetLogWithSource()));
 }
 
@@ -1477,7 +1472,7 @@ TEST_P(HttpProxyConnectJobTest, SpdyInvalidAlpsCheckEnabled) {
                          SessionUsage::kProxy, SocketTag(),
                          NetworkAnonymizationKey(), SecureDnsPolicy::kDisable,
                          /*disable_cert_verification_network_fetches=*/true),
-          /*enable_ip_based_pooling=*/false,
+          /*enable_ip_based_pooling_for_h2=*/false,
           /*is_websocket=*/false, NetLogWithSource()));
 }
 
@@ -1497,11 +1492,12 @@ TEST_P(HttpProxyConnectJobTest, SpdyInvalidAlpsCheckDisabled) {
 
   // SPDY proxy CONNECT request / response, with a pause during the read.
   spdy::SpdySerializedFrame req(spdy_util_.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   MockWrite spdy_writes[] = {CreateMockWrite(req, 0)};
-  spdy::SpdySerializedFrame resp(
-      spdy_util_.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame resp(spdy_util_.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   MockRead spdy_reads[] = {CreateMockRead(resp, 1), MockRead(ASYNC, 0, 2)};
   SequencedSocketData spdy_data(spdy_reads, spdy_writes);
   spdy_data.set_connect_data(MockConnect(ASYNC, OK));
@@ -1521,7 +1517,7 @@ TEST_P(HttpProxyConnectJobTest, SpdyInvalidAlpsCheckDisabled) {
                          SessionUsage::kProxy, SocketTag(),
                          NetworkAnonymizationKey(), SecureDnsPolicy::kDisable,
                          /*disable_cert_verification_network_fetches=*/true),
-          /*enable_ip_based_pooling=*/false,
+          /*enable_ip_based_pooling_for_h2=*/false,
           /*is_websocket=*/false, NetLogWithSource()));
 }
 
@@ -1611,8 +1607,8 @@ TEST_P(HttpProxyConnectJobTest, TunnelUnexpectedClose) {
         MockRead(io_mode, ERR_CONNECTION_CLOSED, 2),
     };
     spdy::SpdySerializedFrame req(SpdyTestUtil().ConstructSpdyConnect(
-        nullptr /*extra_headers */, 0 /*extra_header_count */,
-        1 /* stream_id */, HttpProxyConnectJob::kH2QuicTunnelPriority,
+        base::span<const std::string_view>(), 1 /* stream_id */,
+        HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair(kEndpointHost, 443)));
     MockWrite spdy_writes[] = {CreateMockWrite(req, 0, io_mode)};
     // Sync reads don't really work with SPDY, since it constantly reads from
@@ -1694,8 +1690,8 @@ TEST_P(HttpProxyConnectJobTest, TunnelSetupError) {
     };
     SpdyTestUtil spdy_util;
     spdy::SpdySerializedFrame req(spdy_util.ConstructSpdyConnect(
-        nullptr /* extra_headers */, 0 /* extra_header_count */,
-        1 /* stream_id */, HttpProxyConnectJob::kH2QuicTunnelPriority,
+        base::span<const std::string_view>(), 1 /* stream_id */,
+        HttpProxyConnectJob::kH2QuicTunnelPriority,
         HostPortPair("www.endpoint.test", 443)));
     spdy::SpdySerializedFrame rst(
         spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
@@ -1781,12 +1777,12 @@ TEST_P(HttpProxyConnectJobTest, TunnelSetupRedirect) {
                   "User-Agent: test-ua\r\n\r\n"),
     };
     MockRead reads[] = {
-        MockRead(io_mode, 1, kResponseText.c_str()),
+        MockRead(io_mode, 1, kResponseText),
     };
     SpdyTestUtil spdy_util;
     spdy::SpdySerializedFrame req(spdy_util.ConstructSpdyConnect(
-        nullptr /* extra_headers */, 0 /* extra_header_count */, 1,
-        DEFAULT_PRIORITY, HostPortPair(kEndpointHost, 443)));
+        base::span<const std::string_view>(), 1, DEFAULT_PRIORITY,
+        HostPortPair(kEndpointHost, 443)));
     spdy::SpdySerializedFrame rst(
         spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
 
@@ -1795,15 +1791,14 @@ TEST_P(HttpProxyConnectJobTest, TunnelSetupRedirect) {
         CreateMockWrite(rst, 3, io_mode),
     };
 
-    const char* const responseHeaders[] = {
+    const std::string_view kResponseHeaders[] = {
         "location",
-        kRedirectTarget.c_str(),
+        kRedirectTarget,
         "set-cookie",
         "foo=bar",
     };
-    const int responseHeadersSize = std::size(responseHeaders) / 2;
-    spdy::SpdySerializedFrame resp(spdy_util.ConstructSpdyReplyError(
-        "302", responseHeaders, responseHeadersSize, 1));
+    spdy::SpdySerializedFrame resp(
+        spdy_util.ConstructSpdyReplyError("302", kResponseHeaders, 1));
     MockRead spdy_reads[] = {
         CreateMockRead(resp, 1, ASYNC),
         MockRead(ASYNC, 0, 2),
@@ -1879,24 +1874,24 @@ TEST_P(HttpProxyConnectJobTest, TestTimeoutsAuthChallenge) {
   };
 
   SpdyTestUtil spdy_util;
-  spdy::SpdySerializedFrame connect(spdy_util.ConstructSpdyConnect(
-      nullptr, 0, 1, HttpProxyConnectJob::kH2QuicTunnelPriority,
-      HostPortPair(kEndpointHost, 443)));
+  spdy::SpdySerializedFrame connect(
+      spdy_util.ConstructSpdyConnect(base::span<const std::string_view>(), 1,
+                                     HttpProxyConnectJob::kH2QuicTunnelPriority,
+                                     HostPortPair(kEndpointHost, 443)));
   spdy::SpdySerializedFrame rst(
       spdy_util.ConstructSpdyRstStream(1, spdy::ERROR_CODE_CANCEL));
   spdy_util.UpdateWithStreamDestruction(1);
 
   // After calling trans.RestartWithAuth(), this is the request we should
   // be issuing -- the final header line contains the credentials.
-  const char* const kSpdyAuthCredentials[] = {
+  const std::string_view kSpdyAuthCredentials[] = {
       "user-agent",
       "test-ua",
       "proxy-authorization",
       "Basic Zm9vOmJhcg==",
   };
   spdy::SpdySerializedFrame connect2(spdy_util.ConstructSpdyConnect(
-      kSpdyAuthCredentials, std::size(kSpdyAuthCredentials) / 2, 3,
-      HttpProxyConnectJob::kH2QuicTunnelPriority,
+      kSpdyAuthCredentials, 3, HttpProxyConnectJob::kH2QuicTunnelPriority,
       HostPortPair(kEndpointHost, 443)));
   // This may be sent in some tests, either when tearing down a successful
   // connection, or on timeout.
@@ -1912,14 +1907,14 @@ TEST_P(HttpProxyConnectJobTest, TestTimeoutsAuthChallenge) {
   // The proxy responds to the connect with a 407, using a persistent
   // connection.
   const char kAuthStatus[] = "407";
-  const char* const kAuthChallenge[] = {
+  const std::string_view kAuthChallenge[] = {
       "proxy-authenticate",
       "Basic realm=\"MyRealm1\"",
   };
-  spdy::SpdySerializedFrame connect_auth_resp(spdy_util.ConstructSpdyReplyError(
-      kAuthStatus, kAuthChallenge, std::size(kAuthChallenge) / 2, 1));
+  spdy::SpdySerializedFrame connect_auth_resp(
+      spdy_util.ConstructSpdyReplyError(kAuthStatus, kAuthChallenge, 1));
   spdy::SpdySerializedFrame connect2_resp(
-      spdy_util.ConstructSpdyGetReply(nullptr, 0, 3));
+      spdy_util.ConstructSpdyGetReply(base::span<const std::string_view>(), 3));
   MockRead spdy_reads[] = {
       // Pause before first response is read.
       MockRead(ASYNC, ERR_IO_PENDING, 1),

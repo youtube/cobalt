@@ -6,6 +6,7 @@
 #import <UIKit/UIKit.h>
 
 #import "base/ios/ios_util.h"
+#import "base/strings/string_util.h"
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/qr_scanner/ui_bundled/qr_scanner_app_interface.h"
@@ -593,7 +594,7 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 
 // Tests that a new dialog replaces an old dialog if the camera state changes.
 // TODO(crbug.com/40105250): Re-enable test on iOS12.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testDialogIsReplacedIfCameraStateChanges \
   testDialogIsReplacedIfCameraStateChanges
 #else

@@ -29,6 +29,26 @@ namespace autofill::payments {
 
 PaymentsAutofillClient::~PaymentsAutofillClient() = default;
 
+PaymentsAutofillClient::UserProvidedCardDetails::UserProvidedCardDetails() =
+    default;
+
+PaymentsAutofillClient::UserProvidedCardDetails::UserProvidedCardDetails(
+    const UserProvidedCardDetails&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails&
+PaymentsAutofillClient::UserProvidedCardDetails::operator=(
+    const UserProvidedCardDetails&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails::UserProvidedCardDetails(
+    UserProvidedCardDetails&&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails&
+PaymentsAutofillClient::UserProvidedCardDetails::operator=(
+    UserProvidedCardDetails&&) = default;
+
+PaymentsAutofillClient::UserProvidedCardDetails::~UserProvidedCardDetails() =
+    default;
+
 #if BUILDFLAG(IS_ANDROID)
 AutofillSaveCardBottomSheetBridge*
 PaymentsAutofillClient::GetOrCreateAutofillSaveCardBottomSheetBridge() {
@@ -174,6 +194,10 @@ CreditCardOtpAuthenticator* PaymentsAutofillClient::GetOtpAuthenticator() {
   return nullptr;
 }
 
+bool PaymentsAutofillClient::IsRiskBasedAuthEffectivelyAvailable() const {
+  return false;
+}
+
 CreditCardRiskBasedAuthenticator*
 PaymentsAutofillClient::GetRiskBasedAuthenticator() {
   return nullptr;
@@ -230,7 +254,7 @@ bool PaymentsAutofillClient::ShowTouchToFillIban(
 
 bool PaymentsAutofillClient::ShowTouchToFillLoyaltyCard(
     base::WeakPtr<TouchToFillDelegate> delegate,
-    base::span<const LoyaltyCard> loyalty_cards_to_suggest) {
+    std::vector<LoyaltyCard> loyalty_cards_to_suggest) {
   return false;
 }
 
@@ -254,7 +278,20 @@ PaymentsAutofillClient::GetOrCreatePaymentsMandatoryReauthManager() {
   return nullptr;
 }
 
-void PaymentsAutofillClient::ShowCreditCardSaveAndFillDialog() {}
+PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails::
+    UserProvidedCardSaveAndFillDetails() = default;
+
+PaymentsAutofillClient::UserProvidedCardSaveAndFillDetails::
+    ~UserProvidedCardSaveAndFillDetails() = default;
+
+void PaymentsAutofillClient::ShowCreditCardLocalSaveAndFillDialog(
+    CardSaveAndFillDialogCallback callback) {}
+
+void PaymentsAutofillClient::ShowCreditCardUploadSaveAndFillDialog(
+    const LegalMessageLines& legal_message_lines,
+    CardSaveAndFillDialogCallback callback) {}
+
+void PaymentsAutofillClient::ShowCreditCardSaveAndFillPendingDialog() {}
 
 payments::SaveAndFillManager* PaymentsAutofillClient::GetSaveAndFillManager() {
   return nullptr;
@@ -270,6 +307,10 @@ void PaymentsAutofillClient::DismissSelectBnplIssuerDialog() {}
 
 bool PaymentsAutofillClient::IsTabModalPopupDeprecated() const {
   return false;
+}
+
+BnplStrategy* PaymentsAutofillClient::GetBnplStrategy() {
+  return nullptr;
 }
 
 }  // namespace autofill::payments

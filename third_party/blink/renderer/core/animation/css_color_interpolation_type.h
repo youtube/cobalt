@@ -38,8 +38,11 @@ class CORE_EXPORT CSSColorInterpolationType : public CSSInterpolationType {
 
   static void EnsureInterpolableStyleColor(InterpolableList& list,
                                            wtf_size_t index);
+  static void EnsureInterpolableStyleColor(InterpolableValue*& value);
   static void EnsureCompatibleInterpolableColorTypes(InterpolableList& list_a,
                                                      InterpolableList& list_b);
+  static void EnsureCompatibleInterpolableColorTypes(InterpolableValue*& a,
+                                                     InterpolableValue*& b);
 
   static InterpolableColor* CreateInterpolableColor(const Color&);
   static InterpolableColor* CreateInterpolableColor(
@@ -76,6 +79,7 @@ class CORE_EXPORT CSSColorInterpolationType : public CSSInterpolationType {
   static bool IsNonKeywordColor(const InterpolableValue&);
 
  private:
+  friend class CSSGapColorListInterpolationType;
   InterpolationValue MaybeConvertNeutral(const InterpolationValue& underlying,
                                          ConversionCheckers&) const final;
   InterpolationValue MaybeConvertInitial(const StyleResolverState&,

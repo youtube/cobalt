@@ -5,9 +5,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_OFFSCREENCANVAS2D_OFFSCREEN_CANVAS_RENDERING_CONTEXT_2D_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_CANVAS_OFFSCREENCANVAS2D_OFFSCREEN_CANVAS_RENDERING_CONTEXT_2D_H_
 
+#include <memory>
+
 #include "base/notreached.h"
-#include "third_party/blink/renderer/core/canvas_interventions/canvas_interventions_enums.h"
-#include "third_party/blink/renderer/core/html/canvas/canvas_2d_color_params.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_context_creation_attributes_core.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context_factory.h"
@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/canvas/canvas2d/base_rendering_context_2d.h"
 #include "third_party/blink/renderer/modules/canvas/canvas2d/identifiability_study_helper.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_color_params.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/privacy_budget/identifiability_digest_helpers.h"
@@ -23,6 +24,7 @@ namespace blink {
 
 class CanvasResourceProvider;
 class ExceptionState;
+class MemoryManagedPaintCanvas;
 
 class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
     : public ScriptWrappable,
@@ -80,9 +82,8 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   int Width() const final;
   int Height() const final;
 
-  bool CanCreateCanvas2dResourceProvider() const final;
-  CanvasResourceProvider* GetOrCreateCanvasResourceProvider() const;
-  CanvasResourceProvider* GetCanvasResourceProvider() const;
+  bool CanCreateCanvas2dResourceProvider() final;
+  CanvasResourceProvider* GetResourceProviderForCanvas2D() const override;
 
   // Offscreen canvas doesn't have any notion of image orientation.
   RespectImageOrientationEnum RespectImageOrientation() const final {
@@ -91,9 +92,9 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
 
   Color GetCurrentColor() const final;
 
-  cc::PaintCanvas* GetOrCreatePaintCanvas() final;
+  MemoryManagedPaintCanvas* GetOrCreatePaintCanvas() final;
   using BaseRenderingContext2D::GetPaintCanvas;  // Pull the non-const overload.
-  const cc::PaintCanvas* GetPaintCanvas() const final;
+  const MemoryManagedPaintCanvas* GetPaintCanvas() const final;
   const MemoryManagedPaintRecorder* Recorder() const final;
 
   void WillDraw(const SkIRect& dirty_rect,
@@ -105,6 +106,7 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   bool IsDesynchronized() const final {
     return CreationAttributes().desynchronized;
   }
+  void Dispose() override;
   void LoseContext(LostContextMode) override;
 
   ImageBitmap* TransferToImageBitmap(ScriptState* script_state,
@@ -133,14 +135,6 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
     return identifiability_study_helper_.encountered_partially_digested_image();
   }
 
-  bool ShouldTriggerIntervention() const override {
-    return HasTriggerForIntervention();
-  }
-
-  CanvasOperationType GetCanvasTriggerOperations() const override {
-    return GetTriggersForIntervention();
-  }
-
   std::optional<cc::PaintRecord> FlushCanvas(FlushReason) override;
 
  protected:
@@ -159,11 +153,14 @@ class MODULES_EXPORT OffscreenCanvasRenderingContext2D final
   void FinalizeFrame(FlushReason) final;
 
   bool IsPaintable() const final;
-  bool IsCanvas2DBufferValid() const override;
 
   scoped_refptr<CanvasResource> ProduceCanvasResource(FlushReason);
 
   CanvasResourceProvider* GetOrCreateCanvas2DResourceProvider() override;
+  std::unique_ptr<CanvasResourceProvider> ReplaceResourceProviderForCanvas2D(
+      std::unique_ptr<CanvasResourceProvider>) override;
+
+  std::unique_ptr<CanvasResourceProvider> resource_provider_;
 
   SkIRect dirty_rect_for_commit_;
 

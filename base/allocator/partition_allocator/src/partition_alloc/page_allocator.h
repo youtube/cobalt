@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PAGE_ALLOCATOR_H_
 #define PARTITION_ALLOC_PAGE_ALLOCATOR_H_
 
@@ -14,6 +19,10 @@
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
 #include "partition_alloc/thread_isolation/thread_isolation.h"
+
+#if PA_BUILDFLAG(IS_WIN)
+#include "partition_alloc/partition_alloc_base/win/windows_types.h"
+#endif
 
 namespace partition_alloc {
 
@@ -422,6 +431,24 @@ PA_COMPONENT_EXPORT(PARTITION_ALLOC) size_t GetTotalMappedSize();
 PA_COMPONENT_EXPORT(PARTITION_ALLOC)
 void SetRetryOnCommitFailure(bool retry_on_commit_failure);
 bool GetRetryOnCommitFailure();
+
+// Sets the handle of a process to terminate on commit failure, before retrying
+// the operation. The API takes ownership of the handle (ensures that it will be
+// closed when no longer needed). The caller must call this again with a new
+// handle (or nullptr) when the last provided process terminates (for any
+// reason) - otherwise the implementation may hold onto the terminated process's
+// handle which will undesirably keep the process object alive, see
+// https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess#eprocess
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+void SetProcessToTerminateOnCommitFailure(HANDLE handle);
+
+// Terminates the last process passed to SetProcessToTerminateOnCommitFailure(),
+// if any. Local experiments show that it takes ~50ms for the terminated
+// process' commit charge to be relinquished, so the caller may want to wait a
+// little bit before retrying the commit.
+PA_COMPONENT_EXPORT(PARTITION_ALLOC)
+void TerminateAnotherProcessOnCommitFailure();
+
 #endif  // PA_BUILDFLAG(IS_WIN)
 
 }  // namespace partition_alloc

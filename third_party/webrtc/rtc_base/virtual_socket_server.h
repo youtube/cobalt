@@ -11,21 +11,30 @@
 #ifndef RTC_BASE_VIRTUAL_SOCKET_SERVER_H_
 #define RTC_BASE_VIRTUAL_SOCKET_SERVER_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
+#include <list>
 #include <map>
+#include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "api/make_ref_counted.h"
 #include "api/ref_counted_base.h"
 #include "api/scoped_refptr.h"
-#include "api/task_queue/task_queue_base.h"
-#include "rtc_base/checks.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
+#include "rtc_base/ip_address.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_address.h"
 #include "rtc_base/socket_address_pair.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -480,12 +489,5 @@ class VirtualSocketServer : public SocketServer {
 
 }  // namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::VirtualSocketServer;
-}
-#endif  //  WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_VIRTUAL_SOCKET_SERVER_H_

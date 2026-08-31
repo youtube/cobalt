@@ -14,7 +14,6 @@
 // limitations under the License.
 //
 // SPDX-License-Identifier: Apache-2.0
-
 //
 // Copyright 2016 The Cobalt Authors. All Rights Reserved.
 //
@@ -32,14 +31,14 @@
 
 #include "third_party/starboard/rdk/shared/window/window_internal.h"
 #include "third_party/starboard/rdk/shared/application_rdk.h"
+#include "third_party/starboard/rdk/shared/platform/platform_interface.h"
 
-
+using namespace third_party::starboard::rdk::shared;
 using ::starboard::ApplicationRdk;
-using ::starboard::DisplayInfo;
 
 SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /* options */) { }
 
-SbWindowPrivate::~SbWindowPrivate() = default;
+SbWindowPrivate::~SbWindowPrivate() { }
 
 void* SbWindowPrivate::Native() const {
   return reinterpret_cast<void*>(ApplicationRdk::Get()->GetNativeWindow());
@@ -54,14 +53,17 @@ int SbWindowPrivate::Height() const {
 }
 
 float SbWindowPrivate::VideoPixelRatio() const {
-  auto resolution_info = DisplayInfo::GetResolution();
+  auto video_resolution = platform::device().video_resolution().value_or(platform::Resolution{});
   int window_height = ApplicationRdk::Get()->GetWindowHeight();
-  float ratio = resolution_info.Height / static_cast<float>(window_height);
+  if (window_height <= 0) {
+    return 1.0f;
+  }
+  float ratio = video_resolution.height / static_cast<float>(window_height);
   float max_ratio = ( window_height < 1080 )
-    ? 1.5f : ( resolution_info.Height <= 2160 ? 2.f : 4.f );
+    ? 1.5f : ( video_resolution.height <= 2160 ? 2.f : 4.f );
   return std::min(ratio, max_ratio);
 }
 
 float SbWindowPrivate::DiagonalSizeInInches() const {
-  return DisplayInfo::GetDiagonalSizeInInches();
+  return platform::device().diagonal_size_in_inches().value_or(.0f);
 }

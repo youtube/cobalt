@@ -6,7 +6,6 @@
 
 #import <optional>
 
-#import "base/feature_list.h"
 #import "components/enterprise/browser/controller/browser_dm_token_storage.h"
 #import "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 #import "components/enterprise/common/proto/connectors.pb.h"
@@ -16,7 +15,6 @@
 #import "components/policy/core/common/cloud/cloud_policy_core.h"
 #import "components/policy/core/common/cloud/cloud_policy_store.h"
 #import "components/policy/core/common/cloud/user_cloud_policy_manager.h"
-#import "ios/chrome/browser/enterprise/connectors/features.h"
 #import "ios/chrome/browser/policy/model/browser_policy_connector_ios.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_attributes_ios.h"
@@ -95,12 +93,13 @@ ClientMetadata GetContextAsClientMetadata(ProfileIOS* profile) {
     return metadata;
   }
 
-  ProfileAttributesStorageIOS* storage = GetApplicationContext()
-                                             ->GetProfileManager()
-                                             ->GetProfileAttributesStorage();
-  if (storage) {
+  ProfileManagerIOS* manager = GetApplicationContext()->GetProfileManager();
+
+  // The ProfileManagerIOS could be null in the tests.
+  if (manager && manager->GetProfileAttributesStorage()) {
     ProfileAttributesIOS attributes =
-        storage->GetAttributesForProfileWithName(profile->GetProfileName());
+        manager->GetProfileAttributesStorage()->GetAttributesForProfileWithName(
+            profile->GetProfileName());
     metadata.mutable_profile()->set_profile_name(attributes.GetProfileName());
     metadata.mutable_profile()->set_gaia_email(attributes.GetUserName());
   }
@@ -188,11 +187,6 @@ base::flat_set<std::string> GetUserAffiliationIds(ProfileIOS* profile) {
 }
 
 bool IsEnterpriseUrlFilteringEnabled(EnterpriseRealTimeUrlCheckMode mode) {
-  if (!base::FeatureList::IsEnabled(
-          enterprise_connectors::kIOSEnterpriseRealtimeUrlFiltering)) {
-    return false;
-  }
-
   return mode ==
          EnterpriseRealTimeUrlCheckMode::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED;
 }

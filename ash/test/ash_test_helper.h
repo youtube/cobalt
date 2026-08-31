@@ -10,7 +10,6 @@
 #include <memory>
 #include <utility>
 
-#include "ash/assistant/test/test_assistant_service.h"
 #include "ash/public/cpp/test/test_system_tray_client.h"
 #include "ash/quick_pair/common/quick_pair_browser_delegate.h"
 #include "ash/quick_pair/keyed_service/quick_pair_mediator.h"
@@ -23,8 +22,7 @@
 #include "base/types/pass_key.h"
 #include "chromeos/ash/components/system/fake_statistics_provider.h"
 #include "chromeos/ash/services/bluetooth_config/scoped_bluetooth_config_test_helper.h"
-#include "chromeos/ash/services/federated/public/cpp/fake_service_connection.h"
-#include "chromeos/ash/services/federated/public/cpp/service_connection.h"
+#include "components/session_manager/core/session_manager.h"
 #include "ui/aura/test/aura_test_helper.h"
 
 class BrowserWithTestWindowTest;
@@ -169,10 +167,6 @@ class AshTestHelper : public aura::test::AuraTestHelper {
     return test_keyboard_controller_observer_.get();
   }
 
-  TestAssistantService* test_assistant_service() {
-    return assistant_service_.get();
-  }
-
   AmbientAshTestHelper* ambient_ash_test_helper() {
     return ambient_ash_test_helper_.get();
   }
@@ -222,12 +216,11 @@ class AshTestHelper : public aura::test::AuraTestHelper {
       std::make_unique<base::test::ScopedCommandLine>();
   std::unique_ptr<system::ScopedFakeStatisticsProvider> statistics_provider_ =
       std::make_unique<system::ScopedFakeStatisticsProvider>();
+  std::unique_ptr<session_manager::SessionManager> session_manager_;
   std::unique_ptr<TestPrefServiceProvider> prefs_provider_;
   std::unique_ptr<TestNotifierSettingsController>
       notifier_settings_controller_ =
           std::make_unique<TestNotifierSettingsController>();
-  std::unique_ptr<TestAssistantService> assistant_service_ =
-      std::make_unique<TestAssistantService>();
   std::unique_ptr<TestSystemTrayClient> system_tray_client_ =
       std::make_unique<TestSystemTrayClient>();
   std::unique_ptr<AppListTestHelper> app_list_test_helper_;
@@ -258,10 +251,6 @@ class AshTestHelper : public aura::test::AuraTestHelper {
   // global that is registered via InputMethodManager::Initialize().
   raw_ptr<input_method::MockInputMethodManagerImpl, DanglingUntriaged>
       input_method_manager_ = nullptr;
-
-  federated::FakeServiceConnectionImpl fake_federated_service_connection_;
-  federated::ScopedFakeServiceConnectionForTest
-      scoped_fake_federated_service_connection_for_test_;
 
   // True if a fake global `CrasAudioHandler` should be created.
   bool create_global_cras_audio_handler_ = true;

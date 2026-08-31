@@ -10,14 +10,16 @@
 
 #include "modules/desktop_capture/desktop_frame.h"
 
-#include <string.h>
-
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
 
 #include "modules/desktop_capture/desktop_capture_types.h"
 #include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/shared_memory.h"
 #include "rtc_base/checks.h"
 #include "third_party/libyuv/include/libyuv/planar_functions.h"
 

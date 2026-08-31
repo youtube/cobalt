@@ -9,13 +9,13 @@
  */
 #include "api/audio/audio_processing.h"
 
-#include <math.h>
 #include <stdio.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -49,8 +49,8 @@
 #include "modules/audio_processing/include/mock_audio_processing.h"
 #include "modules/audio_processing/test/protobuf_utils.h"
 #include "modules/audio_processing/test/test_utils.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/cpu_info.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/numerics/safe_minmax.h"
@@ -59,7 +59,6 @@
 #include "rtc_base/swap_queue.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/task_queue_for_test.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -86,7 +85,7 @@ using ::testing::WithoutArgs;
 
 // All sample rates used by APM internally during processing. Other input /
 // output rates are resampled to / from one of these.
-const int kProcessSampleRates[] = {16000, 32000, 48000};
+constexpr int kProcessSampleRates[] = {16000, 32000, 48000};
 
 enum StreamDirection { kForward = 0, kReverse };
 
@@ -295,7 +294,7 @@ std::string GetReferenceFilename() {
 #if defined(WEBRTC_AUDIOPROC_FIXED_PROFILE)
   return test::ResourcePath("audio_processing/output_data_fixed", "pb");
 #elif defined(WEBRTC_AUDIOPROC_FLOAT_PROFILE)
-  if (GetCPUInfo(kAVX2) != 0) {
+  if (cpu_info::Supports(cpu_info::ISA::kAVX2)) {
     return test::ResourcePath("audio_processing/output_data_float_avx2", "pb");
   }
   return test::ResourcePath("audio_processing/output_data_float", "pb");
@@ -371,8 +370,8 @@ bool ExpectMessageEq(ArrayView<const uint8_t> actual,
 class ApmTest : public ::testing::Test {
  protected:
   ApmTest();
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   static void SetUpTestSuite() {}
 
@@ -1329,9 +1328,8 @@ TEST_F(ApmTest, NoProcessingWhenAllComponentsDisabledFloat) {
 TEST_F(ApmTest, IdenticalInputChannelsResultInIdenticalOutputChannels) {
   EnableAllComponents();
 
-  for (size_t i = 0; i < arraysize(kProcessSampleRates); i++) {
-    Init(kProcessSampleRates[i], kProcessSampleRates[i], kProcessSampleRates[i],
-         2, 2, 2, false);
+  for (int sample_rate_hz : kProcessSampleRates) {
+    Init(sample_rate_hz, sample_rate_hz, sample_rate_hz, 2, 2, 2, false);
     int analog_level = 127;
     ASSERT_EQ(0, feof(far_file_));
     ASSERT_EQ(0, feof(near_file_));
@@ -1691,13 +1689,13 @@ TEST_F(ApmTest, Process) {
   } else {
     const int kChannels[] = {1, 2};
     // Write the desired tests to the protobuf reference file.
-    for (size_t i = 0; i < arraysize(kChannels); i++) {
-      for (size_t j = 0; j < arraysize(kChannels); j++) {
+    for (int num_reverse_channels : kChannels) {
+      for (int num_channels : kChannels) {
         for (int sample_rate_hz : AudioProcessing::kNativeSampleRatesHz) {
           audioproc::Test* test = ref_data.add_test();
-          test->set_num_reverse_channels(kChannels[i]);
-          test->set_num_input_channels(kChannels[j]);
-          test->set_num_output_channels(kChannels[j]);
+          test->set_num_reverse_channels(num_reverse_channels);
+          test->set_num_input_channels(num_channels);
+          test->set_num_output_channels(num_channels);
           test->set_sample_rate(sample_rate_hz);
           test->set_use_aec_extended_filter(false);
         }
@@ -1922,25 +1920,24 @@ class AudioProcessingTest
         expected_snr_(std::get<4>(GetParam())),
         expected_reverse_snr_(std::get<5>(GetParam())) {}
 
-  virtual ~AudioProcessingTest() {}
+  ~AudioProcessingTest() override {}
 
   static void SetUpTestSuite() {
     // Create all needed output reference files.
     const size_t kNumChannels[] = {1, 2};
-    for (size_t i = 0; i < arraysize(kProcessSampleRates); ++i) {
-      for (size_t j = 0; j < arraysize(kNumChannels); ++j) {
-        for (size_t k = 0; k < arraysize(kNumChannels); ++k) {
+    for (int sample_rate_hz : kProcessSampleRates) {
+      for (int num_channels : kNumChannels) {
+        for (int num_reverse_channels : kNumChannels) {
           // The reference files always have matching input and output channels.
-          ProcessFormat(kProcessSampleRates[i], kProcessSampleRates[i],
-                        kProcessSampleRates[i], kProcessSampleRates[i],
-                        kNumChannels[j], kNumChannels[j], kNumChannels[k],
-                        kNumChannels[k], "ref");
+          ProcessFormat(sample_rate_hz, sample_rate_hz, sample_rate_hz,
+                        sample_rate_hz, num_channels, num_channels,
+                        num_reverse_channels, num_reverse_channels, "ref");
         }
       }
     }
   }
 
-  void TearDown() {
+  void TearDown() override {
     // Remove "out" files after each test.
     ClearTempOutFiles();
   }
@@ -2083,10 +2080,11 @@ TEST_P(AudioProcessingTest, Formats) {
       {2, 1, 2, 1}, {2, 2, 1, 1}, {2, 2, 2, 2},
   };
 
-  for (size_t i = 0; i < arraysize(cf); ++i) {
+  for (auto [num_input, num_output, num_reverse_input, num_reverse_output] :
+       cf) {
     ProcessFormat(input_rate_, output_rate_, reverse_input_rate_,
-                  reverse_output_rate_, cf[i].num_input, cf[i].num_output,
-                  cf[i].num_reverse_input, cf[i].num_reverse_output, "out");
+                  reverse_output_rate_, num_input, num_output,
+                  num_reverse_input, num_reverse_output, "out");
 
     // Verify output for both directions.
     std::vector<StreamDirection> stream_directions;
@@ -2095,8 +2093,7 @@ TEST_P(AudioProcessingTest, Formats) {
     for (StreamDirection file_direction : stream_directions) {
       const int in_rate = file_direction ? reverse_input_rate_ : input_rate_;
       const int out_rate = file_direction ? reverse_output_rate_ : output_rate_;
-      const int out_num =
-          file_direction ? cf[i].num_reverse_output : cf[i].num_output;
+      const int out_num = file_direction ? num_reverse_output : num_output;
       const double expected_snr =
           file_direction ? expected_reverse_snr_ : expected_snr_;
 
@@ -2112,17 +2109,15 @@ TEST_P(AudioProcessingTest, Formats) {
 
       FILE* out_file = fopen(
           OutputFilePath("out", input_rate_, output_rate_, reverse_input_rate_,
-                         reverse_output_rate_, cf[i].num_input,
-                         cf[i].num_output, cf[i].num_reverse_input,
-                         cf[i].num_reverse_output, file_direction)
+                         reverse_output_rate_, num_input, num_output,
+                         num_reverse_input, num_reverse_output, file_direction)
               .c_str(),
           "rb");
       // The reference files always have matching input and output channels.
       FILE* ref_file =
           fopen(OutputFilePath("ref", ref_rate, ref_rate, ref_rate, ref_rate,
-                               cf[i].num_output, cf[i].num_output,
-                               cf[i].num_reverse_output,
-                               cf[i].num_reverse_output, file_direction)
+                               num_output, num_output, num_reverse_output,
+                               num_reverse_output, file_direction)
                     .c_str(),
                 "rb");
       ASSERT_TRUE(out_file != nullptr);
@@ -2192,9 +2187,9 @@ TEST_P(AudioProcessingTest, Formats) {
 
       std::cout << "(" << input_rate_ << ", " << output_rate_ << ", "
                 << reverse_input_rate_ << ", " << reverse_output_rate_ << ", "
-                << cf[i].num_input << ", " << cf[i].num_output << ", "
-                << cf[i].num_reverse_input << ", " << cf[i].num_reverse_output
-                << ", " << file_direction << "): ";
+                << num_input << ", " << num_output << ", " << num_reverse_input
+                << ", " << num_reverse_output << ", " << file_direction
+                << "): ";
       if (sq_error > 0) {
         double snr = 10 * log10(variance / sq_error);
         EXPECT_GE(snr, expected_snr);

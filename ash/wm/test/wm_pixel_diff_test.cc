@@ -6,7 +6,9 @@
 #include <utility>
 
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/public/cpp/test/shell_test_api.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "ash/test/ash_test_util.h"
@@ -83,7 +85,7 @@ TEST_F(WmPixelDiffTest, OverviewAndDesksBarBasic) {
 
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
       "overview_and_desks_bar_basic",
-      /*revision_number=*/19, desk_widget, overview_widget1, overview_widget2,
+      /*revision_number=*/20, desk_widget, overview_widget1, overview_widget2,
       overview_widget3));
 }
 
@@ -127,7 +129,8 @@ TEST_F(WmPixelDiffTest, DISABLED_OverviewTabletSnap) {
 
 // A basic window cycle pixel test that shows three windows and the window cycle
 // tab slider.
-TEST_F(WmPixelDiffTest, WindowCycleBasic) {
+// TODO(crbug.com/436618646): enable the test.
+TEST_F(WmPixelDiffTest, DISABLED_WindowCycleBasic) {
   UpdateDisplay("1600x1000");
 
   // Create a second desk so the window cycle tab slider shows up. This slider
@@ -162,10 +165,13 @@ TEST_F(WmPixelDiffTest, WindowCycleBasic) {
 
   EXPECT_TRUE(GetPixelDiffer()->CompareUiComponentsOnPrimaryScreen(
       "window_cycle_basic",
-      /*revision_number=*/25, widget));
+      /*revision_number=*/27, widget));
 }
 
 TEST_F(WmPixelDiffTest, InformedRestoreNoScreenshotDialog) {
+  ash::Shell::Get()->session_controller()->GetActivePrefService()->SetBoolean(
+      prefs::kShowInformedRestoreOnboarding, false);
+
   UpdateDisplay("1600x1000");
 
   // Chrome apps are unique as they show tab info additionally. Create one

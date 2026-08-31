@@ -12,7 +12,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_action.h"
@@ -127,8 +126,7 @@ IN_PROC_BROWSER_TEST_P(PageActionBrowserTest, UnloadPageAction) {
   // Navigation prompts the location bar to load page actions.
   GURL feed_url = embedded_test_server()->GetURL(kFeedPage);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), feed_url));
-  content::WebContents* tab =
-      browser()->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* tab = GetActiveWebContents();
   EXPECT_EQ(1u, extension_action_test_util::GetTotalPageActionCount(tab));
 
   UnloadExtension(last_loaded_extension_id());
@@ -137,10 +135,11 @@ IN_PROC_BROWSER_TEST_P(PageActionBrowserTest, UnloadPageAction) {
   EXPECT_EQ(0u, extension_action_test_util::GetTotalPageActionCount(tab));
 }
 
+// TODO(crbug.com/417057394): Remove log statements once the flakiness has been
+// figured out.
 // Regression test for crbug.com/44415.
 IN_PROC_BROWSER_TEST_P(PageActionBrowserTest, PageActionRefreshCrash) {
-  ExtensionRegistry* registry =
-      extensions::ExtensionRegistry::Get(browser()->profile());
+  ExtensionRegistry* registry = extensions::ExtensionRegistry::Get(profile());
 
   size_t size_before = registry->enabled_extensions().size();
 
@@ -159,13 +158,16 @@ IN_PROC_BROWSER_TEST_P(PageActionBrowserTest, PageActionRefreshCrash) {
   ASSERT_EQ(size_before + 2, registry->enabled_extensions().size());
 
   std::string idA = extensionA->id();
+  LOG(INFO) << "Reloading extensionA";
   ReloadExtension(extensionA->id());
   // ExtensionA has changed, so refetch it.
   ASSERT_EQ(size_before + 2, registry->enabled_extensions().size());
   extensionA = registry->enabled_extensions().GetByID(idA);
 
+  LOG(INFO) << "Reloading extensionB";
   ReloadExtension(extensionB->id());
 
+  LOG(INFO) << "Reloading extensionA again";
   // This is where it would crash, before http://crbug.com/44415 was fixed.
   ReloadExtension(extensionA->id());
 }

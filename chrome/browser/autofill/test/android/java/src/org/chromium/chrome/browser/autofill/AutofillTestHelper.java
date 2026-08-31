@@ -31,6 +31,7 @@ import org.chromium.components.autofill.AddressNormalizer;
 import org.chromium.components.autofill.AutofillProfile;
 import org.chromium.components.autofill.AutofillSuggestion;
 import org.chromium.components.autofill.IbanRecordType;
+import org.chromium.components.autofill.PaymentsPayload;
 import org.chromium.components.autofill.SubKeyRequester;
 import org.chromium.components.autofill.SuggestionType;
 import org.chromium.components.autofill.VirtualCardEnrollmentState;
@@ -93,11 +94,9 @@ public class AutofillTestHelper {
                 () -> getPersonalDataManagerForLastUsedProfile().getProfile(guid));
     }
 
-    List<AutofillProfile> getProfilesToSuggest(final boolean includeNameInLabel) {
+    List<AutofillProfile> getProfilesToSuggest() {
         return runOnUiThreadBlocking(
-                () ->
-                        getPersonalDataManagerForLastUsedProfile()
-                                .getProfilesToSuggest(includeNameInLabel));
+                () -> getPersonalDataManagerForLastUsedProfile().getProfilesToSuggest());
     }
 
     List<AutofillProfile> getProfilesForSettings() {
@@ -105,8 +104,15 @@ public class AutofillTestHelper {
                 () -> getPersonalDataManagerForLastUsedProfile().getProfilesForSettings());
     }
 
+    String getProfileDescriptionForEditor(String guid) {
+        return runOnUiThreadBlocking(
+                () ->
+                        getPersonalDataManagerForLastUsedProfile()
+                                .getProfileDescriptionForEditor(guid));
+    }
+
     int getNumberOfProfilesToSuggest() {
-        return getProfilesToSuggest(false).size();
+        return getProfilesToSuggest().size();
     }
 
     int getNumberOfProfilesForSettings() {
@@ -438,6 +444,7 @@ public class AutofillTestHelper {
                 /* obfuscatedLastFourDigits= */ obfuscatedLastFourDigits,
                 /* cvc= */ "",
                 /* issuerId= */ "",
+                /* benefitSource= */ "",
                 /* productTermsUrl= */ null);
     }
 
@@ -475,6 +482,7 @@ public class AutofillTestHelper {
                 /* obfuscatedLastFourDigits= */ obfuscatedLastFourDigits,
                 /* cvc= */ "",
                 /* issuerId= */ "",
+                /* benefitSource= */ "",
                 /* productTermsUrl= */ null);
     }
 
@@ -510,19 +518,22 @@ public class AutofillTestHelper {
             boolean shouldDisplayTermsAvailable,
             String guid,
             boolean isLocalPaymentsMethod) {
+        PaymentsPayload payload =
+                new PaymentsPayload(
+                        labelContentDescription,
+                        shouldDisplayTermsAvailable,
+                        guid,
+                        isLocalPaymentsMethod);
         return new AutofillSuggestion.Builder()
                 .setLabel(label)
                 .setSecondaryLabel(secondaryLabel)
                 .setSubLabel(subLabel)
                 .setSecondarySubLabel(secondarySubLabel)
-                .setLabelContentDescription(labelContentDescription)
                 .setSuggestionType(suggestionType)
                 .setCustomIconUrl(customIconUrl)
                 .setIconId(iconId)
                 .setApplyDeactivatedStyle(applyDeactivatedStyle)
-                .setShouldDisplayTermsAvailable(shouldDisplayTermsAvailable)
-                .setGuid(guid)
-                .setIsLocalPaymentsMethod(isLocalPaymentsMethod)
+                .setPayload(payload)
                 .build();
     }
 

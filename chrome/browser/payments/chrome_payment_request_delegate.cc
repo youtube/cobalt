@@ -32,10 +32,10 @@
 #include "components/autofill/core/browser/geo/region_data_loader_impl.h"
 #include "components/autofill/core/browser/ui/region_combobox_model.h"
 #include "components/keyed_service/core/service_access_type.h"
-#include "components/payments/content/payment_manifest_web_data_service.h"
 #include "components/payments/content/payment_request.h"
 #include "components/payments/content/payment_request_dialog.h"
 #include "components/payments/content/ssl_validity_checker.h"
+#include "components/payments/content/web_payments_web_data_service.h"
 #include "components/payments/core/payment_prefs.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/webauthn/content/browser/internal_authenticator_impl.h"
@@ -178,22 +178,22 @@ ukm::UkmRecorder* ChromePaymentRequestDelegate::GetUkmRecorder() {
 
 std::string ChromePaymentRequestDelegate::GetAuthenticatedEmail() const {
   auto* rfh = content::RenderFrameHost::FromID(frame_routing_id_);
-  if (!rfh)
+  if (!rfh) {
     return std::string();
+  }
 
-  // Check if the profile is authenticated.  Guest profiles or incognito
-  // windows may not have a sign in manager, and are considered not
-  // authenticated.
+  // Check if the profile is signed in. Guest profiles or incognito windows may
+  // not have an IdentityManager, and are considered not signed in.
   Profile* profile = Profile::FromBrowserContext(rfh->GetBrowserContext());
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
-  if (identity_manager &&
-      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSync)) {
-    return identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSync)
-        .email;
+  if (!identity_manager) {
+    return std::string();
   }
-
-  return std::string();
+  // If there's no primary account, `GetPrimaryAccountInfo()` will return an
+  // empty result.
+  return identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+      .email;
 }
 
 PrefService* ChromePaymentRequestDelegate::GetPrefService() {
@@ -253,10 +253,10 @@ ChromePaymentRequestDelegate::CreateInternalAuthenticator() const {
   return std::make_unique<content::InternalAuthenticatorImpl>(rfh);
 }
 
-scoped_refptr<PaymentManifestWebDataService>
-ChromePaymentRequestDelegate::GetPaymentManifestWebDataService() const {
+scoped_refptr<WebPaymentsWebDataService>
+ChromePaymentRequestDelegate::GetWebPaymentsWebDataService() const {
   return webdata_services::WebDataServiceWrapperFactory::
-      GetPaymentManifestWebDataServiceForBrowserContext(
+      GetWebPaymentsWebDataServiceForBrowserContext(
           GetBrowserContextOrNull(), ServiceAccessType::EXPLICIT_ACCESS);
 }
 

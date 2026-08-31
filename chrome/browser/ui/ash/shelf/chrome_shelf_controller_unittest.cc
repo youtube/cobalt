@@ -89,10 +89,12 @@
 #include "chrome/browser/ash/apps/apk_web_app_service.h"
 #include "chrome/browser/ash/arc/arc_util.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
+#include "chrome/browser/ash/browser_delegate/browser_controller_impl.h"
 #include "chrome/browser/ash/crostini/crostini_test_helper.h"
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/eche_app/app_id.h"
 #include "chrome/browser/ash/login/demo_mode/demo_mode_test_helper.h"
+#include "chrome/browser/ash/login/users/scoped_account_id_annotator.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/system_web_apps/apps/camera_app/camera_system_web_app_info.h"
 #include "chrome/browser/ash/system_web_apps/apps/os_flags_system_web_app_info.h"
@@ -105,7 +107,6 @@
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/sync_service_factory.h"
-#include "chrome/browser/ui/app_icon_loader.h"
 #include "chrome/browser/ui/apps/chrome_app_delegate.h"
 #include "chrome/browser/ui/ash/multi_user/multi_profile_support.h"
 #include "chrome/browser/ui/ash/multi_user/multi_user_util.h"
@@ -133,6 +134,8 @@
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
+#include "chrome/browser/web_applications/policy/app_service_web_app_policy.h"
+#include "chrome/browser/web_applications/policy/web_app_policy_manager.h"
 #include "chrome/browser/web_applications/preinstalled_web_app_manager.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -151,6 +154,7 @@
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
 #include "chromeos/ash/components/browser_context_helper/annotated_account_id.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
 #include "chromeos/ash/components/file_manager/app_id.h"
 #include "chromeos/ash/experiences/arc/app/arc_app_constants.h"
@@ -164,6 +168,7 @@
 #include "chromeos/ash/experiences/system_web_apps/types/system_web_app_delegate_map.h"
 #include "components/account_id/account_id.h"
 #include "components/app_constants/constants.h"
+#include "components/app_icon_loader/app_icon_loader.h"
 #include "components/exo/shell_surface_util.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/prefs/pref_service.h"
@@ -618,6 +623,8 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     if (StartWebAppProviderForMainProfile()) {
       StartWebAppProvider(profile());
     }
+
+    browser_controller_.emplace();
   }
 
   virtual bool StartWebAppProviderForMainProfile() const { return true; }
@@ -709,6 +716,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
   }
 
   void TearDown() override {
+    browser_controller_.reset();
     app_registry_cache_observer_.Reset();
     arc_test_.TearDown();
     shelf_controller_ = nullptr;
@@ -739,6 +747,14 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     shelf_controller_->SetProfileForTest(profile());
     shelf_controller_->SetShelfControllerHelperForTest(
         std::make_unique<ShelfControllerHelper>(profile()));
+
+    // MultiUserWindowManagerImpl is created (indirectly) by
+    // ChromeShelfController when there's more than one user.
+    if (ash::MultiUserWindowManagerImpl::Get()) {
+      ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
+          ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
+    }
+
     return shelf_controller_.get();
   }
 
@@ -1327,6 +1343,10 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
     return extension ? extension->is_platform_app() : false;
   }
 
+  const AccountId& account_id() const {
+    return CHECK_DEREF(ash::AnnotatedAccountId::Get(profile()));
+  }
+
   // Needed for extension service & friends to work.
   scoped_refptr<Extension> extension_chrome_;
   scoped_refptr<Extension> extension1_;
@@ -1379,6 +1399,7 @@ class ChromeShelfControllerTestBase : public BrowserWithTestWindowTest,
 
   std::unique_ptr<WallpaperControllerClientImpl> wallpaper_controller_client_;
   apps::AppServiceTest app_service_test_;
+  std::optional<ash::BrowserControllerImpl> browser_controller_;
 };
 
 class ChromeShelfControllerWithArcTest : public ChromeShelfControllerTestBase {
@@ -1428,7 +1449,7 @@ class V1App : public TestBrowserWindow {
         kCrxAppPrefix + app_name, true /* trusted_source */, gfx::Rect(),
         profile, true);
     params.window = this;
-    browser_ = std::unique_ptr<Browser>(Browser::Create(params));
+    browser_ = Browser::DeprecatedCreateOwnedForTesting(params);
     chrome::AddTabAt(browser_.get(), GURL(), 0, true);
   }
   V1App(const V1App&) = delete;
@@ -1509,14 +1530,19 @@ class MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest
   // Overwrite the Setup function to enable multi profile and needed objects.
   void SetUp() override {
     // Initialize the rest.
+    ash::ProfileHelper::Get();  // Instantiate
+    ash::BrowserContextHelper::Get()->SetUseAnnotatedAccountIdForTesting();
     ChromeShelfControllerTestBase::SetUp();
 
-    // Ensure there are multiple profiles. User 0 is created during setup.
-    CreateMultiUserProfile("user1@example.com", GaiaId("fakegaia1"));
+    // Add another user but make sure user0 (created in SetUp) is active when
+    // test bodies run.
+    profile1_ = LogInSecondaryUser("user1@example.com", GaiaId("fakegaia1"));
+    SwitchActiveUserByAccountId(account_id());
     ASSERT_TRUE(SessionControllerClientImpl::IsMultiProfileAvailable());
   }
 
   void TearDown() override {
+    profile1_ = nullptr;
     ChromeShelfControllerTestBase::TearDown();
 
     // A Task is leaked if we don't destroy everything, then run the message
@@ -1525,26 +1551,27 @@ class MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest
   }
 
   bool StartWebAppProviderForMainProfile() const override {
-    // The provider is started in CreateMultiUserProfile()
+    // The provider is started in CreateProfile().
     return false;
   }
 
-  // Creates a user and profile for a given `email`. Note that this class will
-  // keep the ownership of the created object.
-  TestingProfile* CreateMultiUserProfile(std::string_view email,
-                                         const GaiaId& gaia_id) {
+  // Creates a user and logs in, i.e. starts a session, creates a profile, and
+  // makes the user the active one. Returns the created profile, of which it
+  // keeps ownership.
+  TestingProfile* LogInSecondaryUser(std::string_view email,
+                                     const GaiaId& gaia_id) {
     LogIn(email, gaia_id);
-    return CreateProfile(std::string(email));
+    auto* result = CreateProfile(std::string(email));
+    // Note: Part of the active user switching already happens in CreateProfile
+    // (see SessionManager::OnUserProfileCreated).
+    return result;
   }
 
   // Switch to another user by AccountId.
   // TODO(b/40286020): Migrate into SwitchActiveUser().
   void SwitchActiveUserByAccountId(const AccountId& account_id) {
     user_manager()->SwitchActiveUser(account_id);
-    ash::MultiUserWindowManagerImpl::Get()->SetAnimationSpeedForTest(
-        ash::MultiUserWindowManagerImpl::ANIMATION_SPEED_DISABLED);
-    ash::MultiUserWindowManagerImpl::Get()->OnActiveUserSessionChanged(
-        account_id);
+    SwitchActiveUser(account_id.GetUserEmail());
   }
 
   // Creates a browser with a |profile| and load a tab with a |title| and |url|.
@@ -1579,22 +1606,23 @@ class MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest
     return "user0@example.com";
   }
 
-  void LogIn(std::string_view email, const GaiaId& gaia_id) override {
-    // TODO(crbug.com/40286020): Merge into BrowserWithTestWindowTest.
-    const AccountId account_id = AccountId::FromUserEmailGaiaId(email, gaia_id);
-    // Add a user to the fake user manager.
-    user_manager()->AddGaiaUser(account_id, user_manager::UserType::kRegular);
-    user_manager()->UserLoggedIn(
-        account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id));
-  }
-
   TestingProfile* CreateProfile(const std::string& profile_name) override {
-    TestingProfile* profile =
-        BrowserWithTestWindowTest::CreateProfile(profile_name);
+    const user_manager::User* user =
+        user_manager()->FindUser(AccountId::FromUserEmail(profile_name));
+    CHECK(user);
+
+    // TODO: move to the parent class.
+    TestingProfile* profile = nullptr;
+    {
+      ash::ScopedAccountIdAnnotator annotator(
+          profile_manager()->profile_manager(), user->GetAccountId());
+      profile = BrowserWithTestWindowTest::CreateProfile(profile_name);
+    }
     StartWebAppProvider(profile);
 
     if (MultiUserWindowManagerHelper::GetInstance()) {
-      MultiUserWindowManagerHelper::GetInstance()->AddUser(profile);
+      MultiUserWindowManagerHelper::GetInstance()->AddUser(
+          user->GetAccountId());
     }
     if (shelf_controller_) {
       shelf_controller_->AdditionalUserAddedToSession(profile);
@@ -1602,8 +1630,15 @@ class MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest
     return profile;
   }
 
+  Profile* profile1() const { return profile1_.get(); }
+
+  const AccountId& account_id1() const {
+    return CHECK_DEREF(ash::AnnotatedAccountId::Get(profile1()));
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
+  raw_ptr<Profile> profile1_ = nullptr;
 };
 
 class ChromeShelfControllerMultiProfileWithArcTest
@@ -2361,8 +2396,6 @@ TEST_F(ChromeShelfControllerTest, CheckRunningV1AppOrder) {
   EXPECT_EQ("Chrome, app1, app2, gmail", GetPinnedAppStatus());
 
   // Remember the current order of applications for the current user.
-  const AccountId& current_account_id =
-      multi_user_util::GetAccountIdFromProfile(profile());
   RememberUnpinnedRunningApplicationOrder();
 
   // Switch some items and check that restoring a user which was not yet
@@ -2375,7 +2408,7 @@ TEST_F(ChromeShelfControllerTest, CheckRunningV1AppOrder) {
   EXPECT_EQ("Chrome, app2, app1, gmail", GetPinnedAppStatus());
 
   // Restoring the stored user should however do the right thing.
-  RestoreUnpinnedRunningApplicationOrder(current_account_id);
+  RestoreUnpinnedRunningApplicationOrder(account_id());
   EXPECT_EQ("Chrome, app1, app2, gmail", GetPinnedAppStatus());
 
   // Switch again some items and even delete one - making sure that the missing
@@ -2383,15 +2416,15 @@ TEST_F(ChromeShelfControllerTest, CheckRunningV1AppOrder) {
   model_->Move(2, 3);
   shelf_controller_->SetAppStatus(extension1_->id(), ash::STATUS_CLOSED);
   EXPECT_EQ("Chrome, gmail, app2", GetPinnedAppStatus());
-  RestoreUnpinnedRunningApplicationOrder(current_account_id);
+  RestoreUnpinnedRunningApplicationOrder(account_id());
   EXPECT_EQ("Chrome, app2, gmail", GetPinnedAppStatus());
 
   // Check that removing more items does not crash and changes nothing.
   shelf_controller_->SetAppStatus(extension2_->id(), ash::STATUS_CLOSED);
-  RestoreUnpinnedRunningApplicationOrder(current_account_id);
+  RestoreUnpinnedRunningApplicationOrder(account_id());
   EXPECT_EQ("Chrome, gmail", GetPinnedAppStatus());
   shelf_controller_->SetAppStatus(ash::kGmailAppId, ash::STATUS_CLOSED);
-  RestoreUnpinnedRunningApplicationOrder(current_account_id);
+  RestoreUnpinnedRunningApplicationOrder(account_id());
   EXPECT_EQ("Chrome", GetPinnedAppStatus());
 }
 
@@ -2568,13 +2601,14 @@ TEST_F(ChromeShelfControllerMultiProfileWithArcTest, DISABLED_ArcMultiUser) {
   // user is active.
   // Gmail created when secondary user is active.
 
+  // TODO(crbug.com/369688254): Use user1 created by the parent SetUp.
   constexpr char kUser2[] = "user2@example.com";
   const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
+  TestingProfile* profile2 = LogInSecondaryUser(kUser2, kFakeGaia2);
   const AccountId account_id2(
       multi_user_util::GetAccountIdFromProfile(profile2));
+
+  SwitchActiveUserByAccountId(account_id());
 
   const std::string arc_app_id1 =
       ArcAppTest::GetAppId(*arc_test_.fake_apps()[0]);
@@ -2611,7 +2645,7 @@ TEST_F(ChromeShelfControllerMultiProfileWithArcTest, DISABLED_ArcMultiUser) {
   arc_test_.app_instance()->SendTaskDestroyed(2);
 
   shelf_controller_->SetProfileForTest(profile());
-  SwitchActiveUserByAccountId(account_id);
+  SwitchActiveUserByAccountId(account_id());
 
   EXPECT_TRUE(shelf_controller_->GetItem(ash::ShelfID(arc_app_id1)));
   EXPECT_FALSE(shelf_controller_->GetItem(ash::ShelfID(arc_app_id2)));
@@ -3072,18 +3106,11 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
     EXPECT_EQ(2, model_->item_count());
 
     // After switching to a second user the item should be gone.
-    const char kUser2[] = "user2@example.com";
-    const GaiaId kFakeGaia2("fakegaia2");
-    TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-    const AccountId account_id2(
-        multi_user_util::GetAccountIdFromProfile(profile2));
-    const AccountId account_id(
-        multi_user_util::GetAccountIdFromProfile(profile()));
-    SwitchActiveUserByAccountId(account_id2);
+    SwitchActiveUserByAccountId(account_id1());
     EXPECT_EQ(1, model_->item_count());
 
     // After switching back the item should be back.
-    SwitchActiveUserByAccountId(account_id);
+    SwitchActiveUserByAccountId(account_id());
     EXPECT_EQ(2, model_->item_count());
     // Note we destroy now the gmail app with the closure end.
   }
@@ -3096,34 +3123,23 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   // Create a browser item in the controller.
   InitShelfController();
 
-  // First test: Create an app when the user is not active.
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  {
-    // Create a "windowed gmail app".
-    std::unique_ptr<V1App> v1_app(
-        CreateRunningV1App(profile2, extension_misc::kGmailAppId, kGmailUrl));
-    EXPECT_EQ(1, model_->item_count());
-
-    // However - switching to the user should show it.
-    SwitchActiveUserByAccountId(account_id2);
-    EXPECT_EQ(2, model_->item_count());
-
-    // Second test: Remove the app when the user is not active and see that it
-    // works.
-    SwitchActiveUserByAccountId(account_id);
-    EXPECT_EQ(1, model_->item_count());
-    // Note: the closure ends and the browser will go away.
-  }
+  // First test: Create an app for user1 when a different user is active.
+  std::unique_ptr<V1App> v1_app(
+      CreateRunningV1App(profile1(), extension_misc::kGmailAppId, kGmailUrl));
   EXPECT_EQ(1, model_->item_count());
-  SwitchActiveUserByAccountId(account_id2);
+
+  // Switching to user1 should show it.
+  SwitchActiveUserByAccountId(account_id1());
+  EXPECT_EQ(2, model_->item_count());
+
+  // Second test: Remove the app when user1 is not active.
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_EQ(1, model_->item_count());
-  SwitchActiveUserByAccountId(account_id);
+  v1_app.reset();
+  EXPECT_EQ(1, model_->item_count());
+  SwitchActiveUserByAccountId(account_id1());
+  EXPECT_EQ(1, model_->item_count());
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_EQ(1, model_->item_count());
 }
 
@@ -3133,34 +3149,23 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   // Create a browser item in the controller.
   InitShelfController();
 
-  // First create an app when the user is active.
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-  {
-    // Create a "windowed gmail app".
-    std::unique_ptr<V1App> v1_app(CreateRunningV1App(
-        profile(), extension_misc::kGmailAppId, kGmailLaunchURL));
-    EXPECT_EQ(2, model_->item_count());
-    SwitchActiveUserByAccountId(account_id2);
-    EXPECT_EQ(1, model_->item_count());
-  }
-  // After the app was destroyed, switch back. (which caused already a crash).
-  SwitchActiveUserByAccountId(account_id);
-
-  // Create the same app again - which was also causing the crash.
+  // First create an app for user0 when it is active. After the app was
+  // destroyed, switch back (which caused already a crash).
+  std::unique_ptr<V1App> v1_app(CreateRunningV1App(
+      profile(), extension_misc::kGmailAppId, kGmailLaunchURL));
+  EXPECT_EQ(2, model_->item_count());
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
-  {
-    // Create a "windowed gmail app".
-    std::unique_ptr<V1App> v1_app(CreateRunningV1App(
-        profile(), extension_misc::kGmailAppId, kGmailLaunchURL));
-    EXPECT_EQ(2, model_->item_count());
-  }
-  SwitchActiveUserByAccountId(account_id2);
+  v1_app.reset();
+  SwitchActiveUserByAccountId(account_id());
+
+  // Create the same app again - which was also causing a crash.
+  EXPECT_EQ(1, model_->item_count());
+  v1_app.reset(CreateRunningV1App(profile(), extension_misc::kGmailAppId,
+                                  kGmailLaunchURL));
+  EXPECT_EQ(2, model_->item_count());
+  v1_app.reset();
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
 }
 
@@ -3170,75 +3175,54 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   // Create a browser item in the controller.
   InitShelfController();
 
-  // First test: Create an app when the user is not active.
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-  SwitchActiveUserByAccountId(account_id2);
-  {
-    // Create a "windowed gmail app".
-    std::unique_ptr<V1App> v1_app(
-        CreateRunningV1App(profile(), extension_misc::kGmailAppId, kGmailUrl));
-    EXPECT_EQ(1, model_->item_count());
-
-    // However - switching to the user should show it.
-    SwitchActiveUserByAccountId(account_id);
-    EXPECT_EQ(2, model_->item_count());
-
-    // Second test: Remove the app when the user is not active and see that it
-    // works.
-    SwitchActiveUserByAccountId(account_id2);
-    EXPECT_EQ(1, model_->item_count());
-    v1_app.reset();
-  }
+  // First test: Create an app for user0 when a different user is active.
+  SwitchActiveUserByAccountId(account_id1());
+  std::unique_ptr<V1App> v1_app(
+      CreateRunningV1App(profile(), extension_misc::kGmailAppId, kGmailUrl));
   EXPECT_EQ(1, model_->item_count());
-  SwitchActiveUserByAccountId(account_id);
+  // Switching to user0 should show it.
+  SwitchActiveUserByAccountId(account_id());
+  EXPECT_EQ(2, model_->item_count());
+
+  // Second test: Remove the app when user0 is not active.
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
-  SwitchActiveUserByAccountId(account_id2);
+  v1_app.reset();
+  EXPECT_EQ(1, model_->item_count());
+  SwitchActiveUserByAccountId(account_id());
+  EXPECT_EQ(1, model_->item_count());
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
 }
 
-// Check that activating an item which is on another user's desktop, will bring
-// it back.
+// Check that activating an item that is on another user's desktop will bring it
+// back.
 TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
        TestShelfActivationPullsBackWindow) {
   // Create a browser item in the controller.
   InitShelfController();
+
   ash::MultiUserWindowManager* window_manager =
       MultiUserWindowManagerHelper::GetWindowManager();
 
-  // Create a second test profile. The first is the one in profile() created in
-  // BrowserWithTestWindowTest::SetUp(). No need to add the profiles to the
-  // MultiUserWindowManagerHelper here. CreateMultiUserProfile() already does
-  // that.
-  TestingProfile* profile2 =
-      CreateMultiUserProfile("user2@example.com", GaiaId("fakegaia2"));
-  const AccountId current_user =
-      multi_user_util::GetAccountIdFromProfile(profile());
-
-  // Create a browser window with a native window for the current user.
+  // Create a browser window with a native window for user0.
   std::unique_ptr<Browser> browser(
       CreateBrowserWithTestWindowForProfile(profile()));
   BrowserWindow* browser_window = browser->window();
   aura::Window* window = browser_window->GetNativeWindow();
-  window_manager->SetWindowOwner(window, current_user);
+  window_manager->SetWindowOwner(window, account_id());
 
   // Check that an activation of the window on its owner's desktop does not
   // change the visibility to another user.
   shelf_controller_->ActivateWindowOrMinimizeIfActive(browser_window, false);
-  EXPECT_TRUE(IsWindowOnDesktopOfUser(window, current_user));
+  EXPECT_TRUE(IsWindowOnDesktopOfUser(window, account_id()));
 
   // Transfer the window to another user's desktop and check that activating it
   // does pull it back to that user.
-  window_manager->ShowWindowForUser(
-      window, multi_user_util::GetAccountIdFromProfile(profile2));
-  EXPECT_FALSE(IsWindowOnDesktopOfUser(window, current_user));
+  window_manager->ShowWindowForUser(window, account_id1());
+  EXPECT_FALSE(IsWindowOnDesktopOfUser(window, account_id()));
   shelf_controller_->ActivateWindowOrMinimizeIfActive(browser_window, false);
-  EXPECT_TRUE(IsWindowOnDesktopOfUser(window, current_user));
+  EXPECT_TRUE(IsWindowOnDesktopOfUser(window, account_id()));
 }
 
 // Tests that web app icon is removed from shelf after user switch if the app is
@@ -3249,14 +3233,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   // Create a browser item in the controller.
   InitShelfController();
 
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-
+  SwitchActiveUserByAccountId(account_id());
   constexpr char kWebAppUrl[] = "https://webappone.com/";
   constexpr char kWebAppName[] = "WebApp1";
 
@@ -3270,21 +3247,19 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
       web_app::test::InstallWebApp(profile(), std::move(web_app_info));
   PinAppWithIDToShelf(installed_app_id);
 
-  std::unique_ptr<Browser> profile2_browser =
-      CreateBrowserAndTabWithProfile(profile2, kWebAppName, kWebAppUrl);
-
+  std::unique_ptr<Browser> profile1_browser =
+      CreateBrowserAndTabWithProfile(profile1(), kWebAppName, kWebAppUrl);
   EXPECT_EQ(
       std::vector<std::string>({app_constants::kChromeAppId, installed_app_id}),
       GetAppsShownInShelf());
 
   // Switch to the secondary user, and verify the app only installed in the
   // primary profile is removed from the model.
-  SwitchActiveUserByAccountId(account_id2);
-
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(std::vector<std::string>({app_constants::kChromeAppId}),
             GetAppsShownInShelf());
 
-  chrome::CloseTab(profile2_browser.get());
+  chrome::CloseTab(profile1_browser.get());
 }
 
 // Check that a running windowed V1 application will be properly pinned and
@@ -3487,7 +3462,7 @@ TEST_F(ChromeShelfControllerTest, Policy) {
   base::flat_map<std::string_view, std::string_view>
       preinstalled_web_apps_mapping;
   preinstalled_web_apps_mapping.emplace(kGmailPolicyId, ash::kGmailAppId);
-  web_app::SetPreinstalledWebAppsMappingForTesting(
+  web_app::WebAppPolicyManager::SetPreinstalledWebAppsMappingForTesting(
       preinstalled_web_apps_mapping);
 
   // Force-install Gmail.
@@ -3727,34 +3702,29 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
 
   // Show the created |browser()| by showing its window.
   browser()->window()->Show();
-  std::u16string title1 = u"Test1";
-  NavigateAndCommitActiveTabWithTitle(browser(), GURL("http://test1"), title1);
-  std::u16string one_menu_item1[] = {title1};
-  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item1);
+  std::u16string title = u"Test";
+  NavigateAndCommitActiveTabWithTitle(browser(), GURL("http://test"), title);
+  std::u16string one_menu_item[] = {title};
+  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item);
 
   // Create a browser for another user and check that it is not included in the
   // users running browser list.
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-  std::unique_ptr<Browser> browser2(
-      CreateBrowserAndTabWithProfile(profile2, "user2", "http://test2"));
-  std::u16string one_menu_item2[] = {u"user2"};
-  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item1);
+  std::unique_ptr<Browser> browser1(
+      CreateBrowserAndTabWithProfile(profile1(), "user1", "http://test1"));
+  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item);
 
   // Switch to the other user and make sure that only that browser window gets
   // shown.
-  SwitchActiveUserByAccountId(account_id2);
-  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item2);
+  SwitchActiveUserByAccountId(account_id1());
+  std::u16string one_menu_item1[] = {u"user1"};
+  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item1);
 
   // Transferred browsers of other users should not show up in the list.
   MultiUserWindowManagerHelper::GetWindowManager()->ShowWindowForUser(
-      browser()->window()->GetNativeWindow(), account_id2);
-  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item2);
+      browser()->window()->GetNativeWindow(), account_id1());
+  CheckAppMenu(shelf_controller_.get(), item_browser, 1, one_menu_item1);
 
-  chrome::CloseTab(browser2.get());
+  chrome::CloseTab(browser1.get());
 }
 
 // Check that V1 apps are correctly reflected in the shelf menu using the
@@ -3852,13 +3822,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   std::u16string one_menu_item[] = {title1};
   CheckAppMenu(shelf_controller_.get(), item_gmail, 1, one_menu_item);
 
-  // Create a second profile and switch to that user.
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-  SwitchActiveUserByAccountId(account_id2);
+  SwitchActiveUserByAccountId(account_id1());
 
   // No item should have content yet.
   CheckAppMenu(shelf_controller_.get(), item_browser, 0, nullptr);
@@ -3866,7 +3830,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
 
   // Transfer the browser of the first user - it should still not show up.
   MultiUserWindowManagerHelper::GetWindowManager()->ShowWindowForUser(
-      browser()->window()->GetNativeWindow(), account_id2);
+      browser()->window()->GetNativeWindow(), account_id1());
 
   CheckAppMenu(shelf_controller_.get(), item_browser, 0, nullptr);
   CheckAppMenu(shelf_controller_.get(), item_gmail, 0, nullptr);
@@ -3877,8 +3841,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
 TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
        V2AppHandlingTwoUsers) {
   InitShelfController();
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
+
   // Check that there is a browser.
   EXPECT_EQ(1, model_->item_count());
 
@@ -3887,18 +3850,12 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   V2App v2_app(profile(), extension1_.get());
   EXPECT_EQ(2, model_->item_count());
 
-  // Create a profile for our second user (will be destroyed by the framework).
-  TestingProfile* profile2 =
-      CreateMultiUserProfile("user2@example.com", GaiaId("fakegaia2"));
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-
   // After switching users the item should go away.
-  SwitchActiveUserByAccountId(account_id2);
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
 
   // And it should come back when switching back.
-  SwitchActiveUserByAccountId(account_id);
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_EQ(2, model_->item_count());
 }
 
@@ -3908,34 +3865,26 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
 TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
        V2AppHandlingTwoUsersEdgeCases) {
   InitShelfController();
-  // Create a profile for our second user (will be destroyed by the framework).
-  TestingProfile* profile2 =
-      CreateMultiUserProfile("user2@example.com", GaiaId("fakegaia2"));
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-  // Check that there is a browser, back button and an app.
   EXPECT_EQ(1, model_->item_count());
 
-  // Switch to an inactive user.
-  SwitchActiveUserByAccountId(account_id2);
+  // Switch to user1.
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
 
-  // Add the v2 app to the inactive user and check that no item was added to
-  // the shelf.
+  // Add the v2 app to the inactive user0 and check that no item gets added to
+  // the shelf now.
   {
     AddExtension(extension1_.get());
     V2App v2_app(profile(), extension1_.get());
     EXPECT_EQ(1, model_->item_count());
 
     // Switch to the primary user and check that the item is shown.
-    SwitchActiveUserByAccountId(account_id);
+    SwitchActiveUserByAccountId(account_id());
     EXPECT_EQ(2, model_->item_count());
 
     // Switch to the second user and check that the item goes away - even if the
     // item gets closed.
-    SwitchActiveUserByAccountId(account_id2);
+    SwitchActiveUserByAccountId(account_id1());
     EXPECT_EQ(1, model_->item_count());
   }
 
@@ -3944,7 +3893,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
 
   // Switching then back to the default user should not show the additional
   // item anymore.
-  SwitchActiveUserByAccountId(account_id);
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_EQ(1, model_->item_count());
 }
 
@@ -4012,17 +3961,18 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
 
   // Create and add three users / profiles, and go to #1's desktop.
   TestingProfile* profile1 =
-      CreateMultiUserProfile("user-1@example.com", GaiaId("fakegaia1"));
+      LogInSecondaryUser("user-1@example.com", GaiaId("fakegaia-1"));
   TestingProfile* profile2 =
-      CreateMultiUserProfile("user-2@example.com", GaiaId("fakegaia2"));
+      LogInSecondaryUser("user-2@example.com", GaiaId("fakegaia-2"));
   TestingProfile* profile3 =
-      CreateMultiUserProfile("user-3@example.com", GaiaId("fakegaia3"));
+      LogInSecondaryUser("user-3@example.com", GaiaId("fakegaia-3"));
   const AccountId account_id1(
       multi_user_util::GetAccountIdFromProfile(profile1));
   const AccountId account_id2(
       multi_user_util::GetAccountIdFromProfile(profile2));
   const AccountId account_id3(
       multi_user_util::GetAccountIdFromProfile(profile3));
+  SwitchActiveUserByAccountId(account_id1);
 
   extensions::TestExtensionSystem* extension_system1(
       static_cast<extensions::TestExtensionSystem*>(
@@ -4031,8 +3981,6 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
       extension_system1->CreateExtensionService(
           base::CommandLine::ForCurrentProcess(), base::FilePath(), false);
   extension_service1->Init();
-
-  SwitchActiveUserByAccountId(account_id1);
 
   // A v2 app for user #1 should be shown first and get hidden when switching
   // to desktop #2.
@@ -4094,17 +4042,11 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   InitShelfController();
 
   TestingProfile* profile2 =
-      CreateMultiUserProfile("user-2@example.com", GaiaId("fakegaia2"));
+      LogInSecondaryUser("user-2@example.com", GaiaId("fakegaia2"));
   const AccountId account_id2(
       multi_user_util::GetAccountIdFromProfile(profile2));
-  // If switch to account_id2 is not run, the following switch to account_id
-  // is invalid, because the user account is not changed, so switch to
-  // account_id2 first.
-  SwitchActiveUserByAccountId(account_id2);
 
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  SwitchActiveUserByAccountId(account_id);
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_EQ(1, model_->item_count());
 
   AddExtension(extension1_.get());
@@ -4129,7 +4071,7 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
     v2_app_1.window()->Show(extensions::AppWindow::SHOW_ACTIVE);
     EXPECT_EQ(1, model_->item_count());
 
-    SwitchActiveUserByAccountId(account_id);
+    SwitchActiveUserByAccountId(account_id());
     EXPECT_EQ(2, model_->item_count());
   }
   {
@@ -4140,12 +4082,8 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
     v2_app_1.window()->Hide();
     EXPECT_EQ(1, model_->item_count());
 
-    SwitchActiveUserByAccountId(account_id);
-    // The following expectation does not work in current impl. It was working
-    // before because MultiProfileSupport is not attached to user associated
-    // with profile() hence not actually handling windows for the user. It is
-    // a real bug. See http://crbug.com/693634 EXPECT_EQ(2,
-    // model_->item_count());
+    SwitchActiveUserByAccountId(account_id());
+    EXPECT_EQ(2, model_->item_count());
 
     v2_app_1.window()->Show(extensions::AppWindow::SHOW_ACTIVE);
     EXPECT_EQ(2, model_->item_count());
@@ -4172,17 +4110,8 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
        SpinnersUpdateOnUserSwitch) {
   InitShelfController();
 
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  const TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-
   const std::string app_id = extension1_->id();
   extension_registrar_->AddExtension(extension1_.get());
-
   EXPECT_EQ(1, model_->item_count());
   EXPECT_FALSE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
@@ -4192,13 +4121,13 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   EXPECT_EQ(2, model_->item_count());
   EXPECT_TRUE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
-  // Switch to a new profile
-  SwitchActiveUserByAccountId(account_id2);
+  // Switch to a different profile
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_EQ(1, model_->item_count());
   EXPECT_FALSE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
   // Switch back
-  SwitchActiveUserByAccountId(account_id);
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_EQ(2, model_->item_count());
   EXPECT_TRUE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
@@ -4214,17 +4143,8 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
        PinnedSpinnersUpdateOnUserSwitch) {
   InitShelfController();
 
-  const AccountId account_id(
-      multi_user_util::GetAccountIdFromProfile(profile()));
-  constexpr char kUser2[] = "user2@example.com";
-  const GaiaId kFakeGaia2("fakegaia2");
-  const TestingProfile* profile2 = CreateMultiUserProfile(kUser2, kFakeGaia2);
-  const AccountId account_id2(
-      multi_user_util::GetAccountIdFromProfile(profile2));
-
   const std::string app_id = extension1_->id();
   AddExtension(extension1_.get());
-
   EXPECT_EQ(1, model_->item_count());
   EXPECT_FALSE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
@@ -4241,14 +4161,14 @@ TEST_F(MultiProfileMultiBrowserShelfLayoutChromeShelfControllerTest,
   EXPECT_EQ(2, model_->item_count());
   EXPECT_TRUE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
-  // Switch to a new profile
-  SwitchActiveUserByAccountId(account_id2);
+  // Switch to a different profile
+  SwitchActiveUserByAccountId(account_id1());
   EXPECT_FALSE(shelf_controller_->IsAppPinned(app_id));
   EXPECT_EQ(1, model_->item_count());
   EXPECT_FALSE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));
 
   // Switch back
-  SwitchActiveUserByAccountId(account_id);
+  SwitchActiveUserByAccountId(account_id());
   EXPECT_TRUE(shelf_controller_->IsAppPinned(app_id));
   EXPECT_EQ(2, model_->item_count());
   EXPECT_TRUE(shelf_controller_->GetShelfSpinnerController()->HasApp(app_id));

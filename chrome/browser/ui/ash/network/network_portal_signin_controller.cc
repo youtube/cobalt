@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
+#include "chrome/browser/ui/webui/ash/floating_workspace/floating_workspace_dialog.h"
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_handler.h"
@@ -130,7 +131,7 @@ void NetworkPortalSigninController::ShowSignin(SigninSource source) {
 
   url = default_network->probe_url();
   if (url.is_empty()) {
-    url = GURL(captive_portal::CaptivePortalDetector::kDefaultURL);
+    url = GURL(captive_portal::CaptivePortalDetector::GetDefaultUrl());
   }
 
   SigninMode mode = GetSigninMode(portal_state);
@@ -168,6 +169,9 @@ void NetworkPortalSigninController::ShowSignin(SigninSource source) {
       ShowSigninWindow(url);
       break;
     }
+    case SigninMode::kFloatingWorkspaceDialog:
+      ShowSigninDialog(url);
+      break;
   }
 }
 
@@ -214,6 +218,13 @@ NetworkPortalSigninController::GetSigninMode(
       &availability);
   if (availability == policy::IncognitoModeAvailability::kDisabled) {
     return SigninMode::kIncognitoDisabledByPolicy;
+  }
+
+  // In case of being called from the FloatingWorkspaceDialog in session we
+  // want to show the captive portal on top of the dialog, because by
+  // default it will be shown in a tab behind the modal dialog.
+  if (ash::FloatingWorkspaceDialog::IsShown()) {
+    return SigninMode::kFloatingWorkspaceDialog;
   }
 
   return SigninMode::kSigninDefault;
@@ -292,7 +303,7 @@ void NetworkPortalSigninController::ShowSigninDialog(const GURL& url) {
 
 void NetworkPortalSigninController::ShowSigninWindow(const GURL& url) {
   // Calls NetworkPortalSigninWindow::Show in the appropriate browser.
-  ash::NewWindowDelegate::GetPrimary()->OpenCaptivePortalSignin(url);
+  ash::NewWindowDelegate::GetInstance()->OpenCaptivePortalSignin(url);
 }
 
 void NetworkPortalSigninController::ShowTab(Profile* profile, const GURL& url) {
@@ -313,7 +324,7 @@ void NetworkPortalSigninController::ShowTab(Profile* profile, const GURL& url) {
 
 void NetworkPortalSigninController::ShowActiveProfileTab(const GURL& url) {
   // Opens a new tab the appropriate browser.
-  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+  ash::NewWindowDelegate::GetInstance()->OpenUrl(
       url, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }
@@ -337,6 +348,9 @@ std::ostream& operator<<(
     case NetworkPortalSigninController::SigninMode::
         kIncognitoDisabledByParentalControls:
       stream << "Signin Window (Incognito mode disabled by parental controls)";
+      break;
+    case NetworkPortalSigninController::SigninMode::kFloatingWorkspaceDialog:
+      stream << "Floating Workspace Dialog";
       break;
   }
   return stream;

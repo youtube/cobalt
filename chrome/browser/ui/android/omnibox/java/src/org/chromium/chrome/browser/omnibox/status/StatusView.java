@@ -9,8 +9,6 @@ import android.content.res.Resources;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.RotateDrawable;
-import android.os.Build;
-import android.os.Build.VERSION;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.TouchDelegate;
@@ -66,7 +64,6 @@ public class StatusView extends LinearLayout {
     private int mTouchDelegateEndOffset;
 
     private ImageView mIconView;
-    private View mIconBackground;
     private StatusIconView mStatusIconView;
     private TextView mVerboseStatusTextView;
     private View mSeparatorView;
@@ -103,7 +100,6 @@ public class StatusView extends LinearLayout {
         super.onFinishInflate();
 
         mIconView = findViewById(R.id.location_bar_status_icon);
-        mIconBackground = findViewById(R.id.location_bar_status_icon_bg);
         mStatusIconView = findViewById(R.id.location_bar_status_icon_view);
         mVerboseStatusTextView = findViewById(R.id.location_bar_verbose_status);
         mSeparatorView = findViewById(R.id.location_bar_verbose_status_separator);
@@ -144,6 +140,7 @@ public class StatusView extends LinearLayout {
                                                 R.dimen.omnibox_search_engine_logo_composed_size)
                                 / 2));
         mIconView.setClipToOutline(true);
+        mIconView.setScaleType(ImageView.ScaleType.FIT_CENTER);
 
         configureAccessibilityDescriptions();
     }
@@ -322,6 +319,7 @@ public class StatusView extends LinearLayout {
                     updateAnimationStartTime();
                     mIsAnimatingStatusIconChange = true;
                     keepControlsShownForAnimation();
+                    mIconView.setAccessibilityLiveRegion(ACCESSIBILITY_LIVE_REGION_ASSERTIVE);
                     mIconView
                             .animate()
                             .setDuration(ICON_ROTATION_DURATION_MS)
@@ -444,10 +442,6 @@ public class StatusView extends LinearLayout {
     void setStatusIconAlpha(float alpha) {
         if (mIconView == null) return;
         mIconView.setAlpha(alpha);
-
-        if (mIconBackground != null && mIconBackground.getVisibility() == VISIBLE) {
-            mIconBackground.setAlpha(alpha);
-        }
     }
 
     /** Specify the status icon visibility. */
@@ -476,13 +470,6 @@ public class StatusView extends LinearLayout {
                                     ViewUtils.requestLayout(
                                             this, "StatusView.setStatusIconShown Runnable"));
         }
-    }
-
-    /** Specify the status icon background visibility. */
-    void setStatusIconBackgroundVisibility(boolean showIconBackground) {
-        if (mIconView == null || mIconBackground == null) return;
-
-        mIconBackground.setVisibility(showIconBackground ? VISIBLE : INVISIBLE);
     }
 
     /** Specify accessibility string presented to user upon long click. */
@@ -656,11 +643,9 @@ public class StatusView extends LinearLayout {
                 && mIconView.getAlpha() != 0;
     }
 
-    /** Set tooltip text on StatusView for API >= 26. */
+    /** Set tooltip text on StatusView. */
     private void setTooltipText(@Nullable String tooltip) {
-        if (VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            TooltipCompat.setTooltipText((View) this, tooltip);
-        }
+        TooltipCompat.setTooltipText((View) this, tooltip);
     }
 
     private void keepControlsShownForAnimation() {

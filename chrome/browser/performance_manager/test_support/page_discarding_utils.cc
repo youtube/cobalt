@@ -15,6 +15,7 @@
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "components/performance_manager/public/user_tuning/prefs.h"
 #include "components/performance_manager/test_support/graph_test_harness.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace performance_manager::testing {
 

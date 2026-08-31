@@ -134,7 +134,9 @@ class PLATFORM_EXPORT ImageFrame final {
   // written, and should only be called once. The specified color space may be
   // null if and only if color correct rendering is enabled. Returns true if the
   // allocation succeeded.
-  bool AllocatePixelData(int new_width, int new_height, sk_sp<SkColorSpace>);
+  [[nodiscard]] bool AllocatePixelData(int new_width,
+                                       int new_height,
+                                       sk_sp<SkColorSpace>);
 
   bool HasAlpha() const { return has_alpha_; }
   PixelFormat GetPixelFormat() const { return pixel_format_; }
@@ -338,7 +340,7 @@ class PLATFORM_EXPORT ImageFrame final {
   bool pixels_changed_ = false;
 
   // The frame that must be decoded before this frame can be decoded.
-  // WTF::kNotFound if this frame doesn't require any previous frame.
+  // kNotFound if this frame doesn't require any previous frame.
   // This is used by ImageDecoder::ClearCacheExceptFrame(), and will never
   // be read for image formats that do not have multiple frames.
   wtf_size_t required_previous_frame_index_ = kNotFound;

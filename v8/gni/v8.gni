@@ -4,6 +4,7 @@
 
 import("//build/config/chrome_build.gni")
 import("//build/config/compiler/pgo/pgo.gni")
+import("//build/config/features.gni")
 import("//build/config/gclient_args.gni")
 import("//build/config/ios/config.gni")
 import("//build/config/ios/ios_sdk_overrides.gni")
@@ -58,13 +59,9 @@ declare_args() {
   # We currently only want it enabled on d8 and chromium builds (Functionality
   # is still not accessible unless --harmony-temporal is enabled at runtime)
   #
-  # The Windows and Fuchsia builds for temporal_rs also currently fail,
-  # but won't once we vendor in https://github.com/boa-dev/temporal/pull/279
-  # NOTE: we check target OS, not is_win/is_fuchsia, since those will be different
-  # when doing host codegen.
-  v8_enable_temporal_support =
-      !(defined(build_with_node) && build_with_node) && target_os != "win" &&
-      target_os != "fuchsia" && target_cpu != "ppc64" && target_cpu != "s390x"
+  # Furthermore, some architectures don't have Rust toolchains in Chromium
+  v8_enable_temporal_support = !(defined(build_with_node) && build_with_node) &&
+                               target_cpu != "ppc64" && target_cpu != "s390x"
 
   # Use static libraries instead of source_sets.
   v8_static_library = false
@@ -239,6 +236,10 @@ declare_args() {
   # Specifies if the target build is a simulator build. By default it is set to
   # true if the host and target do not match and we are not cross-compiling.
   v8_target_is_simulator = ""
+
+  # Some fuzzers depend on fuzzing functionality linked into the v8 library.
+  # For binary size reasons this functionality is not always available.
+  v8_wasm_random_fuzzers = ""
 }
 
 if (v8_use_external_startup_data == "") {
@@ -304,6 +305,14 @@ if (v8_target_is_simulator == "") {
   v8_target_is_simulator =
       (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
       (current_cpu != v8_current_cpu && v8_multi_arch_build)
+}
+
+# Some fuzzers depend on fuzzing functionality linked into the v8 library.
+# For binary size reasons this functionality is not available for official
+# builds, therefore these fuzzers do not function there and should be skipped
+# instead.
+if (v8_wasm_random_fuzzers == "") {
+  v8_wasm_random_fuzzers = !is_official_build
 }
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute

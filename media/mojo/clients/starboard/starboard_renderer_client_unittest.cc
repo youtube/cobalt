@@ -14,12 +14,15 @@
 
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
+#include <optional>
+
 #include "base/functional/callback_helpers.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
+#include "build/build_config.h"
 #include "media/base/fake_demuxer_stream.h"
 #include "media/base/media_switches.h"
 #include "media/base/mock_media_log.h"
@@ -49,17 +52,24 @@ namespace {
 struct FakeMojomRendererCallRecord {
   bool initialize_with_bypass_bridge_called = false;
   uint32_t last_bypass_bridge_id = 0;
+  std::optional<size_t> last_stream_count;
 };
 
 class FakeMojomRenderer : public mojom::Renderer {
  public:
-  FakeMojomRenderer() = default;
+  explicit FakeMojomRenderer(FakeMojomRendererCallRecord* record = nullptr)
+      : record_(record) {}
   ~FakeMojomRenderer() override = default;
 
   void Initialize(
       mojo::PendingAssociatedRemote<mojom::RendererClient>,
-      std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>,
+      std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>
+          streams,
       InitializeCallback cb) override {
+    if (record_) {
+      record_->last_stream_count =
+          streams ? std::make_optional(streams->size()) : std::nullopt;
+    }
     std::move(cb).Run(true);
   }
   MOCK_METHOD1(Flush, void(FlushCallback));
@@ -67,9 +77,12 @@ class FakeMojomRenderer : public mojom::Renderer {
   MOCK_METHOD1(SetPlaybackRate, void(double));
   void SetVolume(float volume) override {}
   MOCK_METHOD2(SetCdm,
-               void(const absl::optional<base::UnguessableToken>&,
+               void(const std::optional<base::UnguessableToken>&,
                     SetCdmCallback));
   void SetLatencyHint(std::optional<::base::TimeDelta> latency_hint) override {}
+
+ private:
+  FakeMojomRendererCallRecord* record_ = nullptr;
 };
 
 class FakeStarboardRendererExtension
@@ -96,7 +109,9 @@ class FakeStarboardRendererExtension
 #endif  // BUILDFLAG(IS_ANDROID)
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override {}
-
+#if BUILDFLAG(IS_IOS_TVOS)
+  void SetSourceUrl(const std::string& source_url) override {}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
  private:
   FakeMojomRendererCallRecord* record_ = nullptr;
 };
@@ -127,7 +142,7 @@ class MockRendererClientStarboard : public RendererClient {
   MOCK_METHOD1(OnVideoConfigChange, void(const VideoDecoderConfig&));
   MOCK_METHOD1(OnVideoNaturalSizeChange, void(const gfx::Size&));
   MOCK_METHOD1(OnVideoOpacityChange, void(bool));
-  MOCK_METHOD1(OnVideoFrameRateChange, void(absl::optional<int>));
+  MOCK_METHOD1(OnVideoFrameRateChange, void(std::optional<int>));
   MOCK_METHOD0(IsVideoStreamAvailable, bool());
 };
 
@@ -153,7 +168,7 @@ class StarboardRendererClientTest : public ::testing::Test {
                                          bool bypass_mojo_for_media = false) {
     mojo::PendingRemote<mojom::Renderer> renderer_remote;
     mojo::MakeSelfOwnedReceiver(
-        std::make_unique<FakeMojomRenderer>(),
+        std::make_unique<FakeMojomRenderer>(&fake_mojom_renderer_record_),
         renderer_remote.InitWithNewPipeAndPassReceiver());
 
     mojo::PendingRemote<mojom::StarboardRendererExtension>
@@ -213,6 +228,7 @@ TEST_F(StarboardRendererClientTest, InitializeWithGpuFactories) {
   starboard_renderer_client_->UpdateStarboardRenderingMode(
       StarboardRenderingMode::kPunchOut);
   task_environment_.RunUntilIdle();
+  EXPECT_GT(fake_mojom_renderer_record_.last_stream_count.value_or(0), 0u);
 }
 
 TEST_F(StarboardRendererClientTest, InitializeWithoutGpuFactories) {
@@ -300,6 +316,8 @@ TEST_F(StarboardRendererClientTest, InitializeWithBypassBridge) {
   task_environment_.RunUntilIdle();
 
   EXPECT_TRUE(fake_mojom_renderer_record_.initialize_with_bypass_bridge_called);
+  EXPECT_EQ(fake_mojom_renderer_record_.last_stream_count,
+            std::optional<size_t>(0));
   uint32_t bridge_id = fake_mojom_renderer_record_.last_bypass_bridge_id;
   EXPECT_NE(bridge_id, 0u);
 

@@ -63,7 +63,7 @@ static float calculateDeviceScaleAdjustment(int width,
 namespace blink {
 
 class DevToolsEmulator::ScopedGlobalOverrides
-    : public WTF::RefCounted<ScopedGlobalOverrides> {
+    : public RefCounted<ScopedGlobalOverrides> {
  public:
   static scoped_refptr<ScopedGlobalOverrides> AssureInstalled() {
     return g_instance_ ? g_instance_
@@ -71,7 +71,7 @@ class DevToolsEmulator::ScopedGlobalOverrides
   }
 
  private:
-  friend class WTF::RefCounted<ScopedGlobalOverrides>;
+  friend class RefCounted<ScopedGlobalOverrides>;
 
   ScopedGlobalOverrides()
       : overlay_scrollbars_enabled_(
@@ -161,7 +161,10 @@ DevToolsEmulator::DevToolsEmulator(WebViewImpl* web_view)
       document_cookie_disabled_(false),
       embedder_force_dark_mode_enabled_(
           web_view->GetPage()->GetSettings().GetForceDarkModeEnabled()),
-      auto_dark_overriden_(false) {}
+      auto_dark_overriden_(false),
+      embedder_accessibility_font_scale_(
+          web_view->GetPage()->GetSettings().GetAccessibilityFontScaleFactor()),
+      accessibility_font_scale_emulation_enabled_(false) {}
 
 DevToolsEmulator::~DevToolsEmulator() {
   // This class is GarbageCollected, so desturctor may run at any time, hence
@@ -586,6 +589,30 @@ void DevToolsEmulator::ResetAutoDarkModeOverride() {
     web_view_->GetPage()->GetSettings().SetForceDarkModeEnabled(
         embedder_force_dark_mode_enabled_);
     auto_dark_overriden_ = false;
+  }
+}
+
+void DevToolsEmulator::SetAccessibilityFontScaleFactor(double scale) {
+  embedder_accessibility_font_scale_ = scale;
+  if (!accessibility_font_scale_emulation_enabled_) {
+    web_view_->GetPage()->GetSettings().SetAccessibilityFontScaleFactor(scale);
+  }
+}
+
+void DevToolsEmulator::SetEmulatedAccessibilityFontScaleFactor(double scale) {
+  if (!accessibility_font_scale_emulation_enabled_) {
+    accessibility_font_scale_emulation_enabled_ = true;
+    embedder_accessibility_font_scale_ =
+        web_view_->GetPage()->GetSettings().GetAccessibilityFontScaleFactor();
+  }
+  web_view_->GetPage()->GetSettings().SetAccessibilityFontScaleFactor(scale);
+}
+
+void DevToolsEmulator::ResetEmulatedAccessibilityFontScaleFactor() {
+  if (accessibility_font_scale_emulation_enabled_) {
+    web_view_->GetPage()->GetSettings().SetAccessibilityFontScaleFactor(
+        embedder_accessibility_font_scale_);
+    accessibility_font_scale_emulation_enabled_ = false;
   }
 }
 

@@ -194,7 +194,7 @@ void ServiceWorkerControlleeRequestHandler::MaybeCreateLoader(
       tentative_resource_request.url.spec());
 
   // Look up a registration.
-  context_->registry()->FindRegistrationForClientUrl(
+  context_->registry().FindRegistrationForClientUrl(
       ServiceWorkerRegistry::Purpose::kNavigation,
       service_worker_client_->url(), service_worker_client_->key(),
       base::BindOnce(
@@ -219,14 +219,11 @@ void ServiceWorkerControlleeRequestHandler::ContinueWithRegistration(
         "ServiceWorker.FoundServiceWorkerRegistrationOnNavigation",
         status == blink::ServiceWorkerStatusCode::kOk);
 
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP0(
+    TRACE_EVENT_BEGIN(
         "ServiceWorker",
         "ServiceWorker.MaybeCreateLoaderToContinueWithRegistration",
-        TRACE_ID_LOCAL(this), find_registration_start_time);
-    TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-        "ServiceWorker",
-        "ServiceWorker.MaybeCreateLoaderToContinueWithRegistration",
-        TRACE_ID_LOCAL(this), now);
+        perfetto::Track::FromPointer(this), find_registration_start_time);
+    TRACE_EVENT_END("ServiceWorker", perfetto::Track::FromPointer(this), now);
   }
 
   if (status != blink::ServiceWorkerStatusCode::kOk) {
@@ -548,7 +545,7 @@ void ServiceWorkerControlleeRequestHandler::DidUpdateRegistration(
       !original_registration->installing_version()) {
     // Update failed. Look up the registration again since the original
     // registration was possibly unregistered in the meantime.
-    context_->registry()->FindRegistrationForClientUrl(
+    context_->registry().FindRegistrationForClientUrl(
         ServiceWorkerRegistry::Purpose::kNotForNavigation,
         service_worker_client_->url(), service_worker_client_->key(),
         base::BindOnce(
@@ -606,7 +603,7 @@ void ServiceWorkerControlleeRequestHandler::OnUpdatedVersionStatusChanged(
     // When the status is REDUNDANT, the update failed (eg: script error), we
     // continue with the incumbent version.
     // In case unregister job may have run, look up the registration again.
-    context_->registry()->FindRegistrationForClientUrl(
+    context_->registry().FindRegistrationForClientUrl(
         ServiceWorkerRegistry::Purpose::kNotForNavigation,
         service_worker_client_->url(), service_worker_client_->key(),
         base::BindOnce(

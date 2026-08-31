@@ -13,6 +13,7 @@
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/view_transition_opt_in_state.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
@@ -441,8 +442,9 @@ class ViewTransitionCaptureTest
   base::test::ScopedFeatureList feature_list_;
 };
 
+// TODO(https://crbug.com/400187507): Disabled due to continuous flakiness.
 IN_PROC_BROWSER_TEST_P(ViewTransitionCaptureTest,
-                       ViewTransitionNoArtifactDuringCapture) {
+                       DISABLED_ViewTransitionNoArtifactDuringCapture) {
   const auto& [frametest, url] = GetParam();
   GURL test_url(embedded_test_server()->GetURL(url));
   auto* web_contents = shell()->web_contents();

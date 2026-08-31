@@ -15,10 +15,11 @@
 // Creates and saves `numberOfGroups` synced tab groups.
 + (void)prepareFakeSyncedTabGroups:(NSInteger)numberOfGroups;
 
-// Creates and saves `numberOfGroups` shared tab groups. The user (using foo1
-// account) will be set as `owner` or not of the group.
+// Creates and saves `numberOfGroups` shared tab groups with a tab using `url`.
+// The user (using foo1 account) will be set as `owner` or not of the group.
 + (void)prepareFakeSharedTabGroups:(NSInteger)numberOfGroups
-                           asOwner:(BOOL)owner;
+                           asOwner:(BOOL)owner
+                               url:(NSString*)url;
 
 // Removes a group at `index`.
 + (void)removeAtIndex:(unsigned int)index;
@@ -39,6 +40,18 @@
 
 // Returns the URL of the activity logs.
 + (NSString*)activityLogsURL;
+
+// Updates the Shared tab groups' managed account policy status.
++ (void)setSharedTabGroupsManagedAccountPolicyEnabled:
+    (BOOL)managedAccountPolicyEnabled;
+
+// Whether the Shared Tab Groups feature is enabled and a user can join to an
+// existing shared group.
++ (BOOL)isAllowedToJoinTabGroups;
+
+// Whether the Shared Tab Groups feature is enabled and a user can create a new
+// shared group.
++ (BOOL)isAllowedToShareTabGroups;
 
 @end
 

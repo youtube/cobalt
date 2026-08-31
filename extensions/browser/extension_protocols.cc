@@ -17,7 +17,6 @@
 #include "base/base64.h"
 #include "base/compiler_specific.h"
 #include "base/containers/span.h"
-#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
@@ -54,8 +53,6 @@
 #include "content/public/browser/navigation_ui_data.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
-#include "crypto/secure_hash.h"
-#include "crypto/sha2.h"
 #include "extensions/browser/content_verifier/content_verifier.h"
 #include "extensions/browser/content_verifier/content_verify_job.h"
 #include "extensions/browser/extension_navigation_ui_data.h"
@@ -120,10 +117,6 @@ using extensions::SharedModuleInfo;
 namespace extensions {
 namespace {
 
-BASE_FEATURE(kOverrideExtensionFilesMimeTypes,
-             "OverrideExtensionFilesMimeTypes",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 ExtensionProtocolTestHandler* g_test_handler = nullptr;
 
 // Stores relevant info about an ExtensionResource, namely: its file path, last
@@ -151,7 +144,7 @@ void GenerateBackgroundPageContents(const Extension* extension,
   *data = "<!DOCTYPE html>\n<body>\n";
   for (const auto& script : BackgroundInfo::GetBackgroundScripts(extension)) {
     *data += "<script src=\"";
-    *data += script;
+    *data += script.relative_path().AsUTF8Unsafe();
     *data += "\"></script>\n";
   }
 }
@@ -367,8 +360,7 @@ bool IsBackgroundServiceWorker(const Extension& extension,
              network::mojom::RequestDestination::kServiceWorker &&
          BackgroundInfo::IsServiceWorkerBased(&extension) &&
          request.url ==
-             extension.GetResourceURL(
-                 BackgroundInfo::GetBackgroundServiceWorkerScript(&extension));
+             BackgroundInfo::GetBackgroundServiceWorkerScriptURL(&extension);
 }
 
 bool IsExtensionDocument(const Extension& extension,
@@ -445,11 +437,9 @@ void AddCacheHeaders(net::HttpResponseHeaders& headers,
   // On Fuchsia, some resources are served from read-only filesystems which
   // don't manage creation timestamps. Cache-control headers should still
   // be generated for those resources.
-#if !BUILDFLAG(IS_FUCHSIA)
   if (last_modified_time.is_null()) {
     return;
   }
-#endif  // !BUILDFLAG(IS_FUCHSIA)
 
   // Hash the time and make an etag to avoid exposing the exact
   // user installation time of the extension.
@@ -667,12 +657,7 @@ class ExtensionURLLoader : public network::mojom::URLLoader {
     request_.url = net::FilePathToFileURL(read_file_path);
 
     AddCacheHeaders(*headers, last_modified_time);
-
-    // TODO(crbug.com/400647848): Remove this if-check and always override mime
-    // type headers in M139.
-    if (base::FeatureList::IsEnabled(kOverrideExtensionFilesMimeTypes)) {
-      AddMimeTypeHeaders(*headers, read_file_path);
-    }
+    AddMimeTypeHeaders(*headers, read_file_path);
 
     // TODO(crbug.com/405286894, crbug.com/410916670): Properly implement
     // content verification for range headers which return a subset of the

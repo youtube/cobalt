@@ -175,12 +175,6 @@ source_set("dns") {
 
   deps = [ "//net:net_deps" ]
 
-  if (is_cobalt) {
-    deps += [
-      "//cobalt/browser:features"
-    ]
-  }
-
   public_deps = [
     ":dns_client",
     ":host_resolver",
@@ -188,6 +182,10 @@ source_set("dns") {
     ":mdns_client",
     "//net:net_public_deps",
   ]
+
+  if (enable_mdns) {
+    public_deps += [ "//third_party/re2" ]
+  }
 
   allow_circular_includes_from = [
     ":dns_client",
@@ -436,6 +434,7 @@ source_set("tests") {
     "host_resolver_manager_ipv6_reachability_override_unittest.cc",
     "host_resolver_manager_unittest.cc",
     "host_resolver_service_endpoint_request_unittest.cc",
+    "host_resolver_system_task_unittest.cc",
     "https_record_rdata_unittest.cc",
     "httpssvc_metrics_unittest.cc",
     "loopback_only_unittest.cc",
@@ -486,6 +485,10 @@ source_set("tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {

@@ -332,7 +332,7 @@ bool LengthPropertyFunctions::GetLength(const CSSProperty& property,
       success = true;
       break;
     case CSSPropertyID::kLetterSpacing:
-      result = Length::Fixed(style.LetterSpacing());
+      result = style.ComputedLetterSpacing();
       success = true;
       break;
     case CSSPropertyID::kOutlineOffset:
@@ -363,24 +363,36 @@ bool LengthPropertyFunctions::GetLength(const CSSProperty& property,
         success = true;
       }
       break;
+    case CSSPropertyID::kColumnRuleOutset:
+      result = style.ColumnRuleOutset();
+      success = true;
+      break;
+    case CSSPropertyID::kRowRuleOutset:
+      result = style.RowRuleOutset();
+      success = true;
+      break;
     case CSSPropertyID::kColumnRuleWidth:
       // TODO(crbug.com/357648037): Investigate whether we'll need a new way of
       // handling multiple lengths.
-      result = Length::Fixed(style.ColumnRuleWidth().GetLegacyValue());
-      success = true;
+      if (style.ColumnRuleWidth().HasSingleValue()) {
+        result = Length::Fixed(style.ColumnRuleWidth().GetLegacyValue());
+        success = true;
+      }
       break;
     case CSSPropertyID::kRowRuleWidth:
       // TODO(crbug.com/357648037): Investigate whether we'll need a new way of
       // handling multiple lengths.
-      result = Length::Fixed(style.RowRuleWidth().GetLegacyValue());
-      success = true;
+      if (style.RowRuleWidth().HasSingleValue()) {
+        result = Length::Fixed(style.RowRuleWidth().GetLegacyValue());
+        success = true;
+      }
       break;
     case CSSPropertyID::kWebkitTransformOriginZ:
       result = Length::Fixed(style.GetTransformOrigin().Z());
       success = true;
       break;
     case CSSPropertyID::kWordSpacing:
-      result = Length::Fixed(style.WordSpacing());
+      result = style.ComputedWordSpacing();
       success = true;
       break;
 

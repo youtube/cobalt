@@ -13,9 +13,10 @@
 // limitations under the License.
 
 #include "sandbox/policy/linux/sandbox_linux.h"
-#include "sandbox/linux/suid/client/setuid_sandbox_client.h"  // nogncheck
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
+#include "sandbox/linux/suid/client/setuid_sandbox_client.h"  // nogncheck
 
 namespace sandbox {
 namespace policy {

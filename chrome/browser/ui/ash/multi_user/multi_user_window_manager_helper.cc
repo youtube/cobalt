@@ -8,11 +8,13 @@
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_stub.h"
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "components/account_id/account_id.h"
-#include "components/user_manager/user.h"
-#include "components/user_manager/user_manager.h"
+#include "components/session_manager/core/session.h"
+#include "components/session_manager/core/session_manager.h"
 
 namespace {
 MultiUserWindowManagerHelper* g_multi_user_window_manager_instance = nullptr;
+
+bool g_multi_user_window_manager_enabled = true;
 }  // namespace
 
 // static
@@ -30,15 +32,9 @@ ash::MultiUserWindowManager* MultiUserWindowManagerHelper::GetWindowManager() {
 
 // static
 MultiUserWindowManagerHelper* MultiUserWindowManagerHelper::CreateInstance() {
-  DCHECK(!g_multi_user_window_manager_instance);
-  if (SessionControllerClientImpl::IsMultiProfileAvailable()) {
-    g_multi_user_window_manager_instance = new MultiUserWindowManagerHelper(
-        user_manager::UserManager::Get()->GetActiveUser()->GetAccountId());
-  } else {
-    g_multi_user_window_manager_instance = new MultiUserWindowManagerHelper(
-        std::make_unique<MultiUserWindowManagerStub>());
-  }
-  g_multi_user_window_manager_instance->Init();
+  CHECK(!g_multi_user_window_manager_instance);
+  g_multi_user_window_manager_instance =
+      new MultiUserWindowManagerHelper(ash::MultiUserWindowManager::Create());
   return g_multi_user_window_manager_instance;
 }
 
@@ -65,37 +61,27 @@ void MultiUserWindowManagerHelper::DeleteInstance() {
 }
 
 // static
-void MultiUserWindowManagerHelper::CreateInstanceForTest(
-    const AccountId& account_id) {
-  if (g_multi_user_window_manager_instance) {
-    DeleteInstance();
-  }
-  g_multi_user_window_manager_instance =
-      new MultiUserWindowManagerHelper(account_id);
-  g_multi_user_window_manager_instance->Init();
+void MultiUserWindowManagerHelper::CreateInstanceForTest() {
+  // TODO(crbug.com/425160398): Remove this method and use CreateInstance()
+  // always.
+  CreateInstance();
 }
 
 // static
-void MultiUserWindowManagerHelper::CreateInstanceForTest(
-    std::unique_ptr<ash::MultiUserWindowManager> window_manager) {
-  if (g_multi_user_window_manager_instance) {
-    DeleteInstance();
-  }
-  g_multi_user_window_manager_instance =
-      new MultiUserWindowManagerHelper(std::move(window_manager));
-  g_multi_user_window_manager_instance->Init();
+bool MultiUserWindowManagerHelper::IsEnabled() {
+  return g_multi_user_window_manager_enabled;
 }
 
-void MultiUserWindowManagerHelper::Init() {
-  if (multi_profile_support_) {
-    multi_profile_support_->Init();
-  }
+// static
+base::AutoReset<bool> MultiUserWindowManagerHelper::DisableForTesting() {
+  CHECK(g_multi_user_window_manager_enabled)
+      << "MultiUserSignIn is already disabled";
+  base::AutoReset resetter(&g_multi_user_window_manager_enabled, false);
+  return resetter;
 }
 
-void MultiUserWindowManagerHelper::AddUser(content::BrowserContext* profile) {
-  if (multi_profile_support_) {
-    multi_profile_support_->AddUser(profile);
-  }
+void MultiUserWindowManagerHelper::AddUser(const AccountId& account_id) {
+  multi_profile_support_->AddUser(account_id);
 }
 
 bool MultiUserWindowManagerHelper::IsWindowOnDesktopOfUser(
@@ -107,19 +93,14 @@ bool MultiUserWindowManagerHelper::IsWindowOnDesktopOfUser(
 }
 
 MultiUserWindowManagerHelper::MultiUserWindowManagerHelper(
-    const AccountId& account_id)
-    : multi_profile_support_(
-          std::make_unique<MultiProfileSupport>(account_id)) {}
-
-MultiUserWindowManagerHelper::MultiUserWindowManagerHelper(
     std::unique_ptr<ash::MultiUserWindowManager> window_manager)
-    : multi_user_window_manager_(std::move(window_manager)) {}
+    : multi_user_window_manager_(std::move(window_manager)),
+      multi_profile_support_(std::make_unique<MultiProfileSupport>(
+          multi_user_window_manager_.get())) {}
 
 MultiUserWindowManagerHelper::~MultiUserWindowManagerHelper() = default;
 
 const ash::MultiUserWindowManager*
 MultiUserWindowManagerHelper::GetWindowManagerImpl() const {
-  return multi_user_window_manager_
-             ? multi_user_window_manager_.get()
-             : multi_profile_support_->multi_user_window_manager();
+  return multi_user_window_manager_.get();
 }

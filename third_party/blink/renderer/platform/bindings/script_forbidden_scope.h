@@ -58,7 +58,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
     if (extended_check && WillBeScriptForbidden()) {
       return true;
     }
-    if (!WTF::MayNotBeMainThread()) [[likely]] {
+    if (!MayNotBeMainThread()) [[likely]] {
       return g_main_thread_counter_ > 0;
     }
     return GetMutableCounter() > 0;
@@ -87,7 +87,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
 
  private:
   static void Enter() {
-    if (!WTF::MayNotBeMainThread()) [[likely]] {
+    if (!MayNotBeMainThread()) [[likely]] {
       ++g_main_thread_counter_;
     } else {
       ++GetMutableCounter();
@@ -95,7 +95,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
   }
   static void Exit() {
     DCHECK(IsScriptForbidden());
-    if (!WTF::MayNotBeMainThread()) [[likely]] {
+    if (!MayNotBeMainThread()) [[likely]] {
       --g_main_thread_counter_;
     } else {
       --GetMutableCounter();
@@ -122,6 +122,7 @@ class PLATFORM_EXPORT ScriptForbiddenScope final {
   // V8GCController is exceptionally allowed to call Enter/Exit.
   friend class V8GCController;
   friend class BlinkLifecycleScopeWillBeScriptForbidden;
+  friend class ThreadState;
 };
 
 // Temporarily separate class for identifying cases in which adding a script

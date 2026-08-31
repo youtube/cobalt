@@ -6,7 +6,7 @@
 
 #include "base/task/current_thread.h"
 #include "base/threading/thread_id_name_manager.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include "base/fuchsia/scheduler.h"
@@ -29,12 +29,9 @@ void PlatformThreadBase::SetCurrentThreadType(ThreadType thread_type) {
   MessagePumpType message_pump_type = MessagePumpType::DEFAULT;
   if (CurrentIOThread::IsSet()) {
     message_pump_type = MessagePumpType::IO;
-  }
-#if !BUILDFLAG(IS_NACL)
-  else if (CurrentUIThread::IsSet()) {
+  } else if (CurrentUIThread::IsSet()) {
     message_pump_type = MessagePumpType::UI;
   }
-#endif
   internal::SetCurrentThreadType(thread_type, message_pump_type);
 }
 

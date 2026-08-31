@@ -11,6 +11,7 @@
 #ifndef TEST_PC_E2E_ANALYZER_VIDEO_NAMES_COLLECTION_H_
 #define TEST_PC_E2E_ANALYZER_VIDEO_NAMES_COLLECTION_H_
 
+#include <cstddef>
 #include <map>
 #include <optional>
 #include <set>

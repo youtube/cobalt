@@ -7,17 +7,21 @@ package org.chromium.components.signin.base;
 import android.accounts.Account;
 
 import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.Contract;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.signin.AccountUtils;
+import org.chromium.google_apis.gaia.CoreAccountId;
+import org.chromium.google_apis.gaia.GaiaId;
 
 /**
  * Structure storing the core information about a Google account that is always known. The {@link
  * CoreAccountInfo} for a given user is almost always the same but it may change in some rare cases.
  * For example, the email will change if the user changes email.
- * This class has a native counterpart called CoreAccountInfo.
+ *
+ * <p>This class has a native counterpart called CoreAccountInfo.
  */
 @NullMarked
 public class CoreAccountInfo {
@@ -33,7 +37,10 @@ public class CoreAccountInfo {
      * @param gaiaId An object representing a Gaia ID.
      */
     @CalledByNative
-    protected CoreAccountInfo(CoreAccountId id, String email, GaiaId gaiaId) {
+    protected CoreAccountInfo(
+            @JniType("CoreAccountId") CoreAccountId id,
+            @JniType("std::string") String email,
+            @JniType("GaiaId") GaiaId gaiaId) {
         assert id != null;
         assert email != null;
         assert gaiaId != null;
@@ -46,19 +53,19 @@ public class CoreAccountInfo {
 
     /** Returns a unique identifier of the current account. */
     @CalledByNative
-    public CoreAccountId getId() {
+    public @JniType("CoreAccountId") CoreAccountId getId() {
         return mId;
     }
 
     /** Returns the email of the current account. */
     @CalledByNative
-    public String getEmail() {
+    public @JniType("std::string") String getEmail() {
         return mEmail;
     }
 
     /** Returns the Gaia ID */
     @CalledByNative
-    public GaiaId getGaiaId() {
+    public @JniType("GaiaId") GaiaId getGaiaId() {
         return mGaiaId;
     }
 

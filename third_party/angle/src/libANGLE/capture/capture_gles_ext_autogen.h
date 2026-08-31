@@ -1410,6 +1410,30 @@ angle::CallCapture CaptureBufferStorageExternalEXT(const State &glState,
 
 // GL_EXT_float_blend
 
+// GL_EXT_fragment_shading_rate
+angle::CallCapture CaptureFramebufferShadingRateEXT(const State &glState,
+                                                    bool isCallValid,
+                                                    GLenum target,
+                                                    GLenum attachment,
+                                                    GLuint texture,
+                                                    GLint baseLayer,
+                                                    GLsizei numLayers,
+                                                    GLsizei texelWidth,
+                                                    GLsizei texelHeight);
+angle::CallCapture CaptureGetFragmentShadingRatesEXT(const State &glState,
+                                                     bool isCallValid,
+                                                     GLsizei samples,
+                                                     GLsizei maxCount,
+                                                     GLsizei *count,
+                                                     GLenum *shadingRates);
+angle::CallCapture CaptureShadingRateEXT(const State &glState,
+                                         bool isCallValid,
+                                         ShadingRate ratePacked);
+angle::CallCapture CaptureShadingRateCombinerOpsEXT(const State &glState,
+                                                    bool isCallValid,
+                                                    CombinerOp combinerOp0Packed,
+                                                    CombinerOp combinerOp1Packed);
+
 // GL_EXT_geometry_shader
 angle::CallCapture CaptureFramebufferTextureEXT(const State &glState,
                                                 bool isCallValid,
@@ -1697,7 +1721,7 @@ angle::CallCapture CaptureCreateShaderProgramvEXT(const State &glState,
                                                   bool isCallValid,
                                                   ShaderType typePacked,
                                                   GLsizei count,
-                                                  const GLchar **strings,
+                                                  const GLchar *const *strings,
                                                   GLuint returnValue);
 angle::CallCapture CaptureDeleteProgramPipelinesEXT(const State &glState,
                                                     bool isCallValid,
@@ -2282,6 +2306,8 @@ angle::CallCapture CaptureBlitFramebufferNV(const State &glState,
                                             GLint dstY1,
                                             GLbitfield mask,
                                             GLenum filter);
+
+// GL_NV_pack_subimage
 
 // GL_NV_pixel_buffer_object
 
@@ -2904,7 +2930,9 @@ angle::CallCapture CaptureFramebufferFoveationParametersQCOM(const State &glStat
 // GL_QCOM_render_shared_exponent
 
 // GL_QCOM_shading_rate
-angle::CallCapture CaptureShadingRateQCOM(const State &glState, bool isCallValid, GLenum rate);
+angle::CallCapture CaptureShadingRateQCOM(const State &glState,
+                                          bool isCallValid,
+                                          ShadingRate ratePacked);
 
 // GL_QCOM_texture_foveated
 angle::CallCapture CaptureTextureFoveationParametersQCOM(const State &glState,
@@ -4720,6 +4748,20 @@ void CaptureDrawElementsInstancedEXT_indices(const State &glState,
                                              const void *indices,
                                              GLsizei primcount,
                                              angle::ParamCapture *paramCapture);
+void CaptureGetFragmentShadingRatesEXT_count(const State &glState,
+                                             bool isCallValid,
+                                             GLsizei samples,
+                                             GLsizei maxCount,
+                                             GLsizei *count,
+                                             GLenum *shadingRates,
+                                             angle::ParamCapture *paramCapture);
+void CaptureGetFragmentShadingRatesEXT_shadingRates(const State &glState,
+                                                    bool isCallValid,
+                                                    GLsizei samples,
+                                                    GLsizei maxCount,
+                                                    GLsizei *count,
+                                                    GLenum *shadingRates,
+                                                    angle::ParamCapture *paramCapture);
 void CaptureCreateMemoryObjectsEXT_memoryObjectsPacked(const State &glState,
                                                        bool isCallValid,
                                                        GLsizei n,
@@ -4903,7 +4945,7 @@ void CaptureCreateShaderProgramvEXT_strings(const State &glState,
                                             bool isCallValid,
                                             ShaderType typePacked,
                                             GLsizei count,
-                                            const GLchar **strings,
+                                            const GLchar *const *strings,
                                             angle::ParamCapture *paramCapture);
 void CaptureDeleteProgramPipelinesEXT_pipelinesPacked(const State &glState,
                                                       bool isCallValid,

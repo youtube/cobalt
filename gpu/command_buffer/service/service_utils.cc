@@ -135,7 +135,6 @@ gl::GLContextAttribs GenerateGLContextAttribsForDecoder(
   gl::GLContextAttribs attribs;
   attribs.gpu_preference = attribs_helper.gpu_preference;
   if (context_group->use_passthrough_cmd_decoder()) {
-    attribs.bind_generates_resource = attribs_helper.bind_generates_resource;
     attribs.webgl_compatibility_context =
         IsWebGLContextType(attribs_helper.context_type);
 
@@ -182,8 +181,6 @@ gl::GLContextAttribs GenerateGLContextAttribsForCompositor(
     bool use_passthrough_cmd_decoder) {
   gl::GLContextAttribs attribs;
   if (use_passthrough_cmd_decoder) {
-    attribs.bind_generates_resource = false;
-
     // Always use the global texture and semaphore share group for the
     // passthrough command decoder
     attribs.global_texture_share_group = true;
@@ -235,10 +232,6 @@ GpuPreferences ParseGpuPreferences(const base::CommandLine* command_line) {
       command_line->HasSwitch(switches::kDisableGpuProgramCache);
   gpu_preferences.enforce_gl_minimums =
       command_line->HasSwitch(switches::kEnforceGLMinimums);
-  if (GetUintFromSwitch(command_line, switches::kForceGpuMemAvailableMb,
-                        &gpu_preferences.force_gpu_mem_available_bytes)) {
-    gpu_preferences.force_gpu_mem_available_bytes *= 1024 * 1024;
-  }
   if (GetUintFromSwitch(
           command_line, switches::kForceGpuMemDiscardableLimitMb,
           &gpu_preferences.force_gpu_mem_discardable_limit_bytes)) {

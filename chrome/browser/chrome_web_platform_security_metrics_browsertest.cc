@@ -26,11 +26,12 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
+#include "net/test/embedded_test_server/install_default_websocket_handlers.h"
 #include "net/test/test_data_directory.h"
 #include "pdf/buildflags.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/features.h"
+#include "services/network/public/cpp/network_switches.h"
 #include "services/network/public/mojom/cross_origin_opener_policy.mojom.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom.h"
@@ -161,6 +162,8 @@ class ChromeWebPlatformSecurityMetricsBrowserTest : public policy::PolicyTest {
         blink::features::kSubSampleWindowProxyUsageMetrics,
         // PNA metrics may not record correctly if LNA checks are enabled.
         network::features::kLocalNetworkAccessChecks,
+        // Disabling this flag just to test that the flag is working.
+        blink::features::kRemoveCharsetAutoDetectionForISO2022JP,
     };
   }
 
@@ -185,6 +188,10 @@ class ChromeWebPlatformSecurityMetricsBrowserTest : public policy::PolicyTest {
   void SetUpCommandLine(base::CommandLine* command_line) final {
     // For https_server()
     command_line->AppendSwitch(switches::kIgnoreCertificateErrors);
+    // Clear default from InProcessBrowserTest as test doesn't want 127.0.0.1 in
+    // the public address space
+    command_line->AppendSwitchASCII(network::switches::kIpAddressSpaceOverrides,
+                                    "");
   }
 
   net::EmbeddedTestServer https_server_;
@@ -198,11 +205,9 @@ class ChromeWebPlatformSecurityMetricsBrowserTest : public policy::PolicyTest {
 class PrivateNetworkAccessWebSocketMetricBrowserTest
     : public ChromeWebPlatformSecurityMetricsBrowserTest {
  public:
-  PrivateNetworkAccessWebSocketMetricBrowserTest()
-      : ws_server_(net::SpawnedTestServer::TYPE_WS,
-                   net::GetWebSocketTestDataDirectory()) {}
+  PrivateNetworkAccessWebSocketMetricBrowserTest() = default;
 
-  net::SpawnedTestServer& ws_server() { return ws_server_; }
+  net::EmbeddedTestServer& ws_server() { return ws_server_; }
 
   std::string WaitAndGetTitle() {
     return base::UTF16ToUTF8(watcher_->WaitAndGetTitle());
@@ -210,6 +215,9 @@ class PrivateNetworkAccessWebSocketMetricBrowserTest
 
  private:
   void SetUpOnMainThread() override {
+    net::test_server::InstallDefaultWebSocketHandlers(&ws_server_);
+    ASSERT_TRUE(ws_server_.Start());
+
     ChromeWebPlatformSecurityMetricsBrowserTest::SetUpOnMainThread();
 
     watcher_ = std::make_unique<content::TitleWatcher>(
@@ -219,7 +227,7 @@ class PrivateNetworkAccessWebSocketMetricBrowserTest
 
   void TearDownOnMainThread() override { watcher_.reset(); }
 
-  net::SpawnedTestServer ws_server_;
+  net::EmbeddedTestServer ws_server_{net::EmbeddedTestServer::Type::TYPE_HTTP};
   std::unique_ptr<content::TitleWatcher> watcher_;
 };
 
@@ -251,7 +259,7 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
 // space loads a resource from the private network, the correct WebFeature is
 // use-counted.
 IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
-                       PrivateNetworkAccessFetchWithPreflight) {
+                       PrivateNetworkAccessFetch) {
   ASSERT_TRUE(content::NavigateToURL(
       web_contents(),
       https_server().GetURL(
@@ -264,35 +272,8 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
                 content::JsReplace("fetch($1).then(response => response.ok)",
                                    https_server().GetURL("b.com", kPnaPath))));
 
-  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLocal, 1);
-  CheckCounter(WebFeature::kPrivateNetworkAccessPreflightSuccess, 1);
-}
-
-// This test verifies that when a preflight request is sent ahead of a private
-// network request, the server replies with Access-Control-Allow-Origin but
-// without Access-Control-Allow-Private-Network, and enforcement is not enabled,
-// the correct WebFeature is use-counted to reflect the suppressed error.
-IN_PROC_BROWSER_TEST_F(
-    ChromeWebPlatformSecurityMetricsBrowserTest,
-    PrivateNetworkAccessFetchWithPreflightRepliedWithoutPNAHeaders) {
-  ASSERT_EQ(true, content::NavigateToURL(
-                      web_contents(),
-                      https_server().GetURL(
-                          "a.com",
-                          "/private_network_access/"
-                          "no-favicon-treat-as-public-address.html")));
-
-  // The server does not reply with valid CORS headers, so the preflight fails.
-  // The enforcement feature is not enabled however, so the error is suppressed.
-  // Instead, a warning is shown in DevTools and a WebFeature use-counted.
-  ASSERT_EQ(true, content::EvalJs(
-                      web_contents(),
-                      content::JsReplace(
-                          "fetch($1).then(response => response.ok)",
-                          https_server().GetURL("b.com", "/cors-ok.txt"))));
-
-  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLocal, 1);
-  CheckCounter(WebFeature::kPrivateNetworkAccessPreflightWarning, 1);
+  CheckCounter(WebFeature::kAddressSpacePublicSecureContextEmbeddedLoopbackV2,
+               1);
 }
 
 // This test verifies that the PNA 2.0 breakage UseCounter
@@ -426,7 +407,6 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
                                                    "b.com", "/cors-ok.txt"))));
 
   CheckCounter(WebFeature::kPrivateNetworkAccessWithinWorker, 1);
-  CheckCounter(WebFeature::kPrivateNetworkAccessPreflightWarning, 1);
 }
 
 // When WebSocket is connected to a more-private ip address space, log a use
@@ -442,16 +422,14 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
 IN_PROC_BROWSER_TEST_F(
     PrivateNetworkAccessWebSocketMetricBrowserTest,
     MAYBE_PrivateNetworkAccessWebSocketConnectedPublicToLocal) {
-  // Launch a WebSocket server.
-  ASSERT_TRUE(ws_server().Start());
-
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), http_server().GetURL(
-                     "a.com",
-                     "/private_network_access/"
-                     "websocket-treat-as-public-address.html"
-                     "?url=" +
-                         ws_server().GetURL("echo-with-no-extension").spec())));
+      browser(),
+      http_server().GetURL(
+          "a.com",
+          "/private_network_access/"
+          "websocket-treat-as-public-address.html"
+          "?url=" +
+              ws_server().GetURL("/echo-with-no-extension").spec())));
 
   EXPECT_EQ("PASS", WaitAndGetTitle());
   CheckCounter(WebFeature::kPrivateNetworkAccessWebSocketConnected, 1);
@@ -469,16 +447,14 @@ IN_PROC_BROWSER_TEST_F(
 #endif
 IN_PROC_BROWSER_TEST_F(PrivateNetworkAccessWebSocketMetricBrowserTest,
                        MAYBE_PrivateNetworkAccessWebSocketConnectedLocalToLocal) {
-  // Launch a WebSocket server.
-  ASSERT_TRUE(ws_server().Start());
-
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), http_server().GetURL(
-                     "a.com",
-                     "/private_network_access/"
-                     "websocket.html"
-                     "?url=" +
-                         ws_server().GetURL("echo-with-no-extension").spec())));
+      browser(),
+      http_server().GetURL(
+          "a.com",
+          "/private_network_access/"
+          "websocket.html"
+          "?url=" +
+              ws_server().GetURL("/echo-with-no-extension").spec())));
 
   EXPECT_EQ("PASS", WaitAndGetTitle());
   CheckCounter(WebFeature::kPrivateNetworkAccessWebSocketConnected, 0);
@@ -524,7 +500,6 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
                                                    "b.com", "/cors-ok.txt"))));
 
   CheckCounter(WebFeature::kPrivateNetworkAccessWithinWorker, 1);
-  CheckCounter(WebFeature::kPrivateNetworkAccessPreflightWarning, 1);
 }
 
 // Check the kCrossOriginOpenerPolicyReporting feature usage. COOP-Report-Only +
@@ -2994,7 +2969,6 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
   EXPECT_TRUE(content::NavigateToURL(
       web_contents(), https_server().GetURL("/security/utf8.html")));
   CheckCounter(WebFeature::kCharsetAutoDetection, 0);
-  CheckCounter(WebFeature::kCharsetAutoDetectionISO2022JP, 0);
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
@@ -3002,15 +2976,16 @@ IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
   EXPECT_TRUE(content::NavigateToURL(
       web_contents(), https_server().GetURL("/security/no_charset.html")));
   CheckCounter(WebFeature::kCharsetAutoDetection, 1);
-  CheckCounter(WebFeature::kCharsetAutoDetectionISO2022JP, 0);
 }
 
 IN_PROC_BROWSER_TEST_F(ChromeWebPlatformSecurityMetricsBrowserTest,
                        ISO2022JPDetection) {
   EXPECT_TRUE(content::NavigateToURL(
       web_contents(), https_server().GetURL("/security/iso_2022_jp.html")));
-  CheckCounter(WebFeature::kCharsetAutoDetection, 1);
-  CheckCounter(WebFeature::kCharsetAutoDetectionISO2022JP, 1);
+  // Given RemoveCharsetAutoDetectionForISO2022JP is disabled in
+  // ChromeWebPlatformSecurityMetricsBrowserTest, this should pass.
+  EXPECT_EQ("ISO-2022-JP",
+            content::EvalJs(web_contents(), "document.characterSet"));
 }
 
 // TODO(arthursonzogni): Add basic test(s) for the WebFeatures:

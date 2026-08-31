@@ -40,11 +40,11 @@
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/browsing_data/content/browsing_data_model.h"
+#include "components/browsing_data/core/features.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
 #include "components/history/core/common/pref_names.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/prefs/pref_service.h"
@@ -161,6 +161,9 @@ class BrowsingDataRemoverBrowserTest
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
     enabled_features.push_back(media::kExternalClearKeyForTesting);
 #endif
+#if !BUILDFLAG(IS_ANDROID)
+    enabled_features.push_back(browsing_data::features::kDbdRevampDesktop);
+#endif  // !BUILDFLAG(IS_ANDROID)
     InitFeatureLists(std::move(enabled_features), std::move(disabled_features));
   }
 
@@ -236,7 +239,7 @@ class BrowsingDataRemoverBrowserTest
     EXPECT_FALSE(HasDataForType(type));
   }
 
-  // Test that storage systems like filesystem and websql, where just an access
+  // Test that storage systems like filesystem, where just an access
   // creates an empty store, are counted and deleted correctly.
   void TestEmptySiteData(const std::string& type, TimeEnum delete_begin) {
     EXPECT_EQ(0, GetSiteDataCount());
@@ -538,9 +541,8 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest, VideoDecodePerfHistory) {
   {
     base::RunLoop run_loop;
     video_decode_perf_history->GetSaveCallback().Run(
-        ukm::kInvalidSourceId, media::learning::FeatureValue(0), kIsTopFrame,
-        prediction_features, prediction_targets, kPlayerId,
-        run_loop.QuitWhenIdleClosure());
+        ukm::kInvalidSourceId, kIsTopFrame, prediction_features,
+        prediction_targets, kPlayerId, run_loop.QuitWhenIdleClosure());
     run_loop.Run();
   }
 
@@ -810,172 +812,6 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest, HistoryDeletion) {
   EXPECT_FALSE(HasDataForType(kType));
 }
 
-// ChromeOS users cannot sign out, their account preferences can never be
-// cleared.
-#if !BUILDFLAG(IS_CHROMEOS)
-
-IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest,
-                       ClearingCookiesAlsoClearsPasswordAccountStorageOptIn) {
-  const char kTestEmail[] = "foo@gmail.com";
-  PrefService* prefs = GetProfile()->GetPrefs();
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(GetProfile());
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(GetProfile());
-  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                      signin::ConsentLevel::kSignin);
-
-  // TODO(crbug.com/375024026): Revisit.
-  sync_service->GetUserSettings()->SetSelectedType(
-      syncer::UserSelectableType::kPasswords, false);
-  ASSERT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      prefs, sync_service));
-
-  signin::ClearPrimaryAccount(identity_manager);
-  RemoveAndWait(chrome_browsing_data_remover::DATA_TYPE_SITE_DATA);
-  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                      signin::ConsentLevel::kSignin);
-
-  EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      prefs, sync_service));
-}
-
-IN_PROC_BROWSER_TEST_F(
-    BrowsingDataRemoverBrowserTest,
-    ClearingCookiesWithFilterAlsoClearsPasswordAccountStorageSetting) {
-  const char kTestEmail[] = "foo@gmail.com";
-  PrefService* prefs = GetProfile()->GetPrefs();
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(GetProfile());
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(GetProfile());
-  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                      signin::ConsentLevel::kSignin);
-
-  sync_service->GetUserSettings()->SetSelectedType(
-      syncer::UserSelectableType::kPasswords, false);
-  ASSERT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      prefs, sync_service));
-
-  // Clearing cookies for some random domain should have no effect on the
-  // setting.
-  signin::ClearPrimaryAccount(identity_manager);
-  {
-    std::unique_ptr<BrowsingDataFilterBuilder> filter_builder =
-        BrowsingDataFilterBuilder::Create(
-            BrowsingDataFilterBuilder::Mode::kDelete);
-    filter_builder->AddRegisterableDomain("example.com");
-    RemoveWithFilterAndWait(chrome_browsing_data_remover::DATA_TYPE_SITE_DATA,
-                            std::move(filter_builder));
-  }
-  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                      signin::ConsentLevel::kSignin);
-  EXPECT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-      prefs, sync_service));
-
-  // Clearing cookies for google.com should clear the setting.
-  signin::ClearPrimaryAccount(identity_manager);
-  {
-    std::unique_ptr<BrowsingDataFilterBuilder> filter_builder =
-        BrowsingDataFilterBuilder::Create(
-            BrowsingDataFilterBuilder::Mode::kDelete);
-    filter_builder->AddRegisterableDomain("google.com");
-    RemoveWithFilterAndWait(chrome_browsing_data_remover::DATA_TYPE_SITE_DATA,
-                            std::move(filter_builder));
-  }
-  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                      signin::ConsentLevel::kSignin);
-  EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-      prefs, sync_service));
-}
-
-IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest, ClearSiteData) {
-  const char kTestEmail[] = "foo@gmail.com";
-  PrefService* prefs = GetProfile()->GetPrefs();
-  syncer::SyncService* sync_service =
-      SyncServiceFactory::GetForProfile(GetProfile());
-  signin::IdentityManager* identity_manager =
-      IdentityManagerFactory::GetForProfile(GetProfile());
-  signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                      signin::ConsentLevel::kSignin);
-
-  const GURL kFirstPartyURL("https://google.com");
-  const GURL kCrossSiteURL("https://example.com");
-
-  struct TestCases {
-    const url::Origin origin;
-    const std::optional<net::CookiePartitionKey> cookie_partition_key;
-    const std::optional<blink::StorageKey> storage_key;
-    bool expects_keep_optin_pref;
-  };
-  const auto test_cases = std::to_array<TestCases>({
-      {
-          url::Origin::Create(kFirstPartyURL),
-          std::nullopt,
-          std::nullopt,
-          false,
-      },
-      {
-          url::Origin::Create(kCrossSiteURL),
-          std::nullopt,
-          std::nullopt,
-          true,
-      },
-      {
-          url::Origin::Create(kFirstPartyURL),
-          net::CookiePartitionKey::FromURLForTesting(kFirstPartyURL),
-          std::nullopt,
-          false,
-      },
-      {
-          url::Origin::Create(kFirstPartyURL),
-          net::CookiePartitionKey::FromURLForTesting(kFirstPartyURL),
-          blink::StorageKey::CreateFirstParty(
-              url::Origin::Create(kFirstPartyURL)),
-          false,
-      },
-      {
-          url::Origin::Create(kFirstPartyURL),
-          net::CookiePartitionKey::FromURLForTesting(kCrossSiteURL),
-          std::nullopt,
-          true,
-      },
-      {
-          url::Origin::Create(kFirstPartyURL),
-          net::CookiePartitionKey::FromURLForTesting(kCrossSiteURL),
-          blink::StorageKey::Create(
-              url::Origin::Create(kCrossSiteURL),
-              net::SchemefulSite(url::Origin::Create(kFirstPartyURL)),
-              blink::mojom::AncestorChainBit::kCrossSite),
-          true,
-      },
-  });
-  for (size_t i = 0; i < std::size(test_cases); i++) {
-    SCOPED_TRACE(base::StringPrintf("Test case %zu", i));
-    const auto& test_case = test_cases[i];
-
-    sync_service->GetUserSettings()->SetSelectedType(
-        syncer::UserSelectableType::kPasswords, false);
-    ASSERT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-        prefs, sync_service));
-    signin::ClearPrimaryAccount(identity_manager);
-    ClearSiteDataAndWait(test_case.origin, test_case.cookie_partition_key,
-                         test_case.storage_key, {});
-    signin::MakePrimaryAccountAvailable(identity_manager, kTestEmail,
-                                        signin::ConsentLevel::kSignin);
-
-    if (test_case.expects_keep_optin_pref) {
-      EXPECT_FALSE(password_manager::features_util::IsAccountStorageEnabled(
-          prefs, sync_service));
-    } else {
-      EXPECT_TRUE(password_manager::features_util::IsAccountStorageEnabled(
-          prefs, sync_service));
-    }
-  }
-}
-
-#endif  // !BUILDFLAG(IS_CHROMEOS)
-
 // Storage Buckets
 
 class BrowsingDataRemoverStorageBucketsBrowserTest
@@ -1115,10 +951,6 @@ const std::vector<std::string_view> kDoesNotSupportOriginFilteringDelegate{
 #if BUILDFLAG(IS_CHROMEOS)
     "TpmAttestationKeys",
 #endif
-#if BUILDFLAG(ENABLE_NACL)
-    "NaclCache",
-    "PnaclCache",
-#endif
 };
 
 // See comment on FullyFilteredDataTypes test for advice when this test fails.
@@ -1159,8 +991,16 @@ IN_PROC_BROWSER_TEST_P(BrowsingDataRemoverBrowserTestP,
 }
 
 // Regression test for https://crbug.com/1216406.
+// TODO(crbug.com/413259587): Re-enable this test once the flakiness is fixed.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_BrowserContextDestructionVsCookieRemoval \
+  DISABLED_BrowserContextDestructionVsCookieRemoval
+#else
+#define MAYBE_BrowserContextDestructionVsCookieRemoval \
+  BrowserContextDestructionVsCookieRemoval
+#endif
 IN_PROC_BROWSER_TEST_P(BrowsingDataRemoverBrowserTestP,
-                       BrowserContextDestructionVsCookieRemoval) {
+                       MAYBE_BrowserContextDestructionVsCookieRemoval) {
   // Open an incognito browser.
   UseIncognitoBrowser();
 
@@ -1494,11 +1334,6 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest,
 const std::vector<std::string> kStorageTypes{
     "Cookie",    "LocalStorage",  "FileSystem",   "SessionStorage",
     "IndexedDb", "ServiceWorker", "CacheStorage", "MediaLicense",
-// TODO(crbug.com/333756088): WebSQL is disabled everywhere except Android
-// WebView.
-#if BUILDFLAG(IS_ANDROID)
-    "WebSql",
-#endif
 };
 
 // Test that storage doesn't leave any traces on disk.
@@ -1571,11 +1406,6 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest, StorageRemovedFromDisk) {
 const std::vector<std::string> kSessionOnlyStorageTestTypes{
     "Cookie",    "LocalStorage",  "FileSystem",   "SessionStorage",
     "IndexedDb", "ServiceWorker", "CacheStorage", "MediaLicense",
-// TODO(crbug.com/333756088): WebSQL is disabled everywhere except Android
-// WebView.
-#if BUILDFLAG(IS_ANDROID)
-    "WebSql",
-#endif
 };
 
 // Test that storage gets deleted if marked as SessionOnly.
@@ -1618,12 +1448,28 @@ IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest,
 // Test that removing passwords, when System-proxy is enabled on Chrome OS,
 // sends a request to System-proxy to clear the cached user credentials.
 IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest,
-                       SystemProxyClearsUserCredentials) {
+                       SystemProxyClearsUserCredentials_RemovePasswords) {
   ash::SystemProxyManager::Get()->SetSystemProxyEnabledForTest(true);
   EXPECT_EQ(0, ash::SystemProxyClient::Get()
                    ->GetTestInterface()
                    ->GetClearUserCredentialsCount());
   RemoveAndWait(chrome_browsing_data_remover::DATA_TYPE_PASSWORDS);
+
+  EXPECT_EQ(1, ash::SystemProxyClient::Get()
+                   ->GetTestInterface()
+                   ->GetClearUserCredentialsCount());
+}
+
+// Test that removing cookies, when System-proxy is enabled on Chrome OS and
+// kDbdRevampDesktop is enabled, sends a request to System-proxy to clear the
+// cached user credentials.
+IN_PROC_BROWSER_TEST_F(BrowsingDataRemoverBrowserTest,
+                       SystemProxyClearsUserCredentials_RemoveCookies) {
+  ash::SystemProxyManager::Get()->SetSystemProxyEnabledForTest(true);
+  EXPECT_EQ(0, ash::SystemProxyClient::Get()
+                   ->GetTestInterface()
+                   ->GetClearUserCredentialsCount());
+  RemoveAndWait(content::BrowsingDataRemover::DATA_TYPE_COOKIES);
 
   EXPECT_EQ(1, ash::SystemProxyClient::Get()
                    ->GetTestInterface()

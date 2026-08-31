@@ -116,6 +116,7 @@ breakBefore
 breakInside
 bufferedRendering
 captionSide
+caretAnimation
 caretColor
 clear
 clip
@@ -147,6 +148,23 @@ containerName
 containerType
 content
 contentVisibility
+cornerBlockEndShape
+cornerBlockStartShape
+cornerBottomLeftShape
+cornerBottomRightShape
+cornerBottomShape
+cornerEndEndShape
+cornerEndStartShape
+cornerInlineEndShape
+cornerInlineStartShape
+cornerLeftShape
+cornerRightShape
+cornerShape
+cornerStartEndShape
+cornerStartStartShape
+cornerTopLeftShape
+cornerTopRightShape
+cornerTopShape
 counterIncrement
 counterReset
 counterSet
@@ -372,6 +390,7 @@ readingFlow
 readingOrder
 removeProperty
 resize
+result
 right
 rotate
 rowGap
@@ -408,6 +427,7 @@ scrollPaddingTop
 scrollSnapAlign
 scrollSnapStop
 scrollSnapType
+scrollTargetGroup
 scrollTimeline
 scrollTimelineAxis
 scrollTimelineName
@@ -443,6 +463,7 @@ tableLayout
 textAlign
 textAlignLast
 textAnchor
+textAutospace
 textBox
 textBoxEdge
 textBoxTrim
@@ -495,6 +516,7 @@ viewTimelineAxis
 viewTimelineInset
 viewTimelineName
 viewTransitionClass
+viewTransitionGroup
 viewTransitionName
 visibility
 webkitAlignContent

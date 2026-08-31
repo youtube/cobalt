@@ -45,7 +45,6 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
 
   // Called by the Java implementation when the notification has been clicked.
   void OnNotificationClicked(JNIEnv* env,
-                             const jni_zero::JavaParamRef<jobject>& java_object,
                              std::string& notification_id,
                              jint java_notification_type,
                              std::string& origin,
@@ -60,13 +59,11 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
   // is done.
   void StoreCachedWebApkPackageForNotificationId(
       JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& java_object,
       std::string& notification_id,
       std::string& webapk_package);
 
   // Called by the Java implementation when the notification has been closed.
   void OnNotificationClosed(JNIEnv* env,
-                            const jni_zero::JavaParamRef<jobject>& java_object,
                             std::string& notification_id,
                             jint java_notification_type,
                             std::string& origin,
@@ -78,7 +75,6 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
   // from notification from this origin.
   void OnNotificationDisablePermission(
       JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& java_object,
       std::string& otification_id,
       jint java_notification_type,
       std::string& origin,
@@ -90,14 +86,12 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
   // is enabled.
   void SetIsSuspiciousParameterForTesting(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& java_object,
       bool is_suspicious);
 
   // Called by the Java implementation when the user decides they want to report
   // their notification contents as safe to the server.
   void OnReportNotificationAsSafe(
       JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& java_object,
       std::string& notification_id,
       std::string& origin,
       std::string& profile_id,
@@ -107,7 +101,6 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
   // their warned notification contents as spam to the server.
   void OnReportWarnedNotificationAsSpam(
       JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& java_object,
       std::string& notification_id,
       std::string& origin,
       std::string& profile_id,
@@ -117,17 +110,25 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
   // their unwarned notification contents as spam to the server.
   void OnReportUnwarnedNotificationAsSpam(
       JNIEnv* env,
-      const jni_zero::JavaParamRef<jobject>& java_object,
       std::string& notification_id,
       std::string& origin,
       std::string& profile_id,
       jboolean incognito);
 
+  void OnNotificationShowOriginalNotification(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jobject>& java_object,
+      std::string& origin,
+      std::string& profile_id,
+      jboolean incognito);
+
+  void OnShowOriginalNotification(const GURL& url);
+
   // Called by the Java implementation when the user decides they no longer want
   // to receive warnings for suspicious notifications that come from `origin`.
   void OnNotificationAlwaysAllowFromOrigin(
       JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& java_object,
+      std::string& notification_id,
       std::string& origin,
       std::string& profile_id,
       jboolean incognito);
@@ -155,7 +156,9 @@ class NotificationPlatformBridgeAndroid : public NotificationPlatformBridge {
   // Change user setting so that suspicious notifications from `url` are always
   // sent to the user. Then, send a new notification from Chrome to the user
   // informing them that their choice to "always allow" has been applied.
-  void AlwaysAllowNotifications(const GURL& url, Profile* profile);
+  void AlwaysAllowNotifications(const GURL& url,
+                                const std::string& notification_id,
+                                Profile* profile);
 
   // Contains information necessary in order to enable closing notifications
   // that were not created by this instance of the manager. This list may not

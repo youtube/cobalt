@@ -35,7 +35,6 @@ import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.g
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.mergeAllNormalTabsToAGroup;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.verifyTabModelTabCount;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiTestHelper.verifyTabSwitcherCardCount;
-import static org.chromium.components.embedder_support.util.UrlConstants.NTP_URL;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import android.content.res.ColorStateList;
@@ -69,12 +68,12 @@ import org.junit.runner.RunWith;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.Token;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -95,8 +94,10 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.undo_tab_close_snackbar.UndoBarController;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.util.ActivityTestUtils;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.MenuUtils;
@@ -128,10 +129,9 @@ import java.util.concurrent.ExecutionException;
 @DisableFeatures(ChromeFeatureList.TAB_GROUP_PARITY_BOTTOM_SHEET_ANDROID)
 @Restriction({DeviceFormFactor.PHONE, Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE})
 public class TabSwitcherLayoutTest {
-    private static final String TEST_URL = "/chrome/test/data/android/google.html";
-
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @SuppressWarnings("FieldCanBeLocal")
     private EmbeddedTestServer mTestServer;
@@ -142,13 +142,14 @@ public class TabSwitcherLayoutTest {
     private final Callback<Bitmap> mBitmapListener =
             (bitmap) -> mAllBitmaps.add(new WeakReference<>(bitmap));
     private ModalDialogManager mModalDialogManager;
+    private RegularNewTabPageStation mNtp;
 
     @Before
     public void setUp() throws ExecutionException {
         mTestServer = mActivityTestRule.getTestServer();
 
         // After setUp, Chrome is launched and has one NTP.
-        mActivityTestRule.startMainActivityWithURL(NTP_URL);
+        mNtp = mActivityTestRule.startOnNtp();
 
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         mUrl = mTestServer.getURL("/chrome/test/data/android/navigate/simple.html");
@@ -178,7 +179,8 @@ public class TabSwitcherLayoutTest {
      * @param url The URL to load.
      */
     private void prepareTabs(int numTabs, int numIncognitoTabs, @Nullable String url) {
-        TabUiTestHelper.prepareTabsWithThumbnail(mActivityTestRule, numTabs, numIncognitoTabs, url);
+        TabUiTestHelper.prepareTabsWithThumbnail(
+                mActivityTestRule.getActivityTestRule(), numTabs, numIncognitoTabs, url);
     }
 
     @Test
@@ -417,7 +419,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/397901349")
     public void testUndoClosure_AccessibilityMode() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> ChromeAccessibilityUtil.get().setAccessibilityEnabledForTesting(true));
@@ -573,9 +574,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     @DisabledTest(message = "crbug.com/360393681")
     public void testTabGroupOverflowMenuInTabSwitcher_ungroupAccept() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -686,9 +684,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     @DisabledTest(message = "Flaky - crbug.com/353463207")
     public void testTabGroupOverflowMenuInTabSwitcher_deleteGroupAccept() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -721,9 +716,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     @DisabledTest(message = "crbug.com/360393681")
     public void testTabGroupOverflowMenuInTabSwitcher_noDeleteIncognito() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -761,9 +753,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     @DisabledTest(message = "crbug.com/353463207")
     public void testTabGroupOverflowMenuInTabSwitcher_deleteGroupDecline() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -796,9 +785,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     @DisabledTest(message = "crbug.com/360393681")
     public void testTabGroupOverflowMenuInTabSwitcher_deleteGroupDoNotShowAgain() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -877,9 +863,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @DisableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     public void testTabGroupDialogSingleTab() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         createTabs(cta, false, 1);
@@ -893,9 +876,6 @@ public class TabSwitcherLayoutTest {
 
     @Test
     @MediumTest
-    @DisableFeatures({
-        ChromeFeatureList.TAB_GROUP_SYNC_ANDROID,
-    })
     @DisabledTest(message = "crbug.com/360393681")
     public void testTabGroupOverflowMenuInTabSwitcher_deleteGroupNoShowSyncDisabled() {
         final ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -934,13 +914,13 @@ public class TabSwitcherLayoutTest {
                         Arrays.asList(normalTabModel.getTabAt(0), normalTabModel.getTabAt(1)));
         createTabGroup(cta, false, tabGroup);
         ThreadUtils.runOnUiThreadBlocking(
-                () -> filter.setTabGroupTitle(normalTabModel.getTabAt(0).getRootId(), "Foo"));
+                () -> filter.setTabGroupTitle(normalTabModel.getTabAt(0).getTabGroupId(), "Foo"));
         verifyTabSwitcherCardCount(cta, 2);
 
         // Assert default color was set properly.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(0).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(0).getTabGroupId()));
 
         // Merge tab group of 2 at first index with the 3rd tab.
         mergeAllNormalTabsToAGroup(cta);
@@ -951,7 +931,7 @@ public class TabSwitcherLayoutTest {
         // Assert the default color is still the tab group color
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(0).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(0).getTabGroupId()));
 
         // Undo merge in tab switcher.
         verifyTabSwitcherCardCount(cta, 1);
@@ -960,15 +940,15 @@ public class TabSwitcherLayoutTest {
         verifyTabSwitcherCardCount(cta, 2);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    Tab tab0 = normalTabModel.getTabAt(0);
+                    Tab tab1 = normalTabModel.getTabAt(1);
+                    Tab tab2 = normalTabModel.getTabAt(2);
+                    assertEquals(tab0.getTabGroupId(), tab1.getTabGroupId());
+                    assertEquals(tab0.getTabGroupId(), tab1.getTabGroupId());
+                    assertNull(tab2.getTabGroupId());
+                    assertEquals("Foo", filter.getTabGroupTitle(tab1.getTabGroupId()));
                     assertEquals(
-                            "Foo", filter.getTabGroupTitle(normalTabModel.getTabAt(1).getRootId()));
-                    assertNull(filter.getTabGroupTitle(normalTabModel.getTabAt(2).getRootId()));
-                    assertEquals(
-                            nextSuggestedColorId,
-                            filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
-                    assertEquals(
-                            TabGroupColorUtils.INVALID_COLOR_ID,
-                            filter.getTabGroupColor(normalTabModel.getTabAt(2).getRootId()));
+                            nextSuggestedColorId, filter.getTabGroupColor(tab1.getTabGroupId()));
                 });
     }
 
@@ -1027,7 +1007,7 @@ public class TabSwitcherLayoutTest {
         // Assert default color 1 was set properly.
         assertEquals(
                 nextSuggestedColorId1,
-                filter.getTabGroupColor(normalTabModel.getTabAt(4).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(4).getTabGroupId()));
 
         // Get the next suggested color id.
         int nextSuggestedColorId2 =
@@ -1045,14 +1025,14 @@ public class TabSwitcherLayoutTest {
         verifyTabSwitcherCardCount(cta, 3);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    filter.setTabGroupTitle(normalTabModel.getTabAt(3).getRootId(), "Foo");
-                    filter.setTabGroupTitle(normalTabModel.getTabAt(1).getRootId(), "Bar");
+                    filter.setTabGroupTitle(normalTabModel.getTabAt(3).getTabGroupId(), "Foo");
+                    filter.setTabGroupTitle(normalTabModel.getTabAt(1).getTabGroupId(), "Bar");
                 });
 
         // Assert default color 2 was set properly.
         assertEquals(
                 nextSuggestedColorId2,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
 
         // Merge the two tab groups into a group.
         List<Tab> tabGroup3 =
@@ -1066,7 +1046,7 @@ public class TabSwitcherLayoutTest {
         // Assert default color 2 was set as the overall merged group color.
         assertEquals(
                 nextSuggestedColorId2,
-                filter.getTabGroupColor(normalTabModel.getTabAt(3).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(3).getTabGroupId()));
 
         // Undo merge in tab switcher.
         verifyTabSwitcherCardCount(cta, 2);
@@ -1076,15 +1056,17 @@ public class TabSwitcherLayoutTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     assertEquals(
-                            "Foo", filter.getTabGroupTitle(normalTabModel.getTabAt(4).getRootId()));
+                            "Foo",
+                            filter.getTabGroupTitle(normalTabModel.getTabAt(4).getTabGroupId()));
                     assertEquals(
-                            "Bar", filter.getTabGroupTitle(normalTabModel.getTabAt(0).getRootId()));
+                            "Bar",
+                            filter.getTabGroupTitle(normalTabModel.getTabAt(0).getTabGroupId()));
                     assertEquals(
                             nextSuggestedColorId1,
-                            filter.getTabGroupColor(normalTabModel.getTabAt(4).getRootId()));
+                            filter.getTabGroupColor(normalTabModel.getTabAt(4).getTabGroupId()));
                     assertEquals(
                             nextSuggestedColorId2,
-                            filter.getTabGroupColor(normalTabModel.getTabAt(0).getRootId()));
+                            filter.getTabGroupColor(normalTabModel.getTabAt(0).getTabGroupId()));
                 });
     }
 
@@ -1116,7 +1098,7 @@ public class TabSwitcherLayoutTest {
         // Assert default color 1 was set properly.
         assertEquals(
                 nextSuggestedColorId1,
-                filter.getTabGroupColor(normalTabModel.getTabAt(4).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(4).getTabGroupId()));
 
         // Get the next suggested color id.
         int nextSuggestedColorId2 =
@@ -1136,7 +1118,7 @@ public class TabSwitcherLayoutTest {
         // Assert default color 2 was set properly.
         assertEquals(
                 nextSuggestedColorId2,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
 
         // Verify the 2nd tab group is selected.
         verifyItemSelectedAtPosition(2);
@@ -1153,7 +1135,7 @@ public class TabSwitcherLayoutTest {
         // Assert default color 2 was set as the overall merged group color.
         assertEquals(
                 nextSuggestedColorId2,
-                filter.getTabGroupColor(normalTabModel.getTabAt(3).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(3).getTabGroupId()));
 
         // After the merge, the tab group which was merged should now be selected.
         verifyItemSelectedAtPosition(0);
@@ -1191,19 +1173,16 @@ public class TabSwitcherLayoutTest {
                 new ArrayList<>(
                         Arrays.asList(normalTabModel.getTabAt(0), normalTabModel.getTabAt(1)));
         createTabGroup(cta, false, tabGroup);
-        int[] ungroupedRootId = new int[1];
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    filter.setTabGroupTitle(normalTabModel.getTabAt(0).getRootId(), "Foo");
-                    ungroupedRootId[0] = normalTabModel.getTabAt(2).getRootId();
-                    filter.setTabGroupTitle(ungroupedRootId[0], "Bar");
+                    filter.setTabGroupTitle(normalTabModel.getTabAt(0).getTabGroupId(), "Foo");
                 });
         verifyTabSwitcherCardCount(cta, 2);
 
         // Assert default color was set properly.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
 
         // Merge tab group of 2 at first index with the 3rd tab.
         mergeAllNormalTabsToAGroup(cta);
@@ -1214,22 +1193,21 @@ public class TabSwitcherLayoutTest {
         // Assert default color was set properly for the overall merged group.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(2).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(2).getTabGroupId()));
 
-        // Check that the old group title was handed over when the group merge is committed
-        // and no longer exists.
+        // Check that the old group title was handed over when the group merge is committed.
         ThreadUtils.runOnUiThreadBlocking(() -> snackbarManager.dismissAllSnackbars());
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    assertNull(filter.getTabGroupTitle(ungroupedRootId[0]));
                     assertEquals(
-                            "Foo", filter.getTabGroupTitle(normalTabModel.getTabAt(0).getRootId()));
+                            "Foo",
+                            filter.getTabGroupTitle(normalTabModel.getTabAt(0).getTabGroupId()));
                 });
 
         // Assert color still exists post snackbar dismissal.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
     }
 
     @Test
@@ -1263,10 +1241,10 @@ public class TabSwitcherLayoutTest {
         // Assert default color was set properly.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
         ThreadUtils.runOnUiThreadBlocking(() -> snackbarManager.dismissAllSnackbars());
 
-        // Temporarily save the tab to get the rootId later.
+        // Temporarily save the tab to get the tab group id later.
         Tab tab2 = normalTabModel.getTabAt(1);
 
         closeFirstTabGroupInTabSwitcher(cta);
@@ -1275,16 +1253,13 @@ public class TabSwitcherLayoutTest {
                         instanceof UndoBarController);
         verifyTabSwitcherCardCount(cta, 0);
 
-        // Default color should still persist, though the root id might change.
-        assertEquals(nextSuggestedColorId, filter.getTabGroupColor(tab2.getRootId()));
-
         CriteriaHelper.pollInstrumentationThread(TabUiTestHelper::verifyUndoBarShowingAndClickUndo);
         verifyTabSwitcherCardCount(cta, 1);
 
         // Assert default color still persists.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
     }
 
     @Test
@@ -1318,12 +1293,12 @@ public class TabSwitcherLayoutTest {
         // Assert default color was set properly.
         assertEquals(
                 nextSuggestedColorId,
-                filter.getTabGroupColor(normalTabModel.getTabAt(1).getRootId()));
+                filter.getTabGroupColor(normalTabModel.getTabAt(1).getTabGroupId()));
         ThreadUtils.runOnUiThreadBlocking(() -> snackbarManager.dismissAllSnackbars());
 
         // Temporarily save the rootID to check during closure.
         Tab tab2 = normalTabModel.getTabAt(1);
-        int groupRootId = tab2.getRootId();
+        Token groupId = tab2.getTabGroupId();
 
         closeFirstTabGroupInTabSwitcher(cta);
         assertTrue(
@@ -1331,21 +1306,7 @@ public class TabSwitcherLayoutTest {
                         instanceof UndoBarController);
         verifyTabSwitcherCardCount(cta, 0);
 
-        // Default color should still persist, though the root id might change.
-        assertEquals(nextSuggestedColorId, filter.getTabGroupColor(tab2.getRootId()));
-
         ThreadUtils.runOnUiThreadBlocking(() -> snackbarManager.dismissAllSnackbars());
-
-        // Assert default color is cleared.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    assertEquals(
-                            TabGroupColorUtils.INVALID_COLOR_ID,
-                            filter.getTabGroupColor(groupRootId));
-                    assertEquals(
-                            TabGroupColorUtils.INVALID_COLOR_ID,
-                            filter.getTabGroupColor(tab2.getRootId()));
-                });
     }
 
     private void enterTabListEditor(ChromeTabbedActivity cta) {
@@ -1499,7 +1460,7 @@ public class TabSwitcherLayoutTest {
                         matches(
                                 RecyclerViewMatcherUtils.atPosition(
                                         position,
-                                        new BoundedMatcher<View, TabGridView>(TabGridView.class) {
+                                        new BoundedMatcher<>(TabGridView.class) {
 
                                             @Override
                                             protected boolean matchesSafely(

@@ -8,7 +8,6 @@
 
 #include "build/build_config.h"
 #include "ui/gl/gpu_preference.h"
-#include "ui/gl/startup_trace.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
@@ -37,6 +36,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
+#include "base/trace_event/trace_event.h"
 #include "gpu/config/device_perf_info.h"
 #include "gpu/config/gpu_blocklist.h"
 #include "gpu/config/gpu_crash_keys.h"
@@ -304,6 +304,25 @@ GpuFeatureStatus GetWebNNFeatureStatus(
   return kGpuFeatureStatusEnabled;
 }
 
+GpuFeatureStatus GetDrDCFeatureStatus(const std::set<int>& blocklisted_features,
+                                      GpuFeatureStatus graphite_status) {
+  if (blocklisted_features.count(
+          GPU_FEATURE_TYPE_DIRECT_RENDERING_DISPLAY_COMPOSITOR)) {
+    return kGpuFeatureStatusDisabled;
+  }
+
+#if BUILDFLAG(IS_MAC)
+  // GetSkiaGraphiteFeatureStatus should be called before reaching here.
+  DCHECK_NE(kGpuFeatureStatusUndefined, graphite_status);
+  if (graphite_status != gpu::kGpuFeatureStatusEnabled) {
+    return kGpuFeatureStatusDisabled;
+  }
+#endif
+
+  return features::ShouldEnableDrDc() ? kGpuFeatureStatusEnabled
+                                      : kGpuFeatureStatusDisabled;
+}
+
 void SetProcessGlWorkaroundsFromGpuFeatures(
     const GpuFeatureInfo& gpu_feature_info) {
   const auto is_enabled =
@@ -451,6 +470,9 @@ GpuFeatureInfo ComputeGpuFeatureInfoWithNoGpu() {
       kGpuFeatureStatusDisabled;
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_WEBNN] =
       kGpuFeatureStatusSoftware;
+  gpu_feature_info
+      .status_values[GPU_FEATURE_TYPE_DIRECT_RENDERING_DISPLAY_COMPOSITOR] =
+      kGpuFeatureStatusDisabled;
 #if DCHECK_IS_ON()
   for (int ii = 0; ii < NUMBER_OF_GPU_FEATURE_TYPES; ++ii) {
     DCHECK_NE(kGpuFeatureStatusUndefined, gpu_feature_info.status_values[ii]);
@@ -485,6 +507,9 @@ GpuFeatureInfo ComputeGpuFeatureInfoForSoftwareGL() {
       kGpuFeatureStatusDisabled;
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_WEBNN] =
       kGpuFeatureStatusSoftware;
+  gpu_feature_info
+      .status_values[GPU_FEATURE_TYPE_DIRECT_RENDERING_DISPLAY_COMPOSITOR] =
+      kGpuFeatureStatusDisabled;
 #if DCHECK_IS_ON()
   for (int ii = 0; ii < NUMBER_OF_GPU_FEATURE_TYPES; ++ii) {
     DCHECK_NE(kGpuFeatureStatusUndefined, gpu_feature_info.status_values[ii]);
@@ -497,7 +522,7 @@ GpuFeatureInfo ComputeGpuFeatureInfo(const GPUInfo& gpu_info,
                                      const GpuPreferences& gpu_preferences,
                                      base::CommandLine* command_line,
                                      bool* needs_more_info) {
-  GPU_STARTUP_TRACE_EVENT("gpu_util::ComputeGpuFeatureInfo");
+  TRACE_EVENT("gpu,startup", "gpu_util::ComputeGpuFeatureInfo");
   bool use_software_gl = false;
   bool blocklist_needs_more_info = false;
 
@@ -587,6 +612,11 @@ GpuFeatureInfo ComputeGpuFeatureInfo(const GPUInfo& gpu_info,
       GetSkiaGraphiteFeatureStatus(blocklisted_features, gpu_preferences);
   gpu_feature_info.status_values[GPU_FEATURE_TYPE_WEBNN] =
       GetWebNNFeatureStatus(blocklisted_features);
+  gpu_feature_info
+      .status_values[GPU_FEATURE_TYPE_DIRECT_RENDERING_DISPLAY_COMPOSITOR] =
+      GetDrDCFeatureStatus(
+          blocklisted_features,
+          gpu_feature_info.status_values[GPU_FEATURE_TYPE_SKIA_GRAPHITE]);
 #if DCHECK_IS_ON()
   for (int ii = 0; ii < NUMBER_OF_GPU_FEATURE_TYPES; ++ii) {
     DCHECK_NE(kGpuFeatureStatusUndefined, gpu_feature_info.status_values[ii]);
@@ -773,12 +803,20 @@ bool EnableSwiftShaderIfNeeded(base::CommandLine* command_line,
                                const GpuFeatureInfo& gpu_feature_info,
                                bool disable_software_rasterizer,
                                bool blocklist_needs_more_info) {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  if (gpu_feature_info.IsWorkaroundEnabled(FORCE_PHYSICAL_GPU_FOR_TESTING)) {
+    return false;
+  }
+#endif  // IS_WIN || IS_MAC
+
 #if BUILDFLAG(ENABLE_SWIFTSHADER)
   if (disable_software_rasterizer || blocklist_needs_more_info)
     return false;
   // Don't overwrite user preference.
-  if (command_line->HasSwitch(switches::kUseGL))
+  if (gl::GetRequestedGLImplementationFromCommandLine(command_line)
+          .has_value()) {
     return false;
+  }
   if (gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_WEBGL] !=
           kGpuFeatureStatusEnabled ||
       gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_GL] !=

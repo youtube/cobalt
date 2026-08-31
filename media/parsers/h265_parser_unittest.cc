@@ -16,10 +16,10 @@
 #include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/files/memory_mapped_file.h"
-#include "base/functional/overloaded.h"
 #include "base/logging.h"
 #include "media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace media {
 
@@ -588,28 +588,55 @@ TEST_F(H265ParserTest, RecursiveSEIParsing) {
   EXPECT_EQ(clli_mdcv_sei.msgs.size(), 2u);
 
   for (const auto& sei_msg : clli_mdcv_sei.msgs) {
-    std::visit(base::Overloaded{
-                   [](const H265SEIContentLightLevelInfo& info) {
-                     EXPECT_EQ(info.max_content_light_level, 1000u);
-                     EXPECT_EQ(info.max_picture_average_light_level, 200u);
-                   },
-                   [](const H265SEIMasteringDisplayInfo& info) {
-                     EXPECT_EQ(info.display_primaries[0][0], 13249u);
-                     EXPECT_EQ(info.display_primaries[0][1], 34499u);
-                     EXPECT_EQ(info.display_primaries[1][0], 7500u);
-                     EXPECT_EQ(info.display_primaries[1][1], 2999u);
-                     EXPECT_EQ(info.display_primaries[2][0], 34000u);
-                     EXPECT_EQ(info.display_primaries[2][1], 15999u);
-                     EXPECT_EQ(info.white_points[0], 15635u);
-                     EXPECT_EQ(info.white_points[1], 16449u);
-                     EXPECT_EQ(info.max_luminance, 10000000u);
-                     EXPECT_EQ(info.min_luminance, 50u);
-                   },
-                   [](const auto&) {
-                     EXPECT_TRUE(false) << "Unexpected message type!";
-                   }},
-               sei_msg);
+    std::visit(
+        absl::Overload{[](const H265SEIContentLightLevelInfo& info) {
+                         EXPECT_EQ(info.max_content_light_level, 1000u);
+                         EXPECT_EQ(info.max_picture_average_light_level, 200u);
+                       },
+                       [](const H265SEIMasteringDisplayInfo& info) {
+                         EXPECT_EQ(info.display_primaries[0][0], 13249u);
+                         EXPECT_EQ(info.display_primaries[0][1], 34499u);
+                         EXPECT_EQ(info.display_primaries[1][0], 7500u);
+                         EXPECT_EQ(info.display_primaries[1][1], 2999u);
+                         EXPECT_EQ(info.display_primaries[2][0], 34000u);
+                         EXPECT_EQ(info.display_primaries[2][1], 15999u);
+                         EXPECT_EQ(info.white_points[0], 15635u);
+                         EXPECT_EQ(info.white_points[1], 16449u);
+                         EXPECT_EQ(info.max_luminance, 10000000u);
+                         EXPECT_EQ(info.min_luminance, 50u);
+                       },
+                       [](const auto&) {
+                         EXPECT_TRUE(false) << "Unexpected message type!";
+                       }},
+        sei_msg);
   }
+}
+
+TEST_F(H265ParserTest, ValidSubLayerCount) {
+  constexpr auto kStream = std::to_array<unsigned char>(
+      {0x00, 0x21, 0x21, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x4e,
+       0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x11, 0x00,
+       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x21, 0x21, 0x21, 0x21, 0x21, 0x21,
+       0x96, 0x03, 0x1c, 0x94, 0x0d, 0x24, 0xfd, 0x1f, 0x23, 0x45, 0x1b, 0x00,
+       0x00, 0x23, 0x45, 0x1b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00,
+       0x07, 0x40, 0x01, 0x40, 0x02, 0x00, 0x00, 0x00, 0x00, 0x21, 0x21, 0x21,
+       0x21, 0x21, 0x21, 0x96, 0x03, 0x1c, 0x94, 0x0d, 0x24, 0xfd, 0x1f, 0x23,
+       0x45, 0x1b, 0x00, 0x00, 0x23, 0x45, 0x00, 0x00, 0x21, 0x21, 0x21, 0x21,
+       0x21, 0x21, 0x04, 0x96, 0x03, 0x1c, 0x94, 0x0d, 0xa4, 0xfe, 0x21, 0x21,
+       0x21, 0x21, 0x21, 0x21, 0x96, 0x03, 0x1c, 0x94, 0x0d, 0x24, 0xfd, 0x1f,
+       0x23, 0x45, 0x00, 0x23, 0x45, 0x1b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07,
+       0x00, 0x00, 0x01, 0x40, 0x02, 0xff, 0xff});
+  H265Parser parser;
+  parser.SetStream(kStream.data(), kStream.size());
+
+  H265NALU target_nalu;
+  ASSERT_EQ(H265Parser::kOk, parser.AdvanceToNextNALU(&target_nalu));
+  EXPECT_EQ(target_nalu.nal_unit_type, H265NALU::PREFIX_SEI_NUT);
+  ASSERT_EQ(H265Parser::kOk, parser.AdvanceToNextNALU(&target_nalu));
+  EXPECT_EQ(target_nalu.nal_unit_type, H265NALU::VPS_NUT);
+
+  int unused_vps_id;
+  EXPECT_NE(H265Parser::kOk, parser.ParseVPS(&unused_vps_id));
 }
 
 }  // namespace media

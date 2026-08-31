@@ -33,7 +33,9 @@ import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.appmenu.AppMenuTestSupport;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ntp.RegularNewTabPageStation;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.test.EmbeddedTestServer;
@@ -46,7 +48,8 @@ public class SupervisedUserCriticalJourneysIntegrationTest {
     private static final String TEST_PAGE = "/chrome/test/data/android/test.html";
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     public final SigninTestRule mSigninTestRule = new SigninTestRule();
     private WebContents mWebContents;
@@ -55,9 +58,11 @@ public class SupervisedUserCriticalJourneysIntegrationTest {
     public final RuleChain mRuleChain =
             RuleChain.outerRule(mSigninTestRule).around(mActivityTestRule);
 
+    private RegularNewTabPageStation mNtp;
+
     @Before
     public void setUp() {
-        mActivityTestRule.startMainActivityWithURL(null);
+        mNtp = mActivityTestRule.startFromLauncherAtNtp();
         mSigninTestRule.addChildTestAccountThenWaitForSignin();
         mWebContents = mActivityTestRule.getWebContents();
     }
@@ -71,7 +76,7 @@ public class SupervisedUserCriticalJourneysIntegrationTest {
                             mActivityTestRule.getProfile(/* incognito= */ false), BLOCKED_SITE_URL);
                 });
 
-        EmbeddedTestServer testServer = mActivityTestRule.getEmbeddedTestServerRule().getServer();
+        EmbeddedTestServer testServer = mActivityTestRule.getTestServer();
         String blockedHost = testServer.getURLWithHostName(BLOCKED_SITE_URL, "/");
         mActivityTestRule.loadUrl(blockedHost);
 
@@ -107,13 +112,9 @@ public class SupervisedUserCriticalJourneysIntegrationTest {
     @Test
     @LargeTest
     public void matureSitesAreBlockedBySafeSites() throws Exception {
-        SupervisedUserSettingsTestUtils.setUpTestUrlLoaderFactoryHelper();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     SupervisedUserSettingsTestUtils.setKidsManagementResponseForTesting(
-                            mActivityTestRule.getProfile(/* incognito= */ false),
-                            /* isAllowed= */ false);
-                    SupervisedUserSettingsTestUtils.setSafeSearchResponseForTesting(
                             mActivityTestRule.getProfile(/* incognito= */ false),
                             /* isAllowed= */ false);
                 });
@@ -129,19 +130,14 @@ public class SupervisedUserCriticalJourneysIntegrationTest {
         Assert.assertFalse(title.isEmpty());
         WebsiteParentApprovalTestUtils.checkLocalApprovalsButtonIsVisible(mWebContents);
         WebsiteParentApprovalTestUtils.checkRemoteApprovalsButtonIsVisible(mWebContents);
-        SupervisedUserSettingsTestUtils.tearDownTestUrlLoaderFactoryHelper();
     }
 
     @Test
     @LargeTest
     public void regularSitesAreNotBlockedBySafeSites() throws Exception {
-        SupervisedUserSettingsTestUtils.setUpTestUrlLoaderFactoryHelper();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     SupervisedUserSettingsTestUtils.setKidsManagementResponseForTesting(
-                            mActivityTestRule.getProfile(/* incognito= */ false),
-                            /* isAllowed= */ true);
-                    SupervisedUserSettingsTestUtils.setSafeSearchResponseForTesting(
                             mActivityTestRule.getProfile(/* incognito= */ false),
                             /* isAllowed= */ true);
                 });
@@ -155,6 +151,5 @@ public class SupervisedUserCriticalJourneysIntegrationTest {
         Assert.assertFalse(tab.isShowingErrorPage());
         String title = mActivityTestRule.getActivity().getCurrentWebContents().getTitle();
         Assert.assertFalse(title.isEmpty());
-        SupervisedUserSettingsTestUtils.tearDownTestUrlLoaderFactoryHelper();
     }
 }

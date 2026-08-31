@@ -22,7 +22,6 @@
 #include "chrome/browser/background/background_contents_test_waiter.h"
 #include "chrome/browser/background/extensions/background_mode_manager.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/chrome_browser_main_extra_parts_nacl_deprecation.h"
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,7 +31,6 @@
 #include "chrome/browser/ui/extensions/application_launch.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/embedder_support/switches.h"
-#include "components/nacl/common/buildflags.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -45,10 +43,6 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "url/gurl.h"
-
-#if BUILDFLAG(ENABLE_NACL)
-#include "components/nacl/browser/nacl_process_host.h"
-#endif
 
 #if BUILDFLAG(IS_MAC)
 #include "base/apple/scoped_nsautorelease_pool.h"
@@ -174,43 +168,6 @@ class AppBackgroundPageApiTest : public extensions::ExtensionApiTest {
   base::ScopedTempDir app_dir_;
 };
 
-namespace {
-
-// Fixture to assist in testing v2 app background pages containing
-// Native Client embeds.
-class AppBackgroundPageNaClTest : public AppBackgroundPageApiTest {
- public:
-  AppBackgroundPageNaClTest() : extension_(nullptr) {
-    feature_list_.InitAndEnableFeature(kNaclAllow);
-  }
-  ~AppBackgroundPageNaClTest() override = default;
-
-  void SetUpOnMainThread() override {
-    AppBackgroundPageApiTest::SetUpOnMainThread();
-    extensions::ProcessManager::SetEventPageIdleTimeForTesting(1000);
-    extensions::ProcessManager::SetEventPageSuspendingTimeForTesting(1000);
-  }
-
-  const Extension* extension() { return extension_; }
-
- protected:
-  void LaunchTestingApp() {
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    base::FilePath app_dir;
-    base::PathService::Get(chrome::DIR_GEN_TEST_DATA, &app_dir);
-    app_dir = app_dir.AppendASCII(
-        "ppapi/tests/extensions/background_keepalive/newlib");
-    extension_ = LoadExtension(app_dir);
-    ASSERT_TRUE(extension_);
-  }
-
- private:
-  raw_ptr<const Extension> extension_;
-  base::test::ScopedFeatureList feature_list_;
-};
-
-}  // namespace
-
 // This test is meaningless if background mode is not enabled.
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
 IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, Basic) {
@@ -232,7 +189,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, Basic) {
       embedded_test_server()->port());
 
   base::FilePath app_dir;
-  BackgroundContentsClosedObserver closed_observer(browser()->profile());
+  BackgroundContentsClosedObserver closed_observer(profile());
   ASSERT_TRUE(CreateApp(app_manifest, &app_dir));
   ASSERT_TRUE(LoadExtension(app_dir));
   // Background mode should not be active until a background page is created.
@@ -306,7 +263,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, ManifestBackgroundPage) {
   const Extension* extension = GetSingleLoadedExtension();
   background_waiter.WaitForBackgroundContents(extension->id());
   BackgroundContents* background_contents =
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
+      BackgroundContentsServiceFactory::GetForProfile(profile())
           ->GetAppBackgroundContents((extension->id()));
   ASSERT_TRUE(background_contents);
 
@@ -325,7 +282,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, NoJsBackgroundPage) {
   // happen when window.open creates a background page that switches
   // RenderViewHosts. See http://crbug.com/165138.
   chrome::ShowTaskManager(browser());
-  BackgroundContentsCreationObserver creation_observer(browser()->profile());
+  BackgroundContentsCreationObserver creation_observer(profile());
 
   std::string app_manifest = base::StringPrintf(
       "{"
@@ -353,9 +310,8 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, NoJsBackgroundPage) {
 
   // There isn't a background page loaded initially.
   const Extension* extension = GetSingleLoadedExtension();
-  ASSERT_FALSE(
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
-          ->GetAppBackgroundContents(extension->id()));
+  ASSERT_FALSE(BackgroundContentsServiceFactory::GetForProfile(profile())
+                   ->GetAppBackgroundContents(extension->id()));
 
   BackgroundContentsTestWaiter background_waiter(profile());
   // The test makes sure that window.open returns null.
@@ -363,7 +319,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, NoJsBackgroundPage) {
   background_waiter.WaitForBackgroundContents(extension->id());
   // And after it runs there should be a background page.
   BackgroundContents* background_contents =
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
+      BackgroundContentsServiceFactory::GetForProfile(profile())
           ->GetAppBackgroundContents((extension->id()));
   ASSERT_TRUE(background_contents);
 
@@ -411,7 +367,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, NoJsManifestBackgroundPage) {
   const Extension* extension = GetSingleLoadedExtension();
   background_waiter.WaitForBackgroundContents(extension->id());
   BackgroundContents* background_contents =
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
+      BackgroundContentsServiceFactory::GetForProfile(profile())
           ->GetAppBackgroundContents((extension->id()));
   ASSERT_TRUE(background_contents);
 
@@ -555,9 +511,8 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, MAYBE_OpenThenClose) {
   ASSERT_TRUE(LoadExtension(app_dir));
   // There isn't a background page loaded initially.
   const Extension* extension = GetSingleLoadedExtension();
-  ASSERT_FALSE(
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
-          ->GetAppBackgroundContents(extension->id()));
+  ASSERT_FALSE(BackgroundContentsServiceFactory::GetForProfile(profile())
+                   ->GetAppBackgroundContents(extension->id()));
   // Background mode should not be active until a background page is created.
   ASSERT_TRUE(VerifyBackgroundMode(false));
 
@@ -568,7 +523,7 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, MAYBE_OpenThenClose) {
   background_waiter.WaitForBackgroundContents(extension->id());
   // Verify that the background contents exist.
   BackgroundContents* background_contents =
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
+      BackgroundContentsServiceFactory::GetForProfile(profile())
           ->GetAppBackgroundContents((extension->id()));
   ASSERT_TRUE(background_contents);
 
@@ -588,9 +543,8 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, MAYBE_OpenThenClose) {
 
   // Background mode should no longer be active.
   ASSERT_TRUE(VerifyBackgroundMode(false));
-  ASSERT_FALSE(
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
-          ->GetAppBackgroundContents(extension->id()));
+  ASSERT_FALSE(BackgroundContentsServiceFactory::GetForProfile(profile())
+                   ->GetAppBackgroundContents(extension->id()));
 }
 
 IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, UnloadExtensionWhileHidden) {
@@ -630,9 +584,8 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, UnloadExtensionWhileHidden) {
 
   const Extension* extension = GetSingleLoadedExtension();
   background_waiter->WaitForBackgroundContents(extension->id());
-  ASSERT_TRUE(
-      BackgroundContentsServiceFactory::GetForProfile(browser()->profile())
-          ->GetAppBackgroundContents(extension->id()));
+  ASSERT_TRUE(BackgroundContentsServiceFactory::GetForProfile(profile())
+                  ->GetAppBackgroundContents(extension->id()));
 
   // We need to ensure `background_waiter` gets freed before the call to
   // UnloadExtensionViaTask(), otherwise we'll get a dangling raw_ptr warning.
@@ -648,71 +601,3 @@ IN_PROC_BROWSER_TEST_F(AppBackgroundPageApiTest, UnloadExtensionWhileHidden) {
   content::RunAllPendingInMessageLoop();
   ASSERT_TRUE(VerifyBackgroundMode(false));
 }
-
-#if BUILDFLAG(ENABLE_NACL)
-
-// Verify that active NaCl embeds raise the keepalive count.
-IN_PROC_BROWSER_TEST_F(AppBackgroundPageNaClTest, BackgroundKeepaliveActive) {
-  extensions::ProcessManager* manager =
-      extensions::ProcessManager::Get(browser()->profile());
-  ExtensionTestMessageListener ready_listener("ready",
-                                              ReplyBehavior::kWillReply);
-  LaunchTestingApp();
-  EXPECT_TRUE(ready_listener.WaitUntilSatisfied());
-
-  const auto api_activity = std::make_pair(extensions::Activity::API_FUNCTION,
-                                           std::string("test.sendMessage"));
-  const auto pepper_api_activity =
-      std::make_pair(extensions::Activity::PEPPER_API, std::string());
-  // When the app calls chrome.test.sendMessage() the keepalive count stays
-  // incremented until the call completes (i.e. until we call Reply() below).
-  // So between WaitUntilSatisfied() and Reply(), we know that the count must
-  // be in the incremented state, and in this case that is the only
-  // contributor to the keepalive count.
-  EXPECT_EQ(1, manager->GetLazyKeepaliveCount(extension()));
-  extensions::ProcessManager::ActivitiesMultiset activities =
-      manager->GetLazyKeepaliveActivities(extension());
-  EXPECT_THAT(activities, testing::UnorderedElementsAre(api_activity));
-
-  ExtensionTestMessageListener created1_listener("created_module:1",
-                                                 ReplyBehavior::kWillReply);
-  ready_listener.Reply("create_module");
-  EXPECT_TRUE(created1_listener.WaitUntilSatisfied());
-
-  // Now chrome.test.sendMessage() is incrementing the keepalive count, but
-  // there is also a Native Client module active, incrementing it again.
-  EXPECT_EQ(2, manager->GetLazyKeepaliveCount(extension()));
-  activities = manager->GetLazyKeepaliveActivities(extension());
-  EXPECT_THAT(activities,
-              testing::UnorderedElementsAre(api_activity, pepper_api_activity));
-
-  ExtensionTestMessageListener created2_listener("created_module:2",
-                                                 ReplyBehavior::kWillReply);
-  created1_listener.Reply("create_module");
-  EXPECT_TRUE(created2_listener.WaitUntilSatisfied());
-
-  // Keepalive comes from chrome.test.sendMessage, plus two modules.
-  EXPECT_EQ(3, manager->GetLazyKeepaliveCount(extension()));
-  activities = manager->GetLazyKeepaliveActivities(extension());
-  EXPECT_EQ(3u, activities.size());
-  EXPECT_THAT(activities,
-              testing::UnorderedElementsAre(api_activity, pepper_api_activity,
-                                            pepper_api_activity));
-
-  // Tear-down both modules.
-  ExtensionTestMessageListener destroyed1_listener("destroyed_module",
-                                                   ReplyBehavior::kWillReply);
-  created2_listener.Reply("destroy_module");
-  EXPECT_TRUE(destroyed1_listener.WaitUntilSatisfied());
-  ExtensionTestMessageListener destroyed2_listener("destroyed_module");
-  destroyed1_listener.Reply("destroy_module");
-  EXPECT_TRUE(destroyed2_listener.WaitUntilSatisfied());
-
-  // Both modules are gone, and no sendMessage API reply is pending (since the
-  // last listener has the |will_reply| flag set to |false|).
-  EXPECT_EQ(0, manager->GetLazyKeepaliveCount(extension()));
-  activities = manager->GetLazyKeepaliveActivities(extension());
-  EXPECT_TRUE(activities.empty());
-}
-
-#endif  //  BUILDFLAG(ENABLE_NACL)

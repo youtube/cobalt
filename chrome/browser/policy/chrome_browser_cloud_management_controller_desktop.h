@@ -8,21 +8,21 @@
 #include <stdint.h>
 
 #include <map>
-#include <variant>
 #include <vector>
 
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/policy/cbcm_invalidations_initializer.h"
 #include "components/enterprise/browser/controller/chrome_browser_cloud_management_controller.h"
 #include "components/enterprise/client_certificates/core/prefs_certificate_store.h"
-#include "components/invalidation/invalidation_listener.h"
-#include "components/invalidation/public/invalidation_service.h"
-
-class DeviceIdentityProvider;
 
 namespace instance_id {
 class InstanceIDDriver;
 }
+
+namespace invalidation {
+class InvalidationListener;
+class LegacyTopicsCleaner;
+}  // namespace invalidation
 
 namespace policy {
 class ChromeBrowserCloudManagementRegisterWatcher;
@@ -49,6 +49,10 @@ class ChromeBrowserCloudManagementControllerDesktop
   base::FilePath GetExternalPolicyDir() override;
   NetworkConnectionTrackerGetter CreateNetworkConnectionTrackerGetter()
       override;
+  // TODO(crbug.com/341377023): `InvalidationListener` does not use
+  // `DeviceIdentityProvider` and does not need
+  // `DeviceOAuth2TokenServiceFactory`. Check if any other service needs the
+  // factory inialialized.
   void InitializeOAuthTokenFactory(
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       PrefService* local_state) override;
@@ -92,12 +96,9 @@ class ChromeBrowserCloudManagementControllerDesktop
   // These objects are all involved in Policy Invalidations.
   CBCMInvalidationsInitializer invalidations_initializer_;
   scoped_refptr<network::SharedURLLoaderFactory> gaia_url_loader_factory_;
-  std::unique_ptr<DeviceIdentityProvider> identity_provider_;
   std::unique_ptr<instance_id::InstanceIDDriver> device_instance_id_driver_;
-  std::map<int64_t,
-           std::variant<std::unique_ptr<invalidation::InvalidationService>,
-                        std::unique_ptr<invalidation::InvalidationListener>>>
-      invalidation_service_or_listener_per_project_;
+  std::map<int64_t, std::unique_ptr<invalidation::InvalidationListener>>
+      invalidation_listener_per_project_;
   std::unique_ptr<CloudPolicyInvalidator> policy_invalidator_;
   std::vector<std::unique_ptr<FmRegistrationTokenUploader>>
       fm_registration_token_uploaders_;
@@ -107,6 +108,9 @@ class ChromeBrowserCloudManagementControllerDesktop
 
   // Responsible for storing and retrieving browser-level managed identities.
   std::unique_ptr<client_certificates::CertificateStore> certificate_store_;
+
+  // Unsubscribes any remaining invalidation topics.
+  std::unique_ptr<invalidation::LegacyTopicsCleaner> legacy_topics_cleaner_;
 };
 
 }  // namespace policy

@@ -15,10 +15,7 @@
 #include "base/compiler_specific.h"
 #include "base/gtest_prod_util.h"
 #include "build/build_config.h"
-
-#if !BUILDFLAG(IS_NACL)
 #include "third_party/boringssl/src/include/openssl/rand.h"
-#endif
 
 namespace memory_simulator {
 class MemoryHolder;
@@ -34,9 +31,7 @@ namespace internal {
 void ConfigureRandBytesFieldTrial();
 #endif
 
-#if !BUILDFLAG(IS_NACL)
 void ConfigureBoringSSLBackedRandBytesFieldTrial();
-#endif
 
 // Returns a random double in range [0, 1). For use in allocator shim to avoid
 // infinite recursion. Thread-safe.
@@ -97,7 +92,6 @@ class RandomBitGenerator {
   ~RandomBitGenerator() = default;
 };
 
-#if !BUILDFLAG(IS_NACL)
 class NonAllocatingRandomBitGenerator {
  public:
   using result_type = uint64_t;
@@ -113,7 +107,6 @@ class NonAllocatingRandomBitGenerator {
   NonAllocatingRandomBitGenerator() = default;
   ~NonAllocatingRandomBitGenerator() = default;
 };
-#endif
 
 // Shuffles [first, last) randomly. Thread-safe.
 template <typename Itr>

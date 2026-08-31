@@ -88,9 +88,10 @@ class DisruptiveNotificationPermissionsManager
   enum class RevocationState {
     kProposed = 1,
     kRevoked = 2,
-    kIgnore = 3,
+    kIgnoreInsideSH = 3,
     kAcknowledged = 4,
-    kMaxValue = kAcknowledged,
+    kIgnoreOutsideSH = 5,
+    kMaxValue = kIgnoreOutsideSH,
   };
   // LINT.ThenChange(//tools/metrics/histograms/enums.xml:DisruptiveNotificationRevocationState)
 
@@ -181,6 +182,7 @@ class DisruptiveNotificationPermissionsManager
 
  private:
   friend class DisruptiveNotificationPermissionsManagerTest;
+  friend class DisruptiveNotificationPermissionsMigrationTest;
   friend class RevokedPermissionsServiceBrowserTest;
   friend class RevokedPermissionsServiceTest;
   FRIEND_TEST_ALL_PREFIXES(
@@ -209,6 +211,9 @@ class DisruptiveNotificationPermissionsManager
 
     // Timestamp of proposed or actual revocation.
     base::Time timestamp;
+
+    // If lifetime is 0, it doesn't expire.
+    base::TimeDelta lifetime;
 
     bool has_reported_proposal = false;
     bool has_reported_false_positive = false;
@@ -246,10 +251,6 @@ class DisruptiveNotificationPermissionsManager
   // Revokes notification permission, updates the content setting value to
   // revoke and reports metrics.
   void RevokeNotifications(const GURL& url, RevocationEntry revocation_entry);
-
-  // Whether the notification is disruptive based on the site engagement score
-  // for the URL and the daily average notification count.
-  bool IsNotificationDisruptive(const GURL& url, int daily_notification_count);
 
   // Displays the safety hub notification informing the users about revoked
   // notification permissions.

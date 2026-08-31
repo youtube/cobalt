@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/time/time.h"
 #include "base/types/expected.h"
 #include "cc/animation/animation_host.h"
 #include "cc/layers/tile_display_layer_impl.h"
@@ -17,8 +18,10 @@
 #include "cc/trees/layer_tree_host_impl_client.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/resources/transferable_resource.h"
+#include "components/viz/service/viz_service_export.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
+#include "services/viz/public/mojom/compositing/compositor_frame_sink.mojom.h"
 #include "services/viz/public/mojom/compositing/layer_context.mojom.h"
 
 namespace cc {
@@ -34,23 +37,48 @@ class CompositorFrameSinkSupport;
 
 // Implements the Viz LayerContext API backed by a LayerTreeHostImpl. This
 // provides the service backend for a client-side VizLayerContext.
-class LayerContextImpl : public cc::LayerTreeHostImplClient,
-                         public cc::LayerTreeFrameSink,
-                         public mojom::LayerContext {
+class VIZ_SERVICE_EXPORT LayerContextImpl : public cc::LayerTreeHostImplClient,
+                                            public cc::LayerTreeFrameSink,
+                                            public mojom::LayerContext {
  public:
   // Constructs a new LayerContextImpl which submits frames to the local
   // `compositor_sink` with client connection details given by `context`.
   LayerContextImpl(CompositorFrameSinkSupport* compositor_sink,
                    mojom::PendingLayerContext& context,
-                   bool draw_mode_is_gpu);
+                   mojom::LayerContextSettingsPtr settings);
+
+  // Static factory method for testing purposes. The created object's lifetime
+  // is not managed by this function.
+  static std::unique_ptr<LayerContextImpl> CreateForTesting(
+      CompositorFrameSinkSupport* compositor_sink,
+      mojom::LayerContextSettingsPtr settings);
+
   ~LayerContextImpl() override;
 
   void BeginFrame(const BeginFrameArgs& args);
 
+  base::expected<void, std::string> DoUpdateDisplayTree(
+      mojom::LayerTreeUpdatePtr update);
+  base::expected<void, std::string> DoUpdateDisplayTiling(
+      mojom::TilingPtr tiling,
+      bool update_damage);
+  void DoDraw(const BeginFrameArgs& begin_frame_args,
+              base::TimeTicks start_update_display_tree);
+
   // Receive exported resources returned from the frame sink.
   void ReceiveReturnsFromParent(std::vector<ReturnedResource> resources);
 
+  cc::LayerTreeHostImpl* host_impl() const { return host_impl_.get(); }
+
  private:
+  // Private constructor that all other constructors/factory methods delegate
+  // to.
+  LayerContextImpl(
+      CompositorFrameSinkSupport* compositor_sink,
+      mojom::LayerContextSettingsPtr settings,
+      mojo::PendingAssociatedReceiver<mojom::LayerContext> receiver_pipe,
+      mojo::PendingAssociatedRemote<mojom::LayerContextClient> client_pipe);
+
   // cc::LayerTreeHostImplClient:
   void DidLoseLayerTreeFrameSinkOnImplThread() override;
   void SetBeginFrameSource(BeginFrameSource* source) override;
@@ -114,15 +142,13 @@ class LayerContextImpl : public cc::LayerTreeHostImplClient,
                              bool hit_test_data_changed) override;
   void DidNotProduceFrame(const BeginFrameAck& ack,
                           cc::FrameSkippedReason reason) override;
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused() override;
 
   // mojom::LayerContext:
   void SetVisible(bool visible) override;
   void UpdateDisplayTree(mojom::LayerTreeUpdatePtr update) override;
   void UpdateDisplayTiling(mojom::TilingPtr tiling,
                            bool update_damage) override;
-
-  base::expected<void, std::string> DoUpdateDisplayTree(
-      mojom::LayerTreeUpdatePtr update);
 
   // Return any resources pending in |resources_to_return_| to the LayerContext
   // client, via the frame sink.
@@ -132,8 +158,8 @@ class LayerContextImpl : public cc::LayerTreeHostImplClient,
   const std::unique_ptr<cc::AnimationHost> animation_host_{
       cc::AnimationHost::CreateMainInstance()};
 
-  mojo::AssociatedReceiver<mojom::LayerContext> receiver_;
-  mojo::AssociatedRemote<mojom::LayerContextClient> client_;
+  std::unique_ptr<mojo::AssociatedReceiver<mojom::LayerContext>> receiver_;
+  std::unique_ptr<mojo::AssociatedRemote<mojom::LayerContextClient>> client_;
   const std::unique_ptr<cc::TaskRunnerProvider> task_runner_provider_;
   const std::unique_ptr<cc::RenderingStatsInstrumentation> rendering_stats_;
 

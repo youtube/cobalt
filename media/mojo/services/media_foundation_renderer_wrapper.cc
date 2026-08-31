@@ -12,7 +12,7 @@
 #include "media/mojo/services/mojo_media_log.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/system/platform_handle.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace media {
 
@@ -52,7 +52,7 @@ MediaFoundationRendererWrapper::MediaFoundationRendererWrapper(
   DCHECK(frame_interfaces_);
 
   renderer_ = std::make_unique<MediaFoundationRenderer>(
-      std::move(task_runner),
+      task_runner,
       std::make_unique<MojoMediaLog>(std::move(media_log_remote), task_runner),
       ChromeLuidToLuid(
           MediaFoundationGpuInfoMonitor::GetInstance()->gpu_luid()));

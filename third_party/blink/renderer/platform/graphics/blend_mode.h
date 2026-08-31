@@ -8,11 +8,8 @@
 #include <stdint.h>
 
 #include "third_party/blink/renderer/platform/platform_export.h"
+#include "third_party/blink/renderer/platform/wtf/forward.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
-
-namespace WTF {
-class String;
-}
 
 namespace blink {
 
@@ -60,7 +57,7 @@ PLATFORM_EXPORT SkBlendMode ToSkBlendMode(CompositeOperator,
                                           BlendMode = BlendMode::kNormal);
 PLATFORM_EXPORT SkBlendMode ToSkBlendMode(BlendMode);
 
-PLATFORM_EXPORT WTF::String BlendModeToString(BlendMode);
+PLATFORM_EXPORT String BlendModeToString(BlendMode);
 
 }  // namespace blink
 

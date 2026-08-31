@@ -315,7 +315,7 @@ std::unique_ptr<ControllerManager> ControllerManagerImpl::Create(
     controllers.push_back(std::move(controller));
   }
 
-  if (scoring_points.size() == 0) {
+  if (scoring_points.empty()) {
     return std::unique_ptr<ControllerManagerImpl>(
         new ControllerManagerImpl(ControllerManagerImpl::Config(0, 0),
                                   std::move(controllers), scoring_points));
@@ -363,7 +363,7 @@ ControllerManagerImpl::~ControllerManagerImpl() = default;
 
 std::vector<Controller*> ControllerManagerImpl::GetSortedControllers(
     const Controller::NetworkMetrics& metrics) {
-  if (controller_scoring_points_.size() == 0)
+  if (controller_scoring_points_.empty())
     return default_sorted_controllers_;
 
   if (!metrics.uplink_bandwidth_bps || !metrics.uplink_packet_loss_fraction)

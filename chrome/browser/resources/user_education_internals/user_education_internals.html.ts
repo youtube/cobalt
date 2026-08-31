@@ -38,6 +38,9 @@ export function getHtml(this: UserEducationInternalsElement) {
         <a role="menuitem" href="#whatsNew" class="cr-nav-menu-item">
           What's New
         </a>
+        <a role="menuitem" href="#ntpPromos" class="cr-nav-menu-item">
+          NTP Promos
+        </a>
         <a role="menuitem" href="#advanced" class="cr-nav-menu-item">
           Advanced
         </a>
@@ -95,6 +98,39 @@ export function getHtml(this: UserEducationInternalsElement) {
               ?hidden="${!this.promoFilter_(item)}"
               .promo="${item}"
               @clear-promo-data="${this.clearNewBadgeData_}">
+          </user-education-internals-card>`)}
+      </div>
+      <div id="ntpPromos">
+        <a name="ntpPromos"></a>
+        <h2>NTP Promos</h2>
+        <div id="ntpPromoPreferences">
+          <cr-expand-button
+              ?expanded="${this.ntpPromoPreferencesExpanded_}"
+              @expanded-changed="${this.onNtpPromoPreferencesExpandedChanged_}">
+            <div id="label"><h3>NTP Promo Preferences</h3></div>
+          </cr-expand-button>
+          <div id="ntpPromoPrefData"
+              ?hidden="${!this.ntpPromoPreferencesExpanded_}">
+            ${this.ntpPromoPreferences_.map(item => html`
+              <p><b>${item.name}</b> ${item.value}</p>`)}
+            <p>
+              Clicking the button below will reset all NTP promo preferences
+              not tied to feature flags. These changes may not be reflected on
+              NTP tabs that are already open.
+            </p>
+            <cr-button
+                id="clearNtpPromoPreferences"
+                @click="${this.clearNtpPromoPreferences_}">
+              Clear All
+            </cr-button>
+          </div>
+        </div>
+        ${this.ntpPromos_.map(item => html`
+          <user-education-internals-card
+              id="${item.internalName}"
+              ?hidden="${!this.promoFilter_(item)}"
+              .promo="${item}"
+              @clear-promo-data="${this.clearNtpPromoData_}">
           </user-education-internals-card>`)}
       </div>
       <div id="whatsNew">
@@ -171,12 +207,17 @@ export function getHtml(this: UserEducationInternalsElement) {
             ${this.sessionData_.map(item => html`
               <p><b>${item.name}</b> ${item.value}</p>`)}
             <p>
-              Clicking the button below will clear all session, grace period,
-              and cooldown data. This has the side-effect of negating all
-              current grace periods and cooldowns. However, to disable these
-              exclusions at startup so that all IPH can show, prefer to use the
-              <code>--disable-user-education-rate-limiting</code> flag.
+              Clicking the buttons below will modify the current session, last
+              heavyweight promo, and/or profile creation times. The information
+              above will be updated to show the current state of these values.
             </p>
+            <cr-button id="forceNewSession" @click="${this.forceNewSession_}">
+              Force New Session
+            </cr-button>
+            <cr-button id="removeGracePeriods"
+                       @click="${this.removeGracePeriods_}">
+              Remove Grace Period
+            </cr-button>
             <cr-button id="clearSession" @click="${this.clearSessionData_}">
               Clear Session Data
             </cr-button>

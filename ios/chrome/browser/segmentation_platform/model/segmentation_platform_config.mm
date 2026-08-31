@@ -10,9 +10,11 @@
 #import "base/feature_list.h"
 #import "base/metrics/field_trial_params.h"
 #import "base/time/time.h"
+#import "components/segmentation_platform/embedder/default_model/chrome_user_engagement.h"
 #import "components/segmentation_platform/embedder/default_model/cross_device_user_segment.h"
 #import "components/segmentation_platform/embedder/default_model/device_switcher_model.h"
 #import "components/segmentation_platform/embedder/default_model/feed_user_segment.h"
+#import "components/segmentation_platform/embedder/default_model/ios_default_browser_promo.h"
 #import "components/segmentation_platform/embedder/default_model/ios_module_ranker.h"
 #import "components/segmentation_platform/embedder/default_model/low_user_engagement_model.h"
 #import "components/segmentation_platform/embedder/default_model/most_visited_tiles_user.h"
@@ -51,6 +53,7 @@ std::vector<std::unique_ptr<Config>> GetSegmentationPlatformConfig(
   configs.emplace_back(TabResumptionRanker::GetConfig());
   configs.emplace_back(PasswordManagerUserModel::GetConfig());
   configs.emplace_back(ShoppingUserModel::GetConfig());
+  configs.emplace_back(ChromeUserEngagement::GetConfig());
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           "test-ios-module-ranker")) {
     configs.emplace_back(TestIosModuleRanker::GetConfig());
@@ -67,6 +70,7 @@ std::vector<std::unique_ptr<Config>> GetSegmentationPlatformConfig(
   }
   configs.emplace_back(MostVisitedTilesUser::GetConfig());
   configs.emplace_back(URLVisitResumptionRanker::GetConfig());
+  configs.emplace_back(IosDefaultBrowserPromo::GetConfig());
 
   // Add new configs here.
   std::erase_if(configs, [](const auto& config) { return !config.get(); });

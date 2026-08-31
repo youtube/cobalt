@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_STYLE_VARIABLES_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_STYLE_VARIABLES_H_
 
+#include <array>
 #include <concepts>
 #include <iosfwd>
 #include <optional>
@@ -295,7 +296,7 @@ class HashTrieNode : public GarbageCollected<HashTrieNode<Data>> {
   // Add or remove the given key/value pair from the given hash.
   static void UpdateHash(const AtomicString& key, Data* value, unsigned& hash) {
     if (value) {
-      hash ^= WTF::HashInts(key.Hash(), value->Hash());
+      hash ^= HashInts(key.Hash(), value->Hash());
     }
   }
 

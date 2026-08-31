@@ -196,7 +196,7 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
   }
   void UpdateShouldCreateBoxFragment();
 
-  PhysicalRect LocalCaretRect(int) const final;
+  PhysicalRect LocalCaretRect(int, CaretShape) const final;
 
   // When this LayoutInline doesn't generate line boxes of its own, regenerate
   // the rects of the line boxes and hit test the rects.
@@ -236,7 +236,6 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
                                MapCoordinatesFlags) const override;
 
  private:
-  bool AbsoluteTransformDependsOnPoint(const LayoutObject& object) const;
   void QuadsForSelfInternal(Vector<gfx::QuadF>& quads,
                             const LayoutBoxModelObject* ancestor,
                             MapCoordinatesFlags mode,
@@ -276,8 +275,6 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
   template <typename PhysicalRectCollector>
   void CollectLineBoxRects(const PhysicalRectCollector&) const;
 
-  void AddChildIgnoringContinuation(LayoutObject* new_child,
-                                    LayoutObject* before_child = nullptr) final;
   void AddChildAsBlockInInline(LayoutObject* new_child,
                                LayoutObject* before_child);
 
@@ -299,8 +296,6 @@ class CORE_EXPORT LayoutInline : public LayoutBoxModelObject {
 
   LayoutUnit OffsetLeft(const Element*) const final;
   LayoutUnit OffsetTop(const Element*) const final;
-  LayoutUnit OffsetWidth() const final;
-  LayoutUnit OffsetHeight() const final;
 
   PhysicalRect BoundingBoxRelativeToFirstFragment() const final;
 

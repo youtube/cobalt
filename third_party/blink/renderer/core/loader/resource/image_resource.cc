@@ -64,6 +64,7 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 #include "v8/include/v8.h"
 
@@ -208,9 +209,6 @@ class ImageResource::ImageResourceInfoImpl final
           does_current_frame_has_single_security_origin) const override {
     return resource_->IsAccessAllowed(
         does_current_frame_has_single_security_origin);
-  }
-  bool HasCacheControlNoStoreHeader() const override {
-    return resource_->HasCacheControlNoStoreHeader();
   }
   std::optional<ResourceError> GetResourceError() const override {
     if (resource_->LoadFailedOrCanceled())
@@ -374,7 +372,7 @@ ImageResource::~ImageResource() {
 void ImageResource::OnMemoryDump(WebMemoryDumpLevelOfDetail level_of_detail,
                                  WebProcessMemoryDump* memory_dump) const {
   Resource::OnMemoryDump(level_of_detail, memory_dump);
-  const String name = GetMemoryDumpName() + "/image_content";
+  const String name = StrCat({GetMemoryDumpName(), "/image_content"});
   auto* dump = memory_dump->CreateMemoryAllocatorDump(name);
   if (content_->HasImage() && content_->GetImage()->HasData())
     dump->AddScalar("size", "bytes", content_->GetImage()->DataSize());

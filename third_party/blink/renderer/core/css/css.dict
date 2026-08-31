@@ -258,6 +258,7 @@
 "right"
 "center"
 "justify"
+"match-parent"
 "-webkit-left"
 "-webkit-right"
 "-webkit-center"
@@ -1443,7 +1444,7 @@
 "z-index"
 "zoom"
 
-# pseudo elements and classes
+# pseudo-elements and classes
 ":hover"
 ":visited"
 ":before"

@@ -11,8 +11,7 @@
 // This file is intended for PeerConnection integration tests that are
 // slow to execute (currently defined as more than 5 seconds per test).
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <tuple>

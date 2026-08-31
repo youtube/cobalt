@@ -11,8 +11,7 @@ import '../controls/controlled_radio_button.js';
 import '/shared/settings/controls/extension_controlled_indicator.js';
 import '../controls/settings_radio_group.js';
 import '../controls/settings_toggle_button.js';
-import '../settings_page/settings_animated_pages.js';
-import '../settings_page/settings_subpage.js';
+import '../settings_page/settings_section.js';
 import '../settings_shared.css.js';
 import '../settings_vars.css.js';
 import './home_url_input.js';
@@ -26,14 +25,15 @@ import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {BaseMixin} from '../base_mixin.js';
 import type {DropdownMenuOptionList, SettingsDropdownMenuElement} from '../controls/settings_dropdown_menu.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
+import {pageVisibility} from '../page_visibility.js';
 import type {AppearancePageVisibility} from '../page_visibility.js';
 import {RelaunchMixin, RestartType} from '../relaunch_mixin.js';
 import {routes} from '../route.js';
 import {Router} from '../router.js';
+import {SettingsViewMixin} from '../settings_page/settings_view_mixin.js';
 
 import type {AppearanceBrowserProxy} from './appearance_browser_proxy.js';
 import {AppearanceBrowserProxyImpl} from './appearance_browser_proxy.js';
@@ -83,7 +83,7 @@ export enum SystemTheme {
 }
 
 const SettingsAppearancePageElementBase =
-    RelaunchMixin(I18nMixin(PrefsMixin(BaseMixin(PolymerElement))));
+    SettingsViewMixin(RelaunchMixin(I18nMixin(PrefsMixin(PolymerElement))));
 
 export class SettingsAppearancePageElement extends
     SettingsAppearancePageElementBase {
@@ -100,7 +100,10 @@ export class SettingsAppearancePageElement extends
       /**
        * Dictionary defining page visibility.
        */
-      pageVisibility: Object,
+      pageVisibility_: {
+        type: Object,
+        value: () => pageVisibility?.appearance,
+      },
 
       defaultZoom_: Number,
 
@@ -160,17 +163,6 @@ export class SettingsAppearancePageElement extends
       systemTheme_: {
         type: Object,
         value: SystemTheme.DEFAULT,
-      },
-
-      focusConfig_: {
-        type: Object,
-        value() {
-          const map = new Map();
-          if (routes.FONTS) {
-            map.set(routes.FONTS.path, '#customize-fonts-subpage-trigger');
-          }
-          return map;
-        },
       },
 
       isForcedTheme_: {
@@ -269,7 +261,7 @@ export class SettingsAppearancePageElement extends
     ];
   }
 
-  declare pageVisibility: AppearancePageVisibility;
+  declare private pageVisibility_?: AppearancePageVisibility;
   declare private defaultZoom_: number;
   declare private isWallpaperPolicyControlled_: boolean;
   declare private fontSizeOptions_: DropdownMenuOptionList;
@@ -280,7 +272,6 @@ export class SettingsAppearancePageElement extends
   declare private themeSublabel_: string;
   declare private themeUrl_: string;
   declare private systemTheme_: SystemTheme;
-  declare private focusConfig_: Map<string, string>;
   declare private isForcedTheme_: boolean;
   declare private showHoverCardImagesOption_: boolean;
   declare private showResetPinnedActionsButton_: boolean;
@@ -544,6 +535,24 @@ export class SettingsAppearancePageElement extends
   private updateShowTabSearchRestartButton_(newValue: boolean): void {
     this.showTabSearchPositionRestartButton_ = newValue !==
         loadTimeData.getBoolean('tabSearchIsRightAlignedAtStartup');
+  }
+
+  // SettingsViewMixin
+  override getFocusConfig() {
+    const map = new Map();
+    if (routes.FONTS) {
+      map.set(routes.FONTS.path, '#customize-fonts-subpage-trigger');
+    }
+    return map;
+  }
+
+  // SettingsViewMixin implementation.
+  override getAssociatedControlFor(childViewId: string): HTMLElement {
+    assert(childViewId === 'fonts');
+    const control = this.shadowRoot!.querySelector<HTMLElement>(
+        '#customize-fonts-subpage-trigger');
+    assert(control);
+    return control;
   }
 }
 

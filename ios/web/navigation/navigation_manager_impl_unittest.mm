@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/web/navigation/navigation_manager_impl.h"
 
 #import <array>
@@ -41,6 +46,7 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
+#import "third_party/ocmock/gtest_support.h"
 #import "url/scheme_host_port.h"
 #import "url/url_util.h"
 
@@ -85,9 +91,13 @@ bool AppendingUrlRewriter(GURL* url, BrowserState* browser_state) {
 // Mock class for NavigationManagerDelegate.
 class MockNavigationManagerDelegate : public NavigationManagerDelegate {
  public:
-  void SetWKWebView(id web_view) { mock_web_view_ = web_view; }
+  void SetWKWebView(id web_view) {
+    EXPECT_OCMOCK_VERIFY(mock_web_view_);
+    mock_web_view_ = web_view;
+  }
   void SetWebState(WebState* web_state) { web_state_ = web_state; }
   void RemoveWebView() override {
+    EXPECT_OCMOCK_VERIFY(mock_web_view_);
     // Simulate removing the web view.
     mock_web_view_ = nil;
   }
@@ -144,6 +154,8 @@ class NavigationManagerTest : public PlatformTest {
     manager_ =
         std::make_unique<NavigationManagerImpl>(&browser_state_, &delegate_);
   }
+
+  ~NavigationManagerTest() override { EXPECT_OCMOCK_VERIFY(mock_web_view_); }
 
   NavigationManagerImpl* navigation_manager() { return manager_.get(); }
 
@@ -2475,7 +2487,9 @@ TEST_F(NavigationManagerTest, RestoreSessionWithEmptyHistory) {
 // Window Open Navigation edge case. See comments in header file for details.
 TEST_F(NavigationManagerTest, EmptyWindowOpenNavigation) {
   // Set up the precondition for an empty window open item.
-  OCMExpect([mock_web_view_ URL])
+  // Use OCMStub for `URL` instead of OCMExpect because it will only be called
+  // when DCHECKS are enabled.
+  OCMStub([mock_web_view_ URL])
       .andReturn(net::NSURLWithGURL(GURL(url::kAboutBlankURL)));
   mock_wk_list_.currentItem = nil;
 
@@ -2531,8 +2545,6 @@ TEST_F(NavigationManagerTest, EmptyWindowOpenNavigation) {
 
   [mock_wk_list_ setCurrentURL:@"http://www.2.com"];
   manager_->CommitPendingItem();
-  OCMExpect([mock_web_view_ URL])
-      .andReturn([[NSURL alloc] initWithString:@"http://www.2.com"]);
 
   const NavigationItem* last_committed_item_2 =
       manager_->GetLastCommittedItem();

@@ -31,6 +31,7 @@
 #include "third_party/blink/renderer/core/html/html_head_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_meta_element.h"
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/input/event_handler.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_html_canvas.h"
@@ -39,12 +40,14 @@
 #include "third_party/blink/renderer/core/layout/layout_media.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
+#include "third_party/blink/renderer/core/layout/layout_video.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_root.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_caption.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_row.h"
 #include "third_party/blink/renderer/core/layout/table/layout_table_section.h"
+#include "third_party/blink/renderer/core/script_tools/automation_delegate_supplement.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -103,11 +106,10 @@ void ComputeScrollerInfo(
   const auto visible_area = scrollable_area->VisibleContentRect();
 
   // If the visible area covers the scrollable area, scrolling this node will be
-  // a no-op.
-  if (scrolling_bounds == visible_area.size()) {
-    DCHECK_EQ(visible_area.x(), 0);
-    DCHECK_EQ(visible_area.y(), 0);
-
+  // a no-op. Allow 1px of slop due to differences in rounding.
+  constexpr int kTolerance = 1;
+  if (scrolling_bounds.width() - visible_area.width() < kTolerance &&
+      scrolling_bounds.height() - visible_area.height() < kTolerance) {
     return;
   }
 
@@ -213,6 +215,77 @@ bool IsVisible(const LayoutObject& object) {
   return object.Style()->Visibility() == EVisibility::kVisible;
 }
 
+void AddClickabilityReasons(
+    const Element& element,
+    const ax::mojom::Role role,
+    mojom::blink::AIPageContentNodeInteractionInfo& interaction_info) {
+  using Reason = mojom::blink::AIPageContentClickabilityReason;
+
+  if (element.IsClickableFormControlNode()) {
+    interaction_info.clickability_reasons.push_back(Reason::kClickableControl);
+  }
+
+  if (element.HasJSBasedEventListeners(event_type_names::kClick)) {
+    interaction_info.clickability_reasons.push_back(Reason::kClickEvents);
+  }
+
+  if (element.HasJSBasedEventListeners(event_type_names::kMouseover) ||
+      element.HasJSBasedEventListeners(event_type_names::kMouseenter) ||
+      element.HasJSBasedEventListeners(event_type_names::kMouseup) ||
+      element.HasJSBasedEventListeners(event_type_names::kMousedown)) {
+    interaction_info.clickability_reasons.push_back(Reason::kMouseEvents);
+  }
+
+  if (element.HasJSBasedEventListeners(event_type_names::kKeydown) ||
+      element.HasJSBasedEventListeners(event_type_names::kKeypress) ||
+      element.HasJSBasedEventListeners(event_type_names::kKeyup)) {
+    interaction_info.clickability_reasons.push_back(Reason::kKeyEvents);
+  }
+
+  if (IsEditable(element)) {
+    interaction_info.clickability_reasons.push_back(Reason::kEditable);
+  }
+
+  const ComputedStyle& style = element.ComputedStyleRef();
+  if (style.Cursor() == ECursor::kPointer && !style.CursorIsInherited()) {
+    interaction_info.clickability_reasons.push_back(Reason::kCursorPointer);
+  }
+
+  if (ui::IsClickable(role)) {
+    interaction_info.clickability_reasons.push_back(Reason::kAriaRole);
+  }
+
+  if (AXObject::HasPopupFromAttribute(element)) {
+    interaction_info.clickability_reasons.push_back(Reason::kAriaHasPopup);
+  }
+
+  bool aria_expanded = false;
+  if (AXObject::AriaBooleanAttribute(element, html_names::kAriaExpandedAttr,
+                                     &aria_expanded)) {
+    if (aria_expanded) {
+      interaction_info.clickability_reasons.push_back(
+          Reason::kAriaExpandedTrue);
+    } else {
+      interaction_info.clickability_reasons.push_back(
+          Reason::kAriaExpandedFalse);
+    }
+  }
+
+  const auto& autocomplete =
+      element.FastGetAttribute(html_names::kAutocompleteAttr);
+  const auto& aria_autocomplete =
+      element.FastGetAttribute(html_names::kAriaAutocompleteAttr);
+  if ((autocomplete && autocomplete != "off") ||
+      (aria_autocomplete == "inline" || aria_autocomplete == "list" ||
+       aria_autocomplete == "both")) {
+    interaction_info.clickability_reasons.push_back(Reason::kAutocomplete);
+  }
+
+  if (element.HasTabIndexWasSetExplicitly()) {
+    interaction_info.clickability_reasons.push_back(Reason::kTabIndex);
+  }
+}
+
 bool ShouldSkipSubtree(const LayoutObject& object) {
   auto* layout_embedded_content = DynamicTo<LayoutEmbeddedContent>(object);
   if (layout_embedded_content) {
@@ -271,10 +344,10 @@ void ProcessImageNode(const LayoutImage& layout_image,
                       mojom::blink::AIPageContentAttributes& attributes) {
   attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kImage;
   CHECK(IsVisible(layout_image));
-
-  if (DynamicTo<LayoutMedia>(layout_image)) {
-    return;
-  }
+  // LayoutImage is a superclass of LayoutMedia, which is a superclass of
+  // LayoutVideo and LayoutAudio. We only want to process images here, so
+  // we enforce that the object is not a media object.
+  CHECK(!layout_image.IsMedia());
 
   auto image_info = mojom::blink::AIPageContentImageInfo::New();
 
@@ -312,6 +385,19 @@ void ProcessCanvasNode(const LayoutHTMLCanvas& layout_canvas,
   auto canvas_data = mojom::blink::AIPageContentCanvasData::New();
   canvas_data->layout_size = ToRoundedSize(layout_canvas.Size());
   attributes.canvas_data = std::move(canvas_data);
+}
+
+void ProcessVideoNode(const HTMLVideoElement& video_element,
+                      mojom::blink::AIPageContentAttributes& attributes) {
+  attributes.attribute_type = mojom::blink::AIPageContentAttributeType::kVideo;
+  if (!IsVisible(*video_element.GetLayoutObject())) {
+    return;
+  }
+
+  auto video_data = mojom::blink::AIPageContentVideoData::New();
+  video_data->url = video_element.SourceURL();
+  // TODO(crbug.com/382558422): Include video source origin.
+  attributes.video_data = std::move(video_data);
 }
 
 void ProcessAnchorNode(const HTMLAnchorElement& anchor_element,
@@ -494,10 +580,7 @@ void RecordLatencyMetrics(base::TimeTicks start_time,
 // Returns true if extracting the content can't be deferred until the next
 // frame.
 bool NeedsSyncExtraction(const mojom::blink::AIPageContentOptions& options) {
-  // Including hidden searchable content requires layout for nodes which are
-  // skipped during rendering. So we need a special lifecycle for them and can't
-  // use the computed state from the regular lifecycle update.
-  return options.on_critical_path || options.include_hidden_searchable_content;
+  return options.on_critical_path;
 }
 
 }  // namespace
@@ -642,7 +725,10 @@ mojom::blink::AIPageContentPtr AIPageContentAgent::ContentBuilder::Build(
   // activation reason of FindInPage.
   std::vector<DisplayLockDocumentState::ScopedForceActivatableDisplayLocks>
       forced_activatable_locks;
-  if (options_->include_hidden_searchable_content) {
+
+  // If we're doing this extraction as a part of the document lifecycle, we
+  // can't invalidate style/layout.
+  if (!document.InvalidationDisallowed()) {
     forced_activatable_locks.emplace_back(
         document.GetDisplayLockDocumentState()
             .GetScopedForceActivatableLocks());
@@ -663,7 +749,7 @@ mojom::blink::AIPageContentPtr AIPageContentAgent::ContentBuilder::Build(
   // Running lifecycle beyond layout is expensive and the information is only
   // needed to compute geometry. Limit the update to layout if we don't need
   // the geometry.
-  if (options_->include_geometry) {
+  if (actionable_mode()) {
     document.View()->UpdateAllLifecyclePhasesExceptPaint(
         DocumentUpdateReason::kUnknown);
   } else {
@@ -958,7 +1044,7 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
     }
     ProcessTextNode(To<LayoutText>(object), attributes,
                     recursion_data.document_style);
-  } else if (object.IsLayoutImage()) {
+  } else if (object.IsImage()) {
     // Since image is a leaf node, do not create a content node if should skip
     // content.
     if (!IsVisible(object)) {
@@ -978,6 +1064,9 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
       return nullptr;
     }
     ProcessCanvasNode(To<LayoutHTMLCanvas>(object), attributes);
+  } else if (const auto* video_element =
+                 DynamicTo<HTMLVideoElement>(object.GetNode())) {
+    ProcessVideoNode(*video_element, attributes);
   } else if (const auto* anchor_element =
                  DynamicTo<HTMLAnchorElement>(object.GetNode())) {
     ProcessAnchorNode(*anchor_element, attributes);
@@ -1036,7 +1125,7 @@ AIPageContentAgent::ContentBuilder::MaybeGenerateContentNode(
 void AIPageContentAgent::ContentBuilder::AddLabel(
     const LayoutObject& object,
     mojom::blink::AIPageContentAttributes& attributes) const {
-  if (!options_->enable_experimental_actionable_data) {
+  if (!actionable_mode()) {
     return;
   }
 
@@ -1083,7 +1172,7 @@ void AIPageContentAgent::ContentBuilder::AddLabel(
 void AIPageContentAgent::ContentBuilder::AddForDomNodeId(
     const LayoutObject& object,
     mojom::blink::AIPageContentAttributes& attributes) const {
-  if (!options_->enable_experimental_actionable_data) {
+  if (!actionable_mode()) {
     return;
   }
 
@@ -1160,7 +1249,10 @@ void AIPageContentAgent::ContentBuilder::AddAnnotatedRoles(
 void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
     const LayoutObject& object,
     mojom::blink::AIPageContentAttributes& attributes) const {
-  if (!options_->include_geometry) {
+  // When in non-actionable mode, we only want to add geometry for the
+  // accessibility focused node.
+  if (!actionable_mode() &&
+      attributes.dom_node_id != accessibility_focused_node_id_) {
     return;
   }
 
@@ -1179,7 +1271,7 @@ void AIPageContentAgent::ContentBuilder::AddNodeGeometry(
 void AIPageContentAgent::ContentBuilder::ComputeHitTestableNodesInViewport(
     const LocalFrame& frame,
     mojom::blink::AIPageContentFrameData& frame_data) {
-  if (!options_->enable_experimental_actionable_data) {
+  if (!actionable_mode()) {
     return;
   }
 
@@ -1245,8 +1337,9 @@ void AIPageContentAgent::ContentBuilder::AddPageInteractionInfo(
   // Accessibility focus
   if (AXObjectCache* ax_object_cache = document.ExistingAXObjectCache()) {
     if (Node* ax_focused_node = ax_object_cache->GetAccessibilityFocus()) {
+      accessibility_focused_node_id_ = DOMNodeIds::IdForNode(ax_focused_node);
       page_interaction_info.accessibility_focused_dom_node_id =
-          DOMNodeIds::IdForNode(ax_focused_node);
+          accessibility_focused_node_id_;
       AddInteractiveNode(
           *page_interaction_info.accessibility_focused_dom_node_id);
     }
@@ -1261,7 +1354,7 @@ void AIPageContentAgent::ContentBuilder::AddPageInteractionInfo(
 }
 
 void AIPageContentAgent::ContentBuilder::AddFrameData(
-    const LocalFrame& frame,
+    LocalFrame& frame,
     mojom::blink::AIPageContentFrameData& frame_data) {
   frame_data.frame_interaction_info =
       mojom::blink::AIPageContentFrameInteractionInfo::New();
@@ -1276,6 +1369,15 @@ void AIPageContentAgent::ContentBuilder::AddFrameData(
   }
 
   ComputeHitTestableNodesInViewport(frame, frame_data);
+
+  if (auto* automation_delegate =
+          AutomationDelegateSupplement::GetDelegateIfExists(
+              *frame.DomWindow())) {
+    automation_delegate->ForEachScriptTool(
+        [&](const mojom::blink::ScriptTool& tool) {
+          frame_data.script_tools.push_back(tool.Clone());
+        });
+  }
 }
 
 void AIPageContentAgent::ContentBuilder::AddFrameInteractionInfo(
@@ -1315,7 +1417,7 @@ void AIPageContentAgent::ContentBuilder::AddFrameInteractionInfo(
 void AIPageContentAgent::ContentBuilder::AddInteractionInfoForHitTesting(
     const Node* node,
     mojom::blink::AIPageContentNodeInteractionInfo& interaction_info) const {
-  if (!options_->enable_experimental_actionable_data) {
+  if (!actionable_mode()) {
     return;
   }
 
@@ -1328,7 +1430,7 @@ void AIPageContentAgent::ContentBuilder::AddInteractionInfoForHitTesting(
 void AIPageContentAgent::ContentBuilder::AddAriaRole(
     const LayoutObject& object,
     mojom::blink::AIPageContentAttributes& attributes) {
-  if (!options_->enable_experimental_actionable_data) {
+  if (!actionable_mode()) {
     return;
   }
 
@@ -1383,7 +1485,7 @@ void AIPageContentAgent::ContentBuilder::AddNodeInteractionInfo(
   ComputeScrollerInfo(object, *node_interaction_info);
 
   // If experimental data is disabled, only scrollable nodes are included.
-  if (!options_->enable_experimental_actionable_data) {
+  if (!actionable_mode()) {
     if (node_interaction_info->scroller_info) {
       attributes.node_interaction_info = std::move(node_interaction_info);
     }
@@ -1391,44 +1493,20 @@ void AIPageContentAgent::ContentBuilder::AddNodeInteractionInfo(
     return;
   }
 
-  node_interaction_info->is_selectable =
-      style.UsedUserSelect() != EUserSelect::kNone;
-
-  node_interaction_info->is_editable = IsEditable(*node);
-
-  if (auto* box = DynamicTo<LayoutBox>(object)) {
-    if (box->CanResize()) {
-      EResize resize = style.UsedResize();
-      node_interaction_info->can_resize_vertical =
-          resize == EResize::kVertical || resize == EResize::kBoth;
-      node_interaction_info->can_resize_horizontal =
-          resize == EResize::kHorizontal || resize == EResize::kBoth;
-    }
-  }
-
   if (auto* element = DynamicTo<Element>(object.GetNode())) {
-    node_interaction_info->is_focusable = element->IsFocusable();
+    AddClickabilityReasons(*element, *attributes.aria_role,
+                           *node_interaction_info);
+    // TODO(khushalsagar): Remove is_clickability.
     node_interaction_info->is_clickable =
-        element->IsMaybeClickable() || ui::IsClickable(*attributes.aria_role);
-
-    if (auto* html_element = DynamicTo<HTMLElement>(element)) {
-      node_interaction_info->is_draggable = html_element->draggable();
-    }
+        !node_interaction_info->clickability_reasons.empty();
+    node_interaction_info->is_focusable = element->IsFocusable();
   }
 
   const bool needs_interaction_info =
       node_interaction_info->scroller_info ||
-      // The common case is for the content to be selectable. So assume that's
-      // the default and only force a ContentNode if we need to indicate some
-      // content is not selectable.
-      !node_interaction_info->is_selectable ||
-      node_interaction_info->is_editable ||
-      node_interaction_info->can_resize_horizontal ||
-      node_interaction_info->can_resize_vertical ||
       node_interaction_info->is_focusable ||
-      node_interaction_info->is_draggable ||
-      node_interaction_info->is_clickable ||
-      node_interaction_info->document_scoped_z_order;
+      node_interaction_info->document_scoped_z_order ||
+      !node_interaction_info->clickability_reasons.empty();
 
   if (!needs_interaction_info) {
     return;

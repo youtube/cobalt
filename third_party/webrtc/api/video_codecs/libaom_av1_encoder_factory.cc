@@ -781,7 +781,7 @@ void LibaomAv1Encoder::Encode(scoped_refptr<VideoFrameBuffer> frame_buffer,
                aom_codec_get_cx_data(&ctx_, &iter)) {
       if (pkt->kind == AOM_CODEC_CX_FRAME_PKT && pkt->data.frame.sz > 0) {
         SET_OR_RETURN(AOME_GET_LAST_QUANTIZER_64, &result.encoded_qp);
-        result.frame_type = pkt->data.frame.flags & AOM_EFLAG_FORCE_KF
+        result.frame_type = pkt->data.frame.flags & AOM_FRAME_IS_KEY
                                 ? FrameType::kKeyframe
                                 : FrameType::kDeltaFrame;
         ArrayView<uint8_t> output_buffer =

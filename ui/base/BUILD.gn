@@ -28,6 +28,8 @@ if (is_android) {
 } else if (is_mac) {
   import("//build/config/mac/rules.gni")
   import("//build/util/branding.gni")
+} else if (is_fuchsia) {
+  import("//build/config/fuchsia/config.gni")
 }
 
 build_ime = !is_ios
@@ -48,8 +50,8 @@ component("ui_data_pack") {
     ":base",
     "//chromeos/crosapi/mojom",  # This target requires minimal dependencies.
     "//ios/chrome/tools/strings:generate_localizable_strings",
-    "//third_party/blink/renderer/core:core",
-    "//third_party/blink/renderer/platform:platform",
+    "//third_party/blink/renderer/core",
+    "//third_party/blink/renderer/platform",
     "//ui/gfx:*",
   ]
 
@@ -145,6 +147,9 @@ component("base") {
     "interaction/framework_specific_implementation.h",
     "interaction/interaction_sequence.cc",
     "interaction/interaction_sequence.h",
+    "interaction/typed_data.h",
+    "interaction/typed_data_collection.cc",
+    "interaction/typed_data_collection.h",
     "interaction/typed_identifier.h",
     "l10n/formatter.cc",
     "l10n/formatter.h",
@@ -212,7 +217,6 @@ component("base") {
     "ui_base_exports.cc",
     "ui_base_paths.cc",
     "ui_base_paths.h",
-    "ui_base_switches.cc",
     "ui_base_switches.h",
     "ui_base_switches_util.cc",
     "ui_base_switches_util.h",
@@ -267,7 +271,6 @@ component("base") {
       "win/hwnd_metrics.h",
       "win/hwnd_subclass.cc",
       "win/hwnd_subclass.h",
-      "win/internal_constants.cc",
       "win/internal_constants.h",
       "win/lock_state.cc",
       "win/lock_state.h",
@@ -345,7 +348,6 @@ component("base") {
       "cocoa/user_interface_item_command_handler.h",
       "cocoa/views_hostable.h",
       "cocoa/window_size_constants.h",
-      "cocoa/window_size_constants.mm",
       "dragdrop/os_exchange_data_provider_builder_mac.h",
       "dragdrop/os_exchange_data_provider_builder_mac.mm",
       "dragdrop/os_exchange_data_provider_mac.h",
@@ -443,6 +445,8 @@ component("base") {
       sources += [ "pointer/pointer_device_ios.cc" ]
     } else if (is_linux || is_chromeos) {
       sources += [ "pointer/pointer_device_linux.cc" ]
+    } else if (is_fuchsia && is_web_engine) {
+      sources += [ "pointer/pointer_device_web_engine.cc" ]
     } else {
       # Empty implementation for all other cases.
       sources += [ "pointer/pointer_device.cc" ]
@@ -501,7 +505,7 @@ component("base") {
     "//third_party/brotli:dec",
     "//third_party/icu",
     "//third_party/modp_b64",
-    "//third_party/zlib:zlib",
+    "//third_party/zlib",
     "//third_party/zlib/google:compression_utils",
     "//ui/base:data_exchange",
     "//ui/base/clipboard:clipboard_types",
@@ -535,8 +539,8 @@ component("base") {
     deps += [
       ":l10n_util_ios",
       "//base",
+      "//ui/events",
       "//ui/events:dom_keycode_converter",
-      "//ui/events:events",
       "//ui/events:events_base",
     ]
   }
@@ -722,6 +726,10 @@ if (is_win || is_mac || is_linux || is_chromeos) {
     if (!is_fuchsia) {
       data_deps = [ ":goldctl" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 
@@ -907,6 +915,10 @@ static_library("test_support") {
       "//ui/base/ime/ash:typing_session_manager",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_android) {
@@ -982,7 +994,7 @@ source_set("run_all_unittests") {
   deps = [
     "//base",
     "//base/test:test_support",
-    "//mojo/core/embedder:embedder",
+    "//mojo/core/embedder",
     "//skia",
     "//testing/gtest",
     "//ui/base",
@@ -1003,6 +1015,7 @@ test("ui_base_unittests") {
     "interaction/interaction_sequence_unittest.cc",
     "interaction/interaction_test_util_unittest.cc",
     "interaction/interactive_test_unittest.cc",
+    "interaction/typed_data_collection_unittest.cc",
     "l10n/l10n_util_unittest.cc",
     "l10n/time_format_unittest.cc",
     "models/image_model_unittest.cc",
@@ -1057,7 +1070,7 @@ test("ui_base_unittests") {
     "//ui/base/cursor:unittests",
     "//ui/base/data_transfer_policy:unittests",
     "//ui/base/metadata:metadata_tests",
-    "//ui/base/prediction:prediction",
+    "//ui/base/prediction",
     "//ui/color",
     "//ui/display",
     "//ui/gfx:test_support",
@@ -1073,6 +1086,10 @@ test("ui_base_unittests") {
       "//ui/base/accelerators/global_accelerator_listener",
       "//ui/events:events_base",
     ]
+  }
+
+  if (is_win || is_mac || is_linux || is_chromeos || is_android) {
+    deps += [ "//ui/base/unowned_user_data:unit_tests" ]
   }
 
   if (!is_android && !is_ios) {
@@ -1320,6 +1337,10 @@ test("ui_base_unittests") {
       "//ui/base/accelerators/global_accelerator_listener",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_mac) {
@@ -1350,10 +1371,7 @@ if (is_linux || is_chromeos) {
   # This source set defines linux wm role names and must not have any external
   # dependencies and be kept as minimal as possible.
   source_set("wm_role_names") {
-    sources = [
-      "wm_role_names_linux.cc",
-      "wm_role_names_linux.h",
-    ]
+    sources = [ "wm_role_names_linux.h" ]
   }
 }
 
@@ -1370,7 +1388,7 @@ source_set("base_interactive_ui_tests") {
       ":test_support",
       "//base/test:test_support",
       "//testing/gtest",
-      "//ui/events:events",
+      "//ui/events",
     ]
   }
 }

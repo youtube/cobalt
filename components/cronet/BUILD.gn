@@ -10,6 +10,7 @@ import("//chrome/version.gni")
 import("//components/cronet/native/include/headers.gni")
 import("//components/grpc_support/include/headers.gni")
 import("//testing/test.gni")
+import("//third_party/protobuf/proto_library.gni")
 
 declare_args() {
   # If set to true, this will remove histogram manager to reduce binary size.
@@ -34,6 +35,19 @@ process_version("cronet_version_header") {
   ]
 }
 
+proto_library("request_context_config_proto") {
+  sources = [ "proto/request_context_config.proto" ]
+}
+
+if (is_android) {
+  import("//build/config/android/rules.gni")
+
+  proto_java_library("request_context_config_java_proto") {
+    proto_path = "."
+    sources = [ "proto/request_context_config.proto" ]
+  }
+}
+
 # Cronet common implementation.
 source_set("cronet_common") {
   sources = [
@@ -42,6 +56,8 @@ source_set("cronet_common") {
     "cronet_global_state.h",
     "cronet_prefs_manager.cc",
     "cronet_prefs_manager.h",
+    "cronet_proxy_delegate.cc",
+    "cronet_proxy_delegate.h",
     "cronet_upload_data_stream.cc",
     "cronet_upload_data_stream.h",
     "cronet_url_request.cc",
@@ -54,8 +70,9 @@ source_set("cronet_common") {
   deps = [
     ":cronet_buildflags",
     ":cronet_version_header",
+    ":request_context_config_proto",
     "//base",
-    "//components/prefs:prefs",
+    "//components/prefs",
     "//net",
   ]
 
@@ -129,6 +146,10 @@ if (is_android) {
       ]
       public_configs = [ ":shared_library_public_config" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   test("cronet_tests") {
@@ -156,6 +177,10 @@ if (is_android) {
       additional_manifest_fragments =
           [ "//build/config/fuchsia/test/network.shard.test-cml" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   test("cronet_unittests") {
@@ -172,6 +197,10 @@ if (is_android) {
       "cronet_global_state_stubs.cc",
       "run_all_unittests.cc",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   _package_dir = "$root_out_dir/cronet"
@@ -233,6 +262,10 @@ if (is_android) {
       "//components/cronet/native/test:cronet_native_testutil",
       "//net:test_support",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   executable("cronet_sample") {
@@ -257,7 +290,11 @@ if (is_android) {
     sources = [ "native/sample/test/sample_test.cc" ]
     deps = [
       ":cronet_sample",
-      "//testing/gtest:gtest",
+      "//testing/gtest",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

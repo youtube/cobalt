@@ -22,7 +22,6 @@ extern const char kFinchSeedMinUpdatePeriod[];
 extern const char kWebViewEnableModernCookieSameSite[];
 extern const char kWebViewSelectiveImageInversionDarkening[];
 extern const char kWebViewFencedFrames[];
-extern const char kWebViewEnableTrustTokensComponent[];
 extern const char kWebViewTpcdMetadaComponent[];
 extern const char kWebViewFpsComponent[];
 extern const char kWebViewMaskedDomainListComponent[];
@@ -33,6 +32,9 @@ extern const char kWebViewUseSeparateResourceContext[];
 extern const char kDebugBsa[];
 extern const char kWebViewInterceptedCookieHeader[];
 extern const char kWebViewUseStartupTasksLogic[];
+extern const char kWebViewUseStartupTasksLogicP2[];
+extern const char kWebViewStartupTasksYieldToNative[];
+extern const char kWebViewUseBackgroundThreadForGms[];
 
 }  // namespace switches
 

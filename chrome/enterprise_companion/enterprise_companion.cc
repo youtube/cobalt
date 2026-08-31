@@ -33,7 +33,8 @@
 #if BUILDFLAG(IS_WIN)
 #include "base/strings/stringprintf.h"
 #include "base/win/windows_version.h"
-#endif
+#include "chrome/enterprise_companion/installer.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace enterprise_companion {
 

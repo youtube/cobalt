@@ -224,7 +224,12 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
     NewtonsMethodUpdate(candidate);
 
     const double candidate_objective = GetObjective(candidate);
-    if (candidate_objective > objective_max) {
+    if (candidate_objective > objective_max ||
+        (candidate_objective == objective_max &&
+         candidate.loss_limited_bandwidth >
+             best_candidate.loss_limited_bandwidth)) {
+      // Select the candidate with the highest objective or the one with the
+      // same objective but higher bandwidth if they are tied.
       objective_max = candidate_objective;
       best_candidate = candidate;
     }
@@ -350,7 +355,8 @@ void LossBasedBweV2::UpdateBandwidthEstimate(
         config_->hold_duration_factor > 0) {
       RTC_LOG(LS_INFO) << this << " " << "Switch to HOLD. Bounded BWE: "
                        << bounded_bandwidth_estimate.kbps()
-                       << ", duration: " << last_hold_info_.duration.ms();
+                       << ", duration: " << last_hold_info_.duration.ms()
+                       << ", avg loss rate: " << average_reported_loss_ratio_;
       last_hold_info_ = {
           .timestamp = last_send_time_most_recent_observation_ +
                        last_hold_info_.duration,

@@ -147,11 +147,12 @@ class AutocompleteTest : public InProcessBrowserTest {
            };)",
                            kDefaultAutocompleteInputId);
     ASSERT_TRUE(content::ExecJs(web_contents(), js));
+    content::SimulateEndOfPaintHoldingOnPrimaryMainFrame(web_contents());
 
     for (const char c : value) {
       ui::DomKey key = ui::DomKey::FromCharacter(c);
-      ui::KeyboardCode key_code = ui::NonPrintableDomKeyToKeyboardCode(key);
-      ui::DomCode code = ui::UsLayoutKeyboardCodeToDomCode(key_code);
+      ui::DomCode code = UsLayoutDomKeyToDomCode(key);
+      ui::KeyboardCode key_code = DomCodeToUsLayoutKeyboardCode(code);
       content::SimulateKeyPress(web_contents(), key, code, key_code, false,
                                 false, false, false);
       ASSERT_TRUE(autofill_manager()->text_field_change_waiter().Wait(1));
@@ -196,12 +197,13 @@ class AutocompleteTest : public InProcessBrowserTest {
         mock_callback;
     std::vector<Suggestion> suggestions;
     EXPECT_CALL(mock_callback, Run).WillOnce(testing::SaveArg<1>(&suggestions));
-    SingleFieldFillRouter::OnSuggestionsReturnedCallback callback =
-        mock_callback.Get();
-    EXPECT_TRUE(autocomplete_history_manager()->OnGetSingleFieldSuggestions(
-        test::CreateTestFormField(/*label=*/"", input_name, prefix,
-                                  FormControlType::kInputText),
-        autofill_manager()->client(), callback));
+    FormFieldData field = test::CreateTestFormField(
+        /*label=*/"", input_name, prefix, FormControlType::kInputText);
+    FormData form;
+    form.set_url(GURL("https://www.foo.com"));
+    form.set_fields({field});
+    autocomplete_history_manager()->OnGetSingleFieldSuggestions(
+        form, field, autofill_manager()->client(), mock_callback.Get());
 
     // Make sure the DB task gets executed.
     WaitForPendingDBTasks(*GetWebDataService());

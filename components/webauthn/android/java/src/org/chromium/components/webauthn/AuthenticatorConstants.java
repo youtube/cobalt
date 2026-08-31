@@ -20,5 +20,7 @@ public final class AuthenticatorConstants {
     public static final String CAPABILITY_HYBRID_TRANSPORT = "hybridTransport";
     public static final String CAPABILITY_PPAA = "passkeyPlatformAuthenticator";
     public static final String CAPABILITY_UVPAA = "userVerifyingPlatformAuthenticator";
+    public static final String CAPABILITY_CONDITIONAL_CREATE = "conditionalCreate";
     public static final String CAPABILITY_CONDITIONAL_GET = "conditionalGet";
+    public static final String CAPABILITY_IMMEDIATE_GET = "immediateGet";
 }

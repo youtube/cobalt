@@ -21,6 +21,7 @@
 #include "base/types/pass_key.h"
 #include "content/browser/preloading/preloading_confidence.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
+#include "content/browser/preloading/prerender/reserved_prerender_host_info.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_export.h"
 #include "content/common/frame.mojom-forward.h"
@@ -83,8 +84,23 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
       base::Seconds(19);
   static constexpr base::TimeDelta kTimeToLiveInBackgroundForSpeculationRules =
       base::Seconds(600);
+  static constexpr int kMaxRunningSpeculationRulesImmediatePrerenders = 10;
+  static constexpr int kMaxRunningSpeculationRulesNonImmediatePrerenders = 2;
 
   using PassKey = base::PassKey<PrerenderHostRegistry>;
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(PrerenderProcessReuseAvailability)
+  enum class PrerenderProcessReuseAvailability {
+    kHasMatchableHosts = 0,
+    kHasSameOriginHosts = 1,
+    kHasSameSiteHosts = 2,
+    kNoSameOriginOrSiteHosts = 3,
+    kMaxValue = kNoSameOriginOrSiteHosts,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/navigation/enums.xml:PrerenderProcessReuseAvailability)
 
   explicit PrerenderHostRegistry(WebContents&);
   ~PrerenderHostRegistry() override;
@@ -168,17 +184,16 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
       NavigationRequest& navigation_request);
 
   // For activators. Reserves the host to activate for a navigation for the
-  // given NavigationRequest. Returns the root frame tree node id of the
-  // prerendered page, which can be used as the id of the host. Returns an
-  // invalid FrameTreeNodeId if it's not found or not ready for activation yet.
+  // given NavigationRequest.
+  // Returns a valid ReservedPrerenderHostInfo, which has the valid root frame
+  // tree node if of the prerendered page. Returns nullopt if it's not found
+  // or not ready for activation yet.
   // The caller is responsible for calling OnActivationFinished() with the id to
   // release the reserved host. This also cancels all the prerender hosts except
   // the one to be activated.
-  //
-  // TODO(crbug.com/40177514): Consider returning the ownership of the reserved
-  // host and letting NavigationRequest own it instead of PrerenderHostRegistry.
-  FrameTreeNodeId ReserveHostToActivate(NavigationRequest& navigation_request,
-                                        FrameTreeNodeId expected_host_id);
+  std::optional<ReservedPrerenderHostInfo> ReserveHostToActivate(
+      NavigationRequest& navigation_request,
+      FrameTreeNodeId expected_host_id);
 
   // For activators.
   // Activates the host reserved by ReserveHostToActivate() and returns the
@@ -217,6 +232,12 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
   // the URL doesn't match any non-reserved host.
   PrerenderHost* FindHostByUrlForTesting(const GURL& prerendering_url);
 
+  // Returns the prewarmed default search engine page. The prewarm page is
+  // filtered by exactly matching the search prewarm URL with the initial URL of
+  // the prerender host.
+  PrerenderHost* FindPrewarmSearchResultHostForTesting(
+      const GURL& search_prewarm_url);
+
   // Returns whether prerender_new_tab_handle_by_frame_tree_node_id_ has the
   // given id.
   bool HasNewTabHandleByIdForTesting(FrameTreeNodeId frame_tree_node_id);
@@ -224,20 +245,11 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
   // Cancels all hosts.
   void CancelAllHostsForTesting();
 
-  // Gets the trigger type from the reserved PrerenderHost.
-  PreloadingTriggerType GetPrerenderTriggerType(
-      FrameTreeNodeId frame_tree_node_id);
-  // Gets the embedder histogram suffix from the reserved PrerenderHost. Only
-  // used for metrics.
-  const std::string& GetPrerenderEmbedderHistogramSuffix(
-      FrameTreeNodeId frame_tree_node_id);
-
   // Represents the group of prerender limit calculated by PreloadingTriggerType
   // and SpeculationEagerness on GetPrerenderLimitGroup.
-  // Currently, this is used when kPrerender2NewLimitAndScheduler is enabled.
   enum class PrerenderLimitGroup {
-    kSpeculationRulesEager,
-    kSpeculationRulesNonEager,
+    kSpeculationRulesImmediate,
+    kSpeculationRulesNonImmediate,
     kEmbedder,
   };
 
@@ -316,7 +328,6 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
 
   // Calculates PrerenderLimitGroup by PreloadingTriggerType and
   // SpeculationEagerness.
-  // Currently, this is only used under kPrerender2NewLimitAndScheduler.
   PrerenderLimitGroup GetPrerenderLimitGroup(
       PreloadingTriggerType trigger_type,
       std::optional<blink::mojom::SpeculationEagerness> eagerness);
@@ -327,9 +338,8 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
 
   // Returns whether a certain type of PreloadingTriggerType is allowed to be
   // added to PrerenderHostRegistry according to the limit of the given
-  // PreloadingTriggerType.
-  // If kPrerender2NewLimitAndScheduler is enabled, SpeculationEagerness is
-  // additionally considered to apply the new limits and behaviors according to
+  // PreloadingTriggerType. SpeculationEagerness is additionally considered in
+  // order to apply the limits and behaviors according to
   // PrerenderLimitGroup.
   bool IsAllowedToStartPrerenderingForTrigger(
       PreloadingTriggerType trigger_type,
@@ -345,6 +355,14 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
 
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
+
+  void RecordPotentialPrerenderProcessReuse(bool has_machable_hosts,
+                                            const GURL& naivgation_url);
+
+  // Find a prerender host that is marked as reusable and under the
+  // same site as attributes.prerendering_url.
+  std::unique_ptr<PrerenderHost> FindAndTakePrerenderHostToReuse(
+      const PrerenderAttributes& attributes);
 
   scoped_refptr<base::SingleThreadTaskRunner> GetTimerTaskRunner();
 
@@ -369,11 +387,10 @@ class CONTENT_EXPORT PrerenderHostRegistry : public WebContentsObserver {
   base::flat_map<FrameTreeNodeId, std::unique_ptr<PrerenderHost>>
       prerender_host_by_frame_tree_node_id_;
 
-  // Holds the host id of non-eager prerenders by their arrival order.
-  // Currently, it is used to calculate the oldest prerender on
-  // GetOldestHostPerLimitGroup for kPrerender2NewLimitAndScheduler.
+  // Holds the host id of non-immediate prerenders by their arrival order. It is
+  // used to calculate the oldest prerender on GetOldestHostPerLimitGroup.
   base::circular_deque<FrameTreeNodeId>
-      non_eager_prerender_host_id_by_arrival_order_;
+      non_immediate_prerender_host_id_by_arrival_order_;
 
   // The host that is reserved for activation.
   std::unique_ptr<PrerenderHost> reserved_prerender_host_;

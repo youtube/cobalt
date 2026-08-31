@@ -83,7 +83,6 @@ rtc_library("svc_rate_allocator") {
     "../../../api/video_codecs:scalability_mode",
     "../../../api/video_codecs:video_codecs_api",
     "../../../rtc_base:checks",
-    "../../../rtc_base/experiments:stable_target_rate_experiment",
     "//third_party/abseil-cpp/absl/container:inlined_vector",
   ]
 }
@@ -147,6 +146,7 @@ if (rtc_include_tests) {
     deps = [
       ":svc_rate_allocator",
       "..:webrtc_vp9_helpers",
+      "../../../api:field_trials",
       "../../../api/units:data_rate",
       "../../../api/video:video_bitrate_allocation",
       "../../../api/video:video_bitrate_allocator",
@@ -155,7 +155,7 @@ if (rtc_include_tests) {
       "../../../api/video_codecs:scalability_mode",
       "../../../api/video_codecs:video_codecs_api",
       "../../../rtc_base:checks",
-      "../../../test:explicit_key_value_config",
+      "../../../test:create_test_field_trials",
       "../../../test:test_support",
       "../codecs/av1:av1_svc_config",
       "//third_party/abseil-cpp/absl/container:inlined_vector",

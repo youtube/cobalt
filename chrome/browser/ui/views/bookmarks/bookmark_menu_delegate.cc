@@ -420,8 +420,8 @@ void BookmarkMenuDelegate::ExecuteCommand(int id, int mouse_event_flags) {
   std::vector<raw_ptr<const BookmarkNode, VectorExperimental>> selection =
       menu_id_to_node_map_.find(id)->second.GetUnderlyingNodes(
           GetBookmarkMergedSurfaceService());
-  chrome::OpenAllIfAllowed(browser_, selection,
-                           ui::DispositionFromEventFlags(mouse_event_flags));
+  bookmarks::OpenAllIfAllowed(browser_, selection,
+                              ui::DispositionFromEventFlags(mouse_event_flags));
 }
 
 bool BookmarkMenuDelegate::ShouldExecuteCommandWithoutClosingMenu(
@@ -1229,7 +1229,12 @@ MenuItemView* BookmarkMenuDelegate::UpdateOtherNodeSeparator() {
 }
 
 void BookmarkMenuDelegate::BuildOtherNodeMenuHeader(MenuItemView* menu) {
-  CHECK(!menu->HasSubmenu() || menu->GetSubmenu()->children().empty());
+  // This menu can be in an inconsistent state when dragging bookmarks, so
+  // enforce that it's empty before building its contents.
+  other_node_menu_separator_ = nullptr;
+  if (menu->HasSubmenu()) {
+    menu->RemoveAllMenuItems();
+  }
   ui::ImageModel bookmarks_side_panel_icon = ui::ImageModel::FromVectorIcon(
       kBookmarksSidePanelIcon, ui::kColorMenuIcon,
       ui::SimpleMenuModel::kDefaultIconSize);

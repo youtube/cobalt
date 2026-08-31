@@ -270,8 +270,7 @@ void JavaToNativeRTCConfiguration(
   rtc_config->sdp_semantics = JavaToNativeSdpSemantics(jni, j_sdp_semantics);
   rtc_config->active_reset_srtp_params =
       Java_RTCConfiguration_getActiveResetSrtpParams(jni, j_rtc_config);
-  rtc_config->crypto_options =
-      JavaToNativeOptionalCryptoOptions(jni, j_crypto_options);
+  rtc_config->crypto_options = JavaToNativeCryptoOptions(jni, j_crypto_options);
   rtc_config->offer_extmap_allow_mixed =
       Java_RTCConfiguration_getOfferExtmapAllowMixed(jni, j_rtc_config);
   rtc_config->enable_implicit_rollback =
@@ -304,8 +303,7 @@ PeerConnectionObserverJni::PeerConnectionObserverJni(
 
 PeerConnectionObserverJni::~PeerConnectionObserverJni() = default;
 
-void PeerConnectionObserverJni::OnIceCandidate(
-    const IceCandidateInterface* candidate) {
+void PeerConnectionObserverJni::OnIceCandidate(const IceCandidate* candidate) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_Observer_onIceCandidate(env, j_observer_global_,
                                NativeToJavaIceCandidate(env, *candidate));
@@ -678,7 +676,7 @@ static jboolean JNI_PeerConnection_AddIceCandidate(
     const jni_zero::JavaParamRef<jstring>& j_candidate_sdp) {
   std::string sdp_mid = JavaToNativeString(jni, j_sdp_mid);
   std::string sdp = JavaToNativeString(jni, j_candidate_sdp);
-  std::unique_ptr<IceCandidateInterface> candidate(
+  std::unique_ptr<IceCandidate> candidate(
       CreateIceCandidate(sdp_mid, j_sdp_mline_index, sdp, nullptr));
   return ExtractNativePC(jni, j_pc)->AddIceCandidate(candidate.get());
 }
@@ -692,7 +690,7 @@ static void JNI_PeerConnection_AddIceCandidateWithObserver(
     const jni_zero::JavaParamRef<jobject>& j_observer) {
   std::string sdp_mid = JavaToNativeString(jni, j_sdp_mid);
   std::string sdp = JavaToNativeString(jni, j_candidate_sdp);
-  std::unique_ptr<IceCandidateInterface> candidate(
+  std::unique_ptr<IceCandidate> candidate(
       CreateIceCandidate(sdp_mid, j_sdp_mline_index, sdp, nullptr));
 
   scoped_refptr<AddIceCandidateObserverJni> observer(
@@ -706,9 +704,16 @@ static jboolean JNI_PeerConnection_RemoveIceCandidates(
     JNIEnv* jni,
     const jni_zero::JavaParamRef<jobject>& j_pc,
     const jni_zero::JavaParamRef<jobjectArray>& j_candidates) {
-  std::vector<Candidate> candidates =
-      JavaToNativeVector<Candidate>(jni, j_candidates, &JavaToNativeCandidate);
-  return ExtractNativePC(jni, j_pc)->RemoveIceCandidates(candidates);
+  std::vector<std::unique_ptr<IceCandidate>> candidates_owned =
+      JavaToNativeVector<std::unique_ptr<IceCandidateInterface>>(
+          jni, j_candidates, &JavaToNativeCandidate);
+  bool ret = false;
+  for (const auto& c : candidates_owned) {
+    if (ExtractNativePC(jni, j_pc)->RemoveIceCandidate(c.get())) {
+      ret = true;
+    }
+  }
+  return ret;
 }
 
 static jboolean JNI_PeerConnection_AddLocalStream(

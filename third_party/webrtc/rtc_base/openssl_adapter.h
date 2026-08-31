@@ -148,7 +148,7 @@ class OpenSSLAdapter final : public SSLAdapter {
 #ifdef OPENSSL_IS_BORINGSSL
   std::unique_ptr<BoringSSLIdentity> identity_;
 #else
-  std::unique_ptr<webrtc::OpenSSLIdentity> identity_;
+  std::unique_ptr<OpenSSLIdentity> identity_;
 #endif
   // Indicates whethere this is a client or a server.
   SSLRole role_;
@@ -211,8 +211,8 @@ class OpenSSLAdapterFactory : public SSLAdapterFactory {
 
  private:
   // Holds the SSLMode (DTLS,TLS) that will be used to set the session cache.
-  SSLMode ssl_mode_ = webrtc::SSL_MODE_TLS;
-  SSLRole ssl_role_ = webrtc::SSL_CLIENT;
+  SSLMode ssl_mode_ = SSL_MODE_TLS;
+  SSLRole ssl_role_ = SSL_CLIENT;
   bool ignore_bad_cert_ = false;
 
   std::unique_ptr<SSLIdentity> identity_;
@@ -235,14 +235,5 @@ std::string TransformAlpnProtocols(const std::vector<std::string>& protos);
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::OpenSSLAdapter;
-using ::webrtc::OpenSSLAdapterFactory;
-using ::webrtc::TransformAlpnProtocols;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_OPENSSL_ADAPTER_H_

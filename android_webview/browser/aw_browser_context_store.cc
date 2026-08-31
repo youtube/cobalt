@@ -12,6 +12,8 @@
 #include "android_webview/browser/aw_browser_context.h"
 #include "android_webview/browser/aw_browser_process.h"
 #include "android_webview/common/aw_features.h"
+#include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
@@ -20,6 +22,7 @@
 #include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
@@ -79,10 +82,6 @@ AwBrowserContextStore::AwBrowserContextStore(PrefService* pref_service)
   base::UmaHistogramCounts100(
       "Android.WebView.AwBrowserContext.NonDefault.CountAtStartup",
       profiles.size());
-
-  // Ensure default profile entry exists (in both prefs and our data structure)
-  // and initialize it.
-  default_context_ = Get(kDefaultContextName, true);
 }
 
 bool AwBrowserContextStore::Exists(const std::string& name) const {
@@ -105,6 +104,9 @@ AwBrowserContext* AwBrowserContextStore::Get(const std::string& name,
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   TRACE_EVENT("android_webview", "AwBrowserContextStore::Get", "name", name,
               "create_if_needed", create_if_needed);
+  // Apps can specify a list of Profiles (BrowserContexts) to be initialized at
+  // startup, meaning this can be called after thread restrictions are applied.
+  base::ScopedAllowBlocking scoped_allow_blocking;
   auto context_it = contexts_.find(name);
   Entry* entry;
   std::optional<base::ScopedUmaHistogramTimer> histogram_timer;
@@ -130,7 +132,6 @@ AwBrowserContext* AwBrowserContextStore::Get(const std::string& name,
             "Android.WebView.AwBrowserContext.NonDefault.Duration.Create",
             base::ScopedUmaHistogramTimer::ScopedHistogramTiming::kShortTimes);
       }
-
       entry = CreateNewContext(name);
     } else {
       return nullptr;
@@ -253,7 +254,11 @@ int AwBrowserContextStore::AssignNewProfileNumber() {
   return number;
 }
 
-AwBrowserContext* AwBrowserContextStore::GetDefault() const {
+AwBrowserContext* AwBrowserContextStore::GetDefault() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!default_context_) {
+    default_context_ = Get(kDefaultContextName, true);
+  }
   return default_context_;
 }
 

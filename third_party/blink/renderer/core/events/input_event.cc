@@ -112,16 +112,10 @@ bool InputTypeIsCancelable(InputEvent::InputType input_type) {
                                             const InputEventInit* initializer,
                                             ExceptionState& exception_state) {
   InputEvent* result;
-  if (RuntimeEnabledFeatures::InputEventConstructorThrowsEnabled()) {
-    CHECK(!exception_state.HadException());
-    result =
-        MakeGarbageCollected<InputEvent>(type, initializer, exception_state);
-    if (exception_state.HadException()) {
-      return nullptr;
-    }
-  } else {
-    result =
-        MakeGarbageCollected<InputEvent>(type, initializer, IGNORE_EXCEPTION);
+  CHECK(!exception_state.HadException());
+  result = MakeGarbageCollected<InputEvent>(type, initializer, exception_state);
+  if (exception_state.HadException()) {
+    return nullptr;
   }
   return result;
 }
@@ -205,6 +199,20 @@ InputEvent* InputEvent::CreateInput(InputType input_type,
   event_init->setComposed(true);
   return MakeGarbageCollected<InputEvent>(event_type_names::kInput, *event_init,
                                           input_type, data, nullptr,
+                                          is_composing, ranges);
+}
+
+/* static */
+InputEvent* InputEvent::CreateInput(InputType input_type,
+                                    DataTransfer* data_transfer,
+                                    EventIsComposing is_composing,
+                                    const GCedStaticRangeVector* ranges) {
+  auto* event_init = UIEventInit::Create();
+  event_init->setBubbles(true);
+  event_init->setCancelable(false);
+  event_init->setComposed(true);
+  return MakeGarbageCollected<InputEvent>(event_type_names::kInput, *event_init,
+                                          input_type, String(), data_transfer,
                                           is_composing, ranges);
 }
 

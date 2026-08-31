@@ -9,12 +9,15 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "chrome/browser/enterprise/connectors/analysis/content_analysis_info.h"
 #include "chrome/browser/enterprise/connectors/common.h"
+#include "chrome/browser/enterprise/connectors/reporting/reporting_event_router_factory.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router.h"
 #include "chrome/browser/extensions/api/safe_browsing_private/safe_browsing_private_event_router_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/binary_upload_service.h"
 #include "components/crash/core/common/crash_key.h"
+#include "components/enterprise/connectors/core/reporting_constants.h"
 
 namespace safe_browsing {
 
@@ -31,18 +34,18 @@ std::string MaybeGetUnscannedReason(BinaryUploadService::Result result) {
       return "";
 
     case BinaryUploadService::Result::FILE_TOO_LARGE:
-      return "FILE_TOO_LARGE";
+      return enterprise_connectors::kFileTooLargeUnscannedReason;
     case BinaryUploadService::Result::TOO_MANY_REQUESTS:
-      return "TOO_MANY_REQUESTS";
+      return enterprise_connectors::kTooManyRequestsUnscannedReason;
     case BinaryUploadService::Result::TIMEOUT:
-      return "TIMEOUT";
+      return enterprise_connectors::kTimeoutUnscannedReason;
     case BinaryUploadService::Result::UNKNOWN:
     case BinaryUploadService::Result::UPLOAD_FAILURE:
     case BinaryUploadService::Result::FAILED_TO_GET_TOKEN:
     case BinaryUploadService::Result::INCOMPLETE_RESPONSE:
-      return "SERVICE_UNAVAILABLE";
+      return enterprise_connectors::kServiceUnavailableUnscannedReason;
     case BinaryUploadService::Result::FILE_ENCRYPTED:
-      return "FILE_PASSWORD_PROTECTED";
+      return enterprise_connectors::kFilePasswordProtectedUnscannedReason;
   }
 }
 
@@ -146,8 +149,7 @@ void AddCustomMessageRule(
 
 void MaybeReportDeepScanningVerdict(
     Profile* profile,
-    const GURL& url,
-    const GURL& tab_url,
+    const enterprise_connectors::ContentAnalysisInfo* content_analysis_info,
     const std::string& source,
     const std::string& destination,
     const std::string& file_name,
@@ -155,23 +157,29 @@ void MaybeReportDeepScanningVerdict(
     const std::string& mime_type,
     const std::string& trigger,
     const std::string& content_transfer_method,
-    DeepScanAccessPoint access_point,
+    const std::string& source_email,
     const int64_t content_size,
+    const safe_browsing::ReferrerChain& referrer_chain,
     BinaryUploadService::Result result,
     const enterprise_connectors::ContentAnalysisResponse& response,
     enterprise_connectors::EventResult event_result) {
   DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
-  auto* router =
-      extensions::SafeBrowsingPrivateEventRouterFactory::GetForProfile(profile);
-  if (!router)
+  DCHECK(content_analysis_info);
+
+  auto* reporting_event_router =
+      enterprise_connectors::ReportingEventRouterFactory::GetForBrowserContext(
+          profile);
+  if (!reporting_event_router) {
     return;
+  }
 
   std::string unscanned_reason = MaybeGetUnscannedReason(result);
   if (!unscanned_reason.empty()) {
-    router->OnUnscannedFileEvent(
-        url, tab_url, source, destination, file_name, download_digest_sha256,
-        mime_type, trigger, access_point, unscanned_reason,
-        content_transfer_method, content_size, event_result);
+    reporting_event_router->OnUnscannedFileEvent(
+        GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
+        source, destination, file_name, download_digest_sha256, mime_type,
+        trigger, unscanned_reason, content_transfer_method, content_size,
+        event_result);
   }
 
   if (result != BinaryUploadService::Result::SUCCESS)
@@ -186,23 +194,25 @@ void MaybeReportDeepScanningVerdict(
       else if (response_result.tag() == "dlp")
         unscanned_reason = "DLP_SCAN_FAILED";
 
-      router->OnUnscannedFileEvent(
-          url, tab_url, source, destination, file_name, download_digest_sha256,
-          mime_type, trigger, access_point, std::move(unscanned_reason),
-          content_transfer_method, content_size, event_result);
+      reporting_event_router->OnUnscannedFileEvent(
+          GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
+          source, destination, file_name, download_digest_sha256, mime_type,
+          trigger, std::move(unscanned_reason), content_transfer_method,
+          content_size, event_result);
     } else if (response_result.triggered_rules_size() > 0) {
-      router->OnAnalysisConnectorResult(
-          url, tab_url, source, destination, file_name, download_digest_sha256,
-          mime_type, trigger, response.request_token(), content_transfer_method,
-          access_point, response_result, content_size, event_result);
+      reporting_event_router->OnAnalysisConnectorResult(
+          GURL(content_analysis_info->url()), content_analysis_info->tab_url(),
+          source, destination, file_name, download_digest_sha256, mime_type,
+          trigger, response.request_token(), content_transfer_method,
+          source_email, content_analysis_info->GetContentAreaAccountEmail(),
+          response_result, content_size, referrer_chain, event_result);
     }
   }
 }
 
 void ReportAnalysisConnectorWarningBypass(
     Profile* profile,
-    const GURL& url,
-    const GURL& tab_url,
+    const enterprise_connectors::ContentAnalysisInfo& content_analysis_info,
     const std::string& source,
     const std::string& destination,
     const std::string& file_name,
@@ -210,8 +220,8 @@ void ReportAnalysisConnectorWarningBypass(
     const std::string& mime_type,
     const std::string& trigger,
     const std::string& content_transfer_method,
-    DeepScanAccessPoint access_point,
     const int64_t content_size,
+    const safe_browsing::ReferrerChain& referrer_chain,
     const enterprise_connectors::ContentAnalysisResponse& response,
     std::optional<std::u16string> user_justification) {
   DCHECK(std::ranges::all_of(download_digest_sha256, base::IsHexDigit<char>));
@@ -226,33 +236,17 @@ void ReportAnalysisConnectorWarningBypass(
       continue;
 
     router->OnAnalysisConnectorWarningBypassed(
-        url, tab_url, source, destination, file_name, download_digest_sha256,
-        mime_type, trigger, response.request_token(), content_transfer_method,
-        access_point, result, content_size, user_justification);
+        GURL(content_analysis_info.url()), content_analysis_info.tab_url(),
+        source, destination, file_name, download_digest_sha256, mime_type,
+        trigger, response.request_token(), content_transfer_method,
+        content_analysis_info.GetContentAreaAccountEmail(), referrer_chain,
+        result, content_size, user_justification);
   }
-}
-
-std::string DeepScanAccessPointToString(DeepScanAccessPoint access_point) {
-  switch (access_point) {
-    case DeepScanAccessPoint::DOWNLOAD:
-      return "Download";
-    case DeepScanAccessPoint::UPLOAD:
-      return "Upload";
-    case DeepScanAccessPoint::DRAG_AND_DROP:
-      return "DragAndDrop";
-    case DeepScanAccessPoint::PASTE:
-      return "Paste";
-    case DeepScanAccessPoint::PRINT:
-      return "Print";
-    case DeepScanAccessPoint::FILE_TRANSFER:
-      return "FileTransfer";
-  }
-  NOTREACHED();
 }
 
 void RecordDeepScanMetrics(
     bool is_cloud,
-    DeepScanAccessPoint access_point,
+    enterprise_connectors::DeepScanAccessPoint access_point,
     base::TimeDelta duration,
     int64_t total_bytes,
     const BinaryUploadService::Result& result,
@@ -285,12 +279,13 @@ void RecordDeepScanMetrics(
                         result_value, success);
 }
 
-void RecordDeepScanMetrics(bool is_cloud,
-                           DeepScanAccessPoint access_point,
-                           base::TimeDelta duration,
-                           int64_t total_bytes,
-                           const std::string& result,
-                           bool success) {
+void RecordDeepScanMetrics(
+    bool is_cloud,
+    enterprise_connectors::DeepScanAccessPoint access_point,
+    base::TimeDelta duration,
+    int64_t total_bytes,
+    const std::string& result,
+    bool success) {
   // Don't record metrics if the duration is unusable.
   if (duration.InMilliseconds() == 0)
     return;

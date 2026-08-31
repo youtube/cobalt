@@ -24,10 +24,6 @@
 #include "components/variations/seed_response.h"
 #include "components/variations/variations_safe_seed_store.h"
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/ash/components/dbus/featured/featured.pb.h"
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 class PrefService;
 class PrefRegistrySimple;
 
@@ -45,13 +41,8 @@ struct ValidatedSeed {
   ValidatedSeed(ValidatedSeed&& other);
   ValidatedSeed& operator=(ValidatedSeed&& other);
 
-  // Returns whether a seed matches an already stored seed.
-  bool MatchesStoredSeed(const StoredSeed& stored_seed) const;
-
-  // Gzipped and base-64 encoded serialized VariationsSeed.
-  std::string base64_seed_data;
-  // Gzipped serialized VariationsSeed.
-  std::string compressed_seed_data;
+  // Serialized VariationsSeed.
+  std::string seed_data;
   // A cryptographic signature on the seed_data.
   std::string base64_seed_signature;
   // The seed data parsed as a proto.
@@ -148,12 +139,12 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
                              const ClientFilterableState& client_state,
                              base::Time seed_fetch_time);
 
-  // Loads the last fetch time (for the latest seed) that was persisted to the
-  // local state.
-  base::Time GetLastFetchTime() const;
+  // Loads the last fetch time (for the latest seed) that was persisted. Returns
+  // base::Time() if there is no seed.
+  base::Time GetLatestSeedFetchTime() const;
 
-  // Returns the time at which the safe seed was persisted to the local state.
-  //
+  // Returns the client-side timestamp at which the safe seed was fetched.
+  // Returns base::Time() if there is no safe seed.
   // Virtual for early-boot CrOS experiments to use a different safe seed.
   virtual base::Time GetSafeSeedFetchTime() const;
 
@@ -170,11 +161,12 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
   void RecordLastFetchTime(base::Time fetch_time);
 
   // Loads the last server-provided seed date (for the latest seed) that was
-  // persisted to the local state. (See GetTimeForStudyDateChecks.)
+  // persisted to the local state.
+  // (See VariationsSeedStore::GetTimeForStudyDateChecks().)
   base::Time GetLatestTimeForStudyDateChecks() const;
 
   // Loads the last server-provided safe seed date of when the seed to be used
-  // was fetched. (See GetTimeForStudyDateChecks.)
+  // was fetched. (See VariationsSeedStore::GetTimeForStudyDateChecks().)
   base::Time GetSafeSeedTimeForStudyDateChecks() const;
 
   // Returns the time to use when determining whether a client should
@@ -197,6 +189,9 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
   // different day.
   void UpdateSeedDateAndLogDayChange(base::Time server_date_fetched);
 
+  // Creates a histogram for the result of the update of the seed date.
+  void LogSeedDayChange(base::Time server_date_fetched);
+
   // Returns the serial number of the most recently received seed, or an empty
   // string if there is no seed (or if it could not be read).
   // Side-effect: If there is a failure while attempting to read the latest seed
@@ -205,15 +200,32 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
   // more efficient to call LoadSeed() prior to calling this method.
   const std::string& GetLatestSerialNumber();
 
+  // Returns the latest country code that was received from the server.
+  std::string GetLatestCountry();
+
+  // Returns the first country code returned by the variations server after the
+  // client upgraded to the version returned by
+  // GetPermanentConsistencyVersion().
+  std::string GetPermanentConsistencyCountry();
+
+  // Gets the version applied to studies with permanent consistency. The version
+  // at the time of storing the permanent consistency country.
+  std::string GetPermanentConsistencyVersion();
+
+  // Sets the country code and version applied to studies with permanent
+  // consistency.
+  void SetPermanentConsistencyCountryAndVersion(std::string_view country,
+                                                std::string_view version);
+
+  // Clears the country code and version applied to studies with permanent
+  // consistency.
+  void ClearPermanentConsistencyCountryAndVersion();
+
   PrefService* local_state() { return local_state_; }
   const PrefService* local_state() const { return local_state_; }
 
   // Registers Local State prefs used by this class.
   static void RegisterPrefs(PrefRegistrySimple* registry);
-
-  // Loads the last fetch time (for the latest seed) that was persisted to
-  // |local_state|.
-  static base::Time GetLastFetchTimeFromPrefService(PrefService* local_state);
 
   static VerifySignatureResult VerifySeedSignatureForTesting(
       const std::string& seed_bytes,
@@ -246,6 +258,9 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
       const std::string& seed_data,
       const std::string& base64_seed_signature,
       std::optional<VerifySignatureResult>* verify_signature_result);
+
+  // Stores the serial number of the latest seed.
+  void StoreLatestSerialNumber(std::string_view serial_number);
 
  private:
   FRIEND_TEST_ALL_PREFIXES(VariationsSeedStoreTest, VerifySeedSignature);
@@ -333,33 +348,22 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
       std::string* seed_data,
       std::string* base64_seed_signature = nullptr);
 
-  // Resolves a |delta_bytes| against the latest seed.
-  // Returns success or an error, populating |seed_bytes| on success.
-  [[nodiscard]] StoreSeedResult ResolveDelta(const std::string& delta_bytes,
-                                             std::string* seed_bytes);
-
-  // Resolves instance manipulations applied to received data.
-  // Returns success or an error, populating |seed_bytes| on success.
-  [[nodiscard]] StoreSeedResult ResolveInstanceManipulations(
-      const std::string& data,
-      const InstanceManipulations& im,
-      std::string* seed_bytes);
-
   // Called on the UI thread after the seed has been processed.
   void OnSeedDataProcessed(
       base::OnceCallback<void(bool, VariationsSeed)> done_callback,
       SeedProcessingResult result);
 
   // Updates the latest seed with validated data.
-  void StoreValidatedSeed(const ValidatedSeed& seed,
-                          const std::string& country_code,
-                          base::Time date_fetched);
+  StoreSeedResult StoreValidatedSeed(const ValidatedSeed& seed,
+                                     const std::string& country_code,
+                                     base::Time date_fetched);
 
   // Updates the safe seed with validated data.
-  void StoreValidatedSafeSeed(const ValidatedSeed& seed,
-                              int seed_milestone,
-                              const ClientFilterableState& client_state,
-                              base::Time seed_fetch_time);
+  StoreSeedResult StoreValidatedSafeSeed(
+      const ValidatedSeed& seed,
+      int seed_milestone,
+      const ClientFilterableState& client_state,
+      base::Time seed_fetch_time);
 
   // Processes seed data (decompression, parsing and signature verification).
   // This is meant to be called on a background thread in the case of periodic
@@ -393,9 +397,6 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
   // Setters and getters for safe seed state.
   std::unique_ptr<VariationsSafeSeedStore> safe_seed_store_;
 
-  // Cached serial number from the most recently fetched variations seed.
-  std::string latest_serial_number_;
-
   // Whether to validate signatures on the seed. Always on except in unit tests.
   const bool signature_verification_enabled_;
 
@@ -404,28 +405,6 @@ class COMPONENT_EXPORT(VARIATIONS) VariationsSeedStore {
 
   // Handles reads and writes to seed files.
   std::unique_ptr<SeedReaderWriter> seed_reader_writer_;
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Gets the combined server and client state used for early boot variations
-  // platform disaster recovery.
-  featured::SeedDetails GetSafeSeedStateForPlatform(
-      const ValidatedSeed& seed,
-      const int seed_milestone,
-      const ClientFilterableState& client_state,
-      const base::Time seed_fetch_time);
-
-  // Retries sending the safe seed to platform. Does not retry after two failed
-  // attempts.
-  void MaybeRetrySendSafeSeed(const featured::SeedDetails& safe_seed,
-                              bool success);
-
-  // Sends the safe seed to the platform.
-  void SendSafeSeedToPlatform(const featured::SeedDetails& safe_seed);
-
-  // A counter that keeps track of how many times the current safe seed is sent
-  // to platform.
-  size_t send_seed_to_platform_attempts_ = 0;
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Note: This should remain the last member so it'll be destroyed and
   // invalidate its weak pointers before any other members are destroyed.

@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.ntp.cards;
 
+
 import android.content.Context;
 import android.text.format.DateUtils;
 
@@ -11,6 +12,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
@@ -31,6 +33,7 @@ import org.chromium.components.signin.identitymanager.IdentityManager;
  * <p>Subclasses are notified when relevant signin status changes.
  */
 // TODO(crbug.com/352735671): Remove after uno phase 2 follow-up launch.
+@NullMarked
 public abstract class SignInPromo {
     /** Period for which promos are suppressed if signin is refused in FRE. */
     @VisibleForTesting static final long SUPPRESSION_PERIOD_MS = DateUtils.DAY_IN_MILLIS;
@@ -49,11 +52,14 @@ public abstract class SignInPromo {
     private final SigninManager mSigninManager;
     protected final SyncPromoController mSyncPromoController;
     protected final ProfileDataCache mProfileDataCache;
+    protected final IdentityManager mIdentityManager;
 
     protected SignInPromo(SigninManager signinManager, SyncPromoController syncPromoController) {
         Context context = ContextUtils.getApplicationContext();
         mSigninManager = signinManager;
-        mProfileDataCache = ProfileDataCache.createWithDefaultImageSizeAndNoBadge(context);
+        mIdentityManager = signinManager.getIdentityManager();
+        mProfileDataCache =
+                ProfileDataCache.createWithDefaultImageSizeAndNoBadge(context, mIdentityManager);
         mSyncPromoController = syncPromoController;
         mSigninObserver = new SigninObserver();
 
@@ -101,9 +107,8 @@ public abstract class SignInPromo {
     }
 
     public boolean isUserSignedInButNotSyncing() {
-        IdentityManager identityManager = mSigninManager.getIdentityManager();
-        return identityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)
-                && !identityManager.hasPrimaryAccount(ConsentLevel.SYNC);
+        return mIdentityManager.hasPrimaryAccount(ConsentLevel.SIGNIN)
+                && !mIdentityManager.hasPrimaryAccount(ConsentLevel.SYNC);
     }
 
     /** Notify that the content for this {@link SignInPromo} has changed. */

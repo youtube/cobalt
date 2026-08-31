@@ -56,52 +56,22 @@ bool IsValidRtpPacketSize(RtpPacketType packet_type, size_t size);
 absl::string_view RtpPacketTypeToString(RtpPacketType packet_type);
 
 // Verifies that a packet has a valid RTP header.
-bool RTC_EXPORT ValidateRtpHeader(const uint8_t* rtp,
-                                  size_t length,
+bool RTC_EXPORT ValidateRtpHeader(ArrayView<const uint8_t> rtp,
                                   size_t* header_length);
 
 // Helper method which updates the absolute send time extension if present.
-bool UpdateRtpAbsSendTimeExtension(uint8_t* rtp,
-                                   size_t length,
+bool UpdateRtpAbsSendTimeExtension(ArrayView<uint8_t> rtp,
                                    int extension_id,
                                    uint64_t time_us);
 
 // Applies specified `options` to the packet. It updates the absolute send time
 // extension header if it is present present then updates HMAC.
 bool RTC_EXPORT
-ApplyPacketOptions(uint8_t* data,
-                   size_t length,
+ApplyPacketOptions(ArrayView<uint8_t> data,
                    const PacketTimeUpdateParams& packet_time_params,
                    uint64_t time_us);
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::ApplyPacketOptions;
-using ::webrtc::GetRtcpSsrc;
-using ::webrtc::GetRtcpType;
-using ::webrtc::InferRtpPacketType;
-using ::webrtc::IsValidRtpPacketSize;
-using ::webrtc::IsValidRtpPayloadType;
-using ::webrtc::kMaxRtpPacketLen;
-using ::webrtc::kMinRtcpPacketLen;
-using ::webrtc::kMinRtpPacketLen;
-using ::webrtc::kRtcpTypeApp;
-using ::webrtc::kRtcpTypeBye;
-using ::webrtc::kRtcpTypePSFB;
-using ::webrtc::kRtcpTypeRR;
-using ::webrtc::kRtcpTypeRTPFB;
-using ::webrtc::kRtcpTypeSDES;
-using ::webrtc::kRtcpTypeSR;
-using ::webrtc::RtcpTypes;
-using ::webrtc::RtpPacketType;
-using ::webrtc::RtpPacketTypeToString;
-using ::webrtc::UpdateRtpAbsSendTimeExtension;
-using ::webrtc::ValidateRtpHeader;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_RTP_UTILS_H_

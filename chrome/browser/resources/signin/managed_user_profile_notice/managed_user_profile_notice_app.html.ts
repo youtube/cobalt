@@ -8,7 +8,7 @@ import type {ManagedUserProfileNoticeAppElement} from './managed_user_profile_no
 export function getHtml(this: ManagedUserProfileNoticeAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-${this.useUpdatedUi_ ? html`
+${html`
   <div class="main-container tangible-sync-style"
     id="${this.showTimeout_ ? 'timeout-main-container' : ''}">
     <img class="tangible-sync-style-left-banner" alt="">
@@ -16,8 +16,8 @@ ${this.useUpdatedUi_ ? html`
     <div id="content-container">
       ${this.showValueProposition_ ? html`
         <managed-user-profile-notice-value-prop id="value-prop"
-            title="$i18n{valuePropositionTitle}"
-            subtitle="$i18n{valuePropSubtitle}"
+            title="${this.valuePropTitle_}"
+            subtitle="${this.valuePropSubtitle_}"
             picture-url="${this.pictureUrl_}"
             email="${this.email_}" account-name="${this.accountName_}"
             ?show-enterprise-badge="${this.showEnterpriseBadge_}">
@@ -25,6 +25,8 @@ ${this.useUpdatedUi_ ? html`
         </managed-user-profile-notice-value-prop>
       ${this.showDisclosure_ ? html`
         <managed-user-profile-notice-disclosure id="disclosure"
+            title="${this.disclosureTitle_}"
+            subtitle="${this.disclosureSubtitle_}"
             picture-url="${this.pictureUrl_}"
             ?show-enterprise-badge="${this.showEnterpriseBadge_}">
         </managed-user-profile-notice-disclosure>
@@ -55,7 +57,11 @@ ${this.useUpdatedUi_ ? html`
       ` : ''}
       ${this.showUserDataHandling_ ? html`
         <managed-user-profile-notice-data-handling id="user-data-handling"
-            title="$i18n{separateBrowsingDataTitle}"
+            title="${this.separateDataTitle_}"
+            separate-data-choice-title="${this.separateDataChoiceTitle_}"
+            separate-data-choice-details="${this.separateDataChoiceDetails_}"
+            merge-data-choice-title="${this.mergeDataChoiceTitle_}"
+            merge-data-choice-details="${this.mergeDataChoiceDetails_}"
             .selectedDataHandling="${this.selectedDataHandling_}"
             @selected-data-handling-changed="${this.onDataHandlingChanged_}">
         </managed-user-profile-notice-data-handling>
@@ -75,7 +81,7 @@ ${this.useUpdatedUi_ ? html`
       ${this.cancelLabel_}
     </cr-button>
   </div>
-` : ''}
+`}
 <!--_html_template_end_-->`;
   // clang-format on
 }

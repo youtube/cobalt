@@ -19,8 +19,11 @@
 #include "base/values.h"
 #include "components/cbor/reader.h"
 #include "components/cbor/values.h"
+#include "components/cbor/writer.h"
+#include "components/device_event_log/device_event_log.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "device/fido/ctap_make_credential_request.h"
+#include "device/fido/enclave/constants.h"
 #include "device/fido/fido_parsing_utils.h"
 #include "device/fido/fido_transport_protocol.h"
 #include "device/fido/json_request.h"
@@ -93,6 +96,18 @@ constexpr char kGetAssertionHexResponse[] =
 constexpr char kMakeCredentialHexResponse[] =
     "81A1626F6BA3677075625F6B657944050607086776657273696F6E0169656E637279707465"
     "644401020304";
+
+// An example response with the top-level "ok" key, dummy large blob and PRF
+// values.
+constexpr char kCompleteGetAssertionHexResponse[] =
+    "A1626F6B81A1626F6BA3637072661904D268726573706F6E7365A3697369676E6174757265"
+    "A2646461746184185318691867186E6474797065664275666665726A7573657248616E646C"
+    "65A2646461746182186118626474797065664275666665727161757468656E74696361746F"
+    "7244617461A2646461746198251118941822188D18A818FD18BD18EE18FD1826181B18D718"
+    "B61859185C18FD187018A50D187018C61840187B18CF01183D18E9186D184E18FB1718DE01"
+    "000000183B647479706566427566666572696C61726765426C6F62A264726561641904D264"
+    "73697A6501";
+
 constexpr int32_t kWrappedSecretVersion = 952;
 
 struct BadResponseTestCase {
@@ -126,6 +141,14 @@ BadResponseTestCase kFailingMakeCredentialResponses[] = {
      "81A1626F6BA2667075624B657944050607086776657273696F6E01"},
 };
 
+// A single data-driven test that covers all malformed largeBlob cases.
+using BlobBuilder = base::RepeatingCallback<cbor::Value::MapValue()>;
+
+struct LargeBlobFailureCase {
+  BlobBuilder build_blob;
+  const char* expected_error;
+};
+
 sync_pb::WebauthnCredentialSpecifics PasskeyEntity() {
   sync_pb::WebauthnCredentialSpecifics entity =
       sync_pb::WebauthnCredentialSpecifics::default_instance();
@@ -145,6 +168,20 @@ void FakeSigningCallback(
   ret.signature = fido_parsing_utils::Materialize(kSignature);
   ret.key_type = enclave::ClientKeyType::kHardware;
   std::move(callback).Run(std::move(ret));
+}
+
+cbor::Value MakeGetAssertionResponseWithLargeBlob(
+    cbor::Value::MapValue large_blob_map) {
+  std::vector<uint8_t> response_serialized;
+  CHECK(base::HexStringToBytes(kGetAssertionHexResponse, &response_serialized));
+  cbor::Value response_cbor = cbor::Reader::Read(response_serialized).value();
+  const cbor::Value::MapValue& outer_map = response_cbor.GetArray()[0].GetMap();
+  const cbor::Value::MapValue& success_map =
+      outer_map.find(cbor::Value("ok"))->second.GetMap();
+  const_cast<cbor::Value::MapValue&>(success_map)
+      .insert_or_assign(cbor::Value("largeBlob"),
+                        cbor::Value(std::move(large_blob_map)));
+  return response_cbor;
 }
 
 // Class to receive the result of a BuildCommandRequestBody call. Only usable
@@ -224,8 +261,11 @@ class EnclaveProtocolUtilsTest : public testing::Test {
 
   std::vector<uint8_t> wrapped_secret() { return wrapped_secret_; }
 
+  std::vector<uint8_t> secret() { return secret_; }
+
  private:
   const std::vector<uint8_t> wrapped_secret_ = {1, 2, 3, 4, 5};
+  const std::vector<uint8_t> secret_ = {6, 7, 8, 9, 0};
   std::vector<uint8_t> device_id_;
   std::vector<uint8_t> user_id_;
   std::vector<uint8_t> encrypted_passkey_;
@@ -552,6 +592,125 @@ TEST_F(EnclaveProtocolUtilsTest, ParseMakeCredentialResponse_IntegerFailure) {
   EXPECT_TRUE(std::holds_alternative<ErrorResponse>(parse_result));
   EXPECT_TRUE(std::get<ErrorResponse>(parse_result).error_code.has_value());
   EXPECT_EQ(*std::get<ErrorResponse>(parse_result).error_code, 2);
+}
+
+TEST_F(EnclaveProtocolUtilsTest, ParseGetAssertionResponse_LargeBlob_Failures) {
+  const LargeBlobFailureCase kCases[] = {
+      // Data present but size absent.
+      {base::BindRepeating([]() {
+         cbor::Value::MapValue map;
+         map.emplace(cbor::Value("largeBlobData"),
+                     cbor::Value(std::vector<uint8_t>{1, 2, 3}));
+         return map;
+       }),
+       "Malformed largeBlob: data/size field mismatch in enclave response."},
+
+      // Negative size value.
+      {base::BindRepeating([]() {
+         cbor::Value::MapValue map;
+         map.emplace(cbor::Value("largeBlobData"),
+                     cbor::Value(std::vector<uint8_t>{1, 2, 3}));
+         map.emplace(cbor::Value("largeBlobSize"), cbor::Value(-1));
+         return map;
+       }),
+       "Malformed largeBlob: largeBlobSize must be a non-negative int."},
+
+      // largeBlobWritten is not a boolean.
+      {base::BindRepeating([]() {
+         cbor::Value::MapValue map;
+         map.emplace(cbor::Value("largeBlobWritten"), cbor::Value("not-bool"));
+         return map;
+       }),
+       "Malformed largeBlob: largeBlobWritten is not a boolean."},
+
+      // written == true but encrypted data absent.
+      {base::BindRepeating([]() {
+         cbor::Value::MapValue map;
+         map.emplace(cbor::Value("largeBlobWritten"), cbor::Value(true));
+         return map;
+       }),
+       "Malformed largeBlob: encrypted blob data missing when "
+       "largeBlobWritten is true."},
+  };
+
+  for (const auto& tc : kCases) {
+    auto result = ParseGetAssertionResponse(
+        MakeGetAssertionResponseWithLargeBlob(tc.build_blob.Run()),
+        std::vector<uint8_t>{0x00});
+
+    const auto& err = std::get<ErrorResponse>(result);
+    ASSERT_TRUE(err.error_string);
+    EXPECT_EQ(*err.error_string, tc.expected_error);
+  }
+}
+
+TEST_F(EnclaveProtocolUtilsTest, ParseGetAssertionResponse_LargeBlob_Success) {
+  cbor::Value::MapValue large_blob_map;
+  large_blob_map.emplace(cbor::Value("largeBlobData"),
+                         cbor::Value(std::vector<uint8_t>{1, 2, 3}));
+  large_blob_map.emplace(cbor::Value("largeBlobSize"), cbor::Value(3));
+
+  auto result = ParseGetAssertionResponse(
+      MakeGetAssertionResponseWithLargeBlob(std::move(large_blob_map)),
+      std::vector<uint8_t>{0x00});
+
+  ASSERT_TRUE(
+      std::holds_alternative<AuthenticatorGetAssertionResponse>(result));
+  const auto& response = std::get<AuthenticatorGetAssertionResponse>(result);
+
+  ASSERT_TRUE(response.large_blob_extension);
+  EXPECT_EQ(response.large_blob_extension->original_size, 3u);
+  EXPECT_THAT(response.large_blob_extension->compressed_data,
+              testing::ElementsAre(1, 2, 3));
+}
+
+TEST_F(EnclaveProtocolUtilsTest, RedactEnclaveRequest) {
+  auto entity = PasskeyEntity();
+  entity.set_rp_id(kRpId);
+  std::optional<base::Value> parsed_json =
+      base::JSONReader::Read(kGetAssertionRequestJson);
+  EXPECT_TRUE(parsed_json);
+  auto json_request =
+      base::MakeRefCounted<JSONRequest>(std::move(*parsed_json));
+  cbor::Value request_cbor = BuildGetAssertionCommand(
+      std::move(entity), json_request, kClientDataJson,
+      /*claimed_pin=*/nullptr, /*wrapped_secret=*/std::nullopt, secret());
+  cbor::Value redacted = RedactEnclaveRequest(request_cbor);
+  ASSERT_TRUE(redacted.is_map());
+  const auto& redacted_map = redacted.GetMap();
+  const auto& redacted_value =
+      redacted_map.find(cbor::Value(kRequestSecretKey))->second;
+  EXPECT_EQ(redacted_value.GetString(), "[redacted]");
+}
+
+TEST_F(EnclaveProtocolUtilsTest, RedactErroneousEnclaveRequest) {
+  cbor::Value request = cbor::Value("not a valid request");
+  EXPECT_EQ(cbor::Writer::Write(RedactEnclaveRequest(request)),
+            cbor::Writer::Write(request));
+}
+
+TEST_F(EnclaveProtocolUtilsTest, RedactEnclaveResponse) {
+  std::vector<uint8_t> response_serialized;
+  CHECK(base::HexStringToBytes(kCompleteGetAssertionHexResponse,
+                               &response_serialized));
+  cbor::Value response_cbor = cbor::Reader::Read(response_serialized).value();
+
+  const cbor::Value redacted = RedactEnclaveResponse(response_cbor);
+  const cbor::Value::MapValue& redacted_outer_map =
+      redacted.GetMap().find(cbor::Value("ok"))->second.GetArray()[0].GetMap();
+  const cbor::Value::MapValue& redacted_map =
+      redacted_outer_map.find(cbor::Value("ok"))->second.GetMap();
+  const auto& large_blob_value =
+      redacted_map.find(cbor::Value("largeBlob"))->second;
+  EXPECT_EQ(large_blob_value.GetString(), "[redacted]");
+  const auto& prf_value = redacted_map.find(cbor::Value("prf"))->second;
+  EXPECT_EQ(prf_value.GetString(), "[redacted]");
+}
+
+TEST_F(EnclaveProtocolUtilsTest, RedactErroneousEnclaveResponse) {
+  cbor::Value response = cbor::Value("not a valid response");
+  EXPECT_EQ(cbor::Writer::Write(RedactEnclaveResponse(response)),
+            cbor::Writer::Write(response));
 }
 
 }  // namespace enclave

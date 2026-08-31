@@ -18,7 +18,7 @@ source_set("cdm_type_conversion") {
     ]
     configs += [ "//media:subcomponent_config" ]
   } else {
-    visibility = [ "//media/cdm/library_cdm/clear_key_cdm:clear_key_cdm" ]
+    visibility = [ "//media/cdm/library_cdm/clear_key_cdm" ]
   }
 
   sources = [
@@ -148,7 +148,7 @@ source_set("cdm") {
 
     libs = [
       "mfuuid.lib",
-      "Propsys.lib",
+      "propsys.lib",
     ]
 
     deps += [
@@ -259,6 +259,10 @@ source_set("unit_tests") {
       "win/media_foundation_cdm_unittest.cc",
       "win/media_foundation_cdm_util_unittest.cc",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 

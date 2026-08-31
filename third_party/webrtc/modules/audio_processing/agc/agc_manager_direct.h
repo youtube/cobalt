@@ -12,8 +12,10 @@
 #define MODULES_AUDIO_PROCESSING_AGC_AGC_MANAGER_DIRECT_H_
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <vector>
 
 #include "api/array_view.h"
 #include "api/audio/audio_processing.h"

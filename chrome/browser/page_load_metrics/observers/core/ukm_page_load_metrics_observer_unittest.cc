@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/metrics_hashes.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_clock.h"
 #include "base/test/test_trace_processor.h"
@@ -1867,7 +1868,7 @@ TEST_F(UkmPageLoadMetricsObserverTest, SoftNavigationCount) {
 
   auto soft_navigation_metrics =
       page_load_metrics::mojom::SoftNavigationMetrics(
-          1, base::Milliseconds(12), "00000-00000-00000-00000",
+          1, base::Milliseconds(12), 42000,
           page_load_metrics::mojom::LargestContentfulPaintTiming::New());
 
   content::MockNavigationHandle navigation_handle;

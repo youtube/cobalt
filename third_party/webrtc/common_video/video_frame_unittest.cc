@@ -10,11 +10,9 @@
 
 #include "api/video/video_frame.h"
 
-#include <math.h>
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 #include <vector>
 

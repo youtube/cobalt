@@ -15,6 +15,7 @@ mojom_component("base") {
     "big_buffer.mojom",
     "big_string.mojom",
     "binder.mojom",
+    "byte_count.mojom",
     "byte_string.mojom",
     "empty.mojom",
     "error.mojom",
@@ -139,6 +140,15 @@ mojom_component("base") {
     {
       types = [
         {
+          mojom = "mojo_base.mojom.Empty"
+          cpp = "::std::monostate"
+        },
+      ]
+      traits_headers = [ "//mojo/public/cpp/base/empty_mojom_traits.h" ]
+    },
+    {
+      types = [
+        {
           mojom = "mojo_base.mojom.FilePath"
           cpp = "::base::FilePath"
         },
@@ -237,17 +247,6 @@ mojom_component("base") {
     },
     {
       types = [
-        {
-          mojom = "mojo_base.mojom.PlatformSharedMemoryHandle"
-          cpp =
-              "::base::subtle::PlatformSharedMemoryRegion::ScopedPlatformHandle"
-          move_only = true
-        },
-        {
-          mojom = "mojo_base.mojom.PlatformSharedMemoryRegion"
-          cpp = "::base::subtle::PlatformSharedMemoryRegion"
-          move_only = true
-        },
         {
           mojom = "mojo_base.mojom.ReadOnlySharedMemoryRegion"
           cpp = "::base::ReadOnlySharedMemoryRegion"
@@ -432,7 +431,21 @@ mojom_component("base") {
     {
       types = [
         {
-          mojom = "mojom_base.mojom.MemoryAllocatorDumpCrossProcessUid"
+          mojom = "mojo_base.mojom.ByteCount"
+          cpp = "::base::ByteCount"
+          copyable_pass_by_value = true
+        },
+      ]
+      traits_headers = [ "//mojo/public/cpp/base/byte_count_mojom_traits.h" ]
+      traits_public_deps = [
+        "//base",
+        "//mojo/public/cpp/base:typemap_traits",
+      ]
+    },
+    {
+      types = [
+        {
+          mojom = "mojo_base.mojom.MemoryAllocatorDumpCrossProcessUid"
           cpp = "::base::trace_event::MemoryAllocatorDumpGuid"
         },
       ]
@@ -620,7 +633,7 @@ mojom_component("base") {
       types = [
         {
           mojom = "mojo_base.mojom.BigString"
-          cpp = "::WTF::String"
+          cpp = "::blink::String"
           nullable_is_same_type = true
         },
       ]
@@ -634,13 +647,13 @@ mojom_component("base") {
       types = [
         {
           mojom = "mojo_base.mojom.BigString16"
-          cpp = "::WTF::String"
+          cpp = "::blink::String"
           nullable_is_same_type = true
           force_serialize = true
         },
         {
           mojom = "mojo_base.mojom.String16"
-          cpp = "::WTF::String"
+          cpp = "::blink::String"
           nullable_is_same_type = true
           force_serialize = true
         },

@@ -10,12 +10,10 @@
 #import "base/memory/raw_ptr.h"
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
+#import "components/feature_engagement/public/event_constants.h"
 #import "components/feature_engagement/public/tracker.h"
+#import "components/feature_engagement/test/mock_tracker.h"
 #import "components/feed/core/v2/public/common_enums.h"
-#import "components/regional_capabilities/regional_capabilities_switches.h"
-#import "components/search_engines/template_url.h"
-#import "components/search_engines/template_url_data.h"
-#import "components/search_engines/template_url_service.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/sync/test/test_sync_service.h"
 #import "ios/chrome/browser/browser_view/model/browser_view_visibility_audience.h"
@@ -31,10 +29,10 @@
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_factory.h"
 #import "ios/chrome/browser/image_fetcher/model/image_fetcher_service_factory.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
+#import "ios/chrome/browser/ntp/search_engine_logo/ui/search_engine_logo_state.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_constants.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/feed_control_delegate.h"
-#import "ios/chrome/browser/ntp/ui_bundled/logo_vendor.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_consumer.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_header_consumer.h"
 #import "ios/chrome/browser/regional_capabilities/model/regional_capabilities_service_factory.h"
@@ -44,6 +42,7 @@
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
+#import "ios/chrome/browser/shared/model/utils/first_run_test_util.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
@@ -90,7 +89,6 @@ class NewTabPageMediatorTest : public PlatformTest {
         std::make_unique<ToolbarTestNavigationManager>();
     navigation_manager_ = navigation_manager.get();
     initial_web_state_ = CreateWebStateWithURL(GURL("chrome://newtab"), 0.0);
-    logo_vendor_ = OCMProtocolMock(@protocol(LogoVendor));
 
     UrlLoadingNotifierBrowserAgent::CreateForBrowser(browser_.get());
     FakeUrlLoadingBrowserAgent::InjectForBrowser(browser_.get());
@@ -141,7 +139,8 @@ class NewTabPageMediatorTest : public PlatformTest {
                        imageFetcherService:image_fetcher_service
              browserViewVisibilityNotifier:browser_view_visibility_notifier_
         discoverFeedVisibilityBrowserAgent:
-            discover_feed_visibility_browser_agent];
+            discover_feed_visibility_browser_agent
+                  featureEngagementTracker:&mock_tracker_];
     header_consumer_ = OCMProtocolMock(@protocol(NewTabPageHeaderConsumer));
     mediator_.headerConsumer = header_consumer_;
     visibility_observer_ =
@@ -181,35 +180,17 @@ class NewTabPageMediatorTest : public PlatformTest {
     return ntp_consumer;
   }
 
-  void SetCustomSearchEngine() {
-    TemplateURLService* template_url_service =
-        ios::TemplateURLServiceFactory::GetForProfile(profile_.get());
-    // A custom search engine will have a `prepopulate_id` of 0.
-    const int kCustomSearchEnginePrepopulateId = 0;
-    TemplateURLData template_url_data;
-    template_url_data.prepopulate_id = kCustomSearchEnginePrepopulateId;
-    template_url_data.SetURL("https://www.example.com/?q={searchTerms}");
-    template_url_service->SetUserSelectedDefaultSearchProvider(
-        template_url_service->Add(
-            std::make_unique<TemplateURL>(template_url_data)));
-  }
-
-  void OverrideSearchEngineChoiceCountry(std::string_view country) {
-    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-        switches::kSearchEngineChoiceCountry, country);
-  }
-
  protected:
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
   std::unique_ptr<Browser> browser_;
   std::unique_ptr<web::WebState> initial_web_state_;
+  feature_engagement::test::MockTracker mock_tracker_;
   raw_ptr<PrefService> prefs_;
   id header_consumer_;
   id visibility_observer_;
   id image_updater_;
-  id logo_vendor_;
   FeedMetricsRecorder* feed_metrics_recorder_;
   FakeDiscoverFeedEligibilityHandler* eligibility_handler_;
   NewTabPageMediator* mediator_;
@@ -228,7 +209,8 @@ class NewTabPageMediatorTest : public PlatformTest {
 // Tests that the consumer has the right value set up.
 TEST_F(NewTabPageMediatorTest, TestConsumerSetup) {
   // Setup.
-  OCMExpect([header_consumer_ setLogoIsShowing:YES]);
+  OCMExpect(
+      [header_consumer_ setSearchEngineLogoState:SearchEngineLogoState::kLogo]);
 
   // Action.
   [mediator_ setUp];
@@ -292,4 +274,48 @@ TEST_F(NewTabPageMediatorTest, TestUpdateVisibilityStateOfFeed) {
                                             fromState:kCoveredByOmniboxPopup];
   EXPECT_EQ(test_discover_feed_service_->visibility_state(),
             kCoveredByOmniboxPopup);
+}
+
+// Tests that -notifyLensBadgeDisplayed correctly notifies the tracker.
+TEST_F(NewTabPageMediatorTest, TestNotifyLensBadgeDisplayed) {
+  EXPECT_CALL(
+      mock_tracker_,
+      Dismissed(testing::Ref(feature_engagement::kIPHiOSHomepageLensNewBadge)));
+  [mediator_ notifyLensBadgeDisplayed];
+}
+
+// Tests that -notifyCustomizationBadgeDisplayed correctly notifies the tracker.
+TEST_F(NewTabPageMediatorTest, TestNotifyCustomizationBadgeDisplayed) {
+  EXPECT_CALL(mock_tracker_,
+              Dismissed(testing::Ref(
+                  feature_engagement::kIPHiOSHomepageCustomizationNewBadge)));
+  [mediator_ notifyCustomizationBadgeDisplayed];
+}
+
+// Tests that -checkNewBadgeEligibility notifies the feature engagement tracker
+// only when the first run was not recent.
+TEST_F(NewTabPageMediatorTest, TestCheckNewBadgeEligibilityNotifiesTracker) {
+  // First Run is 1 day old, so the tracker should be notified.
+  ForceFirstRunRecency(1);
+  EXPECT_CALL(
+      mock_tracker_,
+      NotifyEvent(
+          feature_engagement::events::kIOSFREBadgeHoldbackPeriodElapsed));
+  [mediator_ checkNewBadgeEligibility];
+
+  ResetFirstRunSentinel();
+}
+
+// Tests that -checkNewBadgeEligibility does not notify the feature engagement
+// tracker if it is the First Run.
+TEST_F(NewTabPageMediatorTest,
+       TestCheckNewBadgeEligibilityDoesNotNotifyTrackerOnFirstRun) {
+  // It is the First Run, so the tracker should not be notified.
+  ResetFirstRunSentinel();
+  EXPECT_CALL(
+      mock_tracker_,
+      NotifyEvent(
+          feature_engagement::events::kIOSFREBadgeHoldbackPeriodElapsed))
+      .Times(0);
+  [mediator_ checkNewBadgeEligibility];
 }

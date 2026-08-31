@@ -71,36 +71,21 @@ ChromeRootCertConstraints& ChromeRootCertConstraints::operator=(
 ChromeRootStoreData::Anchor::Anchor(
     std::shared_ptr<const bssl::ParsedCertificate> certificate,
     std::vector<ChromeRootCertConstraints> constraints)
-    : ChromeRootStoreData::Anchor::Anchor(certificate,
-                                          constraints,
-                                          /*eutl=*/false,
-                                          /*enforce_anchor_expiry=*/false,
-                                          /*enforce_anchor_constraints=*/false,
-                                          /*trust_anchor_id=*/{}) {}
+    : ChromeRootStoreData::Anchor::Anchor(
+          certificate,
+          constraints,
+          /*enforce_anchor_expiry=*/false,
+          /*enforce_anchor_constraints=*/false) {}
 
 ChromeRootStoreData::Anchor::Anchor(
     std::shared_ptr<const bssl::ParsedCertificate> certificate,
     std::vector<ChromeRootCertConstraints> constraints,
-    bool eutl)
-    : ChromeRootStoreData::Anchor::Anchor(certificate,
-                                          constraints,
-                                          eutl,
-                                          /*enforce_anchor_expiry=*/false,
-                                          /*enforce_anchor_constraints=*/false,
-                                          /*trust_anchor_id=*/{}) {}
-ChromeRootStoreData::Anchor::Anchor(
-    std::shared_ptr<const bssl::ParsedCertificate> certificate,
-    std::vector<ChromeRootCertConstraints> constraints,
-    bool eutl,
     bool enforce_anchor_expiry,
-    bool enforce_anchor_constraints,
-    std::vector<uint8_t> trust_anchor_id)
+    bool enforce_anchor_constraints)
     : certificate(std::move(certificate)),
       constraints(std::move(constraints)),
-      eutl(eutl),
       enforce_anchor_expiry(enforce_anchor_expiry),
-      enforce_anchor_constraints(enforce_anchor_constraints),
-      trust_anchor_id(std::move(trust_anchor_id)) {}
+      enforce_anchor_constraints(enforce_anchor_constraints) {}
 ChromeRootStoreData::Anchor::~Anchor() = default;
 
 ChromeRootStoreData::Anchor::Anchor(const Anchor& other) = default;
@@ -170,14 +155,9 @@ std::optional<ChromeRootStoreData::Anchor> CreateChromeRootStoreDataAnchor(
         min_version, max_version_exclusive,
         base::ToVector(constraint.permitted_dns_names()));
   }
-
-  std::vector<uint8_t> trust_anchor_id(
-      base::ToVector(base::as_byte_span(anchor.trust_anchor_id())));
-
-  return ChromeRootStoreData::Anchor(
-      std::move(parsed), std::move(constraints), anchor.eutl(),
-      anchor.enforce_anchor_expiry(), anchor.enforce_anchor_constraints(),
-      std::move(trust_anchor_id));
+  return ChromeRootStoreData::Anchor(std::move(parsed), std::move(constraints),
+                                     anchor.enforce_anchor_expiry(),
+                                     anchor.enforce_anchor_constraints());
 }
 
 }  // namespace
@@ -196,6 +176,10 @@ ChromeRootStoreData::CreateFromRootStoreProto(
     if (!chrome_root_store_data_anchor) {
       return std::nullopt;
     }
+    if (anchor.eutl()) {
+      root_store_data.eutl_certs_.emplace_back(
+          chrome_root_store_data_anchor.value());
+    }
     root_store_data.trust_anchors_.emplace_back(
         std::move(chrome_root_store_data_anchor.value()));
   }
@@ -207,11 +191,12 @@ ChromeRootStoreData::CreateFromRootStoreProto(
     if (!chrome_root_store_data_anchor) {
       return std::nullopt;
     }
+    if (anchor.eutl()) {
+      root_store_data.eutl_certs_.emplace_back(
+          chrome_root_store_data_anchor.value());
+    }
     if (anchor.tls_trust_anchor()) {
       root_store_data.trust_anchors_.emplace_back(
-          std::move(chrome_root_store_data_anchor.value()));
-    } else {
-      root_store_data.additional_certs_.emplace_back(
           std::move(chrome_root_store_data_anchor.value()));
     }
   }
@@ -269,11 +254,9 @@ ChromeRootStoreData::ChromeRootStoreData(
     for (const auto& constraint : cert_info.constraints) {
       cert_constraints.emplace_back(constraint);
     }
-    trust_anchors_.emplace_back(
-        std::move(parsed), std::move(cert_constraints),
-        /*eutl=*/false, cert_info.enforce_anchor_expiry,
-        cert_info.enforce_anchor_constraints,
-        base::ToVector(base::as_byte_span(cert_info.trust_anchor_id)));
+    trust_anchors_.emplace_back(std::move(parsed), std::move(cert_constraints),
+                                cert_info.enforce_anchor_expiry,
+                                cert_info.enforce_anchor_constraints);
   }
 
   for (const auto& cert_bytes : eutl_certs) {
@@ -287,9 +270,8 @@ ChromeRootStoreData::ChromeRootStoreData(
     auto parsed = bssl::ParsedCertificate::Create(
         std::move(cert), x509_util::DefaultParseCertificateOptions(), &errors);
     CHECK(parsed);
-    additional_certs_.emplace_back(std::move(parsed),
-                                   std::vector<ChromeRootCertConstraints>(),
-                                   /*eutl=*/true);
+    eutl_certs_.emplace_back(std::move(parsed),
+                             std::vector<ChromeRootCertConstraints>());
   }
 }
 
@@ -312,10 +294,6 @@ TrustStoreChrome::TrustStoreChrome(const ChromeRootStoreData& root_store_data,
                                anchor.constraints);
     }
 
-    if (!anchor.trust_anchor_id.empty()) {
-      trust_anchor_ids_.insert(anchor.trust_anchor_id);
-    }
-
     // If the anchor is configured to enforce expiry and/or X.509 constraints,
     // tell BoringSSL to do so via CertificateTrust settings. Expiry and X.509
     // constraints are enforced by BoringSSL, whereas other constraints in
@@ -329,15 +307,9 @@ TrustStoreChrome::TrustStoreChrome(const ChromeRootStoreData& root_store_data,
       certificate_trust = certificate_trust.WithEnforceAnchorConstraints();
     }
     trust_store_.AddCertificate(anchor.certificate, certificate_trust);
-
-    if (anchor.eutl) {
-      eutl_trust_store_.AddTrustAnchor(anchor.certificate);
-    }
   }
-  for (const auto& anchor : root_store_data.additional_certs()) {
-    if (anchor.eutl) {
-      eutl_trust_store_.AddTrustAnchor(anchor.certificate);
-    }
+  for (const auto& anchor : root_store_data.eutl_certs()) {
+    eutl_trust_store_.AddTrustAnchor(anchor.certificate);
   }
 
   constraints_ = base::flat_map(std::move(constraints));
@@ -483,6 +455,21 @@ std::unique_ptr<TrustStoreChrome> TrustStoreChrome::CreateTrustStoreForTesting(
   return base::WrapUnique(new TrustStoreChrome(
       ChromeRootStoreData::CreateForTesting(certs, eutl_certs, version),
       std::move(override_constraints)));
+}
+
+// static
+std::vector<std::vector<uint8_t>>
+TrustStoreChrome::GetTrustAnchorIDsFromCompiledInRootStore(
+    base::span<const ChromeRootCertInfo> cert_list_for_testing) {
+  std::vector<std::vector<uint8_t>> trust_anchor_ids;
+  for (const auto& anchor :
+       (cert_list_for_testing.empty() ? kChromeRootCertList
+                                      : cert_list_for_testing)) {
+    if (!anchor.trust_anchor_id.empty()) {
+      trust_anchor_ids.emplace_back(base::ToVector(anchor.trust_anchor_id));
+    }
+  }
+  return trust_anchor_ids;
 }
 
 int64_t CompiledChromeRootStoreVersion() {

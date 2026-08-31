@@ -14,7 +14,7 @@
 
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/to_vector.h"
-#include "base/memory/raw_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -46,6 +46,7 @@
 #include "components/autofill/core/common/credit_card_network_identifiers.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/variations/service/variations_service.h"
 #include "extensions/browser/extensions_browser_client.h"
@@ -85,6 +86,8 @@ autofill_private::AddressRecordType ConvertProfileRecordType(
       return autofill_private::AddressRecordType::kAccountHome;
     case autofill::AutofillProfile::RecordType::kAccountWork:
       return autofill_private::AddressRecordType::kAccountWork;
+    case autofill::AutofillProfile::RecordType::kAccountNameEmail:
+      return autofill_private::AddressRecordType::kAccountNameEmail;
   }
   NOTREACHED();
 }
@@ -232,6 +235,10 @@ std::pair<std::string, std::string> PayOverTimeIssuerToIconResourceIdString(
       return std::pair<std::string, std::string>(
           "chrome://theme/IDR_AUTOFILL_METADATA_BNPL_GENERIC",
           "chrome://theme/IDR_AUTOFILL_METADATA_BNPL_GENERIC");
+    case autofill::BnplIssuer::IssuerId::kBnplKlarna:
+      return std::pair<std::string, std::string>(
+          "chrome://theme/IDR_AUTOFILL_KLARNA_LINKED",
+          "chrome://theme/IDR_AUTOFILL_KLARNA_LINKED_DARK");
   }
   NOTREACHED();
 }
@@ -261,15 +268,12 @@ autofill_private::PayOverTimeIssuerEntry BnplIssuerToPayOverTimeIssuerEntry(
 namespace extensions::autofill_util {
 
 AddressEntryList GenerateAddressList(const autofill::AddressDataManager& adm) {
-  const std::vector<const autofill::AutofillProfile*>& profiles =
+  const std::vector<const autofill::AutofillProfile*> profiles =
       adm.GetProfilesForSettings();
-  // TODO(crbug.com/40283168): Replace by `profiles`.
+
   std::vector<std::u16string> labels =
       autofill::AutofillProfile::CreateDifferentiatingLabels(
-          std::vector<
-              raw_ptr<const autofill::AutofillProfile, VectorExperimental>>(
-              profiles.begin(), profiles.end()),
-          ExtensionsBrowserClient::Get()->GetApplicationLocale());
+          profiles, ExtensionsBrowserClient::Get()->GetApplicationLocale());
   DCHECK_EQ(labels.size(), profiles.size());
 
   AddressEntryList list;
@@ -326,8 +330,21 @@ IbanEntryList GenerateIbanList(const autofill::PaymentsDataManager& paydm) {
 
 PayOverTimeIssuerEntryList GeneratePayOverTimeIssuerList(
     const autofill::PaymentsDataManager& paydm) {
-  return base::ToVector(paydm.GetLinkedBnplIssuers(),
-                        &BnplIssuerToPayOverTimeIssuerEntry);
+  std::vector<autofill::BnplIssuer> linked_issuers =
+      base::ToVector(paydm.GetLinkedBnplIssuers());
+
+  // Remove the issuer entry if a BNPL issuer is linked externally, due to
+  // missing terms of services acceptance.
+  linked_issuers.erase(
+      std::remove_if(
+          linked_issuers.begin(), linked_issuers.end(),
+          [](autofill::BnplIssuer& issuer) {
+            return issuer.payment_instrument()->action_required().contains(
+                autofill::PaymentInstrument::ActionRequired::kAcceptTos);
+          }),
+      linked_issuers.end());
+
+  return base::ToVector(linked_issuers, &BnplIssuerToPayOverTimeIssuerEntry);
 }
 
 std::optional<api::autofill_private::AccountInfo> GetAccountInfo(
@@ -339,8 +356,13 @@ std::optional<api::autofill_private::AccountInfo> GetAccountInfo(
 
   api::autofill_private::AccountInfo api_account;
   api_account.email = account->email;
+  // TODO(crbug.com/40066949): Remove `is_sync_enabled_for_autofill_profiles`
+  // from `AccountInfo` in favor of `is_autofill_sync_toggle_enabled` after
+  // Sync-the-feature users are migrated to ConsentLevel::kSignin.
   api_account.is_sync_enabled_for_autofill_profiles =
-      adm.IsSyncFeatureEnabledForAutofill();
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+          ? adm.IsAutofillUserSelectableTypeEnabled()
+          : adm.IsSyncFeatureEnabledForAutofill();
   api_account.is_eligible_for_address_account_storage =
       adm.IsEligibleForAddressAccountStorage();
   api_account.is_autofill_sync_toggle_enabled =

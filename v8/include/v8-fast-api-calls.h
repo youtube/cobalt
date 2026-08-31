@@ -93,27 +93,11 @@
  *      }
  *    };
  *
- *    // TODO(mslekova): Clean-up these constants
- *    // The constants kV8EmbedderWrapperTypeIndex and
- *    // kV8EmbedderWrapperObjectIndex describe the offsets for the type info
- *    // struct and the native object, when expressed as internal field indices
- *    // within a JSObject. The existance of this helper function assumes that
- *    // all embedder objects have their JSObject-side type info at the same
- *    // offset, but this is not a limitation of the API itself. For a detailed
- *    // use case, see the third example.
- *    static constexpr int kV8EmbedderWrapperTypeIndex = 0;
- *    static constexpr int kV8EmbedderWrapperObjectIndex = 1;
- *
  *    // The following setup function can be templatized based on
  *    // the {embedder_object} argument.
  *    void SetupCustomEmbedderObject(v8::Isolate* isolate,
  *                                   v8::Local<v8::Context> context,
  *                                   CustomEmbedderType* embedder_object) {
- *      isolate->set_embedder_wrapper_type_index(
- *        kV8EmbedderWrapperTypeIndex);
- *      isolate->set_embedder_wrapper_object_index(
- *        kV8EmbedderWrapperObjectIndex);
- *
  *      v8::CFunction c_func =
  *        MakeV8CFunction(CustomEmbedderType::FastMethod);
  *
@@ -269,7 +253,7 @@ class CTypeInfo {
   // than any valid Type enum.
   static constexpr Type kCallbackOptionsType = Type(255);
 
-  enum class V8_DEPRECATE_SOON(
+  enum class V8_DEPRECATED(
       "There is no special support in V8 anymore, there is no need to"
       "use a SequenceType") SequenceType : uint8_t {
     kScalar,
@@ -288,7 +272,7 @@ class CTypeInfo {
   explicit constexpr CTypeInfo(Type type, Flags flags = Flags::kNone)
       : type_(type), sequence_type_(SequenceType::kScalar), flags_(flags) {}
 
-  V8_DEPRECATE_SOON("Use CTypeInfo(Type, Flags) instead")
+  V8_DEPRECATED("Use CTypeInfo(Type, Flags) instead")
   constexpr CTypeInfo(Type type, SequenceType sequence_type,
                       Flags flags = Flags::kNone)
       : type_(type), sequence_type_(sequence_type), flags_(flags) {}
@@ -305,7 +289,7 @@ class CTypeInfo {
   }
 
   constexpr Type GetType() const { return type_; }
-  V8_DEPRECATE_SOON("Use the constant SequenceType::kScalar instead")
+  V8_DEPRECATED("Use the constant SequenceType::kScalar instead")
   constexpr SequenceType GetSequenceType() const { return sequence_type_; }
   constexpr Flags GetFlags() const { return flags_; }
 

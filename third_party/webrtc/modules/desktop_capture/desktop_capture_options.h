@@ -10,6 +10,8 @@
 #ifndef MODULES_DESKTOP_CAPTURE_DESKTOP_CAPTURE_OPTIONS_H_
 #define MODULES_DESKTOP_CAPTURE_DESKTOP_CAPTURE_OPTIONS_H_
 
+#include <cstdint>
+
 #include "api/scoped_refptr.h"
 #include "rtc_base/system/rtc_export.h"
 
@@ -57,14 +59,13 @@ class RTC_EXPORT DesktopCaptureOptions {
   // TODO(zijiehe): Remove both DesktopConfigurationMonitor and
   // FullScreenChromeWindowDetector out of DesktopCaptureOptions. It's not
   // reasonable for external consumers to set these two parameters.
-  const webrtc::scoped_refptr<DesktopConfigurationMonitor>&
-  configuration_monitor() const {
+  const scoped_refptr<DesktopConfigurationMonitor>& configuration_monitor()
+      const {
     return configuration_monitor_;
   }
   // If nullptr is set, ScreenCapturer won't work and WindowCapturer may return
   // inaccurate result from IsOccluded() function.
-  void set_configuration_monitor(
-      webrtc::scoped_refptr<DesktopConfigurationMonitor> m) {
+  void set_configuration_monitor(scoped_refptr<DesktopConfigurationMonitor> m) {
     configuration_monitor_ = m;
   }
 
@@ -219,12 +220,10 @@ class RTC_EXPORT DesktopCaptureOptions {
   bool allow_pipewire() const { return allow_pipewire_; }
   void set_allow_pipewire(bool allow) { allow_pipewire_ = allow; }
 
-  const webrtc::scoped_refptr<SharedScreenCastStream>& screencast_stream()
-      const {
+  const scoped_refptr<SharedScreenCastStream>& screencast_stream() const {
     return screencast_stream_;
   }
-  void set_screencast_stream(
-      webrtc::scoped_refptr<SharedScreenCastStream> stream) {
+  void set_screencast_stream(scoped_refptr<SharedScreenCastStream> stream) {
     screencast_stream_ = stream;
   }
 
@@ -250,10 +249,10 @@ class RTC_EXPORT DesktopCaptureOptions {
   // An instance of shared PipeWire ScreenCast stream we share between
   // BaseCapturerPipeWire and MouseCursorMonitorPipeWire as cursor information
   // is sent together with screen content.
-  webrtc::scoped_refptr<SharedScreenCastStream> screencast_stream_;
+  scoped_refptr<SharedScreenCastStream> screencast_stream_;
 #endif
 #if defined(WEBRTC_MAC) && !defined(WEBRTC_IOS)
-  webrtc::scoped_refptr<DesktopConfigurationMonitor> configuration_monitor_;
+  scoped_refptr<DesktopConfigurationMonitor> configuration_monitor_;
   bool allow_iosurface_ = false;
   bool allow_sck_capturer_ = false;
   bool allow_sck_system_picker_ = false;

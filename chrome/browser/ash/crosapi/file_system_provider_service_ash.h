@@ -23,14 +23,6 @@ class FileSystemProviderServiceAsh : public mojom::FileSystemProviderService {
       delete;
   ~FileSystemProviderServiceAsh() override;
 
-  void Mount(mojom::FileSystemMetadataPtr metadata,
-             bool persistent,
-             MountCallback callback) override;
-  void Unmount(mojom::FileSystemIdPtr file_system_id,
-               UnmountCallback callback) override;
-  void GetAll(const std::string& provider, GetAllCallback callback) override;
-  void Get(mojom::FileSystemIdPtr file_system_id,
-           GetCallback callback) override;
   void Notify(mojom::FileSystemIdPtr file_system_id,
               mojom::FSPWatcherPtr watcher,
               mojom::FSPChangeType type,
@@ -73,19 +65,6 @@ class FileSystemProviderServiceAsh : public mojom::FileSystemProviderService {
 
   // In order to support multi-login in ash, all methods above are redirected to
   // a variation that supports directly passing in a Profile*.
-  void MountWithProfile(mojom::FileSystemMetadataPtr metadata,
-                        bool persistent,
-                        MountCallback callback,
-                        Profile* profile);
-  void UnmountWithProfile(mojom::FileSystemIdPtr file_system_id,
-                          UnmountCallback callback,
-                          Profile* profile);
-  void GetAllWithProfile(const std::string& provider,
-                         GetAllCallback callback,
-                         Profile* profile);
-  void GetWithProfile(mojom::FileSystemIdPtr file_system_id,
-                      GetCallback callback,
-                      Profile* profile);
   void NotifyWithProfile(mojom::FileSystemIdPtr file_system_id,
                          mojom::FSPWatcherPtr watcher,
                          mojom::FSPChangeType type,

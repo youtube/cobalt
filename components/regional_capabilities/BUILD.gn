@@ -9,7 +9,6 @@ if (is_android) {
 
 static_library("regional_capabilities") {
   sources = [
-    "eea_countries_ids.h",
     "regional_capabilities_metrics.cc",
     "regional_capabilities_metrics.h",
     "regional_capabilities_prefs.cc",
@@ -30,11 +29,13 @@ static_library("regional_capabilities") {
 
   deps = [
     ":country_access_reason",
+    ":data",
     "//base/version_info",
     "//components/country_codes",
     "//components/pref_registry",
     "//components/prefs",
     "//components/search_engines:search_engine_pref_names",
+    "//third_party/abseil-cpp:absl",
     "//third_party/search_engines_data:prepopulated_engines",
     "//third_party/search_engines_data:regional_settings",
   ]
@@ -48,8 +49,8 @@ source_set("country_access_reason") {
   visibility = [
     ":*",
     "//chrome/browser/search_engine_choice:impl",
-    "//chrome/browser/ui:ui",
-    "//components/search_engines:search_engines",
+    "//chrome/browser/ui",
+    "//components/search_engines",
   ]
 
   sources = [ "access/country_access_reason.h" ]
@@ -69,6 +70,26 @@ static_library("country_id") {
   ]
 }
 
+source_set("data") {
+  visibility = [
+    ":*",
+    "//components/search_engines",
+    "//components/search_engines:unit_tests",
+  ]
+
+  sources = [
+    "eea_countries_ids.h",
+    "program_settings.cc",
+    "program_settings.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/country_codes",
+    "//ui/base",
+  ]
+}
+
 static_library("test_support") {
   testonly = true
   sources = [
@@ -78,6 +99,7 @@ static_library("test_support") {
 
   deps = [
     ":country_access_reason",
+    ":data",
     ":regional_capabilities",
     "//components/country_codes",
   ]
@@ -93,6 +115,7 @@ source_set("unit_tests") {
 
   deps = [
     ":country_access_reason",
+    ":data",
     ":regional_capabilities",
     ":test_support",
     "//base/test:test_support",
@@ -100,5 +123,10 @@ source_set("unit_tests") {
     "//components/metrics",
     "//components/sync_preferences:test_support",
     "//testing/gtest",
+    "//ui/base",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

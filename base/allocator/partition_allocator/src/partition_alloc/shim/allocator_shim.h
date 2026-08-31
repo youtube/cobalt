@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_SHIM_ALLOCATOR_SHIM_H_
 #define PARTITION_ALLOC_SHIM_ALLOCATOR_SHIM_H_
 
@@ -12,9 +17,9 @@
 
 #if PA_BUILDFLAG(USE_ALLOCATOR_SHIM)
 #include "partition_alloc/build_config.h"
-#include "partition_alloc/lightweight_quarantine.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
 #include "partition_alloc/partition_alloc_base/types/strong_alias.h"
+#include "partition_alloc/scheduler_loop_quarantine.h"
 #include "partition_alloc/shim/allocator_dispatch.h"
 #include "partition_alloc/tagging.h"
 
@@ -149,9 +154,6 @@ using EventuallyZeroFreedMemory = partition_alloc::internal::base::
 using FewerMemoryRegions =
     partition_alloc::internal::base::StrongAlias<class FewerMemoryRegionsTag,
                                                  bool>;
-using UseSmallSingleSlotSpans = partition_alloc::internal::base::
-    StrongAlias<class UseSmallSingleSlotSpansTag, bool>;
-
 // If |thread_cache_on_non_quarantinable_partition| is specified, the
 // thread-cache will be enabled on the non-quarantinable partition. The
 // thread-cache on the main (malloc) partition will be disabled.
@@ -167,8 +169,7 @@ void ConfigurePartitions(
     partition_alloc::internal::SchedulerLoopQuarantineConfig
         scheduler_loop_quarantine_thread_local_config,
     EventuallyZeroFreedMemory eventually_zero_freed_memory,
-    FewerMemoryRegions fewer_memory_regions,
-    UseSmallSingleSlotSpans use_small_single_slot_spans);
+    FewerMemoryRegions fewer_memory_regions);
 
 PA_COMPONENT_EXPORT(ALLOCATOR_SHIM) uint32_t GetMainPartitionRootExtrasSize();
 

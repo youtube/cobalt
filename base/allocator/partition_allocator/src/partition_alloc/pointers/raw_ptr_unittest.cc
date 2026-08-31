@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/pointers/raw_ptr.h"
 
 #include <climits>
@@ -1620,7 +1625,7 @@ namespace base::internal {
     !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 
 void HandleOOM(size_t unused_size) {
-  LOG(FATAL) << "Out of memory";
+  PA_LOG(FATAL) << "Out of memory";
 }
 
 class BackupRefPtrTest : public testing::Test {
@@ -2400,7 +2405,7 @@ TEST_F(BackupRefPtrTest, WriteAfterFree) {
         // Write something different from |kQuarantinedByte|.
         *ptr = kPayload;
         // Write-after-Free should lead to crash
-        // on |PartitionAllocFreeForRefCounting|.
+        // on |PartitionRoot::FreeAfterBRPQuarantine|.
         ptr = nullptr;
       },
       "");

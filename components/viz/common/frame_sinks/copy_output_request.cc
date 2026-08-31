@@ -9,6 +9,7 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/task/task_traits.h"
@@ -30,6 +31,8 @@ const char* ResultFormatToShortString(
       return "I420";
     case viz::CopyOutputRequest::ResultFormat::NV12:
       return "NV12";
+    case viz::CopyOutputRequest::ResultFormat::RGBAF16:
+      return "RGBAF16";
   }
 }
 
@@ -38,7 +41,7 @@ const char* ResultDestinationToShortString(
   switch (result_destination) {
     case viz::CopyOutputRequest::ResultDestination::kSystemMemory:
       return "CPU";
-    case viz::CopyOutputRequest::ResultDestination::kNativeTextures:
+    case viz::CopyOutputRequest::ResultDestination::kSharedImage:
       return "GPU";
   }
 }
@@ -117,9 +120,10 @@ void CopyOutputRequest::SetUniformScaleRatio(int scale_from, int scale_to) {
 
 void CopyOutputRequest::set_blit_request(BlitRequest blit_request) {
   DCHECK(!blit_request_);
-  DCHECK_EQ(result_destination(), ResultDestination::kNativeTextures);
+  DCHECK_EQ(result_destination(), ResultDestination::kSharedImage);
   DCHECK(result_format() == ResultFormat::NV12 ||
-         result_format() == ResultFormat::RGBA);
+         result_format() == ResultFormat::RGBA ||
+         result_format() == ResultFormat::RGBAF16);
   DCHECK(has_result_selection());
 
   if (result_format() == ResultFormat::NV12) {
@@ -128,7 +132,7 @@ void CopyOutputRequest::set_blit_request(BlitRequest blit_request) {
     DCHECK_EQ(blit_request.destination_region_offset().y() % 2, 0);
   }
 
-  CHECK(!blit_request.mailbox().IsZero());
+  CHECK(blit_request.shared_image());
 
   blit_request_ = std::move(blit_request);
 }

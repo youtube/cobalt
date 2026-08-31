@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/mojo/mojom/audio_decoder_config_mojom_traits.h"
 
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/media_util.h"
 #include "mojo/public/cpp/base/time_mojom_traits.h"
@@ -21,7 +17,7 @@ namespace media {
 TEST(AudioDecoderConfigStructTraitsTest, Normal) {
   const uint8_t kExtraData[] = "input extra data";
   const std::vector<uint8_t> kExtraDataVector(
-      &kExtraData[0], &kExtraData[0] + std::size(kExtraData));
+      &kExtraData[0], UNSAFE_TODO(&kExtraData[0] + std::size(kExtraData)));
 
   AudioDecoderConfig input;
   input.Initialize(AudioCodec::kAAC, kSampleFormatU8, CHANNEL_LAYOUT_SURROUND,
@@ -94,5 +90,20 @@ TEST(AudioDecoderConfigStructTraitsTest, TargetOutputChannelLayout) {
   EXPECT_EQ(output.target_output_channel_layout(), CHANNEL_LAYOUT_5_1);
   EXPECT_EQ(output.target_output_sample_format(), kSampleFormatDts);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+TEST(AudioDecoderConfigStructTraitsTest, WithMimeType) {
+  AudioDecoderConfig input;
+  input.Initialize(AudioCodec::kAAC, kSampleFormatU8, CHANNEL_LAYOUT_SURROUND,
+                   48000, EmptyExtraData(), EncryptionScheme::kUnencrypted,
+                   base::TimeDelta(), 0);
+  input.set_mime_type("audio/mp4; codecs=\"mp4a.40.2\"");
+  std::vector<uint8_t> data = mojom::AudioDecoderConfig::Serialize(&input);
+  AudioDecoderConfig output;
+  EXPECT_TRUE(mojom::AudioDecoderConfig::Deserialize(std::move(data), &output));
+  EXPECT_TRUE(output.Matches(input));
+  EXPECT_EQ(output.mime_type(), "audio/mp4; codecs=\"mp4a.40.2\"");
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

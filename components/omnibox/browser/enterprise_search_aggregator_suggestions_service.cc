@@ -10,6 +10,7 @@
 
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/strings/stringprintf.h"
 #include "components/omnibox/common/omnibox_feature_configs.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
@@ -19,6 +20,7 @@
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/load_flags.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/http/http_request_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -74,11 +76,13 @@ void EnterpriseSearchAggregatorSuggestionsService::
     CreateEnterpriseSearchAggregatorSuggestionsRequest(
         const std::u16string& query,
         const GURL& suggest_url,
+        std::vector<int> callback_indexes,
+        std::vector<std::vector<int>> suggestion_types,
         CreationCallback creation_callback,
         StartCallback start_callback,
-        CompletionCallback completion_callback,
-        std::vector<std::vector<int>> suggestion_types) {
+        CompletionCallback completion_callback) {
   DCHECK(suggest_url.is_valid());
+  CHECK_EQ(callback_indexes.size(), suggestion_types.size());
 
   auto requests = std::vector<std::unique_ptr<network::ResourceRequest>>{};
   for (size_t i = 0; i < suggestion_types.size(); ++i) {
@@ -86,7 +90,7 @@ void EnterpriseSearchAggregatorSuggestionsService::
   }
   for (size_t i = 0; i < suggestion_types.size(); i++) {
     requests[i]->url = suggest_url;
-    requests[i]->method = "POST";
+    requests[i]->method = net::HttpRequestHeaders::kPostMethod;
     requests[i]->load_flags = net::LOAD_DO_NOT_SAVE_COOKIES;
 
     requests[i]->site_for_cookies = net::SiteForCookies::FromUrl(suggest_url);
@@ -102,9 +106,9 @@ void EnterpriseSearchAggregatorSuggestionsService::
         semantics {
           sender: "Omnibox"
           description:
-            "Request for enterprise suggestions from the omnibox."
-            "Enterprise suggestions provide enterprise specific documents"
-            "to enterprise users and are configured by enterprise admin."
+            "Request for enterprise suggestions from the omnibox. Enterprise "
+            "suggestions provide enterprise specific documents to enterprise "
+            "users and are configured by enterprise admin."
           trigger: "Signed-in enterprise user enters text in the omnibox."
           user_data {
             type: ACCESS_TOKEN
@@ -148,8 +152,9 @@ void EnterpriseSearchAggregatorSuggestionsService::
       base::BindOnce(
           &EnterpriseSearchAggregatorSuggestionsService::AccessTokenAvailable,
           base::Unretained(this), std::move(requests), std::move(query),
-          std::move(suggestion_types), traffic_annotation,
-          std::move(start_callback), std::move(completion_callback)),
+          std::move(callback_indexes), std::move(suggestion_types),
+          traffic_annotation, std::move(start_callback),
+          std::move(completion_callback)),
       signin::PrimaryAccountAccessTokenFetcher::Mode::kWaitUntilAvailable,
       signin::ConsentLevel::kSignin);
 }
@@ -162,6 +167,7 @@ void EnterpriseSearchAggregatorSuggestionsService::
 void EnterpriseSearchAggregatorSuggestionsService::AccessTokenAvailable(
     std::vector<std::unique_ptr<network::ResourceRequest>> requests,
     const std::u16string& query,
+    std::vector<int> callback_indexes,
     std::vector<std::vector<int>> suggestion_types,
     net::NetworkTrafficAnnotationTag traffic_annotation,
     StartCallback start_callback,
@@ -189,9 +195,10 @@ void EnterpriseSearchAggregatorSuggestionsService::AccessTokenAvailable(
   }
 
   for (size_t i = 0; i < requests.size(); ++i) {
-    StartDownloadAndTransferLoader(
-        std::move(requests[i]), std::move(request_bodies[i]),
-        traffic_annotation, start_callback, completion_callback, i);
+    StartDownloadAndTransferLoader(std::move(requests[i]),
+                                   std::move(request_bodies[i]),
+                                   traffic_annotation, callback_indexes[i],
+                                   start_callback, completion_callback);
   }
 }
 
@@ -203,9 +210,9 @@ void EnterpriseSearchAggregatorSuggestionsService::
         std::unique_ptr<network::ResourceRequest> request,
         std::string request_body,
         net::NetworkTrafficAnnotationTag traffic_annotation,
+        int request_index,
         StartCallback start_callback,
-        CompletionCallback completion_callback,
-        int request_index) {
+        CompletionCallback completion_callback) {
   if (!url_loader_factory_) {
     return;
   }

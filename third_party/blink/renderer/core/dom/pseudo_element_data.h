@@ -28,7 +28,6 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData>,
       PseudoId,
       const AtomicString& view_transition_name = g_null_atom) const;
 
-  bool HasViewTransitionGroupPseudoElement() const;
   bool HasScrollButtonOrMarkerGroupPseudos() const;
 
   using PseudoElementVector = HeapVector<Member<PseudoElement>, 2>;
@@ -72,6 +71,7 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData>,
     visitor->Trace(generated_before_);
     visitor->Trace(generated_after_);
     visitor->Trace(generated_picker_icon_);
+    visitor->Trace(generated_interest_hint_);
     visitor->Trace(generated_marker_);
     visitor->Trace(generated_first_letter_);
     visitor->Trace(generated_scroll_marker_group_before_);
@@ -92,6 +92,7 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData>,
   Member<PseudoElement> generated_before_;
   Member<PseudoElement> generated_after_;
   Member<PseudoElement> generated_picker_icon_;
+  Member<PseudoElement> generated_interest_hint_;
   Member<PseudoElement> generated_marker_;
   Member<PseudoElement> generated_first_letter_;
   Member<PseudoElement> generated_scroll_marker_group_before_;
@@ -105,7 +106,7 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData>,
 
   Member<TransitionPseudoElementData> transition_data_;
 
-  // Column pseudo elements are created once per column (fragmentainer)
+  // Column pseudo-elements are created once per column (fragmentainer)
   // with style specified with ::column. They live here as array, since there is
   // no Element for column (fragmentainer), and they should appear somewhere for
   // focus and a11y.
@@ -114,9 +115,9 @@ class PseudoElementData final : public GarbageCollected<PseudoElementData>,
 
 inline bool PseudoElementData::HasPseudoElements() const {
   return generated_check_ || generated_before_ || generated_after_ ||
-         generated_picker_icon_ || generated_marker_ || backdrop_ ||
-         generated_first_letter_ || transition_data_ ||
-         generated_scroll_marker_group_before_ ||
+         generated_picker_icon_ || generated_interest_hint_ ||
+         generated_marker_ || backdrop_ || generated_first_letter_ ||
+         transition_data_ || generated_scroll_marker_group_before_ ||
          generated_scroll_marker_group_after_ || generated_scroll_marker_ ||
          generated_scroll_button_block_start_ ||
          generated_scroll_button_inline_start_ ||
@@ -130,6 +131,7 @@ inline void PseudoElementData::ClearPseudoElements() {
   SetPseudoElement(kPseudoIdBefore, nullptr);
   SetPseudoElement(kPseudoIdAfter, nullptr);
   SetPseudoElement(kPseudoIdPickerIcon, nullptr);
+  SetPseudoElement(kPseudoIdInterestHint, nullptr);
   SetPseudoElement(kPseudoIdMarker, nullptr);
   SetPseudoElement(kPseudoIdBackdrop, nullptr);
   SetPseudoElement(kPseudoIdFirstLetter, nullptr);
@@ -174,6 +176,10 @@ inline void PseudoElementData::SetPseudoElement(
       previous_element = generated_picker_icon_;
       generated_picker_icon_ = element;
       break;
+    case kPseudoIdInterestHint:
+      previous_element = generated_interest_hint_;
+      generated_interest_hint_ = element;
+      break;
     case kPseudoIdMarker:
       previous_element = generated_marker_;
       generated_marker_ = element;
@@ -216,6 +222,7 @@ inline void PseudoElementData::SetPseudoElement(
       break;
     case kPseudoIdViewTransition:
     case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionGroupChildren:
     case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionNew:
     case kPseudoIdViewTransitionOld:
@@ -248,6 +255,9 @@ inline PseudoElement* PseudoElementData::GetPseudoElement(
     return generated_after_.Get();
   if (kPseudoIdPickerIcon == pseudo_id) {
     return generated_picker_icon_.Get();
+  }
+  if (kPseudoIdInterestHint == pseudo_id) {
+    return generated_interest_hint_.Get();
   }
   if (kPseudoIdMarker == pseudo_id)
     return generated_marker_.Get();
@@ -289,11 +299,6 @@ inline PseudoElement* PseudoElementData::GetPseudoElement(
   return nullptr;
 }
 
-inline bool PseudoElementData::HasViewTransitionGroupPseudoElement() const {
-  return transition_data_ &&
-         transition_data_->HasViewTransitionGroupPseudoElement();
-}
-
 inline bool PseudoElementData::HasScrollButtonOrMarkerGroupPseudos() const {
   // We exclude `generated_scroll_marker_` because this would be a control
   // nested under a scroll marker group.
@@ -317,6 +322,9 @@ PseudoElementData::GetPseudoElements() const {
     result.push_back(generated_after_);
   if (generated_picker_icon_) {
     result.push_back(generated_picker_icon_);
+  }
+  if (generated_interest_hint_) {
+    result.push_back(generated_interest_hint_);
   }
   if (generated_marker_)
     result.push_back(generated_marker_);

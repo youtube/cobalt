@@ -9,6 +9,7 @@
 
 #include "chrome/browser/screen_ai/public/optical_character_recognizer.h"
 
+#include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
@@ -35,6 +36,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/accessibility/accessibility_features.h"
+#include "ui/accessibility/accessibility_switches.h"
 #include "ui/accessibility/ax_features.mojom-features.h"
 #include "ui/gfx/codec/png_codec.h"
 
@@ -67,7 +69,7 @@ SkBitmap LoadImageFromTestFile(
   base::FilePath image_path =
       chrome_src_dir.Append(FILE_PATH_LITERAL("chrome/test/data"))
           .Append(relative_path_from_chrome_data);
-  EXPECT_TRUE(base::PathExists(image_path));
+  EXPECT_TRUE(base::PathExists(image_path)) << image_path;
 
   std::optional<std::vector<uint8_t>> image_data =
       base::ReadFileToBytes(image_path);
@@ -559,14 +561,15 @@ IN_PROC_BROWSER_TEST_P(OpticalCharacterRecognizerTest,
 
   ocr()->DisconnectAnnotator();
 
-  // Perform OCR and get AxTreeUpdate.
-  base::test::TestFuture<const ui::AXTreeUpdate&> perform_future2;
+  // Perform OCR and get VisualAnnotation.
+  base::test::TestFuture<mojom::VisualAnnotationPtr> perform_future2;
   ocr()->PerformOCR(bitmap, perform_future2.GetCallback());
   ASSERT_TRUE(perform_future2.Wait());
 
   // Fake library always returns empty results.
 #if !BUILDFLAG(USE_FAKE_SCREEN_AI)
-  ASSERT_FALSE(perform_future2.Get<ui::AXTreeUpdate>().nodes.empty());
+  ASSERT_FALSE(
+      perform_future2.Get<mojom::VisualAnnotationPtr>()->lines.empty());
 #endif
 }
 
@@ -683,6 +686,12 @@ INSTANTIATE_TEST_SUITE_P(All,
 #endif
 IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
                        MAYBE_PerformOCRLargeImage) {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kForceRendererAccessibility)) {
+    // crbug.com/417534818
+    GTEST_SKIP()
+        << "This test is slow and flaky when accessibility is enabled.";
+  }
   base::HistogramTester histograms;
 
   // Since this test processes a huge image, it can be slow and overrun the
@@ -753,6 +762,16 @@ IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
       ocr()->PerformOCR(bitmap, future->GetCallback());
       future = std::next(future);
     }
+  }
+
+  // Verify that OCR is not considered busy as there is only one connected
+  // client.
+  {
+    base::test::TestFuture<bool> future;
+
+    ocr()->IsOCRBusy(future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    EXPECT_FALSE(future.Get<bool>());
   }
 
   for (auto& future : futures) {
@@ -849,6 +868,223 @@ IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
   if (base::TimeTicks::Now() - start_time > kResourceMeasurementInterval * 2) {
     histograms.ExpectTotalCount("Accessibility.OCR.Service.MaxMemoryLoad", 1);
   }
+
+  // Expect no OCR mode change.
+  histograms.ExpectUniqueSample("Accessibility.ScreenAI.OCR.ModeSwitch", 0, 1);
+}
+
+IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
+                       PerformOCRLightModeEnglish) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  SkBitmap bitmap =
+      LoadImageFromTestFile(base::FilePath(FILE_PATH_LITERAL("ocr"))
+                                .AppendASCII("simple_text_only_sample.png"));
+
+  scoped_refptr<OpticalCharacterRecognizer> ocr_client;
+  {
+    base::test::TestFuture<bool> future;
+    ocr_client = OpticalCharacterRecognizer::CreateWithStatusCallback(
+        browser()->profile(), mojom::OcrClientType::kTest,
+        future.GetCallback());
+    ASSERT_TRUE(future.Wait());
+    ASSERT_TRUE(future.Get<bool>());
+  }
+
+  // Recognize in normal mode and store data.
+  int lines_count;
+  std::string first_line_text;
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> future;
+    ocr_client->PerformOCR(bitmap, future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    lines_count = future.Get<mojom::VisualAnnotationPtr>()->lines.size();
+    ASSERT_GT(lines_count, 0);
+    first_line_text =
+        future.Get<mojom::VisualAnnotationPtr>()->lines[0]->text_line;
+  }
+
+  // Set Light mode.
+  ocr_client->SetOCRLightMode(true);
+
+  // Recognize in light mode, ensure no change.
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> future;
+    ocr_client->PerformOCR(bitmap, future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    ASSERT_EQ(lines_count,
+              future.Get<mojom::VisualAnnotationPtr>()->lines.size());
+    EXPECT_EQ(first_line_text,
+              future.Get<mojom::VisualAnnotationPtr>()->lines[0]->text_line);
+  }
+
+  // Back to normal mode and still no change.
+  ocr_client->SetOCRLightMode(false);
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> future;
+    ocr_client->PerformOCR(bitmap, future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    ASSERT_EQ(lines_count,
+              future.Get<mojom::VisualAnnotationPtr>()->lines.size());
+    EXPECT_EQ(first_line_text,
+              future.Get<mojom::VisualAnnotationPtr>()->lines[0]->text_line);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
+                       PerformOCRLightModeChinese) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  SkBitmap bitmap = LoadImageFromTestFile(
+      base::FilePath(FILE_PATH_LITERAL("ocr")).AppendASCII("chinese.png"));
+
+  scoped_refptr<OpticalCharacterRecognizer> ocr_client;
+  {
+    base::test::TestFuture<bool> future;
+    ocr_client = OpticalCharacterRecognizer::CreateWithStatusCallback(
+        browser()->profile(), mojom::OcrClientType::kTest,
+        future.GetCallback());
+    ASSERT_TRUE(future.Wait());
+    ASSERT_TRUE(future.Get<bool>());
+  }
+
+  // Recognize in normal mode and store data.
+  int lines_count;
+  std::string first_line_text;
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> future;
+    ocr_client->PerformOCR(bitmap, future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    lines_count = future.Get<mojom::VisualAnnotationPtr>()->lines.size();
+    ASSERT_GT(lines_count, 0);
+    first_line_text =
+        future.Get<mojom::VisualAnnotationPtr>()->lines[0]->text_line;
+  }
+
+  // Set Light mode.
+  ocr_client->SetOCRLightMode(true);
+
+  // Recognize in light mode. Chinese text is not recognized, however since OCR
+  // only has Latin recognizer, it tries to recognize the text using that and
+  // does not return empty.
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> future;
+    ocr_client->PerformOCR(bitmap, future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    ASSERT_EQ(lines_count,
+              future.Get<mojom::VisualAnnotationPtr>()->lines.size());
+    EXPECT_NE(first_line_text,
+              future.Get<mojom::VisualAnnotationPtr>()->lines[0]->text_line);
+  }
+
+  // Back to normal mode and correct recognition.
+  ocr_client->SetOCRLightMode(false);
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> future;
+    ocr_client->PerformOCR(bitmap, future.GetCallback());
+    EXPECT_TRUE(future.Wait());
+    ASSERT_EQ(lines_count,
+              future.Get<mojom::VisualAnnotationPtr>()->lines.size());
+    EXPECT_EQ(first_line_text,
+              future.Get<mojom::VisualAnnotationPtr>()->lines[0]->text_line);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
+                       PerformOCRMultipleClientsLightMode) {
+  base::HistogramTester histograms;
+  base::ScopedAllowBlockingForTesting allow_blocking;
+
+  // Create two OCR clients.
+  scoped_refptr<OpticalCharacterRecognizer> ocr_clients[2];
+  {
+    base::test::TestFuture<bool> futures[2];
+
+    ocr_clients[0] = OpticalCharacterRecognizer::CreateWithStatusCallback(
+        browser()->profile(), mojom::OcrClientType::kTest,
+        futures[0].GetCallback());
+    ocr_clients[1] = OpticalCharacterRecognizer::CreateWithStatusCallback(
+        browser()->profile(), mojom::OcrClientType::kTest,
+        futures[1].GetCallback());
+
+    ASSERT_TRUE(futures[0].Wait());
+    ASSERT_TRUE(futures[1].Wait());
+    ASSERT_TRUE(futures[0].Get<bool>());
+    ASSERT_TRUE(futures[1].Get<bool>());
+  }
+
+  // Load files.
+  SkBitmap chinese_bitmap = LoadImageFromTestFile(
+      base::FilePath(FILE_PATH_LITERAL("ocr")).AppendASCII("chinese.png"));
+  SkBitmap english_bitmap =
+      LoadImageFromTestFile(base::FilePath(FILE_PATH_LITERAL("ocr"))
+                                .AppendASCII("simple_text_only_sample.png"));
+
+  // Set Light mode on the second client.
+  ocr_clients[1]->SetOCRLightMode(true);
+
+  // Send both bitmaps from both clients and wait for completion.
+  {
+    base::test::TestFuture<mojom::VisualAnnotationPtr> result_futures[4];
+
+    ocr_clients[0]->PerformOCR(english_bitmap, result_futures[0].GetCallback());
+    ocr_clients[1]->PerformOCR(english_bitmap, result_futures[1].GetCallback());
+    ocr_clients[0]->PerformOCR(chinese_bitmap, result_futures[2].GetCallback());
+    ocr_clients[1]->PerformOCR(chinese_bitmap, result_futures[3].GetCallback());
+    EXPECT_TRUE(result_futures[3].Wait());
+
+    const auto& english_0 = result_futures[0].Get<mojom::VisualAnnotationPtr>();
+    const auto& english_1 = result_futures[1].Get<mojom::VisualAnnotationPtr>();
+    const auto& chinese_0 = result_futures[2].Get<mojom::VisualAnnotationPtr>();
+    const auto& chinese_1 = result_futures[3].Get<mojom::VisualAnnotationPtr>();
+
+    // Light mode should not affect English text.
+    EXPECT_EQ(english_0->lines.size(), english_1->lines.size());
+    for (unsigned i = 0; i < english_0->lines.size(); i++) {
+      EXPECT_EQ(english_0->lines[i]->text_line, english_1->lines[i]->text_line);
+    }
+
+    // Chinese on client 1 is not recognized, however since OCR only has Latin
+    // recognizer, it tries to recognize the text using that and does not return
+    // empty.
+    EXPECT_EQ(chinese_0->lines.size(), chinese_1->lines.size());
+    for (unsigned i = 0; i < chinese_0->lines.size(); i++) {
+      EXPECT_NE(chinese_0->lines[i]->text_line, chinese_1->lines[i]->text_line);
+    }
+  }
+
+  // Verify that the both clients consider OCR busy as there is another
+  // connected client.
+  {
+    base::test::TestFuture<bool> features[2];
+
+    ocr_clients[0]->IsOCRBusy(features[0].GetCallback());
+    ocr_clients[1]->IsOCRBusy(features[1].GetCallback());
+
+    EXPECT_TRUE(features[0].Wait());
+    EXPECT_TRUE(features[1].Wait());
+    EXPECT_TRUE(features[0].Get<bool>());
+    EXPECT_TRUE(features[1].Get<bool>());
+  }
+
+  // Disconnect clients and wait for the service to shutdown and store metrics.
+  ocr_clients[0].reset();
+  ocr_clients[1].reset();
+  screen_ai::ScreenAIServiceRouter* router =
+      ScreenAIServiceRouterFactory::GetForBrowserContext(browser()->profile());
+  base::test::TestFuture<void> future;
+  WaitForDisconnecting(router, future.GetCallback(), /*remaining_tries=*/3);
+  ASSERT_TRUE(future.Wait());
+  ASSERT_FALSE(router->IsProcessRunningForTesting(
+      screen_ai::ScreenAIServiceRouter::Service::kOCR));
+
+  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+
+  // Verify there has been three switches between light and normal mode. The
+  // actual number may differ based on mojo queue handling, but at least one
+  // should be recorded.
+  histograms.ExpectBucketCount("Accessibility.ScreenAI.OCR.ModeSwitch", 0, 0);
+  EXPECT_GT(
+      histograms.GetAllSamples("Accessibility.ScreenAI.OCR.ModeSwitch").size(),
+      0);
 }
 
 #endif  // BUILDFLAG(ENABLE_SCREEN_AI_BROWSERTESTS) && !

@@ -4,6 +4,9 @@
 
 package org.chromium.ui.test.util.modaldialog;
 
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
 import android.view.View;
 
 import androidx.activity.ComponentDialog;
@@ -75,10 +78,49 @@ public class FakeModalDialogManager extends ModalDialogManager {
                 .onClick(mShownDialogModel, ModalDialogProperties.ButtonType.POSITIVE);
     }
 
+    @CalledByNativeForTesting
     public void clickNegativeButton() {
         mShownDialogModel
                 .get(ModalDialogProperties.CONTROLLER)
                 .onClick(mShownDialogModel, ModalDialogProperties.ButtonType.NEGATIVE);
+    }
+
+    @CalledByNativeForTesting
+    public void toggleCheckbox() {
+        boolean isCurrentlyChecked = mShownDialogModel.get(ModalDialogProperties.CHECKBOX_CHECKED);
+
+        mShownDialogModel.set(ModalDialogProperties.CHECKBOX_CHECKED, !isCurrentlyChecked);
+        ModalDialogProperties.Controller controller =
+                mShownDialogModel.get(ModalDialogProperties.CONTROLLER);
+        if (controller != null) {
+            controller.onCheckboxChecked(!isCurrentlyChecked);
+        }
+    }
+
+    @CalledByNativeForTesting
+    public boolean isCheckboxChecked() {
+        return mShownDialogModel.get(ModalDialogProperties.CHECKBOX_CHECKED);
+    }
+
+    @CalledByNativeForTesting
+    public int getButtonStyles() {
+        return mShownDialogModel.get(ModalDialogProperties.BUTTON_STYLES);
+    }
+
+    @CalledByNativeForTesting
+    public String[] getMessageParagraphs() {
+        return mShownDialogModel.get(ModalDialogProperties.MESSAGE_PARAGRAPHS).stream()
+                .map(String::valueOf)
+                .toArray(String[]::new);
+    }
+
+    @CalledByNativeForTesting
+    public Bitmap getTitleIcon() {
+        Drawable icon = mShownDialogModel.get(ModalDialogProperties.TITLE_ICON);
+        if (icon instanceof BitmapDrawable) {
+            return ((BitmapDrawable) icon).getBitmap();
+        }
+        return null;
     }
 
     public PropertyModel getShownDialogModel() {

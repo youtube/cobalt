@@ -9,11 +9,10 @@ import android.os.Build;
 import android.view.View;
 import android.view.WindowInsets;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.view.WindowInsetsCompat;
 
+import org.chromium.android_webview.common.AwFeatureMap;
 import org.chromium.android_webview.common.AwFeatures;
 import org.chromium.android_webview.common.Lifetime;
 import org.chromium.base.Log;
@@ -115,26 +114,11 @@ public class AwDisplayCutoutController {
     private final boolean mIncludeSystemBars;
 
     /**
-     * Creates the {@link AwDisplayCutoutController} if required.
-     *
-     * <p>Display cutouts were added in Android P, this method returns null before that.
-     */
-    @Nullable
-    public static AwDisplayCutoutController maybeCreate(Delegate delegate, View containerView) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            return new AwDisplayCutoutController(delegate, containerView);
-        } else {
-            return null;
-        }
-    }
-
-    /**
      * Constructor for AwDisplayCutoutController.
      *
      * @param delegate The delegate.
      * @param containerView The container view (WebView).
      */
-    @RequiresApi(Build.VERSION_CODES.P)
     public AwDisplayCutoutController(Delegate delegate, View containerView) {
         mDelegate = delegate;
         mContainerView = containerView;
@@ -150,7 +134,6 @@ public class AwDisplayCutoutController {
      *
      * @param containerView A container View, such as fullscreen view.
      */
-    @RequiresApi(Build.VERSION_CODES.P)
     public void registerContainerView(View containerView) {
         if (DEBUG) Log.i(TAG, "registerContainerView");
         // For Android P~R, we set the listener in WebView's constructor.

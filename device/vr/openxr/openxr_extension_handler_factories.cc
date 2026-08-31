@@ -10,18 +10,15 @@
 #include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "device/vr/openxr/fb/openxr_hand_tracker_fb.h"
-#include "device/vr/openxr/msft/openxr_anchor_manager_msft.h"
 #include "device/vr/openxr/msft/openxr_scene_understanding_manager_msft.h"
 #include "device/vr/openxr/msft/openxr_unbounded_space_provider_msft.h"
 #include "device/vr/openxr/openxr_hand_tracker.h"
 #include "device/vr/openxr/openxr_stage_bounds_provider_basic.h"
 
 #if BUILDFLAG(IS_ANDROID)
-#include "device/vr/openxr/android/openxr_anchor_manager_android.h"
 #include "device/vr/openxr/android/openxr_depth_sensor_android.h"
 #include "device/vr/openxr/android/openxr_light_estimator_android.h"
 #include "device/vr/openxr/android/openxr_scene_understanding_manager_android.h"
-#include "device/vr/openxr/android/openxr_stage_bounds_provider_android.h"
 #include "device/vr/openxr/android/openxr_unbounded_space_provider_android.h"
 #endif
 
@@ -33,13 +30,9 @@ GetExtensionHandlerFactories() {
   // List platform-specific extensions first as they should generally be
   // preferred on the platforms that they are supported for.
 #if BUILDFLAG(IS_ANDROID)
-          new OpenXrStageBoundsProviderAndroidFactory(),
-
           new OpenXrUnboundedSpaceProviderAndroidFactory(),
 
           new OpenXrSceneUnderstandingManagerAndroidFactory(),
-
-          new OpenXrAnchorManagerAndroidFactory(),
 
           new OpenXrLightEstimatorAndroidFactory(),
 
@@ -60,8 +53,6 @@ GetExtensionHandlerFactories() {
           new OpenXrUnboundedSpaceProviderMsftFactory(),
 
           new OpenXrSceneUnderstandingManagerMsftFactory(),
-
-          new OpenXrAnchorManagerMsftFactory(),
       }};
 
   return *kFactories;

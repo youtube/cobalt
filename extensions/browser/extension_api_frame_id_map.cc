@@ -10,6 +10,7 @@
 
 #include "base/check_op.h"
 #include "base/functional/bind.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/uuid.h"
 #include "content/public/browser/browser_thread.h"
@@ -23,15 +24,6 @@
 #include "extensions/common/constants.h"
 
 namespace extensions {
-
-namespace {
-
-// The map is accessed on the IO and UI thread, so construct it once and never
-// delete it.
-base::LazyInstance<ExtensionApiFrameIdMap>::Leaky g_map_instance =
-    LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
 
 const int ExtensionApiFrameIdMap::kInvalidFrameId = -1;
 const int ExtensionApiFrameIdMap::kTopFrameId = 0;
@@ -75,7 +67,10 @@ ExtensionApiFrameIdMap::~ExtensionApiFrameIdMap() = default;
 
 // static
 ExtensionApiFrameIdMap* ExtensionApiFrameIdMap::Get() {
-  return g_map_instance.Pointer();
+  // The map is accessed on the IO and UI thread, so construct it once and never
+  // delete it.
+  static base::NoDestructor<ExtensionApiFrameIdMap> instance;
+  return instance.get();
 }
 
 // static

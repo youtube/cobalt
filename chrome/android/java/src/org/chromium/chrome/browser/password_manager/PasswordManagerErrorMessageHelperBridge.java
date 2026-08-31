@@ -13,6 +13,7 @@ import org.jni_zero.CalledByNative;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -26,6 +27,7 @@ import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.TrustedVaultUserActionTriggerForUMA;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.WindowAndroid;
@@ -33,6 +35,7 @@ import org.chromium.ui.base.WindowAndroid;
 import java.util.concurrent.TimeUnit;
 
 /** The bridge provides a way to interact with the Android sign in flow. */
+@NullMarked
 public class PasswordManagerErrorMessageHelperBridge {
     @VisibleForTesting
     static final long MINIMAL_INTERVAL_BETWEEN_PROMPTS_MS =
@@ -106,14 +109,16 @@ public class PasswordManagerErrorMessageHelperBridge {
      */
     @CalledByNative
     static void startUpdateAccountCredentialsFlow(WindowAndroid windowAndroid, Profile profile) {
+        IdentityManager identityManager =
+                IdentityServicesProvider.get().getIdentityManager(profile);
+        assert identityManager != null : "Regular profile should have an IdentityManager";
         final CoreAccountInfo primaryAccountInfo =
-                IdentityServicesProvider.get()
-                        .getIdentityManager(profile)
-                        .getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+                identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
         // If the account has been removed before calling this method, there are no credentials to
         // update.
         if (primaryAccountInfo == null) return;
         final Activity activity = windowAndroid.getActivity().get();
+        assert activity != null : "Activity should not be null";
         AccountManagerFacadeProvider.getInstance()
                 .updateCredentials(
                         CoreAccountInfo.getAndroidAccountFrom(primaryAccountInfo),
@@ -125,26 +130,29 @@ public class PasswordManagerErrorMessageHelperBridge {
     }
 
     /**
-     * Starts the Android process to retrieve encryption keys in Chrome. This method will only work for users that have been previously syncing in Chrome.
+     * Starts the Android process to retrieve encryption keys in Chrome. This method will only work
+     * for users that have been previously syncing in Chrome.
      */
     @CalledByNative
-    static void startTrustedVaultKeyRetrievalFlow(WindowAndroid windowAndroid, Profile profile) {
-        final CoreAccountInfo primaryAccountInfo =
-                SyncServiceFactory.getForProfile(profile).getAccountInfo();
+    static void startTrustedVaultKeyRetrievalFlow(
+            WindowAndroid windowAndroid,
+            Profile profile,
+            @TrustedVaultUserActionTriggerForUMA int trustedVaultUserActionTriggerForUMA) {
+        SyncService syncService = SyncServiceFactory.getForProfile(profile);
+        assert syncService != null;
+        final CoreAccountInfo primaryAccountInfo = syncService.getAccountInfo();
         // If the account has been removed before calling this method, there is nothing to do.
         if (primaryAccountInfo == null) return;
         final Activity activity = windowAndroid.getActivity().get();
+        assert activity != null;
 
         TrustedVaultClient.get()
                 .createKeyRetrievalIntent(primaryAccountInfo)
                 .then(
                         (intent) -> {
-                            var action =
-                                    TrustedVaultUserActionTriggerForUMA
-                                            .PASSWORD_MANAGER_ERROR_MESSAGE;
                             var proxyIntent =
                                     SyncTrustedVaultProxyActivity.createKeyRetrievalProxyIntent(
-                                            intent, action);
+                                            intent, trustedVaultUserActionTriggerForUMA);
                             IntentUtils.safeStartActivity(activity, proxyIntent);
                         });
     }

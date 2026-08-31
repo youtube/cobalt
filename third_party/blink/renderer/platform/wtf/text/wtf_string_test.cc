@@ -33,7 +33,7 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 
-namespace WTF {
+namespace blink {
 
 TEST(StringTest, CreationFromLiteral) {
   String string_from_literal("Explicit construction syntax");
@@ -230,20 +230,19 @@ TEST(WTF, SimplifyWhiteSpace) {
   String extra_spaces("  Hello  world  ");
   EXPECT_EQ(String("Hello world"), extra_spaces.SimplifyWhiteSpace());
   EXPECT_EQ(String("  Hello  world  "),
-            extra_spaces.SimplifyWhiteSpace(WTF::kDoNotStripWhiteSpace));
+            extra_spaces.SimplifyWhiteSpace(kDoNotStripWhiteSpace));
 
   String extra_spaces_and_newlines(" \nHello\n world\n ");
   EXPECT_EQ(String("Hello world"),
             extra_spaces_and_newlines.SimplifyWhiteSpace());
   EXPECT_EQ(
       String("  Hello  world  "),
-      extra_spaces_and_newlines.SimplifyWhiteSpace(WTF::kDoNotStripWhiteSpace));
+      extra_spaces_and_newlines.SimplifyWhiteSpace(kDoNotStripWhiteSpace));
 
   String extra_spaces_and_tabs(" \nHello\t world\t ");
   EXPECT_EQ(String("Hello world"), extra_spaces_and_tabs.SimplifyWhiteSpace());
-  EXPECT_EQ(
-      String("  Hello  world  "),
-      extra_spaces_and_tabs.SimplifyWhiteSpace(WTF::kDoNotStripWhiteSpace));
+  EXPECT_EQ(String("  Hello  world  "),
+            extra_spaces_and_tabs.SimplifyWhiteSpace(kDoNotStripWhiteSpace));
 
   auto is_space_or_g = [](UChar character) {
     return character == ' ' || character == 'G';
@@ -253,7 +252,7 @@ TEST(WTF, SimplifyWhiteSpace) {
             extra_spaces_and_gs.SimplifyWhiteSpace(is_space_or_g));
   EXPECT_EQ(String("     Hello   world    "),
             extra_spaces_and_gs.SimplifyWhiteSpace(is_space_or_g,
-                                                   WTF::kDoNotStripWhiteSpace));
+                                                   kDoNotStripWhiteSpace));
 }
 
 TEST(StringTest, StartsWithIgnoringUnicodeCase) {
@@ -426,9 +425,8 @@ TEST(StringTest, FindWithCallback) {
   // An instance method.
   TestMatcher matcher('t');
   // Unretained is safe because callback executes synchronously in Find().
-  auto callback =
-      WTF::BindRepeating(&TestMatcher::IsTarget, WTF::Unretained(&matcher));
-  EXPECT_EQ(WTF::kNotFound, test_string1.Find(callback));
+  auto callback = BindRepeating(&TestMatcher::IsTarget, Unretained(&matcher));
+  EXPECT_EQ(kNotFound, test_string1.Find(callback));
   EXPECT_EQ(1U, test_string2.Find(callback));
 }
 
@@ -451,4 +449,9 @@ TEST(StringTest, StartsWithIgnoringCaseAndAccentsSuffixDiff) {
       String("Donkey").StartsWithIgnoringCaseAndAccents(String("Donka")));
 }
 
-}  // namespace WTF
+// https://issues.chromium.org/u/1/issues/420990876#comment9
+TEST(StringTest, Issue420990876FuzzerCase) {
+  EXPECT_EQ(String(), String::FromUTF8("\364\244\204\244"));
+}
+
+}  // namespace blink

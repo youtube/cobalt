@@ -95,7 +95,7 @@ public class ShareSheetUsageRankingHelperTest {
         mShareSheetUsageRankingHelper =
                 new ShareSheetUsageRankingHelper(
                         mBottomSheetController,
-                        mBottomSheet,
+                        () -> mBottomSheet,
                         /* shareStartTime= */ 1234,
                         mLinkGenerationStatusForMetrics,
                         mLinkToggleMetricsDetails,
@@ -106,7 +106,7 @@ public class ShareSheetUsageRankingHelperTest {
     @Test
     @SmallTest
     public void testCreateThirdPartyPropertyModelsFromUsageRanking() throws TimeoutException {
-        List<String> targets = new ArrayList<String>();
+        List<String> targets = new ArrayList<>();
         targets.add("$more");
         targets.add("$more");
         final AtomicReference<List<PropertyModel>> resultPropertyModels = new AtomicReference<>();
@@ -139,7 +139,7 @@ public class ShareSheetUsageRankingHelperTest {
     @Test
     @SmallTest
     public void testClickMoreRemovesCallback() throws TimeoutException {
-        List<String> targets = new ArrayList<String>();
+        List<String> targets = new ArrayList<>();
         targets.add("$more");
         final AtomicReference<List<PropertyModel>> resultPropertyModels = new AtomicReference<>();
         CallbackHelper helper = new CallbackHelper();

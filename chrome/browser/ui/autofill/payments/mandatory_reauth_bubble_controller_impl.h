@@ -30,9 +30,10 @@ class MandatoryReauthBubbleControllerImpl
       const MandatoryReauthBubbleControllerImpl&) = delete;
   ~MandatoryReauthBubbleControllerImpl() override;
 
-  void ShowBubble(base::OnceClosure accept_mandatory_reauth_callback,
-                  base::OnceClosure cancel_mandatory_reauth_callback,
-                  base::RepeatingClosure close_mandatory_reauth_callback);
+  void SetupAndShowBubble(
+      base::OnceClosure accept_mandatory_reauth_callback,
+      base::OnceClosure cancel_mandatory_reauth_callback,
+      base::RepeatingClosure close_mandatory_reauth_callback);
   void ReshowBubble();
 
   // MandatoryReauthBubbleController:
@@ -46,7 +47,11 @@ class MandatoryReauthBubbleControllerImpl
 #endif
   AutofillBubbleBase* GetBubbleView() override;
   bool IsIconVisible() override;
-  MandatoryReauthBubbleType GetBubbleType() const override;
+  MandatoryReauthBubbleType GetMandatoryReauthBubbleType() const override;
+
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
  protected:
   explicit MandatoryReauthBubbleControllerImpl(
@@ -55,6 +60,7 @@ class MandatoryReauthBubbleControllerImpl
   // AutofillBubbleControllerBase:
   PageActionIconType GetPageActionIconType() override;
   void DoShowBubble() override;
+  void UpdatePageActionIcon() override;
 
  private:
   friend class content::WebContentsUserData<
@@ -81,6 +87,9 @@ class MandatoryReauthBubbleControllerImpl
 
   // Whether the bubble is shown after user interacted with omnibox icon.
   bool is_reshow_ = false;
+
+  base::WeakPtrFactory<MandatoryReauthBubbleControllerImpl> weak_ptr_factory_{
+      this};
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

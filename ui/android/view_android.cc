@@ -322,6 +322,15 @@ void ViewAndroid::RequestUnbufferedDispatch(const MotionEventAndroid& event) {
                                                      event.GetJavaObject());
 }
 
+void ViewAndroid::SetTooltip(const std::u16string& text) {
+  ScopedJavaLocalRef<jobject> delegate(GetViewAndroidDelegate());
+  if (delegate.is_null()) {
+    return;
+  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_ViewAndroidDelegate_setTooltipText(env, delegate, text);
+}
+
 void ViewAndroid::SetCopyOutputCallback(CopyViewCallback callback) {
   copy_view_callback_ = std::move(callback);
 }
@@ -687,15 +696,6 @@ void ViewAndroid::NotifyVirtualKeyboardOverlayRect(
 
   for (ViewAndroid* child : children_) {
     child->NotifyVirtualKeyboardOverlayRect(keyboard_rect);
-  }
-}
-
-void ViewAndroid::NotifyContextMenuInsetsObservers(const gfx::Rect& safe_area) {
-  if (event_handler_) {
-    event_handler_->NotifyContextMenuInsetsObservers(safe_area);
-  }
-  for (ViewAndroid* child : children_) {
-    child->NotifyContextMenuInsetsObservers(safe_area);
   }
 }
 

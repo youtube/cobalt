@@ -5,12 +5,12 @@
 #ifndef COMPONENTS_PERMISSIONS_CONTEXTS_KEYBOARD_LOCK_PERMISSION_CONTEXT_H_
 #define COMPONENTS_PERMISSIONS_CONTEXTS_KEYBOARD_LOCK_PERMISSION_CONTEXT_H_
 
-#include "components/permissions/permission_context_base.h"
+#include "components/permissions/content_setting_permission_context_base.h"
 
 namespace permissions {
 
 class KeyboardLockPermissionContext
-    : public permissions::PermissionContextBase {
+    : public ContentSettingPermissionContextBase {
  public:
   explicit KeyboardLockPermissionContext(
       content::BrowserContext* browser_context);
@@ -22,8 +22,8 @@ class KeyboardLockPermissionContext
 
 #if !BUILDFLAG(IS_ANDROID)
  private:
-  // PermissionContextBase:
-  ContentSetting GetPermissionStatusInternal(
+  // ContentSettingPermissionContextBase:
+  ContentSetting GetContentSettingStatusInternal(
       content::RenderFrameHost* render_frame_host,
       const GURL& requesting_origin,
       const GURL& embedding_origin) const override;

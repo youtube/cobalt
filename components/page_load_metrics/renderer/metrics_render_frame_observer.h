@@ -9,6 +9,7 @@
 #include <optional>
 #include <set>
 
+#include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "components/page_load_metrics/common/page_load_timing.h"
 #include "components/page_load_metrics/renderer/page_resource_data_use.h"
@@ -25,38 +26,7 @@ namespace base {
 class OneShotTimer;
 }  // namespace base
 
-namespace blink {
-struct JavaScriptFrameworkDetectionResult;
-struct SoftNavigationMetrics;
-}  // namespace blink
-
 namespace page_load_metrics {
-
-namespace internal {
-const char kPageLoadInternalSoftNavigationFromStartInvalidTiming[] =
-    "PageLoad.Internal.SoftNavigationFromStartInvalidTiming";
-
-// These values are recorded into a UMA histogram as scenarios where the start
-// time of soft navigation ends up being 0. These entries
-// should not be renumbered and the numeric values should not be reused. These
-// entries should be kept in sync with the definition in
-// tools/metrics/histograms/enums.xml
-// TODO(crbug.com/40074158): Remove the code here and related code once the bug
-// is resolved.
-enum class SoftNavigationFromStartInvalidTimingReasons {
-  kSoftNavStartTimeIsZeroAndLtNavStart = 0,
-  kSoftNavStartTimeIsZeroAndEqNavStart = 1,
-  kSoftNavStartTimeIsNonZeroAndEqNavStart = 2,
-  kSoftNavStartTimeIsNonZeroAndLtNavStart = 3,
-  kMaxValue = kSoftNavStartTimeIsNonZeroAndLtNavStart,
-};
-
-void RecordUmaForkPageLoadInternalSoftNavigationFromStartInvalidTiming(
-    base::TimeDelta start_time_relative_to_reference,
-    double nav_start_to_reference);
-
-}  // namespace internal
-
 class PageTimingMetricsSender;
 class PageTimingSender;
 
@@ -91,7 +61,8 @@ class MetricsRenderFrameObserver : public content::RenderFrameObserver,
       const blink::SubresourceLoadMetrics& subresource_load_metrics) override;
   void DidObserveNewFeatureUsage(
       const blink::UseCounterFeature& feature) override;
-  void DidObserveSoftNavigation(blink::SoftNavigationMetrics metrics) override;
+  void DidObserveSoftNavigation(
+      blink::SoftNavigationMetricsForReporting metrics) override;
   void DidObserveLayoutShift(double score, bool after_input_or_scroll) override;
   void DidStartResponse(const url::SchemeHostPort& final_response_url,
                         int request_id,
@@ -136,8 +107,7 @@ class MetricsRenderFrameObserver : public content::RenderFrameObserver,
   // blink::WebLocalFrameObserver implementation
   void OnFrameDetached() override;
 
-  bool SetUpUkmReporting(
-      base::ReadOnlySharedMemoryRegion& shared_memory_smoothness,
+  bool SetUpDroppedFramesReporting(
       base::ReadOnlySharedMemoryRegion& shared_memory_dropped_frames) override;
 
  protected:
@@ -181,8 +151,8 @@ class MetricsRenderFrameObserver : public content::RenderFrameObserver,
   // before this page loads in a new renderer).
   std::unique_ptr<PageResourceDataUse> provisional_frame_resource_data_use_;
 
-  // Handle to the shared memory for transporting smoothness related ukm data.
-  base::ReadOnlySharedMemoryRegion ukm_smoothness_data_;
+  // Handle to the shared memory for transporting dropped frame rate related ukm
+  // data.
   base::ReadOnlySharedMemoryRegion ukm_dropped_frames_data_;
 
   // The main frame intersection rectangle signal received before
@@ -193,6 +163,8 @@ class MetricsRenderFrameObserver : public content::RenderFrameObserver,
 
   // Will be null when we're not actively sending metrics.
   std::unique_ptr<PageTimingMetricsSender> page_timing_metrics_sender_;
+
+  base::WeakPtrFactory<MetricsRenderFrameObserver> weak_factory_{this};
 };
 
 }  // namespace page_load_metrics

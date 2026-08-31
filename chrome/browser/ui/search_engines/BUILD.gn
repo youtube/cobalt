@@ -33,6 +33,7 @@ source_set("search_engines") {
   deps = [
     "//base:i18n",
     "//chrome/app:generated_resources",
+    "//chrome/browser/autocomplete:aim_eligibility_service",
     "//chrome/browser/favicon",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search_engines",
@@ -51,7 +52,10 @@ source_set("search_engines") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "keyword_editor_controller_unittest.cc" ]
+  sources = [
+    "keyword_editor_controller_unittest.cc",
+    "template_url_table_model_unittest.cc",
+  ]
   deps = [
     ":search_engines",
     "//chrome/browser/profiles:profile",
@@ -60,6 +64,10 @@ source_set("unit_tests") {
     "//components/sync_preferences:test_support",
     "//content/test:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_android) {
@@ -78,5 +86,9 @@ if (!is_android) {
       "//content/test:test_support",
       "//net:test_support",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

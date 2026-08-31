@@ -2,13 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
-#include "ipcz/message.h"
-
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -18,11 +11,13 @@
 #include "ipcz/driver_object.h"
 #include "ipcz/driver_transport.h"
 #include "ipcz/ipcz.h"
+#include "ipcz/message.h"
 #include "third_party/abseil-cpp/absl/base/macros.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 #include "third_party/abseil-cpp/absl/types/span.h"
 #include "util/safe_math.h"
+#include "util/unsafe_buffers.h"
 
 namespace ipcz {
 
@@ -354,7 +349,7 @@ bool Message::CopyDataAndValidateHeader(absl::Span<const uint8_t> data) {
   // Copy the data into a local message object to avoid any TOCTOU issues in
   // case `data` is in unsafe shared memory.
   received_data_.emplace(data.size());
-  memcpy(received_data_->data(), data.data(), data.size());
+  IPCZ_UNSAFE_TODO(memcpy(received_data_->data(), data.data(), data.size()));
   data_ = received_data_->bytes();
 
   // The message must at least be large enough to encode a v0 MessageHeader.
@@ -451,6 +446,17 @@ bool Message::ValidateParameters(
       }
 
       switch (param.type) {
+        case internal::ParamType::kEnum: {
+          // Only support u8 and u32 enums at present (see static asserts
+          // in node_messages.h.tmpl).
+          uint32_t value = param.size == 1 ? GetParamValueAt<uint8_t>(offset)
+                                           : GetParamValueAt<uint32_t>(offset);
+          if (value > param.enum_max_value) {
+            return false;
+          }
+          break;
+        }
+
         case internal::ParamType::kDriverObject: {
           const uint32_t index = GetParamValueAt<uint32_t>(offset);
           if (index != internal::kInvalidDriverObjectIndex) {

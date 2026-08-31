@@ -118,6 +118,11 @@ bool ProcessingInstruction::CheckStyleSheet(String& href, String& charset) {
   if (!is_css_ && !is_xsl_)
     return false;
 
+  if (is_xsl_ && !RuntimeEnabledFeatures::XSLTEnabled()) {
+    is_xsl_ = false;
+    return false;
+  }
+
   auto it_href = attrs.find("href");
   href = it_href != attrs.end() ? it_href->value : "";
   auto it_charset = attrs.find("charset");
@@ -162,7 +167,7 @@ void ProcessingInstruction::Process(const String& href, const String& charset) {
     XSLStyleSheetResource::Fetch(params, GetDocument().Fetcher(), this);
   } else {
     params.SetCharset(charset.empty() ? GetDocument().Encoding()
-                                      : WTF::TextEncoding(charset));
+                                      : TextEncoding(charset));
     GetDocument().GetStyleEngine().AddPendingBlockingSheet(
         *this, PendingSheetType::kBlocking);
     CSSStyleSheetResource::Fetch(params, GetDocument().Fetcher(), this);

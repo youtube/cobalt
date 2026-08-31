@@ -36,25 +36,39 @@ namespace viewer {
 
 namespace {
 
-// JS Themes. Must agree with useTheme() in dom_distiller_viewer.js.
+// LINT.IfChange(JSThemesAndFonts)
+
+// JS Themes. Must agree with themeClasses in dom_distiller_viewer.js.
 const char kDarkJsTheme[] = "dark";
 const char kLightJsTheme[] = "light";
 const char kSepiaJsTheme[] = "sepia";
 
-// CSS Theme classes.  Must agree with classes in distilledpage.css.
-const char kDarkCssClass[] = "dark";
-const char kLightCssClass[] = "light";
-const char kSepiaCssClass[] = "sepia";
-
-// JS FontFamilies. Must agree with useFontFamily() in dom_distiller_viewer.js.
+// JS FontFamilies. Must agree with fontFamilyClasses in
+// dom_distiller_viewer.js.
 const char kSerifJsFontFamily[] = "serif";
 const char kSansSerifJsFontFamily[] = "sans-serif";
 const char kMonospaceJsFontFamily[] = "monospace";
 
-// CSS FontFamily classes.  Must agree with classes in distilledpage.css.
+// LINT.ThenChange(//components/dom_distiller/core/javascript/dom_distiller_viewer.js:JSThemesAndFonts)
+
+// LINT.IfChange
+
+// CSS Theme classes.  Must agree with classes in distilledpage_common.css.
+const char kDarkCssClass[] = "dark";
+const char kLightCssClass[] = "light";
+const char kSepiaCssClass[] = "sepia";
+
+// CSS FontFamily classes.  Must agree with classes in distilledpage_common.css.
 const char kSerifCssClass[] = "serif";
 const char kSansSerifCssClass[] = "sans-serif";
 const char kMonospaceCssClass[] = "monospace";
+
+// LINT.ThenChange(//components/dom_distiller/core/css/distilledpage_common.css)
+
+std::string GetVersionedCss() {
+  return ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
+      IDR_DISTILLER_CSS);
+}
 
 std::string GetPlatformSpecificCss() {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
@@ -101,11 +115,11 @@ const std::string GetFontCssClass(mojom::FontFamily font_family) {
   return kSansSerifCssClass;
 }
 
-void EnsureNonEmptyContent(std::string* content) {
-  if (content->empty()) {
-    *content =
-        l10n_util::GetStringUTF8(IDS_DOM_DISTILLER_VIEWER_NO_DATA_CONTENT);
+const std::string EnsureNonEmptyContent(const std::string& content) {
+  if (content.empty()) {
+    return l10n_util::GetStringUTF8(IDS_DOM_DISTILLER_VIEWER_NO_DATA_CONTENT);
   }
+  return content;
 }
 
 std::string ReplaceHtmlTemplateValues(const mojom::Theme theme,
@@ -205,13 +219,8 @@ std::string ReplaceHtmlTemplateValues(const mojom::Theme theme,
 const std::string GetUnsafeIncrementalDistilledPageJs(
     const DistilledPageProto* page_proto,
     bool is_last_page) {
-  std::string output(page_proto->html());
-  EnsureNonEmptyContent(&output);
-  base::Value value(output);
-  base::JSONWriter::Write(value, &output);
-  std::string page_update("addToPage(");
-  page_update += output + ");";
-  return page_update + GetToggleLoadingIndicatorJs(is_last_page);
+  return GetAddToPageJs(page_proto->html()) +
+         GetToggleLoadingIndicatorJs(is_last_page);
 }
 
 const std::string GetErrorPageJs() {
@@ -219,11 +228,8 @@ const std::string GetErrorPageJs() {
       IDS_DOM_DISTILLER_VIEWER_FAILED_TO_FIND_ARTICLE_TITLE));
   std::string page_update(GetSetTitleJs(title));
 
-  base::Value value(l10n_util::GetStringUTF8(
+  page_update += GetAddToPageJs(l10n_util::GetStringUTF8(
       IDS_DOM_DISTILLER_VIEWER_FAILED_TO_FIND_ARTICLE_CONTENT));
-  std::string output;
-  base::JSONWriter::Write(value, &output);
-  page_update += "addToPage(" + output + ");";
   page_update += GetSetTextDirectionJs(std::string("auto"));
   page_update += GetToggleLoadingIndicatorJs(true);
   return page_update;
@@ -276,19 +282,21 @@ const std::string GetUnsafeArticleContentJs(
     }
   }
 
-  std::string output(unsafe_output_stream.str());
-  EnsureNonEmptyContent(&output);
+  return GetAddToPageJs(unsafe_output_stream.str()) +
+         GetToggleLoadingIndicatorJs(true);
+}
+
+const std::string GetAddToPageJs(const std::string& unsafe_content) {
+  std::string output(EnsureNonEmptyContent(unsafe_content));
   base::JSONWriter::Write(base::Value(output), &output);
-  std::string page_update("addToPage(");
-  page_update += output + ");";
-  return page_update + GetToggleLoadingIndicatorJs(true);
+  return "addToPage(" + output + ");";
 }
 
 const std::string GetCss() {
   return base::StrCat(
       {ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
-           IDR_DISTILLER_CSS),
-       GetPlatformSpecificCss()});
+           IDR_DISTILLER_COMMON_CSS),
+       GetVersionedCss(), GetPlatformSpecificCss()});
 }
 
 const std::string GetLoadingImage() {

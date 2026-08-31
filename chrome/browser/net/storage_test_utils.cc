@@ -4,6 +4,9 @@
 
 #include "chrome/browser/net/storage_test_utils.h"
 
+#include <string>
+
+#include "base/strings/strcat.h"
 #include "content/public/test/browser_test_utils.h"
 
 namespace storage::test {
@@ -11,15 +14,8 @@ namespace storage::test {
 const std::vector<std::string> kCookiesTypesForFrame{"Cookie", "CookieStore"};
 
 const std::vector<std::string> kStorageTypesForFrame{
-    "LocalStorage", "FileSystem", "FileSystemAccess", "SessionStorage",
-    "IndexedDb",     "CacheStorage",     "ServiceWorker",
-#if BUILDFLAG(IS_ANDROID)
-    // TODO(crbug.com/333756088): WebSQL is disabled everywhere by default as of
-    // M119 (crbug/695592) except on Android WebView. This is enabled for
-    // Android only to indirectly cover WebSQL deletions on WebView.
-    "WebSql",
-#endif
-};
+    "LocalStorage", "FileSystem",   "FileSystemAccess", "SessionStorage",
+    "IndexedDb",    "CacheStorage", "ServiceWorker"};
 
 const std::vector<std::string> kStorageTypesForWorker{
     "WorkerFileSystemAccess", "WorkerCacheStorage", "WorkerIndexedDb"};
@@ -64,17 +60,12 @@ void SetStorageForFrame(content::RenderFrameHost* frame,
   base::flat_map<std::string, bool> actual;
   base::flat_map<std::string, bool> expected;
   for (const auto& data_type : GetStorageTypesForFrame(include_cookies)) {
-    actual[data_type] = content::EvalJs(frame, "set" + data_type + "()",
-                                        content::EXECUTE_SCRIPT_NO_USER_GESTURE)
-                            .ExtractBool();
-    if (frame->GetLastCommittedOrigin() !=
-            frame->GetMainFrame()->GetLastCommittedOrigin() &&
-        data_type == "WebSql") {
-      // Third-party context WebSQL is disabled as of M97.
-      expected[data_type] = false;
-    } else {
-      expected[data_type] = expected_to_be_set;
-    }
+    std::string script = "set" + data_type + "()";
+    SCOPED_TRACE(base::StrCat({"Executing \"", script, "\""}));
+    actual[data_type] =
+        content::EvalJs(frame, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+            .ExtractBool();
+    expected[data_type] = expected_to_be_set;
   }
   EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected))
       << "(expected at " << location.ToString() << ")";
@@ -85,9 +76,11 @@ void SetStorageForWorker(content::RenderFrameHost* frame,
   base::flat_map<std::string, bool> actual;
   base::flat_map<std::string, bool> expected;
   for (const auto& data_type : kStorageTypesForWorker) {
-    actual[data_type] = content::EvalJs(frame, "set" + data_type + "()",
-                                        content::EXECUTE_SCRIPT_NO_USER_GESTURE)
-                            .ExtractBool();
+    std::string script = "set" + data_type + "()";
+    SCOPED_TRACE(base::StrCat({"Executing \"", script, "\""}));
+    actual[data_type] =
+        content::EvalJs(frame, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+            .ExtractBool();
     expected[data_type] = true;
   }
   EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected))
@@ -100,17 +93,12 @@ void ExpectStorageForFrame(content::RenderFrameHost* frame,
   base::flat_map<std::string, bool> actual;
   base::flat_map<std::string, bool> expected_elts;
   for (const auto& data_type : GetStorageTypesForFrame(false)) {
-    actual[data_type] = content::EvalJs(frame, "has" + data_type + "();",
-                                        content::EXECUTE_SCRIPT_NO_USER_GESTURE)
-                            .ExtractBool();
-    if (frame->GetLastCommittedOrigin() !=
-            frame->GetMainFrame()->GetLastCommittedOrigin() &&
-        data_type == "WebSql") {
-      // Third-party context WebSQL is disabled as of M97.
-      expected_elts[data_type] = false;
-    } else {
-      expected_elts[data_type] = expected;
-    }
+    std::string script = "has" + data_type + "();";
+    SCOPED_TRACE(base::StrCat({"Executing \"", script, "\""}));
+    actual[data_type] =
+        content::EvalJs(frame, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+            .ExtractBool();
+    expected_elts[data_type] = expected;
   }
   EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected_elts))
       << "(expected at " << location.ToString() << ")";
@@ -122,9 +110,11 @@ void ExpectStorageForWorker(content::RenderFrameHost* frame,
   base::flat_map<std::string, bool> actual;
   base::flat_map<std::string, bool> expected_elts;
   for (const auto& data_type : kStorageTypesForWorker) {
-    actual[data_type] = content::EvalJs(frame, "has" + data_type + "();",
-                                        content::EXECUTE_SCRIPT_NO_USER_GESTURE)
-                            .ExtractBool();
+    std::string script = "has" + data_type + "();";
+    SCOPED_TRACE(base::StrCat({"Executing \"", script, "\""}));
+    actual[data_type] =
+        content::EvalJs(frame, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+            .ExtractBool();
     expected_elts[data_type] = expected;
   }
   EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected_elts))
@@ -136,9 +126,11 @@ void SetCrossTabInfoForFrame(content::RenderFrameHost* frame,
   base::flat_map<std::string, bool> actual;
   base::flat_map<std::string, bool> expected;
   for (const auto& data_type : kCrossTabCommunicationTypes) {
-    actual[data_type] = content::EvalJs(frame, "set" + data_type + "()",
-                                        content::EXECUTE_SCRIPT_NO_USER_GESTURE)
-                            .ExtractBool();
+    std::string script = "set" + data_type + "()";
+    SCOPED_TRACE(base::StrCat({"Executing \"", script, "\""}));
+    actual[data_type] =
+        content::EvalJs(frame, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+            .ExtractBool();
     expected[data_type] = true;
   }
   EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected))
@@ -151,9 +143,11 @@ void ExpectCrossTabInfoForFrame(content::RenderFrameHost* frame,
   base::flat_map<std::string, bool> actual;
   base::flat_map<std::string, bool> expected_elts;
   for (const auto& data_type : kCrossTabCommunicationTypes) {
-    actual[data_type] = content::EvalJs(frame, "has" + data_type + "();",
-                                        content::EXECUTE_SCRIPT_NO_USER_GESTURE)
-                            .ExtractBool();
+    std::string script = "has" + data_type + "();";
+    SCOPED_TRACE(base::StrCat({"Executing \"", script, "\""}));
+    actual[data_type] =
+        content::EvalJs(frame, script, content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+            .ExtractBool();
     expected_elts[data_type] = expected;
   }
   EXPECT_THAT(actual, testing::UnorderedElementsAreArray(expected_elts))

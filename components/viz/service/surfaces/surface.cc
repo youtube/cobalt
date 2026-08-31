@@ -52,10 +52,6 @@ void RequestCopyOfOutputOnRenderPass(std::unique_ptr<CopyOutputRequest> request,
   render_pass.copy_requests.push_back(std::move(request));
 }
 
-bool ShouldBlockActivationOnDependenciesWhenInteractive() {
-  return !features::ShouldDrawImmediatelyWhenInteractive();
-}
-
 }  // namespace
 
 Surface::PresentationHelper::PresentationHelper(
@@ -494,6 +490,10 @@ void Surface::ResetPendingCopySurfaceId() {
   }
 }
 
+void Surface::ClearNonRootCopyRequests() {
+  ClearCopyRequests(/*keep_root=*/true);
+}
+
 void Surface::UpdateReferencedAllocationGroups(
     std::vector<SurfaceAllocationGroup*> new_referenced_allocation_groups) {
   base::flat_set<raw_ptr<SurfaceAllocationGroup, CtnExperimental>> new_set(
@@ -673,7 +673,6 @@ void Surface::UpdateActivationDependencies(
     return;
 
   bool should_block_on_dependencies =
-      ShouldBlockActivationOnDependenciesWhenInteractive() ||
       !current_frame.metadata.is_handling_interaction;
 
   if (!should_block_on_dependencies) {
@@ -859,9 +858,13 @@ void Surface::UnrefFrameResourcesAndRunCallbacks(
     info.Terminate();
 }
 
-void Surface::ClearCopyRequests() {
+void Surface::ClearCopyRequests(bool keep_root) {
   if (active_frame_data_) {
-    for (const auto& render_pass : GetActiveFrame().render_pass_list) {
+    const auto& render_pass_list = GetActiveFrame().render_pass_list;
+    for (const auto& render_pass : render_pass_list) {
+      if (keep_root && render_pass == render_pass_list.back()) {
+        break;
+      }
       // When the container is cleared, all copy requests within it will
       // auto-send an empty result as they are being destroyed.
       render_pass->copy_requests.clear();

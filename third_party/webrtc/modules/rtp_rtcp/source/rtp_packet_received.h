@@ -17,9 +17,9 @@
 #include "api/ref_counted_base.h"
 #include "api/rtp_headers.h"
 #include "api/scoped_refptr.h"
+#include "api/transport/ecn_marking.h"
 #include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
-#include "rtc_base/network/ecn_marking.h"
 
 namespace webrtc {
 // Class to hold rtp packet with metadata for receiver side.
@@ -30,7 +30,7 @@ class RtpPacketReceived : public RtpPacket {
   RtpPacketReceived();
   explicit RtpPacketReceived(
       const ExtensionManager* extensions,
-      webrtc::Timestamp arrival_time = webrtc::Timestamp::MinusInfinity());
+      webrtc::Timestamp arrival_time = Timestamp::MinusInfinity());
   RtpPacketReceived(const RtpPacketReceived& packet);
   RtpPacketReceived(RtpPacketReceived&& packet);
 

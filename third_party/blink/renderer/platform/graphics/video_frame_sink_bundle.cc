@@ -124,12 +124,6 @@ void VideoFrameSinkBundle::RemoveClient(const viz::FrameSinkId& frame_sink_id) {
   clients_.erase(frame_sink_id.sink_id());
 }
 
-void VideoFrameSinkBundle::InitializeCompositorFrameSinkType(
-    uint32_t sink_id,
-    viz::mojom::blink::CompositorFrameSinkType type) {
-  bundle_->InitializeCompositorFrameSinkType(sink_id, type);
-}
-
 void VideoFrameSinkBundle::SetNeedsBeginFrame(uint32_t sink_id,
                                               bool needs_begin_frame) {
   DVLOG(2) << __func__ << " this " << this << " sink_id " << sink_id
@@ -194,15 +188,15 @@ void VideoFrameSinkBundle::DidNotProduceFrame(uint32_t sink_id,
 
 #if BUILDFLAG(IS_ANDROID)
 void VideoFrameSinkBundle::SetThreads(uint32_t sink_id,
-                                      const WTF::Vector<viz::Thread>& threads) {
+                                      const Vector<viz::Thread>& threads) {
   bundle_->SetThreads(sink_id, threads);
 }
 #endif
 
 void VideoFrameSinkBundle::FlushNotifications(
-    WTF::Vector<viz::mojom::blink::BundledReturnedResourcesPtr> acks,
-    WTF::Vector<viz::mojom::blink::BeginFrameInfoPtr> begin_frames,
-    WTF::Vector<viz::mojom::blink::BundledReturnedResourcesPtr>
+    Vector<viz::mojom::blink::BundledReturnedResourcesPtr> acks,
+    Vector<viz::mojom::blink::BeginFrameInfoPtr> begin_frames,
+    Vector<viz::mojom::blink::BundledReturnedResourcesPtr>
         reclaimed_resources) {
   for (const auto& entry : acks) {
     auto it = clients_.find(entry->sink_id);
@@ -274,7 +268,7 @@ void VideoFrameSinkBundle::FlushMessages() {
     return;
   }
 
-  WTF::Vector<viz::mojom::blink::BundledFrameSubmissionPtr> submissions;
+  Vector<viz::mojom::blink::BundledFrameSubmissionPtr> submissions;
   std::swap(submissions, submission_queue_);
   bundle_->Submit(std::move(submissions));
 }

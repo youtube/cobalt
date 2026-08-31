@@ -61,6 +61,10 @@ const char kUMABubbleOpenedBlocked[] =
     "CookieControls.Bubble.CookiesBlocked.Opened";
 const char kUMABubbleOpenedAllowed[] =
     "CookieControls.Bubble.CookiesAllowed.Opened";
+const char kUMABubbleOpenedProtectionsPaused[] =
+    "TrackingProtections.Bubble.ProtectionsPaused.Opened";
+const char kUMABubbleOpenedProtectionsActive[] =
+    "TrackingProtections.Bubble.ProtectionsActive.Opened";
 
 // A fake CookieControlsBubbleCoordinator that has a no-op ShowBubble().
 class MockCookieControlsBubbleCoordinator
@@ -172,7 +176,7 @@ TEST_P(CookieControlsIconViewUnitTest,
   EXPECT_TRUE(LabelShown());
   EXPECT_EQ(TooltipText(), BlockedLabel());
   EXPECT_EQ(LabelText(), In3pcd() ? SiteNotWorkingLabel() : BlockedLabel());
-// TODO(crbug.com/40064612): Fix screenreader tests on ChromeOS and Mac.
+// TODO(b/436858103): Fix screenreader tests on ChromeOS and Mac.
 #if !OS_MAC && !BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(a11y_counter_.GetCount(ax::mojom::Event::kAlert), 1);
 #endif
@@ -212,6 +216,9 @@ TEST_P(CookieControlsIconViewUnitTest,
   EXPECT_FALSE(LabelShown());
   EXPECT_EQ(TooltipText(), TpEnabledLabel());
   EXPECT_EQ(LabelText(), TpEnabledLabel());
+  EXPECT_EQ(user_actions_.GetActionCount(kUMAIconShown), 1);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMAIconOpened), 1);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMABubbleOpenedProtectionsActive), 1);
 
   // When tracking protections are paused, the label is shown and updated.
   view_->OnCookieControlsIconStatusChanged(
@@ -224,6 +231,9 @@ TEST_P(CookieControlsIconViewUnitTest,
   EXPECT_TRUE(LabelShown());
   EXPECT_EQ(TooltipText(), TpPausedLabel());
   EXPECT_EQ(LabelText(), TpPausedLabel());
+  EXPECT_EQ(user_actions_.GetActionCount(kUMAIconShown), 2);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMAIconOpened), 2);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMABubbleOpenedProtectionsPaused), 1);
 
   // When tracking protections are resumed, the label is shown and updated.
   view_->OnCookieControlsIconStatusChanged(
@@ -236,6 +246,9 @@ TEST_P(CookieControlsIconViewUnitTest,
   EXPECT_TRUE(LabelShown());
   EXPECT_EQ(TooltipText(), TpResumedLabel());
   EXPECT_EQ(LabelText(), TpResumedLabel());
+  EXPECT_EQ(user_actions_.GetActionCount(kUMAIconShown), 3);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMAIconOpened), 3);
+  EXPECT_EQ(user_actions_.GetActionCount(kUMABubbleOpenedProtectionsActive), 2);
 }
 
 TEST_P(CookieControlsIconViewUnitTest,
@@ -309,7 +322,7 @@ TEST_P(CookieControlsIconViewUnitTest, HidingIconDoesNotRetriggerA11yReadOut) {
   EXPECT_TRUE(LabelShown());
   EXPECT_EQ(TooltipText(), BlockedLabel());
   EXPECT_EQ(LabelText(), In3pcd() ? SiteNotWorkingLabel() : BlockedLabel());
-// TODO(crbug.com/40064612): Fix screenreader tests on ChromeOS and Mac.
+// TODO(b/436858103): Fix screenreader tests on ChromeOS and Mac.
 #if !OS_MAC && !BUILDFLAG(IS_CHROMEOS)
   EXPECT_EQ(a11y_counter_.GetCount(ax::mojom::Event::kAlert), 1);
 #endif

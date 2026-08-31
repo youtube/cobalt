@@ -18,6 +18,7 @@
 #include "base/containers/span.h"
 #include "base/strings/strcat.h"
 #include "base/types/expected_macros.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/config/gpu_driver_bug_workaround_type.h"
 #include "services/webnn/dml/adapter.h"
 #include "services/webnn/dml/command_queue.h"
@@ -636,8 +637,9 @@ void ContextImplDml::CreateTensorImpl(
     mojom::TensorInfoPtr tensor_info,
     CreateTensorImplCallback callback) {
   if (g_backend_for_testing) {
-    g_backend_for_testing->CreateTensorImpl(
-        this, std::move(receiver), std::move(tensor_info), std::move(callback));
+    g_backend_for_testing->CreateTensorImpl(AsWeakPtr(), std::move(receiver),
+                                            std::move(tensor_info),
+                                            std::move(callback));
     return;
   }
 
@@ -702,8 +704,47 @@ void ContextImplDml::CreateTensorImpl(
   //
   // Safe to use ContextImplDml* because this context owns the buffer
   // being connected and that context cannot destruct before the buffer.
-  std::move(callback).Run(std::make_unique<TensorImplDml>(
-      std::move(receiver), std::move(buffer), this, std::move(tensor_info)));
+  std::move(callback).Run(base::MakeRefCounted<TensorImplDml>(
+      std::move(receiver), std::move(buffer), AsWeakPtr(),
+      std::move(tensor_info)));
+}
+
+void ContextImplDml::CreateTensorFromMailboxImpl(
+    mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+    mojom::TensorInfoPtr tensor_info,
+    gpu::Mailbox mailbox,
+    CreateTensorImplCallback callback) {
+  gpu::SharedImageManager* shared_image_manager =
+      context_provider()->shared_image_manager();
+  CHECK(shared_image_manager);
+
+  // TODO(crbug.com/345352987): give WebNN its own memory source and tracker.
+  std::unique_ptr<gpu::WebNNTensorRepresentation> representation =
+      shared_image_manager->ProduceWebNNTensor(
+          mailbox,
+          context_provider()->shared_context_state()->memory_type_tracker());
+  if (!representation) {
+    HandleTensorCreationFailure("Failed to create tensor.",
+                                std::move(callback));
+    return;
+  }
+
+  // Validate D3D12 buffer size matches TensorInfo.
+  // DML requires resources to be in multiple of 4 bytes.
+  // https://learn.microsoft.com/en-us/windows/ai/directml/dml-helper-functions#dmlcalcbuffertensorsize
+  if (representation->GetD3D12Buffer()->GetDesc().Width !=
+      base::bits::AlignUp(
+          static_cast<uint64_t>(tensor_info->descriptor.PackedByteLength()),
+          4ull)) {
+    LOG(ERROR) << "[WebNN] Tensor size mismatched for mailbox.";
+    HandleTensorCreationFailure("Failed to create tensor.",
+                                std::move(callback));
+    return;
+  }
+
+  std::move(callback).Run(base::MakeRefCounted<TensorImplDml>(
+      std::move(receiver), std::move(representation), AsWeakPtr(),
+      std::move(tensor_info)));
 }
 
 void ContextImplDml::ReadTensor(

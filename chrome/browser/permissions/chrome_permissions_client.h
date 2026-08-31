@@ -84,22 +84,17 @@ class ChromePermissionsClient : public permissions::PermissionsClient {
 #endif
 
   void OnPromptResolved(
-      permissions::RequestType request_type,
+      const permissions::PermissionRequest* request,
       permissions::PermissionAction action,
-      const GURL& origin,
       permissions::PermissionPromptDisposition prompt_disposition,
       permissions::PermissionPromptDispositionReason prompt_disposition_reason,
-      permissions::PermissionRequestGestureType gesture_type,
       std::optional<QuietUiReason> quiet_ui_reason,
       base::TimeDelta prompt_display_duration,
       std::optional<
           permissions::feature_params::PermissionElementPromptPosition>
           pepc_prompt_position,
       ContentSetting initial_permission_status,
-      content::WebContents* web_contents,
-      std::optional<
-          permissions::PermissionHatsTriggerHelper::PreviewParametersForHats>
-          preview_parameters) override;
+      content::WebContents* web_contents) override;
   std::optional<bool> HadThreeConsecutiveNotificationPermissionDenies(
       content::BrowserContext* browser_context) override;
   std::optional<bool> HasPreviouslyAutoRevokedPermission(
@@ -123,12 +118,6 @@ class ChromePermissionsClient : public permissions::PermissionsClient {
 #if BUILDFLAG(IS_ANDROID)
   bool IsDseOrigin(content::BrowserContext* browser_context,
                    const url::Origin& origin) override;
-  infobars::InfoBarManager* GetInfoBarManager(
-      content::WebContents* web_contents) override;
-  infobars::InfoBar* MaybeCreateInfoBar(
-      content::WebContents* web_contents,
-      ContentSettingsType type,
-      base::WeakPtr<permissions::PermissionPromptAndroid> prompt) override;
   std::unique_ptr<PermissionMessageDelegate> MaybeCreateMessageUI(
       content::WebContents* web_contents,
       ContentSettingsType type,

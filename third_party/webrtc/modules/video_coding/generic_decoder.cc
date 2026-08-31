@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/generic_decoder.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <optional>
@@ -24,6 +23,7 @@
 #include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/color_space.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_content_type.h"
@@ -51,7 +51,7 @@ namespace {
 
 constexpr size_t kDecoderFrameMemoryLength = 10;
 
-}
+}  // namespace
 
 VCMDecodedFrameCallback::VCMDecodedFrameCallback(
     VCMTiming* timing,
@@ -146,20 +146,10 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
     return;
   }
 
-  std::optional<double> corruption_score;
-  if (corruption_score_calculator_ &&
-      frame_info->frame_instrumentation_data.has_value()) {
-    if (const FrameInstrumentationData* data =
-            std::get_if<FrameInstrumentationData>(
-                &*frame_info->frame_instrumentation_data)) {
-      corruption_score = corruption_score_calculator_->CalculateCorruptionScore(
-          decodedImage, *data);
-    }
-  }
-
   decodedImage.set_ntp_time_ms(frame_info->ntp_time_ms);
   decodedImage.set_packet_infos(frame_info->packet_infos);
   decodedImage.set_rotation(frame_info->rotation);
+  decodedImage.set_color_space(frame_info->color_space);
   VideoFrame::RenderParameters render_parameters = _timing->RenderParameters();
   if (render_parameters.max_composition_delay_in_frames) {
     // Subtract frames that are in flight.
@@ -253,8 +243,17 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
                                      .qp = qp,
                                      .decode_time = decode_time,
                                      .content_type = frame_info->content_type,
-                                     .frame_type = frame_info->frame_type,
-                                     .corruption_score = corruption_score});
+                                     .frame_type = frame_info->frame_type});
+
+  if (corruption_score_calculator_ &&
+      frame_info->frame_instrumentation_data.has_value()) {
+    if (const FrameInstrumentationData* data =
+            std::get_if<FrameInstrumentationData>(
+                &*frame_info->frame_instrumentation_data)) {
+      corruption_score_calculator_->CalculateCorruptionScore(
+          decodedImage, *data, frame_info->content_type);
+    }
+  }
 }
 
 void VCMDecodedFrameCallback::OnDecoderInfoChanged(
@@ -345,6 +344,9 @@ int32_t VCMGenericDecoder::Decode(
   frame_info.ntp_time_ms = frame.ntp_time_ms_;
   frame_info.packet_infos = frame.PacketInfos();
   frame_info.frame_instrumentation_data = frame_instrumentation_data;
+  const webrtc::ColorSpace* color_space = frame.ColorSpace();
+  if (color_space)
+    frame_info.color_space = *color_space;
 
   // Set correctly only for key frames. Thus, use latest key frame
   // content type. If the corresponding key frame was lost, decode will fail

@@ -37,6 +37,7 @@ import "third_party/blink/public/mojom/css/preferred_color_scheme.mojom";
 import "third_party/blink/public/mojom/devtools/console_message.mojom";
 import "third_party/blink/public/mojom/devtools/devtools_agent.mojom";
 import "third_party/blink/public/mojom/devtools/inspector_issue.mojom";
+import "third_party/blink/public/mojom/dom_storage/storage_area.mojom";
 import "third_party/blink/public/mojom/drag/drag.mojom";
 import "third_party/blink/public/mojom/favicon/favicon_url.mojom";
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom";
@@ -256,6 +257,11 @@ struct LegacyTechEventCodeLocation {
   uint64 column;
 };
 
+// The maximum allowed size of a crash report storage shared memory buffer. This
+// is used when the renderer requests a shared memory buffer for crash report
+// data; see `CreateCrashReportStorage()`.
+const uint64 kMaxCrashReportStorageSize = 5242880; // 5 * 1024 * 1024.
+
 // Implemented in Browser, this interface defines frame-specific methods that
 // will be invoked from the render process (e.g. content::RenderFrameHostImpl).
 //
@@ -398,11 +404,13 @@ interface LocalFrameHost {
   // Tells the browser to navigate back or forward in session history by
   // the given offset (relative to the current position in session
   // history). |has_user_gesture| tells whether or not this is the consequence
-  // of a user action. |soft_navigation_heuristics_task_id| is the task ID of
-  // the initiator of the navigation, if any. It is restricted to same-document
-  // main-frame navigation initiated by the top-level document.
+  // of a user action. |actual_navigation_start| is the time the navigation
+  // began in the renderer process. |soft_navigation_heuristics_task_id| is the
+  // task ID of the initiator of the navigation, if any. It is restricted to
+  // same-document main-frame navigation initiated by the top-level document.
   GoToEntryAtOffset(int32 offset,
                     bool has_user_gesture,
+                    mojo_base.mojom.TimeTicks actual_navigation_start,
                     TaskAttributionId? soft_navigation_heuristics_task_id);
 
   // Tells the browser to navigate back or forward in session history to the
@@ -416,11 +424,13 @@ interface LocalFrameHost {
   // this frame, and that the target FNE is contiguously same-origin and
   // same-site-instance with the current FNE, so navigating via this
   // function is more restrictive than GoToEntryAtOffset().
-  // |soft_navigation_heuristics_task_id| is the task ID of
-  // the initiator of the navigation, if any. It is sent back to the renderer
-  // when the navigation commits, and is limited to same-document
-  // main-frame navigations initiated by the top-level document.
+  // |actual_navigation_start| is the time the navigation began in the renderer
+  // process. |soft_navigation_heuristics_task_id| is the task ID of the
+  // initiator of the navigation, if any. It is sent back to the renderer when
+  // the navigation commits, and is limited to same-document main-frame
+  // navigations initiated by the top-level document.
   NavigateToNavigationApiKey(string key, bool has_user_gesture,
+                    mojo_base.mojom.TimeTicks actual_navigation_start,
                     TaskAttributionId? soft_navigation_heuristics_task_id);
 
   // Called with |true| when the first navigate event handler is added, and with
@@ -809,6 +819,37 @@ interface LocalFrameHost {
 
   // Sets the StorageAccessApiStatus for the given frame.
   SetStorageAccessApiStatus(network.mojom.StorageAccessApiStatus status);
+
+  // This IPC lets the browser initialize memory reserved for crash reporting
+  // API of size `length`. Note that the maximum allowed size is
+  // `kMaxCrashReportStorageSize`. In the future, if we decide that shared
+  // memory is to be the backing storage mechanism for this feature, then this
+  // method's async callback will contain an `UnsafeSharedMemoryRegion` that the
+  // renderer can use to write crash report data that the browser will read,
+  // instead of using the two synchronous IPCs below.
+  //
+  // Note that this API must be called, and its callback run in the renderer,
+  // before the below set and remove IPCs are called. A renderer process that
+  // does not obey this requirement will be terminated.
+  InitializeCrashReportStorage(uint64 length) => ();
+
+  // Called by `blink::CrashReportStorage`.
+  // TODO(https://crbug.com/400432195): Consider removing this IPC, and
+  // refactoring the implementation to use a shared memory region with the
+  // browser process, and some abstraction that serializes the internal map to
+  // bytes in the shared memory region.
+  //
+  // This and the following IPC needs to be synchronous so that the browser
+  // process can obtain the relevant crash data before the JavaScript that
+  // triggered this IPC moves to the next line of code, which might crash the
+  // renderer process. See
+  // https://github.com/WICG/crash-reporting/blob/gh-pages/crashReport-explainer.md.
+  [Sync]
+  SetCrashReportStorageKey(string key, string value) => ();
+
+  // Called by `blink::CrashReportStorage`.
+  [Sync]
+  RemoveCrashReportStorageKey(string key) => ();
 };
 
 // Implemented in Browser, this interface defines frame-specific methods
@@ -874,12 +915,8 @@ interface LocalFrame {
   // occluding the web content.
   NotifyVirtualKeyboardOverlayRect(gfx.mojom.Rect keyboard_rect);
 
-  // Notifies the |LocalFrame| about the available space left uncovered by a
-  // context menu for `interesttarget` invokers.
-  NotifyContextMenuInsetsObservers(gfx.mojom.Rect safe_area);
-
   // This call will "show interest" in the Element with the provided DOMNodeID,
-  // which is presumed to have an `interesttarget` attribute.
+  // which is presumed to have an `interestfor` attribute.
   ShowInterestInElement(int32 nodeID);
 
   // Add message to the frame console.
@@ -1301,7 +1338,7 @@ interface LocalMainFrame {
 
   // Replaces the active document with an empty document to free resources,
   // e.g. for supporting tab discard.
-  Discard();
+  Discard() => ();
 
   // Updates the frame's finalized locally differentially private
   // navigation confidence.

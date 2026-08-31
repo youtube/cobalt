@@ -35,7 +35,6 @@
 #include "gpu/ipc/service/gpu_channel.h"
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "gpu/ipc/service/gpu_channel_manager_delegate.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "gpu/ipc/service/image_transport_surface.h"
 #include "ui/gfx/buffer_format_util.h"
@@ -93,20 +92,13 @@ gpu::ContextResult GLES2CommandBufferStub::Initialize(
                     "context sharing with a non-GLES2 context";
       return gpu::ContextResult::kFatalFailure;
     }
-    if (context_group_->bind_generates_resource() !=
-        init_params.attribs.bind_generates_resource) {
-      LOG(ERROR) << "ContextResult::kFatalFailure: attempt to create a shared "
-                    "GLES2 context with inconsistent bind_generates_resource";
-      return gpu::ContextResult::kFatalFailure;
-    }
   } else {
     scoped_refptr<gles2::FeatureInfo> feature_info = new gles2::FeatureInfo(
         manager->gpu_driver_bug_workarounds(), manager->gpu_feature_info());
     context_group_ = new gles2::ContextGroup(
         manager->gpu_preferences(), CreateMemoryTracker(),
         manager->shader_translator_cache(),
-        manager->framebuffer_completeness_cache(), feature_info,
-        init_params.attribs.bind_generates_resource,
+        manager->framebuffer_completeness_cache(), feature_info, false,
         manager->watchdog() /* progress_reporter */,
         manager->gpu_feature_info(), manager->discardable_manager(),
         manager->passthrough_discardable_manager(),
@@ -363,16 +355,6 @@ base::WeakPtr<CommandBufferStub> GLES2CommandBufferStub::AsWeakPtr() {
 void GLES2CommandBufferStub::OnGpuSwitched(
     gl::GpuPreference active_gpu_heuristic) {
   client().OnGpuSwitched(active_gpu_heuristic);
-}
-
-void GLES2CommandBufferStub::OnSetDefaultFramebufferSharedImage(
-    const Mailbox& mailbox,
-    int samples_count,
-    bool preserve,
-    bool needs_depth,
-    bool needs_stencil) {
-  gles2_decoder_->SetDefaultFramebufferSharedImage(
-      mailbox, samples_count, preserve, needs_depth, needs_stencil);
 }
 
 void GLES2CommandBufferStub::CreateGpuFenceFromHandle(

@@ -46,7 +46,6 @@ class SecurePaymentConfirmationDialogView
     VIEW_ID_NONE = 0,
     HEADER_ICON,
     TITLE,
-    DESCRIPTION,
     MERCHANT_LABEL,
     MERCHANT_VALUE,
     INSTRUMENT_LABEL,
@@ -54,12 +53,6 @@ class SecurePaymentConfirmationDialogView
     INSTRUMENT_ICON,
     TOTAL_LABEL,
     TOTAL_VALUE,
-    NETWORK_LABEL,
-    NETWORK_VALUE,
-    NETWORK_ICON,
-    ISSUER_LABEL,
-    ISSUER_VALUE,
-    ISSUER_ICON
   };
 
   explicit SecurePaymentConfirmationDialogView(

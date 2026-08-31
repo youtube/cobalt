@@ -14,7 +14,7 @@
 #include "base/functional/callback.h"
 #include "base/hash/md5.h"
 #include "base/json/values_util.h"
-#include "base/lazy_instance.h"
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -50,32 +50,51 @@ static const char kIllegalType[] = "<illegal type>";
 static const char kPermissionDenied[] = "<permission denied>";
 static const char kSelectionCancelled[] = "<selection cancelled>";
 
-base::LazyInstance<base::FilePath>::Leaky g_last_save_path =
-    LAZY_INSTANCE_INITIALIZER;
+base::FilePath& GetLastSavePath() {
+  static base::NoDestructor<base::FilePath> last_save_path;
+  return *last_save_path;
+}
 
 void WriteToFile(const base::FilePath& path,
                  const std::string& content,
                  bool is_base64) {
   DCHECK(!path.empty());
 
-  if (!is_base64) {
-    base::WriteFile(path, content);
+  std::optional<std::vector<uint8_t>> decoded_content;
+  if (is_base64) {
+    decoded_content = base::Base64Decode(content);
+    if (!decoded_content) {
+      LOG(ERROR) << "Invalid base64. Not writing " << path;
+      return;
+    }
+  }
+  base::span<const uint8_t> content_span =
+      decoded_content ? *decoded_content : base::as_byte_span(content);
+
+  base::File file(path,
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  if (!file.IsValid()) {
+    LOG(ERROR) << "Failed to open file: " << path.value();
     return;
   }
-
-  const std::optional<std::vector<uint8_t>> decoded_content =
-      base::Base64Decode(content);
-  if (decoded_content) {
-    base::WriteFile(path, decoded_content.value());
-  } else {
-    LOG(ERROR) << "Invalid base64. Not writing " << path;
+  if (!file.WriteAndCheck(0, content_span)) {
+    LOG(ERROR) << "Failed to write: " << path.value();
+    return;
   }
 }
 
 void AppendToFile(const base::FilePath& path, const std::string& content) {
   DCHECK(!path.empty());
 
-  base::AppendToFile(path, content);
+  base::File file(path, base::File::FLAG_OPEN_ALWAYS | base::File::FLAG_APPEND);
+  if (!file.IsValid()) {
+    LOG(ERROR) << "Failed to open file: " << path.value();
+    return;
+  }
+  if (!file.WriteAtCurrentPosAndCheck(base::as_byte_span(content))) {
+    LOG(ERROR) << "Failed to append: " << path.value();
+    return;
+  }
 }
 
 }  // namespace
@@ -157,9 +176,9 @@ void DevToolsFileHelper::Save(const std::string& url,
       suggested_file_name = suggested_file_name.substr(0, 64);
     }
     // TODO(crbug.com/40839171): Ensure suggested_file_name is an ASCII string
-    if (!g_last_save_path.Pointer()->empty()) {
-      initial_path = g_last_save_path.Pointer()->DirName().AppendASCII(
-          suggested_file_name);
+    if (!GetLastSavePath().empty()) {
+      initial_path =
+          GetLastSavePath().DirName().AppendASCII(suggested_file_name);
     } else {
       base::FilePath download_path =
           DownloadPrefs::FromDownloadManager(profile_->GetDownloadManager())
@@ -182,9 +201,9 @@ void DevToolsFileHelper::Append(const std::string& url,
   if (it == saved_files_.end()) {
     return;
   }
-  std::move(callback).Run();
-  file_task_runner_->PostTask(FROM_HERE,
-                              BindOnce(&AppendToFile, it->second, content));
+  file_task_runner_->PostTaskAndReply(
+      FROM_HERE, BindOnce(&AppendToFile, it->second, content),
+      std::move(callback));
 }
 
 void DevToolsFileHelper::SaveToFileSelected(const std::string& url,
@@ -192,7 +211,7 @@ void DevToolsFileHelper::SaveToFileSelected(const std::string& url,
                                             bool is_base64,
                                             SaveCallback callback,
                                             const base::FilePath& path) {
-  *g_last_save_path.Pointer() = path;
+  GetLastSavePath() = path;
   saved_files_[url] = path;
 
   ScopedDictPrefUpdate update(profile_->GetPrefs(),

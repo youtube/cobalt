@@ -11,8 +11,8 @@
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/strings/grit/components_strings.h"
-#include "content/public/browser/federated_auth_autofill_source.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -126,7 +126,15 @@ ContentIdentityCredentialDelegate::~ContentIdentityCredentialDelegate() =
 
 std::vector<Suggestion>
 ContentIdentityCredentialDelegate::GetVerifiedAutofillSuggestions(
-    const FieldType& field_type) const {
+    const FormData& form,
+    const FormStructure* form_structure,
+    const FormFieldData& field,
+    const AutofillField* autofill_field,
+    const AutofillClient& client) const {
+  if (!autofill_field) {
+    return {};
+  }
+
   // TODO(crbug.com/380367784): reproduce and add a test to make sure this
   // works properly when FedCM is called from inner frames.
   content::FederatedAuthAutofillSource* source = source_.Run();
@@ -148,14 +156,14 @@ ContentIdentityCredentialDelegate::GetVerifiedAutofillSuggestions(
         account->identity_provider->format &&
         *account->identity_provider->format == blink::mojom::Format::kSdJwt;
     bool is_returning_credential =
-        account->login_state &&
-        *account->login_state ==
-            content::IdentityRequestAccount::LoginState::kSignIn;
+        account->idp_claimed_login_state.value_or(
+            account->browser_trusted_login_state) ==
+        content::IdentityRequestAccount::LoginState::kSignIn;
     if (!delegated && !is_returning_credential) {
       continue;
     }
 
-    switch (field_type) {
+    switch (autofill_field->Type().GetIdentityCredentialType()) {
       case EMAIL_ADDRESS: {
         if (std::optional<Suggestion> suggestion =
                 CreateVerifiedEmailSuggestion(account);
@@ -168,7 +176,9 @@ ContentIdentityCredentialDelegate::GetVerifiedAutofillSuggestions(
         [[fallthrough]];  // Intentional fall through.
       case PHONE_HOME_WHOLE_NUMBER: {
         if (std::optional<Suggestion> suggestion =
-                CreateProvidedFieldSuggestion(account, field_type);
+                CreateProvidedFieldSuggestion(
+                    account,
+                    autofill_field->Type().GetIdentityCredentialType());
             suggestion) {
           suggestions.emplace_back(std::move(*suggestion));
         }
@@ -178,9 +188,15 @@ ContentIdentityCredentialDelegate::GetVerifiedAutofillSuggestions(
         suggestions.emplace_back(CreatePasswordSuggestion(account));
         break;
       }
-      default:
+      case UNKNOWN_TYPE: {
         // Unsupported field type.
         return {};
+      }
+      default: {
+        // The given `field_type` must be one of the Identity Credentials types
+        // in the co-domain of AutofillType::GetIdentityCredentialType().
+        NOTREACHED();
+      }
     }
   }
 

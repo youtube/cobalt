@@ -5,6 +5,7 @@
 #include "cc/raster/raster_source.h"
 
 #include <stddef.h>
+
 #include <algorithm>
 
 #include "base/metrics/histogram_macros.h"
@@ -128,6 +129,7 @@ void RasterSource::PlaybackDisplayListToCanvas(
   PlaybackParams params(settings.image_provider, SkM44());
   params.raster_inducing_scroll_offsets =
       settings.raster_inducing_scroll_offsets;
+  params.destination_hdr_headroom = settings.hdr_headroom;
   for (int i = 0; i < repeat_count; ++i) {
     display_list_->Raster(raster_canvas, params);
   }
@@ -168,7 +170,8 @@ bool RasterSource::HasRecordings() const {
 
 void RasterSource::AsValueInto(base::trace_event::TracedValue* array) const {
   if (display_list_.get())
-    viz::TracedValue::AppendIDRef(display_list_.get(), array);
+    viz::TracedValue::AppendIDRef(viz::TracedValue::Id(display_list_.get()),
+                                  array);
 }
 
 void RasterSource::DidBeginTracing() {

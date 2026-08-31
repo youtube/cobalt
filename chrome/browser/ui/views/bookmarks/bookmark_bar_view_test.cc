@@ -51,7 +51,6 @@
 #include "chrome/browser/ui/views/test/view_event_test_base.h"
 #include "chrome/common/chrome_content_client.h"
 #include "chrome/test/base/interactive_test_utils.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/test_browser_window.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -328,8 +327,6 @@ class BookmarkBarViewEventTestBase : public ViewEventTestBase {
     BookmarkBarView::DisableAnimationsForTesting(true);
     SetConstrainedWindowViewsClient(CreateChromeConstrainedWindowViewsClient());
 
-    local_state_ = std::make_unique<ScopedTestingLocalState>(
-        TestingBrowserProcess::GetGlobal());
     TestingProfile::Builder profile_builder;
     profile_builder.AddTestingFactory(
         BookmarkModelFactory::GetInstance(),
@@ -365,7 +362,7 @@ class BookmarkBarViewEventTestBase : public ViewEventTestBase {
     static_cast<TestBrowserWindow*>(browser_->window())
         ->SetNativeWindow(window()->GetNativeWindow());
 
-    chrome::BookmarkNavigationWrapper::SetInstanceForTesting(&wrapper_);
+    bookmarks::BookmarkNavigationWrapper::SetInstanceForTesting(&wrapper_);
 
     // Verify the layout triggered by the initial size preserves the overflow
     // state calculated in GetPreferredSizeForContents().
@@ -525,7 +522,6 @@ class BookmarkBarViewEventTestBase : public ViewEventTestBase {
   std::unique_ptr<ChromeContentBrowserClient> browser_content_client_;
   std::unique_ptr<TestingProfile> profile_;
   std::unique_ptr<Browser> browser_;
-  std::unique_ptr<ScopedTestingLocalState> local_state_;
 };
 
 class BookmarkBarViewDragTestBase : public BookmarkBarViewEventTestBase,
@@ -1412,7 +1408,7 @@ class BookmarkBarViewTest12 : public BookmarkBarViewEventTestBase {
   }
 
   base::AutoReset<size_t> prompt_immediately_resetter_{
-      &chrome::kNumBookmarkUrlsBeforePrompting, 1};
+      &bookmarks::kNumBookmarkUrlsBeforePrompting, 1};
 };
 
 // TODO(crbug.com/40947483): Flaky on Windows.

@@ -76,27 +76,26 @@ extern const base::FeatureParam<double>
 extern const base::FeatureParam<DevToolsFreestylerUserTier>
     kDevToolsAiAssistanceFileAgentUserTier;
 
+BASE_DECLARE_FEATURE(kDevToolsAiCodeCompletion);
+extern const base::FeatureParam<std::string> kDevToolsAiCodeCompletionModelId;
+extern const base::FeatureParam<double> kDevToolsAiCodeCompletionTemperature;
+extern const base::FeatureParam<DevToolsFreestylerUserTier>
+    kDevToolsAiCodeCompletionUserTier;
+
 BASE_DECLARE_FEATURE(kDevToolsSharedProcessInfobar);
-BASE_DECLARE_FEATURE(kDevToolsVeLogging);
-extern const base::FeatureParam<bool> kDevToolsVeLoggingTesting;
 
 BASE_DECLARE_FEATURE(kDevToolsAnimationStylesInStylesTab);
 
-BASE_DECLARE_FEATURE(kDevToolsAutomaticFileSystems);
-
 BASE_DECLARE_FEATURE(kDevToolsWellKnown);
-
-BASE_DECLARE_FEATURE(kDevToolsCssValueTracing);
 
 BASE_DECLARE_FEATURE(kDevToolsAiGeneratedTimelineLabels);
 
 BASE_DECLARE_FEATURE(kDevToolsNewPermissionDialog);
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-BASE_DECLARE_FEATURE(kDevToolsDebuggingRestrictions);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-
 BASE_DECLARE_FEATURE(kDevToolsVerticalDrawer);
+
+BASE_DECLARE_FEATURE(kDevToolsAiSubmenuPrompts);
+BASE_DECLARE_FEATURE(kDevToolsAiDebugWithAi);
 
 }  // namespace features
 

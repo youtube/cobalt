@@ -16,6 +16,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/task/task_traits.h"
@@ -131,7 +132,6 @@ void SodaInstallerImpl::UninstallSoda(PrefService* global_prefs) {
                                             weak_factory_.GetWeakPtr()));
 
   SodaInstaller::UnregisterLanguages(global_prefs);
-  global_prefs->SetTime(prefs::kSodaScheduledDeletionTime, base::Time());
 
   soda_binary_installed_ = false;
   is_soda_downloading_ = false;

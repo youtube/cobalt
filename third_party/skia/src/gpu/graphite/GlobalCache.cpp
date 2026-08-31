@@ -9,12 +9,15 @@
 
 #include "include/private/base/SkTArray.h"
 #include "src/core/SkTraceEvent.h"
+#include "src/gpu/graphite/Buffer.h"
 #include "src/gpu/graphite/ComputePipeline.h"
 #include "src/gpu/graphite/ContextUtils.h"
 #include "src/gpu/graphite/GraphicsPipeline.h"
 #include "src/gpu/graphite/GraphicsPipelineDesc.h"
 #include "src/gpu/graphite/RenderPassDesc.h"
 #include "src/gpu/graphite/Resource.h"
+#include "src/gpu/graphite/ResourceProvider.h"
+#include "src/gpu/graphite/Sampler.h"
 #include "src/gpu/graphite/SharedContext.h"
 
 #if defined(SK_ENABLE_PRECOMPILE)
@@ -48,14 +51,16 @@ namespace skgpu::graphite {
 
 GlobalCache::GlobalCache()
         : fGraphicsPipelineCache(kGlobalGraphicsPipelineCacheSizeLimit, &fStats)
-        , fComputePipelineCache(kGlobalComputePipelineCacheSizeLimit) {}
+        , fComputePipelineCache(kGlobalComputePipelineCacheSizeLimit)
+        , fDynamicSamplers({}) {}
 
 GlobalCache::~GlobalCache() {
     // These should have been cleared out earlier by deleteResources().
-    SkDEBUGCODE(SkAutoSpinlock lock{ fSpinLock });
+    SkDEBUGCODE(SkAutoSpinlock lock{fSpinLock});
     SkASSERT(fGraphicsPipelineCache.count() == 0);
     SkASSERT(fComputePipelineCache.count() == 0);
     SkASSERT(fStaticResource.empty());
+    SkASSERT(fDynamicSamplers[0] == nullptr);
 }
 
 void GlobalCache::setPipelineCallback(PipelineCallback callback, PipelineCallbackContext context) {
@@ -118,11 +123,63 @@ void GlobalCache::invokePipelineCallback(SharedContext* sharedContext,
 }
 
 void GlobalCache::deleteResources() {
-    SkAutoSpinlock lock{ fSpinLock };
+    SkAutoSpinlock lock{fSpinLock};
+
+    for (int i = 0; i < kNumDynamicSamplers; ++i) {
+        fDynamicSamplers[i] = nullptr;
+    }
 
     fGraphicsPipelineCache.reset();
     fComputePipelineCache.reset();
     fStaticResource.clear();
+}
+
+bool GlobalCache::initializeDynamicSamplers(ResourceProvider* resourceProvider, const Caps* caps) {
+    SkAutoSpinlock lock{fSpinLock};
+
+    SkASSERT(fDynamicSamplers[0] == nullptr); // Must not already be initialized
+
+    static constexpr SkTileMode kTileModes[] = {SkTileMode::kClamp,
+                                                SkTileMode::kRepeat,
+                                                SkTileMode::kMirror,
+                                                SkTileMode::kDecal};
+    // Manually unroll the SkSamplingOptions that can be dynamic samplers to avoid nesting so many
+    // loops to create SamplerDescs. Cubic SkSamplingOptions do not need to contribute to this list.
+    // TODO: Support anisotropic filters
+    static constexpr SkSamplingOptions kSamplingOptions[] = {
+        {SkFilterMode::kNearest, SkMipmapMode::kNone},
+        {SkFilterMode::kLinear,  SkMipmapMode::kNone},
+        {SkFilterMode::kNearest, SkMipmapMode::kNearest},
+        {SkFilterMode::kLinear,  SkMipmapMode::kNearest},
+        {SkFilterMode::kNearest, SkMipmapMode::kLinear},
+        {SkFilterMode::kLinear,  SkMipmapMode::kLinear}
+    };
+
+    const bool supportsClampToBorder = caps->clampToBorderSupport();
+    for (auto samplingOption : kSamplingOptions) {
+        for (auto tileX : kTileModes) {
+            for (auto tileY : kTileModes) {
+                if (!supportsClampToBorder && (tileX == SkTileMode::kDecal ||
+                                               tileY == SkTileMode::kDecal)) {
+                    continue;
+                }
+
+                SamplerDesc dynamicDesc{samplingOption, {tileX, tileY}};
+                SkASSERT(!dynamicDesc.isImmutable() && dynamicDesc.asSpan().size() == 1);
+                sk_sp<Sampler> sampler =
+                        resourceProvider->findOrCreateCompatibleSampler(dynamicDesc);
+                if (!sampler) {
+                    return false;
+                }
+
+                // We already hold the spin lock, so add directly to fStaticResource
+                fStaticResource.emplace_back(sampler);
+                fDynamicSamplers[dynamicDesc.desc()] = sampler.get();
+            }
+        }
+    }
+
+    return true;
 }
 
 void GlobalCache::LogPurge(void* context, const UniqueKey& key, sk_sp<GraphicsPipeline>* p) {
@@ -436,6 +493,27 @@ void GlobalCache::forceNextEpochOverflow() {
     fEpochCounter = std::numeric_limits<uint16_t>::max();
 }
 
+// Get the offsets and sizes of the renderstep static uploads.
+void GlobalCache::testingOnly_SetStaticVertexInfo(
+        skia_private::TArray<StaticVertexCopyRanges> vertBufferInfo, const Buffer* vertBuffer) {
+    SkAutoSpinlock lock{fSpinLock};
+
+    fStaticVertexInfo = vertBufferInfo;
+    fStaticVertexBuffer = vertBuffer;
+}
+
+SkSpan<const GlobalCache::StaticVertexCopyRanges> GlobalCache::getStaticVertexCopyRanges() const {
+    SkAutoSpinlock lock{fSpinLock};
+
+    return SkSpan<const GlobalCache::StaticVertexCopyRanges>(fStaticVertexInfo);
+}
+
+sk_sp<Buffer> GlobalCache::getStaticVertexBuffer() {
+    SkAutoSpinlock lock{fSpinLock};
+
+    return sk_ref_sp(fStaticVertexBuffer);
+}
+
 #endif // defined(GPU_TEST_UTILS)
 
 GlobalCache::PipelineStats GlobalCache::getStats() const {
@@ -446,6 +524,7 @@ GlobalCache::PipelineStats GlobalCache::getStats() const {
 
 sk_sp<ComputePipeline> GlobalCache::findComputePipeline(const UniqueKey& key) {
     SkAutoSpinlock lock{fSpinLock};
+
     sk_sp<ComputePipeline>* entry = fComputePipelineCache.find(key);
     return entry ? *entry : nullptr;
 }
@@ -453,6 +532,7 @@ sk_sp<ComputePipeline> GlobalCache::findComputePipeline(const UniqueKey& key) {
 sk_sp<ComputePipeline> GlobalCache::addComputePipeline(const UniqueKey& key,
                                                        sk_sp<ComputePipeline> pipeline) {
     SkAutoSpinlock lock{fSpinLock};
+
     sk_sp<ComputePipeline>* entry = fComputePipelineCache.find(key);
     if (!entry) {
         entry = fComputePipelineCache.insert(key, std::move(pipeline));
@@ -462,6 +542,7 @@ sk_sp<ComputePipeline> GlobalCache::addComputePipeline(const UniqueKey& key,
 
 void GlobalCache::addStaticResource(sk_sp<Resource> resource) {
     SkAutoSpinlock lock{fSpinLock};
+
     fStaticResource.push_back(std::move(resource));
 }
 

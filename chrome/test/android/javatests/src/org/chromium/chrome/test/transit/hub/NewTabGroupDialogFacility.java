@@ -13,6 +13,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.withText;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.startsWith;
 
+import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.base.test.transit.ViewSpec.viewSpec;
 
 import android.content.Context;
@@ -21,15 +22,13 @@ import android.widget.EditText;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.test.espresso.Espresso;
 
 import org.hamcrest.Matcher;
 
+import org.chromium.base.Log;
 import org.chromium.base.Token;
 import org.chromium.base.test.transit.Element;
 import org.chromium.base.test.transit.Facility;
-import org.chromium.base.test.transit.Station;
-import org.chromium.base.test.transit.Transition;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -40,6 +39,7 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tasks.tab_management.ColorPickerUtils;
 import org.chromium.chrome.test.R;
+import org.chromium.chrome.test.transit.ChromeActivityTabModelBoundStation;
 import org.chromium.chrome.test.transit.SoftKeyboardFacility;
 import org.chromium.chrome.test.transit.tabmodel.TabGroupCreatedCondition;
 import org.chromium.chrome.test.transit.tabmodel.TabGroupUtil;
@@ -53,7 +53,8 @@ import java.util.List;
  *
  * @param <HostStationT> the type of station this is scoped to.
  */
-public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbedActivity>>
+public class NewTabGroupDialogFacility<
+                HostStationT extends ChromeActivityTabModelBoundStation<ChromeTabbedActivity>>
         extends Facility<HostStationT> {
     private final @Nullable @TabGroupColorId Integer mSelectedColor;
     private final SoftKeyboardFacility mSoftKeyboard;
@@ -63,6 +64,8 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
     public ViewElement<View> doneButtonElement;
     private @Nullable String mTitle;
     private @Nullable List<Integer> mTabIdsToGroup;
+
+    private static final String TAG = "TransitLayer";
 
     /** Constructor. Expects no particular title or selected color. */
     public NewTabGroupDialogFacility(SoftKeyboardFacility softKeyboard) {
@@ -137,21 +140,17 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
     }
 
     private void initTabGroupCreatedCondition() {
-        ChromeTabbedActivity activity = mHostStation.getActivity();
-        boolean isIncognito = activity.getCurrentTabModel().isIncognitoBranded();
-        TabGroupModelFilter filter =
-                activity.getTabModelSelector()
-                        .getTabGroupModelFilterProvider()
-                        .getTabGroupModelFilter(isIncognito);
         Element<Token> tabGroupIdElement =
                 declareEnterConditionAsElement(
-                        new TabGroupCreatedCondition(
-                                isIncognito, activity.getTabModelSelectorSupplier()));
+                        new TabGroupCreatedCondition(mHostStation.tabGroupModelFilterElement));
 
         declareElementFactory(
                 tabGroupIdElement,
                 delayedElements -> {
-                    List<Tab> tabsInGroup = filter.getTabsInGroup(tabGroupIdElement.get());
+                    TabGroupModelFilter filter = mHostStation.tabGroupModelFilterElement.get();
+                    List<Tab> tabsInGroup =
+                            runOnUiThreadBlocking(
+                                    () -> filter.getTabsInGroup(tabGroupIdElement.get()));
                     mTabIdsToGroup = TabModelUtils.getTabIds(tabsInGroup);
                     mTitle = TabGroupUtil.getNumberOfTabsString(mTabIdsToGroup.size());
                     titleInputElement = delayedElements.declareView(createTitleViewSpec());
@@ -183,19 +182,22 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
             ensureSoftKeyboardClosed();
         }
 
-        return mHostStation.swapFacilitySync(
-                this,
-                new NewTabGroupDialogFacility<>(
-                        mTabIdsToGroup, newTabGroupName, mSelectedColor, mSoftKeyboard),
-                titleInputElement.getPerformTrigger(replaceText(newTabGroupName)));
+        return titleInputElement
+                .performViewActionTo(replaceText(newTabGroupName))
+                .exitFacilityAnd()
+                .enterFacility(
+                        new NewTabGroupDialogFacility<>(
+                                mTabIdsToGroup, newTabGroupName, mSelectedColor, mSoftKeyboard));
     }
 
     /** Select a color. */
     public NewTabGroupDialogFacility<HostStationT> pickColor(@TabGroupColorId int newColor) {
-        return mHostStation.swapFacilitySync(
-                this,
-                new NewTabGroupDialogFacility<>(mTabIdsToGroup, mTitle, newColor, mSoftKeyboard),
-                colorElements[newColor].getClickTrigger());
+        return colorElements[newColor]
+                .clickTo()
+                .exitFacilityAnd()
+                .enterFacility(
+                        new NewTabGroupDialogFacility<>(
+                                mTabIdsToGroup, mTitle, newColor, mSoftKeyboard));
     }
 
     /** Press "Done" to confirm the tab group name and color. */
@@ -204,12 +206,16 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
 
         // The reason we can pass an expected card index is because the tab group has already been
         // created.
-        TabModel currentModel = mHostStation.getActivity().getCurrentTabModel();
-        int expectedCardIndex = TabBinningUtil.getBinIndex(currentModel, mTabIdsToGroup);
-        return mHostStation.swapFacilitySync(
-                this,
-                new TabSwitcherGroupCardFacility(expectedCardIndex, mTabIdsToGroup, mTitle),
-                doneButtonElement.getClickTrigger());
+        TabModel currentModel = mHostStation.getTabModel();
+        int expectedCardIndex =
+                runOnUiThreadBlocking(
+                        () -> TabBinningUtil.getBinIndex(currentModel, mTabIdsToGroup));
+        return doneButtonElement
+                .clickTo()
+                .exitFacilityAnd()
+                .enterFacility(
+                        new TabSwitcherGroupCardFacility(
+                                expectedCardIndex, mTabIdsToGroup, mTitle));
     }
 
     /**
@@ -221,11 +227,10 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
 
         // The reason we can pass an expected card index is because the tab group has already been
         // created.
-        TabModel currentModel = mHostStation.getActivity().getCurrentTabModel();
-        return mHostStation.swapFacilitySync(
-                this,
-                new TabGroupDialogFacility<>(mTabIdsToGroup, currentModel.isIncognitoBranded()),
-                doneButtonElement.getClickTrigger());
+        return doneButtonElement
+                .clickTo()
+                .exitFacilityAnd()
+                .enterFacility(new TabGroupDialogFacility<>(mTabIdsToGroup));
     }
 
     /**
@@ -234,19 +239,20 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
      */
     public void pressDoneToExit() {
         ensureSoftKeyboardClosed();
-        mHostStation.exitFacilitySync(this, doneButtonElement.getClickTrigger());
+        doneButtonElement.clickTo().exitFacility();
     }
 
     /** Press "Done" to confirm the tab group name and color, but no-op from an invalid title. */
     public NewTabGroupDialogFacility<HostStationT> pressDoneWithInvalidTitle() {
         ensureSoftKeyboardClosed();
 
-        return mHostStation.swapFacilitySync(
-                this,
-                new NewTabGroupDialogFacility<>(
-                        mTabIdsToGroup, mTitle, mSelectedColor, mSoftKeyboard),
-                Transition.possiblyAlreadyFulfilledOption(),
-                doneButtonElement.getClickTrigger());
+        return doneButtonElement
+                .clickTo()
+                .exitFacilityAnd()
+                .withPossiblyAlreadyFulfilled()
+                .enterFacility(
+                        new NewTabGroupDialogFacility<>(
+                                mTabIdsToGroup, mTitle, mSelectedColor, mSoftKeyboard));
     }
 
     /** Press the system backpress to confirm the tab group name and color. */
@@ -255,18 +261,26 @@ public class NewTabGroupDialogFacility<HostStationT extends Station<ChromeTabbed
 
         // The reason we can pass an expected card index is because the tab group has already been
         // created.
-        TabModel currentModel = mHostStation.getActivity().getCurrentTabModel();
-        int expectedCardIndex = TabBinningUtil.getBinIndex(currentModel, mTabIdsToGroup);
-        return mHostStation.swapFacilitySync(
-                this,
-                new TabSwitcherGroupCardFacility(expectedCardIndex, mTabIdsToGroup, mTitle),
-                Espresso::pressBack);
+        TabModel currentModel = mHostStation.getTabModel();
+        int expectedCardIndex =
+                runOnUiThreadBlocking(
+                        () -> TabBinningUtil.getBinIndex(currentModel, mTabIdsToGroup));
+        return pressBackTo()
+                .exitFacilityAnd()
+                .enterFacility(
+                        new TabSwitcherGroupCardFacility(
+                                expectedCardIndex, mTabIdsToGroup, mTitle));
     }
 
     private void ensureSoftKeyboardClosed() {
         if (mSoftKeyboard.getPhase() == Phase.ACTIVE) {
+            Log.i(TAG, "SoftKeyboardFacility active, try to close soft keyboard.");
             mSoftKeyboard.close(dialogElement);
         } else if (mSoftKeyboard.getPhase() == Phase.FINISHED) {
+            Log.i(
+                    TAG,
+                    "SoftKeyboardFacility already finished, won't try to close soft keyboard"
+                            + " again.");
             // Do nothing as the soft keyboard has already been closed
         } else {
             throw new IllegalArgumentException(

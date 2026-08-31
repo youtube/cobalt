@@ -20,6 +20,7 @@
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/callback_list.h"
 #include "rtc_base/network/received_packet.h"
+#include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_route.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/system/rtc_export.h"
@@ -83,8 +84,8 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
   // Callback is invoked each time a packet is received on this channel.
   void RegisterReceivedPacketCallback(
       void* id,
-      absl::AnyInvocable<void(webrtc::PacketTransportInternal*,
-                              const webrtc::ReceivedIpPacket&)> callback);
+      absl::AnyInvocable<void(PacketTransportInternal*,
+                              const ReceivedIpPacket&)> callback);
 
   void DeregisterReceivedPacketCallback(void* id);
 
@@ -115,12 +116,5 @@ class RTC_EXPORT PacketTransportInternal : public sigslot::has_slots<> {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::PacketTransportInternal;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_PACKET_TRANSPORT_INTERNAL_H_

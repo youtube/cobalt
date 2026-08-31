@@ -40,7 +40,7 @@ namespace webrtc {
 //
 // class ExampleClass {
 // ....
-//    webrtc::scoped_refptr<PendingTaskSafetyFlag> flag = safety_flag_;
+//    scoped_refptr<PendingTaskSafetyFlag> flag = safety_flag_;
 //    my_task_queue_->PostTask(
 //        [flag = std::move(flag), this] {
 //          // Now running on the main thread.

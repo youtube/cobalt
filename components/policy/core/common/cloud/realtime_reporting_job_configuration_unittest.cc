@@ -29,6 +29,7 @@
 #include "components/policy/core/common/cloud/mock_device_management_service.h"
 #include "components/policy/core/common/features.h"
 #include "components/version_info/version_info.h"
+#include "net/base/net_errors.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -432,7 +433,8 @@ TEST_P(RealtimeReportingJobConfigurationTest, GetPayloadRecordsUmaMetrics) {
       enterprise_connectors::kAllUploadSizeUmaMetricName, payload.size(), 1);
 
   histogram_.ExpectUniqueSample(
-      enterprise_connectors::kExtensionInstallUploadSizeUmaMetricName,
+      enterprise_connectors::GetPayloadSizeUmaMetricName(
+          enterprise_connectors::kExtensionInstallEvent),
       payload.size(), 1);
 }
 

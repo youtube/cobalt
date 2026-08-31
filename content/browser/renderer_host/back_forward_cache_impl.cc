@@ -85,16 +85,6 @@ namespace {
 using blink::scheduler::WebSchedulerTrackedFeature;
 using blink::scheduler::WebSchedulerTrackedFeatures;
 
-// The default number of entries the BackForwardCache can hold per tab.
-static constexpr size_t kDefaultBackForwardCacheSize = 1;
-
-// The default number value for the "foreground_cache_size" field trial
-// parameter. This parameter controls the numbers of entries associated with
-// foregrounded process the BackForwardCache can hold per tab, when using the
-// foreground/background cache-limiting strategy. This strategy is enabled if
-// the parameter values is non-zero.
-static constexpr size_t kDefaultForegroundBackForwardCacheSize = 0;
-
 // The default time to live in seconds for documents in BackForwardCache.
 // See also crbug.com/1305878.
 static constexpr int kDefaultTimeToLiveInBackForwardCacheInSeconds = 600;
@@ -213,7 +203,8 @@ WebSchedulerTrackedFeatures GetDisallowedWebSchedulerTrackedFeatures() {
           WebSchedulerTrackedFeature::kWebSocket,
           WebSchedulerTrackedFeature::kWebTransport,
           WebSchedulerTrackedFeature::kWebXR,
-          WebSchedulerTrackedFeature::kParserAborted};
+          WebSchedulerTrackedFeature::kParserAborted,
+          WebSchedulerTrackedFeature::kSharedWorkerMessage};
 }
 WebSchedulerTrackedFeatures GetInjectionWebSchedulerTrackedFeatures() {
   return {WebSchedulerTrackedFeature::kInjectedJavascript,
@@ -491,7 +482,7 @@ void MarkNoWithSingleFeature(BackForwardCacheCanStoreDocumentResult* result,
                              WebSchedulerTrackedFeature feature) {
   BackForwardCacheCanStoreDocumentResult::BlockingDetailsMap map;
   auto details_ptr = blink::mojom::BlockingDetails::New();
-  details_ptr->feature = static_cast<uint32_t>(feature);
+  details_ptr->feature = feature;
   map[feature].push_back(std::move(details_ptr));
   result->NoDueToFeatures(std::move(map));
 }
@@ -666,6 +657,7 @@ std::optional<int> GetFieldTrialParamByFeatureAsOptionalInt(
 base::TimeDelta BackForwardCacheImpl::GetTimeToLiveInBackForwardCache(
     CacheControlNoStoreContext ccns_context) {
   // We use the following order of priority if multiple values exist:
+  // - The embedder-supplied time to live.
   // - The TTL set in `kBackForwardCacheTimeToLiveControl` takes precedence over
   //   the default value.
   // - Infinite if kBackForwardCacheNoTimeEviction is enabled.
@@ -673,6 +665,9 @@ base::TimeDelta BackForwardCacheImpl::GetTimeToLiveInBackForwardCache(
   // kDefaultTimeForCacheControlNoStorePageToLiveInBackForwardCacheInSeconds
   // depending on if the page's main frame has "Cache-Control: no-store" header
   // or not.
+  if (embedder_supplied_time_to_live_.has_value()) {
+    return embedder_supplied_time_to_live_.value();
+  }
 
   if (base::FeatureList::IsEnabled(
           features::kBackForwardCacheTimeToLiveControl)) {
@@ -694,30 +689,37 @@ base::TimeDelta BackForwardCacheImpl::GetTimeToLiveInBackForwardCache(
   }
 }
 
-// static
 size_t BackForwardCacheImpl::GetCacheSize() {
   if (!IsBackForwardCacheEnabled())
     return 0;
+
+  if (embedder_supplied_cache_size_.has_value()) {
+    return embedder_supplied_cache_size_.value();
+  }
+
   if (base::FeatureList::IsEnabled(kBackForwardCacheSize)) {
     return kBackForwardCacheSizeCacheSize.Get();
   }
-  return base::GetFieldTrialParamByFeatureAsInt(
-      features::kBackForwardCache, "cache_size", kDefaultBackForwardCacheSize);
+
+  return 0;
 }
 
-// static
 size_t BackForwardCacheImpl::GetForegroundedEntriesCacheSize() {
   if (!IsBackForwardCacheEnabled())
     return 0;
+
+  if (embedder_supplied_cache_size_.has_value()) {
+    // If the embedder supplied a limit (which should affect `GetCacheSize()`),
+    // don't use a foreground-specific limit.
+    return 0;
+  }
+
   if (base::FeatureList::IsEnabled(kBackForwardCacheSize)) {
     return kBackForwardCacheSizeForegroundCacheSize.Get();
   }
-  return base::GetFieldTrialParamByFeatureAsInt(
-      features::kBackForwardCache, "foreground_cache_size",
-      kDefaultForegroundBackForwardCacheSize);
+  return 0;
 }
 
-// static
 bool BackForwardCacheImpl::UsingForegroundBackgroundCacheSizeLimit() {
   return GetForegroundedEntriesCacheSize() > 0;
 }
@@ -999,16 +1001,7 @@ void BackForwardCacheImpl::PopulateReasonsForMainDocument(
       // when the reasons are being populated. If the cookie is disabled after
       // the procedure, it's still possible for the pages with cache-control: no
       // store to be BFCached.
-      BrowserContext* browser_context = rfh->GetBrowserContext();
-      if (browser_context &&
-          !GetContentClient()
-               ->browser()
-               ->CanBackForwardCachedPageReceiveCookieChanges(
-                   *browser_context, rfh->GetLastCommittedURL(),
-                   rfh->ComputeSiteForCookies(),
-                   rfh->ComputeTopFrameOrigin(rfh->GetLastCommittedOrigin()),
-                   rfh->GetCookieSettingOverrides(),
-                   rfh->GetStorageKey().ToCookiePartitionKey())) {
+      if (!rfh->IsFullCookieAccessAllowed()) {
         result.No(
             BackForwardCacheMetrics::NotRestoredReason::kCacheControlNoStore);
         result.No(BackForwardCacheMetrics::NotRestoredReason::kCookieDisabled);
@@ -1297,8 +1290,8 @@ void BackForwardCacheImpl::EnforceCacheSizeLimit() {
       GetCacheSize(), BackForwardCacheMetrics::NotRestoredReason::kCacheLimit);
 }
 
-void BackForwardCacheImpl::Prune(size_t limit, NotRestoredReason reason) {
-  EnforceCacheSizeLimitInternal(limit, reason);
+size_t BackForwardCacheImpl::Prune(size_t limit, NotRestoredReason reason) {
+  return EnforceCacheSizeLimitInternal(limit, reason);
 }
 
 size_t BackForwardCacheImpl::EnforceCacheSizeLimitInternal(
@@ -1385,6 +1378,26 @@ size_t BackForwardCacheImpl::EnforceCacheSizeLimitInternal(
     prioritized_entry_ = entries_.end();
   }
   return count;
+}
+
+void BackForwardCacheImpl::SetEmbedderSuppliedCacheSize(
+    size_t embedder_supplied_cache_size) {
+  if (embedder_supplied_cache_size == GetCacheSize()) {
+    return;
+  }
+  embedder_supplied_cache_size_ = embedder_supplied_cache_size;
+  EnforceCacheSizeLimit();
+}
+
+void BackForwardCacheImpl::SetEmbedderSuppliedTimeToLive(
+    base::TimeDelta embedder_supplied_time_to_live) {
+  if (embedder_supplied_time_to_live ==
+      GetTimeToLiveInBackForwardCache(
+          CacheControlNoStoreContext::kNotInCCNSContext)) {
+    return;
+  }
+  embedder_supplied_time_to_live_ = embedder_supplied_time_to_live;
+  Flush();
 }
 
 std::unique_ptr<BackForwardCacheImpl::Entry> BackForwardCacheImpl::RestoreEntry(
@@ -1869,8 +1882,7 @@ BackForwardCacheCanStoreTreeResult::BackForwardCacheCanStoreTreeResult(
 BackForwardCacheCanStoreTreeResult::BackForwardCacheCanStoreTreeResult(
     bool is_same_origin,
     const GURL& url)
-    : document_result_(BackForwardCacheCanStoreDocumentResult()),
-      is_same_origin_(is_same_origin),
+    : is_same_origin_(is_same_origin),
       is_root_outermost_main_frame_(true),
       id_(""),
       name_(""),

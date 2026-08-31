@@ -80,7 +80,6 @@ CastGpuFactoryImpl::CreateOpenGLContextProvider() {
   attributes.stencil_size = 0;
   attributes.samples = 0;
   attributes.sample_buffers = 0;
-  attributes.bind_generates_resource = false;
   attributes.lose_context_when_out_of_memory = true;
   attributes.enable_gles2_interface = true;
   attributes.enable_raster_interface = false;
@@ -223,13 +222,6 @@ CastGpuFactoryImpl::CreateVideoEncodeAccelerator() {
               .video_encode_accelerator_supported_profiles));
 }
 
-std::unique_ptr<gfx::GpuMemoryBuffer> CastGpuFactoryImpl::CreateGpuMemoryBuffer(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage) {
-  return nullptr;
-}
-
 bool CastGpuFactoryImpl::ShouldUseGpuMemoryBuffersForVideoFrames(
     bool for_media_stream) const {
   return false;
@@ -288,7 +280,6 @@ void CastGpuFactoryImpl::SetupContext() {
   attributes.stencil_size = 0;
   attributes.samples = 0;
   attributes.sample_buffers = 0;
-  attributes.bind_generates_resource = false;
   attributes.lose_context_when_out_of_memory = true;
   attributes.enable_gles2_interface = true;
   attributes.enable_raster_interface = false;

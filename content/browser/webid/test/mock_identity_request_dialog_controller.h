@@ -6,7 +6,7 @@
 #define CONTENT_BROWSER_WEBID_TEST_MOCK_IDENTITY_REQUEST_DIALOG_CONTROLLER_H_
 
 #include "base/memory/scoped_refptr.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "url/origin.h"
 
@@ -90,6 +90,7 @@ class MockIdentityRequestDialogController
               RequestIdPRegistrationPermision,
               (const url::Origin&, base::OnceCallback<void(bool accepted)>),
               (override));
+  MOCK_METHOD(bool, DidShowUi, (), (const override));
 };
 
 }  // namespace content

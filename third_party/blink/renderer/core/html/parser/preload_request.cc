@@ -140,13 +140,13 @@ Resource* PreloadRequest::Start(Document* document) {
     UseCounter::Count(document, WebFeature::kSharedStorageAPI_Image_Attribute);
   }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   bool browsing_topics =
       browsing_topics_eligible_ && RuntimeEnabledFeatures::TopicsAPIEnabled() &&
       document->domWindow()->IsSecureContext() &&
       !document->domWindow()->GetSecurityOrigin()->IsOpaque();
   resource_request.SetBrowsingTopics(browsing_topics);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   ResourceLoaderOptions options(document->domWindow()->GetCurrentWorld());
   options.initiator_info = initiator_info;
@@ -178,7 +178,7 @@ Resource* PreloadRequest::Start(Document* document) {
   } else if (resource_type_ == ResourceType::kScript ||
              resource_type_ == ResourceType::kCSSStyleSheet) {
     params.SetCharset(charset_.empty() ? document->Encoding()
-                                       : WTF::TextEncoding(charset_));
+                                       : TextEncoding(charset_));
   }
   FetchParameters::SpeculativePreloadType speculative_preload_type =
       FetchParameters::SpeculativePreloadType::kInDocument;

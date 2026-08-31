@@ -16,6 +16,7 @@
 #include "base/containers/contains.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/to_vector.h"
+#include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
@@ -750,7 +751,8 @@ class TemplateURLPrepopulateDataUpdateRequirementsTest
             .db_country = "",
             .db_version = kCurrentDataVersion,
             .profile_country = "FR",
-            .expected_output = std::nullopt,  // Update suppressed.
+            .expected_output =
+                BuildMetadata(CountryId("FR"), kCurrentDataVersion),
         },
         {
             .test_case_name = "CountryOverride",

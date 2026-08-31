@@ -11,9 +11,9 @@
 
 #include "base/containers/id_map.h"
 #include "base/memory/raw_ptr.h"
+#include "content/browser/permissions/permission_overrides.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/permission_controller.h"
-#include "content/public/browser/permission_overrides.h"
 #include "content/public/browser/permission_request_description.h"
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
@@ -51,27 +51,34 @@ class CONTENT_EXPORT PermissionControllerImpl : public PermissionController {
 
   enum class OverrideStatus { kOverrideNotSet, kOverrideSet };
 
-  // For the given |origin|, grant permissions in |overrides| and reject all
-  // others. If no |origin| is specified, grant permissions to all origins in
-  // the browser context.
+  // For the given |requesting_origin| and |embedding_origin|, grant permissions
+  // in |overrides| and reject all others. If no |requesting_origin| and
+  // |embedding_origin| are specified, grant permissions globally for context.
+  // It is invalid to call these methods with exactly one non-null origin.
   OverrideStatus GrantOverridesForDevTools(
-      const std::optional<url::Origin>& origin,
+      base::optional_ref<const url::Origin> requesting_origin,
+      base::optional_ref<const url::Origin> embedding_origin,
       const std::vector<PermissionType>& permissions);
   OverrideStatus SetOverrideForDevTools(
-      const std::optional<url::Origin>& origin,
+      base::optional_ref<const url::Origin> requesting_origin,
+      base::optional_ref<const url::Origin> embedding_origin,
       PermissionType permission,
       const PermissionStatus& status);
   void ResetOverridesForDevTools();
 
-  // Sets status for |permissions| to GRANTED in |origin|, and DENIED
-  // for all others.
-  // Null |origin| grants permissions globally for context.
+  // Sets status for |permissions| to GRANTED for |requesting_origin| and
+  // |embedding_origin|, and DENIED for all others. Null |requesting_origin| and
+  // |embedding_origin| grants permissions globally for context.
+  // It is invalid to call these methods with exactly one non-null origin.
   OverrideStatus GrantPermissionOverrides(
-      const std::optional<url::Origin>& origin,
+      base::optional_ref<const url::Origin> requesting_origin,
+      base::optional_ref<const url::Origin> embedding_origin,
       const std::vector<PermissionType>& permissions);
-  OverrideStatus SetPermissionOverride(const std::optional<url::Origin>& origin,
-                                       PermissionType permission,
-                                       const PermissionStatus& status);
+  OverrideStatus SetPermissionOverride(
+      base::optional_ref<const url::Origin> requesting_origin,
+      base::optional_ref<const url::Origin> embedding_origin,
+      PermissionType permission,
+      const PermissionStatus& status);
   void ResetPermissionOverrides();
 
   void ResetPermission(PermissionType permission,
@@ -175,7 +182,8 @@ class CONTENT_EXPORT PermissionControllerImpl : public PermissionController {
   PermissionStatus GetSubscriptionCurrentValue(
       const content::PermissionStatusSubscription& subscription);
   SubscriptionsStatusMap GetSubscriptionsStatuses(
-      const std::optional<GURL>& origin = std::nullopt);
+      const std::optional<GURL>& requesting_origin = std::nullopt,
+      const std::optional<GURL>& embedding_origin = std::nullopt);
   void NotifyChangedSubscriptions(const SubscriptionsStatusMap& old_statuses);
   // Notifies the callback of the new permission status.
   // If `ignore_status_override` is true, the status override is not applied,

@@ -16,6 +16,8 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/set_up_list/set_up_list_item_view_data.h"
 #import "ios/chrome/browser/ntp/model/set_up_list_item.h"
 #import "ios/chrome/browser/ntp/model/set_up_list_item_type.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/crossfade_label.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
@@ -57,7 +59,6 @@ NSAttributedString* Strikethrough(NSString* text) {
 struct ViewConfig {
   BOOL compact_layout;
   BOOL hero_layout;
-  int signin_sync_description;
   int default_browser_description;
   int autofill_description;
   int notifications_description;
@@ -85,14 +86,11 @@ struct ViewConfig {
     _complete = data.complete;
     if (data.compactLayout) {
       // ViewConfig for a compact layout.
-      int syncString =
-          IDS_IOS_SET_UP_LIST_SIGN_IN_SYNC_SHORT_DESCRIPTION_NO_SYNC;
       int defaultBrowserString =
           IDS_IOS_SET_UP_LIST_DEFAULT_BROWSER_SHORT_DESCRIPTION;
       _config = {
           YES,
           NO,
-          syncString,
           defaultBrowserString,
           IDS_IOS_SET_UP_LIST_AUTOFILL_SHORT_DESCRIPTION,
           IDS_IOS_SET_UP_LIST_NOTIFICATIONS_SHORT_DESCRIPTION,
@@ -101,13 +99,11 @@ struct ViewConfig {
           kCompactTextSpacing,
       };
     } else if (data.heroCellMagicStackLayout) {
-      int syncString = IDS_IOS_IDENTITY_DISC_SIGN_IN_PROMO_LABEL;
       int defaultBrowserString =
           IDS_IOS_SET_UP_LIST_DEFAULT_BROWSER_MAGIC_STACK_DESCRIPTION;
       _config = {
           NO,
           YES,
-          syncString,
           defaultBrowserString,
           IDS_IOS_SET_UP_LIST_AUTOFILL_MAGIC_STACK_DESCRIPTION,
           IDS_IOS_SET_UP_LIST_NOTIFICATIONS_SHORT_DESCRIPTION,
@@ -117,13 +113,11 @@ struct ViewConfig {
       };
     } else {
       // Normal ViewConfig.
-      int syncString = IDS_IOS_IDENTITY_DISC_SIGN_IN_PROMO_LABEL;
       int defaultBrowserString =
           IDS_IOS_SET_UP_LIST_DEFAULT_BROWSER_DESCRIPTION;
       _config = {
           NO,
           NO,
-          syncString,
           defaultBrowserString,
           IDS_IOS_SET_UP_LIST_AUTOFILL_DESCRIPTION,
           IDS_IOS_SET_UP_LIST_NOTIFICATIONS_SHORT_DESCRIPTION,
@@ -132,6 +126,12 @@ struct ViewConfig {
           kTextSpacing,
       };
     }
+
+    if (IsNTPBackgroundCustomizationEnabled()) {
+      [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                         withAction:@selector(applyBackgroundColors)];
+    }
+    [self applyBackgroundColors];
   }
   return self;
 }
@@ -143,6 +143,8 @@ struct ViewConfig {
 
   [self createSubviews];
 }
+
+#pragma mark - UIAccessibility
 
 - (NSString*)accessibilityLabel {
   return [NSString
@@ -201,6 +203,20 @@ struct ViewConfig {
   }
 }
 
+#pragma mark - NewTabPageColorUpdating
+
+- (void)applyBackgroundColors {
+  NewTabPageColorPalette* colorPalette =
+      IsNTPBackgroundCustomizationEnabled()
+          ? [self.traitCollection objectForNewTabPageTrait]
+          : nil;
+  if (colorPalette) {
+    _iconContainerView.backgroundColor = colorPalette.tertiaryColor;
+  } else {
+    _iconContainerView.backgroundColor = [UIColor colorNamed:kGrey100Color];
+  }
+}
+
 #pragma mark - Private methods
 
 - (void)handleTap:(UITapGestureRecognizer*)sender {
@@ -234,7 +250,6 @@ struct ViewConfig {
   if (putIconInSquareBackground) {
     _icon.translatesAutoresizingMaskIntoConstraints = NO;
     _iconContainerView = [[UIView alloc] init];
-    _iconContainerView.backgroundColor = [UIColor colorNamed:kGrey100Color];
     _iconContainerView.layer.cornerRadius = 12;
     _iconContainerView.layer.masksToBounds = NO;
     _iconContainerView.clipsToBounds = YES;
@@ -332,9 +347,6 @@ struct ViewConfig {
 // Returns the text for the title label.
 - (NSString*)titleText {
   switch (_type) {
-    case SetUpListItemType::kSignInSync:
-      return l10n_util::GetNSString(
-          IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
     case SetUpListItemType::kDefaultBrowser:
       return l10n_util::GetNSString(
           ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET
@@ -355,8 +367,6 @@ struct ViewConfig {
 // Returns the text for the description label.
 - (NSString*)descriptionText {
   switch (_type) {
-    case SetUpListItemType::kSignInSync:
-      return l10n_util::GetNSString(_config.signin_sync_description);
     case SetUpListItemType::kDefaultBrowser:
       return l10n_util::GetNSString(_config.default_browser_description);
     case SetUpListItemType::kAutofill:
@@ -373,8 +383,6 @@ struct ViewConfig {
 
 - (NSString*)itemAccessibilityIdentifier {
   switch (_type) {
-    case SetUpListItemType::kSignInSync:
-      return set_up_list::kSignInItemID;
     case SetUpListItemType::kDefaultBrowser:
       return set_up_list::kDefaultBrowserItemID;
     case SetUpListItemType::kAutofill:

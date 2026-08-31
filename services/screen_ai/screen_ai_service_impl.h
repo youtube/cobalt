@@ -59,14 +59,18 @@ class ScreenAIService : public mojom::ScreenAIServiceFactory,
   void LoadLibrary(const base::FilePath& library_path);
 
   // mojom::ScreenAIAnnotator:
+#if BUILDFLAG(IS_CHROMEOS)
   void PerformOcrAndReturnAXTreeUpdate(
       const SkBitmap& image,
       PerformOcrAndReturnAXTreeUpdateCallback callback) override;
+#endif
   void PerformOcrAndReturnAnnotation(
       const SkBitmap& image,
       PerformOcrAndReturnAnnotationCallback callback) override;
   void SetClientType(mojom::OcrClientType client) override;
   void GetMaxImageDimension(GetMaxImageDimensionCallback callback) override;
+  void SetOCRLightMode(bool enabled) override;
+  void IsOCRBusy(IsOCRBusyCallback callback) override;
 
   // mojom::Screen2xMainContentExtractor:
   void ExtractMainContent(const ui::AXTreeUpdate& snapshot,
@@ -128,8 +132,7 @@ class ScreenAIService : public mojom::ScreenAIServiceFactory,
   // This value is received via `GetMaxImageDimension` after OCR is initialized,
   // and since it does not change after that, it is stored to be reused for
   // subsequent calls.
-  // TODO(crbug.com/412553116): Update here and all callers in case the above
-  // assumption changes.
+  // NOTE: Update here and all callers in case the above assumption changes.
   uint32_t max_ocr_dimension_ = 0;
 
   // Last time the feature is used. A null value means never, it is set when the
@@ -149,6 +152,15 @@ class ScreenAIService : public mojom::ScreenAIServiceFactory,
 
   // Client type for each OCR receiver.
   std::map<mojo::ReceiverId, mojom::OcrClientType> ocr_client_types_;
+
+  // Light Mode OCR clients.
+  std::set<mojo::ReceiverId> light_ocr_clients_;
+
+  // OCR last mode across all client.
+  bool last_ocr_light_ = false;
+
+  // The number of times OCR mode was changed before shutting down the service.
+  uint32_t ocr_mode_switch_count_ = 0;
 
   // Client type for each MCE receiver.
   std::map<mojo::ReceiverId, mojom::MceClientType> mce_client_types_;

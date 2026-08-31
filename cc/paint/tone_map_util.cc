@@ -215,15 +215,6 @@ sk_sp<SkColorFilter> GetAgtmFilter(const gfx::HdrMetadataAgtmParsed& params,
 
 }  // namespace
 
-bool ToneMapUtil::UseGainmapShader(const PaintImage& image) {
-  if (image.gainmap_sk_image_) {
-    DCHECK(image.cached_sk_image_);
-    DCHECK(image.gainmap_info_.has_value());
-    return true;
-  }
-  return false;
-}
-
 bool ToneMapUtil::UseGlobalToneMapFilter(const SkImage* image,
                                          const SkColorSpace* dst_color_space) {
   if (!image) {
@@ -245,14 +236,15 @@ bool ToneMapUtil::UseGlobalToneMapFilter(const SkColorSpace* cs) {
   skcms_TransferFunction fn;
   cs->transferFn(&fn);
   return skcms_TransferFunction_isHLGish(&fn) ||
-         skcms_TransferFunction_isPQish(&fn);
+         skcms_TransferFunction_isPQish(&fn) ||
+         skcms_TransferFunction_isHLG(&fn) || skcms_TransferFunction_isPQ(&fn);
 }
 
 void ToneMapUtil::AddGlobalToneMapFilterToPaint(
     SkPaint& paint,
     const SkImage* image,
     const std::optional<gfx::HDRMetadata>& metadata,
-    float target_linear_hdr_headroom) {
+    float target_hdr_headroom) {
   if (!image || !image->colorSpace()) {
     return;
   }
@@ -263,15 +255,31 @@ void ToneMapUtil::AddGlobalToneMapFilterToPaint(
   const bool agtm_parsed = metadata.has_value() && metadata->agtm.has_value() &&
                            agtm.Parse(metadata->agtm.value());
 
-  // The remaineder of the function will construct `filter` to perform all
+  // The remainder of the function will construct `filter` to perform all
   // transformations (scaling, OOTF, and tone mapping).
   sk_sp<SkColorFilter> filter;
 
-  // Several stages will use the reference white luminance, so extract it
-  // early.
-  const float reference_white_luminance =
-      agtm_parsed ? agtm.hdr_reference_white
-                  : gfx::HDRMetadata::GetReferenceWhiteLuminance(metadata);
+  // Several stages will use the reference white luminance. Compute it ahead
+  // of time.
+  auto compute_reference_white_luminance = [&]() {
+    // AGTM metadata gets priority.
+    if (agtm_parsed) {
+      return agtm.hdr_reference_white;
+    }
+    // Then NDWL.
+    if (metadata.has_value() && metadata->ndwl.has_value() &&
+        metadata->ndwl->nits > 0.f) {
+      return metadata->ndwl->nits;
+    }
+    // Then defer to the source color space.
+    if (skcms_TransferFunction_isPQ(&trfn) ||
+        skcms_TransferFunction_isHLG(&trfn)) {
+      return trfn.a;
+    }
+    // Then use the default.
+    return gfx::ColorSpace::kDefaultSDRWhiteLevel;
+  };
+  const float reference_white_luminance = compute_reference_white_luminance();
 
   // The HLG or PQ SkColorSpace may have a white level baked into it. Re-scale
   // to be relative to the white level from the metadata, and apply the
@@ -298,19 +306,22 @@ void ToneMapUtil::AddGlobalToneMapFilterToPaint(
     // Set `filter` to the three operations in sequence.
     filter = SkColorFilters::Compose(
         post_ootf_scale, SkColorFilters::Compose(ootf, pre_ootf_scale));
+  } else if (skcms_TransferFunction_isPQ(&trfn) ||
+             skcms_TransferFunction_isHLG(&trfn)) {
+    // Override the white value specified in the color space.
+    filter = GetLinearScaleFilter(trfn.a / reference_white_luminance);
   }
 
   // Apply tone mapping.
   if (agtm_parsed) {
-    auto tone_map_filter =
-        GetAgtmFilter(agtm, std::log2(target_linear_hdr_headroom));
+    auto tone_map_filter = GetAgtmFilter(agtm, target_hdr_headroom);
     filter = SkColorFilters::Compose(tone_map_filter, std::move(filter));
   } else {
     const float content_max_luminance =
         gfx::HDRMetadata::GetContentMaxLuminance(metadata);
     auto tone_map_filter = GetReinhardToneMapFilter(
         content_max_luminance / reference_white_luminance,
-        target_linear_hdr_headroom);
+        std::exp2(target_hdr_headroom));
     filter = SkColorFilters::Compose(tone_map_filter, std::move(filter));
   }
 

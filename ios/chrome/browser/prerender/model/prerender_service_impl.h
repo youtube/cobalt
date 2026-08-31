@@ -10,6 +10,7 @@
 #import "ios/chrome/browser/prerender/model/prerender_service.h"
 
 class ProfileIOS;
+@class PreloadController;
 
 // Implementation of PrerenderService.
 class PrerenderServiceImpl : public PrerenderService {
@@ -32,9 +33,8 @@ class PrerenderServiceImpl : public PrerenderService {
                                ui::PageTransition transition,
                                Browser* browser) override;
   bool IsLoadingPrerender() override;
-  void CancelPrerender() override;
+  void CancelAllPrerenders() override;
   bool HasPrerenderForUrl(const GURL& url) override;
-  bool IsWebStatePrerendered(web::WebState* web_state) override;
 
   // KeyedService:
   void Shutdown() override;

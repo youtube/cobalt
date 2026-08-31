@@ -5,7 +5,7 @@
 #include "chrome/browser/ui/views/webid/webid_utils.h"
 
 #include "chrome/grit/generated_resources.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/view.h"
@@ -46,7 +46,8 @@ std::u16string GetSubtitle(const content::RelyingPartyData& rp_data) {
     return std::u16string();
   }
   return l10n_util::GetStringFUTF16(IDS_ACCOUNT_SELECTION_SHEET_SUBTITLE,
-                                    rp_data.rp_for_display);
+                                    rp_data.rp_for_display,
+                                    rp_data.iframe_for_display);
 }
 
 void SendAccessibilityEvent(views::Widget* widget,

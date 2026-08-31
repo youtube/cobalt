@@ -43,6 +43,7 @@
 #include "net/dcsctp/public/types.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/dtls/dtls_transport_internal.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/logging.h"
@@ -710,17 +711,14 @@ void DcSctpTransport::OnDtlsTransportState(DtlsTransportInternal* transport,
   if (state == DtlsTransportState::kNew && socket_) {
     // IF DTLS restart (DtlsTransportState::kNew)
     // THEN
-    //   restart socket so that we send an SCPT init
+    //   reset the socket so that we send an SCTP init
     //   before any outgoing messages. This is needed
     //   after DTLS fingerprint changed since peer will discard
     //   messages with crypto derived from old fingerprint.
+    //   The socket will be restarted (with changed parameters)
+    //   later.
     RTC_DLOG(LS_INFO) << debug_name_ << " DTLS restart";
-    dcsctp::DcSctpOptions options = socket_->options();
     socket_.reset();
-    RTC_DCHECK_LE(options.max_message_size, kSctpSendBufferSize);
-    Start({.local_port = options.local_port,
-           .remote_port = options.remote_port,
-           .max_message_size = static_cast<int>(options.max_message_size)});
   }
 }
 
@@ -741,6 +739,12 @@ void DcSctpTransport::OnTransportReadPacket(
 }
 
 void DcSctpTransport::MaybeConnectSocket() {
+  RTC_DLOG(LS_VERBOSE)
+      << debug_name_ << "->MaybeConnectSocket(), writable="
+      << (transport_ ? std::to_string(transport_->writable()) : "UNSET")
+      << " socket: "
+      << (socket_ ? std::to_string(static_cast<int>(socket_->state()))
+                  : "UNSET");
   if (transport_ && transport_->writable() && socket_ &&
       socket_->state() == dcsctp::SocketState::kClosed) {
     socket_->Connect();

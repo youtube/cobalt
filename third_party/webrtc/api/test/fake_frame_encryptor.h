@@ -32,14 +32,14 @@ class FakeFrameEncryptor : public RefCountedObject<FrameEncryptorInterface> {
                               uint8_t postfix_byte = 255);
   // Simply xors each payload with the provided fake key and adds the postfix
   // bit to the end. This will always fail if fail_encryption_ is set to true.
-  int Encrypt(webrtc::MediaType media_type,
+  int Encrypt(MediaType media_type,
               uint32_t ssrc,
               ArrayView<const uint8_t> additional_data,
               ArrayView<const uint8_t> frame,
               ArrayView<uint8_t> encrypted_frame,
               size_t* bytes_written) override;
   // Always returns 1 more than the size of the frame.
-  size_t GetMaxCiphertextByteSize(webrtc::MediaType media_type,
+  size_t GetMaxCiphertextByteSize(MediaType media_type,
                                   size_t frame_size) override;
   // Sets the fake key to use during encryption.
   void SetFakeKey(uint8_t fake_key);

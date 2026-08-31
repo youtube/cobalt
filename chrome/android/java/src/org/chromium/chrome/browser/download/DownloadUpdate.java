@@ -6,10 +6,10 @@ package org.chromium.chrome.browser.download;
 
 import android.graphics.Bitmap;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.OtrProfileId;
+import org.chromium.components.download.DownloadDangerType;
 import org.chromium.components.offline_items_collection.ContentId;
 import org.chromium.components.offline_items_collection.FailState;
 import org.chromium.components.offline_items_collection.OfflineItem.Progress;
@@ -20,11 +20,12 @@ import org.chromium.url.GURL;
  * Class representing information relating to an update in download status.
  * TODO(crbug.com/40506285): Consolidate with other downloads-related objects.
  */
+@NullMarked
 public final class DownloadUpdate {
-    private final ContentId mContentId;
-    private final String mFileName;
-    private final String mFilePath;
-    private final Bitmap mIcon;
+    private final @Nullable ContentId mContentId;
+    private final @Nullable String mFileName;
+    private final @Nullable String mFilePath;
+    private final @Nullable Bitmap mIcon;
     private final int mIconId;
     private final boolean mIsOffTheRecord;
     private final @Nullable OtrProfileId mOtrProfileId;
@@ -32,16 +33,17 @@ public final class DownloadUpdate {
     private final boolean mIsSupportedMimeType;
     private final boolean mIsTransient;
     private final int mNotificationId;
-    private final @NonNull GURL mOriginalUrl;
+    private final GURL mOriginalUrl;
     private final boolean mShouldPromoteOrigin;
-    private final Progress mProgress;
-    private final @NonNull GURL mReferrer;
+    private final @Nullable Progress mProgress;
+    private final GURL mReferrer;
     private final long mStartTime;
     private final long mSystemDownloadId;
     private final long mTimeRemainingInMillis;
     private final long mTotalBytes;
     private final @FailState int mFailState;
     private final @PendingState int mPendingState;
+    private final @DownloadDangerType int mDangerType;
 
     private DownloadUpdate(Builder builder) {
         this.mContentId = builder.mContentId;
@@ -65,21 +67,22 @@ public final class DownloadUpdate {
         this.mTotalBytes = builder.mTotalBytes;
         this.mFailState = builder.mFailState;
         this.mPendingState = builder.mPendingState;
+        this.mDangerType = builder.mDangerType;
     }
 
-    public ContentId getContentId() {
+    public @Nullable ContentId getContentId() {
         return mContentId;
     }
 
-    public String getFileName() {
+    public @Nullable String getFileName() {
         return mFileName;
     }
 
-    public String getFilePath() {
+    public @Nullable String getFilePath() {
         return mFilePath;
     }
 
-    public Bitmap getIcon() {
+    public @Nullable Bitmap getIcon() {
         return mIcon;
     }
 
@@ -115,7 +118,7 @@ public final class DownloadUpdate {
         return mNotificationId;
     }
 
-    public @NonNull GURL getOriginalUrl() {
+    public GURL getOriginalUrl() {
         return mOriginalUrl;
     }
 
@@ -123,11 +126,11 @@ public final class DownloadUpdate {
         return mShouldPromoteOrigin;
     }
 
-    public Progress getProgress() {
+    public @Nullable Progress getProgress() {
         return mProgress;
     }
 
-    public @NonNull GURL getReferrer() {
+    public GURL getReferrer() {
         return mReferrer;
     }
 
@@ -155,12 +158,16 @@ public final class DownloadUpdate {
         return mPendingState;
     }
 
+    public @DownloadDangerType int getDangerType() {
+        return mDangerType;
+    }
+
     /** Helper class for building the DownloadUpdate object. */
     public static class Builder {
-        private ContentId mContentId;
-        private String mFileName;
-        private String mFilePath;
-        private Bitmap mIcon;
+        private @Nullable ContentId mContentId;
+        private @Nullable String mFileName;
+        private @Nullable String mFilePath;
+        private @Nullable Bitmap mIcon;
         private int mIconId = -1;
         private boolean mIsOffTheRecord;
         private @Nullable OtrProfileId mOtrProfileId;
@@ -168,16 +175,17 @@ public final class DownloadUpdate {
         private boolean mIsSupportedMimeType;
         private boolean mIsTransient;
         private int mNotificationId = -1;
-        private GURL mOriginalUrl;
+        private @Nullable GURL mOriginalUrl;
         private boolean mShouldPromoteOrigin;
-        private Progress mProgress;
-        private GURL mReferrer;
+        private @Nullable Progress mProgress;
+        private @Nullable GURL mReferrer;
         private long mStartTime;
         private long mSystemDownloadId = -1;
         private long mTimeRemainingInMillis;
         private long mTotalBytes;
         private @FailState int mFailState;
         private @PendingState int mPendingState;
+        private @DownloadDangerType int mDangerType = DownloadDangerType.NOT_DANGEROUS;
 
         public Builder setContentId(ContentId contentId) {
             this.mContentId = contentId;
@@ -194,7 +202,7 @@ public final class DownloadUpdate {
             return this;
         }
 
-        public Builder setIcon(Bitmap icon) {
+        public Builder setIcon(@Nullable Bitmap icon) {
             this.mIcon = icon;
             return this;
         }
@@ -232,7 +240,7 @@ public final class DownloadUpdate {
             return this;
         }
 
-        public Builder setOriginalUrl(GURL originalUrl) {
+        public Builder setOriginalUrl(@Nullable GURL originalUrl) {
             this.mOriginalUrl = originalUrl;
             return this;
         }
@@ -279,6 +287,11 @@ public final class DownloadUpdate {
 
         public Builder setPendingState(@PendingState int pendingState) {
             this.mPendingState = pendingState;
+            return this;
+        }
+
+        public Builder setDangerType(@DownloadDangerType int dangerType) {
+            this.mDangerType = dangerType;
             return this;
         }
 

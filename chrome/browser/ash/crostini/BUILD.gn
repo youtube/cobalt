@@ -209,6 +209,10 @@ static_library("test_support") {
     "//components/prefs",
     "//ui/views:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 static_library("browser_test_support") {
@@ -285,6 +289,7 @@ source_set("unit_tests") {
     "//chrome/common",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support",
+    "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/dbus/anomaly_detector",
     "//chromeos/ash/components/dbus/chunneld",
     "//chromeos/ash/components/dbus/cicerone",
@@ -339,7 +344,7 @@ source_set("browser_tests") {
     ":browser_test_support",
     ":crostini",
     ":test_support",
-    "//base:base",
+    "//base",
     "//base/test:test_support",
     "//chrome/browser",
     "//chrome/browser:browser_process",

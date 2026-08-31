@@ -29,8 +29,7 @@ class UI_ANDROID_EXPORT DisplayAndroidManager : public display::ScreenBase {
 
   ~DisplayAndroidManager() override = default;
 
-  // Screen interface.
-
+  // display::ScreenBase:
   display::Display GetDisplayNearestWindow(
       gfx::NativeWindow window) const override;
   display::Display GetDisplayNearestView(gfx::NativeView view) const override;
@@ -44,7 +43,6 @@ class UI_ANDROID_EXPORT DisplayAndroidManager : public display::ScreenBase {
   // Methods called from Java.
 
   void UpdateDisplay(JNIEnv* env,
-                     const base::android::JavaParamRef<jobject>& jObject,
                      jint sdkDisplayId,
                      const base::android::JavaRef<jstring>& label,
                      const base::android::JavaRef<jintArray>& jBounds,
@@ -58,10 +56,8 @@ class UI_ANDROID_EXPORT DisplayAndroidManager : public display::ScreenBase {
                      jfloat hdrMaxLuminanceRatio,
                      jboolean isInternal);
   void RemoveDisplay(JNIEnv* env,
-                     const base::android::JavaParamRef<jobject>& jObject,
                      jint sdkDisplayId);
   void SetPrimaryDisplayId(JNIEnv* env,
-                           const base::android::JavaParamRef<jobject>& jObject,
                            jint sdkDisplayId);
 
  private:

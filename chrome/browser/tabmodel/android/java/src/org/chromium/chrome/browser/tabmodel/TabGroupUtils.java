@@ -13,6 +13,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncFeatures;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncServiceFactory;
@@ -29,6 +30,25 @@ import java.util.Set;
 /** Helper class to handle tab groups related utilities. */
 @NullMarked
 public class TabGroupUtils {
+
+    /** A callback to run after a tab group is created. */
+    @FunctionalInterface
+    public interface TabGroupCreationCallback {
+        /**
+         * Responds to tab group creation.
+         *
+         * @param tabGroupId The tab group ID of the newly-created tab group.
+         */
+        void onTabGroupCreated(Token tabGroupId);
+    }
+
+    /** A callback to run after a tab moves groups or is ungrouped. */
+    @FunctionalInterface
+    public interface TabMovedCallback {
+        /** Runs after a tab moves groups or is ungrouped. */
+        void onTabMoved();
+    }
+
     /**
      * This method gets the selected tab of the group where {@code tab} is in.
      *
@@ -109,15 +129,16 @@ public class TabGroupUtils {
 
         // 2. Create the local tab group in the current TabGroupModelFilter.
         tabGroupModelFilter.createTabGroupForTabGroupSync(tabs, tabGroupId);
-        int newRootId = tabs.get(0).getRootId();
+        tabGroupId = tabs.get(0).getTabGroupId();
+        assumeNonNull(tabGroupId);
 
         // 3. Apply the tab group attributes (color, collapsed state, and title) using the new
         // rootId.
-        tabGroupModelFilter.setTabGroupColor(newRootId, tabGroupColor);
-        tabGroupModelFilter.setTabGroupTitle(newRootId, tabGroupTitle);
+        tabGroupModelFilter.setTabGroupColor(tabGroupId, tabGroupColor);
+        tabGroupModelFilter.setTabGroupTitle(tabGroupId, tabGroupTitle);
         if (shouldApplyCollapse) {
             tabGroupModelFilter.setTabGroupCollapsed(
-                    newRootId, tabGroupCollapsed, /* animate= */ false);
+                    tabGroupId, tabGroupCollapsed, /* animate= */ false);
         }
     }
 
@@ -137,8 +158,8 @@ public class TabGroupUtils {
                 || !TabGroupSyncFeatures.isTabGroupSyncEnabled(profile)) {
             return false;
         }
-        TabGroupSyncService tabGroupSyncService =
-                assumeNonNull(TabGroupSyncServiceFactory.getForProfile(profile));
+        TabGroupSyncService tabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(profile);
+        if (tabGroupSyncService == null) return false;
 
         Set<Token> visitedGroups = new HashSet<>();
         for (Tab tab : tabs) {
@@ -160,6 +181,31 @@ public class TabGroupUtils {
             }
         }
         return false;
+    }
+
+    /**
+     * Checks to see if a tab group is shared.
+     *
+     * @param tabModel The {@link TabModel} that owns the tabs in the tab group.
+     * @param groupId The group id representing the tab group.
+     */
+    public static boolean isTabGroupShared(TabModel tabModel, Token groupId) {
+        Profile profile = tabModel.getProfile();
+        if (profile == null
+                || profile.isOffTheRecord()
+                || !TabGroupSyncFeatures.isTabGroupSyncEnabled(profile)) {
+            return false;
+        }
+
+        TabGroupSyncService tabGroupSyncService = TabGroupSyncServiceFactory.getForProfile(profile);
+        if (tabGroupSyncService == null) return false;
+
+        LocalTabGroupId localTabGroupId = new LocalTabGroupId(groupId);
+        SavedTabGroup savedTabGroup = tabGroupSyncService.getGroup(localTabGroupId);
+        if (savedTabGroup == null) return false;
+
+        @Nullable String collaborationId = savedTabGroup.collaborationId;
+        return !TextUtils.isEmpty(collaborationId);
     }
 
     /**
@@ -208,5 +254,72 @@ public class TabGroupUtils {
             }
         }
         return tabGroupId;
+    }
+
+    /** Creates a new group containing {@param tabs} ({@param tabs} must be non-empty). */
+    public static void createNewGroupForTabs(
+            List<Tab> tabs,
+            TabGroupModelFilter filter,
+            @Nullable TabMovedCallback tabMovedCallback,
+            @Nullable TabGroupCreationCallback tabGroupCreationCallback) {
+        assert !tabs.isEmpty();
+        Tab tab = tabs.get(0);
+
+        if (tabs.size() == 1 && tab.getTabGroupId() == null) {
+            filter.createSingleTabGroup(tab);
+        } else if (tabs.size() == 1 && tab.getTabGroupId() != null) {
+            filter.getTabUngrouper()
+                    .ungroupTabs(tabs, /* trailing= */ false, /* allowDialog= */ false);
+            if (tabMovedCallback != null) {
+                tabMovedCallback.onTabMoved();
+            }
+            filter.createSingleTabGroup(tab);
+        } else {
+            filter.mergeListOfTabsToGroup(tabs, tab, /* notify= */ true);
+        }
+
+        Token tabGroupId = tab.getTabGroupId();
+        if (tabGroupId != null && tabGroupCreationCallback != null) {
+            tabGroupCreationCallback.onTabGroupCreated(tabGroupId);
+        }
+    }
+
+    /**
+     * Merges tabs to a destination.
+     *
+     * @param tabs The tabs to be added to a tab group.
+     * @param destTabId The tab id of the destination tab group.
+     * @param tabGroupModelFilter Used to read current tab groups.
+     * @param tabMovedCallback Used to follow up on a tab being moved groups or ungrouped.
+     */
+    public static void mergeTabsToDest(
+            List<Tab> tabs,
+            @TabId int destTabId,
+            TabGroupModelFilter tabGroupModelFilter,
+            @Nullable TabMovedCallback tabMovedCallback) {
+        Tab destTab = tabGroupModelFilter.getTabModel().getTabById(destTabId);
+        if (destTab == null) {
+            return;
+        }
+
+        // TODO(crbug.com/413724490): Replace the ungroup operation with a {@link
+        // TabGroupModelFilter}-based solution.
+        //
+        // Right now, it is only possible to move tabs in 2 ways:
+        // - Moving 1 tab within a group to another via the ctx menu 'Move to group' option
+        // - Selecting a whole group via the Tab List Editor
+        // In the first case, we want to ungroup, since the tab group card needs to be updated.
+        // In the second case, we do not want to since the card disappears. This means the
+        // 'undo' option will fully be able to undo this action.
+        if (tabs.size() == 1) {
+            tabGroupModelFilter
+                    .getTabUngrouper()
+                    .ungroupTabs(tabs, /* trailing= */ false, /* allowDialog= */ false);
+        }
+
+        tabGroupModelFilter.mergeListOfTabsToGroup(tabs, destTab, true);
+        if (tabMovedCallback != null) {
+            tabMovedCallback.onTabMoved();
+        }
     }
 }

@@ -43,6 +43,7 @@ class EventInit;
 class EventPath;
 class EventTarget;
 class Node;
+class Element;
 class ScriptState;
 
 class CORE_EXPORT Event : public ScriptWrappable {
@@ -142,8 +143,13 @@ class CORE_EXPORT Event : public ScriptWrappable {
   const AtomicString& type() const { return type_; }
   void SetType(const AtomicString& type) { type_ = type; }
 
+  // Web exposed target of the event. Can't be a pseudo-element.
   EventTarget* target() const { return target_.Get(); }
   void SetTarget(EventTarget*);
+
+  // This is the target that the event was dispatched to, without any
+  // retargeting. Can be a pseudo-element. Shouldn't we web exposed.
+  EventTarget* RawTarget() const { return target_.Get(); }
 
   EventTarget* currentTarget() const;
   void SetCurrentTarget(EventTarget* current_target) {
@@ -235,6 +241,8 @@ class CORE_EXPORT Event : public ScriptWrappable {
   virtual bool IsBeforeCreatePolicyEvent() const;
   virtual bool IsBeforeUnloadEvent() const;
   virtual bool IsErrorEvent() const;
+
+  virtual bool IsPatchEvent() const;
 
   bool PropagationStopped() const {
     return propagation_stopped_ || immediate_propagation_stopped_;
@@ -329,6 +337,14 @@ class CORE_EXPORT Event : public ScriptWrappable {
   void SetBubbles(bool bubble) { bubbles_ = bubble; }
 
   PassiveMode HandlingPassive() const { return handling_passive_; }
+
+  // Retargets the provided `element` to prevent it from being leaked when this
+  // event is fired on a node inside a ShadowRoot. If this is called during
+  // event dispatching, where currentTarget() has a value, `element` is
+  // retargeted against currentTarget(). Otherwise, it is retargeted against
+  // target().  target() may be null after event dispatch to prevent leaking,
+  // and in that case, this method will return null as well.
+  Element* Retarget(const Element* element) const;
 
  private:
   AtomicString type_;

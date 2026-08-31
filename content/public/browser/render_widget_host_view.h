@@ -281,7 +281,7 @@ class CONTENT_EXPORT RenderWidgetHostView {
   virtual void ShowSharePicker(
       const std::string& title,
       const std::string& text,
-      const std::string& url,
+      const GURL& url,
       const std::vector<std::string>& file_paths,
       blink::mojom::ShareService::ShareCallback callback) = 0;
 
@@ -299,8 +299,6 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // coordinates. No-op unless VirtualKeyboardMode is kOverlaysContent.
   virtual void NotifyVirtualKeyboardOverlayRect(
       const gfx::Rect& keyboard_rect) = 0;
-
-  virtual void NotifyContextMenuInsetsObservers(const gfx::Rect&) = 0;
 
   virtual void ShowInterestInElement(int) = 0;
 

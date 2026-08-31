@@ -43,49 +43,51 @@ public final class AccountCapabilitiesTest {
     public static @Tribool int getCapability(
             String capabilityName, AccountCapabilities capabilities) {
         switch (capabilityName) {
+            /** keep-sorted start */
+            case AccountCapabilitiesConstants.CAN_FETCH_FAMILY_MEMBER_INFO_CAPABILITY_NAME:
+                return capabilities.canFetchFamilyMemberInfo();
             case AccountCapabilitiesConstants.CAN_HAVE_EMAIL_ADDRESS_DISPLAYED_CAPABILITY_NAME:
                 return capabilities.canHaveEmailAddressDisplayed();
+            case AccountCapabilitiesConstants.CAN_RUN_CHROME_PRIVACY_SANDBOX_TRIALS_CAPABILITY_NAME:
+                return capabilities.canRunChromePrivacySandboxTrials();
             case AccountCapabilitiesConstants
                     .CAN_SHOW_HISTORY_SYNC_OPT_INS_WITHOUT_MINOR_MODE_RESTRICTIONS_CAPABILITY_NAME:
                 return capabilities.canShowHistorySyncOptInsWithoutMinorModeRestrictions();
-            case AccountCapabilitiesConstants.CAN_RUN_CHROME_PRIVACY_SANDBOX_TRIALS_CAPABILITY_NAME:
-                return capabilities.canRunChromePrivacySandboxTrials();
-            case AccountCapabilitiesConstants.IS_OPTED_IN_TO_PARENTAL_SUPERVISION_CAPABILITY_NAME:
-                return capabilities.isOptedInToParentalSupervision();
-            case AccountCapabilitiesConstants.CAN_FETCH_FAMILY_MEMBER_INFO_CAPABILITY_NAME:
-                return capabilities.canFetchFamilyMemberInfo();
             case AccountCapabilitiesConstants.CAN_TOGGLE_AUTO_UPDATES_NAME:
                 return capabilities.canToggleAutoUpdates();
+            case AccountCapabilitiesConstants.CAN_USE_CHROMEOS_GENERATIVE_AI:
+                return capabilities.canUseChromeOSGenerativeAi();
             case AccountCapabilitiesConstants.CAN_USE_CHROME_IP_PROTECTION_NAME:
                 return capabilities.canUseChromeIpProtection();
+            case AccountCapabilitiesConstants.CAN_USE_COPYEDITOR_FEATURE_NAME:
+                return capabilities.canUseCopyeditorFeature();
             case AccountCapabilitiesConstants
                     .CAN_USE_DEVTOOLS_GENERATIVE_AI_FEATURES_CAPABILITY_NAME:
                 return capabilities.canUseDevToolsGenerativeAiFeatures();
             case AccountCapabilitiesConstants.CAN_USE_EDU_FEATURES_CAPABILITY_NAME:
                 return capabilities.canUseEduFeatures();
-            case AccountCapabilitiesConstants.CAN_USE_MANTA_SERVICE_NAME:
-                return capabilities.canUseMantaService();
-            case AccountCapabilitiesConstants.CAN_USE_COPYEDITOR_FEATURE_NAME:
-                return capabilities.canUseCopyeditorFeature();
-            case AccountCapabilitiesConstants.CAN_USE_MODEL_EXECUTION_FEATURES_NAME:
-                return capabilities.canUseModelExecutionFeatures();
-            case AccountCapabilitiesConstants.IS_ALLOWED_FOR_MACHINE_LEARNING_CAPABILITY_NAME:
-                return capabilities.isAllowedForMachineLearning();
-            case AccountCapabilitiesConstants
-                    .IS_SUBJECT_TO_CHROME_PRIVACY_SANDBOX_RESTRICTED_MEASUREMENT_NOTICE:
-                return capabilities.isSubjectToChromePrivacySandboxRestrictedMeasurementNotice();
-            case AccountCapabilitiesConstants.IS_SUBJECT_TO_ENTERPRISE_POLICIES_CAPABILITY_NAME:
-                return capabilities.isSubjectToEnterprisePolicies();
-            case AccountCapabilitiesConstants.IS_SUBJECT_TO_PARENTAL_CONTROLS_CAPABILITY_NAME:
-                return capabilities.isSubjectToParentalControls();
-            case AccountCapabilitiesConstants.CAN_USE_SPEAKER_LABEL_IN_RECORDER_APP:
-                return capabilities.canUseSpeakerLabelInRecorderApp();
             case AccountCapabilitiesConstants.CAN_USE_GENERATIVE_AI_IN_RECORDER_APP:
                 return capabilities.canUseGenerativeAiInRecorderApp();
             case AccountCapabilitiesConstants.CAN_USE_GENERATIVE_AI_PHOTO_EDITING:
                 return capabilities.canUseGenerativeAiPhotoEditing();
-            case AccountCapabilitiesConstants.CAN_USE_CHROMEOS_GENERATIVE_AI:
-                return capabilities.canUseChromeOSGenerativeAi();
+            case AccountCapabilitiesConstants.CAN_USE_MANTA_SERVICE_NAME:
+                return capabilities.canUseMantaService();
+            case AccountCapabilitiesConstants.CAN_USE_MODEL_EXECUTION_FEATURES_NAME:
+                return capabilities.canUseModelExecutionFeatures();
+            case AccountCapabilitiesConstants.CAN_USE_SPEAKER_LABEL_IN_RECORDER_APP:
+                return capabilities.canUseSpeakerLabelInRecorderApp();
+            case AccountCapabilitiesConstants.IS_ALLOWED_FOR_MACHINE_LEARNING_CAPABILITY_NAME:
+                return capabilities.isAllowedForMachineLearning();
+            case AccountCapabilitiesConstants.IS_OPTED_IN_TO_PARENTAL_SUPERVISION_CAPABILITY_NAME:
+                return capabilities.isOptedInToParentalSupervision();
+            case AccountCapabilitiesConstants
+                    .IS_SUBJECT_TO_CHROME_PRIVACY_SANDBOX_RESTRICTED_MEASUREMENT_NOTICE:
+                return capabilities.isSubjectToChromePrivacySandboxRestrictedMeasurementNotice();
+            case AccountCapabilitiesConstants.IS_SUBJECT_TO_ENTERPRISE_POLICIES_CAPABILITY_NAME:
+                return capabilities.isSubjectToEnterpriseFeatures();
+            case AccountCapabilitiesConstants.IS_SUBJECT_TO_PARENTAL_CONTROLS_CAPABILITY_NAME:
+                return capabilities.isSubjectToParentalControls();
+            /** keep-sorted end */
         }
         assert false : "Capability name is not known.";
         return -1;
@@ -158,7 +160,7 @@ public final class AccountCapabilitiesTest {
                                         AccountCapabilitiesConstants
                                                 .IS_ALLOWED_FOR_MACHINE_LEARNING_CAPABILITY_NAME),
                         new ParameterSet()
-                                .name("IsSubjectToEnterprisePolicies")
+                                .name("IsSubjectToEnterpriseFeatures")
                                 .value(
                                         AccountCapabilitiesConstants
                                                 .IS_SUBJECT_TO_ENTERPRISE_POLICIES_CAPABILITY_NAME),

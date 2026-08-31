@@ -25,7 +25,9 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_context_bound_object_set.h"
+#include "chrome/browser/ai/ai_crx_component.h"
 #include "chrome/browser/ai/ai_language_model.h"
+#include "chrome/browser/ai/ai_proofreader.h"
 #include "chrome/browser/ai/ai_rewriter.h"
 #include "chrome/browser/ai/ai_summarizer.h"
 #include "chrome/browser/ai/ai_utils.h"
@@ -36,8 +38,8 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/language/core/common/locale_util.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
-#include "components/optimization_guide/core/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_model_executor.h"
@@ -51,12 +53,12 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 #include "services/on_device_model/public/cpp/capabilities.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/ai/ai_common.mojom.h"
-#include "third_party/blink/public/mojom/ai/ai_language_model.mojom-forward.h"
-#include "third_party/blink/public/mojom/ai/ai_language_model.mojom-shared.h"
 #include "third_party/blink/public/mojom/ai/ai_language_model.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom.h"
+#include "third_party/blink/public/mojom/ai/ai_proofreader.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_rewriter.mojom.h"
 #include "third_party/blink/public/mojom/ai/ai_writer.mojom.h"
 #include "third_party/blink/public/mojom/ai/model_download_progress_observer.mojom.h"
@@ -70,36 +72,35 @@ constexpr float kDefaultMaxTemperature = 2.0f;
 constexpr uint32_t kMinTopK = 1;
 constexpr float kMinTemperature = 0.0f;
 
-// TODO(crbug.com/394841624): Consider using the model execution config instead
-// of using the hardcoded list.
-const char kUnsupportedLanguageError[] =
-    "Cannot proceed with API call for %s. Expected language contains one or "
-    "more unsupported languages. This API call requires expected language to "
-    "specify only languages from our supported list to ensure successful "
-    "processing and guarantee output characteristics. Please update it with "
-    "valid language codes from this list: ['en']";
-const char kEmptyExpectedOutputLanguageWarning[] =
-    "The output language is not specified for %s API call. Without specifying "
-    "the language, we cannot ensure optimal output quality or properly attest "
-    "to output safety for potentially unsupported languages. Please specify it "
-    "when possible for best and most reliable results using our supported "
-    "list: ['en']";
+// Base set of supported language codes when features don't have their own
+// set of supported languages.
+constexpr auto kDefaultSupportedBaseLanguages =
+    base::MakeFixedFlatSet<std::string_view>({"en"});
 
-// Checks if the model path configured via command line is valid.
-bool IsModelPathValid(const std::string& model_path_str) {
-  std::optional<base::FilePath> model_path =
-      optimization_guide::StringToFilePath(model_path_str);
-  if (!model_path) {
-    return false;
-  }
-  return base::PathExists(*model_path);
-}
+const char kUnsupportedLanguageError[] =
+    "Unsupported %s API languages were specified, and the request was aborted. "
+    "API calls must only specify supported languages to ensure successful "
+    "processing and guarantee output characteristics. Please only specify "
+    "supported language codes: [%s]";
+const char kEmptyOutputLanguageWarning[] =
+    "No output language was specified in a %s API request. An output language "
+    "should be specified to ensure optimal output quality and properly attest "
+    "to output safety. Please specify a supported output language code: [%s]";
 
 blink::mojom::ModelAvailabilityCheckResult
 ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
     optimization_guide::OnDeviceModelEligibilityReason
         on_device_model_eligibility_reason,
     bool is_downloading) {
+  auto availability = optimization_guide::AvailabilityFromEligibilityReason(
+      on_device_model_eligibility_reason);
+  if (availability ==
+      optimization_guide::mojom::ModelUnavailableReason::kPendingAssets) {
+    if (is_downloading) {
+      return blink::mojom::ModelAvailabilityCheckResult::kDownloading;
+    }
+    return blink::mojom::ModelAvailabilityCheckResult::kDownloadable;
+  }
   switch (on_device_model_eligibility_reason) {
     case optimization_guide::OnDeviceModelEligibilityReason::kUnknown:
       return blink::mojom::ModelAvailabilityCheckResult::kUnavailableUnknown;
@@ -165,31 +166,6 @@ ConvertOnDeviceModelEligibilityReasonToModelAvailabilityCheckResult(
   NOTREACHED();
 }
 
-// TODO(crbug.com/394841624): Consider using the model execution config instead
-// of using the hardcoded list.
-// Checks for supported language code options (currently just "en").
-auto is_language_supported = [](const AILanguageCodePtr& language) {
-  return language->code.empty() ||
-         language::ExtractBaseLanguage(language->code) == "en";
-};
-
-// Returns whether optional LanguageModel expected_inputs or expected_outputs
-// vectors contain only supported languages. Returns true for absent languages.
-bool AreExpectedLanguagesSupported(
-    const std::optional<std::vector<blink::mojom::AILanguageModelExpectedPtr>>&
-        expected_vector) {
-  if (!expected_vector) {
-    return true;
-  }
-  for (const auto& expected_entry : expected_vector.value()) {
-    if (expected_entry->languages.has_value() &&
-        !AIManager::IsLanguagesSupported(expected_entry->languages.value())) {
-      return false;
-    }
-  }
-  return true;
-}
-
 template <typename ContextBoundObjectType,
           typename ContextBoundObjectReceiverInterface,
           typename ClientRemoteInterface,
@@ -202,7 +178,8 @@ void OnSessionCreated(
     std::unique_ptr<optimization_guide::OptimizationGuideModelExecutor::Session>
         session) {
   if (!session) {
-    client_remote->OnError(
+    AIUtils::AIUtils::SendClientRemoteError(
+        client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
   }
@@ -219,16 +196,19 @@ void OnSessionCreated(
                    session,
                std::optional<uint32_t> result) {
               if (!result.has_value()) {
-                client_remote->OnError(
-                    blink::mojom::AIManagerCreateClientError::
-                        kUnableToCalculateTokenSize);
+                AIUtils::SendClientRemoteError(
+                    client_remote, blink::mojom::AIManagerCreateClientError::
+                                       kUnableToCalculateTokenSize);
                 return;
               }
-              if (result.value() >
-                  blink::mojom::kWritingAssistanceMaxInputTokenSize) {
-                client_remote->OnError(
+              uint32_t quota =
+                  blink::mojom::kWritingAssistanceMaxInputTokenSize;
+              if (result.value() > quota) {
+                AIUtils::SendClientRemoteError(
+                    client_remote,
                     blink::mojom::AIManagerCreateClientError::
-                        kInitialInputTooLarge);
+                        kInitialInputTooLarge,
+                    blink::mojom::QuotaErrorInfo::New(result.value(), quota));
                 return;
               }
               mojo::PendingRemote<ContextBoundObjectReceiverInterface>
@@ -257,6 +237,11 @@ void OnSessionCreated(
 template <typename ClientRemoteInterface>
 class CreateWritingAssistanceSessionTask : public CreateOnDeviceSessionTask {
  public:
+  // TODO(crbug.com/394841624): Using the model execution config instead
+  // of using the hardcoded list.
+  // Set of supported (base) languages for writing assistance tasks.
+  static constexpr auto kSupportedBaseLanguages =
+      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
   using WritingAssistanceSessionTaskCallback = base::OnceCallback<void(
       mojo::Remote<ClientRemoteInterface>,
       std::unique_ptr<
@@ -343,6 +328,131 @@ on_device_model::mojom::Priority GetPriorityFromVisibility(
              : on_device_model::mojom::Priority::kBackground;
 }
 
+// A struct for hashing and comparison of language base codes.
+struct BaseCode {
+  size_t operator()(const AILanguageCodePtr& l) const {
+    return absl::DefaultHashContainerHash<std::string_view>()(
+        language::ExtractBaseLanguage(l->code));
+  }
+  bool operator()(const AILanguageCodePtr& a,
+                  const AILanguageCodePtr& b) const {
+    return language::ExtractBaseLanguage(a->code) ==
+           language::ExtractBaseLanguage(b->code);
+  }
+};
+using LanguageSet = absl::flat_hash_set<AILanguageCodePtr, BaseCode, BaseCode>;
+
+void Insert(LanguageSet& set, const AILanguageCodePtr& language) {
+  if (language && !language->code.empty()) {
+    set.insert(language.Clone());
+  }
+}
+
+void Insert(LanguageSet& set, const std::vector<AILanguageCodePtr>& languages) {
+  for (const AILanguageCodePtr& language : languages) {
+    Insert(set, language);
+  }
+}
+
+template <typename OptionsPtr>
+LanguageSet GetLanguages(const OptionsPtr& options) {
+  LanguageSet languages;
+  if (options) {
+    Insert(languages, options->expected_input_languages);
+    Insert(languages, options->expected_context_languages);
+    Insert(languages, options->output_language);
+  }
+  return languages;
+}
+
+template <>
+LanguageSet GetLanguages(
+    const blink::mojom::AIProofreaderCreateOptionsPtr& options) {
+  LanguageSet languages;
+  if (options) {
+    Insert(languages, options->expected_input_languages);
+    Insert(languages, options->correction_explanation_language);
+  }
+  return languages;
+}
+
+template <>
+LanguageSet GetLanguages(
+    const blink::mojom::AILanguageModelCreateOptionsPtr& options) {
+  LanguageSet languages;
+  if (options && options->expected_inputs.has_value()) {
+    for (const auto& expected_entry : options->expected_inputs.value()) {
+      if (expected_entry->languages.has_value()) {
+        for (const auto& language : expected_entry->languages.value()) {
+          Insert(languages, language);
+        }
+      }
+    }
+  }
+  if (options && options->expected_outputs.has_value()) {
+    for (const auto& expected_entry : options->expected_outputs.value()) {
+      if (expected_entry->languages.has_value()) {
+        for (const auto& language : expected_entry->languages.value()) {
+          Insert(languages, language);
+        }
+      }
+    }
+  }
+  return languages;
+}
+
+bool AreLanguagesSupported(const LanguageSet& requested,
+                           const base::flat_set<std::string_view>& supported) {
+  return std::ranges::all_of(requested, [&](const AILanguageCodePtr& lang) {
+    return supported.contains(language::ExtractBaseLanguage(lang->code));
+  });
+}
+
+// Returns whether an output language was specified or initialized here using an
+// inferred language, i.e. when all input languages use the same base language.
+template <typename OptionsWithOutputLanguagePtrType>
+bool CheckAndFixOutputLanguage(OptionsWithOutputLanguagePtrType& options,
+                               const LanguageSet& languages) {
+  if ((!options->output_language || options->output_language->code.empty()) &&
+      languages.size() == 1) {
+    options->output_language = languages.begin()->Clone();
+  }
+  return options->output_language && !options->output_language->code.empty();
+}
+
+template <>
+bool CheckAndFixOutputLanguage(
+    blink::mojom::AIProofreaderCreateOptionsPtr& options,
+    const LanguageSet& languages) {
+  if ((!options->correction_explanation_language ||
+       options->correction_explanation_language->code.empty()) &&
+      languages.size() == 1) {
+    options->correction_explanation_language = languages.begin()->Clone();
+  }
+  return options->correction_explanation_language &&
+         !options->correction_explanation_language->code.empty();
+}
+
+// Returns whether an output language was specified; does not initialize.
+template <>
+bool CheckAndFixOutputLanguage(
+    blink::mojom::AILanguageModelCreateOptionsPtr& options,
+    const LanguageSet& languages) {
+  if (options->expected_outputs.has_value()) {
+    for (const auto& expected_entry : options->expected_outputs.value()) {
+      if (expected_entry->languages.has_value()) {
+        if (std::ranges::any_of(expected_entry->languages.value(),
+                                [](const AILanguageCodePtr& lang) {
+                                  return !lang->code.empty();
+                                })) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 }  // namespace
 
 AIManager::AIManager(
@@ -352,7 +462,7 @@ AIManager::AIManager(
     : component_update_service_(*component_update_service),
       context_bound_object_set_(GetPriorityFromVisibility(rfh)),
       browser_context_(browser_context),
-      rfh_(rfh->GetWeakDocumentPtr()) {
+      rfh_(rfh ? rfh->GetWeakDocumentPtr() : content::WeakDocumentPtr()) {
   if (rfh && rfh->GetRenderWidgetHost()) {
     widget_observer_.Observe(rfh->GetRenderWidgetHost());
   }
@@ -365,21 +475,6 @@ AIManager::AIManager(
 
 AIManager::~AIManager() = default;
 
-// static
-bool AIManager::IsLanguagesSupported(
-    const std::vector<AILanguageCodePtr>& languages) {
-  return std::ranges::all_of(languages, is_language_supported);
-}
-
-// static
-bool AIManager::IsLanguagesSupported(
-    const std::vector<AILanguageCodePtr>& input,
-    const std::vector<AILanguageCodePtr>& context,
-    const AILanguageCodePtr& output) {
-  return IsLanguagesSupported(input) && IsLanguagesSupported(context) &&
-         is_language_supported(output);
-}
-
 bool AIManager::IsBuiltInAIAPIsEnabledByPolicy() {
   PrefService* prefs =
       Profile::FromBrowserContext(browser_context_)->GetPrefs();
@@ -390,28 +485,6 @@ bool AIManager::IsBuiltInAIAPIsEnabledByPolicy() {
 void AIManager::AddReceiver(
     mojo::PendingReceiver<blink::mojom::AIManager> receiver) {
   receivers_.Add(this, std::move(receiver));
-}
-
-void AIManager::AddMessageToConsoleForUnexpectedLanguage(
-    blink::mojom::ConsoleMessageLevel level,
-    std::string message) {
-  bool* flag = nullptr;
-  if (level == blink::mojom::ConsoleMessageLevel::kWarning) {
-    flag = &did_add_warning_console_message_for_unexpected_language_;
-  }
-  if (level == blink::mojom::ConsoleMessageLevel::kError) {
-    flag = &did_add_error_console_message_for_unexpected_language_;
-  }
-  if (flag != nullptr) {
-    if (*flag) {
-      return;
-    }
-    *flag = true;
-  }
-
-  if (auto* rfh = rfh_.AsRenderFrameHostIfValid()) {
-    rfh->AddMessageToConsole(level, message);
-  }
 }
 
 void AIManager::CanCreateLanguageModel(
@@ -434,21 +507,13 @@ void AIManager::CanCreateLanguageModel(
                                   kUnavailableModelAdaptationNotAvailable);
       return;
     }
-    if (!options || !options->expected_outputs) {
-      AddMessageToConsoleForUnexpectedLanguage(
-          blink::mojom::ConsoleMessageLevel::kWarning,
-          base::StringPrintf(kEmptyExpectedOutputLanguageWarning,
-                             "LanguageModel"));
-    }
-    if (!AreExpectedLanguagesSupported(options->expected_inputs) ||
-        !AreExpectedLanguagesSupported(options->expected_outputs)) {
-      AddMessageToConsoleForUnexpectedLanguage(
-          blink::mojom::ConsoleMessageLevel::kError,
-          base::StringPrintf(kUnsupportedLanguageError, "LanguageModel"));
-      std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
-                                  kUnavailableUnsupportedLanguage);
-      return;
-    }
+  }
+
+  if (!CheckAndFixLanguages(options, "LanguageModel",
+                            AILanguageModel::GetSupportedLanguageBaseCodes())) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableUnsupportedLanguage);
+    return;
   }
 
   CanCreateSession(optimization_guide::ModelBasedCapabilityKey::kPromptApi,
@@ -460,23 +525,22 @@ void AIManager::CreateLanguageModel(
         client,
     blink::mojom::AILanguageModelCreateOptionsPtr options) {
   CHECK(options);
-  if (!AreExpectedLanguagesSupported(options->expected_inputs) ||
-      !AreExpectedLanguagesSupported(options->expected_outputs)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "LanguageModel"));
-    mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>(
-        std::move(client))
-        ->OnError(
-            blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
+  if (!CheckAndFixLanguages(options, "LanguageModel",
+                            AILanguageModel::GetSupportedLanguageBaseCodes())) {
+    mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
+        client_remote(std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
 
   if (!model_broker_client_) {
-    mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>(
-        std::move(client))
-        ->OnError(
-            blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+    mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
+        client_remote(std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
   }
   model_broker_client_
@@ -495,7 +559,8 @@ void AIManager::CreateLanguageModelInternal(
   if (!model_client) {
     mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
         client_remote(std::move(client));
-    client_remote->OnError(
+    AIUtils::SendClientRemoteError(
+        client_remote,
         blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
     return;
   }
@@ -517,20 +582,21 @@ void AIManager::CreateLanguageModelInternal(
         language_model_params->default_sampling_params->temperature;
   }
 
+  auto* service = OptimizationGuideKeyedServiceFactory::GetForProfile(
+      Profile::FromBrowserContext(browser_context_));
   params->capabilities = GetExpectedCapabilities(options->expected_inputs);
   on_device_model::Capabilities output_capabilities =
       GetExpectedCapabilities(options->expected_outputs);
   if (!params->capabilities.empty() || !output_capabilities.empty()) {
-    auto* service = OptimizationGuideKeyedServiceFactory::GetForProfile(
-        Profile::FromBrowserContext(browser_context_));
     if (!output_capabilities.empty() ||
         !base::FeatureList::IsEnabled(
             blink::features::kAIPromptAPIMultimodalInput) ||
         !service->GetOnDeviceCapabilities().HasAll(params->capabilities)) {
-      mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>(
-          std::move(client))
-          ->OnError(
-              blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
+      mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
+          client_remote(std::move(client));
+      AIUtils::SendClientRemoteError(
+          client_remote,
+          blink::mojom::AIManagerCreateClientError::kUnableToCreateSession);
       return;
     }
   }
@@ -541,7 +607,10 @@ void AIManager::CreateLanguageModelInternal(
 
   auto model = std::make_unique<AILanguageModel>(
       context_bound_object_set_, std::move(params), std::move(model_client),
-      std::move(session));
+      std::move(session),
+      service->GetOptimizationGuideLogger()
+          ? service->GetOptimizationGuideLogger()->GetWeakPtr()
+          : nullptr);
   model->Initialize(std::move(options->initial_prompts), std::move(client));
 
   context_bound_object_set_.AddContextBoundObject(std::move(model));
@@ -555,17 +624,8 @@ void AIManager::CanCreateSummarizer(
                                 kUnavailableEnterprisePolicyDisabled);
     return;
   }
-  if (!options || !options->output_language) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf(kEmptyExpectedOutputLanguageWarning, "Summarizer"));
-  }
-  if (options && !IsLanguagesSupported(options->expected_input_languages,
-                                       options->expected_context_languages,
-                                       options->output_language)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "Summarizer"));
+  if (!CheckAndFixLanguages(options, "Summarizer",
+                            AISummarizer::GetSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -577,20 +637,12 @@ void AIManager::CanCreateSummarizer(
 void AIManager::CreateSummarizer(
     mojo::PendingRemote<blink::mojom::AIManagerCreateSummarizerClient> client,
     blink::mojom::AISummarizerCreateOptionsPtr options) {
-  if (!options || !options->output_language) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf(kEmptyExpectedOutputLanguageWarning, "Summarizer"));
-  }
-  if (options && !IsLanguagesSupported(options->expected_input_languages,
-                                       options->expected_context_languages,
-                                       options->output_language)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "Summarizer"));
+  if (!CheckAndFixLanguages(options, "Summarizer",
+                            AISummarizer::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateSummarizerClient> client_remote(
         std::move(client));
-    client_remote->OnError(
+    AIUtils::SendClientRemoteError(
+        client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
@@ -615,13 +667,57 @@ void AIManager::CreateSummarizer(
                      std::move(client));
 }
 
+void AIManager::CanCreateProofreader(
+    blink::mojom::AIProofreaderCreateOptionsPtr options,
+    CanCreateProofreaderCallback callback) {
+  // TODO(crbug.com/424673180): Add a warning message when options
+  // `includeCorrectionTypes` and `includeCorrectionExplanations` are set to
+  // true as those features are not yet supported by the API.
+  auto supported =
+      base::MakeFlatSet<std::string_view>(kDefaultSupportedBaseLanguages);
+  if (!CheckAndFixLanguages(options, "Proofreader", supported)) {
+    std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
+                                kUnavailableUnsupportedLanguage);
+    return;
+  }
+  CanCreateSession(optimization_guide::ModelBasedCapabilityKey::kProofreaderApi,
+                   on_device_model::Capabilities(), std::move(callback));
+}
+
+void AIManager::CreateProofreader(
+    mojo::PendingRemote<blink::mojom::AIManagerCreateProofreaderClient> client,
+    blink::mojom::AIProofreaderCreateOptionsPtr options) {
+  auto supported =
+      base::MakeFlatSet<std::string_view>(kDefaultSupportedBaseLanguages);
+  if (!CheckAndFixLanguages(options, "Proofreader", supported)) {
+    mojo::Remote<blink::mojom::AIManagerCreateProofreaderClient> client_remote(
+        std::move(client));
+    AIUtils::SendClientRemoteError(
+        client_remote,
+        blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
+    return;
+  }
+  auto callback = base::BindOnce(
+      &OnSessionCreated<AIProofreader, blink::mojom::AIProofreader,
+                        blink::mojom::AIManagerCreateProofreaderClient,
+                        blink::mojom::AIProofreaderCreateOptionsPtr>,
+      std::ref(context_bound_object_set_), std::move(options),
+      /*initial_request=*/std::nullopt);
+  CreateWritingAssistanceSessionTask<
+      blink::mojom::AIManagerCreateProofreaderClient>::
+      CreateAndStart(
+          browser_context_,
+          optimization_guide::ModelBasedCapabilityKey::kProofreaderApi,
+          context_bound_object_set_, std::move(callback), std::move(client));
+}
+
 blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
   auto model_info = blink::mojom::AILanguageModelParams::New(
       blink::mojom::AILanguageModelSamplingParams::New(),
       blink::mojom::AILanguageModelSamplingParams::New());
-  model_info->max_sampling_params->top_k = GetLanguageModelMaxTopK();
-  model_info->max_sampling_params->temperature =
-      GetLanguageModelMaxTemperature();
+  model_info->max_sampling_params->top_k =
+      optimization_guide::features::GetOnDeviceModelMaxTopK();
+  model_info->max_sampling_params->temperature = kDefaultMaxTemperature;
 
   auto* service = OptimizationGuideKeyedServiceFactory::GetForProfile(
       Profile::FromBrowserContext(browser_context_));
@@ -669,17 +765,8 @@ void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,
                                 kUnavailableEnterprisePolicyDisabled);
     return;
   }
-  if (!options || !options->output_language) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf(kEmptyExpectedOutputLanguageWarning, "Writer"));
-  }
-  if (options && !IsLanguagesSupported(options->expected_input_languages,
-                                       options->expected_context_languages,
-                                       options->output_language)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "Writer"));
+  if (!CheckAndFixLanguages(options, "Writer",
+                            AIWriter::GetSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -692,20 +779,12 @@ void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,
 void AIManager::CreateWriter(
     mojo::PendingRemote<blink::mojom::AIManagerCreateWriterClient> client,
     blink::mojom::AIWriterCreateOptionsPtr options) {
-  if (!options || !options->output_language) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf(kEmptyExpectedOutputLanguageWarning, "Writer"));
-  }
-  if (options && !IsLanguagesSupported(options->expected_input_languages,
-                                       options->expected_context_languages,
-                                       options->output_language)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "Writer"));
+  if (!CheckAndFixLanguages(options, "Writer",
+                            AIWriter::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateWriterClient> client_remote(
         std::move(client));
-    client_remote->OnError(
+    AIUtils::SendClientRemoteError(
+        client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
@@ -738,17 +817,8 @@ void AIManager::CanCreateRewriter(
                                 kUnavailableEnterprisePolicyDisabled);
     return;
   }
-  if (!options || !options->output_language) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf(kEmptyExpectedOutputLanguageWarning, "Rewriter"));
-  }
-  if (options && !IsLanguagesSupported(options->expected_input_languages,
-                                       options->expected_context_languages,
-                                       options->output_language)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "Rewriter"));
+  if (!CheckAndFixLanguages(options, "Rewriter",
+                            AIRewriter::GetSupportedLanguageBaseCodes())) {
     std::move(callback).Run(blink::mojom::ModelAvailabilityCheckResult::
                                 kUnavailableUnsupportedLanguage);
     return;
@@ -761,20 +831,12 @@ void AIManager::CanCreateRewriter(
 void AIManager::CreateRewriter(
     mojo::PendingRemote<blink::mojom::AIManagerCreateRewriterClient> client,
     blink::mojom::AIRewriterCreateOptionsPtr options) {
-  if (!options || !options->output_language) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf(kEmptyExpectedOutputLanguageWarning, "Rewriter"));
-  }
-  if (options && !IsLanguagesSupported(options->expected_input_languages,
-                                       options->expected_context_languages,
-                                       options->output_language)) {
-    AddMessageToConsoleForUnexpectedLanguage(
-        blink::mojom::ConsoleMessageLevel::kError,
-        base::StringPrintf(kUnsupportedLanguageError, "Rewriter"));
+  if (!CheckAndFixLanguages(options, "Rewriter",
+                            AIRewriter::GetSupportedLanguageBaseCodes())) {
     mojo::Remote<blink::mojom::AIManagerCreateRewriterClient> client_remote(
         std::move(client));
-    client_remote->OnError(
+    AIUtils::SendClientRemoteError(
+        client_remote,
         blink::mojom::AIManagerCreateClientError::kUnsupportedLanguage);
     return;
   }
@@ -807,11 +869,11 @@ void AIManager::CanCreateSession(
       optimization_guide::switches::GetOnDeviceModelExecutionOverride();
   if (model_path.has_value()) {
     // If the model path is provided, we do this additional check and post a
-    // warning message to dev tools if it's invalid.
+    // warning message to dev tools if it does not exist.
     // This needs to be done in a task runner with `MayBlock` trait.
     base::ThreadPool::PostTaskAndReplyWithResult(
         FROM_HERE, {base::MayBlock()},
-        base::BindOnce(IsModelPathValid, model_path.value()),
+        base::BindOnce(base::PathExists, model_path.value()),
         base::BindOnce(&AIManager::OnModelPathValidationComplete,
                        weak_factory_.GetWeakPtr(), model_path.value()));
   }
@@ -867,49 +929,41 @@ void AIManager::FinishCanCreateSession(
       blink::mojom::ModelAvailabilityCheckResult::kAvailable);
 }
 
-void AIManager::OnModelPathValidationComplete(const std::string& model_path,
+template <typename OptionsPtrType>
+bool AIManager::CheckAndFixLanguages(
+    OptionsPtrType& options,
+    std::string_view api_name,
+    const base::flat_set<std::string_view>& supported) {
+  LanguageSet languages = GetLanguages(options);
+  if (!AreLanguagesSupported(languages, supported)) {
+    MaybeLogUnsupportedLanguageError(api_name, supported);
+    return false;
+  }
+  if (!options || !CheckAndFixOutputLanguage(options, languages)) {
+    MaybeLogMissingOutputLanguageWarning(api_name, supported);
+  }
+  return true;
+}
+
+void AIManager::OnModelPathValidationComplete(const base::FilePath& model_path,
                                               bool is_valid_path) {
   // TODO(crbug.com/346491542): Remove this when the error page is implemented.
   if (!is_valid_path) {
     VLOG(1) << base::StringPrintf(
         "Unable to create a session because the model path ('%s') is invalid.",
-        model_path.c_str());
+        model_path.AsUTF8Unsafe());
   }
-}
-
-// TODO(crbug.com/367771112): remove these methods after we roll out the model
-// execution config change.
-uint32_t AIManager::GetLanguageModelMaxTopK() {
-  if (base::FeatureList::IsEnabled(
-          features::kAILanguageModelOverrideConfiguration)) {
-    return std::min(
-        optimization_guide::features::GetOnDeviceModelMaxTopK(),
-        features::kAILanguageModelOverrideConfigurationMaxTopK.Get());
-  }
-
-  return optimization_guide::features::GetOnDeviceModelMaxTopK();
-}
-
-float AIManager::GetLanguageModelMaxTemperature() {
-  if (base::FeatureList::IsEnabled(
-          features::kAILanguageModelOverrideConfiguration)) {
-    return std::min(
-        kDefaultMaxTemperature,
-        static_cast<float>(
-            features::kAILanguageModelOverrideConfigurationMaxTemperature
-                .Get()));
-  }
-
-  return kDefaultMaxTemperature;
 }
 
 void AIManager::AddModelDownloadProgressObserver(
     mojo::PendingRemote<blink ::mojom::ModelDownloadProgressObserver>
         observer_remote) {
   model_download_progress_manager_.AddObserver(
-      &component_update_service_.get(), std::move(observer_remote),
-      {component_updater::OptimizationGuideOnDeviceModelInstallerPolicy::
-           GetOnDeviceModelExtensionId()});
+      std::move(observer_remote),
+      on_device_ai::AICrxComponent::FromComponentIds(
+          &component_update_service_.get(),
+          {component_updater::OptimizationGuideOnDeviceModelInstallerPolicy::
+               GetOnDeviceModelExtensionId()}));
 }
 
 void AIManager::RenderWidgetHostVisibilityChanged(
@@ -924,4 +978,32 @@ void AIManager::RenderWidgetHostDestroyed(
     content::RenderWidgetHost* widget_host) {
   DCHECK(widget_observer_.IsObservingSource(widget_host));
   widget_observer_.Reset();
+}
+
+void AIManager::MaybeLogMissingOutputLanguageWarning(
+    const std::string_view api_name,
+    const base::flat_set<std::string_view>& supported_languages) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (!rfh || did_log_missing_output_language_warning_) {
+    return;
+  }
+  did_log_missing_output_language_warning_ = true;
+  auto list = base::JoinString(supported_languages, ", ");
+  rfh->AddMessageToConsole(
+      blink::mojom::ConsoleMessageLevel::kWarning,
+      base::StringPrintf(kEmptyOutputLanguageWarning, api_name, list));
+}
+
+void AIManager::MaybeLogUnsupportedLanguageError(
+    const std::string_view api_name,
+    const base::flat_set<std::string_view>& supported_languages) {
+  auto* rfh = rfh_.AsRenderFrameHostIfValid();
+  if (!rfh || did_log_unsupported_language_error_) {
+    return;
+  }
+  did_log_unsupported_language_error_ = true;
+  auto list = base::JoinString(supported_languages, ", ");
+  rfh->AddMessageToConsole(
+      blink::mojom::ConsoleMessageLevel::kError,
+      base::StringPrintf(kUnsupportedLanguageError, api_name, list));
 }

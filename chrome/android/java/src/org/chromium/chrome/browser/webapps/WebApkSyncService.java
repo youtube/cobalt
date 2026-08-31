@@ -30,13 +30,12 @@ public class WebApkSyncService {
     private static final long UNIX_OFFSET_MICROS = 11644473600000000L;
 
     /** Called with update result. */
-    public static interface PwaRestorableListCallback {
+    public interface PwaRestorableListCallback {
         @CalledByNative("PwaRestorableListCallback")
         public void onRestorableAppsAvailable(
                 boolean success,
                 @NonNull String[] appIds,
                 @NonNull String[] appNames,
-                @NonNull int[] lastUsedInDays,
                 @NonNull List<Bitmap> icons);
     }
 
@@ -126,7 +125,7 @@ public class WebApkSyncService {
 
     @CalledByNative
     private static List<Bitmap> createBitmapList() {
-        return new ArrayList<Bitmap>();
+        return new ArrayList<>();
     }
 
     @CalledByNative

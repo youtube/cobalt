@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include "base/files/file_util.h"
+#include "base/strings/escape.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -39,10 +40,6 @@ namespace script_parsing {
 
 namespace {
 
-BASE_FEATURE(kValidateContentScriptMimeType,
-             "ValidateContentScriptMimeType",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 size_t g_max_script_length_in_bytes = 1024u * 1024u * 500u;  // 500 MB.
 size_t g_max_scripts_length_per_extension_in_bytes =
     1024u * 1024u * 1024u;  // 1 GB.
@@ -62,12 +59,6 @@ constexpr char kForbiddenInlineCodeScriptError[] =
 // script type.
 bool IsMimeTypeValid(const base::FilePath& relative_path,
                      ContentScriptType content_script_type) {
-  // TODO(https://crbug.com/40059598): Remove this if-check and always validate
-  // the mime type in M139.
-  if (!base::FeatureList::IsEnabled(kValidateContentScriptMimeType)) {
-    return true;
-  }
-
   auto file_extension = relative_path.Extension();
   if (file_extension.empty()) {
     return false;
@@ -348,7 +339,7 @@ bool ParseFileSources(
     result->js_scripts().reserve(js->size());
     for (const auto& source : *js) {
       if (source.file) {
-        GURL url = extension->GetResourceURL(*source.file);
+        GURL url = extension->GetResourceURL(base::EscapePath(*source.file));
         ExtensionResource resource = extension->GetResource(*source.file);
         result->js_scripts().push_back(UserScript::Content::CreateFile(
             resource.extension_root(), resource.relative_path(), url));
@@ -377,7 +368,7 @@ bool ParseFileSources(
     result->css_scripts().reserve(css->size());
     for (const auto& source : *css) {
       if (source.file) {
-        GURL url = extension->GetResourceURL(*source.file);
+        GURL url = extension->GetResourceURL(base::EscapePath(*source.file));
         ExtensionResource resource = extension->GetResource(*source.file);
         result->css_scripts().push_back(UserScript::Content::CreateFile(
             resource.extension_root(), resource.relative_path(), url));

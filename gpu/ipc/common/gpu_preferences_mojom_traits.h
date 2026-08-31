@@ -10,7 +10,7 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 #include "gpu/config/gpu_preferences.h"
-#include "gpu/gpu_export.h"
+#include "gpu/ipc/common/gpu_ipc_common_export.h"
 #include "gpu/ipc/common/gpu_preferences.mojom-shared.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -21,7 +21,8 @@
 namespace mojo {
 
 template <>
-struct GPU_EXPORT EnumTraits<gpu::mojom::GrContextType, gpu::GrContextType> {
+struct GPU_IPC_COMMON_EXPORT EnumTraits<gpu::mojom::GrContextType,
+                                        gpu::GrContextType> {
   static gpu::mojom::GrContextType ToMojom(gpu::GrContextType input) {
     switch (input) {
       case gpu::GrContextType::kNone:
@@ -61,8 +62,8 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::GrContextType, gpu::GrContextType> {
 };
 
 template <>
-struct GPU_EXPORT EnumTraits<gpu::mojom::VulkanImplementationName,
-                             gpu::VulkanImplementationName> {
+struct GPU_IPC_COMMON_EXPORT EnumTraits<gpu::mojom::VulkanImplementationName,
+                                        gpu::VulkanImplementationName> {
   static gpu::mojom::VulkanImplementationName ToMojom(
       gpu::VulkanImplementationName input) {
     switch (input) {
@@ -98,8 +99,8 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::VulkanImplementationName,
 };
 
 template <>
-struct GPU_EXPORT
-    EnumTraits<gpu::mojom::WebGPUAdapterName, gpu::WebGPUAdapterName> {
+struct GPU_IPC_COMMON_EXPORT EnumTraits<gpu::mojom::WebGPUAdapterName,
+                                        gpu::WebGPUAdapterName> {
   static gpu::mojom::WebGPUAdapterName ToMojom(gpu::WebGPUAdapterName input) {
     switch (input) {
       case gpu::WebGPUAdapterName::kDefault:
@@ -134,8 +135,8 @@ struct GPU_EXPORT
 };
 
 template <>
-struct GPU_EXPORT
-    EnumTraits<gpu::mojom::WebGPUPowerPreference, gpu::WebGPUPowerPreference> {
+struct GPU_IPC_COMMON_EXPORT EnumTraits<gpu::mojom::WebGPUPowerPreference,
+                                        gpu::WebGPUPowerPreference> {
   static gpu::mojom::WebGPUPowerPreference ToMojom(
       gpu::WebGPUPowerPreference input) {
     switch (input) {
@@ -177,8 +178,8 @@ struct GPU_EXPORT
 };
 
 template <>
-struct GPU_EXPORT EnumTraits<gpu::mojom::DawnBackendValidationLevel,
-                             gpu::DawnBackendValidationLevel> {
+struct GPU_IPC_COMMON_EXPORT EnumTraits<gpu::mojom::DawnBackendValidationLevel,
+                                        gpu::DawnBackendValidationLevel> {
   static gpu::mojom::DawnBackendValidationLevel ToMojom(
       gpu::DawnBackendValidationLevel input) {
     switch (input) {
@@ -209,8 +210,8 @@ struct GPU_EXPORT EnumTraits<gpu::mojom::DawnBackendValidationLevel,
 };
 
 template <>
-struct GPU_EXPORT
-    StructTraits<gpu::mojom::GpuPreferencesDataView, gpu::GpuPreferences> {
+struct GPU_IPC_COMMON_EXPORT StructTraits<gpu::mojom::GpuPreferencesDataView,
+                                          gpu::GpuPreferences> {
   static bool Read(gpu::mojom::GpuPreferencesDataView prefs,
                    gpu::GpuPreferences* out) {
     out->disable_accelerated_video_decode =
@@ -239,7 +240,6 @@ struct GPU_EXPORT
         prefs.enable_gpu_driver_debug_logging();
     out->disable_gpu_program_cache = prefs.disable_gpu_program_cache();
     out->enforce_gl_minimums = prefs.enforce_gl_minimums();
-    out->force_gpu_mem_available_bytes = prefs.force_gpu_mem_available_bytes();
     out->force_gpu_mem_discardable_limit_bytes =
         prefs.force_gpu_mem_discardable_limit_bytes();
     out->force_max_texture_size = prefs.force_max_texture_size();
@@ -250,6 +250,8 @@ struct GPU_EXPORT
     out->gl_shader_interm_output = prefs.gl_shader_interm_output();
     out->enable_android_surface_control =
         prefs.enable_android_surface_control();
+    out->perform_graphite_precompilation =
+        prefs.perform_graphite_precompilation();
     out->enable_gpu_service_logging = prefs.enable_gpu_service_logging();
     out->enable_gpu_service_tracing = prefs.enable_gpu_service_tracing();
     out->use_passthrough_cmd_decoder = prefs.use_passthrough_cmd_decoder();
@@ -371,10 +373,6 @@ struct GPU_EXPORT
   static bool enforce_gl_minimums(const gpu::GpuPreferences& prefs) {
     return prefs.enforce_gl_minimums;
   }
-  static uint32_t force_gpu_mem_available_bytes(
-      const gpu::GpuPreferences& prefs) {
-    return prefs.force_gpu_mem_available_bytes;
-  }
   static uint32_t force_gpu_mem_discardable_limit_bytes(
       const gpu::GpuPreferences& prefs) {
     return prefs.force_gpu_mem_discardable_limit_bytes;
@@ -397,6 +395,10 @@ struct GPU_EXPORT
   }
   static bool enable_android_surface_control(const gpu::GpuPreferences& prefs) {
     return prefs.enable_android_surface_control;
+  }
+  static bool perform_graphite_precompilation(
+      const gpu::GpuPreferences& prefs) {
+    return prefs.perform_graphite_precompilation;
   }
   static bool enable_gpu_service_logging(const gpu::GpuPreferences& prefs) {
     return prefs.enable_gpu_service_logging;

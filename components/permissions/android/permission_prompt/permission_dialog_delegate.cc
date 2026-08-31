@@ -53,7 +53,6 @@ void PermissionDialogJavaDelegate::CreateJavaDelegate(
       permission_prompt_->GetNegativeButtonText(env, is_one_time),
       permission_prompt_->GetPositiveEphemeralButtonText(env, is_one_time),
       /*showPositiveNonEphemeralAsFirstButton=*/is_one_time,
-      permission_prompt_->GetRadioButtonTexts(env, is_one_time),
       static_cast<int>(permission_prompt_->GetEmbeddedPromptVariant())));
 }
 
@@ -135,7 +134,6 @@ void PermissionDialogJavaDelegate::UpdateDialog() {
       permission_prompt_->GetNegativeButtonText(env, is_one_time),
       permission_prompt_->GetPositiveEphemeralButtonText(env, is_one_time),
       /*showPositiveNonEphemeralAsFirstButton=*/is_one_time,
-      permission_prompt_->GetRadioButtonTexts(env, is_one_time),
       static_cast<int>(permission_prompt_->GetEmbeddedPromptVariant()));
 }
 
@@ -165,54 +163,43 @@ PermissionDialogDelegate::CreateForTesting(
       web_contents, permission_prompt, std::move(java_delegate));
 }
 
-void PermissionDialogDelegate::Accept(JNIEnv* env,
-                                      const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::Accept(JNIEnv* env) {
   CHECK(permission_prompt_);
   permission_prompt_->Accept();
 }
 
-void PermissionDialogDelegate::AcceptThisTime(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::AcceptThisTime(JNIEnv* env) {
   CHECK(permission_prompt_);
   permission_prompt_->AcceptThisTime();
 }
 
-void PermissionDialogDelegate::Acknowledge(JNIEnv* env,
-                                           const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::Acknowledge(JNIEnv* env) {
   CHECK(permission_prompt_);
   permission_prompt_->Acknowledge();
 }
 
-void PermissionDialogDelegate::Deny(JNIEnv* env,
-                                    const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::Deny(JNIEnv* env) {
   CHECK(permission_prompt_);
   permission_prompt_->Deny();
 }
 
-void PermissionDialogDelegate::Resumed(JNIEnv* env,
-                                       const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::Resumed(JNIEnv* env) {
   CHECK(permission_prompt_);
   permission_prompt_->Resumed();
 }
 
-void PermissionDialogDelegate::SystemSettingsShown(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::SystemSettingsShown(JNIEnv* env) {
   CHECK(permission_prompt_);
   permission_prompt_->SystemSettingsShown();
 }
 
-void PermissionDialogDelegate::SystemPermissionResolved(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    bool accepted) {
+void PermissionDialogDelegate::SystemPermissionResolved(JNIEnv* env,
+                                                        bool accepted) {
   CHECK(permission_prompt_);
   permission_prompt_->SystemPermissionResolved(accepted);
 }
 
 void PermissionDialogDelegate::Dismissed(JNIEnv* env,
-                                         const JavaParamRef<jobject>& obj,
                                          int dismissalType) {
   CHECK(permission_prompt_);
   std::vector<ContentSettingsType> content_settings_types;
@@ -244,8 +231,7 @@ void PermissionDialogDelegate::Dismissed(JNIEnv* env,
   permission_prompt_->Closing();
 }
 
-void PermissionDialogDelegate::Destroy(JNIEnv* env,
-                                       const JavaParamRef<jobject>& obj) {
+void PermissionDialogDelegate::Destroy(JNIEnv* env) {
   DestroyJavaDelegate();
 }
 
@@ -299,6 +285,18 @@ void PermissionDialogDelegate::PrimaryPageChanged(content::Page& page) {
 
 void PermissionDialogDelegate::WebContentsDestroyed() {
   DismissDialog();
+}
+
+void PermissionDialogDelegate::OnGeolocationAccuracySelected(JNIEnv* env,
+                                                             bool isPrecise) {
+  CHECK(permission_prompt_);
+
+  GeolocationPromptOptions geolocation_options;
+  geolocation_options.selected_precise = isPrecise;
+
+  PromptOptions prompt_options = geolocation_options;
+
+  permission_prompt_->SetPromptOptions(std::move(prompt_options));
 }
 
 static jint JNI_PermissionDialogDelegate_GetRequestTypeEnumSize(JNIEnv* env) {

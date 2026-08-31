@@ -30,6 +30,7 @@
 #include "api/test/video/function_video_encoder_factory.h"
 #include "api/transport/bitrate_settings.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -682,12 +683,11 @@ TEST_F(StatsEndToEndTest, VerifyNackStats) {
     }
 
     bool MinMetricRunTimePassed() {
-      int64_t now_ms = Clock::GetRealTimeClock()->TimeInMilliseconds();
-      if (!start_runtime_ms_)
-        start_runtime_ms_ = now_ms;
+      Timestamp now = Clock::GetRealTimeClock()->CurrentTime();
+      if (!start_runtime_)
+        start_runtime_ = now;
 
-      int64_t elapsed_sec = (now_ms - *start_runtime_ms_) / 1000;
-      return elapsed_sec > metrics::kMinRunTimeInSeconds;
+      return now - *start_runtime_ > metrics::kMinRunTime;
     }
 
     void ModifyVideoConfigs(
@@ -719,7 +719,7 @@ TEST_F(StatsEndToEndTest, VerifyNackStats) {
     bool dropped_rtp_packet_requested_ RTC_GUARDED_BY(&mutex_) = false;
     std::vector<VideoReceiveStreamInterface*> receive_streams_;
     VideoSendStream* send_stream_ = nullptr;
-    std::optional<int64_t> start_runtime_ms_;
+    std::optional<Timestamp> start_runtime_;
     TaskQueueBase* const task_queue_;
     scoped_refptr<PendingTaskSafetyFlag> task_safety_flag_ =
         PendingTaskSafetyFlag::CreateDetached();

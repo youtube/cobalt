@@ -5,7 +5,10 @@
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_service.h"
 
 #include "base/check_is_test.h"
+#include "base/metrics/histogram_functions.h"
+#include "base/strings/string_number_conversions.h"
 #include "chrome/browser/accessibility/embedded_a11y_extension_loader.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
@@ -14,6 +17,7 @@
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_service_factory.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
+#include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_prefs.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/grit/browser_resources.h"
 #include "extensions/browser/extension_system.h"
@@ -35,6 +39,8 @@ constexpr int kRemoveExtensionDelaySeconds = 30;
 #if !BUILDFLAG(IS_CHROMEOS)
 const base::FilePath::CharType kManifestFileName[] =
     FILE_PATH_LITERAL("wasm_tts_manifest.json");
+const base::FilePath::CharType kManifestV3FileName[] =
+    FILE_PATH_LITERAL("wasm_tts_manifest_v3.json");
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
 ReadAnythingService::ReadAnythingService(Profile* profile) : profile_(profile) {
@@ -84,24 +90,19 @@ void ReadAnythingService::OnReadAnythingSidePanelEntryShown() {
 
 #if !BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingService::SetupDesktopEngine() {
-  // If the WasmTtsComponentUpdater flag is disabled, install the Tts
-  // extension as a component extension.
-  if (features::IsReadAnythingReadAloudEnabled() &&
-      !features::IsWasmTtsComponentUpdaterEnabled() &&
-      !features::IsWasmTtsEngineAutoInstallDisabled()) {
-    InstallTtsDownloadExtension();
-    return;
-  }
-
   // If the extension was previously installed but now the Read Aloud flag
   // is disabled, or if the component updater flag is enabled, we should
   // uninstall the component extension.
+  // TODO(crbug.com/428043296): RemoveTtsDownloadExtension should be left in
+  // until the IsWasmTtsComponentUpdaterEnabled flag has been removed for
+  // enough time to be sure that no one has that extension installed. If they
+  // do, it could cause issues when the component updater extension is
+  // installed.
   RemoveTtsDownloadExtension();
 
   // Install the TTS extension via the component updater if the
   // component updater flag is enabled.
   if (features::IsReadAnythingReadAloudEnabled() &&
-      features::IsWasmTtsComponentUpdaterEnabled() &&
       !features::IsWasmTtsEngineAutoInstallDisabled()) {
     // Signal that the reading mode panel is opened and it's now safe to
     // install the WasmTtsEngineComponent.
@@ -184,39 +185,71 @@ void ReadAnythingService::OnBrowserSetLastActive(Browser* browser) {
   }
 }
 
-void ReadAnythingService::InstallTtsDownloadExtension() {
-#if !BUILDFLAG(IS_CHROMEOS)
-  auto* component_loader = extensions::ComponentLoader::Get(profile_);
-  if (!component_loader) {
-    // In tests, the loader might not be created.
-    CHECK_IS_TEST();
-    return;
-  }
-  if (!component_loader->Exists(extension_misc::kTTSEngineExtensionId)) {
-    component_loader->Add(IDR_TTS_ENGINE_MANIFEST,
-                          base::FilePath(FILE_PATH_LITERAL("tts_engine")));
-  }
-#endif  // BUILDFLAG(!IS_CHROMEOS)
-}
-
 void ReadAnythingService::RemoveTtsDownloadExtension() {
 #if !BUILDFLAG(IS_CHROMEOS)
-  auto* component_loader = extensions::ComponentLoader::Get(profile_);
-  if (!component_loader) {
-    // In tests, the service might not be created.
-    CHECK_IS_TEST();
-    return;
-  }
-  component_loader->Remove(extension_misc::kTTSEngineExtensionId);
+  // Remove the legacy TTS extension for all profiles.
+
+  // This code for removing the extension installed in the legacy way
+  // should remain in place until at least milestone 141 to ensure there
+  // are no conflicts with installing the component loader extension.
+  EmbeddedA11yExtensionLoader::GetInstance()->Init();
+  EmbeddedA11yExtensionLoader::GetInstance()->RemoveExtensionWithId(
+      extension_misc::kTTSEngineExtensionId);
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
 void ReadAnythingService::InstallComponent(const base::FilePath& new_dir) {
+  const base::FilePath::CharType* manifest;
+  if (features::IsWasmTtsComponentUpdaterV3Enabled()) {
+    VLOG(1) << "Installing TTS component using V3 engine";
+    manifest = kManifestV3FileName;
+  } else {
+    VLOG(1) << "Installing TTS component using V2 engine";
+    manifest = kManifestFileName;
+  }
+
+  RecordEngineVersion(new_dir.BaseName());
   EmbeddedA11yExtensionLoader::GetInstance()->Init();
   EmbeddedA11yExtensionLoader::GetInstance()->InstallExtensionWithIdAndPath(
-      extension_misc::kComponentUpdaterTTSEngineExtensionId, new_dir,
-      kManifestFileName,
+      extension_misc::kComponentUpdaterTTSEngineExtensionId, new_dir, manifest,
       /*should_localize=*/false);
+
+  // Store the last time reading mode was opened and the TTS engine was
+  // installed to be used to uninstall voices if reading mode is unopened for a
+  // long time.
+  g_browser_process->local_state()->SetTime(
+      prefs::kAccessibilityReadAnythingDateLastOpened, base::Time::Now());
+  g_browser_process->local_state()->SetBoolean(
+      prefs::kAccessibilityReadAnythingTTSEngineReinstalled, false);
+}
+void ReadAnythingService::RecordEngineVersion(
+    const base::FilePath& engine_version) {
+// Per FilePath documentation, Windows uses std::wstring, so string
+// so string manipulations must be handled slightly differently.
+#if BUILDFLAG(IS_WIN)
+  using path_string_t = std::wstring;
+  constexpr auto delimiter = L'.';
+#else
+  using path_string_t = std::string;
+  constexpr auto delimiter = '.';
+#endif
+
+  path_string_t file = engine_version.value();
+
+  int version_number = 0;
+
+  size_t pos = file.find(delimiter);
+  if (pos != std::string::npos) {
+    file.erase(pos, 1);
+  }
+
+  // In order for the engine to be recognized by component updater, it must be
+  // of the format YYYYMMDD.x. Convert the string representation of the engine
+  // version to an integer of format YYYMMDDx in order to be logged.
+  if (base::StringToInt(file, &version_number)) {
+    base::UmaHistogramSparse(
+        "Accessibility.ReadAnything.ReadAloud.EngineVersion", version_number);
+  }
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)

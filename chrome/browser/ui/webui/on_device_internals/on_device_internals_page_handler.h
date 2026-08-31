@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_ON_DEVICE_INTERNALS_ON_DEVICE_INTERNALS_PAGE_HANDLER_H_
 #define CHROME_BROWSER_UI_WEBUI_ON_DEVICE_INTERNALS_ON_DEVICE_INTERNALS_PAGE_HANDLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_page.mojom.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -32,15 +33,14 @@ class PageHandler : public mojom::PageHandler,
   PageHandler& operator=(const PageHandler&) = delete;
 
  private:
-#if BUILDFLAG(USE_CHROMEOS_MODEL_SERVICE)
-  using Service = on_device_model::mojom::OnDeviceModelPlatformService;
-#else
   using Service = on_device_model::mojom::OnDeviceModelService;
-#endif
-
   Service& GetService();
 
-#if !BUILDFLAG(USE_CHROMEOS_MODEL_SERVICE)
+#if BUILDFLAG(USE_CHROMEOS_MODEL_SERVICE)
+  using PlatformService = on_device_model::mojom::OnDeviceModelPlatformService;
+  PlatformService& GetPlatformService();
+#endif
+
   void OnModelAssetsLoaded(
       mojo::PendingReceiver<on_device_model::mojom::OnDeviceModel> model,
       LoadModelCallback callback,
@@ -49,7 +49,6 @@ class PageHandler : public mojom::PageHandler,
   void OnModelLoaded(LoadModelCallback callback,
                      on_device_model::ModelFile weights,
                      on_device_model::mojom::LoadModelResult result);
-#endif
 
   // mojom::PageHandler:
   void LoadModel(
@@ -57,9 +56,16 @@ class PageHandler : public mojom::PageHandler,
       ml::ModelPerformanceHint performance_hint,
       mojo::PendingReceiver<on_device_model::mojom::OnDeviceModel> model,
       LoadModelCallback callback) override;
-  void GetEstimatedPerformanceClass(
-      GetEstimatedPerformanceClassCallback callback) override;
+  void LoadPlatformModel(
+      const base::FilePath& model_path,
+      mojo::PendingReceiver<on_device_model::mojom::OnDeviceModel> model,
+      LoadPlatformModelCallback callback) override;
+  void GetDevicePerformanceInfo(
+      GetDevicePerformanceInfoCallback callback) override;
+  void GetDefaultModelPath(GetDefaultModelPathCallback callback) override;
   void GetPageData(GetPageDataCallback callback) override;
+  void SetFeatureRecentlyUsedState(int feature_key,
+                                   bool is_recently_used) override;
   void DecodeBitmap(mojo_base::BigBuffer image_buffer,
                     DecodeBitmapCallback callback) override;
   void ResetModelCrashCount() override;
@@ -71,11 +77,21 @@ class PageHandler : public mojom::PageHandler,
                          int source_line,
                          const std::string& message) override;
 
+  // Called when device performance info is received. Creates and fully
+  // populates a `PageData` to be returned via `callback`.
+  void OnReceivedPerformanceInfoForPageData(
+      GetPageDataCallback callback,
+      on_device_model::mojom::DevicePerformanceInfoPtr performance_info);
+
   mojo::Receiver<mojom::PageHandler> receiver_;
   mojo::Remote<mojom::Page> page_;
 
   mojo::Remote<Service> service_;
+  on_device_model::mojom::DevicePerformanceInfoPtr performance_info_;
 
+#if BUILDFLAG(USE_CHROMEOS_MODEL_SERVICE)
+  mojo::Remote<PlatformService> platform_service_;
+#endif
   // Logger to receive the debug logs from the optimization guide service. Not
   // owned. Guaranteed to outlive |this|, since the logger is owned by the
   // optimization guide keyed service, while |this| is part of

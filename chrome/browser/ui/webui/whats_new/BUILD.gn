@@ -2,8 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//chrome/common/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
-import("//pdf/features.gni")
 
 assert(!is_android && !is_fuchsia)
 
@@ -45,6 +45,10 @@ source_set("whats_new") {
       "//ui/webui",
       "//ui/webui/resources/js/browser_command:mojo_bindings",
     ]
+
+    if (enable_glic) {
+      public_deps += [ "//chrome/browser/glic" ]
+    }
   }
 }
 source_set("impl") {
@@ -65,10 +69,6 @@ source_set("impl") {
     "//ui/base:features",
     "//url",
   ]
-
-  if (enable_pdf) {
-    deps += [ "//pdf:features" ]
-  }
 
   if (is_win || is_mac || is_linux) {
     sources += [

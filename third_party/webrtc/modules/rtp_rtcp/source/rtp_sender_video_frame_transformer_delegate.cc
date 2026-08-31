@@ -180,22 +180,21 @@ bool RTPSenderVideoFrameTransformerDelegate::TransformFrame(
     uint32_t rtp_timestamp,
     const EncodedImage& encoded_image,
     RTPVideoHeader video_header,
-    TimeDelta expected_retransmission_time) {
+    TimeDelta expected_retransmission_time,
+    const std::vector<uint32_t>& csrcs) {
   {
     MutexLock lock(&sender_lock_);
     if (short_circuit_) {
       sender_->SendVideo(payload_type, codec_type, rtp_timestamp,
                          encoded_image.CaptureTime(),
                          *encoded_image.GetEncodedData(), encoded_image.size(),
-                         video_header, expected_retransmission_time,
-                         /*csrcs=*/{});
+                         video_header, expected_retransmission_time, csrcs);
       return true;
     }
   }
   frame_transformer_->Transform(std::make_unique<TransformableVideoSenderFrame>(
       encoded_image, video_header, payload_type, codec_type, rtp_timestamp,
-      expected_retransmission_time, ssrc_,
-      /*csrcs=*/std::vector<uint32_t>()));
+      expected_retransmission_time, ssrc_, csrcs));
   return true;
 }
 

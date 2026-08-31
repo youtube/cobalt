@@ -7,6 +7,7 @@
 #include "base/containers/to_vector.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "services/network/public/mojom/integrity_metadata.mojom.h"
 
 namespace content {
 
@@ -24,24 +25,17 @@ network::mojom::CSPSourcePtr BuildCSPSource(const blink::WebCSPSource& source) {
       source.is_host_wildcard, source.is_port_wildcard);
 }
 
-network::mojom::CSPHashSourcePtr BuildCSPHashSource(
-    const blink::WebCSPHashSource& hash_source) {
-  return network::mojom::CSPHashSource::New(hash_source.algorithm,
-                                            hash_source.value);
-}
-
 network::mojom::CSPSourceListPtr BuildCSPSourceList(
     const blink::WebCSPSourceList& source_list) {
   return network::mojom::CSPSourceList::New(
       base::ToVector(source_list.sources, BuildCSPSource),
-      BuildVectorOfStrings(source_list.nonces),
-      base::ToVector(source_list.hashes, BuildCSPHashSource),
-      base::ToVector(source_list.url_hashes, BuildCSPHashSource),
-      base::ToVector(source_list.eval_hashes, BuildCSPHashSource),
-      source_list.allow_self, source_list.allow_star, source_list.allow_inline,
+      BuildVectorOfStrings(source_list.nonces), source_list.hashes,
+      source_list.url_hashes, source_list.eval_hashes, source_list.allow_self,
+      source_list.allow_star, source_list.allow_inline,
       source_list.allow_inline_speculation_rules, source_list.allow_eval,
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
-      source_list.allow_dynamic, source_list.allow_unsafe_hashes,
+      source_list.allow_dynamic, source_list.allow_dynamic_url,
+      source_list.allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
       source_list.report_sample, source_list.report_hash_algorithm,
       source_list.cobalt_insecure_local_network,
@@ -67,36 +61,31 @@ blink::WebCSPSource ToWebCSPSource(const network::mojom::CSPSourcePtr& source) {
           source->is_port_wildcard};
 }
 
-blink::WebCSPHashSource ToWebCSPHashSource(
-    const network::mojom::CSPHashSourcePtr& hash_source) {
-  return {hash_source->algorithm, std::move(hash_source->value)};
-}
-
 blink::WebCSPSourceList ToWebCSPSourceList(
     network::mojom::CSPSourceListPtr source_list) {
-  return {
-      base::ToVector(std::move(source_list->sources), ToWebCSPSource),
-      ToVectorOfWebStrings(std::move(source_list->nonces)),
-      base::ToVector(std::move(source_list->hashes), ToWebCSPHashSource),
-      base::ToVector(std::move(source_list->url_hashes), ToWebCSPHashSource),
-      base::ToVector(std::move(source_list->eval_hashes), ToWebCSPHashSource),
-      source_list->allow_self,
-      source_list->allow_star,
-      source_list->allow_inline,
-      source_list->allow_inline_speculation_rules,
-      source_list->allow_eval,
-      source_list->allow_wasm_eval,
-      source_list->allow_wasm_unsafe_eval,
-      source_list->allow_dynamic,
-      source_list->allow_unsafe_hashes,
-      source_list->report_sample,
+  return {base::ToVector(std::move(source_list->sources), ToWebCSPSource),
+          ToVectorOfWebStrings(std::move(source_list->nonces)),
+          base::ToVector(std::move(source_list->hashes)),
+          base::ToVector(std::move(source_list->url_hashes)),
+          base::ToVector(std::move(source_list->eval_hashes)),
+          source_list->allow_self,
+          source_list->allow_star,
+          source_list->allow_inline,
+          source_list->allow_inline_speculation_rules,
+          source_list->allow_eval,
+          source_list->allow_wasm_eval,
+          source_list->allow_wasm_unsafe_eval,
+          source_list->allow_dynamic,
+          source_list->allow_dynamic_url,
+          source_list->allow_unsafe_hashes,
+          source_list->report_sample,
 #if BUILDFLAG(IS_COBALT)
-      source_list->report_hash_algorithm,
-      source_list->cobalt_insecure_local_network,
-      source_list->cobalt_insecure_private_range};
+          source_list->report_hash_algorithm,
+          source_list->cobalt_insecure_local_network,
+          source_list->cobalt_insecure_private_range};
 #else
-      source_list->report_hash_algorithm};
-#endif
+          source_list->report_hash_algorithm};
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 std::optional<blink::WebCSPTrustedTypes> ToOptionalWebCSPTrustedTypes(

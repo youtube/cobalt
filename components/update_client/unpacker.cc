@@ -22,6 +22,7 @@
 #include "components/update_client/unzipper.h"
 #include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
+#include "components/update_client/update_client_metrics.h"
 #include "components/update_client/utils.h"
 #include "third_party/zlib/google/compression_utils.h"
 
@@ -46,10 +47,12 @@ namespace update_client {
 Unpacker::Result::Result() = default;
 
 #if BUILDFLAG(IS_STARBOARD)
-Unpacker::Unpacker(const OperationResult& crx_operation_result,
+Unpacker::Unpacker(const std::string& app_id,
+                   const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
-    : result_(crx_operation_result),
+    : app_id_(app_id),
+      result_(crx_operation_result),
 #if !defined(IN_MEMORY_UPDATES)
       path_(crx_operation_result.response),
 #endif
@@ -58,32 +61,36 @@ Unpacker::Unpacker(const OperationResult& crx_operation_result,
 
 Unpacker::~Unpacker() = default;
 
-void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
+void Unpacker::Unpack(const std::string& app_id,
+                      const std::vector<uint8_t>& pk_hash,
                       const OperationResult& crx_operation_result,
                       std::unique_ptr<Unzipper> unzipper,
                       crx_file::VerifierFormat crx_format,
                       base::OnceCallback<void(const Result& result)> callback) {
-  base::WrapRefCounted(
-      new Unpacker(crx_operation_result, std::move(unzipper), std::move(callback)))
+  base::WrapRefCounted(new Unpacker(app_id, crx_operation_result,
+                                    std::move(unzipper), std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
 #else
-Unpacker::Unpacker(const base::FilePath& path,
+Unpacker::Unpacker(const std::string& app_id,
+                   const base::FilePath& path,
                    std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
-    : path_(path),
+    : app_id_(app_id),
+      path_(path),
       unzipper_(std::move(unzipper)),
       callback_(std::move(callback)) {}
 
 Unpacker::~Unpacker() = default;
 
-void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
+void Unpacker::Unpack(const std::string& app_id,
+                      const std::vector<uint8_t>& pk_hash,
                       const base::FilePath& path,
                       std::unique_ptr<Unzipper> unzipper,
                       crx_file::VerifierFormat crx_format,
                       base::OnceCallback<void(const Result& result)> callback) {
   base::WrapRefCounted(
-      new Unpacker(path, std::move(unzipper), std::move(callback)))
+      new Unpacker(app_id, path, std::move(unzipper), std::move(callback)))
       ->Verify(pk_hash, crx_format);
 }
 #endif
@@ -131,6 +138,7 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  unzip_begin_time_ = base::TimeTicks::Now();
 #if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
   unpack_path_ = result_.installation_dir;
@@ -159,6 +167,10 @@ void Unpacker::BeginUnzipping() {
 
 void Unpacker::EndUnzipping(bool result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (result) {
+    metrics::RecordCRXUnzipTime(base::TimeTicks::Now() - unzip_begin_time_,
+                                app_id_);
+  }
   if (!result) {
     VLOG(1) << "Unzipping failed.";
     EndUnpacking(UnpackerError::kUnzipFailed, 0);

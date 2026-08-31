@@ -22,9 +22,9 @@
 #include "rtc_base/checks.h"
 #include "rtc_base/thread.h"
 #include "system_wrappers/include/clock.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/run_loop.h"
-#include "test/scoped_key_value_config.h"
 
 namespace webrtc {
 // TODO(bugs.webrtc.org/11594): Use the use the GlobalSimulatedTimeController
@@ -86,12 +86,11 @@ class TestNackRequester : public ::testing::Test,
     RTC_DCHECK(!nack_module_.get());
     nack_periodic_processor_ =
         std::make_unique<NackPeriodicProcessor>(interval);
-    test::ScopedKeyValueConfig empty_field_trials_;
     nack_module_ = std::make_unique<NackRequester>(
         TaskQueueBase::Current(), nack_periodic_processor_.get(), clock_.get(),
-        this, this, empty_field_trials_);
+        this, this, CreateTestFieldTrials());
     nack_module_->UpdateRtt(kDefaultRttMs);
-    return *nack_module_.get();
+    return *nack_module_;
   }
 
   static constexpr int64_t kDefaultRttMs = 20;
@@ -271,14 +270,13 @@ class TestNackRequesterWithFieldTrial : public ::testing::Test,
                                         public KeyFrameRequestSender {
  protected:
   TestNackRequesterWithFieldTrial()
-      : nack_delay_field_trial_("WebRTC-SendNackDelayMs/10/"),
-        clock_(new SimulatedClock(0)),
+      : clock_(new SimulatedClock(0)),
         nack_module_(TaskQueueBase::Current(),
                      &nack_periodic_processor_,
                      clock_.get(),
                      this,
                      this,
-                     nack_delay_field_trial_),
+                     CreateTestFieldTrials("WebRTC-SendNackDelayMs/10/")),
         keyframes_requested_(0) {}
 
   void SendNack(const std::vector<uint16_t>& sequence_numbers,
@@ -289,7 +287,6 @@ class TestNackRequesterWithFieldTrial : public ::testing::Test,
 
   void RequestKeyFrame() override { ++keyframes_requested_; }
 
-  test::ScopedKeyValueConfig nack_delay_field_trial_;
   AutoThread main_thread_;
   std::unique_ptr<SimulatedClock> clock_;
   NackPeriodicProcessor nack_periodic_processor_;

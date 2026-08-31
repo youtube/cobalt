@@ -4,6 +4,11 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
+import android.app.Activity;
+import android.content.Intent;
+
 import androidx.annotation.CallSuper;
 import androidx.annotation.VisibleForTesting;
 
@@ -11,49 +16,63 @@ import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.base.ContextUtils;
+import org.chromium.base.Token;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.WarmupManager;
+import org.chromium.chrome.browser.app.tab_activity_glue.ReparentingTask;
 import org.chromium.chrome.browser.flags.ActivityType;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabId;
+import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
+import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.common.ResourceRequestBody;
+import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /** Bridges between the C++ and Java {@link TabModel} interfaces. */
 @NullMarked
 public abstract class TabModelJniBridge implements TabModelInternal {
     private final Profile mProfile;
 
-    /** The type of the Activity for which this tab model works. */
-    private final @ActivityType int mActivityType;
-
-    /** Whether the model is for archvied tabs. */
-    private final boolean mIsArchivedTabModel;
-
     /** Native TabModelJniBridge pointer, which will be set by {@link #initializeNative()}. */
     private long mNativeTabModelJniBridge;
 
+    /** Native AndroidBrowserWindow pointer. */
+    private long mNativeAndroidBrowserWindow;
+
     /**
      * @param profile The profile this TabModel belongs to.
+     */
+    public TabModelJniBridge(Profile profile) {
+        mProfile = profile;
+    }
+
+    /**
+     * Initializes the native-side counterpart to this class.
+     *
      * @param activityType The type of activity this TabModel was created in.
      * @param isArchivedTabModel Whether this tab model is for archived tabs. When true, excludes
      *     the model from broadcasting sync updates.
      */
-    public TabModelJniBridge(
-            Profile profile, @ActivityType int activityType, boolean isArchivedTabModel) {
-        mProfile = profile;
-        mActivityType = activityType;
-        mIsArchivedTabModel = isArchivedTabModel;
-    }
-
-    /** Initializes the native-side counterpart to this class. */
-    protected void initializeNative(Profile profile) {
+    @CallSuper
+    protected void initializeNative(@ActivityType int activityType, boolean isArchivedTabModel) {
         assert mNativeTabModelJniBridge == 0;
         mNativeTabModelJniBridge =
-                TabModelJniBridgeJni.get()
-                        .init(TabModelJniBridge.this, profile, mActivityType, mIsArchivedTabModel);
+                TabModelJniBridgeJni.get().init(this, mProfile, activityType, isArchivedTabModel);
     }
 
     /** Returns whether the native-side pointer has been initialized. */
@@ -66,7 +85,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     public void destroy() {
         if (isNativeInitialized()) {
             // This will invalidate all other native references to this object in child classes.
-            TabModelJniBridgeJni.get().destroy(mNativeTabModelJniBridge, TabModelJniBridge.this);
+            TabModelJniBridgeJni.get().destroy(mNativeTabModelJniBridge);
             mNativeTabModelJniBridge = 0;
         }
     }
@@ -96,43 +115,59 @@ public abstract class TabModelJniBridge implements TabModelInternal {
 
     @Override
     @CalledByNative
-    public abstract @Nullable Tab getTabAt(int index);
+    public abstract @JniType("TabAndroid*") @Nullable Tab getTabAt(int index);
 
     @Override
     public Profile getProfile() {
         return mProfile;
     }
 
+    @Override
+    public void associateWithBrowserWindow(long nativeAndroidBrowserWindow) {
+        // Ensure this isn't set multiple times.
+        assert mNativeAndroidBrowserWindow == 0;
+        mNativeAndroidBrowserWindow = nativeAndroidBrowserWindow;
+
+        assert nativeAndroidBrowserWindow != 0;
+        TabModelJniBridgeJni.get()
+                .associateWithBrowserWindow(mNativeTabModelJniBridge, nativeAndroidBrowserWindow);
+    }
+
     @CalledByNative
     @Override
     public abstract boolean isActiveModel();
 
-    /** Returns whether the model is done initializing itself and should be used. */
+    /** Returns whether the model is done initializing itself and should be used in native. */
     public abstract boolean isInitializationComplete();
 
     /**
      * Required to be called before this object is ready for most usage. Used to indicate all tabs
-     * have been loaded and native is ready.
+     * have been loaded and native is ready. This is only called for non-Incognito tab models.
      */
     public abstract void completeInitialization();
 
-    /** Broadcast a native-side notification that all tabs are now loaded from storage. */
+    @Override
     public void broadcastSessionRestoreComplete() {
         assert isNativeInitialized();
         assert isInitializationComplete();
-        TabModelJniBridgeJni.get()
-                .broadcastSessionRestoreComplete(mNativeTabModelJniBridge, TabModelJniBridge.this);
+        TabModelJniBridgeJni.get().broadcastSessionRestoreComplete(mNativeTabModelJniBridge);
     }
 
     /**
      * Called by subclasses when a Tab is added to the TabModel.
+     *
      * @param tab Tab being added to the model.
      */
     protected void tabAddedToModel(Tab tab) {
         if (isNativeInitialized()) {
-            TabModelJniBridgeJni.get()
-                    .tabAddedToModel(mNativeTabModelJniBridge, TabModelJniBridge.this, tab);
+            TabModelJniBridgeJni.get().tabAddedToModel(mNativeTabModelJniBridge, tab);
         }
+    }
+
+    protected void duplicateTabForTesting(Tab tab) {
+        TabModelJniBridgeJni.get()
+                .duplicateTabForTesting( // IN-TEST
+                        mNativeTabModelJniBridge, tab);
     }
 
     /**
@@ -152,7 +187,13 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * where the loss of collaboration data is acceptable.
      */
     @CalledByNative
-    protected abstract void forceCloseAllTabs();
+    private void forceCloseAllTabs() {
+        // Tests need to use forceCloseTabs here. If a native test has left a shared tab group open
+        // the protections of TabRemover#closeTabs will kick in and when trying to close all tabs
+        // and we won't actually close all tabs.
+        getTabRemover().forceCloseTabs(TabClosureParams.closeAllTabs().build());
+        commitAllTabClosures();
+    }
 
     /**
      * Closes the Tab at a particular index.
@@ -161,22 +202,67 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * @return Whether the was successfully closed.
      */
     @CalledByNative
-    protected abstract boolean closeTabAt(int index);
+    private boolean closeTabAt(int index) {
+        Tab tab = getTabAt(index);
+        if (tab == null) return false;
+
+        closeTab(tab);
+        return true;
+    }
+
+    /**
+     * Closes the given Tab.
+     *
+     * @param tab The {@link Tab} to close.
+     */
+    @CalledByNative
+    private void closeTab(@JniType("TabAndroid*") Tab tab) {
+        // This behavior is safe for existing native callers (devtools, and a few niche features).
+        // If this is ever to be used more regularly from native the ability to specify
+        // `allowDialog` should be exposed.
+        getTabRemover()
+                .closeTabs(
+                        TabClosureParams.closeTab(tab).allowUndo(false).build(),
+                        /* allowDialog= */ false);
+    }
+
+    /**
+     * Returns the {@link TabCreator} for the given {@link Profile}.
+     *
+     * <p>Please note that, the {@link TabCreator} and {@TabModelImpl} are separate instances for
+     * {@link ChromeTabbedActivity} and {@link CustomTabActivity} across both regular and Incognito
+     * modes which allows us to pass the boolean directly.
+     *
+     * @param incognito A boolean to indicate whether to return IncognitoTabCreator or
+     *     RegularTabCreator.
+     */
+    protected abstract TabCreator getTabCreator(boolean isIncognito);
 
     /**
      * Creates a Tab with the given WebContents.
-     * @param parent      The parent tab that creates the new tab.
-     * @param profile     The profile for which to create the new tab.
+     *
+     * @param parent The parent tab that creates the new tab.
+     * @param profile The profile for which to create the new tab.
      * @param webContents A {@link WebContents} object.
-     * @param select      Select the created tab.
+     * @param select Select the created tab.
      * @return Whether or not the Tab was successfully created.
      */
     @CalledByNative
-    protected abstract boolean createTabWithWebContents(
-            Tab parent, Profile profile, WebContents webContents, boolean select);
+    private boolean createTabWithWebContents(
+            Tab parent, Profile profile, WebContents webContents, boolean select) {
+        return getTabCreator(profile.isOffTheRecord())
+                        .createTabWithWebContents(
+                                parent,
+                                webContents,
+                                select
+                                        ? TabLaunchType.FROM_RECENT_TABS_FOREGROUND
+                                        : TabLaunchType.FROM_RECENT_TABS)
+                != null;
+    }
 
     @CalledByNative
-    public abstract void openNewTab(
+    @VisibleForTesting
+    public void openNewTab(
             Tab parent,
             GURL url,
             @Nullable Origin initiatorOrigin,
@@ -184,7 +270,44 @@ public abstract class TabModelJniBridge implements TabModelInternal {
             ResourceRequestBody postData,
             int disposition,
             boolean persistParentage,
-            boolean isRendererInitiated);
+            boolean isRendererInitiated) {
+        if (parent.isClosing()) return;
+
+        boolean incognito = parent.isIncognito();
+        @TabLaunchType int tabLaunchType = TabLaunchType.FROM_LONGPRESS_FOREGROUND;
+
+        switch (disposition) {
+            case WindowOpenDisposition.NEW_WINDOW:
+                tabLaunchType = TabLaunchType.FROM_LINK_CREATING_NEW_WINDOW;
+                break;
+            case WindowOpenDisposition.NEW_FOREGROUND_TAB:
+                tabLaunchType =
+                        parent.getTabGroupId() == null
+                                ? TabLaunchType.FROM_LONGPRESS_FOREGROUND
+                                : TabLaunchType.FROM_LONGPRESS_FOREGROUND_IN_GROUP;
+                break;
+            case WindowOpenDisposition.NEW_POPUP: // fall through
+            case WindowOpenDisposition.NEW_BACKGROUND_TAB:
+                tabLaunchType =
+                        parent.getTabGroupId() == null
+                                ? TabLaunchType.FROM_LONGPRESS_BACKGROUND
+                                : TabLaunchType.FROM_LONGPRESS_BACKGROUND_IN_GROUP;
+                break;
+            case WindowOpenDisposition.OFF_THE_RECORD:
+                incognito = true;
+                break;
+            default:
+                assert false;
+        }
+
+        LoadUrlParams loadUrlParams = new LoadUrlParams(url);
+        loadUrlParams.setInitiatorOrigin(initiatorOrigin);
+        loadUrlParams.setVerbatimHeaders(extraHeaders);
+        loadUrlParams.setPostData(postData);
+        loadUrlParams.setIsRendererInitiated(isRendererInitiated);
+        getTabCreator(incognito)
+                .createNewTab(loadUrlParams, tabLaunchType, persistParentage ? parent : null);
+    }
 
     /**
      * Creates a Tab with the given WebContents for DevTools.
@@ -194,7 +317,68 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * @return The created tab or null if the tab could not be created.
      */
     @CalledByNative
-    protected abstract @Nullable Tab createNewTabForDevTools(GURL url, boolean newWindow);
+    private @JniType("TabAndroid*") @Nullable Tab createNewTabForDevTools(
+            GURL url, boolean newWindow) {
+        LoadUrlParams loadParams = new LoadUrlParams(url);
+        @TabLaunchType int launchType = TabLaunchType.FROM_CHROME_UI;
+        if (!newWindow
+                || MultiWindowUtils.getInstanceCount() >= MultiWindowUtils.getMaxInstances()) {
+            return assumeNonNull(
+                    getTabCreator(/* isIncognito= */ false)
+                            .createNewTab(loadParams, launchType, null));
+        }
+
+        // Creating a new window is asynchronous on Android, so create a background tab that we can
+        // return immediately and reparent it into a new window.
+        WarmupManager warmupManager = WarmupManager.getInstance();
+        Tab parentTab = TabModelUtils.getCurrentTab(this);
+        // WARNING: parentTab could be null if all tabs were closed; however, getting an activity
+        // context from this class is infeasible for the remaining code. For now this seems to
+        // not be called from a 0-tab state.
+        assumeNonNull(parentTab);
+        Profile profile = parentTab.getProfile();
+        warmupManager.createRegularSpareTab(profile);
+        Tab tab = warmupManager.takeSpareTab(profile, /* initiallyHidden= */ false, launchType);
+        tab.loadUrl(loadParams);
+
+        MultiInstanceManager.onMultiInstanceModeStarted();
+        Intent intent =
+                MultiWindowUtils.createNewWindowIntent(
+                        parentTab.getContext(),
+                        TabWindowManager.INVALID_WINDOW_ID,
+                        /* preferNew= */ true,
+                        /* openAdjacently= */ true,
+                        /* addTrustedIntentExtras= */ true);
+
+        Activity activity = ContextUtils.activityFromContext(parentTab.getContext());
+
+        ReparentingTask.from(tab)
+                .begin(
+                        activity,
+                        intent,
+                        /* startActivityOptions= */ null,
+                        /* finalizeCallback= */ null);
+        return tab;
+    }
+
+    /**
+     * Returns the list of non-custom tabs that have {@link
+     * Tab#getLastNavigationCommittedTimestampMillis()} within the time range [beginTimeMs,
+     * endTimeMs).
+     */
+    @VisibleForTesting
+    public List<Tab> getTabsNavigatedInTimeWindow(long beginTimeMs, long endTimeMs) {
+        List<Tab> tabList = new ArrayList<>();
+        for (Tab tab : this) {
+            if (tab.isCustomTab()) continue;
+
+            final long recentNavigationTime = tab.getLastNavigationCommittedTimestampMillis();
+            if (recentNavigationTime >= beginTimeMs && recentNavigationTime < endTimeMs) {
+                tabList.add(tab);
+            }
+        }
+        return tabList;
+    }
 
     /**
      * Returns the count of non-custom tabs that have a {@link
@@ -202,14 +386,37 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * endTimeMs).
      */
     @CalledByNative
-    protected abstract int getTabCountNavigatedInTimeWindow(long beginTimeMs, long endTimeMs);
+    @VisibleForTesting
+    public int getTabCountNavigatedInTimeWindow(long beginTimeMs, long endTimeMs) {
+        return getTabsNavigatedInTimeWindow(beginTimeMs, endTimeMs).size();
+    }
 
     /**
      * Closes non-custom tabs that have a {@link Tab#getLastNavigationCommittedTimestampMillis()}
      * within the time range [beginTimeMs, endTimeMs).
      */
     @CalledByNative
-    protected abstract void closeTabsNavigatedInTimeWindow(long beginTimeMs, long endTimeMs);
+    @VisibleForTesting
+    public void closeTabsNavigatedInTimeWindow(long beginTimeMs, long endTimeMs) {
+        List<Tab> tabsToClose = getTabsNavigatedInTimeWindow(beginTimeMs, endTimeMs);
+        if (tabsToClose.isEmpty()) return;
+
+        var params =
+                TabClosureParams.closeTabs(tabsToClose)
+                        .allowUndo(false)
+                        .saveToTabRestoreService(false)
+                        .build();
+
+        getTabRemover().closeTabs(params, /* allowDialog= */ false);
+
+        // Open a new tab if all tabs are closed.
+        for (Tab tab : this) {
+            if (!tab.isCustomTab()) {
+                return;
+            }
+        }
+        getTabCreator(false).launchNtp();
+    }
 
     /** Returns whether or not a sync session is currently being restored. */
     @CalledByNative
@@ -222,22 +429,123 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * @param index Index for the tab, it will ignore if it is invalid.
      */
     @CalledByNative
-    protected abstract void openTabProgrammatically(GURL url, int index);
+    @VisibleForTesting
+    public void openTabProgrammatically(GURL url, int index) {
+        LoadUrlParams loadParams = new LoadUrlParams(url);
+
+        getTabCreator(isIncognitoBranded())
+                .createNewTab(
+                        loadParams,
+                        TabLaunchType.FROM_TAB_LIST_INTERFACE,
+                        /* parent= */ null,
+                        index);
+    }
+
+    /**
+     * Duplicates the tab to the next adjacent index.
+     *
+     * <p>This method is specifically for TabListInterface and it will calculate the next valid
+     * adjacent index based on the parent tab.
+     *
+     * @param parentTab The tab to duplicate.
+     * @param webContents The {@link WebContents} for the new tab.
+     */
+    @CalledByNative
+    public void duplicateTab(@JniType("TabAndroid*") Tab parentTab, WebContents webContents) {
+        // TODO(crbug.com/431997520): Insert tab next to parent instead of next to the other
+        // children tabs.
+        getTabCreator()
+                .createTabWithWebContents(
+                        parentTab,
+                        parentTab.getIsPinned(),
+                        webContents,
+                        TabLaunchType.FROM_TAB_LIST_INTERFACE);
+    }
+
+    /**
+     * Highlights a given list of tabs and makes one of them the active tab.
+     *
+     * <p>This operation is destructive; the given {@code tabs} are added to the current
+     * multi-selection set after clearing previously selected tabs.
+     *
+     * @param tabToActivate The {@link Tab} to set as active. Must be present in the {@code tabs}
+     *     list.
+     * @param tabs The list of {@link Tab}s to highlight. Must not be empty.
+     */
+    @CalledByNative
+    protected void highlightTabs(
+            @JniType("TabAndroid*") Tab tabToActivate,
+            @JniType("std::vector<TabAndroid*>") List<Tab> tabs) {
+        if (!ChromeFeatureList.sAndroidTabHighlighting.isEnabled()) return;
+        assert !tabs.isEmpty() : "The provided tab list cannot be empty.";
+        assert tabToActivate != null : "tabToActivate cannot be null";
+        Set<Integer> tabIds = new HashSet<>();
+        for (Tab tab : tabs) tabIds.add(tab.getId());
+        assert tabIds.contains(tabToActivate.getId()) : "tabToActivate not found in tab list";
+        clearMultiSelection(/* notifyObservers= */ false);
+        setIndex(TabModelUtils.getTabIndexById(this, tabToActivate.getId()));
+        setTabsMultiSelected(tabIds, /* isSelected= */ true);
+    }
+
+    @CalledByNative
+    protected abstract void moveTabToIndex(@JniType("TabAndroid*") Tab tab, int newIndex);
+
+    @CalledByNative
+    protected abstract void moveGroupToIndex(
+            @JniType("base::Token") Token tabGroupId, int newIndex);
+
+    @CalledByNative
+    protected abstract @JniType("std::vector<TabAndroid*>") List<Tab> getAllTabs();
+
+    @CalledByNative
+    protected abstract @JniType("std::optional<base::Token>") @Nullable Token addTabsToGroup(
+            @JniType("std::optional<base::Token>") @Nullable Token tabGroupId,
+            @JniType("std::vector<TabAndroid*>") List<Tab> tabs);
+
+    protected abstract TabUngrouper getTabUngrouper();
+
+    @CalledByNative
+    protected void ungroup(@JniType("std::vector<TabAndroid*>") List<Tab> tabs) {
+        if (tabs.isEmpty()) return;
+
+        getTabUngrouper().ungroupTabs(tabs, /* trailing= */ true, /* allowDialog= */ false);
+    }
+
+    @CalledByNative
+    protected void pinTab(@JniType("TabAndroid*") Tab tab) {
+        @TabId int tabId = tab.getId();
+        if (tabId == Tab.INVALID_TAB_ID) return;
+
+        pinTab(tabId);
+    }
+
+    @CalledByNative
+    protected void unpinTab(@JniType("TabAndroid*") Tab tab) {
+        @TabId int tabId = tab.getId();
+        if (tabId == Tab.INVALID_TAB_ID) return;
+
+        unpinTab(tabId);
+    }
 
     @NativeMethods
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public interface Natives {
         long init(
-                TabModelJniBridge caller,
+                TabModelJniBridge self,
                 @JniType("Profile*") Profile profile,
                 @ActivityType int activityType,
                 boolean isArchivedTabModel);
 
-        void broadcastSessionRestoreComplete(
-                long nativeTabModelJniBridge, TabModelJniBridge caller);
+        void broadcastSessionRestoreComplete(long nativeTabModelJniBridge);
 
-        void destroy(long nativeTabModelJniBridge, TabModelJniBridge caller);
+        void destroy(long nativeTabModelJniBridge);
 
-        void tabAddedToModel(long nativeTabModelJniBridge, TabModelJniBridge caller, Tab tab);
+        void tabAddedToModel(long nativeTabModelJniBridge, @JniType("TabAndroid*") Tab tab);
+
+        void duplicateTabForTesting( // IN-TEST
+                long nativeTabModelJniBridge, @JniType("TabAndroid*") Tab tab);
+
+        void associateWithBrowserWindow(
+                long nativeTabModelJniBridge, long nativeAndroidBrowserWindow);
     }
 }

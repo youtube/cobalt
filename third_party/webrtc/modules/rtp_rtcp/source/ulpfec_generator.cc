@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/ulpfec_generator.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
 #include <vector>

@@ -279,7 +279,7 @@ namespace SK_OPTS_NS {
     SI V<T> gather(const T* ptr, U32 ix) {
         // The compiler assumes ptr is aligned, which caused crashes on some
         // arm32 chips because a register was marked as "aligned to 32 bits"
-        // incorrectly. https://crbug.com/skia/409859319
+        // incorrectly. skbug.com/409859319
         SkASSERTF(reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0,
                  "Should use gather_unaligned");
         return V<T>{ptr[ix[0]], ptr[ix[1]], ptr[ix[2]], ptr[ix[3]]};
@@ -2846,6 +2846,17 @@ HIGHP_STAGE(HLGinvish, const skcms_TransferFunction* ctx) {
     b = fn(b);
 }
 
+HIGHP_STAGE(ootf, const float* ctx) {
+    F Y = ctx[0] * r + ctx[1] * g + ctx[2] * b;
+
+    U32 sign;
+    Y = strip_sign(Y, &sign);
+    F Y_to_gamma_minus_one = apply_sign(approx_powf(Y, ctx[3]), sign);
+    r = r * Y_to_gamma_minus_one;
+    g = g * Y_to_gamma_minus_one;
+    b = b * Y_to_gamma_minus_one;
+}
+
 HIGHP_STAGE(load_a8, const SkRasterPipelineContexts::MemoryCtx* ctx) {
     auto ptr = ptr_at_xy<const uint8_t>(ctx, dx,dy);
 
@@ -4645,14 +4656,27 @@ SI void mul_fn(T* dst, T* src) {
     *dst *= *src;
 }
 
-template <typename T>
-SI void div_fn(T* dst, T* src) {
-    T divisor = *src;
-    if constexpr (!std::is_same_v<T, F>) {
-        // We will crash if we integer-divide against zero. Convert 0 to ~0 to avoid this.
-        divisor |= (T)cond_to_mask(divisor == 0);
-    }
+SI void div_fn(I32* dst, I32* src) {
+    I32 divisor = *src;
+    // Integer division crashes when we divide by 0, but we can divide by -1 to not crash (the
+    // result will be non-sensical). The mask will be 0xFFFFFFF if true, which happens to be -1.
+    divisor |= ((I32)cond_to_mask(divisor == 0));
+    // Dividing by -1 works for all numerators *except* INT_MIN, so we can add -1 once more if
+    // we are in that case.
+    divisor += ((I32)cond_to_mask(divisor == -1 && *dst == std::numeric_limits<int32_t>::lowest()));
     *dst /= divisor;
+}
+
+SI void div_fn(U32* dst, U32* src) {
+    U32 divisor = *src;
+    // Integer division crashes when we divide by 0, but we can divide by something else to not
+    // crash (the result will be non-sensical). The mask will be 0xFFFFFFF if true.
+    divisor |= ((U32)cond_to_mask(divisor == 0));
+    *dst /= divisor;
+}
+
+SI void div_fn(F* dst, F* src) {
+    *dst /= *src;
 }
 
 SI void bitwise_and_fn(I32* dst, I32* src) {
@@ -5968,7 +5992,7 @@ SI void store(T* ptr, V v) {
     SI V gather(const T* ptr, U32 ix) {
         // The compiler assumes ptr is aligned, which caused crashes on some
         // arm32 chips because a register was marked as "aligned to 32 bits"
-        // incorrectly. https://crbug.com/skia/409859319
+        // incorrectly. skbug.com/409859319
         SkASSERTF(reinterpret_cast<uintptr_t>(ptr) % alignof(T) == 0,
                  "Should use gather_unaligned");
         return V{ ptr[ix[ 0]], ptr[ix[ 1]], ptr[ix[ 2]], ptr[ix[ 3]],
@@ -6630,12 +6654,22 @@ LOWP_STAGE_GP(bilerp_clamp_8888, const SkRasterPipelineContexts::GatherCtx* ctx)
     __m128 val2 = __lsx_vfmadd_s((__m128)v_tmp2, _23, (__m128)v_tmp1);
     __m128 val3 = __lsx_vfmadd_s((__m128)v_tmp2, _45, (__m128)v_tmp1);
     __m128 val4 = __lsx_vfmadd_s((__m128)v_tmp2, _67, (__m128)v_tmp1);
-    I32 qx = cast<I32>((join<F>(__lsx_vfrintrm_s(val1), __lsx_vfrintrm_s(val2)))) - 32768,
-    qy = cast<I32>((join<F>(__lsx_vfrintrm_s(val3), __lsx_vfrintrm_s(val4)))) - 32768;
+    F fx = join<F>(__lsx_vfrintrm_s(val1), __lsx_vfrintrm_s(val2)),
+      fy = join<F>(__lsx_vfrintrm_s(val3), __lsx_vfrintrm_s(val4));
 #else
-    I32 qx = cast<I32>(floor_(65536.0f * x + 0.5f)) - 32768,
-        qy = cast<I32>(floor_(65536.0f * y + 0.5f)) - 32768;
+    F fx = floor_(65536.0f * x + 0.5f),
+      fy = floor_(65536.0f * y + 0.5f);
 #endif
+    // Explicitly clamp values before cast. kInt32Min adjusted for shift to get
+    // quantized sample value.
+    static constexpr float kInt32Max = static_cast<float>(std::numeric_limits<int32_t>::max()),
+    kInt32Min = static_cast<float>(std::numeric_limits<int32_t>::min()) + 32768.0f;
+
+    fx = max(min(fx, kInt32Max), kInt32Min);
+    fy = max(min(fy, kInt32Max), kInt32Min);
+
+    I32 qx = cast<I32>(fx) - 32768,
+        qy = cast<I32>(fy) - 32768;
 
     // Calculate screen coordinates sx & sy by flooring qx and qy.
     I32 sx = qx >> 16,

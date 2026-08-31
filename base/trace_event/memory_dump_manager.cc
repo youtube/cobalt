@@ -16,7 +16,6 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/debug/alias.h"
-#include "base/debug/stack_trace.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/span_printf.h"
@@ -37,6 +36,7 @@
 #include "third_party/abseil-cpp/absl/base/dynamic_annotations.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
 #include "base/trace_event/java_heap_dump_provider_android.h"
 
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -140,8 +140,10 @@ void MemoryDumpManager::Initialize(
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-  RegisterDumpProvider(JavaHeapDumpProvider::GetInstance(), "JavaHeap",
-                       nullptr);
+  if (base::android::IsJavaAvailable()) {
+    RegisterDumpProvider(JavaHeapDumpProvider::GetInstance(), "JavaHeap",
+                         nullptr);
+  }
 #endif
 }
 
@@ -310,16 +312,6 @@ void MemoryDumpManager::CreateProcessDump(const MemoryDumpRequestArgs& args,
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(kTraceCategory, "ProcessMemoryDump",
                                     TRACE_ID_LOCAL(args.dump_guid), "dump_guid",
                                     TRACE_STR_COPY(guid_str));
-
-  // If argument filter is enabled then only background mode dumps should be
-  // allowed. In case the trace config passed for background tracing session
-  // missed the allowed modes argument, it crashes here instead of creating
-  // unexpected dumps.
-  if (TraceLog::GetInstance()
-          ->GetCurrentTraceConfig()
-          .IsArgumentFilterEnabled()) {
-    CHECK_EQ(MemoryDumpLevelOfDetail::kBackground, args.level_of_detail);
-  }
 
   std::unique_ptr<ProcessMemoryDumpAsyncState> pmd_async_state;
   {

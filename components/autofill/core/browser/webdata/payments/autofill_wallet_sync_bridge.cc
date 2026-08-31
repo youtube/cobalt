@@ -13,7 +13,9 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "components/autofill/core/browser/data_model/payments/bank_account.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card_cloud_token_data.h"
@@ -365,7 +367,8 @@ std::unique_ptr<syncer::DataBatch> AutofillWalletSyncBridge::GetAllDataImpl(
        !GetAutofillTable()->GetPaymentInstrumentCreationOptions(
            payment_instrument_creation_options))) {
     change_processor()->ReportError(
-        {FROM_HERE, "Failed to load entries from table."});
+        {FROM_HERE, syncer::ModelError::Type::
+                        kAutofillWalletFailedToLoadEntriesFromTable});
     return nullptr;
   }
 
@@ -377,7 +380,8 @@ std::unique_ptr<syncer::DataBatch> AutofillWalletSyncBridge::GetAllDataImpl(
     if (!GetAutofillTable()->GetCreditCardBenefitsForInstrumentId(
             entry->instrument_id(), benefits)) {
       change_processor()->ReportError(
-          {FROM_HERE, "Failed to load entries from table."});
+          {FROM_HERE, syncer::ModelError::Type::
+                          kAutofillWalletFailedToLoadBenefitsFromTable});
       return nullptr;
     }
     for (const CreditCardBenefit& benefit : benefits) {
@@ -705,15 +709,18 @@ void AutofillWalletSyncBridge::LoadMetadata() {
   if (!web_data_backend_ || !web_data_backend_->GetDatabase() ||
       !GetAutofillTable() || !GetSyncMetadataStore()) {
     change_processor()->ReportError(
-        {FROM_HERE, "Failed to load AutofillWebDatabase."});
+        {FROM_HERE,
+         syncer::ModelError::Type::kAutofillWalletFailedToLoadDatabase});
     return;
   }
 
   auto batch = std::make_unique<syncer::MetadataBatch>();
   if (!GetSyncMetadataStore()->GetAllSyncMetadata(syncer::AUTOFILL_WALLET_DATA,
                                                   batch.get())) {
-    change_processor()->ReportError(
-        {FROM_HERE, "Failed reading autofill metadata from WebDatabase."});
+    change_processor()->ReportError({
+        FROM_HERE,
+        syncer::ModelError::Type::kAutofillWalletFailedToReadMetadata,
+    });
     return;
   }
 

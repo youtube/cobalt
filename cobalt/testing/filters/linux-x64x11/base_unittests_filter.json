@@ -34,6 +34,7 @@
     "CaseConversionTest.TurkishLocaleConversion",
     "CaseConversionTest.UpperLower",
     "CharacterEncodingTest.GetCanonicalEncodingNameByAliasName",
+    "CriticalProcessAndThreadSpotChecks/HangWatcherAnyCriticalThreadTests.AnyCriticalThreadHung/*",
     "DriveInfoTest.GetFileDriveInfo",
     "FilePathTest.FromUTF8Unsafe_And_AsUTF8Unsafe",
     "FilePathWatcherWithChangeInfoTest.DeletedFileInDirectory/3",
@@ -117,11 +118,6 @@
     "TraceEventTestFixture.DataCapturedManyThreads",
     "TraceEventTestFixture.SetCurrentThreadBlocksMessageLoopAfterTracing",
     "TransliteratorTest.*",
-    "TransliteratorTest.HiraganaKatakanaCorrect",
-    "TransliteratorTest.KatakanaHiraganaCorrect",
-    "TransliteratorTest.LatinASCIICorrect",
-    "TransliteratorTest.LowerCorrect",
-    "TransliteratorTest.LowerLatinASCIICorrect",
     "ValuesUtilTest.FilePath"
   ]
 }

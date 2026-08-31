@@ -13,11 +13,13 @@
 #include "chrome/browser/pdf/pdf_pref_names.h"
 #include "chrome/browser/pdf/pdf_viewer_stream_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/save_to_drive/save_to_drive_flow.h"
 #include "chrome/common/extensions/api/pdf_viewer_private.h"
 #include "chrome/common/pref_names.h"
 #include "components/pdf/common/constants.h"
 #include "components/prefs/pref_service.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "pdf/buildflags.h"
 #include "url/url_constants.h"
 
 namespace extensions {
@@ -26,6 +28,8 @@ namespace {
 
 namespace IsAllowedLocalFileAccess =
     api::pdf_viewer_private::IsAllowedLocalFileAccess;
+
+namespace SaveToDrive = api::pdf_viewer_private::SaveToDrive;
 
 namespace SetPdfPluginAttributes =
     api::pdf_viewer_private::SetPdfPluginAttributes;
@@ -111,6 +115,32 @@ PdfViewerPrivateIsAllowedLocalFileAccessFunction::Run() {
   return RespondNow(WithArguments(IsUrlAllowedToEmbedLocalFiles(
       GURL(params->url),
       prefs->GetList(prefs::kPdfLocalFileAccessAllowedForDomains))));
+}
+
+PdfViewerPrivateSaveToDriveFunction::PdfViewerPrivateSaveToDriveFunction() =
+    default;
+
+PdfViewerPrivateSaveToDriveFunction::~PdfViewerPrivateSaveToDriveFunction() =
+    default;
+
+ExtensionFunction::ResponseAction PdfViewerPrivateSaveToDriveFunction::Run() {
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+  std::optional<SaveToDrive::Params> params =
+      SaveToDrive::Params::Create(args());
+  EXTENSION_FUNCTION_VALIDATE(params);
+  using SaveToDriveFlow = save_to_drive::SaveToDriveFlow;
+
+  auto* flow = SaveToDriveFlow::GetForCurrentDocument(render_frame_host());
+  if (flow) {
+    return RespondNow(Error("An upload is already in progress"));
+  }
+  flow = SaveToDriveFlow::GetOrCreateForCurrentDocument(render_frame_host());
+  flow->Run();
+
+  return RespondNow(NoArguments());
+#else
+  return RespondNow(Error("Not supported"));
+#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 }
 
 PdfViewerPrivateSetPdfDocumentTitleFunction::

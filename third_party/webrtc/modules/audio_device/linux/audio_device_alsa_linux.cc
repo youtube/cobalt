@@ -10,10 +10,28 @@
 
 #include "modules/audio_device/linux/audio_device_alsa_linux.h"
 
-#include "modules/audio_device/audio_device_config.h"
+#include <asm-generic/errno.h>
+
+#include <cerrno>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
+#include "modules/audio_device/audio_device_buffer.h"
+#include "modules/audio_device/audio_device_generic.h"
+#include "modules/audio_device/linux/latebindingsymboltable_linux.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/system/arch.h"
+#include "rtc_base/platform_thread.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread.h"
+
+#if defined(WEBRTC_USE_X11)
+#include <X11/Xlib.h>
+#endif
 
 WebRTCAlsaSymbolTable* GetAlsaSymbolTable() {
   static WebRTCAlsaSymbolTable* alsa_symbol_table = new WebRTCAlsaSymbolTable();
@@ -1019,14 +1037,13 @@ int32_t AudioDeviceLinuxALSA::StartRecording() {
     return -1;
   }
   // RECORDING
-  _ptrThreadRec = webrtc::PlatformThread::SpawnJoinable(
+  _ptrThreadRec = PlatformThread::SpawnJoinable(
       [this] {
         while (RecThreadProcess()) {
         }
       },
       "webrtc_audio_module_capture_thread",
-      webrtc::ThreadAttributes().SetPriority(
-          webrtc::ThreadPriority::kRealtime));
+      ThreadAttributes().SetPriority(ThreadPriority::kRealtime));
 
   errVal = LATE(snd_pcm_prepare)(_handleRecord);
   if (errVal < 0) {
@@ -1137,14 +1154,13 @@ int32_t AudioDeviceLinuxALSA::StartPlayout() {
   }
 
   // PLAYOUT
-  _ptrThreadPlay = webrtc::PlatformThread::SpawnJoinable(
+  _ptrThreadPlay = PlatformThread::SpawnJoinable(
       [this] {
         while (PlayThreadProcess()) {
         }
       },
       "webrtc_audio_module_play_thread",
-      webrtc::ThreadAttributes().SetPriority(
-          webrtc::ThreadPriority::kRealtime));
+      ThreadAttributes().SetPriority(ThreadPriority::kRealtime));
 
   int errVal = LATE(snd_pcm_prepare)(_handlePlayout);
   if (errVal < 0) {

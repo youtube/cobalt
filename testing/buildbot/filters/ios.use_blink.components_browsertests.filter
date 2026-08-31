@@ -2,6 +2,7 @@
 # resource assertion.
 -DistilledPageJsTest.SettingsDialogTest
 -DistillerPageWebContentsTest.BasicDistillationWorks
+-DistillerPageWebContentsTest.DistillerContentsIgnoreRedirects
 -DistillerPageWebContentsTest.HandlesRelativeImages
 -DistillerPageWebContentsTest.HandlesRelativeLinks
 -DistillerPageWebContentsTest.HandlesRelativeVideos
@@ -13,4 +14,15 @@
 -DistillerPageWebContentsTest.UsingCurrentWebContentsWrongUrl
 -DistillerPageWebContentsTest.VisibilityDetection
 -DomDistillerDistillablePageUtilsTest.TestIsDistillablePage
+-DomDistillerDistillablePageUtilsTest.TestIsNotDistillablePage
 -DomDistillerJsTest.RunJsTests
+-ViewerJsTest.SanitizeLinks
+
+# These tests are hitting a NOTREACHED() in WebContentsImpl::GetSize().
+-All/PageContentProtoProviderBrowserTestMultiProcess.*
+-All/PageContentProtoProviderBrowserTestSiteIsolation.*
+-PageContentProtoProviderBrowserTest.*
+-PageContentProtoProviderBrowserTestActionableElements.AIPageContent
+-PageContentProtoProviderBrowserTestFencedFrame.AIPageContentFencedFrame
+-PageContentProtoProviderBrowserTestPaidContentDisabled.PaidContentDisabled
+-ScaledPageContentProtoProviderBrowserTest.ScaleSizes

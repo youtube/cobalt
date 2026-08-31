@@ -164,8 +164,7 @@ public class TabArchiveSettings {
     public boolean isArchiveDuplicateTabsEnabled() {
         return getArchiveEnabled()
                 && mPrefsManager.readBoolean(
-                        ChromePreferenceKeys.TAB_DECLUTTER_ARCHIVE_DUPLICATE_TABS_ENABLED,
-                        ChromeFeatureList.sAndroidTabDeclutterArchiveDuplicateTabs.isEnabled());
+                        ChromePreferenceKeys.TAB_DECLUTTER_ARCHIVE_DUPLICATE_TABS_ENABLED, true);
     }
 
     /** Sets whether archiving duplicate tabs is enabled in settings. */
@@ -186,6 +185,12 @@ public class TabArchiveSettings {
     /** Similar to above, but the return value is in days. */
     public int getAutoDeleteTimeDeltaDays() {
         return (int) TimeUnit.HOURS.toDays(getAutoDeleteTimeDeltaHours());
+    }
+
+    /** Similar to above, but the return value is in months. */
+    public int getAutoDeleteTimeDeltaMonths() {
+        // Assuming a month to have 30 days on average.
+        return getAutoDeleteTimeDeltaDays() / 30;
     }
 
     /** Sets the time delta used to determine if an archived tab is eligible for auto deletion. */
@@ -242,5 +247,9 @@ public class TabArchiveSettings {
         mPrefsManager.removeKey(ChromePreferenceKeys.TAB_DECLUTTER_AUTO_DELETE_TIME_DELTA_HOURS);
         mPrefsManager.removeKey(ChromePreferenceKeys.TAB_DECLUTTER_DIALOG_IPH_DISMISS_COUNT);
         mPrefsManager.removeKey(ChromePreferenceKeys.TAB_DECLUTTER_AUTO_DELETE_DECISION_MADE);
+    }
+
+    public boolean isInTestingMode() {
+        return ChromeFeatureList.sAndroidTabDeclutterAutoDeletePromoTest.getValue();
     }
 }

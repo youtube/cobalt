@@ -35,10 +35,13 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabStateExtractor;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.content_public.browser.LoadUrlParams;
 
 import java.util.concurrent.TimeoutException;
@@ -50,21 +53,21 @@ public class IncognitoTabModelTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Mock Callback<Tab> mTabSupplierObserver;
     @Mock Callback<Integer> mTabCountSupplierObserver;
 
     private TabModel mRegularTabModel;
     private TabModel mIncognitoTabModel;
+    private WebPageStation mPage;
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
-        mRegularTabModel =
-                mActivityTestRule.getActivity().getTabModelSelectorSupplier().get().getModel(false);
-        mIncognitoTabModel =
-                mActivityTestRule.getActivity().getTabModelSelectorSupplier().get().getModel(true);
+        mPage = mActivityTestRule.startOnBlankPage();
+        mRegularTabModel = mPage.getTabModelSelector().getModel(false);
+        mIncognitoTabModel = mPage.getTabModelSelector().getModel(true);
     }
 
     private class CloseAllDuringAddTabTabModelObserver implements TabModelObserver {
@@ -153,8 +156,8 @@ public class IncognitoTabModelTest {
                                 @Override
                                 public void didAddTab(
                                         Tab tab,
-                                        int type,
-                                        int creationState,
+                                        @TabLaunchType int type,
+                                        @TabCreationState int creationState,
                                         boolean markedForSelection) {
                                     didAddTabCallbackHelper.notifyCalled();
                                 }

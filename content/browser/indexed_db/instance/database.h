@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -55,9 +56,9 @@ class CONTENT_EXPORT Database {
   // null.
   using ErrorCallback = base::RepeatingCallback<void(Status, const char*)>;
 
-  static const int64_t kMinimumIndexId = 30;
-
-  Database(const std::u16string& name, BucketContext& bucket_context);
+  Database(uint32_t id_for_locks,
+           const std::u16string& name,
+           BucketContext& bucket_context);
 
   Database(const Database&) = delete;
   Database& operator=(const Database&) = delete;
@@ -74,6 +75,20 @@ class CONTENT_EXPORT Database {
   const std::u16string& name() const { return name_; }
   int64_t version() const;
   bool IsInitialized() const;
+
+  // Called to permanently delete the database wrapped by `this`. Will call
+  // `on_complete` and release `locks` when done. This may be called more than
+  // once, in which case latter calls are a no-op, and `on_complete` will not be
+  // called. Returns an error, or the latest version of the deleted database
+  // if successful, or 0 if the database had already been deleted.
+  StatusOr<int64_t> DeleteDatabase(std::vector<PartitionedLock> locks,
+                                   base::OnceClosure on_complete);
+
+  // Builds the set of lock requests for the given transaction `mode` and
+  // `scope`. `scope` is used iff `mode` is not `VersionChange`.
+  std::vector<PartitionedLockManager::PartitionedLockRequest>
+  BuildLockRequestsForTransaction(blink::mojom::IDBTransactionMode mode,
+                                  const std::set<int64_t>& scope) const;
 
   const list_set<Connection*>& connections() const { return connections_; }
 
@@ -112,14 +127,6 @@ class CONTENT_EXPORT Database {
                       indexed_db::CursorType cursor_type,
                       blink::mojom::IDBDatabase::GetCallback callback,
                       Transaction* transaction);
-
-  Status SetIndexKeysOperation(
-      int64_t object_store_id,
-      blink::IndexedDBKey primary_key,
-      std::vector<blink::IndexedDBIndexKeys> index_keys,
-      Transaction* transaction);
-
-  Status SetIndexesReadyOperation(size_t index_count, Transaction* transaction);
 
   struct OpenCursorOperationParams {
     OpenCursorOperationParams();
@@ -282,9 +289,6 @@ class CONTENT_EXPORT Database {
   // has any transaction objects.
   void ConnectionClosed(Connection* connection);
 
-  std::vector<PartitionedLockManager::PartitionedLockRequest>
-  BuildLockRequestsFromTransaction(Transaction* transaction) const;
-
   // In rare cases there are a very large number of queued
   // requests/transactions, so calculations related to blocking or blocked
   // clients can be expensive. See crbug.com/384476946. This method is used for
@@ -304,6 +308,9 @@ class CONTENT_EXPORT Database {
   const blink::IndexedDBObjectStoreMetadata& GetObjectStoreMetadata(
       int64_t object_store_id) const;
 
+  // This ID uniquely identifies this database within this process. It's not
+  // persisted anywhere. Only used when the backing store is SQLite.
+  uint32_t id_for_locks_;
   std::u16string name_;
 
   // The object that owns `this`.
@@ -311,11 +318,13 @@ class CONTENT_EXPORT Database {
 
   list_set<Connection*> connections_;
 
+  // True once `ForceCloseAndRunTasks()` is called.
   bool force_closing_ = false;
 
   ConnectionCoordinator connection_coordinator_;
 
-  // Null until `OpenInternal()` is called successfully.
+  // Null until `OpenInternal()` is called successfully, as well as after the
+  // database has been deleted via `DeleteDatabase()`.
   std::unique_ptr<BackingStore::Database> backing_store_db_;
 
   // `weak_factory_` is used for all callback uses.

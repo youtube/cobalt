@@ -10,8 +10,10 @@
 #import "base/check_op.h"
 #import "base/command_line.h"
 #import "base/ios/ios_util.h"
+#import "base/not_fatal_until.h"
 #import "base/notreached.h"
 #import "base/strings/sys_string_conversions.h"
+#import "base/task/sequenced_task_runner.h"
 #import "components/grit/components_scaled_resources.h"
 #import "components/omnibox/browser/autocomplete_input.h"
 #import "components/open_from_clipboard/clipboard_async_wrapper_ios.h"
@@ -155,6 +157,21 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
 
 - (void)dealloc {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+- (void)setAllowsReturnKeyWithEmptyText:(BOOL)allowsReturnKeyWithEmptyText {
+  _allowsReturnKeyWithEmptyText = allowsReturnKeyWithEmptyText;
+
+  // To make sure the keyboard is correctly taking the new value into account,
+  // call `-reloadInputViews`. That being said, `-reloadInputViews` can
+  // update the input mode, which can itself call again this method.
+  // `-reloadInputViews` being non-reentrant (contention on
+  // `+[UIKeyboardAutomatic sharedInstance]`), call this asynchronously.
+  __weak __typeof(self) weakSelf = self;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(^{
+        [weakSelf reloadInputViews];
+      }));
 }
 
 - (void)setText:(NSAttributedString*)text
@@ -507,8 +524,10 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
   // Exit preedit because it blocks the view of the textfield.
   [self exitPreEditState];
   // Remove selection and put the caret at the end of the string.
-  self.selectedTextRange = [self textRangeFromPosition:self.endOfDocument
-                                            toPosition:self.endOfDocument];
+  if (!base::FeatureList::IsEnabled(kBeginCursorAtPointTentativeFix)) {
+    self.selectedTextRange = [self textRangeFromPosition:self.endOfDocument
+                                              toPosition:self.endOfDocument];
+  }
   [super beginFloatingCursorAtPoint:point];
 }
 
@@ -929,7 +948,15 @@ NSString* const kOmniboxFadeAnimationKey = @"OmniboxFadeAnimation";
   if (!self.attributedAdditionalText.length) {
     return self.attributedText;
   }
-  CHECK_LE(self.attributedAdditionalText.length, self.attributedText.length);
+
+  CHECK_LE(self.attributedAdditionalText.length, self.attributedText.length,
+           base::NotFatalUntil::M150);
+  /// This should not happen, tracking occurences with NotFatalUntil
+  /// crbug.com/421229993.
+  if (self.attributedText.length < self.attributedAdditionalText.length) {
+    return self.attributedText;
+  }
+
   NSUInteger textLength =
       self.attributedText.length - self.attributedAdditionalText.length;
   NSAttributedString* substring = [self.attributedText

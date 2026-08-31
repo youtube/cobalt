@@ -574,7 +574,7 @@ struct SupportedPrefixesStruct {
 
 // Parse a hash-source without quotes around it. Return false on error.
 bool ParseUnquotedHash(std::string_view expression,
-                       mojom::CSPHashSource* hash) {
+                       network::IntegrityMetadata* hash) {
   static const SupportedPrefixesStruct SupportedPrefixes[] = {
       {"sha256-", 7, mojom::IntegrityAlgorithm::kSha256},
       {"sha384-", 7, mojom::IntegrityAlgorithm::kSha384},
@@ -612,7 +612,7 @@ bool ParseUnquotedHash(std::string_view expression,
   return false;
 }
 
-bool ParseHash(std::string_view expression, mojom::CSPHashSource* hash) {
+bool ParseHash(std::string_view expression, network::IntegrityMetadata* hash) {
   if (expression.size() < 2) {
     return false;
   }
@@ -633,7 +633,7 @@ mojom::IntegrityAlgorithm StrongestHashAlgorithm(
 
 bool ParsePrefixedHash(std::string_view prefix,
                        std::string_view expression,
-                       mojom::CSPHashSource* hash) {
+                       network::IntegrityMetadata* hash) {
   if (!base::StartsWith(expression, prefix,
                         base::CompareCase::INSENSITIVE_ASCII) ||
       expression[expression.length() - 1] != '\'') {
@@ -645,11 +645,13 @@ bool ParsePrefixedHash(std::string_view prefix,
       hash);
 }
 
-bool ParseURLHash(std::string_view expression, mojom::CSPHashSource* hash) {
+bool ParseURLHash(std::string_view expression,
+                  network::IntegrityMetadata* hash) {
   return ParsePrefixedHash("'url-", expression, hash);
 }
 
-bool ParseEvalHash(std::string_view expression, mojom::CSPHashSource* hash) {
+bool ParseEvalHash(std::string_view expression,
+                   network::IntegrityMetadata* hash) {
   return ParsePrefixedHash("'eval-", expression, hash);
 }
 
@@ -808,17 +810,20 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 
-    auto hash = mojom::CSPHashSource::New();
-    if (ParseHash(expression, hash.get())) {
+    network::IntegrityMetadata hash;
+    if (ParseHash(expression, &hash)) {
       directive->hashes.push_back(std::move(hash));
       continue;
     }
 
-    auto url_hash = mojom::CSPHashSource::New();
-    if (ParseURLHash(expression, url_hash.get())) {
-      if (directive_name == CSPDirectiveName::ScriptSrcV2) {
+    network::IntegrityMetadata url_hash;
+    if (ParseURLHash(expression, &url_hash)) {
+      if (base::FeatureList::IsEnabled(
+              network::features::kCSPScriptSrcHashesInV1) ||
+          directive_name == CSPDirectiveName::ScriptSrcV2) {
         directive->url_hashes.push_back(std::move(url_hash));
-      } else {
+      } else if (base::FeatureList::IsEnabled(
+                     network::features::kCSPScriptSrcV2)) {
         parsing_errors.emplace_back(base::StringPrintf(
             "The Content-Security-Policy directive '%s' contains %s as a "
             "source expression that is permitted only for 'script-src-v2' "
@@ -828,11 +833,21 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 
-    auto eval_hash = mojom::CSPHashSource::New();
-    if (ParseEvalHash(expression, eval_hash.get())) {
-      if (directive_name == CSPDirectiveName::ScriptSrcV2) {
+    if (base::FeatureList::IsEnabled(
+            network::features::kCSPScriptSrcHashesInV1) &&
+        base::EqualsCaseInsensitiveASCII(expression, "'strict-dynamic-url'")) {
+      directive->allow_dynamic_url = true;
+      continue;
+    }
+
+    network::IntegrityMetadata eval_hash;
+    if (ParseEvalHash(expression, &eval_hash)) {
+      if (base::FeatureList::IsEnabled(
+              network::features::kCSPScriptSrcHashesInV1) ||
+          directive_name == CSPDirectiveName::ScriptSrcV2) {
         directive->eval_hashes.push_back(std::move(eval_hash));
-      } else {
+      } else if (base::FeatureList::IsEnabled(
+                     network::features::kCSPScriptSrcV2)) {
         parsing_errors.emplace_back(base::StringPrintf(
             "The Content-Security-Policy directive '%s' contains %s as a "
             "source expression that is permitted only for 'script-src-v2' "

@@ -8,17 +8,18 @@
 #import "components/prefs/pref_service.h"
 #import "components/sessions/ios/ios_serialized_navigation_builder.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
+#import "components/signin/public/identity_manager/tribool.h"
 #import "components/sync/base/features.h"
 #import "components/sync_sessions/sync_sessions_client.h"
 #import "components/sync_sessions/synced_window_delegates_getter.h"
 #import "ios/chrome/browser/complex_tasks/model/ios_task_tab_helper.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
-#import "ios/chrome/browser/sessions/model/ios_chrome_session_tab_helper.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/profile_attributes_storage_ios.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios_util.h"
 #import "ios/chrome/browser/shared/model/profile/profile_manager_ios.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/web/public/navigation/navigation_item.h"
@@ -57,14 +58,6 @@ base::Time GetMostRecentActivityTime(const web::WebState* web_state) {
   return result;
 }
 
-// Returns whether the given `profile` is the personal profile.
-bool IsPersonalProfile(ProfileIOS* profile) {
-  return profile->GetProfileName() == GetApplicationContext()
-                                          ->GetProfileManager()
-                                          ->GetProfileAttributesStorage()
-                                          ->GetPersonalProfileName();
-}
-
 // Returns whether the primary identity for `profile` is managed.
 bool ProfileHasPrimaryIdentityManaged(ProfileIOS* profile) {
   signin::IdentityManager* identity_manager =
@@ -74,15 +67,16 @@ bool ProfileHasPrimaryIdentityManaged(ProfileIOS* profile) {
   }
 
   return identity_manager
-      ->FindExtendedAccountInfo(identity_manager->GetPrimaryAccountInfo(
-          signin::ConsentLevel::kSignin))
-      .IsManaged();
+             ->FindExtendedAccountInfo(identity_manager->GetPrimaryAccountInfo(
+                 signin::ConsentLevel::kSignin))
+             .IsManaged() == signin::Tribool::kTrue;
 }
 
 }  // namespace
 
-IOSChromeSyncedTabDelegate::IOSChromeSyncedTabDelegate(web::WebState* web_state)
-    : web_state_(web_state) {
+IOSChromeSyncedTabDelegate::IOSChromeSyncedTabDelegate(web::WebState* web_state,
+                                                       SessionID window_id)
+    : web_state_(web_state), window_id_(window_id) {
   DCHECK(web_state);
 }
 
@@ -93,11 +87,11 @@ void IOSChromeSyncedTabDelegate::ResetCachedLastActiveTime() {
 }
 
 SessionID IOSChromeSyncedTabDelegate::GetWindowId() const {
-  return IOSChromeSessionTabHelper::FromWebState(web_state_)->window_id();
+  return window_id_;
 }
 
 SessionID IOSChromeSyncedTabDelegate::GetSessionId() const {
-  return IOSChromeSessionTabHelper::FromWebState(web_state_)->session_id();
+  return web_state_->GetUniqueIdentifier().ToSessionID();
 }
 
 bool IOSChromeSyncedTabDelegate::IsBeingDestroyed() const {

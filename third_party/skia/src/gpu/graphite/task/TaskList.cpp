@@ -58,4 +58,22 @@ Status TaskList::addCommands(Context* context,
     });
 }
 
+bool TaskList::visitPipelines(const std::function<bool(const GraphicsPipeline*)>& visitor) {
+    Status status = this->visitTasks([&](Task* task) {
+        return task->visitPipelines(visitor) ? Status::kSuccess : Status::kFail;
+    });
+    // Map back to simple bool (treat kDiscard as true too, no pipelines to visit means all
+    // pipelines were visited).
+    return status != Status::kFail;
+}
+
+bool TaskList::visitProxies(const std::function<bool(const TextureProxy*)>& visitor) {
+    Status status = this->visitTasks([&](Task* task) {
+        return task->visitProxies(visitor) ? Status::kSuccess : Status::kFail;
+    });
+    // Map back to simple bool (treat kDiscard as true too, no pipelines to visit means all
+    // pipelines were visited).
+    return status != Status::kFail;
+}
+
 } // namespace skgpu::graphite

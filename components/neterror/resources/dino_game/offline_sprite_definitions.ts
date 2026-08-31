@@ -11,7 +11,7 @@ import type {AltGameModeSpriteConfig as AltTrexSpriteDefinition} from './trex.js
 /*
  * List of alternative game types defined in spriteDefinitionByType.
  */
-export const GAME_TYPE: string[] = [];
+export const GAME_TYPE: Array<keyof SpriteDefinitionByType> = [];
 
 //******************************************************************************
 
@@ -40,7 +40,7 @@ export class CollisionBox {
  * minSpeed: Minimum speed which the obstacle can make an appearance.
  */
 export interface ObstacleType {
-  type: string;
+  type: keyof SpritePositions;
   width: number;
   height: number;
   yPos: number|number[];
@@ -56,7 +56,7 @@ export interface ObstacleType {
   frameRate?: number;
 }
 
-interface SpritePositions {
+export interface SpritePositions {
   backgroundEl: SpritePosition;
   cactusLarge: SpritePosition;
   cactusSmall: SpritePosition;
@@ -92,7 +92,7 @@ export interface SpriteDefinition {
   altGameEndConfig?: AltGameEndConfig;
 }
 
-interface SpriteDefinitionByType {
+export interface SpriteDefinitionByType {
   original: SpriteDefinition;
 }
 

@@ -17,6 +17,7 @@ FakeRealTimeUrlLookupService::FakeRealTimeUrlLookupService()
             return safe_browsing::ChromeUserPopulation();
           }),
           /*referrer_chain_provider=*/nullptr,
+          /*token_fetcher=*/nullptr,
           /*pref_service=*/nullptr,
           /*webui_delegate=*/nullptr) {}
 
@@ -59,6 +60,11 @@ FakeRealTimeUrlLookupService::GetClientMetadata() const {
   return nullptr;
 }
 
+std::string safe_browsing::testing::FakeRealTimeUrlLookupService::
+    GetContentAreaAccountEmail(const GURL& tab_url) const {
+  return "content_area_account_email@gmail.com";
+}
+
 std::string FakeRealTimeUrlLookupService::GetMetricSuffix() const {
   return ".Mock";
 }
@@ -92,13 +98,6 @@ int FakeRealTimeUrlLookupService::GetReferrerUserGestureLimit() const {
 bool FakeRealTimeUrlLookupService::CanSendPageLoadToken() const {
   return false;
 }
-
-void FakeRealTimeUrlLookupService::GetAccessToken(
-    const GURL& url,
-    safe_browsing::RTLookupResponseCallback response_callback,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-    SessionID session_id,
-    std::optional<internal::ReferringAppInfo> referring_app_info) {}
 
 std::optional<std::string> FakeRealTimeUrlLookupService::GetDMTokenString()
     const {

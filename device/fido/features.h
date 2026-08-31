@@ -22,19 +22,12 @@ COMPONENT_EXPORT(DEVICE_FIDO) BASE_DECLARE_FEATURE(kWebAuthUseNativeWinApi);
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthCableExtensionAnywhere);
 
-#if BUILDFLAG(IS_ANDROID)
-// Use the passkey cache service parallel to the FIDO2 module to retrieve
-// passkeys from GMSCore. This is for comparison only.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnAndroidUsePasskeyCache);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 // These five feature flags control whether iCloud Keychain is the default
 // mechanism for platform credential creation in different situations.
 // "Active" means that the user is an active user of the profile authenticator,
 // defined by having used it in the past 31 days. "Drive" means that the user
 // is currently signed into iCloud Drive, which isn't iCloud Keychain
-// (what's needed), but the cloest approximation that we can detect.
+// (what's needed), but the closest approximation that we can detect.
 
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnICloudKeychainForGoogle);
@@ -64,11 +57,6 @@ BASE_DECLARE_FEATURE(kWebAuthnEnclaveAuthenticatorDelay);
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnAmbientSignin);
 
-// Enables linking of hybrid devices to Chrome, both pre-linking (i.e. through
-// Sync) and through hybrid.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnHybridLinking);
-
 // Enables publishing prelinking information on Android.
 #if BUILDFLAG(IS_ANDROID)
 COMPONENT_EXPORT(DEVICE_FIDO)
@@ -96,30 +84,6 @@ BASE_DECLARE_FEATURE(kWebAuthnPasskeyUpgrade);
 // Checks attestation from the enclave service.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnEnclaveAttestation);
-
-// With this flag, WebAuthn only disables the back-forward cache during the
-// lifetime of a WebAuthn request.
-// With the flag off, the back-forward cache is disabled for the lifetime of
-// the page when a request is started.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnNewBfCacheHandling);
-
-// Removes the timeout when downloading the account state for the enclave,
-// tweaking the UI:
-// * A loading screen is shown when the enclave is selected.
-// * The GPM error screen now has a "try another way" button.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnNoAccountTimeout);
-
-// When enabled, a sync with the Security Domain Service is performed before a
-// GPM PIN renewal.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kSyncSecurityDomainBeforePINRenewal);
-
-// Feature flag for the
-// `WebAuthenticationRemoteDesktopAllowedOrigins` enterprise policy.
-COMPONENT_EXPORT(DEVICE_FIDO)
-BASE_DECLARE_FEATURE(kWebAuthnRemoteDesktopAllowedOriginsPolicy);
 
 // Enables using the Microsoft Software Key Storage Provider to store
 // unexportable keys when a TPM is not available.
@@ -158,6 +122,24 @@ BASE_DECLARE_FEATURE_PARAM(int, kWebAuthnImmediateMediationTimeoutMilliseconds);
 // Enables autoselecting the single mechanism in immediate mediation requests.
 COMPONENT_EXPORT(DEVICE_FIDO)
 BASE_DECLARE_FEATURE(kWebAuthnImmediateGetAutoselect);
+
+// Enables large blob support for iCloud Keychain in MacOS.
+#if BUILDFLAG(IS_MAC)
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnLargeBlobForICloudKeychain);
+#endif  // BUILDFLAG(IS_MAC)
+
+// Enables large blob support for Google Password Manager.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnLargeBlobForGPM);
+
+// Sends a PIN generation number to the enclave on a PIN wrapping request.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnSendPinGeneration);
+
+// Adds the cohort public key and cert.xml serial number to GPM wrapped PINs.
+COMPONENT_EXPORT(DEVICE_FIDO)
+BASE_DECLARE_FEATURE(kWebAuthnWrapCohortData);
 
 }  // namespace device
 

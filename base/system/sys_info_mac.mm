@@ -17,7 +17,6 @@
 
 #include "base/apple/scoped_mach_port.h"
 #include "base/check_op.h"
-#include "base/debug/stack_trace.h"
 #include "base/feature_list.h"
 #include "base/mac/mac_util.h"
 #include "base/no_destructor.h"
@@ -102,13 +101,13 @@ std::string SysInfo::OperatingSystemArchitecture() {
 
 // static
 uint64_t SysInfo::AmountOfAvailablePhysicalMemoryImpl() {
-  SystemMemoryInfoKB info;
+  SystemMemoryInfo info;
   if (!GetSystemMemoryInfo(&info)) {
     return 0;
   }
   // We should add inactive file-backed memory also but there is no such
   // information from Mac OS unfortunately.
-  return checked_cast<uint64_t>(info.free + info.speculative) * 1024;
+  return (info.free + info.speculative).InBytesUnsigned();
 }
 
 // static

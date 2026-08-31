@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "sdk/android/generated_native_unittests_jni/JavaTypesTestHelper_jni.h"
+#include "sdk/android/native_api/jni/jvm.h"
 #include "test/gtest.h"
 
 namespace webrtc {

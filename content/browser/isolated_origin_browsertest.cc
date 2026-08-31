@@ -102,10 +102,10 @@ class IsolatedOriginTestBase : public ContentBrowserTest {
     // Assume |requires_origin_keyed_process| is the same as
     // |is_origin_agent_cluster| here.
     if (!requires_origin_keyed_process) {
-      return OriginAgentClusterIsolationState::CreateNonIsolated();
+      return OriginAgentClusterIsolationState::CreateNonIsolatedByDefault();
     }
     return OriginAgentClusterIsolationState::CreateForOriginAgentCluster(
-        requires_origin_keyed_process);
+        /*had_oac_request=*/true, requires_origin_keyed_process);
   }
 
   bool ShouldOriginGetOptInProcessIsolation(const url::Origin& origin) {
@@ -113,7 +113,7 @@ class IsolatedOriginTestBase : public ContentBrowserTest {
         shell()->web_contents()->GetPrimaryMainFrame()->GetSiteInstance());
 
     OriginAgentClusterIsolationState isolation_request =
-        OriginAgentClusterIsolationState::CreateNonIsolated();
+        OriginAgentClusterIsolationState::CreateNonIsolatedByDefault();
 
     return ChildProcessSecurityPolicyImpl::GetInstance()
         ->DetermineOriginAgentClusterIsolation(
@@ -140,18 +140,18 @@ class IsolatedOriginTestBase : public ContentBrowserTest {
   ProcessLock ProcessLockFromUrl(const std::string& url) {
     BrowserContext* browser_context = web_contents()->GetBrowserContext();
     return ProcessLock::FromSiteInfo(SiteInfo(
+        AgentClusterKey::CreateSiteKeyed(GURL(url)),
         /*site_url=*/GURL(url),
         /*process_lock_url=*/GURL(url),
         /*requires_origin_keyed_process=*/false,
-        /*requires_origin_keyed_process_by_default=*/false,
+        AgentClusterKey::OACStatus::kSiteKeyedByDefault,
         /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
         StoragePartitionConfig::CreateDefault(browser_context),
         WebExposedIsolationInfo::CreateNonIsolated(),
         WebExposedIsolationLevel::kNotIsolated, /*is_guest=*/false,
         /*does_site_request_dedicated_process_for_coop=*/false,
         /*is_jit_disabled=*/false, /*are_v8_optimizations_disabled=*/false,
-        /*is_pdf=*/false, /*is_fenced=*/false,
-        /*cross_origin_isolation_key=*/std::nullopt));
+        /*is_pdf=*/false, /*is_fenced=*/false));
   }
 
   WebContentsImpl* web_contents() const {
@@ -165,22 +165,25 @@ class IsolatedOriginTestBase : public ContentBrowserTest {
   // for strict origin isolation.
   // Note: do not use this for opt-in origin isolation, as it won't set
   // requires_origin_keyed_process to true.
+  // TODO(crbug.com/433443082): Update this helper to create origin-keyed
+  // AgentClusterKeys once origin-keyed AgentClusterKeys are created in contexts
+  // other than when requires_origin_keyed_process is true.
   ProcessLock GetStrictProcessLock(const GURL& url) {
     BrowserContext* browser_context = web_contents()->GetBrowserContext();
     GURL origin_url = url::Origin::Create(url).GetURL();
     return ProcessLock::FromSiteInfo(SiteInfo(
+        AgentClusterKey::CreateSiteKeyed(origin_url),
         /*site_url=*/origin_url,
         /*process_lock_url=*/origin_url,
         /*requires_origin_keyed_process=*/false,
-        /*requires_origin_keyed_process_by_default=*/false,
+        AgentClusterKey::OACStatus::kSiteKeyedByDefault,
         /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
         StoragePartitionConfig::CreateDefault(browser_context),
         WebExposedIsolationInfo::CreateNonIsolated(),
         WebExposedIsolationLevel::kNotIsolated, /*is_guest=*/false,
         /*does_site_request_dedicated_process_for_coop=*/false,
         /*is_jit_disabled=*/false, /*are_v8_optimizations_disabled=*/false,
-        /*is_pdf=*/false, /*is_fenced=*/false,
-        /*cross_origin_isolation_key=*/std::nullopt));
+        /*is_pdf=*/false, /*is_fenced=*/false));
   }
 
  protected:
@@ -209,7 +212,15 @@ class IsolatedOriginTestBase : public ContentBrowserTest {
 
 class IsolatedOriginTest : public IsolatedOriginTestBase {
  public:
-  IsolatedOriginTest() = default;
+  IsolatedOriginTest() {
+    // Setting create_speculative_rfh_delay_ms to deflake
+    // IsolatedServiceWorkerDoesNotReuseUnsuitableProcessWithPendingSiteEntry.
+    // The test may fail if the RFH creation task for hung page is called after
+    // the following navigation in the new tab.
+    features_.InitAndEnableFeatureWithParameters(
+        features::kDeferSpeculativeRFHCreation,
+        {{"create_speculative_rfh_delay_ms", "0"}});
+  }
   ~IsolatedOriginTest() override = default;
 
   IsolatedOriginTest(const IsolatedOriginTest&) = delete;
@@ -240,6 +251,9 @@ class IsolatedOriginTest : public IsolatedOriginTestBase {
                            "document.body.appendChild(link);"
                            "link.click();"));
   }
+
+ private:
+  base::test::ScopedFeatureList features_;
 };
 
 // Tests that verify the header can be used to opt-in to origin isolation.
@@ -885,8 +899,8 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   EXPECT_TRUE(isolation_state.is_origin_agent_cluster());
   EXPECT_TRUE(isolation_state.requires_origin_keyed_process());
   EXPECT_TRUE(site_instance->GetSiteInfo().requires_origin_keyed_process());
-  EXPECT_TRUE(
-      site_instance->GetSiteInfo().requires_origin_keyed_process_by_default());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+            site_instance->GetSiteInfo().oac_status());
 }
 
 // A test to make sure that a renderer-initiated navigation from a default-
@@ -901,8 +915,8 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   scoped_refptr<SiteInstanceImpl> site_instance =
       root->current_frame_host()->GetSiteInstance();
   EXPECT_TRUE(site_instance->GetSiteInfo().requires_origin_keyed_process());
-  EXPECT_TRUE(
-      site_instance->GetSiteInfo().requires_origin_keyed_process_by_default());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+            site_instance->GetSiteInfo().oac_status());
 
   // Record the origin of the isolated frame.
   std::string initial_origin = EvalJs(shell(), "origin").ExtractString();
@@ -949,8 +963,8 @@ IN_PROC_BROWSER_TEST_F(
   scoped_refptr<SiteInstanceImpl> site_instance =
       root->current_frame_host()->GetSiteInstance();
   EXPECT_TRUE(site_instance->GetSiteInfo().requires_origin_keyed_process());
-  EXPECT_TRUE(
-      site_instance->GetSiteInfo().requires_origin_keyed_process_by_default());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+            site_instance->GetSiteInfo().oac_status());
 
   // Record the origin of the isolated frame.
   std::string initial_origin = EvalJs(shell(), "origin").ExtractString();
@@ -1009,8 +1023,8 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
       child_site_instance->GetIsolationContext().default_isolation_state());
   EXPECT_TRUE(
       child_site_instance->GetSiteInfo().requires_origin_keyed_process());
-  EXPECT_TRUE(child_site_instance->GetSiteInfo()
-                  .requires_origin_keyed_process_by_default());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+            child_site_instance->GetSiteInfo().oac_status());
 
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
   IsolationContext isolation_context =
@@ -1103,8 +1117,8 @@ IN_PROC_BROWSER_TEST_F(
   // an opt-in header. We would create a speculative RFH for A, throw it away
   // when the redirect happens, and wait to create the RFH for B until headers
   // have arrived.
-  EXPECT_TRUE(
-      site_instance->GetSiteInfo().requires_origin_keyed_process_by_default());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kOriginKeyedByDefault,
+            site_instance->GetSiteInfo().oac_status());
 
   // Verify the explicit opt-in is being tracked.
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
@@ -1157,8 +1171,8 @@ IN_PROC_BROWSER_TEST_F(OriginKeyedProcessByDefaultTest,
   EXPECT_FALSE(isolation_state.requires_origin_keyed_process());
   EXPECT_FALSE(
       child_site_instance->GetSiteInfo().requires_origin_keyed_process());
-  EXPECT_FALSE(child_site_instance->GetSiteInfo()
-                   .requires_origin_keyed_process_by_default());
+  EXPECT_EQ(AgentClusterKey::OACStatus::kSiteKeyedByHeader,
+            child_site_instance->GetSiteInfo().oac_status());
 
   // Verify the explicit opt-out is being tracked.
   auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
@@ -1195,7 +1209,8 @@ void TestDefaultIsolationForFrame(
   EXPECT_EQ(expect_requires_origin_keyed_process,
             site_info.requires_origin_keyed_process());
   EXPECT_EQ(expect_default_requires_origin_keyed_process,
-            site_info.requires_origin_keyed_process_by_default());
+            site_info.oac_status() ==
+                AgentClusterKey::OACStatus::kOriginKeyedByDefault);
 
   // Verify that we're not explicitly tracking the origin we isolated by
   // default.
@@ -1380,7 +1395,7 @@ IN_PROC_BROWSER_TEST_F(OriginIsolationDefaultOACTest, Basic) {
     // of that origin in the same SiteInstance would succeed. That can only
     // happen if the implicit case was not recorded in the BrowsingInstance.
     OriginAgentClusterIsolationState hypothetical_isolation_request =
-        OriginAgentClusterIsolationState::CreateNonIsolated();
+        OriginAgentClusterIsolationState::CreateNonIsolatedByHeader();
     OriginAgentClusterIsolationState hypothetical_isolation_state =
         ChildProcessSecurityPolicyImpl::GetInstance()
             ->DetermineOriginAgentClusterIsolation(
@@ -1695,18 +1710,18 @@ IN_PROC_BROWSER_TEST_F(OriginIsolationOptInHeaderTest,
   GURL origin_url = url::Origin::Create(isolated_suborigin_url).GetURL();
   BrowserContext* browser_context = web_contents()->GetBrowserContext();
   auto expected_isolated_suborigin_lock = ProcessLock::FromSiteInfo(SiteInfo(
+      AgentClusterKey::CreateOriginKeyed(url::Origin::Create(origin_url)),
       /*site_url=*/origin_url,
       /*process_lock_url=*/origin_url,
       /*requires_origin_keyed_process=*/true,
-      /*requires_origin_keyed_process_by_default=*/false,
+      AgentClusterKey::OACStatus::kOriginKeyedByHeader,
       /*is_sandboxed=*/false, UrlInfo::kInvalidUniqueSandboxId,
       StoragePartitionConfig::CreateDefault(browser_context),
       WebExposedIsolationInfo::CreateNonIsolated(),
       WebExposedIsolationLevel::kNotIsolated, /*is_guest=*/false,
       /*does_site_request_dedicated_process_for_coop=*/false,
       /*is_jit_disabled=*/false, /*are_v8_optimizations_disabled=*/false,
-      /*is_pdf=*/false, /*is_fenced=*/false,
-      /*cross_origin_isolation_key=*/std::nullopt));
+      /*is_pdf=*/false, /*is_fenced=*/false));
   EXPECT_TRUE(NavigateToURL(shell(), test_url));
   EXPECT_EQ(2u, CollectAllRenderFrameHosts(shell()->web_contents()).size());
 
@@ -3461,7 +3476,7 @@ IN_PROC_BROWSER_TEST_F(StrictOriginIsolationTest,
   // https://crbug.com/961386, we didn't swap processes for the second
   // navigation, leading to renderer kills.
   EXPECT_NE(foo_site_instance.get(), bar_site_instance.get());
-  EXPECT_NE(foo_site_instance->GetOrCreateProcess(),
+  EXPECT_NE(foo_site_instance->GetOrCreateProcessForTesting(),
             bar_site_instance->GetProcess());
 
   // Navigate to another site, then repeat this test with a redirect from
@@ -4285,6 +4300,10 @@ IN_PROC_BROWSER_TEST_F(
 
   // Wait for the request and send it.  This will place
   // isolated.foo.com on the list of pending sites for this tab's process.
+  // TODO(crbug.com/437230046): The test can be flaky if we enable the
+  // delay when deferring the speculative RFH creation. We need to make
+  // sure the navigation takes the RFH and RPH of the blank page before
+  // triggering the second request.
   EXPECT_TRUE(manager.WaitForRequestStart());
   manager.ResumeNavigation();
 
@@ -4305,7 +4324,7 @@ IN_PROC_BROWSER_TEST_F(
               hung_isolated_url,
               StoragePartitionConfig::CreateDefault(browser_context)),
           /* can_reuse_process= */ true);
-  RenderProcessHost* sw_host = sw_site_instance->GetOrCreateProcess();
+  RenderProcessHost* sw_host = sw_site_instance->GetOrCreateProcessForTesting();
   EXPECT_NE(new_shell->web_contents()->GetPrimaryMainFrame()->GetProcess(),
             sw_host);
 
@@ -5997,7 +6016,7 @@ IN_PROC_BROWSER_TEST_F(DynamicIsolatedOriginTest, ForceBrowsingInstanceSwap) {
       root->current_frame_host()->GetSiteInstance();
   EXPECT_NE(first_instance, second_instance);
   EXPECT_FALSE(first_instance->IsRelatedSiteInstance(second_instance.get()));
-  EXPECT_NE(first_instance->GetOrCreateProcess(),
+  EXPECT_NE(first_instance->GetOrCreateProcessForTesting(),
             second_instance->GetProcess());
   EXPECT_EQ(ProcessLockFromUrl("http://foo.com"),
             second_instance->GetProcess()->GetProcessLock());
@@ -6050,7 +6069,7 @@ IN_PROC_BROWSER_TEST_F(DynamicIsolatedOriginTest,
       root->current_frame_host()->GetSiteInstance();
   EXPECT_NE(first_instance, second_instance);
   EXPECT_FALSE(first_instance->IsRelatedSiteInstance(second_instance.get()));
-  EXPECT_NE(first_instance->GetOrCreateProcess(),
+  EXPECT_NE(first_instance->GetOrCreateProcessForTesting(),
             second_instance->GetProcess());
   EXPECT_EQ(ProcessLockFromUrl("http://foo.com"),
             second_instance->GetProcess()->GetProcessLock());

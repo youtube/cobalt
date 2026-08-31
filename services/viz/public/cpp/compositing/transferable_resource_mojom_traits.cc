@@ -4,7 +4,6 @@
 
 #include "services/viz/public/cpp/compositing/transferable_resource_mojom_traits.h"
 
-#include "base/functional/overloaded.h"
 #include "build/build_config.h"
 #include "gpu/ipc/common/mailbox_mojom_traits.h"
 #include "gpu/ipc/common/sync_token_mojom_traits.h"
@@ -165,13 +164,18 @@ bool StructTraits<viz::mojom::TransferableResourceDataView,
       !data.ReadMemoryBufferId(&memory_buffer_id) ||
       !data.ReadSyncToken(&sync_token) ||
       !data.ReadColorSpace(&out->color_space) ||
-      !data.ReadHdrMetadata(&out->hdr_metadata) ||
-      !data.ReadYcbcrInfo(&out->ycbcr_info) || !data.ReadId(&id) ||
+      !data.ReadHdrMetadata(&out->hdr_metadata) || !data.ReadId(&id) ||
       !data.ReadSynchronizationType(&out->synchronization_type) ||
       !data.ReadOrigin(&out->origin) || !data.ReadAlphaType(&out->alpha_type) ||
       !data.ReadResourceSource(&out->resource_source)) {
     return false;
   }
+#if BUILDFLAG(IS_ANDROID)
+  if (!data.ReadYcbcrInfo(&out->ycbcr_info)) {
+    return false;
+  }
+#endif
+
   out->id = id;
   out->is_software = data.is_software();
   out->set_memory_buffer_id(memory_buffer_id);

@@ -8,17 +8,23 @@
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/browser/extensions/window_controller_list.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "components/web_modal/web_contents_modal_dialog_manager.h"
-#include "content/public/browser/render_frame_host.h"
-#include "content/public/browser/render_process_host.h"
-#include "extensions/browser/app_window/app_window.h"
-#include "extensions/browser/app_window/app_window_registry.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_function.h"
 #include "extensions/browser/extension_function_dispatcher.h"
+#include "ui/base/base_window.h"
+
+#if BUILDFLAG(ENABLE_PLATFORM_APPS)
+#include "extensions/browser/app_window/app_window.h"
+#include "extensions/browser/app_window/app_window_registry.h"
+#endif  // BUILDFLAG(ENABLE_PLATFORM_APPS)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "components/web_modal/web_contents_modal_dialog_manager.h"
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+namespace extensions {
 
 ChromeExtensionFunctionDetails::ChromeExtensionFunctionDetails(
     ExtensionFunction* function)
@@ -26,11 +32,11 @@ ChromeExtensionFunctionDetails::ChromeExtensionFunctionDetails(
 
 ChromeExtensionFunctionDetails::~ChromeExtensionFunctionDetails() = default;
 
-extensions::WindowController*
-ChromeExtensionFunctionDetails::GetCurrentWindowController() const {
+WindowController* ChromeExtensionFunctionDetails::GetCurrentWindowController()
+    const {
   // If the delegate has an associated window controller, return it.
   if (function_->dispatcher()) {
-    if (extensions::WindowController* window_controller =
+    if (WindowController* window_controller =
             function_->dispatcher()->GetExtensionWindowController()) {
       // Only return the found controller if it's not about to be deleted,
       // otherwise fall through to finding another one.
@@ -44,17 +50,16 @@ ChromeExtensionFunctionDetails::GetCurrentWindowController() const {
   // is true, we will also search browsers in the incognito version of this
   // profile. Note that the profile may already be incognito, in which case
   // we will search the incognito version only, regardless of the value of
-  // |include_incognito|. Look only for browsers on the active desktop as it is
-  // preferable to pretend no browser is open then to return a browser on
-  // another desktop.
-  content::WebContents* web_contents = function_->GetSenderWebContents();
-  Profile* profile = Profile::FromBrowserContext(
-      web_contents ? web_contents->GetBrowserContext()
-                   : function_->browser_context());
-  Browser* browser = chrome::FindAnyBrowser(
-      profile, function_->include_incognito_information());
-  if (browser)
-    return browser->extension_window_controller();
+  // |include_incognito|.
+  Profile* profile = Profile::FromBrowserContext(function_->browser_context());
+
+  for (auto* browser : GetBrowserWindowInterfacesOrderedByActivation()) {
+    if (browser->GetProfile() == profile ||
+        (function_->include_incognito_information() &&
+         browser->GetProfile()->GetOriginalProfile() == profile)) {
+      return BrowserExtensionWindowController::From(browser);
+    }
+  }
 
   // NOTE(rafaelw): This can return NULL in some circumstances. In particular,
   // a background_page onload chrome.tabs api call can make it into here
@@ -70,39 +75,58 @@ gfx::NativeWindow ChromeExtensionFunctionDetails::GetNativeWindowForUI() {
   // Try to use WindowControllerList first because WebContents's
   // GetTopLevelNativeWindow() can't return the top level window when the tab
   // is not focused.
-  extensions::WindowController* controller =
-      extensions::WindowControllerList::GetInstance()->CurrentWindowForFunction(
-          function_);
+  WindowController* controller =
+      WindowControllerList::GetInstance()->CurrentWindowForFunction(function_);
   if (controller)
     return controller->window()->GetNativeWindow();
 
   // Next, check the sender web contents for if it supports modal dialogs.
   // TODO(devlin): This seems weird. Why wouldn't we check this first?
   content::WebContents* sender_web_contents = function_->GetSenderWebContents();
-  if (sender_web_contents &&
-      web_modal::WebContentsModalDialogManager::FromWebContents(
-           sender_web_contents)) {
-    return sender_web_contents->GetTopLevelNativeWindow();
+  if (sender_web_contents) {
+#if BUILDFLAG(IS_ANDROID)
+    bool supports_modal = !!sender_web_contents->GetTopLevelNativeWindow();
+#else
+    bool supports_modal =
+        web_modal::WebContentsModalDialogManager::FromWebContents(
+            sender_web_contents);
+#endif
+    if (supports_modal) {
+      return sender_web_contents->GetTopLevelNativeWindow();
+    }
   }
 
+#if BUILDFLAG(ENABLE_PLATFORM_APPS)
   // Then, check for any app windows that are open.
   if (function_->extension() &&
       function_->extension()->is_app()) {
-    extensions::AppWindow* window =
-        extensions::AppWindowRegistry::Get(function_->browser_context())
+    AppWindow* window =
+        AppWindowRegistry::Get(function_->browser_context())
             ->GetCurrentAppWindowForApp(function_->extension()->id());
     if (window)
       return window->web_contents()->GetTopLevelNativeWindow();
   }
+#endif  // BUILDFLAG(ENABLE_PLATFORM_APPS)
 
   // As a last resort, find a browser.
-  Browser* browser = chrome::FindBrowserWithProfile(
-      Profile::FromBrowserContext(function_->browser_context()));
+  std::vector<BrowserWindowInterface*> all_browsers =
+      GetAllBrowserWindowInterfaces();
+  BrowserWindowInterface* browser = nullptr;
+  Profile* profile = Profile::FromBrowserContext(function_->browser_context());
+  for (auto* candidate : all_browsers) {
+    if (candidate->GetProfile() == profile) {
+      browser = candidate;
+      break;
+    }
+  }
+  if (browser) {
+    return browser->GetWindow()->GetNativeWindow();
+  }
+
   // If there are no browser windows open, no window is available.
   // This could happen e.g. if extension launches a long process or simple
   // sleep() in the background script, during which browser is closed.
-  if (!browser) {
-    return gfx::NativeWindow();
-  }
-  return browser->window()->GetNativeWindow();
+  return gfx::NativeWindow();
 }
+
+}  // namespace extensions

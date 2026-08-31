@@ -78,7 +78,7 @@ static_library("trusted_vault") {
       "//crypto",
       "//google_apis",
       "//net",
-      "//services/network/public/cpp:cpp",
+      "//services/network/public/cpp",
       "//third_party/boringssl",
       "//third_party/libxml:xml_reader",
     ]
@@ -140,6 +140,10 @@ if (!is_android) {
 
       deps += [ "//crypto:test_support" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 
@@ -153,6 +157,8 @@ static_library("test_support") {
     "test/fake_trusted_vault_client.h",
     "test/mock_recovery_key_store_connection.cc",
     "test/mock_recovery_key_store_connection.h",
+    "test/recovery_key_store_certificate_test_util.cc",
+    "test/recovery_key_store_certificate_test_util.h",
   ]
 
   deps = [

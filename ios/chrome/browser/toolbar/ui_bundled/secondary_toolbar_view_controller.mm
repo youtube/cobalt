@@ -8,11 +8,13 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/scoped_fullscreen_disabler.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/browser/shared/ui/util/keyboard_observer_helper.h"
 #import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/adaptive_toolbar_view_controller+subclassing.h"
+#import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_button.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_button_factory.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_configuration.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_constants.h"
@@ -52,11 +54,37 @@
                name:UIKeyboardWillShowNotification
              object:nil];
   }
+
+  if (IsDiamondPrototypeEnabled()) {
+    UIButton* button = self.view.diamondPrototypeButton;
+    UIMenu* emptyMenu = [UIMenu menuWithChildren:@[]];
+    button.menu = emptyMenu;
+    UIAction* action = [UIAction
+        actionWithTitle:@""
+                  image:nil
+             identifier:nil
+                handler:^(UIAction* uiAction) {
+                  TriggerHapticFeedbackForImpact(UIImpactFeedbackStyleHeavy);
+                  [[NSNotificationCenter defaultCenter]
+                      postNotificationName:kDiamondLongPressButton
+                                    object:button];
+                }];
+    [button addAction:action
+        forControlEvents:UIControlEventMenuActionTriggered];
+  }
 }
 
 - (void)disconnect {
   _fullscreenController = nullptr;
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark - Setters
+
+// TODO(crbug.com/429955447): Remove when diamond prototype is cleaned.
+- (void)setUsedAsPrimaryToolbar:(BOOL)usedAsPrimaryToolbar {
+  _usedAsPrimaryToolbar = usedAsPrimaryToolbar;
+  self.view.usedAsPrimaryToolbar = usedAsPrimaryToolbar;
 }
 
 #pragma mark - AdaptiveToolbarViewController
@@ -89,6 +117,13 @@
   CGFloat alphaValue = fmax(progress * 1.1 - 0.1, 0);
   if (IsBottomOmniboxAvailable()) {
     self.view.buttonStackView.alpha = alphaValue;
+  }
+
+  if (IsDiamondPrototypeEnabled()) {
+    self.view.toolsMenuButton.alpha = alphaValue;
+    self.view.diamondPrototypeButton.alpha = alphaValue;
+    self.view.backButton.alpha = alphaValue;
+    self.view.forwardButton.alpha = alphaValue;
   }
 
   self.view.locationBarTopConstraint.constant =
@@ -130,6 +165,10 @@
   const CGFloat fullscreenMargin =
       hasBottomSafeArea ? kBottomAdaptiveLocationBarVerticalMarginFullscreen
                         : 0;
+
+  if (IsDiamondPrototypeEnabled()) {
+    return AlignValueToPixel(kBottomAdaptiveLocationBarTopMargin * progress);
+  }
 
   return AlignValueToPixel((kBottomAdaptiveLocationBarTopMargin * progress +
                             fullscreenMargin * (1 - progress)) *

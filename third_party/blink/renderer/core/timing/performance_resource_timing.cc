@@ -71,7 +71,8 @@ PerformanceResourceTiming::PerformanceResourceTiming(
     const AtomicString& initiator_type,
     base::TimeTicks time_origin,
     bool cross_origin_isolated_capability,
-    ExecutionContext* context)
+    ExecutionContext* context,
+    uint32_t navigation_id)
     : PerformanceEntry(
           info->name.IsNull() ? g_empty_atom : AtomicString(info->name),
           Performance::MonotonicTimeToDOMHighResTimeStamp(
@@ -84,7 +85,8 @@ PerformanceResourceTiming::PerformanceResourceTiming(
               info->response_end,
               info->allow_negative_values,
               cross_origin_isolated_capability),
-          DynamicTo<LocalDOMWindow>(context)),
+          DynamicTo<LocalDOMWindow>(context),
+          navigation_id),
       initiator_type_(initiator_type.empty() || initiator_type.IsNull()
                           ? fetch_initiator_type_names::kOther
                           : initiator_type),
@@ -432,26 +434,12 @@ DOMHighResTimeStamp PerformanceResourceTiming::finalResponseHeadersStart()
       info_->allow_negative_values, CrossOriginIsolatedCapability());
 }
 
-DOMHighResTimeStamp PerformanceResourceTiming::responseStart() const {
-  if (!info_->allow_timing_details || !info_->timing ||
-      RuntimeEnabledFeatures::
-          ResourceTimingFinalResponseHeadersStartEnabled()) {
-    return GetAnyFirstResponseStart();
-  }
-
-  base::TimeTicks response_start =
-      info_->timing->receive_non_informational_headers_start;
-  if (response_start.is_null()) {
-    return GetAnyFirstResponseStart();
-  }
-
-  return Performance::MonotonicTimeToDOMHighResTimeStamp(
-      TimeOrigin(), response_start, info_->allow_negative_values,
-      CrossOriginIsolatedCapability());
+AtomicString PerformanceResourceTiming::initiatorUrl() const {
+  return info_->initiator_url.IsValid() ? info_->initiator_url.GetString()
+                                        : g_empty_atom;
 }
 
-DOMHighResTimeStamp PerformanceResourceTiming::GetAnyFirstResponseStart()
-    const {
+DOMHighResTimeStamp PerformanceResourceTiming::responseStart() const {
   if (!info_->allow_timing_details) {
     return 0.0;
   }
@@ -522,8 +510,11 @@ void PerformanceResourceTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
     builder.AddNumber("workerRouterEvaluationStart",
                       workerRouterEvaluationStart());
     builder.AddNumber("workerCacheLookupStart", workerCacheLookupStart());
-    builder.AddString("matchedSourceType", workerMatchedSourceType());
-    builder.AddString("finalSourceType", workerFinalSourceType());
+    builder.AddString("workerMatchedSourceType", workerMatchedSourceType());
+    builder.AddString("workerFinalSourceType", workerFinalSourceType());
+  }
+  if (RuntimeEnabledFeatures::ResourceTimingInitiatorEnabled()) {
+    builder.AddString("initiatorUrl", initiatorUrl());
   }
   builder.AddNumber("redirectStart", redirectStart());
   builder.AddNumber("redirectEnd", redirectEnd());
@@ -536,11 +527,7 @@ void PerformanceResourceTiming::BuildJSONValue(V8ObjectBuilder& builder) const {
   builder.AddNumber("requestStart", requestStart());
   builder.AddNumber("responseStart", responseStart());
   builder.AddNumber("firstInterimResponseStart", firstInterimResponseStart());
-  if (RuntimeEnabledFeatures::
-          ResourceTimingFinalResponseHeadersStartEnabled()) {
-    builder.AddNumber("finalResponseHeadersStart", finalResponseHeadersStart());
-  }
-
+  builder.AddNumber("finalResponseHeadersStart", finalResponseHeadersStart());
   builder.AddNumber("responseEnd", responseEnd());
   builder.AddNumber("transferSize", transferSize());
   builder.AddNumber("encodedBodySize", encodedBodySize());

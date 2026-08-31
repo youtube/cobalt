@@ -4,7 +4,6 @@
 
 source_set("coordinator") {
   sources = [
-    "explain_with_gemini_delegate.h",
     "explain_with_gemini_mediator.h",
     "explain_with_gemini_mediator.mm",
   ]
@@ -13,6 +12,7 @@ source_set("coordinator") {
     "//base",
     "//components/strings",
     "//ios/chrome/app/strings",
+    "//ios/chrome/browser/browser_container/model",
     "//ios/chrome/browser/browser_container/ui_bundled:edit_menu_utils",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/shared/model/web_state_list",
@@ -40,9 +40,13 @@ source_set("eg2_tests") {
     "//components/signin/internal/identity_manager:capabilities",
     "//ios/chrome/app/strings:ios_strings_grit",
     "//ios/chrome/browser/authentication/ui_bundled:eg_test_support+eg2",
+    "//ios/chrome/browser/browser_container/ui_bundled:eg_matchers",
     "//ios/chrome/browser/browser_container/ui_bundled:eg_test_support+eg2",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/metrics/model:eg_test_support+eg2",
+    "//ios/chrome/browser/popup_menu/ui_bundled:constants",
+    "//ios/chrome/browser/reader_mode/model:features",
+    "//ios/chrome/browser/reader_mode/ui:constants",
     "//ios/chrome/browser/search_engines/model:eg_test_support+eg2",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model:fake_system_identity",

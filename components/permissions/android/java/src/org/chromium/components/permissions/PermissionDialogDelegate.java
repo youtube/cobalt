@@ -8,19 +8,17 @@ import android.graphics.Bitmap;
 
 import androidx.core.util.Pair;
 
+import org.chromium.ui.base.DeviceFormFactor;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.ui.base.WindowAndroid;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Delegate class for modal permission dialogs. Contains all of the data displayed in a prompt,
@@ -62,9 +60,6 @@ public class PermissionDialogDelegate {
 
     /** Whether to show the persistent grant button first, followed by the ephemeral option. */
     private boolean mShowPositiveNonEphemeralAsFirstButton;
-
-    /** The text of radio buttons that can be shown above the permission buttons. */
-    private List<CharSequence> mRadioButtons;
 
     /** The {@link ContentSettingsType}s requested in this dialog. */
     private int[] mContentSettingsTypes;
@@ -122,10 +117,6 @@ public class PermissionDialogDelegate {
         return mEmbeddedPromptVariant;
     }
 
-    public List<CharSequence> getRadioButtons() {
-        return mRadioButtons;
-    }
-
     public void setEmbeddedPromptVariant(@EmbeddedPromptVariant int variant) {
         mEmbeddedPromptVariant = variant;
     }
@@ -134,66 +125,69 @@ public class PermissionDialogDelegate {
         return mEmbeddedPromptVariant != EmbeddedPromptVariant.UNINITIALIZED;
     }
 
+    public boolean isTablet() {
+        return DeviceFormFactor.isWindowOnTablet(getWindow());
+    }
+
     public void onAccept() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get().accept(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().accept(mNativeDelegatePtr);
     }
 
     public void onAcceptThisTime() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .acceptThisTime(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().acceptThisTime(mNativeDelegatePtr);
     }
 
     public void onDeny() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get().deny(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().deny(mNativeDelegatePtr);
     }
 
     public void onDismiss(@DismissalType int dismissalType) {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .dismissed(mNativeDelegatePtr, PermissionDialogDelegate.this, dismissalType);
+        PermissionDialogDelegateJni.get().dismissed(mNativeDelegatePtr, dismissalType);
     }
 
     public void onAcknowledge() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .acknowledge(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().acknowledge(mNativeDelegatePtr);
     }
 
     public void onSystemPermissionResolved(boolean accepted) {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .systemPermissionResolved(
-                        mNativeDelegatePtr, PermissionDialogDelegate.this, accepted);
+        PermissionDialogDelegateJni.get().systemPermissionResolved(mNativeDelegatePtr, accepted);
     }
 
-    public void onRadioButtonSelectionChanged(Integer selectedIndex) {
-        // TODO(crbug.com/417684493): Process radio button changes.
+    public void onCloseButtonClicked() {
+        assert mDialogController != null;
+        mDialogController.dismissByCloseButton(this);
     }
 
     public void destroy() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .destroy(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().destroy(mNativeDelegatePtr);
         mNativeDelegatePtr = 0;
     }
 
     public void onSystemSettingsShown() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .systemSettingsShown(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().systemSettingsShown(mNativeDelegatePtr);
     }
 
     public void onResume() {
         assert mNativeDelegatePtr != 0;
-        PermissionDialogDelegateJni.get()
-                .resumed(mNativeDelegatePtr, PermissionDialogDelegate.this);
+        PermissionDialogDelegateJni.get().resumed(mNativeDelegatePtr);
     }
 
     public void setDialogController(PermissionDialogController controller) {
         mDialogController = controller;
+    }
+
+    public void onGeolocationAccuracySelected(boolean isPrecise) {
+        assert mNativeDelegatePtr != 0;
+        PermissionDialogDelegateJni.get()
+                .onGeolocationAccuracySelected(mNativeDelegatePtr, isPrecise);
     }
 
     /** Return the size of the RequestType enum used for permission requests. */
@@ -252,7 +246,6 @@ public class PermissionDialogDelegate {
             String negativeButtonText,
             String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
-            String[] radioButtons,
             @EmbeddedPromptVariant int variant) {
         assert (boldedRanges.length % 2 == 0); // Contains a list of offset and length values
 
@@ -267,11 +260,9 @@ public class PermissionDialogDelegate {
                 negativeButtonText,
                 positiveEphemeralButtonText,
                 showPositiveNonEphemeralAsFirstButton,
-                radioButtons,
                 variant);
     }
 
-    @SuppressWarnings("NoStreams") // Not using lambdas.
     private PermissionDialogDelegate(
             long nativeDelegatePtr,
             WindowAndroid window,
@@ -283,7 +274,6 @@ public class PermissionDialogDelegate {
             String negativeButtonText,
             String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
-            String[] radioButtons,
             @EmbeddedPromptVariant int variant) {
         mNativeDelegatePtr = nativeDelegatePtr;
         mWindow = window;
@@ -297,13 +287,11 @@ public class PermissionDialogDelegate {
         mNegativeButtonText = negativeButtonText;
         mPositiveEphemeralButtonText = positiveEphemeralButtonText;
         mShowPositiveNonEphemeralAsFirstButton = showPositiveNonEphemeralAsFirstButton;
-        mRadioButtons = Arrays.stream(radioButtons).collect(Collectors.toList());
         mEmbeddedPromptVariant = variant;
     }
 
     /** Called by native code to update the current permission dialog with new screen. */
     @CalledByNative
-    @SuppressWarnings("NoStreams") // Not using lambdas.
     void updateDialog(
             int[] contentSettingsTypes,
             int iconId,
@@ -313,7 +301,6 @@ public class PermissionDialogDelegate {
             String negativeButtonText,
             String positiveEphemeralButtonText,
             boolean showPositiveNonEphemeralAsFirstButton,
-            String[] radioButtons,
             @EmbeddedPromptVariant int variant) {
         mContentSettingsTypes = contentSettingsTypes;
         mMessageText = message;
@@ -326,7 +313,6 @@ public class PermissionDialogDelegate {
         mNegativeButtonText = negativeButtonText;
         mPositiveEphemeralButtonText = positiveEphemeralButtonText;
         mShowPositiveNonEphemeralAsFirstButton = showPositiveNonEphemeralAsFirstButton;
-        mRadioButtons = Arrays.stream(radioButtons).collect(Collectors.toList());
         mEmbeddedPromptVariant = variant;
 
         assert mDialogController != null;
@@ -335,31 +321,26 @@ public class PermissionDialogDelegate {
 
     @NativeMethods
     interface Natives {
-        void accept(long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void accept(long nativePermissionDialogDelegate);
 
-        void acceptThisTime(long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void acceptThisTime(long nativePermissionDialogDelegate);
 
-        void acknowledge(long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void acknowledge(long nativePermissionDialogDelegate);
 
-        void deny(long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void deny(long nativePermissionDialogDelegate);
 
-        void dismissed(
-                long nativePermissionDialogDelegate,
-                PermissionDialogDelegate caller,
-                @DismissalType int dismissalType);
+        void dismissed(long nativePermissionDialogDelegate, @DismissalType int dismissalType);
 
-        void resumed(long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void resumed(long nativePermissionDialogDelegate);
 
-        void destroy(long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void destroy(long nativePermissionDialogDelegate);
 
-        void systemPermissionResolved(
-                long nativePermissionDialogDelegate,
-                PermissionDialogDelegate caller,
-                boolean accept);
+        void systemPermissionResolved(long nativePermissionDialogDelegate, boolean accept);
 
-        void systemSettingsShown(
-                long nativePermissionDialogDelegate, PermissionDialogDelegate caller);
+        void systemSettingsShown(long nativePermissionDialogDelegate);
 
         int getRequestTypeEnumSize();
+
+        void onGeolocationAccuracySelected(long nativePermissionDialogDelegate, boolean isPrecise);
     }
 }

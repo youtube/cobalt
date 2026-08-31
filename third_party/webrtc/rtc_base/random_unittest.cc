@@ -10,12 +10,13 @@
 
 #include "rtc_base/random.h"
 
-#include <math.h>
-
+#include <cmath>
+#include <cstdint>
 #include <limits>
 #include <numbers>
 #include <vector>
 
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/math_utils.h"  // unsigned difference
 #include "test/gtest.h"
 

@@ -6,6 +6,7 @@
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -19,6 +20,7 @@
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/browser/login_detection/login_detection_util.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/tab_contents/navigation_metrics_recorder.h"
 #include "chrome/browser/ui/browser.h"
@@ -332,6 +334,12 @@ class CtrlClickShouldEndUpInSameProcessTest : public CtrlClickProcessTest {
     EXPECT_FALSE(contents1->GetSiteInstance()->IsRelatedSiteInstance(
         contents2->GetSiteInstance()));
   }
+
+ private:
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
 };
 
 IN_PROC_BROWSER_TEST_F(CtrlClickShouldEndUpInSameProcessTest, NoTarget) {
@@ -852,7 +860,7 @@ IN_PROC_BROWSER_TEST_F(
     // require a dedicated process.
     EXPECT_NE(opener->GetSiteInstance()->GetProcess(),
               popup->GetSiteInstance()->GetProcess());
-    EXPECT_NE(old_popup_site_instance->GetOrCreateProcess(),
+    EXPECT_NE(old_popup_site_instance->GetOrCreateProcessForTesting(),
               popup->GetSiteInstance()->GetProcess());
   } else {
     EXPECT_EQ(opener->GetSiteInstance(), popup->GetSiteInstance());
@@ -863,7 +871,7 @@ IN_PROC_BROWSER_TEST_F(
     EXPECT_FALSE(old_popup_site_instance->RequiresDedicatedProcess());
     EXPECT_EQ(opener->GetSiteInstance()->GetProcess(),
               popup->GetSiteInstance()->GetProcess());
-    EXPECT_EQ(old_popup_site_instance->GetOrCreateProcess(),
+    EXPECT_EQ(old_popup_site_instance->GetOrCreateProcessForTesting(),
               popup->GetSiteInstance()->GetProcess());
   }
 }
@@ -988,7 +996,7 @@ IN_PROC_BROWSER_TEST_F(
     // require a dedicated process.
     EXPECT_NE(opener->GetSiteInstance()->GetProcess(),
               popup->GetSiteInstance()->GetProcess());
-    EXPECT_NE(old_popup_site_instance->GetOrCreateProcess(),
+    EXPECT_NE(old_popup_site_instance->GetOrCreateProcessForTesting(),
               popup->GetSiteInstance()->GetProcess());
   } else {
     EXPECT_EQ(opener->GetSiteInstance(), popup->GetSiteInstance());
@@ -1001,7 +1009,7 @@ IN_PROC_BROWSER_TEST_F(
     EXPECT_FALSE(old_popup_site_instance->RequiresDedicatedProcess());
     EXPECT_EQ(opener->GetSiteInstance()->GetProcess(),
               popup->GetSiteInstance()->GetProcess());
-    EXPECT_EQ(old_popup_site_instance->GetOrCreateProcess(),
+    EXPECT_EQ(old_popup_site_instance->GetOrCreateProcessForTesting(),
               popup->GetSiteInstance()->GetProcess());
   }
 }
@@ -1655,7 +1663,7 @@ IN_PROC_BROWSER_TEST_F(WebstoreIsolationBrowserTest, WebstorePopupIsIsolated) {
   EXPECT_NE(webstore_instance, initial_instance);
   EXPECT_NE(webstore_instance->GetProcess(), initial_instance->GetProcess());
   EXPECT_NE(webstore_instance->GetProcess(),
-            popup_instance->GetOrCreateProcess());
+            popup_instance->GetOrCreateProcessForTesting());
   EXPECT_FALSE(webstore_instance->IsRelatedSiteInstance(popup_instance.get()));
   EXPECT_FALSE(
       webstore_instance->IsRelatedSiteInstance(initial_instance.get()));
@@ -1666,7 +1674,7 @@ IN_PROC_BROWSER_TEST_F(WebstoreIsolationBrowserTest, WebstorePopupIsIsolated) {
   scoped_refptr<content::SiteInstance> final_instance(
       popup->GetPrimaryMainFrame()->GetSiteInstance());
   EXPECT_NE(final_instance->GetProcess(),
-            webstore_instance->GetOrCreateProcess());
+            webstore_instance->GetOrCreateProcessForTesting());
   EXPECT_FALSE(final_instance->IsRelatedSiteInstance(webstore_instance.get()));
 }
 
@@ -1706,7 +1714,8 @@ IN_PROC_BROWSER_TEST_F(WebstoreIsolationBrowserTest,
   EXPECT_TRUE(content::NavigateToURLFromRenderer(popup, first_url));
   scoped_refptr<content::SiteInstance> final_instance(
       popup->GetPrimaryMainFrame()->GetSiteInstance());
-  EXPECT_NE(final_instance->GetProcess(), popup_instance->GetOrCreateProcess());
+  EXPECT_NE(final_instance->GetProcess(),
+            popup_instance->GetOrCreateProcessForTesting());
   EXPECT_FALSE(final_instance->IsRelatedSiteInstance(popup_instance.get()));
 }
 
@@ -1759,7 +1768,8 @@ IN_PROC_BROWSER_TEST_F(WebstoreOverrideIsolationBrowserTest,
   EXPECT_TRUE(content::NavigateToURLFromRenderer(popup, first_url));
   scoped_refptr<content::SiteInstance> final_instance(
       popup->GetPrimaryMainFrame()->GetSiteInstance());
-  EXPECT_NE(final_instance->GetProcess(), popup_instance->GetOrCreateProcess());
+  EXPECT_NE(final_instance->GetProcess(),
+            popup_instance->GetOrCreateProcessForTesting());
   EXPECT_FALSE(final_instance->IsRelatedSiteInstance(popup_instance.get()));
 }
 

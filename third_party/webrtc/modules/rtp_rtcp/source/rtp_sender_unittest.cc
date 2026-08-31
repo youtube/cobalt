@@ -60,15 +60,15 @@ enum : int {  // The first valid value is 1.
   kVideoTimingExtensionId,
 };
 
-const int kPayload = 100;
-const int kRtxPayload = 98;
-const uint32_t kTimestamp = 10;
-const uint16_t kSeqNum = 33;
-const uint32_t kSsrc = 725242;
-const uint32_t kRtxSsrc = 12345;
-const uint32_t kFlexFecSsrc = 45678;
-const uint64_t kStartTime = 123456789;
-const uint8_t kPayloadData[] = {47, 11, 32, 93, 89};
+constexpr int kPayload = 100;
+constexpr int kRtxPayload = 98;
+constexpr uint32_t kTimestamp = 10;
+constexpr uint16_t kSeqNum = 33;
+constexpr uint32_t kSsrc = 725242;
+constexpr uint32_t kRtxSsrc = 12345;
+constexpr uint32_t kFlexFecSsrc = 45678;
+constexpr uint64_t kStartTime = 123456789;
+constexpr uint8_t kPayloadData[] = {47, 11, 32, 93, 89};
 constexpr TimeDelta kDefaultExpectedRetransmissionTime = TimeDelta::Millis(125);
 constexpr Frequency kRtpClockRate = Frequency::Hertz(90'000);
 constexpr absl::string_view kMid = "mid";
@@ -92,7 +92,7 @@ using ::testing::SizeIs;
 class MockRtpPacketPacer : public RtpPacketSender {
  public:
   MockRtpPacketPacer() {}
-  virtual ~MockRtpPacketPacer() {}
+  ~MockRtpPacketPacer() override {}
 
   MOCK_METHOD(void,
               EnqueuePackets,

@@ -76,6 +76,11 @@ export class UserEducationInternalsElement extends
         type: Boolean,
         value: false,
       },
+
+      ntpPromoPreferencesExpanded_: {
+        type: Boolean,
+        value: false,
+      },
     };
   }
 
@@ -85,6 +90,9 @@ export class UserEducationInternalsElement extends
   protected newBadges_: FeaturePromoDemoPageInfo[] = [];
   protected whatsNewModules_: WhatsNewModuleDemoPageInfo[] = [];
   protected whatsNewEditions_: WhatsNewEditionDemoPageInfo[] = [];
+  protected ntpPromos_: FeaturePromoDemoPageInfo[] = [];
+  protected ntpPromoPreferences_: FeaturePromoDemoPageData[] = [];
+  protected accessor ntpPromoPreferencesExpanded_: boolean = false;
   protected accessor featurePromoErrorMessage_: string = '';
   protected accessor narrow_: boolean = false;
   protected accessor sessionExpanded_: boolean = false;
@@ -142,6 +150,14 @@ export class UserEducationInternalsElement extends
     this.handler_.getWhatsNewEditions().then(({whatsNewEditions}) => {
       this.whatsNewEditions_ = whatsNewEditions;
     });
+
+    this.handler_.getNtpPromos().then(({ntpPromos}) => {
+      this.ntpPromos_ = ntpPromos;
+    });
+
+    this.handler_.getNtpPromoPreferences().then(({ntpPromoPreferences}) => {
+      this.ntpPromoPreferences_ = ntpPromoPreferences;
+    });
   }
 
   protected onSearchChanged_(e: CustomEvent<string>) {
@@ -189,12 +205,18 @@ export class UserEducationInternalsElement extends
       } else {
         this.handler_.getFeaturePromos().then(({featurePromos}) => {
           this.featurePromos_ = featurePromos;
+          this.requestUpdate();
         });
       }
     });
   }
 
   protected clearSessionData_() {
+    if (!confirm(
+            'This will reset the browser to a "fresh profile" state,' +
+            ' which may trigger multiple grace periods. Proceed?')) {
+      return;
+    }
     this.handler_.clearSessionData().then(({errorMessage}) => {
       this.featurePromoErrorMessage_ = errorMessage;
       if (errorMessage !== '') {
@@ -202,6 +224,35 @@ export class UserEducationInternalsElement extends
       } else {
         this.handler_.getSessionData().then(({sessionData}) => {
           this.sessionData_ = sessionData;
+          this.requestUpdate();
+        });
+      }
+    });
+  }
+
+  protected forceNewSession_() {
+    this.handler_.forceNewSession().then(({errorMessage}) => {
+      this.featurePromoErrorMessage_ = errorMessage;
+      if (errorMessage !== '') {
+        this.$.errorMessageToast.show();
+      } else {
+        this.handler_.getSessionData().then(({sessionData}) => {
+          this.sessionData_ = sessionData;
+          this.requestUpdate();
+        });
+      }
+    });
+  }
+
+  protected removeGracePeriods_() {
+    this.handler_.removeGracePeriods().then(({errorMessage}) => {
+      this.featurePromoErrorMessage_ = errorMessage;
+      if (errorMessage !== '') {
+        this.$.errorMessageToast.show();
+      } else {
+        this.handler_.getSessionData().then(({sessionData}) => {
+          this.sessionData_ = sessionData;
+          this.requestUpdate();
         });
       }
     });
@@ -218,6 +269,7 @@ export class UserEducationInternalsElement extends
       } else {
         this.handler_.getNewBadges().then(({newBadges}) => {
           this.newBadges_ = newBadges;
+          this.requestUpdate();
         });
       }
     });
@@ -233,9 +285,41 @@ export class UserEducationInternalsElement extends
       } else {
         this.handler_.getWhatsNewModules().then(({whatsNewModules}) => {
           this.whatsNewModules_ = whatsNewModules;
+          this.requestUpdate();
         });
         this.handler_.getWhatsNewEditions().then(({whatsNewEditions}) => {
           this.whatsNewEditions_ = whatsNewEditions;
+          this.requestUpdate();
+        });
+      }
+    });
+  }
+
+  protected clearNtpPromoData_(e: CustomEvent) {
+    const id = e.detail;
+    this.featurePromoErrorMessage_ = '';
+    this.handler_.clearNtpPromoData(id).then(({errorMessage}) => {
+      this.featurePromoErrorMessage_ = errorMessage;
+      if (errorMessage !== '') {
+        this.$.errorMessageToast.show();
+      } else {
+        this.handler_.getNtpPromos().then(({ntpPromos}) => {
+          this.ntpPromos_ = ntpPromos;
+          this.requestUpdate();
+        });
+      }
+    });
+  }
+
+  protected clearNtpPromoPreferences_() {
+    this.handler_.clearNtpPromoPreferences().then(({errorMessage}) => {
+      this.featurePromoErrorMessage_ = errorMessage;
+      if (errorMessage !== '') {
+        this.$.errorMessageToast.show();
+      } else {
+        this.handler_.getNtpPromoPreferences().then(({ntpPromoPreferences}) => {
+          this.ntpPromoPreferences_ = ntpPromoPreferences;
+          this.requestUpdate();
         });
       }
     });
@@ -279,6 +363,11 @@ export class UserEducationInternalsElement extends
 
   protected onSessionExpandedChanged_(e: CustomEvent<{value: boolean}>) {
     this.sessionExpanded_ = e.detail.value;
+  }
+
+  protected onNtpPromoPreferencesExpandedChanged_(
+      e: CustomEvent<{value: boolean}>) {
+    this.ntpPromoPreferencesExpanded_ = e.detail.value;
   }
 
   protected launchWhatsNewStaging_() {

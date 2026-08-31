@@ -6,6 +6,10 @@ import("//build/config/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 mojom("mojom") {
   generate_java = true
   sources = [
@@ -55,17 +59,9 @@ mojom("mojom") {
     ]
   }
 
-  cpp_typemaps = [
-    {
-      types = [
-        {
-          mojom = "device.mojom.BluetoothAddress"
-          cpp = "::std::array<::uint8_t, 6>"
-        },
-      ]
-      traits_public_deps = [ "//base" ]
-    },
-  ]
+  if (is_ios && target_platform == "iphoneos") {
+    enabled_features = [ "is_ios_iphoneos" ]
+  }
 
   if (use_blink) {
     # The blink variant of the Device Service mojom are depended on by the
@@ -223,7 +219,7 @@ mojom("usb_test") {
 mojom("geoposition") {
   generate_java = true
   sources = [ "geoposition.mojom" ]
-  public_deps = [ "//mojo/public/mojom/base:base" ]
+  public_deps = [ "//mojo/public/mojom/base" ]
 
   if (use_blink) {
     # The blink variant of the geoposition mojom is depended on by the blink

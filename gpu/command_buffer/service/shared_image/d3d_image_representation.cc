@@ -9,6 +9,7 @@
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/shared_image/d3d_image_backing.h"
 #include "gpu/ipc/common/dxgi_helpers.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/angle/include/EGL/eglext_angle.h"
 #include "ui/gl/gl_angle_util_win.h"
 #include "ui/gl/gl_surface_egl.h"
@@ -167,6 +168,78 @@ void DawnD3DBufferRepresentation::EndAccess() {
   // All further operations on the buffer are errors (they would be racy
   // with other backings).
   buffer_ = nullptr;
+}
+
+WebNND3DTensorRepresentation::WebNND3DTensorRepresentation(
+    SharedImageManager* manager,
+    SharedImageBacking* backing,
+    MemoryTypeTracker* tracker,
+    Microsoft::WRL::ComPtr<ID3D12Device> d3d12_device)
+    : WebNNTensorRepresentation(manager, backing, tracker),
+      d3d12_device_(std::move(d3d12_device)) {}
+
+WebNND3DTensorRepresentation::~WebNND3DTensorRepresentation() = default;
+
+bool WebNND3DTensorRepresentation::BeginAccess() {
+  // Context was lost and re-synchronization isn't necessary.
+  if (!webnn_tensor_) {
+    return false;
+  }
+
+  // Backing rejected access.
+  auto opt_d3d_write_fence =
+      static_cast<D3DImageBacking*>(backing())->BeginAccessWebNN();
+  if (!opt_d3d_write_fence) {
+    return false;
+  }
+
+  // First access, no fence required.
+  scoped_refptr<gfx::D3DSharedFence> d3d_write_fence = *opt_d3d_write_fence;
+  if (!d3d_write_fence) {
+    return true;
+  }
+
+  Microsoft::WRL::ComPtr<ID3D12Fence> d3d12_write_fence;
+  HRESULT hr = d3d12_device_->OpenSharedHandle(
+      d3d_write_fence->GetSharedHandle(), IID_PPV_ARGS(&d3d12_write_fence));
+  CHECK_EQ(hr, S_OK) << ", OpenSharedHandle failed: "
+                     << logging::SystemErrorCodeToString(hr);
+
+  if (!webnn_tensor_->BeginAccessWebNN(d3d12_write_fence,
+                                       d3d_write_fence->GetFenceValue())) {
+    LOG(ERROR) << "Failed to begin access on WebNNTensor";
+    return false;
+  };
+
+  return true;
+}
+
+void WebNND3DTensorRepresentation::EndAccess() {
+  scoped_refptr<gfx::D3DSharedFence> signaled_fence;
+  if (webnn_tensor_) {
+    auto webnn_fence_to_wait_for = webnn_tensor_->EndAccessWebNN();
+    CHECK(webnn_fence_to_wait_for) << "Failed to end access on WebNNTensor";
+    signaled_fence = gfx::D3DSharedFence::CreateFromD3D12Fence(
+        webnn_fence_to_wait_for->GetD3D12Fence(),
+        webnn_fence_to_wait_for->GetFenceValue());
+    if (!signaled_fence) {
+      LOG(ERROR) << "Failed to import D3D fence from WebNN on EndAccess";
+    }
+  }
+
+  static_cast<D3DImageBacking*>(backing())->EndAccessWebNN(
+      std::move(signaled_fence));
+}
+
+Microsoft::WRL::ComPtr<ID3D12Resource>
+WebNND3DTensorRepresentation::GetD3D12Buffer() const {
+  return static_cast<D3DImageBacking*>(backing())->GetD3D12Buffer();
+}
+
+void WebNND3DTensorRepresentation::ConsumeWebNNTensor(
+    base::WeakPtr<webnn::native::d3d12::WebNNTensor> webnn_tensor) {
+  CHECK_EQ(webnn_tensor_.get(), nullptr);
+  webnn_tensor_ = std::move(webnn_tensor);
 }
 
 OverlayD3DImageRepresentation::OverlayD3DImageRepresentation(
@@ -351,6 +424,15 @@ D3D11VideoImageCopyRepresentation::CreateFromD3D(SharedImageManager* manager,
                                                  ID3D11Texture2D* texture,
                                                  std::string_view debug_label,
                                                  ID3D11Device* texture_device) {
+  auto* d3d_backing = static_cast<D3DImageBacking*>(backing);
+  if (!d3d_backing->BeginAccessD3D11(texture_device, /*write_access=*/false,
+                                     /*is_overlay_access=*/false)) {
+    return nullptr;
+  }
+  absl::Cleanup end_access = [&] {
+    d3d_backing->EndAccessD3D11(texture_device, /*is_overlay_access=*/false);
+  };
+
   D3D11_TEXTURE2D_DESC source_desc;
   texture->GetDesc(&source_desc);
 

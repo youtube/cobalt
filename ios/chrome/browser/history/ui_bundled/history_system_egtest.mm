@@ -5,6 +5,7 @@
 #import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
 
+#import "base/ios/ios_util.h"
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
@@ -215,7 +216,18 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 // Tests that searching a typed URL (after history sync is enabled and the URL
 // is uploaded to the sync server) displays only entries matching the search
 // term.
-- (void)testSearchSyncedHistory {
+// TODO(crbug.com/437843552): Test is flaky on simulator. Reenable the test.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testSearchSyncedHistory FLAKY_testSearchSyncedHistory
+#else
+#define MAYBE_testSearchSyncedHistory testSearchSyncedHistory
+#endif
+- (void)MAYBE_testSearchSyncedHistory {
+  // TODO(crbug.com/437314320): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   const char syncedURL[] = "http://mockurl/sync/";
   const GURL mockURL(syncedURL);
 
@@ -405,6 +417,12 @@ std::unique_ptr<net::test_server::HttpResponse> StandardResponse(
 #pragma mark Multiwindow
 
 - (void)testHistorySyncInMultiwindow {
+  if (@available(iOS 19.0, *)) {
+    // TODO(crbug.com/427699033): Re-enable test on iOS 26.
+    // History UI doesn't appear in the newly created window.
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   if (![ChromeEarlGrey areMultipleWindowsSupported]) {
     EARL_GREY_TEST_DISABLED(@"Multiple windows can't be opened.");
   }

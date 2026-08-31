@@ -18,6 +18,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
@@ -438,9 +439,10 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       std::make_unique<InspectorMediaEventHandler>(inspector_context));
   handlers.push_back(std::make_unique<RenderMediaEventHandler>(player_id));
 
-  // This must be created for every new WebMediaPlayer
+  // This must be created for every new WebMediaPlayer. We use the inspector
+  // task runner so logs are properly flushed even when frozen.
   auto media_log = std::make_unique<BatchingMediaLog>(
-      render_frame_->GetTaskRunner(blink::TaskType::kInternalMedia),
+      render_frame_->GetTaskRunner(blink::TaskType::kInternalInspector),
       std::move(handlers));
 
   EnsureDecoderFactory();
@@ -496,7 +498,8 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
   if (!media_player_builder_) {
     media_player_builder_ = std::make_unique<blink::WebMediaPlayerBuilder>(
         *web_frame,
-        render_frame_->GetTaskRunner(blink::TaskType::kInternalMedia));
+        /*network_task_runner=*/render_frame_->GetTaskRunner(
+            blink::TaskType::kNetworkingUnfreezable));
   }
 
   return media_player_builder_->Build(
@@ -514,8 +517,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       enable_instant_source_buffer_gc, embedded_media_experience_enabled,
       std::move(metrics_provider),
       base::BindOnce(&blink::WebSurfaceLayerBridge::Create,
-                     parent_frame_sink_id,
-                     blink::WebSurfaceLayerBridge::ContainsVideo::kYes),
+                     parent_frame_sink_id),
       RenderThreadImpl::current()->SharedMainThreadContextProvider(),
       use_surface_layer,
       render_frame_->GetRenderFrameMediaPlaybackOptions()
@@ -805,8 +807,7 @@ MediaFactory::CreateWebMediaPlayerForMediaStream(
       std::move(compositor_worker_task_runner),
       render_thread->GetGpuFactories(), sink_id,
       base::BindOnce(&blink::WebSurfaceLayerBridge::Create,
-                     parent_frame_sink_id,
-                     blink::WebSurfaceLayerBridge::ContainsVideo::kYes),
+                     parent_frame_sink_id),
       std::move(submitter), use_surface_layer);
 }
 

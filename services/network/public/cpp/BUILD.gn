@@ -7,6 +7,7 @@ import("//mojo/public/tools/bindings/mojom.gni")
 import("//net/features.gni")
 import("//services/network/public/cpp/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
+import("//testing/test.gni")
 import("//third_party/blink/renderer/build/scripts/scripts.gni")  # TODO(crbug.com/397934758)
 
 _is_directory_transfer_required = is_fuchsia
@@ -107,6 +108,8 @@ component("cpp") {
     "network_context_getter.h",
     "network_quality_tracker.cc",
     "network_quality_tracker.h",
+    "network_service_task_priority.cc",
+    "network_service_task_priority.h",
     "no_vary_search_header_parser.cc",
     "no_vary_search_header_parser.h",
     "not_implemented_url_loader_factory.cc",
@@ -127,6 +130,8 @@ component("cpp") {
     "resolve_host_client_base.h",
     "self_deleting_url_loader_factory.cc",
     "self_deleting_url_loader_factory.h",
+    "sequence_manager_configurator.cc",
+    "sequence_manager_configurator.h",
     "session_cookie_delete_predicate.h",
     "shared_url_loader_factory.cc",
     "shared_url_loader_factory.h",
@@ -149,6 +154,8 @@ component("cpp") {
     "timing_allow_origin_parser.h",
     "trust_token_http_headers.cc",
     "trust_token_http_headers.h",
+    "unencoded_digests.cc",
+    "unencoded_digests.h",
     "url_loader_factory_builder.cc",
     "url_loader_factory_builder.h",
     "url_util.cc",
@@ -229,6 +236,20 @@ component("host_resolver_mojom_support") {
   ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
   defines = [ "IS_NETWORK_CPP_HOST_RESOLVER_IMPL" ]
+}
+
+component("integrity_metadata_mojom_support") {
+  sources = [
+    "integrity_metadata.cc",
+    "integrity_metadata.h",
+    "integrity_metadata_mojom_traits.cc",
+    "integrity_metadata_mojom_traits.h",
+  ]
+  deps = [
+    "//services/network/public/mojom:mojom_integrity_algorithm",
+    "//services/network/public/mojom:mojom_integrity_metadata_shared",
+  ]
+  defines = [ "IS_NETWORK_CPP_INTEGRITY_METADATA_IMPL" ]
 }
 
 component("integrity_policy") {
@@ -454,6 +475,29 @@ component("document_isolation_policy") {
   defines = [ "IS_NETWORK_CPP_DOCUMENT_ISOLATION_IMPL" ]
 }
 
+source_set("ip_address_space_overrides_test_utils") {
+  testonly = true
+
+  sources = [
+    "ip_address_space_overrides_test_utils.cc",
+    "ip_address_space_overrides_test_utils.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//services/network/public/mojom:mojom_ip_address_shared",
+  ]
+
+  deps = [
+    ":cpp",
+    ":flags_and_switches",
+    "//base",
+    "//net:test_support",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+}
+
 component("shared_storage_support") {
   sources = [
     "shared_storage_mojom_traits.cc",
@@ -610,6 +654,7 @@ component("cpp_base") {
     ":cross_origin_embedder_policy",
     ":document_isolation_policy",
     ":fetch_retry_options",
+    ":integrity_metadata_mojom_support",
     ":integrity_policy",
     ":ip_address_mojom_support",
     ":network_param_mojom_support",
@@ -685,6 +730,10 @@ source_set("test_support") {
     "//testing/gtest",
     "//url:url_test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("tests") {
@@ -769,6 +818,7 @@ source_set("tests") {
     "timing_allow_origin_parser_unittest.cc",
     "transferable_directory_unittest.cc",
     "transferable_socket_unittest.cc",
+    "unencoded_digests_unittest.cc",
     "url_loader_completion_status_mojom_traits_unittest.cc",
     "url_loader_factory_builder_unittest.cc",
     "url_request_mojom_traits_unittest.cc",
@@ -800,6 +850,10 @@ source_set("tests") {
   ]
 
   public_deps = [ ":buildflags" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("perftests") {
@@ -815,8 +869,17 @@ source_set("perftests") {
     "//mojo/public/cpp/test_support:test_utils",
     "//net",
     "//testing/gtest",
-    "//testing/perf:perf",
+    "//testing/perf",
     "//third_party/google_benchmark",
+  ]
+}
+
+test("coep_fuzztest") {
+  sources = [ "cross_origin_embedder_policy_parser_fuzztest.cc" ]
+  fuzztests = [ "CrossOriginEmbedderPolicyParserTest.CrossOriginEmbedderPolicyParserFuzzerTest" ]
+  deps = [
+    ":cpp",
+    "//third_party/fuzztest:fuzztest_gtest_main",
   ]
 }
 

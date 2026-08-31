@@ -10,6 +10,8 @@
 
 #include "modules/desktop_capture/win/desktop.h"
 
+#include <cstddef>
+#include <string>
 #include <vector>
 
 #include "rtc_base/logging.h"

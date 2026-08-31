@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/features.h"
 
+#include "cobalt/build/configs/buildflags.h"
+
 namespace cobalt {
 namespace features {
 
@@ -30,13 +32,49 @@ BASE_FEATURE(kTestFinchFeature,
 const base::FeatureParam<std::string> kTestFinchFeatureParam{
     &kTestFinchFeature, "TestFinchFeatureParam", ""};
 
+BASE_FEATURE(kEnableUserAgentFinchToken,
+             "EnableUserAgentFinchToken",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<std::string> kUserAgentFinchTokenParam{
+    &kEnableUserAgentFinchToken, "token", ""};
+
 BASE_FEATURE(kHangReporting,
              "HangReporting",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kUseIPv4ForDNS,
-             "UseIPv4ForDNS",
+const base::FeatureParam<int> kHangWatchTimeSeconds{&kHangReporting,
+                                                    "HangWatchTimeSeconds", 10};
+
+const base::FeatureParam<int> kHangWatchMonitoringPeriodSeconds{
+    &kHangReporting, "HangWatchMonitoringPeriodSeconds", 10};
+
+BASE_FEATURE(kHangWatchMainThreadDump,
+             "HangWatchMainThreadDump",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatchIOThreadDump,
+             "HangWatchIOThreadDump",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatchThreadPoolDump,
+             "HangWatchThreadPoolDump",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatchRendererThreadDump,
+             "HangWatchRendererThreadDump",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatcherLongHangDetection,
+             "HangWatcherLongHangDetection",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kHangWatcherLongHangKill,
+             "HangWatcherLongHangKill",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kLongHangTimeoutSeconds{
+    &kHangWatcherLongHangDetection, "LongHangTimeoutSeconds", 20};
 
 BASE_FEATURE(kCobaltMetricsIntervalFeature,
              "CobaltMetricsInterval",
@@ -62,6 +100,33 @@ BASE_FEATURE(kInMemoryUpdatesMemoryBuffer,
 
 const base::FeatureParam<int> kInMemoryUpdatesMemoryBufferParam{
     &kInMemoryUpdatesMemoryBuffer, "memory_buffer_bytes", 35 * 1024 * 1024};
+
+BASE_FEATURE(kDisableSplashScreen,
+             "DisableSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kForceVideoSplashScreen,
+             "ForceVideoSplashScreen",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnablePictureInPicture,
+             "PictureInPicture",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else   // BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(IS_ANDROID)
+);
+
+BASE_FEATURE(kCobaltNativeMemoryAblation,
+             "CobaltNativeMemoryAblation",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<int> kMemoryAblationSizeMBParam{
+    &kCobaltNativeMemoryAblation, "ablation_size_mb", 0};
+
+const base::FeatureParam<base::TimeDelta> kMemoryAblationDelayParam{
+    &kCobaltNativeMemoryAblation, "ablation_delay", base::Seconds(0)};
 
 }  // namespace features
 }  // namespace cobalt

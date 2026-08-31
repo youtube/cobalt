@@ -8,6 +8,7 @@
 #include "base/containers/span.h"
 #include "base/i18n/time_formatting.h"
 #include "base/json/json_writer.h"
+#include "base/notimplemented.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/client_certificates/certificate_provisioning_service_factory.h"
@@ -52,6 +53,7 @@ constexpr char kProfile[] = "Profile";
 constexpr char kBrowser[] = "Browser";
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
+#if !BUILDFLAG(IS_ANDROID)
 std::string ConvertPolicyLevelToString(DTCPolicyLevel level) {
   switch (level) {
     case DTCPolicyLevel::kBrowser:
@@ -60,6 +62,7 @@ std::string ConvertPolicyLevelToString(DTCPolicyLevel level) {
       return "User";
   }
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 connectors_internals::mojom::ClientIdentityPtr GetIdentity(
@@ -81,13 +84,15 @@ connectors_internals::mojom::ClientIdentityPtr GetIdentity(
 }
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_ANDROID)
 std::string GetStringFromTimestamp(base::Time timestamp) {
   return (timestamp == base::Time()) ? std::string()
                                      : base::UnlocalizedTimeFormatWithPattern(
                                            timestamp, "yyyy-LL-dd HH:mm zzz");
 }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -102,6 +107,9 @@ ConnectorsInternalsPageHandler::~ConnectorsInternalsPageHandler() = default;
 
 void ConnectorsInternalsPageHandler::GetDeviceTrustState(
     GetDeviceTrustStateCallback callback) {
+#if BUILDFLAG(IS_ANDROID)
+  NOTIMPLEMENTED();
+#else
   auto* device_trust_service =
       DeviceTrustServiceFactory::GetForProfile(profile_);
 
@@ -127,6 +135,7 @@ void ConnectorsInternalsPageHandler::GetDeviceTrustState(
       base::BindOnce(&ConnectorsInternalsPageHandler::OnSignalsCollected,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback),
                      device_trust_service->IsEnabled()));
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 void ConnectorsInternalsPageHandler::DeleteDeviceTrustKey(
@@ -145,7 +154,9 @@ void ConnectorsInternalsPageHandler::DeleteDeviceTrustKey(
 
 void ConnectorsInternalsPageHandler::GetClientCertificateState(
     GetClientCertificateStateCallback callback) {
-#if BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
+#if BUILDFLAG(IS_ANDROID)
+  NOTIMPLEMENTED();
+#elif BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
   auto* profile_certificate_provisioning_service =
       client_certificates::CertificateProvisioningServiceFactory::GetForProfile(
           profile_);
@@ -185,12 +196,13 @@ void ConnectorsInternalsPageHandler::GetClientCertificateState(
   std::move(callback).Run(
       connectors_internals::mojom::ClientCertificateState::New(
           std::vector<std::string>(), nullptr, nullptr));
-#endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
+#endif
 }
 
 void ConnectorsInternalsPageHandler::GetSignalsReportingState(
     GetSignalsReportingStateCallback callback) {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_ANDROID)
   auto* profile_prefs = profile_->GetPrefs();
 
   std::string last_upload_attempt_time_string =
@@ -260,9 +272,11 @@ void ConnectorsInternalsPageHandler::GetSignalsReportingState(
           /*last_upload_success_timestamp=*/std::string(),
           /*last_signals_upload_config=*/std::string(),
           /*can_collect_all_fields=*/false));
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
+        // BUILDFLAG(IS_ANDROID)
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void ConnectorsInternalsPageHandler::OnSignalsCollected(
     GetDeviceTrustStateCallback callback,
     bool is_device_trust_enabled,
@@ -286,7 +300,7 @@ void ConnectorsInternalsPageHandler::OnSignalsCollected(
       DeviceTrustConnectorServiceFactory::GetForProfile(profile_);
   if (device_trust_connector_service) {
     for (const auto& level :
-         device_trust_connector_service->GetEnabledInlinePolicyLevels()) {
+         device_trust_connector_service->GetSignalsPolicyScope()) {
       policy_enabled_levels.push_back(ConvertPolicyLevelToString(level));
     }
   }
@@ -296,5 +310,6 @@ void ConnectorsInternalsPageHandler::OnSignalsCollected(
       signals_json, std::move(consent_metadata));
   std::move(callback).Run(std::move(state));
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace enterprise_connectors

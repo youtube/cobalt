@@ -16,6 +16,7 @@ import 'chrome://resources/cr_elements/cr_toolbar/cr_toolbar_search_field.js';
 import 'chrome://resources/cr_elements/cr_page_host_style.css.js';
 import 'chrome://resources/cr_elements/icons.html.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import '/shared/settings/prefs/prefs.js';
 import '../icons.html.js';
 import '../settings_main/settings_main.js';
 import '../settings_menu/settings_menu.js';
@@ -33,8 +34,6 @@ import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bu
 
 import {resetGlobalScrollTargetForTesting, setGlobalScrollTarget} from '../global_scroll_target_mixin.js';
 import {loadTimeData} from '../i18n_setup.js';
-import type {PageVisibility} from '../page_visibility.js';
-import {pageVisibility} from '../page_visibility.js';
 import {routes} from '../route.js';
 import type {Route} from '../router.js';
 import {RouteObserverMixin, Router} from '../router.js';
@@ -90,8 +89,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
         observer: 'onNarrowChanged_',
       },
 
-      pageVisibility_: {type: Object, value: pageVisibility},
-
       lastSearchQuery_: {
         type: String,
         value: '',
@@ -102,7 +99,6 @@ export class SettingsUiElement extends SettingsUiElementBase {
   declare prefs: {[key: string]: any};
   declare private toolbarSpinnerActive_: boolean;
   declare private narrow_: boolean;
-  declare private pageVisibility_: PageVisibility;
   declare private lastSearchQuery_: string;
 
   constructor() {
@@ -139,7 +135,7 @@ export class SettingsUiElement extends SettingsUiElementBase {
       controlledSettingParent:
           loadTimeData.getString('controlledSettingParent'),
 
-      // <if expr="chromeos_ash">
+      // <if expr="is_chromeos">
       controlledSettingShared:
           loadTimeData.getString('controlledSettingShared'),
       controlledSettingWithOwner:

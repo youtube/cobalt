@@ -36,15 +36,6 @@
 namespace ash {
 namespace {
 
-base::expected<bool, chromeos::MagicBoostState::Error>
-IsMagicBoostAvailableExpected() {
-  std::optional<bool> availability = mahi_availability::IsMahiAvailable();
-  if (!availability.has_value()) {
-    return base::unexpected(chromeos::MagicBoostState::Error::kUninitialized);
-  }
-  return availability.value();
-}
-
 // Wait for refresh tokens load and run the provided callback. This object
 // immediately runs the callback if refresh tokens are already loaded.
 class RefreshTokensLoadedBarrier : public signin::IdentityManager::Observer {
@@ -272,10 +263,19 @@ void MagicBoostStateAsh::RegisterPrefChanges(PrefService* pref_service) {
                      base::Unretained(this))));
 }
 
+base::expected<bool, chromeos::MagicBoostState::Error>
+MagicBoostStateAsh::IsUserEligibleForGenAIFeaturesExpected() const {
+  std::optional<bool> availability = mahi_availability::IsMahiAvailable();
+  if (!availability.has_value()) {
+    return base::unexpected(chromeos::MagicBoostState::Error::kUninitialized);
+  }
+  return availability.value();
+}
+
 void MagicBoostStateAsh::OnRefreshTokensReady() {
-  ASSIGN_OR_RETURN(bool available, IsMagicBoostAvailableExpected(),
+  ASSIGN_OR_RETURN(bool available, IsUserEligibleForGenAIFeaturesExpected(),
                    [](auto) {});
-  UpdateMagicBoostAvailable(available);
+  UpdateUserEligibleForGenAIFeatures(available);
 }
 
 void MagicBoostStateAsh::OnMagicBoostEnabledUpdated() {

@@ -185,12 +185,37 @@ TEST_F(FontTest, TextIntercepts) {
   }
 }
 
+TEST_F(FontTest, TabWidthNegativePosition) {
+  Font* font = CreateTestFont(AtomicString("Ahem"),
+                              test::PlatformTestDataPath("Ahem.woff"), 10);
+  TabSize tab_size(8);
+  EXPECT_EQ(font->TabWidth(tab_size, -12.0f), 12.0f);
+  EXPECT_EQ(font->TabWidth(tab_size, LayoutUnit(-12.0f)), LayoutUnit(12.0f));
+}
+
 TEST_F(FontTest, TabWidthZero) {
   Font* font = CreateTestFont(AtomicString("Ahem"),
                               test::PlatformTestDataPath("Ahem.woff"), 0);
   TabSize tab_size(8);
   EXPECT_EQ(font->TabWidth(tab_size, .0f), .0f);
   EXPECT_EQ(font->TabWidth(tab_size, LayoutUnit()), LayoutUnit());
+}
+
+TEST_F(FontTest, TabWidthWithSpacing) {
+  Font* font = CreateTestFont(AtomicString("Ahem"),
+                              test::PlatformTestDataPath("Ahem.woff"), 10);
+
+  auto& font_description =
+      const_cast<FontDescription&>(font->GetFontDescription());
+  font_description.SetLetterSpacing(Length::Fixed(3));
+  font_description.SetWordSpacing(Length::Fixed(20));
+  TabSize tab_size(8);
+
+  const float kTolerance = 1.0f / LayoutUnit::kFixedPointDenominator;
+  float expected = 8 * (10 + 3 + 20);
+  EXPECT_FLOAT_EQ(font->TabWidth(tab_size, .0f), expected);
+  EXPECT_NEAR(font->TabWidth(tab_size, LayoutUnit()), LayoutUnit(expected),
+              kTolerance);
 }
 
 TEST_F(FontTest, NullifyPrimaryFontForTesting) {

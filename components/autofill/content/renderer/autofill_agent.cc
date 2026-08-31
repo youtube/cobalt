@@ -29,8 +29,10 @@
 #include "base/memory/raw_ref.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
@@ -266,8 +268,9 @@ bool ShowPredictions(const WebDocument& document,
                                       : "SERVER_RESPONSE_PENDING",
         "\nheuristic type: ",
         field.heuristic_type,
-        (!field.autofill_ai_type.empty() ? "\nautofill ai type: " : ""),
-        (!field.autofill_ai_type.empty() ? field.autofill_ai_type : ""),
+        (!field.attribute_types.empty() ? "\nautofill ai attribute types: "
+                                        : ""),
+        (!field.attribute_types.empty() ? field.attribute_types : ""),
         (!field.format_string.empty() ? "\nformat string: " : ""),
         (!field.format_string.empty() ? field.format_string : ""),
         "\nlabel: ",
@@ -284,6 +287,8 @@ bool ShowPredictions(const WebDocument& document,
         field.host_form_signature,
         "\nalternative form signature: ",
         form.alternative_signature,
+        "\nstructural form signature: ",
+        form.structural_form_signature,
         "\nform name: ",
         base::UTF16ToUTF8(form.data.name_attribute()),
         "\nform id: ",
@@ -346,6 +351,8 @@ bool ShowPredictions(const WebDocument& document,
           option_labels,
           "\noption values: ",
           option_values,
+          "\nax node id: ",
+          base::NumberToString(field_data.form_control_ax_id()),
       });
     }
 
@@ -384,6 +391,8 @@ bool ShowPredictions(const WebDocument& document,
   return true;
 }
 
+// TODO(crbug.com/402071086): Remove when AutofillIgnoreCheckableElements is
+// removed.
 bool IsCheckableElement(const WebFormControlElement& element) {
   using enum blink::mojom::FormControlType;
   return element && (element.FormControlTypeForAutofill() == kInputCheckbox ||
@@ -543,9 +552,7 @@ AutofillAgent::AutofillAgent(
       optimize_form_extraction_(base::FeatureList::IsEnabled(
           features::kAutofillOptimizeFormExtraction)),
       replace_form_element_observer_(base::FeatureList::IsEnabled(
-          features::kAutofillReplaceFormElementObserver)),
-      detect_removed_form_controls_(base::FeatureList::IsEnabled(
-          features::kAutofillDetectRemovedFormControls)) {
+          features::kAutofillReplaceFormElementObserver)) {
   form_tracker_->SetUserGestureRequired(config_.user_gesture_required);
   render_frame->GetWebFrame()->SetAutofillClient(this);
   password_autofill_agent_->Init(this);
@@ -1478,9 +1485,7 @@ bool AutofillAgent::ShouldThrottleAskForValuesToFill(FieldRendererId field) {
   static constexpr base::TimeDelta kThrottle = base::Milliseconds(100);
   base::TimeTicks now = base::TimeTicks::Now();
   if (field == last_ask_for_values_to_fill_.field &&
-      now - last_ask_for_values_to_fill_.time < kThrottle &&
-      base::FeatureList::IsEnabled(
-          features::kAutofillThrottleAskForValuesToFill)) {
+      now - last_ask_for_values_to_fill_.time < kThrottle) {
     return true;
   }
   last_ask_for_values_to_fill_ = {now, field};
@@ -1499,7 +1504,13 @@ void AutofillAgent::ShowSuggestions(
   if (!element.IsEnabled() || element.IsReadOnly()) {
     return;
   }
-  if (!element.SuggestedValue().IsEmpty()) {
+  // Proactive password recovery can be triggered on forms that have just been
+  // re-rendered and autofilled because it happens after a failed login
+  // attempt. In this case the autofilled username/password fields will have
+  // suggested value set.
+  if (!element.SuggestedValue().IsEmpty() &&
+      trigger_source !=
+          AutofillSuggestionTriggerSource::kProactivePasswordRecovery) {
     return;
   }
   if (!form_util::IsTextAreaElementOrTextInput(element)) {
@@ -1789,6 +1800,12 @@ void AutofillAgent::HidePopup() {
     return;
   }
 
+  // The browser code also calls `ClearPreviewedForm` on hiding the popup.
+  // However, there can be instances in which the render frame is already
+  // switched out by the time this call happens. If that render frame is later
+  // retrieved from BFCache, the preview is still active. Clearing preview here
+  // prevents that.
+  ClearPreviewedForm();
   if (auto* autofill_driver = unsafe_autofill_driver()) {
     autofill_driver->HidePopup();
   }
@@ -1809,7 +1826,7 @@ void AutofillAgent::DidChangeFormRelatedElementDynamically(
     }
     // Early bailout for node removal.
     if (form_related_change == blink::WebFormRelatedChangeType::kRemove &&
-        !replace_form_element_observer_ && !detect_removed_form_controls_) {
+        !replace_form_element_observer_) {
       return false;
     }
     auto maybe_control_element = element.DynamicTo<WebFormControlElement>();
@@ -1849,12 +1866,8 @@ void AutofillAgent::DidChangeFormRelatedElementDynamically(
           process_forms_after_dynamic_change_timer_, element);
       break;
     case blink::WebFormRelatedChangeType::kRemove:
-      form_tracker_->ElementDisappeared(element);
-      if (detect_removed_form_controls_) {
-        ExtractFormsAndNotifyPasswordAutofillAgent(
-            process_forms_after_dynamic_change_timer_, element);
-      }
-      break;
+      // Autofill currently notifies the browser of additions but not of
+      // deletions, see crbug.com/356236098#comment10 for further details.
     case blink::WebFormRelatedChangeType::kHide:
       form_tracker_->ElementDisappeared(element);
       break;
@@ -2066,7 +2079,7 @@ void AutofillAgent::JavaScriptChangedValue(WebFormControlElement element,
             std::ranges::find(fields, form_util::GetFieldRendererId(element),
                               &FormFieldData::renderer_id);
         it != fields.end()) {
-      it->set_value(element.Value().Utf16());
+      it->set_value(element.Value().Utf16().substr(0, kMaxStringLength));
       it->set_is_autofilled(element.IsAutofilled());
       form_util::MaybeUpdateUserInput(
           *it, form_util::GetFieldRendererId(element), field_data_manager());

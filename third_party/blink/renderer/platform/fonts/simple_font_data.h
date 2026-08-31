@@ -24,6 +24,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SIMPLE_FONT_DATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_SIMPLE_FONT_DATA_H_
 
+#include <array>
 #include <memory>
 #include <mutex>
 #include <utility>
@@ -112,6 +113,10 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
   const std::optional<float>& IdeographicAdvanceWidth() const;
   const std::optional<float>& IdeographicAdvanceHeight() const;
 
+  // The inter-script spacing by the CSS `text-autospace` property.
+  // https://drafts.csswg.org/css-text-4/#inter-script-spacing
+  float TextAutoSpaceInlineSize() const;
+
   // The approximated advance of “0” (ZERO, U+0030) character in the inline
   // axis. This is currently used to support the `ch` unit.
   // https://drafts.csswg.org/css-values-4/#ch
@@ -157,6 +162,7 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
   const SimpleFontData* FontDataForCharacter(UChar32) const override;
 
   Glyph GlyphForCharacter(UChar32) const;
+  Glyph GlyphForMathCharacter(UChar32, TextDirection) const;
 
   bool IsCustomFont() const override { return custom_font_data_; }
   bool IsLoading() const override {
@@ -219,7 +225,7 @@ class PLATFORM_EXPORT SimpleFontData final : public FontData {
     bool is_horizontal;
     HanKerning::FontData data;
   };
-  mutable HanKerningCacheEntry han_kerning_cache_[2];
+  mutable std::array<HanKerningCacheEntry, 2> han_kerning_cache_;
 
   mutable FontHeight normalized_typo_ascent_descent_;
 

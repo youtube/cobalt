@@ -3,23 +3,49 @@
 // found in the LICENSE file.
 
 #import "base/strings/sys_string_conversions.h"
+#import "components/sync/base/features.h"
+#import "ios/chrome/browser/authentication/ui_bundled/separate_profiles_util.h"
+#import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey_ui_test_util.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_feature.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/fake_system_identity.h"
+#import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey_ui.h"
+#import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/chrome/test/earl_grey/test_switches.h"
 #import "ios/testing/earl_grey/app_launch_manager.h"
 #import "ios/testing/earl_grey/earl_grey_test.h"
+#import "ui/base/l10n/l10n_util.h"
 
 @interface SeparateProfilesMigrationTestCase : ChromeTestCase
 @end
 
 @implementation SeparateProfilesMigrationTestCase
+
+- (void)setUp {
+  [super setUp];
+  ClearHistorySyncPrefs();
+  // Reset the force migration timestamp pref.
+  [ChromeEarlGrey
+           setTimeValue:base::Time()
+      forLocalStatePref:prefs::kWaitingForMultiProfileForcedMigrationTimestamp];
+}
+
+- (void)tearDownHelper {
+  // Reset the force migration timestamp pref.
+  [ChromeEarlGrey
+           setTimeValue:base::Time()
+      forLocalStatePref:prefs::kWaitingForMultiProfileForcedMigrationTimestamp];
+  ClearHistorySyncPrefs();
+  // Make sure any pending prefs changes are written to disk.
+  [ChromeEarlGrey commitPendingUserPrefsWrite];
+  [super tearDownHelper];
+}
 
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
@@ -98,7 +124,8 @@
   }
 }
 
-- (void)testMigrateWithManagedPrimaryAccount {
+// TODO(crbug.com/433320893): Re-enable this test.
+- (void)DISABLED_testMigrateWithManagedPrimaryAccount {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -311,6 +338,227 @@
               prefs::kWaitingForMultiProfileForcedMigrationTimestamp],
       base::Time(),
       @"kWaitingForMultiProfileForcedMigrationTimestamp should not be set");
+}
+
+- (void)testForceMigrationPrefClearedWhenFeatureIsDisabled {
+  // Separate profiles are only available in iOS 17+.
+  if (!@available(iOS 17, *)) {
+    return;
+  }
+
+  // Reset `kWaitingForMultiProfileForcedMigrationTimestamp`.
+  [ChromeEarlGrey resetDataForLocalStatePref:
+                      prefs::kWaitingForMultiProfileForcedMigrationTimestamp];
+
+  // A personal and a managed identity exist on the device.
+  FakeSystemIdentity* const personalIdentity =
+      [FakeSystemIdentity fakeIdentity1];
+  FakeSystemIdentity* const managedIdentity =
+      [FakeSystemIdentity fakeManagedIdentity];
+  [SigninEarlGrey addFakeIdentity:personalIdentity];
+  [SigninEarlGrey addFakeIdentity:managedIdentity];
+
+  // The *managed* identity is the primary one.
+  [SigninEarlGreyUI signinWithFakeIdentity:managedIdentity];
+
+  // Check preconditions: Both accounts exist in the profile.
+  {
+    NSSet<NSString*>* accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual(
+        [accountsInProfile count], 2u,
+        @"Pre-migration, both accounts should be in the personal profile");
+    GREYAssert([accountsInProfile containsObject:personalIdentity.gaiaID],
+               @"Personal account should match");
+    GREYAssert([accountsInProfile containsObject:managedIdentity.gaiaID],
+               @"Managed account should match");
+  }
+
+  // Verify `kWaitingForMultiProfileForcedMigrationTimestamp` is not set.
+  GREYAssertEqual(
+      [ChromeEarlGrey
+          localStateTimePref:
+              prefs::kWaitingForMultiProfileForcedMigrationTimestamp],
+      base::Time(),
+      @"kWaitingForMultiProfileForcedMigrationTimestamp should not be set");
+
+  // Relaunch with the multi-profile features enabled.
+  [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+               enabledFeatures:{kIdentityDiscAccountMenu,
+                                kSeparateProfilesForManagedAccounts}
+              disabledFeatures:{}];
+
+  // Verify that the managed account remained in the personal profile, since it
+  // is the primary account.
+  {
+    NSSet<NSString*>* accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual([accountsInProfile count], 2u,
+                    @"Post-migration, both accounts should still be in the "
+                    @"personal profile");
+    GREYAssert([accountsInProfile containsObject:personalIdentity.gaiaID],
+               @"Personal account should match");
+    GREYAssert([accountsInProfile containsObject:managedIdentity.gaiaID],
+               @"Managed account should match");
+  }
+
+  // Verify `kWaitingForMultiProfileForcedMigrationTimestamp` is set.
+  GREYAssertNotEqual(
+      [ChromeEarlGrey
+          localStateTimePref:
+              prefs::kWaitingForMultiProfileForcedMigrationTimestamp],
+      base::Time(),
+      @"kWaitingForMultiProfileForcedMigrationTimestamp should be set");
+
+  // Relaunch with the multi-profile features disabled.
+  [self relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+               enabledFeatures:{}
+              disabledFeatures:{kIdentityDiscAccountMenu,
+                                kSeparateProfilesForManagedAccounts}];
+
+  // Verify `kWaitingForMultiProfileForcedMigrationTimestamp` is cleared.
+  GREYAssertEqual(
+      [ChromeEarlGrey
+          localStateTimePref:
+              prefs::kWaitingForMultiProfileForcedMigrationTimestamp],
+      base::Time(),
+      @"kWaitingForMultiProfileForcedMigrationTimestamp should not be set");
+}
+
+- (void)testForceMigration {
+  // Separate profiles are only available in iOS 17+.
+  if (!@available(iOS 17, *)) {
+    return;
+  }
+
+  // Reset `kWaitingForMultiProfileForcedMigrationTimestamp`.
+  [ChromeEarlGrey resetDataForLocalStatePref:
+                      prefs::kWaitingForMultiProfileForcedMigrationTimestamp];
+
+  // A personal and a managed identity exist on the device.
+  FakeSystemIdentity* const personalIdentity =
+      [FakeSystemIdentity fakeIdentity1];
+  FakeSystemIdentity* const managedIdentity =
+      [FakeSystemIdentity fakeManagedIdentity];
+  [SigninEarlGrey addFakeIdentity:personalIdentity];
+  [SigninEarlGrey addFakeIdentity:managedIdentity];
+
+  // The *managed* identity is the primary one.
+  [SigninEarlGreyUI signinWithFakeIdentity:managedIdentity];
+
+  // Check preconditions: Both accounts exist in the profile.
+  {
+    NSSet<NSString*>* accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual(
+        [accountsInProfile count], 2u,
+        @"Pre-migration, both accounts should be in the personal profile");
+    GREYAssert([accountsInProfile containsObject:personalIdentity.gaiaID],
+               @"Personal account should match");
+    GREYAssert([accountsInProfile containsObject:managedIdentity.gaiaID],
+               @"Managed account should match");
+  }
+
+  NSString* originalPersonalProfile = [ChromeEarlGrey currentProfileName];
+
+  // Relaunch with the multi-profile features enabled.
+  [self
+      relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+             enabledFeatures:{kIdentityDiscAccountMenu,
+                              kSeparateProfilesForManagedAccounts,
+                              kSeparateProfilesForManagedAccountsForceMigration}
+            disabledFeatures:{}];
+
+  // Verify that the managed account remained in the personal profile, since it
+  // is the primary account.
+  {
+    NSSet<NSString*>* accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual([accountsInProfile count], 2u,
+                    @"Post-migration, both accounts should still be in the "
+                    @"personal profile");
+    GREYAssert([accountsInProfile containsObject:personalIdentity.gaiaID],
+               @"Personal account should match");
+    GREYAssert([accountsInProfile containsObject:managedIdentity.gaiaID],
+               @"Managed account should match");
+    GREYAssert([[ChromeEarlGrey currentProfileName]
+                   isEqualToString:originalPersonalProfile],
+               @"Should be in the personal profile.");
+  }
+
+  // Verify `kWaitingForMultiProfileForcedMigrationTimestamp` is set.
+  GREYAssertNotEqual(
+      [ChromeEarlGrey
+          localStateTimePref:
+              prefs::kWaitingForMultiProfileForcedMigrationTimestamp],
+      base::Time(),
+      @"kWaitingForMultiProfileForcedMigrationTimestamp should be set");
+
+  // Relaunch again to trigger the migration.
+  [ChromeEarlGrey
+           setTimeValue:base::Time::Now() - base::Days(90)
+      forLocalStatePref:prefs::kWaitingForMultiProfileForcedMigrationTimestamp];
+
+  // Relaunch with the multi-profile features enabled.
+  [self
+      relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+             enabledFeatures:{kIdentityDiscAccountMenu,
+                              kSeparateProfilesForManagedAccounts,
+                              kSeparateProfilesForManagedAccountsForceMigration}
+            disabledFeatures:{}];
+
+  // Verify that the managed account is now in the converted-to-managed personal
+  // profile.
+  {
+    NSSet<NSString*>* accountsInProfile =
+        [SigninEarlGrey accountsInProfileGaiaIDs];
+    GREYAssertEqual(
+        [accountsInProfile count], 1u,
+        @"Post-migration, the personal account should be in a new personal "
+        @"profile, only the managed account is in the current managed profile");
+    GREYAssert([accountsInProfile containsObject:managedIdentity.gaiaID],
+               @"Managed account should match");
+    GREYAssert([[ChromeEarlGrey currentProfileName]
+                   isEqualToString:originalPersonalProfile],
+               @"The old personal profile should be the current managed one.");
+    GREYAssert(
+        ![[ChromeEarlGrey personalProfileName]
+            isEqualToString:originalPersonalProfile],
+        @"A new personal profile should have been created with a new name.");
+  }
+
+  // Verify `kWaitingForMultiProfileForcedMigrationTimestamp` is cleared.
+  GREYAssertEqual(
+      [ChromeEarlGrey
+          localStateTimePref:
+              prefs::kWaitingForMultiProfileForcedMigrationTimestamp],
+      base::Time(),
+      @"kWaitingForMultiProfileForcedMigrationTimestamp should not be set");
+
+  // Verify the enterprise onboarding UI shows to notify the user about the
+  // force-migration.
+  WaitForEnterpriseOnboardingScreen();
+  // Verify the primary button string is the right one.
+  [[EarlGrey
+      selectElementWithMatcher:grey_text(l10n_util::GetNSString(
+                                   IDS_IOS_ENTERPRISE_PROFILE_CREATION_GOTIT))]
+      assertWithMatcher:grey_sufficientlyVisible()];
+  [[EarlGrey selectElementWithMatcher:chrome_test_util::
+                                          PromoScreenPrimaryButtonMatcher()]
+      performAction:grey_tap()];
+
+  // Relaunch again and verify the onboarding UI shows only once; does not show
+  // again.
+  [self
+      relaunchWithIdentities:@[ personalIdentity, managedIdentity ]
+             enabledFeatures:{kIdentityDiscAccountMenu,
+                              kSeparateProfilesForManagedAccounts,
+                              kSeparateProfilesForManagedAccountsForceMigration}
+            disabledFeatures:{}];
+  [[EarlGrey selectElementWithMatcher:
+                 grey_accessibilityID(
+                     kManagedProfileCreationScreenAccessibilityIdentifier)]
+      assertWithMatcher:grey_notVisible()];
 }
 
 @end

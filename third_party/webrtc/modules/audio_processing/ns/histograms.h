@@ -14,7 +14,6 @@
 #include <array>
 
 #include "api/array_view.h"
-#include "modules/audio_processing/ns/ns_common.h"
 #include "modules/audio_processing/ns/signal_model.h"
 
 namespace webrtc {

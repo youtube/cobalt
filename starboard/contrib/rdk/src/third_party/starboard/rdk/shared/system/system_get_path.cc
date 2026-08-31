@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+#include "system_get_path.h"
 #include "starboard/system.h"
 
 #include <linux/limits.h>
@@ -18,6 +19,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <dlfcn.h>
 
 #include <cstdlib>
 #include <cstring>
@@ -56,29 +58,37 @@ bool GetEvergreenContentPathOverride(char* out_path, int path_size) {
   return true;
 }
 #endif
+} // namespace
+
+namespace {
 
 // Places up to |path_size| - 1 characters of the path to the current
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
 // status. The result being greater than |path_size| - 1 characters is a
 // failure. |out_path| may be written to in unsuccessful cases.
+//
+// NOTE: Depending on the environment, the executing module resolved here
+// can dynamically point to three distinct types:
+// 1. Plugin mode: The shared library file (e.g., libloader_app.so)
+// 2. Executable mode: The standalone executable (e.g., loader_app)
+// 3. Test mode: The native test binary (e.g., elf_loader_sandbox)
 bool GetExecutablePath(char* out_path, int path_size) {
   if (path_size < 1) {
     return false;
   }
 
-  char path[kSbFileMaxPath + 1];
-  ssize_t bytes_read = readlink("/proc/self/exe", path, kSbFileMaxPath);
-  if (bytes_read < 1) {
-    return false;
+  Dl_info info;
+  // Use dladdr to find the absolute path of the binary we are currently executing in.
+  if (dladdr(reinterpret_cast<void*>(&GetExecutablePath), &info) && info.dli_fname) {
+    std::vector<char> absolute_path(kSbFileMaxPath);
+    if (realpath(info.dli_fname, absolute_path.data()) != nullptr) {
+      if (starboard::strlcpy<char>(out_path, absolute_path.data(), path_size) < path_size) {
+        return true;
+      }
+    }
   }
 
-  path[bytes_read] = '\0';
-  if (bytes_read > path_size) {
-    return false;
-  }
-
-  starboard::strlcpy<char>(out_path, path, path_size);
-  return true;
+  return false;
 }
 
 // Places up to |path_size| - 1 characters of the path to the directory
@@ -115,6 +125,11 @@ bool IsValidContentDirectory(const char* path) {
   return (stat(testFontsFullPath.c_str(), &info) == 0);
 }
 
+}  // namespace
+
+namespace starboard {
+namespace system {
+
 // Gets the path to the content directory.
 bool GetContentDirectory(char* out_path, int path_size) {
   // `COBALT_CONTENT_DIR` is used to provide the path of content directory in
@@ -146,6 +161,13 @@ bool GetContentDirectory(char* out_path, int path_size) {
   return (starboard::strlcat<char>(out_path, "/usr/share/content/data",
                                    path_size) < path_size);
 }
+
+}  // namespace system
+}  // namespace starboard
+
+namespace {
+
+using ::starboard::system::GetContentDirectory;
 
 // Gets the path to the cache directory, using the home directory.
 bool GetCacheDirectory(char* out_path, int path_size) {
@@ -261,6 +283,8 @@ bool GetTemporaryDirectory(char* out_path, int path_size) {
 }  // namespace
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
+  using ::starboard::system::GetContentDirectory;
+
   if (!out_path || !path_size) {
     return false;
   }

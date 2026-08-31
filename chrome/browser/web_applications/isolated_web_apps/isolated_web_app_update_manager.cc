@@ -18,7 +18,6 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_forward.h"
-#include "base/functional/overloaded.h"
 #include "base/location.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -35,9 +34,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_apply_update_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_install_command_helper.h"
-#include "chrome/browser/web_applications/isolated_web_apps/error/uma_logging.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_apply_task.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_apply_waiter.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_discovery_task.h"
@@ -55,7 +52,10 @@
 #include "components/prefs/pref_service.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/error/uma_logging.h"
+#include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/isolated_web_apps_policy.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -300,7 +300,7 @@ void IsolatedWebAppUpdateManager::Start() {
   has_started_ = true;
   install_manager_observation_.Observe(&provider_->install_manager());
   key_distribution_info_observation_.Observe(
-      IwaKeyDistributionInfoProvider::GetInstance());
+      &IwaKeyDistributionInfoProvider::GetInstance());
 
   if (!IsAnyIwaInstalled()) {
     // If no IWA is installed, then we do not need to regularly check for
@@ -398,13 +398,11 @@ base::Value IsolatedWebAppUpdateManager::AsDebugValue() const {
 }
 
 bool IsolatedWebAppUpdateManager::IsUpdateBeingApplied(
-    base::PassKey<IsolatedWebAppURLLoaderFactory>,
     const webapps::AppId app_id) const {
   return task_queue_.IsUpdateApplyTaskQueued(app_id);
 }
 
 void IsolatedWebAppUpdateManager::PrioritizeUpdateAndWait(
-    base::PassKey<IsolatedWebAppURLLoaderFactory>,
     const webapps::AppId& app_id,
     base::OnceCallback<void(IsolatedWebAppUpdateApplyTask::CompletionStatus)>
         callback) {
@@ -477,22 +475,12 @@ void IsolatedWebAppUpdateManager::DiscoverUpdatesForApp(
     bool allow_downgrades,
     const std::optional<base::Version>& pinned_version,
     bool dev_mode) {
-  auto keep_alive = std::make_unique<ScopedKeepAlive>(
-      KeepAliveOrigin::ISOLATED_WEB_APP_UPDATE,
-      KeepAliveRestartOption::DISABLED);
-  auto profile_keep_alive =
-      profile_->IsOffTheRecord()
-          ? nullptr
-          : std::make_unique<ScopedProfileKeepAlive>(
-                &*profile_, ProfileKeepAliveOrigin::kIsolatedWebAppUpdate);
-
   task_queue_.Push(std::make_unique<IsolatedWebAppUpdateDiscoveryTask>(
       IwaUpdateDiscoveryTaskParams(update_manifest_url, update_channel,
                                    allow_downgrades, pinned_version, url_info,
                                    dev_mode),
       provider_->scheduler(), provider_->registrar_unsafe(),
-      profile_->GetURLLoaderFactory(), std::move(keep_alive),
-      std::move(profile_keep_alive)));
+      profile_->GetURLLoaderFactory(), *profile_));
 
   task_queue_.MaybeStartNextTask();
 }
@@ -518,7 +506,6 @@ void IsolatedWebAppUpdateManager::DiscoverApplyAndPrioritizeLocalDevModeUpdate(
 }
 
 void IsolatedWebAppUpdateManager::OnComponentUpdateSuccess(
-    const base::Version& version,
     bool is_preloaded) {
   // The corresponding observer is added during `Start()`.
   CHECK(has_started_);
@@ -619,6 +606,13 @@ bool IsolatedWebAppUpdateManager::MaybeQueueUpdateDiscoveryTask(
     return false;
   }
 
+  if (!IwaKeyDistributionInfoProvider::GetInstance().IsManagedUpdatePermitted(
+          url_info.web_bundle_id().id())) {
+    LOG(WARNING) << "The app " << url_info.app_id()
+                 << " cannot be updated because it's not allowlisted.";
+    return false;
+  }
+
   if (update_options->pinned_version &&
       !ShouldProceedWithVersionChange(update_options->pinned_version.value(),
                                       update_options->allow_downgrades,
@@ -688,10 +682,20 @@ void IsolatedWebAppUpdateManager::OnUpdateDiscoveryTaskCompleted(
     observer.OnUpdateDiscoveryTaskCompleted(task->url_info().app_id(), status);
   }
 
-  if (status.has_value() && *status ==
-                                IsolatedWebAppUpdateDiscoveryTask::Success::
-                                    kUpdateFoundAndSavedInDatabase) {
-    CreateUpdateApplyWaiter(task->url_info());
+  if (status.has_value()) {
+    switch (*status) {
+      case IsolatedWebAppUpdateDiscoveryTask::Success::
+          kUpdateFoundAndSavedInDatabase:
+      case IsolatedWebAppUpdateDiscoveryTask::Success::
+          kPinnedVersionUpdateFoundAndSavedInDatabase:
+      case IsolatedWebAppUpdateDiscoveryTask::Success::
+          kDowngradeVersionFoundAndSavedInDatabase:
+        CreateUpdateApplyWaiter(task->url_info());
+        break;
+      case IsolatedWebAppUpdateDiscoveryTask::Success::kNoUpdateFound:
+      case IsolatedWebAppUpdateDiscoveryTask::Success::kUpdateAlreadyPending:
+        break;
+    }
   }
 
   task_queue_.MaybeStartNextTask();
@@ -1049,12 +1053,19 @@ IsolatedWebAppUpdateError IsolatedWebAppUpdateManager::FromDiscoveryTaskError(
       return IsolatedWebAppUpdateError::kUpdateManifestNoApplicableVersion;
     case IsolatedWebAppUpdateDiscoveryTask::Error::kIwaNotInstalled:
       return IsolatedWebAppUpdateError::kIwaNotInstalled;
+    case IsolatedWebAppUpdateDiscoveryTask::Error::
+        kPinnedVersionNotFoundInUpdateManifest:
+      return IsolatedWebAppUpdateError::kPinnedVersionNotFoundInUpdateManifest;
+    case IsolatedWebAppUpdateDiscoveryTask::Error::kDowngradetNotAllowed:
+      return IsolatedWebAppUpdateError::kDowngradeNotAllowed;
     case IsolatedWebAppUpdateDiscoveryTask::Error::kDownloadPathCreationFailed:
       return IsolatedWebAppUpdateError::kDownloadPathCreationFailed;
     case IsolatedWebAppUpdateDiscoveryTask::Error::kBundleDownloadError:
       return IsolatedWebAppUpdateError::kBundleDownloadError;
     case IsolatedWebAppUpdateDiscoveryTask::Error::kUpdateDryRunFailed:
       return IsolatedWebAppUpdateError::kUpdateDryRunFailed;
+    case IsolatedWebAppUpdateDiscoveryTask::Error::kSystemShutdown:
+      return IsolatedWebAppUpdateError::kSystemShutdown;
   }
 }
 

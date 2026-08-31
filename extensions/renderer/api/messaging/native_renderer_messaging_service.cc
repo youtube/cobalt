@@ -39,13 +39,15 @@
 #include "extensions/renderer/script_context_set.h"
 #include "extensions/renderer/script_context_set_iterable.h"
 #include "gin/data_object_builder.h"
-#include "gin/handle.h"
 #include "gin/per_context_data.h"
 #include "ipc/ipc_mojo_bootstrap.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom.h"
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_scoped_window_focus_allowed_indicator.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 #include "v8/include/v8-context.h"
 #include "v8/include/v8-local-handle.h"
 #include "v8/include/v8-persistent-handle.h"
@@ -166,12 +168,18 @@ class NativeRendererMessagingService::MessagePortScope
   virtual content::RenderFrame* GetRestrictToRenderFrame() { return nullptr; }
 
   void CloseMessagePort(const PortId& port_id, bool close_channel) {
+    CloseMessagePort(port_id, close_channel, /*error_message=*/std::nullopt);
+  }
+
+  void CloseMessagePort(const PortId& port_id,
+                        bool close_channel,
+                        const std::optional<std::string>& error_message) {
     // BFCache can disconnect the mojo pipe but leave the GinPort thinking
     // it is open.
     if (!HasPort(port_id)) {
       return;
     }
-    GetMessagePortHost(port_id)->ClosePort(close_channel);
+    GetMessagePortHost(port_id)->ClosePort(close_channel, error_message);
     message_port_hosts_.erase(port_id);
   }
 
@@ -307,18 +315,18 @@ void NativeRendererMessagingService::DispatchOnDisconnect(
           base::Unretained(this), port_id, error_message));
 }
 
-gin::Handle<GinPort> NativeRendererMessagingService::Connect(
+GinPort* NativeRendererMessagingService::Connect(
     ScriptContext* script_context,
     const MessageTarget& target,
     const std::string& channel_name,
     mojom::SerializationFormat format) {
   if (!ScriptContextIsValid(script_context))
-    return gin::Handle<GinPort>();
+    return nullptr;
 
   MessagingPerContextData* data = GetPerContextData<MessagingPerContextData>(
       script_context->v8_context(), kCreateIfMissing);
   if (!data)
-    return gin::Handle<GinPort>();
+    return nullptr;
 
   MessagePortScope* scope =
       GetMessagePortScope(script_context->GetRenderFrame());
@@ -328,11 +336,11 @@ gin::Handle<GinPort> NativeRendererMessagingService::Connect(
   mojom::ChannelType channel_type = target.type == MessageTarget::NATIVE_APP
                                         ? mojom::ChannelType::kNative
                                         : mojom::ChannelType::kConnect;
-  gin::Handle<GinPort> port =
-      CreatePort(script_context, channel_name, channel_type,
-                 PortId(script_context->context_id(), data->next_port_id++,
-                        is_opener, format));
-  scope->BindNewMessagePort(port->port_id(), messsage_port, messsage_port_host);
+  const auto port_id = PortId(script_context->context_id(),
+                              data->next_port_id++, is_opener, format);
+  GinPort* port =
+      CreatePort(script_context, channel_name, channel_type, port_id);
+  scope->BindNewMessagePort(port_id, messsage_port, messsage_port_host);
 
   bindings_system_->GetIPCMessageSender()->SendOpenMessageChannel(
       script_context, port->port_id(), target, channel_type, channel_name,
@@ -416,7 +424,7 @@ void NativeRendererMessagingService::ClosePort(v8::Local<v8::Context> context,
   CloseMessagePort(script_context, port_id, /*close_channel=*/true);
 }
 
-gin::Handle<GinPort> NativeRendererMessagingService::CreatePortForTesting(
+GinPort* NativeRendererMessagingService::CreatePortForTesting(
     ScriptContext* script_context,
     const std::string& channel_name,
     const mojom::ChannelType channel_type,
@@ -429,7 +437,7 @@ gin::Handle<GinPort> NativeRendererMessagingService::CreatePortForTesting(
   return CreatePort(script_context, channel_name, channel_type, port_id);
 }
 
-gin::Handle<GinPort> NativeRendererMessagingService::GetPortForTesting(
+GinPort* NativeRendererMessagingService::GetPortForTesting(
     ScriptContext* script_context,
     const PortId& port_id) {
   return GetPort(script_context, port_id);
@@ -656,12 +664,14 @@ void NativeRendererMessagingService::DispatchOnConnectToListeners(
   } else {
     CHECK(channel_type == mojom::ChannelType::kConnect ||
           channel_type == mojom::ChannelType::kNative);
-    gin::Handle<GinPort> port =
+    GinPort* port =
         CreatePort(script_context, channel_name, channel_type, target_port_id);
     port->SetSender(v8_context, sender);
-    v8::LocalVector<v8::Value> args(isolate, {port.ToV8()});
+    v8::LocalVector<v8::Value> args(
+        isolate, {port->GetWrapper(isolate).ToLocalChecked()});
     bindings_system_->api_system()->event_handler()->FireEventInContext(
-        event_name, v8_context, &args, nullptr, JSRunner::ResultCallback());
+        event_name, v8_context, &args, /*filter=*/nullptr,
+        /*callback=*/v8::Local<v8::Function>());
   }
   // Note: Arbitrary JS may have run; the context may now be deleted.
 
@@ -699,8 +709,8 @@ void NativeRendererMessagingService::DispatchOnMessageToListeners(
     return;
   }
 
-  gin::Handle<GinPort> port = GetPort(script_context, target_port_id);
-  DCHECK(!port.IsEmpty());
+  GinPort* port = GetPort(script_context, target_port_id);
+  DCHECK(port);
 
   port->DispatchOnMessage(script_context->v8_context(), message);
   // Note: Arbitrary JS may have run; the context may now be deleted.
@@ -720,8 +730,8 @@ void NativeRendererMessagingService::DispatchOnDisconnectToListeners(
     return;
   }
 
-  gin::Handle<GinPort> port = GetPort(script_context, port_id);
-  DCHECK(!port.IsEmpty());
+  GinPort* port = GetPort(script_context, port_id);
+  DCHECK(port);
   if (!error_message.empty()) {
     // TODO(devlin): Subtle: If the JS event to disconnect the port happens
     // asynchronously because JS is suspended, this last error won't be
@@ -748,12 +758,11 @@ void NativeRendererMessagingService::DispatchOnDisconnectToListeners(
   data->ports.erase(port_id);
 }
 
-gin::Handle<GinPort> NativeRendererMessagingService::CreatePort(
+GinPort* NativeRendererMessagingService::CreatePort(
     ScriptContext* script_context,
     const std::string& channel_name,
     const mojom::ChannelType channel_type,
     const PortId& port_id) {
-  // Note: no HandleScope because it would invalidate the gin::Handle::wrapper_.
   v8::Isolate* isolate = script_context->isolate();
   v8::Local<v8::Context> context = script_context->v8_context();
   // Note: needed because gin::CreateHandle infers the context from the active
@@ -773,23 +782,21 @@ gin::Handle<GinPort> NativeRendererMessagingService::CreatePort(
   DCHECK(data);
   DCHECK(!base::Contains(data->ports, port_id));
 
-  gin::Handle<GinPort> port_handle = gin::CreateHandle(
-      isolate,
-      new GinPort(context, port_id, channel_name, channel_type,
-                  bindings_system_->api_system()->event_handler(), this));
+  GinPort* port = cppgc::MakeGarbageCollected<GinPort>(
+      isolate->GetCppHeap()->GetAllocationHandle(), context, port_id,
+      channel_name, channel_type,
+      bindings_system_->api_system()->event_handler(), this);
 
-  v8::Local<v8::Object> port_object = port_handle.ToV8().As<v8::Object>();
+  v8::Local<v8::Object> port_object = port->GetWrapper(isolate).ToLocalChecked();
   data->ports[port_id].Reset(isolate, port_object);
 
-  return port_handle;
+  return port;
 }
 
-gin::Handle<GinPort> NativeRendererMessagingService::GetPort(
+GinPort* NativeRendererMessagingService::GetPort(
     ScriptContext* script_context,
     const PortId& port_id) {
-  // Note: no HandleScope because it would invalidate the gin::Handle::wrapper_.
   v8::Isolate* isolate = script_context->isolate();
-  v8::Local<v8::Context> context = script_context->v8_context();
 
   MessagingPerContextData* data = GetPerContextData<MessagingPerContextData>(
       script_context->v8_context(), kDontCreateIfMissing);
@@ -797,19 +804,28 @@ gin::Handle<GinPort> NativeRendererMessagingService::GetPort(
   DCHECK(base::Contains(data->ports, port_id));
 
   GinPort* port = nullptr;
-  gin::Converter<GinPort*>::FromV8(context->GetIsolate(),
-                                   data->ports[port_id].Get(isolate), &port);
+  gin::Converter<GinPort*>::FromV8(isolate, data->ports[port_id].Get(isolate),
+                                   &port);
   CHECK(port);
 
-  return gin::CreateHandle(isolate, port);
+  return port;
 }
 
 void NativeRendererMessagingService::CloseMessagePort(
     ScriptContext* script_context,
     const PortId& port_id,
     bool close_channel) {
+  CloseMessagePort(script_context, port_id, close_channel,
+                   /*error_message=*/std::nullopt);
+}
+
+void NativeRendererMessagingService::CloseMessagePort(
+    ScriptContext* script_context,
+    const PortId& port_id,
+    bool close_channel,
+    const std::optional<std::string>& error_message) {
   auto* scope = GetMessagePortScope(script_context->GetRenderFrame());
-  scope->CloseMessagePort(port_id, close_channel);
+  scope->CloseMessagePort(port_id, close_channel, error_message);
 }
 
 NativeRendererMessagingService::MessagePortScope*

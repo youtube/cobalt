@@ -35,7 +35,6 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.build.annotations.RequiresNonNull;
-import org.chromium.components.browser_ui.settings.ButtonPreference;
 import org.chromium.components.browser_ui.settings.ChromeImageViewPreference;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
 import org.chromium.components.browser_ui.settings.CustomDividerFragment;
@@ -48,9 +47,9 @@ import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.content_settings.SessionModel;
 import org.chromium.components.embedder_support.util.Origin;
+import org.chromium.components.permissions.PermissionsAndroidFeatureList;
+import org.chromium.components.permissions.PermissionsAndroidFeatureMap;
 import org.chromium.content_public.browser.BrowserContextHandle;
-import org.chromium.ui.text.ChromeClickableSpan;
-import org.chromium.ui.text.SpanApplier;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -100,7 +99,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
     public static final String PREF_USAGE = "site_usage";
     public static final String PREF_RELATED_SITES_HEADER = "related_sites_header";
     public static final String PREF_RELATED_SITES = "related_sites";
-    public static final String PREF_RELATED_SITES_CLEAR_DATA = "related_sites_delete_data_button";
     public static final String PREF_PERMISSIONS_HEADER = "site_permissions";
     public static final String PREF_OS_PERMISSIONS_WARNING = "os_permissions_warning";
     public static final String PREF_OS_PERMISSIONS_WARNING_EXTRA = "os_permissions_warning_extra";
@@ -115,7 +113,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
     public static final String PREF_RESET_SITE = "reset_site_button";
 
     public static final int REQUEST_CODE_NOTIFICATION_CHANNEL_SETTINGS = 1;
-    public static final int RWS_ROW_ID = View.generateViewId();
 
     private static boolean arrayContains(int[] array, int element) {
         for (int e : array) {
@@ -185,6 +182,10 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                 return "clipboard_permission_list";
             case ContentSettingsType.FILE_SYSTEM_WRITE_GUARD:
                 return "file_system_write_guard_permission_list";
+            case ContentSettingsType.LOCAL_NETWORK_ACCESS:
+                return "local_network_access";
+            case ContentSettingsType.WINDOW_MANAGEMENT:
+                return "window_management_permission_list";
             default:
                 return null;
         }
@@ -210,7 +211,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
         PREF_USAGE,
         PREF_RELATED_SITES_HEADER,
         PREF_RELATED_SITES,
-        PREF_RELATED_SITES_CLEAR_DATA,
         PREF_PERMISSIONS_HEADER,
         PREF_CLEAR_DATA,
     };
@@ -281,15 +281,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                 }
                 removeUserChosenObjectPreferences();
                 popBackIfNoSettings();
-            };
-
-    private final Runnable mRwsDataClearedCallback =
-            () -> {
-                Activity activity = getActivity();
-                if (activity == null || activity.isFinishing()) {
-                    return;
-                }
-                popBackToPreviousPage();
             };
 
     /**
@@ -593,7 +584,13 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
         Preference permissionsHeaderPref = findPreference(PREF_PERMISSIONS_HEADER);
         mMaxPermissionOrder = permissionsHeaderPref.getOrder();
         for (@ContentSettingsType.EnumType int type : SiteSettingsUtil.SETTINGS_ORDER) {
-            Preference preference = new ChromeSwitchPreference(getStyledContext());
+            Preference preference =
+                    (isOneTime(type)
+                                    && PermissionsAndroidFeatureMap.isEnabled(
+                                            PermissionsAndroidFeatureList
+                                                    .APPROXIMATE_GEOLOCATION_PERMISSION))
+                            ? new ChromeImageViewPreference(getStyledContext())
+                            : new ChromeSwitchPreference(getStyledContext());
             preference.setKey(getPreferenceKey(type));
 
             if (type == ContentSettingsType.ADS) {
@@ -694,8 +691,7 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
 
     /**
      * A permission can be managed by an app. For example, with a Chrome SiteSettingsDelegate,
-     * Notifications could be controlled by PWA, however for a Weblayer variant, Location could be
-     * controlled by the DSE.
+     * Notifications could be controlled by PWA.
      */
     @RequiresNonNull({"mSite"})
     private boolean setupAppDelegatePreference(
@@ -1013,52 +1009,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
         }
     }
 
-    public void resetRwsData() {
-        if (getActivity() == null) return;
-        RwsCookieInfo rwsInfo = assumeNonNull(mSite).getRwsCookieInfo();
-        assumeNonNull(rwsInfo);
-        WebsiteGroup group = new WebsiteGroup(rwsInfo.getOwner(), rwsInfo.getMembers());
-        SiteDataCleaner.clearData(getSiteSettingsDelegate(), group, mRwsDataClearedCallback);
-        RecordHistogram.recordEnumeratedHistogram(
-                "Privacy.DeleteBrowsingData.Action",
-                DeleteBrowsingDataAction.RWS_DELETE_ALL_DATA,
-                DeleteBrowsingDataAction.MAX_VALUE);
-    }
-
-    public boolean onDeleteRwsDataPreferenceClick(Preference preference) {
-        View dialogView =
-                getActivity().getLayoutInflater().inflate(R.layout.clear_reset_dialog, null);
-        TextView mainMessage = dialogView.findViewById(R.id.main_message);
-        RwsCookieInfo rwsInfo = assumeNonNull(mSite).getRwsCookieInfo();
-        assumeNonNull(rwsInfo);
-        mainMessage.setText(
-                getString(
-                        R.string.site_settings_delete_rws_storage_confirmation_android,
-                        rwsInfo.getOwner()));
-        TextView signedOutText = dialogView.findViewById(R.id.signed_out_text);
-        signedOutText.setText(R.string.site_settings_delete_rws_storage_sign_out);
-        TextView offlineText = dialogView.findViewById(R.id.offline_text);
-        offlineText.setText(R.string.webstorage_delete_data_dialog_offline_message);
-        mConfirmationDialog =
-                new AlertDialog.Builder(getContext(), R.style.ThemeOverlay_BrowserUI_AlertDialog)
-                        .setView(dialogView)
-                        .setTitle(R.string.site_settings_delete_rws_storage_dialog_title)
-                        .setPositiveButton(
-                                R.string.storage_delete_dialog_clear_storage_option,
-                                (dialog, which) -> {
-                                    resetRwsData();
-                                })
-                        .setNegativeButton(
-                                R.string.cancel, (dialog, which) -> mConfirmationDialog = null)
-                        .show();
-        return true;
-    }
-
-    private boolean isCurrentSite(WebsiteEntry entry) {
-        assumeNonNull(mSite);
-        return mSite.getDomainAndRegistry().equals(entry.getDomainAndRegistry());
-    }
-
     private void setUpRelatedSitesPreferences() {
         PreferenceCategory relatedSitesSection = findPreference(PREF_RELATED_SITES_HEADER);
         TextMessagePreference relatedSitesText = new TextMessagePreference(getContext(), null);
@@ -1068,12 +1018,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                         && rwsInfo != null;
         relatedSitesSection.setVisible(shouldRelatedSitesPrefBeVisible);
         relatedSitesText.setVisible(shouldRelatedSitesPrefBeVisible);
-        ButtonPreference relatedSitesClearDataButton =
-                findPreference(PREF_RELATED_SITES_CLEAR_DATA);
-        relatedSitesClearDataButton
-                .setVisible(
-                        shouldRelatedSitesPrefBeVisible
-                                && getSiteSettingsDelegate().shouldShowPrivacySandboxRwsUi());
 
         if (shouldRelatedSitesPrefBeVisible) {
             assumeNonNull(rwsInfo);
@@ -1088,61 +1032,15 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                         }
                     });
 
-            if (getSiteSettingsDelegate().shouldShowPrivacySandboxRwsUi()) {
-                relatedSitesText.setSummary(
-                        SpanApplier.applySpans(
-                                getContext()
-                                        .getString(R.string.site_settings_rws_description_android),
-                                new SpanApplier.SpanInfo(
-                                        "<link>",
-                                        "</link>",
-                                        new ChromeClickableSpan(
-                                                getContext(),
-                                                (unused) -> {
-                                                    getSiteSettingsDelegate()
-                                                            .launchUrlInCustomTab(
-                                                                    getActivity(),
-                                                                    WebsiteSettingsConstants
-                                                                            .RWS_LEARN_MORE_URL);
-                                                }))));
-                relatedSitesSection.addPreference(relatedSitesText);
-                for (WebsiteEntry entry : rwsInfo.getMembersGroupedByDomain()) {
-                    WebsiteRowPreference preference =
-                            new WebsiteRowPreference(
-                                    relatedSitesSection.getContext(),
-                                    getSiteSettingsDelegate(),
-                                    entry,
-                                    getActivity().getLayoutInflater(),
-                                    /* showRwsMembershipLabels= */ false,
-                                    /* isClickable= */ false);
-                    preference.setViewId(RWS_ROW_ID);
-                    preference.setOnDeleteCallback(
-                            isCurrentSite(entry)
-                                    // If deleting data for the current site, pop back to refresh
-                                    ? mRwsDataClearedCallback
-                                    : () -> {
-                                        relatedSitesSection.removePreference(preference);
-                                    });
-                    relatedSitesSection.addPreference(preference);
-                }
-                relatedSitesClearDataButton.setOnPreferenceClickListener(
-                        new Preference.OnPreferenceClickListener() {
-                            @Override
-                            public boolean onPreferenceClick(Preference preference) {
-                                return onDeleteRwsDataPreferenceClick(preference);
-                            }
-                        });
-            } else {
-                relatedSitesText.setTitle(
-                        getContext()
-                                .getResources()
-                                .getQuantityString(
-                                        R.plurals.allsites_rws_summary,
-                                        rwsInfo.getMembersCount(),
-                                        Integer.toString(rwsInfo.getMembersCount()),
-                                        rwsInfo.getOwner()));
-                relatedSitesSection.addPreference(relatedSitesText);
-            }
+            relatedSitesText.setTitle(
+                    getContext()
+                            .getResources()
+                            .getQuantityString(
+                                    R.plurals.allsites_rws_summary,
+                                    rwsInfo.getMembersCount(),
+                                    Integer.toString(rwsInfo.getMembersCount()),
+                                    rwsInfo.getOwner()));
+            relatedSitesSection.addPreference(relatedSitesText);
         }
     }
 
@@ -1275,20 +1173,34 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
             boolean isOneTime) {
         if (value == null) return;
         setUpPreferenceCommon(preference, value);
-
-        ChromeSwitchPreference switchPreference = (ChromeSwitchPreference) preference;
+        preference.setOnPreferenceChangeListener(this);
         @ContentSettingsType.EnumType
         int contentType = getContentSettingsTypeFromPreferenceKey(preference.getKey());
-        switchPreference.setChecked(value == getEnabledValue(contentType));
-        switchPreference.setSummary(
+        preference.setSummary(
                 isEmbargoed
                         ? getString(R.string.automatically_blocked)
                         : getString(ContentSettingsResources.getCategorySummary(value, isOneTime)));
-        switchPreference.setOnPreferenceChangeListener(this);
-        if (contentType == mHighlightedPermission) {
-            switchPreference.setBackgroundColor(
-                    AppCompatResources.getColorStateList(getContext(), mHighlightColor)
-                            .getDefaultColor());
+        if (preference instanceof ChromeImageViewPreference) {
+            ChromeImageViewPreference oneTimePreference = (ChromeImageViewPreference) preference;
+            oneTimePreference.setImageView(
+                    R.drawable.material_ic_close_24dp,
+                    R.string.website_settings_revoke_permission,
+                    (View view) -> {
+                        // TODO(crbug.com/418941286): Revoke the permission by calling
+                        // onPreferenceChanged() with the new value.
+                        getPreferenceScreen().removePreference(oneTimePreference);
+                    });
+            if (contentType == mHighlightedPermission) {
+                oneTimePreference.setBackgroundColor(mHighlightColor);
+            }
+        } else {
+            ChromeSwitchPreference switchPreference = (ChromeSwitchPreference) preference;
+            switchPreference.setChecked(value == getEnabledValue(contentType));
+            if (contentType == mHighlightedPermission) {
+                switchPreference.setBackgroundColor(
+                        AppCompatResources.getColorStateList(getContext(), mHighlightColor)
+                                .getDefaultColor());
+            }
         }
     }
 

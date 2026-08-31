@@ -34,7 +34,7 @@ class FilledCardInformationBubbleControllerImpl
       const FilledCardInformationBubbleControllerImpl&) = delete;
 
   // Show the bubble view.
-  void ShowBubble(const FilledCardInformationBubbleOptions& options);
+  void SetupAndShowBubble(const FilledCardInformationBubbleOptions& options);
 
   // Invoked when the omnibox icon is clicked.
   void ReshowBubble();
@@ -63,6 +63,10 @@ class FilledCardInformationBubbleControllerImpl
   std::pair<ui::ImageModel, std::optional<ui::ImageModel>>
   GetCardImageForDescriptionView() const override;
   bool EducationalBodyHasLearnMoreLink() const override;
+
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
  protected:
   explicit FilledCardInformationBubbleControllerImpl(

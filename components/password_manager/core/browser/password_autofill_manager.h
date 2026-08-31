@@ -89,17 +89,6 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
   // Removes the credentials previously saved via OnAddPasswordFormMapping.
   void DeleteFillData();
 
-  // Handles a request from the renderer to show a popup with the suggestions
-  // from the password manager.
-  void OnShowPasswordSuggestions(
-      autofill::FieldRendererId element_id,
-      autofill::AutofillSuggestionTriggerSource trigger_source,
-      base::i18n::TextDirection text_direction,
-      const std::u16string& typed_username,
-      ShowWebAuthnCredentials show_webauthn_credentials,
-      ShowIdentityCredentials show_identity_credentials,
-      const gfx::RectF& bounds);
-
   // If there are relevant credentials for the current frame show them and
   // return true. Otherwise, return false.
   // This is currently used for cases in which the automatic generation
@@ -124,9 +113,6 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
     return CHECK_DEREF(manual_fallback_metrics_recorder_.get());
   }
 
-  // A public version of PreviewSuggestion(), only for use in tests.
-  bool PreviewSuggestionForTest(const std::u16string& username);
-
   void SetManualFallbackFlowForTest(
       std::unique_ptr<PasswordSuggestionFlow> manual_fallback_flow);
 
@@ -139,6 +125,14 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
 
   base::WeakPtr<PasswordAutofillManager> GetWeakPtr();
 
+#if defined(UNIT_TEST)
+  // A public version of PreviewSuggestion(), only for use in tests.
+  bool PreviewSuggestionForTest(const std::u16string& username) {
+    return PreviewSuggestion(username,
+                             autofill::SuggestionType::kPasswordEntry);
+  }
+#endif  // defined(UNIT_TEST)
+
  private:
   // Validates and forwards the given objects to the autofill client.
   bool ShowPopup(const gfx::RectF& bounds,
@@ -149,10 +143,18 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
   // Validates and forwards the given objects to the autofill client.
   void UpdatePopup(std::vector<autofill::Suggestion> suggestions);
 
-  // Fills `password_and_metadata` suggestion by passing username and password
-  // to the password manager driver.
+  // Fills `password_and_metadata` suggestion by passing
+  // `password_and_metadata.username_value` and
+  // `password_and_metadata.password_value` to the password manager driver.
   void FillSuggestion(
       const autofill::PasswordAndMetadata& password_and_metadata);
+
+  // Fills `password_and_metadata` suggestion by passing
+  // `password_and_metadata.username_value` and
+  // `password_and_metadata.backup_password_value` to the password manager
+  // driver.
+  void FillBackupSuggestion(
+      const autofill::Suggestion::PasswordSuggestionDetails& payload);
 
   // Attempts to find and preview the suggestions with the user name |username|
   // and the `type` indicating the store (account-stored or
@@ -192,16 +194,14 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
       PasswordManagerClient::ReauthSucceeded reauth_succeeded);
 
   // Called when the biometric reauth that guards password filling completes.
-  // `type` identifies the suggestion that was selected for
-  // filling.
-  void OnBiometricReauthCompleted(
-      const autofill::PasswordAndMetadata& password_and_metadata,
-      bool auth_succeded);
+  // Runs `fill_suggestion_callback` if reauth  was successful
+  void OnBiometricReauthCompleted(base::OnceClosure fill_suggestion_callback,
+                                  bool auth_succeded);
 
-  // Fills the password credential suggestion. Triggers authentication if
-  // needed.
+  // Fills the password credential suggestion by running
+  // `fill_suggestion_callback`. Triggers authentication if needed.
   void OnPasswordCredentialSuggestionAccepted(
-      const autofill::PasswordAndMetadata& password_and_metadata);
+      base::OnceClosure fill_suggestion_callback);
 
   // Cancels an ongoing biometric re-authentication. Usually, because
   // the filling scope has changed or because |this| is being destroyed.
@@ -210,14 +210,32 @@ class PasswordAutofillManager : public autofill::AutofillSuggestionDelegate,
   // Hides the popup.
   void HidePopup();
 
-  // Completion of `OnShowPasswordSuggestions`, which can sometimes be deferred.
-  void ContinueShowingPasswordSuggestions(
-      autofill::FieldRendererId element_id,
-      base::i18n::TextDirection text_direction,
-      const std::u16string& typed_username,
+  // Finishes `ShowSuggestions`, which can be deferred by `WaitForPasskeys`.
+  void ContinueShowingSuggestions(const autofill::TriggeringField& field);
+
+  // Returns true if `WaitForPasskeys` should attempt to fetch passkeys before
+  // continue showing suggestions with `ContinueShowingSuggestions`.
+  bool ShouldWaitForPasskeys(const autofill::TriggeringField& field);
+
+  // Requests Passkeys and starts a timer. If the timer runs out before passkeys
+  // are available, `ContinueShowingSuggestions` displays suggestions. If there
+  // are passkeys available in time, continues with `OnPasskeysReady`.
+  void WaitForPasskeys(const autofill::TriggeringField& field);
+
+  // Called when passkeys become available. If the `wait_for_passkeys_timer_`
+  // has not run out yet, it will invoke `ContinueShowingSuggestions`.
+  void OnPasskeysReady(const autofill::TriggeringField& field);
+
+  std::vector<autofill::Suggestion> GetSuggestions(
+      const std::u16string& username_filter,
+      OffersGeneration offers_generation,
+      ShowPasswordSuggestions show_password_suggestions,
       ShowWebAuthnCredentials show_webauthn_credentials,
-      ShowIdentityCredentials show_identity_credentials,
-      const gfx::RectF& bounds);
+      ShowIdentityCredentials show_identity_credentials);
+
+  // Returns the bounds from the provided field and transforms them if it hasn't
+  // already happened in the driver.
+  gfx::RectF GetBounds(const autofill::TriggeringField& field);
 
   std::unique_ptr<autofill::PasswordFormFillData> fill_data_;
 

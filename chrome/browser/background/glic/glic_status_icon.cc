@@ -14,10 +14,11 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/background/glic/glic_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/glic_settings_util.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/resources/glic_resources.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #include "chrome/browser/lifetime/application_lifetime_desktop.h"
 #include "chrome/browser/status_icons/status_icon.h"
@@ -28,6 +29,7 @@
 #include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "glic_status_icon.h"
 #include "ui/base/accelerators/accelerator.h"
@@ -41,9 +43,10 @@ namespace {
 gfx::ImageSkia GetIconForTheme(const ui::NativeTheme* native_theme) {
 #if BUILDFLAG(IS_WIN)
   return *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
-      native_theme->ShouldUseDarkColorsForSystemIntegratedUI()
-          ? IDR_GLIC_STATUS_ICON_DARK
-          : IDR_GLIC_STATUS_ICON_LIGHT);
+      glic::GetResourceID(
+          native_theme->ShouldUseDarkColorsForSystemIntegratedUI()
+              ? IDR_GLIC_STATUS_ICON_DARK
+              : IDR_GLIC_STATUS_ICON_LIGHT));
 #else
   // On Mac and Linux, theming is handled by the system and does not require
   // different images for light/dark mode.
@@ -53,19 +56,23 @@ gfx::ImageSkia GetIconForTheme(const ui::NativeTheme* native_theme) {
 #endif
 }
 
-int GetTooltipMessageId() {
+int GetTooltipMessageId(bool panel_showing) {
   switch (chrome::GetChannel()) {
     case version_info::Channel::CANARY: {
-      return IDS_GLIC_STATUS_ICON_TOOLTIP_CANARY;
+      return panel_showing ? IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_CANARY
+                           : IDS_GLIC_STATUS_ICON_TOOLTIP_CANARY;
     }
     case version_info::Channel::DEV: {
-      return IDS_GLIC_STATUS_ICON_TOOLTIP_DEV;
+      return panel_showing ? IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_DEV
+                           : IDS_GLIC_STATUS_ICON_TOOLTIP_DEV;
     }
     case version_info::Channel::BETA: {
-      return IDS_GLIC_STATUS_ICON_TOOLTIP_BETA;
+      return panel_showing ? IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE_BETA
+                           : IDS_GLIC_STATUS_ICON_TOOLTIP_BETA;
     }
     default: {
-      return IDS_GLIC_STATUS_ICON_TOOLTIP;
+      return panel_showing ? IDS_GLIC_STATUS_ICON_TOOLTIP_CLOSE
+                           : IDS_GLIC_STATUS_ICON_TOOLTIP;
     }
   }
 }
@@ -80,7 +87,7 @@ GlicStatusIcon::GlicStatusIcon(GlicController* controller,
   ui::NativeTheme* native_theme = ui::NativeTheme::GetInstanceForNativeUi();
   status_icon_ = status_tray_->CreateStatusIcon(
       StatusTray::GLIC_ICON, GetIconForTheme(native_theme),
-      l10n_util::GetStringUTF16(GetTooltipMessageId()));
+      l10n_util::GetStringUTF16(GetTooltipMessageId(controller_->IsShowing())));
 
   // If the StatusIcon cannot be created, don't configure it.
   if (!status_icon_) {
@@ -213,6 +220,8 @@ void GlicStatusIcon::OnLastActiveGlicProfileChanged(Profile* profile) {
 void GlicStatusIcon::PanelStateChanged(const mojom::PanelState& panel_state,
                                        Browser* attached_browser) {
   UpdateVisibilityOfShowAndCloseInContextMenu();
+  status_icon_->SetToolTip(
+      l10n_util::GetStringUTF16(GetTooltipMessageId(controller_->IsShowing())));
 }
 
 void GlicStatusIcon::UpdateHotkey(const ui::Accelerator& hotkey) {

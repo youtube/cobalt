@@ -515,7 +515,13 @@ void DOMSelection::extend(Node* node,
 
   // 3. Let oldAnchor and oldFocus be the context object's anchor and focus, and
   // let newFocus be the boundary point (node, offset).
-  const Position old_anchor(anchorNode(), anchorOffset());
+  Position old_anchor(anchorNode(), anchorOffset());
+  if (RuntimeEnabledFeatures::
+          UseSelectionInDOMTreeAnchorInExtendSelectionEnabled()) {
+    old_anchor =
+        Selection().GetSelectionInDOMTree().Anchor().ToOffsetInAnchor();
+  }
+
   DCHECK(!old_anchor.IsNull());
   const Position new_focus(node, offset);
 
@@ -755,24 +761,12 @@ void DOMSelection::deleteFromDocument() {
   DomWindow()->document()->UpdateStyleAndLayout(
       DocumentUpdateReason::kSelection);
 
-  if (!RuntimeEnabledFeatures::
-          SelectionDeleteFromDocumentUaShadowFixEnabled()) {
-    // The following code is necessary for
-    // editing/selection/deleteFromDocument-crash.html, which assumes
-    // deleteFromDocument() for text selection in a TEXTAREA deletes the
-    // TEXTAREA value.
-    if (Selection().ComputeVisibleSelectionInDOMTree().IsNone()) {
-      return;
-    }
-  }
-
   Range* selected_range = CreateRange(Selection()
                                           .ComputeVisibleSelectionInDOMTree()
                                           .ToNormalizedEphemeralRange());
   if (!selected_range)
     return;
-  if (RuntimeEnabledFeatures::SelectionDeleteFromDocumentUaShadowFixEnabled() &&
-      selected_range->startContainer()->IsInUserAgentShadowRoot()) {
+  if (selected_range->startContainer()->IsInUserAgentShadowRoot()) {
     return;
   }
 

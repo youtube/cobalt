@@ -22,7 +22,6 @@ source_set("profile_service") {
     "//ios/chrome/browser/commerce/model",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
-    "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:system_identity",
     "//ios/web/public/thread",
   ]
@@ -50,7 +49,6 @@ source_set("profile_service_factory") {
     "//ios/chrome/browser/shared/model/profile:profile_keyed_service_factory",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model",
-    "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/sync/model:device_info_sync_service_factory",
   ]
 }
@@ -82,6 +80,8 @@ source_set("push_notification_util") {
 
 source_set("push_notification_delegate") {
   sources = [
+    "notification_metrics_recorder.h",
+    "notification_metrics_recorder.mm",
     "push_notification_delegate.h",
     "push_notification_delegate.mm",
   ]
@@ -181,6 +181,10 @@ source_set("push_notification_service") {
     "//ios/chrome/common/app_group",
     "//ios/web/public/thread",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("push_notification_settings_util_header") {
@@ -231,6 +235,7 @@ source_set("constants") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "notification_metrics_recorder_unittest.mm",
     "push_notification_account_context_manager+testing.h",
     "push_notification_account_context_manager_unittest.mm",
     "push_notification_client_manager_unittest.mm",
@@ -240,8 +245,10 @@ source_set("unit_tests") {
     "push_notification_util_unittest.mm",
   ]
   deps = [
+    ":constants",
     ":push_notification_client",
     ":push_notification_client_id",
+    ":push_notification_delegate",
     ":push_notification_service",
     ":push_notification_service_header",
     ":push_notification_settings_util_header",
@@ -251,16 +258,15 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//components/commerce/core:pref_names",
     "//components/prefs",
-    "//components/prefs:test_support",
     "//components/sync_preferences:test_support",
     "//google_apis",
-    "//ios/chrome/browser/push_notification/model:constants",
     "//ios/chrome/browser/safety_check_notifications/utils",
     "//ios/chrome/browser/safety_check_notifications/utils:constants",
     "//ios/chrome/browser/send_tab_to_self/model",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:features",
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model:fake_system_identity",
@@ -271,6 +277,10 @@ source_set("unit_tests") {
     "//testing/gtest",
     "//third_party/ocmock",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {

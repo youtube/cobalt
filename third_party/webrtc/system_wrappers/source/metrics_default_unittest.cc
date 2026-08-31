@@ -22,8 +22,8 @@
 namespace webrtc {
 
 namespace {
-const int kSample = 22;
-const char kName[] = "Name";
+constexpr int kSample = 22;
+constexpr char kName[] = "Name";
 
 int NumSamples(absl::string_view name,
                const std::map<std::string,

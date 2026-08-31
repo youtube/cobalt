@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_constants.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_context_menu_interaction_handler.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module.h"
+#import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_background_view.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_container_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_content_view_delegate.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/magic_stack/magic_stack_module_contents_factory.h"
@@ -24,6 +25,9 @@
 #import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_data.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/shop_card/shop_card_item.h"
 #import "ios/chrome/browser/content_suggestions/ui_bundled/tab_resumption/tab_resumption_item.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_image_background_trait.h"
+#import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_client_id.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_settings_util.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -68,7 +72,6 @@ const CGFloat kSeparatorHeight = 0.5;
 @implementation MagicStackModuleContainer {
   UILabel* _title;
   UILabel* _subtitle;
-  BOOL _isPlaceholder;
   UIButton* _seeMoreButton;
   UIButton* _notificationsOptInButton;
   UIView* _contentView;
@@ -82,6 +85,7 @@ const CGFloat kSeparatorHeight = 0.5;
   ContentSuggestionsModuleType _type;
   BOOL _reducedBottomMargin;
   MagicStackContextMenuInteractionHandler* _contextMenuInteractionHandler;
+  MagicStackModuleBackgroundView* _backgroundView;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -208,7 +212,13 @@ const CGFloat kSeparatorHeight = 0.5;
           @[ UITraitPreferredContentSizeCategory.class ]);
       [self registerForTraitChanges:traits
                          withAction:@selector(updateCardSizing)];
+
+      if (IsNTPBackgroundCustomizationEnabled()) {
+        [self registerForTraitChanges:@[ NewTabPageTrait.class ]
+                           withAction:@selector(applyBackgroundColors)];
+      }
     }
+    [self applyBackgroundColors];
   }
   return self;
 }
@@ -265,13 +275,19 @@ const CGFloat kSeparatorHeight = 0.5;
 }
 
 - (void)configureWithConfig:(MagicStackModule*)config {
-  [self resetView];
   // Ensures that the modules conforms to the dynamic MS height. For
   // the MVT when it lives outside of the Magic Stack to stay as close to its
   // intrinsic size as possible, the constraint is configured to be less than
   // or equal to.
   if (config.type == ContentSuggestionsModuleType::kMostVisited) {
-    self.backgroundColor = [UIColor colorNamed:kBackgroundColor];
+    // Only create and add the background view if it isn't already in the view
+    // heirarchy.
+    if (!_backgroundView.superview) {
+      _backgroundView = [[MagicStackModuleBackgroundView alloc] init];
+      _backgroundView.translatesAutoresizingMaskIntoConstraints = NO;
+      [self insertSubview:_backgroundView atIndex:0];
+      AddSameConstraints(self, _backgroundView);
+    }
     self.layer.cornerRadius = kCornerRadius;
     self.clipsToBounds = YES;
     _containerHeightAnchor.active = NO;
@@ -279,7 +295,6 @@ const CGFloat kSeparatorHeight = 0.5;
   }
 
   if (config.type == ContentSuggestionsModuleType::kPlaceholder) {
-    _isPlaceholder = YES;
     _placeholderImage = [[UIImageView alloc]
         initWithImage:[UIImage imageNamed:@"magic_stack_placeholder_module"]];
     _placeholderImage.translatesAutoresizingMaskIntoConstraints = NO;
@@ -289,6 +304,7 @@ const CGFloat kSeparatorHeight = 0.5;
     _separator.hidden = YES;
     return;
   }
+
   _type = config.type;
   [[self contextMenuInteractionHandler] configureWithType:_type config:config];
 
@@ -317,11 +333,11 @@ const CGFloat kSeparatorHeight = 0.5;
     _subtitle.text = subtitle;
     _subtitle.accessibilityIdentifier = subtitle;
     _subtitle.hidden = NO;
+  } else {
+    _subtitle.text = nil;
   }
 
-  if ([_title.text length] == 0) {
-    _titleStackView.hidden = YES;
-  }
+  _titleStackView.hidden = [_title.text length] == 0;
 
   _separator.hidden = ![self shouldShowSeparator];
 
@@ -353,18 +369,13 @@ const CGFloat kSeparatorHeight = 0.5;
 }
 
 - (void)resetView {
-  _title.text = nil;
-  _titleStackView.hidden = NO;
-  _subtitle.text = nil;
-  _isPlaceholder = NO;
-  if (_placeholderImage) {
-    [_placeholderImage removeFromSuperview];
-    _placeholderImage = nil;
-  }
-  if (_contentView) {
-    [_contentView removeFromSuperview];
-    _contentView = nil;
-  }
+  [_placeholderImage removeFromSuperview];
+  _placeholderImage = nil;
+  [_contentView removeFromSuperview];
+  _contentView = nil;
+  _contextMenuInteractionHandler = nil;
+  [_backgroundView removeFromSuperview];
+  _backgroundView = nil;
 }
 
 - (MagicStackContextMenuInteractionHandler*)contextMenuInteractionHandler {
@@ -399,7 +410,6 @@ const CGFloat kSeparatorHeight = 0.5;
       }
       return l10n_util::GetNSString(IDS_IOS_TAB_RESUMPTION_TITLE);
     }
-    case ContentSuggestionsModuleType::kSetUpListSync:
     case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
     case ContentSuggestionsModuleType::kSetUpListAutofill:
     case ContentSuggestionsModuleType::kCompactedSetUpList:
@@ -444,8 +454,7 @@ const CGFloat kSeparatorHeight = 0.5;
     default:
       // TODO(crbug.com/40946679): the code should use constants for
       // accessibility identifiers, and not localized strings.
-      return [self titleStringForModule:type
-                                 config:config];
+      return [self titleStringForModule:type config:config];
   }
 }
 
@@ -514,6 +523,15 @@ const CGFloat kSeparatorHeight = 0.5;
 }
 #endif
 
+#pragma mark - NewTabPageColorUpdating
+
+- (void)applyBackgroundColors {
+  NewTabPageColorPalette* colorPalette =
+      [self.traitCollection objectForNewTabPageTrait];
+
+  _seeMoreButton.tintColor = colorPalette ? colorPalette.tintColor : nil;
+}
+
 #pragma mark - MagicStackModuleContentViewDelegate
 
 - (void)updateNotificationsOptInVisibility:(BOOL)showNotificationsOptIn {
@@ -537,12 +555,6 @@ const CGFloat kSeparatorHeight = 0.5;
 
 - (NSArray<UIMenuElement*>*)contextMenuElementsForCurrentModule {
   return [self.contextMenuInteractionHandler menuElements];
-}
-
-- (void)notifyContextMenuInteractionEndWithAnimator:
-    (id<UIContextMenuInteractionAnimating>)animator {
-  [self.contextMenuInteractionHandler
-      notifyContextMenuInteractionEndWithAnimator:animator];
 }
 
 #pragma mark - Helpers
@@ -584,7 +596,6 @@ const CGFloat kSeparatorHeight = 0.5;
 // the module.
 - (BOOL)shouldShowSeparator {
   switch (_type) {
-    case ContentSuggestionsModuleType::kSetUpListSync:
     case ContentSuggestionsModuleType::kSetUpListDefaultBrowser:
     case ContentSuggestionsModuleType::kSetUpListAutofill:
     case ContentSuggestionsModuleType::kSetUpListAllSet:

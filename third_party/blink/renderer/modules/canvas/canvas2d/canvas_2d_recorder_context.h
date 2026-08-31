@@ -34,6 +34,7 @@
 #include "third_party/blink/renderer/platform/graphics/color.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context_types.h"
+#include "third_party/blink/renderer/platform/graphics/memory_managed_paint_canvas.h"
 #include "third_party/blink/renderer/platform/graphics/paint/paint_filter.h"
 #include "third_party/blink/renderer/platform/graphics/predefined_color_space.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_linked_hash_set.h"
@@ -48,6 +49,7 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkM44.h"
+#include "third_party/skia/include/core/SkPathTypes.h"
 #include "third_party/skia/include/core/SkRect.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -55,7 +57,6 @@
 
 // IWYU pragma: no_include "third_party/blink/renderer/platform/heap/visitor.h"
 
-enum class SkPathFillType;
 struct SkSamplingOptions;
 
 namespace ui {
@@ -71,8 +72,6 @@ class String;
 }  // namespace v8
 
 namespace blink {
-
-MODULES_EXPORT BASE_DECLARE_FEATURE(kDisableCanvasOverdrawOptimization);
 
 class BeginLayerOptions;
 class CanvasGradient;
@@ -156,6 +155,9 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
 
   String globalCompositeOperation() const;
   void setGlobalCompositeOperation(const String&);
+
+  double globalHDRHeadroom() const;
+  void setGlobalHDRHeadroom(double);
 
   const V8UnionCanvasFilterOrString* filter() const;
   void setFilter(ScriptState*, const V8UnionCanvasFilterOrString* input);
@@ -431,6 +433,10 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
                         const SkIRect& transformed_clip_bounds,
                         SkIRect*);
 
+  // Dummy overdraw test for ops that do not support overdraw detection.
+  // To be used as `draw_covers_clip_bounds` parameter to `Draw()`.
+  static bool NoOverdraw(const SkIRect& clip_bounds) { return false; }
+
   template <OverdrawOp CurrentOverdrawOp,
             typename DrawFunc,
             typename DrawCoversClipBoundsFunc>
@@ -491,10 +497,10 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
   // the current color.
   virtual Color GetCurrentColor() const = 0;
 
-  virtual cc::PaintCanvas* GetOrCreatePaintCanvas() = 0;
-  virtual const cc::PaintCanvas* GetPaintCanvas() const = 0;
-  cc::PaintCanvas* GetPaintCanvas() {
-    return const_cast<cc::PaintCanvas*>(
+  virtual MemoryManagedPaintCanvas* GetOrCreatePaintCanvas() = 0;
+  virtual const MemoryManagedPaintCanvas* GetPaintCanvas() const = 0;
+  MemoryManagedPaintCanvas* GetPaintCanvas() {
+    return const_cast<MemoryManagedPaintCanvas*>(
         const_cast<const Canvas2DRecorderContext*>(this)->GetPaintCanvas());
   }
 
@@ -513,7 +519,8 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
 
   virtual bool IsDesynchronized() const { NOTREACHED(); }
 
-  virtual void WillDrawImage(CanvasImageSource*) const {}
+  virtual void WillDrawImage(CanvasImageSource*,
+                             bool image_is_texture_backed) const {}
 
   // TODO(crbug.com/383575391): Move context lost logic to
   // BaseRenderingContext2D.
@@ -602,7 +609,7 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
   template <OverdrawOp CurrentOverdrawOp,
             typename DrawFunc,
             typename DrawCoversClipBoundsFunc>
-  void DrawInternal(cc::PaintCanvas* paint_canvas,
+  void DrawInternal(MemoryManagedPaintCanvas* paint_canvas,
                     const DrawFunc&,
                     const DrawCoversClipBoundsFunc&,
                     const gfx::RectF& bounds,
@@ -641,7 +648,7 @@ class MODULES_EXPORT Canvas2DRecorderContext : public CanvasPath {
 
   template <typename DrawFunc>
   void CompositedDraw(const DrawFunc&,
-                      cc::PaintCanvas*,
+                      MemoryManagedPaintCanvas*,
                       CanvasRenderingContext2DState::PaintType,
                       CanvasRenderingContext2DState::ImageType);
 
@@ -764,11 +771,6 @@ ALWAYS_INLINE void Canvas2DRecorderContext::CheckOverdraw(
     const cc::PaintFlags* flags,
     CanvasRenderingContext2DState::ImageType image_type,
     Canvas2DRecorderContext::OverdrawOp overdraw_op) {
-  if (base::FeatureList::IsEnabled(kDisableCanvasOverdrawOptimization))
-      [[unlikely]] {
-    return;
-  }
-
   // Note on performance: because this method is inlined, all conditional
   // branches on arguments that are static at the call site can be optimized-out
   // by the compiler.
@@ -821,7 +823,7 @@ template <Canvas2DRecorderContext::OverdrawOp CurrentOverdrawOp,
           typename DrawFunc,
           typename DrawCoversClipBoundsFunc>
 void Canvas2DRecorderContext::DrawInternal(
-    cc::PaintCanvas* paint_canvas,
+    MemoryManagedPaintCanvas* paint_canvas,
     const DrawFunc& draw_func,
     const DrawCoversClipBoundsFunc& draw_covers_clip_bounds,
     const gfx::RectF& bounds,
@@ -838,6 +840,7 @@ void Canvas2DRecorderContext::DrawInternal(
   }
   const CanvasRenderingContext2DState& state = GetState();
   SkBlendMode global_composite = state.GlobalComposite();
+  paint_canvas->AddHighEntropyCanvasOpTypes(state.HighEntropyCanvasOpTypes());
   if (ShouldUseCompositedDraw(paint_type, image_type)) {
     WillDraw(clip_bounds, draw_type);
     CompositedDraw(draw_func, paint_canvas, paint_type, image_type);
@@ -855,11 +858,11 @@ void Canvas2DRecorderContext::DrawInternal(
     if (ComputeDirtyRect(bounds, clip_bounds, &dirty_rect)) {
       const cc::PaintFlags* flags =
           state.GetFlags(paint_type, kDrawShadowAndForeground, image_type);
-      if (paint_type != CanvasRenderingContext2DState::kStrokePaintType &&
-          draw_covers_clip_bounds(clip_bounds)) {
-        // Because CurrentOverdrawOp is a template argument the following branch
-        // is optimized-out at compile time.
-        if (CurrentOverdrawOp != OverdrawOp::kNone) {
+      // Because CurrentOverdrawOp is a template argument the following branch
+      // is optimized-out at compile time.
+      if (CurrentOverdrawOp != OverdrawOp::kNone) {
+        if (paint_type != CanvasRenderingContext2DState::kStrokePaintType &&
+            draw_covers_clip_bounds(clip_bounds)) {
           CheckOverdraw(flags, image_type, CurrentOverdrawOp);
         }
       }
@@ -891,7 +894,7 @@ void Canvas2DRecorderContext::Draw(
   }
 
   SkIRect clip_bounds;
-  cc::PaintCanvas* paint_canvas = GetOrCreatePaintCanvas();
+  MemoryManagedPaintCanvas* paint_canvas = GetOrCreatePaintCanvas();
   if (!paint_canvas || !paint_canvas->getDeviceClipBounds(&clip_bounds)) {
     return;
   }
@@ -911,7 +914,7 @@ void Canvas2DRecorderContext::Draw(
 template <typename DrawFunc>
 void Canvas2DRecorderContext::CompositedDraw(
     const DrawFunc& draw_func,
-    cc::PaintCanvas* c,
+    MemoryManagedPaintCanvas* c,
     CanvasRenderingContext2DState::PaintType paint_type,
     CanvasRenderingContext2DState::ImageType image_type) {
   // Due to the complexity of composited draw operations, we need to grant an

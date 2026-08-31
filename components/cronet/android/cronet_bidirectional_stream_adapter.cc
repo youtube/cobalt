@@ -129,9 +129,7 @@ CronetBidirectionalStreamAdapter::~CronetBidirectionalStreamAdapter() {
   DCHECK(context_->IsOnNetworkThread());
 }
 
-void CronetBidirectionalStreamAdapter::SendRequestHeaders(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller) {
+void CronetBidirectionalStreamAdapter::SendRequestHeaders(JNIEnv* env) {
   context_->PostTaskToNetworkThread(
       FROM_HERE,
       base::BindOnce(
@@ -141,7 +139,6 @@ void CronetBidirectionalStreamAdapter::SendRequestHeaders(
 
 jint CronetBidirectionalStreamAdapter::Start(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
     const base::android::JavaParamRef<jstring>& jurl,
     jint jpriority,
     const base::android::JavaParamRef<jstring>& jmethod,
@@ -185,7 +182,6 @@ jint CronetBidirectionalStreamAdapter::Start(
 
 jboolean CronetBidirectionalStreamAdapter::ReadData(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
     const base::android::JavaParamRef<jobject>& jbyte_buffer,
     jint jposition,
     jint jlimit) {
@@ -205,7 +201,6 @@ jboolean CronetBidirectionalStreamAdapter::ReadData(
 
 jboolean CronetBidirectionalStreamAdapter::WritevData(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
     const base::android::JavaParamRef<jobjectArray>& jbyte_buffers,
     const base::android::JavaParamRef<jintArray>& jbyte_buffers_pos,
     const base::android::JavaParamRef<jintArray>& jbyte_buffers_limit,
@@ -224,7 +219,7 @@ jboolean CronetBidirectionalStreamAdapter::WritevData(
       new PendingWriteData(env, jbyte_buffers, jbyte_buffers_pos,
                            jbyte_buffers_limit, jend_of_stream));
   for (size_t i = 0; i < buffers_array_size; ++i) {
-    ScopedJavaLocalRef<jobject> jbuffer(
+    auto jbuffer = ScopedJavaLocalRef<jobject>::Adopt(
         env, env->GetObjectArrayElement(
                  pending_write_data->jwrite_buffer_list.obj(), i));
     void* data = env->GetDirectBufferAddress(jbuffer.obj());
@@ -251,10 +246,8 @@ jboolean CronetBidirectionalStreamAdapter::WritevData(
   return JNI_TRUE;
 }
 
-void CronetBidirectionalStreamAdapter::Destroy(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller,
-    jboolean jsend_on_canceled) {
+void CronetBidirectionalStreamAdapter::Destroy(JNIEnv* env,
+                                               jboolean jsend_on_canceled) {
   // Destroy could be called from any thread, including network thread (if
   // posting task to executor throws an exception), but is posted, so |this|
   // is valid until calling task is complete. Destroy() is always called from

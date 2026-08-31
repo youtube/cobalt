@@ -10,6 +10,7 @@
 #import "components/search_engines/template_url_service.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/browser_container_mediator.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/browser_container_view_controller.h"
+#import "ios/chrome/browser/browser_container/ui_bundled/browser_container_view_controller_delegate.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/browser_edit_menu_handler.h"
 #import "ios/chrome/browser/browser_container/ui_bundled/edit_menu_alert_delegate.h"
 #import "ios/chrome/browser/explain_with_gemini/coordinator/explain_with_gemini_mediator.h"
@@ -20,6 +21,7 @@
 #import "ios/chrome/browser/overlays/model/public/overlay_presenter.h"
 #import "ios/chrome/browser/overlays/ui_bundled/overlay_container_coordinator.h"
 #import "ios/chrome/browser/partial_translate/ui_bundled/partial_translate_mediator.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
 #import "ios/chrome/browser/screen_time/model/screen_time_buildflags.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/search_with/ui_bundled/search_with_mediator.h"
@@ -34,6 +36,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/web/common/features.h"
 #import "url/gurl.h"
 
 #if BUILDFLAG(IOS_SCREEN_TIME_ENABLED)
@@ -41,7 +44,9 @@
 #import "ios/chrome/browser/screen_time/ui_bundled/screen_time_coordinator.h"
 #endif
 
-@interface BrowserContainerCoordinator () <EditMenuAlertDelegate>
+@interface BrowserContainerCoordinator () <
+    BrowserContainerViewControllerDelegate,
+    EditMenuAlertDelegate>
 
 // Redefine property as readwrite.
 @property(nonatomic, strong, readwrite)
@@ -86,33 +91,31 @@
   ProfileIOS* profile = browser->GetProfile();
   BOOL incognito = profile->IsOffTheRecord();
   self.viewController = [[BrowserContainerViewController alloc] init];
+  self.viewController.delegate = self;
+
   _webContentAreaOverlayContainerCoordinator =
       [[OverlayContainerCoordinator alloc]
           initWithBaseViewController:self.viewController
                              browser:browser
                             modality:OverlayModality::kWebContentArea];
 
-  _linkToTextMediator =
-      [[LinkToTextMediator alloc] initWithWebStateList:webStateList];
+  _linkToTextMediator = [[LinkToTextMediator alloc] init];
   _linkToTextMediator.alertDelegate = self;
   _linkToTextMediator.activityServiceHandler = HandlerForProtocol(
       browser->GetCommandDispatcher(), ActivityServiceCommands);
 
   _browserEditMenuHandler = [[BrowserEditMenuHandler alloc] init];
-  self.viewController.browserEditMenuHandler = _browserEditMenuHandler;
   _browserEditMenuHandler.linkToTextDelegate = _linkToTextMediator;
-  self.viewController.linkToTextDelegate = _linkToTextMediator;
 
   PrefService* prefService = profile->GetOriginalProfile()->GetPrefs();
   FullscreenController* fullscreenController =
       FullscreenController::FromBrowser(self.browser);
 
   _partialTranslateMediator = [[PartialTranslateMediator alloc]
-        initWithWebStateList:webStateList
-      withBaseViewController:self.viewController
-                 prefService:prefService
-        fullscreenController:fullscreenController
-                   incognito:incognito];
+      initWithBaseViewController:self.viewController
+                     prefService:prefService
+            fullscreenController:fullscreenController
+                       incognito:incognito];
   _partialTranslateMediator.alertDelegate = self;
   CommandDispatcher* dispatcher = browser->GetCommandDispatcher();
   id<BrowserCoordinatorCommands> browserCommandsHandler =
@@ -123,9 +126,8 @@
   TemplateURLService* templateURLService =
       ios::TemplateURLServiceFactory::GetForProfile(profile);
   _searchWithMediator =
-      [[SearchWithMediator alloc] initWithWebStateList:webStateList
-                                    templateURLService:templateURLService
-                                             incognito:incognito];
+      [[SearchWithMediator alloc] initWithTemplateURLService:templateURLService
+                                                   incognito:incognito];
 
   id<ApplicationCommands> applicationCommandsHandler =
       HandlerForProtocol(dispatcher, ApplicationCommands);
@@ -137,10 +139,9 @@
           PositionForExplainGeminiEditMenu::kDisabled &&
       !incognito) {
     _explainWithGeminiMediator = [[ExplainWithGeminiMediator alloc]
-        initWithWebStateList:webStateList
-             identityManager:IdentityManagerFactory::GetForProfile(profile)
-                 authService:AuthenticationServiceFactory::GetForProfile(
-                                 profile)];
+        initWithIdentityManager:IdentityManagerFactory::GetForProfile(profile)
+                    authService:AuthenticationServiceFactory::GetForProfile(
+                                    profile)];
 
     _explainWithGeminiMediator.applicationCommandHandler =
         applicationCommandsHandler;
@@ -209,6 +210,28 @@
                                 enabled:YES];
   }
   [_alertCoordinator start];
+}
+
+#pragma mark - BrowserContainerViewControllerDelegate
+
+- (void)browserContainerViewController:
+            (BrowserContainerViewController*)controller
+         didTriggerEditMenuWithBuilder:(id<UIMenuBuilder>)builder {
+  CHECK(base::FeatureList::IsEnabled(
+      web::features::kRestoreWKWebViewEditMenuHandler));
+  web::WebState* webState =
+      self.browser->GetWebStateList()->GetActiveWebState();
+  if (!webState) {
+    return;
+  }
+  // Check if there is an alternate webState.
+  ReaderModeTabHelper* readerModeTabHelper =
+      ReaderModeTabHelper::FromWebState(webState);
+  if (readerModeTabHelper) {
+    webState = readerModeTabHelper->GetReaderModeWebState() ?: webState;
+  }
+  [_browserEditMenuHandler buildEditMenuWithBuilder:builder
+                                         inWebState:webState];
 }
 
 #pragma mark - Private methods

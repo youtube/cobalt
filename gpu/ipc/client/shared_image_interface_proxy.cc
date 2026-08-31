@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "gpu/ipc/client/shared_image_interface_proxy.h"
 
 #include <bit>
@@ -48,15 +43,16 @@ size_t GetRemainingSize(const base::MappedReadOnlyRegion& region,
   return region.mapping.size() - offset;
 }
 
-void* GetDataAddress(base::MappedReadOnlyRegion& region,
-                     size_t offset,
-                     size_t size) {
+base::span<uint8_t> GetTargetData(base::MappedReadOnlyRegion& region,
+                                  size_t offset,
+                                  size_t size) {
   base::CheckedNumeric<size_t> safe_end = offset;
   safe_end += size;
   size_t end;
-  if (!safe_end.AssignIfValid(&end) || end > region.mapping.size())
-    return nullptr;
-  return region.mapping.GetMemoryAs<uint8_t>() + offset;
+  if (!safe_end.AssignIfValid(&end) || end > region.mapping.size()) {
+    return {};
+  }
+  return base::span(region.mapping).subspan(offset, size);
 }
 
 std::vector<SyncToken> GenerateDependenciesFromSyncToken(
@@ -287,25 +283,12 @@ void SharedImageInterfaceProxy::UpdateSharedImage(
       std::move(dependencies), /*release_count=*/0);
 }
 
-void SharedImageInterfaceProxy::CopyNativeGmbToSharedMemorySync(
-    gfx::GpuMemoryBufferHandle buffer_handle,
-    base::UnsafeSharedMemoryRegion memory_region,
-    bool* status) {
-  mojo::SyncCallRestrictions::ScopedAllowSyncCall allow_sync_call;
-  host_->CopyNativeGmbToSharedMemorySync(std::move(buffer_handle),
-                                         std::move(memory_region), status);
-}
-
 void SharedImageInterfaceProxy::CopyNativeGmbToSharedMemoryAsync(
     gfx::GpuMemoryBufferHandle buffer_handle,
     base::UnsafeSharedMemoryRegion memory_region,
     base::OnceCallback<void(bool)> callback) {
   host_->CopyNativeGmbToSharedMemoryAsync(
       std::move(buffer_handle), std::move(memory_region), std::move(callback));
-}
-
-bool SharedImageInterfaceProxy::IsConnected() {
-  return host_->IsConnected();
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -458,12 +441,12 @@ bool SharedImageInterfaceProxy::GetSHMForPixelData(
     upload_buffer_offset_ = 0;
   }
 
-  // We now have an |upload_buffer_| that fits our data.
+  // We now have an `upload_buffer_` that fits our data.
 
-  void* target =
-      GetDataAddress(upload_buffer_, upload_buffer_offset_, pixel_data.size());
-  DCHECK(target);
-  memcpy(target, pixel_data.data(), pixel_data.size());
+  base::span<uint8_t> target =
+      GetTargetData(upload_buffer_, upload_buffer_offset_, pixel_data.size());
+  DCHECK(!target.empty());
+  target.copy_from(pixel_data);
   *shm_offset = upload_buffer_offset_;
 
   // Now that we've successfully used up a portion of our buffer, increase our

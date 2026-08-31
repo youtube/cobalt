@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_CODE_POINT_ITERATOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_CODE_POINT_ITERATOR_H_
 
@@ -19,7 +14,7 @@
 #include "base/types/to_address.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"
 
-namespace WTF {
+namespace blink {
 
 //
 // A code point iterator for 8-bits or 16-bits strings.
@@ -57,7 +52,12 @@ class CodePointIterator {
     }
 
     // Returns a `end` iterator for `this` iterator.
-    Utf16 EndForThis() const { return Utf16{data_ + length_, 0}; }
+    Utf16 EndForThis() const {
+      // SAFETY: safe if `data_` points to at least `length_` code units, which
+      // should be guaranteed by the constructor or operator++
+      auto* end = UNSAFE_BUFFERS(data_ + length_);
+      return Utf16{end, 0};
+    }
 
     bool operator==(const Utf16& other) const { return data_ == other.data_; }
     bool operator!=(const Utf16& other) const { return !(*this == other); }
@@ -89,7 +89,9 @@ class CodePointIterator {
   // Create a `begin()` iterator.
   template <class T>
   explicit CodePointIterator(const T& string)
-      : CodePointIterator(string.Is8Bit(), string.Bytes(), string.length()) {}
+      : CodePointIterator(string.Is8Bit(),
+                          string.RawByteSpan().data(),
+                          string.length()) {}
 
   // Create an `end()` iterator.
   template <class T>
@@ -103,7 +105,15 @@ class CodePointIterator {
   }
 
   UChar32 operator*() const { return is_8bit_ ? *Data() : *utf16_; }
-  void operator++() { is_8bit_ ? static_cast<void>(++DataRef()) : ++utf16_; }
+  void operator++() {
+    is_8bit_
+        ? static_cast<void>(
+              // SAFETY: safe to increment as we're not deref, caller
+              // should check the returned value is not equal to
+              // `CodePointIterator::End(<same string>)` before dereferencing.
+              UNSAFE_BUFFERS(++DataRef()))
+        : ++utf16_;
+  }
 
   bool operator==(const CodePointIterator& other) const {
     DCHECK_EQ(is_8bit_, other.is_8bit_);
@@ -134,13 +144,17 @@ inline UChar32 CodePointIterator::Utf16::operator*() const {
   // Get a code point, and cache its length to `code_point_length_`.
   UChar32 ch;
   code_point_length_ = 0;
-  U16_NEXT(data_, code_point_length_, length_, ch);
+  // SAFETY: call into icu functions. Consumes at least one code unit, and
+  // checks against `length_`.
+  UNSAFE_BUFFERS(U16_NEXT(data_, code_point_length_, length_, ch));
   return ch;
 }
 
 inline void CodePointIterator::Utf16::AdvanceByCodeUnits(wtf_size_t by) {
   CHECK_LE(by, length_);
-  data_ += by;
+  // SAFETY: `data_` is safe to increment by `by` as long as `by` <= `length_`,
+  // which is checked at the top of the function.
+  UNSAFE_BUFFERS(data_ += by);
   length_ -= by;
   code_point_length_ = 0;
 }
@@ -148,13 +162,12 @@ inline void CodePointIterator::Utf16::AdvanceByCodeUnits(wtf_size_t by) {
 inline void CodePointIterator::Utf16::operator++() {
   if (!code_point_length_) [[unlikely]] {
     // `code_point_length_` is cached by `operator*()`. If not, compute it.
-    U16_FWD_1(data_, code_point_length_, length_);
+    // SAFETY: call into icu functions.
+    UNSAFE_BUFFERS(U16_FWD_1(data_, code_point_length_, length_););
   }
-  data_ += code_point_length_;
-  length_ -= code_point_length_;
-  code_point_length_ = 0;
+  AdvanceByCodeUnits(code_point_length_);
 }
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_CODE_POINT_ITERATOR_H_

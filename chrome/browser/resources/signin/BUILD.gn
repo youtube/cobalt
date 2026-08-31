@@ -60,8 +60,6 @@ build_webui("build") {
 
   if (!is_chromeos) {
     ts_files += [
-      "managed_user_profile_notice/legacy_managed_user_profile_notice_app.html.ts",
-      "managed_user_profile_notice/legacy_managed_user_profile_notice_app.ts",
       "managed_user_profile_notice/managed_user_profile_notice_app.html.ts",
       "managed_user_profile_notice/managed_user_profile_notice_app.ts",
       "managed_user_profile_notice/managed_user_profile_notice_browser_proxy.ts",
@@ -105,7 +103,6 @@ build_webui("build") {
 
   if (!is_chromeos) {
     css_files += [
-      "managed_user_profile_notice/legacy_managed_user_profile_notice_app.css",
       "managed_user_profile_notice/managed_user_profile_notice_app.css",
       "managed_user_profile_notice/managed_user_profile_notice_data_handling.css",
       "managed_user_profile_notice/managed_user_profile_notice_disclosure.css",
@@ -122,8 +119,6 @@ build_webui("build") {
       "dice_web_signin_intercept/dice_web_signin_intercept_app.css",
     ]
   }
-
-  html_to_wrapper_template = "detect"
 
   ts_composite = true
   ts_definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]

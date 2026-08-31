@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_GWP_ASAN_SUPPORT_H_
 #define PARTITION_ALLOC_GWP_ASAN_SUPPORT_H_
 
@@ -109,6 +114,8 @@ namespace partition_alloc {
 // they are never used for anything other that storing the metadata.
 class PA_COMPONENT_EXPORT(PARTITION_ALLOC) GwpAsanSupport {
  public:
+  // This can fail if the PA pool is too small or too fragmented to fit the
+  // requested slot count.
   static void* MapRegion(size_t slot_count, std::vector<uint16_t>& free_list);
   static bool CanReuse(uintptr_t slot_start);
   static void DestructForTesting();

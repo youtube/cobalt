@@ -89,6 +89,8 @@ static_library("test_support") {
   sources = [
     "fake_chrome_user_manager.cc",
     "fake_chrome_user_manager.h",
+    "scoped_account_id_annotator.cc",
+    "scoped_account_id_annotator.h",
   ]
 
   public_deps = [
@@ -101,10 +103,12 @@ static_library("test_support") {
   deps = [
     ":users",
     "//ash/constants",
+    "//chrome/browser",
     "//chrome/browser:browser_process",
     "//chrome/browser/ash/login/users/default_user_image",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/ui",
+    "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/login/login_state",
     "//chromeos/ash/components/settings",
     "//components/user_manager:common",
@@ -142,6 +146,7 @@ source_set("browser_tests") {
     "//chromeos/ash/components/dbus",
     "//chromeos/ash/components/dbus/session_manager",
     "//chromeos/ash/components/dbus/userdataauth",
+    "//chromeos/ash/components/policy/device_policy:test_support",
     "//chromeos/dbus/constants",
     "//components/ownership",
     "//components/policy/core/common",
@@ -208,4 +213,8 @@ source_set("unit_tests") {
     "avatar:unit_tests",
     "default_user_image:unit_tests",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

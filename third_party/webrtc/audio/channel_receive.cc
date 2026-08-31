@@ -407,7 +407,6 @@ AudioMixer::Source::AudioFrameInfo ChannelReceive::GetAudioFrameWithInfo(
   TRACE_EVENT_BEGIN1("webrtc", "ChannelReceive::GetAudioFrameWithInfo",
                      "sample_rate_hz", sample_rate_hz);
   RTC_DCHECK_RUNS_SERIALIZED(&audio_thread_race_checker_);
-  audio_frame->sample_rate_hz_ = sample_rate_hz;
 
   env_.event_log().Log(std::make_unique<RtcEventAudioPlayout>(remote_ssrc_));
 
@@ -852,6 +851,9 @@ CallReceiveStatistics ChannelReceive::GetRTCPStatistics() const {
         rtp_stats.packet_counter.header_bytes +
         rtp_stats.packet_counter.padding_bytes;
     stats.packets_received = rtp_stats.packet_counter.packets;
+    stats.packets_received_with_ect1 =
+        rtp_stats.packet_counter.packets_with_ect1;
+    stats.packets_received_with_ce = rtp_stats.packet_counter.packets_with_ce;
     stats.last_packet_received = rtp_stats.last_packet_received;
   }
 

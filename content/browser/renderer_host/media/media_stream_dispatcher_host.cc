@@ -14,6 +14,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "build/build_config.h"
+#include "content/browser/bad_message.h"
 #include "content/browser/media/media_devices_util.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
 #include "content/browser/renderer_host/media/video_capture_manager.h"
@@ -28,6 +29,7 @@
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "media/base/media_switches.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
 #include "mojo/public/cpp/bindings/message.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -41,9 +43,9 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "url/origin.h"
 
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 #include "content/browser/media/capture/sub_capture_target_id_web_contents_helper.h"
-#endif
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 namespace content {
 
@@ -81,7 +83,7 @@ StartObservingWebContents(GlobalRenderFrameHostId render_frame_host_id,
   return web_contents_observer;
 }
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 // Checks whether a track living in the WebContents indicated by
 // (render_process_id, render_frame_id) may be cropped or restricted
 // to the target indicated by |target|.
@@ -157,7 +159,7 @@ WrapApplySubCaptureTarget(
       },
       std::move(callback), std::move(bad_message_callback));
 }
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 bool AllowedStreamTypeCombination(
     blink::mojom::MediaStreamType audio_stream_type,
@@ -683,37 +685,6 @@ void MediaStreamDispatcherHost::FocusCapturedSurface(const std::string& label,
       /*is_from_timer=*/false);
 }
 
-void MediaStreamDispatcherHost::ApplySubCaptureTarget(
-    const base::UnguessableToken& device_id,
-    media::mojom::SubCaptureTargetType type,
-    const base::Token& sub_capture_target,
-    uint32_t sub_capture_target_version,
-    ApplySubCaptureTargetCallback callback) {
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
-
-  const GlobalRenderFrameHostId captured_id =
-      media_stream_manager_->video_capture_manager()
-          ->GetGlobalRenderFrameHostId(device_id);
-
-  // Hop to the UI thread to verify that cropping or restricting to
-  // |sub_capture_target| is permitted from this particular context.
-  // Namely, cropping and restricting are currently only allowed
-  // for self-capture, so the sub_capture_target has to be associated with the
-  // top-level WebContents belonging to this very tab.
-  // TODO(crbug.com/40823292): Switch away from the free function version
-  // when SelfOwnedReceiver properly supports this.
-  GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
-      FROM_HERE,
-      base::BindOnce(&MayApplySubCaptureTarget,
-                     /*capturing_id=*/render_frame_host_id_, captured_id, type,
-                     sub_capture_target),
-      base::BindOnce(
-          &MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete,
-          weak_factory_.GetWeakPtr(), device_id, type, sub_capture_target,
-          sub_capture_target_version,
-          WrapApplySubCaptureTarget(std::move(callback),
-                                    mojo::GetBadMessageCallback())));
-}
 
 void MediaStreamDispatcherHost::SendWheel(
     const base::UnguessableToken& device_id,
@@ -766,7 +737,46 @@ void MediaStreamDispatcherHost::RequestCapturedSurfaceControlPermission(
   media_stream_manager_->RequestCapturedSurfaceControlPermission(
       render_frame_host_id_, session_id, std::move(callback));
 }
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
+void MediaStreamDispatcherHost::ApplySubCaptureTarget(
+    const base::UnguessableToken& device_id,
+    media::mojom::SubCaptureTargetType type,
+    const base::Token& sub_capture_target,
+    uint32_t sub_capture_target_version,
+    ApplySubCaptureTargetCallback callback) {
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
+  const GlobalRenderFrameHostId captured_id =
+      media_stream_manager_->video_capture_manager()
+          ->GetGlobalRenderFrameHostId(device_id);
+
+  // Hop to the UI thread to verify that cropping or restricting to
+  // |sub_capture_target| is permitted from this particular context.
+  // Namely, cropping and restricting are currently only allowed
+  // for self-capture, so the sub_capture_target has to be associated with the
+  // top-level WebContents belonging to this very tab.
+  // TODO(crbug.com/40823292): Switch away from the free function version
+  // when SelfOwnedReceiver properly supports this.
+  GetUIThreadTaskRunner({})->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(&MayApplySubCaptureTarget,
+                     /*capturing_id=*/render_frame_host_id_, captured_id, type,
+                     sub_capture_target),
+      base::BindOnce(
+          &MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete,
+          weak_factory_.GetWeakPtr(), device_id, type, sub_capture_target,
+          sub_capture_target_version,
+          WrapApplySubCaptureTarget(std::move(callback),
+                                    mojo::GetBadMessageCallback())));
+#else
+  std::move(callback).Run(
+      media::mojom::ApplySubCaptureTargetResult::kNotImplemented);
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
+}
+
+#if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 void MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete(
     const base::UnguessableToken& session_id,
     media::mojom::SubCaptureTargetType type,
@@ -788,7 +798,7 @@ void MediaStreamDispatcherHost::OnSubCaptureTargetValidationComplete(
       session_id, type, target, sub_capture_target_version,
       std::move(callback));
 }
-#endif
+#endif  // BUILDFLAG(ENABLE_SCREEN_CAPTURE)
 
 void MediaStreamDispatcherHost::GetOpenDevice(
     int32_t page_request_id,
@@ -884,11 +894,10 @@ MediaStreamDispatcherHost::ValidateControlsForGenerateStreams(
             blink::mojom::PreferredDisplaySurface::MONITOR) {
       return bad_message::MSDH_EXCLUDE_MONITORS_BUT_PREFERRED_MONITOR_REQUESTED;
     }
+  }
 
-    if (controls.restrict_own_audio &&
-        !base::FeatureList::IsEnabled(blink::features::kRestrictOwnAudio)) {
-      return bad_message::MSDH_DISABLED_FEATURE_IS_SET;
-    }
+  if (controls.restrict_own_audio && !media::IsRestrictOwnAudioSupported()) {
+    return bad_message::MSDH_RESTRICT_OWN_AUDIO_IS_SET_WHEN_UNSUPPORTED;
   }
 
   return std::nullopt;

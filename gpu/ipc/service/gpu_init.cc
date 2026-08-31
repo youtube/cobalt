@@ -48,7 +48,6 @@
 #include "ui/gl/gl_switches.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/init/gl_factory.h"
-#include "ui/gl/startup_trace.h"
 
 #if BUILDFLAG(IS_MAC)
 #include <GLES2/gl2.h>
@@ -102,7 +101,7 @@ namespace gpu {
 namespace {
 bool CollectGraphicsInfo(GPUInfo* gpu_info) {
   DCHECK(gpu_info);
-  GPU_STARTUP_TRACE_EVENT("Collect Graphics Info");
+  TRACE_EVENT("gpu,startup", "Collect Graphics Info");
   bool success = CollectContextGraphicsInfo(gpu_info);
   if (!success)
     LOG(ERROR) << "CollectGraphicsInfo failed.";
@@ -111,7 +110,7 @@ bool CollectGraphicsInfo(GPUInfo* gpu_info) {
 
 void InitializeDawnProcs() {
 #if BUILDFLAG(USE_DAWN) || BUILDFLAG(SKIA_USE_DAWN)
-  GPU_STARTUP_TRACE_EVENT("gpu_init::InitializeDawnProcs");
+  TRACE_EVENT("gpu,startup", "gpu_init::InitializeDawnProcs");
   // Setup the global procs table for GPU process.
   dawnProcSetProcs(&dawn::native::GetProcs());
 #endif  // BUILDFLAG(USE_DAWN) || BUILDFLAG(SKIA_USE_DAWN)
@@ -251,19 +250,43 @@ uint64_t CHROME_LUID_to_uint64_t(const CHROME_LUID& luid) {
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+const GPUInfo::GPUDevice* GetDefaultGPU(
+    const GPUInfo& gpu_info,
+    const GpuFeatureInfo& gpu_feature_info) {
+  if (!gpu_feature_info.IsWorkaroundEnabled(FORCE_PHYSICAL_GPU_FOR_TESTING)) {
+    // If no preference is set, return the default GPU.
+    return &(gpu_info.gpu);
+  }
+
+  // Ensure default GPU is not a software renderer.
+  if (!gpu_info.gpu.IsSoftwareRenderer()) {
+    return &(gpu_info.gpu);
+  } else if (auto it =
+                 std::ranges::find_if(gpu_info.secondary_gpus,
+                                      [](const GPUInfo::GPUDevice& device) {
+                                        return !device.IsSoftwareRenderer();
+                                      });
+             it != gpu_info.secondary_gpus.end()) {
+    return &(*it);
+  } else {
+    LOG(FATAL) << "No non-software renderer device available.";
+  }
+}
+
 // GPU picking is only effective with ANGLE/Metal backend on Mac and
 // on Windows with EGL.
 // Returns the default GPU's system_device_id.
 void SetupGLDisplayManagerEGL(const GPUInfo& gpu_info,
                               const GpuFeatureInfo& gpu_feature_info) {
-  GPU_STARTUP_TRACE_EVENT("gpu_init::SetupGLDisplayManagerEGL");
+  TRACE_EVENT("gpu,startup", "gpu_init::SetupGLDisplayManagerEGL");
   const GPUInfo::GPUDevice* gpu_high_perf =
       gpu_info.GetGpuByPreference(gl::GpuPreference::kHighPerformance);
   const GPUInfo::GPUDevice* gpu_low_power =
       gpu_info.GetGpuByPreference(gl::GpuPreference::kLowPower);
 #if BUILDFLAG(IS_WIN)
   // On Windows the default GPU may not be the low power GPU.
-  const GPUInfo::GPUDevice* gpu_default = &(gpu_info.gpu);
+  const GPUInfo::GPUDevice* gpu_default =
+      GetDefaultGPU(gpu_info, gpu_feature_info);
   uint64_t system_device_id_high_perf =
       gpu_high_perf ? CHROME_LUID_to_uint64_t(gpu_high_perf->luid) : 0;
   uint64_t system_device_id_low_power =
@@ -272,14 +295,13 @@ void SetupGLDisplayManagerEGL(const GPUInfo& gpu_info,
       CHROME_LUID_to_uint64_t(gpu_default->luid);
 #else  // IS_MAC
   const GPUInfo::GPUDevice* gpu_default =
-      gpu_low_power ? gpu_low_power : &(gpu_info.gpu);
+      gpu_low_power ? gpu_low_power : GetDefaultGPU(gpu_info, gpu_feature_info);
   uint64_t system_device_id_high_perf =
       gpu_high_perf ? gpu_high_perf->system_device_id : 0;
   uint64_t system_device_id_low_power =
       gpu_low_power ? gpu_low_power->system_device_id : 0;
   uint64_t system_device_id_default = gpu_default->system_device_id;
 #endif  // BUILDFLAG(IS_WIN)
-  DCHECK(gpu_default);
 
   if (gpu_info.GpuCount() <= 1) {
     gl::SetGpuPreferenceEGL(gl::GpuPreference::kDefault,
@@ -298,6 +320,7 @@ void SetupGLDisplayManagerEGL(const GPUInfo& gpu_info,
                             system_device_id_high_perf);
     return;
   }
+
   if (gpu_default == gpu_high_perf) {
     // If the default GPU is already the high performance GPU, then it's better
     // for Chrome to always use this GPU.
@@ -330,11 +353,13 @@ GpuInit::~GpuInit() {
 
 bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
                                         const GpuPreferences& gpu_preferences) {
-  GPU_STARTUP_TRACE_EVENT("gpu::GpuInit::InitializeAndStartSandbox");
+  TRACE_EVENT("gpu,startup", "gpu::GpuInit::InitializeAndStartSandbox");
 #if BUILDFLAG(IS_CHROMEOS)
   LOG(WARNING) << "Starting gpu initialization.";
 #endif  //  BUILDFLAG(IS_CHROMEOS)
   gpu_preferences_ = gpu_preferences;
+  gpu_preferences_.perform_graphite_precompilation =
+      features::IsSkiaGraphitePrecompilationEnabled(command_line);
   // Blocklist decisions based on basic GPUInfo may not be final. It might
   // need more context based GPUInfo. In such situations, switching to
   // SwiftShader needs to wait until creating a context.
@@ -422,7 +447,7 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
   // Start the GPU watchdog only after anything that is expected to be time
   // consuming has completed, otherwise the process is liable to be aborted.
   if (enable_watchdog && !delayed_watchdog_enable) {
-    GPU_STARTUP_TRACE_EVENT("Create GpuWatchdog");
+    TRACE_EVENT("gpu,startup", "Create GpuWatchdog");
     watchdog_thread_ =
         GpuWatchdogThread::Create(gpu_preferences_.watchdog_starts_backgrounded,
                                   gl_use_swiftshader_, "GpuWatchdog");
@@ -654,7 +679,7 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
     base::FilePath module_path;
     if (base::PathService::Get(base::DIR_MODULE, &module_path)) {
       {
-        GPU_STARTUP_TRACE_EVENT("Load vk_swiftshader.dll");
+        TRACE_EVENT("gpu,startup", "Load vk_swiftshader.dll");
         base::LoadNativeLibrary(module_path.Append(L"vk_swiftshader.dll"),
                                 nullptr);
       }
@@ -663,11 +688,11 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
       // TODO(crbug.com/40075751): Preload dxil.dll to avoid loader lock issues
       // since dxcompiler.dll loads dxil.dll from DllMain.
       {
-        GPU_STARTUP_TRACE_EVENT("Load dxil.dll");
+        TRACE_EVENT("gpu,startup", "Load dxil.dll");
         base::LoadNativeLibrary(module_path.Append(L"dxil.dll"), nullptr);
       }
       {
-        GPU_STARTUP_TRACE_EVENT("Load dxcompiler.dll");
+        TRACE_EVENT("gpu,startup", "Load dxcompiler.dll");
         base::LoadNativeLibrary(module_path.Append(L"dxcompiler.dll"), nullptr);
       }
 #endif  // defined(DAWN_USE_BUILT_DXC)
@@ -678,7 +703,7 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
       // DirectML.dll within system folder will be loaded at a later point if
       // the redistributable one fails to be loaded.
       if (command_line->HasSwitch(switches::kUseRedistributableDirectML)) {
-        GPU_STARTUP_TRACE_EVENT("Load directml.dll");
+        TRACE_EVENT("gpu,startup", "Load directml.dll");
         base::LoadNativeLibrary(module_path.Append(L"directml.dll"), nullptr);
       }
     }
@@ -740,7 +765,7 @@ bool GpuInit::InitializeAndStartSandbox(base::CommandLine* command_line,
   // issue which breaks the camera preview. (b/166850715)
   std::vector<gfx::BufferFormat> supported_buffer_formats_for_texturing;
   {
-    GPU_STARTUP_TRACE_EVENT("ui::ozone::GetSupportedFormatsForTexturing");
+    TRACE_EVENT("gpu,startup", "ui::ozone::GetSupportedFormatsForTexturing");
     supported_buffer_formats_for_texturing =
         ui::OzonePlatform::GetInstance()
             ->GetSurfaceFactoryOzone()
@@ -1223,7 +1248,7 @@ void GpuInit::SetSkiaBackendType() {
 
 bool GpuInit::InitializeDawn() {
 #if BUILDFLAG(SKIA_USE_DAWN)
-  GPU_STARTUP_TRACE_EVENT("gpu::GpuInit::InitializeDawn");
+  TRACE_EVENT("gpu,startup", "gpu::GpuInit::InitializeDawn");
   if (gpu_feature_info_.status_values[GPU_FEATURE_TYPE_SKIA_GRAPHITE] !=
           kGpuFeatureStatusEnabled &&
       !gpu::DawnContextProvider::DefaultForceFallbackAdapter()) {
@@ -1269,9 +1294,7 @@ bool GpuInit::InitializeDawn() {
 #endif  // BUILDFLAG(IS_ANDROID)
 
   dawn_context_provider_ = gpu::DawnContextProvider::Create(
-      gpu_preferences_, validate_adapter_fn,
-      GpuDriverBugWorkarounds(
-          gpu_feature_info_.enabled_gpu_driver_bug_workarounds));
+      gpu_preferences_, gpu_feature_info_, validate_adapter_fn);
   if (dawn_context_provider_) {
     return true;
   }
@@ -1283,7 +1306,7 @@ bool GpuInit::InitializeDawn() {
 
 bool GpuInit::InitializeVulkan() {
 #if BUILDFLAG(ENABLE_VULKAN)
-  GPU_STARTUP_TRACE_EVENT("gpu::GpuInit::InitializeVulkan");
+  TRACE_EVENT("gpu,startup", "gpu::GpuInit::InitializeVulkan");
   DCHECK_EQ(gpu_feature_info_.status_values[GPU_FEATURE_TYPE_VULKAN],
             kGpuFeatureStatusEnabled);
   DCHECK_NE(gpu_preferences_.use_vulkan, VulkanImplementationName::kNone);

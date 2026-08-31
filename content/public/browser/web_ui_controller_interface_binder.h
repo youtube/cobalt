@@ -87,7 +87,7 @@ void RegisterWebUIControllerInterfaceBinder(
     mojo::BinderMapWithContext<RenderFrameHost*>* map) {
   DCHECK(!map->Contains<Interface>())
       << "A binder for " << Interface::Name_ << " has already been registered.";
-  map->Add<Interface>(base::BindRepeating(
+  map->Add<Interface>(
       [](RenderFrameHost* host, mojo::PendingReceiver<Interface> receiver) {
         // This is expected to be called only for outermost main frames.
         if (host->GetParentOrOuterDocument()) {
@@ -104,10 +104,12 @@ void RegisterWebUIControllerInterfaceBinder(
         // This is expected to be called only for the right WebUI pages matching
         // the same WebUI associated to the RenderFrameHost.
         if (!is_bound) {
+          LOG(ERROR) << "WebUIController binder missing for: "
+                     << Interface::Name_;
           internal::ReceivedInvalidWebUIControllerMessage(host);
           return;
         }
-      }));
+      });
 }
 
 }  // namespace content

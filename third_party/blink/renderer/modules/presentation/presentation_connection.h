@@ -20,10 +20,6 @@
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-namespace WTF {
-class AtomicString;
-}  // namespace WTF
-
 namespace blink {
 
 class DOMArrayBuffer;
@@ -100,7 +96,8 @@ class MODULES_EXPORT PresentationConnection
   void ContextDestroyed() override;
 
   // ExecutionContextLifecycleStateObserver implementation.
-  void ContextLifecycleStateChanged(mojom::FrameLifecycleState state) override;
+  void ContextLifecycleStateChanged(
+      mojom::blink::FrameLifecycleState state) override;
 
   String id_;
   KURL url_;

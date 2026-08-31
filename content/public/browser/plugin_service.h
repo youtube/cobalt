@@ -11,7 +11,7 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
-#include "ppapi/buildflags/buildflags.h"
+#include "content/public/common/buildflags.h"
 
 #if !BUILDFLAG(ENABLE_PLUGINS)
 #error "Plugins should be enabled"
@@ -123,10 +123,6 @@ class CONTENT_EXPORT PluginService {
 
   // Gets a list of all the registered internal plugins.
   virtual void GetInternalPlugins(std::vector<WebPluginInfo>* plugins) = 0;
-
-  // Returns true iff PPAPI "dev channel" methods are supported.
-  virtual bool PpapiDevChannelSupported(BrowserContext* browser_context,
-                                        const GURL& document_url) = 0;
 };
 
 }  // namespace content

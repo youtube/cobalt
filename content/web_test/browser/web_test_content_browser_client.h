@@ -10,12 +10,12 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #if !BUILDFLAG(IS_COBALT)
 #include "content/web_test/common/fake_bluetooth_chooser.mojom-forward.h"
 #endif
 #include "content/web_test/common/web_test.mojom-forward.h"
-#include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
@@ -40,6 +40,11 @@ namespace web_pref {
 struct WebPreferences;
 }
 }  // namespace blink
+
+namespace mojo {
+template <typename>
+class BinderMapWithContext;
+}  // namespace mojo
 
 namespace content {
 #if !BUILDFLAG(IS_COBALT)
@@ -191,10 +196,12 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       mojo::PendingReceiver<blink::test::mojom::DevicePostureProviderAutomation>
           receiver);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void BindFedCmAutomation(
       RenderFrameHost* render_frame_host,
       mojo::PendingReceiver<blink::test::mojom::FederatedAuthRequestAutomation>
           receiver);
+#endif
 
   void BindWebSensorProviderAutomation(
       RenderFrameHost* render_frame_host,
@@ -237,8 +244,10 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   std::unique_ptr<WebTestSensorProviderManager> sensor_provider_manager_;
   mojo::UniqueReceiverSet<blink::test::mojom::CookieManagerAutomation>
       cookie_managers_;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   mojo::UniqueReceiverSet<blink::test::mojom::FederatedAuthRequestAutomation>
       fedcm_managers_;
+#endif
 
 #if BUILDFLAG(IS_COBALT)
   std::unique_ptr<StubH5vccRuntimeImpl> stub_h5vcc_runtime_impl_;

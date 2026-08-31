@@ -58,6 +58,7 @@
 #include "chrome/browser/ash/crostini/crostini_util.h"
 #include "chrome/browser/ash/crostini/throttle/crostini_throttle_factory.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/guest_os/guest_id.h"
 #include "chrome/browser/ash/guest_os/guest_os_pref_names.h"
@@ -95,6 +96,8 @@ namespace crostini {
 
 namespace {
 const auto kStartVmTimeout = base::Seconds(300);
+const auto kBaguetteVmReadyWaitTimeout = base::Seconds(40);
+const auto kBaguetteVmReadyPollInterval = base::Seconds(4);
 
 ash::CiceroneClient* GetCiceroneClient() {
   return ash::CiceroneClient::Get();
@@ -319,6 +322,8 @@ class CrostiniManager::CrostiniRestarter
   void SharePathsFinished(bool success, const std::string& failure_reason);
   void StartLxdFinished(CrostiniResult result);
   void SetUpBaguetteUserFinished(CrostiniResult result);
+  void WaitUntilBaguetteReady(CrostiniResult result,
+                              base::TimeDelta remaining_wait_time);
   void CreateLxdContainerFinished(CrostiniResult result);
   void SetUpLxdContainerUserFinished(bool success);
   // Public function - StartLxdContainerFinished(CrostiniResult result);
@@ -714,9 +719,8 @@ void CrostiniManager::CrostiniRestarter::ContinueRestart() {
   }
 
   StartStage(mojom::InstallerState::kInstallImageLoader);
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
-    // TODO(crbug.com/377377749):  do we need to check for existence of any
-    // previous installs here, or has that already happened?
+
+  if (container_id_.vm_type == kBaguetteDefaultVmType) {
     crostini_manager_->InstallBaguette(
         base::BindOnce(&CrostiniRestarter::LoadComponentFinished,
                        weak_ptr_factory_.GetWeakPtr()));
@@ -899,7 +903,7 @@ void CrostiniManager::CrostiniRestarter::SharePathsFinished(
   if (!success) {
     LOG(WARNING) << "Failed to share paths: " << failure_reason;
   }
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
+  if (container_id_.vm_type == kBaguetteDefaultVmType) {
     StartStage(mojom::InstallerState::kConfigureContainer);
     crostini_manager_->SetUpBaguetteUser(
         container_id_.vm_name, requests_[0].options.container_username,
@@ -949,7 +953,49 @@ void CrostiniManager::CrostiniRestarter::SetUpBaguetteUserFinished(
     return;
   }
 
-  FinishRestart(result);
+  // Wait for Baguette's 'services are ready' signals
+  WaitUntilBaguetteReady(result, kBaguetteVmReadyWaitTimeout);
+}
+
+void CrostiniManager::CrostiniRestarter::WaitUntilBaguetteReady(
+    CrostiniResult result,
+    base::TimeDelta remaining_wait_time) {
+  // We check baguette readiness every few seconds
+  auto vm_info = crostini_manager_->GetVmInfo(kCrostiniDefaultVmName);
+  if (!vm_info.has_value()) {
+    // For some reason crostini manager lost track of the vm
+    FinishRestart(result);
+    return;
+  }
+  if (vm_info->container_started) {
+    // vm has finished booting
+    base::UmaHistogramMediumTimes(
+        "Crostini.BaguetteReadyWait",
+        kBaguetteVmReadyWaitTimeout - remaining_wait_time);
+    FinishRestart(result);
+    return;
+  }
+  if (remaining_wait_time <= base::Seconds(0)) {
+    // No more wait time
+    base::UmaHistogramMediumTimes("Crostini.BaguetteReadyWait",
+                                  kBaguetteVmReadyWaitTimeout);
+    FinishRestart(result);
+    return;
+  }
+  base::TimeDelta next_wait = remaining_wait_time - base::Seconds(4);
+  if (next_wait < base::Seconds(0)) {
+    next_wait = base::Seconds(0);
+  }
+  if (stage_timeout_timer_.IsRunning()) {
+    // We got a progress message, reset the timeout duration back to full.
+    stage_timeout_timer_.Reset();
+  }
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          &CrostiniManager::CrostiniRestarter::WaitUntilBaguetteReady,
+          weak_ptr_factory_.GetWeakPtr(), result, next_wait),
+      std::min(kBaguetteVmReadyPollInterval, remaining_wait_time));
 }
 
 void CrostiniManager::CrostiniRestarter::CreateLxdContainerFinished(
@@ -1078,6 +1124,53 @@ void CrostiniManager::UpdateVmState(std::string vm_name, VmState vm_state) {
   }
   // This can happen normally when StopVm is called right after start up.
   LOG(WARNING) << "Attempted to set state for unknown vm: " << vm_name;
+}
+
+CrostiniManager::TerminaFlavor CrostiniManager::GetTerminaFlavor(
+    Profile* profile) {
+  TerminaFlavor termina_flavor = TerminaFlavor::UNINSTALLED;
+  const base::Value::List& container_list =
+      profile->GetPrefs()->GetList(guest_os::prefs::kGuestOsContainers);
+  if (container_list.empty()) {
+    return termina_flavor;
+  }
+
+  termina_flavor = TerminaFlavor::UNKNOWN;
+
+  // We are uninterested in bru and plugin vm types here.
+  for (const auto& container : container_list) {
+    guest_os::GuestId id(container);
+    if (id.vm_type == vm_tools::apps::VmType::BAGUETTE) {
+      if (termina_flavor != TerminaFlavor::UNKNOWN) {
+        if (termina_flavor == TerminaFlavor::CROSTINI) {
+          LOG(ERROR) << "Simultaneous baguette and crostini installation, this "
+                        "is an unsupported state";
+        } else {
+          LOG(ERROR) << "Multiple termina guests exist with a baguette guest, "
+                        "this is an unsupported state.";
+        }
+        termina_flavor = TerminaFlavor::UNKNOWN;
+        break;
+      }
+      termina_flavor = TerminaFlavor::BAGUETTE;
+    } else if (id.vm_type == vm_tools::apps::VmType::TERMINA) {
+      if (termina_flavor != TerminaFlavor::UNKNOWN) {
+        if (termina_flavor == TerminaFlavor::BAGUETTE) {
+          LOG(ERROR) << "Simultaneous baguette and crostini installation, this "
+                        "is an unsupported state";
+          termina_flavor = TerminaFlavor::UNKNOWN;
+          break;
+        } else {
+          LOG(WARNING)
+              << "Multiple crostini-style termina guests exist, we are likely "
+                 "in a multi-container state which will be deprecated soon.";
+        }
+      }
+      termina_flavor = TerminaFlavor::CROSTINI;
+    }
+  }
+
+  return termina_flavor;
 }
 
 bool CrostiniManager::IsVmRunning(std::string vm_name) {
@@ -1332,24 +1425,13 @@ CrostiniManager::CrostiniManager(Profile* profile)
   // prefs. Note: This means changes only take effect after a restart,
   // which is fine, since e.g. force-quitting a running VM because policy
   // changed isn't something we're going to do.
-  for (const auto& container :
-       guest_os::GetContainers(profile_, kCrostiniDefaultVmType)) {
-    // For a short while in M106 Bruschetta was getting added to prefs without
-    // a VM type, which meant it defaulted to Termina. If we've got it in
-    // prefs remove it instead of registering it. This'll break anyone who
-    // really has a vm named "bru" which is unfortunate, but we can't tell the
-    // difference between a correct and incorrect pref, so hopefully no one's
-    // done so.
-    // TODO(b/241043433): This code can be removed after M118.
-    if (container.vm_name == bruschetta::kBruschettaVmName) {
-      guest_os::RemoveContainerFromPrefs(profile, container);
-      continue;
-    }
-
-    if (crostini::CrostiniFeatures::Get()->IsEnabled(profile_)) {
-      RegisterContainer(container);
-    } else {
-      RegisterContainerTerminal(container);
+  for (const auto& vm_type : {kCrostiniDefaultVmType, kBaguetteDefaultVmType}) {
+    for (const auto& container : guest_os::GetContainers(profile_, vm_type)) {
+      if (crostini::CrostiniFeatures::Get()->IsEnabled(profile_)) {
+        RegisterContainer(container);
+      } else {
+        RegisterContainerTerminal(container);
+      }
     }
   }
   // TODO(crbug.com/377377749): only instantiate baguette_installer_ if we care
@@ -1557,7 +1639,7 @@ void CrostiniManager::CancelInstallTermina() {
 }
 
 void CrostiniManager::UninstallTermina(BoolCallback callback) {
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
+  if (GetTerminaFlavor(profile_) == TerminaFlavor::BAGUETTE) {
     baguette_installer_.Uninstall(std::move(callback));
   } else {
     termina_installer_.Uninstall(std::move(callback));
@@ -1592,7 +1674,7 @@ void CrostiniManager::CreateDiskImage(
   // The logical size of the new disk image, in bytes.
   request.set_disk_size(std::move(disk_size_bytes));
 
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
+  if (GetTerminaFlavor(profile_) == TerminaFlavor::BAGUETTE) {
     if (!disk_image.has_value()) {
       // CreateDiskImage will still run, as a no-op that provides the location
       // of the disk image.
@@ -1645,8 +1727,9 @@ void CrostiniManager::StartTerminaVm(std::string name,
     observer.OnVmStarting();
   }
 
+  TerminaFlavor termina_flavor = GetTerminaFlavor(profile_);
   vm_tools::concierge::StartVmRequest request;
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
+  if (termina_flavor == TerminaFlavor::BAGUETTE) {
     request.mutable_vm()->set_tools_dlc_id(kToolsDlcName);
     request.set_vm_type(
         ::vm_tools::concierge::VmInfo_VmType::VmInfo_VmType_BAGUETTE);
@@ -1657,7 +1740,7 @@ void CrostiniManager::StartTerminaVm(std::string name,
     }
   }
   request.set_name(std::move(name));
-  if (!base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
+  if (termina_flavor != TerminaFlavor::BAGUETTE) {
     request.set_start_termina(true);
   }
   request.set_owner_id(owner_id_);
@@ -1675,7 +1758,7 @@ void CrostiniManager::StartTerminaVm(std::string name,
 
   vm_tools::concierge::DiskImage* disk_image = request.add_disks();
   disk_image->set_path(std::move(disk_path_string));
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
+  if (termina_flavor == TerminaFlavor::BAGUETTE) {
     disk_image->set_image_type(vm_tools::concierge::DISK_IMAGE_RAW);
   } else {
     disk_image->set_image_type(vm_tools::concierge::DISK_IMAGE_AUTO);
@@ -2679,7 +2762,6 @@ CrostiniManager::RestartId CrostiniManager::RestartCrostiniWithOptions(
   create_options.stop_after_lxd_available = options.stop_after_lxd_available;
 
   bool obsolete_create_options = true;
-  // TODO(crbug.com/377377749) dont need this for baguette?
   AddNewLxdContainerToPrefs(profile_, container_id);
   RegisterContainer(container_id);
   if (!RegisterCreateOptions(container_id, options)) {
@@ -2892,8 +2974,13 @@ void CrostiniManager::OnStartTerminaVm(
 
   // If the vm is already marked "running" run the callback.
   if (response->status() == vm_tools::concierge::VM_STATUS_RUNNING) {
-    running_vms_[vm_name] =
-        VmInfo{VmState::STARTED, std::move(response->vm_info())};
+    if (running_vms_.contains(vm_name)) {
+      running_vms_[vm_name] =
+          VmInfo{VmState::STARTED, std::move(response->vm_info()), true};
+    } else {
+      running_vms_[vm_name] =
+          VmInfo{VmState::STARTED, std::move(response->vm_info()), false};
+    }
     std::move(callback).Run(/*success=*/true);
     return;
   }
@@ -2928,7 +3015,7 @@ void CrostiniManager::OnStartTerminaVm(
   uint32_t seneschal_server_handle =
       response->vm_info().seneschal_server_handle();
   running_vms_[vm_name] =
-      VmInfo{VmState::STARTING, std::move(response->vm_info())};
+      VmInfo{VmState::STARTING, std::move(response->vm_info()), false};
   // If we thought a container was running for this VM, we're wrong. This can
   // happen if the vm was formerly running, then stopped via crosh.
 
@@ -3100,6 +3187,10 @@ void CrostiniManager::OnContainerStarted(
             weak_ptr_factory_.GetWeakPtr(),
             guest_os::GuestId(kCrostiniDefaultVmType, signal.vm_name(),
                               signal.container_name())));
+  }
+  auto vm_info_entry = running_vms_.find(signal.vm_name());
+  if (vm_info_entry != running_vms_.end()) {
+    vm_info_entry->second.container_started = true;
   }
 }
 
@@ -3635,7 +3726,7 @@ void CrostiniManager::OnTremplinStarted(
   // finish its other startup work.
   if (running_vms_.find(signal.vm_name()) == running_vms_.end()) {
     running_vms_[signal.vm_name()] =
-        VmInfo{VmState::STARTING, vm_tools::concierge::VmInfo{}};
+        VmInfo{VmState::STARTING, vm_tools::concierge::VmInfo{}, false};
   }
   // Find the callbacks to call, then erase them from the map.
   auto range = tremplin_started_callbacks_.equal_range(signal.vm_name());
@@ -3846,12 +3937,12 @@ void CrostiniManager::OnRemoveTermina(bool success) {
     return;
   }
 
-  if (base::FeatureList::IsEnabled(ash::features::kCrostiniContainerless)) {
-    // container prefs seem to be wiped as some part of lxd container removal
-    // callbacks in the regular flow, so we must remove them manually here for
-    // baguette.
-    profile_->GetPrefs()->ClearPref(guest_os::prefs::kGuestOsContainers);
+  // Container prefs are wiped as part of lxd container removal callbacks in the
+  // regular crostini flow, so we must remove them manually here for baguette.
+  if (GetTerminaFlavor(profile_) == TerminaFlavor::BAGUETTE) {
+    guest_os::RemoveVmFromPrefs(profile_, kBaguetteDefaultVmType);
   }
+
   profile_->GetPrefs()->SetBoolean(prefs::kCrostiniEnabled, false);
   profile_->GetPrefs()->ClearPref(prefs::kCrostiniLastDiskSize);
   guest_os::RemoveVmFromPrefs(profile_, kCrostiniDefaultVmType);

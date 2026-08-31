@@ -16,8 +16,9 @@
 #import "base/memory/weak_ptr.h"
 #import "base/metrics/histogram.h"
 #import "base/metrics/histogram_functions.h"
+#import "base/notimplemented.h"
 #import "base/observer_list.h"
-#import "base/types/optional_ref.h"
+#import "components/autofill/core/browser/autofill_field.h"
 #import "components/autofill/core/browser/filling/form_filler.h"
 #import "components/autofill/core/browser/form_structure.h"
 #import "components/autofill/core/browser/foundations/autofill_driver_router.h"
@@ -194,19 +195,23 @@ base::flat_set<FieldGlobalId> AutofillDriverIOS::ApplyFormAction(
     mojom::ActionPersistence action_persistence,
     base::span<const FormFieldData> fields,
     const url::Origin& triggered_origin,
-    const base::flat_map<FieldGlobalId, FieldType>& field_type_map) {
+    const base::flat_map<FieldGlobalId, FieldType>& field_type_map,
+    const Section& section_for_clear_form_on_ios) {
   switch (action_type) {
     case mojom::FormActionType::kUndo:
       // TODO(crbug.com/40266549) Add Undo support on iOS.
       return {};
     case mojom::FormActionType::kFill: {
-      auto callback = [](AutofillDriver& driver,
-                         mojom::FormActionType action_type,
-                         mojom::ActionPersistence action_persistence,
-                         const std::vector<FormFieldData::FillData>& fields) {
+      auto callback = [&section_for_clear_form_on_ios](
+                          AutofillDriver& driver,
+                          mojom::FormActionType action_type,
+                          mojom::ActionPersistence action_persistence,
+                          const std::vector<FormFieldData::FillData>& fields) {
         web::WebFrame* frame = cast(&driver)->web_frame();
         if (frame) {
-          [cast(&driver)->bridge_ fillData:fields inFrame:frame];
+          [cast(&driver)->bridge_ fillData:fields
+                                   section:section_for_clear_form_on_ios
+                                   inFrame:frame];
         }
       };
 
@@ -217,15 +222,11 @@ base::flat_set<FieldGlobalId> AutofillDriverIOS::ApplyFormAction(
                                         action_persistence, fields, main_origin,
                                         triggered_origin, field_type_map);
       } else {
-        std::vector<FieldGlobalId> safe_fields;
-        for (const auto& field : fields) {
-          safe_fields.push_back(field.global_id());
-        }
-
-        callback(
-            *this, action_type, action_persistence,
-            std::vector<FormFieldData::FillData>(fields.begin(), fields.end()));
-        return safe_fields;
+        callback(*this, action_type, action_persistence,
+                 base::ToVector(fields, [](const FormFieldData& field) {
+                   return FormFieldData::FillData(field);
+                 }));
+        return base::ToVector(fields, &FormFieldData::global_id);
       }
     }
   }
@@ -409,9 +410,10 @@ void AutofillDriverIOS::AskForValuesToFill(const FormData& form,
       [](AutofillDriver& driver, const FormData& form,
          const FieldGlobalId& field_id, const gfx::Rect& bounding_box,
          AutofillSuggestionTriggerSource trigger_source,
-         base::optional_ref<const PasswordSuggestionRequest> request) {
+         std::optional<PasswordSuggestionRequest> password_request) {
         driver.GetAutofillManager().OnAskForValuesToFill(
-            form, field_id, bounding_box, trigger_source, request);
+            form, field_id, bounding_box, trigger_source,
+            std::move(password_request));
       };
   // The caret position is currently not extracted on iOS.
   gfx::Rect caret_bounds;

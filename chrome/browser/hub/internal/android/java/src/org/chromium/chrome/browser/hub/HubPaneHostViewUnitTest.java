@@ -19,6 +19,7 @@ import android.app.Activity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
@@ -84,11 +85,14 @@ public class HubPaneHostViewUnitTest {
 
     @Test
     public void testSetRootView() {
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(200, 300);
         View root1 = new View(mActivity);
         View root2 = new View(mActivity);
         View root3 = new View(mActivity);
 
         ViewGroup paneFrame = mPaneHost.findViewById(R.id.pane_frame);
+        paneFrame.setLayoutParams(layoutParams);
+        ShadowLooper.runUiThreadTasks();
         assertEquals(0, paneFrame.getChildCount());
 
         mPropertyModel.set(PANE_ROOT_VIEW, root1);
@@ -127,6 +131,21 @@ public class HubPaneHostViewUnitTest {
         mPropertyModel.set(PANE_ROOT_VIEW, null);
         mPropertyModel.set(PANE_ROOT_VIEW, root1);
         assertEquals(1, root1.getAlpha(), /* delta= */ 0);
+    }
+
+    @Test
+    public void testSetRootView_translationRestored() {
+        View root1 = new View(mActivity);
+        View root2 = new View(mActivity);
+
+        mPropertyModel.set(PANE_ROOT_VIEW, root1);
+        mPropertyModel.set(PANE_ROOT_VIEW, root2);
+        ShadowLooper.runUiThreadTasks();
+        assertEquals(0, root2.getTranslationX(), /* delta= */ 0);
+
+        mPropertyModel.set(PANE_ROOT_VIEW, null);
+        mPropertyModel.set(PANE_ROOT_VIEW, root1);
+        assertEquals(0, root1.getTranslationX(), /* delta= */ 0);
     }
 
     @Test

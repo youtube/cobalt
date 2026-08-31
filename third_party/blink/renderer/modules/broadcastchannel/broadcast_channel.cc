@@ -12,6 +12,7 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom-blink.h"
 #include "third_party/blink/public/mojom/navigation/renderer_eviction_reason.mojom-blink.h"
 #include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-shared.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -174,7 +175,9 @@ void BroadcastChannel::OnMessage(BlinkCloneableMessage message) {
        context->IsSameAgentCluster(message.sender_agent_cluster_id)) &&
       message.message->CanDeserializeIn(context)) {
     event = MessageEvent::Create(nullptr, std::move(message.message),
-                                 context->GetSecurityOrigin()->ToString());
+                                 context->GetSecurityOrigin()->ToString(),
+                                 MessageEvent::kMessageIsSameOrigin,
+                                 /* last_event_id=*/{}, /* source=*/nullptr);
   } else {
     event = MessageEvent::CreateError(context->GetSecurityOrigin()->ToString());
   }

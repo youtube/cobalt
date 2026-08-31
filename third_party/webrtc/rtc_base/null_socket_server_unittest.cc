@@ -10,8 +10,7 @@
 
 #include "rtc_base/null_socket_server.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <memory>
 
 #include "api/test/rtc_error_matchers.h"

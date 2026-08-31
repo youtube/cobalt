@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "components/trusted_vault/icloud_recovery_key_mac.h"
 
@@ -26,7 +22,7 @@
 #include "base/task/thread_pool.h"
 #include "components/trusted_vault/securebox.h"
 #include "components/trusted_vault/trusted_vault_server_constants.h"
-#include "crypto/apple_keychain_v2.h"
+#include "crypto/apple/keychain_v2.h"
 
 namespace trusted_vault {
 
@@ -96,7 +92,7 @@ RetrieveKeysInternal(std::string_view keychain_access_group,
     CFToNSPtrCast(kSecReturnAttributes) : @YES,
   }];
   base::apple::ScopedCFTypeRef<CFTypeRef> result;
-  OSStatus status = crypto::AppleKeychainV2::GetInstance().ItemCopyMatching(
+  OSStatus status = crypto::apple::KeychainV2::GetInstance().ItemCopyMatching(
       NSToCFPtrCast(query), result.InitializeInto());
   std::vector<std::unique_ptr<trusted_vault::SecureBoxKeyPair>> ret;
   if (status == errSecItemNotFound) {
@@ -192,9 +188,9 @@ std::unique_ptr<ICloudRecoveryKey> ICloudRecoveryKey::CreateAndStoreKeySlowly(
     CFToNSPtrCast(kSecAttrAccount) : EncodePublicKey(key->public_key()),
     CFToNSPtrCast(kSecValueData) : EncodePrivateKey(key->private_key()),
   }];
-  OSStatus result =
-      crypto::AppleKeychainV2::GetInstance().ItemAdd(NSToCFPtrCast(attributes),
-                                                     /*result=*/nil);
+  OSStatus result = crypto::apple::KeychainV2::GetInstance().ItemAdd(
+      NSToCFPtrCast(attributes),
+      /*result=*/nil);
   if (result != errSecSuccess) {
     LOG(ERROR) << "Could not store iCloud recovery key: " << result;
     return nullptr;

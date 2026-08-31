@@ -107,7 +107,7 @@ class NoStatePrefetchContents::WebContentsDelegateImpl
     // TODO(cbentzel): Consider supporting this for CURRENT_TAB dispositions, if
     // it is a common case during prerenders.
     no_state_prefetch_contents_->Destroy(FINAL_STATUS_OPEN_URL);
-    return NULL;
+    return nullptr;
   }
 
   bool ShouldAllowRendererInitiatedCrossProcessNavigation(
@@ -560,11 +560,14 @@ void NoStatePrefetchContents::DestroyWhenUsingTooManyResources() {
     return;
   }
 
-  memory_instrumentation::MemoryInstrumentation::GetInstance()
-      ->RequestPrivateMemoryFootprint(
-          process_pid_,
-          base::BindOnce(&NoStatePrefetchContents::DidGetMemoryUsage,
-                         weak_factory_.GetWeakPtr()));
+  auto* memory_instrumentation =
+      memory_instrumentation::MemoryInstrumentation::GetInstance();
+  if (memory_instrumentation) {
+    memory_instrumentation->RequestPrivateMemoryFootprint(
+        process_pid_,
+        base::BindOnce(&NoStatePrefetchContents::DidGetMemoryUsage,
+                       weak_factory_.GetWeakPtr()));
+  }
 }
 
 void NoStatePrefetchContents::DidGetMemoryUsage(

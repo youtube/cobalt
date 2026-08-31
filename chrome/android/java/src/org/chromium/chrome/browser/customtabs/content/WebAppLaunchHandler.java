@@ -32,7 +32,9 @@ import org.chromium.chrome.browser.customtabs.content.WebAppLaunchHandlerHistogr
 import org.chromium.chrome.browser.customtabs.content.WebAppLaunchHandlerHistogram.FailureReasonAction;
 import org.chromium.chrome.browser.customtabs.content.WebAppLaunchHandlerHistogram.FileHandlingAction;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
 
 import java.util.Arrays;
 import java.util.List;
@@ -42,14 +44,20 @@ import java.util.List;
  * client mode and work with launch queue.
  */
 @JNINamespace("webapps")
-public class WebAppLaunchHandler {
-    private static final String TAG = WebAppLaunchHandler.class.getSimpleName();
+public class WebAppLaunchHandler extends WebContentsObserver {
+    private static final String TAG = "WebAppLaunchHandler";
     private static final @ClientMode int DEFAULT_CLIENT_MODE = NAVIGATE_EXISTING;
     private final WebContents mWebContents;
     private final CustomTabActivityNavigationController mNavigationController;
     private final Verifier mVerifier;
     private final CurrentPageVerifier mCurrentPageVerifier;
     private final Activity mActivity;
+
+    // Tracks the WebContents top-level frame loading state to resolve a race condition between URL
+    // verification and navigation completion. LaunchParams are stashed if verification finishes
+    // before the page has loaded. They are dispatched to the JS LaunchQueue once loading is
+    // complete.
+    private boolean mIsPageLoading;
 
     /**
      * Retrieves the ClientMode enum value from a given AndroidX enum. Defaults to
@@ -75,6 +83,7 @@ public class WebAppLaunchHandler {
      * @param navigationController The {@link CustomTabActivityNavigationController} to handle
      *     navigation within the Custom Tab.
      * @param webContents The {@link WebContents} associated with the tab.
+     * @param activity The {@link Activity} associated with the tab.
      * @return A new {@link WebAppLaunchHandler} instance.
      */
     public static WebAppLaunchHandler create(
@@ -83,6 +92,7 @@ public class WebAppLaunchHandler {
             CustomTabActivityNavigationController navigationController,
             WebContents webContents,
             Activity activity) {
+
         return new WebAppLaunchHandler(
                 verifier, currentPageVerifier, navigationController, webContents, activity);
     }
@@ -268,27 +278,52 @@ public class WebAppLaunchHandler {
             if (state == null || state.status != CurrentPageVerifier.VerificationStatus.SUCCESS) {
                 WebAppLaunchHandlerHistogram.logFailureReason(
                         FailureReasonAction.CURRENT_PAGE_VERIFICATION_FAILED);
+                Log.w(TAG, "Current page verification has been failed.");
                 return;
             }
+
+            WebAppLaunchHandlerJni.get()
+                    .notifyLaunchQueue(
+                            mWebContents,
+                            false,
+                            launchParams.targetUrl,
+                            launchParams.packageName,
+                            launchParams.fileUris);
+            return;
         }
 
+        observe(mWebContents);
         mVerifier
                 .verify(launchParams.targetUrl)
                 .then(
                         (verified) -> {
+                            observe(null);
+
                             if (!verified) {
                                 WebAppLaunchHandlerHistogram.logFailureReason(
                                         FailureReasonAction.TARGET_URL_VERIFICATION_FAILED);
+                                Log.w(TAG, "Target url verification has been failed.");
                                 return;
                             }
+
                             WebAppLaunchHandlerJni.get()
                                     .notifyLaunchQueue(
                                             mWebContents,
-                                            launchParams.newNavigationStarted,
+                                            mIsPageLoading,
                                             launchParams.targetUrl,
                                             launchParams.packageName,
                                             launchParams.fileUris);
                         });
+    }
+
+    @Override
+    public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+        mIsPageLoading = true;
+    }
+
+    @Override
+    public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+        mIsPageLoading = false;
     }
 
     /**

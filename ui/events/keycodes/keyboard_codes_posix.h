@@ -119,6 +119,7 @@ enum KeyboardCode : unsigned short {
   VKEY_COMMAND = VKEY_LWIN,  // Provide the Mac name for convenience.
   VKEY_RWIN = 0x5C,
   VKEY_APPS = 0x5D,
+  VKEY_RIGHT_COMMAND = VKEY_APPS,
   VKEY_SLEEP = 0x5F,
   VKEY_NUMPAD0 = 0x60,
   VKEY_NUMPAD1 = 0x61,
@@ -307,6 +308,7 @@ enum KeyboardCode : unsigned short {
   VKEY_INFO = 0x1C9,
   VKEY_GUIDE = 0x1CA,
   VKEY_MEDIA_AUDIO_TRACK = 0x3001,
+  VKEY_MICROPHONE = 0x3002,
 #endif  // BUILDFLAG(IS_COBALT)
 };
 

@@ -218,21 +218,6 @@ class RtcTestEvent final : public RtcEvent {
   const std::string string_;
 };
 
-constexpr EventParameters RtcTestEvent::event_params;
-constexpr FieldParameters RtcTestEvent::timestamp_params;
-constexpr FieldParameters RtcTestEvent::bool_params;
-constexpr FieldParameters RtcTestEvent::signed32_params;
-constexpr FieldParameters RtcTestEvent::unsigned32_params;
-constexpr FieldParameters RtcTestEvent::signed64_params;
-constexpr FieldParameters RtcTestEvent::unsigned64_params;
-
-constexpr FieldParameters RtcTestEvent::optional32_params;
-constexpr FieldParameters RtcTestEvent::optional64_params;
-constexpr FieldParameters RtcTestEvent::wrapping21_params;
-constexpr FieldParameters RtcTestEvent::string_params;
-
-constexpr RtcEvent::Type RtcTestEvent::kType;
-
 class RtcEventFieldTest : public ::testing::Test {
  protected:
   void SetUp() override {}

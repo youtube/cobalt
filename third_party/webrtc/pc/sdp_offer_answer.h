@@ -22,10 +22,10 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/audio_options.h"
 #include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
 #include "api/peer_connection_interface.h"
@@ -147,13 +147,15 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   PeerConnectionInterface::RTCConfiguration GetConfiguration();
   RTCError SetConfiguration(
       const PeerConnectionInterface::RTCConfiguration& configuration);
-  bool AddIceCandidate(const IceCandidateInterface* candidate);
-  void AddIceCandidate(std::unique_ptr<IceCandidateInterface> candidate,
+  bool AddIceCandidate(const IceCandidate* candidate);
+  void AddIceCandidate(std::unique_ptr<IceCandidate> candidate,
                        std::function<void(RTCError)> callback);
+  bool RemoveIceCandidate(const IceCandidate* candidate);
   bool RemoveIceCandidates(const std::vector<Candidate>& candidates);
   // Adds a locally generated candidate to the local description.
-  void AddLocalIceCandidate(const JsepIceCandidate* candidate);
-  void RemoveLocalIceCandidates(const std::vector<Candidate>& candidates);
+  void AddLocalIceCandidate(const IceCandidate* candidate);
+  void RemoveLocalIceCandidates(absl::string_view mid,
+                                const std::vector<Candidate>& candidates);
   bool ShouldFireNegotiationNeededEvent(uint32_t event_id);
 
   bool AddStream(MediaStreamInterface* local_stream);
@@ -502,18 +504,18 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // description, the return value will be false.
   bool UseCandidatesInRemoteDescription();
   // Uses `candidate` in this session.
-  bool UseCandidate(const IceCandidateInterface* candidate);
+  bool UseCandidate(const IceCandidate* candidate);
   // Returns true if we are ready to push down the remote candidate.
   // `remote_desc` is the new remote description, or NULL if the current remote
   // description should be used. Output `valid` is true if the candidate media
   // index is valid.
-  bool ReadyToUseRemoteCandidate(const IceCandidateInterface* candidate,
+  bool ReadyToUseRemoteCandidate(const IceCandidate* candidate,
                                  const SessionDescriptionInterface* remote_desc,
                                  bool* valid);
 
   RTCErrorOr<const ContentInfo*> FindContentInfo(
       const SessionDescriptionInterface* description,
-      const IceCandidateInterface* candidate) RTC_RUN_ON(signaling_thread());
+      const IceCandidate* candidate) RTC_RUN_ON(signaling_thread());
 
   // Functions for dealing with transports.
   // Note that cricket code uses the term "channel" for what other code
@@ -557,8 +559,7 @@ class SdpOfferAnswerHandler : public SdpStateProvider {
   // Implements AddIceCandidate without reporting usage, but returns the
   // particular success/error value that should be reported (and can be utilized
   // for other purposes).
-  AddIceCandidateResult AddIceCandidateInternal(
-      const IceCandidateInterface* candidate);
+  AddIceCandidateResult AddIceCandidateInternal(const IceCandidate* candidate);
 
   void ReportInitialSdpMunging(bool had_local_description, SdpType type);
 

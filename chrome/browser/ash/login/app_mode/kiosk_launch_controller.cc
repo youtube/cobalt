@@ -27,7 +27,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/syslog_logging.h"
@@ -45,25 +44,24 @@
 #include "chrome/browser/ash/app_mode/kiosk_profile_load_failed_observer.h"
 #include "chrome/browser/ash/app_mode/load_profile.h"
 #include "chrome/browser/ash/app_mode/startup_app_launcher.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_manager.h"
-#include "chrome/browser/ash/app_mode/web_app/web_kiosk_app_service_launcher.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
+#include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_service_launcher.h"
 #include "chrome/browser/ash/login/app_mode/force_install_observer.h"
 #include "chrome/browser/ash/login/app_mode/kiosk_launch_controller.h"
 #include "chrome/browser/ash/login/app_mode/network_ui_controller.h"
 #include "chrome/browser/ash/login/enterprise_user_session_metrics.h"
+#include "chrome/browser/ash/login/screens/app_launch_splash_screen.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/ui/ash/keyboard/chrome_keyboard_controller_client.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
-#include "chrome/browser/ui/ash/login/webui_login_view.h"
 #include "chrome/browser/ui/webui/ash/login/app_launch_splash_screen_handler.h"
+#include "chrome/browser/ui/webui/ash/login/network_state_informer.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/network/network_handler.h"
 #include "chromeos/ash/components/network/network_state.h"
-#include "components/crash/core/common/crash_key.h"
 #include "components/session_manager/core/session_manager.h"
 #include "components/session_manager/session_manager_types.h"
-#include "components/user_manager/user.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -165,7 +163,7 @@ std::unique_ptr<KioskAppLauncher> BuildKioskAppLauncher(
           profile, kiosk_app_id.app_id.value(), /*should_skip_install=*/false,
           network_delegate);
     case KioskAppType::kWebApp:
-      return std::make_unique<WebKioskAppServiceLauncher>(
+      return std::make_unique<KioskWebAppServiceLauncher>(
           profile, kiosk_app_id.account_id, network_delegate);
     case KioskAppType::kIsolatedWebApp:
       return std::make_unique<KioskIwaLauncher>(
@@ -298,6 +296,7 @@ std::string ToString(KioskAppLaunchError::Error error) {
     CASE(kExtensionsPolicyInvalid);
     CASE(kUserNotAllowlisted);
     CASE(kChromeAppDeprecated);
+    CASE(kIsolatedAppNotAllowed);
   }
   NOTREACHED();
 #undef CASE
@@ -389,12 +388,6 @@ void KioskLaunchController::Start(KioskApp kiosk_app, bool auto_launch) {
   SetKioskLaunchStateCrashKey(KioskLaunchState::kLauncherStarted);
   accelerator_disabler_ =
       std::make_unique<ScopedAcceleratorDisabler>(*accelerator_controller_);
-
-  if (host_ && host_->GetWebUILoginView()) {
-    host_->GetWebUILoginView()->SetKeyboardEventsAndSystemTrayEnabled(true);
-  } else if (!host_) {
-    CHECK_IS_TEST();
-  }
 
   if (auto_launch && kiosk_app_id().type == KioskAppType::kChromeApp) {
     CHECK(KioskChromeAppManager::IsInitialized());
@@ -615,9 +608,12 @@ void KioskLaunchController::OnLaunchFailed(KioskAppLaunchError::Error error) {
       std::move(attempt_relaunch_).Run();
       break;
     case Error::kChromeAppDeprecated:
-      // Keep the splash screen with the error message, do not relaunch or exit.
+    case Error::kIsolatedAppNotAllowed:
       splash_screen_->UpdateAppLaunchState(
-          ash::AppLaunchSplashScreenView::AppLaunchState::kChromeAppDeprecated);
+          error == Error::kChromeAppDeprecated
+              ? AppLaunchSplashScreenView::AppLaunchState::kChromeAppDeprecated
+              : AppLaunchSplashScreenView::AppLaunchState::
+                    kIsolatedAppNotAllowed);
       splash_screen_->HideThrobber();
       KioskAppLaunchError::Save(error);
       return;
@@ -678,6 +674,13 @@ void KioskLaunchController::FinishForcedExtensionsInstall(
   if (launch_on_install_ || TestOverrides::skip_splash_wait) {
     LaunchApp();
   }
+}
+
+void KioskLaunchController::OnAppLaunching() {
+  // We need to change the session state so we are able to create browser
+  // windows.
+  session_manager::SessionManager::Get()->SetSessionState(
+      session_manager::SessionState::LOGGED_IN_NOT_ACTIVE);
 }
 
 void KioskLaunchController::OnAppLaunched() {
@@ -772,10 +775,6 @@ void KioskLaunchController::LaunchApp() {
   }
 
   DCHECK(app_state_ == AppState::kInstalled);
-  // We need to change the session state so we are able to create browser
-  // windows.
-  session_manager::SessionManager::Get()->SetSessionState(
-      session_manager::SessionState::LOGGED_IN_NOT_ACTIVE);
   splash_wait_timer_.Stop();
   app_launcher_->LaunchApp();
 }

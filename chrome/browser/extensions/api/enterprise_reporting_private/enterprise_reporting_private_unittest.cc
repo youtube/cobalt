@@ -34,6 +34,7 @@
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/policy/core/common/policy_types.h"
+#include "components/prefs/pref_service.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/version_info/version_info.h"
@@ -1226,7 +1227,7 @@ class UserContextGatedTest : public ExtensionApiUnittest {
     auto* factory = enterprise_signals::SignalsAggregatorFactory::GetInstance();
     mock_aggregator_ = static_cast<device_signals::MockSignalsAggregator*>(
         factory->SetTestingFactoryAndUse(
-            browser()->profile(), base::BindRepeating(&BuildMockAggregator)));
+            profile(), base::BindRepeating(&BuildMockAggregator)));
   }
 
   void SetFakeResponse(

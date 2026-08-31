@@ -9,8 +9,8 @@
 #include <type_traits>
 
 #include "base/types/strong_alias.h"
-#include "build/branding_buildflags.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
+#include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
@@ -28,6 +28,8 @@ enum CredentialLeakFlags {
   kPasswordSynced = 1 << 2,
   // Password change url is available for this site.
   kHasChangePasswordUrl = 1 << 3,
+  // Password is saved as backup for current site.
+  kPasswordSavedAsBackup = 1 << 4,
 };
 
 enum class PasswordCheckupReferrer {
@@ -70,15 +72,20 @@ using IsReused = base::StrongAlias<class IsReusedTag, bool>;
 using IsSyncing = base::StrongAlias<class IsSyncingTag, bool>;
 using HasChangePasswordUrl =
     base::StrongAlias<class HasChangePasswordUrlTag, bool>;
+using IsSavedAsBackup = base::StrongAlias<class IsSavedAsBackupTag, bool>;
 // Creates CredentialLeakType from strong booleans.
 CredentialLeakType CreateLeakType(
     IsSaved is_saved,
     IsReused is_reused,
     IsSyncing is_syncing,
-    HasChangePasswordUrl has_change_password = HasChangePasswordUrl(false));
+    HasChangePasswordUrl has_change_password = HasChangePasswordUrl(false),
+    IsSavedAsBackup is_saved_as_backup = IsSavedAsBackup(false));
 
 // Checks whether the password is saved in Chrome.
 bool IsPasswordSaved(CredentialLeakType leak_type);
+
+// Checks whether the password is saved as backup in Chrome.
+bool IsPasswordSavedAsBackup(CredentialLeakType leak_type);
 
 // Checks whether the password is reused on other sites.
 bool IsPasswordUsedOnOtherSites(CredentialLeakType leak_type);
@@ -101,15 +108,6 @@ metrics_util::LeakDialogType GetLeakDialogType(CredentialLeakType leak_type);
 // Returns the URL used to launch the password checkup.
 GURL GetPasswordCheckupURL(PasswordCheckupReferrer referrer =
                                PasswordCheckupReferrer::kLeakDetectionDialog);
-
-// Returns whether to use Google Chrome branded strings.
-constexpr bool UsesPasswordManagerGoogleBranding() {
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  return true;
-#else
-  return false;
-#endif
-}
 
 // Captures common traits needed for a leak dialog.
 class LeakDialogTraits {

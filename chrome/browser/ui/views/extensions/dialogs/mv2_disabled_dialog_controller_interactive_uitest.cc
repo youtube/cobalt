@@ -19,6 +19,7 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension_features.h"
@@ -183,8 +184,6 @@ class Mv2DisabledDialogControllerInteractiveUITest
 
     switch (experiment_stage) {
       case MV2ExperimentStage::kWarning:
-      case MV2ExperimentStage::kNone:
-        NOTREACHED() << "Unhandled stage.";
       case MV2ExperimentStage::kDisableWithReEnable:
         enabled_features.push_back(
             extensions_features::kExtensionManifestV2Disabled);
@@ -229,7 +228,6 @@ INSTANTIATE_TEST_SUITE_P(
                       MV2ExperimentStage::kUnsupported),
     [](const testing::TestParamInfo<MV2ExperimentStage>& info) {
       switch (info.param) {
-        case MV2ExperimentStage::kNone:
         case MV2ExperimentStage::kWarning:
           NOTREACHED();
         case MV2ExperimentStage::kDisableWithReEnable:

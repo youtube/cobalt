@@ -11,16 +11,22 @@
 // If WEBRTC_EXCLUDE_SYSTEM_TIME is set, an implementation of
 // webrtc::SystemTimeNanos() must be provided externally.
 #ifndef WEBRTC_EXCLUDE_SYSTEM_TIME
+#include "rtc_base/system_time.h"
 
-#include <stdint.h>
+#include <time.h>
+
+#include <cstdint>
+#include <ctime>
+
+#include "rtc_base/time_utils.h"
+
+#if defined(WEBRTC_MAC)
+#include <mach/mach_time.h>
 
 #include <limits>
 
-#if defined(WEBRTC_POSIX)
-#include <sys/time.h>
-#if defined(WEBRTC_MAC)
-#include <mach/mach_time.h>
-#endif
+#include "rtc_base/checks.h"
+#include "rtc_base/numerics/safe_conversions.h"
 #endif
 
 #if defined(WEBRTC_WIN)
@@ -32,11 +38,6 @@
 #include <sys/timeb.h>
 // clang-format on
 #endif
-
-#include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
-#include "rtc_base/system_time.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -56,7 +57,7 @@ int64_t SystemTimeNanos() {
     RTC_DCHECK_NE(b, 0);
     RTC_DCHECK_LE(a, std::numeric_limits<int64_t>::max() / b)
         << "The multiplication " << a << " * " << b << " overflows";
-    return webrtc::dchecked_cast<int64_t>(a * b);
+    return dchecked_cast<int64_t>(a * b);
   };
   ticks = mul(mach_absolute_time(), timebase.numer) / timebase.denom;
 #elif defined(WEBRTC_POSIX)
@@ -90,7 +91,7 @@ int64_t SystemTimeNanos() {
   ticks = now + (num_wrap_timegettime << 32);
   // TODO(deadbeef): Calculate with nanosecond precision. Otherwise, we're
   // just wasting a multiply and divide when doing Time() on Windows.
-  ticks = ticks * webrtc::kNumNanosecsPerMillisec;
+  ticks = ticks * kNumNanosecsPerMillisec;
 #pragma clang diagnostic pop
 #else
 #error Unsupported platform.

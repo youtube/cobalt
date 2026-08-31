@@ -38,7 +38,7 @@
 #endif
 
 #if BUILDFLAG(SKIA_USE_METAL)
-#include "components/viz/common/gpu/metal_context_provider.h"
+#include "gpu/command_buffer/service/metal_context_provider.h"
 #endif
 
 // From ANGLE's EGL/eglext_angle.h. This should be included instead of being
@@ -139,6 +139,21 @@ ImageTransportSurfaceOverlayMacEGL::ImageTransportSurfaceOverlayMacEGL(
 #endif
 }
 
+// For testing
+ImageTransportSurfaceOverlayMacEGL::ImageTransportSurfaceOverlayMacEGL(
+    std::unique_ptr<ui::CALayerTreeCoordinator> ca_layer_tree_coordinator
+#if BUILDFLAG(IS_MAC)
+    ,
+    std::unique_ptr<ui::VSyncCallbackMac> vsync_callback_mac
+#endif
+    )
+    : ca_layer_tree_coordinator_(std::move(ca_layer_tree_coordinator)),
+#if BUILDFLAG(IS_MAC)
+      vsync_callback_mac_(std::move(vsync_callback_mac)),
+#endif
+      weak_ptr_factory_(this) {
+}
+
 ImageTransportSurfaceOverlayMacEGL::~ImageTransportSurfaceOverlayMacEGL() {
   ca_layer_tree_coordinator_.reset();
 
@@ -192,18 +207,8 @@ void ImageTransportSurfaceOverlayMacEGL::Present(
             weak_ptr_factory_.GetWeakPtr()));
   }
 
-  const std::string target_name = features::kTargetForVSync.Get();
-  const bool finch_target_interaction =
-      target_name == features::kTargetForVSyncInteraction;
-  const bool finch_target_animation =
-      target_name == features::kTargetForVSyncAnimation;
-  const bool finch_target_all_frames =
-      target_name == features::kTargetForVSyncAllFrames;
   bool delay_presenetation_until_next_vsync =
-      features::IsVSyncAlignedPresentEnabled() &&
-      (finch_target_all_frames ||
-       (finch_target_animation && data.is_handling_animation) ||
-       (finch_target_interaction && data.is_handling_interaction));
+      features::IsVSyncAlignedPresentEnabled() && data.is_handling_interaction;
 
   // The current frame has been added to
   // ca_layer_tree_coordinator_->NumPendingSwaps() after calling
@@ -403,6 +408,6 @@ void ImageTransportSurfaceOverlayMacEGL::OnVSyncPresentation(
     vsync_callback_mac_ = nullptr;
   }
 }
-#endif
 
+#endif
 }  // namespace gpu

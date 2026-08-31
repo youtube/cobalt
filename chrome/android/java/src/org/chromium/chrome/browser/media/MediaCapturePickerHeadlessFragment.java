@@ -10,16 +10,17 @@ import android.content.Intent;
 import android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
 
+import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.IntDef;
-import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentManager;
 
 import org.chromium.base.ApplicationStatus;
-import org.chromium.base.Callback;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -31,6 +32,7 @@ import java.lang.annotation.Target;
  *
  * <p>This is created on a per-Activity basis.
  */
+@NullMarked
 public class MediaCapturePickerHeadlessFragment extends Fragment {
     private static final String TAG = "MediaCapturePickerHeadlessFragment";
 
@@ -47,11 +49,15 @@ public class MediaCapturePickerHeadlessFragment extends Fragment {
         int CAPTURE_SCREEN = 2;
     }
 
+    interface Delegate {
+        void onPicked(@CaptureAction int action, ActivityResult result);
+    }
+
     private MediaProjectionManager mMediaProjectionManager;
     private ActivityResultLauncher<Intent> mLauncher;
-    private Callback<@CaptureAction Integer> mNextCallback;
+    private @Nullable Delegate mNextDelegate;
 
-    public static MediaCapturePickerHeadlessFragment getInstanceForCurrentActivity() {
+    public static @Nullable MediaCapturePickerHeadlessFragment getInstanceForCurrentActivity() {
         var activity = (FragmentActivity) ApplicationStatus.getLastTrackedFocusedActivity();
         if (activity == null) {
             return null;
@@ -83,25 +89,25 @@ public class MediaCapturePickerHeadlessFragment extends Fragment {
                 registerForActivityResult(
                         new ActivityResultContracts.StartActivityForResult(),
                         result -> {
-                            assert mNextCallback != null;
+                            assert mNextDelegate != null;
                             if (result.getResultCode() == Activity.RESULT_OK
                                     && result.getData() != null) {
                                 // There is currently no way to differentiate between window and
                                 // screen sharing.
-                                mNextCallback.onResult(CaptureAction.CAPTURE_WINDOW);
+                                mNextDelegate.onPicked(CaptureAction.CAPTURE_WINDOW, result);
                             } else {
-                                mNextCallback.onResult(CaptureAction.CAPTURE_CANCELLED);
+                                mNextDelegate.onPicked(CaptureAction.CAPTURE_CANCELLED, result);
                             }
-                            mNextCallback = null;
+                            mNextDelegate = null;
                         });
 
         // This fragment has no UI so we can retain it.
         setRetainInstance(true);
     }
 
-    public void startAndroidCapturePrompt(Callback<@CaptureAction Integer> callback) {
-        assert mNextCallback == null;
-        mNextCallback = callback;
+    public void startAndroidCapturePrompt(Delegate delegate) {
+        assert mNextDelegate == null;
+        mNextDelegate = delegate;
         mLauncher.launch(mMediaProjectionManager.createScreenCaptureIntent());
     }
 }

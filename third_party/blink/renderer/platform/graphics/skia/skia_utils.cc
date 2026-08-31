@@ -45,17 +45,6 @@ bool NearlyIntegral(float value) {
   return fabs(value - floorf(value)) < std::numeric_limits<float>::epsilon();
 }
 
-bool IsValidImageSize(const gfx::Size& size) {
-  if (size.IsEmpty())
-    return false;
-  base::CheckedNumeric<int> area = size.GetCheckedArea();
-  if (!area.IsValid() || area.ValueOrDie() > kMaxCanvasArea)
-    return false;
-  if (size.width() > kMaxSkiaDim || size.height() > kMaxSkiaDim)
-    return false;
-  return true;
-}
-
 InterpolationQuality ComputeInterpolationQuality(float src_width,
                                                  float src_height,
                                                  float dest_width,
@@ -164,7 +153,7 @@ bool ApproximatelyEqualSkColorSpaces(sk_sp<SkColorSpace> src_color_space,
 
 sk_sp<SkData> TryAllocateSkData(size_t size) {
   void* buffer =
-      WTF::Partitions::BufferPartition()
+      Partitions::BufferPartition()
           ->AllocInline<partition_alloc::AllocFlags::kReturnNull |
                         partition_alloc::AllocFlags::kZeroFill>(size, "SkData");
   if (!buffer)
@@ -172,7 +161,7 @@ sk_sp<SkData> TryAllocateSkData(size_t size) {
   return SkData::MakeWithProc(
       buffer, size,
       [](const void* buffer, void* context) {
-        WTF::Partitions::BufferPartition()->Free(const_cast<void*>(buffer));
+        Partitions::BufferPartition()->Free(const_cast<void*>(buffer));
       },
       /*context=*/nullptr);
 }

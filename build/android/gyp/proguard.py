@@ -8,7 +8,6 @@ import argparse
 import json
 import logging
 import os
-import pathlib
 import re
 import shutil
 import sys
@@ -21,10 +20,6 @@ import action_helpers  # build_utils adds //build to sys.path.
 import zip_helpers
 
 _IGNORE_WARNINGS = (
-    # E.g. Triggers for weblayer_instrumentation_test_apk since both it and its
-    # apk_under_test have no shared_libraries.
-    # https://crbug.com/1364192 << To fix this in a better way.
-    r'Missing class org.chromium.build.NativeLibraries',
     # Caused by protobuf runtime using -identifiernamestring in a way that
     # doesn't work with R8. Looks like:
     # Rule matches the static final field `...`, which may have been inlined...
@@ -53,11 +48,13 @@ _IGNORE_WARNINGS = (
         r'EditorDialogToolbar',
         # https://crbug.com/1441226
         r'PaymentRequest[BH]',
+        # This service is defined in Native not Java.
+        r'NativeServiceSandboxedProcessService',
     ]) + ')',
     # We enforce that this class is removed via -checkdiscard.
     r'FastServiceLoader\.class:.*Could not inline ServiceLoader\.load',
     # Happens on internal builds. It's a real failure, but happens in dead code.
-    r'(?:GeneratedExtensionRegistryLoader|ExtensionRegistryLite)\.class:.*Could not inline ServiceLoader\.load',  # pylint: disable=line-too-long
+    r'(?:GeneratedExtensionRegistryLoader|ExtensionRegistryLite)\.class:.*Could not inline ServiceLoader\.load',
     # This class is referenced by kotlinx-coroutines-core-jvm but it does not
     # depend on it. Not actually needed though.
     r'Missing class org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement',
@@ -71,14 +68,18 @@ _IGNORE_WARNINGS = (
     # Full error: "Warning: InnerClasses attribute has entries missing a
     # corresponding EnclosingMethod attribute. Such InnerClasses attribute
     # entries are ignored."
-    r'Warning: InnerClasses attribute has entries missing a corresponding EnclosingMethod attribute',  # pylint: disable=line-too-long
-    # Warning in obj/third_party/android_deps/google_play_services_fido_java/classes.jar:com/google/android/gms/internal/fido/zzel$zza.class:  # pylint: disable=line-too-long
-    # Classes with missing EnclosingMethod: com.google.android.gms.internal.fido.zzel$zza  # pylint: disable=line-too-long
+    r'Warning: InnerClasses attribute has entries missing a corresponding EnclosingMethod attribute',
+    # Warning in obj/third_party/android_deps/google_play_services_fido_java/classes.jar:com/google/android/gms/internal/fido/zzel$zza.class:
+    # Classes with missing EnclosingMethod: com.google.android.gms.internal.fido.zzel$zza
     r'Classes with missing EnclosingMethod',
     # Full error example: "Warning in <path to target prebuilt>:
     # androidx/test/espresso/web/internal/deps/guava/collect/Maps$1.class:"
     # Also happens in espresso core.
     r'Warning in .*:androidx/test/espresso/.*/guava/collect/.*',
+    # Likely caused by version skew with internal code. We don't use it though,
+    # so safe to ignore. b/431248021
+    r'.*AndroidComposeUiTestEnvironment.*',
+    r'.*ComposeUiTest.*',
 )
 
 _BLOCKLISTED_EXPECTATION_PATHS = [
@@ -306,7 +307,7 @@ def _OptimizeWithR8(options, config_paths, libraries, dynamic_config_data):
   with build_utils.TempDir() as tmp_dir:
     if dynamic_config_data:
       dynamic_config_path = os.path.join(tmp_dir, 'dynamic_config.flags')
-      with open(dynamic_config_path, 'w') as f:
+      with open(dynamic_config_path, 'w', encoding='utf-8') as f:
         f.write(dynamic_config_data)
       config_paths = config_paths + [dynamic_config_path]
 
@@ -358,6 +359,9 @@ def _OptimizeWithR8(options, config_paths, libraries, dynamic_config_data):
         # Needed because we don't add an unconditional -keep for Enum.values()
         # methods. http://b/204939965
         '-Dcom.android.tools.r8.experimentalTraceAndroidEnumSerialization=1',
+        # Be more aggressive about constructor inlining.
+        '-Dcom.android.tools.r8.enableConstructorInliningWithFinalFields=1',
+        '-Dcom.android.tools.r8.skipStoreStoreFenceInConstructorInlining=1',
     ]
     if options.sdk_extension_jars:
       # Enable API modelling for OS extensions. https://b/326252366
@@ -521,7 +525,7 @@ def _CombineConfigs(configs,
     if any(entry in config for entry in _BLOCKLISTED_EXPECTATION_PATHS):
       continue
 
-    with open(config) as config_file:
+    with open(config, encoding='utf-8') as config_file:
       contents = config_file.read().rstrip()
 
     ret.extend(format_config_contents(config, contents))

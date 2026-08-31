@@ -24,6 +24,7 @@
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -53,7 +54,6 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
-#include "crypto/rsa_private_key.h"
 #include "extensions/browser/api/test/test_api_observer.h"
 #include "extensions/browser/api/test/test_api_observer_registry.h"
 #include "extensions/browser/disable_reason.h"
@@ -94,17 +94,20 @@ using testing::_;
 
 namespace {
 
+// TODO(https://issues.chromium.org/issues/434006732): switch to
+// crypto::sign::Sign() once that supports all the algorithms needed here.
 bool RsaSignRawData(uint16_t openssl_signature_algorithm,
                     const std::vector<uint8_t>& input,
-                    crypto::RSAPrivateKey* key,
+                    crypto::keypair::PrivateKey key,
                     std::vector<uint8_t>* signature) {
   const EVP_MD* const digest_algorithm =
       SSL_get_signature_algorithm_digest(openssl_signature_algorithm);
   bssl::ScopedEVP_MD_CTX ctx;
   EVP_PKEY_CTX* pkey_ctx = nullptr;
   if (!EVP_DigestSignInit(ctx.get(), &pkey_ctx, digest_algorithm,
-                          /*ENGINE* e=*/nullptr, key->key()))
+                          /*ENGINE* e=*/nullptr, key.key())) {
     return false;
+  }
   if (SSL_is_signature_algorithm_rsa_pss(openssl_signature_algorithm)) {
     // For RSA-PSS, configure the special padding and set the salt length to be
     // equal to the hash size.
@@ -125,11 +128,11 @@ bool RsaSignRawData(uint16_t openssl_signature_algorithm,
 
 bool RsaSignPrehashed(uint16_t openssl_signature_algorithm,
                       const std::vector<uint8_t>& digest,
-                      crypto::RSAPrivateKey* key,
+                      crypto::keypair::PrivateKey key,
                       std::vector<uint8_t>* signature) {
   // RSA-PSS is not supported for prehashed data.
   EXPECT_FALSE(SSL_is_signature_algorithm_rsa_pss(openssl_signature_algorithm));
-  RSA* rsa_key = EVP_PKEY_get0_RSA(key->key());
+  RSA* rsa_key = EVP_PKEY_get0_RSA(key.key());
   if (!rsa_key)
     return false;
   const int digest_algorithm_nid = EVP_MD_type(
@@ -325,7 +328,7 @@ class CertificateProviderApiMockedExtensionTest
     ASSERT_TRUE(ui_test_utils::NavigateToURL(
         browser(), extension_->GetResourceURL("basic.html")));
 
-    extension_contents_ = browser()->tab_strip_model()->GetActiveWebContents();
+    extension_contents_ = GetActiveWebContents();
 
     std::string raw_certificate = GetCertificateData();
     std::vector<uint8_t> certificate_bytes(raw_certificate.begin(),
@@ -350,12 +353,12 @@ class CertificateProviderApiMockedExtensionTest
 
   const extensions::Extension* extension() const { return extension_; }
 
-  std::string GetKeyPk8() const {
-    std::string key_pk8;
+  std::vector<uint8_t> GetKeyPk8() const {
     base::ScopedAllowBlockingForTesting allow_io;
-    EXPECT_TRUE(base::ReadFileToString(
-        extension_path_.AppendASCII("l1_leaf.pk8"), &key_pk8));
-    return key_pk8;
+    std::optional<std::vector<uint8_t>> key_pk8 =
+        base::ReadFileToBytes(extension_path_.AppendASCII("l1_leaf.pk8"));
+    CHECK(key_pk8);
+    return *key_pk8;
   }
 
   // Returns the certificate stored in
@@ -388,8 +391,7 @@ class CertificateProviderApiMockedExtensionTest
         WindowOpenDisposition::NEW_FOREGROUND_TAB,
         ui_test_utils::BROWSER_TEST_NO_WAIT);
 
-    content::WebContents* const https_contents =
-        browser()->tab_strip_model()->GetActiveWebContents();
+    content::WebContents* const https_contents = GetActiveWebContents();
 
     // Wait for the extension to receive the sign request.
     ASSERT_TRUE(sign_digest_listener.WaitUntilSatisfied());
@@ -413,20 +415,18 @@ class CertificateProviderApiMockedExtensionTest
     std::vector<uint8_t> request_data(exec_js_future.Get().GetBlob());
 
     // Load the private key.
-    std::string key_pk8 = GetKeyPk8();
-    std::unique_ptr<crypto::RSAPrivateKey> key(
-        crypto::RSAPrivateKey::CreateFromPrivateKeyInfo(
-            base::as_byte_span(key_pk8)));
+    std::optional<crypto::keypair::PrivateKey> key =
+        crypto::keypair::PrivateKey::FromPrivateKeyInfo(GetKeyPk8());
     ASSERT_TRUE(key);
 
     // Sign using the private key.
     std::vector<uint8_t> signature;
     if (is_raw_data) {
       EXPECT_TRUE(RsaSignRawData(openssl_signature_algorithm, request_data,
-                                 key.get(), &signature));
+                                 *key, &signature));
     } else {
       EXPECT_TRUE(RsaSignPrehashed(openssl_signature_algorithm, request_data,
-                                   key.get(), &signature));
+                                   *key, &signature));
     }
 
     // Inject the signature back to the extension and let it reply.
@@ -451,11 +451,8 @@ class CertificateProviderApiMockedExtensionTest
   void SetInterstitialBypass() {
     // Navigate to the test server in a new tab (to not clobber the test
     // fixture setup.
-    ui_test_utils::NavigateToURLWithDisposition(
-        browser(), GetHttpsClientCertUrl(),
-        WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
-    auto* tab = browser()->tab_strip_model()->GetActiveWebContents();
+    NavigateToURLInNewTab(GetHttpsClientCertUrl());
+    auto* tab = GetActiveWebContents();
 
     // Proceed through the interstitial to set an SSL bypass for this host.
     content::TestNavigationObserver nav_observer(tab,
@@ -923,14 +920,10 @@ IN_PROC_BROWSER_TEST_F(CertificateProviderApiTest,
 
   // Navigate again to the page with the client authentication. The extension
   // gets awakened and handles the request.
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GetHttpsClientCertUrl(),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(GetHttpsClientCertUrl());
   EXPECT_EQ(test_certificate_provider_extension.certificate_request_count(), 2);
-  EXPECT_EQ(
-      GetPageTextContent(browser()->tab_strip_model()->GetActiveWebContents()),
-      "got client cert with fingerprint: " + client_cert_fingerprint);
+  EXPECT_EQ(GetPageTextContent(GetActiveWebContents()),
+            "got client cert with fingerprint: " + client_cert_fingerprint);
 }
 
 // User enters the correct PIN.

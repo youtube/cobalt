@@ -35,6 +35,7 @@
 #include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "chromeos/components/magic_boost/public/cpp/views/experiment_badge.h"
 #include "chromeos/components/mahi/public/cpp/mahi_manager.h"
@@ -511,8 +512,7 @@ MahiPanelView::MahiPanelView(MahiUiController* ui_controller)
       chromeos::features::IsSystemBlurEnabled()
           ? cros_tokens::kCrosSysSystemBaseElevated
           : cros_tokens::kCrosSysSystemBaseElevatedOpaque;
-  SetBackground(views::CreateRoundedRectBackground(
-      background_color_id, mahi_constants::kPanelCornerRadius));
+  SetBackground(views::CreateSolidBackground(background_color_id));
 
   // Create a layer for the view for background blur and rounded corners.
   SetPaintToLayer();
@@ -948,7 +948,7 @@ void MahiPanelView::OnCloseButtonPressed(const ui::Event& event) {
 }
 
 void MahiPanelView::OnLearnMoreLinkClicked() {
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       GURL(chrome::kHelpMeReadWriteLearnMoreURL),
       NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);

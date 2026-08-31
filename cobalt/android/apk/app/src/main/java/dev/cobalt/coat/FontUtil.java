@@ -16,27 +16,26 @@ package dev.cobalt.coat;
 
 import android.content.Context;
 import android.util.Log;
-import org.chromium.base.PathUtils;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
+import org.chromium.base.PathUtils;
 
 /**
  * Utility class responsible for extracting Cobalt's font configuration table asset from the APK.
  *
- * Reason for existence: Native C++ Skia (`SkFontMgr_Android_CustomFonts`) requires a raw
+ * <p>Reason for existence: Native C++ Skia (`SkFontMgr_Android_CustomFonts`) requires a raw
  * filesystem file path (`storage/cobalt_android_fonts.xml`) to read custom font definitions and
  * multilingual glyph fallbacks. This helper copies `fonts/fonts.xml` from the APK assets bundle
  * into the application's private data storage directory on cold start.
  *
- * Expected lifetime/ownership: Stateless static utility class. It owns no long-lived
- * references, holds no internal instance state, and does not instantiate any objects beyond temporary
- * I/O streams during the copy operation.
+ * <p>Expected lifetime/ownership: Stateless static utility class. It owns no long-lived references,
+ * holds no internal instance state, and does not instantiate any objects beyond temporary I/O
+ * streams during the copy operation.
  *
- * Threading model: Synchronous utility method designed to be invoked from the main UI thread
- * or startup background threads during early initialization milestones (`CobaltActivity` cold start).
+ * <p>Threading model: Synchronous utility method designed to be invoked from the main UI thread or
+ * startup background threads during early initialization milestones (`CobaltActivity` cold start).
  * Performs blocking filesystem I/O to guarantee the XML file is persisted on disk before the native
  * Starboard/Chromium engine boots.
  */

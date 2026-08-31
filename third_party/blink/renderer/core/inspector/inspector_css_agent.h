@@ -197,6 +197,9 @@ class CORE_EXPORT InspectorCSSAgent final
       std::optional<int>* parent_layout_node_id,
       std::unique_ptr<protocol::Array<protocol::CSS::CSSFunctionRule>>*)
       override;
+  protocol::Response getEnvironmentVariables(
+      std::unique_ptr<protocol::DictionaryValue>* environment_variables)
+      override;
   protocol::Response getInlineStylesForNode(
       int node_id,
       std::unique_ptr<protocol::CSS::CSSStyle>* inline_style,
@@ -401,7 +404,7 @@ class CORE_EXPORT InspectorCSSAgent final
   std::unique_ptr<protocol::CSS::CSSFontPaletteValuesRule> FontPalettesForNode(
       Element& element);
 
-  // If the |animating_element| is a pseudo element, then |element| is a
+  // If the |animating_element| is a pseudo-element, then |element| is a
   // reference to its originating DOM element.
   std::unique_ptr<protocol::Array<protocol::CSS::CSSKeyframesRule>>
   AnimationsForNode(Element* element, Element* animating_element);

@@ -101,6 +101,9 @@ declare namespace chrome {
     // If the speech tree has been initialized in the renderer.
     let isSpeechTreeInitialized: boolean;
 
+    // Max number of characters to display in one line of Reading mode.
+    let maxLineWidth: number;
+
     // Returns whether the reading highlight is currently on.
     function isHighlightOn(): boolean;
 
@@ -158,7 +161,11 @@ declare namespace chrome {
     function onCopy(): void;
 
     // Called when speech is paused or played.
-    function onSpeechPlayingStateChanged(isSpeechActive: boolean): void;
+    function onIsSpeechActiveChanged(isSpeechActive: boolean): void;
+
+    // Called when the audio for speech actually starts or stops.
+    function onIsAudioCurrentlyPlayingChanged(isAudioCurrentlyPlaying: boolean):
+        void;
 
     // Called when the Read Anything panel is scrolled.
     function onScroll(onSelection: boolean): void;
@@ -228,6 +235,9 @@ declare namespace chrome {
     // by clicking.
     function onCollapseSelection(): void;
 
+    // Called when the number of words seen by a reading mode user changes.
+    function updateWordsSeen(wordsSeen: number): void;
+
     // Set the content. Used by tests only.
     // SnapshotLite is a data structure which resembles an AXTreeUpdate. E.g.:
     //   const axTree = {
@@ -295,6 +305,9 @@ declare namespace chrome {
 
     // Ping that a new tts engine has installed.
     function onTtsEngineInstalled(): void;
+
+    // Ping that the user muted or unmuted this tab.
+    function onTabMuteStateChange(muted: boolean): void;
 
     // Ping that the given node will be deleted.
     function onNodeWillBeDeleted(nodeId: number): void;

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -79,11 +80,6 @@ class ManagementContextMixin : public InProcessBrowserTestMixin {
   ManagementContextMixin(InProcessBrowserTestMixinHost* host,
                          InProcessBrowserTest* test_base,
                          ManagementContext management_context);
-
-  // InProcessBrowserTestMixin:
-  void SetUpInProcessBrowserTestFixture() override;
-
-  virtual void ManageCloudMachine();
 
   // Returns a PolicyData object with some base value which can be used by
   // platform-specific mixin definitions to manage the current user.

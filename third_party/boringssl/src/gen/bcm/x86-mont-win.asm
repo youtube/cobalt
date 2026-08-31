@@ -13,10 +13,10 @@ section	.text	code align=64
 %else
 section	.text	code
 %endif
-global	_bn_mul_mont
+global	_bn_mul_mont_words
 align	16
-_bn_mul_mont:
-L$_bn_mul_mont_begin:
+_bn_mul_mont_words:
+L$_bn_mul_mont_words_begin:
 	push	ebp
 	push	ebx
 	push	esi

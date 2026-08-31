@@ -7,12 +7,21 @@
 
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom.h"
+#include "components/tabs/public/tab_collection.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/color/color_provider.h"
 
 namespace tabs_api::converters {
 
 tabs_api::mojom::TabPtr BuildMojoTab(tabs::TabHandle handle,
-                                     const TabRendererData& data);
+                                     const TabRendererData& data,
+                                     const ui::ColorProvider& color_provider);
+
+// Builds a mojom::TabCollectionPtr based off a TabCollection.
+// Note: Handle must be valid and point to a live TabCollection. There is a
+// CHECK to enforce that precondition.
+tabs_api::mojom::TabCollectionPtr BuildMojoTabCollection(
+    tabs::TabCollectionHandle handle);
 
 }  // namespace tabs_api::converters
 

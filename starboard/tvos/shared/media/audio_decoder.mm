@@ -92,11 +92,11 @@ void TvosAudioDecoder::Decode(const InputBuffers& input_buffers,
 
     auto output_byte_size = expected_output_frames_in_packet * bytes_per_frame_;
 
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        audio_stream_info_.number_of_channels, kSbMediaAudioSampleTypeFloat32,
-        kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-        output_byte_size);
-    audio_buffer_list_.mBuffers[0].mData = decoded_audio->data();
+    DecodedAudio decoded_audio(audio_stream_info_.number_of_channels,
+                               kSbMediaAudioSampleTypeFloat32,
+                               kSbMediaAudioFrameStorageTypeInterleaved,
+                               input_buffer->timestamp(), output_byte_size);
+    audio_buffer_list_.mBuffers[0].mData = decoded_audio.data();
     audio_buffer_list_.mBuffers[0].mDataByteSize = output_byte_size;
 
     UInt32 actual_output_frames_in_packets = expected_output_frames_in_packet;
@@ -137,7 +137,7 @@ void TvosAudioDecoder::Decode(const InputBuffers& input_buffers,
     audio_frame_discarder_.AdjustForDiscardedDurations(
         audio_stream_info_.samples_per_second, &decoded_audio);
 
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
     return;
   }
@@ -151,21 +151,21 @@ void TvosAudioDecoder::WriteEndOfStream() {
 
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
+  decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
 
   audio_frame_discarder_.OnDecodedAudioEndOfStream();
 
   Schedule(output_cb_);
 }
 
-scoped_refptr<DecodedAudio> TvosAudioDecoder::Read(int* samples_per_second) {
+std::optional<DecodedAudio> TvosAudioDecoder::Read(int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
-  scoped_refptr<DecodedAudio> result;
+  std::optional<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
+    result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
   *samples_per_second = audio_stream_info_.samples_per_second;

@@ -46,13 +46,13 @@ namespace webrtc {
 namespace {
 
 // Max number of frames the buffer will hold.
-static constexpr size_t kMaxFramesBuffered = 800;
+constexpr size_t kMaxFramesBuffered = 800;
 // Max number of decoded frame info that will be saved.
-static constexpr int kMaxFramesHistory = 1 << 13;
+constexpr int kMaxFramesHistory = 1 << 13;
 
 // Default value for the maximum decode queue size that is used when the
 // low-latency renderer is used.
-static constexpr size_t kZeroPlayoutDelayDefaultMaxDecodeQueueSize = 8;
+constexpr size_t kZeroPlayoutDelayDefaultMaxDecodeQueueSize = 8;
 
 struct FrameMetadata {
   explicit FrameMetadata(const EncodedFrame& frame)

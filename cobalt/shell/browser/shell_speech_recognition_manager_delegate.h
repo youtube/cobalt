@@ -45,8 +45,8 @@ class ShellSpeechRecognitionManagerDelegate
 
 #if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_ANDROID)
   void BindSpeechRecognitionContext(
-      mojo::PendingReceiver<media::mojom::SpeechRecognitionContext> receiver)
-      override;
+      mojo::PendingReceiver<media::mojom::SpeechRecognitionContext> receiver,
+      const std::string& language) override;
 #endif
 };
 

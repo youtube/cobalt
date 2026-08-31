@@ -31,29 +31,31 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_UTF8_ADAPTOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_UTF8_ADAPTOR_H_
 
+#include <string>
 #include <string_view>
 
 #include "base/containers/span.h"
 #include "base/memory/raw_span.h"
+#include "base/strings/string_view_util.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
-#include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
+#include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-namespace WTF {
+namespace blink {
 
 // This class lets you get UTF-8 data out of a String without mallocing a
 // separate buffer to hold the data if the String happens to be 8 bit and
 // contain only ASCII characters.
-class WTF_EXPORT StringUTF8Adaptor final {
+class WTF_EXPORT StringUtf8Adaptor final {
   DISALLOW_NEW();
 
  public:
   using iterator = base::raw_span<const char>::iterator;
 
-  explicit StringUTF8Adaptor(
+  explicit StringUtf8Adaptor(
       StringView string,
       Utf8ConversionMode mode = Utf8ConversionMode::kLenient);
-  ~StringUTF8Adaptor();
+  ~StringUtf8Adaptor();
 
   const char* data() const { return span_.data(); }
   wtf_size_t size() const { return span_.size(); }
@@ -70,8 +72,6 @@ class WTF_EXPORT StringUTF8Adaptor final {
   base::raw_span<const char> span_;
 };
 
-}  // namespace WTF
-
-using WTF::StringUTF8Adaptor;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_UTF8_ADAPTOR_H_

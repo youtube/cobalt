@@ -29,8 +29,8 @@ constexpr std::intmax_t m1 = -1;
 static_assert(static_cast<std::uintmax_t>(m1) == umax, "");
 static_assert(m1 == static_cast<std::intmax_t>(umax), "");
 
-static const std::pair<int, int> p1(1, 1);
-static const std::pair<int, int> p2(1, 2);
+const std::pair<int, int> p1(1, 1);
+const std::pair<int, int> p2(1, 2);
 
 }  // namespace
 

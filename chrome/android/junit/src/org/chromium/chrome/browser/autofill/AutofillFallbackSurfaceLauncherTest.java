@@ -35,8 +35,8 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.components.plus_addresses.PlusAddressesMetricsRecorder;
 import org.chromium.components.signin.base.CoreAccountInfo;
-import org.chromium.components.signin.base.GaiaId;
 import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -171,14 +171,12 @@ public class AutofillFallbackSurfaceLauncherTest {
     }
 
     @Test
-    public void testOpenManageLoyaltyCards_OpensCct() {
-        AutofillFallbackSurfaceLauncher.openGoogleWalletLoyaltyCardsPage(mWindowAndroid);
+    public void testOpenManagePasses_OpensNewActivity() {
+        AutofillFallbackSurfaceLauncher.openGoogleWalletPassesPage(mWindowAndroid);
 
         ShadowActivity shadowActivity = Shadows.shadowOf(mActivity);
         Intent cctIntent = shadowActivity.getNextStartedActivity();
         assertNotNull(cctIntent);
-        assertEquals(
-                AutofillFallbackSurfaceLauncher.GOOGLE_WALLET_LOYALTY_CARD_URL,
-                cctIntent.getDataString());
+        assertEquals(GoogleWalletLauncher.GOOGLE_WALLET_PASSES_URL, cctIntent.getDataString());
     }
 }

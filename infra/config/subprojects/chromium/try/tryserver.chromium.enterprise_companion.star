@@ -3,21 +3,21 @@
 # found in the LICENSE file.
 """Definitions of builders in the tryserver.chromium.enterprise_companion builder group."""
 
-load("//lib/builders.star", "cpu", "os", "siso")
-load("//lib/try.star", "try_")
-load("//lib/consoles.star", "consoles")
-load("//lib/gn_args.star", "gn_args")
-load("//lib/html.star", "linkify")
+load("@chromium-luci//builders.star", "cpu", "os")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//gn_args.star", "gn_args")
+load("@chromium-luci//html.star", "linkify")
+load("@chromium-luci//try.star", "try_")
+load("//lib/siso.star", "siso")
+load("//lib/try_constants.star", "try_constants")
 
 try_.defaults.set(
-    executable = try_.DEFAULT_EXECUTABLE,
+    executable = try_constants.DEFAULT_EXECUTABLE,
     builder_group = "tryserver.chromium.enterprise_companion",
-    pool = try_.DEFAULT_POOL,
+    pool = try_constants.DEFAULT_POOL,
     builderless = True,
-    execution_timeout = try_.DEFAULT_EXECUTION_TIMEOUT,
-    reclient_enabled = False,
-    service_account = try_.DEFAULT_SERVICE_ACCOUNT,
-    siso_enabled = True,
+    execution_timeout = try_constants.DEFAULT_EXECUTION_TIMEOUT,
+    service_account = try_constants.DEFAULT_SERVICE_ACCOUNT,
     siso_project = siso.project.DEFAULT_UNTRUSTED,
     siso_remote_jobs = siso.remote_jobs.LOW_JOBS_FOR_CQ,
 )
@@ -37,7 +37,7 @@ def enterprise_companion_linux_builder(*, name, **kwargs):
     )
 
 def enterprise_companion_mac_builder(*, name, **kwargs):
-    kwargs.setdefault("os", os.MAC_ANY)
+    kwargs.setdefault("os", os.MAC_DEFAULT)
     return try_.builder(
         name = name,
         contact_team_email = "omaha-client-dev@google.com",
@@ -98,14 +98,15 @@ enterprise_companion_mac_builder(
     name = "mac-enterprise-companion-try-builder-dbg",
     description_html = "Compiles and runs " + linkify("https://source.chromium.org/chromium/chromium/src/+/main:chrome/enterprise_companion/README.md", "Chrome Enterprise Companion App") + " Mac Debug tests.",
     mirrors = [
-        "ci/mac-enterprise-companion-builder-dbg",
-        "ci/mac11-x64-enterprise-companion-tester-dbg",
+        "ci/mac-enterprise-companion-builder-arm64-dbg",
+        "ci/mac13-arm64-enterprise-companion-tester-dbg",
     ],
     gn_args = gn_args.config(
         configs = [
-            "ci/mac-enterprise-companion-builder-dbg",
+            "ci/mac-enterprise-companion-builder-arm64-dbg",
         ],
     ),
+    cpu = cpu.ARM64,
     main_list_view = "try",
     tryjob = try_.job(
         location_filters = [
@@ -119,7 +120,7 @@ enterprise_companion_mac_builder(
     description_html = "Compiles and runs " + linkify("https://source.chromium.org/chromium/chromium/src/+/main:chrome/enterprise_companion/README.md", "Chrome Enterprise Companion App") + " Mac Release tests.",
     mirrors = [
         "ci/mac-enterprise-companion-builder-rel",
-        "ci/mac11-x64-enterprise-companion-tester-rel",
+        "ci/mac13-x64-enterprise-companion-tester-rel",
     ],
     gn_args = gn_args.config(
         configs = [

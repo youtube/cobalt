@@ -17,6 +17,7 @@
 #include "content/browser/preloading/preloading_trigger_type_impl.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/prerender/prerender_host.h"
+#include "content/public/browser/preloading_data.h"
 #include "content/public/browser/preloading_trigger_type.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
@@ -55,8 +56,8 @@ int32_t InterfaceNameHasher(const std::string& interface_name) {
 int32_t HeaderMismatchHasher(const std::string& header,
                              HeaderMismatchType mismatch_type) {
   // Throw two bits away to encode the mismatch type.
-  // {0---30} bits are the encoded hash number.
-  // {31, 32} bits encode the mismatch type.
+  // {0---29} bits are the encoded hash number.
+  // {30, 31} bits encode the mismatch type.
   static_assert(HeaderMismatchType::kMaxValue == 3u,
                 "HeaderMismatchType should use 2 bits at most.");
   return static_cast<int32_t>(base::HashMetricNameAs32Bits(header) << 2 |

@@ -24,10 +24,12 @@
 
 #include "third_party/blink/renderer/core/html/html_embed_element.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_trustedscripturl_usvstring.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/dom/attribute.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/frame/deprecation/deprecation.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
@@ -37,6 +39,7 @@
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 
 namespace blink {
 
@@ -49,7 +52,8 @@ HTMLEmbedElement::HTMLEmbedElement(Document& document,
 const AttrNameToTrustedType& HTMLEmbedElement::GetCheckedAttributeTypes()
     const {
   DEFINE_STATIC_LOCAL(AttrNameToTrustedType, attribute_map,
-                      ({{"src", SpecificTrustedType::kScriptURL}}));
+                      ({{"src", std::pair{SpecificTrustedType::kScriptURL,
+                                          "HTMLEmbedElement"}}}));
   return attribute_map;
 }
 
@@ -165,7 +169,8 @@ void HTMLEmbedElement::UpdatePluginInternal() {
       GetDocument().GetFrame()->Client()->OverrideFlashEmbedWithHTML(
           GetDocument().CompleteURL(url_));
   if (!overriden_url.IsEmpty()) {
-    UseCounter::Count(GetDocument(), WebFeature::kOverrideFlashEmbedwithHTML);
+    Deprecation::CountDeprecation(GetDocument().GetExecutionContext(),
+                                      WebFeature::kOverrideFlashEmbedwithHTML);
     url_ = overriden_url.GetString();
     SetServiceType("text/html");
   }
@@ -228,6 +233,22 @@ bool HTMLEmbedElement::IsExposed() const {
       return false;
   }
   return true;
+}
+
+const V8UnionTrustedScriptURLOrUSVString* HTMLEmbedElement::src() {
+  return MakeGarbageCollected<V8UnionTrustedScriptURLOrUSVString>(
+      GetURLAttribute(html_names::kSrcAttr));
+}
+
+void HTMLEmbedElement::setSrc(const V8UnionTrustedScriptURLOrUSVString* value,
+                              ExceptionState& exception_state) {
+  String compliantValue = TrustedTypesCheckForScriptURL(
+      value, GetExecutionContext(), "HTMLEmbedElement", "src", exception_state);
+  if (exception_state.HadException()) {
+    return;
+  }
+  SetAttributeWithoutValidation(html_names::kSrcAttr,
+                                AtomicString(compliantValue));
 }
 
 }  // namespace blink

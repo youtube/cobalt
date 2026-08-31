@@ -10,8 +10,7 @@
 
 #include "rtc_base/ssl_fingerprint.h"
 
-#include <ctype.h>
-
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <memory>

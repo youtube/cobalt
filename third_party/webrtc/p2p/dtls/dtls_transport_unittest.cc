@@ -67,7 +67,7 @@ static const size_t kPacketHeaderLen = 12;
 static const int kFakePacketId = 0x1234;
 static const int kTimeout = 10000;
 
-const uint8_t kRtpLeadByte = 0x80;
+constexpr uint8_t kRtpLeadByte = 0x80;
 
 static bool IsRtpLeadByte(uint8_t b) {
   return b == kRtpLeadByte;
@@ -112,7 +112,7 @@ class DtlsTestClient : public sigslot::has_slots<> {
     dtls_transport_ = nullptr;
     fake_ice_transport_ = nullptr;
 
-    webrtc::CryptoOptions crypto_options;
+    CryptoOptions crypto_options;
     if (pqc_) {
       FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");
       crypto_options.ephemeral_key_exchange_cipher_groups.Update(&field_trials);

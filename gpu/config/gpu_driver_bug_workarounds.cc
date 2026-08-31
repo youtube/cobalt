@@ -7,7 +7,7 @@
 #include <algorithm>
 
 #include "base/check.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 
 namespace {
 // Construct GpuDriverBugWorkarounds from a set of enabled workaround IDs.
@@ -26,8 +26,11 @@ void IntSetToWorkarounds(const std::vector<int32_t>& enabled_workarounds,
         NOTIMPLEMENTED();
     }
   }
-  if (workarounds->webgl_or_caps_max_texture_size_limit_4096)
+  if (workarounds->webgl_or_caps_max_texture_size_limit_4096) {
     workarounds->webgl_or_caps_max_texture_size = 4096;
+  } else if (workarounds->webgl_or_caps_max_texture_size_limit_8192) {
+    workarounds->webgl_or_caps_max_texture_size = 8192;
+  }
 
   if (workarounds->max_copy_texture_chromium_size_1048576)
     workarounds->max_copy_texture_chromium_size = 1048576;

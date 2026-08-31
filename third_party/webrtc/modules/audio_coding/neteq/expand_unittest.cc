@@ -28,6 +28,28 @@
 
 namespace webrtc {
 
+namespace {
+class FakeStatisticsCalculator : public StatisticsCalculator {
+ public:
+  FakeStatisticsCalculator(TickTimer* tick_timer)
+      : StatisticsCalculator(tick_timer) {}
+
+  void LogDelayedPacketOutageEvent(int num_samples, int /* fs_hz */) override {
+    last_outage_duration_samples_ = num_samples;
+  }
+
+  int last_outage_duration_samples() const {
+    return last_outage_duration_samples_;
+  }
+
+ private:
+  int last_outage_duration_samples_ = 0;
+};
+
+// This is the same size that is given to the SyncBuffer object in NetEq.
+constexpr size_t kNetEqSyncBufferLengthMs = 720;
+}  // namespace
+
 TEST(Expand, CreateAndDestroy) {
   int fs = 8000;
   size_t channels = 1;
@@ -53,28 +75,6 @@ TEST(Expand, CreateUsingFactory) {
   EXPECT_TRUE(expand != nullptr);
   delete expand;
 }
-
-namespace {
-class FakeStatisticsCalculator : public StatisticsCalculator {
- public:
-  FakeStatisticsCalculator(TickTimer* tick_timer)
-      : StatisticsCalculator(tick_timer) {}
-
-  void LogDelayedPacketOutageEvent(int num_samples, int /* fs_hz */) override {
-    last_outage_duration_samples_ = num_samples;
-  }
-
-  int last_outage_duration_samples() const {
-    return last_outage_duration_samples_;
-  }
-
- private:
-  int last_outage_duration_samples_ = 0;
-};
-
-// This is the same size that is given to the SyncBuffer object in NetEq.
-const size_t kNetEqSyncBufferLengthMs = 720;
-}  // namespace
 
 class ExpandTest : public ::testing::Test {
  protected:

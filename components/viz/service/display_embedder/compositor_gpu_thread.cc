@@ -38,14 +38,9 @@
 namespace viz {
 
 // static
-std::unique_ptr<CompositorGpuThread> CompositorGpuThread::MaybeCreate(
+std::unique_ptr<CompositorGpuThread> CompositorGpuThread::Create(
     const CreateParams& params) {
   DCHECK(params.gpu_channel_manager);
-
-  if (!features::IsDrDcEnabled() ||
-      params.gpu_channel_manager->gpu_driver_bug_workarounds().disable_drdc) {
-    return nullptr;
-  }
 
 #if DCHECK_IS_ON()
 #if BUILDFLAG(IS_ANDROID)
@@ -195,7 +190,9 @@ CompositorGpuThread::GetSharedContextState() {
 #else
       /*dawn_context_provider=*/nullptr,
 #endif
-      /*peak_memory_monitor=*/weak_ptr_factory_.GetWeakPtr(),
+      /*peak_memory_monitor=*/
+      gpu_channel_manager_->peak_memory_monitor(),
+      /*direct_rendering_display_compositor_enabled=*/true,
       /*created_on_compositor_gpu_thread=*/true);
 
   auto gles2_feature_info = base::MakeRefCounted<gpu::gles2::FeatureInfo>(
@@ -285,15 +282,6 @@ void CompositorGpuThread::CleanUp() {
 
   // WatchDogThread destruction should happen on the CompositorGpuThread.
   watchdog_thread_.reset();
-}
-
-void CompositorGpuThread::OnMemoryAllocatedChange(
-    gpu::CommandBufferId id,
-    uint64_t old_size,
-    uint64_t new_size,
-    gpu::GpuPeakMemoryAllocationSource source) {
-  gpu_channel_manager_->GetOnMemoryAllocatedChangeCallback().Run(
-      id, old_size, new_size, source);
 }
 
 void CompositorGpuThread::OnBackgrounded() {

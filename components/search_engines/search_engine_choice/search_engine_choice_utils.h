@@ -33,8 +33,14 @@ inline constexpr char
         "Search.ChoiceScreenProfileInitConditions";
 inline constexpr char kSearchEngineChoiceScreenNavigationConditionsHistogram[] =
     "Search.ChoiceScreenNavigationConditions";
+inline constexpr char kChoiceScreenProfileInitConditionsPostRestoreHistogram[] =
+    "Search.ChoiceScreenProfileInitConditions.PostRestore";
+inline constexpr char kChoiceScreenNavigationConditionsPostRestoreHistogram[] =
+    "Search.ChoiceScreenNavigationConditions.PostRestore";
 inline constexpr char kSearchEngineChoiceScreenEventsHistogram[] =
     "Search.ChoiceScreenEvents";
+inline constexpr char kChoiceScreenEventsPostRestoreHistogram[] =
+    "Search.ChoiceScreenEvents.PostRestore";
 inline constexpr char
     kSearchEngineChoiceScreenDefaultSearchEngineTypeHistogram[] =
         "Search.ChoiceScreenDefaultSearchEngineType";
@@ -58,7 +64,7 @@ inline constexpr char kSearchEngineChoiceRepromptWildcardHistogram[] =
 inline constexpr char kSearchEngineChoiceRepromptSpecificCountryHistogram[] =
     "Search.ChoiceReprompt.SpecificCountry";
 inline constexpr char kSearchEngineChoiceCompletedOnMonthHistogram[] =
-    "Search.ChoiceCompletedOnMonth.OnProfileLoad";
+    "Search.ChoiceCompletedOnMonth.OnProfileLoad2";
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
@@ -154,10 +160,12 @@ enum class SearchEngineChoiceWipeReason {
   kInvalidMetadataVersion = 2,
   kFinchBasedReprompt = 3,
   kCommandLineFlag = 4,
-  kDeviceRestored = 5,
+  // kDeviceRestored = 5, // Deprecated
   kInvalidMetadata = 6,
+  kMissingDefaultSearchEngine = 7,
+  kChoiceRemadeAfterImport = 8,
 
-  kMaxValue = kInvalidMetadata,
+  kMaxValue = kChoiceRemadeAfterImport,
 };
 
 // Exposed for testing.
@@ -245,17 +253,6 @@ class ChoiceScreenData {
   const ChoiceScreenDisplayState display_state_;
 };
 
-// Records the specified choice screen condition at profile initialization.
-void RecordChoiceScreenProfileInitCondition(
-    SearchEngineChoiceScreenConditions event);
-
-// Records the specified choice screen condition for relevant navigations.
-void RecordChoiceScreenNavigationCondition(
-    SearchEngineChoiceScreenConditions condition);
-
-// Records the specified choice screen event.
-void RecordChoiceScreenEvent(SearchEngineChoiceScreenEvents event);
-
 // Records the type of the default search engine that was chosen by the user
 // in the search engine choice screen or in the settings page.
 void RecordChoiceScreenDefaultSearchProviderType(
@@ -295,7 +292,8 @@ struct ChoiceCompletionMetadata {
     kAbsent,
     kMissingVersion,
     kInvalidVersion,
-    kOther,
+    kMissingTimestamp,
+    kNullTimestamp,
   };
 
   base::Time timestamp;

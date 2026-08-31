@@ -21,6 +21,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/logging.h"
 #include "base/memory/weak_ptr.h"
+#include "base/strings/string_view_util.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
@@ -232,7 +233,6 @@ class SeaPenFetcherImpl : public SeaPenFetcher {
       : snapper_provider_(std::move(snapper_provider)) {
     CHECK(ash::features::IsSeaPenEnabled() ||
           ash::features::IsVcBackgroundReplaceEnabled());
-    CHECK(manta::features::IsMantaServiceEnabled());
   }
 
   SeaPenFetcherImpl(const SeaPenFetcherImpl&) = delete;

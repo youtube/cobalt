@@ -340,7 +340,7 @@ void MultideviceHandler::HandleSetFeatureEnabledState(
     const base::Value::List& args) {
   const auto& list = args;
   DCHECK_GE(list.size(), 3u);
-  std::string callback_id = list[0].GetString();
+  const std::string& callback_id = list[0].GetString();
 
   int feature_as_int = list[1].GetInt();
 
@@ -514,7 +514,7 @@ void MultideviceHandler::HandleCancelFeatureSetupConnection(
 
 void MultideviceHandler::HandleShowBrowserSyncSettings(
     const base::Value::List& args) {
-  ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+  ash::NewWindowDelegate::GetInstance()->OpenUrl(
       GURL("chrome://settings/syncSetup/advanced"),
       ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       ash::NewWindowDelegate::Disposition::kSwitchToTab);

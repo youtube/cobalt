@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.image_descriptions;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.content.Context;
 
 import org.jni_zero.NativeMethods;
@@ -122,15 +120,16 @@ public class ImageDescriptionsController {
      */
     public void onImageDescriptionsMenuItemSelected(
             Context context, ModalDialogManager modalDialogManager, WebContents webContents) {
-        Profile profile = assumeNonNull(Profile.fromWebContents(webContents)).getOriginalProfile();
+        Profile profile = Profile.fromWebContents(webContents).getOriginalProfile();
         boolean enabledBeforeMenuItemSelected = imageDescriptionsEnabled(profile);
 
         if (enabledBeforeMenuItemSelected) {
             // If descriptions are enabled, and the user has selected "only on wifi", and we
-            // currently do not have a wifi connection, then do a "just once" fetch.
+            // currently do not have a wifi or Ethernet connection, then do a "just once" fetch.
+            int currentNetType = DeviceConditions.getCurrentNetConnectionType(context);
             if (onlyOnWifiEnabled(profile)
-                    && DeviceConditions.getCurrentNetConnectionType(context)
-                            != ConnectionType.CONNECTION_WIFI) {
+                    && currentNetType != ConnectionType.CONNECTION_WIFI
+                    && currentNetType != ConnectionType.CONNECTION_ETHERNET) {
                 mDelegate.getImageDescriptionsJustOnce(false, webContents);
                 Toast.makeText(
                                 context,

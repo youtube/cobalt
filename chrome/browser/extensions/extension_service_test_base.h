@@ -16,8 +16,8 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
+#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #include "chrome/common/chrome_constants.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_service.h"
@@ -33,10 +33,6 @@
 #include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "components/user_manager/scoped_user_manager.h"
-#endif
-
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/scoped_test_mv2_enabler.h"
 #endif
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
@@ -239,7 +235,6 @@ class ExtensionServiceTestBase : public testing::Test {
   // The ExtensionService, whose lifetime is managed by `profile`'s
   // ExtensionSystem.
   raw_ptr<ExtensionService, DanglingUntriaged> service_;
-  ScopedTestingLocalState testing_local_state_;
 
  private:
   void CreateExtensionService(bool is_first_run,
@@ -273,10 +268,8 @@ class ExtensionServiceTestBase : public testing::Test {
   SandboxedUnpacker::ScopedVerifierFormatOverrideForTest
       verifier_format_override_;
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   // An override that allows MV2 extensions to be loaded.
   std::optional<ScopedTestMV2Enabler> mv2_enabler_;
-#endif
 };
 
 }  // namespace extensions

@@ -15,6 +15,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/chrome/test/earl_grey/chrome_actions.h"
 #import "ios/chrome/test/earl_grey/chrome_earl_grey.h"
+#import "ios/chrome/test/earl_grey/chrome_earl_grey_app_interface.h"
 #import "ios/chrome/test/earl_grey/chrome_matchers.h"
 #import "ios/chrome/test/earl_grey/chrome_test_case.h"
 #import "ios/chrome/test/earl_grey/scoped_disable_timer_tracking.h"
@@ -70,9 +71,20 @@ id<GREYAction> PageSheetScrollDown() {
   // expand.
   CGFloat menu_scroll_displacement = 500;
 
+  // On iPad we do not need the page sheet to expand to full screen and the
+  // current large size may miss items in the middle of the page menu.
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    menu_scroll_displacement = 250;
+  }
+
   // But for very small devices (like the SE), this is too big.
-  UIWindow* currentWindow = chrome_test_util::GetAnyKeyWindow();
+  UIWindow* currentWindow = [ChromeEarlGreyAppInterface keyWindow];
   if (currentWindow.rootViewController.view.frame.size.height < 600) {
+    menu_scroll_displacement = 250;
+  }
+
+  // And for iOS 26, the updated table view layout also makes this too big.
+  if (@available(iOS 19.0, *)) {
     menu_scroll_displacement = 250;
   }
   return grey_scrollInDirection(kGREYDirectionDown, menu_scroll_displacement);
@@ -140,13 +152,26 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
       [[EarlGrey selectElementWithMatcher:chrome_test_util::ToolsMenuView()]
           performAction:grey_swipeFastInDirection(kGREYDirectionDown)];
     }
+    return;
+  }
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26.0, *)) {
+    // In iOS26, the assumption that a scrim coverts the whole window is
+    // violated. Therefore, the solution is to tap on the PopoverDismissRegion
+    // embedded within the ToolsMenu to dismiss the popover.
+    [[EarlGrey
+        selectElementWithMatcher:grey_accessibilityID(@"PopoverDismissRegion")]
+        performAction:grey_tap()];
   } else {
+#endif
     // A scrim covers the whole window and tapping on this scrim dismisses the
     // tools menu.  The "Tools Menu" button happens to be outside of the bounds
     // of the menu and is a convenient place to tap to activate the scrim.
     [[EarlGrey selectElementWithMatcher:chrome_test_util::ToolsMenuButton()]
         performAction:grey_tap()];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
   }
+#endif
 }
 
 - (void)openToolsMenuInWindowWithNumber:(int)windowNumber {
@@ -192,6 +217,15 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
          usingSearchAction:grey_swipeSlowInDirection(kGREYDirectionDown)
       onElementWithMatcher:chrome_test_util::WebStateScrollViewMatcher()]
       performAction:grey_longPress()];
+
+  if (@available(iOS 26, *)) {
+    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
+    // this workaround when it's not needed anymore.
+    // On iOS 26, the keyboard appears when the new tab button is tapped and it
+    // hides the elements behind. Close the keyboard by typing a return key.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+  }
+
   // TODO(crbug.com/41271101): Add webViewScrollView matcher so we don't have
   // to always find it.
 }
@@ -503,6 +537,45 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
   }
 }
 
+- (void)clearAndDismissSearchBar {
+  if ([ChromeEarlGrey isIPadIdiom]) {
+    // On iPad, when running on iOS 26+ and building with the iOS 26+ SDK, the
+    // search bar is dismissed after clearing the text. The button for clearing
+    // text is always displayed.
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    if (@available(iOS 26, *)) {
+      [[EarlGrey
+          selectElementWithMatcher:chrome_test_util::SearchBarClearTextButton()]
+          performAction:grey_tap()];
+      return;
+    }
+#endif
+
+    // On iPad, when running on iOS < 26 or building with an SDK older than
+    // iOS 26, the search bar is cleared and dismissed via the "Cancel" button.
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::CancelButton()]
+        performAction:grey_tap()];
+  } else {
+    // On iPhone, the search text is cleared and the search bar is dismissed via
+    // a single button press.
+
+    // When running on iOS 26+ and building with the iOS 26+ SDK, tap the
+    // "Close" button.
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    if (@available(iOS 26, *)) {
+      [[EarlGrey selectElementWithMatcher:chrome_test_util::CloseButton()]
+          performAction:grey_tap()];
+      return;
+    }
+#endif
+
+    // When running on iOS < 26 or building with an SDK older than iOS 26, tap
+    // the "Cancel" button.
+    [[EarlGrey selectElementWithMatcher:chrome_test_util::CancelButton()]
+        performAction:grey_tap()];
+  }
+}
+
 #pragma mark - Private
 
 // Clears all browsing data from the device. This method needs to be called when
@@ -513,6 +586,12 @@ const int kMaxNumberOfAttemptsAtTypingTextInOmnibox = 3;
                  grey_text(l10n_util::GetNSString(
                      IDS_IOS_CLEAR_BROWSING_DATA_TIME_RANGE_SELECTOR_TITLE))]
       performAction:grey_tap()];
+
+  // TODO(crbug.com/428928323): Investigate why the keyboard appears and remove
+  // this workaround when it's not needed anymore.
+  // On iOS 26, the keyboard appears when the 'Time Range' button is tapped and
+  // it hides the elements behind. Close the keyboard by typing a return key.
+  [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
 
   NSString* timeRange = l10n_util::GetNSString(
       IDS_IOS_CLEAR_BROWSING_DATA_TIME_RANGE_OPTION_BEGINNING_OF_TIME);

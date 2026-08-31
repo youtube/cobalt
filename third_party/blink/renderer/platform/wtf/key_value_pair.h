@@ -28,13 +28,15 @@
 
 #include <utility>
 
+#include "base/memory/stack_allocated.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+#include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 
-namespace WTF {
+namespace blink {
 
 template <typename KeyTypeArg, typename ValueTypeArg>
-struct KeyValuePair {
+struct GC_PLUGIN_IGNORE("crbug.com/428987863") KeyValuePair {
   using KeyType = KeyTypeArg;
   using ValueType = ValueTypeArg;
 
@@ -52,11 +54,11 @@ struct KeyValuePair {
 };
 
 template <typename K, typename V>
-struct IsWeak<KeyValuePair<K, V>>
+struct IsWeak<blink::KeyValuePair<K, V>>
     : std::integral_constant<bool, IsWeak<K>::value || IsWeak<V>::value> {};
 
 template <typename K, typename V>
-struct IsTraceable<KeyValuePair<K, V>>
+struct IsTraceable<blink::KeyValuePair<K, V>>
     : std::integral_constant<bool,
                              IsTraceable<K>::value || IsTraceable<V>::value> {};
 
@@ -76,7 +78,7 @@ struct KeyValuePairHashTraits
   static constexpr bool kCanTraceConcurrently =
       KeyTraits::kCanTraceConcurrently &&
       (ValueTraits::kCanTraceConcurrently ||
-       !IsTraceable<typename ValueTraits::TraitType>::value);
+       !IsTraceableV<typename ValueTraits::TraitType>);
   static constexpr bool kSupportsCompaction =
       KeyTraits::kSupportsCompaction && ValueTraits::kSupportsCompaction;
 };
@@ -122,6 +124,7 @@ template <typename HashTableType, typename KeyType, typename MappedType>
 struct HashTableConstIteratorAdapter<HashTableType,
                                      KeyValuePair<KeyType, MappedType>>
     : internal::IteratorAdapterBase<KeyValuePair<KeyType, MappedType>> {
+ public:
   typedef KeyValuePair<KeyType, MappedType> ValueType;
   typedef HashTableConstKeysIterator<HashTableType, KeyType, MappedType>
       KeysIterator;
@@ -173,6 +176,7 @@ template <typename HashTableType, typename KeyType, typename MappedType>
 struct HashTableIteratorAdapter<HashTableType,
                                 KeyValuePair<KeyType, MappedType>>
     : internal::IteratorAdapterBase<KeyValuePair<KeyType, MappedType>> {
+ public:
   typedef KeyValuePair<KeyType, MappedType> ValueType;
   typedef HashTableKeysIterator<HashTableType, KeyType, MappedType>
       KeysIterator;
@@ -472,6 +476,6 @@ inline bool operator!=(const HashTableValuesIterator<T, U, V>& a,
   return a.impl_ != b.impl_;
 }
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_KEY_VALUE_PAIR_H_

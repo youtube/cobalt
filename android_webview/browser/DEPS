@@ -29,11 +29,12 @@ include_rules = [
   "+components/minidump_uploader",
   "+components/navigation_interception",
   "+components/network_hints/browser",
-  "+components/optimization_guide/core/bloom_filter.h",
+  "+components/optimization_guide/core/filters/bloom_filter.h",
   "+components/origin_trials",
   "+components/os_crypt/async",
   "+components/page_load_metrics/browser",
   "+components/page_load_metrics/google/browser",
+  "+components/payments/content/android/payment_feature_map.h",
   "+components/permissions",
   "+components/policy/core/browser",
   "+components/policy/core/common",
@@ -72,10 +73,7 @@ include_rules = [
   "+content/public/browser",
   "+content/public/test",
 
-  # Explicitly disallow using SyncMessageFilter to prevent browser from
-  # sending synchronous IPC messages on non-UI threads.
-  "-ipc/ipc_sync_message_filter.h",
-
+  "+media/audio/audio_features.h", # For audio command line switches.
   "+media/base/android",
   "+media/base/media_switches.h",  # For media command line switches.
   "+media/mojo/buildflags.h",

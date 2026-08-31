@@ -55,8 +55,7 @@ class AllUrlsApiTest : public ExtensionApiTest {
   void NavigateAndWait(const std::string& url) {
     std::string expected_url = url;
     if (url == chrome::kChromeUINewTabURL) {
-      expected_url =
-          ntp_test_utils::GetFinalNtpUrl(browser()->profile()).spec();
+      expected_url = ntp_test_utils::GetFinalNtpUrl(profile()).spec();
     }
     ExtensionTestMessageListener listener_a("content script: " + expected_url);
     ExtensionTestMessageListener listener_b("execute: " + expected_url);
@@ -92,10 +91,9 @@ IN_PROC_BROWSER_TEST_F(AllUrlsApiTest, AllowlistedExtension) {
   // Now verify that we run content scripts on different URLs, including
   // data URLs, regular HTTP pages, and resource URLs from extensions.
   const std::string test_urls[] = {
-    "data:text/html;charset=utf-8,<html>asdf</html>",
-    embedded_test_server()->GetURL(kAllUrlsTarget).spec(),
-    bystander->GetResourceURL("page.html").spec()
-  };
+      "data:text/html;charset=utf-8,<html>asdf</html>",
+      embedded_test_server()->GetURL(kAllUrlsTarget).spec(),
+      bystander->GetResourceURL("page.html").spec()};
   for (const auto& test_url : test_urls)
     NavigateAndWait(test_url);
 }

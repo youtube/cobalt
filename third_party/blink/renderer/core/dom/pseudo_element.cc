@@ -34,12 +34,14 @@
 #include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
 #include "third_party/blink/renderer/core/dom/element_rare_data_vector.h"
 #include "third_party/blink/renderer/core/dom/first_letter_pseudo_element.h"
+#include "third_party/blink/renderer/core/dom/interest_hint_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/scroll_button_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/scroll_marker_group_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/scroll_marker_pseudo_element.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
+#include "third_party/blink/renderer/core/html/html_menu_item_element.h"
 #include "third_party/blink/renderer/core/html/html_quote_element.h"
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/layout/generated_children.h"
@@ -83,11 +85,12 @@ PseudoElement* PseudoElement::Create(Element* parent,
                                      PseudoId pseudo_id,
                                      const AtomicString& view_transition_name) {
   if (pseudo_id == kPseudoIdCheckMark) {
-    CHECK(HTMLSelectElement::CustomizableSelectEnabled(parent));
+    CHECK(HTMLSelectElement::CustomizableSelectEnabled(parent) ||
+          RuntimeEnabledFeatures::MenuElementsEnabled());
 
-    if (!IsA<HTMLOptionElement>(parent)) {
-      // The `::checkmark` pseudo element should only be created for option
-      // elements.
+    if (!IsA<HTMLOptionElement>(parent) && !IsA<HTMLMenuItemElement>(parent)) {
+      // The `::checkmark` pseudo-element should only be created for option and
+      // menuitem elements.
       return nullptr;
     }
   }
@@ -96,10 +99,21 @@ PseudoElement* PseudoElement::Create(Element* parent,
     CHECK(HTMLSelectElement::CustomizableSelectEnabled(parent));
 
     if (!IsA<HTMLSelectElement>(parent)) {
-      // The `::picker-icon` pseudo element should only be created for select
+      // The `::picker-icon` pseudo-element should only be created for select
       // elements.
       return nullptr;
     }
+  }
+
+  if (pseudo_id == kPseudoIdInterestHint) {
+    CHECK(RuntimeEnabledFeatures::HTMLInterestForInterestHintPseudoEnabled(
+        parent->GetDocument().GetExecutionContext()));
+    if (!parent->InterestForElement()) {
+      // The `::interest-hint` pseudo-element should only be created for
+      // elements with the `interestfor` attribute.
+      return nullptr;
+    }
+    return MakeGarbageCollected<InterestHintPseudoElement>(parent, pseudo_id);
   }
 
   if (pseudo_id == kPseudoIdFirstLetter) {
@@ -122,8 +136,8 @@ PseudoElement* PseudoElement::Create(Element* parent,
   }
   DCHECK(pseudo_id == kPseudoIdAfter || pseudo_id == kPseudoIdBefore ||
          pseudo_id == kPseudoIdCheckMark || pseudo_id == kPseudoIdPickerIcon ||
-         pseudo_id == kPseudoIdBackdrop || pseudo_id == kPseudoIdMarker ||
-         pseudo_id == kPseudoIdColumn);
+         pseudo_id == kPseudoIdInterestHint || pseudo_id == kPseudoIdBackdrop ||
+         pseudo_id == kPseudoIdMarker || pseudo_id == kPseudoIdColumn);
   return MakeGarbageCollected<PseudoElement>(parent, pseudo_id,
                                              view_transition_name);
 }
@@ -146,6 +160,11 @@ const QualifiedName& PseudoElementTagName(PseudoId pseudo_id) {
       DEFINE_STATIC_LOCAL(QualifiedName, picker_icon,
                           (AtomicString("::picker-icon")));
       return picker_icon;
+    }
+    case kPseudoIdInterestHint: {
+      DEFINE_STATIC_LOCAL(QualifiedName, interest_hint,
+                          (AtomicString("::interest-hint")));
+      return interest_hint;
     }
     case kPseudoIdBackdrop: {
       DEFINE_STATIC_LOCAL(QualifiedName, backdrop,
@@ -208,6 +227,11 @@ const QualifiedName& PseudoElementTagName(PseudoId pseudo_id) {
                           (AtomicString("::view-transition-group")));
       return transition_container;
     }
+    case kPseudoIdViewTransitionGroupChildren: {
+      DEFINE_STATIC_LOCAL(QualifiedName, transition_nested_groups,
+                          (AtomicString("::view-transition-group-children")));
+      return transition_nested_groups;
+    }
     case kPseudoIdViewTransitionImagePair: {
       DEFINE_STATIC_LOCAL(QualifiedName, transition_image_wrapper,
                           (AtomicString("::view-transition-image-pair")));
@@ -238,6 +262,7 @@ AtomicString PseudoElement::PseudoElementNameForEvents(Element* element) {
     case kPseudoIdNone:
       return g_null_atom;
     case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionGroupChildren:
     case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionNew:
     case kPseudoIdViewTransitionOld: {
@@ -348,7 +373,7 @@ const ComputedStyle* PseudoElement::AdjustedLayoutStyle(
     const ComputedStyle& layout_parent_style) {
   if (style.Display() == EDisplay::kContents) {
     // For display:contents we should not generate a box, but we generate a non-
-    // observable inline box for pseudo elements to be able to locate the
+    // observable inline box for pseudo-elements to be able to locate the
     // anonymous layout objects for generated content during DetachLayoutTree().
     ComputedStyleBuilder builder =
         GetDocument()
@@ -452,7 +477,7 @@ void PseudoElement::AttachLayoutTree(AttachContext& context) {
 
   // This is to ensure that bypassing the CanHaveGeneratedChildren() check in
   // LayoutTreeBuilderForElement::CreateLayoutObject() does not result in
-  // the backdrop pseudo element's layout object becoming the child of a layout
+  // the backdrop pseudo-element's layout object becoming the child of a layout
   // object that doesn't allow children.
   DCHECK(layout_object->Parent());
   DCHECK(CanHaveGeneratedChildren(*layout_object->Parent()));
@@ -481,6 +506,7 @@ void PseudoElement::AttachLayoutTree(AttachContext& context) {
     case kPseudoIdBefore:
     case kPseudoIdAfter:
     case kPseudoIdPickerIcon:
+    case kPseudoIdInterestHint:
     case kPseudoIdScrollMarker:
       break;
     default: {
@@ -537,6 +563,7 @@ bool PseudoElement::CanGenerateContent() const {
     case kPseudoIdBefore:
     case kPseudoIdAfter:
     case kPseudoIdPickerIcon:
+    case kPseudoIdInterestHint:
     case kPseudoIdScrollMarker:
     case kPseudoIdScrollMarkerGroup:
     case kPseudoIdScrollButtonBlockStart:
@@ -594,15 +621,15 @@ Node* PseudoElement::InnerNodeForHitTesting() {
 
 void PseudoElement::AccessKeyAction(
     SimulatedClickCreationScope creation_scope) {
-  // If this is a pseudo element with activation behavior such as a
+  // If this is a pseudo-element with activation behavior such as a
   // ::scroll-marker or ::scroll-button, we should invoke it.
   if (HasActivationBehavior()) {
     DispatchSimulatedClick(nullptr, creation_scope);
     return;
   }
 
-  // Even though regular pseudo elements can't use the accesskey attribute,
-  // assistive tech can still attempt to interact with pseudo elements if
+  // Even though regular pseudo-elements can't use the accesskey attribute,
+  // assistive tech can still attempt to interact with pseudo-elements if
   // they are in the AX tree (usually due to their text/image content).
   // Just pass this request to the originating element.
   UltimateOriginatingElement().AccessKeyAction(creation_scope);
@@ -614,7 +641,7 @@ Element& PseudoElement::UltimateOriginatingElement() const {
   while (parent && parent->IsPseudoElement())
     parent = parent->parentElement();
 
-  // Should not invoke this method on disposed pseudo elements.
+  // Should not invoke this method on disposed pseudo-elements.
   CHECK(parent);
   return *parent;
 }
@@ -641,6 +668,7 @@ bool PseudoElementLayoutObjectIsNeeded(PseudoId pseudo_id,
     case kPseudoIdBackdrop:
     case kPseudoIdViewTransition:
     case kPseudoIdViewTransitionGroup:
+    case kPseudoIdViewTransitionGroupChildren:
     case kPseudoIdViewTransitionImagePair:
     case kPseudoIdViewTransitionNew:
     case kPseudoIdViewTransitionOld:
@@ -650,6 +678,7 @@ bool PseudoElementLayoutObjectIsNeeded(PseudoId pseudo_id,
     case kPseudoIdBefore:
     case kPseudoIdAfter:
     case kPseudoIdPickerIcon:
+    case kPseudoIdInterestHint:
       return !pseudo_style.ContentPreventsBoxGeneration();
     case kPseudoIdScrollMarker:
     case kPseudoIdScrollButtonBlockStart:

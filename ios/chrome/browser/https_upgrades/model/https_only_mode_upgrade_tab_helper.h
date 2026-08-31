@@ -17,7 +17,6 @@
 
 class HttpsUpgradeService;
 class PrefService;
-class PrerenderService;
 
 // This tab helper handles HTTP main frame navigation upgrades to HTTPS.
 // When it encounters an eligible HTTP navigation, it cancels the navigation,
@@ -66,14 +65,13 @@ class HttpsOnlyModeUpgradeTabHelper
 
   HttpsOnlyModeUpgradeTabHelper(web::WebState* web_state,
                                 PrefService* prefs,
-                                PrerenderService* prerender_service,
                                 HttpsUpgradeService* service);
 
   // Returns true if url can be loaded over HTTP (e.g. it was previously
   // allowlisted).
   bool IsHttpAllowedForUrl(const GURL& url) const;
   // Called when the upgrade timer times out.
-  void OnHttpsLoadTimeout(base::WeakPtr<web::WebState> weak_web_state);
+  void OnHttpsLoadTimeout();
   // Stops the current navigation and sets the state so that an upgrade will be
   // started.
   void StopToUpgrade(
@@ -121,8 +119,8 @@ class HttpsOnlyModeUpgradeTabHelper
 
   base::OneShotTimer timer_;
 
+  raw_ptr<web::WebState> web_state_;
   raw_ptr<PrefService> prefs_;
-  raw_ptr<PrerenderService> prerender_service_;
   raw_ptr<HttpsUpgradeService> service_;
 };
 

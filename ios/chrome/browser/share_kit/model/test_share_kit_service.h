@@ -16,6 +16,8 @@
 #import "components/saved_tab_groups/public/types.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service.h"
 
+class GURL;
+
 class TabGroupService;
 
 namespace collaboration {
@@ -45,7 +47,6 @@ class TestShareKitService : public ShareKitService {
   NSString* ShareTabGroup(ShareKitShareGroupConfiguration* config) override;
   NSString* ManageTabGroup(ShareKitManageConfiguration* config) override;
   NSString* JoinTabGroup(ShareKitJoinConfiguration* config) override;
-  UIView* FacePileView(ShareKitFacePileConfiguration* config) override;
   void ReadGroups(ShareKitReadGroupsConfiguration* config) override;
   void ReadGroupWithToken(
       ShareKitReadGroupWithTokenConfiguration* config) override;
@@ -55,9 +56,11 @@ class TestShareKitService : public ShareKitService {
   id<ShareKitAvatarPrimitive> AvatarImage(
       ShareKitAvatarConfiguration* config) override;
 
-  // Creates the shared tab group with the given `collab_id` and marks the
-  // identity as `owner` of it and saves it to the fake server.
-  void CreateSharedTabGroupInFakeServer(bool owner, NSString* collab_id);
+  // Creates a shared tab group in the fake server with a test URL and sets the
+  // identity as `owner` or not.
+  void CreateSharedTabGroupInFakeServer(bool owner,
+                                        NSString* collab_id,
+                                        const GURL& url);
 
   // KeyedService.
   void Shutdown() override;

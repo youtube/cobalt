@@ -14,10 +14,8 @@
 #include <optional>
 #include <vector>
 
-#include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
 #include "media/base/codec.h"
-#include "media/base/stream_params.h"
 #include "pc/session_description.h"
 
 namespace webrtc {

@@ -477,15 +477,10 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerRegistrationApiTest,
 
   // Open a new tab. The extension overrides the NTP, so this is the extension's
   // page.
-  ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("chrome://newtab/"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+  ASSERT_TRUE(NavigateToURLInNewTab(GURL("chrome://newtab/")));
 
-  EXPECT_EQ(
-      "This is a page",
-      content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                      "document.body.innerText;"));
+  EXPECT_EQ("This is a page", content::EvalJs(GetActiveWebContents(),
+                                              "document.body.innerText;"));
 
   // Verify the service worker is at v1.
   EXPECT_EQ(base::Value(1), GetVersionFlagFromBackgroundContext(id));
@@ -715,9 +710,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerRegistrationApiTest,
   ASSERT_TRUE(browsing_data_extension);
 
   auto open_new_tab = [this](const GURL& url) {
-    ASSERT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-        browser(), url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+    ASSERT_TRUE(NavigateToURLInNewTab(url));
   };
 
   // Verify the initial state. The service worker-based extension should have a
@@ -835,9 +828,7 @@ IN_PROC_BROWSER_TEST_F(ServiceWorkerRegistrationApiTest,
     // an extension page will be closed later in the test when the extension
     // reloads, and we need to make sure there's at least one tab left in the
     // browser.
-    EXPECT_TRUE(ui_test_utils::NavigateToURLWithDisposition(
-        browser(), page_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-        ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP));
+    EXPECT_TRUE(NavigateToURLInNewTab(page_url));
     return result_queue.GetNextResult();
   };
 
@@ -934,14 +925,13 @@ class ServiceWorkerExtensionUpdateOnBrowserRestartRegistrationApiTest
 
   // Get the NTP javascript's version.
   content::EvalJsResult GetVersionOfNTPScript() {
-    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
-                           "self.currentVersion;");
+    return content::EvalJs(GetActiveWebContents(), "self.currentVersion;");
   }
 
   // Request the version of the background context script from the perspective
   // of the NTP js.
   content::EvalJsResult GetBackgroundContextVersionFromNTPPage() {
-    return content::EvalJs(browser()->tab_strip_model()->GetActiveWebContents(),
+    return content::EvalJs(GetActiveWebContents(),
                            "getCurrentVersionOfBackgroundContext();");
   }
 

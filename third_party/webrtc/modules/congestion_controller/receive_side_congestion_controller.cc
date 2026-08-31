@@ -35,7 +35,7 @@
 namespace webrtc {
 
 namespace {
-static const uint32_t kTimeOffsetSwitchThreshold = 30;
+const uint32_t kTimeOffsetSwitchThreshold = 30;
 }  // namespace
 
 void ReceiveSideCongestionController::OnRttUpdate(int64_t avg_rtt_ms,

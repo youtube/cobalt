@@ -672,6 +672,18 @@ PasswordForm PasswordSaveManagerImpl::BuildPendingCredentials(
       HasGeneratedPassword() ? generation_manager_->generated_password()
                              : password_to_save.value;
   pending_credentials.date_last_used = base::Time::Now();
+  // `parsed_submitted_form` will contain backup password only during a password
+  // change flow and it's guaranteed to have one as well.
+  if (const std::optional<std::u16string> backup_password =
+          parsed_submitted_form.GetPasswordBackup()) {
+    pending_credentials.SetPasswordBackupNote(backup_password.value());
+  } else if (IsPasswordUpdate()) {
+    // This branch means that we are not in the password change flow and we are
+    // updating the password. If the old password is updated, the backup
+    // password also loses it's purpose, so we can delete it.
+    pending_credentials.DeletePasswordBackupNote();
+  }
+  pending_credentials.date_last_used = base::Time::Now();
   pending_credentials.form_has_autofilled_value =
       parsed_submitted_form.form_has_autofilled_value;
   pending_credentials.all_alternative_passwords =

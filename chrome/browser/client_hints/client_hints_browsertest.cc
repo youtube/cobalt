@@ -2200,11 +2200,20 @@ IN_PROC_BROWSER_TEST_F(ClientHintsBrowserTest, Default) {
                                     update_event_count);
 
   // One fetch when initially add the client hints head, one fetch for look up
-  // commit client hints when navigation commits.
-  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_Total", 2);
-  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_PrefRead", 2);
+  // commit client hints when navigation commits. When
+  // kOffloadAcceptCHFrameCheck is enabled, an additional fetch is performed
+  // from the URLLoader during resource request creation.
+  const int expected_fetch_count =
+      base::FeatureList::IsEnabled(
+          network::features::kOffloadAcceptCHFrameCheck)
+          ? 3
+          : 2;
+  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_Total",
+                                    expected_fetch_count);
+  histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_PrefRead",
+                                    expected_fetch_count);
   histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_PrerenderHost",
-                                    2);
+                                    expected_fetch_count);
   histogram_tester.ExpectTotalCount("ClientHints.FetchLatency_OriginTrialCheck",
                                     0);
 
@@ -4181,6 +4190,146 @@ IN_PROC_BROWSER_TEST_F(ClientHintsBrowserTestWithEmulatedMedia,
   EXPECT_EQ(prefers_reduced_transparency_observed(), "no-preference");
 }
 
+class ClientHintsUserAgentOverrideDevTools : public DevToolsProtocolTestBase {
+ public:
+  ClientHintsUserAgentOverrideDevTools()
+      : https_server_(net::EmbeddedTestServer::TYPE_HTTPS) {
+    https_server_.ServeFilesFromSourceDirectory(
+        "chrome/test/data/client_hints");
+    https_server_.RegisterRequestMonitor(base::BindRepeating(
+        &ClientHintsUserAgentOverrideDevTools::MonitorResourceRequest,
+        base::Unretained(this)));
+    EXPECT_TRUE(https_server_.Start());
+
+    test_url_ = https_server_.GetURL("/accept_ch.html");
+  }
+
+  ClientHintsUserAgentOverrideDevTools(
+      const ClientHintsUserAgentOverrideDevTools&) = delete;
+  ClientHintsUserAgentOverrideDevTools& operator=(
+      const ClientHintsUserAgentOverrideDevTools&) = delete;
+
+  ~ClientHintsUserAgentOverrideDevTools() override = default;
+
+  void MonitorResourceRequest(const net::test_server::HttpRequest& request) {
+    last_request_headers_.clear();
+
+    if (request.headers.count("User-Agent")) {
+      last_request_headers_["User-Agent"] = request.headers.at("User-Agent");
+    }
+    for (const auto& header : request.headers) {
+      if (base::StartsWith(header.first, "sec-ch-ua",
+                           base::CompareCase::INSENSITIVE_ASCII)) {
+        last_request_headers_[header.first] = header.second;
+      }
+    }
+  }
+
+  const GURL& test_url() const { return test_url_; }
+
+ protected:
+  net::EmbeddedTestServer https_server_;
+  GURL test_url_;
+  std::map<std::string, std::string> last_request_headers_;
+};
+
+IN_PROC_BROWSER_TEST_F(ClientHintsUserAgentOverrideDevTools,
+                       UserAgentAndUserAgentClientHints) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url()));
+
+  Attach();
+
+  base::Value::Dict params;
+  params.Set("userAgent", "MyTestAgent/2.0");
+
+  base::Value::Dict metadata;
+  base::Value::List brands;
+  base::Value::Dict brand1;
+  brand1.Set("brand", "My Fake Browser");
+  brand1.Set("version", "101");
+  brands.Append(std::move(brand1));
+  base::Value::Dict brand2;
+  brand2.Set("brand", "Chromium");
+  brand2.Set("version", "101");
+  brands.Append(std::move(brand2));
+  metadata.Set("brands", std::move(brands));
+
+  base::Value::List full_version_list;
+  base::Value::Dict fv_brand1;
+  fv_brand1.Set("brand", "My Fake Browser");
+  fv_brand1.Set("version", "101.0.1234.0");
+  full_version_list.Append(std::move(fv_brand1));
+  base::Value::Dict fv_brand2;
+  fv_brand2.Set("brand", "Chromium");
+  fv_brand2.Set("version", "101.0.5555.0");
+  full_version_list.Append(std::move(fv_brand2));
+  metadata.Set("fullVersionList", std::move(full_version_list));
+
+  metadata.Set("fullVersion", "101.0.1234.0");
+  metadata.Set("platform", "TestPlatform");
+  metadata.Set("platformVersion", "1.2.3");
+  metadata.Set("architecture", "x64");
+  metadata.Set("model", "TestModel-ABC");
+  metadata.Set("mobile", false);
+  metadata.Set("bitness", "64");
+  metadata.Set("wow64", false);
+
+  base::Value::List form_factors;
+  form_factors.Append(blink::kDesktopFormFactor);
+  form_factors.Append(blink::kEInkFormFactor);
+
+  metadata.Set("formFactors", std::move(form_factors));
+  params.Set("userAgentMetadata", std::move(metadata));
+
+  SendCommandSync("Emulation.setUserAgentOverride", std::move(params));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url()));
+
+  // Verify all captured headers.
+  EXPECT_EQ(last_request_headers_["User-Agent"], "MyTestAgent/2.0");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua"],
+            R"("My Fake Browser";v="101", "Chromium";v="101")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-arch"], R"("x64")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-platform"], R"("TestPlatform")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-model"], R"("TestModel-ABC")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-mobile"], "?0");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-full-version"],
+            R"("101.0.1234.0")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-platform-version"], R"("1.2.3")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-bitness"], R"("64")");
+  EXPECT_EQ(
+      last_request_headers_["sec-ch-ua-full-version-list"],
+      R"("My Fake Browser";v="101.0.1234.0", "Chromium";v="101.0.5555.0")");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-wow64"], "?0");
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-form-factors"],
+            R"("Desktop", "EInk")");
+}
+
+IN_PROC_BROWSER_TEST_F(ClientHintsUserAgentOverrideDevTools,
+                       InvalidFormfactor) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url()));
+
+  Attach();
+
+  base::Value::Dict params;
+  base::Value::Dict metadata;
+  base::Value::List form_factors;
+  form_factors.Append("InvalidFormfactor");
+
+  metadata.Set("formFactors", std::move(form_factors));
+  params.Set("userAgentMetadata", std::move(metadata));
+
+  SendCommandSync("Emulation.setUserAgentOverride", std::move(params));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), test_url()));
+
+  // The test expects the default "Desktop" or "Mobile" form factor, as the
+  // invalid override was rejected.
+  EXPECT_EQ(last_request_headers_["sec-ch-ua-form-factors"],
+            base::CommandLine::ForCurrentProcess()->HasSwitch(
+                embedder_support::kUseMobileUserAgent)
+                ? R"("Mobile")"
+                : R"("Desktop")");
+}
+
 // Base class for the User-Agent reduction browser tests.  Common functionality
 // shared between the various UA browser tests should go in this class.
 class UaReductionBrowserTest : public InProcessBrowserTest {
@@ -4808,40 +4957,6 @@ IN_PROC_BROWSER_TEST_F(ClientHintsBrowserTest, UpdatedGREASEByDefault) {
   std::string ua_ch_result = main_frame_ua_observed();
 
   ASSERT_TRUE(SawUpdatedGrease(ua_ch_result) && !SawOldGrease(ua_ch_result));
-}
-
-class XRClientHintsTest : public ClientHintsBrowserTest {
-  // Enables ClientHintsXRFormFactor feature in addition to the default ones.
-  void SetUpScopedFeatureList(
-      base::test::ScopedFeatureList& scoped_feature_list) override {
-    std::unique_ptr<base::FeatureList> feature_list(new base::FeatureList);
-    feature_list->InitFromCommandLine(
-        base::StrCat({kDefaultFeatures, ",ClientHintsXRFormFactor"}), "");
-    scoped_feature_list.InitWithFeatureList(std::move(feature_list));
-  }
-};
-
-// Tests that form_factors client hints include "XR" when
-// ClientHintsXRFormFactor is enabled.
-IN_PROC_BROWSER_TEST_F(XRClientHintsTest, UAHintsXRMode) {
-  const GURL gurl = accept_ch_url();
-
-  // First request: no high-entropy hints send in the request header because we
-  // don't know server preferences.
-  SetClientHintExpectationsOnMainFrame(false);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
-  EXPECT_TRUE(main_frame_ua_form_factors_observed().empty());
-
-  // Send request: we should expect the high-entropy client hints send in the
-  // request header.
-  SetClientHintExpectationsOnMainFrame(true);
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), gurl));
-
-  auto form_factors =
-      base::SplitString(main_frame_ua_form_factors_observed(), ",",
-                        base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-  EXPECT_TRUE(base::Contains(form_factors, "\"XR\""))
-      << main_frame_ua_form_factors_observed();
 }
 
 // Tests that user-agent reduction on a redirect request.

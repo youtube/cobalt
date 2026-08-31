@@ -294,7 +294,7 @@ IOSPromoConstants::IOSPromoTypeConfigs IOSPromoBubble::SetUpBubble(
 
 // static
 void IOSPromoBubble::ShowPromoBubble(views::View* anchor_view,
-                                     PageActionIconView* highlighted_button,
+                                     views::Button* highlighted_button,
                                      Profile* profile,
                                      IOSPromoType promo_type) {
   IOSPromoConstants::IOSPromoTypeConfigs ios_promo_config =
@@ -343,7 +343,11 @@ void IOSPromoBubble::ShowPromoBubble(views::View* anchor_view,
       views::BubbleDialogDelegate::CreateBubble(std::move(promo_bubble));
   widget->Show();
 
-  highlighted_button->SetVisible(true);
+  // `highlighted_button` can be null when the promo_bubble's page action is
+  // anchored to the right hand side/RHS of the omnibox.
+  if (highlighted_button) {
+    highlighted_button->SetVisible(true);
+  }
 }
 
 // static

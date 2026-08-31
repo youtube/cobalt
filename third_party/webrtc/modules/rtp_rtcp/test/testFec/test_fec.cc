@@ -13,11 +13,10 @@
  * functions in ForwardErrorCorrection directly.
  */
 
-#include <string.h>
-#include <time.h>
-
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <ctime>
 #include <list>
 #include <memory>
 #include <string>
@@ -39,7 +38,7 @@
 namespace webrtc {
 namespace fec_private_tables {
 extern const uint8_t** kPacketMaskBurstyTbl[12];
-}
+}  // namespace fec_private_tables
 namespace test {
 using fec_private_tables::kPacketMaskBurstyTbl;
 

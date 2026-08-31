@@ -19,7 +19,7 @@ FakeTileManagerClient::BuildRasterQueue(TreePriority tree_priority,
 }
 
 std::unique_ptr<EvictionTilePriorityQueue>
-FakeTileManagerClient::BuildEvictionQueue(TreePriority tree_priority) {
+FakeTileManagerClient::BuildEvictionQueue() {
   return nullptr;
 }
 
@@ -36,8 +36,6 @@ TargetColorParams FakeTileManagerClient::GetTargetColorParams(
     gfx::ContentColorUsage /*content_color_usage*/) const {
   TargetColorParams result;
   result.color_space = color_space_;
-  result.sdr_max_luminance_nits = gfx::ColorSpace::kDefaultSDRWhiteLevel;
-  result.hdr_max_luminance_relative = 1.f;
   return result;
 }
 

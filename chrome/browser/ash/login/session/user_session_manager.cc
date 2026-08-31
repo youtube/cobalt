@@ -39,6 +39,7 @@
 #include "base/path_service.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/syslog_logging.h"
 #include "base/system/sys_info.h"
 #include "base/task/single_thread_task_runner.h"
@@ -88,6 +89,8 @@
 #include "chrome/browser/ash/login/signin/oauth2_login_manager_factory.h"
 #include "chrome/browser/ash/login/signin/offline_signin_limiter.h"
 #include "chrome/browser/ash/login/signin/offline_signin_limiter_factory.h"
+#include "chrome/browser/ash/login/signin/token_handle_service.h"
+#include "chrome/browser/ash/login/signin/token_handle_service_factory.h"
 #include "chrome/browser/ash/login/signin/token_handle_store_factory.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
@@ -112,7 +115,6 @@
 #include "chrome/browser/lifetime/application_lifetime_chromeos.h"
 #include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/metrics/first_web_contents_profiler.h"
-#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -125,7 +127,6 @@
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/system/system_tray_client_impl.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
-#include "chrome/common/channel_info.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
@@ -138,6 +139,7 @@
 #include "chromeos/ash/components/cryptohome/cryptohome_parameters.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/dbus/session_manager/session_manager_client.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/login/auth/auth_session_authenticator.h"
 #include "chromeos/ash/components/login/auth/authenticator_builder.h"
@@ -929,7 +931,7 @@ bool UserSessionManager::RespectLocalePreference(
 
   // In Demo Mode, each sessions uses a new empty User Profile, so we need to
   // rely on the local state set in the browser process.
-  if (DemoSession::IsDeviceInDemoMode() && pref_app_locale.empty()) {
+  if (ash::demo_mode::IsDeviceInDemoMode() && pref_app_locale.empty()) {
     const std::string local_state_locale =
         g_browser_process->local_state()->GetString(
             language::prefs::kApplicationLocale);
@@ -1352,8 +1354,12 @@ void UserSessionManager::InitializeAccountManager() {
       ProfileHelper::GetProfilePathByUserIdHash(user_context_.GetUserIDHash());
 
   if (ProfileHelper::IsUserProfilePath(profile_path)) {
+    // TODO(crbug.com/404133029): Avoid g_browser_process usage.
+    scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory =
+        g_browser_process->shared_url_loader_factory();
+
     ash::InitializeAccountManager(
-        profile_path,
+        std::move(shared_url_loader_factory), profile_path,
         base::BindOnce(&UserSessionManager::PrepareProfile,
                        GetUserSessionManagerAsWeakPtr(),
                        profile_path) /* initialization_callback */);
@@ -1407,7 +1413,7 @@ void UserSessionManager::InitProfilePreferences(
   DVLOG(1) << "Initializing profile preferences";
   const user_manager::User* user =
       ProfileHelper::Get()->GetUserByProfile(profile);
-  if (user->GetType() == user_manager::UserType::kKioskApp &&
+  if (user->GetType() == user_manager::UserType::kKioskChromeApp &&
       profile->IsNewProfile()) {
     user_manager::UserManager::Get()->SetIsCurrentUserNew(true);
   }
@@ -2125,28 +2131,81 @@ void UserSessionManager::OnUserProfileLoaded(Profile* profile,
     observer->StartObserving();
   }
 
-  if (TokenHandlesEnabled() && user && user->HasGaiaAccount()) {
-    CreateTokenUtilIfMissing();
-    if (IsOnlineSignin(user_context_)) {
-      // If the user has gone through an online Gaia flow, then their LST is
-      // guaranteed to have changed/created. We need to update the token handle,
-      // regardless of the state of the previous token handle, if any.
-      if (!token_handle_store_->HasToken(user_context_.GetAccountId())) {
-        // New user.
-        token_handle_fetcher_ = std::make_unique<LegacyTokenHandleFetcher>(
-            profile, token_handle_store_.get(), user_context_.GetAccountId());
-        token_handle_fetcher_->FillForNewUser(
-            user_context_.GetAccessToken(),
-            Sha1Digest(user_context_.GetRefreshToken()),
-            base::BindOnce(&UserSessionManager::OnTokenHandleObtained,
-                           GetUserSessionManagerAsWeakPtr()));
-      } else {
-        // Existing user.
-        UpdateTokenHandle(profile, user->GetAccountId());
-      }
+  if (!TokenHandlesEnabled() || !user || !user->HasGaiaAccount()) {
+    VLOG(1) << "UserSessionManager::OnUserProfileLoaded:"
+            << " token handles disabled or user invalid, returning early";
+    return;
+  }
+
+  CreateTokenHandleStoreIfMissing();
+
+  if (!ash::features::IsUseTokenHandleStoreEnabled()) {
+    FetchTokenHandleLegacy(profile, user);
+  } else {
+    FetchTokenHandle(profile, user);
+  }
+}
+
+void UserSessionManager::FetchTokenHandleLegacy(
+    Profile* profile,
+    const user_manager::User* user) {
+  if (IsOnlineSignin(user_context_)) {
+    // If the user has gone through an online Gaia flow, then their LST is
+    // guaranteed to have changed/created. We need to update the token handle,
+    // regardless of the state of the previous token handle, if any.
+    if (!token_handle_store_->HasToken(user_context_.GetAccountId())) {
+      // New user.
+      token_handle_fetcher_ = std::make_unique<LegacyTokenHandleFetcher>(
+          profile, token_handle_store_.get(), user_context_.GetAccountId());
+      token_handle_fetcher_->FillForNewUser(
+          user_context_.GetAccessToken(),
+          Sha1Digest(user_context_.GetRefreshToken()),
+          base::BindOnce(&UserSessionManager::OnTokenHandleObtained,
+                         GetUserSessionManagerAsWeakPtr()));
     } else {
-      UpdateTokenHandleIfRequired(profile, user->GetAccountId());
+      // Existing user.
+      UpdateTokenHandle(profile, user->GetAccountId());
     }
+  } else {
+    UpdateTokenHandleIfRequired(profile, user->GetAccountId());
+  }
+}
+
+void UserSessionManager::FetchTokenHandle(Profile* profile,
+                                          const user_manager::User* user) {
+  TokenHandleService* token_handle_service =
+      TokenHandleServiceFactory::GetInstance()->GetForProfile(profile);
+
+  if (!IsOnlineSignin(user_context_)) {
+    MaybeFetchTokenHandleForExistingUserIfInvalidOrEmpty(user,
+                                                         token_handle_service);
+    return;
+  }
+
+  if (!token_handle_store_->HasToken(user_context_.GetAccountId())) {
+    VLOG(1) << "UserSessionManager::OnUserProfileLoaded: new user";
+    // New user.
+    token_handle_service->MaybeFetchForNewUser(
+        user_context_.GetAccountId(), user_context_.GetAccessToken(),
+        Sha1Digest(user_context_.GetRefreshToken()));
+  } else {
+    VLOG(1) << "UserSessionManager::OnUserProfileLoaded: existing user";
+    // Existing user.
+    MaybeFetchTokenHandleForExistingUser(token_handle_service);
+  }
+}
+
+void UserSessionManager::MaybeFetchTokenHandleForExistingUser(
+    TokenHandleService* token_handle_service) {
+  token_handle_service->MaybeFetchForExistingUser(user_context_.GetAccountId());
+  token_handle_backfill_tried_for_testing_ = true;
+}
+
+void UserSessionManager::MaybeFetchTokenHandleForExistingUserIfInvalidOrEmpty(
+    const user_manager::User* user,
+    TokenHandleService* token_handle_service) {
+  if (token_handle_store_->ShouldObtainHandle(user->GetAccountId())) {
+    MaybeFetchTokenHandleForExistingUser(token_handle_service);
   }
 }
 
@@ -2628,7 +2687,7 @@ UserSessionManager::GetUserSessionManagerAsWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 
-void UserSessionManager::CreateTokenUtilIfMissing() {
+void UserSessionManager::CreateTokenHandleStoreIfMissing() {
   if (!token_handle_store_) {
     token_handle_store_ = TokenHandleStoreFactory::Get()->GetTokenHandleStore();
   }

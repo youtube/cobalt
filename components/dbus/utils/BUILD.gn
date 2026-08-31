@@ -3,12 +3,21 @@
 # found in the LICENSE file.
 
 source_set("utils") {
-  visibility = [ "//components/dbus/*" ]
+  visibility = [
+    "//components/dbus/*",
+    "//services/device/wake_lock/power_save_blocker",
+  ]
   sources = [
     "check_for_service_and_start.cc",
     "check_for_service_and_start.h",
     "name_has_owner.cc",
     "name_has_owner.h",
+    "read_value.h",
+    "signature.h",
+    "types.h",
+    "variant.cc",
+    "variant.h",
+    "write_value.h",
   ]
   defines = [ "IS_COMPONENTS_DBUS_IMPL" ]
   deps = [
@@ -20,7 +29,13 @@ source_set("utils") {
 source_set("unit_tests") {
   testonly = true
   visibility = [ "//components/dbus:unit_tests" ]
-  sources = [ "check_for_service_and_start_unittest.cc" ]
+  sources = [
+    "check_for_service_and_start_unittest.cc",
+    "read_write_value_unittest.cc",
+    "signature_unittest.cc",
+    "types_unittest.cc",
+    "variant_unittest.cc",
+  ]
   deps = [
     ":utils",
     "//base",

@@ -45,6 +45,7 @@
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
+#include "third_party/blink/renderer/platform/heap/weak_cell.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_info.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -144,6 +145,11 @@ class CORE_EXPORT MessagePort : public EventTarget,
 
   void Trace(Visitor*) const override;
 
+  void SetIsSharedWorkerPort(bool is_shared_worker_port) {
+    is_shared_worker_port_ = is_shared_worker_port;
+  }
+  bool IsSharedWorkerPort() const { return is_shared_worker_port_; }
+
  private:
   class PostMessageTaskContainer
       : public GarbageCollected<PostMessageTaskContainer> {
@@ -178,6 +184,7 @@ class CORE_EXPORT MessagePort : public EventTarget,
 
   // mojo::MessageReceiver implementation.
   bool Accept(mojo::Message*) override;
+  void DispatchMessageEvent(BlinkTransferableMessage message);
   Event* CreateMessageEvent(BlinkTransferableMessage& message);
   void OnEntangledPortDisconnected();
 
@@ -186,7 +193,10 @@ class CORE_EXPORT MessagePort : public EventTarget,
   bool started_ = false;
   bool closed_;
 
-  scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
+  // Task runner for acceptance, also for dispatch if not BFCached.
+  scoped_refptr<base::SingleThreadTaskRunner> accept_message_task_runner_;
+  // Task runner for dispatch if BFCached (and not evicted).
+  scoped_refptr<base::SingleThreadTaskRunner> dispatch_event_task_runner_;
 
   // The internal port owned by this class. The handle itself is moved into the
   // |connector_| while entangled.
@@ -197,6 +207,10 @@ class CORE_EXPORT MessagePort : public EventTarget,
   WeakMember<MessagePort> initially_entangled_port_;
 
   Member<PostMessageTaskContainer> post_message_task_container_;
+
+  WeakCellFactory<MessagePort> weak_cell_factory_for_dispatch_{this};
+
+  bool is_shared_worker_port_ = false;
 };
 
 }  // namespace blink

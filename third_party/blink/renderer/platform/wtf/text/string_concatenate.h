@@ -31,9 +31,9 @@
 #include "base/containers/span.h"
 #include "base/notreached.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
-#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 
-namespace WTF {
+namespace blink {
 
 template <typename StringType>
 class StringTypeAdapter {
@@ -167,21 +167,6 @@ class WTF_EXPORT StringTypeAdapter<StringView> {
   const StringView view_;
 };
 
-template <>
-class StringTypeAdapter<String> : public StringTypeAdapter<StringView> {
- public:
-  explicit StringTypeAdapter(const String& string)
-      : StringTypeAdapter<StringView>(string) {}
-};
+}  // namespace blink
 
-template <>
-class StringTypeAdapter<AtomicString> : public StringTypeAdapter<StringView> {
- public:
-  explicit StringTypeAdapter(const AtomicString& string)
-      : StringTypeAdapter<StringView>(string) {}
-};
-
-}  // namespace WTF
-
-#include "third_party/blink/renderer/platform/wtf/text/string_operators.h"
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_STRING_CONCATENATE_H_

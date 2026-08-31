@@ -344,6 +344,11 @@ bool ChromeClientImpl::AcceptsLoadDrops() const {
   return web_view_->GetRendererPreferences().can_accept_load_drops;
 }
 
+std::optional<bool> ChromeClientImpl::GetWebRTCPostQuantumKeyAgreement() const {
+  CHECK(web_view_);
+  return web_view_->GetRendererPreferences().webrtc_post_quantum_key_agreement;
+}
+
 Page* ChromeClientImpl::CreateWindowDelegate(
     LocalFrame* frame,
     const FrameLoadRequest& r,
@@ -642,6 +647,11 @@ const display::ScreenInfo& ChromeClientImpl::GetScreenInfo(
 const display::ScreenInfos& ChromeClientImpl::GetScreenInfos(
     LocalFrame& frame) const {
   return frame.GetWidgetForLocalRoot()->GetScreenInfos();
+}
+
+const display::ScreenInfo& ChromeClientImpl::GetOriginalScreenInfo(
+    LocalFrame& frame) const {
+  return frame.GetWidgetForLocalRoot()->GetOriginalScreenInfo();
 }
 
 float ChromeClientImpl::InputEventsScaleForEmulation() const {
@@ -1002,7 +1012,7 @@ PopupMenu* ChromeClientImpl::OpenPopupMenu(LocalFrame& frame,
                                            HTMLSelectElement& select) {
   NotifyPopupOpeningObservers();
 
-  if (WebViewImpl::UseExternalPopupMenus()) {
+  if (use_external_popup_menus_) {
     return MakeGarbageCollected<ExternalPopupMenu>(frame, select);
   }
 
@@ -1023,6 +1033,10 @@ void ChromeClientImpl::ClosePagePopup(PagePopup* popup) {
 DOMWindow* ChromeClientImpl::PagePopupWindowForTesting() const {
   DCHECK(web_view_);
   return web_view_->PagePopupWindow();
+}
+
+void ChromeClientImpl::SetUseExternalPopupMenusForTesting(bool value) {
+  use_external_popup_menus_ = value;
 }
 
 void ChromeClientImpl::SetBrowserControlsState(float top_height,
@@ -1090,11 +1104,6 @@ void ChromeClientImpl::NotifyPresentationTime(LocalFrame& frame,
   if (!widget)
     return;
   widget->NotifyPresentationTime(std::move(callback));
-}
-
-void ChromeClientImpl::RequestBeginMainFrameNotExpected(LocalFrame& frame,
-                                                        bool request) {
-  frame.GetWidgetForLocalRoot()->RequestBeginMainFrameNotExpected(request);
 }
 
 int ChromeClientImpl::GetLayerTreeId(LocalFrame& frame) {

@@ -147,7 +147,7 @@ public class FeedV2NewTabPageTest {
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(
                             ChromeRenderTestRule.Component.UI_BROWSER_CONTENT_SUGGESTIONS_FEED)
-                    .setRevision(1)
+                    .setRevision(2)
                     .build();
 
     public final SigninTestRule mSigninTestRule = new SigninTestRule();
@@ -223,7 +223,7 @@ public class FeedV2NewTabPageTest {
 
     private void openNewTabPage() {
         mActivityTestRule.loadUrl(UrlConstants.NTP_URL);
-        mTab = mActivityTestRule.getActivity().getActivityTab();
+        mTab = mActivityTestRule.getActivityTab();
         NewTabPageTestUtils.waitForNtpLoaded(mTab);
 
         Assert.assertTrue(mTab.getNativePage() instanceof NewTabPage);
@@ -259,7 +259,7 @@ public class FeedV2NewTabPageTest {
     @MediumTest
     @Feature({"FeedNewTabPage"})
     @CommandLineFlags.Add({
-        "enable-features=BackForwardTransitions",
+        "enable-features=BackForwardTransitions:min-required-physical-ram-mb/0",
         "force-prefers-no-reduced-motion",
         // Resampling can make scroll offsets non-deterministic so turn it off.
         "disable-features=ResamplingScrollEvents",
@@ -385,7 +385,7 @@ public class FeedV2NewTabPageTest {
     @MediumTest
     @Feature({"FeedNewTabPage"})
     public void testSignInPromo_AccountsNotReady() {
-        try (var unused = mSigninTestRule.blockGetCoreAccountInfosUpdate(false)) {
+        try (var unused = mSigninTestRule.blockGetAccountsUpdate(false)) {
             openNewTabPage();
             // Check that the sign-in promo is not shown if accounts are not ready.
             onView(withId(R.id.feed_stream_recycler_view))
@@ -443,7 +443,7 @@ public class FeedV2NewTabPageTest {
     @Test
     @MediumTest
     @Feature({"NewTabPage", "FeedNewTabPage"})
-    @DisableFeatures("NewTabPageCustomization")
+    @DisableFeatures({"NewTabPageCustomization", "FeedHeaderRemoval"})
     @ParameterAnnotations.UseMethodParameter(SigninPromoParams.class)
     public void testArticleSectionHeaderWithMenu(boolean disableSigninPromoCard) throws Exception {
         openNewTabPage();
@@ -506,7 +506,7 @@ public class FeedV2NewTabPageTest {
         RecyclerView recyclerView = getRecyclerView();
         FeedV2TestHelper.waitForRecyclerItems(MIN_ITEMS_AFTER_LOAD, recyclerView);
 
-        mRenderTestRule.render(recyclerView, "feedContent_landscape_with_scrollable_mvt_v3");
+        mRenderTestRule.render(recyclerView, "feedContent_landscape_with_scrollable_mvt_v5");
     }
 
     @Test
@@ -519,16 +519,14 @@ public class FeedV2NewTabPageTest {
 
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         assertEquals(
-                cta.getResources()
-                        .getDimensionPixelSize(org.chromium.chrome.R.dimen.ntp_search_box_height),
-                cta.findViewById(org.chromium.chrome.R.id.search_box).getLayoutParams().height);
+                cta.getResources().getDimensionPixelSize(R.dimen.ntp_search_box_height),
+                cta.findViewById(R.id.search_box).getLayoutParams().height);
 
         // Drag the Feed header title to scroll the toolbar to the top.
         int toY =
                 -getFakeboxTop(mNtp)
                         + cta.getResources()
-                                .getDimensionPixelSize(
-                                        org.chromium.chrome.R.dimen.modern_toolbar_background_size);
+                                .getDimensionPixelSize(R.dimen.modern_toolbar_background_size);
         TestTouchUtils.dragCompleteView(
                 InstrumentationRegistry.getInstrumentation(),
                 cta.findViewById(R.id.header_title),
@@ -543,8 +541,7 @@ public class FeedV2NewTabPageTest {
             // There might be a rounding issue for some devices.
             assertEquals(
                     toolbar.getLocationBarBackgroundHeightForTesting(),
-                    cta.getResources()
-                            .getDimension(org.chromium.chrome.R.dimen.ntp_search_box_height),
+                    cta.getResources().getDimension(R.dimen.ntp_search_box_height),
                     0.5);
         }
     }
@@ -554,7 +551,7 @@ public class FeedV2NewTabPageTest {
      */
     private int getFakeboxTop(final NewTabPage ntp) {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Integer>() {
+                new Callable<>() {
                     @Override
                     public Integer call() {
                         final View fakebox = ntp.getView().findViewById(R.id.search_box);

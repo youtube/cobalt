@@ -8,9 +8,9 @@ import android.content.Context;
 import android.text.style.ClickableSpan;
 import android.view.View;
 
-import androidx.annotation.NonNull;
-
 import org.chromium.base.Callback;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.download.interstitial.NewDownloadTab;
 import org.chromium.chrome.browser.init.AsyncInitializationActivity;
@@ -20,10 +20,13 @@ import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
 
+import java.util.ArrayList;
+
 /**
  * Dialog for confirming that user want to download a file that already exists on disk, using the
  * default model dialog from ModalDialogManager.
  */
+@NullMarked
 public class DuplicateDownloadDialog {
     private ModalDialogManager mModalDialogManager;
     private PropertyModel mPropertyModel;
@@ -41,6 +44,7 @@ public class DuplicateDownloadDialog {
      * @param callback Callback to run when confirming the download, true for accept the download,
      *     false otherwise.
      */
+    @Initializer
     public void show(
             Context context,
             ModalDialogManager modalDialogManager,
@@ -52,6 +56,14 @@ public class DuplicateDownloadDialog {
             Callback<Boolean> callback) {
         var resources = context.getResources();
         mModalDialogManager = modalDialogManager;
+        ArrayList<CharSequence> message = new ArrayList<>();
+        message.add(
+                getClickableSpan(
+                        context, filePath, pageUrl, totalBytes, duplicateExists, otrProfileId));
+        if (OtrProfileId.isOffTheRecord(otrProfileId)) {
+            message.add(resources.getString(R.string.download_location_incognito_warning));
+        }
+
         mPropertyModel =
                 new PropertyModel.Builder(ModalDialogProperties.ALL_KEYS)
                         .with(
@@ -66,15 +78,7 @@ public class DuplicateDownloadDialog {
                                 pageUrl.isEmpty()
                                         ? R.string.duplicate_download_dialog_title
                                         : R.string.duplicate_page_download_dialog_title)
-                        .with(
-                                ModalDialogProperties.MESSAGE_PARAGRAPH_1,
-                                getClickableSpan(
-                                        context,
-                                        filePath,
-                                        pageUrl,
-                                        totalBytes,
-                                        duplicateExists,
-                                        otrProfileId))
+                        .with(ModalDialogProperties.MESSAGE_PARAGRAPHS, message)
                         .with(
                                 ModalDialogProperties.POSITIVE_BUTTON_TEXT,
                                 resources,
@@ -85,16 +89,9 @@ public class DuplicateDownloadDialog {
                                 R.string.cancel)
                         .build();
 
-        if (OtrProfileId.isOffTheRecord(otrProfileId)) {
-            mPropertyModel.set(
-                    ModalDialogProperties.MESSAGE_PARAGRAPH_2,
-                    resources.getString(R.string.download_location_incognito_warning));
-        }
-
         modalDialogManager.showDialog(mPropertyModel, ModalDialogManager.ModalDialogType.TAB);
     }
 
-    @NonNull
     private ModalDialogProperties.Controller getController(
             Context context, ModalDialogManager modalDialogManager, Callback<Boolean> callback) {
         return new ModalDialogProperties.Controller() {

@@ -75,6 +75,7 @@ void DecorationTabTitle::SetUIResourceIds() {
 void DecorationTabTitle::SetIsLoading(bool is_loading) {
   if (is_loading != is_loading_) {
     is_loading_ = is_loading;
+    icon_needs_refresh_ = true;
     SetUIResourceIds();
   }
 }
@@ -157,6 +158,14 @@ void DecorationTabTitle::Update(int title_resource_id,
                               icon_start_padding, icon_end_padding,
                               is_incognito, is_rtl);
   show_bubble_ = show_bubble;
+}
+
+void DecorationTabTitle::SetShouldHideTitleText(bool should_hide_title_text) {
+  DecorationIconTitle::SetShouldHideTitleText(should_hide_title_text);
+}
+
+void DecorationTabTitle::SetShouldHideIcon(bool should_hide_icon) {
+  DecorationIconTitle::SetShouldHideIcon(should_hide_icon);
 }
 
 void DecorationTabTitle::setBounds(const gfx::Size& bounds) {

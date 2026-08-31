@@ -18,6 +18,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/time/time.h"
 #include "crypto/rsa_private_key.h"
 #include "net/base/net_errors.h"
@@ -100,10 +101,10 @@ void CheckGoogleCert(const scoped_refptr<X509Certificate>& google_cert,
   EXPECT_EQ(0U, issuer.organization_unit_names.size());
 
   // Use DoubleT because its epoch is the same on all platforms
-  const Time& valid_start = google_cert->valid_start();
+  Time valid_start = google_cert->valid_start();
   EXPECT_EQ(valid_from, valid_start.InSecondsFSinceUnixEpoch());
 
-  const Time& valid_expiry = google_cert->valid_expiry();
+  Time valid_expiry = google_cert->valid_expiry();
   EXPECT_EQ(valid_to, valid_expiry.InSecondsFSinceUnixEpoch());
 
   EXPECT_EQ(expected_fingerprint, X509Certificate::CalculateFingerprint256(
@@ -159,12 +160,12 @@ TEST(X509CertificateTest, WebkitCertParsing) {
             issuer.organization_unit_names[0]);
 
   // Use DoubleT because its epoch is the same on all platforms
-  const Time& valid_start = webkit_cert->valid_start();
+  Time valid_start = webkit_cert->valid_start();
   EXPECT_EQ(
       1205883319,
       valid_start.InSecondsFSinceUnixEpoch());  // Mar 18 23:35:19 2008 GMT
 
-  const Time& valid_expiry = webkit_cert->valid_expiry();
+  Time valid_expiry = webkit_cert->valid_expiry();
   EXPECT_EQ(
       1300491319,
       valid_expiry.InSecondsFSinceUnixEpoch());  // Mar 18 23:35:19 2011 GMT
@@ -210,12 +211,12 @@ TEST(X509CertificateTest, ThawteCertParsing) {
             issuer.organization_unit_names[0]);
 
   // Use DoubleT because its epoch is the same on all platforms
-  const Time& valid_start = thawte_cert->valid_start();
+  Time valid_start = thawte_cert->valid_start();
   EXPECT_EQ(
       1227052800,
       valid_start.InSecondsFSinceUnixEpoch());  // Nov 19 00:00:00 2008 GMT
 
-  const Time& valid_expiry = thawte_cert->valid_expiry();
+  Time valid_expiry = thawte_cert->valid_expiry();
   EXPECT_EQ(
       1263772799,
       valid_expiry.InSecondsFSinceUnixEpoch());  // Jan 17 23:59:59 2010 GMT
@@ -1391,7 +1392,7 @@ const struct PublicKeyInfoTestData {
     {"rsa-768", 768, X509Certificate::kPublicKeyTypeRSA},
     {"rsa-1024", 1024, X509Certificate::kPublicKeyTypeRSA},
     {"rsa-2048", 2048, X509Certificate::kPublicKeyTypeRSA},
-    {"rsa-8200", 8200, X509Certificate::kPublicKeyTypeRSA},
+    {"rsa-8000", 8000, X509Certificate::kPublicKeyTypeRSA},
     {"ec-prime256v1", 256, X509Certificate::kPublicKeyTypeECDSA},
 };
 

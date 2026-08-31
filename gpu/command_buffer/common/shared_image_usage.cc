@@ -59,6 +59,10 @@ std::string CreateLabelForSharedImageUsage(SharedImageUsageSet usage) {
       {SHARED_IMAGE_USAGE_WEBGPU_SHARED_BUFFER, "WebgpuSharedBuffer"},
       {SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR, "WebnnSharedTensor"},
       {SHARED_IMAGE_USAGE_CPU_ONLY_READ_WRITE, "CpuOnlyReadWrite"},
+      {SHARED_IMAGE_USAGE_RASTER_COPY_SOURCE, "RasterCopySource"},
+      {SHARED_IMAGE_USAGE_CPU_READ, "CpuRead"},
+      {SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_READ, "WebnnSharedTensorRead"},
+      {SHARED_IMAGE_USAGE_WEBNN_SHARED_TENSOR_WRITE, "WebnnSharedTensorWrite"},
   };
 
   std::string label;

@@ -4,6 +4,7 @@
 
 #include "base/i18n/base_i18n_switches.h"
 #include "base/json/json_reader.h"
+#include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/metrics/user_action_tester.h"
@@ -341,6 +342,10 @@ IN_PROC_BROWSER_TEST_F(PlusAddressCreationDialogInteractiveTest,
               &views::Label::GetText, kFakePlusAddressU16),
           // Ensure hidden elements are not present.
           EnsureNotPresent(PlusAddressCreationView::kPlusAddressProgressBarId),
+          // Ensure the confirm button has focus.
+          InSameContext(CheckViewProperty(
+              PlusAddressCreationView::kPlusAddressConfirmButtonElementId,
+              &views::View::HasFocus, true)),
           // Simulate confirming plus address.
           PressButton(
               PlusAddressCreationView::kPlusAddressConfirmButtonElementId),
@@ -803,6 +808,10 @@ IN_PROC_BROWSER_TEST_P(PlusAddressCreationDialogUiVariationsOnboardingTest,
           CheckViewProperty(
               PlusAddressCreationView::kPlusAddressConfirmButtonElementId,
               &views::View::GetEnabled, false),
+          // Ensure the cancel button has focus while `Reserve()` is pending.
+          InSameContext(CheckViewProperty(
+              PlusAddressCreationView::kPlusAddressCancelButtonElementId,
+              &views::View::HasFocus, true)),
           // UI should time out and eventually show an error state.
           WaitForShow(PlusAddressCreationView::kPlusAddressReserveErrorId),
           WaitForHide(
@@ -860,6 +869,10 @@ IN_PROC_BROWSER_TEST_P(PlusAddressCreationDialogUiVariationsOnboardingTest,
           WaitForHide(PlusAddressCreationView::kPlusAddressProgressBarId, true),
           // UI should time out and eventually show an error state.
           WaitForShow(PlusAddressCreationView::kPlusAddressCreateErrorId),
+          // Ensure the confirm (try again) button has focus.
+          InSameContext(CheckViewProperty(
+              PlusAddressCreationView::kPlusAddressConfirmButtonElementId,
+              &views::View::HasFocus, true)),
           SetOnIncompatibleAction(OnIncompatibleAction::kIgnoreAndContinue,
                                   kSuppressedScreenshotError),
           Screenshot(PlusAddressCreationView::kTopViewId,

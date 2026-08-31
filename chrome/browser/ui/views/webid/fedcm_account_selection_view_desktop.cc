@@ -81,7 +81,7 @@ FedCmAccountSelectionView::FedCmAccountSelectionView(
 }
 
 FedCmAccountSelectionView::~FedCmAccountSelectionView() {
-  Close(/*notify_delegate=*/false);
+  Close(/*notify_delegate=*/false, /*hide_widget=*/false);
 }
 
 void FedCmAccountSelectionView::ShowDialogWidget() {
@@ -192,7 +192,7 @@ bool FedCmAccountSelectionView::Show(
   // and other parts of the header.
   if ((rp_mode == blink::mojom::RpMode::kPassive && idp_list_.size() > 1) ||
       (rp_mode == blink::mojom::RpMode::kActive && !has_modal_support)) {
-    Close(/*notify_delegate=*/false);
+    Close(/*notify_delegate=*/false, /*hide_widget=*/false);
   }
 
   bool create_view = !account_selection_view_;
@@ -218,12 +218,8 @@ bool FedCmAccountSelectionView::Show(
           new_accounts_[0]->browser_trusted_login_state ==
               Account::LoginState::kSignIn &&
           state_ != State::LOADING;
-      // The IDP claimed login state controls whether we show disclosure text,
-      // if we do not skip the next dialog. Also skip when
-      // `disclosure_fields` is empty (controlled by the fields API).
       bool should_show_request_permission_dialog =
-          new_accounts_[0]->login_state != Account::LoginState::kSignIn &&
-          !new_idp_data.disclosure_fields.empty();
+          !new_accounts_[0]->fields.empty();
 
       if (should_show_verifying_sheet) {
         state_ = State::VERIFYING;
@@ -346,7 +342,7 @@ bool FedCmAccountSelectionView::ShowFailureDialog(
   // title and other parts of the header.
   if ((rp_mode == blink::mojom::RpMode::kPassive && idp_list_.size() > 1) ||
       (rp_mode == blink::mojom::RpMode::kActive && !has_modal_support)) {
-    Close(/*notify_delegate=*/false);
+    Close(/*notify_delegate=*/false, /*hide_widget=*/false);
   }
 
   bool create_view = !account_selection_view_;
@@ -384,7 +380,7 @@ bool FedCmAccountSelectionView::ShowErrorDialog(
   // and other parts of the header.
   if ((rp_mode == blink::mojom::RpMode::kPassive && idp_list_.size() > 1) ||
       (rp_mode == blink::mojom::RpMode::kActive && !has_modal_support)) {
-    Close(/*notify_delegate=*/false);
+    Close(/*notify_delegate=*/false, /*hide_widget=*/false);
   }
 
   bool create_view = !account_selection_view_;
@@ -513,7 +509,7 @@ std::optional<std::string> FedCmAccountSelectionView::GetSubtitle() const {
 
 void FedCmAccountSelectionView::PrimaryPageChanged(content::Page& page) {
   // Close the dialog when the user navigates within the same tab.
-  Close(/*notify_delegate=*/true);
+  Close(/*notify_delegate=*/true, /*hide_widget=*/false);
 }
 
 void FedCmAccountSelectionView::SetInputEventActivationProtectorForTesting(
@@ -547,7 +543,8 @@ void FedCmAccountSelectionView::OnAccountSelected(
   DCHECK(state_ != State::IDP_SIGNIN_STATUS_MISMATCH);
   DCHECK(state_ != State::AUTO_REAUTHN);
 
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -561,15 +558,12 @@ void FedCmAccountSelectionView::OnAccountSelected(
   }
 
   const content::IdentityProviderData& idp_data = *account->identity_provider;
-  // If the account is a returning user or if the account is selected from UI
-  // which shows the disclosure text or if the dialog doesn't need to ask for
-  // the user's permission to share their id/email/name/picture, show the
-  // verifying sheet.
-  if (account->login_state != Account::LoginState::kSignUp ||
-      state_ == State::REQUEST_PERMISSION ||
+  // If the account dialog doesn't need to ask for the user's permission to
+  // share their id/email/name/picture or if the account is selected from UI
+  // which shows the disclosure text, show the verifying sheet.
+  if (account->fields.empty() || state_ == State::REQUEST_PERMISSION ||
       (state_ == State::SINGLE_ACCOUNT_PICKER &&
-       dialog_type_ == DialogType::BUBBLE) ||
-      idp_data.disclosure_fields.empty()) {
+       dialog_type_ == DialogType::BUBBLE)) {
     state_ = State::VERIFYING;
     if (!NotifyDelegateOfAccountSelection(*account, idp_data)) {
       // `this` was deleted.
@@ -609,7 +603,8 @@ void FedCmAccountSelectionView::OnAccountSelected(
 void FedCmAccountSelectionView::OnLinkClicked(LinkType link_type,
                                               const GURL& url,
                                               const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -641,7 +636,8 @@ void FedCmAccountSelectionView::OnCloseButtonClicked(const ui::Event& event) {
   // Because the close button is a safe button to click and may be visible
   // even when the widget is (partially) occluded, we do not check
   // `is_occluded_by_pip_` here.
-  if (input_protector_->IsPossiblyUnintendedInteraction(event)) {
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false)) {
     return;
   }
 
@@ -675,7 +671,8 @@ void FedCmAccountSelectionView::OnCloseButtonClicked(const ui::Event& event) {
 void FedCmAccountSelectionView::OnLoginToIdP(const GURL& idp_config_url,
                                              const GURL& idp_login_url,
                                              const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -698,7 +695,8 @@ void FedCmAccountSelectionView::OnLoginToIdP(const GURL& idp_config_url,
 }
 
 void FedCmAccountSelectionView::OnGotIt(const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -707,7 +705,8 @@ void FedCmAccountSelectionView::OnGotIt(const ui::Event& event) {
 }
 
 void FedCmAccountSelectionView::OnMoreDetails(const ui::Event& event) {
-  if (input_protector_->IsPossiblyUnintendedInteraction(event) ||
+  if (input_protector_->IsPossiblyUnintendedInteraction(
+          event, /*allow_key_events=*/false) ||
       is_occluded_by_pip_) {
     return;
   }
@@ -840,7 +839,7 @@ void FedCmAccountSelectionView::WillDiscardContents(
   // tab and subscription to avoid doing unnecessary work.
   tab_ = nullptr;
   tab_subscriptions_.clear();
-  Close(/*notify_delegate=*/true);
+  Close(/*notify_delegate=*/true, /*hide_widget=*/false);
 }
 
 void FedCmAccountSelectionView::ModalUIChanged(tabs::TabInterface* tab) {
@@ -862,7 +861,7 @@ void FedCmAccountSelectionView::WillDetach(
   }
   // If the tab is going to be detached from the window then we must clear all
   // window-scoped UI.
-  Close(/*notify_delegate=*/true);
+  Close(/*notify_delegate=*/true, /*hide_widget=*/false);
 }
 
 FedCmModalDialogView* FedCmAccountSelectionView::GetPopupWindowForTesting() {
@@ -877,7 +876,7 @@ void FedCmAccountSelectionView::OnPopupWindowDestroyed() {
     UpdateDialogVisibilityAndPosition();
     return;
   }
-  Close(/*notify_delegate=*/true);
+  Close(/*notify_delegate=*/true, /*hide_widget=*/false);
 }
 
 bool FedCmAccountSelectionView::NotifyDelegateOfAccountSelection(
@@ -887,9 +886,9 @@ bool FedCmAccountSelectionView::NotifyDelegateOfAccountSelection(
 
   base::WeakPtr<FedCmAccountSelectionView> weak_ptr(
       weak_ptr_factory_.GetWeakPtr());
-  delegate_->OnAccountSelected(
-      idp_data.idp_metadata.config_url, account.id,
-      account.login_state.value_or(Account::LoginState::kSignUp));
+  delegate_->OnAccountSelected(idp_data.idp_metadata.config_url, account.id,
+                               account.idp_claimed_login_state.value_or(
+                                   account.browser_trusted_login_state));
 
   // AccountSelectionView::Delegate::OnAccountSelected() might delete this.
   // See https://crbug.com/1393650 for details.
@@ -930,18 +929,23 @@ SheetType FedCmAccountSelectionView::GetSheetType() {
   }
 }
 
-void FedCmAccountSelectionView::Close(bool notify_delegate) {
+void FedCmAccountSelectionView::Close(bool notify_delegate, bool hide_widget) {
   if (!GetDialogWidget()) {
     CHECK(!account_selection_view_);
     return;
   }
 
   // The widget is synchronously destroyed.
-  CloseWidget(notify_delegate, views::Widget::ClosedReason::kUnspecified);
+  CloseWidget(notify_delegate, views::Widget::ClosedReason::kUnspecified,
+              hide_widget);
 }
 
 views::Widget* FedCmAccountSelectionView::GetDialogWidget() {
   return dialog_widget_.get();
+}
+
+bool FedCmAccountSelectionView::IsDialogWidgetVisible() const {
+  return dialog_widget_ && dialog_widget_->IsVisible();
 }
 
 std::unique_ptr<views::Widget> FedCmAccountSelectionView::CreateDialogWidget() {
@@ -1142,9 +1146,9 @@ void FedCmAccountSelectionView::LogDialogDismissal(
   }
 }
 
-void FedCmAccountSelectionView::CloseWidget(
-    bool notify_delegate,
-    views::Widget::ClosedReason reason) {
+void FedCmAccountSelectionView::CloseWidget(bool notify_delegate,
+                                            views::Widget::ClosedReason reason,
+                                            bool hide_widget) {
   DismissReason dismiss_reason =
       reason == views::Widget::ClosedReason::kCloseButtonClicked
           ? DismissReason::kCloseButton
@@ -1173,7 +1177,7 @@ void FedCmAccountSelectionView::OnUserClosedDialog(
   // dialog is just informative.
   bool notify_delegate =
       state_ != State::AUTO_REAUTHN && state_ != State::VERIFYING;
-  CloseWidget(notify_delegate, reason);
+  CloseWidget(notify_delegate, reason, false);
 }
 
 void FedCmAccountSelectionView::UpdateDialogVisibilityAndPosition() {

@@ -10,9 +10,12 @@
 
 #include "rtc_tools/frame_analyzer/video_geometry_aligner.h"
 
+#include <cstdint>
 #include <vector>
 
+#include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
 #include "rtc_tools/video_file_reader.h"
 #include "test/gtest.h"
@@ -23,7 +26,7 @@ namespace test {
 
 class VideoGeometryAlignerTest : public ::testing::Test {
  protected:
-  void SetUp() {
+  void SetUp() override {
     reference_video_ =
         OpenYuvFile(ResourcePath("foreman_128x96", "yuv"), 128, 96);
     ASSERT_TRUE(reference_video_);

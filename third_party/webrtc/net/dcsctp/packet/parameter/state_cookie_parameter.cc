@@ -9,24 +9,19 @@
  */
 #include "net/dcsctp/packet/parameter/state_cookie_parameter.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {
 
 // https://tools.ietf.org/html/rfc4960#section-3.3.3.1
-
-constexpr int StateCookieParameter::kType;
 
 std::optional<StateCookieParameter> StateCookieParameter::Parse(
     webrtc::ArrayView<const uint8_t> data) {

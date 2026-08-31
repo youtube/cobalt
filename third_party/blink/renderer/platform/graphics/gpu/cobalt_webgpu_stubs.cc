@@ -52,8 +52,8 @@ __attribute__((weak)) void  wgpuDawnDrmFormatCapabilitiesFreeMembers(WGPUDawnDrm
     procs.dawnDrmFormatCapabilitiesFreeMembers(value);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) WGPUStatus  wgpuGetInstanceCapabilities(WGPUInstanceCapabilities * capabilities) {
-return     procs.getInstanceCapabilities(capabilities);
+__attribute__((weak)) WGPUStatus  wgpuGetInstanceLimits(WGPUInstanceLimits * capabilities) {
+return     procs.getInstanceLimits(capabilities);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) WGPUProc  wgpuGetProcAddress(WGPUStringView procName) {
@@ -550,8 +550,10 @@ __attribute__((weak)) WGPUSurface  wgpuInstanceCreateSurface(WGPUInstance instan
 return     procs.instanceCreateSurface(instance, descriptor);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) WGPUStatus  wgpuInstanceGetWGSLLanguageFeatures(WGPUInstance instance, WGPUSupportedWGSLLanguageFeatures * features) {
-return     procs.instanceGetWGSLLanguageFeatures(instance, features);
+__attribute__((weak)) void wgpuInstanceGetWGSLLanguageFeatures(
+    WGPUInstance instance,
+    WGPUSupportedWGSLLanguageFeatures* features) {
+  return procs.instanceGetWGSLLanguageFeatures(instance, features);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) WGPUBool  wgpuInstanceHasWGSLLanguageFeature(WGPUInstance instance, WGPUWGSLLanguageFeatureName feature) {
@@ -979,8 +981,8 @@ __attribute__((weak)) void  wgpuSurfaceGetCurrentTexture(WGPUSurface surface, WG
     procs.surfaceGetCurrentTexture(surface, surfaceTexture);
 }
 DAWN_NO_SANITIZE("cfi-icall")
-__attribute__((weak)) void  wgpuSurfacePresent(WGPUSurface surface) {
-    procs.surfacePresent(surface);
+__attribute__((weak)) WGPUStatus  wgpuSurfacePresent(WGPUSurface surface) {
+return    procs.surfacePresent(surface);
 }
 DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuSurfaceSetLabel(WGPUSurface surface, WGPUStringView label) {
@@ -1068,5 +1070,3 @@ DAWN_NO_SANITIZE("cfi-icall")
 __attribute__((weak)) void  wgpuTextureViewRelease(WGPUTextureView textureView) {
     procs.textureViewRelease(textureView);
 }
-
-

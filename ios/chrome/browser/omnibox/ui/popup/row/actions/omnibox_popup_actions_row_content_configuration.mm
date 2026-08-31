@@ -4,8 +4,8 @@
 
 #import "ios/chrome/browser/omnibox/ui/popup/row/actions/omnibox_popup_actions_row_content_configuration.h"
 
-#import "ios/chrome/browser/omnibox/model/autocomplete_suggestion.h"
-#import "ios/chrome/browser/omnibox/model/suggest_action.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/autocomplete_suggestion.h"
+#import "ios/chrome/browser/omnibox/model/suggestions/suggest_action.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/actions/omnibox_popup_actions_row_content_view.h"
 #import "ios/chrome/browser/omnibox/ui/popup/row/actions/omnibox_popup_actions_row_delegate.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -20,7 +20,6 @@
 @property(nonatomic, assign, readwrite) BOOL leadingIconHighlighted;
 @property(nonatomic, strong, readwrite) NSAttributedString* primaryText;
 @property(nonatomic, strong, readwrite) NSAttributedString* secondaryText;
-@property(nonatomic, strong, readwrite) UIColor* trailingIconTintColor;
 
 @end
 
@@ -30,7 +29,6 @@
 @synthesize leadingIconHighlighted;
 @synthesize primaryText;
 @synthesize secondaryText;
-@synthesize trailingIconTintColor;
 
 /// Layout this cell with the given data before displaying.
 + (instancetype)cellConfiguration {
@@ -164,8 +162,6 @@
           ? [self.class highlightedAttributedStringWithString:self.suggestion
                                                                   .detailText]
           : self.suggestion.detailText;
-  configuration.trailingIconTintColor =
-      isHighlighted ? UIColor.whiteColor : [UIColor colorNamed:kBlueColor];
   configuration.actions = self.actions;
 
   if (!viewState.highlighted && !viewState.selected) {

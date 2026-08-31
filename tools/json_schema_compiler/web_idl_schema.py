@@ -3,6 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import importlib
 import itertools
 import json
 import linecache
@@ -27,14 +28,13 @@ from collections import OrderedDict
 # so let's set things up the way it wants.
 _idl_generators_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                     os.pardir, os.pardir, 'tools')
-if _idl_generators_path in sys.path:
+sys.path.insert(0, _idl_generators_path)
+try:
+  import idl_parser
+  importlib.reload(idl_parser)
   from idl_parser import idl_parser, idl_lexer, idl_node
-else:
-  sys.path.insert(0, _idl_generators_path)
-  try:
-    from idl_parser import idl_parser, idl_lexer, idl_node
-  finally:
-    sys.path.pop(0)
+finally:
+  sys.path.pop(0)
 
 IDLNode = idl_node.IDLNode  # Used for type hints.
 
@@ -123,18 +123,20 @@ def _ExtractNodeComment(node: IDLNode) -> str:
     greater than zero.
   """
 
-  # The IDL parser doesn't annotate Operation nodes with their line number
-  # correctly, but the Arguments child node will have the correct line number,
-  # so use that instead.
-  if node.GetClass() == 'Operation':
-    return _ExtractNodeComment(node.GetOneOf('Arguments'))
-
   # Extended attributes for a node can actually be formatted onto a preceding
   # line, so if this node has an extended attribute we instead look for the
   # description relative to the extended attribute node.
   ext_attribute_node = node.GetOneOf('ExtAttributes')
   if ext_attribute_node is not None:
     return _ExtractNodeComment(ext_attribute_node)
+
+  # The IDL parser doesn't annotate Operation nodes with their line number
+  # correctly, but the Arguments child node will have the correct line number,
+  # so use that instead.
+  # Note: If the Operation node had any extended attributes, it will have
+  # already been handled by the conditional before this one.
+  if node.GetClass() == 'Operation':
+    return _ExtractNodeComment(node.GetOneOf('Arguments'))
 
   # Look through the lines above the current node and extract every consecutive
   # line that is a comment until a blank or non-comment line is found.
@@ -179,29 +181,50 @@ class DescriptionData(NamedTuple):
 def ProcessNodeDescription(node: IDLNode) -> DescriptionData:
   """Extracts the node description and a list of any parameter descriptions.
 
-  Uses _ExtractNodeComment to first get the comments on lines directly preceding
-  the supplied node and then applies formatting to them. Newlines are removed,
-  but if the comment also includes intentional blank new lines, the different
-  "paragraphs" of the comment will be wrapped with a <p> tag.
+  Extracts comments on lines directly preceding the supplied node and applies
+  formatting to them. Newlines are removed, but if the comment includes
+  intentional blank new lines the different "paragraphs" of the comment will be
+  wrapped with a <p> tag.
 
-  Also extracts out parameter descriptions and applies the above formatting to
-  them. Parameter comments must come at the end of the comment and be of the
-  form:
+  Also extracts any parameter and promise return value descriptions from the end
+  of the comment and applies the above formatting to them. Parameter
+  descriptions are keyed by the parameter name, followed by the description.
+  Promise value descriptions are keyed using the string 'PromiseValue', then the
+  name of the object the promise will resolve to, followed by the description.
+
+  Parameter and promise value descriptions are returned as a dictionary, with
+  the parameter names as keys pointing to the formatted description strings as
+  values.
+
+  For example:
     // General function documentation, can be multiple lines.
     //
     // |arg1_name|: Description of arg1.
-    // |arg2_name|: Description of arg2...
-  Parameter descriptions are returned as a dictionary, with the parameter names
-  as keys pointing to the formatted description strings as values.
+    // |arg2_name|: Description of arg2.
+    // |PromiseValue|: nameOfPromiseValue: Description of promise value.
+
+  Will become:
+  {
+    description: 'General function documentation, can be multiple lines.',
+    parameter_descriptions: {
+      'arg1_name': 'Description of arg1.',
+      'arg2_name': 'Description of arg2.',
+      'PromiseValue': 'nameOfPromiseValue: Description of promise value.'
+    }
+  }
 
   TODO(crbug.com/340297705): Call this for properties.
+  TODO(crbug.com/340297705): The way we handle 'PromiseValue' names/descriptions
+  doesn't play well with the <p> formatting if the description for it has
+  intentional blank new lines. We should fix this.
 
   Args:
     node: The IDL node to look for a descriptive comment above.
 
   Returns:
     A DescriptionData containing the formatted string for the description of the
-    node and a dictionary of formatted strings for any parameter descriptions.
+    node and a dictionary of formatted strings for any parameter descriptions
+    and PromiseValue description.
   """
   comment = _ExtractNodeComment(node)
 
@@ -258,8 +281,11 @@ class Type():
     type_node: The IDLNode for the Type to be processed.
   """
 
-  def __init__(self, type_node: IDLNode) -> None:
+  def __init__(self,
+               type_node: IDLNode,
+               descriptions: Optional[OrderedDict[str, str]] = None) -> None:
     assert type_node.GetClass() == 'Type'
+    self.descriptions = descriptions
     self.type_node = type_node
 
   def Process(self) -> dict:
@@ -295,12 +321,13 @@ class Type():
     elif type_details.IsA('Undefined'):
       properties['type'] = UndefinedType
     elif type_details.IsA('Promise'):
-      properties['type'] = 'promise'
-      # Promise types also have an associated type they resolve with. We
-      # represent this similar to how we represent arguments for Operations,
-      # with 'parameters' list that has a single element for the type.
+      # Promise types have an associated type they resolve with. We represent
+      # this similar to how we represent arguments for Operations, with a
+      # 'parameters' list that has a single element for the type.
       properties['parameters'] = self._ExtractParametersFromPromiseType(
-          type_details)
+          type_details, self.descriptions)
+      # TODO(crbug.com/428187556): It would be nice to explicitly mark these as
+      # 'type' = 'promise' as well once we're done migrating schemas to WebIDL.
     elif type_details.IsA('Sequence'):
       properties['type'] = 'array'
       # Sequences are used to represent array types, which have an associated
@@ -344,8 +371,10 @@ class Type():
     raise SchemaCompilerError(
         'Unsupported basic type found when processing type.', type_details)
 
-  def _ExtractParametersFromPromiseType(self,
-                                        type_details: IDLNode) -> List[dict]:
+  def _ExtractParametersFromPromiseType(
+      self,
+      type_details: IDLNode,
+      descriptions: Optional[OrderedDict[str, str]] = None) -> List[dict]:
     """Extracts details for the type a promise will resolve to.
 
     Returns:
@@ -355,7 +384,7 @@ class Type():
       definitions.
     """
 
-    promise_type = PromiseType(type_details).Process()
+    promise_type = PromiseType(type_details, descriptions).Process()
     if 'type' in promise_type and promise_type['type'] is UndefinedType:
       # If the promise type was 'Undefined' we represent it as an empty list.
       return []
@@ -386,7 +415,7 @@ class TypedProperty(ABC):
     self.type_node = node.GetOneOf('Type')
     assert self.type_node is not None, self.type_node.GetLogLine(
         'Could not find Type node on IDLNode named: %s.' % (node.GetName()))
-    self.properties = Type(self.type_node).Process()
+    self.properties = Type(self.type_node, descriptions).Process()
 
   @abstractmethod
   def Process(self) -> dict:
@@ -410,7 +439,13 @@ class FunctionReturn(TypedProperty):
   """Handles processing for function return values."""
 
   def Process(self) -> dict:
-    if 'type' in self.properties and self.properties['type'] == 'promise':
+    # If the descriptions use the 'Returns' key, we use that to extract a
+    # description to add to the return properties.
+    if self.descriptions and 'Returns' in self.descriptions:
+      self.properties['description'] = self.descriptions['Returns']
+    # If no type was specified but there is a parameters property, we can infer
+    # this is a promise definition for an asynchronous return.
+    if 'type' not in self.properties and 'parameters' in self.properties:
       # For legacy reasons, promise returns always get named "callback".
       self.properties['name'] = 'callback'
     else:
@@ -424,6 +459,17 @@ class PromiseType(TypedProperty):
   def Process(self) -> dict:
     if self.type_node.GetProperty('NULLABLE'):
       self.properties['optional'] = True
+    # If the descriptions use the 'PromiseValue' key, we use that to extract the
+    # name and any description for the typed value the promise will resolve to.
+    # The comment consists of the name to use, followed by an optional
+    # description string indicated by a colon + space and then the description.
+    if self.descriptions and 'PromiseValue' in self.descriptions:
+      name_and_description = self.descriptions['PromiseValue'].split(': ', 1)
+      self.properties['name'] = name_and_description.pop(0)
+      # We only add the promise value description if one was included in the
+      # comment after the name.
+      if name_and_description:
+        self.properties['description'] = name_and_description.pop()
     return self.properties
 
 
@@ -467,12 +513,19 @@ class Operation:
     self.node = node
 
   def process(self) -> dict:
-    properties = OrderedDict()
+    properties = {}
     properties['name'] = self.node.GetName()
+    properties['type'] = 'function'
 
     description_data = ProcessNodeDescription(self.node)
     if (description_data.description):
       properties['description'] = description_data.description
+
+    callback_optional = True
+    for extended_attribute in GetExtendedAttributes(self.node):
+      attribute_name = extended_attribute.GetName()
+      if attribute_name == 'requiredCallback':
+        callback_optional = False
 
     parameters = []
     arguments_node = self.node.GetOneOf('Arguments')
@@ -483,13 +536,28 @@ class Operation:
     properties['parameters'] = parameters
 
     # Return type processing.
-    return_type = FunctionReturn(self.node).Process()
+    return_type = FunctionReturn(
+        self.node, description_data.parameter_descriptions).Process()
     if 'type' in return_type and return_type['type'] is UndefinedType:
       # This is an Undefined return, so we don't add anything.
       pass
-    elif 'type' in return_type and return_type['type'] == 'promise':
+    # If no type was specified but there is a parameters property, we can infer
+    # this is a promise definition for an asynchronous return.
+    elif 'type' not in return_type and 'parameters' in return_type:
+      # TODO(tjudkins): The optionality of the callback is only relevant for
+      # contexts that don't support promise based calls and for the few
+      # functions which don't support promise based calls, as the callback is
+      # always inherently optional when using a promise based call instead. It
+      # would be nice to just get rid of the 'optional' property here and always
+      # treat it as optional when we remove the context restrictions for promise
+      # based calls.
+      if callback_optional:
+        return_type['optional'] = True
       # For legacy reasons Promise based returns are represented on a
       # "returns_async" property.
+      # TODO(crbug.com/428187556): Once we've migrated schemas to WebIDL, we
+      # should be able to just use the 'returns' field with 'type' = 'promise'
+      # instead of the 'returns_async' property.
       properties['returns_async'] = return_type
     else:
       # Otherwise this is a typed return using either the 'type' key or '$ref'
@@ -523,6 +591,38 @@ class Dictionary:
         'properties': properties,
         'type': 'object'
     }
+    return result
+
+
+class Enum:
+  """Represents an API enum and processes the details of it.
+
+  Given an IDLNode of class Enum, converts it into a Python dictionary
+  representing an enumeration for the API.
+
+  Attributes:
+    node: The IDLNode for the Enum definition that represents this type.
+  """
+
+  def __init__(self, node: IDLNode) -> None:
+    self.node = node
+
+  def process(self) -> dict:
+    enum = []
+    for enum_item in self.node.GetListOf('EnumItem'):
+      enum_value = {'name': enum_item.GetName()}
+      value_description = ProcessNodeDescription(enum_item).description
+      if value_description:
+        enum_value['description'] = value_description
+      enum.append(enum_value)
+    result = {
+        'id': self.node.GetName(),
+        'description': ProcessNodeDescription(self.node).description,
+        'type': 'string',
+        'enum': enum
+    }
+    # TODO(crbug.com/340297705): Add support for deprecated and nodoc extended
+    # attributes on the whole enum.
     return result
 
 
@@ -670,6 +770,10 @@ class Namespace:
     # are found on the parent node of the API Interface definition.
     for node in self.namespace.GetParent().GetListOf('Dictionary'):
       types.append(Dictionary(node).process())
+
+    # Enums are also defined at the top level of the IDL file.
+    for node in self.namespace.GetParent().GetListOf('Enum'):
+      types.append(Enum(node).process())
 
     # Events are defined as Attributes on the API Interface definition, which
     # use types that are defined as Interfaces on the top level of the IDL file.

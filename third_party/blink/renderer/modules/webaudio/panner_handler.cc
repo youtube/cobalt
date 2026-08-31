@@ -128,7 +128,12 @@ void PannerHandler::ProcessIfNecessary(uint32_t frames_to_process) {
           // to the downstream nodes.  (For example, a Gain node with a gain of
           // 0 will want to silence its output.)
           UnsilenceOutputs();
+          base::TimeTicks process_start_time = base::TimeTicks::Now();
           Process(frames_to_process);
+          base::TimeDelta process_duration =
+              base::TimeTicks::Now() - process_start_time;
+          uma_reporter_->AddProcessDuration(process_duration,
+                                            frames_to_process);
         }
       } else {
         // We must be in the middle of changing the properties of the panner.
@@ -226,12 +231,12 @@ void PannerHandler::ProcessSampleAccurateValues(AudioBus* destination,
   CHECK_EQ(render_quantum_frames, render_quantum_frames_expected);
   CHECK_LE(frames_to_process, render_quantum_frames_expected);
 
-  float panner_x[render_quantum_frames_expected];
-  float panner_y[render_quantum_frames_expected];
-  float panner_z[render_quantum_frames_expected];
-  float orientation_x[render_quantum_frames_expected];
-  float orientation_y[render_quantum_frames_expected];
-  float orientation_z[render_quantum_frames_expected];
+  std::array<float, render_quantum_frames_expected> panner_x;
+  std::array<float, render_quantum_frames_expected> panner_y;
+  std::array<float, render_quantum_frames_expected> panner_z;
+  std::array<float, render_quantum_frames_expected> orientation_x;
+  std::array<float, render_quantum_frames_expected> orientation_y;
+  std::array<float, render_quantum_frames_expected> orientation_z;
   std::array<double, render_quantum_frames_expected> azimuth;
   std::array<double, render_quantum_frames_expected> elevation;
   float total_gain[render_quantum_frames_expected];
@@ -532,9 +537,9 @@ void PannerHandler::SetPosition(float x,
 
   double now = Context()->currentTime();
 
-  position_x_->Timeline().SetValueAtTime(x, now, exceptionState);
-  position_y_->Timeline().SetValueAtTime(y, now, exceptionState);
-  position_z_->Timeline().SetValueAtTime(z, now, exceptionState);
+  position_x_->SetValueAtTime(x, now, exceptionState);
+  position_y_->SetValueAtTime(y, now, exceptionState);
+  position_z_->SetValueAtTime(z, now, exceptionState);
 
   MarkPannerAsDirty(PannerHandler::kAzimuthElevationDirty |
                     PannerHandler::kDistanceConeGainDirty);
@@ -549,9 +554,9 @@ void PannerHandler::SetOrientation(float x,
 
   double now = Context()->currentTime();
 
-  orientation_x_->Timeline().SetValueAtTime(x, now, exceptionState);
-  orientation_y_->Timeline().SetValueAtTime(y, now, exceptionState);
-  orientation_z_->Timeline().SetValueAtTime(z, now, exceptionState);
+  orientation_x_->SetValueAtTime(x, now, exceptionState);
+  orientation_y_->SetValueAtTime(y, now, exceptionState);
+  orientation_z_->SetValueAtTime(z, now, exceptionState);
 
   MarkPannerAsDirty(PannerHandler::kDistanceConeGainDirty);
 }

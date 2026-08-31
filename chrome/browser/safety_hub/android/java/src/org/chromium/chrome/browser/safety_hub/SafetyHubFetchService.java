@@ -48,11 +48,12 @@ public class SafetyHubFetchService implements SigninManager.SignInStateObserver,
                 notifyUpdateStatusChanged();
             };
 
-    /*
+    /**
      * The current state of updates for Chrome. This can change during runtime and may be {@code
      * null} if the status hasn't been determined yet.
      */
     private UpdateStatusProvider.@Nullable UpdateStatus mUpdateStatus;
+
     private final ObserverList<Observer> mObservers = new ObserverList<>();
     private final @Nullable SigninManager mSigninManager;
 
@@ -230,6 +231,25 @@ public class SafetyHubFetchService implements SigninManager.SignInStateObserver,
                 (errorOccurred) -> notifyLocalPasswordCountsChanged();
 
         mLocalPasswordsFetchService.fetchPasswordsCount(onFinishedFetchCallback);
+    }
+
+    /**
+     * Triggers a call to GMSCore to perform the account-level password checks in the background.
+     * {@link notifyAccountPasswordCountsChanged} is triggered when all calls to GMSCore have
+     * returned.
+     *
+     * @return {@code true} if the checkup will be performed by GMSCore. Otherwise, returns {@code
+     *     false}, e.g. when the last checkup results are within the cool down period.
+     */
+    public boolean runAccountPasswordCheckup() {
+        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.SAFETY_HUB_UNIFIED_PASSWORDS_MODULE)) {
+            return false;
+        }
+
+        Callback<Boolean> onCheckupFinishedCallback =
+                (errorOccurred) -> notifyAccountPasswordCountsChanged();
+
+        return mAccountPasswordsFetchService.runPasswordCheckup(onCheckupFinishedCallback);
     }
 
     /**

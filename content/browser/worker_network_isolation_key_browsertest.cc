@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/feature_list.h"
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/values.h"
 #include "build/build_config.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_paths.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -19,18 +22,14 @@
 #include "net/base/features.h"
 #include "net/dns/mock_host_resolver.h"
 #include "services/network/public/cpp/features.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace content {
 
 namespace {
 
 bool SupportsSharedWorker() {
-#if BUILDFLAG(IS_ANDROID)
-  // SharedWorkers are not enabled on Android. https://crbug.com/154571
-  return false;
-#else
-  return true;
-#endif
+  return base::FeatureList::IsEnabled(blink::features::kSharedWorker);
 }
 
 }  // namespace
@@ -96,7 +95,7 @@ class WorkerNetworkIsolationKeyBrowserTest : public ContentBrowserTest {
     EvalJsResult result = EvalJs(
         shell()->web_contents()->GetPrimaryMainFrame(),
         JsReplace("createFrame($1, $2)", subframe_url.spec(), subframe_name));
-    DCHECK(result.error.empty());
+    DCHECK(result.is_ok());
     navigation_observer.Wait();
 
     RenderFrameHost* subframe_rfh = FrameMatchingPredicate(
@@ -129,9 +128,10 @@ class WorkerNetworkIsolationKeyBrowserTest : public ContentBrowserTest {
                                    "{\"updateViaCache\": \"all\"}")));
         break;
       case WorkerType::kSharedWorker:
-        EXPECT_EQ(nullptr, EvalJs(subframe_rfh,
-                                  JsReplace("let worker = new SharedWorker($1)",
-                                            main_script_file_with_param)));
+        EXPECT_EQ(
+            base::Value(),
+            EvalJs(subframe_rfh, JsReplace("let worker = new SharedWorker($1)",
+                                           main_script_file_with_param)));
         break;
     }
   }

@@ -28,13 +28,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include <array>
 
+#include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
@@ -60,6 +56,7 @@
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
+#include "third_party/blink/renderer/platform/wtf/ref_counted.h"
 #include "v8/include/cppgc/internal/api-constants.h"
 
 namespace blink {
@@ -68,7 +65,7 @@ namespace {
 
 class HeapTest : public TestSupportingGC {
 #if DCHECK_IS_ON()
-  void TearDown() override { WTF::SetIsBeforeThreadCreatedForTest(); }
+  void TearDown() override { SetIsBeforeThreadCreatedForTest(); }
 #endif
 };
 
@@ -89,7 +86,7 @@ class IntWrapper : public GarbageCollected<IntWrapper> {
     return other.Value() == Value();
   }
 
-  unsigned GetHash() { return WTF::GetHash(x_); }
+  unsigned GetHash() { return blink::GetHash(x_); }
 
   IntWrapper(int x) : x_(x) {}
 
@@ -101,20 +98,19 @@ std::atomic_int IntWrapper::destructor_calls_{0};
 
 struct IntWrapperHashTraits : GenericHashTraits<IntWrapper> {
   static unsigned GetHash(const IntWrapper& key) {
-    return WTF::HashInt(static_cast<uint32_t>(key.Value()));
+    return HashInt(static_cast<uint32_t>(key.Value()));
   }
 };
 
-static_assert(WTF::IsTraceable<IntWrapper>::value,
+static_assert(IsTraceableV<IntWrapper>,
               "IsTraceable<> template failed to recognize trace method.");
-static_assert(WTF::IsTraceable<HeapVector<IntWrapper>>::value,
+static_assert(IsTraceableV<HeapVector<IntWrapper>>,
               "HeapVector<IntWrapper> must be traceable.");
-static_assert(WTF::IsTraceable<HeapDeque<IntWrapper>>::value,
+static_assert(IsTraceableV<HeapDeque<IntWrapper>>,
               "HeapDeque<IntWrapper> must be traceable.");
-static_assert(
-    WTF::IsTraceable<HeapHashSet<IntWrapper, IntWrapperHashTraits>>::value,
-    "HeapHashSet<IntWrapper> must be traceable.");
-static_assert(WTF::IsTraceable<HeapHashMap<int, Member<IntWrapper>>>::value,
+static_assert(IsTraceableV<HeapHashSet<IntWrapper, IntWrapperHashTraits>>,
+              "HeapHashSet<IntWrapper> must be traceable.");
+static_assert(IsTraceableV<HeapHashMap<int, Member<IntWrapper>>>,
               "HeapHashMap<int, IntWrapper> must be traceable.");
 
 }  // namespace
@@ -469,7 +465,7 @@ class ThreadMarker {
   ThreadMarker() : creating_thread_(reinterpret_cast<ThreadState*>(0)) {}
   explicit ThreadMarker(unsigned i)
       : creating_thread_(ThreadState::Current()), num_(i) {}
-  explicit ThreadMarker(WTF::HashTableDeletedValueType deleted)
+  explicit ThreadMarker(HashTableDeletedValueType deleted)
       : creating_thread_(reinterpret_cast<ThreadState*>(-1)) {}
   ~ThreadMarker() {
     EXPECT_TRUE((creating_thread_ == ThreadState::Current()) ||
@@ -487,24 +483,15 @@ class ThreadMarker {
 };
 }  // namespace
 
-}  // namespace blink
-
-namespace WTF {
-
 // ThreadMarkerHash is the default hash for ThreadMarker
 template <>
-struct HashTraits<blink::ThreadMarker>
-    : SimpleClassHashTraits<blink::ThreadMarker> {
-  static unsigned GetHash(const blink::ThreadMarker& key) {
+struct HashTraits<ThreadMarker> : SimpleClassHashTraits<ThreadMarker> {
+  static unsigned GetHash(const ThreadMarker& key) {
     return static_cast<unsigned>(
         reinterpret_cast<uintptr_t>(key.creating_thread_) + key.num_);
   }
   static constexpr bool kSafeToCompareToEmptyOrDeleted = false;
 };
-
-}  // namespace WTF
-
-namespace blink {
 
 namespace {
 class ThreadedWeaknessTester : public ThreadedTesterBase {
@@ -1663,7 +1650,7 @@ class ThingWithDestructor {
 
   static int live_things_with_destructor_;
 
-  unsigned GetHash() { return WTF::GetHash(x_); }
+  unsigned GetHash() { return blink::GetHash(x_); }
 
  private:
   static const int kEmptyValue = 0;
@@ -2162,9 +2149,9 @@ TEST_F(HeapTest, CollectionNesting) {
       MakeGarbageCollected<GCedHeapHashMap<void*, Member<IntVector>>>();
   GCedHeapHashMap<void*, Member<IntDeque>>* map2 =
       MakeGarbageCollected<GCedHeapHashMap<void*, Member<IntDeque>>>();
-  static_assert(WTF::IsTraceable<IntVector>::value,
+  static_assert(IsTraceableV<IntVector>,
                 "Failed to recognize HeapVector as traceable");
-  static_assert(WTF::IsTraceable<IntDeque>::value,
+  static_assert(IsTraceableV<IntDeque>,
                 "Failed to recognize HeapDeque as traceable");
 
   map->insert(key, MakeGarbageCollected<IntVector>());
@@ -2186,8 +2173,8 @@ TEST_F(HeapTest, CollectionNesting) {
   Persistent<GCedHeapHashMap<void*, Member<IntDeque>>> keep_alive2(map2);
 
   for (int i = 0; i < 100; i++) {
-    map->insert(key + 1 + i, MakeGarbageCollected<IntVector>());
-    map2->insert(key + 1 + i, MakeGarbageCollected<IntDeque>());
+    map->insert(UNSAFE_TODO(key + 1 + i), MakeGarbageCollected<IntVector>());
+    map2->insert(UNSAFE_TODO(key + 1 + i), MakeGarbageCollected<IntDeque>());
   }
 
   PreciselyCollectGarbage();
@@ -2564,9 +2551,10 @@ class Mixin : public GarbageCollectedMixin {
 class UseMixin : public SimpleObject, public Mixin {
  public:
   UseMixin() {
-    // Verify that WTF::IsGarbageCollectedType<> works as expected for mixins.
-    static_assert(WTF::IsGarbageCollectedType<UseMixin>::value,
-                  "IsGarbageCollectedType<> sanity check failed for GC mixin.");
+    // Verify that IsGarbageCollectedTypeV<> works as expected for mixins.
+    static_assert(
+        IsGarbageCollectedTypeV<UseMixin>,
+        "IsGarbageCollectedTypeV<> sanity check failed for GC mixin.");
     trace_count_ = 0;
   }
 
@@ -2617,7 +2605,7 @@ class OffHeapInt : public RefCounted<OffHeapInt> {
     return other.Value() == Value();
   }
 
-  unsigned GetHash() { return WTF::GetHash(x_); }
+  unsigned GetHash() { return blink::GetHash(x_); }
   void VoidFunction() {}
 
   OffHeapInt() = delete;
@@ -3136,7 +3124,7 @@ class KeyWithCopyingMoveConstructor final {
   unsigned GetHash() const { return hash_; }
 
   KeyWithCopyingMoveConstructor() = default;
-  explicit KeyWithCopyingMoveConstructor(WTF::HashTableDeletedValueType)
+  explicit KeyWithCopyingMoveConstructor(HashTableDeletedValueType)
       : hash_(-1) {}
   ~KeyWithCopyingMoveConstructor() = default;
   KeyWithCopyingMoveConstructor(unsigned hash, const String& string)
@@ -3162,17 +3150,9 @@ class KeyWithCopyingMoveConstructor final {
 };
 }  // namespace
 
-}  // namespace blink
-
-namespace WTF {
-
 template <>
-struct HashTraits<blink::KeyWithCopyingMoveConstructor>
-    : public SimpleClassHashTraits<blink::KeyWithCopyingMoveConstructor> {};
-
-}  // namespace WTF
-
-namespace blink {
+struct HashTraits<KeyWithCopyingMoveConstructor>
+    : public SimpleClassHashTraits<KeyWithCopyingMoveConstructor> {};
 
 TEST_F(HeapTest, HeapHashMapCallsDestructor) {
   String string = "string";

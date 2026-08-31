@@ -42,6 +42,7 @@ cargo_crate("lib") {
   cargo_pkg_authors = "Erick Tryzelaar <erick.tryzelaar@gmail.com>, David Tolnay <dtolnay@gmail.com>"
   cargo_pkg_name = "serde"
   cargo_pkg_description = "A generic serialization/deserialization framework"
+  cargo_pkg_repository = "https://github.com/serde-rs/serde"
   cargo_pkg_version = "1.0.219"
 
   allow_unsafe = true
@@ -57,11 +58,6 @@ cargo_crate("lib") {
   build_root = "//third_party/rust/chromium_crates_io/vendor/serde-v1/build.rs"
   build_sources =
       [ "//third_party/rust/chromium_crates_io/vendor/serde-v1/build.rs" ]
-
-  # Only for usage from third-party crates. Add the crate to
-  # //third_party/rust/chromium_crates_io/Cargo.toml to use
-  # it from first-party code.
-  visibility = [ "//third_party/rust/*" ]
 
   #####################################################################
   # Tweaking which GN `config`s apply to this target.

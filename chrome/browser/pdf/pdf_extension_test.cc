@@ -49,7 +49,6 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/zoom/chrome_zoom_level_prefs.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
@@ -87,6 +86,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/context_menu_interceptor.h"
+#include "content/public/test/download_test_observer.h"
 #include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/hit_test_region_observer.h"
 #include "content/public/test/prerender_test_util.h"
@@ -1162,6 +1162,33 @@ IN_PROC_BROWSER_TEST_P(PDFExtensionTest, IsContentsMimeTypePdfFullPagePdf) {
   // Verify that MIME type associated with full-page PDF `WebContents` is
   // `application/pdf`.
   EXPECT_EQ(pdf::kPDFMimeType, GetEmbedderWebContents()->GetContentsMimeType());
+}
+
+// Test that a sandboxed iframe navigation to a PDF with a Content-Disposition:
+// attachment header will successfully download.
+IN_PROC_BROWSER_TEST_P(PDFExtensionTest,
+                       SandboxedPdfIframeNavigationDownloads) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/empty.html")));
+
+  content::DownloadTestObserverTerminal download_observer(
+      browser()->profile()->GetDownloadManager(), /*wait_count=*/1,
+      content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
+  const GURL pdf_download_url(embedded_test_server()->GetURL(
+      "/set-header-with-file/chrome/test/data/pdf/test.pdf?"
+      "Content-Disposition: attachment"));
+  ASSERT_TRUE(content::ExecJs(
+      GetActiveWebContents(),
+      content::JsReplace("let e = document.createElement('iframe');"
+                         "e.src = $1;"
+                         "e.type = 'application/pdf';"
+                         "e.setAttribute('sandbox', 'allow-downloads');"
+                         "document.body.appendChild(e);",
+                         pdf_download_url)));
+
+  // The test will timeout if it fails to download the PDF.
+  download_observer.WaitForFinished();
+  EXPECT_EQ(0, CountPDFProcesses());
 }
 
 // Tests that PDF MIME type is set for full-page PDF `WebContents` with MIME
@@ -2241,7 +2268,7 @@ class PDFExtensionSaveTest : public PDFExtensionComboBoxTest {
         "var viewer = document.getElementById('viewer');"
         "var toolbar = viewer.shadowRoot.getElementById('toolbar');"
         "var downloads = toolbar.shadowRoot.getElementById('downloads');"
-        "downloads.shadowRoot.getElementById('download-edited').click();"));
+        "downloads.shadowRoot.getElementById('save-edited').click();"));
   }
 
   void WaitForSavedPdf(const base::FilePath& path) {
@@ -3600,8 +3627,7 @@ IN_PROC_BROWSER_TEST_F(PDFExtensionTestWithoutOopifOverride,
   // objects and the rest of the browser process and appears to be unsupported
   // in tests.
   chrome::CloseWindow(incognito);
-  BrowserView* incognito_view = static_cast<BrowserView*>(incognito->window());
-  incognito_view->DestroyBrowser();
+  incognito->SynchronouslyDestroyBrowser();
 
   // The test succeeds if it doesn't crash when the posted PDF task attempts to
   // run (the task should be canceled/ignored), so wait for this to happen.
@@ -4373,9 +4399,7 @@ IN_PROC_BROWSER_TEST_F(PDFExtensionOopifTest,
   // The `content::WebContents` needs to be deleted before the browser can be
   // destroyed.
   incognito->tab_strip_model()->DetachAndDeleteWebContentsAt(0);
-
-  BrowserView* incognito_view = static_cast<BrowserView*>(incognito->window());
-  incognito_view->DestroyBrowser();
+  incognito->SynchronouslyDestroyBrowser();
 
   // The test succeeds if it doesn't crash when the posted PDF task attempts to
   // run (the task should be canceled/ignored), so wait for this to happen.
@@ -4451,8 +4475,7 @@ IN_PROC_BROWSER_TEST_F(PDFExtensionOopifTest,
           embedder_host,
           "window.getComputedStyle(document.body).getPropertyValue('margin')")
           .ExtractString();
-  // TODO(crbug.com/343754409): Margin should be 0px.
-  EXPECT_EQ("8px", embedder_margin);
+  EXPECT_EQ("0px", embedder_margin);
 }
 
 class PDFExtensionOopifBlockPdfFrameNavigationTest

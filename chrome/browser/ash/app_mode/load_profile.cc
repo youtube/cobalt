@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/sequence_checker.h"
 #include "base/syslog_logging.h"
@@ -129,8 +130,7 @@ class SigninPerformer : public LoginPerformer::Delegate, public CancellableJob {
         handle->login_performer_->LoginAsIwaKioskAccount(account_id);
         break;
       case KioskAppType::kArcvmApp:
-        // TODO(crbug.com/388602323): Add profile load and login.
-        NOTIMPLEMENTED();
+        handle->login_performer_->LoginAsArcvmKioskAccount(account_id);
         break;
     }
 

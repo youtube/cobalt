@@ -32,6 +32,7 @@ public class SiteSettingsUtil {
         ContentSettingsType.NOTIFICATIONS,
         ContentSettingsType.JAVASCRIPT,
         ContentSettingsType.POPUPS,
+        ContentSettingsType.WINDOW_MANAGEMENT,
         ContentSettingsType.ADS,
         ContentSettingsType.BACKGROUND_SYNC,
         ContentSettingsType.AUTOMATIC_DOWNLOADS,
@@ -51,6 +52,7 @@ public class SiteSettingsUtil {
         ContentSettingsType.AUTO_DARK_WEB_CONTENT,
         ContentSettingsType.REQUEST_DESKTOP_SITE,
         ContentSettingsType.JAVASCRIPT_OPTIMIZER,
+        ContentSettingsType.LOCAL_NETWORK_ACCESS,
     };
 
     static final int[] CHOOSER_PERMISSIONS = {

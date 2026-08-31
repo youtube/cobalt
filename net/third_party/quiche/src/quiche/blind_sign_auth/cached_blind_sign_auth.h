@@ -50,6 +50,17 @@ class QUICHE_EXPORT CachedBlindSignAuth : public BlindSignAuthInterface {
     cached_tokens_.clear();
   }
 
+  // Returns an attestation challenge in a callback.
+  // GetAttestationTokens callbacks will run on the same thread as the
+  // BlindSignMessageInterface callbacks.
+  // Callers can make multiple concurrent requests to GetTokens.
+  // ProxyLayer must be either ProxyB or TerminalLayer, NOT ProxyA.
+  // AttestationDataCallback should call AttestAndSign with a separate callback
+  // in order to complete the token issuance protocol.
+  void GetAttestationTokens(int num_tokens, ProxyLayer layer,
+                            AttestationDataCallback callback,
+                            SignedTokenCallback token_callback) override;
+
  private:
   void HandleGetTokensResponse(
       SignedTokenCallback callback, int num_tokens,

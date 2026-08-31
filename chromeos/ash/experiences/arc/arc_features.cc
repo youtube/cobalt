@@ -267,16 +267,6 @@ BASE_FEATURE(kResizeCompat,
              "ArcResizeCompat",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kRoundedWindowCompat,
-             "ArcRoundedWindowCompat",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-const char kRoundedWindowCompatStrategy[] = "RoundedWindowCompatStrategy";
-// The following values must be matched with `RoundedWindowCompatStrategy` enum
-// defined in //chromeos/ash/experiences/arc/mojom/chrome_feature_flags.mojom.
-const char kRoundedWindowCompatStrategy_BottomOnlyGesture[] = "1";
-const char kRoundedWindowCompatStrategy_LeftRightBottomGesture[] = "2";
-
 // Controls ARCVM real time vcpu feature on a device with 2 logical cores
 // online.
 // When you change the default, you also need to change the chromeExtraAgas
@@ -330,6 +320,11 @@ BASE_FEATURE(kUnthrottleOnActiveAudioV2,
 BASE_FEATURE(kVideoDecoder,
              "ArcVideoDecoder",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether ARC uses MappableSharedImage for video encoding.
+BASE_FEATURE(kVideoEncodeUseMappableSI,
+             "VideoEncodeUseMappableSI",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Feature to continuously log PSI memory pressure data to Chrome.
 BASE_FEATURE(kVmMemoryPSIReports,

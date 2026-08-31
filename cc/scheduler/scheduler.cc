@@ -14,6 +14,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/rand_util.h"
 #include "base/task/delay_policy.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -24,6 +25,7 @@
 #include "cc/metrics/begin_main_frame_metrics.h"
 #include "cc/metrics/compositor_frame_reporting_controller.h"
 #include "cc/metrics/compositor_timing_history.h"
+#include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/delay_based_time_source.h"
 #include "services/tracing/public/cpp/perfetto/macros.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_compositor_scheduler_state.pbzero.h"
@@ -67,6 +69,14 @@ Scheduler::Scheduler(
 
 Scheduler::~Scheduler() {
   SetBeginFrameSource(nullptr);
+}
+
+void Scheduler::TearDown() {
+  DCHECK(stopped_);
+
+  // CFRC is owned by the LayerTreeHostImpl, which gets destroyed before the
+  // scheduler. Must clear it to avoid a dangling ptr.
+  compositor_frame_reporting_controller_ = nullptr;
 }
 
 void Scheduler::Stop() {
@@ -189,16 +199,21 @@ void Scheduler::DidSubmitCompositorFrame(SubmitInfo& submit_info) {
 }
 
 void Scheduler::DidReceiveCompositorFrameAck() {
-  DCHECK_GT(state_machine_.pending_submit_frames(), 0);
+  if (base::FeatureList::IsEnabled(features::kNoCompositorFrameAcks)) {
+    NOTREACHED();
+  } else {
+    DCHECK_GT(state_machine_.pending_submit_frames(), 0);
+  }
   state_machine_.DidReceiveCompositorFrameAck();
   ProcessScheduledActions();
 }
 
 void Scheduler::SetTreePrioritiesAndScrollState(
     TreePriority tree_priority,
-    ScrollHandlerState scroll_handler_state) {
-  state_machine_.SetTreePrioritiesAndScrollState(tree_priority,
-                                                 scroll_handler_state);
+    ScrollHandlerState scroll_handler_state,
+    bool is_current_scroll_main_painted) {
+  state_machine_.SetTreePrioritiesAndScrollState(
+      tree_priority, scroll_handler_state, is_current_scroll_main_painted);
   ProcessScheduledActions();
 }
 
@@ -601,8 +616,13 @@ void Scheduler::BeginImplFrameSynchronous(const viz::BeginFrameArgs& args) {
   BeginImplFrame(adjusted_args, Now());
   compositor_timing_history_->WillFinishImplFrame(
       state_machine_.needs_redraw());
+  bool waiting_for_main =
+      !(deadline_mode_ ==
+            SchedulerStateMachine::BeginImplFrameDeadlineMode::IMMEDIATE ||
+        deadline_mode_ ==
+            SchedulerStateMachine::BeginImplFrameDeadlineMode::WAIT_FOR_SCROLL);
   compositor_frame_reporting_controller_->OnFinishImplFrame(
-      adjusted_args.frame_id);
+      adjusted_args.frame_id, waiting_for_main);
   // Delay the call to |FinishFrame()| if a draw is anticipated, so that it is
   // called after the draw happens (in |OnDrawForLayerTreeFrameSink()|).
   needs_finish_frame_for_synchronous_compositor_ = true;
@@ -690,7 +710,8 @@ void Scheduler::BeginImplFrame(const viz::BeginFrameArgs& args,
 
     begin_impl_frame_tracker_.Start(args);
     state_machine_.OnBeginImplFrame(args);
-    compositor_frame_reporting_controller_->WillBeginImplFrame(args);
+    compositor_frame_reporting_controller_->WillBeginImplFrame(
+        args, state_machine_.ShouldThrottleSendBeginMainFrame());
     bool has_damage =
         client_->WillBeginImplFrame(begin_impl_frame_tracker_.Current());
 
@@ -771,6 +792,10 @@ void Scheduler::ScheduleBeginImplFrameDeadline() {
                  SchedulerStateMachine::BeginImplFrameDeadlineModeToString(
                      deadline_mode_));
     deadline_ = new_deadline;
+    if (base::ShouldRecordSubsampledMetric(0.001)) {
+      UMA_HISTOGRAM_ENUMERATION("Compositing.Scheduler.DeadlineMode",
+                                deadline_mode_);
+    }
     static const unsigned char* debug_tracing_enabled =
         TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
             TRACE_DISABLED_BY_DEFAULT("cc.debug.scheduler"));
@@ -799,8 +824,13 @@ void Scheduler::OnBeginImplFrameDeadline() {
     if (!settings_.using_synchronous_renderer_compositor) {
       compositor_timing_history_->WillFinishImplFrame(
           state_machine_.needs_redraw());
+      bool waiting_for_main =
+          !(deadline_mode_ ==
+                SchedulerStateMachine::BeginImplFrameDeadlineMode::IMMEDIATE ||
+            deadline_mode_ == SchedulerStateMachine::
+                                  BeginImplFrameDeadlineMode::WAIT_FOR_SCROLL);
       compositor_frame_reporting_controller_->OnFinishImplFrame(
-          begin_main_frame_args_.frame_id);
+          begin_main_frame_args_.frame_id, waiting_for_main);
     }
 
     state_machine_.OnBeginImplFrameDeadline();

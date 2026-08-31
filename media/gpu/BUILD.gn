@@ -21,6 +21,7 @@ buildflag_header("buildflags") {
   header = "buildflags.h"
 
   flags = [
+    "USE_AV1_HW_DECODER=$use_av1_hw_decoder",
     "USE_VAAPI=$use_vaapi",
     "USE_VAAPI_IMAGE_CODECS=$use_vaapi_image_codecs",
     "USE_V4L2_CODEC=$use_v4l2_codec",
@@ -51,6 +52,7 @@ component("gpu") {
     "//content/gpu:*",
     "//content/renderer:*",
     "//media/audio:unit_tests",
+    "//media/gpu/fuzzers/av1_builder/*",
     "//media/gpu/ipc/*",
     "//media/gpu/test/*",
     "//media/gpu/vaapi/*",
@@ -96,7 +98,6 @@ component("gpu") {
     ":command_buffer_helper",
     ":common",
     "//base",
-    "//gpu",
     "//media",
     "//third_party/angle:includes",
     "//ui/gfx/geometry",
@@ -194,11 +195,11 @@ component("gpu") {
       # TODO(crbug.com/40552063): This can be removed once CdmManager is removed.
       "//gpu/ipc/common",
       "//media/mojo:buildflags",
-      "//services/service_manager/public/cpp:cpp",
+      "//services/service_manager/public/cpp",
       "//third_party/libgav1:libgav1_parser",
     ]
     if (enable_vulkan) {
-      deps += [ "//gpu/vulkan:vulkan" ]
+      deps += [ "//gpu/vulkan" ]
     }
   }
 
@@ -323,7 +324,7 @@ component("gpu") {
       ]
     }
     deps += [
-      "//gpu/ipc/common:common",
+      "//gpu/ipc/common",
       "//media/base/win:color_space_util_win",
       "//third_party/angle:includes",
       "//third_party/libaom:libaomrc",
@@ -621,7 +622,7 @@ source_set("android_video_decode_accelerator_unittests") {
       "//media:test_support",
       "//testing/gmock",
       "//testing/gtest",
-      "//third_party/libyuv:libyuv",
+      "//third_party/libyuv",
       "//ui/gl",
       "//ui/gl/init",
     ]
@@ -722,7 +723,10 @@ source_set("unit_tests") {
     ]
 
     if (enable_hevc_parser_and_hw_decoder) {
-      sources += [ "windows/d3d12_video_encode_h265_delegate_unittest.cc" ]
+      sources += [
+        "h265_builder_unittest.cc",
+        "windows/d3d12_video_encode_h265_delegate_unittest.cc",
+      ]
     }
   }
 
@@ -737,6 +741,10 @@ source_set("unit_tests") {
       "svc_layers_unittest.cc",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (enable_hevc_parser_and_hw_decoder) {
@@ -793,4 +801,11 @@ fuzzer_test("media_vp9_decoder_fuzzer") {
     "//media:test_support",
   ]
   seed_corpuses = [ "//media/test/data" ]
+}
+
+if (is_win || use_vaapi) {
+  group("stream_builder_fuzzers") {
+    testonly = true
+    public_deps = [ "//media/gpu/fuzzers/av1_builder:av1_builder_fuzzer" ]
+  }
 }

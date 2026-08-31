@@ -90,11 +90,21 @@ class MostVisitedSites :
 #endif
     public history::TopSitesObserver {
  public:
+  // LINT.IfChange(kInvalidSuggestionScore)
+  // Value to indicate that a site suggestion score is unavailable.
+  static constexpr double kInvalidSuggestionScore = -1.0;
+  // LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/suggestions/mostvisited/MostVisitedSites.java)
+
   // The observer to be notified when the list of most visited sites changes.
   class Observer : public base::CheckedObserver {
    public:
+    // |is_user_triggered| specifies whether the event is caused by direct user
+    // action in MV tiles. The UI can use this to decide whether MV tile updates
+    // (in multiple NTPs) should be eager (for responsiveness) or deferred (for
+    // tile stability).
     // |sections| must at least contain the PERSONALIZED section.
     virtual void OnURLsAvailable(
+        bool is_user_triggered,
         const std::map<SectionType, NTPTilesVector>& sections) = 0;
     virtual void OnIconMadeAvailable(const GURL& site_url) = 0;
   };
@@ -254,6 +264,13 @@ class MostVisitedSites :
   void OnURLFilterChanged() override;
 #endif
 
+  // Returns the score of a tile in |current_tiles_| identified by |url|, or
+  // |kInvalidSuggestionScore| if not found. Caveat: On startup,
+  // |current_tiles_| may store cached values, so returned score will be 0.0.
+  // In this case, the caller needs to be robust against 0.0, or first force a
+  // rebuild by calling RefreshTiles().
+  double GetSuggestionScore(const GURL& url) const;
+
   static void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry);
   static void ResetProfilePrefs(PrefService* prefs);
 
@@ -293,15 +310,16 @@ class MostVisitedSites :
   size_t GetMaxNumSites() const;
 
   // Initialize the query to Top Sites.
-  void InitiateTopSitesQuery();
+  void InitiateTopSitesQuery(bool is_user_triggered);
 
   // Callback for when data is available from TopSites.
   void OnMostVisitedURLsAvailable(
+      bool is_user_triggered,
       const history::MostVisitedURLList& visited_list);
 
   // Builds the current tileset based on available caches and notifies the
   // observer.
-  void BuildCurrentTiles();
+  void BuildCurrentTiles(bool is_user_triggered);
 
   // Creates tiles for all popular site sections. Uses |num_actual_tiles| and
   // |used_hosts| to restrict results for the PERSONALIZED section.
@@ -331,11 +349,13 @@ class MostVisitedSites :
 
   // Initiates a query for the homepage tile if needed and calls
   // |SaveTilesAndNotify| in the end.
-  void InitiateNotificationForNewTiles(NTPTilesVector new_tiles);
+  void InitiateNotificationForNewTiles(bool is_user_triggered,
+                                       NTPTilesVector new_tiles);
 
   // Takes the personal tiles and merges in popular tiles if appropriate. Calls
   // |SaveTilesAndNotify| at the end.
-  void MergeMostVisitedTiles(NTPTilesVector personal_tiles);
+  void MergeMostVisitedTiles(bool is_user_triggered,
+                             NTPTilesVector personal_tiles);
 
   // Removes pre installed apps which turn invalid because of migration.
   NTPTilesVector RemoveInvalidPreinstallApps(NTPTilesVector new_tiles);
@@ -346,7 +366,8 @@ class MostVisitedSites :
 
   // Saves the new tiles and notifies the observer if the tiles were actually
   // changed.
-  void SaveTilesAndNotify(NTPTilesVector new_tiles,
+  void SaveTilesAndNotify(bool is_user_triggered,
+                          NTPTilesVector new_tiles,
                           std::map<SectionType, NTPTilesVector> sections);
 
   void OnPopularSitesDownloaded(bool success);
@@ -365,7 +386,8 @@ class MostVisitedSites :
   NTPTilesVector InsertHomeTile(NTPTilesVector tiles,
                                 const std::u16string& title) const;
 
-  void OnHomepageTitleDetermined(NTPTilesVector tiles,
+  void OnHomepageTitleDetermined(bool is_user_triggered,
+                                 NTPTilesVector tiles,
                                  const std::optional<std::u16string>& title);
 
   // Returns true if there is a valid homepage that can be pinned as tile.

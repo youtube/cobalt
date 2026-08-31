@@ -14,6 +14,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "content/browser/renderer_host/navigation_throttle_runner.h"
 #include "content/public/browser/navigation_throttle.h"
 #include "content/public/browser/origin_trials_controller_delegate.h"
 #include "content/public/browser/ssl_status.h"
@@ -35,6 +36,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/navigation/navigation_params.h"
+#include "third_party/blink/public/common/navigation/navigation_params_mojom_traits.h"
 #include "third_party/blink/public/common/origin_trials/scoped_test_origin_trial_policy.h"
 #include "third_party/blink/public/common/runtime_feature_state/runtime_feature_state_context.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
@@ -164,7 +166,7 @@ class NavigationRequestTest : public RenderViewHostImplTestHarness {
   TestNavigationThrottle* CreateTestNavigationThrottle(
       NavigationThrottle::ThrottleCheckResult result) {
     TestNavigationThrottle* test_throttle = new TestNavigationThrottle(
-        *GetNavigationRequest()->GetNavigationThrottleRunnerForTesting());
+        *GetNavigationRequest()->GetNavigationThrottleRegistryForTesting());
     test_throttle->SetResponseForAllMethods(TestNavigationThrottle::SYNCHRONOUS,
                                             result);
     GetNavigationRequest()->RegisterThrottleForTesting(
@@ -572,8 +574,8 @@ class GetRenderFrameHostOnFailureNavigationThrottle
     : public NavigationThrottle {
  public:
   explicit GetRenderFrameHostOnFailureNavigationThrottle(
-      NavigationHandle* handle)
-      : NavigationThrottle(handle) {}
+      NavigationThrottleRegistry& registry)
+      : NavigationThrottle(registry) {}
 
   GetRenderFrameHostOnFailureNavigationThrottle(
       const GetRenderFrameHostOnFailureNavigationThrottle&) = delete;
@@ -597,7 +599,7 @@ class ThrottleTestContentBrowserClient : public ContentBrowserClient {
       NavigationThrottleRegistry& registry) override {
     registry.AddThrottle(
         std::make_unique<GetRenderFrameHostOnFailureNavigationThrottle>(
-            &registry.GetNavigationHandle()));
+            registry));
   }
 };
 
@@ -623,9 +625,11 @@ TEST_F(NavigationRequestTest, WillFailRequestCanAccessRenderFrameHost) {
       NavigationRequest::WILL_FAIL_REQUEST,
       NavigationRequest::From(navigation->GetNavigationHandle())->state());
   EXPECT_TRUE(navigation->GetNavigationHandle()->GetRenderFrameHost());
-  NavigationRequest::From(navigation->GetNavigationHandle())
-      ->GetNavigationThrottleRunnerForTesting()
-      ->CallResumeForTesting();
+  auto* registry = NavigationRequest::From(navigation->GetNavigationHandle())
+                       ->GetNavigationThrottleRegistryForTesting();
+  ASSERT_EQ(1u, registry->GetDeferringThrottles().size());
+  registry->ResumeProcessingNavigationEvent(
+      *registry->GetDeferringThrottles().cbegin());
   EXPECT_TRUE(navigation->GetNavigationHandle()->GetRenderFrameHost());
 
   SetBrowserClientForTesting(old_browser_client);
@@ -768,7 +772,7 @@ TEST_F(NavigationRequestTest, RuntimeFeatureStateStorageKey) {
 
   // This lambda performs the navigation and compares the commit_params'
   // StorageKey against the passed in one. If `disable_sp` is true then it will
-  // also enable the deprecation trial feature in the RFSC. It returns
+  // also enable the user bypass feature in the RFSC. It returns
   // the new TestRenderFrameHost* to the navigated frame.
   auto NavigateAndCompareKeys =
       [](NavigationSimulator* navigation, const blink::StorageKey& key,
@@ -780,7 +784,7 @@ TEST_F(NavigationRequestTest, RuntimeFeatureStateStorageKey) {
 
     if (disable_sp) {
       request->GetMutableRuntimeFeatureStateContext()
-          .SetDisableThirdPartyStoragePartitioning3Enabled(true);
+          .SetThirdPartyStoragePartitioningUserBypassEnabled(true);
     }
 
     navigation->ReadyToCommit();
@@ -925,6 +929,40 @@ TEST_F(NavigationRequestTest, UpdatePrivateNetworkRequestPolicy) {
       NavigationRequest::From(navigation->GetNavigationHandle());
   EXPECT_FALSE(request->GetSocketAddress().address().IsValid());
   navigation->Commit();
+}
+
+// Test to ensure that the SanitizeRedirectsForCommit method correctly removes
+// the query parameters parts of the URL that can contain sensitive information.
+TEST_F(NavigationRequestTest, SanitizeRedirectsForCommit) {
+  const GURL start_url("https://a.com?param=1");
+  const GURL url_2("https://b.com?param=2#foo");
+  const GURL url_3("https://c.com?param=3");
+  const GURL final_url("https://d.com?param=4");
+  std::unique_ptr<NavigationSimulator> navigation =
+      NavigationSimulator::CreateRendererInitiated(start_url, main_test_rfh());
+  navigation->Start();
+  navigation->Redirect(url_2);
+  navigation->Redirect(url_3);
+  navigation->Redirect(final_url);
+
+  NavigationRequest* request =
+      NavigationRequest::From(navigation->GetNavigationHandle());
+  auto commit_params = request->commit_params().Clone();
+  request->SanitizeRedirectsForCommit(commit_params);
+
+  // redirect_infos contains entries for B, C, and D, but not the starting URL.
+  // Ensure that the full URL for D is preserved.
+  EXPECT_EQ(3, commit_params->redirect_infos.size());
+  EXPECT_EQ(GURL("https://b.com"), commit_params->redirect_infos[0].new_url);
+  EXPECT_EQ(GURL("https://c.com"), commit_params->redirect_infos[1].new_url);
+  EXPECT_EQ(final_url, commit_params->redirect_infos[2].new_url);
+
+  // In contrast, redirects contains A, B, and C (i.e., the starting URL but not
+  // the final URL).
+  EXPECT_EQ(3, commit_params->redirects.size());
+  EXPECT_EQ(GURL("https://a.com"), commit_params->redirects[0]);
+  EXPECT_EQ(GURL("https://b.com"), commit_params->redirects[1]);
+  EXPECT_EQ(GURL("https://c.com"), commit_params->redirects[2]);
 }
 
 // Test that the required CSP of every frame is computed/inherited correctly and
@@ -1190,7 +1228,6 @@ class PersistentOriginTrialNavigationRequestTest
  public:
   PersistentOriginTrialNavigationRequestTest()
       : delegate_mock_(std::make_unique<OriginTrialsControllerDelegateMock>()) {
-
   }
   ~PersistentOriginTrialNavigationRequestTest() override = default;
 
@@ -1257,9 +1294,9 @@ class ResponseBodyNavigationThrottle : public NavigationThrottle {
  public:
   using ResponseBodyCallback = base::OnceCallback<void(const std::string&)>;
 
-  ResponseBodyNavigationThrottle(NavigationHandle* handle,
+  ResponseBodyNavigationThrottle(NavigationThrottleRegistry& registry,
                                  ResponseBodyCallback callback)
-      : NavigationThrottle(handle), callback_(std::move(callback)) {}
+      : NavigationThrottle(registry), callback_(std::move(callback)) {}
   ResponseBodyNavigationThrottle(const ResponseBodyNavigationThrottle&) =
       delete;
   ResponseBodyNavigationThrottle& operator=(
@@ -1281,8 +1318,8 @@ class ResponseBodyNavigationThrottle : public NavigationThrottle {
   void OnResponseBodyReady(const std::string& response_body) {
     std::move(callback_).Run(response_body);
     NavigationRequest::From(navigation_handle())
-        ->GetNavigationThrottleRunnerForTesting()
-        ->CallResumeForTesting();
+        ->GetNavigationThrottleRegistryForTesting()
+        ->ResumeProcessingNavigationEvent(this);
   }
 
   ResponseBodyCallback callback_;
@@ -1300,12 +1337,12 @@ class NavigationRequestResponseBodyTest : public NavigationRequestTest {
     navigation->Start();
     // It is safe to use base::Unretained as the NavigationThrottle will not be
     // destroyed before the callback is called.
+    auto& registry = navigation->GetNavigationThrottleRegistry();
     auto throttle = std::make_unique<ResponseBodyNavigationThrottle>(
-        navigation->GetNavigationHandle(),
+        registry,
         base::BindOnce(&NavigationRequestResponseBodyTest::UpdateResponseBody,
                        base::Unretained(this)));
-    navigation->GetNavigationHandle()->RegisterThrottleForTesting(
-        std::move(throttle));
+    registry.AddThrottle(std::move(throttle));
     return navigation;
   }
 

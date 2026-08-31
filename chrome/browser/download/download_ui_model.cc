@@ -7,15 +7,16 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#include "base/i18n/number_formatting.h"
 #include "base/i18n/rtl.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/download/bubble/download_bubble_prefs.h"
 #include "chrome/browser/download/download_commands.h"
 #include "chrome/browser/download/download_item_warning_data.h"
+#include "chrome/browser/download/download_ui_enterprise_util.h"
 #include "chrome/browser/download/download_ui_safe_browsing_util.h"
 #include "chrome/browser/download/offline_item_utils.h"
 #include "chrome/browser/enterprise/connectors/common.h"
@@ -152,9 +153,6 @@ std::u16string FailStateDescription(FailState fail_state) {
 }
 
 }  // namespace
-
-DownloadUIModel::DownloadUIModel()
-    : DownloadUIModel::DownloadUIModel(std::make_unique<StatusTextBuilder>()) {}
 
 DownloadUIModel::DownloadUIModel(
     std::unique_ptr<StatusTextBuilderBase> status_text_builder)
@@ -441,19 +439,9 @@ bool DownloadUIModel::IsInsecure() const {
   return false;
 }
 
-bool DownloadUIModel::ShouldRemoveFromShelfWhenComplete() const {
-  return false;
-}
-
 bool DownloadUIModel::ShouldShowDownloadStartedAnimation() const {
   return true;
 }
-
-bool DownloadUIModel::ShouldShowInShelf() const {
-  return true;
-}
-
-void DownloadUIModel::SetShouldShowInShelf(bool should_show) {}
 
 bool DownloadUIModel::ShouldNotifyUI() const {
   return true;
@@ -796,8 +784,14 @@ DownloadUIModel::DangerUiPattern DownloadUIModel::GetDangerUiPattern() const {
   return DangerUiPattern::kNormal;
 }
 
+bool DownloadUIModel::ShouldShowInUi() const {
+  return true;
+}
+
+void DownloadUIModel::SetShouldShowInUi(bool should_show) {}
+
 bool DownloadUIModel::ShouldShowInBubble() const {
-  return ShouldShowInShelf();
+  return ShouldShowInUi();
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

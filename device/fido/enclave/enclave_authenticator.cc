@@ -9,6 +9,7 @@
 #include <utility>
 #include <variant>
 
+#include "base/base64url.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/metrics/histogram_functions.h"
@@ -18,12 +19,17 @@
 #include "components/device_event_log/device_event_log.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "crypto/random.h"
+#include "device/fido/authenticator_get_assertion_response.h"
+#include "device/fido/authenticator_make_credential_response.h"
 #include "device/fido/discoverable_credential_metadata.h"
 #include "device/fido/enclave/constants.h"
 #include "device/fido/enclave/metrics.h"
 #include "device/fido/enclave/types.h"
+#include "device/fido/features.h"
 #include "device/fido/fido_parsing_utils.h"
+#include "device/fido/large_blob.h"
 #include "device/fido/public_key_credential_descriptor.h"
+#include "services/data_decoder/public/cpp/data_decoder.h"
 
 namespace device::enclave {
 
@@ -31,6 +37,10 @@ namespace {
 
 constexpr std::string_view kMetricPrefix =
     "WebAuthentication.EnclaveRequestResult.";
+constexpr std::string_view kExtensionsKey = "extensions";
+constexpr std::string_view kLargeBlobKey = "largeBlob";
+constexpr std::string_view kLargeBlobWriteKey = "write";
+constexpr std::string_view kLargeBlobSizeKey = "largeBlobSize";
 
 // Error codes from the service on per-request failures. These can be returned
 // alongside success responses in some cases.
@@ -68,6 +78,10 @@ void RecordRequestResult(std::string_view request_type,
                                 result);
 }
 
+bool SupportsLargeBlobGPM() {
+  return base::FeatureList::IsEnabled(device::kWebAuthnLargeBlobForGPM);
+}
+
 AuthenticatorSupportedOptions EnclaveAuthenticatorOptions() {
   AuthenticatorSupportedOptions options;
   options.is_platform_device =
@@ -75,6 +89,9 @@ AuthenticatorSupportedOptions EnclaveAuthenticatorOptions() {
   options.supports_resident_key = true;
   options.user_verification_availability = AuthenticatorSupportedOptions::
       UserVerificationAvailability::kSupportedAndConfigured;
+  if (SupportsLargeBlobGPM()) {
+    options.large_blob_type = LargeBlobSupportType::kBespoke;
+  }
   options.supports_user_presence = false;
   return options;
 }
@@ -199,6 +216,14 @@ void EnclaveAuthenticator::MakeCredential(CtapMakeCredentialRequest request,
       std::make_unique<PendingMakeCredentialRequest>(
           std::move(request), std::move(options), std::move(callback));
 
+  if (!SupportsLargeBlobGPM()) {
+    if (auto* root =
+            pending_make_credential_request_->options.json->value.get();
+        auto* exts = root->GetDict().FindDict(kExtensionsKey)) {
+      exts->Remove(kLargeBlobKey);
+    }
+  }
+
   if (ui_request_->uv_key_creation_callback) {
     includes_new_uv_key_ = true;
     std::move(ui_request_->uv_key_creation_callback)
@@ -257,7 +282,56 @@ void EnclaveAuthenticator::GetAssertion(CtapGetAssertionRequest request,
 
   pending_get_assertion_request_ = std::make_unique<PendingGetAssertionRequest>(
       request, options, std::move(callback));
+  // Large blob write preprocessing (compress then encode).
+  if (SupportsLargeBlobGPM() && options.large_blob_write.has_value()) {
+    std::vector<uint8_t> raw_blob = *options.large_blob_write;
+    const size_t original_size = raw_blob.size();
 
+    auto* root = pending_get_assertion_request_->options.json->value.get();
+    if (auto* exts = root->GetDict().FindDict(kExtensionsKey)) {
+      exts->Remove(kLargeBlobKey);
+    }
+
+    data_decoder()->Deflate(
+        std::move(raw_blob),
+        base::BindOnce(&EnclaveAuthenticator::OnHaveReencodedLargeBlob,
+                       weak_factory_.GetWeakPtr(), original_size));
+    return;
+  }
+
+  // No compression needed, continue right away.
+  DispatchGetAssertion();
+}
+
+void EnclaveAuthenticator::OnHaveReencodedLargeBlob(
+    size_t original_size,
+    base::expected<mojo_base::BigBuffer, std::string> maybe_deflated) {
+  if (!maybe_deflated.has_value()) {
+    FIDO_LOG(ERROR) << "largeBlob deflate failed: " << maybe_deflated.error();
+    CompleteRequestWithError(GetAssertionStatus::kEnclaveError);
+    return;
+  }
+
+  std::string large_blob_b64;
+  base::Base64UrlEncode(base::span<const uint8_t>(*maybe_deflated),
+                        base::Base64UrlEncodePolicy::OMIT_PADDING,
+                        &large_blob_b64);
+
+  auto* root = pending_get_assertion_request_->options.json->value.get();
+  auto* exts = root->GetDict().FindDict(kExtensionsKey);
+  CHECK(exts);
+  auto* large_blob = exts->FindDict(kLargeBlobKey);
+  if (!large_blob) {
+    large_blob = exts->Set(kLargeBlobKey, base::Value::Dict())->GetIfDict();
+  }
+
+  large_blob->Set(kLargeBlobWriteKey, large_blob_b64);
+  large_blob->Set(kLargeBlobSizeKey, static_cast<int>(original_size));
+
+  DispatchGetAssertion();
+}
+
+void EnclaveAuthenticator::DispatchGetAssertion() {
   if (ui_request_->uv_key_creation_callback) {
     includes_new_uv_key_ = true;
     std::move(ui_request_->uv_key_creation_callback)
@@ -400,12 +474,66 @@ void EnclaveAuthenticator::ProcessGetAssertionResponse(
     std::move(ui_request_->pin_result_callback)
         .Run(PINValidationResult::kSuccess);
   }
-  std::vector<AuthenticatorGetAssertionResponse> responses;
-  responses.emplace_back(
-      std::move(std::get<AuthenticatorGetAssertionResponse>(parse_result)));
+
+  AuthenticatorGetAssertionResponse assertion =
+      std::move(std::get<AuthenticatorGetAssertionResponse>(parse_result));
+
+  if (assertion.updated_encrypted_passkey &&
+      ui_request_->save_passkey_callback) {
+    ui_request_->entity->set_encrypted(
+        std::string(assertion.updated_encrypted_passkey->begin(),
+                    assertion.updated_encrypted_passkey->end()));
+
+    std::move(ui_request_->save_passkey_callback)
+        .Run(std::move(*ui_request_->entity));
+  }
+
+  // Large blob 'read' path.
+  if (SupportsLargeBlobGPM() && assertion.large_blob_extension) {
+    auto compressed_data = assertion.large_blob_extension->compressed_data;
+    auto original_size = assertion.large_blob_extension->original_size;
+    data_decoder()->Inflate(
+        compressed_data, original_size,
+        base::BindOnce(
+            &EnclaveAuthenticator::OnHaveInflatedLargeBlobForGetAssertion,
+            weak_factory_.GetWeakPtr(), std::move(assertion)));
+    return;
+  }
+  ReturnGetAssertionSuccess(std::move(assertion));
+}
+
+void EnclaveAuthenticator::ReturnGetAssertionSuccess(
+    AuthenticatorGetAssertionResponse resp) {
+  if (pending_get_assertion_request_->options.large_blob_read) {
+    base::UmaHistogramBoolean(
+        "WebAuthentication.GPM.GetAssertion.LargeBlobSucceeded.Read",
+        resp.large_blob.has_value());
+  } else if (pending_get_assertion_request_->options.large_blob_write
+                 .has_value()) {
+    base::UmaHistogramBoolean(
+        "WebAuthentication.GPM.GetAssertion.LargeBlobSucceeded.Write",
+        resp.large_blob_written);
+  }
+  std::vector<AuthenticatorGetAssertionResponse> response;
+  response.emplace_back(std::move(resp));
   RecordRequestResult("GetAssertion", EnclaveRequestResult::kSuccess);
   CompleteGetAssertionRequest(GetAssertionStatus::kSuccess,
-                              std::move(responses));
+                              std::move(response));
+}
+
+void EnclaveAuthenticator::OnHaveInflatedLargeBlobForGetAssertion(
+    AuthenticatorGetAssertionResponse response,
+    base::expected<mojo_base::BigBuffer, std::string> maybe_blob) {
+  // Copy the un-compressed blob (if any) into response.
+  if (maybe_blob.has_value()) {
+    response.large_blob =
+        std::vector<uint8_t>(maybe_blob->begin(), maybe_blob->end());
+  } else {
+    FIDO_LOG(ERROR) << "Failed to inflate large blob: " << maybe_blob.error();
+  }
+
+  // Build the vector to return.
+  ReturnGetAssertionSuccess(std::move(response));
 }
 
 void EnclaveAuthenticator::CompleteRequestWithError(
@@ -535,6 +663,13 @@ const AuthenticatorSupportedOptions& EnclaveAuthenticator::Options() const {
 std::optional<FidoTransportProtocol>
 EnclaveAuthenticator::AuthenticatorTransport() const {
   return FidoTransportProtocol::kInternal;
+}
+
+data_decoder::DataDecoder* EnclaveAuthenticator::data_decoder() {
+  if (!data_decoder_) {
+    data_decoder_ = std::make_unique<data_decoder::DataDecoder>();
+  }
+  return data_decoder_.get();
 }
 
 base::WeakPtr<FidoAuthenticator> EnclaveAuthenticator::GetWeakPtr() {

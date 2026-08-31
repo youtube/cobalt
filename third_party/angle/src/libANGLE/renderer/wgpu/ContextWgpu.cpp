@@ -241,7 +241,9 @@ angle::Result ContextWgpu::finish(const gl::Context *context)
 
     WGPUQueueWorkDoneCallbackInfo callback = WGPU_QUEUE_WORK_DONE_CALLBACK_INFO_INIT;
     callback.mode                          = WGPUCallbackMode_WaitAnyOnly;
-    callback.callback = [](WGPUQueueWorkDoneStatus status, void *userdata1, void *userdata2) {
+    callback.callback                      = [](WGPUQueueWorkDoneStatus status,
+                           WGPUStringView message,
+                           void *userdata1, void *userdata2) {
         ASSERT(userdata1 == nullptr);
         ASSERT(userdata2 == nullptr);
     };
@@ -912,7 +914,9 @@ angle::Result ContextWgpu::syncState(const gl::Context *context,
                             break;
                         case gl::state::EXTENDED_DIRTY_BIT_SHADER_DERIVATIVE_HINT:
                             break;
-                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE:
+                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_QCOM:
+                            break;
+                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_EXT:
                             break;
                         case gl::state::EXTENDED_DIRTY_BIT_LOGIC_OP_ENABLED:
                             break;
@@ -1016,9 +1020,10 @@ BufferImpl *ContextWgpu::createBuffer(const gl::BufferState &state)
     return new BufferWgpu(state);
 }
 
-VertexArrayImpl *ContextWgpu::createVertexArray(const gl::VertexArrayState &data)
+VertexArrayImpl *ContextWgpu::createVertexArray(const gl::VertexArrayState &data,
+                                                const gl::VertexArrayBuffers &vertexArrayBuffers)
 {
-    return new VertexArrayWgpu(data);
+    return new VertexArrayWgpu(data, vertexArrayBuffers);
 }
 
 QueryImpl *ContextWgpu::createQuery(gl::QueryType type)

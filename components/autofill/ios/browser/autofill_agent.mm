@@ -104,6 +104,7 @@ using autofill::FormFieldData;
 using autofill::FormGlobalId;
 using autofill::FormHandlersJavaScriptFeature;
 using autofill::FormRendererId;
+using autofill::Section;
 using autofill::FieldPropertiesFlags::kAutofilledOnUserTrigger;
 using base::NumberToString;
 using base::SysNSStringToUTF16;
@@ -376,10 +377,9 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
           autofill::SuggestionType::kAddressFieldByFieldFilling) {
     _pendingAutocompleteFieldID = fieldRendererID;
     if (_suggestionDelegate) {
-      autofill::Suggestion autofill_suggestion;
+      autofill::Suggestion autofill_suggestion(suggestion.type);
       autofill_suggestion.main_text.value =
           SysNSStringToUTF16(suggestion.value);
-      autofill_suggestion.type = suggestion.type;
       autofill_suggestion.field_by_field_filling_type_used =
           suggestion.fieldByFieldFillingTypeUsed;
       const std::string guid =
@@ -466,12 +466,13 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 
 #pragma mark - AutofillDriverIOSBridge
 
-- (void)fillData:(const std::vector<autofill::FormFieldData::FillData>&)data
+- (void)fillData:(const std::vector<autofill::FormFieldData::FillData>&)fields
+         section:(const Section&)section
          inFrame:(web::WebFrame*)frame {
   base::Value::Dict fieldsData;
   FieldToFormLookupMap fieldToFormLookupMap;
 
-  for (const auto& field : data) {
+  for (const auto& field : fields) {
     // Skip empty fields and those that are not autofilled.
     if (field.value.empty() || !field.is_autofilled) {
       continue;
@@ -479,7 +480,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 
     base::Value::Dict fieldData;
     fieldData.Set("value", field.value);
-    fieldData.Set("section", field.section.ToString());
+    fieldData.Set("section", section.ToString());
     fieldData.Set("hostFormId", static_cast<int>(*field.host_form_id));
     fieldsData.Set(NumberToString(*field.renderer_id), std::move(fieldData));
 
@@ -693,7 +694,7 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
                &feature_engagement::
                    kIPHAutofillHomeWorkProfileSuggestionFeature) {
       suggestion.featureForIPH =
-          SuggestionFeatureForIPH::kHomeWorkAddressSuggestion;
+          SuggestionFeatureForIPH::kHomeAndWorkAddressSuggestion;
     }
 
     // Put "clear form" entry at the front of the suggestions.
@@ -1108,6 +1109,13 @@ bool ContainsFocusableField(const FormData& form, FieldRendererId field_id) {
 // Sends the the |data| to |frame| to actually fill the data.
 - (void)sendData:(AutofillData)data toFrame:(web::WebFrame*)frame {
   DCHECK(_webState->IsVisible());
+
+  // `frame` may come from a frame ID that was previously cached; the frame
+  // could have been destroyed since then. See crbug.com/425991572.
+  if (!frame) {
+    return;
+  }
+
   __weak __typeof(self) weakSelf = self;
   const auto callback =
       [](__weak AutofillAgent* agent, base::WeakPtr<web::WebFrame> frame,

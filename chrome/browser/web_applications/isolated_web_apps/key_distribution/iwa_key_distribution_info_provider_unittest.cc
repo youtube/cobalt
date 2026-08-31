@@ -19,9 +19,9 @@
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/version.h"
 #include "chrome/browser/component_updater/iwa_key_distribution_component_installer.h"
-#include "chrome/browser/web_applications/isolated_web_apps/iwa_identity_validator.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/key_distribution/test_utils.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/component_updater/component_updater_paths.h"
@@ -30,6 +30,7 @@
 #include "components/web_package/test_support/signed_web_bundles/signature_verifier_test_utils.h"
 #include "components/web_package/test_support/signed_web_bundles/web_bundle_signer.h"
 #include "components/web_package/web_bundle_builder.h"
+#include "components/webapps/isolated_web_apps/identity/iwa_identity_validator.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_histograms.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/proto/key_distribution.pb.h"
@@ -313,10 +314,6 @@ class IwaIwaKeyDistributionInfoProviderReadinessTest
   using ComponentRegistration = component_updater::ComponentRegistration;
 
   void SetUp() override {
-    web_app::IwaKeyDistributionInfoProvider::GetInstance()->SetUp(
-        base::BindRepeating(
-            &component_updater::IwaKeyDistributionComponentInstallerPolicy::
-                QueueOnDemandUpdate));
     auto cus = std::make_unique<
         testing::NiceMock<component_updater::MockComponentUpdateService>>();
     cus_ = cus.get();
@@ -330,21 +327,22 @@ class IwaIwaKeyDistributionInfoProviderReadinessTest
  protected:
   void RegisterComponentWithExpectationAndCallOnMaybeReadyInOrder(
       auto matcher,
-      IwaKeyDistributionInfoProvider* key_provider,
+      IwaKeyDistributionInfoProvider& key_provider,
       base::OnceClosure task) {
-    bool register_first = GetParam();
-    if (register_first) {
+    if (register_first()) {
       ASSERT_THAT(test::RegisterIwaKeyDistributionComponentAndWaitForLoad(),
                   matcher);
-      key_provider->OnMaybeDownloadedComponentDataReady().Post(FROM_HERE,
-                                                               std::move(task));
+      key_provider.OnMaybeDownloadedComponentDataReady().Post(FROM_HERE,
+                                                              std::move(task));
     } else {
-      key_provider->OnMaybeDownloadedComponentDataReady().Post(FROM_HERE,
-                                                               std::move(task));
+      key_provider.OnMaybeDownloadedComponentDataReady().Post(FROM_HERE,
+                                                              std::move(task));
       ASSERT_THAT(test::RegisterIwaKeyDistributionComponentAndWaitForLoad(),
                   matcher);
     }
   }
+
+  bool register_first() const { return GetParam(); }
 
   base::test::TaskEnvironment& task_environment() { return env_; }
 
@@ -471,10 +469,15 @@ class IwaIwaKeyDistributionInfoProviderReadinessTest
 
 TEST_P(IwaIwaKeyDistributionInfoProviderReadinessTest,
        PreloadedComponentAndOnMaybeReadyCalledUpdateSuccess) {
+  if (!register_first()) {
+    GTEST_SKIP() << "Disabled until IWA become available outside of "
+                    "non-initial profiles";
+  }
+
   WillRegisterAndLoadComponent(/*is_preloaded=*/true);
   WillRequestOnDemandUpdateWithSuccess();
 
-  auto* key_provider = IwaKeyDistributionInfoProvider::GetInstance();
+  auto& key_provider = IwaKeyDistributionInfoProvider::GetInstance();
   base::test::TestFuture<void> future;
 
   RegisterComponentWithExpectationAndCallOnMaybeReadyInOrder(
@@ -489,7 +492,7 @@ TEST_P(IwaIwaKeyDistributionInfoProviderReadinessTest,
   WillRegisterAndLoadComponent(/*is_preloaded=*/false);
   WillNotRequestOnDemandUpdate();
 
-  auto* key_provider = IwaKeyDistributionInfoProvider::GetInstance();
+  auto& key_provider = IwaKeyDistributionInfoProvider::GetInstance();
   base::test::TestFuture<void> future;
 
   RegisterComponentWithExpectationAndCallOnMaybeReadyInOrder(
@@ -501,10 +504,15 @@ TEST_P(IwaIwaKeyDistributionInfoProviderReadinessTest,
 
 TEST_P(IwaIwaKeyDistributionInfoProviderReadinessTest,
        PreloadedComponentAndOnMaybeReadyCalledUpdateFails) {
+  if (!register_first()) {
+    GTEST_SKIP() << "Disabled until IWA become available outside of "
+                    "non-initial profiles";
+  }
+
   WillRegisterAndLoadComponent(/*is_preloaded=*/true);
   WillRequestOnDemandUpdateWithoutSuccess();
 
-  auto* key_provider = IwaKeyDistributionInfoProvider::GetInstance();
+  auto& key_provider = IwaKeyDistributionInfoProvider::GetInstance();
 
   // Not using TestFuture<> here because it advances mock time while waiting,
   // and this is something we'd like to do manually.
@@ -523,10 +531,15 @@ TEST_P(IwaIwaKeyDistributionInfoProviderReadinessTest,
 
 TEST_P(IwaIwaKeyDistributionInfoProviderReadinessTest,
        PreloadedComponentAndOnMaybeReadyCalledUpdateDelayedSuccess) {
+  if (!register_first()) {
+    GTEST_SKIP() << "Disabled until IWA become available outside of "
+                    "non-initial profiles";
+  }
+
   WillRegisterAndLoadComponent(/*is_preloaded=*/true);
   WillRequestOnDemandUpdateWithSuccess(/*load_delay=*/base::Seconds(30));
 
-  auto* key_provider = IwaKeyDistributionInfoProvider::GetInstance();
+  auto& key_provider = IwaKeyDistributionInfoProvider::GetInstance();
   base::test::TestFuture<void> future;
 
   RegisterComponentWithExpectationAndCallOnMaybeReadyInOrder(

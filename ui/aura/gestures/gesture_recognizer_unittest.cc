@@ -88,6 +88,7 @@ class GestureEventConsumeDelegate : public TestWindowDelegate {
         pinch_begin_(false),
         pinch_update_(false),
         pinch_end_(false),
+        short_press_(false),
         long_press_(false),
         fling_(false),
         two_finger_tap_(false),
@@ -117,6 +118,7 @@ class GestureEventConsumeDelegate : public TestWindowDelegate {
   void Reset() {
     events_.clear();
     tap_ = false;
+    long_tap_ = false;
     tap_down_ = false;
     tap_cancel_ = false;
     begin_ = false;
@@ -127,6 +129,7 @@ class GestureEventConsumeDelegate : public TestWindowDelegate {
     pinch_begin_ = false;
     pinch_update_ = false;
     pinch_end_ = false;
+    short_press_ = false;
     long_press_ = false;
     fling_ = false;
     two_finger_tap_ = false;
@@ -167,6 +170,7 @@ class GestureEventConsumeDelegate : public TestWindowDelegate {
   bool pinch_begin() const { return pinch_begin_; }
   bool pinch_update() const { return pinch_update_; }
   bool pinch_end() const { return pinch_end_; }
+  bool short_press() const { return short_press_; }
   bool long_press() const { return long_press_; }
   bool long_tap() const { return long_tap_; }
   bool fling() const { return fling_; }
@@ -258,6 +262,9 @@ class GestureEventConsumeDelegate : public TestWindowDelegate {
       case ui::EventType::kGesturePinchEnd:
         pinch_end_ = true;
         break;
+      case ui::EventType::kGestureShortPress:
+        short_press_ = true;
+        break;
       case ui::EventType::kGestureLongPress:
         long_press_ = true;
         break;
@@ -312,6 +319,7 @@ class GestureEventConsumeDelegate : public TestWindowDelegate {
   bool pinch_begin_;
   bool pinch_update_;
   bool pinch_end_;
+  bool short_press_;
   bool long_press_;
   bool long_tap_;
   bool fling_;
@@ -1343,6 +1351,51 @@ TEST_F(GestureRecognizerTest, GestureEventNonRailFling) {
   EXPECT_FALSE(delegate->scroll_end());
   EXPECT_GT(delegate->velocity_x(), 0);
   EXPECT_GT(delegate->velocity_y(), 0);
+}
+
+// Check that appropriate touch events generate short press events
+TEST_F(GestureRecognizerTest, GestureEventShortPress) {
+  std::unique_ptr<GestureEventConsumeDelegate> delegate(
+      new GestureEventConsumeDelegate());
+  const int kWindowWidth = 123;
+  const int kWindowHeight = 45;
+  const int kTouchId = 2;
+  gfx::Rect bounds(100, 200, kWindowWidth, kWindowHeight);
+  std::unique_ptr<aura::Window> window(CreateTestWindowWithDelegate(
+      delegate.get(), -1234, bounds, root_window()));
+
+  delegate->Reset();
+
+  ui::TouchEvent press1(
+      ui::EventType::kTouchPressed, gfx::Point(101, 201), ui::EventTimeForNow(),
+      ui::PointerDetails(ui::EventPointerType::kTouch, kTouchId));
+  DispatchEventUsingWindowDispatcher(&press1);
+  EXPECT_TRUE(delegate->tap_down());
+  EXPECT_TRUE(delegate->begin());
+  EXPECT_FALSE(delegate->tap_cancel());
+
+  // We haven't pressed long enough for a short press to occur
+  EXPECT_FALSE(delegate->long_press());
+  EXPECT_FALSE(delegate->short_press());
+
+  // Wait until the timer runs out
+  delegate->WaitUntilReceivedGesture(ui::EventType::kGestureShortPress);
+  EXPECT_TRUE(delegate->short_press());
+  EXPECT_FALSE(delegate->long_press());
+  EXPECT_FALSE(delegate->tap_cancel());
+
+  delegate->Reset();
+  ui::TouchEvent release1(
+      ui::EventType::kTouchReleased, gfx::Point(101, 201),
+      ui::EventTimeForNow(),
+      ui::PointerDetails(ui::EventPointerType::kTouch, kTouchId));
+  DispatchEventUsingWindowDispatcher(&release1);
+  EXPECT_FALSE(delegate->short_press());
+  EXPECT_FALSE(delegate->long_press());
+
+  // Note the tap cancel isn't dispatched until the release
+  EXPECT_TRUE(delegate->end());
+  EXPECT_FALSE(delegate->long_tap());
 }
 
 // Check that appropriate touch events generate long press events
@@ -2940,7 +2993,7 @@ TEST_F(GestureRecognizerTest, MultiFingerSwipe) {
       delegate.get(), -1234, bounds, root_window()));
 
   const int kSteps = 15;
-  const int kTouchPoints = 4;
+  const size_t kTouchPoints = 4;
   gfx::Point points[kTouchPoints] = {
     gfx::Point(10, 30),
     gfx::Point(30, 20),
@@ -2953,39 +3006,39 @@ TEST_F(GestureRecognizerTest, MultiFingerSwipe) {
   // The unified gesture recognizer assumes a finger has stopped if it hasn't
   // moved for too long. See ui/events/velocity_tracker/velocity_tracker.cc's
   // kAssumePointerStoppedTimeMs.
-  for (int count = 2; count <= kTouchPoints; ++count) {
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, 0, -11 * kSteps);
+  for (size_t count = 2; count <= kTouchPoints; ++count) {
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, 0, -11 * kSteps);
     EXPECT_TRUE(delegate->swipe_up());
     delegate->Reset();
 
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, 0, 11 * kSteps);
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, 0, 11 * kSteps);
     EXPECT_TRUE(delegate->swipe_down());
     delegate->Reset();
 
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, -11 * kSteps, 0);
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, -11 * kSteps, 0);
     EXPECT_TRUE(delegate->swipe_left());
     delegate->Reset();
 
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, 11 * kSteps, 0);
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, 11 * kSteps, 0);
     EXPECT_TRUE(delegate->swipe_right());
     delegate->Reset();
 
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, 5 * kSteps, 12 * kSteps);
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, 5 * kSteps, 12 * kSteps);
     EXPECT_FALSE(delegate->swipe_down());
     delegate->Reset();
 
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, 4 * kSteps, 12 * kSteps);
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, 4 * kSteps, 12 * kSteps);
     EXPECT_TRUE(delegate->swipe_down());
     delegate->Reset();
 
-    generator.GestureMultiFingerScroll(
-        count, points, 10, kSteps, 3 * kSteps, 12 * kSteps);
+    generator.GestureMultiFingerScroll(count, base::span(points).first(count),
+                                       10, kSteps, 3 * kSteps, 12 * kSteps);
     EXPECT_TRUE(delegate->swipe_down());
     delegate->Reset();
   }

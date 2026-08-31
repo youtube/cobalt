@@ -19,7 +19,6 @@
 #include "api/test/metrics/metric.h"
 #include "api/test/metrics/proto/metric.pb.h"
 #include "api/units/timestamp.h"
-#include "rtc_base/protobuf_utils.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"

@@ -139,6 +139,10 @@ void TestPasswordsPrivateDelegate::RemoveCredential(
   SendSavedPasswordsList();
 }
 
+void TestPasswordsPrivateDelegate::RemoveBackupPassword(int id) {
+  remove_backup_password_ = true;
+}
+
 void TestPasswordsPrivateDelegate::RemovePasswordException(int id) {
   if (current_exceptions_.empty())
     return;
@@ -172,6 +176,14 @@ void TestPasswordsPrivateDelegate::RequestPlaintextPassword(
     content::WebContents* web_contents) {
   // Return a mocked password value.
   std::move(callback).Run(plaintext_password_);
+}
+
+void TestPasswordsPrivateDelegate::CopyPlaintextBackupPassword(
+    int id,
+    content::WebContents* web_contents,
+    base::OnceCallback<void(bool)> callback) {
+  copy_plaintext_backup_password_ = true;
+  std::move(callback).Run(true);
 }
 
 void TestPasswordsPrivateDelegate::RequestCredentialsDetails(
@@ -264,6 +276,10 @@ void TestPasswordsPrivateDelegate::SetAccountStorageEnabled(
     bool enabled,
     content::WebContents* web_contents) {
   is_account_storage_enabled_ = enabled;
+}
+
+bool TestPasswordsPrivateDelegate::ShouldShowAccountStorageSettingToggle() {
+  return should_show_account_storage_setting_toggle_;
 }
 
 std::vector<api::passwords_private::PasswordUiEntry>

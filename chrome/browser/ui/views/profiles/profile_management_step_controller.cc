@@ -21,15 +21,12 @@
 #include "chrome/browser/ui/profiles/profile_customization_util.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/profiles/profile_management_types.h"
-#include "chrome/browser/ui/views/profiles/profile_picker_signed_in_flow_controller.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_post_sign_in_adapter.h"
+#include "chrome/browser/ui/views/profiles/profile_picker_sign_in_provider.h"
 #include "chrome/browser/ui/views/profiles/profile_picker_web_contents_host.h"
 #include "chrome/browser/ui/webui/search_engine_choice/search_engine_choice_ui.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_utils.h"
 #include "google_apis/gaia/core_account_id.h"
-
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-#include "chrome/browser/ui/views/profiles/profile_picker_dice_sign_in_provider.h"
-#endif
 
 namespace {
 class ProfilePickerAppStepController : public ProfileManagementStepController {
@@ -40,15 +37,14 @@ class ProfilePickerAppStepController : public ProfileManagementStepController {
 
   ~ProfilePickerAppStepController() override = default;
 
-  void Show(base::OnceCallback<void(bool)> step_shown_callback,
+  void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
+    base::OnceClosure step_shown_success =
+        base::BindOnce(std::move(step_shown_callback.value()), true);
     if (!loaded_ui_in_picker_contents_) {
       loaded_ui_in_picker_contents_ = true;
-      host()->ShowScreenInPickerContents(
-          initial_url_,
-          step_shown_callback
-              ? base::BindOnce(std::move(step_shown_callback), true)
-              : base::OnceClosure());
+      host()->ShowScreenInPickerContents(initial_url_,
+                                         std::move(step_shown_success));
       return;
     }
 
@@ -56,10 +52,7 @@ class ProfilePickerAppStepController : public ProfileManagementStepController {
       // Don't do a full reset, just go back to the beginning of the history:
       host()->GetPickerContents()->GetController().GoToIndex(0);
     }
-    host()->ShowScreenInPickerContents(GURL());
-    if (step_shown_callback) {
-      std::move(step_shown_callback).Run(true);
-    }
+    host()->ShowScreenInPickerContents(GURL(), std::move(step_shown_success));
   }
 
   void OnNavigateBackRequested() override {
@@ -76,30 +69,29 @@ class ProfilePickerAppStepController : public ProfileManagementStepController {
   const GURL initial_url_;
 };
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-class DiceSignInStepController : public ProfileManagementStepController {
+class SignInStepController : public ProfileManagementStepController {
  public:
-  explicit DiceSignInStepController(
+  explicit SignInStepController(
       ProfilePickerWebContentsHost* host,
-      std::unique_ptr<ProfilePickerDiceSignInProvider> dice_sign_in_provider,
-      DiceSignInStepFinishedCallback signed_in_callback)
+      std::unique_ptr<ProfilePickerSignInProvider> sign_in_provider,
+      SignInStepFinishedCallback signed_in_callback)
       : ProfileManagementStepController(host),
         signed_in_callback_(std::move(signed_in_callback)),
-        dice_sign_in_provider_(std::move(dice_sign_in_provider)) {
+        sign_in_provider_(std::move(sign_in_provider)) {
     DCHECK(signed_in_callback_);
   }
 
-  ~DiceSignInStepController() override = default;
+  ~SignInStepController() override = default;
 
   void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
-    DCHECK(step_shown_callback);
-    DCHECK(signed_in_callback_) << "Attempting to show Dice step again while "
-                                   "it was previously completed";
+    CHECK(!step_shown_callback->is_null());
+    DCHECK(signed_in_callback_) << "Attempting to show the sign-in step again "
+                                   "while it was previously completed";
     // Unretained ok because the provider is owned by `this`.
-    dice_sign_in_provider_->SwitchToSignIn(
+    sign_in_provider_->SwitchToSignIn(
         std::move(step_shown_callback),
-        base::BindOnce(&DiceSignInStepController::OnStepFinished,
+        base::BindOnce(&SignInStepController::OnStepFinished,
                        base::Unretained(this)));
   }
 
@@ -111,20 +103,20 @@ class DiceSignInStepController : public ProfileManagementStepController {
   }
 
   bool CanPopStep() const override {
-    return ProfileManagementStepController::CanPopStep() &&
-           dice_sign_in_provider_ && dice_sign_in_provider_->IsInitialized();
+    return ProfileManagementStepController::CanPopStep() && sign_in_provider_ &&
+           sign_in_provider_->IsInitialized();
   }
 
   void OnReloadRequested() override {
     // Sign-in may fail due to connectivity issues, allow reloading.
-    if (dice_sign_in_provider_) {
-      dice_sign_in_provider_->ReloadSignInPage();
+    if (sign_in_provider_) {
+      sign_in_provider_->ReloadSignInPage();
     }
   }
 
   void OnNavigateBackRequested() override {
-    if (dice_sign_in_provider_) {
-      NavigateBackInternal(dice_sign_in_provider_->contents());
+    if (sign_in_provider_) {
+      NavigateBackInternal(sign_in_provider_->contents());
     }
   }
 
@@ -139,9 +131,9 @@ class DiceSignInStepController : public ProfileManagementStepController {
     // Don't interact with members below.
   }
 
-  DiceSignInStepFinishedCallback signed_in_callback_;
+  SignInStepFinishedCallback signed_in_callback_;
 
-  std::unique_ptr<ProfilePickerDiceSignInProvider> dice_sign_in_provider_;
+  std::unique_ptr<ProfilePickerSignInProvider> sign_in_provider_;
 };
 
 class FinishSamlSignInStepController : public ProfileManagementStepController {
@@ -168,7 +160,7 @@ class FinishSamlSignInStepController : public ProfileManagementStepController {
     }
   }
 
-  void Show(base::OnceCallback<void(bool)> step_shown_callback,
+  void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
     // First, stop showing `contents_` to free it up so it can be moved to a new
     // browser window.
@@ -176,7 +168,8 @@ class FinishSamlSignInStepController : public ProfileManagementStepController {
         GURL(url::kAboutBlankURL),
         /*navigation_finished_closure=*/
         base::BindOnce(&FinishSamlSignInStepController::OnSignInContentsFreedUp,
-                       weak_ptr_factory_.GetWeakPtr()));
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(step_shown_callback)));
   }
 
   void OnNavigateBackRequested() override {
@@ -198,8 +191,10 @@ class FinishSamlSignInStepController : public ProfileManagementStepController {
         ProfileMetrics::ProfileSignedInFlowOutcome::kSAML);
   }
 
-  void OnSignInContentsFreedUp() {
+  void OnSignInContentsFreedUp(StepSwitchFinishedCallback step_shown_callback) {
     DCHECK(finish_picker_section_callback_);
+    CHECK(!step_shown_callback->is_null());
+    std::move(step_shown_callback.value()).Run(true);
 
     ProfileMetrics::LogProfileAddNewUser(
         ProfileMetrics::ADD_NEW_PROFILE_PICKER_SIGNED_IN);
@@ -230,24 +225,19 @@ class FinishSamlSignInStepController : public ProfileManagementStepController {
   base::WeakPtrFactory<FinishSamlSignInStepController> weak_ptr_factory_{this};
 };
 
-#endif
-
 class PostSignInStepController : public ProfileManagementStepController {
  public:
   explicit PostSignInStepController(
       ProfilePickerWebContentsHost* host,
-      std::unique_ptr<ProfilePickerSignedInFlowController> signed_in_flow)
+      std::unique_ptr<ProfilePickerPostSignInAdapter> signed_in_flow)
       : ProfileManagementStepController(host),
         signed_in_flow_(std::move(signed_in_flow)) {}
 
   ~PostSignInStepController() override = default;
 
-  void Show(base::OnceCallback<void(bool)> step_shown_callback,
+  void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
-    signed_in_flow_->Init();
-    if (step_shown_callback) {
-      std::move(step_shown_callback).Run(true);
-    }
+    signed_in_flow_->Init(std::move(step_shown_callback));
   }
   void OnHidden() override { signed_in_flow_->Cancel(); }
 
@@ -256,7 +246,7 @@ class PostSignInStepController : public ProfileManagementStepController {
   }
 
  private:
-  std::unique_ptr<ProfilePickerSignedInFlowController> signed_in_flow_;
+  std::unique_ptr<ProfilePickerPostSignInAdapter> signed_in_flow_;
   base::WeakPtrFactory<PostSignInStepController> weak_ptr_factory_{this};
 };
 
@@ -272,13 +262,11 @@ class FinishFlowAndRunInBrowserStepController
     CHECK(finish_flow_and_run_in_browser_callback_);
   }
 
-  void Show(base::OnceCallback<void(bool success)> step_shown_callback,
+  void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
     CHECK(reset_state);
-
-    if (step_shown_callback) {
-      std::move(step_shown_callback).Run(true);
-    }
+    CHECK(!step_shown_callback->is_null());
+    std::move(step_shown_callback.value()).Run(true);
     std::move(finish_flow_and_run_in_browser_callback_).Run();
   }
 
@@ -299,8 +287,7 @@ class SearchEngineChoiceStepController
       SearchEngineChoiceDialogService* search_engine_choice_dialog_service,
       content::WebContents* web_contents,
       SearchEngineChoiceDialogService::EntryPoint entry_point,
-      base::OnceCallback<void(StepSwitchFinishedCallback)>
-          step_completed_callback)
+      base::OnceClosure step_completed_callback)
       : ProfileManagementStepController(host),
         entry_point_(entry_point),
         search_engine_choice_dialog_service_(
@@ -310,25 +297,25 @@ class SearchEngineChoiceStepController
     CHECK(web_contents_);
   }
 
-  void Show(base::OnceCallback<void(bool success)> step_shown_callback,
+  void Show(StepSwitchFinishedCallback step_shown_callback,
             bool reset_state) override {
     CHECK(reset_state);
+    CHECK(!step_shown_callback->is_null());
 
     if (!search_engine_choice_dialog_service_) {
-      // Forward `step_shown_callback`, as this step is skipped.
-      std::move(step_completed_callback_).Run(std::move(step_shown_callback));
+      // Mark that this step was skipped and proceed with the next one.
+      std::move(step_shown_callback.value()).Run(false);
+      std::move(step_completed_callback_).Run();
       return;
     }
 
     base::OnceClosure navigation_finished_closure =
         base::BindOnce(&SearchEngineChoiceStepController::OnLoadFinished,
                        base::Unretained(this));
-    if (step_shown_callback) {
-      // Notify the caller first.
-      navigation_finished_closure =
-          base::BindOnce(std::move(step_shown_callback), true)
-              .Then(std::move(navigation_finished_closure));
-    }
+    // Notify the caller first.
+    navigation_finished_closure =
+        base::BindOnce(std::move(step_shown_callback.value()), true)
+            .Then(std::move(navigation_finished_closure));
 
     search_engines::SearchEngineChoiceScreenEvents choice_screen_event =
         search_engines::SearchEngineChoiceScreenEvents::
@@ -338,7 +325,8 @@ class SearchEngineChoiceStepController
       choice_screen_event = search_engines::SearchEngineChoiceScreenEvents::
           kFreChoiceScreenWasDisplayed;
     }
-    search_engines::RecordChoiceScreenEvent(choice_screen_event);
+    search_engine_choice_dialog_service_->RecordChoiceScreenEvent(
+        choice_screen_event);
 
     host()->ShowScreen(web_contents_,
                        GURL(chrome::kChromeUISearchEngineChoiceURL),
@@ -360,9 +348,7 @@ class SearchEngineChoiceStepController
     search_engine_choice_ui->Initialize(
         /*display_dialog_callback=*/base::OnceClosure(),
         /*on_choice_made_callback=*/
-        base::BindOnce(std::move(step_completed_callback_),
-                       StepSwitchFinishedCallback()),
-        entry_point_);
+        std::move(step_completed_callback_), entry_point_);
   }
 
   // The entry point from which the search engine choice screen is displayed.
@@ -373,7 +359,7 @@ class SearchEngineChoiceStepController
   raw_ptr<SearchEngineChoiceDialogService> search_engine_choice_dialog_service_;
 
   // Callback to be executed when the step is completed.
-  base::OnceCallback<void(StepSwitchFinishedCallback)> step_completed_callback_;
+  base::OnceClosure step_completed_callback_;
 
   // The web contents in which we want to display the screen.
   raw_ptr<content::WebContents> web_contents_;
@@ -388,15 +374,14 @@ ProfileManagementStepController::CreateForProfilePickerApp(
   return std::make_unique<ProfilePickerAppStepController>(host, initial_url);
 }
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 // static
 std::unique_ptr<ProfileManagementStepController>
-ProfileManagementStepController::CreateForDiceSignIn(
+ProfileManagementStepController::CreateForSignIn(
     ProfilePickerWebContentsHost* host,
-    std::unique_ptr<ProfilePickerDiceSignInProvider> dice_sign_in_provider,
-    DiceSignInStepFinishedCallback signed_in_callback) {
-  return std::make_unique<DiceSignInStepController>(
-      host, std::move(dice_sign_in_provider), std::move(signed_in_callback));
+    std::unique_ptr<ProfilePickerSignInProvider> sign_in_provider,
+    SignInStepFinishedCallback signed_in_callback) {
+  return std::make_unique<SignInStepController>(
+      host, std::move(sign_in_provider), std::move(signed_in_callback));
 }
 
 // static
@@ -412,13 +397,11 @@ ProfileManagementStepController::CreateForFinishSamlSignIn(
       std::move(finish_picker_section_callback));
 }
 
-#endif
-
 // static
 std::unique_ptr<ProfileManagementStepController>
 ProfileManagementStepController::CreateForPostSignInFlow(
     ProfilePickerWebContentsHost* host,
-    std::unique_ptr<ProfilePickerSignedInFlowController> signed_in_flow) {
+    std::unique_ptr<ProfilePickerPostSignInAdapter> signed_in_flow) {
   return std::make_unique<PostSignInStepController>(host,
                                                     std::move(signed_in_flow));
 }
@@ -430,7 +413,7 @@ ProfileManagementStepController::CreateForSearchEngineChoice(
     SearchEngineChoiceDialogService* search_engine_choice_dialog_service,
     content::WebContents* web_contents,
     SearchEngineChoiceDialogService::EntryPoint entry_point,
-    base::OnceCallback<void(StepSwitchFinishedCallback)> callback) {
+    base::OnceClosure callback) {
   return std::make_unique<SearchEngineChoiceStepController>(
       host, search_engine_choice_dialog_service, web_contents, entry_point,
       std::move(callback));
@@ -451,9 +434,7 @@ ProfileManagementStepController::ProfileManagementStepController(
 
 ProfileManagementStepController::~ProfileManagementStepController() = default;
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
 void ProfileManagementStepController::OnReloadRequested() {}
-#endif
 
 void ProfileManagementStepController::NavigateBackInternal(
     content::WebContents* contents) {

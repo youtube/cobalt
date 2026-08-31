@@ -492,11 +492,13 @@ TEST(StringUtilTest, IsStringUTF8) {
 }
 
 TEST(StringUtilTest, IsStringASCII) {
-  static char char_ascii[] = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
-  static char16_t char16_ascii[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8',
-                                    '9', '0', 'A', 'B', 'C', 'D', 'E', 'F', '0',
-                                    '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                                    '0', 'A', 'B', 'C', 'D', 'E', 'F', 0};
+  static std::array<char, 49> char_ascii{
+      "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"};
+  static auto char16_ascii = std::to_array<char16_t>({
+      '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'A',
+      'B', 'C', 'D', 'E', 'F', '0', '1', '2', '3', '4', '5', '6',
+      '7', '8', '9', '0', 'A', 'B', 'C', 'D', 'E', 'F', 0,
+  });
   static std::wstring wchar_ascii(
       L"0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF");
 
@@ -509,11 +511,12 @@ TEST(StringUtilTest, IsStringASCII) {
     for (size_t offset = 0; offset < 8; ++offset) {
       for (size_t len = 0, max_len = string_length - offset; len < max_len;
            ++len) {
-        EXPECT_TRUE(IsStringASCII(std::string_view(char_ascii + offset, len)));
+        EXPECT_TRUE(IsStringASCII(std::string_view(
+            base::span(char_ascii).subspan(offset).data(), len)));
         for (size_t char_pos = offset; char_pos < len; ++char_pos) {
           char_ascii[char_pos] |= '\x80';
-          EXPECT_FALSE(
-              IsStringASCII(std::string_view(char_ascii + offset, len)));
+          EXPECT_FALSE(IsStringASCII(std::string_view(
+              base::span(char_ascii).subspan(offset).data(), len)));
           char_ascii[char_pos] &= ~'\x80';
         }
       }
@@ -525,17 +528,17 @@ TEST(StringUtilTest, IsStringASCII) {
     for (size_t offset = 0; offset < 4; ++offset) {
       for (size_t len = 0, max_len = string_length - offset; len < max_len;
            ++len) {
-        EXPECT_TRUE(
-            IsStringASCII(std::u16string_view(char16_ascii + offset, len)));
+        EXPECT_TRUE(IsStringASCII(std::u16string_view(
+            base::span(char16_ascii).subspan(offset).data(), len)));
         for (size_t char_pos = offset; char_pos < len; ++char_pos) {
           char16_ascii[char_pos] |= 0x80;
-          EXPECT_FALSE(
-              IsStringASCII(std::u16string_view(char16_ascii + offset, len)));
+          EXPECT_FALSE(IsStringASCII(std::u16string_view(
+              base::span(char16_ascii).subspan(offset).data(), len)));
           char16_ascii[char_pos] &= ~0x80;
           // Also test when the upper half is non-zero.
           char16_ascii[char_pos] |= 0x100;
-          EXPECT_FALSE(
-              IsStringASCII(std::u16string_view(char16_ascii + offset, len)));
+          EXPECT_FALSE(IsStringASCII(std::u16string_view(
+              base::span(char16_ascii).subspan(offset).data(), len)));
           char16_ascii[char_pos] &= ~0x100;
         }
       }
@@ -564,11 +567,11 @@ TEST(StringUtilTest, IsStringASCII) {
 }
 
 TEST(StringUtilTest, ConvertASCII) {
-  static const char* const char_cases[] = {"Google Video", "Hello, world\n",
-                                           "0123ABCDwxyz \a\b\t\r\n!+,.~"};
+  static const auto char_cases = std::to_array<const char*>(
+      {"Google Video", "Hello, world\n", "0123ABCDwxyz \a\b\t\r\n!+,.~"});
 
-  static const wchar_t* const wchar_cases[] = {
-      L"Google Video", L"Hello, world\n", L"0123ABCDwxyz \a\b\t\r\n!+,.~"};
+  static const auto wchar_cases = std::to_array<const wchar_t*>(
+      {L"Google Video", L"Hello, world\n", L"0123ABCDwxyz \a\b\t\r\n!+,.~"});
 
   for (size_t i = 0; i < std::size(char_cases); ++i) {
     EXPECT_TRUE(IsStringASCII(char_cases[i]));
@@ -1606,47 +1609,6 @@ TEST(StringUtilTest, WprintfFormatPortabilityTest) {
   }
 }
 
-TEST(StringUtilTest, MakeBasicStringPieceTest) {
-  constexpr char kFoo[] = "Foo";
-  static_assert(MakeStringPiece(kFoo, kFoo + 3) == kFoo, "");
-  static_assert(MakeStringPiece(kFoo, kFoo + 3).data() == kFoo, "");
-  static_assert(MakeStringPiece(kFoo, kFoo + 3).size() == 3, "");
-  static_assert(MakeStringPiece(kFoo + 3, kFoo + 3).empty(), "");
-  static_assert(MakeStringPiece(kFoo + 4, kFoo + 4).empty(), "");
-
-  std::string foo = kFoo;
-  EXPECT_EQ(MakeStringPiece(foo.begin(), foo.end()), foo);
-  EXPECT_EQ(MakeStringPiece(foo.begin(), foo.end()).data(), foo.data());
-  EXPECT_EQ(MakeStringPiece(foo.begin(), foo.end()).size(), foo.size());
-  EXPECT_TRUE(MakeStringPiece(foo.end(), foo.end()).empty());
-
-  constexpr char16_t kBar[] = u"Bar";
-  static_assert(MakeStringPiece16(kBar, kBar + 3) == kBar, "");
-  static_assert(MakeStringPiece16(kBar, kBar + 3).data() == kBar, "");
-  static_assert(MakeStringPiece16(kBar, kBar + 3).size() == 3, "");
-  static_assert(MakeStringPiece16(kBar + 3, kBar + 3).empty(), "");
-  static_assert(MakeStringPiece16(kBar + 4, kBar + 4).empty(), "");
-
-  std::u16string bar = kBar;
-  EXPECT_EQ(MakeStringPiece16(bar.begin(), bar.end()), bar);
-  EXPECT_EQ(MakeStringPiece16(bar.begin(), bar.end()).data(), bar.data());
-  EXPECT_EQ(MakeStringPiece16(bar.begin(), bar.end()).size(), bar.size());
-  EXPECT_TRUE(MakeStringPiece16(bar.end(), bar.end()).empty());
-
-  constexpr wchar_t kBaz[] = L"Baz";
-  static_assert(MakeWStringView(kBaz, kBaz + 3) == kBaz, "");
-  static_assert(MakeWStringView(kBaz, kBaz + 3).data() == kBaz, "");
-  static_assert(MakeWStringView(kBaz, kBaz + 3).size() == 3, "");
-  static_assert(MakeWStringView(kBaz + 3, kBaz + 3).empty(), "");
-  static_assert(MakeWStringView(kBaz + 4, kBaz + 4).empty(), "");
-
-  std::wstring baz = kBaz;
-  EXPECT_EQ(MakeWStringView(baz.begin(), baz.end()), baz);
-  EXPECT_EQ(MakeWStringView(baz.begin(), baz.end()).data(), baz.data());
-  EXPECT_EQ(MakeWStringView(baz.begin(), baz.end()).size(), baz.size());
-  EXPECT_TRUE(MakeWStringView(baz.end(), baz.end()).empty());
-}
-
 TEST(StringUtilTest, RemoveChars) {
   const char kRemoveChars[] = "-/+*";
   std::string input = "A-+bc/d!*";
@@ -1861,34 +1823,6 @@ TEST(StringUtilTest, IsUnicodeWhitespace) {
   EXPECT_TRUE(IsUnicodeWhitespace(L'\v'));
   EXPECT_TRUE(IsUnicodeWhitespace(L'\f'));
   EXPECT_TRUE(IsUnicodeWhitespace(L'\n'));
-}
-
-// Tests that MakeStringViewWithNulChars preserves internal NUL characters.
-TEST(StringUtilTest, MakeStringViewWithNulChars) {
-  {
-    const char kTestString[] = "abd\0def";
-    auto s = MakeStringViewWithNulChars(kTestString);
-    EXPECT_EQ(s.size(), 7u);
-    EXPECT_EQ(base::span(s), base::span_from_cstring(kTestString));
-  }
-  {
-    const wchar_t kTestString[] = L"abd\0def";
-    auto s = MakeStringViewWithNulChars(kTestString);
-    EXPECT_EQ(s.size(), 7u);
-    ASSERT_TRUE(base::span(s) == base::span_from_cstring(kTestString));
-  }
-  {
-    const char16_t kTestString[] = u"abd\0def";
-    auto s = MakeStringViewWithNulChars(kTestString);
-    EXPECT_EQ(s.size(), 7u);
-    EXPECT_TRUE(base::span(s) == base::span_from_cstring(kTestString));
-  }
-  {
-    const char32_t kTestString[] = U"abd\0def";
-    auto s = MakeStringViewWithNulChars(kTestString);
-    EXPECT_EQ(s.size(), 7u);
-    EXPECT_TRUE(base::span(s) == base::span_from_cstring(kTestString));
-  }
 }
 
 class WriteIntoTest : public testing::Test {

@@ -14,9 +14,10 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "components/history/core/browser/history_service.h"
+#include "components/optimization_guide/core/delivery/test_optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/hints/test_optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/test_optimization_guide_decider.h"
-#include "components/optimization_guide/core/test_optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_content_annotations/core/test_page_content_annotator.h"
 #include "components/search_engines/search_engines_test_environment.h"
@@ -87,7 +88,8 @@ class FakeOptimizationGuideDecider
       page_entities_metadata.set_alternative_title("alternative title");
 
       optimization_guide::OptimizationMetadata metadata;
-      metadata.SetAnyMetadataForTesting(page_entities_metadata);
+      metadata.set_any_metadata(
+          optimization_guide::AnyWrapProto(page_entities_metadata));
       std::move(callback).Run(
           optimization_guide::OptimizationGuideDecision::kTrue, metadata);
       return;
@@ -99,7 +101,8 @@ class FakeOptimizationGuideDecider
           "http://gstatic.com/image");
 
       optimization_guide::OptimizationMetadata metadata;
-      metadata.SetAnyMetadataForTesting(salient_image_metadata);
+      metadata.set_any_metadata(
+          optimization_guide::AnyWrapProto(salient_image_metadata));
       std::move(callback).Run(
           optimization_guide::OptimizationGuideDecision::kTrue, metadata);
       return;
@@ -107,7 +110,7 @@ class FakeOptimizationGuideDecider
     if (url == GURL("http://wrongmetadata.com/")) {
       optimization_guide::OptimizationMetadata metadata;
       optimization_guide::proto::Entity entity;
-      metadata.SetAnyMetadataForTesting(entity);
+      metadata.set_any_metadata(optimization_guide::AnyWrapProto(entity));
       std::move(callback).Run(
           optimization_guide::OptimizationGuideDecision::kTrue, metadata);
       return;
@@ -168,6 +171,8 @@ class PageContentAnnotationsServiceTest : public testing::Test {
         /*database_dir=*/base::FilePath(),
         /*optimization_guide_logger=*/nullptr,
         optimization_guide_decider_.get(),
+        /*embedder_metadata_provider=*/nullptr,
+        /*embedder_=*/nullptr,
         /*background_task_runner=*/nullptr);
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)

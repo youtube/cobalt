@@ -9,13 +9,13 @@
 
 #include "include/core/SkData.h"
 #include "include/core/SkFontMgr.h"
+#include "include/core/SkFontScanner.h"
 #include "include/core/SkFontStyle.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkRefCnt.h"
 #include "include/core/SkStream.h"
 #include "include/core/SkString.h"
 #include "include/ports/SkFontMgr_android.h"
-#include "include/ports/SkFontScanner_FreeType.h"
 #include "include/private/base/SkFixed.h"
 #include "include/private/base/SkTArray.h"
 #include "include/private/base/SkTDArray.h"
@@ -51,7 +51,6 @@ public:
     }
 
     const SkString fFamilyName;
-    const STArray<4, SkFixed, true> fAxes;
     const STArray<4, SkLanguage, true> fLang;
     const FontVariant fVariantStyle;
 
@@ -310,16 +309,22 @@ protected:
         return sset->matchStyle(style);
     }
 
+    enum class NameType { Self, Fallback };
     static sk_sp<SkTypeface_AndroidSystem> find_family_style_character(
             const SkString& familyName,
-            const TArray<NameToFamily, true>& fallbackNameToFamilyMap,
+            const TArray<NameToFamily, true>& nameToFamilyMap,
+            NameType nameType,
             const SkFontStyle& style, bool elegant,
             const SkString& langTag, SkUnichar character)
     {
-        for (int i = 0; i < fallbackNameToFamilyMap.size(); ++i) {
-            SkFontStyleSet_Android* family = fallbackNameToFamilyMap[i].styleSet;
-            if (familyName != family->fFallbackFor) {
-                continue;
+        for (auto&& nameToFamily : nameToFamilyMap) {
+            SkFontStyleSet_Android* family = nameToFamily.styleSet;
+            if (!familyName.isEmpty()) {
+                const SkString& name = nameType == NameType::Self ? nameToFamily.name
+                                                                  : family->fFallbackFor;
+                if (familyName != name) {
+                    continue;
+                }
             }
             sk_sp<SkTypeface_AndroidSystem> face(family->matchAStyle(style));
 
@@ -351,7 +356,7 @@ protected:
         // The variant 'default' means 'compact and elegant'.
         // As a result, it is not possible to know the variant context from the font alone.
         // TODO: add 'is_elegant' and 'is_compact' bits to 'style' request.
-
+        sk_sp<SkTypeface_AndroidSystem> matchingTypeface;
         SkString familyNameString(familyName);
         for (const SkString& currentFamilyName : { familyNameString, SkString() }) {
             // The first time match anything elegant, second time anything not elegant.
@@ -359,10 +364,15 @@ protected:
                 for (int bcp47Index = bcp47Count; bcp47Index --> 0;) {
                     SkLanguage lang(bcp47[bcp47Index]);
                     while (!lang.getTag().isEmpty()) {
-                        sk_sp<SkTypeface_AndroidSystem> matchingTypeface =
-                            find_family_style_character(currentFamilyName, fFallbackNameToFamilyMap,
-                                                        style, SkToBool(elegant),
-                                                        lang.getTag(), character);
+                        matchingTypeface = find_family_style_character(
+                            currentFamilyName, fNameToFamilyMap, NameType::Self,
+                            style, SkToBool(elegant), lang.getTag(), character);
+                        if (matchingTypeface) {
+                            return matchingTypeface;
+                        }
+                        matchingTypeface = find_family_style_character(
+                            currentFamilyName, fFallbackNameToFamilyMap, NameType::Fallback,
+                            style, SkToBool(elegant), lang.getTag(), character);
                         if (matchingTypeface) {
                             return matchingTypeface;
                         }
@@ -370,10 +380,15 @@ protected:
                         lang = lang.getParent();
                     }
                 }
-                sk_sp<SkTypeface_AndroidSystem> matchingTypeface =
-                    find_family_style_character(currentFamilyName, fFallbackNameToFamilyMap,
-                                                style, SkToBool(elegant),
-                                                SkString(), character);
+                matchingTypeface = find_family_style_character(
+                    currentFamilyName, fNameToFamilyMap, NameType::Self,
+                    style, SkToBool(elegant), SkString(), character);
+                if (matchingTypeface) {
+                    return matchingTypeface;
+                }
+                matchingTypeface = find_family_style_character(
+                    currentFamilyName, fFallbackNameToFamilyMap, NameType::Fallback,
+                    style, SkToBool(elegant), SkString(), character);
                 if (matchingTypeface) {
                     return matchingTypeface;
                 }
@@ -486,10 +501,6 @@ static char const * const gSystemFontUseStrings[] = {
 #endif
 
 }  // namespace
-
-sk_sp<SkFontMgr> SkFontMgr_New_Android(const SkFontMgr_Android_CustomFonts* custom) {
-    return SkFontMgr_New_Android(custom, SkFontScanner_Make_FreeType());
-}
 
 sk_sp<SkFontMgr> SkFontMgr_New_Android(const SkFontMgr_Android_CustomFonts* custom, std::unique_ptr<SkFontScanner> scanner) {
     if (custom) {

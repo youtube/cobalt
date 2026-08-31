@@ -9,6 +9,7 @@
 
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
+#include "base/notimplemented.h"
 #include "base/observer_list.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -128,7 +129,10 @@ WaylandScreen::WaylandScreen(WaylandConnection* connection)
   }
 }
 
-WaylandScreen::~WaylandScreen() = default;
+WaylandScreen::~WaylandScreen() {
+  // Destroy the idle inhibitor early.  See https://crbug.com/433643249
+  idle_inhibitor_.reset();
+}
 
 void WaylandScreen::OnOutputAddedOrUpdated(
     const WaylandOutput::Metrics& metrics) {

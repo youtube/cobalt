@@ -99,7 +99,7 @@ TEST(HashTest, Sha512) {
   }
 }
 
-TEST(HashTest, WrongDigestSizeDies) {
+TEST(HashDeathTest, WrongDigestSizeDies) {
   std::array<uint8_t, 16> small_digest;
   std::array<uint8_t, 128> big_digest;
   std::array<uint8_t, 16> input;
@@ -112,10 +112,36 @@ TEST(HashTest, WrongDigestSizeDies) {
       "");
 }
 
+TEST(HashDeathTest, UseAfterFinishDies) {
+  crypto::hash::Hasher hasher(crypto::hash::HashKind::kSha256);
+  hasher.Update(base::span<const uint8_t>());
+
+  std::array<uint8_t, crypto::hash::kSha256Size> result;
+  hasher.Finish(result);
+  EXPECT_DEATH_IF_SUPPORTED(hasher.Update(base::span<const uint8_t>()), "");
+  EXPECT_DEATH_IF_SUPPORTED(hasher.Finish(result), "");
+}
+
 TEST(HashTest, StringViewHash) {
   const std::array<uint8_t, crypto::hash::kSha256Size> hash{
       0xdf, 0xfd, 0x60, 0x21, 0xbb, 0x2b, 0xd5, 0xb0, 0xaf, 0x67, 0x62,
       0x90, 0x80, 0x9e, 0xc3, 0xa5, 0x31, 0x91, 0xdd, 0x81, 0xc7, 0xf7,
       0x0a, 0x4b, 0x28, 0x68, 0x8a, 0x36, 0x21, 0x82, 0x98, 0x6f};
   EXPECT_EQ(hash, crypto::hash::Sha256("Hello, World!"));
+}
+
+TEST(HashTest, HashKindEVPMDConversions) {
+  constexpr auto kKinds = std::to_array<crypto::hash::HashKind>({
+      crypto::hash::kSha1,
+      crypto::hash::kSha256,
+      crypto::hash::kSha384,
+      crypto::hash::kSha512,
+  });
+  for (auto kind : kKinds) {
+    const EVP_MD* md = crypto::hash::EVPMDForHashKind(kind);
+    auto result_kind = crypto::hash::HashKindForEVPMD(md);
+    ASSERT_TRUE(result_kind.has_value());
+    EXPECT_EQ(kind, *result_kind);
+  }
+  EXPECT_FALSE(crypto::hash::HashKindForEVPMD(EVP_md5()).has_value());
 }

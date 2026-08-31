@@ -31,10 +31,9 @@ const char kEnableFeatures[] = "enable-features";
 // Force low-end device mode when set.
 const char kEnableLowEndDeviceMode[] = "enable-low-end-device-mode";
 
-// Enable the use of background thread priorities for background tasks in the
-// ThreadPool even on systems where it is disabled by default, e.g. due to
-// concerns about priority inversions.
-const char kEnableBackgroundThreadPool[] = "enable-background-thread-pool";
+// Configure the background threadpool field trial.
+const char kBackgroundThreadPoolFieldTrial[] =
+    "background-thread-pool-field-trial";
 
 // Handle to the shared memory segment containing field trial state that is to
 // be shared between processes. The argument to this switch is made of segments
@@ -162,6 +161,10 @@ const char kDefaultCountryCodeAtInstall[] = "default-country-code";
 
 // Adds additional thread idle time information into the trace event output.
 const char kEnableIdleTracing[] = "enable-idle-tracing";
+
+// Forces the DeviceInfo.isDesktop() check to return true. Can be used to enable
+// desktop-only features on other form factors.
+const char kForceDesktopAndroid[] = "force-desktop-android";
 
 // When we retrieve the package name within the SDK Runtime, we need to use
 // a bit of a hack to do this by taking advantage of the fact that the pid

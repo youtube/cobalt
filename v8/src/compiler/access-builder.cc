@@ -98,11 +98,9 @@ FieldAccess AccessBuilder::ForContextCellFloat64Value() {
 }
 
 // static
-FieldAccess AccessBuilder::ForHeapNumberOrOddballOrHoleValue() {
+FieldAccess AccessBuilder::ForHeapNumberOrOddballValue() {
   STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
                                     offsetof(Oddball, to_number_raw_));
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(offsetof(HeapNumber, value_),
-                                    Hole::kRawNumericValueOffset);
   return ForHeapNumberValue();
 }
 
@@ -564,22 +562,6 @@ FieldAccess AccessBuilder::ForJSArrayBufferViewBitField() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSTypedArrayLength() {
-  FieldAccess access = {kTaggedBase,
-                        JSTypedArray::kRawLengthOffset,
-                        MaybeHandle<Name>(),
-                        OptionalMapRef(),
-                        TypeCache::Get()->kJSTypedArrayLengthType,
-                        MachineType::UintPtr(),
-                        kNoWriteBarrier,
-                        "JSTypedArrayLength"};
-#ifdef V8_ENABLE_SANDBOX
-  access.is_bounded_size_access = true;
-#endif
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSTypedArrayBasePointer() {
   FieldAccess access = {kTaggedBase,           JSTypedArray::kBasePointerOffset,
                         MaybeHandle<Name>(),   OptionalMapRef(),
@@ -909,15 +891,6 @@ FieldAccess AccessBuilder::ForNameRawHashField() {
                         Handle<Name>(),     OptionalMapRef(),
                         Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier,    "NameRawHashField"};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForFreeSpaceSize() {
-  FieldAccess access = {kTaggedBase,         FreeSpace::kSizeOffset,
-                        MaybeHandle<Name>(), OptionalMapRef(),
-                        Type::SignedSmall(), MachineType::TaggedSigned(),
-                        kNoWriteBarrier};
   return access;
 }
 

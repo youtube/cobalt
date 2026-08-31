@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "ios/web/public/test/javascript_test.h"
@@ -92,7 +97,7 @@ TEST_F(
     UtilsJavaScriptTest,
     RemoveQueryAndReferenceFromURL_WithCorruptedURLPrototype_MissingProperty) {
   // Replace the window.URL prototype.
-  web::test::ExecuteJavaScript(
+  web::test::ExecuteJavaScriptInWebView(
       web_view(), @"window.URL = function() { return { weird_field: 1 }; };");
 
   NSString* apiCall =
@@ -109,9 +114,9 @@ TEST_F(
 TEST_F(UtilsJavaScriptTest,
        RemoveQueryAndReferenceFromURL_WithCorruptedURLPrototype_WrongType) {
   // Replace the window.URL prototype.
-  web::test::ExecuteJavaScript(web_view(),
-                               @"window.URL = function() { return {"
-                                "origin: 'o', path: 'pa', protocol: 3 }; };");
+  web::test::ExecuteJavaScriptInWebView(
+      web_view(), @"window.URL = function() { return {"
+                   "origin: 'o', path: 'pa', protocol: 3 }; };");
 
   NSString* apiCall =
       @"__gCrWeb.utils_tests.removeQueryAndReferenceFromURL('%@')";
@@ -167,7 +172,7 @@ TEST_F(UtilsJavaScriptTest, SendWebKitMessage) {
     NSString* js = [NSString
         stringWithFormat:@"__gCrWeb.utils_tests.sendWebKitMessage('%@', %@)",
                          kUtilsSampleMessageHandlerName, data.input];
-    web::test::ExecuteJavaScript(web_view(), js);
+    web::test::ExecuteJavaScriptInWebView(web_view(), js);
 
     ASSERT_TRUE(base::test::ios::WaitUntilConditionOrTimeout(
         base::test::ios::kWaitForJSCompletionTimeout, ^bool() {

@@ -5,7 +5,8 @@
 #ifndef BASE_MEMORY_SAFETY_CHECKS_H_
 #define BASE_MEMORY_SAFETY_CHECKS_H_
 
-#include <cstdint>
+#include <stdint.h>
+
 #include <new>
 #include <type_traits>
 
@@ -317,6 +318,11 @@ NOINLINE void HandleMemorySafetyCheckedOperatorDelete(
 // to know which point at execution it goes wrong.
 BASE_EXPORT void CheckHeapIntegrity(const void* ptr);
 
+// The function here is called right before crashing with
+// `DoubleFreeOrCorruptionDetected()`. We provide an address for the slot start
+// to the function, and it may use that for debugging purpose.
+void SetDoubleFreeOrCorruptionDetectedFn(void (*fn)(uintptr_t));
+
 // Utility class to exclude deallocation from optional safety checks when an
 // instance is on the stack. Can be applied to performance critical functions.
 class BASE_EXPORT ScopedSafetyChecksExclusion {
@@ -332,6 +338,16 @@ class BASE_EXPORT ScopedSafetyChecksExclusion {
       opt_out_scheduler_loop_quarantine_;
 #endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 };
+
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+using base::allocator::SchedulerLoopQuarantineScanPolicyUpdater;
+#else
+class SchedulerLoopQuarantineScanPolicyUpdater {
+ public:
+  ALWAYS_INLINE void DisallowScanlessPurge() {}
+  ALWAYS_INLINE void AllowScanlessPurge() {}
+};
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 }  // namespace base
 

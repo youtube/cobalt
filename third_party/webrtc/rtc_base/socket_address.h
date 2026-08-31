@@ -11,6 +11,8 @@
 #ifndef RTC_BASE_SOCKET_ADDRESS_H_
 #define RTC_BASE_SOCKET_ADDRESS_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -148,6 +150,9 @@ class RTC_EXPORT SocketAddress {
   // Determines whether the hostname has been resolved to an IP.
   bool IsUnresolvedIP() const;
 
+  // Returns the IP Address type as an enum.
+  IPAddressType GetIPAddressType() const;
+
   // Determines whether this address is identical to the given one.
   bool operator==(const SocketAddress& addr) const;
   inline bool operator!=(const SocketAddress& addr) const {
@@ -196,14 +201,5 @@ SocketAddress EmptySocketAddressWithFamily(int family);
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::EmptySocketAddressWithFamily;
-using ::webrtc::SocketAddress;
-using ::webrtc::SocketAddressFromSockAddrStorage;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SOCKET_ADDRESS_H_

@@ -51,16 +51,6 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
             CustomTabAuthUrlHeuristics.setFirstCctPageLoadForMetrics(mTabProvider.getTab());
         }
 
-        if (initialTabCreationMode == TabCreationMode.HIDDEN) {
-            handleInitialLoadForHiddenTab(intentDataProvider);
-        } else {
-            LoadUrlParams params = new LoadUrlParams(intentDataProvider.getUrlToLoad());
-            mNavigationController.navigate(params, intentDataProvider.getIntent());
-        }
-
-        CustomTabAuthUrlHeuristics.recordUrlParamsHistogram(intentDataProvider.getUrlToLoad());
-        CustomTabAuthUrlHeuristics.recordRedirectUriSchemeHistogram(intentDataProvider);
-
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_WEB_APP_LAUNCH_HANDLER)
                 && intentDataProvider.isTrustedWebActivity()) {
             WebAppLaunchHandler launchHandler =
@@ -72,6 +62,16 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
                             mActivity);
             launchHandler.handleInitialIntent(intentDataProvider);
         }
+
+        if (initialTabCreationMode == TabCreationMode.HIDDEN) {
+            handleInitialLoadForHiddenTab(intentDataProvider);
+        } else {
+            LoadUrlParams params = new LoadUrlParams(intentDataProvider.getUrlToLoad());
+            mNavigationController.navigate(params, intentDataProvider.getIntent());
+        }
+
+        CustomTabAuthUrlHeuristics.recordUrlParamsHistogram(intentDataProvider.getUrlToLoad());
+        CustomTabAuthUrlHeuristics.recordRedirectUriSchemeHistogram(intentDataProvider);
     }
 
     // The hidden tab case needs a bit of special treatment.
@@ -89,7 +89,7 @@ public class DefaultCustomTabIntentHandlingStrategy implements CustomTabIntentHa
         boolean useSpeculation = TextUtils.equals(speculatedUrl, url);
         boolean hasCommitted = !tab.getWebContents().getLastCommittedUrl().isEmpty();
         mCustomTabObserver.trackNextPageLoadForHiddenTab(
-                useSpeculation, hasCommitted, intentDataProvider.getIntent());
+                tab.getWebContents(), useSpeculation, hasCommitted, intentDataProvider.getIntent());
 
         if (useSpeculation) return;
 

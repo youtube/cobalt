@@ -34,7 +34,6 @@ import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.tab.Tab;
@@ -315,7 +314,6 @@ public class KeyboardShortcutsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)
     public void testGoToToolbar() {
         assertTrue(
                 keyDown(KeyEvent.KEYCODE_T, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON, true));
@@ -324,7 +322,6 @@ public class KeyboardShortcutsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)
     public void testGoToBookmarksBar() {
         keyDown(KeyEvent.KEYCODE_B, KeyEvent.META_ALT_ON | KeyEvent.META_SHIFT_ON, true);
         verify(mMenuOrKeyboardActionController, times(1))
@@ -334,12 +331,20 @@ public class KeyboardShortcutsTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.ANDROID_KEYBOARD_A11Y)
     public void testFocusSwitch() {
         keyDown(KeyEvent.KEYCODE_F6, 0, true);
         verify(mMenuOrKeyboardActionController, times(1))
                 .onMenuOrKeyboardAction(
                         /* id= */ eq(R.id.switch_keyboard_focus_row), /* fromMenu= */ eq(false));
+    }
+
+    @Test
+    @SmallTest
+    public void testOpenStripContextMenu() {
+        keyDown(KeyEvent.KEYCODE_F10, KeyEvent.META_SHIFT_ON, true);
+        verify(mMenuOrKeyboardActionController, times(1))
+                .onMenuOrKeyboardAction(
+                        /* id= */ eq(R.id.open_tab_strip_context_menu), /* fromMenu= */ eq(false));
     }
 
     private void testOpenBookmarks(

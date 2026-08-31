@@ -24,27 +24,38 @@ found in the LICENSE file.
         app:iconGravity="textStart"
         android:visibility="gone"/>
 
-    <!-- Credit card number -->
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/credit_card_number_label"
-        android:labelFor="@+id/credit_card_number_edit"
+    <!-- Required fields indicator -->
+    <TextView
+        android:id="@+id/required_fields_indicator_label"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/pref_autofill_field_large_top_margin"
         android:layout_marginBottom="@dimen/pref_autofill_field_bottom_margin"
-        app:errorTextAppearance="@style/TextAppearance.ErrorCaption">
+        android:layout_marginStart="@dimen/pref_autofill_field_horizontal_padding"
+        android:layout_marginEnd="@dimen/pref_autofill_field_horizontal_padding"
+        android:textAppearance="@style/TextAppearance.TextSmall.Secondary"
+        android:text="@string/payments_required_field_message"/>
+
+    <!-- Credit card number -->
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/credit_card_number_label"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/pref_autofill_field_top_margin"
+        android:layout_marginBottom="@dimen/pref_autofill_field_bottom_margin"
+        app:errorTextAppearance="@style/TextAppearance.ErrorCaption"
+        android:hint="@string/autofill_credit_card_editor_number">
 
         <!-- TODO(crbug.com/40600572): Fix and remove lint ignore -->
         <org.chromium.chrome.browser.autofill.editors.EditTextNoAutofillView
-            tools:ignore="Autofill,LabelFor"
+            tools:ignore="Autofill"
             android:id="@+id/credit_card_number_edit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="@dimen/min_touch_target_size"
             android:imeOptions="flagNoExtractUi"
             android:inputType="phone"
-            android:digits="0123456789- "
-            android:hint="@string/autofill_credit_card_editor_number" />
+            android:digits="0123456789- " />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -212,22 +223,21 @@ found in the LICENSE file.
     <!-- Name -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/credit_card_name_label"
-        android:labelFor="@+id/credit_card_name_edit"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/pref_autofill_field_top_margin"
-        android:layout_marginBottom="@dimen/pref_autofill_field_bottom_margin">
+        android:layout_marginBottom="@dimen/pref_autofill_field_bottom_margin"
+        android:hint="@string/autofill_credit_card_editor_name">
 
         <!-- TODO(crbug.com/40600572): Fix and remove lint ignore -->
         <org.chromium.chrome.browser.autofill.editors.EditTextNoAutofillView
-            tools:ignore="Autofill,LabelFor"
+            tools:ignore="Autofill"
             android:id="@+id/credit_card_name_edit"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="@dimen/min_touch_target_size"
             android:imeOptions="flagNoExtractUi"
-            android:inputType="textCapWords"
-            android:hint="@string/autofill_credit_card_editor_name" />
+            android:inputType="textCapWords" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -236,24 +246,23 @@ found in the LICENSE file.
     <!-- Nickname -->
     <com.google.android.material.textfield.TextInputLayout
         android:id="@+id/credit_card_nickname_label"
-        android:labelFor="@+id/credit_card_nickname_edit"
         app:counterMaxLength="25"
         app:errorEnabled="true"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/pref_autofill_field_extra_large_top_margin"
-        android:layout_marginBottom="@dimen/pref_autofill_field_bottom_margin">
+        android:layout_marginBottom="@dimen/pref_autofill_field_bottom_margin"
+        android:hint="@string/autofill_credit_card_editor_nickname">
 
         <org.chromium.chrome.browser.autofill.editors.EditTextNoAutofillView
-            tools:ignore="Autofill,LabelFor"
+            tools:ignore="Autofill"
             android:id="@+id/credit_card_nickname_edit"
             android:maxLength="25"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="@dimen/min_touch_target_size"
             android:imeOptions="flagNoExtractUi"
-            android:inputType="textCapWords"
-            android:hint="@string/autofill_credit_card_editor_nickname" />
+            android:inputType="textCapWords" />
 
     </com.google.android.material.textfield.TextInputLayout>
 </merge>

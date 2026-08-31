@@ -9,10 +9,10 @@
 #include "chrome/browser/background/glic/glic_background_mode_manager.h"
 #include "chrome/browser/background/glic/glic_status_icon.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_glic_test.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -22,7 +22,7 @@
 #include "chrome/browser/status_icons/status_tray.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -44,7 +44,6 @@ class GlicStatusIconUiTest : public test::InteractiveGlicTest,
     // browser process from closing which causes the test to hang.
     g_browser_process->local_state()->SetBoolean(prefs::kGlicLauncherEnabled,
                                                  false);
-    test_env_for_second_profile_.reset();
     test::InteractiveGlicTest::TearDownOnMainThread();
   }
 
@@ -94,10 +93,8 @@ class GlicStatusIconUiTest : public test::InteractiveGlicTest,
 
   auto ForceEmptyButtonBounds(Browser* browser) {
     return Do([browser] {
-      auto* glic_button = browser->window()
-                              ->AsBrowserView()
-                              ->tab_strip_region_view()
-                              ->GetGlicButton();
+      auto* glic_button =
+          browser->window()->AsBrowserView()->tab_strip_view()->GetGlicButton();
       glic_button->SetSize(gfx::Size(0, 0));
     });
   }
@@ -107,10 +104,6 @@ class GlicStatusIconUiTest : public test::InteractiveGlicTest,
     auto new_path = profile_manager->GenerateNextProfileDirectoryPath();
     profiles::testing::CreateProfileSync(profile_manager, new_path);
     auto* profile = profile_manager->GetProfile(new_path);
-    // Build a test environment for the new profile to ensure that it can work
-    // with glic.
-    test_env_for_second_profile_ =
-        std::make_unique<GlicTestEnvironment>(profile);
     return profile;
   }
 
@@ -127,7 +120,6 @@ class GlicStatusIconUiTest : public test::InteractiveGlicTest,
     return status_icon->GetContextMenuForTesting();
   }
 
-  std::unique_ptr<GlicTestEnvironment> test_env_for_second_profile_;
   base::test::ScopedFeatureList feature_list_;
 };
 

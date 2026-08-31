@@ -10,8 +10,7 @@
 
 #include "modules/audio_processing/agc/utility.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <numbers>
 
 namespace webrtc {

@@ -12,15 +12,16 @@ class InfoBarIOS;
 
 // Consumer protocol for the view controller that displays badges.
 @protocol BadgeConsumer <NSObject>
-// Notifies the consumer to reset with `displayedBadgeItem` and
-// `fullscreenBadgeItem`.
-- (void)setupWithDisplayedBadge:(id<BadgeItem>)displayedBadgeItem
-                fullScreenBadge:(id<BadgeItem>)fullscreenBadgeItem;
-// Notifies the consumer to update its badges with the configurations of
-// `displayedBadgeItem` and `fullscreenBadgeItem` with the use of `infoBar`,
-// if required.
+
+// Whether the badge view controller is in force disable mode. While force
+// disabled, the displayed badge remains hidden.
+@property(nonatomic, assign) BOOL forceDisabled;
+
+// Notifies the consumer to reset the `displayedBadgeItem`.
+- (void)setupWithDisplayedBadge:(id<BadgeItem>)displayedBadgeItem;
+// Notifies the consumer to update its badges with the configuration of
+// `displayedBadgeItem` with the use of `infoBar`, if required.
 - (void)updateDisplayedBadge:(id<BadgeItem>)displayedBadgeItem
-             fullScreenBadge:(id<BadgeItem>)fullscreenBadgeItem
                      infoBar:(InfoBarIOS*)infoBar;
 // Notifies the consumer whether or not there are unread badges. See
 // BadgeStateRead for more information.

@@ -126,10 +126,10 @@ std::u16string HostedAppBrowserController::GetTitle() const {
   return AppBrowserController::GetTitle();
 }
 
-GURL HostedAppBrowserController::GetAppStartUrl() const {
+const GURL& HostedAppBrowserController::GetAppStartUrl() const {
   const Extension* extension = GetExtension();
   if (!extension) {
-    return GURL();
+    return GURL::EmptyGURL();
   }
 
   return AppLaunchInfo::GetLaunchWebURL(extension);
@@ -200,10 +200,6 @@ void HostedAppBrowserController::Uninstall(
 
 bool HostedAppBrowserController::IsInstalled() const {
   return GetExtension();
-}
-
-bool HostedAppBrowserController::IsHostedApp() const {
-  return true;
 }
 
 void HostedAppBrowserController::OnExtensionUninstallDialogClosed(

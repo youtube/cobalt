@@ -57,8 +57,6 @@
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kSecondTab);
-DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
-                                    kToastAnimation);
 
 class OmniboxInputWaiter : public OmniboxTabHelper::Observer {
  public:
@@ -123,8 +121,7 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
         {toast_features::kLinkCopiedToast, toast_features::kImageCopiedToast,
          toast_features::kReadingListToast,
          toast_features::kPinnedTabToastOnClose,
-         plus_addresses::features::kPlusAddressesEnabled,
-         plus_addresses::features::kPlusAddressFullFormFill},
+         plus_addresses::features::kPlusAddressesEnabled},
         {});
     InteractiveBrowserTest::SetUp();
   }
@@ -146,20 +143,11 @@ class ToastControllerInteractiveTest : public InteractiveBrowserTest {
 
 
   auto ShowToast(ToastParams params) {
-    return Steps(
-        Do(base::BindOnce(
-            [](ToastController* toast_controller, ToastParams toast_params) {
-              toast_controller->MaybeShowToast(std::move(toast_params));
-            },
-            GetToastController(), std::move(params))),
-        PollState(kToastAnimation,
-                  [this]() {
-                    toasts::ToastView* toast_view =
-                        GetToastController()->GetToastViewForTesting();
-                    return toast_view && toast_view->is_animating_for_testing();
-                  }),
-        WaitForState(kToastAnimation, false),
-        StopObservingState(kToastAnimation));
+    return Do(base::BindOnce(
+        [](ToastController* toast_controller, ToastParams toast_params) {
+          toast_controller->MaybeShowToast(std::move(toast_params));
+        },
+        GetToastController(), std::move(params)));
   }
 
   auto FireToastCloseTimer() {
@@ -237,8 +225,7 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, FocusNextPane) {
                   return !toast->GetFocusManager()->GetFocusedView();
                 }),
       SendAccelerator(kBrowserViewElementId, next_pane),
-      WaitForState(views::test::kCurrentWidgetFocus,
-                   [&]() { return toast_widget->GetNativeView(); }),
+      WaitForState(views::test::kCurrentWidgetFocus, std::ref(toast_widget)),
       CheckView(toasts::ToastView::kToastViewId, [](toasts::ToastView* toast) {
         return toast->GetFocusManager()->GetFocusedView() ==
                toast->action_button_for_testing();
@@ -250,7 +237,6 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, ReverseFocusTraversal) {
   ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
       IDC_FOCUS_NEXT_PANE, &next_pane));
   RunTestSequence(
-      ObserveState(views::test::kCurrentWidgetFocus),
       ShowToast(ToastParams(ToastId::kAddedToReadingList)),
       WaitForShow(toasts::ToastView::kToastViewId),
       ActivateSurface(toasts::ToastView::kToastViewId),
@@ -277,7 +263,6 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest, ForwardFocusTraversal) {
   ASSERT_TRUE(BrowserView::GetBrowserViewForBrowser(browser())->GetAccelerator(
       IDC_FOCUS_NEXT_PANE, &next_pane));
   RunTestSequence(
-      ObserveState(views::test::kCurrentWidgetFocus),
       ShowToast(ToastParams(ToastId::kAddedToReadingList)),
       WaitForShow(toasts::ToastView::kToastViewId),
       ActivateSurface(toasts::ToastView::kToastViewId),
@@ -420,8 +405,14 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
   EXPECT_FALSE(toast_controller->GetToastWidgetForTesting()->IsVisible());
 }
 
+// TODO(crbug.com/427355902): Flaky on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_HidesWhenOmniboxPopupShows DISABLED_HidesWhenOmniboxPopupShows
+#else
+#define MAYBE_HidesWhenOmniboxPopupShows HidesWhenOmniboxPopupShows
+#endif
 IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
-                       HidesWhenOmniboxPopupShows) {
+                       MAYBE_HidesWhenOmniboxPopupShows) {
   // Even though the omnibox is focused, the toast should still show because
   // the omnibox doesn't have a popup and the user isn't interacting with the
   // omnibox.
@@ -521,7 +512,10 @@ IN_PROC_BROWSER_TEST_F(ToastControllerInteractiveTest,
                        ToastRendersOverWebContents) {
 #if BUILDFLAG(IS_MAC)
   FullscreenController* const fullscreen_controller =
-      browser()->exclusive_access_manager()->fullscreen_controller();
+      browser()
+          ->GetFeatures()
+          .exclusive_access_manager()
+          ->fullscreen_controller();
   fullscreen_controller->set_is_tab_fullscreen_for_testing(true);
 #else
   ui_test_utils::FullscreenWaiter waiter(browser(), {.tab_fullscreen = true});

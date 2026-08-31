@@ -27,6 +27,8 @@
 #include "base/test/scoped_running_on_chromeos.h"
 #include "chrome/browser/ash/arc/fileapi/arc_file_system_operation_runner.h"
 #include "chrome/browser/ash/arc/fileapi/arc_media_view_util.h"
+#include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/volume.h"
@@ -38,7 +40,6 @@
 #include "chrome/browser/download/download_dir_util.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/base/testing_profile_manager.h"
@@ -337,6 +338,7 @@ class VolumeManagerTest : public testing::Test {
                   extension_registry_.get())),
           drive_integration_service_(
               std::make_unique<drive::DriveIntegrationService>(
+                  TestingBrowserProcess::GetGlobal()->local_state(),
                   profile_,
                   std::string(),
                   base::FilePath())),
@@ -1549,12 +1551,12 @@ class VolumeManagerLocalUserFilesTest : public VolumeManagerArcTest {
   void TearDown() override { VolumeManagerArcTest::TearDown(); }
 
   void SetLocalUserFilesPolicy(bool allowed) {
-    testing_profile_manager_->local_state()->Get()->SetBoolean(
+    TestingBrowserProcess::GetGlobal()->local_state()->SetBoolean(
         prefs::kLocalUserFilesAllowed, allowed);
   }
 
   void SetLocalUserFilesMigrationPolicy(const std::string& destination) {
-    testing_profile_manager_->local_state()->Get()->SetString(
+    TestingBrowserProcess::GetGlobal()->local_state()->SetString(
         prefs::kLocalUserFilesMigrationDestination, destination);
     volume_manager()->OnMigrationSucceededForTesting();
   }

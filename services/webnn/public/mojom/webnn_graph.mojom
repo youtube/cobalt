@@ -7,6 +7,13 @@ module webnn.mojom;
 import "services/webnn/public/mojom/webnn_context_properties.mojom";
 import "third_party/blink/public/mojom/tokens/tokens.mojom";
 
+// Represents the `MLNumber` in the WebIDL definition.
+union Number {
+  double floating_point;
+  int64 signed_integer;
+  uint64 unsigned_integer;
+};
+
 // Represents the `MLOperandType` in the WebIDL definition.
 enum DataType {
   kFloat32,
@@ -25,6 +32,9 @@ enum DataType {
 struct OperandDescriptor {
   DataType data_type;
   array<uint32> shape;
+  // Permutation that needs to be performed on service side for constant
+  // operands.
+  array<uint32> pending_permutation;
 };
 
 struct OperandId {
@@ -117,9 +127,9 @@ struct Clamp {
   OperandId output_operand_id;
 
   // The minimum value of the range.
-  float min_value;
+  Number min_value;
   // The maximum value of the range.
-  float max_value;
+  Number max_value;
   // User defined label from MLOperatorOptions.
   string label;
 };
@@ -344,7 +354,7 @@ struct Expand {
 // Specifies the different ways to pad a tensor. The padding value is only
 // specified when the mode is "constant".
 struct ConstantPadding {
-  float value = 0;
+  Number value;
 };
 
 struct EdgePadding {};
@@ -1426,12 +1436,13 @@ struct GraphInfo {
   // method defined in the WebIDL. The key is the ID of the constant operand,
   // while the value is a handle - minted previously by the sending process -
   // which identifies the respective pending constant operand.
-  map<uint32, blink.mojom.WebNNPendingConstantToken>
+  map<OperandId, blink.mojom.WebNNPendingConstantToken>
       constant_operand_ids_to_handles;
   // A map of tensors used for graph constants. The key is the id of
   // the constant operand, while the value is a handle to the tensor containing
   // the weights.
-  map<uint32, blink.mojom.WebNNTensorToken> id_to_constant_tensor_operand_map;
+  map<OperandId, blink.mojom.WebNNTensorToken>
+      id_to_constant_tensor_operand_map;
 };
 
 // WebNNGraph runs in the GPU process and is called by the renderer process to

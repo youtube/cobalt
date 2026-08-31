@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/history/core/browser/history_types.h"
 
 #include <algorithm>
 #include <limits>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -129,7 +125,7 @@ void QueryResults::DeleteRange(size_t begin, size_t end) {
          match++) {
       if (found->second[match] >= begin && found->second[match] <= end) {
         // Remove this reference from the list.
-        found->second.erase(found->second.begin() + match);
+        found->second.erase(UNSAFE_TODO(found->second.begin() + match));
         match--;
       }
     }
@@ -335,7 +331,8 @@ HistoryAddPageArgs::HistoryAddPageArgs(
     std::optional<Opener> opener,
     std::optional<int64_t> bookmark_id,
     std::optional<std::string> app_id,
-    std::optional<VisitContextAnnotations::OnVisitFields> context_annotations)
+    std::optional<VisitContextAnnotations::OnVisitFields> context_annotations,
+    std::optional<int32_t> actor_task_id)
     : url(url),
       time(time),
       context_id(context_id),
@@ -355,7 +352,8 @@ HistoryAddPageArgs::HistoryAddPageArgs(
       opener(opener),
       bookmark_id(bookmark_id),
       app_id(app_id),
-      context_annotations(std::move(context_annotations)) {}
+      context_annotations(std::move(context_annotations)),
+      actor_task_id(actor_task_id) {}
 
 HistoryAddPageArgs::HistoryAddPageArgs(const HistoryAddPageArgs& other) =
     default;

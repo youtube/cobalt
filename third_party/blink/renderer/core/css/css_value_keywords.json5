@@ -485,6 +485,7 @@
     "right",
     "center",
     "justify",
+    "match-parent",
     "-webkit-left",
     "-webkit-right",
     "-webkit-center",
@@ -786,6 +787,9 @@
     "max-content",
     "fit-content",
 
+    // contain-intrinsic-size
+    "from-element",
+
     //
     // text-autospace
     //
@@ -909,8 +913,8 @@
     // <select>. It should be renamed when a standardized name is chosen.
     "base-select",
     "-internal-auto-base",
-    // Used to set the `content` property of the pseudo element "hint" given to
-    // elements with partial interest (via `interesttarget` keyboard activation).
+    // Used to set the `content` property of the pseudo-element "hint" given to
+    // elements with partial interest (via `interestfor` keyboard activation).
     "-internal-partial-interest-content",
 
     //
@@ -1250,11 +1254,6 @@
     // luminance
     "match-source",
 
-    // masonry-auto-tracks
-    // min-content
-    // max-content
-    // auto
-
     // masonry-direction
     // row
     // row-reverse
@@ -1293,7 +1292,7 @@
     "hanging",
     "mathematical",
 
-    // gap-rule-paint-order
+    // gap-rule-overlap
     "row-over-column",
     "column-over-row",
 
@@ -1636,6 +1635,7 @@
     "size",
     "block-size",
     "inline-size",
+    "view-transition",
 
     // @container
     // size
@@ -2023,9 +2023,16 @@
     "else",
     "media",
 
+    // scroll-marker-group navigation/a11y modes
+    "tabs",
+    "links",
+
     // caret-shape
     // block is elsewhere
     "bar",
     "underscore",
+
+    // continue
+    "-webkit-legacy",
   ],
 }

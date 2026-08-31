@@ -18,6 +18,7 @@ namespace gl
 {
 class Context;
 class PrivateState;
+class PrivateStateCache;
 class ErrorSet;
 
 // GL_AMD_performance_monitor
@@ -242,7 +243,8 @@ bool ValidateDrawElementsInstancedANGLE(const Context *context,
                                         DrawElementsType typePacked,
                                         const void *indices,
                                         GLsizei primcount);
-bool ValidateVertexAttribDivisorANGLE(const Context *context,
+bool ValidateVertexAttribDivisorANGLE(const PrivateState &state,
+                                      ErrorSet *errors,
                                       angle::EntryPoint entryPoint,
                                       GLuint index,
                                       GLuint divisor);
@@ -1412,6 +1414,32 @@ bool ValidateBufferStorageExternalEXT(const Context *context,
 
 // GL_EXT_float_blend
 
+// GL_EXT_fragment_shading_rate
+bool ValidateFramebufferShadingRateEXT(const Context *context,
+                                       angle::EntryPoint entryPoint,
+                                       GLenum target,
+                                       GLenum attachment,
+                                       GLuint texture,
+                                       GLint baseLayer,
+                                       GLsizei numLayers,
+                                       GLsizei texelWidth,
+                                       GLsizei texelHeight);
+bool ValidateGetFragmentShadingRatesEXT(const Context *context,
+                                        angle::EntryPoint entryPoint,
+                                        GLsizei samples,
+                                        GLsizei maxCount,
+                                        const GLsizei *count,
+                                        const GLenum *shadingRates);
+bool ValidateShadingRateEXT(const PrivateState &state,
+                            ErrorSet *errors,
+                            angle::EntryPoint entryPoint,
+                            ShadingRate ratePacked);
+bool ValidateShadingRateCombinerOpsEXT(const PrivateState &state,
+                                       ErrorSet *errors,
+                                       angle::EntryPoint entryPoint,
+                                       CombinerOp combinerOp0Packed,
+                                       CombinerOp combinerOp1Packed);
+
 // GL_EXT_geometry_shader
 bool ValidateFramebufferTextureEXT(const Context *context,
                                    angle::EntryPoint entryPoint,
@@ -1423,7 +1451,8 @@ bool ValidateFramebufferTextureEXT(const Context *context,
 // GL_EXT_gpu_shader5
 
 // GL_EXT_instanced_arrays
-bool ValidateVertexAttribDivisorEXT(const Context *context,
+bool ValidateVertexAttribDivisorEXT(const PrivateState &state,
+                                    ErrorSet *errors,
                                     angle::EntryPoint entryPoint,
                                     GLuint index,
                                     GLuint divisor);
@@ -1696,7 +1725,7 @@ bool ValidateCreateShaderProgramvEXT(const Context *context,
                                      angle::EntryPoint entryPoint,
                                      ShaderType typePacked,
                                      GLsizei count,
-                                     const GLchar **strings);
+                                     const GLchar *const *strings);
 bool ValidateDeleteProgramPipelinesEXT(const Context *context,
                                        angle::EntryPoint entryPoint,
                                        GLsizei n,
@@ -2273,6 +2302,8 @@ bool ValidateBlitFramebufferNV(const Context *context,
                                GLint dstY1,
                                GLbitfield mask,
                                GLenum filter);
+
+// GL_NV_pack_subimage
 
 // GL_NV_pixel_buffer_object
 
@@ -2908,7 +2939,7 @@ bool ValidateFramebufferFoveationParametersQCOM(const Context *context,
 bool ValidateShadingRateQCOM(const PrivateState &state,
                              ErrorSet *errors,
                              angle::EntryPoint entryPoint,
-                             GLenum rate);
+                             ShadingRate ratePacked);
 
 // GL_QCOM_texture_foveated
 bool ValidateTextureFoveationParametersQCOM(const Context *context,

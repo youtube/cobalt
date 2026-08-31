@@ -7,47 +7,39 @@
 #include "base/check_op.h"
 #include "gin/object_template_builder.h"
 #include "gin/per_isolate_data.h"
+#include "v8/include/cppgc/visitor.h"
+#include "v8/include/v8-cppgc.h"
+#include "v8/include/v8-sandbox.h"
 
 namespace gin {
 
-WrappableBase::WrappableBase() = default;
-
-WrappableBase::~WrappableBase() {
-  wrapper_.Reset();
-}
-
 ObjectTemplateBuilder WrappableBase::GetObjectTemplateBuilder(
     v8::Isolate* isolate) {
-  return ObjectTemplateBuilder(isolate, GetTypeName());
+  return ObjectTemplateBuilder(isolate, GetHumanReadableName());
 }
 
-const char* WrappableBase::GetTypeName() {
+void WrappableBase::AssociateWithWrapper(v8::Isolate* isolate,
+                                         v8::Local<v8::Object> wrapper) {
+  const WrapperInfo* info = wrapper_info();
+  v8::Object::Wrap(isolate, wrapper, this,
+                   static_cast<v8::CppHeapPointerTag>(info->pointer_tag));
+  wrapper_.Reset(isolate, wrapper);
+}
+
+NamedPropertyInterceptor* WrappableBase::GetNamedPropertyInterceptor() {
   return nullptr;
 }
 
-void WrappableBase::FirstWeakCallback(
-    const v8::WeakCallbackInfo<WrappableBase>& data) {
-  WrappableBase* wrappable = data.GetParameter();
-  wrappable->dead_ = true;
-  wrappable->wrapper_.Reset();
-  data.SetSecondPassCallback(SecondWeakCallback);
+void WrappableBase::Trace(cppgc::Visitor* visitor) const {
+  visitor->Trace(wrapper_);
 }
 
-void WrappableBase::SecondWeakCallback(
-    const v8::WeakCallbackInfo<WrappableBase>& data) {
-  WrappableBase* wrappable = data.GetParameter();
-  delete wrappable;
-}
-
-v8::MaybeLocal<v8::Object> WrappableBase::GetWrapperImpl(v8::Isolate* isolate,
-                                                         WrapperInfo* info) {
+v8::MaybeLocal<v8::Object> WrappableBase::GetWrapper(v8::Isolate* isolate) {
   if (!wrapper_.IsEmpty()) {
-    return v8::MaybeLocal<v8::Object>(
-        v8::Local<v8::Object>::New(isolate, wrapper_));
+    return wrapper_.Get(isolate);
   }
 
-  if (dead_)
-    return v8::MaybeLocal<v8::Object>();
+  const WrapperInfo* info = wrapper_info();
 
   PerIsolateData* data = PerIsolateData::From(isolate);
   v8::Local<v8::ObjectTemplate> templ = data->GetObjectTemplate(info);
@@ -56,48 +48,21 @@ v8::MaybeLocal<v8::Object> WrappableBase::GetWrapperImpl(v8::Isolate* isolate,
     CHECK(!templ.IsEmpty());
     data->SetObjectTemplate(info, templ);
   }
-  CHECK_EQ(kNumberOfInternalFields, templ->InternalFieldCount());
+  CHECK_EQ(0, templ->InternalFieldCount());
   v8::Local<v8::Object> wrapper;
   // |wrapper| may be empty in some extreme cases, e.g., when
   // Object.prototype.constructor is overwritten.
   if (!templ->NewInstance(isolate->GetCurrentContext()).ToLocal(&wrapper)) {
-    // The current wrappable object will be no longer managed by V8. Delete this
-    // now.
-    delete this;
-    return v8::MaybeLocal<v8::Object>(wrapper);
+    return {};
   }
 
-  int indices[] = {kWrapperInfoIndex, kEncodedValueIndex};
-  void* values[] = {info, this};
-  wrapper->SetAlignedPointerInInternalFields(2, indices, values);
-  wrapper_.Reset(isolate, wrapper);
-  wrapper_.SetWeak(this, FirstWeakCallback, v8::WeakCallbackType::kParameter);
-  return v8::MaybeLocal<v8::Object>(wrapper);
+  AssociateWithWrapper(isolate, wrapper);
+  return wrapper;
 }
 
-namespace internal {
-
-void* FromV8Impl(v8::Isolate* isolate, v8::Local<v8::Value> val,
-                 WrapperInfo* wrapper_info) {
-  if (!val->IsObject())
-    return NULL;
-  v8::Local<v8::Object> obj = v8::Local<v8::Object>::Cast(val);
-  WrapperInfo* info = WrapperInfo::From(obj);
-
-  // If this fails, the object is not managed by Gin. It is either a normal JS
-  // object that's not wrapping any external C++ object, or it is wrapping some
-  // C++ object, but that object isn't managed by Gin (maybe Blink).
-  if (!info)
-    return NULL;
-
-  // If this fails, the object is managed by Gin, but it's not wrapping an
-  // instance of the C++ class associated with wrapper_info.
-  if (info != wrapper_info)
-    return NULL;
-
-  return obj->GetAlignedPointerFromInternalField(kEncodedValueIndex);
+void WrappableBase::SetWrapper(v8::Isolate* isolate,
+                               v8::Local<v8::Object> wrapper) {
+  CHECK(wrapper_.IsEmpty());
+  AssociateWithWrapper(isolate, wrapper);
 }
-
-}  // namespace internal
-
 }  // namespace gin

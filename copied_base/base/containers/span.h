@@ -460,6 +460,18 @@ class GSL_POINTER span : public internal::ExtentStorage<Extent> {
 template <class T, size_t Extent>
 constexpr size_t span<T, Extent>::extent;
 
+// [span.deduct]: Deduction guides
+//
+// This span predates deduction-guide support (see the constructors above),
+// so callers normally use make_span() instead of plain span(container). This
+// guide is added narrowly to support callers (e.g. third_party/crashpad)
+// that use the plain base::span(array) form with a std::array argument.
+template <typename T, size_t N>
+span(std::array<T, N>&) -> span<T, N>;
+
+template <typename T, size_t N>
+span(const std::array<T, N>&) -> span<const T, N>;
+
 // [span.objectrep], views of object representation
 template <typename T, size_t X>
 span<const uint8_t, (X == dynamic_extent ? dynamic_extent : sizeof(T) * X)>
@@ -473,6 +485,22 @@ template <typename T,
 span<uint8_t, (X == dynamic_extent ? dynamic_extent : sizeof(T) * X)>
 as_writable_bytes(span<T, X> s) noexcept {
   return {reinterpret_cast<uint8_t*>(s.data()), s.size_bytes()};
+}
+
+// Like as_[writable_]bytes(), but uses [const] char rather than [const]
+// uint8_t.
+template <typename T, size_t X>
+span<const char, (X == dynamic_extent ? dynamic_extent : sizeof(T) * X)>
+as_chars(span<T, X> s) noexcept {
+  return {reinterpret_cast<const char*>(s.data()), s.size_bytes()};
+}
+
+template <typename T,
+          size_t X,
+          typename = std::enable_if_t<!std::is_const<T>::value>>
+span<char, (X == dynamic_extent ? dynamic_extent : sizeof(T) * X)>
+as_writable_chars(span<T, X> s) noexcept {
+  return {reinterpret_cast<char*>(s.data()), s.size_bytes()};
 }
 
 // Type-deducing helpers for constructing a span.

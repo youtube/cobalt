@@ -10,6 +10,7 @@
 
 #include "test/pc/e2e/analyzer/video/default_video_quality_analyzer_stream_state.h"
 
+#include <cstddef>
 #include <set>
 
 #include "api/units/timestamp.h"

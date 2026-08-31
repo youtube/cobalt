@@ -9,7 +9,9 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
-#include "chrome/browser/autofill_ai/chrome_autofill_ai_client.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_tab_data.h"
+#include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browsing_topics/browsing_topics_service_factory.h"
 #include "chrome/browser/commerce/shopping_service_factory.h"
@@ -19,18 +21,20 @@
 #include "chrome/browser/fingerprinting_protection/chrome_fingerprinting_protection_web_contents_helper_factory.h"
 #include "chrome/browser/image_fetcher/image_fetcher_service_factory.h"
 #include "chrome/browser/loader/from_gws_navigation_and_keep_alive_request_observer.h"
-#include "chrome/browser/passage_embeddings/embedder_tab_observer.h"
+#include "chrome/browser/net/qwac_web_contents_observer.h"
 #include "chrome/browser/privacy_sandbox/incognito/privacy_sandbox_incognito_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_tab_observer.h"
 #include "chrome/browser/privacy_sandbox/tracking_protection_settings_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/ssl/ask_before_http_dialog_controller.h"
 #include "chrome/browser/sync/sessions/sync_sessions_router_tab_helper.h"
 #include "chrome/browser/sync/sessions/sync_sessions_web_contents_router_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/task_manager/web_contents_tags.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/autofill/bubble_manager.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
@@ -44,21 +48,26 @@
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/inactive_window_mouse_event_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_dialog_manager.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_page_action_controller.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/collaboration_messaging_tab_data.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_web_contents_listener.h"
+#include "chrome/browser/ui/tabs/tab_creation_metrics_controller.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_delegate.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_translate_action_listener.h"
 #include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
 #include "chrome/browser/ui/views/commerce/price_insights_page_action_view_controller.h"
+#include "chrome/browser/ui/views/commerce/product_specifications_page_action_view_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_page_action_controller.h"
 #include "chrome/browser/ui/views/intent_picker/intent_picker_view_page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/action_ids.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
 #include "chrome/browser/ui/views/page_action/page_action_properties_provider.h"
+#include "chrome/browser/ui/views/passwords/manage_passwords_page_action_controller.h"
 #include "chrome/browser/ui/views/side_panel/customize_chrome/side_panel_controller_views.h"
 #include "chrome/browser/ui/views/side_panel/extensions/extension_side_panel_manager.h"
 #include "chrome/browser/ui/views/side_panel/read_anything/read_anything_side_panel_controller.h"
@@ -68,6 +77,8 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
+#include "chrome/common/chrome_features.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/browsing_topics/browsing_topics_service.h"
 #include "components/favicon/content/content_favicon_driver.h"
 #include "components/fingerprinting_protection_filter/common/fingerprinting_protection_filter_features.h"
@@ -75,46 +86,20 @@
 #include "components/fingerprinting_protection_filter/interventions/common/interventions_features.h"
 #include "components/image_fetcher/core/image_fetcher_service.h"
 #include "components/ip_protection/common/ip_protection_status.h"
-#include "components/metrics/content/dwa_web_contents_observer.h"
 #include "components/passage_embeddings/passage_embeddings_features.h"
 #include "components/permissions/permission_indicators_tab_data.h"
 #include "components/tabs/public/tab_interface.h"
 #include "net/base/features.h"
+#include "ui/base/unowned_user_data/user_data_factory.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/host/context/glic_page_context_eligibility_observer.h"
 #endif
 namespace tabs {
 
-namespace {
-
-// This is the generic entry point for test code to stub out TabFeature
-// functionality. It is called by production code, but only used by tests.
-TabFeatures::TabFeaturesFactory& GetFactory() {
-  static base::NoDestructor<TabFeatures::TabFeaturesFactory> factory;
-  return *factory;
-}
-
-}  // namespace
-
-// static
-std::unique_ptr<TabFeatures> TabFeatures::CreateTabFeatures() {
-  if (GetFactory()) {
-    return GetFactory().Run();
-  }
-  // Constructor is protected.
-  return base::WrapUnique(new TabFeatures());
-}
-
+TabFeatures::TabFeatures() = default;
 TabFeatures::~TabFeatures() = default;
-
-// static
-void TabFeatures::ReplaceTabFeaturesForTesting(TabFeaturesFactory factory) {
-  TabFeatures::TabFeaturesFactory& f = GetFactory();
-  f = std::move(factory);
-}
 
 LensOverlayController* TabFeatures::lens_overlay_controller() {
   // LensSearchController won't exist on non-normal windows.
@@ -135,7 +120,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   initialized_ = true;
 
   // In tests you may want to disable TabFeatures initialization.
-  // See tabs::PreventTabFeatureInitialization
+  // See tabs::TabModel::PreventFeatureInitializationForTesting
   CHECK(tab.GetBrowserWindowInterface());
 
   tab_subscriptions_.push_back(
@@ -154,14 +139,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   if (base::FeatureList::IsEnabled(features::kPageActionsMigration)) {
     auto* pinned_actions_model = PinnedToolbarActionsModel::Get(profile);
     CHECK(pinned_actions_model);
-    page_action_controller_ =
-        std::make_unique<page_actions::PageActionController>(
+    auto page_action_controller =
+        std::make_unique<page_actions::PageActionControllerImpl>(
             pinned_actions_model);
-    page_action_controller_->Initialize(
+    page_action_controller->Initialize(
         tab,
         std::vector<actions::ActionId>(page_actions::kActionIds.begin(),
                                        page_actions::kActionIds.end()),
         page_actions::PageActionPropertiesProvider());
+    page_action_controller_ = std::move(page_action_controller);
 
     if (IsPageActionMigrated(PageActionIconType::kTranslate)) {
       translate_page_action_controller_ =
@@ -171,7 +157,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     if (IsPageActionMigrated(PageActionIconType::kMemorySaver)) {
       memory_saver_chip_controller_ =
           std::make_unique<memory_saver::MemorySaverChipController>(
-              *page_action_controller());
+              *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kIntentPicker)) {
@@ -185,25 +171,34 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
     }
 
     if (IsPageActionMigrated(PageActionIconType::kZoom)) {
-      zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(tab);
+      zoom_view_controller_ = std::make_unique<zoom::ZoomViewController>(
+          tab, *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kPwaInstall)) {
       pwa_install_page_action_controller_ =
-          std::make_unique<PwaInstallPageActionController>(tab);
+          std::make_unique<PwaInstallPageActionController>(
+              tab, *page_action_controller_);
     }
 
     if (IsPageActionMigrated(PageActionIconType::kPriceInsights)) {
       commerce_price_insights_page_action_view_controller_ =
           std::make_unique<commerce::PriceInsightsPageActionViewController>(
-              tab);
+              tab, *page_action_controller_);
+    }
+
+    if (IsPageActionMigrated(PageActionIconType::kManagePasswords)) {
+      manage_passwords_page_action_controller_ =
+          std::make_unique<ManagePasswordsPageActionController>(
+              *page_action_controller_);
     }
   }
 
   // Features that are only enabled for normal browser windows. By default most
   // features should be instantiated in this block.
   if (tab.IsInNormalWindow()) {
-    lens_search_controller_ = CreateLensController(&tab);
+    lens_search_controller_ =
+        GetUserDataFactory().CreateInstance<LensSearchController>(tab, &tab);
     lens_search_controller_->Initialize(
         profile->GetVariationsClient(),
         IdentityManagerFactory::GetForProfile(profile), profile->GetPrefs(),
@@ -222,15 +217,20 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
         std::make_unique<permissions::PermissionIndicatorsTabData>(
             tab.GetContents());
 
-    chrome_autofill_ai_client_ =
-        ChromeAutofillAiClient::MaybeCreateForWebContents(tab.GetContents());
-
     pinned_translate_action_listener_ =
         std::make_unique<PinnedTranslateActionListener>(&tab);
 
     if (!profile->IsIncognitoProfile()) {
+      // TODO(crbug.com/40863325): Consider using the in-memory cache instead.
       commerce_ui_tab_helper_ =
-          CreateCommerceUiTabHelper(tab.GetContents(), profile);
+          GetUserDataFactory().CreateInstance<commerce::CommerceUiTabHelper>(
+              tab, tab,
+              commerce::ShoppingServiceFactory::GetForBrowserContext(profile),
+              BookmarkModelFactory::GetForBrowserContext(profile),
+              ImageFetcherServiceFactory::GetForKey(profile->GetProfileKey())
+                  ->GetImageFetcher(
+                      image_fetcher::ImageFetcherConfig::kNetworkOnly),
+              side_panel_registry_.get());
     }
 
     contextual_cueing::ContextualCueingHelper::MaybeCreateForWebContents(
@@ -242,10 +242,6 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
     privacy_sandbox_incognito_tab_observer_ =
         std::make_unique<privacy_sandbox::PrivacySandboxIncognitoTabObserver>(
-            tab.GetContents());
-
-    dwa_web_contents_observer_ =
-        std::make_unique<metrics::DwaWebContentsObserver>(
             tab.GetContents());
 
     if (tab_groups::TabGroupSyncService* tab_group_sync_service =
@@ -260,18 +256,55 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           std::make_unique<tab_groups::CollaborationMessagingTabData>(profile);
     }
 
+    if (IsPageActionMigrated(PageActionIconType::kCollaborationMessaging) &&
+        tab_groups::SavedTabGroupUtils::SupportsSharedTabGroups()) {
+      collaboration_messaging_page_action_controller_ =
+          GetUserDataFactory()
+              .CreateInstance<CollaborationMessagingPageActionController>(
+                  tab, tab, *page_action_controller_,
+                  *collaboration_messaging_tab_data_);
+    }
+
 #if BUILDFLAG(ENABLE_GLIC)
     if (glic::GlicEnabling::IsProfileEligible(
             tab.GetBrowserWindowInterface()->GetProfile())) {
       glic_tab_indicator_helper_ =
           std::make_unique<glic::GlicTabIndicatorHelper>(&tab);
-
-      glic_page_context_eligibility_observer_ =
-          glic::GlicPageContextEligibilityObserver::MaybeCreateForWebContents(
-              tab.GetContents());
     }
 #endif  // BUILDFLAG(ENABLE_GLIC)
-  }     // IsInNormalWindow() end.
+    // TODO(crbug.com/433973411): Move this logic to a helper function.
+    if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+        profile->IsRegularProfile()) {
+      actor_ui_tab_controller_ =
+          std::make_unique<actor::ui::ActorUiTabController>(
+              tab, actor::ActorKeyedService::Get(profile),
+              std::make_unique<actor::ui::ActorUiTabControllerFactory>());
+    }
+    actor_tab_data_ =
+        GetUserDataFactory().CreateInstance<actor::ActorTabData>(tab, &tab);
+  }  // IsInNormalWindow() end.
+
+  // This block instantiates the page action controllers that depends on the
+  // `commerce_ui_tab_helper_` and not need to be created before.
+  if (commerce_ui_tab_helper_) {
+    if (IsPageActionMigrated(PageActionIconType::kDiscounts)) {
+      commerce_discounts_page_action_view_controller_ =
+          std::make_unique<commerce::DiscountsPageActionViewController>(
+              tab, *page_action_controller_, *commerce_ui_tab_helper_);
+    }
+
+    if (IsPageActionMigrated(PageActionIconType::kProductSpecifications)) {
+      commerce_product_specifications_page_action_view_controller_ =
+          std::make_unique<
+              commerce::ProductSpecificationsPageActionViewController>(
+              tab, *page_action_controller_, *commerce_ui_tab_helper_);
+    }
+  }
+
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillShowBubblesBasedOnPriorities)) {
+    autofill_bubble_manager_ = autofill::BubbleManager::Create();
+  }
 
   customize_chrome_side_panel_controller_ =
       std::make_unique<customize_chrome::SidePanelControllerViews>(tab);
@@ -332,8 +365,10 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   memory_saver_chip_helper_ = std::make_unique<MemorySaverChipTabHelper>(tab);
 
-  tab_alert_controller_ =
-      std::make_unique<TabAlertController>(tab.GetContents());
+  tab_alert_controller_ = std::make_unique<TabAlertController>(tab);
+
+  tab_creation_metrics_controller_ =
+      std::make_unique<TabCreationMetricsController>(&tab);
 
   tab_ui_helper_ = std::make_unique<TabUIHelper>(tab);
 
@@ -344,9 +379,17 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   inactive_window_mouse_event_controller_ =
       std::make_unique<InactiveWindowMouseEventController>();
 #endif
-}
 
-TabFeatures::TabFeatures() = default;
+  if (base::FeatureList::IsEnabled(net::features::kVerifyQWACs)) {
+    qwac_web_contents_observer_ =
+        std::make_unique<QwacWebContentsObserver>(tab);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kHttpsFirstDialogUi)) {
+    ask_before_http_dialog_controller_ =
+        std::make_unique<AskBeforeHttpDialogController>(&tab);
+  }
+}
 
 TabResourceUsageTabHelper* TabFeatures::SetResourceUsageHelperForTesting(
     std::unique_ptr<TabResourceUsageTabHelper> resource_usage_helper) {
@@ -358,24 +401,6 @@ TabUIHelper* TabFeatures::SetTabUIHelperForTesting(
     std::unique_ptr<TabUIHelper> tab_ui_helper) {
   tab_ui_helper_ = std::move(tab_ui_helper);
   return tab_ui_helper_.get();
-}
-
-std::unique_ptr<LensSearchController> TabFeatures::CreateLensController(
-    TabInterface* tab) {
-  return std::make_unique<LensSearchController>(tab);
-}
-
-std::unique_ptr<commerce::CommerceUiTabHelper>
-TabFeatures::CreateCommerceUiTabHelper(content::WebContents* web_contents,
-                                       Profile* profile) {
-  // TODO(crbug.com/40863325): Consider using the in-memory cache instead.
-  return std::make_unique<commerce::CommerceUiTabHelper>(
-      web_contents,
-      commerce::ShoppingServiceFactory::GetForBrowserContext(profile),
-      BookmarkModelFactory::GetForBrowserContext(profile),
-      ImageFetcherServiceFactory::GetForKey(profile->GetProfileKey())
-          ->GetImageFetcher(image_fetcher::ImageFetcherConfig::kNetworkOnly),
-      side_panel_registry_.get());
 }
 
 void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
@@ -398,15 +423,6 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
   side_panel_registry_->Deregister(
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite));
 
-  if (commerce_ui_tab_helper_) {
-    commerce_ui_tab_helper_.reset();
-    commerce_ui_tab_helper_ = CreateCommerceUiTabHelper(new_contents, profile);
-  }
-  if (chrome_autofill_ai_client_) {
-    chrome_autofill_ai_client_ =
-        ChromeAutofillAiClient::MaybeCreateForWebContents(new_contents);
-  }
-
   if (privacy_sandbox_tab_observer_) {
     privacy_sandbox_tab_observer_.reset();
     privacy_sandbox_tab_observer_ =
@@ -419,12 +435,6 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
     privacy_sandbox_incognito_tab_observer_ =
         std::make_unique<privacy_sandbox::PrivacySandboxIncognitoTabObserver>(
             new_contents);
-  }
-
-  if (dwa_web_contents_observer_) {
-    dwa_web_contents_observer_.reset();
-    dwa_web_contents_observer_ =
-        std::make_unique<metrics::DwaWebContentsObserver>(new_contents);
   }
 
   if (web_app::AreWebAppsEnabled(
@@ -446,6 +456,27 @@ void TabFeatures::WillDiscardContents(tabs::TabInterface* tab,
         std::make_unique<permissions::PermissionIndicatorsTabData>(
             new_contents);
   }
+}
+
+customize_chrome::SidePanelController*
+TabFeatures::SetCustomizeChromeSidePanelControllerForTesting(
+    std::unique_ptr<customize_chrome::SidePanelController>
+        customize_chrome_side_panel_controller) {
+  customize_chrome_side_panel_controller_ =
+      std::move(customize_chrome_side_panel_controller);
+  return customize_chrome_side_panel_controller_.get();
+}
+
+// static
+ui::UserDataFactoryWithOwner<TabInterface>& TabFeatures::GetUserDataFactory() {
+  static base::NoDestructor<ui::UserDataFactoryWithOwner<TabInterface>> factory;
+  return *factory;
+}
+
+// static
+ui::UserDataFactoryWithOwner<TabInterface>&
+TabFeatures::GetUserDataFactoryForTesting() {
+  return GetUserDataFactory();
 }
 
 }  // namespace tabs

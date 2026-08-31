@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tab;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import org.jni_zero.NativeMethods;
 
 import org.chromium.base.Callback;
@@ -60,7 +62,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
      * @param tab Tab whose browser controls state is looked into.
      * @return The current visibility constraints.
      */
-    public static @BrowserControlsState int getConstraints(Tab tab) {
+    public static @BrowserControlsState int getConstraints(@Nullable Tab tab) {
         TabBrowserControlsConstraintsHelper helper = safeGet(tab);
         if (helper == null) return BrowserControlsState.BOTH;
         return helper.getConstraints();
@@ -85,7 +87,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
      *
      * @param tab Tab object.
      */
-    public static void updateEnabledState(Tab tab) {
+    public static void updateEnabledState(@Nullable Tab tab) {
         TabBrowserControlsConstraintsHelper helper = safeGet(tab);
         if (helper == null) return;
         helper.updateEnabledState();
@@ -101,7 +103,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
      * @param animate Whether the controls should animate to the specified ending condition or
      *     should jump immediately.
      */
-    public static void update(Tab tab, int current, boolean animate) {
+    public static void update(@Nullable Tab tab, int current, boolean animate) {
         TabBrowserControlsConstraintsHelper helper = safeGet(tab);
         if (helper == null) return;
         helper.update(current, animate);
@@ -115,7 +117,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
         mTab.addObserver(
                 new EmptyTabObserver() {
                     @Override
-                    public void onInitialized(Tab tab, String appId) {
+                    public void onInitialized(Tab tab, @Nullable String appId) {
                         updateVisibilityDelegate();
                     }
 
@@ -187,9 +189,7 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
 
         if (mNativeTabBrowserControlsConstraintsHelper != 0) {
             TabBrowserControlsConstraintsHelperJni.get()
-                    .onDestroyed(
-                            mNativeTabBrowserControlsConstraintsHelper,
-                            TabBrowserControlsConstraintsHelper.this);
+                    .onDestroyed(mNativeTabBrowserControlsConstraintsHelper);
         }
     }
 
@@ -198,7 +198,8 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
             mVisibilityDelegate.removeObserver(mConstraintsChangedCallback);
         }
         mVisibilityDelegate =
-                mTab.getDelegateFactory().createBrowserControlsVisibilityDelegate(mTab);
+                assumeNonNull(mTab.getDelegateFactory())
+                        .createBrowserControlsVisibilityDelegate(mTab);
         if (mVisibilityDelegate != null) {
             mVisibilityDelegate.addObserver(mConstraintsChangedCallback);
         }
@@ -213,7 +214,6 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
         update(BrowserControlsState.BOTH, getConstraints() != BrowserControlsState.HIDDEN);
     }
 
-    /** Unregister all OffsetTags (for now, only the top controls have an OffsetTag.) */
     private void unregisterOffsetTags() {
         updateOffsetTags(new BrowserControlsOffsetTagsInfo(null, null, null), getConstraints());
     }
@@ -303,7 +303,6 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
         TabBrowserControlsConstraintsHelperJni.get()
                 .updateState(
                         mNativeTabBrowserControlsConstraintsHelper,
-                        TabBrowserControlsConstraintsHelper.this,
                         mTab.getWebContents(),
                         constraints,
                         current,
@@ -321,15 +320,12 @@ public class TabBrowserControlsConstraintsHelper implements UserData {
 
     @NativeMethods
     interface Natives {
-        long init(TabBrowserControlsConstraintsHelper caller);
+        long init(TabBrowserControlsConstraintsHelper self);
 
-        void onDestroyed(
-                long nativeTabBrowserControlsConstraintsHelper,
-                TabBrowserControlsConstraintsHelper caller);
+        void onDestroyed(long nativeTabBrowserControlsConstraintsHelper);
 
         void updateState(
                 long nativeTabBrowserControlsConstraintsHelper,
-                TabBrowserControlsConstraintsHelper caller,
                 WebContents webContents,
                 int contraints,
                 int current,

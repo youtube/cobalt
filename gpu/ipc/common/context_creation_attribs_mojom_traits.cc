@@ -18,11 +18,9 @@ bool StructTraits<gpu::mojom::ContextCreationAttribsDataView,
     return false;
   }
 
-  out->bind_generates_resource = data.bind_generates_resource();
   out->fail_if_major_perf_caveat = data.fail_if_major_perf_caveat();
   out->lose_context_when_out_of_memory = data.lose_context_when_out_of_memory();
   out->enable_gles2_interface = data.enable_gles2_interface();
-  out->enable_grcontext = data.enable_grcontext();
   out->enable_raster_interface = data.enable_raster_interface();
   out->enable_gpu_rasterization = data.enable_gpu_rasterization();
   return true;

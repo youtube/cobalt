@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/z_orderable_tab_container_element.h"
 #include "components/tab_groups/tab_group_id.h"
+#include "components/tab_groups/tab_group_visual_data.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/animation/bounds_animator.h"
 #include "ui/views/view.h"
@@ -183,6 +184,8 @@ class TabContainer : public views::View, public BrowserRootView::DropTarget {
   virtual const std::map<tab_groups::TabGroupId,
                          std::unique_ptr<TabGroupViews>>&
   get_group_views_for_testing() const = 0;
+  virtual std::map<tab_groups::TabGroupId, TabGroupHeader*> GetGroupHeaders()
+      const = 0;
 
   // Returns ideal bounds for the tab at `model_index` in this TabContainer's
   // coordinate space.

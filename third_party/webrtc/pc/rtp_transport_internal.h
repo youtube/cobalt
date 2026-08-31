@@ -19,6 +19,7 @@
 #include "absl/functional/any_invocable.h"
 #include "call/rtp_demuxer.h"
 #include "pc/session_description.h"
+#include "rtc_base/async_packet_socket.h"
 #include "rtc_base/callback_list.h"
 #include "rtc_base/copy_on_write_buffer.h"
 #include "rtc_base/network/sent_packet.h"

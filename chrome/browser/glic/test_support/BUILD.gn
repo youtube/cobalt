@@ -23,12 +23,18 @@ source_set("test_support") {
     "non_interactive_glic_test.h",
   ]
   deps = [
+    "//chrome/browser/actor/ui",
     "//chrome/browser/glic",
     "//chrome/browser/glic:impl",
     "//chrome/browser/glic/fre",
     "//chrome/browser/ui:ui_features",
+    "//chrome/browser/ui/tabs:glic",
     "//components/signin/public/identity_manager:test_support",
     "//ui/events:test_support",
   ]
   public_deps = [ "//chrome/test:test_support" ]
+
+  # TODO(crbug.com/432285114): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

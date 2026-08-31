@@ -18,6 +18,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -276,7 +277,8 @@ void RecentTabsSubMenuModel::ExecuteCommand(int command_id, int event_flags) {
   sessions::TabRestoreService* service =
       TabRestoreServiceFactory::GetForProfile(browser_->profile());
   CHECK(service);
-  sessions::LiveTabContext* context = browser_->live_tab_context();
+  sessions::LiveTabContext* context =
+      browser_->GetFeatures().live_tab_context();
   CHECK(context);
 
   WindowOpenDisposition disposition = ui::DispositionFromEventFlags(

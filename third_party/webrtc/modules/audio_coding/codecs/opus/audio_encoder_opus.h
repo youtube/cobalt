@@ -147,11 +147,8 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
   void SetFrameLength(int frame_length_ms);
   void SetNumChannelsToEncode(size_t num_channels_to_encode);
   void SetProjectedPacketLossRate(float fraction);
-
-  void OnReceivedUplinkBandwidth(
-      int target_audio_bitrate_bps,
-      std::optional<int64_t> bwe_period_ms,
-      std::optional<int64_t> link_capacity_allocation);
+  void OnReceivedUplinkBandwidthImpl(int target_audio_bitrate_bps,
+                                     std::optional<int64_t> bwe_period_ms);
 
   // TODO(minyue): remove "override" when we can deprecate
   // `AudioEncoder::SetTargetBitrate`.
@@ -166,7 +163,6 @@ class AudioEncoderOpusImpl final : public AudioEncoder {
 
   AudioEncoderOpusConfig config_;
   const int payload_type_;
-  const bool use_stable_target_for_adaptation_;
   const bool adjust_bandwidth_;
   bool bitrate_changed_;
   // A multiplier for bitrates at 5 kbps and higher. The target bitrate

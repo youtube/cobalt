@@ -308,7 +308,6 @@ public class GamepadList {
                     device.updateButtonsAndAxesMapping();
                     GamepadListJni.get()
                             .setGamepadData(
-                                    GamepadList.this,
                                     webGamepadsPtr,
                                     /* index= */ i,
                                     device.isStandardGamepad(),
@@ -324,7 +323,6 @@ public class GamepadList {
                 } else {
                     GamepadListJni.get()
                             .setGamepadData(
-                                    GamepadList.this,
                                     webGamepadsPtr,
                                     /* index= */ i,
                                     /* mapping= */ false,
@@ -368,9 +366,11 @@ public class GamepadList {
     private void doVibration(int index, double strongMagnitude, double weakMagnitude) {
         GamepadDevice device;
         synchronized (mLock) {
-            device = assumeNonNull(getDevice(index));
+            device = getDevice(index);
         }
-        device.doVibration(strongMagnitude, weakMagnitude);
+        if (device != null) {
+            device.doVibration(strongMagnitude, weakMagnitude);
+        }
     }
 
     @CalledByNative
@@ -381,9 +381,11 @@ public class GamepadList {
     private void cancelVibration(int index) {
         GamepadDevice device;
         synchronized (mLock) {
-            device = assumeNonNull(getDevice(index));
+            device = getDevice(index);
         }
-        device.cancelVibration();
+        if (device != null) {
+            device.cancelVibration();
+        }
     }
 
     private static class LazyHolder {
@@ -393,7 +395,6 @@ public class GamepadList {
     @NativeMethods
     interface Natives {
         void setGamepadData(
-                GamepadList caller,
                 long webGamepadsPtr,
                 int index,
                 boolean mapping,

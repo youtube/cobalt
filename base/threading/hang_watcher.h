@@ -144,18 +144,23 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   class BASE_EXPORT Delegate {
    public:
     virtual ~Delegate() = default;
+    virtual void RecordHangStarted(const std::string& hang_uuid) {}
+    virtual void RecordHangRecovered(const std::string& hang_uuid) {}
     // Returns true if hang reporting should be enabled
     // potentially overriding default settings.
     virtual bool IsHangReportingEnabled() = 0;
-    // Returns a custom timeout for hang watching, or std::nullopt to use
-    // default.
-    virtual std::optional<base::TimeDelta> GetHangWatchTime() = 0;
-    // Returns a custom monitoring period, or std::nullopt to use default.
-    virtual std::optional<base::TimeDelta> GetHangWatchMonitoringPeriod() = 0;
+    // Returns the timeout for hang watching.
+    virtual base::TimeDelta GetHangWatchTime() = 0;
+    // Returns the monitoring period.
+    virtual base::TimeDelta GetHangWatchMonitoringPeriod() = 0;
     // Returns whether crash dumps are enabled for a specific thread type.
-    // Returns std::nullopt if the embedder has no specific override.
-    virtual std::optional<bool> IsThreadDumpingEnabled(
-        ThreadType thread_type) = 0;
+    virtual bool IsThreadDumpingEnabled(ThreadType thread_type) = 0;
+    // Returns whether long hang detection is enabled.
+    virtual bool IsLongHangDetectionEnabled() = 0;
+    // Returns whether force kill is enabled on long hang.
+    virtual bool IsLongHangKillEnabled() = 0;
+    // Returns the threshold duration for a long hang.
+    virtual base::TimeDelta GetLongHangTimeout() = 0;
   };
 #endif
 
@@ -283,6 +288,14 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // sleeping. Use only for testing.
   void SetTickClockForTesting(const base::TickClock* tick_clock);
 
+  // Grabs a watch state snapshot and returns the hung thread IDs, as produced
+  // by `PrepareHungThreadListCrashKey()`.
+  // NO_THREAD_SAFETY_ANALYSIS is needed because the analyzer can't figure out
+  // that calls to this function done from |on_hang_closure_| are properly
+  // locked.
+  std::string GetHungThreadListCrashKeyForTesting() const
+      NO_THREAD_SAFETY_ANALYSIS;
+
   // Use to block until the hang is recorded. Allows the caller to halt
   // execution so it does not overshoot the hang watch target and result in a
   // non-actionable stack trace in the crash recorded.
@@ -291,9 +304,15 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Begin executing the monitoring loop on the HangWatcher thread.
   void Start();
 
+  // Stop all monitoring and join the HangWatcher thread.
+  void Stop();
+
   // Returns true if Start() has been called and Stop() has not been called
   // since.
   bool IsStarted() const { return thread_started_; }
+
+  // Returns `true` if this HangWatcher watches threads.
+  bool IsWatchingThreads() LOCKS_EXCLUDED(watch_state_lock_);
 
   // Returns the value of the crash key with the time since last system power
   // resume.
@@ -302,6 +321,11 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
 #if BUILDFLAG(IS_COBALT)
   // Sets the delegate for the HangWatcher. Must be called before Start().
   static void SetDelegate(Delegate* delegate);
+
+  // Set a closure to be called instead of LOG(FATAL) when a long hang is
+  // detected. The native abort is forced when long hang kill is enabled and a
+  // thread hangs for a duration exceeding the long hang timeout.
+  void SetForceKillClosureForTesting(base::RepeatingClosure closure);
 #endif
 
  private:
@@ -319,12 +343,10 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   void OnMemoryPressure(
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
 
-#if !BUILDFLAG(IS_NACL)
   // Returns a ScopedCrashKeyString that sets the crash key with the time since
   // last critical memory pressure signal.
   [[nodiscard]] debug::ScopedCrashKeyString
   GetTimeSinceLastCriticalMemoryPressureCrashKey();
-#endif
 
   // Invoke base::debug::DumpWithoutCrashing() insuring that the stack frame
   // right under it in the trace belongs to HangWatcher for easier attribution.
@@ -385,24 +407,59 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     std::vector<WatchStateCopy> hung_watch_state_copies_;
   };
 
-  // Return a watch state snapshot taken Now() to be inspected in tests.
-  // NO_THREAD_SAFETY_ANALYSIS is needed because the analyzer can't figure out
-  // that calls to this function done from |on_hang_closure_| are properly
-  // locked.
-  WatchStateSnapShot GrabWatchStateSnapshotForTesting() const
-      NO_THREAD_SAFETY_ANALYSIS;
-
   // Inspects the state of all registered threads to check if they are hung and
   // invokes the appropriate closure if so.
   void Monitor() LOCKS_EXCLUDED(watch_state_lock_);
+
+#if BUILDFLAG(IS_COBALT)
+  // Checks if any previously hung threads have recovered. If all threads have
+  // resumed, it notifies the delegate and clears the active hang UUID.
+  // Also checks if hang have crossed long hang threshold and force kill, if
+  // configured.
+  void CheckHangState() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Generates a new UUID, saves it as the active hang UUID, and notifies the
+  // delegate and Crashpad that a new hang incident has begun.
+  // NOTE: RecordHang() is the upstream Chromium method that simply triggers
+  // DumpWithoutCrashing(). RecordHangStarted() is Cobalt-specific for NSE.
+  void RecordHangStarted() EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  // Communicates the unique hang identifier from RecordHangStarted() to a
+  // subsequent execution of CheckHangState().
+  // NOTE: Even if multiple threads hang simultaneously (or in an overlapping
+  // cascade), they all share this single UUID. The UUID is only cleared when
+  // *all* threads recover. 90% of hangs are single-threaded though.
+  std::string active_hang_uuid_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  // This is used to estimate duration of the hang and trigger long hang
+  // actions.
+  base::TimeTicks hang_start_time_
+      GUARDED_BY_CONTEXT(hang_watcher_thread_checker_);
+
+  // This is used to prevent multiple long hang actions for the same hang.
+  bool long_hang_logged_ GUARDED_BY_CONTEXT(hang_watcher_thread_checker_) =
+      false;
+
+  // Iterates through the registered threads to determine if any thread has
+  // been hung for a duration exceeding the long hang timeout. Emits a UMA
+  // metric once per long hang and optionally forces a native abort.
+  // Note: If multiple threads hang in an overlapping cascade (e.g., Thread A
+  // hangs for 6s, then Thread B hangs, and Thread A recovers), the total
+  // continuous incident time is preserved. If Thread B continues hanging for
+  // 4s, the Long Hang timeout (e.g., 10s) will trigger even though neither
+  // thread independently hung for a full 10 seconds. This is deliberate, as it
+  // tracks global process unresponsiveness.
+  void CheckForLongHangs(base::TimeTicks now)
+      EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_);
+
+  RepeatingClosure force_kill_closure_for_testing_;
+#endif
 
   // Record the hang crash dump and perform the necessary housekeeping before
   // and after.
   void DoDumpWithoutCrashing(const WatchStateSnapShot& watch_state_snapshot)
       EXCLUSIVE_LOCKS_REQUIRED(watch_state_lock_) LOCKS_EXCLUDED(capture_lock_);
-
-  // Stop all monitoring and join the HangWatcher thread.
-  void Stop();
 
   // Wait until it's time to monitor.
   void Wait();
@@ -416,8 +473,6 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Use to make the HangWatcher thread wake or sleep to schedule the
   // appropriate monitoring frequency.
   WaitableEvent should_monitor_;
-
-  bool IsWatchListEmpty() LOCKS_EXCLUDED(watch_state_lock_);
 
   // Stops hang watching on the calling thread by removing the entry from the
   // watch list.
@@ -457,10 +512,6 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // The time after which all deadlines in |watch_states_| need to be for a hang
   // to be reported.
   base::TimeTicks deadline_ignore_threshold_;
-
-  FRIEND_TEST_ALL_PREFIXES(HangWatcherTest, NestedScopes);
-  FRIEND_TEST_ALL_PREFIXES(HangWatcherSnapshotTest, HungThreadIDs);
-  FRIEND_TEST_ALL_PREFIXES(HangWatcherSnapshotTest, NonActionableReport);
 };
 
 // Classes here are exposed in the header only for testing. They are not

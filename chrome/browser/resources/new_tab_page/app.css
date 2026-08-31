@@ -33,6 +33,18 @@
 }
 
 /**
+ * Hide everything that should not display when the composebox is open
+ * so they are not tabbable.
+ */
+:host([show-composebox_]:not[closing-composebox]) cr-most-visited,
+:host([show-composebox_]:not[closing-composebox]) ntp-middle-slot-promo,
+:host([show-composebox_]:not[closing-composebox]) ntp-modules,
+:host([show-composebox_]:not[closing-composebox]) #backgroundImageAttribution,
+:host([show-composebox_]:not[closing-composebox]) ntp-customize-buttons {
+  display: none;
+}
+
+/**
  * Maintain a larger width if the secondary side can be shown and was at any
  * point available to be shown.
  */
@@ -109,9 +121,17 @@ cr-most-visited {
   z-index: 1;
 }
 
+:host([show-composebox_]) #content {
+  z-index: unset;
+}
+
 #logo {
   margin-bottom: 38px;
   z-index: 1;  /* Needed so it layers on top of OneGoogleBar. */
+}
+
+:host([show-composebox_]) #logo {
+  z-index: 2;
 }
 
 #searchboxContainer {
@@ -226,6 +246,19 @@ ntp-middle-slot-promo:not([hidden]) ~ #modules {
   font-size: .75rem;
 }
 
+#customizeButtons {
+  bottom: 16px;
+  position: fixed;
+}
+
+:host-context([dir='ltr']) #customizeButtons {
+  right: 16px;
+}
+
+:host-context([dir='rtl']) #customizeButtons {
+  left: 16px;
+}
+
 #contentBottomSpacer {
   flex-shrink: 0;
   height: 32px;
@@ -236,12 +269,38 @@ svg {
   position: fixed;
 }
 
+ntp-composebox {
+  --ntp-composebox-width: var(--ntp-search-box-width);
+  --ntp-composebox-background-color:
+      var(--color-new-tab-page-composebox-background);
+}
+
+ntp-composebox.fade-out {
+  opacity: 0;
+}
+
+ntp-composebox,
 ntp-lens-upload-dialog {
   left: 0;
   position: absolute;
   right: 0;
   top: 0;
   z-index: 101;
+}
+
+#composeboxScrim {
+  background: var(--color-new-tab-page-composebox-scrim-background);
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 1s ease-in-out;
+  z-index: 1;
+}
+
+#composeboxScrim.fade {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 #webstoreToast {

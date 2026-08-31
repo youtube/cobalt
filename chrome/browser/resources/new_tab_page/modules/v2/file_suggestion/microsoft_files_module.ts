@@ -11,6 +11,7 @@ import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {File} from '../../../file_suggestion.mojom-webui.js';
 import {RecommendationType} from '../../../file_suggestion.mojom-webui.js';
 import {I18nMixinLit, loadTimeData} from '../../../i18n_setup.js';
+import {recordSmallCount} from '../../../metrics_utils.js';
 import type {MicrosoftFilesPageHandlerRemote} from '../../../microsoft_files.mojom-webui.js';
 import {ParentTrustedDocumentProxy} from '../../microsoft_auth_frame_connector.js';
 import {ModuleDescriptor} from '../../module_descriptor.js';
@@ -144,17 +145,20 @@ export class MicrosoftFilesModuleElement extends
     numOfFiles.set(RecommendationType.kShared, 0);
     numOfFiles.set(RecommendationType.kTrending, 0);
     for (let i = 0; i < files.length; i++) {
-      numOfFiles.set(
-          files[i].recommendationType!,
-          numOfFiles.get(files[i].recommendationType!)! + 1);
+      const file = files[i]!;
+      const recommendationType = file.recommendationType;
+      if (recommendationType !== null) {
+        numOfFiles.set(
+            recommendationType, numOfFiles.get(recommendationType)! + 1);
+      }
     }
-    chrome.metricsPrivate.recordSmallCount(
+    recordSmallCount(
         'NewTabPage.MicrosoftFiles.ShownFiles.Used',
         numOfFiles.get(RecommendationType.kUsed)!);
-    chrome.metricsPrivate.recordSmallCount(
+    recordSmallCount(
         'NewTabPage.MicrosoftFiles.ShownFiles.Shared',
         numOfFiles.get(RecommendationType.kShared)!);
-    chrome.metricsPrivate.recordSmallCount(
+    recordSmallCount(
         'NewTabPage.MicrosoftFiles.ShownFiles.Trending',
         numOfFiles.get(RecommendationType.kTrending)!);
   }

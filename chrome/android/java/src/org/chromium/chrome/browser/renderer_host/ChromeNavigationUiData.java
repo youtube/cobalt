@@ -6,7 +6,10 @@ package org.chromium.chrome.browser.renderer_host;
 
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
+
 /** Provides a way to attach chrome-specific navigation ui data from java. */
+@NullMarked
 public class ChromeNavigationUiData {
     private long mBookmarkId;
 
@@ -15,8 +18,7 @@ public class ChromeNavigationUiData {
      * pointer and transferring ownership to the calling function.
      */
     public long createUnownedNativeCopy() {
-        return ChromeNavigationUiDataJni.get()
-                .createUnownedNativeCopy(ChromeNavigationUiData.this, mBookmarkId);
+        return ChromeNavigationUiDataJni.get().createUnownedNativeCopy(mBookmarkId);
     }
 
     /** Set the bookmark id on this navigation. */
@@ -26,6 +28,6 @@ public class ChromeNavigationUiData {
 
     @NativeMethods
     interface Natives {
-        long createUnownedNativeCopy(ChromeNavigationUiData caller, long bookmarkId);
+        long createUnownedNativeCopy(long bookmarkId);
     }
 }

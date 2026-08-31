@@ -23,7 +23,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type_names.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill_ai/core/browser/autofill_ai_utils.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_labels.h"
 #include "components/strings/grit/components_strings.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -59,11 +59,11 @@ void EntityInstanceToPrivateApiEntityInstanceWithLabels(
     const std::string& app_locale,
     std::vector<autofill_private::EntityInstanceWithLabels>& output) {
   // Step 1#, get all available labels for `entity_instances`.
-  const autofill_ai::EntitiesLabels labels_for_entities =
-      autofill_ai::GetLabelsForEntities(
-          entity_instances,
-          /*allow_only_disambiguating_types=*/false,
-          /*return_at_least_one_label=*/true, app_locale);
+  const std::vector<autofill::EntityLabel> labels_for_entities =
+      autofill::GetLabelsForEntities(entity_instances,
+                                     /*allow_only_disambiguating_types=*/false,
+                                     /*allow_only_disambiguating_values=*/false,
+                                     app_locale);
 
   // Step 2#
   // Update the `output` with each entity's respective
@@ -76,7 +76,7 @@ void EntityInstanceToPrivateApiEntityInstanceWithLabels(
   // the second line.
   std::vector<autofill_private::EntityInstanceWithLabels>
       entities_instances_with_labels;
-  CHECK_EQ(entity_instances.size(), labels_for_entities->size());
+  CHECK_EQ(entity_instances.size(), labels_for_entities.size());
   for (size_t i = 0; i < entity_instances.size(); i++) {
     const EntityInstance& entity_instance = *entity_instances[i];
     autofill_private::EntityInstanceWithLabels& entity_instance_with_labels =
@@ -85,9 +85,8 @@ void EntityInstanceToPrivateApiEntityInstanceWithLabels(
         entity_instance.guid().AsLowercaseString();
     entity_instance_with_labels.entity_instance_label =
         base::UTF16ToUTF8(entity_instance.type().GetNameForI18n());
-    entity_instance_with_labels.entity_instance_sub_label =
-        base::UTF16ToUTF8(base::JoinString((*labels_for_entities)[i],
-                                           autofill_ai::kLabelSeparator));
+    entity_instance_with_labels.entity_instance_sub_label = base::UTF16ToUTF8(
+        base::JoinString(labels_for_entities[i], autofill::kLabelSeparator));
   }
 }
 
@@ -95,39 +94,66 @@ void EntityInstanceToPrivateApiEntityInstanceWithLabels(
 
 std::string GetAddEntityTypeStringForI18n(EntityType entity_type) {
   switch (entity_type.name()) {
-    case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ADD_PASSPORT_ENTITY);
-    case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ADD_VEHICLE_ENTITY);
     case EntityTypeName::kDriversLicense:
       return l10n_util::GetStringUTF8(
           IDS_AUTOFILL_AI_ADD_DRIVERS_LICENSE_ENTITY);
+    case EntityTypeName::kKnownTravelerNumber:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_ADD_KNOWN_TRAVELER_NUMBER_ENTITY);
+    case EntityTypeName::kNationalIdCard:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_ADD_NATIONAL_ID_CARD_ENTITY);
+    case EntityTypeName::kPassport:
+      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ADD_PASSPORT_ENTITY);
+    case EntityTypeName::kRedressNumber:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_ADD_REDRESS_NUMBER_ENTITY);
+    case EntityTypeName::kVehicle:
+      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_ADD_VEHICLE_ENTITY);
   }
   NOTREACHED();
 }
 
 std::string GetEditEntityTypeStringForI18n(EntityType entity_type) {
   switch (entity_type.name()) {
-    case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_EDIT_PASSPORT_ENTITY);
-    case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_EDIT_VEHICLE_ENTITY);
     case EntityTypeName::kDriversLicense:
       return l10n_util::GetStringUTF8(
           IDS_AUTOFILL_AI_EDIT_DRIVERS_LICENSE_ENTITY);
+    case EntityTypeName::kKnownTravelerNumber:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_EDIT_KNOWN_TRAVELER_NUMBER_ENTITY);
+    case EntityTypeName::kNationalIdCard:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_EDIT_NATIONAL_ID_CARD_ENTITY);
+    case EntityTypeName::kPassport:
+      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_EDIT_PASSPORT_ENTITY);
+    case EntityTypeName::kRedressNumber:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_EDIT_REDRESS_NUMBER_ENTITY);
+    case EntityTypeName::kVehicle:
+      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_EDIT_VEHICLE_ENTITY);
   }
   NOTREACHED();
 }
 
 std::string GetDeleteEntityTypeStringForI18n(EntityType entity_type) {
   switch (entity_type.name()) {
-    case EntityTypeName::kPassport:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DELETE_PASSPORT_ENTITY);
-    case EntityTypeName::kVehicle:
-      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DELETE_VEHICLE_ENTITY);
     case EntityTypeName::kDriversLicense:
       return l10n_util::GetStringUTF8(
           IDS_AUTOFILL_AI_DELETE_DRIVERS_LICENSE_ENTITY);
+    case EntityTypeName::kKnownTravelerNumber:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_DELETE_KNOWN_TRAVELER_NUMBER_ENTITY);
+    case EntityTypeName::kNationalIdCard:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_DELETE_NATIONAL_ID_CARD_ENTITY);
+    case EntityTypeName::kPassport:
+      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DELETE_PASSPORT_ENTITY);
+    case EntityTypeName::kRedressNumber:
+      return l10n_util::GetStringUTF8(
+          IDS_AUTOFILL_AI_DELETE_REDRESS_NUMBER_ENTITY);
+    case EntityTypeName::kVehicle:
+      return l10n_util::GetStringUTF8(IDS_AUTOFILL_AI_DELETE_VEHICLE_ENTITY);
   }
   NOTREACHED();
 }

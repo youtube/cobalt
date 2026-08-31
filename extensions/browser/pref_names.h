@@ -116,12 +116,6 @@ inline constexpr char kManifestV2Availability[] = "extensions.manifest_v2";
 // object stored in the Preferences file. The extensions are stored by ID.
 inline constexpr char kPinnedExtensions[] = "extensions.pinned_extensions";
 
-// Indicates on-disk data might have skeletal data that needs to be cleaned
-// on the next start of the browser.
-// TODO(crbug.com/40922689): Delete ExtensionsPref::kStorageGarbageCollect.
-inline constexpr char kStorageGarbageCollect[] =
-    "extensions.storage.garbagecollect";
-
 // Pref for policy to enable/disable loading extension from command line
 inline constexpr char kExtensionInstallTypeBlocklist[] =
     "extensions.extension_install_type_blocklist";
@@ -129,19 +123,21 @@ inline constexpr char kExtensionInstallTypeBlocklist[] =
 // Properties in kExtensions dictionaries --------------------------------------
 
 // Extension-controlled preferences.
-extern const char kPrefPreferences[];
+inline constexpr char kPrefPreferences[] = "preferences";
 
 // Extension-controlled incognito preferences.
-extern const char kPrefIncognitoPreferences[];
+inline constexpr char kPrefIncognitoPreferences[] = "incognito_preferences";
 
 // Extension-controlled regular-only preferences.
-extern const char kPrefRegularOnlyPreferences[];
+inline constexpr char kPrefRegularOnlyPreferences[] =
+    "regular_only_preferences";
 
 // Extension-set content settings.
-extern const char kPrefContentSettings[];
+inline constexpr char kPrefContentSettings[] = "content_settings";
 
 // Extension-set incognito content settings.
-extern const char kPrefIncognitoContentSettings[];
+inline constexpr char kPrefIncognitoContentSettings[] =
+    "incognito_content_settings";
 
 // Per-profile UUID to distinguish global shortcut sessions for
 // org.freedesktop.portal.GlobalShortcuts.

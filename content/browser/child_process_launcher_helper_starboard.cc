@@ -14,6 +14,7 @@
 
 #include <optional>
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "content/browser/child_process_launcher_helper.h"
 #include "content/browser/child_process_launcher_helper_posix.h"

@@ -14,9 +14,9 @@ import android.text.TextUtils;
 import androidx.annotation.ChecksSdkIntAtLeast;
 import androidx.annotation.RequiresApi;
 
-import org.chromium.base.BundleUtils;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.LocaleUtils;
+import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
@@ -162,10 +162,10 @@ public class AppLocaleUtils {
                     listener.onComplete(success);
                 };
 
-        // If this is not a bundle build or the default system language is being used the language
-        // split should not be installed. Instead indicate that the listener completed successfully
-        // since the language resources will already be present.
-        if (!BundleUtils.isBundle() || isFollowSystemLanguage(languageName)) {
+        // If the default system language is being used the language split should not be installed.
+        // Instead indicate that the listener completed successfully since the language resources
+        // will already be present.
+        if (BuildConfig.IS_FOR_TEST || isFollowSystemLanguage(languageName)) {
             wrappedListener.onComplete(true);
         } else {
             assert languageName != null;
@@ -269,12 +269,12 @@ public class AppLocaleUtils {
     }
 
     /**
-     * Comparator that removes any country or script information from either language tag
-     * since they are not needed for locale availability checks.
-     * Example: "es-MX" and "es-ES" will evaluate as equal.
+     * Comparator that removes any country or script information from either language tag since they
+     * are not needed for locale availability checks. Example: "es-MX" and "es-ES" will evaluate as
+     * equal.
      */
     private static final Comparator<String> BASE_LANGUAGE_COMPARATOR =
-            new Comparator<String>() {
+            new Comparator<>() {
                 @Override
                 public int compare(String a, String b) {
                     String langA = LocaleUtils.toBaseLanguage(a);

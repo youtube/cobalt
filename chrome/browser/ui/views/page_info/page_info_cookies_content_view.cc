@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/page_info/page_info_cookies_content_view.h"
 
+#include "base/check.h"
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -28,6 +29,7 @@
 #include "ui/views/controls/styled_label.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/box_layout_view.h"
+#include "ui/views/layout/fill_layout.h"
 #include "ui/views/vector_icons.h"
 #include "ui/views/view_class_properties.h"
 
@@ -97,6 +99,36 @@ class ThirdPartyCookieLabelWrapper : public views::BoxLayoutView {
 BEGIN_METADATA(ThirdPartyCookieLabelWrapper)
 END_METADATA
 
+class CookiesDescriptionLabelWrapper : public views::View {
+  METADATA_HEADER(CookiesDescriptionLabelWrapper, views::View)
+
+ public:
+  explicit CookiesDescriptionLabelWrapper(
+      int max_width,
+      std::unique_ptr<views::StyledLabel> label)
+      : max_width_(max_width) {
+    SetLayoutManager(std::make_unique<views::FillLayout>());
+    label_ = AddChildView(std::move(label));
+  }
+  ~CookiesDescriptionLabelWrapper() override = default;
+
+ private:
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
+    CHECK(label_);
+    const int target_width = available_size.width().is_bounded()
+                                 ? available_size.width().value()
+                                 : max_width_;
+
+    return gfx::Size(target_width, label_->GetHeightForWidth(target_width));
+  }
+  const int max_width_;
+  raw_ptr<views::StyledLabel> label_ = nullptr;
+};
+
+BEGIN_METADATA(CookiesDescriptionLabelWrapper)
+END_METADATA
+
 }  // namespace
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(PageInfoCookiesContentView,
@@ -114,24 +146,24 @@ PageInfoCookiesContentView::PageInfoCookiesContentView(PageInfo* presenter)
   // The last view is a RichHoverButton, which overrides the bottom
   // dialog inset in favor of its own.
   SetProperty(views::kMarginsKey, gfx::Insets::TLBR(0, 0, bottom_margin, 0));
-
-  // The top and bottom margins should be the same as for buttons shown below.
   const auto button_insets = layout_provider->GetInsetsMetric(
       ChromeInsetsMetric::INSETS_PAGE_INFO_HOVER_BUTTON);
 
-  cookies_description_label_ =
-      AddChildView(std::make_unique<views::StyledLabel>());
-
-  // In the new UI iteration, description labels are aligned with the icons on
-  // the left, not with the bubble title.
-  cookies_description_label_->SetProperty(views::kMarginsKey, button_insets);
+  auto label = std::make_unique<views::StyledLabel>();
+  cookies_description_label_ = label.get();
   cookies_description_label_->SetID(
       PageInfoViewFactory::VIEW_ID_PAGE_INFO_COOKIES_DESCRIPTION_LABEL);
   cookies_description_label_->SetDefaultTextStyle(views::style::STYLE_BODY_3);
   cookies_description_label_->SetDefaultEnabledColorId(
       kColorPageInfoForeground);
-  cookies_description_label_->SizeToFit(PageInfoViewFactory::kMinBubbleWidth -
-                                        button_insets.width());
+  const int max_label_width =
+      PageInfoViewFactory::kMinBubbleWidth - button_insets.width();
+  // Use a wrapper for the description label to ensure its height is set
+  // correctly after subsequent text changes and styling.
+  cookies_description_wrapper_ =
+      AddChildView(std::make_unique<CookiesDescriptionLabelWrapper>(
+          max_label_width, std::move(label)));
+  cookies_description_wrapper_->SetProperty(views::kMarginsKey, button_insets);
 
   AddThirdPartyCookiesContainer();
 
@@ -207,17 +239,18 @@ void PageInfoCookiesContentView::
               &PageInfoCookiesContentView::
                   IncognitoTrackingProtectionSettingsLinkClicked,
               base::Unretained(this)),
-          PageInfoViewFactory::GetImageModel(vector_icons::kSettingsIcon),
+          PageInfoViewFactory::GetImageModel(
+              vector_icons::kSettingsChromeRefreshIcon),
           l10n_util::GetStringUTF16(
-              IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTION_SETTINGS_BUTTON_TITLE),
+              IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_TITLE),
           l10n_util::GetStringUTF16(
-              IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTION_SETTINGS_BUTTON_SUBTITLE),
+              IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_SUBTITLE),
           PageInfoViewFactory::GetLaunchIcon()));
   tp_settings_button_->SetID(
       PageInfoViewFactory::
           VIEW_ID_PAGE_INFO_BUTTON_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS);
   tp_settings_button_->SetTooltipText(l10n_util::GetStringUTF16(
-      IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTION_SETTINGS_BUTTON_SUBTITLE));
+      IDS_PAGE_INFO_INCOGNITO_TRACKING_PROTECTIONS_SETTINGS_BUTTON_SUBTITLE));
   tp_settings_button_->SetTitleTextStyleAndColor(
       views::style::STYLE_BODY_3_MEDIUM, kColorPageInfoForeground);
   tp_settings_button_->SetSubtitleTextStyleAndColor(
@@ -239,8 +272,7 @@ void PageInfoCookiesContentView::SyncSettingsLinkClicked(
   presenter_->OpenSyncSettingsView();
 }
 
-void PageInfoCookiesContentView::SetCookieInfo(
-    const CookiesNewInfo& cookie_info) {
+void PageInfoCookiesContentView::SetCookieInfo(const CookiesInfo& cookie_info) {
   if (IsTrackingProtectionsUi(cookie_info.controls_state)) {
     SetIncognitoTrackingProtectionsDescription(cookie_info.enforcement,
                                                cookie_info.controls_state);
@@ -311,14 +343,12 @@ void PageInfoCookiesContentView::SetThirdPartyCookiesTitleAndDescription(
     case CookieControlsState::kActiveTp:
       title_text = l10n_util::GetStringUTF16(
           IDS_PAGE_INFO_COOKIES_SITE_NOT_WORKING_TITLE);
-      description =
-          IDS_TRACKING_PROTECTIONS_BUBBLE_ACTIVE_PROTECTIONS_DESCRIPTION;
+      description = IDS_TRACKING_PROTECTIONS_ACTIVE_PROTECTIONS_DESCRIPTION;
       break;
     case CookieControlsState::kPausedTp:
       title_text = l10n_util::GetStringUTF16(
-          IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSED_PROTECTIONS_TITLE);
-      description =
-          IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSED_PROTECTIONS_DESCRIPTION;
+          IDS_TRACKING_PROTECTIONS_PAUSED_PROTECTIONS_TITLE);
+      description = IDS_TRACKING_PROTECTIONS_PAUSED_PROTECTIONS_DESCRIPTION;
       break;
     default:
       NOTREACHED();
@@ -353,8 +383,8 @@ void PageInfoCookiesContentView::SetTrackingProtectionButtonLabel(
     CookieControlsState controls_state) {
   auto label = l10n_util::GetStringUTF16(
       controls_state == CookieControlsState::kPausedTp
-          ? IDS_TRACKING_PROTECTIONS_BUBBLE_RESUME_PROTECTIONS_LABEL
-          : IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSE_PROTECTIONS_LABEL);
+          ? IDS_TRACKING_PROTECTIONS_BUTTON_RESUME_PROTECTIONS_LABEL
+          : IDS_TRACKING_PROTECTIONS_BUTTON_PAUSE_PROTECTIONS_LABEL);
   tracking_protection_button_->SetText(label);
   tracking_protection_button_->GetViewAccessibility().SetName(label);
 }
@@ -364,7 +394,7 @@ void PageInfoCookiesContentView::SetIncognitoTrackingProtectionsDescription(
     CookieControlsState controls_state) {
   // No description exists for when protections are paused.
   if (controls_state == CookieControlsState::kPausedTp) {
-    cookies_description_label_->SetVisible(false);
+    cookies_description_wrapper_->SetVisible(false);
     return;
   }
   int description = IDS_PAGE_INFO_PRIVACY_SITE_DATA_DESCRIPTION;
@@ -378,7 +408,7 @@ void PageInfoCookiesContentView::SetIncognitoTrackingProtectionsDescription(
         IDS_PAGE_INFO_PRIVACY_SITE_DATA_3PCS_EXTENSION_ALLOWED_DESCRIPTION;
   }
   cookies_description_label_->SetText(l10n_util::GetStringUTF16(description));
-  cookies_description_label_->SetVisible(true);
+  cookies_description_wrapper_->SetVisible(true);
 }
 
 void PageInfoCookiesContentView::SetCookiesDescription(
@@ -487,11 +517,7 @@ void PageInfoCookiesContentView::OnToggleButtonPressed() {
 }
 
 void PageInfoCookiesContentView::OnTrackingProtectionButtonPressed() {
-  bool pause_protections =
-      tracking_protection_button_->GetText() ==
-      l10n_util::GetStringUTF16(
-          IDS_TRACKING_PROTECTIONS_BUBBLE_PAUSE_PROTECTIONS_LABEL);
-  presenter_->OnTrackingProtectionButtonPressed(pause_protections);
+  presenter_->OnTrackingProtectionButtonPressed();
   third_party_cookies_container_->NotifyAccessibilityEventDeprecated(
       ax::mojom::Event::kAlert, true);
 }
@@ -502,21 +528,11 @@ void PageInfoCookiesContentView::SetRwsCookiesInfo(
     InitRwsButton(rws_info->is_managed);
     rws_button_->SetVisible(true);
 
-    const std::u16string rws_button_title = l10n_util::GetStringUTF16(
-        base::FeatureList::IsEnabled(
-            privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi)
-            ? IDS_PAGE_INFO_RWS_V2_BUTTON_TITLE
-            : IDS_PAGE_INFO_RWS_BUTTON_TITLE);
-    const std::u16string rws_button_subtitle = l10n_util::GetStringFUTF16(
-        base::FeatureList::IsEnabled(
-            privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi)
-            ? IDS_PAGE_INFO_RWS_V2_BUTTON_SUBTITLE
-            : IDS_PAGE_INFO_RWS_BUTTON_SUBTITLE,
-        rws_info->owner_name);
-
     // Update the text displaying the name of RWS owner.
-    rws_button_->SetTitleText(rws_button_title);
-    rws_button_->SetSubtitleText(rws_button_subtitle);
+    rws_button_->SetTitleText(
+        l10n_util::GetStringUTF16(IDS_PAGE_INFO_RWS_BUTTON_TITLE));
+    rws_button_->SetSubtitleText(l10n_util::GetStringFUTF16(
+        IDS_PAGE_INFO_RWS_BUTTON_SUBTITLE, rws_info->owner_name));
   } else if (rws_button_) {
     rws_button_->SetVisible(false);
   }
@@ -547,11 +563,8 @@ void PageInfoCookiesContentView::InitRwsButton(bool is_managed) {
               : ui::ImageModel()));
   rws_button_->SetID(
       PageInfoViewFactory::VIEW_ID_PAGE_INFO_LINK_OR_BUTTON_RWS_SETTINGS);
-  rws_button_->SetTooltipText(l10n_util::GetStringUTF16(
-      base::FeatureList::IsEnabled(
-          privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi)
-          ? IDS_PAGE_INFO_RWS_V2_BUTTON_TOOLTIP
-          : IDS_PAGE_INFO_RWS_BUTTON_TOOLTIP));
+  rws_button_->SetTooltipText(
+      l10n_util::GetStringUTF16(IDS_PAGE_INFO_RWS_BUTTON_TOOLTIP));
   rws_button_->SetTitleTextStyleAndColor(views::style::STYLE_BODY_3_MEDIUM,
                                          kColorPageInfoForeground);
   rws_button_->SetSubtitleTextStyleAndColor(views::style::STYLE_BODY_4,

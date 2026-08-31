@@ -185,7 +185,7 @@ class OpusAVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
     int frams_size = frames_in_packet * samples_per_frame;
     SB_DCHECK(frams_size > 0);
 
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+    DecodedAudio decoded_audio(
         audio_stream_info_.number_of_channels, kSbMediaAudioSampleTypeFloat32,
         kSbMediaAudioFrameStorageTypeInterleaved,
         input_buffer->timestamp() + media_time_offset,
@@ -193,22 +193,22 @@ class OpusAVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
             GetBytesPerSample(kSbMediaAudioSampleTypeFloat32));
     int decoded_frames = opus_multistream_decode_float(
         opus_decoder_, static_cast<const unsigned char*>(input_buffer->data()),
-        input_buffer->size(), reinterpret_cast<float*>(decoded_audio->data()),
+        input_buffer->size(), reinterpret_cast<float*>(decoded_audio.data()),
         frams_size, 0);
 
     SB_DCHECK(decoded_frames == frams_size);
 
     CMBlockBufferRef block;
     OSStatus status = CMBlockBufferCreateWithMemoryBlock(
-        NULL, NULL, decoded_audio->size_in_bytes(), NULL, NULL, 0,
-        decoded_audio->size_in_bytes(), 0, &block);
+        NULL, NULL, decoded_audio.size_in_bytes(), NULL, NULL, 0,
+        decoded_audio.size_in_bytes(), 0, &block);
     if (status != 0) {
       RecordOSError("BlockBufferCreate", status);
       return false;
     }
 
-    status = CMBlockBufferReplaceDataBytes(decoded_audio->data(), block, 0,
-                                           decoded_audio->size_in_bytes());
+    status = CMBlockBufferReplaceDataBytes(decoded_audio.data(), block, 0,
+                                           decoded_audio.size_in_bytes());
     if (status != 0) {
       RecordOSError("BlockCopyData", status);
       CFRelease(block);

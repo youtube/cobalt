@@ -14,7 +14,9 @@
 #include "base/notreached.h"
 #include "components/android_autofill/browser/android_form_event_logger.h"
 #include "components/android_autofill/browser/autofill_provider.h"
+#include "components/android_autofill/browser/autofill_type_util.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
+#include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-shared.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "content/public/browser/render_frame_host.h"
@@ -46,6 +48,7 @@ void AndroidAutofillManager::OnFormSubmittedImpl(
     const FormData& form,
     mojom::SubmissionSource source) {
   address_logger_->OnWillSubmitForm();
+  loyalty_card_logger_->OnWillSubmitForm();
   payments_logger_->OnWillSubmitForm();
   password_logger_->OnWillSubmitForm();
   if (auto* provider = GetAutofillProvider())
@@ -94,7 +97,7 @@ void AndroidAutofillManager::OnAskForValuesToFillImpl(
     const FieldGlobalId& field_id,
     const gfx::Rect& caret_bounds,
     AutofillSuggestionTriggerSource trigger_source,
-    base::optional_ref<const PasswordSuggestionRequest> password_request) {
+    std::optional<PasswordSuggestionRequest> password_request) {
   auto* provider = GetAutofillProvider();
   if (!provider) {
     return;
@@ -214,10 +217,11 @@ FieldTypeGroup AndroidAutofillManager::ComputeFieldTypeGroupForField(
     const FieldGlobalId& field_id) {
   FormStructure* form_structure = nullptr;
   AutofillField* autofill_field = nullptr;
-  return GetCachedFormAndField(form_id, field_id, &form_structure,
-                               &autofill_field)
-             ? autofill_field->Type().group()
-             : FieldTypeGroup::kNoGroup;
+  if (!GetCachedFormAndField(form_id, field_id, &form_structure,
+                             &autofill_field)) {
+    return FieldTypeGroup::kNoGroup;
+  }
+  return GroupTypeOfFieldType(GetMostRelevantFieldType(autofill_field->Type()));
 }
 
 void AndroidAutofillManager::FillOrPreviewForm(
@@ -235,7 +239,8 @@ void AndroidAutofillManager::FillOrPreviewForm(
   });
 
   driver().ApplyFormAction(mojom::FormActionType::kFill, action_persistence,
-                           fields, triggered_origin, {});
+                           fields, triggered_origin, /*field_type_map=*/{},
+                           /*section_for_clear_form_on_ios=*/Section());
   // We do not call OnAutofillProfileOrCreditCardFormFilled() because WebView
   // doesn't have AutofillProfile or CreditCard.
   if (auto* logger = GetEventFormLogger(field_type_group)) {
@@ -245,6 +250,8 @@ void AndroidAutofillManager::FillOrPreviewForm(
 
 void AndroidAutofillManager::StartNewLoggingSession() {
   address_logger_ = std::make_unique<AndroidFormEventLogger>("Address");
+  loyalty_card_logger_ =
+      std::make_unique<AndroidFormEventLogger>("LoyaltyCard");
   payments_logger_ = std::make_unique<AndroidFormEventLogger>("CreditCard");
   password_logger_ = std::make_unique<AndroidFormEventLogger>("Password");
 }
@@ -265,6 +272,8 @@ AndroidFormEventLogger* AndroidAutofillManager::GetEventFormLogger(
   switch (form_type) {
     case FormType::kAddressForm:
       return address_logger_.get();
+    case FormType::kLoyaltyCardForm:
+      return loyalty_card_logger_.get();
     case FormType::kCreditCardForm:
     case FormType::kStandaloneCvcForm:
       return payments_logger_.get();

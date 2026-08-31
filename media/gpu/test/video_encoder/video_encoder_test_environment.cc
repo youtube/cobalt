@@ -20,7 +20,6 @@
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "media/base/bitrate.h"
 #include "media/base/media_switches.h"
 #include "media/gpu/buildflags.h"
@@ -135,6 +134,13 @@ constexpr auto kSpatialLayersResolutionScaleDenom =
         {2, 1, 0},  // For two spatial layers.
         {4, 2, 1},  // For three spatial layers.
     });
+
+#if BUILDFLAG(IS_ANDROID)
+// Android test harness already creates a task environment.
+constexpr bool kNeedInternalTaskEnvironment = false;
+#else
+constexpr bool kNeedInternalTaskEnvironment = true;
+#endif  // BUILDFLAG(IS_ANDROID)
 
 VideoBitrateAllocation CreateBitrateAllocation(
     const VideoCodec codec,
@@ -318,7 +324,9 @@ VideoEncoderTestEnvironment::VideoEncoderTestEnvironment(
     const FrameOutputConfig& frame_output_config,
     const std::vector<base::test::FeatureRef>& enabled_features,
     const std::vector<base::test::FeatureRef>& disabled_features)
-    : VideoTestEnvironment(enabled_features, disabled_features),
+    : VideoTestEnvironment(enabled_features,
+                           disabled_features,
+                           kNeedInternalTaskEnvironment),
       test_type_(test_type),
       video_(std::move(video)),
       output_folder_(output_folder),
@@ -334,9 +342,7 @@ VideoEncoderTestEnvironment::VideoEncoderTestEnvironment(
       content_type_(content_type),
       save_output_bitstream_(save_output_bitstream),
       reverse_(reverse),
-      frame_output_config_(frame_output_config),
-      gpu_memory_buffer_factory_(
-          gpu::GpuMemoryBufferFactory::CreateNativeType(nullptr)) {}
+      frame_output_config_(frame_output_config) {}
 
 VideoEncoderTestEnvironment::~VideoEncoderTestEnvironment() = default;
 
@@ -419,9 +425,5 @@ const FrameOutputConfig& VideoEncoderTestEnvironment::ImageOutputConfig()
   return frame_output_config_;
 }
 
-gpu::GpuMemoryBufferFactory*
-VideoEncoderTestEnvironment::GetGpuMemoryBufferFactory() const {
-  return gpu_memory_buffer_factory_.get();
-}
 }  // namespace test
 }  // namespace media

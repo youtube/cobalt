@@ -96,11 +96,10 @@ class MODULES_EXPORT VideoFrameMonitor {
   // key: unique ID of a frame.
   // value: reference count for the frame (among objects explicitly tracking
   //        the frame with VideoFrameMonitor).
-  struct VideoFrameIDHashTraits
-      : WTF::GenericHashTraits<media::VideoFrame::ID> {
+  struct VideoFrameIDHashTraits : GenericHashTraits<media::VideoFrame::ID> {
     static unsigned GetHash(media::VideoFrame::ID key) {
       static_assert(std::is_same_v<decltype(key.GetUnsafeValue()), uint64_t>);
-      return WTF::HashInt(key.GetUnsafeValue());
+      return HashInt(key.GetUnsafeValue());
     }
 
     static const bool kEmptyValueIsZero = false;

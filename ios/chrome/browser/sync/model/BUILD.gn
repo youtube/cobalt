@@ -30,7 +30,6 @@ source_set("model") {
     "//components/consent_auditor",
     "//components/dom_distiller/core",
     "//components/history/core/browser",
-    "//components/invalidation/impl",
     "//components/network_time",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/browser/sharing",
@@ -204,6 +203,7 @@ source_set("test_support") {
     "//components/consent_auditor:test_support",
     "//components/sync",
     "//components/sync:test_support",
+    "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/common",
     "//ui/base",
   ]

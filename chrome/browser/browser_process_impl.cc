@@ -147,12 +147,12 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/service_worker_context.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_switches.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "media/media_buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/network_switches.h"
@@ -195,11 +195,12 @@
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/usb/usb_system_tray_icon.h"
-#include "chrome/browser/web_applications/isolated_web_apps/iwa_identity_validator.h"
+#include "chrome/browser/web_applications/isolated_web_apps/chrome_iwa_client.h"
 #include "chrome/browser/webapps/webapps_client_desktop.h"
 #include "components/gcm_driver/gcm_client_factory.h"
 #include "components/gcm_driver/gcm_desktop_utils.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
+#include "components/webapps/isolated_web_apps/identity/iwa_identity_validator.h"
 #endif
 
 #if BUILDFLAG(ENABLE_BACKGROUND_MODE)
@@ -400,6 +401,7 @@ void BrowserProcessImpl::Init() {
 
 #if !BUILDFLAG(IS_ANDROID)
   web_app::IwaIdentityValidator::CreateSingleton();
+  web_app::ChromeIwaClient::CreateSingleton();
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1473,16 +1475,12 @@ void BrowserProcessImpl::PreMainMessageLoopRun() {
       std::make_unique<os_crypt_async::OSCryptAsync>(std::move(providers));
 
   // Trigger async initialization of OSCrypt key providers.
-  os_crypt_async_init_subscription_.emplace(
-      os_crypt_async_->GetInstance(base::BindOnce(
-          [](base::TimeTicks start_time, os_crypt_async::Encryptor encryptor,
-             bool success) {
-            base::UmaHistogramTimes("OSCrypt.AsyncInitialization.Time",
-                                    base::TimeTicks::Now() - start_time);
-            base::UmaHistogramBoolean("OSCrypt.AsyncInitialization.Result",
-                                      success);
-          },
-          base::TimeTicks::Now())));
+  os_crypt_async_->GetInstance(base::BindOnce(
+      [](base::TimeTicks start_time, os_crypt_async::Encryptor encryptor) {
+        base::UmaHistogramTimes("OSCrypt.AsyncInitialization.Time",
+                                base::TimeTicks::Now() - start_time);
+      },
+      base::TimeTicks::Now()));
 }
 
 void BrowserProcessImpl::CreateIconManager() {

@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "remoting/base/cloud_service_client.h"
 #include "remoting/base/instance_identity_token_getter.h"
 #include "remoting/base/oauth_token_getter_impl.h"
@@ -57,6 +58,7 @@ class CloudSessionAuthzServiceClient : public SessionAuthzServiceClient {
                           VerifySessionTokenCallback callback) override;
   void ReauthorizeHost(std::string_view session_reauth_token,
                        std::string_view session_id,
+                       base::TimeTicks token_expire_time,
                        ReauthorizeHostCallback callback) override;
 
  private:
@@ -68,6 +70,7 @@ class CloudSessionAuthzServiceClient : public SessionAuthzServiceClient {
                                      std::string_view instance_identity_token);
   void ReauthorizeHostWithIdToken(std::string session_reauth_token,
                                   std::string session_id,
+                                  base::TimeTicks token_expire_time,
                                   ReauthorizeHostCallback callback,
                                   std::string_view instance_identity_token);
 
@@ -141,20 +144,23 @@ void CloudSessionAuthzServiceClient::VerifySessionTokenWithIdToken(
 void CloudSessionAuthzServiceClient::ReauthorizeHost(
     std::string_view session_reauth_token,
     std::string_view session_id,
+    base::TimeTicks token_expire_time,
     ReauthorizeHostCallback callback) {
   instance_identity_token_getter_->RetrieveToken(base::BindOnce(
       &CloudSessionAuthzServiceClient::ReauthorizeHostWithIdToken,
       weak_factory_.GetWeakPtr(), std::string(session_reauth_token),
-      std::string(session_id), std::move(callback)));
+      std::string(session_id), token_expire_time, std::move(callback)));
 }
 
 void CloudSessionAuthzServiceClient::ReauthorizeHostWithIdToken(
     std::string session_reauth_token,
     std::string session_id,
+    base::TimeTicks token_expire_time,
     ReauthorizeHostCallback callback,
     std::string_view instance_identity_token) {
   client_->ReauthorizeHost(
       session_reauth_token, session_id, instance_identity_token,
+      GetReauthRetryPolicy(token_expire_time),
       base::BindOnce(&CloudSessionAuthzServiceClient::OnReauthorizeHostResponse,
                      weak_factory_.GetWeakPtr(), std::move(callback)));
 }
@@ -200,6 +206,10 @@ void CloudSessionAuthzServiceClient::OnVerifySessionTokenResponse(
       session_policies.allow_uri_forwarding =
           response->session_policies().allow_uri_forwarding();
     }
+    if (response->session_policies().has_allow_web_authn_forwarding()) {
+      session_policies.allow_webauthn_forwarding =
+          response->session_policies().allow_web_authn_forwarding();
+    }
     if (response->session_policies().has_clipboard_size_bytes()) {
       session_policies.clipboard_size_bytes =
           response->session_policies().clipboard_size_bytes();
@@ -222,6 +232,13 @@ void CloudSessionAuthzServiceClient::OnVerifySessionTokenResponse(
         session_policies.host_udp_port_range.min_port = min_port;
         session_policies.host_udp_port_range.max_port = max_port;
       }
+    }
+    if (response->session_policies().has_maximum_session_duration()) {
+      auto maximum_session_duration = base::Seconds(
+          response->session_policies().maximum_session_duration().seconds());
+      session_policies.maximum_session_duration =
+          std::max(maximum_session_duration,
+                   SessionPolicies::kMinMaximumSessionDuration);
     }
     response_struct->session_policies.emplace(std::move(session_policies));
   }

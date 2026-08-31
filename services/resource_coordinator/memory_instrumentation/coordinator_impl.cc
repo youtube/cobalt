@@ -388,14 +388,12 @@ void CoordinatorImpl::PerformNextQueuedGlobalMemoryDump() {
   if (request->args.add_to_trace && heap_profiler_) {
     request->heap_dump_in_progress = true;
 
-    // |IsArgumentFilterEnabled| is the round-about way of asking to anonymize
-    // the trace. The only way that PII gets leaked is if the full path is
-    // emitted for mapped files. Passing |strip_path_from_mapped_files|
-    // is all that is necessary to anonymize the trace.
+    // We use level_of_detail == kBackground as a way of asking to anonymize the
+    // trace. The only way that PII gets leaked is if the full path is emitted
+    // for mapped files. Passing |strip_path_from_mapped_files| is all that is
+    // necessary to anonymize the trace.
     bool strip_path_from_mapped_files =
-        base::trace_event::TraceLog::GetInstance()
-            ->GetCurrentTraceConfig()
-            .IsArgumentFilterEnabled();
+        request->args.level_of_detail == MemoryDumpLevelOfDetail::kBackground;
     heap_profiler_->DumpProcessesForTracing(
         strip_path_from_mapped_files, write_proto_heap_profile_,
         base::BindOnce(&CoordinatorImpl::OnDumpProcessesForTracing,
@@ -530,7 +528,7 @@ void CoordinatorImpl::OnDumpProcessesForTracing(
     // dump node in the UI.
     TRACE_EVENT_API_ADD_TRACE_EVENT_WITH_PROCESS_ID(
         TRACE_EVENT_PHASE_MEMORY_DUMP,
-        base::trace_event::TraceLog::GetCategoryGroupEnabled(
+        TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
             base::trace_event::MemoryDumpManager::kTraceCategory),
         "periodic_interval", trace_event_internal::kGlobalScope, dump_guid,
         result->pid, &args, TRACE_EVENT_FLAG_HAS_ID);

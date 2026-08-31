@@ -15,17 +15,5 @@
 
 #include "api/ref_count.h"
 
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-
-// TODO(bugs.webrtc.org/15622): Deprecate and remove these aliases.
-using RefCountInterface [[deprecated("Use webrtc::RefCountInterface")]] =
-    webrtc::RefCountInterface;
-using RefCountReleaseStatus
-    [[deprecated("Use webrtc::RefCountReleaseStatus")]] =
-        webrtc::RefCountReleaseStatus;
-
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_REF_COUNT_H_

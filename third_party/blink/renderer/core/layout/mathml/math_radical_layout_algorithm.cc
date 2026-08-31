@@ -17,7 +17,7 @@ namespace {
 
 bool HasBaseGlyphForRadical(const ComputedStyle& style) {
   const SimpleFontData* font_data = style.GetFont()->PrimaryFont();
-  return font_data && font_data->GlyphForCharacter(kSquareRootCharacter);
+  return font_data && font_data->GlyphForCharacter(uchar::kSquareRoot);
 }
 
 }  // namespace
@@ -121,8 +121,9 @@ const LayoutResult* MathRadicalLayoutAlgorithm::Layout() {
   StretchyOperatorShaper::Metrics surd_metrics;
   if (HasBaseGlyphForRadical(Style())) {
     // Stretch the radical operator to cover the base height.
-    StretchyOperatorShaper shaper(kSquareRootCharacter,
-                                  OpenTypeMathStretchData::Vertical);
+    StretchyOperatorShaper shaper(uchar::kSquareRoot,
+                                  OpenTypeMathStretchData::Vertical,
+                                  GetConstraintSpace().Direction());
     float target_size = base_ascent + base_descent + vertical.vertical_gap +
                         vertical.rule_thickness;
     const ShapeResult* shape_result =
@@ -133,10 +134,9 @@ const LayoutResult* MathRadicalLayoutAlgorithm::Layout() {
                                         horizontal.kern_before_degree +
                                         horizontal.kern_after_degree;
     container_builder_.SetMathMLPaintInfo(MakeGarbageCollected<MathMLPaintInfo>(
-        kSquareRootCharacter, shape_result_view,
-        LayoutUnit(surd_metrics.advance), LayoutUnit(surd_metrics.ascent),
-        LayoutUnit(surd_metrics.descent), base_margins,
-        operator_inline_offset));
+        uchar::kSquareRoot, shape_result_view, LayoutUnit(surd_metrics.advance),
+        LayoutUnit(surd_metrics.ascent), LayoutUnit(surd_metrics.descent),
+        base_margins, operator_inline_offset));
   }
 
   // Determine the metrics of the radical operator + the base.
@@ -222,8 +222,8 @@ MinMaxSizesResult MathRadicalLayoutAlgorithm::ComputeMinMaxSizes(
         std::max(-index_result.sizes.max_size, horizontal.kern_after_degree);
   }
   if (HasBaseGlyphForRadical(Style())) {
-    sizes += GetMinMaxSizesForVerticalStretchyOperator(Style(),
-                                                       kSquareRootCharacter);
+    sizes += GetMinMaxSizesForVerticalStretchyOperator(
+        Style(), uchar::kSquareRoot, GetConstraintSpace().Direction());
   }
   if (base) {
     const auto base_result = ComputeMinAndMaxContentContributionForMathChild(

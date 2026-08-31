@@ -10,9 +10,8 @@
 
 #include "modules/rtp_rtcp/source/rtcp_packet/sdes.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <utility>
 #include <vector>

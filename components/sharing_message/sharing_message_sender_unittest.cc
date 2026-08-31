@@ -30,13 +30,6 @@ namespace {
 // Test constants.
 const char kReceiverGUID[] = "kReceiverGUID";
 const char kReceiverDeviceName[] = "receiver_device";
-const char kP256dh[] = "p256dh";
-const char kAuthSecret[] = "auth_secret";
-const char kFCMToken[] = "vapid_fcm_token";
-const char kAuthorizedEntity[] = "authorized_entity";
-const char kSenderVapidFcmToken[] = "sender_vapid_fcm_token";
-const char kSenderVapidP256dh[] = "sender_vapid_p256dh";
-const char kSenderVapidAuthSecret[] = "sender_vapid_auth_secret";
 const char kSenderSenderIdFcmToken[] = "sender_sender_id_fcm_token";
 const char kSenderSenderIdP256dh[] = "sender_sender_id_p256dh";
 const char kSenderSenderIdAuthSecret[] = "sender_sender_id_auth_secret";
@@ -52,10 +45,8 @@ class MockSharingFCMSender : public SharingFCMSender {
       syncer::DeviceInfoTracker* device_info_tracker,
       syncer::LocalDeviceInfoProvider* local_device_info_provider)
       : SharingFCMSender(
-            /*web_push_sender=*/nullptr,
             /*sharing_message_bridge=*/nullptr,
             sync_preference,
-            /*vapid_key_manager=*/nullptr,
             /*gcm_driver=*/nullptr,
             device_info_tracker,
             local_device_info_provider,
@@ -114,7 +105,6 @@ class MockSendMessageDelegate
 
 syncer::DeviceInfo::SharingInfo CreateLocalSharingInfo() {
   return syncer::DeviceInfo::SharingInfo(
-      {kSenderVapidFcmToken, kSenderVapidP256dh, kSenderVapidAuthSecret},
       {kSenderSenderIdFcmToken, kSenderSenderIdP256dh,
        kSenderSenderIdAuthSecret},
       /*chime_representative_target_id=*/std::string(),
@@ -123,7 +113,6 @@ syncer::DeviceInfo::SharingInfo CreateLocalSharingInfo() {
 
 syncer::DeviceInfo::SharingInfo CreateSharingInfo() {
   return syncer::DeviceInfo::SharingInfo(
-      {kFCMToken, kP256dh, kAuthSecret},
       {"sender_id_fcm_token", "sender_id_p256dh", "sender_id_auth_secret"},
       "chime_representative_target_id",
       std::set<sync_pb::SharingSpecificFields::EnabledFeatures>{
@@ -165,8 +154,7 @@ class SharingMessageSenderTest : public testing::Test {
         SharingMessageSender::DelegateType::kIOSPush,
         std::move(mock_sharing_ios_push_sender));
     sharing_sync_preference_.SetFCMRegistration(
-        SharingSyncPreference::FCMRegistration(kAuthorizedEntity,
-                                               base::Time::Now()));
+        SharingSyncPreference::FCMRegistration(base::Time::Now()));
     fake_device_info_sync_service_.GetLocalDeviceInfoProvider()
         ->GetMutableDeviceInfo()
         ->set_sharing_info(CreateLocalSharingInfo());
@@ -349,9 +337,6 @@ TEST_F(SharingMessageSenderTest, MessageSent_AckReceived) {
             message.sender_device_name());
         ASSERT_TRUE(local_device->sharing_info().has_value());
         auto& fcm_ack_configuration = message.fcm_channel_configuration();
-        ASSERT_EQ("", fcm_ack_configuration.vapid_fcm_token());
-        ASSERT_EQ("", fcm_ack_configuration.vapid_p256dh());
-        ASSERT_EQ("", fcm_ack_configuration.vapid_auth_secret());
         ASSERT_EQ(kSenderSenderIdFcmToken,
                   fcm_ack_configuration.sender_id_fcm_token());
         ASSERT_EQ(kSenderSenderIdP256dh,
@@ -409,7 +394,7 @@ TEST_F(SharingMessageSenderTest, MessageSent_AckReceivedBeforeMessageId) {
         // Call FCM send success after receiving the ACK.
         std::move(callback).Run(SharingSendMessageResult::kSuccessful,
                                 kSenderMessageID,
-                                SharingChannelType::kFcmVapid);
+                                SharingChannelType::kFcmSenderId);
       };
 
   EXPECT_CALL(

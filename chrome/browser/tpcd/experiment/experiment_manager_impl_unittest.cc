@@ -12,10 +12,9 @@
 #include "build/build_config.h"
 #include "build/buildflag.h"
 #include "chrome/browser/tpcd/experiment/tpcd_experiment_features.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile_manager.h"
-#include "components/prefs/testing_pref_service.h"
+#include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/tpcd_pref_names.h"
 #include "components/privacy_sandbox/tpcd_utils.h"
 #include "content/public/common/content_features.h"
@@ -46,7 +45,9 @@ using Checkpoint = ::testing::MockFunction<void(int step)>;
 
 class ExperimentManagerImplTestBase : public testing::Test {
  public:
-  PrefService& prefs() { return *profile_manager_.local_state()->Get(); }
+  PrefService& prefs() {
+    return *TestingBrowserProcess::GetGlobal()->local_state();
+  }
 
   void SetUp() override {
     ASSERT_TRUE(profile_manager_.SetUp());

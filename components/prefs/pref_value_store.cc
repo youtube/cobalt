@@ -11,7 +11,6 @@
 
 #include "base/logging.h"
 #include "components/prefs/pref_notifier.h"
-#include "components/prefs/pref_observer.h"
 
 PrefValueStore::PrefStoreKeeper::PrefStoreKeeper()
     : pref_value_store_(nullptr), type_(PrefValueStore::INVALID_STORE) {}
@@ -188,6 +187,10 @@ bool PrefValueStore::PrefValueExtensionModifiable(
 
 void PrefValueStore::UpdateCommandLinePrefStore(PrefStore* command_line_prefs) {
   InitPrefStore(COMMAND_LINE_STORE, command_line_prefs);
+}
+
+void PrefValueStore::UpdateExtensionPrefStore(PrefStore* extension_prefs) {
+  InitPrefStore(EXTENSION_STORE, extension_prefs);
 }
 
 bool PrefValueStore::IsInitializationComplete() const {

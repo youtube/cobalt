@@ -32,10 +32,11 @@ class PersistentRepeatingTimer;
 // want other `//content` code (such as the BTM implementation) to access it.
 class CONTENT_EXPORT BtmServiceImpl : public BtmService {
  public:
-  using RecordBounceCallback = base::RepeatingCallback<void(
-      const BtmRedirectInfo& redirect,
-      const BtmRedirectChainInfo& chain,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback)>;
+  using StatefulBounceCallback = base::RepeatingCallback<void(const GURL&)>;
+
+  using RecordBounceCallback =
+      base::RepeatingCallback<void(const BtmRedirectInfo& redirect,
+                                   const BtmRedirectChainInfo& chain)>;
 
   BtmServiceImpl(base::PassKey<BrowserContextImpl>, BrowserContext* context);
   ~BtmServiceImpl() override;
@@ -44,11 +45,10 @@ class CONTENT_EXPORT BtmServiceImpl : public BtmService {
 
   base::SequenceBound<BtmStorage>* storage() { return &storage_; }
 
-  void RecordBounceForTesting(
-      const BtmRedirectInfo& redirect,
-      const BtmRedirectChainInfo& chain,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback) {
-    RecordBounce(redirect, chain, stateful_bounce_callback);
+  void RecordBounceForTesting(const BtmRedirectInfo& redirect,
+                              const BtmRedirectChainInfo& chain,
+                              StatefulBounceCallback stateful_bounce_callback) {
+    RecordBounce(stateful_bounce_callback, redirect, chain);
   }
 
   BtmCookieMode GetCookieMode() const;
@@ -62,10 +62,9 @@ class CONTENT_EXPORT BtmServiceImpl : public BtmService {
   // with no grace period.
   void DeleteEligibleSitesImmediately(DeletedSitesCallback callback) override;
 
-  void HandleRedirectChain(
-      std::vector<BtmRedirectInfoPtr> redirects,
-      BtmRedirectChainInfoPtr chain,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback);
+  void HandleRedirectChain(std::vector<BtmRedirectInfoPtr> redirects,
+                           BtmRedirectChainInfoPtr chain,
+                           StatefulBounceCallback stateful_bounce_callback);
 
   void RecordUserActivationForTesting(const GURL& url) override;
 
@@ -79,8 +78,7 @@ class CONTENT_EXPORT BtmServiceImpl : public BtmService {
   static void HandleRedirectForTesting(const BtmRedirectInfo& redirect,
                                        const BtmRedirectChainInfo& chain,
                                        RecordBounceCallback callback) {
-    HandleRedirect(redirect, chain, callback,
-                   base::BindRepeating([](const GURL& final_url) {}));
+    HandleRedirect(redirect, chain, callback);
   }
 
   void SetStorageClockForTesting(base::Clock* clock) {
@@ -89,6 +87,10 @@ class CONTENT_EXPORT BtmServiceImpl : public BtmService {
   }
 
   void OnTimerFiredForTesting() { OnTimerFired(); }
+
+#if BUILDFLAG(IS_FUCHSIA) && defined(IS_WEB_ENGINE)
+  void WaitForFuchsiaCleanupForTesting() { fuchsia_cleanup_loop_.Run(); }
+#endif
 
   void AddObserver(Observer* observer) override;
   void RemoveObserver(const Observer* observer) override;
@@ -117,21 +119,17 @@ class CONTENT_EXPORT BtmServiceImpl : public BtmService {
  private:
   std::unique_ptr<PersistentRepeatingTimer> CreateTimer();
 
-  void GotState(
-      std::vector<BtmRedirectInfoPtr> redirects,
-      BtmRedirectChainInfoPtr chain,
-      size_t index,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback,
-      const BtmState url_state);
-  void RecordBounce(
-      const BtmRedirectInfo& redirect,
-      const BtmRedirectChainInfo& chain,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback);
-  static void HandleRedirect(
-      const BtmRedirectInfo& redirect,
-      const BtmRedirectChainInfo& chain,
-      RecordBounceCallback callback,
-      base::RepeatingCallback<void(const GURL&)> stateful_bounce_callback);
+  void HandleRedirects(std::vector<BtmRedirectInfoPtr> redirects,
+                       BtmRedirectChainInfoPtr chain,
+                       StatefulBounceCallback stateful_bounce_callback,
+                       std::pair<std::set<std::string>, std::set<std::string>>
+                           sites_with_protective_events);
+  void RecordBounce(StatefulBounceCallback stateful_bounce_callback,
+                    const BtmRedirectInfo& redirect,
+                    const BtmRedirectChainInfo& chain);
+  static void HandleRedirect(const BtmRedirectInfo& redirect,
+                             const BtmRedirectChainInfo& chain,
+                             RecordBounceCallback callback);
 
   scoped_refptr<base::SequencedTaskRunner> CreateTaskRunner();
   scoped_refptr<base::SequencedTaskRunner> CreateTaskRunnerForResource(
@@ -156,6 +154,16 @@ class CONTENT_EXPORT BtmServiceImpl : public BtmService {
   base::ObserverList<Observer> observers_;
 
   std::map<std::string, int> open_sites_;
+
+#if BUILDFLAG(IS_FUCHSIA) && defined(IS_WEB_ENGINE)
+  // If running on WebEngine on Fuchsia, any existing BTM database file is
+  // asynchronously deleted. This RunLoop allows tests to wait for the
+  // deletion to complete.
+  //
+  // TODO: crbug.com/434764000 - delete this once we are confident any leftover
+  // database files have been removed on WebEngine on Fuchsia.
+  base::RunLoop fuchsia_cleanup_loop_;
+#endif
 
   base::WeakPtrFactory<BtmServiceImpl> weak_factory_{this};
 };

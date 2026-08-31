@@ -7,7 +7,6 @@
 #import "base/test/task_environment.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_item_configuration.h"
 #import "ios/chrome/browser/contextual_panel/model/contextual_panel_item_type.h"
-#import "ios/chrome/browser/dom_distiller/model/distiller_service_factory.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_tab_helper.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_test.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
@@ -17,12 +16,13 @@
 
 class ReaderModeModelTest : public ReaderModeTest {
  public:
-  ReaderModeModelTest() : web_state_(CreateWebState()) {}
+  void SetUp() override {
+    ReaderModeTest::SetUp();
+    web_state_ = CreateWebState();
+  }
 
-  // Attaches a ReaderModeTabHelper to `web_state()`.
-  void AttachReaderModeTabHelper() {
-    ReaderModeTabHelper::CreateForWebState(
-        web_state(), DistillerServiceFactory::GetForProfile(profile()));
+  void DetachReaderModeTabHelper() {
+    ReaderModeTabHelper::RemoveFromWebState(web_state());
   }
 
   web::FakeWebState* web_state() { return web_state_.get(); }
@@ -33,7 +33,6 @@ class ReaderModeModelTest : public ReaderModeTest {
 
 // NTP should return a null configuration.
 TEST_F(ReaderModeModelTest, FetchConfigurationForNTP) {
-  AttachReaderModeTabHelper();
   ReaderModeModel model;
   __block std::unique_ptr<ContextualPanelItemConfiguration> configuration;
 
@@ -54,7 +53,6 @@ TEST_F(ReaderModeModelTest, FetchConfigurationForNTP) {
 
 // Non-HTML content should return a null configuration.
 TEST_F(ReaderModeModelTest, FetchConfigurationForNonHTMLContent) {
-  AttachReaderModeTabHelper();
   ReaderModeModel model;
   __block std::unique_ptr<ContextualPanelItemConfiguration> configuration;
 
@@ -75,7 +73,6 @@ TEST_F(ReaderModeModelTest, FetchConfigurationForNonHTMLContent) {
 
 // HTML content should return the expected non-null configuration.
 TEST_F(ReaderModeModelTest, FetchConfigurationForHTMLContent) {
-  AttachReaderModeTabHelper();
   ReaderModeModel model;
   __block std::unique_ptr<ContextualPanelItemConfiguration> configuration;
 
@@ -83,7 +80,7 @@ TEST_F(ReaderModeModelTest, FetchConfigurationForHTMLContent) {
   SetReaderModeState(web_state(), test_url,
                      ReaderModeHeuristicResult::kReaderModeEligible, "");
   LoadWebpage(web_state(), test_url);
-  WaitForReaderModeContentReady();
+  WaitForPageLoadDelayAndRunUntilIdle();
 
   model.FetchConfigurationForWebState(
       web_state(),
@@ -101,11 +98,14 @@ TEST_F(ReaderModeModelTest, FetchConfigurationForHTMLContent) {
   EXPECT_EQ(configuration->image_type,
             ContextualPanelItemConfiguration::EntrypointImageType::SFSymbol);
   EXPECT_EQ(configuration->relevance,
-            ContextualPanelItemConfiguration::high_relevance);
+            ContextualPanelItemConfiguration::low_relevance - 1);
+  EXPECT_TRUE(configuration->entrypoint_message_large_entrypoint_always_shown);
+  EXPECT_TRUE(configuration->entrypoint_custom_action);
 }
 
 // WebState without a ReaderModeTabHelper should return a null configuration.
 TEST_F(ReaderModeModelTest, FetchConfigurationWithoutReaderModeTabHelper) {
+  DetachReaderModeTabHelper();
   ReaderModeModel model;
   __block std::unique_ptr<ContextualPanelItemConfiguration> configuration;
 

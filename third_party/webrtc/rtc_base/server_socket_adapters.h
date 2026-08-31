@@ -11,7 +11,12 @@
 #ifndef RTC_BASE_SERVER_SOCKET_ADAPTERS_H_
 #define RTC_BASE_SERVER_SOCKET_ADAPTERS_H_
 
+#include <cstddef>
+
+#include "rtc_base/socket.h"
 #include "rtc_base/socket_adapters.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/third_party/sigslot/sigslot.h"
 
 namespace webrtc {
 
@@ -40,13 +45,5 @@ class AsyncSSLServerSocket : public BufferedReadAdapter {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::AsyncProxyServerSocket;
-using ::webrtc::AsyncSSLServerSocket;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_SERVER_SOCKET_ADAPTERS_H_

@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "mojo/public/cpp/bindings/sync_handle_registry.h"
 
 #include <utility>
@@ -14,6 +9,7 @@
 #include "base/auto_reset.h"
 #include "base/check_op.h"
 #include "base/containers/contains.h"
+#include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
@@ -41,8 +37,8 @@ scoped_refptr<SyncHandleRegistry> SyncHandleRegistry::current() {
   static base::SequenceLocalStorageSlot<scoped_refptr<SyncHandleRegistry>>
       g_current_sync_handle_watcher;
 
-  // SyncMessageFilter can be used on threads without sequence-local storage
-  // being available. Those receive a unique, standalone SyncHandleRegistry.
+  // Threads without sequence-local storage receive a unique, standalone
+  // SyncHandleRegistry.
   if (!base::SequencedTaskRunner::HasCurrentDefault()) {
     return base::MakeRefCounted<SyncHandleRegistry>(
         base::PassKey<SyncHandleRegistry>());
@@ -123,7 +119,12 @@ SyncHandleRegistry::EventCallbackSubscription SyncHandleRegistry::RegisterEvent(
       it->second.get(), std::move(callback));
 }
 
-bool SyncHandleRegistry::Wait(const bool* should_stop[], size_t count) {
+bool SyncHandleRegistry::Wait(base::span<const bool*> should_stop,
+                              size_t spanification_suspected_redundant_count) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(spanification_suspected_redundant_count == should_stop.size(),
+        base::NotFatalUntil::M143);
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   size_t num_ready_handles;
@@ -132,7 +133,7 @@ bool SyncHandleRegistry::Wait(const bool* should_stop[], size_t count) {
 
   scoped_refptr<SyncHandleRegistry> preserver(this);
   while (true) {
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < spanification_suspected_redundant_count; ++i) {
       if (*should_stop[i])
         return true;
     }
@@ -141,8 +142,9 @@ bool SyncHandleRegistry::Wait(const bool* should_stop[], size_t count) {
     // give priority to the handle that is waiting for sync response.
     base::WaitableEvent* ready_event = nullptr;
     num_ready_handles = 1;
-    wait_set_.Wait(&ready_event, &num_ready_handles, &ready_handle,
-                   &ready_handle_result);
+    wait_set_.Wait(&ready_event, &num_ready_handles,
+                   base::span_from_ref(ready_handle),
+                   base::span_from_ref(ready_handle_result));
     if (num_ready_handles) {
       DCHECK_EQ(1u, num_ready_handles);
       const auto iter = handles_.find(ready_handle);

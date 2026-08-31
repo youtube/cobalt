@@ -106,7 +106,7 @@ class AmountExtractionManager {
   // Checks eligibility of features depending on amount extraction result, and
   // returns the eligible features.
   DenseSet<EligibleFeature>
-  CheckEligiblilityForFeaturesRequiringAmountExtraction() const;
+  CheckEligibilityForFeaturesRequiringAmountExtraction() const;
 
   // Gets the driver associated with the main frame as the final checkout
   // amount is on the main frame.
@@ -114,6 +114,10 @@ class AmountExtractionManager {
 
   // The owning BrowserAutofillManager.
   raw_ref<BrowserAutofillManager> autofill_manager_;
+
+  // If true, the metrics for the amount extraction result was already logged
+  // and should not log again.
+  bool has_logged_amount_extraction_result_ = false;
 
   // Indicates whether there is an amount search ongoing or not. If set, do not
   // trigger the search. It gets reset to false once the search is done. This is

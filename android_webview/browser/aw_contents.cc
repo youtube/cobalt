@@ -21,7 +21,6 @@
 #include "android_webview/browser/aw_renderer_priority.h"
 #include "android_webview/browser/aw_settings.h"
 #include "android_webview/browser/aw_web_contents_delegate.h"
-#include "android_webview/browser/gfx/aw_gl_functor.h"
 #include "android_webview/browser/gfx/aw_picture.h"
 #include "android_webview/browser/gfx/browser_view_renderer.h"
 #include "android_webview/browser/gfx/child_frame.h"
@@ -43,7 +42,7 @@
 #include "android_webview/common/aw_switches.h"
 #include "android_webview/common/devtools_instrumentation.h"
 #include "android_webview/common/mojom/frame.mojom.h"
-#include "base/android/build_info.h"
+#include "base/android/apk_info.h"
 #include "base/android/callback_android.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
@@ -65,6 +64,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/not_fatal_until.h"
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/pickle.h"
 #include "base/supports_user_data.h"
@@ -101,6 +101,7 @@
 #include "content/public/browser/page.h"
 #include "content/public/browser/preload_pipeline_info.h"
 #include "content/public/browser/preloading.h"
+#include "content/public/browser/prerender_handle.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
@@ -490,9 +491,6 @@ static void JNI_AwContents_SetAwDrawSWFunctionTable(JNIEnv* env,
       reinterpret_cast<AwDrawSWFunctionTable*>(function_table));
 }
 
-static void JNI_AwContents_SetAwDrawGLFunctionTable(JNIEnv* env,
-                                                    jlong function_table) {}
-
 // static
 jint JNI_AwContents_GetNativeInstanceCount(JNIEnv* env) {
   return base::subtle::NoBarrier_Load(&g_instance_count);
@@ -822,8 +820,8 @@ void AwContents::GrantRequestStorageAccessIfOriginIsAppDefined(
   asset_link_handler_->CheckDigitalAssetLinkRelationshipForAndroidApp(
       top_level_origin, kRelationship,
       std::vector<std::string>{
-          base::android::BuildInfo::GetInstance()->host_signing_cert_sha256()},
-      base::android::BuildInfo::GetInstance()->host_package_name(),
+          base::android::apk_info::host_signing_cert_sha256()},
+      base::android::apk_info::host_package_name(),
       base::BindOnce(
           [](base::TimeTicks time_requested, PermissionCallback callback,
              content_relationship_verification::RelationshipCheckResult
@@ -1588,7 +1586,8 @@ jint AwContents::StartPrerendering(
               /*planned_max_preloading_type=*/content::PreloadingType::
                   kPrerender),
           /*preloading_attempt=*/nullptr, /*url_match_predicate=*/{},
-          /*prerender_navigation_handle_callback=*/{});
+          /*prerender_navigation_handle_callback=*/{},
+          /*allow_reuse=*/false);
 
   int32_t handle_id = -1;
   if (prerender_handle) {
@@ -1630,8 +1629,8 @@ void AwContents::SetExtraHeadersForUrl(
     extra_headers = ConvertJavaStringToUTF8(env, jextra_headers);
   auto* browser_context =
       AwBrowserContext::FromWebContents(web_contents_.get());
-  browser_context->SetExtraHeaders(GURL(ConvertJavaStringToUTF8(env, url)),
-                                   extra_headers);
+  browser_context->SetExtraHeadersForUrl(
+      GURL(ConvertJavaStringToUTF8(env, url)), extra_headers);
 }
 
 void AwContents::SetJsOnlineProperty(JNIEnv* env, jboolean network_up) {

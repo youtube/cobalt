@@ -38,7 +38,7 @@ public class MimeUtils {
     // Mime types that Android can't handle when tries to open the file. Chrome may deduct a better
     // mime type based on file extension.
     private static final HashSet<String> GENERIC_MIME_TYPES =
-            new HashSet<String>(
+            new HashSet<>(
                     Arrays.asList(
                             "text/plain",
                             "application/octet-stream",
@@ -50,7 +50,7 @@ public class MimeUtils {
 
     // Set will be more expensive to initialize, so use an ArrayList here.
     private static final List<String> MIME_TYPES_TO_OPEN =
-            new ArrayList<String>(
+            new ArrayList<>(
                     Arrays.asList(
                             MimeUtils.OMA_DOWNLOAD_DESCRIPTOR_MIME,
                             "application/pdf",
@@ -74,8 +74,8 @@ public class MimeUtils {
      */
     @CalledByNative
     public static @JniType("std::string") String remapGenericMimeType(
-            @JniType("std::string") String mimeType,
-            @JniType("std::string") String url,
+            @JniType("std::string") @Nullable String mimeType,
+            @JniType("std::string") @Nullable String url,
             @JniType("std::string") String filename) {
         if (TextUtils.isEmpty(mimeType)) mimeType = UNKNOWN_MIME_TYPE;
         if (GENERIC_MIME_TYPES.contains(mimeType)) {
@@ -98,9 +98,9 @@ public class MimeUtils {
      * @param url URL to extract the extension.
      * @param filename File name to extract the extension.
      * @return If extension can be extracted from file name, use that. Or otherwise, use the
-     *         extension extracted from the url.
+     *     extension extracted from the url.
      */
-    static String getFileExtension(String url, String filename) {
+    static String getFileExtension(@Nullable String url, String filename) {
         if (!TextUtils.isEmpty(filename)) {
             int index = filename.lastIndexOf(".");
             if (index > 0) return filename.substring(index + 1);
@@ -144,7 +144,8 @@ public class MimeUtils {
      * @return true if the downloaded is OMA download description, or false otherwise.
      */
     @CalledByNative
-    public static boolean isOMADownloadDescription(@JniType("std::string") String mimeType) {
+    public static boolean isOMADownloadDescription(
+            @JniType("std::string") @Nullable String mimeType) {
         return OMA_DOWNLOAD_DESCRIPTOR_MIME.equalsIgnoreCase(mimeType);
     }
 

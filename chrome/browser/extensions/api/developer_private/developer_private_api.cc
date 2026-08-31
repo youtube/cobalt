@@ -4,6 +4,7 @@
 
 #include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
 
+#include "base/lazy_instance.h"
 #include "chrome/browser/extensions/api/developer_private/extension_info_generator.h"
 #include "chrome/browser/extensions/commands/command_service.h"
 #include "chrome/browser/extensions/error_console/error_console_factory.h"
@@ -19,7 +20,7 @@
 #include "ui/base/clipboard/file_info.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/account_extension_tracker.h"
+#include "chrome/browser/extensions/sync/account_extension_tracker.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model_factory.h"
 #include "extensions/browser/app_window/app_window_registry.h"
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)

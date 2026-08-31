@@ -20,6 +20,7 @@
 #include "base/run_loop.h"
 #include "base/strings/escape.h"
 #include "base/strings/pattern.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -71,6 +72,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 #include "url/origin.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "ui/base/dragdrop/os_exchange_data_provider_win.h"
+#endif
 
 namespace chrome {
 namespace {
@@ -154,6 +159,23 @@ class DragAndDropSimulator {
     os_exchange_data_->SetFilenames(file_infos);
     return SimulateDragEnter(location, *os_exchange_data_);
   }
+
+#if BUILDFLAG(IS_WIN)
+  // Simulates notification that multiple virtual files were dragged from
+  // outside of the browser, into the specified `location` inside
+  // `web_contents`. `location` is relative to `web_contents`. Returns true upon
+  // success.
+  bool SimulateDragEnter(
+      const gfx::Point& location,
+      const std::vector<std::pair<base::FilePath, std::string>>&
+          filenames_and_contents,
+      DWORD tymed) {
+    os_exchange_data_ = std::make_unique<ui::OSExchangeData>();
+    os_exchange_data_->provider().SetVirtualFileContentsForTesting(
+        filenames_and_contents, tymed);
+    return SimulateDragEnter(location, *os_exchange_data_);
+  }
+#endif  // BUILDFLAG(IS_WIN)
 
   // Simulates notification that |url| was dragged from outside of the browser,
   // into the specified |location| inside |omnibox|.
@@ -953,6 +975,16 @@ class DragAndDropBrowserTest : public InProcessBrowserTest,
     return drag_simulator_->SimulateDragEnter(kMiddleOfRightFrame, file_infos);
   }
 
+#if BUILDFLAG(IS_WIN)
+  bool SimulateDragEnterToRightFrame(
+      const std::vector<std::pair<base::FilePath, std::string>>& file_infos,
+      DWORD tymed) {
+    AssertTestPageIsLoaded();
+    return drag_simulator_->SimulateDragEnter(kMiddleOfRightFrame, file_infos,
+                                              tymed);
+  }
+#endif  // BUILDFLAG(IS_WIN)
+
   bool SimulateDropInRightFrame() {
     AssertTestPageIsLoaded();
     return drag_simulator_->SimulateDrop(kMiddleOfRightFrame);
@@ -1075,12 +1107,20 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DropTextFromOutside) {
 
   // Drop into the right frame.
   {
+    // Setup drop event expectations (dropEffect changes to "copy" during drop).
+    DOMDragEventVerifier expected_drop_event_data;
+    expected_drop_event_data.set_expected_client_position("(155, 150)");
+    expected_drop_event_data.set_expected_drop_effect("copy");
+    expected_drop_event_data.set_expected_effect_allowed("all");
+    expected_drop_event_data.set_expected_mime_types("text/plain");
+    expected_drop_event_data.set_expected_page_position("(155, 150)");
+
     DOMDragEventWaiter drop_waiter("drop", GetRightFrame());
     ASSERT_TRUE(SimulateDropInRightFrame());
 
     std::string drop_event;
     ASSERT_TRUE(drop_waiter.WaitForNextMatchingEvent(&drop_event));
-    EXPECT_THAT(drop_event, expected_dom_event_data.Matches());
+    EXPECT_THAT(drop_event, expected_drop_event_data.Matches());
   }
 }
 
@@ -1136,6 +1176,82 @@ IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DropValidUrlFromOutside) {
   EXPECT_FALSE(ui_test_utils::IsViewFocused(browser(), VIEW_ID_OMNIBOX));
   EXPECT_TRUE(ui_test_utils::IsViewFocused(browser(), VIEW_ID_TAB_CONTAINER));
 }
+
+#if BUILDFLAG(IS_WIN)
+// Scenario: Drag and drop a file from outside the browser and it should have
+// associated file type, fetched from it's diplay_name. Test coverage:
+// dragenter, dragover, drop DOM events. Note: this test uses a file with a
+// known extension and temporary path.
+IN_PROC_BROWSER_TEST_P(DragAndDropBrowserTest, DragAndDropVirtualFiles) {
+  ASSERT_TRUE(NavigateToTestPage("a.test"));
+  ASSERT_TRUE(NavigateRightFrame("a.test", "drop_target.html"));
+  // Prepare a test file with a known extension and temporary path.
+  std::vector<std::pair<base::FilePath, std::string>> file_infos;
+  base::FilePath test_file = ui_test_utils::GetTestFilePath(
+      base::FilePath(), base::FilePath().AppendASCII("test_document.pdf"));
+  file_infos.emplace_back(test_file, std::string("just some data"));
+
+  // Set up a script in the right frame to listen for dragenter, dragover, and
+  // drop, and record file type for each event.
+  ASSERT_TRUE(ExecJs(GetRightFrame(),
+                     R"(
+      window.eventFileTypes = {dragenter: '', dragover: '', drop: ''};
+      document.addEventListener('dragenter', function(e) {
+        if (e.dataTransfer && e.dataTransfer.items &&
+        e.dataTransfer.items.length > 0) {
+          window.eventFileTypes.dragenter = e.dataTransfer.items[0].type;
+        }
+      });
+      document.addEventListener('dragover', function(e) {
+        if (e.dataTransfer && e.dataTransfer.items &&
+        e.dataTransfer.items.length > 0) {
+          window.eventFileTypes.dragover = e.dataTransfer.items[0].type;
+        }
+      });
+      document.addEventListener('drop', function(e) {
+        if (e.dataTransfer && e.dataTransfer.items &&
+        e.dataTransfer.items.length > 0) {
+          window.eventFileTypes.drop = e.dataTransfer.items[0].type;
+        }
+      });
+    )"));
+
+  // Simulate dragging the file into the right frame.
+  DOMDragEventWaiter dragenter_waiter("dragenter", GetRightFrame());
+  ASSERT_TRUE(SimulateDragEnterToRightFrame(file_infos, TYMED_HGLOBAL));
+  std::string dragenter_event;
+  ASSERT_TRUE(dragenter_waiter.WaitForNextMatchingEvent(&dragenter_event));
+
+  // Simulate dragover event.
+  DOMDragEventWaiter dragover_waiter("dragover", GetRightFrame());
+  ASSERT_TRUE(SimulateMouseMoveToRightFrame());
+  std::string dragover_event;
+  ASSERT_TRUE(dragover_waiter.WaitForNextMatchingEvent(&dragover_event));
+
+  // Simulate drop event.
+  DOMDragEventWaiter drop_waiter("drop", GetRightFrame());
+  ASSERT_TRUE(SimulateDropInRightFrame());
+  std::string drop_event;
+  ASSERT_TRUE(drop_waiter.WaitForNextMatchingEvent(&drop_event));
+
+  // Query the file types received by the renderer for each event.
+  std::string dragenter_type =
+      EvalJs(GetRightFrame(), "window.eventFileTypes.dragenter")
+          .ExtractString();
+  std::string dragover_type =
+      EvalJs(GetRightFrame(), "window.eventFileTypes.dragover").ExtractString();
+  std::string drop_type =
+      EvalJs(GetRightFrame(), "window.eventFileTypes.drop").ExtractString();
+
+  // For a pdf file, the type should be "application/pdf".
+  EXPECT_TRUE(dragenter_type == "application/pdf")
+      << "Renderer received dragenter file type: " << dragenter_type;
+  EXPECT_TRUE(dragover_type == "application/pdf")
+      << "Renderer received dragover file type: " << dragover_type;
+  EXPECT_TRUE(drop_type == "application/pdf")
+      << "Renderer received drop file type: " << drop_type;
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 // Scenario: drag a URL into the Omnibox.  This is a regression test for
 // https://crbug.com/670123.
@@ -1648,10 +1764,18 @@ void DragAndDropBrowserTest::DragImageBetweenFrames_Step3(
     DragAndDropBrowserTest::DragImageBetweenFrames_TestState* state) {
   // Verify drop DOM event.
   {
+    // Create separate expectations for drop event since dropEffect changes to
+    // "copy"
+    DOMDragEventVerifier expected_drop_event_data;
+    expected_drop_event_data.set_expected_client_position("(155, 150)");
+    expected_drop_event_data.set_expected_drop_effect("copy");
+    expected_drop_event_data.set_expected_effect_allowed("copy");
+    expected_drop_event_data.set_expected_page_position("(155, 150)");
+
     // File contents is sent in drop event.
-    state->expected_dom_event_data.set_expected_file_names(
+    expected_drop_event_data.set_expected_file_names(
         state->expect_image_accessible ? "cors-allowed.jpg" : "");
-    state->expected_dom_event_data.set_expected_mime_types(
+    expected_drop_event_data.set_expected_mime_types(
         state->expect_image_accessible
             ? "Files,text/html,text/plain,text/uri-list"
             : "text/html,text/plain,text/uri-list");
@@ -1660,7 +1784,7 @@ void DragAndDropBrowserTest::DragImageBetweenFrames_Step3(
     EXPECT_TRUE(
         state->drop_event_waiter->WaitForNextMatchingEvent(&drop_event));
     state->drop_event_waiter.reset();
-    EXPECT_THAT(drop_event, state->expected_dom_event_data.Matches());
+    EXPECT_THAT(drop_event, expected_drop_event_data.Matches());
   }
 
   // Verify dragend DOM event.
@@ -1825,11 +1949,21 @@ void DragAndDropBrowserTest::DragImageFromDisappearingFrame_Step3(
     DragAndDropBrowserTest::DragImageFromDisappearingFrame_TestState* state) {
   // Verify drop DOM event.
   {
+    // Create separate expectations for drop event since dropEffect changes to
+    // "copy"
+    DOMDragEventVerifier expected_drop_event_data;
+    expected_drop_event_data.set_expected_client_position("(155, 150)");
+    expected_drop_event_data.set_expected_drop_effect("copy");
+    expected_drop_event_data.set_expected_effect_allowed("copy");
+    expected_drop_event_data.set_expected_mime_types(
+        "Files,text/html,text/plain,text/uri-list");
+    expected_drop_event_data.set_expected_page_position("(155, 150)");
+
     std::string drop_event;
     EXPECT_TRUE(
         state->drop_event_waiter->WaitForNextMatchingEvent(&drop_event));
     state->drop_event_waiter.reset();
-    EXPECT_THAT(drop_event, state->expected_dom_event_data.Matches());
+    EXPECT_THAT(drop_event, expected_drop_event_data.Matches());
   }
 }
 
@@ -2244,11 +2378,20 @@ void DragAndDropBrowserTest::CrossTabDrag_Step3(
     DragAndDropBrowserTest::CrossTabDrag_TestState* state) {
   // Verify drop DOM event.
   {
+    // Setup drop event expectations (dropEffect changes to "copy" during drop).
+    DOMDragEventVerifier expected_drop_event_data;
+    expected_drop_event_data.set_expected_client_position("(155, 150)");
+    expected_drop_event_data.set_expected_drop_effect("copy");
+    expected_drop_event_data.set_expected_effect_allowed("copy");
+    expected_drop_event_data.set_expected_mime_types(
+        "Files,text/html,text/plain,text/uri-list");
+    expected_drop_event_data.set_expected_page_position("(155, 150)");
+
     std::string drop_event;
     EXPECT_TRUE(
         state->drop_event_waiter->WaitForNextMatchingEvent(&drop_event));
     state->drop_event_waiter.reset();
-    EXPECT_THAT(drop_event, state->expected_dom_event_data.Matches());
+    EXPECT_THAT(drop_event, expected_drop_event_data.Matches());
   }
 
   // Verify dragend DOM event.

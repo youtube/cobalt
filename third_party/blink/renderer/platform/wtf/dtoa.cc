@@ -33,20 +33,18 @@
  * file.
  */
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/wtf/dtoa.h"
 
 #include <string.h>
 
+#include <array>
+
+#include "base/compiler_specific.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/third_party/double_conversion/double-conversion/double-conversion.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-namespace WTF {
+namespace blink {
 
 namespace {
 
@@ -56,9 +54,11 @@ double ParseDoubleFromLongString(const UChar* string,
   wtf_size_t conversion_length = base::checked_cast<wtf_size_t>(length);
   auto conversion_buffer = std::make_unique<LChar[]>(conversion_length);
   for (wtf_size_t i = 0; i < conversion_length; ++i) {
-    conversion_buffer[i] = IsASCII(string[i]) ? string[i] : 0;
+    conversion_buffer[i] =
+        IsASCII(UNSAFE_TODO(string[i])) ? UNSAFE_TODO(string[i]) : 0;
   }
-  return ParseDouble(conversion_buffer.get(), length, parsed_length);
+  return ParseDouble(UNSAFE_TODO(base::span(conversion_buffer.get(), length)),
+                     parsed_length);
 }
 
 const double_conversion::StringToDoubleConverter& GetDoubleConverter() {
@@ -86,13 +86,15 @@ static inline const char* FormatStringTruncatingTrailingZerosIfNeeded(
 
   // If there is an exponent, stripping trailing zeros would be incorrect.
   // FIXME: Zeros should be stripped before the 'e'.
-  if (memchr(buffer, 'e', length))
+  if (UNSAFE_TODO(memchr(buffer, 'e', length))) {
     return builder.Finalize();
+  }
 
   int decimal_point_position = 0;
   for (; decimal_point_position < length; ++decimal_point_position) {
-    if (buffer[decimal_point_position] == '.')
+    if (UNSAFE_TODO(buffer[decimal_point_position]) == '.') {
       break;
+    }
   }
 
   if (decimal_point_position == length)
@@ -100,8 +102,9 @@ static inline const char* FormatStringTruncatingTrailingZerosIfNeeded(
 
   int truncated_length = length - 1;
   for (; truncated_length > decimal_point_position; --truncated_length) {
-    if (buffer[truncated_length] != '0')
+    if (UNSAFE_TODO(buffer[truncated_length]) != '0') {
       break;
+    }
   }
 
   // No trailing zeros found to strip.
@@ -116,7 +119,7 @@ static inline const char* FormatStringTruncatingTrailingZerosIfNeeded(
 
   // Truncate the StringBuilder, and return the final result.
   char* result = builder.Finalize();
-  result[truncated_length + 1] = '\0';
+  UNSAFE_TODO(result[truncated_length + 1]) = '\0';
   return result;
 }
 
@@ -162,26 +165,28 @@ const char* NumberToFixedWidthString(double d,
   return builder.Finalize();
 }
 
-double ParseDouble(const LChar* string, size_t length, size_t& parsed_length) {
+double ParseDouble(base::span<const LChar> string, size_t& parsed_length) {
   int int_parsed_length = 0;
   double d = GetDoubleConverter().StringToDouble(
-      reinterpret_cast<const char*>(string), base::saturated_cast<int>(length),
-      &int_parsed_length);
+      reinterpret_cast<const char*>(string.data()),
+      base::saturated_cast<int>(string.size()), &int_parsed_length);
   parsed_length = int_parsed_length;
   return d;
 }
 
-double ParseDouble(const UChar* string, size_t length, size_t& parsed_length) {
+double ParseDouble(base::span<const UChar> string, size_t& parsed_length) {
   const size_t kConversionBufferSize = 64;
+  const size_t length = string.size();
   if (length > kConversionBufferSize) {
-    return ParseDoubleFromLongString(string, length, parsed_length);
+    return ParseDoubleFromLongString(string.data(), length, parsed_length);
   }
-  LChar conversion_buffer[kConversionBufferSize];
+  std::array<LChar, kConversionBufferSize> conversion_buffer;
   for (size_t i = 0; i < length; ++i) {
     conversion_buffer[i] =
         IsASCII(string[i]) ? static_cast<LChar>(string[i]) : 0;
   }
-  return ParseDouble(conversion_buffer, length, parsed_length);
+  return ParseDouble(base::span(conversion_buffer).first(length),
+                     parsed_length);
 }
 
 namespace internal {
@@ -196,4 +201,4 @@ void InitializeDoubleConverter() {
 
 }  // namespace internal
 
-}  // namespace WTF
+}  // namespace blink

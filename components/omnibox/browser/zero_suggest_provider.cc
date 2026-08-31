@@ -19,6 +19,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/notreached.h"
 #include "base/strings/escape.h"
+#include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
@@ -702,9 +703,12 @@ void ZeroSuggestProvider::OnURLLoadComplete(
   loader_.reset();
   done_ = true;
 
-  // The contextual search experience intentionally updates the cache with
-  // latest received results, but does not publish the matches asynchronously.
-  if (omnibox_feature_configs::ContextualSearch::Get()
+  // The Contextual Search in Omnibox experience, which is only active on Web
+  // page context, intentionally updates the cache with latest received results,
+  // but does not publish the matches asynchronously.
+  if (input.current_page_classification() ==
+          metrics::OmniboxEventProto::OTHER &&
+      omnibox_feature_configs::ContextualSearch::Get()
           .IsEnabledWithPrefetch()) {
     return;
   }

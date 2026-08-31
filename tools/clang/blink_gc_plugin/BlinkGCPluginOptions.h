@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include "clang/Basic/SourceLocation.h"
+
 struct BlinkGCPluginOptions {
   bool dump_graph = false;
 

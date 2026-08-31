@@ -41,7 +41,7 @@
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/webapps/browser/installable/installable_logging.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "content/public/common/content_features.h"
 #include "net/http/http_status_code.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
@@ -123,9 +123,7 @@ class IsolatedWebAppUpdateDiscoveryTaskTest : public WebAppTest {
                     update_manifest_url_, update_channel, allow_downgrades,
                     pinned_version, url_info, /*dev_mode=*/false),
                 fake_provider().scheduler(), fake_provider().registrar_unsafe(),
-                profile()->GetURLLoaderFactory(),
-                /*optional_keep_alive=*/nullptr,
-                /*optional_profile_keep_alive=*/nullptr);
+                profile()->GetURLLoaderFactory(), *profile());
   }
 
   Task CreateDefaultIwaUpdateDiscoveryTask(
@@ -266,8 +264,7 @@ TEST_F(IsolatedWebAppUpdateDiscoveryTaskUpdateManifestTest, NoUpdateFound) {
 
   base::test::TestFuture<Task::CompletionStatus> future;
   task.Start(future.GetCallback());
-  EXPECT_THAT(future.Take(), ValueIs(Task::Success::kNoUpdateFound))
-      << task.AsDebugValue();
+  EXPECT_THAT(future.Take(), ErrorIs(Task::Error::kDowngradetNotAllowed));
 }
 
 TEST_F(IsolatedWebAppUpdateDiscoveryTaskUpdateManifestTest,
@@ -556,7 +553,7 @@ TEST_F(IsolatedWebAppUpdateDiscoveryTaskPrepareUpdateTest,
   base::test::TestFuture<Task::CompletionStatus> future;
   task.Start(future.GetCallback());
   EXPECT_THAT(future.Take(),
-              ValueIs(Task::Success::kUpdateFoundAndSavedInDatabase))
+              ValueIs(Task::Success::kDowngradeVersionFoundAndSavedInDatabase))
       << task.AsDebugValue();
 }
 TEST_F(IsolatedWebAppUpdateDiscoveryTaskPrepareUpdateTest,
@@ -578,8 +575,9 @@ TEST_F(IsolatedWebAppUpdateDiscoveryTaskPrepareUpdateTest,
 
   base::test::TestFuture<Task::CompletionStatus> future;
   task.Start(future.GetCallback());
-  EXPECT_THAT(future.Take(),
-              ValueIs(Task::Success::kUpdateFoundAndSavedInDatabase))
+  EXPECT_THAT(
+      future.Take(),
+      ValueIs(Task::Success::kPinnedVersionUpdateFoundAndSavedInDatabase))
       << task.AsDebugValue();
 
   const WebApp* web_app =

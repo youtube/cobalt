@@ -18,6 +18,7 @@
 #include "content/public/browser/render_widget_host_view.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 #include "ui/base/models/menu_model.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -98,7 +99,7 @@ WebUIContentsWrapper::WebUIContentsWrapper(const GURL& webui_url,
                                            bool webui_resizes_host,
                                            bool esc_closes_ui,
                                            bool supports_draggable_regions,
-                                           const std::string& webui_name)
+                                           std::string_view webui_name)
     : webui_resizes_host_(webui_resizes_host),
       esc_closes_ui_(esc_closes_ui),
       supports_draggable_regions_(supports_draggable_regions) {

@@ -24,7 +24,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/message_loop/message_pump_type.h"
-#include "base/metrics/field_trial.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
@@ -59,6 +58,7 @@
 #include "remoting/base/errors.h"
 #include "remoting/base/host_settings.h"
 #include "remoting/base/instance_identity_token_getter.h"
+#include "remoting/base/instance_identity_token_getter_impl.h"
 #include "remoting/base/is_google_email.h"
 #include "remoting/base/local_session_policies_provider.h"
 #include "remoting/base/logging.h"
@@ -277,7 +277,6 @@ class HostProcess : public ConfigWatcher::Delegate,
   void OnConfigWatcherError() override;
 
   // IPC::Listener implementation.
-  bool OnMessageReceived(const IPC::Message& message) override;
   void OnChannelError() override;
   void OnAssociatedInterfaceRequest(
       const std::string& interface_name,
@@ -486,9 +485,6 @@ class HostProcess : public ConfigWatcher::Delegate,
   DesktopEnvironmentOptions desktop_environment_options_;
   bool security_key_auth_policy_enabled_ = false;
   bool security_key_extension_supported_ = true;
-
-  // Allows us to override field trials which are causing issues for chromoting.
-  std::unique_ptr<base::FieldTrialList> field_trial_list_;
 
   // Used to specify which window to stream, if enabled.
   webrtc::WindowId window_id_ = 0;
@@ -967,10 +963,6 @@ void HostProcess::CreateAuthenticatorFactory() {
 }
 
 // IPC::Listener implementation.
-bool HostProcess::OnMessageReceived(const IPC::Message& message) {
-  NOTREACHED() << "Received unexpected IPC type: " << message.type();
-}
-
 void HostProcess::OnChannelError() {
   DCHECK(context_->ui_task_runner()->BelongsToCurrentThread());
 
@@ -1777,7 +1769,7 @@ void HostProcess::InitializeSignaling() {
     // Initialize |instance_identity_token_getter_| so it can be used to
     // generate tokens for calling the private Remoting Cloud API.
     instance_identity_token_getter_ =
-        std::make_unique<InstanceIdentityTokenGetter>(
+        std::make_unique<InstanceIdentityTokenGetterImpl>(
             base::StringPrintf(
                 "https://%s",
                 ServiceUrls::GetInstance()->remoting_cloud_private_endpoint()),
@@ -1838,18 +1830,6 @@ void HostProcess::StartHost() {
 
   // This thread is used as a network thread in WebRTC.
   webrtc::ThreadWrapper::EnsureForCurrentMessageLoop();
-
-  // Initialize global field trials. In case this code runs a second time,
-  // check for any previous instance - see crbug.com/349062464.
-  if (!field_trial_list_) {
-    field_trial_list_ = std::make_unique<base::FieldTrialList>();
-
-    // Override LossBasedBweV2 trial.
-    // TODO(b/266103942): Remove this override once we figure out why the BWE is
-    // crashing for some users and have a fix available.
-    base::FieldTrialList::CreateTrialsFromString(
-        "WebRTC-Bwe-LossBasedBweV2/Enabled:false/");
-  }
 
   SetState(HOST_STARTED);
 
@@ -1937,8 +1917,7 @@ void HostProcess::StartHost() {
 #endif
 
   power_save_blocker_ = std::make_unique<HostPowerSaveBlocker>(
-      host_->status_monitor(), context_->ui_task_runner(),
-      context_->file_task_runner());
+      host_->status_monitor(), context_->ui_task_runner());
 
   ftl_host_change_notification_listener_ =
       std::make_unique<FtlHostChangeNotificationListener>(

@@ -8,11 +8,14 @@
 #include "base/functional/concurrent_closures.h"
 #include "base/i18n/char_iterator.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/timer/elapsed_timer.h"
+#include "components/optimization_guide/content/browser/media_transcript_provider.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "content/public/browser/media_session.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
@@ -48,8 +51,7 @@ void ApplyOptionsOverridesForWebContents(
 
   if (base::FeatureList::IsEnabled(
           features::kAnnotatedPageContentWithActionableElements)) {
-    options.enable_experimental_actionable_data = true;
-    options.include_geometry = true;
+    options.mode = blink::mojom::AIPageContentMode::kActionableElements;
   }
 }
 
@@ -67,6 +69,89 @@ blink::mojom::AIPageContentOptionsPtr ApplyOptionsOverridesForSubframe(
   auto new_options = blink::mojom::AIPageContentOptions::New(input);
   new_options->on_critical_path = true;
   return new_options;
+}
+
+// Validate that the media session has all the required data before proceeding
+// to create media data.
+bool ValidateMediaSession(
+    const media_session::mojom::MediaSessionInfoPtr& media_session_info,
+    const std::optional<media_session::MediaPosition>& media_position) {
+  return media_session_info && media_session_info->audio_video_states &&
+         !media_session_info->audio_video_states->empty() && media_position &&
+         !media_position->duration().is_zero();
+}
+
+// Find the media data from the web contents for the given render frame host if
+// there is an active media session in the web page, otherwise return nullopt.
+std::optional<optimization_guide::proto::MediaData> ComputeMediaData(
+    content::RenderFrameHost* render_frame_host) {
+  CHECK(render_frame_host);
+  if (!base::FeatureList::IsEnabled(
+          features::kAnnotatedPageContentWithMediaData)) {
+    return std::nullopt;
+  }
+
+  auto* web_contents =
+      content::WebContents::FromRenderFrameHost(render_frame_host);
+  if (!web_contents) {
+    return std::nullopt;
+  }
+
+  auto* media_session = content::MediaSession::GetIfExists(web_contents);
+  if (!media_session ||
+      (render_frame_host != media_session->GetRoutedFrame())) {
+    return std::nullopt;
+  }
+
+  auto media_session_info = media_session->GetMediaSessionInfoSync();
+  auto media_position = media_session->GetMediaSessionPosition();
+  if (!ValidateMediaSession(media_session_info, media_position)) {
+    return std::nullopt;
+  }
+
+  optimization_guide::proto::MediaData media_data;
+  media_data.set_is_playing(media_session_info->playback_state ==
+                            media_session::mojom::MediaPlaybackState::kPlaying);
+  media_data.set_duration_milliseconds(
+      media_position->duration().InMilliseconds());
+  media_data.set_current_position_milliseconds(
+      media_position->GetPosition().InMilliseconds());
+
+  // Find the media data type via the audio video states in the media session
+  // info. If there are multiple media in the frame which is rare, select the
+  // first media for simplicity.
+  auto& first_state = media_session_info->audio_video_states->at(0);
+  switch (first_state) {
+    case media_session::mojom::MediaAudioVideoState::kAudioOnly:
+      media_data.set_media_data_type(
+          optimization_guide::proto::MediaDataType::MEDIA_DATA_TYPE_AUDIO);
+      break;
+    case media_session::mojom::MediaAudioVideoState::kAudioVideo:
+    case media_session::mojom::MediaAudioVideoState::kVideoOnly:
+      media_data.set_media_data_type(
+          optimization_guide::proto::MediaDataType::MEDIA_DATA_TYPE_VIDEO);
+      break;
+    case media_session::mojom::MediaAudioVideoState::kDeprecatedUnknown:
+      NOTREACHED();
+  }
+
+  // Set the media metadata.
+  const media_session::MediaMetadata& media_metadata =
+      media_session->GetMediaSessionMetadata();
+  media_data.set_title(base::UTF16ToUTF8(media_metadata.title));
+  media_data.set_artist(base::UTF16ToUTF8(media_metadata.artist));
+  media_data.set_album(base::UTF16ToUTF8(media_metadata.album));
+
+  // Add media transcripts if they exist.
+  if (auto* media_transcript_provider =
+          MediaTranscriptProvider::GetFor(web_contents)) {
+    auto transcripts =
+        media_transcript_provider->GetTranscriptsForFrame(render_frame_host);
+    media_data.mutable_transcripts()->Add(transcripts.begin(),
+                                          transcripts.end());
+  }
+
+  return media_data;
 }
 
 std::optional<optimization_guide::RenderFrameInfo> GetRenderFrameInfo(
@@ -104,6 +189,7 @@ std::optional<optimization_guide::RenderFrameInfo> GetRenderFrameInfo(
   //    convey that.
   render_frame_info.source_origin = render_frame_host->GetLastCommittedOrigin();
   render_frame_info.url = render_frame_host->GetLastCommittedURL();
+  render_frame_info.media_data = ComputeMediaData(render_frame_host);
   return render_frame_info;
 }
 
@@ -235,7 +321,7 @@ void OnGotAIPageContentForFrame(
 }  // namespace
 
 AIPageContentResult::AIPageContentResult() {
-  metadata = optimization_guide::mojom::PageMetadata::New();
+  metadata = blink::mojom::PageMetadata::New();
 }
 AIPageContentResult::~AIPageContentResult() = default;
 AIPageContentResult::AIPageContentResult(AIPageContentResult&& other) = default;
@@ -243,7 +329,15 @@ AIPageContentResult& AIPageContentResult::operator=(
     AIPageContentResult&& other) = default;
 
 blink::mojom::AIPageContentOptionsPtr DefaultAIPageContentOptions() {
-  return blink::mojom::AIPageContentOptions::New();
+  auto options = blink::mojom::AIPageContentOptions::New();
+  options->mode = blink::mojom::AIPageContentMode::kDefault;
+  return options;
+}
+
+blink::mojom::AIPageContentOptionsPtr ActionableAIPageContentOptions() {
+  auto options = blink::mojom::AIPageContentOptions::New();
+  options->mode = blink::mojom::AIPageContentMode::kActionableElements;
+  return options;
 }
 
 void GetAIPageContent(content::WebContents* web_contents,

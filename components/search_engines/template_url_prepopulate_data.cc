@@ -21,7 +21,7 @@
 #include "components/country_codes/country_codes.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
-#include "components/regional_capabilities/eea_countries_ids.h"
+#include "components/regional_capabilities/program_settings.h"
 #include "components/regional_capabilities/regional_capabilities_utils.h"
 #include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/template_url_data.h"
@@ -111,7 +111,6 @@ std::unique_ptr<TemplateURLData> FindPrepopulatedEngineInternal(
 // Global functions -----------------------------------------------------------
 
 void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
-  country_codes::RegisterProfilePrefs(registry);
   registry->RegisterListPref(prefs::kSearchProviderOverrides);
   registry->RegisterIntegerPref(prefs::kSearchProviderOverridesVersion, -1);
 }
@@ -161,11 +160,42 @@ std::vector<std::unique_ptr<TemplateURLData>> GetLocalPrepopulatedEngines(
   }
 
   return base::ToVector(
-      regional_capabilities::GetPrepopulatedEngines(country_id, prefs),
+      regional_capabilities::GetPrepopulatedEngines(
+          country_id, prefs,
+          regional_capabilities::SearchEngineListType::kTopFive),
       &PrepopulatedEngineToTemplateURLData);
 }
 
 #endif
+
+const PrepopulatedEngine* GetPrepopulatedEngineFromBuiltInData(
+    int prepopulated_id,
+    const std::vector<const PrepopulatedEngine*>&
+        regional_prepopulated_engines) {
+  auto engine_matcher = [&](const PrepopulatedEngine* engine) {
+    return engine->id == prepopulated_id;
+  };
+
+  // We look in the regional set first. This is intended to help using the right
+  // entry for the case where we have multiple ones in the full list that share
+  // a same prepopulated id.
+  if (auto iter =
+          std::ranges::find_if(regional_prepopulated_engines, engine_matcher);
+      iter != regional_prepopulated_engines.end()) {
+    return *iter;
+  }
+
+  // Fallback: just grab the first matching entry from the complete list.
+  // In case of IDs shared across multiple entries, we might be returning
+  // the wrong one for the profile country. We can look into better
+  // heuristics in future work.
+  if (auto iter = std::ranges::find_if(kAllEngines, engine_matcher);
+      iter != kAllEngines.end()) {
+    return *iter;
+  }
+
+  return nullptr;
+}
 
 std::unique_ptr<TemplateURLData> GetPrepopulatedEngineFromFullList(
     PrefService& prefs,
@@ -184,26 +214,10 @@ std::unique_ptr<TemplateURLData> GetPrepopulatedEngineFromFullList(
     }
   }
 
-  auto engine_matcher = [&](const PrepopulatedEngine* engine) {
-    return engine->id == prepopulated_id;
-  };
-
-  // We look in the profile country's prepopulated set first. This is intended
-  // to help using the right entry for the case where we have multiple ones in
-  // the full list that share a same prepopulated id.
-  if (auto iter =
-          std::ranges::find_if(regional_prepopulated_engines, engine_matcher);
-      iter != regional_prepopulated_engines.end()) {
-    return PrepopulatedEngineToTemplateURLData(*iter);
-  }
-
-  // Fallback: just grab the first matching entry from the complete list.
-  // In case of IDs shared across multiple entries, we might be returning
-  // the wrong one for the profile country. We can look into better
-  // heuristics in future work.
-  if (auto iter = std::ranges::find_if(kAllEngines, engine_matcher);
-      iter != kAllEngines.end()) {
-    return PrepopulatedEngineToTemplateURLData(*iter);
+  if (auto* matched_engine = GetPrepopulatedEngineFromBuiltInData(
+          prepopulated_id, regional_prepopulated_engines);
+      matched_engine) {
+    return PrepopulatedEngineToTemplateURLData(matched_engine);
   }
 
   return {};

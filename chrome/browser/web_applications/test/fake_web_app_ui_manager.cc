@@ -11,6 +11,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "chrome/browser/ui/web_applications/web_app_run_on_os_login_notification.h"
@@ -159,12 +160,6 @@ void FakeWebAppUiManager::LaunchWebApp(apps::AppLaunchParams params,
   }
 }
 
-void FakeWebAppUiManager::WaitForFirstRunService(
-    Profile& profile,
-    FirstRunServiceCompletedCallback callback) {
-  std::move(callback).Run(/*success=*/true);
-}
-
 #if BUILDFLAG(IS_CHROMEOS)
 void FakeWebAppUiManager::MigrateLauncherState(
     const webapps::AppId& from_app_id,
@@ -217,6 +212,16 @@ void FakeWebAppUiManager::TriggerInstallDialogForBackgroundInstall(
   NOTIMPLEMENTED();
 }
 
+void FakeWebAppUiManager::TriggerLaunchDialogForBackgroundInstall(
+    content::WebContents* initiating_web_contents,
+    const webapps::AppId& app_id,
+    Profile* profile,
+    const std::string& app_name,
+    const SkBitmap& icon,
+    base::OnceCallback<void(bool accepted)> callback) {
+  NOTIMPLEMENTED();
+}
+
 void FakeWebAppUiManager::PresentUserUninstallDialog(
     const webapps::AppId& app_id,
     webapps::WebappUninstallSource uninstall_source,
@@ -242,6 +247,11 @@ void FakeWebAppUiManager::PresentUserUninstallDialog(
   std::move(scheduled_callback).Run(/*uninstall_scheduled=*/true);
   std::move(callback).Run(webapps::UninstallResultCode::kAppRemoved);
 }
+
+void FakeWebAppUiManager::ShowIntentPicker(
+    const GURL& url,
+    content::WebContents* web_contents,
+    ShowIntentPickerBubbleCallback callback) {}
 
 void FakeWebAppUiManager::LaunchOrFocusIsolatedWebAppInstaller(
     const base::FilePath& bundle_path) {}

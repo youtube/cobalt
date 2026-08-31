@@ -23,10 +23,10 @@
 #include "cobalt_switch_defaults.h"
 #include "content/public/common/content_switches.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
-#include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
 namespace cobalt {
@@ -122,7 +122,7 @@ TEST(CobaltSwitchDefaultsTest, GpuMemorySwitchDefault) {
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
   std::string gpu_mem =
-      GetSwitchValue(cmd_line_pxr, ::switches::kForceGpuMemAvailableMb);
+      GetSwitchValue(cmd_line_pxr, blink::switches::kForceGpuMemAvailableMb);
   EXPECT_EQ(std::string("64"), gpu_mem);
 }
 

@@ -10,6 +10,7 @@
 #include "base/metrics/user_metrics.h"
 #include "base/time/time.h"
 #include "components/lens/lens_features.h"
+#include "components/lens/lens_overlay_invocation_source.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 
@@ -42,6 +43,12 @@ std::string InvocationSourceToString(
       return "OmniboxContextualSuggestion";
     case LensOverlayInvocationSource::kHomeworkActionChip:
       return "HomeworkActionChip";
+    case LensOverlayInvocationSource::kAIHub:
+      return "AIHub";
+    case LensOverlayInvocationSource::kFREPromo:
+      return "FREPromo";
+    case LensOverlayInvocationSource::kContentAreaContextMenuText:
+      return "ContentAreaContextMenuText";
   }
 }
 
@@ -157,11 +164,6 @@ void RecordContextualSearchboxSessionEndMetrics(
     ContextualSearchboxSessionEndMetrics session_end_metrics,
     lens::MimeType page_content_type,
     lens::MimeType document_content_type) {
-  // Only record if the contextual search box feature is enabled.
-  if (!lens::features::IsLensOverlayContextualSearchboxEnabled()) {
-    return;
-  }
-
   // UMA contextual searchbox shown in session.
   base::UmaHistogramBoolean("Lens.Overlay.ContextualSearchBox.ShownInSession",
                             session_end_metrics.searchbox_shown_);
@@ -394,8 +396,7 @@ void RecordTimeToFirstInteraction(
       event.SetFindInPage(time_to_first_interaction.InMilliseconds());
       break;
     case lens::LensOverlayInvocationSource::kOmnibox:
-    // TODO(crbug.com/419051875): Add separate UKM for homework action chip.
-    case lens::LensOverlayInvocationSource::kHomeworkActionChip:
+    case lens::LensOverlayInvocationSource::kAIHub:
       event.SetOmnibox(time_to_first_interaction.InMilliseconds());
       break;
     case lens::LensOverlayInvocationSource::kOmniboxPageAction:
@@ -404,6 +405,18 @@ void RecordTimeToFirstInteraction(
     case lens::LensOverlayInvocationSource::kOmniboxContextualSuggestion:
       event.SetOmniboxContextualSuggestion(
           time_to_first_interaction.InMilliseconds());
+      break;
+    case lens::LensOverlayInvocationSource::kFREPromo:
+      // First interaction for Lens Overlay is already recorded and sliced by invocation
+      // source.
+      break;
+    case lens::LensOverlayInvocationSource::kHomeworkActionChip:
+      event.SetHomeworkActionChip(time_to_first_interaction.InMilliseconds());
+      break;
+    case lens::LensOverlayInvocationSource::kContentAreaContextMenuText:
+      // Not recorded since the text context menu entry point results in a
+      // search without the user having to interact with the overlay. Time to
+      // first interaction in this case is essentially zero.
       break;
   }
   event.SetFirstInteractionType(static_cast<int64_t>(first_interaction_type))
@@ -517,6 +530,11 @@ void RecordSidePanelMenuOptionSelected(
     lens::LensOverlaySidePanelMenuOption menu_option) {
   base::UmaHistogramEnumeration(
       "Lens.Overlay.SidePanel.SelectedMoreInfoMenuOption", menu_option);
+}
+
+void RecordHandleTextDirectiveResult(
+    lens::LensOverlayTextDirectiveResult result) {
+  base::UmaHistogramEnumeration("Lens.Overlay.TextDirectiveResult", result);
 }
 
 }  // namespace lens

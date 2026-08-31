@@ -820,28 +820,53 @@ int SSLServerContextImpl::SocketImpl::Init() {
 
   SSL_set_shed_handshake_config(ssl_.get(), 1);
 
-  // Set certificate and private key.
-  if (context_->pkey_) {
-    if (!SetSSLChainAndKey(ssl_.get(), context_->cert_chain_,
-                           context_->pkey_.get(), nullptr)) {
-      return ERR_UNEXPECTED;
-    }
-  } else {
-    DCHECK(context_->private_key_);
-    if (!SetSSLChainAndKey(ssl_.get(), context_->cert_chain_, nullptr,
-                           &kPrivateKeyMethod)) {
-      return ERR_UNEXPECTED;
-    }
-    std::vector<uint16_t> preferences =
-        context_->private_key_->GetAlgorithmPreferences();
-    SSL_set_signing_algorithm_prefs(ssl_.get(), preferences.data(),
-                                    preferences.size());
-  }
-
+  std::vector<uint16_t> signing_algorithm_prefs;
   if (context_->ssl_server_config_.signature_algorithm_for_testing
           .has_value()) {
-    uint16_t id = *context_->ssl_server_config_.signature_algorithm_for_testing;
-    CHECK(SSL_set_signing_algorithm_prefs(ssl_.get(), &id, 1));
+    signing_algorithm_prefs.emplace_back(
+        *context_->ssl_server_config_.signature_algorithm_for_testing);
+  } else if (context_->private_key_) {
+    signing_algorithm_prefs = context_->private_key_->GetAlgorithmPreferences();
+  }
+
+  ConfigureSSLCredentialParams params{
+      .private_key = context_->pkey_
+                         ? ConfigureSSLCredentialParams::PrivateKeyVariant(
+                               context_->pkey_.get())
+                         : ConfigureSSLCredentialParams::PrivateKeyVariant(
+                               &kPrivateKeyMethod),
+      .signing_algorithm_prefs = signing_algorithm_prefs,
+      .ocsp_response = context_->ssl_server_config_.ocsp_response,
+      .signed_cert_timestamp_list =
+          context_->ssl_server_config_.signed_cert_timestamp_list,
+  };
+
+  // If a Trust Anchor ID for the intermediate certificate was provided,
+  // configure an alternative, shorter chain that omits the intermediate.
+  if (!context_->ssl_server_config_.intermediate_trust_anchor_id.empty()) {
+    // The current Trust Anchor IDs API only allows configuring a Trust Anchor
+    // ID for a single intermediate certificate.
+    DCHECK_EQ(context_->cert_chain_.size(), 2u);
+
+    std::vector<CRYPTO_BUFFER*> elided_chain = {context_->cert_chain_[0].get()};
+
+    ConfigureSSLCredentialParams params_with_trust_anchor_id = params;
+    params_with_trust_anchor_id.cert_chain = elided_chain;
+    params_with_trust_anchor_id.trust_anchor_id =
+        context_->ssl_server_config_.intermediate_trust_anchor_id;
+
+    if (!ConfigureSSLCredential(ssl_.get(), params_with_trust_anchor_id)) {
+      return ERR_UNEXPECTED;
+    }
+  }
+
+  // Set the full (un-elided) certificate chain and private key.
+  std::vector<CRYPTO_BUFFER*> chain_raw =
+      GetCertChainRawVector(context_->cert_chain_);
+  params.cert_chain = chain_raw;
+
+  if (!ConfigureSSLCredential(ssl_.get(), params)) {
+    return ERR_UNEXPECTED;
   }
 
   const std::vector<int>& curves =
@@ -1005,22 +1030,6 @@ void SSLServerContextImpl::Init() {
                                       ssl_server_config_.version_min));
   CHECK(SSL_CTX_set_max_proto_version(ssl_ctx_.get(),
                                       ssl_server_config_.version_max));
-
-  // OpenSSL defaults some options to on, others to off. To avoid ambiguity,
-  // set everything we care about to an absolute value.
-  SslSetClearMask options;
-  options.ConfigureFlag(SSL_OP_NO_COMPRESSION, true);
-
-  SSL_CTX_set_options(ssl_ctx_.get(), options.set_mask);
-  SSL_CTX_clear_options(ssl_ctx_.get(), options.clear_mask);
-
-  // Same as above, this time for the SSL mode.
-  SslSetClearMask mode;
-
-  mode.ConfigureFlag(SSL_MODE_RELEASE_BUFFERS, true);
-
-  SSL_CTX_set_mode(ssl_ctx_.get(), mode.set_mask);
-  SSL_CTX_clear_mode(ssl_ctx_.get(), mode.clear_mask);
 
   if (ssl_server_config_.cipher_suite_for_testing.has_value()) {
     const SSL_CIPHER* cipher =

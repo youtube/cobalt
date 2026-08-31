@@ -37,7 +37,7 @@ class MockRtpTransceiver : public RtpTransceiverInterface {
     return make_ref_counted<MockRtpTransceiver>();
   }
 
-  MOCK_METHOD(webrtc::MediaType, media_type, (), (const, override));
+  MOCK_METHOD(MediaType, media_type, (), (const, override));
   MOCK_METHOD(std::optional<std::string>, mid, (), (const, override));
   MOCK_METHOD(scoped_refptr<RtpSenderInterface>, sender, (), (const, override));
   MOCK_METHOD(scoped_refptr<RtpReceiverInterface>,
@@ -68,7 +68,7 @@ class MockRtpTransceiver : public RtpTransceiverInterface {
   MOCK_METHOD(void, Stop, (), (override));
   MOCK_METHOD(RTCError,
               SetCodecPreferences,
-              (webrtc::ArrayView<RtpCodecCapability> codecs),
+              (ArrayView<RtpCodecCapability> codecs),
               (override));
   MOCK_METHOD(std::vector<RtpCodecCapability>,
               codec_preferences,
@@ -82,11 +82,10 @@ class MockRtpTransceiver : public RtpTransceiverInterface {
               GetNegotiatedHeaderExtensions,
               (),
               (const, override));
-  MOCK_METHOD(
-      webrtc::RTCError,
-      SetHeaderExtensionsToNegotiate,
-      (webrtc::ArrayView<const RtpHeaderExtensionCapability> header_extensions),
-      (override));
+  MOCK_METHOD(RTCError,
+              SetHeaderExtensionsToNegotiate,
+              (ArrayView<const RtpHeaderExtensionCapability> header_extensions),
+              (override));
 };
 
 }  // namespace webrtc

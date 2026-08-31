@@ -8,6 +8,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/modules/peerconnection/rtc_peer_connection.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
@@ -183,7 +184,7 @@ void RtpContributingSourceCache::MaybeUpdateRtpSources(
   // Unretained is safe because we're waiting for the operation to complete.
   PostCrossThreadTask(
       *worker_thread_runner_, FROM_HERE,
-      WTF::CrossThreadBindOnce(
+      CrossThreadBindOnce(
           &RtpContributingSourceCache::UpdateRtpSourcesOnWorkerThread,
           WTF::CrossThreadUnretained(this),
           WTF::CrossThreadUnretained(&receivers),

@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/platform/audio/reverb.h"
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -77,9 +78,6 @@ void ConvolverHandler::Process(uint32_t frames_to_process) {
       // Process using the convolution engine.
       // Note that we can handle the case where nothing is connected to the
       // input, in which case we'll just feed silence into the convolver.
-      // FIXME:  If we wanted to get fancy we could try to factor in the 'tail
-      // time' and stop processing once the tail dies down if
-      // we keep getting fed silence.
       scoped_refptr<AudioBus> input_bus = Input(0).Bus();
       reverb_->Process(input_bus.get(), output_bus, frames_to_process);
     }
@@ -105,9 +103,10 @@ void ConvolverHandler::SetBuffer(AudioBuffer* buffer,
   if (buffer->sampleRate() != Context()->sampleRate()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
-        "The buffer sample rate of " + String::Number(buffer->sampleRate()) +
-            " does not match the context rate of " +
-            String::Number(Context()->sampleRate()) + " Hz.");
+        StrCat({"The buffer sample rate of ",
+                String::Number(buffer->sampleRate()),
+                " does not match the context rate of ",
+                String::Number(Context()->sampleRate()), " Hz."}));
     return;
   }
 
@@ -124,8 +123,8 @@ void ConvolverHandler::SetBuffer(AudioBuffer* buffer,
   if (!is_channel_count_good) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,
-        "The buffer must have 1, 2, or 4 channels, not " +
-            String::Number(number_of_channels));
+        StrCat({"The buffer must have 1, 2, or 4 channels, not ",
+                String::Number(number_of_channels)}));
     return;
   }
 

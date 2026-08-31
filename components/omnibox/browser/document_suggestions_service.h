@@ -51,6 +51,10 @@ class DocumentSuggestionsService : public KeyedService,
   // Returns whether the user's primary account is available.
   bool HasPrimaryAccount();
 
+  // Test-only method to set the account state to be valid for enabling
+  // documents suggestions or not.
+  void SetAccountStateForTesting(bool valid);
+
   // Creates and starts a document suggestion request for |query|.
   // May obtain an OAuth2 token for the signed-in user.
   void CreateDocumentSuggestionsRequest(const std::u16string& query,
@@ -62,8 +66,8 @@ class DocumentSuggestionsService : public KeyedService,
   // Stops creating the request. Already created requests aren't affected.
   void StopCreatingDocumentSuggestionsRequest();
 
-  signin::Tribool account_is_subject_to_enterprise_policies() {
-    return account_is_subject_to_enterprise_policies_;
+  signin::Tribool account_is_workspace_managed() {
+    return account_is_workspace_managed_;
   }
 
   bool should_backoff() { return should_backoff_; }
@@ -72,9 +76,9 @@ class DocumentSuggestionsService : public KeyedService,
   }
 
  private:
-  // Returns whether Enterprise policies are applied to the primary account -
+  // Returns whether Enterprise features are applied to the primary account -
   // aka Dasher account, obtained from the user account capability.
-  signin::Tribool IsAccountSubjectToEnterprisePolicies();
+  signin::Tribool IsAccountWorkspaceManaged();
 
   // Called when an access token request completes (successfully or not).
   void AccessTokenAvailable(std::unique_ptr<network::ResourceRequest> request,
@@ -109,9 +113,14 @@ class DocumentSuggestionsService : public KeyedService,
   base::ScopedObservation<signin::IdentityManager, DocumentSuggestionsService>
       identity_manager_observation_{this};
 
+  // Override for HasPrimaryAccount(). For testing only.
+  bool has_primary_account_for_testing_ = false;
+  // Override for IsAccountWorkspaceManaged(). For testing only.
+  bool account_is_workspace_managed_for_testing_ = false;
+
   // Whether the primary account is a Dasher one. Obtained from the user account
   // capability. Updated when primary account signin state or capability change.
-  signin::Tribool account_is_subject_to_enterprise_policies_;
+  signin::Tribool account_is_workspace_managed_;
 
   // Helper for fetching OAuth2 access tokens. Non-null when we have a token
   // available, or while a token fetch is in progress.

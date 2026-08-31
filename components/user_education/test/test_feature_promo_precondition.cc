@@ -13,6 +13,7 @@
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/feature_promo/feature_promo_specification.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/interaction/typed_data_collection.h"
 
 namespace user_education::test {
 
@@ -42,7 +43,8 @@ class TestPreconditionListProvider::TestPrecondition
     return data_->description;
   }
 
-  FeaturePromoResult CheckPrecondition(ComputedData&) const override {
+  FeaturePromoResult CheckPrecondition(
+      ui::UnownedTypedDataCollection&) const override {
     const auto* result =
         base::FindOrNull(data_->overrides, &iph_feature_.get());
     return result ? *result : data_->default_result;
@@ -57,12 +59,15 @@ TestPreconditionListProvider::TestPreconditionListProvider() = default;
 TestPreconditionListProvider::~TestPreconditionListProvider() = default;
 
 void TestPreconditionListProvider::SetExpectedPromoForNextQuery(
-    const FeaturePromoSpecification& spec) {
+    const FeaturePromoSpecification& spec,
+    const UserEducationContextPtr& context) {
   next_query_spec_ = &spec;
+  next_query_context_ = context;
 }
 
 void TestPreconditionListProvider::ClearExpectedPromoForFutureQueries() {
   next_query_spec_.reset();
+  next_query_context_ = nullptr;
 }
 
 void TestPreconditionListProvider::Add(
@@ -107,10 +112,15 @@ void TestPreconditionListProvider::SetForFeature(
 
 FeaturePromoPreconditionList TestPreconditionListProvider::GetPreconditions(
     const FeaturePromoSpecification& spec,
-    const FeaturePromoParams& params) const {
+    const FeaturePromoParams& params,
+    const UserEducationContextPtr& context) const {
   if (next_query_spec_.has_value()) {
     EXPECT_EQ(*next_query_spec_, &spec);
     next_query_spec_ = nullptr;
+  }
+  if (next_query_context_) {
+    EXPECT_EQ(next_query_context_, context);
+    next_query_context_ = nullptr;
   }
   EXPECT_EQ(spec.feature(), &params.feature.get());
   FeaturePromoPreconditionList result;

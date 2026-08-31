@@ -60,7 +60,6 @@ class PaintCanvas;
 
 namespace gfx {
 class ColorSpace;
-class Point;
 class PointF;
 class Rect;
 class Size;
@@ -72,7 +71,6 @@ struct ColorProviderColorMaps;
 class PageScheduler;
 class WebFrame;
 class WebFrameWidget;
-class WebHitTestResult;
 class WebLocalFrame;
 class WebNoStatePrefetchClient;
 class WebPagePopup;
@@ -134,10 +132,13 @@ class BLINK_EXPORT WebView {
   // TODO(yuzus): Remove |is_hidden| and start using |PageVisibilityState|.
   // |color_provider_colors| is used to create color providers that live in the
   // Page. Passing in nullptr indicates the default color maps should be used.
-  // `partitioned_popin_params` are set if this window was opened as a
+  // |partitioned_popin_params| are set if this window was opened as a
   // partitioned popin. The entire frame tree of a partitioned popin is
   // partitioned as though it was an iframe in the opener.
   // See https://explainers-by-googlers.github.io/partitioned-popins/
+  // |history_index| and |history_length| are information about the frame tree's
+  // history list at the point when this view was created. These values are
+  // updated again at navigation commit time.
   static WebView* Create(
       WebViewClient*,
       bool is_hidden,
@@ -154,7 +155,9 @@ class BLINK_EXPORT WebView {
       std::optional<SkColor> page_base_background_color,
       const base::UnguessableToken& browsing_context_group_token,
       const ColorProviderColorMaps* color_provider_colors,
-      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params);
+      blink::mojom::PartitionedPopinParamsPtr partitioned_popin_params,
+      int32_t history_index,
+      int32_t history_length);
 
   // Destroys the WebView synchronously.
   virtual void Close() = 0;
@@ -314,16 +317,6 @@ class BLINK_EXPORT WebView {
   // Disable auto resize.
   virtual void DisableAutoResizeForTesting(const gfx::Size& new_size) = 0;
 
-  // Data exchange -------------------------------------------------------
-
-  // Do a hit test equivalent to what would be done for a GestureTap event
-  // that has width/height corresponding to the supplied |tapArea|.
-  //
-  // TODO(crbug.com/376493204): This method is only called by Blink unit tests,
-  // so it should be removed from this API.
-  virtual WebHitTestResult HitTestResultForTap(const gfx::Point& tap_point,
-                                               const gfx::Size& tap_area) = 0;
-
   // Developer tools -----------------------------------------------------
 
   // Enables device emulation as specified in params.
@@ -340,9 +333,6 @@ class BLINK_EXPORT WebView {
   virtual void DidCloseContextMenu() = 0;
 
   // Popup menu ----------------------------------------------------------
-
-  // Sets whether select popup menus should be rendered by the browser.
-  static void SetUseExternalPopupMenus(bool);
 
   // Cancels and hides the current popup (datetime, select...) if any.
   virtual void CancelPagePopup() = 0;

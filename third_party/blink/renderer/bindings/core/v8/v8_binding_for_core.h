@@ -183,10 +183,6 @@ inline int64_t ToInt64(v8::Isolate* isolate,
                        v8::Local<v8::Value> value,
                        IntegerConversionConfiguration configuration,
                        ExceptionState& exception_state) {
-  // Clamping not supported for int64_t/long long int. See
-  // Source/wtf/MathExtras.h.
-  DCHECK_NE(configuration, kClamp);
-
   // Fast case. The value is a 32-bit integer.
   if (value->IsInt32()) [[likely]] {
     return value.As<v8::Int32>()->Value();
@@ -361,8 +357,10 @@ CORE_EXPORT ScriptState* ToScriptStateForMainWorld(LocalFrame*);
 // a context, if the window is currently being displayed in a Frame.
 CORE_EXPORT LocalFrame* ToLocalFrameIfNotDetached(v8::Local<v8::Context>);
 
-CORE_EXPORT v8::Local<v8::Value> FromJSONString(ScriptState* script_state,
-                                                const String& stringified_json);
+CORE_EXPORT v8::Local<v8::Value> FromJSONString(
+    ScriptState* script_state,
+    const String& stringified_json,
+    std::optional<v8::ScriptOrigin> origin = std::nullopt);
 
 CORE_EXPORT Vector<String> GetOwnPropertyNames(v8::Isolate*,
                                                const v8::Local<v8::Object>&,

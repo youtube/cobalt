@@ -14,6 +14,7 @@
 // below.
 namespace feedback {
 
+// LINT.IfChange(FeedbackSource)
 enum FeedbackSource {
   kFeedbackSourceArcApp = 0,
   kFeedbackSourceAsh = 1,
@@ -61,6 +62,8 @@ enum FeedbackSource {
   kFeedbackSourceBorealis = 43,
   kFeedbackSourceSunfish = 44,
   kFeedbackSourceBocaApp = 45,
+  kFeedbackSourceTrackingProtections = 46,
+  kFeedbackSourceSplitView = 47,
 
   // ATTENTION: Before making any changes or adding to feedback collection,
   // please ensure the teams that operationalize feedback are aware and
@@ -69,6 +72,7 @@ enum FeedbackSource {
   // Must be last.
   kFeedbackSourceCount,
 };
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:FeedbackSource)
 
 }  // namespace feedback
 

@@ -9,6 +9,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
@@ -43,10 +44,12 @@ import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.share.ShareHelper;
 import org.chromium.components.browser_ui.share.ShareParams;
+import org.chromium.components.browser_ui.share.ShareParams.TargetChosenCallback;
 import org.chromium.components.collaboration.CollaborationControllerDelegate;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.collaboration.CollaborationServiceLeaveOrDeleteEntryPoint;
 import org.chromium.components.collaboration.CollaborationServiceShareOrManageEntryPoint;
+import org.chromium.components.collaboration.CollaborationStatus;
 import org.chromium.components.collaboration.FlowType;
 import org.chromium.components.collaboration.Outcome;
 import org.chromium.components.collaboration.messaging.MessagingBackendService;
@@ -692,7 +695,23 @@ public class DataSharingTabManager {
                                 mWindowAndroid,
                                 context.getString(R.string.collaboration_share_sheet_title),
                                 url.getSpec())
-                        .setText(text);
+                        .setText(text)
+                        .setCallback(
+                                new TargetChosenCallback() {
+                                    @Override
+                                    public void onTargetChosen(@Nullable ComponentName target) {
+                                        DataSharingMetrics.recordShareActionFlowState(
+                                                DataSharingMetrics.ShareActionStateAndroid
+                                                        .SHARE_SHEET_CLICKED);
+                                    }
+
+                                    @Override
+                                    public void onCancel() {
+                                        DataSharingMetrics.recordShareActionFlowState(
+                                                DataSharingMetrics.ShareActionStateAndroid
+                                                        .SHARE_SHEET_CANCELLED);
+                                    }
+                                });
 
         if (preview != null) {
             shareParamsBuilder.setPreviewImageBitmap(preview);
@@ -769,6 +788,9 @@ public class DataSharingTabManager {
                         .setResourceId(
                                 DataSharingStringConfig.StringKey.ACTIVITY_LOGS_TITLE,
                                 R.string.data_sharing_shared_tab_groups_activity)
+                        .setResourceId(
+                                DataSharingStringConfig.StringKey.SHARING_DISABLED_DESCRIPTION,
+                                R.string.collaboration_entreprise_sharing_off_header)
                         .build();
 
         DataSharingManageUiConfig.ManageCallback manageCallback =
@@ -842,6 +864,11 @@ public class DataSharingTabManager {
                         }
                     }
                 };
+
+        boolean isSharingDisabled =
+                mCollaborationService != null
+                        && mCollaborationService.getServiceStatus().collaborationStatus
+                                == CollaborationStatus.DISABLED_FOR_POLICY;
         DataSharingManageUiConfig manageConfig =
                 new DataSharingManageUiConfig.Builder()
                         .setGroupToken(new GroupToken(collaborationId, null))
@@ -849,6 +876,7 @@ public class DataSharingTabManager {
                         .setLearnAboutBlockedAccounts(getLearnAboutBlockedAccountsUrl())
                         .setActivityLogsUrl(getActivityLogsUrl())
                         .setCommonConfig(getCommonConfig(activity, tabGroupName, stringConfig))
+                        .setIsSharingDisabled(isSharingDisabled)
                         .build();
         return uiDelegate.showManageFlow(manageConfig);
     }

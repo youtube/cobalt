@@ -195,15 +195,17 @@ TEST_P(ProxyResolvingClientSocketTest, NetworkIsolationKeyWithH2Proxy) {
   // a different session.
   net::SpdyTestUtil spdy_util1;
   spdy::SpdySerializedFrame connect_dest1(spdy_util1.ConstructSpdyConnect(
-      nullptr, 0, 1, net::HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      net::HttpProxyConnectJob::kH2QuicTunnelPriority,
       net::HostPortPair::FromURL(kDestination1)));
-  spdy::SpdySerializedFrame connect_dest1_resp(
-      spdy_util1.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame connect_dest1_resp(spdy_util1.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
   spdy::SpdySerializedFrame connect_dest3(spdy_util1.ConstructSpdyConnect(
-      nullptr, 0, 3, net::HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 3,
+      net::HttpProxyConnectJob::kH2QuicTunnelPriority,
       net::HostPortPair::FromURL(kDestination3)));
-  spdy::SpdySerializedFrame connect_dest3_resp(
-      spdy_util1.ConstructSpdyGetReply(nullptr, 0, 3));
+  spdy::SpdySerializedFrame connect_dest3_resp(spdy_util1.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 3));
 
   net::MockWrite spdy_writes[] = {
       net::CreateMockWrite(connect_dest1, 0),
@@ -224,10 +226,11 @@ TEST_P(ProxyResolvingClientSocketTest, NetworkIsolationKeyWithH2Proxy) {
 
   net::SpdyTestUtil spdy_util2;
   spdy::SpdySerializedFrame connect_dest2(spdy_util2.ConstructSpdyConnect(
-      nullptr, 0, 1, net::HttpProxyConnectJob::kH2QuicTunnelPriority,
+      base::span<const std::string_view>(), 1,
+      net::HttpProxyConnectJob::kH2QuicTunnelPriority,
       net::HostPortPair::FromURL(kDestination2)));
-  spdy::SpdySerializedFrame connect_dest2_resp(
-      spdy_util2.ConstructSpdyGetReply(nullptr, 0, 1));
+  spdy::SpdySerializedFrame connect_dest2_resp(spdy_util2.ConstructSpdyGetReply(
+      base::span<const std::string_view>(), 1));
 
   net::MockWrite spdy_writes2[] = {
       net::CreateMockWrite(connect_dest2, 0),
@@ -1069,7 +1072,7 @@ TEST_P(ReconsiderProxyAfterErrorTest, ReconsiderProxyAfterError) {
   // TODO(crbug.com/40810987): Test this more accurately. Errors like
   // `ERR_PROXY_CONNECTION_FAILED` or `ERR_PROXY_CERTIFICATE_INVALID` are
   // surfaced in response to other errors in TCP or TLS connection setup.
-  static const char kHttpConnect[] =
+  static constexpr std::string_view kHttpConnect =
       "CONNECT example.com:443 HTTP/1.1\r\n"
       "Host: example.com:443\r\n"
       "Proxy-Connection: keep-alive\r\n\r\n";

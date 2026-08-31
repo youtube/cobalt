@@ -66,18 +66,20 @@ TEST_F(SelectorFilterParentScopeTest, ParentScope) {
 
       for (const CSSSelector* selector = selectors->First(); selector;
            selector = CSSSelectorList::Next(*selector)) {
+        Element::TinyBloomFilter subject_filter = 0;
         Vector<uint16_t> selector_hashes;
         filter.CollectIdentifierHashes(*selector, /* style_scope */ nullptr,
-                                       selector_hashes);
+                                       selector_hashes, subject_filter);
         EXPECT_NE(selector_hashes.size(), 0u);
         EXPECT_FALSE(filter.FastRejectSelector(selector_hashes));
+        EXPECT_EQ(subject_filter, 0u);
       }
     }
   }
 }
 
 TEST_F(SelectorFilterParentScopeTest, RootScope) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div class=x>
       <span id=y></span>
     </div>
@@ -100,16 +102,18 @@ TEST_F(SelectorFilterParentScopeTest, RootScope) {
 
   for (const CSSSelector* selector = selectors->First(); selector;
        selector = CSSSelectorList::Next(*selector)) {
+    Element::TinyBloomFilter subject_filter = 0;
     Vector<uint16_t> selector_hashes;
     filter.CollectIdentifierHashes(*selector, /* style_scope */ nullptr,
-                                   selector_hashes);
+                                   selector_hashes, subject_filter);
     EXPECT_NE(selector_hashes.size(), 0u);
     EXPECT_FALSE(filter.FastRejectSelector(selector_hashes));
+    EXPECT_EQ(subject_filter, 0u);
   }
 }
 
 TEST_F(SelectorFilterParentScopeTest, ReentrantSVGImageLoading) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       div::before {
         content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"></svg>');
@@ -137,14 +141,14 @@ TEST_F(SelectorFilterParentScopeTest, ReentrantSVGImageLoading) {
   // TODO(crbug.com/337200890): Update this comment with more information and
   // see whether removing this code is possible once this crashbug's root cause
   // has been determined.
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <div></div>
   )HTML");
   GetDocument().UpdateStyleAndLayoutTree();
 }
 
 TEST_F(SelectorFilterParentScopeTest, AttributeFilter) {
-  GetDocument().body()->setInnerHTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(
       R"HTML(<div ATTR><svg VIewBox></svg></div>)HTML");
   auto* outer = To<Element>(GetDocument().body()->firstChild());
   auto* svg = To<Element>(outer->firstChild());
@@ -175,10 +179,12 @@ TEST_F(SelectorFilterParentScopeTest, AttributeFilter) {
   for (const CSSSelector* selector = selectors->First(); selector;
        selector = CSSSelectorList::Next(*selector)) {
     Vector<uint16_t> selector_hashes;
+    Element::TinyBloomFilter subject_filter = 0;
     filter.CollectIdentifierHashes(*selector, /* style_scope */ nullptr,
-                                   selector_hashes);
+                                   selector_hashes, subject_filter);
     EXPECT_NE(selector_hashes.size(), 0u);
     EXPECT_FALSE(filter.FastRejectSelector(selector_hashes));
+    EXPECT_EQ(subject_filter, 0u);
   }
 }
 

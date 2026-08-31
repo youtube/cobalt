@@ -347,7 +347,7 @@ IN_PROC_BROWSER_TEST_F(WebUIImplBrowserTest, NavigateFromCrashedAboutBlank) {
   // the initial one. Crashing the about:blank page shouldn't affect this, so
   // the WebUI navigation should end up in a fresh SiteInstance and process.
   EXPECT_NE(orig_site_instance, web_contents->GetSiteInstance());
-  EXPECT_NE(orig_site_instance->GetOrCreateProcess(),
+  EXPECT_NE(orig_site_instance->GetOrCreateProcessForTesting(),
             web_contents->GetPrimaryMainFrame()->GetProcess());
 
   // Check that the resulting WebUI page has bindings, and its process is
@@ -1123,7 +1123,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
 
   std::string expected_failure =
       "a JavaScript error: \"SecurityError: Failed to construct 'SharedWorker'";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 // Test that we can start a Shared Worker from a chrome-untrusted:// iframe.
@@ -1200,7 +1201,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
       "'SharedWorker': "
       "Script at 'chrome-untrusted://untrusted/web_ui_shared_worker.js' cannot "
       "be accessed from origin 'chrome://trusted'";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 // Verify that pages with scheme other than "chrome-untrusted://" cannot create
@@ -1219,7 +1221,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
       "'SharedWorker': "
       "Script at 'chrome-untrusted://untrusted/web_ui_shared_worker.js' cannot "
       "be accessed from origin 'http://localhost";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 // Verify that pages with scheme "chrome-untrusted://" cannot create a
@@ -1237,7 +1240,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
       "'SharedWorker': Script "
       "at 'chrome://trusted/web_ui_shared_worker.js' cannot be accessed from "
       "origin 'chrome-untrusted://untrusted'.";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -1265,7 +1269,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
 
   std::string expected_failure =
       "a JavaScript error: \"SecurityError: Failed to construct 'Worker'";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 // Test that we can start a Worker from a chrome-untrusted:// iframe.
@@ -1339,7 +1344,8 @@ IN_PROC_BROWSER_TEST_F(
       "a JavaScript error: \"SecurityError: Failed to construct 'Worker': "
       "Script at 'chrome-untrusted://untrusted/web_ui_dedicated_worker.js' "
       "cannot be accessed from origin 'chrome://trusted'";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 // Verify that pages with scheme other than "chrome-untrusted://" cannot create
@@ -1357,7 +1363,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
       "a JavaScript error: \"SecurityError: Failed to construct 'Worker': "
       "Script at 'chrome-untrusted://untrusted/web_ui_dedicated_worker.js' "
       "cannot be accessed from origin 'http://localhost";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 // Verify that pages with scheme "chrome-untrusted://" cannot create a Worker
@@ -1377,7 +1384,8 @@ IN_PROC_BROWSER_TEST_F(WebUIWorkerTest,
       "Script "
       "at 'chrome://trusted/web_ui_dedicated_worker.js' cannot be accessed "
       "from origin 'chrome-untrusted://untrusted'.";
-  EXPECT_THAT(result.error, ::testing::StartsWith(expected_failure));
+  EXPECT_THAT(result,
+              EvalJsResult::ErrorIs(::testing::StartsWith(expected_failure)));
 }
 
 }  // namespace content

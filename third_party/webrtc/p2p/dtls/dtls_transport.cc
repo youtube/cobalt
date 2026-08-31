@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
@@ -379,7 +380,7 @@ bool DtlsTransportInternalImpl::SetRemoteFingerprint(
   }
 
   // At this point we know we are doing DTLS
-  bool fingerprint_changing = remote_fingerprint_value_.size() > 0u;
+  bool fingerprint_changing = !remote_fingerprint_value_.empty();
   remote_fingerprint_value_ = std::move(remote_fingerprint_value);
   remote_fingerprint_algorithm_ = std::string(digest_alg);
 
@@ -459,9 +460,9 @@ bool DtlsTransportInternalImpl::SetupDtls() {
   // (such as automatic packetization smoothing).
   if (dtls_in_stun_) {
     // - This is only needed when using PQC but we don't know that here.
-    // - 800 is sufficiently small so that dtls pqc handshake packets
-    // can get put into STUN attributes.
-    const int kDtlsMtu = 800;
+    // - 900 is sufficiently small so that dtls pqc handshake packets
+    // can get put into STUN attributes and still fit into two packets.
+    const int kDtlsMtu = 900;
     dtls_->SetMTU(kDtlsMtu);
   }
 
@@ -470,7 +471,7 @@ bool DtlsTransportInternalImpl::SetupDtls() {
   dtls_->SetServerRole(*dtls_role_);
   dtls_->SetEventCallback(
       [this](int events, int err) { OnDtlsEvent(events, err); });
-  if (remote_fingerprint_value_.size() &&
+  if (!remote_fingerprint_value_.empty() &&
       dtls_->SetPeerCertificateDigest(remote_fingerprint_algorithm_,
                                       remote_fingerprint_value_) !=
           SSLPeerCertificateDigestError::NONE) {
@@ -571,13 +572,13 @@ int DtlsTransportInternalImpl::SendPacket(
       // Can't send anything when we're failed.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": Couldn't send packet due to "
-                           "webrtc::DtlsTransportState::kFailed.";
+                           "DtlsTransportState::kFailed.";
       return -1;
     case DtlsTransportState::kClosed:
       // Can't send anything when we're closed.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": Couldn't send packet due to "
-                           "webrtc::DtlsTransportState::kClosed.";
+                           "DtlsTransportState::kClosed.";
       return -1;
     default:
       RTC_DCHECK_NOTREACHED();
@@ -639,7 +640,7 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
       DtlsStunPiggybackCallbacks(
           [&](auto stun_message_type) {
             std::optional<absl::string_view> data;
-            std::optional<absl::string_view> ack;
+            std::optional<std::vector<uint32_t>> ack;
             if (dtls_in_stun_) {
               data = dtls_stun_piggyback_controller_.GetDataToPiggyback(
                   stun_message_type);
@@ -648,11 +649,12 @@ void DtlsTransportInternalImpl::ConnectToIceTransport() {
             }
             return std::make_pair(data, ack);
           },
-          [&](auto data, auto ack) {
+          [&](std::optional<ArrayView<uint8_t>> data,
+              std::optional<std::vector<uint32_t>> acks) {
             if (!dtls_in_stun_) {
               return;
             }
-            dtls_stun_piggyback_controller_.ReportDataPiggybacked(data, ack);
+            dtls_stun_piggyback_controller_.ReportDataPiggybacked(data, acks);
           }));
   SetPiggybackDtlsDataCallback([this](PacketTransportInternal* transport,
                                       const ReceivedIpPacket& packet) {
@@ -729,13 +731,13 @@ void DtlsTransportInternalImpl::OnWritableState(
       // Should not happen. Do nothing.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": OnWritableState() called in state "
-                           "webrtc::DtlsTransportState::kFailed.";
+                           "DtlsTransportState::kFailed.";
       break;
     case DtlsTransportState::kClosed:
       // Should not happen. Do nothing.
       RTC_LOG(LS_ERROR) << ToString()
                         << ": OnWritableState() called in state "
-                           "webrtc::DtlsTransportState::kClosed.";
+                           "DtlsTransportState::kClosed.";
       break;
     case DtlsTransportState::kNumValues:
       RTC_DCHECK_NOTREACHED();

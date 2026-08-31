@@ -12,6 +12,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/notimplemented.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "content/public/common/content_features.h"
@@ -809,7 +810,7 @@ TEST_F(ServiceWorkerProviderContextTest, OnNetworkProviderDestroyed) {
   provider_context->OnNetworkProviderDestroyed();
 
   // Calling these in the weird state shouldn't crash.
-  EXPECT_FALSE(provider_context->container_host());
+  EXPECT_FALSE(provider_context->has_container_host_for_testing());
   EXPECT_FALSE(provider_context->CloneRemoteContainerHost());
   provider_context->DispatchNetworkQuiet();
   provider_context->NotifyExecutionReady();

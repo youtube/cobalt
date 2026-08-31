@@ -12,9 +12,11 @@
 @protocol BubblePresenterDelegate;
 @class BubbleViewControllerPresenter;
 @class FeedMetricsRecorder;
+class FullscreenController;
 class HostContentSettingsMap;
 @class LayoutGuideCenter;
 class OverlayPresenter;
+@protocol PageActionMenuEntryPointCommands;
 @protocol PopupMenuCommands;
 @protocol TabStripCommands;
 @protocol ToolbarCommands;
@@ -39,6 +41,8 @@ class DeviceSwitcherResultDispatcher;
                 engagementTracker:
                     (raw_ptr<feature_engagement::Tracker>)engagementTracker
                      webStateList:(raw_ptr<WebStateList>)webStateList
+             fullscreenController:
+                 (raw_ptr<FullscreenController>)fullscreenController
     overlayPresenterForWebContent:
         (raw_ptr<OverlayPresenter>)webContentOverlayPresenter
                     infobarBanner:(raw_ptr<OverlayPresenter>)bannerPresenter
@@ -49,6 +53,10 @@ class DeviceSwitcherResultDispatcher;
 
 // Delegate object to handle interactions.
 @property(nonatomic, weak) id<BubblePresenterDelegate> delegate;
+
+// Command handler for dispatching page action menu entry point commands.
+@property(nonatomic, weak) id<PageActionMenuEntryPointCommands>
+    pageActionMenuEntryPointHandler;
 
 // The view controller that presents the bubbles.
 @property(nonatomic, weak) UIViewController* rootViewController;
@@ -142,6 +150,11 @@ class DeviceSwitcherResultDispatcher;
 // The eligibility can depend on the UI hierarchy at the moment, the
 // configuration and the display history of the bubble.
 - (void)presentFeedSwipeBubble;
+
+// Optionally present a bubble associated with the page action menu icon in the
+// Omnibox. The eligibility is based off if the BWG Promo was shown and
+// dismissed.
+- (void)presentPageActionMenuBubble;
 
 // Delegate method to be invoked when the user has performed a swipe on the
 // toolbar to switch tabs. Remove `toolbarSwipeGestureIPH` if visible.

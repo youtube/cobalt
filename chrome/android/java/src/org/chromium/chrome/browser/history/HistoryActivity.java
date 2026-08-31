@@ -6,24 +6,34 @@ package org.chromium.chrome.browser.history;
 
 import android.content.Intent;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.IntentUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.SnackbarActivity;
 import org.chromium.chrome.browser.back_press.BackPressHelper;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeControllerFactory;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerFactory;
 import org.chromium.components.browser_ui.bottomsheet.ManagedBottomSheetController;
+import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
+import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 
+import java.util.function.Function;
+
 /** Activity for displaying the browsing history manager. */
+@NullMarked
 public class HistoryActivity extends SnackbarActivity {
-    private HistoryManager mHistoryManager;
-    private ManagedBottomSheetController mBottomSheetController;
+    private @Nullable HistoryManager mHistoryManager;
+    private @Nullable ManagedBottomSheetController mBottomSheetController;
 
     @Override
     protected void onProfileAvailable(Profile profile) {
@@ -38,6 +48,13 @@ public class HistoryActivity extends SnackbarActivity {
         HistoryUmaRecorder historyUmaRecorder =
                 appSpecificHistory ? new AppHistoryUmaRecorder() : new HistoryUmaRecorder();
         boolean showAppFilter = !appSpecificHistory && !profile.isOffTheRecord();
+        Function<View, EdgeToEdgePadAdjuster> edgeToEdgePadAdjusterGenerator = null;
+        if (ChromeFeatureList.sDrawChromePagesEdgeToEdge.isEnabled()) {
+            edgeToEdgePadAdjusterGenerator =
+                    (view) ->
+                            EdgeToEdgeControllerFactory.createForViewAndObserveSupplier(
+                                    view, getEdgeToEdgeSupplier());
+        }
         mHistoryManager =
                 new HistoryManager(
                         this,
@@ -45,14 +62,15 @@ public class HistoryActivity extends SnackbarActivity {
                         getSnackbarManager(),
                         profile,
                         () -> mBottomSheetController,
-                        /* Supplier<Tab>= */ null,
+                        /* Supplier<@Nullable Tab>= */ null,
                         new BrowsingHistoryBridge(profile.getOriginalProfile()),
                         historyUmaRecorder,
                         clientPackageName,
                         shouldShowClearData,
                         appSpecificHistory,
                         showAppFilter,
-                        /* openHistoryItemCallback= */ null);
+                        /* openHistoryItemCallback= */ null,
+                        edgeToEdgePadAdjusterGenerator);
         ViewGroup contentView = mHistoryManager.getView();
         setContentView(contentView);
         if (showAppFilter) createBottomSheetController(contentView);
@@ -63,7 +81,8 @@ public class HistoryActivity extends SnackbarActivity {
         ViewGroup sheetContainer =
                 (ViewGroup)
                         LayoutInflater.from(this).inflate(R.layout.bottom_sheet_container, null);
-        ScrimManager scrimManager = new ScrimManager(this, contentView);
+        ScrimManager scrimManager =
+                new ScrimManager(this, contentView, ScrimClient.HISTORY_ACTIVITY);
         mBottomSheetController =
                 BottomSheetControllerFactory.createBottomSheetController(
                         () -> scrimManager,
@@ -82,12 +101,14 @@ public class HistoryActivity extends SnackbarActivity {
 
     @Override
     protected void onDestroy() {
-        mHistoryManager.onDestroyed();
-        mHistoryManager = null;
+        if (mHistoryManager != null) {
+            mHistoryManager.onDestroyed();
+            mHistoryManager = null;
+        }
         super.onDestroy();
     }
 
-    HistoryManager getHistoryManagerForTests() {
+    @Nullable HistoryManager getHistoryManagerForTests() {
         return mHistoryManager;
     }
 }

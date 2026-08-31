@@ -19,6 +19,10 @@ enum class LensOverlayEntrypoint {
   kLVFCameraCapture,
   // Image retrieved from gallery.
   kLVFImagePicker,
+  // The AI hub menu.
+  kAIHub,
+  // The Interactive Lens screen in the First Run Experience.
+  kFREPromo,
 };
 
 namespace lens {
@@ -28,6 +32,9 @@ bool IsLVFEntrypoint(LensOverlayEntrypoint entrypoint);
 
 /// Whether the entrypoint corresponds to a context menu session.
 bool IsImageContextMenuEntrypoint(LensOverlayEntrypoint entrypoint);
+
+/// Whether the entrypoint requires user consent.
+bool EntrypointRequiresUserConsent(LensOverlayEntrypoint entrypoint);
 
 /// Returns the LensOverlayInvocationSource equivalent of the
 /// LensOverlayEntrypoint.

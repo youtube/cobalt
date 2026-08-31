@@ -59,7 +59,6 @@ class CC_EXPORT LayerTreeSettings {
   bool gpu_rasterization_disabled = false;
   int gpu_rasterization_msaa_sample_count = -1;
   float gpu_rasterization_skewport_target_time_in_seconds = 0.2f;
-  bool create_low_res_tiling = false;
   bool use_gpu_memory_buffer_resources = false;
 
   enum ScrollbarAnimator {
@@ -73,9 +72,10 @@ class CC_EXPORT LayerTreeSettings {
   base::TimeDelta scrollbar_thinning_duration;
   float idle_thickness_scale = 0.4f;
   bool scrollbar_flash_after_any_scroll_update = false;
+  bool scrollbar_flash_once_after_scroll_update = false;
+  bool scrollbar_flash_once_visible_on_viewport = false;
   base::TimeDelta scroll_animation_duration_for_testing;
   bool layers_always_allowed_lcd_text = false;
-  float low_res_contents_scale_factor = 0.25f;
   float top_controls_show_threshold = 0.5f;
   float top_controls_hide_threshold = 0.5f;
   gfx::Size default_tile_size;
@@ -114,6 +114,12 @@ class CC_EXPORT LayerTreeSettings {
   size_t decoded_image_working_set_budget_bytes =
       ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
           /*for_renderer=*/false);
+#if BUILDFLAG(IS_COBALT)
+  size_t decoded_image_persistent_cache_budget_count =
+      ImageDecodeCacheUtils::GetPersistentCacheBudgetCount();
+  size_t decoded_image_persistent_cache_budget_bytes =
+      ImageDecodeCacheUtils::GetPersistentCacheBudgetBytes();
+#endif
   int max_preraster_distance_in_screen_pixels = 1000;
   bool use_rgba_4444 = false;
 
@@ -121,11 +127,6 @@ class CC_EXPORT LayerTreeSettings {
   // Image Decode Service and raster tiles without images until the decode is
   // ready.
   bool enable_checker_imaging = false;
-
-  // When content needs a wide color gamut, raster in wide if available.
-  // But when the content is sRGB, some situations prefer to raster in
-  // wide while others prefer to raster in sRGB.
-  bool prefer_raster_in_srgb = false;
 
   // The minimum size of an image we should considering decoding using the
   // deferred path.

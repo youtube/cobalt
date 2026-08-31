@@ -25,9 +25,11 @@
 #include "src/codegen/safepoint-table.h"
 #include "src/codegen/source-position.h"
 #include "src/handles/handles.h"
+#include "src/sandbox/sandbox-malloc.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/wasm-code-coverage.h"
 #include "src/wasm/wasm-code-pointer-table.h"
 #include "src/wasm/wasm-features.h"
 #include "src/wasm/wasm-limits.h"
@@ -624,6 +626,14 @@ class V8_EXPORT_PRIVATE NativeModule final {
   NativeModule& operator=(const NativeModule&) = delete;
   ~NativeModule();
 
+  // Returns the number of lines generated in the disassembly of the whole
+  // module.
+  // {bytecode_disasm_offsets} maps the bytecode offset of a Wasm instruction
+  // into the corresponding line in the disassembler text output.
+  uint32_t DisassembleForLcov(
+      std::ostream& out, std::vector<int>& function_body_offsets,
+      std::map<uint32_t, uint32_t>& bytecode_disasm_offsets);
+
   // {AddCode} is thread safe w.r.t. other calls to {AddCode} or methods adding
   // code below, i.e. it can be called concurrently from background threads.
   // The returned code still needs to be published via {PublishCode}.
@@ -950,6 +960,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCodePointer GetCodePointerHandle(int index) const;
 
+  const std::shared_ptr<WasmModuleCoverageData>& coverage_data() const {
+    return coverage_data_;
+  }
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -1072,8 +1086,15 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // hence needs to be destructed first when this native module dies.
   std::unique_ptr<CompilationState> compilation_state_;
 
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  // Array to handle number of function calls. Allocated inside the sandbox as
+  // it is written to from generated code and only contains untrusted data.
+  // TODO(427410040): Make this in-sandbox allocated in all configurations.
+  std::unique_ptr<std::atomic<uint32_t>[], SandboxFreeDeleter> tiering_budgets_;
+#else
   // Array to handle number of function calls.
   std::unique_ptr<std::atomic<uint32_t>[]> tiering_budgets_;
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
 
   // This mutex protects concurrent calls to {AddCode} and friends.
   // TODO(dlehmann): Revert this to a regular {Mutex} again.
@@ -1150,6 +1171,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unique_ptr<std::atomic<Address>[]> fast_api_targets_;
   std::unique_ptr<std::atomic<const MachineSignature*>[]> fast_api_signatures_;
+
+  std::shared_ptr<WasmModuleCoverageData> coverage_data_;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

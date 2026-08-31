@@ -104,6 +104,7 @@ static_library("personalization_app") {
     "//chrome/browser/web_applications/mojom:mojom_web_apps_enum_shared",
     "//chrome/browser/web_applications/mojom:mojom_web_apps_enum_shared_cpp_sources",
     "//chromeos/ash/components/browser_context_helper",
+    "//chromeos/ash/components/demo_mode",
     "//chromeos/ash/components/geolocation",
     "//chromeos/ash/components/local_search_service/public/cpp",
     "//chromeos/constants",
@@ -258,6 +259,7 @@ source_set("unit_tests") {
     "//chrome/browser/ash/settings:test_support",
     "//chrome/browser/ash/wallpaper_handlers:test_support",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/browser/ui/ash/wallpaper",
     "//chrome/browser/ui/ash/wallpaper:test_support",
     "//chrome/common:constants",
@@ -296,4 +298,8 @@ source_set("unit_tests") {
     "//ui/gfx/codec",
     "//url",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

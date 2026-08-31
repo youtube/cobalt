@@ -9,15 +9,13 @@
 #include <memory>
 #include <set>
 
+#include "base/auto_reset.h"
+
 class AccountId;
 class MultiProfileSupport;
 
 namespace ash {
 class MultiUserWindowManager;
-}
-
-namespace content {
-class BrowserContext;
 }
 
 namespace aura {
@@ -52,25 +50,23 @@ class MultiUserWindowManagerHelper {
 
   // Used in tests to create an instance with MultiProfileSupport configured for
   // |account_id|.
-  static void CreateInstanceForTest(const AccountId& account_id);
+  static void CreateInstanceForTest();
 
-  // Used in tests that want to supply a specific ash::MultiUserWindowManager
-  // implementation.
-  static void CreateInstanceForTest(
-      std::unique_ptr<ash::MultiUserWindowManager> window_manager);
+  // Returns true if MultiUserSignIn is enabled. Always true on production.
+  static bool IsEnabled();
 
-  // Initializes |multi_profile_support_| if there is one. Separated from
-  // constructor because |multi_profile_support_| initialization code path
-  // accesses the helper instance via GetInstance(), which return nullptr
-  // before the constructor finishes. See https://crbug.com/1038300
-  void Init();
+  // Temporarily disables MultiUserSignIn for testing purpose.
+  // On destruction of the returned AutoReset instance, disabling is reset
+  // (so the following tests will run with MultiUserSignIn).
+  [[nodiscard]] static base::AutoReset<bool> DisableForTesting();
 
   // Adds user to monitor starting and running V1/V2 application windows.
   // Returns immediately if the user (identified by a |profile|) is already
   // known to the manager. Note: This function is not implemented as a
   // SessionStateObserver to coordinate the timing of the addition with other
   // modules.
-  void AddUser(content::BrowserContext* profile);
+  // This must be called after User's profile gets ready.
+  void AddUser(const AccountId& account_id);
 
   // A query call for a given window to see if it is on the given user's
   // desktop.
@@ -78,7 +74,6 @@ class MultiUserWindowManagerHelper {
                                const AccountId& account_id) const;
 
  private:
-  explicit MultiUserWindowManagerHelper(const AccountId& account_id);
   explicit MultiUserWindowManagerHelper(
       std::unique_ptr<ash::MultiUserWindowManager> window_manager);
   ~MultiUserWindowManagerHelper();
@@ -90,12 +85,11 @@ class MultiUserWindowManagerHelper {
   }
   const ash::MultiUserWindowManager* GetWindowManagerImpl() const;
 
+  // The MultiUserWindowManager implementation to use.
+  std::unique_ptr<ash::MultiUserWindowManager> multi_user_window_manager_;
+
   // Used in multi-profile support.
   std::unique_ptr<MultiProfileSupport> multi_profile_support_;
-
-  // The MultiUserWindowManager implementation to use. If null, the
-  // MultiUserWindowManager comes from |multi_profile_support_|.
-  std::unique_ptr<ash::MultiUserWindowManager> multi_user_window_manager_;
 };
 
 #endif  // CHROME_BROWSER_UI_ASH_MULTI_USER_MULTI_USER_WINDOW_MANAGER_HELPER_H_

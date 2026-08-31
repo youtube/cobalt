@@ -22,6 +22,7 @@
 #include "content/common/content_export.h"
 #include "content/public/browser/k_anonymity_service_delegate.h"
 #include "content/public/browser/prefetch_handle.h"
+#include "content/public/browser/prefetch_priority.h"
 #include "content/public/browser/prefetch_request_status_listener.h"
 #include "content/public/browser/zoom_level_delegate.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -51,9 +52,6 @@ class ExternalMountPoints;
 namespace media {
 class VideoDecodePerfHistory;
 class WebrtcVideoPerfHistory;
-namespace learning {
-class LearningSession;
-}
 }  // namespace media
 
 namespace storage {
@@ -202,19 +200,25 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
 
   // Starts a prefetch network request for the given `url`.
   // `embedder_histogram_suffix` is used for generating internal histogram names
-  // recorded per trigger. `ttl` (Time-To-Live) specifies how long
+  // recorded per trigger. `priority` is an optimization hint of how quickly
+  // this prefetch should be available. `ttl` (Time-To-Live) specifies how long
   // prefetched data remains valid in the cache. After this period, the data is
-  // reset. Returns `PrefetchHandle` to control prefetch resources. This can be
-  // null when it can't add `PrefetchContainer` to `PrefetchService`.
+  // reset. `should_disable_block_until_head_timeout` specifies whether we
+  // should have a timeout when this prefetch blocks the navigation until its
+  // head is determined. Returns `PrefetchHandle` to control prefetch resources.
+  // This can be null when it can't add `PrefetchContainer` to
+  // `PrefetchService`.
   std::unique_ptr<content::PrefetchHandle> StartBrowserPrefetchRequest(
       const GURL& url,
       const std::string& embedder_histogram_suffix,
       bool javascript_enabled,
       std::optional<net::HttpNoVarySearchData> no_vary_search_hint,
+      std::optional<PrefetchPriority> priority,
       const net::HttpRequestHeaders& additional_headers,
       std::unique_ptr<PrefetchRequestStatusListener> request_status_listener,
-      base::TimeDelta ttl_in_sec,
-      bool should_append_variations_header);
+      base::TimeDelta ttl,
+      bool should_append_variations_header,
+      bool should_disable_block_until_head_timeout);
 
   // Updates the "Accept Language" header that the prefetch service delegate
   // will use.
@@ -257,12 +261,15 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
       const std::string& uuid);
 
   // Delivers a push message with |data| to the Service Worker identified by
-  // |origin| and |service_worker_registration_id|.
+  // |origin| and |service_worker_registration_id|. |record_network_requests|
+  // indicates whether network request urls should be recorded during the push
+  // event.
   void DeliverPushMessage(
       const GURL& origin,
       int64_t service_worker_registration_id,
       const std::string& message_id,
       std::optional<std::string> payload,
+      bool record_network_requests,
       base::OnceCallback<void(blink::mojom::PushEventStatus)> callback);
 
   // Fires a push subscription change event to the Service Worker identified by
@@ -327,14 +334,6 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
   // have similar encode/decode performance and stats are not exposed to the web
   // directly, so privacy is not compromised.
   media::WebrtcVideoPerfHistory* GetWebrtcVideoPerfHistory();
-
-  // Returns a LearningSession associated with |this|. Used as the central
-  // source from which to retrieve LearningTaskControllers for media machine
-  // learning.
-  // Exposed here rather than StoragePartition because learnings will cover
-  // general media trends rather than SiteInstance specific behavior. The
-  // learnings are not exposed to the web.
-  virtual media::learning::LearningSession* GetLearningSession();
 
   // Retrieves the InProgressDownloadManager associated with this object if
   // available
@@ -498,7 +497,7 @@ class CONTENT_EXPORT BrowserContext : public base::SupportsUserData {
 #if BUILDFLAG(IS_ANDROID)
   // Returns extra request headers to be set when navigation happens for `url`.
   // This function is designed for the headers provided by WebView.loadUrl().
-  virtual std::string GetExtraHeadersForUrl(const GURL& url);
+  virtual net::HttpRequestHeaders GetExtraHeadersForUrl(const GURL& url);
 #endif  // BUILDFLAG(IS_ANDROID)
 
  private:

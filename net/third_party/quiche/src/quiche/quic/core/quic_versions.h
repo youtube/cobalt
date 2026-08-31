@@ -136,6 +136,7 @@ enum QuicTransportVersion {
   // version negotiation when proposed by clients and to prevent client
   // ossification when sent by servers.
   QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
+  QUIC_VERSION_MAX_VALUE = QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
 };
 
 // Helper function which translates from a QuicTransportVersion to a string.
@@ -147,9 +148,9 @@ QUICHE_EXPORT std::string QuicVersionToString(
 // We are planning on eventually deprecating PROTOCOL_QUIC_CRYPTO in favor of
 // PROTOCOL_TLS1_3.
 enum HandshakeProtocol {
-  PROTOCOL_UNSUPPORTED,
-  PROTOCOL_QUIC_CRYPTO,
-  PROTOCOL_TLS1_3,
+  PROTOCOL_UNSUPPORTED = 0,
+  PROTOCOL_QUIC_CRYPTO = 1,
+  PROTOCOL_TLS1_3 = 2,
 };
 
 // Helper function which translates from a HandshakeProtocol to a string.

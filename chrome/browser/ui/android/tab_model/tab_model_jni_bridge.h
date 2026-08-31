@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/tab_interface.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "url/gurl.h"
 
 class TabAndroid;
@@ -37,21 +38,25 @@ class TabModelJniBridge : public TabModel {
                     Profile* profile,
                     chrome::android::ActivityType activity_type,
                     bool is_archived_tab_model);
-  void Destroy(JNIEnv* env, const base::android::JavaParamRef<jobject>& obj);
+  void Destroy(JNIEnv* env);
 
   TabModelJniBridge(const TabModelJniBridge&) = delete;
   TabModelJniBridge& operator=(const TabModelJniBridge&) = delete;
 
   ~TabModelJniBridge() override;
 
-  // Called by JNI
-  void TabAddedToModel(JNIEnv* env,
-                       const base::android::JavaParamRef<jobject>& obj,
-                       const base::android::JavaParamRef<jobject>& jtab);
+  void AssociateWithBrowserWindow(JNIEnv* env,
+                                  long native_android_browser_window);
+  void TabAddedToModel(JNIEnv* env, TabAndroid* tab);
+  void DuplicateTabForTesting(JNIEnv* env, TabAndroid* tab);
 
   // TabModel::
+  void AddTabListInterfaceObserver(TabListInterfaceObserver* observer) override;
+  void RemoveTabListInterfaceObserver(
+      TabListInterfaceObserver* observer) override;
   int GetTabCount() const override;
   int GetActiveIndex() const override;
+  tabs::TabInterface* GetActiveTab() override;
   content::WebContents* GetWebContentsAt(int index) const override;
   TabAndroid* GetTabAt(int index) const override;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject() const override;
@@ -81,9 +86,7 @@ class TabModelJniBridge : public TabModel {
 
   // Instructs the TabModel to broadcast a notification that all tabs are now
   // loaded from storage.
-  void BroadcastSessionRestoreComplete(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& obj);
+  void BroadcastSessionRestoreComplete(JNIEnv* env);
 
   int GetTabCountNavigatedInTimeWindow(
       const base::Time& begin_time,
@@ -92,20 +95,26 @@ class TabModelJniBridge : public TabModel {
   void CloseTabsNavigatedInTimeWindow(const base::Time& begin_time,
                                       const base::Time& end_time) override;
 
+  void DuplicateTab(TabAndroid* tab);
+
   // TODO(crbug.com/415351293): Implement these.
   // TabListInterface implementation.
   void OpenTab(const GURL& url, int index) override;
-  void DiscardTab(int index) override;
-  void DuplicateTab(int index) override;
+  void DiscardTab(tabs::TabHandle tab) override;
+  void DuplicateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* GetTab(int index) override;
-  void HighlightTabs(std::set<int> indicies) override;
-  void MoveTab(int from_index, int to_index) override;
-  void CloseTab(int index) override;
+  int GetIndexOfTab(tabs::TabHandle tab) override;
+  void HighlightTabs(tabs::TabHandle tab_to_activate,
+                     const std::set<tabs::TabHandle>& tabs) override;
+  void MoveTab(tabs::TabHandle tab, int index) override;
+  void CloseTab(tabs::TabHandle tab) override;
   std::vector<tabs::TabInterface*> GetAllTabs() override;
-  void PinTab(int index) override;
-  void UnpinTab(int index) override;
-  std::optional<tab_groups::TabGroupId> CreateGroup(
-      std::set<int> indicies) override;
+  void PinTab(tabs::TabHandle tab) override;
+  void UnpinTab(tabs::TabHandle tab) override;
+  std::optional<tab_groups::TabGroupId> AddTabsToGroup(
+      std::optional<tab_groups::TabGroupId> group_id,
+      const std::set<tabs::TabHandle>& tabs) override;
+  void Ungroup(const std::set<tabs::TabHandle>& tabs) override;
   void MoveGroupTo(tab_groups::TabGroupId group_id, int index) override;
 
   // Returns a corresponding Java Class object.
@@ -122,6 +131,10 @@ class TabModelJniBridge : public TabModel {
   std::unique_ptr<TabModelObserverJniBridge> observer_bridge_;
 
   bool is_archived_tab_model_;
+  // Cannot use a conventional member variable because this is initialized after
+  // the constructor.
+  std::unique_ptr<ui::ScopedUnownedUserData<TabModel>>
+      scoped_unowned_user_data_;
 };
 
 #endif  // CHROME_BROWSER_UI_ANDROID_TAB_MODEL_TAB_MODEL_JNI_BRIDGE_H_

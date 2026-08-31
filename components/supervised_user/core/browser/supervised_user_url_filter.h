@@ -16,11 +16,9 @@
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "components/safe_search_api/url_checker.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/supervised_user/core/browser/supervised_user_error_page.h"
 #include "components/supervised_user/core/browser/supervised_user_utils.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
@@ -162,8 +160,10 @@ class SupervisedUserURLFilter {
     virtual void OnURLChecked(Result result) {}
   };
 
-  SupervisedUserURLFilter(PrefService& user_prefs,
-                          std::unique_ptr<Delegate> delegate);
+  SupervisedUserURLFilter(
+      PrefService& user_prefs,
+      std::unique_ptr<Delegate> delegate,
+      std::unique_ptr<safe_search_api::URLCheckerClient> url_checker_client);
 
   virtual ~SupervisedUserURLFilter();
 
@@ -231,8 +231,9 @@ class SupervisedUserURLFilter {
 
   WebFilterType GetWebFilterType() const;
 
-  // Sets safe_search_api::URLCheckerClient for SafeSites classification.
-  void SetURLCheckerClient(
+  // Substitutes the URL filter for testing. For use where TestingFactory cant's
+  // substitute the checker client.
+  void SetURLCheckerClientForTesting(
       std::unique_ptr<safe_search_api::URLCheckerClient> url_checker_client);
 
   // Checks if an exact match for a host exists in the host blocklist.
@@ -241,7 +242,7 @@ class SupervisedUserURLFilter {
  private:
   bool IsExemptedFromGuardianApproval(const GURL& effective_url);
 
-  virtual bool RunAsyncChecker(const GURL& url, ResultCallback callback) const;
+  virtual bool RunAsyncChecker(const GURL& url, ResultCallback callback);
 
   FilteringBehavior GetManualFilteringBehaviorForURL(const GURL& url);
 

@@ -16,7 +16,6 @@
 
 #include "base/containers/span.h"
 #include "base/memory/raw_ptr.h"
-#include "crypto/ec_private_key.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_mapping_rules.h"
 #include "net/base/proxy_server.h"
@@ -49,7 +48,6 @@ class GURL;
 namespace net {
 
 class ClientSocketFactory;
-class HashValue;
 class HostPortPair;
 class HostResolver;
 class QuicContext;
@@ -75,17 +73,15 @@ const uint32_t kMaxHeaderListSizeForTest = 1024;
 // Chop a spdy::SpdySerializedFrame into an array of MockWrites.
 // |frame| is the frame to chop.
 // |num_chunks| is the number of chunks to create.
-std::unique_ptr<MockWrite[]> ChopWriteFrame(
-    const spdy::SpdySerializedFrame& frame,
-    int num_chunks);
+std::vector<MockWrite> ChopWriteFrame(const spdy::SpdySerializedFrame& frame,
+                                      int num_chunks);
 
 // Adds headers and values to a map.
 // |extra_headers| is an array of { name, value } pairs, arranged as strings
 // where the even entries are the header names, and the odd entries are the
 // header values.
 // |headers| gets filled in from |extra_headers|.
-void AppendToHeaderBlock(const char* const extra_headers[],
-                         int extra_header_count,
+void AppendToHeaderBlock(base::span<const std::string_view> extra_headers,
                          quiche::HttpHeaderBlock* headers);
 
 // Create an async MockWrite from the given spdy::SpdySerializedFrame.
@@ -358,8 +354,7 @@ class SpdyTestUtil {
   // will vary the most between calls.  If |direct| is false, the
   // the full url will be used instead of simply the path.
   spdy::SpdySerializedFrame ConstructSpdyGet(
-      const char* const extra_headers[],
-      int extra_header_count,
+      base::span<const std::string_view> extra_headers,
       int stream_id,
       RequestPriority request_priority,
       bool priority_incremental = kDefaultPriorityIncremental,
@@ -369,8 +364,7 @@ class SpdyTestUtil {
   // is nullptr, it includes just "user-agent" "test-ua" as that is commonly
   // required.
   spdy::SpdySerializedFrame ConstructSpdyConnect(
-      const char* const extra_headers[],
-      int extra_header_count,
+      base::span<const std::string_view> extra_headers,
       int stream_id,
       RequestPriority priority,
       const HostPortPair& host_port_pair);
@@ -406,8 +400,7 @@ class SpdyTestUtil {
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.
   spdy::SpdySerializedFrame ConstructSpdyGetReply(
-      const char* const extra_headers[],
-      int extra_header_count,
+      base::span<const std::string_view> extra_headers,
       int stream_id);
 
   // Constructs a standard SPDY HEADERS frame with an Internal Server
@@ -417,8 +410,7 @@ class SpdyTestUtil {
   // Constructs a standard SPDY HEADERS frame with the specified status code.
   spdy::SpdySerializedFrame ConstructSpdyReplyError(
       const char* const status,
-      const char* const* const extra_headers,
-      int extra_header_count,
+      base::span<const std::string_view> extra_headers,
       int stream_id);
 
   // Constructs a standard SPDY POST HEADERS frame.
@@ -429,16 +421,14 @@ class SpdyTestUtil {
       spdy::SpdyStreamId stream_id,
       int64_t content_length,
       RequestPriority request_priority,
-      const char* const extra_headers[],
-      int extra_header_count,
+      base::span<const std::string_view> extra_headers,
       bool priority_incremental = kDefaultPriorityIncremental);
 
   // Constructs a chunked transfer SPDY POST HEADERS frame.
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.
   spdy::SpdySerializedFrame ConstructChunkedSpdyPost(
-      const char* const extra_headers[],
-      int extra_header_count,
+      base::span<const std::string_view> extra_headers,
       RequestPriority request_priority = RequestPriority::DEFAULT_PRIORITY,
       bool priority_incremental = kDefaultPriorityIncremental);
 
@@ -446,8 +436,7 @@ class SpdyTestUtil {
   // |extra_headers| are the extra header-value pairs, which typically
   // will vary the most between calls.
   spdy::SpdySerializedFrame ConstructSpdyPostReply(
-      const char* const extra_headers[],
-      int extra_header_count);
+      base::span<const std::string_view> extra_headers);
 
   // Constructs a single SPDY data frame with the contents "hello!"
   spdy::SpdySerializedFrame ConstructSpdyDataFrame(int stream_id, bool fin);
@@ -505,8 +494,8 @@ class SpdyTestUtil {
 
 namespace test {
 
-// Returns a SHA1 HashValue in which each byte has the value |label|.
-HashValue GetTestHashValue(uint8_t label);
+// Returns a SHA256HashValue in which each byte has the value |label|.
+SHA256HashValue GetTestHashValue(uint8_t label);
 
 }  // namespace test
 }  // namespace net

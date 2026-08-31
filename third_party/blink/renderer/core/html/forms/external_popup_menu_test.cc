@@ -42,7 +42,7 @@ class ExternalPopupMenuDisplayNoneItemsTest : public PageTestBase {
     PageTestBase::SetUp();
     auto* element = MakeGarbageCollected<HTMLSelectElement>(GetDocument());
     // Set the 4th an 5th items to have "display: none" property
-    element->setInnerHTML(
+    element->SetInnerHTMLWithoutTrustedTypes(
         "<option><option><option><option style='display:none;'><option "
         "style='display:none;'><option><option>");
     GetDocument().body()->AppendChild(element, ASSERT_NO_EXCEPTION);
@@ -86,7 +86,7 @@ class ExternalPopupMenuHrElementItemsTest : public PageTestBase {
   void SetUp() override {
     PageTestBase::SetUp();
     auto* element = MakeGarbageCollected<HTMLSelectElement>(GetDocument());
-    element->setInnerHTML(R"HTML(
+    element->SetInnerHTMLWithoutTrustedTypes(R"HTML(
       <option>zero</option>
       <option>one</option>
       <hr>
@@ -265,7 +265,7 @@ class ExternalPopupMenuTest : public PageTestBase {
     frame_host_.Init(
         web_frame_client_.GetRemoteNavigationAssociatedInterfaces());
     helper_.Initialize(&web_frame_client_);
-    WebView()->SetUseExternalPopupMenus(true);
+    WebView()->GetChromeClient().SetUseExternalPopupMenusForTesting(true);
   }
   void TearDown() override {
     url_test_helpers::UnregisterAllURLsAndClearMemoryCache();
@@ -447,6 +447,33 @@ TEST_F(ExternalPopupMenuTest, DidAcceptIndicesClearSelect) {
   EXPECT_EQ(-1, select->selectedIndex());
 }
 
+TEST_F(ExternalPopupMenuTest, OnClick) {
+  RegisterMockedURLLoad("select.html");
+  LoadFrame("select.html");
+
+  auto* select = To<HTMLSelectElement>(
+      MainFrame()->GetFrame()->GetDocument()->getElementById(
+          AtomicString("select")));
+  auto* layout_object = select->GetLayoutObject();
+  ASSERT_TRUE(layout_object);
+
+  select->ShowPopup();
+  WaitUntilShowedPopup();
+
+  ASSERT_TRUE(select->PopupIsVisible());
+  PopupClient()->DidAcceptIndices({2});
+
+  auto* result = MainFrame()->GetFrame()->GetDocument()->getElementById(
+      AtomicString("result"));
+  EXPECT_EQ("", result->innerText());
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_FALSE(select->PopupIsVisible());
+  EXPECT_EQ(2, select->selectedIndex());
+  EXPECT_EQ("2", result->innerText());
+}
+
 // Normal case: test showing a select popup, canceling/selecting an item.
 TEST_F(ExternalPopupMenuTest, NormalCase) {
   RegisterMockedURLLoad("select.html");
@@ -503,7 +530,8 @@ TEST_F(ExternalPopupMenuTest, ShowPopupThenNavigate) {
   WaitUntilShowedPopup();
 
   // Now we navigate to another pager.
-  document->documentElement()->setInnerHTML("<blink>Awesome page!</blink>");
+  document->documentElement()->SetInnerHTMLWithoutTrustedTypes(
+      "<blink>Awesome page!</blink>");
   document->UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   base::RunLoop().RunUntilIdle();
 

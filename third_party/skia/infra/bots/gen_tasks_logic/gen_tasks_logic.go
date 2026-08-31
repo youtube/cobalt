@@ -752,7 +752,7 @@ func (b *jobBuilder) deriveCompileTaskName() string {
 				"DDLRecord", "BonusConfigs", "ColorSpaces", "GL",
 				"SkottieTracing", "SkottieWASM", "GpuTess", "DMSAAStats", "Docker", "PDF",
 				"Puppeteer", "SkottieFrames", "RenderSKP", "CanvasPerf", "AllPathsVolatile",
-				"WebGL2", "i5", "OldestSupportedSkpVersion", "FakeWGPU", "TintIR", "Protected",
+				"WebGL2", "i5", "OldestSupportedSkpVersion", "FakeWGPU", "Protected",
 				"AndroidNDKFonts", "Upload", "TestPrecompile"}
 			keep := make([]string, 0, len(ec))
 			for _, part := range ec {
@@ -772,11 +772,7 @@ func (b *jobBuilder) deriveCompileTaskName() string {
 			task_os = UBUNTU_22_04_OS
 		} else if b.matchOs("iOS") {
 			ec = append([]string{task_os}, ec...)
-			if b.parts["compiler"] == "Xcode11.4.1" {
-				task_os = "Mac10.15.7"
-			} else {
-				task_os = "Mac"
-			}
+			task_os = "Mac"
 		} else if b.matchOs("Win") {
 			task_os = "Win"
 		} else if b.extraConfig("WasmGMTests") {
@@ -879,8 +875,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 			"Debian9":     DEFAULT_OS_LINUX_GCE, // Runs in Deb9 Docker.
 			"Debian11":    DEBIAN_11_OS,
 			"Mac":         DEFAULT_OS_MAC,
-			"Mac10.15.1":  "Mac-10.15.1",
-			"Mac10.15.7":  "Mac-10.15.7",
+			"Mac11":       "Mac-11",
 			"Mac12":       "Mac-12",
 			"Mac13":       "Mac-13",
 			"Mac14":       "Mac-14.7", // Builds run on 14.5, tests on 14.7.
@@ -1158,7 +1153,7 @@ func (b *taskBuilder) defaultSwarmDimensions() {
 			d["gce"] = "1"
 			// Use many-core machines for Build tasks.
 			d["machine_type"] = MACHINE_TYPE_LARGE
-		} else if d["os"] == DEFAULT_OS_MAC || d["os"] == "Mac-10.15.7" {
+		} else if d["os"] == DEFAULT_OS_MAC {
 			// Mac CPU bots are no longer VMs.
 			d["cpu"] = "x86-64"
 			d["cores"] = "12"
@@ -1207,81 +1202,6 @@ func (b *jobBuilder) buildTaskDrivers(goos, goarch string) string {
 		b.serviceAccount(b.cfg.ServiceAccountCompile)
 	})
 	return name
-}
-
-// createDockerImage creates the specified docker image. Returns the name of the
-// generated task.
-func (b *jobBuilder) createDockerImage(wasm bool) string {
-	// First, derive the name of the task.
-	imageName := "skia-release"
-	taskName := "Housekeeper-PerCommit-CreateDockerImage_Skia_Release"
-	if wasm {
-		imageName = "skia-wasm-release"
-		taskName = "Housekeeper-PerCommit-CreateDockerImage_Skia_WASM_Release"
-	}
-	imageDir := path.Join("docker", imageName)
-
-	// Add the task.
-	b.addTask(taskName, func(b *taskBuilder) {
-		// TODO(borenet): Make this task not use Git.
-		b.usesGit()
-		b.cmd(
-			b.taskDriver("build_push_docker_image", false),
-			"--image_name", fmt.Sprintf("gcr.io/skia-public/%s", imageName),
-			"--dockerfile_dir", imageDir,
-			"--project_id", "skia-swarming-bots",
-			"--task_id", specs.PLACEHOLDER_TASK_ID,
-			"--task_name", b.Name,
-			"--workdir", ".",
-			"--gerrit_project", "skia",
-			"--gerrit_url", "https://skia-review.googlesource.com",
-			"--repo", specs.PLACEHOLDER_REPO,
-			"--revision", specs.PLACEHOLDER_REVISION,
-			"--patch_issue", specs.PLACEHOLDER_ISSUE,
-			"--patch_set", specs.PLACEHOLDER_PATCHSET,
-			"--patch_server", specs.PLACEHOLDER_CODEREVIEW_SERVER,
-			"--swarm_out_dir", specs.PLACEHOLDER_ISOLATED_OUTDIR,
-		)
-		b.cas(CAS_EMPTY)
-		b.serviceAccount(b.cfg.ServiceAccountCompile)
-		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
-		b.usesDocker()
-		b.cache(CACHES_DOCKER...)
-		b.timeout(time.Hour)
-	})
-	return taskName
-}
-
-// createPushAppsFromSkiaDockerImage creates and pushes docker images of some apps
-// (eg: fiddler, api) using the skia-release docker image.
-func (b *jobBuilder) createPushAppsFromSkiaDockerImage() {
-	b.addTask(b.Name, func(b *taskBuilder) {
-		// TODO(borenet): Make this task not use Git.
-		b.usesGit()
-		b.cmd(
-			"luci-auth", "context",
-			b.taskDriver("push_apps_from_skia_image", false),
-			"--project_id", "skia-swarming-bots",
-			"--task_id", specs.PLACEHOLDER_TASK_ID,
-			"--task_name", b.Name,
-			"--workdir", ".",
-			"--repo", specs.PLACEHOLDER_REPO,
-			"--revision", specs.PLACEHOLDER_REVISION,
-			"--patch_issue", specs.PLACEHOLDER_ISSUE,
-			"--patch_set", specs.PLACEHOLDER_PATCHSET,
-			"--patch_server", specs.PLACEHOLDER_CODEREVIEW_SERVER,
-			"--bazel_cache_dir", bazelCacheDirOnGCELinux,
-		)
-		b.dep(b.createDockerImage(false))
-		b.cas(CAS_EMPTY)
-		b.usesBazel("linux_x64")
-		b.usesLUCIAuth()
-		b.serviceAccount(b.cfg.ServiceAccountCompile)
-		b.linuxGceDimensions(MACHINE_TYPE_MEDIUM)
-		b.usesDocker()
-		b.cache(CACHES_DOCKER...)
-		b.timeout(2 * time.Hour)
-	})
 }
 
 var iosRegex = regexp.MustCompile(`os:iOS-(.*)`)
@@ -1811,7 +1731,7 @@ func (b *jobBuilder) dm() {
 			}
 		} else {
 			// Default recipe supports direct upload.
-			// TODO(http://skbug.com/11785): Windows jobs are unable to extract gsutil.
+			// TODO(skbug.com/40042855): Windows jobs are unable to extract gsutil.
 			// https://bugs.chromium.org/p/chromium/issues/detail?id=1192611
 			if b.doUpload() && !b.matchOs("Win") {
 				b.directUpload(b.cfg.GsBucketGm, b.cfg.ServiceAccountUploadGM)
@@ -1873,7 +1793,7 @@ func (b *jobBuilder) dm() {
 		} else if b.extraConfig("MSAN") {
 			b.timeout(9 * time.Hour)
 		} else if b.arch("x86") && b.debug() {
-			// skia:6737
+			// skbug.com/40037952
 			b.timeout(6 * time.Hour)
 		} else if b.matchOs("Mac14") {
 			b.timeout(30 * time.Minute)
@@ -2086,7 +2006,7 @@ func (b *jobBuilder) perf() {
 		} else if b.extraConfig("MSAN") {
 			b.timeout(9 * time.Hour)
 		} else if b.parts["arch"] == "x86" && b.parts["configuration"] == "Debug" {
-			// skia:6737
+			// skbug.com/40037952
 			b.timeout(6 * time.Hour)
 		} else if b.matchOs("Mac14") {
 			b.timeout(30 * time.Minute)
@@ -2253,6 +2173,7 @@ var shorthandToLabel = map[string]labelAndSavedOutputDir{
 	"cpu_8888_benchmark_test":    {"//bench:cpu_8888_test", ""},
 	"cpu_gms":                    {"//gm:cpu_gm_tests", ""},
 	"dm":                         {"//dm", ""},
+	"fontations":                 {"//src/ports:fontmgr_fontations_empty", ""},
 	"full_library":               {"//tools:full_build", ""},
 	"ganesh_gl":                  {"//:ganesh_gl", ""},
 	"hello_bazel_world_test":     {"//gm:hello_bazel_world_test", ""},

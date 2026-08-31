@@ -172,10 +172,11 @@ constexpr TaskType kAllFrameTaskTypes[] = {
     TaskType::kWebGPU,
     TaskType::kInternalPostMessageForwarding,
     TaskType::kInternalNavigationCancellation,
-    TaskType::kInternalAutofill};
+    TaskType::kInternalAutofill,
+    TaskType::kBackForwardCachePostedMessage};
 
 static_assert(
-    static_cast<int>(TaskType::kMaxValue) == 88,
+    static_cast<int>(TaskType::kMaxValue) == 89,
     "When adding a TaskType, make sure that kAllFrameTaskTypes is updated.");
 
 void AppendToVectorTestTask(Vector<String>* vector, String value) {
@@ -300,8 +301,9 @@ class FrameSchedulerImplTest : public testing::Test {
 
   void StorePageInBackForwardCache() {
     page_scheduler_->SetPageVisible(false);
-    page_scheduler_->SetPageFrozen(true);
+    // Set BFCache state first to avoid a duplicate policy update.
     page_scheduler_->SetPageBackForwardCached(true);
+    page_scheduler_->SetPageFrozen(true);
   }
 
   void RestorePageFromBackForwardCache() {
@@ -519,7 +521,6 @@ class FrameSchedulerImplTest : public testing::Test {
   JavaScriptTimerNormalThrottleableTaskQueue() {
     return GetTaskQueue(
         FrameSchedulerImpl::ThrottleableTaskQueueTraits()
-            .SetPrioritisationType(PrioritisationType::kJavaScriptTimer)
             .SetCanBeDeferredForRendering(true));
   }
 
@@ -527,7 +528,6 @@ class FrameSchedulerImplTest : public testing::Test {
   JavaScriptTimerIntensivelyThrottleableTaskQueue() {
     return GetTaskQueue(
         FrameSchedulerImpl::ThrottleableTaskQueueTraits()
-            .SetPrioritisationType(PrioritisationType::kJavaScriptTimer)
             .SetCanBeIntensivelyThrottled(true)
             .SetCanBeDeferredForRendering(true));
   }
@@ -535,7 +535,6 @@ class FrameSchedulerImplTest : public testing::Test {
   scoped_refptr<MainThreadTaskQueue> JavaScriptTimerNonThrottleableTaskQueue() {
     return GetTaskQueue(
         FrameSchedulerImpl::DeferrableTaskQueueTraits()
-            .SetPrioritisationType(PrioritisationType::kJavaScriptTimer)
             .SetCanBeDeferredForRendering(true));
   }
 
@@ -1139,6 +1138,58 @@ TEST_F(FrameSchedulerImplTest, FramePostsCpuTasksThroughReloadRenavigate) {
   }
 }
 
+class FrameSchedulerImplTestWithBFCacheWithSharedWorker
+    : public FrameSchedulerImplTest {
+ public:
+  FrameSchedulerImplTestWithBFCacheWithSharedWorker()
+      : FrameSchedulerImplTest({features::kBFCacheWithSharedWorker}, {}) {}
+};
+
+TEST_F(FrameSchedulerImplTestWithBFCacheWithSharedWorker,
+       CanRunInBFCache_RunsWhenInBFCache) {
+  int counter = 0;
+  GetTaskQueue(TaskType::kBackForwardCachePostedMessage)
+      ->GetTaskRunnerWithDefaultTaskType()
+      ->PostTask(FROM_HERE,
+                 base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+  PausableTaskQueue()->GetTaskRunnerWithDefaultTaskType()->PostTask(
+      FROM_HERE, base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+
+  StorePageInBackForwardCache();
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(1, counter);
+
+  RestorePageFromBackForwardCache();
+  task_environment_.FastForwardUntilNoTasksRemain();
+
+  EXPECT_EQ(2, counter);
+}
+
+TEST_F(FrameSchedulerImplTestWithBFCacheWithSharedWorker,
+       CanRunInBFCache_IsFrozenWhenNotInBFCache) {
+  int counter = 0;
+  GetTaskQueue(TaskType::kBackForwardCachePostedMessage)
+      ->GetTaskRunnerWithDefaultTaskType()
+      ->PostTask(FROM_HERE,
+                 base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+  PausableTaskQueue()->GetTaskRunnerWithDefaultTaskType()->PostTask(
+      FROM_HERE, base::BindOnce(&IncrementCounter, base::Unretained(&counter)));
+
+  page_scheduler_->SetPageVisible(false);
+  page_scheduler_->SetPageFrozen(true);
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_EQ(0, counter);
+
+  page_scheduler_->SetPageFrozen(false);
+  task_environment_.FastForwardUntilNoTasksRemain();
+
+  EXPECT_EQ(2, counter);
+}
+
 class FrameSchedulerImplTestWithUnfreezableLoading
     : public FrameSchedulerImplTest {
  public:
@@ -1617,41 +1668,10 @@ TEST_F(FrameSchedulerImplTest, ComputePriorityForDetachedFrame) {
   frame_scheduler_->ComputePriority(task_queue.get());
 }
 
-class FrameSchedulerImplLowPriorityAsyncScriptExecutionTest
-    : public FrameSchedulerImplTest,
-      public testing::WithParamInterface<std::string> {
- public:
-  FrameSchedulerImplLowPriorityAsyncScriptExecutionTest()
-      : FrameSchedulerImplTest(
-            features::kLowPriorityAsyncScriptExecution,
-            {{features::kLowPriorityAsyncScriptExecutionLowerTaskPriorityParam
-                  .name,
-              specified_priority()}},
-            {}) {}
-
-  std::string specified_priority() { return GetParam(); }
-  TaskPriority GetExpectedPriority() {
-    if (specified_priority() == "high") {
-      return TaskPriority::kHighPriority;
-    } else if (specified_priority() == "low") {
-      return TaskPriority::kLowPriority;
-    } else if (specified_priority() == "best_effort") {
-      return TaskPriority::kBestEffortPriority;
-    }
-    NOTREACHED();
-  }
-};
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         FrameSchedulerImplLowPriorityAsyncScriptExecutionTest,
-                         testing::Values("high", "low", "best_effort"));
-
-TEST_P(FrameSchedulerImplLowPriorityAsyncScriptExecutionTest,
-       LowPriorityScriptExecutionHasBestEffortPriority) {
+TEST_F(FrameSchedulerImplTest, LowPriorityScriptExecutionHasLowPriority) {
   EXPECT_EQ(
-      GetExpectedPriority(),
-      GetTaskQueue(TaskType::kLowPriorityScriptExecution)->GetQueuePriority())
-      << specified_priority();
+      TaskPriority::kLowPriority,
+      GetTaskQueue(TaskType::kLowPriorityScriptExecution)->GetQueuePriority());
 }
 
 TEST_F(FrameSchedulerImplTest, BackForwardCacheOptOut) {
@@ -2006,8 +2026,7 @@ TEST_F(WebSchedulingTaskQueueTest, DynamicPriorityContinuations) {
 TEST_F(WebSchedulingTaskQueueTest, WebScheduingAndNonWebScheduingTasks) {
   Vector<String> run_order;
   Vector<TestTaskSpecEntry> test_spec = {
-      {.descriptor = "Idle",
-       .type_info = TaskType::kLowPriorityScriptExecution},
+      {.descriptor = "Idle", .type_info = TaskType::kInternalContentCapture},
       {.descriptor = "BG",
        .type_info = WebSchedulingParams(
            {.queue_type = WebSchedulingQueueType::kTaskQueue,

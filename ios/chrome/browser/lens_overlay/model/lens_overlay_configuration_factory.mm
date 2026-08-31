@@ -29,6 +29,10 @@ LensEntrypoint LensEntrypointFromOverlayEntrypoint(
       return LensEntrypoint::LensOverlayLvfShutterButton;
     case LensOverlayEntrypoint::kLVFImagePicker:
       return LensEntrypoint::LensOverlayLvfGallery;
+    case LensOverlayEntrypoint::kAIHub:
+      return LensEntrypoint::LensOverlayAIHub;
+    case LensOverlayEntrypoint::kFREPromo:
+      return LensEntrypoint::LensOverlayFREPromo;
   }
 }
 

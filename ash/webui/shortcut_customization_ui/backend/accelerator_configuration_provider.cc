@@ -19,7 +19,6 @@
 #include "ash/public/cpp/accelerator_actions.h"
 #include "ash/public/cpp/accelerators_util.h"
 #include "ash/public/cpp/capture_mode/capture_mode_api.h"
-#include "ash/public/mojom/accelerator_configuration.mojom-shared.h"
 #include "ash/public/mojom/accelerator_configuration.mojom.h"
 #include "ash/public/mojom/accelerator_info.mojom-forward.h"
 #include "ash/public/mojom/accelerator_info.mojom-shared.h"
@@ -568,24 +567,12 @@ AcceleratorConfigurationProvider::AcceleratorConfigurationProvider(
     Shell::Get()->accelerator_prefs()->AddObserver(this);
   }
 
-  if (features::IsInputDeviceSettingsSplitEnabled()) {
-    // `InputDeviceSettingsController` provides updates whenever a device is
-    // connected/disconnected or if its settings changed. In any of these cases,
-    // accelerators must be updated.
-    // Observer is removed on destruction of `InputDeviceSettingsController`,
-    // which happens before this class is destroyed.
-    Shell::Get()->input_device_settings_controller()->AddObserver(this);
-  } else {
-    // Observe connected keyboard events.
-    ui::DeviceDataManager::GetInstance()->AddObserver(this);
-
-    send_function_keys_pref_ = std::make_unique<BooleanPrefMember>();
-    send_function_keys_pref_->Init(
-        ash::prefs::kSendFunctionKeys, pref_service,
-        base::BindRepeating(&AcceleratorConfigurationProvider::
-                                ScheduleNotifyAcceleratorsUpdated,
-                            base::Unretained(this)));
-  }
+  // `InputDeviceSettingsController` provides updates whenever a device is
+  // connected/disconnected or if its settings changed. In any of these cases,
+  // accelerators must be updated.
+  // Observer is removed on destruction of `InputDeviceSettingsController`,
+  // which happens before this class is destroyed.
+  Shell::Get()->input_device_settings_controller()->AddObserver(this);
 
   ash_accelerator_configuration_->AddAcceleratorsUpdatedCallback(
       base::BindRepeating(
@@ -629,9 +616,7 @@ AcceleratorConfigurationProvider::~AcceleratorConfigurationProvider() {
   if (Shell::HasInstance()) {
     Shell::Get()->accelerator_controller()->SetPreventProcessingAccelerators(
         /*prevent_processing_accelerators=*/false);
-    if (features::IsInputDeviceSettingsSplitEnabled()) {
-      Shell::Get()->input_device_settings_controller()->RemoveObserver(this);
-    }
+    Shell::Get()->input_device_settings_controller()->RemoveObserver(this);
     if (Shell::Get()->accelerator_prefs()->IsUserEnterpriseManaged()) {
       Shell::Get()->accelerator_prefs()->RemoveObserver(this);
     }

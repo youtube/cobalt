@@ -4,6 +4,7 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -1978,7 +1979,7 @@ TEST_F(WebFrameWidgetSimTest, TestLineBoundsAreCorrectAfterElementScroll) {
   }
 
   // Scroll element by 50 pixels down.
-  GetDocument().FocusedElement()->scrollBy(0, 50);
+  GetDocument().FocusedElement()->scrollByForTesting(0, 50);
   widget->UpdateAllLifecyclePhases(DocumentUpdateReason::kTest);
 
   Vector<gfx::Rect> actual =

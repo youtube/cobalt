@@ -22,6 +22,7 @@
 #include "media/base/stream_params.h"
 #include "pc/channel_interface.h"
 #include "pc/rtp_transport_internal.h"
+#include "pc/session_description.h"
 #include "test/gmock.h"
 
 namespace webrtc {
@@ -88,12 +89,5 @@ class MockChannelInterface : public ChannelInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::MockChannelInterface;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_TEST_MOCK_CHANNEL_INTERFACE_H_

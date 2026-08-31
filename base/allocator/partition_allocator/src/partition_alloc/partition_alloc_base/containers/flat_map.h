@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_BASE_CONTAINERS_FLAT_MAP_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_BASE_CONTAINERS_FLAT_MAP_H_
 
@@ -13,6 +18,7 @@
 
 #include "partition_alloc/partition_alloc_base/check.h"
 #include "partition_alloc/partition_alloc_base/containers/flat_tree.h"
+#include "partition_alloc/partition_alloc_base/cxx20_identity.h"
 #include "partition_alloc/partition_alloc_base/template_util.h"
 
 namespace partition_alloc::internal::base {
@@ -374,7 +380,7 @@ template <class Key,
           class KeyCompare = std::less<>,
           class Container = std::vector<std::pair<Key, Mapped>>,
           class InputContainer,
-          class Projection = std::identity>
+          class Projection = base::identity>
 constexpr flat_map<Key, Mapped, KeyCompare, Container> MakeFlatMap(
     const InputContainer& unprojected_elements,
     const KeyCompare& comp = KeyCompare(),

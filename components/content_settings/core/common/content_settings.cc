@@ -7,15 +7,18 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/check_op.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/types/cxx23_to_underlying.h"
 #include "build/build_config.h"
 #include "components/content_settings/core/common/content_settings_metadata.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/content_settings_utils.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace {
 
@@ -30,6 +33,11 @@ void FilterRulesForType(ContentSettingsForOneType& settings,
 }
 
 }  // namespace
+
+bool IsValidPermissionOption(PermissionOption setting) {
+  return setting >= PermissionOption::kMinValue &&
+         setting <= PermissionOption::kMaxValue;
+}
 
 ContentSetting IntToContentSetting(int content_setting) {
   return ((content_setting < 0) ||
@@ -141,4 +149,27 @@ content_settings::SettingInfo content_settings::SettingInfo::Clone() const {
   clone.secondary_pattern = secondary_pattern;
   clone.metadata = metadata.Clone();
   return clone;
+}
+
+std::ostream& operator<<(std::ostream& os, const GeolocationSetting& it) {
+  return os << "GeolocationSetting{approximate: "
+            << base::to_underlying(it.approximate)
+            << ", precise: " << base::to_underlying(it.precise) << "}";
+}
+
+std::ostream& operator<<(std::ostream& os, const PermissionSetting& it) {
+  std::visit(absl::Overload{
+                 [&](const ContentSetting& setting) { os << setting; },
+                 [&](const GeolocationSetting& setting) { os << setting; },
+             },
+             it);
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const std::optional<PermissionSetting>& it) {
+  if (!it) {
+    return os << "<empty setting>";
+  }
+  return os << *it;
 }

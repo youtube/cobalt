@@ -19,17 +19,16 @@
 #include "chrome/browser/lifetime/browser_close_manager.h"
 #include "chrome/browser/share/share_attempt.h"
 #include "chrome/browser/signin/chrome_signin_helper.h"
-#include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_bubble_type.h"
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/translate/partial_translate_bubble_model.h"
-#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
 #include "chrome/common/buildflags.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/translate/core/browser/translate_step.h"
 #include "components/translate/core/common/translate_errors.h"
 #include "ui/base/base_window.h"
 #include "ui/base/interaction/element_identifier.h"
@@ -45,7 +44,6 @@
 class Browser;
 class BrowserView;
 class DownloadBubbleUIController;
-class DownloadShelf;
 class ExclusiveAccessContext;
 class ExtensionsContainer;
 class FindBar;
@@ -131,10 +129,9 @@ enum class BrowserThemeChangeType {
 //
 // NOTE: All getters may return NULL.
 //
-class BrowserWindow : public ui::BaseWindow,
-                      public BrowserUserEducationInterface {
+class BrowserWindow : public ui::BaseWindow {
  public:
-  ~BrowserWindow() override = default;
+  virtual ~BrowserWindow() = default;
 
   //////////////////////////////////////////////////////////////////////////////
   // ui::BaseWindow interface notes:
@@ -250,7 +247,7 @@ class BrowserWindow : public ui::BaseWindow,
 
   // Inform the frame that the dev tools window for the selected tab has
   // changed.
-  virtual void UpdateDevTools() = 0;
+  virtual void UpdateDevTools(content::WebContents* inspected_web_contents) = 0;
 
   // Update any loading animations running in the window. |is_visible| is true
   // if the window is visible.
@@ -497,13 +494,6 @@ class BrowserWindow : public ui::BaseWindow,
       const std::u16string& email,
       base::OnceCallback<void(bool)> confirmed_callback) = 0;
 
-  // Whether or not the shelf view is visible.
-  virtual bool IsDownloadShelfVisible() const = 0;
-
-  // Returns the DownloadShelf. Returns null if download shelf is disabled. This
-  // can happen if the new download bubble UI is enabled.
-  virtual DownloadShelf* GetDownloadShelf() = 0;
-
   // Returns the TopContainerView.
   virtual views::View* GetTopContainer() = 0;
 
@@ -538,6 +528,7 @@ class BrowserWindow : public ui::BaseWindow,
   virtual void PreHandleDragUpdate(const content::DropData& drop_data,
                                    const gfx::PointF& point) = 0;
   virtual void PreHandleDragExit() = 0;
+  virtual void HandleDragEnded() = 0;
   // Allows the BrowserWindow object to handle the specified keyboard event
   // before sending it to the renderer.
   virtual content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
@@ -665,8 +656,10 @@ class BrowserWindow : public ui::BaseWindow,
   virtual BrowserView* AsBrowserView() = 0;
 
  protected:
-  friend class BrowserCloseManager;
-  friend class BrowserView;
+  // Synchronously destroys the Browser.
+  // TODO(crbug.com/413168662): This can be removed once the ownership structure
+  // is updated and Browser owns BrowserWindow.
+  friend class Browser;
   virtual void DestroyBrowser() = 0;
 };
 

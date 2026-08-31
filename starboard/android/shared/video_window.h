@@ -44,17 +44,11 @@ class VideoSurfaceHolder {
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
 
-  // Get the native window size. Return false if don't have available native
-  // window.
-  bool GetVideoWindowSize(int* width, int* height);
+  // Cleans up the video surface, and posts the task to |gpu_provider|.
+  void CleanUpVideoSurface(SbDecodeTargetGraphicsContextProvider* gpu_provider);
 
-  // Cleans up the video surface. If |force_clear| is enabled, we will only
-  // clear the video window, and post the clearing task to |gpu_provider|.
-  // If |force_clear| is false, we will forcefully destroy the surface view,
-  // which will then be recreated.
-  void CleanUpVideoWindow(
-      bool force_clear,
-      SbDecodeTargetGraphicsContextProvider* gpu_provider = nullptr);
+  // Reset the video surface by re-creating video surface.
+  void ResetVideoSurface();
 };
 
 }  // namespace starboard

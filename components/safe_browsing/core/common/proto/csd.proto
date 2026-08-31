@@ -186,8 +186,18 @@ message IntelligentScanInfo {
     // The on device model is unavailable, which can be from a few reasons such
     // as device incapability or not enough space on disk.
     ON_DEVICE_MODEL_UNAVAILABLE = 3;
+    // The on device model could not create an output. This can only be matched
+    // if the previous three are not the case.
+    ON_DEVICE_MODEL_OUTPUT_MISSING = 4;
+    // The length of texts on the page is too short and will likely cause
+    // hallucination.
+    TEXT_TOO_SHORT = 5;
   }
   optional NoInfoReason no_info_reason = 3;
+
+  // Model package version of the last used model. This will be non-zero value
+  // if it exists with a value around 1,000,000,000.
+  optional int64 model_version = 4;
 }
 
 message ClientPhishingRequest {
@@ -765,9 +775,9 @@ message ClientDownloadRequest {
     // The document URL for a PPAPI plugin instance that initiated the download.
     // This is the document.url for the container element for the plugin
     // instance.
-    PPAPI_DOCUMENT = 4;
+    PPAPI_DOCUMENT = 4 [deprecated = true];
     // The plugin URL for a PPAPI plugin instance that initiated the download.
-    PPAPI_PLUGIN = 5;
+    PPAPI_PLUGIN = 5 [deprecated = true];
   }
 
   message Resource {
@@ -866,7 +876,7 @@ message ClientDownloadRequest {
     MAC_ARCHIVE_FAILED_PARSING = 8;
     // A download request initiated via PPAPI. Typically the requestor is
     // a Flash applet.
-    PPAPI_SAVE_REQUEST = 9;
+    PPAPI_SAVE_REQUEST = 9 [deprecated = true];
     // A file we don't support, but we've decided to sample and send
     // a light-ping.
     SAMPLED_UNSUPPORTED_FILE = 10;
@@ -990,7 +1000,7 @@ message ClientDownloadRequest {
   // PPAPI_SAVE_REQUEST type messages may have more than one suggested filetype.
   // Each element in this collection indicates an alternate extension including
   // the leading extension separator.
-  repeated string alternate_extensions = 35;
+  repeated string alternate_extensions = 35 [deprecated = true];
 
   // If we can find the complete referrer chain, this field will contains URLs
   // transitions from landing referrer to event in reverse chronological
@@ -1149,6 +1159,15 @@ message ClientDownloadRequest {
   // from the ClientDownloadResponse that requested the visual features.
   // This is only populated for Enhanced Protection users.
   repeated DownloadVisualFeatures download_visual_features = 98;
+
+  // An opaque string value populated by Chrome on Android only, to be used by
+  // the server for rate-limiting or throttling individual clients who may be
+  // sending requests too frequently. A given value of `rate_limiting_key` can
+  // be used to pseudonymously identify ClientDownloadRequests sent by a single
+  // Chrome Profile, within a period of time (TTL). The TTL for this value is
+  // 15 minutes in Chrome on Android, and it is not persistent across restarting
+  // Chrome, and will be different for different Chrome profiles on the device.
+  optional string rate_limiting_key = 99;
 }
 
 message ReferrerChainOptions {
@@ -1301,6 +1320,8 @@ enum ClientSideDetectionType {
   VIBRATION_API = 6;
   // Fullscreen API request triggered.
   FULLSCREEN_API = 7;
+  // Clipboard copy API request triggered.
+  CLIPBOARD_COPY_API = 8;
 }
 
 message ClientDownloadResponse {
@@ -1690,6 +1711,7 @@ message ClientSafeBrowsingReportRequest {
     URL_UNWANTED = 3;
     URL_CLIENT_SIDE_PHISHING = 4;
     URL_CLIENT_SIDE_MALWARE = 5 [deprecated = true];
+    // See also: DANGEROUS_DOWNLOAD_WARNING_ANDROID.
     DANGEROUS_DOWNLOAD_RECOVERY = 6;
     DANGEROUS_DOWNLOAD_WARNING = 7;
     DANGEROUS_DOWNLOAD_BY_API = 10;
@@ -1717,6 +1739,9 @@ message ClientSafeBrowsingReportRequest {
     // Triggered by a redirect to an external app, either through an
     // external protocol scheme (e.g. mailto://) or an Intent.
     EXTERNAL_APP_REDIRECT = 28;
+    // Analogous to DANGEROUS_DOWNLOAD_RECOVERY and DANGEROUS_DOWNLOAD_WARNING,
+    // but used only for download warnings in Chrome on Android.
+    DANGEROUS_DOWNLOAD_WARNING_ANDROID = 29;
   }
   // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:ClientSafeBrowsingReportType)
 

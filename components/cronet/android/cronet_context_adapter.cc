@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "components/cronet/android/cronet_context_adapter.h"
-#include "components/cronet/android/proto/request_context_config.pb.h"
 
 #include <limits.h>
 #include <stddef.h>
@@ -35,6 +34,7 @@
 #include "components/cronet/android/cronet_library_loader.h"
 #include "components/cronet/cronet_prefs_manager.h"
 #include "components/cronet/host_cache_persistence_manager.h"
+#include "components/cronet/proto/request_context_config.pb.h"
 #include "components/cronet/url_request_context_config.h"
 #include "components/metrics/library_support/histogram_manager.h"
 #include "net/base/load_flags.h"
@@ -64,6 +64,23 @@ using base::android::ScopedJavaLocalRef;
 
 namespace cronet {
 
+namespace {
+
+std::vector<std::string> ConvertHttpResponseHeadersToVector(
+    const net::HttpResponseHeaders& headers) {
+  std::vector<std::string> response_headers;
+  size_t iter = 0;
+  std::string header_name;
+  std::string header_value;
+  while (headers.EnumerateHeaderLines(&iter, &header_name, &header_value)) {
+    response_headers.push_back(std::move(header_name));
+    response_headers.push_back(std::move(header_value));
+  }
+  return response_headers;
+}
+
+}  // namespace
+
 CronetContextAdapter::CronetContextAdapter(
     std::unique_ptr<URLRequestContextConfig> context_config) {
   // Create context and pass ownership of |this| (self) to the context.
@@ -82,7 +99,6 @@ void CronetContextAdapter::InitRequestContextOnInitThread(
 
 void CronetContextAdapter::ConfigureNetworkQualityEstimatorForTesting(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
     jboolean use_local_host_requests,
     jboolean use_smaller_responses,
     jboolean disable_offline_check) {
@@ -96,17 +112,12 @@ bool CronetContextAdapter::URLRequestContextExistsForTesting(
   return context_->URLRequestContextExistsForTesting(network);  // IN-TEST
 }
 
-void CronetContextAdapter::ProvideRTTObservations(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
-    bool should) {
+void CronetContextAdapter::ProvideRTTObservations(JNIEnv* env, bool should) {
   context_->ProvideRTTObservations(should == JNI_TRUE);
 }
 
-void CronetContextAdapter::ProvideThroughputObservations(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
-    bool should) {
+void CronetContextAdapter::ProvideThroughputObservations(JNIEnv* env,
+                                                         bool should) {
   context_->ProvideThroughputObservations(should == JNI_TRUE);
 }
 
@@ -160,8 +171,34 @@ void CronetContextAdapter::OnStopNetLogCompleted() {
       base::android::AttachCurrentThread(), jcronet_url_request_context_);
 }
 
-void CronetContextAdapter::Destroy(JNIEnv* env,
-                                   const JavaParamRef<jobject>& jcaller) {
+bool CronetContextAdapter::OnBeforeTunnelRequest(
+    int chain_id,
+    net::HttpRequestHeaders* extra_headers) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::optional<std::vector<std::string>> jheaders =
+      Java_CronetUrlRequestContext_onBeforeTunnelRequest(
+          env, jcronet_url_request_context_, chain_id);
+  if (!jheaders.has_value()) {
+    return false;
+  }
+  const auto& headers = *jheaders;
+  for (size_t i = 0; i < headers.size(); i += 2) {
+    extra_headers->SetHeader(headers[i], headers[i + 1]);
+  }
+  return true;
+}
+
+bool CronetContextAdapter::OnTunnelHeadersReceived(
+    int chain_id,
+    const net::HttpResponseHeaders& response_headers) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_CronetUrlRequestContext_onTunnelHeadersReceived(
+      env, jcronet_url_request_context_, chain_id,
+      ConvertHttpResponseHeadersToVector(response_headers),
+      response_headers.response_code());
+}
+
+void CronetContextAdapter::Destroy(JNIEnv* env) {
   // Deleting |context_| on client thread will post cleanup onto network thread,
   // which will in turn delete |this| on network thread.
   delete context_;
@@ -184,7 +221,6 @@ bool CronetContextAdapter::IsOnNetworkThread() const {
 
 bool CronetContextAdapter::StartNetLogToFile(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
     const JavaParamRef<jstring>& jfile_name,
     jboolean jlog_all) {
   std::string file_name(
@@ -194,7 +230,6 @@ bool CronetContextAdapter::StartNetLogToFile(
 
 void CronetContextAdapter::StartNetLogToDisk(
     JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
     const JavaParamRef<jstring>& jdir_name,
     jboolean jlog_all,
     jint jmax_size) {
@@ -202,14 +237,11 @@ void CronetContextAdapter::StartNetLogToDisk(
   context_->StartNetLogToDisk(dir_name, jlog_all == JNI_TRUE, jmax_size);
 }
 
-void CronetContextAdapter::StopNetLog(JNIEnv* env,
-                                      const JavaParamRef<jobject>& jcaller) {
+void CronetContextAdapter::StopNetLog(JNIEnv* env) {
   context_->StopNetLog();
 }
 
-void CronetContextAdapter::FlushWritePropertiesForTesting(
-    JNIEnv* env,
-    const base::android::JavaParamRef<jobject>& jcaller) {
+void CronetContextAdapter::FlushWritePropertiesForTesting(JNIEnv* env) {
   context_->FlushWritePropertiesForTesting();  // IN-TEST
 }
 
@@ -221,8 +253,9 @@ int CronetContextAdapter::default_load_flags() const {
 static jlong JNI_CronetUrlRequestContext_CreateRequestContextConfig(
     JNIEnv* env,
     const JavaParamRef<jbyteArray>& javaSerializedProto) {
-  const int serializedProtoLength = env->GetArrayLength(javaSerializedProto);
-  org::chromium::net::RequestContextConfigOptions configOptions;
+  const int serializedProtoLength =
+      env->GetArrayLength(javaSerializedProto.obj());
+  cronet::proto::RequestContextConfigOptions configOptions;
 
   std::vector<uint8_t> serializedProto;
 
@@ -251,7 +284,10 @@ static jlong JNI_CronetUrlRequestContext_CreateRequestContextConfig(
           configOptions.network_thread_priority() >= -20 &&
                   configOptions.network_thread_priority() <= 19
               ? std::optional<int>(configOptions.network_thread_priority())
-              : std::optional<int>());
+              : std::optional<int>(),
+          configOptions.has_proxy_options()
+              ? configOptions.proxy_options()
+              : std::optional<cronet::proto::ProxyOptions>());
   return reinterpret_cast<jlong>(url_request_context_config.release());
 }
 
@@ -306,6 +342,18 @@ static void JNI_CronetUrlRequestContext_AddPkp(
     env->ReleaseByteArrayElements(bytes_array.obj(), bytes, JNI_ABORT);
   }
   config->pkp_list.push_back(std::move(pkp));
+}
+
+static bool JNI_CronetUrlRequestContext_IsValidHeaderName(
+    JNIEnv* env,
+    std::string& header_name) {
+  return net::HttpUtil::IsValidHeaderName(header_name);
+}
+
+static bool JNI_CronetUrlRequestContext_IsValidHeaderValue(
+    JNIEnv* env,
+    std::string& header_value) {
+  return net::HttpUtil::IsValidHeaderValue(header_value);
 }
 
 // Creates RequestContextAdater if config is valid URLRequestContextConfig,

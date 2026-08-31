@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/logging.h"
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 

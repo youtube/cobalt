@@ -56,6 +56,7 @@ static_library("parent_access") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/chromeos/parent_access:resources",
     "//chrome/browser/resources/chromeos/supervision:resources",
+    "//chrome/browser/signin",
     "//components/google/core/common",
     "//components/signin/public/base",
     "//components/supervised_user/core/browser",
@@ -66,6 +67,17 @@ static_library("parent_access") {
     "//ui/webui",
     "//url",
   ]
+}
+
+static_library("test_support") {
+  testonly = true
+
+  sources = [
+    "fake_parent_access_dialog.cc",
+    "fake_parent_access_dialog.h",
+  ]
+
+  deps = [ ":parent_access" ]
 }
 
 source_set("browser_tests") {
@@ -88,6 +100,7 @@ source_set("browser_tests") {
     "//chrome/browser",
     "//chrome/browser:browser_process",
     "//chrome/browser/ash/login/test:test_support",
+    "//chrome/browser/signin",
     "//chrome/browser/ui",
     "//chrome/common",
     "//components/signin/public/identity_manager:test_support",

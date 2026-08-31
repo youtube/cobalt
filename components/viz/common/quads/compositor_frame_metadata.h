@@ -19,6 +19,7 @@
 #include "components/viz/common/quads/frame_deadline.h"
 #include "components/viz/common/quads/frame_interval_inputs.h"
 #include "components/viz/common/quads/offset_tag.h"
+#include "components/viz/common/quads/trees_in_viz_timing.h"
 #include "components/viz/common/surfaces/region_capture_bounds.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "components/viz/common/surfaces/surface_range.h"
@@ -174,12 +175,6 @@ class VIZ_COMMON_EXPORT CompositorFrameMetadata {
   // value set.
   std::optional<float> top_controls_visible_height;
 
-  // Specifies the interval at which the client's content is updated. This can
-  // be used to configure the display to the optimal vsync interval available.
-  // If unspecified, or set to BeginFrameArgs::MinInterval, it is assumed that
-  // the client can animate at the maximum frame rate supported by the Display.
-  std::optional<base::TimeDelta> preferred_frame_interval;
-
   // Display transform hint when the frame is generated. Note this is only
   // applicable to frames of the root surface.
   gfx::OverlayTransform display_transform_hint = gfx::OVERLAY_TRANSFORM_NONE;
@@ -234,6 +229,9 @@ class VIZ_COMMON_EXPORT CompositorFrameMetadata {
 
   // Information used to compute overall ideal frame interval.
   FrameIntervalInputs frame_interval_inputs;
+
+  // Timestamps for TreesInViz metric reporting.
+  TreesInVizTiming trees_in_viz_timing_details;
 
  private:
   CompositorFrameMetadata(const CompositorFrameMetadata& other);

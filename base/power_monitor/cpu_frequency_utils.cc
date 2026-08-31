@@ -8,7 +8,7 @@
 #include "base/system/sys_info.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -45,7 +45,7 @@ double EstimateCpuFrequency() {
 
 std::optional<CpuThroughputEstimationResult> EstimateCpuThroughput() {
 #if defined(ARCH_CPU_X86_FAMILY)
-  TRACE_EVENT0("power", "EstimateCpuThroughput");
+  TRACE_EVENT("base.power", "EstimateCpuThroughput");
 
 #if BUILDFLAG(IS_WIN)
   DWORD start_processor_number = GetCurrentProcessorNumber();

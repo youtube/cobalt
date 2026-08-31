@@ -27,11 +27,6 @@ constexpr auto kResampleMaxPrediction = base::Milliseconds(8);
 // so that resampled result is more accurate and has less noise. This adds some
 // latency during resampling but a few ms should be fine.
 constexpr auto kResampleLatency = base::Milliseconds(-5);
-// The optimal prediction anticipation from experimentation: In the study
-// https://bit.ly/3iyQf8V we found that, on a machine with VSync at 60Hz, adding
-// 1/2 * frame_interval (on top of kResampleLatency) minimizes the Lag on touch
-// scrolling. + 1/2 * (1/60) - 5ms = 3.3ms.
-constexpr auto kResampleLatencyExperimental = base::Milliseconds(3.3);
 
 // Get position at |sample_time| by linear interpolate/extrapolate a and b.
 inline gfx::PointF lerp(const InputPredictor::InputData& a,
@@ -41,6 +36,13 @@ inline gfx::PointF lerp(const InputPredictor::InputData& a,
       (sample_time - a.time_stamp) / (a.time_stamp - b.time_stamp);
   return a.pos + gfx::ScaleVector2d(a.pos - b.pos, alpha);
 }
+
+// This value is related to kResamplingScrollEventsExperimentalPrediction and
+// may be adjusted based on experimentation results. Currently, CalculateLatency
+// relies on reading values off of the field trial (which won't exist when we
+// ship). As such, we introduce the following constant which can be used for the
+// latency calculation.
+constexpr double kPredictFrameAheadBy = 0.375;
 
 }  // namespace
 
@@ -126,26 +128,32 @@ base::TimeDelta LinearResampling::LatencyCalculator::CalculateLatency() {
   std::string prediction_type = GetFieldTrialParamValueByFeature(
       ::features::kResamplingScrollEventsExperimentalPrediction, "mode");
 
-  std::string latency_value = GetFieldTrialParamValueByFeature(
-      ::features::kResamplingScrollEventsExperimentalPrediction, "latency");
-
-  TRACE_EVENT2("ui", "LatencyCalculator::CalculateLatency", "prediction_type",
-               prediction_type, "latency_value", latency_value);
-
-  if (prediction_type != ::features::kPredictionTypeTimeBased &&
-      prediction_type != ::features::kPredictionTypeFramesBased)
-    return kResampleLatency;
-
-  double latency;
-  if (base::StringToDouble(latency_value, &latency)) {
-    return prediction_type == ::features::kPredictionTypeTimeBased
-               ? base::Milliseconds(latency)
-               : latency * frame_interval_ + kResampleLatency;
+  if (prediction_type != ::features::kPredictionTypeFramesBased) {
+    const bool feature_enabled = base::FeatureList::IsEnabled(
+        ::features::kResamplingScrollEventsExperimentalPrediction);
+    TRACE_EVENT2("ui", "LatencyCalculator::CalculateLatency", "prediction_type",
+                 (feature_enabled ? "frames based" : "default"),
+                 "predicting ahead by",
+                 (feature_enabled ? kPredictFrameAheadBy : 0));
+    // If the feature is enabled and no field trial is active, default to using
+    // kPredictFrameAheadBy. Tests that set up field trials need not hit this
+    // path since they are testing specific latency values.
+    return kResampleLatency + (feature_enabled
+                                   ? (kPredictFrameAheadBy * frame_interval_)
+                                   : base::Milliseconds(0));
   }
 
-  return prediction_type == ::features::kPredictionTypeTimeBased
-             ? kResampleLatencyExperimental
-             : 0.5 * frame_interval_ + kResampleLatency;
+  double latency = 0;
+  if (!base::StringToDouble(
+          GetFieldTrialParamValueByFeature(
+              ::features::kResamplingScrollEventsExperimentalPrediction,
+              "latency"),
+          &latency)) {
+    latency = 0.5;
+  }
+  TRACE_EVENT2("ui", "LatencyCalculator::CalculateLatency", "prediction_type",
+               prediction_type, "latency", latency);
+  return latency * frame_interval_ + kResampleLatency;
 }
 
 }  // namespace ui

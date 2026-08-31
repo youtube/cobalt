@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Agora só podes usar Ferramentas de clase</translation>
 <translation id="1762483337755424125">Transcrición</translation>
 <translation id="1765169783255151332">Cambia rapidamente de tecla</translation>
 <translation id="1768959921651994223">Tipo de autenticación</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Alternar entre deseños</translation>
 <translation id="224421911978987610">longa exposición</translation>
 <translation id="2244834438220057800">verde</translation>
+<translation id="2248689665683494517">bodegón minimalista dunhas poucas papoulas dentro dun vaso de vidro con fondo negro</translation>
 <translation id="225692081236532131">Estado de activación</translation>
 <translation id="2267285889943769271">Engadir captura de pantalla</translation>
 <translation id="2268044343513325586">Refina</translation>
@@ -428,7 +430,7 @@
 <translation id="2780756493585863768">Fondos recentes con tecnoloxía da IA de Google</translation>
 <translation id="2783010256799387990">PROBA SUPERADA</translation>
 <translation id="2786429550992142861">liño</translation>
-<translation id="2787237339470862294">Nestes momentos, non se admite este idioma</translation>
+<translation id="2787237339470862294">Nestes momentos, este idioma non está dispoñible</translation>
 <translation id="2787435249130282949">teclado máis brillante</translation>
 <translation id="2805756323405976993">Aplicacións</translation>
 <translation id="28232023175184696">Non foi posible conectarse a Internet. Facer clic para tentalo de novo.</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Produciuse un erro: a impresora está detida</translation>
 <translation id="3102119246920354026">Caché</translation>
 <translation id="3103783611481501187">surrealista</translation>
+<translation id="3119672627216736407">Tradución dispoñible</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">estanques</translation>
 <translation id="3122883569442693641">Máis detalles</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">gasa</translation>
 <translation id="4310735698903592804">Fondos de pantalla recentes con tecnoloxía da IA de Google</translation>
 <translation id="4320904097188876154">rosa fluorescente</translation>
+<translation id="432961742358282111">Fai clic co botón dereito ou mantén premido o texto para facer conversións entre unidades ou obter definicións e traducións. Usa as teclas Frecha esquerda ou Frecha dereita para xestionar esta función.</translation>
 <translation id="4333390807948134856">Tecla <ph name="KEY_NAME" /> premida</translation>
 <translation id="4334293042716981313">Tamén podes <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />escribir unha solicitude<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tecla</translation>
@@ -855,7 +859,7 @@
 <translation id="4778082030331381943">ametista</translation>
 <translation id="4782311465517282004">Obtén definicións, traducións ou conversións de unidades cando fagas clic co botón dereito sobre un texto ou o manteñas premido</translation>
 <translation id="4791000909649665275"><ph name="NUMBER" /> foto/s</translation>
-<translation id="4793710386569335688">Para obter máis axuda, vai ao <ph name="BEGIN_LINK" />Centro de Axuda<ph name="END_LINK" />.</translation>
+<translation id="4793710386569335688">Para obter máis axuda, vai ao <ph name="BEGIN_LINK" />Centro de axuda<ph name="END_LINK" />.</translation>
 <translation id="4793756956024303490">Algoritmo de compresión</translation>
 <translation id="4794140124556169553">A execución de probas de CPU pódelle afectar ao rendemento do sistema</translation>
 <translation id="4798078634453489142">Quita un APN para engadir un novo</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Para finalizar, introduce o teu antigo contrasinal e o novo</translation>
 <translation id="6061772781719867950">Produciuse un erro coas solicitudes HTTPS</translation>
 <translation id="6073292342939316679">reducir o brillo do teclado</translation>
+<translation id="6074608334942655098">Deter tradución</translation>
 <translation id="6074752328838739425">Ocultar o resumo</translation>
 <translation id="6075872808778243331">(Android) latencia de HTTP</translation>
 <translation id="6078323886959318429">Engadir atallo</translation>
@@ -1317,7 +1322,7 @@
 <translation id="6846843854964504403">Restablecemento de seguranza</translation>
 <translation id="6853312040151791195">Taxa de descarga</translation>
 <translation id="6862228900689076919">A persoa administradora xestiona esta función</translation>
-<translation id="6862416241246624313">Comentarios enviados</translation>
+<translation id="6862416241246624313">Enviouse o comentario</translation>
 <translation id="6866732840889595464">margarida</translation>
 <translation id="6871256179359663621">lila</translation>
 <translation id="6887967050249348172">Desactiváronse as extensións para evitar cambios na configuración. Activa só extensións nas que confíes.</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Pregúntalles ás persoas expertas do foro de axuda de Chromebook</translation>
-<translation id="7309823890857024809">bodegón minimalista duns poucos tallos de papoulas dentro dun vaso de vidro con fondo negro</translation>
 <translation id="7311368985037279727">cor do teclado</translation>
 <translation id="7317831949569936035">Inscrición do centro educativo</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Descarga o modelo de transcrición (ocupa un máximo de 100 MB) para ver estas 
 <translation id="8088963492174775412">Preme para gravar</translation>
 <translation id="8094062939584182041">Permitir que Google che envíe correos electrónicos sobre este tema</translation>
 <translation id="8104083085214006426">Estás usando unha rede aberta e non segura</translation>
+<translation id="8108879170356113798">Só poderás usar Ferramentas de clase dentro de <ph name="NUM_SECONDS" /> segundos</translation>
 <translation id="811820734797650957">(Android) pódeselle facer ping á pasarela</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" /> °C</translation>
 <translation id="8131740175452115882">Confirmar</translation>

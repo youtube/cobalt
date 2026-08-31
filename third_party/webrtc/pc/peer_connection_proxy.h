@@ -153,12 +153,16 @@ PROXY_METHOD0(PeerConnectionInterface::RTCConfiguration, GetConfiguration)
 PROXY_METHOD1(RTCError,
               SetConfiguration,
               const PeerConnectionInterface::RTCConfiguration&)
-PROXY_METHOD1(bool, AddIceCandidate, const IceCandidateInterface*)
+PROXY_METHOD1(bool, AddIceCandidate, const IceCandidate*)
 PROXY_METHOD2(void,
               AddIceCandidate,
-              std::unique_ptr<IceCandidateInterface>,
+              std::unique_ptr<IceCandidate>,
               std::function<void(RTCError)>)
+PROXY_METHOD1(bool, RemoveIceCandidate, const IceCandidate*)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 PROXY_METHOD1(bool, RemoveIceCandidates, const std::vector<Candidate>&)
+#pragma clang diagnostic pop
 PROXY_METHOD1(RTCError, SetBitrate, const BitrateSettings&)
 PROXY_METHOD1(void,
               ReconfigureBandwidthEstimation,

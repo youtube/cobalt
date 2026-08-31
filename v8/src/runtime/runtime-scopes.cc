@@ -151,7 +151,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
       Cast<SourceTextModule>(context->extension())->regular_exports(), isolate);
 
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < length, i++) {
     Tagged<Object> decl = declarations->get(i);
     int index;
     Tagged<Object> value;
@@ -171,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
     }
 
     Cast<Cell>(exports->get(index - 1))->set_value(value);
-  });
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -194,7 +194,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int i = 0, i, i < length, i++) {
     Handle<Object> decl(declarations->get(i), isolate);
     Handle<String> name;
     Handle<Object> value;
@@ -228,7 +228,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
         DeclareGlobal(isolate, global, name, value, attr, is_var,
                       RedeclarationType::kSyntaxError);
     if (IsException(result)) return result;
-  });
+  }
 
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -251,11 +251,10 @@ Maybe<bool> AddToDisposableStack(Isolate* isolate,
                                  DisposeMethodCallType type,
                                  DisposeMethodHint hint) {
   DirectHandle<Object> method;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(isolate, value,
-                                                           hint),
-      Nothing<bool>());
+                                                           hint));
 
   // Return the DisposableResource Record { [[ResourceValue]]: V, [[Hint]]:
   // hint, [[DisposeMethod]]: method }.

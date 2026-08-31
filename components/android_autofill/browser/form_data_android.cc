@@ -9,12 +9,15 @@
 #include <tuple>
 
 #include "base/containers/flat_map.h"
+#include "base/feature_list.h"
 #include "components/android_autofill/browser/android_autofill_bridge_factory.h"
+#include "components/android_autofill/browser/autofill_type_util.h"
 #include "components/android_autofill/browser/form_data_android_bridge.h"
 #include "components/android_autofill/browser/form_field_data_android.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/autofill/core/common/unique_ids.h"
 
@@ -49,7 +52,10 @@ void FormDataAndroid::OnFormFieldDidChange(size_t index,
 
 bool FormDataAndroid::GetFieldIndex(const FormFieldData& field, size_t* index) {
   for (size_t i = 0; i < form_.fields().size(); ++i) {
-    if (form_.fields()[i].SameFieldAs(field)) {
+    if (base::FeatureList::IsEnabled(
+            features::kAutofillUseDeepEqualInsteadOfSameFieldAs)
+            ? FormFieldData::DeepEqual(form_.fields()[i], field)
+            : form_.fields()[i].SameFieldAs(field)) {
       *index = i;
       return true;
     }
@@ -108,11 +114,19 @@ void FormDataAndroid::UpdateFieldTypes(const FormStructure& form_structure) {
         server_predictions.emplace_back(
             ToSafeFieldType(prediction.type(), NO_SERVER_DATA));
       }
+      std::string_view computed_type = [&] {
+        if (HtmlFieldType html_field_type = autofill_field->html_type();
+            html_field_type != HtmlFieldType::kUnspecified &&
+            html_field_type != HtmlFieldType::kUnrecognized) {
+          return FieldTypeToStringView(html_field_type);
+        }
+        return FieldTypeToStringView(
+            GetMostRelevantFieldType(autofill_field->ComputedType()));
+      }();
       form_field_data_android->UpdateFieldTypes(
           FormFieldDataAndroid::FieldTypes(
               autofill_field->heuristic_type(), autofill_field->server_type(),
-              autofill_field->ComputedType().ToStringView(),
-              std::move(server_predictions)));
+              computed_type, std::move(server_predictions)));
     }
   }
 }

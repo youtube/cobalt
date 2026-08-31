@@ -141,13 +141,14 @@ ReadOnlyPageMetadata::ReadOnlyPageMetadata(Heap* heap, BaseSpace* space,
                                            Address area_start, Address area_end,
                                            VirtualMemory reservation)
     : MemoryChunkMetadata(heap, space, chunk_size, area_start, area_end,
-                          std::move(reservation)) {
+                          std::move(reservation),
+                          Executability::NOT_EXECUTABLE) {
   allocated_bytes_ = 0;
+  set_never_evacuate();
 }
 
 MemoryChunk::MainThreadFlags ReadOnlyPageMetadata::InitialFlags() const {
-  return MemoryChunk::NEVER_EVACUATE | MemoryChunk::READ_ONLY_HEAP |
-         MemoryChunk::CONTAINS_ONLY_OLD;
+  return MemoryChunk::READ_ONLY_HEAP | MemoryChunk::CONTAINS_ONLY_OLD;
 }
 
 void ReadOnlyPageMetadata::MakeHeaderRelocatable() {
@@ -240,7 +241,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
       cur_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(obj_size);
       DCHECK_LE(cur_addr_, cur_end_);
       if (!IsFreeSpaceOrFiller(obj)) {
-        DCHECK_OBJECT_SIZE(obj_size);
+        DCHECK_VALID_REGULAR_OBJECT_SIZE(obj_size);
         return obj;
       }
     }
@@ -500,7 +501,7 @@ void ReadOnlySpace::ShrinkPages() {
   heap()->CreateFillerObjectAt(top_, static_cast<int>(limit_ - top_));
 
   for (ReadOnlyPageMetadata* page : pages_) {
-    DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::NEVER_EVACUATE));
+    DCHECK(page->never_evacuate());
     size_t unused = page->ShrinkToHighWaterMark();
     capacity_ -= unused;
     accounting_stats_.DecreaseCapacity(static_cast<intptr_t>(unused));

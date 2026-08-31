@@ -55,6 +55,8 @@
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #endif  // BUILDFLAG(ENABLE_PLATFORM_APPS)
 
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 using extensions::AppWindow;
 using extensions::AppWindowRegistry;
 using extensions::Extension;
@@ -119,8 +121,8 @@ class NotificationsApiTest : public extensions::ExtensionApiTest {
   }
 
   AppWindow* GetFirstAppWindow(const std::string& app_id) {
-    AppWindowRegistry::AppWindowList app_windows = AppWindowRegistry::Get(
-        browser()->profile())->GetAppWindowsForApp(app_id);
+    AppWindowRegistry::AppWindowList app_windows =
+        AppWindowRegistry::Get(profile())->GetAppWindowsForApp(app_id);
 
     AppWindowRegistry::const_iterator iter = app_windows.begin();
     if (iter != app_windows.end())
@@ -174,7 +176,7 @@ class NotificationsApiTest : public extensions::ExtensionApiTest {
 
 #if BUILDFLAG(ENABLE_PLATFORM_APPS)
   void LaunchPlatformApp(const Extension* extension) {
-    apps::AppServiceProxyFactory::GetForProfile(browser()->profile())
+    apps::AppServiceProxyFactory::GetForProfile(profile())
         ->BrowserAppLauncher()
         ->LaunchAppWithParamsForTesting(apps::AppLaunchParams(
             extension->id(), apps::LaunchContainer::kLaunchContainerNone,

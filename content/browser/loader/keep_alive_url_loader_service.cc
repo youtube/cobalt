@@ -6,20 +6,20 @@
 
 #include <map>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/trace_event/typed_macros.h"
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/attribution_reporting/attribution_suitable_context.h"
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/loader/keep_alive_attribution_request_helper.h"
 #include "content/browser/loader/keep_alive_url_loader.h"
 #include "content/browser/renderer_host/document_associated_data.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/policy_container_host.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
@@ -32,6 +32,21 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "third_party/blink/public/common/features.h"
+
+namespace {
+
+constexpr size_t kMaxRetryCountsCacheSize = 1000u;
+
+}  // namespace
+
+namespace features {
+
+const base::FeatureParam<size_t> kMaxRetriesPerFactory{
+    &blink::features::kFetchRetry, "max_retries_per_factory", 20};
+const base::FeatureParam<size_t> kMaxRetriesPerNetworkIsolationKey{
+    &blink::features::kFetchRetry, "max_retries_per_nik", 50};
+
+}  // namespace features
 
 namespace content {
 
@@ -48,11 +63,11 @@ KeepAliveURLLoaderService::FactoryContext::FactoryContext(
     : factory(other->factory),
       weak_document_ptr(other->weak_document_ptr),
       ukm_source_id(other->ukm_source_id),
-      policy_container_host(other->policy_container_host)
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-    , attribution_context(other->attribution_context)
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-{}
+      policy_container_host(other->policy_container_host),
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+      attribution_context(other->attribution_context),
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+      network_isolation_key(other->network_isolation_key) {}
 
 KeepAliveURLLoaderService::FactoryContext::~FactoryContext() = default;
 
@@ -61,6 +76,8 @@ void KeepAliveURLLoaderService::FactoryContext::OnDidCommitNavigation(
   CHECK(navigation_handle);
   weak_document_ptr =
       navigation_handle->GetRenderFrameHost()->GetWeakDocumentPtr();
+  network_isolation_key =
+      navigation_handle->GetRenderFrameHost()->GetNetworkIsolationKey();
 
   auto* rfh = static_cast<RenderFrameHostImpl*>(
       weak_document_ptr.AsRenderFrameHostIfValid());
@@ -70,11 +87,11 @@ void KeepAliveURLLoaderService::FactoryContext::OnDidCommitNavigation(
   ukm_source_id = navigation_handle->GetNextPageUkmSourceId();
   policy_container_host = rfh->policy_container_host();
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // `attribution_context` is needed for all kinds of keepalive requests, as
   // trigger registrations are allowed for all subresource requests.
   attribution_context = AttributionSuitableContext::Create(navigation_handle);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   CHECK(policy_container_host);
 
@@ -92,9 +109,9 @@ void KeepAliveURLLoaderService::FactoryContext::
       weak_document_ptr.AsRenderFrameHostIfValid());
   CHECK(rfh);
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   attribution_context = AttributionSuitableContext::Create(rfh);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 }
 
 void KeepAliveURLLoaderService::FactoryContext::
@@ -156,12 +173,54 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
     }
   }
 
+  void ClearKeepAliveURLLoadersAttemptingRetry() {
+    std::vector<mojo::ReceiverId> loader_ids_to_remove;
+    for (const auto& [loader_id, weak_ptr_loader] : weak_ptr_loaders_) {
+      if (weak_ptr_loader &&
+          weak_ptr_loader->IsAttemptingRetry(/*include_failed_retry=*/true)) {
+        loader_ids_to_remove.push_back(loader_id);
+      }
+    }
+
+    for (auto loader_id : loader_ids_to_remove) {
+      RemoveLoader(loader_id);
+    }
+  }
+
+  void DidObserveNewlyActiveDocumentWithNIK(
+      const net::NetworkIsolationKey& nik) {
+    for (const auto& [_, weak_ptr_loader] : weak_ptr_loaders_) {
+      if (weak_ptr_loader) {
+        weak_ptr_loader->DidObserveNewlyActiveDocumentWithNIK(nik);
+      }
+    }
+  }
+
   // For testing only:
+  base::WeakPtr<KeepAliveURLLoader> GetLoaderWithRequestIdForTesting(
+      int32_t request_id) const {
+    for (const auto& [_, weak_ptr_loader] : weak_ptr_loaders_) {
+      if (weak_ptr_loader->request_id() == request_id) {
+        return weak_ptr_loader;
+      }
+    }
+    return nullptr;
+  }
+
   size_t NumLoadersForTesting() const {
     return loader_receivers_.size() + disconnected_loaders_.size();
   }
   size_t NumDisconnectedLoadersForTesting() const {
     return disconnected_loaders_.size();
+  }
+  size_t NumLoadersAttemptingRetryForTesting(bool include_failed_retry) const {
+    int count = 0;
+    for (const auto& [_, weak_ptr_loader] : weak_ptr_loaders_) {
+      if (weak_ptr_loader->IsAttemptingRetry(include_failed_retry)) {
+        count++;
+      }
+    }
+    return count;
   }
 
  protected:
@@ -214,11 +273,12 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
         // caller renderer is already unloaded, meaning `loader` also needs to
         // hold another refptr to ensure `PolicyContainerHost` alive.
         context->policy_container_host, context->weak_document_ptr,
-        context->ukm_source_id, service_->browser_context_,
+        context->network_isolation_key, context->ukm_source_id,
+        service_->storage_partition_,
         base::BindRepeating(&KeepAliveURLLoaderFactoriesBase::CreateThrottles,
                             base::Unretained(this)),
         base::PassKey<KeepAliveURLLoaderService>(),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
         KeepAliveAttributionRequestHelper::CreateIfNeeded(
             resource_request.attribution_reporting_eligibility,
             resource_request.url,
@@ -227,7 +287,7 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
             context->weak_document_ptr)
 #else
         nullptr
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     );
     // Adds a new loader receiver to the set held by `this`, binding the pending
     // `receiver` from a renderer to `raw_loader` with `loader` as its context.
@@ -238,6 +298,12 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
     raw_loader->set_on_delete_callback(
         base::BindOnce(&KeepAliveURLLoaderFactoriesBase::RemoveLoader,
                        base::Unretained(this), receiver_id));
+    raw_loader->set_check_retry_eligibility_callback(base::BindRepeating(
+        &KeepAliveURLLoaderFactoriesBase::CheckRetryEligibility,
+        base::Unretained(this), context->network_isolation_key));
+    raw_loader->set_on_retry_scheduled_callback(base::BindRepeating(
+        &KeepAliveURLLoaderFactoriesBase::OnRetryScheduled,
+        base::Unretained(this), context->network_isolation_key));
     weak_ptr_loaders_.emplace(receiver_id, std::move(raw_loader->GetWeakPtr()));
 
     if (service_->loader_test_observer_) {
@@ -262,7 +328,7 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
     // in https://crrev.com/c/2552723/3 suggests that running them again in
     // browser is fine.
     return CreateContentBrowserURLLoaderThrottlesForKeepAlive(
-        service_->browser_context_, FrameTreeNodeId());
+        service_->storage_partition_->browser_context(), FrameTreeNodeId());
   }
 
   void OnLoaderDisconnected() {
@@ -292,6 +358,22 @@ class KeepAliveURLLoaderService::KeepAliveURLLoaderFactoriesBase {
     disconnected_loaders_.erase(loader_receiver_id);
     weak_ptr_loaders_.erase(loader_receiver_id);
   }
+
+  bool CheckRetryEligibility(const net::NetworkIsolationKey& key) {
+    if (retry_count_ < features::kMaxRetriesPerFactory.Get()) {
+      return service_->CheckRetryEligibility(key);
+    }
+    return false;
+  }
+
+  void OnRetryScheduled(const net::NetworkIsolationKey& key) {
+    CHECK(CheckRetryEligibility(key));
+    retry_count_++;
+    service_->OnRetryScheduled(key);
+  }
+
+  // The total amount of retries scheduled for loaders owned by this factory.
+  size_t retry_count_ = 0;
 
   // Guaranteed to exist, as `service_` owns this.
   raw_ptr<KeepAliveURLLoaderService> service_;
@@ -523,10 +605,11 @@ class KeepAliveURLLoaderService::FetchLaterLoaderFactories final
 };
 
 KeepAliveURLLoaderService::KeepAliveURLLoaderService(
-    BrowserContext* browser_context)
-    : browser_context_(browser_context) {
+    StoragePartitionImpl* storage_partition)
+    : storage_partition_(storage_partition),
+      retry_counts_(kMaxRetryCountsCacheSize) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  CHECK(browser_context_);
+  CHECK(storage_partition_);
 
   url_loader_factories_ = std::make_unique<KeepAliveURLLoaderFactories>(this);
   fetch_later_loader_factories_ =
@@ -574,6 +657,48 @@ void KeepAliveURLLoaderService::Shutdown() {
   url_loader_factories_->Shutdown();
 }
 
+void KeepAliveURLLoaderService::DidObserveNewlyActiveDocumentWithNIK(
+    const net::NetworkIsolationKey& nik) {
+  url_loader_factories_->DidObserveNewlyActiveDocumentWithNIK(nik);
+  fetch_later_loader_factories_->DidObserveNewlyActiveDocumentWithNIK(nik);
+}
+
+bool KeepAliveURLLoaderService::CheckRetryEligibility(
+    const net::NetworkIsolationKey& key) {
+  auto it = retry_counts_.Get(key);
+  if (it == retry_counts_.end()) {
+    return true;
+  }
+  return it->second < features::kMaxRetriesPerNetworkIsolationKey.Get();
+}
+
+void KeepAliveURLLoaderService::OnRetryScheduled(
+    const net::NetworkIsolationKey& key) {
+  CHECK(CheckRetryEligibility(key));
+  auto it = retry_counts_.Get(key);
+  if (it == retry_counts_.end()) {
+    retry_counts_.Put(key, 1);
+  } else {
+    retry_counts_.Put(key, it->second + 1);
+  }
+}
+
+base::WeakPtr<KeepAliveURLLoader>
+KeepAliveURLLoaderService::GetLoaderWithRequestIdForTesting(
+    int32_t request_id) const {
+  if (auto loader = url_loader_factories_->GetLoaderWithRequestIdForTesting(
+          request_id)) {  // IN-TEST
+    return loader;
+  }
+  return fetch_later_loader_factories_->GetLoaderWithRequestIdForTesting(
+      request_id);  // IN-TEST
+}
+
+void KeepAliveURLLoaderService::ClearKeepAliveURLLoadersAttemptingRetry() {
+  url_loader_factories_->ClearKeepAliveURLLoadersAttemptingRetry();
+  fetch_later_loader_factories_->ClearKeepAliveURLLoadersAttemptingRetry();
+}
+
 size_t KeepAliveURLLoaderService::NumLoadersForTesting() const {
   return url_loader_factories_->NumLoadersForTesting() +         // IN-TEST
          fetch_later_loader_factories_->NumLoadersForTesting();  // IN-TEST
@@ -583,6 +708,14 @@ size_t KeepAliveURLLoaderService::NumDisconnectedLoadersForTesting() const {
   return url_loader_factories_->NumDisconnectedLoadersForTesting() +  // IN-TEST
          fetch_later_loader_factories_
              ->NumDisconnectedLoadersForTesting();  // IN-TEST
+}
+
+size_t KeepAliveURLLoaderService::NumLoadersAttemptingRetryForTesting(
+    bool include_failed_retry) const {
+  return url_loader_factories_->NumLoadersAttemptingRetryForTesting(
+             include_failed_retry) +  // IN-TEST
+         fetch_later_loader_factories_->NumLoadersAttemptingRetryForTesting(
+             include_failed_retry);  // IN-TEST
 }
 
 void KeepAliveURLLoaderService::SetLoaderObserverForTesting(

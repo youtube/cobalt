@@ -16,13 +16,13 @@
 #include <map>
 #include <set>
 #include <string>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "base/json/json_writer.h"
-#include "base/lazy_instance.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
+#include "base/notimplemented.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_number_conversions_win.h"
@@ -45,6 +45,7 @@
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 #include "skia/ext/skia_utils_win.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/iaccessible2/ia2_api_all.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_action_data.h"
@@ -240,11 +241,13 @@ size_t g_live_node_count_ = 0;
 // tool holding references).
 size_t g_ghost_node_count_ = 0;
 
-typedef std::unordered_set<AXPlatformNodeWin*> AXPlatformNodeWinSet;
+typedef absl::flat_hash_set<AXPlatformNodeWin*> AXPlatformNodeWinSet;
 // Set of all AXPlatformNodeWin objects that were the target of an
 // alert event.
-base::LazyInstance<AXPlatformNodeWinSet>::Leaky g_alert_targets =
-    LAZY_INSTANCE_INITIALIZER;
+AXPlatformNodeWinSet& GetAlertTargets() {
+  static base::NoDestructor<AXPlatformNodeWinSet> alert_targets;
+  return *alert_targets;
+}
 
 // Sets the multiplier by which large changes to a RangeValueProvider are
 // greater than small changes.
@@ -398,8 +401,8 @@ AXPlatformNodeWin::AXPlatformNodeWin() {
 }
 
 AXPlatformNodeWin::~AXPlatformNodeWin() {
-  TRACE_EVENT("accessibility", "~AXPlatformNodeWin",
-              perfetto::TerminatingFlow::FromPointer(this));
+  TRACE_EVENT_INSTANT("accessibility", "~AXPlatformNodeWin",
+                      perfetto::TerminatingFlow::FromPointer(this));
 
   // This node is no longer a ghost (it became one in `Dispose()`).
   --g_ghost_node_count_;
@@ -664,7 +667,8 @@ gfx::Vector2d AXPlatformNodeWin::CalculateUIAScrollPoint(
 //
 
 void AXPlatformNodeWin::Dispose() {
-  TRACE_EVENT("accessibility", "Dispose", perfetto::Flow::FromPointer(this));
+  TRACE_EVENT_INSTANT("accessibility", "Dispose",
+                      perfetto::Flow::FromPointer(this));
 
   // A node becomes a ghost upon disposal until its destruction, which happens
   // only when the last reference is released.
@@ -1918,7 +1922,7 @@ IFACEMETHODIMP AXPlatformNodeWin::get_accState(VARIANT var_id, VARIANT* state) {
   WIN_ACCESSIBILITY_API_HISTOGRAM(UMA_API_GET_ACC_STATE);
   AXPlatformNodeWin* target;
   COM_OBJECT_VALIDATE_VAR_ID_1_ARG_AND_GET_TARGET(var_id, state, target);
-  OnPropertiesUsed();
+  AXPlatform::GetInstance().OnMinimalPropertiesUsed();
 
   state->vt = VT_I4;
   state->lVal = target->MSAAState();
@@ -2117,9 +2121,7 @@ IFACEMETHODIMP AXPlatformNodeWin::get_relationTargetsOfType(BSTR type_bstr,
     // Collect all of the objects that have had an alert fired on them that
     // are a descendant of this object.
     std::vector<AXPlatformNodeWin*> alert_targets;
-    for (auto iter = g_alert_targets.Get().begin();
-         iter != g_alert_targets.Get().end(); ++iter) {
-      AXPlatformNodeWin* target = *iter;
+    for (AXPlatformNodeWin* target : GetAlertTargets()) {
       if (IsDescendant(target))
         alert_targets.push_back(target);
     }
@@ -5908,8 +5910,7 @@ IFACEMETHODIMP AXPlatformNodeWin::QueryService(REFGUID guidService,
               "riid", base::WideToASCII(base::win::WStringFromGUID(riid)));
   COM_OBJECT_VALIDATE_1_ARG(object);
 
-  if (riid == IID_IAccessible2 || riid == IID_IAccessible2_2 ||
-      riid == IID_IAccessible2_3 || riid == IID_IAccessible2_4) {
+  if (riid == IID_IAccessible2) {
     OnPropertiesUsed();
   }
 
@@ -6964,27 +6965,34 @@ AXPlatformNodeWin* AXPlatformNodeWin::GetParentPlatformNodeWin() const {
 }
 
 int32_t AXPlatformNodeWin::ComputeIA2State() {
+  AXPlatformNodeDelegate* const delegate = GetDelegate();
+  const AXStates ax_states = delegate->GetStates();
   int32_t ia2_state = IA2_STATE_OPAQUE;
 
   if (IsPlatformCheckable())
     ia2_state |= IA2_STATE_CHECKABLE;
 
-  if (HasIntAttribute(ax::mojom::IntAttribute::kInvalidState) &&
-      GetIntAttribute(ax::mojom::IntAttribute::kInvalidState) !=
-          static_cast<int32_t>(ax::mojom::InvalidState::kFalse))
+  if (delegate->HasIntAttribute(ax::mojom::IntAttribute::kInvalidState) &&
+      delegate->GetIntAttribute(ax::mojom::IntAttribute::kInvalidState) !=
+          static_cast<int32_t>(ax::mojom::InvalidState::kFalse)) {
     ia2_state |= IA2_STATE_INVALID_ENTRY;
-  if (HasState(ax::mojom::State::kRequired))
+  }
+  if (ui::HasState(ax_states, ax::mojom::State::kRequired)) {
     ia2_state |= IA2_STATE_REQUIRED;
-  if (HasState(ax::mojom::State::kVertical))
+  }
+  if (ui::HasState(ax_states, ax::mojom::State::kVertical)) {
     ia2_state |= IA2_STATE_VERTICAL;
-  if (HasState(ax::mojom::State::kHorizontal))
+  }
+  if (ui::HasState(ax_states, ax::mojom::State::kHorizontal)) {
     ia2_state |= IA2_STATE_HORIZONTAL;
+  }
 
-  if (HasState(ax::mojom::State::kEditable))
+  if (ui::HasState(ax_states, ax::mojom::State::kEditable)) {
     ia2_state |= IA2_STATE_EDITABLE;
+  }
 
-  if (IsTextField()) {
-    if (HasState(ax::mojom::State::kMultiline)) {
+  if (delegate->GetData().IsTextField()) {
+    if (ui::HasState(ax_states, ax::mojom::State::kMultiline)) {
       ia2_state |= IA2_STATE_MULTI_LINE;
     } else {
       ia2_state |= IA2_STATE_SINGLE_LINE;
@@ -6993,16 +7001,18 @@ int32_t AXPlatformNodeWin::ComputeIA2State() {
       ia2_state |= IA2_STATE_SELECTABLE_TEXT;
   }
 
-  if (!GetStringAttribute(ax::mojom::StringAttribute::kAutoComplete).empty() ||
-      HasState(ax::mojom::State::kAutofillAvailable)) {
+  if (ui::HasState(ax_states, ax::mojom::State::kAutofillAvailable) ||
+      !delegate->GetStringAttribute(ax::mojom::StringAttribute::kAutoComplete)
+           .empty()) {
     ia2_state |= IA2_STATE_SUPPORTS_AUTOCOMPLETION;
   }
 
-  if (GetBoolAttribute(ax::mojom::BoolAttribute::kModal))
+  if (delegate->GetBoolAttribute(ax::mojom::BoolAttribute::kModal)) {
     ia2_state |= IA2_STATE_MODAL;
+  }
 
   // Clear editable state on some widgets.
-  switch (GetRole()) {
+  switch (delegate->GetRole()) {
     case ax::mojom::Role::kTreeItem:
     case ax::mojom::Role::kListBoxOption:
       // Clear editable state if text selection changes should not be spoken.
@@ -7016,9 +7026,11 @@ int32_t AXPlatformNodeWin::ComputeIA2State() {
       // listbox widget inside an editor, which they currently do in order to
       // enable paste operations. Eventually this need should go away once IE11
       // support is no longer needed and Slides instead relies on paste events.
-      if (!IsFocusable() ||
-          GetBoolAttribute(ax::mojom::BoolAttribute::kNonAtomicTextFieldRoot))
+      if (!delegate->IsFocusable() ||
+          delegate->GetBoolAttribute(
+              ax::mojom::BoolAttribute::kNonAtomicTextFieldRoot)) {
         break;  // Not used with activedescendant, so preserve editable state.
+      }
       [[fallthrough]];  // Will clear editable state.
     case ax::mojom::Role::kMenuListPopup:
     case ax::mojom::Role::kMenuListOption:
@@ -7778,14 +7790,14 @@ ULONG AXPlatformNodeWin::InternalRelease() {
 }
 
 void AXPlatformNodeWin::OnReferenced() {
-  TRACE_EVENT("accessibility", "OnReferenced",
-              perfetto::Flow::FromPointer(this), "UniqueId",
-              base::NumberToString(GetUniqueId()));
+  TRACE_EVENT_INSTANT("accessibility", "OnReferenced",
+                      perfetto::Flow::FromPointer(this), "UniqueId",
+                      base::NumberToString(GetUniqueId()));
 }
 
 void AXPlatformNodeWin::OnDereferenced() {
-  TRACE_EVENT("accessibility", "OnDereferenced",
-              perfetto::Flow::FromPointer(this));
+  TRACE_EVENT_INSTANT("accessibility", "OnDereferenced",
+                      perfetto::Flow::FromPointer(this));
 }
 
 bool AXPlatformNodeWin::IsPlatformCheckable() const {
@@ -7796,6 +7808,8 @@ bool AXPlatformNodeWin::IsPlatformCheckable() const {
 }
 
 int AXPlatformNodeWin::MSAAState() const {
+  AXPlatformNodeDelegate* const delegate = GetDelegate();
+  const AXStates ax_states = delegate->GetStates();
   int msaa_state = 0;
 
   // Map the ax::mojom::State to MSAA state. Note that some of the states are
@@ -7805,86 +7819,102 @@ int AXPlatformNodeWin::MSAAState() const {
   // Exposing the busy state on the root web area means the NVDA user will end
   // up without a virtualBuffer until the page fully loads. So if we have
   // content, don't expose the busy state.
-  if (GetBoolAttribute(ax::mojom::BoolAttribute::kBusy)) {
+  if (delegate->GetBoolAttribute(ax::mojom::BoolAttribute::kBusy)) {
     if (!IsPlatformDocument() || !GetChildCount())
       msaa_state |= STATE_SYSTEM_BUSY;
   }
 
-  if (HasState(ax::mojom::State::kCollapsed))
+  if (ui::HasState(ax_states, ax::mojom::State::kCollapsed)) {
     msaa_state |= STATE_SYSTEM_COLLAPSED;
+  }
 
-  if (HasState(ax::mojom::State::kDefault))
+  if (ui::HasState(ax_states, ax::mojom::State::kDefault)) {
     msaa_state |= STATE_SYSTEM_DEFAULT;
+  }
 
   // TODO(dougt) unhandled ux::ax::mojom::State::kEditable
 
-  if (HasState(ax::mojom::State::kExpanded))
+  if (ui::HasState(ax_states, ax::mojom::State::kExpanded)) {
     msaa_state |= STATE_SYSTEM_EXPANDED;
+  }
 
-  if (IsFocusable())
+  if (delegate->IsFocusable()) {
     msaa_state |= STATE_SYSTEM_FOCUSABLE;
+  }
 
   // Built-in autofill and autocomplete wil also set has popup.
-  if (HasIntAttribute(ax::mojom::IntAttribute::kHasPopup))
+  if (delegate->HasIntAttribute(ax::mojom::IntAttribute::kHasPopup)) {
     msaa_state |= STATE_SYSTEM_HASPOPUP;
+  }
 
   // TODO(dougt) unhandled ux::ax::mojom::State::kHorizontal
 
-  if (HasState(ax::mojom::State::kHovered)) {
+  if (ui::HasState(ax_states, ax::mojom::State::kHovered)) {
     // Expose whether or not the mouse is over an element, but suppress
     // this for tests because it can make the test results flaky depending
     // on the position of the mouse.
-    if (GetDelegate()->ShouldIgnoreHoveredStateForTesting())
+    if (delegate->ShouldIgnoreHoveredStateForTesting()) {
       msaa_state |= STATE_SYSTEM_HOTTRACKED;
+    }
   }
 
   // If the node is ignored, we want these elements to be invisible so that
   // they are hidden from the screen reader.
-  if (IsInvisibleOrIgnored())
+  const bool is_invisible_or_ignored = IsInvisibleOrIgnored();
+  if (is_invisible_or_ignored) {
     msaa_state |= STATE_SYSTEM_INVISIBLE;
+  }
 
-  if (HasState(ax::mojom::State::kLinked))
+  if (ui::HasState(ax_states, ax::mojom::State::kLinked)) {
     msaa_state |= STATE_SYSTEM_LINKED;
+  }
 
   // TODO(dougt) unhandled ux::ax::mojom::State::kMultiline
 
-  if (HasState(ax::mojom::State::kMultiselectable)) {
+  if (ui::HasState(ax_states, ax::mojom::State::kMultiselectable)) {
     msaa_state |= STATE_SYSTEM_EXTSELECTABLE;
     msaa_state |= STATE_SYSTEM_MULTISELECTABLE;
   }
 
-  if (GetDelegate()->IsOffscreen())
+  if (delegate->IsOffscreen()) {
     msaa_state |= STATE_SYSTEM_OFFSCREEN;
+  }
 
-  if (HasState(ax::mojom::State::kProtected))
+  if (ui::HasState(ax_states, ax::mojom::State::kProtected)) {
     msaa_state |= STATE_SYSTEM_PROTECTED;
+  }
 
   // TODO(dougt) unhandled ux::ax::mojom::State::kRequired
   // TODO(dougt) unhandled ux::ax::mojom::State::kRichlyEditable
 
-  if (GetData().IsSelectable())
+  if (delegate->GetData().IsSelectable()) {
     msaa_state |= STATE_SYSTEM_SELECTABLE;
+  }
 
-  if (GetBoolAttribute(ax::mojom::BoolAttribute::kSelected))
+  if (delegate->GetBoolAttribute(ax::mojom::BoolAttribute::kSelected)) {
     msaa_state |= STATE_SYSTEM_SELECTED;
+  }
 
   // TODO(dougt) unhandled VERTICAL
 
-  if (HasState(ax::mojom::State::kVisited))
+  if (ui::HasState(ax_states, ax::mojom::State::kVisited)) {
     msaa_state |= STATE_SYSTEM_TRAVERSED;
+  }
+
+  const ax::mojom::Role role = GetRole();
 
   //
   // Checked state
   //
 
-  switch (GetData().GetCheckedState()) {
+  switch (delegate->GetData().GetCheckedState()) {
     case ax::mojom::CheckedState::kNone:
     case ax::mojom::CheckedState::kFalse:
       break;
     case ax::mojom::CheckedState::kTrue:
-      if (GetRole() == ax::mojom::Role::kToggleButton) {
+      if (role == ax::mojom::Role::kToggleButton) {
         msaa_state |= STATE_SYSTEM_PRESSED;
-      } else if (GetRole() == ax::mojom::Role::kSwitch) {
+      } else if (role == ax::mojom::Role::kSwitch) {
         // ARIA switches are exposed to Windows accessibility as toggle
         // buttons. For maximum compatibility with ATs, we expose both the
         // pressed and checked states.
@@ -7899,7 +7929,7 @@ int AXPlatformNodeWin::MSAAState() const {
   }
 
   const auto restriction = static_cast<ax::mojom::Restriction>(
-      GetIntAttribute(ax::mojom::IntAttribute::kRestriction));
+      delegate->GetIntAttribute(ax::mojom::IntAttribute::kRestriction));
   switch (restriction) {
     case ax::mojom::Restriction::kDisabled:
       msaa_state |= STATE_SYSTEM_UNAVAILABLE;
@@ -7912,8 +7942,8 @@ int AXPlatformNodeWin::MSAAState() const {
       // on *some* document structure roles such as paragraph, heading or list
       // even if the node data isn't marked as read only, as long as the
       // node is not editable.
-      if (!HasState(ax::mojom::State::kRichlyEditable) &&
-          ShouldHaveReadonlyStateByDefault(GetRole())) {
+      if (!ui::HasState(ax_states, ax::mojom::State::kRichlyEditable) &&
+          ShouldHaveReadonlyStateByDefault(role)) {
         msaa_state |= STATE_SYSTEM_READONLY;
       }
       break;
@@ -7922,22 +7952,22 @@ int AXPlatformNodeWin::MSAAState() const {
   // Windowless plugins should have STATE_SYSTEM_UNAVAILABLE.
   //
   // (All of our plugins are windowless.)
-  if (GetRole() == ax::mojom::Role::kPluginObject ||
-      GetRole() == ax::mojom::Role::kEmbeddedObject) {
+  if (role == ax::mojom::Role::kPluginObject ||
+      role == ax::mojom::Role::kEmbeddedObject) {
     msaa_state |= STATE_SYSTEM_UNAVAILABLE;
   }
 
   //
   // Handle STATE_SYSTEM_FOCUSED
   //
-  gfx::NativeViewAccessible focus = GetFocus();
+  gfx::NativeViewAccessible focus = delegate->GetFocus();
   if (focus == const_cast<AXPlatformNodeWin*>(this)->GetNativeViewAccessible())
     msaa_state |= STATE_SYSTEM_FOCUSED;
 
   // In focused single selection UI menus and listboxes, mirror item selection
   // to focus. This helps NVDA read the selected option as it changes.
-  if ((GetRole() == ax::mojom::Role::kListBoxOption || IsMenuItem(GetRole())) &&
-      GetBoolAttribute(ax::mojom::BoolAttribute::kSelected)) {
+  if ((role == ax::mojom::Role::kListBoxOption || IsMenuItem(role)) &&
+      delegate->GetBoolAttribute(ax::mojom::BoolAttribute::kSelected)) {
     AXPlatformNodeBase* container = FromNativeViewAccessible(GetParent());
     if (container && container->GetParent() == focus) {
       if ((container->GetRole() == ax::mojom::Role::kListBox ||
@@ -7954,17 +7984,19 @@ int AXPlatformNodeWin::MSAAState() const {
   // Note: this should probably check if focus is actually inside
   // the menu bar, but we don't currently track focus inside menu pop-ups,
   // and Chrome only has one menu visible at a time so this works for now.
-  if (GetRole() == ax::mojom::Role::kMenuBar && !IsInvisibleOrIgnored())
+  if (role == ax::mojom::Role::kMenuBar && !is_invisible_or_ignored) {
     msaa_state |= STATE_SYSTEM_FOCUSED;
+  }
 
   // Handle STATE_SYSTEM_LINKED
-  if (GetRole() == ax::mojom::Role::kLink)
+  if (role == ax::mojom::Role::kLink) {
     msaa_state |= STATE_SYSTEM_LINKED;
+  }
 
   // Special case for indeterminate progressbar.
-  if (GetRole() == ax::mojom::Role::kProgressIndicator &&
-      !HasStringAttribute(ax::mojom::StringAttribute::kValue) &&
-      !HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
+  if (role == ax::mojom::Role::kProgressIndicator &&
+      !delegate->HasStringAttribute(ax::mojom::StringAttribute::kValue) &&
+      !delegate->HasFloatAttribute(ax::mojom::FloatAttribute::kValueForRange)) {
     msaa_state |= STATE_SYSTEM_MIXED;
   }
 
@@ -8073,8 +8105,6 @@ std::optional<PROPERTYID> AXPlatformNodeWin::MojoEventToUIAProperty(
     case ax::mojom::Event::kSelectionAdd:
     case ax::mojom::Event::kSelectionRemove:
       return UIA_SelectionItemIsSelectedPropertyId;
-    case ax::mojom::Event::kTextChanged:
-      return UIA_NamePropertyId;
     case ax::mojom::Event::kValueChanged:
       return UIA_ValueValuePropertyId;
     default:
@@ -8083,10 +8113,17 @@ std::optional<PROPERTYID> AXPlatformNodeWin::MojoEventToUIAProperty(
 }
 
 // static
-std::tuple<size_t, size_t, size_t, size_t>
-AXPlatformNodeWin::GetCountsForTesting() {
-  return {GetInstanceCountForTesting(), g_dormant_node_count_,
-          g_live_node_count_, g_ghost_node_count_};
+AXPlatformNodeWin::Counts AXPlatformNodeWin::GetCounts() {
+  return {GetInstanceCount(), g_dormant_node_count_, g_live_node_count_,
+          g_ghost_node_count_};
+}
+
+// static
+AXPlatformNodeWin::Counts AXPlatformNodeWin::ResetCountsForTesting() {
+  return {ResetInstanceCountForTesting(),
+          std::exchange(g_dormant_node_count_, 0),
+          std::exchange(g_live_node_count_, 0),
+          std::exchange(g_ghost_node_count_, 0)};
 }
 
 // static
@@ -8151,12 +8188,13 @@ HRESULT AXPlatformNodeWin::ComputeListItemNameAsBstr(BSTR* value_bstr) const {
 }
 
 void AXPlatformNodeWin::AddAlertTarget() {
-  g_alert_targets.Get().insert(this);
+  GetAlertTargets().insert(this);
 }
 
 void AXPlatformNodeWin::RemoveAlertTarget() {
-  if (g_alert_targets.Get().find(this) != g_alert_targets.Get().end())
-    g_alert_targets.Get().erase(this);
+  if (GetAlertTargets().find(this) != GetAlertTargets().end()) {
+    GetAlertTargets().erase(this);
+  }
 }
 
 void AXPlatformNodeWin::HandleSpecialTextOffset(LONG* offset) {
@@ -8525,6 +8563,17 @@ AXPlatformNodeWin* AXPlatformNodeWin::GetFirstTextOnlyDescendant() {
       return descendant;
   }
   return nullptr;
+}
+
+void AXPlatformNodeWin::OnAriaNotificationIA2Fallback(
+    const std::string& announcement,
+    ax::mojom::AriaNotificationPriority priority_property) {
+  // IA2 Fallback is to fire a live region changed event.
+  const DWORD native_event = EVENT_OBJECT_LIVEREGIONCHANGED;
+  HWND hwnd = GetDelegate()->GetTargetForNativeAccessibilityEvent();
+  if (hwnd) {
+    ::NotifyWinEvent(native_event, hwnd, OBJID_CLIENT, -GetUniqueId());
+  }
 }
 
 void AXPlatformNodeWin::SanitizeTextAttributeValue(const std::string& input,

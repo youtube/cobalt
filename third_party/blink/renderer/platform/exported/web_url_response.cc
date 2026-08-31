@@ -38,6 +38,7 @@
 #include "base/containers/to_vector.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "net/base/features.h"
 #include "net/ssl/ssl_info.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "services/network/public/mojom/cors.mojom-shared.h"
@@ -48,6 +49,7 @@
 #include "third_party/blink/public/platform/web_http_header_visitor.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/platform/web_url.h"
+#include "third_party/blink/renderer/platform/loader/fetch/integrity_metadata.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_load_timing.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
 #include "third_party/blink/renderer/platform/loader/fetch/service_worker_router_info.h"
@@ -132,8 +134,13 @@ WebURLResponse WebURLResponse::Create(
     int request_id) {
   WebURLResponse response;
 
+  const bool was_cached =
+      !head.load_timing.request_start_time.is_null() &&
+      head.response_time < head.load_timing.request_start_time;
+
   response.SetCurrentRequestUrl(url);
   response.SetResponseTime(head.response_time);
+  response.SetOriginalResponseTime(head.original_response_time);
   response.SetMimeType(WebString::FromUTF8(head.mime_type));
   response.SetTextEncodingName(WebString::FromUTF8(head.charset));
   response.SetExpectedContentLength(head.content_length);
@@ -141,13 +148,12 @@ WebURLResponse WebURLResponse::Create(
       net::IsCertStatusError(head.cert_status));
   response.SetHasRangeRequested(head.has_range_requested);
   response.SetTimingAllowPassed(head.timing_allow_passed);
-  response.SetWasCached(!head.load_timing.request_start_time.is_null() &&
-                        head.response_time <
-                            head.load_timing.request_start_time);
+  response.SetWasCached(was_cached);
   response.SetConnectionID(head.load_timing.socket_log_id);
   response.SetConnectionReused(head.load_timing.socket_reused);
   response.SetWasFetchedViaSPDY(head.was_fetched_via_spdy);
   response.SetWasFetchedViaServiceWorker(head.was_fetched_via_service_worker);
+  response.SetFromSyntheticResponse(head.from_synthetic_response);
   response.SetDidUseSharedDictionary(head.did_use_shared_dictionary);
   response.SetServiceWorkerResponseSource(head.service_worker_response_source);
   if (!head.service_worker_router_info.is_null()) {
@@ -199,6 +205,24 @@ WebURLResponse WebURLResponse::Create(
   response.SetWasCookieInRequest(head.was_cookie_in_request);
   response.SetRecursivePrefetchToken(head.recursive_prefetch_token);
   response.SetDeviceBoundSessionUsage(head.device_bound_session_usage);
+
+  if (head.unencoded_digests) {
+    // Any `issues` will be taken care of in the network stack; we can simply
+    // move the `digests` into the resource response:
+    response.SetUnencodedDigests(std::move(head.unencoded_digests->digests));
+  }
+
+  // Check for if the response was not cached and was sent through an IP
+  // Protection proxy. Cached responses may contain proxy_chain information
+  // of the original response, including if it was sent through an
+  // IP Protection proxy. We want to only keep track of responses that
+  // actively went through IP Protection proxies. This is currently set
+  // only if kIpPrivacyEnableIppInDevTools is enabled.
+  // TODO(crbug.com/432716000): Remove this guard once IPP is fully launched.
+  if (net::features::kIpPrivacyEnableIppInDevTools.Get()) {
+    response.SetIsIpProtectionUsed(!was_cached &&
+                                    head.proxy_chain.is_for_ip_protection());
+  }
 
   SetSecurityStyleAndDetails(GURL(KURL(url)), head, &response,
                              report_security_info);
@@ -338,6 +362,14 @@ void WebURLResponse::SetResponseTime(base::Time response_time) {
   resource_response_->SetResponseTime(response_time);
 }
 
+base::Time WebURLResponse::OriginalResponseTime() const {
+  return resource_response_->OriginalResponseTime();
+}
+
+void WebURLResponse::SetOriginalResponseTime(base::Time response_time) {
+  resource_response_->SetOriginalResponseTime(response_time);
+}
+
 WebString WebURLResponse::MimeType() const {
   return resource_response_->MimeType();
 }
@@ -469,6 +501,14 @@ bool WebURLResponse::WasFetchedViaServiceWorker() const {
 
 void WebURLResponse::SetWasFetchedViaServiceWorker(bool value) {
   resource_response_->SetWasFetchedViaServiceWorker(value);
+}
+
+bool WebURLResponse::FromSyntheticResponse() const {
+  return resource_response_->FromSyntheticResponse();
+}
+
+void WebURLResponse::SetFromSyntheticResponse(bool value) {
+  resource_response_->SetFromSyntheticResponse(value);
 }
 
 network::mojom::FetchResponseSource
@@ -734,6 +774,20 @@ void WebURLResponse::SetDeviceBoundSessionUsage(
 network::mojom::DeviceBoundSessionUsage
 WebURLResponse::DeviceBoundSessionUsage() const {
   return resource_response_->DeviceBoundSessionUsage();
+}
+
+void WebURLResponse::SetIsIpProtectionUsed(bool is_ip_protection_used) {
+  resource_response_->SetIsIpProtectionUsed(is_ip_protection_used);
+}
+
+bool WebURLResponse::IsIpProtectionUsed() const {
+  return resource_response_->IsIpProtectionUsed();
+}
+
+void WebURLResponse::SetUnencodedDigests(
+    std::vector<network::IntegrityMetadata> digests) {
+  resource_response_->SetUnencodedDigests(
+      WTF::Vector<network::IntegrityMetadata>(std::move(digests)));
 }
 
 WebURLResponse::WebURLResponse(ResourceResponse& r) : resource_response_(&r) {}

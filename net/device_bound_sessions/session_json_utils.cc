@@ -5,12 +5,14 @@
 #include "net/device_bound_sessions/session_json_utils.h"
 
 #include "base/json/json_reader.h"
+#include "base/types/expected_macros.h"
 
 namespace net::device_bound_sessions {
 
 namespace {
 
-SessionParams::Scope ParseScope(const base::Value::Dict& scope_dict) {
+base::expected<SessionParams::Scope, SessionError> ParseScope(
+    const base::Value::Dict& scope_dict) {
   SessionParams::Scope scope;
 
   std::optional<bool> include_site = scope_dict.FindBool("include_site");
@@ -26,48 +28,58 @@ SessionParams::Scope ParseScope(const base::Value::Dict& scope_dict) {
   for (const auto& specification : *specifications_list) {
     const base::Value::Dict* specification_dict = specification.GetIfDict();
     if (!specification_dict) {
-      continue;
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidScopeRule});
     }
 
     const std::string* type = specification_dict->FindString("type");
     const std::string* domain = specification_dict->FindString("domain");
     const std::string* path = specification_dict->FindString("path");
-    if (type && !type->empty() && domain && !domain->empty() && path &&
-        !path->empty()) {
-      if (*type == "include") {
-        scope.specifications.push_back(SessionParams::Scope::Specification{
-            SessionParams::Scope::Specification::Type::kInclude, *domain,
-            *path});
-      } else if (*type == "exclude") {
-        scope.specifications.push_back(SessionParams::Scope::Specification{
-            SessionParams::Scope::Specification::Type::kExclude, *domain,
-            *path});
-      }
+    if (!type || !domain || domain->empty() || !path || path->empty()) {
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidScopeRule});
     }
+    SessionParams::Scope::Specification::Type rule_type =
+        SessionParams::Scope::Specification::Type::kInclude;
+    if (*type == "include") {
+      rule_type = SessionParams::Scope::Specification::Type::kInclude;
+    } else if (*type == "exclude") {
+      rule_type = SessionParams::Scope::Specification::Type::kExclude;
+    } else {
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidScopeRule});
+    }
+
+    scope.specifications.push_back(
+        SessionParams::Scope::Specification{rule_type, *domain, *path});
   }
 
   return scope;
 }
 
-std::vector<SessionParams::Credential> ParseCredentials(
-    const base::Value::List& credentials_list) {
+base::expected<std::vector<SessionParams::Credential>, SessionError>
+ParseCredentials(const base::Value::List& credentials_list) {
   std::vector<SessionParams::Credential> cookie_credentials;
   for (const auto& json_credential : credentials_list) {
     SessionParams::Credential credential;
     const base::Value::Dict* credential_dict = json_credential.GetIfDict();
     if (!credential_dict) {
-      continue;
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidCredentials});
     }
     const std::string* type = credential_dict->FindString("type");
     if (!type || *type != "cookie") {
-      continue;
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidCredentials});
     }
     const std::string* name = credential_dict->FindString("name");
     const std::string* attributes = credential_dict->FindString("attributes");
-    if (name && attributes) {
-      cookie_credentials.push_back(
-          SessionParams::Credential{*name, *attributes});
+    if (!name || !attributes) {
+      return base::unexpected(
+          SessionError{SessionError::ErrorType::kInvalidCredentials});
     }
+
+    cookie_credentials.push_back(SessionParams::Credential{*name, *attributes});
   }
 
   return cookie_credentials;
@@ -78,39 +90,38 @@ std::vector<SessionParams::Credential> ParseCredentials(
 base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
     GURL fetcher_url,
     unexportable_keys::UnexportableKeyId key_id,
+    std::optional<std::string> expected_session_id,
     std::string_view response_json) {
-  // TODO(kristianm): Skip XSSI-escapes, see for example:
-  // https://hg.mozilla.org/mozilla-central/rev/4cee9ec9155e
-  // Discuss with others if XSSI should be part of the standard.
-
-  // TODO(kristianm): Decide if the standard should require parsing
-  // to fail fully if any item is wrong, or if that item should be
-  // ignored.
-
-  net::SchemefulSite fetcher_site(fetcher_url);
   std::optional<base::Value::Dict> maybe_root = base::JSONReader::ReadDict(
       response_json, base::JSON_PARSE_RFC, /*max_depth=*/5u);
   if (!maybe_root) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidConfigJson, fetcher_site,
-                     /*session_id=*/std::nullopt});
+        SessionError{SessionError::ErrorType::kInvalidConfigJson});
   }
-
-  base::Value::Dict* scope_dict = maybe_root->FindDict("scope");
 
   std::string* session_id = maybe_root->FindString("session_identifier");
   if (!session_id || session_id->empty()) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidSessionId, fetcher_site,
-                     /*session_id=*/std::nullopt});
+        SessionError{SessionError::ErrorType::kInvalidSessionId});
+  }
+
+  if (expected_session_id.has_value() && *expected_session_id != *session_id) {
+    return base::unexpected(
+        SessionError{SessionError::ErrorType::kMismatchedSessionId});
   }
 
   std::optional<bool> continue_value = maybe_root->FindBool("continue");
   if (continue_value.has_value() && *continue_value == false) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kServerRequestedTermination,
-                     fetcher_site, *session_id});
+        SessionError{SessionError::ErrorType::kServerRequestedTermination});
   }
+
+  base::Value::Dict* scope_dict = maybe_root->FindDict("scope");
+  if (!scope_dict) {
+    return base::unexpected(
+        SessionError{SessionError::ErrorType::kMissingScope});
+  }
+  ASSIGN_OR_RETURN(SessionParams::Scope scope, ParseScope(*scope_dict));
 
   std::string* refresh_url = maybe_root->FindString("refresh_url");
 
@@ -118,19 +129,32 @@ base::expected<SessionParams, SessionError> ParseSessionInstructionJson(
   base::Value::List* credentials_list = maybe_root->FindList("credentials");
 
   if (credentials_list) {
-    credentials = ParseCredentials(*credentials_list);
+    ASSIGN_OR_RETURN(credentials, ParseCredentials(*credentials_list));
   }
 
   if (credentials.empty()) {
     return base::unexpected(
-        SessionError{SessionError::ErrorType::kInvalidCredentials, fetcher_site,
-                     /*session_id=*/std::nullopt});
+        SessionError{SessionError::ErrorType::kNoCredentials});
   }
 
-  return SessionParams(
-      *session_id, fetcher_url, refresh_url ? *refresh_url : "",
-      scope_dict ? ParseScope(*scope_dict) : SessionParams::Scope{},
-      std::move(credentials), key_id);
+  std::vector<std::string> allowed_refresh_initiators;
+  if (base::Value::List* initiator_list =
+          maybe_root->FindList("allowed_refresh_initiators");
+      initiator_list) {
+    for (base::Value& initiator : *initiator_list) {
+      if (!initiator.is_string()) {
+        return base::unexpected(
+            SessionError{SessionError::ErrorType::kInvalidRefreshInitiators});
+      }
+
+      allowed_refresh_initiators.emplace_back(std::move(initiator.GetString()));
+    }
+  }
+
+  return SessionParams(*session_id, fetcher_url,
+                       refresh_url ? *refresh_url : "", std::move(scope),
+                       std::move(credentials), key_id,
+                       std::move(allowed_refresh_initiators));
 }
 
 }  // namespace net::device_bound_sessions

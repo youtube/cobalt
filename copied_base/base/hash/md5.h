@@ -8,14 +8,9 @@
 #include <string>
 
 #include "base/base_export.h"
+#include "base/hash/md5_boringssl.h"
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
-
-#if BUILDFLAG(IS_NACL)
-#include "base/hash/md5_nacl.h"
-#else
-#include "base/hash/md5_boringssl.h"
-#endif
 
 // MD5 stands for Message Digest algorithm 5.
 // MD5 is a robust hash function, designed for cyptography, but often used

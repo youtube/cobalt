@@ -70,14 +70,19 @@ OmniboxAction::ExecutionContext::ExecutionContext(
     : client_(client),
       open_url_callback_(std::move(callback)),
       match_selection_timestamp_(match_selection_timestamp),
-      disposition_(disposition) {}
+      disposition_(disposition),
+      enter_starter_pack_id_(0) {}
 
 OmniboxAction::ExecutionContext::~ExecutionContext() = default;
 
 // =============================================================================
 
-OmniboxAction::OmniboxAction(LabelStrings strings, GURL url)
-    : strings_(strings), url_(url) {}
+OmniboxAction::OmniboxAction(LabelStrings strings,
+                             GURL url,
+                             bool show_as_action_button)
+    : strings_(strings),
+      url_(url),
+      show_as_action_button_(show_as_action_button) {}
 
 OmniboxAction::~OmniboxAction() {
 #if BUILDFLAG(IS_ANDROID)

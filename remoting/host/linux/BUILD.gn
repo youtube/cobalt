@@ -52,7 +52,7 @@ if (enable_me2me_host) {
         "$root_build_dir/libbase.so",
         "$root_build_dir/libthird_party_boringssl.so",
       ]
-      deps += [ "//base:base" ]
+      deps += [ "//base" ]
       if (use_custom_libcxx) {
         sources += [ "$root_build_dir/libc++.so" ]
         deps += [ "//buildtools/third_party/libc++" ]
@@ -105,7 +105,7 @@ source_set("gvariant") {
   ]
   deps = [
     "//base",
-    "//remoting/host/base:base",
+    "//remoting/host/base",
   ]
 }
 
@@ -120,7 +120,7 @@ source_set("utils") {
   deps = [
     "dbus_interfaces:interface_headers",
     "//base",
-    "//remoting/host/base:base",
+    "//remoting/host/base",
     "//ui/base",
   ]
   configs += [ "//build/linux:gio_config" ]
@@ -136,7 +136,11 @@ source_set("platform_impls") {
     "audio_capturer_linux.h",
     "audio_pipe_reader.cc",
     "audio_pipe_reader.h",
-    "curtain_mode_linux.cc",
+    "clipboard_gnome.cc",
+    "clipboard_gnome.h",
+    "curtain_mode_wayland.cc",
+    "curtain_mode_wayland.h",
+    "curtain_mode_x11.cc",
     "desktop_display_info_loader_linux.cc",
     "desktop_display_info_loader_x11.cc",
     "desktop_display_info_loader_x11.h",
@@ -145,8 +149,22 @@ source_set("platform_impls") {
     "desktop_resizer_x11.h",
     "ei_sender_session.cc",
     "ei_sender_session.h",
+    "fd_string_reader.cc",
+    "fd_string_reader.h",
+    "fd_string_writer.cc",
+    "fd_string_writer.h",
+    "gnome_action_executor.cc",
+    "gnome_action_executor.h",
+    "gnome_desktop_display_info_monitor.cc",
+    "gnome_desktop_display_info_monitor.h",
+    "gnome_desktop_resizer.cc",
+    "gnome_desktop_resizer.h",
+    "gnome_input_injector.cc",
+    "gnome_input_injector.h",
     "gnome_interaction_strategy.cc",
     "gnome_interaction_strategy.h",
+    "gnome_keyboard_layout_monitor.h",
+    "gnome_local_input_monitor.h",
     "input_injector_constants_linux.h",
     "input_injector_linux.cc",
     "input_injector_x11.cc",
@@ -156,6 +174,8 @@ source_set("platform_impls") {
     "keyboard_layout_monitor_utils.h",
     "pipewire_capture_stream.cc",
     "pipewire_capture_stream.h",
+    "pipewire_capture_stream_manager.cc",
+    "pipewire_capture_stream_manager.h",
     "pipewire_desktop_capturer.cc",
     "pipewire_desktop_capturer.h",
     "pipewire_mouse_cursor_monitor.cc",
@@ -200,6 +220,7 @@ source_set("x11_display_utils") {
     "x11_display_util.h",
   ]
   deps = [
+    ":utils",
     ":x11",
     "//remoting/base:logging",
     "//remoting/host:display_layout",

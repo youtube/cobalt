@@ -8,6 +8,7 @@
 #include "build/chromeos_buildflags.h"
 #include "chrome/browser/background_fetch/background_fetch_permission_context.h"
 #include "chrome/browser/background_sync/periodic_background_sync_permission_context.h"
+#include "chrome/browser/clipboard/chrome_clipboard_permission_context_delegate.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/display_capture/captured_surface_control_permission_context.h"
 #include "chrome/browser/display_capture/display_capture_permission_context.h"
@@ -28,6 +29,7 @@
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/background_sync/background_sync_permission_context.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/embedder_support/permission_context_utils.h"
 #include "components/permissions/contexts/automatic_fullscreen_permission_context.h"
 #include "components/permissions/contexts/keyboard_lock_permission_context.h"
@@ -38,7 +40,7 @@
 #include "components/permissions/contexts/web_app_installation_permission_context.h"
 #include "components/permissions/contexts/window_management_permission_context.h"
 #include "components/permissions/permission_manager.h"
-#include "ppapi/buildflags/buildflags.h"
+#include "extensions/buildflags/buildflags.h"
 #include "services/device/public/cpp/device_features.h"
 #include "services/device/public/cpp/geolocation/buildflags.h"
 
@@ -86,6 +88,15 @@ permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
   delegates.nfc_permission_context_delegate =
       std::make_unique<ChromeNfcPermissionContextDelegate>();
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  delegates.clipboard_read_write_permission_context_delegate =
+      std::make_unique<ChromeClipboardPermissionContextDelegate>(
+          ChromeClipboardPermissionContextDelegate::Type::kReadWrite);
+  delegates.clipboard_sanitized_write_permission_context_delegate =
+      std::make_unique<ChromeClipboardPermissionContextDelegate>(
+          ChromeClipboardPermissionContextDelegate::Type::kSanitizedWrite);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
   // Create default permission contexts initially.
   permissions::PermissionManager::PermissionContextMap permission_contexts =
       embedder_support::CreateDefaultPermissionContexts(
@@ -95,8 +106,6 @@ permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
   // when adding new contexts here explaining why it can't be shared with other
   // Content embedders by adding it to CreateDefaultPermissionContexts().
 
-  // TODO(crbug.com/40941384): Still in development for Android so we don't
-  // support it on WebLayer yet.
   permission_contexts[ContentSettingsType::AUTOMATIC_FULLSCREEN] =
       std::make_unique<permissions::AutomaticFullscreenPermissionContext>(
           profile);
@@ -105,36 +114,21 @@ permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
   permission_contexts[ContentSettingsType::BACKGROUND_FETCH] =
       std::make_unique<BackgroundFetchPermissionContext>(profile);
 
-  // TODO(crbug.com/40418135): Still in development for Android so we don't
-  // support it on WebLayer yet.
   permission_contexts[ContentSettingsType::DISPLAY_CAPTURE] =
       std::make_unique<DisplayCapturePermissionContext>(profile);
 
-  // TODO(crbug.com/40703864): Permission is granted based on browser heuristics
-  // (e.g. site engagement) and is not planned for WebLayer until it supports
-  // installing PWAs.
   permission_contexts[ContentSettingsType::DURABLE_STORAGE] =
       std::make_unique<DurableStoragePermissionContext>(profile);
 
-  // TODO(crbug.com/40591477): Still in development so we don't support it on
-  // WebLayer yet.
   permission_contexts[ContentSettingsType::IDLE_DETECTION] =
       std::make_unique<IdleDetectionPermissionContext>(profile);
 
   permission_contexts[ContentSettingsType::KEYBOARD_LOCK] =
       std::make_unique<permissions::KeyboardLockPermissionContext>(profile);
 
-  // TODO(crbug.com/40115199): Still in development for Android so we don't
-  // support it on WebLayer yet.
   permission_contexts[ContentSettingsType::LOCAL_FONTS] =
       std::make_unique<LocalFontsPermissionContext>(profile);
 
-  // TODO(crbug.com/400455013): Move to CreateDefaultPermissionContexts() once
-  // support for Android is ready.
-  permission_contexts[ContentSettingsType::LOCAL_NETWORK_ACCESS] =
-      std::make_unique<LocalNetworkAccessPermissionContext>(profile);
-
-  // Depends on Chrome specific policies not available on WebLayer.
   permission_contexts[ContentSettingsType::MEDIASTREAM_CAMERA] =
       std::make_unique<MediaStreamDevicePermissionContext>(
           profile, ContentSettingsType::MEDIASTREAM_CAMERA);
@@ -145,12 +139,9 @@ permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
   permission_contexts[ContentSettingsType::SPEAKER_SELECTION] =
       std::make_unique<SpeakerSelectionPermissionContext>(profile);
 
-  // TODO(crbug.com/40659287): Move once Notifications are supported on
-  // WebLayer.
   permission_contexts[ContentSettingsType::NOTIFICATIONS] =
       std::make_unique<NotificationPermissionContext>(profile);
 
-  // TODO(crbug.com/40697624): Move once supported on WebLayer.
   permission_contexts[ContentSettingsType::PERIODIC_BACKGROUND_SYNC] =
       std::make_unique<PeriodicBackgroundSyncPermissionContext>(profile);
 
@@ -158,22 +149,16 @@ permissions::PermissionManager::PermissionContextMap CreatePermissionContexts(
       std::make_unique<permissions::PointerLockPermissionContext>(profile);
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
-  // We don't support Chrome OS and Windows for WebLayer yet so only the Android
-  // specific logic is used on WebLayer.
   permission_contexts[ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER] =
       std::make_unique<ProtectedMediaIdentifierPermissionContext>(profile);
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
 
-  // TODO(crbug.com/40638427): Still in development so we don't support it on
-  // WebLayer yet.
   permission_contexts[ContentSettingsType::STORAGE_ACCESS] =
       std::make_unique<StorageAccessGrantPermissionContext>(profile);
 
   permission_contexts[ContentSettingsType::TOP_LEVEL_STORAGE_ACCESS] =
       std::make_unique<TopLevelStorageAccessPermissionContext>(profile);
 
-  // TODO(crbug.com/40092782): Still in development for Android so we don't
-  // support it on WebLayer yet.
   permission_contexts[ContentSettingsType::WINDOW_MANAGEMENT] =
       std::make_unique<permissions::WindowManagementPermissionContext>(profile);
 

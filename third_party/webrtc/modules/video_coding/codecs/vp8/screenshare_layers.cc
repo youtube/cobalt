@@ -9,10 +9,9 @@
 
 #include "modules/video_coding/codecs/vp8/screenshare_layers.h"
 
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -26,7 +25,6 @@
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/codecs/vp8/include/temporal_layers_checker.h"
 #include "modules/video_coding/include/video_codec_interface.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/time_utils.h"
@@ -52,8 +50,6 @@ constexpr auto kSwitch = DecodeTargetIndication::kSwitch;
 
 const double ScreenshareLayers::kMaxTL0FpsReduction = 2.5;
 const double ScreenshareLayers::kAcceptableTargetOvershoot = 2.0;
-
-constexpr int ScreenshareLayers::kMaxNumTemporalLayers;
 
 // Always emit a frame with certain interval, even if bitrate targets have
 // been exceeded. This prevents needless keyframe requests.
@@ -376,7 +372,7 @@ void ScreenshareLayers::OnEncodeDone(size_t stream_index,
       if (!is_keyframe && dependency_info->frame_config.References(
                               static_cast<Vp8FrameConfig::Buffer>(i))) {
         RTC_DCHECK_LT(vp8_info.referencedBuffersCount,
-                      arraysize(CodecSpecificInfoVP8::referencedBuffers));
+                      std::size(vp8_info.referencedBuffers));
         references = true;
         vp8_info.referencedBuffers[vp8_info.referencedBuffersCount++] = i;
       }
@@ -384,7 +380,7 @@ void ScreenshareLayers::OnEncodeDone(size_t stream_index,
       if (is_keyframe || dependency_info->frame_config.Updates(
                              static_cast<Vp8FrameConfig::Buffer>(i))) {
         RTC_DCHECK_LT(vp8_info.updatedBuffersCount,
-                      arraysize(CodecSpecificInfoVP8::updatedBuffers));
+                      std::size(vp8_info.updatedBuffers));
         updates = true;
         vp8_info.updatedBuffers[vp8_info.updatedBuffersCount++] = i;
       }
@@ -598,7 +594,7 @@ void ScreenshareLayers::UpdateHistograms() {
     return;
   int64_t duration_sec =
       (TimeMillis() - stats_.first_frame_time_ms_ + 500) / 1000;
-  if (duration_sec >= metrics::kMinRunTimeInSeconds) {
+  if (duration_sec >= metrics::kMinRunTime.seconds()) {
     RTC_HISTOGRAM_COUNTS_10000(
         "WebRTC.Video.Screenshare.Layer0.FrameRate",
         (stats_.num_tl0_frames_ + (duration_sec / 2)) / duration_sec);

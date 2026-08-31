@@ -29,6 +29,7 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_event.h"
+#include "base/trace_event/trace_id_helper.h"
 #include "base/trace_event/traced_value.h"
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
@@ -203,6 +204,36 @@ void PopBackExpectedDisplayTraceId(std::deque<int64_t>& deque,
   deque.pop_back();
 }
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(AnimationOrInteractionType)
+enum class AnimationOrInteractionType {
+  kNone = 0,
+  kInteractionOnly = 1,
+  kAnimationOnly = 2,
+  kAnimationAndInteraction = 3,
+  kMaxValue = kAnimationAndInteraction,
+};
+// LINT.ThenChange(//tools/metrics/histograms/enums.xml:FrameHandlingType)
+
+void RecordFrameTypes(bool is_handling_interaction,
+                      bool is_handling_animation) {
+  AnimationOrInteractionType type;
+  if (is_handling_interaction && is_handling_animation) {
+    type = AnimationOrInteractionType::kAnimationAndInteraction;
+  } else if (is_handling_interaction) {
+    type = AnimationOrInteractionType::kInteractionOnly;
+  } else if (is_handling_animation) {
+    type = AnimationOrInteractionType::kAnimationOnly;
+  } else {
+    type = AnimationOrInteractionType::kNone;
+  }
+
+  UMA_HISTOGRAM_ENUMERATION(
+      "GPU.Presentation.FrameHandlesAnimationOrInteraction", type);
+}
+
 }  // namespace
 
 constexpr base::TimeDelta Display::kDrawToSwapMin;
@@ -337,8 +368,7 @@ Display::~Display() {
 }
 
 void Display::Initialize(DisplayClient* client,
-                         SurfaceManager* surface_manager,
-                         bool hw_support_for_multiple_refresh_rates) {
+                         SurfaceManager* surface_manager) {
   DCHECK(client);
   DCHECK(surface_manager);
   gpu::ScopedAllowScheduleGpuTask allow_schedule_gpu_task;
@@ -349,18 +379,7 @@ void Display::Initialize(DisplayClient* client,
   if (output_surface_->software_device())
     output_surface_->software_device()->BindToClient(this);
 
-  if (features::IsUsingFrameIntervalDecider()) {
-    frame_interval_decider_ = std::make_unique<FrameIntervalDecider>();
-  } else {
-    bool output_surface_supports_set_frame_rate = false;
-#if BUILDFLAG(IS_ANDROID)
-    output_surface_supports_set_frame_rate =
-        OutputSurfaceSupportsSetFrameRate();
-#endif
-    frame_rate_decider_ = std::make_unique<FrameRateDecider>(
-        surface_manager_, this, hw_support_for_multiple_refresh_rates,
-        output_surface_supports_set_frame_rate);
-  }
+  frame_interval_decider_ = std::make_unique<FrameIntervalDecider>();
 
   InitializeRenderer();
 
@@ -939,16 +958,9 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
   base::ElapsedTimer aggregate_timer;
   AggregatedFrame frame;
   {
-    std::optional<FrameRateDecider::ScopedAggregate> scoped_aggregate;
-    if (frame_rate_decider_) {
-      scoped_aggregate.emplace(frame_rate_decider_.get());
-    }
-    std::unique_ptr<FrameIntervalDecider::ScopedAggregate>
-        scoped_interval_decider;
-    if (frame_interval_decider_) {
-      scoped_interval_decider = frame_interval_decider_->WrapAggregate(
-          *surface_manager_, params.frame_time);
-    }
+    FrameIntervalDecider::ScopedAggregate scoped_interval_decider(
+        frame_interval_decider_->WrapAggregate(*surface_manager_,
+                                               params.frame_time));
     gfx::Rect target_damage_bounding_rect;
     if (output_surface_->capabilities().supports_target_damage)
       target_damage_bounding_rect = renderer_->GetTargetDamageBoundingRect();
@@ -1228,6 +1240,8 @@ bool Display::DrawAndSwap(const DrawAndSwapParams& params) {
     UMA_HISTOGRAM_COUNTS_100("Compositing.Display.PendingSwaps",
                              pending_swaps_);
 
+    RecordFrameTypes(has_interactive_frame, has_animated_frame);
+
     renderer_->SwapBuffers(std::move(swap_frame_data));
   } else {
     TRACE_EVENT_INSTANT0("viz", "Swap skipped.", TRACE_EVENT_SCOPE_THREAD);
@@ -1452,7 +1466,7 @@ void Display::DidFinishFrame(const BeginFrameAck& ack) {
   // Prevent a delegated ink trail from staying on the screen
   // for more than one frame by forcing a new frame to be produced.
   if (!renderer_->GetDelegatedInkTrailDamageRect().IsEmpty()) {
-    scheduler_->SetNeedsOneBeginFrame(true);
+    scheduler_->SetNeedsOneBeginFrame(BeginFrameArgs(), /*needs_draw=*/true);
   }
 
   frame_sequence_number_ = ack.frame_id.sequence_number;
@@ -1483,41 +1497,9 @@ void Display::ForceImmediateDrawAndSwapIfPossible() {
     scheduler_->ForceImmediateSwapIfPossible();
 }
 
-void Display::SetNeedsOneBeginFrame() {
+void Display::SetNeedsOneBeginFrame(const BeginFrameArgs& args) {
   if (scheduler_)
-    scheduler_->SetNeedsOneBeginFrame(false);
-}
-
-void Display::SetPreferredFrameInterval(base::TimeDelta interval) {
-#if BUILDFLAG(IS_ANDROID)
-  if (OutputSurfaceSupportsSetFrameRate()) {
-    float interval_s = interval.InSecondsF();
-    float frame_rate = interval_s == 0 ? 0 : (1 / interval_s);
-    SetFrameIntervalOnOutputSurface({.frame_rate = frame_rate});
-    return;
-  }
-#endif
-
-  client_->SetPreferredFrameInterval(interval);
-}
-
-base::TimeDelta Display::GetPreferredFrameIntervalForFrameSinkId(
-    const FrameSinkId& id,
-    mojom::CompositorFrameSinkType* type) {
-  return client_->GetPreferredFrameIntervalForFrameSinkId(id, type);
-}
-
-void Display::SetSupportedFrameIntervals(
-    base::flat_set<base::TimeDelta> intervals) {
-  if (frame_rate_decider_) {
-    frame_rate_decider_->SetSupportedFrameIntervals(std::move(intervals));
-  }
-}
-
-void Display::SetHwSupportForMultipleRefreshRates(bool support) {
-  if (frame_rate_decider_) {
-    frame_rate_decider_->SetHwSupportForMultipleRefreshRates(support);
-  }
+    scheduler_->SetNeedsOneBeginFrame(args, /*needs_draw=*/false);
 }
 
 #if BUILDFLAG(IS_ANDROID)

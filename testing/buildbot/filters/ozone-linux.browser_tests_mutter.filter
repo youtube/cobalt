@@ -10,6 +10,7 @@
 -All/PDFExtensionJSInk2Test.Ink2BottomToolbar/*
 -All/PDFExtensionJSInk2Test.Ink2TextBottomToolbar/*
 -All/PDFExtensionScrollTest.WithArrowLeftRightScrollToPage/*
+-All/PDFExtensionJSInk2TextTest.Ink2TextBottomToolbar/*
 -All/SearchEnginePreconnectorNoDelaysBrowserTest.PreconnectOnlyInForeground/*
 -All/SoftNavigationTest.LayoutShift/*
 -BackForwardCachePageLoadMetricsObserverBrowserTest.LayoutShiftNormalization_AfterBackForwardCacheRestore
@@ -58,7 +59,9 @@
 -ProfileHelperTest.OpenNewWindowForProfile
 -SearchPrefetchServiceNavigationPrefetchBrowserTest.NavigationPrefetchIsServedForOmniboxOpenSelection
 
-# TODO(crbug.com/417430921) Test crashes frequently
--ServiceWorkerSubScopeWorkerTrackingBrowserTest.StoppingSubScopeWorkerDoesNotAffectExtensionWorker
-
 -TabRestoreTest.RestoreGroupWithUnloadHandlerRejected
+
+# TODO(crbug.com/334413759) The test fails due to a DCHECK in
+# wm::FocusController only on the try bots with OzoneBubblesUsePlatformWidgets
+# enabled.
+-PermissionElementBrowserTest.TabSwitchingClosesPrompt

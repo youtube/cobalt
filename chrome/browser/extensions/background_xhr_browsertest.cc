@@ -42,6 +42,7 @@
 #include "net/ssl/ssl_server_config.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/test_data_directory.h"
+#include "services/network/public/cpp/ip_address_space_overrides_test_utils.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "url/gurl.h"
 
@@ -101,7 +102,7 @@ class BackgroundXhrTest : public ExtensionBrowserTest {
 IN_PROC_BROWSER_TEST_F(BackgroundXhrTest, TlsClientAuth) {
   // Install a FakeClientCertStore so the client auth prompt isn't bypassed due
   // to the system certificate store returning no certificates.
-  ProfileNetworkContextServiceFactory::GetForContext(browser()->profile())
+  ProfileNetworkContextServiceFactory::GetForContext(profile())
       ->set_client_cert_store_factory_for_testing(
           base::BindRepeating(&CreateFakeClientCertStore));
 
@@ -133,6 +134,9 @@ class BackgroundFetchPolicyTest : public ExtensionApiTestWithManagementPolicy {
     // needs to come after SetUp has been run in the superclass, but before any
     // subclasses need it in their own SetUpCommandLine functions.
     ASSERT_TRUE(embedded_test_server()->Start());
+    // Treat the test server as public to bypass Local Network Access checks.
+    network::AddPublicIpAddressSpaceOverrideToCommandLine(
+        *embedded_test_server(), *command_line);
   }
 
   void SetUpOnMainThread() override {

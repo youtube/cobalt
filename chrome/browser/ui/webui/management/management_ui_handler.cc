@@ -18,6 +18,8 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/weak_ptr.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/escape.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -29,11 +31,15 @@
 #include "chrome/browser/device_api/managed_configuration_api.h"
 #include "chrome/browser/device_api/managed_configuration_api_factory.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
+#include "chrome/browser/enterprise/identifiers/profile_id_service_factory.h"
 #include "chrome/browser/enterprise/reporting/prefs.h"
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
+#include "chrome/browser/policy/policy_ui_utils.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/managed_ui.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/management/management_ui_constants.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
@@ -41,12 +47,16 @@
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
+#include "components/enterprise/browser/identifiers/profile_id_service.h"
 #include "components/enterprise/browser/reporting/common_pref_names.h"
 #include "components/enterprise/buildflags/buildflags.h"
+#include "components/policy/core/common/cloud/enterprise_metrics.h"
 #include "components/policy/core/common/cloud/user_cloud_policy_manager.h"
 #include "components/policy/core/common/management/management_service.h"
+#include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "content/public/browser/web_contents.h"
@@ -231,6 +241,18 @@ void ManagementUIHandler::RegisterMessages() {
   web_ui()->RegisterMessageCallback(
       "initProfileReportingInfo",
       base::BindRepeating(&ManagementUIHandler::HandleInitProfileReportingInfo,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "shouldShowPromotion",
+      base::BindRepeating(&ManagementUIHandler::HandleShouldShowPromotion,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "setBannerDismissed",
+      base::BindRepeating(&ManagementUIHandler::HandleSetBannerDismissed,
+                          base::Unretained(this)));
+  web_ui()->RegisterMessageCallback(
+      "recordBannerRedirected",
+      base::BindRepeating(&ManagementUIHandler::HandleRecordBannerRedirected,
                           base::Unretained(this)));
 }
 
@@ -646,6 +668,16 @@ bool ManagementUIHandler::IsProfileManaged(Profile* profile) const {
   return profile->GetProfilePolicyConnector()->IsManaged();
 }
 
+void ManagementUIHandler::AddManagementPromotionObserver(
+    ManagementPromotionObserver* observer) {
+  promotion_eligibility_observers_.AddObserver(observer);
+}
+
+void ManagementUIHandler::RemoveManagementPromotionObserver(
+    ManagementPromotionObserver* observer) {
+  promotion_eligibility_observers_.RemoveObserver(observer);
+}
+
 void ManagementUIHandler::HandleGetExtensions(const base::Value::List& args) {
   AllowJavascript();
   // List of all enabled extensions
@@ -702,6 +734,68 @@ void ManagementUIHandler::HandleInitProfileReportingInfo(
   AllowJavascript();
   AddReportingInfo(&report_sources, /*is_browser=*/false);
   ResolveJavascriptCallback(args[0] /* callback_id */, report_sources);
+}
+
+void ManagementUIHandler::HandleShouldShowPromotion(
+    const base::Value::List& args) {
+  AllowJavascript();
+  Profile* profile = Profile::FromWebUI(web_ui());
+  std::string callback_id = args[0].GetString();
+
+  bool dismissed_banner_pref = profile->GetPrefs()->GetBoolean(
+      policy::policy_prefs::kHasDismissedManagementPagePromotionBanner);
+
+  bool feature_enabled =
+      base::FeatureList::IsEnabled(features::kEnableManagementPromotionBanner);
+
+  promotion_eligibility_checker_ = policy::CreatePromotionEligibilityChecker(
+      profile, dismissed_banner_pref, feature_enabled);
+  if (!promotion_eligibility_checker_) {
+    OnPromotionEligibilityFetched(
+        callback_id,
+        enterprise_management::GetUserEligiblePromotionsResponse());
+    return;
+  }
+  promotion_eligibility_checker_->MaybeCheckPromotionEligibility(
+      base::BindOnce(&ManagementUIHandler::OnPromotionEligibilityFetched,
+                     weak_factory_.GetWeakPtr(), callback_id));
+  return;
+}
+
+void ManagementUIHandler::HandleSetBannerDismissed(
+    const base::Value::List& args) {
+  base::UmaHistogramEnumeration(
+      "Enterprise.ManagementPromotionBannerAction",
+      policy::ManagementPromotionBannerAction::kManagementBannerDismissed);
+  Profile::FromWebUI(web_ui())->GetPrefs()->SetBoolean(
+      policy::policy_prefs::kHasDismissedManagementPagePromotionBanner, true);
+}
+
+void ManagementUIHandler::HandleRecordBannerRedirected(
+    const base::Value::List& args) {
+  base::UmaHistogramEnumeration(
+      "Enterprise.ManagementPromotionBannerAction",
+      policy::ManagementPromotionBannerAction::kManagementRedirected);
+}
+
+void ManagementUIHandler::OnPromotionEligibilityFetched(
+    const std::string& callback_id,
+    enterprise_management::GetUserEligiblePromotionsResponse response) {
+  AllowJavascript();
+
+  bool should_show_promotion = response.promotions().policy_page_promotion() ==
+                               enterprise_management::CHROME_ENTERPRISE_CORE;
+  // Log the UMA metric of whether the promotion should be shown.
+  base::UmaHistogramBoolean("Enterprise.ManagementPromotionBannerDisplayed",
+                            should_show_promotion);
+  ResolveJavascriptCallback(base::Value(callback_id), should_show_promotion);
+
+  for (ManagementPromotionObserver& observer :
+       promotion_eligibility_observers_) {
+    observer.OnPromotionEligibilityFetched(callback_id, response);
+  }
+
+  has_checked_promotion_eligibility_ = true;
 }
 
 void ManagementUIHandler::NotifyBrowserReportingInfoUpdated() {

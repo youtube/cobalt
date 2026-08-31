@@ -20,6 +20,8 @@
 #include "api/video_codecs/video_encoder_factory.h"
 
 @implementation RTCPeerConnectionFactoryBuilder {
+  webrtc::scoped_refptr<webrtc::AudioDeviceModule> (^_audioDeviceModuleBuilder)(
+      const webrtc::Environment &);
   webrtc::PeerConnectionFactoryDependencies _dependencies;
 }
 
@@ -28,6 +30,12 @@
 }
 
 - (RTC_OBJC_TYPE(RTCPeerConnectionFactory) *)createPeerConnectionFactory {
+  if (_audioDeviceModuleBuilder != nil) {
+    if (!_dependencies.env.has_value()) {
+      _dependencies.env = webrtc::CreateEnvironment();
+    }
+    _dependencies.adm = _audioDeviceModuleBuilder(*_dependencies.env);
+  }
   return [[RTC_OBJC_TYPE(RTCPeerConnectionFactory) alloc]
       initWithMediaAndDependencies:_dependencies];
 }
@@ -58,7 +66,15 @@
 
 - (void)setAudioDeviceModule:
     (webrtc::scoped_refptr<webrtc::AudioDeviceModule>)audioDeviceModule {
-  _dependencies.adm = std::move(audioDeviceModule);
+  _audioDeviceModuleBuilder = ^(const webrtc::Environment &) {
+    return audioDeviceModule;
+  };
+}
+
+- (void)setAudioDeviceModuleBuilder:
+    (webrtc::scoped_refptr<webrtc::AudioDeviceModule> (^)(
+        const webrtc::Environment &))audioDeviceModuleBuilder {
+  _audioDeviceModuleBuilder = audioDeviceModuleBuilder;
 }
 
 - (void)setAudioProcessingModule:

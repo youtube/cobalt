@@ -5,16 +5,21 @@
 #ifndef CHROME_BROWSER_EXTENSIONS_EXTENSION_APITEST_H_
 #define CHROME_BROWSER_EXTENSIONS_EXTENSION_APITEST_H_
 
+#include <memory>
 #include <string>
 #include <string_view>
 
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 
 namespace base {
 class FilePath;
+}
+
+namespace net::test_server {
+class EmbeddedTestServer;
 }
 
 class GURL;
@@ -114,11 +119,14 @@ class ExtensionApiTest : public ExtensionBrowserTest {
   // StartEmbeddedTestServer() instead.
   void EmbeddedTestServerAcceptConnections();
 
+  // Returns the test WebSocket EmbeddedTestServer. Can be used to configure
+  // the server before it has started.
+  net::test_server::EmbeddedTestServer& GetWebSocketServer();
+
   // Start the test WebSocket server, and store details of its state. Those
   // details will be available to javascript tests using
   // chrome.test.getConfig(). Enable HTTP basic authentication if needed.
-  bool StartWebSocketServer(const base::FilePath& root_directory,
-                            bool enable_basic_auth = false);
+  bool StartWebSocketServer(bool enable_basic_auth = false);
 
   // Sets the additional string argument `customArg` to the test config object,
   // which is available to javascript tests using chrome.test.getConfig().
@@ -140,40 +148,26 @@ class ExtensionApiTest : public ExtensionBrowserTest {
 
   base::Value::Dict* GetTestConfig() { return test_config_.get(); }
 
-  // Creates a new secure test server that can be used in place of the default
-  // HTTP embedded_test_server defined in BrowserTestBase. The new test server
-  // can then be retrieved using the same embedded_test_server() method used
-  // to get the BrowserTestBase HTTP server.
-  void UseHttpsTestServer();
-
-  // This will return either the https test server or the
-  // default one specified in BrowserTestBase, depending on if an https test
-  // server was created by calling UseHttpsTestServer().
-  net::EmbeddedTestServer* embedded_test_server() {
-    return (https_test_server_) ? https_test_server_.get()
-                                : BrowserTestBase::embedded_test_server();
-  }
-
  private:
   void OpenURL(const GURL& url, bool open_in_incognito);
 
   // Initializes the test data directories to the proper locations.
   void SetUpTestDataDir();
 
+  // TODO(https://crbug.com/423465927): Explore a better approach to make the
+  // existing tests run with the prewarm feature enabled.
+  test::ScopedPrewarmFeatureList prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
+
   // Hold details of the test, set in C++, which can be accessed by
   // javascript using chrome.test.getConfig().
   std::unique_ptr<base::Value::Dict> test_config_;
 
   // Hold the test WebSocket server.
-  std::unique_ptr<net::SpawnedTestServer> websocket_server_;
+  std::unique_ptr<net::test_server::EmbeddedTestServer> websocket_server_;
 
   // Test data directory shared with //extensions.
   base::FilePath shared_test_data_dir_;
-
-  // Secure test server, isn't created by default. Needs to be
-  // created using UseHttpsTestServer() and then called with
-  // embedded_test_server().
-  std::unique_ptr<net::EmbeddedTestServer> https_test_server_;
 };
 
 }  // namespace extensions

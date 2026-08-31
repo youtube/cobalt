@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Anda sekarang hanya dapat menggunakan Alat Kelas</translation>
 <translation id="1762483337755424125">Transkrip</translation>
 <translation id="1765169783255151332">Beralih tombol dengan cepat</translation>
 <translation id="1768959921651994223">Jenis autentikasi</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Beralih tata letak</translation>
 <translation id="224421911978987610">eksposur panjang</translation>
 <translation id="2244834438220057800">hijau</translation>
+<translation id="2248689665683494517">lukisan objek minimalis dari beberapa bunga Papaver rhea dalam vas kaca pada latar belakang hitam</translation>
 <translation id="225692081236532131">Status aktivasi</translation>
 <translation id="2267285889943769271">Tambahkan screenshot</translation>
 <translation id="2268044343513325586">Saring</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Gagal - Berhenti</translation>
 <translation id="3102119246920354026">Cache</translation>
 <translation id="3103783611481501187">surealis</translation>
+<translation id="3119672627216736407">Terjemahan tersedia</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">kolam renang</translation>
 <translation id="3122883569442693641">Detail selengkapnya</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">sifon</translation>
 <translation id="4310735698903592804">Wallpaper terbaru yang didukung teknologi AI Google</translation>
 <translation id="4320904097188876154">merah muda neon</translation>
+<translation id="432961742358282111">Klik kanan atau tekan lama untuk mendapatkan definisi, terjemahan, atau konversi unit. Gunakan tombol Panah kiri atau kanan untuk mengelola fitur ini.</translation>
 <translation id="4333390807948134856">Tombol <ph name="KEY_NAME" /> ditekan</translation>
 <translation id="4334293042716981313">Anda juga dapat <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />menulis perintah Anda sendiri<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tombol</translation>
@@ -865,7 +869,7 @@
 <translation id="4808449224298348341">Tugas pencetakan <ph name="DOCUMENT_TITLE" /> dibatalkan</translation>
 <translation id="4809927044794281115">Tema terang</translation>
 <translation id="4813136279048157860">Gambar Saya</translation>
-<translation id="4813345808229079766">Sambungan</translation>
+<translation id="4813345808229079766">Koneksi</translation>
 <translation id="4830894019733815633">ngarai</translation>
 <translation id="4832079907277790330">Pilih folder di aplikasi File ...</translation>
 <translation id="4835901797422965222">Tidak ada jaringan yang aktif</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Untuk menyelesaikan, masukkan sandi yang lama dan baru</translation>
 <translation id="6061772781719867950">Permintaan HTTPS gagal</translation>
 <translation id="6073292342939316679">kurangi kecerahan keyboard</translation>
+<translation id="6074608334942655098">Berhenti menerjemahkan</translation>
 <translation id="6074752328838739425">Sembunyikan ringkasan</translation>
 <translation id="6075872808778243331">(Android) Latensi HTTP</translation>
 <translation id="6078323886959318429">Tambahkan pintasan</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Tanya pakar di forum bantuan Chromebook</translation>
-<translation id="7309823890857024809">lukisan objek minimalis dari beberapa batang Papaver rhea dalam vas kaca pada latar belakang hitam</translation>
 <translation id="7311368985037279727">warna keyboard</translation>
 <translation id="7317831949569936035">Pendaftaran sekolah</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Download model transkripsi (hingga 100 MB) untuk mendapatkan transkripsi ini.</t
 <translation id="8088963492174775412">Tekan untuk merekam</translation>
 <translation id="8094062939584182041">Izinkan Google mengirim email kepada Anda tentang masalah ini</translation>
 <translation id="8104083085214006426">Anda menggunakan jaringan terbuka dan tidak aman</translation>
+<translation id="8108879170356113798">Anda hanya dapat menggunakan Alat Kelas setelah <ph name="NUM_SECONDS" /> detik</translation>
 <translation id="811820734797650957">(Android) Gateway Dapat Di-ping</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Konfirmasi</translation>

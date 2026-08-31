@@ -1006,7 +1006,7 @@ TEST_P(ScrollbarsTest, MouseOverCustomScrollbarTrackPieceWithCustomCursor) {
 
   Element* div = document.getElementById(AtomicString("d1"));
 
-  div->scrollTo(0, 100);
+  div->scrollToForTesting(0, 100);
   // Ensure hittest has DIV and scrollbar.
   HitTestResult hit_test_result = HitTest(195, 5);
 
@@ -4052,6 +4052,16 @@ TEST_P(ScrollbarsTest, ScrollbarsRestoredAfterCapturePaintPreview) {
   Compositor().BeginFrame();
   ASSERT_TRUE(layout_viewport->VerticalScrollbar() &&
               layout_viewport->HorizontalScrollbar());
+
+  // Hover the vertical scrollbar thumb.
+  HandleMouseMoveEvent(795, 100);
+  auto* scrollbar = layout_viewport->VerticalScrollbar();
+  ASSERT_EQ(kThumbPart, scrollbar->HoveredPart());
+
+  // Make sure we invoked SetNeedsDisplay on the scrollbar's cc::Layer. If this
+  // was successful, we will have cleared the Scrollbar::needs_update_display_
+  // bit in ScrollableArea::SetScrollbarNeedsPaintInvalidation.
+  ASSERT_FALSE(scrollbar->NeedsUpdateDisplay());
 }
 
 TEST_P(ScrollbarsTest, OverlayScrollbarsRestoredAfterCapturePaintPreview) {

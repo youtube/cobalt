@@ -49,12 +49,12 @@ component("variations") {
     "entropy_provider.h",
     "fake_crash.cc",
     "fake_crash.h",
+    "feature_overrides.cc",
+    "feature_overrides.h",
     "field_trial_internals_utils.cc",
     "field_trial_internals_utils.h",
     "hashing.cc",
     "hashing.h",
-    "limited_entropy_mode_gate.cc",
-    "limited_entropy_mode_gate.h",
     "limited_layer_entropy_cost_tracker.cc",
     "limited_layer_entropy_cost_tracker.h",
     "metrics.cc",
@@ -68,6 +68,8 @@ component("variations") {
     "seed_reader_writer.h",
     "seed_response.cc",
     "seed_response.h",
+    "sticky_activation_manager.cc",
+    "sticky_activation_manager.h",
     "study_filtering.cc",
     "study_filtering.h",
     "synthetic_trial_registry.cc",
@@ -124,6 +126,7 @@ component("variations") {
   public_deps = [
     ":variations_features",
     "proto",
+    "proto:client_variations_proto",
     "//base",
   ]
 
@@ -147,16 +150,9 @@ component("variations") {
       "variations_crash_keys_android.h",
     ]
     deps += [
-      "//components/crash/android:anr_collector_jni_headers",
       "//components/crash/android:anr_build_id_provider",
+      "//components/crash/android:anr_collector_jni_headers",
       "//components/variations/android:variations_seed_jni",
-    ]
-  }
-
-  if (is_chromeos) {
-    deps += [
-      "//chromeos/ash/components/dbus/featured",
-      "//chromeos/ash/components/dbus/featured:proto",
     ]
   }
 }
@@ -175,7 +171,7 @@ if (is_android) {
     # External code should depend on ":variations_java" instead.
     visibility = [ ":*" ]
     sources = [ "variations_switches.cc" ]
-    template = "//components/variations/android/java_templates/VariationsSwitches.java.tmpl"
+    class_name = "org.chromium.components.variations.VariationsSwitches"
   }
 
   android_library("variations_java") {
@@ -213,17 +209,22 @@ static_library("test_support") {
   ]
 
   deps = [
-    "field_trial_config:field_trial_config",
+    "field_trial_config",
     "proto",
+    "proto:client_variations_proto",
     "//base/test:test_support",
     "//components/metrics",
-    "//components/prefs:prefs",
+    "//components/prefs",
     "//components/variations/service",
     "//components/web_resource:test_support",
     "//services/network:test_support",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//third_party/zlib/google:compression_utils",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {
@@ -242,6 +243,7 @@ source_set("unit_tests") {
     "processed_study_unittest.cc",
     "seed_reader_writer_unittest.cc",
     "simulate_for_crosstalk_unittest.cc",
+    "sticky_activation_manager_unittest.cc",
     "study_filtering_unittest.cc",
     "synthetic_trial_registry_unittest.cc",
     "uniformity_unittest.cc",
@@ -282,10 +284,9 @@ source_set("unit_tests") {
     "net",
     "proto",
     "//base/test:test_support",
-    "//base/version_info:channel",
     "//components/crash/core/common:crash_key",
     "//components/prefs:test_support",
-    "//components/variations/field_trial_config:field_trial_config",
+    "//components/variations/field_trial_config",
     "//services/network/public/cpp:cpp_base",
     "//testing/gmock",
     "//testing/gtest",
@@ -294,12 +295,9 @@ source_set("unit_tests") {
     "//url",
   ]
 
-  if (is_chromeos) {
-    deps += [
-      "//chromeos/ash/components/dbus/featured",
-      "//chromeos/ash/components/dbus/featured:proto",
-    ]
-  }
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 # Convenience testing target
@@ -340,7 +338,7 @@ if (use_fuzzing_engine_with_lpm) {
       "//third_party/libprotobuf-mutator",
     ]
   }
-  fuzzer_test("create_trials_from_seed_fuzzer_v2") {
+  fuzzer_test("create_trials_from_seed_v2_fuzzer") {
     sources = [ "fuzzers/create_trials_from_seed_fuzzer_v2.cc" ]
     deps = [
       ":test_cases_proto",
@@ -348,6 +346,7 @@ if (use_fuzzing_engine_with_lpm) {
       ":variations",
       "proto",
       "//base/test:test_support",
+      "//components/variations/service",
       "//third_party/libprotobuf-mutator",
     ]
     seed_corpus = "fuzzers/testcases/create_trials_from_seed/"

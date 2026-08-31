@@ -1,12 +1,20 @@
 # Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+if (is_android) {
+  import("//build/config/android/rules.gni")
+}
 
 # Includes default args like 'enable_js_protobuf'.
 import("proto_library.gni")
 import("proto_sources.gni")
 if (enable_js_protobuf) {
   import("//third_party/closure_compiler/compile_js.gni")
+}
+
+proto_library("any_proto") {
+  sources = [ "src/google/protobuf/any.proto" ]
+  cc_generator_options = "lite"
 }
 
 config("protobuf_config") {
@@ -40,7 +48,15 @@ config("using_proto") {
   include_dirs = [ "src" ]
 }
 
-component("protobuf_lite") {
+# On Android, we must use a static library to avoid symbol conflicts with
+# the system's version of protobuf.
+if (is_android) {
+  _protobuf_lite_target_type = "static_library"
+} else {
+  _protobuf_lite_target_type = "component"
+}
+
+target(_protobuf_lite_target_type, "protobuf_lite") {
   sources = protobuf_lite_sources
   public = protobuf_headers
 
@@ -73,7 +89,7 @@ component("protobuf_lite") {
   public_deps = [ "${protobuf_abseil_dir}:absl" ]
 
   # Required for component builds. See http://crbug.com/172800.
-  if (is_component_build) {
+  if (is_component_build && _protobuf_lite_target_type == "component") {
     public_configs += [ ":protobuf_use_dlls" ]
     defines = [ "LIBPROTOBUF_EXPORTS" ]
   }
@@ -139,6 +155,14 @@ static_library("protobuf_full") {
 
       # The Cast Core gRPC generator tool.
       "//third_party/cast_core/public/src/build/chromium:cast_core_grpc_generator",
+
+      # The proto_extras plugin generates code that some of the above fuzzers
+      # use, and thus needs to know the full types.
+      "//components/proto_extras:protobuf_full_support",
+
+      # Sync requires descriptors for testing.
+      "//components/sync:sync_full_proto_unittests",
+      "//components/sync/protocol:full_proto",
     ]
   }
 
@@ -340,6 +364,14 @@ group("py_proto") {
     ":copy_google_protobuf",
     ":copy_google_protobuf_internal",
   ]
+}
+
+# Note: This exists for Cronet in AOSP where we can't import prebuilts. We import
+# the raw sources and compile them using a specialized pipeline. See crbug.com/419480317.
+if (is_android && is_cronet_for_aosp_build) {
+  android_library("proto_runtime_lite_java") {
+    sources = javaproto_sources
+  }
 }
 
 # Runtime dependency if the target needs the python scripts.

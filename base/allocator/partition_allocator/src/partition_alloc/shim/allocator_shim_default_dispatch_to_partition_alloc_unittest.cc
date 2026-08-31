@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 
 #include <cstdlib>
@@ -203,6 +208,12 @@ TEST(PartitionAllocAsMalloc, GoodSize) {
   EXPECT_LT(iterations, 100);
 }
 #endif  // PA_BUILDFLAG(IS_APPLE) && PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+
+#if PA_BUILDFLAG(IS_APPLE)
+TEST(PartitionAllocAsMalloc, TryFreeDefaultFallbackToFindZoneAndFree_Nullptr) {
+  TryFreeDefaultFallbackToFindZoneAndFree(nullptr);
+}
+#endif  // PA_BUILDFLAG(IS_APPLE)
 
 }  // namespace allocator_shim::internal
 #endif  // !defined(MEMORY_TOOL_REPLACES_ALLOCATOR) &&

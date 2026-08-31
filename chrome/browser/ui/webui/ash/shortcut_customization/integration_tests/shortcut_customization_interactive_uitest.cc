@@ -10,8 +10,8 @@
 #include "ash/webui/settings/public/constants/routes.mojom-forward.h"
 #include "ash/webui/shortcut_customization_ui/url_constants.h"
 #include "base/json/json_writer.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/test/base/ash/interactive/interactive_ash_test.h"
 #include "device/udev_linux/fake_udev_loader.h"
@@ -49,11 +49,6 @@ class ShortcutCustomizationInteractiveUiTest : public InteractiveAshTest {
   ShortcutCustomizationInteractiveUiTest() {
     DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kShortcutAppWebContentsId);
     webcontents_id_ = kShortcutAppWebContentsId;
-
-    feature_list_.InitWithFeatures(
-        {ash::features::kInputDeviceSettingsSplit,
-         ash::features::kEnableKeyboardBacklightControlInSettings},
-        {});
   }
   // InteractiveAshTest:
   void SetUpOnMainThread() override {
@@ -346,7 +341,6 @@ class ShortcutCustomizationInteractiveUiTest : public InteractiveAshTest {
  protected:
   testing::FakeUdevLoader fake_udev_;
   std::vector<ui::KeyboardDevice> fake_keyboard_devices_;
-  base::test::ScopedFeatureList feature_list_;
   ui::ElementIdentifier webcontents_id_;
 };
 

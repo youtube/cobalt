@@ -18,8 +18,7 @@ AwContextMenuHelper::AwContextMenuHelper(content::WebContents* web_contents)
     : content::WebContentsUserData<AwContextMenuHelper>(*web_contents) {
   JNIEnv* env = base::android::AttachCurrentThread();
   java_obj_.Reset(env, Java_AwContextMenuHelper_create(
-                           env, web_contents->GetJavaWebContents())
-                           .obj());
+                           env, web_contents->GetJavaWebContents()));
   DCHECK(!java_obj_.is_null());
 }
 
@@ -36,7 +35,7 @@ void AwContextMenuHelper::ShowContextMenu(
   Java_AwContextMenuHelper_showContextMenu(
       env, java_obj_,
       context_menu::BuildJavaContextMenuParams(
-          params, render_frame_host.GetProcess()->GetDeprecatedID(),
+          params, nullptr, render_frame_host.GetProcess()->GetDeprecatedID(),
           render_frame_host.GetFrameToken().value()),
       view->GetContainerView());
 }

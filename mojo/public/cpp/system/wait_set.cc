@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "mojo/public/cpp/system/wait_set.h"
 
 #include <algorithm>
@@ -16,6 +11,8 @@
 #include <vector>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
@@ -139,13 +136,13 @@ class WaitSet::State : public base::RefCountedThreadSafe<State> {
 
   void Wait(base::WaitableEvent** ready_event,
             size_t* num_ready_handles,
-            Handle* ready_handles,
-            MojoResult* ready_results,
+            base::span<Handle> ready_handles,
+            base::span<MojoResult> ready_results,
             MojoHandleSignalsState* signals_states) {
     DCHECK(trap_handle_.is_valid());
     DCHECK(num_ready_handles);
-    DCHECK(ready_handles);
-    DCHECK(ready_results);
+    DCHECK(!ready_handles.empty());
+    DCHECK(!ready_results.empty());
     {
       base::AutoLock lock(lock_);
       if (ready_handles_.empty()) {
@@ -220,7 +217,7 @@ class WaitSet::State : public base::RefCountedThreadSafe<State> {
       ready_handles[i] = it->first;
       ready_results[i] = it->second.result;
       if (signals_states)
-        signals_states[i] = it->second.signals_state;
+        UNSAFE_TODO(signals_states[i]) = it->second.signals_state;
       ready_handles_.erase(it);
     }
 
@@ -362,8 +359,8 @@ MojoResult WaitSet::RemoveHandle(Handle handle) {
 
 void WaitSet::Wait(base::WaitableEvent** ready_event,
                    size_t* num_ready_handles,
-                   Handle* ready_handles,
-                   MojoResult* ready_results,
+                   base::span<Handle> ready_handles,
+                   base::span<MojoResult> ready_results,
                    MojoHandleSignalsState* signals_states) {
   state_->Wait(ready_event, num_ready_handles, ready_handles, ready_results,
                signals_states);

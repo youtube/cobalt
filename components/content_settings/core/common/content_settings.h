@@ -9,6 +9,7 @@
 
 #include <map>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "base/time/time.h"
@@ -33,9 +34,36 @@ enum ContentSetting {
   CONTENT_SETTING_BLOCK,
   CONTENT_SETTING_ASK,
   CONTENT_SETTING_SESSION_ONLY,
-  CONTENT_SETTING_DETECT_IMPORTANT_CONTENT,
   CONTENT_SETTING_NUM_SETTINGS
 };
+
+// Commonly used setting values for options of permission settings
+// Do not modify this enum. If different/additional  states are required, the
+// permission should define its own enum.
+enum class PermissionOption {
+  kAllowed = 1,
+  kDenied = 2,
+  kAsk = 3,
+
+  kMinValue = kAllowed,
+  kMaxValue = kAsk
+};
+
+bool IsValidPermissionOption(PermissionOption setting);
+
+struct GeolocationSetting {
+  PermissionOption approximate = PermissionOption::kAsk;
+  PermissionOption precise = PermissionOption::kAsk;
+
+  auto operator<=>(const GeolocationSetting&) const = default;
+};
+
+using PermissionSetting = std::variant<ContentSetting, GeolocationSetting>;
+
+std::ostream& operator<<(std::ostream& os, const GeolocationSetting& it);
+std::ostream& operator<<(std::ostream& os, const PermissionSetting& it);
+std::ostream& operator<<(std::ostream& os,
+                         const std::optional<PermissionSetting>& it);
 
 // Range-checked conversion of an int to a ContentSetting, for use when reading
 // prefs off disk.

@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/feature_list.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/ptr_util.h"
@@ -22,6 +23,8 @@
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/content_settings/core/common/features.h"
 #include "components/permissions/constants.h"
+#include "components/permissions/permission_decision.h"
+#include "components/permissions/permission_manager.h"
 #include "components/permissions/permission_request.h"
 #include "components/permissions/permission_request_data.h"
 #include "components/permissions/permission_request_manager.h"
@@ -108,7 +111,7 @@ std::unique_ptr<permissions::PermissionRequest> CreateRequest(
               RequestTypeToContentSettingsType(type).value()),
           /*user_gesture=*/true, GURL(url)),
       base::BindRepeating(
-          [](ContentSetting, bool, bool, const PermissionRequestData&) {}));
+          [](PermissionDecision, bool, const PermissionRequestData&) {}));
 }
 
 }  // namespace
@@ -200,14 +203,17 @@ TEST_F(PermissionUmaUtilTest, ScopedRevocationReporter) {
 
   // TODO(tsergeant): Add more comprehensive tests of PermissionUmaUtil.
   base::HistogramTester histograms;
-  HostContentSettingsMap* map =
-      PermissionsClient::Get()->GetSettingsMap(&browser_context);
+  auto* map = PermissionsClient::Get()->GetSettingsMap(&browser_context);
   GURL host("https://example.com");
   ContentSettingsPattern host_pattern =
       ContentSettingsPattern::FromURLNoWildcard(host);
   ContentSettingsPattern host_containing_wildcards_pattern =
       ContentSettingsPattern::FromString("https://[*.]example.com/");
-  ContentSettingsType type = ContentSettingsType::GEOLOCATION;
+  ContentSettingsType type =
+      base::FeatureList::IsEnabled(
+          content_settings::features::kApproximateGeolocationPermission)
+          ? ContentSettingsType::GEOLOCATION_WITH_OPTIONS
+          : ContentSettingsType::GEOLOCATION;
   PermissionSourceUI source_ui = PermissionSourceUI::SITE_SETTINGS;
 
   // Allow->Block triggers a revocation.

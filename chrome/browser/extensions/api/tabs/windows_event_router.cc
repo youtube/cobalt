@@ -17,6 +17,7 @@
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/common/extensions/api/tabs.h"
 #include "chrome/common/extensions/api/windows.h"
 #include "chrome/common/extensions/extension_constants.h"
@@ -169,7 +170,7 @@ WindowsEventRouter::WindowsEventRouter(Profile* profile)
   observed_key_window_notifier_.Observe(
       &g_browser_process->platform_part()->key_window_notifier());
 #elif defined(TOOLKIT_VIEWS)
-  views::WidgetFocusManager::GetInstance()->AddFocusChangeListener(this);
+  views::NativeViewFocusManager::GetInstance()->AddFocusChangeListener(this);
 #else
 #error Unsupported
 #endif
@@ -181,7 +182,7 @@ WindowsEventRouter::WindowsEventRouter(Profile* profile)
 
 WindowsEventRouter::~WindowsEventRouter() {
 #if defined(TOOLKIT_VIEWS) && !BUILDFLAG(IS_MAC)
-  views::WidgetFocusManager::GetInstance()->RemoveFocusChangeListener(this);
+  views::NativeViewFocusManager::GetInstance()->RemoveFocusChangeListener(this);
 #endif
 }
 

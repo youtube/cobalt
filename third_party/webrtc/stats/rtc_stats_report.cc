@@ -41,7 +41,7 @@ RTCStatsReport::ConstIterator& RTCStatsReport::ConstIterator::operator++(int) {
 }
 
 const RTCStats& RTCStatsReport::ConstIterator::operator*() const {
-  return *it_->second.get();
+  return *it_->second;
 }
 
 const RTCStats* RTCStatsReport::ConstIterator::operator->() const {

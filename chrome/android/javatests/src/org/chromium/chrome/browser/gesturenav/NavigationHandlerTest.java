@@ -47,7 +47,9 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -83,19 +85,19 @@ public class NavigationHandlerTest {
     private NavigationHandler mNavigationHandler;
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private GestureNavigationTestUtils mNavUtils;
+    private WebPageStation mPage;
 
     @Before
     public void setUp() throws InterruptedException {
         TestAnimations.setEnabled(true);
-        mTestServer =
-                EmbeddedTestServer.createAndStartServer(
-                        InstrumentationRegistry.getInstrumentation().getContext());
-        mActivityTestRule.startMainActivityWithURL(mTestServer.getURL(TEST_PAGE));
+        mTestServer = mActivityTestRule.getTestServer();
+        mPage = mActivityTestRule.startOnTestServerUrl(TEST_PAGE);
         CompositorAnimationHandler.setTestingMode(true);
-        mNavUtils = new GestureNavigationTestUtils(mActivityTestRule);
+        mNavUtils = new GestureNavigationTestUtils(mActivityTestRule::getActivity);
         mNavigationHandler = mNavUtils.getNavigationHandler();
         mNavigationLayout = mNavUtils.getLayout();
     }
@@ -211,7 +213,7 @@ public class NavigationHandlerTest {
 
     @Test
     @SmallTest
-    @DisableIf.Device(DeviceFormFactor.TABLET)
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET)
     public void testIncorrectEdgeSwipes() {
         // Swipe incorrectly 3 times and correctly once.
         HistogramWatcher histogramWatcher =

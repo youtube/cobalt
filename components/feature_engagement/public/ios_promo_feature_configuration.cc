@@ -34,6 +34,7 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.event_configs.insert(
         EventConfig(feature_engagement::events::kChromeOpened,
                     Comparator(GREATER_THAN_OR_EQUAL, 7), 365, 365));
+    config.storage_type = StorageType::DEVICE;
     return config;
   }
 
@@ -71,6 +72,7 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(ANY, 0);
     config.groups.push_back(kiOSDefaultBrowserPromosGroup.name);
+    config.storage_type = StorageType::DEVICE;
 
     if (base::FeatureList::IsEnabled(kDefaultBrowserEligibilitySlidingWindow)) {
       // Show this promo once in number of days specified by the feature param.
@@ -86,6 +88,13 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
                                    feature_engagement::kMaxStoragePeriod,
                                    feature_engagement::kMaxStoragePeriod);
     }
+
+    // The off-cycle promo should count as a generic promo impression,
+    // effectively putting it back on cooldown.
+    config.event_configs.insert(EventConfig(
+        "default_browser_off_cycle_promo_trigger", Comparator(EQUAL, 0),
+        feature_engagement::kDefaultBrowserEligibilitySlidingWindowParam.Get(),
+        feature_engagement::kMaxStoragePeriod));
 
     if (base::FeatureList::IsEnabled(
             kDefaultBrowserTriggerCriteriaExperiment)) {
@@ -115,6 +124,7 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.session_rate = Comparator(ANY, 0);
     config.groups.push_back(kiOSDefaultBrowserPromosGroup.name);
     config.groups.push_back(kiOSTailoredDefaultBrowserPromosGroup.name);
+    config.storage_type = StorageType::DEVICE;
 
     config.trigger = EventConfig("all_tabs_promo_trigger", Comparator(EQUAL, 0),
                                  feature_engagement::kMaxStoragePeriod,
@@ -133,6 +143,7 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.session_rate = Comparator(ANY, 0);
     config.groups.push_back(kiOSDefaultBrowserPromosGroup.name);
     config.groups.push_back(kiOSTailoredDefaultBrowserPromosGroup.name);
+    config.storage_type = StorageType::DEVICE;
 
     config.trigger =
         EventConfig("made_for_ios_promo_trigger", Comparator(EQUAL, 0),
@@ -153,6 +164,7 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.session_rate = Comparator(ANY, 0);
     config.groups.push_back(kiOSDefaultBrowserPromosGroup.name);
     config.groups.push_back(kiOSTailoredDefaultBrowserPromosGroup.name);
+    config.storage_type = StorageType::DEVICE;
 
     config.trigger =
         EventConfig("stay_safe_promo_trigger", Comparator(EQUAL, 0),
@@ -198,6 +210,7 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
     config.trigger = EventConfig("docking_promo_trigger", Comparator(EQUAL, 0),
                                  feature_engagement::kMaxStoragePeriod,
                                  feature_engagement::kMaxStoragePeriod);
+    config.storage_type = StorageType::DEVICE;
     return config;
   }
 
@@ -246,21 +259,28 @@ std::optional<FeatureConfig> GetStandardPromoConfig(
         EventConfig(feature_engagement::events::kIOSWelcomeBackPromoTrigger,
                     Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
+    config.storage_type = StorageType::DEVICE;
     return config;
   }
 
-  if (kIPHIOSGLICPromoFeature.name == feature->name) {
-    // Show the promo any time the conditions are met.
+  if (kIPHIOSPageActionMenu.name == feature->name) {
+    // Show the promo only once when the conditions are met.
     FeatureConfig config;
     config.valid = true;
     config.availability = Comparator(ANY, 0);
     config.session_rate = Comparator(ANY, 0);
-    config.used =
-        EventConfig(feature_engagement::events::kIOSGLICPromoUsed,
+
+    // This IPH showing does not affect the session count for other IPHs.
+    config.session_rate_impact.type = SessionRateImpact::Type::NONE;
+    config.blocked_by.type = BlockedBy::Type::NONE;
+    config.blocking.type = Blocking::Type::NONE;
+
+    config.trigger =
+        EventConfig(feature_engagement::events::kIOSPageActionMenuIPHTrigger,
                     Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
-    config.trigger =
-        EventConfig(feature_engagement::events::kIOSGLICPromoTrigger,
+    config.used =
+        EventConfig(feature_engagement::events::kIOSPageActionMenuIPHUsed,
                     Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
                     feature_engagement::kMaxStoragePeriod);
     return config;
@@ -283,6 +303,7 @@ std::optional<FeatureConfig> GetCustomConfig(const base::Feature* feature) {
     // from being signed-out after restoring their device.
     config.trigger =
         EventConfig("post_restore_promo_trigger", Comparator(ANY, 0), 365, 365);
+    config.storage_type = StorageType::DEVICE;
     return config;
   }
 
@@ -305,6 +326,7 @@ std::optional<FeatureConfig> GetCustomConfig(const base::Feature* feature) {
     config.event_configs.insert(
         EventConfig(feature_engagement::events::kViewedWhatsNew,
                     Comparator(LESS_THAN, 1), 365, 365));
+    config.storage_type = StorageType::DEVICE;
     return config;
   }
 
@@ -501,6 +523,68 @@ std::optional<FeatureConfig> GetCustomConfig(const base::Feature* feature) {
     // non-contextual default browser promo. Thus, it should share cooldown
     // rules.
     config.groups.push_back(kiOSDefaultBrowserPromosGroup.name);
+    return config;
+  }
+
+  if (kIPHiOSDefaultBrowserOffCyclePromoFeature.name == feature->name) {
+    // A config for a feature to handle the off-cycle generic default browser
+    // promo.
+    std::optional<FeatureConfig> config = FeatureConfig();
+    config->valid = true;
+    config->availability = Comparator(ANY, 0);
+    config->session_rate = Comparator(ANY, 0);
+    config->groups.push_back(kiOSDefaultBrowserPromosGroup.name);
+    config->storage_type = StorageType::DEVICE;
+    config->used = EventConfig("default_browser_off_cycle_promo_used",
+                               Comparator(ANY, 0), 365, 365);
+
+    config->trigger = EventConfig(
+        "default_browser_off_cycle_promo_trigger", Comparator(EQUAL, 0),
+        feature_engagement::kIPHiOSDefaultBrowserOffCyclePromoCooldown.Get(),
+        feature_engagement::kMaxStoragePeriod);
+    return config;
+  }
+
+  if (kIPHiOSSafariImportFeature.name == feature->name) {
+    // A config that shows the Safari import entry point modal. If the user
+    // proceeds with the import or dismisses the modal, the entry point will
+    // show again.
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    // Can be triggered any number of times, as long as the user keeps setting
+    // the reminder.
+    config.trigger =
+        EventConfig("ios_safari_import_entry_point_trigger", Comparator(ANY, 0),
+                    kMaxStoragePeriod, kMaxStoragePeriod);
+    // If the user has started or dismissed the Safari import workflow, don't
+    // show the entry point again.
+    config.used =
+        EventConfig("ios_safari_import_entry_point_used_or_dismissed",
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    // Show the entry point if the user has neither started or dismissed the
+    // Safari import workflow, nor tapped "remind me later" in the last two
+    // days.
+    config.event_configs.insert(EventConfig(
+        events::kIOSSafariImportRemindMeLater, Comparator(EQUAL, 0), 2, 2));
+    config.storage_type = StorageType::DEVICE;
+    return config;
+  }
+
+  if (kIPHiOSOneTimeDefaultBrowserNotificationFeature.name == feature->name) {
+    FeatureConfig config;
+    config.valid = true;
+    config.availability = Comparator(ANY, 0);
+    config.session_rate = Comparator(ANY, 0);
+    config.storage_type = StorageType::DEVICE;
+    config.trigger =
+        EventConfig("one_time_default_browser_notification_trigger",
+                    Comparator(EQUAL, 0), feature_engagement::kMaxStoragePeriod,
+                    feature_engagement::kMaxStoragePeriod);
+    config.event_configs.insert(EventConfig(
+        "default_browser_promos_group_trigger", Comparator(EQUAL, 0), 14, 360));
     return config;
   }
 

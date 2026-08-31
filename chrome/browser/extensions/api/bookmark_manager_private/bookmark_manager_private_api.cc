@@ -18,6 +18,7 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -479,10 +480,13 @@ BookmarkManagerPrivateCanPasteFunction::RunOnReady() {
 
 ExtensionFunction::ResponseValue
 BookmarkManagerPrivateIsActiveTabInSplitFunction::RunOnReady() {
-  Browser* browser = ChromeExtensionFunctionDetails(this)
-                         .GetCurrentWindowController()
-                         ->GetBrowser();
+  WindowController* window_controller =
+      ChromeExtensionFunctionDetails(this).GetCurrentWindowController();
+  if (!window_controller) {
+    return Error(ExtensionTabUtil::kNoCurrentWindowError);
+  }
 
+  Browser* browser = window_controller->GetBrowser();
   if (!browser) {
     return Error(kInvalidBrowserError);
   }
@@ -770,9 +774,13 @@ BookmarkManagerPrivateOpenInNewTabGroupFunction::RunOnReady() {
     return BadMessage();
   }
 
-  Browser* browser = ChromeExtensionFunctionDetails(this)
-                         .GetCurrentWindowController()
-                         ->GetBrowser();
+  WindowController* window_controller =
+      ChromeExtensionFunctionDetails(this).GetCurrentWindowController();
+  if (!window_controller) {
+    return Error(ExtensionTabUtil::kNoCurrentWindowError);
+  }
+
+  Browser* browser = window_controller->GetBrowser();
   if (!browser) {
     return Error(kInvalidBrowserError);
   }
@@ -785,9 +793,9 @@ BookmarkManagerPrivateOpenInNewTabGroupFunction::RunOnReady() {
                  base::JoinString(params->id_list, ", "));
   }
 
-  chrome::OpenAllIfAllowed(browser, nodes,
-                           WindowOpenDisposition::NEW_BACKGROUND_TAB,
-                           bookmarks::OpenAllBookmarksContext::kInGroup);
+  bookmarks::OpenAllIfAllowed(browser, nodes,
+                              WindowOpenDisposition::NEW_BACKGROUND_TAB,
+                              bookmarks::OpenAllBookmarksContext::kInGroup);
 
   return NoArguments();
 }

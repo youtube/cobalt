@@ -15,6 +15,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros_local.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/google/core/common/google_util.h"
@@ -22,17 +23,18 @@
 #include "components/history/core/browser/history_types.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/omnibox/common/zero_suggest_cache_service_interface.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
+#include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/noisy_metrics_recorder.h"
-#include "components/optimization_guide/core/optimization_guide_decider.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
-#include "components/optimization_guide/core/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/page_content_annotations/core/page_content_annotations_enums.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_content_annotations/core/page_content_annotations_switches.h"
 #include "components/page_content_annotations/core/page_content_annotations_validator.h"
+#include "components/passage_embeddings/passage_embeddings_types.h"
 #include "components/search/search.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
@@ -42,6 +44,7 @@
 #include "third_party/omnibox_proto/types.pb.h"
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+#include "components/page_content_annotations/core/on_device_category_classifier.h"
 #include "components/page_content_annotations/core/page_content_annotations_model_manager.h"
 #endif
 
@@ -183,6 +186,8 @@ PageContentAnnotationsService::PageContentAnnotationsService(
     const base::FilePath& database_dir,
     OptimizationGuideLogger* optimization_guide_logger,
     optimization_guide::OptimizationGuideDecider* optimization_guide_decider,
+    passage_embeddings::EmbedderMetadataProvider* embedder_metadata_provider,
+    passage_embeddings::Embedder* embedder,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner)
     : min_page_category_score_to_persist_(
           features::GetMinimumPageCategoryScoreToPersist()),
@@ -214,6 +219,14 @@ PageContentAnnotationsService::PageContentAnnotationsService(
     model_manager_->RequestAndNotifyWhenModelAvailable(
         AnnotationType::kContentVisibility, base::DoNothing());
     annotation_types_to_execute_.push_back(AnnotationType::kContentVisibility);
+  }
+
+  if (base::FeatureList::IsEnabled(features::kOnDeviceCategoryClassifier) &&
+      embedder_metadata_provider && embedder) {
+    on_device_category_classifier_ =
+        std::make_unique<OnDeviceCategoryClassifier>(
+            optimization_guide_model_provider, embedder_metadata_provider,
+            embedder);
   }
 #endif
 
@@ -916,6 +929,21 @@ void PageContentAnnotationsService::OnOptimizationGuideResponseReceived(
     default:
       NOTREACHED();
   }
+}
+
+void PageContentAnnotationsService::ClassifyCategoriesForText(
+    const std::string& text,
+    base::OnceCallback<void(std::vector<Category>)> callback) {
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
+  if (!on_device_category_classifier_) {
+    std::move(callback).Run({});
+    return;
+  }
+
+  on_device_category_classifier_->ClassifyText(text, std::move(callback));
+#else
+  std::move(callback).Run({});
+#endif
 }
 
 HistoryVisit::HistoryVisit() = default;

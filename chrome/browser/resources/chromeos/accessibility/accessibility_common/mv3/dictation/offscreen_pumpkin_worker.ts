@@ -2,61 +2,39 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {Messenger} from '../messenger.js';
 import {OffscreenCommandType} from '../offscreen_command_type.js';
 
 import * as PumpkinConstants from './parse/pumpkin/pumpkin_constants.js';
 
-const SANDBOXED_PUMPKIN_TAGGER_JS_FILE =
-    'dictation/parse/sandboxed_pumpkin_tagger.js';
 
 /**
- * Offscreen way to communicate to pumpkin via worker.
+ * Offscreen way to communicate to pumpkin via a sandboxed iframe.
  */
 class OffscreenPumpkinWorker {
-  private worker_: Worker|null = null;
-
-  static instance?: OffscreenPumpkinWorker;
-
-  static init(): void {
-    if (OffscreenPumpkinWorker.instance) {
-      throw 'Error: trying to create two instances of singleton ' +
-          'OffscreenPumpkinWorker.';
-    }
-    OffscreenPumpkinWorker.instance = new OffscreenPumpkinWorker();
-  }
+  private sandbox_: HTMLIFrameElement;
 
   constructor() {
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: chrome.runtime.MessageSender) =>
-            this.handleMessageFromServiceWorker_(message));
+    Messenger.registerHandler(
+        OffscreenCommandType.DICTATION_PUMPKIN_INSTALL,
+        () => this.createSandboxedPumpkinTagger_());
+    Messenger.registerHandler(
+        OffscreenCommandType.DICTATION_PUMPKIN_SEND,
+        (message: any|undefined) =>
+            this.sendToSandboxedPumpkinTagger_(message.toPumpkinTagger));
+
+    window.addEventListener(
+        'message', (event) => this.onSandboxMessage_(event));
+    this.sandbox_ = document.getElementById('sandboxed-pumpkin-tagger') as
+        HTMLIFrameElement;
   }
 
-  private handleMessageFromServiceWorker_(message: any|undefined): boolean {
-    switch (message['command']) {
-      case OffscreenCommandType.DICTATION_PUMPKIN_INSTALL:
-        this.worker_ =
-            new Worker(SANDBOXED_PUMPKIN_TAGGER_JS_FILE, {type: 'module'});
-        this.worker_.onmessage = (message) =>
-            chrome.runtime.sendMessage(undefined, {
-              command: OffscreenCommandType.DICTATION_PUMPKIN_RECEIVE,
-              fromPumpkinTagger: message.data
-            });
-        break;
-      case OffscreenCommandType.DICTATION_PUMPKIN_SEND:
-        this.sendToSandboxedPumpkinTagger_(message['toPumpkinTagger'])
-        break;
-    }
-    return false;
+  private async createSandboxedPumpkinTagger_() {
+    this.sandbox_.src = 'sandboxed_pumpkin_tagger.html';
   }
 
-  private sendToSandboxedPumpkinTagger_(
-      toPumpkinTagger: PumpkinConstants.ToPumpkinTagger): void {
-    if (!this.worker_) {
-      throw new Error(
-          `Worker not ready, cannot send command to SandboxedPumpkinTagger: ${
-              toPumpkinTagger.type}`);
-    }
-
+  private async sendToSandboxedPumpkinTagger_(
+      toPumpkinTagger: PumpkinConstants.ToPumpkinTagger) {
     // Deseriazlie ArrayBuffer fields in pumpkinData before sending it to
     // tagger worker.
     // 1. Traverse the `pumpkinData` object and convert each value (an array
@@ -64,15 +42,31 @@ class OffscreenPumpkinWorker {
     // ArrayBuffer.
     // 2. Reconstruct a new object with the original keys and the deserialized
     // values.
-    toPumpkinTagger.pumpkinData = toPumpkinTagger.pumpkinData ?
-        Object.fromEntries(
+    const pumpkinData = toPumpkinTagger.pumpkinData ?
+        Object.fromEntries(await Promise.all(
             Object.entries(toPumpkinTagger.pumpkinData)
-                .map(([key, array]) => [key, new Uint8Array(array).buffer])) as
-            PumpkinConstants.PumpkinData :
+                .map(async ([key, array]) => {
+                  return [key, await Messenger.base64ToArrayBuffer(array)];
+                }))) :
         null;
 
-    this.worker_.postMessage(toPumpkinTagger);
+    this.sandbox_.contentWindow!.postMessage(
+        {...toPumpkinTagger, pumpkinData}, '*');
+  }
+
+  /**
+   * Handle of messages from the sandboxed tagger.
+   */
+  private onSandboxMessage_(event: MessageEvent) {
+    if (event.source !== this.sandbox_.contentWindow) {
+      console.error(`Reject sandbox message: bad event source`);
+      return;
+    }
+
+    Messenger.send(
+        OffscreenCommandType.DICTATION_PUMPKIN_RECEIVE,
+        {fromPumpkinTagger: event.data});
   }
 }
 
-OffscreenPumpkinWorker.init();
+export {OffscreenPumpkinWorker};

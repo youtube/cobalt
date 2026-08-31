@@ -903,9 +903,6 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   if (!isolate->use_optimizer()) {
     status |= static_cast<int>(OptimizationStatus::kNeverOptimize);
   }
-  if (v8_flags.always_turbofan || v8_flags.prepare_always_turbofan) {
-    status |= static_cast<int>(OptimizationStatus::kAlwaysOptimize);
-  }
   if (v8_flags.deopt_every_n_times) {
     status |= static_cast<int>(OptimizationStatus::kMaybeDeopted);
   }
@@ -1332,11 +1329,10 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   SealHandleScope shs(isolate);
-  StdoutStream os;
-  if (args.length() != 1) {
-    return CrashUnlessFuzzing(isolate);
-  }
+  // This isn't exposed to fuzzers so doesn't need to handle invalid arguments.
+  DCHECK_EQ(args.length(), 1);
 
+  StdoutStream os;
   Tagged<MaybeObject> maybe_object(*args.address_of_arg_at(0));
   if (!maybe_object.IsCleared()) {
     Tagged<Object> object = maybe_object.GetHeapObjectOrSmi();
@@ -1401,12 +1397,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
   if (!IsSmi(args[4]) || (Cast<Smi>(args[4]).value() == fileno(stderr))) {
     StderrStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   } else {
     StdoutStream os;
     std::streamsize precision = os.precision();
-    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    const double d = base::bit_cast<double>(value);
+    os << std::setprecision(20) << d;
+    if (std::isnan(d)) {
+      os << " (0x" << std::hex << value << std::dec << ")";
+    }
+    os << std::endl;
     os.precision(precision);
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1541,9 +1547,11 @@ RUNTIME_FUNCTION(Runtime_AbortCSADcheck) {
     base::OS::PrintError("The following harmless failure was encountered: %s\n",
                          message->ToCString().get());
   } else {
-    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n",
-                         message->ToCString().get());
-    isolate->PrintStack(stderr);
+    std::unique_ptr<char[]> message_str = message->ToCString();
+    base::OS::PrintError("abort: CSA_DCHECK failed: %s\n\n", message_str.get());
+
+    isolate->PushStackTraceAndDie(reinterpret_cast<void*>(message->ptr()),
+                                  message_str.get());
   }
   base::OS::Abort();
   UNREACHABLE();
@@ -1634,7 +1642,8 @@ RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
   }
   auto obj = Cast<HeapObject>(args[0]);
   return isolate->heap()->ToBoolean(
-      isolate->heap()->new_lo_space()->Contains(obj) ||
+      (isolate->heap()->new_lo_space() &&
+       isolate->heap()->new_lo_space()->Contains(obj)) ||
       isolate->heap()->code_lo_space()->Contains(obj) ||
       isolate->heap()->lo_space()->Contains(obj));
 }
@@ -1647,7 +1656,8 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
   auto array = Cast<JSArray>(args[0]);
   Tagged<FixedArrayBase> elements = array->elements();
   return isolate->heap()->ToBoolean(
-      isolate->heap()->new_lo_space()->Contains(elements) ||
+      (isolate->heap()->new_lo_space() &&
+       isolate->heap()->new_lo_space()->Contains(elements)) ||
       isolate->heap()->lo_space()->Contains(elements));
 }
 
@@ -1970,7 +1980,7 @@ RUNTIME_FUNCTION(Runtime_EnableCodeLoggingForTesting) {
                          int column) final {}
 #if V8_ENABLE_WEBASSEMBLY
     void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
-                         wasm::WasmName name, const char* source_url,
+                         wasm::WasmName name, std::string_view source_url,
                          int code_offset, int script_id) final {}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -2266,7 +2276,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
       isolate->factory()->NewFixedArray(feedback_vector->length());
   int result_ix = 0;
 
-  FeedbackMetadataIterator iter(feedback_vector->metadata());
+  FeedbackMetadataIterator iter(handle(feedback_vector->metadata(), isolate));
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();

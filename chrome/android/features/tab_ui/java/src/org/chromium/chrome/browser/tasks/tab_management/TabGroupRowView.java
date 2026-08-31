@@ -4,7 +4,7 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
-import static org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils.buildMenuListItem;
+import static org.chromium.components.browser_ui.widget.ListItemBuilder.buildSimpleMenuItem;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -185,13 +185,13 @@ public class TabGroupRowView extends LinearLayout {
             @Nullable Runnable leaveRunnable) {
         ModelList listItems = new ModelList();
         if (openRunnable != null) {
-            listItems.add(buildMenuListItem(R.string.open_tab_group_menu_item, 0, 0));
+            listItems.add(buildSimpleMenuItem(R.string.open_tab_group_menu_item));
         }
         if (deleteRunnable != null) {
-            listItems.add(buildMenuListItem(R.string.delete_tab_group_menu_item, 0, 0));
+            listItems.add(buildSimpleMenuItem(R.string.delete_tab_group_menu_item));
         }
         if (leaveRunnable != null) {
-            listItems.add(buildMenuListItem(R.string.leave_tab_group_menu_item, 0, 0));
+            listItems.add(buildSimpleMenuItem(R.string.leave_tab_group_menu_item));
         }
         return BrowserUiListMenuUtils.getBasicListMenu(
                 getContext(),

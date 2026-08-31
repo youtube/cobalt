@@ -303,7 +303,7 @@ class GpuTestExpectationsValidation(unittest.TestCase):
               self.assertIsNone(gpu_helper.MatchDriverTag(tag))
         expectations_driver_tags |= driver_tag_set
 
-    self.assertEqual(gpu_helper.ExpectationsDriverTags(),
+    self.assertEqual(gpu_helper.GetAllExpectationFileDriverTags(),
                      expectations_driver_tags)
 
 
@@ -334,10 +334,10 @@ class TestGpuTestExpectationsValidators(unittest.TestCase):
   def testConflictsBetweenAngleAndNonAngleConfigurations(self) -> None:
     test_expectations = """
     # tags: [ android ]
-    # tags: [ android-nexus-5x ]
+    # tags: [ android-pixel-6 ]
     # tags: [ opengles ]
     # results: [ RetryOnFailure Skip ]
-    [ android android-nexus-5x ] a/b/c/d [ RetryOnFailure ]
+    [ android android-pixel-6 ] a/b/c/d [ RetryOnFailure ]
     [ android opengles ] a/b/c/d [ Skip ]
     """
     errors = CheckTestExpectationPatternsForConflicts(test_expectations,

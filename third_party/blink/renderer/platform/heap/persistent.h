@@ -6,7 +6,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_PERSISTENT_H_
 
 #include "third_party/blink/renderer/platform/heap/heap_buildflags.h"
-#include "third_party/blink/renderer/platform/wtf/cross_thread_copier.h"
 #include "third_party/blink/renderer/platform/wtf/hash_functions.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
@@ -60,7 +59,7 @@ cppgc::internal::BasicCrossThreadPersistent<U, weakness> DownCast(
 }
 
 template <typename T>
-  requires(WTF::IsGarbageCollectedType<T>::value)
+  requires(IsGarbageCollectedTypeV<T>)
 Persistent<T> WrapPersistentIfNeeded(T* value) {
   return Persistent<T>(value);
 }
@@ -70,10 +69,6 @@ T& WrapPersistentIfNeeded(T& value) {
   return value;
 }
 
-}  // namespace blink
-
-namespace WTF {
-
 template <typename T>
 struct PersistentVectorTraitsBase : VectorTraitsBase<T> {
   STATIC_ONLY(PersistentVectorTraitsBase);
@@ -81,18 +76,18 @@ struct PersistentVectorTraitsBase : VectorTraitsBase<T> {
 };
 
 template <typename T>
-struct VectorTraits<blink::Persistent<T>>
-    : PersistentVectorTraitsBase<blink::Persistent<T>> {};
+struct VectorTraits<Persistent<T>> : PersistentVectorTraitsBase<Persistent<T>> {
+};
 
 template <typename T>
-struct VectorTraits<blink::WeakPersistent<T>>
-    : PersistentVectorTraitsBase<blink::WeakPersistent<T>> {};
+struct VectorTraits<WeakPersistent<T>>
+    : PersistentVectorTraitsBase<WeakPersistent<T>> {};
 
 template <typename T, typename PersistentType>
 struct BasePersistentHashTraits : SimpleClassHashTraits<PersistentType> {
   template <typename U>
   static unsigned GetHash(const U& key) {
-    return WTF::GetHash<T*>(key);
+    return blink::GetHash<T*>(key);
   }
 
   template <typename U, typename V>
@@ -134,7 +129,7 @@ template <typename T>
 struct HashTraits<blink::WeakPersistent<T>>
     : BasePersistentHashTraits<T, blink::WeakPersistent<T>> {};
 
-}  // namespace WTF
+}  // namespace blink
 
 namespace base {
 

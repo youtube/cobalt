@@ -18,6 +18,7 @@ import static org.junit.Assert.assertTrue;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 import static org.chromium.base.test.util.Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE;
+import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
 import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import android.content.pm.ActivityInfo;
@@ -71,7 +72,7 @@ import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
 import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
 import org.chromium.chrome.test.transit.ChromeTransitTestRules;
-import org.chromium.chrome.test.transit.page.PageStation;
+import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
 import org.chromium.components.javascript_dialogs.JavascriptTabModalDialog;
@@ -160,7 +161,7 @@ public class TabsTest {
     @CommandLineFlags.Add(ContentSwitches.DISABLE_POPUP_BLOCKING)
     public void testSpawnPopupOnBackgroundTab() {
         mActivityTestRule.loadUrl(getUrl(TEST_FILE_PATH));
-        final Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        final Tab tab = mActivityTestRule.getActivityTab();
 
         mActivityTestRule.newIncognitoTabFromMenu();
 
@@ -190,7 +191,7 @@ public class TabsTest {
     public void testAlertDialogDoesNotChangeActiveModel() {
         mActivityTestRule.newIncognitoTabFromMenu();
         mActivityTestRule.loadUrl(getUrl(TEST_FILE_PATH));
-        final Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        final Tab tab = mActivityTestRule.getActivityTab();
         runOnUiThreadBlocking(
                 () ->
                         tab.getWebContents()
@@ -290,9 +291,9 @@ public class TabsTest {
      */
     @Test
     @LargeTest
-    @Restriction(DeviceFormFactor.TABLET)
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @Feature({"Android-TabSwitcher"})
-    @DisableIf.Device(DeviceFormFactor.TABLET) // crbug.com/353910783
+    @DisableIf.Device(DeviceFormFactor.ONLY_TABLET) // crbug.com/353910783
     public void testHideKeyboard() throws Exception {
         // Open a new tab(The 1st tab) and click node.
         mActivityTestRule.loadUrlInNewTab(getUrl(TEST_FILE_PATH), false);
@@ -394,6 +395,7 @@ public class TabsTest {
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
     @Feature({"Android-TabSwitcher"})
+    @DisabledTest(message = "https://crbug.com/424433654")
     public void testTabSwitcherCollapseSelection() throws Exception {
         mActivityTestRule.loadUrlInNewTab(getUrl(TEST_FILE_PATH), false);
         DOMUtils.longPressNode(mActivityTestRule.getWebContents(), "textarea");
@@ -418,7 +420,7 @@ public class TabsTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
 
         // Make sure we're on the NTP
-        Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        Tab tab = mActivityTestRule.getActivityTab();
         NewTabPageTestUtils.waitForNtpLoaded(tab);
 
         mActivityTestRule.loadUrl(INITIAL_SIZE_TEST_URL);
@@ -511,8 +513,7 @@ public class TabsTest {
             assertEquals(
                     "URL mismatch after switching back to the tab from tab-switch mode",
                     urls[lastUrlIndex],
-                    ChromeTabUtils.getUrlStringOnUiThread(
-                            mActivityTestRule.getActivity().getActivityTab()));
+                    ChromeTabUtils.getUrlStringOnUiThread(mActivityTestRule.getActivityTab()));
         }
     }
 
@@ -525,7 +526,7 @@ public class TabsTest {
 
         assertTrue(
                 "Current Tab should be an incognito tab.",
-                mActivityTestRule.getActivity().getActivityTab().isIncognito());
+                mActivityTestRule.getActivityTab().isIncognito());
     }
 
     /** Test that orientation changes cause the live tab reflow. */
@@ -567,7 +568,7 @@ public class TabsTest {
                 mActivityTestRule.getActivity().getTabModelSelector().getCurrentModel();
         final Tab tab = TabModelUtils.getCurrentTab(model);
 
-        assertEquals("Too many tabs at startup", 1, model.getCount());
+        assertEquals("Too many tabs at startup", 1, getTabCountOnUiThread(model));
 
         runOnUiThreadBlocking(
                 (Runnable)
@@ -737,7 +738,7 @@ public class TabsTest {
     public void testRequestFocusOnSwitchTab() {
         final TabModel model =
                 mActivityTestRule.getActivity().getTabModelSelector().getCurrentModel();
-        final Tab oldTab = TabModelUtils.getCurrentTab(model);
+        final Tab oldTab = mActivityTestRule.getActivityTab();
 
         assertNotNull("Tab should have a view", oldTab.getView());
 
@@ -817,7 +818,7 @@ public class TabsTest {
                             });
                 });
 
-        assertEquals("Too many tabs at startup", 1, model.getCount());
+        assertEquals("Too many tabs at startup", 1, getTabCountOnUiThread(model));
 
         runOnUiThreadBlocking(
                 (Runnable)
@@ -834,7 +835,7 @@ public class TabsTest {
     @MediumTest
     @Feature({"Android-TabSwitcher"})
     public void testTabsAreDestroyedOnModelDestruction() throws Exception {
-        final Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        final Tab tab = mActivityTestRule.getActivityTab();
 
         final CallbackHelper webContentsDestroyed = new CallbackHelper();
 
@@ -886,14 +887,18 @@ public class TabsTest {
                 new File(
                         tabStateDir,
                         TabStateFileManager.getTabStateFilename(
-                                normalModel.getTabAt(normalModel.getCount() - 1).getId(),
+                                runOnUiThreadBlocking(
+                                                () ->
+                                                        normalModel.getTabAt(
+                                                                normalModel.getCount() - 1))
+                                        .getId(),
                                 false,
                                 /* isFlatBuffer= */ true));
         File incognitoTabFile =
                 new File(
                         tabStateDir,
                         TabStateFileManager.getTabStateFilename(
-                                incognitoModel.getTabAt(0).getId(),
+                                runOnUiThreadBlocking(() -> incognitoModel.getTabAt(0)).getId(),
                                 true,
                                 /* isFlatBuffer= */ true));
 
@@ -917,7 +922,7 @@ public class TabsTest {
                 InstrumentationRegistry.getInstrumentation(), mActivityTestRule.getActivity());
         TabModelSelectorImpl selector =
                 (TabModelSelectorImpl) mActivityTestRule.getActivity().getTabModelSelector();
-        Tab tab = mActivityTestRule.getActivity().getActivityTab();
+        Tab tab = mActivityTestRule.getActivityTab();
 
         // Start undoable tab closure.
         runOnUiThreadBlocking(
@@ -953,7 +958,7 @@ public class TabsTest {
     @Test
     @MediumTest
     public void testTabIsActivated() {
-        PageStation page0 = mActivityTestRule.startOnBlankPage();
+        CtaPageStation page0 = mActivityTestRule.startOnBlankPage();
 
         TabModel regularModel =
                 mActivityTestRule.getActivity().getTabModelSelector().getModel(false);

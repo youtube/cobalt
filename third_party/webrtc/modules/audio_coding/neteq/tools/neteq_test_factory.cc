@@ -10,11 +10,8 @@
 
 #include "modules/audio_coding/neteq/tools/neteq_test_factory.h"
 
-#include <limits.h>  // For ULONG_MAX returned by strtoul.
-#include <stdio.h>
-#include <stdlib.h>  // For strtoul.
-
 #include <cstdint>
+#include <cstdlib>  // For strtoul.
 #include <fstream>
 #include <iostream>
 #include <map>
@@ -54,7 +51,6 @@
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "rtc_base/checks.h"
 #include "test/function_audio_decoder_factory.h"
-#include "test/testsupport/file_utils.h"
 
 namespace webrtc {
 namespace test {
@@ -275,7 +271,7 @@ std::unique_ptr<NetEqTest> NetEqTestFactory::InitializeTest(
       CreateBuiltinAudioDecoderFactory();
 
   // Check if a replacement audio file was provided.
-  if (config.replacement_audio_file.size() > 0) {
+  if (!config.replacement_audio_file.empty()) {
     // Find largest unused payload type.
     int replacement_pt = 127;
     while (codecs.find(replacement_pt) != codecs.end()) {

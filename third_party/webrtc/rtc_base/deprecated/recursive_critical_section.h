@@ -42,7 +42,7 @@
 
 namespace webrtc {
 
-// NOTE: This class is deprecated. Please use webrtc::Mutex instead!
+// NOTE: This class is deprecated. Please use Mutex instead!
 // Search using https://www.google.com/?q=recursive+lock+considered+harmful
 // to find the reasons.
 //
@@ -104,13 +104,5 @@ class RTC_SCOPED_LOCKABLE CritScope {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::CritScope;
-using ::webrtc::RecursiveCriticalSection;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_DEPRECATED_RECURSIVE_CRITICAL_SECTION_H_

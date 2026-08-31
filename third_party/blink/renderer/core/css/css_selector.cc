@@ -31,6 +31,7 @@
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/strings/string_view_util.h"
 #include "style_rule.h"
 #include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_selector_list.h"
@@ -257,6 +258,7 @@ inline unsigned CSSSelector::SpecificityForOneSelector() const {
           DCHECK(SelectorList()->IsSingleComplexSelector());
           return kTagSpecificity + SelectorList()->First()->Specificity();
         case kPseudoViewTransitionGroup:
+        case kPseudoViewTransitionGroupChildren:
         case kPseudoViewTransitionImagePair:
         case kPseudoViewTransitionOld:
         case kPseudoViewTransitionNew: {
@@ -337,6 +339,8 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
       return kPseudoIdAfter;
     case kPseudoPickerIcon:
       return kPseudoIdPickerIcon;
+    case kPseudoInterestHint:
+      return kPseudoIdInterestHint;
     case kPseudoMarker:
       return kPseudoIdMarker;
     case kPseudoBackdrop:
@@ -390,6 +394,8 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
       return kPseudoIdViewTransition;
     case kPseudoViewTransitionGroup:
       return kPseudoIdViewTransitionGroup;
+    case kPseudoViewTransitionGroupChildren:
+      return kPseudoIdViewTransitionGroupChildren;
     case kPseudoViewTransitionImagePair:
       return kPseudoIdViewTransitionImagePair;
     case kPseudoViewTransitionOld:
@@ -433,7 +439,6 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoFutureCue:
     case kPseudoHas:
     case kPseudoHasInterest:
-    case kPseudoHasPartialInterest:
     case kPseudoHasSlotted:
     case kPseudoHasDatalist:
     case kPseudoHorizontal:
@@ -469,6 +474,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoParent:
     case kPseudoPart:
     case kPseudoPastCue:
+    case kPseudoPatching:
     case kPseudoPaused:
     case kPseudoPermissionElementInvalidStyle:
     case kPseudoPermissionElementOccluded:
@@ -494,7 +500,6 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoTarget:
     case kPseudoTargetCurrent:
     case kPseudoTargetOfInterest:
-    case kPseudoTargetOfPartialInterest:
     case kPseudoUnknown:
     case kPseudoUnparsed:
     case kPseudoUserInvalid:
@@ -620,7 +625,6 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"grammar-error", CSSSelector::kPseudoGrammarError},
     {"granted", CSSSelector::kPseudoPermissionGranted},
     {"has-interest", CSSSelector::kPseudoHasInterest},
-    {"has-partial-interest", CSSSelector::kPseudoHasPartialInterest},
     {"has-slotted", CSSSelector::kPseudoHasSlotted},
     {"horizontal", CSSSelector::kPseudoHorizontal},
     {"host", CSSSelector::kPseudoHost},
@@ -628,6 +632,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"in-range", CSSSelector::kPseudoInRange},
     {"increment", CSSSelector::kPseudoIncrement},
     {"indeterminate", CSSSelector::kPseudoIndeterminate},
+    {"interest-hint", CSSSelector::kPseudoInterestHint},
     {"invalid", CSSSelector::kPseudoInvalid},
     {"invalid-style", CSSSelector::kPseudoPermissionElementInvalidStyle},
     {"last-child", CSSSelector::kPseudoLastChild},
@@ -644,6 +649,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"optional", CSSSelector::kPseudoOptional},
     {"out-of-range", CSSSelector::kPseudoOutOfRange},
     {"past", CSSSelector::kPseudoPastCue},
+    {"patching", CSSSelector::kPseudoPatching},
     {"paused", CSSSelector::kPseudoPaused},
     {"permission-icon", CSSSelector::kPseudoPermissionIcon},
     {"picker-icon", CSSSelector::kPseudoPickerIcon},
@@ -668,7 +674,6 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"target", CSSSelector::kPseudoTarget},
     {"target-current", CSSSelector::kPseudoTargetCurrent},
     {"target-of-interest", CSSSelector::kPseudoTargetOfInterest},
-    {"target-of-partial-interest", CSSSelector::kPseudoTargetOfPartialInterest},
     {"target-text", CSSSelector::kPseudoTargetText},
     {"user-invalid", CSSSelector::kPseudoUserInvalid},
     {"user-valid", CSSSelector::kPseudoUserValid},
@@ -703,6 +708,8 @@ constexpr static NameToPseudoStruct kPseudoTypeWithArgumentsMap[] = {
     {"slotted", CSSSelector::kPseudoSlotted},
     {"state", CSSSelector::kPseudoState},
     {"view-transition-group", CSSSelector::kPseudoViewTransitionGroup},
+    {"view-transition-group-children",
+     CSSSelector::kPseudoViewTransitionGroupChildren},
     {"view-transition-image-pair", CSSSelector::kPseudoViewTransitionImagePair},
     {"view-transition-new", CSSSelector::kPseudoViewTransitionNew},
     {"view-transition-old", CSSSelector::kPseudoViewTransitionOld},
@@ -749,6 +756,11 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
     return CSSSelector::kPseudoUnknown;
   }
 
+  if (match->type == CSSSelector::kPseudoPatching &&
+      !RuntimeEnabledFeatures::DocumentPatchingEnabled()) {
+    return CSSSelector::kPseudoUnknown;
+  }
+
   if (match->type == CSSSelector::kPseudoPermissionElementInvalidStyle &&
       !RuntimeEnabledFeatures::PermissionElementEnabled(
           document ? document->GetExecutionContext() : nullptr)) {
@@ -788,11 +800,6 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
     return CSSSelector::kPseudoUnknown;
   }
 
-  if (match->type == CSSSelector::kPseudoOpen &&
-      !RuntimeEnabledFeatures::CSSPseudoOpenEnabled()) {
-    return CSSSelector::kPseudoUnknown;
-  }
-
   if (match->type == CSSSelector::kPseudoPicker &&
       !HTMLSelectElement::CustomizableSelectEnabled(document)) {
     return CSSSelector::kPseudoUnknown;
@@ -805,10 +812,8 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
   }
 
   if ((match->type == CSSSelector::kPseudoHasInterest ||
-       match->type == CSSSelector::kPseudoHasPartialInterest ||
-       match->type == CSSSelector::kPseudoTargetOfInterest ||
-       match->type == CSSSelector::kPseudoTargetOfPartialInterest) &&
-      !RuntimeEnabledFeatures::HTMLInterestTargetAttributeEnabled(
+       match->type == CSSSelector::kPseudoTargetOfInterest) &&
+      !RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled(
           document ? document->GetExecutionContext() : nullptr)) {
     return CSSSelector::kPseudoUnknown;
   }
@@ -891,8 +896,9 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
         bits_.set<MatchField>(kPseudoElement);
       }
       [[fallthrough]];
-    // For pseudo elements
+    // For pseudo-elements
     case kPseudoPickerIcon:
+    case kPseudoInterestHint:
     case kPseudoCheckMark:
     case kPseudoBackdrop:
     case kPseudoCue:
@@ -922,6 +928,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoGrammarError:
     case kPseudoViewTransition:
     case kPseudoViewTransitionGroup:
+    case kPseudoViewTransitionGroupChildren:
     case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionOld:
     case kPseudoViewTransitionNew:
@@ -953,7 +960,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
         break;
       }
       [[fallthrough]];
-    // For pseudo classes
+    // For pseudo-classes
     case kPseudoActive:
     case kPseudoActiveViewTransition:
     case kPseudoActiveViewTransitionType:
@@ -988,7 +995,6 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoFutureCue:
     case kPseudoHas:
     case kPseudoHasInterest:
-    case kPseudoHasPartialInterest:
     case kPseudoHasSlotted:
     case kPseudoHorizontal:
     case kPseudoHost:
@@ -1017,6 +1023,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoOutOfRange:
     case kPseudoParent:
     case kPseudoPastCue:
+    case kPseudoPatching:
     case kPseudoPaused:
     case kPseudoPermissionElementInvalidStyle:
     case kPseudoPermissionElementOccluded:
@@ -1039,7 +1046,6 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoTarget:
     case kPseudoTargetCurrent:
     case kPseudoTargetOfInterest:
-    case kPseudoTargetOfPartialInterest:
     case kPseudoUnknown:
     case kPseudoUnparsed:
     case kPseudoUserInvalid:
@@ -1112,6 +1118,19 @@ static void SerializeNamespacePrefixIfNeeded(const AtomicString& prefix,
   }
   SerializeIdentifierOrAny(prefix, any, builder);
   builder.Append('|');
+}
+
+template <typename ListType>
+static void SerializeIdentifierList(StringBuilder& builder,
+                                    const ListType& list) {
+  bool is_first = true;
+  for (const AtomicString& item : list) {
+    if (!is_first) {
+      builder.Append(", ");
+    }
+    SerializeIdentifier(item, builder);
+    is_first = false;
+  }
 }
 
 // static
@@ -1200,12 +1219,17 @@ bool CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         break;
       }
       case kPseudoDir:
-      case kPseudoLang:
       case kPseudoState:
         builder.Append('(');
         SerializeIdentifier(Argument(), builder);
         builder.Append(')');
         break;
+      case kPseudoLang: {
+        builder.Append('(');
+        SerializeIdentifierList(builder, *ArgumentList());
+        builder.Append(')');
+        break;
+      }
       case kPseudoHas:
       case kPseudoNot:
         DCHECK(SelectorList());
@@ -1243,14 +1267,8 @@ bool CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         NOTREACHED();
       case kPseudoActiveViewTransitionType: {
         CHECK(!IdentList().empty());
-        String separator = "(";
-        for (AtomicString type : IdentList()) {
-          builder.Append(separator);
-          if (separator == "(") {
-            separator = ", ";
-          }
-          SerializeIdentifier(type, builder);
-        }
+        builder.Append('(');
+        SerializeIdentifierList(builder, IdentList());
         builder.Append(')');
         break;
       }
@@ -1286,6 +1304,7 @@ bool CSSSelector::SerializeSimpleSelector(StringBuilder& builder,
         break;
       }
       case kPseudoViewTransitionGroup:
+      case kPseudoViewTransitionGroupChildren:
       case kPseudoViewTransitionImagePair:
       case kPseudoViewTransitionNew:
       case kPseudoViewTransitionOld: {
@@ -1393,7 +1412,7 @@ String CSSSelector::SelectorTextInternal(uintptr_t scope_id) const {
     compound = compound->SerializeCompound<expand_pseudo_references>(builder,
                                                                      scope_id);
     if (!compound) {
-      return builder.ReleaseString() + result;
+      return StrCat({builder.ReleaseString(), result});
     }
 
     RelationType relation = compound->Relation();
@@ -1415,31 +1434,31 @@ String CSSSelector::SelectorTextInternal(uintptr_t scope_id) const {
 
     switch (relation) {
       case kDescendant:
-        result = " " + builder.ReleaseString() + result;
+        result = StrCat({" ", builder.ReleaseString(), result});
         break;
       case kChild:
-        result = " > " + builder.ReleaseString() + result;
+        result = StrCat({" > ", builder.ReleaseString(), result});
         break;
       case kDirectAdjacent:
-        result = " + " + builder.ReleaseString() + result;
+        result = StrCat({" + ", builder.ReleaseString(), result});
         break;
       case kIndirectAdjacent:
-        result = " ~ " + builder.ReleaseString() + result;
+        result = StrCat({" ~ ", builder.ReleaseString(), result});
         break;
       case kSubSelector:
       case kShadowPart:
       case kUAShadow:
       case kShadowSlot:
-        result = builder.ReleaseString() + result;
+        result = StrCat({builder.ReleaseString(), result});
         break;
       case kRelativeDescendant:
-        return builder.ReleaseString() + result;
+        return StrCat({builder.ReleaseString(), result});
       case kRelativeChild:
-        return "> " + builder.ReleaseString() + result;
+        return StrCat({"> ", builder.ReleaseString(), result});
       case kRelativeDirectAdjacent:
-        return "+ " + builder.ReleaseString() + result;
+        return StrCat({"+ ", builder.ReleaseString(), result});
       case kRelativeIndirectAdjacent:
-        return "~ " + builder.ReleaseString() + result;
+        return StrCat({"~ ", builder.ReleaseString(), result});
     }
   }
   NOTREACHED();
@@ -1462,6 +1481,12 @@ String CSSSelector::SimpleSelectorTextForDebug() const {
 void CSSSelector::SetArgument(const AtomicString& value) {
   CreateRareData();
   data_.rare_data_->argument_ = value;
+}
+
+void CSSSelector::SetArgumentList(
+    std::unique_ptr<Vector<AtomicString>> arguments) {
+  CreateRareData();
+  data_.rare_data_->argument_list_ = std::move(arguments);
 }
 
 void CSSSelector::SetSelectorList(CSSSelectorList* selector_list) {
@@ -1589,6 +1614,23 @@ bool CSSSelector::HasLinkOrVisited() const {
   return false;
 }
 
+bool CSSSelector::HasVisited() const {
+  for (const CSSSelector* current = this; current;
+       current = current->NextSimpleSelector()) {
+    CSSSelector::PseudoType pseudo = current->GetPseudoType();
+    if (pseudo == CSSSelector::kPseudoVisited) {
+      return true;
+    }
+    for (const CSSSelector* sub_selector = current->SelectorListOrParent();
+         sub_selector; sub_selector = CSSSelectorList::Next(*sub_selector)) {
+      if (sub_selector->HasVisited()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void CSSSelector::SetNth(int a, int b, CSSSelectorList* sub_selectors) {
   CreateRareData();
   data_.rare_data_->bits_.nth_.a_ = a;
@@ -1629,12 +1671,14 @@ bool CSSSelector::IsTreeAbidingPseudoElement() const {
          (GetPseudoType() == kPseudoCheckMark ||
           GetPseudoType() == kPseudoBefore || GetPseudoType() == kPseudoAfter ||
           GetPseudoType() == kPseudoPickerIcon ||
+          GetPseudoType() == kPseudoInterestHint ||
           GetPseudoType() == kPseudoMarker ||
           GetPseudoType() == kPseudoPlaceholder ||
           GetPseudoType() == kPseudoFileSelectorButton ||
           GetPseudoType() == kPseudoBackdrop ||
           GetPseudoType() == kPseudoViewTransition ||
           GetPseudoType() == kPseudoViewTransitionGroup ||
+          GetPseudoType() == kPseudoViewTransitionGroupChildren ||
           GetPseudoType() == kPseudoViewTransitionImagePair ||
           GetPseudoType() == kPseudoViewTransitionOld ||
           GetPseudoType() == kPseudoViewTransitionNew ||
@@ -1666,6 +1710,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoBefore:
     case kPseudoAfter:
     case kPseudoPickerIcon:
+    case kPseudoInterestHint:
     case kPseudoPlaceholder:
     case kPseudoFileSelectorButton:
     case kPseudoFirstLine:
@@ -1697,6 +1742,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoPermissionIcon:
     case kPseudoViewTransition:
     case kPseudoViewTransitionGroup:
+    case kPseudoViewTransitionGroupChildren:
     case kPseudoViewTransitionImagePair:
     case kPseudoViewTransitionNew:
     case kPseudoViewTransitionOld:
@@ -1735,7 +1781,6 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoFocusWithin:
     case kPseudoFullPageMedia:
     case kPseudoHasInterest:
-    case kPseudoHasPartialInterest:
     case kPseudoHasSlotted:
     case kPseudoHover:
     case kPseudoIndeterminate:
@@ -1755,7 +1800,6 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoState:
     case kPseudoTarget:
     case kPseudoTargetOfInterest:
-    case kPseudoTargetOfPartialInterest:
     case kPseudoUserInvalid:
     case kPseudoUserValid:
     case kPseudoValid:
@@ -1767,6 +1811,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoFullscreen:
     case kPseudoInRange:
     case kPseudoOutOfRange:
+    case kPseudoPatching:
     case kPseudoPaused:
     case kPseudoPictureInPicture:
     case kPseudoPlaying:

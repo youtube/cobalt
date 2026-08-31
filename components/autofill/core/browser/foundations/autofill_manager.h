@@ -21,7 +21,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
-#include "base/types/optional_ref.h"
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
@@ -194,14 +193,15 @@ class AutofillManager
     // be filled: each `FormFieldData::value` contains the filled or previewed
     // value; the corresponding `AutofillField` contains the field type
     // information. The field values come from `filling_payload`.
-    // TODO(crbug.com/40227496): Get rid of FormFieldData.
     // TODO(crbug.com/40280003): Consider removing the event in favor of
     // OnAfterDidFillAutofillFormData(), which is fired by the renderer.
-    virtual void OnFillOrPreviewDataModelForm(
+    // TODO(crbug.com/40227071): Consider removing `action_persistence` as the
+    // preview signal is only used for testing.
+    virtual void OnFillOrPreviewForm(
         AutofillManager& manager,
-        FormGlobalId form,
+        FormGlobalId form_id,
         mojom::ActionPersistence action_persistence,
-        base::span<const FormFieldData* const> filled_fields,
+        const base::flat_set<FieldGlobalId>& filled_field_ids,
         const FillingPayload& filling_payload) {}
 
     // Fired when a form is submitted. A `FormData` is passed instead of a
@@ -253,7 +253,7 @@ class AutofillManager
       const FieldGlobalId& field_id,
       const gfx::Rect& caret_bounds,
       AutofillSuggestionTriggerSource trigger_source,
-      base::optional_ref<const PasswordSuggestionRequest> password_request);
+      std::optional<PasswordSuggestionRequest> password_request);
   void OnHidePopup();
   virtual void OnCaretMovedInFormField(const FormData& form,
                                        const FieldGlobalId& field_id,
@@ -385,7 +385,7 @@ class AutofillManager
       const FieldGlobalId& field_id,
       const gfx::Rect& caret_bounds,
       AutofillSuggestionTriggerSource trigger_source,
-      base::optional_ref<const PasswordSuggestionRequest> password_request) = 0;
+      std::optional<PasswordSuggestionRequest> password_request) = 0;
   virtual void OnDidFillAutofillFormDataImpl(
       const FormData& form,
       const base::TimeTicks timestamp) = 0;

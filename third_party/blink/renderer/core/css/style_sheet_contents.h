@@ -25,9 +25,8 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
-#include "third_party/blink/renderer/core/css/rule_set.h"
 #include "third_party/blink/renderer/core/css/rule_set_diff.h"
-#include "third_party/blink/renderer/core/loader/resource/css_style_sheet_resource.h"
+#include "third_party/blink/renderer/core/css/style_rule.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/render_blocking_behavior.h"
@@ -43,10 +42,13 @@
 namespace blink {
 
 class CSSStyleSheet;
+class CSSStyleSheetResource;
 class Document;
+class MediaQueryEvaluator;
 class Node;
 class StyleRuleBase;
 class StyleRuleFontFace;
+class RuleSet;
 class RuleSetDiff;
 class StyleRuleImport;
 class StyleRuleNamespace;
@@ -103,9 +105,7 @@ class CORE_EXPORT StyleSheetContents final
   // if there are none.
   Document* AnyOwnerDocument() const;
 
-  const WTF::TextEncoding& Charset() const {
-    return parser_context_->Charset();
-  }
+  const TextEncoding& Charset() const { return parser_context_->Charset(); }
 
   bool LoadCompleted() const;
   bool HasFailedOrCanceledSubresources() const;
@@ -253,12 +253,14 @@ class CORE_EXPORT StyleSheetContents final
   }
 
   bool HasRuleSet() { return rule_set_.Get(); }
-  RuleSet& EnsureRuleSet(const MediaQueryEvaluator&);
+  RuleSet& EnsureRuleSet(const MediaQueryEvaluator& medium,
+                         const MixinMap& mixins);
   void ClearRuleSet();
   // Create a RuleSet which is not associated (i.e. not owned)
   // by this StyleSheetContents. This is useful for matching rules
   // in  an "alternate reality", which is the case for InspectorGhostRules.
-  RuleSet* CreateUnconnectedRuleSet(const MediaQueryEvaluator&) const;
+  RuleSet* CreateUnconnectedRuleSet(const MediaQueryEvaluator& medium,
+                                    const MixinMap& mixins) const;
 
   String SourceMapURL() const { return source_map_url_; }
 

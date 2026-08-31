@@ -86,12 +86,15 @@ component("views") {
     "accessibility/ax_update_notifier.h",
     "accessibility/ax_update_observer.h",
     "accessibility/ax_virtual_view.h",
+    "accessibility/tree/view_accessibility_ax_tree_source.h",
+    "accessibility/tree/widget_ax_manager.h",
+    "accessibility/tree/widget_view_ax_cache.h",
     "accessibility/view_accessibility.h",
     "accessibility/view_accessibility_utils.h",
-    "accessibility/widget_ax_tree_id_map.h",
     "accessible_pane_view.h",
     "actions/action_view_controller.h",
     "actions/action_view_interface.h",
+    "anchor/view_anchor.h",
     "animation/animation_abort_handle.h",
     "animation/animation_builder.h",
     "animation/animation_delegate_views.h",
@@ -151,6 +154,7 @@ component("views") {
     "controls/button/label_button_image_container.h",
     "controls/button/md_text_button.h",
     "controls/button/md_text_button_with_down_arrow.h",
+    "controls/button/md_text_button_with_spinner.h",
     "controls/button/menu_button.h",
     "controls/button/menu_button_controller.h",
     "controls/button/radio_button.h",
@@ -235,7 +239,7 @@ component("views") {
     "focus/focus_manager_delegate.h",
     "focus/focus_manager_factory.h",
     "focus/focus_search.h",
-    "focus/widget_focus_manager.h",
+    "focus/native_view_focus_manager.h",
     "input_event_activation_protector.h",
     "interaction/element_tracker_views.h",
     "interaction/interaction_sequence_views.h",
@@ -264,7 +268,6 @@ component("views") {
     "mouse_watcher.h",
     "mouse_watcher_view_host.h",
     "native_theme_delegate.h",
-    "native_window_tracker.h",
     "paint_info.h",
     "painter.h",
     "rect_based_targeting_utils.h",
@@ -305,13 +308,14 @@ component("views") {
     "widget/widget.h",
     "widget/widget_delegate.h",
     "widget/widget_deletion_observer.h",
+    "widget/widget_enumerator.h",
     "widget/widget_observer.h",
     "widget/widget_removals_observer.h",
     "widget/widget_utils.h",
     "window/caption_button_layout_constants.h",
     "window/caption_button_types.h",
     "window/client_view.h",
-    "window/custom_frame_view.h",
+    "window/default_frame_view.h",
     "window/dialog_client_view.h",
     "window/dialog_delegate.h",
     "window/dialog_observer.h",
@@ -335,11 +339,15 @@ component("views") {
     "accessibility/ax_update_notifier.cc",
     "accessibility/ax_update_observer.cc",
     "accessibility/ax_virtual_view.cc",
+    "accessibility/tree/view_accessibility_ax_tree_source.cc",
+    "accessibility/tree/widget_ax_manager.cc",
+    "accessibility/tree/widget_view_ax_cache.cc",
     "accessibility/view_accessibility.cc",
     "accessibility/view_accessibility_utils.cc",
     "accessible_pane_view.cc",
     "actions/action_view_controller.cc",
     "actions/action_view_interface.cc",
+    "anchor/view_anchor.cc",
     "animation/animation_abort_handle.cc",
     "animation/animation_builder.cc",
     "animation/animation_delegate_views.cc",
@@ -395,6 +403,7 @@ component("views") {
     "controls/button/label_button_image_container.cc",
     "controls/button/md_text_button.cc",
     "controls/button/md_text_button_with_down_arrow.cc",
+    "controls/button/md_text_button_with_spinner.cc",
     "controls/button/menu_button.cc",
     "controls/button/menu_button_controller.cc",
     "controls/button/radio_button.cc",
@@ -465,7 +474,7 @@ component("views") {
     "focus/focus_manager.cc",
     "focus/focus_manager_factory.cc",
     "focus/focus_search.cc",
-    "focus/widget_focus_manager.cc",
+    "focus/native_view_focus_manager.cc",
     "input_event_activation_protector.cc",
     "interaction/element_tracker_views.cc",
     "interaction/interaction_sequence_views.cc",
@@ -488,7 +497,6 @@ component("views") {
     "masked_targeter_delegate.cc",
     "metadata/type_conversion.cc",
     "metadata/view_factory_internal.cc",
-    "metrics.cc",
     "mouse_watcher.cc",
     "mouse_watcher_view_host.cc",
     "paint_info.cc",
@@ -501,7 +509,6 @@ component("views") {
     "style/typography_provider.cc",
     "view.cc",
     "view_class_properties.cc",
-    "view_constants.cc",
     "view_model.cc",
     "view_model_utils.cc",
     "view_shadow.cc",
@@ -511,7 +518,6 @@ component("views") {
     "view_utils.cc",
     "views_delegate.cc",
     "views_features.cc",
-    "views_switches.cc",
     "widget/any_widget_observer.cc",
     "widget/any_widget_observer_singleton.cc",
     "widget/drop_helper.cc",
@@ -525,10 +531,11 @@ component("views") {
     "widget/widget_aura_utils.cc",
     "widget/widget_delegate.cc",
     "widget/widget_deletion_observer.cc",
+    "widget/widget_enumerator.cc",
     "widget/widget_utils.cc",
     "window/caption_button_layout_constants.cc",
     "window/client_view.cc",
-    "window/custom_frame_view.cc",
+    "window/default_frame_view.cc",
     "window/dialog_client_view.cc",
     "window/dialog_delegate.cc",
     "window/frame_background.cc",
@@ -570,8 +577,9 @@ component("views") {
     "//skia",
     "//third_party/icu",
     "//ui/accessibility",
-    "//ui/accessibility/platform:platform",
+    "//ui/accessibility/platform",
     "//ui/actions",
+    "//ui/anchor:impl",
     "//ui/base/clipboard",
     "//ui/base/dragdrop/mojom",
     "//ui/base/emoji",
@@ -600,6 +608,7 @@ component("views") {
     "//components/vector_icons",
     "//third_party/abseil-cpp:absl",
     "//ui/accessibility:ax_enums_mojo",
+    "//ui/anchor",
     "//ui/base",
     "//ui/base/clipboard",
     "//ui/base/cursor",
@@ -608,7 +617,7 @@ component("views") {
     "//ui/base/emoji",
     "//ui/base/ime/init",
     "//ui/base/metadata",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
     "//ui/compositor",
     "//ui/display",
@@ -673,8 +682,6 @@ component("views") {
       "cocoa/native_widget_mac_event_monitor.h",
       "cocoa/native_widget_mac_event_monitor.mm",
       "cocoa/native_widget_mac_ns_window_host.mm",
-      "cocoa/native_window_tracker_cocoa.h",
-      "cocoa/native_window_tracker_cocoa.mm",
       "cocoa/text_input_host.h",
       "cocoa/text_input_host.mm",
       "cocoa/tooltip_manager_mac.h",
@@ -693,6 +700,8 @@ component("views") {
       "controls/views_text_services_context_menu_mac.mm",
       "drag_utils_mac.mm",
       "event_monitor_mac.mm",
+      "event_monitor_remote_cocoa.h",
+      "event_monitor_remote_cocoa.mm",
       "metrics_mac.cc",
       "style/platform_style_mac.mm",
       "widget/native_widget_mac.mm",
@@ -760,8 +769,8 @@ component("views") {
       "/DELAYLOAD:user32.dll",
     ]
     deps += [
-      "//components/stylus_handwriting/win:win",
-      "//services/tracing/public/cpp:cpp",
+      "//components/stylus_handwriting/win",
+      "//services/tracing/public/cpp",
       "//third_party/iaccessible2",
       "//third_party/wtl",
     ]
@@ -787,7 +796,6 @@ component("views") {
       "corewm/tooltip_state_manager.h",
       "corewm/tooltip_view_aura.h",
       "event_monitor_aura.h",
-      "native_window_tracker_aura.h",
       "touchui/touch_selection_controller_impl.h",
       "view_constants_aura.h",
       "widget/focus_manager_event_handler.h",
@@ -820,7 +828,6 @@ component("views") {
       "drag_utils_aura.cc",
       "event_monitor_aura.cc",
       "metrics_aura.cc",
-      "native_window_tracker_aura.cc",
       "touchui/touch_selection_controller_impl.cc",
       "view_constants_aura.cc",
       "widget/focus_manager_event_handler.cc",
@@ -829,9 +836,6 @@ component("views") {
       "widget/window_reorderer.cc",
       "windows_stationarity_monitor_aura.cc",
     ]
-    if (!is_chromeos) {
-      sources += [ "accessibility/widget_ax_tree_id_map.cc" ]
-    }
     deps += [
       "//components/crash/core/common:crash_key",
       "//ui/aura",
@@ -998,6 +1002,8 @@ if (is_win || is_mac || is_linux || is_chromeos) {
 source_set("test_support") {
   testonly = true
   sources = [
+    "accessibility/tree/view_accessibility_ax_tree_source_test_api.h",
+    "accessibility/tree/widget_ax_manager_test_api.h",
     "animation/test/flood_fill_ink_drop_ripple_test_api.cc",
     "animation/test/flood_fill_ink_drop_ripple_test_api.h",
     "animation/test/ink_drop_highlight_test_api.cc",
@@ -1047,6 +1053,10 @@ source_set("test_support") {
     "test/capture_tracking_view.h",
     "test/combobox_test_api.cc",
     "test/combobox_test_api.h",
+    "test/configurable_test_frame_view.cc",
+    "test/configurable_test_frame_view.h",
+    "test/configurable_test_non_client_frame_view.cc",
+    "test/configurable_test_non_client_frame_view.h",
     "test/desktop_test_views_delegate.h",
     "test/dialog_test.cc",
     "test/dialog_test.h",
@@ -1134,11 +1144,12 @@ source_set("test_support") {
     "//ui/gfx",
     "//ui/gfx/geometry",
     "//ui/gl:test_support",
+    "//ui/native_window_tracker",
   ]
   public_deps = [
     "//testing/gmock",
     "//testing/gtest",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
   ]
 
@@ -1179,6 +1190,8 @@ source_set("test_support") {
       "corewm/tooltip_controller_test_helper.h",
       "test/desktop_test_views_delegate_aura.cc",
       "test/test_views_delegate_aura.cc",
+      "test/test_widget_builder.cc",
+      "test/test_widget_builder.h",
       "test/views_test_helper_aura.cc",
       "test/views_test_helper_aura.h",
       "test/widget_test_aura.cc",
@@ -1202,6 +1215,10 @@ source_set("test_support") {
     ]
     deps += [ "//ui/ozone:ui_test_support" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 test("views_unittests") {
@@ -1211,6 +1228,7 @@ test("views_unittests") {
     "accessibility/accessibility_paint_checks_unittest.cc",
     "accessible_pane_view_unittest.cc",
     "actions/action_view_controller_unittest.cc",
+    "anchor/view_anchor_unittest.cc",
     "animation/animation_builder_unittest.cc",
     "animation/bounds_animator_unittest.cc",
     "animation/bubble_slide_animator_unittest.cc",
@@ -1241,6 +1259,7 @@ test("views_unittests") {
     "controls/button/label_button_label_unittest.cc",
     "controls/button/label_button_unittest.cc",
     "controls/button/md_text_button_unittest.cc",
+    "controls/button/md_text_button_with_spinner_unittest.cc",
     "controls/button/menu_button_controller_unittest.cc",
     "controls/button/menu_button_unittest.cc",
     "controls/button/radio_button_unittest.cc",
@@ -1326,7 +1345,7 @@ test("views_unittests") {
     "widget/unique_widget_ptr_unittest.cc",
     "widget/widget_delegate_unittest.cc",
     "widget/widget_unittest.cc",
-    "window/custom_frame_view_unittest.cc",
+    "window/default_frame_view_unittest.cc",
     "window/dialog_client_view_unittest.cc",
     "window/dialog_delegate_unittest.cc",
     "window/frame_caption_button_unittest.cc",
@@ -1361,7 +1380,7 @@ test("views_unittests") {
     "//ui/base/dragdrop/mojom",
     "//ui/base/emoji",
     "//ui/base/ime/init",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
     "//ui/color",
     "//ui/color:mixers",
@@ -1399,7 +1418,7 @@ test("views_unittests") {
     ]
 
     deps += [
-      "//components/stylus_handwriting/win:win",
+      "//components/stylus_handwriting/win",
       "//ui/base:data_exchange",
     ]
 
@@ -1430,6 +1449,9 @@ test("views_unittests") {
     sources += [
       "accessibility/atomic_view_ax_tree_manager_unittest.cc",
       "accessibility/ax_virtual_view_unittest.cc",
+      "accessibility/tree/view_accessibility_ax_tree_source_unittest.cc",
+      "accessibility/tree/widget_ax_manager_unittest.cc",
+      "accessibility/tree/widget_view_ax_cache_unittest.cc",
       "accessibility/view_accessibility_unittest.cc",
       "accessibility/view_ax_platform_node_delegate_unittest.cc",
     ]
@@ -1529,7 +1551,7 @@ test("views_unittests") {
           "widget/desktop_aura/desktop_window_tree_host_platform_unittest.cc",
         ]
         if (is_linux || is_chromeos) {
-          deps += [ "//ui/platform_window/stub:stub" ]
+          deps += [ "//ui/platform_window/stub" ]
         }
       }
       if (is_linux || is_chromeos) {
@@ -1569,6 +1591,10 @@ test("views_unittests") {
   if (enable_nocompile_tests) {
     deps += [ ":views_nocompile_tests" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (enable_nocompile_tests) {
@@ -1583,7 +1609,10 @@ if (enable_nocompile_tests) {
 source_set("views_interactive_ui_tests") {
   testonly = true
 
-  sources = [ "widget/widget_interactive_uitest.cc" ]
+  sources = [
+    "widget/any_widget_observer_uitest.cc",
+    "widget/widget_interactive_uitest.cc",
+  ]
 
   deps = [
     ":test_support",
@@ -1603,15 +1632,21 @@ source_set("views_interactive_ui_tests") {
     "//ui/strings",
   ]
 
-  public_deps = [ "//ui/base/mojom:mojom" ]
+  public_deps = [ "//ui/base/mojom" ]
 
   if (is_win) {
-    sources += [ "accessibility/ax_system_caret_win_interactive_uitest.cc" ]
+    sources += [
+      "accessibility/ax_system_caret_win_interactive_uitest.cc",
+      "win/hwnd_message_handler_interactive_uitest.cc",
+    ]
   }
 
   if (is_mac) {
     sources += [
       "cocoa/bridged_native_widget_interactive_uitest.mm",
+      "controls/native/native_view_host_mac_interactive_uitest.mm",
+      "controls/native/native_view_host_test_base.cc",
+      "controls/native/native_view_host_test_base.h",
       "widget/native_widget_mac_interactive_uitest.mm",
     ]
     deps += [ "//components/remote_cocoa/app_shim" ]
@@ -1663,7 +1698,7 @@ test("views_perftests") {
     ":test_support",
     ":views",
     "//base/test:test_support",
-    "//cc/base:base",
+    "//cc/base",
     "//mojo/core/embedder",
     "//testing/perf",
     "//ui/resources:ui_test_pak",

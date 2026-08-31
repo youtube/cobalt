@@ -2,22 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/capture/video/file_video_capture_device.h"
 
 #include <stddef.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string_view>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
@@ -218,7 +216,7 @@ bool Y4mFileParser::Initialize(VideoCaptureFormat* capture_format) {
   }
 
   std::string header(kY4MHeaderMaxSize, '\0');
-  file_->Read(0, &header[0], header.size());
+  UNSAFE_TODO(file_->Read(0, &header[0], header.size()));
   const size_t header_end = header.find(kY4MSimpleFrameDelimiter);
   CHECK_NE(header_end, header.npos);
 
@@ -358,12 +356,12 @@ std::vector<uint8_t> FileVideoCaptureDevice::CropPTZRegion(
                 std::make_unique<uint8_t[]>(i420_buffer_size);
 
             uint8_t* dst_yp = jpeg_to_i420_buffer_.get();
-            uint8_t* dst_up =
+            uint8_t* dst_up = UNSAFE_TODO(
                 dst_yp + VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 0, frame_size)
-                             .GetArea();
-            uint8_t* dst_vp =
+                             .GetArea());
+            uint8_t* dst_vp = UNSAFE_TODO(
                 dst_up + VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 1, frame_size)
-                             .GetArea();
+                             .GetArea());
             int dst_yp_stride = frame_size.width();
             int dst_up_stride = dst_yp_stride / 2;
             int dst_vp_stride = dst_yp_stride / 2;
@@ -407,22 +405,25 @@ std::vector<uint8_t> FileVideoCaptureDevice::CropPTZRegion(
       VideoFrame::AllocationSize(PIXEL_FORMAT_I420, crop_size);
   std::vector<uint8_t> crop_frame(crop_buffer_size);
 
-  uint8_t* crop_yp = crop_frame.data();
-  uint8_t* crop_up =
-      crop_yp +
+  const size_t kCropPlaneYSize =
       VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 0, crop_size).GetArea();
-  uint8_t* crop_vp =
-      crop_up +
+  const size_t kCropPlaneUVSize =
       VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 1, crop_size).GetArea();
+  base::span<uint8_t> crop_frame_span = crop_frame;
+  base::span<uint8_t> crop_yp = crop_frame_span.subspan(0u, kCropPlaneYSize);
+  base::span<uint8_t> crop_up =
+      crop_frame_span.subspan(kCropPlaneYSize, kCropPlaneUVSize);
+  base::span<uint8_t> crop_vp = crop_frame_span.subspan(
+      kCropPlaneYSize + kCropPlaneUVSize, kCropPlaneUVSize);
   int crop_yp_stride = crop_width;
   int crop_up_stride = crop_yp_stride / 2;
   int crop_vp_stride = crop_yp_stride / 2;
 
-  if (libyuv::ConvertToI420(frame, frame_buffer_size, crop_yp, crop_yp_stride,
-                            crop_up, crop_up_stride, crop_vp, crop_vp_stride,
-                            crop_x, crop_y, frame_size.width(),
-                            frame_size.height(), crop_width, crop_height,
-                            libyuv::RotationMode::kRotate0, fourcc)) {
+  if (libyuv::ConvertToI420(
+          frame, frame_buffer_size, crop_yp.data(), crop_yp_stride,
+          crop_up.data(), crop_up_stride, crop_vp.data(), crop_vp_stride,
+          crop_x, crop_y, frame_size.width(), frame_size.height(), crop_width,
+          crop_height, libyuv::RotationMode::kRotate0, fourcc)) {
     LOG(ERROR) << "Failed to crop image for ptz transform.";
     return {};
   }
@@ -436,23 +437,26 @@ std::vector<uint8_t> FileVideoCaptureDevice::CropPTZRegion(
       VideoFrame::AllocationSize(PIXEL_FORMAT_I420, scale_size);
   std::vector<uint8_t> scale_frame(scale_buffer_size);
 
-  uint8_t* scale_yp = scale_frame.data();
-  uint8_t* scale_up =
-      scale_yp +
+  const size_t kScalePlaneYSize =
       VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 0, scale_size).GetArea();
-  uint8_t* scale_vp =
-      scale_up +
+  const size_t kScalePlaneUVSize =
       VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 1, scale_size).GetArea();
+  base::span<uint8_t> scale_frame_span = scale_frame;
+  base::span<uint8_t> scale_yp = scale_frame_span.subspan(0u, kScalePlaneYSize);
+  base::span<uint8_t> scale_up =
+      scale_frame_span.subspan(kScalePlaneYSize, kScalePlaneUVSize);
+  base::span<uint8_t> scale_vp = scale_frame_span.subspan(
+      kScalePlaneYSize + kScalePlaneUVSize, kScalePlaneUVSize);
   int scale_yp_stride = scale_size.width();
   int scale_up_stride = scale_yp_stride / 2;
   int scale_vp_stride = scale_yp_stride / 2;
 
-  if (libyuv::I420Scale(crop_yp, crop_yp_stride, crop_up, crop_up_stride,
-                        crop_vp, crop_vp_stride, crop_width, crop_height,
-                        scale_yp, scale_yp_stride, scale_up, scale_up_stride,
-                        scale_vp, scale_vp_stride, scale_size.width(),
-                        scale_size.height(),
-                        libyuv::FilterMode::kFilterBilinear)) {
+  if (libyuv::I420Scale(
+          crop_yp.data(), crop_yp_stride, crop_up.data(), crop_up_stride,
+          crop_vp.data(), crop_vp_stride, crop_width, crop_height,
+          scale_yp.data(), scale_yp_stride, scale_up.data(), scale_up_stride,
+          scale_vp.data(), scale_vp_stride, scale_size.width(),
+          scale_size.height(), libyuv::FilterMode::kFilterBilinear)) {
     LOG(ERROR) << "Failed to scale image for ptz transform.";
     return {};
   }
@@ -682,32 +686,31 @@ void FileVideoCaptureDevice::OnCaptureTask() {
     }
 
     const uint8_t* src_y_plane = ptz_frame.data();
-    const uint8_t* src_u_plane =
+    const uint8_t* src_u_plane = UNSAFE_TODO(
         ptz_frame.data() +
-        VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 0, buffer_size).GetArea();
-    const uint8_t* src_v_plane =
+        VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 0, buffer_size).GetArea());
+    const uint8_t* src_v_plane = UNSAFE_TODO(
         ptz_frame.data() +
         VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 0, buffer_size).GetArea() +
-        VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 1, buffer_size).GetArea();
-      auto scoped_mapping = shared_image->Map();
-      libyuv::I420ToNV12(
-          src_y_plane, buffer_size.width(), src_u_plane,
-          buffer_size.width() / 2, src_v_plane, buffer_size.width() / 2,
-          scoped_mapping->GetMemoryForPlane(0).data(),
-          scoped_mapping->Stride(0),
-          scoped_mapping->GetMemoryForPlane(1).data(),
-          scoped_mapping->Stride(1), buffer_size.width(), buffer_size.height());
+        VideoFrame::PlaneSize(PIXEL_FORMAT_I420, 1, buffer_size).GetArea());
+    auto scoped_mapping = shared_image->Map();
+    libyuv::I420ToNV12(
+        src_y_plane, buffer_size.width(), src_u_plane, buffer_size.width() / 2,
+        src_v_plane, buffer_size.width() / 2,
+        scoped_mapping->GetMemoryForPlane(0).data(), scoped_mapping->Stride(0),
+        scoped_mapping->GetMemoryForPlane(1).data(), scoped_mapping->Stride(1),
+        buffer_size.width(), buffer_size.height());
 
-      // When mappable buffer is used, the frame data is opaque to the CPU for
-      // most of the time.  Currently the only supported underlying format is
-      // NV12.
-      VideoCaptureFormat buffer_format = ptz_format;
-      buffer_format.pixel_format = PIXEL_FORMAT_NV12;
-      client_->OnIncomingCapturedBuffer(
-          std::move(capture_buffer), buffer_format, current_time,
-          current_time - first_ref_time_,
-          /*capture_begin_timestamp=*/std::nullopt,
-          /*metadata=*/std::nullopt);
+    // When mappable buffer is used, the frame data is opaque to the CPU for
+    // most of the time.  Currently the only supported underlying format is
+    // NV12.
+    VideoCaptureFormat buffer_format = ptz_format;
+    buffer_format.pixel_format = PIXEL_FORMAT_NV12;
+    client_->OnIncomingCapturedBuffer(std::move(capture_buffer), buffer_format,
+                                      current_time,
+                                      current_time - first_ref_time_,
+                                      /*capture_begin_timestamp=*/std::nullopt,
+                                      /*metadata=*/std::nullopt);
   } else {
     // Leave the color space unset for compatibility purposes but this
     // information should be retrieved from the container when possible.

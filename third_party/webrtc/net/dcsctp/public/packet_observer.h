@@ -10,7 +10,7 @@
 #ifndef NET_DCSCTP_PUBLIC_PACKET_OBSERVER_H_
 #define NET_DCSCTP_PUBLIC_PACKET_OBSERVER_H_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "api/array_view.h"
 #include "net/dcsctp/public/types.h"

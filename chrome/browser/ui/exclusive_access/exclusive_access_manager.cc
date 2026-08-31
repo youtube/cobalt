@@ -11,14 +11,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "build/build_config.h"
 #include "chrome/browser/app_mode/app_mode_utils.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/exclusive_access/pointer_lock_controller.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/common/chrome_switches.h"
 #include "components/input/native_web_keyboard_event.h"
+#include "content/public/browser/web_contents.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "ui/events/keycodes/keyboard_codes.h"
@@ -51,10 +49,11 @@ enum class LockState {
   kMaxValue = kKeyboardAndPointerLocked,
 };
 
-// Check whether `event` is a kRawKeyDown type and doesn't have non-stateful
-// modifiers (i.e. shift, ctrl etc.).
+// Check whether `event` is a kKeyDown or kRawKeyDown type and doesn't have
+// non-stateful modifiers (i.e. shift, ctrl etc.).
 bool IsUnmodifiedEscKeyDownEvent(const input::NativeWebKeyboardEvent& event) {
-  if (event.GetType() != input::NativeWebKeyboardEvent::Type::kRawKeyDown) {
+  if (event.GetType() != input::NativeWebKeyboardEvent::Type::kRawKeyDown &&
+      event.GetType() != input::NativeWebKeyboardEvent::Type::kKeyDown) {
     return false;
   }
   if (event.GetModifiers() & blink::WebInputEvent::kKeyModifiers) {

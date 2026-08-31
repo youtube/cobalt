@@ -6,57 +6,37 @@
 
 #include <vector>
 
+#include "base/apple/mach_logging.h"
 #include "base/logging.h"
+#include "base/memory/platform_shared_memory_region.h"
+#include "base/memory/unsafe_shared_memory_region.h"
+#include "base/numerics/safe_conversions.h"
+#include "base/unguessable_token.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/ipc/common/gpu_client_ids.h"
 #include "ui/gfx/buffer_format_util.h"
 #include "ui/gfx/mac/io_surface.h"
 
 namespace gpu {
 
-namespace {
-
-// A GpuMemoryBuffer with client_id = 0 behaves like anonymous shared memory.
-const int kAnonymousClientId = 0;
-
-}  // namespace
-
-GpuMemoryBufferFactoryIOSurface::GpuMemoryBufferFactoryIOSurface() {
-}
-
-GpuMemoryBufferFactoryIOSurface::~GpuMemoryBufferFactoryIOSurface() {
-}
+GpuMemoryBufferFactoryIOSurface::GpuMemoryBufferFactoryIOSurface() = default;
+GpuMemoryBufferFactoryIOSurface::~GpuMemoryBufferFactoryIOSurface() = default;
 
 gfx::GpuMemoryBufferHandle
-GpuMemoryBufferFactoryIOSurface::CreateGpuMemoryBuffer(
-    gfx::GpuMemoryBufferId id,
-    const gfx::Size& size,
-    const gfx::Size& framebuffer_size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    int client_id,
-    SurfaceHandle surface_handle) {
-  DCHECK_NE(client_id, kAnonymousClientId);
-  DCHECK_EQ(framebuffer_size, size);
-
+GpuMemoryBufferFactoryIOSurface::CreateNativeGmbHandle(const gfx::Size& size,
+                                                       gfx::BufferFormat format,
+                                                       gfx::BufferUsage usage) {
   bool should_clear = true;
+  viz::SharedImageFormat si_format = viz::GetSharedImageFormat(format);
   base::apple::ScopedCFTypeRef<IOSurfaceRef> io_surface =
-      gfx::CreateIOSurface(size, format, should_clear);
+      gfx::CreateIOSurface(size, si_format, should_clear);
   if (!io_surface) {
     LOG(ERROR) << "Failed to allocate IOSurface.";
-    return gfx::GpuMemoryBufferHandle();
+    return {};
   }
 
-  gfx::GpuMemoryBufferHandle handle;
-  handle.type = gfx::IO_SURFACE_BUFFER;
-  handle.id = id;
-  handle.io_surface = io_surface;
-
-  return handle;
+  return gfx::GpuMemoryBufferHandle(std::move(io_surface));
 }
-
-void GpuMemoryBufferFactoryIOSurface::DestroyGpuMemoryBuffer(
-    gfx::GpuMemoryBufferId id,
-    int client_id) {}
 
 bool GpuMemoryBufferFactoryIOSurface::FillSharedMemoryRegionWithBufferContents(
     gfx::GpuMemoryBufferHandle buffer_handle,

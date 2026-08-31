@@ -11,6 +11,7 @@
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
@@ -277,8 +278,7 @@ HRESULT ToggleVpSuperResolution(UINT gpu_vendor_id,
     return ToggleIntelVpSuperResolution(video_context, video_processor, enable);
   }
 
-  if (gpu_vendor_id == 0x10de &&
-      base::FeatureList::IsEnabled(features::kNvidiaVpSuperResolution)) {
+  if (gpu_vendor_id == 0x10de) {
     return ToggleNvidiaVpSuperResolution(video_context, video_processor,
                                          enable);
   }
@@ -367,12 +367,7 @@ HRESULT ToggleVpAutoHDR(UINT gpu_vendor_id,
 }
 
 bool IsVpAutoHDREnabled(UINT gpu_vendor_id) {
-  if (gpu_vendor_id == 0x10de &&
-      base::FeatureList::IsEnabled(features::kNvidiaVpTrueHDR)) {
-    return true;
-  }
-
-  return false;
+  return gpu_vendor_id == 0x10de;
 }
 
 bool IsWithinMargin(float i, float j) {
@@ -447,6 +442,25 @@ bool IsCompatibleHDRMetadata(const gfx::HDRMetadata& hdr_metadata) {
 }
 
 }  // namespace
+
+// static
+gfx::Size GetMonitorSizeForWindow(HWND window) {
+  if (GetDirectCompositionNumMonitors() == 1) {
+    // Only one monitor. Return the size of this monitor.
+    return GetDirectCompositionPrimaryMonitorSize();
+  } else {
+    gfx::Size monitor_size;
+    // Get the monitor on which the overlay is displayed.
+    MONITORINFO monitor_info;
+    monitor_info.cbSize = sizeof(monitor_info);
+    if (GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST),
+                       &monitor_info)) {
+      monitor_size = gfx::Rect(monitor_info.rcMonitor).size();
+    }
+
+    return monitor_size;
+  }
+}
 
 SwapChainPresenter::PresentationHistory::PresentationHistory() = default;
 SwapChainPresenter::PresentationHistory::~PresentationHistory() = default;
@@ -525,7 +539,7 @@ DXGI_FORMAT SwapChainPresenter::GetSwapChainFormat(
     return sdr_yuv_overlay_format;
   }
 
-  if (!presentation_history_.Valid()) {
+  if (!presentation_history_.Valid() || IsSwapChainYuvFormatForced()) {
     // Prefer P010 swapchain when playing P010 SDR content on SDR system with
     // P010 MPO supported.
     return sdr_yuv_overlay_format;
@@ -687,22 +701,7 @@ Microsoft::WRL::ComPtr<ID3D11Texture2D> SwapChainPresenter::UploadVideoImage(
 }
 
 gfx::Size SwapChainPresenter::GetMonitorSize() const {
-  if (GetDirectCompositionNumMonitors() == 1) {
-    // Only one monitor. Return the size of this monitor.
-    return GetDirectCompositionPrimaryMonitorSize();
-  } else {
-    gfx::Size monitor_size;
-    // Get the monitor on which the overlay is displayed.
-    MONITORINFO monitor_info;
-    monitor_info.cbSize = sizeof(monitor_info);
-    if (GetMonitorInfo(
-            MonitorFromWindow(layer_tree_->window(), MONITOR_DEFAULTTONEAREST),
-            &monitor_info)) {
-      monitor_size = gfx::Rect(monitor_info.rcMonitor).size();
-    }
-
-    return monitor_size;
-  }
+  return GetMonitorSizeForWindow(layer_tree_->window());
 }
 
 void SwapChainPresenter::SetTargetToFullScreen(
@@ -750,6 +749,16 @@ void SwapChainPresenter::AdjustTargetToOptimalSizeIfNeeded(
     gfx::RectF* visual_clip_rect,
     std::optional<gfx::SizeF>* dest_size,
     std::optional<gfx::RectF>* target_rect) const {
+  if (base::FeatureList::IsEnabled(
+          features::kEarlyFullScreenVideoOptimization)) {
+    CHECK(!dest_size->has_value());
+    CHECK(!target_rect->has_value());
+    return;
+  }
+
+  // `is_full_screen_video` is only used by `EarlyFullScreenVideoOptimization`.
+  CHECK(!params.video_params.is_full_screen_video);
+
   // First try to adjust the full screen overlay that can fit the whole
   // screen. If it cannot fit the whole screen and we know it's in
   // letterboxing mode, try to center the overlay and adjust only x or only y.
@@ -919,7 +928,8 @@ void SwapChainPresenter::AdjustTargetForFullScreenLetterboxing(
     std::optional<gfx::SizeF>* dest_size,
     std::optional<gfx::RectF>* target_rect) const {
   if (!base::FeatureList::IsEnabled(
-          features::kDirectCompositionLetterboxVideoOptimization)) {
+          features::kDirectCompositionLetterboxVideoOptimization) ||
+      layer_tree_->disable_dc_letterbox_video_optimization()) {
     return;
   }
 
@@ -1484,25 +1494,64 @@ bool SwapChainPresenter::PresentToDecodeSwapChain(
     return false;
   }
 
-  UINT present_flags = DXGI_PRESENT_USE_DURATION;
-  hr = decode_swap_chain_->PresentBuffer(array_slice, 1, present_flags);
-  // Ignore DXGI_STATUS_OCCLUDED since that's not an error but only indicates
-  // that the window is occluded and we can stop rendering.
-  if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
-    DLOG(ERROR) << "PresentBuffer failed with error 0x" << std::hex << hr;
-    return false;
-  }
+  pending_swap_buffer_ = array_slice;
 
   swap_chain_size_ = swap_chain_size;
   content_size_ = swap_chain_size;
   swap_chain_format_ = DXGI_FORMAT_NV12;
-  RecordPresentationStatistics();
   return true;
 }
 
-bool SwapChainPresenter::PresentToSwapChain(DCLayerOverlayParams& params,
-                                            gfx::Transform* visual_transform,
-                                            gfx::Rect* visual_clip_rect) {
+std::optional<DCLayerOverlayImage> SwapChainPresenter::PresentToSwapChain(
+    DCLayerOverlayParams& overlay,
+    std::optional<OverlayPositionAdjustment>& overlay_position_adjustment) {
+  gfx::Transform transform;
+  gfx::Rect clip_rect;
+  if (!SetupPresentToSwapChain(overlay, &transform, &clip_rect)) {
+    return std::nullopt;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kEarlyFullScreenVideoOptimization)) {
+    if (overlay.video_params.is_full_screen_video) {
+      const gfx::Size monitor_size =
+          GetMonitorSizeForWindow(layer_tree_->window());
+      if (TryDisablePrimaryPlane(monitor_size, overlay)) {
+        // If we successfully disable the primary plane, it means DWM's
+        // internal swap chain is now the size of the monitor. In this case
+        // we want to just treat it as an unscaled image that completely
+        // fills the screen.
+        overlay_position_adjustment = OverlayPositionAdjustment{
+            .transform = gfx::Transform(),
+            .quad_rect = gfx::Rect(monitor_size),
+            .clip_rect = gfx::Rect(monitor_size),
+        };
+      }
+    }
+  } else {
+    CHECK(!overlay.video_params.is_full_screen_video);
+
+    // |SwapChainPresenter| may have changed the size of the overlay's quad
+    // rect, e.g. to present to a swap chain exactly the size of the display
+    // rect when the source video is larger.
+    overlay_position_adjustment = OverlayPositionAdjustment{
+        .transform = transform,
+        .quad_rect = gfx::Rect(overlay.quad_rect.origin(), content_size_),
+        .clip_rect = clip_rect,
+    };
+  }
+
+  if (!FinishPresentToSwapChain()) {
+    return std::nullopt;
+  }
+
+  return DCLayerOverlayImage(content_size_, content_);
+}
+
+bool SwapChainPresenter::SetupPresentToSwapChain(
+    DCLayerOverlayParams& params,
+    gfx::Transform* visual_transform,
+    gfx::Rect* visual_clip_rect) {
   DCHECK(params.overlay_image);
   DCHECK_NE(params.overlay_image->type(),
             DCLayerOverlayType::kDCompVisualContent);
@@ -1684,7 +1733,7 @@ bool SwapChainPresenter::PresentToSwapChain(DCLayerOverlayParams& params,
     return false;
   }
 
-  HRESULT hr, device_removed_reason;
+  HRESULT hr;
   if (first_present_) {
     first_present_ = false;
     UINT flags = DXGI_PRESENT_USE_DURATION;
@@ -1726,35 +1775,7 @@ bool SwapChainPresenter::PresentToSwapChain(DCLayerOverlayParams& params,
     hr = dxgi_device2->EnqueueSetEvent(event.handle());
     if (SUCCEEDED(hr)) {
       event.Wait();
-    } else {
-      device_removed_reason = d3d11_device_->GetDeviceRemovedReason();
-      base::debug::Alias(&hr);
-      base::debug::Alias(&device_removed_reason);
-
-      // Add a crash key. The minidump might be discarded due to large size.
-      static auto* hr_enqueue_set_event_key =
-          base::debug::AllocateCrashKeyString(
-              "hr-EnqueueSetEvent", base::debug::CrashKeySize::Size64);
-      base::debug::ScopedCrashKeyString scoped_crash_key_1(
-          hr_enqueue_set_event_key, base::StringPrintf("0x%x", hr));
-      static auto* hr_device_removed_reason_key =
-          base::debug::AllocateCrashKeyString(
-              "hr-DeviceRemovedReason", base::debug::CrashKeySize::Size64);
-      base::debug::ScopedCrashKeyString scoped_crash_key_2(
-          hr_device_removed_reason_key,
-          base::StringPrintf("0x%x", device_removed_reason));
-
-      base::debug::DumpWithoutCrashing();
     }
-  }
-  UINT flags = DXGI_PRESENT_USE_DURATION;
-  UINT interval = 1;
-  if (DirectCompositionSwapChainTearingEnabled()) {
-    flags |= DXGI_PRESENT_ALLOW_TEARING;
-    interval = 0;
-  } else if (base::FeatureList::IsEnabled(
-                 features::kDXGISwapChainPresentInterval0)) {
-    interval = 0;
   }
 
   // DWM can turn off the desktop plane if this is a YUV swap chain and the
@@ -1789,13 +1810,7 @@ bool SwapChainPresenter::PresentToSwapChain(DCLayerOverlayParams& params,
     }
   }
 
-  // Ignore DXGI_STATUS_OCCLUDED since that's not an error but only indicates
-  // that the window is occluded and we can stop rendering.
-  hr = swap_chain_->Present(interval, flags);
-  if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
-    DLOG(ERROR) << "Present failed with error 0x" << std::hex << hr;
-    return false;
-  }
+  pending_swap_buffer_ = 0;
 
   // Update |visual_transform| and |visual_clip_rect| for the full screen
   // letterboxing overlay presentation.
@@ -1806,13 +1821,122 @@ bool SwapChainPresenter::PresentToSwapChain(DCLayerOverlayParams& params,
   }
 
   last_overlay_image_ = std::move(params.overlay_image);
-  RecordPresentationStatistics();
   return true;
 }
 
+bool SwapChainPresenter::TryDisablePrimaryPlane(
+    const gfx::Size& monitor_size,
+    const DCLayerOverlayParams& overlay) {
+  CHECK(overlay.video_params.is_full_screen_video);
+
+  const gfx::RectF target_rect =
+      overlay.transform.MapRect(gfx::RectF(overlay.quad_rect));
+
+  if (swap_chain_) {
+    // Note that QI IDXGIDecodeSwapChain from an RGB swap chain will always
+    // fail.
+    if (Microsoft::WRL::ComPtr<IDXGIDecodeSwapChain> decode_swap_chain;
+        SUCCEEDED(
+            swap_chain_->QueryInterface(IID_PPV_ARGS(&decode_swap_chain)))) {
+      if (TryDisableDesktopPlane(decode_swap_chain.Get(), monitor_size,
+                                 gfx::ToRoundedRect(target_rect))) {
+        content_size_ = monitor_size;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  if (IsMediaFoundationSurfaceProxy() &&
+      base::FeatureList::IsEnabled(
+          features::kDesktopPlaneRemovalForMFFullScreenLetterbox)) {
+    // The ideal rect is video size scaled to fit and centered inside
+    // `monitor_size`.
+    gfx::RectF ideal_full_screen_rect = gfx::RectF(overlay.content_rect);
+    ideal_full_screen_rect.Scale(
+        std::min(monitor_size.width() / ideal_full_screen_rect.width(),
+                 monitor_size.height() / ideal_full_screen_rect.height()));
+    ideal_full_screen_rect.Offset(
+        (monitor_size.width() - ideal_full_screen_rect.width()) / 2.0,
+        (monitor_size.height() - ideal_full_screen_rect.height()) / 2.0);
+
+    // Reject videos with non-uniform scaling since `DCOMPSurfaceProxy::SetRect`
+    // always uniformly scales to fit and centers the video within the rect.
+    constexpr float tolerance = 1.0f;
+    if (target_rect.ApproximatelyEqual(ideal_full_screen_rect, tolerance,
+                                       tolerance)) {
+      pending_dcomp_surface_rect_in_window_ = gfx::Rect(monitor_size);
+      content_size_ = monitor_size;
+      return true;
+    }
+
+    return false;
+  }
+
+  return false;
+}
+
+bool SwapChainPresenter::FinishPresentToSwapChain() {
+  if (IsMediaFoundationSurfaceProxy()) {
+    CHECK(last_overlay_image_->dcomp_surface_proxy());
+    CHECK(pending_dcomp_surface_rect_in_window_);
+    last_overlay_image_->dcomp_surface_proxy()->SetRect(
+        pending_dcomp_surface_rect_in_window_.value());
+    pending_dcomp_surface_rect_in_window_.reset();
+  } else if (pending_swap_buffer_) {
+    if (decode_swap_chain_) {
+      constexpr UINT kPresentFlags = DXGI_PRESENT_USE_DURATION;
+      HRESULT hr = decode_swap_chain_->PresentBuffer(
+          pending_swap_buffer_.value(), 1, kPresentFlags);
+      // Ignore DXGI_STATUS_OCCLUDED since that's not an error but only
+      // indicates that the window is occluded and we can stop rendering.
+      if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
+        DLOG(ERROR) << "PresentBuffer failed: "
+                    << logging::SystemErrorCodeToString(hr);
+        return false;
+      }
+    } else {
+      CHECK_EQ(pending_swap_buffer_.value(), 0u);
+      UINT flags = DXGI_PRESENT_USE_DURATION;
+      UINT interval = 1;
+      if (DirectCompositionSwapChainTearingEnabled()) {
+        flags |= DXGI_PRESENT_ALLOW_TEARING;
+        interval = 0;
+      } else if (base::FeatureList::IsEnabled(
+                     features::kDXGISwapChainPresentInterval0)) {
+        interval = 0;
+      }
+      // Ignore DXGI_STATUS_OCCLUDED since that's not an error but only
+      // indicates that the window is occluded and we can stop rendering.
+      HRESULT hr = swap_chain_->Present(interval, flags);
+      if (FAILED(hr) && hr != DXGI_STATUS_OCCLUDED) {
+        DLOG(ERROR) << "Present failed: "
+                    << logging::SystemErrorCodeToString(hr);
+        return false;
+      }
+    }
+    pending_swap_buffer_.reset();
+    RecordPresentationStatistics();
+  }
+
+  return true;
+}
 // static
 bool SwapChainPresenter::CreateSurfaceHandleHelperForTesting(HANDLE* handle) {
   return CreateSurfaceHandleHelper(handle);
+}
+
+SwapChainPresenter::PresentationMode
+SwapChainPresenter::GetLastPresentationMode() const {
+  if (IsMediaFoundationSurfaceProxy()) {
+    return PresentationMode::kMfSurfaceProxy;
+  } else if (decode_swap_chain_) {
+    return PresentationMode::kDecodeSwapChain;
+  } else if (staging_texture_) {
+    return PresentationMode::kVpBltWithStagingTexture;
+  } else {
+    return PresentationMode::kVpBlt;
+  }
 }
 
 void SwapChainPresenter::RecordPresentationStatistics() {
@@ -1916,7 +2040,9 @@ bool SwapChainPresenter::PresentDCOMPSurface(DCLayerOverlayParams& params,
                               kDestSizeTolerance) &&
       params.z_order > 0;
 
-  if (is_fullscreen_letterboxing_overlay_scenario) {
+  if (is_fullscreen_letterboxing_overlay_scenario &&
+      base::FeatureList::IsEnabled(
+          features::kDesktopPlaneRemovalForMFFullScreenLetterbox)) {
     const gfx::Rect monitor_rect =
         gfx::Rect(gfx::ToRoundedSize(dest_size.value()));
     mapped_rect = monitor_rect;
@@ -1942,10 +2068,8 @@ bool SwapChainPresenter::PresentDCOMPSurface(DCLayerOverlayParams& params,
   // in Media Foundation scaling the full video to the clipped region,
   // instead of allowing clipping to a portion of the video.
 
-  dcomp_surface_proxy->SetRect(mapped_rect);
-
-  dcomp_surface_proxy->SetProtectedVideoType(
-      params.video_params.protected_video_type);
+  pending_dcomp_surface_rect_in_window_ = mapped_rect;
+  content_size_ = mapped_rect.size();
 
   // If |dcomp_surface_proxy| size is {1, 1}, the texture was initialized
   // without knowledge of output size; reset |content_| so it's not added to the
@@ -1985,7 +2109,6 @@ bool SwapChainPresenter::PresentDCOMPSurface(DCLayerOverlayParams& params,
     }
 
     content_ = dcomp_surface.Get();
-    content_size_ = content_size;
     // Don't take ownership of handle as the DCOMPSurfaceProxy instance owns it.
     dcomp_surface_handle_ = surface_handle;
   }
@@ -1997,8 +2120,10 @@ void SwapChainPresenter::ReleaseDCOMPSurfaceResourcesIfNeeded() {
   if (dcomp_surface_handle_ != INVALID_HANDLE_VALUE) {
     DVLOG(2) << __func__ << "(" << this << ")";
     dcomp_surface_handle_ = INVALID_HANDLE_VALUE;
+    pending_dcomp_surface_rect_in_window_.reset();
     last_overlay_image_.reset();
     content_.Reset();
+    content_size_ = gfx::Size();
   }
 }
 
@@ -2532,6 +2657,15 @@ bool SwapChainPresenter::RevertSwapChainToSDR(
   }
 
   return true;
+}
+
+bool SwapChainPresenter::IsMediaFoundationSurfaceProxy() const {
+  if (last_overlay_image_ &&
+      last_overlay_image_->type() == DCLayerOverlayType::kDCompSurfaceProxy) {
+    CHECK(last_overlay_image_->dcomp_surface_proxy());
+    return true;
+  }
+  return false;
 }
 
 }  // namespace gl

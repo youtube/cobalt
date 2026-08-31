@@ -10,8 +10,6 @@
 
 #include "modules/audio_device/audio_device_impl.h"
 
-#include <stddef.h>
-
 #include <cstdint>
 #include <memory>
 #include <utility>
@@ -23,16 +21,13 @@
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_factory.h"
-#include "modules/audio_device/audio_device_config.h"  // IWYU pragma: keep
 #include "modules/audio_device/audio_device_generic.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/metrics.h"
 
-#if defined(_WIN32)
-#if defined(WEBRTC_WINDOWS_CORE_AUDIO_BUILD)
+#if defined(WEBRTC_WIN)
 #include "modules/audio_device/win/audio_device_core_win.h"
-#endif
 #elif defined(WEBRTC_LINUX)
 #if defined(WEBRTC_ENABLE_LINUX_ALSA)
 #include "modules/audio_device/linux/audio_device_alsa_linux.h"
@@ -186,8 +181,8 @@ int32_t AudioDeviceModuleImpl::CreatePlatformSpecificObjects(
 // Real (non-dummy) ADM implementations.
 #else
   AudioLayer audio_layer(PlatformAudioLayer());
-// Windows ADM implementation.
-#if defined(WEBRTC_WINDOWS_CORE_AUDIO_BUILD)
+#if defined(WEBRTC_WIN)
+  // Windows ADM implementation.
   if ((audio_layer == kWindowsCoreAudio) ||
       (audio_layer == kPlatformDefaultAudio)) {
     RTC_LOG(LS_INFO) << "Attempting to use the Windows Core Audio APIs...";
@@ -196,7 +191,7 @@ int32_t AudioDeviceModuleImpl::CreatePlatformSpecificObjects(
       RTC_LOG(LS_INFO) << "Windows Core Audio APIs will be utilized";
     }
   }
-#endif  // defined(WEBRTC_WINDOWS_CORE_AUDIO_BUILD)
+#endif
 
 // Linux ADM implementation.
 // Note that, WEBRTC_ENABLE_LINUX_ALSA is always defined by default when

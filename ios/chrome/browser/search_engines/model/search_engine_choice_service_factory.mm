@@ -13,7 +13,6 @@
 #import "ios/chrome/browser/search_engines/model/template_url_prepopulate_data_resolver_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
-#import "ios/web/public/browser_state.h"
 
 namespace ios {
 
@@ -45,7 +44,7 @@ std::unique_ptr<KeyedService>
 SearchEngineChoiceServiceFactory::BuildServiceInstanceFor(
     web::BrowserState* context) const {
   ProfileIOS* profile = ProfileIOS::FromBrowserState(context);
-  return std::make_unique<search_engines::SearchEngineChoiceService>(
+  auto service = std::make_unique<search_engines::SearchEngineChoiceService>(
       std::make_unique<IOSSearchEngineChoiceServiceClient>(),
       CHECK_DEREF(profile->GetPrefs()),
       GetApplicationContext()->GetLocalState(),
@@ -53,6 +52,14 @@ SearchEngineChoiceServiceFactory::BuildServiceInstanceFor(
           ios::RegionalCapabilitiesServiceFactory::GetForProfile(profile)),
       CHECK_DEREF(ios::TemplateURLPrepopulateDataResolverFactory::GetForProfile(
           profile)));
+
+  service->Init();
+  return service;
+}
+
+void SearchEngineChoiceServiceFactory::RegisterBrowserStatePrefs(
+    user_prefs::PrefRegistrySyncable* registry) {
+  search_engines::SearchEngineChoiceService::RegisterProfilePrefs(registry);
 }
 
 }  // namespace ios

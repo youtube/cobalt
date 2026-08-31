@@ -51,7 +51,7 @@ public class UsbNotificationManager {
     private final UsbNotificationManagerDelegate mDelegate;
     private final BaseNotificationManagerProxy mNotificationManager;
     private final SharedPreferencesManager mSharedPreferences;
-    private final List<Integer> mNotificationIds = new ArrayList<Integer>();
+    private final List<Integer> mNotificationIds = new ArrayList<>();
 
     public UsbNotificationManager(
             BaseNotificationManagerProxy notificationManager,
@@ -69,7 +69,7 @@ public class UsbNotificationManager {
         return mNotificationIds.contains(notificationId);
     }
 
-    public void onStartCommand(Intent intent, int flags, int startId) {
+    public void onStartCommand(@Nullable Intent intent, int flags, int startId) {
         if (intent == null || intent.getExtras() == null) {
             cancelPreviousUsbNotifications();
             mDelegate.stopSelf();

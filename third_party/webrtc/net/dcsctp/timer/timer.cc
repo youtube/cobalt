@@ -17,7 +17,9 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
+#include "api/units/time_delta.h"
 #include "net/dcsctp/public/timeout.h"
+#include "net/dcsctp/public/types.h"
 #include "rtc_base/checks.h"
 
 namespace dcsctp {
@@ -51,8 +53,6 @@ TimeDelta GetBackoffDuration(const TimerOptions& options,
   }
 }
 }  // namespace
-
-constexpr TimeDelta Timer::kMaxTimerDuration;
 
 Timer::Timer(TimerID id,
              absl::string_view name,

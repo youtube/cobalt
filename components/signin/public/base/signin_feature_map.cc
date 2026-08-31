@@ -20,9 +20,8 @@ namespace {
 // Array of features exposed through the Java SigninFeatures API.
 const base::Feature* const kFeaturesExposedToJava[] = {
     &switches::kCctSignInPrompt,
-    &switches::kDeferWebSigninTrackerCreation,
-    &switches::kHistoryPageHistorySyncPromo,
-    &switches::kHistoryPagePromoCtaStringVariation,
+    &switches::kForceStartupSigninPromo,
+    &switches::kForceHistoryOptInScreen,
     &switches::kSkipCheckForAccountManagementOnSignin,
     &switches::kUnoForAuto,
     &switches::kUseHostedDomainForManagementCheckOnSignin,
@@ -30,6 +29,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &switches::kHistoryOptInEducationalTip,
     &switches::kMakeAccountsAvailableInIdentityManager,
     &switches::kFullscreenSignInPromoUseDate,
+    &switches::kSmartEmailLineBreaking,
 };
 
 // static

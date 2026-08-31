@@ -75,16 +75,16 @@ bool IsIdentityDiscAccountMenuEnabled() {
   return base::FeatureList::IsEnabled(kIdentityDiscAccountMenu);
 }
 
-BASE_FEATURE(kWidgetsForMultiprofile,
-             "WidgetsForMultiprofile",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsWidgetsForMultiprofileEnabled() {
-  return base::FeatureList::IsEnabled(kWidgetsForMultiprofile) &&
-         AreSeparateProfilesForManagedAccountsEnabled();
-}
-
 bool IsMultiProfilePushNotificationHandlingEnabled() {
   return AreSeparateProfilesForManagedAccountsEnabled() &&
          base::FeatureList::IsEnabled(kIOSPushNotificationMultiProfile);
+}
+
+BASE_FEATURE(kShareExtensionForMultiprofile,
+             "ShareExtensionForMultiprofile",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsShareExtensionForMultiprofileEnabled() {
+  return base::FeatureList::IsEnabled(kShareExtensionForMultiprofile) &&
+         AreSeparateProfilesForManagedAccountsEnabled();
 }

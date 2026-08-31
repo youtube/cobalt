@@ -23,10 +23,10 @@
 namespace webrtc {
 
 class EncoderStreamFactory
-    : public webrtc::VideoEncoderConfig::VideoStreamFactoryInterface {
+    : public VideoEncoderConfig::VideoStreamFactoryInterface {
  public:
   EncoderStreamFactory(
-      const webrtc::VideoEncoder::EncoderInfo& encoder_info,
+      const VideoEncoder::EncoderInfo& encoder_info,
       std::optional<VideoSourceRestrictions> restrictions = std::nullopt);
 
   std::vector<VideoStream> CreateEncoderStreams(
@@ -66,12 +66,5 @@ class EncoderStreamFactory
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::EncoderStreamFactory;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // VIDEO_CONFIG_ENCODER_STREAM_FACTORY_H_

@@ -233,8 +233,8 @@ class WebUIManagedInterfaceBrowserTest : public ContentBrowserTest {
         EvalJs(eval_frame, statement, content::EXECUTE_SCRIPT_DEFAULT_OPTIONS,
                content::ISOLATED_WORLD_ID_GLOBAL);
 
-    EXPECT_TRUE(result.error.empty());
-    return result.value.GetString();
+    EXPECT_TRUE(result.is_ok());
+    return result.ExtractString();
   }
 
   void Reload(RenderFrameHost* frame = nullptr) {

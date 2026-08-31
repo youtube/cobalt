@@ -228,6 +228,7 @@ chromium-metrics-reviews@google.com.
              terminated"/>
   <int value="70" label="Cache limit pruned on moderate memory pressure"/>
   <int value="71" label="Cache limit pruned on critical memory pressure"/>
+  <int value="72" label="Message from SharedWorker to a page in BFCache"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/back_forward_cache.h:NotRestoredReason) -->
@@ -283,9 +284,16 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="kRenderInitiatedCrossProcessNavigationNotAllowed"/>
   <int value="11" label="kRendererInitiatedCanNotRequestURL"/>
   <int value="12" label="kShouldRenderFallbackContent"/>
+  <int value="13" label="kNavigationClientDisconnected"/>
+  <int value="14" label="kFailedWithSilentErrorOnNetAborted"/>
+  <int value="15" label="kFailedWithSilentErrorOnIgnore"/>
+  <int value="16" label="kFailedWithSilentErrorOnBlockedByClient"/>
+  <int value="17" label="kNavigationOfObjectFailed"/>
+  <int value="18" label="kSameDocumentCommitProcessed"/>
+  <int value="19" label="kCommittedOnPendingDeletion"/>
 </enum>
 
-<!-- LINT.ThenChange(//content/browser/renderer_host/navigation_request.h:ErrorNavigationTrigger) -->
+<!-- LINT.ThenChange(//content/public/browser/error_navigation_trigger.h:ErrorNavigationTrigger) -->
 
 <enum name="FencedFrameAutomaticBeaconEventType">
   <int value="0" label="reserved.top_navigation"/>
@@ -464,7 +472,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="WillCommitWithoutUrlLoader"/>
 </enum>
 
-<!-- LINT.ThenChange(//content/browser/renderer_host/navigation_throttle_runner.h:Event)-->
+<!-- LINT.ThenChange(//content/browser/renderer_host/navigation_throttle_registry_impl.h:NavigationThrottleEvent)-->
 
 <!-- LINT.IfChange(NavigationTransitionCacheHitOrMissReason) -->
 
@@ -508,6 +516,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="kNoRestart"/>
   <int value="5" label="kTooManyRestart"/>
   <int value="6" label="kSendingErrorAborted"/>
+  <int value="7" label="kDuringExclusiveTask"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/loader/navigation_url_loader_impl.cc:OnAcceptCHFrameReceivedReturnLocation) -->
@@ -1869,6 +1878,34 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Prerender hit finished"/>
 </enum>
 
+<!-- LINT.IfChange(PrerenderPrewarmDecision) -->
+
+<enum name="PrerenderPrewarmDecision">
+  <int value="0" label="Ready to prewarm"/>
+  <int value="1" label="A prewarm page already exists"/>
+  <int value="2" label="Feature is disabled"/>
+  <int value="3" label="Running in headless mode"/>
+  <int value="4" label="Debugger is attached"/>
+  <int value="5" label="Invalid prewarm URL setting, maybe enabled manually"/>
+  <int value="6" label="No TemplateUrlService available"/>
+  <int value="7" label="No DefaultSearchProvider available"/>
+  <int value="8" label="Not aligned with the default search provider origin"/>
+  <int value="9" label="Running in Picture-in-Picture window"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/preloading/prerender/prerender_manager.h:PrewarmDecision) -->
+
+<!-- LINT.IfChange(PrerenderProcessReuseAvailability) -->
+
+<enum name="PrerenderProcessReuseAvailability">
+  <int value="0" label="Has matchable hosts"/>
+  <int value="1" label="Has same origin hosts"/>
+  <int value="2" label="Has same site hosts"/>
+  <int value="3" label="No same origin or same site hosts"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/browser/preloading/prerender/prerender_host_registry.h:PrerenderProcessReuseAvailability) -->
+
 <!-- LINT.IfChange(PrerenderWaitingForHeadersFinishedReason) -->
 
 <enum name="PrerenderWaitingForHeadersFinishedReason">
@@ -1881,6 +1918,8 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="NoVarySearchHeaderReceivedAndMatched"/>
   <int value="7" label="NoVarySearchHeaderReceivedButNotMatched"/>
   <int value="8" label="NoVarySearchHeaderReceivedButDefaultValue"/>
+  <int value="9" label="UnknownFailure"/>
+  <int value="10" label="PrerenderNavigationFailed"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/preloading/prerender/prerender_host.h:WaitingForHeadersFinishedReason) -->
@@ -1899,6 +1938,23 @@ chromium-metrics-reviews@google.com.
     URL had about: scheme without being about:blank or about:srcdoc.
   </int>
 </enum>
+
+<!-- LINT.IfChange(RendererProcessReadiness) -->
+
+<enum name="RendererProcessReadiness">
+  <int value="0" label="Process not ready">
+    This implies that the renderer process should have been started earlier.
+  </int>
+  <int value="1"
+      label="Process ready, but view/proxy/frame objects not yet created">
+    This implies that the speculative RenderFrameHost should have been created
+    earlier.
+  </int>
+  <int value="2"
+      label="Process ready, and all view/proxy/frame objects created"/>
+</enum>
+
+<!-- LINT.ThenChange(//content/renderer/renderer_navigation_metrics_manager.cc:RendererProcessReadiness) -->
 
 <enum name="ThirdPartyCookieBlockState">
   <int value="0" label="Cookies allowed"/>
@@ -1938,8 +1994,10 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="kWasted_NowUseNewSpeculativeRFH"/>
 </enum>
 
+<!-- LINT.IfChange(WebSchedulerTrackedFeature)-->
+
 <enum name="WebSchedulerTrackedFeature">
-<!-- Generated from third_party/blink/public/common/scheduler/web_scheduler_tracked_feature.h.
+<!-- Generated from third_party/blink/public/mojom/scheduler/web_scheduler_tracked_feature.mojom.
 Called by update_scheduler_enums.py.-->
 
   <int value="0" label="WebSocket"/>
@@ -2001,7 +2059,7 @@ Called by update_scheduler_enums.py.-->
   <int value="56" label="MediaSessionImplOnServiceCreated"/>
   <int value="57" label="WebTransport"/>
   <int value="58" label="Dummy"/>
-  <int value="59" label="Keepalive request"/>
+  <int value="59" label="KeepaliveRequest"/>
   <int value="60" label="JsNetworkRequestReceivedCacheControlNoStoreResource"/>
   <int value="61" label="IndexedDBEvent"/>
   <int value="62" label="WebSerial"/>
@@ -2012,7 +2070,11 @@ Called by update_scheduler_enums.py.-->
   <int value="67" label="UnloadHandler"/>
   <int value="68" label="ParserAborted"/>
   <int value="69" label="WebBluetooth"/>
+  <int value="70" label="WebAuthentication"/>
+  <int value="71" label="SharedWorkerMessage"/>
 </enum>
+
+<!-- LINT.ThenChange(//third_party/blink/public/mojom/scheduler/web_scheduler_tracked_feature.mojom:WebSchedulerTrackedFeature)-->
 
 </enums>
 

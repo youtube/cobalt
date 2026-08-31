@@ -5,6 +5,7 @@
 #include "chrome/updater/update_service_impl_impl.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
@@ -55,9 +56,9 @@
 #include "chrome/updater/remove_uninstalled_apps_task.h"
 #include "chrome/updater/update_block_check.h"
 #include "chrome/updater/update_service.h"
-#include "chrome/updater/update_usage_stats_task.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/updater_version.h"
+#include "chrome/updater/usage_stats_permissions.h"
 #include "chrome/updater/util/util.h"
 #include "components/policy/core/common/policy_types.h"
 #include "components/prefs/pref_service.h"
@@ -114,6 +115,7 @@ UpdateService::Result ToResult(update_client::Error error) {
 void GetComponents(
     scoped_refptr<PolicyService> policy_service,
     crx_file::VerifierFormat verifier_format,
+    std::optional<std::vector<uint8_t>> crx_public_key_hash,
     scoped_refptr<PersistedData> persisted_data,
     const base::flat_map<std::string, std::string>& app_client_install_data,
     const base::flat_map<std::string, std::string>& app_install_data_index,
@@ -164,6 +166,10 @@ void GetComponents(
         policy_service->GetTargetChannel(id).policy_or(std::string()),
         policy_service->GetTargetVersionPrefix(id).policy_or(std::string()),
         policy_service->IsRollbackToTargetVersionAllowed(id).policy_or(false),
+        policy_service->GetMajorVersionRolloutPolicy(id)
+            .effective_policy_value(),
+        policy_service->GetMinorVersionRolloutPolicy(id)
+            .effective_policy_value(),
         [&policy_service, &id, &is_foreground, update_blocked] {
           if (update_blocked) {
             return true;
@@ -177,7 +183,8 @@ void GetComponents(
                   (is_foreground &&
                    app_updates.policy() == kPolicyAutomaticUpdatesOnly));
         }(),
-        policy_same_version_update, persisted_data, verifier_format)
+        policy_same_version_update, persisted_data, verifier_format,
+        crx_public_key_hash)
         ->MakeCrxComponent(
             base::BindOnce([](update_client::CrxComponent component) {
               return component;
@@ -688,6 +695,7 @@ void UpdateServiceImplImpl::MaybeInstallEnterpriseCompanionAppOTA(
                   base::BindOnce(&internal::GetComponents,
                                  config_->GetPolicyService(),
                                  config_->GetCrxVerifierFormat(),
+                                 config_->GetCrxPublicKeyHash(),
                                  config_->GetUpdaterPersistedData(),
                                  kEmptyFlatMap, kEmptyFlatMap,
                                  kInstallSourcePolicy, Priority::kForeground,
@@ -716,20 +724,23 @@ void UpdateServiceImplImpl::FetchPolicies(
   if (GetUpdaterScope() == UpdaterScope::kUser) {
     VLOG(2) << "Policy fetch skipped for user updater.";
     std::move(callback).Run(0);
+    return;
+  }
+
+  if (!config_->GetUpdaterPersistedData()
+           ->GetProductVersion(enterprise_companion::kCompanionAppId)
+           .IsValid()) {
+    base::ThreadPool::PostTaskAndReplyWithResult(
+        FROM_HERE, {base::MayBlock(), base::WithBaseSyncPrimitives()},
+        base::BindOnce(&IsCloudManaged),
+        base::BindOnce(
+            &UpdateServiceImplImpl::MaybeInstallEnterpriseCompanionAppOTA,
+            base::WrapRefCounted(this),
+            base::BindOnce(&PolicyService::FetchPolicies,
+                           config_->GetPolicyService(), reason,
+                           std::move(callback))));
   } else {
-    if (config_->GetPolicyService()->IsCecaExperimentEnabled() &&
-        !config_->GetUpdaterPersistedData()
-             ->GetProductVersion(enterprise_companion::kCompanionAppId)
-             .IsValid()) {
-      config_->GetPolicyService()->IsCloudManaged(base::BindOnce(
-          &UpdateServiceImplImpl::MaybeInstallEnterpriseCompanionAppOTA,
-          base::WrapRefCounted(this),
-          base::BindOnce(&PolicyService::FetchPolicies,
-                         config_->GetPolicyService(), reason,
-                         std::move(callback))));
-    } else {
-      config_->GetPolicyService()->FetchPolicies(reason, std::move(callback));
-    }
+    config_->GetPolicyService()->FetchPolicies(reason, std::move(callback));
   }
 }
 
@@ -755,7 +766,9 @@ void UpdateServiceImplImpl::RegisterApp(
                          .IsValid() &&
                     request.version.IsValid() &&
                     request.version > base::Version(kNullVersion) &&
-                    !config_->GetUpdaterPersistedData()->GetEulaRequired();
+                    !config_->GetUpdaterPersistedData()->GetEulaRequired() &&
+                    !base::EqualsCaseInsensitiveASCII(
+                        request.app_id, enterprise_companion::kCompanionAppId);
   config_->GetUpdaterPersistedData()->RegisterApp(request);
   if (send_event) {
     update_client::CrxComponent install_data;
@@ -845,10 +858,6 @@ void UpdateServiceImplImpl::RunPeriodicTasks(base::OnceClosure callback) {
       base::BindOnce(&RemoveUninstalledAppsTask::Run,
                      base::MakeRefCounted<RemoveUninstalledAppsTask>(
                          config_, GetUpdaterScope())));
-  new_tasks.push_back(base::BindOnce(
-      &UpdateUsageStatsTask::Run,
-      base::MakeRefCounted<UpdateUsageStatsTask>(
-          GetUpdaterScope(), config_->GetUpdaterPersistedData())));
   new_tasks.push_back(MakeChangeOwnersTask(config_->GetUpdaterPersistedData(),
                                            GetUpdaterScope()));
 
@@ -1179,7 +1188,8 @@ void UpdateServiceImplImpl::InstallImpl(
       registration.app_id,
       base::BindOnce(
           &internal::GetComponents, config_->GetPolicyService(),
-          config_->GetCrxVerifierFormat(), config_->GetUpdaterPersistedData(),
+          config_->GetCrxVerifierFormat(), config_->GetCrxPublicKeyHash(),
+          config_->GetUpdaterPersistedData(),
           base::flat_map<std::string, std::string>(
               {std::make_pair(registration.app_id, client_install_data)}),
           base::flat_map<std::string, std::string>(
@@ -1266,14 +1276,6 @@ void UpdateServiceImplImpl::RunInstallerImpl(
       config_->GetUpdaterPersistedData()->GetBrandCode(app_id), pv,
       config_->GetUpdaterPersistedData()->GetExistenceCheckerPath(app_id));
 
-  // Pre-register the app in case there is no registration for it. This app
-  // registration is removed later if `new_install` is `true and if the app
-  // install encounters an error.
-  RegistrationRequest request;
-  request.app_id = app_id;
-  request.lang = language;
-  config_->GetUpdaterPersistedData()->RegisterApp(request);
-
   const base::Version installer_version([&install_settings]() -> std::string {
     std::unique_ptr<base::Value> install_settings_deserialized =
         JSONStringValueDeserializer(install_settings)
@@ -1308,8 +1310,7 @@ void UpdateServiceImplImpl::RunInstallerImpl(
       base::BindOnce(
           [](const AppInfo& app_info, const base::FilePath& installer_path,
              const std::string& install_args, const std::string& install_data,
-             base::RepeatingCallback<void(const UpdateState&)> state_update,
-             bool usage_stats_enabled) {
+             base::RepeatingCallback<void(const UpdateState&)> state_update) {
             base::ScopedTempDir temp_dir;
             if (!temp_dir.CreateUniqueTempDir()) {
               return InstallerResult(
@@ -1326,7 +1327,10 @@ void UpdateServiceImplImpl::RunInstallerImpl(
             return RunApplicationInstaller(
                 app_info, installer_path, install_args,
                 WriteInstallerDataToTempFile(temp_dir.GetPath(), install_data),
-                usage_stats_enabled, kWaitForAppInstaller,
+                /*usage_stats_enabled=*/
+                IsUpdaterOrCompanionApp(app_info.app_id) &&
+                    AnyAppEnablesUsageStats(GetUpdaterScope()),
+                kWaitForAppInstaller,
                 base::BindRepeating(
                     [](base::RepeatingCallback<void(const UpdateState&)>
                            state_update,
@@ -1340,9 +1344,7 @@ void UpdateServiceImplImpl::RunInstallerImpl(
                     },
                     state_update, app_info.app_id));
           },
-          app_info, installer_path, install_args, install_data, state_update,
-          IsUpdaterOrCompanionApp(app_info.app_id) &&
-              config_->GetUpdaterPersistedData()->GetUsageStatsEnabled()),
+          app_info, installer_path, install_args, install_data, state_update),
       base::BindOnce(
           [](scoped_refptr<Configurator> config,
              scoped_refptr<PersistedData> persisted_data,
@@ -1373,10 +1375,10 @@ void UpdateServiceImplImpl::RunInstallerImpl(
             if (result.result.category == update_client::ErrorCategory::kNone &&
                 installer_version.IsValid()) {
               persisted_data->SetProductVersion(app_id, installer_version);
-              config->GetPrefService()->CommitPendingWrite();
             } else if (new_install) {
               persisted_data->RemoveApp(app_id);
             }
+            config->GetPrefService()->CommitPendingWrite();
 
             state.error_category = ToErrorCategory(result.result.category);
             state.error_code = result.result.code;
@@ -1505,14 +1507,14 @@ void UpdateServiceImplImpl::OnShouldBlockCheckForUpdateForMeteredNetwork(
       FROM_HERE,
       base::BindOnce(
           &update_client::UpdateClient::CheckForUpdate, update_client_, app_id,
-          base::BindOnce(&internal::GetComponents, config_->GetPolicyService(),
-                         config_->GetCrxVerifierFormat(),
-                         config_->GetUpdaterPersistedData(), kEmptyFlatMap,
-                         kEmptyFlatMap,
-                         priority == UpdateService::Priority::kForeground
-                             ? kInstallSourceOnDemand
-                             : "",
-                         priority, update_blocked, policy_same_version_update),
+          base::BindOnce(
+              &internal::GetComponents, config_->GetPolicyService(),
+              config_->GetCrxVerifierFormat(), config_->GetCrxPublicKeyHash(),
+              config_->GetUpdaterPersistedData(), kEmptyFlatMap, kEmptyFlatMap,
+              priority == UpdateService::Priority::kForeground
+                  ? kInstallSourceOnDemand
+                  : "",
+              priority, update_blocked, policy_same_version_update),
           MakeUpdateClientCrxStateChangeCallback(
               config_, config_->GetUpdaterPersistedData(),
               /*new_install=*/false, language, state_update),
@@ -1537,6 +1539,7 @@ void UpdateServiceImplImpl::OnShouldBlockUpdateForMeteredNetwork(
           &update_client::UpdateClient::Update, update_client_, app_ids,
           base::BindOnce(&internal::GetComponents, config_->GetPolicyService(),
                          config_->GetCrxVerifierFormat(),
+                         config_->GetCrxPublicKeyHash(),
                          config_->GetUpdaterPersistedData(),
                          app_client_install_data, app_install_data_index,
                          priority == UpdateService::Priority::kForeground
@@ -1576,13 +1579,13 @@ void UpdateServiceImplImpl::OnShouldBlockForceInstallForMeteredNetwork(
         base::BindOnce(
             base::IgnoreResult(&update_client::UpdateClient::Install),
             update_client_, id,
-            base::BindOnce(&internal::GetComponents,
-                           config_->GetPolicyService(),
-                           config_->GetCrxVerifierFormat(),
-                           config_->GetUpdaterPersistedData(),
-                           app_client_install_data, app_install_data_index,
-                           kInstallSourcePolicy, Priority::kBackground,
-                           update_blocked, policy_same_version_update),
+            base::BindOnce(
+                &internal::GetComponents, config_->GetPolicyService(),
+                config_->GetCrxVerifierFormat(), config_->GetCrxPublicKeyHash(),
+                config_->GetUpdaterPersistedData(), app_client_install_data,
+                app_install_data_index, kInstallSourcePolicy,
+                Priority::kBackground, update_blocked,
+                policy_same_version_update),
             MakeUpdateClientCrxStateChangeCallback(
                 config_, config_->GetUpdaterPersistedData(),
                 /*new_install=*/false,

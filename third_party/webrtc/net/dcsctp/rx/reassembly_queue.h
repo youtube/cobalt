@@ -10,13 +10,10 @@
 #ifndef NET_DCSCTP_RX_REASSEMBLY_QUEUE_H_
 #define NET_DCSCTP_RX_REASSEMBLY_QUEUE_H_
 
-#include <stddef.h>
-
-#include <cstdint>
+#include <cstddef>
 #include <deque>
 #include <memory>
-#include <set>
-#include <string>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -27,9 +24,9 @@
 #include "net/dcsctp/common/sequence_numbers.h"
 #include "net/dcsctp/packet/chunk/forward_tsn_common.h"
 #include "net/dcsctp/packet/data.h"
-#include "net/dcsctp/packet/parameter/outgoing_ssn_reset_request_parameter.h"
-#include "net/dcsctp/packet/parameter/reconfiguration_response_parameter.h"
+#include "net/dcsctp/public/dcsctp_handover_state.h"
 #include "net/dcsctp/public/dcsctp_message.h"
+#include "net/dcsctp/public/types.h"
 #include "net/dcsctp/rx/reassembly_streams.h"
 #include "rtc_base/containers/flat_set.h"
 

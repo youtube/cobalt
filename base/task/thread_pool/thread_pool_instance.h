@@ -5,16 +5,12 @@
 #ifndef BASE_TASK_THREAD_POOL_THREAD_POOL_INSTANCE_H_
 #define BASE_TASK_THREAD_POOL_THREAD_POOL_INSTANCE_H_
 
+#include <cstddef>
 #include <memory>
 #include <string_view>
 
 #include "base/base_export.h"
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
-#include "base/task/sequenced_task_runner.h"
-#include "base/task/single_thread_task_runner.h"
-#include "base/task/single_thread_task_runner_thread_mode.h"
-#include "base/task/task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 
@@ -224,7 +220,6 @@ class BASE_EXPORT ThreadPoolInstance {
   // not thread-safe; proper synchronization is required to use the
   // thread_pool.h API after registering a new ThreadPoolInstance.
 
-#if !BUILDFLAG(IS_NACL)
   // Creates and starts a thread pool using default params. |name| is used to
   // label histograms, it must not be empty. It should identify the component
   // that calls this. Start() is called by this method; it is invalid to call it
@@ -236,7 +231,6 @@ class BASE_EXPORT ThreadPoolInstance {
   // Create() and StartWithDefaultParams() calls. Start() is called by this
   // method; it is invalid to call it again afterwards.
   void StartWithDefaultParams();
-#endif  // !BUILDFLAG(IS_NACL)
 
   // Creates a ready to start thread pool. |name| is used to label histograms,
   // it must not be empty. It should identify the component that creates the

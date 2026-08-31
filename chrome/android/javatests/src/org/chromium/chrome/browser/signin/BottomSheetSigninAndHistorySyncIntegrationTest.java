@@ -31,6 +31,7 @@ import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.os.Build;
 
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.espresso.Espresso;
@@ -49,6 +50,7 @@ import org.chromium.base.BuildInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.ApplicationTestUtils;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -85,6 +87,10 @@ import org.chromium.ui.test.util.ViewUtils;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @DoNotBatch(reason = "This test relies on native initialization")
 @EnableFeatures({ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP})
+// TODO(crbug.com/428056054): Test content is blocked by system UI on B+.
+@DisableIf.Build(
+        sdk_is_greater_than = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+        message = "crbug.com/428056054")
 public class BottomSheetSigninAndHistorySyncIntegrationTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -230,6 +236,22 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         verify(mHistorySyncHelperMock).recordHistorySyncNotShown(mSigninAccessPoint);
         // Verify that the flow completion callback, which finishes the activity, is called.
         ApplicationTestUtils.waitForActivityState(mActivity, Stage.DESTROYED);
+    }
+
+    @Test
+    @MediumTest
+    @Features.EnableFeatures(SigninFeatures.FORCE_HISTORY_OPT_IN_SCREEN)
+    public void testWithExistingAccount_signIn_historySyncDeclinedOften_forceHistoryOptInScreen() {
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+        when(mHistorySyncHelperMock.isDeclinedOften()).thenReturn(true);
+
+        launchActivity(
+                NoAccountSigninMode.BOTTOM_SHEET,
+                WithAccountSigninMode.DEFAULT_ACCOUNT_BOTTOM_SHEET,
+                HistorySyncConfig.OptInMode.OPTIONAL);
+
+        verifyCollapsedBottomSheetAndSignin(TestAccounts.ACCOUNT1);
+        acceptHistorySyncAndVerifyFlowCompletion(/* checkDialogRoot= */ true);
     }
 
     @Test
@@ -443,7 +465,7 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         // Verify that the default account bottom sheet is shown.
         onView(
                         allOf(
-                                withText(TestAccounts.ACCOUNT1.getEmail()),
+                                withText(TestAccounts.ACCOUNT1.getFullName()),
                                 isDescendantOfA(withId(R.id.account_picker_state_collapsed))))
                 .check(matches(isDisplayed()));
 
@@ -469,7 +491,7 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         // Select an account on the shown expanded sign-in bottom-sheet.
         onView(
                         allOf(
-                                withText(TestAccounts.ACCOUNT1.getEmail()),
+                                withText(TestAccounts.ACCOUNT1.getFullName()),
                                 isDescendantOfA(withId(R.id.account_picker_state_expanded)),
                                 isCompletelyDisplayed()))
                 .perform(click());
@@ -528,7 +550,7 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         // Verifies that the default account sign-in bottom-sheet is shown and select the account.
         onView(
                         allOf(
-                                withText(TestAccounts.ACCOUNT1.getEmail()),
+                                withText(TestAccounts.ACCOUNT1.getFullName()),
                                 isDescendantOfA(withId(R.id.account_picker_state_collapsed)),
                                 isCompletelyDisplayed()))
                 .perform(click());
@@ -541,7 +563,7 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         // Verify that the default account bottom sheet is shown.
         onView(
                         allOf(
-                                withText(TestAccounts.ACCOUNT1.getEmail()),
+                                withText(TestAccounts.ACCOUNT1.getFullName()),
                                 isDescendantOfA(withId(R.id.account_picker_state_collapsed))))
                 .check(matches(isDisplayed()));
 

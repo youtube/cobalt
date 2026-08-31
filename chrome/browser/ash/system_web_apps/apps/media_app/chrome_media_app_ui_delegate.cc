@@ -26,7 +26,6 @@
 #include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/common/channel_info.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/intent.h"
@@ -192,9 +191,9 @@ void ChromeMediaAppUIDelegate::EditInPhotosImpl(
 void ChromeMediaAppUIDelegate::SubmitForm(const GURL& url,
                                           const std::vector<int8_t>& payload,
                                           const std::string& header) {
-  user_manager::User& user =
+  const user_manager::User& user =
       CHECK_DEREF(ash::BrowserContextHelper::Get()->GetUserByBrowserContext(
           Profile::FromWebUI(web_ui_)));
   ash::BrowserController::GetInstance()->NewTabWithPostData(
-      user, url, base::as_byte_span(payload), header);
+      user.GetAccountId(), url, base::as_byte_span(payload), header);
 }

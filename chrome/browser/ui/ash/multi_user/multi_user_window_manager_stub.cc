@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ui/ash/multi_user/multi_user_window_manager_stub.h"
 
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "components/account_id/account_id.h"
 
 MultiUserWindowManagerStub::MultiUserWindowManagerStub() = default;
@@ -43,4 +43,18 @@ const AccountId& MultiUserWindowManagerStub::GetUserPresentingWindow(
 
 const AccountId& MultiUserWindowManagerStub::CurrentAccountId() const {
   return EmptyAccountId();
+}
+
+void MultiUserWindowManagerStub::AddObserver(
+    ash::MultiUserWindowManagerObserver* observer) {
+  NOTIMPLEMENTED_LOG_ONCE();
+}
+
+void MultiUserWindowManagerStub::RemoveObserver(
+    ash::MultiUserWindowManagerObserver* observer) {
+  NOTIMPLEMENTED_LOG_ONCE();
+}
+
+void MultiUserWindowManagerStub::SetPrimaryUser(const AccountId& account_id) {
+  // Do nothing.
 }

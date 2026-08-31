@@ -182,24 +182,49 @@ def CheckoutGitRepo(name, git_url, commit, dir):
   print('CheckoutGitRepo failed.')
   sys.exit(1)
 
+# Git commits include timing metadata in their hash.
+# To ensure we get a consistent hash when applying local changes,
+# set the dates to a specific value via environment variable
+MODIFICATION_DATES = {
+    'GIT_AUTHOR_DATE': '2099-01-01 10:10:10',
+    'GIT_COMMITTER_DATE': '2099-01-01 10:10:10'
+}
 
-def GitCherryPick(git_repository, git_remote, commit, git_remote_name='github'):
+
+def GitCherryPick(git_repository,
+                  commit,
+                  git_remote=None,
+                  git_remote_name='github'):
   print(f'Cherry-picking {commit} in {git_repository} from {git_remote}')
   git_cmd = ['git', '-C', git_repository]
-  RunCommand(git_cmd + ['remote', 'add', git_remote_name, git_remote],
-             fail_hard=False)
-  RunCommand(git_cmd +
-             ['fetch', '--recurse-submodules=no', git_remote_name, commit])
+  if git_remote is not None:
+    RunCommand(git_cmd + ['remote', 'add', git_remote_name, git_remote],
+               fail_hard=False)
+    RunCommand(git_cmd +
+               ['fetch', '--recurse-submodules=no', git_remote_name, commit])
+
   is_ancestor = RunCommand(git_cmd +
                            ['merge-base', '--is-ancestor', commit, 'HEAD'],
                            fail_hard=False)
   if is_ancestor:
     print('Commit already an ancestor; skipping.')
     return
+
+  env = os.environ.copy()
+  env.update(MODIFICATION_DATES)
   RunCommand([
       'git', '-C', git_repository, 'cherry-pick', '--keep-redundant-commits',
       commit
-  ])
+  ],
+             env=env)
+
+
+def GitRevert(git_repository, commit):
+  print(f'Reverting {commit} in {git_repository}')
+  env = os.environ.copy()
+  env.update(MODIFICATION_DATES)
+  RunCommand(['git', '-C', git_repository, 'revert', '--no-edit', commit],
+             env=env)
 
 
 def GetLatestLLVMCommit():
@@ -567,9 +592,16 @@ def DownloadDebianSysroot(platform_name, skip_download=False):
       'arm': 'fe81e7114b97440262bce004caf02c1514732e2fa7f99693b2836932ad1c4626',
       # hash from https://chromium-review.googlesource.com/c/chromium/src/+/5506275/1/build/linux/sysroot_scripts/sysroots.json#21
       'arm64': '308e23faba3174bd01accfe358467b8a40fad4db4c49ef629da30219f65a275f',
+      # hash from https://chromium-review.googlesource.com/c/chromium/src/+/6603953/1/build/linux/sysroot_scripts/sysroots.json#45
+      'riscv64': '6c924a8f88bb4731f3c2334c6ae5b5da47d5ca196ff571a91071f104dbacecad',
   }
 
-  toolchain_name = f'debian_bullseye_{platform_name}_sysroot'
+  releases = {
+      'riscv64': 'trixie',
+  }
+
+  release = releases.get(platform_name, 'bullseye')
+  toolchain_name = f'debian_{release}_{platform_name}_sysroot'
   output = os.path.join(LLVM_BUILD_TOOLS_DIR, toolchain_name)
   stamp_file = os.path.join(output, 'stamp')
   version = hashes[platform_name]
@@ -736,6 +768,11 @@ def main():
 
   global CLANG_REVISION, PACKAGE_VERSION, LLVM_BUILD_DIR
 
+  # TODO(crbug.com/432036065): Remove in next Clang roll.
+  if args.llvm_force_head_revision:
+    global RELEASE_VERSION
+    RELEASE_VERSION = '22'
+
   if (args.pgo or args.thinlto) and not args.bootstrap:
     print('--pgo/--thinlto requires --bootstrap')
     return 1
@@ -814,6 +851,7 @@ def main():
       sysroot_i386 = DownloadDebianSysroot('i386', args.skip_checkout)
       sysroot_arm = DownloadDebianSysroot('arm', args.skip_checkout)
       sysroot_arm64 = DownloadDebianSysroot('arm64', args.skip_checkout)
+      sysroot_riscv64 = DownloadDebianSysroot('riscv64', args.skip_checkout)
 
   if args.skip_build:
     return 0
@@ -1108,7 +1146,7 @@ def main():
 
     # Train by building some C++ code.
     #
-    # pgo_training-1.ii is a preprocessed (on Linux) version of
+    # pgo_training-3.ii is a preprocessed (on Linux) version of
     # src/third_party/blink/renderer/core/layout/layout_object.cc, selected
     # because it's a large translation unit in Blink, which is normally the
     # slowest part of Chromium to compile. Using this, we get ~20% shorter
@@ -1129,11 +1167,11 @@ def main():
     # from PGO as well. Perhaps the training could be done asynchronously by
     # dedicated buildbots that upload profiles to the cloud.
     with timer.time('pgo training'):
-      training_source = 'pgo_training-1.ii'
+      training_source = 'pgo_training-3.ii'
       with open(training_source, 'wb') as f:
         DownloadUrl(CDS_URL + '/' + training_source, f)
       train_cmd = [os.path.join(LLVM_INSTRUMENTED_DIR, 'bin', 'clang++'),
-                  '-target', 'x86_64-unknown-unknown', '-O2', '-g', '-std=c++14',
+                  '-target', 'x86_64-unknown-unknown', '-O2', '-g', '-std=c++20',
                    '-fno-exceptions', '-fno-rtti', '-w', '-c', training_source]
       if sys.platform == 'darwin':
         train_cmd.extend(['-isysroot', isysroot])
@@ -1279,6 +1317,17 @@ def main():
     runtimes_triples_args['aarch64-unknown-linux-gnu'] = {
         "args": [
             'CMAKE_SYSROOT=%s' % sysroot_arm64,
+            # Can't run tests on x86 host.
+            'LLVM_INCLUDE_TESTS=OFF',
+        ],
+        "profile":
+        True,
+        "sanitizers":
+        True,
+    }
+    runtimes_triples_args['riscv64-unknown-linux-gnu'] = {
+        "args": [
+            'CMAKE_SYSROOT=%s' % sysroot_riscv64,
             # Can't run tests on x86 host.
             'LLVM_INCLUDE_TESTS=OFF',
         ],

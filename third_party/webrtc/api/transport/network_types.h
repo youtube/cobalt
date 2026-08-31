@@ -240,7 +240,9 @@ struct RTC_EXPORT TargetTransferRate {
   // The estimate on which the target rate is based on.
   NetworkEstimate network_estimate;
   DataRate target_rate = DataRate::Zero();
-  DataRate stable_target_rate = DataRate::Zero();
+  // TODO(bugs.webrtc.org/423841921): stable_rate is not used by WebRTC and
+  // should be removed as soon as downstream projects are not referencing it.
+  DataRate stable_target_rate;  // Deprecated
   double cwnd_reduce_ratio = 0;
 };
 

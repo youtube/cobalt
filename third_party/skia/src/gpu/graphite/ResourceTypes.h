@@ -31,7 +31,7 @@ SK_MAKE_BITMASK_OPS(DepthStencilFlags)
 enum class DstReadStrategy : uint8_t {
     kNoneRequired,
     kTextureCopy,
-    kTextureSample,
+    kTextureSample,  // TODO(b/238756862): To be used once direct texture sampling is implemented
     kReadFromInput,
     kFramebufferFetch,
 
@@ -185,7 +185,6 @@ struct ImmutableSamplerInfo {
     uint64_t fFormat = 0;
 };
 
-
 /**
  * Struct used to describe how a Texture/TextureProxy/TextureProxyView is sampled.
  */
@@ -220,6 +219,7 @@ struct SamplerDesc {
     }
     constexpr SamplerDesc() = default;
     constexpr SamplerDesc(const SamplerDesc&) = default;
+    constexpr SamplerDesc& operator=(const SamplerDesc&) = default;
 
 #if defined(GPU_TEST_UTILS)
     constexpr SamplerDesc(uint32_t desc, uint32_t format, uint32_t extFormatMSB)

@@ -20,6 +20,7 @@
 #include "content/browser/process_lock.h"
 #include "content/browser/renderer_host/debug_urls.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
+#include "content/browser/renderer_host/navigation_throttle_runner.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -88,7 +89,7 @@ namespace {
 class TestNavigationThrottle : public NavigationThrottle {
  public:
   TestNavigationThrottle(
-      NavigationHandle* handle,
+      NavigationThrottleRegistry& registry,
       NavigationThrottle::ThrottleCheckResult will_start_result,
       NavigationThrottle::ThrottleCheckResult will_redirect_result,
       NavigationThrottle::ThrottleCheckResult will_fail_result,
@@ -100,7 +101,7 @@ class TestNavigationThrottle : public NavigationThrottle {
       base::OnceClosure did_call_will_fail,
       base::OnceClosure did_call_will_process,
       base::OnceClosure did_call_will_commit_without_url_loader)
-      : NavigationThrottle(handle),
+      : NavigationThrottle(registry),
         will_start_result_(will_start_result),
         will_redirect_result_(will_redirect_result),
         will_fail_result_(will_fail_result),
@@ -372,14 +373,17 @@ class TestNavigationThrottleInstaller : public WebContentsObserver {
   }
 
  private:
+  // WebContentsObserver:
   void DidStartNavigation(NavigationHandle* handle) override {
     if (!expected_start_url_.is_empty() &&
         handle->GetURL() != expected_start_url_) {
       return;
     }
 
+    auto* request = NavigationRequest::From(handle);
+    auto& registry = *request->GetNavigationThrottleRegistryForTesting();
     std::unique_ptr<NavigationThrottle> throttle(new TestNavigationThrottle(
-        handle, will_start_result_, will_redirect_result_, will_fail_result_,
+        registry, will_start_result_, will_redirect_result_, will_fail_result_,
         will_process_result_, will_commit_without_url_loader_result_,
         base::BindOnce(
             &TestNavigationThrottleInstaller::DidCallWillStartRequest,
@@ -396,7 +400,7 @@ class TestNavigationThrottleInstaller : public WebContentsObserver {
             &TestNavigationThrottleInstaller::DidCallWillCommitWithoutUrlLoader,
             weak_factory_.GetWeakPtr())));
     navigation_throttle_ = static_cast<TestNavigationThrottle*>(throttle.get());
-    handle->RegisterThrottleForTesting(std::move(throttle));
+    registry.AddThrottle(std::move(throttle));
     ++install_count_;
   }
 
@@ -579,8 +583,7 @@ class NavigationRequestBrowserTest : public ContentBrowserTest {
     EXPECT_TRUE(observer.has_committed());
     EXPECT_TRUE(observer.is_error());
 
-    content::RenderFrameHost* rfh =
-        shell()->web_contents()->GetPrimaryMainFrame();
+    RenderFrameHost* rfh = shell()->web_contents()->GetPrimaryMainFrame();
     EXPECT_EQ(kBodyTextContent, EvalJs(rfh, "document.body.textContent"));
   }
 };
@@ -1925,9 +1928,9 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
   EXPECT_TRUE(site_instance_a->HasProcess());
   RenderProcessHost* process_1 = site_instance_a->GetProcess();
   RenderProcessHostWatcher process_exit_observer_1(
-      process_1, content::RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+      process_1, RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
   RenderProcessHostWatcher rph_gone_observer_1(
-      process_1, content::RenderProcessHostWatcher::WATCH_FOR_HOST_DESTRUCTION);
+      process_1, RenderProcessHostWatcher::WATCH_FOR_HOST_DESTRUCTION);
   process_1->Shutdown(RESULT_CODE_KILLED);
   process_exit_observer_1.Wait();
 
@@ -1959,9 +1962,9 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
   // Simulate this by creating a new RPH for site_instance_a directly. Note that
   // the actual process may not get created (only if the spare process is in
   // use), so wait for RPH destruction rather than process exit.
-  RenderProcessHost* rph_2 = site_instance_a->GetOrCreateProcess();
+  RenderProcessHost* rph_2 = site_instance_a->GetOrCreateProcessForTesting();
   RenderProcessHostWatcher process_exit_observer_2(
-      rph_2, content::RenderProcessHostWatcher::WATCH_FOR_HOST_DESTRUCTION);
+      rph_2, RenderProcessHostWatcher::WATCH_FOR_HOST_DESTRUCTION);
   ASSERT_TRUE(navigation_b.WaitForNavigationFinished());
 
   // Ensure RPH 1 is destroyed, which happens at commit time even before the fix
@@ -2466,11 +2469,10 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
         NavigationThrottle::PROCEED, NavigationThrottle::PROCEED,
         NavigationThrottle::PROCEED, NavigationThrottle::PROCEED);
 
-    content::RenderFrameHost* rfh =
-        shell()->web_contents()->GetPrimaryMainFrame();
+    RenderFrameHost* rfh = shell()->web_contents()->GetPrimaryMainFrame();
     scoped_refptr<SiteInstance> initial_site_instance = rfh->GetSiteInstance();
     TestNavigationObserver navigation_observer(shell()->web_contents(), 1);
-    ASSERT_TRUE(content::ExecJs(rfh, javascript));
+    ASSERT_TRUE(ExecJs(rfh, javascript));
     navigation_observer.Wait();
 
     FrameTreeNode* root = static_cast<WebContentsImpl*>(shell()->web_contents())
@@ -2673,13 +2675,12 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
   // Set the client to register a TestNavigationThrottle that defers in
   // WillStartRequest. We'll save a pointer to this throttle in
   // |client_throttle| when its registered.
-  content::ShellContentBrowserClient::Get()
+  ShellContentBrowserClient::Get()
       ->set_create_throttles_for_navigation_callback(base::BindLambdaForTesting(
-          [&client_throttle](
-              content::NavigationThrottleRegistry& registry) -> void {
+          [&client_throttle](NavigationThrottleRegistry& registry) -> void {
             std::unique_ptr<TestNavigationThrottle> throttle(
                 new TestNavigationThrottle(
-                    &registry.GetNavigationHandle(), NavigationThrottle::DEFER,
+                    registry, NavigationThrottle::DEFER,
                     NavigationThrottle::PROCEED, NavigationThrottle::PROCEED,
                     NavigationThrottle::PROCEED, NavigationThrottle::PROCEED,
                     base::DoNothing(), base::DoNothing(), base::DoNothing(),
@@ -2700,22 +2701,24 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
   TestNavigationManager manager(shell()->web_contents(), simple_url);
   shell()->LoadURL(simple_url);
   auto* handle = manager.GetNavigationHandle();
-  auto* runner =
-      NavigationRequest::From(handle)->GetNavigationThrottleRunnerForTesting();
+  auto* registry = NavigationRequest::From(handle)
+                     ->GetNavigationThrottleRegistryForTesting();
 
   // The navigation should have been deferred by one of our throttles. Ensure
   // it's the client throttle since we explicitly want test throttles to
   // execute after all others.
   ASSERT_TRUE(handle->IsDeferredForTesting());
   ASSERT_NE(client_throttle, nullptr);
-  EXPECT_EQ(runner->GetDeferringThrottle(), client_throttle);
+  EXPECT_EQ(registry->GetDeferringThrottles().size(), 1u);
+  EXPECT_TRUE(registry->GetDeferringThrottles().contains(client_throttle));
 
   // Now when we resume we should get deferred by the other throttle. This
   // should be the throttle installed via RegisterThrottleForTesting.
   client_throttle->ResumeNavigation();
   ASSERT_TRUE(handle->IsDeferredForTesting());
-  EXPECT_EQ(runner->GetDeferringThrottle(),
-            test_throttle_installer.navigation_throttle());
+  EXPECT_EQ(registry->GetDeferringThrottles().size(), 1u);
+  EXPECT_TRUE(registry->GetDeferringThrottles().contains(
+      test_throttle_installer.navigation_throttle()));
 
   // Finish the navigation.
   test_throttle_installer.navigation_throttle()->ResumeNavigation();
@@ -2908,6 +2911,61 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
     }
   }
 }
+
+class NavigationRequestUpdateHistoryBrowserTest
+    : public NavigationRequestBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  NavigationRequestUpdateHistoryBrowserTest() {
+    const bool should_update_history_for_404_navigations = GetParam();
+    if (should_update_history_for_404_navigations) {
+      scoped_feature_list_.InitAndEnableFeature(
+          blink::features::kVisitedLinksOnErrorNavigation);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          blink::features::kVisitedLinksOnErrorNavigation);
+    }
+  }
+
+ protected:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NavigationRequestUpdateHistoryBrowserTest,
+                       Reachable404) {
+  ASSERT_EQ(base::FeatureList::IsEnabled(
+                blink::features::kVisitedLinksOnErrorNavigation),
+            GetParam());
+
+  base::RunLoop did_finish_navigation_run_loop;
+  DidFinishNavigationObserver observer(
+      shell()->web_contents(),
+      base::BindLambdaForTesting([&did_finish_navigation_run_loop](
+                                     NavigationHandle* navigation_handle) {
+        ASSERT_EQ(navigation_handle->GetNavigatingFrameType(),
+                  FrameType::kPrimaryMainFrame);
+        ASSERT_TRUE(navigation_handle->GetResponseHeaders());
+        ASSERT_EQ(navigation_handle->GetResponseHeaders()->response_code(),
+                  404);
+        // If `blink::features::kVisitedLinksOnErrorNavigation` is enabled,
+        // history should be updated even for 404 navigations. If disabled,
+        // history should not be updated for navigations resulting in a 404.
+        EXPECT_EQ(navigation_handle->ShouldUpdateHistory(),
+                  base::FeatureList::IsEnabled(
+                      blink::features::kVisitedLinksOnErrorNavigation));
+        did_finish_navigation_run_loop.Quit();
+      }));
+
+  // Navigate to a reachable URL that 404s.
+  ASSERT_TRUE(
+      NavigateToURL(shell(), embedded_test_server()->GetURL("/page404.html")));
+
+  did_finish_navigation_run_loop.Run();
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         NavigationRequestUpdateHistoryBrowserTest,
+                         ::testing::Bool());
 
 IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest_IsolateAllSites,
                        StartToCommitMetrics) {
@@ -3420,7 +3478,7 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestDownloadBrowserTest, Disallowed) {
 
   // An URL is allowed to be a download iff it is not a view-source URL.
   GURL view_source_url =
-      GURL(content::kViewSourceScheme + std::string(":") + download_url.spec());
+      GURL(kViewSourceScheme + std::string(":") + download_url.spec());
 
   NavigationHandleObserver handle_observer(shell()->web_contents(),
                                            download_url);
@@ -4166,7 +4224,7 @@ IN_PROC_BROWSER_TEST_F(CSPEmbeddedEnforcementBrowserTest,
 
     GURL frame_url = embedded_test_server()->GetURL(test.frame_url,
                                                     "/set-header?" + headers);
-    content::TestNavigationManager observer(shell()->web_contents(), frame_url);
+    TestNavigationManager observer(shell()->web_contents(), frame_url);
 
     EXPECT_TRUE(ExecJs(shell()->web_contents(),
                        JsReplace(R"(
@@ -4202,14 +4260,14 @@ class NavigationRequestFencedFrameBrowserTest
     NavigationRequestBrowserTest::SetUpOnMainThread();
   }
 
-  content::test::FencedFrameTestHelper& fenced_frame_test_helper() {
+  test::FencedFrameTestHelper& fenced_frame_test_helper() {
     return fenced_frame_helper_;
   }
 
   net::EmbeddedTestServer* https_server() { return &https_server_; }
 
  private:
-  content::test::FencedFrameTestHelper fenced_frame_helper_;
+  test::FencedFrameTestHelper fenced_frame_helper_;
   net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
 };
 
@@ -4229,11 +4287,9 @@ IN_PROC_BROWSER_TEST_F(
       "/set-header?"
       "Supports-Loading-Mode: fenced-frame&"
       "Cross-Origin-Embedder-Policy: require-corp");
-  content::RenderFrameHostImpl* fenced_frame_host =
-      static_cast<content::RenderFrameHostImpl*>(
-          fenced_frame_test_helper().CreateFencedFrame(
-              shell()->web_contents()->GetPrimaryMainFrame(),
-              fenced_frame_url));
+  RenderFrameHostImpl* fenced_frame_host = static_cast<RenderFrameHostImpl*>(
+      fenced_frame_test_helper().CreateFencedFrame(
+          shell()->web_contents()->GetPrimaryMainFrame(), fenced_frame_url));
   ASSERT_TRUE(fenced_frame_host);
   EXPECT_EQ(network::mojom::CrossOriginEmbedderPolicyValue::kNone,
             fenced_frame_host->cross_origin_embedder_policy().value);
@@ -4255,11 +4311,9 @@ IN_PROC_BROWSER_TEST_F(
                              "/set-header?"
                              "Supports-Loading-Mode: fenced-frame&"
                              "Cross-Origin-Embedder-Policy: require-corp");
-  content::RenderFrameHostImpl* fenced_frame_host =
-      static_cast<content::RenderFrameHostImpl*>(
-          fenced_frame_test_helper().CreateFencedFrame(
-              shell()->web_contents()->GetPrimaryMainFrame(),
-              fenced_frame_url));
+  RenderFrameHostImpl* fenced_frame_host = static_cast<RenderFrameHostImpl*>(
+      fenced_frame_test_helper().CreateFencedFrame(
+          shell()->web_contents()->GetPrimaryMainFrame(), fenced_frame_url));
   ASSERT_TRUE(fenced_frame_host);
   EXPECT_EQ(network::mojom::CrossOriginEmbedderPolicyValue::kNone,
             fenced_frame_host->cross_origin_embedder_policy().value);
@@ -4387,9 +4441,8 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
 
   // Navigate to a document that sets COOP.
   EXPECT_TRUE(NavigateToURL(shell(), url));
-  content::RenderFrameHostImpl* main_frame =
-      static_cast<content::RenderFrameHostImpl*>(
-          shell()->web_contents()->GetPrimaryMainFrame());
+  RenderFrameHostImpl* main_frame = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
   EXPECT_EQ(network::mojom::CrossOriginOpenerPolicyValue::kSameOrigin,
             main_frame->cross_origin_opener_policy().value);
 
@@ -4415,9 +4468,8 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestPrerenderBrowserTest,
 
   // Navigate to a document that sets COOP and COEP.
   EXPECT_TRUE(NavigateToURL(shell(), url));
-  content::RenderFrameHostImpl* primary_main_frame =
-      static_cast<content::RenderFrameHostImpl*>(
-          shell()->web_contents()->GetPrimaryMainFrame());
+  RenderFrameHostImpl* primary_main_frame = static_cast<RenderFrameHostImpl*>(
+      shell()->web_contents()->GetPrimaryMainFrame());
 
   EXPECT_EQ(network::mojom::CrossOriginOpenerPolicyValue::kSameOriginPlusCoep,
             primary_main_frame->cross_origin_opener_policy().value);
@@ -4427,9 +4479,8 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestPrerenderBrowserTest,
   // Add a prerender.
   FrameTreeNodeId host_id = prerender_helper().AddPrerender(
       https_server()->GetURL("a.test", "/title1.html?prerendering"));
-  content::RenderFrameHostImpl* prerender_main_frame =
-      static_cast<content::RenderFrameHostImpl*>(
-          prerender_helper().GetPrerenderedMainFrameHost(host_id));
+  RenderFrameHostImpl* prerender_main_frame = static_cast<RenderFrameHostImpl*>(
+      prerender_helper().GetPrerenderedMainFrameHost(host_id));
 
   // The prerender rfh's polices are none.
   EXPECT_EQ(network::mojom::CrossOriginEmbedderPolicyValue::kNone,
@@ -4463,8 +4514,7 @@ class NavigationRequestMPArchBrowserTest
         break;
 
       case TestMPArchType::kFencedFrame:
-        fenced_frame_helper_ =
-            std::make_unique<content::test::FencedFrameTestHelper>();
+        fenced_frame_helper_ = std::make_unique<test::FencedFrameTestHelper>();
         break;
     }
   }
@@ -4643,8 +4693,8 @@ const char kResponseTemplate[] =
 // Test version of a NavigationThrottle that requests the response body.
 class ResponseBodyNavigationThrottle : public NavigationThrottle {
  public:
-  explicit ResponseBodyNavigationThrottle(NavigationHandle* handle)
-      : NavigationThrottle(handle) {}
+  explicit ResponseBodyNavigationThrottle(NavigationThrottleRegistry& registry)
+      : NavigationThrottle(registry) {}
   ResponseBodyNavigationThrottle(const ResponseBodyNavigationThrottle&) =
       delete;
   ResponseBodyNavigationThrottle& operator=(
@@ -4698,12 +4748,11 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestResponseBodyBrowserTest, Received) {
 
   // Set the client to register a ResponseBodyNavigationThrottle. Save a pointer
   // to this throttle in `client_throttle` on registration.
-  content::ShellContentBrowserClient::Get()
+  ShellContentBrowserClient::Get()
       ->set_create_throttles_for_navigation_callback(base::BindLambdaForTesting(
-          [&client_throttle](
-              content::NavigationThrottleRegistry& registry) -> void {
-            auto throttle = std::make_unique<ResponseBodyNavigationThrottle>(
-                &registry.GetNavigationHandle());
+          [&client_throttle](NavigationThrottleRegistry& registry) -> void {
+            auto throttle =
+                std::make_unique<ResponseBodyNavigationThrottle>(registry);
             client_throttle = throttle.get();
             registry.AddThrottle(std::move(throttle));
           }));
@@ -4739,12 +4788,11 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestResponseBodyBrowserTest,
 
   // Set the client to register a ResponseBodyNavigationThrottle. Save a pointer
   // to this throttle in `client_throttle` on registration.
-  content::ShellContentBrowserClient::Get()
+  ShellContentBrowserClient::Get()
       ->set_create_throttles_for_navigation_callback(base::BindLambdaForTesting(
-          [&client_throttle](
-              content::NavigationThrottleRegistry& registry) -> void {
-            auto throttle = std::make_unique<ResponseBodyNavigationThrottle>(
-                &registry.GetNavigationHandle());
+          [&client_throttle](NavigationThrottleRegistry& registry) -> void {
+            auto throttle =
+                std::make_unique<ResponseBodyNavigationThrottle>(registry);
             client_throttle = throttle.get();
             registry.AddThrottle(std::move(throttle));
           }));
@@ -4780,12 +4828,11 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestResponseBodyBrowserTest,
 
   // Set the client to register a ResponseBodyNavigationThrottle. Save a pointer
   // to this throttle in `client_throttle` on registration.
-  content::ShellContentBrowserClient::Get()
+  ShellContentBrowserClient::Get()
       ->set_create_throttles_for_navigation_callback(base::BindLambdaForTesting(
-          [&client_throttle](
-              content::NavigationThrottleRegistry& registry) -> void {
-            auto throttle = std::make_unique<ResponseBodyNavigationThrottle>(
-                &registry.GetNavigationHandle());
+          [&client_throttle](NavigationThrottleRegistry& registry) -> void {
+            auto throttle =
+                std::make_unique<ResponseBodyNavigationThrottle>(registry);
             client_throttle = throttle.get();
             registry.AddThrottle(std::move(throttle));
           }));
@@ -5191,7 +5238,7 @@ IN_PROC_BROWSER_TEST_F(NavigationRequestBrowserTest,
                 ~network::mojom::WebSandboxFlags::kAutomaticFeatures);
   EXPECT_EQ(
       manager.GetNavigationHandle()->SandboxFlagsInherited(),
-      //`allow-scripts allow-popups`:
+      // `allow-scripts allow-popups`:
       network::mojom::WebSandboxFlags::kAll &
           ~network::mojom::WebSandboxFlags::kScripts &
           ~network::mojom::WebSandboxFlags::kPopups &

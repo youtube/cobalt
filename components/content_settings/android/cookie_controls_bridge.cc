@@ -106,6 +106,10 @@ void CookieControlsBridge::SetThirdPartyCookieBlockingEnabledForSite(
   controller_->OnCookieBlockingEnabledForSite(block_cookies);
 }
 
+void CookieControlsBridge::OnTrackingProtectionsChangedForSite(JNIEnv* env) {
+  controller_->OnTrackingProtectionsChangedForSite();
+}
+
 void CookieControlsBridge::OnUiClosing(JNIEnv* env) {
   controller_->OnUiClosing();
 }
@@ -116,8 +120,7 @@ void CookieControlsBridge::OnEntryPointAnimated(JNIEnv* env) {
 
 CookieControlsBridge::~CookieControlsBridge() = default;
 
-void CookieControlsBridge::Destroy(JNIEnv* env,
-                                   const JavaParamRef<jobject>& obj) {
+void CookieControlsBridge::Destroy(JNIEnv* env) {
   delete this;
 }
 

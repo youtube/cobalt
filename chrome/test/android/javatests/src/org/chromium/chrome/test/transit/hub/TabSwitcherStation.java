@@ -16,27 +16,31 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.chrome.test.util.ChromeTabUtils.getTabCountOnUiThread;
+
 import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.errorprone.annotations.CheckReturnValue;
+
 import org.hamcrest.Matcher;
 
-import org.chromium.base.test.transit.Condition;
-import org.chromium.base.test.transit.Transition;
+import org.chromium.base.test.transit.TripBuilder;
 import org.chromium.base.test.transit.ViewElement;
 import org.chromium.base.test.transit.ViewSpec;
 import org.chromium.base.test.util.ViewActionOnDescendant;
-import org.chromium.chrome.browser.hub.HubToolbarMediator;
+import org.chromium.chrome.browser.hub.HubUtils;
 import org.chromium.chrome.browser.hub.PaneId;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridView;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.transit.page.PageStation;
+import org.chromium.chrome.test.transit.SoftKeyboardFacility;
+import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.transit.tabmodel.TabCountChangedCondition;
 import org.chromium.chrome.test.util.TabBinningUtil;
-import org.chromium.components.omnibox.OmniboxFeatures;
 
 import java.util.List;
 
@@ -59,43 +63,34 @@ public abstract class TabSwitcherStation extends HubBaseStation {
                                     withParent(instanceOf(TabGridView.class)))),
                     isDisplayed());
 
-    private final boolean mIsIncognito;
-
     public ViewElement<RecyclerView> recyclerViewElement;
     public ViewElement<View> searchElement;
     public ViewElement<View> newTabButtonElement;
 
     public TabSwitcherStation(
             boolean isIncognito, boolean regularTabsExist, boolean incognitoTabsExist) {
-        super(regularTabsExist, incognitoTabsExist, /* hasMenuButton= */ true);
-        mIsIncognito = isIncognito;
+        super(isIncognito, regularTabsExist, incognitoTabsExist, /* hasMenuButton= */ true);
 
         newTabButtonElement =
                 declareView(toolbarElement.descendant(withId(R.id.toolbar_action_button)));
-        if (OmniboxFeatures.sAndroidHubSearch.isEnabled()) {
-            declareElementFactory(
-                    mActivityElement,
-                    delayedElements -> {
-                        Matcher<View> searchBox = withId(R.id.search_box);
-                        ViewSpec<View> searchLoupe =
-                                toolbarElement.descendant(withId(R.id.search_loupe));
-                        if (shouldHubSearchBoxBeVisible()) {
-                            searchElement = delayedElements.declareView(searchLoupe);
-                            delayedElements.declareNoView(searchBox);
-                        } else {
-                            searchElement = delayedElements.declareView(searchBox);
-                            delayedElements.declareNoView(searchLoupe);
-                        }
-                    });
-        }
+        declareElementFactory(
+                mActivityElement,
+                delayedElements -> {
+                    Matcher<View> searchBox = withId(R.id.search_box);
+                    ViewSpec<View> searchLoupe =
+                            toolbarElement.descendant(withId(R.id.search_loupe));
+                    if (shouldHubSearchBoxBeVisible()) {
+                        searchElement = delayedElements.declareView(searchLoupe);
+                        delayedElements.declareNoView(searchBox);
+                    } else {
+                        searchElement = delayedElements.declareView(searchBox);
+                        delayedElements.declareNoView(searchLoupe);
+                    }
+                });
         recyclerViewElement =
                 declareView(
                         paneHostElement.descendant(
                                 RecyclerView.class, withId(R.id.tab_list_recycler_view)));
-    }
-
-    public boolean isIncognito() {
-        return mIsIncognito;
     }
 
     /**
@@ -106,33 +101,36 @@ public abstract class TabSwitcherStation extends HubBaseStation {
     public TabSwitcherAppMenuFacility openAppMenu() {
         recheckActiveConditions();
 
-        return enterFacilitySync(
-                new TabSwitcherAppMenuFacility<>(mIsIncognito),
-                menuButtonElement.getClickTrigger());
+        return menuButtonElement
+                .clickTo()
+                .enterFacility(new TabSwitcherAppMenuFacility<>(mIsIncognito));
     }
 
     /**
      * @param index The tab index to select.
-     * @param destinationBuilder Builder for the specific type of PageStation expected to appear.
-     * @return Builder of the {@link PageStation} for the tab that was selected.
+     * @param destinationBuilder Builder for the specific type of {@link CtaPageStation} expected to
+     *     appear.
+     * @return Builder of the {@link CtaPageStation} for the tab that was selected.
      */
-    public <T extends PageStation> T selectTabAtIndex(
-            int index, PageStation.Builder<T> destinationBuilder) {
+    public <T extends CtaPageStation> T selectTabAtIndex(
+            int index, CtaPageStation.Builder<T> destinationBuilder) {
         recheckActiveConditions();
 
-        T destination =
-                destinationBuilder
-                        .withIncognito(mIsIncognito)
-                        .withIsOpeningTabs(0)
-                        .withIsSelectingTabs(1)
-                        .build();
+        return selectTabAtCardIndexTo(index)
+                .arriveAt(
+                        destinationBuilder
+                                .withIncognito(mIsIncognito)
+                                .initSelectingExistingTab()
+                                .build());
+    }
 
-        return travelToSync(
-                destination,
-                () -> {
-                    ViewActionOnDescendant.performOnRecyclerViewNthItemDescendant(
-                            is(recyclerViewElement.get()), index, TAB_THUMBNAIL, click());
-                });
+    /** Click the thumbnail of the card at the given |index| to start a Trip. */
+    @CheckReturnValue
+    public TripBuilder selectTabAtCardIndexTo(int index) {
+        return runTo(
+                () ->
+                        ViewActionOnDescendant.performOnRecyclerViewNthItemDescendant(
+                                is(recyclerViewElement.get()), index, TAB_THUMBNAIL, click()));
     }
 
     /**
@@ -142,17 +140,19 @@ public abstract class TabSwitcherStation extends HubBaseStation {
      */
     public <T extends TabSwitcherStation> T closeTabAtIndex(
             int index, Class<T> expectedDestination) {
-        TabModelSelector tabModelSelector = getActivity().getTabModelSelector();
+        TabModelSelector tabModelSelector = tabModelSelectorElement.get();
         boolean incognitoModelSelected = tabModelSelector.isOffTheRecordModelSelected();
-        int expectedIncognitoTabs = tabModelSelector.getModel(/* incognito= */ true).getCount();
-        int expectedRegularTabs = tabModelSelector.getModel(/* incognito= */ false).getCount();
+        int expectedIncognitoTabs =
+                getTabCountOnUiThread(tabModelSelector.getModel(/* incognito= */ true));
+        int expectedRegularTabs =
+                getTabCountOnUiThread(tabModelSelector.getModel(/* incognito= */ false));
 
         // By default stay in the same tab switcher state, unless closing the last incognito tab.
         boolean landInIncognitoSwitcher = false;
         if (getPaneId() == PaneId.INCOGNITO_TAB_SWITCHER) {
             assertTrue(incognitoModelSelected);
             expectedIncognitoTabs--;
-            if (tabModelSelector.getCurrentModel().getCount() <= 1) {
+            if (getTabCountOnUiThread(tabModelSelector.getCurrentModel()) <= 1) {
                 landInIncognitoSwitcher = false;
             } else {
                 landInIncognitoSwitcher = true;
@@ -169,52 +169,54 @@ public abstract class TabSwitcherStation extends HubBaseStation {
                                         : PaneId.TAB_SWITCHER,
                                 expectedRegularTabs > 0,
                                 expectedIncognitoTabs > 0));
-        Condition tabCountDecremented =
-                new TabCountChangedCondition(
-                        tabModelSelector.getModel(incognitoModelSelected),
-                        /* expectedChange= */ -1);
-        return travelToSync(
-                tabSwitcher,
-                Transition.conditionOption(tabCountDecremented),
-                () -> {
-                    ViewActionOnDescendant.performOnRecyclerViewNthItemDescendant(
-                            is(recyclerViewElement.get()), index, TAB_CLOSE_BUTTON, click());
-                });
+        return clickCloseTabOnCardIndexTo(index)
+                .waitForAnd(
+                        new TabCountChangedCondition(
+                                tabModelSelector.getModel(incognitoModelSelected),
+                                /* expectedChange= */ -1))
+                .arriveAt(tabSwitcher);
+    }
+
+    /** Click the close tab button on the tab card at the given |index| to start a Trip. */
+    @CheckReturnValue
+    public TripBuilder clickCloseTabOnCardIndexTo(int index) {
+        return runTo(
+                () ->
+                        ViewActionOnDescendant.performOnRecyclerViewNthItemDescendant(
+                                is(recyclerViewElement.get()), index, TAB_CLOSE_BUTTON, click()));
     }
 
     /**
      * Returns to the previous tab via the back button.
      *
-     * @param destinationBuilder Builder for the specific type of PageStation expected to appear.
-     * @return the {@link PageStation} that Hub returned to.
+     * @param destinationBuilder Builder for the specific type of {@link CtaPageStation} expected to
+     *     appear.
+     * @return the {@link CtaPageStation} that Hub returned to.
      */
-    public <T extends PageStation> T leaveHubToPreviousTabViaBack(
-            PageStation.Builder<T> destinationBuilder) {
+    public <T extends CtaPageStation> T leaveHubToPreviousTabViaBack(
+            CtaPageStation.Builder<T> destinationBuilder) {
         T destination =
-                destinationBuilder
-                        .withIsOpeningTabs(0)
-                        .withIsSelectingTabs(1)
-                        .withIncognito(mIsIncognito)
-                        .build();
-        return leaveHubToPreviousTabViaBack(destination);
+                destinationBuilder.initSelectingExistingTab().withIncognito(mIsIncognito).build();
+        return pressBackTo().withRetry().arriveAt(destination);
     }
 
     /** Expect a tab group card to exist. */
     public TabSwitcherGroupCardFacility expectGroupCard(List<Integer> tabIdsInGroup, String title) {
-        TabModel currentModel = tabModelSelectorElement.get().getCurrentModel();
-        int expectedCardIndex = TabBinningUtil.getBinIndex(currentModel, tabIdsInGroup);
-        return enterFacilitySync(
-                new TabSwitcherGroupCardFacility(expectedCardIndex, tabIdsInGroup, title),
-                /* trigger= */ null);
+        TabModel currentModel = tabModelElement.get();
+        int expectedCardIndex =
+                runOnUiThreadBlocking(
+                        () -> TabBinningUtil.getBinIndex(currentModel, tabIdsInGroup));
+        return noopTo().enterFacility(
+                        new TabSwitcherGroupCardFacility(expectedCardIndex, tabIdsInGroup, title));
     }
 
     /** Expect a tab card to exist. */
     public TabSwitcherTabCardFacility expectTabCard(int tabId, String title) {
-        TabModel currentModel = tabModelSelectorElement.get().getCurrentModel();
-        int expectedCardIndex = TabBinningUtil.getBinIndex(currentModel, tabId);
-        return enterFacilitySync(
-                new TabSwitcherTabCardFacility(expectedCardIndex, tabId, title),
-                /* trigger= */ null);
+        TabModel currentModel = tabModelElement.get();
+        int expectedCardIndex =
+                runOnUiThreadBlocking(() -> TabBinningUtil.getBinIndex(currentModel, tabId));
+        return noopTo().enterFacility(
+                        new TabSwitcherTabCardFacility(expectedCardIndex, tabId, title));
     }
 
     /** Verify the tab switcher card count. */
@@ -224,13 +226,14 @@ public abstract class TabSwitcherStation extends HubBaseStation {
 
     public TabSwitcherSearchStation openTabSwitcherSearch() {
         TabSwitcherSearchStation searchStation = new TabSwitcherSearchStation(mIsIncognito);
-        travelToSync(searchStation, searchElement.getClickTrigger());
-        searchStation.focusAndDropSoftKeyboard();
+        SoftKeyboardFacility softKeyboard = new SoftKeyboardFacility();
+        searchElement.clickTo().arriveAt(searchStation, softKeyboard);
+        softKeyboard.close();
         return searchStation;
     }
 
     private boolean shouldHubSearchBoxBeVisible() {
-        return HubToolbarMediator.isScreenWidthTablet(
+        return HubUtils.isScreenWidthTablet(
                 mActivityElement.get().getResources().getConfiguration().screenWidthDp);
     }
 }

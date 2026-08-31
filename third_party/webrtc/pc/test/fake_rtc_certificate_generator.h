@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "api/scoped_refptr.h"
+#include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "rtc_base/checks.h"
@@ -158,10 +159,11 @@ class FakeRTCCertificateGenerator
       RTC_DCHECK_EQ(key_params.ec_curve(), webrtc::EC_NIST_P256);
     }
     webrtc::KeyType key_type = key_params.type();
-    webrtc::TaskQueueBase::Current()->PostTask(
+    webrtc::TaskQueueBase::Current()->PostTask(webrtc::SafeTask(
+        pending_delete_.flag(),
         [this, key_type, callback = std::move(callback)]() mutable {
           GenerateCertificate(key_type, std::move(callback));
-        });
+        }));
   }
 
   static webrtc::scoped_refptr<webrtc::RTCCertificate> GenerateCertificate() {
@@ -202,9 +204,11 @@ class FakeRTCCertificateGenerator
     // set_should_wait(false) is called.
     if (should_wait_) {
       webrtc::TaskQueueBase::Current()->PostDelayedTask(
-          [this, key_type, callback = std::move(callback)]() mutable {
-            GenerateCertificate(key_type, std::move(callback));
-          },
+          webrtc::SafeTask(
+              pending_delete_.flag(),
+              [this, key_type, callback = std::move(callback)]() mutable {
+                GenerateCertificate(key_type, std::move(callback));
+              }),
           webrtc::TimeDelta::Millis(1));
       return;
     }
@@ -219,6 +223,8 @@ class FakeRTCCertificateGenerator
       std::move(callback)(std::move(certificate));
     }
   }
+
+  webrtc::ScopedTaskSafetyDetached pending_delete_;
 
   bool should_fail_;
   bool should_wait_;

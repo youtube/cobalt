@@ -11,15 +11,19 @@
 #ifndef RTC_BASE_UNIQUE_ID_GENERATOR_H_
 #define RTC_BASE_UNIQUE_ID_GENERATOR_H_
 
+#include <cstdint>
 #include <limits>
 #include <set>
 #include <string>
+#include <type_traits>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/sequence_checker.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
@@ -54,7 +58,7 @@ class UniqueNumberGenerator {
 
  private:
   RTC_NO_UNIQUE_ADDRESS SequenceChecker sequence_checker_{
-      webrtc::SequenceChecker::kDetached};
+      SequenceChecker::kDetached};
   static_assert(std::is_integral<TIntegral>::value, "Must be integral type.");
   TIntegral counter_ RTC_GUARDED_BY(sequence_checker_);
   std::set<TIntegral> known_ids_ RTC_GUARDED_BY(sequence_checker_);
@@ -147,14 +151,5 @@ bool UniqueNumberGenerator<TIntegral>::AddKnownId(TIntegral value) {
 }
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::UniqueNumberGenerator;
-using ::webrtc::UniqueRandomIdGenerator;
-using ::webrtc::UniqueStringGenerator;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_UNIQUE_ID_GENERATOR_H_

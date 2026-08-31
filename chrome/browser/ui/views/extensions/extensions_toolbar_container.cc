@@ -213,7 +213,7 @@ ExtensionsToolbarContainer::~ExtensionsToolbarContainer() {
     widgets.push_back(anchored_widget.widget);
   }
   for (auto* widget : widgets) {
-    widget->Close();
+    widget->CloseNow();
   }
   // The widgets should close synchronously (resulting in OnWidgetClosing()),
   // so |anchored_widgets_| should now be empty.
@@ -471,6 +471,10 @@ bool ExtensionsToolbarContainer::ShouldForceVisibility(
 
 void ExtensionsToolbarContainer::UpdateIconVisibility(
     const std::string& extension_id) {
+  if (!GetWidget() || GetWidget()->IsClosed()) {
+    return;
+  }
+
   ToolbarActionView* const action_view = GetViewForId(extension_id);
   if (!action_view) {
     return;
@@ -740,6 +744,21 @@ gfx::Size ExtensionsToolbarContainer::GetToolbarActionSize() {
              : kDefaultSize;
 }
 
+void ExtensionsToolbarContainer::MovePinnedActionBy(
+    const std::string& action_id,
+    int move_by) {
+  auto iter = std::ranges::find(model_->pinned_action_ids(), action_id);
+  CHECK(iter != model_->pinned_action_ids().cend());
+  int current_index = iter - model_->pinned_action_ids().cbegin();
+  int new_index =
+      std::clamp(current_index + move_by, 0,
+                 static_cast<int>(model_->pinned_action_ids().size()) - 1);
+  if (new_index == current_index) {
+    return;
+  }
+  model_->MovePinnedAction(action_id, new_index);
+}
+
 void ExtensionsToolbarContainer::WriteDragDataForView(
     View* sender,
     const gfx::Point& press_pt,
@@ -889,7 +908,9 @@ void ExtensionsToolbarContainer::OnWidgetDestroying(views::Widget* widget) {
   iter->widget->RemoveObserver(this);
   const std::string extension_id = std::move(iter->extension_id);
   anchored_widgets_.erase(iter);
-  UpdateIconVisibility(extension_id);
+  if (GetWidget() && !GetWidget()->IsClosed()) {
+    UpdateIconVisibility(extension_id);
+  }
 }
 
 size_t ExtensionsToolbarContainer::WidthToIconCount(int x_offset) {
@@ -986,12 +1007,13 @@ void ExtensionsToolbarContainer::OnMenuOpening() {
   // Record IPH usage, which should only be shown when any extension has access.
   if (GetExtensionsButton()->state() ==
       ExtensionsToolbarButton::State::kAnyExtensionHasAccess) {
-    browser_->window()->NotifyFeaturePromoFeatureUsed(
-        feature_engagement::kIPHExtensionsMenuFeature,
-        FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
+    BrowserUserEducationInterface::From(browser_)
+        ->NotifyFeaturePromoFeatureUsed(
+            feature_engagement::kIPHExtensionsMenuFeature,
+            FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   } else {
     // Otherwise, just close the IPH if it's present.
-    browser_->window()->AbortFeaturePromo(
+    BrowserUserEducationInterface::From(browser_)->AbortFeaturePromo(
         feature_engagement::kIPHExtensionsMenuFeature);
   }
 

@@ -52,6 +52,8 @@ static_library("utility") {
     "//components/services/unzip:lib",
     "//components/strings",
     "//components/url_formatter",
+    "//components/user_data_importer/content",
+    "//components/user_data_importer/mojom",
     "//components/webapps/services/web_app_origin_association:lib",
     "//content/public/child",
     "//content/public/common",
@@ -64,7 +66,7 @@ static_library("utility") {
     "//printing/buildflags",
     "//services/data_decoder:lib",
     "//services/network:network_service",
-    "//services/passage_embeddings:passage_embeddings",
+    "//services/passage_embeddings",
     "//services/passage_embeddings/public/mojom",
     "//services/screen_ai/buildflags",
     "//services/service_manager/public/cpp",
@@ -88,14 +90,10 @@ static_library("utility") {
 
   if (!is_android) {
     sources += [
-      "importer/bookmark_html_reader.cc",
-      "importer/bookmark_html_reader.h",
       "importer/bookmarks_file_importer.cc",
       "importer/bookmarks_file_importer.h",
       "importer/external_process_importer_bridge.cc",
       "importer/external_process_importer_bridge.h",
-      "importer/favicon_reencode.cc",
-      "importer/favicon_reencode.h",
       "importer/importer.cc",
       "importer/importer.h",
       "importer/importer_creator.cc",
@@ -144,6 +142,8 @@ static_library("utility") {
       "//chrome/common/importer:interfaces",
       "//components/autofill/core/common",
       "//components/user_data_importer/common",
+      "//components/user_data_importer/content",
+      "//components/user_data_importer/utility:bookmarks",
       "//services/proxy_resolver:lib",
       "//services/screen_ai",
     ]
@@ -195,7 +195,7 @@ static_library("utility") {
       "//chromeos/ash/services/boca/babelorca/mojom",
       "//chromeos/ash/services/ime:lib",
       "//chromeos/ash/services/ime/public/mojom",
-      "//chromeos/ash/services/nearby/public/mojom:mojom",
+      "//chromeos/ash/services/nearby/public/mojom",
       "//chromeos/ash/services/orca",
       "//chromeos/ash/services/orca/public/mojom",
       "//chromeos/ash/services/quick_pair",
@@ -204,7 +204,7 @@ static_library("utility") {
       "//chromeos/components/mahi/public/mojom",
       "//chromeos/components/quick_answers/public/cpp",
       "//chromeos/components/quick_answers/public/mojom",
-      "//chromeos/constants:constants",
+      "//chromeos/constants",
       "//chromeos/services/tts",
       "//chromeos/services/tts/public/mojom",
     ]
@@ -267,5 +267,39 @@ static_library("utility") {
 
   if (enable_on_device_translation) {
     deps += [ "//components/services/on_device_translation:on_device_translation_service" ]
+  }
+}
+
+if (!is_android) {
+  source_set("unit_tests") {
+    testonly = true
+
+    sources = [ "importer/bookmarks_file_importer_unittest.cc" ]
+    if (!is_chromeos) {
+      sources += [ "importer/firefox_importer_unittest.cc" ]
+    }
+    if (is_mac) {
+      sources += [ "importer/safari_importer_unittest.mm" ]
+    }
+    if (is_win) {
+      sources += [ "importer/edge_database_reader_unittest_win.cc" ]
+    }
+
+    deps = [
+      ":utility",
+      "//base",
+      "//chrome/common:constants",
+      "//chrome/common/importer",
+      "//chrome/common/importer:test_support",
+      "//components/favicon_base",
+      "//components/user_data_importer/common",
+      "//components/user_data_importer/utility:safari_data_importer",
+      "//content/test:test_support",
+      "//sql",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//third_party/zlib/google:compression_utils",
+      "//url",
+    ]
   }
 }

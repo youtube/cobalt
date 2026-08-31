@@ -18,9 +18,9 @@
 #include "base/observer_list.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/current_thread.h"
-#include "base/trace_event/base_tracing.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/cursor/cursor.h"
 #include "ui/base/default_style.h"
@@ -44,12 +44,13 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/views/accessibility/tree/widget_ax_manager.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/drag_controller.h"
 #include "ui/views/event_monitor.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/focus/focus_manager_factory.h"
-#include "ui/views/focus/widget_focus_manager.h"
+#include "ui/views/focus/native_view_focus_manager.h"
 #include "ui/views/views_delegate.h"
 #include "ui/views/widget/any_widget_observer_singleton.h"
 #include "ui/views/widget/native_widget_private.h"
@@ -58,9 +59,9 @@
 #include "ui/views/widget/tooltip_manager.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/widget/widget_deletion_observer.h"
+#include "ui/views/widget/widget_enumerator.h"
 #include "ui/views/widget/widget_observer.h"
 #include "ui/views/widget/widget_removals_observer.h"
-#include "ui/views/window/custom_frame_view.h"
 #include "ui/views/window/dialog_delegate.h"
 
 #if BUILDFLAG(IS_LINUX)
@@ -277,17 +278,17 @@ Widget::~Widget() {
         << "Widget probably should use WIDGET_OWNS_NATIVE_WIDGET ownership.";
   } else {
     DCHECK_EQ(ownership_, InitParams::CLIENT_OWNS_WIDGET);
-    if (native_widget_) {
-      native_widget_->Close();
-    }
-    HandleWidgetDestroying();
-
     // Specifically in the case of CLIENT_OWNS_WIDGET the native widget is
     // notified to allow clearing of any widget-associated state. Do so before
     // the call to `HandleWidgetDestroyed()` below which will invalidate
     // `native_widget_`.
     if (native_widget_) {
       native_widget_->ClientDestroyedWidget();
+    }
+
+    HandleWidgetDestroying();
+    if (native_widget_) {
+      native_widget_->Close();
     }
 
     HandleWidgetDestroyed();
@@ -389,6 +390,15 @@ Widget::Widgets Widget::GetAllOwnedWidgets(gfx::NativeView native_view) {
   return native_view
              ? internal::NativeWidgetPrivate::GetAllOwnedWidgets(native_view)
              : Widget::Widgets();
+}
+
+// static
+void Widget::ForEachOwnedWidget(gfx::NativeView native_view,
+                                base::FunctionRef<void(Widget*)> on_widget) {
+  WidgetEnumerator widget_iterator(GetAllOwnedWidgets(native_view));
+  while (!widget_iterator.IsEmpty()) {
+    on_widget(widget_iterator.Next());
+  }
 }
 
 // static
@@ -514,6 +524,16 @@ void Widget::Init(InitParams params) {
     owned_native_widget_ = base::WrapUnique(native_widget_raw_ptr);
   }
 
+  // The WidgetAXManager must be initialized *before* RootView is created,
+  // because RootView's constructor may access it (e.g., to fire events).
+  // However, the rest of InitAccessibility() depends on `root_view_`, so we
+  // defer calling it until after `root_view_` is initialized.
+  if (::features::IsAccessibilityTreeForViewsEnabled()) {
+    CHECK(!ax_manager_)
+        << "Widget::InitAccessibility() should only be called once";
+    ax_manager_ = std::make_unique<WidgetAXManager>(this);
+  }
+
   root_view_.reset(CreateRootView());
   InitAccessibility();  // Requires `root_view_`.
 
@@ -533,6 +553,7 @@ void Widget::Init(InitParams params) {
   CHECK(!params.force_system_menu_for_frameless ||
         params.type == Widget::InitParams::TYPE_WINDOW_FRAMELESS);
 #endif  // BUILDFLAG(IS_WIN)
+  background_color_ = params.background_color;
   native_widget_->InitNativeWidget(std::move(params));
   if (type == InitParams::TYPE_MENU) {
     is_mouse_button_pressed_ = native_widget_->IsMouseButtonDown();
@@ -588,7 +609,7 @@ void Widget::Init(InitParams params) {
     parent_->OnChildAdded(this);
   }
 
-  native_widget_->OnWidgetThemeChanged(GetColorMode());
+  native_widget_->OnWidgetThemeChanged(GetColorMode(), background_color_);
 
   UpdateAccessibleNameForRootView();
   native_theme_observation_.Observe(GetNativeTheme());
@@ -779,13 +800,15 @@ void Widget::SetContentsView(View* view) {
   root_view_->LayoutImmediately();
 }
 
-View* Widget::GetContentsView() {
+View* Widget::GetContentsView() const {
   return root_view_->GetContentsView();
 }
 
-View* Widget::GetClientContentsView() {
+View* Widget::GetClientContentsView() const {
   if (non_client_view_) {
-    return non_client_view_->client_view()->children().front();
+    auto* client_view = non_client_view_->client_view();
+    return (!client_view->children().empty()) ? client_view->children().front()
+                                              : nullptr;
   }
   return GetContentsView();
 }
@@ -916,8 +939,6 @@ void Widget::CloseWithReason(ClosedReason closed_reason) {
   if (override_close_) {
     base::WeakPtr<Widget> weak_this = weak_ptr_factory_.GetWeakPtr();
     std::move(override_close_).Run(closed_reason);
-    // Ensure that `this` was destroyed.
-    CHECK(!weak_this);
     return;
   }
 
@@ -1448,14 +1469,16 @@ FocusTraversable* Widget::GetFocusTraversable() {
 }
 
 void Widget::ThemeChanged() {
-  root_view_->ThemeChanged();
+  if (root_view_) {
+    root_view_->ThemeChanged();
+  }
 
   observers_.Notify(&WidgetObserver::OnWidgetThemeChanged, this);
 
   NotifyColorProviderChanged();
 
   if (native_widget_) {
-    native_widget_->OnWidgetThemeChanged(GetColorMode());
+    native_widget_->OnWidgetThemeChanged(GetColorMode(), background_color_);
   }
 }
 
@@ -1491,11 +1514,8 @@ std::unique_ptr<NonClientFrameView> Widget::CreateNonClientFrameView() {
     frame_view =
         ViewsDelegate::GetInstance()->CreateDefaultNonClientFrameView(this);
   }
-  if (frame_view) {
-    return frame_view;
-  }
-
-  return std::make_unique<CustomFrameView>(this);
+  CHECK(frame_view);
+  return frame_view;
 }
 
 bool Widget::ShouldUseNativeFrame() const {
@@ -1624,6 +1644,10 @@ void Widget::OnSizeConstraintsChanged() {
 }
 
 void Widget::OnOwnerClosing() {}
+
+bool Widget::GetIsDesktopWidget() const {
+  return native_widget_ ? native_widget_->IsDesktopNativeWidget() : false;
+}
 
 std::string Widget::GetName() const {
   return native_widget_ ? native_widget_->GetName() : "";
@@ -1822,6 +1846,9 @@ bool Widget::OnNativeWidgetActivationChanged(bool active) {
   observers_.Notify(&WidgetObserver::OnWidgetActivationChanged, this, active);
 
   if (active) {
+    internal::AnyWidgetObserverSingleton::GetInstance()->OnAnyWidgetActivated(
+        this);
+
     base::AutoReset<bool> is_traversing_widget_tree(&is_traversing_widget_tree_,
                                                     true);
     Widget* root = nullptr;
@@ -1881,17 +1908,17 @@ bool Widget::ShouldHandleNativeWidgetActivationChanged(bool active) {
 }
 
 void Widget::OnNativeFocus() {
-  WidgetFocusManager::GetInstance()->OnNativeFocusChanged(GetNativeView());
+  NativeViewFocusManager::GetInstance()->OnNativeFocusChanged(GetNativeView());
 }
 
 void Widget::OnNativeBlur() {
-  WidgetFocusManager::GetInstance()->OnNativeFocusChanged(gfx::NativeView());
+  NativeViewFocusManager::GetInstance()->OnNativeFocusChanged(gfx::NativeView());
 }
 
 void Widget::OnNativeWidgetVisibilityChanged(bool visible) {
   View* root = GetRootView();
   if (root) {
-    root->PropagateVisibilityNotifications(root, visible);
+    root->PropagateVisibilityNotifications(nullptr, visible);
   }
   observers_.Notify(&WidgetObserver::OnWidgetVisibilityChanged, this, visible);
   if (GetCompositor() && root && root->layer()) {
@@ -2369,8 +2396,14 @@ void Widget::OnAXModeAdded(ui::AXMode mode) {
 }
 
 void Widget::SetColorModeOverride(
-    std::optional<ui::ColorProviderKey::ColorMode> color_mode) {
-  color_mode_override_ = color_mode;
+    std::optional<ui::ColorProviderKey::ColorMode> color_mode,
+    std::optional<SkColor> background_color) {
+  if (color_mode != color_mode_override_ ||
+      background_color != background_color_) {
+    color_mode_override_ = color_mode;
+    background_color_ = background_color;
+    ThemeChanged();
+  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2730,10 +2763,16 @@ void Widget::HandleWidgetDestroyed() {
 }
 
 void Widget::OnChildAdded(Widget* child_widget) {
+  if (ax_manager_) {
+    ax_manager_->OnChildAdded(child_widget->ax_manager_.get());
+  }
   observers_.Notify(&WidgetObserver::OnWidgetChildAdded, this, child_widget);
 }
 
 void Widget::OnChildRemoved(Widget* child_widget) {
+  if (ax_manager_) {
+    ax_manager_->OnChildRemoved(child_widget->ax_manager_.get());
+  }
   observers_.Notify(&WidgetObserver::OnWidgetChildRemoved, this, child_widget);
 }
 
@@ -2751,12 +2790,28 @@ void Widget::ResizeToDelegateDesiredBounds() {
   SetBounds(desired_bounds);
 }
 
+void Widget::SetClientContentsViewInternal(std::unique_ptr<View> view) {
+  if (non_client_view_) {
+    auto* client_view = non_client_view_->client_view();
+    // Remove/destroy the existing client contents view(s), if present.
+    if (!client_view->children().empty()) {
+      client_view->RemoveAllChildViews();
+    }
+    client_view->set_contents_view(view.get());
+    client_view->AddChildView(std::move(view));
+  } else {
+    SetContentsView(view.release());
+  }
+  root_view_->LayoutImmediately();
+}
+
 BEGIN_METADATA_BASE(Widget)
 ADD_READONLY_PROPERTY_METADATA(std::string_view, ClassName)
 ADD_READONLY_PROPERTY_METADATA(gfx::Rect, ClientAreaBoundsInScreen)
 ADD_READONLY_PROPERTY_METADATA(std::string, Name)
 ADD_READONLY_PROPERTY_METADATA(gfx::Rect, RestoredBounds)
 ADD_READONLY_PROPERTY_METADATA(gfx::Rect, WindowBoundsInScreen)
+ADD_READONLY_PROPERTY_METADATA(bool, IsDesktopWidget)
 ADD_PROPERTY_METADATA(int, X)
 ADD_PROPERTY_METADATA(int, Y)
 ADD_PROPERTY_METADATA(int, Width)

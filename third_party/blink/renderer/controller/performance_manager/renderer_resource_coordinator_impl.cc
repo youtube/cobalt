@@ -38,28 +38,22 @@ using performance_manager::mojom::blink::V8ContextDescription;
 using performance_manager::mojom::blink::V8ContextDescriptionPtr;
 using performance_manager::mojom::blink::V8ContextWorldType;
 
-namespace WTF {
+namespace blink {
 
 // Copies the data by move.
 template <>
 struct CrossThreadCopier<V8ContextDescriptionPtr>
-    : public WTF::CrossThreadCopierByValuePassThrough<V8ContextDescriptionPtr> {
-};
+    : public CrossThreadCopierByValuePassThrough<V8ContextDescriptionPtr> {};
 
 // Copies the data by move.
 template <>
 struct CrossThreadCopier<IframeAttributionDataPtr>
-    : public WTF::CrossThreadCopierByValuePassThrough<
-          IframeAttributionDataPtr> {};
+    : public CrossThreadCopierByValuePassThrough<IframeAttributionDataPtr> {};
 
 // Copies the data using the copy constructor.
 template <>
-struct CrossThreadCopier<blink::V8ContextToken>
-    : public WTF::CrossThreadCopierPassThrough<blink::V8ContextToken> {};
-
-}  // namespace WTF
-
-namespace blink {
+struct CrossThreadCopier<V8ContextToken>
+    : public CrossThreadCopierPassThrough<V8ContextToken> {};
 
 namespace {
 
@@ -271,7 +265,7 @@ void RendererResourceCoordinatorImpl::DispatchOnV8ContextCreated(
   if (!service_task_runner_->RunsTasksInCurrentSequence()) {
     blink::PostCrossThreadTask(
         *service_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(
+        CrossThreadBindOnce(
             &RendererResourceCoordinatorImpl::DispatchOnV8ContextCreated,
             WTF::CrossThreadUnretained(this), std::move(v8_desc),
             std::move(iframe_attribution_data)));
@@ -288,7 +282,7 @@ void RendererResourceCoordinatorImpl::DispatchOnV8ContextDetached(
   if (!service_task_runner_->RunsTasksInCurrentSequence()) {
     blink::PostCrossThreadTask(
         *service_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(
+        CrossThreadBindOnce(
             &RendererResourceCoordinatorImpl::DispatchOnV8ContextDetached,
             WTF::CrossThreadUnretained(this), token));
   } else {
@@ -302,7 +296,7 @@ void RendererResourceCoordinatorImpl::DispatchOnV8ContextDestroyed(
   if (!service_task_runner_->RunsTasksInCurrentSequence()) {
     blink::PostCrossThreadTask(
         *service_task_runner_, FROM_HERE,
-        WTF::CrossThreadBindOnce(
+        CrossThreadBindOnce(
             &RendererResourceCoordinatorImpl::DispatchOnV8ContextDestroyed,
             WTF::CrossThreadUnretained(this), token));
   } else {

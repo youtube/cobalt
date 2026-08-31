@@ -8,8 +8,10 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "chrome/test/base/testing_profile.h"
@@ -217,7 +219,7 @@ TEST_F(BrowserUnitTest, CreateBrowserWithIncognitoModeDisabled) {
   Browser::CreateParams create_params(profile(), false);
   std::unique_ptr<BrowserWindow> test_window(CreateBrowserWindow());
   create_params.window = test_window.get();
-  std::unique_ptr<Browser> test_browser(Browser::Create(create_params));
+  auto test_browser = Browser::DeprecatedCreateOwnedForTesting(create_params);
   EXPECT_TRUE(test_browser);
 }
 
@@ -236,8 +238,8 @@ TEST_F(BrowserUnitTest, CreateBrowserWithIncognitoModeForced) {
       profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true), false);
   std::unique_ptr<BrowserWindow> test_window(CreateBrowserWindow());
   off_the_record_create_params.window = test_window.get();
-  std::unique_ptr<Browser> otr_browser(
-      Browser::Create(off_the_record_create_params));
+  auto otr_browser =
+      Browser::DeprecatedCreateOwnedForTesting(off_the_record_create_params);
   EXPECT_TRUE(otr_browser);
 }
 
@@ -250,7 +252,7 @@ TEST_F(BrowserUnitTest, CreateBrowserWithIncognitoModeEnabled) {
   Browser::CreateParams create_params(profile(), false);
   std::unique_ptr<BrowserWindow> test_window(CreateBrowserWindow());
   create_params.window = test_window.get();
-  std::unique_ptr<Browser> test_browser(Browser::Create(create_params));
+  auto test_browser = Browser::DeprecatedCreateOwnedForTesting(create_params);
   EXPECT_TRUE(test_browser);
 
   // Creating a browser in OTR test profile should succeed.
@@ -258,8 +260,8 @@ TEST_F(BrowserUnitTest, CreateBrowserWithIncognitoModeEnabled) {
       profile()->GetPrimaryOTRProfile(/*create_if_needed=*/true), false);
   std::unique_ptr<BrowserWindow> otr_test_window(CreateBrowserWindow());
   off_the_record_create_params.window = otr_test_window.get();
-  std::unique_ptr<Browser> otr_browser(
-      Browser::Create(off_the_record_create_params));
+  auto otr_browser =
+      Browser::DeprecatedCreateOwnedForTesting(off_the_record_create_params);
   EXPECT_TRUE(otr_browser);
 }
 
@@ -270,8 +272,8 @@ TEST_F(BrowserUnitTest, CreateBrowserDuringKioskSplashScreen) {
   auto* user_manager = new ash::FakeChromeUserManager();
   user_manager::ScopedUserManager manager{
       std::unique_ptr<user_manager::UserManager>(user_manager)};
-  const user_manager::User* user =
-      user_manager->AddKioskAppUser(AccountId::FromUserEmail("fake_user@test"));
+  const user_manager::User* user = user_manager->AddKioskChromeAppUser(
+      AccountId::FromUserEmail("fake_user@test"));
   user_manager->LoginUser(user->GetAccountId());
 
   TestingProfile profile;
@@ -286,7 +288,7 @@ TEST_F(BrowserUnitTest, CreateBrowserDuringKioskSplashScreen) {
   std::unique_ptr<BrowserWindow> window = CreateBrowserWindow();
   create_params.window = window.get();
   session_manager::SessionManager::Get()->SetSessionState(SessionState::ACTIVE);
-  std::unique_ptr<Browser> test_browser(Browser::Create(create_params));
+  auto test_browser = Browser::DeprecatedCreateOwnedForTesting(create_params);
   // Normal flow, creation succeeds.
   EXPECT_TRUE(test_browser);
 }
@@ -340,7 +342,8 @@ class BrowserBookmarkBarTest : public BrowserWithTestWindowTest {
     // TestBrowserWindow:
     void BookmarkBarStateChanged(
         BookmarkBar::AnimateChangeType change_type) override {
-      bookmark_bar_state_ = browser_->bookmark_bar_state();
+      bookmark_bar_state_ =
+          BookmarkBarController::From(browser_)->bookmark_bar_state();
       TestBrowserWindow::BookmarkBarStateChanged(change_type);
     }
 
@@ -348,7 +351,8 @@ class BrowserBookmarkBarTest : public BrowserWithTestWindowTest {
                             content::WebContents* new_contents,
                             int index,
                             int reason) override {
-      bookmark_bar_state_ = browser_->bookmark_bar_state();
+      bookmark_bar_state_ =
+          BookmarkBarController::From(browser_)->bookmark_bar_state();
       TestBrowserWindow::OnActiveTabChanged(old_contents, new_contents, index,
                                             reason);
     }
@@ -361,7 +365,8 @@ class BrowserBookmarkBarTest : public BrowserWithTestWindowTest {
 // Ensure bookmark bar states in Browser and BrowserWindow are in sync after
 // Browser::ActiveTabChanged() calls BrowserWindow::OnActiveTabChanged().
 TEST_F(BrowserBookmarkBarTest, StateOnActiveTabChanged) {
-  ASSERT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  ASSERT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   ASSERT_EQ(BookmarkBar::HIDDEN, window_bookmark_bar_state());
 
   GURL ntp_url("chrome://newtab");
@@ -369,43 +374,50 @@ TEST_F(BrowserBookmarkBarTest, StateOnActiveTabChanged) {
 
   // Open a tab to NTP.
   AddTab(browser(), ntp_url);
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::HIDDEN, window_bookmark_bar_state());
 
   // Navigate 1st tab to a non-NTP URL.
   NavigateAndCommitActiveTab(non_ntp_url);
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::HIDDEN, window_bookmark_bar_state());
 
   // Open a tab to NTP at index 0.
   AddTab(browser(), ntp_url);
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::HIDDEN, window_bookmark_bar_state());
 
   // Activate the 2nd tab which is non-NTP.
   browser()->tab_strip_model()->ActivateTabAt(
       1, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::HIDDEN, window_bookmark_bar_state());
 
   // Toggle bookmark bar while 2nd tab (non-NTP) is active.
   chrome::ToggleBookmarkBar(browser());
-  EXPECT_EQ(BookmarkBar::SHOW, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::SHOW,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::SHOW, window_bookmark_bar_state());
 
   // Activate the 1st tab which is NTP.
   browser()->tab_strip_model()->ActivateTabAt(
       0, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_EQ(BookmarkBar::SHOW, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::SHOW,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::SHOW, window_bookmark_bar_state());
 
   // Activate the 2nd tab which is non-NTP.
   browser()->tab_strip_model()->ActivateTabAt(
       1, TabStripUserGestureDetails(
              TabStripUserGestureDetails::GestureType::kOther));
-  EXPECT_EQ(BookmarkBar::SHOW, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::SHOW,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   EXPECT_EQ(BookmarkBar::SHOW, window_bookmark_bar_state());
 }
 
@@ -429,7 +441,6 @@ TEST_F(BrowserUnitTest, CreateGuestSessionBrowser) {
       Browser::CreateParams(guest_profile, false);
   std::unique_ptr<BrowserWindow> test_window = CreateBrowserWindow();
   create_params.window = test_window.get();
-  std::unique_ptr<Browser> browser =
-      std::unique_ptr<Browser>(Browser::Create(create_params));
+  auto browser = Browser::DeprecatedCreateOwnedForTesting(create_params);
   EXPECT_TRUE(browser);
 }

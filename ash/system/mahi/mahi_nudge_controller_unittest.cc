@@ -27,7 +27,7 @@ bool IsMahiNudgeShown() {
 // A class that mocks `MagicBoostState` to use in tests.
 class TestMagicBoostState : public chromeos::MagicBoostState {
  public:
-  TestMagicBoostState() { UpdateMagicBoostAvailable(true); }
+  TestMagicBoostState() { UpdateUserEligibleForGenAIFeatures(true); }
 
   TestMagicBoostState(const TestMagicBoostState&) = delete;
   TestMagicBoostState& operator=(const TestMagicBoostState&) = delete;
@@ -49,6 +49,12 @@ class TestMagicBoostState : public chromeos::MagicBoostState {
   int32_t AsyncIncrementHMRConsentWindowDismissCount() override { return 0; }
   void DisableOrcaFeature() override {}
   void DisableLobsterSettings() override {}
+
+ protected:
+  base::expected<bool, chromeos::MagicBoostState::Error>
+  IsUserEligibleForGenAIFeaturesExpected() const override {
+    return true;
+  }
 };
 
 }  // namespace

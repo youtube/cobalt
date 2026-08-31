@@ -11,6 +11,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "components/crx_file/id_util.h"
 #include "extensions/common/constants.h"
@@ -151,6 +152,21 @@ TEST(ExtensionResourceTest, ResourcesOutsideOfPath) {
   ExtensionResource r9(extension_id, inner_dir_non_normalized,
                        base::FilePath().AppendASCII("inner"));
   EXPECT_FALSE(r9.GetFilePath().empty());
+
+  // Make sure that a network root path is supported by converting a path such
+  // as C:\temp to \\localhost\c$\temp. Regression test for crbug.com/410059474.
+  base::FilePath::CharType drive_letter =
+      base::ToLowerASCII(inner_dir.value().at(0));
+  EXPECT_GE(drive_letter, 'a');
+  EXPECT_LE(drive_letter, 'z');
+  EXPECT_EQ(inner_dir.value().at(1), ':');
+  EXPECT_EQ(inner_dir.value().at(2), '\\');
+  base::FilePath inner_dir_network(
+      base::FilePath::StringType(FILE_PATH_LITERAL("\\\\localhost\\")) +
+      drive_letter + FILE_PATH_LITERAL("$\\") + inner_dir.value().substr(3));
+  ExtensionResource r10(extension_id, inner_dir_network,
+                        base::FilePath().AppendASCII("inner"));
+  EXPECT_FALSE(r10.GetFilePath().empty());
 #endif
 }
 
@@ -168,13 +184,12 @@ TEST(ExtensionResourceTest, CreateWithAllResourcesOnDisk) {
   base::FilePath l10n_path = temp.GetPath().Append(kLocaleFolder);
   ASSERT_TRUE(base::CreateDirectory(l10n_path));
 
-  std::vector<std::string> locales;
-  l10n_util::GetParentLocales(l10n_util::GetApplicationLocale(std::string()),
-                              &locales);
+  std::vector<std::string> locales = l10n_util::GetParentLocales(
+      l10n_util::GetApplicationLocale(std::string()));
   ASSERT_FALSE(locales.empty());
-  for (size_t i = 0; i < locales.size(); i++) {
+  for (const std::string& locale : locales) {
     base::FilePath make_path;
-    make_path = l10n_path.AppendASCII(locales[i]);
+    make_path = l10n_path.AppendASCII(locale);
     ASSERT_TRUE(base::CreateDirectory(make_path));
     ASSERT_TRUE(base::WriteFile(make_path.AppendASCII(filename), data));
   }

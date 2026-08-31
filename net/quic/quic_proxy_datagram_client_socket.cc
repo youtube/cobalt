@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "net/quic/quic_proxy_datagram_client_socket.h"
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "net/base/net_errors.h"
@@ -175,7 +172,7 @@ void QuicProxyDatagramClientSocket::OnHttp3Datagram(
       CHECK(read_buf_ != nullptr);
       CHECK(read_buf_len_ > 0);
 
-      std::memcpy(read_buf_->data(), http_payload.data(), http_payload.size());
+      read_buf_->span().copy_prefix_from(base::as_byte_span(http_payload));
       result = bytes_read;
     }
 
@@ -283,7 +280,7 @@ int QuicProxyDatagramClientSocket::Read(IOBuffer* buf,
     if (datagram.size() > static_cast<std::size_t>(buf_len)) {
       result = ERR_MSG_TOO_BIG;
     } else {
-      std::memcpy(buf->data(), datagram.data(), datagram.size());
+      buf->span().copy_prefix_from(base::as_byte_span(datagram));
       result = bytes_read;
     }
     datagrams_.pop();

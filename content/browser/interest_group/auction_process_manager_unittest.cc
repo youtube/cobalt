@@ -48,7 +48,6 @@
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/services/auction_worklet/public/mojom/auction_shared_storage_host.mojom.h"
-#include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom-forward.h"
 #include "content/services/auction_worklet/public/mojom/auction_worklet_service.mojom.h"
 #include "content/services/auction_worklet/public/mojom/bidder_worklet.mojom.h"
 #include "content/services/auction_worklet/public/mojom/in_progress_auction_download.mojom.h"
@@ -292,7 +291,7 @@ class TestAuctionProcessManager
       // BindInterface() will only be invoked once, synchronously, for each
       // AuctionManagerBaseType::CreateProcessInternal() invocation.
       static_cast<MockRenderProcessHost*>(
-          worklet_process.site_instance()->GetOrCreateProcess())
+          worklet_process.site_instance()->GetOrCreateProcessForTesting())
           ->OverrideBinderForTesting(
               auction_worklet::mojom::AuctionWorkletService::Name_,
               base::BindRepeating(&TestAuctionProcessManager<
@@ -1847,7 +1846,7 @@ TEST_P(SitePerProcessAuctionProcessManagerTest,
   // launch as completed. |frame_site_instance| will help keep it alive.
   scoped_refptr<SiteInstance> frame_site_instance =
       site_instance1_->GetRelatedSiteInstance(kOriginA.GetURL());
-  frame_site_instance->GetOrCreateProcess()->Init();
+  frame_site_instance->GetOrCreateProcessForTesting()->Init();
   for (std::unique_ptr<MockRenderProcessHost>& proc :
        *rph_factory_.GetProcesses()) {
     proc->SimulateReady();

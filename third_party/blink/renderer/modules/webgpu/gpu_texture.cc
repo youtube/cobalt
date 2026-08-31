@@ -6,6 +6,7 @@
 
 #include "base/containers/heap_array.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_component_swizzle.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_descriptor.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_texture_view_descriptor.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_rendering_context.h"
@@ -70,37 +71,50 @@ bool ConvertToDawn(const GPUTextureDescriptor* in,
   return ConvertToDawn(in->size(), &out->size, device, exception_state);
 }
 
-wgpu::TextureViewDescriptor AsDawnType(
-    const GPUTextureViewDescriptor* webgpu_desc,
-    std::string* label) {
+void ConvertToDawnType(const GPUTextureViewDescriptor* webgpu_desc,
+                       OwnedTextureViewDescriptor* dawn_desc_info) {
   DCHECK(webgpu_desc);
-  DCHECK(label);
+  DCHECK(dawn_desc_info);
 
-  wgpu::TextureViewDescriptor dawn_desc = {};
   if (webgpu_desc->hasFormat()) {
-    dawn_desc.format = AsDawnEnum(webgpu_desc->format());
+    dawn_desc_info->dawn_desc.format = AsDawnEnum(webgpu_desc->format());
   }
   if (webgpu_desc->hasDimension()) {
-    dawn_desc.dimension = AsDawnEnum(webgpu_desc->dimension());
+    dawn_desc_info->dawn_desc.dimension = AsDawnEnum(webgpu_desc->dimension());
   }
-  dawn_desc.baseMipLevel = webgpu_desc->baseMipLevel();
+  dawn_desc_info->dawn_desc.baseMipLevel = webgpu_desc->baseMipLevel();
   if (webgpu_desc->hasMipLevelCount()) {
-    dawn_desc.mipLevelCount = webgpu_desc->mipLevelCount();
+    dawn_desc_info->dawn_desc.mipLevelCount = webgpu_desc->mipLevelCount();
   }
-  dawn_desc.baseArrayLayer = webgpu_desc->baseArrayLayer();
+  dawn_desc_info->dawn_desc.baseArrayLayer = webgpu_desc->baseArrayLayer();
   if (webgpu_desc->hasArrayLayerCount()) {
-    dawn_desc.arrayLayerCount = webgpu_desc->arrayLayerCount();
+    dawn_desc_info->dawn_desc.arrayLayerCount = webgpu_desc->arrayLayerCount();
   }
-  dawn_desc.aspect = AsDawnEnum(webgpu_desc->aspect());
-  *label = webgpu_desc->label().Utf8();
-  if (!label->empty()) {
-    dawn_desc.label = label->c_str();
+  dawn_desc_info->dawn_desc.aspect = AsDawnEnum(webgpu_desc->aspect());
+  if (!webgpu_desc->label().empty()) {
+    dawn_desc_info->label = webgpu_desc->label().Utf8();
+    dawn_desc_info->dawn_desc.label = dawn_desc_info->label.c_str();
   }
   if (webgpu_desc->hasUsage()) {
-    dawn_desc.usage = static_cast<wgpu::TextureUsage>(webgpu_desc->usage());
+    dawn_desc_info->dawn_desc.usage =
+        static_cast<wgpu::TextureUsage>(webgpu_desc->usage());
   }
-
-  return dawn_desc;
+  auto* swizzle = webgpu_desc->getSwizzleOr(nullptr);
+  // Only pass the swizzle descriptor to Dawn if swizzle is non-default because
+  // the C API will produce validation errors if a chained struct is passed
+  // without its feature being enabled.
+  if (swizzle && (swizzle->r() != V8GPUComponentSwizzle::Enum::kR ||
+                  swizzle->g() != V8GPUComponentSwizzle::Enum::kG ||
+                  swizzle->b() != V8GPUComponentSwizzle::Enum::kB ||
+                  swizzle->a() != V8GPUComponentSwizzle::Enum::kA)) {
+    dawn_desc_info->swizzle_desc =
+        std::make_unique<wgpu::TextureComponentSwizzleDescriptor>();
+    dawn_desc_info->swizzle_desc->swizzle.r = AsDawnEnum(swizzle->r());
+    dawn_desc_info->swizzle_desc->swizzle.g = AsDawnEnum(swizzle->g());
+    dawn_desc_info->swizzle_desc->swizzle.b = AsDawnEnum(swizzle->b());
+    dawn_desc_info->swizzle_desc->swizzle.a = AsDawnEnum(swizzle->a());
+    dawn_desc_info->dawn_desc.nextInChain = dawn_desc_info->swizzle_desc.get();
+  }
 }
 
 // Dawn represents `undefined` as the special uint32_t value (0xFFFF'FFFF).
@@ -238,10 +252,11 @@ GPUTextureView* GPUTexture::createView(
         device(), GetHandle().CreateErrorView(nullptr), String());
   }
 
-  std::string label;
-  wgpu::TextureViewDescriptor dawn_desc = AsDawnType(webgpu_desc, &label);
+  OwnedTextureViewDescriptor dawn_desc_info;
+  ConvertToDawnType(webgpu_desc, &dawn_desc_info);
   GPUTextureView* view = MakeGarbageCollected<GPUTextureView>(
-      device_, GetHandle().CreateView(&dawn_desc), webgpu_desc->label());
+      device_, GetHandle().CreateView(&dawn_desc_info.dawn_desc),
+      webgpu_desc->label());
   return view;
 }
 

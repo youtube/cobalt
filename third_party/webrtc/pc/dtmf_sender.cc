@@ -10,10 +10,9 @@
 
 #include "pc/dtmf_sender.h"
 
-#include <ctype.h>
-#include <string.h>
-
+#include <cctype>
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "api/dtmf_sender_interface.h"

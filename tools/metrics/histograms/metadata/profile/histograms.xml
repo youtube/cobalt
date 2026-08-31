@@ -22,6 +22,15 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<variants name="ProfilePickerFlowType">
+  <variant name="FREFlow" summary="Recorded for the FRE flow."/>
+  <variant name="GlicFlow" summary="Recorded for the Glic flow."/>
+  <variant name="ProfilePickerFlow"
+      summary="Recorded for the regular Profile Picker Flow."/>
+</variants>
+
+<!-- LINT.IfChange(ProfileStateGroup) -->
+
 <variants name="ProfileStateGroup">
   <variant name="_ActiveMultiProfile"
       summary="Recorded only for users with &gt;=2 active profiles; recorded
@@ -40,20 +49,29 @@ chromium-metrics-reviews@google.com.
   <variant name="_LatentMultiProfileOthers"
       summary="Recorded only for users with &gt;=2 profiles but only one
                active; recorded only for the non-active profiles."/>
+  <variant name="_ManagementDisclaimerAccepted"
+      summary="Recorded for profiles where management disclaimer was
+               accepted."/>
+  <variant name="_ManagementDisclaimerNotAccepted"
+      summary="Recorded for profiles where management disclaimer was not
+               accepted."/>
   <variant name="_SingleProfile"
       summary="Recorded only for single-profile users."/>
   <variant name="_UponDeletion"
       summary="Recorded for a profile upon its deletion"/>
 </variants>
 
+<!-- LINT.ThenChange(//components/profile_metrics/state.h:StateSuffix) -->
+
 <histogram name="Profile.AddNewUser" enum="ProfileAddNewUser"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>rogerta@chromium.org</owner>
   <summary>The frequency of ways that new user profiles are added.</summary>
 </histogram>
 
 <histogram name="Profile.AddSignInFlowOutcome"
-    enum="ProfileSignedInFlowOutcome" expires_after="2025-07-13">
+    enum="ProfileSignedInFlowOutcome" expires_after="2026-06-13">
+  <owner>rsult@google.com</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -63,7 +81,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.AllAccounts.Names" enum="ProfileAllAccountsNames"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -85,20 +103,20 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Avatar" enum="ProfileAvatar"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>The frequency of selection of each avatar.</summary>
 </histogram>
 
-<histogram name="Profile.BookmarksSize" units="MB" expires_after="2025-10-26">
+<histogram name="Profile.BookmarksSize" units="MB" expires_after="2025-12-28">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>Size of the bookmarks database.</summary>
 </histogram>
 
 <histogram name="Profile.BrowserActive.PerProfile" enum="Profile"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msarda@chromium.org</owner>
   <owner>tangltom@chromium.org</owner>
   <summary>
@@ -135,7 +153,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.DeleteProfileContext" enum="ProfileDeleteContext"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>alexilin@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <owner>msalama@chromium.org</owner>
@@ -147,7 +165,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Destroyer.OffTheRecord" enum="ProfileDestructionType"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>arabm@google.com</owner>
   <owner>dullweber@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -182,21 +200,36 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.GaiaNameShareStatus" enum="ProfileGaiaNameShareStatus"
-    expires_after="2025-10-11">
+    expires_after="2025-12-14">
   <owner>droger@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
     For all Gaia first names used as primary account in all profiles, records
     whether this name is unique or if there are multiple profiles sharing the
-    same first name. Empty names are not considered. Recorded every 24 hours,
-    for each name. For example, if two profiles use the name &quot;A&quot; and
-    one profile uses the name &quot;B&quot;, the histogram is recorded twice
-    (once for &quot;A&quot; and once for &quot;B&quot;).
+    same first name. Empty names are not considered. Profiles that are not
+    signed in are ignored.
+
+    For example, if two profiles use the name &quot;A&quot; and one profile uses
+    the name &quot;B&quot;, the histogram is recorded twice (once for
+    &quot;A&quot; and once for &quot;B&quot;).
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is not emitted.
   </summary>
 </histogram>
 
 <histogram name="Profile.Guest.ForcedByPolicy" enum="BooleanForced"
-    expires_after="2025-06-27">
+    expires_after="2025-12-27">
   <owner>duellweber@chromium.org</owner>
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
@@ -207,7 +240,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Guest.OTR.Lifetime" units="minutes"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -216,19 +249,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Profile.Guest.TypeCreated" enum="GuestProfileCreatedType"
-    expires_after="2025-07-13">
-  <owner>dgn@chromium.org</owner>
-  <owner>chrome-signin-team@google.com</owner>
-  <summary>
-    Records the type of Guest profile created, either a parent guest or the
-    first child (off-the-record) guest profile for the active parent guest
-    profile. It is recorded during the guest profile creation.
-  </summary>
-</histogram>
-
 <histogram name="Profile.Incognito.Lifetime" units="minutes"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -240,7 +262,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MainFrameNavigationsPerSession"
-    units="navigations" expires_after="2025-10-26">
+    units="navigations" expires_after="2025-12-28">
   <owner>rhalavati@chromium.org</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -252,7 +274,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Incognito.MovedToBackgroundAfterDuration"
-    units="minutes" expires_after="2025-10-26">
+    units="minutes" expires_after="2025-12-28">
   <owner>arabm@google.com</owner>
   <owner>chrome-incognito@google.com</owner>
   <summary>
@@ -314,7 +336,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.Menu.ClickedActionableItem{ProfileType}"
-    enum="ProfileMenuActionableItem" expires_after="2025-10-05">
+    enum="ProfileMenuActionableItem" expires_after="2025-12-07">
   <owner>droger@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -331,7 +353,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NetUserCount" enum="ProfileNetUserCount"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>rogerta@chromium.org</owner>
   <summary>
     Counts of users added and deleted. Percentages are not meaningful. Please
@@ -357,7 +379,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfAccountsPerProfile" units="units"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>
@@ -368,13 +390,19 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfActiveProfiles" units="profiles"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>droger@chromium.org</owner>
   <owner>feuunk@chromium.org</owner>
   <summary>
-    Counts the number of profiles on a user's machine every 24 hours while
-    Chrome is running. This is intended to count only profiles that have been
-    used in the last 28 days. As such, it differs Profile.NumberOfProfiles.
+    Counts the number of profiles used in the last 28 days on a user's machine.
+    Only emitted for users with at least one profile (of any type). This
+    histogram can be compared with Profile.NumberOfProfiles, which counts all
+    profiles regardless of activity and also is emitted on clients with no
+    profiles of any type. These include only &quot;regular&quot; profiles;
+    neither of these histograms include system or guest profiles even if some
+    are open at the time the histogram is emitted. Both histograms do not count
+    incognito profiles separately; they are considered part of their
+    &quot;parent&quot; profile.
 
     However, as of Feb 2024 intention is not reality. Chrome on Android assumes
     the (sole) profile is active, even if it is not. Before M129, Chrome on iOS
@@ -386,30 +414,87 @@ chromium-metrics-reviews@google.com.
     may have multiple users. Users are an entirely different concept than
     profiles. ChromeOS may allow a user to have and use multiple profiles
     someday. As of Feb 2024, it does not.
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is always emitted on profile open and not emitted any
+    other time.
   </summary>
 </histogram>
 
 <histogram name="Profile.NumberOfManagedProfiles" units="profiles"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>agawronska@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>
-    Counts the number of locally managed profiles on a user's machine every 24
-    hours while Chrome is running, among cases with at least one profile.
+    Counts the number of locally managed profiles on a user's machine. Only
+    emitted for users with at least one profile (of any type). Does not include
+    guest profiles even if they are managed per device policy and even if one is
+    open at the time the histogram is emitted. An incognito profile is also not
+    counted separately (even if it is managed); it is considered part of its
+    &quot;parent&quot; profile.
 
-    This counts only profiles that have been used in the last 28 days.
+    This is intended to count only profiles that have been used in the last 28
+    days. However, active usage detection does not work correctly on all
+    platforms and for all Chrome versions. See details in the description of
+    Profile.NumberOfActiveProfiles.
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is always emitted on profile open and not emitted any
+    other time.
 
     Might have incomplete data between 2021-03-12 and 2021-05-26.
   </summary>
 </histogram>
 
 <histogram name="Profile.NumberOfProfiles" units="profiles"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
-    Counts the number of profiles on a user's machine every 24 hours while
-    Chrome is running.
+    Counts the number of profiles on a user's machine. Includes only
+    &quot;regular&quot; profiles; does not include system or guest profiles even
+    if some are open at the time the histogram is emitted. An incognito profile
+    is also not counted separately; it is considered part of its
+    &quot;parent&quot; profile.
+
+    Note: ChromeOS has a notion of &quot;users&quot;. A ChromeOS device may have
+    multiple users. Users are an entirely different concept than profiles.
+    ChromeOS may allow a user to have and use multiple profiles someday. As of
+    Feb 2024, it does not.
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is always emitted on profile open and not emitted any
+    other time.
 
     This counts the total number of profiles on the user's device, regardless of
     whether they've been used recently.
@@ -417,7 +502,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfProfilesAtProfileInit" units="profiles"
-    expires_after="2025-10-12">
+    expires_after="2026-01-04">
   <owner>alexilin@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -431,7 +516,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfProfilesAtProfileSwitch" units="profiles"
-    expires_after="2025-10-12">
+    expires_after="2026-01-04">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -443,14 +528,31 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.NumberOfSignedInProfiles" units="profiles"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
-    Counts the number of signed-in (syncing) profiles on a user's machine every
-    24 hours while Chrome is running.
+    Counts the number of signed-in (syncing) profiles on a user's machine. Only
+    emitted for users with at least one profile (of any type).
 
-    This counts only profiles that have been used in the last 28 days.
+    This is intended to count only profiles that have been used in the last 28
+    days. However, active usage detection does not work correctly on all
+    platforms and for all Chrome versions. See details in the description of
+    Profile.NumberOfActiveProfiles.
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is always emitted on profile open and not emitted any
+    other time.
   </summary>
 </histogram>
 
@@ -459,18 +561,74 @@ chromium-metrics-reviews@google.com.
   <owner>msarda@chromium.org</owner>
   <owner>droger@chromium.org</owner>
   <summary>
-    Counts the number of profiles unused within the past 28 days on a user's
-    machine. This is recorded every 24 hours while Chrome is running.
+    Counts the number of profiles that have not been used within the past 28
+    days on a user's machine. Only emitted for users with at least one profile
+    (of any type).
+
+    This is intended to count only profiles that have not been used in the last
+    28 days. However, active usage detection does not work correctly on all
+    platforms and for all Chrome versions. See details in the description of
+    Profile.NumberOfActiveProfiles.
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is always emitted on profile open and not emitted any
+    other time.
   </summary>
 </histogram>
 
 <histogram name="Profile.PercentageOfManagedProfiles" units="units"
-    expires_after="2025-10-05">
-  <owner>agawronska@chromium.org</owner>
+    expires_after="2025-12-07">
+  <owner>longbowei@google.com</owner>
+  <owner>zhangwenyu@google.com</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>
-    Tracks the percentage (0-100) of profiles that are locally managed, recorded
-    when Chrome starts up.
+    Tracks the percentage (0-100) of profiles that are locally managed. Only
+    emitted for users with at least one profile (of any type). Both numerator
+    and denominator include only &quot;regular&quot; profiles; neither include
+    system or guest profiles (even if some are open at the time the histogram is
+    emitted and even if guest profiles are managed per device policy). Likewise,
+    both histograms do not count incognito profiles separately (even if
+    managed); they are considered part of their &quot;parent&quot; profile.
+
+    This is intended to count only profiles in the numerator that have been used
+    in the last 28 days. However, active usage detection does not work correctly
+    on all platforms and for all Chrome versions. See details in the description
+    of Profile.NumberOfActiveProfiles.
+
+    On non-iOS platforms, this histogram is emitted on startup if it has been
+    more than 24 hours since the last time the histogram was emitted. It is also
+    emitted while Chrome is running when Chrome realizes that it has been 24
+    hours since the last time the histogram was emitted. (This normally happens
+    24 hours after the last emit, but may be longer if the device was asleep /
+    suspended at the time. If so, it will be emitted when the device wakes up.)
+    One consequence of this 24 hour timer is that a user may use Chrome in a day
+    and not emit this histogram. For example, if a user used Chrome the previous
+    day at 5pm and a histogram was emitted then, then used Chrome on this day at
+    10am, then closed Chrome, this histogram will not be emitted on this day.
+
+    On iOS, this histogram is always emitted on profile open and not emitted any
+    other time.
+  </summary>
+</histogram>
+
+<histogram name="Profile.ProfileError2" enum="ProfileErrorType"
+    expires_after="2026-01-18">
+  <owner>etienneb@chromium.org</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Counts the number of times a profile error dialog is shown. The dialog will
+    ask the user if they want to upload an error report for Google to debug the
+    issue.
   </summary>
 </histogram>
 
@@ -485,7 +643,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.SessionDuration.PerProfile" enum="Profile"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>msarda@chromium.org</owner>
   <owner>alexilin@chromium.org</owner>
   <summary>
@@ -507,7 +665,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.State.LastUsed{ProfileStateGroup}" units="days"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -518,7 +676,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Profile.State.SyncEnabled{ProfileStateGroup}"
-    enum="BooleanEnabled" expires_after="2025-10-26">
+    enum="BooleanEnabled" expires_after="2025-12-28">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -529,7 +687,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Profile.State.UnconsentedPrimaryAccountType{ProfileStateGroup}"
-    enum="ProfileUnconsentedPrimaryAccountType" expires_after="2025-11-16">
+    enum="ProfileUnconsentedPrimaryAccountType" expires_after="2026-01-18">
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -539,14 +697,14 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Profile.TotalSize" units="MB" expires_after="2025-11-16">
+<histogram name="Profile.TotalSize" units="MB" expires_after="2026-01-18">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>Total size of the profile data (excluding sub-folders).</summary>
 </histogram>
 
 <histogram name="Profile.TotalSizeRecursive" units="MB"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -611,7 +769,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Profile.{Database}Size" units="MB" expires_after="2025-10-12">
+<histogram name="Profile.{Database}Size" units="MB" expires_after="2025-12-14">
   <owner>etienneb@chromium.org</owner>
   <owner>gab@chromium.org</owner>
   <summary>
@@ -633,7 +791,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfileChooser.HasProfilesShown" enum="BooleanShown"
-    expires_after="2025-09-28">
+    expires_after="2026-02-01">
   <owner>vasilii@chromium.org</owner>
   <owner>ewald@chromium.org</owner>
   <summary>
@@ -679,7 +837,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstProfileTime.FirstWebContentsNonEmptyPaint"
-    units="ms" expires_after="2025-11-09">
+    units="ms" expires_after="2026-01-11">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -696,7 +854,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.DefaultBrowser"
-    enum="FirstRunDefaultBrowserChoice" expires_after="2025-11-09">
+    enum="FirstRunDefaultBrowserChoice" expires_after="2026-01-11">
   <owner>dgn@chromium.org</owner>
   <owner>for-you-fre@google.com</owner>
   <summary>
@@ -706,7 +864,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.ExitStatus" enum="FirstRunExitStatus"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>dgn@chromium.org</owner>
   <owner>for-you-fre@google.com</owner>
   <summary>
@@ -717,7 +875,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.FinishReason"
-    enum="FirstRunFinishReason" expires_after="2025-11-09">
+    enum="FirstRunFinishReason" expires_after="2026-01-11">
   <owner>dgn@chromium.org</owner>
   <owner>for-you-fre@google.com</owner>
   <summary>
@@ -729,7 +887,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.OrganizationAvailableTiming" units="ms"
-    expires_after="2025-09-21">
+    expires_after="2026-01-25">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -741,7 +899,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.PolicyStoreState"
-    enum="FirstRunCloudPolicyStoreState" expires_after="2025-11-09">
+    enum="FirstRunCloudPolicyStoreState" expires_after="2026-01-11">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -754,7 +912,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.ServiceCreated" enum="BooleanCreated"
-    expires_after="2025-11-09">
+    expires_after="2026-01-11">
   <owner>dgn@chromium.org</owner>
   <owner>for-you-fre@google.com</owner>
   <summary>
@@ -777,7 +935,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.Shown" enum="ProfilePickerEntryPoint"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -787,7 +945,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.StartupMode.{StartupStep}"
-    enum="ProfilePickerStartupProfileMode" expires_after="2025-11-16">
+    enum="ProfilePickerStartupProfileMode" expires_after="2026-01-18">
   <owner>droger@chromium.org</owner>
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -831,7 +989,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.StartupTime.FirstPaint" units="ms"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>alexilin@chromium.org</owner>
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
@@ -889,12 +1047,94 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.UserAction" enum="ProfilePickerAction"
-    expires_after="2025-10-26">
+    expires_after="2025-12-28">
   <owner>msalama@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
     Records the action performed by the user in the profile picker.
   </summary>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.FlowEndedAtStep"
+    enum="ProfileManagementFlowStep" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the step at which the flow was ended. The value is emitted when the
+    flow is completed or aborted.
+
+    {ProfilePickerFlowType}
+  </summary>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.FlowTotalDuration"
+    units="ms" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the total flow duration. The value is emitted when the flow is
+    completed or aborted.
+
+    {ProfilePickerFlowType}
+  </summary>
+</histogram>
+
+<histogram
+    name="ProfilePicker.{ProfilePickerFlowType}.{StepFlowDuration}{StepName}"
+    units="ms" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the duration of {StepName} {StepFlowDuration}. The value is emitted
+    when the step is ended or switched.
+
+    {ProfilePickerFlowType}
+  </summary>
+  <token key="StepName">
+<!-- LINT.IfChange(StepName) -->
+
+    <variant name="" summary="a single step"/>
+    <variant name=".DefaultBrowser" summary="the default browser promo step"/>
+    <variant name=".FinishFlow" summary="the Finish flow step"/>
+    <variant name=".FinishSamlFlow" summary="the Finish SAML flow step"/>
+    <variant name=".FREIntro" summary="the FRE main page step"/>
+    <variant name=".PickerMainApp" summary="the profile picker main page step"/>
+    <variant name=".PostSignInSteps" summary="the post sign in steps"/>
+    <variant name=".Reauth" summary="the reauth step"/>
+    <variant name=".SearchEngineChoice"
+        summary="the search engine choice screen step"/>
+    <variant name=".SigninFlow" summary="the sign in flow step"/>
+<!-- LINT.ThenChange(//chrome/browser/ui/views/profiles/profile_management_flow_controller.cc:GetStepHistogramSuffix) -->
+
+  </token>
+  <token key="StepFlowDuration">
+    <variant name="StepShownDuration"
+        summary="from the time the step was shown to the user until it ended
+                 (includes the user action duration only). This is not
+                 recorded for skipped steps."/>
+    <variant name="StepTotalDuration"
+        summary="from the trigger of the step until it ended (includes step
+                 latency and user action duration). This is recorded for
+                 skipped steps; only includes latency."/>
+  </token>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.{StepStatus}"
+    enum="ProfileManagementFlowStep" expires_after="2026-07-01">
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the step that {StepStatus}. Recorded when the step status change
+    happens.
+
+    {ProfilePickerFlowType}
+  </summary>
+  <token key="StepStatus">
+    <variant name="StepEnd" summary="has ended"/>
+    <variant name="StepShown" summary="was shown"/>
+    <variant name="StepSkipped" summary="was skipped"/>
+    <variant name="StepStart" summary="has started"/>
+  </token>
 </histogram>
 
 </histograms>

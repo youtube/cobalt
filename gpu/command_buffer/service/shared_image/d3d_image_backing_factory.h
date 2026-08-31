@@ -28,6 +28,7 @@ class ColorSpace;
 }  // namespace gfx
 
 namespace gpu {
+class DawnContextProvider;
 class DXGISharedHandleManager;
 class SharedImageBacking;
 struct Mailbox;
@@ -39,7 +40,8 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
       Microsoft::WRL::ComPtr<ID3D11Device> d3d11_device,
       scoped_refptr<DXGISharedHandleManager> dxgi_shared_handle_manager,
       const GLFormatCaps& gl_format_caps,
-      const GpuDriverBugWorkarounds& workarounds = GpuDriverBugWorkarounds());
+      const GpuDriverBugWorkarounds& workarounds = GpuDriverBugWorkarounds(),
+      bool enable_webnn_only_d3d_factory = false);
 
   D3DImageBackingFactory(const D3DImageBackingFactory&) = delete;
   D3DImageBackingFactory& operator=(const D3DImageBackingFactory&) = delete;
@@ -52,7 +54,9 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
                                         const GpuPreferences& gpu_preferences);
 
   // Returns true if DXGI swap chain shared images for overlays are supported.
-  static bool IsSwapChainSupported(const GpuPreferences& gpu_preferences);
+  static bool IsSwapChainSupported(
+      const GpuPreferences& gpu_preferences,
+      DawnContextProvider* dawn_context_provider = nullptr);
 
   // Clears the current back buffer to |color| on the immediate context.
   static bool ClearBackBufferToColor(IDXGISwapChain1* swap_chain,
@@ -140,10 +144,14 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
       SharedImageUsageSet usage,
       std::string debug_label);
 
-  bool SupportsBGRA8UnormStorage();
+  bool CreateSwapChainInternal(
+      Microsoft::WRL::ComPtr<IDXGISwapChain1>& swap_chain,
+      Microsoft::WRL::ComPtr<ID3D11Texture2D>& back_buffer_texture,
+      Microsoft::WRL::ComPtr<ID3D11Texture2D>& front_buffer_texture,
+      viz::SharedImageFormat format,
+      const gfx::Size& size);
 
-  // Checks if d3d11 device supports creating nv12 texture with the given size.
-  bool CanCreateNV12Texture(const gfx::Size& size);
+  bool SupportsBGRA8UnormStorage();
 
   // D3D11 device used for creating textures. This is also Skia's D3D11 device.
   // Can be different from |angle_d3d11_device_| when using Graphite.
@@ -161,12 +169,8 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
   // using Graphite.
   Microsoft::WRL::ComPtr<ID3D11Device> angle_d3d11_device_;
 
-  // Stores the minimum size area unsupported by an nv12 texture.
-  // Default initialized to max size.
-  int min_nv12_size_unsupported_ = std::numeric_limits<int>::max();
-
-  // Stores the maximum size area supported by an nv12 texture.
-  int max_nv12_size_supported_ = 0;
+  // Stores the maximum size dimension supported by an nv12 texture.
+  int max_nv12_dim_supported_ = 0;
 
   // Stores whether NV12 format is supported by the D3D device.
   bool d3d11_supports_nv12_;
@@ -177,6 +181,9 @@ class GPU_GLES2_EXPORT D3DImageBackingFactory
 
   // True if using UpdateSubresource1() in UploadFromMemory() is allowed.
   const bool use_update_subresource1_;
+
+  // Allow D3D factory for WebNN even if support is disabled.
+  const bool enable_webnn_only_d3d_factory_ = false;
 };
 
 }  // namespace gpu

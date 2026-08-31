@@ -633,7 +633,8 @@ TEST_F(NigoriDataTypeProcessorTest,
   // Simulate returning error at MergeFullSyncData()
   ON_CALL(*mock_nigori_sync_bridge(), MergeFullSyncData)
       .WillByDefault([&](const std::optional<EntityData>& data) {
-        return ModelError(FROM_HERE, "some error");
+        return ModelError(FROM_HERE,
+                          syncer::ModelError::Type::kGenericTestError);
       });
 
   UpdateResponseDataList updates;
@@ -662,7 +663,8 @@ TEST_F(NigoriDataTypeProcessorTest,
   // Simulate returning error at ApplyIncrementalSyncChanges()
   ON_CALL(*mock_nigori_sync_bridge(), ApplyIncrementalSyncChanges)
       .WillByDefault([&](const std::optional<EntityData>& data) {
-        return ModelError(FROM_HERE, "some error");
+        return ModelError(FROM_HERE,
+                          syncer::ModelError::Type::kGenericTestError);
       });
 
   UpdateResponseDataList updates;
@@ -679,7 +681,8 @@ TEST_F(NigoriDataTypeProcessorTest,
 
 TEST_F(NigoriDataTypeProcessorTest,
        ShouldCallErrorHandlerIfModelErrorBeforeSyncStarts) {
-  processor()->ReportError(ModelError(FROM_HERE, "some error"));
+  processor()->ReportError(
+      ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError));
 
   syncer::DataTypeActivationRequest request;
   base::MockCallback<ModelErrorHandler> error_handler_callback;
@@ -711,6 +714,30 @@ TEST_F(NigoriDataTypeProcessorTest,
 
   EXPECT_EQ(inv_2.hint(), data_type_state.invalidations(1).hint());
   EXPECT_EQ(inv_2.version(), data_type_state.invalidations(1).version());
+}
+
+// Regression test for crbug.com/422542565: processor should not accept metadata
+// if it's invalid. Before the fix, the processor only partially reset its
+// state and this lead to crash.
+TEST_F(NigoriDataTypeProcessorTest, ShouldIgnoreMetadataIfNotValid) {
+  NigoriMetadataBatch metadata_batch;
+  metadata_batch.data_type_state.set_initial_sync_state(
+      sync_pb::DataTypeState_InitialSyncState_INITIAL_SYNC_DONE);
+
+  // Create metadata that is invalid, because `sequence_number` <
+  // `acked_sequence_number`. This should cause
+  // ProcessorEntity::CreateFromMetadata() to return nullptr.
+  sync_pb::EntityMetadata entity_metadata;
+  entity_metadata.set_creation_time(TimeToProtoTime(base::Time::Now()));
+  entity_metadata.set_sequence_number(1);
+  entity_metadata.set_acked_sequence_number(2);
+  metadata_batch.entity_metadata = std::move(entity_metadata);
+
+  processor()->ModelReadyToSync(mock_nigori_sync_bridge(),
+                                std::move(metadata_batch));
+
+  // The processor should not track metadata because it's invalid.
+  EXPECT_FALSE(processor()->IsTrackingMetadata());
 }
 
 }  // namespace

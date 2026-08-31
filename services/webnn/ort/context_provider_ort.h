@@ -5,24 +5,13 @@
 #ifndef SERVICES_WEBNN_ORT_CONTEXT_PROVIDER_ORT_H_
 #define SERVICES_WEBNN_ORT_CONTEXT_PROVIDER_ORT_H_
 
-#include "base/types/expected.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
-#include "services/webnn/public/mojom/webnn_error.mojom.h"
 
 namespace webnn {
 
-class WebNNContextImpl;
-class WebNNContextProviderImpl;
-
 namespace ort {
 
-// Create a WebNN context that satisfies the requested preferences in a
-// CreateContextOptions. This corresponds to the
-// ML.createContext(MLContextOptions) overload in the WebNN API.
-base::expected<std::unique_ptr<WebNNContextImpl>, mojom::ErrorPtr>
-CreateContextFromOptions(mojom::CreateContextOptionsPtr options,
-                         mojo::PendingReceiver<mojom::WebNNContext> receiver,
-                         WebNNContextProviderImpl* context_provider);
+bool ShouldCreateOrtContext(const mojom::CreateContextOptions& options);
 
 }  // namespace ort
 

@@ -12,12 +12,14 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/audio/audio_device.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
@@ -282,6 +284,7 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
   std::vector<PeerConfigurer::VideoSource> video_sources =
       configurer->ReleaseVideoSources();
   RTC_DCHECK(components);
+  RTC_DCHECK(components->pcf_dependencies->field_trials);
   RTC_DCHECK(params);
   RTC_DCHECK(configurable_params);
   RTC_DCHECK_EQ(configurable_params->video_configs.size(),
@@ -290,7 +293,7 @@ std::unique_ptr<TestPeer> TestPeerFactory::CreateTestPeer(
   params->rtc_configuration.sdp_semantics = SdpSemantics::kUnifiedPlan;
 
   const Environment env = CreateEnvironment(
-      std::move(components->pcf_dependencies->trials),
+      std::move(components->pcf_dependencies->field_trials),
       time_controller_.GetClock(), time_controller_.GetTaskQueueFactory());
 
   // Create peer connection factory.

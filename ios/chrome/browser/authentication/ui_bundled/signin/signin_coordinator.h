@@ -31,6 +31,10 @@ class PrefRegistrySyncable;
 
 // Main class for sign-in coordinator. This class should not be instantiated
 // directly, this should be done using the class methods.
+// Once started and up to iOS 18, the view displayed by
+// `SystemIdentityInteractionManager` may be removed by UIKit without the
+// signoutCompletion being called. Use `isAtRiskOfASWViewBug` to
+// check whether it currently is possible. See crbug.com/395959814.
 @interface SigninCoordinator : AnimatedCoordinator
 
 // Called when the sign-in dialog is interrupted, canceled or successful.
@@ -48,6 +52,10 @@ class PrefRegistrySyncable;
 // closed.
 // This property returns the time ticks when the instance was created.
 @property(nonatomic, readonly, assign) base::TimeTicks creationTimeTicks;
+
+// Whether crbug.com/395959814 may affects the view. So we expect authentication
+// to be shown to users but can’t be certain.
+@property(nonatomic, readonly) BOOL isAtRiskOfASWViewBug;
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
@@ -73,6 +81,8 @@ class PrefRegistrySyncable;
 // an identity, and starts the sign-in flow. If there is no identity on the
 // device, the add account dialog will be displayed, and then the sign-in flow
 // is started with the newly added identity.
+// The owner must be aware that the authentication view may have disappeared
+// silently if `-isAtRiskOfASWViewBug` is YES.
 + (SigninCoordinator*)
     instantSigninCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -87,21 +97,6 @@ class PrefRegistrySyncable;
                               continuationProvider:
                                   (const ChangeProfileContinuationProvider&)
                                       continuationProvider;
-
-// Returns a coordinator for fullscreen sign-in workflow.
-// `viewController` presents the sign-in.
-+ (SigninCoordinator*)
-    fullscreenSigninCoordinatorWithBaseViewController:
-        (UIViewController*)viewController
-                                              browser:(Browser*)browser
-                                         contextStyle:
-                                             (SigninContextStyle)contextStyle
-                                          accessPoint:
-                                              (signin_metrics::AccessPoint)
-                                                  accessPoint
-                    changeProfileContinuationProvider:
-                        (const ChangeProfileContinuationProvider&)
-                            changeProfileContinuationProvider;
 
 // Returns a coordinator for upgrade sign-in workflow.
 // `viewController` presents the sign-in.
@@ -120,6 +115,8 @@ class PrefRegistrySyncable;
 // `viewController` presents the sign-in.
 // `contextStyle` is used to customize content on screens.
 // `accessPoint` access point from the sign-in where is started.
+// The owner must be aware that the authentication view may have disappeared
+// silently if `-isAtRiskOfASWViewBug` is YES.
 + (SigninCoordinator*)
     addAccountCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -137,6 +134,8 @@ class PrefRegistrySyncable;
 // `contextStyle` is used to customize content on screens.
 // `accessPoint` access point from the sign-in where is started.
 // `promoAction` is promo button used to trigger the sign-in.
+// The owner must be aware that the authentication view may have disappeared
+// silently if `-isAtRiskOfASWViewBug` is YES.
 + (SigninCoordinator*)
     primaryAccountReauthCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -159,6 +158,8 @@ class PrefRegistrySyncable;
 // `contextStyle` is used to customize content on screens.
 // `accessPoint` access point from the sign-in where is started.
 // `promoAction` is promo button used to trigger the sign-in.
+// The owner must be aware that the authentication view may have disappeared
+// silently if `-isAtRiskOfASWViewBug` is YES.
 + (SigninCoordinator*)
     signinAndSyncReauthCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -180,6 +181,8 @@ class PrefRegistrySyncable;
 // `viewController` presents the promo.
 // This method can return nil if sign-in is not authorized or if there is no
 // account on the device.
+// The owner must be aware that the authentication view may have disappeared
+// silently if `-isAtRiskOfASWViewBug` is YES.
 + (SigninCoordinator*)
     consistencyPromoSigninCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -202,6 +205,8 @@ class PrefRegistrySyncable;
 // if the user hasn't already approved it.
 // `fullscreenPromo`: whether the promo should be displayed in a fullscreen
 // modal.
+// The owner must be aware that the authentication view may have disappeared
+// silently if `-isAtRiskOfASWViewBug` is YES.
 + (SigninCoordinator*)
     signinAndHistorySyncCoordinatorWithBaseViewController:
         (UIViewController*)viewController
@@ -231,7 +236,8 @@ class PrefRegistrySyncable;
                                      accessPoint:(signin_metrics::AccessPoint)
                                                      accessPoint
                                      promoAction:(signin_metrics::PromoAction)
-                                                     promoAction;
+                                                     promoAction
+                                    showSnackbar:(BOOL)showSnackbar;
 
 // ChromeCoordinator.
 - (void)start NS_REQUIRES_SUPER;

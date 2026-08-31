@@ -5,6 +5,7 @@
 #include "skia/ext/skia_utils_base.h"
 
 #include "base/containers/span.h"
+#include "base/strings/string_view_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
@@ -101,6 +102,16 @@ TEST(SkiaUtilsBase, ConvertSkDataToByteSpan) {
   EXPECT_EQ(span.size(), 6u /* "foobar" */ + 1u /* NUL character */);
   EXPECT_EQ(0, span[6]);
   EXPECT_EQ("foobar", base::as_string_view(span.first(6u)));
+}
+
+TEST(SkiaUtilsBase, ConvertSkDataToWritableByteSpan) {
+  sk_sp<SkData> sk_data = SkData::MakeWithCString("foobar");
+  base::span<uint8_t> span = as_writable_byte_span(*sk_data);
+  EXPECT_EQ(span.size(), 6u /* "foobar" */ + 1u /* NUL character */);
+  EXPECT_EQ(0, span[6]);
+  span[3] = 't';
+  span[4] = 'e';
+  EXPECT_EQ("footer", base::as_string_view(as_byte_span(*sk_data).first(6u)));
 }
 
 }  // namespace

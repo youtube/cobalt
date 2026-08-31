@@ -10,8 +10,10 @@
 #include "base/values.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
+#include "components/permissions/permission_decision.h"
 #include "components/permissions/request_type.h"
-#include "third_party/blink/public/mojom/permissions/permission.mojom.h"
+#include "components/permissions/resolvers/permission_prompt_options.h"
+#include "third_party/blink/public/mojom/permissions/permission_status.mojom-forward.h"
 
 namespace permissions {
 
@@ -38,14 +40,14 @@ class PermissionResolver {
   // Determines the permission status of the request given the user's permission
   // state.
   virtual blink::mojom::PermissionStatus DeterminePermissionStatus(
-      const base::Value& value) const = 0;
+      const PermissionSetting& setting) const = 0;
 
   // Determines the user's new permission state given a user decision for the
   // request.
-  virtual base::Value ComputePermissionDecisionResult(
-      const base::Value& previous_value,
-      ContentSetting decision,
-      std::optional<base::Value> prompt_options) const = 0;
+  virtual PermissionSetting ComputePermissionDecisionResult(
+      const PermissionSetting& previous_setting,
+      PermissionDecision decision,
+      PromptOptions prompt_options) const = 0;
 
   // Determines the `PromptParameters` for the current request given the
   // `current_setting_state` which is the fully coalesced current settings
@@ -55,7 +57,7 @@ class PermissionResolver {
   // PermissionRequestData instance, which holds the PermissionResolver for the
   // particular request.
   virtual PromptParameters GetPromptParameters(
-      const base::Value& current_setting_state) const = 0;
+      const PermissionSetting& current_setting_state) const = 0;
 
   // Utility method to obtain the `ContentSettingsType` of the object if it
   // exists.

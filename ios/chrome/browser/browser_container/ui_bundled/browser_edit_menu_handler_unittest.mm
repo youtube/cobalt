@@ -10,8 +10,6 @@
 #import "ios/chrome/browser/link_to_text/ui_bundled/link_to_text_mediator.h"
 #import "ios/chrome/browser/partial_translate/ui_bundled/partial_translate_mediator.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
-#import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
-#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/web/model/chrome_web_client.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
@@ -308,13 +306,15 @@ void AddLinkToText(NSMutableArray* menu) {
 // A test View controller that forwards the edit menu handling.
 @interface TestViewController : UIViewController
 @property(nonatomic, weak) BrowserEditMenuHandler* handler;
+
+@property(nonatomic, assign) web::WebState* webState;
 @end
 
 @implementation TestViewController
 
 - (void)buildMenuWithBuilder:(id<UIMenuBuilder>)builder {
   [super buildMenuWithBuilder:builder];
-  [self.handler buildEditMenuWithBuilder:builder];
+  [self.handler buildEditMenuWithBuilder:builder inWebState:self.webState];
 }
 
 @end
@@ -367,8 +367,7 @@ void AddLinkToText(NSMutableArray* menu) {
 class BrowserEditMenuHandlerTest : public PlatformTest {
  public:
   BrowserEditMenuHandlerTest()
-      : web_client_(std::make_unique<ChromeWebClient>()),
-        web_state_list_(&web_state_list_delegate_) {
+      : web_client_(std::make_unique<ChromeWebClient>()) {
     profile_ = TestProfileIOS::Builder().Build();
 
     web::WebState::CreateParams params(profile_.get());
@@ -378,10 +377,12 @@ class BrowserEditMenuHandlerTest : public PlatformTest {
   void SetUp() override {
     PlatformTest::SetUp();
     base_view_controller_ = [[TestViewController alloc] init];
+    base_view_controller_.webState = web_state_.get();
     [scoped_key_window_.Get() setRootViewController:base_view_controller_];
   }
 
   void TearDown() override {
+    base_view_controller_.webState = nullptr;
     // Reset the partial translate factory
     ios::provider::test::SetPartialTranslateControllerFactory(nil);
     PlatformTest::TearDown();
@@ -419,8 +420,6 @@ class BrowserEditMenuHandlerTest : public PlatformTest {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   web::ScopedTestingWebClient web_client_;
   std::unique_ptr<TestProfileIOS> profile_;
-  FakeWebStateListDelegate web_state_list_delegate_;
-  WebStateList web_state_list_;
   std::unique_ptr<web::WebState> web_state_;
   TestViewController* base_view_controller_;
   ScopedKeyWindow scoped_key_window_;
@@ -445,20 +444,17 @@ TEST_F(BrowserEditMenuHandlerTest, CheckCustomizedMenuDescription) {
   SetupTranslateControllerFactory();
   PartialTranslateMediator* partial_translate_mediator =
       [[PartialTranslateMediator alloc]
-            initWithWebStateList:&web_state_list_
-          withBaseViewController:base_view_controller_
-                     prefService:profile_->GetPrefs()
-            fullscreenController:nullptr
-                       incognito:NO];
+          initWithBaseViewController:base_view_controller_
+                         prefService:profile_->GetPrefs()
+                fullscreenController:nullptr
+                           incognito:NO];
 
-  LinkToTextMediator* link_to_text_mediator =
-      [[LinkToTextMediator alloc] initWithWebStateList:&web_state_list_];
+  LinkToTextMediator* link_to_text_mediator = [[LinkToTextMediator alloc] init];
   BrowserEditMenuHandler* handler = [[BrowserEditMenuHandler alloc] init];
   handler.partialTranslateDelegate = partial_translate_mediator;
   handler.linkToTextDelegate = link_to_text_mediator;
   BrowserContainerViewController* container_vc =
       [[BrowserContainerViewController alloc] init];
-  container_vc.browserEditMenuHandler = handler;
   [container_vc willMoveToParentViewController:base_view_controller_];
   [base_view_controller_ addChildViewController:container_vc];
   [base_view_controller_.view addSubview:container_vc.view];

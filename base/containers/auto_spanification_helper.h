@@ -5,7 +5,114 @@
 #ifndef BASE_CONTAINERS_AUTO_SPANIFICATION_HELPER_H_
 #define BASE_CONTAINERS_AUTO_SPANIFICATION_HELPER_H_
 
+#include <array>
+
+#include "base/containers/span.h"
 #include "base/numerics/checked_math.h"
+
+namespace base {
+
+// SpanificationArray{Begin,End,CBegin,CEnd} were introduced temporarily in
+// order to help the auto spanification tool (//tools/clang/spanify), and not
+// meant to be used widely.
+template <typename Element, size_t N>
+constexpr span<Element> SpanificationArrayBegin(
+    Element (&array LIFETIME_BOUND)[N]) {
+  return span(array);
+}
+
+template <typename Element, size_t N>
+constexpr span<Element> SpanificationArrayEnd(
+    Element (&array LIFETIME_BOUND)[N]) {
+  return span(array).last(0u);
+}
+
+template <typename Element, size_t N>
+constexpr span<const Element> SpanificationArrayCBegin(
+    const Element (&array LIFETIME_BOUND)[N]) {
+  return span(array);
+}
+
+template <typename Element, size_t N>
+constexpr span<const Element> SpanificationArrayCEnd(
+    const Element (&array LIFETIME_BOUND)[N]) {
+  return span(array).last(0u);
+}
+
+template <typename Element, size_t N>
+constexpr span<Element> SpanificationArrayBegin(
+    std::array<Element, N>& array LIFETIME_BOUND) {
+  return span(array);
+}
+
+template <typename Element, size_t N>
+constexpr span<Element> SpanificationArrayEnd(
+    std::array<Element, N>& array LIFETIME_BOUND) {
+  return span(array).last(0u);
+}
+
+template <typename Element, size_t N>
+constexpr span<const Element> SpanificationArrayCBegin(
+    const std::array<Element, N>& array LIFETIME_BOUND) {
+  return span(array);
+}
+
+template <typename Element, size_t N>
+constexpr span<const Element> SpanificationArrayCEnd(
+    const std::array<Element, N>& array LIFETIME_BOUND) {
+  return span(array).last(0u);
+}
+
+// SpanificationSizeofForStdArray was introduced temporarily in order to help
+// the auto spanification tool (//tools/clang/spanify), and not meant to be
+// used widely.
+//
+// Note that it's *not* guaranteed by the C++ standard that
+//     sizeof(arr) == arr.size() * sizeof(arr[0])
+// and it's possible that std::array has additional data and/or padding.
+template <typename Element, size_t N>
+constexpr size_t SpanificationSizeofForStdArray(const std::array<Element, N>&) {
+  return sizeof(Element) * N;
+}
+
+// Modifies the input span by removing its first element (if not empty)
+// and returns the modified span.
+// Used to rewrite pre-increment (++ptr).
+// WARNING: This helper is intended to be used only by the auto spanification
+// tool. Do not use this helper outside of the tool. Usage should usually be
+// replaced with `base::span::(const_)iterator`.
+template <typename T>
+span<T> PreIncrementSpan(span<T>& span_ref) {
+  static_assert(
+      span<T>::extent == dynamic_extent,
+      "PreIncrementSpan requires a dynamic-extent span (base::span<T>)");
+  // An iterator that is at the end is expressed as an empty span and it shall
+  // not be incremented.
+  CHECK(!span_ref.empty());
+  span_ref = span_ref.template subspan<1u>();
+  return span_ref;
+}
+
+// Returns a copy of the input span *before* modification, and then
+// modifies the input span by removing its first element (if not empty).
+// Used to rewrite post-increment (ptr++).
+// WARNING: This helper is intended to be used only by the auto spanification
+// tool. Do not use this helper outside of the tool. Usage should usually be
+// replaced with `base::span::(const_)iterator`.
+template <typename T>
+span<T> PostIncrementSpan(span<T>& span_ref) {
+  static_assert(
+      span<T>::extent == dynamic_extent,
+      "PostIncrementSpan requires a dynamic-extent span (base::span<T>)");
+  // An iterator that is at the end is expressed as an empty span and it shall
+  // not be incremented.
+  CHECK(!span_ref.empty());
+  span<T> original_span = span_ref;
+  span_ref = span_ref.template subspan<1u>();
+  return original_span;
+}
+
+}  // namespace base
 
 namespace base::spanification_internal {
 

@@ -34,7 +34,11 @@ enum class InfobarType {
   // Message Infobar for non modal sign-in promo.
   kInfobarTypeSignin = 13,
   // Message Infobar for collaboration group update.
-  kInfobarTypeCollaborationGroup = 14
+  kInfobarTypeCollaborationGroup = 14,
+  // Message Infobar for collaboration group update.
+  kInfobarTypeCollaborationOutOfDate = 15,
+  // Message Infobar for Saving CVC for a Credit Card.
+  kInfobarTypeSaveCvc = 16,
 };
 
 // Message "Confirm Infobars" types, these are the generic kInfobarTypeConfirm

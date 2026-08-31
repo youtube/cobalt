@@ -123,6 +123,23 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="UMA.CheckForClonedInstallDuration" units="microseconds"
+    expires_after="2026-02-28">
+  <owner>dgn@chromium.org</owner>
+  <owner>mpearson@chromium.org</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records the total duration of the CheckForClonedInstall() call that happens
+    during startup when trying to determine whether the current client is
+    running on a cloned install. This call is asynchronous, runs as a
+    best-effort task, and could potentially take a while.
+
+    The metric is reported for only clients with high-resolution clocks (a
+    subset of Windows clients won't report it, see the
+    Windows.HasHighResolutionTimeTicks histogram).
+  </summary>
+</histogram>
+
 <histogram name="UMA.ChildProcess.Ping.{Source}" enum="UmaChildPingStatus"
     expires_after="2026-02-28">
   <owner>lucnguyen@google.com</owner>
@@ -265,8 +282,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.DriveIs{Attribute}Result" enum="OptionalBoolRecord"
-    expires_after="2025-11-02">
-  <owner>spvw@chromium.org</owner>
+    expires_after="2026-01-04">
+  <owner>spvm@chromium.org</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
     Whether the hard drive containing either the user profile or chrome binary
@@ -323,6 +340,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="UMA.FileMetricsProvider.FRELimitResult"
+    enum="FileMetricsProviderFRELimitResult" expires_after="2026-02-28">
+  <owner>rcanoaparicio@google.com</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records how the number of files in the metrics directory relates to the FRE
+    amount of files limit. This is used to determine whether the metrics
+    directory is being polluted with too many files on FRE.
+  </summary>
+</histogram>
+
 <histogram name="UMA.FileMetricsProvider.InitialAccessResult"
     enum="FileMetricsProviderAccessResult" expires_after="2026-02-28">
   <owner>asvitkine@chromium.org</owner>
@@ -347,6 +375,22 @@ chromium-metrics-reviews@google.com.
     <variant name="PlatformExperienceHelperMetrics"/>
     <variant name="SetupMetrics"/>
   </token>
+</histogram>
+
+<histogram name="UMA.GetMachineIdDuration" units="microseconds"
+    expires_after="2026-02-28">
+  <owner>dgn@chromium.org</owner>
+  <owner>mpearson@chromium.org</owner>
+  <owner>src/base/metrics/OWNERS</owner>
+  <summary>
+    Records the duration of the GetMachineId() call that happens during startup
+    when trying to determine whether the current client is running on a cloned
+    install.
+
+    The metric is reported for only clients with high-resolution clocks (a
+    subset of Windows clients won't report it, see the
+    Windows.HasHighResolutionTimeTicks histogram).
+  </summary>
 </histogram>
 
 <histogram name="UMA.InitialStabilityRecordBeacon" enum="Boolean"
@@ -658,7 +702,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.PrimaryUserType" enum="UserType"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>michaelpg@chromium.org</owner>
   <owner>yilkal@chromium.org</owner>
   <owner>src/base/metrics/OWNERS</owner>
@@ -906,7 +950,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.StructuredMetrics.NumEventsInUpload" units="count"
-    expires_after="2025-11-16">
+    expires_after="2026-01-18">
   <owner>troywang@google.com</owner>
   <owner>tby@chromium.org</owner>
   <owner>rkaplow@chromium.org</owner>
@@ -918,7 +962,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.StructuredMetrics.NumFilesPerExternalMetricsScan"
-    units="count" expires_after="2025-11-16">
+    units="count" expires_after="2026-01-18">
   <owner>tby@chromium.org</owner>
   <owner>troywang@google.com</owner>
   <summary>
@@ -941,7 +985,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.TPMMetricsProvider.ReadSuccess" enum="Boolean"
-    expires_after="2025-11-02">
+    expires_after="2026-01-18">
   <owner>psarouthakis@google.com</owner>
   <owner>kristianm@google.com</owner>
   <summary>
@@ -951,7 +995,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.TPMMetricsProvider.UnknownID" enum="Boolean"
-    expires_after="2025-11-02">
+    expires_after="2026-01-18">
   <owner>psarouthakis@google.com</owner>
   <owner>kristianm@google.com</owner>
   <summary>
@@ -1084,7 +1128,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UMA.UserDemographics.Status" enum="UserDemographicsStatus"
-    expires_after="2025-11-02">
+    expires_after="2026-01-04">
   <owner>rogerm@google.com</owner>
   <owner>src/base/metrics/OWNERS</owner>
   <summary>

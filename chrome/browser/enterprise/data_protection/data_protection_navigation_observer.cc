@@ -6,15 +6,18 @@
 
 #include "base/check_op.h"
 #include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
 #include "chrome/browser/enterprise/data_controls/chrome_rules_service.h"
+#include "chrome/browser/enterprise/data_protection/data_protection_features.h"
 #include "chrome/browser/interstitials/enterprise_util.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_enterprise_url_lookup_service_factory.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/safe_browsing/core/browser/realtime/chrome_enterprise_url_lookup_service.h"
 #include "components/safe_browsing/core/browser/realtime/policy_engine.h"
@@ -25,6 +28,7 @@
 #include "content/public/common/url_constants.h"
 #include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
+#include "url/gurl.h"
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "components/safe_browsing/core/browser/realtime/url_lookup_service_base.h"
@@ -43,6 +47,11 @@ constexpr char kURLVerdictSourceHistogram[] =
 
 // This is non-null in tests to install a fake service.
 safe_browsing::RealTimeUrlLookupServiceBase* g_lookup_service = nullptr;
+
+bool IsWatermarkWebUIURL(const GURL& url) {
+  return url.SchemeIs(content::kChromeUIScheme) &&
+         url.host_piece() == chrome::kChromeUIWatermarkHost;
+}
 
 content::Page& GetPageFromWebContents(content::WebContents* web_contents) {
   return web_contents->GetPrimaryMainFrame()->GetPage();
@@ -132,7 +141,6 @@ void OnRealTimeLookupComplete(
     bool is_cached,
     std::unique_ptr<safe_browsing::RTLookupResponse> rt_lookup_response) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-
   if (!is_success) {
     rt_lookup_response.reset();
   }
@@ -169,13 +177,14 @@ void DoLookup(safe_browsing::RealTimeUrlLookupServiceBase* lookup_service,
   DCHECK(!callback.is_null());
   DCHECK(IsEnterpriseLookupEnabled(web_contents->GetBrowserContext()));
   // The referring_app_info parameter to StartLookup is Android-specific.
-  lookup_service->StartLookup(
+  lookup_service->StartMaybeCachedLookup(
       url,
       base::BindOnce(&OnRealTimeLookupComplete, std::move(callback),
                      identifier),
       base::SequencedTaskRunner::GetCurrentDefault(),
       sessions::SessionTabHelper::IdForTab(web_contents),
-      /*referring_app_info=*/std::nullopt);
+      /*referring_app_info=*/std::nullopt, /*use_cache=*/
+      !base::FeatureList::IsEnabled(kEnableSinglePageAppDataProtection));
 }
 
 std::string GetIdentifier(content::BrowserContext* browser_context) {
@@ -201,14 +210,30 @@ bool IsScreenshotAllowedByDataControls(content::BrowserContext* context,
 }  // namespace
 
 // static
-void DataProtectionNavigationObserver::CreateForNavigationIfNeeded(
+std::unique_ptr<DataProtectionNavigationObserver>
+DataProtectionNavigationObserver::CreateForNavigationIfNeeded(
+    DataProtectionNavigationDelegate* delegate,
     Profile* profile,
     content::NavigationHandle* navigation_handle,
     Callback callback) {
-  if (navigation_handle->IsSameDocument() ||
-      !navigation_handle->IsInPrimaryMainFrame()) {
-    return;
+  if (!navigation_handle->IsInPrimaryMainFrame() ||
+      (!base::FeatureList::IsEnabled(kEnableSinglePageAppDataProtection) &&
+       navigation_handle->IsSameDocument())) {
+    return nullptr;
   }
+
+  if (IsWatermarkWebUIURL(navigation_handle->GetURL())) {
+    UrlSettings settings;
+    // TODO(crbug.com/434714853): Replace with i18n string
+    settings.watermark_text = "Watermark Test Page";
+    std::move(callback).Run(settings);
+    return nullptr;
+  }
+
+  VLOG(1) << "enterprise.data_protection: same document navigation: "
+          << navigation_handle->IsSameDocument();
+  VLOG(1) << "enterprise.data_protection: URL to scan: "
+          << navigation_handle->GetURL();
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   // The Data protection settings need to be cleared if:
@@ -218,20 +243,21 @@ void DataProtectionNavigationObserver::CreateForNavigationIfNeeded(
   // protection settings if the enabled state is changed mid session.
   if (SkipUrl(navigation_handle->GetURL())) {
     std::move(callback).Run(UrlSettings::None());
-    return;
+    return nullptr;
   }
 
   // ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetForProfile() return
   // nullptr if enterprise policies are not set.  In this case data protections
   // will be based on data controls alone,
-  enterprise_data_protection::DataProtectionNavigationObserver::
-      CreateForNavigationHandle(
-          *navigation_handle,
-          safe_browsing::ChromeEnterpriseRealTimeUrlLookupServiceFactory::
-              GetForProfile(profile),
-          navigation_handle->GetWebContents(), std::move(callback));
+  return std::make_unique<
+      enterprise_data_protection::DataProtectionNavigationObserver>(
+      *navigation_handle,
+      safe_browsing::ChromeEnterpriseRealTimeUrlLookupServiceFactory::
+          GetForProfile(profile),
+      navigation_handle->GetWebContents(), delegate, std::move(callback));
 #else
   std::move(callback).Run(UrlSettings::None());
+  return nullptr;
 #endif
 }
 
@@ -240,6 +266,13 @@ void DataProtectionNavigationObserver::ApplyDataProtectionSettings(
     Profile* profile,
     content::WebContents* web_contents,
     Callback callback) {
+  if (IsWatermarkWebUIURL(web_contents->GetLastCommittedURL())) {
+    UrlSettings settings;
+    // TODO(crbug.com/434714853): Replace with i18n string
+    settings.watermark_text = "Watermark Test Page";
+    std::move(callback).Run(settings);
+    return;
+  }
   auto* ud = GetUserData(web_contents);
   if (ud) {
     std::move(callback).Run(ud->settings());
@@ -306,9 +339,12 @@ DataProtectionNavigationObserver::DataProtectionNavigationObserver(
     content::NavigationHandle& navigation_handle,
     safe_browsing::RealTimeUrlLookupServiceBase* lookup_service,
     content::WebContents* web_contents,
+    DataProtectionNavigationDelegate* delegate,
     Callback callback)
     : content::WebContentsObserver(web_contents),
+      navigation_id_(navigation_handle.GetNavigationId()),
       lookup_service_(lookup_service),
+      delegate_(delegate),
       pending_navigation_callback_(std::move(callback)) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(!pending_navigation_callback_.is_null());
@@ -331,6 +367,8 @@ DataProtectionNavigationObserver::DataProtectionNavigationObserver(
              base::BindOnce(&DataProtectionNavigationObserver::OnLookupComplete,
                             weak_factory_.GetWeakPtr()),
              navigation_handle.GetWebContents());
+  } else {
+    is_verdict_received_ = true;
   }
 }
 
@@ -340,8 +378,20 @@ void DataProtectionNavigationObserver::OnLookupComplete(
     std::unique_ptr<safe_browsing::RTLookupResponse> rt_lookup_response) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   DCHECK(!is_from_cache_);
-
-  rt_lookup_response_ = std::move(rt_lookup_response);
+  base::ScopedClosureRunner done(
+      base::BindOnce(&DataProtectionNavigationObserver::MaybeCleanup,
+                     weak_factory_.GetWeakPtr()));
+  is_verdict_received_ = true;
+  if (!web_contents()) {
+    return;
+  }
+  if (is_navigation_finished_) {
+    OnDoLookupComplete(web_contents()->GetWeakPtr(),
+                       std::move(pending_navigation_callback_), identifier_,
+                       std::move(rt_lookup_response));
+  } else {
+    rt_lookup_response_ = std::move(rt_lookup_response);
+  }
 }
 
 bool DataProtectionNavigationObserver::ShouldPerformRealTimeUrlCheck(
@@ -369,8 +419,20 @@ void DataProtectionNavigationObserver::DidRedirectNavigation(
   }
 }
 
+void DataProtectionNavigationObserver::MaybeCleanup() {
+  if (is_navigation_finished_ && is_verdict_received_) {
+    DCHECK(delegate_);
+    delegate_->Cleanup(navigation_id_);
+  }
+}
+
 void DataProtectionNavigationObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  is_navigation_finished_ = true;
+  base::ScopedClosureRunner done(
+      base::BindOnce(&DataProtectionNavigationObserver::MaybeCleanup,
+                     weak_factory_.GetWeakPtr()));
+
   // Only consider primary main frame commits, which will come eventually.
   // Even though some of these checks where already performed in
   // CreateForNavigationIfNeeded(), they still need to checked again here
@@ -379,8 +441,8 @@ void DataProtectionNavigationObserver::DidFinishNavigation(
   // `pending_navigation_callback_` being null implies `DidFinishNavigation`
   // has already been called, so further lookups/metrics code need to run.
   if (!navigation_handle->IsInPrimaryMainFrame() ||
-      !navigation_handle->HasCommitted() ||
-      !pending_navigation_callback_) {
+      !navigation_handle->HasCommitted() || !pending_navigation_callback_ ||
+      !is_verdict_received_) {
     return;
   }
 

@@ -148,6 +148,8 @@ FeatureNames FeatureToNames(WebSchedulerTrackedFeature feature) {
       return {"webbluetooth", "Active Bluetooth connection"};
     case WebSchedulerTrackedFeature::kWebAuthentication:
       return {"webauthn", "Active WebAuthn transaction"};
+    case WebSchedulerTrackedFeature::kSharedWorkerMessage:
+      return {"sharedworker-message", "Message posted from SharedWorker"};
   }
   return {};
 }
@@ -222,7 +224,6 @@ WebSchedulerTrackedFeatures StickyFeatures() {
           WebSchedulerTrackedFeature::kRequestedVideoCapturePermission,
           WebSchedulerTrackedFeature::kRequestedBackForwardCacheBlockedSensors,
           WebSchedulerTrackedFeature::kRequestedBackgroundWorkPermission,
-          WebSchedulerTrackedFeature::kWebLocks,
           WebSchedulerTrackedFeature::kRequestedStorageAccessGrant,
           WebSchedulerTrackedFeature::kWebNfc,
           WebSchedulerTrackedFeature::kPrinting,

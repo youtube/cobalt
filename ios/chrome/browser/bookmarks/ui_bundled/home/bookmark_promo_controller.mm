@@ -23,11 +23,13 @@
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
+#import "ios/chrome/browser/signin/model/authentication_service_observer_bridge.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 
-@interface BookmarkPromoController () <IdentityManagerObserverBridgeDelegate,
+@interface BookmarkPromoController () <AuthenticationServiceObserving,
+                                       IdentityManagerObserverBridgeDelegate,
                                        SigninPromoViewConsumer>
 
 @end
@@ -38,14 +40,21 @@
       _identityManagerObserverBridge;
   // Mediator to use for the sign-in promo view displayed in the bookmark view.
   SigninPromoViewMediator* _signinPromoViewMediator;
+  // Authentication Service to retrieve the user's signed-in state.
+  raw_ptr<AuthenticationService> _authService;
+  // Observer for auth service status changes.
+  std::unique_ptr<AuthenticationServiceObserverBridge>
+      _authServiceObserverBridge;
 }
 
 - (instancetype)initWithBrowser:(Browser*)browser
-                    syncService:(syncer::SyncService*)syncService
-                       delegate:(id<BookmarkPromoControllerDelegate>)delegate
-                signinPresenter:(id<SigninPresenter>)signinPresenter
-       accountSettingsPresenter:
-           (id<AccountSettingsPresenter>)accountSettingsPresenter {
+                        syncService:(syncer::SyncService*)syncService
+                           delegate:
+                               (id<BookmarkPromoControllerDelegate>)delegate
+    signinPromoViewMediatorDelegate:
+        (id<SigninPromoViewMediatorDelegate>)signinPromoViewMediatorDelegate
+           accountSettingsPresenter:
+               (id<AccountSettingsPresenter>)accountSettingsPresenter {
   DCHECK(browser);
   self = [super init];
   if (self) {
@@ -67,12 +76,16 @@
                               syncService:syncService
                               accessPoint:signin_metrics::AccessPoint::
                                               kBookmarkManager
-                          signinPresenter:signinPresenter
+                                 delegate:signinPromoViewMediatorDelegate
                  accountSettingsPresenter:accountSettingsPresenter
         changeProfileContinuationProvider:base::BindRepeating([]() {
           return CreateChangeProfileBookmarksContinuation();
         })];
     _signinPromoViewMediator.consumer = self;
+    _authService = AuthenticationServiceFactory::GetForProfile(profile);
+    _authServiceObserverBridge =
+        std::make_unique<AuthenticationServiceObserverBridge>(_authService,
+                                                              self);
     _signinPromoViewMediator.dataTypeToWaitForInitialSync =
         syncer::DataType::BOOKMARKS;
     [self updateShouldShowSigninPromo];
@@ -151,6 +164,12 @@
   return _signinPromoViewMediator.signinInProgress;
 }
 
+#pragma mark - AuthenticationServiceObserving
+
+- (void)onServiceStatusChanged {
+  [self updateShouldShowSigninPromo];
+}
+
 #pragma mark - IdentityManagerObserverBridgeDelegate
 
 // Called when a user changes the syncing state.
@@ -172,10 +191,6 @@
 }
 
 - (void)promoProgressStateDidChange {
-  [self updateShouldShowSigninPromo];
-}
-
-- (void)signinDidFinish {
   [self updateShouldShowSigninPromo];
 }
 

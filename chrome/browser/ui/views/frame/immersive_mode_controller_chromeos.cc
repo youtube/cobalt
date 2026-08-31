@@ -8,6 +8,7 @@
 #include "build/buildflag.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/top_container_view.h"
@@ -80,7 +81,8 @@ void ImmersiveModeControllerChromeos::SetEnabled(bool enabled) {
 
   if (!fullscreen_observer_.IsObserving()) {
     fullscreen_observer_.Observe(browser_view_->browser()
-                                     ->exclusive_access_manager()
+                                     ->GetFeatures()
+                                     .exclusive_access_manager()
                                      ->fullscreen_controller());
   }
 
@@ -126,44 +128,6 @@ bool ImmersiveModeControllerChromeos::
     ShouldStayImmersiveAfterExitingFullscreen() {
   return !browser_view_->GetSupportsTabStrip() &&
          display::Screen::GetScreen()->InTabletMode();
-}
-
-void ImmersiveModeControllerChromeos::OnWidgetActivationChanged(
-    views::Widget* widget,
-    bool active) {
-  if (browser_view_->GetSupportsTabStrip()) {
-    return;
-  }
-
-  if (!display::Screen::GetScreen()->InTabletMode()) {
-    return;
-  }
-
-  // Avoid using immersive mode in locked fullscreen as it allows the user to
-  // exit the locked mode. Keep immersive mode enabled if the webapp is locked
-  // for OnTask (only relevant for non-web browser scenarios).
-  // TODO(b/365146870): Remove once we consolidate locked fullscreen with
-  // OnTask.
-  Browser* const browser = browser_view_->browser();
-  bool avoid_using_immersive_mode =
-      platform_util::IsBrowserLockedFullscreen(browser);
-  if (browser->IsLockedForOnTask()) {
-    avoid_using_immersive_mode = false;
-  }
-  if (avoid_using_immersive_mode) {
-    return;
-  }
-
-  DCHECK_EQ(browser_view_->frame(), widget);
-  if (widget->GetNativeWindow()->GetProperty(chromeos::kWindowStateTypeKey) ==
-      chromeos::WindowStateType::kFloated) {
-    SetEnabled(false);
-    return;
-  }
-
-  // Enable immersive mode if the widget is activated. Do not disable immersive
-  // mode if the widget deactivates, but is not minimized.
-  SetEnabled(active || !widget->IsMinimized());
 }
 
 int ImmersiveModeControllerChromeos::GetMinimumContentOffset() const {
@@ -279,7 +243,8 @@ void ImmersiveModeControllerChromeos::OnFullscreenStateChanged() {
 
   // Auto hide the shelf in immersive browser fullscreen.
   bool in_tab_fullscreen = browser_view_->browser()
-                               ->exclusive_access_manager()
+                               ->GetFeatures()
+                               .exclusive_access_manager()
                                ->fullscreen_controller()
                                ->IsWindowFullscreenForTabOrPending();
   browser_view_->GetNativeWindow()->SetProperty(

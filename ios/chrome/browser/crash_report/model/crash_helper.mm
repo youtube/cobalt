@@ -23,6 +23,7 @@
 #import "base/metrics/histogram_functions.h"
 #import "base/metrics/histogram_macros.h"
 #import "base/path_service.h"
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/task/thread_pool.h"
 #import "base/time/time.h"
@@ -75,7 +76,7 @@ enum MobileSessionShutdownType {
 // currently calls crash_helper::HasReportToUpload() before Crashpad calls
 // ProcessIntermediateDumps. Experiment with instead calling this later during
 // startup, but after Crashpad can process intermediate dumps.
-MobileSessionShutdownType GetLastShutdownType() {
+MobileSessionShutdownType GetLastShutdownType(bool has_reports_to_upload) {
   if ([[PreviousSessionInfo sharedInstance] isFirstSessionAfterUpgrade]) {
     return FIRST_LAUNCH_AFTER_UPGRADE;
   }
@@ -86,7 +87,7 @@ MobileSessionShutdownType GetLastShutdownType() {
     return SHUTDOWN_IN_BACKGROUND;
   }
 
-  if (crash_helper::HasReportToUpload()) {
+  if (has_reports_to_upload) {
     // The cause of the crash is known.
     if ([[PreviousSessionInfo sharedInstance]
             didSeeMemoryWarningShortlyBeforeTerminating]) {
@@ -145,6 +146,8 @@ void ProcessIntermediateDumps() {
   // Remove this after a few milestones.
   ClearMainThreadFreezeDetectorCache();
 
+  bool has_reports_to_upload = HasReportToUpload();
+
   // Wait until after processing intermediate dumps to record last shutdown
   // type.
   dispatch_async(dispatch_get_main_queue(), ^{
@@ -152,9 +155,10 @@ void ProcessIntermediateDumps() {
     // appear in the initial stability log. Because of this, the stability flag
     // on this histogram doesn't matter. It will be reported like any other
     // metric.
-    UMA_STABILITY_HISTOGRAM_ENUMERATION("Stability.MobileSessionShutdownType2",
-                                        GetLastShutdownType(),
-                                        MOBILE_SESSION_SHUTDOWN_TYPE_COUNT);
+    UMA_STABILITY_HISTOGRAM_ENUMERATION(
+        "Stability.MobileSessionShutdownType2",
+        GetLastShutdownType(has_reports_to_upload),
+        MOBILE_SESSION_SHUTDOWN_TYPE_COUNT);
   });
 }
 

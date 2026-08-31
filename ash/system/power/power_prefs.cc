@@ -84,12 +84,14 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(prefs::kPowerAcScreenLockDelayMs, 0);
   registry->RegisterIntegerPref(prefs::kPowerAcIdleWarningDelayMs, 0);
   registry->RegisterIntegerPref(prefs::kPowerAcIdleDelayMs, 510000);
-  registry->RegisterBooleanPref(
-      prefs::kPowerAdaptiveChargingEnabled, true,
-      user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
+  registry->RegisterBooleanPref(prefs::kPowerAdaptiveChargingEnabled, true);
   registry->RegisterBooleanPref(
       prefs::kPowerAdaptiveChargingNudgeShown, false,
       user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
+  registry->RegisterBooleanPref(prefs::kPowerChargeLimitEnabled, false);
+  registry->RegisterIntegerPref(
+      prefs::kPowerOptimizedChargingStrategy,
+      chromeos::PowerPolicyController::STRATEGY_ADAPTIVE_CHARGING);
   registry->RegisterIntegerPref(prefs::kPowerBatteryScreenBrightnessPercent,
                                 -1);
   registry->RegisterIntegerPref(prefs::kPowerBatteryScreenDimDelayMs, 300000);
@@ -127,10 +129,7 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
       user_prefs::PrefRegistrySyncable::SYNCABLE_OS_PREF);
 }
 
-// UpdateAdaptiveChargingConfigsFromFinch retrieves the configuration parameters
-// for Adaptive Charging from Finch experiments and populating a PrefValues
-// structure with those values.
-void UpdateAdaptiveChargingConfigsFromFinch(
+void PopulateAdaptiveChargingConfigValuesWithDefaults(
     chromeos::PowerPolicyController::PrefValues* values) {
   // Default values of the settings.
   constexpr double kDefaultAdaptiveChargingMinProbability = 0.35;
@@ -142,40 +141,26 @@ void UpdateAdaptiveChargingConfigsFromFinch(
   // An AdaptiveCharging decision is considered to be reliable if the inference
   // score is higher than this number.
   values->adaptive_charging_min_probability =
-      base::GetFieldTrialParamByFeatureAsDouble(
-          ash::features::kAdaptiveCharging, "adaptive_charging_min_probability",
-          kDefaultAdaptiveChargingMinProbability);
+      kDefaultAdaptiveChargingMinProbability;
 
   // The AdaptiveCharging will delay the charging when the battery level is at
   // or higher than this number until AdaptiveCharging is over.
-  values->adaptive_charging_hold_percent =
-      base::GetFieldTrialParamByFeatureAsInt(
-          ash::features::kAdaptiveCharging, "adaptive_charging_hold_percent",
-          kDefaultAdaptiveChargingHoldPercent);
+  values->adaptive_charging_hold_percent = kDefaultAdaptiveChargingHoldPercent;
 
   // The max delay that AdaptiveCharging applies to hold the charging is capped
   // by this percentile of the device's charge history durations.
   values->adaptive_charging_max_delay_percentile =
-      base::GetFieldTrialParamByFeatureAsDouble(
-          ash::features::kAdaptiveCharging,
-          "adaptive_charging_max_delay_percentile",
-          kDefaultAdaptiveChargingMaxDelayPercentile);
+      kDefaultAdaptiveChargingMaxDelayPercentile;
 
   // If charging history doesn't contain at least this amount of days,
   // AdaptiveCharging is disabled.
   values->adaptive_charging_min_days_history =
-      base::GetFieldTrialParamByFeatureAsInt(
-          ash::features::kAdaptiveCharging,
-          "adaptive_charging_min_days_history",
-          kDefaultAdaptiveChargingMinDaysHistory);
+      kDefaultAdaptiveChargingMinDaysHistory;
 
   // If charging history doesn't have full_on_ac_ratio >= this min value,
   // AdaptiveCharging is disabled.
   values->adaptive_charging_min_full_on_ac_ratio =
-      base::GetFieldTrialParamByFeatureAsDouble(
-          ash::features::kAdaptiveCharging,
-          "adaptive_charging_min_full_on_ac_ratio",
-          kDefaultAdaptiveChargingMinFullOnAcRatio);
+      kDefaultAdaptiveChargingMinFullOnAcRatio;
 }
 
 }  // namespace
@@ -225,7 +210,6 @@ void PowerPrefs::RegisterLocalStatePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(prefs::kBatteryChargeCustomStopCharging, -1);
 
   registry->RegisterBooleanPref(prefs::kUsbPowerShareEnabled, true);
-  registry->RegisterBooleanPref(prefs::kPowerChargeLimitEnabled, false);
 }
 
 // static
@@ -474,14 +458,13 @@ void PowerPrefs::UpdatePowerPolicyFromPrefs() {
         local_state_->GetBoolean(prefs::kUsbPowerShareEnabled);
   }
 
-  if (features::IsAdaptiveChargingEnabled() &&
-      Shell::Get()
+  if (Shell::Get()
           ->adaptive_charging_controller()
           ->IsAdaptiveChargingSupported()) {
     std::optional<bool> adaptive_charging_enabled =
         prefs->GetBoolean(prefs::kPowerAdaptiveChargingEnabled);
     std::optional<bool> charge_limit_enabled =
-        local_state_->GetBoolean(prefs::kPowerChargeLimitEnabled);
+        prefs->GetBoolean(prefs::kPowerChargeLimitEnabled);
 
     if (adaptive_charging_enabled.value_or(false) &&
         charge_limit_enabled.value_or(false)) {
@@ -497,7 +480,7 @@ void PowerPrefs::UpdatePowerPolicyFromPrefs() {
     values.charge_limit_enabled = charge_limit_enabled;
 
     if (values.adaptive_charging_enabled.value_or(false)) {
-      UpdateAdaptiveChargingConfigsFromFinch(&values);
+      PopulateAdaptiveChargingConfigValuesWithDefaults(&values);
     }
   }
 
@@ -560,6 +543,7 @@ void PowerPrefs::ObservePrefs(PrefService* prefs) {
   profile_registrar_->Add(prefs::kPowerQuickLockDelay, update_callback);
   profile_registrar_->Add(prefs::kPowerAdaptiveChargingEnabled,
                           update_callback);
+  profile_registrar_->Add(prefs::kPowerChargeLimitEnabled, update_callback);
 
   UpdatePowerPolicyFromPrefs();
 }
@@ -590,8 +574,6 @@ void PowerPrefs::ObserveLocalStatePrefs(PrefService* prefs) {
   local_state_registrar_->Add(prefs::kBootOnAcEnabled, update_callback);
 
   local_state_registrar_->Add(prefs::kUsbPowerShareEnabled, update_callback);
-
-  local_state_registrar_->Add(prefs::kPowerChargeLimitEnabled, update_callback);
 
   UpdatePowerPolicyFromPrefs();
 }

@@ -675,21 +675,25 @@ class PA_TRIVIAL_ABI PA_GSL_POINTER raw_ptr {
     return static_cast<U*>(GetForExtraction());
   }
 
-  PA_ALWAYS_INLINE constexpr raw_ptr& operator++() {
+  // PRECONDITIONS: `this` must not be at the end of the range.
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr raw_ptr& operator++() {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot increment raw_ptr unless AllowPtrArithmetic trait is present.");
-    wrapped_ptr_ = Impl::Advance(wrapped_ptr_, 1, true);
+    wrapped_ptr_ = PA_UNSAFE_TODO(Impl::Advance(wrapped_ptr_, 1, true));
     return *this;
   }
-  PA_ALWAYS_INLINE constexpr raw_ptr& operator--() {
+  // PRECONDITIONS: `this` must not be at the start of the range.
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr raw_ptr& operator--() {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot decrement raw_ptr unless AllowPtrArithmetic trait is present.");
-    wrapped_ptr_ = Impl::Retreat(wrapped_ptr_, 1, true);
+    wrapped_ptr_ = PA_UNSAFE_TODO(Impl::Retreat(wrapped_ptr_, 1, true));
     return *this;
   }
-  PA_ALWAYS_INLINE constexpr raw_ptr operator++(int /* post_increment */) {
+  // PRECONDITIONS: `this` must not be at the end of the range.
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr raw_ptr operator++(
+      int /* post_increment */) {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot increment raw_ptr unless AllowPtrArithmetic trait is present.");
@@ -697,7 +701,9 @@ class PA_TRIVIAL_ABI PA_GSL_POINTER raw_ptr {
     ++(*this);
     return result;
   }
-  PA_ALWAYS_INLINE constexpr raw_ptr operator--(int /* post_decrement */) {
+  // PRECONDITIONS: `this` must not be at the start of the range.
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr raw_ptr operator--(
+      int /* post_decrement */) {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot decrement raw_ptr unless AllowPtrArithmetic trait is present.");
@@ -705,40 +711,48 @@ class PA_TRIVIAL_ABI PA_GSL_POINTER raw_ptr {
     --(*this);
     return result;
   }
+  // PRECONDITIONS: `this` must be at least `delta_elems` before range end.
   template <
       typename Z,
       typename = std::enable_if_t<partition_alloc::internal::is_offset_type<Z>>>
-  PA_ALWAYS_INLINE constexpr raw_ptr& operator+=(Z delta_elems) {
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr raw_ptr& operator+=(
+      Z delta_elems) {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot increment raw_ptr unless AllowPtrArithmetic trait is present.");
-    wrapped_ptr_ = Impl::Advance(wrapped_ptr_, delta_elems, true);
+    wrapped_ptr_ =
+        PA_UNSAFE_TODO(Impl::Advance(wrapped_ptr_, delta_elems, true));
     return *this;
   }
+  // PRECONDITIONS: `this` must be at least `delta_elems` after range start.
   template <
       typename Z,
       typename = std::enable_if_t<partition_alloc::internal::is_offset_type<Z>>>
-  PA_ALWAYS_INLINE constexpr raw_ptr& operator-=(Z delta_elems) {
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr raw_ptr& operator-=(
+      Z delta_elems) {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot decrement raw_ptr unless AllowPtrArithmetic trait is present.");
-    wrapped_ptr_ = Impl::Retreat(wrapped_ptr_, delta_elems, true);
+    wrapped_ptr_ =
+        PA_UNSAFE_TODO(Impl::Retreat(wrapped_ptr_, delta_elems, true));
     return *this;
   }
 
+  // PRECONDITIONS: `delta_elems` must be an index inside the range.
   template <typename Z,
             typename U = T,
             typename = std::enable_if_t<
                 !std::is_void_v<typename std::remove_cv<U>::type> &&
                 partition_alloc::internal::is_offset_type<Z>>>
-  PA_ALWAYS_INLINE constexpr U& operator[](Z delta_elems) const {
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE constexpr U& operator[](
+      Z delta_elems) const {
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot index raw_ptr unless AllowPtrArithmetic trait is present.");
     // Call SafelyUnwrapPtrForDereference() to simulate what GetForDereference()
     // does, but without creating a temporary.
     return *Impl::SafelyUnwrapPtrForDereference(
-        Impl::Advance(wrapped_ptr_, delta_elems, false));
+        PA_UNSAFE_TODO(Impl::Advance(wrapped_ptr_, delta_elems, false)));
   }
 
   // Do not disable operator+() and operator-().
@@ -754,31 +768,40 @@ class PA_TRIVIAL_ABI PA_GSL_POINTER raw_ptr {
   // operators for Z=uint64_t on 32-bit systems. The compiler instead would
   // generate code that converts `raw_ptr<T>` to `T*` and adds uint64_t to that,
   // bypassing the OOB protection entirely.
+  //
+  // PRECONDITIONS: `this` must be at least `delta_elems` before range end.
   template <typename Z>
-  PA_ALWAYS_INLINE friend constexpr raw_ptr operator+(const raw_ptr& p,
-                                                      Z delta_elems) {
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE friend constexpr raw_ptr operator+(
+      const raw_ptr& p,
+      Z delta_elems) {
     // Don't check `is_offset_type<Z>` here, as existence of `Advance` is
     // already gated on that, and we'd get double errors.
     static_assert(
         raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
         "cannot add to raw_ptr unless AllowPtrArithmetic trait is present.");
-    raw_ptr result = Impl::Advance(p.wrapped_ptr_, delta_elems, false);
+    raw_ptr result =
+        PA_UNSAFE_TODO(Impl::Advance(p.wrapped_ptr_, delta_elems, false));
     return result;
   }
+  // PRECONDITIONS: `this` must be at least `delta_elems` before range end.
   template <typename Z>
-  PA_ALWAYS_INLINE friend constexpr raw_ptr operator+(Z delta_elems,
-                                                      const raw_ptr& p) {
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE friend constexpr raw_ptr operator+(
+      Z delta_elems,
+      const raw_ptr& p) {
     return p + delta_elems;
   }
+  // PRECONDITIONS: `this` must be at least `delta_elems` after range start.
   template <typename Z>
-  PA_ALWAYS_INLINE friend constexpr raw_ptr operator-(const raw_ptr& p,
-                                                      Z delta_elems) {
+  PA_UNSAFE_BUFFER_USAGE PA_ALWAYS_INLINE friend constexpr raw_ptr operator-(
+      const raw_ptr& p,
+      Z delta_elems) {
     // Don't check `is_offset_type<Z>` here, as existence of `Retreat` is
     // already gated on that, and we'd get double errors.
     static_assert(raw_ptr_traits::IsPtrArithmeticAllowed(Traits),
                   "cannot subtract from raw_ptr unless AllowPtrArithmetic "
                   "trait is present.");
-    raw_ptr result = Impl::Retreat(p.wrapped_ptr_, delta_elems, false);
+    raw_ptr result =
+        PA_UNSAFE_TODO(Impl::Retreat(p.wrapped_ptr_, delta_elems, false));
     return result;
   }
 

@@ -1,8 +1,8 @@
 Name: OpenXR SDK
 Short Name: OpenXR
 URL: https://github.com/KhronosGroup/OpenXR-SDK
-Version: 1.1.43
-Revision: 781f2eab3698d653c804ecbd11e0aed47eaad1c6
+Version: 1.1.49
+Revision: 977f6675bc0057d5a54ed290cb5c71c699b1c0ab
 License: Apache-2.0
 License File: src/LICENSE
 Security Critical: yes
@@ -35,6 +35,8 @@ The following changes should be reflected in `src_overrides/patches`:
 * Forked android_utilites.cpp and manifest_file.cpp to allow for customizing to
 ignore loading in Android ContentProvider supplied paths while investigating and
 waiting for upstreaming.
+* Forked api_layer_interface.cpp to unblock a libc++ roll by cherry-picking
+https://github.com/KhronosGroup/OpenXR-SDK-Source/pull/554
 
 -------------------- DEPENDENCY DIVIDER --------------------
 

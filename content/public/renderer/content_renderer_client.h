@@ -89,6 +89,10 @@ namespace mojo {
 class BinderMap;
 }
 
+namespace net {
+class SiteForCookies;
+}
+
 namespace url {
 class Origin;
 }
@@ -298,16 +302,6 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual std::unique_ptr<blink::WebPrescientNetworking>
   CreatePrescientNetworking(RenderFrame* render_frame);
 
-  // Returns true if the given Pepper plugin is external (requiring special
-  // startup steps).
-  virtual bool IsExternalPepperPlugin(const std::string& module_name);
-
-  // Returns true if the given Pepper plugin should process content from
-  // different origins in different PPAPI processes. This is generally a
-  // worthwhile precaution when the plugin provides an active scripting
-  // language.
-  virtual bool IsOriginIsolatedPepperPlugin(const base::FilePath& plugin_path);
-
   // Allows embedder to register the key system(s) it supports.
   virtual std::unique_ptr<media::KeySystemSupportRegistration>
   GetSupportedKeySystems(RenderFrame* render_frame,
@@ -324,6 +318,20 @@ class CONTENT_EXPORT ContentRendererClient {
 
   // Return true if the bitstream format |codec| is supported by the audio sink.
   virtual bool IsSupportedBitstreamAudioCodec(media::AudioCodec codec);
+
+  // For content embedders, this provides a way to control media time
+  // synchronization.
+  //
+  // This is particularly useful for headless clients (e.g., for automated
+  // testing or server-side rendering) which need video playback to follow a
+  // "virtual clock" for deterministic output, rather than the system's
+  // real-time clock.
+  //
+  // By default, video is synced to the audio track's real-time clock. Returning
+  // `true` from this method decouples the video from this real-time constraint,
+  // allowing it to follow virtual time. When suppressed, audio will be neither
+  // decoded nor rendered.
+  virtual bool ShouldSuppressAudioTracks();
 
   // Returns custom allocator if exists, else nullptr
   // Allocator will live as long as ContentRendererClient.
@@ -345,9 +353,6 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual std::unique_ptr<media::SpeechRecognitionClient>
   CreateSpeechRecognitionClient(RenderFrame* render_frame);
 #endif
-
-  // Returns true if the page at |url| can use Pepper CameraDevice APIs.
-  virtual bool IsPluginAllowedToUseCameraDeviceAPI(const GURL& url);
 
   // Notifies that a document element has been inserted in the frame's document.
   // This may be called multiple times for the same document. This method may
@@ -443,8 +448,12 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual blink::WebFrame* FindFrame(blink::WebLocalFrame* relative_to_frame,
                                      const std::string& name);
 
-  // Returns true only if it's safe to redirect `from_url` to `to_url`.
-  virtual bool IsSafeRedirectTarget(const GURL& from_url, const GURL& to_url);
+  // Returns true only if it's safe to redirect `from_url` to `to_url`. May also
+  // check `request_initiator` depending on `to_url`.
+  virtual bool IsSafeRedirectTarget(
+      const GURL& from_url,
+      const GURL& to_url,
+      const std::optional<url::Origin>& request_initiator);
 
   // The user agent string is given from the browser process. This is called at
   // most once.

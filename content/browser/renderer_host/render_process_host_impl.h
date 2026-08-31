@@ -49,6 +49,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/process_allocation_context.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/common/buildflags.h"
 #include "media/gpu/buildflags.h"
 #include "media/mojo/mojom/interface_factory.mojom-forward.h"
 #include "media/mojo/mojom/video_decode_perf_history.mojom-forward.h"
@@ -65,7 +66,6 @@
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "mojo/public/cpp/system/invitation.h"
 #include "net/base/network_isolation_key.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/mojom/p2p.mojom-forward.h"
 #include "services/network/public/mojom/url_loader_factory.mojom-forward.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/memory_instrumentation.mojom.h"
@@ -151,7 +151,6 @@ class InProcessChildThreadParams;
 class IsolationContext;
 class MediaStreamTrackMetricsHost;
 class P2PSocketDispatcherHost;
-class PepperRendererConnection;
 class PermissionServiceContext;
 class PluginRegistryImpl;
 class ProcessLock;
@@ -286,9 +285,6 @@ class CONTENT_EXPORT RenderProcessHostImpl
   void SetSuddenTerminationAllowed(bool enabled) override;
   bool SuddenTerminationAllowed() override;
   IPC::ChannelProxy* GetChannel() override;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  void AddFilter(BrowserMessageFilter* filter) override;
-#endif
   bool FastShutdownStarted() override;
   base::TimeDelta GetChildProcessIdleTime() override;
   viz::GpuClient* GetGpuClient();
@@ -469,9 +465,20 @@ class CONTENT_EXPORT RenderProcessHostImpl
                                    bool empty_allowed,
                                    GURL* url);
 
-  // Returns the current count of renderer processes. For the count used when
-  // comparing against the process limit, see `GetProcessCountForLimit`.
-  static size_t GetProcessCount();
+  // Returns the current count of RenderProcessHost instances. Note that this is
+  // *not* the count of renderer processes, as a (potentially large) fraction of
+  // those can be either not initialized, or dead. For instance, on Android
+  // processes are frequently killed by the OS, and after session restore, not
+  // all tabs (and thus RenderProcessHost instances) are loaded (and thus the
+  // instances are not initialized).  To get the count of renderer processes,
+  // use `GetLiveCount()`. For the count used when comparing against the process
+  // limit, see `GetProcessCountForLimit`.
+  static size_t GetCount();
+
+  // Returns the current count of RPHs that have an "initialized and not dead"
+  // process. See the function comment for `GetCount()` to understand the
+  // difference.
+  static size_t GetLiveCount();
 
   // Returns the current process count for comparisons against
   // GetMaxRendererProcessCount, taking into account any processes the embedder
@@ -566,9 +573,10 @@ class CONTENT_EXPORT RenderProcessHostImpl
     kRefusedForPdfContent = 6,
     kRefusedForJitMismatch = 7,
     kRefusedForV8OptimizationMismatch = 8,
-    kMaxValue = kRefusedForV8OptimizationMismatch
+    kRefusedNonNavigation = 9,
+    kMaxValue = kRefusedNonNavigation
   };
-  // LINT.ThenChange(tools/metrics/histograms/metadata/browser/histograms.xml:SpareProcessMaybeTakeAction)
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/browser/histograms.xml:SpareProcessMaybeTakeAction)
 
   // Please keep in sync with "RenderProcessHostDelayShutdownReason" in
   // tools/metrics/histograms/metadata/browser/enums.xml. These values should
@@ -857,12 +865,6 @@ class CONTENT_EXPORT RenderProcessHostImpl
   void SetIpcSendWatcherForTesting(IpcSendWatcher watcher) {
     ipc_send_watcher_for_testing_ = std::move(watcher);
   }
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  PepperRendererConnection* pepper_renderer_connection() {
-    return pepper_renderer_connection_.get();
-  }
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // Notifies the renderer process of memory pressure level.
@@ -1312,6 +1314,9 @@ class CONTENT_EXPORT RenderProcessHostImpl
   // processes of same visibility. It indicates process has frames that
   // intersect with the viewport.
   bool intersects_viewport_ = false;
+  // |is_discarding_| is whether the renderer process is executing discard
+  // logic. This is effective only when WebContentsDiscard feature is enabled.
+  bool is_discarding_ = false;
 #if BUILDFLAG(IS_ANDROID)
   // Highest importance of all clients that contribute priority.
   ChildProcessImportance effective_importance_ = ChildProcessImportance::NORMAL;
@@ -1398,6 +1403,9 @@ class CONTENT_EXPORT RenderProcessHostImpl
 
   // Records the last time we regarded the child process active.
   base::TimeTicks child_process_activity_time_;
+
+  // The time that a shutdown of the renderer process was requested.
+  base::TimeTicks shutdown_start_time_;
 
   std::string unresponsive_document_javascript_call_stack_;
   blink::LocalFrameToken unresponsive_document_token_;
@@ -1550,10 +1558,6 @@ class CONTENT_EXPORT RenderProcessHostImpl
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
   // For the render process to connect to the system tracing service.
   std::unique_ptr<tracing::SystemTracingService> system_tracing_service_;
-#endif
-
-#if BUILDFLAG(ENABLE_PPAPI)
-  scoped_refptr<PepperRendererConnection> pepper_renderer_connection_;
 #endif
 
   // The memory size that the renderer has allocated. On Android

@@ -45,13 +45,17 @@ DesktopMediaListController::DesktopMediaListController(
       auto_select_window_(
           base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
               switches::kAutoSelectWindowCaptureSourceByTitle)),
+      auto_select_any_screen_(base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kAutoSelectScreenCaptureSource)),
       auto_select_source_(
           base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
               switches::kAutoSelectDesktopCaptureSource)),
       auto_accept_this_tab_capture_(ShouldAutoAcceptThisTabCapture()),
       auto_reject_this_tab_capture_(
           base::CommandLine::ForCurrentProcess()->HasSwitch(
-              switches::kThisTabCaptureAutoReject)) {
+              switches::kThisTabCaptureAutoReject)),
+      auto_reject_capture_(base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kCaptureAutoReject)) {
   DCHECK(dialog_);
   DCHECK(media_list_);
 }
@@ -316,6 +320,9 @@ bool DesktopMediaListController::ShouldAutoAccept(
              source.name.find(base::ASCIIToUTF16(auto_select_window_)) !=
                  std::u16string::npos) {
     return true;
+  } else if (auto_select_any_screen_ && media_list_->GetMediaListType() ==
+                                            DesktopMediaList::Type::kScreen) {
+    return true;
   }
 
   return (!auto_select_source_.empty() &&
@@ -328,5 +335,5 @@ bool DesktopMediaListController::ShouldAutoReject(
   if (media_list_->GetMediaListType() == DesktopMediaList::Type::kCurrentTab) {
     return auto_reject_this_tab_capture_;
   }
-  return false;
+  return auto_reject_capture_;
 }

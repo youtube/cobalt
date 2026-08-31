@@ -25,7 +25,7 @@ namespace webrtc {
 // Byte order is assumed big-endian/network.
 class BitBufferWriter {
  public:
-  static constexpr DataSize kMaxLeb128Length = webrtc::DataSize::Bytes(10);
+  static constexpr DataSize kMaxLeb128Length = DataSize::Bytes(10);
 
   // Constructs a bit buffer for the writable buffer of `bytes`.
   BitBufferWriter(uint8_t* bytes, size_t byte_count);
@@ -96,12 +96,5 @@ class BitBufferWriter {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::BitBufferWriter;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_BIT_BUFFER_H_

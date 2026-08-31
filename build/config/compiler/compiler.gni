@@ -32,6 +32,9 @@ declare_args() {
   # The default linker everywhere else.
   use_lld = is_clang && current_os != "zos"
 
+  # If false, build using C++20; otherwise, build using C++23.
+  use_cxx23 = false
+
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
   optimize_for_size =
@@ -44,6 +47,12 @@ declare_args() {
   # builds on Linux that could use a different version of the compiler.
   # With GCC, warnings in no-Chromium code are always not treated as errors.
   treat_warnings_as_errors = true
+
+  # How clang should report warnings, either false to report in the usual
+  # manner, or true to add source range information to the diagnostics in
+  # a form suitable for subsequent processing with scripts. With GCC, or
+  # on Windows, the warning format is not affected.
+  diagnostics_print_source_range_info = false
 
   # How many symbols to include in the build. This affects the performance of
   # the build since the symbols are large and dealing with them is slow.
@@ -126,9 +135,6 @@ declare_args() {
   use_ml_inliner = host_os == "linux" && is_android &&
                    !llvm_android_mainline  # https://crbug.com/1468680
 
-  # Set to true to use the android unwinder V2 implementation.
-  use_android_unwinder_v2 = true
-
   # Whether we should consider the profile we're using to be accurate. Accurate
   # profiles have the benefit of (potentially substantial) binary size
   # reductions, by instructing the compiler to optimize cold and uncovered
@@ -145,6 +151,11 @@ declare_args() {
   # Disabled by default because of binary size increase.
   # TODO(crbug.com/345541122): investigate the fuchsia binary size increase.
   use_sized_deallocation = is_clang && is_asan
+}
+
+if (is_cobalt) {
+  use_relative_vtables_abi =
+      sb_is_evergreen && (current_toolchain == default_toolchain)
 }
 
 # To try out this combination, delete this assert.
@@ -243,7 +254,7 @@ enable_arm_cfi_table = is_android && !is_component_build && current_cpu == "arm"
 # deterministic builds to reduce compile times, so this is less relevant for
 # official builders.
 strip_absolute_paths_from_debug_symbols_default =
-    is_android || is_fuchsia || is_nacl || (is_win && use_lld) || is_linux ||
+    is_android || is_fuchsia || (is_win && use_lld) || is_linux ||
     is_chromeos || (is_apple && !enable_dsyms)
 
 # If the platform uses stripped absolute paths by default, then we don't expose
@@ -280,10 +291,7 @@ compiler_logs += [ "clang_need_input_root_absolute_path_for_objc=$clang_need_inp
 # If it wasn't manually set, set to an appropriate default.
 assert(symbol_level >= -1 && symbol_level <= 2, "Invalid symbol_level")
 if (symbol_level == -1) {
-  if (is_android && !is_component_build && !use_debug_fission) {
-    # Prefer faster & smaller release builds.
-    symbol_level = 1
-  } else if (is_chromeos_device) {
+  if (is_chromeos_device) {
     # Use lower symbol level in Simple Chrome build for faster link time.
     # For Simple Chrome, this should take precedence over is_official_build,
     # turned on by --internal.
@@ -295,17 +303,26 @@ if (symbol_level == -1) {
     } else {
       symbol_level = 1
     }
+  } else if (is_official_build) {
+    # We want the best debug info we can get for in-the-wild crashes.
+    symbol_level = 2
+  } else if (is_android) {
+    # Prefer faster & smaller build times by default. gdb/lldb do not work well
+    # on Android, and many devs touch only Java, so this is a good default.
+    # symbol_level = 0 is even faster, but crashes then have incomplete stacks
+    # (missing frames and source lines).
+    symbol_level = 1
   } else if (using_sanitizer) {
     # Sanitizers need line table info for stack traces. They don't need type
     # info or variable info, so we can leave that out to speed up the build.
     # Sanitizers also require symbols for filename suppressions to work.
     symbol_level = 1
-  } else if ((!is_nacl && !is_linux && !is_chromeos && !is_fuchsia &&
-              current_os != "aix") || is_debug || is_official_build ||
-             is_castos || is_cast_android) {
+  } else if ((!is_linux && !is_chromeos && !is_fuchsia &&
+              current_os != "aix") || is_debug || is_castos ||
+             is_cast_android) {
     # Linux builds slower by having symbols as part of the target binary,
     # whereas Mac and Windows have them separate, so in Release Linux, default
-    # them off, but keep them on for Official builds and Chromecast builds.
+    # them off, but keep them on for Chromecast builds.
     symbol_level = 2
   } else {
     symbol_level = 0

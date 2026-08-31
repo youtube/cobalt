@@ -17,6 +17,7 @@
 #include "extensions/renderer/worker_thread_dispatcher.h"
 #include "gin/converter.h"
 #include "gin/per_isolate_data.h"
+#include "gin/public/wrappable_pointer_tags.h"
 #include "third_party/blink/public/web/web_console_message.h"
 #include "v8/include/v8-function-callback.h"
 #include "v8/include/v8-primitive.h"
@@ -36,8 +37,9 @@ void CheckWithMinidump(const std::string& message) {
 void BoundLogMethodCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   std::string message;
   for (int i = 0; i < info.Length(); ++i) {
-    if (i > 0)
+    if (i > 0) {
       message += " ";
+    }
     message += *v8::String::Utf8Value(info.GetIsolate(), info[i]);
   }
 
@@ -50,7 +52,9 @@ void BoundLogMethodCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   AddMessage(script_context, level, message);
 }
 
-gin::WrapperInfo kWrapperInfo = {gin::kEmbedderNativeGin};
+gin::WrapperInfo kWrapperInfo = {
+    {gin::kEmbedderNativeGin},
+    static_cast<gin::WrappablePointerTag>(v8::CppHeapPointerTag::kNullTag)};
 
 }  // namespace
 

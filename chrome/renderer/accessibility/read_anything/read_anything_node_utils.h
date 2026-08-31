@@ -12,6 +12,9 @@
 // ReadAnythingAppModel and ReadAloudAppModel.
 namespace a11y {
 
+// Max number of characters to display in a reading mode line of text.
+static constexpr int kMaxLineWidth = 60;
+
 // Returns whether the given node represents a superscript.
 bool IsSuperscript(const ui::AXNode* ax_node);
 
@@ -36,9 +39,6 @@ std::string GetHeadingHtmlTagForPDF(const ui::AXNode* ax_node,
 
 // Returns the alt text for the given node.
 std::string GetAltText(const ui::AXNode* ax_node);
-
-// Returns the image data url for the given node.
-std::string GetImageDataUrl(const ui::AXNode* ax_node);
 
 // Returns the text content for the given node. This needs to be a wrapper
 // instead of getting text from the node directly because the text content

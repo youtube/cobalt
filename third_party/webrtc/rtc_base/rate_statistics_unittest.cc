@@ -10,7 +10,10 @@
 
 #include "rtc_base/rate_statistics.h"
 
+#include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <optional>
 
 #include "test/gtest.h"
 
@@ -18,7 +21,7 @@ namespace {
 
 using webrtc::RateStatistics;
 
-const int64_t kWindowMs = 500;
+constexpr int64_t kWindowMs = 500;
 
 class RateStatisticsTest : public ::testing::Test {
  protected:

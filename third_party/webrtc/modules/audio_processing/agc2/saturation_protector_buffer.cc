@@ -10,6 +10,8 @@
 
 #include "modules/audio_processing/agc2/saturation_protector_buffer.h"
 
+#include <optional>
+
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_compare.h"
 

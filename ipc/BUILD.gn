@@ -4,23 +4,17 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
-import("//build/config/nacl/config.gni")
 import("//ipc/features.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//testing/test.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 
-buildflag_header("ipc_buildflags") {
-  header = "ipc_buildflags.h"
-
-  flags = [ "IPC_MESSAGE_LOG_ENABLED=$enable_ipc_logging" ]
-}
-
 component("ipc") {
   sources = [
     # These are the param_traits sources needed by all platforms,
     # including ios. The rest are added in a conditional block below.
+    "ipc_channel.cc",
     "ipc_message_utils.cc",
     "ipc_message_utils.h",
     "ipc_mojo_param_traits.cc",
@@ -29,7 +23,6 @@ component("ipc") {
     "param_traits_macros.h",
     "param_traits_read_macros.h",
     "param_traits_write_macros.h",
-    "struct_constructor_macros.h",
     "tracing_helpers.h",
     "tracing_helpers_internal.h",
   ]
@@ -47,12 +40,8 @@ component("ipc") {
       "ipc_channel_mojo.h",
       "ipc_channel_proxy.cc",
       "ipc_channel_proxy.h",
-      "ipc_channel_reader.cc",
-      "ipc_channel_reader.h",
       "ipc_listener.cc",
       "ipc_listener.h",
-      "ipc_logging.cc",
-      "ipc_logging.h",
       "ipc_message_macros.h",
       "ipc_message_pipe_reader.cc",
       "ipc_message_pipe_reader.h",
@@ -64,35 +53,18 @@ component("ipc") {
       "ipc_sender.h",
       "ipc_sync_channel.cc",
       "ipc_sync_channel.h",
-      "ipc_sync_message_filter.cc",
-      "ipc_sync_message_filter.h",
-      "message_filter.cc",
-      "message_filter.h",
-      "message_filter_router.cc",
-      "message_filter_router.h",
-      "message_router.cc",
-      "message_router.h",
       "trace_ipc_message.cc",
       "trace_ipc_message.h",
       "urgent_message_observer.h",
     ]
   }
 
-  if (is_nacl) {
-    sources += [
-      "ipc_channel_nacl.cc",
-      "ipc_channel_nacl.h",
-    ]
-  } else {
-    sources += [ "ipc_channel.cc" ]
-  }
-
   defines = [ "IS_IPC_IMPL" ]
 
   public_deps = [
-    ":ipc_buildflags",
     ":message_support",
     ":mojom",
+    ":mojom_constants",
     ":native_handle_type_converters",
     ":param_traits",
     "//base",
@@ -163,7 +135,6 @@ component("message_support") {
   defines = [ "IPC_MESSAGE_SUPPORT_IMPL" ]
 
   public_deps = [
-    ":ipc_buildflags",
     ":param_traits",
     "//base",
     "//mojo/public/cpp/system",
@@ -251,22 +222,6 @@ source_set("protobuf_support") {
   ]
 }
 
-static_library("test_sink") {
-  testonly = true
-  sources = [
-    "ipc_security_test_util.cc",
-    "ipc_security_test_util.h",
-    "ipc_test_sink.cc",
-    "ipc_test_sink.h",
-  ]
-  public_deps = [ ":ipc" ]
-  deps = [
-    "//base",
-    "//base/test:test_support",
-    "//mojo/core/test:test_support",
-  ]
-}
-
 if (use_blink) {
   source_set("run_all_unittests") {
     testonly = true
@@ -294,8 +249,6 @@ if (use_blink) {
   test("ipc_tests") {
     sources = [
       "ipc_channel_mojo_unittest.cc",
-      "ipc_channel_proxy_unittest.cc",
-      "ipc_channel_reader_unittest.cc",
       "ipc_fuzzing_tests.cc",
       "ipc_message_protobuf_utils_unittest.cc",
       "ipc_message_unittest.cc",
@@ -310,9 +263,6 @@ if (use_blink) {
 
     if (is_posix || is_fuchsia) {
       sources += [ "ipc_message_attachment_set_posix_unittest.cc" ]
-      if (!is_ios) {
-        sources += [ "ipc_send_fds_test.cc" ]
-      }
     }
 
     if (is_win) {
@@ -375,10 +325,7 @@ if (use_blink) {
       "ipc_test_channel_listener.cc",
       "ipc_test_channel_listener.h",
     ]
-    public_deps = [
-      ":ipc",
-      ":test_sink",
-    ]
+    public_deps = [ ":ipc" ]
     deps = [
       "//base",
       "//base/test:test_support",

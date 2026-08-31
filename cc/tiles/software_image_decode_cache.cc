@@ -11,7 +11,6 @@
 #include <string>
 #include <utility>
 
-#include "base/debug/stack_trace.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
@@ -118,7 +117,7 @@ class SoftwareImageDecodeTaskImpl : public TileTask {
   ~SoftwareImageDecodeTaskImpl() override = default;
 
  private:
-  raw_ptr<SoftwareImageDecodeCache, AcrossTasksDanglingUntriaged> cache_;
+  raw_ptr<SoftwareImageDecodeCache> cache_;
   SoftwareImageDecodeCache::CacheKey image_key_;
   PaintImage paint_image_;
   ImageDecodeCache::TaskType task_type_;

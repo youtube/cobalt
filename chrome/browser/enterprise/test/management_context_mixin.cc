@@ -43,22 +43,15 @@ ManagementContextMixin::ManagementContextMixin(
     ManagementContext management_context)
     : InProcessBrowserTestMixin(host),
       test_base_(test_base),
-      management_context_(std::move(management_context)) {}
-
-ManagementContextMixin::~ManagementContextMixin() = default;
-
-void ManagementContextMixin::SetUpInProcessBrowserTestFixture() {
-  InProcessBrowserTestMixin::SetUpInProcessBrowserTestFixture();
-  if (management_context_.is_cloud_machine_managed) {
-    ManageCloudMachine();
-  }
-
+      management_context_(std::move(management_context)) {
   user_policy_provider_.SetDefaultReturns(
       /*is_initialization_complete_return=*/true,
       /*is_first_policy_load_complete_return=*/true);
   policy::BrowserPolicyConnector::SetPolicyProviderForTesting(
       &user_policy_provider_);
 }
+
+ManagementContextMixin::~ManagementContextMixin() = default;
 
 void ManagementContextMixin::ManageCloudUser() {
   // User is now managed. Derived classes are expected to have more logic.
@@ -79,11 +72,6 @@ void ManagementContextMixin::SetCloudUserPolicies(
   MergeNewChromePolicies(policy_map);
 }
 
-void ManagementContextMixin::ManageCloudMachine() {
-  // Machine is now managed. Derived classes are expected to have more logic.
-  management_context_.is_cloud_machine_managed = true;
-}
-
 std::unique_ptr<enterprise_management::PolicyData>
 ManagementContextMixin::GetBaseUserPolicyData() const {
   const auto* user_customer_id =
@@ -94,6 +82,8 @@ ManagementContextMixin::GetBaseUserPolicyData() const {
   user_policy_data->add_user_affiliation_ids(user_customer_id);
   user_policy_data->set_username(kTestUserEmail);
   user_policy_data->set_gaia_id(kTestUserId);
+  user_policy_data->set_device_id(kProfileClientId);
+  user_policy_data->set_request_token(kProfileDmToken);
   return user_policy_data;
 }
 

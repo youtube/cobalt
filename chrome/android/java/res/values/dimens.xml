@@ -41,6 +41,8 @@ found in the LICENSE file.
     <dimen name="contextual_search_term_caption_spacing">
         @dimen/overlay_panel_caption_spacing
     </dimen>
+    <dimen name="contextual_search_callout_icon_size">36dp</dimen>
+    <dimen name="contextual_search_callout_icon_margin">12dp</dimen>
     <dimen name="contextual_search_padded_button_width">
       @dimen/overlay_panel_padded_button_width
     </dimen>
@@ -73,12 +75,6 @@ found in the LICENSE file.
     <!-- Autofill keyboard accessory dimensions -->
     <dimen name="keyboard_accessory_height_with_shadow">56dp</dimen>
     <dimen name="keyboard_accessory_sheet_height">330dp</dimen>
-
-    <!-- Password entry editor dimensions -->
-    <dimen name="password_entry_editor_content_spacing">12dp</dimen>
-    <dimen name="password_entry_editor_field_bottom_margin">8dp</dimen>
-    <dimen name="password_entry_editor_field_large_top_margin">16dp</dimen>
-    <dimen name="password_entry_editor_field_top_margin">8dp</dimen>
 
     <!-- Password manager illustration dialogs -->
     <dimen name="password_manager_dialog_padding">8dp</dimen>
@@ -202,6 +198,8 @@ found in the LICENSE file.
     <!-- Bookmark widget dimensions -->
     <dimen name="bookmark_widget_min_width">64dp</dimen>
     <dimen name="bookmark_widget_min_height">48dp</dimen>
+    <dimen name="bookmark_widget_section_header_min_height">32dp</dimen>
+    <dimen name="bookmark_widget_section_header_padding_start">20dp</dimen>
 
     <!-- Bookmark bar -->
     <dimen name="bookmark_bar_button_padding_horizontal">8dp</dimen>
@@ -224,12 +222,15 @@ found in the LICENSE file.
     <dimen name="custom_tabs_toolbar_button_spacer_24">24dp</dimen>
     <dimen name="custom_tabs_toolbar_button_spacer_16">16dp</dimen>
     <dimen name="custom_tabs_toolbar_button_spacer_8">8dp</dimen>
-    <dimen name="custom_tabs_adaptive_button_fg_padding_start">18dp</dimen>
-    <dimen name="custom_tabs_adaptive_button_bg_padding_start">12dp</dimen>
-    <dimen name="custom_tabs_adaptive_button_bg_padding_end">0dp</dimen>
+    <dimen name="custom_tabs_adaptive_button_fg_padding_start">16dp</dimen>
+    <dimen name="custom_tabs_adaptive_button_bg_height">36dp</dimen>
+    <dimen name="custom_tabs_adaptive_button_bg_padding_start">10dp</dimen>
+    <dimen name="custom_tabs_adaptive_button_bg_padding_end">2dp</dimen>
     <dimen name="custom_tabs_adaptive_button_bg_padding_vert">10dp</dimen>
     <dimen name="custom_tabs_toolbar_vertical_padding">16dp</dimen>
     <dimen name="custom_tabs_toolbar_horizontal_margin_no_start">8dp</dimen>
+    <dimen name="custom_tabs_toolbar_menu_dot_top_margin">6dp</dimen>
+    <dimen name="custom_tabs_toolbar_menu_dot_end_margin">10dp</dimen>
     <dimen name="min_toolbar_icon_side_padding">6dp</dimen>
     <dimen name="custom_tabs_url_text_size">12sp</dimen>
     <dimen name="custom_tabs_title_text_size">16sp</dimen>

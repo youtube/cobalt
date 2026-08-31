@@ -4,8 +4,8 @@
 
 import("//chromeos/ash/components/assistant/assistant.gni")
 import("//media/gpu/args.gni")
+import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
-import("//ppapi/buildflags/buildflags.gni")
 
 mojom("mojom") {
   generate_java = true
@@ -15,13 +15,13 @@ mojom("mojom") {
   ]
 
   enabled_features = []
-  if (enable_ppapi && !is_win) {
-    enabled_features += [ "enable_ppapi_sandbox" ]
-  }
   if (enable_cros_libassistant) {
     enabled_features += [ "enable_cros_libassistant" ]
   }
   if (use_linux_video_acceleration) {
     enabled_features += [ "enable_oop_video_accelerators" ]
+  }
+  if (allow_oop_video_decoder) {
+    enabled_features += [ "enable_oop_video_decoder" ]
   }
 }

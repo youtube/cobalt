@@ -16,6 +16,7 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -75,10 +76,18 @@ void BrowserWithTestWindowTest::SetUp() {
     ash::disks::DiskMountManager::InitializeForTesting(
         new ash::disks::FakeDiskMountManager());
   }
+
+  // Construct AshTestHelper here so that SessionManager gets created before
+  // UserManager (as in production).
+  ash_test_helper_.emplace();
+
   if (!user_manager::UserManager::IsInitialized()) {
     user_manager_.Reset(std::make_unique<user_manager::FakeUserManager>(
         g_browser_process->local_state()));
   }
+  session_manager::SessionManager::Get()->OnUserManagerCreated(
+      user_manager::UserManager::Get());
+
   {
     ash::AshTestHelper::InitParams ash_init;
     ash_init.local_state = g_browser_process->local_state();
@@ -88,7 +97,7 @@ void BrowserWithTestWindowTest::SetUp() {
     // TestingProfile.
     ash_init.auto_create_prefs_services = false;
 
-    ash_test_helper_.SetUp(std::move(ash_init));
+    ash_test_helper_->SetUp(std::move(ash_init));
   }
 #endif
 
@@ -101,7 +110,7 @@ void BrowserWithTestWindowTest::SetUp() {
 #endif
 
   user_performance_tuning_manager_environment_.SetUp(
-      profile_manager_->local_state()->Get());
+      TestingBrowserProcess::GetGlobal()->local_state());
 
 #if BUILDFLAG(IS_CHROMEOS)
   manager_ = std::make_unique<crosapi::CrosapiManager>();
@@ -114,7 +123,7 @@ void BrowserWithTestWindowTest::SetUp() {
 #if BUILDFLAG(IS_CHROMEOS)
     LogIn(*profile_name, GaiaId("fakegaia"));
 #endif
-    profile_ = CreateProfile(*profile_name);
+    profile_ = CreateProfile(*profile_name)->GetWeakPtr();
 #if BUILDFLAG(IS_CHROMEOS)
     SwitchActiveUser(*profile_name);
 #endif
@@ -134,6 +143,7 @@ void BrowserWithTestWindowTest::TearDown() {
   // Close the browser tabs and destroy the browser and window instances.
   if (browser_) {
     browser_->tab_strip_model()->CloseAllTabs();
+    browser_->GetFeatures().TearDownPreBrowserWindowDestruction();
     browser_.reset();
   }
   window_.reset();
@@ -155,7 +165,7 @@ void BrowserWithTestWindowTest::TearDown() {
   user_performance_tuning_manager_environment_.TearDown();
 
 #if BUILDFLAG(IS_CHROMEOS)
-  ash_test_helper_.TearDown();
+  ash_test_helper_->TearDown();
 #endif
 
   // Calling DeleteAllTestingProfiles() first can cause issues in some tests, if
@@ -164,6 +174,10 @@ void BrowserWithTestWindowTest::TearDown() {
   profile_manager_.reset();
 
 #if BUILDFLAG(IS_CHROMEOS)
+  // To match production behavior, AshTestHelper (containing e.g.
+  // SessionManager) must be destroyed before UserManager even though it got
+  // created first.
+  ash_test_helper_.reset();
   test_views_delegate_.reset();
   user_manager_.Reset();
   ash::disks::DiskMountManager::Shutdown();
@@ -196,7 +210,7 @@ void BrowserWithTestWindowTest::SetUpProfileManager(
 
 gfx::NativeWindow BrowserWithTestWindowTest::GetContext() {
 #if BUILDFLAG(IS_CHROMEOS)
-  return ash_test_helper_.GetContext();
+  return ash_test_helper_->GetContext();
 #elif defined(TOOLKIT_VIEWS)
   return views_test_helper_->GetContext();
 #else
@@ -301,7 +315,7 @@ std::unique_ptr<Browser> BrowserWithTestWindowTest::CreateBrowser(
     params.type = browser_type;
   }
   params.window = browser_window;
-  return std::unique_ptr<Browser>(Browser::Create(params));
+  return Browser::DeprecatedCreateOwnedForTesting(params);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -309,21 +323,29 @@ void BrowserWithTestWindowTest::LogIn(std::string_view email,
                                       const GaiaId& gaia_id) {
   const AccountId account_id = AccountId::FromUserEmailGaiaId(email, gaia_id);
   user_manager_->AddGaiaUser(account_id, user_manager::UserType::kRegular);
-  user_manager_->UserLoggedIn(
-      account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id));
+  session_manager::SessionManager::Get()->CreateSession(
+      account_id, user_manager::TestHelper::GetFakeUsernameHash(account_id),
+      /*new_user=*/false,
+      /*has_active_session=*/false);
 }
 
 void BrowserWithTestWindowTest::OnUserProfileCreated(const std::string& email,
                                                      Profile* profile) {
   CHECK(profile);
+
+  auto* user_manager = user_manager::UserManager::Get();
+  const AccountId account_id =
+      user_manager->FindUser(AccountId::FromUserEmail(email))->GetAccountId();
   // TODO(b/40225390): Unset for_test explicit param after subclasses are
   // migrated.
-  AccountId account_id = AccountId::FromUserEmail(email);
-  ash::AnnotatedAccountId::Set(profile, account_id,
-                               /*for_test=*/false);
+  // Some subclasses are migrated to annotate it at earlier stage,
+  // so annotate it only when it is not yet for transition period.
+  if (!ash::AnnotatedAccountId::Get(profile)) {
+    ash::AnnotatedAccountId::Set(profile, account_id,
+                                 /*for_test=*/false);
+  }
   // Do not use the member directly, because another UserManager instance
   // may be injected.
-  auto* user_manager = user_manager::UserManager::Get();
   user_manager->OnUserProfileCreated(account_id, profile->GetPrefs());
   GetSessionControllerClient()->SetUnownedUserPrefService(account_id,
                                                           profile->GetPrefs());

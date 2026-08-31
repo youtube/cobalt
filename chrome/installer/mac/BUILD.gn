@@ -86,8 +86,8 @@ copy("copies") {
     "//chrome:entitlements",
     "//chrome/installer/mac/third_party/bsdiff:goobsdiff",
     "//chrome/installer/mac/third_party/bsdiff:goobspatch",
+    "//chrome/installer/mac/third_party/xz",
     "//chrome/installer/mac/third_party/xz:lzma_decompress",
-    "//chrome/installer/mac/third_party/xz:xz",
     "//chrome/installer/mac/third_party/xz:xzdec",
   ]
 
@@ -113,12 +113,12 @@ copy("copies") {
   if (is_chrome_branded) {
     deps += [ ":copy_widevine_signing" ]
     sources += [
+      "//chrome/app/theme/google_chrome/mac/Assets_beta.car",
+      "//chrome/app/theme/google_chrome/mac/Assets_canary.car",
+      "//chrome/app/theme/google_chrome/mac/Assets_dev.car",
       "//chrome/app/theme/google_chrome/mac/app_beta.icns",
       "//chrome/app/theme/google_chrome/mac/app_canary.icns",
       "//chrome/app/theme/google_chrome/mac/app_dev.icns",
-      "//chrome/app/theme/google_chrome/mac/document_beta.icns",
-      "//chrome/app/theme/google_chrome/mac/document_canary.icns",
-      "//chrome/app/theme/google_chrome/mac/document_dev.icns",
       "internal/Google_Chrome.765bb3620a0f7a33500da39b20122b1cec41140f.provisionprofile",
       "internal/Google_Chrome.e809e0e54407d4f3914b7883b7ed28650316ac2e.provisionprofile",
       "internal/Google_Chrome_Beta.765bb3620a0f7a33500da39b20122b1cec41140f.provisionprofile",

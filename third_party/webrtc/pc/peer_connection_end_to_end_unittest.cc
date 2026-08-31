@@ -8,9 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -73,7 +72,7 @@ using ::webrtc::SdpSemantics;
 
 namespace {
 
-const int kMaxWait = 25000;
+constexpr int kMaxWait = 25000;
 
 }  // namespace
 

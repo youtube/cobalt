@@ -30,6 +30,7 @@ import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.PackageManagerUtils;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browserservices.SessionDataHolder;
 import org.chromium.chrome.browser.browserservices.intents.SessionHolder;
 import org.chromium.chrome.browser.browserservices.ui.splashscreen.trustedwebactivity.TwaSplashController;
@@ -385,25 +386,9 @@ public class LaunchIntentDispatcher {
                 "CustomTabs.Startup.StartedNavigationEarly", startedNavigationEarly);
         if (!startedNavigationEarly) maybePrefetchDnsInBackground();
 
-        // Strip EXTRA_CALLING_ACTIVITY_PACKAGE/EXTRA_LAUNCHED_FROM_PACKAGE if present on
-        // the original intent so that it cannot be spoofed by CCT client apps.
-        IntentUtils.safeRemoveExtra(mIntent, IntentHandler.EXTRA_CALLING_ACTIVITY_PACKAGE);
-        IntentUtils.safeRemoveExtra(mIntent, IntentHandler.EXTRA_LAUNCHED_FROM_PACKAGE);
-
         Intent intent = new Intent(mIntent);
-        String packageName = mActivity.getCallingPackage(); // from startActivityForResult
-        String packageNameIdentitySharing = getCallingPackageIdentitySharing();
-        if (packageName == null) packageName = packageNameIdentitySharing;
-        if (packageName != null) {
-            intent.putExtra(IntentHandler.EXTRA_CALLING_ACTIVITY_PACKAGE, packageName);
-        }
+        boolean identityShared = maybePutCallingAppPackage(intent);
 
-        // Pass the package name obtained via identity sharing API separately from the one
-        // obtained via startActivityForResult.
-        boolean identityShared = packageNameIdentitySharing != null;
-        if (identityShared) {
-            intent.putExtra(IntentHandler.EXTRA_LAUNCHED_FROM_PACKAGE, packageNameIdentitySharing);
-        }
         // Create and fire a launch intent.
         Intent launchIntent = createCustomTabActivityIntent(mActivity, intent);
         Uri extraReferrer = mActivity.getReferrer();
@@ -420,6 +405,28 @@ public class LaunchIntentDispatcher {
         mActivity.startActivity(launchIntent, null);
         RecordHistogram.recordBooleanHistogram("CustomTabs.IdentityShared", identityShared);
         return true;
+    }
+
+    // Pass the target Activity the package name of the calling app.
+    // EXTRA_LAUNCHED_FROM_PACKAGE: set only when identity sharing is enabled by the calling app
+    // EXTRA_CALLING_ACTIVITY_PACKAGE: from either startActivityForResult or identity sharing
+    private boolean maybePutCallingAppPackage(Intent intent) {
+        // Strip EXTRA_CALLING_ACTIVITY_PACKAGE/EXTRA_LAUNCHED_FROM_PACKAGE if present on
+        // the original intent so that it cannot be spoofed by CCT client apps.
+        IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_CALLING_ACTIVITY_PACKAGE);
+        IntentUtils.safeRemoveExtra(intent, IntentHandler.EXTRA_LAUNCHED_FROM_PACKAGE);
+
+        String packageName = mActivity.getCallingPackage();
+        String packageNameIdentitySharing = getCallingPackageIdentitySharing();
+        if (packageName == null) packageName = packageNameIdentitySharing;
+        if (packageName != null) {
+            intent.putExtra(IntentHandler.EXTRA_CALLING_ACTIVITY_PACKAGE, packageName);
+        }
+        boolean hasIdentitySharingPackageName = packageNameIdentitySharing != null;
+        if (hasIdentitySharingPackageName) {
+            intent.putExtra(IntentHandler.EXTRA_LAUNCHED_FROM_PACKAGE, packageNameIdentitySharing);
+        }
+        return hasIdentitySharingPackageName;
     }
 
     private boolean maybeStartNavigation() {
@@ -483,7 +490,7 @@ public class LaunchIntentDispatcher {
 
         if (Intent.ACTION_VIEW.equals(newIntent.getAction())
                 && !IntentHandler.wasIntentSenderChrome(newIntent)) {
-            if (!chromeTabbedTaskExists()) {
+            if (!chromeTabbedTaskExists(mActivity)) {
                 newIntent.putExtra(IntentHandler.EXTRA_STARTED_TABBED_CHROME_TASK, true);
             }
             if ((newIntent.getFlags() & Intent.FLAG_ACTIVITY_NEW_TASK) != 0) {
@@ -494,7 +501,7 @@ public class LaunchIntentDispatcher {
             }
             RecordHistogram.recordBooleanHistogram(
                     "Android.Intent.HasNonSpoofablePackageName", hasNonSpoofablePackageName());
-            boolean identityShared = getCallingPackageIdentitySharing() != null;
+            boolean identityShared = maybePutCallingAppPackage(newIntent);
             RecordHistogram.recordBooleanHistogram("Android.Intent.IdentityShared", identityShared);
         }
 
@@ -544,7 +551,7 @@ public class LaunchIntentDispatcher {
             if (isContentScheme) {
                 Toast.makeText(
                                 mActivity,
-                                org.chromium.chrome.R.string.external_app_restricted_access_error,
+                                R.string.external_app_restricted_access_error,
                                 Toast.LENGTH_LONG)
                         .show();
             } else {
@@ -555,7 +562,13 @@ public class LaunchIntentDispatcher {
         return Action.FINISH_ACTIVITY;
     }
 
-    private boolean chromeTabbedTaskExists() {
+    /**
+     * Checks if a Chrome tabbed task currently exists, either in the foreground or background.
+     *
+     * @param context The application context.
+     * @return whether a Chrome tabbed task is found (either running or in recent tasks).
+     */
+    public static boolean chromeTabbedTaskExists(Context context) {
         // Fast check for a running Chrome instance.
         for (Activity activity : ApplicationStatus.getRunningActivities()) {
             if (activity instanceof ChromeTabbedActivity) return true;
@@ -564,7 +577,7 @@ public class LaunchIntentDispatcher {
         try {
             Set<RecentTaskInfo> recentTaskInfos =
                     AndroidTaskUtils.getRecentTaskInfosMatchingComponentNames(
-                            mActivity, ChromeTabbedActivity.TABBED_MODE_COMPONENT_NAMES);
+                            context, ChromeTabbedActivity.TABBED_MODE_COMPONENT_NAMES);
             return !recentTaskInfos.isEmpty();
         } catch (SecurityException ex) {
             // If we can't query task status, assume a Chrome task exists so this doesn't

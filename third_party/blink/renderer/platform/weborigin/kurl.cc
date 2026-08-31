@@ -38,6 +38,7 @@
 #include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_statics.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_utf8_adaptor.h"
@@ -78,7 +79,7 @@ const char* AsURLChar8Subtle(const String& spec) {
 // Returns the characters for the given string, or a pointer to a static empty
 // string if the input string is null. This will always ensure we have a non-
 // null character pointer since ReplaceComponents has special meaning for null.
-const char* CharactersOrEmpty(const StringUTF8Adaptor& string) {
+const char* CharactersOrEmpty(const StringUtf8Adaptor& string) {
   static const char kZero = 0;
   return string.data() ? string.data() : &kZero;
 }
@@ -92,8 +93,8 @@ bool IsSchemeChar(char c) {
          c == '-' || c == '+';
 }
 
-bool IsUnicodeEncoding(const WTF::TextEncoding* encoding) {
-  return encoding->EncodingForFormSubmission() == UTF8Encoding();
+bool IsUnicodeEncoding(const TextEncoding* encoding) {
+  return encoding->EncodingForFormSubmission() == Utf8Encoding();
 }
 
 class KURLCharsetConverter final : public url::CharsetConverter {
@@ -102,18 +103,18 @@ class KURLCharsetConverter final : public url::CharsetConverter {
  public:
   // The encoding parameter may be 0, but in this case the object must not be
   // called.
-  explicit KURLCharsetConverter(const WTF::TextEncoding* encoding)
+  explicit KURLCharsetConverter(const TextEncoding* encoding)
       : encoding_(encoding) {}
 
   void ConvertFromUTF16(std::u16string_view input,
                         url::CanonOutput* output) override {
     std::string encoded = encoding_->Encode(
-        String(input), WTF::kURLEncodedEntitiesForUnencodables);
+        String(input), UnencodableHandling::kURLEncodedEntitiesForUnencodables);
     output->Append(encoded);
   }
 
  private:
-  raw_ptr<const WTF::TextEncoding> encoding_;
+  raw_ptr<const TextEncoding> encoding_;
 };
 
 }  // namespace
@@ -196,7 +197,7 @@ bool KURL::IsAboutURL(const char* allowed_path) const {
   }
 
   StringView path = ComponentStringView(parsed_.path);
-  StringUTF8Adaptor path_utf8(path);
+  StringUtf8Adaptor path_utf8(path);
   return GURL::IsAboutPath(path_utf8.AsStringView(), allowed_path);
 }
 
@@ -219,7 +220,7 @@ String KURL::ElidedString() const {
     return string;
   }
 
-  return string.Left(511) + "..." + string.Right(510);
+  return StrCat({string.Left(511), "...", string.Right(510)});
 }
 
 KURL::KURL() : is_valid_(false), protocol_is_in_http_family_(false) {}
@@ -260,7 +261,7 @@ KURL::KURL(const KURL& base, const String& relative) {
 // Any query portion of the relative URL will be encoded in the given encoding.
 KURL::KURL(const KURL& base,
            const String& relative,
-           const WTF::TextEncoding& encoding) {
+           const TextEncoding& encoding) {
   Init(base, relative, &encoding.EncodingForFormSubmission());
   AssertStringSpecIsASCII();
 }
@@ -476,7 +477,7 @@ bool KURL::SetProtocol(const String& protocol) {
   // Firefox and IE remove everything after the first ':'.
   wtf_size_t separator_position = protocol.find(':');
   String new_protocol = protocol.Substring(0, separator_position);
-  StringUTF8Adaptor new_protocol_utf8(new_protocol);
+  StringUtf8Adaptor new_protocol_utf8(new_protocol);
 
   // If KURL is given an invalid scheme, it returns failure without modifying
   // the URL at all. This is in contrast to most other setters which modify
@@ -578,7 +579,7 @@ void KURL::SetHost(const String& input) {
   String host = RemoveURLWhitespace(input);
   wtf_size_t value_end = FindHostEnd(host, IsStandard());
   String truncated_host = host.Substring(0, value_end);
-  StringUTF8Adaptor host_utf8(truncated_host);
+  StringUtf8Adaptor host_utf8(truncated_host);
   url::Replacements<char> replacements;
   replacements.SetHost(CharactersOrEmpty(host_utf8),
                        url::Component(0, host_utf8.size()));
@@ -625,7 +626,7 @@ void KURL::SetHostAndPort(const String& input) {
   // Replace host first.
   {
     url::Replacements<char> replacements;
-    StringUTF8Adaptor host_utf8(host);
+    StringUtf8Adaptor host_utf8(host);
     replacements.SetHost(CharactersOrEmpty(host_utf8),
                          url::Component(0, host_utf8.size()));
     ReplaceComponents(replacements);
@@ -634,7 +635,7 @@ void KURL::SetHostAndPort(const String& input) {
   // Replace port next.
   if (is_valid_ && !port.empty()) {
     url::Replacements<char> replacements;
-    StringUTF8Adaptor port_utf8(port);
+    StringUtf8Adaptor port_utf8(port);
     replacements.SetPort(CharactersOrEmpty(port_utf8),
                          url::Component(0, port_utf8.size()));
     ReplaceComponents(replacements, /*preserve_validity=*/true);
@@ -649,18 +650,19 @@ void KURL::RemovePort() {
   ReplaceComponents(replacements);
 }
 
-void KURL::SetPort(const String& input) {
+bool KURL::SetPort(const String& input) {
   String port = RemoveURLWhitespace(input);
   String parsed_port = ParsePortFromStringPosition(port, 0);
   if (parsed_port.empty()) {
-    return;
+    return false;
   }
   bool to_uint_ok;
   unsigned port_value = parsed_port.ToUInt(&to_uint_ok);
   if (port_value > UINT16_MAX || !to_uint_ok) {
-    return;
+    return false;
   }
   SetPort(port_value);
+  return true;
 }
 
 void KURL::SetPort(uint16_t port) {
@@ -689,7 +691,7 @@ void KURL::SetUser(const String& user) {
   //
   // Unlike other setters, we do not remove whitespace per spec:
   // https://url.spec.whatwg.org/#dom-url-username
-  StringUTF8Adaptor user_utf8(user);
+  StringUtf8Adaptor user_utf8(user);
   url::Replacements<char> replacements;
   replacements.SetUsername(CharactersOrEmpty(user_utf8),
                            url::Component(0, user_utf8.size()));
@@ -707,7 +709,7 @@ void KURL::SetPass(const String& pass) {
   //
   // Unlike other setters, we do not remove whitespace per spec:
   // https://url.spec.whatwg.org/#dom-url-password
-  StringUTF8Adaptor pass_utf8(pass);
+  StringUtf8Adaptor pass_utf8(pass);
   url::Replacements<char> replacements;
   replacements.SetPassword(CharactersOrEmpty(pass_utf8),
                            url::Component(0, pass_utf8.size()));
@@ -721,7 +723,7 @@ void KURL::SetFragmentIdentifier(const String& input) {
     return;
 
   String fragment = RemoveURLWhitespace(input);
-  StringUTF8Adaptor fragment_utf8(fragment);
+  StringUtf8Adaptor fragment_utf8(fragment);
 
   url::Replacements<char> replacements;
   if (fragment.IsNull()) {
@@ -741,7 +743,7 @@ void KURL::RemoveFragmentIdentifier() {
 
 void KURL::SetQuery(const String& input) {
   String query = RemoveURLWhitespace(input);
-  StringUTF8Adaptor query_utf8(query);
+  StringUtf8Adaptor query_utf8(query);
   url::Replacements<char> replacements;
   if (query.IsNull()) {
     // KURL.cpp sets to null to clear any query.
@@ -768,7 +770,7 @@ void KURL::SetPath(const String& input) {
   // Empty paths will be canonicalized to "/", so we don't have to worry
   // about calling ClearPath().
   String path = RemoveURLWhitespace(input);
-  StringUTF8Adaptor path_utf8(path);
+  StringUtf8Adaptor path_utf8(path);
   url::Replacements<char> replacements;
   replacements.SetPath(CharactersOrEmpty(path_utf8),
                        url::Component(0, path_utf8.size()));
@@ -776,15 +778,15 @@ void KURL::SetPath(const String& input) {
 }
 
 String DecodeURLEscapeSequences(const StringView& string, DecodeURLMode mode) {
-  StringUTF8Adaptor string_utf8(string);
+  StringUtf8Adaptor string_utf8(string);
   url::RawCanonOutputT<char16_t> unescaped;
   url::DecodeURLEscapeSequences(string_utf8.AsStringView(), mode, &unescaped);
   return StringImpl::Create8BitIfPossible(unescaped.view());
 }
 
 String EncodeWithURLEscapeSequences(const StringView& not_encoded_string) {
-  std::string utf8 =
-      UTF8Encoding().Encode(not_encoded_string, WTF::kNoUnencodables);
+  std::string utf8 = Utf8Encoding().Encode(
+      not_encoded_string, UnencodableHandling::kNoUnencodables);
 
   url::RawCanonOutputT<char> buffer;
   size_t input_length = utf8.length();
@@ -799,7 +801,7 @@ String EncodeWithURLEscapeSequences(const StringView& not_encoded_string) {
 }
 
 bool HasInvalidURLEscapeSequences(const String& string) {
-  StringUTF8Adaptor string_utf8(string);
+  StringUtf8Adaptor string_utf8(string);
   return url::HasInvalidURLEscapeSequences(string_utf8.AsStringView());
 }
 
@@ -812,26 +814,20 @@ bool KURL::CanSetPathname() const {
 }
 
 bool KURL::CanRemoveHost() const {
-  if (url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    return IsHierarchical() && !IncludesCredentials() && !HasPort();
-  }
-  return false;
+  return IsHierarchical() && !IncludesCredentials() && !HasPort();
 }
 
 bool KURL::IsHierarchical() const {
-  if (url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    return IsStandard() || (IsValid() && !HasOpaquePath());
-  }
-  return IsStandard();
+  return IsStandard() || (IsValid() && !HasOpaquePath());
 }
 
 bool KURL::IsStandard() const {
   if (string_.IsNull() || parsed_.scheme.is_empty())
     return false;
-  return string_.Is8Bit()
-             ? url::IsStandard(AsURLChar8Subtle(string_), parsed_.scheme)
-             : url::IsStandard(UNSAFE_TODO(string_.Characters16()),
-                               parsed_.scheme);
+  return string_.Is8Bit() ? url::IsStandard(parsed_.scheme.as_string_view_on(
+                                AsURLChar8Subtle(string_)))
+                          : url::IsStandard(parsed_.scheme.as_string_view_on(
+                                UNSAFE_TODO(string_.Characters16())));
 }
 
 bool EqualIgnoringFragmentIdentifier(const KURL& a, const KURL& b) {
@@ -906,14 +902,14 @@ bool ProtocolIs(const String& url, const char* protocol) {
 
 void KURL::Init(const KURL& base,
                 const String& relative,
-                const WTF::TextEncoding* query_encoding) {
+                const TextEncoding* query_encoding) {
   // As a performance optimization, we do not use the charset converter
   // if encoding is UTF-8 or other Unicode encodings. Note that this is
   // per HTML5 2.5.3 (resolving URL). The URL canonicalizer will be more
   // efficient with no charset converter object because it can do UTF-8
   // internally with no extra copies.
 
-  StringUTF8Adaptor base_utf8(base.GetString());
+  StringUtf8Adaptor base_utf8(base.GetString());
 
   // We feel free to make the charset converter object every time since it's
   // just a wrapper around a reference.
@@ -926,7 +922,7 @@ void KURL::Init(const KURL& base,
   // Clamp to int max to avoid overflow.
   url::RawCanonOutputT<char> output;
   if (!relative.IsNull() && relative.Is8Bit()) {
-    StringUTF8Adaptor relative_utf8(relative);
+    StringUtf8Adaptor relative_utf8(relative);
     is_valid_ = url::ResolveRelative(base_utf8.data(), base_utf8.size(),
                                      base.parsed_, relative_utf8.data(),
                                      ClampTo<int>(relative_utf8.size()),
@@ -953,14 +949,6 @@ void KURL::Init(const KURL& base,
   InitProtocolMetadata();
   InitInnerURL();
   AssertStringSpecIsASCII();
-
-  if (!url::IsUsingStandardCompliantNonSpecialSchemeURLParsing()) {
-    // This assertion implicitly assumes that "javascript:" scheme URL is always
-    // valid, but that is no longer true when
-    // kStandardCompliantNonSpecialSchemeURLParsing feature is enabled. e.g.
-    // "javascript://^", which is an invalid URL.
-    DCHECK(!::blink::ProtocolIsJavaScript(string_) || ProtocolIsJavaScript());
-  }
 }
 
 void KURL::InitInnerURL() {
@@ -987,10 +975,10 @@ void KURL::InitProtocolMetadata() {
   DCHECK(!string_.IsNull());
   StringView protocol = ComponentStringView(parsed_.scheme);
   protocol_is_in_http_family_ = true;
-  if (protocol == WTF::g_https_atom) {
-    protocol_ = WTF::g_https_atom;
-  } else if (protocol == WTF::g_http_atom) {
-    protocol_ = WTF::g_http_atom;
+  if (protocol == g_https_atom) {
+    protocol_ = g_https_atom;
+  } else if (protocol == g_http_atom) {
+    protocol_ = g_http_atom;
   } else {
     protocol_ = protocol.ToAtomicString();
     protocol_is_in_http_family_ = false;
@@ -1059,7 +1047,7 @@ void KURL::ReplaceComponents(const url::Replacements<CHAR>& replacements,
 
   bool replacements_valid;
   {
-    StringUTF8Adaptor utf8(string_);
+    StringUtf8Adaptor utf8(string_);
     replacements_valid =
         url::ReplaceComponents(utf8.data(), utf8.size(), parsed_, replacements,
                                nullptr, &output, &new_parsed);
@@ -1079,7 +1067,7 @@ void KURL::WriteIntoTrace(perfetto::TracedValue context) const {
 }
 
 KURL::operator GURL() const {
-  StringUTF8Adaptor utf8(string_);
+  StringUtf8Adaptor utf8(string_);
   return GURL(utf8.data(), utf8.size(), parsed_, is_valid_);
 }
 bool operator==(const KURL& a, const KURL& b) {

@@ -11,6 +11,7 @@
 #include "base/auto_reset.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/task/delay_policy.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
@@ -28,10 +29,6 @@ base::TimeDelta ComputeAdpfTarget(const BeginFrameArgs& args) {
     return deadline.latch_delta * 3 / 4;
   }
   return base::Milliseconds(12);
-}
-
-bool DrawImmediatelyWhenInteractive() {
-  return features::ShouldDrawImmediatelyWhenInteractive();
 }
 
 bool AdpfCanUseSetThreads() {
@@ -387,15 +384,24 @@ int DisplayScheduler::MaxPendingSwaps() const {
   // here the 0.8 constant is chosen to bias rounding up.
   int deadline_max_pending_swaps =
       (total_time_nanos + 0.8 * interval_nanos) / interval_nanos;
-  return std::clamp(deadline_max_pending_swaps, 0, param_max_pending_swaps);
+  return std::clamp(deadline_max_pending_swaps, 1, param_max_pending_swaps);
 }
 
-void DisplayScheduler::SetNeedsOneBeginFrame(bool needs_draw) {
+void DisplayScheduler::SetNeedsOneBeginFrame(const BeginFrameArgs& args,
+                                             bool needs_draw) {
   // If we are not currently observing BeginFrames because needs_draw_ is false,
   // we will stop observing again after one BeginFrame in AttemptDrawAndSwap().
   StartObservingBeginFrames();
   if (needs_draw)
     needs_draw_ = true;
+  if (base::FeatureList::IsEnabled(features::kNoLateBeginFrames) &&
+      args.IsValid() &&
+      (!begin_frame_observer_->LastUsedBeginFrameArgs().IsValid() ||
+       args.frame_id.sequence_number >
+           begin_frame_observer_->LastUsedBeginFrameArgs()
+               .frame_id.sequence_number)) {
+    OnBeginFrame(args);
+  }
 }
 
 void DisplayScheduler::MaybeStartObservingBeginFrames() {
@@ -485,8 +491,7 @@ DisplayScheduler::DesiredBeginFrameDeadlineMode() const {
   // Only wait if we actually have pending surfaces and we're not forcing draw
   // due to an ongoing interaction.
   bool wait_for_pending_surfaces =
-      has_pending_surfaces_ && !(DrawImmediatelyWhenInteractive() &&
-                                 damage_tracker_->HasDamageDueToInteraction());
+      has_pending_surfaces_ && !(damage_tracker_->HasDamageDueToInteraction());
 
   bool all_surfaces_ready =
       !wait_for_pending_surfaces && damage_tracker_->IsRootSurfaceValid() &&

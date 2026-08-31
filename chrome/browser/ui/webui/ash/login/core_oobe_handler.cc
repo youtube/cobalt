@@ -15,8 +15,8 @@
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/policy/enrollment/enrollment_requisition_manager.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
+#include "chrome/browser/ui/webui/ash/login/fjord_oobe_util.h"
 #include "chrome/browser/ui/webui/ash/login/oobe_ui.h"
-#include "chrome/common/channel_info.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
@@ -79,7 +79,9 @@ void CoreOobeHandler::DeclareJSCallbacks() {
 
 void CoreOobeHandler::GetAdditionalParameters(base::Value::Dict* dict) {
   dict->Set("isDemoModeEnabled", DemoSetupController::IsDemoModeAllowed());
-  if (policy::EnrollmentRequisitionManager::IsMeetDevice()) {
+  if (fjord_util::ShouldShowFjordOobe()) {
+    dict->Set("deviceFlowType", "fjord");
+  } else if (policy::EnrollmentRequisitionManager::IsMeetDevice()) {
     // The value is used to show a different UI for this type of the devices.
     dict->Set("deviceFlowType", "meet");
   }

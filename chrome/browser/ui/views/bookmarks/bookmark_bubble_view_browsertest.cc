@@ -27,6 +27,7 @@
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "content/public/test/browser_test.h"
+#include "ui/base/unowned_user_data/user_data_factory.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 
 class BaseBookmarkBubbleViewBrowserTest : public DialogBrowserTest {
@@ -108,7 +109,7 @@ class PowerBookmarkBubbleViewBrowserTest
     : public BaseBookmarkBubbleViewBrowserTest {
  public:
   PowerBookmarkBubbleViewBrowserTest() {
-    MockCommerceUiTabHelper::ReplaceFactory();
+    commerce_ui_override_ = MockCommerceUiTabHelper::ReplaceFactory();
     test_features_.InitWithFeatures({commerce::kShoppingList}, {});
   }
 
@@ -118,6 +119,9 @@ class PowerBookmarkBubbleViewBrowserTest
       const PowerBookmarkBubbleViewBrowserTest&) = delete;
 
   ~PowerBookmarkBubbleViewBrowserTest() override = default;
+
+ private:
+  ui::UserDataFactory::ScopedOverride commerce_ui_override_;
 };
 
 IN_PROC_BROWSER_TEST_F(PowerBookmarkBubbleViewBrowserTest,

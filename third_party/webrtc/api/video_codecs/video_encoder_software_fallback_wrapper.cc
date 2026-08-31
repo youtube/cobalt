@@ -10,8 +10,7 @@
 
 #include "api/video_codecs/video_encoder_software_fallback_wrapper.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <numeric>

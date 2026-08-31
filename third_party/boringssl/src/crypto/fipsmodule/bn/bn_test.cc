@@ -20,6 +20,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <iterator>
 #include <limits>
 #include <utility>
 
@@ -603,8 +604,9 @@ static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
     bssl::UniquePtr<BN_MONT_CTX> mont2(BN_MONT_CTX_new_consttime(m.get(), ctx));
     ASSERT_TRUE(mont2);
     EXPECT_BIGNUMS_EQUAL("RR (mod M) (constant-time)", &mont->RR, &mont2->RR);
-    EXPECT_EQ(mont->n0[0], mont2->n0[0]);
-    EXPECT_EQ(mont->n0[1], mont2->n0[1]);
+    for (size_t i = 0; i < std::size(mont->n0); i++) {
+      EXPECT_EQ(mont->n0[i], mont2->n0[i]);
+    }
 
     bssl::UniquePtr<BIGNUM> a_tmp(BN_new()), b_tmp(BN_new());
     ASSERT_TRUE(a_tmp);
@@ -2857,10 +2859,10 @@ TEST_F(BNTest, BNMulMontABI) {
     CHECK_ABI(bn_mul_mont_nohw, r.data(), a.data(), a.data(), mont->N.d,
               mont->n0, words);
 #else
-    CHECK_ABI(bn_mul_mont, r.data(), a.data(), b.data(), mont->N.d, mont->n0,
-              words);
-    CHECK_ABI(bn_mul_mont, r.data(), a.data(), a.data(), mont->N.d, mont->n0,
-              words);
+    CHECK_ABI(bn_mul_mont_words, r.data(), a.data(), b.data(), mont->N.d,
+              mont->n0, words);
+    CHECK_ABI(bn_mul_mont_words, r.data(), a.data(), a.data(), mont->N.d,
+              mont->n0, words);
 #endif
   }
 }
@@ -2883,10 +2885,11 @@ TEST_F(BNTest, BNMulMont5ABI) {
     a[0] = 1;
     b[0] = 42;
 
-    bn_mul_mont(r.data(), a.data(), b.data(), mont->N.d, mont->n0, words);
+    bn_mul_mont_words(r.data(), a.data(), b.data(), mont->N.d, mont->n0, words);
     CHECK_ABI(bn_scatter5, r.data(), words, table.data(), 13);
     for (size_t i = 0; i < 32; i++) {
-      bn_mul_mont(r.data(), a.data(), b.data(), mont->N.d, mont->n0, words);
+      bn_mul_mont_words(r.data(), a.data(), b.data(), mont->N.d, mont->n0,
+                        words);
       bn_scatter5(r.data(), words, table.data(), i);
     }
     CHECK_ABI(bn_gather5, r.data(), words, table.data(), 13);

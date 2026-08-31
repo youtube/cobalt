@@ -20,12 +20,13 @@
 #include "ash/shelf/shelf.h"
 #include "ash/shell.h"
 #include "ash/system/toast/anchored_nudge_manager_impl.h"
-#include "ash/test/test_widget_builder.h"
+#include "ash/test/test_widget_delegates.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/scoped_observation.h"
 #include "base/strings/pattern.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "chrome/browser/apps/app_service/app_registry_cache_waiter.h"
 #include "chrome/browser/ash/app_list/app_list_client_impl.h"
 #include "chrome/browser/ash/app_list/app_list_model_updater.h"
@@ -81,6 +82,7 @@
 #include "ui/message_center/message_center.h"
 #include "ui/message_center/message_center_observer.h"
 #include "ui/message_center/public/cpp/notification.h"
+#include "ui/views/test/test_widget_builder.h"
 
 namespace {
 
@@ -124,12 +126,11 @@ void SendSuspendDone() {
 }
 
 std::unique_ptr<aura::Window> CreateAuraWindow(std::u16string window_title) {
-  ash::TestWidgetBuilder builder;
-  builder.SetWindowTitle(window_title);
-  builder.SetTestWidgetDelegate();
-  builder.SetContext(ash::Shell::GetPrimaryRootWindow());
-  builder.SetBounds(gfx::Rect(0, 0, 600, 400));
-  views::Widget* widget = builder.BuildOwnedByNativeWidget();
+  views::Widget* widget = ash::CreateWidgetBuilderWithDelegate()
+                              .SetWindowTitle(window_title)
+                              .SetContext(ash::Shell::GetPrimaryRootWindow())
+                              .SetBounds(gfx::Rect(0, 0, 600, 400))
+                              .BuildOwnedByNativeWidget();
   return std::unique_ptr<aura::Window>(widget->GetNativeWindow());
 }
 

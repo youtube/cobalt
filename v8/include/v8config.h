@@ -333,6 +333,7 @@ path. Add it with -I<path> to the command line
 //  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
 //  V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS
 //                                      - [[no_unique_address]] supported
+//  V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND - [[clang::lifetimebound]] supported
 //  V8_HAS_BUILTIN_ADD_OVERFLOW         - __builtin_add_overflow() supported
 //  V8_HAS_BUILTIN_BIT_CAST             - __builtin_bit_cast() supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
@@ -412,6 +413,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
     (V8_HAS_CPP_ATTRIBUTE(no_unique_address))
 #endif
+# define V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND (V8_HAS_CPP_ATTRIBUTE(clang::lifetimebound))
 
 # define V8_HAS_BUILTIN_ADD_OVERFLOW (__has_builtin(__builtin_add_overflow))
 # define V8_HAS_BUILTIN_ASSUME (__has_builtin(__builtin_assume))
@@ -704,6 +706,17 @@ path. Add it with -I<path> to the command line
 #define V8_NODISCARD /* NOT SUPPORTED */
 #endif
 
+
+// Annotate a function to ensure the function is retained in the compiled binary
+// even if it appears to be unused to the compiler.
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_VISIBILITY
+#define V8_SYMBOL_USED \
+  __attribute__((used, visibility("default")))
+#else
+#define V8_SYMBOL_USED /* NOT SUPPORTED */
+#endif
+
+
 // The no_unique_address attribute allows tail padding in a non-static data
 // member to overlap other members of the enclosing class (and in the special
 // case when the type is empty, permits it to fully overlap other members). The
@@ -731,6 +744,41 @@ path. Add it with -I<path> to the command line
 #endif
 #else
 #define V8_NO_UNIQUE_ADDRESS /* NOT SUPPORTED */
+#endif
+
+// Annotates a pointer or reference parameter or return value for a member
+// function as having lifetime intertwined with the instance on which the
+// function is called. For parameters, the function is assumed to store the
+// value into the called-on object, so if the referred-to object is later
+// destroyed, the called-on object is also considered to be dangling. For return
+// values, the value is assumed to point into the called-on object, so if that
+// object is destroyed, the returned value is also considered to be dangling.
+// Useful to diagnose some cases of lifetime errors.
+//
+// See also:
+//   https://clang.llvm.org/docs/AttributeReference.html#lifetimebound
+//
+// Usage:
+// ```
+//   struct S {
+//      S(int* p V8_LIFETIME_BOUND);
+//      int* Get() V8_LIFETIME_BOUND;
+//   };
+//   S Func1() {
+//     int i = 0;
+//     // The following return will not compile; diagnosed as returning address
+//     // of a stack object.
+//     return S(&i);
+//   }
+//   int* Func2(int* p) {
+//     // The following return will not compile; diagnosed as returning address
+//     // of a local temporary.
+//     return S(p).Get();
+//   }
+#if V8_HAS_CPP_ATTRIBUTE_LIFETIME_BOUND
+#define V8_LIFETIME_BOUND [[clang::lifetimebound]]
+#else
+#define V8_LIFETIME_BOUND /* NOT SUPPORTED */
 #endif
 
 // Marks a type as being eligible for the "trivial" ABI despite having a
@@ -805,7 +853,8 @@ V8 shared library set USING_V8_SHARED.
 #else  // V8_OS_WIN
 
 // Setup for Linux shared library export.
-#if V8_HAS_ATTRIBUTE_VISIBILITY && (defined(BUILDING_V8_SHARED) || USING_V8_SHARED)
+#if (V8_HAS_ATTRIBUTE_VISIBILITY && \
+     (defined(BUILDING_V8_SHARED) || USING_V8_SHARED))
 # define V8_EXPORT __attribute__((visibility("default")))
 #else
 # define V8_EXPORT
@@ -953,8 +1002,10 @@ V8 shared library set USING_V8_SHARED.
 #if (V8_TARGET_ARCH_MIPS64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_MIPS64))
 #error Target architecture mips64 is only supported on mips64 and x64 host
 #endif
-#if (V8_TARGET_ARCH_RISCV64 && !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_RISCV64))
-#error Target architecture riscv64 is only supported on riscv64 and x64 host
+#if (V8_TARGET_ARCH_RISCV64 && \
+     !(V8_HOST_ARCH_X64 || V8_HOST_ARCH_ARM64 || V8_HOST_ARCH_RISCV64))
+#error Target architecture riscv64 is only supported on riscv64, x64, and \
+arm64 host
 #endif
 #if (V8_TARGET_ARCH_RISCV32 && !(V8_HOST_ARCH_IA32 || V8_HOST_ARCH_RISCV32))
 #error Target architecture riscv32 is only supported on riscv32 and ia32 host

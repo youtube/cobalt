@@ -36,6 +36,7 @@
 
 #include "base/containers/span.h"
 #include "base/memory/ptr_util.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -47,7 +48,7 @@
 #include "third_party/blink/renderer/core/layout/block_node.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
-#include "third_party/blink/renderer/core/layout/layout_multi_column_flow_thread.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/list/layout_list_item.h"
@@ -276,8 +277,7 @@ static bool BlockSuppressesAutosizing(const LayoutBlock* block) {
   if (BlockHeightConstrained(block))
     return true;
 
-  if (RuntimeEnabledFeatures::TextAutoSizingDisabledOnFlexboxEnabled() &&
-      block->IsFlexItem()) {
+  if (block->IsFlexItem()) {
     block->GetDocument().CountUse(WebFeature::kTextAutoSizingDisabledOnFlexbox);
     return true;
   }
@@ -656,7 +656,8 @@ void TextAutosizer::UpdatePageInfo() {
 
   PageInfo previous_page_info(page_info_);
   page_info_.setting_enabled_ =
-      document_->GetSettings()->GetTextAutosizingEnabled();
+      document_->GetSettings()->GetTextAutosizingEnabled() &&
+      !base::FeatureList::IsEnabled(blink::features::kForceOffTextAutosizing);
 
   if (!page_info_.setting_enabled_ || document_->Printing()) {
     page_info_.page_needs_autosizing_ = false;
@@ -883,7 +884,7 @@ TextAutosizer::Fingerprint TextAutosizer::ComputeFingerprint(
   if (LayoutObject* parent = ParentElementLayoutObject(layout_object))
     data.parent_hash_ = GetFingerprint(parent);
 
-  data.qualified_name_hash_ = WTF::GetHash(element->TagQName());
+  data.qualified_name_hash_ = GetHash(element->TagQName());
 
   if (const ComputedStyle* style = layout_object->Style()) {
     data.packed_style_properties_ = static_cast<unsigned>(style->Direction());
@@ -899,7 +900,7 @@ TextAutosizer::Fingerprint TextAutosizer::ComputeFingerprint(
 
     // TODO(kojii): The width can be computed from style only when it's fixed.
     // consider for adding: writing mode, padding.
-    data.width_ = width.IsFixed() ? WTF::NormalizeSign(width.Pixels()) : 0.0f;
+    data.width_ = width.IsFixed() ? NormalizeSign(width.Pixels()) : 0.0f;
   }
 
   // Use nodeIndex as a rough approximation of column number
@@ -1095,7 +1096,7 @@ float TextAutosizer::MultiplierFromBlock(const LayoutBlock* block) {
 // containing block, and wasn't marked as needing layout.
 #if DCHECK_IS_ON()
   DCHECK(blocks_that_have_begun_layout_.Contains(block) ||
-         !block->NeedsLayout() || IsA<LayoutMultiColumnFlowThread>(block));
+         !block->NeedsLayout());
 #endif
   // Block width, in CSS pixels.
   float block_width = WidthFromBlock(block);
@@ -1590,8 +1591,6 @@ void TextAutosizer::CheckSuperclusterConsistency() {
 }
 
 float TextAutosizer::ContentInlineSize(const LayoutBlock* block) const {
-  if (!block->IsLayoutNGObject())
-    return block->ContentLogicalWidth().ToFloat();
   auto iter = inline_size_map_.find(block);
   if (iter == inline_size_map_.end())
     return block->ContentLogicalWidth().ToFloat();

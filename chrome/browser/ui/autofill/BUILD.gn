@@ -21,6 +21,9 @@ source_set("autofill") {
     "autofill_popup_view_delegate.h",
     "autofill_suggestion_controller.h",
     "autofill_suggestion_controller_utils.h",
+    "bubble_controller_base.h",
+    "bubble_manager.h",
+    "bubble_manager_impl.h",
     "chrome_autofill_client.h",
     "next_idle_barrier.h",
     "popup_controller_common.h",
@@ -31,11 +34,12 @@ source_set("autofill") {
     "//base",
     "//base:i18n",
     "//chrome/browser:global_features",
+    "//chrome/browser/feature_engagement",
     "//chrome/browser/picture_in_picture",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/autofill/payments",
     "//chrome/browser/ui/page_action:icon_type",
-    "//components/application_locale_storage:application_locale_storage",
+    "//components/application_locale_storage",
     "//components/autofill/content/browser",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
@@ -89,7 +93,7 @@ source_set("autofill") {
       "update_address_bubble_controller.h",
     ]
     public_deps += [
-      "//components/autofill_ai/core/browser",
+      "//components/autofill/core/browser",
       "//components/password_manager/core/browser",
       "//components/password_manager/core/browser:password_form",
       "//components/renderer_context_menu",
@@ -116,6 +120,8 @@ source_set("impl") {
     "autofill_popup_hide_helper.cc",
     "autofill_suggestion_controller.cc",
     "autofill_suggestion_controller_utils.cc",
+    "bubble_manager.cc",
+    "bubble_manager_impl.cc",
     "chrome_autofill_client.cc",
     "next_idle_barrier.cc",
     "popup_controller_common.cc",
@@ -128,8 +134,11 @@ source_set("impl") {
     ":autofill",
     "//chrome/browser:browser_process",
     "//chrome/browser/autofill",
+    "//chrome/browser/optimization_guide",
+    "//chrome/browser/password_manager/factories",
     "//chrome/browser/plus_addresses",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/browser/sync",
     "//chrome/browser/ui:browser_element_identifiers",
     "//chrome/browser/ui/autofill/payments",
@@ -161,6 +170,7 @@ source_set("impl") {
 
   if (is_android) {
     sources += [
+      "autofill_keyboard_accessory_controller.cc",
       "autofill_keyboard_accessory_controller_impl.cc",
       "autofill_snackbar_controller_impl.cc",
     ]
@@ -168,7 +178,6 @@ source_set("impl") {
       "//chrome/browser/autofill/android:jni_headers",
       "//chrome/browser/fast_checkout",
       "//chrome/browser/keyboard_accessory/android:public",
-      "//chrome/browser/password_manager/android/access_loss:public",
       "//components/android_autofill/browser:android",
       "//components/messages/android:feature_flags",
       "//components/password_manager/core/browser/features:password_features",
@@ -191,17 +200,18 @@ source_set("impl") {
     deps += [
       "//chrome/app:command_ids",
       "//chrome/app/vector_icons",
-      "//chrome/browser/accessibility:utils",
       "//chrome/browser/apps/platform_apps",
       "//chrome/browser/feedback",
+      "//chrome/browser/profiles:profile_util",
       "//chrome/browser/promos:utils",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/promos:utils",
-      "//chrome/browser/ui/toasts:toasts",
+      "//chrome/browser/ui/toasts",
       "//chrome/browser/ui/toasts/api:toasts",
       "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/webauthn",
       "//chrome/browser/ui/webui/signin:login",
-      "//components/autofill_ai/core/browser",
+      "//components/autofill/core/browser",
       "//components/password_manager/core/browser/features:password_features",
       "//components/plus_addresses/resources/strings",
       "//extensions/browser",
@@ -222,6 +232,7 @@ source_set("unit_tests") {
   sources = [
     "autofill_client_provider_unittest.cc",
     "autofill_suggestion_controller_unittest.cc",
+    "bubble_manager_impl_unittest.cc",
     "chrome_autofill_client_unittest.cc",
   ]
 
@@ -234,7 +245,6 @@ source_set("unit_tests") {
     "//build:branding_buildflags",
     "//chrome/browser",
     "//chrome/browser:browser_process",
-    "//chrome/browser/accessibility:utils",
     "//chrome/browser/autofill",
     "//chrome/browser/autofill:test_support",
     "//chrome/browser/plus_addresses",
@@ -286,20 +296,29 @@ source_set("unit_tests") {
       "autofill_keyboard_accessory_controller_impl_unittest.cc",
       "autofill_snackbar_controller_impl_unittest.cc",
     ]
-    deps += [ "//chrome/browser/fast_checkout" ]
+    deps += [
+      "//chrome/browser/autofill/android:jni_test_headers",
+      "//chrome/browser/fast_checkout",
+      "//chrome/browser/preferences:android",
+    ]
   } else {
     sources += [
-      "address_bubbles_controller_unittest.cc",
       "address_editor_controller_unittest.cc",
       "autofill_field_promo_controller_impl_unittest.cc",
       "autofill_popup_controller_impl_unittest.cc",
-      "delete_address_profile_dialog_controller_impl_unittest.cc",
-      "edit_address_profile_dialog_controller_impl_unittest.cc",
       "save_address_bubble_controller_unittest.cc",
       "update_address_bubble_controller_unittest.cc",
     ]
-    deps += [ "//chrome/browser/ui/hats:test_support" ]
+    deps += [
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/hats:test_support",
+      "//chrome/browser/ui/user_education",
+    ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("test_support") {
@@ -313,8 +332,6 @@ source_set("test_support") {
 
   if (is_android) {
     sources += [ "autofill_keyboard_accessory_controller_impl_test_api.h" ]
-    public_deps +=
-        [ "//chrome/browser/password_manager/android/access_loss:public" ]
   } else {
     sources += [
       "autofill_ai/mock_save_or_update_ai_data_controller.cc",
@@ -348,6 +365,9 @@ if (!is_android && !is_chromeos_device) {
       "//chrome/browser/sync",
       "//chrome/browser/sync:factories",
       "//chrome/browser/ui",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/user_education",
       "//chrome/common:constants",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
@@ -418,13 +438,14 @@ source_set("test_support_unit") {
       "mock_autofill_keyboard_accessory_view.h",
       "test_autofill_keyboard_accessory_controller_autofill_client.h",
     ]
-    public_deps += [
-      "//chrome/browser/keyboard_accessory/test_utils/android",
-      "//chrome/browser/password_manager/android/access_loss:test_support",
-    ]
+    public_deps += [ "//chrome/browser/keyboard_accessory/test_utils/android" ]
   } else {
     sources += [ "test_autofill_popup_controller_autofill_client.h" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_android) {
@@ -434,8 +455,11 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
     sources = [
+      "address_bubbles_controller_browsertest.cc",
       "autofill_ai/save_or_update_autofill_ai_data_controller_impl_browsertest.cc",
       "autofill_context_menu_manager_browsertest.cc",
+      "delete_address_profile_dialog_controller_impl_browsertest.cc",
+      "edit_address_profile_dialog_controller_impl_browsertest.cc",
     ]
 
     deps = [
@@ -447,15 +471,19 @@ if (!is_android) {
       "//chrome/browser",
       "//chrome/browser/autofill",
       "//chrome/browser/autofill:test_support",
+      "//chrome/browser/password_manager/factories:password_factory_headers",
       "//chrome/browser/plus_addresses",
+      "//chrome/browser/signin",
       "//chrome/browser/sync",
       "//chrome/browser/ui",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/hats:test_support",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//components/autofill/content/browser:test_support",
+      "//components/autofill/core/browser",
       "//components/autofill/core/browser:test_support",
       "//components/autofill/core/common",
-      "//components/autofill_ai/core/browser",
       "//components/keyed_service/content",
       "//components/keyed_service/core",
       "//components/password_manager/content/browser",
@@ -482,5 +510,9 @@ if (!is_android) {
       "//ui/base",
       "//url",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

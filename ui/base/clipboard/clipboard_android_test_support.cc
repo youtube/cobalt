@@ -10,6 +10,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/clipboard/clipboard_android.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
+#include "ui/base/clipboard/clipboard_monitor.h"
+#include "ui/base/clipboard/clipboard_observer.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -23,8 +25,8 @@ jboolean JNI_ClipboardAndroidTestSupport_NativeWriteHtml(
   {
     // Simulate something writing HTML to the clipboard in native.
     // Android requires both a plaintext and HTML version.
-    std::u16string html_text;
-    base::android::ConvertJavaStringToUTF16(env, j_html_text, &html_text);
+    std::u16string html_text =
+        base::android::ConvertJavaStringToUTF16(env, j_html_text);
     std::string url;
     ScopedClipboardWriter clipboard_writer(ClipboardBuffer::kCopyPaste);
     clipboard_writer.WriteHTML(html_text, url);
@@ -60,8 +62,8 @@ jboolean JNI_ClipboardAndroidTestSupport_NativeClipboardContains(
     return false;
   }
 
-  std::string expected_text;
-  base::android::ConvertJavaStringToUTF8(env, j_text, &expected_text);
+  std::string expected_text =
+      base::android::ConvertJavaStringToUTF8(env, j_text);
 
   std::string contents;
   clipboard->ReadAsciiText(ClipboardBuffer::kCopyPaste,
@@ -72,6 +74,43 @@ jboolean JNI_ClipboardAndroidTestSupport_NativeClipboardContains(
     return false;
   }
   return true;
+}
+
+namespace {
+class TestClipboardObserver : public ClipboardObserver {
+ public:
+  TestClipboardObserver() {
+    ClipboardMonitor::GetInstance()->AddObserver(this);
+  }
+
+  ~TestClipboardObserver() override {
+    ClipboardMonitor::GetInstance()->RemoveObserver(this);
+  }
+
+  void OnClipboardDataChanged() override { ++notification_count_; }
+
+  int notification_count() const { return notification_count_; }
+
+ private:
+  int notification_count_ = 0;
+};
+
+int WriteTextAndCountNotifications(const std::u16string& text) {
+  TestClipboardObserver observer;
+  {
+    ScopedClipboardWriter clipboard_writer(ClipboardBuffer::kCopyPaste);
+    clipboard_writer.WriteText(text);
+  }
+  return observer.notification_count();
+}
+
+}  // anonymous namespace
+
+// Test method to verify native clipboard monitoring works
+jboolean JNI_ClipboardAndroidTestSupport_NativeTestClipboardNotifications(
+    JNIEnv* env) {
+  int notification_count = WriteTextAndCountNotifications(u"test notification");
+  return notification_count == 1;
 }
 
 }  // namespace ui

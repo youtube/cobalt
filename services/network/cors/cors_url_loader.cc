@@ -55,7 +55,9 @@
 #include "services/network/shared_dictionary/shared_dictionary_storage.h"
 #include "services/network/shared_dictionary/shared_dictionary_writer.h"
 #include "services/network/shared_storage/shared_storage_header_utils.h"
-#include "services/network/trust_tokens/trust_token_operation_metrics_recorder.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "services/network/trust_tokens/trust_token_operation_metrics_recorder.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "services/network/url_loader.h"
 #include "services/network/url_loader_factory.h"
 #include "services/network/url_loader_util.h"
@@ -991,29 +993,6 @@ void CorsURLLoader::StartRequest() {
 
   mojo::PendingRemote<mojom::URLLoaderNetworkServiceObserver> remote_observer;
 
-  if (needs_preflight.has_value() &&
-      *needs_preflight == PreflightRequiredReason::kPrivateNetworkAccess) {
-    // TODO(crbug.com/40229602): Create a base function and clean up all
-    // need_pna_permission check in the code base.
-    const mojom::ClientSecurityState* state = GetClientSecurityState();
-    const bool needs_pna_permission =
-        state && PrivateNetworkAccessChecker::NeedPermission(
-                     request_.url, state->is_web_secure_context,
-                     request_.required_ip_address_space);
-    if (needs_pna_permission &&
-        url_loader_network_service_observer_->is_bound()) {
-      // Fail the request if `targetAddressSpace` on fetch option is not the
-      // same as the real target address space.
-      if (request_.required_ip_address_space !=
-          request_.target_ip_address_space) {
-        HandleComplete(URLLoaderCompletionStatus(
-            CorsErrorStatus(mojom::CorsError::kInvalidPrivateNetworkAccess)));
-        return;
-      }
-      (*url_loader_network_service_observer_)
-          ->Clone(remote_observer.InitWithNewPipeAndPassReceiver());
-    }
-  }
   context_->cors_preflight_controller()->PerformPreflightCheck(
       base::BindOnce(&CorsURLLoader::OnPreflightRequestComplete,
                      weak_factory_.GetWeakPtr()),
@@ -1079,12 +1058,8 @@ std::optional<URLLoaderCompletionStatus> CorsURLLoader::ConvertPreflightResult(
     });
   }
 
-  // `kInvalidResponse` is never returned by the preflight controller, so we use
-  // it to record the case where there was a net error and no CORS error.
-  auto histogram_error = mojom::CorsError::kInvalidResponse;
   if (status) {
     DCHECK(status->cors_error != mojom::CorsError::kInvalidResponse);
-    histogram_error = status->cors_error;
 
     // Report the target IP address space unconditionally as part of the error
     // if there was one. This allows higher layers to understand that a PNA
@@ -1102,10 +1077,6 @@ std::optional<URLLoaderCompletionStatus> CorsURLLoader::ConvertPreflightResult(
     // `forwarding_client_` in the next `URLResponseHead` we construct.
     pna_preflight_result_ =
         mojom::PrivateNetworkAccessPreflightResult::kWarning;
-
-    // Even if we ignore the error, record the warning in metrics and DevTools.
-    base::UmaHistogramEnumeration(kPreflightWarningHistogramName,
-                                  histogram_error);
 
     if (devtools_observer_) {
       if (!status) {
@@ -1131,7 +1102,6 @@ std::optional<URLLoaderCompletionStatus> CorsURLLoader::ConvertPreflightResult(
   // Failure.
   CHECK(net_error != net::OK);
 
-  base::UmaHistogramEnumeration(kPreflightErrorHistogramName, histogram_error);
   auto result = status ? URLLoaderCompletionStatus(*std::move(status))
                        : URLLoaderCompletionStatus(net_error);
 
@@ -1202,11 +1172,13 @@ void CorsURLLoader::HandleComplete(URLLoaderCompletionStatus status) {
               net::NetLogWithSourceToFlow(net_log_), "error_code",
               status.error_code);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (request_.trust_token_params) {
     HistogramTrustTokenOperationNetError(request_.trust_token_params->operation,
                                          status.trust_token_operation_status,
                                          status.error_code);
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (status.error_code == net::OK) {
     DCHECK_GE(status.completion_time, network_loader_start_time_);
@@ -1409,12 +1381,6 @@ bool CorsURLLoader::ShouldIgnorePrivateNetworkAccessErrors(
     mojom::IPAddressSpace target_address_space) const {
   const mojom::ClientSecurityState* state = GetClientSecurityState();
   if (!state) {
-    return false;
-  }
-  // When the PNA permission prompt shown, we should always respect the
-  // preflight results, otherwise it would be a bypass of mixed content checker.
-  if (PrivateNetworkAccessChecker::NeedPermission(
-          request_.url, state->is_web_secure_context, target_address_space)) {
     return false;
   }
   return state->private_network_request_policy ==

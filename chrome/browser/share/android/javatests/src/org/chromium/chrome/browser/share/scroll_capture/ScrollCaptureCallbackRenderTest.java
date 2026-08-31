@@ -7,6 +7,8 @@ package org.chromium.chrome.browser.share.scroll_capture;
 import static org.chromium.base.test.transit.Condition.whether;
 import static org.chromium.base.test.transit.Condition.whetherEquals;
 import static org.chromium.base.test.transit.SimpleConditions.uiThreadCondition;
+import static org.chromium.base.test.transit.Triggers.noopTo;
+import static org.chromium.base.test.transit.Triggers.runOnUiThreadTo;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -32,11 +34,8 @@ import org.junit.runner.RunWith;
 import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.test.transit.Condition;
-import org.chromium.base.test.transit.Transition;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -55,7 +54,6 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @DoNotBatch(reason = "Unbatched to deflake")
-@DisabledTest(message = "crbug.com/359632845")
 public class ScrollCaptureCallbackRenderTest {
     @Rule
     public AutoResetCtaTransitTestRule mActivityTestRule =
@@ -92,21 +90,23 @@ public class ScrollCaptureCallbackRenderTest {
         mTab = mInitialPage.loadedTabElement.get();
         mCallback.setCurrentTab(mTab);
         // Wait for the script to execute and for the renderer to actually paint everything.
-        Condition.waitFor(
-                uiThreadCondition(
-                        "Title is \"rendered\"",
-                        () -> whetherEquals("rendered", mTab.getWebContents().getTitle())),
-                uiThreadCondition(
-                        "Drawing succeeded",
-                        () -> {
-                            RenderCoordinates renderCoordinates =
-                                    RenderCoordinates.fromWebContents(mTab.getWebContents());
-                            int contentHeightPix = renderCoordinates.getContentHeightPixInt();
-                            return whether(
-                                    contentHeightPix > 10000,
-                                    "contentHeightPix %d",
-                                    contentHeightPix);
-                        }));
+        noopTo().waitFor(
+                        uiThreadCondition(
+                                "Title is \"rendered\"",
+                                () -> whetherEquals("rendered", mTab.getWebContents().getTitle())),
+                        uiThreadCondition(
+                                "Drawing succeeded",
+                                () -> {
+                                    RenderCoordinates renderCoordinates =
+                                            RenderCoordinates.fromWebContents(
+                                                    mTab.getWebContents());
+                                    int contentHeightPix =
+                                            renderCoordinates.getContentHeightPixInt();
+                                    return whether(
+                                            contentHeightPix > 10000,
+                                            "contentHeightPix %d",
+                                            contentHeightPix);
+                                }));
     }
 
     @Test
@@ -132,21 +132,22 @@ public class ScrollCaptureCallbackRenderTest {
         final int offset =
                 renderCoordinates.getContentHeightPixInt()
                         - renderCoordinates.getLastFrameViewportHeightPixInt();
-        Condition.runAndWaitFor(
-                Transition.runTriggerOnUiThreadOption(),
-                () -> mTab.getWebContents().getEventForwarder().scrollBy(0, offset),
-                uiThreadCondition(
-                        String.format("Scroll of offset %d occurred", offset),
-                        () -> {
-                            RenderCoordinates scrolledCoordinates =
-                                    RenderCoordinates.fromWebContents(mTab.getWebContents());
-                            int scrollYPixInt = scrolledCoordinates.getScrollYPixInt();
-                            return whether(
-                                    offset - 5 <= scrollYPixInt && scrollYPixInt <= offset + 5,
-                                    "getScrollYPixInt() %d within 5px of %d",
-                                    scrollYPixInt,
-                                    offset);
-                        }));
+        runOnUiThreadTo(() -> mTab.getWebContents().getEventForwarder().scrollBy(0, offset))
+                .waitFor(
+                        uiThreadCondition(
+                                String.format("Scroll of offset %d occurred", offset),
+                                () -> {
+                                    RenderCoordinates scrolledCoordinates =
+                                            RenderCoordinates.fromWebContents(
+                                                    mTab.getWebContents());
+                                    int scrollYPixInt = scrolledCoordinates.getScrollYPixInt();
+                                    return whether(
+                                            offset - 5 <= scrollYPixInt
+                                                    && scrollYPixInt <= offset + 5,
+                                            "getScrollYPixInt() %d within 5px of %d",
+                                            scrollYPixInt,
+                                            offset);
+                                }));
 
         View view = mTab.getView();
         Size size = new Size(view.getWidth(), view.getHeight());

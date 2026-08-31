@@ -9,7 +9,6 @@
 #include "chrome/browser/extensions/extension_apitest.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -18,6 +17,8 @@
 #include "extensions/browser/renderer_startup_helper.h"
 #include "extensions/browser/script_executor.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/common/mojom/host_id.mojom.h"
+#include "extensions/common/mojom/match_origin_as_fallback.mojom.h"
 #include "extensions/test/result_catcher.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
@@ -136,7 +137,6 @@ class UserScriptWorldBrowserTest : public ExtensionApiTest {
       const std::string& host_permission) {
     scoped_refptr<const Extension> extension =
         ExtensionBuilder("extension")
-            .SetManifestVersion(3)
             .AddHostPermission(host_permission)
             .Build();
     extension_registrar()->AddExtension(extension);
@@ -169,10 +169,6 @@ class UserScriptWorldBrowserTest : public ExtensionApiTest {
                                       std::optional<std::string> world_id) {
     RendererStartupHelperFactory::GetForBrowserContext(profile())
         ->ClearUserScriptWorldProperties(extension, std::move(world_id));
-  }
-
-  content::WebContents* GetActiveWebContents() {
-    return browser()->tab_strip_model()->GetActiveWebContents();
   }
 };
 

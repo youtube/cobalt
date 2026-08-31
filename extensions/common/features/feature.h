@@ -41,7 +41,7 @@ class Feature {
     LINUX_PLATFORM,
     MACOSX_PLATFORM,
     WIN_PLATFORM,
-    FUCHSIA_PLATFORM,
+    DESKTOP_ANDROID_PLATFORM,
   };
 
   // Whether a feature is available in a given situation or not, and if not,

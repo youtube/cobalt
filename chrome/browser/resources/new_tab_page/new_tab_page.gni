@@ -4,6 +4,7 @@
 
 import("//ui/webui/webui_features.gni")
 import("./modules/modules.gni")
+import("./ntp_promo/ntp_promo.gni")
 
 # List of files that don't need to be passed to html_to_wrapper().
 all_ts_files = [
@@ -19,19 +20,20 @@ all_ts_files = [
                  "transparency.ts",
                  "utils.ts",
                  "window_proxy.ts",
-               ] + modules_ts_files
+               ] + modules_ts_files + ntp_promo_ts_files
 
 # Files holding a Polymer element definition and have an equivalent .html file.
-all_web_component_files = [
-                            "app.ts",
-                            "doodle_share_dialog.ts",
-                            "iframe.ts",
-                            "lens_form.ts",
-                            "lens_upload_dialog.ts",
-                            "logo.ts",
-                            "middle_slot_promo.ts",
-                            "voice_search_overlay.ts",
-                          ] + modules_web_component_files
+all_web_component_files =
+    [
+      "app.ts",
+      "doodle_share_dialog.ts",
+      "iframe.ts",
+      "lens_form.ts",
+      "lens_upload_dialog.ts",
+      "logo.ts",
+      "middle_slot_promo.ts",
+      "voice_search_overlay.ts",
+    ] + modules_web_component_files + ntp_promo_web_component_files
 
 all_css_files = [
                   "app.css",
@@ -42,12 +44,13 @@ all_css_files = [
                   "logo.css",
                   "middle_slot_promo.css",
                   "voice_search_overlay.css",
-                ] + modules_css_files
+                ] + modules_css_files + ntp_promo_css_files
 
 if (optimize_webui) {
   # Transpiled Mojo JS files to be excluded from the bundle in optimized builds.
   mojo_js_files = [
     "calendar_data.mojom-webui.js",
+    "ntp_promo.mojom-webui.js",
     "customize_buttons.mojom-webui.js",
     "drive_suggestion.mojom-webui.js",
     "file_suggestion.mojom-webui.js",
@@ -58,6 +61,7 @@ if (optimize_webui) {
     "new_tab_page.mojom-webui.js",
     "ntp_microsoft_auth_shared_ui.mojom-webui.js",
     "outlook_calendar.mojom-webui.js",
+    "tab_groups.mojom-webui.js",
     "url_visit_types.mojom-webui.js",
   ]
 

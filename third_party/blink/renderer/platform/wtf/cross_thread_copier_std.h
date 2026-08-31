@@ -37,7 +37,7 @@
 
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier.h"
 
-namespace WTF {
+namespace blink {
 
 // nullptr_t can be passed through without any changes.
 template <>
@@ -51,6 +51,15 @@ struct CrossThreadCopier<std::unique_ptr<T, Deleter>> {
   STATIC_ONLY(CrossThreadCopier);
   using Type = std::unique_ptr<T, Deleter>;
   static std::unique_ptr<T, Deleter> Copy(std::unique_ptr<T, Deleter> pointer) {
+    return pointer;  // This is in fact a move.
+  }
+};
+
+template <typename T, typename Deleter>
+struct CrossThreadCopier<std::vector<std::unique_ptr<T, Deleter>>> {
+  STATIC_ONLY(CrossThreadCopier);
+  using Type = std::vector<std::unique_ptr<T, Deleter>>;
+  static Type Copy(Type pointer) {
     return pointer;  // This is in fact a move.
   }
 };
@@ -81,6 +90,6 @@ struct CrossThreadCopier<std::basic_string<CharT, Traits, Allocator>> {
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_CROSS_THREAD_COPIER_STD_H_

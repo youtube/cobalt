@@ -571,7 +571,7 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
       << " ecn_codepoint passed: " << (info.ecn_codepoint == ECN_NOT_ECT)
       << " sizeof(ReceivedPacketInfo) passed: "
       << (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 304);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 288);
   return info.destination_address == QuicSocketAddress() &&
          info.source_address == QuicSocketAddress() &&
          info.receipt_time == QuicTime::Zero() &&
@@ -585,7 +585,7 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
          // have changed. Please add the relevant conditions and update the
          // length below.
          (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 304);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 288);
 }
 
 // static
@@ -605,6 +605,13 @@ void QuicConnectionPeer::OnForwardProgressMade(QuicConnection* connection) {
 bool QuicConnectionPeer::CanReceiveAckFrequencyFrames(
     QuicConnection* connection) {
   return connection->can_receive_ack_frequency_immediate_ack_;
+}
+
+// static
+uint8_t QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
+    const QuicConnection* connection) {
+  return connection->ping_manager_
+      .num_ptos_for_retransmittable_on_wire_timeout_;
 }
 
 }  // namespace test

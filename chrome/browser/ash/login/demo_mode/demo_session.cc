@@ -22,7 +22,6 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/hash/md5.h"
 #include "base/i18n/string_compare.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/logging.h"
@@ -59,9 +58,9 @@
 #include "chromeos/ash/components/growth/campaigns_manager.h"
 #include "chromeos/ash/components/growth/campaigns_model.h"
 #include "chromeos/ash/components/growth/growth_metrics.h"
-#include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/account_manager_core/pref_names.h"
 #include "components/language/core/browser/pref_names.h"
 #include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -303,15 +302,6 @@ std::string DemoSession::DemoConfigToString(
 }
 
 // static
-bool DemoSession::IsDeviceInDemoMode() {
-  if (!InstallAttributes::IsInitialized()) {
-    return false;
-  }
-
-  return InstallAttributes::Get()->IsDeviceInDemoMode();
-}
-
-// static
 DemoSession::DemoModeConfig DemoSession::GetDemoConfig() {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
@@ -341,7 +331,7 @@ DemoSession::DemoModeConfig DemoSession::GetDemoConfig() {
     demo_config = static_cast<DemoModeConfig>(demo_config_pref);
   }
 
-  bool is_demo_mode = IsDeviceInDemoMode();
+  bool is_demo_mode = ash::demo_mode::IsDeviceInDemoMode();
   if (is_demo_mode && demo_config == DemoModeConfig::kNone) {
     LOG(WARNING) << "Device mode is demo, but no demo mode config set";
   } else if (!is_demo_mode && demo_config != DemoModeConfig::kNone) {
@@ -363,8 +353,9 @@ void DemoSession::ResetDemoConfigForTesting() {
 
 // static
 DemoSession* DemoSession::StartIfInDemoMode() {
-  if (!IsDeviceInDemoMode())
+  if (!ash::demo_mode::IsDeviceInDemoMode()) {
     return nullptr;
+  }
 
   if (g_demo_session && g_demo_session->started())
     return g_demo_session;
@@ -399,8 +390,9 @@ std::string DemoSession::GetScreensaverAppId() {
 
 // static
 bool DemoSession::ShouldShowExtensionInAppLauncher(const std::string& app_id) {
-  if (!IsDeviceInDemoMode())
+  if (!ash::demo_mode::IsDeviceInDemoMode()) {
     return true;
+  }
   return app_id != GetScreensaverAppId() &&
          app_id != extensions::kWebStoreAppId;
 }
@@ -423,7 +415,7 @@ static std::string GetDefaultRegion() {
 
 // static
 bool DemoSession::ShouldShowWebApp(const std::string& app_id) {
-  if (IsDeviceInDemoMode() &&
+  if (ash::demo_mode::IsDeviceInDemoMode() &&
       content::GetNetworkConnectionTracker()->IsOffline()) {
     GURL app_id_as_url(app_id);
     // When offline, return false for web apps that are HTTP(S), return true
@@ -612,35 +604,6 @@ void DemoSession::SetKeyboardBrightnessToOneHundredPercentFromCurrentLevel(
   }
 }
 
-void DemoSession::RegisterDemoModeAAExperiment() {
-  if (demo_mode::Country() == std::string("US")) {
-    // The hashing salt for the AA experiment.
-    std::string demo_mode_aa_experiment_hashing_salt = "fae448044d545f9c";
-
-    std::vector<std::string> best_buy_retailer_names = {"bby", "bestbuy",
-                                                        "bbt"};
-    std::vector<std::string>::iterator it;
-
-    it = std::find(best_buy_retailer_names.begin(),
-                   best_buy_retailer_names.end(), demo_mode::RetailerName());
-    if (it != best_buy_retailer_names.end()) {
-      std::string store_number_and_hash_salt =
-          demo_mode::StoreNumber() + demo_mode_aa_experiment_hashing_salt;
-      std::string md5_store_number =
-          base::MD5String(store_number_and_hash_salt);
-
-      char& last_char = md5_store_number.back();
-      int md5_last_char_int =
-          (last_char >= 'a') ? (last_char - 'a' + 10) : (last_char - '0');
-
-      ChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
-          "DemoModeAAExperimentBasedOnStoreId",
-          md5_last_char_int % 2 ? "Experiment" : "Control",
-          variations::SyntheticTrialAnnotationMode::kCurrentLog);
-    }
-  }
-}
-
 void DemoSession::OnSessionStateChanged() {
   TRACE_EVENT0("login", "DemoSession::OnSessionStateChanged");
   switch (session_manager::SessionManager::Get()->session_state()) {
@@ -659,6 +622,13 @@ void DemoSession::OnSessionStateChanged() {
                                                    current_locale_iso_code);
         SYSLOG(INFO) << "Demo mode session current locale: "
                      << current_locale_iso_code;
+      }
+
+      if (features::IsDemoModeSecondaryGoogleAccountSigninAllowedFalse()) {
+        // Prevent users from signing in with their own account.
+        ProfileManager::GetActiveUserProfile()->GetPrefs()->SetBoolean(
+            account_manager::prefs::kSecondaryGoogleAccountSigninAllowed,
+            false);
       }
 
       RestoreDefaultLocaleForNextSession();
@@ -703,9 +673,6 @@ void DemoSession::OnSessionStateChanged() {
 
       EnsureResourcesLoaded(base::BindOnce(&DemoSession::InstallDemoResources,
                                            weak_ptr_factory_.GetWeakPtr()));
-
-      // Register the device with in the A/A experiment
-      RegisterDemoModeAAExperiment();
 
       // When the session successfully starts, we record the action
       // DemoMode.DemoSessionStarts.

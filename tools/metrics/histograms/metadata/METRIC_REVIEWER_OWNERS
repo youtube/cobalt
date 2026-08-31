@@ -43,7 +43,7 @@ linnan@chromium.org
 fleimgruber@google.com
 jihadghanna@google.com
 jkeitel@google.com
-jsaul@google.com
+osaul@google.com
 schwering@google.com
 vidhanj@google.com
 vsemeniuk@google.com
@@ -117,7 +117,6 @@ jeffreycohen@chromium.org
 tbansal@chromium.org
 guiperez@google.com
 # cookie
-bingler@chromium.org
 cfredric@chromium.org
 # cras
 yuhsuan@chromium.org
@@ -132,8 +131,7 @@ hansberry@chromium.org
 julietlevesque@google.com
 bhartmire@google.com
 # crostini
-davidmunro@google.com
-philpearson@google.com
+drmasquatch@google.com
 # cryptohome
 jorgelo@chromium.org
 hcyang@google.com
@@ -244,6 +242,7 @@ toyoshim@chromium.org
 # memory
 lizeb@chromium.org
 joenotcharles@google.com
+thiabaud@google.com
 # mobile
 ender@google.com
 mthiesse@chromium.org
@@ -292,14 +291,19 @@ jdonnelly@chromium.org
 mahmadi@chromium.org
 manukh@chromium.org
 toyoshim@chromium.org
+# on_device_model
+cduvall@chromium.org
+xinghuilu@chromium.org
 # oobe
 bohdanty@google.com
 ziegltrum@google.com
 # optimization
+holte@chromium.org
 mcrouse@chromium.org
 robertogden@chromium.org
 sophiechang@chromium.org
 tbansal@chromium.org
+wittman@chromium.org
 # others
 jimmyxgong@chromium.org
 gavinwill@chromium.org
@@ -307,7 +311,6 @@ jonross@chromium.org
 dullweber@chromium.org
 olivierli@chromium.org
 bzielinski@google.com
-orrb@google.com
 junis@google.com
 # page
 csharrison@chromium.org
@@ -324,8 +327,6 @@ xinghuilu@chromium.org
 # payment
 rouslan@chromium.org
 smcgruer@chromium.org
-# pdf
-awscreen@chromium.org
 # performance_controls
 agale@chromium.org
 # performance_manager
@@ -358,7 +359,6 @@ toyoshim@chromium.org
 curranmax@chromium.org
 spelchat@chromium.org
 # printing
-awscreen@chromium.org
 jimmyxgong@chromium.org
 gavinwill@chromium.org
 # privacy_budget
@@ -379,6 +379,7 @@ rsult@google.com
 xiaohuic@chromium.org
 # quota
 ayui@chromium.org
+leimy@chromium.org
 # readaloud
 andreaxg@google.com
 basiaz@google.com
@@ -491,8 +492,6 @@ kenrb@chromium.org
 hcyang@google.com
 # web_core
 schenney@chromium.org
-# weblayer
-cduvall@chromium.org
 # web_rtc
 kron@chromium.org
 # xr

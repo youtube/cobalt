@@ -47,6 +47,7 @@
 #if BUILDFLAG(IS_WIN)
 #include <mfapi.h>
 
+#include "base/win/scoped_co_mem.h"
 #include "base/win/windows_version.h"
 #include "chrome/browser/media/media_foundation_service_monitor.h"
 #include "content/public/browser/gpu_data_manager.h"
@@ -1088,15 +1089,33 @@ IN_PROC_BROWSER_TEST_P(MseEncryptedMediaTest, Playback_Check_Ukm) {
   }
 
   // Check Media_EME_Usage UKM. It is recorded for all key systems. Currently
-  // only update() will be called during playback.
+  // only setServerCertificate(), generateRequest() and update() will be called
+  // during playback.
   auto usage_entries = ukm_recorder.GetEntries(
       Media_EME_Usage::kEntryName,
       {Media_EME_Usage::kApiName, Media_EME_Usage::kIsPersistentSessionName,
        Media_EME_Usage::kKeySystemName,
        Media_EME_Usage::kUseHardwareSecureCodecsName});
-  EXPECT_EQ(usage_entries.size(), 1u);
+  EXPECT_EQ(usage_entries.size(), 3u);
+  EXPECT_THAT(usage_entries[0].metrics,
+              UnorderedElementsAre(
+                  Pair(Media_EME_Usage::kApiName,
+                       /*blink::EmeApiType::kSetServerCertificate=*/2),
+                  Pair(Media_EME_Usage::kIsPersistentSessionName, 0),
+                  Pair(Media_EME_Usage::kKeySystemName,
+                       media::GetKeySystemIntForUKM(CurrentKeySystem())),
+                  Pair(Media_EME_Usage::kUseHardwareSecureCodecsName, 0)));
   EXPECT_THAT(
-      usage_entries[0].metrics,
+      usage_entries[1].metrics,
+      UnorderedElementsAre(
+          Pair(Media_EME_Usage::kApiName,
+               /*blink::EmeApiType::kGenerateRequest=*/4),
+          Pair(Media_EME_Usage::kIsPersistentSessionName, /*false=*/0),
+          Pair(Media_EME_Usage::kKeySystemName,
+               media::GetKeySystemIntForUKM(CurrentKeySystem())),
+          Pair(Media_EME_Usage::kUseHardwareSecureCodecsName, /*false=*/0)));
+  EXPECT_THAT(
+      usage_entries[2].metrics,
       UnorderedElementsAre(
           Pair(Media_EME_Usage::kApiName, /*blink::EmeApiType::kUpdate=*/6),
           Pair(Media_EME_Usage::kIsPersistentSessionName, /*false=*/0),
@@ -1547,7 +1566,7 @@ class MediaFoundationEncryptedMediaTest : public EncryptedMediaTestBase {
 #if BUILDFLAG(ENABLE_PLATFORM_ENCRYPTED_DOLBY_VISION)
   bool IsVideoDecoderSupported(const GUID& video_decoder_guid) {
     MFT_REGISTER_TYPE_INFO inputInfo{MFMediaType_Video, video_decoder_guid};
-    IMFActivate** activates;
+    base::win::ScopedCoMem<IMFActivate*> activates;
     unsigned int numActivates = 0;
     auto result = MFTEnumEx(MFT_CATEGORY_VIDEO_DECODER, MFT_ENUM_FLAG_SYNCMFT,
                             &inputInfo, nullptr, &activates, &numActivates);
@@ -1556,12 +1575,17 @@ class MediaFoundationEncryptedMediaTest : public EncryptedMediaTestBase {
       return false;
     }
 
+    // Clean up the activates
+    for (unsigned int i = 0; i < numActivates; ++i) {
+      activates[i]->Release();
+    }
+
     return true;
   }
 
   bool IsVideoRendererEffectSupported(const wchar_t* profile) {
     bool supported = false;
-    IMFActivate** activates = nullptr;
+    base::win::ScopedCoMem<IMFActivate*> activates;
     unsigned int numActivates = 0;
     auto result = MFTEnumEx(MFT_CATEGORY_VIDEO_RENDERER_EFFECT,
                             MFT_ENUM_FLAG_SORTANDFILTER, nullptr, nullptr,
@@ -1589,8 +1613,9 @@ class MediaFoundationEncryptedMediaTest : public EncryptedMediaTestBase {
       PropVariantClear(&var);
     }
 
-    if (*activates) {
-      (*activates)->Release();
+    // Clean up the activates
+    for (unsigned int i = 0; i < numActivates; ++i) {
+      activates[i]->Release();
     }
 
     return supported;

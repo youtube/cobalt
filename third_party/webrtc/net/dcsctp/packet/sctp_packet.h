@@ -10,11 +10,9 @@
 #ifndef NET_DCSCTP_PACKET_SCTP_PACKET_H_
 #define NET_DCSCTP_PACKET_SCTP_PACKET_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 

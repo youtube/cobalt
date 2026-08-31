@@ -7,7 +7,6 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/features.gni")
 import("//components/compose/features.gni")
-import("//components/nacl/features.gni")
 import("//components/safe_browsing/buildflags.gni")
 import("//components/sharing_message/buildflags.gni")
 import("//components/signin/features.gni")
@@ -19,7 +18,6 @@ import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
 import("//net/features.gni")
 import("//pdf/features.gni")
-import("//ppapi/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//services/screen_ai/buildflags/features.gni")
 import("//ui/base/ui_features.gni")
@@ -54,7 +52,9 @@ declare_args() {
   # It is enableable separately to facilitate testing.
   enable_hangout_services_extension = is_chrome_branded
 
-  enable_service_discovery = (enable_mdns && !is_android) || is_mac
+  # TODO(crbug.com/429684535): Document this argument. It's not immediately
+  # clear what it controls.
+  enable_service_discovery = enable_mdns
 
   # Enables use of the session service, which is enabled by default.
   # Android stores them separately on the Java side.
@@ -89,7 +89,7 @@ chrome_grit_defines = [
   "enable_hangout_services_extension=$enable_hangout_services_extension",
   "enable_ink=$enable_ink",
   "enable_pdf_ink2=$enable_pdf_ink2",
-  "enable_nacl=$enable_nacl",
+  "enable_pdf_save_to_drive=$enable_pdf_save_to_drive",
   "enable_dice_support=$enable_dice_support",
   "enable_pdf=$enable_pdf",
   "enable_print_preview=$enable_print_preview",

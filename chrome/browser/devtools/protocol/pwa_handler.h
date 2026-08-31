@@ -10,6 +10,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "chrome/browser/devtools/protocol/pwa.h"
+#include "url/gurl.h"
 
 class Profile;
 
@@ -73,6 +74,11 @@ class PWAHandler final : public protocol::PWA::Backend {
   void InstallFromUrl(const std::string& in_manifest_id,
                       const std::string& in_install_url_or_bundle_url,
                       std::unique_ptr<InstallCallback> callback);
+
+  // Installs Isolated Web App bundle from url.
+  void InstallWebBundleFromUrl(const GURL& manifest_url,
+                               const GURL& web_bundle_url,
+                               std::unique_ptr<InstallCallback> callback);
 
   // Is called by InstallFromUrl only.
   void InstallFromInstallInfo(

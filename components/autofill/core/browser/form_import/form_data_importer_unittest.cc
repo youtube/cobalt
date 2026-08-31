@@ -23,6 +23,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/not_fatal_until.h"
+#include "base/notimplemented.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -52,6 +53,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test/mock_mandatory_reauth_manager.h"
+#include "components/autofill/core/browser/payments/test/mock_virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/test_credit_card_save_manager.h"
 #include "components/autofill/core/browser/payments/test_payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/test_virtual_card_enrollment_manager.h"
@@ -83,8 +85,15 @@ using base::UTF8ToUTF16;
 using test::CreateTestFormField;
 using test::CreateTestIbanFormData;
 using ::testing::_;
+using ::testing::Contains;
+using ::testing::ElementsAre;
+using ::testing::Eq;
 using ::testing::NiceMock;
+using ::testing::Pair;
+using ::testing::Pointee;
 using ::testing::Return;
+using ::testing::Truly;
+using ::testing::UnorderedElementsAre;
 
 constexpr char kLocale[] = "en_US";
 
@@ -430,6 +439,15 @@ std::unique_ptr<FormStructure> ConstructDefaultCreditCardFormStructure() {
       GetDefaultCreditCardTypeValuePairs());
 }
 
+// Constructs a FormStructure with one address section and one payment section.
+std::unique_ptr<FormStructure> ConstructAddressAndCreditCardForm() {
+  TypeValuePairs a = GetDefaultProfileTypeValuePairs();
+  TypeValuePairs b = GetDefaultCreditCardTypeValuePairs();
+  a.reserve(a.size() + b.size());
+  std::ranges::move(b, std::back_inserter(a));
+  return ConstructFormStructureFromTypeValuePairs(a);
+}
+
 // Constructs a |FormData| instance that carries the information of the default
 // profile.
 FormData ConstructDefaultFormData() {
@@ -457,7 +475,7 @@ FormData ConstructSplitDefaultFormData(int part) {
 // Takes `expected` by value to avoid a dangling reference.
 template <typename T>
 auto ComparesEqual(T expected) {
-  return ::testing::Truly([expected = std::move(expected)](const T& actual) {
+  return Truly([expected = std::move(expected)](const T& actual) {
     return actual.Compare(expected) == 0;
   });
 }
@@ -468,43 +486,17 @@ auto ComparesEqual(T expected) {
 
 template <typename T>
 auto UnorderedElementsCompareEqualArray(const std::vector<T>& expected_values) {
-  std::vector<::testing::Matcher<const T*>> matchers;
+  std::vector<testing::Matcher<const T*>> matchers;
   for (const T& expected : expected_values) {
-    matchers.push_back(::testing::Pointee(ComparesEqual(expected)));
+    matchers.push_back(Pointee(ComparesEqual(expected)));
   }
-  return ::testing::UnorderedElementsAreArray(matchers);
+  return UnorderedElementsAreArray(matchers);
 }
 
 template <typename... Matchers>
 auto UnorderedElementsCompareEqual(Matchers... matchers) {
-  return ::testing::UnorderedElementsAre(
-      ::testing::Pointee(ComparesEqual(std::move(matchers)))...);
+  return UnorderedElementsAre(Pointee(ComparesEqual(std::move(matchers)))...);
 }
-
-class MockVirtualCardEnrollmentManager
-    : public TestVirtualCardEnrollmentManager {
- public:
-  MockVirtualCardEnrollmentManager(
-      PaymentsDataManager* payments_data_manager,
-      payments::TestPaymentsNetworkInterface* payments_network_interface,
-      TestAutofillClient* autofill_client)
-      : TestVirtualCardEnrollmentManager(payments_data_manager,
-                                         payments_network_interface,
-                                         autofill_client) {}
-  MOCK_METHOD(
-      void,
-      InitVirtualCardEnroll,
-      (const CreditCard& credit_card,
-       VirtualCardEnrollmentSource virtual_card_enrollment_source,
-       std::optional<payments::GetDetailsForEnrollmentResponseDetails>
-           get_details_for_enrollment_response_details,
-       PrefService* user_prefs,
-       VirtualCardEnrollmentManager::RiskAssessmentFunction
-           risk_assessment_function,
-       VirtualCardEnrollmentManager::VirtualCardEnrollmentFieldsLoadedCallback
-           virtual_card_enrollment_fields_loaded_callback),
-      (override));
-};
 
 // TODO(crbug.com/40270301): Move MockCreditCardSaveManager to new header and cc
 // file.
@@ -533,12 +525,6 @@ class MockCreditCardSaveManager : public TestCreditCardSaveManager {
 class FormDataImporterTest : public testing::Test {
  public:
   FormDataImporterTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kAutofillUseFRAddressModel,
-         features::kAutofillUseINAddressModel,
-         features::kAutofillUseNLAddressModel},
-        {});
-
     // Advance the clock to year 20XX.
     task_environment().FastForwardBy(base::Days(365) * 31);
   }
@@ -777,7 +763,8 @@ class FormDataImporterTest : public testing::Test {
   std::unique_ptr<PrefService> prefs_;
   syncer::TestSyncService sync_service_;
   TestAutofillClient autofill_client_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillUseINAddressModel};
 };
 
 // Tests that the country is not complemented if a country is part of the form.
@@ -1356,7 +1343,8 @@ TEST_F(FormDataImporterTest, ImportAddressProfiles_BadEmail) {
       ConstructDefaultProfileFormStructure();
 
   // Change the value of the email field.
-  ASSERT_EQ(form_structure->field(2)->Type().GetStorableType(), EMAIL_ADDRESS);
+  ASSERT_THAT(form_structure->field(2)->Type().GetTypes(),
+              Contains(EMAIL_ADDRESS));
   form_structure->field(2)->set_value(u"bogus");
 
   // Verify that there was no import.
@@ -3891,6 +3879,55 @@ TEST_F(FormDataImporterTest,
   EXPECT_EQ(observed_field_types.size(), 1u);
 }
 
+// Tests that the Autofill.PromptStatus metric is correctly recorded when only
+// the address prompt can be shown.
+TEST_F(FormDataImporterTest, AutofillPromptStatusMetric_Address) {
+  base::HistogramTester histogram_tester;
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructDefaultProfileFormStructure();
+  test_api(form_data_importer())
+      .ImportAndProcessFormData(
+          *form_structure, /*profile_autofill_enabled=*/true,
+          /*payment_methods_autofill_enabled=*/true, ukm_source_id());
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.PromptStatus",
+      AutofillMetrics::AutofillPromptStatus::kAddressShown, 1);
+}
+
+// Tests that the Autofill.PromptStatus metric is correctly recorded when only
+// the credit card prompt can be shown.
+TEST_F(FormDataImporterTest, AutofillPromptStatusMetric_CreditCard) {
+  base::HistogramTester histogram_tester;
+  EXPECT_CALL(credit_card_save_manager(), ProceedWithSavingIfApplicable)
+      .WillOnce(Return(true));
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructDefaultCreditCardFormStructure();
+  test_api(form_data_importer())
+      .ImportAndProcessFormData(
+          *form_structure, /*profile_autofill_enabled=*/true,
+          /*payment_methods_autofill_enabled=*/true, ukm_source_id());
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.PromptStatus",
+      AutofillMetrics::AutofillPromptStatus::kCreditCardShown, 1);
+}
+
+// Tests that the Autofill.PromptStatus metric is correctly recorded when both
+// the address and the credit card prompts can be shown.
+TEST_F(FormDataImporterTest, AutofillPromptStatusMetric_AddressAndCreditCard) {
+  base::HistogramTester histogram_tester;
+  EXPECT_CALL(credit_card_save_manager(), ProceedWithSavingIfApplicable)
+      .WillOnce(Return(true));
+  std::unique_ptr<FormStructure> form_structure =
+      ConstructAddressAndCreditCardForm();
+  test_api(form_data_importer())
+      .ImportAndProcessFormData(
+          *form_structure, /*profile_autofill_enabled=*/true,
+          /*payment_methods_autofill_enabled=*/true, ukm_source_id());
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.PromptStatus",
+      AutofillMetrics::AutofillPromptStatus::kAddressAndCreditCardShown, 1);
+}
+
 class SkipSaveCardInFormDataImporterTest
     : public FormDataImporterTest,
       public testing::WithParamInterface<bool> {
@@ -3908,7 +3945,7 @@ class SkipSaveCardInFormDataImporterTest
 
 INSTANTIATE_TEST_SUITE_P(All,
                          SkipSaveCardInFormDataImporterTest,
-                         ::testing::Bool());
+                         testing::Bool());
 
 // Test that save card functionality is skipped for tab modal popup only when
 // kAutofillSkipSaveCardForTabModalPopup is enabled; otherwise, the card saving
@@ -4241,9 +4278,7 @@ TEST_F(FormDataImporterTest_RelaxAddressImport,
       test_api(form_data_importer()).HasInvalidFieldTypes(section_fields));
   EXPECT_THAT(
       test_api(form_data_importer()).GetObservedFieldValues(section_fields),
-      ::testing::ElementsAre(
-          ::testing::Pair(::testing::Eq(ADDRESS_HOME_COUNTRY),
-                          ::testing::Eq(u"United States"))));
+      ElementsAre(Pair(Eq(ADDRESS_HOME_COUNTRY), Eq(u"United States"))));
 }
 
 // Tests that duplicate fields with identical field values are valid for the
@@ -4268,9 +4303,7 @@ TEST_F(FormDataImporterTest_RelaxAddressImport,
       test_api(form_data_importer()).HasInvalidFieldTypes(section_fields));
   EXPECT_THAT(
       test_api(form_data_importer()).GetObservedFieldValues(section_fields),
-      ::testing::ElementsAre(
-          ::testing::Pair(::testing::Eq(ADDRESS_HOME_COUNTRY),
-                          ::testing::Eq(u"United States"))));
+      ElementsAre(Pair(Eq(ADDRESS_HOME_COUNTRY), Eq(u"United States"))));
 }
 
 }  // namespace

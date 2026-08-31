@@ -7,7 +7,9 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_adaptation_loader.h"
 #include "components/optimization_guide/core/model_execution/on_device_model_component.h"
@@ -15,8 +17,6 @@
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_proto_util.h"
-#include "components/optimization_guide/core/optimization_guide_test_util.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
 #include "components/optimization_guide/proto/on_device_model_execution_config.pb.h"
 #include "services/on_device_model/public/cpp/test_support/fake_service.h"
 
@@ -24,14 +24,27 @@ namespace optimization_guide {
 
 FakeBaseModelAsset::FakeBaseModelAsset()
     : FakeBaseModelAsset(FakeBaseModelAsset::Content{}) {}
-FakeBaseModelAsset::FakeBaseModelAsset(Content&& content)
-    : version_(content.version) {
+FakeBaseModelAsset::FakeBaseModelAsset(Content&& content) {
   CHECK(temp_dir_.CreateUniqueTempDir());
+  // Support all performance hints by default.
+  supported_performance_hints_ =
+      base::Value::List()
+          .Append(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_HIGHEST_QUALITY)
+          .Append(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE)
+          .Append(proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU);
   Write(std::move(content));
 }
 FakeBaseModelAsset::FakeBaseModelAsset(
+    const std::vector<proto::OnDeviceModelPerformanceHint>& hints) {
+  CHECK(temp_dir_.CreateUniqueTempDir());
+  for (const auto& hint : hints) {
+    supported_performance_hints_.Append(hint);
+  }
+  Write({});
+}
+FakeBaseModelAsset::FakeBaseModelAsset(
     proto::OnDeviceModelValidationConfig&& validation_config)
-    : FakeBaseModelAsset({
+    : FakeBaseModelAsset(Content{
           .config = ExecutionConfigWithValidation(std::move(validation_config)),
       }) {}
 FakeBaseModelAsset::~FakeBaseModelAsset() = default;
@@ -43,6 +56,14 @@ void FakeBaseModelAsset::Write(Content&& content) {
     CHECK(base::WriteFile(temp_dir_.GetPath().Append(kExperimentalCacheFile),
                           base::NumberToString(content.cache_weight)));
   }
+  if (content.encoder_cache_weight) {
+    CHECK(base::WriteFile(temp_dir_.GetPath().Append(kEncoderCacheFile),
+                          base::NumberToString(content.encoder_cache_weight)));
+  }
+  if (content.adapter_cache_weight) {
+    CHECK(base::WriteFile(temp_dir_.GetPath().Append(kAdapterCacheFile),
+                          base::NumberToString(content.adapter_cache_weight)));
+  }
   CHECK(base::WriteFile(
       temp_dir_.GetPath().Append(kOnDeviceModelExecutionConfigFile),
       content.config.SerializeAsString()));
@@ -50,8 +71,11 @@ void FakeBaseModelAsset::Write(Content&& content) {
 
 base::Value::Dict FakeBaseModelAsset::Manifest() const {
   return base::Value::Dict().Set(
-      "BaseModelSpec",
-      base::Value::Dict().Set("version", "0.0.1").Set("name", "Test"));
+      "BaseModelSpec", base::Value::Dict()
+                           .Set("version", "0.0.1")
+                           .Set("name", "Test")
+                           .Set("supported_performance_hints",
+                                supported_performance_hints_.Clone()));
 }
 
 void FakeBaseModelAsset::SetReadyIn(
@@ -69,7 +93,7 @@ FakeAdaptationAsset::FakeAdaptationAsset(FakeAdaptationAsset::Content&& content)
     CHECK(base::WriteFile(paths_->weights,
                           base::NumberToString(content.weight.value())));
   }
-  metadata_ = OnDeviceModelAdaptationMetadata::New(
+  metadata_ = std::make_unique<OnDeviceModelAdaptationMetadata>(
       paths_.get(), version(),
       base::MakeRefCounted<OnDeviceModelFeatureAdapter>(
           std::move(content.config)));
@@ -83,7 +107,7 @@ void FakeAdaptationAsset::SendTo(
 
 FakeLanguageModelAsset::FakeLanguageModelAsset() {
   CHECK(temp_dir_.CreateUniqueTempDir());
-  auto model_path = temp_dir_.GetPath().Append(kWeightsFile);
+  auto model_path = this->model_path();
   CHECK(base::WriteFile(model_path, on_device_model::FakeLanguageModel()));
   model_info_ = TestModelInfoBuilder()
                     .SetModelFilePath(model_path)
@@ -91,6 +115,10 @@ FakeLanguageModelAsset::FakeLanguageModelAsset() {
                     .Build();
 }
 FakeLanguageModelAsset::~FakeLanguageModelAsset() = default;
+
+base::FilePath FakeLanguageModelAsset::model_path() const {
+  return temp_dir_.GetPath().Append(kWeightsFile);
+}
 
 FakeSafetyModelAsset::FakeSafetyModelAsset(
     proto::FeatureTextSafetyConfiguration&& config)

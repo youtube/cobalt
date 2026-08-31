@@ -6,6 +6,8 @@ package org.chromium.chrome.test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.content.ComponentName;
@@ -18,19 +20,24 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import org.hamcrest.Matchers;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.mockito.Mockito;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.CommandLine;
+import org.chromium.base.Holder;
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.ScalableTimeout;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.DeferredStartupHandler;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.app.ChromeActivity;
 import org.chromium.chrome.browser.document.ChromeLauncherActivity;
+import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.infobar.InfoBarContainer;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
 import org.chromium.chrome.browser.prefetch.settings.PreloadPagesSettingsBridge;
@@ -45,7 +52,9 @@ import org.chromium.chrome.browser.ui.appmenu.AppMenuCoordinator;
 import org.chromium.chrome.test.util.ChromeApplicationTestUtils;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.chrome.test.util.NewTabPageTestUtils;
+import org.chromium.components.browser_ui.widget.highlight.PulseDrawable;
 import org.chromium.components.embedder_support.util.UrlUtilities;
+import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.infobars.InfoBar;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
@@ -66,11 +75,21 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * Custom {@link BaseActivityTestRule} for test using {@link ChromeActivity}.
  *
+ * <p>Relevant adaptations:
+ *
+ * <ul>
+ *   <li>Sets up an {@link EmbeddedTestServer}.
+ *   <li>Disables the offline indicator.
+ *   <li>Disables IPH (In-Product Help).
+ *   <li>Slows down PulseDrawable animations.
+ * </ul>
+ *
  * @param <T> The {@link Activity} class under test.
  */
 public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivityTestRule<T> {
     // The number of ms to wait for the rendering activity to be started.
     private static final int ACTIVITY_START_TIMEOUT_MS = 1000;
+    private static final String TAG = "TestRule";
 
     private final EmbeddedTestServerRule mTestServerRule = new EmbeddedTestServerRule();
 
@@ -88,6 +107,12 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
     protected void before() throws Throwable {
         super.before();
 
+        disableOfflineIndicator();
+        disableIph();
+        slowDownPulseDrawableAnimations();
+    }
+
+    private void disableOfflineIndicator() {
         // Tests are run on bots that are offline by default. This might cause
         // offline UI to show and cause flakiness or failures in tests. Using this
         // switch will prevent that.
@@ -95,6 +120,34 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
         // indicator for specific tests.
         CommandLine.getInstance()
                 .appendSwitch(ContentSwitches.FORCE_ONLINE_CONNECTION_STATE_FOR_INDICATOR);
+    }
+
+    private void disableIph() {
+        // Disable IPH to prevent it from interfering with the tests.
+        Log.w(
+                TAG,
+                "A mock Tracker is set in ChromeActivityTestRule. This will"
+                        + " prevent any IPH from showing. See crbug.com/342240475.");
+        Tracker tracker = Mockito.mock(Tracker.class);
+        when(tracker.shouldTriggerHelpUi(anyString())).thenReturn(false);
+        TrackerFactory.setTrackerForTests(tracker);
+    }
+
+    private void slowDownPulseDrawableAnimations() {
+        // Reduce PulseDrawable frame rate to keep UI Thread MessageQueue from being busy most of
+        // the time, which causes Espresso's ViewInteraction#check() and #perform() to fail with
+        // AppNotIdleException since they wait for the UI Thread to be clear.
+        PulseDrawable.setFrameRateForTesting(2);
+    }
+
+    /**
+     * Enables default behavior of IPH again for one test case.
+     *
+     * <p>Tests can also use {@code TrackerFactory.setTrackerForTests(mMockTracker)} to have more
+     * predictable IPH behavior.
+     */
+    public void reenableIph() {
+        TrackerFactory.setTrackerForTests(null);
     }
 
     @Override
@@ -244,11 +297,9 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      * @return {@link LoadUrlResult} from Tab#loadUrl.
      */
     public LoadUrlResult loadUrl(String url, long secondsToWait) throws IllegalArgumentException {
+        Tab tab = getActivityTab();
         return loadUrlInTab(
-                url,
-                PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR,
-                getActivity().getActivityTab(),
-                secondsToWait);
+                url, PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR, tab, secondsToWait);
     }
 
     /**
@@ -259,10 +310,8 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      * @return {@link LoadUrlResult} from Tab#loadUrl.
      */
     public LoadUrlResult loadUrl(String url) throws IllegalArgumentException {
-        return loadUrlInTab(
-                url,
-                PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR,
-                getActivity().getActivityTab());
+        Tab tab = getActivityTab();
+        return loadUrlInTab(url, PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR, tab);
     }
 
     /** {@link #loadUrl(String) */
@@ -378,7 +427,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      */
     public int tabsCount(boolean incognito) {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Integer>() {
+                new Callable<>() {
                     @Override
                     public Integer call() {
                         return getActivity().getTabModelSelector().getModel(incognito).getCount();
@@ -389,10 +438,10 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
     /** Returns the infobars being displayed by the current tab, or null if they don't exist. */
     public List<InfoBar> getInfoBars() {
         return ThreadUtils.runOnUiThreadBlocking(
-                new Callable<List<InfoBar>>() {
+                new Callable<>() {
                     @Override
                     public List<InfoBar> call() {
-                        Tab currentTab = getActivity().getActivityTab();
+                        Tab currentTab = getActivityTab();
                         assertNotNull(currentTab);
                         assertNotNull(InfoBarContainer.get(currentTab));
                         return InfoBarContainer.get(currentTab).getInfoBarsForTesting();
@@ -405,8 +454,8 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      * its execution in JSON format.
      */
     public String runJavaScriptCodeInCurrentTab(String code) throws TimeoutException {
-        return JavaScriptUtils.executeJavaScriptAndWaitForResult(
-                getActivity().getCurrentWebContents(), code);
+        WebContents webContents = getWebContents();
+        return JavaScriptUtils.executeJavaScriptAndWaitForResult(webContents, code);
     }
 
     /**
@@ -415,8 +464,8 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      */
     public String runJavaScriptCodeWithUserGestureInCurrentTab(String code)
             throws TimeoutException {
-        return JavaScriptUtils.executeJavaScriptWithUserGestureAndWaitForResult(
-                getActivity().getCurrentWebContents(), code);
+        WebContents webContents = getWebContents();
+        return JavaScriptUtils.executeJavaScriptWithUserGestureAndWaitForResult(webContents, code);
     }
 
     /**
@@ -433,10 +482,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
      */
     public InfoBarContainer getInfoBarContainer() {
         return ThreadUtils.runOnUiThreadBlocking(
-                () ->
-                        getActivity().getActivityTab() != null
-                                ? InfoBarContainer.get(getActivity().getActivityTab())
-                                : null);
+                () -> getActivityTab() != null ? InfoBarContainer.get(getActivityTab()) : null);
     }
 
     /** Gets the ChromeActivityTestRule's EmbeddedTestServer instance if it has one. */
@@ -447,6 +493,11 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
     /** Gets the underlying EmbeddedTestServerRule for getTestServer(). */
     public EmbeddedTestServerRule getEmbeddedTestServerRule() {
         return mTestServerRule;
+    }
+
+    /** Returns the active {@link Tab} of the activity. */
+    public Tab getActivityTab() {
+        return ThreadUtils.runOnUiThreadBlocking(() -> getActivity().getActivityTab());
     }
 
     /** Returns the {@link WebContents} of the active tab of the activity. */
@@ -476,6 +527,7 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
 
     /**
      * Waits for an Activity of the given class to be started.
+     *
      * @param expectedClass The class of the Activity being waited on.
      * @param maxTimeToPoll Maximum time in milliseconds to poll.
      * @return The Activity.
@@ -483,19 +535,20 @@ public class ChromeActivityTestRule<T extends ChromeActivity> extends BaseActivi
     @SuppressWarnings("unchecked")
     public static <T extends ChromeActivity> T waitFor(
             final Class<T> expectedClass, long maxTimeToPoll) {
-        final Activity[] holder = new Activity[1];
+        final Holder<@Nullable Activity> holder = new Holder<>(null);
         CriteriaHelper.pollUiThread(
                 () -> {
-                    holder[0] = ApplicationStatus.getLastTrackedFocusedActivity();
-                    Criteria.checkThat(holder[0], Matchers.notNullValue());
+                    holder.value = ApplicationStatus.getLastTrackedFocusedActivity();
+                    Criteria.checkThat(holder.value, Matchers.notNullValue());
                     Criteria.checkThat(
-                            holder[0].getClass(), Matchers.typeCompatibleWith(expectedClass));
+                            holder.value.getClass(), Matchers.typeCompatibleWith(expectedClass));
                     Criteria.checkThat(
-                            ((ChromeActivity) holder[0]).getActivityTab(), Matchers.notNullValue());
+                            ((ChromeActivity) holder.value).getActivityTab(),
+                            Matchers.notNullValue());
                 },
                 maxTimeToPoll,
                 CriteriaHelper.DEFAULT_POLLING_INTERVAL);
-        return (T) holder[0];
+        return (T) holder.value;
     }
 
     /**

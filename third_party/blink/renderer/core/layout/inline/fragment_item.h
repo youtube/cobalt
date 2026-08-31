@@ -26,19 +26,35 @@ namespace blink {
 class FragmentItems;
 class InlinePaintContext;
 class PhysicalBoxFragment;
+struct FitTextScale;
 struct LogicalLineItem;
 struct TextFragmentPaintInfo;
 
+// Purpose of `SvgFragmentData::length_adjust_scale`.
+//   kLengthAdjust: The SvgFragmentData is for SVG text.
+//   kFitText: The SvgFragmentData is for `scale` or `font-size` method
+//   kFitTextInline: The SvgFragmentData is for `scale-inline` method.
+enum class TextScaleType : uint8_t { kLengthAdjust, kFitText, kFitTextInline };
+
 // Data for SVG text in addition to FragmentItem.
+// Each text items for SVG <text> has this instance.
+//
+// For a non-SVG text item, it has this instance if text-grow or text-shrunk
+// is applied.
+// TODO(crbug.com/417306102): We should rename it.
 struct SvgFragmentData : public GarbageCollected<SvgFragmentData> {
  public:
-  void Trace(Visitor*) const {}
+  void Trace(Visitor* visitor) const { visitor->Trace(scaled_font); }
+  bool IsSvg() const { return scale_type == TextScaleType::kLengthAdjust; }
 
   gfx::RectF rect;
   float length_adjust_scale;
   float angle;
   float baseline_shift;
+  // `scaled_font` is not used for SVG text.
+  Member<Font> scaled_font;
   bool in_text_path;
+  TextScaleType scale_type;
 };
 
 // This class represents a text run or a box in an inline formatting context.
@@ -69,8 +85,12 @@ class CORE_EXPORT FragmentItem final {
     DISALLOW_NEW();
 
    public:
-    void Trace(Visitor* visitor) const { visitor->Trace(shape_result); }
+    void Trace(Visitor* visitor) const {
+      visitor->Trace(shape_result);
+      visitor->Trace(extra_data);
+    }
     Member<const ShapeResultView> shape_result;
+    Member<const SvgFragmentData> extra_data;
     String text;
   };
   // A start marker of a line box.
@@ -134,7 +154,9 @@ class CORE_EXPORT FragmentItem final {
   bool IsHiddenForPaint() const { return is_hidden_for_paint_; }
   bool IsListMarker() const;
 
-  bool IsSvgText() const { return Type() == kText && text_.svg_data; }
+  bool IsSvgText() const {
+    return Type() == kText && text_.svg_data && text_.svg_data->IsSvg();
+  }
 
   void SetSvgFragmentData(const SvgFragmentData* data,
                           const PhysicalRect& unscaled_rect,
@@ -280,7 +302,6 @@ class CORE_EXPORT FragmentItem final {
   LayoutObject& BlockInInline() const;
 
   bool HasNonVisibleOverflow() const;
-  bool IsScrollContainer() const;
   bool HasSelfPaintingLayer() const;
 
   // TODO(kojii): Avoid using this function in outside of this class as much as
@@ -493,7 +514,11 @@ class CORE_EXPORT FragmentItem final {
   const FragmentItem* operator->() const { return this; }
 
   const SvgFragmentData* GetSvgFragmentData() const {
-    return Type() == kText ? text_.svg_data.Get() : nullptr;
+    if (Type() != kText) {
+      return nullptr;
+    }
+    const auto* svg_data = text_.svg_data.Get();
+    return svg_data && svg_data->IsSvg() ? svg_data : nullptr;
   }
   // Returns true if BuildSvgTransformForPaint() returns non-identity transform.
   bool HasSvgTransformForPaint() const;
@@ -521,6 +546,10 @@ class CORE_EXPORT FragmentItem final {
   // This returns Style().GetFont() for an FragmentItem not for
   // LayoutSVGInlineText.
   const Font& ScaledFont() const;
+
+  // Returns a pair of text scaling factor and is_scaled_inline_only flag for
+  // text-grow and text-shrink properties.
+  std::pair<float, bool> GetFitTextScale() const;
 
   // Get a description of |this| for the debug purposes.
   String ToString() const;
@@ -564,7 +593,6 @@ class CORE_EXPORT FragmentItem final {
   bool HasInkOverflow() const {
     return InkOverflowType() != InkOverflow::Type::kNone;
   }
-  const LayoutBox* InkOverflowOwnerBox() const;
   LayoutBox* MutableInkOverflowOwnerBox();
 
   void InvalidateInkOverflow();
@@ -580,6 +608,8 @@ class CORE_EXPORT FragmentItem final {
   AffineTransform BuildSvgTransformForTextPath(
       const AffineTransform& length_adjust) const;
   AffineTransform BuildSvgTransformForLengthAdjust() const;
+
+  void SetFitTextScale(const FitTextScale* scale);
 
   // TODO(kojii): We can make them sub-classes if we need to make the vector of
   // pointers. Sub-classing from DisplayItemClient prohibits copying and that we
@@ -633,17 +663,14 @@ inline bool FragmentItem::CanReuse() const {
 CORE_EXPORT std::ostream& operator<<(std::ostream&, const FragmentItem*);
 CORE_EXPORT std::ostream& operator<<(std::ostream&, const FragmentItem&);
 
-}  // namespace blink
-
-namespace WTF {
 template <>
-struct VectorTraits<blink::FragmentItem>
-    : VectorTraitsBase<blink::FragmentItem> {
+struct VectorTraits<FragmentItem> : VectorTraitsBase<FragmentItem> {
   static constexpr bool kCanClearUnusedSlotsWithMemset = true;
   // FragmentItem(FragmentItem&&) is safe to be replaced with memcpy. This
   // will enable Oilpan compaction as well.
   static constexpr bool kCanMoveWithMemcpy = true;
 };
-}  // namespace WTF
+
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_LAYOUT_INLINE_FRAGMENT_ITEM_H_

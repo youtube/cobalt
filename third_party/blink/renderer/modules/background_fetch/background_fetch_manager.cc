@@ -41,6 +41,7 @@
 #include "third_party/blink/renderer/platform/weborigin/kurl_hash.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 
 namespace blink {
@@ -56,9 +57,9 @@ ScriptPromise<BackgroundFetchRegistration> RejectWithTypeError(
     const KURL& request_url,
     const String& reason,
     ExceptionState& exception_state) {
-  exception_state.ThrowTypeError("Refused to fetch '" +
-                                 request_url.ElidedString() + "' because " +
-                                 reason + ".");
+  exception_state.ThrowTypeError(
+      StrCat({"Refused to fetch '", request_url.ElidedString(), "' because ",
+              reason, "."}));
   return EmptyPromise();
 }
 
@@ -90,8 +91,8 @@ bool ShouldBlockCredentials(ExecutionContext* execution_context,
 bool ShouldBlockScheme(const KURL& request_url) {
   // Require http(s), i.e. block data:, wss: and file:
   // https://github.com/WICG/background-fetch/issues/44
-  return !request_url.ProtocolIs(WTF::g_http_atom) &&
-         !request_url.ProtocolIs(WTF::g_https_atom);
+  return !request_url.ProtocolIs(g_http_atom) &&
+         !request_url.ProtocolIs(g_https_atom);
 }
 
 bool ShouldBlockDanglingMarkup(const KURL& request_url) {

@@ -53,6 +53,7 @@ local-fonts
 magnetometer
 microphone
 midi
+on-device-speech-recognition
 otp-credentials
 payment
 picture-in-picture
@@ -61,7 +62,6 @@ private-state-token-issuance
 private-state-token-redemption
 publickey-credentials-create
 publickey-credentials-get
-rewriter
 run-ad-auction
 screen-wake-lock
 serial
@@ -74,6 +74,5 @@ translator
 unload
 usb
 window-management
-writer
 xr-spatial-tracking
 

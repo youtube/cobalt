@@ -19,10 +19,15 @@
 #include <variant>
 
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/h5vcc_native_stability/native_stability_manager.h"
+#include "cobalt/build/configs/buildflags.h"
+
 namespace cobalt {
 namespace browser {
 
@@ -30,6 +35,7 @@ namespace browser {
 void CobaltHangWatcherDelegate::Initialize() {
   static base::NoDestructor<CobaltHangWatcherDelegate> instance;
   base::HangWatcher::SetDelegate(instance.get());
+  base::HangWatcher::UpdateConfiguration();
 }
 
 CobaltHangWatcherDelegate::CobaltHangWatcherDelegate()
@@ -46,7 +52,17 @@ CobaltHangWatcherDelegate::CobaltHangWatcherDelegate(
 // the Chromium TaskEnvironment and thread pool are ready, causing a FATAL
 // crash.
 GlobalFeatures* CobaltHangWatcherDelegate::GetGlobalFeatures() {
-  return global_features_ ? global_features_ : GlobalFeatures::GetInstance();
+  if (global_features_) {
+    return global_features_;
+  }
+
+  // GlobalFeatures::GetInstance() may require ThreadPool to initialize or
+  // access settings. We must ensure it's available to avoid crashes during
+  // early startup or shutdown.
+  if (!base::ThreadPoolInstance::Get()) {
+    return nullptr;
+  }
+  return GlobalFeatures::GetInstance();
 }
 
 std::optional<int64_t> CobaltHangWatcherDelegate::GetIntSetting(
@@ -70,12 +86,14 @@ std::optional<int64_t> CobaltHangWatcherDelegate::GetIntSetting(
 }
 
 bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
-  // First, check 'GlobalFeatures', which is a process-wide settings dictionary
-  // typically populated by the embedder via the JS H5VCC API.
-  // We prioritize this to allow embedders to enable hang reporting
-  // until the proper Finch bridge is fully functional. If the setting isn't
-  // explicitly provided, we fallback to the standard Chromium 'FeatureList'
-  // which is backed by Finch.
+  // Check 'GlobalFeatures', which is populated by the embedder via the JS H5VCC
+  // API. We prioritize this to allow embedders runtime override control until
+  // the Finch bridge is fully functional. If omitted, we fallback to Finch
+  // ('base::FeatureList').
+  // Note: GlobalFeatures and Finch are treated as mutually exclusive. If an
+  // embedder explicitly sets a key, that intent is honored: invalid or
+  // non-positive values fall back directly to compiled defaults rather than
+  // silently activating an unintended Finch experiment group.
   auto val = GetIntSetting("EnableHangReporting");
   if (val.has_value()) {
     bool enabled = *val != 0;
@@ -87,53 +105,157 @@ bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
   return base::FeatureList::IsEnabled(cobalt::features::kHangReporting);
 }
 
-std::optional<base::TimeDelta> CobaltHangWatcherDelegate::GetHangWatchTime() {
+base::TimeDelta CobaltHangWatcherDelegate::GetHangWatchTime() {
   auto val = GetIntSetting("HangWatchTimeSeconds");
-  if (!val.has_value() || *val <= 0) {
-    return std::nullopt;
+  if (val.has_value()) {
+    if (*val <= 0) {
+      DLOG(INFO) << "CobaltHangWatcherDelegate: HangWatchTimeSeconds: " << *val
+                 << " is non-positive, using default";
+      return base::WatchHangsInScope::kDefaultHangWatchTime;
+    }
+    DLOG(INFO) << "CobaltHangWatcherDelegate: HangWatchTimeSeconds: " << *val;
+    return base::Seconds(*val);
   }
-  return base::Seconds(*val);
+
+  DLOG(INFO) << "CobaltHangWatcherDelegate: HangWatchTimeSeconds: using Finch";
+  int timeout_seconds = cobalt::features::kHangWatchTimeSeconds.Get();
+  if (timeout_seconds <= 0) {
+    return base::WatchHangsInScope::kDefaultHangWatchTime;
+  }
+  return base::Seconds(timeout_seconds);
 }
 
-std::optional<base::TimeDelta>
-CobaltHangWatcherDelegate::GetHangWatchMonitoringPeriod() {
+base::TimeDelta CobaltHangWatcherDelegate::GetHangWatchMonitoringPeriod() {
   auto val = GetIntSetting("HangWatchMonitoringPeriodSeconds");
-  if (!val.has_value() || *val <= 0) {
-    return std::nullopt;
+  if (val.has_value()) {
+    if (*val <= 0) {
+      DLOG(INFO) << "CobaltHangWatcherDelegate: "
+                    "HangWatchMonitoringPeriodSeconds: "
+                 << *val << " is non-positive, using default";
+      return base::Seconds(
+          cobalt::features::kHangWatchMonitoringPeriodSeconds.default_value);
+    }
+    DLOG(INFO) << "CobaltHangWatcherDelegate: "
+                  "HangWatchMonitoringPeriodSeconds: "
+               << *val;
+    return base::Seconds(*val);
   }
-  return base::Seconds(*val);
+
+  DLOG(INFO) << "CobaltHangWatcherDelegate: "
+                "HangWatchMonitoringPeriodSeconds: using Finch";
+  int period_seconds =
+      cobalt::features::kHangWatchMonitoringPeriodSeconds.Get();
+  if (period_seconds <= 0) {
+    return base::Seconds(
+        cobalt::features::kHangWatchMonitoringPeriodSeconds.default_value);
+  }
+  return base::Seconds(period_seconds);
 }
 
-std::optional<bool> CobaltHangWatcherDelegate::IsThreadDumpingEnabled(
+bool CobaltHangWatcherDelegate::IsThreadDumpingEnabled(
     base::HangWatcher::ThreadType thread_type) {
   std::string_view key;
+  const base::Feature* feature = nullptr;
   switch (thread_type) {
     case base::HangWatcher::ThreadType::kMainThread:
       key = "EnableHangWatchMainThreadDump";
+      feature = &cobalt::features::kHangWatchMainThreadDump;
       break;
     case base::HangWatcher::ThreadType::kIOThread:
       key = "EnableHangWatchIOThreadDump";
+      feature = &cobalt::features::kHangWatchIOThreadDump;
       break;
     case base::HangWatcher::ThreadType::kThreadPoolThread:
       key = "EnableHangWatchThreadPoolDump";
+      feature = &cobalt::features::kHangWatchThreadPoolDump;
       break;
     case base::HangWatcher::ThreadType::kRendererThread:
       key = "EnableHangWatchRendererThreadDump";
+      feature = &cobalt::features::kHangWatchRendererThreadDump;
       break;
     default:
-      return std::nullopt;
-  }
-
-  if (key.empty()) {
-    return std::nullopt;
+      return false;
   }
 
   auto val = GetIntSetting(key);
   if (val.has_value()) {
-    return *val != 0;
+    bool enabled = *val != 0;
+    DLOG(INFO) << "CobaltHangWatcherDelegate: " << key << ": " << enabled;
+    return enabled;
   }
 
-  return std::nullopt;
+  DLOG(INFO) << "CobaltHangWatcherDelegate: " << key << ": using Finch";
+  return base::FeatureList::IsEnabled(*feature);
+}
+
+bool CobaltHangWatcherDelegate::IsLongHangDetectionEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangDetection");
+  if (val.has_value()) {
+    DLOG(INFO)
+        << "CobaltHangWatcherDelegate: EnableHangWatcherLongHangDetection: "
+        << (*val != 0);
+    return *val != 0;
+  }
+  DLOG(INFO) << "CobaltHangWatcherDelegate: "
+                "EnableHangWatcherLongHangDetection: using Finch";
+  return base::FeatureList::IsEnabled(
+      cobalt::features::kHangWatcherLongHangDetection);
+}
+
+bool CobaltHangWatcherDelegate::IsLongHangKillEnabled() {
+  auto val = GetIntSetting("EnableHangWatcherLongHangKill");
+  if (val.has_value()) {
+    DLOG(INFO) << "CobaltHangWatcherDelegate: EnableHangWatcherLongHangKill: "
+               << (*val != 0);
+    return *val != 0;
+  }
+  DLOG(INFO) << "CobaltHangWatcherDelegate: EnableHangWatcherLongHangKill: "
+                "using Finch";
+  return base::FeatureList::IsEnabled(
+      cobalt::features::kHangWatcherLongHangKill);
+}
+
+base::TimeDelta CobaltHangWatcherDelegate::GetLongHangTimeout() {
+  auto val = GetIntSetting("LongHangTimeoutSeconds");
+  if (val.has_value()) {
+    if (*val <= 0) {
+      DLOG(INFO) << "CobaltHangWatcherDelegate: LongHangTimeoutSeconds: "
+                 << *val << " is non-positive, using default";
+      return base::Seconds(
+          cobalt::features::kLongHangTimeoutSeconds.default_value);
+    }
+    DLOG(INFO) << "CobaltHangWatcherDelegate: LongHangTimeoutSeconds: " << *val;
+    return base::Seconds(*val);
+  }
+
+  DLOG(INFO)
+      << "CobaltHangWatcherDelegate: LongHangTimeoutSeconds: using Finch";
+  int timeout_seconds = cobalt::features::kLongHangTimeoutSeconds.Get();
+  if (timeout_seconds <= 0) {
+    return base::Seconds(
+        cobalt::features::kLongHangTimeoutSeconds.default_value);
+  }
+  return base::Seconds(timeout_seconds);
+}
+
+void CobaltHangWatcherDelegate::RecordHangStarted(
+    const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
+  auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
+  if (nsm) {
+    nsm->RecordHangStarted(hang_uuid);
+  }
+#endif
+}
+
+void CobaltHangWatcherDelegate::RecordHangRecovered(
+    const std::string& hang_uuid) {
+#if BUILDFLAG(USE_EVERGREEN)
+  auto* nsm = h5vcc_native_stability::NativeStabilityManager::GetInstance();
+  if (nsm) {
+    nsm->RecordHangRecovered(hang_uuid);
+  }
+#endif
 }
 
 }  // namespace browser

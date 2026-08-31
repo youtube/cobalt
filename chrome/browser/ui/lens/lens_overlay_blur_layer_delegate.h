@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_LENS_LENS_OVERLAY_BLUR_LAYER_DELEGATE_H_
 #define CHROME_BROWSER_UI_LENS_LENS_OVERLAY_BLUR_LAYER_DELEGATE_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/timer/timer.h"
@@ -44,6 +45,8 @@ class LensOverlayBlurLayerDelegate : public ui::LayerOwner,
   // When the page resizes, it will stretch the last taken screenshot to fit the
   // new layer size.
   void StopBackgroundImageCapture();
+
+  bool IsCapturingBackgroundImageForTesting();
 
  private:
   // ui::LayerDelegate:

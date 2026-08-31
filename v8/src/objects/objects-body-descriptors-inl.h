@@ -9,6 +9,7 @@
 // Include the non-inl header before the rest of the headers.
 
 #include <algorithm>
+#include <cstddef>
 
 #include "include/v8-internal.h"
 #include "src/base/logging.h"
@@ -477,6 +478,11 @@ class RegExpDataWrapper::BodyDescriptor final : public BodyDescriptorBase {
 
 class WeakCell::BodyDescriptor final : public BodyDescriptorBase {
  public:
+  static constexpr int kTargetOffset = offsetof(WeakCell, target_);
+  static constexpr int kUnregisterTokenOffset =
+      offsetof(WeakCell, unregister_token_);
+  static_assert(kUnregisterTokenOffset == kTargetOffset + kTaggedSize);
+
   template <typename ObjectVisitor>
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
@@ -829,7 +835,7 @@ class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     Tagged<PreparseData> data = UncheckedCast<PreparseData>(obj);
-    int start_offset = data->inner_start_offset();
+    int start_offset = data->children_start_offset();
     int end_offset = start_offset + data->children_length() * kTaggedSize;
     IteratePointers(obj, start_offset, end_offset, v);
   }
@@ -846,12 +852,13 @@ class InterpreterData::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kInterpreterDataIndirectPointerTag, v);
-    IterateProtectedPointer(obj, kBytecodeArrayOffset, v);
-    IterateProtectedPointer(obj, kInterpreterTrampolineOffset, v);
+    IterateProtectedPointer(obj, offsetof(InterpreterData, bytecode_array_), v);
+    IterateProtectedPointer(
+        obj, offsetof(InterpreterData, interpreter_trampoline_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(InterpreterData);
   }
 };
 
@@ -862,11 +869,12 @@ class UncompiledDataWithoutPreparseData::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithoutPreparseData, inferred_name_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithoutPreparseData);
   }
 };
 
@@ -877,12 +885,14 @@ class UncompiledDataWithPreparseData::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
-    IteratePointer(obj, kPreparseDataOffset, v);
+    IteratePointer(obj,
+                   offsetof(UncompiledDataWithPreparseData, inferred_name_), v);
+    IteratePointer(obj,
+                   offsetof(UncompiledDataWithPreparseData, preparse_data_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithPreparseData);
   }
 };
 
@@ -893,11 +903,13 @@ class UncompiledDataWithoutPreparseDataWithJob::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithoutPreparseDataWithJob, inferred_name_),
+        v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithoutPreparseDataWithJob);
   }
 };
 
@@ -908,12 +920,14 @@ class UncompiledDataWithPreparseDataAndJob::BodyDescriptor final
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kUncompiledDataIndirectPointerTag, v);
-    IteratePointer(obj, kInferredNameOffset, v);
-    IteratePointer(obj, kPreparseDataOffset, v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithPreparseDataAndJob, inferred_name_), v);
+    IteratePointer(
+        obj, offsetof(UncompiledDataWithPreparseDataAndJob, preparse_data_), v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
-    return kSize;
+    return sizeof(UncompiledDataWithPreparseDataAndJob);
   }
 };
 

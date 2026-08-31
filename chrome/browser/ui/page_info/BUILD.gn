@@ -25,7 +25,7 @@ source_set("page_info") {
   }
   public_deps += [
     "//base",
-    "//components/infobars/core",
+    "//chrome/browser/infobars",
     "//components/page_info",
     "//components/page_info/core:proto",
     "//components/security_state/core",
@@ -40,8 +40,10 @@ source_set("impl") {
     "chrome_page_info_ui_delegate.cc",
   ]
   deps = [
+    "//chrome/browser/page_info",
     "//chrome/browser/privacy_sandbox:headers",
     "//chrome/browser/serial",
+    "//chrome/browser/vr",
   ]
 
   if (is_android) {
@@ -54,14 +56,13 @@ source_set("impl") {
     deps += [
       "//chrome/browser/extensions",
       "//chrome/browser/hid",
-      "//chrome/browser/smart_card:smart_card",
+      "//chrome/browser/smart_card",
       "//chrome/browser/ui/tabs:tab_strip",
+      "//chrome/browser/ui/web_applications",
       "//chrome/browser/web_applications",
     ]
     if (is_chromeos) {
-      deps += [
-        "//chrome/browser/ui/webui/ash/settings/app_management:app_management",
-      ]
+      deps += [ "//chrome/browser/ui/webui/ash/settings/app_management" ]
     }
   }
   deps += [

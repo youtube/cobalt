@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/formats/mp4/box_reader.h"
 
 #include <stddef.h>
@@ -15,6 +10,7 @@
 #include <algorithm>
 #include <set>
 
+#include "base/compiler_specific.h"
 #include "base/numerics/byte_conversions.h"
 #include "media/formats/mp4/box_definitions.h"
 
@@ -138,13 +134,12 @@ BoxReader::~BoxReader() {
 }
 
 // static
-ParseResult BoxReader::ReadTopLevelBox(const uint8_t* buf,
-                                       const size_t buf_size,
+ParseResult BoxReader::ReadTopLevelBox(base::span<const uint8_t> buf,
                                        MediaLog* media_log,
                                        std::unique_ptr<BoxReader>* out_reader) {
   DCHECK(out_reader);
   std::unique_ptr<BoxReader> reader(
-      new BoxReader(buf, buf_size, media_log, false));
+      new BoxReader(buf.data(), buf.size(), media_log, false));
   RCHECK_OK_PARSE_RESULT(reader->ReadHeader());
   if (!IsValidTopLevelBox(reader->type(), media_log))
     return ParseResult::kError;
@@ -153,13 +148,12 @@ ParseResult BoxReader::ReadTopLevelBox(const uint8_t* buf,
 }
 
 // static
-ParseResult BoxReader::StartTopLevelBox(const uint8_t* buf,
-                                        const size_t buf_size,
+ParseResult BoxReader::StartTopLevelBox(base::span<const uint8_t> buf,
                                         MediaLog* media_log,
                                         FourCC* out_type,
                                         size_t* out_box_size) {
   std::unique_ptr<BoxReader> reader;
-  RCHECK_OK_PARSE_RESULT(ReadTopLevelBox(buf, buf_size, media_log, &reader));
+  RCHECK_OK_PARSE_RESULT(ReadTopLevelBox(buf, media_log, &reader));
   *out_type = reader->type();
   *out_box_size = reader->box_size();
   return ParseResult::kOk;
@@ -233,7 +227,7 @@ bool BoxReader::ScanChildren() {
 
 bool BoxReader::ReadDisplayMatrix(DisplayMatrix matrix) {
   for (int i = 0; i < kDisplayMatrixDimension; i++) {
-    if (!Read4s(&matrix[i])) {
+    if (!Read4s(&UNSAFE_TODO(matrix[i]))) {
       return false;
     }
   }

@@ -79,33 +79,30 @@ namespace {
 class PooledHarfBuzzBuffer {
  public:
   PooledHarfBuzzBuffer() {
-    if (RuntimeEnabledFeatures::HarfBuzzBufferPoolEnabled()) {
-      Pool& pool = GetPool();
-      if (!pool.empty()) {
-        buffer_ = std::move(pool.back());
+    Pool& pool = GetPool();
+    if (!pool.empty()) {
+      buffer_ = std::move(pool.back());
 #if EXPENSIVE_DCHECKS_ARE_ON()
-        DCHECK(buffer_);
-        DCHECK(!pool.back());
+      DCHECK(buffer_);
+      DCHECK(!pool.back());
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
-        pool.pop_back();
+      pool.pop_back();
 
-        hb_buffer_reset(buffer_);
-        return;
-      }
+      hb_buffer_reset(buffer_);
+      return;
     }
+
     buffer_ = hb::unique_ptr<hb_buffer_t>{hb_buffer_create()};
   }
 
   ~PooledHarfBuzzBuffer() {
-    if (RuntimeEnabledFeatures::HarfBuzzBufferPoolEnabled()) {
-      Pool& pool = GetPool();
-      pool.push_back(std::move(buffer_));
+    Pool& pool = GetPool();
+    pool.push_back(std::move(buffer_));
 #if EXPENSIVE_DCHECKS_ARE_ON()
-      DCHECK_LE(pool.size(), kInlineCapacity);
-      DCHECK(!buffer_);
+    DCHECK_LE(pool.size(), kInlineCapacity);
+    DCHECK(!buffer_);
 #endif  // EXPENSIVE_DCHECKS_ARE_ON()
     }
-  }
 
   hb_buffer_t* Get() const { return buffer_; }
   const hb_buffer_t* operator->() const { return Get(); }
@@ -299,7 +296,7 @@ struct RangeContext {
   const unsigned start;
   const unsigned end;
   const PooledHarfBuzzBuffer buffer;
-  FontFeatures font_features;
+  FontFeatureRanges font_features;
   Deque<ReshapeQueueItem> reshape_queue;
   const ShapeOptions options;
 
@@ -362,7 +359,7 @@ void RoundHarfBuzzBufferPositions(hb_buffer_t* buffer) {
 }
 
 inline bool ShapeRange(hb_buffer_t* buffer,
-                       const FontFeatures& font_features,
+                       const FontFeatureRanges& font_features,
                        const SimpleFontData* current_font,
                        const UnicodeRangeSet* current_font_range_set,
                        UScriptCode current_run_script,
@@ -376,7 +373,7 @@ inline bool ShapeRange(hb_buffer_t* buffer,
     return false;
   }
 
-  std::optional<FontFeatures> variant_features;
+  std::optional<FontFeatureRanges> variant_features;
   if (const ResolvedFontFeatures& resolved_features =
           platform_data.ResolvedFeatures();
       !resolved_features.empty()) {
@@ -388,7 +385,7 @@ inline bool ShapeRange(hb_buffer_t* buffer,
     }
     variant_features->AppendVector(font_features);
   }
-  const FontFeatures& argument_features =
+  const FontFeatureRanges& argument_features =
       variant_features ? *variant_features : font_features;
 
   hb_buffer_set_language(buffer, language);
@@ -650,7 +647,7 @@ void HarfBuzzShaper::ExtractShapeResults(
       // https://docs.microsoft.com/en-us/typography/opentype/spec/recom#glyph-0-the-notdef-glyph
       glyph_result = kNotDef;
     } else if (glyph_id == space_glyph && !IsLastFontToShape(fallback_stage) &&
-               text_[current_cluster] == kIdeographicSpaceCharacter) {
+               text_[current_cluster] == uchar::kIdeographicSpace) {
       // HarfBuzz synthesizes U+3000 IDEOGRAPHIC SPACE using the space glyph.
       // This is not desired for run-splitting, applying features, and for
       // computing `line-height`. crbug.com/1193282
@@ -847,7 +844,7 @@ class CapsFeatureSettingsScopedOverlay final {
   STACK_ALLOCATED();
 
  public:
-  CapsFeatureSettingsScopedOverlay(FontFeatures*,
+  CapsFeatureSettingsScopedOverlay(FontFeatureRanges*,
                                    FontDescription::FontVariantCaps);
   CapsFeatureSettingsScopedOverlay() = delete;
   ~CapsFeatureSettingsScopedOverlay();
@@ -855,12 +852,12 @@ class CapsFeatureSettingsScopedOverlay final {
  private:
   void OverlayCapsFeatures(FontDescription::FontVariantCaps);
   void PrependCounting(const FontFeatureRange&);
-  FontFeatures* features_;
+  FontFeatureRanges* features_;
   wtf_size_t count_features_;
 };
 
 CapsFeatureSettingsScopedOverlay::CapsFeatureSettingsScopedOverlay(
-    FontFeatures* features,
+    FontFeatureRanges* features,
     FontDescription::FontVariantCaps variant_caps)
     : features_(features), count_features_(0) {
   OverlayCapsFeatures(variant_caps);
@@ -921,6 +918,7 @@ void HarfBuzzShaper::ShapeSegment(
   bool needs_caps_handling =
       font_description.VariantCaps() != FontDescription::kCapsNormal;
   OpenTypeCapsSupport caps_support;
+  HanKerning han_kerning(text_, segment.start, segment.end, font_description);
 
   FontFallbackIterator fallback_iterator(
       font->CreateFontFallbackIterator(ApplyFontVariantEmojiOnFallbackPriority(
@@ -1042,20 +1040,24 @@ void HarfBuzzShaper::ShapeSegment(
         CanvasRotationForRun(adjusted_font->PlatformData().Orientation(),
                              segment.render_orientation, font_description);
 
+    FontFeatureRanges& font_features = range_data->font_features;
     CapsFeatureSettingsScopedOverlay caps_overlay(
-        &range_data->font_features,
-        caps_support.FontFeatureToUse(small_caps_behavior));
+        &font_features, caps_support.FontFeatureToUse(small_caps_behavior));
     hb_direction_t direction = range_data->HarfBuzzDirection(canvas_rotation);
-    HanKerning han_kerning(
-        text_, shape_start, shape_end, *adjusted_font, font_description,
-        {.is_horizontal = HB_DIRECTION_IS_HORIZONTAL(direction),
-         .is_line_start = range_data->options.is_line_start &&
+    FontFeatureRangesSaver font_features_saver(&font_features);
+    bool is_han_kerning_comptued = false;
+    if (han_kerning.MayApply()) [[unlikely]] {
+      is_han_kerning_comptued = han_kerning.AppendFontFeatures(
+          text_, shape_start, shape_end, *adjusted_font, locale,
+          {.is_horizontal = HB_DIRECTION_IS_HORIZONTAL(direction),
+           .is_line_start = range_data->options.is_line_start &&
+                            range_data->start == shape_start,
+           .apply_start = range_data->options.han_kerning_start &&
                           range_data->start == shape_start,
-         .apply_start = range_data->options.han_kerning_start &&
-                        range_data->start == shape_start,
-         .apply_end = range_data->options.han_kerning_end &&
-                      range_data->end == shape_end},
-        &range_data->font_features);
+           .apply_end = range_data->options.han_kerning_end &&
+                        range_data->end == shape_end},
+          font_features);
+    }
 
     if (!ShapeRange(range_data->buffer.Get(), range_data->font_features,
                     adjusted_font, current_font_data_for_range_set->Ranges(),
@@ -1068,12 +1070,21 @@ void HarfBuzzShaper::ShapeSegment(
                         adjusted_font, segment.script, canvas_rotation,
                         fallback_stage, result);
 
-    if (!han_kerning.UnsafeToBreakBefore().empty()) [[unlikely]] {
-      result->AddUnsafeToBreak(han_kerning.UnsafeToBreakBefore());
+    if (is_han_kerning_comptued) [[unlikely]] {
+      if (!han_kerning.UnsafeToBreakBefore().empty()) [[unlikely]] {
+        result->AddUnsafeToBreak(han_kerning.UnsafeToBreakBefore());
+        han_kerning.ClearUnsafeToBreakBefore();
+      }
+      if (!range_data->reshape_queue.empty() &&
+          RuntimeEnabledFeatures::TextSpacingTrimFallbackEnabled()) {
+        han_kerning.PrepareFallback(text_);
+      }
     }
 
     hb_buffer_reset(range_data->buffer.Get());
   }
+
+  han_kerning.DidShapeSegment(*result);
 
   // Set variation selector mode to the default state.
   HarfBuzzFace::SetVariationSelectorMode(kUseSpecifiedVariationSelector);
@@ -1097,8 +1108,8 @@ ShapeResult* HarfBuzzShaper::Shape(const Font* font,
                                    TextDirection direction,
                                    unsigned start,
                                    unsigned end) const {
-  DCHECK_GE(end, start);
-  DCHECK_LE(end, text_.length());
+  CHECK_GE(end, start);
+  CHECK_LE(end, text_.length());
 
   const unsigned length = end - start;
   ShapeResult* result =
@@ -1147,8 +1158,8 @@ ShapeResult* HarfBuzzShaper::Shape(
     unsigned end,
     const Vector<RunSegmenter::RunSegmenterRange>& ranges,
     ShapeOptions options) const {
-  DCHECK_GE(end, start);
-  DCHECK_LE(end, text_.length());
+  CHECK_GE(end, start);
+  CHECK_LE(end, text_.length());
   DCHECK_GT(ranges.size(), 0u);
   DCHECK_EQ(start, ranges[0].start);
   DCHECK_EQ(end, ranges[ranges.size() - 1].end);
@@ -1177,8 +1188,8 @@ ShapeResult* HarfBuzzShaper::Shape(
     unsigned end,
     const RunSegmenter::RunSegmenterRange pre_segmented,
     ShapeOptions options) const {
-  DCHECK_GE(end, start);
-  DCHECK_LE(end, text_.length());
+  CHECK_GE(end, start);
+  CHECK_LE(end, text_.length());
   DCHECK_GE(start, pre_segmented.start);
   DCHECK_LE(end, pre_segmented.end);
 
@@ -1203,17 +1214,25 @@ void HarfBuzzShaper::GetGlyphData(const SimpleFontData& font_data,
                                   const LayoutLocale& locale,
                                   UScriptCode script,
                                   bool is_horizontal,
+                                  TextDirection direction,
                                   GlyphDataList& glyphs) {
   PooledHarfBuzzBuffer pooled_hb_buffer;
   hb_buffer_t* hb_buffer = pooled_hb_buffer.Get();
   hb_buffer_set_language(hb_buffer, locale.HarfbuzzLanguage());
   hb_buffer_set_script(hb_buffer, ICUScriptToHBScript(script));
-  hb_buffer_set_direction(hb_buffer,
-                          is_horizontal ? HB_DIRECTION_LTR : HB_DIRECTION_TTB);
-  CHECK(!text_.Is8Bit());
-  static_assert(sizeof(uint16_t) == sizeof(UChar));
-  auto span = text_.SpanUint16();
-  hb_buffer_add_utf16(hb_buffer, span.data(), span.size(), 0, text_.length());
+  hb_buffer_set_direction(
+      hb_buffer, is_horizontal ? (blink::IsLtr(direction) ? HB_DIRECTION_LTR
+                                                          : HB_DIRECTION_RTL)
+                               : HB_DIRECTION_TTB);
+  if (text_.Is8Bit()) {
+    auto span = text_.Span8();
+    hb_buffer_add_latin1(hb_buffer, span.data(), span.size(), 0,
+                         text_.length());
+  } else {
+    static_assert(sizeof(uint16_t) == sizeof(UChar));
+    auto span = text_.SpanUint16();
+    hb_buffer_add_utf16(hb_buffer, span.data(), span.size(), 0, text_.length());
+  }
 
   const FontPlatformData& platform_data = font_data.PlatformData();
   HarfBuzzFace* const hb_face = platform_data.GetHarfBuzzFace();

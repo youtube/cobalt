@@ -89,6 +89,12 @@ inline constexpr char kAutofillUploadEncodingSeed[] =
 // via a 10-bit modulus) to an integer bit-field where each bit denotes whether
 // or not a given vote upload event has occurred.
 inline constexpr char kAutofillVoteUploadEvents[] = "autofill.upload_events";
+// Dictionary pref used to track which secondary form signature vote uploads
+// have been performed. Each entry in the dictionary maps a form signature
+// (reduced via a 10-bit modulus) to an integer bit-field where each bit denotes
+// whether or not a given vote upload event has occurred.
+inline constexpr char kAutofillVoteSecondaryFormSignatureUploadEvents[] =
+    "autofill.secondary_form_signature_upload_events";
 // Dictionary pref used to track which form signature metadata uploads have been
 // performed. Each entry in the dictionary maps a form signature (reduced
 // via a 10-bit modulus) to an integer flag that denotes whether or not a given
@@ -100,6 +106,10 @@ inline constexpr char kAutofillMetadataUploadEvents[] =
 // prefs was last reset.
 inline constexpr char kAutofillUploadEventsLastResetTimestamp[] =
     "autofill.upload_events_last_reset_timestamp";
+// A string that stores hash of concatenated NAME_FULL and EMAIL_ADDRESS info
+// coming from the Account Name Email profile.
+inline constexpr char kAutofillNameAndEmailProfileSignature[] =
+    "autofill.name_and_email_profile_signature";
 // Integer that is set to the last major version where the Autocomplete
 // retention policy was run.
 inline constexpr char kAutocompleteLastVersionRetentionPolicy[] =
@@ -135,10 +145,29 @@ inline constexpr char kAutofillUsingVirtualViewStructure[] =
 // If set to false, user can only use the built-in password manager.
 inline constexpr char kAutofillThirdPartyPasswordManagersAllowed[] =
     "autofill.third_party_password_managers_allowed";
-inline constexpr char kFacilitatedPaymentsPix[] = "facilitated_payments.pix";
 inline constexpr char kFacilitatedPaymentsEwallet[] =
     "facilitated_payments.ewallet";
+inline constexpr char kFacilitatedPaymentsPix[] = "facilitated_payments.pix";
+inline constexpr char kFacilitatedPaymentsPixAccountLinking[] =
+    "facilitated_payments.pix_account_linking_enabled";
+inline constexpr char kFacilitatedPaymentsPixAccountLinkingDeprecated[] =
+    "facilitated_payments.pix_account_linking";
+inline constexpr char kFacilitatedPaymentsA2AEnabled[] =
+    "facilitated_payments.a2a_enabled";
+// Whether the user has seen the A2A flow at least once.
+inline constexpr char kFacilitatedPaymentsA2ATriggeredOnce[] =
+    "facilitated_payments.a2a_triggered_once";
 #endif  // BUILDFLAG(IS_ANDROID)
+// Dictionaries containing metadata for Home and Work addresses. See
+// HomeAndWorkMetadataStore.
+inline constexpr char kAutofillHomeMetadata[] = "autofill.home_metadata";
+inline constexpr char kAutofillWorkMetadata[] = "autofill.work_metadata";
+// The total number of silent updates for Home and Work performed since the last
+// signed in. Not synced, as silent updates for Home and Work are not synced.
+inline constexpr char kAutofillSilentUpdatesToHomeAddress[] =
+    "autofill.silent_updates.home";
+inline constexpr char kAutofillSilentUpdatesToWorkAddress[] =
+    "autofill.silent_updates.work";
 
 // The maximum value for the
 // `kAutofillPaymentMethodsMandatoryReauthPromoShownCounter` pref. If this
@@ -205,13 +234,21 @@ void SetPaymentCardBenefits(PrefService* prefs, bool value);
 
 void ClearSyncTransportOptIns(PrefService* prefs);
 
+void SetFacilitatedPaymentsEwallet(PrefService* prefs, bool value);
+
+bool IsFacilitatedPaymentsEwalletEnabled(const PrefService* prefs);
+
 void SetFacilitatedPaymentsPix(PrefService* prefs, bool value);
 
 bool IsFacilitatedPaymentsPixEnabled(const PrefService* prefs);
 
-void SetFacilitatedPaymentsEwallet(PrefService* prefs, bool value);
+void SetFacilitatedPaymentsPixAccountLinking(PrefService* prefs, bool value);
 
-bool IsFacilitatedPaymentsEwalletEnabled(const PrefService* prefs);
+bool IsFacilitatedPaymentsPixAccountLinkingEnabled(const PrefService* prefs);
+
+bool IsFacilitatedPaymentsA2AEnabled(const PrefService* prefs);
+
+void SetFacilitatedPaymentsA2ATriggeredOnce(PrefService* prefs, bool value);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)

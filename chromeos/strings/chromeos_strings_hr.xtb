@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Sada možete upotrebljavati samo alate za predmet</translation>
 <translation id="1762483337755424125">Prijepis</translation>
 <translation id="1765169783255151332">Brza promjena tipki</translation>
 <translation id="1768959921651994223">Vrsta autentifikacije</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Prekidač rasporeda</translation>
 <translation id="224421911978987610">duga ekspozicija</translation>
 <translation id="2244834438220057800">zelene boje</translation>
+<translation id="2248689665683494517">minimalistička mrtva priroda s nekoliko cvjetova maka u staklenoj vazi na crnoj pozadini</translation>
 <translation id="225692081236532131">Status aktivacije</translation>
 <translation id="2267285889943769271">Dodaj snimku zaslona</translation>
 <translation id="2268044343513325586">Pročišćavanje</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Nije uspjelo – zaustavljeno</translation>
 <translation id="3102119246920354026">Predmemorija</translation>
 <translation id="3103783611481501187">nadrealno</translation>
+<translation id="3119672627216736407">Dostupan je prijevod</translation>
 <translation id="3122464029669770682">Procesor (CPU)</translation>
 <translation id="3122614491980756867">bazeni</translation>
 <translation id="3122883569442693641">Više pojedinosti</translation>
@@ -753,8 +756,9 @@
 <translation id="4300073214558989"><ph name="IMAGE_COUNT" /> slika/slike</translation>
 <translation id="4300272766492248925">Otvori aplikaciju</translation>
 <translation id="430786093962686457">šifona</translation>
-<translation id="4310735698903592804">Nedavne pozadine omogućuje Googleov AI</translation>
+<translation id="4310735698903592804">Nedavne pozadine izrađene pomoću Googleovog AI-ja</translation>
 <translation id="4320904097188876154">fluorescentno ružičaste boje</translation>
+<translation id="432961742358282111">Kliknite desnom tipkom ili pritisnite i zadržite da biste dobili definicije, prijevode ili pretvorbe jedinica. Upravljajte ovom značajkom tipkom sa strelicom lijevo ili desno.</translation>
 <translation id="4333390807948134856">Pritisnuta je tipka <ph name="KEY_NAME" /></translation>
 <translation id="4334293042716981313">Također možete <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />napisati vlastiti upit<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">tipka</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Za dovršetak unesite staru i novu zaporku</translation>
 <translation id="6061772781719867950">Neuspješni HTTP zahtjevi</translation>
 <translation id="6073292342939316679">smanjivanje svjetline tipkovnice</translation>
+<translation id="6074608334942655098">Prestani prevoditi</translation>
 <translation id="6074752328838739425">Sakrij sažetak</translation>
 <translation id="6075872808778243331">(Android) Latencija HTTP-a</translation>
 <translation id="6078323886959318429">Dodajte prečac</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Pitajte stručnjake na Chromebookovom forumu za pomoć</translation>
-<translation id="7309823890857024809">minimalistička mrtva priroda s nekoliko stabljika maka u staklenoj vazi na crnoj pozadini</translation>
 <translation id="7311368985037279727">boja tipkovnice</translation>
 <translation id="7317831949569936035">Upis u školu</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ Da biste dobili te prijepise, preuzmite model prijepisa (do 100 MB).</translati
 <translation id="8088963492174775412">Pritisnite za snimanje</translation>
 <translation id="8094062939584182041">Dopustite Googleu da vam pošalje e-poruku o tom problemu</translation>
 <translation id="8104083085214006426">Upotrebljavate otvorenu i nesigurnu mrežu</translation>
+<translation id="8108879170356113798">Alate za predmet moći ćete upotrebljavati samo za <ph name="NUM_SECONDS" /> s</translation>
 <translation id="811820734797650957">(Android) Pristupnik se može pingati</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Potvrdi</translation>
@@ -1735,9 +1740,9 @@ Da biste dobili te prijepise, preuzmite model prijepisa (do 100 MB).</translati
 <translation id="8709616837707653427"><ph name="DESC_TEXT" /> Tipkom sa strelicom ulijevo ili strelicom udesno upravljajte ovom značajkom.</translation>
 <translation id="8712637175834984815">Shvaćam</translation>
 <translation id="871560550817059752">Nije uspjelo – nema tinte</translation>
-<translation id="8721554916373590179">Uzorci s upitom</translation>
+<translation id="8721554916373590179">Predlošci upita</translation>
 <translation id="8723108084122415655">Mreža koja nije zadana je iznad praga latencije</translation>
-<translation id="8725066075913043281">Pokušajte ponovo</translation>
+<translation id="8725066075913043281">Pokušajte ponovno</translation>
 <translation id="8726019395068607495">Zaustavljeno – vratašca su otvorena</translation>
 <translation id="8730621377337864115">Gotovo</translation>
 <translation id="8739555075907731077">Pauzirano (<ph name="PERCENTAGE_VALUE" />% dovršeno)</translation>

@@ -13,7 +13,6 @@
 #include "base/files/file_enumerator.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
-#include "base/functional/overloaded.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -44,6 +43,10 @@
 #include "chrome/browser/web_applications/os_integration/mac/app_shim_registry.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_manager.h"
+#endif  //  BUILDFLAG(IS_CHROMEOS)
+
 namespace {
 
 // New fields must be added to BuildIndexJson().
@@ -69,6 +72,9 @@ constexpr char kIsolatedWebAppUpdateManager[] = "IsolatedWebAppUpdateManager";
 constexpr char kIsolatedWebAppPolicyManager[] = "IsolatedWebAppPolicyManager";
 constexpr char kIwaKeyDistributionInfoProvider[] =
     "IwaKeyDistributionInfoProvider";
+#if BUILDFLAG(IS_CHROMEOS)
+constexpr char kIwaBundleCacheManager[] = "IwaBundleCacheManager";
+#endif  //  BUILDFLAG(IS_CHROMEOS)
 constexpr char kNavigationCapturing[] = "NavigationCapturing";
 
 constexpr char kNeedsRecordWebAppDebugInfo[] =
@@ -96,6 +102,10 @@ base::Value::Dict BuildIndexJson() {
 #endif
                    .Append(kIsolatedWebAppUpdateManager)
                    .Append(kIsolatedWebAppPolicyManager)
+                   .Append(kIwaKeyDistributionInfoProvider)
+#if BUILDFLAG(IS_CHROMEOS)
+                   .Append(kIwaBundleCacheManager)
+#endif  //  BUILDFLAG(IS_CHROMEOS)
                    .Append(kWebAppDirectoryDiskState));
 }
 
@@ -267,8 +277,15 @@ base::Value BuildIsolatedWebAppPolicyManagerJson(
 base::Value BuildIwaKeyDistributionInfoProviderJson() {
   return base::Value(base::Value::Dict().Set(
       kIwaKeyDistributionInfoProvider,
-      web_app::IwaKeyDistributionInfoProvider::GetInstance()->AsDebugValue()));
+      web_app::IwaKeyDistributionInfoProvider::GetInstance().AsDebugValue()));
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+base::Value BuildIwaCacheManagerJson(web_app::WebAppProvider& provider) {
+  return base::Value(base::Value::Dict().Set(
+      kIwaBundleCacheManager, provider.iwa_cache_manager().GetDebugValue()));
+}
+#endif  //  BUILDFLAG(IS_CHROMEOS)
 
 void BuildDirectoryState(base::FilePath file_or_folder,
                          base::Value::Dict* folder) {
@@ -342,6 +359,9 @@ void WebAppInternalsHandler::BuildDebugInfo(
 #endif
           .Append(BuildIsolatedWebAppUpdaterManagerJson(*provider))
           .Append(BuildIsolatedWebAppPolicyManagerJson(*provider))
+#if BUILDFLAG(IS_CHROMEOS)
+          .Append(BuildIwaCacheManagerJson(*provider))
+#endif  //  BUILDFLAG(IS_CHROMEOS)
           .Append(BuildIwaKeyDistributionInfoProviderJson());
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::TaskPriority::USER_VISIBLE, base::MayBlock()},

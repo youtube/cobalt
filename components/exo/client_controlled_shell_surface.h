@@ -19,6 +19,7 @@
 #include "ui/base/hit_test.h"
 #include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/compositor/compositor_lock.h"
+#include "ui/display/types/display_constants.h"
 
 namespace ash {
 class NonClientFrameViewAsh;
@@ -52,8 +53,8 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
                                 chromeos::WindowStateType new_state_type) = 0;
     virtual void OnBoundsChanged(chromeos::WindowStateType current_state,
                                  chromeos::WindowStateType requested_state,
-                                 int64_t display_id,
-                                 const gfx::Rect& bounds_in_display,
+                                 int64_t requested_display_id,
+                                 const gfx::Rect& requested_bounds_in_display,
                                  bool is_resize,
                                  int bounds_change,
                                  bool is_adjusted_bounds) = 0;
@@ -77,10 +78,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   Delegate* set_delegate(std::unique_ptr<Delegate> delegate) {
     delegate_ = std::move(delegate);
     return delegate_.get();
-  }
-
-  void set_server_reparent_window(bool reparent) {
-    server_reparent_window_ = reparent;
   }
 
   // Set bounds in root window coordinates relative to the given display.
@@ -243,6 +240,8 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // exo::ShellSurfaceBase
   void SetSystemModal(bool system_modal) override;
 
+  Delegate* delegate_for_testing() { return delegate_.get(); }
+
  protected:
   // ShellSurfaceBase:
   float GetScale() const override;
@@ -343,10 +342,6 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
   // bounds update, not a drag move/resize update.
   bool in_drag_ = false;
 
-  // N uses older protocol which expects that server will reparent the window.
-  // TODO(oshima): Remove this once all boards are migrated to P or above.
-  bool server_reparent_window_ = false;
-
   bool display_rotating_with_pip_ = false;
 
   // True if the window state has changed during the commit.
@@ -362,6 +357,8 @@ class ClientControlledShellSurface : public ShellSurfaceBase,
 
   ash::ArcResizeLockType pending_resize_lock_type_ =
       ash::ArcResizeLockType::NONE;
+
+  int64_t requested_display_id_ = display::kInvalidDisplayId;
 
   std::unique_ptr<ScopedDeferWindowStateUpdate>
       scoped_defer_window_state_update_;

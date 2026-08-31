@@ -43,6 +43,7 @@ class VulkanImplementation;
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include "services/webnn/d3d12_backend.h"  // nogncheck
 #include "ui/gl/dc_layer_overlay_image.h"
 #endif
 
@@ -58,6 +59,7 @@ extern "C" typedef struct AHardwareBuffer AHardwareBuffer;
 
 #if BUILDFLAG(IS_WIN)
 #include <d3d11.h>
+#include <d3d12.h>
 #include <wrl/client.h>
 #endif
 
@@ -199,12 +201,8 @@ class SharedImageRepresentationFactoryRef : public SharedImageRepresentation {
     backing()->CopyToGpuMemoryBufferAsync(std::move(callback));
   }
   void GetGpuMemoryBufferHandleInfo(gfx::GpuMemoryBufferHandle& handle,
-                                    viz::SharedImageFormat& format,
-                                    gfx::Size& size,
                                     gfx::BufferUsage& buffer_usage) {
     handle = backing()->GetGpuMemoryBufferHandle();
-    format = backing()->format();
-    size = backing()->size();
     buffer_usage = backing()->buffer_usage();
   }
   bool PresentSwapChain() { return backing()->PresentSwapChain(); }
@@ -913,6 +911,38 @@ class GPU_GLES2_EXPORT DawnBufferRepresentation
 
  private:
   virtual wgpu::Buffer BeginAccess(wgpu::BufferUsage usage) = 0;
+  virtual void EndAccess() = 0;
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// WebNNTensorRepresentation
+
+class GPU_GLES2_EXPORT WebNNTensorRepresentation
+    : public SharedImageRepresentation {
+ public:
+  WebNNTensorRepresentation(SharedImageManager* manager,
+                            SharedImageBacking* backing,
+                            MemoryTypeTracker* tracker)
+      : SharedImageRepresentation(manager, backing, tracker) {}
+
+  class GPU_GLES2_EXPORT ScopedAccess
+      : public ScopedAccessBase<WebNNTensorRepresentation> {
+   public:
+    ScopedAccess(base::PassKey<WebNNTensorRepresentation> pass_key,
+                 WebNNTensorRepresentation* representation,
+                 AccessMode access_mode);
+    ~ScopedAccess();
+  };
+
+  std::unique_ptr<ScopedAccess> BeginScopedAccess();
+
+#if BUILDFLAG(IS_WIN)
+  virtual Microsoft::WRL::ComPtr<ID3D12Resource> GetD3D12Buffer() const;
+  virtual void ConsumeWebNNTensor(
+      base::WeakPtr<webnn::native::d3d12::WebNNTensor> webnn_tensor);
+#endif  // BUILDFLAG(IS_WIN)
+ protected:
+  virtual bool BeginAccess() = 0;
   virtual void EndAccess() = 0;
 };
 

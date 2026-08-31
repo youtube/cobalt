@@ -35,6 +35,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/base64.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -77,8 +78,7 @@ KURL GetAvailabilityUrl(const KURL& source,
   // filter for Media Remoting based Remote Playback on Desktop. The codec
   // fields are optional.
   std::string source_string = source.GetString().Utf8();
-  String encoded_source =
-      WTF::Base64URLEncode(base::as_byte_span(source_string));
+  String encoded_source = Base64URLEncode(base::as_byte_span(source_string));
 
   std::string video_codec_str =
       video_codec.has_value()
@@ -88,9 +88,9 @@ KURL GetAvailabilityUrl(const KURL& source,
       audio_codec.has_value()
           ? ("&audio_codec=" + media::GetCodecName(audio_codec.value()))
           : "";
-  return KURL(StringView(kRemotePlaybackPresentationUrlPath) +
-              "?source=" + encoded_source + video_codec_str.c_str() +
-              audio_codec_str.c_str());
+  return KURL(
+      StrCat({kRemotePlaybackPresentationUrlPath, "?source=", encoded_source,
+              video_codec_str.c_str(), audio_codec_str.c_str()}));
 }
 
 bool IsBackgroundAvailabilityMonitoringDisabled() {

@@ -185,6 +185,7 @@ enum SdpMungingType {
   kWithoutCreateAnswer = 2,
   kWithoutCreateOffer = 3,
   kNumberOfContents = 4,
+  kCurrentDescriptionFailedToParse = 5,  // This is an internal error.
   // Transport-related munging.
   kIceOptions = 20,
   kIcePwd = 21,
@@ -196,6 +197,8 @@ enum SdpMungingType {
   kSsrcs = 27,
   kIceOptionsRenomination = 28,
   kDirection = 29,
+  kRtcpMux = 30,
+  kIceOptionsTrickle = 31,
   // RTP header extension munging.
   kRtpHeaderExtensionRemoved = 40,
   kRtpHeaderExtensionAdded = 41,
@@ -214,6 +217,7 @@ enum SdpMungingType {
   kAudioCodecsFmtp = 70,
   kAudioCodecsRtcpFb = 71,
   kAudioCodecsRtcpFbRrtr = 72,
+  kAudioCodecsRtcpReducedSize = 73,
   // Video-related munging.
   kVideoCodecsRemoved = 80,
   kVideoCodecsAdded = 81,
@@ -224,6 +228,7 @@ enum SdpMungingType {
   kVideoCodecsRtcpFb = 86,
   kVideoCodecsAddedWithRawPacketization = 87,
   kVideoCodecsModifiedWithRawPacketization = 88,
+  kVideoCodecsRtcpReducedSize = 89,
   kMaxValue,
 };
 

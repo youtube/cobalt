@@ -7,6 +7,8 @@
 #import <ostream>
 
 #import "base/check_op.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/public/prototypes/diamond/utils.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 
 @interface BVCContainerViewController ()
@@ -59,6 +61,12 @@
 
 - (void)viewDidLoad {
   [super viewDidLoad];
+  if (IsDiamondPrototypeEnabled()) {
+    self.view.layer.cornerRadius = kDiamondBrowserCornerRadius;
+    self.view.layer.maskedCorners =
+        kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
+    self.view.layer.masksToBounds = YES;
+  }
 }
 
 - (void)presentViewController:(UIViewController*)viewControllerToPresent

@@ -15,13 +15,16 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 #define MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -32,8 +35,8 @@
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/base/timestamp_constants.h"
 #include "media/starboard/sbplayer_bridge.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -77,7 +80,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
-  void SetLatencyHint(absl::optional<TimeDelta> latency_hint) override {
+  void SetLatencyHint(std::optional<TimeDelta> latency_hint) override {
     // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
@@ -97,7 +100,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   void SetVolume(float volume) override;
   TimeDelta GetMediaTime() override;
   void OnTracksChanged(DemuxerStream::Type track_type,
-                       std::vector<DemuxerStream*> enabled_tracks,
+                       DemuxerStream* enabled_tracks,
                        base::OnceClosure change_completed_cb) override;
   RendererType GetRendererType() override { return RendererType::kStarboard; }
 
@@ -106,6 +109,25 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
   using GetSbWindowHandleCallback = base::RepeatingCallback<void()>;
+#if BUILDFLAG(IS_IOS_TVOS)
+  using DurationChangeCB =
+      base::RepeatingCallback<void(base::TimeDelta duration)>;
+  using BufferedRangesCB =
+      base::RepeatingCallback<void(base::TimeDelta start,
+                                   base::TimeDelta length)>;
+
+  void SetDurationChangeCB(DurationChangeCB cb) {
+    duration_change_cb_ = std::move(cb);
+  }
+  void SetBufferedRangesCB(BufferedRangesCB cb) {
+    buffered_ranges_cb_ = std::move(cb);
+  }
+  void SetSourceUrl(const std::string& source_url);
+  void OnEncryptedMediaInitDataEncountered(const char* init_data_type,
+                                           const unsigned char* init_data,
+                                           unsigned int init_data_length);
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 #if BUILDFLAG(IS_ANDROID)
   using RequestOverlayInfoCallBack =
       base::RepeatingCallback<void(bool restart_for_transitions)>;
@@ -136,10 +158,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   SbPlayerInterface* GetSbPlayerInterface();
 
-  void SetSbPlayerInterfaceForTesting(SbPlayerInterface* sbplayer_interface) {
-    test_sbplayer_interface_ = sbplayer_interface;
-  }
-
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -150,6 +168,16 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
     STATE_ERROR
   };
 
+#if BUILDFLAG(IS_IOS_TVOS)
+  bool IsUrlPlayer() const;
+  // Handles presenting state for URL player: propagates video resolution
+  // for hole-punch rendering and re-applies playback rate.
+  void OnUrlPlayerPresenting();
+  // Reads and propagates a valid URL-player resolution when it changes.
+  void UpdateUrlPlayerVideoResolution();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
+  void UpdateAudioWriteDuration();
   void CreatePlayerBridge();
   void ApplyPendingBounds();
   void UpdateDecoderConfig(DemuxerStream* stream);
@@ -178,6 +206,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // AndroidOverlay callbacks.
   void OnOverlayReady(AndroidOverlay*);
   void OnOverlayFailed(AndroidOverlay*);
+  bool IsSecondaryVideoProtected() const;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   int GetDefaultMaxBuffers(AudioCodec codec,
@@ -216,12 +245,23 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
   // TODO(b/375274109): Investigate whether we should call
-  //                    `void OnVideoFrameRateChange(absl::optional<int> fps)`
+  //                    `void OnVideoFrameRateChange(std::optional<int> fps)`
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
   GetSbWindowHandleCallback get_sb_window_handle_cb_;
+#if BUILDFLAG(IS_IOS_TVOS)
+  std::string source_url_;
+  DurationChangeCB duration_change_cb_;
+  BufferedRangesCB buffered_ranges_cb_;
+
+  // Cached values for change-detection; only notify upstream when they differ.
+  TimeDelta last_buffer_start_;
+  TimeDelta last_buffer_length_;
+  TimeDelta last_duration_ = kNoTimestamp;
+  gfx::Size url_player_video_size_;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -276,8 +316,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   uint32_t last_video_frames_dropped_ = 0;
 
   SbWindow sb_window_ = kSbWindowInvalid;
-
-  raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   GetDecodeTargetGraphicsContextProviderFunc

@@ -12,13 +12,14 @@
 #include "base/memory/ref_counted.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "components/viz/common/resources/shared_image_format_utils.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "media/base/bitstream_buffer.h"
 #include "media/base/encoder_status.h"
 #include "media/base/media_log.h"
@@ -172,8 +173,7 @@ class VideoEncodeAcceleratorAdapter::GpuMemoryBufferVideoFramePool
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     DCHECK(gfx::Rect(coded_size_).Contains(gfx::Rect(visible_size)));
 
-    const auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
-    const auto si_format = viz::GetSharedImageFormat(buffer_format);
+    const auto si_format = viz::MultiPlaneFormat::kNV12;
     const auto buffer_usage =
         gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE;
 
@@ -221,8 +221,7 @@ class VideoEncodeAcceleratorAdapter::GpuMemoryBufferVideoFramePool
   // |shared_image| will be used when MappableSI is enabled. It will be null
   // otherwise.
   void ReuseFrame(scoped_refptr<gpu::ClientSharedImage> shared_image,
-                  const gpu::SyncToken& token,
-                  std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer) {
+                  const gpu::SyncToken& token) {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
     constexpr size_t kMaxPooledFrames = 5;
     if (shared_image && (available_shared_images_.size() < kMaxPooledFrames)) {
@@ -1054,8 +1053,7 @@ VideoEncodeAcceleratorAdapter::PrepareCpuFrame(
                               : src_frame;
   auto shared_frame = VideoFrame::WrapExternalData(
       PIXEL_FORMAT_I420, dest_coded_size, dest_visible_rect,
-      dest_visible_rect.size(), static_cast<const uint8_t*>(mapping->memory()),
-      mapping->size(), src_frame->timestamp());
+      dest_visible_rect.size(), *mapping, src_frame->timestamp());
 
   if (!shared_frame || !mapped_src_frame)
     return EncoderStatus(EncoderStatus::Codes::kSystemAPICallError);
@@ -1129,10 +1127,6 @@ VideoEncodeAcceleratorAdapter::PrepareGpuFrame(
 
   // |mapped_gpu_frame| has the color space respecting the color conversion in
   // ConvertAndScale().
-#if BUILDFLAG(IS_MAC)
-  gpu_frame->shared_image()->SetColorSpaceOnNativeBuffer(
-      mapped_gpu_frame->ColorSpace());
-#endif
   gpu_frame->set_color_space(mapped_gpu_frame->ColorSpace());
 
   return gpu_frame;

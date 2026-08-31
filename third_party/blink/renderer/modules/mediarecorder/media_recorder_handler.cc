@@ -46,6 +46,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder.h"
+#include "third_party/blink/renderer/modules/mediarecorder/video_track_recorder.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -67,10 +68,6 @@
 using base::TimeTicks;
 
 namespace blink {
-
-BASE_FEATURE(kMediaRecorderEnableMp4Muxer,
-             "MediaRecorderEnableMp4Muxer",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kMediaRecorderSeekableWebm,
              "MediaRecorderSeekableWebm",
@@ -177,11 +174,7 @@ bool CanSupportVideoType(const String& type) {
     return true;
   }
 
-  if (base::FeatureList::IsEnabled(kMediaRecorderEnableMp4Muxer)) {
-    return EqualStringView(type, "video/mp4");
-  }
-
-  return false;
+  return EqualStringView(type, "video/mp4");
 }
 
 bool CanSupportAudioType(const String& type) {
@@ -190,11 +183,7 @@ bool CanSupportAudioType(const String& type) {
     return true;
   }
 
-  if (base::FeatureList::IsEnabled(kMediaRecorderEnableMp4Muxer)) {
-    return EqualStringView(type, "audio/mp4");
-  }
-
-  return false;
+  return EqualStringView(type, "audio/mp4");
 }
 
 bool IsAllowedMp4Type(const String& type) {
@@ -205,9 +194,6 @@ bool IsAllowedMp4Type(const String& type) {
 bool IsMp4MuxerRequired(const String& type) {
   // The function should be called only after type and codecs are validated
   // by `CanSupportMimeType()` first in code path.
-  if (!base::FeatureList::IsEnabled(kMediaRecorderEnableMp4Muxer)) {
-    return false;
-  }
   return IsAllowedMp4Type(type);
 }
 
@@ -619,11 +605,6 @@ bool MediaRecorderHandler::Start(int timeslice,
     if (use_audio_tracks && !(video_type_supported || audio_type_supported)) {
       return false;
     }
-
-    if (use_mp4_muxer &&
-        !base::FeatureList::IsEnabled(kMediaRecorderEnableMp4Muxer)) {
-      return false;
-    }
   }
 
   std::unique_ptr<media::Muxer> muxer;
@@ -658,12 +639,15 @@ bool MediaRecorderHandler::Start(int timeslice,
   } else if (timeslice_.is_max() &&
              base::FeatureList::IsEnabled(kMediaRecorderSeekableWebm)) {
     // Write a seekable WebM instead of a live one.
+    auto delegate = std::make_unique<media::MemoryWebmMuxerDelegate>(
+        write_callback,
+        WTF::BindOnce(&MediaRecorderHandler::OnStarted,
+                      WrapPersistent(weak_factory_.GetWeakCell())));
+    // Hold on to a raw_ptr for the delegate so we can fall back to live mode
+    // if a requestData() call comes in.
+    memory_muxer_delegate_ = delegate.get();
     muxer = std::make_unique<media::WebmMuxer>(
-        audio_codec, use_video_tracks, use_audio_tracks,
-        std::make_unique<media::MemoryWebmMuxerDelegate>(
-            write_callback,
-            WTF::BindOnce(&MediaRecorderHandler::OnStarted,
-                          WrapPersistent(weak_factory_.GetWeakCell()))),
+        audio_codec, use_video_tracks, use_audio_tracks, std::move(delegate),
         optional_timeslice);
   } else {
     muxer = std::make_unique<media::WebmMuxer>(
@@ -737,6 +721,7 @@ void MediaRecorderHandler::Stop() {
   is_media_stream_observer_ = false;
 
   // Ensure any stored data inside the muxer is flushed out before invalidation.
+  memory_muxer_delegate_ = nullptr;
   muxer_adapter_ = nullptr;
   weak_audio_factory_.Invalidate();
   weak_video_factory_.Invalidate();
@@ -771,6 +756,13 @@ void MediaRecorderHandler::Resume() {
     audio_recorder->Resume();
   if (muxer_adapter_) {
     muxer_adapter_->Resume();
+  }
+}
+
+void MediaRecorderHandler::MaybeFlush() {
+  DCHECK(main_thread_task_runner_->RunsTasksInCurrentSequence());
+  if (memory_muxer_delegate_) {
+    memory_muxer_delegate_->FlushAndDisableSeeking();
   }
 }
 
@@ -1201,7 +1193,7 @@ void MediaRecorderHandler::Trace(Visitor* visitor) const {
 }
 
 void MediaRecorderHandler::OnVideoEncodingError(
-    const media::EncoderStatus& error_status) {
+    media::EncoderStatus error_status) {
   if (recorder_) {
     recorder_->OnError(DOMExceptionCode::kEncodingError,
                        String(media::EncoderStatusCodeToString(error_status)));
@@ -1210,7 +1202,7 @@ void MediaRecorderHandler::OnVideoEncodingError(
 
 void MediaRecorderHandler::OnStarted() {
   if (recorder_) {
-    recorder_->OnStarted();
+    recorder_->MaybeEmitStartEvent();
   }
 }
 

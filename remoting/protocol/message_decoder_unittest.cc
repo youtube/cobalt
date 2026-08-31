@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "remoting/protocol/message_decoder.h"
 
 #include <stdint.h>
@@ -15,6 +10,8 @@
 #include <memory>
 #include <string>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "remoting/proto/event.pb.h"
 #include "remoting/proto/internal.pb.h"
@@ -48,10 +45,16 @@ static void PrepareData(uint8_t** buffer, int* size) {
 
   *size = encoded_data.length();
   *buffer = new uint8_t[*size];
-  memcpy(*buffer, encoded_data.c_str(), *size);
+  UNSAFE_TODO(memcpy(*buffer, encoded_data.c_str(), *size));
 }
 
-void SimulateReadSequence(const int read_sequence[], int sequence_size) {
+void SimulateReadSequence(base::span<const int> read_sequence,
+                          int spanification_suspected_redundant_sequence_size) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(static_cast<size_t>(spanification_suspected_redundant_sequence_size) ==
+            read_sequence.size(),
+        base::NotFatalUntil::M143);
   // Prepare encoded data for testing.
   int size;
   uint8_t* test_data;
@@ -71,11 +74,13 @@ void SimulateReadSequence(const int read_sequence[], int sequence_size) {
     SCOPED_TRACE("Input position: " + base::NumberToString(pos));
 
     // First generate the amount to feed the decoder.
-    int read = std::min(size - pos, read_sequence[pos % sequence_size]);
+    int read = std::min(
+        size - pos,
+        read_sequence[pos % spanification_suspected_redundant_sequence_size]);
 
     // And then prepare an IOBuffer for feeding it.
     auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(read);
-    memcpy(buffer->data(), test_data + pos, read);
+    UNSAFE_TODO(memcpy(buffer->data(), test_data + pos, read));
     decoder.AddData(buffer, read);
     while (true) {
       std::unique_ptr<CompoundBuffer> message(decoder.GetNextMessage());

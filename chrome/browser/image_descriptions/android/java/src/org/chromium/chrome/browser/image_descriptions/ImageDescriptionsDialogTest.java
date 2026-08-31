@@ -36,7 +36,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
@@ -61,6 +62,8 @@ import org.chromium.ui.test.util.BlankUiTestActivity;
 /** Unit tests for {@link ImageDescriptionsDialog} */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class ImageDescriptionsDialogTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
@@ -85,8 +88,6 @@ public class ImageDescriptionsDialogTest {
     @Before
     public void setUp() throws Exception {
         mActivityTestRule.launchActivity(null);
-
-        MockitoAnnotations.initMocks(this);
 
         ProfileJni.setInstanceForTesting(mProfileJniMock);
         when(mProfileJniMock.fromWebContents(mWebContents)).thenReturn(mProfile);
@@ -502,6 +503,43 @@ public class ImageDescriptionsDialogTest {
                 () -> {
                     DeviceConditions.sForceConnectionTypeForTesting = true;
                     DeviceConditions.mConnectionTypeForTesting = ConnectionType.CONNECTION_WIFI;
+                });
+
+        // User clicks "Get descriptions"
+        clickPositiveButton();
+
+        verify(mDelegate, times(1)).enableImageDescriptions(mProfile);
+        verify(mDelegate, never()).disableImageDescriptions(any());
+        verify(mDelegate, times(1)).setOnlyOnWifiRequirement(true, mProfile);
+        verify(mDelegate, never()).getImageDescriptionsJustOnce(anyBoolean(), any());
+
+        onView(withText(R.string.image_descriptions_toast_on))
+                .inRoot(
+                        withDecorView(
+                                not(
+                                        is(
+                                                mActivityTestRule
+                                                        .getActivity()
+                                                        .getWindow()
+                                                        .getDecorView()))))
+                .check(matches(isDisplayed()));
+    }
+
+    @Test
+    @SmallTest
+    public void testUserInteraction_userGetsDescriptions_alwaysOnlyOnWifi_ethernet() {
+        showDialog();
+
+        // User clicks on the "Always" option, keeps the "Only on Wi-Fi" option checked
+        onView(withId(R.id.image_descriptions_dialog_radio_button_always))
+                .inRoot(isDialog())
+                .perform(click());
+
+        // Setup wifi condition.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    DeviceConditions.sForceConnectionTypeForTesting = true;
+                    DeviceConditions.mConnectionTypeForTesting = ConnectionType.CONNECTION_ETHERNET;
                 });
 
         // User clicks "Get descriptions"

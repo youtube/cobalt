@@ -114,8 +114,6 @@ bool CurrentThread::operator==(const CurrentThread& other) const {
   return current_ == other.current_;
 }
 
-#if !BUILDFLAG(IS_NACL)
-
 //------------------------------------------------------------------------------
 // CurrentUIThread
 
@@ -186,8 +184,6 @@ void CurrentUIThread::RemoveMessagePumpObserver(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
-#endif  // !BUILDFLAG(IS_NACL)
-
 //------------------------------------------------------------------------------
 // CurrentIOThread
 
@@ -208,8 +204,6 @@ bool CurrentIOThread::IsSet() {
 MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
   return static_cast<MessagePumpForIO*>(current_->GetMessagePump());
 }
-
-#if !BUILDFLAG(IS_NACL)
 
 #if BUILDFLAG(IS_WIN)
 HRESULT CurrentIOThread::RegisterIOHandler(
@@ -248,8 +242,6 @@ bool CurrentIOThread::WatchMachReceivePort(
                                                      delegate);
 }
 #endif
-
-#endif  // !BUILDFLAG(IS_NACL)
 
 #if BUILDFLAG(IS_FUCHSIA)
 // Additional watch API for native platform resources.

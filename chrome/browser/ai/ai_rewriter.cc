@@ -5,12 +5,17 @@
 #include "chrome/browser/ai/ai_rewriter.h"
 
 #include "base/functional/bind.h"
+#include "base/notimplemented.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ai/ai_context_bound_object.h"
 #include "chrome/browser/ai/ai_utils.h"
+#include "components/language/core/common/locale_util.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/common_types.pb.h"
+#include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom.h"
+#include "ui/base/l10n/l10n_util.h"
 
 namespace {
 
@@ -81,7 +86,8 @@ AIRewriter::AIRewriter(
 
 AIRewriter::~AIRewriter() {
   for (auto& responder : responder_set_) {
-    responder->OnError(
+    AIUtils::SendStreamingStatus(
+        responder,
         blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
   }
 }
@@ -95,7 +101,26 @@ AIRewriter::ToProtoOptions(
   proto_options->set_output_tone(ToProtoTone(options->tone));
   proto_options->set_output_format(ToProtoFormat(options->format));
   proto_options->set_output_length(ToProtoLength(options->length));
+  if (options->output_language && !options->output_language->code.empty()) {
+    // Writer expects the language's display name to use within English prose.
+    std::u16string name = l10n_util::GetDisplayNameForLocaleWithoutCountry(
+        options->output_language->code, "en", /*is_for_ui=*/false);
+    proto_options->set_output_language(base::UTF16ToUTF8(name));
+  }
   return proto_options;
+}
+
+// static
+base::flat_set<std::string_view> AIRewriter::GetSupportedLanguageBaseCodes() {
+  // Comma-separated language codes to enable; or "*" enables all supported.
+  const base::FeatureParam<std::string> kAIRewriterAPILanguagesEnabled{
+      &blink::features::kAIWriterAPI, "langs", /*default=*/"en,es,ja"};
+  // TODO(crbug.com/394841624): Get supported languages from the model config.
+  auto kSupportedBaseLanguages =
+      base::MakeFixedFlatSet<std::string_view>({"en", "ja", "es"});
+  return AIUtils::RestrictSupportedLanguagesForFeature(
+      base::MakeFlatSet<std::string_view>(kSupportedBaseLanguages),
+      kAIRewriterAPILanguagesEnabled);
 }
 
 void AIRewriter::Rewrite(
@@ -126,20 +151,25 @@ void AIRewriter::DidGetExecutionInputSizeForRewrite(
   }
 
   if (!session_wrapper_.session()) {
-    responder->OnError(
+    AIUtils::SendStreamingStatus(
+        responder,
         blink::mojom::ModelStreamingResponseStatus::kErrorSessionDestroyed);
     return;
   }
 
   if (!result.has_value()) {
-    responder->OnError(
+    AIUtils::SendStreamingStatus(
+        responder,
         blink::mojom::ModelStreamingResponseStatus::kErrorGenericFailure);
     return;
   }
 
-  if (result.value() > blink::mojom::kWritingAssistanceMaxInputTokenSize) {
-    responder->OnError(
-        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge);
+  uint32_t quota = blink::mojom::kWritingAssistanceMaxInputTokenSize;
+  if (result.value() > quota) {
+    AIUtils::SendStreamingStatus(
+        responder,
+        blink::mojom::ModelStreamingResponseStatus::kErrorInputTooLarge,
+        blink::mojom::QuotaErrorInfo::New(result.value(), quota));
     return;
   }
 
@@ -158,7 +188,8 @@ void AIRewriter::ModelExecutionCallback(
     return;
   }
   if (!result.response.has_value()) {
-    responder->OnError(
+    AIUtils::SendStreamingStatus(
+        responder,
         AIUtils::ConvertModelExecutionError(result.response.error().error()));
     return;
   }

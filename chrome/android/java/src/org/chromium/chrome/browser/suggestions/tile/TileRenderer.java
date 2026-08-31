@@ -10,15 +10,12 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorStateListDrawable;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.View;
 
 import androidx.annotation.DimenRes;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.LayoutRes;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.res.ResourcesCompat;
@@ -29,6 +26,8 @@ import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
@@ -56,10 +55,11 @@ import java.util.Map;
  * Utility class that renders {@link Tile}s into a provided {@link TilesLinearLayout}, creating and
  * manipulating the views as needed.
  */
+@NullMarked
 public class TileRenderer {
     private final Context mContext;
     private RoundedIconGenerator mIconGenerator;
-    private ImageFetcher mImageFetcher;
+    private @Nullable ImageFetcher mImageFetcher;
 
     @TileStyle private final int mStyle;
     private final int mDesiredIconSize;
@@ -67,7 +67,7 @@ public class TileRenderer {
     private final float mIconCornerRadius;
     private int mTitleLinesCount;
     private boolean mNativeInitializationComplete;
-    private Profile mProfile;
+    private @Nullable Profile mProfile;
 
     @LayoutRes private final int mTileLayoutResId;
     private final float mTileWidthDp;
@@ -106,19 +106,18 @@ public class TileRenderer {
     /** Simple multimap from SiteSuggestion to SuggestionsTileView. */
     private static class SuggestionsTileViewCache {
         private final Map<SiteSuggestion, LinkedList<SuggestionsTileView>> mStorage =
-                new HashMap<SiteSuggestion, LinkedList<SuggestionsTileView>>();
+                new HashMap<>();
 
-        void put(SiteSuggestion key, @NonNull SuggestionsTileView value) {
+        void put(SiteSuggestion key, SuggestionsTileView value) {
             LinkedList<SuggestionsTileView> bucket = mStorage.get(key);
             if (bucket == null) {
-                bucket = new LinkedList<SuggestionsTileView>();
+                bucket = new LinkedList<>();
                 mStorage.put(key, bucket);
             }
             bucket.addLast(value);
         }
 
-        @Nullable
-        SuggestionsTileView remove(SiteSuggestion key) {
+        @Nullable SuggestionsTileView remove(SiteSuggestion key) {
             SuggestionsTileView ret = null;
             LinkedList<SuggestionsTileView> bucket = mStorage.get(key);
             if (bucket != null) {
@@ -132,7 +131,10 @@ public class TileRenderer {
     }
 
     public TileRenderer(
-            Context context, @TileStyle int style, int titleLines, ImageFetcher imageFetcher) {
+            Context context,
+            @TileStyle int style,
+            int titleLines,
+            @Nullable ImageFetcher imageFetcher) {
         mImageFetcher = imageFetcher;
         mStyle = style;
         mTitleLinesCount = titleLines;
@@ -215,6 +217,7 @@ public class TileRenderer {
 
     /**
      * Override currently set maximum number of title lines.
+     *
      * @param titleLines The new max number of title lines to be shown under the tile icon.
      */
     public void setTitleLines(int titleLines) {
@@ -245,13 +248,10 @@ public class TileRenderer {
                                 .inflate(mTileLayoutResId, parent, false);
 
         tileView.initialize(tile, mTitleLinesCount);
-        // TODO(crbug.com/403353768): Unify tile background.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            tileView.setBackground(
-                    new ColorStateListDrawable(
-                            AppCompatResources.getColorStateList(
-                                    parent.getContext(), R.color.tile_bg_color_list)));
-        }
+        tileView.setBackground(
+                new ColorStateListDrawable(
+                        AppCompatResources.getColorStateList(
+                                parent.getContext(), R.color.tile_bg_color_list)));
 
         if (!mNativeInitializationComplete || setupDelegate == null) {
             return tileView;
@@ -306,17 +306,13 @@ public class TileRenderer {
         }
 
         tileView.setOnClickListener(delegate);
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.TILE_CONTEXT_MENU_REFACTOR)) {
-            tileView.setOnLongClickListener(delegate);
-        } else {
-            tileView.setOnCreateContextMenuListener(delegate);
-        }
+        tileView.setOnLongClickListener(delegate);
 
         return tileView;
     }
 
-    View buildDivider(TilesLinearLayout parent) {
-        return (View)
+    SuggestionsTileVerticalDivider buildDivider(TilesLinearLayout parent) {
+        return (SuggestionsTileVerticalDivider)
                 LayoutInflater.from(parent.getContext())
                         .inflate(R.layout.suggestions_tile_vertical_divider, parent, false);
     }
@@ -345,7 +341,12 @@ public class TileRenderer {
                 (TileView)
                         LayoutInflater.from(parent.getContext())
                                 .inflate(mTileLayoutResId, parent, false);
-        tileView.initialize(title, /* showOfflineBadge= */ false, plusIcon, mTitleLinesCount);
+        tileView.initialize(
+                title,
+                /* showOfflineBadge= */ false,
+                /* showPinnedShortcutBadge= */ false,
+                plusIcon,
+                mTitleLinesCount);
         tileView.setIconTint(
                 ChromeColors.getSecondaryIconTint(mContext, /* forceLightIconTint= */ false));
         tileView.setContentDescription(
@@ -353,7 +354,7 @@ public class TileRenderer {
                         R.string.accessibility_omnibox_most_visited_tile_add_new_shortcut));
         tileView.setOnClickListener(
                 (View v) -> {
-                    RecordUserAction.record("MostVisited_AddItem");
+                    RecordUserAction.record("Suggestions.Button.AddItem");
                     setupDelegate.getCustomTileModificationDelegate().add();
                 });
         return tileView;
@@ -361,6 +362,7 @@ public class TileRenderer {
 
     /** Returns whether the tile represents a Search query. */
     private boolean isSearchTile(Tile tile) {
+        assert mProfile != null;
         return TileUtils.isSearchTile(mProfile, tile);
     }
 

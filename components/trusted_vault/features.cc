@@ -18,11 +18,15 @@ BASE_FEATURE(kSetClientEncryptionKeysJsApi,
 #if BUILDFLAG(IS_MAC)
 BASE_FEATURE(kEnableICloudKeychainRecoveryFactor,
              "EnableICloudKeychainRecoveryFactor",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kEnableRegistrationStateSecurityDomainFiltering,
              "EnableRegistrationStateSecurityDomainFiltering",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableTrustedVaultSHA256,
+             "EnableTrustedVaultSHA256",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace trusted_vault

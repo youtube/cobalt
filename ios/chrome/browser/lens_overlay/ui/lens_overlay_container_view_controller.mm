@@ -82,12 +82,14 @@ const CGFloat kSelectionUICornerRadius = 13.0;
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
 
-  [self addChildViewController:_contentViewController];
-  _contentViewController.view.translatesAutoresizingMaskIntoConstraints = NO;
-  [_borderView addSubview:_contentViewController.view];
-  [_contentViewController didMoveToParentViewController:self];
+  if (_contentViewController) {
+    [self addChildViewController:_contentViewController];
+    _contentViewController.view.translatesAutoresizingMaskIntoConstraints = NO;
+    [_borderView addSubview:_contentViewController.view];
+    [_contentViewController didMoveToParentViewController:self];
 
-  AddSameConstraints(_contentViewController.view, _borderView);
+    AddSameConstraints(_contentViewController.view, _borderView);
+  }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -162,6 +164,7 @@ const CGFloat kSelectionUICornerRadius = 13.0;
   self.view.backgroundColor = [UIColor colorNamed:kBackgroundColor];
 
   self.view.accessibilityIdentifier = kLenscontainerViewAccessibilityIdentifier;
+  self.view.clipsToBounds = YES;
 
   if (!self.selectionViewController) {
     return;
@@ -202,6 +205,8 @@ const CGFloat kSelectionUICornerRadius = 13.0;
 
 - (void)viewDidAppear:(BOOL)animated {
   [super viewDidAppear:animated];
+  UIAccessibilityPostNotification(UIAccessibilityScreenChangedNotification,
+                                  self.selectionViewController);
   [self.delegate lensOverlayContainerDidAppear:self animated:animated];
 }
 
@@ -387,7 +392,7 @@ const CGFloat kSelectionUICornerRadius = 13.0;
   [self.delegate lensOverlayContainerDidChangeSizeClass:self];
 }
 
-#pragma mark - Accessibility
+#pragma mark - UIAccessibilityAction
 
 - (BOOL)accessibilityPerformEscape {
   [self closeOverlayRequested];

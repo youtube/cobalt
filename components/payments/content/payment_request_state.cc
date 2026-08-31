@@ -27,9 +27,9 @@
 #include "components/autofill/core/browser/geo/autofill_country.h"
 #include "components/payments/content/content_payment_request_delegate.h"
 #include "components/payments/content/payment_app.h"
-#include "components/payments/content/payment_manifest_web_data_service.h"
 #include "components/payments/content/payment_response_helper.h"
 #include "components/payments/content/service_worker_payment_app.h"
+#include "components/payments/content/web_payments_web_data_service.h"
 #include "components/payments/core/error_strings.h"
 #include "components/payments/core/features.h"
 #include "components/payments/core/method_strings.h"
@@ -38,6 +38,7 @@
 #include "components/webauthn/core/browser/internal_authenticator.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
 
 namespace payments {
@@ -155,9 +156,9 @@ PaymentRequestState::CreateInternalAuthenticator() const {
   return GetPaymentRequestDelegate()->CreateInternalAuthenticator();
 }
 
-scoped_refptr<PaymentManifestWebDataService>
-PaymentRequestState::GetPaymentManifestWebDataService() const {
-  return GetPaymentRequestDelegate()->GetPaymentManifestWebDataService();
+scoped_refptr<WebPaymentsWebDataService>
+PaymentRequestState::GetWebPaymentsWebDataService() const {
+  return GetPaymentRequestDelegate()->GetWebPaymentsWebDataService();
 }
 
 bool PaymentRequestState::IsOffTheRecord() const {
@@ -587,14 +588,7 @@ void PaymentRequestState::PopulateProfileCache() {
 
   // Remove home and work profiles since they are non-editable.
   std::erase_if(profiles, [](const autofill::AutofillProfile* profile) {
-    switch (profile->record_type()) {
-      case autofill::AutofillProfile::RecordType::kLocalOrSyncable:
-      case autofill::AutofillProfile::RecordType::kAccount:
-        return false;
-      case autofill::AutofillProfile::RecordType::kAccountHome:
-      case autofill::AutofillProfile::RecordType::kAccountWork:
-        return true;
-    }
+    return profile->IsHomeAndWorkProfile();
   });
 
   std::vector<raw_ptr<autofill::AutofillProfile, VectorExperimental>>

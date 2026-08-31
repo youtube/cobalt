@@ -19,6 +19,7 @@ if (!build_with_chromium) {
     sources = [ "generator.cc" ]
     deps = [
       ":lib",
+      "../../../../rtc_base:checks",
       "../../../../test:fileutils",
       "../../../../test:test_support",
       "//third_party/abseil-cpp/absl/flags:flag",

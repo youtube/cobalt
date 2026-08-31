@@ -43,7 +43,6 @@ import org.chromium.components.signin.identitymanager.ConsentLevel;
 import org.chromium.components.sync.SyncService;
 import org.chromium.components.sync.TrustedVaultUserActionTriggerForUMA;
 import org.chromium.components.sync.UserSelectableType;
-import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.google_apis.gaia.GoogleServiceAuthErrorState;
 import org.chromium.ui.widget.Toast;
 
@@ -124,7 +123,7 @@ public class SyncSettingsUtils {
         }
     }
 
-    /** Returns the type of the sync error, for syncing users. */
+    /** Returns the type of the sync error */
     public static @SyncError int getSyncError(Profile profile) {
         assert profile != null;
         SyncService syncService = SyncServiceFactory.getForProfile(profile);
@@ -133,11 +132,16 @@ public class SyncSettingsUtils {
         }
 
         if (!syncService.hasSyncConsent()) {
-            return SyncError.NO_ERROR;
+            // The user is in signed-in non-syncing state
+            return getIdentityError(profile, syncService);
         }
 
         if (!syncService.isInitialSyncFeatureSetupComplete()) {
             return SyncError.SYNC_SETUP_INCOMPLETE;
+        }
+
+        if (syncService.hasUnrecoverableError()) {
+            return SyncError.OTHER_ERRORS;
         }
 
         return getCommonError(profile);
@@ -290,8 +294,7 @@ public class SyncSettingsUtils {
         }
 
         if (syncService.getSelectedTypes().contains(UserSelectableType.PASSWORDS)
-                && PasswordManagerUtilBridge.isGmsCoreUpdateRequired(
-                        UserPrefs.get(profile), syncService)) {
+                && PasswordManagerUtilBridge.isGmsCoreUpdateRequired(syncService)) {
             return context.getString(R.string.sync_error_outdated_gms);
         }
 
@@ -558,22 +561,11 @@ public class SyncSettingsUtils {
         return canShowFullName ? fullName : accountEmail;
     }
 
-    /**
-     * Returns the type of the sync error/identity error for signed-in non-syncing users.
-     * TODO(crbug.com/330290259): Merge this into getSyncError().
-     */
-    public static @SyncError int getIdentityError(Profile profile) {
+    /** Returns the type of the sync error/identity error for signed-in non-syncing users. */
+    private static @SyncError int getIdentityError(Profile profile, SyncService syncService) {
         assert profile != null;
-        SyncService syncService = SyncServiceFactory.getForProfile(profile);
-        // TODO(crbug.com/40944114): Consider converting this to an assertion instead.
-        if (syncService == null) {
-            return SyncError.NO_ERROR;
-        }
-
-        // Do not show identity error if sync is enabled.
-        if (syncService.isSyncFeatureEnabled()) {
-            return SyncError.NO_ERROR;
-        }
+        assert syncService != null;
+        assert !syncService.isSyncFeatureEnabled();
 
         // No error for not signed-in users.
         if (!IdentityServicesProvider.get()
@@ -582,13 +574,7 @@ public class SyncSettingsUtils {
             return SyncError.NO_ERROR;
         }
 
-        @SyncError int error = getCommonError(profile);
-        // Do not show identity error for unrecoverable errors, since they are not actionable.
-        // TODO(crbug.com/40944114): Remove these unused values after sync-to-signin transition.
-        if (error == SyncError.OTHER_ERRORS) {
-            return SyncError.NO_ERROR;
-        }
-        return error;
+        return getCommonError(profile);
     }
 
     /** Returns the errors common to both getSyncError() and getIdentityError(). */
@@ -596,18 +582,12 @@ public class SyncSettingsUtils {
         SyncService syncService = SyncServiceFactory.getForProfile(profile);
         assert syncService != null;
 
-        if (syncService.getAuthError().getState()
-                == GoogleServiceAuthErrorState.INVALID_GAIA_CREDENTIALS) {
+        if (syncService.getAuthError().getState() != GoogleServiceAuthErrorState.NONE) {
             return SyncError.AUTH_ERROR;
         }
 
         if (syncService.requiresClientUpgrade()) {
             return SyncError.CLIENT_OUT_OF_DATE;
-        }
-
-        if (syncService.getAuthError().getState() != GoogleServiceAuthErrorState.NONE
-                || syncService.hasUnrecoverableError()) {
-            return SyncError.OTHER_ERRORS;
         }
 
         if (syncService.isEngineInitialized()
@@ -634,8 +614,7 @@ public class SyncSettingsUtils {
         // TODO(crbug.com/345217772): Look for a better alternative. Maybe return all the sync
         // errors at the moment and not just one.
         if (syncService.getSelectedTypes().contains(UserSelectableType.PASSWORDS)
-                && PasswordManagerUtilBridge.isGmsCoreUpdateRequired(
-                        UserPrefs.get(profile), syncService)) {
+                && PasswordManagerUtilBridge.isGmsCoreUpdateRequired(syncService)) {
             return SyncError.UPM_BACKEND_OUTDATED;
         }
 

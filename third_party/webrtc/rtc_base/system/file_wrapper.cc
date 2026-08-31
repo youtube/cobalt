@@ -10,12 +10,13 @@
 
 #include "rtc_base/system/file_wrapper.h"
 
-#include <stddef.h>
-
 #include <cerrno>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "rtc_base/checks.h"
@@ -25,8 +26,6 @@
 #include <Windows.h>
 #else
 #endif
-
-#include <utility>
 
 namespace webrtc {
 namespace {

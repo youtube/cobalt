@@ -75,7 +75,6 @@ class StringShape {
   V8_INLINE bool IsSequentialTwoByte() const;
   V8_INLINE bool IsInternalized() const;
   V8_INLINE bool IsShared() const;
-  V8_INLINE uint32_t encoding_tag() const;
 #ifdef DEBUG
   inline void invalidate() { valid_ = false; }
   inline bool valid() const { return valid_; }
@@ -404,6 +403,10 @@ V8_OBJECT class String : public Name {
   template <EqualityType kEqType = EqualityType::kWholeString, typename Char>
   inline bool IsEqualTo(base::Vector<const Char> str, Isolate* isolate) const;
 
+  // Convenience method for the above using std::string_view instead
+  template <EqualityType kEqType = EqualityType::kWholeString>
+  inline bool IsEqualTo(std::string_view str, Isolate* isolate) const;
+
   // Check if this string matches the given vector of characters, either as a
   // whole string or just a prefix.
   //
@@ -439,6 +442,9 @@ V8_OBJECT class String : public Name {
 
   V8_EXPORT_PRIVATE std::unique_ptr<char[]> ToCString(
       size_t* length_output = nullptr);
+
+  // Return a UTF8 representation of this string as a std::string
+  V8_EXPORT_PRIVATE std::string ToStdString();
 
   // Externalization.
   template <typename T>

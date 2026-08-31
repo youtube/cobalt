@@ -39,9 +39,7 @@ namespace ash {
 FakeChromeUserManager::FakeChromeUserManager()
     : UserManagerImpl(
           std::make_unique<user_manager::FakeUserManagerDelegate>(),
-          g_browser_process ? g_browser_process->local_state() : nullptr,
-          ash::CrosSettings::IsInitialized() ? ash::CrosSettings::Get()
-                                             : nullptr) {
+          g_browser_process ? g_browser_process->local_state() : nullptr) {
   ProfileHelper::SetProfileToUserForTestingEnabled(true);
 }
 
@@ -103,9 +101,10 @@ FakeChromeUserManager::AddUserWithAffiliationAndTypeAndProfile(
   return user;
 }
 
-user_manager::User* FakeChromeUserManager::AddKioskAppUser(
+user_manager::User* FakeChromeUserManager::AddKioskChromeAppUser(
     const AccountId& account_id) {
-  user_manager::User* user = user_manager::User::CreateKioskAppUser(account_id);
+  user_manager::User* user =
+      user_manager::User::CreateKioskChromeAppUser(account_id);
   user->set_username_hash(
       user_manager::FakeUserManager::GetFakeUsernameHash(account_id));
   user_storage_.emplace_back(user);
@@ -113,10 +112,10 @@ user_manager::User* FakeChromeUserManager::AddKioskAppUser(
   return user;
 }
 
-user_manager::User* FakeChromeUserManager::AddWebKioskAppUser(
+user_manager::User* FakeChromeUserManager::AddKioskWebAppUser(
     const AccountId& account_id) {
   user_manager::User* user =
-      user_manager::User::CreateWebKioskAppUser(account_id);
+      user_manager::User::CreateKioskWebAppUser(account_id);
   user->set_username_hash(
       user_manager::FakeUserManager::GetFakeUsernameHash(account_id));
   user_storage_.emplace_back(user);
@@ -129,6 +128,15 @@ user_manager::User* FakeChromeUserManager::AddKioskIwaUser(
   user_manager::User* user = user_manager::User::CreateKioskIwaUser(account_id);
   user->set_username_hash(
       user_manager::FakeUserManager::GetFakeUsernameHash(account_id));
+  user_storage_.emplace_back(user);
+  persisted_users_.push_back(user);
+  return user;
+}
+
+user_manager::User* FakeChromeUserManager::AddKioskArcvmAppUser(
+    const AccountId& account_id) {
+  user_manager::User* user =
+      user_manager::User::CreateKioskArcvmAppUser(account_id);
   user_storage_.emplace_back(user);
   persisted_users_.push_back(user);
   return user;
@@ -381,14 +389,14 @@ bool FakeChromeUserManager::IsLoggedInAsGuest() const {
 bool FakeChromeUserManager::IsLoggedInAsKioskChromeApp() const {
   const user_manager::User* active_user = GetActiveUser();
   return active_user
-             ? active_user->GetType() == user_manager::UserType::kKioskApp
+             ? active_user->GetType() == user_manager::UserType::kKioskChromeApp
              : false;
 }
 
 bool FakeChromeUserManager::IsLoggedInAsKioskWebApp() const {
   const user_manager::User* active_user = GetActiveUser();
   return active_user
-             ? active_user->GetType() == user_manager::UserType::kWebKioskApp
+             ? active_user->GetType() == user_manager::UserType::kKioskWebApp
              : false;
 }
 
@@ -411,19 +419,6 @@ bool FakeChromeUserManager::IsLoggedInAsStub() const {
 bool FakeChromeUserManager::IsUserNonCryptohomeDataEphemeral(
     const AccountId& account_id) const {
   return current_user_ephemeral_;
-}
-
-bool FakeChromeUserManager::IsGuestSessionAllowed() const {
-  bool is_guest_allowed = false;
-  CrosSettings::Get()->GetBoolean(kAccountsPrefAllowGuest, &is_guest_allowed);
-  return is_guest_allowed;
-}
-
-bool FakeChromeUserManager::IsGaiaUserAllowed(
-    const user_manager::User& user) const {
-  DCHECK(user.HasGaiaAccount());
-  return UserLoginPermissionTracker::Get()->IsUserAllowlisted(
-      user.GetAccountId().GetUserEmail(), nullptr, user.GetType());
 }
 
 bool FakeChromeUserManager::IsUserAllowed(

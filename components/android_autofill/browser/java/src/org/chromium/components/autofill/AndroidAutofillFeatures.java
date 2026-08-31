@@ -19,27 +19,28 @@ import org.chromium.build.annotations.NullMarked;
 @JNINamespace("autofill::features")
 @NullMarked
 public class AndroidAutofillFeatures extends Features {
-    public static final String ANDROID_AUTOFILL_DEPRECATE_ACCESSIBILITY_API_NAME =
-            "AndroidAutofillDeprecateAccessibilityApi";
     public static final String ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME =
             "AndroidAutofillLazyFrameworkWrapper";
     public static final String ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME =
             "AutofillVirtualViewStructureAndroidInCct";
     public static final String ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS_NAME =
             "AutofillVirtualViewStructureAndroidPasskeyLongPress";
+    public static final String ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN_NAME =
+            "AndroidAutofillForwardIframeOrigin";
 
-    public static final AndroidAutofillFeatures ANDROID_AUTOFILL_DEPRECATE_ACCESSIBILITY_API =
-            new AndroidAutofillFeatures(0, ANDROID_AUTOFILL_DEPRECATE_ACCESSIBILITY_API_NAME);
     public static final AndroidAutofillFeatures
             ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT =
                     new AndroidAutofillFeatures(
-                            1, ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME);
+                            0, ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_ANDROID_IN_CCT_NAME);
     public static final AndroidAutofillFeatures ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER =
-            new AndroidAutofillFeatures(2, ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME);
+            new AndroidAutofillFeatures(1, ANDROID_AUTOFILL_LAZY_FRAMEWORK_WRAPPER_NAME);
     public static final AndroidAutofillFeatures
             ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS =
                     new AndroidAutofillFeatures(
-                            3, ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS_NAME);
+                            2, ANDROID_AUTOFILL_VIRTUAL_VIEW_STRUCTURE_PASSKEY_LONG_PRESS_NAME);
+
+    public static final AndroidAutofillFeatures ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN =
+            new AndroidAutofillFeatures(3, ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN_NAME);
 
     private final int mOrdinal;
 

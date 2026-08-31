@@ -52,6 +52,7 @@ class IsolatedWebAppPolicyManager
 
   void Start(base::OnceClosure on_started_callback);
   void SetProvider(base::PassKey<WebAppProvider>, WebAppProvider& provider);
+  void Shutdown();
 
   base::Value GetDebugValue() const;
 
@@ -88,8 +89,7 @@ class IsolatedWebAppPolicyManager
   void OnPolicyChanged();
 
   // IwaKeyDistributionInfoProvider::Observer:
-  void OnComponentUpdateSuccess(const base::Version& version,
-                                bool is_preloaded) override;
+  void OnComponentUpdateSuccess(bool is_preloaded) override;
 
   // Keeps track of the last few processing logs for debugging purposes.
   // Automatically discards older logs to keep at most `kMaxEntries`.

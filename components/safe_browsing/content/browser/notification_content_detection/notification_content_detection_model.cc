@@ -13,7 +13,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
-#include "components/optimization_guide/core/model_handler.h"
+#include "components/optimization_guide/core/inference/model_handler.h"
 #include "components/optimization_guide/proto/models.pb.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/safe_browsing/content/browser/notification_content_detection/notification_content_detection_constants.h"
@@ -55,7 +55,7 @@ std::string NotificationContentDetectionModel::GetSerializedMetadata(
           .Set(kMetadataIsOriginOnGlobalCacheListKey, is_on_global_cache_list)
           .Set(kMetadataIsOriginAllowlistedByUserKey, is_allowlisted_by_user);
   if (suspicious_score.has_value()) {
-    metadata_dict.Set(kMetadataSuspiciousKey, suspicious_score.value());
+    metadata_dict.Set(kMetadataSuspiciousScoreKey, suspicious_score.value());
   }
   std::string serialized_metadata;
   JSONStringValueSerializer serializer(&serialized_metadata);

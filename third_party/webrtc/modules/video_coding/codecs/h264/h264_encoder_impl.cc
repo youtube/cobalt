@@ -17,24 +17,42 @@
 #include "modules/video_coding/codecs/h264/h264_encoder_impl.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <limits>
 #include <optional>
 #include <string>
+#include <vector>
 
-#include "absl/strings/match.h"
+#include "api/environment/environment.h"
+#include "api/scoped_refptr.h"
+#include "api/units/data_rate.h"
+#include "api/video/encoded_image.h"
+#include "api/video/i420_buffer.h"
+#include "api/video/video_bitrate_allocation.h"
+#include "api/video/video_bitrate_allocator.h"
 #include "api/video/video_codec_constants.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
+#include "api/video/video_frame_type.h"
 #include "api/video_codecs/scalability_mode.h"
+#include "api/video_codecs/video_codec.h"
+#include "api/video_codecs/video_encoder.h"
 #include "common_video/libyuv/include/webrtc_libyuv.h"
+#include "modules/video_coding/codecs/h264/include/h264.h"
+#include "modules/video_coding/codecs/h264/include/h264_globals.h"
+#include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_error_codes.h"
 #include "modules/video_coding/svc/create_scalability_structure.h"
+#include "modules/video_coding/svc/scalable_video_controller.h"
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
 #include "modules/video_coding/utility/simulcast_utility.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
-#include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
 #include "third_party/openh264/src/codec/api/wels/codec_api.h"
 #include "third_party/openh264/src/codec/api/wels/codec_app_def.h"
@@ -48,8 +66,8 @@ namespace {
 const bool kOpenH264EncoderDetailedLogging = false;
 
 // QP scaling thresholds.
-static const int kLowH264QpThreshold = 24;
-static const int kHighH264QpThreshold = 37;
+const int kLowH264QpThreshold = 24;
+const int kHighH264QpThreshold = 37;
 
 // Used by histograms. Values of entries should not be changed.
 enum H264EncoderImplEvent {
@@ -180,7 +198,9 @@ H264EncoderImpl::H264EncoderImpl(const Environment& env,
       number_of_cores_(0),
       encoded_image_callback_(nullptr),
       has_reported_init_(false),
-      has_reported_error_(false) {
+      has_reported_error_(false),
+      calculate_psnr_(
+          env.field_trials().IsEnabled("WebRTC-Video-CalculatePsnr")) {
   downscaled_buffers_.reserve(kMaxSimulcastStreams - 1);
   encoded_images_.reserve(kMaxSimulcastStreams);
   encoders_.reserve(kMaxSimulcastStreams);
@@ -420,7 +440,7 @@ int32_t H264EncoderImpl::Encode(
     return WEBRTC_VIDEO_CODEC_UNINITIALIZED;
   }
 
-  webrtc::scoped_refptr<I420BufferInterface> frame_buffer =
+  scoped_refptr<I420BufferInterface> frame_buffer =
       input_frame.video_frame_buffer()->ToI420();
   if (!frame_buffer) {
     RTC_LOG(LS_ERROR) << "Failed to convert "
@@ -446,6 +466,8 @@ int32_t H264EncoderImpl::Encode(
   RTC_DCHECK_EQ(configurations_[0].width, frame_buffer->width());
   RTC_DCHECK_EQ(configurations_[0].height, frame_buffer->height());
 
+  bool calculate_psnr =
+      calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(input_frame);
   // Encode image for each layer.
   for (size_t i = 0; i < encoders_.size(); ++i) {
     // EncodeFrame input.
@@ -454,6 +476,9 @@ int32_t H264EncoderImpl::Encode(
     pictures_[i].iPicHeight = configurations_[i].height;
     pictures_[i].iColorFormat = EVideoFormatType::videoFormatI420;
     pictures_[i].uiTimeStamp = input_frame.ntp_time_ms();
+    pictures_[i].bPsnrY = calculate_psnr;
+    pictures_[i].bPsnrU = calculate_psnr;
+    pictures_[i].bPsnrV = calculate_psnr;
     // Downscale images on second and ongoing layers.
     if (i == 0) {
       pictures_[i].iStride[0] = frame_buffer->StrideY();
@@ -546,6 +571,15 @@ int32_t H264EncoderImpl::Encode(
       h264_bitstream_parser_.ParseBitstream(encoded_images_[i]);
       encoded_images_[i].qp_ =
           h264_bitstream_parser_.GetLastSliceQp().value_or(-1);
+      if (calculate_psnr) {
+        encoded_images_[i].set_psnr(EncodedImage::Psnr({
+            .y = info.sLayerInfo[info.iLayerNum - 1].rPsnr[0],
+            .u = info.sLayerInfo[info.iLayerNum - 1].rPsnr[1],
+            .v = info.sLayerInfo[info.iLayerNum - 1].rPsnr[2],
+        }));
+      } else {
+        encoded_images_[i].set_psnr(std::nullopt);
+      }
 
       // Deliver encoded image.
       CodecSpecificInfo codec_specific;

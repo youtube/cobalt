@@ -13,6 +13,7 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
@@ -83,8 +84,13 @@ RulesetManager::~RulesetManager() {
 void RulesetManager::AddRuleset(const ExtensionId& extension_id,
                                 std::unique_ptr<CompositeMatcher> matcher) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!GetMatcherForExtension(extension_id))
+  // TODO(crbug.com/358617943): Replace LOG_IF() and histogram with CHECK().
+  const bool called_twice = GetMatcherForExtension(extension_id);
+  LOG_IF(ERROR, called_twice)
       << "AddRuleset called twice in succession for " << extension_id;
+  base::UmaHistogramBoolean(
+      "Extensions.DeclarativeNetRequest.AddRulesetCalledTwiceInSuccession",
+      called_twice);
 
   base::Time update_time = GetLastUpdateTime(prefs_, extension_id);
   rulesets_.emplace(extension_id, update_time, std::move(matcher));
@@ -516,9 +522,7 @@ bool RulesetManager::ShouldEvaluateRulesetForRequest(
   // switch overrides that restriction.
   // Note: For discussions regarding handling of extension initiated navigations
   //       see https://crbug.com/918137 and https://crbug.com/382670035.
-  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kExtensionsOnChromeURLs) &&
-      request.initiator &&
+  if (!switches::AreExtensionsOnExtensionURLsAllowed() && request.initiator &&
       request.web_request_type != WebRequestResourceType::MAIN_FRAME) {
     // Checking the precursor is necessary here since requests initiated by
     // manifest sandbox pages have an opaque initiator origin, but still

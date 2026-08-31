@@ -90,14 +90,15 @@ public class UndoTabModelUnitTest {
     @Before
     public void setUp() {
         // Disable HomepageManager#shouldCloseAppWithZeroTabs() for TabModelImpl#closeAllTabs().
-        HomepageManager.getInstance().setPrefHomepageEnabled(false);
+        HomepageManager.getInstance().setJavaPrefHomepageEnabled(false);
 
         when(mIncognitoProfile.isOffTheRecord()).thenReturn(true);
 
         PriceTrackingFeatures.setPriceAnnotationsEnabledForTesting(false);
 
         TabModelJniBridgeJni.setInstanceForTesting(mTabModelJniBridge);
-        when(mTabModelJniBridge.init(any(), any(), anyInt(), anyBoolean()))
+        when(mTabModelJniBridge.init(
+                        any(TabModelJniBridge.class), any(Profile.class), anyInt(), anyBoolean()))
                 .thenReturn(FAKE_NATIVE_ADDRESS);
 
         when(mTabModelDelegate.isReparentingInProgress()).thenReturn(false);
@@ -179,7 +180,7 @@ public class UndoTabModelUnitTest {
                             mTabModelDelegate,
                             tabRemover,
                             supportUndo,
-                            /* isArchivedTabModel= */ true);
+                            /* isArchivedTabModel= */ false);
             when(mTabModelSelector.getModel(true)).thenReturn(tabModel);
         } else {
             tabModel =
@@ -195,7 +196,7 @@ public class UndoTabModelUnitTest {
                             mTabModelDelegate,
                             tabRemover,
                             supportUndo,
-                            /* isArchivedTabModel= */ true);
+                            /* isArchivedTabModel= */ false);
             when(mTabModelSelector.getModel(false)).thenReturn(tabModel);
         }
         // Assume the model is the current and active model.
@@ -272,7 +273,8 @@ public class UndoTabModelUnitTest {
         model.addObserver(
                 new TabModelObserver() {
                     @Override
-                    public void tabPendingClosure(Tab tab) {
+                    public void onTabClosePending(
+                            List<Tab> tab, boolean isAllTabs, @TabClosingSource int closingSource) {
                         didReceivePendingClosureHelper.notifyCalled();
                     }
                 });
@@ -285,7 +287,7 @@ public class UndoTabModelUnitTest {
 
         boolean didMakePending = undoable && model.supportsPendingClosures();
 
-        // Make sure the TabModel throws a tabPendingClosure callback if necessary.
+        // Make sure the TabModel throws a onTabClosePending callback if necessary.
         if (didMakePending) didReceivePendingClosureHelper.waitForCallback(0);
 
         // Check post conditions
@@ -302,7 +304,10 @@ public class UndoTabModelUnitTest {
         model.addObserver(
                 new TabModelObserver() {
                     @Override
-                    public void multipleTabsPendingClosure(List<Tab> tabs, boolean isAllTabs) {
+                    public void onTabClosePending(
+                            List<Tab> tabs,
+                            boolean isAllTabs,
+                            @TabClosingSource int closingSource) {
                         didReceivePendingClosureHelper.notifyCalled();
                     }
                 });
@@ -310,7 +315,7 @@ public class UndoTabModelUnitTest {
 
         boolean didMakePending = undoable && model.supportsPendingClosures();
 
-        // Make sure the TabModel throws a tabPendingClosure callback if necessary.
+        // Make sure the TabModel throws a onTabClosePending callback if necessary.
         if (didMakePending) didReceivePendingClosureHelper.waitForCallback(0);
     }
 
@@ -1486,7 +1491,7 @@ public class UndoTabModelUnitTest {
         checkState(model, new Tab[] {tab0, tab3}, tab3, sEmptyList, fullList, tab3);
 
         // 4.
-        model.moveTab(tab0.getId(), 2);
+        model.moveTab(tab0.getId(), 1);
         fullList = new Tab[] {tab3, tab0};
         checkState(model, new Tab[] {tab3, tab0}, tab3, sEmptyList, fullList, tab3);
         assertTrue(tab1.isClosing());
@@ -1660,7 +1665,7 @@ public class UndoTabModelUnitTest {
         checkState(model, fullList, tab4, sEmptyList, fullList, tab4);
         assertFalse(model.supportsPendingClosures());
 
-        final ArrayList<Tab> lastClosedTabs = new ArrayList<Tab>();
+        final ArrayList<Tab> lastClosedTabs = new ArrayList<>();
         model.addObserver(
                 new TabModelObserver() {
                     @Override

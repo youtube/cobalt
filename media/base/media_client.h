@@ -18,7 +18,6 @@
 #include "media/base/video_codecs.h"
 #include "media/base/video_color_space.h"
 #include "ui/gfx/color_space.h"
-#include "url/gurl.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/demuxer_stream.h"
@@ -73,6 +72,10 @@ class MEDIA_EXPORT MediaClient {
   // audio sink.
   virtual bool IsSupportedBitstreamAudioCodec(AudioCodec codec) = 0;
 
+  // Returns true if audio tracks should be suppressed (neither decoded nor
+  // rendered).
+  virtual bool ShouldSuppressAudioTracks() = 0;
+
   // Optionally returns audio renderer algorithm parameters.
   virtual std::optional<::media::AudioRendererAlgorithmParameters>
   GetAudioRendererAlgorithmParameters(AudioParameters audio_parameters) = 0;
@@ -91,6 +94,10 @@ class MEDIA_EXPORT MediaClient {
   uint64_t GetMaximumMemoryCapacity() const;
   uint64_t GetCurrentMemoryCapacity() const;
   uint64_t GetAllocatedMemory() const;
+
+  // Installs |decoder_buffer_allocator_| as the process-wide
+  // DecoderBuffer::Allocator.
+  void InstallDecoderBufferAllocator();
 
  private:
   // TODO(b/326497953): Support Suspend() and Resume().

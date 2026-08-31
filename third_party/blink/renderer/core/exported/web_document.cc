@@ -70,8 +70,10 @@
 #include "third_party/blink/renderer/core/html/plugin_document.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/page/page.h"
+#include "third_party/blink/renderer/core/script_tools/automation_delegate_supplement.h"
 #include "third_party/blink/renderer/core/speculation_rules/document_speculation_rules.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/loader/fetch/resource_fetcher.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "ui/accessibility/ax_mode.h"
@@ -80,7 +82,7 @@ namespace {
 
 static const blink::WebStyleSheetKey GenerateStyleSheetKey() {
   static unsigned counter = 0;
-  return String::Number(++counter);
+  return blink::String::Number(++counter);
 }
 
 }  // namespace
@@ -398,6 +400,19 @@ void WebDocument::SnapshotAccessibilityTree(
   Member<blink::AXObjectCache> cache =
       blink::AXObjectCache::CreateSnapshotter(*Unwrap<Document>(), mode);
   cache->SerializeEntireTreeAndDispose(max_nodes, timeout, response, out_error);
+}
+
+size_t WebDocument::ActiveResourceRequestCount() const {
+  return ConstUnwrap<Document>()->Fetcher()->ActiveRequestCount();
+}
+
+void WebDocument::ExecuteScriptTool(
+    const WebString& name,
+    const WebString& input_arguments,
+    ScriptToolExecutedCallback tool_executed_cb) {
+  AutomationDelegateSupplement::automationDelegate(
+      *Unwrap<Document>()->domWindow())
+      ->ExecuteTool(name, input_arguments, std::move(tool_executed_cb));
 }
 
 }  // namespace blink

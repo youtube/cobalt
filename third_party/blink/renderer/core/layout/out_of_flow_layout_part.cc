@@ -12,7 +12,6 @@
 #include "third_party/blink/renderer/core/accessibility/ax_object_cache.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/out_of_flow_data.h"
-#include "third_party/blink/renderer/core/css/properties/computed_style_utils.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_document_state.h"
 #include "third_party/blink/renderer/core/dom/flat_tree_traversal.h"
 #include "third_party/blink/renderer/core/frame/web_feature.h"
@@ -35,7 +34,6 @@
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/logical_fragment.h"
 #include "third_party/blink/renderer/core/layout/oof_positioned_node.h"
 #include "third_party/blink/renderer/core/layout/paginated_root_layout_algorithm.h"
@@ -50,7 +48,6 @@
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_utils.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/clear_collection_scope.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -110,11 +107,14 @@ class OOFCandidateStyleIterator {
   STACK_ALLOCATED();
 
  public:
-  explicit OOFCandidateStyleIterator(const LayoutObject& object,
-                                     AnchorEvaluatorImpl& anchor_evaluator)
+  explicit OOFCandidateStyleIterator(
+      const LayoutObject& object,
+      AnchorEvaluatorImpl& anchor_evaluator,
+      WritingDirectionMode container_writing_direction)
       : element_(DynamicTo<Element>(object.GetNode())),
-        style_(object.Style()),
-        anchor_evaluator_(anchor_evaluator) {
+        original_style_(object.StyleRef()),
+        anchor_evaluator_(anchor_evaluator),
+        container_writing_direction_(container_writing_direction) {
     Initialize();
   }
 
@@ -200,26 +200,6 @@ class OOFCandidateStyleIterator {
     }
   }
 
-  std::optional<const CSSPropertyValueSet*> TrySetFromFallback(
-      const PositionTryFallback& fallback) {
-    if (!fallback.GetPositionArea().IsNone()) {
-      // This fallback is an position-area(). Create a declaration block
-      // with an equivalent position-area declaration.
-      CSSPropertyValue declaration(
-          CSSPropertyName(CSSPropertyID::kPositionArea),
-          *ComputedStyleUtils::ValueForPositionArea(
-              fallback.GetPositionArea()));
-      return ImmutableCSSPropertyValueSet::Create(
-          base::span_from_ref(declaration), kHTMLStandardMode);
-    } else if (const ScopedCSSName* name = fallback.GetPositionTryName()) {
-      if (const StyleRulePositionTry* rule = GetPositionTryRule(*name)) {
-        return &rule->Properties();
-      }
-      return std::nullopt;
-    }
-    return nullptr;
-  }
-
   void MoveToChosenTryFallbackIndex(std::optional<wtf_size_t> index) {
     CHECK(element_);
     bool may_invalidate_last_successful = false;
@@ -231,7 +211,7 @@ class OOFCandidateStyleIterator {
           position_try_fallbacks_->GetFallbacks()[*index];
       TryTacticList try_tactics = fallback.GetTryTactic();
       std::optional<const CSSPropertyValueSet*> opt_try_set =
-          TrySetFromFallback(fallback);
+          element_->GetDocument().GetStyleEngine().TrySetFromFallback(fallback);
       CHECK(opt_try_set.has_value());
       try_set = opt_try_set.value();
       may_invalidate_last_successful =
@@ -258,6 +238,9 @@ class OOFCandidateStyleIterator {
 
  private:
   void Initialize() {
+    style_ = &original_style_;
+
+    // Not all OOFs have an element. LayoutViewTransitionRoot is one example.
     if (element_) {
       position_try_fallbacks_ = style_->GetPositionTryFallbacks();
 
@@ -271,8 +254,11 @@ class OOFCandidateStyleIterator {
       // Note that it's important to avoid the expensive call to UpdateStyle
       // here if we *don't* depend on anchor*(), since every out-of-flow will
       // reach this function, regardless of whether or not anchor positioning
-      // is actually used.
-      if (ElementStyleDependsOnAnchor(*element_, *style_)) {
+      // is actually used. We need to check for position_try_fallbacks_ since
+      // the style_ may be the result of a fallback that does not use anchor
+      // positioning at all.
+      if (position_try_fallbacks_ ||
+          ElementStyleDependsOnAnchor(*element_, *style_)) {
         UpdateStyle(std::nullopt, /*initial_update=*/true);
       }
     }
@@ -292,13 +278,6 @@ class OOFCandidateStyleIterator {
     return false;
   }
 
-  const StyleRulePositionTry* GetPositionTryRule(
-      const ScopedCSSName& scoped_name) {
-    CHECK(element_);
-    return element_->GetDocument().GetStyleEngine().GetPositionTryRule(
-        scoped_name);
-  }
-
   // Update the style using the specified index into `position_try_fallbacks_`
   // (which must exist), and return that updated style. Returns nullptr if
   // the fallback references a @position-try rule which doesn't exist.
@@ -316,39 +295,34 @@ class OOFCandidateStyleIterator {
     // is applied.
     anchor_evaluator_.ClearAccessibilityAnchor();
 
-    const CSSPropertyValueSet* try_set = nullptr;
-    TryTacticList try_tactics = kNoTryTactics;
+    const PositionTryFallback* fallback = nullptr;
+
     if (try_fallback_index) {
       CHECK(position_try_fallbacks_);
       CHECK_LE(*try_fallback_index,
                position_try_fallbacks_->GetFallbacks().size());
-      const PositionTryFallback& fallback =
-          position_try_fallbacks_->GetFallbacks()[*try_fallback_index];
-      try_tactics = fallback.GetTryTactic();
-      std::optional<const CSSPropertyValueSet*> try_set_opt =
-          TrySetFromFallback(fallback);
-      if (!try_set_opt.has_value()) {
-        // @position-try fallback does not exist.
-        return;
-      }
-      try_set = try_set_opt.value();
+      fallback = &position_try_fallbacks_->GetFallbacks()[*try_fallback_index];
     }
 
     CHECK(element_);
 
-    element_->GetDocument()
-        .GetStyleEngine()
-        .UpdateStyleAndLayoutTreeForOutOfFlow(*element_, try_fallback_index,
-                                              try_set, try_tactics,
-                                              &anchor_evaluator_);
-    CHECK(element_->GetLayoutObject());
-    // Returns LayoutObject ComputedStyle instead of element style for layout
-    // purposes. The style may be different, in particular for body -> html
-    // propagation of writing modes.
-    style_ = element_->GetLayoutObject()->Style();
+    if (element_->GetDocument()
+            .GetStyleEngine()
+            .UpdateStyleAndLayoutTreeForOutOfFlow(
+                *element_, fallback, &anchor_evaluator_,
+                container_writing_direction_)) {
+      CHECK(element_->GetLayoutObject());
+      // Returns LayoutObject ComputedStyle instead of element style for layout
+      // purposes. The style may be different, in particular for body -> html
+      // propagation of writing modes.
+      style_ = element_->GetLayoutObject()->Style();
+    }
   }
 
   Element* element_ = nullptr;
+
+  // The ComputedStyle stored on LayoutObject at construction time.
+  const ComputedStyle& original_style_;
 
   // The current candidate style if no auto anchor fallback is triggered.
   // Otherwise, the base style for generating auto anchor fallbacks.
@@ -366,6 +340,11 @@ class OOFCandidateStyleIterator {
   // If the current style is created using `position-try-fallbacks`, an index
   // into the list of fallbacks; otherwise nullopt.
   std::optional<wtf_size_t> try_fallback_index_;
+
+  // The abspos container for the anchored element. Needs to be passed in to
+  // UpdateStyleAndLayoutTreeForOutOfFlow() in order to resolve logical values
+  // for anchored(fallback) container queries.
+  WritingDirectionMode container_writing_direction_;
 };
 
 const Element* GetPositionAnchorElement(
@@ -479,12 +458,8 @@ std::optional<LogicalSize> OutOfFlowLayoutPart::InitialContainingBlockFixedSize(
     return std::nullopt;
   const auto* frame_view = container.GetDocument().View();
   DCHECK(frame_view);
-  PhysicalSize size =
-      RuntimeEnabledFeatures::ScrollbarGutterFixedPosBugfixEnabled()
-          ? PhysicalSize(frame_view->Size())
-          : PhysicalSize(frame_view->LayoutViewport()->ExcludeScrollbars(
-                frame_view->Size()));
-  return ToLogicalSize(size, container.Style().GetWritingMode());
+  return ToLogicalSize(PhysicalSize(frame_view->Size()),
+                       container.Style().GetWritingMode());
 }
 
 OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
@@ -504,39 +479,37 @@ OutOfFlowLayoutPart::OutOfFlowLayoutPart(BoxFragmentBuilder* container_builder)
     return;
   }
 
-  // Disable first tier cache for grid layouts, as grid allows for out-of-flow
-  // items to be placed in grid areas, which is complex to maintain a cache for.
+  const ConstraintSpace& space = GetConstraintSpace();
+  const WritingDirectionMode writing_direction = space.GetWritingDirection();
+  const bool is_scroll_container =
+      container_builder->Node().IsScrollContainer();
+  const bool is_hidden_for_paint = space.IsHiddenForPaint();
+
   const BoxStrut border_scrollbar =
       container_builder->Borders() + container_builder->Scrollbar();
-  default_containing_block_info_for_absolute_.writing_direction =
-      GetConstraintSpace().GetWritingDirection();
-  default_containing_block_info_for_fixed_.writing_direction =
-      GetConstraintSpace().GetWritingDirection();
-  default_containing_block_info_for_absolute_.is_scroll_container =
-      container_builder_->Node().IsScrollContainer();
-  default_containing_block_info_for_fixed_.is_scroll_container =
-      container_builder_->Node().IsScrollContainer();
-  default_containing_block_info_for_absolute_.is_hidden_for_paint =
-      container_builder_->GetConstraintSpace().IsHiddenForPaint();
-  default_containing_block_info_for_fixed_.is_hidden_for_paint =
-      container_builder_->GetConstraintSpace().IsHiddenForPaint();
+  const LogicalOffset container_offset = border_scrollbar.StartOffset();
+
+  LogicalSize absolute_size;
+  LogicalSize fixed_size;
   if (container_builder_->HasBlockSize()) {
-    default_containing_block_info_for_absolute_.rect.size =
+    absolute_size =
         ShrinkLogicalSize(container_builder_->Size(), border_scrollbar);
-    default_containing_block_info_for_fixed_.rect.size =
-        RuntimeEnabledFeatures::ScrollbarGutterFixedPosBugfixEnabled()
-            ? ShrinkLogicalSize(
-                  InitialContainingBlockFixedSize(container_builder->Node())
-                      .value_or(container_builder_->Size()),
-                  border_scrollbar)
-            : InitialContainingBlockFixedSize(container_builder->Node())
-                  .value_or(
-                      default_containing_block_info_for_absolute_.rect.size);
+    fixed_size = ShrinkLogicalSize(
+        InitialContainingBlockFixedSize(container_builder->Node())
+            .value_or(container_builder_->Size()),
+        border_scrollbar);
   }
-  LogicalOffset container_offset = {border_scrollbar.inline_start,
-                                    border_scrollbar.block_start};
-  default_containing_block_info_for_absolute_.rect.offset = container_offset;
-  default_containing_block_info_for_fixed_.rect.offset = container_offset;
+
+  default_containing_block_info_for_absolute_ = {
+      .writing_direction = writing_direction,
+      .is_scroll_container = is_scroll_container,
+      .is_hidden_for_paint = is_hidden_for_paint,
+      .rect = {container_offset, absolute_size}};
+  default_containing_block_info_for_fixed_ = {
+      .writing_direction = writing_direction,
+      .is_scroll_container = is_scroll_container,
+      .is_hidden_for_paint = is_hidden_for_paint,
+      .rect = {container_offset, fixed_size}};
 }
 
 void OutOfFlowLayoutPart::Run() {
@@ -694,13 +667,11 @@ void OutOfFlowLayoutPart::HandleFragmentation() {
   }
 }
 
-OutOfFlowLayoutPart::ContainingBlockInfo
-OutOfFlowLayoutPart::ApplyPositionAreaOffsets(
+LogicalRect OutOfFlowLayoutPart::ApplyPositionAreaOffsets(
     const PositionAreaOffsets& offsets,
     PhysicalOffset default_anchor_scroll_shift,
     const OutOfFlowLayoutPart::ContainingBlockInfo& container_info) const {
-  ContainingBlockInfo adjusted_container_info(container_info);
-  LogicalRect& rect = adjusted_container_info.rect;
+  LogicalRect rect = container_info.rect;
 
   // Reduce the container size and adjust the offset based on the position-area.
   const BoxStrut insets =
@@ -772,7 +743,7 @@ OutOfFlowLayoutPart::ApplyPositionAreaOffsets(
     rect.ShiftInlineEndEdgeTo(rect.InlineEndOffset() + delta);
   }
 
-  return adjusted_container_info;
+  return rect;
 }
 
 // Retrieve the stored ContainingBlockInfo needed for placing positioned nodes.
@@ -1454,11 +1425,6 @@ void OutOfFlowLayoutPart::LayoutOOFsInMulticol(
           converter.ToLogical(child.fragment->Size()).block_size;
     }
     fragment_mutator.UpdateOverflow();
-
-    // We've already written back to legacy for |multicol|, but if we added
-    // new columns to hold any OOF descendants, we need to extend the final
-    // size of the legacy flow thread to encompass those new columns.
-    multicol.MakeRoomForExtraColumns(additional_column_block_size);
   }
 
   // Any descendants should have been handled in
@@ -1537,7 +1503,7 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
   // add repeated elements to every fragmentainer that exists, but if there's a
   // nested OOF that triggers creation of additional fragmentainers, we'll need
   // to add the fixed-positioned elements to those as well.
-  wtf_size_t previous_repeaded_fixedpos_resume_idx = WTF::kNotFound;
+  wtf_size_t previous_repeaded_fixedpos_resume_idx = kNotFound;
 
   while (!descendants->empty()) {
     ComputeInlineContainingBlocksForFragmentainer(*descendants);
@@ -1715,7 +1681,7 @@ void OutOfFlowLayoutPart::LayoutFragmentainerDescendants(
         // fragmentainers in the next iteration (because of nested OOFs), we
         // need to resume those when a new fragmentainer is added.
         DCHECK(container_builder_->Node().IsPaginatedRoot());
-        DCHECK(previous_repeaded_fixedpos_resume_idx == WTF::kNotFound ||
+        DCHECK(previous_repeaded_fixedpos_resume_idx == kNotFound ||
                previous_repeaded_fixedpos_resume_idx <=
                    descendants_to_layout.size());
         previous_repeaded_fixedpos_resume_idx = descendants_to_layout.size();
@@ -1779,31 +1745,29 @@ AnchorEvaluatorImpl OutOfFlowLayoutPart::CreateAnchorEvaluator(
     }
   }
 
-  PhysicalSize container_physical_content_size = ToPhysicalSize(
-      container_info.rect.size, GetConstraintSpace().GetWritingMode());
   const WritingModeConverter container_converter(
       container_info.writing_direction,
       container_builder_->SizeForAnchorQueries());
-  PhysicalOffset offset_to_padding_box =
-      container_converter.ToPhysical(container_info.rect).offset;
+  const PhysicalRect container_rect =
+      container_converter.ToPhysical(container_info.rect);
+
   if (anchor_queries) {
     // When the containing block is block-fragmented, the |container_builder_|
     // is the fragmentainer, not the containing block, and the coordinate system
     // is stitched. Use the given |anchor_query|.
     const LayoutObject* css_containing_block = candidate_layout_box.Container();
     CHECK(css_containing_block);
-    return AnchorEvaluatorImpl(
-        candidate_layout_box, *anchor_queries, implicit_anchor,
-        *css_containing_block, container_info.writing_direction,
-        offset_to_padding_box, container_physical_content_size);
+    return AnchorEvaluatorImpl(candidate_layout_box, *anchor_queries,
+                               implicit_anchor, *css_containing_block,
+                               container_info.writing_direction,
+                               container_rect);
   }
   if (const PhysicalAnchorQuery* anchor_query =
           container_builder_->AnchorQuery()) {
     // Otherwise the |container_builder_| is the containing block.
     return AnchorEvaluatorImpl(
         candidate_layout_box, *anchor_query, implicit_anchor,
-        container_info.writing_direction, offset_to_padding_box,
-        container_physical_content_size);
+        container_info.writing_direction, container_rect);
   }
   return AnchorEvaluatorImpl();
 }
@@ -2065,8 +2029,9 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
   AnchorEvaluatorImpl anchor_evaluator = CreateAnchorEvaluator(
       node_info.base_container_info, node_info.node, anchor_queries);
 
-  OOFCandidateStyleIterator iter(*node_info.node.GetLayoutBox(),
-                                 anchor_evaluator);
+  OOFCandidateStyleIterator iter(
+      *node_info.node.GetLayoutBox(), anchor_evaluator,
+      node_info.base_container_info.writing_direction);
   const ComputedStyle& current_style = node_info.node.Style();
   bool has_try_fallbacks = !!current_style.GetPositionTryFallbacks();
   EPositionTryOrder position_try_order = current_style.PositionTryOrder();
@@ -2089,8 +2054,7 @@ OutOfFlowLayoutPart::OffsetInfo OutOfFlowLayoutPart::CalculateOffset(
   std::optional<wtf_size_t> last_successful_index;
   PhysicalOffset last_remembered_scroll_offset;
   bool find_last_successful_option = false;
-  if (oof_data &&
-      RuntimeEnabledFeatures::CSSAnchorRememberedScrollOffsetEnabled()) {
+  if (oof_data) {
     // Unless `position-try-fallbacks` has changed, prefer the last successful
     // option.
     if (oof_data->HasLastSuccessfulPositionFallback() &&
@@ -2278,23 +2242,22 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   DCHECK(base::ValuesEquivalent(node_info.node.Style().PositionAnchor(),
                                 candidate_style.PositionAnchor()));
 
-  ContainingBlockInfo container_info = node_info.base_container_info;
+  const ContainingBlockInfo& container_info = node_info.base_container_info;
+  LogicalRect container_rect = container_info.rect;
   if (const std::optional<PositionAreaOffsets> offsets =
           candidate_style.PositionAreaOffsets()) {
-    if (RuntimeEnabledFeatures::CSSAnchorRememberedScrollOffsetEnabled()) {
-      Element* elm = To<Element>(node_info.node.GetDOMNode());
-      if (offsets->behaves_as_auto.top != offsets->behaves_as_auto.bottom ||
-          offsets->behaves_as_auto.left != offsets->behaves_as_auto.right) {
-        // When one inset for an axis is tethered to the default anchor, and the
-        // other one is tethered to the original containing block, the IMCB is
-        // affected by the default anchor scroll shift. Schedule for calculation
-        // of the default scroll shift.
-        elm->EnsureOutOfFlowData();
-        StyleEngine& style_engine = elm->GetDocument().GetStyleEngine();
-        style_engine.MarkForDefaultAnchorScrollShift(*elm);
-      }
+    Element* elm = To<Element>(node_info.node.GetDOMNode());
+    if (offsets->behaves_as_auto.top != offsets->behaves_as_auto.bottom ||
+        offsets->behaves_as_auto.left != offsets->behaves_as_auto.right) {
+      // When one inset for an axis is tethered to the default anchor, and the
+      // other one is tethered to the original containing block, the IMCB is
+      // affected by the default anchor scroll shift. Schedule for calculation
+      // of the default scroll shift.
+      elm->EnsureOutOfFlowData();
+      StyleEngine& style_engine = elm->GetDocument().GetStyleEngine();
+      style_engine.MarkForDefaultAnchorScrollShift(*elm);
     }
-    container_info = ApplyPositionAreaOffsets(
+    container_rect = ApplyPositionAreaOffsets(
         *offsets, default_anchor_scroll_shift, container_info);
   }
 
@@ -2302,7 +2265,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
       candidate_style.GetWritingDirection();
   const auto container_writing_direction = container_info.writing_direction;
 
-  const LogicalRect& container_rect = container_info.rect;
   const PhysicalSize container_physical_content_size =
       ToPhysicalSize(container_rect.size,
                      node_info.default_writing_direction.GetWritingMode());
@@ -2370,31 +2332,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   const InsetModifiedContainingBlock imcb = ComputeInsetModifiedContainingBlock(
       node_info.node, space.AvailableSize(), alignment, insets, static_position,
       container_writing_direction, candidate_writing_direction);
-
-  {
-    auto& document = node_info.node.GetDocument();
-    if (alignment.inline_alignment.GetPosition() != ItemPosition::kNormal) {
-      if (insets.inline_start && insets.inline_end) {
-        UseCounter::Count(document,
-                          WebFeature::kOutOfFlowJustifySelfBothInsets);
-      } else if (insets.inline_start || insets.inline_end) {
-        UseCounter::Count(document,
-                          WebFeature::kOutOfFlowJustifySelfSingleInset);
-      } else {
-        UseCounter::Count(document, WebFeature::kOutOfFlowJustifySelfNoInsets);
-      }
-    }
-
-    if (alignment.block_alignment.GetPosition() != ItemPosition::kNormal) {
-      if (insets.block_start && insets.block_end) {
-        UseCounter::Count(document, WebFeature::kOutOfFlowAlignSelfBothInsets);
-      } else if (insets.block_start || insets.block_end) {
-        UseCounter::Count(document, WebFeature::kOutOfFlowAlignSelfSingleInset);
-      } else {
-        UseCounter::Count(document, WebFeature::kOutOfFlowAlignSelfNoInsets);
-      }
-    }
-  }
 
   const BoxStrut border_padding = ComputeBorders(space, node_info.node) +
                                   ComputePadding(space, candidate_style);
@@ -2981,40 +2918,6 @@ void OutOfFlowLayoutPart::AddOOFToFragmentainer(
         additional_fixedpos_offset);
   }
   algorithm->AppendOutOfFlowResult(result);
-
-  if (RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
-    // Copying back to the LayoutBox will be done later, when fragmented layout
-    // is complete. Only then can we know the physical offsets.
-    return;
-  }
-
-  // Copy the offset of the OOF node back to legacy such that it is relative
-  // to its containing block rather than the fragmentainer that it is being
-  // added to.
-  if (!descendant.break_token) {
-    const auto* container =
-        To<PhysicalBoxFragment>(descendant.containing_block_fragment.Get());
-
-    if (!container) {
-      // If we're paginated, we don't have a containing block fragment, but we
-      // need one now, to calcualte the position correctly for the legacy
-      // engine. Just pick the first page, which actually happens to be defined
-      // as the initial containing block:
-      // https://www.w3.org/TR/CSS22/page.html#page-box
-      DCHECK(container_builder_->Node().IsPaginatedRoot());
-      container = &GetChildFragment(0);
-    }
-
-    LogicalOffset legacy_offset =
-        descendant.offset_info.original_offset -
-        descendant.node_info.base_container_info.offset_to_border_box;
-    descendant.node_info.node.CopyChildFragmentPosition(
-        physical_fragment,
-        legacy_offset.ConvertToPhysical(
-            container->Style().GetWritingDirection(), container->Size(),
-            physical_fragment.Size()),
-        *container, /* previous_container_break_token */ nullptr);
-  }
 }
 
 ConstraintSpace OutOfFlowLayoutPart::GetFragmentainerConstraintSpace(
@@ -3116,8 +3019,7 @@ void OutOfFlowLayoutPart::ComputeStartFragmentIndexAndRelativeOffset(
 void OutOfFlowLayoutPart::SaveStaticPositionOnPaintLayer(
     LayoutBox* layout_box,
     LogicalStaticPosition position) const {
-  const LayoutObject* parent =
-      GetLayoutObjectForParentNode<const LayoutObject*>(layout_box);
+  const LayoutObject* parent = layout_box->Parent();
   const LayoutObject* container = container_builder_->GetLayoutObject();
   if (parent == container ||
       (parent->IsLayoutInline() && parent->ContainingBlock() == container)) {

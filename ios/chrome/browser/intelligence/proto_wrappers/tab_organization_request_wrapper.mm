@@ -96,17 +96,19 @@
     PageContextWrapper* pageContextWrapper = [[PageContextWrapper alloc]
           initWithWebState:webState
         completionCallback:base::BindOnce(^(
-                               std::unique_ptr<
-                                   optimization_guide::proto::PageContext>
-                                   page_context) {
-          [weakSelf asyncWorkCompleteForPageContext:std::move(page_context)
-                                      associatedTab:tab];
+                               PageContextWrapperCallbackResponse response) {
+          // TODO(crbug.com/425736226): Handle PageContextWrapper errors.
+          if (response.has_value()) {
+            [weakSelf
+                asyncWorkCompleteForPageContext:std::move(response.value())
+                                  associatedTab:tab];
+          }
           barrier.Run();
         })];
 
     [pageContextWrapper setShouldGetSnapshot:YES];
     [pageContextWrapper setShouldForceUpdateMissingSnapshots:YES];
-    [pageContextWrapper setShouldGetInnerText:YES];
+    [pageContextWrapper setShouldGetAnnotatedPageContent:YES];
 
     // Hold references to each PageContextWrapper to keep them alive during
     // their async work.

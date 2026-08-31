@@ -2,16 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/public/common/notifications/notification_mojom_traits.h"
 
 #include <array>
 #include <optional>
+#include <string_view>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -48,10 +46,8 @@ TEST(NotificationStructTraitsTest, NotificationDataRoundtrip) {
   notification_data.badge = GURL("https://example.com/badge.png");
 
   const auto vibration_pattern = std::to_array<int>({500, 100, 30});
-  notification_data.vibration_pattern.assign(
-      vibration_pattern.data(), base::span<const int>(vibration_pattern)
-                                    .subspan(std::size(vibration_pattern))
-                                    .data());
+  notification_data.vibration_pattern.assign(vibration_pattern.begin(),
+                                             vibration_pattern.end());
 
   notification_data.timestamp =
       base::Time::FromMillisecondsSinceUnixEpoch(1513966159000.);
@@ -61,8 +57,8 @@ TEST(NotificationStructTraitsTest, NotificationDataRoundtrip) {
   notification_data.show_trigger_timestamp = base::Time::Now();
   notification_data.scenario = mojom::NotificationScenario::INCOMING_CALL;
 
-  const char data[] = "mock binary notification data";
-  notification_data.data.assign(data, data + std::size(data));
+  const std::string_view data_view = "mock binary notification data";
+  notification_data.data.assign(data_view.begin(), data_view.end());
 
   notification_data.actions.resize(2);
   notification_data.actions[0] = blink::mojom::NotificationAction::New();

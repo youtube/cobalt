@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ADDRESS_SPACE_H_
 #define PARTITION_ALLOC_PARTITION_ADDRESS_SPACE_H_
 
@@ -15,7 +20,6 @@
 #include "partition_alloc/partition_alloc_base/bits.h"
 #include "partition_alloc/partition_alloc_base/compiler_specific.h"
 #include "partition_alloc/partition_alloc_base/component_export.h"
-#include "partition_alloc/partition_alloc_base/files/platform_file.h"
 #include "partition_alloc/partition_alloc_base/notreached.h"
 #include "partition_alloc/partition_alloc_check.h"
 #include "partition_alloc/partition_alloc_config.h"
@@ -42,9 +46,15 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PoolOffsetLookup {
   PoolOffsetLookup()
       : base_address_(0), base_mask_(static_cast<uintptr_t>(-1)) {}
 
+  PA_ALWAYS_INLINE uintptr_t GetOffset(uintptr_t address) const {
+    PA_DCHECK(Includes(address));
+    return address & ~base_mask_;
+  }
+
+  // Similar to `GetOffset()`, but with MTE tag left in the top bits.
   PA_ALWAYS_INLINE uintptr_t GetTaggedOffset(void* ptr) const {
     const uintptr_t address = reinterpret_cast<uintptr_t>(ptr);
-    PA_DCHECK((address & base_mask_) == base_address_);
+    PA_DCHECK(Includes(address));
     return address & (kPtrTagMask | ~base_mask_);
   }
 
@@ -53,6 +63,12 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PoolOffsetLookup {
     return reinterpret_cast<void*>(base_address_ | tagged_offset);
   }
 
+  // Determines if a given address belongs to address range for this pool.
+  PA_ALWAYS_INLINE bool Includes(uintptr_t address) const {
+    return (UntagAddr(address) & base_mask_) == base_address_;
+  }
+
+  // Ensures that a given offset does not contain a bit for "base" part.
   PA_ALWAYS_INLINE bool IsValidTaggedOffset(uintptr_t tagged_offset) const {
     return !(tagged_offset & base_mask_ & ~kPtrTagMask);
   }
@@ -221,11 +237,11 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
     return (address & brp_pool_base_mask) == setup_.brp_pool_base_address_;
   }
 
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
   PA_ALWAYS_INLINE static uintptr_t BRPPoolBase() {
     return RegularPoolBase() + CorePoolSize();
   }
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
+#endif  // PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
 
   // Checks whether the address belongs to either regular or BRP pool.
   // Returns false for nullptr.
@@ -274,108 +290,69 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   }
 #endif
 
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-  PA_ALWAYS_INLINE static bool IsShadowMetadataEnabledOnRegularPool() {
-    return regular_pool_fd_ != base::kInvalidPlatformFile;
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  // The MetadataRegionSize() returns the size of address space of metadata.
+  // The address space contains all metadata for all pools (i.e. regular, brp,
+  // and configurable pools).
+#if PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
+  PA_ALWAYS_INLINE static size_t MetadataRegionSize() {
+    return metadata_region_size_;
+  }
+#else
+  PA_ALWAYS_INLINE static constexpr size_t MetadataRegionSize() {
+    return std::max(kConfigurablePoolMaxSize, CorePoolSize());
+  }
+#endif
+
+  // Returns a metadata offset. SuperPage address plus the offset contains
+  // the metadata for the SuperPage.
+  PA_ALWAYS_INLINE static std::ptrdiff_t MetadataOffset(pool_handle pool) {
+    return offsets_to_metadata_[pool];
   }
 
-  PA_ALWAYS_INLINE static bool IsShadowMetadataEnabledOnBRPPool() {
-    return brp_pool_fd_ != base::kInvalidPlatformFile;
-  }
-
-  PA_ALWAYS_INLINE static bool IsShadowMetadataEnabledOnConfigurablePool() {
-    return configurable_pool_fd_ != base::kInvalidPlatformFile;
-  }
-
-  PA_ALWAYS_INLINE static bool IsShadowMetadataEnabled(pool_handle pool) {
-    switch (pool) {
-      case kRegularPoolHandle:
-        return IsShadowMetadataEnabledOnRegularPool();
-      case kBRPPoolHandle:
-        return IsShadowMetadataEnabledOnBRPPool();
-      case kConfigurablePoolHandle:
-        return IsShadowMetadataEnabledOnConfigurablePool();
-      default:
-        return false;
-    }
-  }
-
-  // To reduce the cost of address conversion (metadata address inside Regular
-  // Pool to its shadow metadata address), we will make the size of the address
-  // space of shadow metadata the same as `max(regular pool size, brp
-  // pool size, configurable pool size)` (only 1 shadow address space. Not 3)
-  // So we need to use different offset for metadata of the regular pool's
-  // SuperPages and for the brp pool's SuperPages.
-  // i.e. |kSystemPageOffsetOfRegularPoolShadow| and
-  // |kSystemPageOffsetOfBRPPoolShadow|.
-  //
-  // i: the index of SystemPage for metadata inside the regular pool's
-  // SuperPage.
-  //    (currently, the index is 1.)
-  //
-  //     i-th
-  // +------------+
-  // | SystemPage | (regular pool)
-  // +------------+
-  //       \
-  //        \ mapping
-  //         \
-  //      (i+kSystemPageOffsetOfRegularPoolShadow)-th
-  //     +------------+
-  //     | SystemPage | (shadow)
-  //     +------------+
-  //
-  // (i + kSystemPageOffsetOfRegularPoolShadow)-th SystemPage inside the matched
-  // SuperPage inside the shadow pool is used for the metadata.
-  static constexpr size_t kSystemPageOffsetOfRegularPoolShadow = 0u;
-  static constexpr size_t kSystemPageOffsetOfBRPPoolShadow = 2u;
-  static constexpr size_t kSystemPageOffsetOfConfigurablePoolShadow = 4u;
-
-  static size_t CorePoolShadowSize();
-  static size_t ConfigurablePoolShadowSize();
-
-  PA_ALWAYS_INLINE static std::ptrdiff_t RegularPoolShadowOffset() {
-    return regular_pool_shadow_offset_;
-  }
-
-  PA_ALWAYS_INLINE static std::ptrdiff_t BRPPoolShadowOffset() {
-    return brp_pool_shadow_offset_;
-  }
-
-  PA_ALWAYS_INLINE static std::ptrdiff_t ConfigurablePoolShadowOffset() {
-    return configurable_pool_shadow_offset_;
+  PA_ALWAYS_INLINE static std::ptrdiff_t MetadataOffsetFromAddr(
+      uintptr_t address) {
+    return MetadataOffset(GetPoolHandle(address));
   }
 
   // TODO(crbug.com/40238514): Confirm we can use kConfigurablePoolMaxSize/4
-  // for iOS and confirm iOS EarlyGrey tests pass when the shadow metadata
+  // for iOS and confirm iOS EarlyGrey tests pass when the external  metadata
   // is enabled, since IIRC iOS limits virtual address space too.
   static_assert(
       !PA_BUILDFLAG(IS_IOS),
       "kConfigurablePoolMaxSize is too large to run iOS EarlyGrey tests, "
       "because the test process cannot use an extended virtual address space. "
-      "Temporarily disable ShadowMetadata feature on iOS");
+      "Temporarily disable ExternalMetadata feature on iOS");
 
 #if PA_BUILDFLAG(DCHECKS_ARE_ON)
-  // Check whether the given |ptr| points to an address inside the address space
-  // reserved for the regular and brp shadow. However the result |true| doesn't
-  // mean the given |ptr| is valid. Because we don't use the entire address
-  // space for the shadow. We only use 2 SystemPageSize() / kSuperPageSize(%)
-  // of the space.
-  //
-  // TODO(crbug.com/40238514) This is an unused function. Start using it in
-  // tests and/or in production code.
-  PA_ALWAYS_INLINE static bool IsInPoolShadow(const void* ptr) {
-    uintptr_t ptr_as_uintptr = reinterpret_cast<uintptr_t>(ptr);
-    return (pool_shadow_address_ <= ptr_as_uintptr &&
-            (ptr_as_uintptr < pool_shadow_address_ + CorePoolSize() ||
-             ptr_as_uintptr < pool_shadow_address_ + kConfigurablePoolMaxSize));
+  PA_ALWAYS_INLINE static bool IsInMetadataRegion(uintptr_t address) {
+    return metadata_region_start_ <= address &&
+           address < metadata_region_start_ + MetadataRegionSize();
   }
 #endif  // PA_BUILDFLAG(DCHECKS_ARE_ON)
 
-  static void InitShadowMetadata(PoolHandleMask pool);
-  static void MapMetadata(uintptr_t super_page, bool copy_metadata);
-  static void UnmapShadowMetadata(uintptr_t super_page, pool_handle pool);
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
+  PA_ALWAYS_INLINE static pool_handle GetPoolHandle(uintptr_t address) {
+#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT)
+    if (IsInBRPPool(address)) [[likely]] {
+      return kBRPPoolHandle;
+    }
+#endif
+    if (IsInRegularPool(address)) [[likely]] {
+      return kRegularPoolHandle;
+    }
+    if (IsInConfigurablePool(address)) {
+      return kConfigurablePoolHandle;
+    }
+#if PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
+    if (IsInThreadIsolatedPool(address)) {
+      return kThreadIsolatedPoolHandle;
+    }
+#endif
+    return kNullPoolHandle;
+  }
+
+  static void InitMetadataRegionAndOffsets();
+#endif  // PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
 
   // PartitionAddressSpace is static_only class.
   PartitionAddressSpace() = delete;
@@ -383,10 +360,11 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   void* operator new(size_t) = delete;
   void* operator new(size_t, void*) = delete;
 
- private:
 #if PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
+ private:
   static bool IsIOSTestProcess();
 
+ public:
   PA_ALWAYS_INLINE static size_t CorePoolSize() {
     return IsIOSTestProcess() ? kCorePoolSizeForIOSTestProcess : kCorePoolSize;
   }
@@ -397,12 +375,19 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   }
 #endif  // PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
 
+  // Almost always equals to `CorePoolSize()`, except on iOS.
+  // Guaranteed to be a compile-time constant.
+  PA_ALWAYS_INLINE static constexpr size_t CorePoolMaxSize() {
+    return kCorePoolSize;
+  }
+
 #if PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
   PA_ALWAYS_INLINE static constexpr size_t ThreadIsolatedPoolSize() {
     return kThreadIsolatedPoolSize;
   }
 #endif
 
+ private:
   // On 64-bit systems, PA allocates from several contiguous, mutually disjoint
   // pools. The BRP pool is where all allocations have a BRP ref-count, thus
   // pointers pointing there can use a BRP protection against UaF. Allocations
@@ -505,15 +490,13 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) PartitionAddressSpace {
   // alignment and padding.
   PA_CONSTINIT static PoolSetup setup_;
 
-#if PA_CONFIG(ENABLE_SHADOW_METADATA)
-  static std::ptrdiff_t regular_pool_shadow_offset_;
-  static std::ptrdiff_t brp_pool_shadow_offset_;
-  static std::ptrdiff_t configurable_pool_shadow_offset_;
-  static base::PlatformFile regular_pool_fd_;
-  static base::PlatformFile brp_pool_fd_;
-  static base::PlatformFile configurable_pool_fd_;
-  static uintptr_t pool_shadow_address_;
-#endif  // PA_CONFIG(ENABLE_SHADOW_METADATA)
+#if PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
+  static std::array<std::ptrdiff_t, kMaxPoolHandle> offsets_to_metadata_;
+  static uintptr_t metadata_region_start_;
+#if PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
+  static size_t metadata_region_size_;
+#endif  // PA_CONFIG(DYNAMICALLY_SELECT_POOL_SIZE)
+#endif  // PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
 
 #if PA_BUILDFLAG(ENABLE_THREAD_ISOLATION)
   // If we use thread isolation, we need to write-protect its metadata.

@@ -10,15 +10,13 @@
 
 #include "rtc_base/file_rotating_stream.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -149,20 +147,19 @@ TEST_F(MAYBE_FileRotatingStreamTest, WriteAndRead) {
   // The test is set up to create three log files of length 2. Write and check
   // contents.
   std::string messages[3] = {"aa", "bb", "cc"};
-  for (size_t i = 0; i < arraysize(messages); ++i) {
-    const std::string& message = messages[i];
+  for (const std::string& message : messages) {
     WriteAndFlush(message.c_str(), message.size());
     // Since the max log size is 2, we will be causing rotation. Read from the
     // next file.
     VerifyFileContents(message, stream_->GetFilePath(1));
   }
   // Check that exactly three files exist.
-  for (size_t i = 0; i < arraysize(messages); ++i) {
+  for (size_t i = 0; i < std::size(messages); ++i) {
     EXPECT_TRUE(test::FileExists(stream_->GetFilePath(i)));
   }
   std::string message("d");
   WriteAndFlush(message.c_str(), message.size());
-  for (size_t i = 0; i < arraysize(messages); ++i) {
+  for (size_t i = 0; i < std::size(messages); ++i) {
     EXPECT_TRUE(test::FileExists(stream_->GetFilePath(i)));
   }
   // TODO(tkchin): Maybe check all the files in the dir.
@@ -183,8 +180,7 @@ TEST_F(MAYBE_FileRotatingStreamTest, WriteWithoutDelimiterAndRead) {
   // The test is set up to create three log files of length 2. Write and check
   // contents.
   std::string messages[3] = {"aa", "bb", "cc"};
-  for (size_t i = 0; i < arraysize(messages); ++i) {
-    const std::string& message = messages[i];
+  for (const std::string& message : messages) {
     WriteAndFlush(message.c_str(), message.size());
   }
   std::string message("d");
@@ -206,8 +202,7 @@ TEST_F(MAYBE_FileRotatingStreamTest, WriteAndReadWithoutDelimiter) {
   // The test is set up to create three log files of length 2. Write and check
   // contents.
   std::string messages[3] = {"aa", "bb", "cc"};
-  for (size_t i = 0; i < arraysize(messages); ++i) {
-    const std::string& message = messages[i];
+  for (const std::string& message : messages) {
     WriteAndFlush(message.c_str(), message.size());
   }
   std::string message("d");
@@ -338,13 +333,13 @@ TEST_F(MAYBE_CallSessionFileRotatingStreamTest, WriteAndReadLarge) {
   }
 
   const int expected_vals[] = {0, 1, 2, 6, 7};
-  const size_t expected_size = buffer_size * arraysize(expected_vals);
+  const size_t expected_size = buffer_size * std::size(expected_vals);
 
   CallSessionFileRotatingStreamReader reader(dir_path_);
   EXPECT_EQ(reader.GetSize(), expected_size);
   std::unique_ptr<uint8_t[]> contents(new uint8_t[expected_size + 1]);
   EXPECT_EQ(reader.ReadAll(contents.get(), expected_size + 1), expected_size);
-  for (size_t i = 0; i < arraysize(expected_vals); ++i) {
+  for (size_t i = 0; i < std::size(expected_vals); ++i) {
     const uint8_t* block = contents.get() + i * buffer_size;
     bool match = true;
     for (size_t j = 0; j < buffer_size; j++) {
@@ -372,14 +367,14 @@ TEST_F(MAYBE_CallSessionFileRotatingStreamTest, WriteAndReadFirstHalf) {
   }
 
   const int expected_vals[] = {0, 1};
-  const size_t expected_size = buffer_size * arraysize(expected_vals);
+  const size_t expected_size = buffer_size * std::size(expected_vals);
 
   CallSessionFileRotatingStreamReader reader(dir_path_);
   EXPECT_EQ(reader.GetSize(), expected_size);
   std::unique_ptr<uint8_t[]> contents(new uint8_t[expected_size + 1]);
   EXPECT_EQ(reader.ReadAll(contents.get(), expected_size + 1), expected_size);
 
-  for (size_t i = 0; i < arraysize(expected_vals); ++i) {
+  for (size_t i = 0; i < std::size(expected_vals); ++i) {
     const uint8_t* block = contents.get() + i * buffer_size;
     bool match = true;
     for (size_t j = 0; j < buffer_size; j++) {

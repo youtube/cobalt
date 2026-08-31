@@ -8,9 +8,14 @@
 #include "base/observer_list.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
-#include "content/public/browser/page.h"
+
+namespace content {
+class Page;
+}  // namespace content
 
 namespace page_content_annotations {
+
+struct ExtractedPageContentResult;
 
 class PageContentExtractionService : public KeyedService {
  public:
@@ -29,13 +34,18 @@ class PageContentExtractionService : public KeyedService {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
- private:
-  friend class AnnotatedPageContentRequest;
-
   // Returns whether page content extraction should be enabled. It should be
   // enabled based on features, or when some observer has registered for page
   // content.
-  bool ShouldEnablePageContentExtraction();
+  bool ShouldEnablePageContentExtraction() const;
+
+  // Returns the cached APC for `page` and whether it is eligible for
+  // server upload. Will return nullopt if not available.
+  std::optional<ExtractedPageContentResult>
+  GetExtractedPageContentAndEligibilityForPage(content::Page& page);
+
+ private:
+  friend class AnnotatedPageContentRequest;
 
   // Invoked when `page_content` is extracted for `page`, to notify the
   // observers.

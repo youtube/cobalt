@@ -48,7 +48,7 @@ BASE_FEATURE(kApiOdfsConfigPrivate,
 
 BASE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered,
              "ApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Other Features
@@ -60,19 +60,9 @@ BASE_FEATURE(kAllowWithholdingExtensionPermissionsOnInstall,
              "AllowWithholdingExtensionPermissionsOnInstall",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-BASE_FEATURE(kBlockInstallingExtensionsOnDesktopAndroid,
-             "BlockInstallingExtensionsOnDesktopAndroid",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-
 BASE_FEATURE(kCheckingNoExtensionIdInExtensionIpcs,
              "EMF_NO_EXTENSION_ID_FOR_EXTENSION_SOURCE",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kDeferResetURLLoaderFactories,
-             "DeferResetURLLoaderFactories",
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSkipResetServiceWorkerURLLoaderFactories,
              "SkipResetServiceWorkerURLLoaderFactories",
@@ -90,13 +80,9 @@ BASE_FEATURE(kExtensionIconVariants,
              "ExtensionIconVariants",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kExtensionManifestV2DeprecationWarning,
-             "ExtensionManifestV2DeprecationWarning",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kExtensionManifestV2Unsupported,
              "ExtensionManifestV2Unsupported",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionManifestV2ExceptionList,
              "ExtensionManifestV2ExceptionList",
@@ -115,9 +101,9 @@ BASE_FEATURE(kAllowLegacyMV2Extensions,
              "AllowLegacyMV2Extensions",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kExtensionWARForRedirect,
-             "ExtensionWARForRedirect",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kExtensionProtocolHandlers,
+             "ExtensionProtocolHandlers",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kExtensionsManifestV3Only,
              "ExtensionsManifestV3Only",
@@ -170,13 +156,6 @@ BASE_FEATURE(kWebstoreInstallerUserGestureKillSwitch,
              "WebstoreInstallerUserGestureKillSwitch",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_WIN)
-// TODO(https://crbug.com/400119351): Remove this feature flag in M138.
-BASE_FEATURE(kWinRejectDotSpaceSuffixFilePaths,
-             "WinRejectDotSpaceSuffixFilePaths",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
 BASE_FEATURE(kDeclarativeNetRequestSafeRuleLimits,
              "DeclarativeNetRequestSafeDynamicRules",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -201,13 +180,14 @@ BASE_FEATURE(kDeclarativeNetRequestHeaderSubstitution,
              "DeclarativeNetRequestHeaderSubstitution",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kSilentDebuggerExtensionAPI,
-             "SilentDebuggerExtensionAPI",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kRemoveCoreSiteInstance,
-             "RemoveCoreSiteInstance",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDisableDisableExtensionsExceptCommandLineSwitch,
+             "DisableDisableExtensionsExceptCommandLineSwitch",
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
+);
 
 BASE_FEATURE(kDisableLoadExtensionCommandLineSwitch,
              "DisableLoadExtensionCommandLineSwitch",
@@ -221,6 +201,18 @@ BASE_FEATURE(kDisableLoadExtensionCommandLineSwitch,
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS)
 );
 
+BASE_FEATURE(kDisableExtensionsOnChromeUrlsSwitch,
+             "DisableExtensionsOnChromeUrlsSwitch",
+// TODO (crbug.com/426554244): Determine if this switch should be
+// removed for desktop-android builds as well.
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING) && !BUILDFLAG(IS_CHROMEOS) && \
+    !BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
+
 BASE_FEATURE(kUserScriptUserExtensionToggle,
              "UserScriptUserExtensionToggle",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -231,6 +223,18 @@ BASE_FEATURE(kDebuggerAPIRestrictedToDevMode,
 
 BASE_FEATURE(kExtensionBrowserNamespaceAlternative,
              "ExtensionBrowserNamespaceAlternative",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kRuntimeOnMessagePromiseReturnSupport,
+             "RuntimeOnMessagePromiseReturnSupport",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kOptimizeServiceWorkerStartRequests,
+             "OptimizeServiceWorkerStartRequests",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAvoidCloneArgsOnExtensionFunctionDispatch,
+             "AvoidCloneArgsOnExtensionFunctionDispatch",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

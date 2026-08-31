@@ -129,13 +129,6 @@ struct StructTraits<viz::mojom::CompositorFrameMetadataDataView,
     return metadata.min_page_scale_factor;
   }
 
-  static std::optional<base::TimeDelta> preferred_frame_interval(
-      const viz::CompositorFrameMetadata& metadata) {
-    DCHECK(!metadata.preferred_frame_interval ||
-           metadata.preferred_frame_interval.value() >= base::TimeDelta());
-    return metadata.preferred_frame_interval;
-  }
-
   static bool top_controls_visible_height_set(
       const viz::CompositorFrameMetadata& metadata) {
     return metadata.top_controls_visible_height.has_value();
@@ -194,6 +187,11 @@ struct StructTraits<viz::mojom::CompositorFrameMetadataDataView,
   static const viz::FrameIntervalInputs& frame_interval_inputs(
       const viz::CompositorFrameMetadata& metadata) {
     return metadata.frame_interval_inputs;
+  }
+
+  static const viz::TreesInVizTiming& trees_in_viz_timing(
+      const viz::CompositorFrameMetadata& metadata) {
+    return metadata.trees_in_viz_timing_details;
   }
 
   static bool Read(viz::mojom::CompositorFrameMetadataDataView data,

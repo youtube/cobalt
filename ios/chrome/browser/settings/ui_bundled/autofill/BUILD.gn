@@ -13,6 +13,7 @@ source_set("autofill") {
     "autofill_add_credit_card_view_controller.h",
     "autofill_add_credit_card_view_controller.mm",
     "autofill_add_credit_card_view_controller_delegate.h",
+    "autofill_add_credit_card_view_controller_presentation_delegate.h",
     "autofill_credit_card_edit_table_view_controller.h",
     "autofill_credit_card_edit_table_view_controller.mm",
     "autofill_credit_card_table_view_controller.h",
@@ -29,6 +30,7 @@ source_set("autofill") {
   deps = [
     ":constants",
     ":shared_ui",
+    "//components/application_locale_storage",
     "//components/autofill/core/browser",
     "//components/autofill/core/common",
     "//components/autofill/core/common:credit_card_number_validation",
@@ -106,6 +108,7 @@ source_set("unit_tests") {
   deps = [
     ":autofill",
     "//base/test:test_support",
+    "//components/application_locale_storage",
     "//components/autofill/core/browser",
     "//components/autofill/core/browser:test_support",
     "//components/plus_addresses:features",
@@ -181,4 +184,8 @@ source_set("eg2_tests") {
     "//ui/strings:ui_strings_grit",
   ]
   frameworks = [ "UIKit.framework" ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

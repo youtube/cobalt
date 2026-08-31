@@ -7,7 +7,7 @@ package org.chromium.chrome.test.transit.page;
 import android.view.View;
 
 import org.chromium.base.test.transit.ViewElement;
-import org.chromium.chrome.test.transit.MessageFacility;
+import org.chromium.chrome.test.transit.ui.MessageFacility;
 
 /**
  * Represents a "Pop-up blocked" message.
@@ -31,12 +31,12 @@ public class PopupBlockedMessageFacility<HostStationT extends WebPageStation>
     }
 
     public WebPageStation clickAlwaysAllow() {
-        WebPageStation popupPage =
-                WebPageStation.newBuilder()
-                        .initFrom(mHostStation)
-                        .withIsOpeningTabs(1)
-                        .withIsSelectingTabs(1)
-                        .build();
-        return mHostStation.travelToSync(popupPage, alwaysShowButtonElement.getClickTrigger());
+        return alwaysShowButtonElement
+                .clickTo()
+                .arriveAt(
+                        WebPageStation.newBuilder()
+                                .initFrom(mHostStation)
+                                .initOpeningNewTab()
+                                .build());
     }
 }

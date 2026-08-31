@@ -38,10 +38,16 @@ std::string GetToastName(ToastId toast_id) {
       return "TabGroupSyncUserJoined";
     case ToastId::kTabGroupSyncRemovedFromGroup:
       return "TabGroupSyncRemovedFromGroup";
+    case ToastId::kTabGroupSharingVersionUpToDate:
+      return "TabGroupSharingVersionUpToDate";
     case ToastId::kVideoFrameCopied:
       return "VideoFrameCopied";
     case ToastId::kClosePinnedTab:
       return "ClosePinnedTab";
+    case ToastId::kGeminiWorkingOnTask:
+      return "GeminiWorkingOnTask";
+    case ToastId::kDiceUserMigrated:
+      return "DiceUserMigrated";
   }
 
   NOTREACHED();

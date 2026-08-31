@@ -13,14 +13,14 @@
 
 #include <array>
 #include <fstream>
+#include <ios>
+#include <limits>
 #include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "modules/audio_processing/agc2/rnn_vad/common.h"
-#include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_compare.h"
 
 namespace webrtc {
 namespace rnn_vad {

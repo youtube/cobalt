@@ -13,6 +13,7 @@ found in the LICENSE file.
   <dimen name="ntp_customization_list_item_background_large_radius">16dp</dimen>
   <dimen name="ntp_customization_back_button_clickable_size">48dp</dimen>
   <dimen name="ntp_customization_back_button_padding">12dp</dimen>
+  <dimen name="ntp_customization_back_button_margin_start">12dp</dimen>
   <dimen name="ntp_customization_edit_icon_margin">16dp</dimen>
   <dimen name="ntp_customization_bottom_sheet_layout_padding_bottom">24dp</dimen>
   <dimen name="ntp_customization_ntp_cards_margin">20dp</dimen>
@@ -21,4 +22,14 @@ found in the LICENSE file.
   <dimen name="ntp_customization_bottom_sheet_list_item_icon_size">24dp</dimen>
   <dimen name="ntp_customization_edit_icon_background_size">40dp</dimen>
   <dimen name="ntp_customization_feed_list_items_title_margin_top">40dp</dimen>
+  <dimen name="ntp_customization_theme_list_item_padding_vertical">8dp</dimen>
+  <dimen name="ntp_customization_theme_list_item_icon_size">80dp</dimen>
+  <dimen name="ntp_customization_theme_list_item_title_margin_vertical">4dp</dimen>
+  <dimen name="ntp_customization_theme_collections_icon_size">80dp</dimen>
+  <dimen name="ntp_customization_theme_collections_icon_secondary_outer_size">41dp</dimen>
+  <dimen name="ntp_customization_theme_collections_icon_secondary_inner_size">39dp</dimen>
+  <dimen name="ntp_customization_theme_collections_icon_placeholder_size">24dp</dimen>
+  <dimen name="ntp_customization_theme_collections_icon_placeholder_margin">14dp</dimen>
+  <dimen name="ntp_customization_theme_collections_icon_outer_radius">16dp</dimen>
+  <dimen name="ntp_customization_theme_collections_recycle_view_padding_horizontal">16dp</dimen>
 </resources>

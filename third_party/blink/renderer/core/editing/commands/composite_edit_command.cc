@@ -29,6 +29,7 @@
 
 #include "third_party/blink/renderer/core/accessibility/blink_ax_event_intent.h"
 #include "third_party/blink/renderer/core/accessibility/scoped_blink_ax_event_intent.h"
+#include "third_party/blink/renderer/core/clipboard/data_transfer.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_fragment.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
@@ -99,7 +100,7 @@ namespace {
 
 bool IsWhitespaceForRebalance(const Text& text_node, UChar character) {
   if (IsWhitespace(character)) {
-    if (character == kNewlineCharacter &&
+    if (character == uchar::kLineFeed &&
         RuntimeEnabledFeatures::InsertLineBreakIfPhrasingContentEnabled()) {
       return !text_node.GetLayoutObject() ||
              text_node.GetLayoutObject()->StyleRef().ShouldCollapseBreaks();
@@ -111,8 +112,9 @@ bool IsWhitespaceForRebalance(const Text& text_node, UChar character) {
 
 }  // namespace
 
-CompositeEditCommand::CompositeEditCommand(Document& document)
-    : EditCommand(document) {
+CompositeEditCommand::CompositeEditCommand(Document& document,
+                                           DataTransfer* data_transfer)
+    : EditCommand(document), data_transfer_(data_transfer) {
   const VisibleSelection& visible_selection =
       document.GetFrame()
           ->Selection()
@@ -387,8 +389,8 @@ void CompositeEditCommand::InsertNodeAt(Node* insert_child,
   } else if (ref_child_text_node && CaretMaxOffset(ref_child) > offset) {
     SplitTextNode(ref_child_text_node, offset);
 
-    // Mutation events (bug 22634) from the text node insertion may have
-    // removed the refChild
+    // Synchronous events (bug 22634) from the text node insertion may have
+    // removed the refChild.
     if (!ref_child->isConnected())
       return;
     InsertNodeBefore(insert_child, ref_child, editing_state);
@@ -2124,6 +2126,7 @@ void CompositeEditCommand::Trace(Visitor* visitor) const {
   visitor->Trace(starting_selection_);
   visitor->Trace(ending_selection_);
   visitor->Trace(undo_step_);
+  visitor->Trace(data_transfer_);
   EditCommand::Trace(visitor);
 }
 
@@ -2140,7 +2143,8 @@ void CompositeEditCommand::AppliedEditing() {
   DispatchInputEventEditableContentChanged(
       undo_step.StartingRootEditableElement(),
       undo_step.EndingRootEditableElement(), GetInputType(),
-      TextDataForInputEvent(), IsComposingFromCommand(this));
+      TextDataForInputEvent(), IsComposingFromCommand(this),
+      data_transfer_.Get());
 
   const SelectionInDOMTree& new_selection =
       CorrectedSelectionAfterCommand(EndingSelection(), &GetDocument());

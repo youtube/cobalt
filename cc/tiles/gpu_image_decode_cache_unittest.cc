@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "cc/tiles/gpu_image_decode_cache.h"
 
 #include <algorithm>
@@ -18,6 +13,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
@@ -140,7 +136,7 @@ class FakeDiscardableManager {
   std::map<GLuint, int32_t> textures_;
   size_t live_textures_count_ = 0;
   size_t cached_textures_limit_ = std::numeric_limits<size_t>::max();
-  raw_ptr<viz::TestGLES2Interface, DanglingUntriaged> gl_ = nullptr;
+  raw_ptr<viz::TestGLES2Interface> gl_ = nullptr;
 };
 
 class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
@@ -193,7 +189,7 @@ class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
   void UnmapAndCreateTransferCacheEntry(uint32_t type, uint32_t id) override {
     transfer_cache_helper_->CreateEntryDirect(
         MakeEntryKey(type, id),
-        base::span(mapped_entry_.get(), mapped_entry_size_));
+        UNSAFE_TODO(base::span(mapped_entry_.get(), mapped_entry_size_)));
     mapped_entry_ = nullptr;
     mapped_entry_size_ = 0;
   }
@@ -275,7 +271,7 @@ class FakeGPUImageDecodeTestGLES2Interface : public viz::TestGLES2Interface,
   }
   void DeleteTextures(GLsizei n, const GLuint* textures) override {
     for (GLsizei i = 0; i < n; i++) {
-      discardable_manager_->DeleteTexture(textures[i]);
+      discardable_manager_->DeleteTexture(UNSAFE_TODO(textures[i]));
     }
     TestGLES2Interface::DeleteTextures(n, textures);
   }
@@ -451,12 +447,26 @@ class GpuImageDecodeCacheTest
     do_yuv_decode_ = std::get<2>(GetParam());
   }
 
+  void TearDown() override {
+    // Clear raw_ptrs in helpers that reference context_provider_ internals
+    // before context_provider_ is destroyed, to avoid dangling pointers. We
+    // can't just reorder the member variables because context_provider_
+    // references discardable_manager_ and transfer_cache_helper_.
+    transfer_cache_helper_.SetGrContext(nullptr);
+    discardable_manager_.SetGLES2Interface(nullptr);
+  }
+
   std::unique_ptr<GpuImageDecodeCache> CreateCache(
       size_t memory_limit_bytes = kGpuMemoryLimitBytes,
       RasterDarkModeFilter* const dark_mode_filter = nullptr) {
     return std::make_unique<GpuImageDecodeCache>(
         context_provider_.get(), use_transfer_cache_, color_type_,
-        memory_limit_bytes, max_texture_size_, dark_mode_filter);
+        memory_limit_bytes, max_texture_size_,
+#if BUILDFLAG(IS_COBALT)
+        /*max_persistent_cache_items=*/2000,
+        /*max_persistent_cache_memory_size=*/std::numeric_limits<size_t>::max(),
+#endif
+        dark_mode_filter);
   }
 
   // Returns dimensions for an image that will not fit in GPU memory and hence
@@ -570,7 +580,6 @@ class GpuImageDecodeCacheTest
     TargetColorParams target_color_params = DefaultTargetColorParams();
     if (color_space)
       target_color_params.color_space = *color_space;
-    target_color_params.sdr_max_luminance_nits = sdr_white_level;
 
     return DrawImage(paint_image, use_dark_mode, *src_rect, filter_quality,
                      matrix, frame_index, target_color_params);
@@ -724,7 +733,7 @@ class GpuImageDecodeCacheTest
             draw_image, static_cast<YUVIndex>(i));
       }
       ASSERT_TRUE(uploaded_plane);
-      EXPECT_EQ(plane_sizes[i], uploaded_plane->dimensions());
+      UNSAFE_TODO(EXPECT_EQ(plane_sizes[i], uploaded_plane->dimensions()));
       EXPECT_EQ(expected_color_type, uploaded_plane->colorType());
       if (expected_cs && use_transfer_cache_) {
         EXPECT_TRUE(
@@ -3846,8 +3855,6 @@ TEST_P(GpuImageDecodeCacheTest, HighBitDepthYUVDecoding) {
 
     TargetColorParams target_color_params;
     target_color_params.color_space = target_cs;
-    target_color_params.sdr_max_luminance_nits =
-        gfx::ColorSpace::kDefaultSDRWhiteLevel;
 
     DrawImage draw_image(
         image, false, SkIRect::MakeWH(image.width(), image.height()),

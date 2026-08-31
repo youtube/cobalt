@@ -43,7 +43,6 @@ import org.chromium.base.test.util.CriteriaNotSatisfiedException;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
@@ -96,7 +95,7 @@ public class ShowNtpAtStartupTest {
                         .expectBooleanRecord(HOME_SURFACE_SHOWN_UMA, true)
                         .build();
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(new int[] {0}, new String[] {TAB_URL}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         HomeSurfaceTestUtils.waitForTabModel(mActivityTestRule.getActivity());
 
         // Verifies that a NTP is created and set as the current Tab.
@@ -105,7 +104,7 @@ public class ShowNtpAtStartupTest {
                 2,
                 UrlConstants.NTP_URL,
                 /* expectHomeSurfaceUiShown= */ true);
-        waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
+        waitForNtpLoaded(mActivityTestRule.getActivityTab());
 
         histogram.assertExpected();
     }
@@ -126,7 +125,7 @@ public class ShowNtpAtStartupTest {
                         .build();
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, modifiedNtpUrl}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         HomeSurfaceTestUtils.waitForTabModel(mActivityTestRule.getActivity());
 
         // Verifies that a new NTP is created and set as the active Tab.
@@ -154,7 +153,7 @@ public class ShowNtpAtStartupTest {
 
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, modifiedNtpUrl}, 1);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         HomeSurfaceTestUtils.waitForTabModel(mActivityTestRule.getActivity());
 
         // Verifies that no new NTP is created, and the existing NTP is reused and set as the
@@ -171,11 +170,10 @@ public class ShowNtpAtStartupTest {
     @MediumTest
     @Feature({"StartSurface"})
     @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE, ChromeFeatureList.MAGIC_STACK_ANDROID})
-    @DisableFeatures(ChromeFeatureList.TAB_RESUMPTION_MODULE_ANDROID)
     public void testSingleTabCardGoneAfterTabClosed_MagicStack() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, TAB_URL_1}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         HomeSurfaceTestUtils.waitForTabModel(cta);
 
@@ -202,11 +200,12 @@ public class ShowNtpAtStartupTest {
                                             .build(),
                                     /* allowDialog= */ false);
                 });
-        Assert.assertEquals(2, cta.getCurrentTabModel().getCount());
+        Assert.assertEquals(2, mActivityTestRule.tabsCount(false));
         Assert.assertFalse(ntp.isMagicStackVisibleForTesting());
 
         // Tests to set another tracking Tab on the NTP.
-        Tab newTrackingTab = cta.getCurrentTabModel().getTabAt(0);
+        Tab newTrackingTab =
+                ThreadUtils.runOnUiThreadBlocking(() -> cta.getCurrentTabModel().getTabAt(0));
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     ntp.showMagicStack(newTrackingTab);
@@ -223,7 +222,7 @@ public class ShowNtpAtStartupTest {
                                             .build(),
                                     /* allowDialog= */ false);
                 });
-        Assert.assertEquals(1, cta.getCurrentTabModel().getCount());
+        Assert.assertEquals(1, mActivityTestRule.tabsCount(false));
         Assert.assertFalse(ntp.isMagicStackVisibleForTesting());
     }
 
@@ -231,11 +230,10 @@ public class ShowNtpAtStartupTest {
     @MediumTest
     @Feature({"StartSurface"})
     @EnableFeatures(START_SURFACE_RETURN_TIME_IMMEDIATE)
-    @DisableFeatures(ChromeFeatureList.TAB_RESUMPTION_MODULE_ANDROID)
     public void testSingleTabModule() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, TAB_URL_1}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         HomeSurfaceTestUtils.waitForTabModel(cta);
 
@@ -256,11 +254,10 @@ public class ShowNtpAtStartupTest {
     @MediumTest
     @Feature({"StartSurface"})
     @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE, ChromeFeatureList.MAGIC_STACK_ANDROID})
-    @DisableFeatures(ChromeFeatureList.TAB_RESUMPTION_MODULE_ANDROID)
     public void testSingleTabModule_MagicStack() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(
                 new int[] {0, 1}, new String[] {TAB_URL, TAB_URL_1}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         HomeSurfaceTestUtils.waitForTabModel(cta);
 
@@ -318,7 +315,7 @@ public class ShowNtpAtStartupTest {
     @Test
     @MediumTest
     @Feature({"StartSurface"})
-    @Restriction({DeviceFormFactor.TABLET})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testMvtAndSingleTabCardVerticalMargin() {
         mActivityTestRule.startOnNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -340,10 +337,9 @@ public class ShowNtpAtStartupTest {
     @MediumTest
     @Feature({"StartSurface"})
     @EnableFeatures({START_SURFACE_RETURN_TIME_IMMEDIATE, ChromeFeatureList.MAGIC_STACK_ANDROID})
-    @DisableFeatures(ChromeFeatureList.TAB_RESUMPTION_MODULE_ANDROID)
     public void testClickSingleTabCardCloseNtpHomeSurface() throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(new int[] {0}, new String[] {TAB_URL}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         HomeSurfaceTestUtils.waitForTabModel(cta);
 
@@ -387,7 +383,7 @@ public class ShowNtpAtStartupTest {
     public void testThumbnailRecaptureForSingleTabCardAfterMostRecentTabClosed()
             throws IOException {
         HomeSurfaceTestUtils.prepareTabStateMetadataFile(new int[] {0}, new String[] {TAB_URL}, 0);
-        mActivityTestRule.startFromLauncher();
+        mActivityTestRule.startFromLauncherAtNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
         HomeSurfaceTestUtils.waitForTabModel(cta);
 
@@ -442,7 +438,7 @@ public class ShowNtpAtStartupTest {
     @Test
     @MediumTest
     @Feature({"StartSurface"})
-    @Restriction({DeviceFormFactor.TABLET})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testFakeSearchBoxWidth() {
         mActivityTestRule.startOnNtp();
         ChromeTabbedActivity cta = mActivityTestRule.getActivity();
@@ -462,7 +458,7 @@ public class ShowNtpAtStartupTest {
     @Test
     @MediumTest
     @Feature({"StartSurface"})
-    @Restriction({DeviceFormFactor.TABLET})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     @EnableFeatures(START_SURFACE_RETURN_TIME_IMMEDIATE)
     public void testMvtLayoutHorizontalMargin() {
         mActivityTestRule.startOnNtp();
@@ -539,7 +535,9 @@ public class ShowNtpAtStartupTest {
 
     private void verifyTabCountAndActiveTabUrl(
             ChromeTabbedActivity cta, int tabCount, String url, Boolean expectHomeSurfaceUiShown) {
-        Assert.assertEquals(tabCount, cta.getCurrentTabModel().getCount());
+        int currentTabCount =
+                ThreadUtils.runOnUiThreadBlocking(() -> cta.getCurrentTabModel().getCount());
+        Assert.assertEquals(tabCount, currentTabCount);
         Tab tab = HomeSurfaceTestUtils.getCurrentTabFromUiThread(cta);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

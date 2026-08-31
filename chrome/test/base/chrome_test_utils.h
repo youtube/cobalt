@@ -27,12 +27,21 @@ namespace chrome_test_utils {
 content::WebContents* GetActiveWebContents(
     const PlatformBrowserTest* browser_test);
 
+// Returns the WebContents at the specific index. On Android, this is the
+// specific content from active model.
+content::WebContents* GetWebContentsAt(const PlatformBrowserTest* browser_test,
+                                       int index);
+
 // Returns the active Profile. On desktop this is in the first browser
 // window created by tests, more specific behaviour requires other means.
 Profile* GetProfile(const PlatformBrowserTest* browser_test);
 
 // Returns the test data path used by the embedded test server.
 base::FilePath GetChromeTestDataDir();
+
+// Overrides the path chrome::DIR_TEST_DATA. Used early in test startup so the
+// value is available in constructors and SetUp methods.
+void OverrideChromeTestDataDir();
 
 }  // namespace chrome_test_utils
 

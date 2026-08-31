@@ -1,0 +1,19 @@
+/* Copyright 2025 The Chromium Authors
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file. */
+
+/* #css_wrapper_metadata_start
+ * #type=style-lit
+ * #scheme=relative
+ * #css_wrapper_metadata_end */
+
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+:host(:hover) {
+  background: linear-gradient(158.37deg, rgba(33, 123, 254, 0.25) 16.24%, rgba(7, 142, 251, 0.25) 36.54%, rgba(161, 144, 255, 0.25) 74.67%, rgba(189, 153, 254, 0.25) 91.45%);
+  cursor: not-allowed;
+}

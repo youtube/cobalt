@@ -28,7 +28,6 @@
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
 #include "base/unguessable_token.h"
-#include "base/uuid.h"
 #include "build/build_config.h"
 #include "components/services/storage/public/cpp/buckets/bucket_id.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
@@ -63,6 +62,7 @@
 #include "storage/browser/file_system/file_system_url.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/common/file_system/file_system_types.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_data_transfer_token.mojom.h"
 #include "third_party/blink/public/mojom/file_system_access/file_system_access_error.mojom.h"
@@ -541,8 +541,10 @@ void FileSystemAccessManagerImpl::ChooseEntries(
             context.storage_key.origin()) ||
         ((options->type_specific_options->is_save_file_picker_options() ||
           (options->type_specific_options->is_directory_picker_options() &&
+           // TODO(crbug.com/40276567): Support kWrite.
            options->type_specific_options->get_directory_picker_options()
-               ->request_writable)) &&
+                   ->permission_mode ==
+               blink::mojom::FileSystemAccessPermissionMode::kReadWrite)) &&
          !permission_context_->CanObtainWritePermission(
              context.storage_key.origin()))) {
       std::move(callback).Run(
@@ -702,10 +704,12 @@ void FileSystemAccessManagerImpl::SetDefaultPathAndShowPicker(
         context.storage_key.origin());
   }
 
-  auto request_directory_write_access =
+  // TODO(crbug.com/40276567): Support kWrite.
+  bool request_directory_write_access =
       options->type_specific_options->is_directory_picker_options() &&
       options->type_specific_options->get_directory_picker_options()
-          ->request_writable;
+              ->permission_mode ==
+          blink::mojom::FileSystemAccessPermissionMode::kReadWrite;
 
   auto suggested_name =
       options->type_specific_options->is_save_file_picker_options()
@@ -1547,7 +1551,7 @@ void FileSystemAccessManagerImpl::DidChooseEntries(
     const BindingContext& binding_context,
     const FileSystemChooser::Options& options,
     const std::string& starting_directory_id,
-    const bool request_directory_write_access,
+    bool request_directory_write_access,
     ChooseEntriesCallback callback,
     blink::mojom::FileSystemAccessErrorPtr result,
     std::vector<PathInfo> entries) {
@@ -1592,7 +1596,7 @@ void FileSystemAccessManagerImpl::DidVerifySensitiveDirectoryAccess(
     const BindingContext& binding_context,
     const FileSystemChooser::Options& options,
     const std::string& starting_directory_id,
-    const bool request_directory_write_access,
+    bool request_directory_write_access,
     ChooseEntriesCallback callback,
     std::vector<PathInfo> entries,
     SensitiveEntryResult result) {
@@ -2064,6 +2068,15 @@ base::WeakPtr<FileSystemAccessManagerImpl>
 FileSystemAccessManagerImpl::AsWeakPtr() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return weak_factory_.GetWeakPtr();
+}
+
+// static
+blink::mojom::FileSystemAccessPermissionMode
+FileSystemAccessManagerImpl::GetEffectiveWritePermissionMode() {
+  return base::FeatureList::IsEnabled(
+             blink::features::kFileSystemAccessWriteMode)
+             ? blink::mojom::FileSystemAccessPermissionMode::kWrite
+             : blink::mojom::FileSystemAccessPermissionMode::kReadWrite;
 }
 
 bool FileSystemAccessManagerImpl::IsSafePathComponent(

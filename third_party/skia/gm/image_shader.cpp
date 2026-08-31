@@ -175,7 +175,7 @@ DEF_SIMPLE_GM(drawimage_sampling, canvas, 500, 500) {
     auto img = make_checker_img(N, N, SK_ColorBLACK, SK_ColorWHITE, 7)->withDefaultMipmaps();
     const SkRect src = SkRect::MakeIWH(img->width(), img->height());
 
-    SkMatrix mx = SkMatrix::RectToRect(src, dst);
+    SkMatrix mx = SkMatrix::RectToRectOrIdentity(src, dst);
 
     SkPaint paint;
 
@@ -207,7 +207,7 @@ DEF_SIMPLE_GM(drawimage_sampling, canvas, 500, 500) {
 
 }
 
-// Test case for skbug.com/12685 (texture-backed image shaders silently fail drawing to CPU canvas)
+// Test case for skbug.com/40043768 (texture-backed image shaders silently fail drawing to CPU canvas)
 DEF_SIMPLE_GM(textureimage_and_shader, canvas, 100, 50) {
     canvas->clear(SK_ColorGREEN);
 

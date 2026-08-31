@@ -93,7 +93,7 @@ class QUICHE_EXPORT Http3DebugVisitor {
       QuicStreamId /*stream_id*/,
       QuicByteCount /*compressed_headers_length*/) = 0;
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
-                                QuicHeaderList /*headers*/) = 0;
+                                const QuicHeaderList& /*headers*/) = 0;
 
   // Incoming HTTP/3 frames of unknown type on any stream.
   virtual void OnUnknownFrameReceived(QuicStreamId /*stream_id*/,
@@ -115,6 +115,12 @@ class QUICHE_EXPORT Http3DebugVisitor {
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) = 0;
+
+  // Metadata related events.
+  virtual void OnMetadataFrameStart(QuicByteCount /*header_length*/,
+                                    QuicByteCount /*payload_length*/) {}
+  virtual void OnMetadataFramePayload(absl::string_view /*payload*/) {}
+  virtual void OnMetadataFrameEnd() {}
 };
 
 // Whether HTTP Datagrams are supported on this session and if so which version
@@ -484,13 +490,12 @@ class QUICHE_EXPORT QuicSpdySession
   bool settings_received() const { return settings_received_; }
 
  protected:
-  // Override CreateIncomingStream(), CreateOutgoingBidirectionalStream() and
-  // CreateOutgoingUnidirectionalStream() with QuicSpdyStream return type to
-  // make sure that all data streams are QuicSpdyStreams.
+  // Override CreateIncomingStream() with QuicSpdyStream return type to
+  // ensure that all data streams are QuicSpdyStreams.
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override = 0;
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override = 0;
+  // Called to create a new outgoing bidirectional stream.
   virtual QuicSpdyStream* CreateOutgoingBidirectionalStream() = 0;
-  virtual QuicSpdyStream* CreateOutgoingUnidirectionalStream() = 0;
 
   // If an incoming stream can be created, return true.
   virtual bool ShouldCreateIncomingStream(QuicStreamId id) = 0;
@@ -498,7 +503,6 @@ class QUICHE_EXPORT QuicSpdySession
   // If an outgoing bidirectional/unidirectional stream can be created, return
   // true.
   virtual bool ShouldCreateOutgoingBidirectionalStream() = 0;
-  virtual bool ShouldCreateOutgoingUnidirectionalStream() = 0;
 
   // Indicates whether the underlying backend can accept and process
   // WebTransport sessions over HTTP/3.

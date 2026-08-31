@@ -103,6 +103,11 @@ struct CONTENT_EXPORT MediaStreamRequest {
   // system-audio should nevertheless not be offered to the user.
   bool exclude_system_audio = false;
 
+  // If audio is requested, |window_audio_preference| can indicate that
+  // audio should be offered to the user when sharing a window surface.
+  blink::mojom::WindowAudioPreference window_audio_preference =
+      blink::mojom::WindowAudioPreference::kExclude;
+
   // Flag to indicate that the current tab should be excluded from the list of
   // tabs offered to the user.
   bool exclude_self_browser_surface = false;
@@ -177,7 +182,6 @@ class MediaStreamUI {
   virtual void OnRegionCaptureRectChanged(
       const std::optional<gfx::Rect>& region_capture_rect) {}
 
-#if !BUILDFLAG(IS_ANDROID)
   // Focuses the display surface represented by |media_id|.
   //
   // |is_from_microtask| and |is_from_timer| are used to distinguish:
@@ -189,7 +193,6 @@ class MediaStreamUI {
                         bool focus,
                         bool is_from_microtask,
                         bool is_from_timer) {}
-#endif
 };
 
 // Callback used return results of media access requests.

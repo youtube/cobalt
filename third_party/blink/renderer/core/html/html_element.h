@@ -103,6 +103,16 @@ enum class TopLayerElementType {
   kFullscreen,
 };
 
+enum class PopoverHideResult {
+  kHidden,
+  kForcedOpenByInspector,
+};
+
+enum class PopoverTriggerSupport {
+  kNone,
+  kSupported,
+};
+
 class CORE_EXPORT HTMLElement : public Element {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -114,7 +124,7 @@ class CORE_EXPORT HTMLElement : public Element {
     return HasLocalName(name.LocalName());
   }
 
-  const char* NameInHeapSnapshot() const override;
+  const char* GetHumanReadableName() const override;
 
   String title() const final;
 
@@ -179,6 +189,12 @@ class CORE_EXPORT HTMLElement : public Element {
             const_cast<const Element*>(element)));
   }
 
+  // https://html.spec.whatwg.org/multipage/dom.html#directionality-of-the-attribute
+  // direction_result is the resulting directionality; it is set only
+  // when the return value is not null.
+  const AtomicString& GetDirectionalAttribute(const QualifiedName& attr_name,
+                                              TextDirection& direction_result);
+
   virtual bool IsHTMLBodyElement() const { return false; }
   // TODO(crbug.com/1123606): Remove this virtual method once the fenced frame
   // origin trial is over.
@@ -217,9 +233,10 @@ class CORE_EXPORT HTMLElement : public Element {
 
   virtual String AltText() const { return String(); }
 
-  // unclosedOffsetParent doesn't return Elements which are closed shadow hidden
-  // from this element. offsetLeftForBinding and offsetTopForBinding have their
-  // values adjusted for this as well.
+  // unclosedScrollParent and unclosedOffsetParent don't return Elements which
+  // are closed shadow hidden from this element. offsetLeftForBinding and
+  // offsetTopForBinding have their values adjusted for this as well.
+  Element* unclosedScrollParent();
   Element* unclosedOffsetParent();
   int offsetLeftForBinding();
   int offsetTopForBinding();
@@ -229,6 +246,9 @@ class CORE_EXPORT HTMLElement : public Element {
   ElementInternals* attachInternals(ExceptionState& exception_state);
   virtual FormAssociated* ToFormAssociatedOrNull() { return nullptr; }
   bool IsFormAssociatedCustomElement() const;
+
+  // Returns true if the elementInternals.type is set to "button".
+  bool IsCustomButton() const;
 
   void UpdateDescendantDirectionality(TextDirection direction);
   void UpdateDirectionalityAfterInputTypeChange(const AtomicString& old_value,
@@ -244,7 +264,9 @@ class CORE_EXPORT HTMLElement : public Element {
 
   // Popover API related functions.
   void UpdatePopoverAttribute(const AtomicString&);
-  bool HasPopoverAttribute() const;
+  // IsPopover returns true if the element has popover data (i.e. has the
+  // popover attribute or is the menulist element).
+  bool IsPopover() const;
   PopoverValueType PopoverType() const;
   bool popoverOpen() const;
   // IsPopoverReady returns true if the popover is in a state where it can be
@@ -270,10 +292,15 @@ class CORE_EXPORT HTMLElement : public Element {
   // response to clicking a button with popovershowtarget.
   virtual void ShowPopoverInternal(Element* invoker,
                                    ExceptionState* exception_state);
-  virtual void HidePopoverInternal(Element* invoker,
-                                   HidePopoverFocusBehavior focus_behavior,
-                                   HidePopoverTransitionBehavior event_firing,
-                                   ExceptionState* exception_state);
+  // Attempts to hide the popover, which may fail if a popover is forcefully
+  // kept open by the inspector. In that case,
+  // PopoverHideResult::kForceOpenedByInspector is returned. In most normal
+  // cases, this function returns PopoverHideResult::kHidden.
+  virtual PopoverHideResult HidePopoverInternal(
+      Element* invoker,
+      HidePopoverFocusBehavior focus_behavior,
+      HidePopoverTransitionBehavior event_firing,
+      ExceptionState* exception_state);
   void PopoverHideFinishIfNeeded(bool immediate);
   static const HTMLElement* FindTopmostPopoverAncestor(
       Element& new_popover_or_top_layer_element,
@@ -290,11 +317,15 @@ class CORE_EXPORT HTMLElement : public Element {
   void InvokePopover(Element& invoker);
   void SetPopoverFocusOnShow();
   // This hides all visible popovers up to, but not including,
-  // |endpoint|. If |endpoint| is nullptr, all popovers are hidden.
-  static void HideAllPopoversUntil(const HTMLElement*,
-                                   Document&,
-                                   HidePopoverFocusBehavior,
-                                   HidePopoverTransitionBehavior);
+  // |endpoint|. If |endpoint| is nullptr, all popovers are hidden. Hiding
+  // (some) popovers may be prevented by the inspector. In that case,
+  // PopoverHideResult::kForceOpenedByInspector is returned.
+  static PopoverHideResult HideAllPopoversUntil(const HTMLElement*,
+                                                Document&,
+                                                HidePopoverFocusBehavior,
+                                                HidePopoverTransitionBehavior);
+
+  virtual PopoverTriggerSupport SupportsPopoverTriggering() const;
 
   void SetImplicitAnchor(Element* element);
   Element* implicitAnchor() const;
@@ -402,7 +433,10 @@ class CORE_EXPORT HTMLElement : public Element {
 
   void SetPopoverInvoker(Element* invoker);
 
-  static void CloseEntirePopoverStack(
+  // Attempts to hide a popover stack.  Hiding (some) popovers may be prevented
+  // by the inspector. In that case, PopoverHideResult::kForceOpenedByInspector
+  // is returned.
+  static PopoverHideResult CloseEntirePopoverStack(
       HeapVector<Member<HTMLElement>>& stack,
       HidePopoverFocusBehavior focus_behavior,
       HidePopoverTransitionBehavior transition_behavior);
@@ -416,6 +450,7 @@ class CORE_EXPORT HTMLElement : public Element {
   void OnNonceAttrChanged(const AttributeModificationParams&);
   void OnPopoverChanged(const AttributeModificationParams&);
   void OnContainerTimingAttrChanged(const AttributeModificationParams&);
+  void OnContainerTimingIgnoreAttrChanged(const AttributeModificationParams&);
   void OnRoleAttrChanged(const AttributeModificationParams&);
 
   int AdjustedOffsetForZoom(LayoutUnit);

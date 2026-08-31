@@ -11,9 +11,11 @@
 #include "extensions/renderer/bindings/get_per_context_data.h"
 #include "extensions/renderer/bindings/js_runner.h"
 #include "gin/converter.h"
-#include "gin/handle.h"
 #include "gin/per_context_data.h"
+#include "gin/public/wrappable_pointer_tags.h"
 #include "gin/wrappable.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
 
 namespace extensions {
 
@@ -28,14 +30,17 @@ struct ExceptionHandlerPerContextData : public base::SupportsUserData::Data {
 constexpr char ExceptionHandlerPerContextData::kPerContextDataKey[];
 
 // A helper class to wrap an ExceptionHandler WeakPtr in a v8::Value.
-class WrappedExceptionHandler : public gin::Wrappable<WrappedExceptionHandler> {
+class WrappedExceptionHandler
+    : public gin::Wrappable<WrappedExceptionHandler> {
  public:
-  static gin::WrapperInfo kWrapperInfo;
+  static constexpr gin::WrapperInfo kWrapperInfo = {
+      {gin::kEmbedderNativeGin},
+      gin::kWrappedExceptionHandler};
+
+  const gin::WrapperInfo* wrapper_info() const override { return &kWrapperInfo; }
+
   base::WeakPtr<ExceptionHandler> exception_handler;
 };
-
-gin::WrapperInfo WrappedExceptionHandler::kWrapperInfo = {
-    gin::kEmbedderNativeGin};
 
 }  // namespace
 
@@ -45,9 +50,10 @@ ExceptionHandler::ExceptionHandler(
 ExceptionHandler::~ExceptionHandler() = default;
 
 v8::Local<v8::Value> ExceptionHandler::GetV8Wrapper(v8::Isolate* isolate) {
-  auto handle = gin::CreateHandle(isolate, new WrappedExceptionHandler);
-  handle->exception_handler = weak_factory_.GetWeakPtr();
-  return handle.ToV8();
+  auto* wrapper = cppgc::MakeGarbageCollected<WrappedExceptionHandler>(
+      isolate->GetCppHeap()->GetAllocationHandle());
+  wrapper->exception_handler = weak_factory_.GetWeakPtr();
+  return wrapper->GetWrapper(isolate).ToLocalChecked();
 }
 
 ExceptionHandler* ExceptionHandler::FromV8Wrapper(v8::Isolate* isolate,
@@ -63,7 +69,7 @@ void ExceptionHandler::HandleException(v8::Local<v8::Context> context,
                                        v8::TryCatch* try_catch) {
   DCHECK(try_catch->HasCaught());
 
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Value> message_value;
@@ -90,7 +96,7 @@ void ExceptionHandler::HandleException(v8::Local<v8::Context> context,
 void ExceptionHandler::HandleException(v8::Local<v8::Context> context,
                                        const std::string& full_message,
                                        v8::Local<v8::Value> exception_value) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::HandleScope handle_scope(isolate);
 
   v8::Local<v8::Function> handler = GetCustomHandler(context);
@@ -114,7 +120,7 @@ void ExceptionHandler::SetHandlerForContext(v8::Local<v8::Context> context,
       GetPerContextData<ExceptionHandlerPerContextData>(context,
                                                         kCreateIfMissing);
   DCHECK(data);
-  data->custom_handler.Reset(context->GetIsolate(), handler);
+  data->custom_handler.Reset(v8::Isolate::GetCurrent(), handler);
 }
 
 void ExceptionHandler::RunExtensionCallback(
@@ -122,7 +128,7 @@ void ExceptionHandler::RunExtensionCallback(
     v8::Local<v8::Function> extension_callback,
     v8::LocalVector<v8::Value> callback_arguments,
     const std::string& message) {
-  v8::TryCatch try_catch(context->GetIsolate());
+  v8::TryCatch try_catch(v8::Isolate::GetCurrent());
 
   // TODO(devlin): JSRunner::RunJSFunction() isn't guaranteed to run
   // synchronously, so if JS is suspended at this moment, the `try_catch` here
@@ -144,7 +150,7 @@ v8::Local<v8::Function> ExceptionHandler::GetCustomHandler(
   ExceptionHandlerPerContextData* data =
       GetPerContextData<ExceptionHandlerPerContextData>(context,
                                                         kDontCreateIfMissing);
-  return data ? data->custom_handler.Get(context->GetIsolate())
+  return data ? data->custom_handler.Get(v8::Isolate::GetCurrent())
               : v8::Local<v8::Function>();
 }
 

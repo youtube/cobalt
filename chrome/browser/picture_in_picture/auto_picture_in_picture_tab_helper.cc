@@ -10,12 +10,11 @@
 #include "base/time/default_tick_clock.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/media/media_engagement_service.h"
+#include "chrome/browser/media/media_engagement_service.h"  // nogncheck crbug.com/422038808
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
-#include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_strip_observer_helper.h"
-#include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
+#include "chrome/browser/picture_in_picture/auto_picture_in_picture_tab_observer_helper_base.h"
 #include "chrome/browser/picture_in_picture/picture_in_picture_window_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
@@ -27,6 +26,12 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/frame/user_activation_state.h"
+
+// TODO(crbug.com/421608904): integrate setting helper with auto-pip on Android
+// once permission UX is finalized.
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/picture_in_picture/auto_pip_setting_helper.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 #include "chrome/browser/safe_browsing/safe_browsing_service.h"
@@ -44,13 +49,11 @@ AutoPictureInPictureTabHelper::AutoPictureInPictureTabHelper(
       media_engagement_service_(MediaEngagementService::Get(
           Profile::FromBrowserContext(web_contents->GetBrowserContext()))),
       clock_(base::DefaultTickClock::GetInstance()) {
-  // `base::Unretained` is safe here since we own `tab_strip_observer_helper_`.
-  tab_strip_observer_helper_ =
-      std::make_unique<AutoPictureInPictureTabStripObserverHelper>(
-          web_contents,
-          base::BindRepeating(
-              &AutoPictureInPictureTabHelper::OnTabActivatedChanged,
-              base::Unretained(this)));
+  // `base::Unretained` is safe here since we own `tab_observer_helper_`.
+  tab_observer_helper_ = AutoPictureInPictureTabObserverHelperBase::Create(
+      web_contents,
+      base::BindRepeating(&AutoPictureInPictureTabHelper::OnTabActivatedChanged,
+                          base::Unretained(this)));
 
   // Connect to receive audio focus events.
   mojo::Remote<media_session::mojom::AudioFocusManager> audio_focus_remote;
@@ -83,7 +86,9 @@ bool AutoPictureInPictureTabHelper::HasAutoPictureInPictureBeenRegistered()
 void AutoPictureInPictureTabHelper::PrimaryPageChanged(content::Page& page) {
   has_ever_registered_for_auto_picture_in_picture_ = false;
   // On navigation, forget any 'allow once' state.
+#if !BUILDFLAG(IS_ANDROID)
   auto_pip_setting_helper_.reset();
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   StopAndResetAsyncTasks();
 }
@@ -227,7 +232,7 @@ void AutoPictureInPictureTabHelper::OnTabActivatedChanged(
   if (is_tab_activated_) {
     OnTabBecameActive();
   } else {
-    auto* active_contents = tab_strip_observer_helper_->GetActiveWebContents();
+    auto* active_contents = tab_observer_helper_->GetActiveWebContents();
     if (auto* active_tab_helper =
             active_contents ? FromWebContents(active_contents) : nullptr) {
       // There is a tab helper that's associated with the newly active contents.
@@ -366,9 +371,9 @@ void AutoPictureInPictureTabHelper::MaybeExitAutoPictureInPicture() {
 void AutoPictureInPictureTabHelper::MaybeStartOrStopObservingTabStrip() {
   if (is_enter_auto_picture_in_picture_available_ ||
       is_in_auto_picture_in_picture_) {
-    tab_strip_observer_helper_->StartObserving();
+    tab_observer_helper_->StartObserving();
   } else {
-    tab_strip_observer_helper_->StopObserving();
+    tab_observer_helper_->StopObserving();
   }
 }
 
@@ -409,6 +414,10 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
   // Since nobody has a pip window, we shouldn't think we do.
   CHECK(!is_in_picture_in_picture_);
 
+// TODO(crbug.com/421606013): skip permission check for Android for now. Once
+// the permission model for Android is finalized, we'll enable the permission
+// checking logic here.
+#if !BUILDFLAG(IS_ANDROID)
   // The user may block autopip via a content setting. Also, if we're in an
   // incognito window, then we should treat "ask" as "block". This should be the
   // final check before triggering autopip since it will record metrics about
@@ -434,6 +443,7 @@ bool AutoPictureInPictureTabHelper::IsEligibleForAutoPictureInPicture(
     }
     return false;
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   return true;
 }
@@ -464,10 +474,15 @@ bool AutoPictureInPictureTabHelper::WasRecentlyAudible() const {
 }
 
 bool AutoPictureInPictureTabHelper::MeetsMediaEngagementConditions() const {
+  // TODO(crbug.com/421606013): Android as autoPiP hasn't been registered for
+  // Android platform. We'll register it and implement a no-permission model for
+  // Android as a follow-up.
+#if !BUILDFLAG(IS_ANDROID)
   // Skip checking media engagement when content setting is set to allow.
   if (GetCurrentContentSetting() == CONTENT_SETTING_ALLOW) {
     return true;
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   std::optional<content::RenderFrameHost*> rfh = GetPrimaryMainRoutedFrame();
   if (!rfh) {
@@ -482,6 +497,14 @@ bool AutoPictureInPictureTabHelper::MeetsMediaEngagementConditions() const {
   if (!media_engagement_service_) {
     return false;
   }
+
+#if BUILDFLAG(IS_ANDROID)
+  // For Android JNI tests, return the testing override value if it's available,
+  // completely bypassing the MediaEngagementService check.
+  if (has_high_engagement_for_testing_.has_value()) {
+    return has_high_engagement_for_testing_.value();
+  }
+#endif
 
   return media_engagement_service_->HasHighEngagement(origin);
 }
@@ -537,12 +560,14 @@ void AutoPictureInPictureTabHelper::ScheduleUrlSafetyCheck() {
 #endif
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 void AutoPictureInPictureTabHelper::EnsureAutoPipSettingHelper() {
   if (!auto_pip_setting_helper_) {
     auto_pip_setting_helper_ = AutoPipSettingHelper::CreateForWebContents(
         web_contents(), host_content_settings_map_, auto_blocker_);
   }
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 std::optional<content::RenderFrameHost*>
 AutoPictureInPictureTabHelper::GetPrimaryMainRoutedFrame() const {
@@ -625,6 +650,7 @@ bool AutoPictureInPictureTabHelper::AreAutoPictureInPicturePreconditionsMet()
   return base::TimeTicks::Now() < auto_picture_in_picture_activation_time_;
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 std::unique_ptr<AutoPipSettingOverlayView>
 AutoPictureInPictureTabHelper::CreateOverlayPermissionViewIfNeeded(
     base::OnceClosure close_pip_cb,
@@ -647,8 +673,10 @@ AutoPictureInPictureTabHelper::CreateOverlayPermissionViewIfNeeded(
       std::move(close_pip_cb), auto_pip_trigger_reason_, GetUkmSourceId(),
       anchor_view, arrow);
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 void AutoPictureInPictureTabHelper::OnUserClosedWindow() {
+#if !BUILDFLAG(IS_ANDROID)
   if (!auto_pip_setting_helper_) {
     // There is definitely no auto-pip UI showing, so ignore this.  Either this
     // isn't auto-pip, or we didn't need to ask the user about it.
@@ -658,6 +686,7 @@ void AutoPictureInPictureTabHelper::OnUserClosedWindow() {
   // There might be the auto-pip setting UI shown, so forward this.
   auto_pip_setting_helper_->OnUserClosedWindow(GetAutoPipReason(),
                                                GetUkmSourceId());
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void AutoPictureInPictureTabHelper::OnTabBecameActive() {

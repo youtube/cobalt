@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "build/build_config.h"
@@ -251,6 +252,12 @@ std::unique_ptr<DawnBufferRepresentation> SharedImageBacking::ProduceDawnBuffer(
     MemoryTypeTracker* tracker,
     const wgpu::Device& device,
     wgpu::BackendType backend_type) {
+  return nullptr;
+}
+
+std::unique_ptr<WebNNTensorRepresentation>
+SharedImageBacking::ProduceWebNNTensor(SharedImageManager* manager,
+                                       MemoryTypeTracker* tracker) {
   return nullptr;
 }
 

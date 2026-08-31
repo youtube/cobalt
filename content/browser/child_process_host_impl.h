@@ -30,9 +30,6 @@
 
 namespace IPC {
 class Channel;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-class MessageFilter;
-#endif
 }  // namespace IPC
 
 namespace content {
@@ -70,14 +67,10 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
   static uint64_t ChildProcessUniqueIdToTracingProcessId(int child_process_id);
 
   // ChildProcessHost implementation
-  bool Send(IPC::Message* message) override;
   void ForceShutdown() override;
   std::optional<mojo::OutgoingInvitation>& GetMojoInvitation() override;
   void CreateChannelMojo() override;
   bool IsChannelOpening() override;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  void AddFilter(IPC::MessageFilter* filter) override;
-#endif
   void BindReceiver(mojo::GenericPendingReceiver receiver) override;
   void SetBatterySaverMode(bool battery_saver_mode_enabled) override;
 
@@ -98,14 +91,13 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
  private:
   friend class content::ChildProcessHost;
 
-  ChildProcessHostImpl(ChildProcessHostDelegate* delegate, IpcMode ipc_mode);
+  explicit ChildProcessHostImpl(ChildProcessHostDelegate* delegate);
 
   // mojom::ChildProcessHost implementation:
   void Ping(PingCallback callback) override;
   void BindHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   // IPC::Listener methods:
-  bool OnMessageReceived(const IPC::Message& msg) override;
   void OnChannelConnected(int32_t peer_pid) override;
   void OnChannelError() override;
   void OnBadMessageReceived(const IPC::Message& message) override;
@@ -125,20 +117,12 @@ class CONTENT_EXPORT ChildProcessHostImpl : public ChildProcessHost,
   // to the child process.
   std::optional<mojo::OutgoingInvitation> mojo_invitation_{std::in_place};
 
-  const IpcMode ipc_mode_;
   raw_ptr<ChildProcessHostDelegate> delegate_;
   base::Process peer_process_;
   bool opening_channel_;  // True while we're waiting the channel to be opened.
   std::unique_ptr<IPC::Channel> channel_;
   mojo::Remote<mojom::ChildProcess> child_process_;
   mojo::Receiver<mojom::ChildProcessHost> receiver_{this};
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  // Holds all the IPC message filters.  Since this object lives on the IO
-  // thread, we don't have a IPC::ChannelProxy and so we manage filters
-  // manually.
-  std::vector<scoped_refptr<IPC::MessageFilter>> filters_;
-#endif
 };
 
 }  // namespace content

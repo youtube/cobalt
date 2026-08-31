@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_reader_registry.h"
-
 #include <memory>
 #include <optional>
 
@@ -25,12 +23,7 @@
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
 #include "base/types/expected.h"
-#include "chrome/browser/web_applications/isolated_web_apps/error/uma_logging.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_response_reader.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_response_reader_factory.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_validator.h"
-#include "chrome/browser/web_applications/isolated_web_apps/signed_web_bundle_reader.h"
 #include "chrome/browser/web_applications/test/signed_web_bundle_utils.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/testing_profile.h"
@@ -41,6 +34,12 @@
 #include "components/web_package/test_support/mock_web_bundle_parser_factory.h"
 #include "components/web_package/test_support/signed_web_bundles/key_pair.h"
 #include "components/web_package/test_support/signed_web_bundles/signature_verifier_test_utils.h"
+#include "components/webapps/isolated_web_apps/error/uma_logging.h"
+#include "components/webapps/isolated_web_apps/reading/response_reader.h"
+#include "components/webapps/isolated_web_apps/reading/response_reader_factory.h"
+#include "components/webapps/isolated_web_apps/reading/response_reader_registry.h"
+#include "components/webapps/isolated_web_apps/reading/signed_web_bundle_reader.h"
+#include "components/webapps/isolated_web_apps/reading/validator.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
@@ -56,6 +55,7 @@ namespace {
 using base::test::ErrorIs;
 using base::test::HasValue;
 using base::test::RunOnceCallback;
+using testing::AllOf;
 using testing::ElementsAre;
 using testing::Field;
 using testing::HasSubstr;
@@ -124,8 +124,8 @@ class IsolatedWebAppReaderRegistryTest : public ::testing::Test {
         web_package::test::GetAttributesForSignedWebBundleId(kWebBundleId.id());
 
     registry_ = std::make_unique<IsolatedWebAppReaderRegistry>(
-        *profile_,
-        std::make_unique<IsolatedWebAppResponseReaderFactory>(*profile_));
+        profile_.get(),
+        std::make_unique<IsolatedWebAppResponseReaderFactory>(profile_.get()));
 
     EXPECT_TRUE(temp_dir_.CreateUniqueTempDir());
     EXPECT_TRUE(
@@ -404,13 +404,18 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestRequestToNonExistingResponse) {
   FulfillMetadata();
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kResponseNotFound);
-  EXPECT_EQ(result.error().message,
-            "Failed to read response from Signed Web Bundle: The Web Bundle "
-            "does not contain a response for the provided URL: "
-            "isolated-app://"
-            "aaaaaaacaibaaaaaaaaaaaaaaiaaeaaaaaaaaaaaaabaeaqaaaaaaaic/foo");
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type,
+                ReadResponseError::Type::kResponseNotFound),
+          Field(
+              &ReadResponseError::message,
+              "Failed to read response from Signed Web Bundle: The Web Bundle "
+              "does not contain a response for the provided URL: "
+              "isolated-app://"
+              "aaaaaaacaibaaaaaaaaaaaaaaiaaeaaaaaaaaaaaaabaeaqaaaaaaaic/"
+              "foo"))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.ReadResponseHead"),
@@ -430,7 +435,7 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestSignedWebBundleReaderLifetime) {
 #endif
 
   // Verify that the cache cleanup timer has not yet started.
-  EXPECT_FALSE(registry_->reader_cache_.IsCleanupTimerRunningForTesting());
+  EXPECT_FALSE(registry_->IsCleanupTimerRunningForTesting());
 
   {
     base::test::TestFuture<ReadResult> read_response_future;
@@ -456,7 +461,7 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestSignedWebBundleReaderLifetime) {
   }
 
   // Verify that the cache cleanup timer has started.
-  EXPECT_TRUE(registry_->reader_cache_.IsCleanupTimerRunningForTesting());
+  EXPECT_TRUE(registry_->IsCleanupTimerRunningForTesting());
 
   {
     base::test::TestFuture<ReadResult> read_response_future;
@@ -474,7 +479,7 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestSignedWebBundleReaderLifetime) {
   }
 
   // Verify that the cache cleanup timer is still running.
-  EXPECT_TRUE(registry_->reader_cache_.IsCleanupTimerRunningForTesting());
+  EXPECT_TRUE(registry_->IsCleanupTimerRunningForTesting());
 
   // After some time has passed, the `SignedWebBundleReader` should be evicted
   // from the cache.
@@ -482,7 +487,7 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestSignedWebBundleReaderLifetime) {
 
   // Verify that the cache cleanup timer has stopped, given that the cache is
   // now empty again.
-  EXPECT_FALSE(registry_->reader_cache_.IsCleanupTimerRunningForTesting());
+  EXPECT_FALSE(registry_->IsCleanupTimerRunningForTesting());
 
   {
     base::test::TestFuture<ReadResult> read_response_future;
@@ -502,7 +507,7 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestSignedWebBundleReaderLifetime) {
   }
 
   // Verify that the cache cleanup timer has started again.
-  EXPECT_TRUE(registry_->reader_cache_.IsCleanupTimerRunningForTesting());
+  EXPECT_TRUE(registry_->IsCleanupTimerRunningForTesting());
 }
 
 class IsolatedWebAppReaderRegistryIntegrityBlockParserErrorTest
@@ -528,10 +533,12 @@ TEST_P(IsolatedWebAppReaderRegistryIntegrityBlockParserErrorTest,
   parser_factory_->RunIntegrityBlockCallback(nullptr, std::move(error));
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message,
-            "Failed to parse integrity block: test error");
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type, ReadResponseError::Type::kOtherError),
+          Field(&ReadResponseError::message,
+                "Failed to parse integrity block: test error"))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.SwbnFileUsability"),
@@ -575,10 +582,12 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestInvalidIntegrityBlockContents) {
   FulfillMetadata();
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_THAT(result.error().message,
-              testing::HasSubstr("Failed to validate integrity block"));
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type, ReadResponseError::Type::kOtherError),
+          Field(&ReadResponseError::message,
+                testing::HasSubstr("Failed to validate integrity block")))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.SwbnFileUsability"),
@@ -613,18 +622,20 @@ TEST_P(IsolatedWebAppReaderRegistrySignatureVerificationErrorTest,
   FulfillMetadata();
   FulfillResponse(resource_request);
 
-  ASSERT_TRUE(read_response_future.Take().has_value());
+  EXPECT_THAT(read_response_future.Take(), HasValue());
 
   histogram_tester.ExpectBucketCount(
       ToSuccessHistogramName("WebApp.Isolated.SwbnFileUsability"),
       /*success*/ 1, 1);
 #else
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message,
-            base::StringPrintf("Failed to verify signatures: %s",
-                               GetParam().message.c_str()));
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type, ReadResponseError::Type::kOtherError),
+          Field(&ReadResponseError::message,
+                base::StringPrintf("Failed to verify signatures: %s",
+                                   GetParam().message.c_str())))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.SwbnFileUsability"),
@@ -667,9 +678,11 @@ TEST_P(IsolatedWebAppReaderRegistryMetadataParserErrorTest,
                                        std::move(error));
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message, "Failed to parse metadata: test error");
+  EXPECT_THAT(result,
+              ErrorIs(AllOf(Field(&ReadResponseError::type,
+                                  ReadResponseError::Type::kOtherError),
+                            Field(&ReadResponseError::message,
+                                  "Failed to parse metadata: test error"))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.SwbnFileUsability"),
@@ -711,12 +724,15 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestInvalidMetadataPrimaryUrl) {
                                        std::move(metadata));
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message,
-            base::StringPrintf("Failed to validate metadata: Primary URL must "
-                               "not be present, but was %s",
-                               kUrl.spec().c_str()));
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type, ReadResponseError::Type::kOtherError),
+          Field(&ReadResponseError::message,
+                base::StringPrintf(
+                    "Failed to validate metadata: Primary URL must "
+                    "not be present, but was %s",
+                    kUrl.spec().c_str())))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.SwbnFileUsability"),
@@ -744,14 +760,18 @@ TEST_F(IsolatedWebAppReaderRegistryTest, TestInvalidMetadataInvalidExchange) {
                                        std::move(metadata));
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message,
-            "Failed to validate metadata: The URL of an exchange is invalid: "
-            "The host of isolated-app:// URLs must be a valid Signed Web "
-            "Bundle ID (got foo): The signed web bundle ID must be exactly 56 "
-            "characters long (for Ed25519) or 58 characters long (for ECDSA "
-            "P-256), but was 3 characters long.");
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type, ReadResponseError::Type::kOtherError),
+          Field(
+              &ReadResponseError::message,
+              "Failed to validate metadata: The URL of an exchange is invalid: "
+              "The host of isolated-app:// URLs must be a valid Signed Web "
+              "Bundle ID (got foo): The signed web bundle ID must be exactly "
+              "56 "
+              "characters long (for Ed25519) or 58 characters long (for ECDSA "
+              "P-256), but was 3 characters long."))));
 }
 
 class IsolatedWebAppReaderRegistryResponseHeadParserErrorTest
@@ -787,10 +807,12 @@ TEST_P(IsolatedWebAppReaderRegistryResponseHeadParserErrorTest,
       nullptr, std::move(error));
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message,
-            "Failed to parse response head: test error");
+  EXPECT_THAT(
+      result,
+      ErrorIs(AllOf(
+          Field(&ReadResponseError::type, ReadResponseError::Type::kOtherError),
+          Field(&ReadResponseError::message,
+                "Failed to parse response head: test error"))));
 
   histogram_tester.ExpectBucketCount(
       ToErrorHistogramName("WebApp.Isolated.ReadResponseHead"),
@@ -950,9 +972,10 @@ TEST_F(IsolatedWebAppReaderRegistryTest, CloseOnArrival) {
   FulfillMetadata();
 
   ReadResult result = read_response_future.Take();
-  ASSERT_FALSE(result.has_value());
-  EXPECT_EQ(result.error().type, ReadResponseError::Type::kOtherError);
-  EXPECT_EQ(result.error().message, "The bundle is waiting to close");
+  EXPECT_THAT(result, ErrorIs(AllOf(Field(&ReadResponseError::type,
+                                          ReadResponseError::Type::kOtherError),
+                                    Field(&ReadResponseError::message,
+                                          "The bundle is waiting to close"))));
 
   ASSERT_TRUE(close_future.Wait());
 

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Ang Tools sa Klase na lang ang magagamit mo ngayon</translation>
 <translation id="1762483337755424125">Transcript</translation>
 <translation id="1765169783255151332">Mabilis na makalipat ng key</translation>
 <translation id="1768959921651994223">Uri ng pag-authenticate</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Switch ng layout</translation>
 <translation id="224421911978987610">long exposure</translation>
 <translation id="2244834438220057800">berde</translation>
+<translation id="2248689665683494517">minimal na still life ng ilang bulaklak na Papaver rhea sa isang glass na vase sa itim na background</translation>
 <translation id="225692081236532131">Status ng pag-activate</translation>
 <translation id="2267285889943769271">Magdagdag ng screenshot</translation>
 <translation id="2268044343513325586">Pinuhin</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Hindi na-print - Huminto</translation>
 <translation id="3102119246920354026">Cache</translation>
 <translation id="3103783611481501187">surreal</translation>
+<translation id="3119672627216736407">Available ang pagsasalin</translation>
 <translation id="3122464029669770682">CPU</translation>
 <translation id="3122614491980756867">mga pool</translation>
 <translation id="3122883569442693641">Higit pang detalye</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">chiffon</translation>
 <translation id="4310735698903592804">Mga kamakailang wallpaper mula sa Google AI</translation>
 <translation id="4320904097188876154">neon pink</translation>
+<translation id="432961742358282111">Mag-right click o pindutin nang matagal para makakuha ng mga kahulugan, pagsasalin, o conversion ng unit. Gamitin ang mga Kaliwa o Pakanang arrow key para pamahalaan ang feature na ito.</translation>
 <translation id="4333390807948134856">Napindot ang key na <ph name="KEY_NAME" /></translation>
 <translation id="4334293042716981313">Puwede ka ring <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />magsulat ng sarili mong prompt<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">key</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">Para tapusin, ilagay ang iyong luma at bagong password</translation>
 <translation id="6061772781719867950">Mga hindi naisagawang kahilingang HTTP</translation>
 <translation id="6073292342939316679">babaan ang liwanag ng keyboard</translation>
+<translation id="6074608334942655098">Huminto sa pagsasalin</translation>
 <translation id="6074752328838739425">I-hide ang buod</translation>
 <translation id="6075872808778243331">(Android) Latency ng HTTP</translation>
 <translation id="6078323886959318429">Magdagdag ng shortcut</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Magtanong sa mga eksperto sa forum ng tulong ng Chromebook</translation>
-<translation id="7309823890857024809">minimal na still life ng ilang Papaver rhea stem sa isang glass na vase sa itim na background</translation>
 <translation id="7311368985037279727">kulay ng keyboard</translation>
 <translation id="7317831949569936035">Pag-enroll para sa paaralan</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@ I-download ang modelo ng transcription (hanggang 100MB) para makuha ang mga tran
 <translation id="8088963492174775412">Pindutin para mag-record</translation>
 <translation id="8094062939584182041">Payagan ang Google na mag-email sa iyo tungkol sa isyung ito</translation>
 <translation id="8104083085214006426">Gumagamit ka ng bukas at hindi secure na network</translation>
+<translation id="8108879170356113798">Ang Tools sa Klase na lang ang magagamit mo sa loob ng <ph name="NUM_SECONDS" /> (na) segundo</translation>
 <translation id="811820734797650957">(Android) Puwedeng I-ping ang Gateway</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />° C</translation>
 <translation id="8131740175452115882">Kumpirmahin</translation>

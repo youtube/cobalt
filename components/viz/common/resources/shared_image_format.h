@@ -10,6 +10,7 @@
 #include <compare>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "base/check.h"
 #include "base/component_export.h"
@@ -136,6 +137,9 @@ class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT) SharedImageFormat final {
   // Returns true is `plane_index` is valid.
   bool IsValidPlaneIndex(int plane_index) const;
 
+  // Returns the subsampling width and height scale for the format.
+  std::pair<int, int> GetSubsamplingScale() const;
+
   // Returns the size for a plane given `plane_index`.
   gfx::Size GetPlaneSize(int plane_index, const gfx::Size& size) const;
 
@@ -178,6 +182,8 @@ class COMPONENT_EXPORT(VIZ_SHARED_IMAGE_FORMAT) SharedImageFormat final {
   // NOTE: Supported only for true single-plane formats.
   int BitsPerPixel() const;
 
+  // Returns a SharedImageFormat that matches Skia's kN32_SkColorType.  Use this
+  // function to get optimal 8 bit format for the Skia CPU backend.
   static SharedImageFormat N32Format();
 
   bool operator==(const SharedImageFormat& o) const;

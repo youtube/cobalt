@@ -131,7 +131,7 @@ export class CrPolicyPrefIndicatorElement extends PolymerElement {
         return name.length > 0 ?
             CrPolicyStrings.controlledSettingExtension!.replace('$1', name) :
             CrPolicyStrings.controlledSettingExtensionWithoutName!;
-      // <if expr="chromeos_ash">
+      // <if expr="is_chromeos">
       case CrPolicyIndicatorType.PRIMARY_USER:
         return CrPolicyStrings.controlledSettingShared!.replace('$1', name);
       case CrPolicyIndicatorType.OWNER:
@@ -149,6 +149,8 @@ export class CrPolicyPrefIndicatorElement extends PolymerElement {
         return CrPolicyStrings.controlledSettingParent!;
       case CrPolicyIndicatorType.CHILD_RESTRICTION:
         return CrPolicyStrings.controlledSettingChildRestriction!;
+      default:
+        break;
     }
     return '';
   }
@@ -192,6 +194,8 @@ export class CrPolicyPrefIndicatorElement extends PolymerElement {
           return CrPolicyIndicatorType.PARENT;
         case chrome.settingsPrivate.ControlledBy.CHILD_RESTRICTION:
           return CrPolicyIndicatorType.CHILD_RESTRICTION;
+        default:
+          break;
       }
     }
     if (enforcement === chrome.settingsPrivate.Enforcement.PARENT_SUPERVISED) {

@@ -17,6 +17,7 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/weak_ptr.h"
@@ -48,6 +49,7 @@
 #include "components/password_manager/core/browser/password_feature_manager.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_driver.h"
+#include "components/password_manager/core/browser/password_manager_interface.h"
 #include "components/password_manager/core/browser/password_manager_metrics_recorder.h"
 #include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
@@ -72,10 +74,6 @@ namespace {
 using autofill::Suggestion;
 using autofill::password_generation::PasswordGenerationType;
 using IsLoading = autofill::Suggestion::IsLoading;
-
-// This covers the 95th percentile on desktop platforms. See
-// `PasswordManager.PasskeyRetrievalWaitDuration` metric.
-constexpr base::TimeDelta kWaitForPasskeysDelay = base::Milliseconds(4000);
 
 // If `suggestion` was made for an empty username, then return the empty
 // string, otherwise return `suggestion`.
@@ -151,15 +149,11 @@ PasswordAutofillManager::~PasswordAutofillManager() {
   manual_fallback_metrics_recorder_.reset();
 }
 
-void PasswordAutofillManager::ShowSuggestions(
-    const autofill::TriggeringField& triggering_field) {
-  // TODO: crbug.com/410743802 - Implement.
-}
-
 #if BUILDFLAG(IS_ANDROID)
 void PasswordAutofillManager::ShowKeyboardReplacingSurface(
     const autofill::PasswordSuggestionRequest& request) {
-  // TODO: crbug.com/410743802 - Implement.
+  password_client_->ShowKeyboardReplacingSurface(password_manager_driver_,
+                                                 request);
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -172,6 +166,7 @@ void PasswordAutofillManager::OnSuggestionsShown(
     base::span<const Suggestion> suggestions) {}
 
 void PasswordAutofillManager::OnSuggestionsHidden() {
+  password_client_->GetUndoPasswordChangeController()->OnSuggestionsHidden();
   metrics_util::LogPasswordDropdownHidden();
 }
 
@@ -181,10 +176,19 @@ void PasswordAutofillManager::DidSelectSuggestion(
   if (suggestion.type == autofill::SuggestionType::kAllSavedPasswordsEntry ||
       suggestion.type == autofill::SuggestionType::kGeneratePasswordEntry ||
       suggestion.type ==
-          autofill::SuggestionType::kWebauthnSignInWithAnotherDevice) {
+          autofill::SuggestionType::kWebauthnSignInWithAnotherDevice ||
+      suggestion.type == autofill::SuggestionType::kTroubleSigningInEntry) {
     return;
   }
-
+  if (suggestion.type == autofill::SuggestionType::kBackupPasswordEntry) {
+    const auto payload =
+        suggestion
+            .GetPayload<autofill::Suggestion::PasswordSuggestionDetails>();
+    CHECK(payload.backup_password);
+    password_manager_driver_->PreviewSuggestion(
+        payload.username, payload.backup_password.value());
+    return;
+  }
   PreviewSuggestion(GetUsernameFromSuggestion(suggestion.main_text.value),
                     suggestion.type);
 }
@@ -265,7 +269,29 @@ void PasswordAutofillManager::DidAcceptSuggestion(
           std::move(last_popup_open_args_).suggestions, suggestion));
       break;
     }
-    default:
+    case autofill::SuggestionType::kBackupPasswordEntry: {
+      // The payload is set during suggestion generation and contains the backup
+      // password in its password field.
+      auto payload =
+          suggestion
+              .GetPayload<autofill::Suggestion::PasswordSuggestionDetails>();
+      OnPasswordCredentialSuggestionAccepted(
+          base::BindOnce(&PasswordAutofillManager::FillBackupSuggestion,
+                         weak_ptr_factory_.GetWeakPtr(), payload));
+      break;
+    }
+    case autofill::SuggestionType::kTroubleSigningInEntry: {
+      auto payload =
+          suggestion
+              .GetPayload<autofill::Suggestion::PasswordSuggestionDetails>();
+      password_client_->GetUndoPasswordChangeController()
+          ->OnTroubleSigningInClicked(payload);
+
+      UpdatePopup(
+          suggestion_generator_.GetProactiveRecoverySuggestions(payload));
+      return;
+    }
+    default: {
       metrics_util::LogPasswordDropdownItemSelected(
           PasswordDropdownSelectedOption::kPassword,
           password_client_->IsOffTheRecord());
@@ -278,6 +304,9 @@ void PasswordAutofillManager::DidAcceptSuggestion(
         // Navigation happened before suggestion acceptance.
         return;
       }
+      auto fill_suggestion_callback =
+          base::BindOnce(&PasswordAutofillManager::FillSuggestion,
+                         weak_ptr_factory_.GetWeakPtr(), *password_credential);
       if (password_credential->is_grouped_affiliation) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
     BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
@@ -294,11 +323,13 @@ void PasswordAutofillManager::DidAcceptSuggestion(
                 base::BindOnce(&PasswordAutofillManager::
                                    OnPasswordCredentialSuggestionAccepted,
                                weak_ptr_factory_.GetWeakPtr(),
-                               *password_credential));
+                               std::move(fill_suggestion_callback)));
 #endif
       } else {
-        OnPasswordCredentialSuggestionAccepted(*password_credential);
+        OnPasswordCredentialSuggestionAccepted(
+            std::move(fill_suggestion_callback));
       }
+    }
   }
 
   bool enter_loading_state =
@@ -353,14 +384,19 @@ void PasswordAutofillManager::OnAddPasswordFillData(
   }
 
   fill_data_ = std::make_unique<autofill::PasswordFormFillData>(fill_data);
+  // The value was likely filled on page load, progress the state of the
+  // recovery flow.
+  if (!fill_data.wait_for_username) {
+    password_client_->GetUndoPasswordChangeController()->OnSuggestionSelected(
+        fill_data.preferred_login);
+  }
 
   if (!autofill_client_ || autofill_client_->GetAutofillSuggestions().empty()) {
     return;
   }
-  UpdatePopup(suggestion_generator_.GetSuggestionsForDomain(
-      fill_data, page_favicon_, std::u16string(), OffersGeneration(false),
-      ShowPasswordSuggestions(true), ShowWebAuthnCredentials(false),
-      ShowIdentityCredentials(false)));
+  UpdatePopup(GetSuggestions(
+      std::u16string(), OffersGeneration(false), ShowPasswordSuggestions(true),
+      ShowWebAuthnCredentials(false), ShowIdentityCredentials(false)));
 }
 
 void PasswordAutofillManager::DeleteFillData() {
@@ -372,15 +408,9 @@ void PasswordAutofillManager::DeleteFillData() {
   CancelBiometricReauthIfOngoing();
 }
 
-void PasswordAutofillManager::OnShowPasswordSuggestions(
-    autofill::FieldRendererId element_id,
-    autofill::AutofillSuggestionTriggerSource trigger_source,
-    base::i18n::TextDirection text_direction,
-    const std::u16string& typed_username,
-    ShowWebAuthnCredentials show_webauthn_credentials,
-    ShowIdentityCredentials show_identity_credentials,
-    const gfx::RectF& bounds) {
-  if (autofill::IsAutofillManuallyTriggered(trigger_source)) {
+void PasswordAutofillManager::ShowSuggestions(
+    const autofill::TriggeringField& field) {
+  if (autofill::IsAutofillManuallyTriggered(field.trigger_source)) {
     if (!manual_fallback_flow_) {
       manual_fallback_flow_ = std::make_unique<PasswordManualFallbackFlow>(
           password_manager_driver_, autofill_client_, password_client_,
@@ -391,87 +421,84 @@ void PasswordAutofillManager::OnShowPasswordSuggestions(
               password_client_->GetProfilePasswordStore(),
               password_client_->GetAccountPasswordStore()));
     }
-    manual_fallback_flow_->RunFlow(element_id, bounds, text_direction);
+    manual_fallback_flow_->RunFlow(field.element_id, GetBounds(field),
+                                   field.text_direction);
     return;
   }
 
-  if (trigger_source == autofill::AutofillSuggestionTriggerSource::
-                            kPasswordManagerProcessedFocusedField &&
-      base::FeatureList::IsEnabled(
-          features::kDelaySuggestionsOnAutofocusWaitingForPasskeys) &&
-      show_webauthn_credentials.value()) {
-    if (WebAuthnCredentialsDelegate* delegate =
-            password_client_->GetWebAuthnCredentialsDelegateForDriver(
-                password_manager_driver_)) {
-      auto maybe_passkeys = delegate->GetPasskeys();
-      if (!maybe_passkeys.has_value() &&
-          maybe_passkeys.error() ==
-              WebAuthnCredentialsDelegate::PasskeysUnavailableReason::
-                  kNotReceived) {
-        if (!wait_for_passkeys_timer_.IsRunning()) {
-          base::OnceClosure continue_callback = base::BindOnce(
-              &PasswordAutofillManager::ContinueShowingPasswordSuggestions,
-              GetWeakPtr(), element_id, text_direction, typed_username,
-              show_webauthn_credentials, show_identity_credentials, bounds);
-          wait_for_passkeys_timer_.Start(FROM_HERE, kWaitForPasskeysDelay,
-                                         std::move(continue_callback));
-
-          // If passkeys become available before the timer expires, this closure
-          // runs. It is similar to `continue_callback` but it has to check that
-          // the timer is still running, and cancel it if so.
-          base::OnceClosure passkeys_available_callback = base::BindOnce(
-              [](base::WeakPtr<PasswordAutofillManager> manager,
-                 autofill::FieldRendererId element_id,
-                 base::i18n::TextDirection text_direction,
-                 std::u16string typed_username,
-                 ShowWebAuthnCredentials show_webauthn_credentials,
-                 ShowIdentityCredentials show_identity_credentials,
-                 gfx::RectF bounds) {
-                if (!manager) {
-                  return;
-                }
-                if (manager->wait_for_passkeys_timer_.IsRunning()) {
-                  manager->wait_for_passkeys_timer_.Stop();
-                  manager->ContinueShowingPasswordSuggestions(
-                      element_id, text_direction, typed_username,
-                      show_webauthn_credentials, show_identity_credentials,
-                      bounds);
-                }
-              },
-              GetWeakPtr(), element_id, text_direction, typed_username,
-              show_webauthn_credentials, show_identity_credentials, bounds);
-          delegate->RequestNotificationWhenPasskeysReady(
-              std::move(passkeys_available_callback));
-        }
-        return;
-      }
-    }
+  if (ShouldWaitForPasskeys(field)) {
+    WaitForPasskeys(field);
+  } else {
+    wait_for_passkeys_timer_.Stop();
+    ContinueShowingSuggestions(field);
   }
-
-  wait_for_passkeys_timer_.Stop();
-
-  ContinueShowingPasswordSuggestions(element_id, text_direction, typed_username,
-                                     show_webauthn_credentials,
-                                     show_identity_credentials, bounds);
 }
 
-void PasswordAutofillManager::ContinueShowingPasswordSuggestions(
-    autofill::FieldRendererId element_id,
-    base::i18n::TextDirection text_direction,
-    const std::u16string& typed_username,
-    ShowWebAuthnCredentials show_webauthn_credentials,
-    ShowIdentityCredentials show_identity_credentials,
-    const gfx::RectF& bounds) {
-  bool autofill_available =
-      ShowPopup(bounds, text_direction,
-                suggestion_generator_.GetSuggestionsForDomain(
-                    fill_data_.get(), page_favicon_, typed_username,
-                    OffersGeneration(false), ShowPasswordSuggestions(true),
-                    show_webauthn_credentials, show_identity_credentials),
-                show_webauthn_credentials.value());
+bool PasswordAutofillManager::ShouldWaitForPasskeys(
+    const autofill::TriggeringField& field) {
+  WebAuthnCredentialsDelegate* delegate =
+      password_client_->GetWebAuthnCredentialsDelegateForDriver(
+          password_manager_driver_);
+  if (field.trigger_source != autofill::AutofillSuggestionTriggerSource::
+                                  kPasswordManagerProcessedFocusedField ||
+      !base::FeatureList::IsEnabled(
+          features::kDelaySuggestionsOnAutofocusWaitingForPasskeys) ||
+      !field.show_webauthn_credentials || !delegate) {
+    return false;  // Delayed passkeys can't be used.
+  }
+
+  // Finally, only fetch if Passkeys fetching didn't succeed or fail before.
+  auto expected_passkeys = delegate->GetPasskeys();
+  return !expected_passkeys.has_value() &&
+         expected_passkeys.error() ==
+             WebAuthnCredentialsDelegate::PasskeysUnavailableReason::
+                 kNotReceived;
+}
+
+void PasswordAutofillManager::WaitForPasskeys(
+    const autofill::TriggeringField& field) {
+  WebAuthnCredentialsDelegate* delegate =
+      password_client_->GetWebAuthnCredentialsDelegateForDriver(
+          password_manager_driver_);
+  CHECK(ShouldWaitForPasskeys(field));
+  // Wait only if the timer isn't already running.
+  if (wait_for_passkeys_timer_.IsRunning()) {
+    return;  // Already waiting.
+  }
+
+  base::OnceClosure continue_callback =
+      base::BindOnce(&PasswordAutofillManager::ContinueShowingSuggestions,
+                     GetWeakPtr(), field);
+  wait_for_passkeys_timer_.Start(
+      FROM_HERE,
+      base::Milliseconds(features::kDelaySuggestionsOnAutofocusTimeout.Get()),
+      std::move(continue_callback));
+
+  delegate->RequestNotificationWhenPasskeysReady(base::BindOnce(
+      &PasswordAutofillManager::OnPasskeysReady, GetWeakPtr(), field));
+}
+
+void PasswordAutofillManager::OnPasskeysReady(
+    const autofill::TriggeringField& field) {
+  if (!wait_for_passkeys_timer_.IsRunning()) {
+    return;  // Request for passkeys not relevant anymore. Ignore the signal.
+  }
+  wait_for_passkeys_timer_.Stop();
+  ContinueShowingSuggestions(field);
+}
+
+void PasswordAutofillManager::ContinueShowingSuggestions(
+    const autofill::TriggeringField& field) {
+  bool autofill_available = ShowPopup(
+      GetBounds(field), field.text_direction,
+      GetSuggestions(field.typed_username, OffersGeneration(false),
+                     ShowPasswordSuggestions(true),
+                     ShowWebAuthnCredentials(field.show_webauthn_credentials),
+                     ShowIdentityCredentials(true)),
+      field.show_webauthn_credentials);
 
   password_manager_driver_->SetSuggestionAvailability(
-      element_id,
+      field.element_id,
       autofill_available
           ? autofill::mojom::AutofillSuggestionAvailability::kAutofillAvailable
           : autofill::mojom::AutofillSuggestionAvailability::kNoSuggestions);
@@ -480,13 +507,12 @@ void PasswordAutofillManager::ContinueShowingPasswordSuggestions(
 bool PasswordAutofillManager::MaybeShowPasswordSuggestions(
     const gfx::RectF& bounds,
     base::i18n::TextDirection text_direction) {
-  return ShowPopup(
-      bounds, text_direction,
-      suggestion_generator_.GetSuggestionsForDomain(
-          fill_data_.get(), page_favicon_, std::u16string(),
-          OffersGeneration(false), ShowPasswordSuggestions(true),
-          ShowWebAuthnCredentials(false), ShowIdentityCredentials(false)),
-      /*is_for_webauthn_request=*/false);
+  return ShowPopup(bounds, text_direction,
+                   GetSuggestions(std::u16string(), OffersGeneration(false),
+                                  ShowPasswordSuggestions(true),
+                                  ShowWebAuthnCredentials(false),
+                                  ShowIdentityCredentials(false)),
+                   /*is_for_webauthn_request=*/false);
 }
 
 bool PasswordAutofillManager::MaybeShowPasswordSuggestionsWithGeneration(
@@ -495,11 +521,10 @@ bool PasswordAutofillManager::MaybeShowPasswordSuggestionsWithGeneration(
     bool show_password_suggestions) {
   return ShowPopup(
       bounds, text_direction,
-      suggestion_generator_.GetSuggestionsForDomain(
-          fill_data_.get(), page_favicon_, std::u16string(),
-          OffersGeneration(true),
-          ShowPasswordSuggestions(show_password_suggestions),
-          ShowWebAuthnCredentials(false), ShowIdentityCredentials(false)),
+      GetSuggestions(std::u16string(), OffersGeneration(true),
+                     ShowPasswordSuggestions(show_password_suggestions),
+                     ShowWebAuthnCredentials(false),
+                     ShowIdentityCredentials(false)),
       /*is_for_webauthn_request=*/false);
 }
 
@@ -518,11 +543,6 @@ void PasswordAutofillManager::DidNavigateMainFrame() {
   cross_domain_confirmation_controller_.reset();
 #endif
   wait_for_passkeys_timer_.Stop();
-}
-
-bool PasswordAutofillManager::PreviewSuggestionForTest(
-    const std::u16string& username) {
-  return PreviewSuggestion(username, autofill::SuggestionType::kPasswordEntry);
 }
 
 void PasswordAutofillManager::SetManualFallbackFlowForTest(
@@ -603,6 +623,22 @@ void PasswordAutofillManager::FillSuggestion(
   password_manager_driver_->FillSuggestion(password_and_metadata.username_value,
                                            password_and_metadata.password_value,
                                            base::DoNothing());
+  password_client_->GetUndoPasswordChangeController()->OnSuggestionSelected(
+      password_and_metadata);
+}
+
+void PasswordAutofillManager::FillBackupSuggestion(
+    const autofill::Suggestion::PasswordSuggestionDetails& payload) {
+  CHECK(payload.backup_password);
+
+  password_manager_driver_->FillSuggestion(
+      payload.username, payload.backup_password.value(), base::DoNothing());
+
+  autofill::PasswordAndMetadata password_and_metadata;
+  password_and_metadata.username_value = payload.username;
+  password_and_metadata.backup_password_value = payload.backup_password;
+  password_client_->GetUndoPasswordChangeController()->OnSuggestionSelected(
+      password_and_metadata);
 }
 
 bool PasswordAutofillManager::PreviewSuggestion(const std::u16string& username,
@@ -680,7 +716,7 @@ void PasswordAutofillManager::OnFaviconReady(
 }
 
 void PasswordAutofillManager::OnBiometricReauthCompleted(
-    const autofill::PasswordAndMetadata& password_and_metadata,
+    base::OnceClosure fill_suggestion_callback,
     bool auth_succeeded) {
   authenticator_.reset();
   base::UmaHistogramBoolean(
@@ -688,26 +724,26 @@ void PasswordAutofillManager::OnBiometricReauthCompleted(
   if (!auth_succeeded) {
     return;
   }
-  FillSuggestion(password_and_metadata);
+  std::move(fill_suggestion_callback).Run();
 }
 
 void PasswordAutofillManager::OnPasswordCredentialSuggestionAccepted(
-    const autofill::PasswordAndMetadata& password_and_metadata) {
+    base::OnceClosure fill_suggestion_callback) {
   CancelBiometricReauthIfOngoing();
   std::unique_ptr<device_reauth::DeviceAuthenticator> authenticator =
       password_client_->GetDeviceAuthenticator();
   // Note: this is currently only implemented on Android, Mac and Windows.
   // For other platforms, the `authenticator` will be null.
   if (!password_client_->IsReauthBeforeFillingRequired(authenticator.get())) {
-    FillSuggestion(password_and_metadata);
+    std::move(fill_suggestion_callback).Run();
     return;
   }
   authenticator_ = std::move(authenticator);
 
   std::u16string message;
-  auto on_reath_complete =
-      base::BindOnce(&PasswordAutofillManager::OnBiometricReauthCompleted,
-                     weak_ptr_factory_.GetWeakPtr(), password_and_metadata);
+  auto on_reauth_complete = base::BindOnce(
+      &PasswordAutofillManager::OnBiometricReauthCompleted,
+      weak_ptr_factory_.GetWeakPtr(), std::move(fill_suggestion_callback));
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   const std::u16string origin = base::UTF8ToUTF16(GetShownOrigin(
@@ -717,7 +753,7 @@ void PasswordAutofillManager::OnPasswordCredentialSuggestionAccepted(
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   authenticator_->AuthenticateWithMessage(
       message, metrics_util::TimeCallbackMediumTimes(
-                   std::move(on_reath_complete),
+                   std::move(on_reauth_complete),
                    "PasswordManager.PasswordFilling.AuthenticationTime2"));
 }
 
@@ -736,6 +772,41 @@ void PasswordAutofillManager::HidePopup() {
 
 void PasswordAutofillManager::FocusedInputChanged() {
   wait_for_passkeys_timer_.Stop();
+}
+
+std::vector<autofill::Suggestion> PasswordAutofillManager::GetSuggestions(
+    const std::u16string& username_filter,
+    OffersGeneration offers_generation,
+    ShowPasswordSuggestions show_password_suggestions,
+    ShowWebAuthnCredentials show_webauthn_credentials,
+    ShowIdentityCredentials show_identity_credentials) {
+  std::optional<autofill::PasswordAndMetadata> proactive_recovery_login =
+      password_client_->GetUndoPasswordChangeController()
+          ->FindLoginWithProactiveRecoveryState(fill_data_.get());
+  if (proactive_recovery_login) {
+    CHECK(proactive_recovery_login->backup_password_value);
+
+    const auto suggestion_details = Suggestion::PasswordSuggestionDetails(
+        proactive_recovery_login->username_value,
+        proactive_recovery_login->password_value,
+        proactive_recovery_login->backup_password_value.value());
+    return suggestion_generator_.GetProactiveRecoverySuggestions(
+        suggestion_details);
+  }
+  return suggestion_generator_.GetSuggestionsForDomain(
+      *password_client_->GetUndoPasswordChangeController(), fill_data_.get(),
+      page_favicon_, username_filter, offers_generation,
+      show_password_suggestions, show_webauthn_credentials,
+      show_identity_credentials);
+}
+
+gfx::RectF PasswordAutofillManager::GetBounds(
+    const autofill::TriggeringField& field) {
+  return base::FeatureList::IsEnabled(
+             autofill::features::kAutofillAndPasswordsInSameSurface)
+             ? field.bounds  // Already transformed in ContentAutofillDriver.
+             : password_manager_driver_->TransformToRootCoordinates(
+                   field.bounds);
 }
 
 }  //  namespace password_manager

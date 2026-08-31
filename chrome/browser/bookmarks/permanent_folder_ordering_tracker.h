@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_BOOKMARKS_PERMANENT_FOLDER_ORDERING_TRACKER_H_
 #define CHROME_BROWSER_BOOKMARKS_PERMANENT_FOLDER_ORDERING_TRACKER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "components/bookmarks/browser/bookmark_model_observer.h"
 #include "components/bookmarks/browser/bookmark_node.h"
@@ -139,7 +140,6 @@ class PermanentFolderOrderingTracker : public bookmarks::BookmarkModelObserver {
       const;
 
   void RemoveBookmarkNodeIfTracked(const bookmarks::BookmarkNode* parent,
-                                   size_t old_index,
                                    const bookmarks::BookmarkNode* node);
 
   void AddBookmarkNodeIfTracked(const bookmarks::BookmarkNode* parent,

@@ -13,16 +13,17 @@ import android.graphics.Insets;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.display.DeviceProductInfo;
 import android.os.Build;
 import android.os.Build.VERSION_CODES;
 import android.util.DisplayMetrics;
 import android.view.Display;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.os.BuildCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
@@ -46,10 +47,6 @@ import java.util.function.Consumer;
 
     // The behavior of observing window configuration changes using ComponentCallbacks is new in S.
     private static final boolean USE_CONFIGURATION = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
-
-    // Insets that define the area where content can't be displayed.
-    protected static final int WINDOW_INSETS_TYPE =
-            WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout();
 
     // When this object exists, a positive value means that the forced DIP scale is set and
     // the zero means it is not. The non existing object (i.e. null reference) means that
@@ -160,9 +157,13 @@ import java.util.function.Consumer;
     private final @Nullable WindowManager mWindowManager;
     private final @Nullable ComponentCallbacks mComponentCallbacks;
     private final Display mDisplay;
+    private @Nullable RectF mDisplayAbsoluteCoordinates;
     private @Nullable Consumer<Display> mHdrSdrRatioCallback;
 
-    /* package */ PhysicalDisplayAndroid(Display display, boolean disableHdrSdkRatioCallback) {
+    /* package */ PhysicalDisplayAndroid(
+            Display display,
+            @Nullable RectF displayAbsoluteCoordinates,
+            boolean disableHdrSdkRatioCallback) {
         super(display.getDisplayId());
         if (USE_CONFIGURATION) {
             Context appContext = ContextUtils.getApplicationContext();
@@ -188,6 +189,7 @@ import java.util.function.Consumer;
             mWindowContext.registerComponentCallbacks(mComponentCallbacks);
             mWindowManager = mWindowContext.getSystemService(WindowManager.class);
             mDisplay = mWindowContext.getDisplay();
+            mDisplayAbsoluteCoordinates = displayAbsoluteCoordinates;
             updateFromConfiguration();
         } else {
             mWindowContext = null;
@@ -220,7 +222,14 @@ import java.util.function.Consumer;
         return assumeNonNull(mWindowManager)
                 .getCurrentWindowMetrics()
                 .getWindowInsets()
-                .getInsetsIgnoringVisibility(WINDOW_INSETS_TYPE);
+                .getInsetsIgnoringVisibility(
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+    }
+
+    @RequiresApi(VERSION_CODES.R)
+    /* package */ void updateBounds(RectF displayAbsoluteCoordinates) {
+        mDisplayAbsoluteCoordinates = displayAbsoluteCoordinates;
+        updateFromConfiguration();
     }
 
     @RequiresApi(VERSION_CODES.R)
@@ -228,10 +237,13 @@ import java.util.function.Consumer;
         assumeNonNull(mWindowContext);
         assumeNonNull(mWindowManager);
 
-        Rect bounds = mWindowManager.getMaximumWindowMetrics().getBounds();
-        Insets insets = getWindowInsets();
-
         DisplayMetrics displayMetrics = mWindowContext.getResources().getDisplayMetrics();
+        Insets insets = getWindowInsets();
+        Rect bounds =
+                (mDisplayAbsoluteCoordinates != null)
+                        ? DisplayUtil.convertDipToPixelDisplayCoordinates(
+                                mDisplayAbsoluteCoordinates, displayMetrics.density)
+                        : mWindowManager.getMaximumWindowMetrics().getBounds();
 
         if (DeviceInfo.isAutomotive()
                 && CommandLine.getInstance()

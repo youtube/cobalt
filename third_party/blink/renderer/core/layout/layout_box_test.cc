@@ -874,7 +874,7 @@ TEST_F(LayoutBoxTest, DelayedInvalidationLayoutViewScrolled) {
   EXPECT_TRUE(layout_view->MayNeedPaintInvalidationAnimatedBackgroundImage());
 
   // Scroll down at least by a viewport height.
-  GetDocument().domWindow()->scrollBy(0, 10000);
+  GetDocument().domWindow()->scrollByForTesting(0, 10000);
   GetDocument().View()->UpdateAllLifecyclePhasesForTest();
 
   EXPECT_FALSE(layout_view->ShouldDelayFullPaintInvalidation());
@@ -2005,6 +2005,33 @@ TEST_F(LayoutBoxTest, LogicalRectInContainer) {
             GetLayoutBoxByElementId("vrl-vrl")->LogicalRectInContainer());
   EXPECT_EQ(LogicalRect(kTopMargin, kRightMargin, kSize, kSize),
             GetLayoutBoxByElementId("vrl-vlr")->LogicalRectInContainer());
+}
+
+TEST_F(LayoutBoxTest,
+       VisualOverflowRectWithEmptyInlineChildAndReflectAndOutline) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      body {
+        margin: 0;
+      }
+      #box {
+        -webkit-box-reflect: above;
+        contain: size;
+        outline: 6px solid black;
+      }
+      #span {
+        outline: 2px solid black;
+      }
+    </style>
+    <div id="box">
+      <span id="span"></span>
+    </div>
+  )HTML");
+  const auto* box = GetLayoutBoxByElementId("box");
+  const auto* span = To<LayoutInline>(GetLayoutObjectByElementId("span"));
+  EXPECT_EQ(PhysicalRect(-6, -6, 812, 12), box->SelfVisualOverflowRect());
+  EXPECT_EQ(PhysicalRect(-6, -6, 812, 12), box->VisualOverflowRect());
+  EXPECT_EQ(PhysicalRect(-2, -2, 4, 4), span->VisualOverflowRect());
 }
 
 class LayoutBoxBackgroundPaintLocationTest : public RenderingTest,

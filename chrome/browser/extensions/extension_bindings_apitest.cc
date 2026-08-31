@@ -111,7 +111,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest, LastError) {
 
   // Get the ExtensionHost that is hosting our background page.
   extensions::ProcessManager* manager =
-      extensions::ProcessManager::Get(browser()->profile());
+      extensions::ProcessManager::Get(profile());
   extensions::ExtensionHost* host = FindHostWithPath(manager, "/bg.html", 1);
   ASSERT_TRUE(host);
 
@@ -522,14 +522,10 @@ IN_PROC_BROWSER_TEST_F(
   // Set up: open two tabs to the same extension page, and wait for each to
   // load.
   const GURL page_url = extension->GetResourceURL("page.html");
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), page_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(page_url);
   content::WebContents* first_tab =
       browser()->tab_strip_model()->GetActiveWebContents();
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), page_url, WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(page_url);
   content::WebContents* second_tab =
       browser()->tab_strip_model()->GetActiveWebContents();
 
@@ -558,10 +554,7 @@ IN_PROC_BROWSER_TEST_F(
                                                       "tabs.onCreated"));
 
   // Open a new tab.
-  ui_test_utils::NavigateToURLWithDisposition(
-      browser(), GURL("chrome://newtab"),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB,
-      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+  NavigateToURLInNewTab(GURL("chrome://newtab"));
   content::WebContents* new_tab =
       browser()->tab_strip_model()->GetActiveWebContents();
 
@@ -614,10 +607,10 @@ IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest,
     // Passing a message without an active user gesture shouldn't result in a
     // gesture being active on the receiving end.
     ExtensionTestMessageListener listener;
-    content::EvalJsResult result =
+    EXPECT_EQ(
         content::EvalJs(tab, "document.getElementById('go-button').click()",
-                        content::EXECUTE_SCRIPT_NO_USER_GESTURE);
-    EXPECT_TRUE(result.value.is_none());
+                        content::EXECUTE_SCRIPT_NO_USER_GESTURE),
+        base::Value());
 
     EXPECT_TRUE(listener.WaitUntilSatisfied());
     EXPECT_EQ("Clicked: false", listener.message());
@@ -627,9 +620,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionBindingsApiTest,
     // If there is an active user gesture when the message is sent, we should
     // synthesize a user gesture on the receiving end.
     ExtensionTestMessageListener listener;
-    content::EvalJsResult result =
-        content::EvalJs(tab, "document.getElementById('go-button').click()");
-    EXPECT_TRUE(result.value.is_none());
+    EXPECT_EQ(
+        content::EvalJs(tab, "document.getElementById('go-button').click()"),
+        base::Value());
 
     EXPECT_TRUE(listener.WaitUntilSatisfied());
     EXPECT_EQ("Clicked: true", listener.message());

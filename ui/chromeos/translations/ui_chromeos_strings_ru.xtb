@@ -366,7 +366,7 @@
 <translation id="3906232975181435906">Установка мобильного профиля, сеть <ph name="NETWORK_INDEX" /> из <ph name="NETWORK_COUNT" />, <ph name="NETWORK_NAME" /></translation>
 <translation id="3924145049010392604">Meta</translation>
 <translation id="3943857333388298514">Вставить</translation>
-<translation id="3950820424414687140">Вход</translation>
+<translation id="3950820424414687140">Войти</translation>
 <translation id="3952872973865944257">Телугу, фонетический</translation>
 <translation id="3958548648197196644">Киви</translation>
 <translation id="397105322502079400">Вычисление…</translation>
@@ -576,7 +576,7 @@
 <translation id="5447680084201416734">Недостаточно свободного места.</translation>
 <translation id="5449551289610225147">Неправильный пароль</translation>
 <translation id="5459064203055649751">Файл "<ph name="FILENAME" />" уже существует. Заменить его?</translation>
-<translation id="5463231940765244860">Ввод</translation>
+<translation id="5463231940765244860">Ввести</translation>
 <translation id="5469868506864199649">Итальянский</translation>
 <translation id="5473333559083690127">Повторно введите новый PIN-код</translation>
 <translation id="5489067830765222292">Латышский</translation>
@@ -911,7 +911,7 @@
 <translation id="7980421588063892270">Английский (США), раскладка Colemak</translation>
 <translation id="8000066093800657092">Нет сети</translation>
 <translation id="8008366997883261463">Собака</translation>
-<translation id="8028993641010258682">Размер</translation>
+<translation id="8028993641010258682">Толщина</translation>
 <translation id="8034974485549318493">Для первоначальной настройки необходимо подключиться к интернету, чтобы синхронизировать файлы.</translation>
 <translation id="803771048473350947">Файл</translation>
 <translation id="8038111231936746805">(по умолчанию)</translation>

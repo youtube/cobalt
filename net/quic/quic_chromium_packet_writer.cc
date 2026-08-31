@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "net/quic/quic_chromium_packet_writer.h"
 
 #include <string>
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/metrics/histogram_macros.h"
@@ -100,7 +97,8 @@ void QuicChromiumPacketWriter::ReusableIOBuffer::Set(const char* buffer,
   CHECK_LE(buf_len, capacity_);
   CHECK(HasOneRef());
   size_ = buf_len;
-  std::memcpy(data(), buffer, buf_len);
+  span().copy_prefix_from(
+      base::as_bytes(UNSAFE_TODO(base::span(buffer, buf_len))));
 }
 
 QuicChromiumPacketWriter::QuicChromiumPacketWriter(

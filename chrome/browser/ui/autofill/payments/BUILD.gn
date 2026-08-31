@@ -23,6 +23,7 @@ source_set("payments") {
 
   public_deps = [
     "//base",
+    "//chrome/browser/ui/tabs:tabs_public",
     "//components/autofill/core/browser",
     "//content/public/browser",
     "//ui/base",
@@ -31,6 +32,7 @@ source_set("payments") {
 
   if (is_android) {
     sources += [
+      "android_payments_window_manager.h",
       "autofill_message_controller.h",
       "autofill_message_model.h",
       "offer_notification_controller_android.h",
@@ -52,6 +54,7 @@ source_set("payments") {
     public_deps += [
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui:browser_list",
+      "//chrome/browser/ui/webauthn",
       "//components/autofill/core/browser:legal_message_line",
       "//components/signin/public/identity_manager",
       "//ui/gfx",
@@ -95,21 +98,27 @@ source_set("impl") {
     "//chrome/app:generated_resources_grit",
     "//chrome/browser:primitives",
     "//chrome/browser/autofill",
+    "//chrome/browser/feature_engagement",
+    "//chrome/browser/signin",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/actions:actions_headers",
     "//chrome/browser/ui/autofill",
     "//chrome/browser/ui/page_action:icon_type",
     "//components/autofill/content/browser",
+    "//components/feature_engagement",
+    "//components/feature_engagement/public:feature_constants",
     "//components/strings:components_strings_grit",
     "//components/user_prefs",
   ]
 
   if (is_android) {
     sources += [
+      "android_payments_window_manager.cc",
       "autofill_message_controller.cc",
       "autofill_message_model.cc",
       "offer_notification_controller_android.cc",
     ]
+    public_deps += [ "//chrome/browser/touch_to_fill/autofill/android:public" ]
     deps += [
       "//chrome/browser/keyboard_accessory/android:public",
       "//chrome/browser/mandatory_reauth/android/internal:jni",
@@ -137,7 +146,8 @@ source_set("impl") {
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/promos:utils",
       "//chrome/browser/ui/tabs:tab_strip",
-      "//chrome/browser/ui/views/page_action:page_action",
+      "//chrome/browser/ui/views/page_action",
+      "//chrome/browser/ui/views/page_action",
       "//chrome/common",
       "//components/autofill/core/common:credit_card_number_validation",
       "//components/commerce/core:feature_list",
@@ -158,7 +168,10 @@ source_set("impl") {
       "save_card_bubble_controller_impl.cc",
       "save_payment_icon_controller.cc",
     ]
-    deps += [ "//chrome/browser/ui/hats" ]
+    deps += [
+      "//chrome/browser/ui/hats",
+      "//chrome/browser/ui/location_bar",
+    ]
   }
 }
 
@@ -240,6 +253,7 @@ source_set("unit_tests") {
     "//components/autofill/core/browser:test_support",
     "//components/autofill/core/browser/payments:card_unmask_challenge_option",
     "//components/autofill/core/common:features",
+    "//components/feature_engagement/test:test_support",
     "//components/strings:components_strings",
     "//components/strings:components_strings_grit",
     "//content/public/browser",
@@ -250,6 +264,7 @@ source_set("unit_tests") {
 
   if (is_android) {
     sources += [
+      "android_payments_window_manager_unittest.cc",
       "autofill_message_controller_test_api.h",
       "autofill_message_controller_unittest.cc",
       "autofill_message_model_unittest.cc",
@@ -259,7 +274,10 @@ source_set("unit_tests") {
     deps += [
       "//chrome/browser/autofill:test_support",
       "//chrome/browser/keyboard_accessory/test_utils/android",
+      "//chrome/browser/touch_to_fill/autofill/android:test_support",
+      "//chrome/browser/ui/android/tab_model:test_support",
       "//components/autofill/android:autofill_core_browser_java_enums",
+      "//components/autofill/content/browser:test_support",
       "//components/messages/android:test_support",
       "//components/resources:components_scaled_resources",
       "//components/resources:components_scaled_resources_grit",
@@ -302,7 +320,9 @@ source_set("test_support") {
     "//ui/gfx/geometry",
   ]
 
-  if (!is_android) {
+  if (is_android) {
+    sources += [ "android_payments_window_manager_test_api.h" ]
+  } else {
     sources += [ "desktop_payments_window_manager_test_api.h" ]
   }
 }
@@ -338,5 +358,9 @@ if (!is_android && !is_chromeos_device) {
       "//testing/gtest",
       "//ui/views",
     ]
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }

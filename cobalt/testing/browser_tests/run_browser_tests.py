@@ -21,6 +21,8 @@ is left in this python script, which list each single test case
 and iterate them.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 import os
@@ -214,7 +216,8 @@ class CobaltTestRunner:
     list_cmd.extend(self.unknown_args)
 
     try:
-      output = subprocess.check_output(list_cmd, text=True)
+      output = subprocess.check_output(
+          list_cmd, stderr=subprocess.STDOUT, text=True)
       return output
     except subprocess.CalledProcessError as e:
       logging.error("Failed to list tests: %s", e.output)
@@ -305,19 +308,23 @@ class CobaltTestRunner:
   def _run_command_and_tee(self, cmd: list[str], env: dict[str, str],
                            log_file_path: str) -> int:
     """Runs a command and tees its stdout/stderr to console and a log file."""
+    env_copy = env.copy()
+    env_copy["PYTHONUNBUFFERED"] = "1"
     with open(log_file_path, "a", encoding="utf-8") as f_log:
       with subprocess.Popen(
           cmd,
           stdout=subprocess.PIPE,
           stderr=subprocess.STDOUT,
           text=True,
-          env=env,
+          bufsize=1,
+          env=env_copy,
       ) as proc:
         if proc.stdout:
-          for line in proc.stdout:
+          while line := proc.stdout.readline():
             sys.stdout.write(line)
             sys.stdout.flush()
             f_log.write(line)
+            f_log.flush()
         proc.wait()
         return proc.returncode
 
@@ -440,8 +447,12 @@ class CobaltTestRunner:
     all_tests = self.parse_and_sort_tests(gtest_list_output)
     tests_to_run = self.filter_tests_for_shard(all_tests)
 
-    logging.info("Shard %d/%d: Running %d tests.", self.shard_index,
-                 self.total_shards, len(tests_to_run))
+    logging.info(
+        "Shard %d/%d: Running %d tests.",
+        self.shard_index,
+        self.total_shards,
+        len(tests_to_run),
+    )
 
     passed_count = 0
     failed_count = 0

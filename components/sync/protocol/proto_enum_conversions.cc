@@ -188,6 +188,17 @@ const char* ProtoEnumToString(
 }
 
 const char* ProtoEnumToString(
+    sync_pb::PaymentInstrument::ActionRequired action_required) {
+  ASSERT_ENUM_BOUNDS(sync_pb::PaymentInstrument, ActionRequired,
+                     ACTION_REQUIRED_UNKNOWN, ACCEPT_TOS);
+  switch (action_required) {
+    ENUM_CASE(sync_pb::PaymentInstrument, ACTION_REQUIRED_UNKNOWN);
+    ENUM_CASE(sync_pb::PaymentInstrument, ACCEPT_TOS);
+  }
+  NOTREACHED();
+}
+
+const char* ProtoEnumToString(
     sync_pb::PowerBookmarkSpecifics::PowerType power_type) {
   ASSERT_ENUM_BOUNDS(sync_pb::PowerBookmarkSpecifics, PowerType,
                      POWER_TYPE_UNSPECIFIED, POWER_TYPE_NOTE);
@@ -622,6 +633,20 @@ const char* ProtoEnumToString(
 }
 
 const char* ProtoEnumToString(
+    sync_pb::WalletMaskedCreditCard::CardCreationSource card_creation_source) {
+  ASSERT_ENUM_BOUNDS(sync_pb::WalletMaskedCreditCard, CardCreationSource,
+                     CREATION_SOURCE_UNSPECIFIED,
+                     CREATION_SOURCE_NON_CHROME_PAYMENTS);
+  switch (card_creation_source) {
+    ENUM_CASE(sync_pb::WalletMaskedCreditCard, CREATION_SOURCE_UNSPECIFIED);
+    ENUM_CASE(sync_pb::WalletMaskedCreditCard, CREATION_SOURCE_CHROME_PAYMENTS);
+    ENUM_CASE(sync_pb::WalletMaskedCreditCard,
+              CREATION_SOURCE_NON_CHROME_PAYMENTS);
+  }
+  NOTREACHED();
+}
+
+const char* ProtoEnumToString(
     sync_pb::WalletMaskedCreditCard::VirtualCardEnrollmentState
         virtual_card_enrollment_state) {
   ASSERT_ENUM_BOUNDS(sync_pb::WalletMaskedCreditCard,
@@ -1024,19 +1049,16 @@ const char* ProtoEnumToString(
 }
 
 const char* ProtoEnumToString(
-    sync_pb::ThemeSpecifics::UserColorTheme::BrowserColorVariant
-        browser_color_variant) {
-  ASSERT_ENUM_BOUNDS(sync_pb::ThemeSpecifics::UserColorTheme,
-                     BrowserColorVariant, BROWSER_COLOR_VARIANT_UNSPECIFIED,
-                     EXPRESSIVE);
+    sync_pb::UserColorTheme::BrowserColorVariant browser_color_variant) {
+  ASSERT_ENUM_BOUNDS(sync_pb::UserColorTheme, BrowserColorVariant,
+                     BROWSER_COLOR_VARIANT_UNSPECIFIED, EXPRESSIVE);
   switch (browser_color_variant) {
-    ENUM_CASE(sync_pb::ThemeSpecifics::UserColorTheme,
-              BROWSER_COLOR_VARIANT_UNSPECIFIED);
-    ENUM_CASE(sync_pb::ThemeSpecifics::UserColorTheme, SYSTEM);
-    ENUM_CASE(sync_pb::ThemeSpecifics::UserColorTheme, TONAL_SPOT);
-    ENUM_CASE(sync_pb::ThemeSpecifics::UserColorTheme, NEUTRAL);
-    ENUM_CASE(sync_pb::ThemeSpecifics::UserColorTheme, VIBRANT);
-    ENUM_CASE(sync_pb::ThemeSpecifics::UserColorTheme, EXPRESSIVE);
+    ENUM_CASE(sync_pb::UserColorTheme, BROWSER_COLOR_VARIANT_UNSPECIFIED);
+    ENUM_CASE(sync_pb::UserColorTheme, SYSTEM);
+    ENUM_CASE(sync_pb::UserColorTheme, TONAL_SPOT);
+    ENUM_CASE(sync_pb::UserColorTheme, NEUTRAL);
+    ENUM_CASE(sync_pb::UserColorTheme, VIBRANT);
+    ENUM_CASE(sync_pb::UserColorTheme, EXPRESSIVE);
   }
   NOTREACHED();
 }
@@ -1050,6 +1072,17 @@ const char* ProtoEnumToString(
     ENUM_CASE(sync_pb::ThemeSpecifics, SYSTEM);
     ENUM_CASE(sync_pb::ThemeSpecifics, LIGHT);
     ENUM_CASE(sync_pb::ThemeSpecifics, DARK);
+  }
+}
+
+const char* ProtoEnumToString(sync_pb::SharedUrlContext::Source source) {
+  ASSERT_ENUM_BOUNDS(sync_pb::SharedUrlContext, Source, SOURCE_UNSPECIFIED,
+                     CANONICAL_URL);
+  switch (source) {
+    ENUM_CASE(sync_pb::SharedUrlContext, SOURCE_UNSPECIFIED);
+    ENUM_CASE(sync_pb::SharedUrlContext, OMNIBOX);
+    ENUM_CASE(sync_pb::SharedUrlContext, FROM_SYNC);
+    ENUM_CASE(sync_pb::SharedUrlContext, CANONICAL_URL);
   }
 }
 

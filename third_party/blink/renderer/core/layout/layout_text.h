@@ -81,11 +81,6 @@ class CORE_EXPORT LayoutText : public LayoutObject {
     return "LayoutText";
   }
 
-  bool IsLayoutNGObject() const override {
-    NOT_DESTROYED();
-    return true;
-  }
-
   bool IsTextFragment() const {
     NOT_DESTROYED();
     return is_text_fragment_;
@@ -202,7 +197,7 @@ class CORE_EXPORT LayoutText : public LayoutObject {
                                 TextOffsetMap& offset_map) const;
 
   PhysicalRect LocalSelectionVisualRect() const final;
-  PhysicalRect LocalCaretRect(int caret_offset) const override;
+  PhysicalRect LocalCaretRect(int caret_offset, CaretShape) const override;
 
   // Compute the rect and offset of text boxes for this LayoutText.
   struct TextBoxInfo {

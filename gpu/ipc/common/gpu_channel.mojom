@@ -55,11 +55,9 @@ enum SchedulingPriority {
 struct ContextCreationAttribs {
   gl.mojom.GpuPreference gpu_preference = kLowPower;
 
-  bool bind_generates_resource = true;
   bool fail_if_major_perf_caveat = false;
   bool lose_context_when_out_of_memory = false;
   bool enable_gles2_interface = true;
-  bool enable_grcontext = false;
   bool enable_raster_interface = false;
   bool enable_gpu_rasterization = false;
 
@@ -184,16 +182,6 @@ interface GpuChannel {
   viz.mojom.SharedImageFormat format, gfx.mojom.BufferUsage buffer_usage)
   => (gfx.mojom.GpuMemoryBufferHandle buffer_handle);
 
-  // Gets the GpuMemoryBufferHandle for the corresponding `mailbox` from
-  // service side. Note that this needs to be a blocking call on calling
-  // client's thread in order to return the GpuMemoryBufferHandle and other
-  // metadata required by client to map the mailbox to CPU memory before it can
-  // read/write from/to it.
-  [Sync] GetGpuMemoryBufferHandleInfo(gpu.mojom.Mailbox mailbox)
-  => (gfx.mojom.GpuMemoryBufferHandle buffer_handle,
-      viz.mojom.SharedImageFormat format, gfx.mojom.Size size,
-      gfx.mojom.BufferUsage buffer_usage);
-
   // Creates a DCOMPTexture and attaches to the provided `route_id`.
   // Note: this `route_id` must not conflict with the routing ids for command
   // buffers or shared image stub. Otherwise, unexpected behaviour can happen
@@ -253,20 +241,11 @@ interface GpuChannel {
       Mailbox mailbox, array<SyncToken> sync_token_dependencies,
       uint64 release_count) => (bool success);
 
-  [Sync, EnableIf=is_win]
   // Copies GMB pixel data from the native handle to the |shared_memory|.
-  // Returns |true| if the copy has succeeded.
+  // Returns |true| asynchronously if the copy has succeeded.
   // Note that this method has some similar functionality but is different than
   // above CopyToGpuMemoryBufferAsync in the sense that above method is only
   // used for shared memory GMBs whereas this method is used for native GMBs.
-  // This has to be a blocking operation since it will be called during
-  // GpuMemoryBuffer::Map() operation which should provide updated data to
-  // clients before using it.
-  CopyNativeGmbToSharedMemorySync(gfx.mojom.GpuMemoryBufferHandle
-      buffer_handle, mojo_base.mojom.UnsafeSharedMemoryRegion shared_memory)
-                     => (bool success);
-
-  // This is non-blocking version of above method.
   [EnableIf=is_win]
   CopyNativeGmbToSharedMemoryAsync(gfx.mojom.GpuMemoryBufferHandle
       buffer_handle, mojo_base.mojom.UnsafeSharedMemoryRegion shared_memory)
@@ -426,10 +405,6 @@ union DeferredCommandBufferRequestParams {
 
   // Destroys a transfer buffer identified by this ID.
   int32 destroy_transfer_buffer;
-
-  // Allows to attach SharedImage to default framebuffer of this context.
-  // NOTE: Used only for PNaCL.
-  SetDefaultFramebufferSharedImageParams set_default_framebuffer_shared_image;
 };
 
 // Details of a batched request pertaining to shared image management.
@@ -499,26 +474,6 @@ struct AsyncFlushParams {
   int32 put_offset;
   uint32 flush_id;
   array<SyncToken> sync_token_fences;
-};
-
-// Sets SharedImage mailbox and other framebuffer params to the default
-// framebuffer. NOTE: This exists only to support PNaCl.
-struct SetDefaultFramebufferSharedImageParams {
-  // The mailbox of the shared image. Can be empty if client wants to detach
-  // SharedImage from the color buffer.
-  Mailbox mailbox;
-
-  // Number of samples for the multisampling.
-  uint32 samples_count;
-
-  // If default framebuffer needs to presevre contents across the frames.
-  bool preserve;
-
-  // If this framebuffer needs depth buffer.
-  bool needs_depth;
-
-  // If this framebuffer needs stencil buffer.
-  bool needs_stencil;
 };
 
 // Common params used when creating a new shared image.

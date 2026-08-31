@@ -2,6 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// LINT.IfChange(JSThemesAndFonts)
+
+// These classes must agree with the font classes in distilledpage.css.
+const themeClasses = ['light', 'dark', 'sepia'];
+const fontFamilyClasses = ['sans-serif', 'serif', 'monospace'];
+
+// LINT.ThenChange(//components/dom_distiller/core/viewer.cc:JSThemesAndFonts)
+
 // On iOS, |distillerOnIos| was set to true before this script.
 // eslint-disable-next-line no-var
 var distillerOnIos;
@@ -22,6 +30,50 @@ function addToPage(html) {
   div.innerHTML = html;
   $('content').appendChild(div);
   fillYouTubePlaceholders();
+  sanitizeLinks();
+}
+
+/**
+ * Iterates through all links on the page. If a link does not have
+ * an http or https scheme, it removes the link element from the DOM.
+ */
+function sanitizeLinks() {
+  const allLinks = document.querySelectorAll('a');
+
+  allLinks.forEach(linkElement => {
+    const href = linkElement.getAttribute('href');
+
+    if (href) {
+      let isProtocolInvalid = false;
+      // Use a try-catch block to handle malformed URLs gracefully.
+      try {
+        const url = new URL(href, window.location.href);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          isProtocolInvalid = true;
+        }
+      } catch (error) {
+        // A malformed URL is considered invalid.
+        isProtocolInvalid = true;
+      }
+
+      if (isProtocolInvalid) {
+        // If the protocol is invalid or the URL is malformed, unwrap the link.
+        const parent = linkElement.parentNode;
+
+        if (parent) {
+          // Iterate through the link's child nodes and move them to the parent.
+          // Using a spread operator to create a copy, as childNodes is a live
+          // list.
+          [...linkElement.childNodes].forEach(node => {
+            parent.insertBefore(node, linkElement);
+          });
+
+          // Remove the original anchor tag.
+          linkElement.remove();
+        }
+      }
+    }
+  });
 }
 
 function fillYouTubePlaceholders() {
@@ -67,10 +119,6 @@ function setTitle(title, documentTitleSuffix) {
 function setTextDirection(direction) {
   document.body.setAttribute('dir', direction);
 }
-
-// These classes must agree with the font classes in distilledpage.css.
-const themeClasses = ['light', 'dark', 'sepia'];
-const fontFamilyClasses = ['sans-serif', 'serif', 'monospace'];
 
 // Get the currently applied appearance setting.
 function getAppearanceSetting(settingClasses) {

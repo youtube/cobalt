@@ -54,8 +54,10 @@ public class AndroidPaymentApp extends PaymentApp
     private final @Nullable String mIsReadyToPayServiceName;
     private final @Nullable String mPaymentDetailsUpdateServiceName;
     private final SupportedDelegations mSupportedDelegations;
+    private final boolean mAllowShowWithoutReadyToPay;
     private final boolean mShowReadyToPayDebugInfo;
     private final boolean mRemoveDeprecatedFields;
+    private final int mPaymentDetailsUpdateServiceMaxRetryNumber;
 
     private @Nullable IsReadyToPayCallback mIsReadyToPayCallback;
     private @Nullable InstrumentDetailsCallback mInstrumentDetailsCallback;
@@ -64,6 +66,7 @@ public class AndroidPaymentApp extends PaymentApp
     private final @Nullable String mApplicationIdentifierToHide;
     private boolean mBypassIsReadyToPayServiceInTest;
     private boolean mIsPreferred;
+    private boolean mHasEnrolledInstrumentResult;
 
     // Set inside launchPaymentApp and used to validate the received response.
     private WebPaymentIntentHelperType.@Nullable PaymentOptions mPaymentOptions;
@@ -86,9 +89,14 @@ public class AndroidPaymentApp extends PaymentApp
      * @param isIncognito Whether the user is in incognito mode.
      * @param appToHide The identifier of the application that this app can hide.
      * @param supportedDelegations Delegations which this app can support.
+     * @param allowShowWithoutReadyToPay Whether the app can be shown regardless of the "is ready to
+     *     pay" query's result.
      * @param showReadyToPayDebugInfo Whether IS_READY_TO_PAY intent should be displayed in a debug
      *     dialog.
      * @param removeDeprecatedFields Whether intents should omit deprecated fields.
+     * @param paymentDetailsUpdateServiceMaxRetryNumber The maximum number of times to attempt to
+     *     reconnect to the UPDATE_PAYMENT_DETAILS service in the payment app, if it unexpectedly
+     *     disconnects during payment.
      */
     public AndroidPaymentApp(
             AndroidIntentLauncher launcher,
@@ -102,8 +110,10 @@ public class AndroidPaymentApp extends PaymentApp
             boolean isIncognito,
             @Nullable String appToHide,
             SupportedDelegations supportedDelegations,
+            boolean allowShowWithoutReadyToPay,
             boolean showReadyToPayDebugInfo,
-            boolean removeDeprecatedFields) {
+            boolean removeDeprecatedFields,
+            int paymentDetailsUpdateServiceMaxRetryNumber) {
         super(packageName, label, null, icon);
         ThreadUtils.assertOnUiThread();
         mHandler = new Handler();
@@ -123,9 +133,12 @@ public class AndroidPaymentApp extends PaymentApp
         mIsIncognito = isIncognito;
         mApplicationIdentifierToHide = appToHide;
         mSupportedDelegations = supportedDelegations;
+        mAllowShowWithoutReadyToPay = allowShowWithoutReadyToPay;
         mShowReadyToPayDebugInfo = showReadyToPayDebugInfo;
         mRemoveDeprecatedFields = removeDeprecatedFields;
+        mPaymentDetailsUpdateServiceMaxRetryNumber = paymentDetailsUpdateServiceMaxRetryNumber;
         mIsPreferred = false;
+        mHasEnrolledInstrumentResult = false;
     }
 
     /** @param methodName A payment method that this app supports, e.g., "https://bobpay.com". */
@@ -342,6 +355,24 @@ public class AndroidPaymentApp extends PaymentApp
         return mSupportedDelegations.getPayerPhone();
     }
 
+    @Override
+    public boolean hasEnrolledInstrument() {
+        if (mAllowShowWithoutReadyToPay) {
+            return mHasEnrolledInstrumentResult;
+        }
+
+        return super.hasEnrolledInstrument();
+    }
+
+    /**
+     * @param hasEnrolledInstrumentResult Whether the payment app can support the current payment
+     *     request.
+     */
+    void setHasEnrolledInstrument(boolean hasEnrolledInstrumentResult) {
+        if (!mAllowShowWithoutReadyToPay) return;
+        mHasEnrolledInstrumentResult = hasEnrolledInstrumentResult;
+    }
+
     private static String removeUrlScheme(String url) {
         return UrlFormatter.formatUrlForSecurityDisplay(url, SchemeDisplay.OMIT_HTTP_AND_HTTPS);
     }
@@ -395,7 +426,8 @@ public class AndroidPaymentApp extends PaymentApp
                                             .getPackageName(),
                                     mPackageName,
                                     mPaymentDetailsUpdateServiceName),
-                            new PaymentDetailsUpdateService().getBinder());
+                            new PaymentDetailsUpdateService().getBinder(),
+                            mPaymentDetailsUpdateServiceMaxRetryNumber);
             mPaymentDetailsUpdateConnection.connectToService();
         }
     }

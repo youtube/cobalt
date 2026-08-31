@@ -40,7 +40,7 @@ std::string StripDigitsIfRequired(std::string_view input) {
     // If `input[i]` is a digit, find the range of consecutive digits starting
     // at `i`. If this range is shorter than 5 characters append it to `result`.
     auto end_it = std::ranges::find_if_not(input.substr(i), IsDigit);
-    std::string_view digits = base::MakeStringPiece(input.begin() + i, end_it);
+    std::string_view digits = std::string_view(input.begin() + i, end_it);
     DCHECK(std::ranges::all_of(digits, IsDigit));
     if (digits.size() < 5)
       base::StrAppend(&result, {digits});
@@ -48,6 +48,48 @@ std::string StripDigitsIfRequired(std::string_view input) {
   }
 
   return result;
+}
+
+std::string CalculateAlternativeFormSignatureBase(const FormData& form_data) {
+  std::string_view scheme = form_data.action().scheme_piece();
+  std::string_view host = form_data.action().host_piece();
+
+  // If target host or scheme is empty, set scheme and host of source url.
+  // This is done to match the Toolbar's behavior.
+  if (scheme.empty() || host.empty()) {
+    scheme = form_data.url().scheme_piece();
+    host = form_data.url().host_piece();
+  }
+
+  std::string form_signature_field_types;
+  for (const FormFieldData& field : form_data.fields()) {
+    switch (field.form_control_type()) {
+      case mojom::FormControlType::kInputCheckbox:
+      case mojom::FormControlType::kInputDate:
+      case mojom::FormControlType::kInputRadio:
+        break;
+      case mojom::FormControlType::kContentEditable:
+      case mojom::FormControlType::kInputEmail:
+      case mojom::FormControlType::kInputMonth:
+      case mojom::FormControlType::kInputNumber:
+      case mojom::FormControlType::kInputPassword:
+      case mojom::FormControlType::kInputSearch:
+      case mojom::FormControlType::kInputTelephone:
+      case mojom::FormControlType::kInputText:
+      case mojom::FormControlType::kInputUrl:
+      case mojom::FormControlType::kSelectOne:
+      case mojom::FormControlType::kTextArea:
+        // We use the string representation of the FormControlType because
+        // changing the signature algorithm is non-trivial. If and when the
+        // sectioning algorithm changes, we could use the raw FormControlType
+        // enum instead.
+        base::StrAppend(
+            &form_signature_field_types,
+            {"&", FormControlTypeToString(field.form_control_type())});
+    }
+  }
+
+  return base::StrCat({scheme, "://", host, form_signature_field_types});
 }
 
 template <size_t N>
@@ -120,47 +162,13 @@ FormSignature CalculateFormSignature(const FormData& form_data) {
   return FormSignature(StrToHash64Bit(form_string));
 }
 
+FormSignature CalculateStructuralFormSignature(const FormData& form_data) {
+  return FormSignature(
+      StrToHash64Bit(CalculateAlternativeFormSignatureBase(form_data)));
+}
+
 FormSignature CalculateAlternativeFormSignature(const FormData& form_data) {
-  std::string_view scheme = form_data.action().scheme_piece();
-  std::string_view host = form_data.action().host_piece();
-
-  // If target host or scheme is empty, set scheme and host of source url.
-  // This is done to match the Toolbar's behavior.
-  if (scheme.empty() || host.empty()) {
-    scheme = form_data.url().scheme_piece();
-    host = form_data.url().host_piece();
-  }
-
-  std::string form_signature_field_types;
-  for (const FormFieldData& field : form_data.fields()) {
-    switch (field.form_control_type()) {
-      case mojom::FormControlType::kInputCheckbox:
-      case mojom::FormControlType::kInputDate:
-      case mojom::FormControlType::kInputRadio:
-        break;
-      case mojom::FormControlType::kContentEditable:
-      case mojom::FormControlType::kInputEmail:
-      case mojom::FormControlType::kInputMonth:
-      case mojom::FormControlType::kInputNumber:
-      case mojom::FormControlType::kInputPassword:
-      case mojom::FormControlType::kInputSearch:
-      case mojom::FormControlType::kInputTelephone:
-      case mojom::FormControlType::kInputText:
-      case mojom::FormControlType::kInputUrl:
-      case mojom::FormControlType::kSelectOne:
-      case mojom::FormControlType::kTextArea:
-        // We use the string representation of the FormControlType because
-        // changing the signature algorithm is non-trivial. If and when the
-        // sectioning algorithm changes, we could use the raw FormControlType
-        // enum instead.
-        base::StrAppend(
-            &form_signature_field_types,
-            {"&", FormControlTypeToString(field.form_control_type())});
-    }
-  }
-
-  std::string form_string =
-      base::StrCat({scheme, "://", host, form_signature_field_types});
+  std::string form_string = CalculateAlternativeFormSignatureBase(form_data);
 
   // Add more non-empty elements (one of path, reference, or query ordered by
   // preference) for small forms with 1-2 fields in order to prevent signature
@@ -204,6 +212,16 @@ uint32_t StrToHash32Bit(std::string_view str) {
   auto bytes = base::as_byte_span(str);
   const base::SHA1Digest digest = base::SHA1Hash(bytes);
   return PackBytes(base::span(digest).first<4>());
+}
+
+int32_t StrToHash3Bit(std::string_view str) {
+  const base::SHA1Digest digest = base::SHA1Hash(base::as_byte_span(str));
+  // Keep only the first 3 bits of the SHA1 hash.
+  return static_cast<int32_t>((digest[0] >> 5) & 0x07);
+}
+
+int32_t StrToHash3Bit(std::u16string_view str) {
+  return StrToHash3Bit(base::UTF16ToUTF8(str));
 }
 
 int64_t HashFormSignature(FormSignature form_signature) {

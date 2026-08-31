@@ -20,7 +20,6 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/seed_response.h"
 #include "components/variations/service/google_groups_manager.h"
-#include "components/variations/service/limited_entropy_synthetic_trial.h"
 #include "components/variations/service/variations_service_client.h"
 #include "components/variations/synthetic_trials.h"
 #include "components/version_info/version_info.h"
@@ -134,6 +133,13 @@ void ChromeVariationsServiceClient::
   for (const auto& profile : variations_profiles_to_delete) {
     variations_prefs_dict.Remove(profile);
   }
+}
+
+bool ChromeVariationsServiceClient::IsStickyActivationEnabled() {
+  // TODO: crbug.com/435630455 - Roll out to later channels once ready.
+  const auto channel = GetChannelForVariations();
+  return channel == version_info::Channel::UNKNOWN ||
+         channel == version_info::Channel::CANARY;
 }
 
 version_info::Channel ChromeVariationsServiceClient::GetChannel() {

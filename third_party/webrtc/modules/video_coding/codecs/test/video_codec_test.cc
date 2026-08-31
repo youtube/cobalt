@@ -40,8 +40,7 @@
 #include "modules/video_coding/svc/scalability_mode_util.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
-#include "test/explicit_key_value_config.h"
-#include "test/field_trial.h"
+#include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 #include "test/test_flags.h"
 #include "test/testsupport/file_utils.h"
@@ -83,7 +82,6 @@ ABSL_FLAG(int,
           std::numeric_limits<int>::max(),
           "Keyframe interval in frames.");
 ABSL_FLAG(int, num_frames, 300, "Number of frames to encode and/or decode.");
-ABSL_FLAG(std::string, field_trials, "", "Field trials to apply.");
 ABSL_FLAG(std::string, test_name, "", "Test name.");
 ABSL_FLAG(bool, dump_decoder_input, false, "Dump decoder input.");
 ABSL_FLAG(bool, dump_decoder_output, false, "Dump decoder output.");
@@ -114,7 +112,7 @@ VideoInfo kFourPeople_1280x720_30 = {
     .resolution = {.width = 1280, .height = 720},
     .framerate = Frequency::Hertz(30)};
 
-static constexpr Frequency k90kHz = Frequency::Hertz(90000);
+constexpr Frequency k90kHz = Frequency::Hertz(90000);
 
 VideoSourceSettings ToSourceSettings(VideoInfo video_info) {
   return VideoSourceSettings{.file_path = ResourcePath(video_info.name, "yuv"),
@@ -576,10 +574,7 @@ INSTANTIATE_TEST_SUITE_P(All,
                          FramerateAdaptationTest::TestParamsToString);
 
 TEST(VideoCodecTest, DISABLED_EncodeDecode) {
-  ScopedFieldTrials field_trials(absl::GetFlag(FLAGS_field_trials));
-  const Environment env =
-      CreateEnvironment(std::make_unique<ExplicitKeyValueConfig>(
-          absl::GetFlag(FLAGS_field_trials)));
+  const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr());
 
   VideoSourceSettings source_settings{
       .file_path = absl::GetFlag(FLAGS_input_path),

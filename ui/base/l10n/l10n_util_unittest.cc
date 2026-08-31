@@ -2,15 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "ui/base/l10n/l10n_util.h"
 
 #include <stddef.h>
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <memory>
@@ -28,6 +25,7 @@
 #include "base/test/icu_test_util.h"
 #include "base/test/scoped_path_override.h"
 #include "build/build_config.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 #include "third_party/icu/source/common/unicode/locid.h"
@@ -39,10 +37,11 @@
 #include <cstdlib>
 #endif
 
-using base::ASCIIToUTF16;
-using base::UTF8ToUTF16;
-
 namespace {
+
+using ::base::ASCIIToUTF16;
+using ::base::UTF8ToUTF16;
+using ::testing::ElementsAre;
 
 class StringWrapper {
  public:
@@ -559,14 +558,8 @@ TEST_F(L10nUtilTest, MAYBE_GetDisplayNameForCountry) {
 }
 
 TEST_F(L10nUtilTest, GetParentLocales) {
-  std::vector<std::string> locales;
-  const std::string top_locale("sr_Cyrl_RS");
-  l10n_util::GetParentLocales(top_locale, &locales);
-
-  ASSERT_EQ(3U, locales.size());
-  EXPECT_EQ("sr_Cyrl_RS", locales[0]);
-  EXPECT_EQ("sr_Cyrl", locales[1]);
-  EXPECT_EQ("sr", locales[2]);
+  EXPECT_THAT(l10n_util::GetParentLocales("sr_Cyrl_RS"),
+              ElementsAre("sr_Cyrl_RS", "sr_Cyrl", "sr"));
 }
 
 TEST_F(L10nUtilTest, IsValidLocaleSyntax) {
@@ -677,25 +670,13 @@ TEST_F(L10nUtilTest, GetUserFacingUILocaleList) {
 }
 
 TEST_F(L10nUtilTest, PlatformLocalesIsSorted) {
-  const char* const* locales = l10n_util::GetPlatformLocalesForTesting();
-  const size_t locales_size = l10n_util::GetPlatformLocalesSizeForTesting();
+  const base::span<const std::string_view> locales =
+      l10n_util::GetPlatformLocalesForTesting();
 
-  // Check adjacent pairs and ensure they are in sorted order without
-  // duplicates.
-
-  // All 0-length and 1-length lists are sorted.
-  if (locales_size <= 1) {
-    return;
-  }
-
-  const char* last_locale = locales[0];
-  for (size_t i = 1; i < locales_size; i++) {
-    const char* cur_locale = locales[i];
-    EXPECT_LT(strcmp(last_locale, cur_locale), 0)
-        << "Incorrect ordering in kPlatformLocales: " << last_locale
-        << " >= " << cur_locale;
-    last_locale = cur_locale;
-  }
+  // Check adjacent pairs and ensure they are in sorted order ...
+  EXPECT_TRUE(std::ranges::is_sorted(locales));
+  // ... and without duplicates.
+  EXPECT_EQ(std::ranges::adjacent_find(locales), locales.end());
 }
 
 TEST_F(L10nUtilTest, IsPossibleAcceptLanguage) {

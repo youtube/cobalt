@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
 
 #include "ui/display/manager/display_change_observer.h"
 
@@ -289,8 +285,7 @@ MultipleDisplayState DisplayChangeObserver::GetStateForDisplayIds(
     return MULTIPLE_DISPLAY_STATE_SINGLE;
   DisplayIdList list =
       GenerateDisplayIdList(display_states, &DisplaySnapshot::display_id);
-  return display_manager_->ShouldSetMirrorModeOn(
-             list, /*should_check_hardware_mirroring=*/true)
+  return display_manager_->ShouldSetMirrorModeOn(list)
              ? MULTIPLE_DISPLAY_STATE_MULTI_MIRROR
              : MULTIPLE_DISPLAY_STATE_MULTI_EXTENDED;
 }

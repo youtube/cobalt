@@ -283,7 +283,7 @@ const char* DrawCommand::GetCommandString(OpType type) {
 }
 
 void DrawCommand::toJSON(SkJSONWriter& writer, UrlDataManager& urlDataManager) const {
-    writer.appendCString(DEBUGCANVAS_ATTRIBUTE_COMMAND, this->GetCommandString(fOpType));
+    writer.appendCString(DEBUGCANVAS_ATTRIBUTE_COMMAND, GetCommandString(fOpType));
     writer.appendBool(DEBUGCANVAS_ATTRIBUTE_VISIBLE, this->isVisible());
 }
 
@@ -572,9 +572,7 @@ void DrawCommand::MakeJsonPath(SkJSONWriter& writer, const SkPath& path) {
 
 void DrawCommand::MakeJsonRegion(SkJSONWriter& writer, const SkRegion& region) {
     // TODO: Actually serialize the rectangles, rather than just devolving to path
-    SkPath path;
-    region.getBoundaryPath(&path);
-    MakeJsonPath(writer, path);
+    MakeJsonPath(writer, region.getBoundaryPath());
 }
 
 void DrawCommand::MakeJsonSampling(SkJSONWriter& writer, const SkSamplingOptions& sampling) {
@@ -875,19 +873,14 @@ static void apply_paint_patheffect(const SkPaint&  paint,
                                    UrlDataManager& urlDataManager) {
     SkPathEffect* pathEffect = paint.getPathEffect();
     if (pathEffect != nullptr) {
-        SkPathEffectBase::DashInfo dashInfo;
-        SkPathEffectBase::DashType dashType = as_PEB(pathEffect)->asADash(&dashInfo);
-        if (dashType == SkPathEffectBase::DashType::kDash) {
-            dashInfo.fIntervals = (SkScalar*)sk_malloc_throw(dashInfo.fCount * sizeof(SkScalar));
-            as_PEB(pathEffect)->asADash(&dashInfo);
+        if (const auto dashInfo = as_PEB(pathEffect)->asADash()) {
             writer.beginObject(DEBUGCANVAS_ATTRIBUTE_DASHING);
             writer.beginArray(DEBUGCANVAS_ATTRIBUTE_INTERVALS, false);
-            for (int32_t i = 0; i < dashInfo.fCount; i++) {
-                writer.appendFloat(dashInfo.fIntervals[i]);
+            for (SkScalar value : dashInfo->fIntervals) {
+                writer.appendFloat(value);
             }
             writer.endArray();  // intervals
-            sk_free(dashInfo.fIntervals);
-            writer.appendFloat(DEBUGCANVAS_ATTRIBUTE_PHASE, dashInfo.fPhase);
+            writer.appendFloat(DEBUGCANVAS_ATTRIBUTE_PHASE, dashInfo->fPhase);
             writer.endObject();  // dashing
         } else {
             writer.beginObject(DEBUGCANVAS_ATTRIBUTE_PATHEFFECT);
@@ -1624,7 +1617,7 @@ DrawPointsCommand::DrawPointsCommand(SkCanvas::PointMode mode,
         : INHERITED(kDrawPoints_OpType), fMode(mode), fPts(pts, count), fPaint(paint) {}
 
 void DrawPointsCommand::execute(SkCanvas* canvas) const {
-    canvas->drawPoints(fMode, fPts.size(), fPts.begin(), fPaint);
+    canvas->drawPoints(fMode, fPts, fPaint);
 }
 
 bool DrawPointsCommand::render(SkCanvas* canvas) const {
@@ -1644,7 +1637,7 @@ bool DrawPointsCommand::render(SkCanvas* canvas) const {
     p.setColor(SK_ColorBLACK);
     p.setStyle(SkPaint::kStroke_Style);
 
-    canvas->drawPoints(fMode, fPts.size(), fPts.begin(), p);
+    canvas->drawPoints(fMode, fPts, p);
     canvas->restore();
 
     return true;
@@ -2011,10 +2004,7 @@ DrawAtlasCommand::DrawAtlasCommand(const SkImage*  image,
 
 void DrawAtlasCommand::execute(SkCanvas* canvas) const {
     canvas->drawAtlas(fImage.get(),
-                      fXform.begin(),
-                      fTex.begin(),
-                      fColors.empty() ? nullptr : fColors.begin(),
-                      fXform.size(),
+                      fXform, fTex, fColors,
                       fBlendMode,
                       fSampling,
                       fCull.getMaybeNull(),

@@ -6,6 +6,7 @@
 
 #import <Foundation/Foundation.h>
 
+#import "base/check.h"
 #import "base/debug/crash_logging.h"
 #import "base/debug/dump_without_crashing.h"
 #import "base/feature_list.h"
@@ -14,6 +15,7 @@
 #import "base/json/json_writer.h"
 #import "base/logging.h"
 #import "base/metrics/histogram_macros.h"
+#import "base/strings/string_split.h"
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
@@ -25,24 +27,44 @@
 #import "ios/web/public/js_messaging/web_view_js_utils.h"
 #import "ios/web/public/thread/web_task_traits.h"
 #import "ios/web/public/thread/web_thread.h"
+#import "net/base/apple/url_conversions.h"
 #import "url/gurl.h"
 
 namespace {
-
-// Creates a JavaScript string for executing the function __gCrWeb.`name` with
-// `parameters`.
-NSString* CreateFunctionCallWithParamaters(
+// Creates a JavaScript string for executing the function
+// __gCrWeb.callFunctionInGcrWeb with parameters api_name, func_or_prop_name and
+// args.
+NSString* CreateFunctionCallWithParameters(
     const std::string& name,
     const base::Value::List& parameters) {
   NSMutableArray* parameter_strings = [[NSMutableArray alloc] init];
+
   for (const auto& value : parameters) {
     std::string string_value;
     base::JSONWriter::Write(value, &string_value);
     [parameter_strings addObject:base::SysUTF8ToNSString(string_value)];
   }
 
+  // Assuming 'name' comes in the format "api.functionName" or
+  // "api.propertyName"
+  std::optional<std::pair<std::string_view, std::string_view>> name_parts =
+      base::SplitStringOnce(name, ".");
+
+  std::string_view api_name;
+  std::string_view function_name;
+
+  if (name_parts) {
+    api_name = name_parts->first;
+    function_name = name_parts->second;
+  } else {
+    api_name = "";
+    function_name = name;
+  }
+
   return [NSString
-      stringWithFormat:@"__gCrWeb.%s(%@)", name.c_str(),
+      stringWithFormat:@"__gCrWeb.callFunctionInGcrWeb(\"%s\", \"%s\", [%@])",
+                       std::string(api_name).c_str(),
+                       std::string(function_name).c_str(),
                        [parameter_strings componentsJoinedByString:@","]];
 }
 
@@ -98,6 +120,10 @@ bool WebFrameImpl::IsMainFrame() const {
 
 url::Origin WebFrameImpl::GetSecurityOrigin() const {
   return security_origin_;
+}
+
+GURL WebFrameImpl::GetUrl() const {
+  return net::GURLWithNSURL(frame_info_.request.URL);
 }
 
 BrowserState* WebFrameImpl::GetBrowserState() {
@@ -259,6 +285,11 @@ void WebFrameImpl::LogScriptWarning(NSString* script, NSError* error) {
                 << "\nfailed with error: " << error_string
                 << "\nand exception: " << exception;
 
+  if (base::FeatureList::IsEnabled(features::kAssertOnJavaScriptErrors)) {
+    CHECK(false)
+        << "JavaScript error occurred with kAssertOnJavaScriptErrors enabled.";
+  }
+
   UMA_HISTOGRAM_BOOLEAN("IOS.JavaScript.ScriptExecutionFailed", true);
 
   if (!base::FeatureList::IsEnabled(features::kLogJavaScriptErrors)) {
@@ -299,7 +330,7 @@ bool WebFrameImpl::ExecuteJavaScriptFunction(
   DCHECK(content_world);
   DCHECK(frame_info_);
 
-  NSString* script = CreateFunctionCallWithParamaters(name, parameters);
+  NSString* script = CreateFunctionCallWithParameters(name, parameters);
 
   void (^completion_handler)(id, NSError*) = nil;
   if (reply_with_result) {

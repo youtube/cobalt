@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import {assert} from 'chrome://resources/js/assert.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {File} from '../../../file_suggestion.mojom-webui.js';
 import {RecommendationType} from '../../../file_suggestion.mojom-webui.js';
+import {recordEnumeration, recordSmallCount} from '../../../metrics_utils.js';
 
 import {getCss} from './file_suggestion.css.js';
 import {getHtml} from './file_suggestion.html.js';
@@ -48,13 +50,14 @@ export class FileSuggestionElement extends CrLitElement {
     this.dispatchEvent(clickFileEvent);
     const currentTarget = e.currentTarget as HTMLElement;
     const index = Number(currentTarget.dataset['index']);
-    chrome.metricsPrivate.recordSmallCount(
+    recordSmallCount(
         `NewTabPage.${this.moduleName}.FileClick`, index);
-    const recommendationType = this.files[index].recommendationType;
-    if (recommendationType != null) {
-      chrome.metricsPrivate.recordEnumerationValue(
+    const file = this.files[index];
+    assert(file);
+    if (file.recommendationType !== null) {
+      recordEnumeration(
           `NewTabPage.${this.moduleName}.RecommendationTypeClick`,
-          recommendationType, RecommendationType.MAX_VALUE + 1);
+          file.recommendationType, RecommendationType.MAX_VALUE + 1);
     }
   }
 }

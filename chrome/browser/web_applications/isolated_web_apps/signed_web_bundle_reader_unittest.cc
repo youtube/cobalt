@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "chrome/browser/web_applications/isolated_web_apps/signed_web_bundle_reader.h"
+#include "components/webapps/isolated_web_apps/reading/signed_web_bundle_reader.h"
 
 #include <cstdint>
 #include <memory>
@@ -15,6 +15,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
@@ -24,9 +25,7 @@
 #include "base/test/test_future.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/expected.h"
-#include "chrome/browser/web_applications/isolated_web_apps/error/unusable_swbn_file_error.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
-#include "chrome/browser/web_applications/isolated_web_apps/iwa_identity_validator.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/test_signed_web_bundle_builder.h"
 #include "chrome/browser/web_applications/test/signed_web_bundle_utils.h"
 #include "components/web_package/mojom/web_bundle_parser.mojom.h"
@@ -39,6 +38,8 @@
 #include "components/web_package/test_support/mock_web_bundle_parser_factory.h"
 #include "components/web_package/test_support/signed_web_bundles/signature_verifier_test_utils.h"
 #include "components/web_package/test_support/signed_web_bundles/web_bundle_signer.h"
+#include "components/webapps/isolated_web_apps/error/unusable_swbn_file_error.h"
+#include "components/webapps/isolated_web_apps/identity/iwa_identity_validator.h"
 #include "content/public/test/browser_task_environment.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -49,6 +50,7 @@ namespace web_app {
 
 namespace {
 
+using Error = SignedWebBundleReader::ReadResponseError;
 using IntegritySignatureErrorForTesting =
     web_package::test::WebBundleSigner::IntegritySignatureErrorForTesting;
 using IntegrityBlockErrorForTesting =
@@ -58,8 +60,10 @@ using base::test::ErrorIs;
 using base::test::HasValue;
 using base::test::RunOnceCallback;
 using base::test::ValueIs;
+using ::testing::_;
 using ::testing::AllOf;
 using ::testing::Eq;
+using ::testing::Field;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Message;
@@ -184,8 +188,7 @@ TEST_F(SignedWebBundleReaderWithRealBundlesTest, ReadValidResponse) {
   resource_request.url = kUrl.Resolve(TestSignedWebBundleBuilder::kTestHtmlUrl);
 
   base::test::TestFuture<
-      base::expected<web_package::mojom::BundleResponsePtr,
-                     SignedWebBundleReader::ReadResponseError>>
+      base::expected<web_package::mojom::BundleResponsePtr, Error>>
       response_result;
   reader->ReadResponse(resource_request, response_result.GetCallback());
 
@@ -324,8 +327,7 @@ class SignedWebBundleReaderTest : public testing::Test {
     return future;
   }
 
-  base::expected<web_package::mojom::BundleResponsePtr,
-                 SignedWebBundleReader::ReadResponseError>
+  base::expected<web_package::mojom::BundleResponsePtr, Error>
   ReadAndFulfillResponse(
       SignedWebBundleReader& reader,
       const network::ResourceRequest& resource_request,
@@ -333,8 +335,7 @@ class SignedWebBundleReaderTest : public testing::Test {
       web_package::mojom::BundleResponsePtr response,
       web_package::mojom::BundleResponseParseErrorPtr error = nullptr) {
     base::test::TestFuture<
-        base::expected<web_package::mojom::BundleResponsePtr,
-                       SignedWebBundleReader::ReadResponseError>>
+        base::expected<web_package::mojom::BundleResponsePtr, Error>>
         response_result;
     reader.ReadResponse(resource_request, response_result.GetCallback());
 
@@ -589,18 +590,18 @@ TEST_F(SignedWebBundleReaderTest, ReadNonExistingResponseWithPath) {
   resource_request.url = kUrl.ReplaceComponents(replacements);
 
   base::test::TestFuture<
-      base::expected<web_package::mojom::BundleResponsePtr,
-                     SignedWebBundleReader::ReadResponseError>>
+      base::expected<web_package::mojom::BundleResponsePtr, Error>>
       response_result;
   reader->ReadResponse(resource_request, response_result.GetCallback());
 
   auto response = response_result.Take();
-  ASSERT_FALSE(response.has_value());
-  EXPECT_EQ(response.error().type,
-            SignedWebBundleReader::ReadResponseError::Type::kResponseNotFound);
-  EXPECT_EQ(response.error().message,
-            "The Web Bundle does not contain a response for the provided URL: "
-            "https://example.com/foo");
+  EXPECT_THAT(
+      response,
+      ErrorIs(AllOf(Field(&Error::type, Error::Type::kResponseNotFound),
+                    Field(&Error::message,
+                          "The Web Bundle does not contain a response for the "
+                          "provided URL: "
+                          "https://example.com/foo"))));
 }
 
 TEST_F(SignedWebBundleReaderTest, ReadNonExistingResponseWithQuery) {
@@ -621,18 +622,18 @@ TEST_F(SignedWebBundleReaderTest, ReadNonExistingResponseWithQuery) {
   resource_request.url = kUrl.ReplaceComponents(replacements);
 
   base::test::TestFuture<
-      base::expected<web_package::mojom::BundleResponsePtr,
-                     SignedWebBundleReader::ReadResponseError>>
+      base::expected<web_package::mojom::BundleResponsePtr, Error>>
       response_result;
   reader->ReadResponse(resource_request, response_result.GetCallback());
 
   auto response = response_result.Take();
-  ASSERT_FALSE(response.has_value());
-  EXPECT_EQ(response.error().type,
-            SignedWebBundleReader::ReadResponseError::Type::kResponseNotFound);
-  EXPECT_EQ(response.error().message,
-            "The Web Bundle does not contain a response for the provided URL: "
-            "https://example.com/?foo");
+  EXPECT_THAT(
+      response,
+      ErrorIs(AllOf(Field(&Error::type, Error::Type::kResponseNotFound),
+                    Field(&Error::message,
+                          "The Web Bundle does not contain a response for the "
+                          "provided URL: "
+                          "https://example.com/?foo"))));
 }
 
 TEST_F(SignedWebBundleReaderTest, ReadResponseError) {
@@ -655,10 +656,9 @@ TEST_F(SignedWebBundleReaderTest, ReadResponseError) {
       nullptr,
       web_package::mojom::BundleResponseParseError::New(
           web_package::mojom::BundleParseErrorType::kFormatError, "test"));
-  ASSERT_FALSE(response.has_value());
-  EXPECT_EQ(response.error().type,
-            SignedWebBundleReader::ReadResponseError::Type::kFormatError);
-  EXPECT_EQ(response.error().message, "test");
+  EXPECT_THAT(response,
+              ErrorIs(AllOf(Field(&Error::type, Error::Type::kFormatError),
+                            Field(&Error::message, "test"))));
 }
 
 TEST_F(SignedWebBundleReaderTest, ReadResponseWithParserDisconnect) {
@@ -722,16 +722,13 @@ TEST_F(SignedWebBundleReaderTest, ReadResponseWithParserCrash) {
   resource_request.url = kUrl;
 
   base::test::TestFuture<
-      base::expected<web_package::mojom::BundleResponsePtr,
-                     SignedWebBundleReader::ReadResponseError>>
+      base::expected<web_package::mojom::BundleResponsePtr, Error>>
       response_result;
   reader->ReadResponse(resource_request, response_result.GetCallback());
 
   auto response = response_result.Take();
-  ASSERT_FALSE(response.has_value());
-  EXPECT_EQ(
-      response.error().type,
-      SignedWebBundleReader::ReadResponseError::Type::kParserInternalError);
+  EXPECT_THAT(response,
+              ErrorIs(Field(&Error::type, Error::Type::kParserInternalError)));
 }
 
 TEST_F(SignedWebBundleReaderTest, ReadResponseBody) {
@@ -921,8 +918,7 @@ TEST_F(UnsecureSignedWebBundleReaderTest, ReadValidId) {
   base::expected<web_package::SignedWebBundleId, UnusableSwbnFileError>
       bundle_id_result = read_web_bundle_id_future.Take();
 
-  ASSERT_TRUE(bundle_id_result.has_value());
-  EXPECT_THAT(bundle_id_result.value(), test::GetDefaultEd25519WebBundleId());
+  EXPECT_THAT(bundle_id_result, ValueIs(test::GetDefaultEd25519WebBundleId()));
 }
 
 TEST_F(UnsecureSignedWebBundleReaderTest, ErrorId) {
@@ -955,7 +951,7 @@ TEST_F(UnsecureSignedWebBundleReaderTest, ErrorId) {
     base::expected<web_package::SignedWebBundleId, UnusableSwbnFileError>
         bundle_id_result = read_web_bundle_id_future.Take();
 
-    ASSERT_FALSE(bundle_id_result.has_value());
+    EXPECT_THAT(bundle_id_result, ErrorIs(_));
     EXPECT_THAT(
         bundle_id_result,
         ErrorIs(Property(

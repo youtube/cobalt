@@ -100,7 +100,8 @@ func createDelegatedCredential(parent *Credential, config delegatedCredentialCon
 	addUint24LengthPrefixedBytes(dc, pubBytes)
 
 	var dummyConfig Config
-	parentSignature, err := signMessage(false /* server */, VersionTLS13, parent.PrivateKey, &dummyConfig, config.algo, delegatedCredentialSignedMessage(dc.BytesOrPanic(), config.algo, parent.Leaf.Raw))
+	msg := delegatedCredentialSignedMessage(dc.BytesOrPanic(), config.algo, parent.Certificate[0])
+	parentSignature, err := signMessage(false /* server */, VersionTLS13, parent.PrivateKey, &dummyConfig, config.algo, msg)
 	if err != nil {
 		panic(err)
 	}

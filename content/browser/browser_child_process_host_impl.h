@@ -52,7 +52,6 @@ namespace content {
 
 class BrowserChildProcessHostIterator;
 class BrowserChildProcessObserver;
-class BrowserMessageFilter;
 
 // Plugins/workers and other child processes that live on the IO thread use this
 // class. RenderProcessHostImpl is the main exception that doesn't use this
@@ -69,8 +68,7 @@ class BrowserChildProcessHostImpl
  public:
   // Constructs a process host with |ipc_mode| determining how IPC is done.
   BrowserChildProcessHostImpl(content::ProcessType process_type,
-                              BrowserChildProcessHostDelegate* delegate,
-                              ChildProcessHost::IpcMode ipc_mode);
+                              BrowserChildProcessHostDelegate* delegate);
 
   ~BrowserChildProcessHostImpl() override;
 
@@ -79,7 +77,6 @@ class BrowserChildProcessHostImpl
   static void TerminateAll();
 
   // BrowserChildProcessHost implementation:
-  bool Send(IPC::Message* message) override;
   void Launch(std::unique_ptr<SandboxedProcessLauncherDelegate> delegate,
               std::unique_ptr<base::CommandLine> cmd_line,
               bool terminate_on_shutdown) override;
@@ -90,16 +87,13 @@ class BrowserChildProcessHostImpl
       override;
   void SetName(const std::u16string& name) override;
   void SetMetricsName(const std::string& metrics_name) override;
-  void SetProcess(base::Process process) override;
 
   // ChildProcessHostDelegate implementation:
   void OnChannelInitialized(IPC::Channel* channel) override;
   void OnChildDisconnected() override;
   const base::Process& GetProcess() override;
   void BindHostReceiver(mojo::GenericPendingReceiver receiver) override;
-  bool OnMessageReceived(const IPC::Message& message) override;
   void OnChannelConnected(int32_t peer_pid) override;
-  void OnChannelError() override;
   void OnBadMessageReceived(const IPC::Message& message) override;
 
   // HistogramChildProcess implementation:
@@ -113,11 +107,6 @@ class BrowserChildProcessHostImpl
 
   // Removes this host from the host list. Calls ChildProcessHost::ForceShutdown
   void ForceShutdown();
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  // Adds an IPC message filter.
-  void AddFilter(BrowserMessageFilter* filter);
-#endif
 
   // Same as Launch(), but the process is launched with preloaded files and file
   // descriptors containing in `file_data`.

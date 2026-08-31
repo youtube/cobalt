@@ -4,6 +4,7 @@
 
 #include "third_party/blink/renderer/core/frame/csp/conversion_util.h"
 
+#include "services/network/public/cpp/integrity_metadata.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/content_security_policy.mojom-blink.h"
 #include "services/network/public/mojom/integrity_algorithm.mojom-blink.h"
@@ -130,28 +131,23 @@ TEST(ContentSecurityPolicyConversionUtilTest,
         source_list.nonces.emplace_back("nonce-cde");
       },
       [](CSPSourceList& source_list) {
-        source_list.hashes.emplace_back(
-            network::mojom::blink::CSPHashSource::New(
-                network::mojom::blink::IntegrityAlgorithm::kSha256,
-                Vector<uint8_t>({'a', 'd'})));
-        source_list.hashes.emplace_back(
-            network::mojom::blink::CSPHashSource::New(
-                network::mojom::blink::IntegrityAlgorithm::kSha384,
-                Vector<uint8_t>({'c', 'd', 'e'})));
+        source_list.hashes.emplace_back(network::IntegrityMetadata(
+            network::mojom::blink::IntegrityAlgorithm::kSha256,
+            Vector<uint8_t>({'a', 'd'})));
+        source_list.hashes.emplace_back(network::IntegrityMetadata(
+            network::mojom::blink::IntegrityAlgorithm::kSha384,
+            Vector<uint8_t>({'c', 'd', 'e'})));
       },
       [](CSPSourceList& source_list) {
-        source_list.hashes.emplace_back(
-            network::mojom::blink::CSPHashSource::New(
-                network::mojom::blink::IntegrityAlgorithm::kSha256,
-                Vector<uint8_t>({'a', 'd'})));
-        source_list.url_hashes.emplace_back(
-            network::mojom::blink::CSPHashSource::New(
-                network::mojom::blink::IntegrityAlgorithm::kSha384,
-                Vector<uint8_t>({'c', 'd', 'e'})));
-        source_list.eval_hashes.emplace_back(
-            network::mojom::blink::CSPHashSource::New(
-                network::mojom::blink::IntegrityAlgorithm::kSha384,
-                Vector<uint8_t>({'f', 'g', 'h'})));
+        source_list.hashes.emplace_back(network::IntegrityMetadata(
+            network::mojom::blink::IntegrityAlgorithm::kSha256,
+            Vector<uint8_t>({'a', 'd'})));
+        source_list.url_hashes.emplace_back(network::IntegrityMetadata(
+            network::mojom::blink::IntegrityAlgorithm::kSha384,
+            Vector<uint8_t>({'c', 'd', 'e'})));
+        source_list.eval_hashes.emplace_back(network::IntegrityMetadata(
+            network::mojom::blink::IntegrityAlgorithm::kSha384,
+            Vector<uint8_t>({'f', 'g', 'h'})));
       },
       [](CSPSourceList& source_list) { source_list.allow_self = true; },
       [](CSPSourceList& source_list) { source_list.allow_star = true; },

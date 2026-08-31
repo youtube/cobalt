@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/utility/ivf_file_writer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 
@@ -26,9 +25,9 @@
 namespace webrtc {
 
 namespace {
-static const int kHeaderSize = 32;
-static const int kFrameHeaderSize = 12;
-static uint8_t dummy_payload[4] = {0, 1, 2, 3};
+constexpr int kHeaderSize = 32;
+constexpr int kFrameHeaderSize = 12;
+uint8_t dummy_payload[4] = {0, 1, 2, 3};
 // As the default parameter when the width and height of encodedImage are 0,
 // the values are copied from ivf_file_writer.cc
 constexpr int kDefaultWidth = 1280;

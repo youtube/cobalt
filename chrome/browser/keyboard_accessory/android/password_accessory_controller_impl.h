@@ -15,9 +15,9 @@
 #include "chrome/browser/keyboard_accessory/android/accessory_sheet_data.h"
 #include "chrome/browser/keyboard_accessory/android/affiliated_plus_profiles_provider.h"
 #include "chrome/browser/keyboard_accessory/android/password_accessory_controller.h"
-#include "chrome/browser/password_manager/android/access_loss/password_access_loss_warning_bridge.h"
 #include "chrome/browser/password_manager/android/all_passwords_bottom_sheet_helper.h"
 #include "chrome/browser/password_manager/android/grouped_affiliations/acknowledge_grouped_credential_sheet_controller.h"
+#include "chrome/browser/password_manager/android/password_manager_error_message_helper_bridge.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom-forward.h"
 #include "components/autofill/core/common/password_generation_util.h"
 #include "components/password_manager/core/browser/credential_cache.h"
@@ -99,8 +99,8 @@ class PasswordAccessoryControllerImpl
       PasswordDriverSupplierForFocusedFrame driver_supplier,
       std::unique_ptr<AcknowledgeGroupedCredentialSheetController>
           grouped_credential_sheet_controller,
-      std::unique_ptr<PasswordAccessLossWarningBridge>
-          access_loss_warning_bridge);
+      std::unique_ptr<PasswordManagerErrorMessageHelperBridge>
+          password_manager_error_message_helper_bridge);
 
   // Returns true if the current site attached to `web_contents_` has a SECURE
   // security level.
@@ -130,8 +130,8 @@ class PasswordAccessoryControllerImpl
       PasswordDriverSupplierForFocusedFrame driver_supplier,
       std::unique_ptr<AcknowledgeGroupedCredentialSheetController>
           grouped_credential_sheet_controller,
-      std::unique_ptr<PasswordAccessLossWarningBridge>
-          access_loss_warning_bridge);
+      std::unique_ptr<PasswordManagerErrorMessageHelperBridge>
+          password_manager_error_message_helper_bridge);
 
  private:
   friend class content::WebContentsUserData<PasswordAccessoryControllerImpl>;
@@ -290,6 +290,9 @@ class PasswordAccessoryControllerImpl
   std::unique_ptr<AllPasswordsBottomSheetController>
       all_passords_bottom_sheet_controller_;
 
+  std::unique_ptr<PasswordManagerErrorMessageHelperBridge>
+      password_manager_error_message_helper_bridge_;
+
   // Helper for determining whether a bottom sheet showing passwords is useful.
   AllPasswordsBottomSheetHelper all_passwords_helper_{
       password_client_->GetProfilePasswordStore(),
@@ -303,10 +306,6 @@ class PasswordAccessoryControllerImpl
   // credential with the grouped match type.
   std::unique_ptr<AcknowledgeGroupedCredentialSheetController>
       grouped_credential_sheet_controller_;
-
-  // Bridge used for showing the password access loss warning sheet after
-  // filling credentials.
-  std::unique_ptr<PasswordAccessLossWarningBridge> access_loss_warning_bridge_;
 
   const raw_ptr<plus_addresses::PlusAddressService> plus_address_service_;
 

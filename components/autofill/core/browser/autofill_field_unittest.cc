@@ -25,6 +25,9 @@ namespace {
 using ::autofill::test::CreateFieldPrediction;
 using ::autofill::test::EqualsPrediction;
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
+using ::testing::Property;
+using ::testing::UnorderedElementsAre;
 
 constexpr FieldTypeSet kMLSupportedTypesForTesting = {
     UNKNOWN_TYPE,       NAME_FIRST,
@@ -51,13 +54,13 @@ TEST_F(AutofillFieldTest, Type_ServerPredictionOfCityAndNumber_OverrideHtml) {
 
   field.set_server_predictions(
       {CreateFieldPrediction(PHONE_HOME_CITY_AND_NUMBER)});
-  EXPECT_EQ(PHONE_HOME_CITY_AND_NUMBER, field.Type().GetStorableType());
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(PHONE_HOME_CITY_AND_NUMBER));
   EXPECT_EQ(field.PredictionSource(),
             AutofillPredictionSource::kServerCrowdsourcing);
 
   // Overrides to another number format.
   field.set_server_predictions({CreateFieldPrediction(PHONE_HOME_NUMBER)});
-  EXPECT_EQ(PHONE_HOME_NUMBER, field.Type().GetStorableType());
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(PHONE_HOME_NUMBER));
   EXPECT_EQ(field.PredictionSource(),
             AutofillPredictionSource::kServerCrowdsourcing);
 
@@ -65,7 +68,7 @@ TEST_F(AutofillFieldTest, Type_ServerPredictionOfCityAndNumber_OverrideHtml) {
   field.SetHtmlType(HtmlFieldType::kTelNational, HtmlFieldMode::kNone);
   field.set_server_predictions(
       {CreateFieldPrediction(PHONE_HOME_WHOLE_NUMBER)});
-  EXPECT_EQ(PHONE_HOME_WHOLE_NUMBER, field.Type().GetStorableType());
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(PHONE_HOME_WHOLE_NUMBER));
   EXPECT_EQ(field.PredictionSource(),
             AutofillPredictionSource::kServerCrowdsourcing);
 
@@ -74,21 +77,21 @@ TEST_F(AutofillFieldTest, Type_ServerPredictionOfCityAndNumber_OverrideHtml) {
   field.SetHtmlType(HtmlFieldType::kTelNational, HtmlFieldMode::kNone);
   field.set_server_predictions(
       {CreateFieldPrediction(CREDIT_CARD_EXP_DATE_2_DIGIT_YEAR)});
-  EXPECT_EQ(PHONE_HOME_CITY_AND_NUMBER, field.Type().GetStorableType());
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(PHONE_HOME_CITY_AND_NUMBER));
   EXPECT_EQ(field.PredictionSource(), AutofillPredictionSource::kAutocomplete);
 
   // If html type not specified, we still use server prediction.
   field.SetHtmlType(HtmlFieldType::kUnspecified, HtmlFieldMode::kNone);
   field.set_server_predictions(
       {CreateFieldPrediction(PHONE_HOME_CITY_AND_NUMBER)});
-  EXPECT_EQ(PHONE_HOME_CITY_AND_NUMBER, field.Type().GetStorableType());
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(PHONE_HOME_CITY_AND_NUMBER));
   EXPECT_EQ(field.PredictionSource(),
             AutofillPredictionSource::kServerCrowdsourcing);
 }
 
 TEST_F(AutofillFieldTest, IsFieldFillable) {
   AutofillField field;
-  ASSERT_EQ(UNKNOWN_TYPE, field.Type().GetStorableType());
+  ASSERT_THAT(field.Type().GetTypes(), ElementsAre(UNKNOWN_TYPE));
 
   // Type is unknown.
   EXPECT_FALSE(field.IsFieldFillable());
@@ -113,10 +116,233 @@ TEST_F(AutofillFieldTest, IsFieldFillable) {
   EXPECT_TRUE(field.IsFieldFillable());
 }
 
+TEST_F(AutofillFieldTest, LoyaltyCardPredictionsIgnoredIfFlagIsDisabled) {
+  base::test::ScopedFeatureList feature_;
+  feature_.InitAndDisableFeature(
+      features::kAutofillEnableEmailOrLoyaltyCardsFilling);
+
+  AutofillField field;
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(UNKNOWN_TYPE));
+
+  // Both types set.
+  field.set_heuristic_type(GetActiveHeuristicSource(), NAME_FIRST);
+  field.set_server_predictions({CreateFieldPrediction(LOYALTY_MEMBERSHIP_ID)});
+
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(NAME_FIRST));
+}
+
 TEST_F(AutofillFieldTest, NoPredictions) {
   AutofillField field;
-  EXPECT_EQ(field.Type().GetStorableType(), UNKNOWN_TYPE);
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(UNKNOWN_TYPE));
   EXPECT_EQ(field.PredictionSource(), std::nullopt);
+}
+
+// There are two ways to map a HtmlFieldType `t` to a FieldTypeGroup:
+// - `GroupTypeOfHtmlFieldType(t)`
+// - `GroupTypeOfFieldType(HtmlFieldTypeToBestCorrespondingFieldType(t))`
+// This test validates that they're mostly equivalent.
+// TODO(crbug.com/432827625): Make them fully equivalent.
+TEST_F(AutofillFieldTest, GroupsOfHtmlTypes) {
+  using enum HtmlFieldType;
+  static constexpr DenseSet<HtmlFieldType> kInconsistent = {
+      kTransactionAmount, kTransactionCurrency};
+  for (HtmlFieldType t : kAllHtmlFieldTypes) {
+    SCOPED_TRACE(testing::Message()
+                 << "HtmlFieldType: " << FieldTypeToStringView(t));
+    if (kInconsistent.contains(t)) {
+      continue;
+    }
+    FieldTypeGroup g1 = GroupTypeOfHtmlFieldType(t);
+    FieldTypeGroup g2 =
+        GroupTypeOfFieldType(HtmlFieldTypeToBestCorrespondingFieldType(t));
+    EXPECT_EQ(g1, g2);
+  }
+}
+
+// Tests that if multiple server types are set, AutofillField::Type().GetTypes()
+// contains the first and perhaps also the subsequent ones.
+TEST_F(AutofillFieldTest, UnionTypesFromServerTypes) {
+  // Returns the AutofillType::GetTypes() computed by AutofillField from the
+  // given server types.
+  auto f = [](auto... server_types) {
+    AutofillField field;
+    field.set_server_predictions({CreateFieldPrediction(server_types)...});
+    return field.Type().GetTypes();
+  };
+
+  constexpr FieldType kInvalidFieldType =
+      static_cast<FieldType>(15);  // nocheck
+  ASSERT_EQ(ToSafeFieldType(kInvalidFieldType, NO_SERVER_DATA), NO_SERVER_DATA);
+
+  EXPECT_THAT(f(), ElementsAre(UNKNOWN_TYPE));
+
+  // NO_SERVER_DATA is mapped to UNKNOWN_TYPE in
+  // AutofillField::GetComputedPredictionResult();
+  EXPECT_THAT(f(NO_SERVER_DATA), ElementsAre(UNKNOWN_TYPE));
+  EXPECT_THAT(f(kInvalidFieldType), ElementsAre(UNKNOWN_TYPE));
+  EXPECT_THAT(f(UNKNOWN_TYPE), ElementsAre(UNKNOWN_TYPE));
+
+  EXPECT_THAT(f(ADDRESS_HOME_ZIP), ElementsAre(ADDRESS_HOME_ZIP));
+  EXPECT_THAT(f(PASSWORD), ElementsAre(PASSWORD));
+  EXPECT_THAT(f(NAME_FIRST, USERNAME), ElementsAre(NAME_FIRST));
+  EXPECT_THAT(f(USERNAME, NAME_FIRST), ElementsAre(USERNAME));
+
+  {
+    // If kAutofillUnionTypesForAutofillAi is disabled, the Autofill AI
+    // predictions do not affect the overall type.
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndDisableFeature(
+        features::kAutofillUnionTypesForAutofillAi);
+    EXPECT_THAT(f(ADDRESS_HOME_COUNTRY, PASSPORT_ISSUING_COUNTRY),
+                UnorderedElementsAre(ADDRESS_HOME_COUNTRY));
+    EXPECT_THAT(f(PASSPORT_ISSUING_COUNTRY, ADDRESS_HOME_COUNTRY),
+                UnorderedElementsAre(PASSPORT_ISSUING_COUNTRY));
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_REGION, VEHICLE_PLATE_STATE),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY));
+    EXPECT_THAT(f(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER,
+                  DRIVERS_LICENSE_REGION, VEHICLE_LICENSE_PLATE),
+                UnorderedElementsAre(ADDRESS_HOME_COUNTRY));
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER, DRIVERS_LICENSE_REGION,
+          VEHICLE_LICENSE_PLATE, VEHICLE_PLATE_STATE),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY));
+  }
+
+  {
+    // If kAutofillUnionTypesForAutofillAi is enabled, the Autofill AI
+    // predictions are part of the overall type.
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitWithFeatures({features::kAutofillAiWithDataSchema,
+                                   features::kAutofillUnionTypesForAutofillAi},
+                                  {});
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, PASSPORT_ISSUING_COUNTRY),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY, PASSPORT_ISSUING_COUNTRY));
+    EXPECT_THAT(f(PASSPORT_ISSUING_COUNTRY, ADDRESS_HOME_COUNTRY),
+                UnorderedElementsAre(PASSPORT_ISSUING_COUNTRY));
+    // Multiple Autofill AI predictions may coexist.
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_REGION, VEHICLE_PLATE_STATE),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_REGION,
+                             VEHICLE_PLATE_STATE));
+    // Conflict resolution: when there are multiple predictions from the same
+    // entities, we take the longest prefix that satisfies the AutofillType
+    // constraints.
+    if (base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)) {
+      EXPECT_THAT(f(NAME_FULL, DRIVERS_LICENSE_NUMBER),
+                  UnorderedElementsAre(NAME_FULL));
+    } else {
+      EXPECT_THAT(f(NAME_FULL, DRIVERS_LICENSE_NUMBER),
+                  UnorderedElementsAre(NAME_FULL, DRIVERS_LICENSE_NUMBER));
+    }
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER, DRIVERS_LICENSE_REGION,
+          VEHICLE_LICENSE_PLATE),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER));
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER, DRIVERS_LICENSE_REGION,
+          VEHICLE_LICENSE_PLATE, VEHICLE_PLATE_STATE),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER));
+    EXPECT_THAT(
+        f(ADDRESS_HOME_COUNTRY, ADDRESS_HOME_STATE, DRIVERS_LICENSE_NUMBER,
+          DRIVERS_LICENSE_REGION, VEHICLE_LICENSE_PLATE, VEHICLE_PLATE_STATE),
+        UnorderedElementsAre(ADDRESS_HOME_COUNTRY, DRIVERS_LICENSE_NUMBER));
+  }
+}
+
+// Tests that if a heuristic type is set, additional server types may influence
+// the union type.
+TEST_F(AutofillFieldTest, UnionTypesFromHeuristicAndServerTypes) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillAiWithDataSchema);
+
+  // Returns the AutofillType::GetTypes() computed by AutofillField from the
+  // given heuristic types and server types.
+  auto f = [](FieldType heuristic_type, auto... server_types) {
+    AutofillField field;
+    field.set_heuristic_type(HeuristicSource::kRegexes, heuristic_type);
+    field.set_server_predictions({CreateFieldPrediction(server_types)...});
+    return field.Type().GetTypes();
+  };
+
+  EXPECT_THAT(f(UNKNOWN_TYPE), ElementsAre(UNKNOWN_TYPE));
+
+  EXPECT_THAT(f(ADDRESS_HOME_ZIP), ElementsAre(ADDRESS_HOME_ZIP));
+  EXPECT_THAT(f(PASSWORD), ElementsAre(PASSWORD));
+
+  // The heuristic prediction loses against the server type.
+  EXPECT_THAT(f(NAME_FIRST, USERNAME), ElementsAre(USERNAME));
+  EXPECT_THAT(f(NAME_FIRST, USERNAME, PASSPORT_NUMBER),
+              ElementsAre(USERNAME, PASSPORT_NUMBER));
+
+  // The heuristic type CC_NAME_FULL trumps NAME_FULL.
+  EXPECT_THAT(f(CREDIT_CARD_NAME_FULL, NAME_FULL),
+              ElementsAre(CREDIT_CARD_NAME_FULL));
+
+  // The heuristic type CC_NAME_FULL trumps NAME_FULL.
+  // `PASSPORT_NUMBER` is added to the union type.
+  EXPECT_THAT(f(CREDIT_CARD_NAME_FULL, NAME_FULL, PASSPORT_NUMBER),
+              ElementsAre(CREDIT_CARD_NAME_FULL, PASSPORT_NUMBER));
+
+  // `PASSPORT_NUMBER` trumps the heuristic prediction.
+  EXPECT_THAT(f(CREDIT_CARD_NAME_FULL, PASSPORT_NUMBER, NAME_FULL),
+              ElementsAre(PASSPORT_NUMBER));
+}
+
+// Tests that if an HTML type is set, additional server types may influence the
+// union type.
+TEST_F(AutofillFieldTest, UnionTypesFromHtmlAndServerTypes) {
+  base::test::ScopedFeatureList feature_list(
+      features::kAutofillAiWithDataSchema);
+
+  // Returns the AutofillType computed by AutofillField from the given HTML and
+  // server types.
+  auto f = [](HtmlFieldType html_type, auto... server_types) {
+    AutofillField field;
+    field.SetHtmlType(html_type, HtmlFieldMode::kNone);
+    field.set_server_predictions({CreateFieldPrediction(server_types)...});
+    return field.Type();
+  };
+
+  auto is_type = [](FieldTypeSet types, bool is_country_code = false) {
+    return AllOf(Property(&AutofillType::GetTypes, types),
+                 Property(&AutofillType::is_country_code, is_country_code));
+  };
+
+  using enum HtmlFieldType;
+
+  EXPECT_THAT(f(kUnrecognized, ADDRESS_HOME_ZIP), is_type({ADDRESS_HOME_ZIP}));
+
+  EXPECT_THAT(f(kCountryName), is_type({ADDRESS_HOME_COUNTRY}, false));
+  EXPECT_THAT(f(kCountryCode), is_type({ADDRESS_HOME_COUNTRY}, true));
+
+  // `PASSPORT_NUMBER` is added to the union type.
+  EXPECT_THAT(f(kCountryName, PASSPORT_NUMBER),
+              is_type({ADDRESS_HOME_COUNTRY, PASSPORT_NUMBER}, false));
+  EXPECT_THAT(f(kCountryCode, PASSPORT_NUMBER),
+              is_type({ADDRESS_HOME_COUNTRY, PASSPORT_NUMBER}, true));
+
+  // `ADDRESS_HOME_ZIP` is not added to the union type because it is not an
+  // Autofill AI type.
+  EXPECT_THAT(f(kCountryName, ADDRESS_HOME_ZIP),
+              is_type({ADDRESS_HOME_COUNTRY}, false));
+  EXPECT_THAT(f(kCountryCode, ADDRESS_HOME_ZIP),
+              is_type({ADDRESS_HOME_COUNTRY}, true));
+
+  // `PASSPORT_NUMBER` is added to the union type.
+  // `ADDRESS_HOME_ZIP` is ignored because it is not an Autofill AI type.
+  EXPECT_THAT(f(kCountryName, PASSPORT_NUMBER, ADDRESS_HOME_ZIP),
+              is_type({ADDRESS_HOME_COUNTRY, PASSPORT_NUMBER}, false));
+  EXPECT_THAT(f(kCountryCode, PASSPORT_NUMBER, ADDRESS_HOME_ZIP),
+              is_type({ADDRESS_HOME_COUNTRY, PASSPORT_NUMBER}, true));
+
+  // `PASSPORT_NUMBER` is added to the union type.
+  // `ADDRESS_HOME_ZIP` is ignored because it is not an Autofill AI type.
+  EXPECT_THAT(f(kCountryName, ADDRESS_HOME_ZIP, PASSPORT_NUMBER),
+              is_type({ADDRESS_HOME_COUNTRY, PASSPORT_NUMBER}, false));
+  EXPECT_THAT(f(kCountryCode, ADDRESS_HOME_ZIP, PASSPORT_NUMBER),
+              is_type({ADDRESS_HOME_COUNTRY, PASSPORT_NUMBER}, true));
 }
 
 constexpr HeuristicSource kRegexSource = HeuristicSource::kRegexes;
@@ -242,7 +468,8 @@ TEST_P(PrecedenceOverAutocompleteTest, PrecedenceOverAutocompleteParams) {
   field.set_server_predictions({CreateFieldPrediction(test_case.server_type)});
   field.set_heuristic_type(GetActiveHeuristicSource(),
                            test_case.heuristic_type);
-  EXPECT_EQ(field.ComputedType().GetStorableType(), test_case.expected_result);
+  EXPECT_THAT(field.ComputedType().GetTypes(),
+              ElementsAre(test_case.expected_result));
   EXPECT_EQ(field.PredictionSource(), test_case.expected_source);
 }
 
@@ -299,7 +526,7 @@ TEST_P(AutocompleteUnrecognizedTypeTest, TypePredictions) {
   field.SetHtmlType(HtmlFieldType::kUnrecognized, HtmlFieldMode::kNone);
 
   // Expect that the predicted type wins over ac=unrecognized.
-  EXPECT_EQ(field.Type().GetStorableType(), test.predicted_type);
+  EXPECT_THAT(field.Type().GetTypes(), ElementsAre(test.predicted_type));
   EXPECT_EQ(field.ShouldSuppressSuggestionsAndFillingByDefault(),
             test.expect_should_suppress_suggestions_and_filling);
   EXPECT_EQ(field.PredictionSource(), test.expected_source);
@@ -360,7 +587,8 @@ TEST_P(AutofillLocalHeuristicsOverridesTest,
   field.set_server_predictions({CreateFieldPrediction(test_case.server_type)});
   field.set_heuristic_type(GetActiveHeuristicSource(),
                            test_case.heuristic_type);
-  EXPECT_EQ(field.ComputedType().GetStorableType(), test_case.expected_result)
+  EXPECT_THAT(field.ComputedType().GetTypes(),
+              ElementsAre(test_case.expected_result))
       << "html_field_type: " << test_case.html_field_type
       << ", server_type: " << test_case.server_type
       << ", heuristic_type: " << test_case.heuristic_type
@@ -456,6 +684,24 @@ INSTANTIATE_TEST_SUITE_P(
             .heuristic_type = EMAIL_OR_LOYALTY_MEMBERSHIP_ID,
             .expected_result = EMAIL_OR_LOYALTY_MEMBERSHIP_ID,
             .expected_source = AutofillPredictionSource::kHeuristics},
+        AutofillLocalHeuristicsOverridesParams{
+            .html_field_type = HtmlFieldType::kUnrecognized,
+            .server_type = NO_SERVER_DATA,
+            .heuristic_type = LOYALTY_MEMBERSHIP_ID,
+            .expected_result = LOYALTY_MEMBERSHIP_ID,
+            .expected_source = AutofillPredictionSource::kHeuristics},
+        AutofillLocalHeuristicsOverridesParams{
+            .html_field_type = HtmlFieldType::kUnrecognized,
+            .server_type = UNKNOWN_TYPE,
+            .heuristic_type = LOYALTY_MEMBERSHIP_ID,
+            .expected_result = LOYALTY_MEMBERSHIP_ID,
+            .expected_source = AutofillPredictionSource::kHeuristics},
+        AutofillLocalHeuristicsOverridesParams{
+            .html_field_type = HtmlFieldType::kUnrecognized,
+            .server_type = PHONE_HOME_NUMBER,
+            .heuristic_type = LOYALTY_MEMBERSHIP_ID,
+            .expected_result = PHONE_HOME_NUMBER,
+            .expected_source = AutofillPredictionSource::kServerCrowdsourcing},
         // Test non-override behaviour.
         AutofillLocalHeuristicsOverridesParams{
             .html_field_type = HtmlFieldType::kStreetAddress,
@@ -545,15 +791,32 @@ INSTANTIATE_TEST_SUITE_P(
             .html_field_type = HtmlFieldType::kUnspecified,
             .server_type = PASSPORT_NAME_TAG,
             .heuristic_type = NAME_FIRST,
-            .expected_result = NAME_FIRST,
-            .expected_source = AutofillPredictionSource::kHeuristics},
+            .expected_result = PASSPORT_NAME_TAG,
+            .expected_source = AutofillPredictionSource::kServerCrowdsourcing},
         AutofillLocalHeuristicsOverridesParams{
             .html_field_type = HtmlFieldType::kUnspecified,
             .server_type = PASSPORT_NAME_TAG,
             .heuristic_type = UNKNOWN_TYPE,
             .expected_result = PASSPORT_NAME_TAG,
-            .expected_source =
-                AutofillPredictionSource::kServerCrowdsourcing}));
+            .expected_source = AutofillPredictionSource::kServerCrowdsourcing},
+        AutofillLocalHeuristicsOverridesParams{
+            .html_field_type = HtmlFieldType::kName,
+            .server_type = NO_SERVER_DATA,
+            .heuristic_type = ALTERNATIVE_FULL_NAME,
+            .expected_result = ALTERNATIVE_FULL_NAME,
+            .expected_source = AutofillPredictionSource::kHeuristics},
+        AutofillLocalHeuristicsOverridesParams{
+            .html_field_type = HtmlFieldType::kGivenName,
+            .server_type = NO_SERVER_DATA,
+            .heuristic_type = ALTERNATIVE_GIVEN_NAME,
+            .expected_result = ALTERNATIVE_GIVEN_NAME,
+            .expected_source = AutofillPredictionSource::kHeuristics},
+        AutofillLocalHeuristicsOverridesParams{
+            .html_field_type = HtmlFieldType::kFamilyName,
+            .server_type = NO_SERVER_DATA,
+            .heuristic_type = ALTERNATIVE_FAMILY_NAME,
+            .expected_result = ALTERNATIVE_FAMILY_NAME,
+            .expected_source = AutofillPredictionSource::kHeuristics}));
 
 // Tests that consecutive identical events are not added twice to the event log.
 TEST(AutofillFieldLogEventTypeTest, AppendLogEventIfNotRepeated) {
@@ -622,6 +885,108 @@ TEST(AutofillPredictionSourceToStringViewTest, ConversionTest) {
                 AutofillPredictionSource::kRationalization),
             "Rationalization");
 }
+
+// Parameters for `AutofillFieldTestWithPasswordManagerMlPredictions`
+struct AutofillFieldWithPasswordManagerMlPredictionsParams {
+  // These values denote what type the field was classified as by various
+  // sources.
+  const HtmlFieldType html_field_type;
+  const FieldType server_type;
+  const FieldType autofill_heuristic_type;
+  const FieldType password_manager_predicted_type;
+  // These value denote expected resulting type and prediction source.
+  const FieldType expected_result;
+  const AutofillPredictionSource expected_source;
+};
+
+class AutofillFieldTestWithPasswordManagerMlPredictions
+    : public testing::TestWithParam<
+          AutofillFieldWithPasswordManagerMlPredictionsParams> {};
+
+// Tests the correctness of applying password manager ML predictions while
+// computing the overall field type.
+TEST_P(AutofillFieldTestWithPasswordManagerMlPredictions,
+       PasswordManagerMlPredictions) {
+  AutofillFieldWithPasswordManagerMlPredictionsParams test_case = GetParam();
+  SCOPED_TRACE(testing::Message()
+               << "html_field_type: " << test_case.html_field_type
+               << ", server_type: " << test_case.server_type
+               << ", autofill_heuristic_type: "
+               << test_case.autofill_heuristic_type
+               << ", password_manager_predicted_type: "
+               << test_case.password_manager_predicted_type
+               << ", expected_result: " << test_case.expected_result);
+
+  AutofillField field;
+  field.SetHtmlType(test_case.html_field_type, HtmlFieldMode::kNone);
+  field.set_server_predictions({CreateFieldPrediction(test_case.server_type)});
+  field.set_heuristic_type(GetActiveHeuristicSource(),
+                           test_case.autofill_heuristic_type);
+  field.set_heuristic_type(HeuristicSource::kPasswordManagerMachineLearning,
+                           test_case.password_manager_predicted_type);
+  EXPECT_THAT(field.ComputedType().GetTypes(),
+              ElementsAre(test_case.expected_result));
+  EXPECT_EQ(field.PredictionSource(), test_case.expected_source);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    AutofillFieldTestWithPasswordManagerMlPredictions,
+    AutofillFieldTestWithPasswordManagerMlPredictions,
+    testing::Values(
+        // Verify that autofill server predictions override password manager
+        // OTP classifications.
+        AutofillFieldWithPasswordManagerMlPredictionsParams{
+            .html_field_type = HtmlFieldType::kUnspecified,
+            .server_type = PHONE_HOME_NUMBER,
+            .autofill_heuristic_type = UNKNOWN_TYPE,
+            .password_manager_predicted_type = ONE_TIME_CODE,
+            .expected_result = PHONE_HOME_NUMBER,
+            .expected_source = AutofillPredictionSource::kServerCrowdsourcing},
+        // Verify that password manager server predictions do not override
+        // password manager OTP classifications.
+        AutofillFieldWithPasswordManagerMlPredictionsParams{
+            .html_field_type = HtmlFieldType::kUnspecified,
+            .server_type = PASSWORD,
+            .autofill_heuristic_type = UNKNOWN_TYPE,
+            .password_manager_predicted_type = ONE_TIME_CODE,
+            .expected_result = ONE_TIME_CODE,
+            .expected_source = AutofillPredictionSource::kHeuristics},
+        // Verify that autocomplete has higher priority than password manager
+        // OTP classifications.
+        AutofillFieldWithPasswordManagerMlPredictionsParams{
+            .html_field_type = HtmlFieldType::kPostalCode,
+            .server_type = NO_SERVER_DATA,
+            .autofill_heuristic_type = UNKNOWN_TYPE,
+            .password_manager_predicted_type = ONE_TIME_CODE,
+            .expected_result = ADDRESS_HOME_ZIP,
+            .expected_source = AutofillPredictionSource::kAutocomplete},
+        // Verify that autocomplete has higher priority than password manager
+        // non-OTP classifications.
+        AutofillFieldWithPasswordManagerMlPredictionsParams{
+            .html_field_type = HtmlFieldType::kPostalCode,
+            .server_type = NO_SERVER_DATA,
+            .autofill_heuristic_type = UNKNOWN_TYPE,
+            .password_manager_predicted_type = PASSWORD,
+            .expected_result = ADDRESS_HOME_ZIP,
+            .expected_source = AutofillPredictionSource::kAutocomplete},
+        // Verify that password manager OTP classifications override autofill
+        // heuristics.
+        AutofillFieldWithPasswordManagerMlPredictionsParams{
+            .html_field_type = HtmlFieldType::kUnspecified,
+            .server_type = NO_SERVER_DATA,
+            .autofill_heuristic_type = PHONE_HOME_NUMBER,
+            .password_manager_predicted_type = ONE_TIME_CODE,
+            .expected_result = ONE_TIME_CODE,
+            .expected_source = AutofillPredictionSource::kHeuristics},
+        // Verify that password manager non-OTP classifications do not override
+        // autofill heuristics.
+        AutofillFieldWithPasswordManagerMlPredictionsParams{
+            .html_field_type = HtmlFieldType::kUnspecified,
+            .server_type = NO_SERVER_DATA,
+            .autofill_heuristic_type = PHONE_HOME_NUMBER,
+            .password_manager_predicted_type = PASSWORD,
+            .expected_result = PHONE_HOME_NUMBER,
+            .expected_source = AutofillPredictionSource::kHeuristics}));
 
 }  // namespace
 }  // namespace autofill

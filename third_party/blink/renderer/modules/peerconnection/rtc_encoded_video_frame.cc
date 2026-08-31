@@ -6,10 +6,10 @@
 
 #include <utility>
 
+#include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_codec_specifics_vp_8.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_decode_target_indication.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoded_video_frame_metadata.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_rtc_encoded_video_frame_options.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -214,12 +214,12 @@ RTCEncodedVideoFrameMetadata* RTCEncodedVideoFrame::getMetadata(
     if (std::optional<base::TimeTicks> receive_time =
             delegate_->ReceiveTime()) {
       metadata->setReceiveTime(
-          CalculateRTCEncodedFrameTimestamp(context, *receive_time));
+          RTCEncodedFrameTimestampFromTimeTicks(context, *receive_time));
     }
-    if (std::optional<base::TimeTicks> capture_time =
+    if (std::optional<CaptureTimeInfo> capture_time_info =
             delegate_->CaptureTime()) {
-      metadata->setCaptureTime(
-          CalculateRTCEncodedFrameTimestamp(context, *capture_time));
+      metadata->setCaptureTime(RTCEncodedFrameTimestampFromCaptureTimeInfo(
+          context, *capture_time_info));
     }
     if (std::optional<base::TimeDelta> sender_capture_time_offset =
             delegate_->SenderCaptureTimeOffset()) {

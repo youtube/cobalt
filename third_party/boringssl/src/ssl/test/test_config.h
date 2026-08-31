@@ -240,6 +240,7 @@ struct TestConfig {
   int private_key_delay_ms = 0;
   bool resumption_across_names_enabled = false;
   std::optional<bool> expect_resumable_across_names;
+  bool no_server_name_ack = false;
 
   std::vector<const char *> handshaker_args;
 

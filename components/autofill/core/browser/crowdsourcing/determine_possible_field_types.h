@@ -13,6 +13,7 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "components/autofill/core/browser/autofill_field.h"
+#include "components/autofill/core/browser/data_model/data_model_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/common/unique_ids.h"
 
@@ -21,8 +22,27 @@ namespace autofill {
 class AutofillProfile;
 class CreditCard;
 class EntityInstance;
-class FormStructure;
+class AutofillField;
 class LoyaltyCard;
+
+// The result of DeterminePossibleFieldTypesForUpload() for a specific
+// AutofillField.
+struct PossibleTypes {
+  PossibleTypes();
+  PossibleTypes(const PossibleTypes&) = delete;
+  PossibleTypes& operator=(const PossibleTypes&) = delete;
+  PossibleTypes(PossibleTypes&&);
+  PossibleTypes& operator=(PossibleTypes&&);
+  ~PossibleTypes();
+
+  // The FieldTypes for which data on file matches the field's value.
+  FieldTypeSet types;
+
+  // The format strings that match the field value.
+  // Format strings are determined only for Autofill AI dates and identification
+  // number (e.g., PASSPORT_NUMBER) affixes.
+  std::set<std::pair<FormatString_Type, std::u16string>> formats;
+};
 
 // For each submitted field in the `form_structure`, determines whether
 // `ADDRESS_HOME_STATE` is a possible matching type.
@@ -30,16 +50,16 @@ class LoyaltyCard;
 // passed to DeterminePossibleFieldTypesForUpload().
 [[nodiscard]] std::set<FieldGlobalId> PreProcessStateMatchingTypes(
     base::span<const AutofillProfile*> profiles,
-    const FormStructure& form_structure,
+    base::span<const std::unique_ptr<AutofillField>> fields,
     const std::string& app_locale);
 
 // Determines the `FieldType`s for which profiles etc. define non-empty
-// values. The result is stored in FormStructure::possible_types().
+// values.
 //
 // This is potentially expensive -- on the order of 50ms even for a small set of
 // `stored_data`. Hence, it should not run on the UI thread -- to avoid
 // locking up the UI -- nor on the IO thread -- to avoid blocking IPC calls.
-void DeterminePossibleFieldTypesForUpload(
+[[nodiscard]] std::vector<PossibleTypes> DeterminePossibleFieldTypesForUpload(
     base::span<const AutofillProfile> profiles,
     base::span<const CreditCard> credit_cards,
     base::span<const EntityInstance> entities,
@@ -47,7 +67,7 @@ void DeterminePossibleFieldTypesForUpload(
     const std::set<FieldGlobalId>& fields_that_match_state,
     std::u16string_view last_unlocked_credit_card_cvc,
     const std::string& app_locale,
-    FormStructure& form);
+    base::span<const std::unique_ptr<AutofillField>> fields);
 
 // Returns the set of `FieldType`s for which the given profiles etc. contain
 // non-empty values.
@@ -59,15 +79,10 @@ FieldTypeSet DetermineAvailableFieldTypes(
     std::u16string_view last_unlocked_credit_card_cvc,
     const std::string& app_locale);
 
-// Matches the current field values against regular expressions.
-// There are two types of matches:
-// - An individual field with value "09/03/2025" matches "DD/MM/YYYY" and
-//   "MM/DD/YYYY".
-// - Three consecutive fields with values "09", "03", "2025" match "DD" and "D",
-//   "MM" and "M", and "YYYY", respectively.
-std::map<FieldGlobalId, base::flat_set<std::u16string>>
-DeterminePossibleFormatStringsForUpload(
-    base::span<const std::unique_ptr<AutofillField>> fields);
+base::flat_set<std::pair<data_util::Date, PossibleTypes*>>
+FindDatesAndSetFormatStringsForTesting(
+    base::span<const std::unique_ptr<AutofillField>> fields,
+    base::span<PossibleTypes> possible_types);
 
 }  // namespace autofill
 

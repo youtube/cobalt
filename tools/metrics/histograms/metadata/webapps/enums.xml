@@ -171,9 +171,29 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Ambient badge dismissed"/>
 </enum>
 
+<enum name="IsolatedWebAppCleanupBundleCacheError">
+  <int value="0" label="System shutdown"/>
+  <int value="1" label="Could not delete all bundles"/>
+</enum>
+
 <enum name="IsolatedWebAppCleanupOrphanedIWAsError">
   <int value="1" label="Could not delete all orphaned isolated web apps."/>
   <int value="2" label="Skipped execution during system shutdown."/>
+</enum>
+
+<enum name="IsolatedWebAppCopyBundleToCacheError">
+  <int value="0" label="System shutdown"/>
+  <int value="1" label="App not installed"/>
+  <int value="2" label="Not IWA"/>
+  <int value="3" label="Cannot extract owned bundle path"/>
+  <int value="4" label="Failed to create dir"/>
+  <int value="5" label="Failed to copy file"/>
+</enum>
+
+<enum name="IsolatedWebAppGetBundleCachePathError">
+  <int value="0" label="System shutdown"/>
+  <int value="1" label="Provided version not found"/>
+  <int value="2" label="IWA not cached"/>
 </enum>
 
 <enum name="IsolatedWebAppInstallError">
@@ -190,6 +210,13 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Response head parsing: Internal error"/>
   <int value="2" label="Response head parsing: Format error"/>
   <int value="3" label="Response not found"/>
+</enum>
+
+<enum name="IsolatedWebAppRemoveObsoleteBundleVersionsError">
+  <int value="0" label="System shutdown"/>
+  <int value="1" label="IWA not installed"/>
+  <int value="2" label="Installed version not cached"/>
+  <int value="3" label="Could not delete all versions"/>
 </enum>
 
 <enum name="IsolatedWebAppResponseReaderCacheState">
@@ -223,6 +250,9 @@ chromium-metrics-reviews@google.com.
   <int value="8" label="Bundle download error"/>
   <int value="9" label="Update dry run failed"/>
   <int value="10" label="Update apply failed"/>
+  <int value="11" label="System shutdown"/>
+  <int value="12" label="Version pinning is not allowed"/>
+  <int value="13" label="Downgrade is not allowed"/>
 </enum>
 
 <enum name="IwaComponentUpdateError">
@@ -416,6 +446,16 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Manifest ID Mismatch"/>
 </enum>
 
+<enum name="WebAppManifestSilentUpdateCheckResult">
+  <int value="0" label="App not installed"/>
+  <int value="1" label="App update failed during installation"/>
+  <int value="2" label="System shutdown"/>
+  <int value="3" label="App silently updated"/>
+  <int value="4" label="App is up to date"/>
+  <int value="5" label="Icon read from disk failed"/>
+  <int value="6" label="WebContents destroyed"/>
+</enum>
+
 <enum name="WebAppManifestUpdateResult">
   <int value="0" label="No app in scope"/>
   <int value="1" label="Updating throttled"/>
@@ -543,6 +583,31 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="FailedWebContentsDestroyed"/>
   <int value="5" label="FailedErrorPageLoaded"/>
 </enum>
+
+<!-- LINT.IfChange(WebInstallApiResult) -->
+
+<enum name="WebInstallApiResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Success Already Installed"/>
+  <int value="2" label="Unexpected failure"/>
+  <int value="3" label="Permission denied"/>
+  <int value="4" label="Unsupported profile/context"/>
+  <int value="5" label="Canceled by user (via the install dialog)"/>
+  <int value="6" label="Install command failed"/>
+  <int value="7" label="No custom id field in manifest"/>
+  <int value="8" label="Manifest id mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/web_applications/web_install_service_impl.h:WebInstallApiResult) -->
+
+<!-- LINT.IfChange(WebInstallApiType) -->
+
+<enum name="WebInstallApiType">
+  <int value="0" label="Current Document"/>
+  <int value="1" label="Background Document"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/web_applications/web_install_service_impl.h:WebInstallApiType) -->
 
 <enum name="WinRegistryErrorCode">
   <int value="0" label="ERROR_OTHER"/>

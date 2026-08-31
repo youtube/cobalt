@@ -45,6 +45,10 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
     private @DownloadLocationDialogType int mLocationDialogType;
     private @Nullable String mSuggestedPath;
     private @Nullable Profile mProfile;
+    // Whether the user actively confirmed the result of the dialog. This is false when the dialog
+    // is not shown and the result is selected without user input, e.g. because there is only one
+    // option to choose from.
+    private boolean mDidUserConfirm;
 
     @VisibleForTesting
     DownloadDialogBridge(
@@ -138,13 +142,12 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
         if (mNativeDownloadDialogBridge == 0) return;
 
         DownloadDialogBridgeJni.get()
-                .onComplete(mNativeDownloadDialogBridge, DownloadDialogBridge.this, mSuggestedPath);
+                .onComplete(mNativeDownloadDialogBridge, mSuggestedPath, mDidUserConfirm);
     }
 
     private void onCancel() {
         if (mNativeDownloadDialogBridge == 0) return;
-        DownloadDialogBridgeJni.get()
-                .onCanceled(mNativeDownloadDialogBridge, DownloadDialogBridge.this);
+        DownloadDialogBridgeJni.get().onCanceled(mNativeDownloadDialogBridge);
         if (mWindowAndroid != null) {
             NewDownloadTab.closeExistingNewDownloadTab(mWindowAndroid);
             mWindowAndroid = null;
@@ -153,8 +156,9 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
 
     // DownloadLocationDialogController implementation.
     @Override
-    public void onDownloadLocationDialogComplete(String returnedPath) {
+    public void onDownloadLocationDialogComplete(String returnedPath, boolean didUserConfirm) {
         mSuggestedPath = returnedPath;
+        mDidUserConfirm = didUserConfirm;
 
         if (mLocationDialogType == DownloadLocationDialogType.LOCATION_SUGGESTION) {
             assumeNonNull(mProfile);
@@ -225,10 +229,10 @@ public class DownloadDialogBridge implements DownloadLocationDialogController {
     public interface Natives {
         void onComplete(
                 long nativeDownloadDialogBridge,
-                DownloadDialogBridge caller,
-                @JniType("std::string") @Nullable String returnedPath);
+                @JniType("std::string") @Nullable String returnedPath,
+                boolean didUserConfirm);
 
-        void onCanceled(long nativeDownloadDialogBridge, DownloadDialogBridge caller);
+        void onCanceled(long nativeDownloadDialogBridge);
 
         void setDownloadAndSaveFileDefaultDirectory(
                 PrefService prefs, @JniType("std::string") @Nullable String directory);

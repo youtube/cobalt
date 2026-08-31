@@ -199,13 +199,20 @@ run_package_release_pipeline () {
       cp "${src_out}/chromedriver" "${dst_out}/chromedriver"
     fi
 
+    # Use config-specific (e.g. package_devel.json) if it exists, otherwise fallback to package.json.
+    local json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package.json"
+    local config_json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package_${CONFIG}.json"
+    if [[ -f "${config_json_path}" ]]; then
+      json_path="${config_json_path}"
+    fi
+
     # NOTE: Name is required because the Json recipe is not platform and config
     # specific. GCS upload is also done separately because the Json recipe is
     # not branch, date, and build number specific though this can be added.
     python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
       --print_contents \
       --name="${PLATFORM}_${CONFIG}" \
-      --json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package.json" \
+      --json_path="${json_path}" \
       --out_dir="${out_dir}" \
       --package_dir="${package_dir}"
 

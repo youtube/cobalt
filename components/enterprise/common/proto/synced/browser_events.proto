@@ -426,7 +426,7 @@ message SafeBrowsingPasswordChangedEvent {
   repeated SecurityAgent security_agents = 4;
 }
 
-// A message for reporting dangerous download events.
+// A message for reporting dangerous download events (malware transfer events).
 // Next ID: 41.
 message SafeBrowsingDangerousDownloadEvent {
   reserved 5, 11, 12, 13, 14, 15, 16;
@@ -447,7 +447,7 @@ message SafeBrowsingDangerousDownloadEvent {
   // The file name.
   string file_name = 2;
 
-  // SHA256 digest of this download.
+  // The file hashes, not limited to downloaded files.
   string download_digest_sha256 = 3;
 
   // Username of the profile. This will be an email address.
@@ -462,6 +462,7 @@ message SafeBrowsingDangerousDownloadEvent {
     UNKNOWN = 5;
     DANGEROUS_FILE_TYPE = 6;
     DANGEROUS_URL = 7;
+    DANGEROUS_ACCOUNT_COMPROMISE = 8;
   }
 
   // Category of dangerous download.
@@ -482,7 +483,8 @@ message SafeBrowsingDangerousDownloadEvent {
   // Size of downloaded content (in bytes).
   uint64 content_size = 9;
 
-  // Which direction the dangerous file was transferred.
+  // Which direction the dangerous file was transferred, can be upload,
+  // download, file transfer (CrOS only).
   DataTransferEventTrigger trigger = 10;
 
   // The address of the webpages that sent the user to this url.
@@ -665,7 +667,7 @@ message SafeBrowsingInterstitialEvent {
 }
 
 // A DLP (Data Loss Prevention) event where sensitive data may have leaked.
-// Next ID: 35.
+// Next ID: 37.
 message DlpSensitiveDataEvent {
   reserved 6, 9, 10, 11, 12, 13, 15, 25;
 
@@ -774,6 +776,25 @@ message DlpSensitiveDataEvent {
       // ]
       // copybara:datapol_end
       ;
+
+  // The web app signed-in account email. Only populated for Workspace sites.
+  string web_app_signed_in_account = 35
+      // copybara:datapol_begin
+      // [
+      //   (datapol.semantic_type) = ST_IDENTIFYING_ID
+      // ]
+      // copybara:datapol_end
+      ;
+
+  // Copy origin webp app signed-in account for paste event only. Only populated
+  // for Workspace sites.
+  string source_web_app_signed_in_account = 36
+      // copybara:datapol_begin
+      // [
+      //   (datapol.semantic_type) = ST_IDENTIFYING_ID
+      // ]
+      // copybara:datapol_end
+      ;
 }
 
 // Event where a large file could not be scanned for analysis e.g. malware or
@@ -867,7 +888,7 @@ message UnscannedFileEvent {
 
 // Event that indicates that content was transferred.
 //
-// Next ID: 24.
+// Next ID: 26.
 message ContentTransferEvent {
   // The id of the scan. This will be shared by all events that are triggered
   // from a single scan.
@@ -974,6 +995,25 @@ message ContentTransferEvent {
       // copybara:datapol_begin
       // [
       //   (datapol.semantic_type) = ST_USER_CONTENT
+      // ]
+      // copybara:datapol_end
+      ;
+
+  // The web app signed-in account email. Only populated for Workspace sites.
+  string web_app_signed_in_account = 24
+      // copybara:datapol_begin
+      // [
+      //   (datapol.semantic_type) = ST_IDENTIFYING_ID
+      // ]
+      // copybara:datapol_end
+      ;
+
+  // Copy origin webp app signed-in account for paste event only. Only populated
+  // for Workspace sites.
+  string source_web_app_signed_in_account = 25
+      // copybara:datapol_begin
+      // [
+      //   (datapol.semantic_type) = ST_IDENTIFYING_ID
       // ]
       // copybara:datapol_end
       ;
@@ -1179,7 +1219,7 @@ message BrowserCrashEvent {
   repeated SecurityAgent security_agents = 7;
 }
 
-// Next ID: 13
+// Next ID: 14
 message UrlFilteringInterstitialEvent {
   // Top level URL that triggers this interstitial.
   string url = 1;
@@ -1237,6 +1277,15 @@ message UrlFilteringInterstitialEvent {
   // The referrers of the webpage that sent the user to the url that triggered
   // the event.
   repeated UrlInfo referrers = 12;
+
+  // The account email of the content area. Only populated for Workspace sites.
+  string web_app_signed_in_account = 13
+      // copybara:datapol_begin
+      // [
+      //   (datapol.semantic_type) = ST_IDENTIFYING_ID
+      // ]
+      // copybara:datapol_end
+      ;
 }
 
 // Next ID: 5

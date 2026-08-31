@@ -62,19 +62,43 @@ bool MagicBoostState::ShouldShowHmrCard() {
   return true;
 }
 
-bool MagicBoostState::IsMagicBoostAvailable() const {
-  return magic_boost_available_.value_or(false);
+bool MagicBoostState::IsUserEligibleForGenAIFeatures() {
+  if (!is_user_eligible_for_genai_features_.has_value()) {
+    // If the value is not loaded yet, try loading it now as it might be
+    // available now. To determine eligibility, extended account info is
+    // required, which is loaded as an async operation. We read the value after
+    // refresh tokens are loaded in `IdentityManager`. But it turned out that
+    // it's not enough for after-OOBE case. The correct fix will monitor updates
+    // of extended account info, update and propagate availability properly.
+    //
+    // As a quick fix, we try re-loading availability as it gets requested by a
+    // client. The value should be loaded soon after refresh tokens are loaded.
+    // So there is a high-chance that the value is available at the time this
+    // method is called from a client side code.
+    //
+    // See crbug.com/429501088 for details.
+    is_user_eligible_for_genai_features_ =
+        IsUserEligibleForGenAIFeaturesExpected();
+    if (is_user_eligible_for_genai_features_.has_value()) {
+      UpdateUserEligibleForGenAIFeatures(
+          is_user_eligible_for_genai_features_.value());
+    }
+  }
+
+  // Returns false if value is not available for fail-safe.
+  return is_user_eligible_for_genai_features_.value_or(false);
 }
 
-void MagicBoostState::UpdateMagicBoostAvailable(bool available) {
-  if (magic_boost_available_ == available) {
+void MagicBoostState::UpdateUserEligibleForGenAIFeatures(bool eligible) {
+  if (is_user_eligible_for_genai_features_ == eligible) {
     return;
   }
 
-  magic_boost_available_ = available;
+  is_user_eligible_for_genai_features_ = eligible;
 
   for (auto& observer : observers_) {
-    observer.OnMagicBoostAvailableUpdated(magic_boost_available_.value());
+    observer.OnUserEligibleForGenAIFeaturesUpdated(
+        is_user_eligible_for_genai_features_.value());
   }
 }
 

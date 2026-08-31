@@ -35,7 +35,7 @@ public interface BaseNotificationManagerProxy {
      *     href="https://developer.android.com/reference/android/app/NotificationManager#cancel(java.lang.String,%20int)">
      *     https://developer.android.com/reference/android/app/NotificationManager#cancel(java.lang.String,%20int)</a>
      */
-    void cancel(String tag, int id);
+    void cancel(@Nullable String tag, int id);
 
     /**
      * @see <a
@@ -106,7 +106,7 @@ public interface BaseNotificationManagerProxy {
      *     href="https://developer.android.com/reference/android/app/NotificationManager#getNotificationChannel()">
      *     https://developer.android.com/reference/android/app/NotificationManager#getNotificationChannel()</a>
      */
-    void getNotificationChannel(String channelId, Callback<@Nullable NotificationChannel> callback);
+    void getNotificationChannel(String channelId, Callback<NotificationChannel> callback);
 
     /**
      * A proxy for Android's StatusBarNotification.

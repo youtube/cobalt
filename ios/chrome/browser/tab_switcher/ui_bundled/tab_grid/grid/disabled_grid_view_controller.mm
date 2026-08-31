@@ -44,9 +44,6 @@ NSString* GetTitleString(TabGridPage page) {
     case TabGridPageRegularTabs:
       return l10n_util::GetNSString(
           IDS_IOS_TAB_GRID_REGULAR_TABS_UNAVAILABLE_TITLE);
-    case TabGridPageRemoteTabs:
-      return l10n_util::GetNSString(
-          IDS_IOS_TAB_GRID_RECENT_TABS_UNAVAILABLE_TITLE);
     case TabGridPageTabGroups:
       return l10n_util::GetNSString(
           IDS_IOS_TAB_GRID_TAB_GROUPS_UNAVAILABLE_TITLE);
@@ -77,7 +74,7 @@ NSString* GetTitleString(TabGridPage page) {
   UILabel* topLabel = [[UILabel alloc] init];
   topLabel.translatesAutoresizingMaskIntoConstraints = NO;
   topLabel.text = GetTitleString(self.page);
-  topLabel.textColor = UIColorFromRGB(kTabGridEmptyStateTitleTextColor);
+  topLabel.textColor = [UIColor colorNamed:kStaticGrey50Color];
   topLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleTitle2];
   topLabel.adjustsFontForContentSizeCategory = YES;
   topLabel.numberOfLines = 0;
@@ -90,7 +87,7 @@ NSString* GetTitleString(TabGridPage page) {
   bottomTextView.editable = NO;
   bottomTextView.delegate = self;
   bottomTextView.backgroundColor = [UIColor colorNamed:kGridBackgroundColor];
-  bottomTextView.textColor = UIColorFromRGB(kTabGridEmptyStateBodyTextColor);
+  bottomTextView.textColor = [UIColor colorNamed:kStaticGrey400Color];
   bottomTextView.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
   bottomTextView.adjustsFontForContentSizeCategory = YES;
   bottomTextView.textAlignment = NSTextAlignmentCenter;
@@ -193,9 +190,6 @@ NSString* GetTitleString(TabGridPage page) {
       break;
     case TabGridPageRegularTabs:
       messageID = IDS_IOS_TAB_GRID_REGULAR_TABS_UNAVAILABLE_MESSAGE;
-      break;
-    case TabGridPageRemoteTabs:
-      messageID = IDS_IOS_TAB_GRID_RECENT_TABS_UNAVAILABLE_MESSAGE;
       break;
     case TabGridPageTabGroups:
       messageID = IDS_IOS_TAB_GRID_TAB_GROUPS_UNAVAILABLE_MESSAGE;

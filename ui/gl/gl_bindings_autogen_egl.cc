@@ -18,7 +18,6 @@
 #include "ui/gl/gl_enums.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/gl_version_info.h"
-#include "ui/gl/startup_trace.h"
 
 namespace gl {
 
@@ -26,7 +25,7 @@ DriverEGL g_driver_egl = {};
 
 void DriverEGL::InitializeStaticBindings(
     GLGetProcAddressProc get_proc_address) {
-  GPU_STARTUP_TRACE_EVENT("DriverEGL::InitializeStaticBindings");
+  TRACE_EVENT("gpu,startup", "DriverEGL::InitializeStaticBindings");
   fn.eglAcquireExternalContextANGLEFn =
       reinterpret_cast<eglAcquireExternalContextANGLEProc>(
           get_proc_address("eglAcquireExternalContextANGLE"));
@@ -163,6 +162,9 @@ void DriverEGL::InitializeStaticBindings(
       reinterpret_cast<eglMakeCurrentProc>(get_proc_address("eglMakeCurrent"));
   fn.eglPostSubBufferNVFn = reinterpret_cast<eglPostSubBufferNVProc>(
       get_proc_address("eglPostSubBufferNV"));
+  fn.eglPresentationTimeANDROIDFn =
+      reinterpret_cast<eglPresentationTimeANDROIDProc>(
+          get_proc_address("eglPresentationTimeANDROID"));
   fn.eglQueryAPIFn =
       reinterpret_cast<eglQueryAPIProc>(get_proc_address("eglQueryAPI"));
   fn.eglQueryContextFn = reinterpret_cast<eglQueryContextProc>(
@@ -266,7 +268,7 @@ void DriverEGL::InitializeStaticBindings(
 }
 
 void ClientExtensionsEGL::InitializeClientExtensionSettings() {
-  GPU_STARTUP_TRACE_EVENT("DriverEGL::InitializeClientExtensionSettings");
+  TRACE_EVENT("gpu,startup", "DriverEGL::InitializeClientExtensionSettings");
   std::string client_extensions(GetClientExtensions());
   [[maybe_unused]] gfx::ExtensionSet extensions(
       gfx::MakeExtensionSet(client_extensions));
@@ -299,15 +301,19 @@ void ClientExtensionsEGL::InitializeClientExtensionSettings() {
       gfx::HasExtension(extensions, "EGL_EXT_device_enumeration");
   b_EGL_EXT_device_query =
       gfx::HasExtension(extensions, "EGL_EXT_device_query");
+  b_EGL_EXT_platform_base =
+      gfx::HasExtension(extensions, "EGL_EXT_platform_base");
   b_EGL_EXT_platform_device =
       gfx::HasExtension(extensions, "EGL_EXT_platform_device");
   b_EGL_KHR_debug = gfx::HasExtension(extensions, "EGL_KHR_debug");
+  b_EGL_KHR_platform_gbm =
+      gfx::HasExtension(extensions, "EGL_KHR_platform_gbm");
   b_EGL_MESA_platform_surfaceless =
       gfx::HasExtension(extensions, "EGL_MESA_platform_surfaceless");
 }
 
 void DisplayExtensionsEGL::InitializeExtensionSettings(EGLDisplay display) {
-  GPU_STARTUP_TRACE_EVENT("DriverEGL::InitializeExtensionSettings");
+  TRACE_EVENT("gpu,startup", "DriverEGL::InitializeExtensionSettings");
   std::string platform_extensions(GetPlatformExtensions(display));
   [[maybe_unused]] gfx::ExtensionSet extensions(
       gfx::MakeExtensionSet(platform_extensions));
@@ -324,6 +330,8 @@ void DisplayExtensionsEGL::InitializeExtensionSettings(EGLDisplay display) {
       gfx::HasExtension(extensions, "EGL_ANDROID_get_native_client_buffer");
   b_EGL_ANDROID_native_fence_sync =
       gfx::HasExtension(extensions, "EGL_ANDROID_native_fence_sync");
+  b_EGL_ANDROID_presentation_time =
+      gfx::HasExtension(extensions, "EGL_ANDROID_presentation_time");
   b_EGL_ANGLE_context_virtualization =
       gfx::HasExtension(extensions, "EGL_ANGLE_context_virtualization");
   b_EGL_ANGLE_create_context_backwards_compatible = gfx::HasExtension(
@@ -809,6 +817,12 @@ EGLBoolean EGLApiBase::eglPostSubBufferNVFn(EGLDisplay dpy,
                                             EGLint width,
                                             EGLint height) {
   return driver_->fn.eglPostSubBufferNVFn(dpy, surface, x, y, width, height);
+}
+
+EGLBoolean EGLApiBase::eglPresentationTimeANDROIDFn(EGLDisplay dpy,
+                                                    EGLSurface surface,
+                                                    EGLnsecsANDROID time) {
+  return driver_->fn.eglPresentationTimeANDROIDFn(dpy, surface, time);
 }
 
 EGLenum EGLApiBase::eglQueryAPIFn(void) {
@@ -1493,6 +1507,14 @@ EGLBoolean TraceEGLApi::eglPostSubBufferNVFn(EGLDisplay dpy,
                                              EGLint height) {
   TRACE_EVENT_BINARY_EFFICIENT0("gpu", "TraceEGLAPI::eglPostSubBufferNV");
   return egl_api_->eglPostSubBufferNVFn(dpy, surface, x, y, width, height);
+}
+
+EGLBoolean TraceEGLApi::eglPresentationTimeANDROIDFn(EGLDisplay dpy,
+                                                     EGLSurface surface,
+                                                     EGLnsecsANDROID time) {
+  TRACE_EVENT_BINARY_EFFICIENT0("gpu",
+                                "TraceEGLAPI::eglPresentationTimeANDROID");
+  return egl_api_->eglPresentationTimeANDROIDFn(dpy, surface, time);
 }
 
 EGLenum TraceEGLApi::eglQueryAPIFn(void) {
@@ -2435,6 +2457,17 @@ EGLBoolean LogEGLApi::eglPostSubBufferNVFn(EGLDisplay dpy,
                                       << height << ")");
   EGLBoolean result =
       egl_api_->eglPostSubBufferNVFn(dpy, surface, x, y, width, height);
+  GL_SERVICE_LOG("GL_RESULT: " << result);
+  return result;
+}
+
+EGLBoolean LogEGLApi::eglPresentationTimeANDROIDFn(EGLDisplay dpy,
+                                                   EGLSurface surface,
+                                                   EGLnsecsANDROID time) {
+  GL_SERVICE_LOG("eglPresentationTimeANDROID" << "(" << dpy << ", " << surface
+                                              << ", " << time << ")");
+  EGLBoolean result =
+      egl_api_->eglPresentationTimeANDROIDFn(dpy, surface, time);
   GL_SERVICE_LOG("GL_RESULT: " << result);
   return result;
 }

@@ -10,9 +10,8 @@
 
 #include "rtc_base/byte_buffer.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -148,7 +147,7 @@ bool ByteBufferReader::ReadStringView(absl::string_view* val, size_t len) {
 }
 
 bool ByteBufferReader::ReadBytes(ArrayView<uint8_t> val) {
-  if (val.size() == 0) {
+  if (val.empty()) {
     return true;
   }
   return ReadBytes(val.data(), val.size());

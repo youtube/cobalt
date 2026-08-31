@@ -17,10 +17,6 @@ namespace {
 
 uint64_t kBytesPerMb = 1024 * 1024;
 
-#if BUILDFLAG(IS_MAC)
-uint64_t kKilobytesPerMb = 1024;
-#endif
-
 ui::AXMode::ModeFlagHistogramValue ModeFlagsToEnum(uint32_t mode_flags) {
   switch (mode_flags) {
     case ui::AXMode::kNativeAPIs:
@@ -40,8 +36,6 @@ ui::AXMode::ModeFlagHistogramValue ModeFlagsToEnum(uint32_t mode_flags) {
       return ui::AXMode::ModeFlagHistogramValue::UMA_AX_MODE_LABEL_IMAGES;
     case ui::AXMode::kPDFPrinting:
       return ui::AXMode::ModeFlagHistogramValue::UMA_AX_MODE_PDF;
-    case ui::AXMode::kPDFOcr:
-      return ui::AXMode::ModeFlagHistogramValue::UMA_AX_MODE_PDF_OCR;
     case ui::AXMode::kAnnotateMainNode:
       return ui::AXMode::ModeFlagHistogramValue::UMA_AX_MODE_ANNOTATE_MAIN_NODE;
     case ui::AXMode::kScreenReader:
@@ -82,18 +76,13 @@ void MetricsProviderCommon::RecordAvailableMemoryMetrics() {
                                available_bytes * 100 / total_bytes);
 
 #if BUILDFLAG(IS_MAC)
-  base::SystemMemoryInfoKB info;
+  base::SystemMemoryInfo info;
   if (base::GetSystemMemoryInfo(&info)) {
     base::UmaHistogramMemoryLargeMB(
-        "Memory.Experimental.MacFileBackedMemoryMB2",
-        info.file_backed / kKilobytesPerMb);
-    // `info.file_backed` is in kb, so multiply it by 1024 to get the amount of
-    // bytes
+        "Memory.Experimental.MacFileBackedMemoryMB2", info.file_backed.InMiB());
     base::UmaHistogramPercentage(
         "Memory.Experimental.MacAvailableMemoryPercentFreePageCache2",
-        (available_bytes +
-         (base::checked_cast<uint64_t>(info.file_backed) * 1024u)) *
-            100u / total_bytes);
+        (available_bytes + info.file_backed.InBytes()) * 100u / total_bytes);
   }
 #endif
 }
@@ -115,7 +104,6 @@ void MetricsProviderCommon::RecordA11yFlags() {
     MaybeRecordAccessibilityModeFlags(mode, ui::AXMode::kHTMLMetadata);
     MaybeRecordAccessibilityModeFlags(mode, ui::AXMode::kLabelImages);
     MaybeRecordAccessibilityModeFlags(mode, ui::AXMode::kPDFPrinting);
-    MaybeRecordAccessibilityModeFlags(mode, ui::AXMode::kPDFOcr);
     MaybeRecordAccessibilityModeFlags(mode, ui::AXMode::kAnnotateMainNode);
     // ui::AXMode::kFromPlatform is unconditionally filtered out and is
     // therefore never present in `mode`.

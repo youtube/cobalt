@@ -122,15 +122,16 @@ class ExternalMetadataReuseAllocatorBase : public ReuseAllocatorBase {
                                      size_t initial_capacity,
                                      size_t allocation_increment,
                                      size_t max_capacity);
-  ExternalMetadataReuseAllocatorBase(
-      Allocator* fallback_allocator,
-      size_t initial_capacity,
-      size_t allocation_increment,
-      size_t max_capacity,
-      bool enable_decommit_on_idle,
-      size_t retain_blocks,
-      size_t conservative_decommit_blocks,
-      bool aggressive_decommit_on_suspend = false);
+  ExternalMetadataReuseAllocatorBase(Allocator* fallback_allocator,
+                                     size_t initial_capacity,
+                                     size_t allocation_increment,
+                                     size_t max_capacity,
+                                     bool enable_decommit_on_idle,
+                                     size_t retain_blocks,
+                                     size_t conservative_decommit_blocks,
+                                     bool aggressive_decommit_on_suspend,
+                                     bool memset_on_reclaim,
+                                     bool mark_as_cold_on_reclaim);
   ~ExternalMetadataReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base

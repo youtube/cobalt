@@ -165,14 +165,25 @@ bool HasComprehensiveDecodeMap(int64_t event_hash) {
 bool HasUnknownMetrics(const builders::DecodeMap& decode_map,
                        const mojom::UkmEntry& entry) {
   const auto it = decode_map.find(entry.event_hash);
-  if (it == decode_map.end())
+  if (it == decode_map.end()) {
+    DVLOG(DebuggingLogLevel::Medium)
+        << "Event hash not in the decode map:"
+        << " [event_hash=" << entry.event_hash
+        << " decode_map.size()=" << decode_map.size() << "]";
     return true;
+  }
   if (!HasComprehensiveDecodeMap(entry.event_hash))
     return false;
   const auto& metric_map = it->second.metric_map;
   for (const auto& metric : entry.metrics) {
-    if (metric_map.count(metric.first) == 0)
+    if (metric_map.count(metric.first) == 0) {
+      DVLOG(DebuggingLogLevel::Medium)
+          << "Metric hash not in the decode map:"
+          << " [event_hash=" << entry.event_hash
+          << " metric_hash=" << metric.first
+          << " decode_map.size()=" << decode_map.size() << "]";
       return true;
+    }
   }
   return false;
 }
@@ -1004,7 +1015,12 @@ void UkmRecorderImpl::RecordSource(std::unique_ptr<UkmSource> source) {
 
 void UkmRecorderImpl::AddEntry(mojom::UkmEntryPtr entry) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK(!HasUnknownMetrics(decode_map_, *entry));
+
+  // This should not happen in practice, but possible if an event name
+  // coming from Android implementation in UkmRecorder.java is misspelled.
+  if (HasUnknownMetrics(decode_map_, *entry)) {
+    return;
+  }
 
   NotifyObserversWithNewEntry(*entry);
 

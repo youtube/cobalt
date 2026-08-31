@@ -31,7 +31,7 @@ void FormGroup::GetMatchingTypes(const std::u16string& text,
       AutofillProfileComparator::NormalizeForComparison(text);
   for (FieldType type : GetSupportedTypes()) {
     if (comparator.Compare(canonicalized_text, GetInfo(type, app_locale),
-                           AutofillProfileComparator::DISCARD_WHITESPACE,
+                           AutofillProfileComparator::WhitespaceSpec::kDiscard,
                            type)) {
       matching_types->insert(type);
     }
@@ -49,6 +49,11 @@ void FormGroup::GetNonEmptyTypes(const std::string& app_locale,
 
 bool FormGroup::HasRawInfo(FieldType type) const {
   return !GetRawInfo(type).empty();
+}
+
+std::u16string FormGroup::GetInfo(FieldType type,
+                                  const std::string& app_locale) const {
+  return GetInfo(AutofillType(type), app_locale);
 }
 
 bool FormGroup::SetInfo(FieldType type,

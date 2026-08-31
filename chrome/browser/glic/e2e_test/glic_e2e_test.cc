@@ -15,10 +15,10 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/glic/fre/fre_util.h"
 #include "chrome/browser/glic/fre/glic_fre_dialog_view.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/host/guest_util.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
 #include "chrome/browser/glic/test_support/interactive_test_util.h"
 #include "chrome/browser/glic/widget/glic_view.h"
@@ -57,6 +57,7 @@ constexpr base::FilePath::StringViewType kRecordingDirectoryPath =
 const char kGlicE2ETestModeSwitch[] = "glic-e2e-test-mode";
 const char kHostResolverRulesValue[] =
     "MAP *:80 127.0.0.1:8080,MAP *:443 127.0.0.1:8081,EXCLUDE localhost";
+constexpr char kEnableActorTests[] = "enable-actor-tests";
 
 // The first 2 is from WPR code readme. The last one is from
 // |kWebPageReplayCertSPKI| in
@@ -69,21 +70,25 @@ const char kIgnoreCertificateErrorsSPKIListValue[] =
     "PoNnQAwghMiLUPg1YNFtvTfGreNT8r9oeLEyzgNCJWc=";
 }  // namespace
 
-GlicE2ETest::GlicE2ETest() = default;
-GlicE2ETest::~GlicE2ETest() = default;
-
-void GlicE2ETest::SetUp() {
+GlicE2ETest::GlicE2ETest() {
   scoped_feature_list_.InitWithFeatures(
       /*enabled_features=*/{features::kGlic, features::kTabstripComboButton,
                             features::kGlicKeyboardShortcutNewBadge,
                             features::kGlicRollout,
                             contextual_cueing::kContextualCueing},
       /*disabled_features=*/{});
+}
+
+GlicE2ETest::~GlicE2ETest() = default;
+
+void GlicE2ETest::SetUp() {
   const base::CommandLine* command_line_of_test =
       base::CommandLine::ForCurrentProcess();
 
   std::string test_mode_value =
       command_line_of_test->GetSwitchValueASCII(kGlicE2ETestModeSwitch);
+
+  running_actor_tests_ = command_line_of_test->HasSwitch(kEnableActorTests);
 
   if (test_mode_value.empty() || test_mode_value == "real_backend") {
     test_mode_ = kRealBackend;
@@ -139,7 +144,8 @@ void GlicE2ETest::PreRunTestOnMainThread() {
 void GlicE2ETest::LoginTestAccountOrForceFakeSignin() {
   if (test_mode_ == kRealBackend || test_mode_ == kRecord) {
     std::optional<signin::TestAccountSigninCredentials> test_account =
-        GetTestAccounts()->GetAccount(kTestAccountLabel);
+        GetTestAccounts()->GetAccount(
+            running_actor_tests_ ? kTestActorAccountLabel : kTestAccountLabel);
     signin::test::SignInFunctions sign_in_functions =
         signin::test::SignInFunctions(
             base::BindLambdaForTesting(

@@ -6,6 +6,8 @@
 
 #include <optional>
 
+#include "base/containers/contains.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/strings/strcat.h"
 #include "net/base/url_util.h"
 #include "net/cookies/canonical_cookie.h"
@@ -83,8 +85,7 @@ std::optional<CookieCraving> CookieCraving::Create(
     const GURL& url,
     const std::string& name,
     const std::string& attributes,
-    base::Time creation_time,
-    std::optional<CookiePartitionKey> cookie_partition_key) {
+    base::Time creation_time) {
   if (!url.is_valid() || creation_time.is_null()) {
     return std::nullopt;
   }
@@ -107,13 +108,23 @@ std::optional<CookieCraving> CookieCraving::Create(
     return std::nullopt;
   }
 
+  static constexpr auto kPermittedAttributes =
+      base::MakeFixedFlatSet<std::string>(
+          {"domain", "path", "secure", "httponly", "samesite"});
+  if (!parsed_cookie.ForEachAttribute(
+          [](std::string_view attribute, std::string_view value) {
+            return base::Contains(kPermittedAttributes, attribute);
+          })) {
+    return std::nullopt;
+  }
+
   // `domain` is the domain key for storing the CookieCraving, determined
   // from the domain attribute value (if any) and the URL. A domain cookie is
   // marked by a preceding dot, as per CookieBase::Domain(), whereas a host
   // cookie has no leading dot.
   std::string domain_attribute_value;
-  if (parsed_cookie.HasDomain()) {
-    domain_attribute_value = parsed_cookie.Domain();
+  if (parsed_cookie.Domain()) {
+    domain_attribute_value = parsed_cookie.Domain().value();
   }
   CookieInclusionStatus ignored_status;
   std::optional<std::string> domain = cookie_util::GetCookieDomainWithString(
@@ -125,23 +136,12 @@ std::optional<CookieCraving> CookieCraving::Create(
     return std::nullopt;
   }
 
-  std::string path = cookie_util::CanonPathWithString(
-      url, parsed_cookie.HasPath() ? parsed_cookie.Path() : "");
+  std::string path =
+      cookie_util::CanonPathWithString(url, parsed_cookie.Path().value_or(""));
 
   CookiePrefix prefix = cookie_util::GetCookiePrefix(name);
   if (!cookie_util::IsCookiePrefixValid(prefix, url, parsed_cookie)) {
     return std::nullopt;
-  }
-
-  // TODO(chlily): Determine whether nonced partition keys should be supported
-  // for CookieCravings.
-  bool partition_has_nonce = CookiePartitionKey::HasNonce(cookie_partition_key);
-  if (!cookie_util::IsCookiePartitionedValid(url, parsed_cookie,
-                                             partition_has_nonce)) {
-    return std::nullopt;
-  }
-  if (!parsed_cookie.IsPartitioned() && !partition_has_nonce) {
-    cookie_partition_key = std::nullopt;
   }
 
   // Note: This is a deviation from CanonicalCookie::Create(), which allows
@@ -160,8 +160,7 @@ std::optional<CookieCraving> CookieCraving::Create(
                                creation_time,
                                parsed_cookie.IsSecure(),
                                parsed_cookie.IsHttpOnly(),
-                               parsed_cookie.SameSite(),
-                               std::move(cookie_partition_key),
+                               parsed_cookie.SameSite().first,
                                source_scheme,
                                source_port};
 
@@ -206,7 +205,19 @@ bool CookieCraving::IsValid() const {
         return false;
       }
       break;
-    default:
+    case COOKIE_PREFIX_HTTP:
+      if (!SecureAttribute() || !IsHttpOnly()) {
+        return false;
+      }
+      break;
+    case COOKIE_PREFIX_HOSTHTTP:
+      if (!SecureAttribute() || Path() != "/" || !IsHostCookie() ||
+          !IsHttpOnly()) {
+        return false;
+      }
+      break;
+    case COOKIE_PREFIX_NONE:
+    case COOKIE_PREFIX_LAST:
       break;
   }
 
@@ -265,14 +276,11 @@ CookieCraving CookieCraving::CreateUnsafeForTesting(
     bool secure,
     bool httponly,
     CookieSameSite same_site,
-    std::optional<CookiePartitionKey> partition_key,
     CookieSourceScheme source_scheme,
     int source_port) {
-  return CookieCraving{std::move(name), std::move(domain),
-                       std::move(path), creation,
-                       secure,          httponly,
-                       same_site,       std::move(partition_key),
-                       source_scheme,   source_port};
+  return CookieCraving{
+      std::move(name), std::move(domain), std::move(path), creation,   secure,
+      httponly,        same_site,         source_scheme,   source_port};
 }
 
 CookieCraving::CookieCraving() = default;
@@ -284,7 +292,6 @@ CookieCraving::CookieCraving(std::string name,
                              bool secure,
                              bool httponly,
                              CookieSameSite same_site,
-                             std::optional<CookiePartitionKey> partition_key,
                              CookieSourceScheme source_scheme,
                              int source_port)
     : CookieBase(std::move(name),
@@ -294,7 +301,7 @@ CookieCraving::CookieCraving(std::string name,
                  secure,
                  httponly,
                  same_site,
-                 std::move(partition_key),
+                 /*partition_key=*/std::nullopt,
                  source_scheme,
                  source_port) {}
 
@@ -338,21 +345,6 @@ proto::CookieCraving CookieCraving::ToProto() const {
       CreationDate().ToDeltaSinceWindowsEpoch().InMicroseconds());
   proto.set_same_site(ProtoEnumFromCookieSameSite(SameSite()));
   proto.set_source_scheme(ProtoEnumFromCookieSourceScheme(SourceScheme()));
-
-  if (IsPartitioned()) {
-    // TODO(crbug.com/356581003) The serialization below does not handle
-    // nonced cookies. Need to figure out whether this is required.
-    base::expected<net::CookiePartitionKey::SerializedCookiePartitionKey,
-                   std::string>
-        serialized_partition_key =
-            net::CookiePartitionKey::Serialize(PartitionKey());
-    CHECK(serialized_partition_key.has_value());
-    proto.mutable_serialized_partition_key()->set_top_level_site(
-        serialized_partition_key->TopLevelSite());
-    proto.mutable_serialized_partition_key()->set_has_cross_site_ancestor(
-        serialized_partition_key->has_cross_site_ancestor());
-  }
-
   return proto;
 }
 
@@ -366,25 +358,6 @@ std::optional<CookieCraving> CookieCraving::CreateFromProto(
     return std::nullopt;
   }
 
-  // Retrieve the serialized cookie partition key if present.
-  std::optional<CookiePartitionKey> partition_key;
-  if (proto.has_serialized_partition_key()) {
-    const proto::SerializedCookiePartitionKey& serialized_key =
-        proto.serialized_partition_key();
-    if (!serialized_key.has_top_level_site() ||
-        !serialized_key.has_has_cross_site_ancestor()) {
-      return std::nullopt;
-    }
-    base::expected<std::optional<CookiePartitionKey>, std::string>
-        restored_key = CookiePartitionKey::FromStorage(
-            serialized_key.top_level_site(),
-            serialized_key.has_cross_site_ancestor());
-    if (!restored_key.has_value() || *restored_key == std::nullopt) {
-      return std::nullopt;
-    }
-    partition_key = std::move(*restored_key);
-  }
-
   CookieCraving cookie_craving{
       proto.name(),
       proto.domain(),
@@ -394,7 +367,6 @@ std::optional<CookieCraving> CookieCraving::CreateFromProto(
       proto.secure(),
       proto.httponly(),
       CookieSameSiteFromProtoEnum(proto.same_site()),
-      std::move(partition_key),
       CookieSourceSchemeFromProtoEnum(proto.source_scheme()),
       proto.source_port()};
 
@@ -421,11 +393,27 @@ bool CookieCraving::ShouldIncludeForRequest(
   // conditions too.
   base::Time now = base::Time::Now();
   CookieInclusionStatus status;
+  std::string domain = Domain();
+  // This fix is needed because non-IP address __Host- prefix cookies are
+  // considered invalid if they pass through a domain, but Domain() is defined
+  // even for __Host- prefix cookies. This fix is very limited in scope for now
+  // (only __Host- prefix cookies).
+  // TODO(crbug.com/435221694): re-implement the way we call into
+  // `AnnotateAndMoveUserBlockedCookies` so that it is not possible for a
+  // validation to fail in this method. Some ideas:
+  //  1) Can we create a canonical cookie in the `CookieCraving` constructor
+  //     with the original inputs?
+  //  2) Can we refactor `AnnotateAndMoveUserBlockedCookies` to input a
+  //     `CookieBase` instead?
+  if (!request->url().HostIsIPAddress() &&
+      cookie_util::GetCookiePrefix(Name()) == COOKIE_PREFIX_HOST) {
+    domain = "";
+  }
   std::unique_ptr<CanonicalCookie> canonical_cookie =
       CanonicalCookie::CreateSanitizedCookie(
-          request->url(), Name(), /*value=*/"", Domain(), Path(),
-          CreationDate(), now + base::Days(1), now, IsSecure(), IsHttpOnly(),
-          SameSite(), COOKIE_PRIORITY_DEFAULT, PartitionKey(), &status);
+          request->url(), Name(), /*value=*/"", domain, Path(), CreationDate(),
+          now + base::Days(1), now, IsSecure(), IsHttpOnly(), SameSite(),
+          COOKIE_PRIORITY_DEFAULT, PartitionKey(), &status);
   CookieAccessResultList included_cravings;
   included_cravings.emplace_back(std::move(*canonical_cookie));
   CookieAccessResultList excluded_cravings;

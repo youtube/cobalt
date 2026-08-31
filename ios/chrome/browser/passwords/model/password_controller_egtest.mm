@@ -23,6 +23,7 @@
 #import "components/plus_addresses/features.h"
 #import "components/policy/core/common/policy_loader_ios_constants.h"
 #import "components/strings/grit/components_strings.h"
+#import "components/sync/base/features.h"
 #import "components/sync/base/user_selectable_type.h"
 #import "components/sync/service/sync_prefs.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
@@ -163,6 +164,8 @@ void TypeUsernameAndPasswordOnUFF(NSString* username,
 
 // Taps on the login button in UFF for logging in.
 void LoginOnUff() {
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:chrome_test_util::WebViewMatcher()];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId("login_btn")];
 }
@@ -246,10 +249,20 @@ void LoginOnUff() {
     config.relaunch_policy = ForceRelaunchByKilling;
   }
 
-  if ([self isRunningTest:@selector(testPasswordBreachEventReported)]) {
+  if ([self
+          isRunningTest:@selector(DISABLED_testPasswordBreachEventReported)]) {
     config.features_enabled.push_back(
         password_manager::features::kMarkAllCredentialsAsLeaked);
   }
+
+// TODO(crbug.com/371189341): Test fails on device.
+#if TARGET_OS_SIMULATOR
+  if ([self isRunningTest:@selector
+            (testPasswordGenerationWhileSignedInWithError)]) {
+    config.features_enabled.push_back(
+        syncer::kSyncTrustedVaultInfobarImprovements);
+  }
+#endif  // TARGET_OS_SIMULATOR
 
   // The proactive password suggestion bottom sheet isn't tested here, it
   // is tested in its own suite in password_suggestion_egtest.mm.
@@ -278,9 +291,10 @@ void LoginOnUff() {
 }
 
 - (std::optional<std::string_view>)enterpriseReportingEventForTest {
-  if ([self isRunningTest:@selector(testLoginEventReported)]) {
+  if ([self isRunningTest:@selector(FLAKY_testLoginEventReported)]) {
     return "loginEvent";
-  } else if ([self isRunningTest:@selector(testPasswordBreachEventReported)]) {
+  } else if ([self isRunningTest:@selector
+                   (DISABLED_testPasswordBreachEventReported)]) {
     return "passwordBreachEvent";
   }
   return std::nullopt;
@@ -445,6 +459,8 @@ void LoginOnUff() {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId(kFormPassword)];
 
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:chrome_test_util::WebViewMatcher()];
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId("submit_button")];
 
@@ -498,7 +514,7 @@ void LoginOnUff() {
 
 // Tests password generation flow.
 // TODO(crbug.com/40260214): The test fails on simulator.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testPasswordGeneration FLAKY_testPasswordGeneration
 #else
 #define MAYBE_testPasswordGeneration testPasswordGeneration
@@ -573,7 +589,7 @@ void LoginOnUff() {
 // Tests that password generation is not offered for signed in users with
 // passwords toggle disabled.
 // TODO(crbug.com/371189341): Test fails on device.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testPasswordGenerationWhileSignedInWithPasswordsDisabled \
   testPasswordGenerationWhileSignedInWithPasswordsDisabled
 #else
@@ -616,7 +632,7 @@ void LoginOnUff() {
 // Tests that password generation is not offered for signed in users with an
 // encryption error; missing passphrase.
 // TODO(crbug.com/371189341): Test fails on device.
-#if TARGET_IPHONE_SIMULATOR
+#if TARGET_OS_SIMULATOR
 #define MAYBE_testPasswordGenerationWhileSignedInWithError \
   testPasswordGenerationWhileSignedInWithError
 #else
@@ -642,6 +658,11 @@ void LoginOnUff() {
 
   [ChromeEarlGrey loadURL:self.testServer->GetURL("/simple_signup_form.html")];
   [ChromeEarlGrey waitForWebStateContainingText:"Signup form."];
+
+  // Swipe up the sync infobar error.
+  [[EarlGrey selectElementWithMatcher:grey_accessibilityID(
+                                          kInfobarBannerViewIdentifier)]
+      performAction:grey_swipeFastInDirection(kGREYDirectionUp)];
 
   // Verify that the target field is empty.
   NSString* emptyFieldCondition =
@@ -788,8 +809,9 @@ void LoginOnUff() {
                                 password:passwordValue];
 }
 
+// TODO(crbug.com/428877349): Re-enable after fixing the test flakiness.
 // Tests that a login event is reported to an enterprise connector.
-- (void)testLoginEventReported {
+- (void)FLAKY_testLoginEventReported {
   [self loadLoginPage];
 
   // Simulate login.
@@ -810,8 +832,8 @@ void LoginOnUff() {
 
   const Event& event = requests[0].events(0);
   GREYAssertTrue(event.has_login_event(), @"Wrong event type.");
-  GREYAssertEqual(self.testServer->GetURL("/"), event.login_event().url(),
-                  @"Wrong URL reported to server.");
+  GREYAssertEqual(self.testServer->GetURL("/simple_login_form.html"),
+                  event.login_event().url(), @"Wrong URL reported to server.");
   // The `test-username` portion of the email will be masked, but the domain
   // part shouldn't be.
   GREYAssertTrue(
@@ -820,7 +842,8 @@ void LoginOnUff() {
 }
 
 // Tests that a password breach event is reported to an enterprise connector.
-- (void)testPasswordBreachEventReported {
+// TODO(crbug.com/429140546): flaky on chromium/ci/ios-simulator-noncq.
+- (void)DISABLED_testPasswordBreachEventReported {
   [self loadLoginPage];
 
   // Simulate login.
@@ -853,8 +876,8 @@ void LoginOnUff() {
                   @"Wrong number of leaked identities.");
 
   const Identity& identity = event.password_breach_event().identities(0);
-  GREYAssertEqual(self.testServer->GetURL("/"), identity.url(),
-                  @"Wrong URL reported for leaked identity.");
+  GREYAssertEqual(self.testServer->GetURL("/simple_login_form.html"),
+                  identity.url(), @"Wrong URL reported for leaked identity.");
   // The `test-username` portion of the email will be masked, but the domain
   // part shouldn't be.
   GREYAssertTrue(identity.username().ends_with("@test-domain.com"),

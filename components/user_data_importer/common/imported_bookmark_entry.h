@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/time/time.h"
+#include "base/uuid.h"
 #include "url/gurl.h"
 
 namespace user_data_importer {
@@ -26,6 +27,9 @@ struct ImportedBookmarkEntry {
   std::vector<std::u16string> path;
   std::u16string title;
   base::Time creation_time;
+  std::optional<base::Time> last_visit_time;
+  std::optional<base::Uuid> uuid;
+  std::optional<bool> synced;
 };
 
 }  // namespace user_data_importer

@@ -8,6 +8,7 @@
 #include <string_view>
 
 #include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_command_line.h"
 #include "base/test/scoped_feature_list.h"
 #include "extensions/common/error_utils.h"
@@ -264,27 +265,5 @@ TEST(ExtensionTest, LoginScreenFlag) {
                                    Manifest::TYPE_LOGIN_SCREEN_EXTENSION,
                                    Extension::FOR_LOGIN_SCREEN));
 }
-
-#if BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
-TEST(ExtensionTest, BlockInstallingExtensionsOnDesktopAndroid) {
-  auto manifest = base::Value::Dict()
-                      .Set("name", "My Extension")
-                      .Set("version", "0.1")
-                      .Set("description", "An awesome extension")
-                      .Set("manifest_version", 3);
-
-  std::string error;
-  EXPECT_TRUE(Extension::Create(base::FilePath(), ManifestLocation::kInternal,
-                                manifest.Clone(), Extension::NO_FLAGS, &error));
-
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      extensions_features::kBlockInstallingExtensionsOnDesktopAndroid);
-
-  EXPECT_FALSE(Extension::Create(base::FilePath(), ManifestLocation::kInternal,
-                                 manifest.Clone(), Extension::NO_FLAGS,
-                                 &error));
-}
-#endif  // BUILDFLAG(ENABLE_DESKTOP_ANDROID_EXTENSIONS)
 
 }  // namespace extensions

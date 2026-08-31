@@ -2,13 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "remoting/protocol/stun_tcp_packet_processor.h"
 
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
@@ -88,12 +84,12 @@ scoped_refptr<net::IOBufferWithSize> StunTcpPacketProcessor::Pack(
   size_t size = data_size + pad_bytes;
 
   auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(size);
-  memcpy(buffer->data(), data, data_size);
+  UNSAFE_TODO(memcpy(buffer->data(), data, data_size));
 
   if (pad_bytes) {
     char padding[4] = {};
     DCHECK_LE(pad_bytes, 4u);
-    memcpy(buffer->data() + data_size, padding, pad_bytes);
+    UNSAFE_TODO(memcpy(buffer->data() + data_size, padding, pad_bytes));
   }
   return buffer;
 }
@@ -118,7 +114,7 @@ scoped_refptr<net::IOBufferWithSize> StunTcpPacketProcessor::Unpack(
   const uint8_t* cur = data;
   *bytes_consumed = packet_size + pad_bytes;
   auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(packet_size);
-  memcpy(buffer->data(), cur, packet_size);
+  UNSAFE_TODO(memcpy(buffer->data(), cur, packet_size));
   return buffer;
 }
 
@@ -126,8 +122,8 @@ void StunTcpPacketProcessor::ApplyPacketOptions(
     uint8_t* data,
     size_t data_size,
     const webrtc::PacketTimeUpdateParams& packet_time_params) const {
-  webrtc::ApplyPacketOptions(data, data_size, packet_time_params,
-                             webrtc::TimeMicros());
+  webrtc::ApplyPacketOptions(webrtc::ArrayView<uint8_t>(data, data_size),
+                             packet_time_params, webrtc::TimeMicros());
 }
 
 }  // namespace remoting::protocol

@@ -7,36 +7,14 @@
 #include "base/check.h"
 #include "ui/views/view.h"
 
-constexpr int kNewTabFooterHeight = 56;
-
-ContentsLayoutManager::ContentsLayoutManager(views::View* devtools_view,
-                                             views::View* devtools_scrim_view,
-                                             views::View* contents_view,
+ContentsLayoutManager::ContentsLayoutManager(views::View* contents_view,
                                              views::View* lens_overlay_view,
-                                             views::View* scrim_view,
-                                             views::View* border_view,
-                                             views::View* watermark_view,
-                                             views::View* new_tab_footer_view)
-    : devtools_view_(devtools_view),
-      devtools_scrim_view_(devtools_scrim_view),
-      contents_view_(contents_view),
+                                             views::View* watermark_view)
+    : contents_view_(contents_view),
       lens_overlay_view_(lens_overlay_view),
-      scrim_view_(scrim_view),
-      border_view_(border_view),
-      watermark_view_(watermark_view),
-      new_tab_footer_view_(new_tab_footer_view) {}
+      watermark_view_(watermark_view) {}
 
 ContentsLayoutManager::~ContentsLayoutManager() = default;
-
-void ContentsLayoutManager::SetContentsResizingStrategy(
-    const DevToolsContentsResizingStrategy& strategy) {
-  if (strategy_.Equals(strategy)) {
-    return;
-  }
-
-  strategy_.CopyFrom(strategy);
-  InvalidateHost(true);
-}
 
 views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
     const views::SizeBounds& size_bounds) const {
@@ -50,60 +28,20 @@ views::ProposedLayout ContentsLayoutManager::CalculateProposedLayout(
   int width = size_bounds.width().value();
 
   gfx::Size container_size(width, height);
-  gfx::Rect new_devtools_bounds;
-  gfx::Rect new_contents_bounds;
+  gfx::Rect contents_bounds(0, 0, container_size.width(),
+                            container_size.height());
 
-  ApplyDevToolsContentsResizingStrategy(
-      strategy_, container_size, &new_devtools_bounds, &new_contents_bounds);
-
-  // DevTools cares about the specific position, so we have to compensate RTL
-  // layout here.
-  layouts.child_layouts.emplace_back(
-      devtools_view_.get(), devtools_view_->GetVisible(),
-      host_view()->GetMirroredRect(new_devtools_bounds),
-      views::SizeBounds(container_size));
-  layouts.child_layouts.emplace_back(
-      devtools_scrim_view_.get(), devtools_scrim_view_->GetVisible(),
-      host_view()->GetMirroredRect(new_devtools_bounds),
-      views::SizeBounds(container_size));
-
-  // New Tab Footer view is displayed at the bottom of the contents view.
-  if (new_tab_footer_view_ && new_tab_footer_view_->GetVisible()) {
-    new_contents_bounds.set_height(new_contents_bounds.height() -
-                                   kNewTabFooterHeight);
-
-    layouts.child_layouts.emplace_back(
-        new_tab_footer_view_.get(), new_tab_footer_view_->GetVisible(),
-        gfx::Rect(0, new_contents_bounds.height(), width, kNewTabFooterHeight),
-        views::SizeBounds(container_size));
-  }
-
-  const auto& contents_rect = host_view()->GetMirroredRect(new_contents_bounds);
+  const auto& contents_rect = host_view()->GetMirroredRect(contents_bounds);
   views::SizeBounds optional_size_bound = views::SizeBounds(container_size);
   layouts.child_layouts.emplace_back(contents_view_.get(),
                                      contents_view_->GetVisible(),
-                                     contents_rect, optional_size_bound);
-
-  // The scrim view bounds are the same as the contents view.
-  CHECK(scrim_view_);
-  layouts.child_layouts.emplace_back(scrim_view_.get(),
-                                     scrim_view_->GetVisible(), contents_rect,
-                                     optional_size_bound);
+                                     contents_bounds, optional_size_bound);
 
   // The Lens overlay view bounds are the same as the contents view.
   CHECK(lens_overlay_view_);
   layouts.child_layouts.emplace_back(lens_overlay_view_.get(),
                                      lens_overlay_view_->GetVisible(),
                                      contents_rect, optional_size_bound);
-
-  if (border_view_) {
-    layouts.child_layouts.push_back(
-        {.child_view = border_view_.get(),
-         .visible = border_view_->GetVisible(),
-         // The border shares the same bounds with the ContentWebView.
-         .bounds = contents_rect,
-         .available_size = optional_size_bound});
-  }
 
   // Enterprise watermark view is always overlaid, even when empty.
   if (watermark_view_) {

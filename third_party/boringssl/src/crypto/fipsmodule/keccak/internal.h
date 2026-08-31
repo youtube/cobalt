@@ -22,23 +22,26 @@ extern "C" {
 #endif
 
 
-enum boringssl_keccak_config_t {
+enum boringssl_keccak_config_t : int32_t {
   boringssl_sha3_256,
   boringssl_sha3_512,
   boringssl_shake128,
   boringssl_shake256,
 };
 
-enum boringssl_keccak_phase_t {
+enum boringssl_keccak_phase_t : int32_t {
   boringssl_keccak_phase_absorb,
   boringssl_keccak_phase_squeeze,
 };
 
 struct BORINGSSL_keccak_st {
+  // Note: the state with 64-bit integers comes first so that the size of this
+  // struct is easy to compute on all architectures without padding surprises
+  // due to alignment.
+  uint64_t state[25];
   enum boringssl_keccak_config_t config;
   enum boringssl_keccak_phase_t phase;
   size_t required_out_len;
-  uint64_t state[25];
   size_t rate_bytes;
   size_t absorb_offset;
   size_t squeeze_offset;

@@ -225,6 +225,26 @@ bool SharedImageFormat::VerifySizeInBytes(const gfx::Size& size) const {
   return MaybeEstimatedSizeInBytes(size).has_value();
 }
 
+std::pair<int, int> SharedImageFormat::GetSubsamplingScale() const {
+  DCHECK(is_multi_plane());
+  // UV scales
+  int width_scale = 1;
+  int height_scale = 1;
+  switch (subsampling()) {
+    case Subsampling::k420:
+      width_scale = 2;
+      height_scale = 2;
+      break;
+    case Subsampling::k422:
+      width_scale = 2;
+      break;
+    case Subsampling::k444:
+      break;
+  }
+
+  return {width_scale, height_scale};
+}
+
 gfx::Size SharedImageFormat::GetPlaneSize(int plane_index,
                                           const gfx::Size& size) const {
   DCHECK(IsValidPlaneIndex(plane_index));
@@ -244,21 +264,8 @@ gfx::Size SharedImageFormat::GetPlaneSize(int plane_index,
     return size;
   }
 
-  // UV scales
-  float width_scale = 1.0;
-  float height_scale = 1.0;
-  switch (subsampling()) {
-    case Subsampling::k420:
-      width_scale = 0.5;
-      height_scale = 0.5;
-      break;
-    case Subsampling::k422:
-      width_scale = 0.5;
-      break;
-    case Subsampling::k444:
-      break;
-  }
-  return gfx::ScaleToCeiledSize(size, width_scale, height_scale);
+  auto [width_scale, height_scale] = GetSubsamplingScale();
+  return gfx::ScaleToCeiledSize(size, 1.0 / width_scale, 1.0 / height_scale);
 }
 
 // For multiplanar formats.
@@ -382,6 +389,9 @@ int SharedImageFormat::BitsPerPixel() const {
 }
 
 SharedImageFormat SharedImageFormat::N32Format() {
+  // Skia has an internal algorithm for determining the N32 flag, but we
+  // override this with a build flag based on the Platform, so we can reduce
+  // this to checking if we're building for Android.
 #if BUILDFLAG(IS_ANDROID)
   return SinglePlaneFormat::kRGBA_8888;
 #else

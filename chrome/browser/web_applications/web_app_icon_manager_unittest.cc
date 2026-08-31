@@ -43,13 +43,14 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/resource/resource_scale_factor.h"
 #include "ui/gfx/favicon_size.h"
+#include "ui/gfx/image/image_unittest_util.h"
+#include "ui/gfx/test/sk_gmock_support.h"
 
 namespace web_app {
 
 namespace {
 
 using IconSizeAndPurpose = WebAppIconManager::IconSizeAndPurpose;
-const int kMinimumHomeTabIconSizeInPx = 16;
 
 // Returns a vector of item infos for the shortcuts menu. Each item is empty
 // except `downloaded_icon_sizes` is set to `icon_sizes`.
@@ -68,7 +69,17 @@ std::vector<WebAppShortcutsMenuItemInfo> CreateShortcutsMenuItemInfos(
 
 }  // namespace
 
-class WebAppIconManagerTest : public WebAppTest {
+class WebAppIconManagerTest : public WebAppTest,
+                              public testing::WithParamInterface<bool> {
+ public:
+  WebAppIconManagerTest() {
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(features::kWebAppUsePrimaryIcon);
+    } else {
+      feature_list_.InitAndDisableFeature(features::kWebAppUsePrimaryIcon);
+    }
+  }
+
   void SetUp() override {
     WebAppTest::SetUp();
 
@@ -103,8 +114,8 @@ class WebAppIconManagerTest : public WebAppTest {
     }
 
     base::RunLoop run_loop;
-    icon_manager().WriteData(app_id, {}, std::move(shortcuts_menu_icons), {},
-                             base::BindLambdaForTesting([&](bool success) {
+    icon_manager().WriteData(app_id, {}, {}, std::move(shortcuts_menu_icons),
+                             {}, base::BindLambdaForTesting([&](bool success) {
                                EXPECT_TRUE(success);
                                run_loop.Quit();
                              }));
@@ -239,6 +250,30 @@ class WebAppIconManagerTest : public WebAppTest {
     run_loop.Run();
   }
 
+  base::FilePath GetAppTrustedIconsDir(Profile* profile,
+                                       const webapps::AppId& app_id) {
+    base::FilePath web_apps_root_directory = GetWebAppsRootDirectory(profile);
+    base::FilePath app_dir =
+        GetManifestResourcesDirectoryForApp(web_apps_root_directory, app_id);
+    return app_dir.AppendASCII("Trusted Icons");
+  }
+
+  base::FilePath GetAppPendingTrustedIconsDir(Profile* profile,
+                                              const webapps::AppId& app_id) {
+    base::FilePath web_apps_root_directory = GetWebAppsRootDirectory(profile);
+    base::FilePath app_dir =
+        GetManifestResourcesDirectoryForApp(web_apps_root_directory, app_id);
+    return app_dir.AppendASCII("Pending Trusted Icons");
+  }
+
+  base::FilePath GetAppPendingManifestIconsDir(Profile* profile,
+                                               const webapps::AppId& app_id) {
+    base::FilePath web_apps_root_directory = GetWebAppsRootDirectory(profile);
+    base::FilePath app_dir =
+        GetManifestResourcesDirectoryForApp(web_apps_root_directory, app_id);
+    return app_dir.AppendASCII("Pending Manifest Icons");
+  }
+
   WebAppRegistrar& registrar() { return fake_provider().registrar_unsafe(); }
   WebAppInstallManager& install_manager() {
     return fake_provider().install_manager();
@@ -250,9 +285,14 @@ class WebAppIconManagerTest : public WebAppTest {
   TestFileUtils& file_utils() {
     return *fake_provider().file_utils()->AsTestFileUtils();
   }
+
+  bool IsTrustedIconsEnabled() { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
-TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyOnly) {
+TEST_P(WebAppIconManagerTest, WriteAndReadIcons_AnyOnly) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -269,7 +309,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyOnly) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::ANY, sizes_px,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -292,7 +332,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyOnly) {
       icon_manager().HasIcons(app_id, IconPurpose::MASKABLE, sizes_px));
 }
 
-TEST_F(WebAppIconManagerTest, WriteAndReadIcons_MaskableOnly) {
+TEST_P(WebAppIconManagerTest, WriteAndReadIcons_MaskableOnly) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -310,7 +350,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_MaskableOnly) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::MASKABLE, sizes_px,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -331,7 +371,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_MaskableOnly) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, WriteAndReadIcons_MonochromeOnly) {
+TEST_P(WebAppIconManagerTest, WriteAndReadIcons_MonochromeOnly) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -352,7 +392,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_MonochromeOnly) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::MONOCHROME, sizes_px,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -373,7 +413,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_MonochromeOnly) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMaskable) {
+TEST_P(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMaskable) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -392,7 +432,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMaskable) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::ANY, sizes_px,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -415,7 +455,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMaskable) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::MASKABLE, sizes_px,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -436,7 +476,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMaskable) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMonochrome) {
+TEST_P(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMonochrome) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -462,7 +502,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMonochrome) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::ANY, sizes_px_any,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -486,7 +526,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMonochrome) {
   {
     base::RunLoop run_loop;
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::MONOCHROME, sizes_px_monochrome,
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -507,7 +547,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadIcons_AnyAndMonochrome) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, OverwriteIcons) {
+TEST_P(WebAppIconManagerTest, OverwriteIcons) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -538,7 +578,7 @@ TEST_F(WebAppIconManagerTest, OverwriteIcons) {
     base::RunLoop run_loop;
 
     // Overwrite red icons with green and blue ones.
-    icon_manager().WriteData(app_id, std::move(icon_bitmaps), {}, {},
+    icon_manager().WriteData(app_id, std::move(icon_bitmaps), {}, {}, {},
                              base::BindLambdaForTesting([&](bool success) {
                                EXPECT_TRUE(success);
                                run_loop.Quit();
@@ -602,36 +642,7 @@ TEST_F(WebAppIconManagerTest, OverwriteIcons) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, ReadAllIcons_AnyOnly) {
-  auto web_app = test::CreateWebApp();
-  const webapps::AppId app_id = web_app->app_id();
-
-  const std::vector<int> sizes_px{icon_size::k256, icon_size::k512};
-  const std::vector<SkColor> colors{SK_ColorGREEN, SK_ColorYELLOW};
-  IconManagerWriteGeneratedIcons(icon_manager(), app_id,
-                                 {{IconPurpose::ANY, sizes_px, colors}});
-
-  web_app->SetDownloadedIconSizes(IconPurpose::ANY, sizes_px);
-
-  AddAppToRegistry(std::move(web_app));
-  {
-    base::RunLoop run_loop;
-
-    icon_manager().ReadAllIcons(
-        app_id, base::BindLambdaForTesting([&](IconBitmaps icons_map) {
-          EXPECT_FALSE(icons_map.empty());
-          EXPECT_EQ(2u, icons_map.any.size());
-          EXPECT_EQ(colors[0], icons_map.any[sizes_px[0]].getColor(0, 0));
-          EXPECT_EQ(colors[1], icons_map.any[sizes_px[1]].getColor(0, 0));
-          EXPECT_EQ(0u, icons_map.maskable.size());
-          run_loop.Quit();
-        }));
-
-    run_loop.Run();
-  }
-}
-
-TEST_F(WebAppIconManagerTest, ReadAllIconsLastUpdateTime) {
+TEST_P(WebAppIconManagerTest, ReadAllIconsLastUpdateTime) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -654,7 +665,7 @@ TEST_F(WebAppIconManagerTest, ReadAllIconsLastUpdateTime) {
   EXPECT_FALSE(time_data_map[sizes_px[1]].is_null());
 }
 
-TEST_F(WebAppIconManagerTest, ReadAllShortcutMenuIconsWithTimestamp) {
+TEST_P(WebAppIconManagerTest, ReadAllShortcutMenuIconsWithTimestamp) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -712,62 +723,7 @@ TEST_F(WebAppIconManagerTest, ReadAllShortcutMenuIconsWithTimestamp) {
       time_data_map[1][IconPurpose::MONOCHROME][icon_size::k128].is_null());
 }
 
-TEST_F(WebAppIconManagerTest, NoHomeTabIcons) {
-  auto web_app = test::CreateWebApp();
-  const webapps::AppId app_id = web_app->app_id();
-  const std::vector<blink::Manifest::ImageResource>& icons{};
-  SkBitmap result;
-
-  AddAppToRegistry(std::move(web_app));
-  {
-    base::RunLoop run_loop;
-
-    icon_manager().ReadBestHomeTabIcon(
-        app_id, icons, kMinimumHomeTabIconSizeInPx,
-        base::BindLambdaForTesting([&](SkBitmap home_tab_icon) {
-          result = std::move(home_tab_icon);
-          run_loop.Quit();
-        }));
-
-    run_loop.Run();
-    EXPECT_TRUE(result.height() == 0 && result.width() == 0);
-  }
-}
-
-TEST_F(WebAppIconManagerTest, ReadAllIcons_AnyAndMaskable) {
-  auto web_app = test::CreateWebApp();
-  const webapps::AppId app_id = web_app->app_id();
-
-  const std::vector<int> sizes_px{icon_size::k256, icon_size::k512};
-  const std::vector<SkColor> colors{SK_ColorGREEN, SK_ColorYELLOW};
-  IconManagerWriteGeneratedIcons(icon_manager(), app_id,
-                                 {{IconPurpose::ANY, sizes_px, colors},
-                                  {IconPurpose::MASKABLE, sizes_px, colors}});
-
-  web_app->SetDownloadedIconSizes(IconPurpose::ANY, sizes_px);
-  web_app->SetDownloadedIconSizes(IconPurpose::MASKABLE, sizes_px);
-
-  AddAppToRegistry(std::move(web_app));
-  {
-    base::RunLoop run_loop;
-
-    icon_manager().ReadAllIcons(
-        app_id, base::BindLambdaForTesting([&](IconBitmaps icons_map) {
-          EXPECT_FALSE(icons_map.empty());
-          EXPECT_EQ(2u, icons_map.any.size());
-          EXPECT_EQ(colors[0], icons_map.any[sizes_px[0]].getColor(0, 0));
-          EXPECT_EQ(colors[1], icons_map.any[sizes_px[1]].getColor(0, 0));
-          EXPECT_EQ(2u, icons_map.maskable.size());
-          EXPECT_EQ(colors[0], icons_map.maskable[sizes_px[0]].getColor(0, 0));
-          EXPECT_EQ(colors[1], icons_map.maskable[sizes_px[1]].getColor(0, 0));
-          run_loop.Quit();
-        }));
-
-    run_loop.Run();
-  }
-}
-
-TEST_F(WebAppIconManagerTest, ReadShortcutsMenuIconsFailed) {
+TEST_P(WebAppIconManagerTest, ReadShortcutsMenuIconsFailed) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -792,7 +748,7 @@ TEST_F(WebAppIconManagerTest, ReadShortcutsMenuIconsFailed) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, WriteAndReadAllShortcutsMenuIcons) {
+TEST_P(WebAppIconManagerTest, WriteAndReadAllShortcutsMenuIcons) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -873,7 +829,7 @@ TEST_F(WebAppIconManagerTest, WriteAndReadAllShortcutsMenuIcons) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, WriteNonProductIconsEmptyMaps) {
+TEST_P(WebAppIconManagerTest, WriteNonProductIconsEmptyMaps) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -882,7 +838,7 @@ TEST_F(WebAppIconManagerTest, WriteNonProductIconsEmptyMaps) {
   AddAppToRegistry(std::move(web_app));
 
   base::RunLoop run_loop;
-  icon_manager().WriteData(app_id, {}, {}, {},
+  icon_manager().WriteData(app_id, {}, {}, {}, {},
                            base::BindLambdaForTesting([&](bool success) {
                              EXPECT_TRUE(success);
                              run_loop.Quit();
@@ -894,12 +850,268 @@ TEST_F(WebAppIconManagerTest, WriteNonProductIconsEmptyMaps) {
       ReadAllShortcutsMenuIcons(app_id);
   EXPECT_EQ(0u, shortcuts_menu_icons_map.size());
 
+  EXPECT_FALSE(
+      file_utils().PathExists(GetAppTrustedIconsDir(profile(), app_id)));
   EXPECT_FALSE(file_utils().PathExists(GetOtherIconsDir(profile(), app_id)));
   // TODO(estade): check that WebAppIconManager returns no data when other icons
   // are read. (When there is a read function.)
 }
 
-TEST_F(WebAppIconManagerTest, WriteOtherIconsToDisk) {
+TEST_P(WebAppIconManagerTest, WriteTrustedIconsIntoDisk) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps trusted_bitmaps;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  SkBitmap any_bitmap3 = CreateSquareIcon(icon_size::k128, SK_ColorYELLOW);
+  trusted_bitmaps.any[icon_size::k32] = any_bitmap1;
+  trusted_bitmaps.any[icon_size::k64] = any_bitmap2;
+  trusted_bitmaps.any[icon_size::k128] = any_bitmap3;
+
+  SkBitmap maskable_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap maskable_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  SkBitmap maskable_bitmap3 = CreateSquareIcon(icon_size::k96, SK_ColorGRAY);
+  trusted_bitmaps.maskable[icon_size::k256] = maskable_bitmap1;
+  trusted_bitmaps.maskable[icon_size::k512] = maskable_bitmap2;
+  trusted_bitmaps.maskable[icon_size::k96] = maskable_bitmap3;
+
+  // Verify writing trusted icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {}, {trusted_bitmaps}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppTrustedIconsDir(profile(), app_id)));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk.
+  base::FilePath any_trusted_icons =
+      GetAppTrustedIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_icons =
+      ReadPngsFromDirectory(&file_utils(), any_trusted_icons);
+  EXPECT_EQ(3u, any_icons.size());
+  gfx::test::AreBitmapsEqual(any_bitmap1, any_icons[icon_size::k32]);
+  gfx::test::AreBitmapsEqual(any_bitmap2, any_icons[icon_size::k64]);
+  gfx::test::AreBitmapsEqual(any_bitmap3, any_icons[icon_size::k128]);
+
+  // Verify bitmaps of purpose `maskable` are written correctly to disk.
+  base::FilePath maskable_trusted_icons =
+      GetAppTrustedIconsDir(profile(), app_id).AppendASCII("Icons Maskable");
+  std::map<SquareSizePx, SkBitmap> maskable_icons =
+      ReadPngsFromDirectory(&file_utils(), maskable_trusted_icons);
+  EXPECT_EQ(3u, any_icons.size());
+  gfx::test::AreBitmapsEqual(maskable_bitmap1, maskable_icons[icon_size::k256]);
+  gfx::test::AreBitmapsEqual(maskable_bitmap2, maskable_icons[icon_size::k512]);
+  gfx::test::AreBitmapsEqual(maskable_bitmap3, maskable_icons[icon_size::k96]);
+}
+
+TEST_P(WebAppIconManagerTest, WriteTrustedAndManifestIconsBoth) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps manifest_icons;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  manifest_icons.any[icon_size::k64] = any_bitmap1;
+  manifest_icons.any[icon_size::k128] = any_bitmap2;
+
+  IconBitmaps trusted_icons;
+  SkBitmap any_trusted_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap any_trusted_bitmap2 =
+      CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  trusted_icons.any[icon_size::k256] = any_trusted_bitmap1;
+  trusted_icons.any[icon_size::k512] = any_trusted_bitmap2;
+
+  // Verify writing trusted icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {manifest_icons}, {trusted_icons}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppTrustedIconsDir(profile(), app_id)));
+  ASSERT_TRUE(file_utils().PathExists(GetAppIconsAnyDir(profile(), app_id)));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // trusted folder.
+  base::FilePath any_trusted_icons =
+      GetAppTrustedIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_icons =
+      ReadPngsFromDirectory(&file_utils(), any_trusted_icons);
+  EXPECT_EQ(2u, any_icons.size());
+  gfx::test::AreBitmapsEqual(any_trusted_bitmap1, any_icons[icon_size::k256]);
+  gfx::test::AreBitmapsEqual(any_trusted_bitmap2, any_icons[icon_size::k512]);
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // manifest icons folder.
+  std::map<SquareSizePx, SkBitmap> disk_icons = ReadPngsFromDirectory(
+      &file_utils(), GetAppIconsAnyDir(profile(), app_id));
+  EXPECT_EQ(2u, disk_icons.size());
+  gfx::test::AreBitmapsEqual(any_bitmap1, disk_icons[icon_size::k64]);
+  gfx::test::AreBitmapsEqual(any_bitmap2, disk_icons[icon_size::k128]);
+}
+
+class WebAppIconManagerTrustedIconReadTest : public WebAppIconManagerTest {
+ private:
+  base::test::ScopedFeatureList feature_list_{features::kWebAppUsePrimaryIcon};
+};
+
+TEST_P(WebAppIconManagerTest, WriteAndReadTrustedIcons) {
+  if (!IsTrustedIconsEnabled()) {
+    GTEST_SKIP() << "Only test with trusted icons";
+  }
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps trusted_bitmaps;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  SkBitmap any_bitmap3 = CreateSquareIcon(icon_size::k128, SK_ColorYELLOW);
+  SkBitmap any_bitmap4 = CreateSquareIcon(icon_size::k256, SK_ColorBLACK);
+  trusted_bitmaps.any[icon_size::k32] = any_bitmap1;
+  trusted_bitmaps.any[icon_size::k64] = any_bitmap2;
+  trusted_bitmaps.any[icon_size::k128] = any_bitmap3;
+  trusted_bitmaps.any[icon_size::k256] = any_bitmap4;
+
+  SkBitmap maskable_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap maskable_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  SkBitmap maskable_bitmap3 = CreateSquareIcon(icon_size::k96, SK_ColorGRAY);
+  trusted_bitmaps.maskable[icon_size::k256] = maskable_bitmap1;
+  trusted_bitmaps.maskable[icon_size::k512] = maskable_bitmap2;
+  trusted_bitmaps.maskable[icon_size::k96] = maskable_bitmap3;
+
+  // Verify writing trusted icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {}, {trusted_bitmaps}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppTrustedIconsDir(profile(), app_id)));
+
+  // Verify reading trusted icons from disk correctly, without taking purpose
+  // into account.
+  base::test::TestFuture<std::map<SquareSizePx, SkBitmap>> icons_future;
+  icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+      app_id, {icon_size::k64, icon_size::k256}, IconPurpose::ANY,
+      icons_future.GetCallback());
+  ASSERT_TRUE(icons_future.Wait());
+  std::map<SquareSizePx, SkBitmap> bitmaps_from_disk = icons_future.Get();
+  EXPECT_EQ(2u, bitmaps_from_disk.size());
+
+  SkBitmap bitmap_for_size256 = any_bitmap4;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+  bitmap_for_size256 = maskable_bitmap1;
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+
+  // Verify that maskable icons are preferred over any icons depending on OS.
+  EXPECT_THAT(bitmaps_from_disk[icon_size::k256],
+              gfx::test::EqualsBitmap(bitmap_for_size256));
+  EXPECT_THAT(bitmaps_from_disk[icon_size::k64],
+              gfx::test::EqualsBitmap(any_bitmap2));
+}
+
+TEST_P(WebAppIconManagerTest, ReadTrustedIconsFallbackToManifest) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+
+  IconBitmaps manifest_icons;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k128, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorBLUE);
+  manifest_icons.any[icon_size::k128] = any_bitmap1;
+  manifest_icons.any[icon_size::k512] = any_bitmap2;
+
+  IconBitmaps trusted_icons;
+  SkBitmap any_trusted_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap any_trusted_bitmap2 =
+      CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  trusted_icons.any[icon_size::k256] = any_trusted_bitmap1;
+  trusted_icons.any[icon_size::k512] = any_trusted_bitmap2;
+
+  web_app->SetDownloadedIconSizes(IconPurpose::ANY,
+                                  {icon_size::k128, icon_size::k512});
+  web_app->SetStoredTrustedIconSizes(IconPurpose::ANY,
+                                     {icon_size::k256, icon_size::k512});
+  AddAppToRegistry(std::move(web_app));
+
+  // Verify writing trusted icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {manifest_icons}, {trusted_icons}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+
+  base::test::TestFuture<std::map<SquareSizePx, SkBitmap>> icons_future;
+  icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+      app_id, {icon_size::k128, icon_size::k512}, IconPurpose::ANY,
+      icons_future.GetCallback());
+  ASSERT_TRUE(icons_future.Wait());
+  std::map<SquareSizePx, SkBitmap> bitmaps_from_disk = icons_future.Get();
+  EXPECT_EQ(2u, bitmaps_from_disk.size());
+
+  SkBitmap bitmap_for_both =
+      IsTrustedIconsEnabled() ? any_trusted_bitmap2 : any_bitmap2;
+
+  // This is obtained from the directory containing the manifest icons.
+  EXPECT_THAT(bitmaps_from_disk[icon_size::k128],
+              gfx::test::EqualsBitmap(any_bitmap1));
+  // This is obtained from the directory containing the trusted icons.
+  EXPECT_THAT(bitmaps_from_disk[icon_size::k512],
+              gfx::test::EqualsBitmap(bitmap_for_both));
+}
+
+TEST_P(WebAppIconManagerTest, TrustedIconsOfSizeNotFoundNoFallback) {
+  if (!IsTrustedIconsEnabled()) {
+    GTEST_SKIP() << "Only test with trusted icons";
+  }
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps trusted_bitmaps;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  trusted_bitmaps.any[icon_size::k32] = any_bitmap1;
+  trusted_bitmaps.any[icon_size::k64] = any_bitmap2;
+
+  // Verify writing trusted icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {}, {trusted_bitmaps}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+
+  // Verify reading trusted icons from disk correctly, without taking purpose
+  // into account.
+  base::test::TestFuture<std::map<SquareSizePx, SkBitmap>> icons_future;
+  icon_manager().ReadTrustedIconsWithFallbackToManifestIcons(
+      app_id, {icon_size::k64, icon_size::k256}, IconPurpose::ANY,
+      icons_future.GetCallback());
+  ASSERT_TRUE(icons_future.Wait());
+  std::map<SquareSizePx, SkBitmap> bitmaps_from_disk = icons_future.Get();
+
+  // Verify only icon of size 64 is read from the disk.
+  EXPECT_EQ(1u, bitmaps_from_disk.size());
+  EXPECT_THAT(bitmaps_from_disk[icon_size::k64],
+              gfx::test::EqualsBitmap(any_bitmap2));
+  EXPECT_FALSE(base::Contains(bitmaps_from_disk, icon_size::k256));
+}
+
+TEST_P(WebAppIconManagerTest, WriteOtherIconsToDisk) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -909,7 +1121,7 @@ TEST_F(WebAppIconManagerTest, WriteOtherIconsToDisk) {
   const GURL example_gurl("https://example.com/image.png");
   AddIconToIconsMap(example_gurl, 48, SK_ColorBLUE, &other_icons);
   base::RunLoop run_loop;
-  icon_manager().WriteData(app_id, {}, {}, other_icons,
+  icon_manager().WriteData(app_id, {}, {}, {}, other_icons,
                            base::BindLambdaForTesting([&](bool success) {
                              EXPECT_TRUE(success);
                              run_loop.Quit();
@@ -923,7 +1135,316 @@ TEST_F(WebAppIconManagerTest, WriteOtherIconsToDisk) {
   // icons are read. (When there is a read function.)
 }
 
-TEST_F(WebAppIconManagerTest, ReadIconsFailed) {
+TEST_P(WebAppIconManagerTest, WritePendingTrustedIconsIntoDisk) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps pending_trusted_bitmaps;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  SkBitmap any_bitmap3 = CreateSquareIcon(icon_size::k128, SK_ColorYELLOW);
+  pending_trusted_bitmaps.any[icon_size::k32] = any_bitmap1;
+  pending_trusted_bitmaps.any[icon_size::k64] = any_bitmap2;
+  pending_trusted_bitmaps.any[icon_size::k128] = any_bitmap3;
+
+  SkBitmap maskable_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap maskable_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  SkBitmap maskable_bitmap3 = CreateSquareIcon(icon_size::k96, SK_ColorGRAY);
+  pending_trusted_bitmaps.maskable[icon_size::k256] = maskable_bitmap1;
+  pending_trusted_bitmaps.maskable[icon_size::k512] = maskable_bitmap2;
+  pending_trusted_bitmaps.maskable[icon_size::k96] = maskable_bitmap3;
+
+  // Verify writing pending trusted icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WritePendingIconData(
+      app_id, pending_trusted_bitmaps, {},
+      base::BindLambdaForTesting([&](bool success) {
+        EXPECT_TRUE(success);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppPendingTrustedIconsDir(profile(), app_id)));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // pending trusted folder.
+  base::FilePath any_trusted_icons_dir =
+      GetAppPendingTrustedIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_icons =
+      ReadPngsFromDirectory(&file_utils(), any_trusted_icons_dir);
+  EXPECT_EQ(3u, any_icons.size());
+  gfx::test::AreBitmapsEqual(any_bitmap1, any_icons[icon_size::k32]);
+  gfx::test::AreBitmapsEqual(any_bitmap2, any_icons[icon_size::k64]);
+  gfx::test::AreBitmapsEqual(any_bitmap3, any_icons[icon_size::k128]);
+
+  // Verify bitmaps of purpose `maskable` are written correctly to disk under
+  // the pending trusted folder.
+  base::FilePath maskable_trusted_icons_dir =
+      GetAppPendingTrustedIconsDir(profile(), app_id)
+          .AppendASCII("Icons Maskable");
+  std::map<SquareSizePx, SkBitmap> maskable_icons =
+      ReadPngsFromDirectory(&file_utils(), maskable_trusted_icons_dir);
+  EXPECT_EQ(3u, any_icons.size());
+  gfx::test::AreBitmapsEqual(maskable_bitmap1, maskable_icons[icon_size::k256]);
+  gfx::test::AreBitmapsEqual(maskable_bitmap2, maskable_icons[icon_size::k512]);
+  gfx::test::AreBitmapsEqual(maskable_bitmap3, maskable_icons[icon_size::k96]);
+}
+
+TEST_P(WebAppIconManagerTest, WritePendingManifestIconsIntoDisk) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps pending_manifest_bitmaps;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  SkBitmap any_bitmap3 = CreateSquareIcon(icon_size::k128, SK_ColorYELLOW);
+  pending_manifest_bitmaps.any[icon_size::k32] = any_bitmap1;
+  pending_manifest_bitmaps.any[icon_size::k64] = any_bitmap2;
+  pending_manifest_bitmaps.any[icon_size::k128] = any_bitmap3;
+
+  SkBitmap maskable_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap maskable_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  SkBitmap maskable_bitmap3 = CreateSquareIcon(icon_size::k96, SK_ColorGRAY);
+  pending_manifest_bitmaps.maskable[icon_size::k256] = maskable_bitmap1;
+  pending_manifest_bitmaps.maskable[icon_size::k512] = maskable_bitmap2;
+  pending_manifest_bitmaps.maskable[icon_size::k96] = maskable_bitmap3;
+
+  // Verify writing pending manifest icons to disk correctly.
+  base::RunLoop run_loop;
+  icon_manager().WritePendingIconData(
+      app_id, {}, pending_manifest_bitmaps,
+      base::BindLambdaForTesting([&](bool success) {
+        EXPECT_TRUE(success);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+  EXPECT_TRUE(file_utils().PathExists(
+      GetAppPendingManifestIconsDir(profile(), app_id)));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // pending manifest folder.
+  base::FilePath any_pending_manifest_icons_dir =
+      GetAppPendingManifestIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_icons =
+      ReadPngsFromDirectory(&file_utils(), any_pending_manifest_icons_dir);
+  EXPECT_EQ(3u, any_icons.size());
+  gfx::test::AreBitmapsEqual(any_bitmap1, any_icons[icon_size::k32]);
+  gfx::test::AreBitmapsEqual(any_bitmap2, any_icons[icon_size::k64]);
+  gfx::test::AreBitmapsEqual(any_bitmap3, any_icons[icon_size::k128]);
+
+  // Verify bitmaps of purpose `maskable` are written correctly to disk under
+  // the pending manifest folder.
+  base::FilePath maskable_pending_manifest_icons_dir =
+      GetAppPendingManifestIconsDir(profile(), app_id)
+          .AppendASCII("Icons Maskable");
+  std::map<SquareSizePx, SkBitmap> maskable_icons =
+      ReadPngsFromDirectory(&file_utils(), maskable_pending_manifest_icons_dir);
+  EXPECT_EQ(3u, any_icons.size());
+  gfx::test::AreBitmapsEqual(maskable_bitmap1, maskable_icons[icon_size::k256]);
+  gfx::test::AreBitmapsEqual(maskable_bitmap2, maskable_icons[icon_size::k512]);
+  gfx::test::AreBitmapsEqual(maskable_bitmap3, maskable_icons[icon_size::k96]);
+}
+
+TEST_P(WebAppIconManagerTest, WritePendingTrustedAndPendingManifestIconsBoth) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps pending_trusted_icons;
+  SkBitmap any_trusted_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  SkBitmap any_trusted_bitmap2 =
+      CreateSquareIcon(icon_size::k512, SK_ColorCYAN);
+  pending_trusted_icons.any[icon_size::k256] = any_trusted_bitmap1;
+  pending_trusted_icons.any[icon_size::k512] = any_trusted_bitmap2;
+
+  IconBitmaps pending_manifest_icons;
+  SkBitmap any_bitmap1 = CreateSquareIcon(icon_size::k32, SK_ColorGREEN);
+  SkBitmap any_bitmap2 = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  pending_manifest_icons.any[icon_size::k64] = any_bitmap1;
+  pending_manifest_icons.any[icon_size::k128] = any_bitmap2;
+
+  // Verify writing pending trusted and pending manifest icons to disk
+  // correctly.
+  base::RunLoop run_loop;
+  icon_manager().WritePendingIconData(
+      app_id, pending_trusted_icons, pending_manifest_icons,
+      base::BindLambdaForTesting([&](bool success) {
+        EXPECT_TRUE(success);
+        run_loop.Quit();
+      }));
+  run_loop.Run();
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppPendingTrustedIconsDir(profile(), app_id)));
+  EXPECT_TRUE(file_utils().PathExists(
+      GetAppPendingManifestIconsDir(profile(), app_id)));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // pending trusted folder.
+  base::FilePath any_pending_trusted_icons_dir =
+      GetAppPendingTrustedIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_pending_trusted_icons =
+      ReadPngsFromDirectory(&file_utils(), any_pending_trusted_icons_dir);
+  EXPECT_EQ(2u, any_pending_trusted_icons.size());
+  gfx::test::AreBitmapsEqual(any_trusted_bitmap1,
+                             any_pending_trusted_icons[icon_size::k256]);
+  gfx::test::AreBitmapsEqual(any_trusted_bitmap2,
+                             any_pending_trusted_icons[icon_size::k512]);
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // pending manifest folder.
+  base::FilePath any_pending_manifest_icons_dir =
+      GetAppPendingManifestIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_pending_manifest_icons =
+      ReadPngsFromDirectory(&file_utils(), any_pending_manifest_icons_dir);
+  EXPECT_EQ(2u, any_pending_manifest_icons.size());
+  gfx::test::AreBitmapsEqual(any_bitmap1,
+                             any_pending_manifest_icons[icon_size::k32]);
+  gfx::test::AreBitmapsEqual(any_bitmap2,
+                             any_pending_manifest_icons[icon_size::k64]);
+}
+
+// Verify that pending update data can be written and it won't wipe out the
+// manifest icon data even if manifest_icons is empty.
+TEST_P(WebAppIconManagerTest, PendingIconsDoNotOverwriteManifestIcons) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+  AddAppToRegistry(std::move(web_app));
+
+  IconBitmaps manifest_icons;
+  SkBitmap any_bitmap = CreateSquareIcon(icon_size::k64, SK_ColorBLUE);
+  manifest_icons.any[icon_size::k64] = any_bitmap;
+
+  IconBitmaps pending_trusted_icons;
+  SkBitmap any_trusted_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  pending_trusted_icons.any[icon_size::k256] = any_trusted_bitmap1;
+
+  // Verify writing trusted icons to disk correctly.
+  {
+    base::RunLoop run_loop;
+    icon_manager().WriteData(app_id, {manifest_icons}, {}, {}, {},
+                             base::BindLambdaForTesting([&](bool success) {
+                               EXPECT_TRUE(success);
+                               run_loop.Quit();
+                             }));
+    run_loop.Run();
+  }
+
+  EXPECT_TRUE(file_utils().PathExists(GetAppIconsAnyDir(profile(), app_id)));
+  EXPECT_FALSE(
+      file_utils().PathExists(GetAppPendingTrustedIconsDir(profile(), app_id)));
+
+  {
+    base::RunLoop run_loop;
+    icon_manager().WritePendingIconData(
+        app_id, pending_trusted_icons, {},
+        base::BindLambdaForTesting([&](bool success) {
+          EXPECT_TRUE(success);
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+
+  EXPECT_TRUE(file_utils().PathExists(GetAppIconsAnyDir(profile(), app_id)));
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppPendingTrustedIconsDir(profile(), app_id)));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // pending trusted icons folder.
+  base::FilePath any_pending_trusted_icons =
+      GetAppPendingTrustedIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_icons =
+      ReadPngsFromDirectory(&file_utils(), any_pending_trusted_icons);
+  EXPECT_EQ(1u, any_icons.size());
+  EXPECT_THAT(any_icons[icon_size::k256],
+              gfx::test::EqualsBitmap(any_trusted_bitmap1));
+
+  // Verify bitmaps of purpose `any` are written correctly to disk under the
+  // manifest icons folder and are not wiped out by the double write call.
+  std::map<SquareSizePx, SkBitmap> disk_icons = ReadPngsFromDirectory(
+      &file_utils(), GetAppIconsAnyDir(profile(), app_id));
+  EXPECT_EQ(1u, disk_icons.size());
+  EXPECT_THAT(disk_icons[icon_size::k64], gfx::test::EqualsBitmap(any_bitmap));
+}
+
+// Creating shortcut icons but no manifest icons can cause the top level icon
+// storing directory to not be created. Verify storing of pending update images
+// works fine without that, and with other icons also working correctly.
+TEST_P(WebAppIconManagerTest, PendingIconsEmptyManifestIconDirShortcutIcons) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+
+  // Writing shortcuts menu icons correctly to disk.
+  const int num_menu_items = 2;
+  const std::vector<int> sizes = {icon_size::k64, icon_size::k128};
+  const std::vector<SkColor> colors = {SK_ColorRED, SK_ColorRED};
+  WriteGeneratedShortcutsMenuIcons(app_id,
+                                   {{IconPurpose::ANY, sizes, colors},
+                                    {IconPurpose::MASKABLE, sizes, colors},
+                                    {IconPurpose::MONOCHROME, sizes, colors}},
+                                   num_menu_items);
+  IconSizes icon_sizes;
+  icon_sizes.any = sizes;
+  icon_sizes.maskable = sizes;
+  icon_sizes.monochrome = sizes;
+  web_app->SetShortcutsMenuInfo(
+      CreateShortcutsMenuItemInfos(num_menu_items, icon_sizes));
+
+  AddAppToRegistry(std::move(web_app));
+
+  // Verify no manifest icons exist for the app.
+  EXPECT_FALSE(file_utils().PathExists(GetAppIconsAnyDir(profile(), app_id)));
+
+  IconBitmaps pending_trusted_icons;
+  SkBitmap any_trusted_bitmap = CreateSquareIcon(icon_size::k256, SK_ColorRED);
+  pending_trusted_icons.any[icon_size::k256] = any_trusted_bitmap;
+
+  {
+    base::RunLoop run_loop;
+    icon_manager().WritePendingIconData(
+        app_id, pending_trusted_icons, {},
+        base::BindLambdaForTesting([&](bool success) {
+          EXPECT_TRUE(success);
+          run_loop.Quit();
+        }));
+    run_loop.Run();
+  }
+
+  EXPECT_TRUE(
+      file_utils().PathExists(GetAppPendingTrustedIconsDir(profile(), app_id)));
+
+  // Verify pending icon bitmaps are correctly read from the pending icons
+  // directory.
+  base::FilePath any_pending_trusted_icons =
+      GetAppPendingTrustedIconsDir(profile(), app_id).AppendASCII("Icons");
+  std::map<SquareSizePx, SkBitmap> any_icons =
+      ReadPngsFromDirectory(&file_utils(), any_pending_trusted_icons);
+  EXPECT_EQ(1u, any_icons.size());
+  EXPECT_THAT(any_icons[icon_size::k256],
+              gfx::test::EqualsBitmap(any_trusted_bitmap));
+
+  // Verify shortcut menu item infos are read correctly as well post operation.
+  ShortcutsMenuIconBitmaps shortcuts_menu_icons_map =
+      ReadAllShortcutsMenuIcons(app_id);
+  EXPECT_EQ(2u, shortcuts_menu_icons_map.size());
+
+  for (int i = 0; i < num_menu_items; ++i) {
+    for (IconPurpose purpose : kIconPurposes) {
+      const std::map<SquareSizePx, SkBitmap>& icon_bitmaps =
+          shortcuts_menu_icons_map[i].GetBitmapsForPurpose(purpose);
+
+      for (unsigned s = 0; s < sizes.size(); ++s) {
+        const SquareSizePx size_px = sizes[s];
+        const auto& size_and_bitmap = icon_bitmaps.find(size_px);
+        ASSERT_TRUE(size_and_bitmap != icon_bitmaps.end());
+        EXPECT_EQ(colors[s], size_and_bitmap->second.getColor(0, 0));
+      }
+    }
+  }
+}
+
+TEST_P(WebAppIconManagerTest, ReadIconsFailed) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -944,7 +1465,7 @@ TEST_F(WebAppIconManagerTest, ReadIconsFailed) {
   // Request existing icon size which doesn't exist on disk.
   base::RunLoop run_loop;
 
-  icon_manager().ReadIcons(
+  icon_manager().ReadUntrustedIcons(
       app_id, IconPurpose::ANY, icon_sizes_px,
       base::BindLambdaForTesting(
           [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -955,7 +1476,7 @@ TEST_F(WebAppIconManagerTest, ReadIconsFailed) {
   run_loop.Run();
 }
 
-TEST_F(WebAppIconManagerTest, FindExact) {
+TEST_P(WebAppIconManagerTest, FindExact) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -977,7 +1498,7 @@ TEST_F(WebAppIconManagerTest, FindExact) {
 
     EXPECT_TRUE(icon_manager().HasIcons(app_id, IconPurpose::ANY, {20}));
 
-    icon_manager().ReadIcons(
+    icon_manager().ReadUntrustedIcons(
         app_id, IconPurpose::ANY, {20},
         base::BindLambdaForTesting(
             [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {
@@ -996,7 +1517,7 @@ bool operator==(const IconSizeAndPurpose& a, const IconSizeAndPurpose& b) {
   return a.size_px == b.size_px && a.purpose == b.purpose;
 }
 
-TEST_F(WebAppIconManagerTest, FindSmallest) {
+TEST_P(WebAppIconManagerTest, FindSmallest) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1082,7 +1603,7 @@ TEST_F(WebAppIconManagerTest, FindSmallest) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, DeleteData_Success) {
+TEST_P(WebAppIconManagerTest, DeleteData_Success) {
   const webapps::AppId app1_id = GenerateAppId(
       /*manifest_id_path=*/std::nullopt, GURL("https://example.com/"));
   const webapps::AppId app2_id = GenerateAppId(
@@ -1128,7 +1649,7 @@ TEST_F(WebAppIconManagerTest, DeleteData_Success) {
   EXPECT_FALSE(file_utils().DirectoryExists(app2_dir));
 }
 
-TEST_F(WebAppIconManagerTest, DeleteData_Failure) {
+TEST_P(WebAppIconManagerTest, DeleteData_Failure) {
   const webapps::AppId app_id =
       GenerateAppId(/*manifest_id=*/std::nullopt, GURL("https://example.com/"));
 
@@ -1143,7 +1664,7 @@ TEST_F(WebAppIconManagerTest, DeleteData_Failure) {
   run_loop.Run();
 }
 
-TEST_F(WebAppIconManagerTest, ReadSmallestCompressedIcon_Success_AnyOnly) {
+TEST_P(WebAppIconManagerTest, ReadSmallestCompressedIcon_Success_AnyOnly) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1176,7 +1697,7 @@ TEST_F(WebAppIconManagerTest, ReadSmallestCompressedIcon_Success_AnyOnly) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, ReadSmallestCompressedIcon_Success) {
+TEST_P(WebAppIconManagerTest, ReadSmallestCompressedIcon_Success) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1244,7 +1765,7 @@ TEST_F(WebAppIconManagerTest, ReadSmallestCompressedIcon_Success) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, ReadSmallestCompressedIcon_Failure) {
+TEST_P(WebAppIconManagerTest, ReadSmallestCompressedIcon_Failure) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1276,7 +1797,7 @@ TEST_F(WebAppIconManagerTest, ReadSmallestCompressedIcon_Failure) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, ReadIconAndResize_Success_AnyOnly) {
+TEST_P(WebAppIconManagerTest, ReadIconAndResize_Success_AnyOnly) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1291,8 +1812,9 @@ TEST_F(WebAppIconManagerTest, ReadIconAndResize_Success_AnyOnly) {
 
   AddAppToRegistry(std::move(web_app));
 
-  for (size_t i = 0; i < sizes_px.size(); ++i)
+  for (size_t i = 0; i < sizes_px.size(); ++i) {
     EXPECT_EQ(colors[i], ReadIconAndResize(app_id, sizes_px[i]));
+  }
 
   // ReadIconAndResize should work for non-present icon sizes as long as an icon
   // (with matching IconPurpose) is present. It should prefer shrinking over
@@ -1314,7 +1836,7 @@ TEST_F(WebAppIconManagerTest, ReadIconAndResize_Success_AnyOnly) {
   run_loop.Run();
 }
 
-TEST_F(WebAppIconManagerTest, ReadIconAndResize_Success_AnyAndMaskable) {
+TEST_P(WebAppIconManagerTest, ReadIconAndResize_Success_AnyAndMaskable) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1356,7 +1878,7 @@ TEST_F(WebAppIconManagerTest, ReadIconAndResize_Success_AnyAndMaskable) {
             ReadIconAndResize(app_id, IconPurpose::MASKABLE, 1024));
 }
 
-TEST_F(WebAppIconManagerTest, ReadIconAndResize_Failure) {
+TEST_P(WebAppIconManagerTest, ReadIconAndResize_Failure) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1391,7 +1913,7 @@ TEST_F(WebAppIconManagerTest, ReadIconAndResize_Failure) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, CacheExistingAppFavicon) {
+TEST_P(WebAppIconManagerTest, CacheExistingAppFavicon) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1411,7 +1933,7 @@ TEST_F(WebAppIconManagerTest, CacheExistingAppFavicon) {
   EXPECT_EQ(SK_ColorGREEN, bitmap.getColor(0, 0));
 }
 
-TEST_F(WebAppIconManagerTest, CacheAppFaviconWithResize) {
+TEST_P(WebAppIconManagerTest, CacheAppFaviconWithResize) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1434,7 +1956,7 @@ TEST_F(WebAppIconManagerTest, CacheAppFaviconWithResize) {
   EXPECT_EQ(SK_ColorGREEN, bitmap.getColor(0, 0));
 }
 
-TEST_F(WebAppIconManagerTest, CacheNewAppFavicon) {
+TEST_P(WebAppIconManagerTest, CacheNewAppFavicon) {
   auto web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1454,7 +1976,7 @@ TEST_F(WebAppIconManagerTest, CacheNewAppFavicon) {
   EXPECT_EQ(SK_ColorBLUE, bitmap.getColor(0, 0));
 }
 
-TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoMissingIcons) {
+TEST_P(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoMissingIcons) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1499,7 +2021,7 @@ TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoMissingIcons) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_DownsizingIcons) {
+TEST_P(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_DownsizingIcons) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1538,7 +2060,7 @@ TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_DownsizingIcons) {
   }
 }
 
-TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoIcons) {
+TEST_P(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoIcons) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1548,7 +2070,7 @@ TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoIcons) {
   EXPECT_TRUE(image_skia.isNull());
 }
 
-TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoMatchSmaller) {
+TEST_P(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoMatchSmaller) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
 
@@ -1565,7 +2087,7 @@ TEST_F(WebAppIconManagerTest, CacheAppFavicon_UiScaleFactors_NoMatchSmaller) {
   EXPECT_TRUE(image_skia.isNull());
 }
 
-TEST_F(WebAppIconManagerTest,
+TEST_P(WebAppIconManagerTest,
        CacheAppFavicon_UiScaleFactors_DownsizingFromSingleIcon) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
@@ -1599,7 +2121,7 @@ TEST_F(WebAppIconManagerTest,
   EXPECT_FALSE(image_skia.HasRepresentation(32.0f));
 }
 
-TEST_F(WebAppIconManagerTest,
+TEST_P(WebAppIconManagerTest,
        CacheAppFavicon_UiScaleFactors_BiggerUiScaleFactorIconMissing) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
@@ -1631,11 +2153,144 @@ TEST_F(WebAppIconManagerTest,
   EXPECT_FALSE(image_skia.HasRepresentation(3.0f));
 }
 
+TEST_P(WebAppIconManagerTest, ReadAllIcons_AnyOnly) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+
+  // Write icon bitmaps.
+  IconBitmaps icon_bitmaps;
+  SkBitmap icon_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorGREEN);
+  SkBitmap icon_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorYELLOW);
+  icon_bitmaps.any[icon_size::k256] = icon_bitmap1;
+  icon_bitmaps.any[icon_size::k512] = icon_bitmap2;
+  web_app->SetDownloadedIconSizes(IconPurpose::ANY,
+                                  {icon_size::k256, icon_size::k512});
+
+  // Also write trusted icons.
+  IconBitmaps trusted_bitmaps;
+  SkBitmap any_bitmap = CreateSquareIcon(icon_size::k128, SK_ColorBLUE);
+  trusted_bitmaps.any[icon_size::k128] = any_bitmap;
+  web_app->SetStoredTrustedIconSizes(IconPurpose::ANY, {icon_size::k128});
+
+  AddAppToRegistry(std::move(web_app));
+
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {icon_bitmaps}, {trusted_bitmaps}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+
+  base::test::TestFuture<WebAppIconManager::WebAppBitmaps> bitmaps_future;
+  icon_manager().ReadAllIcons(app_id, bitmaps_future.GetCallback());
+  ASSERT_TRUE(bitmaps_future.Wait());
+
+  // manifest_icons check.
+  IconBitmaps manifest_icons = bitmaps_future.Get().manifest_icons;
+  EXPECT_FALSE(manifest_icons.empty());
+  EXPECT_EQ(2u, manifest_icons.any.size());
+  EXPECT_THAT(manifest_icons.any[icon_size::k256],
+              gfx::test::EqualsBitmap(icon_bitmap1));
+  EXPECT_THAT(manifest_icons.any[icon_size::k512],
+              gfx::test::EqualsBitmap(icon_bitmap2));
+  EXPECT_EQ(0u, manifest_icons.maskable.size());
+
+  // trusted_icons check.
+  IconBitmaps trusted_icons = bitmaps_future.Get().trusted_icons;
+  EXPECT_EQ(trusted_icons.empty(), !IsTrustedIconsEnabled());
+  EXPECT_EQ(IsTrustedIconsEnabled(), trusted_icons.any.size() == 1u);
+  if (IsTrustedIconsEnabled()) {
+    EXPECT_THAT(trusted_icons.any[icon_size::k128],
+                gfx::test::EqualsBitmap(any_bitmap));
+  }
+  EXPECT_EQ(0u, trusted_icons.maskable.size());
+}
+
+TEST_P(WebAppIconManagerTest, ReadAllIcons_AnyAndMaskable) {
+  auto web_app = test::CreateWebApp();
+  const webapps::AppId app_id = web_app->app_id();
+
+  IconBitmaps icon_bitmaps;
+  SkBitmap icon_bitmap1 = CreateSquareIcon(icon_size::k256, SK_ColorGREEN);
+  SkBitmap icon_bitmap2 = CreateSquareIcon(icon_size::k512, SK_ColorYELLOW);
+  SkBitmap icon_bitmap3 = CreateSquareIcon(icon_size::k128, SK_ColorRED);
+  icon_bitmaps.any[icon_size::k256] = icon_bitmap1;
+  icon_bitmaps.any[icon_size::k512] = icon_bitmap2;
+  icon_bitmaps.maskable[icon_size::k128] = icon_bitmap3;
+  web_app->SetDownloadedIconSizes(IconPurpose::ANY,
+                                  {icon_size::k256, icon_size::k512});
+  web_app->SetDownloadedIconSizes(IconPurpose::MASKABLE, {icon_size::k128});
+
+  IconBitmaps trusted_bitmaps;
+  SkBitmap expected_bitmap = CreateSquareIcon(icon_size::k128, SK_ColorYELLOW);
+  bool prefer_maskable = false;
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+  trusted_bitmaps.maskable[icon_size::k128] = expected_bitmap;
+  web_app->SetStoredTrustedIconSizes(IconPurpose::MASKABLE, {icon_size::k128});
+  prefer_maskable = true;
+#else
+  trusted_bitmaps.any[icon_size::k128] = expected_bitmap;
+  web_app->SetStoredTrustedIconSizes(IconPurpose::ANY, {icon_size::k128});
+  prefer_maskable = false;
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
+
+  AddAppToRegistry(std::move(web_app));
+
+  base::RunLoop run_loop;
+  icon_manager().WriteData(app_id, {icon_bitmaps}, {trusted_bitmaps}, {}, {},
+                           base::BindLambdaForTesting([&](bool success) {
+                             EXPECT_TRUE(success);
+                             run_loop.Quit();
+                           }));
+  run_loop.Run();
+
+  base::test::TestFuture<WebAppIconManager::WebAppBitmaps> bitmaps_future;
+  icon_manager().ReadAllIcons(app_id, bitmaps_future.GetCallback());
+  ASSERT_TRUE(bitmaps_future.Wait());
+
+  // manifest_icons check.
+  IconBitmaps manifest_icons = bitmaps_future.Get().manifest_icons;
+  EXPECT_FALSE(manifest_icons.empty());
+  EXPECT_EQ(2u, manifest_icons.any.size());
+  EXPECT_EQ(1u, manifest_icons.maskable.size());
+  EXPECT_THAT(manifest_icons.any[icon_size::k256],
+              gfx::test::EqualsBitmap(icon_bitmap1));
+  EXPECT_THAT(manifest_icons.any[icon_size::k512],
+              gfx::test::EqualsBitmap(icon_bitmap2));
+  EXPECT_THAT(manifest_icons.maskable[icon_size::k128],
+              gfx::test::EqualsBitmap(icon_bitmap3));
+
+  // trusted_icons check, verify either any or maskable icons are used.
+  IconBitmaps trusted_icons = bitmaps_future.Get().trusted_icons;
+  if (IsTrustedIconsEnabled()) {
+    EXPECT_EQ(!prefer_maskable, trusted_icons.any.size() == 1u);
+    EXPECT_EQ(prefer_maskable, trusted_icons.maskable.size() == 1u);
+    if (prefer_maskable) {
+      EXPECT_THAT(trusted_icons.maskable[icon_size::k128],
+                  gfx::test::EqualsBitmap(expected_bitmap));
+    } else {
+      EXPECT_THAT(trusted_icons.any[icon_size::k128],
+                  gfx::test::EqualsBitmap(expected_bitmap));
+    }
+  } else {
+    EXPECT_TRUE(trusted_icons.empty());
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         WebAppIconManagerTest,
+                         ::testing::Bool(),
+                         [](::testing::TestParamInfo<bool> info) {
+                           return info.param ? "TrustedIconsOn"
+                                             : "TrustedIconsOff";
+                         });
+
 #if BUILDFLAG(IS_CHROMEOS)
 using WebAppIconManagerTest_NotificationIconAndTitle = WebAppIconManagerTest;
 
 // TODO(b/321111988): Reenable this test.
-TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
+TEST_P(WebAppIconManagerTest_NotificationIconAndTitle,
        DISABLED_CacheAppMonochromeFavicon_NoMissingIcons) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   web_app->SetThemeColor(std::make_optional(SK_ColorBLUE));
@@ -1678,7 +2333,7 @@ TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
   }
 }
 
-TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
+TEST_P(WebAppIconManagerTest_NotificationIconAndTitle,
        CacheAppMonochromeFavicon_CacheAfterAppInstall) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   web_app->SetThemeColor(std::make_optional(SK_ColorGREEN));
@@ -1714,7 +2369,7 @@ TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
   EXPECT_FALSE(monochrome_image.HasRepresentation(32.0f));
 }
 
-TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
+TEST_P(WebAppIconManagerTest_NotificationIconAndTitle,
        CacheAppMonochromeFavicon_NoThemeColor) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   web_app->SetThemeColor(std::nullopt);
@@ -1748,7 +2403,7 @@ TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
   EXPECT_FALSE(monochrome_image.HasRepresentation(3.0));
 }
 
-TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
+TEST_P(WebAppIconManagerTest_NotificationIconAndTitle,
        CacheAppMonochromeFavicon_NoIcons) {
   std::unique_ptr<WebApp> web_app = test::CreateWebApp();
   const webapps::AppId app_id = web_app->app_id();
@@ -1757,6 +2412,14 @@ TEST_F(WebAppIconManagerTest_NotificationIconAndTitle,
   gfx::ImageSkia monochrome_image = icon_manager().GetMonochromeFavicon(app_id);
   EXPECT_TRUE(monochrome_image.isNull());
 }
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         WebAppIconManagerTest_NotificationIconAndTitle,
+                         ::testing::Bool(),
+                         [](::testing::TestParamInfo<bool> info) {
+                           return info.param ? "TrustedIconsOn"
+                                             : "TrustedIconsOff";
+                         });
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace web_app

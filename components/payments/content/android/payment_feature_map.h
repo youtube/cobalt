@@ -25,6 +25,14 @@ BASE_DECLARE_FEATURE(kGooglePayViaAndroidIntents);
 // omitted from the isReadyToPayRequest. See: https://crbug.com/1406655.
 BASE_DECLARE_FEATURE(kOmitParametersInReadyToPay);
 
+// If enabled, then apps will be available to show even if the "is ready to pay"
+// query returns false. See: crbug.com/427918761.
+BASE_DECLARE_FEATURE(kAllowShowWithoutReadyToPay);
+
+// If enabled, the payment details update service reconnects to the Android
+// payment app when the connection is lost unexpectedly.
+BASE_DECLARE_FEATURE(kReconnectOnLostConnectionToUpdatePaymentDetailsService);
+
 // If enabled, then Clank displays an alert dialog with the content of the
 // IS_READY_TO_PAY intent, whenever Clank fires this intent.
 BASE_DECLARE_FEATURE(kShowReadyToPayDebugInfo);

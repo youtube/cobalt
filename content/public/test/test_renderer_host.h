@@ -156,8 +156,10 @@ class RenderFrameHostTester {
   // Simulates the receipt of a manifest URL.
   virtual void SimulateManifestURLUpdate(const GURL& manifest_url) = 0;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // Creates and appends a fenced frame.
   virtual RenderFrameHost* AppendFencedFrame() = 0;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   // Creates the HidService and binds `receiver`.

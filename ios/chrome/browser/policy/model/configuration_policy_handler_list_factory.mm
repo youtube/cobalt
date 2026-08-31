@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/browser/policy/model/configuration_policy_handler_list_factory.h"
 
 #import "base/check.h"
@@ -14,6 +19,7 @@
 #import "components/component_updater/pref_names.h"
 #import "components/content_settings/core/common/pref_names.h"
 #import "components/enterprise/browser/data_region/data_region_policy_handler.h"
+#import "components/enterprise/browser/reporting/cloud_profile_reporting_policy_handler.h"
 #import "components/enterprise/browser/reporting/cloud_reporting_frequency_policy_handler.h"
 #import "components/enterprise/browser/reporting/cloud_reporting_policy_handler.h"
 #import "components/enterprise/browser/reporting/common_pref_names.h"
@@ -169,8 +175,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { policy::key::kProvisionalNotificationsAllowed,
     prefs::kProvisionalNotificationsAllowedByPolicy,
     base::Value::Type::BOOLEAN },
-  { policy::key::kAIModeSearchSuggestSettings,
-    omnibox::kAIModeSearchSuggestSettings,
+  { policy::key::kAIModeSettings,
+    omnibox::kAIModeSettings,
+    base::Value::Type::INTEGER },
+  { policy::key::kGeminiSettings,
+    prefs::kGeminiEnabledByPolicy,
     base::Value::Type::INTEGER },
 };
 // clang-format on
@@ -218,6 +227,9 @@ std::unique_ptr<policy::ConfigurationPolicyHandlerList> BuildPolicyHandlerList(
       std::make_unique<
           enterprise_reporting::CloudReportingFrequencyPolicyHandler>());
   handlers->AddHandler(
+      std::make_unique<
+          enterprise_reporting::CloudProfileReportingPolicyHandler>());
+  handlers->AddHandler(
       std::make_unique<policy::NewTabPageLocationPolicyHandler>());
   handlers->AddHandler(std::make_unique<policy::URLBlocklistPolicyHandler>(
       policy::key::kURLBlocklist));
@@ -248,8 +260,11 @@ std::unique_ptr<policy::ConfigurationPolicyHandlerList> BuildPolicyHandlerList(
   std::vector<policy::GenAiDefaultSettingsPolicyHandler::GenAiPolicyDetails>
       gen_ai_default_policies;
   gen_ai_default_policies.emplace_back(
-      policy::key::kAIModeSearchSuggestSettings,
-      omnibox::kAIModeSearchSuggestSettings,
+      policy::key::kLensOverlaySettings, lens::prefs::kLensOverlaySettings,
+      policy::GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
+          {{0, 0}, {1, 0}, {2, 1}}));
+  gen_ai_default_policies.emplace_back(
+      policy::key::kAIModeSettings, omnibox::kAIModeSettings,
       policy::GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
   handlers->AddHandler(

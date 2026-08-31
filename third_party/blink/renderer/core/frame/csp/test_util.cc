@@ -19,18 +19,13 @@ WebCSPSource ConvertSource(const network::mojom::blink::CSPSourcePtr& source) {
           source->is_port_wildcard};
 }
 
-WebCSPHashSource ConvertHashSource(
-    const network::mojom::blink::CSPHashSourcePtr& hash_source) {
-  return {hash_source->algorithm, base::ToVector(hash_source->value)};
-}
-
 WebCSPSourceList ConvertSourceList(
     const network::mojom::blink::CSPSourceListPtr& source_list) {
   return {base::ToVector(source_list->sources, ConvertSource),
           base::ToVector(source_list->nonces, ToWebString),
-          base::ToVector(source_list->hashes, ConvertHashSource),
-          base::ToVector(source_list->url_hashes, ConvertHashSource),
-          base::ToVector(source_list->eval_hashes, ConvertHashSource),
+          base::ToVector(source_list->hashes),
+          base::ToVector(source_list->url_hashes),
+          base::ToVector(source_list->eval_hashes),
           source_list->allow_self,
           source_list->allow_star,
           source_list->allow_inline,
@@ -39,6 +34,7 @@ WebCSPSourceList ConvertSourceList(
           source_list->allow_wasm_eval,
           source_list->allow_wasm_unsafe_eval,
           source_list->allow_dynamic,
+          source_list->allow_dynamic_url,
           source_list->allow_unsafe_hashes,
           source_list->report_sample,
           source_list->report_hash_algorithm};

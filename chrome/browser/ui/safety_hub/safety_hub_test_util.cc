@@ -10,7 +10,7 @@
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/password_manager/bulk_leak_check_service_factory.h"
+#include "chrome/browser/password_manager/factories/bulk_leak_check_service_factory.h"
 #include "chrome/browser/permissions/notifications_engagement_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/safety_hub/notification_permission_review_service_factory.h"
@@ -31,6 +31,8 @@
 #include "extensions/common/mojom/manifest.mojom-shared.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#include "chrome/browser/ui/safety_hub/safety_hub_result.h"
+#include "chrome/browser/ui/safety_hub/safety_hub_service.h"
 namespace {
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -108,7 +110,7 @@ class TestObserver : public SafetyHubService::Observer {
     callback_ = callback;
   }
 
-  void OnResultAvailable(const SafetyHubService::Result* result) override {
+  void OnResultAvailable(const SafetyHubResult* result) override {
     callback_.Run();
   }
 

@@ -341,8 +341,7 @@ PhysicalBoxFragment::PhysicalBoxFragment(
                  IsMonolithicOverflowPropagationDisabledFlag::encode(
                      builder->GetConstraintSpace()
                          .IsMonolithicOverflowPropagationDisabled()) |
-                 HasMovedChildrenInBlockDirectionFlag::encode(
-                     builder->has_moved_children_in_block_direction_)) {
+                 HasMovedChildrenFlag::encode(builder->has_moved_children_)) {
   DCHECK(layout_object_);
   DCHECK(layout_object_->IsBoxModelObject());
   DCHECK(!builder->break_token_ || builder->break_token_->IsBlockType());
@@ -1269,11 +1268,10 @@ void PhysicalBoxFragment::AddOutlineRectsForInlineBox(
 
 PositionWithAffinity PhysicalBoxFragment::PositionForPoint(
     PhysicalOffset point) const {
-  if (layout_object_->IsBox() && !layout_object_->IsLayoutNGObject()) {
-    // Layout engine boundary. Enter legacy PositionForPoint().
+  if (layout_object_->IsLayoutReplaced()) {
+    // TODO(layout-dev): Would be better if the fragment code could handle this.
     return layout_object_->PositionForPoint(point);
   }
-
   const PhysicalOffset point_in_contents =
       IsScrollContainer()
           ? point + PhysicalOffset(PixelSnappedScrolledContentOffset())

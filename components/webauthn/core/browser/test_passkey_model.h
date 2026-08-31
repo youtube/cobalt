@@ -6,6 +6,7 @@
 #define COMPONENTS_WEBAUTHN_CORE_BROWSER_TEST_PASSKEY_MODEL_H_
 
 #include <string>
+#include <vector>
 
 #include "base/observer_list.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
@@ -43,6 +44,9 @@ class TestPasskeyModel : public PasskeyModel {
                      bool updated_by_user) override;
   bool UpdatePasskeyTimestamp(const std::string& credential_id,
                               base::Time last_used_time) override;
+  bool UpdatePasskeyEncryptedBlob(
+      const std::string& credential_id,
+      const std::string& new_encrypted_blob) override;
   sync_pb::WebauthnCredentialSpecifics CreatePasskey(
       std::string_view rp_id,
       const UserEntity& user_entity,

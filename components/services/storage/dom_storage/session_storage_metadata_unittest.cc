@@ -17,10 +17,12 @@
 #include "base/task/thread_pool.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/uuid.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
 #include "components/services/storage/dom_storage/testing_legacy_session_storage_database.h"
+#include "storage/common/database/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -41,7 +43,7 @@ std::vector<uint8_t> SliceToVector(const leveldb::Slice& s) {
   return std::vector<uint8_t>(span.begin(), span.end());
 }
 
-void ErrorCallback(leveldb::Status* status_out, leveldb::Status status) {
+void ErrorCallback(DbStatus* status_out, DbStatus status) {
   *status_out = status;
 }
 
@@ -56,7 +58,7 @@ class SessionStorageMetadataTest : public testing::Test {
     database_ = AsyncDomStorageDatabase::OpenInMemory(
         std::nullopt, "SessionStorageMetadataTest",
         base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
-        base::BindLambdaForTesting([&](leveldb::Status) { loop.Quit(); }));
+        base::BindLambdaForTesting([&](DbStatus) { loop.Quit(); }));
     loop.Run();
 
     next_map_id_key_ = std::vector<uint8_t>(
@@ -151,7 +153,7 @@ class SessionStorageMetadataTest : public testing::Test {
     base::RunLoop loop;
     database_->database().PostTaskWithThisObject(
         base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
-          leveldb::Status status = db.GetPrefixed({}, &entries);
+          DbStatus status = db.GetPrefixed({}, &entries);
           ASSERT_TRUE(status.ok());
           loop.Quit();
         }));
@@ -164,11 +166,11 @@ class SessionStorageMetadataTest : public testing::Test {
   }
 
   void RunBatch(std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks,
-                base::OnceCallback<void(leveldb::Status)> callback) {
+                base::OnceCallback<void(DbStatus)> callback) {
     base::RunLoop loop;
     database_->RunBatchDatabaseTasks(
         RunBatchTasksContext::kTest, std::move(tasks),
-        base::BindLambdaForTesting([&](leveldb::Status status) {
+        base::BindLambdaForTesting([&](DbStatus status) {
           std::move(callback).Run(status);
           loop.Quit();
         }));
@@ -196,7 +198,7 @@ TEST_F(SessionStorageMetadataTest, SaveNewMetadata) {
   std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks =
       metadata.SetupNewDatabase();
 
-  leveldb::Status status;
+  DbStatus status;
   RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
   EXPECT_TRUE(status.ok());
 
@@ -256,7 +258,7 @@ TEST_F(SessionStorageMetadataTest, SaveNewMap) {
                    ->second[test_storage_key1_]
                    ->ReferenceCount());
 
-  leveldb::Status status;
+  DbStatus status;
   RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
   EXPECT_TRUE(status.ok());
 
@@ -280,7 +282,7 @@ TEST_F(SessionStorageMetadataTest, ShallowCopies) {
   std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks;
   metadata.RegisterShallowClonedNamespace(ns1_entry, ns3_entry, &tasks);
 
-  leveldb::Status status;
+  DbStatus status;
   RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
   EXPECT_TRUE(status.ok());
 
@@ -315,7 +317,7 @@ TEST_F(SessionStorageMetadataTest, DeleteNamespace) {
 
   std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks;
   metadata.DeleteNamespace(test_namespace1_id_, &tasks);
-  leveldb::Status status;
+  DbStatus status;
   RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
   EXPECT_TRUE(status.ok());
 
@@ -349,7 +351,7 @@ TEST_F(SessionStorageMetadataTest, DeleteArea) {
   // First delete an area with a shared map.
   std::vector<AsyncDomStorageDatabase::BatchDatabaseTask> tasks;
   metadata.DeleteArea(test_namespace1_id_, test_storage_key1_, &tasks);
-  leveldb::Status status;
+  DbStatus status;
   RunBatch(std::move(tasks), base::BindOnce(&ErrorCallback, &status));
   EXPECT_TRUE(status.ok());
 
@@ -464,21 +466,38 @@ class SessionStorageMetadataMigrationTest : public testing::Test {
   std::vector<uint8_t> namespaces_prefix_key_;
 };
 
-struct BatchCollector : public leveldb::WriteBatch::Handler {
+class BatchCollector : public DomStorageBatchOperation {
  public:
   BatchCollector() = default;
-  ~BatchCollector() override = default;
 
-  void Put(const leveldb::Slice& key, const leveldb::Slice& value) override {
-    new_entries.emplace(key.ToString(), value.ToString());
+  void Put(KeyView key, ValueView value) override {
+    new_entries_.emplace(std::string(key.begin(), key.end()),
+                         std::string(value.begin(), value.end()));
   }
 
-  void Delete(const leveldb::Slice& key) override {
-    deleted_keys.push_back(key.ToString());
+  void Delete(KeyView key) override {
+    deleted_keys_.emplace_back(key.begin(), key.end());
   }
 
-  std::map<std::string, std::string> new_entries;
-  std::vector<std::string> deleted_keys;
+  DbStatus DeletePrefixed(KeyView prefix) override { return DbStatus::OK(); }
+
+  DbStatus CopyPrefixed(KeyView prefix, KeyView new_prefix) override {
+    return DbStatus::OK();
+  }
+
+  DbStatus Commit() override { return DbStatus::OK(); }
+
+  std::vector<std::string> GetDeletedKeys() const { return deleted_keys_; }
+
+  std::map<std::string, std::string> GetNewEntries() const {
+    return new_entries_;
+  }
+
+ private:
+  size_t ApproximateSizeForMetrics() const override { return 0; }
+
+  std::map<std::string, std::string> new_entries_;
+  std::vector<std::string> deleted_keys_;
 };
 
 TEST_F(SessionStorageMetadataMigrationTest, MigrateV0ToV1) {
@@ -533,29 +552,30 @@ TEST_F(SessionStorageMetadataMigrationTest, MigrateV0ToV1) {
       AsyncDomStorageDatabase::OpenInMemory(
           std::nullopt, "SessionStorageMetadataMigrationTest",
           base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
-          base::BindLambdaForTesting([&](leveldb::Status) { loop.Quit(); }));
+          base::BindLambdaForTesting([&](DbStatus) { loop.Quit(); }));
   loop.Run();
 
-  // Run the tasks on our local batch object.
-  leveldb::WriteBatch batch;
+  std::map<std::string, std::string> new_entries;
+  std::vector<std::string> deleted_keys;
   base::RunLoop loop2;
   database->RunDatabaseTask(
-      base::OnceCallback<bool(const DomStorageDatabase&)>(
-          base::BindLambdaForTesting([&](const DomStorageDatabase& db) {
+      base::OnceCallback<bool(DomStorageDatabase&)>(
+          base::BindLambdaForTesting([&](DomStorageDatabase& db) {
+            auto collector = std::make_unique<BatchCollector>();
             for (auto& task : migration_tasks) {
-              std::move(task).Run(&batch, db);
+              std::move(task).Run(*collector, db);
             }
+
+            new_entries = collector->GetNewEntries();
+            deleted_keys = collector->GetDeletedKeys();
             return true;
           })),
       base::BindLambdaForTesting([&](bool) { loop2.Quit(); }));
   loop2.Run();
 
-  BatchCollector collector;
-  batch.Iterate(&collector);
-  EXPECT_EQ(1u, collector.new_entries.size());
-  EXPECT_EQ("1", collector.new_entries["version"]);
-  EXPECT_THAT(collector.deleted_keys,
-              testing::ElementsAre("namespace-", "map-0-"));
+  EXPECT_EQ(1u, new_entries.size());
+  EXPECT_EQ("1", new_entries["version"]);
+  EXPECT_THAT(deleted_keys, testing::ElementsAre("namespace-", "map-0-"));
 }
 
 }  // namespace

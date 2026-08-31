@@ -4,21 +4,21 @@
 
 #include "chrome/browser/actor/site_policy.h"
 
-#include "base/base64.h"
 #include "base/command_line.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_features.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_switches.h"
+#include "chrome/browser/actor/actor_test_util.h"
+#include "chrome/browser/lookalikes/lookalike_test_helper.h"
 #include "chrome/browser/optimization_guide/browser_test_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/optimization_guide/core/bloom_filter.h"
-#include "components/optimization_guide/core/optimization_guide_switches.h"
-#include "components/optimization_guide/proto/hints.pb.h"
 #include "components/safe_browsing/buildflags.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/test/browser_test.h"
@@ -30,11 +30,19 @@
 #include "chrome/browser/safe_browsing/test_safe_browsing_service.h"
 #include "components/safe_browsing/core/browser/db/fake_database_manager.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #endif
 
 namespace actor {
 
 namespace {
+
+// Hosts that will trigger lookalike warnings. One causes an interstitial and
+// the other only a safety tip.
+constexpr char kLookalikeHostInterstitial[] = "google.com.example.com";
+constexpr char kLookalikeHostWarning[] = "accounts-google.com";
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
 
 class ActorSitePolicyBrowserTest : public InProcessBrowserTest {
  public:
@@ -50,40 +58,16 @@ class ActorSitePolicyBrowserTest : public InProcessBrowserTest {
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     InProcessBrowserTest::SetUpCommandLine(command_line);
-
-    constexpr std::string kBlockedHost = "bar.com";
-    constexpr uint32_t kNumHashFunctions = 7;
-    constexpr uint32_t kNumBits = 511;
-    optimization_guide::BloomFilter blocklist_bloom_filter(kNumHashFunctions,
-                                                           kNumBits);
-    blocklist_bloom_filter.Add(kBlockedHost);
-    std::string blocklist_bloom_filter_data(
-        reinterpret_cast<const char*>(&blocklist_bloom_filter.bytes()[0]),
-        blocklist_bloom_filter.bytes().size());
-
-    optimization_guide::proto::Configuration config;
-    optimization_guide::proto::OptimizationFilter*
-        blocklist_optimization_filter = config.add_optimization_blocklists();
-    blocklist_optimization_filter->set_optimization_type(
-        optimization_guide::proto::GLIC_ACTION_PAGE_BLOCK);
-    blocklist_optimization_filter->mutable_bloom_filter()
-        ->set_num_hash_functions(kNumHashFunctions);
-    blocklist_optimization_filter->mutable_bloom_filter()->set_num_bits(
-        kNumBits);
-    blocklist_optimization_filter->mutable_bloom_filter()->set_data(
-        blocklist_bloom_filter_data);
-
-    std::string encoded_config;
-    config.SerializeToString(&encoded_config);
-    encoded_config = base::Base64Encode(encoded_config);
-
-    command_line->AppendSwitchASCII(
-        optimization_guide::switches::kHintsProtoOverride, encoded_config);
+    SetUpBlocklist(command_line, "bar.com");
   }
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     host_resolver()->AddRule("*", "127.0.0.1");
+    LookalikeTestHelper::SetUpLookalikeTestParams();
+    embedded_https_test_server().SetCertHostnames(
+        {"a.com", "b.com", "c.com", "bar.com", "*.bar.com",
+         kLookalikeHostInterstitial, kLookalikeHostWarning});
     ASSERT_TRUE(embedded_https_test_server().Start());
 
     // Optimization guide uses this histogram to signal initialization in tests.
@@ -94,13 +78,19 @@ class ActorSitePolicyBrowserTest : public InProcessBrowserTest {
     InitActionBlocklist(browser()->profile());
   }
 
+  void TearDownOnMainThread() override {
+    LookalikeTestHelper::TearDownLookalikeTestParams();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+
  protected:
   void CheckUrl(const GURL& url, bool expected_allowed) {
     ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
 
     base::test::TestFuture<bool> allowed;
+    auto* actor_service = ActorKeyedService::Get(browser()->profile());
     MayActOnTab(*browser()->tab_strip_model()->GetActiveTab(),
-                allowed.GetCallback());
+                actor_service->GetJournal(), TaskId(), allowed.GetCallback());
     // The result should not be provided synchronously.
     EXPECT_FALSE(allowed.IsReady());
     EXPECT_EQ(expected_allowed, allowed.Get());
@@ -136,7 +126,18 @@ IN_PROC_BROWSER_TEST_F(ActorSitePolicyBrowserTest,
   CheckUrl(blocked_url, false);
 }
 
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+IN_PROC_BROWSER_TEST_F(ActorSitePolicyBrowserTest, BlockLookalikes) {
+  const GURL lookalike_url = embedded_https_test_server().GetURL(
+      kLookalikeHostInterstitial, "/title1.html");
+  CheckUrl(lookalike_url, false);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorSitePolicyBrowserTest,
+                       TreatLookalikeWarningsAsBlocking) {
+  const GURL lookalike_url = embedded_https_test_server().GetURL(
+      kLookalikeHostWarning, "/title1.html");
+  CheckUrl(lookalike_url, false);
+}
 
 class ActorSitePolicySafeBrowsingBrowserTest
     : public ActorSitePolicyBrowserTest {
@@ -190,6 +191,15 @@ class ActorSitePolicyDelayedWarningBrowserTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+class ActorSitePolicyNoSafetyChecksBrowserTest
+    : public ActorSitePolicySafeBrowsingBrowserTest {
+ public:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    ActorSitePolicySafeBrowsingBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(actor::switches::kDisableActorSafetyChecks);
+  }
+};
+
 IN_PROC_BROWSER_TEST_F(ActorSitePolicySafeBrowsingBrowserTest,
                        BlockDangerousSite) {
   const GURL dangerous_url =
@@ -204,6 +214,40 @@ IN_PROC_BROWSER_TEST_F(ActorSitePolicyDelayedWarningBrowserTest,
       embedded_https_test_server().GetURL("c.com", "/title1.html");
   AddPhishingUrl(phishing_url);
   CheckUrl(phishing_url, false);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorSitePolicySafeBrowsingBrowserTest,
+                       RequireSafeBrowsing) {
+  // Disable SafeBrowsing.
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::NO_SAFE_BROWSING);
+
+  // This would otherwise be allowed, but since we don't have SafeBrowsing to
+  // check if it's dangerous, we assume it is unsafe.
+  const GURL normally_allowed_url =
+      embedded_https_test_server().GetURL("a.com", "/title1.html");
+  CheckUrl(normally_allowed_url, false);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorSitePolicyNoSafetyChecksBrowserTest,
+                       DontRequireSafeBrowsing) {
+  // Disable SafeBrowsing.
+  safe_browsing::SetSafeBrowsingState(
+      browser()->profile()->GetPrefs(),
+      safe_browsing::SafeBrowsingState::NO_SAFE_BROWSING);
+
+  // SafeBrowsing is not mandatory in this configuration.
+  const GURL url = embedded_https_test_server().GetURL("a.com", "/title1.html");
+  CheckUrl(url, true);
+}
+
+IN_PROC_BROWSER_TEST_F(ActorSitePolicyNoSafetyChecksBrowserTest,
+                       IgnoreBlocklist) {
+  // The blocklist is ignored in this configuration.
+  const GURL blocked_url =
+      embedded_https_test_server().GetURL("bar.com", "/title1.html");
+  CheckUrl(blocked_url, true);
 }
 
 #endif  // BUILDFLAG(SAFE_BROWSING_AVAILABLE)

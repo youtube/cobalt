@@ -29,9 +29,9 @@
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
 #include "rtc_base/thread_annotations.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 namespace webrtc {
@@ -40,8 +40,8 @@ namespace {
 
 using ::testing::Eq;
 
-const int kDefaultFrameRate = 30;
-const int kDefaultFrameSize = 1280 * 720;
+constexpr int kDefaultFrameRate = 30;
+constexpr int kDefaultFrameSize = 1280 * 720;
 constexpr TimeDelta kDefaultTimeout = TimeDelta::Seconds(5);
 
 class VideoSourceRestrictionsListenerForTesting
@@ -103,7 +103,7 @@ class ResourceAdaptationProcessorTest : public ::testing::Test {
         video_stream_adapter_(
             std::make_unique<VideoStreamAdapter>(&input_state_provider_,
                                                  &frame_rate_provider_,
-                                                 field_trials_)),
+                                                 CreateTestFieldTrials())),
         processor_(std::make_unique<ResourceAdaptationProcessor>(
             video_stream_adapter_.get())) {
     video_stream_adapter_->AddRestrictionsListener(&restrictions_listener_);
@@ -147,7 +147,6 @@ class ResourceAdaptationProcessorTest : public ::testing::Test {
 
  protected:
   AutoThread main_thread_;
-  test::ScopedKeyValueConfig field_trials_;
   FakeFrameRateProvider frame_rate_provider_;
   VideoStreamInputStateProvider input_state_provider_;
   scoped_refptr<FakeResource> resource_;

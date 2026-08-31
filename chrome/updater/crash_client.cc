@@ -18,9 +18,9 @@
 #include "build/build_config.h"
 #include "chrome/updater/branded_constants.h"
 #include "chrome/updater/tag.h"
-#include "chrome/updater/update_usage_stats_task.h"
 #include "chrome/updater/updater_branding.h"
 #include "chrome/updater/updater_scope.h"
+#include "chrome/updater/usage_stats_permissions.h"
 #include "chrome/updater/util/util.h"
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"
 #include "third_party/crashpad/crashpad/client/crashpad_client.h"
@@ -139,7 +139,7 @@ bool CrashClient::InitializeCrashReporting(UpdaterScope updater_scope) {
       base::Environment::Create()
               ->GetVar(kUsageStatsEnabled)
               .value_or(std::string()) == kUsageStatsEnabledValueEnabled ||
-      UsageStatsProvider::Create(updater_scope)->AnyAppEnablesUsageStats();
+      AnyAppEnablesUsageStats(updater_scope);
 
   if (usage_stats_enabled) {
     crashpad::Settings* crashpad_settings = database_->GetSettings();

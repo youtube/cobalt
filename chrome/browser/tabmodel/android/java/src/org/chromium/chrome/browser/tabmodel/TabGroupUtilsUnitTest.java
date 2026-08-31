@@ -13,7 +13,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -22,6 +21,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.tabmodel.TabGroupUtils.areAnyTabsPartOfSharedGroup;
+import static org.chromium.chrome.browser.tabmodel.TabGroupUtils.isTabGroupShared;
 
 import android.text.TextUtils;
 
@@ -122,7 +122,7 @@ public class TabGroupUtilsUnitTest {
     @Test
     public void testGetSelectedTabInGroupForTab() {
         List<Tab> tabs = new ArrayList<>(Arrays.asList(mTab1, mTab2));
-        createTabGroup(tabs, TAB1_ID);
+        createTabGroup(tabs, TAB_GROUP_ID1);
         doReturn(mTab1).when(mTabGroupModelFilter).getRepresentativeTabAt(POSITION1);
         doReturn(POSITION1).when(mTabGroupModelFilter).representativeIndexOf(mTab1);
         doReturn(POSITION1).when(mTabGroupModelFilter).representativeIndexOf(mTab2);
@@ -200,6 +200,28 @@ public class TabGroupUtilsUnitTest {
     }
 
     @Test
+    public void testIsTabGroupShared_IsShared() {
+        mSavedTabGroup1.collaborationId = "collaborationId";
+        when(mTab1.getTabGroupId()).thenReturn(TAB_GROUP_ID1);
+        when(mTabModel.getProfile()).thenReturn(mProfile);
+        when(mTabGroupSyncService.getGroup(new LocalTabGroupId(TAB_GROUP_ID1)))
+                .thenReturn(mSavedTabGroup1);
+
+        assertTrue(isTabGroupShared(mTabModel, TAB_GROUP_ID1));
+    }
+
+    @Test
+    public void testIsTabGroupShared_IsNotShared() {
+        mSavedTabGroup1.collaborationId = null;
+        when(mTab1.getTabGroupId()).thenReturn(TAB_GROUP_ID1);
+        when(mTabModel.getProfile()).thenReturn(mProfile);
+        when(mTabGroupSyncService.getGroup(new LocalTabGroupId(TAB_GROUP_ID1)))
+                .thenReturn(mSavedTabGroup1);
+
+        assertFalse(isTabGroupShared(mTabModel, TAB_GROUP_ID1));
+    }
+
+    @Test
     public void testRegroupTabs() {
         verifyRegroupTabs(/* shouldApplyCollapse= */ true);
     }
@@ -242,7 +264,6 @@ public class TabGroupUtilsUnitTest {
         List<Tab> tabs = new ArrayList<>(Arrays.asList(mTab1, mTab2, mTab3));
         TabGroupMetadata tabGroupMetadata =
                 new TabGroupMetadata(
-                        /* rootId= */ TAB1_ID,
                         /* selectedTabId= */ TAB1_ID,
                         /* sourceWindowId= */ 1,
                         TAB_GROUP_ID1,
@@ -253,24 +274,26 @@ public class TabGroupUtilsUnitTest {
                         /* tabGroupCollapsed= */ true,
                         /* isGroupShared= */ false,
                         /* isIncognito= */ false);
+        when(mTab1.getTabGroupId()).thenReturn(TAB_GROUP_ID1);
         TabGroupUtils.regroupTabs(
                 mTabGroupModelFilter, tabs, tabGroupMetadata, shouldApplyCollapse);
 
         verify(mTabGroupModelFilter).createTabGroupForTabGroupSync(any(), eq(TAB_GROUP_ID1));
-        verify(mTabGroupModelFilter).setTabGroupColor(eq(TAB1_ID), eq(0));
-        verify(mTabGroupModelFilter).setTabGroupTitle(eq(TAB1_ID), eq(TAB_GROUP_TITLE));
+        verify(mTabGroupModelFilter).setTabGroupColor(eq(TAB_GROUP_ID1), eq(0));
+        verify(mTabGroupModelFilter).setTabGroupTitle(eq(TAB_GROUP_ID1), eq(TAB_GROUP_TITLE));
         if (shouldApplyCollapse) {
-            verify(mTabGroupModelFilter).setTabGroupCollapsed(eq(TAB1_ID), eq(true), eq(false));
+            verify(mTabGroupModelFilter)
+                    .setTabGroupCollapsed(eq(TAB_GROUP_ID1), eq(true), eq(false));
         } else {
             verify(mTabGroupModelFilter, never())
-                    .setTabGroupCollapsed(anyInt(), anyBoolean(), anyBoolean());
+                    .setTabGroupCollapsed(any(), anyBoolean(), anyBoolean());
         }
     }
 
-    private void createTabGroup(List<Tab> tabs, int rootId) {
+    private void createTabGroup(List<Tab> tabs, Token tabGroupId) {
         for (Tab tab : tabs) {
-            when(mTabGroupModelFilter.getRelatedTabList(tab.getId())).thenReturn(tabs);
-            when(tab.getRootId()).thenReturn(rootId);
+            when(mTabGroupModelFilter.getTabsInGroup(tabGroupId)).thenReturn(tabs);
+            when(tab.getTabGroupId()).thenReturn(tabGroupId);
         }
     }
 }

@@ -71,7 +71,7 @@ protocol::Response PageHandler::Enable(
 protocol::Response PageHandler::Disable() {
   enabled_ = false;
   ToggleAdBlocking(false /* enable */);
-  SetSPCTransactionMode(protocol::Page::AutoResponseModeEnum::None);
+  SetSPCTransactionMode(protocol::Page::SetSPCTransactionMode::ModeEnum::None);
   // Do not mark the command as handled. Let it fall through instead, so that
   // the handler in content gets a chance to process the command.
   return protocol::Response::FallThrough();
@@ -89,20 +89,25 @@ protocol::Response PageHandler::SetSPCTransactionMode(
   if (!web_contents_)
     return protocol::Response::ServerError("No web contents to host a dialog.");
 
-  payments::SPCTransactionMode spc_mode = payments::SPCTransactionMode::NONE;
-  if (mode == protocol::Page::AutoResponseModeEnum::AutoAccept) {
-    spc_mode = payments::SPCTransactionMode::AUTOACCEPT;
-  } else if (mode == protocol::Page::AutoResponseModeEnum::AutoReject) {
-    spc_mode = payments::SPCTransactionMode::AUTOREJECT;
-  } else if (mode == protocol::Page::AutoResponseModeEnum::AutoOptOut) {
-    spc_mode = payments::SPCTransactionMode::AUTOOPTOUT;
-  } else if (mode != protocol::Page::AutoResponseModeEnum::None) {
+  payments::SPCTransactionMode spc_mode = payments::SPCTransactionMode::kNone;
+  if (mode == protocol::Page::SetSPCTransactionMode::ModeEnum::AutoAccept) {
+    spc_mode = payments::SPCTransactionMode::kAutoAccept;
+  } else if (mode == protocol::Page::SetSPCTransactionMode::ModeEnum::
+                         AutoChooseToAuthAnotherWay) {
+    spc_mode = payments::SPCTransactionMode::kAutoAuthAnotherWay;
+  } else if (mode ==
+             protocol::Page::SetSPCTransactionMode::ModeEnum::AutoReject) {
+    spc_mode = payments::SPCTransactionMode::kAutoReject;
+  } else if (mode ==
+             protocol::Page::SetSPCTransactionMode::ModeEnum::AutoOptOut) {
+    spc_mode = payments::SPCTransactionMode::kAutoOptOut;
+  } else if (mode != protocol::Page::SetSPCTransactionMode::ModeEnum::None) {
     return protocol::Response::ServerError("Unrecognized mode value");
   }
 
   auto* payment_request_manager =
       payments::PaymentRequestWebContentsManager::GetOrCreateForWebContents(
-          *web_contents_);
+          web_contents_.get());
   payment_request_manager->SetSPCTransactionMode(spc_mode);
   return protocol::Response::Success();
 }
@@ -115,11 +120,12 @@ protocol::Response PageHandler::SetRPHRegistrationMode(
 
   custom_handlers::RphRegistrationMode rph_mode =
       custom_handlers::RphRegistrationMode::kNone;
-  if (mode == protocol::Page::AutoResponseModeEnum::AutoAccept) {
+  if (mode == protocol::Page::SetRPHRegistrationMode::ModeEnum::AutoAccept) {
     rph_mode = custom_handlers::RphRegistrationMode::kAutoAccept;
-  } else if (mode == protocol::Page::AutoResponseModeEnum::AutoReject) {
+  } else if (mode ==
+             protocol::Page::SetRPHRegistrationMode::ModeEnum::AutoReject) {
     rph_mode = custom_handlers::RphRegistrationMode::kAutoReject;
-  } else if (mode != protocol::Page::AutoResponseModeEnum::None) {
+  } else if (mode != protocol::Page::SetRPHRegistrationMode::ModeEnum::None) {
     return protocol::Response::ServerError("Unrecognized mode value");
   }
 

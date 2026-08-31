@@ -43,6 +43,18 @@
 
 namespace {
 
+using enum base::File::Error;
+
+void PostError(MTPDeviceTaskHelper::ErrorCallback callback,
+               std::string_view storage_name) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  LOG(ERROR) << "No MTP device task helper for '" << storage_name << "'";
+  if (callback) {
+    content::GetIOThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), FILE_ERROR_FAILED));
+  }
+}
+
 // File path separator constant.
 const char kRootPath[] = "/";
 
@@ -135,7 +147,7 @@ void CreateDirectoryOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->CreateDirectory(parent_id, directory_name,
                                std::move(success_callback),
@@ -162,7 +174,7 @@ void ReadDirectoryOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->ReadDirectory(directory_id, success_callback,
                              std::move(error_callback));
@@ -188,7 +200,7 @@ void CheckDirectoryEmptyOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->CheckDirectoryEmpty(directory_id, std::move(success_callback),
                                    std::move(error_callback));
@@ -213,7 +225,7 @@ void GetFileInfoOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->GetFileInfo(file_id, std::move(success_callback),
                            std::move(error_callback));
@@ -241,7 +253,7 @@ void WriteDataIntoSnapshotFileOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(request_info.error_callback), storage_name);
   }
   task_helper->WriteDataIntoSnapshotFile(std::move(request_info),
                                          snapshot_file_info);
@@ -261,7 +273,7 @@ void ReadBytesOnUIThread(const std::string& storage_name,
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(request.error_callback), storage_name);
   }
   task_helper->ReadBytes(std::move(request));
 }
@@ -286,7 +298,7 @@ void RenameObjectOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->RenameObject(object_id, new_name, std::move(success_callback),
                             std::move(error_callback));
@@ -315,7 +327,7 @@ void CopyFileFromLocalOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->CopyFileFromLocal(
       storage_name, source_file_descriptor, parent_id, file_name,
@@ -342,7 +354,7 @@ void DeleteObjectOnUIThread(
   MTPDeviceTaskHelper* task_helper =
       GetDeviceTaskHelperForStorage(storage_name, read_only);
   if (!task_helper) {
-    return;
+    return PostError(std::move(error_callback), storage_name);
   }
   task_helper->DeleteObject(object_id, std::move(success_callback),
                             std::move(error_callback));
@@ -537,7 +549,7 @@ bool MTPDeviceDelegateImplLinux::MTPFileNode::DeleteChild(uint32_t file_id) {
       });
 
   if (it == children_.cend()) {
-    VLOG(1) << "Cannot find MTP node with file ID " << file_id;
+    LOG(ERROR) << "Cannot find MTP node with ID " << file_id;
     return false;
   }
 
@@ -1691,39 +1703,47 @@ void MTPDeviceDelegateImplLinux::OnDidReadDirectory(
     bool has_more) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
 
-  const MTPFileNodesById::iterator it = nodes_by_id_.find(dir_id);
-  CHECK(it != nodes_by_id_.end());
-  MTPFileNode* const dir_node = it->second;
-
-  // Traverse the MTPFileNode tree to reconstuct the full path for |dir_id|.
-  base::circular_deque<std::string> dir_path_parts;
-  MTPFileNode* parent_node = dir_node;
-  while (parent_node->parent()) {
-    dir_path_parts.push_front(parent_node->file_name());
-    parent_node = parent_node->parent();
-  }
-  base::FilePath dir_path = device_path_;
-  for (const auto& dir_path_part : dir_path_parts) {
-    dir_path = dir_path.Append(dir_path_part);
-  }
-
   storage::AsyncFileUtil::EntryList file_list;
-  for (const auto& mtp_entry : mtp_entries) {
-    filesystem::mojom::DirectoryEntry entry;
-    auto name = base::SafeBaseName::Create(mtp_entry.name);
-    CHECK(name) << mtp_entry.name;
-    entry.name = *name;
-    entry.type = mtp_entry.file_info.is_directory
-                     ? filesystem::mojom::FsFileType::DIRECTORY
-                     : filesystem::mojom::FsFileType::REGULAR_FILE;
-    file_list.push_back(entry);
 
-    // Refresh the in memory tree.
-    dir_node->EnsureChildExists(entry.name.value(), mtp_entry.file_id);
-    child_nodes_seen_.insert(entry.name.value());
+  MTPFileNode* dir_node = nullptr;
+  if (const MTPFileNodesById::const_iterator it = nodes_by_id_.find(dir_id);
+      it != nodes_by_id_.cend()) {
+    dir_node = it->second;
 
-    // Add to |file_info_cache_|.
-    file_info_cache_[dir_path.Append(entry.name)] = mtp_entry;
+    // Traverse the MTPFileNode tree to reconstruct the full path for |dir_id|.
+    base::circular_deque<std::string> dir_path_parts;
+    MTPFileNode* parent_node = dir_node;
+    while (parent_node->parent()) {
+      dir_path_parts.push_front(parent_node->file_name());
+      parent_node = parent_node->parent();
+    }
+    base::FilePath dir_path = device_path_;
+    for (const auto& dir_path_part : dir_path_parts) {
+      dir_path = dir_path.Append(dir_path_part);
+    }
+
+    for (const auto& mtp_entry : mtp_entries) {
+      filesystem::mojom::DirectoryEntry entry;
+      auto name = base::SafeBaseName::Create(mtp_entry.name);
+      if (!name) {
+        LOG(ERROR) << "Skipped unsafe MTP entry '" << mtp_entry.name << "'";
+        continue;
+      }
+      entry.name = *name;
+      entry.type = mtp_entry.file_info.is_directory
+                       ? filesystem::mojom::FsFileType::DIRECTORY
+                       : filesystem::mojom::FsFileType::REGULAR_FILE;
+      file_list.push_back(entry);
+
+      // Refresh the in memory tree.
+      dir_node->EnsureChildExists(entry.name.value(), mtp_entry.file_id);
+      child_nodes_seen_.insert(entry.name.value());
+
+      // Add to |file_info_cache_|.
+      file_info_cache_[dir_path.Append(entry.name)] = mtp_entry;
+    }
+  } else {
+    LOG(ERROR) << "Cannot find MTP node with ID " << dir_id;
   }
 
   success_callback.Run(file_list, has_more);
@@ -1732,7 +1752,10 @@ void MTPDeviceDelegateImplLinux::OnDidReadDirectory(
   }
 
   // Last call, finish book keeping and continue with the next request.
-  dir_node->ClearNonexistentChildren(child_nodes_seen_);
+  if (dir_node) {
+    dir_node->ClearNonexistentChildren(child_nodes_seen_);
+  }
+
   child_nodes_seen_.clear();
   file_info_cache_.clear();
 
@@ -1773,6 +1796,10 @@ void MTPDeviceDelegateImplLinux::OnDidFillFileCache(
     storage::AsyncFileUtil::EntryList /* entries */,
     bool has_more) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  if (pending_tasks_.empty()) {
+    return;
+  }
+
   DCHECK(path.IsParent(pending_tasks_.front().path));
   if (has_more) {
     return;  // Wait until all entries have been read.
@@ -1783,6 +1810,10 @@ void MTPDeviceDelegateImplLinux::OnDidFillFileCache(
 void MTPDeviceDelegateImplLinux::OnFillFileCacheFailed(
     base::File::Error /* error */) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  if (pending_tasks_.empty()) {
+    return;
+  }
+
   // When filling the cache fails for the task at the front of the queue, clear
   // the path of the task so it will not try to do any more caching. Instead,
   // the task will just run and fail the CachedPathToId() lookup.
@@ -2014,7 +2045,7 @@ std::optional<uint32_t> MTPDeviceDelegateImplLinux::CachedPathToId(
 void MTPDeviceDelegateImplLinux::EvictCachedPathToId(uint32_t id) {
   const MTPFileNodesById::const_iterator it = nodes_by_id_.find(id);
   if (it == nodes_by_id_.cend()) {
-    VLOG(1) << "Cannot find MTP node with file ID " << id;
+    LOG(ERROR) << "Cannot find MTP node with ID " << id;
     return;
   }
 

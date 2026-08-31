@@ -5,12 +5,14 @@
 /**
  * @fileoverview Default implementation for TTS in the background context.
  */
+import {BridgeHelper} from '/common/bridge_helper.js';
 import {constants} from '/common/constants.js';
 import {LocalStorage} from '/common/local_storage.js';
 import {TestImportManager} from '/common/testing/test_import_manager.js';
 
+import {BridgeConstants} from '../common/bridge_constants.js';
 import {Msgs} from '../common/msgs.js';
-import {OffscreenCommandType} from '../common/offscreen_command_type.js';
+import {OffscreenBridge} from '../common/offscreen_bridge.js';
 import {PanelCommand, PanelCommandType} from '../common/panel_command.js';
 import {SettingsManager} from '../common/settings_manager.js';
 import {CharacterDictionary, Personality, PunctuationEcho, PunctuationEchoes, QueueMode, TtsAudioProperty, TtsSettings, TtsSpeechProperties} from '../common/tts_types.js';
@@ -21,6 +23,9 @@ import {PhoneticData} from './phonetic_data.js';
 import {TtsCapturingEventListener, TtsInterface} from './tts_interface.js';
 
 type TtsVoice = chrome.tts.TtsVoice;
+
+const TARGET = BridgeConstants.PrimaryTts.TARGET;
+const Action = BridgeConstants.PrimaryTts.Action;
 
 class Utterance {
   static nextUtteranceId_ = 1;
@@ -91,16 +96,17 @@ export class PrimaryTts extends AbstractTts {
   private utteranceQueueInterruptedByInterjection_: Utterance[] = [];
 
 
-  constructor() {
+  constructor(skipOnVoicesHandlerForTesting = false) {
     super();
 
     this.currentPunctuationEcho_ =
         SettingsManager.getNumber(TtsSettings.PUNCTUATION_ECHO);
 
-    chrome.runtime.onMessage.addListener(
-        (message: any|undefined, _sender: chrome.runtime.MessageSender,
-         _sendResponse: (value: any) => void) =>
-            this.handleMessageFromOffscreen_(message));
+    if (!skipOnVoicesHandlerForTesting) {
+      BridgeHelper.registerHandler(
+          TARGET, Action.ON_VOICES_CHANGED,
+          () => this.updateVoice(SettingsManager.getString('voiceName')));
+    }
 
     this.setDefaultVoiceIfChromecast_();
 
@@ -139,24 +145,10 @@ export class PrimaryTts extends AbstractTts {
    * of window.speechSynthesis.
    * SpeechSynthesis is not available on chromecast.
    */
-  private setDefaultVoiceIfChromecast_() {
-    const setDefault = (value: any) => {
-      if (value) {
-        this.updateVoice('');
-      }
-    };
-    chrome.runtime.sendMessage(
-        undefined, {command: OffscreenCommandType.SHOULD_SET_DEFAULT_VOICE},
-        undefined, setDefault);
-  }
-
-  private handleMessageFromOffscreen_(message: any|undefined) {
-    switch (message['command']) {
-      case OffscreenCommandType.ON_VOICES_CHANGED:
-        this.updateVoice(SettingsManager.getString('voiceName'));
-        break;
+  private async setDefaultVoiceIfChromecast_(): Promise<void> {
+    if (await OffscreenBridge.shouldSetDefaultVoice()) {
+      this.updateVoice('');
     }
-    return false;
   }
 
   /**

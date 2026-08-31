@@ -36,6 +36,7 @@
 #include "base/trace_event/process_memory_dump.h"
 #include "cc/paint/image_transfer_cache_entry.h"
 #include "cc/paint/transfer_cache_entry.h"
+#include "components/viz/common/resources/shared_image_format.h"
 #include "gpu/command_buffer/common/buffer.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/constants.h"
@@ -68,16 +69,15 @@
 #include "gpu/ipc/service/gpu_channel_manager.h"
 #include "gpu/ipc/service/gpu_channel_test_common.h"
 #include "gpu/ipc/service/image_decode_accelerator_worker.h"
+#include "ipc/constants.mojom.h"
 #include "skia/ext/skia_memory_dump_provider.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkSize.h"
-#include "ui/gfx/buffer_format_util.h"
-#include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/native_pixmap_handle.h"
 #include "ui/gl/gl_bindings.h"
 #include "url/gurl.h"
@@ -103,8 +103,8 @@ struct ExpectedCacheEntry {
   SkISize dimensions;
 };
 
-std::unique_ptr<MemoryTracker> CreateMockMemoryTracker() {
-  return std::make_unique<NiceMock<gles2::MockMemoryTracker>>();
+scoped_refptr<MemoryTracker> CreateMockMemoryTracker() {
+  return base::MakeRefCounted<NiceMock<gles2::MockMemoryTracker>>();
 }
 
 scoped_refptr<Buffer> MakeBufferForTesting() {
@@ -211,7 +211,7 @@ class TestSharedImageBackingFactory : public SharedImageBackingFactory {
 // decode by using the FinishOneDecode() method.
 class MockImageDecodeAcceleratorWorker : public ImageDecodeAcceleratorWorker {
  public:
-  MockImageDecodeAcceleratorWorker(gfx::BufferFormat format_for_decodes)
+  MockImageDecodeAcceleratorWorker(viz::SharedImageFormat format_for_decodes)
       : format_for_decodes_(format_for_decodes) {}
 
   MockImageDecodeAcceleratorWorker(const MockImageDecodeAcceleratorWorker&) =
@@ -237,16 +237,15 @@ class MockImageDecodeAcceleratorWorker : public ImageDecodeAcceleratorWorker {
       // the NativePixmapHandle has the right number of planes.
       auto decode_result = std::make_unique<DecodeResult>();
       gfx::NativePixmapHandle native_pixmap_handle;
-      for (size_t plane = 0; plane < gfx::NumberOfPlanesForLinearBufferFormat(
-                                         format_for_decodes_);
+      for (int plane = 0; plane < format_for_decodes_.NumberOfPlanes();
            plane++) {
         native_pixmap_handle.planes.emplace_back(
-            0 /* stride */, 0 /* offset */, 0 /* size */, base::ScopedFD());
+            /*stride=*/0, /*offset=*/0, /*size=*/0, base::ScopedFD());
       }
       decode_result->handle =
           gfx::GpuMemoryBufferHandle(std::move(native_pixmap_handle));
       decode_result->visible_size = next_decode.output_size;
-      decode_result->buffer_format = format_for_decodes_;
+      decode_result->si_format = format_for_decodes_;
       decode_result->buffer_byte_size = kDecodedBufferByteSize;
       std::move(next_decode.decode_cb).Run(std::move(decode_result));
     } else {
@@ -264,7 +263,7 @@ class MockImageDecodeAcceleratorWorker : public ImageDecodeAcceleratorWorker {
     CompletedDecodeCB decode_cb;
   };
 
-  const gfx::BufferFormat format_for_decodes_;
+  const viz::SharedImageFormat format_for_decodes_;
   base::queue<PendingDecode> pending_decodes_;
 };
 
@@ -280,7 +279,7 @@ const int32_t kCommandBufferRouteId =
 // creation.
 class ImageDecodeAcceleratorStubTest
     : public GpuChannelTestCommon,
-      public ::testing::WithParamInterface<gfx::BufferFormat> {
+      public ::testing::WithParamInterface<viz::SharedImageFormat> {
  public:
   ImageDecodeAcceleratorStubTest()
       : GpuChannelTestCommon(false /* use_stub_bindings */),
@@ -354,13 +353,12 @@ class ImageDecodeAcceleratorStubTest
     CommandBufferStub::SetMemoryTrackerFactoryForTesting(
         base::BindRepeating(&CreateMockMemoryTracker));
     auto init_params = mojom::CreateCommandBufferParams::New();
-    init_params->share_group_id = MSG_ROUTING_NONE;
+    init_params->share_group_id = IPC::mojom::kRoutingIdNone;
     init_params->stream_id = 0;
     init_params->stream_priority = SchedulingPriority::kNormal;
     init_params->attribs = ContextCreationAttribs();
     init_params->attribs.enable_gles2_interface = false;
     init_params->attribs.enable_raster_interface = true;
-    init_params->attribs.bind_generates_resource = false;
     init_params->active_url = GURL();
     ContextResult result = ContextResult::kTransientFailure;
     Capabilities capabilities;
@@ -497,8 +495,9 @@ class ImageDecodeAcceleratorStubTest
               raster_decoder_id, cc::TransferCacheEntryType::kImage,
               expected_entries[i].id)));
       ASSERT_TRUE(decode_entry);
-      ASSERT_EQ(gfx::NumberOfPlanesForLinearBufferFormat(GetParam()),
-                decode_entry->plane_images().size());
+      const viz::SharedImageFormat si_format = GetParam();
+      ASSERT_EQ(si_format.NumberOfPlanes(),
+                static_cast<int>(decode_entry->plane_images().size()));
       for (size_t plane = 0; plane < decode_entry->plane_images().size();
            plane++) {
         ASSERT_TRUE(decode_entry->plane_images()[plane]);
@@ -1023,8 +1022,9 @@ TEST_P(ImageDecodeAcceleratorStubTest, MemoryReportDetailedForMippedDecode) {
   cc::ServiceImageTransferCacheEntry* decode_entry =
       RunSimpleDecode(true /* needs_mips */);
   ASSERT_TRUE(decode_entry);
-  ASSERT_EQ(gfx::NumberOfPlanesForLinearBufferFormat(GetParam()),
-            decode_entry->plane_images().size());
+  const viz::SharedImageFormat si_format = GetParam();
+  ASSERT_EQ(si_format.NumberOfPlanes(),
+            static_cast<int>(decode_entry->plane_images().size()));
   base::CheckedNumeric<uint64_t> safe_expected_total_transfer_cache_size =
       GetExpectedTotalMippedSizeForPlanarImage(decode_entry);
   ASSERT_TRUE(safe_expected_total_transfer_cache_size.IsValid());
@@ -1039,8 +1039,9 @@ TEST_P(ImageDecodeAcceleratorStubTest, MemoryReportBackgroundForMippedDecode) {
   cc::ServiceImageTransferCacheEntry* decode_entry =
       RunSimpleDecode(true /* needs_mips */);
   ASSERT_TRUE(decode_entry);
-  ASSERT_EQ(gfx::NumberOfPlanesForLinearBufferFormat(GetParam()),
-            decode_entry->plane_images().size());
+  const viz::SharedImageFormat si_format = GetParam();
+  ASSERT_EQ(si_format.NumberOfPlanes(),
+            static_cast<int>(decode_entry->plane_images().size()));
   base::CheckedNumeric<uint64_t> safe_expected_total_transfer_cache_size =
       GetExpectedTotalMippedSizeForPlanarImage(decode_entry);
   ASSERT_TRUE(safe_expected_total_transfer_cache_size.IsValid());
@@ -1058,8 +1059,9 @@ TEST_P(ImageDecodeAcceleratorStubTest,
       RunSimpleDecode(false /* needs_mips */);
   ASSERT_TRUE(decode_entry);
   decode_entry->EnsureMips();
-  ASSERT_EQ(gfx::NumberOfPlanesForLinearBufferFormat(GetParam()),
-            decode_entry->plane_images().size());
+  const viz::SharedImageFormat si_format = GetParam();
+  ASSERT_EQ(si_format.NumberOfPlanes(),
+            static_cast<int>(decode_entry->plane_images().size()));
   base::CheckedNumeric<uint64_t> safe_expected_total_transfer_cache_size =
       GetExpectedTotalMippedSizeForPlanarImage(decode_entry);
   ASSERT_TRUE(safe_expected_total_transfer_cache_size.IsValid());
@@ -1076,8 +1078,9 @@ TEST_P(ImageDecodeAcceleratorStubTest,
       RunSimpleDecode(false /* needs_mips */);
   ASSERT_TRUE(decode_entry);
   decode_entry->EnsureMips();
-  ASSERT_EQ(gfx::NumberOfPlanesForLinearBufferFormat(GetParam()),
-            decode_entry->plane_images().size());
+  const viz::SharedImageFormat si_format = GetParam();
+  ASSERT_EQ(si_format.NumberOfPlanes(),
+            static_cast<int>(decode_entry->plane_images().size()));
   // For a deferred mip request, the transfer cache doesn't update its size
   // computation, so it reports memory as if no mips had been generated.
   ExpectProcessMemoryDump(
@@ -1091,10 +1094,9 @@ TEST_P(ImageDecodeAcceleratorStubTest,
 
 // TODO(andrescj): test the deletion of transfer cache entries.
 
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    ImageDecodeAcceleratorStubTest,
-    ::testing::Values(gfx::BufferFormat::YVU_420,
-                      gfx::BufferFormat::YUV_420_BIPLANAR));
+INSTANTIATE_TEST_SUITE_P(All,
+                         ImageDecodeAcceleratorStubTest,
+                         ::testing::Values(viz::MultiPlaneFormat::kYV12,
+                                           viz::MultiPlaneFormat::kNV12));
 
 }  // namespace gpu

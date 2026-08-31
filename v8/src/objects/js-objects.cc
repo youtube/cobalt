@@ -101,6 +101,7 @@ Maybe<bool> JSReceiver::HasProperty(LookupIterator* it) {
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::HasProperty(it->isolate(), it->GetHolder<JSProxy>(),
@@ -161,6 +162,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it,
     switch (it->state()) {
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         // Support calling this method without an active context, but refuse
@@ -216,6 +218,7 @@ Maybe<bool> JSReceiver::CheckPrivateNameStore(LookupIterator* it,
       case LookupIterator::JSPROXY:
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::ACCESSOR:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         if (!it->HasAccess()) {
@@ -347,8 +350,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         } else {
           LookupIterator it(isolate, from, next_key,
                             LookupIterator::OWN_SKIP_INTERCEPTOR);
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+          ASSIGN_RETURN_ON_EXCEPTION(isolate, prop_value,
+                                     Object::GetProperty(&it));
           stable = from->map() == *map;
         }
       } else {
@@ -360,8 +363,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
         DCHECK(it.state() == LookupIterator::DATA ||
                it.state() == LookupIterator::ACCESSOR);
         if (!it.IsEnumerable()) continue;
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, prop_value,
+                                   Object::GetProperty(&it));
       }
 
       if (use_set) {
@@ -423,11 +426,10 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
 
   // 3b. Let keys be ? from.[[OwnPropertyKeys]]().
   DirectHandle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, keys,
       KeyAccumulator::GetKeys(isolate, from, KeyCollectionMode::kOwnOnly,
-                              ALL_PROPERTIES, GetKeysConversion::kKeepNumbers),
-      Nothing<bool>());
+                              ALL_PROPERTIES, GetKeysConversion::kKeepNumbers));
 
   if (!from->HasFastProperties() && target->HasFastProperties() &&
       IsJSObject(*target) && !IsJSGlobalProxy(*target)) {
@@ -469,19 +471,18 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     if (found.FromJust() && desc.enumerable()) {
       // 4a ii 1. Let propValue be ? Get(from, nextKey).
       DirectHandle<Object> prop_value;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prop_value,
-          Runtime::GetObjectProperty(isolate, from, next_key), Nothing<bool>());
+          Runtime::GetObjectProperty(isolate, from, next_key));
 
       if (use_set) {
         // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
         DirectHandle<Object> status;
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        ASSIGN_RETURN_ON_EXCEPTION(
             isolate, status,
             Runtime::SetObjectProperty(isolate, target, next_key, prop_value,
                                        StoreOrigin::kMaybeKeyed,
-                                       Just(ShouldThrow::kThrowOnError)),
-            Nothing<bool>());
+                                       Just(ShouldThrow::kThrowOnError)));
       } else {
         // 4a ii 2. Perform ! CreateDataProperty(target, nextKey, propValue).
         PropertyKey key(isolate, next_key);
@@ -711,6 +712,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyAttributes(it);
@@ -934,6 +936,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
     switch (it->state()) {
       case LookupIterator::JSPROXY:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
         RETURN_FAILURE(isolate, kThrowOnError,
@@ -1234,9 +1237,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
                  interceptor->can_intercept_symbols());
   DirectHandle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<PropertyAttributes>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, Just(kDontThrow));
@@ -1299,9 +1301,8 @@ Maybe<InterceptorResult> SetPropertyWithInterceptorInternal(
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   DirectHandle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<InterceptorResult>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                  *holder, should_throw);
@@ -1329,9 +1330,8 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   DirectHandle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<InterceptorResult>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   std::unique_ptr<v8::PropertyDescriptor> descriptor(
@@ -1339,21 +1339,19 @@ Maybe<InterceptorResult> DefinePropertyWithInterceptorInternal(
   if (PropertyDescriptor::IsAccessorDescriptor(desc)) {
     DirectHandle<Object> getter = desc->get();
     if (!getter.is_null() && IsFunctionTemplateInfo(*getter)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, getter,
           ApiNatives::InstantiateFunction(isolate,
                                           Cast<FunctionTemplateInfo>(getter),
-                                          MaybeDirectHandle<Name>()),
-          Nothing<InterceptorResult>());
+                                          MaybeDirectHandle<Name>()));
     }
     DirectHandle<Object> setter = desc->set();
     if (!setter.is_null() && IsFunctionTemplateInfo(*setter)) {
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      ASSIGN_RETURN_ON_EXCEPTION(
           isolate, setter,
           ApiNatives::InstantiateFunction(isolate,
                                           Cast<FunctionTemplateInfo>(setter),
-                                          MaybeDirectHandle<Name>()),
-          Nothing<InterceptorResult>());
+                                          MaybeDirectHandle<Name>()));
     }
     descriptor.reset(new v8::PropertyDescriptor(v8::Utils::ToLocal(getter),
                                                 v8::Utils::ToLocal(setter)));
@@ -1702,8 +1700,11 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
           : current->has_value()
               ? current->value()
               : Cast<Object>(isolate->factory()->undefined_value()));
-      return JSObject::DefineOwnPropertyIgnoreAttributes(it, value, attrs,
-                                                         should_throw);
+      return JSObject::DefineOwnPropertyIgnoreAttributes(
+          it, value, attrs, should_throw, JSObject::DONT_FORCE_FIELD,
+          EnforceDefineSemantics::kSet, StoreOrigin::kNamed,
+          current->has_value() ? current->value()
+                               : MaybeDirectHandle<Object>());
     } else {
       DCHECK(desc_is_accessor_descriptor ||
              (desc_is_generic_descriptor &&
@@ -1801,6 +1802,7 @@ Maybe<bool> JSReceiver::AddPrivateField(LookupIterator* it,
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::ACCESSOR:
     case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+    case LookupIterator::STRING_LOOKUP_START_OBJECT:
       UNREACHABLE();
 
     case LookupIterator::ACCESS_CHECK: {
@@ -1864,9 +1866,8 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
 
   DirectHandle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
@@ -1993,9 +1994,8 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Isolate* isolate,
                Nothing<bool>());
 
   DirectHandle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, keys, JSReceiver::OwnPropertyKeys(isolate, receiver),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, keys,
+                             JSReceiver::OwnPropertyKeys(isolate, receiver));
 
   PropertyDescriptor no_conf;
   no_conf.set_configurable(false);
@@ -2044,9 +2044,8 @@ Maybe<bool> GenericTestIntegrityLevel(Isolate* isolate,
   if (extensible.FromJust()) return Just(false);
 
   DirectHandle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, keys, JSReceiver::OwnPropertyKeys(isolate, receiver),
-      Nothing<bool>());
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, keys,
+                             JSReceiver::OwnPropertyKeys(isolate, receiver));
 
   for (int i = 0; i < keys->length(); ++i) {
     DirectHandle<Object> key(keys->get(i), isolate);
@@ -2240,8 +2239,8 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
         LookupIterator it(isolate, object, next_key,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
         DCHECK_EQ(LookupIterator::ACCESSOR, it.state());
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+        ASSIGN_RETURN_ON_EXCEPTION(isolate, prop_value,
+                                   Object::GetProperty(&it));
         stable = object->map() == *map;
         descriptors.SetValue(map->instance_descriptors(isolate));
       }
@@ -2254,8 +2253,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
       DCHECK(it.state() == LookupIterator::DATA ||
              it.state() == LookupIterator::ACCESSOR);
       if (!it.IsEnumerable()) continue;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+      ASSIGN_RETURN_ON_EXCEPTION(isolate, prop_value, Object::GetProperty(&it));
     }
 
     if (get_entries) {
@@ -2287,11 +2285,10 @@ MaybeDirectHandle<FixedArray> GetOwnValuesOrEntries(
       static_cast<PropertyFilter>(filter & ~ONLY_ENUMERABLE);
 
   DirectHandle<FixedArray> keys;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+  ASSIGN_RETURN_ON_EXCEPTION(
       isolate, keys,
       KeyAccumulator::GetKeys(isolate, object, KeyCollectionMode::kOwnOnly,
-                              key_filter, GetKeysConversion::kConvertToString),
-      MaybeDirectHandle<FixedArray>());
+                              key_filter, GetKeysConversion::kConvertToString));
 
   values_or_entries = isolate->factory()->NewFixedArray(keys->length());
   int length = 0;
@@ -2308,9 +2305,8 @@ MaybeDirectHandle<FixedArray> GetOwnValuesOrEntries(
     }
 
     DirectHandle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, value, Object::GetPropertyOrElement(isolate, object, key),
-        MaybeDirectHandle<FixedArray>());
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, value, Object::GetPropertyOrElement(isolate, object, key));
 
     if (get_entries) {
       DirectHandle<FixedArray> entry_storage =
@@ -2436,13 +2432,18 @@ MaybeDirectHandle<JSObject> JSObject::ObjectCreate(
   return isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
 }
 
-void JSObject::EnsureWritableFastElements(Isolate* isolate,
-                                          DirectHandle<JSObject> object) {
-  DCHECK(object->HasSmiOrObjectElements() ||
-         object->HasFastStringWrapperElements() ||
-         object->HasAnyNonextensibleElements());
+bool JSArray::HasReadOnlyLengthSlowPath(DirectHandle<JSArray> array) {
+  // Look at the object.
+  Isolate* isolate = Isolate::Current();
+  LookupIterator it(isolate, array, isolate->factory()->length_string(), array,
+                    LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
+  return it.IsReadOnly();
+}
+
+void JSObject::MakeElementsWritable(Isolate* isolate,
+                                    DirectHandle<JSObject> object) {
   Tagged<FixedArray> raw_elems = Cast<FixedArray>(object->elements());
-  if (raw_elems->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;
   DirectHandle<FixedArray> elems(raw_elems, isolate);
   DirectHandle<FixedArray> writable_elems =
       isolate->factory()->CopyFixedArrayWithMap(
@@ -2598,8 +2599,6 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSTemporalPlainTime::kHeaderSize;
     case JS_TEMPORAL_PLAIN_YEAR_MONTH_TYPE:
       return JSTemporalPlainYearMonth::kHeaderSize;
-    case JS_TEMPORAL_TIME_ZONE_TYPE:
-      return JSTemporalTimeZone::kHeaderSize;
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
       return JSTemporalZonedDateTime::kHeaderSize;
 #endif  // V8_TEMPORAL_SUPPORT
@@ -2764,7 +2763,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
 
     if (entry.is_not_found()) {
       DCHECK_IMPLIES(global_obj->map()->is_prototype_map(),
-                     Map::IsPrototypeChainInvalidated(global_obj->map()));
+                     !global_obj->map()->IsPrototypeValidityCellValid());
       auto cell_type = IsUndefined(*value, roots) ? PropertyCellType::kUndefined
                                                   : PropertyCellType::kConstant;
       details = details.set_cell_type(cell_type);
@@ -2784,7 +2783,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
       InternalIndex entry = dictionary->FindEntry(isolate, *name);
       if (entry.is_not_found()) {
         DCHECK_IMPLIES(object->map()->is_prototype_map(),
-                       Map::IsPrototypeChainInvalidated(object->map()));
+                       !object->map()->IsPrototypeValidityCellValid());
         dictionary =
             SwissNameDictionary::Add(isolate, dictionary, name, value, details);
         object->SetProperties(*dictionary);
@@ -2798,7 +2797,7 @@ void JSObject::SetNormalizedProperty(DirectHandle<JSObject> object,
       InternalIndex entry = dictionary->FindEntry(isolate, name);
       if (entry.is_not_found()) {
         DCHECK_IMPLIES(object->map()->is_prototype_map(),
-                       Map::IsPrototypeChainInvalidated(object->map()));
+                       !object->map()->IsPrototypeValidityCellValid());
         dictionary =
             NameDictionary::Add(isolate, dictionary, name, value, details);
         object->SetProperties(*dictionary);
@@ -3308,7 +3307,7 @@ void MigrateFastToSlow(Isolate* isolate, DirectHandle<JSObject> object,
   DCHECK(!IsJSGlobalProxy(*object, isolate));
 
   DCHECK_IMPLIES(new_map->is_prototype_map(),
-                 Map::IsPrototypeChainInvalidated(*new_map));
+                 !new_map->IsPrototypeValidityCellValid());
 
   HandleScope scope(isolate);
   DirectHandle<Map> map(object->map(isolate), isolate);
@@ -3665,13 +3664,14 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, DirectHandle<Object> value,
     PropertyAttributes attributes, Maybe<ShouldThrow> should_throw,
     AccessorInfoHandling handling, EnforceDefineSemantics semantics,
-    StoreOrigin store_origin) {
-  it->UpdateProtector();
+    StoreOrigin store_origin, MaybeDirectHandle<Object> old_value) {
+  it->UpdateProtector(value, old_value);
 
   for (;; it->Next()) {
     switch (it->state()) {
       case LookupIterator::JSPROXY:
       case LookupIterator::TRANSITION:
+      case LookupIterator::STRING_LOOKUP_START_OBJECT:
         UNREACHABLE();
       case LookupIterator::WASM_OBJECT:
         continue;  // {AddDataProperty} will throw if no other case is hit.
@@ -4140,9 +4140,8 @@ Maybe<InterceptorResult> JSObject::DeletePropertyWithInterceptor(
   DirectHandle<JSObject> holder = it->GetHolder<JSObject>();
   DirectHandle<Object> receiver = it->GetReceiver();
   if (!IsJSReceiver(*receiver)) {
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
-                                     Object::ConvertReceiver(isolate, receiver),
-                                     Nothing<InterceptorResult>());
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
+                               Object::ConvertReceiver(isolate, receiver));
   }
 
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
@@ -4712,8 +4711,8 @@ bool JSObject::HasEnumerableElements() {
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE) {
-        size_t length = Cast<JSTypedArray>(object)->length();
-        return length > 0;
+        size_t byte_length = Cast<JSTypedArray>(object)->byte_length();
+        return byte_length > 0;
       }
 
       RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -5149,12 +5148,11 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
            reinterpret_cast<void*>(map.ptr()));
   }
   Tagged<Object> maybe_cell = map->prototype_validity_cell(kRelaxedLoad);
-  if (IsCell(maybe_cell)) {
+  if (maybe_cell != Map::kNoValidityCellSentinel) {
     // Just set the value; the cell will be replaced lazily.
     Tagged<Cell> cell = Cast<Cell>(maybe_cell);
-    Tagged<Smi> invalid_value = Smi::FromInt(Map::kPrototypeChainInvalid);
-    if (cell->value() != invalid_value) {
-      cell->set_value(invalid_value, SKIP_WRITE_BARRIER);
+    if (cell->maybe_value() != Map::kPrototypeChainInvalid) {
+      cell->set_maybe_value(Map::kPrototypeChainInvalid, SKIP_WRITE_BARRIER);
     }
   }
   Tagged<PrototypeInfo> prototype_info;
@@ -5180,7 +5178,7 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   // here, even if the cell was already invalid.
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map->is_dictionary_map()) {
     // TODO(11527): pass Isolate as an argument.
-    Isolate* isolate = GetIsolateFromWritableObject(map);
+    Isolate* isolate = Isolate::Current();
     DependentCode::DeoptimizeDependencyGroups(
         isolate, map, DependentCode::kPrototypeCheckGroup);
   }

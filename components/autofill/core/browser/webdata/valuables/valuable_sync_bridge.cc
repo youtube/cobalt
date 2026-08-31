@@ -12,10 +12,7 @@
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 #include "components/sync/base/data_type.h"
-#include "components/sync/base/deletion_origin.h"
-#include "components/sync/base/features.h"
 #include "components/sync/model/client_tag_based_data_type_processor.h"
-#include "components/sync/model/in_memory_metadata_change_list.h"
 #include "components/sync/model/sync_metadata_store_change_list.h"
 #include "components/sync/protocol/autofill_valuable_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
@@ -47,7 +44,8 @@ ValuableSyncBridge::ValuableSyncBridge(
   if (!web_data_backend_ || !web_data_backend_->GetDatabase() ||
       !GetValuablesTable()) {
     DataTypeSyncBridge::change_processor()->ReportError(
-        {FROM_HERE, "Failed to load AutofillWebDatabase."});
+        {FROM_HERE,
+         syncer::ModelError::Type::kAutofillValuableFailedToLoadDatabase});
     return;
   }
   LoadMetadata();
@@ -220,7 +218,7 @@ void ValuableSyncBridge::LoadMetadata() {
                                                   batch.get())) {
     change_processor()->ReportError(
         {FROM_HERE,
-         "Failed reading AUTOFILL_VALUABLE metadata from WebDatabase."});
+         syncer::ModelError::Type::kAutofillValuableFailedToLoadMetadata});
     return;
   } else if (SyncMetadataCacheContainsSupportedFields(
                  batch->GetAllMetadata())) {
@@ -266,8 +264,9 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
       case syncer::EntityChange::ACTION_DELETE:
       case syncer::EntityChange::ACTION_UPDATE: {
         // Valuables sync does not support incremental updates server side.
-        return syncer::ModelError(FROM_HERE,
-                                  "Received unsupported action type.");
+        return syncer::ModelError(
+            FROM_HERE,
+            syncer::ModelError::Type::kAutofillValuableUnsupportedActionType);
       }
     }
   }
@@ -277,7 +276,10 @@ std::optional<syncer::ModelError> ValuableSyncBridge::SetSyncData(
 
   if (valuables_data_changed &&
       !GetValuablesTable()->SetLoyaltyCards(std::move(loyalty_cards))) {
-    return syncer::ModelError(FROM_HERE, "Failed to set loyalty card data.");
+    return syncer::ModelError(
+        FROM_HERE,
+        syncer::ModelError::Type::kAutofillValuableFailedToSetLoyaltyCards);
+    ;
   }
 
   // Commits changes through CommitChanges(...) or through the scoped

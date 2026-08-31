@@ -144,12 +144,12 @@ class TurnSyncOnHelper {
                    SigninAbortedMode signin_aborted_mode,
                    std::unique_ptr<Delegate> delegate,
                    base::OnceClosure callback,
-                   bool turn_sync_on_signed_profile = false);
+                   bool user_already_signed_in = false);
 
   // Convenience constructor using the default delegate and empty callback.
   // `is_sync_promo` is true if the sync confirmation dialog is offered as an
   // option. It is false if the user explicitly initiated the flow.
-  // `turn_sync_on_signed_profile` is true if the user was already signed in
+  // `user_already_signed_in` is true if the user was already signed in
   // before starting the sync flow. Used by UIs to decide whether the signin
   // proposition value should be shown, and what state should the user be in if
   // they cancel.
@@ -160,7 +160,7 @@ class TurnSyncOnHelper {
                    const CoreAccountId& account_id,
                    SigninAbortedMode signin_aborted_mode,
                    bool is_sync_promo,
-                   bool turn_sync_on_signed_profile = false);
+                   bool user_already_signed_in = false);
 
   TurnSyncOnHelper(const TurnSyncOnHelper&) = delete;
   TurnSyncOnHelper& operator=(const TurnSyncOnHelper&) = delete;
@@ -269,7 +269,7 @@ class TurnSyncOnHelper {
   // Whether the refresh token should be deleted if the Sync flow is aborted.
   SigninAbortedMode signin_aborted_mode_;
 
-  const bool turn_sync_on_signed_profile_;
+  const bool user_already_signed_in_;
 
   // Account information.
   const AccountInfo account_info_;
@@ -294,6 +294,8 @@ class TurnSyncOnHelper {
   CoreAccountId initial_primary_account_;
   base::CallbackListSubscription shutdown_subscription_;
   bool enterprise_account_confirmed_ = false;
+  base::ScopedClosureRunner
+      enable_automatic_management_disclaimer_on_primary_account_change_;
   base::WeakPtrFactory<TurnSyncOnHelper> weak_pointer_factory_{this};
 };
 

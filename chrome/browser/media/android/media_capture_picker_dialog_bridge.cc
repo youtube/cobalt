@@ -10,7 +10,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
-#include "ui/android/window_android.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/android/chrome_jni_headers/MediaCapturePickerDialogBridge_jni.h"
@@ -34,21 +34,13 @@ void MediaCapturePickerDialogBridge::Show(
     content::WebContents* web_contents,
     const std::u16string& app_name,
     bool request_audio,
-    MediaCapturePickerDialogCallback callback) {
+    DesktopMediaPicker::DoneCallback callback) {
   CHECK(web_contents);
   CHECK(callback_.is_null());
   callback_ = std::move(callback);
   JNIEnv* env = base::android::AttachCurrentThread();
-  ui::WindowAndroid* window_android = web_contents->GetTopLevelNativeWindow();
-  if (!window_android) {
-    content::GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback_), content::DesktopMediaID()));
-    return;
-  }
-
   Java_MediaCapturePickerDialogBridge_showDialog(
-      env, java_object_, window_android->GetJavaObject(), app_name,
+      env, java_object_, web_contents->GetJavaWebContents(), app_name,
       request_audio);
 }
 
@@ -82,5 +74,6 @@ void MediaCapturePickerDialogBridge::OnPickScreen(JNIEnv* env) {
 }
 
 void MediaCapturePickerDialogBridge::OnCancel(JNIEnv* env) {
-  std::move(callback_).Run({});
+  std::move(callback_).Run(base::unexpected(
+      blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED_BY_USER));
 }

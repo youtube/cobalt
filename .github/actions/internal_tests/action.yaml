@@ -35,7 +35,7 @@ runs:
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Set GCS Project Name
       run: |
-        echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
+        echo "PROJECT_NAME=$(gcloud config get-value project)" >> "${GITHUB_ENV}"
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
@@ -58,6 +58,11 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
         TEST_TYPE: ${{ inputs.test_type }}
         TEST_RETRY_LEVEL: FAIL
+        TEST_TARGETS: ${{ inputs.test_targets }}
+        PLATFORM: ${{ matrix.platform }}
+        TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        TEST_DEVICE_FAMILY: ${{ inputs.test_device_family }}
       run: |
         set -x
 
@@ -65,11 +70,11 @@ runs:
           --token ${GITHUB_TOKEN} \
           trigger \
           --test_type ${TEST_TYPE} \
-          --targets '${{ inputs.test_targets }}' \
+          --targets "${TEST_TARGETS}" \
           --retry_level ${TEST_RETRY_LEVEL} \
           --label ${TEST_TYPE} \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
-          --label builder-${{ matrix.platform }} \
+          --label builder-${PLATFORM} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label github \
           --label ${GITHUB_EVENT_NAME} \
@@ -79,13 +84,13 @@ runs:
           --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
           --label sha-${GITHUB_SHA} \
           --label repository-${GITHUB_REPO} \
-          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
-          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL} \
+          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-${GITHUB_COMMIT_AUTHOR_USERNAME}} \
+          --label author_id-${GITHUB_PR_HEAD_USER_ID:-${GITHUB_COMMIT_AUTHOR_EMAIL}} \
           --label branch:${GITHUB_REF_NAME} \
           --label target_branch:${GITHUB_BASE_REF} \
-          --dimensions '${{ inputs.test_dimensions }}' \
-          --artifact_name '${{ inputs.artifact_name }}' \
-          --device_family '${{ inputs.test_device_family }}' \
+          --dimensions "${TEST_DIMENSIONS}" \
+          --artifact_name "${ARTIFACT_NAME}" \
+          --device_family "${TEST_DEVICE_FAMILY}" \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."

@@ -33,14 +33,15 @@
 #include "chrome/browser/signin/signin_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/chrome_pages.h"
+#include "chrome/browser/ui/signin/signin_view_controller.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service.h"
 #include "chrome/browser/ui/webui/signin/login_ui_service_factory.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/test_chrome_web_ui_controller_factory.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -49,11 +50,13 @@
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_prefs.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/accounts_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/signin/public/identity_manager/primary_account_mutator.h"
+#include "components/sync/base/features.h"
 #include "components/sync/base/passphrase_enums.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_user_settings_impl.h"
@@ -516,6 +519,15 @@ class PeopleHandlerTest
     args_set.Append(static_cast<int>(user_choice));
     args_set.Append(email);
     handler_->HandleSetChromeSigninUserChoice(args_set);
+  }
+
+  void SimulateHandleSetDatatype(syncer::UserSelectableType type,
+                                 bool value) const {
+    base::Value::List args_set;
+    args_set.Append(kTestCallbackId);
+    args_set.Append(static_cast<int>(type));
+    args_set.Append(value);
+    handler_->HandleSetDatatype(args_set);
   }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -1191,7 +1203,6 @@ TEST_F(PeopleHandlerTest, DashboardClearWhileSettingsOpen_ConfirmLater) {
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 TEST(PeopleHandlerDiceTest, StoredAccountsList) {
-  ScopedTestingLocalState local_state(TestingBrowserProcess::GetGlobal());
   content::BrowserTaskEnvironment task_environment;
 
   network::TestURLLoaderFactory url_loader_factory =
@@ -1405,7 +1416,6 @@ TEST(PeopleHandlerWebOnlySigninTest, ChromeSigninUserAvailableOnWebSignin) {
   // -- Test Setup start
 
   // Needed to enable setting a proper account signed in on the web.
-  ScopedTestingLocalState local_state(TestingBrowserProcess::GetGlobal());
   content::BrowserTaskEnvironment task_environment;
 
   network::TestURLLoaderFactory url_loader_factory =
@@ -1576,6 +1586,8 @@ TEST_F(PeopleHandlerTest, HandleStartSigninManaged) {
   SetExplicitSignin(true);
   // Make the account managed and disallow signout.
   account.hosted_domain = "managedchrome.com";
+  AccountCapabilitiesTestMutator(&account.capabilities)
+      .set_is_subject_to_enterprise_features(true);
   identity_test_env()->UpdateAccountInfoForAccount(account);
   SigninClient* client = ChromeSigninClientFactory::GetForProfile(profile());
   client->set_is_clear_primary_account_allowed_for_testing(
@@ -1927,14 +1939,16 @@ TEST_F(PeopleHandlerSignoutTest, Signout) {
   EXPECT_EQ(2U, identity_manager()->GetAccountsWithRefreshTokens().size());
 
   CreatePeopleHandler();
-  EXPECT_FALSE(browser()->signin_view_controller()->ShowsModalDialog());
+  EXPECT_FALSE(
+      browser()->GetFeatures().signin_view_controller()->ShowsModalDialog());
 
   base::Value::List args;
   args.Append(/*value=*/false);
   SimulateSignout(args);
   // The signout confirmation dialog is shown.
   EXPECT_TRUE(identity_manager()->HasPrimaryAccount(ConsentLevel::kSignin));
-  EXPECT_TRUE(browser()->signin_view_controller()->ShowsModalDialog());
+  EXPECT_TRUE(
+      browser()->GetFeatures().signin_view_controller()->ShowsModalDialog());
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
@@ -1984,4 +1998,57 @@ TEST_F(PeopleHandlerWithCookiesSyncTest, SyncCookiesSupported) {
   }
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if !BUILDFLAG(IS_CHROMEOS)
+class PeopleHandlerWithReplaceSyncWithSigninUI : public PeopleHandlerTest {
+  void SetUp() override {
+    PeopleHandlerTest::SetUp();
+    SigninUserWithoutSyncFeature();
+    CreatePeopleHandler();
+  }
+
+ private:
+  base::test::ScopedFeatureList features_{
+      syncer::kReplaceSyncPromosWithSignInPromos};
+};
+
+// Walks through each user selectable type, and tries to activate account
+// storage for that data type.
+TEST_F(PeopleHandlerWithReplaceSyncWithSigninUI, SetIndividualDatatypes) {
+  sync_user_settings()->SetSelectedTypes(/*sync_everything=*/false, {});
+
+  for (syncer::UserSelectableType type : GetAllTypes()) {
+    ASSERT_FALSE(sync_user_settings()->GetSelectedTypes().Has(type));
+
+    SimulateHandleSetDatatype(type, true);
+    ExpectPageStatusResponse(PeopleHandler::kConfigurePageStatus);
+
+    EXPECT_TRUE(sync_user_settings()->GetSelectedTypes().Has(type));
+  }
+}
+
+TEST_F(PeopleHandlerWithReplaceSyncWithSigninUI, SetNonRegisteredDatatype) {
+  // Simulate apps not being registered.
+  syncer::UserSelectableTypeSet registered_types = GetAllTypes();
+  registered_types.Remove(syncer::UserSelectableType::kApps);
+  sync_user_settings()->SetRegisteredSelectableTypes(registered_types);
+
+  SimulateHandleSetDatatype(syncer::UserSelectableType::kApps, true);
+
+  // Only the registered types are selected.
+  EXPECT_EQ(sync_user_settings()->GetSelectedTypes(), registered_types);
+  EXPECT_FALSE(sync_user_settings()->GetSelectedTypes().Has(
+      syncer::UserSelectableType::kApps));
+}
+
+TEST_F(PeopleHandlerWithReplaceSyncWithSigninUI, HandleShowAccountSettingsUI) {
+  handler_->HandleShowAccountSettingsUI(base::Value::List());
+
+  EXPECT_FALSE(handler_->sync_blocker_);
+  EXPECT_EQ(
+      handler_.get(),
+      LoginUIServiceFactory::GetForProfile(profile())->current_login_ui());
+  ExpectSyncPrefsChanged();
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 }  // namespace settings

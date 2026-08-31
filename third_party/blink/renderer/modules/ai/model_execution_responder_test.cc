@@ -13,6 +13,7 @@
 #include "base/run_loop.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/mojom/ai/ai_common.mojom-blink.h"
 #include "third_party/blink/public/mojom/ai/model_streaming_responder.mojom-blink.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
@@ -69,15 +70,16 @@ TEST(CreateModelExecutionResponder, Simple) {
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
       /*complete_callback=*/
-      base::BindOnce(
+      WTF::BindOnce(
           [](uint64_t expected_tokens, base::RunLoop* runloop,
              mojom::blink::ModelExecutionContextInfoPtr context_info) {
             EXPECT_TRUE(context_info);
             EXPECT_EQ(context_info->current_tokens, expected_tokens);
             runloop->Quit();
           },
-          kTestTokenNumber, &complete_runloop),
-      /*overflow_callback=*/overflow_runloop.QuitClosure());
+          kTestTokenNumber, WTF::Unretained(&complete_runloop)),
+      /*overflow_callback=*/overflow_runloop.QuitClosure(),
+      /*resolve_override_callback=*/base::NullCallback());
 
   mojo::Remote<blink::mojom::blink::ModelStreamingResponder> responder(
       std::move(pending_remote));
@@ -114,14 +116,16 @@ TEST(CreateModelExecutionResponder, ErrorPermissionDenied) {
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
       /*complete_callback=*/base::DoNothing(),
-      /*overflow_callback=*/base::DoNothing());
+      /*overflow_callback=*/base::DoNothing(),
+      /*resolve_override_callback=*/base::NullCallback());
 
   mojo::Remote<blink::mojom::blink::ModelStreamingResponder> responder(
       std::move(pending_remote));
   base::RunLoop runloop;
   responder.set_disconnect_handler(runloop.QuitClosure());
   responder->OnError(
-      blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied);
+      blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied,
+      blink::mojom::blink::QuotaErrorInfo::New(0u, 0u));
 
   // Check that the promise will be rejected with an ErrorInvalidRequest.
   ScriptPromiseTester tester(scope.GetScriptState(), promise);
@@ -150,7 +154,8 @@ TEST(CreateModelExecutionResponder, AbortWithoutResponse) {
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
       /*complete_callback=*/base::DoNothing(),
-      /*overflow_callback=*/base::DoNothing());
+      /*overflow_callback=*/base::DoNothing(),
+      /*resolve_override_callback=*/base::NullCallback());
 
   controller->abort(scope.GetScriptState());
 
@@ -186,7 +191,8 @@ TEST(CreateModelExecutionResponder, AbortAfterResponse) {
       blink::scheduler::GetSequencedTaskRunnerForTesting(),
       AIMetrics::AISessionType::kLanguageModel,
       /*complete_callback=*/base::DoNothing(),
-      /*overflow_callback=*/base::DoNothing());
+      /*overflow_callback=*/base::DoNothing(),
+      /*resolve_override_callback=*/base::NullCallback());
 
   mojo::Remote<blink::mojom::blink::ModelStreamingResponder> responder(
       std::move(pending_remote));
@@ -263,7 +269,8 @@ TEST(CreateModelExecutionStreamingResponder, ErrorPermissionDenied) {
   base::RunLoop runloop;
   responder.set_disconnect_handler(runloop.QuitClosure());
   responder->OnError(
-      blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied);
+      blink::mojom::ModelStreamingResponseStatus::kErrorPermissionDenied,
+      blink::mojom::blink::QuotaErrorInfo::New(0u, 0u));
 
   // Check that the NotAllowedError is passed to the stream.
   auto* reader =

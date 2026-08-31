@@ -21,7 +21,6 @@
 <translation id="1056898198331236512">警告</translation>
 <translation id="1058009965971887428">提交反馈</translation>
 <translation id="1059120031266247284">与您分享</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />：<ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" />（带有“移除”按钮）</translation>
 <translation id="1062407476771304334">替换</translation>
 <translation id="1073899992769346247">更换电池或为电池充电</translation>
@@ -540,7 +539,6 @@
 <translation id="2814448776515246190">截取/录制局部屏幕</translation>
 <translation id="2819276065543622893">您将立即退出。</translation>
 <translation id="2822551631199737692">摄像头正在使用中</translation>
-<translation id="2825224105325558319">“<ph name="DISPLAY_NAME" />”不支持 <ph name="SPECIFIED_RESOLUTION" />。分辨率已改为 <ph name="FALLBACK_RESOLUTION" />。</translation>
 <translation id="2825619548187458965">任务栏</translation>
 <translation id="2831035692318564937">已开启，直到日出</translation>
 <translation id="2834813915651407382">最近打开过</translation>
@@ -605,8 +603,6 @@
 <translation id="3026897869154397692">已添加至日历</translation>
 <translation id="3033545621352269033">已开启</translation>
 <translation id="3033912566804961911">与“<ph name="DESK_NAME" />”合并</translation>
-<translation id="3036649622769666520">打开文件</translation>
-<translation id="3038571455154067151">如需登录，请输入您的 Family Link 家长访问码</translation>
 <translation id="3039939407102840004">触控笔电池电量为 <ph name="PERCENTAGE" />%。</translation>
 <translation id="304097922505898963">打开“键盘快捷键”应用</translation>
 <translation id="304417730895741346">您已固定的应用和已打开的应用会显示在任务栏上。若要将某个应用固定到任务栏，请右键点击该应用或用双指点按触控板。</translation>
@@ -761,6 +757,7 @@
 <translation id="3552189655002856821">Wi-Fi 处于关闭状态</translation>
 <translation id="3554215588514239132">显示或隐藏开发者工具面板</translation>
 <translation id="3554637740840164787">“<ph name="ITEM_TITLE" />”已被固定</translation>
+<translation id="3554928024630051016">如需添加其他 USB 设备，请尝试移除一个设备，然后再插入新设备</translation>
 <translation id="3558768885091059911">要启用摄像头和麦克风使用权限吗？</translation>
 <translation id="3560174576767922131">录制视频</translation>
 <translation id="3563775809269155755">启用热点</translation>
@@ -868,6 +865,7 @@
 <translation id="3861651314799684201">按 Enter 键即可录制整个屏幕</translation>
 <translation id="3870197372373144624">请尝试关闭设备。</translation>
 <translation id="3879748587602334249">下载管理器</translation>
+<translation id="3884007280698606545">已达到 USB 设备数量上限</translation>
 <translation id="3886872229787704059">今天打开过</translation>
 <translation id="3891340733213178823">连按两次Ctrl+Shift+Q即可退出。</translation>
 <translation id="3892148308691398805">复制文字</translation>
@@ -1011,6 +1009,7 @@
 <translation id="4305817255990598646">切换</translation>
 <translation id="4307713728991152670">设置查看手机中的近期照片、媒体内容和应用</translation>
 <translation id="4312840429157639164">相机已对准右上角。与系统界面冲突。</translation>
+<translation id="4312935606722154789">将两个并排窗口设为一组或取消分组</translation>
 <translation id="4316910396681052118">所有应用</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">隐藏所有 Chrome 浏览器建议</translation>
@@ -1367,7 +1366,7 @@
 <translation id="5426063383988017631">已关闭“设置”菜单</translation>
 <translation id="5428899915242071344">开始选择</translation>
 <translation id="5429993543155113935">尚不支持无痕式窗口</translation>
-<translation id="5431318178759467895">彩色</translation>
+<translation id="5431318178759467895">颜色</translation>
 <translation id="5433020815079095860">音频输入</translation>
 <translation id="544691375626129091">所有可参加的用户均已添加到此会话中。</translation>
 <translation id="54609108002486618">受管理</translation>
@@ -1449,7 +1448,6 @@
 <translation id="5691772641933328258">无法识别指纹</translation>
 <translation id="5693255400847650006">麦克风正在使用中</translation>
 <translation id="5699366815052349604">将使用中的窗口分配至所有桌面</translation>
-<translation id="5701785125601597013">使用 Phone Hub 快速发送或回复手机消息</translation>
 <translation id="570390244361237317">“所有应用”：若要访问各个应用，请使用箭头键导航</translation>
 <translation id="5705197514573687092">显示专注模式设置。定时器已设为 <ph name="FOCUS_DURATION" />。</translation>
 <translation id="5707775774148071965">您的设备支持的数据传输速率高于数据线的数据传输速率。设备性能可能会受到限制。</translation>
@@ -1579,7 +1577,6 @@
 <translation id="6095425951508823973">添加与 <ph name="PROVIDER" /> 的关联</translation>
 <translation id="6099678161144790572">过去一个月内修改过</translation>
 <translation id="6103838137565245112">系统</translation>
-<translation id="610395411842312282">将两个并排窗口设为一组</translation>
 <translation id="6108952804512516814">利用 AI 创建</translation>
 <translation id="6114505516289286752"><ph name="LANGUAGE" />语音识别结果文件已下载完毕</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />。<ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1603,7 +1600,6 @@
 <translation id="6166852626429024716">搜索您的设备、应用、设置、网站…</translation>
 <translation id="6168318496333165060">打开“诊断”应用</translation>
 <translation id="6168622430237609329">您已安装的应用</translation>
-<translation id="6179832488876878285">您可将自己的重要文件固定在此处。打开“文件”应用即可开始操作。</translation>
 <translation id="6180193585172850042">返回按钮</translation>
 <translation id="6180651297859206670">前进按钮</translation>
 <translation id="6182592640011875895">打开桌面</translation>
@@ -1636,7 +1632,6 @@
 <translation id="6267036997247669271"><ph name="NAME" />：正在激活…</translation>
 <translation id="6274202259872570803">抓屏</translation>
 <translation id="6276708887952587684">查看网页源代码</translation>
-<translation id="6284232397434400372">分辨率已更改</translation>
 <translation id="6285871695023807425">添加到日历</translation>
 <translation id="6288235558961782912">日后在获得家长允许的情况下可以重新添加 <ph name="USER_EMAIL_ADDRESS" />。</translation>
 <translation id="6291221004442998378">未在充电</translation>
@@ -1684,7 +1679,6 @@
 <translation id="6452181791372256707">拒绝</translation>
 <translation id="6453179446719226835">语言已更改</translation>
 <translation id="6456096448804832585">仅支持纵向模式</translation>
-<translation id="6459472438155181876">正在将屏幕扩展到<ph name="DISPLAY_NAME" /></translation>
 <translation id="6464094930452079790">图片</translation>
 <translation id="6467290994038932560">已为“<ph name="GAME_APP_NAME" />”开启</translation>
 <translation id="6468406072297048412">{0,plural, =1{在 1 分钟内将设备回滚为上一个版本}other{在 # 分钟内将设备回滚为上一个版本}}</translation>
@@ -1917,6 +1911,7 @@
 <translation id="7240636904654154599">已创建 Google 表格</translation>
 <translation id="7244725679040769470">电量剩余 <ph name="PERCENTAGE" />%。请为设备接通电源。</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />。此 Chromebook 需要重新启动才能让更新生效。此过程最多可能需要 1 分钟的时间。</translation>
+<translation id="7248100343060254997">搜索屏幕上的内容</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">后置麦克风</translation>
 <translation id="7258828758145722155">昨天修改过</translation>
@@ -2416,7 +2411,6 @@
 <translation id="8876148469852588625">第 <ph name="EVENT_POSITION" /> 个活动，共 <ph name="EVENT_TOTAL_COUNT" /> 个</translation>
 <translation id="8876661425082386199">请检查您的网络连接状况</translation>
 <translation id="8877788021141246043">设置提醒</translation>
-<translation id="8878886163241303700">正在扩展屏幕</translation>
 <translation id="8885424115080869847">无法连接到 YouTube Music</translation>
 <translation id="888982883502837004">有适用于您设备的固件更新。点击即可查看并更新。</translation>
 <translation id="8896630965521842259">“<ph name="DESK_TEMPLATE_NAME" />”会被永久删除</translation>

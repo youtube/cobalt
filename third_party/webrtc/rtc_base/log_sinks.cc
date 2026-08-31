@@ -10,9 +10,8 @@
 
 #include "rtc_base/log_sinks.h"
 
-#include <string.h>
-
 #include <cstdio>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/string_view.h"

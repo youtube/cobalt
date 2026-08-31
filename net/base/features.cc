@@ -10,6 +10,7 @@
 #include "base/feature_list.h"
 #include "build/build_config.h"
 #include "net/base/cronet_buildflags.h"
+#include "net/disk_cache/buildflags.h"
 #include "net/net_buildflags.h"
 
 #if BUILDFLAG(IS_WIN)
@@ -144,6 +145,14 @@ BASE_FEATURE(kPartitionConnectionsByNetworkIsolationKey,
              "PartitionConnectionsByNetworkIsolationKey",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kPrefixCookieHttp,
+             "PrefixCookieHttp",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPrefixCookieHostHttp,
+             "PrefixCookieHostHttp",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSearchEnginePreconnectInterval,
              "SearchEnginePreconnectInterval",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -174,6 +183,18 @@ BASE_FEATURE_PARAM(int,
                    &kSearchEnginePreconnect2,
                    "PingIntervalInSeconds",
                    30);
+
+BASE_FEATURE_PARAM(std::string,
+                   kQuicConnectionOptions,
+                   &kSearchEnginePreconnect2,
+                   "QuicConnectionOptions",
+                   "");
+
+BASE_FEATURE_PARAM(bool,
+                   kFallbackInLowPowerMode,
+                   &kSearchEnginePreconnect2,
+                   "FallbackInLowPowerMode",
+                   false);
 
 BASE_FEATURE(kShortLaxAllowUnsafeThreshold,
              "ShortLaxAllowUnsafeThreshold",
@@ -237,7 +258,7 @@ BASE_FEATURE(kRequestStorageAccessNoCorsRequired,
 
 BASE_FEATURE(kStorageAccessApiFollowsSameOriginPolicy,
              "StorageAccessApiFollowsSameOriginPolicy",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kStaticKeyPinningEnforcement,
              "StaticKeyPinningEnforcement",
@@ -301,7 +322,11 @@ BASE_FEATURE_PARAM(int,
                    kTcpPortRandomizationWinVersionMinimum,
                    &kTcpPortRandomizationWin,
                    "TcpPortRandomizationWinVersionMinimum",
-                   static_cast<int>(base::win::Version::WIN10_20H1));
+                   static_cast<int>(base::win::Version::WIN11_22H2));
+
+BASE_FEATURE(kTcpPortReuseMetricsWin,
+             "TcpPortReuseMetricsWin",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTcpSocketIoCompletionPortWin,
              "TcpSocketIoCompletionPortWin",
@@ -523,6 +548,16 @@ const base::FeatureParam<bool> kIpPrivacyDisableForEnterpriseByDefault{
     /*name=*/"IpPrivacyDisableForEnterpriseByDefault",
     /*default_value=*/false};
 
+const base::FeatureParam<bool> kIpPrivacyEnableIppInDevTools{
+    &kEnableIpProtectionProxy,
+    /*name=*/"IpPrivacyEnableIppInDevTools",
+    /*default_value=*/true};
+
+const base::FeatureParam<bool> kIpPrivacyEnableIppPanelInDevTools{
+    &kEnableIpProtectionProxy,
+    /*name=*/"kIpPrivacyEnableIppPanelInDevTools",
+    /*default_value=*/false};
+
 BASE_FEATURE(kExcludeLargeBodyReports,
              "ExcludeLargeReportBodies",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -595,6 +630,10 @@ BASE_FEATURE(kEnableWebTransportDraft07,
              "EnableWebTransportDraft07",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kWebTransportFineGrainedThrottling,
+             "WebTransportFineGrainedThrottling",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // When enabled, partitioned storage will be allowed even if third-party cookies
 // are disabled by default. Partitioned storage will not be allowed if
 // third-party cookies are disabled due to a specific rule.
@@ -638,6 +677,9 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kDeviceBoundSessionsRefreshQuota,
              "DeviceBoundSessionsRefreshQuota",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kDeviceBoundSessionsOriginTrialFeedback,
+             "DeviceBoundSessionsOriginTrialFeedback",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPartitionProxyChains,
              "PartitionProxyChains",
@@ -665,28 +707,19 @@ BASE_FEATURE(kReportingApiEnableEnterpriseCookieIssues,
 
 BASE_FEATURE(kSimdutfBase64Support,
              "SimdutfBase64Support",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+             base::FEATURE_ENABLED_BY_DEFAULT
+#else
+             base::FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 BASE_FEATURE(kFurtherOptimizeParsingDataUrls,
              "FurtherOptimizeParsingDataUrls",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// TODO(crbug.com/347047841): Remove this flag when we branch for M131 or later,
-// if we haven't had to turn this off.
-BASE_FEATURE(kLegacyPKCS1ForTLS13,
-             "LegacyPKCS1ForTLS13",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kKeepWhitespaceForDataUrls,
-             "KeepWhitespaceForDataUrls",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kNoVarySearchIgnoreUnrecognizedKeys,
              "NoVarySearchIgnoreUnrecognizedKeys",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEncryptedAndPlaintextValuesAreInvalid,
-             "EncryptedAndPlaintextValuesAreInvalid",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableStaticCTAPIEnforcement,
@@ -698,11 +731,15 @@ BASE_FEATURE(kDiskCacheBackendExperiment,
              base::FEATURE_DISABLED_BY_DEFAULT);
 constexpr base::FeatureParam<DiskCacheBackend>::Option
     kDiskCacheBackendOptions[] = {
+        {DiskCacheBackend::kDefault, "default"},
         {DiskCacheBackend::kSimple, "simple"},
         {DiskCacheBackend::kBlockfile, "blockfile"},
+#if BUILDFLAG(ENABLE_DISK_CACHE_SQL_BACKEND)
+        {DiskCacheBackend::kSql, "sql"},
+#endif  // ENABLE_DISK_CACHE_SQL_BACKEND
 };
 const base::FeatureParam<DiskCacheBackend> kDiskCacheBackendParam{
-    &kDiskCacheBackendExperiment, "backend", DiskCacheBackend::kBlockfile,
+    &kDiskCacheBackendExperiment, "backend", DiskCacheBackend::kDefault,
     &kDiskCacheBackendOptions};
 
 BASE_FEATURE(kIgnoreHSTSForLocalhost,
@@ -736,6 +773,12 @@ BASE_FEATURE(kHstsTopLevelNavigationsOnly,
              "HstsTopLevelNavigationsOnly",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_WIN)
+BASE_FEATURE(kHttpCacheMappedFileFlushWin,
+             "HttpCacheMappedFileFlushWin",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
+
 BASE_FEATURE(kHttpCacheNoVarySearch,
              "HttpCacheNoVarySearch",
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -745,6 +788,26 @@ BASE_FEATURE_PARAM(size_t,
                    &kHttpCacheNoVarySearch,
                    "max_entries",
                    1000);
+
+// TODO(crbug.com/433551601): Change the default to `true` once it has been
+// verified working.
+BASE_FEATURE_PARAM(bool,
+                   kHttpCacheNoVarySearchApplyToExternalHits,
+                   &kHttpCacheNoVarySearch,
+                   "apply_to_external_hits",
+                   false);
+
+BASE_FEATURE_PARAM(bool,
+                   kHttpCacheNoVarySearchPersistenceEnabled,
+                   &kHttpCacheNoVarySearch,
+                   "persistence_enabled",
+                   true);
+
+BASE_FEATURE_PARAM(bool,
+                   kHttpCacheNoVarySearchFakePersistence,
+                   &kHttpCacheNoVarySearch,
+                   "fake_persistence",
+                   false);
 
 BASE_FEATURE(kReportingApiCorsOriginHeader,
              "ReportingApiCorsOriginHeader",
@@ -776,6 +839,75 @@ BASE_FEATURE(kRestrictAbusePorts,
 
 BASE_FEATURE(kRestrictAbusePortsOnLocalhost,
              "RestrictAbusePortsOnLocalhost",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTLSTrustAnchorIDs,
+             "TLSTrustAnchorIDs",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kTcpConnectionPoolSizeTrial,
+             "TcpConnectionPoolSizeTrial",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(int,
+                   kTcpConnectionPoolSizeTrialNormal,
+                   &kTcpConnectionPoolSizeTrial,
+                   "TcpConnectionPoolSizeTrialNormal",
+                   256);
+
+BASE_FEATURE_PARAM(int,
+                   kTcpConnectionPoolSizeTrialWebSocket,
+                   &kTcpConnectionPoolSizeTrial,
+                   "TcpConnectionPoolSizeTrialWebSocket",
+                   256);
+
+BASE_FEATURE(kNetTaskScheduler,
+             "NetTaskScheduler",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpProxyConnectJob,
+                   &kNetTaskScheduler,
+                   "http_proxy_connect_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpCache,
+                   &kNetTaskScheduler,
+                   "http_cache",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpCacheTransaction,
+                   &kNetTaskScheduler,
+                   "http_cache_transaction",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpStreamFactoryJob,
+                   &kNetTaskScheduler,
+                   "http_stream_factory_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerHttpStreamFactoryJobController,
+                   &kNetTaskScheduler,
+                   "http_stream_factory_job_controller",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestErrorJob,
+                   &kNetTaskScheduler,
+                   "url_request_error_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestHttpJob,
+                   &kNetTaskScheduler,
+                   "url_request_http_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestJob,
+                   &kNetTaskScheduler,
+                   "url_request_job",
+                   false);
+BASE_FEATURE_PARAM(bool,
+                   kNetTaskSchedulerURLRequestRedirectJob,
+                   &kNetTaskScheduler,
+                   "url_request_redirect_job",
+                   false);
 
 }  // namespace net::features

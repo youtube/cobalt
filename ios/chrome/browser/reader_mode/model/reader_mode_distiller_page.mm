@@ -6,7 +6,9 @@
 
 #import "base/base64.h"
 #import "base/strings/utf_string_conversions.h"
+#import "components/dom_distiller/core/dom_distiller_features.h"
 #import "components/dom_distiller/ios/distiller_page_utils.h"
+#import "ios/chrome/browser/reader_mode/model/reader_mode_java_script_feature.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/web_state.h"
@@ -20,14 +22,20 @@ void ReaderModeDistillerPage::DistillPageImpl(const GURL& url,
   if (!url.is_valid() || !script.length()) {
     return;
   }
-  // Gets the instance of the WebFramesManager from `web_state_` that can
-  // execute the DOM distiller JavaScript in the isolated content world.
   web::WebFramesManager* web_frames_manager =
-      web_state_->GetWebFramesManager(web::ContentWorld::kIsolatedWorld);
+      ReaderModeJavaScriptFeature::GetInstance()->GetWebFramesManager(
+          web_state_);
+  if (!web_frames_manager) {
+    return;
+  }
   web::WebFrame* main_frame = web_frames_manager->GetMainWebFrame();
   if (!main_frame) {
     return;
   }
+  if (!main_frame->GetSecurityOrigin().IsSameOriginWith(url)) {
+    return;
+  }
+
   main_frame->ExecuteJavaScript(
       base::UTF8ToUTF16(script),
       base::BindOnce(&ReaderModeDistillerPage::HandleJavaScriptResult,
@@ -38,10 +46,25 @@ bool ReaderModeDistillerPage::ShouldFetchOfflineData() {
   return false;
 }
 
+dom_distiller::DistillerType ReaderModeDistillerPage::GetDistillerType() {
+  return dom_distiller::ShouldUseReadabilityDistiller()
+             ? dom_distiller::DistillerType::kReadability
+             : dom_distiller::DistillerType::kDOMDistiller;
+}
+
 void ReaderModeDistillerPage::HandleJavaScriptResult(
     const GURL& url,
     const base::Value* result) {
-  base::Value result_as_value =
-      dom_distiller::ParseValueFromScriptResult(result);
-  OnDistillationDone(url, &result_as_value);
+  switch (GetDistillerType()) {
+    case dom_distiller::DistillerType::kReadability: {
+      OnDistillationDone(url, result);
+      break;
+    }
+    case dom_distiller::DistillerType::kDOMDistiller: {
+      base::Value result_as_value =
+          dom_distiller::ParseValueFromScriptResult(result);
+      OnDistillationDone(url, &result_as_value);
+      break;
+    }
+  }
 }

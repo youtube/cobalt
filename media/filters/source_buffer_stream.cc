@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/filters/source_buffer_stream.h"
 
 #include <algorithm>
@@ -15,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/demuxer_memory_limit.h"
@@ -342,7 +338,7 @@ void SourceBufferStream::Append(const BufferQueue& buffers) {
       } else if (itr != buffers.begin()) {
         // Copy the first key frame and everything after it into
         // |trimmed_buffers|.
-        trimmed_buffers.assign(itr, buffers.end());
+        UNSAFE_TODO(trimmed_buffers.assign(itr, buffers.end()));
         buffers_for_new_range = &trimmed_buffers;
       }
 
@@ -1198,8 +1194,9 @@ void SourceBufferStream::TrimSpliceOverlap(const BufferQueue& new_buffers) {
   }
 
   // Trim overlap from the existing buffer.
+  auto existing_discard = overlapped_buffer->discard_padding();
   DecoderBuffer::DiscardPadding discard_padding =
-      overlapped_buffer->discard_padding();
+      existing_discard.value_or(DecoderBuffer::DiscardPadding());
   discard_padding.second += overlap_duration;
   overlapped_buffer->set_discard_padding(discard_padding);
   overlapped_buffer->set_duration(overlapped_buffer->duration() -
@@ -1352,6 +1349,9 @@ void SourceBufferStream::GetTimestampInterval(const BufferQueue& buffers,
 
 bool SourceBufferStream::IsNextGopAdjacentToEndOfCurrentAppendSequence(
     base::TimeDelta next_gop_timestamp) const {
+  if (highest_timestamp_in_append_sequence_ == kNoTimestamp) {
+    return false;
+  }
   base::TimeDelta upper_bound = highest_timestamp_in_append_sequence_ +
                                 ComputeFudgeRoom(GetMaxInterbufferDistance());
   DVLOG(4) << __func__ << " " << GetStreamTypeName()
@@ -1861,12 +1861,6 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
     DVLOG(2)
         << __func__
         << ": Skipping updating memory limit as memory limit was overridden.";
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    if (GetVideoBufferSizeClamp() != std::numeric_limits<size_t>::max()) {
-      LOG(WARNING)
-          << "Experiment VideoBufferSizeClamp is active but ignored as memory limit was overridden.";
-    }
-#endif //  BUILDFLAG(USE_STARBOARD_MEDIA)
   } else {
     // Dynamically increase |memory_limit_| on video config changes.
     size_t new_memory_limit =

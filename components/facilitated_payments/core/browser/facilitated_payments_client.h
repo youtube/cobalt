@@ -8,13 +8,20 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string_view>
 
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "components/autofill/core/browser/data_model/payments/ewallet.h"
 #include "components/autofill/core/browser/payments/risk_data_loader.h"
+#include "components/facilitated_payments/core/browser/device_delegate.h"
+#include "components/facilitated_payments/core/browser/facilitated_payments_app_info_list.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "components/signin/public/identity_manager/account_info.h"
+
+namespace url {
+class Origin;
+}  // namespace url
 
 namespace optimization_guide {
 class OptimizationGuideDecider;
@@ -38,6 +45,9 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
  public:
   FacilitatedPaymentsClient();
   ~FacilitatedPaymentsClient() override;
+
+  // Gets the URL of the last committed page.
+  virtual const url::Origin& GetLastCommittedOrigin() const = 0;
 
   // Gets the `PaymentsDataManager` instance associated with the Chrome profile.
   // It is used to get user's account info.
@@ -78,6 +88,15 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
   virtual optimization_guide::OptimizationGuideDecider*
   GetOptimizationGuideDecider() = 0;
 
+  // Returns the `DeviceDelegate` instance owned by the implementation class.
+  virtual DeviceDelegate* GetDeviceDelegate() = 0;
+
+  // Returns true if the WebContents associated with this instance is either
+  // visible or occluded, but not hidden. When a tab is occluded, it is still
+  // open, but not visible either because it is covered by other windows or
+  // because it's outside the screen bounds.
+  virtual bool IsWebContentsVisibleOrOccluded() = 0;
+
   // Shows the user's PIX accounts from their Google Wallet, and prompts to pay.
   // `bank_account_suggestions` is the list of PIX accounts to be shown to the
   // user for payment. `on_payment_account_selected` is the callback called with
@@ -86,13 +105,18 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
       base::span<const autofill::BankAccount> bank_account_suggestions,
       base::OnceCallback<void(int64_t)> on_payment_account_selected);
 
-  // Shows the user's eWallet accounts from their Google Wallet, and prompts to
-  // pay. `ewallet_suggestions` is the list of eWallets to be shown to the user
-  // for payment. `on_payment_account_selected` is the callback called with the
-  // instrument id of the eWallet account selected by the user for payment.
-  virtual void ShowEwalletPaymentPrompt(
+  // Shows the user's payment options and prompts to pay. `ewallet_suggestions`
+  // is the list of eWallets to be shown to the user for payment.
+  // `app_suggestions` is the list of packages of payment apps to be shown to
+  // the user for payment. `on_payment_account_selected` is the callback called
+  // with the instrument id of the eWallet account selected by the user for
+  // payment.
+  virtual void ShowPaymentLinkPrompt(
       base::span<const autofill::Ewallet> ewallet_suggestions,
-      base::OnceCallback<void(int64_t)> on_payment_account_selected);
+      std::unique_ptr<FacilitatedPaymentsAppInfoList> app_suggestions,
+      base::OnceCallback<void(int64_t)> on_ewallet_account_selected,
+      base::OnceCallback<void(std::string_view, std::string_view)>
+          on_payment_app_selected);
 
   // Shows a progress bar while users wait for server response after selecting a
   // payment account.
@@ -114,14 +138,18 @@ class FacilitatedPaymentsClient : public autofill::RiskDataLoader {
   virtual autofill::StrikeDatabase* GetStrikeDatabase() = 0;
 
   // Virtual so it can be overridden in tests.
-  virtual void InitPixAccountLinkingFlow();
-
-  // Checks if Pix account linking is supported by the platform.
-  virtual bool IsPixAccountLinkingSupported() const;
+  virtual void InitPixAccountLinkingFlow(
+      const url::Origin& pix_payment_page_origin);
 
   // Shows the PIX account linking prompt. Virtual so it can be overridden in
   // tests.
-  virtual void ShowPixAccountLinkingPrompt();
+  virtual void ShowPixAccountLinkingPrompt(
+      base::OnceCallback<void()> on_accepted,
+      base::OnceCallback<void()> on_declined);
+
+  // Check whether the device has the screenlock or biometric set up which is
+  // required for Pix account linking in Wallet.
+  virtual bool HasScreenlockOrBiometricSetup();
 
   void SetPixAccountLinkingManagerForTesting(
       std::unique_ptr<PixAccountLinkingManager> pix_account_linking_manager);

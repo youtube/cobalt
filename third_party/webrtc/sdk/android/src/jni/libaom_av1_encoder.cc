@@ -14,7 +14,7 @@
 
 #include "api/environment/environment.h"
 #include "sdk/android/generated_libaom_av1_encoder_jni/LibaomAv1Encoder_jni.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/java_types.h"
 
 namespace webrtc {
 namespace jni {

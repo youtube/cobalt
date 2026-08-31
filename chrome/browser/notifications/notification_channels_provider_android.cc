@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <utility>
 
-#include "base/android/build_info.h"
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/check_op.h"
@@ -40,7 +39,6 @@
 #include "chrome/browser/notifications/jni_headers/NotificationSettingsBridge_jni.h"
 
 using base::android::AttachCurrentThread;
-using base::android::BuildInfo;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
@@ -394,14 +392,26 @@ void NotificationChannelsProviderAndroid::OnChannelStateChanged(
   } else {
     cached_channels_->emplace(channel.origin, channel);
   }
-  content::GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE,
-      base::BindOnce(&NotificationChannelsProviderAndroid::NotifyObservers,
-                     weak_factory_.GetWeakPtr(),
-                     ContentSettingsPattern::Wildcard(),
-                     ContentSettingsPattern::Wildcard(),
-                     ContentSettingsType::NOTIFICATIONS,
-                     /*partition_key=*/nullptr));
+
+  // If there is a pending channel of the same origin, GetRuleIterator() should
+  // return the pending channel before UpdateChannelForWebsiteImpl() is called.
+  // As a result, there is no need to notify the observers at this moment.
+  // However, there is always a a race condition between
+  // UpdateChannelForWebsiteImpl() and this call if both happens at almost the
+  // same time. To solve this, schedule a task to update all the cached channels
+  // at the end of all the pending tasks.
+  if (pending_channels_.find(channel.origin) == pending_channels_.end()) {
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE,
+        base::BindOnce(&NotificationChannelsProviderAndroid::NotifyObservers,
+                       weak_factory_.GetWeakPtr(),
+                       ContentSettingsPattern::Wildcard(),
+                       ContentSettingsPattern::Wildcard(),
+                       ContentSettingsType::NOTIFICATIONS,
+                       /*partition_key=*/nullptr));
+  }
+
+  EnsureUpdatedSettings(base::DoNothing());
 }
 
 std::unique_ptr<content_settings::RuleIterator>
@@ -439,17 +449,12 @@ NotificationChannelsProviderAndroid::GetRuleIterator(
     }
   }
 
+  // Since Android P, Chrome listens to blocked state changes for all
+  // notification channels, thus the returned RuleIterator is up-to-date.
   std::vector<NotificationChannel> channels;
   for (const auto& channel : origin_channel_map) {
     channels.push_back(channel.second);
   }
-
-  // The returned RuleIterator is from cached channels, so it might not
-  // contain up-to-date information if user has modified notification settings,
-  // As a result, schedule an channel update to inform all observers if
-  // something has changed.
-
-  provider->EnsureUpdatedSettings(base::DoNothing());
 
   return channels.empty()
              ? nullptr

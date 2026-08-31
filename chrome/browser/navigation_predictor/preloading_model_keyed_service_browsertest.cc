@@ -15,9 +15,9 @@
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
-#include "components/optimization_guide/core/model_util.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
+#include "components/optimization_guide/core/delivery/prediction_model_override.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
-#include "components/optimization_guide/core/prediction_model_override.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
@@ -30,8 +30,7 @@ class PreloadingModelKeyedServiceTest : public InProcessBrowserTest {
     scoped_feature_list_.InitWithFeatures(
         {blink::features::kPreloadingHeuristicsMLModel,
          optimization_guide::features::kOptimizationHints,
-         optimization_guide::features::kOptimizationTargetPrediction,
-         optimization_guide::features::kOptimizationGuideModelDownloading},
+         optimization_guide::features::kOptimizationTargetPrediction},
         {});
 
     base::FilePath source_root_dir;

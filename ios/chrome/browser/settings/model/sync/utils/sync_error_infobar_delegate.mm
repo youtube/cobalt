@@ -14,6 +14,7 @@
 #import "components/infobars/core/infobar_delegate.h"
 #import "components/infobars/core/infobar_manager.h"
 #import "components/prefs/pref_service.h"
+#import "components/signin/public/base/signin_switches.h"
 #import "components/sync/base/features.h"
 #import "components/sync/service/sync_service.h"
 #import "components/sync/service/sync_service_utils.h"
@@ -66,9 +67,11 @@ bool SyncErrorInfoBarDelegate::Create(infobars::InfoBarManager* infobar_manager,
                                       ProfileIOS* profile,
                                       id<SyncPresenter> presenter,
                                       SyncErrorInfoBarTrigger trigger) {
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultInfobarImprovements) &&
-      SyncErrorNotificationsPaused(profile)) {
+  bool flags_enabled =
+      base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError) ||
+      base::FeatureList::IsEnabled(
+          syncer::kSyncTrustedVaultInfobarImprovements);
+  if (flags_enabled && SyncErrorNotificationsPaused(profile)) {
     return false;
   }
 
@@ -141,6 +144,11 @@ bool SyncErrorInfoBarDelegate::Accept() {
       [presenter_ showAccountSettings];
       break;
 
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
+      // TODO(crbug.com/370026230): Update this case once
+      // GetAccountErrorUIInfo() returns a non-nil value for it.
+      NOTREACHED();
+
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
       [presenter_ showSyncPassphraseSettings];
       break;
@@ -166,8 +174,11 @@ bool SyncErrorInfoBarDelegate::Accept() {
 }
 
 void SyncErrorInfoBarDelegate::InfoBarDismissed() {
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultInfobarImprovements)) {
+  bool flags_enabled =
+      base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError) ||
+      base::FeatureList::IsEnabled(
+          syncer::kSyncTrustedVaultInfobarImprovements);
+  if (flags_enabled) {
     profile_->GetPrefs()->SetTime(
         prefs::kIosSyncInfobarErrorLastDismissedTimestamp, base::Time::Now());
   }
@@ -203,8 +214,11 @@ void SyncErrorInfoBarDelegate::OnStateChanged(syncer::SyncService* sync) {
 }
 
 void SyncErrorInfoBarDelegate::InfoBarDismissedByTimeout() const {
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncTrustedVaultInfobarImprovements)) {
+  bool flags_enabled =
+      base::FeatureList::IsEnabled(switches::kEnableIdentityInAuthError) ||
+      base::FeatureList::IsEnabled(
+          syncer::kSyncTrustedVaultInfobarImprovements);
+  if (flags_enabled) {
     profile_->GetPrefs()->SetTime(
         prefs::kIosSyncInfobarErrorLastDismissedTimestamp, base::Time::Now());
   }
@@ -222,6 +236,7 @@ bool SyncErrorInfoBarDelegate::DisplayPasswordErrorIcon() const {
                  syncer::kSyncTrustedVaultInfobarMessageImprovements);
     case syncer::SyncService::UserActionableError::kNone:
     case syncer::SyncService::UserActionableError::kSignInNeedsUpdate:
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
     case syncer::SyncService::UserActionableError::
         kNeedsTrustedVaultKeyForEverything:

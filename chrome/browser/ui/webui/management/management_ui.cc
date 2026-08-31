@@ -19,6 +19,8 @@
 #include "chrome/grit/management_resources.h"
 #include "chrome/grit/management_resources_map.h"
 #include "chrome/grit/theme_resources.h"
+#include "components/policy/core/common/policy_pref_names.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/strings/grit/components_strings.h"
 #include "extensions/buildflags/buildflags.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -257,6 +259,14 @@ void ManagementUI::GetLocalizedStrings(
       {kProfileReportingExtension, IDS_MANAGEMENT_PROFILE_REPORTING_EXTENSION},
       {kProfileReportingPolicy, IDS_MANAGEMENT_PROFILE_REPORTING_POLICY},
       {kProfileReportingLearnMore, IDS_MANAGEMENT_PROFILE_REPORTING_LEARN_MORE},
+      {"promotionBannerTitle", IDS_MANAGEMENT_BANNER_PROMOTION_TITLE},
+      {"promotionBannerDesc", IDS_MANAGEMENT_BANNER_PROMOTION_DESC},
+      {"promotionBannerBtn", IDS_MANAGEMENT_BANNER_PROMOTION_BTN},
+      {"promotionBannerAriaLabel", IDS_MANAGEMENT_BANNER_ARIA_LABEL},
+      {"promotionBannerNewTabAriaDescription",
+       IDS_MANAGEMENT_BANNER_NEW_TAB_ARIA_DESCRIPTION},
+      {"promotionBannerDismissAriaLabel",
+       IDS_MANAGEMENT_BANNER_DISMISS_ARIA_LABEL},
   };
   for (auto i : kLocalizedStrings) {
     strings.push_back(i);
@@ -295,3 +305,9 @@ ManagementUI::ManagementUI(content::WebUI* web_ui) : WebUIController(web_ui) {
 }
 
 ManagementUI::~ManagementUI() = default;
+
+// static
+void ManagementUI::RegisterProfilePrefs(PrefRegistrySimple* registry) {
+  registry->RegisterBooleanPref(
+      policy::policy_prefs::kHasDismissedManagementPagePromotionBanner, false);
+}

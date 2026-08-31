@@ -27,7 +27,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 #include <openssl/span.h>
 
 #include "../test/file_test.h"
@@ -40,6 +40,7 @@ namespace {
 const decltype(&EVP_hpke_x25519_hkdf_sha256) kAllKEMs[] = {
     &EVP_hpke_p256_hkdf_sha256,
     &EVP_hpke_x25519_hkdf_sha256,
+    &EVP_hpke_xwing
 };
 
 const decltype(&EVP_hpke_aes_128_gcm) kAllAEADs[] = {
@@ -73,7 +74,8 @@ class HPKETestVector {
     uint8_t enc[EVP_HPKE_MAX_ENC_LENGTH];
     size_t enc_len = 0;
 
-    // X25519 uses the secret key directly. P-256 uses the IKM to derive a key.
+    // X25519 and X-Wing use the secret key directly. P-256 uses the IKM to
+    // derive a key.
     bssl::Span<const uint8_t> secret_input = secret_key_e_;
     if (kem_id_ == EVP_HPKE_DHKEM_P256_HKDF_SHA256) {
       secret_input = ikm_e_;
@@ -442,6 +444,8 @@ TEST(HPKETest, RoundTrip) {
             }
 
             // Test the auth mode.
+            // We skip X-Wing here since it does not support auth mode.
+            if (EVP_HPKE_KEM_id(kem()) != EVP_HPKE_XWING)
             {
               ScopedEVP_HPKE_CTX sender_ctx;
               uint8_t enc[EVP_HPKE_MAX_PUBLIC_KEY_LENGTH];

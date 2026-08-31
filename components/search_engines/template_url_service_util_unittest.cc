@@ -5,10 +5,13 @@
 #include <stddef.h>
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "base/check_deref.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
@@ -16,6 +19,7 @@
 #include "components/country_codes/country_codes.h"
 #include "components/os_crypt/async/browser/test_utils.h"
 #include "components/regional_capabilities/regional_capabilities_country_id.h"
+#include "components/regional_capabilities/regional_capabilities_prefs.h"
 #include "components/regional_capabilities/regional_capabilities_service.h"
 #include "components/search_engines/keyword_web_data_service.h"
 #include "components/search_engines/search_engine_choice/search_engine_choice_service.h"
@@ -45,9 +49,8 @@ std::unique_ptr<TemplateURLData> CreatePrepopulateTemplateURLData(
       u"Search engine name", base::ASCIIToUTF16(keyword), "https://search.url",
       "" /* suggest_url */, "" /* image_url */, "" /* image_translate_url */,
       "" /* new_tab_url */, "" /* contextual_search_url */, "" /* logo_url */,
-      "" /* doodle_url */, "" /* base_builtin_resource_id */,
-      "" /* search_url_post_params */, "" /* suggest_url_post_params */,
-      "" /* image_url_post_params */,
+      "" /* doodle_url */, "" /* search_url_post_params */,
+      "" /* suggest_url_post_params */, "" /* image_url_post_params */,
       "" /* image_translate_source_language_param_key */,
       "" /* image_translate_target_language_param_key */,
       std::vector<std::string>() /* search_intent_params */,
@@ -329,7 +332,7 @@ class TemplateURLServiceUtilLoadTest : public testing::Test {
                                              os_crypt_.get());
     size_t keyword_engines_count =
         template_urls.size() -
-        TemplateURLStarterPackData::GetStarterPackEngines().size();
+        template_url_starter_pack_data::GetStarterPackEngines().size();
 
     return {
         .data_version = resource_metadata.builtin_keyword_data_version,
@@ -354,7 +357,7 @@ class TemplateURLServiceUtilLoadTest : public testing::Test {
 TEST_F(TemplateURLServiceUtilLoadTest,
        GetSearchProvidersUsingLoadedEngines_OutOfEea) {
   search_engine_choice_service().ClearCountryIdCacheForTesting();
-  prefs().SetInteger(country_codes::kCountryIDAtInstall,
+  prefs().SetInteger(regional_capabilities::prefs::kCountryIDAtInstall,
                      kNonEeaCountryId.GetForTesting().Serialize());
 
   const KeywordTestMetadata kDefaultUpdatedState = {
@@ -375,9 +378,9 @@ TEST_F(TemplateURLServiceUtilLoadTest,
                                       .country = kNonEeaCountryId});
   EXPECT_EQ(output, kNoUpdate);
 
-  // Missing country ID doesn't trigger an update either.
+  // Missing country ID triggers updates.
   output = SimulateFromDatabaseState({.data_version = kCurrentDataVersion});
-  EXPECT_EQ(output, kNoUpdate);
+  EXPECT_EQ(output, kDefaultUpdatedState);
 
   // Out of date keyword data versions trigger updates
   output = SimulateFromDatabaseState({.data_version = kCurrentDataVersion - 1});
@@ -398,7 +401,7 @@ TEST_F(TemplateURLServiceUtilLoadTest,
 TEST_F(TemplateURLServiceUtilLoadTest,
        GetSearchProvidersUsingLoadedEngines_InEea) {
   search_engine_choice_service().ClearCountryIdCacheForTesting();
-  prefs().SetInteger(country_codes::kCountryIDAtInstall,
+  prefs().SetInteger(regional_capabilities::prefs::kCountryIDAtInstall,
                      kEeaCountryId.GetForTesting().Serialize());
   const size_t kEeaKeywordEnginesCount =
       TemplateURLPrepopulateData::kRegionalSettings
@@ -423,9 +426,9 @@ TEST_F(TemplateURLServiceUtilLoadTest,
       {.data_version = kCurrentDataVersion, .country = kEeaCountryId});
   EXPECT_EQ(output, kNoUpdate);
 
-  // Missing country ID doesn't trigger an update either.
+  // Missing country ID triggers an update.
   output = SimulateFromDatabaseState({.data_version = kCurrentDataVersion});
-  EXPECT_EQ(output, kNoUpdate);
+  EXPECT_EQ(output, kDefaultUpdatedState);
 
   // Out of date keyword data versions trigger updates
   output = SimulateFromDatabaseState({.data_version = kCurrentDataVersion - 1});

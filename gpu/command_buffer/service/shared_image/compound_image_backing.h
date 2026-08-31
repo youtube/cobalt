@@ -5,6 +5,8 @@
 #ifndef GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_COMPOUND_IMAGE_BACKING_H_
 #define GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_COMPOUND_IMAGE_BACKING_H_
 
+#include <array>
+
 #include "base/containers/enum_set.h"
 #include "base/memory/scoped_refptr.h"
 #include "gpu/command_buffer/common/mailbox.h"
@@ -168,7 +170,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking : public SharedImageBacking {
       SkAlphaType alpha_type,
       SharedImageUsageSet usage,
       std::string debug_label,
-      std::unique_ptr<SharedMemoryImageBacking> shm_backing,
+      std::unique_ptr<SharedImageBacking> shm_backing,
       base::WeakPtr<SharedImageBackingFactory> gpu_backing_factory,
       std::optional<gfx::BufferUsage> buffer_usage = std::nullopt);
 

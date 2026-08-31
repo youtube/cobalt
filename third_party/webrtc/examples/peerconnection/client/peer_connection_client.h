@@ -11,14 +11,15 @@
 #ifndef EXAMPLES_PEERCONNECTION_CLIENT_PEER_CONNECTION_CLIENT_H_
 #define EXAMPLES_PEERCONNECTION_CLIENT_PEER_CONNECTION_CLIENT_H_
 
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <string>
 
 #include "api/async_dns_resolver.h"
 #include "api/task_queue/pending_task_safety_flag.h"
-#include "rtc_base/net_helpers.h"
-#include "rtc_base/physical_socket_server.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_address.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 
 typedef std::map<int, std::string> Peers;

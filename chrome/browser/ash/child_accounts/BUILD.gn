@@ -81,8 +81,8 @@ static_library("child_accounts") {
     "//chrome/browser/ash/policy/uploading",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/ash/settings",
+    "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
-    "//chrome/browser/profiles:profiles",
     "//chrome/common:constants",  # included for chrome/common/pref_names.h
     "//chromeos/ash/components/dbus",
     "//chromeos/ash/components/dbus/session_manager",
@@ -147,9 +147,11 @@ source_set("unit_tests") {
     "//chrome/browser/ui",
     "//chrome/browser/web_applications:web_applications_test_support",
     "//chrome/test:test_support",
+    "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/experiences/arc",
     "//chromeos/ash/experiences/arc:arc_test_support",
     "//chromeos/ash/experiences/arc/mojom",
+    "//components/account_id:test_support",
     "//components/app_constants",
     "//components/services/app_service/public/cpp:test_support",
     "//content/test:test_support",
@@ -163,6 +165,10 @@ source_set("unit_tests") {
     "//chrome/browser/ash/child_accounts/time_limits:unit_tests",
     "//chrome/browser/ash/child_accounts/time_limits:unit_tests",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("browser_tests") {
@@ -210,6 +216,10 @@ source_set("browser_tests") {
     "//chrome/browser/ash/child_accounts/parent_access_code:browser_tests",
     "//chrome/browser/ash/child_accounts/time_limits:browser_tests",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_chromeos_device) {

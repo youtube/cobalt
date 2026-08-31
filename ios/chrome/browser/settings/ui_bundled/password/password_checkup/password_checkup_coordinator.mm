@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/settings/ui_bundled/password/password_checkup/password_checkup_coordinator.h"
 
 #import "base/metrics/user_metrics.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
 #import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_password_check_manager.h"
 #import "ios/chrome/browser/passwords/model/ios_chrome_password_check_manager_factory.h"
@@ -15,7 +16,6 @@
 #import "ios/chrome/browser/push_notification/model/push_notification_client_id.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_service.h"
 #import "ios/chrome/browser/push_notification/model/push_notification_settings_util.h"
-#import "ios/chrome/browser/push_notification/ui_bundled/notifications_opt_in_alert_coordinator.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/notifications_settings_observer.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_checkup/password_checkup_commands.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_checkup/password_checkup_mediator.h"
@@ -26,12 +26,15 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
+#import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/common/ui/reauthentication/reauthentication_protocol.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
@@ -43,7 +46,6 @@ using password_manager::PasswordCheckReferrer;
     PasswordCheckupCommands,
     PasswordCheckupMediatorDelegate,
     PasswordIssuesCoordinatorDelegate,
-    NotificationsOptInAlertCoordinatorDelegate,
     NotificationsSettingsObserverDelegate,
     ReauthenticationCoordinatorDelegate>
 
@@ -74,9 +76,6 @@ using password_manager::PasswordCheckReferrer;
   // For recording visits after successful authentication.
   IOSPasswordManagerVisitsRecorder* _visitsRecorder;
 
-  // Alert Coordinator used to display the notifications system prompt.
-  NotificationsOptInAlertCoordinator* _optInAlertCoordinator;
-
   // An observer that tracks whether push notification permission settings have
   // been modified.
   NotificationsSettingsObserver* _notificationsSettingsObserver;
@@ -96,6 +95,14 @@ using password_manager::PasswordCheckReferrer;
   self = [super initWithBaseViewController:navigationController
                                    browser:browser];
   if (self) {
+    // The Password Checkup homepage is not made to be visited when signed out.
+    AuthenticationService* authenticationService =
+        AuthenticationServiceFactory::GetForProfile(self.profile);
+    CHECK(authenticationService);
+    CHECK(authenticationService->HasPrimaryIdentity(
+              signin::ConsentLevel::kSignin),
+          base::NotFatalUntil::M142);
+
     _baseNavigationController = navigationController;
     _reauthModule = reauthModule;
     _dispatcher = HandlerForProtocol(self.browser->GetCommandDispatcher(),
@@ -155,8 +162,6 @@ using password_manager::PasswordCheckReferrer;
   _mediator = nil;
   _viewController.handler = nil;
   _viewController = nil;
-  [_optInAlertCoordinator stop];
-  _optInAlertCoordinator = nil;
 
   if (IsSafetyCheckNotificationsEnabled()) {
     // Remove PrefObserverDelegates.
@@ -240,7 +245,11 @@ using password_manager::PasswordCheckReferrer;
     return;
   }
 
-  [self enableSafetyCheckNotifications];
+  [HandlerForProtocol(self.browser->GetCommandDispatcher(),
+                      BrowserCoordinatorCommands)
+      showNotificationsOptInFromAccessPoint:NotificationOptInAccessPoint::
+                                                kSafetyCheck
+                         baseViewController:_baseNavigationController];
 }
 
 #pragma mark - PasswordIssuesCoordinatorDelegate
@@ -256,29 +265,6 @@ using password_manager::PasswordCheckReferrer;
 
 - (void)dismissPasswordManagerAfterFailedReauthentication {
   [_delegate dismissPasswordManagerAfterFailedReauthentication];
-}
-
-#pragma mark - NotificationsOptInAlertCoordinatorDelegate
-
-- (void)notificationsOptInAlertCoordinator:
-            (NotificationsOptInAlertCoordinator*)alertCoordinator
-                                    result:
-                                        (NotificationsOptInAlertResult)result {
-  CHECK_EQ(_optInAlertCoordinator, alertCoordinator);
-  [_optInAlertCoordinator stop];
-  _optInAlertCoordinator = nil;
-
-  switch (result) {
-    case NotificationsOptInAlertResult::kPermissionGranted:
-      [_mediator reconfigureNotificationsSection:YES];
-      break;
-    case NotificationsOptInAlertResult::kPermissionDenied:
-    case NotificationsOptInAlertResult::kOpenedSettings:
-    case NotificationsOptInAlertResult::kCanceled:
-    case NotificationsOptInAlertResult::kError:
-      [_mediator reconfigureNotificationsSection:NO];
-      break;
-  }
 }
 
 #pragma mark - NotificationsSettingsObserverDelegate
@@ -323,31 +309,6 @@ using password_manager::PasswordCheckReferrer;
   return push_notification_settings::
       GetMobileNotificationPermissionStatusForClient(
           PushNotificationClientId::kSafetyCheck, GaiaId());
-}
-
-// Prompts the user to opt-in to Safety Check push notifications.
-// If the user grants permission, updates the push notification service
-// preferences.
-- (void)enableSafetyCheckNotifications {
-  CHECK(IsSafetyCheckNotificationsEnabled());
-
-  [_optInAlertCoordinator stop];
-
-  _optInAlertCoordinator = [[NotificationsOptInAlertCoordinator alloc]
-      initWithBaseViewController:_viewController
-                         browser:self.browser];
-  _optInAlertCoordinator.accessPoint =
-      NotificationOptInAccessPoint::kSafetyCheck;
-  _optInAlertCoordinator.delegate = self;
-
-  _optInAlertCoordinator.clientIds =
-      std::vector{PushNotificationClientId::kSafetyCheck};
-
-  _optInAlertCoordinator.confirmationMessage = l10n_util::GetNSStringF(
-      IDS_IOS_NOTIFICATIONS_CONFIRMATION_MESSAGE,
-      l10n_util::GetStringUTF16(IDS_IOS_SAFETY_CHECK_TITLE));
-
-  [_optInAlertCoordinator start];
 }
 
 // Opts the user out of Safety Check notifications and updates the push

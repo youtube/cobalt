@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tab;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+
 import android.content.Context;
 import android.view.View;
 
@@ -25,8 +27,10 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.url.GURL;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * Tab is a visual/functional unit that encapsulates the content (not just web site content from
@@ -45,6 +49,24 @@ public interface Tab extends TabLifecycle {
         int DEFAULT_PAGE_LOAD = 1;
     }
 
+    /** Tracks the media indicator state of the tab. */
+    @IntDef({
+        MediaState.NONE,
+        MediaState.AUDIBLE,
+        MediaState.MUTED,
+        MediaState.RECORDING,
+        MediaState.SHARING
+    })
+    @Target(ElementType.TYPE_USE)
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface MediaState {
+        int NONE = 0;
+        int AUDIBLE = 1;
+        int MUTED = 2;
+        int RECORDING = 3;
+        int SHARING = 4;
+    }
+
     /** The result of the loadUrl. */
     class LoadUrlResult {
         /** Tab load status. */
@@ -61,8 +83,18 @@ public interface Tab extends TabLifecycle {
         }
     }
 
+    @FunctionalInterface
+    public interface SelectionStateSupplier {
+        /**
+         * @param tabId The ID of the tab to check.
+         * @return True if the tab is selected.
+         */
+        boolean isTabMultiSelected(int tabId);
+    }
+
     /**
      * Adds a {@link TabObserver} to be notified on {@link Tab} changes.
+     *
      * @param observer The {@link TabObserver} to add.
      */
     void addObserver(TabObserver observer);
@@ -99,9 +131,18 @@ public interface Tab extends TabLifecycle {
     Context getContext();
 
     /**
-     * @return The {@link WindowAndroid} associated with this {@link Tab}.
+     * Returns the {@link WindowAndroid} associated with this {@link Tab}. May be null if the tab is
+     * detached.
      */
-    WindowAndroid getWindowAndroid();
+    @Nullable WindowAndroid getWindowAndroid();
+
+    /**
+     * Returns the {@link WindowAndroid} associated with this {@link Tab}. Asserts that the {@link
+     * WindowAndroid} is not null.
+     */
+    default WindowAndroid getWindowAndroidChecked() {
+        return assertNonNull(getWindowAndroid());
+    }
 
     /**
      * Update the attachment state to Window(Activity).
@@ -115,16 +156,15 @@ public interface Tab extends TabLifecycle {
             @Nullable WindowAndroid window, @Nullable TabDelegateFactory tabDelegateFactory);
 
     /**
-     * @return Content view used for rendered web contents. Can be null
-     *    if web contents is null.
+     * @return Content view used for rendered web contents. Can be null if web contents is null.
      */
-    ContentView getContentView();
+    @Nullable ContentView getContentView();
 
     /**
      * @return The {@link View} displaying the current page in the tab. This can be {@code null}, if
-     *         the tab is frozen or being initialized or destroyed.
+     *     the tab is frozen or being initialized or destroyed.
      */
-    View getView();
+    @Nullable View getView();
 
     /**
      * @return The {@link TabViewManager} that is responsible for managing custom {@link View}s
@@ -139,7 +179,7 @@ public interface Tab extends TabLifecycle {
     /**
      * @return Parameters that should be used for a lazily loaded Tab. May be null.
      */
-    LoadUrlParams getPendingLoadParams();
+    @Nullable LoadUrlParams getPendingLoadParams();
 
     /**
      * @return The URL that is loaded in the current tab. This may not be the same as
@@ -160,10 +200,10 @@ public interface Tab extends TabLifecycle {
 
     /**
      * @return The {@link NativePage} associated with the current page, or {@code null} if there is
-     *         no current page or the current page is displayed using something besides
-     *         {@link NativePage}.
+     *     no current page or the current page is displayed using something besides {@link
+     *     NativePage}.
      */
-    NativePage getNativePage();
+    @Nullable NativePage getNativePage();
 
     /**
      * @return Whether or not the {@link Tab} represents a {@link NativePage}.
@@ -259,6 +299,9 @@ public interface Tab extends TabLifecycle {
      * @return a {@link LoadUrlResult} for this load.
      */
     LoadUrlResult loadUrl(LoadUrlParams params);
+
+    /** Freezes the tab. If the tab is already frozen this is a no-op. */
+    void freeze();
 
     /**
      * Freezes the tabs and stores the URL in the tab's WebContentsState. If the tab is already
@@ -415,7 +458,7 @@ public interface Tab extends TabLifecycle {
     /**
      * @return content state bytes for the {@link Tab}
      */
-    WebContentsState getWebContentsState();
+    @Nullable WebContentsState getWebContentsState();
 
     /**
      * @return timestamp in milliseconds when the tab was last interacted.
@@ -468,12 +511,27 @@ public interface Tab extends TabLifecycle {
      */
     void setIsPinned(boolean isPinned);
 
+    /** Returns the media state of the tab. */
+    @MediaState
+    int getMediaState();
+
+    /**
+     * Sets the media state of the tab.
+     *
+     * @param mediaState The {@link MediaState} of the tab.
+     */
+    void setMediaState(@MediaState int mediaState);
+
     /** Called when the tab is restored from the archived tab model. */
     void onTabRestoredFromArchivedTabModel();
 
     /** Called when the tab is added to a tab model. */
-    void onAddedToTabModel(ObservableSupplier<@Nullable Tab> currentTabSupplier);
+    void onAddedToTabModel(
+            ObservableSupplier<@Nullable Tab> currentTabSupplier,
+            SelectionStateSupplier selectionStateSupplier);
 
     /** Called when the tab is removed from a tab model. */
     void onRemovedFromTabModel(ObservableSupplier<@Nullable Tab> currentTabSupplier);
+
+    boolean isMultiSelected();
 }

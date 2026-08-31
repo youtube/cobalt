@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
@@ -51,8 +52,8 @@ namespace webrtc {
 
 namespace {
 
-static const char kDefaultAudioSenderId[] = "defaulta0";
-static const char kDefaultVideoSenderId[] = "defaultv0";
+const char kDefaultAudioSenderId[] = "defaulta0";
+const char kDefaultVideoSenderId[] = "defaultv0";
 
 }  // namespace
 
@@ -92,11 +93,11 @@ void RtpTransmissionManager::OnNegotiationNeeded() {
   on_negotiation_needed_();
 }
 
-// Function that returns the currently valid observer
-PeerConnectionObserver* RtpTransmissionManager::Observer() const {
-  RTC_DCHECK(!closed_);
+void RtpTransmissionManager::RunWithObserver(
+    absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&> task) {
+  RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(observer_);
-  return observer_;
+  std::move(task)(observer_);
 }
 
 VoiceMediaSendChannelInterface*
@@ -524,7 +525,8 @@ void RtpTransmissionManager::CreateAudioReceiver(
   auto receiver = RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
       signaling_thread(), worker_thread(), std::move(audio_receiver));
   GetAudioTransceiver()->internal()->AddReceiver(receiver);
-  Observer()->OnAddTrack(receiver, streams);
+  RunWithObserver(
+      [&](auto observer) { observer->OnAddTrack(receiver, streams); });
   NoteUsageEvent(UsageEvent::AUDIO_ADDED);
 }
 
@@ -548,7 +550,8 @@ void RtpTransmissionManager::CreateVideoReceiver(
   auto receiver = RtpReceiverProxyWithInternal<RtpReceiverInternal>::Create(
       signaling_thread(), worker_thread(), std::move(video_receiver));
   GetVideoTransceiver()->internal()->AddReceiver(receiver);
-  Observer()->OnAddTrack(receiver, streams);
+  RunWithObserver(
+      [&](auto observer) { observer->OnAddTrack(receiver, streams); });
   NoteUsageEvent(UsageEvent::VIDEO_ADDED);
 }
 
@@ -624,7 +627,7 @@ void RtpTransmissionManager::OnRemoteSenderRemoved(
   }
   if (receiver) {
     RTC_DCHECK(!closed_);
-    Observer()->OnRemoveTrack(receiver);
+    RunWithObserver([&](auto observer) { observer->OnRemoveTrack(receiver); });
   }
 }
 

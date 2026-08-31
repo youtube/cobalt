@@ -36,3 +36,55 @@ ensure the directory has been specified. -->
 
 Unless otherwise instructed, run tests with:
 `tools/autotest.py --quiet --run-all -C {OUT_DIR} {RELEVANT_TEST_FILENAMES}`
+
+## Coding
+
+<!-- Try to prevent agent from fixing TODOs that appear close to code that it's
+rewriting. -->
+* Stay on task: Do not address code health issues or TODOs in code unless it is
+  required to achieve your given task.
+<!-- Try to prevent useless comments that state the obvious. -->
+* Add code comments sparingly: Focus on *why* something is done, not *what* is
+  done.
+
+## Presumbit Checks
+
+When you have finished validating your changes through other means, run:
+
+```sh
+git cl format
+git cl presubmit -u --force
+```
+* Fix errors / warnings related to your change, but do not fix pre-existing
+  warnings (from lines that you did not change).
+
+## JNI
+
+<!--
+We have a separate //agents/prompts/templates/android.md, but the purpose
+of that file is to tell the agent to build / test on Android. There are a lot
+of shared source files that contain JNI, so including this short explanation
+improves outcomes even when Android-specific changes are not the focus.
+-->
+Chrome on Android uses both Java and C++ frequently. Our JNI uses codegen from
+`//third_party/jni_zero`.
+
+Identifying JNI methods:
+  * In Java, methods annotated with `@CalledByNative` are called by C++.
+    * In C++, these appear as methods with a "Java_" prefix.
+  * In Java, methods within interfaces annotated with `@NativeMethods` are calls
+    into C++.
+    * In C++, these appear as methods with a "JNI_" prefix.
+    * If the first parameter is of type `long` and has a prefix of "native",
+      then it maps to a method of the same name on the C++ class that comes
+      after the "native" prefix. Eg. `void foo(long nativeBarImpl)` means you
+      need to find `BarImpl::Foo` in C++.
+
+Finding JNI methods:
+  * To find the Java side of JNI: search for the file named `{JavaClass}.java`
+    (where {JavaClass} is taken from the `#include "{JavaClass}_jni.h"`.
+  * To find the C++ side of JNI: Search for the text `{JavaClass}_jni.h` in C++
+    files (where {JavaClass} is taken from the .java file name).
+
+When making changes to JNI methods, always make changes to both the .java and
+.cc/.h files involved.

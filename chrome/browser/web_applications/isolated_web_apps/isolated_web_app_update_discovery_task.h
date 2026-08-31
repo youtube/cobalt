@@ -15,12 +15,12 @@
 #include "base/types/expected.h"
 #include "base/version.h"
 #include "chrome/browser/web_applications/isolated_web_apps/commands/isolated_web_app_prepare_and_store_update_command.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_downloader.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest.h"
 #include "chrome/browser/web_applications/isolated_web_apps/update_manifest/update_manifest_fetcher.h"
 #include "components/webapps/common/web_app_id.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/download/bundle_downloader.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "net/base/net_errors.h"
 
 namespace web_app {
@@ -63,7 +63,14 @@ class IsolatedWebAppUpdateDiscoveryTask {
   enum class Success {
     kNoUpdateFound,
     kUpdateAlreadyPending,
-    kUpdateFoundAndSavedInDatabase,
+    kPinnedVersionUpdateFoundAndSavedInDatabase,  // Update to pinned version
+                                                  // was successful. This type
+                                                  // of update can happen only
+                                                  // once, right after the app
+                                                  // is pinned. After that, no
+                                                  // update should happen.
+    kDowngradeVersionFoundAndSavedInDatabase,
+    kUpdateFoundAndSavedInDatabase
   };
 
   enum class Error {
@@ -72,15 +79,22 @@ class IsolatedWebAppUpdateDiscoveryTask {
     kUpdateManifestInvalidJson,
     kUpdateManifestInvalidManifest,
     kUpdateManifestNoApplicableVersion,
-
     kIwaNotInstalled,
+
+    // Version pinning errors
+    kPinnedVersionNotFoundInUpdateManifest,
+
+    // Version downgrade errors
+    kDowngradetNotAllowed,
 
     // Signed Web Bundle download errors
     kDownloadPathCreationFailed,
     kBundleDownloadError,
 
     // Update dry run errors
-    kUpdateDryRunFailed
+    kUpdateDryRunFailed,
+
+    kSystemShutdown,
   };
 
   static std::string SuccessToString(Success success);
@@ -94,8 +108,7 @@ class IsolatedWebAppUpdateDiscoveryTask {
       WebAppCommandScheduler& command_scheduler,
       WebAppRegistrar& registrar,
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-      std::unique_ptr<ScopedKeepAlive> optional_keep_alive,
-      std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive);
+      Profile& profile);
   ~IsolatedWebAppUpdateDiscoveryTask();
 
   IsolatedWebAppUpdateDiscoveryTask(const IsolatedWebAppUpdateDiscoveryTask&) =
@@ -146,10 +159,13 @@ class IsolatedWebAppUpdateDiscoveryTask {
   raw_ref<WebAppCommandScheduler> command_scheduler_;
   raw_ref<WebAppRegistrar> registrar_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
-  std::unique_ptr<ScopedKeepAlive> optional_keep_alive_;
-  std::unique_ptr<ScopedProfileKeepAlive> optional_profile_keep_alive_;
+  // Set on Start:
+  std::unique_ptr<ScopedKeepAlive> keep_alive_;
+  std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;
+  const raw_ref<Profile> profile_;
 
   ScopedTempWebBundleFile bundle_;
+  base::Version currently_installed_version_;
 
   std::unique_ptr<UpdateManifestFetcher> update_manifest_fetcher_;
   std::unique_ptr<IsolatedWebAppDownloader> bundle_downloader_;

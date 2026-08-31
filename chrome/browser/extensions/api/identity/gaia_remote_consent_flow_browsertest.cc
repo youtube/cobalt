@@ -8,6 +8,7 @@
 
 #include "base/strings/strcat.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
@@ -129,7 +130,7 @@ class GaiaRemoteConsentFlowParamBrowserTest : public InProcessBrowserTest {
 
   CoreAccountInfo CreateFakeAccountInfoAndSetAsPrimary() {
     signin::IdentityManager* identity_manager =
-        IdentityManagerFactory::GetForProfile(profile());
+        IdentityManagerFactory::GetForProfile(GetProfile());
     CoreAccountInfo account_info = SetPrimaryAccount(
         identity_manager, kTestEmail, signin::ConsentLevel::kSync);
     SetRefreshTokenForPrimaryAccount(identity_manager, kFakeRefreshToken);
@@ -151,7 +152,7 @@ class GaiaRemoteConsentFlowParamBrowserTest : public InProcessBrowserTest {
     resolution_data.url = url;
     resolution_data.cookies = resolution_cookies;
 
-    flow_ = std::make_unique<GaiaRemoteConsentFlow>(&mock(), profile(),
+    flow_ = std::make_unique<GaiaRemoteConsentFlow>(&mock(), GetProfile(),
                                                     token_key, resolution_data,
                                                     /*user_gesture=*/true);
   }
@@ -174,10 +175,11 @@ class GaiaRemoteConsentFlowParamBrowserTest : public InProcessBrowserTest {
     // Gaia Origin to filter out unwanted urls, and in the test we are
     // overriding the value of Gaia Origin, so we can bypass the filter for
     // testing. JS function is properly called but returns nullptr.
-    ASSERT_EQ(nullptr, content::EvalJs(
-                           flow()->GetWebAuthFlowForTesting()->web_contents(),
-                           "window.OAuthConsent.setConsentResult(\"" +
-                               consent_value + "\")"));
+    ASSERT_EQ(
+        base::Value(),
+        content::EvalJs(
+            flow()->GetWebAuthFlowForTesting()->web_contents(),
+            "window.OAuthConsent.setConsentResult(\"" + consent_value + "\")"));
   }
 
   MockGaiaRemoteConsentFlowDelegate& mock() {
@@ -187,8 +189,6 @@ class GaiaRemoteConsentFlowParamBrowserTest : public InProcessBrowserTest {
   net::EmbeddedTestServer* fake_gaia_test_server() {
     return &fake_gaia_test_server_;
   }
-
-  Profile* profile() { return browser()->profile(); }
 
   GaiaRemoteConsentFlow* flow() { return flow_.get(); }
 

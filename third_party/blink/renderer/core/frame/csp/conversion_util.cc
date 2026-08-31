@@ -16,24 +16,19 @@ network::mojom::blink::CSPSourcePtr ConvertSource(const WebCSPSource& source) {
       source.is_host_wildcard, source.is_port_wildcard);
 }
 
-network::mojom::blink::CSPHashSourcePtr ConvertHashSource(
-    const WebCSPHashSource& hash_source) {
-  return network::mojom::blink::CSPHashSource::New(
-      hash_source.algorithm, Vector<uint8_t>(hash_source.value));
-}
-
 network::mojom::blink::CSPSourceListPtr ConvertSourceList(
     const WebCSPSourceList& source_list) {
   return network::mojom::blink::CSPSourceList::New(
       WTF::ToVector(source_list.sources, ConvertSource),
       Vector<String>(source_list.nonces),
-      WTF::ToVector(source_list.hashes, ConvertHashSource),
-      WTF::ToVector(source_list.url_hashes, ConvertHashSource),
-      WTF::ToVector(source_list.eval_hashes, ConvertHashSource),
+      Vector<network::IntegrityMetadata>(source_list.hashes),
+      Vector<network::IntegrityMetadata>(source_list.url_hashes),
+      Vector<network::IntegrityMetadata>(source_list.eval_hashes),
       source_list.allow_self, source_list.allow_star, source_list.allow_inline,
       source_list.allow_inline_speculation_rules, source_list.allow_eval,
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
-      source_list.allow_dynamic, source_list.allow_unsafe_hashes,
+      source_list.allow_dynamic, source_list.allow_dynamic_url,
+      source_list.allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
       source_list.report_sample, source_list.report_hash_algorithm,
       source_list.cobalt_insecure_local_network,

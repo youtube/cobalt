@@ -141,7 +141,7 @@ component("aura") {
     "//ui/base/dragdrop/mojom:mojom_headers",
     "//ui/base/ime",
     "//ui/base/metadata",
-    "//ui/base/mojom:mojom",
+    "//ui/base/mojom",
     "//ui/base/mojom:ui_base_types",
     "//ui/compositor",
   ]
@@ -199,6 +199,8 @@ static_library("test_support") {
     "test/test_focus_client.h",
     "test/test_screen.cc",
     "test/test_screen.h",
+    "test/test_window_builder.cc",
+    "test/test_window_builder.h",
     "test/test_window_delegate.cc",
     "test/test_window_delegate.h",
     "test/test_window_parenting_client.cc",
@@ -260,6 +262,10 @@ static_library("test_support") {
   if (is_linux || is_chromeos) {
     deps += [ "//ui/platform_window/common" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 executable("aura_demo") {
@@ -331,6 +337,7 @@ test("aura_unittests") {
     "//ui/gl:test_support",
     "//ui/platform_window",
     "//ui/platform_window/stub",
+    "//ui/resources:ui_test_pak",
     "//ui/wm",
   ]
 
@@ -345,30 +352,8 @@ test("aura_unittests") {
     ]
   }
 
-  data_deps = [ "//third_party/angle:includes" ]
-}
-
-# This target is added as a dependency of browser interactive_ui_tests. It must
-# be source_set, otherwise the linker will drop the tests as dead code.
-source_set("aura_interactive_ui_tests") {
-  testonly = true
-  if (is_win) {
-    sources = [ "native_window_occlusion_tracker_win_interactive_test.cc" ]
-
-    deps = [
-      ":aura",
-      ":test_support",
-      "//base/test:test_support",
-      "//mojo/core/embedder",
-      "//testing/gtest",
-      "//ui/base:test_support",
-      "//ui/base/ime/init",
-      "//ui/display:display",
-      "//ui/gfx",
-      "//ui/gfx/geometry",
-      "//ui/gl:test_support",
-      "//ui/gl/init",
-      "//ui/views:views",
-    ]
-  }
+  data_deps = [
+    "//third_party/angle:includes",
+    "//ui/resources:ui_test_pak_data",
+  ]
 }

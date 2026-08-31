@@ -16,6 +16,7 @@
 
 // Branded symbol names.
 #if BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
+extern NSString* const kChromeAIHubHeaderImage;
 extern NSString* const kChromeDefaultBrowserIllustrationImage;
 extern NSString* const kChromeDefaultBrowserScreenBannerImage;
 extern NSString* const kChromeGuidedTourBannerImage;
@@ -24,9 +25,12 @@ extern NSString* const kChromeNotificationsOptInBannerLandscapeImage;
 extern NSString* const kChromeSearchEngineChoiceIcon;
 extern NSString* const kChromeSigninBannerImage;
 extern NSString* const kChromeSigninPromoLogoImage;
+extern NSString* const kGeminiBrandedLogoImage;
+extern NSString* const kGeminiFullSymbol;
 extern NSString* const kGoogleDriveSymbol;
 extern NSString* const kGoogleFullSymbol;
 extern NSString* const kGoogleIconSymbol;
+extern NSString* const kGoogleSearchEngineLogoImage;
 extern NSString* const kGoogleShieldSymbol;
 extern NSString* const kGoogleMapsSymbol;
 extern NSString* const kGooglePasswordManagerWidgetPromoImage;
@@ -41,6 +45,7 @@ extern NSString* const kFedexCarrierImage;
 extern NSString* const kUPSCarrierImage;
 extern NSString* const kUSPSCarrierImage;
 #else
+extern NSString* const kChromiumAIHubHeaderImage;
 extern NSString* const kChromiumDefaultBrowserIllustrationImage;
 extern NSString* const kChromiumDefaultBrowserScreenBannerImage;
 extern NSString* const kChromiumGuidedTourBannerImage;
@@ -52,6 +57,7 @@ extern NSString* const kChromiumSearchEngineChoiceIcon;
 extern NSString* const kChromiumSettingsPasswordsInOtherAppsBannerImage;
 extern NSString* const kChromiumSigninBannerImage;
 extern NSString* const kChromiumSigninPromoLogoImage;
+extern NSString* const kGeminiNonBrandedLogoImage;
 #endif  // BUILDFLAG(IOS_USE_BRANDED_SYMBOLS)
 
 // Custom symbol names.
@@ -75,6 +81,7 @@ extern NSString* const kTabGroupsSymbol;
 extern NSString* const kLanguageSymbol;
 extern NSString* const kLocationSymbol;
 extern NSString* const kPasswordSymbol;
+extern NSString* const kCropSymbol;
 #if !BUILDFLAG(IS_IOS_MACCATALYST)
 extern NSString* const kMulticolorPasswordSymbol;
 #endif  // BUILDFLAG(IS_IOS_MACCATALYST)
@@ -99,6 +106,10 @@ extern NSString* const kMyDriveSymbol;
 extern NSString* const kSharedDrivesSymbol;
 extern NSString* const kEllipsisSquareFillSymbol;
 extern NSString* const kMagnifyingglassSparkSymbol;
+extern NSString* const kPasswordManagerTrustedVaultWidgetPromoImage;
+extern NSString* const kPasswordManagerTrustedVaultWidgetPromoDisabledImage;
+extern NSString* const kPhoneSparkleSymbol;
+extern NSString* const kTextSearchSymbol;
 
 // Custom symbol names which can be configured with a color palette. iOS 15+
 // only.
@@ -199,6 +210,8 @@ extern NSString* const kExpandSymbol;
 extern NSString* const kBackSymbol;
 extern NSString* const kForwardSymbol;
 extern NSString* const kPersonFillSymbol;
+extern NSString* const kPersonClockFillSymbol;
+extern NSString* const kPersonFillBadgePlusSymbol;
 extern NSString* const kMailFillSymbol;
 extern NSString* const kPhoneFillSymbol;
 extern NSString* const kDownloadPromptFillSymbol;
@@ -210,6 +223,7 @@ extern NSString* const kChevronDownSymbol;
 extern NSString* const kChevronUpSymbol;
 extern NSString* const kChevronBackwardSymbol;
 extern NSString* const kChevronForwardSymbol;
+extern NSString* const kChevronRightSymbol;
 extern NSString* const kChevronUpDown;
 extern NSString* const kChevronDownCircleFill;
 extern NSString* const kGlobeAmericasSymbol;
@@ -262,6 +276,8 @@ extern NSString* const kPencilSymbol;
 extern NSString* const kMagicStackSymbol;
 extern NSString* const kDiscoverFeedSymbol;
 extern NSString* const kFilterSymbol;
+extern NSString* const kCounterClockWiseSymbol;
+extern NSString* const kBuilding2Symbol;
 extern NSString* const kSelectedFilterSymbol;
 extern NSString* const kPersonTwoSymbol;
 extern NSString* const kSquareFilledOnSquareSymbol;
@@ -281,6 +297,9 @@ extern NSString* const kShieldedEnvelope;
 extern NSString* const kReaderModeSymbolPreIOS18;
 extern NSString* const kReaderModeSymbolPostIOS18;
 extern NSString* const kCircleBadgeFill;
+extern NSString* const kTextSparkSymbol;
+extern NSString* const kBookSymbol;
+extern NSString* const kKeySymbol;
 
 // Names of the default symbol being non-monochrome by default. When using them,
 // you probably want to set their color to monochrome.

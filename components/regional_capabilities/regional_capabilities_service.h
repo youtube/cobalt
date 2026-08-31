@@ -9,10 +9,12 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/country_codes/country_codes.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/regional_capabilities/program_settings.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/scoped_java_ref.h"
@@ -27,6 +29,7 @@ struct PrepopulatedEngine;
 namespace regional_capabilities {
 
 class CountryIdHolder;
+enum class Program;
 
 // Service for managing the state related to Search Engine Choice (mostly
 // for the country information).
@@ -73,6 +76,12 @@ class RegionalCapabilitiesService : public KeyedService {
     // the service for the current run.
     virtual void FetchCountryId(
         CountryIdCallback country_id_fetched_callback) = 0;
+
+#if BUILDFLAG(IS_ANDROID)
+    // Synchronously reads the device's regional capabilities program
+    // configuration.
+    virtual Program GetDeviceProgram() = 0;
+#endif
   };
 
   RegionalCapabilitiesService(
@@ -80,24 +89,36 @@ class RegionalCapabilitiesService : public KeyedService {
       std::unique_ptr<Client> regional_capabilities_client);
   ~RegionalCapabilitiesService() override;
 
+  // -- Getters for regional capabilities -------------------------------------
+
+  std::vector<const TemplateURLPrepopulateData::PrepopulatedEngine*>
+  GetRegionalPrepopulatedEngines();
+
+  // Returns whether the profile is associated with a region in which we can
+  // show a search engine choice screen.
+  bool IsInSearchEngineChoiceScreenRegion();
+
+  // -- Internal utils & deprecated getters -----------------------------------
+
+  // Returns whether the profile country is a EEA member.
+  //
+  // Testing note: To control the value this returns in manual or automated
+  // tests, see `switches::kSearchEngineChoiceCountry`.
+  // DEPRECATED: Prefer using getters for regional capabilities above.
+  // TODO(crbug.com/394235956): Migrate callsites and remove this.
+  bool IsInEeaCountry();
+
   // Returns the country ID to use in the context of regional checks.
   // Can be overridden using `switches::kSearchEngineChoiceCountry`.
   // Note: Access to the raw value is restricted, see `CountryIdHolder` for
   // more details.
   CountryIdHolder GetCountryId();
 
-  std::vector<const TemplateURLPrepopulateData::PrepopulatedEngine*>
-  GetRegionalPrepopulatedEngines();
-
-  // Returns whether the profile country is a EEA member.
-  //
-  // Testing note: To control the value this returns in manual or automated
-  // tests, see `switches::kSearchEngineChoiceCountry`.
-  bool IsInEeaCountry();
-
   // Clears the country id cache to be able to change countries multiple times
   // in tests.
   void ClearCountryIdCacheForTesting();
+
+  Program GetActiveProgramForTesting();
 
 #if BUILDFLAG(IS_ANDROID)
   // -- JNI Interface ---------------------------------------------------------
@@ -116,18 +137,26 @@ class RegionalCapabilitiesService : public KeyedService {
 #endif
 
  private:
+  // Returns how features should adjust themselves based on the active country
+  // or program.
+  const ProgramSettings& GetActiveProgramSettings();
+
   country_codes::CountryId GetCountryIdInternal();
 
-  void InitializeCountryIdCache();
-  std::optional<country_codes::CountryId> GetPersistedCountryId();
+  void EnsureRegionalScopeCacheInitialized();
+  country_codes::CountryId GetPersistedCountryId();
   void TrySetPersistedCountryId(country_codes::CountryId country_id);
 
   const raw_ref<PrefService> profile_prefs_;
   const std::unique_ptr<Client> client_;
 
-  // Used to ensure that the value returned from `GetCountryId` never changes
-  // in runtime (different runs can still return different values, though).
+  // -- Regional scope cache --
+  // Used to ensure that the value returned from associated getters doesn't
+  // change at runtime (different runs can still return different values,
+  // though).
   std::optional<country_codes::CountryId> country_id_cache_;
+  std::optional<raw_ref<const ProgramSettings>> program_settings_cache_;
+  // -- cache end --
 
 #if BUILDFLAG(IS_ANDROID)
   // Corresponding Java object.

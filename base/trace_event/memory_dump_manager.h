@@ -9,7 +9,6 @@
 
 #include <map>
 #include <memory>
-#include <unordered_set>
 #include <vector>
 
 #include "base/base_export.h"
@@ -20,6 +19,7 @@
 #include "base/trace_event/memory_dump_provider_info.h"
 #include "base/trace_event/memory_dump_request_args.h"
 #include "base/trace_event/process_memory_dump.h"
+#include "base/trace_event/trace_config.h"
 #include "base/trace_event/trace_event.h"
 
 namespace base {

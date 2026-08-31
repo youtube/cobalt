@@ -40,6 +40,7 @@
 #include "base/feature_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h"
+#include "chrome/browser/ui/startup/default_browser_prompt/pin_infobar/pin_infobar_controller.h"
 #include "chrome/browser/ui/ui_features.h"
 #endif
 
@@ -201,9 +202,16 @@ void AddInfoBarsIfNecessary(Browser* browser,
       base::DoNothing();
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   if (base::FeatureList::IsEnabled(features::kPdfInfoBar)) {
-    default_browser_prompt_shown_callback =
-        base::BindOnce(&PdfInfoBarController::MaybeShowInfoBarAtStartup,
-                       browser->GetWeakPtr());
+    default_browser_prompt_shown_callback = base::BindOnce(
+        &pdf::infobar::PdfInfoBarController::MaybeShowInfoBarAtStartup,
+        browser->GetWeakPtr());
+  }
+
+  if (base::FeatureList::IsEnabled(features::kOfferPinToTaskbarInfoBar)) {
+    default_browser_prompt_shown_callback = base::BindOnce(
+        &default_browser::PinInfoBarController::MaybeShowInfoBarForBrowser,
+        browser->GetWeakPtr(),
+        std::move(default_browser_prompt_shown_callback));
   }
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 

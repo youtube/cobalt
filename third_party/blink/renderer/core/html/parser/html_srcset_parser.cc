@@ -88,7 +88,7 @@ struct DescriptorToken {
     }
     return CharactersToInt(
         attribute.subspan(start, length_excluding_descriptor),
-        WTF::NumberParsingOptions(), &is_valid);
+        NumberParsingOptions(), &is_valid);
   }
 
   template <typename CharType>
@@ -207,7 +207,7 @@ static void SrcsetError(Document* document, String message) {
         MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kOther,
             mojom::ConsoleMessageLevel::kWarning,
-            WTF::StrCat(
+            StrCat(
                 {"Failed parsing 'srcset' attribute value since ", message})));
   }
 }
@@ -279,7 +279,7 @@ static bool ParseDescriptors(const String& attribute,
                              DescriptorParsingResult& result,
                              Document* document) {
   // FIXME: See if StringView can't be extended to replace DescriptorToken here.
-  return WTF::VisitCharacters(attribute, [&](auto chars) {
+  return VisitCharacters(attribute, [&](auto chars) {
     return ParseDescriptors(chars, descriptors, result, document);
   });
 }
@@ -340,7 +340,7 @@ static void ParseImageCandidatesFromSrcsetAttribute(
                 MakeGarbageCollected<ConsoleMessage>(
                     mojom::ConsoleMessageSource::kOther,
                     mojom::ConsoleMessageLevel::kWarning,
-                    WTF::StrCat(
+                    StrCat(
                         {"Dropped srcset candidate ",
                          JSONValue::QuoteString(String(attribute_span.subspan(
                              image_url_start,

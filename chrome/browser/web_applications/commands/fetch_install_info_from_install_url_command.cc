@@ -10,6 +10,7 @@
 #include "base/check_op.h"
 #include "base/feature_list.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/web_applications/jobs/manifest_to_web_app_install_info_job.h"
 #include "chrome/browser/web_applications/locks/shared_web_contents_lock.h"
 #include "chrome/browser/web_applications/web_app_command_manager.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
@@ -137,16 +138,17 @@ void FetchInstallInfoFromInstallUrlCommand::OnGetWebAppInstallInfo(
 
   data_retriever_->CheckInstallabilityAndRetrieveManifest(
       &lock_->shared_web_contents(),
-      base::BindOnce(
-          &FetchInstallInfoFromInstallUrlCommand::OnManifestRetrieved,
-          weak_ptr_factory_.GetWeakPtr(), std::move(install_info)));
+      base::BindOnce(&FetchInstallInfoFromInstallUrlCommand::
+                         OnManifestRetrievedMaybeFetchInstallInfo,
+                     weak_ptr_factory_.GetWeakPtr(), std::move(install_info)));
 }
 
-void FetchInstallInfoFromInstallUrlCommand::OnManifestRetrieved(
-    std::unique_ptr<WebAppInstallInfo> web_app_info,
-    blink::mojom::ManifestPtr opt_manifest,
-    bool valid_manifest_for_web_app,
-    webapps::InstallableStatusCode error_code) {
+void FetchInstallInfoFromInstallUrlCommand::
+    OnManifestRetrievedMaybeFetchInstallInfo(
+        std::unique_ptr<WebAppInstallInfo> web_app_info,
+        blink::mojom::ManifestPtr opt_manifest,
+        bool valid_manifest_for_web_app,
+        webapps::InstallableStatusCode error_code) {
   CHECK(web_app_info);
   if (!valid_manifest_for_web_app) {
     LOG(WARNING) << "Did not install " << install_url_.spec()
@@ -156,35 +158,39 @@ void FetchInstallInfoFromInstallUrlCommand::OnManifestRetrieved(
     return;
   }
 
+  // If an optional manifest is found, start the job to parse the manifest and
+  // create a WebAppInstallInfo from it.
   if (opt_manifest) {
-    UpdateWebAppInfoFromManifest(*opt_manifest, web_app_info.get());
-  }
+    WebAppInstallInfoConstructOptions construct_options;
+    construct_options.download_page_favicons = opt_manifest->icons.empty();
 
-  webapps::AppId app_id = GenerateAppIdFromManifestId(
-      web_app_info->manifest_id(), web_app_info->parent_app_manifest_id);
-  const webapps::AppId expected_app_id = GenerateAppIdFromManifestId(
-      manifest_id_, web_app_info->parent_app_manifest_id);
-  if (app_id != expected_app_id) {
-    install_error_log_entry_.LogExpectedAppIdError(
-        "OnManifestRetrieved", web_app_info->start_url().spec(), app_id,
-        expected_app_id);
-    CompleteCommandAndSelfDestruct(FetchInstallInfoResult::kWrongManifestId,
-                                   /*install_info=*/nullptr);
+    manifest_to_install_info_job_ =
+        ManifestToWebAppInstallInfoJob::CreateAndStart(
+            *opt_manifest, *data_retriever_.get(),
+            /*background_installation=*/true,
+            webapps::WebappInstallSource::SUB_APP,
+            lock_->shared_web_contents().GetWeakPtr(), [](IconUrlSizeSet&) {},
+            GetMutableDebugValue(),
+            base::BindOnce(
+                &FetchInstallInfoFromInstallUrlCommand::OnInstallInfoFetched,
+                weak_ptr_factory_.GetWeakPtr()),
+            construct_options, web_app_info->Clone());
+
     return;
   }
 
-  // If the manifest specified icons, don't use the page icons.
-  const bool skip_page_favicons = opt_manifest && !opt_manifest->icons.empty();
   IconUrlSizeSet icon_urls = GetValidIconUrlsToDownload(*web_app_info);
 
   data_retriever_->GetIcons(
-      &lock_->shared_web_contents(), std::move(icon_urls), skip_page_favicons,
+      &lock_->shared_web_contents(), std::move(icon_urls),
+      /*download_page_favicons=*/true,
       /*fail_all_if_any_fail=*/false,
-      base::BindOnce(&FetchInstallInfoFromInstallUrlCommand::OnIconsRetrieved,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(web_app_info)));
+      base::BindOnce(
+          &FetchInstallInfoFromInstallUrlCommand::OnIconsRetrievedForNoManifest,
+          weak_ptr_factory_.GetWeakPtr(), std::move(web_app_info)));
 }
 
-void FetchInstallInfoFromInstallUrlCommand::OnIconsRetrieved(
+void FetchInstallInfoFromInstallUrlCommand::OnIconsRetrievedForNoManifest(
     std::unique_ptr<WebAppInstallInfo> web_app_info,
     IconsDownloadedResult result,
     IconsMap icons_map,
@@ -195,6 +201,30 @@ void FetchInstallInfoFromInstallUrlCommand::OnIconsRetrieved(
   RecordDownloadedIconsResultAndHttpStatusCodes(result, icons_http_results);
   CompleteCommandAndSelfDestruct(FetchInstallInfoResult::kAppInfoObtained,
                                  std::move(web_app_info));
+}
+
+void FetchInstallInfoFromInstallUrlCommand::OnInstallInfoFetched(
+    std::unique_ptr<WebAppInstallInfo> info_from_manifest) {
+  CHECK(info_from_manifest);
+  info_from_manifest->install_url = install_url_;
+  info_from_manifest->parent_app_manifest_id = parent_manifest_id_;
+
+  const webapps::AppId app_id =
+      GenerateAppIdFromManifestId(info_from_manifest->manifest_id(),
+                                  info_from_manifest->parent_app_manifest_id);
+  const webapps::AppId expected_app_id = GenerateAppIdFromManifestId(
+      manifest_id_, info_from_manifest->parent_app_manifest_id);
+  if (app_id != expected_app_id) {
+    install_error_log_entry_.LogExpectedAppIdError(
+        "OnManifestRetrieved", info_from_manifest->start_url().spec(), app_id,
+        expected_app_id);
+    CompleteCommandAndSelfDestruct(FetchInstallInfoResult::kWrongManifestId,
+                                   /*install_info=*/nullptr);
+    return;
+  }
+
+  CompleteCommandAndSelfDestruct(FetchInstallInfoResult::kAppInfoObtained,
+                                 std::move(info_from_manifest));
 }
 
 void FetchInstallInfoFromInstallUrlCommand::CompleteCommandAndSelfDestruct(

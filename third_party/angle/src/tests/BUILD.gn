@@ -329,24 +329,20 @@ if (is_win || is_linux || is_chromeos || is_android || is_fuchsia || is_apple) {
       deps += [ "$angle_root:angle_json_serializer" ]
     }
 
-    if (build_angle_end2end_tests_aosp) {
-      # AOSP end2end tests builds don't bundle ANGLE libs or Vulkan tests and don't need the NDK path
+    if (angle_enable_vulkan) {
+      sources += [
+        "gl_tests/VulkanExternalImageTest.cpp",
+        "gl_tests/VulkanImageTest.cpp",
+        "test_utils/VulkanHelper.cpp",
+        "test_utils/VulkanHelper.h",
+      ]
+      deps += [ "$angle_root/src/common/vulkan" ]
+    }
+
+    if (angle_test_enable_system_egl) {
+      # Don't bundle the ANGLE libraries.
     } else {
-      if (is_android) {
-        include_dirs += [ "${android_ndk_root}/sysroot/usr/includes" ]
-      }
-
       data_deps = [ "$angle_root:angle" ]
-
-      if (angle_enable_vulkan) {
-        sources += [
-          "gl_tests/VulkanExternalImageTest.cpp",
-          "gl_tests/VulkanImageTest.cpp",
-          "test_utils/VulkanHelper.cpp",
-          "test_utils/VulkanHelper.h",
-        ]
-        deps += [ "$angle_root/src/common/vulkan" ]
-      }
     }
 
     if (is_android) {
@@ -598,7 +594,7 @@ template("angle_perftests_common") {
     public_deps = [
       "$angle_root:angle_gl_enum_utils",
       "$angle_root/src/tests:angle_test_expectations",
-      "$angle_root/third_party/rapidjson:rapidjson",
+      "$angle_root/third_party/rapidjson",
       "${invoker.test_utils}",
     ]
     public_configs += [
@@ -2000,6 +1996,12 @@ if (build_angle_deqp_tests && !is_fuchsia) {
     api = "gles32"
   }
 
+  angle_deqp_khr_gtest("khr_glesext") {
+    defines = [ "ANGLE_DEQP_KHR_GLESEXT_TESTS" ]
+    mustpass_name = "gles32-khr-glesext.txt"
+    api = "gles32"
+  }
+
   template("angle_deqp_rotate_gtest") {
     split_target = string_split(target_name, "_")
     _api = split_target[0]
@@ -2123,6 +2125,7 @@ group("angle_tests") {
       ":angle_deqp_khr_gles31_tests",
       ":angle_deqp_khr_gles32_tests",
       ":angle_deqp_khr_gles3_tests",
+      ":angle_deqp_khr_glesext_tests",
       ":angle_deqp_khr_noctx_gles2_tests",
       ":angle_deqp_khr_noctx_gles32_tests",
       ":angle_deqp_khr_single_gles32_tests",

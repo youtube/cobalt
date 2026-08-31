@@ -44,8 +44,8 @@ component("app_restore") {
   public_deps = [
     "//ash/constants",
     "//base",
-    "//chromeos/ui/base:base",
-    "//components/account_id:account_id",
+    "//chromeos/ui/base",
+    "//components/account_id",
     "//components/services/app_service",
     "//components/sessions:session_id",
     "//components/tab_groups",
@@ -73,4 +73,8 @@ source_set("unit_tests") {
     "//ui/aura:test_support",
     "//ui/views:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

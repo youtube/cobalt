@@ -19,7 +19,7 @@ namespace webrtc {
 
 // Abstract interface for providing the audio data.
 // TODO(deadbeef): Rename this to AudioSourceInterface, and rename
-// webrtc::AudioSourceInterface to AudioTrackSourceInterface.
+// AudioSourceInterface to AudioTrackSourceInterface.
 class AudioSource {
  public:
   class Sink {
@@ -55,12 +55,5 @@ class AudioSource {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::AudioSource;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // MEDIA_BASE_AUDIO_SOURCE_H_

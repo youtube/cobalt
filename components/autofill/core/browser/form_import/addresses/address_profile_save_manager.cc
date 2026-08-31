@@ -9,6 +9,7 @@
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
+#include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -68,11 +69,9 @@ void AddressProfileSaveManager::MaybeOfferSavePrompt(
     // process without initiating a user prompt
     case AutofillProfileImportType::kDuplicateImport:
     case AutofillProfileImportType::kSilentUpdate:
-    case AutofillProfileImportType::kSilentUpdateForIncompleteProfile:
     case AutofillProfileImportType::kSuppressedNewProfile:
     case AutofillProfileImportType::kSuppressedConfirmableMergeAndSilentUpdate:
     case AutofillProfileImportType::kSuppressedConfirmableMerge:
-    case AutofillProfileImportType::kUnusableIncompleteProfile:
       import_process->AcceptWithoutPrompt();
       FinalizeProfileImport(std::move(import_process));
       return;
@@ -85,6 +84,7 @@ void AddressProfileSaveManager::MaybeOfferSavePrompt(
     case AutofillProfileImportType::kConfirmableMergeAndSilentUpdate:
     case AutofillProfileImportType::kProfileMigration:
     case AutofillProfileImportType::kProfileMigrationAndSilentUpdate:
+    case AutofillProfileImportType::kHomeAndWorkSuperset:
       if (address_data_manager().auto_accept_address_imports_for_testing()) {
         import_process->AcceptWithoutEdits();
         FinalizeProfileImport(std::move(import_process));
@@ -164,11 +164,15 @@ void AddressProfileSaveManager::AdjustNewProfileStrikes(
 
 void AddressProfileSaveManager::AdjustUpdateProfileStrikes(
     ProfileImportProcess& import_process) {
-  if (!import_process.is_confirmable_update()) {
+  // Importing Home & Work superset profiles technically adds a new profile, but
+  // the user experience is designed to mimic an update flow.
+  if (!import_process.is_confirmable_update() &&
+      import_process.import_type() !=
+          AutofillProfileImportType::kHomeAndWorkSuperset) {
     return;
   }
   CHECK(import_process.merge_candidate().has_value());
-  const std::string& candidate_guid = import_process.import_candidate()->guid();
+  const std::string& candidate_guid = import_process.merge_candidate()->guid();
   if (import_process.UserDeclined()) {
     address_data_manager().AddStrikeToBlockProfileUpdate(candidate_guid);
   } else if (import_process.UserAccepted()) {

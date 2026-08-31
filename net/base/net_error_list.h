@@ -21,6 +21,7 @@
 //   600-699 <Obsolete: FTP errors>
 //   700-799 Certificate manager errors
 //   800-899 DNS resolver errors
+//   900-999 Blob errors
 
 // An asynchronous IO operation is not yet complete.  This usually does not
 // indicate a fatal error.  Typically this error will be generated as a
@@ -121,8 +122,8 @@ NET_ERROR(CLEARTEXT_NOT_PERMITTED, -29)
 // The request was blocked by a Content Security Policy
 NET_ERROR(BLOCKED_BY_CSP, -30)
 
+// NET_ERROR(H2_OR_QUIC_REQUIRED, -31) was removed. It was:
 // The request was blocked because of no H/2 or QUIC session.
-NET_ERROR(H2_OR_QUIC_REQUIRED, -31)
 
 // The request was blocked by CORB or ORB.
 NET_ERROR(BLOCKED_BY_ORB, -32)
@@ -442,6 +443,13 @@ NET_ERROR(ECH_NOT_NEGOTIATED, -183)
 // ECH was enabled, the server was unable to decrypt the encrypted ClientHello,
 // and additionally did not present a certificate valid for the public name.
 NET_ERROR(ECH_FALLBACK_CERTIFICATE_INVALID, -184)
+
+// The proxy failed to create a tunnel for a reason that warrants trying an
+// alternate proxy. This error should cause the proxy to be marked as bad.
+// This is in contrast to ERR_TUNNEL_CONNECTION_FAILED which is used for errors
+// outside of the proxy's control and should not cause the proxy to be marked as
+// bad.
+NET_ERROR(PROXY_TUNNEL_REQUEST_FAILED, -185)
 
 // Certificate error codes
 //
@@ -1035,6 +1043,35 @@ NET_ERROR(DNS_NO_MATCHING_SUPPORTED_ALPN, -811)
 // When checking whether secure DNS can be used, the response returned for the
 // requested probe record either had no answer or was invalid.
 NET_ERROR(DNS_SECURE_PROBE_RECORD_INVALID, -814)
+
+// The following errors are for mapped from a subset of invalid
+// storage::BlobStatus.
+
+// The construction arguments are invalid. This is considered a bad IPC.
+NET_ERROR(BLOB_INVALID_CONSTRUCTION_ARGUMENTS, -900)
+
+// We don't have enough memory for the blob.
+NET_ERROR(BLOB_OUT_OF_MEMORY, -901)
+
+// We couldn't create or write to a file. File system error, like a full disk.
+NET_ERROR(BLOB_FILE_WRITE_FAILED, -902)
+
+// The renderer was destroyed while data was in transit.
+NET_ERROR(BLOB_SOURCE_DIED_IN_TRANSIT, -903)
+
+// The renderer destructed the blob before it was done transferring, and there
+// were no outstanding references (no one is waiting to read) to keep the
+// blob alive.
+NET_ERROR(BLOB_DEREFERENCED_WHILE_BUILDING, -904)
+
+// A blob that we referenced during construction is broken, or a browser-side
+// builder tries to build a blob with a blob reference that isn't finished
+// constructing.
+NET_ERROR(BLOB_REFERENCED_BLOB_BROKEN, -905)
+
+// A file that we referenced during construction is not accessible to the
+// renderer trying to create the blob.
+NET_ERROR(BLOB_REFERENCED_FILE_UNAVAILABLE, -906)
 
 // CAUTION: Before adding errors here, please check the ranges of errors written
 // in the top of this file.

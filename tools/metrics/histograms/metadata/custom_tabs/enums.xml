@@ -26,6 +26,15 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<!-- LINT.IfChange(ContextualCustomActionType) -->
+
+<enum name="ContextualCustomActionType">
+  <int value="0" label="Link"/>
+  <int value="1" label="Image"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/contextmenu/ChromeContextMenuPopulator.java:ContextualCustomActionType) -->
+
 <enum name="CustomTabsAuthScheme">
   <int value="0" label="Other/Custom"/>
   <int value="1" label="HTTP"/>
@@ -99,7 +108,9 @@ chromium-metrics-reviews@google.com.
   <int value="40" label="TWA origins EXTRA_ADDITIONAL_TRUSTED_ORIGINS"/>
   <int value="41" label="Url bar hiding EXTRA_ENABLE_URLBAR_HIDING"/>
   <int value="42" label="Translate specified EXTRA_AUTO_TRANSLATE_LANGUAGE"/>
-  <int value="43" label="Experiment override EXTRA_AGA_EXPERIMENT_ENABLE"/>
+  <int value="43"
+      label="(Obsolete) Experiment override EXTRA_AGA_EXPERIMENT_ENABLE.
+             Removed 2025/07."/>
   <int value="44" label="Partial width custom tab CTF_PARTIAL_SIDE_SHEET"/>
   <int value="45" label="Break point EXTRA_ACTIVITY_SIDE_SHEET_BREAKPOINT_DP"/>
   <int value="46" label="Initial width EXTRA_INITIAL_ACTIVITY_WIDTH_PX"/>
@@ -140,15 +151,11 @@ chromium-metrics-reviews@google.com.
              EXTRA_OPEN_IN_BROWSER_STATE"/>
   <int value="64" label="Launch Handler API usage EXTRA_LAUNCH_HANDLER"/>
   <int value="65" label="File Handlers API usage EXTRA_FILE_HANDLERS"/>
+  <int value="66"
+      label="Custom context menu items EXTRA_CUSTOM_CONTENT_ACTIONS"/>
 </enum>
 
 <!--LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabsFeatureUsage.java:CustomTabsFeature) -->
-
-<enum name="CustomTabsMinimizedEvents">
-  <int value="0" label="Minimized into PiP"/>
-  <int value="1" label="Maximized from PiP"/>
-  <int value="2" label="PiP dismissed or destroyed"/>
-</enum>
 
 <enum name="CustomTabsMinimizedFeatureAvailability">
   <int value="0" label="Available"/>
@@ -159,6 +166,33 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Unavailable: PiP permission isn't granted"/>
   <int value="5" label="Unavailable: Device is on manufacturer exclude list"/>
 </enum>
+
+<!--LINT.IfChange(CustomTabsMtbHiddenReason) -->
+
+<enum name="CustomTabsMtbHiddenReason">
+  <int value="0" label="Other reason"/>
+  <int value="1" label="Invalid variant"/>
+  <int value="2" label="Duplicated action"/>
+  <int value="3" label="In CPA-only mode"/>
+  <int value="4" label="No space for button"/>
+  <int value="5" label="Toolbar width limit"/>
+  <int value="6" label="Omnibox enabled"/>
+</enum>
+
+<!--LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/features/toolbar/CustomTabMtbHiddenReason.java:CustomTabMtbHiddenReason) -->
+
+<!--LINT.IfChange(CustomTabsNavigationEvent) -->
+
+<enum name="CustomTabsNavigationEvent">
+  <int value="1" label="Navigation Started"/>
+  <int value="2" label="Navigation Finished"/>
+  <int value="3" label="Navigation Failed"/>
+  <int value="4" label="Navigation Aborted"/>
+  <int value="5" label="Tab Shown"/>
+  <int value="6" label="Tab Hidden"/>
+</enum>
+
+<!--LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/CustomTabsConnection.java:CustomTabsNavigationEvent) -->
 
 <enum name="CustomTabsParallelRequestStatusOnStart">
   <int value="0" label="No Parallel Request was requested"/>
@@ -203,6 +237,18 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Wrong referrer, invalid session"/>
 </enum>
 
+<!-- LINT.IfChange(FinishReason) -->
+
+<enum name="FinishReason">
+  <int value="0" label="User Navigation"/>
+  <int value="1" label="Reparenting"/>
+  <int value="2" label="Other"/>
+  <int value="3" label="Open in Browser"/>
+  <int value="4" label="Handled by OS"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/content/CustomTabActivityNavigationController.java:FinishReason) -->
+
 <enum name="GoogleBottomBarButtonEvent">
   <int value="0" label="Unknown button"/>
   <int value="1" label="Chrome Page Insights button"/>
@@ -242,6 +288,7 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Chrome - Reader mode"/>
   <int value="4" label="Chrome - Read later"/>
   <int value="5" label="Ephemeral Tab"/>
+  <int value="6" label="Chrome - Download Home"/>
 </enum>
 
 <enum name="MayLaunchUrlType">
@@ -321,14 +368,15 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(WebAppHeaderDisplayMode) -->
 
 <enum name="WebAppHeaderDisplayMode">
-  <int value="0" label="browser"/>
-  <int value="1" label="minimalUI"/>
-  <int value="2" label="standalone"/>
-  <int value="3" label="fullscreen"/>
-  <int value="4" label="windowControlsOverlay"/>
-  <int value="5" label="tabbed"/>
-  <int value="6" label="borderless"/>
-  <int value="7" label="pictureInPicture"/>
+  <int value="0" label="undefined"/>
+  <int value="1" label="browser"/>
+  <int value="2" label="minimalUI"/>
+  <int value="3" label="standalone"/>
+  <int value="4" label="fullscreen"/>
+  <int value="5" label="windowControlsOverlay"/>
+  <int value="6" label="tabbed"/>
+  <int value="7" label="borderless"/>
+  <int value="8" label="pictureInPicture"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/manifest/display_mode.mojom:DisplayMode)-->

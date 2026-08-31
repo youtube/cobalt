@@ -16,16 +16,20 @@
 #include <wrl/event.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
-#include <vector>
 
+#include "api/sequence_checker.h"
+#include "modules/desktop_capture/desktop_capture_options.h"
+#include "modules/desktop_capture/desktop_frame.h"
+#include "modules/desktop_capture/desktop_geometry.h"
+#include "modules/desktop_capture/shared_desktop_frame.h"
 #include "modules/desktop_capture/win/screen_capture_utils.h"
-#include "modules/desktop_capture/win/wgc_desktop_frame.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/win/create_direct3d_device.h"
 #include "rtc_base/win/get_activation_factory.h"
 #include "rtc_base/win/windows_version.h"
@@ -98,8 +102,7 @@ bool SizeHasChanged(ABI::Windows::Graphics::SizeInt32 size_new,
 }
 
 bool DoesWgcSkipStaticFrames() {
-  return (webrtc::rtc_win::GetVersion() >=
-          webrtc::rtc_win::Version::VERSION_WIN11_24H2);
+  return (rtc_win::GetVersion() >= rtc_win::Version::VERSION_WIN11_24H2);
 }
 
 }  // namespace
@@ -234,7 +237,7 @@ void WgcCaptureSession::EnsureFrame() {
 
   // We failed to process the frame, but we do have a frame so just return that.
   if (queue_.current_frame()) {
-    RTC_LOG(LS_ERROR) << "ProcessFrame failed, using existing frame: " << hr;
+    RTC_LOG(LS_VERBOSE) << "ProcessFrame failed, using existing frame: " << hr;
     return;
   }
 
@@ -580,6 +583,15 @@ HRESULT WgcCaptureSession::ProcessFrame() {
         // Mark resized frames as damaged.
         damage_region_.SetRect(DesktopRect::MakeSize(current_frame->size()));
       }
+    } else{
+      // Mark a `damage_region_` even if there is no previous frame. This
+      // condition does not create any increased overhead but is useful while
+      // using FullScreenWindowDetector, where it would create a new
+      // WgcCaptureSession(with no previous frame) for the slide show window but
+      // the DesktopCaptureDevice instance might have already received frames
+      // from the editor window's WgcCaptureSession which would have activated
+      // the zero-hertz mode.
+      damage_region_.SetRect(DesktopRect::MakeSize(current_frame->size()));
     }
   }
 

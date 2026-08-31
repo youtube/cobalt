@@ -193,14 +193,16 @@ RadicalVerticalParameters GetRadicalVerticalParameters(
 
 MinMaxSizes GetMinMaxSizesForVerticalStretchyOperator(
     const ComputedStyle& style,
-    UChar character) {
+    UChar character,
+    TextDirection direction) {
   // https://w3c.github.io/mathml-core/#dfn-preferred-inline-size-of-a-glyph-stretched-along-the-block-axis
   const SimpleFontData* font_data = style.GetFont()->PrimaryFont();
   MinMaxSizes sizes;
   if (!font_data)
     return sizes;
 
-  if (auto base_glyph = font_data->GlyphForCharacter(character)) {
+  if (auto base_glyph =
+          font_data->GlyphForMathCharacter(character, direction)) {
     sizes.Encompass(LayoutUnit(font_data->WidthForGlyph(base_glyph)));
 
     const HarfBuzzFace* harfbuzz_face =
@@ -246,7 +248,7 @@ bool IsOperatorWithSpecialShaping(const BlockNode& node) {
   // https://w3c.github.io/mathml-core/#layout-of-operators
   if (auto* element = DynamicTo<MathMLOperatorElement>(node.GetDOMNode())) {
     UChar32 base_code_point = element->GetTokenContent().code_point;
-    if (base_code_point == kNonCharacter ||
+    if (base_code_point == uchar::kNonCharacter ||
         !node.Style().GetFont()->PrimaryFont() ||
         !node.Style().GetFont()->PrimaryFont()->GlyphForCharacter(
             base_code_point)) {

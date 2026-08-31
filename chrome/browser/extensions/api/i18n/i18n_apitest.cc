@@ -15,6 +15,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 
 static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
 namespace extensions {
 
 using ExtensionI18nTest = ExtensionApiTest;
@@ -45,8 +46,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionI18nTest, I18NUpdate) {
   ResultCatcher catcher;
 
   // Test that the messages.json file is loaded and the i18n message is loaded.
-  ASSERT_TRUE(NavigateToURL(
-      embedded_test_server()->GetURL("/extensions/test_file.html")));
+  auto* web_contents = GetActiveWebContents();
+  ASSERT_TRUE(NavigateToURL(web_contents, embedded_test_server()->GetURL(
+                                              "/extensions/test_file.html")));
   EXPECT_TRUE(catcher.GetNextResult());
 
   std::u16string title;
@@ -60,8 +62,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionI18nTest, I18NUpdate) {
   ReloadExtension(extension->id());
 
   // Check that the i18n message is also changed.
-  ASSERT_TRUE(NavigateToURL(
-      embedded_test_server()->GetURL("/extensions/test_file.html")));
+  ASSERT_TRUE(NavigateToURL(web_contents, embedded_test_server()->GetURL(
+                                              "/extensions/test_file.html")));
   EXPECT_TRUE(catcher.GetNextResult());
 
   GetCurrentTabTitle(&title);

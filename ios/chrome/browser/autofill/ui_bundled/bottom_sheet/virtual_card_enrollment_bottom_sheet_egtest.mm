@@ -5,6 +5,7 @@
 #import <UIKit/UIKit.h>
 #import <XCTest/XCTest.h>
 
+#import "base/ios/ios_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/ios/wait_util.h"
 #import "base/time/time.h"
@@ -143,6 +144,9 @@ id<GREYMatcher> VirtualCardEnrollmentSkipButton() {
                                  forRequest:kGetSaveCardDetailsUrl
                               withErrorCode:net::HTTP_OK];
 
+  // Wait for the web view to appear.
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:chrome_test_util::WebViewMatcher()];
   // Fill the form.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::WebViewMatcher()]
       performAction:chrome_test_util::TapWebElementWithId(kFillFormId)];
@@ -273,6 +277,11 @@ id<GREYMatcher> VirtualCardEnrollmentSkipButton() {
 }
 
 - (void)testVirtualCardEnrollmentShowsLoadingAndConfirmationAfterAcceptPushed {
+  // TODO(crbug.com/437268290): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
+
   [self showVirtualCardEnrollmentBottomSheetAfterSaveCardBottomSheet:YES];
 
   // Avoid immediately failing due to missing access token.

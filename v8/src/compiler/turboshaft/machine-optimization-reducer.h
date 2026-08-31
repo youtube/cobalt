@@ -390,7 +390,7 @@ class MachineOptimizationReducer : public Next {
     }
     if (float f32_k; rep == FloatRepresentation::Float32() &&
                      matcher_.MatchFloat32Constant(input, &f32_k)) {
-      if (std::isnan(f32_k) && !signalling_nan_possible) {
+      if (std::isnan(f32_k) && !ensure_deterministic_nan) {
         return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
       }
       switch (kind) {
@@ -454,7 +454,7 @@ class MachineOptimizationReducer : public Next {
       }
     } else if (double f64_k; rep == FloatRepresentation::Float64() &&
                              matcher_.MatchFloat64Constant(input, &f64_k)) {
-      if (std::isnan(f64_k) && !signalling_nan_possible) {
+      if (std::isnan(f64_k) && !ensure_deterministic_nan) {
         return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
       }
       switch (kind) {
@@ -579,7 +579,7 @@ class MachineOptimizationReducer : public Next {
 
     // Place constant on the right for commutative operators.
     if (FloatBinopOp::IsCommutative(kind) && matcher_.Is<ConstantOp>(lhs) &&
-        !matcher_.Is<ConstantOp>(rhs)) {
+        !matcher_.Is<ConstantOp>(rhs) && !ensure_deterministic_nan) {
       return ReduceFloatBinop(rhs, lhs, kind, rep);
     }
 
@@ -587,58 +587,75 @@ class MachineOptimizationReducer : public Next {
     if (float k1, k2; rep == FloatRepresentation::Float32() &&
                       matcher_.MatchFloat32Constant(lhs, &k1) &&
                       matcher_.MatchFloat32Constant(rhs, &k2)) {
+#define CONSTANT_F32_CASE(kind, op)                            \
+  case Kind::kind: {                                           \
+    float result = op;                                         \
+    if (ensure_deterministic_nan && std::isnan(result)) break; \
+    return __ Float32Constant(result);                         \
+  }
       switch (kind) {
-        case Kind::kAdd:
-          return __ Float32Constant(k1 + k2);
-        case Kind::kMul:
-          return __ Float32Constant(k1 * k2);
-        case Kind::kSub:
-          return __ Float32Constant(k1 - k2);
-        case Kind::kMin:
-          return __ Float32Constant(JSMin(k1, k2));
-        case Kind::kMax:
-          return __ Float32Constant(JSMax(k1, k2));
-        case Kind::kDiv:
-          return __ Float32Constant(k1 / k2);
-        case Kind::kPower:
-          return __ Float32Constant(internal::math::pow(k1, k2));
-        case Kind::kAtan2:
-          return __ Float32Constant(base::ieee754::atan2(k1, k2));
+        CONSTANT_F32_CASE(kAdd, k1 + k2)
+        CONSTANT_F32_CASE(kMul, k1 * k2)
+        CONSTANT_F32_CASE(kSub, k1 - k2)
+        CONSTANT_F32_CASE(kMin, JSMin(k1, k2))
+        CONSTANT_F32_CASE(kMax, JSMax(k1, k2))
+        CONSTANT_F32_CASE(kDiv, k1 / k2)
+        CONSTANT_F32_CASE(kPower, i::math::pow(k1, k2))
+        CONSTANT_F32_CASE(kAtan2, base::ieee754::atan2(k1, k2));
         case Kind::kMod:
           UNREACHABLE();
       }
+#undef CONSTANT_F32_CASE
     }
     if (double k1, k2; rep == FloatRepresentation::Float64() &&
                        matcher_.MatchFloat64Constant(lhs, &k1) &&
                        matcher_.MatchFloat64Constant(rhs, &k2)) {
+#define CONSTANT_F64_CASE(kind, op)                            \
+  case Kind::kind: {                                           \
+    double result = op;                                        \
+    if (ensure_deterministic_nan && std::isnan(result)) break; \
+    return __ Float64Constant(result);                         \
+  }
       switch (kind) {
-        case Kind::kAdd:
-          return __ Float64Constant(k1 + k2);
-        case Kind::kMul:
-          return __ Float64Constant(k1 * k2);
-        case Kind::kSub:
-          return __ Float64Constant(k1 - k2);
-        case Kind::kMin:
-          return __ Float64Constant(JSMin(k1, k2));
-        case Kind::kMax:
-          return __ Float64Constant(JSMax(k1, k2));
-        case Kind::kDiv:
-          return __ Float64Constant(k1 / k2);
-        case Kind::kMod:
-          return __ Float64Constant(Modulo(k1, k2));
-        case Kind::kPower:
-          return __ Float64Constant(math::pow(k1, k2));
-        case Kind::kAtan2:
-          return __ Float64Constant(base::ieee754::atan2(k1, k2));
+        CONSTANT_F64_CASE(kAdd, k1 + k2)
+        CONSTANT_F64_CASE(kMul, k1 * k2)
+        CONSTANT_F64_CASE(kSub, k1 - k2)
+        CONSTANT_F64_CASE(kMin, JSMin(k1, k2))
+        CONSTANT_F64_CASE(kMax, JSMax(k1, k2))
+        CONSTANT_F64_CASE(kDiv, k1 / k2)
+        CONSTANT_F64_CASE(kMod, Modulo(k1, k2))
+        CONSTANT_F64_CASE(kPower, i::math::pow(k1, k2))
+        CONSTANT_F64_CASE(kAtan2, base::ieee754::atan2(k1, k2))
       }
+#undef CONSTANT_F64_CASE
     }
 
-    // lhs <op> NaN  =>  NaN
-    if (matcher_.MatchNaN(rhs) ||
-        (matcher_.MatchNaN(lhs) && kind != Kind::kPower)) {
-      // Return a quiet NaN since Wasm operations could have signalling NaN as
-      // input but not as output.
-      return __ FloatConstant(std::numeric_limits<double>::quiet_NaN(), rep);
+    // All NaN folding is disabled for Wasm; architectures disagree on which
+    // input to take in case both are NaN, sometimes it even depends on the
+    // exact NaN which one is propagated as the result.
+    // Even though the Wasm spec allows propagating any NaN input, we want
+    // determinism here for differential fuzzing across compilers.
+    if (!ensure_deterministic_nan) {
+      // NaN <op> rhs  =>  NaN (except for Kind::kPower).
+      // lhs <op> NaN  =>  NaN.
+      if (i::Float32 nan;
+          (matcher_.MatchFloat32Constant(lhs, &nan) && nan.is_nan() &&
+           kind != Kind::kPower) ||
+          (matcher_.MatchFloat32Constant(rhs, &nan) && nan.is_nan())) {
+        // Return a quiet NaN since Wasm operations could have signalling NaN as
+        // input but not as output.
+        return __ Float32Constant(std::numeric_limits<float>::quiet_NaN());
+      }
+
+      // Same for float64.
+      if (i::Float64 nan;
+          (matcher_.MatchFloat64Constant(lhs, &nan) && nan.is_nan() &&
+           kind != Kind::kPower) ||
+          (matcher_.MatchFloat64Constant(rhs, &nan) && nan.is_nan())) {
+        // Return a quiet NaN since Wasm operations could have signalling NaN as
+        // input but not as output.
+        return __ Float64Constant(std::numeric_limits<double>::quiet_NaN());
+      }
     }
 
     if (matcher_.Is<ConstantOp>(rhs)) {
@@ -652,6 +669,8 @@ class MachineOptimizationReducer : public Next {
           return __ FloatAdd(lhs, lhs, rep);
         }
         // lhs * -1  =>  -lhs
+        // Note: FloatNegate does not set the quiet bit so we cannot use this if
+        // signalling nans can happen.
         if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -1.0)) {
           return __ FloatNegate(lhs, rep);
         }
@@ -663,6 +682,8 @@ class MachineOptimizationReducer : public Next {
           return lhs;
         }
         // lhs / -1  =>  -lhs
+        // Note: FloatNegate does not set the quiet bit so we cannot use this if
+        // signalling nans can happen.
         if (!signalling_nan_possible && matcher_.MatchFloat(rhs, -1.0)) {
           return __ FloatNegate(lhs, rep);
         }
@@ -1291,7 +1312,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedSubOverflow32(k1, k2, &res);
             break;
         }
-        return __ Tuple(__ Word32Constant(res), __ Word32Constant(overflow));
+        return __ MakeTuple(__ Word32Constant(res),
+                            __ Word32Constant(overflow));
       }
     } else {
       DCHECK_EQ(rep, WordRepresentation::Word64());
@@ -1310,7 +1332,8 @@ class MachineOptimizationReducer : public Next {
             overflow = base::bits::SignedSubOverflow64(k1, k2, &res);
             break;
         }
-        return __ Tuple(__ Word64Constant(res), __ Word32Constant(overflow));
+        return __ MakeTuple(__ Word64Constant(res),
+                            __ Word32Constant(overflow));
       }
     }
 
@@ -1318,18 +1341,19 @@ class MachineOptimizationReducer : public Next {
     // left - 0  =>  (left, false)
     if (kind == any_of(Kind::kSignedAdd, Kind::kSignedSub) &&
         matcher_.MatchZero(right)) {
-      return __ Tuple(left, __ Word32Constant(0));
+      return __ MakeTuple(left, __ Word32Constant(0));
     }
 
     if (kind == Kind::kSignedMul) {
       if (int64_t k; matcher_.MatchIntegralWordConstant(right, rep, &k)) {
         // left * 0  =>  (0, false)
         if (k == 0) {
-          return __ Tuple(__ WordConstant(0, rep), __ Word32Constant(false));
+          return __ MakeTuple(__ WordConstant(0, rep),
+                              __ Word32Constant(false));
         }
         // left * 1  =>  (left, false)
         if (k == 1) {
-          return __ Tuple(left, __ Word32Constant(false));
+          return __ MakeTuple(left, __ Word32Constant(false));
         }
         // left * -1  =>  0 - left
         if (k == -1) {
@@ -1349,7 +1373,7 @@ class MachineOptimizationReducer : public Next {
       if (V<Word32> x; matcher_.MatchConstantShiftRightArithmeticShiftOutZeros(
                            left, &x, WordRepresentation::Word32(), &amount) &&
                        amount == 1) {
-        return __ Tuple(x, __ Word32Constant(0));
+        return __ MakeTuple(x, __ Word32Constant(0));
       }
 
       // t1 = UntagSmi(x)
@@ -1373,10 +1397,11 @@ class MachineOptimizationReducer : public Next {
                 // the smi could cause an overflow, so we do not optimize that
                 // here.
                 if (((k >> 31) & 0b1) == ((k >> 30) & 0b1)) {
-                  return __ Tuple(__ WordBinop(x, __ Word32Constant(k << 1),
-                                               bitwise_op_kind,
-                                               WordRepresentation::Word32()),
-                                  __ Word32Constant(0));
+                  return __ MakeTuple(
+                      __ WordBinop(x, __ Word32Constant(k << 1),
+                                   bitwise_op_kind,
+                                   WordRepresentation::Word32()),
+                      __ Word32Constant(0));
                 }
                 break;
               default:
@@ -2885,9 +2910,13 @@ class MachineOptimizationReducer : public Next {
   JSHeapBroker* broker = __ data() -> broker();
   const OperationMatcher& matcher_ = __ matcher();
 #if V8_ENABLE_WEBASSEMBLY
+  // Note: `signalling_nan_possible` and `ensure_deterministic_nan` are always
+  // the same value; we introduce both to better express intent at use sites.
   const bool signalling_nan_possible = __ data() -> is_wasm();
+  const bool ensure_deterministic_nan = signalling_nan_possible;
 #else
   static constexpr bool signalling_nan_possible = false;
+  static constexpr bool ensure_deterministic_nan = false;
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

@@ -23,7 +23,6 @@
 #include <openssl/bytestring.h>
 #include <openssl/crypto.h>
 #include <openssl/ctrdrbg.h>
-#include <openssl/des.h>
 #include <openssl/dh.h>
 #include <openssl/ec_key.h>
 #include <openssl/ecdsa.h>
@@ -87,10 +86,6 @@ static int run_test() {
   static const uint8_t kAESKey[16] = "BoringCrypto Ky";
   static const uint8_t kPlaintext[64] =
       "BoringCryptoModule FIPS KAT Encryption and Decryption Plaintext";
-  static const DES_cblock kDESKey1 = {"BCMDES1"};
-  static const DES_cblock kDESKey2 = {"BCMDES2"};
-  static const DES_cblock kDESKey3 = {"BCMDES3"};
-  static const DES_cblock kDESIV = {"BCMDESI"};
   static const uint8_t kPlaintextSHA256[32] = {
       0x37, 0xbd, 0x70, 0x53, 0x72, 0xfc, 0xd4, 0x03, 0x79, 0x70, 0xfb,
       0x06, 0x95, 0xb1, 0x2a, 0x82, 0x48, 0xe1, 0x3e, 0xf2, 0x33, 0xfb,
@@ -103,18 +98,40 @@ static int run_test() {
       "DBRG Reseed Entropy                            ";
 
   AES_KEY aes_key;
-  uint8_t aes_iv[16];
-  uint8_t output[256];
 
-  /* AES-CBC Encryption */
-  memset(aes_iv, 0, sizeof(aes_iv));
   if (AES_set_encrypt_key(kAESKey, 8 * sizeof(kAESKey), &aes_key) != 0) {
     printf("AES_set_encrypt_key failed\n");
     return 0;
   }
 
-  printf("About to AES-CBC encrypt ");
+  /* AES-KW */
   hexdump(kPlaintext, sizeof(kPlaintext));
+
+  printf("About to do AES-KW");
+  uint8_t output[256];
+  const int kw_len = AES_wrap_key(&aes_key, nullptr, output, kPlaintext, 16);
+  if (kw_len == -1) {
+    printf("AES_wrap_key failed\n");
+    return 0;
+  }
+  printf("  got ");
+  hexdump(output, kw_len);
+
+  /* AES-KWP */
+  printf("About to do AES-KWP");
+  size_t out_len;
+  if (!AES_wrap_key_padded(&aes_key, output, &out_len, sizeof(output),
+                           kPlaintext, 16)) {
+    printf("AES_wrap_key_padded failed\n");
+    return 0;
+  }
+  printf(" got ");
+  hexdump(output, out_len);
+
+  /* AES-CBC Encryption */
+  uint8_t aes_iv[16];
+  memset(aes_iv, 0, sizeof(aes_iv));
+  printf("About to AES-CBC encrypt ");
   AES_cbc_encrypt(kPlaintext, output, sizeof(kPlaintext), &aes_key, aes_iv,
                   AES_ENCRYPT);
   printf("  got ");
@@ -133,63 +150,74 @@ static int run_test() {
   printf("  got ");
   hexdump(output, sizeof(kPlaintext));
 
-  size_t out_len;
   uint8_t nonce[EVP_AEAD_MAX_NONCE_LENGTH];
   OPENSSL_memset(nonce, 0, sizeof(nonce));
-  bssl::ScopedEVP_AEAD_CTX aead_ctx;
-  if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_gcm(), kAESKey,
-                         sizeof(kAESKey), 0, NULL)) {
-    printf("EVP_AEAD_CTX_init failed\n");
-    return 0;
+
+  /* AES-CCM */
+  {
+    bssl::ScopedEVP_AEAD_CTX aead_ctx;
+    if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_ccm_bluetooth(),
+                           kAESKey, sizeof(kAESKey), 0, NULL)) {
+      printf("EVP_AEAD_CTX_init failed\n");
+      return 0;
+    }
+    printf("About to AES-CCM seal ");
+    hexdump(kPlaintext, sizeof(kPlaintext));
+    if (!EVP_AEAD_CTX_seal(
+            aead_ctx.get(), output, &out_len, sizeof(output), nonce,
+            EVP_AEAD_nonce_length(EVP_aead_aes_128_ccm_bluetooth()), kPlaintext,
+            sizeof(kPlaintext), NULL, 0)) {
+      printf("AES-CCM encrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
+
+    /* AES-CCM Decryption */
+    printf("About to AES-CCM open ");
+    hexdump(output, out_len);
+    if (!EVP_AEAD_CTX_open(
+            aead_ctx.get(), output, &out_len, sizeof(output), nonce,
+            EVP_AEAD_nonce_length(EVP_aead_aes_128_ccm_bluetooth()), output,
+            out_len, NULL, 0)) {
+      printf("AES-GCM decrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
   }
 
   /* AES-GCM Encryption */
-  printf("About to AES-GCM seal ");
-  hexdump(output, sizeof(kPlaintext));
-  if (!EVP_AEAD_CTX_seal(aead_ctx.get(), output, &out_len, sizeof(output),
-                         nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
-                         kPlaintext, sizeof(kPlaintext), NULL, 0)) {
-    printf("AES-GCM encrypt failed\n");
-    return 0;
+  {
+    bssl::ScopedEVP_AEAD_CTX aead_ctx;
+    if (!EVP_AEAD_CTX_init(aead_ctx.get(), EVP_aead_aes_128_gcm(), kAESKey,
+                           sizeof(kAESKey), 0, NULL)) {
+      printf("EVP_AEAD_CTX_init failed\n");
+      return 0;
+    }
+    printf("About to AES-GCM seal ");
+    hexdump(kPlaintext, sizeof(kPlaintext));
+    if (!EVP_AEAD_CTX_seal(aead_ctx.get(), output, &out_len, sizeof(output),
+                           nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
+                           kPlaintext, sizeof(kPlaintext), NULL, 0)) {
+      printf("AES-GCM encrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
+
+    /* AES-GCM Decryption */
+    printf("About to AES-GCM open ");
+    hexdump(output, out_len);
+    if (!EVP_AEAD_CTX_open(aead_ctx.get(), output, &out_len, sizeof(output),
+                           nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
+                           output, out_len, NULL, 0)) {
+      printf("AES-GCM decrypt failed\n");
+      return 0;
+    }
+    printf("  got ");
+    hexdump(output, out_len);
   }
-  printf("  got ");
-  hexdump(output, out_len);
-
-  /* AES-GCM Decryption */
-  printf("About to AES-GCM open ");
-  hexdump(output, out_len);
-  if (!EVP_AEAD_CTX_open(aead_ctx.get(), output, &out_len, sizeof(output),
-                         nonce, EVP_AEAD_nonce_length(EVP_aead_aes_128_gcm()),
-                         output, out_len, NULL, 0)) {
-    printf("AES-GCM decrypt failed\n");
-    return 0;
-  }
-  printf("  got ");
-  hexdump(output, out_len);
-
-  DES_key_schedule des1, des2, des3;
-  DES_cblock des_iv;
-  DES_set_key(&kDESKey1, &des1);
-  DES_set_key(&kDESKey2, &des2);
-  DES_set_key(&kDESKey3, &des3);
-
-  /* 3DES Encryption */
-  memcpy(&des_iv, &kDESIV, sizeof(des_iv));
-  printf("About to 3DES-CBC encrypt ");
-  hexdump(kPlaintext, sizeof(kPlaintext));
-  DES_ede3_cbc_encrypt(kPlaintext, output, sizeof(kPlaintext), &des1, &des2,
-                       &des3, &des_iv, DES_ENCRYPT);
-  printf("  got ");
-  hexdump(output, sizeof(kPlaintext));
-
-  /* 3DES Decryption */
-  memcpy(&des_iv, &kDESIV, sizeof(des_iv));
-  printf("About to 3DES-CBC decrypt ");
-  hexdump(kPlaintext, sizeof(kPlaintext));
-  DES_ede3_cbc_encrypt(output, output, sizeof(kPlaintext), &des1, &des2, &des3,
-                       &des_iv, DES_DECRYPT);
-  printf("  got ");
-  hexdump(output, sizeof(kPlaintext));
 
   /* SHA-1 */
   printf("About to SHA-1 hash ");

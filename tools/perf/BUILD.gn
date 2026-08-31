@@ -7,6 +7,7 @@ COMMON_PERF_DATA = [
   "//third_party/crossbench/cb.py",
   "//third_party/crossbench/crossbench/",
   "//third_party/crossbench/config/",
+  "//third_party/crossbench/protoc/",
 ]
 
 if (!is_android) {
@@ -22,11 +23,15 @@ if (!is_android) {
     }
   }
 } else {
+  import("//build/config/android/config.gni")
   template("perf_android_template") {
     forward_variables_from(invoker, [ "telemetry_target_suffix" ])
     group(target_name) {
       testonly = true
       data = COMMON_PERF_DATA
+      if (enable_chrome_android_internal) {
+        data += [ "//clank/android_webview/tools/crossbench_config/" ]
+      }
       data_deps = [
         ":perf_without_chrome",
         "//chrome/test/chromedriver:chromedriver_server($host_toolchain)",

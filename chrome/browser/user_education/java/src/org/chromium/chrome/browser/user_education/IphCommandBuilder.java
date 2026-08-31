@@ -44,6 +44,7 @@ public class IphCommandBuilder {
     private @Nullable Rect mAnchorRect;
     private boolean mRemoveArrow;
     private boolean mShowTextBubble = true;
+    private boolean mEnableSnoozeMode;
 
     @AnchoredPopupWindow.VerticalOrientation
     private int mPreferredVerticalOrientation =
@@ -251,6 +252,17 @@ public class IphCommandBuilder {
     }
 
     /**
+     * @param enableSnoozeMode Whether snooze mode is on. In snooze mode, the IPH will be fully
+     *     dismissed by an inside touch, but will be snoozed by any other dismiss. The snooze
+     *     interval and the max limit are defined in the feature definition. See
+     *     components/feature_engagement/README.md#SnoozeParams.
+     */
+    public IphCommandBuilder setEnableSnoozeMode(boolean enableSnoozeMode) {
+        mEnableSnoozeMode = enableSnoozeMode;
+        return this;
+    }
+
+    /**
      * @return an (@see IphCommand) containing the accumulated state of this builder.
      */
     public IphCommand build() {
@@ -288,7 +300,8 @@ public class IphCommandBuilder {
                     mRemoveArrow,
                     mShowTextBubble,
                     mPreferredVerticalOrientation,
-                    mInsetRect);
+                    mInsetRect,
+                    mEnableSnoozeMode);
         }
     }
 }

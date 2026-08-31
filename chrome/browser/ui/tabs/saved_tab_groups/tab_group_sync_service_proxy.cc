@@ -26,6 +26,7 @@
 #include "components/saved_tab_groups/public/saved_tab_group_tab.h"
 #include "components/saved_tab_groups/public/tab_group_sync_service.h"
 #include "components/saved_tab_groups/public/types.h"
+#include "components/saved_tab_groups/public/versioning_message_controller.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings.h"
@@ -84,6 +85,15 @@ void TabGroupSyncServiceProxy::UpdateGroupPosition(
 
   if (new_index.has_value()) {
     service_->model()->ReorderGroupLocally(sync_id, new_index.value());
+  }
+}
+
+void TabGroupSyncServiceProxy::UpdateBookmarkNodeId(
+    const base::Uuid& sync_id,
+    std::optional<base::Uuid> bookmark_node_id) {
+  const SavedTabGroup* tab_group = service_->model()->Get(sync_id);
+  if (tab_group) {
+    service_->model()->UpdateBookmarkNodeId(sync_id, bookmark_node_id);
   }
 }
 
@@ -192,14 +202,19 @@ void TabGroupSyncServiceProxy::UnsaveGroup(const LocalTabGroupID& local_id) {
 
 void TabGroupSyncServiceProxy::MakeTabGroupShared(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id,
+    const syncer::CollaborationId& collaboration_id,
     TabGroupSharingCallback callback) {
   NOTIMPLEMENTED();
 }
 
 void TabGroupSyncServiceProxy::MakeTabGroupSharedForTesting(
     const LocalTabGroupID& local_group_id,
-    std::string_view collaboration_id) {
+    const syncer::CollaborationId& collaboration_id) {
+  NOTIMPLEMENTED();
+}
+
+void TabGroupSyncServiceProxy::MakeTabGroupUnsharedForTesting(
+    const LocalTabGroupID& local_group_id) {
   NOTIMPLEMENTED();
 }
 
@@ -375,6 +390,16 @@ std::unique_ptr<std::vector<SavedTabGroup>>
 TabGroupSyncServiceProxy::TakeSharedTabGroupsAvailableAtStartupForMessaging() {
   // This method should only exist and be used in the underlying service.
   NOTREACHED();
+}
+
+bool TabGroupSyncServiceProxy::HadSharedTabGroupsLastSession(
+    bool open_shared_tab_groups) {
+  return false;
+}
+
+VersioningMessageController*
+TabGroupSyncServiceProxy::GetVersioningMessageController() {
+  return nullptr;
 }
 
 void TabGroupSyncServiceProxy::OnLastTabClosed(

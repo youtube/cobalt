@@ -38,6 +38,7 @@
 #include "ui/ozone/platform/wayland/host/wayland_connection.h"
 #include "ui/ozone/platform/wayland/host/wayland_cursor_position.h"
 #include "ui/ozone/platform/wayland/host/wayland_keyboard.h"
+#include "ui/ozone/platform/wayland/host/wayland_tablet_tool.h"
 #include "ui/ozone/platform/wayland/host/wayland_window.h"
 #include "ui/ozone/platform/wayland/host/wayland_window_drag_controller.h"
 #include "ui/ozone/platform/wayland/host/wayland_window_manager.h"
@@ -126,7 +127,7 @@ struct WaylandEventSource::TouchPoint {
   TouchPoint(gfx::PointF location, WaylandWindow* current_window);
   ~TouchPoint() = default;
 
-  raw_ptr<WaylandWindow, DanglingUntriaged> window;
+  raw_ptr<WaylandWindow> window;
   gfx::PointF last_known_location;
 };
 
@@ -224,8 +225,9 @@ void WaylandEventSource::OnKeyboardFocusChanged(WaylandWindow* window,
                                                 bool focused) {
   DCHECK(window);
 #if DCHECK_IS_ON()
-  if (!focused)
+  if (!focused) {
     DCHECK_EQ(window, window_manager_->GetCurrentKeyboardFocusedWindow());
+  }
 #endif
   window_manager_->SetKeyboardFocusedWindow(focused ? window : nullptr);
 }
@@ -358,8 +360,9 @@ void WaylandEventSource::OnPointerFocusChanged(
     }
   }
 
-  if (!closure.is_null())
+  if (!closure.is_null()) {
     std::move(closure).Run();
+  }
 }
 
 void WaylandEventSource::OnPointerButtonEvent(
@@ -383,8 +386,9 @@ void WaylandEventSource::OnPointerButtonEvent(
 
   WaylandWindow* prev_focused_window =
       window_manager_->GetCurrentPointerFocusedWindow();
-  if (window)
+  if (window) {
     window_manager_->SetPointerFocusedWindow(window);
+  }
 
   auto closure = base::BindOnce(
       &WaylandEventSource::OnPointerButtonEventInternal, base::Unretained(this),
@@ -414,14 +418,16 @@ void WaylandEventSource::OnPointerButtonEvent(
     }
   }
 
-  if (!closure.is_null())
+  if (!closure.is_null()) {
     std::move(closure).Run();
+  }
 }
 
 void WaylandEventSource::OnPointerButtonEventInternal(WaylandWindow* window,
                                                       EventType type) {
-  if (window)
+  if (window) {
     window_manager_->SetPointerFocusedWindow(window);
+  }
 }
 
 void WaylandEventSource::OnPointerMotionEvent(
@@ -431,7 +437,7 @@ void WaylandEventSource::OnPointerMotionEvent(
     bool is_synthesized) {
   pointer_location_ = location;
 
-  int flags = pointer_flags_ | keyboard_modifiers_;
+  int flags = pointer_flags_ | keyboard_modifiers_ | tablet_tool_buttons_;
   if (is_synthesized) {
     flags |= EF_IS_SYNTHESIZED;
   }
@@ -440,8 +446,9 @@ void WaylandEventSource::OnPointerMotionEvent(
   auto* target = window_manager_->GetCurrentPointerFocusedWindow();
 
   // A window may be deleted when the event arrived from the server.
-  if (!target)
+  if (!target) {
     return;
+  }
 
   if (dispatch_policy == wl::EventDispatchPolicy::kImmediate) {
     SetTargetAndDispatchEvent(&event, target);
@@ -455,21 +462,15 @@ void WaylandEventSource::OnPointerAxisEvent(
     const gfx::Vector2dF& offset,
     std::optional<base::TimeTicks> timestamp,
     bool is_high_resolution) {
-  // Wayland compositors send axis events with values in the surface coordinate
-  // space. They send a value of 10 per mouse wheel click by convention, so
-  // clients (e.g. GTK+) typically scale down by this amount to convert to
-  // discrete step coordinates. wl_pointer version 5 improves the situation by
-  // adding axis sources and discrete axis events.
-  static const double kAxisValueScale = 10.0;
   EnsurePointerScrollData(timestamp);
   if (is_high_resolution == pointer_scroll_data_->is_high_resolution) {
-    pointer_scroll_data_->dx += offset.x() / kAxisValueScale;
-    pointer_scroll_data_->dy += offset.y() / kAxisValueScale;
+    pointer_scroll_data_->dx += offset.x();
+    pointer_scroll_data_->dy += offset.y();
   } else if (!is_high_resolution) {
     return;
   } else {
-    pointer_scroll_data_->dx = offset.x() / kAxisValueScale;
-    pointer_scroll_data_->dy = offset.y() / kAxisValueScale;
+    pointer_scroll_data_->dx = offset.x();
+    pointer_scroll_data_->dy = offset.y();
   }
   pointer_scroll_data_->is_high_resolution = is_high_resolution;
 }
@@ -530,8 +531,9 @@ void WaylandEventSource::OnPointerFrameEvent() {
   last_pointer_frame_time_ = now;
 
   auto* target = window_manager_->GetCurrentPointerFocusedWindow();
-  if (!target)
+  if (!target) {
     return;
+  }
 
   while (!pointer_frames_.empty()) {
     // It is safe to pop the first queued event for processing.
@@ -539,8 +541,9 @@ void WaylandEventSource::OnPointerFrameEvent() {
     pointer_frames_.pop_front();
 
     SetTargetAndDispatchEvent(pointer_frame->event.get(), target);
-    if (!pointer_frame->completion_cb.is_null())
+    if (!pointer_frame->completion_cb.is_null()) {
       std::move(pointer_frame->completion_cb).Run();
+    }
   }
 }
 
@@ -558,6 +561,78 @@ void WaylandEventSource::OnPointerAxisStopEvent(uint32_t axis,
     pointer_scroll_data_->dx = 0;
   }
   pointer_scroll_data_->is_axis_stop = true;
+}
+
+void WaylandEventSource::OnTabletToolProximityIn(WaylandWindow* window,
+                                                 const gfx::PointF& location,
+                                                 const PointerDetails& details,
+                                                 base::TimeTicks time) {
+  WaylandWindow* old_focus = tablet_tool_focused_window_.get();
+  if (old_focus && old_focus != window) {
+    OnTabletToolProximityOut(time);
+  }
+  tablet_tool_focused_window_ = window->AsWeakPtr();
+  tablet_tool_location_ = location;
+
+  MouseEvent event(EventType::kMouseEntered, tablet_tool_location_,
+                   tablet_tool_location_, time, keyboard_modifiers_, 0,
+                   details);
+  SetTargetAndDispatchEvent(&event, window);
+  if (tablet_tool_buttons_) {
+    // Release any buttons that were pressed during a DnD session.
+    OnTabletToolButton(tablet_tool_buttons_, /*pressed=*/false, details, time);
+  }
+}
+
+void WaylandEventSource::OnTabletToolProximityOut(base::TimeTicks time) {
+  if (!tablet_tool_focused_window_) {
+    return;
+  }
+
+  MouseEvent event(EventType::kMouseExited, tablet_tool_location_,
+                   tablet_tool_location_, time, keyboard_modifiers_, 0);
+  SetTargetAndDispatchEvent(&event, tablet_tool_focused_window_.get());
+  tablet_tool_focused_window_ = nullptr;
+  // Intentionally not resetting `tablet_tool_buttons_` since the button state
+  // should still be treated as pressed during a DnD.
+}
+
+void WaylandEventSource::OnTabletToolMotion(const gfx::PointF& location,
+                                            const PointerDetails& details,
+                                            base::TimeTicks time) {
+  if (!tablet_tool_focused_window_) {
+    return;
+  }
+
+  tablet_tool_location_ = location;
+  EventType type = tablet_tool_buttons_ != 0 ? EventType::kMouseDragged
+                                             : EventType::kMouseMoved;
+  MouseEvent event(type, tablet_tool_location_, tablet_tool_location_, time,
+                   keyboard_modifiers_ | tablet_tool_buttons_, 0, details);
+  SetTargetAndDispatchEvent(&event, tablet_tool_focused_window_.get());
+}
+
+void WaylandEventSource::OnTabletToolButton(int32_t button,
+                                            bool pressed,
+                                            const PointerDetails& details,
+                                            base::TimeTicks time) {
+  if (!tablet_tool_focused_window_) {
+    return;
+  }
+
+  EventType type =
+      pressed ? EventType::kMousePressed : EventType::kMouseReleased;
+  if (pressed) {
+    tablet_tool_buttons_ |= button;
+  } else {
+    tablet_tool_buttons_ &= ~button;
+  }
+
+  // `button` should be included in `flags` even for button release events.
+  int flags = keyboard_modifiers_ | tablet_tool_buttons_ | button;
+  MouseEvent event(type, tablet_tool_location_, tablet_tool_location_, time,
+                   flags, button, details);
+  SetTargetAndDispatchEvent(&event, tablet_tool_focused_window_.get());
 }
 
 void WaylandEventSource::OnTouchPressEvent(
@@ -665,8 +740,9 @@ void WaylandEventSource::SetTouchTargetAndDispatchTouchEvent(
   auto iter = touch_points_.find(event->pointer_details().id);
   auto target = iter != touch_points_.end() ? iter->second->window : nullptr;
   // Skip if the touch target has alrady been removed.
-  if (!target.get())
+  if (!target.get()) {
     return;
+  }
   SetTargetAndDispatchEvent(event, target.get());
 }
 
@@ -705,8 +781,9 @@ void WaylandEventSource::OnTouchCancelEvent() {
   // session is started on the server, eg Exo.
   // On Chrome, this event would actually abort the whole drag'n drop
   // session on the client side.
-  if (connection_->IsDragInProgress())
+  if (connection_->IsDragInProgress()) {
     return;
+  }
 
   gfx::PointF location;
   base::TimeTicks timestamp = base::TimeTicks::Now();
@@ -727,8 +804,9 @@ void WaylandEventSource::OnTouchFrame() {
     touch_frames_.pop_front();
 
     SetTouchTargetAndDispatchTouchEvent(touch_frame->event->AsTouchEvent());
-    if (!touch_frame->completion_cb.is_null())
+    if (!touch_frame->completion_cb.is_null()) {
       std::move(touch_frame->completion_cb).Run();
+    }
   }
 }
 
@@ -748,8 +826,9 @@ void WaylandEventSource::OnTouchFocusChanged(WaylandWindow* window) {
 
 std::vector<PointerId> WaylandEventSource::GetActiveTouchPointIds() {
   std::vector<PointerId> pointer_ids;
-  for (auto& touch_point : touch_points_)
+  for (auto& touch_point : touch_points_) {
     pointer_ids.push_back(touch_point.first);
+  }
   return pointer_ids;
 }
 
@@ -765,8 +844,9 @@ void WaylandEventSource::OnPinchEvent(EventType event_type,
                                       std::optional<float> scale_delta) {
   GestureEventDetails details(event_type);
   details.set_device_type(GestureDeviceType::DEVICE_TOUCHPAD);
-  if (scale_delta)
+  if (scale_delta) {
     details.set_scale(*scale_delta);
+  }
 
   auto location = pointer_location_ + delta;
   GestureEvent event(location.x(), location.y(), 0 /* flags */, timestamp,
@@ -775,8 +855,9 @@ void WaylandEventSource::OnPinchEvent(EventType event_type,
 
   auto* target = window_manager_->GetCurrentPointerFocusedWindow();
   // A window may be deleted when the event arrived from the server.
-  if (!target)
+  if (!target) {
     return;
+  }
 
   SetTargetAndDispatchEvent(&event, target);
 }
@@ -820,10 +901,11 @@ void WaylandEventSource::OnHoldEvent(EventType event_type,
 }
 
 void WaylandEventSource::SetRelativePointerMotionEnabled(bool enabled) {
-  if (enabled)
+  if (enabled) {
     relative_pointer_location_ = pointer_location_;
-  else
+  } else {
     relative_pointer_location_.reset();
+  }
 }
 
 void WaylandEventSource::OnRelativePointerMotion(const gfx::Vector2dF& delta,
@@ -879,8 +961,9 @@ void WaylandEventSource::OnWindowRemoved(WaylandWindow* window) {
   if (auto* target_window = window_manager_->GetCurrentTouchFocusedWindow()) {
     auto drag_source = connection_->window_drag_controller()->drag_source();
     if (drag_source && *drag_source == mojom::DragEventSource::kTouch) {
-      for (auto& touch_point : touch_points_)
+      for (auto& touch_point : touch_points_) {
         touch_point.second->window = target_window;
+      }
       return;
     }
   }
@@ -982,8 +1065,9 @@ gfx::Vector2dF WaylandEventSource::ComputeFlingVelocity() {
 
 void WaylandEventSource::EnsurePointerScrollData(
     const std::optional<base::TimeTicks>& timestamp) {
-  if (!pointer_scroll_data_)
+  if (!pointer_scroll_data_) {
     pointer_scroll_data_ = PointerScrollData();
+  }
   if (!pointer_scroll_data_->timestamp && timestamp) {
     pointer_scroll_data_->timestamp = *timestamp;
   }
@@ -1055,8 +1139,9 @@ void WaylandEventSource::ProcessPointerScrollData() {
           std::make_unique<FrameData>(event, base::NullCallback()));
     }
 
-    if (pointer_scroll_data_set_.size() + 1 > kPointerScrollDataSetMaxSize)
+    if (pointer_scroll_data_set_.size() + 1 > kPointerScrollDataSetMaxSize) {
       pointer_scroll_data_set_.pop_back();
+    }
     pointer_scroll_data_set_.push_front(*pointer_scroll_data_);
   }
 

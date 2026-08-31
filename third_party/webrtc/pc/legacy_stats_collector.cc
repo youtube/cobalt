@@ -10,11 +10,10 @@
 
 #include "pc/legacy_stats_collector.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <optional>
@@ -1014,7 +1013,7 @@ void LegacyStatsCollector::ExtractSessionInfo_s(SessionStats& session_stats) {
       }
       int srtp_crypto_suite = channel_iter.srtp_crypto_suite;
       if (srtp_crypto_suite != kSrtpInvalidCryptoSuite &&
-          SrtpCryptoSuiteToName(srtp_crypto_suite).length()) {
+          !SrtpCryptoSuiteToName(srtp_crypto_suite).empty()) {
         channel_report->AddString(StatsReport::kStatsValueNameSrtpCipher,
                                   SrtpCryptoSuiteToName(srtp_crypto_suite));
       }
@@ -1394,7 +1393,7 @@ void LegacyStatsCollector::UpdateReportFromAudioTrack(
 
   auto audio_processor(track->GetAudioProcessor());
 
-  if (audio_processor.get()) {
+  if (audio_processor) {
     AudioProcessorInterface::AudioProcessorStatistics stats =
         audio_processor->GetStats(has_remote_tracks);
 

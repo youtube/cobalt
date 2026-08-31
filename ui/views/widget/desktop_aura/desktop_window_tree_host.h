@@ -6,6 +6,7 @@
 #define UI_VIEWS_WIDGET_DESKTOP_AURA_DESKTOP_WINDOW_TREE_HOST_H_
 
 #include <memory>
+#include <set>
 #include <string>
 
 #include "ui/aura/window_event_dispatcher.h"
@@ -48,6 +49,9 @@ class DesktopNativeWidgetAura;
 
 class VIEWS_EXPORT DesktopWindowTreeHost {
  public:
+  using WindowTreeHosts =
+      std::set<raw_ptr<aura::WindowTreeHost, SetExperimental>>;
+
   virtual ~DesktopWindowTreeHost() = default;
 
   static DesktopWindowTreeHost* Create(
@@ -65,7 +69,8 @@ class VIEWS_EXPORT DesktopWindowTreeHost {
   virtual void OnWidgetInitDone() = 0;
 
   virtual void OnWidgetThemeChanged(
-      ui::ColorProviderKey::ColorMode color_mode) = 0;
+      ui::ColorProviderKey::ColorMode color_mode,
+      std::optional<SkColor> background_color) = 0;
 
   // Called from DesktopNativeWidgetAura::OnWindowActivated().
   // `active`: if `DesktopNativeWidgetAura::content_window()` contains the
@@ -92,6 +97,9 @@ class VIEWS_EXPORT DesktopWindowTreeHost {
   virtual void CloseNow() = 0;
 
   virtual aura::WindowTreeHost* AsWindowTreeHost() = 0;
+
+  // Gets all the owned WindowTreeHosts of this host.
+  virtual WindowTreeHosts GetOwnedWindowTreeHosts();
 
   // There are two distinct ways for DesktopWindowTreeHosts's to be shown:
   // 1. This function is called. As this function is specific to
@@ -227,6 +235,10 @@ class VIEWS_EXPORT DesktopWindowTreeHost {
 
   // Updates window shape by clipping the canvas before paint starts.
   virtual void UpdateWindowShapeIfNeeded(const ui::PaintContext& context);
+
+  // A lifecycle hook invoked when the views::Widget associated with this window
+  // tree host was destroyed by the client.
+  virtual void ClientDestroyedWidget();
 
   virtual DesktopNativeCursorManager* GetSingletonDesktopNativeCursorManager();
 };

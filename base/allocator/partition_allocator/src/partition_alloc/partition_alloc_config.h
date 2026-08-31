@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_ALLOC_CONFIG_H_
 #define PARTITION_ALLOC_PARTITION_ALLOC_CONFIG_H_
 
@@ -167,26 +172,23 @@ constexpr bool kUseLazyCommit = false;
 
 // On these platforms, lock all the partitions before fork(), and unlock after.
 // This may be required on more platforms in the future.
-#define PA_CONFIG_HAS_ATFORK_HANDLER()                                      \
-  (PA_BUILDFLAG(IS_APPLE) || (PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || PA_BUILDFLAG(IS_CHROMEOS))
-// Enable shadow metadata.
-//
-// With this flag, shadow pools will be mapped, on which writable shadow
-// metadatas are placed, and the real metadatas are set to read-only instead.
-// This feature is only enabled with 64-bit environment because pools work
-// differently with 32-bits pointers (see glossary).
-#if PA_BUILDFLAG(ENABLE_SHADOW_METADATA_FOR_64_BITS_POINTERS) && \
+#define PA_CONFIG_HAS_ATFORK_HANDLER()                     \
+  (PA_BUILDFLAG(IS_APPLE) ||                               \
+   (PA_BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)) || \
+   PA_BUILDFLAG(IS_CHROMEOS))
+
+#if PA_BUILDFLAG(MOVE_METADATA_OUT_OF_GIGACAGE_FOR_64_BITS_POINTERS) && \
     PA_BUILDFLAG(HAS_64_BIT_POINTERS)
-#define PA_CONFIG_ENABLE_SHADOW_METADATA() 1
+#define PA_CONFIG_MOVE_METADATA_OUT_OF_GIGACAGE() 1
 #else
-#define PA_CONFIG_ENABLE_SHADOW_METADATA() 0
+#define PA_CONFIG_MOVE_METADATA_OUT_OF_GIGACAGE() 0
 #endif
 
 // PartitionAlloc uses PartitionRootEnumerator to acquire all
 // PartitionRoots at BeforeFork and to release at AfterFork.
-#if (PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
-     PA_CONFIG(HAS_ATFORK_HANDLER)) ||              \
-    PA_CONFIG(ENABLE_SHADOW_METADATA)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
+        PA_CONFIG(HAS_ATFORK_HANDLER) ||           \
+    PA_CONFIG(MOVE_METADATA_OUT_OF_GIGACAGE)
 #define PA_CONFIG_USE_PARTITION_ROOT_ENUMERATOR() 1
 #else
 #define PA_CONFIG_USE_PARTITION_ROOT_ENUMERATOR() 0
@@ -234,23 +236,6 @@ constexpr bool kUseLazyCommit = false;
 #define PA_CONFIG_PREFER_SMALLER_SLOT_SPANS() 1
 #else
 #define PA_CONFIG_PREFER_SMALLER_SLOT_SPANS() 0
-#endif
-
-// According to crbug.com/1349955#c24, macOS 11 has a bug where they assert that
-// malloc_size() of an allocation is equal to the requested size. This is
-// generally not true. The assert passed only because it happened to be true for
-// the sizes they requested. BRP changes that, hence can't be deployed without a
-// workaround.
-//
-// The bug has been fixed in macOS 12. Here we can only check the platform, and
-// the version is checked dynamically later.
-//
-// The settings has MAYBE_ in the name, because the final decision to enable is
-// based on the operarting system version check done at run-time.
-#if PA_BUILDFLAG(ENABLE_BACKUP_REF_PTR_SUPPORT) && PA_BUILDFLAG(IS_MAC)
-#define PA_CONFIG_MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK() 1
-#else
-#define PA_CONFIG_MAYBE_ENABLE_MAC11_MALLOC_SIZE_HACK() 0
 #endif
 
 #if PA_BUILDFLAG(ENABLE_POINTER_COMPRESSION)

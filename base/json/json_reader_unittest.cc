@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "base/json/json_reader.h"
 
 #include <stddef.h>
@@ -17,11 +12,13 @@
 #include <utility>
 
 #include "base/base_paths.h"
+#include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/path_service.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_expected_support.h"
@@ -657,8 +654,9 @@ TEST(JSONReaderTest, UTF8Input) {
     root = JSONReader::Read(noncharacter);
     ASSERT_TRUE(root);
     ASSERT_TRUE(root->is_string());
-    EXPECT_EQ(std::string(noncharacter + 1, strlen(noncharacter) - 2),
-              root->GetString());
+    UNSAFE_TODO(
+        EXPECT_EQ(std::string(noncharacter + 1, strlen(noncharacter) - 2),
+                  root->GetString()));
   }
 }
 

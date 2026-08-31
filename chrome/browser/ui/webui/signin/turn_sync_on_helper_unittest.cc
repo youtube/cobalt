@@ -43,7 +43,6 @@
 #include "chrome/browser/ui/webui/signin/signin_utils.h"
 #include "chrome/test/base/fake_profile_manager.h"
 #include "chrome/test/base/profile_waiter.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/account_id/account_id.h"
@@ -59,6 +58,7 @@
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/base/signin_pref_names.h"
 #include "components/signin/public/base/signin_switches.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
@@ -384,7 +384,7 @@ class WeakClosure {
 
 class TurnSyncOnHelperTest : public testing::Test {
  public:
-  TurnSyncOnHelperTest() : local_state_(TestingBrowserProcess::GetGlobal()) {}
+  TurnSyncOnHelperTest() = default;
 
   void SetUp() override {
     const base::FilePath temp_user_data_dir =
@@ -544,6 +544,8 @@ class TurnSyncOnHelperTest : public testing::Test {
         identity_manager()->FindExtendedAccountInfo(core_account_info);
     EXPECT_FALSE(account_info.IsEmpty());
     account_info.hosted_domain = kEnterpriseHostedDomain;
+    AccountCapabilitiesTestMutator(&account_info.capabilities)
+        .set_is_subject_to_enterprise_features(true);
     signin::UpdateAccountInfoForAccount(identity_manager(), account_info);
   }
 
@@ -804,7 +806,6 @@ class TurnSyncOnHelperTest : public testing::Test {
  private:
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  ScopedTestingLocalState local_state_;
   CoreAccountId account_id_;
   raw_ptr<TestingProfile, DanglingUntriaged> profile_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>

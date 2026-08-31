@@ -22,7 +22,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "components/services/storage/privileged/mojom/indexed_db_client_state_checker.mojom.h"
-#include "components/services/storage/public/mojom/partition.mojom.h"
 #include "components/services/storage/public/mojom/storage_service.mojom-forward.h"
 #include "content/browser/background_sync/background_sync_context_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
@@ -48,7 +47,6 @@
 #include "services/network/public/mojom/device_bound_sessions.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/network_context_client.mojom.h"
-#include "storage/browser/blob/blob_url_registry.h"
 #include "storage/browser/quota/quota_client_type.h"
 #include "storage/browser/quota/quota_settings.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -72,6 +70,7 @@ class DeviceBoundSessionAccessObserver;
 }  // namespace network
 
 namespace storage {
+class BlobUrlRegistry;
 struct BucketClientInfo;
 class SharedStorageManager;
 }
@@ -151,7 +150,7 @@ class CONTENT_EXPORT StoragePartitionImpl
       BackgroundSyncContextImpl* background_sync_context);
   void OverrideSharedWorkerServiceForTesting(
       std::unique_ptr<SharedWorkerServiceImpl> shared_worker_service);
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   void OverrideSharedStorageRuntimeManagerForTesting(
       std::unique_ptr<SharedStorageRuntimeManager>
           shared_storage_runtime_manager);
@@ -165,7 +164,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   void OverridePrivateAggregationManagerForTesting(
       std::unique_ptr<PrivateAggregationManagerImpl>
           private_aggregation_manager);
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   void OverrideDeviceBoundSessionManagerForTesting(
       std::unique_ptr<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager);
@@ -217,9 +216,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   ZoomLevelDelegate* GetZoomLevelDelegate() override;
   PlatformNotificationContextImpl* GetPlatformNotificationContext() override;
   InterestGroupManager* GetInterestGroupManager() override;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   BrowsingTopicsSiteDataManager* GetBrowsingTopicsSiteDataManager() override;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   leveldb_proto::ProtoDatabaseProvider* GetProtoDatabaseProvider() override;
   // Use outside content.
   AttributionDataModel* GetAttributionDataModel() override;
@@ -383,12 +382,6 @@ class CONTENT_EXPORT StoragePartitionImpl
       const scoped_refptr<net::HttpResponseHeaders>& head_headers,
       mojo::PendingRemote<network::mojom::AuthChallengeResponder>
           auth_challenge_responder) override;
-  void OnPrivateNetworkAccessPermissionRequired(
-      const GURL& url,
-      const net::IPAddress& ip_address,
-      const std::optional<std::string>& private_network_device_id,
-      const std::optional<std::string>& private_network_device_name,
-      OnPrivateNetworkAccessPermissionRequiredCallback callback) override;
   void OnLocalNetworkAccessPermissionRequired(
       OnLocalNetworkAccessPermissionRequiredCallback callback) override;
   void OnClearSiteData(
@@ -413,7 +406,7 @@ class CONTENT_EXPORT StoragePartitionImpl
       network::AdAuctionEventRecord event_record,
       const std::optional<url::Origin>& top_frame_origin) override;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   SharedStorageHeaderObserver* shared_storage_header_observer() {
     return shared_storage_header_observer_.get();
   }
@@ -421,22 +414,15 @@ class CONTENT_EXPORT StoragePartitionImpl
   SharedStorageHeaderObserver* shared_storage_header_observer() {
     return nullptr;
   }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
-
-#if BUILDFLAG(IS_MAC)
-  bool IsStorageServiceRemoteValid() const;
-#endif  // BUILDFLAG(IS_MAC)
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   // Can return nullptr while `this` is being destroyed.
   BrowserContext* browser_context() const;
 
-  // Returns the interface used to control the corresponding remote Partition in
-  // the Storage Service.
-  storage::mojom::Partition* GetStorageServicePartition();
+  std::optional<base::FilePath> GetStoragePartitionPath() const;
 
-  // Exposes the shared top-level connection to the Storage Service, for tests.
-  static mojo::Remote<storage::mojom::StorageService>&
-  GetStorageServiceForTesting();
+  // Returns the shared top-level connection to the Storage Service.
+  static mojo::Remote<storage::mojom::StorageService>& GetStorageService();
 
   // Binds the mojo endpoint for an `IDBFactory` (which implements
   // `window.indexedDB`).
@@ -499,7 +485,9 @@ class CONTENT_EXPORT StoragePartitionImpl
   CreateSharedDictionaryAccessObserverForServiceWorker();
 
   mojo::PendingRemote<network::mojom::URLLoaderNetworkServiceObserver>
-  CreateAuthCertObserverForServiceWorker(int process_id);
+  CreateURLLoaderNetworkObserverForServiceWorker(
+      int process_id,
+      const url::Origin& worker_origin);
 
   mojo::PendingRemote<network::mojom::DeviceBoundSessionAccessObserver>
   CreateDeviceBoundSessionObserverForServiceWorker();
@@ -515,6 +503,12 @@ class CONTENT_EXPORT StoragePartitionImpl
       const blink::StorageKey& storage_key,
       const std::string& namespace_id,
       mojo::PendingReceiver<blink::mojom::StorageArea> receiver);
+  // Informs `DOMStorageClient`s that session storage was disconnected. So they
+  // can reset connections to return to a usable state.
+  void ResetSessionStorageConnections();
+
+  // The same as above but for LocalStorage.
+  void ResetLocalStorageConnections();
 
   storage::QuotaManagerProxy* GetQuotaManagerProxy();
 
@@ -564,6 +558,12 @@ class CONTENT_EXPORT StoragePartitionImpl
   void SetClearNoncesInNetworkContextParamsForTesting(
       const base::TimeDelta& delay,
       base::RepeatingClosure callback);
+
+  // Increments/decrements/gets the active document count tracked in
+  // `active_document_per_nik_count_`.
+  void IncrementActiveDocumentCount(const net::NetworkIsolationKey& nik);
+  void DecrementActiveDocumentCount(const net::NetworkIsolationKey& nik);
+  int GetActiveDocumentCount(const net::NetworkIsolationKey& nik);
 
   enum class ContextType {
     kRenderFrameHostContext,
@@ -643,7 +643,7 @@ class CONTENT_EXPORT StoragePartitionImpl
         GlobalRenderFrameHostId global_render_frame_host_id);
 
     // Used when `type` is `kServiceWorkerContext`.
-    explicit URLLoaderNetworkContext(int process_id);
+    URLLoaderNetworkContext(int process_id, const url::Origin& worker_origin);
 
     // Used when `type` is `kNavigationRequestContext`.
     explicit URLLoaderNetworkContext(NavigationRequest& navigation_request);
@@ -658,6 +658,9 @@ class CONTENT_EXPORT StoragePartitionImpl
     }
 
     int process_id() const { return process_id_; }
+    const std::optional<url::Origin>& worker_origin() const {
+      return worker_origin_;
+    }
 
     // If `type_` is kServiceWorkerContext, returns nullptr. Otherwise returns
     // the WebContents.
@@ -672,6 +675,9 @@ class CONTENT_EXPORT StoragePartitionImpl
 
     // Only valid when `type_` is kServiceWorkerContext.
     int process_id_ = content::ChildProcessHost::kInvalidUniqueID;
+
+    // Only valid and non-nullopt when `type_` is kServiceWorkerContext.
+    std::optional<url::Origin> worker_origin_;
   };
 
   // `relative_partition_path` is the relative path under `profile_path` to the
@@ -705,11 +711,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   // storage partition instead.
   void Initialize(StoragePartitionImpl* fallback_for_blob_urls = nullptr);
 
-  // If we're running Storage Service out-of-process and it crashes, this
-  // re-establishes a connection and makes sure the service returns to a usable
-  // state.
-  void OnStorageServiceDisconnected();
-
   // Clears the data specified by the `storage_key` or
   // `filter_builder`/`storage_key_policy_matcher`. `storage_key` and
   // `filter_builder`/`storage_key_policy_matcher` will never both be populated.
@@ -741,7 +742,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   // first called or there is an error.
   void InitNetworkContext();
 
-  bool is_in_memory() { return config_.in_memory(); }
+  bool is_in_memory() const { return config_.in_memory(); }
 
   void CreateURLLoaderFactoryForBrowserProcessInternal(
       mojo::PendingRemote<network::mojom::URLLoaderFactory>* out_factory);
@@ -773,7 +774,6 @@ class CONTENT_EXPORT StoragePartitionImpl
   // querying its path abd BrowserContext is allowed.
   bool initialized_ = false;
 
-  mojo::Remote<storage::mojom::Partition> remote_partition_;
   scoped_refptr<QuotaContext> quota_context_;
   scoped_refptr<storage::QuotaManager> quota_manager_;
   scoped_refptr<storage::FileSystemContext> filesystem_context_;
@@ -811,23 +811,23 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<leveldb_proto::ProtoDatabaseProvider>
       proto_database_provider_;
   scoped_refptr<ContentIndexContextImpl> content_index_context_;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   std::unique_ptr<AttributionManager> attribution_manager_;
   std::unique_ptr<BrowsingTopicsSiteDataManager>
       browsing_topics_site_data_manager_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   std::unique_ptr<FontAccessManager> font_access_manager_;
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   std::unique_ptr<InterestGroupManagerImpl> interest_group_manager_;
   std::unique_ptr<AggregationService> aggregation_service_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #if BUILDFLAG(ENABLE_LIBRARY_CDMS)
   std::unique_ptr<CdmStorageManager> cdm_storage_manager_;
 #endif  // BUILDFLAG(ENABLE_LIBRARY_CDMS)
   mojo::Remote<network::mojom::DeviceBoundSessionManager>
       device_bound_session_manager_;
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // Owning pointer to the SharedStorageManager for this partition.
   std::unique_ptr<storage::SharedStorageManager> shared_storage_manager_;
 
@@ -841,7 +841,7 @@ class CONTENT_EXPORT StoragePartitionImpl
   std::unique_ptr<SharedStorageHeaderObserver> shared_storage_header_observer_;
 
   std::unique_ptr<PrivateAggregationManagerImpl> private_aggregation_manager_;
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   std::unique_ptr<CookieDeprecationLabelManagerImpl>
       cookie_deprecation_label_manager_;
@@ -977,6 +977,10 @@ class CONTENT_EXPORT StoragePartitionImpl
   // execute when the task completes in order to test it.
   base::RepeatingClosure clear_nonces_in_network_context_callback_for_testing_ =
       base::DoNothing();
+
+  // Tracks the number of active documents within the same StoragePartition,
+  // keyed by NetworkIsolationKeys.
+  std::map<net::NetworkIsolationKey, int> active_document_per_nik_count_;
 
   base::WeakPtrFactory<StoragePartitionImpl> weak_factory_{this};
 };

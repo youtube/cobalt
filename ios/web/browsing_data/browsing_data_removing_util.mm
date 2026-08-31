@@ -22,6 +22,7 @@ NSSet<NSString*>* ConvertClearBrowsingDataMask(ClearBrowsingDataMask types) {
   if (IsRemoveDataMaskSet(types, ClearBrowsingDataMask::kRemoveCacheStorage)) {
     [result addObject:WKWebsiteDataTypeDiskCache];
     [result addObject:WKWebsiteDataTypeMemoryCache];
+    [result addObject:WKWebsiteDataTypeFetchCache];
   }
   if (IsRemoveDataMaskSet(types, ClearBrowsingDataMask::kRemoveAppCache)) {
     [result addObject:WKWebsiteDataTypeOfflineWebApplicationCache];
@@ -38,6 +39,15 @@ NSSet<NSString*>* ConvertClearBrowsingDataMask(ClearBrowsingDataMask types) {
   }
   if (IsRemoveDataMaskSet(types, ClearBrowsingDataMask::kRemoveCookies)) {
     [result addObject:WKWebsiteDataTypeCookies];
+  }
+  if (IsRemoveDataMaskSet(
+          types, ClearBrowsingDataMask::kRemoveOriginPrivateFileSystem)) {
+    if (@available(iOS 16.0, *)) {
+      [result addObject:WKWebsiteDataTypeFileSystem];
+    }
+  }
+  if (IsRemoveDataMaskSet(types, ClearBrowsingDataMask::kRemoveServiceWorkers)) {
+    [result addObject:WKWebsiteDataTypeServiceWorkerRegistrations];
   }
   return result;
 }

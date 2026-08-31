@@ -15,8 +15,8 @@
 #include "cc/layers/surface_layer.h"
 #include "media/base/media_player_logging_id.h"
 #include "media/base/routing_token_callback.h"
-#include "media/mojo/mojom/media_metrics_provider.mojom-forward.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "media/mojo/mojom/media_metrics_provider.mojom-shared.h"
+#include "third_party/blink/public/platform/cross_variant_mojo_util.h"
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 
@@ -64,7 +64,7 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerBuilder {
 
   WebMediaPlayerBuilder(
       WebLocalFrame& frame,
-      scoped_refptr<base::SingleThreadTaskRunner> task_runner);
+      scoped_refptr<base::SingleThreadTaskRunner> network_task_runner);
   WebMediaPlayerBuilder(const WebMediaPlayerBuilder&) = delete;
   WebMediaPlayerBuilder& operator=(const WebMediaPlayerBuilder&) = delete;
   ~WebMediaPlayerBuilder();
@@ -90,7 +90,8 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerBuilder {
       base::WeakPtr<media::MediaObserver> media_observer,
       bool enable_instant_source_buffer_gc,
       bool embedded_media_experience_enabled,
-      mojo::PendingRemote<media::mojom::MediaMetricsProvider> metrics_provider,
+      CrossVariantMojoRemote<media::mojom::MediaMetricsProviderInterfaceBase>
+          metrics_provider,
       CreateSurfaceLayerBridgeCB create_bridge_callback,
       scoped_refptr<viz::RasterContextProvider> raster_context_provider,
       bool use_surface_layer_for_video,

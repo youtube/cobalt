@@ -19,10 +19,10 @@ Are you a Google employee? See
 
 <!-- LINT.ThenChange(//ios/build/chrome_build.gni) -->
 
-Note: after installing Xcode, you need to launch it and to let it install
-the iOS simulator. This is required as part of the build, see [this discussion](
-https://groups.google.com/a/chromium.org/g/chromium-dev/c/98d6MyLoYHM/m/A_HyOGxPAgAJ)
-on chromium-dev.
+Note: after installing Xcode, you need to install
+the iOS simulator. This is required as part of the build, see
+[this document](https://developer.apple.com/documentation/xcode/downloading-and-installing-additional-xcode-components)
+to add iOS Platform Support.
 
 ## Install `depot_tools`
 
@@ -212,12 +212,10 @@ for the following bundle identifiers to build and run Chromium with these
 application extensions:
 
 -   `${prefix}.chrome.ios.dev`
--   `${prefix}.chrome.ios.dev.ContentTodayExtension`
 -   `${prefix}.chrome.ios.dev.CredentialProviderExtension`
 -   `${prefix}.chrome.ios.dev.IntentsExtension`
 -   `${prefix}.chrome.ios.dev.OpenExtension`
 -   `${prefix}.chrome.ios.dev.ShareExtension`
--   `${prefix}.chrome.ios.dev.TodayExtension`
 -   `${prefix}.chrome.ios.dev.WidgetKitExtension`
 
 All these certificates need to have the "App Groups"
@@ -305,12 +303,13 @@ experimental code and should only be used for analysis.
 [gn_args]
 use_blink = true
 ios_content_shell_bundle_identifier="REPLACE_YOUR_BUNDLE_IDENTIFIER_HERE"
+ios_chromium_bundle_id="REPLACE_YOUR_BUNDLE_IDENTIFIER_HERE"
 ```
-Note that only certain targets support blink. `content_shell` being the
-most useful.
+Note that only certain targets support blink. `content_shell` and `chrome`
+being the most useful.
 
 ```shell
-$ autoninja -C out/Debug-iphonesimulator content_shell
+$ autoninja -C out/Debug-iphonesimulator content_shell chrome
 ```
 
 ## Blink for tvOS builds and running

@@ -290,6 +290,9 @@ void Disassemble(base::Vector<const uint8_t> wire_bytes,
 V8_EXPORT_PRIVATE void GetLoadedScripts(
     Isolate* isolate, std::vector<v8::Global<Script>>& scripts);
 
+V8_EXPORT_PRIVATE std::optional<v8::ScriptOrigin> GetScriptOrigin(
+    Isolate* v8_isolate, int script_id);
+
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
@@ -456,6 +459,10 @@ class V8_EXPORT_PRIVATE Coverage {
 
   static Coverage CollectPrecise(Isolate* isolate);
   static Coverage CollectBestEffort(Isolate* isolate);
+
+#if V8_ENABLE_WEBASSEMBLY
+  static Coverage CollectWasmData(Isolate* isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   static void SelectMode(Isolate* isolate, CoverageMode mode);
 

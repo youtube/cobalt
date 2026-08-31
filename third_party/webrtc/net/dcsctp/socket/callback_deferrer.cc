@@ -9,7 +9,21 @@
  */
 #include "net/dcsctp/socket/callback_deferrer.h"
 
-#include "api/make_ref_counted.h"
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <utility>
+#include <variant>
+#include <vector>
+
+#include "absl/strings/string_view.h"
+#include "api/array_view.h"
+#include "api/task_queue/task_queue_base.h"
+#include "net/dcsctp/public/dcsctp_message.h"
+#include "net/dcsctp/public/dcsctp_socket.h"
+#include "net/dcsctp/public/timeout.h"
+#include "net/dcsctp/public/types.h"
+#include "rtc_base/checks.h"
 
 namespace dcsctp {
 

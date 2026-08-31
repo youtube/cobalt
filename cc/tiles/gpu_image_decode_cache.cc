@@ -424,20 +424,23 @@ sk_sp<SkImage> MakeTextureImage(viz::RasterContextProvider* context,
                                 sk_sp<SkImage> source_image,
                                 sk_sp<SkColorSpace> target_color_space,
                                 skgpu::Mipmapped mip_mapped) {
+  GrDirectContext* gr_context = context->GrContext();
+  CHECK(gr_context);
+  SkRecorder* recorder = gr_context->asRecorder();
   // Step 1: Upload image and generate mips if necessary. If we will be applying
   // a color-space conversion, don't generate mips yet, instead do it after
   // conversion, in step 3.
   bool add_mips_after_color_conversion =
       (target_color_space && mip_mapped == skgpu::Mipmapped::kYes);
   sk_sp<SkImage> uploaded_image = SkImages::TextureFromImage(
-      context->GrContext(), source_image,
+      gr_context, source_image,
       add_mips_after_color_conversion ? skgpu::Mipmapped::kNo : mip_mapped);
 
   // Step 2: Apply a color-space conversion if necessary.
   if (uploaded_image && target_color_space) {
     sk_sp<SkImage> pre_converted_image = uploaded_image;
-    uploaded_image = uploaded_image->makeColorSpace(context->GrContext(),
-                                                    target_color_space);
+    uploaded_image =
+        uploaded_image->makeColorSpace(recorder, target_color_space, {});
 
     if (uploaded_image != pre_converted_image)
       DeleteSkImageAndPreventCaching(context, std::move(pre_converted_image));
@@ -447,8 +450,8 @@ sk_sp<SkImage> MakeTextureImage(viz::RasterContextProvider* context,
   // add mips here.
   if (uploaded_image && add_mips_after_color_conversion) {
     sk_sp<SkImage> pre_mipped_image = uploaded_image;
-    uploaded_image = SkImages::TextureFromImage(
-        context->GrContext(), uploaded_image, skgpu::Mipmapped::kYes);
+    uploaded_image = SkImages::TextureFromImage(gr_context, uploaded_image,
+                                                skgpu::Mipmapped::kYes);
     DCHECK_NE(pre_mipped_image, uploaded_image);
     DeleteSkImageAndPreventCaching(context, std::move(pre_mipped_image));
   }
@@ -524,17 +527,6 @@ std::optional<SkYUVAPixmapInfo> GetYUVADecodeInfo(
   }
   // Original size decode.
   return original_yuva_pixmap_info;
-}
-
-bool NeedsToneMapping(sk_sp<SkColorSpace> image_color_space, bool has_gainmap) {
-  if (has_gainmap) {
-    return true;
-  }
-  if (image_color_space &&
-      gfx::ColorSpace(*image_color_space).IsToneMappedByDefault()) {
-    return true;
-  }
-  return false;
 }
 
 }  // namespace
@@ -633,7 +625,7 @@ class GpuImageDecodeTaskImpl : public TileTask {
   ~GpuImageDecodeTaskImpl() override = default;
 
  private:
-  raw_ptr<GpuImageDecodeCache, DanglingUntriaged> cache_;
+  raw_ptr<GpuImageDecodeCache> cache_;
   DrawImage image_;
   const ImageDecodeCache::TracingInfo tracing_info_;
   const ImageDecodeCache::TaskType task_type_;
@@ -687,7 +679,7 @@ class ImageUploadTaskImpl : public TileTask {
   ~ImageUploadTaskImpl() override = default;
 
  private:
-  raw_ptr<GpuImageDecodeCache, DanglingUntriaged> cache_;
+  raw_ptr<GpuImageDecodeCache> cache_;
   DrawImage image_;
   const ImageDecodeCache::TracingInfo tracing_info_;
   const ImageDecodeCache::ClientId client_id_;
@@ -1227,6 +1219,10 @@ GpuImageDecodeCache::GpuImageDecodeCache(
     SkColorType color_type,
     size_t max_working_set_bytes,
     int max_texture_size,
+#if BUILDFLAG(IS_COBALT)
+    size_t max_persistent_cache_items,
+    size_t max_persistent_cache_memory_size,
+#endif
     RasterDarkModeFilter* const dark_mode_filter)
     : color_type_(color_type),
       use_transfer_cache_(use_transfer_cache),
@@ -1239,6 +1235,12 @@ GpuImageDecodeCache::GpuImageDecodeCache(
       persistent_cache_(PersistentCache::NO_AUTO_EVICT),
       max_working_set_bytes_(max_working_set_bytes),
       max_working_set_items_(kMaxItemsInWorkingSet),
+#if BUILDFLAG(IS_COBALT)
+      max_persistent_cache_items_(std::min<size_t>(
+          max_persistent_cache_items,
+          static_cast<size_t>(kNormalMaxItemsInCacheForGpu))),
+      max_persistent_cache_memory_size_(max_persistent_cache_memory_size),
+#endif
       dark_mode_filter_(dark_mode_filter) {
   if (base::SequencedTaskRunner::HasCurrentDefault()) {
     task_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
@@ -2360,26 +2362,15 @@ bool GpuImageDecodeCache::ExceedsCacheLimits() const {
     items_limit = kSuspendedMaxItemsInCacheForGpu;
   } else {
 #if BUILDFLAG(IS_COBALT)
-    static const int normal_max_items = []() {
-      int limit = kNormalMaxItemsInCacheForGpu;
-      auto* command_line = base::CommandLine::ForCurrentProcess();
-      if (command_line->HasSwitch(switches::kCCImageCacheLimitItems)) {
-        std::string value = command_line->GetSwitchValueASCII(
-            switches::kCCImageCacheLimitItems);
-        int parsed_value;
-        if (base::StringToInt(value, &parsed_value) && parsed_value >= 0) {
-          limit = parsed_value;
-        }
-      }
-      return limit;
-    }();
-    items_limit = normal_max_items;
-#else
-    items_limit = kNormalMaxItemsInCacheForGpu;
-#endif
+    items_limit = max_persistent_cache_items_;
   }
-
+  return persistent_cache_.size() > items_limit ||
+         persistent_cache_memory_size_ > max_persistent_cache_memory_size_;
+#else // BUILDFLAG(IS_COBALT)
+    items_limit = kNormalMaxItemsInCacheForGpu;
+  }
   return persistent_cache_.size() > items_limit;
+#endif // BUILDFLAG(IS_COBALT)
 }
 
 void GpuImageDecodeCache::InsertTransferCacheEntry(
@@ -2500,7 +2491,7 @@ void GpuImageDecodeCache::DecodeImageIfNecessary(
     base::AutoUnlock unlock(lock_);
     for (auto aux_image : kAllAuxImages) {
       if (aux_image == AuxImage::kGainmap) {
-        if (!draw_image.paint_image().HasGainmap()) {
+        if (!draw_image.paint_image().HasGainmapInfo()) {
           continue;
         }
       }
@@ -2677,10 +2668,10 @@ void GpuImageDecodeCache::UploadImageIfNecessary(const DrawImage& draw_image,
       UploadImageIfNecessary_TransferCache_HardwareDecode(
           draw_image, image_data, target_color_space);
     } else {
-      // Do not color convert images that are YUV or need tone mapping.
+      // Do not color convert images that are YUV or might be tone mapped.
       if (image_data->info.yuva.has_value() ||
-          NeedsToneMapping(decoded_color_space,
-                           draw_image.paint_image().HasGainmap())) {
+          draw_image.paint_image().HasGainmapInfo() ||
+          ToneMapUtil::UseGlobalToneMapFilter(decoded_color_space.get())) {
         target_color_space = nullptr;
       }
       const std::optional<gfx::HDRMetadata> hdr_metadata =
@@ -2979,7 +2970,7 @@ GpuImageDecodeCache::CreateImageData(const DrawImage& draw_image,
 
   // Extract ImageInfo and SkImageInfo for the gainmap image, if it exists,
   // assuming software decoindg to RGBA.
-  const bool has_gainmap = draw_image.paint_image().HasGainmap();
+  const bool has_gainmap = draw_image.paint_image().HasGainmapInfo();
   SkImageInfo gainmap_sk_image_info;
   ImageInfo gainmap_info;
   if (has_gainmap) {
@@ -3672,12 +3663,13 @@ sk_sp<SkImage> GpuImageDecodeCache::CreateImageFromYUVATexturesInternal(
     target_color_space = nullptr;
   }
 
+  GrDirectContext* gr_context = context_->GrContext();
+  CHECK(gr_context);
   sk_sp<SkImage> yuva_image = SkImages::TextureFromYUVATextures(
-      context_->GrContext(), yuva_backend_textures,
-      std::move(decoded_color_space));
+      gr_context, yuva_backend_textures, std::move(decoded_color_space));
   if (target_color_space && yuva_image) {
-    return yuva_image->makeColorSpace(context_->GrContext(),
-                                      target_color_space);
+    return yuva_image->makeColorSpace(gr_context->asRecorder(),
+                                      target_color_space, {});
   }
 
   return yuva_image;

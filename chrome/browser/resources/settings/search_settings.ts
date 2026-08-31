@@ -22,7 +22,7 @@ import type {SettingsSubpageElement} from './settings_page/settings_subpage.js';
  */
 export interface SearchResult {
   canceled: boolean;
-  didFindMatches: boolean;
+  matchCount: number;
   wasClearSearch: boolean;
 }
 
@@ -62,10 +62,10 @@ const IGNORED_ELEMENTS: Set<string> = new Set([
  * occurred under their subtree.
  *
  * @param root The root of the sub-tree to be searched
- * @return Whether or not matches were found.
+ * @return The number of matches that were found.
  */
-function findAndHighlightMatches(request: SearchRequest, root: Node): boolean {
-  let foundMatches = false;
+function findAndHighlightMatches(request: SearchRequest, root: Node): number {
+  let matchCount = 0;
   const highlights: HTMLElement[] = [];
 
   // Returns true if the node or any of its ancestors are a settings-subpage.
@@ -122,7 +122,7 @@ function findAndHighlightMatches(request: SearchRequest, root: Node): boolean {
       }
 
       if (ranges.length > 0) {
-        foundMatches = true;
+        matchCount += ranges.length;
         revealParentSection(
             node, /*numResults=*/ ranges.length, request.bubbles);
 
@@ -168,7 +168,7 @@ function findAndHighlightMatches(request: SearchRequest, root: Node): boolean {
 
   doSearch(root);
   request.addHighlights(highlights);
-  return foundMatches;
+  return matchCount;
 }
 
 /**
@@ -176,8 +176,9 @@ function findAndHighlightMatches(request: SearchRequest, root: Node): boolean {
  * @param bubbles A map of bubbles created so far.
  */
 function revealParentSection(
-    node: Node, numResults: number, bubbles: Map<Node, number>) {
+    node: Node, numResults: number, bubbles: Set<HTMLElement>) {
   let associatedControl: HTMLElement|null = null;
+  let subpageTitle: string = '';
 
   // Find corresponding SETTINGS-SECTION parent and make it visible.
   let parent = node;
@@ -191,14 +192,28 @@ function revealParentSection(
     }
     if (parent.nodeName === 'SETTINGS-SUBPAGE') {
       const subpage = parent as SettingsSubpageElement;
-      assert(
-          subpage.associatedControl,
-          'An associated control was expected for SETTINGS-SUBPAGE ' +
-              subpage.pageTitle + ', but was not found.');
       associatedControl = subpage.associatedControl;
+      subpageTitle = subpage.pageTitle;
     }
   }
-  (parent as SettingsSectionElement).hiddenBySearch = false;
+
+  const parentSection = parent as SettingsSectionElement;
+  parentSection.hiddenBySearch = false;
+
+  if (!parentSection.hasAttribute('section')) {
+    // Nothing else to do. A <settings-section> without a 'section' attribute
+    // indicates that it has been migrated to the plugin architecture, where
+    // <setttings-section> is just a presentational element and has no semantic
+    // meaning. Showing bubbles is handled by each individual plugin instead.
+    return;
+  }
+
+  if (subpageTitle !== '') {
+    assert(
+        associatedControl,
+        'An associated control was expected for SETTINGS-SUBPAGE ' +
+            subpageTitle + ', but was not found.');
+  }
 
   // Need to add the search bubble after the parent SETTINGS-SECTION has
   // become visible, otherwise |offsetWidth| returns zero.
@@ -209,15 +224,17 @@ function revealParentSection(
   }
 }
 
-function showBubble(
-    control: Node, numResults: number, bubbles: Map<Node, number>,
+export function showBubble(
+    control: Node, newResults: number, bubbles: Set<Node>,
     horizontallyCenter: boolean) {
   const bubble = createEmptySearchBubble(control, horizontallyCenter);
-  const numHits = numResults + (bubbles.get(bubble) || 0);
-  bubbles.set(bubble, numHits);
+  const totalResults = (Number(bubble.dataset['results']) || 0) + newResults;
+  bubble.dataset['results'] = String(totalResults);
+  bubbles.add(bubble);
   const msgName =
-      numHits === 1 ? 'searchResultBubbleText' : 'searchResultsBubbleText';
-  bubble.firstChild!.textContent = loadTimeData.getStringF(msgName, numHits);
+      totalResults === 1 ? 'searchResultBubbleText' : 'searchResultsBubbleText';
+  bubble.firstChild!.textContent =
+      loadTimeData.getStringF(msgName, totalResults);
 }
 
 abstract class Task {
@@ -269,8 +286,8 @@ class RenderTask extends Task {
 
 class SearchAndHighlightTask extends Task {
   exec() {
-    const foundMatches = findAndHighlightMatches(this.request, this.node);
-    this.request.updateMatches(foundMatches);
+    const matchCount = findAndHighlightMatches(this.request, this.node);
+    this.request.updateMatchCount(matchCount);
     return Promise.resolve();
   }
 }
@@ -280,8 +297,8 @@ class TopLevelSearchTask extends Task {
     const shouldSearch = this.request.regExp !== null;
     this.setSectionsVisibility_(!shouldSearch);
     if (shouldSearch) {
-      const foundMatches = findAndHighlightMatches(this.request, this.node);
-      this.request.updateMatches(foundMatches);
+      const matchCount = findAndHighlightMatches(this.request, this.node);
+      this.request.updateMatchCount(matchCount);
     }
 
     return Promise.resolve();
@@ -385,12 +402,12 @@ export class SearchRequest {
   private root_: Element;
   regExp: RegExp|null;
   canceled: boolean;
-  private foundMatches_: boolean;
-  resolver: PromiseResolver<SearchRequest>;
+  private matchCount_: number = 0;
+  resolver: PromiseResolver<SearchRequest> = new PromiseResolver();
   queue: TaskQueue;
   private textObservers_: Set<MutationObserver>;
   private highlights_: HTMLElement[];
-  bubbles: Map<HTMLElement, number>;
+  bubbles: Set<HTMLElement>;
 
   constructor(rawQuery: string, root: Element) {
     this.rawQuery_ = rawQuery;
@@ -402,9 +419,6 @@ export class SearchRequest {
      */
     this.canceled = false;
 
-    this.foundMatches_ = false;
-    this.resolver = new PromiseResolver();
-
     this.queue = new TaskQueue(this);
     this.queue.onEmpty(() => {
       this.resolver.resolve(this);
@@ -412,7 +426,7 @@ export class SearchRequest {
 
     this.textObservers_ = new Set();
     this.highlights_ = [];
-    this.bubbles = new Map();
+    this.bubbles = new Set();
   }
 
   /** @param highlights The highlight wrappers to add */
@@ -429,8 +443,10 @@ export class SearchRequest {
 
   removeAllHighlightsAndBubbles() {
     removeHighlights(this.highlights_);
-    this.bubbles.forEach((_count, bubble) => bubble.remove());
     this.highlights_ = [];
+    for (const bubble of this.bubbles) {
+      bubble.remove();
+    }
     this.bubbles.clear();
   }
 
@@ -477,16 +493,32 @@ export class SearchRequest {
   }
 
   /**
-   * Updates the result for this search request.
+   * Updates the number of search hits found for this search request.
    */
-  updateMatches(found: boolean) {
-    this.foundMatches_ = this.foundMatches_ || found;
+  updateMatchCount(newMatches: number) {
+    this.matchCount_ += newMatches;
   }
 
-  /** @return Whether any matches were found. */
-  didFindMatches(): boolean {
-    return this.foundMatches_;
+  getSearchResult(): SearchResult {
+    assert(this.resolver.isFulfilled);
+    return {
+      canceled: this.canceled,
+      matchCount: this.matchCount_,
+      wasClearSearch: this.isSame(''),
+    };
   }
+}
+
+// Helper to combine multiple SearchResult instances to a single one. The
+// combined result only makes sense when the results are coming from
+// SearchRequest instances that were issued for a single user query.
+export function combineSearchResults(results: SearchResult[]): SearchResult {
+  assert(results.length > 0);
+  return {
+    canceled: results.some(r => r.canceled),
+    matchCount: results.reduce((soFar, r) => soFar + r.matchCount, 0),
+    wasClearSearch: results[0].wasClearSearch,
+  };
 }
 
 const SANITIZE_REGEX: RegExp = /[-[\]{}()*+?.,\\^$|#\s]/g;

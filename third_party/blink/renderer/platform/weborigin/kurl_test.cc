@@ -904,11 +904,11 @@ TEST(KURLTest, urlStrippedForUseAsReferrerRespectsReferrerScheme) {
 
   EXPECT_EQ("", foobar_url.StrippedForUseAsReferrer().Utf8());
 #if DCHECK_IS_ON()
-  WTF::SetIsBeforeThreadCreatedForTest();  // Required for next operation:
+  SetIsBeforeThreadCreatedForTest();  // Required for next operation:
 #endif
   SchemeRegistry::RegisterURLSchemeAsAllowedForReferrer(foobar_scheme);
   EXPECT_EQ("foobar://somepage/", foobar_url.StrippedForUseAsReferrer());
-  SchemeRegistry::RemoveURLSchemeAsAllowedForReferrer(foobar_scheme);
+  SchemeRegistry::RemoveURLSchemeAsAllowedForReferrerForTest(foobar_scheme);
 }
 
 TEST(KURLTest, strippedForUseAsReferrer) {
@@ -939,7 +939,7 @@ TEST(KURLTest, ThreadSafesStaticKurlGetters) {
 #if DCHECK_IS_ON()
   // Simulate the static getters being called during/after threads have been
   // started, so that StaticSingleton's thread checks will be applied.
-  WTF::WillCreateThread();
+  WillCreateThread();
 #endif
 
   // Take references to the static KURLs, so that each has two references to
@@ -968,7 +968,7 @@ TEST(KURLTest, ThreadSafesStaticKurlGetters) {
 
 #if DCHECK_IS_ON()
   // Restore the IsBeforeThreadCreated() flag.
-  WTF::SetIsBeforeThreadCreatedForTest();
+  SetIsBeforeThreadCreatedForTest();
 #endif
 }
 
@@ -1154,6 +1154,7 @@ struct PortTestCase {
   const uint16_t constructor_output;
   const uint16_t set_port_output;
   const PortIsValid is_valid;
+  const bool set_port_success;
 };
 
 // port used if SetHostAndPort/SetPort is a no-op
@@ -1162,37 +1163,38 @@ constexpr int kNoopPort = 8888;
 // The tested behaviour matches the implementation. It doesn't necessarily match
 // the URL Standard.
 const PortTestCase port_test_cases[] = {
-    {"80", 0, 0, PortIsValid::kAlways},  // 0 because scheme is http.
-    {"443", 443, 443, PortIsValid::kAlways},
-    {"8000", 8000, 8000, PortIsValid::kAlways},
-    {"0", 0, 0, PortIsValid::kAlways},
-    {"1", 1, 1, PortIsValid::kAlways},
-    {"00000000000000000000000000000000000443", 443, 443, PortIsValid::kAlways},
-    {"+80", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"-80", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"443e0", 0, 443, PortIsValid::kInSetHostAndPort},
-    {"0x80", 0, 0, PortIsValid::kInSetHostAndPort},
-    {"8%30", 0, 8, PortIsValid::kInSetHostAndPort},
-    {" 443", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"443 ", 0, 443, PortIsValid::kInSetHostAndPort},
-    {":443", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"65534", 65534, 65534, PortIsValid::kAlways},
-    {"65535", 65535, 65535, PortIsValid::kAlways},
-    {"65535junk", 0, 65535, PortIsValid::kInSetHostAndPort},
-    {"65536", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"65537", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"65537junk", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"2147483647", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"2147483648", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"2147483649", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"4294967295", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"4294967296", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"4294967297", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"18446744073709551615", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"18446744073709551616", 0, kNoopPort, PortIsValid::kInSetPort},
-    {"18446744073709551617", 0, kNoopPort, PortIsValid::kInSetPort},
+    {"80", 0, 0, PortIsValid::kAlways, true},  // 0 because scheme is http.
+    {"443", 443, 443, PortIsValid::kAlways, true},
+    {"8000", 8000, 8000, PortIsValid::kAlways, true},
+    {"0", 0, 0, PortIsValid::kAlways, true},
+    {"1", 1, 1, PortIsValid::kAlways, true},
+    {"00000000000000000000000000000000000443", 443, 443, PortIsValid::kAlways,
+     true},
+    {"+80", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"-80", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"443e0", 0, 443, PortIsValid::kInSetHostAndPort, true},
+    {"0x80", 0, 0, PortIsValid::kInSetHostAndPort, true},
+    {"8%30", 0, 8, PortIsValid::kInSetHostAndPort, true},
+    {" 443", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"443 ", 0, 443, PortIsValid::kInSetHostAndPort, true},
+    {":443", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"65534", 65534, 65534, PortIsValid::kAlways, true},
+    {"65535", 65535, 65535, PortIsValid::kAlways, true},
+    {"65535junk", 0, 65535, PortIsValid::kInSetHostAndPort, true},
+    {"65536", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"65537", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"65537junk", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"2147483647", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"2147483648", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"2147483649", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"4294967295", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"4294967296", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"4294967297", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"18446744073709551615", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"18446744073709551616", 0, kNoopPort, PortIsValid::kInSetPort, false},
+    {"18446744073709551617", 0, kNoopPort, PortIsValid::kInSetPort, false},
     {"9999999999999999999999999999990999999999", 0, kNoopPort,
-     PortIsValid::kInSetPort},
+     PortIsValid::kInSetPort, false},
 };
 
 void PrintTo(const PortTestCase& port_test_case, ::std::ostream* os) {
@@ -1227,7 +1229,8 @@ TEST_P(KURLPortTest, ConstructRelative) {
 TEST_P(KURLPortTest, SetPort) {
   const auto& param = GetParam();
   KURL url("http://a:" + String::Number(kNoopPort) + "/");
-  url.SetPort(param.input);
+  const bool set_port_result_actual = url.SetPort(param.input);
+  EXPECT_EQ(set_port_result_actual, param.set_port_success);
   EXPECT_EQ(url.Port(), param.set_port_output);
   EXPECT_EQ(url.IsValid(), true);
 }
@@ -1267,7 +1270,7 @@ class KURLTestTraits {
   using UrlType = blink::KURL;
 
   static UrlType CreateUrlFromString(std::string_view s) {
-    return blink::KURL(String::FromUTF8(s));
+    return blink::KURL(blink::String::FromUTF8(s));
   }
 
   static bool IsAboutBlank(const UrlType& url) { return url.IsAboutBlankURL(); }

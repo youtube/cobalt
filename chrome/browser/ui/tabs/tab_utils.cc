@@ -7,12 +7,15 @@
 #include <utility>
 
 #include "base/feature_list.h"
+#include "chrome/browser/actor/ui/actor_ui_tab_controller_interface.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/media/webrtc/media_stream_capture_indicator.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert.h"
+#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/vr/vr_tab_helper.h"
@@ -25,14 +28,17 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #endif
 
-std::vector<tabs::TabAlert> GetTabAlertStatesForContents(
-    content::WebContents* contents) {
+std::vector<tabs::TabAlert> GetTabAlertStatesForTab(
+    const tabs::TabInterface* tab) {
   std::vector<tabs::TabAlert> states;
+  if (!tab) {
+    return states;
+  }
+  content::WebContents* contents = tab->GetContents();
   if (!contents) {
     return states;
   }
@@ -86,11 +92,20 @@ std::vector<tabs::TabAlert> GetTabAlertStatesForContents(
     states.push_back(tabs::TabAlert::SERIAL_CONNECTED);
   }
 
+  if (auto* actor_controller = tab->GetTabFeatures()->actor_ui_tab_controller();
+      actor_controller && actor_controller->ShouldShowActorTabIndicator()) {
+    states.push_back(tabs::TabAlert::ACTOR_ACCESSING);
+  }
+
 #if BUILDFLAG(ENABLE_GLIC)
   glic::GlicKeyedService* glic_service = glic::GlicKeyedService::Get(
       Profile::FromBrowserContext(contents->GetBrowserContext()));
-  if (glic_service && glic_service->IsContextAccessIndicatorShown(contents)) {
-    states.push_back(tabs::TabAlert::GLIC_ACCESSING);
+  if (glic_service) {
+    if (glic_service->sharing_manager().IsTabPinned(tab->GetHandle())) {
+      states.push_back(tabs::TabAlert::GLIC_SHARING);
+    } else if (glic_service->IsContextAccessIndicatorShown(contents)) {
+      states.push_back(tabs::TabAlert::GLIC_ACCESSING);
+    }
   }
 #endif
 
@@ -168,10 +183,20 @@ std::u16string GetTabAlertStateText(const tabs::TabAlert alert_state) {
     case tabs::TabAlert::VR_PRESENTING_IN_HEADSET:
       return l10n_util::GetStringUTF16(
           IDS_TOOLTIP_TAB_ALERT_STATE_VR_PRESENTING);
+    // TODO(crbug.com/422538779) Create new resources for ACTOR_ACCESSING of
+    // relying on GLIC_ACCESSING resources below.
+    case tabs::TabAlert::ACTOR_ACCESSING:
     case tabs::TabAlert::GLIC_ACCESSING:
 #if BUILDFLAG(ENABLE_GLIC)
       return l10n_util::GetStringUTF16(
           IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_ACCESSING);
+#else
+      return u"";
+#endif
+    case tabs::TabAlert::GLIC_SHARING:
+#if BUILDFLAG(ENABLE_GLIC)
+      return l10n_util::GetStringUTF16(
+          IDS_TOOLTIP_TAB_ALERT_STATE_GLIC_SHARING);
 #else
       return u"";
 #endif

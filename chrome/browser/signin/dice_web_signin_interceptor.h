@@ -164,6 +164,10 @@ class DiceWebSigninInterceptor : public KeyedService,
     return state_->is_interception_in_progress_;
   }
 
+  bool has_interception_bubble_handle_for_testing() const {
+    return state_->interception_bubble_handle_.get();
+  }
+
   content::WebContents* web_contents() const {
     return state_->web_contents_.get();
   }
@@ -357,18 +361,20 @@ class DiceWebSigninInterceptor : public KeyedService,
   // timeout.
   void EnsureAccountLevelSigninRestrictionFetchInProgress(
       const AccountInfo& account_info,
-      base::OnceCallback<void(const policy::ProfileSeparationPolicies&)>
-          callback);
+      base::OnceCallback<void(policy::ProfileSeparationPolicies)> callback);
 
   // Called when the the value of the cloud user level value of the
   // ManagedAccountsSigninRestriction is received.
   void OnAccountLevelManagedAccountsSigninRestrictionReceived(
       const AccountInfo& account_info,
-      const policy::ProfileSeparationPolicies& profile_separation_policies);
+      policy::ProfileSeparationPolicies profile_separation_policies);
 
   // Records the heuristic outcome and latency metrics.
   void RecordSigninInterceptionHeuristicOutcome(
       SigninInterceptionHeuristicOutcome outcome) const;
+
+  // Shows HaTS survey to eligible users.
+  void LaunchHatsSurvey(const std::string& trigger);
 
   // Returns true if we have all the extended account information which might
   // factor in to the intercept heuristic. If we don't have 'Full' information,

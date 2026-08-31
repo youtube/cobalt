@@ -21,12 +21,13 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_DTOA_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_DTOA_H_
 
+#include "base/containers/span.h"
 #include "base/numerics/safe_conversions.h"
 #include "third_party/blink/renderer/platform/wtf/text/ascii_ctype.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_uchar.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
 
-namespace WTF {
+namespace blink {
 
 // Size = 80 for sizeof(DtoaBuffer) + some sign bits, decimal point, 'e',
 // exponent digits.
@@ -42,11 +43,9 @@ WTF_EXPORT const char* NumberToFixedWidthString(double,
                                                 unsigned decimal_places,
                                                 NumberToStringBuffer);
 
-WTF_EXPORT double ParseDouble(const LChar* string,
-                              size_t length,
+WTF_EXPORT double ParseDouble(base::span<const LChar> string,
                               size_t& parsed_length);
-WTF_EXPORT double ParseDouble(const UChar* string,
-                              size_t length,
+WTF_EXPORT double ParseDouble(base::span<const UChar> string,
                               size_t& parsed_length);
 
 namespace internal {
@@ -55,12 +54,6 @@ void InitializeDoubleConverter();
 
 }  // namespace internal
 
-}  // namespace WTF
-
-using WTF::NumberToFixedPrecisionString;
-using WTF::NumberToFixedWidthString;
-using WTF::NumberToString;
-using WTF::NumberToStringBuffer;
-using WTF::ParseDouble;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_DTOA_H_

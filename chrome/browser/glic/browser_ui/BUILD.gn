@@ -12,16 +12,18 @@ source_set("browser_ui") {
     "glic_button_controller.cc",
     "glic_iph_controller.cc",
     "glic_tab_indicator_helper.cc",
+    "glic_tab_underline_view.cc",
     "glic_vector_icon_manager.cc",
     "scoped_glic_button_indicator.cc",
     "theme_util.cc",
     "theme_util.h",
   ]
   deps = [
-    "//chrome/browser/themes:themes",
+    "//chrome/browser/actor/ui",
+    "//chrome/browser/themes",
     "//chrome/browser/ui/tabs:tab_strip",
-    "//chrome/browser/ui/user_education:user_education",
-    "//components/feature_engagement/public:public",
+    "//chrome/browser/ui/user_education",
+    "//components/feature_engagement/public",
   ]
   public_deps = [ "//chrome/browser/glic" ]
 }
@@ -32,7 +34,7 @@ source_set("unit_tests") {
   deps = [
     ":browser_ui",
     "//base/test:test_support",
-    "//chrome/browser:browser",
+    "//chrome/browser",
     "//chrome/browser:global_features",
     "//chrome/browser/glic",
     "//chrome/browser/glic/test_support",
@@ -56,10 +58,14 @@ source_set("interactive_ui_tests") {
   sources = [
     "glic_border_view_interactive_uitest.cc",
     "glic_tab_indicator_helper_interactive_uitest.cc",
+    "glic_tab_underline_view_interactive_uitest.cc",
   ]
   deps = [
     ":browser_ui",
     "//base",
+    "//chrome/browser/actor",
+    "//chrome/browser/actor:test_support",
+    "//chrome/browser/actor/ui",
     "//chrome/browser/glic/test_support",
     "//chrome/browser/ui",
     "//chrome/browser/ui:browser_element_identifiers",
@@ -70,8 +76,9 @@ source_set("interactive_ui_tests") {
     "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/base:ozone_buildflags",
     "//ui/base:test_support",
-    "//ui/compositor:compositor",
+    "//ui/compositor",
     "//ui/gfx",
     "//ui/gfx:gfx_switches",
     "//ui/views",

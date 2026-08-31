@@ -5,9 +5,11 @@
 #ifndef CHROME_UPDATER_INSTALLER_H_
 #define CHROME_UPDATER_INSTALLER_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
@@ -48,9 +50,9 @@ struct AppInfo {
   base::FilePath ecp;
 };
 
-using InstallProgressCallback = update_client::CrxInstaller::ProgressCallback;
+using InstallProgressCallback = ::update_client::CrxInstaller::ProgressCallback;
 
-using InstallerResult = update_client::CrxInstaller::Result;
+using InstallerResult = ::update_client::CrxInstaller::Result;
 
 // Runs an app installer.
 //   The file `server_install_data` contains additional application-specific
@@ -73,8 +75,9 @@ std::string LookupString(const base::FilePath& path,
                          const std::string& keyname,
                          const std::string& default_value);
 
-// Retrieves the version of the installed application. If the version cannot
-// be determined the `default_value` is returned.
+// Retrieves the installed version of the provided `app_id`. If `app_id` is not
+// installed, the `default_value` is returned. `version_path` and `version_key`
+// are not used on Windows.
 base::Version LookupVersion(UpdaterScope scope,
                             const std::string& app_id,
                             const base::FilePath& version_path,
@@ -104,10 +107,13 @@ class Installer final : public update_client::CrxInstaller {
             const std::string& target_channel,
             const std::string& target_version_prefix,
             bool rollback_allowed,
+            std::optional<int> major_version_rollout_policy,
+            std::optional<int> minor_version_rollout_policy,
             bool update_disabled,
             UpdateService::PolicySameVersionUpdate policy_same_version_update,
             scoped_refptr<PersistedData> persisted_data,
-            crx_file::VerifierFormat crx_verifier_format);
+            crx_file::VerifierFormat crx_verifier_format,
+            std::optional<std::vector<uint8_t>> crx_public_key_hash);
   Installer(const Installer&) = delete;
   Installer& operator=(const Installer&) = delete;
 
@@ -162,13 +168,15 @@ class Installer final : public update_client::CrxInstaller {
   const std::string install_data_index_;
   const std::string install_source_;
   const bool rollback_allowed_;
+  const std::optional<int> major_version_rollout_policy_;
+  const std::optional<int> minor_version_rollout_policy_;
   const std::string target_channel_;
   const std::string target_version_prefix_;
   const bool update_disabled_;
   const UpdateService::PolicySameVersionUpdate policy_same_version_update_;
   scoped_refptr<PersistedData> persisted_data_;
   const crx_file::VerifierFormat crx_verifier_format_;
-  const bool usage_stats_enabled_;
+  const std::optional<std::vector<uint8_t>> crx_public_key_hash_;
 
   // AppInfo is set only after MakeCrxComponent is called, and is not updated
   // when the installer succeeds.

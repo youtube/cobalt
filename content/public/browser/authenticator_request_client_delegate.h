@@ -15,6 +15,7 @@
 #include "base/containers/span.h"
 #include "base/functional/callback_forward.h"
 #include "build/build_config.h"
+#include "components/password_manager/core/common/credential_manager_types.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/web_authentication_request_proxy.h"
 #include "device/fido/authenticator_get_assertion_response.h"
@@ -25,7 +26,6 @@
 #include "device/fido/fido_transport_protocol.h"
 #include "device/fido/fido_types.h"
 #include "device/fido/public_key_credential_descriptor.h"
-#include "third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom.h"
 #include "url/gurl.h"
 
 namespace device {
@@ -40,6 +40,24 @@ class Origin;
 }
 
 namespace content {
+
+// LINT.IfChange
+// Reasons why a WebAuthn get() request with `mediation: "immediate"` was
+// rejected by the browser before showing any UI.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class ImmediateMediationRejectionReason {
+  // The request was in an incognito/off-the-record profile.
+  kIncognito = 0,
+  // The request was rate-limited for the origin.
+  kRateLimited = 1,
+  // No credentials were found for the request.
+  kNoCredentials = 2,
+  // The request timed out before the UI could be shown.
+  kTimeout = 3,
+  kMaxValue = kTimeout,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/webauthn/enums.xml)
 
 // AuthenticatorRequestClientDelegate is an interface that lets embedders
 // customize the lifetime of a single WebAuthn API request in the //content

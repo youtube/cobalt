@@ -33,12 +33,12 @@
 
 #include <algorithm>
 #include <memory>
+#include <utility>
 
 #include "base/containers/heap_array.h"
 #include "base/containers/span.h"
 #include "base/dcheck_is_on.h"
 #include "base/functional/callback_forward.h"
-#include "base/types/optional_util.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/common/messaging/message_port_channel.h"
 #include "third_party/blink/public/common/messaging/message_port_descriptor.h"
@@ -171,6 +171,12 @@ class CORE_EXPORT SerializedScriptValue
       kBlockedInNonSecureContext  // Block transfer or serialization.
     };
 
+    // Whether to serialize or skip a ScriptWrappable if the object is a
+    // wrapper.
+    enum ScriptWrappablePolicy {
+      kSerializeWrappedObjects,
+      kOmitWrappedObjects,
+    };
     SerializeOptions() = default;
     explicit SerializeOptions(StoragePolicy for_storage)
         : for_storage(for_storage) {}
@@ -179,6 +185,7 @@ class CORE_EXPORT SerializedScriptValue
     WebBlobInfoArray* blob_info = nullptr;
     WasmSerializationPolicy wasm_policy = kTransfer;
     StoragePolicy for_storage = kNotForStorage;
+    ScriptWrappablePolicy script_wrappable_policy = kSerializeWrappedObjects;
   };
   static scoped_refptr<SerializedScriptValue> Serialize(v8::Isolate*,
                                                         v8::Local<v8::Value>,
@@ -211,6 +218,9 @@ class CORE_EXPORT SerializedScriptValue
    public:
     MessagePortArray* message_ports = nullptr;
     const WebBlobInfoArray* blob_info = nullptr;
+    // Slow mode is intended to mitigate possible timing attacks on v8 string
+    // table.
+    bool slow_mode = false;
   };
   v8::Local<v8::Value> Deserialize(v8::Isolate* isolate) {
     return Deserialize(isolate, DeserializeOptions());
@@ -296,9 +306,7 @@ class CORE_EXPORT SerializedScriptValue
 
   StreamArray& GetStreams() { return streams_; }
 
-  const v8::SharedValueConveyor* MaybeGetSharedValueConveyor() const {
-    return base::OptionalToPtr(shared_value_conveyor_);
-  }
+  const v8::SharedValueConveyor* MaybeGetSharedValueConveyor() const;
 
   bool IsLockedToAgentCluster() const;
 
@@ -354,7 +362,7 @@ class CORE_EXPORT SerializedScriptValue
   }
 
   struct BufferDeleter {
-    void operator()(uint8_t* buffer) { WTF::Partitions::BufferFree(buffer); }
+    void operator()(uint8_t* buffer) { Partitions::BufferFree(buffer); }
   };
   using DataBufferPtr = base::HeapArray<uint8_t, BufferDeleter>;
 

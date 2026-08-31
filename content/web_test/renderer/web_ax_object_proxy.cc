@@ -16,7 +16,6 @@
 #include <utility>
 
 #include "base/strings/stringprintf.h"
-#include "gin/handle.h"
 #include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/blink.h"
@@ -28,6 +27,9 @@
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/transform.h"
+#include "v8/include/cppgc/allocation.h"
+#include "v8/include/v8-cppgc.h"
+#include "v8/include/v8.h"
 
 namespace content {
 
@@ -255,8 +257,6 @@ class AttributesCollector {
 
 }  // namespace
 
-gin::WrapperInfo WebAXObjectProxy::kWrapperInfo = {gin::kEmbedderNativeGin};
-
 WebAXObjectProxy::WebAXObjectProxy(const blink::WebAXObject& object,
                                    WebAXObjectProxy::Factory* factory)
     : accessibility_object_(object), factory_(factory) {}
@@ -277,6 +277,10 @@ ui::AXNodeData WebAXObjectProxy::GetAXNodeData() const {
   if (!IsDetached())
     accessibility_object_.Serialize(&node_data, ui::kAXModeComplete);
   return node_data;
+}
+
+const gin::WrapperInfo* WebAXObjectProxy::wrapper_info() const {
+  return &kWrapperInfo;
 }
 
 gin::ObjectTemplateBuilder WebAXObjectProxy::GetObjectTemplateBuilder(
@@ -2034,21 +2038,6 @@ bool WebAXObjectProxy::HasNonIdentityTransform() {
   return !transform.IsIdentity();
 }
 
-RootWebAXObjectProxy::RootWebAXObjectProxy(const blink::WebAXObject& object,
-                                           Factory* factory)
-    : WebAXObjectProxy(object, factory) {}
-
-v8::Local<v8::Object> RootWebAXObjectProxy::GetChildAtIndex(unsigned index) {
-  if (index)
-    return v8::Local<v8::Object>();
-
-  return factory()->GetOrCreate(accessibility_object());
-}
-
-bool RootWebAXObjectProxy::IsRoot() const {
-  return true;
-}
-
 WebAXObjectProxyList::WebAXObjectProxyList(v8::Isolate* isolate,
                                            blink::WebAXContext& ax_context)
     : isolate_(isolate), ax_context_(&ax_context) {}
@@ -2116,11 +2105,10 @@ v8::Local<v8::Object> WebAXObjectProxyList::GetOrCreate(
   }
 
   // Create a new object.
-  v8::Local<v8::Value> value_handle =
-      gin::CreateHandle(isolate_, new WebAXObjectProxy(object, this)).ToV8();
+  auto* proxy = cppgc::MakeGarbageCollected<WebAXObjectProxy>(
+      isolate_->GetCppHeap()->GetAllocationHandle(), object, this);
   v8::Local<v8::Object> handle;
-  if (value_handle.IsEmpty() ||
-      !value_handle->ToObject(isolate_->GetCurrentContext()).ToLocal(&handle)) {
+  if (!proxy->GetWrapper(isolate_).ToLocal(&handle)) {
     if (found) {
       // Remove old detached object.
       ax_objects_.erase(object.AxID());

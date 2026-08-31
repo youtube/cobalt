@@ -8,6 +8,7 @@
 
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
@@ -35,7 +36,8 @@
 #include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
+#include "net/test/embedded_test_server/register_basic_auth_handler.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 
@@ -247,9 +249,10 @@ IN_PROC_BROWSER_TEST_F(WebAppPolicyManagerBrowserTest,
 
   // Install the web app:
   std::unique_ptr<WebAppInstallInfo> install_info =
-      WebAppInstallInfo::CreateWithStartUrlForTesting(GURL(kStartUrl));
+      test::GetInstallInfoForCurrentManifest(
+          browser()->tab_strip_model()->GetActiveWebContents()->GetWeakPtr(),
+          *manifest);
   install_info->install_url = GURL(kInstallUrl);
-  UpdateWebAppInfoFromManifest(*manifest, install_info.get());
 
   auto* provider = WebAppProvider::GetForTest(profile());
   provider->scheduler().InstallFromInfoNoIntegrationForTesting(
@@ -347,16 +350,15 @@ IN_PROC_BROWSER_TEST_F(WebAppPolicyManagerGuestModeTest,
 class WebAppPolicyManagerBrowserTestWithAuthProxy
     : public WebAppBrowserTestBase {
  public:
-  WebAppPolicyManagerBrowserTestWithAuthProxy()
-      : auth_proxy_server_(std::make_unique<net::SpawnedTestServer>(
-            net::SpawnedTestServer::TYPE_BASIC_AUTH_PROXY,
-            base::FilePath())) {}
+  WebAppPolicyManagerBrowserTestWithAuthProxy() = default;
 
   // WebAppControllerBrowserTest:
   void SetUp() override {
-    // Start proxy server
-    auth_proxy_server_->set_redirect_connect_to_localhost(true);
-    ASSERT_TRUE(auth_proxy_server_->Start());
+    // Set up and start "proxy" server. Since this test doesn't actually
+    // authenticate with the proxy, but instead only test the case of unhandled
+    // proxy auth challenges, only need to wire up those auth challenges.
+    RegisterProxyBasicAuthHandler(auth_proxy_server_, "user", "pass");
+    ASSERT_TRUE(auth_proxy_server_.Start());
 
     WebAppBrowserTestBase::SetUp();
   }
@@ -364,13 +366,14 @@ class WebAppPolicyManagerBrowserTestWithAuthProxy
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitchASCII(
         ::switches::kProxyServer,
-        auth_proxy_server_->host_port_pair().ToString());
+        auth_proxy_server_.host_port_pair().ToString());
     WebAppBrowserTestBase::SetUpCommandLine(command_line);
   }
 
   Profile* profile() { return browser()->profile(); }
 
-  std::unique_ptr<net::SpawnedTestServer> auth_proxy_server_;
+  net::test_server::EmbeddedTestServer auth_proxy_server_{
+      net::test_server::EmbeddedTestServer ::Type::TYPE_HTTPS};
 };
 
 IN_PROC_BROWSER_TEST_F(WebAppPolicyManagerBrowserTestWithAuthProxy, Install) {

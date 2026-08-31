@@ -33,12 +33,16 @@
 
 #include <optional>
 
+#include "base/feature_list.h"
+#include "build/buildflag.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "third_party/blink/public/common/blob/blob_utils.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_info.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_shared_worker_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_sharedworkeroptions_string.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_trustedscripturl_usvstring.h"
 #include "third_party/blink/renderer/core/event_target_names.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/fetch/request.h"
@@ -60,6 +64,9 @@ namespace {
 
 void RecordSharedWorkerUsage(LocalDOMWindow* window) {
   UseCounter::Count(window, WebFeature::kSharedWorkerStart);
+#if BUILDFLAG(IS_ANDROID)
+  UseCounter::Count(window, WebFeature::kSharedWorkerStartOnAndroid);
+#endif
 
   if (window->IsCrossSiteSubframe())
     UseCounter::Count(window, WebFeature::kThirdPartySharedWorker);
@@ -70,17 +77,24 @@ void RecordSharedWorkerUsage(LocalDOMWindow* window) {
 SharedWorker::SharedWorker(ExecutionContext* context)
     : AbstractWorker(context),
       ActiveScriptWrappable<SharedWorker>({}),
-      is_being_connected_(false),
-      feature_handle_for_scheduler_(context->GetScheduler()->RegisterFeature(
-          SchedulingPolicy::Feature::kSharedWorker,
-          {SchedulingPolicy::DisableBackForwardCache()})) {}
-
+      is_being_connected_(false) {
+  if (!base::FeatureList::IsEnabled(features::kBFCacheWithSharedWorker)) {
+    feature_handle_for_scheduler_ = context->GetScheduler()->RegisterFeature(
+        SchedulingPolicy::Feature::kSharedWorker,
+        {SchedulingPolicy::DisableBackForwardCache()});
+  }
+}
 SharedWorker* SharedWorker::Create(
     ExecutionContext* context,
-    const String& url,
+    const V8UnionTrustedScriptURLOrUSVString* url,
     const V8UnionSharedWorkerOptionsOrString* name_or_options,
     ExceptionState& exception_state) {
-  return CreateImpl(context, url, name_or_options, exception_state,
+  String compliant_url = TrustedTypesCheckForScriptURL(
+      url, context, "SharedWorker", "create", exception_state);
+  if (exception_state.HadException()) {
+    return 0;
+  }
+  return CreateImpl(context, compliant_url, name_or_options, exception_state,
                     &To<LocalDOMWindow>(context)->GetPublicURLManager(),
                     /*connector_override=*/nullptr);
 }
@@ -127,6 +141,7 @@ SharedWorker* SharedWorker::CreateImpl(
   worker->port_ = channel->port1();
   MessagePortChannel remote_port = channel->port2()->Disentangle();
 
+  worker->port_->SetIsSharedWorkerPort(true);
   if (!window->GetSecurityOrigin()->CanAccessSharedWorkers()) {
     exception_state.ThrowSecurityError(
         "Access to shared workers is denied to origin '" +

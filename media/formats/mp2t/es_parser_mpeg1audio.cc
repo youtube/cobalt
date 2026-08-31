@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -112,9 +113,8 @@ void EsParserMpeg1Audio::ResetInternal() {
 
 bool EsParserMpeg1Audio::LookForMpeg1AudioFrame(
     Mpeg1AudioFrame* mpeg1audio_frame) {
-  int es_size;
-  const uint8_t* es;
-  es_queue_->Peek(&es, &es_size);
+  int es_size = es_queue_->Data().size();
+  base::span<const uint8_t> es = es_queue_->Data();
 
   int max_offset = es_size - MPEG1AudioStreamParser::kHeaderSize;
   if (max_offset <= 0)
@@ -149,7 +149,8 @@ bool EsParserMpeg1Audio::LookForMpeg1AudioFrame(
     }
 
     es_queue_->Pop(offset);
-    es_queue_->Peek(&mpeg1audio_frame->data.AsEphemeralRawAddr(), &es_size);
+    mpeg1audio_frame->data = es_queue_->Data().data();
+    es_size = es_queue_->Data().size();
     mpeg1audio_frame->queue_offset = es_queue_->head();
     mpeg1audio_frame->size = header.frame_size;
     mpeg1audio_frame->sample_count = header.sample_count;

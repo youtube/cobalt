@@ -15,7 +15,10 @@
 #include "base/posix/eintr_wrapper.h"
 #include "base/system/sys_info.h"
 #include "base/task/bind_post_task.h"
+#include "chromeos/ash/experiences/arc/arc_features.h"
 #include "chromeos/ash/experiences/arc/video_accelerator/arc_video_accelerator_util.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
+#include "gpu/ipc/service/arc_shared_image_interface.h"
 #include "media/base/bitrate.h"
 #include "media/base/bitstream_buffer.h"
 #include "media/base/color_plane_layout.h"
@@ -29,6 +32,7 @@
 #include "media/video/video_encode_accelerator.h"
 #include "mojo/public/cpp/bindings/type_converter.h"
 #include "mojo/public/cpp/system/platform_handle.h"
+#include "ui/ozone/public/ozone_platform.h"
 
 namespace arc {
 
@@ -45,11 +49,15 @@ constexpr size_t kMaxConcurrentClients = 8;
 size_t GpuArcVideoEncodeAccelerator::client_count_ = 0;
 
 GpuArcVideoEncodeAccelerator::GpuArcVideoEncodeAccelerator(
+    scoped_refptr<gpu::ArcSharedImageInterface> sii,
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds)
-    : gpu_preferences_(gpu_preferences),
+    : sii_(sii),
+      gpu_preferences_(gpu_preferences),
       gpu_workarounds_(gpu_workarounds),
-      bitstream_buffer_serial_(0) {}
+      bitstream_buffer_serial_(0),
+      client_native_pixmap_factory_(
+          ui::CreateClientNativePixmapFactoryOzone()) {}
 
 GpuArcVideoEncodeAccelerator::~GpuArcVideoEncodeAccelerator() {
   // Normally |client_count_| should always be > 0 if vea_ is set, but if it
@@ -129,6 +137,11 @@ GpuArcVideoEncodeAccelerator::InitializeTask(
     return mojom::VideoEncodeAccelerator::Result::kInsufficientResourcesError;
   }
 
+  if (base::FeatureList::IsEnabled(kVideoEncodeUseMappableSI) && !sii_) {
+    DLOG(ERROR) << "Was passed null SharedImageInterface on construction";
+    return mojom::VideoEncodeAccelerator::Result::kPlatformFailureError;
+  }
+
   visible_size_ = config.input_visible_size;
   accelerator_.reset();
   auto accelerator_or_error =
@@ -200,15 +213,32 @@ void GpuArcVideoEncodeAccelerator::Encode(
     client_->NotifyError(Error::kInvalidArgumentError);
     return;
   }
-  std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer =
-      support_.CreateGpuMemoryBufferImplFromHandle(
-          std::move(gmb_handle).value(), coded_size_, *buffer_format,
-          gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
-          base::NullCallback());
+  scoped_refptr<media::VideoFrame> frame;
+  if (base::FeatureList::IsEnabled(kVideoEncodeUseMappableSI)) {
+    auto shared_image = sii_->CreateSharedImage(
+        {viz::GetSharedImageFormat(*buffer_format), visible_size_,
+         gfx::ColorSpace(), gpu::SHARED_IMAGE_USAGE_CPU_ONLY_READ_WRITE,
+         "GpuArcVideoEncodeAccelerator"},
+        gpu::kNullSurfaceHandle,
+        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
+        std::move(gmb_handle).value());
+    if (!shared_image) {
+      DLOG(ERROR) << "Failed to create mappable SharedImage";
+      client_->NotifyError(Error::kInvalidArgumentError);
+    }
 
-  auto frame = media::VideoFrame::WrapExternalGpuMemoryBuffer(
-      gfx::Rect(visible_size_), visible_size_, std::move(gpu_memory_buffer),
-      base::Microseconds(timestamp));
+    frame = media::VideoFrame::WrapMappableSharedImage(
+        std::move(shared_image), gpu::SyncToken(), base::NullCallback(),
+        gfx::Rect(visible_size_), visible_size_, base::Microseconds(timestamp));
+  } else {
+    frame = media::VideoFrame::WrapExternalGpuMemoryBufferHandle(
+        gfx::Rect(visible_size_), visible_size_,
+        client_native_pixmap_factory_.get(), std::move(gmb_handle).value(),
+        coded_size_, *buffer_format,
+        gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
+        base::Microseconds(timestamp));
+  }
+
   if (!frame) {
     DLOG(ERROR) << "Failed to create VideoFrame";
     client_->NotifyError(Error::kInvalidArgumentError);

@@ -206,6 +206,7 @@
 <translation id="1758018619400202187">EAP-TLS</translation>
 <translation id="1758459542619182298"><ph name="CONTROL_TYPE" /> <ph name="KEY_LIST" /></translation>
 <translation id="1759842336958782510">Chrome</translation>
+<translation id="1762353673362288306">Вече можете да използвате само инструментите за класната стая</translation>
 <translation id="1762483337755424125">Препис</translation>
 <translation id="1765169783255151332">Бързо превключване на клавишите</translation>
 <translation id="1768959921651994223">Тип удостоверяване</translation>
@@ -326,6 +327,7 @@
 <translation id="2240366984605217732">Превключване на подредбата</translation>
 <translation id="224421911978987610">продължителна експонация</translation>
 <translation id="2244834438220057800">зелен</translation>
+<translation id="2248689665683494517">минималистичен натюрморт с няколко мака в стъклена ваза на черен фон</translation>
 <translation id="225692081236532131">Състояние на активирането</translation>
 <translation id="2267285889943769271">Добавяне на екранна снимка</translation>
 <translation id="2268044343513325586">Прецизиране</translation>
@@ -476,6 +478,7 @@
 <translation id="3091839911843451378">Неуспешно – отпечатването спря</translation>
 <translation id="3102119246920354026">Кеш</translation>
 <translation id="3103783611481501187">сюрреалистично</translation>
+<translation id="3119672627216736407">Налице е превод</translation>
 <translation id="3122464029669770682">Процесор</translation>
 <translation id="3122614491980756867">басейни</translation>
 <translation id="3122883569442693641">Още подробности</translation>
@@ -755,6 +758,7 @@
 <translation id="430786093962686457">шифон</translation>
 <translation id="4310735698903592804">Скорошни тапети, базирани на AI на Google</translation>
 <translation id="4320904097188876154">неоноворозов</translation>
+<translation id="432961742358282111">Кликнете с десния бутон или натиснете и задръжте, за да получите определения, преводи или преобразувани мерни единици. Използвайте клавишите със стрелки за наляво и надясно, за да управлявате тази функция.</translation>
 <translation id="4333390807948134856">Клавишът <ph name="KEY_NAME" /> е натиснат</translation>
 <translation id="4334293042716981313">Можете също <ph name="BEGIN_LINK_FREEFORM_SUBPAGE" />да напишете своя собствена подкана<ph name="END_LINK_FREEFORM_SUBPAGE" /></translation>
 <translation id="4354430579665871434">клавиш</translation>
@@ -1136,6 +1140,7 @@
 <translation id="6058625436358447366">За да завършите процеса, въведете старата и новата си парола</translation>
 <translation id="6061772781719867950">Неуспешни HTTP заявки</translation>
 <translation id="6073292342939316679">намаляване на яркостта на клавиатурата</translation>
+<translation id="6074608334942655098">Спиране на превода</translation>
 <translation id="6074752328838739425">Скриване на обобщената информация</translation>
 <translation id="6075872808778243331">(Android) Забавяне на HTTP</translation>
 <translation id="6078323886959318429">Добавяне на пряк път</translation>
@@ -1267,7 +1272,7 @@
 <translation id="6596816719288285829">IP адрес</translation>
 <translation id="6599673642868607614">Благодарим ви за отзивите. Отзивите ви ни помагат да подобрим практическата работа с Chromebook и ще бъдат прегледани от екипа ни. Поради големия брой сигнали не можем да изпратим отговор.</translation>
 <translation id="6608043585557830684">Транскрибирането е изключено. Можете да го включите от настройките или от менюто <ph name="THREE_DOTS_MENU_ICON" />.</translation>
-<translation id="660846213831377756">Бутони на мишката</translation>
+<translation id="660846213831377756">Клавиши за мишката</translation>
 <translation id="6618744767048954150">В ход</translation>
 <translation id="6620487321149975369">Заданията за отпечатване ще се показват в историята, освен ако не ги премахнете ръчно</translation>
 <translation id="6624819909909965616">Не е възможно качването на файл, по-голям от 10 МБ</translation>
@@ -1433,7 +1438,6 @@
 <translation id="7302860742311162920">ICCID</translation>
 <translation id="7305884605064981971">EDGE</translation>
 <translation id="7308203371573257315">Попитайте експертите в Помощния форум за Chromebook</translation>
-<translation id="7309823890857024809">минималистичен натюрморт с няколко мака в стъклена ваза на черен фон</translation>
 <translation id="7311368985037279727">цвят на клавиатурата</translation>
 <translation id="7317831949569936035">Регистриране в учебно заведение</translation>
 <translation id="7319430975418800333">A3</translation>
@@ -1613,6 +1617,7 @@
 <translation id="8088963492174775412">Натиснете, за да запишете</translation>
 <translation id="8094062939584182041">Разрешаване на Google да ви изпраща имейли за този проблем</translation>
 <translation id="8104083085214006426">Използвате отворена и незащитена мрежа</translation>
+<translation id="8108879170356113798">След <ph name="NUM_SECONDS" /> секунди ще можете да използвате само инструментите за класната стая</translation>
 <translation id="811820734797650957">(Android) Шлюзът отговаря на команда ping</translation>
 <translation id="8129620843620772246"><ph name="TEMPERATURE_C" />°C</translation>
 <translation id="8131740175452115882">Потвърждаване</translation>

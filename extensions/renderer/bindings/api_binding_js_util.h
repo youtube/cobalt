@@ -26,6 +26,9 @@ class ExceptionHandler;
 // some of our JS bindings, we can reduce or remove this class.
 class APIBindingJSUtil final : public gin::Wrappable<APIBindingJSUtil> {
  public:
+  static constexpr gin::WrapperInfo kWrapperInfo = {
+      {gin::kEmbedderNativeGin}, gin::kAPIBindingJSUtil};
+
   APIBindingJSUtil(APITypeReferenceMap* type_refs,
                    APIRequestHandler* request_handler,
                    APIEventHandler* event_handler,
@@ -36,11 +39,10 @@ class APIBindingJSUtil final : public gin::Wrappable<APIBindingJSUtil> {
 
   ~APIBindingJSUtil() override;
 
-  static gin::WrapperInfo kWrapperInfo;
-
   // gin::Wrappable:
   gin::ObjectTemplateBuilder GetObjectTemplateBuilder(
       v8::Isolate* isolate) final;
+  const gin::WrapperInfo* wrapper_info() const override;
 
  private:
   // A handler to initiate an API request through the APIRequestHandler. A

@@ -97,25 +97,25 @@ struct TypeConverter<
 
 // blink::mojom::blink::Authenticator ---------------------------------------
 template <>
-struct TypeConverter<Vector<uint8_t>,
+struct TypeConverter<blink::Vector<uint8_t>,
                      blink::V8UnionArrayBufferOrArrayBufferView*> {
-  static Vector<uint8_t> Convert(
+  static blink::Vector<uint8_t> Convert(
       const blink::V8UnionArrayBufferOrArrayBufferView*);
 };
 
 template <>
 struct TypeConverter<
     std::optional<blink::mojom::blink::PublicKeyCredentialType>,
-    String> {
+    blink::String> {
   static std::optional<blink::mojom::blink::PublicKeyCredentialType> Convert(
-      const String&);
+      const blink::String&);
 };
 
 template <>
 struct TypeConverter<
-    WTF::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>,
+    blink::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>,
     blink::HeapVector<blink::Member<blink::PublicKeyCredentialParameters>>> {
-  static WTF::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>
+  static blink::Vector<blink::mojom::blink::PublicKeyCredentialParametersPtr>
   Convert(const blink::HeapVector<
           blink::Member<blink::PublicKeyCredentialParameters>>&
               input_pub_key_cred_params);
@@ -123,52 +123,54 @@ struct TypeConverter<
 
 template <>
 struct TypeConverter<std::optional<blink::mojom::blink::AuthenticatorTransport>,
-                     String> {
+                     blink::String> {
   static std::optional<blink::mojom::blink::AuthenticatorTransport> Convert(
-      const String&);
+      const blink::String&);
 };
 
 template <>
-struct TypeConverter<String, blink::mojom::blink::AuthenticatorTransport> {
-  static String Convert(const blink::mojom::blink::AuthenticatorTransport&);
+struct TypeConverter<blink::String,
+                     blink::mojom::blink::AuthenticatorTransport> {
+  static blink::String Convert(
+      const blink::mojom::blink::AuthenticatorTransport&);
 };
 
 template <>
 struct TypeConverter<std::optional<blink::mojom::blink::ResidentKeyRequirement>,
-                     String> {
+                     blink::String> {
   static std::optional<blink::mojom::blink::ResidentKeyRequirement> Convert(
-      const String&);
+      const blink::String&);
 };
 
 template <>
 struct TypeConverter<
     std::optional<blink::mojom::blink::UserVerificationRequirement>,
-    String> {
+    blink::String> {
   static std::optional<blink::mojom::blink::UserVerificationRequirement>
-  Convert(const String&);
+  Convert(const blink::String&);
 };
 
 template <>
 struct TypeConverter<
     std::optional<blink::mojom::blink::AttestationConveyancePreference>,
-    String> {
+    blink::String> {
   static std::optional<blink::mojom::blink::AttestationConveyancePreference>
-  Convert(const String&);
+  Convert(const blink::String&);
 };
 
 template <>
 struct TypeConverter<
     std::optional<blink::mojom::blink::AuthenticatorAttachment>,
-    std::optional<String>> {
+    std::optional<blink::String>> {
   static std::optional<blink::mojom::blink::AuthenticatorAttachment> Convert(
-      const std::optional<String>&);
+      const std::optional<blink::String>&);
 };
 
 template <>
 struct TypeConverter<blink::mojom::blink::LargeBlobSupport,
-                     std::optional<String>> {
+                     std::optional<blink::String>> {
   static blink::mojom::blink::LargeBlobSupport Convert(
-      const std::optional<String>&);
+      const std::optional<blink::String>&);
 };
 
 template <>
@@ -298,9 +300,9 @@ struct TypeConverter<blink::mojom::blink::PRFValuesPtr,
 };
 
 template <>
-struct TypeConverter<Vector<blink::mojom::blink::PRFValuesPtr>,
+struct TypeConverter<blink::Vector<blink::mojom::blink::PRFValuesPtr>,
                      blink::AuthenticationExtensionsPRFInputs> {
-  static Vector<StructPtr<blink::mojom::blink::PRFValues>> Convert(
+  static blink::Vector<StructPtr<blink::mojom::blink::PRFValues>> Convert(
       const blink::AuthenticationExtensionsPRFInputs&);
 };
 
@@ -313,8 +315,10 @@ struct TypeConverter<
 };
 
 template <>
-struct TypeConverter<Vector<blink::mojom::blink::Hint>, Vector<String>> {
-  static Vector<blink::mojom::blink::Hint> Convert(const Vector<String>&);
+struct TypeConverter<blink::Vector<blink::mojom::blink::Hint>,
+                     blink::Vector<blink::String>> {
+  static blink::Vector<blink::mojom::blink::Hint> Convert(
+      const blink::Vector<blink::String>&);
 };
 
 template <>

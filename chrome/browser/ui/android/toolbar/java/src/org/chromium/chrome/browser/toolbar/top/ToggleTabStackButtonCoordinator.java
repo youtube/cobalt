@@ -5,6 +5,7 @@
 package org.chromium.chrome.browser.toolbar.top;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.tab_ui.VersionUpdateIphHandler.maybeShowVersioningIph;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -33,6 +34,7 @@ import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_ui.TabModelDotInfo;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
+import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
@@ -48,8 +50,6 @@ import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.util.XrUtils;
 import org.chromium.url.GURL;
 
-import java.util.concurrent.TimeUnit;
-
 /**
  * Root component for the tab switcher button on the toolbar. Intended to own the {@link
  * ToggleTabStackButton}, but currently it only manages some signals around the tab switcher button.
@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit;
 public class ToggleTabStackButtonCoordinator extends ToolbarChild {
     private static final int IPH_TAB_SWITCHER_XR_WAIT_TIME_MS = 5 * 1000;
     private static final int IPH_TAB_SWITCHER_XR_MIN_TABS = 4;
-    private static final long ONE_DAY_IN_MILLIS = TimeUnit.DAYS.toMillis(1);
+
     private final CallbackController mCallbackController = new CallbackController();
     private final Context mContext;
     private final ToggleTabStackButton mToggleTabStackButton;
@@ -84,7 +84,6 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
     private final Callback<Integer> mArchivedTabCountObserver = this::maybeShowDeclutterIph;
     private @Nullable Callback<TabModelSelector> mTabModelSelectorCallback;
     private boolean mAlreadyRequestedDeclutterIph;
-    private long mLastTimeXrIphWasShown;
 
     /**
      * @param context The Android context used for various view operations.
@@ -319,6 +318,19 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
     void handlePageLoadFinished() {
         if (!mToggleTabStackButton.isShown()) return;
 
+        TabGroupModelFilter tabGroupModelFilter =
+                mTabModelSelectorSupplier
+                        .get()
+                        .getTabGroupModelFilterProvider()
+                        .getCurrentTabGroupModelFilter();
+        if (tabGroupModelFilter != null) {
+            maybeShowVersioningIph(
+                    mUserEducationHelper,
+                    mToggleTabStackButton,
+                    tabGroupModelFilter,
+                    /* expectsAutoOpen= */ false);
+        }
+
         HighlightParams params = new HighlightParams(HighlightShape.CIRCLE);
         params.setBoundsRespectPadding(true);
         IphCommandBuilder builder = null;
@@ -425,11 +437,15 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
         params.setBoundsRespectPadding(true);
         assumeNonNull(mArchivedTabsIphShownCallback);
         assumeNonNull(mArchivedTabsIphDismissedCallback);
+        int declutterIphTextRes =
+                ChromeFeatureList.sAndroidTabDeclutterArchiveTabGroups.isEnabled()
+                        ? R.string.iph_android_tab_declutter_text_with_tab_groups
+                        : R.string.iph_android_tab_declutter_text;
         mUserEducationHelper.requestShowIph(
                 new IphCommandBuilder(
                                 mContext.getResources(),
                                 FeatureConstants.ANDROID_TAB_DECLUTTER_FEATURE,
-                                R.string.iph_android_tab_declutter_text,
+                                declutterIphTextRes,
                                 R.string.iph_android_tab_declutter_accessibility_text)
                         .setAnchorView(mToggleTabStackButton)
                         .setHighlightParams(params)
@@ -443,12 +459,6 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
         if (tabCount < IPH_TAB_SWITCHER_XR_MIN_TABS) return;
         if (mUserEducationHelper == null) return;
 
-        long currentTime = System.currentTimeMillis();
-
-        // We don't show the IPH again unless Chrome is fully restarted
-        // or one day has elapsed since last time it was dismissed.
-        if (currentTime - mLastTimeXrIphWasShown < ONE_DAY_IN_MILLIS) return;
-
         mUserEducationHelper.requestShowIph(
                 new IphCommandBuilder(
                                 mContext.getResources(),
@@ -457,10 +467,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChild {
                                 R.string.iph_tab_switcher_xr)
                         .setAnchorView(mToggleTabStackButton)
                         .setAutoDismissTimeout(IPH_TAB_SWITCHER_XR_WAIT_TIME_MS)
-                        .setOnDismissCallback(
-                                () -> {
-                                    mLastTimeXrIphWasShown = System.currentTimeMillis();
-                                })
+                        .setEnableSnoozeMode(true)
                         .build());
     }
 }

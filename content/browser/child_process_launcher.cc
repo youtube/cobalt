@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/i18n/icu_util.h"
 #include "base/memory/unsafe_shared_memory_region.h"
+#include "base/notimplemented.h"
 #include "base/process/launch.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
@@ -28,6 +29,7 @@
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/sandboxed_process_launcher_delegate.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/child_process_binding_types.h"
@@ -121,7 +123,8 @@ ChildProcessLauncher::ChildProcessLauncher(
 #endif
 {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("startup", "ChildProcessLauncher", this);
+  TRACE_EVENT_BEGIN("startup", "ChildProcessLauncher",
+                    perfetto::Track::FromPointer(this));
 
 #if BUILDFLAG(IS_WIN)
   should_launch_elevated_ = delegate->ShouldLaunchElevated();
@@ -183,7 +186,8 @@ void ChildProcessLauncher::Notify(ChildProcessLauncherHelper::Process process,
 #endif
                                   int error_code) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  TRACE_EVENT_NESTABLE_ASYNC_END0("startup", "ChildProcessLauncher", this);
+  // Corresponds to the TRACE_EVENT_BEGIN in ChildProcessLauncher.
+  TRACE_EVENT_END("startup", perfetto::Track::FromPointer(this));
 
   starting_ = false;
   process_ = std::move(process);
@@ -348,6 +352,7 @@ RenderProcessPriority::RenderProcessPriority(
     bool intersects_viewport,
     bool boost_for_pending_views,
     bool boost_for_loading,
+    bool boost_for_discard,
     bool is_spare_renderer
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -366,6 +371,7 @@ RenderProcessPriority::RenderProcessPriority(
       intersects_viewport(intersects_viewport),
       boost_for_pending_views(boost_for_pending_views),
       boost_for_loading(boost_for_loading),
+      boost_for_discard(boost_for_discard),
       is_spare_renderer(is_spare_renderer)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -394,7 +400,7 @@ bool RenderProcessPriority::is_background() const {
       return false;
     }
     // TODO(351953350): Migrate this logic to the performance manager.
-    if (boost_for_loading) {
+    if (boost_for_loading || boost_for_discard) {
       return false;
     }
     return *priority_override == base::Process::Priority::kBestEffort;
@@ -402,7 +408,7 @@ bool RenderProcessPriority::is_background() const {
 #endif
   return !visible && !has_media_stream && !has_immersive_xr_session &&
          !boost_for_pending_views && !has_foreground_service_worker &&
-         !boost_for_loading;
+         !boost_for_loading && !boost_for_discard;
 }
 
 base::Process::Priority RenderProcessPriority::GetProcessPriority() const {
@@ -415,7 +421,7 @@ base::Process::Priority RenderProcessPriority::GetProcessPriority() const {
       return base::Process::Priority::kUserBlocking;
     }
     // TODO(351953350): Migrate this logic to the performance manager.
-    if (boost_for_loading) {
+    if (boost_for_loading || boost_for_discard) {
       return base::Process::Priority::kUserBlocking;
     }
     return *priority_override;

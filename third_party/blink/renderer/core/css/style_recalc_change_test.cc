@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/core/dom/dom_token_list.h"
 #include "third_party/blink/renderer/core/frame/local_frame_view.h"
 #include "third_party/blink/renderer/core/html/html_body_element.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 
@@ -46,7 +47,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipStyleRecalcForContainer) {
 
   ASSERT_TRUE(GetDocument().body());
 
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #outer { width: 300px; }
       #outer.narrow { width: 200px; }
@@ -67,7 +68,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipStyleRecalcForContainer) {
       </div>
     </div>
   )HTML",
-                                     ASSERT_NO_EXCEPTION);
+                                                        ASSERT_NO_EXCEPTION);
 
   Element* outer = GetDocument().getElementById(AtomicString("outer"));
   Element* container = GetDocument().getElementById(AtomicString("container"));
@@ -178,7 +179,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipStyleRecalcForContainerCleanSubtree) {
 
   ASSERT_TRUE(GetDocument().body());
 
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #container { container-type: inline-size; }
       #container.narrow { width: 100px; }
@@ -190,7 +191,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipStyleRecalcForContainerCleanSubtree) {
       <span id="affected"></span>
     </div>
   )HTML",
-                                     ASSERT_NO_EXCEPTION);
+                                                        ASSERT_NO_EXCEPTION);
 
   UpdateAllLifecyclePhasesForTest();
 
@@ -204,7 +205,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipStyleRecalcForContainerCleanSubtree) {
 }
 
 TEST_F(StyleRecalcChangeTestCQ, SkipAttachLayoutTreeForContainer) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #container { container-type: inline-size; }
       #container.narrow {
@@ -220,7 +221,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipAttachLayoutTreeForContainer) {
       <span id="affected"></span>
     </div>
   )HTML",
-                                     ASSERT_NO_EXCEPTION);
+                                                        ASSERT_NO_EXCEPTION);
 
   UpdateAllLifecyclePhasesForTest();
 
@@ -242,7 +243,7 @@ TEST_F(StyleRecalcChangeTestCQ, SkipAttachLayoutTreeForContainer) {
 }
 
 TEST_F(StyleRecalcChangeTestCQ, DontSkipLayoutRoot) {
-  GetDocument().body()->setInnerHTML(R"HTML(
+  GetDocument().body()->SetInnerHTMLWithoutTrustedTypes(R"HTML(
     <style>
       #outer, #inner { container-type: size; contain: layout; }
     </style>
@@ -253,7 +254,7 @@ TEST_F(StyleRecalcChangeTestCQ, DontSkipLayoutRoot) {
       <span id="outer_child"></span>
     </div>
   )HTML",
-                                     ASSERT_NO_EXCEPTION);
+                                                        ASSERT_NO_EXCEPTION);
 
   UpdateAllLifecyclePhasesForTest();
 

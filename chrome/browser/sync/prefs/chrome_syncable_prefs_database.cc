@@ -333,7 +333,7 @@ enum {
   kAccessibilityFaceGazeCursorSpeedRight = 100266,
   // kAccessibilityFaceGazeCursorSmoothing = 100267, (deprecated)
   kAccessibilityFaceGazeCursorUseAcceleration = 100268,
-  kFingerprintingProtectionEnabled = 100269,
+  // kFingerprintingProtectionEnabled = 100269, (deprecated)
   kAccessibilityFaceGazeGesturesToMacros = 100270,
   kAccessibilityFaceGazeGesturesToConfidence = 100271,
   kShelfGeminiAppPinRolls = 100272,
@@ -374,7 +374,7 @@ enum {
   kDesktopToiOSPaymentPromoOptOut = 100307,
   kDesktopToiOSNtpPromoAppearanceTimestamps = 100308,
   kDesktopToiOSNtpPromoDismissed = 100309,
-  kPrivacySandboxFakeNoticePromptShownTimeSync = 100310,
+  // kPrivacySandboxFakeNoticePromptShownTimeSync = 100310, (deprecated)
   kAccessibilityBounceKeysDelayMs = 100311,
   kAccessibilitySlowKeysDelayMs = 100312,
   kAccessibilityFaceGazePrecisionClick = 100313,
@@ -394,6 +394,7 @@ enum {
   kPinSplitTabButton = 100327,
   kGlicRolloutEligibility = 100328,
   kShelfNotebookLmAppPinRolls = 100329,
+  kVerticalTabsEnabled = 100330,
   // See components/sync_preferences/README.md about adding new entries here.
   // vvvvv IMPORTANT! vvvvv
   // Note to the reviewer: IT IS YOUR RESPONSIBILITY to ensure that new syncable
@@ -572,6 +573,10 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
       sync_preferences::MergeBehavior::kNone}},
     {prefs::kTabSearchMigrationComplete,
      {syncable_prefs_ids::kTabSearchMigrationComplete, syncer::PREFERENCES,
+      sync_preferences::PrefSensitivity::kNone,
+      sync_preferences::MergeBehavior::kNone}},
+    {prefs::kVerticalTabsEnabled,
+     {syncable_prefs_ids::kVerticalTabsEnabled, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -1632,10 +1637,6 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
      {syncable_prefs_ids::kIpProtectionEnabled, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
-    {prefs::kFingerprintingProtectionEnabled,
-     {syncable_prefs_ids::kFingerprintingProtectionEnabled, syncer::PREFERENCES,
-      sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
     {prefs::kHttpsFirstModeIncognito,
      {syncable_prefs_ids::kHttpsFirstModeIncognito, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
@@ -1675,10 +1676,6 @@ constexpr auto kChromeSyncablePrefsAllowlist = base::MakeFixedFlatMap<
     {promos_prefs::kDesktopToiOSNtpPromoDismissed,
      {syncable_prefs_ids::kDesktopToiOSNtpPromoDismissed, syncer::PREFERENCES,
       sync_preferences::PrefSensitivity::kNone,
-      sync_preferences::MergeBehavior::kNone}},
-    {prefs::kPrivacySandboxFakeNoticePromptShownTimeSync,
-     {syncable_prefs_ids::kPrivacySandboxFakeNoticePromptShownTimeSync,
-      syncer::PREFERENCES, sync_preferences::PrefSensitivity::kNone,
       sync_preferences::MergeBehavior::kNone}},
 #if BUILDFLAG(ENABLE_GLIC)
     {glic::prefs::kGlicRolloutEligibility,

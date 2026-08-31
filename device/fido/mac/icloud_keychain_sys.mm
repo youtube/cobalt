@@ -12,6 +12,8 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/device_event_log/device_event_log.h"
+#include "device/fido/features.h"
+#include "device/fido/large_blob.h"
 #include "device/fido/mac/icloud_keychain_internals.h"
 
 namespace {
@@ -211,6 +213,11 @@ API_AVAILABLE(macos(13.3))
 @end
 
 namespace device::fido::icloud_keychain {
+SystemInterface::LargeBlobAssertionInputs::LargeBlobAssertionInputs() = default;
+SystemInterface::LargeBlobAssertionInputs::~LargeBlobAssertionInputs() =
+    default;
+SystemInterface::LargeBlobAssertionInputs::LargeBlobAssertionInputs(
+    const LargeBlobAssertionInputs&) = default;
 namespace {
 
 API_AVAILABLE(macos(13.3))
@@ -288,6 +295,7 @@ class API_AVAILABLE(macos(13.3)) NativeSystemInterface
   void MakeCredential(
       NSWindow* window,
       CtapMakeCredentialRequest request,
+      MakeCredentialOptions options,
       base::OnceCallback<void(ASAuthorization*, NSError*)> callback) override {
     DCHECK(!create_controller_);
     DCHECK(!get_controller_);
@@ -306,6 +314,29 @@ class API_AVAILABLE(macos(13.3)) NativeSystemInterface
             [provider createCredentialRegistrationRequestWithChallenge:challenge
                                                                   name:name
                                                                 userID:user_id];
+    if (options.large_blob_support != LargeBlobSupport::kNotRequested) {
+      if (@available(macOS 14.0, *)) {
+        ASAuthorizationPublicKeyCredentialLargeBlobSupportRequirement
+            support_mode;
+        switch (options.large_blob_support) {
+          case LargeBlobSupport::kRequired:
+            support_mode =
+                ASAuthorizationPublicKeyCredentialLargeBlobSupportRequirementRequired;
+            break;
+          case LargeBlobSupport::kPreferred:
+            support_mode =
+                ASAuthorizationPublicKeyCredentialLargeBlobSupportRequirementPreferred;
+            break;
+          case LargeBlobSupport::kNotRequested:
+            NOTREACHED();
+        }
+        ASAuthorizationPublicKeyCredentialLargeBlobRegistrationInput*
+            large_blob_input =
+                [[ASAuthorizationPublicKeyCredentialLargeBlobRegistrationInput
+                    alloc] initWithSupportRequirement:support_mode];
+        create_request.largeBlob = large_blob_input;
+      }
+    }
     create_request.attestationPreference =
         Convert(request.attestation_preference);
     create_request.userVerificationPreference =
@@ -344,6 +375,7 @@ class API_AVAILABLE(macos(13.3)) NativeSystemInterface
   void GetAssertion(
       NSWindow* window,
       CtapGetAssertionRequest request,
+      LargeBlobAssertionInputs large_blob_inputs,
       base::OnceCallback<void(ASAuthorization*, NSError*)> callback) override {
     DCHECK(!create_controller_);
     DCHECK(!get_controller_);
@@ -380,6 +412,22 @@ class API_AVAILABLE(macos(13.3)) NativeSystemInterface
             [[ASAuthorizationPublicKeyCredentialPRFAssertionInput alloc]
                      initWithInputValues:default_values
                 perCredentialInputValues:ToPerCredValues(request.prf_inputs)];
+      }
+    }
+    if (@available(macOS 14.0, *)) {
+      if (large_blob_inputs.read) {
+        auto* large_blob_input =
+            [[ASAuthorizationPublicKeyCredentialLargeBlobAssertionInput alloc]
+                initWithOperation:
+                    ASAuthorizationPublicKeyCredentialLargeBlobAssertionOperationRead];
+        get_request.largeBlob = large_blob_input;
+      } else if (large_blob_inputs.write) {
+        auto* large_blob_input =
+            [[ASAuthorizationPublicKeyCredentialLargeBlobAssertionInput alloc]
+                initWithOperation:
+                    ASAuthorizationPublicKeyCredentialLargeBlobAssertionOperationWrite];
+        large_blob_input.dataToWrite = ToNSData(*large_blob_inputs.write);
+        get_request.largeBlob = large_blob_input;
       }
     }
     get_controller_ = [[ICloudKeychainGetController alloc]

@@ -150,8 +150,14 @@ struct PaintLayerStackingNode::HighestLayers {
     // A negative z-index child will not cause reparent of overlay scrollbars
     // because the ancestor scroller either has auto z-index which is above
     // the child or has negative z-index which is a stacking context.
-    if (!layer.GetLayoutObject().IsStacked() || style.EffectiveZIndex() < 0)
+    if (!layer.GetLayoutObject().IsStacked() || style.EffectiveZIndex() < 0) {
       return;
+    }
+
+    // We should not consider layers that have been omitted from z-order lists.
+    if (!layer.IsZOrderListVisible()) {
+      return;
+    }
 
     UpdateOrderForSubtreeHighestLayers(GetLayerType(layer), &layer);
   }
@@ -253,8 +259,7 @@ static void ForAllChildrenSortedByOrder(
     base::FunctionRef<void(PaintLayer&)> function) {
   // Optimization: `order` is relatively rare and we can avoid needing to
   // create and sort the vector of children in most cases.
-  if (RuntimeEnabledFeatures::PaintLayerUpdateOptimizationsEnabled() &&
-      !ChildrenMayBeAffectedByOrder(layer)) {
+  if (!ChildrenMayBeAffectedByOrder(layer)) {
     for (auto* child = layer.FirstChild(); child;
          child = child->NextSibling()) {
       function(*child);
@@ -321,8 +326,7 @@ void PaintLayerStackingNode::CollectLayers(PaintLayer& paint_layer,
   const auto& style = object.StyleRef();
 
   if (object.IsStacked()) {
-    if (!RuntimeEnabledFeatures::PaintLayerUpdateOptimizationsEnabled() ||
-        paint_layer.IsZOrderListVisible()) {
+    if (paint_layer.IsZOrderListVisible()) {
       auto& list =
           style.EffectiveZIndex() >= 0 ? pos_z_order_list_ : neg_z_order_list_;
       list.push_back(paint_layer);

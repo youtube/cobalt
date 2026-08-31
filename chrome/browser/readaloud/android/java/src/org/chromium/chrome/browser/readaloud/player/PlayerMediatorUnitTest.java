@@ -10,6 +10,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doReturn;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.BUFFERING;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.ERROR;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PAUSED;
+import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PLAYBACK_CREATION;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.PLAYING;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.STOPPED;
 import static org.chromium.chrome.modules.readaloud.PlaybackListener.State.UNKNOWN;
@@ -46,8 +48,11 @@ import org.robolectric.shadows.ShadowLooper;
 import org.chromium.base.Promise;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.UserActionTester;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker;
+import org.chromium.chrome.browser.browser_controls.BottomControlsStacker.LayerType;
 import org.chromium.chrome.browser.readaloud.ReadAloudMetrics;
 import org.chromium.chrome.browser.readaloud.ReadAloudPrefs;
 import org.chromium.chrome.browser.readaloud.ReadAloudPrefsJni;
@@ -79,6 +84,7 @@ public class PlayerMediatorUnitTest {
     @Mock private Playback mPlayback;
     @Mock private Playback.Metadata mPlaybackMetadata;
     @Mock private SeekBar mSeekbar;
+    @Mock private BottomControlsStacker mBottomControlsStacker;
     private MockPrefServiceHelper mMockPrefServiceHelper;
     private OnSeekBarChangeListener mOnSeekBarChangeListener;
     private final PlaybackVoice mPlaybackVoiceA = new PlaybackVoice("en", "a", "");
@@ -167,6 +173,7 @@ public class PlayerMediatorUnitTest {
         doReturn(PUBLISHER).when(mPlaybackMetadata).publisher();
         doReturn(PlaybackMode.OVERVIEW).when(mPlaybackMetadata).playbackMode();
         doReturn(1000).when(mSeekbar).getMax();
+        doReturn(mBottomControlsStacker).when(mDelegate).getBottomControlsStacker();
         mVoicesSupplier = new ObservableSupplierImpl<>();
         mVoicesSupplier.set(List.of(new PlaybackVoice("en", "a")));
         mSelectedVoiceIdSupplier = new ObservableSupplierImpl<>();
@@ -197,7 +204,8 @@ public class PlayerMediatorUnitTest {
 
         mModel = Mockito.spy(new PropertyModel.Builder(PlayerProperties.ALL_KEYS).build());
         mModel.set(PlayerProperties.HIDDEN_AND_PLAYING, false);
-        mMediator = new PlayerMediator(mPlayerCoordinator, mDelegate, mModel);
+        mMediator =
+                new PlayerMediator(mPlayerCoordinator, mDelegate, mModel, mBottomControlsStacker);
         mMediator.setClockForTesting(mClock);
         mOnSeekBarChangeListener = mMediator.getSeekBarChangeListener();
         mUserActionTester = new UserActionTester();
@@ -513,10 +521,27 @@ public class PlayerMediatorUnitTest {
 
     @Test
     public void testOnSpeedChange() {
+      doReturn(PlaybackMode.CLASSIC).when(mPlaybackMetadata).playbackMode();
+
         mMediator.setPlayback(mPlayback);
         mMediator.onSpeedChange(0.5f);
         verify(mPlayback).setRate(0.5f);
         mMediator.onSpeedChange(2f);
+        assertEquals(2f, ReadAloudPrefs.getSpeed(mDelegate.getPrefService()), /* delta= */ 0f);
+        assertEquals(2f, mModel.get(PlayerProperties.SPEED), /* delta= */ 0f);
+    }
+
+    @Test
+    @EnableFeatures(
+            "ReadAloudAudioOverviews:read_aloud_audio_overviews_speed_addition_percentage/30")
+    public void testOnSpeedChange_overview() {
+        doReturn(PlaybackMode.OVERVIEW).when(mPlaybackMetadata).playbackMode();
+
+        mMediator.setPlayback(mPlayback);
+        mMediator.onSpeedChange(0.5f);
+        verify(mPlayback).setRate(0.8f);
+        mMediator.onSpeedChange(2f);
+        verify(mPlayback).setRate(2.3f);
         assertEquals(2f, ReadAloudPrefs.getSpeed(mDelegate.getPrefService()), /* delta= */ 0f);
         assertEquals(2f, mModel.get(PlayerProperties.SPEED), /* delta= */ 0f);
     }
@@ -795,7 +820,7 @@ public class PlayerMediatorUnitTest {
     @Test
     public void testShouldRestoreMiniPlayer_null() {
         mMediator.onShouldRestoreMiniPlayer();
-        verify(mPlayerCoordinator, never()).restoreMiniPlayer();
+        verify(mPlayerCoordinator, never()).restoreMiniPlayer(anyBoolean());
     }
 
     @Test
@@ -814,14 +839,37 @@ public class PlayerMediatorUnitTest {
 
         // The mini player should restore.
         mMediator.onShouldRestoreMiniPlayer();
-        verify(mPlayerCoordinator).restoreMiniPlayer();
+        verify(mPlayerCoordinator).restoreMiniPlayer(true);
+    }
+
+    @Test
+    public void testShouldRestoreMiniPlayer_playbackCreation() {
+        // Set playback state through playback update, as if the error happened during playback.
+        mMediator.setPlayback(mPlayback);
+        verify(mPlayback).addListener(mPlaybackListenerCaptor.capture());
+
+        mPlaybackData.mState = PLAYBACK_CREATION;
+        mPlaybackListenerCaptor.getValue().onPlaybackDataChanged(mPlaybackData);
+
+        assertEquals(PLAYBACK_CREATION, (int) mModel.get(PlayerProperties.PLAYBACK_STATE));
+
+        // Clear playback.
+        mMediator.setPlayback(null);
+
+        // The mini player should restore.
+        mMediator.onShouldRestoreMiniPlayer();
+        verify(mPlayerCoordinator).restoreMiniPlayer(true);
     }
 
     @Test
     public void testShouldRestoreMiniPlayer() {
         mMediator.setPlayback(mPlayback);
         mMediator.onShouldRestoreMiniPlayer();
-        verify(mPlayerCoordinator).restoreMiniPlayer();
+        verify(mPlayerCoordinator).restoreMiniPlayer(true);
+
+        doReturn(true).when(mBottomControlsStacker).isLayerVisible(LayerType.BOTTOM_TOOLBAR);
+        mMediator.onShouldRestoreMiniPlayer();
+        verify(mPlayerCoordinator).restoreMiniPlayer(false);
     }
 
     @Test

@@ -15,6 +15,7 @@
 #include "chrome/browser/on_device_translation/component_manager.h"
 #include "chrome/browser/on_device_translation/language_pack_util.h"
 #include "chrome/browser/on_device_translation/translation_manager_impl.h"
+#include "content/public/browser/render_process_host.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 class Browser;
@@ -103,7 +104,8 @@ class MockComponentManager : public ComponentManager {
 
 class MockTranslationManagerImpl : public TranslationManagerImpl {
  public:
-  explicit MockTranslationManagerImpl(content::BrowserContext* browser_context,
+  explicit MockTranslationManagerImpl(content::RenderProcessHost* process_host,
+                                      content::BrowserContext* browser_context,
                                       const url::Origin& origin);
   ~MockTranslationManagerImpl() override;
 
@@ -118,8 +120,13 @@ class MockTranslationManagerImpl : public TranslationManagerImpl {
               (),
               (override));
 
+  bool CrashesAllowed() override { return crashes_allowed_; }
+
+  void SetCrashesAllowed(bool allow) { crashes_allowed_ = allow; }
+
  private:
   base::AutoReset<TranslationManagerImpl*> mock_translation_manager_impl_;
+  bool crashes_allowed_ = false;
 };
 
 // Creates a fake dictionary data file for the given source and target

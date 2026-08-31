@@ -19,7 +19,7 @@
 namespace webrtc {
 
 // Static factory for an IceTransport object that can be created
-// without using a webrtc::PeerConnection.
+// without using a PeerConnection.
 // The returned object must be accessed and destroyed on the thread that
 // created it.
 // The PortAllocator must outlive the created IceTransportInterface object.
@@ -29,7 +29,7 @@ RTC_EXPORT scoped_refptr<IceTransportInterface> CreateIceTransport(
     PortAllocator* port_allocator);
 
 // Static factory for an IceTransport object that can be created
-// without using a webrtc::PeerConnection.
+// without using a PeerConnection.
 // The returned object must be accessed and destroyed on the thread that
 // created it.
 // `init.port_allocator()` is required and must outlive the created

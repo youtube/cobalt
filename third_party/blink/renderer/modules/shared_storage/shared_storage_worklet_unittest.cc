@@ -35,6 +35,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/numeric/int128.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/messaging/cloneable_message_mojom_traits.h"
 #include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
 #include "third_party/blink/public/mojom/aggregation_service/aggregatable_report.mojom-blink.h"
@@ -435,6 +436,7 @@ class SharedStorageWorkletTest : public PageTestBase {
     head->mime_type = mime_type;
     head->charset = "us-ascii";
     head->response_time = kScriptResponseTime;
+    head->original_response_time = kScriptResponseTime;
 
     proxied_url_loader_factory.AddResponse(
         GURL(kModuleScriptSource), std::move(head),

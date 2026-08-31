@@ -11,13 +11,17 @@
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
 
 #include <algorithm>
-#include <array>
 #include <cstddef>
+#include <string>
+#include <vector>
 
 #include "api/numerics/samples_stats_counter.h"
+#include "api/scoped_refptr.h"
 #include "api/test/metrics/metric.h"
+#include "api/test/metrics/metrics_logger.h"
+#include "api/video/video_frame_buffer.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
+#include "rtc_tools/video_file_reader.h"
 #include "third_party/libyuv/include/libyuv/compare.h"
 
 namespace webrtc {
@@ -121,7 +125,7 @@ int GetTotalNumberOfSkippedFrames(const std::vector<Cluster>& clusters) {
 void PrintAnalysisResults(const std::string& label,
                           ResultsContainer& results,
                           MetricsLogger& logger) {
-  if (results.frames.size() > 0u) {
+  if (!results.frames.empty()) {
     logger.LogSingleValueMetric("Unique_frames_count", label,
                                 results.frames.size(), Unit::kUnitless,
                                 ImprovementDirection::kNeitherIsBetter);

@@ -9,6 +9,7 @@ import static org.chromium.build.NullUtil.assumeNonNull;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.view.KeyEvent;
 import android.view.Surface;
 
 import androidx.annotation.IntDef;
@@ -193,6 +194,7 @@ public class XrSessionCoordinator {
         // The active session must be set before creating the host activity, since it will be
         // notified once the activity is ready.
         sActiveSessionInstance = this;
+        mWebContents = webContents;
         mActiveSessionType = SessionType.VR;
         sActiveSessionAvailableSupplier.set(SessionType.VR);
 
@@ -202,10 +204,7 @@ public class XrSessionCoordinator {
             getApplicationContext().startActivity(intent);
         } else {
             XrSessionCoordinatorJni.get()
-                    .onXrHostActivityReady(
-                            mNativeXrSessionCoordinator,
-                            XrSessionCoordinator.this,
-                            getActivity(webContents));
+                    .onXrHostActivityReady(mNativeXrSessionCoordinator, getActivity(webContents));
         }
     }
 
@@ -291,19 +290,26 @@ public class XrSessionCoordinator {
         sActiveSessionInstance.onXrSessionButtonTouched();
     }
 
+    public static boolean dispatchKeyEvent(KeyEvent event) {
+        if (sActiveSessionInstance == null || sActiveSessionInstance.mWebContents == null) {
+            return false;
+        }
+
+        Activity activity = getActivity(sActiveSessionInstance.mWebContents);
+        if (activity == null) {
+            return false;
+        }
+
+        return activity.dispatchKeyEvent(event);
+    }
+
     public void onDrawingSurfaceReady(
             Surface surface, WindowAndroid rootWindow, int rotation, int width, int height) {
         if (DEBUG_LOGS) Log.i(TAG, "onDrawingSurfaceReady");
         if (mNativeXrSessionCoordinator == 0) return;
         XrSessionCoordinatorJni.get()
                 .onDrawingSurfaceReady(
-                        mNativeXrSessionCoordinator,
-                        XrSessionCoordinator.this,
-                        surface,
-                        rootWindow,
-                        rotation,
-                        width,
-                        height);
+                        mNativeXrSessionCoordinator, surface, rootWindow, rotation, width, height);
     }
 
     public static @Nullable XrSessionCoordinator getActiveInstanceForTesting() {
@@ -316,13 +322,7 @@ public class XrSessionCoordinator {
         if (mNativeXrSessionCoordinator == 0) return;
         XrSessionCoordinatorJni.get()
                 .onDrawingSurfaceTouch(
-                        mNativeXrSessionCoordinator,
-                        XrSessionCoordinator.this,
-                        isPrimary,
-                        isTouching,
-                        pointerId,
-                        x,
-                        y);
+                        mNativeXrSessionCoordinator, isPrimary, isTouching, pointerId, x, y);
     }
 
     public void onDrawingSurfaceDestroyed() {
@@ -333,15 +333,13 @@ public class XrSessionCoordinator {
     private void onJavaShutdown() {
         if (DEBUG_LOGS) Log.i(TAG, "onJavaShutdown");
         if (mNativeXrSessionCoordinator == 0) return;
-        XrSessionCoordinatorJni.get()
-                .onJavaShutdown(mNativeXrSessionCoordinator, XrSessionCoordinator.this);
+        XrSessionCoordinatorJni.get().onJavaShutdown(mNativeXrSessionCoordinator);
     }
 
     public void onXrSessionButtonTouched() {
         if (DEBUG_LOGS) Log.i(TAG, "onXrSessionButtonTouched");
         if (mNativeXrSessionCoordinator == 0) return;
-        XrSessionCoordinatorJni.get()
-                .onXrSessionButtonTouched(mNativeXrSessionCoordinator, XrSessionCoordinator.this);
+        XrSessionCoordinatorJni.get().onXrSessionButtonTouched(mNativeXrSessionCoordinator);
     }
 
     /**
@@ -362,9 +360,7 @@ public class XrSessionCoordinator {
     private void handleXrHostActivityReady(Activity activity) {
         if (mNativeXrSessionCoordinator == 0) return;
         mXrHostActivity = new WeakReference(activity);
-        XrSessionCoordinatorJni.get()
-                .onXrHostActivityReady(
-                        mNativeXrSessionCoordinator, XrSessionCoordinator.this, activity);
+        XrSessionCoordinatorJni.get().onXrHostActivityReady(mNativeXrSessionCoordinator, activity);
     }
 
     @CalledByNative
@@ -381,7 +377,6 @@ public class XrSessionCoordinator {
     interface Natives {
         void onDrawingSurfaceReady(
                 long nativeXrSessionCoordinator,
-                XrSessionCoordinator caller,
                 Surface surface,
                 WindowAndroid rootWindow,
                 int rotation,
@@ -390,20 +385,16 @@ public class XrSessionCoordinator {
 
         void onDrawingSurfaceTouch(
                 long nativeXrSessionCoordinator,
-                XrSessionCoordinator caller,
                 boolean primary,
                 boolean touching,
                 int pointerId,
                 float x,
                 float y);
 
-        void onJavaShutdown(long nativeXrSessionCoordinator, XrSessionCoordinator caller);
+        void onJavaShutdown(long nativeXrSessionCoordinator);
 
-        void onXrSessionButtonTouched(long nativeXrSessionCoordinator, XrSessionCoordinator caller);
+        void onXrSessionButtonTouched(long nativeXrSessionCoordinator);
 
-        void onXrHostActivityReady(
-                long nativeXrSessionCoordinator,
-                XrSessionCoordinator caller,
-                @Nullable Activity activity);
+        void onXrHostActivityReady(long nativeXrSessionCoordinator, @Nullable Activity activity);
     }
 }

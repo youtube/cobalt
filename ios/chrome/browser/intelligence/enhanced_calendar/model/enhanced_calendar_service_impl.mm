@@ -103,7 +103,7 @@ void EnhancedCalendarServiceImpl::ExecuteEnhancedCalendarRequest(
   page_context_wrapper_ = [[PageContextWrapper alloc]
         initWithWebState:web_state_.get()
       completionCallback:std::move(page_context_completion_callback)];
-  [page_context_wrapper_ setShouldGetInnerText:YES];
+  [page_context_wrapper_ setShouldGetAnnotatedPageContent:YES];
   [page_context_wrapper_ setShouldGetSnapshot:YES];
   [page_context_wrapper_ setTextToHighlight:base::SysUTF8ToNSString(
                                                 request_params->selected_text)];
@@ -115,15 +115,16 @@ void EnhancedCalendarServiceImpl::ExecuteEnhancedCalendarRequest(
 // Execute the Enhanced Calendar request with the generated Page Context.
 void EnhancedCalendarServiceImpl::OnPageContextGenerated(
     optimization_guide::proto::EnhancedCalendarRequest request,
-    std::unique_ptr<optimization_guide::proto::PageContext> page_context) {
+    PageContextWrapperCallbackResponse response) {
   page_context_wrapper_ = nil;
 
   // The request might have been cancelled.
-  if (!pending_request_callback_) {
+  // TODO(crbug.com/425736226): Handle PageContextWrapper errors.
+  if (!pending_request_callback_ || !response.has_value()) {
     return;
   }
 
-  request.set_allocated_page_context(page_context.release());
+  request.set_allocated_page_context(response.value().release());
 
   service_->ExecuteModel(
       optimization_guide::ModelBasedCapabilityKey::kEnhancedCalendar, request,

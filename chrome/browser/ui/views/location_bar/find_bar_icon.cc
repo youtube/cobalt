@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/location_bar/find_bar_icon.h"
 
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/grit/generated_resources.h"
@@ -13,6 +14,9 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
+#include "ui/views/view_class_properties.h"
+
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(FindBarIcon, kElementId);
 
 FindBarIcon::FindBarIcon(
     Browser* browser,
@@ -25,6 +29,7 @@ FindBarIcon::FindBarIcon(
                          "Find"),
       browser_(browser) {
   DCHECK(browser_);
+  SetProperty(views::kElementIdentifierKey, kElementId);
   GetViewAccessibility().SetName(l10n_util::GetStringUTF16(IDS_TOOLTIP_FIND));
 }
 
@@ -62,12 +67,15 @@ const gfx::VectorIcon& FindBarIcon::GetVectorIcon() const {
 void FindBarIcon::UpdateImpl() {
   // |browser_->window()| may return nullptr because Update() is called while
   // BrowserWindow is being constructed.
-  if (!browser_->window() || !browser_->HasFindBarController()) {
+  if (!browser_->window() || !browser_->GetFeatures().HasFindBarController()) {
     return;
   }
 
   const bool was_visible = GetVisible();
-  SetVisible(browser_->GetFindBarController()->find_bar()->IsFindBarVisible());
+  SetVisible(browser_->GetFeatures()
+                 .GetFindBarController()
+                 ->find_bar()
+                 ->IsFindBarVisible());
   SetActive(GetVisible(), was_visible != GetVisible());
 }
 

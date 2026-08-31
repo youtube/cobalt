@@ -11,14 +11,14 @@
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/win/cloud_synced_folder_checker.h"
 #include "chrome/browser/win/installer_downloader/installer_downloader_pref_names.h"
 #include "chrome/browser/win/installer_downloader/system_info_provider.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/download/public/common/download_interrupt_reasons.h"
 #include "components/download/public/common/download_url_parameters.h"
-#include "components/prefs/testing_pref_service.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/fake_download_item.h"
 #include "content/public/test/mock_download_manager.h"
@@ -57,59 +57,86 @@ class InstallerDownloaderModelTest : public testing::Test {
         std::move(mock_system_info_provider_ptr));
   }
 
-  TestingPrefServiceSimple& GetLocalState() { return *local_state_.Get(); }
+  PrefService& GetLocalState() {
+    return *TestingBrowserProcess::GetGlobal()->local_state();
+  }
 
   content::BrowserTaskEnvironment task_environment_;
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   std::unique_ptr<InstallerDownloaderModelImpl> model_;
   raw_ptr<MockSystemInfoProvider> mock_system_info_provider_;
   content::MockDownloadManager mock_download_manager_;
 };
 
 TEST_F(InstallerDownloaderModelTest, MaxShowCountNotExceeded) {
+  GetLocalState().SetBoolean(prefs::kInstallerDownloaderPreventFutureDisplay,
+                             false);
   GetLocalState().SetInteger(prefs::kInstallerDownloaderInfobarShowCount,
                              InstallerDownloaderModelImpl::kMaxShowCount - 1);
-  EXPECT_FALSE(model_->IsMaxShowCountReached());
+  EXPECT_TRUE(model_->CanShowInfobar());
 }
 
 TEST_F(InstallerDownloaderModelTest, MaxShowCountExactlyAtLimit) {
+  GetLocalState().SetBoolean(prefs::kInstallerDownloaderPreventFutureDisplay,
+                             false);
   GetLocalState().SetInteger(prefs::kInstallerDownloaderInfobarShowCount,
                              InstallerDownloaderModelImpl::kMaxShowCount);
-  EXPECT_TRUE(model_->IsMaxShowCountReached());
+  EXPECT_FALSE(model_->CanShowInfobar());
 }
 
 TEST_F(InstallerDownloaderModelTest, MaxShowCountAboveLimit) {
+  GetLocalState().SetBoolean(prefs::kInstallerDownloaderPreventFutureDisplay,
+                             false);
   GetLocalState().SetInteger(prefs::kInstallerDownloaderInfobarShowCount,
                              InstallerDownloaderModelImpl::kMaxShowCount + 1);
-  EXPECT_TRUE(model_->IsMaxShowCountReached());
+  EXPECT_FALSE(model_->CanShowInfobar());
 }
 
 TEST_F(InstallerDownloaderModelTest,
        IncrementShowCountPersistsAndStopsAtLimit) {
   // Start from a clean slate.
+  GetLocalState().SetBoolean(prefs::kInstallerDownloaderPreventFutureDisplay,
+                             false);
   GetLocalState().SetInteger(prefs::kInstallerDownloaderInfobarShowCount, 0);
 
   // Increment (kMaxShowCount-1) times and verify we have NOT hit the ceiling.
   for (int i = 0; i < InstallerDownloaderModelImpl::kMaxShowCount - 1; ++i) {
     model_->IncrementShowCount();
-    EXPECT_FALSE(model_->IsMaxShowCountReached());
+    EXPECT_TRUE(model_->CanShowInfobar());
     EXPECT_EQ(i + 1, GetLocalState().GetInteger(
                          prefs::kInstallerDownloaderInfobarShowCount));
   }
 
   // One more increment reaches the exact limit.
   model_->IncrementShowCount();
-  EXPECT_TRUE(model_->IsMaxShowCountReached());
+  EXPECT_FALSE(model_->CanShowInfobar());
   EXPECT_EQ(
       InstallerDownloaderModelImpl::kMaxShowCount,
       GetLocalState().GetInteger(prefs::kInstallerDownloaderInfobarShowCount));
 
   // Extra increments keep the model in "limit reached" state.
   model_->IncrementShowCount();
-  EXPECT_TRUE(model_->IsMaxShowCountReached());
+  EXPECT_FALSE(model_->CanShowInfobar());
   EXPECT_EQ(
       InstallerDownloaderModelImpl::kMaxShowCount + 1,
       GetLocalState().GetInteger(prefs::kInstallerDownloaderInfobarShowCount));
+}
+
+TEST_F(InstallerDownloaderModelTest, PreventFutureDisplayPrefBlocksInfobar) {
+  GetLocalState().SetBoolean(prefs::kInstallerDownloaderPreventFutureDisplay,
+                             true);
+  GetLocalState().SetInteger(prefs::kInstallerDownloaderInfobarShowCount, 0);
+  EXPECT_FALSE(model_->CanShowInfobar());
+}
+
+TEST_F(InstallerDownloaderModelTest, PreventFutureDisplayMethodWorks) {
+  EXPECT_FALSE(GetLocalState().GetBoolean(
+      prefs::kInstallerDownloaderPreventFutureDisplay));
+
+  model_->PreventFutureDisplay();
+
+  EXPECT_TRUE(GetLocalState().GetBoolean(
+      prefs::kInstallerDownloaderPreventFutureDisplay));
+  EXPECT_FALSE(model_->CanShowInfobar());
 }
 
 // This test verifies that when the Os version is ineligible, no additional
@@ -297,6 +324,64 @@ TEST_F(InstallerDownloaderModelTest, CompleteDownloadFailureInvokesCallback) {
   fake_download_item.NotifyDownloadUpdated();
 
   run_loop.Run();
+}
+
+TEST_F(InstallerDownloaderModelTest, DestinationMatchMetricTrue) {
+  base::HistogramTester histograms;
+
+  const base::FilePath destination(FILE_PATH_LITERAL("C:\\tmp\\installer.exe"));
+  const GURL url("https://example.com/installer.exe");
+  content::FakeDownloadItem fake_item;
+
+  // The observer compares against the target file path.
+  fake_item.SetTargetFilePath(destination);
+  fake_item.SetState(download::DownloadItem::IN_PROGRESS);
+
+  EXPECT_CALL(mock_download_manager_, DownloadUrlMock(_))
+      .WillOnce([&](download::DownloadUrlParameters* params) {
+        std::move(params->callback())
+            .Run(&fake_item, download::DOWNLOAD_INTERRUPT_REASON_NONE);
+      });
+
+  model_->StartDownload(url, destination, mock_download_manager_,
+                        base::DoNothing());
+
+  fake_item.SetState(download::DownloadItem::COMPLETE);
+  fake_item.NotifyDownloadUpdated();
+
+  histograms.ExpectUniqueSample(
+      "Windows.InstallerDownloader.DestinationMatches",
+      /*sample=*/true, /*expected_bucket_count=*/1);
+}
+
+TEST_F(InstallerDownloaderModelTest, DestinationMatchMetricFalse) {
+  base::HistogramTester histograms;
+
+  const base::FilePath requested(FILE_PATH_LITERAL("C:\\tmp\\installer.exe"));
+  const base::FilePath actual(FILE_PATH_LITERAL("C:\\tmp\\installer (1).exe"));
+  const GURL url("https://example.com/installer.exe");
+
+  content::FakeDownloadItem fake_item;
+  // The actual path is different from what was requested, simulating a
+  // path change by the download manager.
+  fake_item.SetTargetFilePath(actual);
+  fake_item.SetState(download::DownloadItem::IN_PROGRESS);
+
+  EXPECT_CALL(mock_download_manager_, DownloadUrlMock(_))
+      .WillOnce([&](download::DownloadUrlParameters* params) {
+        std::move(params->callback())
+            .Run(&fake_item, download::DOWNLOAD_INTERRUPT_REASON_NONE);
+      });
+
+  model_->StartDownload(url, requested, mock_download_manager_,
+                        base::DoNothing());
+
+  fake_item.SetState(download::DownloadItem::COMPLETE);
+  fake_item.NotifyDownloadUpdated();
+
+  histograms.ExpectUniqueSample(
+      "Windows.InstallerDownloader.DestinationMatches",
+      /*sample=*/false, /*expected_bucket_count=*/1);
 }
 
 }  // namespace

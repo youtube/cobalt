@@ -19,7 +19,6 @@
 #import "ios/chrome/browser/toolbar/ui_bundled/buttons/toolbar_tab_group_state.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_constants.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/public/toolbar_utils.h"
-#import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/tab_group_indicator_features_utils.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/ui/tab_group_indicator_constants.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/tab_groups/ui/tab_group_indicator_view.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/toolbar_progress_bar.h"
@@ -161,6 +160,7 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
 @synthesize backButton = _backButton;
 @synthesize forwardButton = _forwardButton;
 @synthesize tabGridButton = _tabGridButton;
+@synthesize diamondPrototypeButton = _diamondPrototypeButton;
 @synthesize stopButton = _stopButton;
 @synthesize reloadButton = _reloadButton;
 @synthesize locationBarContainer = _locationBarContainer;
@@ -232,7 +232,6 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
 }
 
 - (void)updateTabGroupIndicatorAvailability {
-  CHECK(IsTabGroupInGridEnabled());
   BOOL isTopOmnibox = self.locationBarView != nil;
   if (isTopOmnibox) {
     _tabGroupIndicatorBottomOmniboxConstraint.active = NO;
@@ -243,7 +242,7 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
   }
   self.tabGroupIndicatorView.showSeparator = !isTopOmnibox;
 
-  BOOL canShowTabStrip = IsRegularXRegularSizeClass(self.superview);
+  BOOL canShowTabStrip = CanShowTabStrip(self.superview);
   BOOL isAvailable = !IsCompactHeight(self.superview) && !canShowTabStrip;
   self.tabGroupIndicatorView.available = isAvailable;
 }
@@ -336,13 +335,11 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
 
 // Sets tabgroupIndicatorView.
 - (void)setTabGroupIndicatorView:(TabGroupIndicatorView*)view {
-  CHECK(IsTabGroupInGridEnabled());
   _tabGroupIndicatorView = view;
   _tabGroupIndicatorView.hidden = YES;
   _tabGroupIndicatorView.translatesAutoresizingMaskIntoConstraints = NO;
   _tabGroupIndicatorView.backgroundColor =
       self.buttonFactory.toolbarConfiguration.backgroundColor;
-  _tabGroupIndicatorView.delegate = self;
   [self addSubview:_tabGroupIndicatorView];
 
   _tabGroupIndicatorHeightConstraint = [_tabGroupIndicatorView.heightAnchor
@@ -379,11 +376,11 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
   }
 
   // If the tab group indicator is visible, add its height to the total height.
-  if (IsTabGroupInGridEnabled() && !_tabGroupIndicatorView.hidden) {
+  if (!_tabGroupIndicatorView.hidden) {
     height += kTabGroupIndicatorHeight;
     // If the Omnibox is not at the top, remove the top vertical margin to avoid
     // extra space when the tab group indicator is present.
-    if (!isTopOmnibox && !HasTabGroupIndicatorBelowOmnibox()) {
+    if (!isTopOmnibox) {
       height -= kTopToolbarUnsplitMargin;
     }
   }
@@ -394,11 +391,9 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
 
 - (void)didMoveToSuperview {
   [super didMoveToSuperview];
-  if (IsTabGroupInGridEnabled()) {
-    // Ensure the tab group indicator's visibility aligns with the new
-    // superview's layout context.
-    [self updateTabGroupIndicatorAvailability];
-  }
+  // Ensure the tab group indicator's visibility aligns with the new
+  // superview's layout context.
+  [self updateTabGroupIndicatorAvailability];
 }
 
 #if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
@@ -718,12 +713,11 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
   locationBarView.translatesAutoresizingMaskIntoConstraints = NO;
   [locationBarView setContentHuggingPriority:UILayoutPriorityDefaultLow
                                      forAxis:UILayoutConstraintAxisHorizontal];
-  if (IsTabGroupInGridEnabled()) {
-    BOOL tabGroupIndicatorVisible = !_tabGroupIndicatorView.hidden;
-    if (tabGroupIndicatorVisible) {
-      [self updateTabGroupIndicatorViewConstraints:tabGroupIndicatorVisible];
-      [self updateTabGroupIndicatorAvailability];
-    }
+
+  BOOL tabGroupIndicatorVisible = !_tabGroupIndicatorView.hidden;
+  if (tabGroupIndicatorVisible) {
+    [self updateTabGroupIndicatorViewConstraints:tabGroupIndicatorVisible];
+    [self updateTabGroupIndicatorAvailability];
   }
 
   if (!self.locationBarContainer || !locationBarView) {
@@ -765,16 +759,7 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
   CGFloat alphaValue = fmax(progress * 2 - 1, 0);
   _bannerPromoBackground.alpha = alphaValue;
 
-  if (IsTabGroupInGridEnabled()) {
-    if (!_tabGroupIndicatorView.hidden && HasTabGroupIndicatorBelowOmnibox()) {
-      CGFloat tabgroupIndicatorHeight =
-          self.tabGroupIndicatorView.hidden
-              ? 0
-              : kTabGroupIndicatorHeight * alphaValue;
-      _tabGroupIndicatorHeightConstraint.constant = tabgroupIndicatorHeight;
-    }
-    self.tabGroupIndicatorView.alpha = alphaValue;
-  }
+  self.tabGroupIndicatorView.alpha = alphaValue;
 
   _bannerPromoBackgroundHeightConstraint.constant =
       [self bannerPromoBackgroundHeightForFullscreenProgress:progress];
@@ -849,23 +834,12 @@ const CGFloat kBannerPromoVerticalSpacing = 8;
   _tabGroupIndicatorTopOmniboxConstraint.active = NO;
   _tabGroupIndicatorBottomOmniboxConstraint.active = NO;
 
-  BOOL isTopOmnibox = self.locationBarView != nil;
+  [self updateConstraintsForIndicatorBelowOmnibox:NO];
 
-  // If the tab group indicator is below the omnibox.
-  if (HasTabGroupIndicatorBelowOmnibox() && isTopOmnibox) {
-    [self updateConstraintsForIndicatorBelowOmnibox:YES];
-
-    _tabGroupIndicatorTopOmniboxConstraint =
-        [self.tabGroupIndicatorView.topAnchor
-            constraintEqualToAnchor:self.locationBarContainer.bottomAnchor];
-  } else {
-    [self updateConstraintsForIndicatorBelowOmnibox:NO];
-
-    _tabGroupIndicatorTopOmniboxConstraint =
-        [self.tabGroupIndicatorView.bottomAnchor
-            constraintEqualToAnchor:self.locationBarContainer.topAnchor
-                           constant:-kAdaptiveLocationBarVerticalMargin];
-  }
+  _tabGroupIndicatorTopOmniboxConstraint =
+      [self.tabGroupIndicatorView.bottomAnchor
+          constraintEqualToAnchor:self.locationBarContainer.topAnchor
+                         constant:-kAdaptiveLocationBarVerticalMargin];
 
   _tabGroupIndicatorBottomOmniboxConstraint =
       [self.tabGroupIndicatorView.bottomAnchor

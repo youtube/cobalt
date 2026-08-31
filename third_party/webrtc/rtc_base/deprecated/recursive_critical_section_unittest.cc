@@ -10,17 +10,15 @@
 
 #include "rtc_base/deprecated/recursive_critical_section.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <set>
 #include <utility>
 #include <vector>
 
 #include "api/units/time_delta.h"
-#include "rtc_base/arraysize.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/platform_thread.h"
@@ -274,7 +272,7 @@ TEST(RecursiveCriticalSectionTest, DISABLED_Performance) {
   Event event;
 
   static const int kThreadRepeats = 10000000;
-  static const int kExpectedCount = kThreadRepeats * arraysize(threads);
+  static const int kExpectedCount = kThreadRepeats * std::ssize(threads);
   PerfTestData test_data(kExpectedCount, &event);
 
   for (auto& t : threads)

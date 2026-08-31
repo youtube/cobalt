@@ -147,6 +147,13 @@ TEST_F(LaunchModeRecorderTest, SlowModeChromeShortcut) {
   }
 }
 
+TEST_F(LaunchModeRecorderTest, SlowModeChromeAppId) {
+  // Normal launch with an AppId.
+  base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
+  cmd_line.AppendSwitchNative(switches::kSourceAppId, L"ChromeAppId");
+  ComputeLaunchModeAndVerify(cmd_line, LaunchMode::kWithAppId);
+}
+
 TEST_F(LaunchModeRecorderTest, SlowModeWebAppShortcut) {
   static constexpr struct PathKeyAndLaunchMode kPathKeysAndModes[] = {
       {base::DIR_COMMON_START_MENU, LaunchMode::kWebAppShortcutStartMenu},
@@ -202,7 +209,8 @@ TEST_F(LaunchModeRecorderTest, Other) {
 
 #else  // IS_MAC
 
-TEST_F(LaunchModeRecorderTest, Mac) {
+// TODO(crbug.com/437351384): Flaky
+TEST_F(LaunchModeRecorderTest, DISABLED_Mac) {
   base::CommandLine cmd_line(base::CommandLine::NO_PROGRAM);
   ComputeLaunchModeAndVerify(cmd_line, LaunchMode::kMacUndockedDiskLaunch);
 }

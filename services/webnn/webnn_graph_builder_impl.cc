@@ -14,12 +14,15 @@
 #include "base/memory/stack_allocated.h"
 #include "base/numerics/checked_math.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/thread_pool.h"
 #include "base/types/expected.h"
+#include "base/types/fixed_array.h"
 #include "base/types/pass_key.h"
 #include "services/webnn/error.h"
 #include "services/webnn/public/cpp/graph_validation_utils.h"
 #include "services/webnn/public/cpp/operand_descriptor.h"
 #include "services/webnn/public/cpp/supported_data_types.h"
+#include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/public/mojom/webnn_error.mojom.h"
 #include "services/webnn/webnn_constant_operand.h"
@@ -91,16 +94,24 @@ webnn::RecurrentNetworkDirection MojoRecurrentNetworkDirectionToComponent(
   }
 }
 
-bool ValidateClampAttributes(const mojom::Clamp& clamp) {
-  if (std::isnan(clamp.min_value) || std::isnan(clamp.max_value)) {
-    // The min or max value are nan.
+webnn::PaddingMode MojoPaddingModeToComponent(const mojom::PaddingMode& mode) {
+  switch (mode.which()) {
+    case mojom::PaddingMode::Tag::kConstant:
+      return webnn::PaddingMode::kConstant;
+    case mojom::PaddingMode::Tag::kEdge:
+      return webnn::PaddingMode::kEdge;
+    case mojom::PaddingMode::Tag::kReflection:
+      return webnn::PaddingMode::kReflection;
+  }
+}
+
+bool ValidateClampAttributes(const mojom::Clamp& clamp,
+                             webnn::OperandDataType data_type) {
+  if (clamp.min_value.IsNaN() || clamp.max_value.IsNaN()) {
     return false;
   }
-  if (clamp.min_value >= clamp.max_value) {
-    // The min value must be below the max value.
-    return false;
-  }
-  return true;
+
+  return !clamp.min_value.IsGreaterThan(clamp.max_value, data_type);
 }
 
 bool ValidateEluAttributes(const mojom::Elu& elu) {
@@ -640,6 +651,8 @@ class OperationValidationContext {
   bool NoteOutputDependency(const mojom::Operation& operation,
                             OperationId operation_id);
 
+  bool IsProcessedOperand(OperandId operand_id);
+
   template <typename Operation>
   bool ValidateUnaryOperation(const Operation& operation,
                               const webnn::SupportedTensors& input_constraint,
@@ -783,12 +796,17 @@ OperationValidationContext::ValidateOperationsAndGetDependencies(
            std::move(context.operand_to_producing_operation_)}};
 }
 
+bool OperationValidationContext::IsProcessedOperand(OperandId operand_id) {
+  return operand_id.value() < operands_.size() &&
+         processed_operands_.contains(operand_id);
+}
+
 template <typename Operation>
 bool OperationValidationContext::ValidateUnaryOperation(
     const Operation& operation,
     const webnn::SupportedTensors& input_constraint,
     OperationId operation_id) {
-  if (!processed_operands_.contains(operation.input_operand_id)) {
+  if (!IsProcessedOperand(operation.input_operand_id)) {
     return false;
   }
   NoteInputDependency(operation.input_operand_id, operation_id);
@@ -810,7 +828,7 @@ bool OperationValidationContext::ValidateUnaryOperation(
 bool OperationValidationContext::ValidateCastOperation(
     const mojom::ElementWiseUnary& operation,
     OperationId operation_id) {
-  if (!processed_operands_.contains(operation.input_operand_id)) {
+  if (!IsProcessedOperand(operation.input_operand_id)) {
     return false;
   }
   NoteInputDependency(operation.input_operand_id, operation_id);
@@ -840,9 +858,9 @@ bool OperationValidationContext::ValidateCastOperation(
 bool OperationValidationContext::ValidateBatchNormalization(
     const mojom::BatchNormalization& batch_normalization,
     OperationId operation_id) {
-  if (!processed_operands_.contains(batch_normalization.input_operand_id) ||
-      !processed_operands_.contains(batch_normalization.mean_operand_id) ||
-      !processed_operands_.contains(batch_normalization.variance_operand_id)) {
+  if (!IsProcessedOperand(batch_normalization.input_operand_id) ||
+      !IsProcessedOperand(batch_normalization.mean_operand_id) ||
+      !IsProcessedOperand(batch_normalization.variance_operand_id)) {
     return false;
   }
   NoteInputDependency(batch_normalization.input_operand_id, operation_id);
@@ -861,7 +879,7 @@ bool OperationValidationContext::ValidateBatchNormalization(
   }
   const auto& scale_operand_id = batch_normalization.scale_operand_id;
   if (scale_operand_id) {
-    if (!processed_operands_.contains(scale_operand_id.value())) {
+    if (!IsProcessedOperand(scale_operand_id.value())) {
       // The scale operand is invalid.
       return false;
     }
@@ -875,7 +893,7 @@ bool OperationValidationContext::ValidateBatchNormalization(
   }
   const auto& bias_operand_id = batch_normalization.bias_operand_id;
   if (bias_operand_id) {
-    if (!processed_operands_.contains(bias_operand_id.value())) {
+    if (!IsProcessedOperand(bias_operand_id.value())) {
       // The bias operand is invalid.
       return false;
     }
@@ -907,7 +925,7 @@ bool OperationValidationContext::ValidateBatchNormalization(
 bool OperationValidationContext::ValidateArgMinMax(
     const mojom::ArgMinMax& arg_min_max,
     OperationId operation_id) {
-  if (!processed_operands_.contains(arg_min_max.input_operand_id)) {
+  if (!IsProcessedOperand(arg_min_max.input_operand_id)) {
     return false;
   }
   NoteInputDependency(arg_min_max.input_operand_id, operation_id);
@@ -941,7 +959,8 @@ bool OperationValidationContext::ValidateClamp(const mojom::Clamp& clamp,
                               operation_id)) {
     return false;
   }
-  if (!ValidateClampAttributes(clamp)) {
+  const auto* input = GetMojoOperand(clamp.input_operand_id);
+  if (!ValidateClampAttributes(clamp, input->descriptor.data_type())) {
     return false;
   }
 
@@ -959,7 +978,7 @@ bool OperationValidationContext::ValidateConcat(const mojom::Concat& concat,
   std::vector<OperandDescriptor> inputs;
   inputs.reserve(concat.input_operand_ids.size());
   for (const auto& input_operand_id : concat.input_operand_ids) {
-    if (!processed_operands_.contains(input_operand_id)) {
+    if (!IsProcessedOperand(input_operand_id)) {
       return false;
     }
     NoteInputDependency(input_operand_id, operation_id);
@@ -986,8 +1005,8 @@ bool OperationValidationContext::ValidateConcat(const mojom::Concat& concat,
 
 bool OperationValidationContext::ValidateConv2d(const mojom::Conv2d& conv2d,
                                                 OperationId operation_id) {
-  if (!processed_operands_.contains(conv2d.input_operand_id) ||
-      !processed_operands_.contains(conv2d.filter_operand_id)) {
+  if (!IsProcessedOperand(conv2d.input_operand_id) ||
+      !IsProcessedOperand(conv2d.filter_operand_id)) {
     return false;
   }
   NoteInputDependency(conv2d.input_operand_id, operation_id);
@@ -1011,7 +1030,7 @@ bool OperationValidationContext::ValidateConv2d(const mojom::Conv2d& conv2d,
   std::optional<OperandDescriptor> bias_operand;
   auto& bias_operand_id = conv2d.bias_operand_id;
   if (bias_operand_id) {
-    if (!processed_operands_.contains(bias_operand_id.value())) {
+    if (!IsProcessedOperand(bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(bias_operand_id.value(), operation_id);
@@ -1056,7 +1075,7 @@ bool OperationValidationContext::ValidateConv2d(const mojom::Conv2d& conv2d,
 bool OperationValidationContext::ValidateCumulativeSum(
     const mojom::CumulativeSum& cumulative_sum,
     OperationId operation_id) {
-  if (!processed_operands_.contains(cumulative_sum.input_operand_id)) {
+  if (!IsProcessedOperand(cumulative_sum.input_operand_id)) {
     return false;
   }
   NoteInputDependency(cumulative_sum.input_operand_id, operation_id);
@@ -1086,9 +1105,9 @@ bool OperationValidationContext::ValidateCumulativeSum(
 bool OperationValidationContext::ValidateDequantizeLinear(
     const mojom::DequantizeLinear& dequantize_linear,
     OperationId operation_id) {
-  if (!processed_operands_.contains(dequantize_linear.input_operand_id) ||
-      !processed_operands_.contains(dequantize_linear.scale_operand_id) ||
-      !processed_operands_.contains(dequantize_linear.zero_point_operand_id)) {
+  if (!IsProcessedOperand(dequantize_linear.input_operand_id) ||
+      !IsProcessedOperand(dequantize_linear.scale_operand_id) ||
+      !IsProcessedOperand(dequantize_linear.zero_point_operand_id)) {
     return false;
   }
   NoteInputDependency(dequantize_linear.input_operand_id, operation_id);
@@ -1196,8 +1215,8 @@ bool OperationValidationContext::ValidateElementWiseBinaryOperands(
 bool OperationValidationContext::ValidateElementWiseBinary(
     const mojom::ElementWiseBinary& operation,
     OperationId operation_id) {
-  if (!processed_operands_.contains(operation.lhs_operand_id) ||
-      !processed_operands_.contains(operation.rhs_operand_id)) {
+  if (!IsProcessedOperand(operation.lhs_operand_id) ||
+      !IsProcessedOperand(operation.rhs_operand_id)) {
     return false;
   }
   NoteInputDependency(operation.lhs_operand_id, operation_id);
@@ -1314,7 +1333,7 @@ bool OperationValidationContext::ValidateElementWiseUnary(
 
 bool OperationValidationContext::ValidateExpand(const mojom::Expand& expand,
                                                 OperationId operation_id) {
-  if (!processed_operands_.contains(expand.input_operand_id)) {
+  if (!IsProcessedOperand(expand.input_operand_id)) {
     return false;
   }
   NoteInputDependency(expand.input_operand_id, operation_id);
@@ -1341,8 +1360,8 @@ bool OperationValidationContext::ValidateExpand(const mojom::Expand& expand,
 
 bool OperationValidationContext::ValidateGather(const mojom::Gather& gather,
                                                 OperationId operation_id) {
-  if (!processed_operands_.contains(gather.input_operand_id) ||
-      !processed_operands_.contains(gather.indices_operand_id)) {
+  if (!IsProcessedOperand(gather.input_operand_id) ||
+      !IsProcessedOperand(gather.indices_operand_id)) {
     return false;
   }
   NoteInputDependency(gather.input_operand_id, operation_id);
@@ -1373,8 +1392,8 @@ bool OperationValidationContext::ValidateGather(const mojom::Gather& gather,
 bool OperationValidationContext::ValidateGatherElements(
     const mojom::GatherElements& gather_elements,
     OperationId operation_id) {
-  if (!processed_operands_.contains(gather_elements.input_operand_id) ||
-      !processed_operands_.contains(gather_elements.indices_operand_id)) {
+  if (!IsProcessedOperand(gather_elements.input_operand_id) ||
+      !IsProcessedOperand(gather_elements.indices_operand_id)) {
     return false;
   }
   NoteInputDependency(gather_elements.input_operand_id, operation_id);
@@ -1404,8 +1423,8 @@ bool OperationValidationContext::ValidateGatherElements(
 bool OperationValidationContext::ValidateGatherND(
     const mojom::GatherND& gather_nd,
     OperationId operation_id) {
-  if (!processed_operands_.contains(gather_nd.input_operand_id) ||
-      !processed_operands_.contains(gather_nd.indices_operand_id)) {
+  if (!IsProcessedOperand(gather_nd.input_operand_id) ||
+      !IsProcessedOperand(gather_nd.indices_operand_id)) {
     return false;
   }
   NoteInputDependency(gather_nd.input_operand_id, operation_id);
@@ -1433,8 +1452,8 @@ bool OperationValidationContext::ValidateGatherND(
 
 bool OperationValidationContext::ValidateGemm(const mojom::Gemm& gemm,
                                               OperationId operation_id) {
-  if (!processed_operands_.contains(gemm.a_operand_id) ||
-      !processed_operands_.contains(gemm.b_operand_id)) {
+  if (!IsProcessedOperand(gemm.a_operand_id) ||
+      !IsProcessedOperand(gemm.b_operand_id)) {
     return false;
   }
   NoteInputDependency(gemm.a_operand_id, operation_id);
@@ -1449,7 +1468,7 @@ bool OperationValidationContext::ValidateGemm(const mojom::Gemm& gemm,
   }
   auto& c_operand_id = gemm.c_operand_id;
   if (c_operand_id) {
-    if (!processed_operands_.contains(c_operand_id.value())) {
+    if (!IsProcessedOperand(c_operand_id.value())) {
       // The third operand is invalid.
       return false;
     }
@@ -1478,9 +1497,9 @@ bool OperationValidationContext::ValidateGemm(const mojom::Gemm& gemm,
 
 bool OperationValidationContext::ValidateGru(const mojom::Gru& gru,
                                              OperationId operation_id) {
-  if (!processed_operands_.contains(gru.input_operand_id) ||
-      !processed_operands_.contains(gru.weight_operand_id) ||
-      !processed_operands_.contains(gru.recurrent_weight_operand_id)) {
+  if (!IsProcessedOperand(gru.input_operand_id) ||
+      !IsProcessedOperand(gru.weight_operand_id) ||
+      !IsProcessedOperand(gru.recurrent_weight_operand_id)) {
     return false;
   }
   NoteInputDependency(gru.input_operand_id, operation_id);
@@ -1497,16 +1516,14 @@ bool OperationValidationContext::ValidateGru(const mojom::Gru& gru,
 
   const auto& bias_operand_id = gru.bias_operand_id;
   if (bias_operand_id.has_value()) {
-    if (*bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(gru.bias_operand_id)) {
+    if (!IsProcessedOperand(bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(bias_operand_id.value(), operation_id);
   }
   const auto& recurrent_bias_operand_id = gru.recurrent_bias_operand_id;
   if (recurrent_bias_operand_id.has_value()) {
-    if (*recurrent_bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(gru.recurrent_bias_operand_id)) {
+    if (!IsProcessedOperand(recurrent_bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(recurrent_bias_operand_id.value(), operation_id);
@@ -1514,8 +1531,7 @@ bool OperationValidationContext::ValidateGru(const mojom::Gru& gru,
   const auto& initial_hidden_state_operand_id =
       gru.initial_hidden_state_operand_id;
   if (initial_hidden_state_operand_id.has_value()) {
-    if (*initial_hidden_state_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(gru.initial_hidden_state_operand_id)) {
+    if (!IsProcessedOperand(initial_hidden_state_operand_id.value())) {
       return false;
     }
     NoteInputDependency(initial_hidden_state_operand_id.value(), operation_id);
@@ -1560,10 +1576,10 @@ bool OperationValidationContext::ValidateGru(const mojom::Gru& gru,
 
 bool OperationValidationContext::ValidateGruCell(const mojom::GruCell& gru_cell,
                                                  OperationId operation_id) {
-  if (!processed_operands_.contains(gru_cell.input_operand_id) ||
-      !processed_operands_.contains(gru_cell.weight_operand_id) ||
-      !processed_operands_.contains(gru_cell.recurrent_weight_operand_id) ||
-      !processed_operands_.contains(gru_cell.hidden_state_operand_id)) {
+  if (!IsProcessedOperand(gru_cell.input_operand_id) ||
+      !IsProcessedOperand(gru_cell.weight_operand_id) ||
+      !IsProcessedOperand(gru_cell.recurrent_weight_operand_id) ||
+      !IsProcessedOperand(gru_cell.hidden_state_operand_id)) {
     return false;
   }
   NoteInputDependency(gru_cell.input_operand_id, operation_id);
@@ -1583,8 +1599,7 @@ bool OperationValidationContext::ValidateGruCell(const mojom::GruCell& gru_cell,
 
   const std::optional<OperandId>& bias_operand_id = gru_cell.bias_operand_id;
   if (bias_operand_id.has_value()) {
-    if (*bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(gru_cell.bias_operand_id)) {
+    if (!IsProcessedOperand(bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(bias_operand_id.value(), operation_id);
@@ -1592,8 +1607,7 @@ bool OperationValidationContext::ValidateGruCell(const mojom::GruCell& gru_cell,
   const std::optional<OperandId>& recurrent_bias_operand_id =
       gru_cell.recurrent_bias_operand_id;
   if (recurrent_bias_operand_id.has_value()) {
-    if (*recurrent_bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(gru_cell.recurrent_bias_operand_id)) {
+    if (!IsProcessedOperand(recurrent_bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(recurrent_bias_operand_id.value(), operation_id);
@@ -1648,7 +1662,7 @@ bool OperationValidationContext::ValidateHardSigmoid(
 bool OperationValidationContext::ValidateLayerNormalization(
     const mojom::LayerNormalization& layer_normalization,
     OperationId operation_id) {
-  if (!processed_operands_.contains(layer_normalization.input_operand_id)) {
+  if (!IsProcessedOperand(layer_normalization.input_operand_id)) {
     return false;
   }
   NoteInputDependency(layer_normalization.input_operand_id, operation_id);
@@ -1662,10 +1676,7 @@ bool OperationValidationContext::ValidateLayerNormalization(
 
   const auto& scale_operand_id = layer_normalization.scale_operand_id;
   if (scale_operand_id) {
-    // TODO(crbug.com/413722115): encapsulate below checks to an
-    // IsUnprocessedOperand helper function.
-    if (*scale_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(scale_operand_id.value()) ||
+    if (!IsProcessedOperand(*scale_operand_id) ||
         scale_operand_id.value() == layer_normalization.output_operand_id) {
       // The scale operand is invalid.
       return false;
@@ -1674,8 +1685,7 @@ bool OperationValidationContext::ValidateLayerNormalization(
   }
   const auto& bias_operand_id = layer_normalization.bias_operand_id;
   if (bias_operand_id) {
-    if (*bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(bias_operand_id.value()) ||
+    if (!IsProcessedOperand(bias_operand_id.value()) ||
         bias_operand_id.value() == layer_normalization.output_operand_id) {
       // The bias operand is invalid.
       return false;
@@ -1729,9 +1739,9 @@ bool OperationValidationContext::ValidateLinear(const mojom::Linear& linear,
 
 bool OperationValidationContext::ValidateLstm(const mojom::Lstm& lstm,
                                               OperationId operation_id) {
-  if (!processed_operands_.contains(lstm.input_operand_id) ||
-      !processed_operands_.contains(lstm.weight_operand_id) ||
-      !processed_operands_.contains(lstm.recurrent_weight_operand_id)) {
+  if (!IsProcessedOperand(lstm.input_operand_id) ||
+      !IsProcessedOperand(lstm.weight_operand_id) ||
+      !IsProcessedOperand(lstm.recurrent_weight_operand_id)) {
     return false;
   }
   NoteInputDependency(lstm.input_operand_id, operation_id);
@@ -1748,24 +1758,21 @@ bool OperationValidationContext::ValidateLstm(const mojom::Lstm& lstm,
 
   const auto& bias_operand_id = lstm.bias_operand_id;
   if (bias_operand_id.has_value()) {
-    if (*bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(lstm.bias_operand_id)) {
+    if (!IsProcessedOperand(bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(bias_operand_id.value(), operation_id);
   }
   const auto& recurrent_bias_operand_id = lstm.recurrent_bias_operand_id;
   if (recurrent_bias_operand_id.has_value()) {
-    if (*recurrent_bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(lstm.recurrent_bias_operand_id)) {
+    if (!IsProcessedOperand(recurrent_bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(recurrent_bias_operand_id.value(), operation_id);
   }
   const auto& peephole_weight_operand_id = lstm.peephole_weight_operand_id;
   if (peephole_weight_operand_id.has_value()) {
-    if (*peephole_weight_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(lstm.peephole_weight_operand_id)) {
+    if (!IsProcessedOperand(peephole_weight_operand_id.value())) {
       return false;
     }
     NoteInputDependency(peephole_weight_operand_id.value(), operation_id);
@@ -1773,8 +1780,7 @@ bool OperationValidationContext::ValidateLstm(const mojom::Lstm& lstm,
   const auto& initial_hidden_state_operand_id =
       lstm.initial_hidden_state_operand_id;
   if (initial_hidden_state_operand_id.has_value()) {
-    if (*initial_hidden_state_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(lstm.initial_hidden_state_operand_id)) {
+    if (!IsProcessedOperand(lstm.initial_hidden_state_operand_id.value())) {
       return false;
     }
     NoteInputDependency(initial_hidden_state_operand_id.value(), operation_id);
@@ -1782,8 +1788,7 @@ bool OperationValidationContext::ValidateLstm(const mojom::Lstm& lstm,
   const auto& initial_cell_state_operand_id =
       lstm.initial_cell_state_operand_id;
   if (initial_cell_state_operand_id.has_value()) {
-    if (*initial_cell_state_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(lstm.initial_cell_state_operand_id)) {
+    if (!IsProcessedOperand(initial_cell_state_operand_id.value())) {
       return false;
     }
     NoteInputDependency(initial_cell_state_operand_id.value(), operation_id);
@@ -1829,11 +1834,11 @@ bool OperationValidationContext::ValidateLstm(const mojom::Lstm& lstm,
 bool OperationValidationContext::ValidateLstmCell(
     const mojom::LstmCell& lstm_cell,
     OperationId operation_id) {
-  if (!processed_operands_.contains(lstm_cell.input_operand_id) ||
-      !processed_operands_.contains(lstm_cell.weight_operand_id) ||
-      !processed_operands_.contains(lstm_cell.recurrent_weight_operand_id) ||
-      !processed_operands_.contains(lstm_cell.hidden_state_operand_id) ||
-      !processed_operands_.contains(lstm_cell.cell_state_operand_id)) {
+  if (!IsProcessedOperand(lstm_cell.input_operand_id) ||
+      !IsProcessedOperand(lstm_cell.weight_operand_id) ||
+      !IsProcessedOperand(lstm_cell.recurrent_weight_operand_id) ||
+      !IsProcessedOperand(lstm_cell.hidden_state_operand_id) ||
+      !IsProcessedOperand(lstm_cell.cell_state_operand_id)) {
     return false;
   }
   NoteInputDependency(lstm_cell.input_operand_id, operation_id);
@@ -1856,8 +1861,7 @@ bool OperationValidationContext::ValidateLstmCell(
 
   const std::optional<OperandId> bias_operand_id = lstm_cell.bias_operand_id;
   if (bias_operand_id.has_value()) {
-    if (*bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(bias_operand_id.value())) {
+    if (!IsProcessedOperand(bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(bias_operand_id.value(), operation_id);
@@ -1865,8 +1869,7 @@ bool OperationValidationContext::ValidateLstmCell(
   const std::optional<OperandId> recurrent_bias_operand_id =
       lstm_cell.recurrent_bias_operand_id;
   if (recurrent_bias_operand_id.has_value()) {
-    if (*recurrent_bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(recurrent_bias_operand_id.value())) {
+    if (!IsProcessedOperand(recurrent_bias_operand_id.value())) {
       return false;
     }
     NoteInputDependency(recurrent_bias_operand_id.value(), operation_id);
@@ -1874,8 +1877,7 @@ bool OperationValidationContext::ValidateLstmCell(
   const std::optional<OperandId> peephole_weight_operand_id =
       lstm_cell.peephole_weight_operand_id;
   if (peephole_weight_operand_id.has_value()) {
-    if (*peephole_weight_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(peephole_weight_operand_id.value())) {
+    if (!IsProcessedOperand(peephole_weight_operand_id.value())) {
       return false;
     }
     NoteInputDependency(peephole_weight_operand_id.value(), operation_id);
@@ -1923,7 +1925,7 @@ bool OperationValidationContext::ValidateLstmCell(
 bool OperationValidationContext::ValidateInstanceNormalization(
     const mojom::InstanceNormalization& instance_normalization,
     OperationId operation_id) {
-  if (!processed_operands_.contains(instance_normalization.input_operand_id)) {
+  if (!IsProcessedOperand(instance_normalization.input_operand_id)) {
     return false;
   }
   NoteInputDependency(instance_normalization.input_operand_id, operation_id);
@@ -1936,8 +1938,7 @@ bool OperationValidationContext::ValidateInstanceNormalization(
   }
   const auto& scale_operand_id = instance_normalization.scale_operand_id;
   if (scale_operand_id) {
-    if (*scale_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(scale_operand_id.value()) ||
+    if (!IsProcessedOperand(scale_operand_id.value()) ||
         scale_operand_id.value() == instance_normalization.output_operand_id) {
       // The scale operand is invalid.
       return false;
@@ -1946,8 +1947,7 @@ bool OperationValidationContext::ValidateInstanceNormalization(
   }
   const auto& bias_operand_id = instance_normalization.bias_operand_id;
   if (bias_operand_id) {
-    if (*bias_operand_id.value() >= operands_.size() ||
-        !processed_operands_.contains(bias_operand_id.value()) ||
+    if (!IsProcessedOperand(bias_operand_id.value()) ||
         bias_operand_id.value() == instance_normalization.output_operand_id) {
       // The bias operand is invalid.
       return false;
@@ -1972,8 +1972,8 @@ bool OperationValidationContext::ValidateInstanceNormalization(
 
 bool OperationValidationContext::ValidateMatmul(const mojom::Matmul& matmul,
                                                 OperationId operation_id) {
-  if (!processed_operands_.contains(matmul.a_operand_id) ||
-      !processed_operands_.contains(matmul.b_operand_id)) {
+  if (!IsProcessedOperand(matmul.a_operand_id) ||
+      !IsProcessedOperand(matmul.b_operand_id)) {
     return false;
   }
   NoteInputDependency(matmul.a_operand_id, operation_id);
@@ -2001,7 +2001,7 @@ bool OperationValidationContext::ValidateMatmul(const mojom::Matmul& matmul,
 
 bool OperationValidationContext::ValidatePad(const mojom::Pad& pad,
                                              OperationId operation_id) {
-  if (!processed_operands_.contains(pad.input_operand_id)) {
+  if (!IsProcessedOperand(pad.input_operand_id)) {
     return false;
   }
   NoteInputDependency(pad.input_operand_id, operation_id);
@@ -2014,9 +2014,9 @@ bool OperationValidationContext::ValidatePad(const mojom::Pad& pad,
   }
 
   const base::expected<OperandDescriptor, std::string> validated_output =
-      ValidatePadAndInferOutput(*context_properties_, input->descriptor,
-                                pad.beginning_padding, pad.ending_padding,
-                                pad.label);
+      ValidatePadAndInferOutput(
+          *context_properties_, input->descriptor, pad.beginning_padding,
+          pad.ending_padding, MojoPaddingModeToComponent(*pad.mode), pad.label);
   if (!validated_output.has_value()) {
     return false;
   }
@@ -2029,7 +2029,7 @@ bool OperationValidationContext::ValidatePad(const mojom::Pad& pad,
 
 bool OperationValidationContext::ValidatePool2d(const mojom::Pool2d& pool2d,
                                                 OperationId operation_id) {
-  if (!processed_operands_.contains(pool2d.input_operand_id)) {
+  if (!IsProcessedOperand(pool2d.input_operand_id)) {
     return false;
   }
   NoteInputDependency(pool2d.input_operand_id, operation_id);
@@ -2061,8 +2061,8 @@ bool OperationValidationContext::ValidatePool2d(const mojom::Pool2d& pool2d,
 
 bool OperationValidationContext::ValidatePrelu(const mojom::Prelu& prelu,
                                                OperationId operation_id) {
-  if (!processed_operands_.contains(prelu.input_operand_id) ||
-      !processed_operands_.contains(prelu.slope_operand_id)) {
+  if (!IsProcessedOperand(prelu.input_operand_id) ||
+      !IsProcessedOperand(prelu.slope_operand_id)) {
     return false;
   }
   NoteInputDependency(prelu.input_operand_id, operation_id);
@@ -2092,9 +2092,9 @@ bool OperationValidationContext::ValidatePrelu(const mojom::Prelu& prelu,
 bool OperationValidationContext::ValidateQuantizeLinear(
     const mojom::QuantizeLinear& quantize_linear,
     OperationId operation_id) {
-  if (!processed_operands_.contains(quantize_linear.input_operand_id) ||
-      !processed_operands_.contains(quantize_linear.scale_operand_id) ||
-      !processed_operands_.contains(quantize_linear.zero_point_operand_id)) {
+  if (!IsProcessedOperand(quantize_linear.input_operand_id) ||
+      !IsProcessedOperand(quantize_linear.scale_operand_id) ||
+      !IsProcessedOperand(quantize_linear.zero_point_operand_id)) {
     return false;
   }
   NoteInputDependency(quantize_linear.input_operand_id, operation_id);
@@ -2128,7 +2128,7 @@ bool OperationValidationContext::ValidateQuantizeLinear(
 bool OperationValidationContext::ValidateResample2d(
     const mojom::Resample2d& resample2d,
     OperationId operation_id) {
-  if (!processed_operands_.contains(resample2d.input_operand_id)) {
+  if (!IsProcessedOperand(resample2d.input_operand_id)) {
     return false;
   }
   NoteInputDependency(resample2d.input_operand_id, operation_id);
@@ -2189,7 +2189,7 @@ bool OperationValidationContext::ValidateResample2d(
 
 bool OperationValidationContext::ValidateReshape(const mojom::Reshape& reshape,
                                                  OperationId operation_id) {
-  if (!processed_operands_.contains(reshape.input_operand_id)) {
+  if (!IsProcessedOperand(reshape.input_operand_id)) {
     return false;
   }
   NoteInputDependency(reshape.input_operand_id, operation_id);
@@ -2219,7 +2219,7 @@ bool OperationValidationContext::ValidateReshape(const mojom::Reshape& reshape,
 bool OperationValidationContext::ValidateReverseOperation(
     const mojom::Reverse& reverse,
     OperationId operation_id) {
-  if (!processed_operands_.contains(reverse.input_operand_id)) {
+  if (!IsProcessedOperand(reverse.input_operand_id)) {
     return false;
   }
   NoteInputDependency(reverse.input_operand_id, operation_id);
@@ -2246,9 +2246,9 @@ bool OperationValidationContext::ValidateReverseOperation(
 bool OperationValidationContext::ValidateScatterElements(
     const mojom::ScatterElements& scatter_elements,
     OperationId operation_id) {
-  if (!processed_operands_.contains(scatter_elements.input_operand_id) ||
-      !processed_operands_.contains(scatter_elements.indices_operand_id) ||
-      !processed_operands_.contains(scatter_elements.updates_operand_id)) {
+  if (!IsProcessedOperand(scatter_elements.input_operand_id) ||
+      !IsProcessedOperand(scatter_elements.indices_operand_id) ||
+      !IsProcessedOperand(scatter_elements.updates_operand_id)) {
     return false;
   }
   NoteInputDependency(scatter_elements.input_operand_id, operation_id);
@@ -2281,9 +2281,9 @@ bool OperationValidationContext::ValidateScatterElements(
 bool OperationValidationContext::ValidateScatterND(
     const mojom::ScatterND& scatter_nd,
     OperationId operation_id) {
-  if (!processed_operands_.contains(scatter_nd.input_operand_id) ||
-      !processed_operands_.contains(scatter_nd.indices_operand_id) ||
-      !processed_operands_.contains(scatter_nd.updates_operand_id)) {
+  if (!IsProcessedOperand(scatter_nd.input_operand_id) ||
+      !IsProcessedOperand(scatter_nd.indices_operand_id) ||
+      !IsProcessedOperand(scatter_nd.updates_operand_id)) {
     return false;
   }
   NoteInputDependency(scatter_nd.input_operand_id, operation_id);
@@ -2315,7 +2315,7 @@ bool OperationValidationContext::ValidateScatterND(
 
 bool OperationValidationContext::ValidateSlice(const mojom::Slice& slice,
                                                OperationId operation_id) {
-  if (!processed_operands_.contains(slice.input_operand_id)) {
+  if (!IsProcessedOperand(slice.input_operand_id)) {
     return false;
   }
   NoteInputDependency(slice.input_operand_id, operation_id);
@@ -2343,7 +2343,7 @@ bool OperationValidationContext::ValidateSlice(const mojom::Slice& slice,
 
 bool OperationValidationContext::ValidateSoftmax(const mojom::Softmax& softmax,
                                                  OperationId operation_id) {
-  if (!processed_operands_.contains(softmax.input_operand_id)) {
+  if (!IsProcessedOperand(softmax.input_operand_id)) {
     return false;
   }
   NoteInputDependency(softmax.input_operand_id, operation_id);
@@ -2369,7 +2369,7 @@ bool OperationValidationContext::ValidateSoftmax(const mojom::Softmax& softmax,
 
 bool OperationValidationContext::ValidateSplit(const mojom::Split& split,
                                                OperationId operation_id) {
-  if (!processed_operands_.contains(split.input_operand_id)) {
+  if (!IsProcessedOperand(split.input_operand_id)) {
     return false;
   }
   NoteInputDependency(split.input_operand_id, operation_id);
@@ -2419,7 +2419,7 @@ bool OperationValidationContext::ValidateSplit(const mojom::Split& split,
 
 bool OperationValidationContext::ValidateTile(const mojom::Tile& tile,
                                               OperationId operation_id) {
-  if (!processed_operands_.contains(tile.input_operand_id)) {
+  if (!IsProcessedOperand(tile.input_operand_id)) {
     return false;
   }
   NoteInputDependency(tile.input_operand_id, operation_id);
@@ -2447,7 +2447,7 @@ bool OperationValidationContext::ValidateTile(const mojom::Tile& tile,
 bool OperationValidationContext::ValidateTranspose(
     const mojom::Transpose& transpose,
     OperationId operation_id) {
-  if (!processed_operands_.contains(transpose.input_operand_id)) {
+  if (!IsProcessedOperand(transpose.input_operand_id)) {
     return false;
   }
   NoteInputDependency(transpose.input_operand_id, operation_id);
@@ -2475,7 +2475,7 @@ bool OperationValidationContext::ValidateTranspose(
 bool OperationValidationContext::ValidateTriangular(
     const mojom::Triangular& triangular,
     OperationId operation_id) {
-  if (!processed_operands_.contains(triangular.input_operand_id)) {
+  if (!IsProcessedOperand(triangular.input_operand_id)) {
     return false;
   }
   NoteInputDependency(triangular.input_operand_id, operation_id);
@@ -2502,9 +2502,9 @@ bool OperationValidationContext::ValidateTriangular(
 
 bool OperationValidationContext::ValidateWhere(const mojom::Where& where,
                                                OperationId operation_id) {
-  if (!processed_operands_.contains(where.condition_operand_id) ||
-      !processed_operands_.contains(where.true_value_operand_id) ||
-      !processed_operands_.contains(where.false_value_operand_id)) {
+  if (!IsProcessedOperand(where.condition_operand_id) ||
+      !IsProcessedOperand(where.true_value_operand_id) ||
+      !IsProcessedOperand(where.false_value_operand_id)) {
     return false;
   }
   NoteInputDependency(where.condition_operand_id, operation_id);
@@ -2537,7 +2537,7 @@ bool OperationValidationContext::ValidateWhere(const mojom::Where& where,
 
 bool OperationValidationContext::ValidateReduce(const mojom::Reduce& reduce,
                                                 OperationId operation_id) {
-  if (!processed_operands_.contains(reduce.input_operand_id)) {
+  if (!IsProcessedOperand(reduce.input_operand_id)) {
     return false;
   }
   NoteInputDependency(reduce.input_operand_id, operation_id);
@@ -2693,6 +2693,90 @@ bool OperationValidationContext::ValidateOperation(
   }
 }
 
+uint32_t GetLinearOffset(base::span<const uint32_t> multi_dim_index,
+                         base::span<const uint32_t> strides) {
+  uint32_t offset = 0;
+  for (uint32_t i = 0; i < multi_dim_index.size(); ++i) {
+    offset += multi_dim_index[i] * strides[i];
+  }
+  return offset;
+}
+
+base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>
+TransposePendingPermutation(
+    base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>&&
+        constant_operands) {
+  ScopedTrace scoped_trace("TransposePendingPermutation");
+  // TODO(crbug.com/432040141): Consider using XNNPack for transposing
+  // constants.
+  for (auto& [operand_id, constant] : constant_operands) {
+    if (constant->descriptor().pending_permutation().empty()) {
+      continue;
+    }
+    base::span<const uint8_t> data = constant->ByteSpan();
+    auto& descriptor = constant->descriptor();
+    uint32_t rank = descriptor.Rank();
+    auto& permutation = descriptor.pending_permutation();
+    CHECK_EQ(rank, permutation.size());
+
+    // TODO(crbug.com/428232161): Support sub-byte transposes.
+    size_t bit_size =
+        OperandDescriptor::GetBitsPerElement(descriptor.data_type());
+    CHECK_GE(bit_size, 8u);
+
+    size_t element_size = bit_size / 8;
+
+    base::FixedArray<uint32_t> inverse_permutation(rank);
+    for (size_t i = 0; i < rank; ++i) {
+      inverse_permutation[permutation[i]] = i;
+    }
+    auto& transposed_shape = descriptor.shape();
+    base::FixedArray<uint32_t> original_shape(rank);
+    for (size_t i = 0; i < rank; ++i) {
+      original_shape[i] = descriptor.shape()[inverse_permutation[i]];
+    }
+
+    std::vector<uint32_t> original_strides = CalculateStrides(original_shape);
+    std::vector<uint32_t> transposed_strides =
+        CalculateStrides(transposed_shape);
+
+    // Current logical index in transposed tensor.
+    base::FixedArray<uint32_t> transposed_idx(rank, 0);
+    base::FixedArray<uint32_t> original_idx(rank);
+
+    auto transposed_data = base::HeapArray<uint8_t>::Uninit(data.size());
+    base::span<uint8_t> transposed_span = transposed_data.as_span();
+
+    // Loop through all elements in the transposed tensor.
+    for (size_t i = 0; i < descriptor.NumberOfElements(); ++i) {
+      for (size_t d = 0; d < rank; ++d) {
+        original_idx[d] = transposed_idx[inverse_permutation[d]];
+      }
+
+      uint32_t original_offset =
+          GetLinearOffset(original_idx, original_strides);
+      uint32_t transposed_offset =
+          GetLinearOffset(transposed_idx, transposed_strides);
+
+      transposed_span.subspan(transposed_offset * element_size, element_size)
+          .copy_from(
+              data.subspan(original_offset * element_size, element_size));
+
+      for (int dimension = rank - 1; dimension >= 0; --dimension) {
+        transposed_idx[dimension]++;
+        if (transposed_idx[dimension] < transposed_shape[dimension]) {
+          // Not overflowed, continue to next element.
+          break;
+        }
+        // Reset and carry over.
+        transposed_idx[dimension] = 0;
+      }
+    }
+    constant->SetData(std::move(transposed_data));
+  }
+  return std::move(constant_operands);
+}
+
 }  // namespace
 
 WebNNGraphBuilderImpl::ValidateGraphSuccessResult::ValidateGraphSuccessResult(
@@ -2782,16 +2866,17 @@ void WebNNGraphBuilderImpl::CreateGraph(mojom::GraphInfoPtr graph_info,
     return;
   }
 
-  mojo::PendingAssociatedRemote<mojom::WebNNGraph> remote;
-  auto receiver = remote.InitWithNewEndpointAndPassReceiver();
-  context_->CreateGraphImpl(
-      std::move(receiver), std::move(graph_info),
-      std::move(validate_graph_result->compute_resource_info),
-      std::move(validate_graph_result->constant_operands),
-      std::move(validate_graph_result->constant_tensor_operands),
-      base::BindOnce(&WebNNGraphBuilderImpl::DidCreateGraph,
-                     weak_factory_.GetWeakPtr(), std::move(callback),
-                     std::move(remote)));
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE,
+      {base::TaskPriority::USER_BLOCKING,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN, base::MayBlock()},
+      base::BindOnce(&TransposePendingPermutation,
+                     std::move(validate_graph_result->constant_operands)),
+      base::BindOnce(&WebNNGraphBuilderImpl::DidTransposePendingPermutations,
+                     weak_factory_.GetWeakPtr(), std::move(graph_info),
+                     std::move(validate_graph_result->compute_resource_info),
+                     std::move(validate_graph_result->constant_tensor_operands),
+                     std::move(callback)));
 }
 
 void WebNNGraphBuilderImpl::SetId(
@@ -2810,10 +2895,31 @@ void WebNNGraphBuilderImpl::IsValidGraphForTesting(
           .has_value());
 }
 
+void WebNNGraphBuilderImpl::DidTransposePendingPermutations(
+    mojom::GraphInfoPtr graph_info,
+    WebNNGraphImpl::ComputeResourceInfo compute_resource_info,
+    base::flat_map<OperandId, WebNNTensorImpl*> constant_tensor_operands,
+    CreateGraphCallback callback,
+    base::flat_map<OperandId, std::unique_ptr<WebNNConstantOperand>>&&
+        constant_operands) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  mojo::PendingAssociatedRemote<mojom::WebNNGraph> remote;
+  auto receiver = remote.InitWithNewEndpointAndPassReceiver();
+
+  context_->CreateGraphImpl(
+      std::move(receiver), std::move(graph_info),
+      std::move(compute_resource_info), std::move(constant_operands),
+      std::move(constant_tensor_operands),
+      base::BindOnce(&WebNNGraphBuilderImpl::DidCreateGraph,
+                     weak_factory_.GetWeakPtr(), std::move(callback),
+                     std::move(remote)));
+}
+
 void WebNNGraphBuilderImpl::DidCreateGraph(
     CreateGraphCallback callback,
     mojo::PendingAssociatedRemote<mojom::WebNNGraph> remote,
-    base::expected<std::unique_ptr<WebNNGraphImpl>, mojom::ErrorPtr> result) {
+    base::expected<scoped_refptr<WebNNGraphImpl>, mojom::ErrorPtr> result) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   // Ensure `this` is destroyed.
@@ -2939,13 +3045,13 @@ WebNNGraphBuilderImpl::ValidateGraphImpl(
 
         // Constants using tensors for weights.
         if (auto id_and_handle_it =
-                graph_info.id_to_constant_tensor_operand_map.find(id);
+                graph_info.id_to_constant_tensor_operand_map.find(operand_id);
             id_and_handle_it !=
             graph_info.id_to_constant_tensor_operand_map.end()) {
           // `id` must correspond to a handle known by the context...
-          base::optional_ref<WebNNTensorImpl> tensor_impl =
+          scoped_refptr<WebNNTensorImpl> tensor_impl =
               context_->GetWebNNTensorImpl(id_and_handle_it->second);
-          if (!tensor_impl.has_value()) {
+          if (!tensor_impl) {
             return std::nullopt;
           }
 
@@ -2959,14 +3065,14 @@ WebNNGraphBuilderImpl::ValidateGraphImpl(
             return std::nullopt;
           }
 
-          graph_constant_tensors.emplace_back(operand_id, tensor_impl.as_ptr());
+          graph_constant_tensors.emplace_back(operand_id, tensor_impl.get());
           processed_operands.insert(operand_id);
           break;
         }
 
         // `id` must correspond to a pending constant operand handle...
         auto id_and_handle_it =
-            graph_info.constant_operand_ids_to_handles.find(id);
+            graph_info.constant_operand_ids_to_handles.find(operand_id);
         if (id_and_handle_it ==
             graph_info.constant_operand_ids_to_handles.end()) {
           return std::nullopt;

@@ -15,6 +15,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "components/autofill/core/browser/payments/payments_access_token_fetcher.h"
 #include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/payments_requests/payments_request.h"
@@ -26,6 +27,7 @@
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
+#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 
@@ -135,6 +137,11 @@ const RequestId& MultipleRequestPaymentsNetworkInterfaceBase::RequestOperation::
 }
 
 void MultipleRequestPaymentsNetworkInterfaceBase::RequestOperation::
+    InvalidateOperation() {
+  request_.reset();
+}
+
+void MultipleRequestPaymentsNetworkInterfaceBase::RequestOperation::
     AccessTokenFetchFinished(
         const std::variant<GoogleServiceAuthError, std::string>& result) {
   if (std::holds_alternative<GoogleServiceAuthError>(result)) {
@@ -230,6 +237,7 @@ void MultipleRequestPaymentsNetworkInterfaceBase::RequestOperation::
   PaymentsRpcResult result = PaymentsRpcResult::kSuccess;
 
   if (!request_) {
+    payments_network_interface_->OnRequestFinished(request_operation_id_);
     return;
   }
 
@@ -341,6 +349,7 @@ void MultipleRequestPaymentsNetworkInterfaceBase::RequestOperation::
 
 void MultipleRequestPaymentsNetworkInterfaceBase::RequestOperation::
     ReportOperationResult(PaymentsRpcResult result) {
+  CHECK(request_);
   request_->RespondToDelegate(result);
   payments_network_interface_->OnRequestFinished(request_operation_id_);
 }
@@ -366,13 +375,15 @@ RequestId MultipleRequestPaymentsNetworkInterfaceBase::IssueRequest(
   return id;
 }
 
-void MultipleRequestPaymentsNetworkInterfaceBase::CancelRequests() {
-  operations_.clear();
-}
-
 void MultipleRequestPaymentsNetworkInterfaceBase::CancelRequestWithId(
     const RequestId& id) {
-  operations_.erase(id);
+  // Instead of deleting the operation with `id` directly, we will mark it
+  // as invalidated so it does not report any result. The lifecycle of the
+  // operation should only be managed by the PaymentsNetworkInterface (i.e. by
+  // OnRequestFinished) internally to avoid accidental use-after-free.
+  if (operations_.contains(id)) {
+    operations_[id]->InvalidateOperation();
+  }
 }
 
 void MultipleRequestPaymentsNetworkInterfaceBase::OnRequestFinished(

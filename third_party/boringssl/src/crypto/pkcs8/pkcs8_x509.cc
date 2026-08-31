@@ -26,6 +26,7 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/mem.h>
+#include <openssl/nid.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
 

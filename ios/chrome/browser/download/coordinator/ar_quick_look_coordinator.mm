@@ -15,7 +15,7 @@
 #import "ios/chrome/browser/download/model/ar_quick_look_tab_helper.h"
 #import "ios/chrome/browser/download/model/ar_quick_look_tab_helper_delegate.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
-#import "ios/chrome/browser/web_state_list/model/web_state_dependency_installer_bridge.h"
+#import "ios/chrome/browser/tabs/model/tabs_dependency_installer_bridge.h"
 
 const char kIOSPresentQLPreviewControllerHistogram[] =
     "Download.IOSPresentQLPreviewControllerResult";
@@ -126,48 +126,54 @@ PresentQLPreviewController GetHistogramEnum(
 
 @end
 
-@interface ARQuickLookCoordinator () <DependencyInstalling,
-                                      ARQuickLookTabHelperDelegate> {
+@interface ARQuickLookCoordinator () <TabsDependencyInstalling,
+                                      ARQuickLookTabHelperDelegate>
+@end
+
+@implementation ARQuickLookCoordinator {
   // Bridge which observes WebStateList and alerts this coordinator when this
   // needs to register the Mediator with a new WebState.
-  std::unique_ptr<WebStateDependencyInstallerBridge> _dependencyInstallerBridge;
+  TabsDependencyInstallerBridge _dependencyInstallerBridge;
   // The delegate passed to the QLPreviewController. It informs the WebState
   // that it may be hidden (during the presentation of the USDZ file) and it
   // serves as a data source for the preview controller.
   ARQuickLookPreviewControllerDelegate* _delegate;
 }
 
-@end
-
-@implementation ARQuickLookCoordinator
-
 - (instancetype)initWithBaseViewController:(UIViewController*)baseViewController
                                    browser:(Browser*)browser {
   if ((self = [super initWithBaseViewController:baseViewController
                                         browser:browser])) {
-    _dependencyInstallerBridge =
-        std::make_unique<WebStateDependencyInstallerBridge>(
-            self, browser->GetWebStateList());
+    _dependencyInstallerBridge.StartObserving(
+        self, browser->GetWebStateList(),
+        TabsDependencyInstaller::Policy::kOnlyRealized);
   }
   return self;
 }
 
 - (void)stop {
-  // Reset this observer manually. We want this to go out of scope now, to
-  // ensure it detaches before `browser` and its WebStateList get destroyed.
-  _dependencyInstallerBridge.reset();
-
+  // Stop observing the WebStateList before destroying the bridge object.
+  _dependencyInstallerBridge.StopObserving();
   _delegate = nil;
 }
 
-#pragma mark - DependencyInstalling methods
+#pragma mark - TabsDependencyInstalling methods
 
-- (void)installDependencyForWebState:(web::WebState*)webState {
+- (void)webStateInserted:(web::WebState*)webState {
   ARQuickLookTabHelper::GetOrCreateForWebState(webState)->set_delegate(self);
 }
 
-- (void)uninstallDependencyForWebState:(web::WebState*)webState {
+- (void)webStateRemoved:(web::WebState*)webState {
   ARQuickLookTabHelper::GetOrCreateForWebState(webState)->set_delegate(nil);
+}
+
+- (void)webStateDeleted:(web::WebState*)webState {
+  // Nothing to do.
+}
+
+- (void)newWebStateActivated:(web::WebState*)newActive
+           oldActiveWebState:(web::WebState*)oldActive {
+  // Nothing to do.
 }
 
 #pragma mark - ARQuickLookTabHelperDelegate

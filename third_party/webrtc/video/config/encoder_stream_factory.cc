@@ -90,9 +90,7 @@ size_t FindRequiredActiveLayers(const VideoEncoderConfig& encoder_config) {
 
 // The selected thresholds for QVGA and VGA corresponded to a QP around 10.
 // The change in QP declined above the selected bitrates.
-static int GetMaxDefaultVideoBitrateKbps(int width,
-                                         int height,
-                                         bool is_screenshare) {
+int GetMaxDefaultVideoBitrateKbps(int width, int height, bool is_screenshare) {
   int max_bitrate;
   if (width * height <= 320 * 240) {
     max_bitrate = 600;
@@ -581,7 +579,7 @@ std::vector<Resolution> EncoderStreamFactory::GetStreamResolutions(
     }
 
     const bool has_scale_resolution_down_by = absl::c_any_of(
-        encoder_config.simulcast_layers, [](const webrtc::VideoStream& layer) {
+        encoder_config.simulcast_layers, [](const VideoStream& layer) {
           return layer.scale_resolution_down_by != -1.;
         });
 

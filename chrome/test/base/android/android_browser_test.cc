@@ -5,10 +5,12 @@
 #include "chrome/test/base/android/android_browser_test.h"
 
 #include "base/command_line.h"
+#include "base/strings/string_util.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/test_launcher_utils.h"
+#include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/buildflags/buildflags.h"
 
@@ -21,6 +23,11 @@ AndroidBrowserTest* g_current_test = nullptr;
 }  // namespace
 
 AndroidBrowserTest::AndroidBrowserTest() {
+  // chrome::DIR_TEST_DATA isn't going to be setup until after we call
+  // ContentMain. However that is after tests' constructors or SetUp methods,
+  // which sometimes need it. So just override it.
+  chrome_test_utils::OverrideChromeTestDataDir();
+
   CreateTestServer(base::FilePath(FILE_PATH_LITERAL("chrome/test/data")));
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   // Allow unpacked extensions without developer mode for testing.
@@ -28,6 +35,12 @@ AndroidBrowserTest::AndroidBrowserTest() {
       extensions_features::kExtensionDisableUnsupportedDeveloper);
 #endif
   g_current_test = this;
+
+  create_services_subscription_ =
+      BrowserContextDependencyManager::GetInstance()
+          ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
+              &AndroidBrowserTest::SetUpBrowserContextKeyedServices,
+              base::Unretained(this)));
 }
 
 AndroidBrowserTest::~AndroidBrowserTest() {

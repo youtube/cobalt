@@ -23,7 +23,6 @@
 #include "base/values.h"
 #include "base/version.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_histograms.h"
-#include "components/webapps/isolated_web_apps/proto/key_distribution.pb.h"
 
 namespace base {
 class FilePath;
@@ -67,10 +66,8 @@ class IwaKeyDistributionInfoProvider {
 
   class Observer : public base::CheckedObserver {
    public:
-    virtual void OnComponentUpdateSuccess(const base::Version& version,
-                                          bool is_preloaded) {}
-    virtual void OnComponentUpdateError(const base::Version& version,
-                                        IwaComponentUpdateError error) {}
+    virtual void OnComponentUpdateSuccess(bool is_preloaded) {}
+    virtual void OnComponentUpdateError(IwaComponentUpdateError error) {}
   };
 
   struct ComponentData {
@@ -90,7 +87,7 @@ class IwaKeyDistributionInfoProvider {
     bool is_preloaded = false;
   };
 
-  static IwaKeyDistributionInfoProvider* GetInstance();
+  static IwaKeyDistributionInfoProvider& GetInstance();
   static void DestroyInstanceForTesting();
 
   ~IwaKeyDistributionInfoProvider();
@@ -105,13 +102,18 @@ class IwaKeyDistributionInfoProvider {
   const SpecialAppPermissionsInfo* GetSpecialAppPermissionsInfo(
       const std::string& web_bundle_id) const;
   std::vector<std::string> GetSkipMultiCaptureNotificationBundleIds() const;
+  std::optional<base::Version> GetVersion() const;
 
   // Only bundles present in the managed allowlist can be installed and updated.
   bool IsManagedInstallPermitted(std::string_view web_bundle_id) const;
+  bool IsManagedUpdatePermitted(std::string_view web_bundle_id) const;
+
+  // When set to true both above functions always return true
+  void SkipManagedAllowlistChecksForTesting(bool skip_managed_checks);
 
   // Sets up the `IwaKeyDistributionInfoProvider`, i.e. adds the capability to
   // schedule on demand callbacks.
-  void SetUp(QueueOnDemandUpdateCallback callback);
+  void SetUp(bool is_on_demand_supported, QueueOnDemandUpdateCallback callback);
 
   // Asynchronously loads new component data and replaces the current `data_`
   // upon success and if `component_version` is greater than the stored one, and
@@ -170,11 +172,9 @@ class IwaKeyDistributionInfoProvider {
       bool is_preloaded,
       base::expected<KeyDistributionData, IwaComponentUpdateError>);
 
-  void DispatchComponentUpdateSuccess(const base::Version& version,
-                                      bool is_preloaded);
+  void DispatchComponentUpdateSuccess(bool is_preloaded);
 
-  void DispatchComponentUpdateError(const base::Version& version,
-                                    IwaComponentUpdateError error);
+  void DispatchComponentUpdateError(IwaComponentUpdateError error);
 
   void SignalOnDataReady(bool is_preloaded);
 
@@ -188,11 +188,13 @@ class IwaKeyDistributionInfoProvider {
   base::OneShotEvent maybe_downloaded_data_ready_;
 
   bool maybe_queue_component_update_posted_ = false;
+  bool is_on_demand_supported_ = false;
 
   QueueOnDemandUpdateCallback queue_on_demand_update_;
 
   std::optional<ComponentData> data_;
   base::ObserverList<Observer> observers_;
+  bool skip_managed_checks_for_testing_ = false;
 };
 
 }  // namespace web_app

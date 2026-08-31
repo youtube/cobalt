@@ -1130,6 +1130,10 @@ const char* V8HeapExplorer::GetSystemEntryName(Tagged<HeapObject> object) {
     STRING_TYPE_LIST(MAKE_STRING_CASE)
 #undef MAKE_STRING_CASE
   }
+
+  // Avoid undefined behavior for enum values not handled by the exhaustive
+  // switch, since they're read from inside the sandbox.
+  SBXCHECK(false);
 }
 
 HeapEntry::Type V8HeapExplorer::GetSystemEntryType(Tagged<HeapObject> object) {
@@ -1916,9 +1920,9 @@ void V8HeapExplorer::ExtractJSWeakRefReferences(HeapEntry* entry,
 void V8HeapExplorer::ExtractWeakCellReferences(HeapEntry* entry,
                                                Tagged<WeakCell> weak_cell) {
   SetWeakReference(entry, "target", weak_cell->target(),
-                   WeakCell::kTargetOffset);
+                   offsetof(WeakCell, target_));
   SetWeakReference(entry, "unregister_token", weak_cell->unregister_token(),
-                   WeakCell::kUnregisterTokenOffset);
+                   offsetof(WeakCell, unregister_token_));
 }
 
 void V8HeapExplorer::TagBuiltinCodeObject(Tagged<Code> code, const char* name) {
@@ -1984,7 +1988,18 @@ void V8HeapExplorer::ExtractInstructionStreamReferences(
 
 void V8HeapExplorer::ExtractCellReferences(HeapEntry* entry,
                                            Tagged<Cell> cell) {
-  SetInternalReference(entry, "value", cell->value(), Cell::kValueOffset);
+  Tagged<MaybeObject> maybe_value = cell->maybe_value();
+  Tagged<HeapObject> heap_object;
+  HeapObjectReferenceType reference_type;
+  if (maybe_value.GetHeapObject(&heap_object, &reference_type)) {
+    if (reference_type == HeapObjectReferenceType::WEAK) {
+      SetWeakReference(entry, "value", heap_object, Cell::kMaybeValueOffset);
+    } else {
+      DCHECK_EQ(reference_type, HeapObjectReferenceType::STRONG);
+      SetInternalReference(entry, "value", heap_object,
+                           Cell::kMaybeValueOffset);
+    }
+  }
 }
 
 void V8HeapExplorer::ExtractFeedbackCellReferences(

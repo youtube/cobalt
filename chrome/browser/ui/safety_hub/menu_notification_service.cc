@@ -18,6 +18,7 @@
 #include "chrome/browser/ui/safety_hub/safe_browsing_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_constants.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_prefs.h"
+#include "chrome/browser/ui/safety_hub/safety_hub_result.h"
 #include "chrome/browser/ui/safety_hub/safety_hub_service.h"
 #include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
@@ -35,8 +36,7 @@ SafetyHubModuleInfoElement::~SafetyHubModuleInfoElement() = default;
 SafetyHubModuleInfoElement::SafetyHubModuleInfoElement(
     MenuNotificationPriority priority,
     base::TimeDelta interval,
-    base::RepeatingCallback<
-        std::optional<std::unique_ptr<SafetyHubService::Result>>()>
+    base::RepeatingCallback<std::optional<std::unique_ptr<SafetyHubResult>>()>
         result_getter,
     std::unique_ptr<SafetyHubMenuNotification> notification)
     : priority(priority),
@@ -64,8 +64,6 @@ SafetyHubMenuNotificationService::SafetyHubMenuNotificationService(
   pref_dict_key_map_ = {
       {safety_hub::SafetyHubModuleType::UNUSED_SITE_PERMISSIONS,
        "unused-site-permissions"},
-      {safety_hub::SafetyHubModuleType::NOTIFICATION_PERMISSIONS,
-       "notification-permissions"},
       {safety_hub::SafetyHubModuleType::SAFE_BROWSING, "safe-browsing"},
   };
 
@@ -80,13 +78,20 @@ SafetyHubMenuNotificationService::SafetyHubMenuNotificationService(
       base::BindRepeating(&SafetyHubService::GetCachedResult,
                           base::Unretained(revoked_permissions_service)),
       stored_notifications);
-  SetInfoElement(
-      safety_hub::SafetyHubModuleType::NOTIFICATION_PERMISSIONS,
-      MenuNotificationPriority::LOW,
-      features::kNotificationPermissionsNotificationInterval.Get(),
-      base::BindRepeating(&SafetyHubService::GetCachedResult,
-                          base::Unretained(notification_permissions_service)),
-      stored_notifications);
+  if (!base::FeatureList::IsEnabled(
+          features::kSafetyHubDisruptiveNotificationRevocation) ||
+      features::kSafetyHubDisruptiveNotificationRevocationShadowRun.Get()) {
+    pref_dict_key_map_
+        [safety_hub::SafetyHubModuleType::NOTIFICATION_PERMISSIONS] =
+            "notification-permissions";
+    SetInfoElement(
+        safety_hub::SafetyHubModuleType::NOTIFICATION_PERMISSIONS,
+        MenuNotificationPriority::LOW,
+        features::kNotificationPermissionsNotificationInterval.Get(),
+        base::BindRepeating(&SafetyHubService::GetCachedResult,
+                            base::Unretained(notification_permissions_service)),
+        stored_notifications);
+  }
   SetInfoElement(safety_hub::SafetyHubModuleType::SAFE_BROWSING,
                  MenuNotificationPriority::MEDIUM,
                  features::kSafeBrowsingNotificationInterval.Get(),
@@ -146,8 +151,7 @@ SafetyHubMenuNotificationService::SafetyHubMenuNotificationService(
 
 void SafetyHubMenuNotificationService::UpdateResultGetterForTesting(
     safety_hub::SafetyHubModuleType type,
-    base::RepeatingCallback<
-        std::optional<std::unique_ptr<SafetyHubService::Result>>()>
+    base::RepeatingCallback<std::optional<std::unique_ptr<SafetyHubResult>>()>
         result_getter) {
   module_info_map_[type]->result_getter = result_getter;
 }
@@ -231,7 +235,7 @@ SafetyHubMenuNotificationService::GetResultsFromAllModules() {
   ResultMap result_map;
   for (auto const& item : module_info_map_) {
     CHECK(item.second->result_getter);
-    std::optional<std::unique_ptr<SafetyHubService::Result>> result =
+    std::optional<std::unique_ptr<SafetyHubResult>> result =
         item.second->result_getter.Run();
     // If one of the cached results is unavailable, no notification is shown.
     if (!result.has_value()) {
@@ -275,8 +279,7 @@ void SafetyHubMenuNotificationService::SetInfoElement(
     safety_hub::SafetyHubModuleType type,
     MenuNotificationPriority priority,
     base::TimeDelta interval,
-    base::RepeatingCallback<
-        std::optional<std::unique_ptr<SafetyHubService::Result>>()>
+    base::RepeatingCallback<std::optional<std::unique_ptr<SafetyHubResult>>()>
         result_getter,
     const base::Value::Dict& stored_notifications) {
   module_info_map_[type] = std::make_unique<SafetyHubModuleInfoElement>(

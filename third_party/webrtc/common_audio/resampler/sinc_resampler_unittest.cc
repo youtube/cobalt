@@ -11,21 +11,22 @@
 // Modified from the Chromium original:
 // src/media/base/sinc_resampler_unittest.cc
 
-// MSVC++ requires this to be set before any other includes to get M_PI.
-#define _USE_MATH_DEFINES
-
 #include "common_audio/resampler/sinc_resampler.h"
 
-#include <math.h>
-
 #include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
+#include <numbers>
 #include <tuple>
 
 #include "common_audio/resampler/sinusoidal_linear_chirp_source.h"
+#include "rtc_base/cpu_info.h"
 #include "rtc_base/system/arch.h"
 #include "rtc_base/time_utils.h"
-#include "system_wrappers/include/cpu_features_wrapper.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -119,9 +120,9 @@ TEST(SincResamplerTest, DISABLED_SetRatioBench) {
 // will be tested by the parameterized SincResampler tests below.
 TEST(SincResamplerTest, Convolve) {
 #if defined(WEBRTC_ARCH_X86_FAMILY)
-  ASSERT_TRUE(GetCPUInfo(kSSE2));
+  ASSERT_TRUE(cpu_info::Supports(cpu_info::ISA::kSSE2));
 #elif defined(WEBRTC_ARCH_ARM_V7)
-  ASSERT_TRUE(GetCPUFeaturesARM() & kCPUFeatureNEON);
+  ASSERT_TRUE(cpu_info::Supports(cpu_info::ISA::kNeon));
 #endif
 
   // Initialize a dummy resampler.
@@ -179,9 +180,9 @@ TEST(SincResamplerTest, ConvolveBenchmark) {
   printf("Convolve_C took %.2fms.\n", total_time_c_us / 1000);
 
 #if defined(WEBRTC_ARCH_X86_FAMILY)
-  ASSERT_TRUE(GetCPUInfo(kSSE2));
+  ASSERT_TRUE(cpu_info::Supports(cpu_info::ISA::kSSE2));
 #elif defined(WEBRTC_ARCH_ARM_V7)
-  ASSERT_TRUE(GetCPUFeaturesARM() & kCPUFeatureNEON);
+  ASSERT_TRUE(cpu_info::Supports(cpu_info::ISA::kNeon));
 #endif
 
   // Benchmark with unaligned input pointer.
@@ -227,7 +228,7 @@ class SincResamplerTest
         rms_error_(std::get<2>(GetParam())),
         low_freq_error_(std::get<3>(GetParam())) {}
 
-  virtual ~SincResamplerTest() {}
+  ~SincResamplerTest() override {}
 
  protected:
   int input_rate_;
@@ -261,7 +262,7 @@ TEST_P(SincResamplerTest, Resample) {
   std::unique_ptr<float[]> kernel(new float[SincResampler::kKernelStorageSize]);
   memcpy(kernel.get(), resampler.get_kernel_for_testing(),
          SincResampler::kKernelStorageSize);
-  resampler.SetRatio(M_PI);
+  resampler.SetRatio(std::numbers::pi_v<float>);
   ASSERT_NE(0, memcmp(kernel.get(), resampler.get_kernel_for_testing(),
                       SincResampler::kKernelStorageSize));
   resampler.SetRatio(io_ratio);

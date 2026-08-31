@@ -19,6 +19,7 @@
 #include "components/autofill/core/browser/payments/test/mock_bnpl_manager.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -69,7 +70,7 @@ class AmountExtractionManagerTest : public Test {
                               features::kAutofillEnableBuyNowPayLaterSyncing,
                               features::kAutofillEnableBuyNowPayLater},
         /*disabled_features=*/{
-            features::kAutofillEnableAmountExtractionDesktopLogging});
+            features::kAutofillEnableAmountExtractionTesting});
   }
 
  protected:
@@ -106,6 +107,11 @@ class AmountExtractionManagerTest : public Test {
                                                          extracted_amount);
   }
 
+  void FakeAmountExtractionTimeout() {
+    amount_extraction_manager_->SetSearchRequestPendingForTesting(true);
+    amount_extraction_manager_->OnTimeoutReached();
+  }
+
   void SetUpCheckoutAmountExtractionCall(const std::string& extracted_amount,
                                          int latency_ms = 0) {
     auto extract_action =
@@ -128,6 +134,7 @@ class AmountExtractionManagerTest : public Test {
   std::unique_ptr<TestBrowserAutofillManager> autofill_manager_;
   std::unique_ptr<AmountExtractionManager> amount_extraction_manager_;
   std::unique_ptr<MockAmountExtractionManager> mock_amount_extraction_manager_;
+  ukm::TestAutoSetUkmRecorder ukm_recorder_;
 };
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
@@ -284,31 +291,6 @@ TEST_F(AmountExtractionManagerTest, ShouldNotTriggerInIncognitoMode) {
                     /*field_type=*/field_type),
                 IsEmpty());
   }
-}
-
-TEST_F(AmountExtractionManagerTest, ShouldTriggerWhenLoggingFeatureIsEnabled) {
-  scoped_feature_list_.Reset();
-  scoped_feature_list_.InitWithFeatures(
-      /*enabled_features=*/{features::kAutofillEnableBuyNowPayLaterSyncing,
-                            features::kAutofillEnableBuyNowPayLater,
-                            features::kAutofillEnableAmountExtractionDesktop,
-                            features::
-                                kAutofillEnableAmountExtractionDesktopLogging},
-      /*disabled_features=*/{});
-  SuggestionsContext context;
-  context.is_autofill_available = true;
-  context.filling_product = FillingProduct::kCreditCard;
-
-  ON_CALL(*static_cast<MockAutofillOptimizationGuide*>(
-              autofill_manager_->client().GetAutofillOptimizationGuide()),
-          IsUrlEligibleForBnplIssuer)
-      .WillByDefault(Return(false));
-
-  EXPECT_THAT(amount_extraction_manager_->GetEligibleFeatures(
-                  context, /*should_suppress_suggestions=*/false,
-                  /*has_suggestions=*/true,
-                  /*field_type=*/FieldType::CREDIT_CARD_NUMBER),
-              ElementsAre(AmountExtractionManager::EligibleFeature::kBnpl));
 }
 
 TEST_F(AmountExtractionManagerTest, ShouldNotTriggerIfNoBnplIssuer) {
@@ -500,11 +482,26 @@ TEST_F(AmountExtractionManagerTest,
 
   amount_extraction_manager_->TriggerCheckoutAmountExtraction();
   histogram_tester.ExpectUniqueTimeSample(
-      "Autofill.AmountExtraction.Latency.Success",
+      "Autofill.AmountExtraction.Latency2.Success",
       base::Milliseconds(kDefaultAmountExtractionLatencyMs), 1);
   histogram_tester.ExpectUniqueTimeSample(
-      "Autofill.AmountExtraction.Latency",
+      "Autofill.AmountExtraction.Latency2",
       base::Milliseconds(kDefaultAmountExtractionLatencyMs), 1);
+
+  auto ukm_entries = ukm_recorder_.GetEntries(
+      ukm::builders::Autofill_AmountExtractionComplete::kEntryName,
+      {ukm::builders::Autofill_AmountExtractionComplete::
+           kFailureLatencyInMillisName,
+       ukm::builders::Autofill_AmountExtractionComplete::
+           kSuccessLatencyInMillisName,
+       ukm::builders::Autofill_AmountExtractionComplete::kResultName});
+  ASSERT_EQ(ukm_entries.size(), 1UL);
+  EXPECT_EQ(ukm_entries[0].metrics.at("SuccessLatencyInMillis"),
+            kDefaultAmountExtractionLatencyMs);
+  EXPECT_EQ(
+      ukm_entries[0].metrics.at("Result"),
+      static_cast<uint8_t>(
+          autofill::autofill_metrics::AmountExtractionResult::kSuccessful));
 }
 
 TEST_F(AmountExtractionManagerTest,
@@ -528,11 +525,26 @@ TEST_F(AmountExtractionManagerTest,
 
   amount_extraction_manager_->TriggerCheckoutAmountExtraction();
   histogram_tester.ExpectUniqueTimeSample(
-      "Autofill.AmountExtraction.Latency.Failure",
+      "Autofill.AmountExtraction.Latency2.Failure",
       base::Milliseconds(kDefaultAmountExtractionLatencyMs), 1);
   histogram_tester.ExpectUniqueTimeSample(
-      "Autofill.AmountExtraction.Latency",
+      "Autofill.AmountExtraction.Latency2",
       base::Milliseconds(kDefaultAmountExtractionLatencyMs), 1);
+
+  auto ukm_entries = ukm_recorder_.GetEntries(
+      ukm::builders::Autofill_AmountExtractionComplete::kEntryName,
+      {ukm::builders::Autofill_AmountExtractionComplete::
+           kFailureLatencyInMillisName,
+       ukm::builders::Autofill_AmountExtractionComplete::
+           kSuccessLatencyInMillisName,
+       ukm::builders::Autofill_AmountExtractionComplete::kResultName});
+  ASSERT_EQ(ukm_entries.size(), 1UL);
+  EXPECT_EQ(ukm_entries[0].metrics.at("FailureLatencyInMillis"),
+            kDefaultAmountExtractionLatencyMs);
+  EXPECT_EQ(
+      ukm_entries[0].metrics.at("Result"),
+      static_cast<uint8_t>(
+          autofill::autofill_metrics::AmountExtractionResult::kAmountNotFound));
 }
 
 // Verify that Amount extraction records true for a successful extraction.
@@ -556,8 +568,17 @@ TEST_F(AmountExtractionManagerTest, AmountExtractionResult_Metric_Successful) {
 
   amount_extraction_manager_->TriggerCheckoutAmountExtraction();
   histogram_tester.ExpectUniqueSample(
-      "Autofill.AmountExtraction.Result",
+      "Autofill.AmountExtraction.Result2",
       autofill::autofill_metrics::AmountExtractionResult::kSuccessful, 1);
+
+  auto ukm_entries = ukm_recorder_.GetEntries(
+      ukm::builders::Autofill_AmountExtractionComplete::kEntryName,
+      {ukm::builders::Autofill_AmountExtractionComplete::kResultName});
+  ASSERT_EQ(ukm_entries.size(), 1UL);
+  EXPECT_EQ(
+      ukm_entries[0].metrics.at("Result"),
+      static_cast<uint8_t>(
+          autofill::autofill_metrics::AmountExtractionResult::kSuccessful));
 }
 
 // Verify that Amount extraction records false for a failed extraction.
@@ -581,8 +602,17 @@ TEST_F(AmountExtractionManagerTest,
 
   amount_extraction_manager_->TriggerCheckoutAmountExtraction();
   histogram_tester.ExpectUniqueSample(
-      "Autofill.AmountExtraction.Result",
+      "Autofill.AmountExtraction.Result2",
       autofill::autofill_metrics::AmountExtractionResult::kAmountNotFound, 1);
+
+  auto ukm_entries = ukm_recorder_.GetEntries(
+      ukm::builders::Autofill_AmountExtractionComplete::kEntryName,
+      {ukm::builders::Autofill_AmountExtractionComplete::kResultName});
+  ASSERT_EQ(ukm_entries.size(), 1UL);
+  EXPECT_EQ(
+      ukm_entries[0].metrics.at("Result"),
+      static_cast<uint8_t>(
+          autofill::autofill_metrics::AmountExtractionResult::kAmountNotFound));
 }
 
 TEST_F(AmountExtractionManagerTest, AmountExtractionResult_Metric_Timeout) {
@@ -602,8 +632,16 @@ TEST_F(AmountExtractionManagerTest, AmountExtractionResult_Metric_Timeout) {
       AmountExtractionManager::kAmountExtractionWaitTime);
 
   histogram_tester.ExpectUniqueSample(
-      "Autofill.AmountExtraction.Result",
+      "Autofill.AmountExtraction.Result2",
       autofill::autofill_metrics::AmountExtractionResult::kTimeout, 1);
+
+  auto ukm_entries = ukm_recorder_.GetEntries(
+      ukm::builders::Autofill_AmountExtractionComplete::kEntryName,
+      {ukm::builders::Autofill_AmountExtractionComplete::kResultName});
+  ASSERT_EQ(ukm_entries.size(), 1UL);
+  EXPECT_EQ(ukm_entries[0].metrics.at("Result"),
+            static_cast<uint8_t>(
+                autofill::autofill_metrics::AmountExtractionResult::kTimeout));
 }
 
 TEST_F(AmountExtractionManagerTest, TimeoutExpiresBeforeResponse) {
@@ -655,7 +693,7 @@ TEST_F(AmountExtractionManagerTest, ResponseBeforeTimeout) {
 TEST_F(AmountExtractionManagerTest,
        OnCheckoutAmountReceived_EmptyResult_BnplManagerNotified) {
   EXPECT_CALL(*autofill_manager_->GetPaymentsBnplManager(),
-              OnAmountExtractionReturned(std::optional<uint64_t>()))
+              OnAmountExtractionReturned(std::optional<uint64_t>(), false))
       .Times(1);
 
   FakeCheckoutAmountReceived("");
@@ -665,12 +703,23 @@ TEST_F(AmountExtractionManagerTest,
 // extraction receives a result with correct format.
 TEST_F(AmountExtractionManagerTest,
        OnCheckoutAmountReceived_AmountInCorrectFormat_BnplManagerNotified) {
-  EXPECT_CALL(
-      *autofill_manager_->GetPaymentsBnplManager(),
-      OnAmountExtractionReturned(std::optional<uint64_t>(123'450'000ULL)))
+  EXPECT_CALL(*autofill_manager_->GetPaymentsBnplManager(),
+              OnAmountExtractionReturned(
+                  std::optional<uint64_t>(123'450'000ULL), false))
       .Times(1);
 
   FakeCheckoutAmountReceived("$ 123.45");
+}
+
+// This test checks that the BNPL manager will be notified when the amount
+// extraction times out.
+TEST_F(AmountExtractionManagerTest,
+       OnCheckoutAmountReceived_AmountExtractionTimeout_BnplManagerNotified) {
+  EXPECT_CALL(*autofill_manager_->GetPaymentsBnplManager(),
+              OnAmountExtractionReturned(Eq(std::nullopt), true))
+      .Times(1);
+
+  FakeAmountExtractionTimeout();
 }
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)

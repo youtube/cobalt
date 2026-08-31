@@ -23,7 +23,6 @@
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/functional/overloaded.h"
 #include "base/i18n/rtl.h"
 #include "base/immediate_crash.h"
 #include "base/lazy_instance.h"
@@ -81,7 +80,6 @@
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "components/metrics/persistent_histograms.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/sampling_profiler/thread_profiler.h"
 #include "components/startup_metric_utils/common/startup_metric_utils.h"
 #include "components/version_info/channel.h"
@@ -98,7 +96,6 @@
 #include "net/http/http_cache.h"
 #include "net/url_request/url_request.h"
 #include "pdf/buildflags.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "services/tracing/public/cpp/stack_sampling/tracing_sampler_profiler.h"
 #include "third_party/blink/public/common/features.h"
@@ -147,11 +144,6 @@
 #include "components/webui/about/credit_utils.h"
 #endif
 
-#if BUILDFLAG(ENABLE_NACL) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
-#include "components/nacl/common/nacl_paths.h"
-#include "components/nacl/zygote/nacl_fork_delegate_linux.h"
-#endif
-
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_paths.h"
 #include "ash/constants/ash_switches.h"
@@ -173,7 +165,7 @@
 #include "chrome/browser/android/flags/chrome_cached_flags.h"
 #include "chrome/browser/android/metrics/uma_session_stats.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
-#include "chrome/common/chrome_descriptors.h"
+#include "chrome/common/chrome_descriptors_android.h"
 #include "components/crash/android/pure_java_exception_handler.h"
 #include "net/android/network_change_notifier_factory_android.h"
 #else  // BUILDFLAG(IS_ANDROID)
@@ -207,11 +199,6 @@
 #include "extensions/common/constants.h"
 #endif
 
-#if BUILDFLAG(ENABLE_NACL)
-#include "components/nacl/common/nacl_switches.h"
-#include "components/nacl/renderer/plugin/ppapi_entrypoints.h"
-#endif
-
 #if BUILDFLAG(ENABLE_PDF)
 #include "chrome/child/pdf_child_init.h"
 #endif
@@ -229,8 +216,6 @@ base::LazyInstance<ChromeContentGpuClient>::DestructorAtExit
     g_chrome_content_gpu_client = LAZY_INSTANCE_INITIALIZER;
 base::LazyInstance<ChromeContentRendererClient>::DestructorAtExit
     g_chrome_content_renderer_client = LAZY_INSTANCE_INITIALIZER;
-
-extern int NaClMain(content::MainFunctionParams);
 
 const char* const ChromeMainDelegate::kNonWildcardDomainNonPortSchemes[] = {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
@@ -280,15 +265,9 @@ bool IsSandboxedProcess() {
 void AdjustLinuxOOMScore(const std::string& process_type) {
   int score = -1;
 
-  if (process_type == switches::kPpapiPluginProcess) {
-    score = content::kPluginOomScore;
-  } else if (process_type == switches::kUtilityProcess ||
-             process_type == switches::kGpuProcess) {
+  if (process_type == switches::kUtilityProcess ||
+      process_type == switches::kGpuProcess) {
     score = content::kMiscOomScore;
-#if BUILDFLAG(ENABLE_NACL)
-  } else if (process_type == switches::kNaClLoaderProcess) {
-    score = content::kPluginOomScore;
-#endif
   } else if (process_type == switches::kZygoteProcess || process_type.empty()) {
     // For zygotes and unlabeled process types, we want to still make
     // them killable by the OOM killer.
@@ -322,12 +301,8 @@ bool SubprocessNeedsResourceBundle(const std::string& process_type) {
 #if BUILDFLAG(IS_MAC)
   // Mac needs them too for scrollbar related images and for sandbox
   // profiles.
-#if BUILDFLAG(ENABLE_NACL)
-      process_type == switches::kNaClLoaderProcess ||
-#endif
       process_type == switches::kGpuProcess ||
 #endif
-      process_type == switches::kPpapiPluginProcess ||
       process_type == switches::kRendererProcess ||
       process_type == switches::kUtilityProcess;
 }
@@ -1155,9 +1130,6 @@ std::optional<int> ChromeMainDelegate::BasicStartupComplete() {
   ash::RegisterPathProvider();
   chromeos::dbus_paths::RegisterPathProvider();
 #endif
-#if BUILDFLAG(ENABLE_NACL) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
-  nacl::RegisterPathProvider();
-#endif
 
   ContentSettingsPattern::SetNonWildcardDomainNonPortSchemes(
       kNonWildcardDomainNonPortSchemes, kNonWildcardDomainNonPortSchemesSize);
@@ -1362,18 +1334,9 @@ void ChromeMainDelegate::PreSandboxStartup() {
     // Initialize ResourceBundle which handles files loaded from external
     // sources.  The language should have been passed in to us from the
     // browser process as a command line flag.
-#if !BUILDFLAG(ENABLE_NACL)
     DUMP_WILL_BE_CHECK(command_line.HasSwitch(switches::kLang) ||
                        process_type == switches::kZygoteProcess ||
-                       process_type == switches::kGpuProcess ||
-                       process_type == switches::kPpapiPluginProcess);
-#else
-    DUMP_WILL_BE_CHECK(command_line.HasSwitch(switches::kLang) ||
-                       process_type == switches::kZygoteProcess ||
-                       process_type == switches::kGpuProcess ||
-                       process_type == switches::kNaClLoaderProcess ||
-                       process_type == switches::kPpapiPluginProcess);
-#endif
+                       process_type == switches::kGpuProcess);
 
     // TODO(markusheintz): The command line flag --lang is actually processed
     // by the CommandLinePrefStore, and made available through the PrefService
@@ -1393,20 +1356,27 @@ void ChromeMainDelegate::PreSandboxStartup() {
     // Therefore file descriptors to the .pak files that we need are passed in
     // at process creation time.
     auto* global_descriptors = base::GlobalDescriptors::GetInstance();
-    int pak_fd = global_descriptors->Get(kAndroidLocalePakDescriptor);
+    int pak_fd =
+        global_descriptors->Get(kAndroidMainWebViewLocalePakDescriptor);
     base::MemoryMappedFile::Region pak_region =
-        global_descriptors->GetRegion(kAndroidLocalePakDescriptor);
+        global_descriptors->GetRegion(kAndroidMainWebViewLocalePakDescriptor);
     ui::ResourceBundle::InitSharedInstanceWithPakFileRegion(base::File(pak_fd),
                                                             pak_region);
 
-    // Load secondary locale .pak file if it exists.
-    pak_fd = global_descriptors->MaybeGet(kAndroidSecondaryLocalePakDescriptor);
-    if (pak_fd != -1) {
-      pak_region =
-          global_descriptors->GetRegion(kAndroidSecondaryLocalePakDescriptor);
-      ui::ResourceBundle::GetSharedInstance()
-          .LoadSecondaryLocaleDataWithPakFileRegion(base::File(pak_fd),
-                                                    pak_region);
+    int additional_locale_pak_keys[] = {
+        kAndroidMainNonWebViewLocalePakDescriptor,
+        kAndroidFallbackWebViewLocalePakDescriptor,
+        kAndroidFallbackNonWebViewLocalePakDescriptor,
+    };
+    for (int additional_locale_pak_key : additional_locale_pak_keys) {
+      // Load additional locale .pak file if it exists.
+      pak_fd = global_descriptors->MaybeGet(additional_locale_pak_key);
+      if (pak_fd != -1) {
+        pak_region = global_descriptors->GetRegion(additional_locale_pak_key);
+        ui::ResourceBundle::GetSharedInstance()
+            .LoadAdditionalLocaleDataWithPakFileRegion(base::File(pak_fd),
+                                                       pak_region);
+      }
     }
 
     int extra_pak_keys[] = {
@@ -1511,12 +1481,6 @@ void ChromeMainDelegate::SandboxInitialized(const std::string& process_type) {
       DUMP_WILL_BE_NOTREACHED();
     }
   }
-
-#if BUILDFLAG(ENABLE_NACL)
-  ChromeContentClient::SetNaClEntryFunctions(nacl_plugin::PPP_GetInterface,
-                                             nacl_plugin::PPP_InitializeModule,
-                                             nacl_plugin::PPP_ShutdownModule);
-#endif
 }
 
 std::variant<int, content::MainFunctionParams> ChromeMainDelegate::RunProcess(
@@ -1526,26 +1490,18 @@ std::variant<int, content::MainFunctionParams> ChromeMainDelegate::RunProcess(
   NOTREACHED();  // Android provides a subclass and shares no codehere.
 #else
 
-#if BUILDFLAG(IS_MAC) || (BUILDFLAG(ENABLE_NACL) && !BUILDFLAG(IS_LINUX) && \
-                          !BUILDFLAG(IS_CHROMEOS))
-  static const MainFunction kMainFunctions[] = {
 #if BUILDFLAG(IS_MAC)
+  static const MainFunction kMainFunctions[] = {
       {switches::kRelauncherProcess, mac_relauncher::internal::RelauncherMain},
       {switches::kCodeSignCloneCleanupProcess,
        code_sign_clone_manager::internal::ChromeCodeSignCloneCleanupMain},
-#elif BUILDFLAG(ENABLE_NACL) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_CHROMEOS)
-      // This entry is not needed on Linux, where the NaCl loader
-      // process is launched via nacl_helper instead.
-      {switches::kNaClLoaderProcess, NaClMain},
-#endif
   };
 
   for (size_t i = 0; i < std::size(kMainFunctions); ++i) {
     if (process_type == kMainFunctions[i].name)
       return kMainFunctions[i].function(std::move(main_function_params));
   }
-#endif  // BUILDFLAG(IS_MAC) || (BUILDFLAG(ENABLE_NACL) && !BUILDFLAG(IS_LINUX)
-        // && !BUILDFLAG(IS_CHROMEOS))
+#endif  // BUILDFLAG(IS_MAC)
 
   return std::move(main_function_params);
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -1578,9 +1534,6 @@ void ChromeMainDelegate::ProcessExiting(const std::string& process_type) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 void ChromeMainDelegate::ZygoteStarting(
     std::vector<std::unique_ptr<content::ZygoteForkDelegate>>* delegates) {
-#if BUILDFLAG(ENABLE_NACL)
-  nacl::AddNaClZygoteForkDelegates(delegates);
-#endif
 }
 
 void ChromeMainDelegate::ZygoteForked() {

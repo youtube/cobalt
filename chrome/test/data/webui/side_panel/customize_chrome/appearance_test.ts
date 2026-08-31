@@ -9,6 +9,7 @@ import {CustomizeChromeAction} from 'chrome://customize-chrome-side-panel.top-ch
 import type {CustomizeChromePageRemote} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
 import {CustomizeChromePageCallbackRouter, CustomizeChromePageHandlerRemote, NewTabPageType} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome.mojom-webui.js';
 import {CustomizeChromeApiProxy} from 'chrome://customize-chrome-side-panel.top-chrome/customize_chrome_api_proxy.js';
+import type {HoverButtonElement} from 'chrome://customize-chrome-side-panel.top-chrome/hover_button.js';
 import type {ManagedDialogElement} from 'chrome://resources/cr_components/managed_dialog/managed_dialog.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -267,6 +268,31 @@ suite('AppearanceTest', () => {
     assertEquals(0, handler.getCallCount('removeBackgroundImage'));
   });
 
+
+  test('shows managed name and description', async () => {
+    // Arrange.
+    const theme = createTheme();
+    theme.backgroundImage = createBackgroundImage('chrome://theme/foo');
+    callbackRouterRemote.setTheme(theme);
+    // Set any non-1P WebUI NTP type.
+    callbackRouterRemote.attachedTabStateUpdated(
+        NewTabPageType.kThirdPartyWebUI);
+    await microtasksFinished();
+
+    // Act.
+    const name = 'foo';
+    const desc = 'bar';
+    callbackRouterRemote.ntpManagedByNameUpdated(name, desc);
+    await callbackRouterRemote.$.flushForTesting();
+    await microtasksFinished();
+
+    const managedButton = $$<HoverButtonElement>(
+        appearanceElement, '#thirdPartyManageLinkButton');
+    assertTrue(!!managedButton);
+    assertEquals(name, managedButton.label);
+    assertEquals(desc, managedButton.labelDescription);
+  });
+
   suite('DisableDeviceTheme', () => {
     suiteSetup(() => {
       loadTimeData.overrideValues({
@@ -395,10 +421,15 @@ suite('AppearanceTest', () => {
       await callbackRouterRemote.$.flushForTesting();
       assertNotStyle(
           appearanceElement.$.thirdPartyThemeLinkButton, 'display', 'none');
-      assertNotStyle(
-          appearanceElement.$.setClassicChromeButton, 'display', 'none');
       assertStyle(appearanceElement.$.themeSnapshot, 'display', 'none');
       assertStyle(appearanceElement.$.chromeColors, 'display', 'none');
+      if (loadTimeData.getBoolean('footerEnabled')) {
+        assertStyle(
+            appearanceElement.$.setClassicChromeButton, 'display', 'none');
+      } else {
+        assertNotStyle(
+            appearanceElement.$.setClassicChromeButton, 'display', 'none');
+      }
     });
 
     test('clicking 3P theme link opens theme page', async () => {

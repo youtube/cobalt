@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -250,6 +251,7 @@ blink::mojom::DragDataPtr DropMetaDataToDragData(
       blink::mojom::DataTransferFilePtr item =
           blink::mojom::DataTransferFile::New();
       item->path = meta_data_item.filename;
+      item->display_name = meta_data_item.display_name;
       items.push_back(blink::mojom::DragItem::NewFile(std::move(item)));
       continue;
     }

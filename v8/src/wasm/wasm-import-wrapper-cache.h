@@ -43,6 +43,10 @@ class WasmImportWrapperCache {
   class CacheKeyHash {
    public:
     size_t operator()(const CacheKey& key) const {
+#if V8_HASHES_COLLIDE
+      if (v8_flags.hashes_collide) return base::kCollidingHash;
+#endif  // V8_HASHES_COLLIDE
+
       return base::hash_combine(static_cast<uint8_t>(key.kind),
                                 key.type_index.index, key.expected_arity);
     }
@@ -134,11 +138,9 @@ class WasmImportWrapperHandle {
   ~WasmImportWrapperHandle();
 
   WasmCodePointer code_pointer() const { return code_pointer_; }
-  const WasmCode& code() const {
-    return *code_.load(std::memory_order_relaxed);
-  }
+  const WasmCode* code() const { return code_.load(std::memory_order_acquire); }
   bool has_code() const {
-    return code_.load(std::memory_order_relaxed) != nullptr;
+    return code_.load(std::memory_order_acquire) != nullptr;
   }
 
  private:

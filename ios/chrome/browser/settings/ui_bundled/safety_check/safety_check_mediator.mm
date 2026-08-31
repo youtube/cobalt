@@ -9,6 +9,7 @@
 #import "base/metrics/histogram_macros.h"
 #import "base/metrics/user_metrics.h"
 #import "base/numerics/safe_conversions.h"
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/time/time.h"
@@ -784,7 +785,7 @@ void ResetSettingsCheckItem(SettingsCheckItem* item) {
 // Computes whether user is capable to run password check in Google Account.
 - (BOOL)canUseAccountPasswordCheckup {
   return password_manager::features_util::IsAccountStorageEnabled(
-             self.userPrefService, self.syncService) &&
+             self.syncService) &&
          !self.syncService->GetUserSettings()->IsEncryptEverythingEnabled();
 }
 

@@ -33,7 +33,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_TIMING_PERFORMANCE_RESOURCE_TIMING_H_
 
 #include "base/time/time.h"
-#include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/timing/performance_mark_or_measure.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/timing/resource_timing.mojom-blink.h"
@@ -61,7 +60,8 @@ class CORE_EXPORT PerformanceResourceTiming : public PerformanceEntry {
                             const AtomicString& initiator_type,
                             base::TimeTicks time_origin,
                             bool cross_origin_isolated_capability,
-                            ExecutionContext* context);
+                            ExecutionContext* context,
+                            uint32_t navigation_id);
   ~PerformanceResourceTiming() override;
 
   const AtomicString& entryType() const override;
@@ -89,6 +89,7 @@ class CORE_EXPORT PerformanceResourceTiming : public PerformanceEntry {
   DOMHighResTimeStamp responseStart() const;
   DOMHighResTimeStamp firstInterimResponseStart() const;
   DOMHighResTimeStamp finalResponseHeadersStart() const;
+  AtomicString initiatorUrl() const;
   virtual DOMHighResTimeStamp responseEnd() const;
   uint64_t transferSize() const;
   virtual uint64_t encodedBodySize() const;
@@ -133,7 +134,6 @@ class CORE_EXPORT PerformanceResourceTiming : public PerformanceEntry {
   // respondWith().
   bool IsResponseFromCacheStorage() const;
 
-  DOMHighResTimeStamp GetAnyFirstResponseStart() const;
   double WorkerReady() const;
 
   AtomicString initiator_type_;

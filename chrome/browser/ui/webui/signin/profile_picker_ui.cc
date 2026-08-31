@@ -37,6 +37,7 @@
 #include "components/signin/public/base/signin_buildflags.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync/base/features.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -47,6 +48,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/resources/glic_resources.h"
 #include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
 #endif
 
@@ -171,7 +173,9 @@ void AddStrings(content::WebUIDataSource* html_source, bool is_glic_version) {
 
   html_source->AddLocalizedString(
       "profileTypeChoiceSubtitle",
-      IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_UNO);
+      base::FeatureList::IsEnabled(syncer::kReplaceSyncPromosWithSignInPromos)
+          ? IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_UNO_BOOKMARKS
+          : IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_SUBTITLE_UNO);
 
   html_source->AddString("minimumPickerSize",
                          base::StringPrintf("%ipx", kMinimumPickerSizePx));
@@ -214,11 +218,7 @@ void AddFlags(content::WebUIDataSource* html_source, bool is_glic_version) {
   html_source->AddBoolean("profilesReorderingEnabled",
                           base::FeatureList::IsEnabled(kProfilesReordering));
   html_source->AddBoolean("signInProfileCreationFlowSupported",
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
                           AccountConsistencyModeManager::IsDiceSignInAllowed());
-#else
-                          true);
-#endif
 
   html_source->AddBoolean("isBrowserSigninAllowed", IsBrowserSigninAllowed());
   html_source->AddBoolean("isForceSigninEnabled",
@@ -230,28 +230,35 @@ void AddFlags(content::WebUIDataSource* html_source, bool is_glic_version) {
 
 void AddResourcePaths(content::WebUIDataSource* html_source,
                       bool is_glic_version) {
-  constexpr webui::ResourcePath kResourcePaths[] = {
+  const webui::ResourcePath kResourcePaths[] = {
       {"left_banner.svg", IDR_SIGNIN_IMAGES_SHARED_LEFT_BANNER_SVG},
       {"left_banner_dark.svg", IDR_SIGNIN_IMAGES_SHARED_LEFT_BANNER_DARK_SVG},
       {"right_banner.svg", IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_SVG},
       {"right_banner_dark.svg", IDR_SIGNIN_IMAGES_SHARED_RIGHT_BANNER_DARK_SVG},
 #if BUILDFLAG(ENABLE_GLIC)
-      {"glic_banner_top_right.svg", IDR_GLIC_PROFILE_BANNER_TOP_RIGHT},
-      {"glic_banner_bottom_left.svg", IDR_GLIC_PROFILE_BANNER_BOTTOM_LEFT},
+      {"glic_banner_top_right.svg",
+       glic::GetResourceID(IDR_GLIC_PROFILE_BANNER_TOP_RIGHT)},
+      {"glic_banner_bottom_left.svg",
+       glic::GetResourceID(IDR_GLIC_PROFILE_BANNER_BOTTOM_LEFT)},
       {"glic_banner_top_right_light.svg",
-       IDR_GLIC_PROFILE_BANNER_TOP_RIGHT_LIGHT},
+       glic::GetResourceID(IDR_GLIC_PROFILE_BANNER_TOP_RIGHT_LIGHT)},
       {"glic_banner_bottom_left_light.svg",
-       IDR_GLIC_PROFILE_BANNER_BOTTOM_LEFT_LIGHT},
-      {"glic_profile_branding.css", IDR_GLIC_PROFILE_BRANDING_CSS},
+       glic::GetResourceID(IDR_GLIC_PROFILE_BANNER_BOTTOM_LEFT_LIGHT)},
+      {"glic_profile_branding.css",
+       glic::GetResourceID(IDR_GLIC_PROFILE_BRANDING_CSS)},
 #endif  // BUILDFLAG(ENABLE_GLIC)
   };
   html_source->AddResourcePaths(kResourcePaths);
 
-  html_source->AddResourcePath("picker_logo.svg",
+  int logo_resource_id;
 #if BUILDFLAG(ENABLE_GLIC)
-                               is_glic_version ? IDR_GLIC_PROFILE_LOGO :
+  logo_resource_id = is_glic_version
+                         ? glic::GetResourceID(IDR_GLIC_PROFILE_LOGO)
+                         : IDR_PRODUCT_LOGO_SVG;
+#else
+  logo_resource_id = IDR_PRODUCT_LOGO_SVG;
 #endif  // BUILDFLAG(ENABLE_GLIC)
-                                               IDR_PRODUCT_LOGO_SVG);
+  html_source->AddResourcePath("picker_logo.svg", logo_resource_id);
 }
 
 }  // namespace

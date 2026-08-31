@@ -81,6 +81,9 @@ std::optional<ViewID> GetViewID(
 #if BUILDFLAG(IS_CHROMEOS)
     case ImageType::SMART_CARD:
 #endif
+#if BUILDFLAG(IS_WIN)
+    case ImageType::PROTECTED_MEDIA_IDENTIFIER:
+#endif
       return std::nullopt;
 
     case ImageType::NUM_IMAGE_TYPES:
@@ -362,7 +365,8 @@ void ContentSettingImageView::AnimationEnded(const gfx::Animation* animation) {
     if (app_id) {
       user_education::FeaturePromoParams params(
           feature_engagement::kIPHPwaQuietNotificationFeature, *app_id);
-      browser_->window()->MaybeShowFeaturePromo(std::move(params));
+      BrowserUserEducationInterface::From(browser_)->MaybeShowFeaturePromo(
+          std::move(params));
     }
   }
 }

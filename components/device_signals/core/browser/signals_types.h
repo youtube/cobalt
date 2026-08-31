@@ -63,6 +63,13 @@ enum class SignalCollectionError {
   kMaxValue = kUnexpectedValue
 };
 
+// Enum representing the type of signals the AgentSignalCollector can collect.
+enum class AgentSignalCollectionType {
+  kDetectedAgents,
+  kCrowdstrikeIdentifiers,
+  kMaxValue = kCrowdstrikeIdentifiers
+};
+
 const std::string ErrorToString(SignalCollectionError error);
 
 // Base struct type that each specific signal bundle types should extend. The
@@ -232,6 +239,9 @@ struct OsSignalsResponse : BaseSignalResponse {
   std::optional<device_signals::SettingValue> secure_boot_mode = std::nullopt;
   std::optional<std::string> windows_machine_domain = std::nullopt;
   std::optional<std::string> windows_user_domain = std::nullopt;
+
+  // Linux specific
+  std::optional<std::string> distribution_version = std::nullopt;
 };
 
 struct ProfileSignalsResponse : BaseSignalResponse {
@@ -251,6 +261,7 @@ struct ProfileSignalsResponse : BaseSignalResponse {
   std::optional<std::string> profile_enrollment_domain = std::nullopt;
   safe_browsing::SafeBrowsingState safe_browsing_protection_level;
   bool site_isolation_enabled;
+  std::optional<std::string> profile_id = std::nullopt;
 
   // Enterprise cloud content analysis exclusives
   enterprise_connectors::EnterpriseRealTimeUrlCheckMode realtime_url_check_mode;
@@ -285,6 +296,7 @@ struct AgentSignalsResponse : BaseSignalResponse {
   ~AgentSignalsResponse() override;
 
   std::optional<CrowdStrikeSignals> crowdstrike_signals = std::nullopt;
+  std::vector<Agents> detected_agents{};
 };
 
 // Request struct containing properties that will be used by the
@@ -309,6 +321,9 @@ struct SignalsAggregationRequest {
   // Parameters required when requesting the collection of signals living on
   // the device's file system.
   std::vector<GetFileSystemInfoOptions> file_system_signal_parameters;
+
+  // Parameters required when requesting the collection of agent signals.
+  std::unordered_set<AgentSignalCollectionType> agent_signal_parameters;
 
   std::vector<GetSettingsOptions> settings_signal_parameters;
 

@@ -140,7 +140,7 @@ void ParkableImageManager::RecordStatisticsAfter5Minutes() const {
 
   // Metrics related to parking only should be recorded if the feature is
   // enabled.
-  if (IsParkableImagesToDiskEnabled() && data_allocator().may_write()) {
+  if (data_allocator().may_write()) {
     base::UmaHistogramTimes("Memory.ParkableImage.TotalWriteTime.5min",
                             total_disk_write_time_);
     base::UmaHistogramTimes("Memory.ParkableImage.TotalReadTime.5min",
@@ -183,8 +183,8 @@ void ParkableImageManager::Remove(ParkableImageImpl* image) {
 }
 
 void ParkableImageManager::MoveImage(ParkableImageImpl* image,
-                                     WTF::HashSet<ParkableImageImpl*>* from,
-                                     WTF::HashSet<ParkableImageImpl*>* to) {
+                                     HashSet<ParkableImageImpl*>* from,
+                                     HashSet<ParkableImageImpl*>* to) {
   auto it = from->find(image);
   CHECK(it != from->end());
   CHECK(!to->Contains(image));
@@ -213,9 +213,6 @@ void ParkableImageManager::OnReadFromDisk(ParkableImageImpl* image) {
 }
 
 void ParkableImageManager::ScheduleDelayedParkingTaskIfNeeded() {
-  if (!ParkableImageManager::IsParkableImagesToDiskEnabled())
-    return;
-
   if (has_pending_parking_task_)
     return;
 
@@ -232,7 +229,6 @@ void ParkableImageManager::MaybeParkImages() {
   // very careful here to avoid a UAF.
   // To avoid this, we make sure that ParkableImageImpl is always destroyed on
   // the main thread, using |ParkableImageManager::DestroyParkableImage|.
-  DCHECK(ParkableImageManager::IsParkableImagesToDiskEnabled());
   DCHECK(IsMainThread());
 
   base::AutoLock lock(lock_);
@@ -242,7 +238,7 @@ void ParkableImageManager::MaybeParkImages() {
   // directly, to avoid deadlock when we need to park synchronously (i.e. if we
   // have already written to disk and don't need to post a background task), as
   // synchronous parking calls |ParkableImageManager::OnWrittenToDisk()|;
-  WTF::Vector<ParkableImageImpl*> unparked_images(unparked_images_);
+  Vector<ParkableImageImpl*> unparked_images(unparked_images_);
 
   // We unlock here so that we can avoid a deadlock, since if the data for the
   // image is already written to disk, we can discard our copy of the data

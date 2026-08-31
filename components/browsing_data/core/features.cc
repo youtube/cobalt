@@ -12,4 +12,13 @@ BASE_FEATURE(kBrowsingDataModel,
              "BrowsingDataModel",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+BASE_FEATURE(kDbdRevampDesktop,
+             "DbdRevampDesktop",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kBrowsingHistoryActorIntegrationM1,
+             "BrowsingHistoryActorIntegrationM1",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 }  // namespace browsing_data::features

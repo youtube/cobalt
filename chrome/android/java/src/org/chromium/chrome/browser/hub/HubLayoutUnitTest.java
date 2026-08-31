@@ -68,8 +68,6 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.base.supplier.Supplier;
 import org.chromium.base.supplier.SyncOneshotSupplierImpl;
 import org.chromium.base.test.BaseRobolectricTestRule;
-import org.chromium.base.test.util.Features.DisableFeatures;
-import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
@@ -93,7 +91,6 @@ import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
-import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.ui.base.TestActivity;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.XrUtils;
@@ -169,6 +166,8 @@ public class HubLayoutUnitTest {
     @Mock private HubContainerView mPaneHostViewMock;
     @Mock private HubLayoutAnimationRunner mCurrentAnimationRunner;
     @Captor private ArgumentCaptor<HubLayoutAnimationListener> mAnimationListenerCaptor;
+    private SceneLayer mStaticSceneLayer;
+    private SceneLayer mColorSceneLayer;
 
     private UserActionTester mActionTester;
 
@@ -213,34 +212,35 @@ public class HubLayoutUnitTest {
         when(mIncognitoTabSwitcherPane.createHideHubLayoutAnimatorProvider(any()))
                 .thenReturn(mHubLayoutAnimatorProviderMock);
 
-        when(mSceneLayerJni.init(any()))
-                .thenReturn(FAKE_NATIVE_ADDRESS_1)
-                .thenReturn(FAKE_NATIVE_ADDRESS_2);
-        // Fake proper cleanup of the native ptr.
-        doCallback(
-                        /* index= */ 1,
-                        (SceneLayer sceneLayer) -> {
-                            sceneLayer.setNativePtr(0L);
-                        })
-                .when(mSceneLayerJni)
-                .destroy(anyLong(), any());
         // Ensure each SceneLayer has a native ptr.
         doAnswer(
                         invocation -> {
-                            ((SceneLayer) invocation.getArguments()[0])
-                                    .setNativePtr(FAKE_NATIVE_ADDRESS_1);
+                            mStaticSceneLayer = (SceneLayer) invocation.getArguments()[0];
+                            mStaticSceneLayer.setNativePtr(FAKE_NATIVE_ADDRESS_1);
                             return FAKE_NATIVE_ADDRESS_1;
                         })
                 .when(mStaticTabSceneLayerJni)
                 .init(any());
         doAnswer(
                         invocation -> {
-                            ((SceneLayer) invocation.getArguments()[0])
-                                    .setNativePtr(FAKE_NATIVE_ADDRESS_2);
+                            mColorSceneLayer = (SceneLayer) invocation.getArguments()[0];
+                            mColorSceneLayer.setNativePtr(FAKE_NATIVE_ADDRESS_2);
                             return FAKE_NATIVE_ADDRESS_2;
                         })
                 .when(mSolidColorSceneLayerJni)
                 .init(any());
+        // Fake proper cleanup of the native ptr.
+        doCallback(
+                        /* index= */ 0,
+                        (Long nativePtr) -> {
+                            if (nativePtr == FAKE_NATIVE_ADDRESS_1) {
+                                mStaticSceneLayer.setNativePtr(0L);
+                            } else if (nativePtr == FAKE_NATIVE_ADDRESS_2) {
+                                mColorSceneLayer.setNativePtr(0L);
+                            }
+                        })
+                .when(mSceneLayerJni)
+                .destroy(anyLong());
 
         when(mPaneManager.getFocusedPaneSupplier()).thenReturn(mPaneSupplier);
         doAnswer(
@@ -299,7 +299,7 @@ public class HubLayoutUnitTest {
         when(mTab.isNativePage()).thenReturn(false);
         when(mTabModelSelector.getCurrentTab()).thenReturn(mTab);
 
-        mHubLayoutAnimatorSupplier = new SyncOneshotSupplierImpl<HubLayoutAnimator>();
+        mHubLayoutAnimatorSupplier = new SyncOneshotSupplierImpl<>();
         when(mHubLayoutAnimatorProviderMock.getAnimatorSupplier())
                 .thenReturn(mHubLayoutAnimatorSupplier);
     }
@@ -318,6 +318,7 @@ public class HubLayoutUnitTest {
 
         View paneHostView = hubLayout.findViewById(R.id.hub_pane_host);
         when(mHubController.getContainerView()).thenReturn(mHubContainerView);
+        when(mHubController.getContainerViewUnchecked()).thenReturn(mHubContainerView);
         when(mHubController.getPaneHostView()).thenReturn(paneHostView);
 
         LazyOneshotSupplier<HubManager> hubManagerSupplier =
@@ -326,7 +327,11 @@ public class HubLayoutUnitTest {
                 LazyOneshotSupplier.fromValue(mFrameLayout);
         HubLayoutDependencyHolder dependencyHolder =
                 new HubLayoutDependencyHolder(
-                        hubManagerSupplier, rootViewSupplier, mScrimController, mOnAlphaChange);
+                        hubManagerSupplier,
+                        rootViewSupplier,
+                        mScrimController,
+                        mOnAlphaChange,
+                        /* xrFullSpaceModeSupplier= */ null);
 
         mTabModelSelectorSupplier = () -> mTabModelSelector;
         mHubLayout =
@@ -640,41 +645,6 @@ public class HubLayoutUnitTest {
     }
 
     @Test
-    @DisableFeatures(OmniboxFeatureList.ANDROID_HUB_SEARCH)
-    public void testFinalRect_SameModel() {
-        setupFinalRectMocks(/* modelIsIncognito= */ false);
-        Rect expectedRect = new Rect(0, 10, 90, 110);
-        Rect actualRect = new Rect();
-
-        mHubLayout.getFinalRectForNewTabAnimation(
-                mHubContainerViewMock, /* newIsIncognito= */ false, actualRect);
-        assertEquals(expectedRect, actualRect);
-
-        when(mTabModelSelector.isIncognitoBrandedModelSelected()).thenReturn(true);
-        mHubLayout.getFinalRectForNewTabAnimation(
-                mHubContainerViewMock, /* newIsIncognito= */ true, actualRect);
-        assertEquals(expectedRect, actualRect);
-    }
-
-    @Test
-    @DisableFeatures(OmniboxFeatureList.ANDROID_HUB_SEARCH)
-    public void testFinalRect_SwitchingModel() {
-        setupFinalRectMocks(/* modelIsIncognito= */ false);
-        Rect expectedRect = new Rect(0, 0, 90, 110);
-        Rect actualRect = new Rect();
-
-        mHubLayout.getFinalRectForNewTabAnimation(
-                mHubContainerViewMock, /* newIsIncognito= */ true, actualRect);
-        assertEquals(expectedRect, actualRect);
-
-        when(mTabModelSelector.isIncognitoBrandedModelSelected()).thenReturn(true);
-        mHubLayout.getFinalRectForNewTabAnimation(
-                mHubContainerViewMock, /* newIsIncognito= */ false, actualRect);
-        assertEquals(expectedRect, actualRect);
-    }
-
-    @Test
-    @EnableFeatures(OmniboxFeatureList.ANDROID_HUB_SEARCH)
     public void testFinalRectWithHubSearch_SwitchingModel() {
         setupFinalRectMocks(/* modelIsIncognito= */ false);
         Rect expectedRect = new Rect(0, 0, 90, 110);
@@ -691,7 +661,6 @@ public class HubLayoutUnitTest {
     }
 
     @Test
-    @EnableFeatures(OmniboxFeatureList.ANDROID_HUB_SEARCH)
     public void testFinalRectWithHubSearch_SameModel() {
         setupFinalRectMocks(/* modelIsIncognito= */ false);
         Rect spyRect = spy(new Rect());
@@ -775,7 +744,11 @@ public class HubLayoutUnitTest {
                 LazyOneshotSupplier.fromValue(mFrameLayout);
         HubLayoutDependencyHolder dependencyHolder =
                 new HubLayoutDependencyHolder(
-                        hubManagerSupplier, rootViewSupplier, mScrimController, mOnAlphaChange);
+                        hubManagerSupplier,
+                        rootViewSupplier,
+                        mScrimController,
+                        mOnAlphaChange,
+                        /* xrFullSpaceModeSupplier= */ null);
         mHubLayout =
                 new HubLayout(
                         mActivity,
@@ -966,9 +939,18 @@ public class HubLayoutUnitTest {
 
     private void forceLayout() {
         // Force any layout delayed animations to run.
-        mHubContainerView.layout(0, 0, 100, 100);
-        for (int i = 0; i < mHubContainerView.getChildCount(); i++) {
-            mHubContainerView.getChildAt(i).layout(0, 0, 100, 100);
+        forceLayoutRecursive(mHubContainerView);
+    }
+
+    private void forceLayoutRecursive(ViewGroup viewGroup) {
+        viewGroup.layout(0, 0, 100, 100);
+        for (int i = 0; i < viewGroup.getChildCount(); i++) {
+            View child = viewGroup.getChildAt(i);
+            if (child instanceof ViewGroup childViewGroup) {
+                forceLayoutRecursive(childViewGroup);
+            } else {
+                child.layout(0, 0, 100, 100);
+            }
         }
     }
 }

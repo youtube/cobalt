@@ -4,10 +4,13 @@
 
 package org.chromium.chrome.browser.download;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.offline_items_collection.ContentId;
 import org.chromium.components.offline_items_collection.PendingState;
 
 /** Class for reporting the status of a download. */
+@NullMarked
 public interface DownloadNotifier {
     /**
      * Add a download successful notification.
@@ -29,7 +32,8 @@ public interface DownloadNotifier {
     void notifyDownloadFailed(DownloadInfo downloadInfo);
 
     /**
-     * Update the download progress notification.
+     * Update the download progress notification. Depending on the download's danger type, this can
+     * cause the download notification to reflect a Dangerous verdict from Safe Browsing.
      *
      * @param downloadInfo info about in progress download.
      * @param startTimeInMillis the startTime of the download, measured in milliseconds, between the
@@ -48,7 +52,8 @@ public interface DownloadNotifier {
     void notifyDownloadPaused(DownloadInfo downloadInfo);
 
     /**
-     * Update the download notification to paused.
+     * Update the download notification to interrupted.
+     *
      * @param downloadInfo info about in progress download.
      * @param isAutoResumable Whether the download can be auto resumed when network is available.
      * @param pendingState Reason download is pending
@@ -60,7 +65,7 @@ public interface DownloadNotifier {
      * Cancel the notification for a download.
      * @param id The {@link ContentId} of the download.
      */
-    void notifyDownloadCanceled(ContentId id);
+    void notifyDownloadCanceled(@Nullable ContentId id);
 
     /**
      * Remove the download notification for an already finished download.

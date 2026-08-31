@@ -24,6 +24,7 @@
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_opener.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
@@ -156,6 +157,10 @@ class LocationBarCoordinatorTest : public PlatformTest {
     [dispatcher startDispatchingToTarget:mock_page_action_menu_handler
                              forProtocol:@protocol(PageActionMenuCommands)];
 
+    id mock_bwg_handler = OCMProtocolMock(@protocol(BWGCommands));
+    [dispatcher startDispatchingToTarget:mock_bwg_handler
+                             forProtocol:@protocol(BWGCommands)];
+
     delegate_ = [[TestOmniboxFocusDelegate alloc] init];
 
     coordinator_ = [[LocationBarCoordinator alloc]
@@ -192,7 +197,8 @@ TEST_F(LocationBarCoordinatorTest, Stops) {
 // Removes the existing WebState to ensure that nothing breaks when there is no
 // active WebState.
 TEST_F(LocationBarCoordinatorTest, RemoveLastWebState) {
-  browser_->GetWebStateList()->CloseWebStateAt(0, 0);
+  browser_->GetWebStateList()->CloseWebStateAt(
+      0, WebStateList::ClosingReason::kDefault);
 }
 
 // Calls -loadGURLFromLocationBar:transition: with https://www.google.com/ URL.

@@ -26,7 +26,9 @@
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
-#include "components/ip_protection/common/ip_protection_core.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+#include "components/ip_protection/common/ip_protection_core.h"  // nogncheck
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -207,9 +209,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   CookieManager* cookie_manager() { return cookie_manager_.get(); }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   ip_protection::IpProtectionCore* ip_protection_core() {
     return ip_protection_core_.get();
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   const base::flat_set<std::string>* cors_exempt_header_list() const {
     return &cors_exempt_header_list_;
@@ -403,6 +407,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const url::Origin& origin,
       const net::NetworkAnonymizationKey& network_anonymization_key,
       std::vector<mojom::WebTransportCertificateFingerprintPtr> fingerprints,
+      const std::vector<std::string>& application_protocols,
       mojo::PendingRemote<mojom::WebTransportHandshakeClient> handshake_client)
       override;
   void CreateNetLogExporter(
@@ -426,6 +431,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const std::string& ocsp_result,
       const std::string& sct_list,
       VerifyCertCallback callback) override;
+  void Verify2QwacCertBinding(
+      const std::string& binding,
+      const std::string& hostname,
+      const scoped_refptr<net::X509Certificate>& tls_certificate,
+      Verify2QwacCertBindingCallback callback) override;
   void AddHSTS(const std::string& host,
                base::Time expiry,
                bool include_subdomains,
@@ -451,6 +461,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       const std::string& ocsp_response,
       const std::string& sct_list,
       VerifyCertificateForTestingCallback callback) override;
+  void GetTrustAnchorIDsForTesting(
+      GetTrustAnchorIDsForTestingCallback callback) override;
   void PreconnectSockets(
       uint32_t num_streams,
       const GURL& url,
@@ -666,6 +678,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // and to store information conveyed in the corresponding responses.
   //
   // May return null if Trust Tokens support is disabled.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   PendingTrustTokenStore* trust_token_store() {
     return trust_token_store_.get();
   }
@@ -673,6 +686,11 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
     return trust_token_store_.get();
   }
   bool are_trust_tokens_blocked() const { return block_trust_tokens_; }
+#else
+  PendingTrustTokenStore* trust_token_store() { return nullptr; }
+  const PendingTrustTokenStore* trust_token_store() const { return nullptr; }
+  bool are_trust_tokens_blocked() const { return true; }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   WebBundleManager& GetWebBundleManager() { return web_bundle_manager_; }
 
@@ -819,8 +837,10 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // SQL-based) persistence layer, |FinishConstructingTrustTokenStore|
   // constructs and populates |trust_token_store_| once the persister's
   // asynchronous initialization has finished.
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   void FinishConstructingTrustTokenStore(
       std::unique_ptr<SQLiteTrustTokenPersister> persister);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   bool IsAllowedToUseAllHttpAuthSchemes(
       const url::SchemeHostPort& scheme_host_port);
@@ -842,10 +862,12 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   std::unique_ptr<ResourceScheduler> resource_scheduler_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // The IpProtectionCore for this context, used to coordinate proxying
   // protected requests. `url_request_context_owner_` indirectly holds
   // a pointer to and must be defined after `ip_protection_core_`.
   std::unique_ptr<ip_protection::IpProtectionCore> ip_protection_core_;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   // Used only when network::features::kCompressionDictionaryTransportBackend is
   // enabled.
@@ -904,6 +926,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   mojo::UniqueReceiverSet<mojom::ProxyResolvingSocketFactory>
       proxy_resolving_socket_factories_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   // See the comment for |trust_token_store()|.
   std::unique_ptr<PendingTrustTokenStore> trust_token_store_;
 
@@ -916,6 +939,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // Whether the user is blocking Trust Tokens, value provided by the
   // PrivacySandboxSettings service.
   bool block_trust_tokens_ = false;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 #if BUILDFLAG(ENABLE_WEBSOCKETS)
   std::unique_ptr<WebSocketFactory> websocket_factory_;

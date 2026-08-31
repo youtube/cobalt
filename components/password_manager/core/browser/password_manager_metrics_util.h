@@ -309,6 +309,23 @@ enum class IsSyncPasswordHashSaved {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+//
+// Enum used to log metrics related to the password change recovery flow.
+//
+// LINT.IfChange(PasswordChangeRecoveryFlowState)
+enum class PasswordChangeRecoveryFlowState {
+  // User clicked the "Trouble signing in" suggestion and entered the flow.
+  kTroubleSigningInClicked = 0,
+  // We detected a failed login and opened a proactive popup.
+  kProactiveRecoveryPopupShown = 1,
+  // User finished the flow and promoted the backup password to primary.
+  kPrimaryPasswordUpdated = 2,
+  kMaxValue = kPrimaryPasswordUpdated
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/password/enums.xml:PasswordChangeRecoveryFlowState)
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 // Metric: "PasswordManager.ReusedPasswordType".
 enum class PasswordType {
   // Passwords saved by password manager.
@@ -429,12 +446,8 @@ enum class MoveToAccountStoreTrigger {
   kExplicitlyTriggeredInSettings = 1,
   // The user explicitly asked to move multiple passwords at once in Settings.
   kExplicitlyTriggeredForMultiplePasswordsInSettings = 2,
-  // After saving a password locally, the user opted in to saving this and
-  // future passwords in the account.
-  kUserOptedInAfterSavingLocally = 3,
-  // The user explicitly asked to move a password to account store from password
-  // details page.
-  kExplicitlyTriggeredForSinglePasswordInDetailsInSettings = 4,
+  // Deprecated: kUserOptedInAfterSavingLocally = 3,
+  // Deprecated: kExplicitlyTriggeredForSinglePasswordInDetailsInSettings = 4,
   // The user clicked a link in a footer of the manage passwords bubble.
   kExplicitlyTriggeredInPasswordsManagementBubble = 5,
   kMaxValue = kExplicitlyTriggeredInPasswordsManagementBubble,
@@ -549,18 +562,20 @@ enum class ProcessIncomingPasswordSharingInvitationResult {
   kMaxValue = kInvalidInvitation,
 };
 
-#if BUILDFLAG(IS_ANDROID)
 // These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused. Keep in sync with `
-// `LocalPwdMigrationProgressState` in the passwords' enums.xml.
-enum class LocalPwdMigrationProgressState {
-  kScheduled = 0,
-  kStarted = 1,
-  // Finished is recorded irrespective of success status.
-  kFinished = 2,
-  kMaxValue = kFinished,
+// numeric values should never be reused. Always keep in sync with
+// PasswordChangeFlowStep in enums.xml.
+// LINT.IfChange(PasswordChangeFlowStep)
+enum PasswordChangeFlowStep {
+  // Represents the current step of the password change flow.
+  kOpenFormStep = 0,
+  kSubmitFormStep = 1,
+  kVerifySubmissionStep = 2,
+  kMaxValue = kVerifySubmissionStep,
 };
+// LINT.ThenChange(/tools/metrics/histograms/metadata/password/enums.xml:PasswordChangeFlowStep)
 
+#if BUILDFLAG(IS_ANDROID)
 // Enum specifying the outcome of an attempt to access credentials stored in a
 // SharedPref. These values are persisted to logs. Entries should not be
 // renumbered and numeric values should never be reused. Keep in sync with
@@ -739,11 +754,6 @@ void LogPasswordAcceptedSaveUpdateSubmissionIndicatorEvent(
 void LogDownloadedPasswordsCountFromAccountStoreAfterUnlock(
     int account_store_passwords_count);
 
-// Logs how many blocklisted entries are downloaded to the account store right
-// after unlock.
-void LogDownloadedBlocklistedEntriesCountFromAccountStoreAfterUnlock(
-    int blocklist_entries_count);
-
 // Logs the result of a re-auth challenge in the password settings.
 void LogPasswordSettingsReauthResult(device_reauth::ReauthResult result);
 
@@ -804,13 +814,6 @@ void LogUserInteractionsInSharedPasswordsNotificationBubble(
 // Log the result of processing an incoming password sharing invitation.
 void LogProcessIncomingPasswordSharingInvitationResult(
     ProcessIncomingPasswordSharingInvitationResult result);
-
-#if BUILDFLAG(IS_ANDROID)
-// Records the scheduling state of the local passwords migration to the
-// Android backend.
-void LogLocalPwdMigrationProgressState(
-    LocalPwdMigrationProgressState scheduling_state);
-#endif
 
 // Wraps |callback| into another callback that measures the elapsed time between
 // construction and actual execution of the callback. Records the result to
@@ -880,6 +883,18 @@ void LogPasswordDropdownHidden();
 // Emits UMA if grouped match was accepted. Should be called only if grouped
 // match filling was available to the user.
 void LogFillSuggestionGroupedMatchAccepted(bool grouped_match_accepted);
+
+// Logs the result of a navigator.credentials.get() call into an aggregated
+// histogram for both Chrome and third party requests.
+void LogCumulativeGetCredentialsMetrics(
+    password_manager::CredentialManagerError error);
+
+// Logs the failure to capture annotated page content during a specific
+// step of the password change flow.
+void LogPageContentCaptureFailure(PasswordChangeFlowStep step);
+
+// Logs the metrics for when a backup password is being promoted to primary.
+void LogPrimaryPasswordUpdatedWithBackup(ukm::SourceId ukm_source_id);
 
 }  // namespace password_manager::metrics_util
 

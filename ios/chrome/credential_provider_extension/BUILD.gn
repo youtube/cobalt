@@ -40,7 +40,6 @@ source_set("credential_provider") {
     "//base",
     "//components/webauthn/core/browser:passkey_model",
     "//ios/chrome/common/app_group",
-    "//ios/chrome/common/app_group:client",
     "//ios/chrome/common/crash_report",
     "//ios/chrome/common/credential_provider",
     "//ios/chrome/common/credential_provider:ui",
@@ -76,10 +75,13 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "metrics_util_unittest.mm",
+    "passkey_request_details_unittest.mm",
     "passkey_util_unittest.mm",
   ]
   deps = [
     ":metrics_util",
+    ":passkey_request_details",
+    ":passkey_request_details_testing",
     ":passkey_util",
     "//base",
     "//base/test:test_support",
@@ -197,6 +199,12 @@ source_set("passkey_request_details") {
     "AuthenticationServices.framework",
     "Foundation.framework",
   ]
+}
+
+source_set("passkey_request_details_testing") {
+  testonly = true
+  sources = [ "passkey_request_details+Testing.h" ]
+  deps = [ ":passkey_request_details" ]
 }
 
 swift_source_set("passkey_util_swift") {

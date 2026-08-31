@@ -7,7 +7,6 @@
 #include <memory>
 #include <utility>
 
-#include "base/check_is_test.h"
 #include "base/metrics/histogram_functions.h"
 #include "gpu/command_buffer/service/scheduler.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -20,9 +19,13 @@
 #include "services/webnn/webnn_context_impl.h"
 
 #if BUILDFLAG(IS_WIN)
+#include <string>
+
 #include "base/types/expected_macros.h"
 #include "services/webnn/dml/context_provider_dml.h"
+#include "services/webnn/ort/context_impl_ort.h"
 #include "services/webnn/ort/context_provider_ort.h"
+#include "services/webnn/ort/environment.h"
 #include "services/webnn/ort/ort_session_options.h"
 #endif
 
@@ -80,6 +83,7 @@ WebNNContextProviderImpl::WebNNContextProviderImpl(
     scoped_refptr<gpu::SharedContextState> shared_context_state,
     gpu::GpuFeatureInfo gpu_feature_info,
     gpu::GPUInfo gpu_info,
+    gpu::SharedImageManager* shared_image_manager,
     LoseAllContextsCallback lose_all_contexts_callback,
     scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
     gpu::Scheduler* scheduler,
@@ -87,6 +91,7 @@ WebNNContextProviderImpl::WebNNContextProviderImpl(
     : shared_context_state_(std::move(shared_context_state)),
       gpu_feature_info_(std::move(gpu_feature_info)),
       gpu_info_(std::move(gpu_info)),
+      shared_image_manager_(shared_image_manager),
       lose_all_contexts_callback_(std::move(lose_all_contexts_callback)),
       scheduler_(scheduler),
       main_thread_task_runner_(std::move(main_thread_task_runner)),
@@ -101,15 +106,20 @@ std::unique_ptr<WebNNContextProviderImpl> WebNNContextProviderImpl::Create(
     scoped_refptr<gpu::SharedContextState> shared_context_state,
     gpu::GpuFeatureInfo gpu_feature_info,
     gpu::GPUInfo gpu_info,
+    gpu::SharedImageManager* shared_image_manager,
     LoseAllContextsCallback lose_all_contexts_callback,
     scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner,
     gpu::Scheduler* scheduler,
     int32_t client_id) {
-  CHECK_NE(shared_context_state, nullptr);
+  // `shared_context_state` is only used by DirectML backend for GPU context. It
+  // may be nullptr when GPU acceleration is not available. For such case, WebNN
+  // GPU feature (`gpu::GPU_FEATURE_TYPE_WEBNN`) is not enabled and creating a
+  // GPU context will result in a not-supported error.
   return base::WrapUnique(new WebNNContextProviderImpl(
       std::move(shared_context_state), std::move(gpu_feature_info),
-      std::move(gpu_info), std::move(lose_all_contexts_callback),
-      std::move(main_thread_task_runner), scheduler, client_id));
+      std::move(gpu_info), shared_image_manager,
+      std::move(lose_all_contexts_callback), std::move(main_thread_task_runner),
+      scheduler, client_id));
 }
 
 void WebNNContextProviderImpl::BindWebNNContextProvider(
@@ -123,8 +133,6 @@ WebNNContextProviderImpl::CreateForTesting(
     mojo::PendingReceiver<mojom::WebNNContextProvider> receiver,
     WebNNStatus status,
     LoseAllContextsCallback lose_all_contexts_callback) {
-  CHECK_IS_TEST();
-
   gpu::GpuFeatureInfo gpu_feature_info;
   gpu::GPUInfo gpu_info;
 
@@ -161,7 +169,8 @@ WebNNContextProviderImpl::CreateForTesting(
       mojo::MakeSelfOwnedReceiver<mojom::WebNNContextProvider>(
           base::WrapUnique(new WebNNContextProviderImpl(
               /*shared_context_state=*/nullptr, std::move(gpu_feature_info),
-              std::move(gpu_info), std::move(lose_all_contexts_callback),
+              std::move(gpu_info), /*shared_image_manager=*/nullptr,
+              std::move(lose_all_contexts_callback),
               base::SingleThreadTaskRunner::GetCurrentDefault(),
               g_webnn_scheduler.get(), kFakeClientIdForTesting)),
           std::move(receiver))
@@ -176,10 +185,10 @@ void WebNNContextProviderImpl::OnConnectionError(WebNNContextImpl* impl) {
 
 #if BUILDFLAG(IS_WIN)
 void WebNNContextProviderImpl::DestroyContextsAndKillGpuProcess(
-    std::string_view reason) {
+    const std::string& reason) {
   // Send the contexts lost reason to the renderer process.
   for (const auto& impl : impls_) {
-    impl->ResetReceiverWithReason(reason);
+    impl->OnLost(reason);
   }
 
   std::move(lose_all_contexts_callback_).Run();
@@ -208,24 +217,22 @@ void WebNNContextProviderImpl::CreateWebNNContext(
   RecordDeviceType(options->device);
 
 #if BUILDFLAG(IS_WIN)
-  base::expected<std::unique_ptr<WebNNContextImpl>, mojom::ErrorPtr>
-      context_creation_results;
-
-  if (base::FeatureList::IsEnabled(mojom::features::kWebNNOnnxRuntime)) {
-    context_creation_results = ort::CreateContextFromOptions(
-        std::move(options), std::move(receiver), this);
-    if (!context_creation_results.has_value()) {
-      std::move(callback).Run(mojom::CreateContextResult::NewError(
-          std::move(context_creation_results.error())));
-      return;
+  if (ort::ShouldCreateOrtContext(*options)) {
+    base::expected<scoped_refptr<ort::Environment>, std::string>
+        env_creation_results = ort::Environment::GetInstance(gpu_info_);
+    if (!env_creation_results.has_value()) {
+      LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime context: "
+                 << env_creation_results.error();
+    } else {
+      context_impl = std::make_unique<ort::ContextImplOrt>(
+          std::move(receiver), this, std::move(options),
+          std::move(env_creation_results.value()));
     }
-    context_impl = std::move(context_creation_results.value());
-  }
-
-  if (!context_impl && dml::ShouldCreateDmlContext(*options)) {
-    context_creation_results = dml::CreateContextFromOptions(
-        std::move(options), gpu_feature_info_, gpu_info_,
-        shared_context_state_.get(), std::move(receiver), this);
+  } else if (dml::ShouldCreateDmlContext(*options)) {
+    base::expected<std::unique_ptr<WebNNContextImpl>, mojom::ErrorPtr>
+        context_creation_results = dml::CreateContextFromOptions(
+            std::move(options), gpu_feature_info_, gpu_info_,
+            shared_context_state_.get(), std::move(receiver), this);
     if (!context_creation_results.has_value()) {
       std::move(callback).Run(mojom::CreateContextResult::NewError(
           std::move(context_creation_results.error())));
@@ -256,11 +263,11 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 #endif  // BUILDFLAG(WEBNN_USE_TFLITE)
 
   if (!context_impl) {
-    // TODO(crbug.com/40206287): Supporting WebNN Service on the platform.
+    // TODO(crbug.com/40206287): Supporting WebNN on the platform.
     std::move(callback).Run(ToError<mojom::CreateContextResult>(
         mojom::Error::Code::kNotSupportedError,
-        "WebNN Service is not supported on this platform."));
-    LOG(ERROR) << "[WebNN] Service is not supported on this platform.";
+        "WebNN is not supported on this platform."));
+    LOG(ERROR) << "WebNN is not supported on this platform.";
     return;
   }
 
@@ -278,7 +285,6 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 base::optional_ref<WebNNContextImpl>
 WebNNContextProviderImpl::GetWebNNContextImplForTesting(
     const blink::WebNNContextToken& handle) {
-  CHECK_IS_TEST();
   const auto it = impls_.find(handle);
   if (it == impls_.end()) {
     mojo::ReportBadMessage(kBadMessageInvalidContext);

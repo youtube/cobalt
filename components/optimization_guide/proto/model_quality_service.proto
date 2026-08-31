@@ -19,8 +19,10 @@ import "components/optimization_guide/proto/features/notification_content_detect
 import "components/optimization_guide/proto/features/password_change_submission.proto";
 import "components/optimization_guide/proto/features/permissions_ai.proto";
 import "components/optimization_guide/proto/features/product_specifications.proto";
+import "components/optimization_guide/proto/features/prompt_api.proto";
 import "components/optimization_guide/proto/features/proofreader_api.proto";
 import "components/optimization_guide/proto/features/scam_detection.proto";
+import "components/optimization_guide/proto/features/summarize.proto";
 import "components/optimization_guide/proto/features/tab_organization.proto";
 import "components/optimization_guide/proto/features/wallpaper_search.proto";
 import "components/optimization_guide/proto/features/writing_assistance_api.proto";
@@ -35,6 +37,11 @@ option java_outer_classname = "ModelQualityServiceProto";
 // an AI feature with metadata specific to the logging.
 message LogAiDataRequest {
   reserved 10, 11;
+
+  // For the use of MQLS client ID in glic API.
+  // LINT.IfChange(MQLSClientIdReservation)
+  reserved 1002;
+  // LINT.ThenChange(//components/optimization_guide/core/model_quality/model_quality_util.cc:MQLSClientIdReservation)
 
   // Information about a feature's AiLoggingData, such as training opt-outs.
   LoggingMetadata logging_metadata = 1;
@@ -78,7 +85,11 @@ message LogAiDataRequest {
 
     WritingAssistanceApiLoggingData writing_assistance_api = 23;
 
-    ProofreaderApiLoggingData proofreader_api = 24;
+    ProofreaderApiLoggingData proofreader_api = 25;
+
+    PromptApiLoggingData prompt_api = 26;
+
+    SummarizeLoggingData summarize = 27;
 
     DefaultLoggingData default = 1000;
   }

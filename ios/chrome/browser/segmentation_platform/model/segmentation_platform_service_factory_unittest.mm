@@ -146,11 +146,10 @@ class SegmentationPlatformServiceFactoryTest : public PlatformTest {
     WaitForServiceInit();
 
     ProfileIOS* otr_profile =
-        profile_data_->profile
-            ->CreateOffTheRecordBrowserStateWithTestingFactories(
-                {TestProfileIOS::TestingFactory{
-                    SegmentationPlatformServiceFactory::GetInstance(),
-                    SegmentationPlatformServiceFactory::GetDefaultFactory()}});
+        profile_data_->profile->CreateOffTheRecordProfileWithTestingFactories(
+            {TestProfileIOS::TestingFactory{
+                SegmentationPlatformServiceFactory::GetInstance(),
+                SegmentationPlatformServiceFactory::GetDefaultFactory()}});
     ASSERT_FALSE(
         SegmentationPlatformServiceFactory::GetForProfile(otr_profile));
   }
@@ -499,6 +498,16 @@ TEST_F(SegmentationPlatformServiceFactoryTest,
       kEphemeralHomeModuleBackendKey, prediction_options, input_context,
       /*expected_status=*/segmentation_platform::PredictionStatus::kSucceeded,
       /*expected_labels=*/result);
+}
+
+// Verify that kIosDefaultBrowserPromoKey fails execution since it should never
+// be executed by the client.
+TEST_F(SegmentationPlatformServiceFactoryTest, TestDefaultBrowserModel) {
+  PredictionOptions prediction_options;
+
+  ExpectGetClassificationResult(
+      kIosDefaultBrowserPromoKey, prediction_options, nullptr,
+      /*expected_status=*/PredictionStatus::kFailed, std::nullopt);
 }
 
 }  // namespace segmentation_platform

@@ -45,7 +45,7 @@ import org.chromium.chrome.browser.browserservices.ui.controller.CurrentPageVeri
 import org.chromium.chrome.browser.browserservices.ui.controller.Verifier;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.test.mock.MockWebContents;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.Arrays;
@@ -67,7 +67,7 @@ public class WebAppLaunchHandlerTest {
     private String[] mExpectedFileList = new String[0];
 
     @Rule public MockitoRule mockitoRule = MockitoJUnit.rule();
-    @Mock WebContents mWebContentsMock;
+    @Mock MockWebContents mWebContentsMock;
     @Mock CustomTabActivityNavigationController mNavigationControllerMock;
     @Mock Verifier mVerifierMock;
     @Mock CurrentPageVerifier mCurrentPageVerifierMock;
@@ -105,12 +105,17 @@ public class WebAppLaunchHandlerTest {
     }
 
     private WebAppLaunchHandler createWebAppLaunchHandler() {
-        return WebAppLaunchHandler.create(
-                mVerifierMock,
-                mCurrentPageVerifierMock,
-                mNavigationControllerMock,
-                mWebContentsMock,
-                mActivityMock);
+        WebAppLaunchHandler handler =
+                WebAppLaunchHandler.create(
+                        mVerifierMock,
+                        mCurrentPageVerifierMock,
+                        mNavigationControllerMock,
+                        mWebContentsMock,
+                        mActivityMock);
+
+        handler.didStartNavigationInPrimaryMainFrame(null);
+
+        return handler;
     }
 
     private CustomTabIntentDataProvider createIntentDataProvider(
@@ -407,5 +412,26 @@ public class WebAppLaunchHandlerTest {
         verify(mActivityMock, times(1))
                 .grantUriPermission(
                         eq(TEST_PACKAGE_NAME), eq(mFileHandlingData.uris.get(0)), anyInt());
+    }
+
+    /*
+     * A verification of a target url is asynchronous. So it's possible the url loading finishes
+     * before verification. If so we need to send a launchParams to launchQueue with the filed
+     * startNewNavigation = false. Otherwise the page will not get it because launchQueue will
+     * wait until navigation is finished, page reloading for example.
+     */
+    @Test
+    public void navigationFinishedBeforeVerification() {
+        WebAppLaunchHandler launchHandler = createWebAppLaunchHandler();
+
+        launchHandler.didFinishNavigationInPrimaryMainFrame(null);
+
+        CustomTabIntentDataProvider dataProvider =
+                createIntentDataProvider(LaunchHandlerClientMode.FOCUS_EXISTING, INITIAL_URL);
+        launchHandler.handleInitialIntent(dataProvider);
+        shadowOf(Looper.getMainLooper()).idle();
+
+        verify(mWebAppLaunchHandlerJniMock, times(1))
+                .notifyLaunchQueue(any(), eq(false), eq(INITIAL_URL), any(), any());
     }
 }

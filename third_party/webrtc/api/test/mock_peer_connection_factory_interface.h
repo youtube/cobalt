@@ -29,7 +29,7 @@
 namespace webrtc {
 
 class MockPeerConnectionFactoryInterface
-    : public RefCountedObject<webrtc::PeerConnectionFactoryInterface> {
+    : public RefCountedObject<PeerConnectionFactoryInterface> {
  public:
   static scoped_refptr<MockPeerConnectionFactoryInterface> Create() {
     return scoped_refptr<MockPeerConnectionFactoryInterface>(
@@ -44,11 +44,11 @@ class MockPeerConnectionFactoryInterface
               (override));
   MOCK_METHOD(RtpCapabilities,
               GetRtpSenderCapabilities,
-              (webrtc::MediaType),
+              (MediaType),
               (const, override));
   MOCK_METHOD(RtpCapabilities,
               GetRtpReceiverCapabilities,
-              (webrtc::MediaType),
+              (MediaType),
               (const, override));
   MOCK_METHOD(scoped_refptr<MediaStreamInterface>,
               CreateLocalMediaStream,
@@ -56,16 +56,11 @@ class MockPeerConnectionFactoryInterface
               (override));
   MOCK_METHOD(scoped_refptr<AudioSourceInterface>,
               CreateAudioSource,
-              (const webrtc::AudioOptions&),
+              (const AudioOptions&),
               (override));
   MOCK_METHOD(scoped_refptr<VideoTrackInterface>,
               CreateVideoTrack,
-              (const std::string&, VideoTrackSourceInterface*),
-              (override));
-  MOCK_METHOD(scoped_refptr<VideoTrackInterface>,
-              CreateVideoTrack,
-              (webrtc::scoped_refptr<VideoTrackSourceInterface>,
-               absl::string_view),
+              (scoped_refptr<VideoTrackSourceInterface>, absl::string_view),
               (override));
   MOCK_METHOD(scoped_refptr<AudioTrackInterface>,
               CreateAudioTrack,

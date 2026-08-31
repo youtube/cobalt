@@ -80,6 +80,8 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
 - (void)tearDownHelper {
   ClearHistorySyncPrefs();
+  // Make sure any pending prefs changes are written to disk.
+  [ChromeEarlGrey commitPendingUserPrefsWrite];
   [super tearDownHelper];
 }
 
@@ -115,7 +117,8 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 // Tests that signing in from a signed out state with a managed account
 // shows the enterprise onboarding only the first time and that by default
 // existing browsing data is kept separate from the managed profile.
-- (void)testSigninWithManagedAccountFromUnsignedStateSeparateData {
+// TODO(crbug.com/433320893): Re-enable this test.
+- (void)DISABLED_testSigninWithManagedAccountFromUnsignedStateSeparateData {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -135,8 +138,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // Verifies that the subtitle is the right one.
   [[EarlGrey selectElementWithMatcher:ManagedProfileCreationSubtitleMatcher()]
@@ -166,8 +168,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
   // Wait for the browsing data management screen to disappear, and the
   // enteprise onboarding screen to appear again.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // We are still signed out before accepting enterprise management.
   [SigninEarlGrey verifySignedOut];
@@ -217,7 +218,9 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 // shows the enterprise onboarding only the first time. And if the user
 // decides to keep their existing data into the managed profile, the existing
 // profile is converted.
-- (void)testSigninWithManagedAccountFromUnsignedStateConvertsProfile {
+// TODO(crbug.com/411035267): The test fails flakily on simulator.
+// TODO(crbug.com/433320893): And on device.
+- (void)DISABLED_testSigninWithManagedAccountFromUnsignedStateConvertsProfile {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -237,8 +240,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
   // Verify that the subtitle is the right one.
   [[EarlGrey selectElementWithMatcher:ManagedProfileCreationSubtitleMatcher()]
       assertWithMatcher:grey_sufficientlyVisible()];
@@ -270,8 +272,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
   // Wait for the browsing data management screen to disappear, and the
   // enteprise onboarding screen to appear again.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // We are still signed out before accepting enterprise management.
   [SigninEarlGrey verifySignedOut];
@@ -321,7 +322,9 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 // Tests that signing in from a signed out state with a managed account shows
 // the enterprise onboarding only the first time. And the user cannot merge
 // existing browsing data because it is disabled by policy.
-- (void)testSigninWithManagedAccountFromUnsignedStateWithDataMigrationDisabled {
+// TODO(crbug.com/433320893): Re-enable this test.
+- (void)
+    DISABLED_testSigninWithManagedAccountFromUnsignedStateWithDataMigrationDisabled {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -354,8 +357,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // The data migration disabled message should be shown.
   [[EarlGrey selectElementWithMatcher:
@@ -433,8 +435,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // The data migration disabled message should be shown.
   [[EarlGrey selectElementWithMatcher:
@@ -463,7 +464,10 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 // Tests that signing in from a signed out state with a managed account
 // shows the enterprise onboarding only the first time and merging browsing data
 // is suggested by policy.
-- (void)testSigninWithManagedAccountFromUnsignedStateWithDataMergingSuggested {
+// TODO(crbug.com/411035267): The test fails flakily on simulator.
+// TODO(crbug.com/433320893): And on device.
+- (void)
+    DISABLED_testSigninWithManagedAccountFromUnsignedStateWithDataMergingSuggested {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -493,8 +497,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // Verifies that the subtitle is the right one.
   [[EarlGrey selectElementWithMatcher:ManagedProfileCreationSubtitleMergeByDefaultMatcher()]
@@ -520,8 +523,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the browsing data management screen to disappear.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // We are still signed out before accepting enterprise management.
   [SigninEarlGrey verifySignedOut];
@@ -593,8 +595,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // Open the browsing data management screen.
   [[EarlGrey selectElementWithMatcher:
@@ -617,8 +618,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the browsing data management screen to disappear.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // We are still signed out before accepting enterprise management.
   [SigninEarlGrey verifySignedOut];
@@ -641,7 +641,15 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
 // Tests switching to a managed account (and thus managed profile) and back via
 // the account menu.
-- (void)testSwitchFromPersonalToManagedAndBack {
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testSwitchFromPersonalToManagedAndBack \
+  DISABLED_testSwitchFromPersonalToManagedAndBack
+#else
+#define MAYBE_testSwitchFromPersonalToManagedAndBack \
+  testSwitchFromPersonalToManagedAndBack
+#endif
+- (void)MAYBE_testSwitchFromPersonalToManagedAndBack {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -669,8 +677,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
   // No merge browsing data button shown.
   [[EarlGrey selectElementWithMatcher:
                  ManagedProfileCreationBrowsingDataButtonMatcher()]
@@ -720,7 +727,16 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
 // Tests switching to a managed account (and thus managed profile) and the
 // managed account is removed while the enterprise onboarding is shown.
-- (void)testSwitchFromPersonalToManagedAndManagedAccountRemovedFromDevice {
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testSwitchFromPersonalToManagedAndManagedAccountRemovedFromDevice \
+  DISABLED_testSwitchFromPersonalToManagedAndManagedAccountRemovedFromDevice
+#else
+#define MAYBE_testSwitchFromPersonalToManagedAndManagedAccountRemovedFromDevice \
+  testSwitchFromPersonalToManagedAndManagedAccountRemovedFromDevice
+#endif
+- (void)
+    MAYBE_testSwitchFromPersonalToManagedAndManagedAccountRemovedFromDevice {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -748,8 +764,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for the enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // Remove the managed account from device.
   [SigninEarlGrey forgetFakeIdentity:managedIdentity];
@@ -768,7 +783,15 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
 // Tests switching to a managed account but refusing the enterprise onboarding
 // screen.
-- (void)testRefuseToSwitchToManageAccount {
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testRefuseToSwitchToManageAccount \
+  DISABLED_testRefuseToSwitchToManageAccount
+#else
+#define MAYBE_testRefuseToSwitchToManageAccount \
+  testRefuseToSwitchToManageAccount
+#endif
+- (void)MAYBE_testRefuseToSwitchToManageAccount {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -796,8 +819,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Wait for enterprise onboarding screen.
-  [ChromeEarlGrey waitForSufficientlyVisibleElementWithMatcher:
-                      ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
 
   // Refuse the enterprise onboarding screen.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::
@@ -841,10 +863,9 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
                   stringByAppendingString:personalIdentity.userEmail])]
       performAction:grey_tap()];
   // Tap on `personalIdentity` confirm remove button.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 
   // Verify the current profile is still the personal profile, but account got
   // signed out.
@@ -854,7 +875,15 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       @"Profile should be personal");
 }
 
-- (void)testProfileDeletedOnRemoveManagedAccount {
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testProfileDeletedOnRemoveManagedAccount \
+  DISABLED_testProfileDeletedOnRemoveManagedAccount
+#else
+#define MAYBE_testProfileDeletedOnRemoveManagedAccount \
+  testProfileDeletedOnRemoveManagedAccount
+#endif
+- (void)MAYBE_testProfileDeletedOnRemoveManagedAccount {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -880,18 +909,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       selectElementWithMatcher:AccountMenuSecondaryAccountsButtonMatcher()]
       performAction:grey_tap()];
   // Wait for the enterprise onboarding screen.
-  ConditionBlock enterpriseOnboardingCondition = ^{
-    NSError* error;
-    [[EarlGrey selectElementWithMatcher:ManagedProfileCreationScreenMatcher()]
-        assertWithMatcher:grey_sufficientlyVisible()
-                    error:&error];
-
-    return error == nil;
-  };
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 base::test::ios::kWaitForUIElementTimeout,
-                 enterpriseOnboardingCondition),
-             @"Enterprise onboarding didn't appear.");
+  WaitForEnterpriseOnboardingScreen();
   // Confirm the enterprise onboarding screen.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::
                                           PromoScreenPrimaryButtonMatcher()]
@@ -927,10 +945,9 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
                   stringByAppendingString:managedIdentity.userEmail])]
       performAction:grey_tap()];
   // Tap on `managedIdentity` confirm remove button.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 
   // Wait for the profile switch to complete.
   // TODO(crbug.com/399033938): Find a better way to wait for this.
@@ -968,18 +985,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       selectElementWithMatcher:AccountMenuSecondaryAccountsButtonMatcher()]
       performAction:grey_tap()];
   // Wait for the enterprise onboarding screen.
-  ConditionBlock enterpriseOnboardingCondition = ^{
-    NSError* error;
-    [[EarlGrey selectElementWithMatcher:ManagedProfileCreationScreenMatcher()]
-        assertWithMatcher:grey_sufficientlyVisible()
-                    error:&error];
-
-    return error == nil;
-  };
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 base::test::ios::kWaitForUIElementTimeout,
-                 enterpriseOnboardingCondition),
-             @"Enterprise onboarding didn't appear.");
+  WaitForEnterpriseOnboardingScreen();
   // Confirm the enterprise onboarding screen.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::
                                           PromoScreenPrimaryButtonMatcher()]
@@ -1007,7 +1013,15 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       @"Profile should have been switched back to personal");
 }
 
-- (void)testProfileDeletedOnManagedAccountGone {
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testProfileDeletedOnManagedAccountGone \
+  DISABLED_testProfileDeletedOnManagedAccountGone
+#else
+#define MAYBE_testProfileDeletedOnManagedAccountGone \
+  testProfileDeletedOnManagedAccountGone
+#endif
+- (void)MAYBE_testProfileDeletedOnManagedAccountGone {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -1033,18 +1047,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
                                           kAccountMenuSecondaryAccountButtonId)]
       performAction:grey_tap()];
   // Wait for the enterprise onboarding screen.
-  ConditionBlock enterpriseOnboardingCondition = ^{
-    NSError* error;
-    [[EarlGrey selectElementWithMatcher:ManagedProfileCreationScreenMatcher()]
-        assertWithMatcher:grey_sufficientlyVisible()
-                    error:&error];
-
-    return error == nil;
-  };
-  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                 base::test::ios::kWaitForUIElementTimeout,
-                 enterpriseOnboardingCondition),
-             @"Enterprise onboarding didn't appear.");
+  WaitForEnterpriseOnboardingScreen();
   // Confirm the enterprise onboarding screen.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::
                                           PromoScreenPrimaryButtonMatcher()]
@@ -1147,7 +1150,13 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
 
 // Tests signing in with a managed account during the FRE. This should convert
 // the existing profile to a managed profile.
-- (void)testSignInWithManagedAccount {
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testSignInWithManagedAccount DISABLED_testSignInWithManagedAccount
+#else
+#define MAYBE_testSignInWithManagedAccount testSignInWithManagedAccount
+#endif
+- (void)MAYBE_testSignInWithManagedAccount {
   // Separate profiles are only available in iOS 17+.
   if (!@available(iOS 17, *)) {
     return;
@@ -1169,7 +1178,7 @@ id<GREYMatcher> ManagedProfileCreationDataMigrationDisabledSubtitleMatcher() {
       performAction:grey_tap()];
 
   // Managed profile creation/confirmation screen: Accept.
-  [ChromeEarlGrey waitForMatcher:ManagedProfileCreationScreenMatcher()];
+  WaitForEnterpriseOnboardingScreen();
   // No merge browsing data button shown.
   [[EarlGrey selectElementWithMatcher:
                  ManagedProfileCreationBrowsingDataButtonMatcher()]

@@ -6,18 +6,21 @@
 
 #include "base/time/time.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/prefs/testing_pref_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace pdf::infobar {
+
 class PdfInfoBarPrefsTest : public testing::Test {
  protected:
   PdfInfoBarPrefsTest() : profile_(std::make_unique<TestingProfile>()) {}
 
-  TestingPrefServiceSimple* local_state() { return local_state_.Get(); }
+  TestingPrefServiceSimple* local_state() {
+    return TestingBrowserProcess::GetGlobal()->GetTestingLocalState();
+  }
   TestingProfile* profile() { return profile_.get(); }
 
   void FastForwardBy(base::TimeDelta time) {
@@ -28,9 +31,6 @@ class PdfInfoBarPrefsTest : public testing::Test {
   // Must be the first member.
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-
-  // Must be before `profile_`.
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
 
   const std::unique_ptr<TestingProfile> profile_;
 };
@@ -113,3 +113,5 @@ TEST_F(PdfInfoBarPrefsTest, IsDefaultBrowserPolicyControlled) {
                                 base::Value(true));
   EXPECT_TRUE(IsDefaultBrowserPolicyControlled());
 }
+
+}  // namespace pdf::infobar

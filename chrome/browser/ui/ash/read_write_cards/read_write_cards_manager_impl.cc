@@ -18,7 +18,6 @@
 #include "chrome/browser/ui/ash/editor_menu/editor_menu_controller_impl.h"
 #include "chrome/browser/ui/ash/magic_boost/magic_boost_card_controller.h"
 #include "chrome/browser/ui/ash/quick_answers/quick_answers_controller_impl.h"
-#include "chrome/browser/ui/views/mahi/mahi_menu_controller.h"
 #include "chromeos/ash/components/editor_menu/public/cpp/editor_context.h"
 #include "chromeos/ash/components/editor_menu/public/cpp/editor_mode.h"
 #include "chromeos/components/magic_boost/public/cpp/magic_boost_state.h"
@@ -160,7 +159,7 @@ ReadWriteCardsManagerImpl::GetControllers(
   auto* magic_boost_state = chromeos::MagicBoostState::Get();
   bool should_show_hmr_card = true;
   if (magic_boost_card_controller_ &&
-      magic_boost_state->IsMagicBoostAvailable()) {
+      magic_boost_state->IsUserEligibleForGenAIFeatures()) {
     should_show_hmr_card = magic_boost_state->ShouldShowHmrCard();
 
     // Ensure the disclaimer view is closed before moving to the next step
@@ -211,7 +210,7 @@ ReadWriteCardsManagerImpl::GetMagicBoostOptInFeatures(
     const content::ContextMenuParams& params,
     const editor_menu::EditorMenuCardContext& editor_menu_card_context) {
   if (!magic_boost_card_controller_ ||
-      !chromeos::MagicBoostState::Get()->IsMagicBoostAvailable()) {
+      !chromeos::MagicBoostState::Get()->IsUserEligibleForGenAIFeatures()) {
     return std::nullopt;
   }
 

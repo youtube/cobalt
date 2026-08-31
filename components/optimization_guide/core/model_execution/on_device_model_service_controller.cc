@@ -20,6 +20,8 @@
 #include "base/strings/strcat.h"
 #include "base/task/thread_pool.h"
 #include "base/types/expected.h"
+#include "base/containers/contains.h"
+#include "components/optimization_guide/core/delivery/model_util.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
 #include "components/optimization_guide/core/model_execution/model_execution_util.h"
@@ -34,7 +36,6 @@
 #include "components/optimization_guide/core/model_execution/safety_config.h"
 #include "components/optimization_guide/core/model_execution/safety_model_info.h"
 #include "components/optimization_guide/core/model_execution/session_impl.h"
-#include "components/optimization_guide/core/model_util.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
@@ -47,6 +48,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
+#include "services/on_device_model/public/cpp/features.h"
 #include "services/on_device_model/public/cpp/model_assets.h"
 #include "services/on_device_model/public/cpp/service_client.h"
 #include "services/on_device_model/public/cpp/text_safety_assets.h"
@@ -132,20 +134,30 @@ void RecordOnDeviceLoadModelResult(
       "OptimizationGuide.ModelExecution.OnDeviceBaseModelLoadResult", result);
 }
 
+void RecordRankUpdateEviction(bool evicted) {
+  base::UmaHistogramBoolean(
+      "OptimizationGuide.ModelExecution.DidEvictBaseModelForRankUpdate",
+      evicted);
+}
+
 }  // namespace
 
 OnDeviceModelServiceController::OnDeviceModelServiceController(
     std::unique_ptr<OnDeviceModelAccessController> access_controller,
+    base::SafeRef<PerformanceClassifier> performance_classifier,
     base::WeakPtr<OnDeviceModelComponentStateManager>
         on_device_component_state_manager,
-    on_device_model::ServiceClient::LaunchFn launch_fn)
+    UsageTracker& usage_tracker,
+    base::SafeRef<on_device_model::ServiceClient> service_client)
     : access_controller_(std::move(access_controller)),
+      performance_classifier_(std::move(performance_classifier)),
       on_device_component_state_manager_(
           std::move(on_device_component_state_manager)),
-      service_client_(launch_fn),
-      safety_client_(service_client_.GetWeakPtr()) {
+      usage_tracker_(usage_tracker),
+      service_client_(std::move(service_client)),
+      safety_client_(service_client_->GetWeakPtr()) {
   base_model_controller_.emplace(weak_ptr_factory_.GetSafeRef(), nullptr);
-  service_client_.set_on_disconnect_fn(base::BindRepeating(
+  service_client_->set_on_disconnect_fn(base::BindRepeating(
       &OnDeviceModelServiceController::OnServiceDisconnected,
       weak_ptr_factory_.GetWeakPtr()));
 }
@@ -175,9 +187,7 @@ OnDeviceModelServiceController::CreateSession(
   auto reason = solution.error_or(OnDeviceModelEligibilityReason::kSuccess);
   LogEligibilityReason(feature, reason);
 
-  if (on_device_component_state_manager_) {
-    on_device_component_state_manager_->OnDeviceEligibleFeatureUsed(feature);
-  }
+  usage_tracker_->OnDeviceEligibleFeatureUsed(feature);
 
   // Return if we cannot do anything more for right now.
   if (reason != OnDeviceModelEligibilityReason::kSuccess) {
@@ -187,8 +197,8 @@ OnDeviceModelServiceController::CreateSession(
 
   CHECK(base_model_controller_->model_metadata());
   CHECK(features::internal::GetOptimizationTargetForCapability(feature));
-  auto* adaptation_metadata = GetFeatureMetadata(feature);
-  CHECK(adaptation_metadata);
+  MaybeAdaptationMetadata adaptation_metadata = GetFeatureMetadata(feature);
+  CHECK(adaptation_metadata.has_value());
 
   OnDeviceOptions opts;
   opts.model_client = std::make_unique<OnDeviceModelClient>(
@@ -240,21 +250,15 @@ void OnDeviceModelServiceController::UpdateModel(
 
 void OnDeviceModelServiceController::MaybeUpdateModelAdaptation(
     ModelBasedCapabilityKey feature,
-    std::unique_ptr<OnDeviceModelAdaptationMetadata> adaptation_metadata) {
-  if (!adaptation_metadata) {
-    model_adaptation_metadata_.erase(feature);
-    base_model_controller_->EraseController(feature);
-    UpdateSolutionProvider(feature);
-    return;
-  }
-  auto it = model_adaptation_metadata_.find(feature);
-  if (it != model_adaptation_metadata_.end() &&
-      it->second == *adaptation_metadata) {
+    base::expected<OnDeviceModelAdaptationMetadata, AdaptationUnavailability>
+        adaptation_metadata) {
+  MaybeAdaptationMetadata& current_metadata = GetFeatureMetadata(feature);
+  if (current_metadata == adaptation_metadata) {
     // Duplicate update (can be caused by multiple profiles).
     // Don't invalidate the existing controller.
     return;
   }
-  model_adaptation_metadata_.emplace(feature, *adaptation_metadata);
+  current_metadata = std::move(adaptation_metadata);
   base_model_controller_->EraseController(feature);
   UpdateSolutionProvider(feature);
 }
@@ -311,14 +315,14 @@ void OnDeviceModelServiceController::OnDeviceModelClient::
   }
 }
 
-OnDeviceModelAdaptationMetadata*
-OnDeviceModelServiceController::GetFeatureMetadata(
+MaybeAdaptationMetadata& OnDeviceModelServiceController::GetFeatureMetadata(
     ModelBasedCapabilityKey feature) {
-  if (auto it = model_adaptation_metadata_.find(feature);
-      it != model_adaptation_metadata_.end()) {
-    return &it->second;
-  }
-  return nullptr;
+  auto it =
+      model_adaptation_metadata_
+          .emplace(feature,
+                   base::unexpected(AdaptationUnavailability::kUpdatePending))
+          .first;
+  return it->second;
 }
 
 void OnDeviceModelServiceController::AddOnDeviceModelAvailabilityChangeObserver(
@@ -357,8 +361,12 @@ OnDeviceModelServiceController::GetSolution(ModelBasedCapabilityKey feature) {
   }
 
   // Check feature config.
-  auto* metadata = GetFeatureMetadata(feature);
-  if (!metadata) {
+  MaybeAdaptationMetadata metadata = GetFeatureMetadata(feature);
+  if (!metadata.has_value()) {
+    if (metadata.error() == AdaptationUnavailability::kNotSupported) {
+      return base::unexpected(
+          OnDeviceModelEligibilityReason::kModelAdaptationNotAvailable);
+    }
     return base::unexpected(
         OnDeviceModelEligibilityReason::kConfigNotAvailableForFeature);
   }
@@ -374,10 +382,10 @@ OnDeviceModelServiceController::GetSolution(ModelBasedCapabilityKey feature) {
     return base::unexpected(reason);
   }
 
-  return Solution(feature, metadata->adapter(),
-                  base_model_controller_->GetOrCreateFeatureController(
-                      feature, base::OptionalFromPtr(metadata->asset_paths())),
-                  std::move(checker.value()), weak_ptr_factory_.GetSafeRef());
+  return Solution(
+      feature, metadata->adapter(),
+      base_model_controller_->GetOrCreateFeatureController(feature, *metadata),
+      std::move(checker.value()), weak_ptr_factory_.GetSafeRef());
 }
 
 OnDeviceModelServiceController::SolutionProvider&
@@ -403,17 +411,20 @@ void OnDeviceModelServiceController::UpdateSolutionProviders() {
 
 void OnDeviceModelServiceController::UpdateSolutionProvider(
     ModelBasedCapabilityKey feature) {
+  // Note: This always constructs the Solution, even if the provider was not
+  // constructed yet, to update supported_adaptation_ranks_ on the base model.
+  MaybeSolution solution = GetSolution(feature);
   auto entry_it = solution_providers_.find(feature);
   if (entry_it == solution_providers_.end()) {
     return;
   }
-  entry_it->second.Update(GetSolution(feature));
+  entry_it->second.Update(std::move(solution));
 }
 
 void OnDeviceModelServiceController::Subscribe(
     mojom::ModelSubscriptionOptionsPtr opts,
     mojo::PendingRemote<mojom::ModelSubscriber> subscriber) {
-  EnsurePerformanceClassAvailable(base::BindOnce(
+  performance_classifier_->EnsurePerformanceClassAvailable(base::BindOnce(
       &OnDeviceModelServiceController::SubscribeInternal,
       weak_ptr_factory_.GetWeakPtr(), std::move(opts), std::move(subscriber)));
 }
@@ -423,7 +434,7 @@ void OnDeviceModelServiceController::SubscribeInternal(
     mojo::PendingRemote<mojom::ModelSubscriber> subscriber) {
   auto feature = ToModelBasedCapabilityKey(opts->id);
   if (opts->mark_used && on_device_component_state_manager_) {
-    on_device_component_state_manager_->OnDeviceEligibleFeatureUsed(feature);
+    usage_tracker_->OnDeviceEligibleFeatureUsed(feature);
   }
   GetSolutionProvider(feature).AddSubscriber(std::move(subscriber));
 }
@@ -432,6 +443,8 @@ OnDeviceModelServiceController::BaseModelController::BaseModelController(
     base::SafeRef<OnDeviceModelServiceController> controller,
     std::unique_ptr<OnDeviceModelMetadata> model_metadata)
     : controller_(controller), model_metadata_(std::move(model_metadata)) {
+  supported_adaptation_ranks_ =
+      features::GetOnDeviceModelAllowedAdaptationRanks();
   if (!model_metadata_ || !features::IsOnDeviceModelValidationEnabled()) {
     return;
   }
@@ -459,21 +472,39 @@ OnDeviceModelServiceController::BaseModelController::BaseModelController(
 OnDeviceModelServiceController::BaseModelController::~BaseModelController() =
     default;
 
+void OnDeviceModelServiceController::BaseModelController::RequireAdaptationRank(
+    uint32_t required_rank) {
+  if (required_rank == 0) {
+    // Older configs may not specify rank, and should be covered by defaults.
+    return;
+  }
+  if (base::Contains(supported_adaptation_ranks_, required_rank)) {
+    return;
+  }
+  // Add the rank and reset all remotes to force a reload.
+  supported_adaptation_ranks_.push_back(required_rank);
+  RecordRankUpdateEviction(remote_.is_bound());
+  remote_.reset();
+  for (auto& kv : model_adaptation_controllers_) {
+    kv.second.ResetRemote();
+  }
+}
+
 base::WeakPtr<ModelController> OnDeviceModelServiceController::
     BaseModelController::GetOrCreateFeatureController(
         ModelBasedCapabilityKey feature,
-        base::optional_ref<const on_device_model::AdaptationAssetPaths>
-            adaptation_assets) {
-  if (!adaptation_assets.has_value()) {
+        const OnDeviceModelAdaptationMetadata& metadata) {
+  if (!metadata.asset_paths()) {
     has_direct_use_ = true;
     return weak_ptr_factory_.GetWeakPtr();
   }
+  RequireAdaptationRank(metadata.adapter()->config().adaptation_rank());
   auto it = model_adaptation_controllers_.find(feature);
   if (it == model_adaptation_controllers_.end()) {
     it = model_adaptation_controllers_
              .emplace(std::piecewise_construct, std::forward_as_tuple(feature),
                       std::forward_as_tuple(feature, GetWeakPtr(),
-                                            *adaptation_assets))
+                                            *metadata.asset_paths()))
              .first;
   }
   // Path should be equal.
@@ -493,7 +524,7 @@ OnDeviceModelServiceController::BaseModelController::GetOrCreateRemote() {
   if (remote_) {
     return remote_;
   }
-  controller_->service_client_.AddPendingUsage();  // Warm up the service.
+  controller_->service_client_->AddPendingUsage();  // Warm up the service.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock()},
       base::BindOnce(&on_device_model::LoadModelAssets, PopulateModelPaths()),
@@ -502,9 +533,9 @@ OnDeviceModelServiceController::BaseModelController::GetOrCreateRemote() {
              mojo::PendingReceiver<on_device_model::mojom::OnDeviceModel>
                  receiver,
              on_device_model::ModelAssets assets) {
-            if (!self || !self->controller_->service_client_.is_bound()) {
+            if (!self || !self->controller_->service_client_->is_bound()) {
               if (self) {
-                self->controller_->service_client_.RemovePendingUsage();
+                self->controller_->service_client_->RemovePendingUsage();
               }
               CloseFilesInBackground(std::move(assets));
               return;
@@ -513,7 +544,7 @@ OnDeviceModelServiceController::BaseModelController::GetOrCreateRemote() {
           },
           weak_ptr_factory_.GetWeakPtr(),
           remote_.BindNewPipeAndPassReceiver()));
-  remote_.set_disconnect_handler(base::BindOnce(
+  remote_.set_disconnect_with_reason_handler(base::BindOnce(
       &BaseModelController::OnDisconnect, base::Unretained(this)));
   // By default the model will be reset immediately when idle. If a feature is
   // going using the base model, the idle handler will be set explicitly there.
@@ -532,10 +563,15 @@ OnDeviceModelServiceController::BaseModelController::PopulateModelPaths() {
   model_paths.weights = model_metadata_->model_path().Append(kWeightsFile);
 
   // TODO(crbug.com/400998489): Cache files are experimental for now.
-  if (features::ForceCpuBackendForOnDeviceModel()) {
+  if (model_metadata_->performance_hint() ==
+      proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU) {
     model_paths.cache =
         model_metadata_->model_path().Append(kExperimentalCacheFile);
   }
+  model_paths.encoder_cache =
+      model_metadata_->model_path().Append(kEncoderCacheFile);
+  model_paths.adapter_cache =
+      model_metadata_->model_path().Append(kAdapterCacheFile);
 
   return model_paths;
 }
@@ -544,26 +580,40 @@ void OnDeviceModelServiceController::BaseModelController::OnModelAssetsLoaded(
     mojo::PendingReceiver<on_device_model::mojom::OnDeviceModel> model,
     on_device_model::ModelAssets assets) {
   auto params = on_device_model::mojom::LoadModelParams::New();
-  params->backend_type = features::ForceCpuBackendForOnDeviceModel()
-                             ? ml::ModelBackendType::kCpuBackend
-                             : ml::ModelBackendType::kGpuBackend;
+  params->backend_type = ml::ModelBackendType::kGpuBackend;
   params->assets = std::move(assets);
   // TODO(crbug.com/302402959): Choose max_tokens based on device.
   params->max_tokens = features::GetOnDeviceModelMaxTokens();
-  params->adaptation_ranks = features::GetOnDeviceModelAllowedAdaptationRanks();
-  if (controller_->on_device_component_state_manager_ &&
-      controller_->on_device_component_state_manager_->IsLowTierDevice()) {
+  params->adaptation_ranks = supported_adaptation_ranks_;
+
+  proto::OnDeviceModelPerformanceHint hint =
+      model_metadata_->performance_hint();
+  if (hint == proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_CPU) {
+    params->backend_type = ml::ModelBackendType::kCpuBackend;
+  } else if (hint ==
+             proto::ON_DEVICE_MODEL_PERFORMANCE_HINT_FASTEST_INFERENCE) {
     params->performance_hint = ml::ModelPerformanceHint::kFastestInference;
   }
-  controller_->service_client_.Get()->LoadModel(
+  controller_->service_client_->Get()->LoadModel(
       std::move(params), std::move(model),
       base::BindOnce(&RecordOnDeviceLoadModelResult));
-  controller_->service_client_.RemovePendingUsage();
+  controller_->service_client_->RemovePendingUsage();
 }
 
-void OnDeviceModelServiceController::BaseModelController::OnDisconnect() {
-  LOG(ERROR) << "Base model disconnected unexpectedly.";
+void OnDeviceModelServiceController::BaseModelController::OnDisconnect(
+    uint32_t reason,
+    const std::string& description) {
   remote_.reset();
+  const bool is_idle =
+      reason == static_cast<uint32_t>(
+                    on_device_model::ModelDisconnectReason::kIdleShutdown);
+  base::UmaHistogramBoolean(
+      "OptimizationGuide.ModelExecution.OnDeviceBaseModelIdleDisconnect",
+      is_idle);
+  if (is_idle) {
+    return;
+  }
+  LOG(ERROR) << "Base model disconnected unexpectedly.";
   base::TimeDelta delay =
       access_controller().OnDisconnectedFromRemote() - base::Time::Now();
   if (delay.is_positive()) {
@@ -723,57 +773,6 @@ void OnDeviceModelServiceController::Solution::CreateTextSafetySession(
 
 void OnDeviceModelServiceController::Solution::ReportHealthyCompletion() {
   controller_->access_controller_->OnResponseCompleted();
-}
-
-void OnDeviceModelServiceController::EnsurePerformanceClassAvailable(
-    base::OnceClosure complete) {
-  if (!on_device_component_state_manager_ ||
-      !on_device_component_state_manager_->NeedsPerformanceClassUpdate()) {
-    std::move(complete).Run();
-    return;
-  }
-
-  if (performance_class_state_ == PerformanceClassState::kComplete) {
-    std::move(complete).Run();
-    return;
-  }
-
-  // Use unsafe because cancellation isn't needed.
-  performance_class_callbacks_.AddUnsafe(std::move(complete));
-
-  if (performance_class_state_ == PerformanceClassState::kComputing) {
-    return;
-  }
-
-  performance_class_state_ = PerformanceClassState::kComputing;
-  service_client_.Get()->GetEstimatedPerformanceClass(
-      base::BindOnce(&ConvertToOnDeviceModelPerformanceClass)
-          .Then(mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-              base::BindOnce(
-                  &OnDeviceModelServiceController::PerformanceClassUpdated,
-                  base::RetainedRef(this)),
-              OnDeviceModelPerformanceClass::kServiceCrash)));
-}
-
-void OnDeviceModelServiceController::PerformanceClassUpdated(
-    OnDeviceModelPerformanceClass perf_class) {
-  base::UmaHistogramEnumeration(
-      "OptimizationGuide.ModelExecution.OnDeviceModelPerformanceClass",
-      perf_class);
-  RegisterPerformanceClassSyntheticTrial(perf_class);
-
-  auto complete = base::BindOnce(
-      [](scoped_refptr<OnDeviceModelServiceController> controller) {
-        controller->performance_class_state_ = PerformanceClassState::kComplete;
-        controller->performance_class_callbacks_.Notify();
-      },
-      base::RetainedRef(this));
-  if (on_device_component_state_manager_) {
-    on_device_component_state_manager_->DevicePerformanceClassChanged(
-        std::move(complete), perf_class);
-  } else {
-    std::move(complete).Run();
-  }
 }
 
 }  // namespace optimization_guide

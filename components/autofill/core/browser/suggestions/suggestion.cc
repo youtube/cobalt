@@ -9,9 +9,17 @@
 
 #include "base/containers/to_vector.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
+#include "components/autofill/android/main_autofill_jni_headers/AutofillProfilePayload_jni.h"
+#include "components/autofill/android/main_autofill_jni_headers/PaymentsPayload_jni.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace autofill {
 
@@ -96,6 +104,12 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kOfferTag";
     case Suggestion::Icon::kPenSpark:
       return "kPenSpark";
+    case Suggestion::Icon::kPersonCheck:
+      return "kPersonCheck";
+    case Suggestion::Icon::kQuestionMark:
+      return "kQuestionMark";
+    case Suggestion::Icon::kRecoveryPassword:
+      return "kRecoveryPassword";
     case Suggestion::Icon::kScanCreditCard:
       return "kScanCreditCard";
     case Suggestion::Icon::kSettings:
@@ -142,6 +156,8 @@ std::string_view ConvertIconToPrintableString(Suggestion::Icon icon) {
       return "kBnpl";
     case Suggestion::Icon::kSaveAndFill:
       return "kSaveAndFill";
+    case Suggestion::Icon::kAndroidMessages:
+      return "kAndroidMessages";
   }
   NOTREACHED();
 }
@@ -160,6 +176,14 @@ Suggestion::PasswordSuggestionDetails::PasswordSuggestionDetails(
       signon_realm(signon_realm),
       display_signon_realm(display_signon_realm),
       is_cross_domain(is_cross_domain) {}
+
+Suggestion::PasswordSuggestionDetails::PasswordSuggestionDetails(
+    std::u16string_view username,
+    std::u16string_view password,
+    std::u16string_view backup_password)
+    : username(username),
+      password(password),
+      backup_password(backup_password) {}
 
 Suggestion::PasswordSuggestionDetails::PasswordSuggestionDetails(
     const PasswordSuggestionDetails&) = default;
@@ -235,6 +259,14 @@ Suggestion::AutofillProfilePayload::operator=(AutofillProfilePayload&&) =
 
 Suggestion::AutofillProfilePayload::~AutofillProfilePayload() = default;
 
+#if BUILDFLAG(IS_ANDROID)
+base::android::ScopedJavaLocalRef<jobject>
+Suggestion::AutofillProfilePayload::CreateJavaObject() const {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_AutofillProfilePayload_Constructor(env, guid.value());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 Suggestion::IdentityCredentialPayload::IdentityCredentialPayload() = default;
 Suggestion::IdentityCredentialPayload::IdentityCredentialPayload(
     GURL configURL,
@@ -256,6 +288,27 @@ Suggestion::IdentityCredentialPayload::operator=(IdentityCredentialPayload&&) =
     default;
 
 Suggestion::IdentityCredentialPayload::~IdentityCredentialPayload() = default;
+
+Suggestion::OneTimePasswordPayload::OneTimePasswordPayload() = default;
+Suggestion::OneTimePasswordPayload::OneTimePasswordPayload(
+    std::map<FieldGlobalId, std::u16string> filling_data)
+    : filling_data(std::move(filling_data)) {}
+
+Suggestion::OneTimePasswordPayload::OneTimePasswordPayload(
+    const OneTimePasswordPayload&) = default;
+
+Suggestion::OneTimePasswordPayload::OneTimePasswordPayload(
+    OneTimePasswordPayload&&) = default;
+
+Suggestion::OneTimePasswordPayload&
+Suggestion::OneTimePasswordPayload::operator=(const OneTimePasswordPayload&) =
+    default;
+
+Suggestion::OneTimePasswordPayload&
+Suggestion::OneTimePasswordPayload::operator=(OneTimePasswordPayload&&) =
+    default;
+
+Suggestion::OneTimePasswordPayload::~OneTimePasswordPayload() = default;
 
 Suggestion::PaymentsPayload::PaymentsPayload() = default;
 
@@ -280,6 +333,16 @@ Suggestion::PaymentsPayload& Suggestion::PaymentsPayload::operator=(
     PaymentsPayload&&) = default;
 
 Suggestion::PaymentsPayload::~PaymentsPayload() = default;
+
+#if BUILDFLAG(IS_ANDROID)
+base::android::ScopedJavaLocalRef<jobject>
+Suggestion::PaymentsPayload::CreateJavaObject() const {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  return Java_PaymentsPayload_Constructor(
+      env, main_text_content_description, should_display_terms_available,
+      guid.value(), is_local_payments_method);
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 Suggestion::IPHMetadata::IPHMetadata() = default;
 
@@ -311,11 +374,6 @@ Suggestion::Text& Suggestion::Text::operator=(const Text& other) = default;
 Suggestion::Text& Suggestion::Text::operator=(Text&& other) = default;
 
 Suggestion::Text::~Text() = default;
-
-Suggestion::Suggestion() = default;
-
-Suggestion::Suggestion(std::u16string main_text)
-    : main_text(std::move(main_text), Text::IsPrimary(true)) {}
 
 Suggestion::Suggestion(SuggestionType type) : type(type) {}
 

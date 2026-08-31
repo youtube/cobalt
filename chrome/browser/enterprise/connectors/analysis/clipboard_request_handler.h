@@ -35,8 +35,9 @@ class ClipboardRequestHandler : public RequestHandlerBase {
       Profile* profile,
       GURL url,
       Type type,
-      safe_browsing::DeepScanAccessPoint access_point,
+      DeepScanAccessPoint access_point,
       ContentMetaData::CopiedTextSource clipboard_source,
+      std::string source_content_area_email,
       std::string content_transfer_method,
       std::string data,
       CompletionCallback callback);
@@ -67,8 +68,9 @@ class ClipboardRequestHandler : public RequestHandlerBase {
                           Profile* profile,
                           GURL url,
                           Type type,
-                          safe_browsing::DeepScanAccessPoint access_point,
+                          DeepScanAccessPoint access_point,
                           ContentMetaData::CopiedTextSource clipboard_source,
+                          std::string source_content_area_email,
                           std::string content_transfer_method,
                           std::string data,
                           CompletionCallback callback);
@@ -90,6 +92,7 @@ class ClipboardRequestHandler : public RequestHandlerBase {
   size_t content_size_ = 0;
 
   ContentMetaData::CopiedTextSource clipboard_source_;
+  std::string source_content_area_email_;
   std::string content_transfer_method_;
 
   // The response obtained by `OnContentAnalysisResponse()`. This might be left

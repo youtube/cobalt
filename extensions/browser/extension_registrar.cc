@@ -6,6 +6,7 @@
 
 #include "base/check_op.h"
 #include "base/containers/contains.h"
+#include "base/debug/alias.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -518,6 +519,12 @@ void ExtensionRegistrar::AddComponentExtension(const Extension* extension) {
             << old_version_string << "' to "
             << extension->version().GetString();
 
+    // If there was a previous installation, we need to clear the extension
+    // service worker. This is a workaround to ensure component extension
+    // updates are applied. See crbug.com/425464855.
+    if (old_version.IsValid()) {
+      UnregisterServiceWorkerWithRootScope(extension);
+    }
     // TODO(crbug.com/40508457): If needed, add support for Declarative Net
     // Request to component extensions and pass the ruleset install prefs here.
     AddNewOrUpdatedExtension(extension, {}, kInstallFlagNone,
@@ -755,6 +762,10 @@ void ExtensionRegistrar::BlockAllExtensions() {
 // All locked extensions should revert to being either enabled or disabled
 // as appropriate.
 void ExtensionRegistrar::UnblockAllExtensions() {
+  if (!block_extensions_) {
+    return;
+  }
+
   block_extensions_ = false;
 
   const ExtensionSet to_unblock =

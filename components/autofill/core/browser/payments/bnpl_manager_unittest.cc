@@ -4,6 +4,7 @@
 
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/gmock_move_support.h"
@@ -109,6 +110,19 @@ class PaymentsNetworkInterfaceMock : public PaymentsNetworkInterface {
       (GetBnplPaymentInstrumentForFetchingUrlRequestDetails request_details,
        base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
                                const BnplFetchUrlResponseDetails&)> callback));
+  MOCK_METHOD(
+      void,
+      UpdateBnplPaymentInstrument,
+      (const UpdateBnplPaymentInstrumentRequestDetails& request_details,
+       base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult)>
+           callback));
+  MOCK_METHOD(
+      void,
+      GetDetailsForUpdateBnplPaymentInstrument,
+      (const GetDetailsForUpdateBnplPaymentInstrumentRequestDetails&,
+       base::OnceCallback<void(PaymentsAutofillClient::PaymentsRpcResult,
+                               std::string context_token,
+                               LegalMessageLines)>));
 };
 
 class TestPaymentsAutofillClientMock : public TestPaymentsAutofillClient {
@@ -137,6 +151,11 @@ class TestPaymentsAutofillClientMock : public TestPaymentsAutofillClient {
 
 class BnplManagerTest : public Test {
  public:
+  using GetDetailsForUpdateBnplPaymentInstrumentRequestDetails::
+      GetDetailsForUpdateBnplPaymentInstrumentType::kGetDetailsForAcceptTos;
+  using UpdateBnplPaymentInstrumentRequestDetails::
+      UpdateBnplPaymentInstrumentType::kAcceptTos;
+
   const int64_t kBillingCustomerNumber = 1234;
   const std::string kRiskData = "RISK_DATA";
   const std::string kInstrumentId = "INSTRUMENT_ID";
@@ -240,7 +259,8 @@ class BnplManagerTest : public Test {
 
   void TriggerBnplUpdateSuggestionsFlow(
       bool expect_suggestions_are_updated,
-      std::optional<uint64_t> extracted_amount) {
+      std::optional<uint64_t> extracted_amount,
+      bool timeout_reached = false) {
     std::vector<Suggestion> suggestions = {
         Suggestion(SuggestionType::kCreditCardEntry),
         Suggestion(SuggestionType::kManageCreditCard)};
@@ -250,7 +270,8 @@ class BnplManagerTest : public Test {
 
     bnpl_manager_->NotifyOfSuggestionGeneration(
         AutofillSuggestionTriggerSource::kUnspecified);
-    bnpl_manager_->OnAmountExtractionReturned(extracted_amount);
+    bnpl_manager_->OnAmountExtractionReturned(extracted_amount,
+                                              timeout_reached);
     bnpl_manager_->OnSuggestionsShown(suggestions, callback.Get());
   }
 
@@ -404,6 +425,94 @@ TEST_F(BnplManagerTest, TosDialogAccepted_PrefetchedRiskDataLoaded) {
   // Since risk data was cached, it was directly used, thus loading risk data
   // was skipped.
   EXPECT_FALSE(
+      autofill_client_->GetPaymentsAutofillClient()->risk_data_loaded());
+}
+
+// Tests that the user accepting the ToS dialog for a linked issuer where ToS
+// acceptance is required triggers an UpdatePaymentInstrument request with the
+// loaded risk data, if it is present.
+TEST_F(BnplManagerTest,
+       TosDialogAccepted_PrefetchedRiskDataLoaded_TosAcceptanceRequired) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(/*final_checkout_amount=*/kAmount,
+                                           base::DoNothing());
+  auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
+  const std::string test_context_token = "test_context_token";
+  BnplIssuer issuer = test::GetTestLinkedBnplIssuer(
+      IssuerId::kBnplKlarna,
+      DenseSet<PaymentInstrument::ActionRequired>{
+          PaymentInstrument::ActionRequired::kAcceptTos});
+  ongoing_flow_state->context_token = test_context_token;
+  ongoing_flow_state->issuer = issuer;
+
+  ASSERT_FALSE(ongoing_flow_state->risk_data.empty());
+
+  autofill_client_->GetPaymentsAutofillClient()->set_risk_data_loaded(false);
+
+  EXPECT_CALL(
+      *payments_network_interface_,
+      UpdateBnplPaymentInstrument(/*request_details=*/
+                                  FieldsAre(
+                                      autofill_client_->GetAppLocale(),
+                                      GetBillingCustomerId(
+                                          autofill_client_
+                                              ->GetPaymentsAutofillClient()
+                                              ->GetPaymentsDataManager()),
+                                      autofill::ConvertToBnplIssuerIdString(
+                                          issuer.issuer_id()),
+                                      /*instrument_id=*/12345,
+                                      test_context_token, /*risk_data=*/_,
+                                      /*type=*/kAcceptTos),
+                                  /*callback=*/_));
+
+  test_api(*bnpl_manager_).OnTosDialogAccepted();
+
+  EXPECT_FALSE(ongoing_flow_state->risk_data.empty());
+
+  // Since risk data was cached, it was directly used, thus loading risk data
+  // was skipped.
+  EXPECT_FALSE(
+      autofill_client_->GetPaymentsAutofillClient()->risk_data_loaded());
+}
+
+// Tests that the the user accepting the ToS dialog for a linked issuer where
+// ToS acceptance is required triggers an UpdatePaymentInstrument request and
+// loads risk data after ToS dialog acceptance if it was not already loaded.
+TEST_F(BnplManagerTest,
+       TosDialogAccepted_PrefetchedRiskDataNotLoaded_TosAcceptanceRequired) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(/*final_checkout_amount=*/1000000,
+                                           base::DoNothing());
+  auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
+  const std::string test_context_token = "test_context_token";
+  BnplIssuer issuer = test::GetTestLinkedBnplIssuer(
+      IssuerId::kBnplKlarna,
+      DenseSet<PaymentInstrument::ActionRequired>{
+          PaymentInstrument::ActionRequired::kAcceptTos});
+  ongoing_flow_state->context_token = test_context_token;
+  ongoing_flow_state->issuer = issuer;
+  ongoing_flow_state->risk_data.clear();
+
+  ASSERT_TRUE(ongoing_flow_state->risk_data.empty());
+
+  EXPECT_CALL(
+      *payments_network_interface_,
+      UpdateBnplPaymentInstrument(/*request_details=*/
+                                  FieldsAre(
+                                      autofill_client_->GetAppLocale(),
+                                      GetBillingCustomerId(
+                                          autofill_client_
+                                              ->GetPaymentsAutofillClient()
+                                              ->GetPaymentsDataManager()),
+                                      autofill::ConvertToBnplIssuerIdString(
+                                          issuer.issuer_id()),
+                                      issuer.payment_instrument()
+                                          ->instrument_id(),
+                                      test_context_token,
+                                      /*risk_data=*/_, /*type=*/kAcceptTos),
+                                  /*callback=*/_));
+  test_api(*bnpl_manager_).OnTosDialogAccepted();
+
+  EXPECT_FALSE(ongoing_flow_state->risk_data.empty());
+  EXPECT_TRUE(
       autofill_client_->GetPaymentsAutofillClient()->risk_data_loaded());
 }
 
@@ -856,13 +965,45 @@ TEST_F(
             unlinked_issuer);
 }
 
-// Tests that `OnDidGetDetailsForCreateBnplPaymentInstrument` set the BNPL
-// manager state if the request has completed successfully, and shows the ToS
-// dialog. This test also ensures the ToS dialog is closed after receiving a
-// redirect URL for an unlinked issuer.
+// Tests that `OnIssuerSelected()` calls with a linked issuer where ToS
+// acceptance is required will call the payments network interface with the
+// request details filled out correctly.
 TEST_F(
     BnplManagerTest,
-    OnDidGetDetailsForCreateBnplPaymentInstrument_ClosesTosAfterRedirectUrlReceived) {
+    OnIssuerSelected_CallsGetDetailsForUpdateBnplPaymentInstrument_TosAcceptanceRequired) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+
+  ASSERT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState()->app_locale,
+            kAppLocale);
+  ASSERT_EQ(
+      test_api(*bnpl_manager_).GetOngoingFlowState()->billing_customer_number,
+      kBillingCustomerNumber);
+
+  BnplIssuer issuer = test::GetTestLinkedBnplIssuer(
+      IssuerId::kBnplKlarna,
+      DenseSet<PaymentInstrument::ActionRequired>{
+          PaymentInstrument::ActionRequired::kAcceptTos});
+
+  EXPECT_CALL(*payments_network_interface_,
+              GetDetailsForUpdateBnplPaymentInstrument(
+                  /*request_details=*/
+                  FieldsAre(kAppLocale, kBillingCustomerNumber,
+                            issuer.payment_instrument()->instrument_id(),
+                            /*type=*/kGetDetailsForAcceptTos),
+                  /*callback=*/_))
+      .Times(1);
+
+  OnIssuerSelected(issuer);
+
+  EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState()->issuer, issuer);
+}
+
+// Tests that `OnDidGetLegalMessageFromServer` set the BNPL manager state if the
+// request has completed successfully, and shows the ToS dialog. This test also
+// ensures the ToS dialog is closed after receiving a redirect URL for an
+// unlinked issuer.
+TEST_F(BnplManagerTest,
+       OnDidGetLegalMessageFromServer_ClosesTosAfterRedirectUrlReceived) {
   bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
   BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
@@ -899,9 +1040,8 @@ TEST_F(
 }
 
 // Tests that cancelling the ToS dialog resets and ends the flow.
-TEST_F(
-    BnplManagerTest,
-    OnDidGetDetailsForCreateBnplPaymentInstrument_TosCancellationResetsFlow) {
+TEST_F(BnplManagerTest,
+       OnDidGetLegalMessageFromServer_TosCancellationResetsFlow) {
   bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
   BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
@@ -924,10 +1064,9 @@ TEST_F(
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
 }
 
-// Tests that `OnDidGetDetailsForCreateBnplPaymentInstrument` shows an error
+// Tests that `OnDidGetLegalMessageFromServer` shows an error
 // when there is a PaymentsRpcResult error.
-TEST_F(BnplManagerTest,
-       OnDidGetDetailsForCreateBnplPaymentInstrument_RpcError) {
+TEST_F(BnplManagerTest, OnDidGetLegalMessageFromServer_RpcError) {
   bnpl_manager_->OnDidAcceptBnplSuggestion(1'000'000, base::DoNothing());
   BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
@@ -967,11 +1106,10 @@ TEST_F(BnplManagerTest, ShowSelectBnplIssuerDialog_UserCancelled) {
   EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
 }
 
-// Tests that `OnDidGetDetailsForCreateBnplPaymentInstrument` will dismiss
+// Tests that `OnDidGetLegalMessageFromServer` will dismiss
 // the showing issuer selection dialog.
-TEST_F(
-    BnplManagerTest,
-    OnDidGetDetailsForCreateBnplPaymentInstrument_DismissSelectBnplIssuerDialog) {
+TEST_F(BnplManagerTest,
+       OnDidGetLegalMessageFromServer_DismissSelectBnplIssuerDialog) {
   const BnplIssuer unlinked_issuer = test::GetTestUnlinkedBnplIssuer();
 
   InSequence s;
@@ -990,8 +1128,88 @@ TEST_F(
             unlinked_issuer);
 }
 
-// Tests that `OnRedirectUrlFetched` will will dismiss the showing issuer
-// selection dialog.
+// Tests that `GetDetailsForUpdateBnplPaymentInstrument` calls the payments
+// network interface with the request details filled out correctly.
+TEST_F(BnplManagerTest, GetDetailsForUpdateBnplPaymentInstrument_Success) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+
+  BnplIssuer issuer = test::GetTestLinkedBnplIssuer();
+  test_api(*bnpl_manager_).GetOngoingFlowState()->issuer = issuer;
+
+  EXPECT_CALL(*payments_network_interface_,
+              GetDetailsForUpdateBnplPaymentInstrument(
+                  /*request_details=*/
+                  FieldsAre(kAppLocale, kBillingCustomerNumber,
+                            issuer.payment_instrument()->instrument_id(),
+                            /*type=*/kGetDetailsForAcceptTos),
+                  /*callback=*/_));
+
+  test_api(*bnpl_manager_).GetDetailsForUpdateBnplPaymentInstrument();
+}
+
+// Tests that `UpdateBnplPaymentInstrument` calls the payments network interface
+// with the request details filled out correctly.
+TEST_F(BnplManagerTest, UpdateBnplPaymentInstrument_Success) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+
+  BnplIssuer issuer = test::GetTestLinkedBnplIssuer();
+  test_api(*bnpl_manager_).GetOngoingFlowState()->context_token = kContextToken;
+  test_api(*bnpl_manager_).GetOngoingFlowState()->risk_data = kRiskData;
+  test_api(*bnpl_manager_).GetOngoingFlowState()->issuer = issuer;
+
+  EXPECT_CALL(
+      *payments_network_interface_,
+      UpdateBnplPaymentInstrument(
+          FieldsAre(kAppLocale, kBillingCustomerNumber,
+                    autofill::ConvertToBnplIssuerIdString(issuer.issuer_id()),
+                    issuer.payment_instrument()->instrument_id(), kContextToken,
+                    kRiskData, /*type=*/kAcceptTos),
+          /*callback=*/_));
+
+  test_api(*bnpl_manager_).UpdateBnplPaymentInstrument();
+}
+
+// Tests that a successful `UpdateBnplPaymentInstrument` response results in a
+// call to fetch the redirect URL.
+TEST_F(BnplManagerTest, OnBnplPaymentInstrumentUpdated_Success) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  test_api(*bnpl_manager_).GetOngoingFlowState()->issuer =
+      test::GetTestLinkedBnplIssuer();
+
+  EXPECT_CALL(*payments_network_interface_, UpdateBnplPaymentInstrument)
+      .WillOnce(base::test::RunOnceCallback<1>(
+          PaymentsAutofillClient::PaymentsRpcResult::kSuccess));
+
+  // Successful update should trigger fetching the redirect URL.
+  EXPECT_CALL(*payments_network_interface_,
+              GetBnplPaymentInstrumentForFetchingUrl)
+      .Times(1);
+
+  test_api(*bnpl_manager_).UpdateBnplPaymentInstrument();
+}
+
+// Tests that a failed `UpdateBnplPaymentInstrument` response shows an error
+// dialog and resets the flow.
+TEST_F(BnplManagerTest, OnBnplPaymentInstrumentUpdated_Failure) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  test_api(*bnpl_manager_).GetOngoingFlowState()->issuer =
+      test::GetTestLinkedBnplIssuer();
+
+  EXPECT_CALL(*payments_network_interface_, UpdateBnplPaymentInstrument)
+      .WillOnce(base::test::RunOnceCallback<1>(
+          PaymentsAutofillClient::PaymentsRpcResult::kPermanentFailure));
+
+  EXPECT_CALL(GetPaymentsAutofillClient(), CloseBnplTos());
+
+  test_api(*bnpl_manager_).UpdateBnplPaymentInstrument();
+
+  EXPECT_TRUE(autofill_client_->GetPaymentsAutofillClient()
+                  ->autofill_error_dialog_shown());
+  EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
+}
+
+// Tests that `OnRedirectUrlFetched` will dismiss the showing issuer selection
+// dialog.
 TEST_F(BnplManagerTest,
        OnRedirectUrlFetched_LinkedIssuer_DismissSelectBnplIssuerDialog) {
   BnplFetchUrlResponseDetails response;
@@ -1269,6 +1487,38 @@ TEST_F(BnplManagerTest,
       1);
 }
 
+// Tests that BnplSuggestionNotShownReason will be logged once if the amount
+// extraction engine times out.
+TEST_F(
+    BnplManagerTest,
+    AddBnplSuggestion_AmountExtractionTimeout_BnplSuggestionNotShownReasonLogged) {
+  base::HistogramTester histogram_tester;
+
+  // Add one linked issuer to payments data manager.
+  SetUpLinkedBnplIssuer(
+      /*price_lower_bound_in_micros=*/40,
+      /*price_higher_bound_in_micros=*/1000, IssuerId::kBnplAffirm,
+      /*instrument_id=*/1234);
+
+  TriggerBnplUpdateSuggestionsFlow(/*expect_suggestions_are_updated=*/false,
+                                   /*extracted_amount=*/std::nullopt,
+                                   /*timeout_reached=*/true);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Bnpl.SuggestionNotShownReason",
+      autofill_metrics::BnplSuggestionNotShownReason::kAmountExtractionTimeout,
+      1);
+
+  // Test that BnplSuggestionNotShownReason is logged only once even if BNPL
+  // flow is triggered and not shown more than once on the same page.
+  TriggerBnplUpdateSuggestionsFlow(/*expect_suggestions_are_updated=*/false,
+                                   /*extracted_amount=*/std::nullopt,
+                                   /*timeout_reached=*/true);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.Bnpl.SuggestionNotShownReason",
+      autofill_metrics::BnplSuggestionNotShownReason::kAmountExtractionTimeout,
+      1);
+}
+
 // Tests that BnplSuggestionNotShownReason will not be logged if BNPL feature
 // flag is disabled and the extracted amount is not supported by available
 // BNPL issuers.
@@ -1501,6 +1751,43 @@ TEST_F(BnplManagerTest, CreateBnplPaymentInstrument_Failure) {
   EXPECT_CALL(GetPaymentsAutofillClient(), CloseBnplTos);
 
   test_api(*bnpl_manager_).CreateBnplPaymentInstrument();
+
+  EXPECT_TRUE(autofill_client_->GetPaymentsAutofillClient()
+                  ->autofill_error_dialog_shown());
+
+  EXPECT_EQ(test_api(*bnpl_manager_).GetOngoingFlowState(), nullptr);
+}
+
+// Tests that when UpdateBnplPaymentInstrument fails with an error the error
+// dialog is shown and the flow is reset.
+TEST_F(BnplManagerTest, UpdateBnplPaymentInstrument_Failure) {
+  bnpl_manager_->OnDidAcceptBnplSuggestion(kAmount, base::DoNothing());
+  auto* ongoing_flow_state = test_api(*bnpl_manager_).GetOngoingFlowState();
+  ongoing_flow_state->app_locale = kAppLocale;
+  ongoing_flow_state->billing_customer_number = kBillingCustomerNumber;
+  ongoing_flow_state->context_token = kContextToken;
+  ongoing_flow_state->issuer = test::GetTestLinkedBnplIssuer(
+      IssuerId::kBnplKlarna,
+      DenseSet<PaymentInstrument::ActionRequired>{
+          PaymentInstrument::ActionRequired::kAcceptTos});
+  ongoing_flow_state->risk_data = kRiskData;
+
+  EXPECT_CALL(
+      *payments_network_interface_,
+      UpdateBnplPaymentInstrument(
+          FieldsAre(
+              kAppLocale, kBillingCustomerNumber,
+              autofill::ConvertToBnplIssuerIdString(
+                  ongoing_flow_state->issuer.issuer_id()),
+              ongoing_flow_state->issuer.payment_instrument()->instrument_id(),
+              kContextToken, kRiskData,
+              /*type=*/kAcceptTos),
+          _))
+      .WillOnce(base::test::RunOnceCallback<1>(
+          PaymentsAutofillClient::PaymentsRpcResult::kPermanentFailure));
+  EXPECT_CALL(GetPaymentsAutofillClient(), CloseBnplTos);
+
+  test_api(*bnpl_manager_).UpdateBnplPaymentInstrument();
 
   EXPECT_TRUE(autofill_client_->GetPaymentsAutofillClient()
                   ->autofill_error_dialog_shown());
@@ -1801,6 +2088,25 @@ TEST_F(
       AutofillSuggestionTriggerSource::kUnspecified);
   bnpl_manager_->OnSuggestionsShown(suggestions, callback.Get());
   bnpl_manager_->OnAmountExtractionReturned(1'234'560'000ULL);
+}
+
+TEST_F(BnplManagerTest, IsBnplIssuerSupported) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      features::kAutofillEnableBuyNowPayLaterForKlarna);
+
+  EXPECT_TRUE(BnplManager::IsBnplIssuerSupported(kBnplAffirmIssuerId));
+  EXPECT_TRUE(BnplManager::IsBnplIssuerSupported(kBnplZipIssuerId));
+  EXPECT_TRUE(BnplManager::IsBnplIssuerSupported(kBnplKlarnaIssuerId));
+}
+
+TEST_F(BnplManagerTest, IsBnplIssuerSupported_KlarnaDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      features::kAutofillEnableBuyNowPayLaterForKlarna);
+
+  EXPECT_TRUE(BnplManager::IsBnplIssuerSupported(kBnplAffirmIssuerId));
+  EXPECT_TRUE(BnplManager::IsBnplIssuerSupported(kBnplZipIssuerId));
+  EXPECT_FALSE(BnplManager::IsBnplIssuerSupported(kBnplKlarnaIssuerId));
 }
 
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||

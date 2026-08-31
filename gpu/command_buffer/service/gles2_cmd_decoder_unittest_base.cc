@@ -21,8 +21,10 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
 #include "build/build_config.h"
 #include "gpu/command_buffer/common/gles2_cmd_format.h"
 #include "gpu/command_buffer/common/gles2_cmd_utils.h"
@@ -169,7 +171,6 @@ void GLES2DecoderTestBase::SetUp() {
   init.has_depth = true;
   init.request_alpha = true;
   init.request_depth = true;
-  init.bind_generates_resource = true;
   InitDecoder(init);
 }
 
@@ -210,13 +211,12 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
   scoped_refptr<FeatureInfo> feature_info =
       new FeatureInfo(workarounds, gpu_feature_info);
 
+  const bool bind_generates_resource = false;
   group_ = scoped_refptr<ContextGroup>(new ContextGroup(
-      gpu_preferences_, std::move(memory_tracker_), &shader_translator_cache_,
-      &framebuffer_completeness_cache_, feature_info,
-      normalized_init.bind_generates_resource, /*progress_reporter=*/nullptr,
-      gpu_feature_info, &discardable_manager_, nullptr,
-      &shared_image_manager_));
-  bool use_default_textures = normalized_init.bind_generates_resource;
+      gpu_preferences_, memory_tracker_, &shader_translator_cache_,
+      &framebuffer_completeness_cache_, feature_info, bind_generates_resource,
+      /*progress_reporter=*/nullptr, gpu_feature_info, &discardable_manager_,
+      nullptr, &shared_image_manager_));
 
   InSequence sequence;
 
@@ -233,12 +233,9 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
   context_->GLContextStub::MakeCurrentImpl(surface_.get());
 
   TestHelper::SetupContextGroupInitExpectations(
-      gl_.get(),
-      DisallowedFeatures(),
-      normalized_init.extensions.c_str(),
-      normalized_init.gl_version.c_str(),
-      init.context_type,
-      normalized_init.bind_generates_resource);
+      gl_.get(), DisallowedFeatures(), normalized_init.extensions.c_str(),
+      normalized_init.gl_version.c_str(), init.context_type,
+      bind_generates_resource);
 
   // We initialize the ContextGroup with a MockGLES2Decoder so that
   // we can use the ContextGroup to figure out how the real GLES2Decoder
@@ -329,35 +326,19 @@ ContextResult GLES2DecoderTestBase::MaybeInitDecoderWithWorkarounds(
         group_->feature_info()
             ->feature_flags()
             .nv_egl_stream_consumer_external) {
-      EXPECT_CALL(*gl_,
-                  BindTexture(GL_TEXTURE_EXTERNAL_OES,
-                              use_default_textures
-                                  ? TestHelper::kServiceDefaultExternalTextureId
-                                  : 0))
+      EXPECT_CALL(*gl_, BindTexture(GL_TEXTURE_EXTERNAL_OES, 0))
           .Times(1)
           .RetiresOnSaturation();
     }
     if (group_->feature_info()->feature_flags().arb_texture_rectangle) {
-      EXPECT_CALL(
-          *gl_, BindTexture(GL_TEXTURE_RECTANGLE_ANGLE,
-                            use_default_textures
-                                ? TestHelper::kServiceDefaultRectangleTextureId
-                                : 0))
+      EXPECT_CALL(*gl_, BindTexture(GL_TEXTURE_RECTANGLE_ANGLE, 0))
           .Times(1)
           .RetiresOnSaturation();
     }
-    EXPECT_CALL(*gl_,
-                BindTexture(GL_TEXTURE_CUBE_MAP,
-                            use_default_textures
-                                ? TestHelper::kServiceDefaultTextureCubemapId
-                                : 0))
+    EXPECT_CALL(*gl_, BindTexture(GL_TEXTURE_CUBE_MAP, 0))
         .Times(1)
         .RetiresOnSaturation();
-    EXPECT_CALL(
-        *gl_,
-        BindTexture(
-            GL_TEXTURE_2D,
-            use_default_textures ? TestHelper::kServiceDefaultTexture2dId : 0))
+    EXPECT_CALL(*gl_, BindTexture(GL_TEXTURE_2D, 0))
         .Times(1)
         .RetiresOnSaturation();
   }
@@ -746,7 +727,7 @@ void GLES2DecoderTestBase::SetBucketAsCString(uint32_t bucket_id,
 
 void GLES2DecoderTestBase::SetBucketAsCStrings(uint32_t bucket_id,
                                                GLsizei count,
-                                               const char** str,
+                                               base::span<const char*> str,
                                                GLsizei count_in_header,
                                                char str_end) {
   uint32_t header_size = sizeof(GLint) * (count + 1);
@@ -754,7 +735,7 @@ void GLES2DecoderTestBase::SetBucketAsCStrings(uint32_t bucket_id,
   auto header = base::HeapArray<GLint>::Uninit(count + 1);
   header[0] = static_cast<GLint>(count_in_header);
   for (GLsizei ii = 0; ii < count; ++ii) {
-    header[ii + 1] = str && str[ii] ? strlen(str[ii]) : 0;
+    header[ii + 1] = !str.empty() && str[ii] ? strlen(str[ii]) : 0;
     total_size += header[ii + 1] + 1;
   }
   cmd::SetBucketSize cmd1;
@@ -763,7 +744,7 @@ void GLES2DecoderTestBase::SetBucketAsCStrings(uint32_t bucket_id,
   memcpy(shared_memory_address_, header.data(), header_size);
   uint32_t offset = header_size;
   for (GLsizei ii = 0; ii < count; ++ii) {
-    if (str && str[ii]) {
+    if (!str.empty() && str[ii]) {
       size_t str_len = strlen(str[ii]);
       memcpy(static_cast<char*>(shared_memory_address_) + offset, str[ii],
              str_len);
@@ -830,12 +811,12 @@ void GLES2DecoderTestBase::SetupClearTexture3DExpectations(
     GLenum format,
     GLenum type,
     size_t tex_sub_image_3d_num_calls,
-    GLint* xoffset,
-    GLint* yoffset,
-    GLint* zoffset,
-    GLsizei* width,
-    GLsizei* height,
-    GLsizei* depth,
+    base::span<GLint> xoffset,
+    base::span<GLint> yoffset,
+    base::span<GLint> zoffset,
+    base::span<GLsizei> width,
+    base::span<GLsizei> height,
+    base::span<GLsizei> depth,
     GLuint bound_pixel_unpack_buffer) {
   InSequence seq;
   EXPECT_CALL(*gl_, PixelStorei(GL_UNPACK_ALIGNMENT, 1))
@@ -2063,7 +2044,7 @@ void GLES2DecoderTestBase::SetupShader(
       kOutputVariable1NameESSL3, kOutputVariable1Size, kOutputVariable1Type,
       kOutputVariable1ColorName, kOutputVariable1Index,
   }};
-  TestHelper::ProgramOutputInfo* program_outputs =
+  base::span<TestHelper::ProgramOutputInfo> program_outputs =
       shader_language_version_ == 100 ? kProgramOutputsESSL1
                                       : kProgramOutputsESSL3;
   const size_t kNumProgramOutputs = 1;
@@ -2366,8 +2347,6 @@ void GLES2DecoderPassthroughTestBase::SetUp() {
   ui::OzonePlatform::InitializeForGPU(params);
 #endif
 
-  context_creation_attribs_.bind_generates_resource = true;
-
   gl::init::InitializeStaticGLBindingsImplementation(
       gl::GLImplementationParts(gl::ANGLEImplementation::kNull));
   display_ = gl::init::InitializeGLOneOffPlatformImplementation(
@@ -2382,7 +2361,7 @@ void GLES2DecoderPassthroughTestBase::SetUp() {
   group_ = new gles2::ContextGroup(
       gpu_preferences_, /*memory_tracker=*/nullptr, &shader_translator_cache_,
       &framebuffer_completeness_cache_, feature_info,
-      context_creation_attribs_.bind_generates_resource,
+      /*bind_generates_resource=*/false,
       /*progress_reporter=*/nullptr, GpuFeatureInfo(), &discardable_manager_,
       &passthrough_discardable_manager_, &shared_image_manager_);
 

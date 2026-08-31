@@ -18,6 +18,7 @@
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/user_education/common/feature_promo/feature_promo_registry.h"
 #include "components/user_education/common/tutorial/tutorial_registry.h"
+#include "components/user_education/common/user_education_data.h"
 #include "components/user_education/common/user_education_metadata.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -185,7 +186,6 @@ TEST(BrowserUserEducationServiceTest, PreventNewHardCodedConfigurations) {
       &feature_engagement::kIPHDesktopSharedHighlightingFeature,
       &feature_engagement::kIPHDiscardRingFeature,
       &feature_engagement::kIPHDownloadEsbPromoFeature,
-      &feature_engagement::kIPHExperimentalAIPromoFeature,
       &feature_engagement::kIPHExtensionsMenuFeature,
       &feature_engagement::kIPHExtensionsRequestAccessButtonFeature,
       &feature_engagement::kIPHGMCCastStartStopFeature,
@@ -253,7 +253,6 @@ TEST(BrowserUserEducationServiceTest, CheckFeaturePromoMetadata) {
       &feature_engagement::kIPHComposeMSBBSettingsFeature,
       &feature_engagement::kIPHDesktopSharedHighlightingFeature,
       &feature_engagement::kIPHDesktopCustomizeChromeFeature,
-      &feature_engagement::kIPHExperimentalAIPromoFeature,
       &feature_engagement::kIPHExplicitBrowserSigninPreferenceRememberedFeature,
       &feature_engagement::kIPHGMCCastStartStopFeature,
       &feature_engagement::kIPHGMCLocalMediaCastingFeature,

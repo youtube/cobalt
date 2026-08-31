@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/containers/flat_set.h"
+#include "base/notimplemented.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "headless/lib/browser/headless_focus_client.h"
 #include "headless/lib/browser/headless_window_parenting_client.h"
@@ -57,22 +58,27 @@ gfx::Rect HeadlessWindowTreeHost::GetBoundsInPixels() const {
 }
 
 void HeadlessWindowTreeHost::SetBoundsInPixels(const gfx::Rect& bounds) {
-  if (bounds_ == bounds) {
-    return;
+  window()->SetBounds(bounds);
+
+  if (bounds_ != bounds) {
+    bool origin_changed = bounds_.origin() != bounds.origin();
+
+    bounds_ = bounds;
+
+    if (origin_changed) {
+      auto weak_ptr = GetWeakPtr();
+      OnHostMovedInPixels();
+      // Reporting the move may destroy |this|.
+      if (!weak_ptr) {
+        return;
+      }
+    }
+
+    // Report host size even if it is not changing to ensure the compositor
+    // layers are updated. Optimizing this away causes Page.captureScreenshot()
+    // to hang indefinitely. See https://crbug.com/40571433.
+    OnHostResizedInPixels(bounds.size());
   }
-
-  bool origin_changed = bounds_.origin() != bounds.origin();
-
-  bounds_ = bounds;
-
-  if (origin_changed) {
-    OnHostMovedInPixels();
-  }
-
-  // Report host size even if it is not changing to ensure the compositor layers
-  // are updated. Optimizing this away causes Page.captureScreenshot() to hang
-  // indefinitely. See https://crbug.com/40571433.
-  OnHostResizedInPixels(bounds.size());
 }
 
 void HeadlessWindowTreeHost::ShowImpl() {}

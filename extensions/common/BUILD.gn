@@ -5,7 +5,6 @@
 import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//components/guest_view/buildflags/buildflags.gni")
-import("//components/nacl/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -432,6 +431,8 @@ static_library("common") {
     "manifest_handlers/options_page_info.h",
     "manifest_handlers/permissions_parser.cc",
     "manifest_handlers/permissions_parser.h",
+    "manifest_handlers/protocol_handler_info.cc",
+    "manifest_handlers/protocol_handler_info.h",
     "manifest_handlers/replacement_apps.cc",
     "manifest_handlers/replacement_apps.h",
     "manifest_handlers/requirements_info.cc",
@@ -548,7 +549,7 @@ static_library("common") {
     "//build:chromeos_buildflags",
     "//components/crash/core/common",
     "//components/crx_file",
-    "//components/nacl/common:buildflags",
+    "//components/custom_handlers",
     "//components/pdf/common:util",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common/hashprefix_realtime:hash_realtime_utils",
@@ -558,12 +559,14 @@ static_library("common") {
     "//crypto",
     "//device/bluetooth",
     "//device/bluetooth/public/cpp",
+    "//extensions:extensions_resources",
     "//extensions/common/api",
     "//extensions/strings",
     "//net",
     "//services/device/public/cpp/usb",
     "//services/device/public/mojom:usb",
     "//services/network/public/mojom",
+    "//third_party/blink/public/common",
     "//third_party/boringssl",
     "//third_party/icu",
     "//third_party/re2",
@@ -576,17 +579,6 @@ static_library("common") {
     "//ui/gfx/ipc/skia",
     "//url",
   ]
-
-  if (enable_extensions) {
-    deps += [ "//extensions:extensions_resources" ]
-  }
-
-  if (enable_nacl) {
-    sources += [
-      "manifest_handlers/nacl_modules_handler.cc",
-      "manifest_handlers/nacl_modules_handler.h",
-    ]
-  }
 
   if (is_chromeos) {
     sources += [
@@ -685,6 +677,7 @@ source_set("unit_tests") {
     "manifest_handlers/manifest_v3_permissions_unittest.cc",
     "manifest_handlers/mime_types_handler_unittest.cc",
     "manifest_handlers/oauth2_manifest_unittest.cc",
+    "manifest_handlers/protocol_handler_manifest_unittest.cc",
     "manifest_handlers/replacement_apps_unittest.cc",
     "manifest_handlers/requirements_unittest.cc",
     "manifest_handlers/shared_module_manifest_unittest.cc",
@@ -694,6 +687,7 @@ source_set("unit_tests") {
     "message_bundle_unittest.cc",
     "mojom/event_router_mojom_unittest.cc",
     "mojom/extension_id_mojom_traits_unittest.cc",
+    "mojom/frame_mojom_unittest.cc",
     "mojom/message_port_mojom_traits_unittest.cc",
     "mojom/permission_set_mojom_traits_unittest.cc",
     "mojom/renderer_host_mojom_unittest.cc",
@@ -722,7 +716,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//build:android_buildflags",
     "//components/crx_file",
-    "//components/version_info:version_info",
+    "//components/version_info",
     "//content/test:test_support",
     "//extensions:extensions_resources",
     "//extensions/common:mojom",

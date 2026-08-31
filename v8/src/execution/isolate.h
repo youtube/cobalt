@@ -234,15 +234,7 @@ class WaiterQueueNode;
   RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
 #define RETURN_EXCEPTION_IF_EXCEPTION(isolate) \
-  RETURN_VALUE_IF_EXCEPTION(isolate, kNullMaybeHandle)
-
-#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                        \
-    if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_exception());                     \
-      return value;                                           \
-    }                                                         \
-  } while (false)
+  RETURN_VALUE_IF_EXCEPTION(isolate, internal::kNullMaybe)
 
 /**
  * RETURN_RESULT_OR_FAILURE is used in functions with return type Object (such
@@ -266,7 +258,7 @@ class WaiterQueueNode;
   do {                                               \
     DirectHandle<Object> __result__;                 \
     Isolate* __isolate__ = (isolate);                \
-    if (!(call).ToHandle(&__result__)) {             \
+    if (!(call).To(&__result__)) {                   \
       DCHECK(__isolate__->has_exception());          \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
@@ -276,7 +268,7 @@ class WaiterQueueNode;
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                              \
-    if (!(call).ToHandle(&dst)) {                                   \
+    if (!(call).To(&dst)) {                                         \
       DCHECK((isolate)->has_exception());                           \
       return value;                                                 \
     }                                                               \
@@ -290,7 +282,7 @@ class WaiterQueueNode;
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION(isolate, dst, call) \
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, kNullMaybeHandle)
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, internal::kNullMaybe)
 
 #define THROW_NEW_ERROR_RETURN_FAILURE(isolate, call)         \
   do {                                                        \
@@ -306,7 +298,7 @@ class WaiterQueueNode;
   } while (false)
 
 #define THROW_NEW_ERROR(isolate, call) \
-  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, kNullMaybeHandle)
+  THROW_NEW_ERROR_RETURN_VALUE(isolate, call, internal::kNullMaybe)
 
 /**
  * RETURN_ON_EXCEPTION_VALUE conditionally returns the given value when the
@@ -340,7 +332,7 @@ class WaiterQueueNode;
  */
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                  \
-    if ((call).is_null()) {                             \
+    if ((call).IsEmpty()) {                             \
       DCHECK((isolate)->has_exception());               \
       return value;                                     \
     }                                                   \
@@ -394,7 +386,7 @@ class WaiterQueueNode;
  * Maybe<X> or Handle<X>, use RETURN_ON_EXCEPTION_VALUE instead.
  */
 #define RETURN_ON_EXCEPTION(isolate, call) \
-  RETURN_ON_EXCEPTION_VALUE(isolate, call, kNullMaybeHandle)
+  RETURN_ON_EXCEPTION_VALUE(isolate, call, internal::kNullMaybe)
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
@@ -406,12 +398,12 @@ class WaiterQueueNode;
     }                                               \
   } while (false)
 
-#define MAYBE_RETURN(call, value)         \
-  do {                                    \
-    if ((call).IsNothing()) return value; \
+#define MAYBE_RETURN(call, value)       \
+  do {                                  \
+    if ((call).IsEmpty()) return value; \
   } while (false)
 
-#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, kNullMaybeHandle)
+#define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, internal::kNullMaybe)
 
 #define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                  \
@@ -421,66 +413,50 @@ class WaiterQueueNode;
     }                                                                   \
   } while (false)
 
-#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                        \
-    if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_exception());                     \
-      return value;                                           \
-    }                                                         \
+// Like ASSIGN_RETURN_ON_EXCEPTION_VALUE, but moves out of the call
+// instead of performing copy-assignment
+#define MOVE_RETURN_ON_EXCEPTION(isolate, dst, call) \
+  do {                                               \
+    if (!(call).MoveTo(&dst)) {                      \
+      DCHECK((isolate)->has_exception());            \
+      return internal::kNullMaybe;                   \
+    }                                                \
   } while (false)
 
-#define MAYBE_RETURN_FAILURE_ON_EXCEPTION(isolate, call) \
-  do {                                                   \
-    Isolate* __isolate__ = (isolate);                    \
-    if ((call).IsNothing()) {                            \
-      DCHECK((__isolate__)->has_exception());            \
-      return ReadOnlyRoots(__isolate__).exception();     \
-    }                                                    \
-  } while (false)
+// A for loop which has a HandleScope in its body, which is periodically
+// reconstructed to avoid allocating too many handles.
+#define FOR_WITH_HANDLE_SCOPE(isolate, init, loop_var, limit_check, increment) \
+  SCOPED_VARIABLE(Isolate* for_with_handle_isolate = (isolate))                \
+  SCOPED_VARIABLE(init)                                                        \
+  SCOPED_VARIABLE(bool should_exit = !(limit_check))                           \
+  /* Outer loop, runs as long as should_exit is false -- should_exit is set */ \
+  /* to true at the start of each iteration (it's initialized to true and   */ \
+  /* the loop condition check sets it to true), and it's only set to false  */ \
+  /* if the inner loop aborts specifically because of the handle limit.     */ \
+  /* This allows `break` inside the inner loop to escape out of both loops, */ \
+  /* since `should_exit` will not be set to false.                          */ \
+  for (auto for_with_handle_limit = loop_var + 1024;                           \
+       !should_exit && (should_exit = true); for_with_handle_limit += 1024)    \
+    for (HandleScope loop_scope(for_with_handle_isolate);                      \
+         (limit_check) &&                                                      \
+         (loop_var < for_with_handle_limit || (should_exit = false));          \
+         increment)
 
-#define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                    \
-    if (!(call).To(&dst)) {                                               \
-      DCHECK((isolate)->has_exception());                                 \
-      return value;                                                       \
-    }                                                                     \
-  } while (false)
-
-#define MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, dst, call) \
-  do {                                                               \
-    Isolate* __isolate__ = (isolate);                                \
-    if (!(call).To(&dst)) {                                          \
-      DCHECK(__isolate__->has_exception());                          \
-      return ReadOnlyRoots(__isolate__).exception();                 \
-    }                                                                \
-  } while (false)
-
-#define FOR_WITH_HANDLE_SCOPE(isolate, loop_var_type, init, loop_var,      \
-                              limit_check, increment, body)                \
-  do {                                                                     \
-    loop_var_type init;                                                    \
-    loop_var_type for_with_handle_limit = loop_var;                        \
-    Isolate* for_with_handle_isolate = isolate;                            \
-    while (limit_check) {                                                  \
-      for_with_handle_limit += 1024;                                       \
-      HandleScope loop_scope(for_with_handle_isolate);                     \
-      for (; limit_check && loop_var < for_with_handle_limit; increment) { \
-        body                                                               \
-      }                                                                    \
-    }                                                                      \
-  } while (false)
-
-#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check, body)                  \
-  do {                                                                       \
-    Isolate* for_with_handle_isolate = isolate;                              \
-    while (limit_check) {                                                    \
-      HandleScope loop_scope(for_with_handle_isolate);                       \
-      for (int for_with_handle_it = 0;                                       \
-           limit_check && for_with_handle_it < 1024; ++for_with_handle_it) { \
-        body                                                                 \
-      }                                                                      \
-    }                                                                        \
-  } while (false)
+#define WHILE_WITH_HANDLE_SCOPE(isolate, limit_check)                          \
+  SCOPED_VARIABLE(Isolate* while_with_handle_isolate = (isolate))              \
+  SCOPED_VARIABLE(bool should_exit = !(limit_check))                           \
+  /* Outer loop, runs as long as should_exit is false -- should_exit is set */ \
+  /* to true at the start of each iteration (it's initialized to true and   */ \
+  /* the loop condition check sets it to true), and it's only set to false  */ \
+  /* if the inner loop aborts specifically because of the handle limit.     */ \
+  /* This allows `break` inside the inner loop to escape out of both loops, */ \
+  /* since `should_exit` will not be set to false.                          */ \
+  for (int while_with_handle_it = 0; !should_exit && (should_exit = true);     \
+       while_with_handle_it = 0)                                               \
+    for (HandleScope loop_scope(while_with_handle_isolate);                    \
+         (limit_check) &&                                                      \
+         (while_with_handle_it < 1024 || (should_exit = false));               \
+         ++while_with_handle_it)
 
 #define FIELD_ACCESSOR(type, name)                \
   inline void set_##name(type v) { name##_ = v; } \
@@ -554,8 +530,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, disable_bytecode_flushing, false)                                 \
   V(int, last_console_context_id, 0)                                        \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                         \
-  V(int, embedder_wrapper_type_index, -1)                                   \
-  V(int, embedder_wrapper_object_index, -1)                                 \
   V(compiler::NodeObserver*, node_observer, nullptr)                        \
   V(bool, javascript_execution_assert, true)                                \
   V(bool, javascript_execution_throws, true)                                \
@@ -1017,6 +991,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // source URL. The inspected frames are the same as for the detailed stack
   // trace.
   DirectHandle<String> CurrentScriptNameOrSourceURL();
+  // Walks the JS stack to find the first frame with a valid script id. The
+  // inspected frames are the same as for the detailed stack trace.
+  int CurrentScriptId();
   MaybeDirectHandle<Script> CurrentReferrerScript();
   bool GetStackTraceLimit(Isolate* isolate, int* result);
 
@@ -1340,19 +1317,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return &isolate_data_.thread_local_top_;
   }
 
-  static constexpr uint32_t thread_in_wasm_flag_address_offset() {
-    // For WebAssembly trap handlers there is a flag in thread-local storage
-    // which indicates that the executing thread executes WebAssembly code. To
-    // access this flag directly from generated code, we store a pointer to the
-    // flag in ThreadLocalTop in thread_in_wasm_flag_address_. This function
-    // here returns the offset of that member from {isolate_root()}.
-    return static_cast<uint32_t>(
-        OFFSET_OF(Isolate, isolate_data_) +
-        OFFSET_OF(IsolateData, thread_local_top_) +
-        OFFSET_OF(ThreadLocalTop, thread_in_wasm_flag_address_) -
-        isolate_root_bias());
-  }
-
   constexpr static uint32_t context_offset() {
     return static_cast<uint32_t>(
         OFFSET_OF(Isolate, isolate_data_) +
@@ -1382,8 +1346,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   uint8_t error_message_param() { return isolate_data_.error_message_param_; }
-
-  THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
 
   THREAD_LOCAL_TOP_ADDRESS(uint8_t, is_on_central_stack_flag)
 
@@ -1907,7 +1869,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void CheckDetachedContextsAfterGC();
 
   // Detach the environment from its outer global object.
-  void DetachGlobal(DirectHandle<Context> env);
+  void DetachGlobal(DirectHandle<NativeContext> env);
 
   std::vector<Tagged<Object>>* startup_object_cache() {
     return &startup_object_cache_;
@@ -2128,12 +2090,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return priority_ != v8::Isolate::Priority::kUserBlocking;
   }
 
-  // This is a temporary api until we use it by default.
-  bool EfficiencyModeEnabledForTiering() {
-    return v8_flags.efficiency_mode_for_tiering_heuristics &&
-           EfficiencyModeEnabled();
-  }
-
   // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
   // saver mode is opt-in by the embedder. As with efficiency mode we must
   // expect that the mode is toggled off again and we should be able to ramp up
@@ -2319,7 +2275,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   };
 
   // Returns true when this isolate contains the shared spaces.
-  bool is_shared_space_isolate() const { return is_shared_space_isolate_; }
+  bool is_shared_space_isolate() const {
+    DCHECK(is_shared_space_isolate_initialized_);
+    return is_shared_space_isolate_;
+  }
 
   // Returns the isolate that owns the shared spaces.
   Isolate* shared_space_isolate() const {
@@ -2363,7 +2322,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // Updates the stack limit, parent pointer and central stack info.
-  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to);
+  template <wasm::JumpBuffer::StackState new_state_of_old_stack,
+            wasm::JumpBuffer::StackState expected_target_state>
+  void SwitchStacks(wasm::StackMemory* from, wasm::StackMemory* to, Address sp,
+                    Address fp, Address pc);
 
   // Retires the stack owned by {continuation}, to be called when returning or
   // throwing from this continuation.
@@ -2567,6 +2529,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Set to true if this isolate is used as main isolate with a shared space.
   bool is_shared_space_isolate_{false};
+
+#if DEBUG
+  bool is_shared_space_isolate_initialized_{false};
+#endif  // DEBUG
 
   IsolateGroup* isolate_group_;
   Heap heap_;

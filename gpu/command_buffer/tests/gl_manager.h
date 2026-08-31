@@ -23,7 +23,6 @@
 #include "gpu/config/gpu_feature_info.h"
 #include "gpu/config/gpu_preferences.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
 
 namespace gl {
 
@@ -36,7 +35,6 @@ class GLSurface;
 namespace gpu {
 
 class CommandBufferDirect;
-class GpuMemoryBufferFactory;
 class TransferBuffer;
 
 namespace gles2 {
@@ -56,8 +54,6 @@ class GLManager : private GpuControl {
     raw_ptr<GLManager> share_group_manager = nullptr;
     // If not null will create a virtual manager based on this context.
     raw_ptr<GLManager> virtual_manager = nullptr;
-    // Whether or not glBindXXX generates a resource.
-    bool bind_generates_resource = false;
     // Whether or not the context is auto-lost when GL_OUT_OF_MEMORY occurs.
     bool lose_context_when_out_of_memory = false;
     // Whether or not it's ok to lose the context.
@@ -65,10 +61,6 @@ class GLManager : private GpuControl {
     ContextType context_type = CONTEXT_TYPE_OPENGLES2;
     // Force shader name hashing for all context types.
     bool force_shader_name_hashing = false;
-    // Whether the buffer is multisampled.
-    bool multisampled = false;
-    // If we should use native gmb for backbuffer.
-    bool should_use_native_gmb_for_backbuffer = false;
     // Shared memory limits
     SharedMemoryLimits shared_memory_limits = {};
   };
@@ -79,10 +71,6 @@ class GLManager : private GpuControl {
   // Each test needs to apply them, plus the specific settings a test wants
   // to test.
   static GpuFeatureInfo g_gpu_feature_info;
-
-  std::unique_ptr<gfx::GpuMemoryBuffer> CreateGpuMemoryBuffer(
-      const gfx::Size& size,
-      gfx::BufferFormat format);
 
   void Initialize(const Options& options);
   void InitializeWithWorkarounds(const Options& options,
@@ -181,7 +169,6 @@ class GLManager : private GpuControl {
   std::unique_ptr<gles2::GLES2CmdHelper> gles2_helper_;
   std::unique_ptr<TransferBuffer> transfer_buffer_;
   std::unique_ptr<gles2::GLES2Implementation> gles2_implementation_;
-  std::unique_ptr<gpu::GpuMemoryBufferFactory> gpu_memory_buffer_factory_;
   SharedImageManager shared_image_manager_;
 
   bool use_iosurface_memory_buffers_ = false;

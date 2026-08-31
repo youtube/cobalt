@@ -296,8 +296,6 @@ component("cpp") {
     "projector/speech_recognition_availability.h",
     "reauth_reason.h",
     "resize_shadow_type.h",
-    "rounded_corner_utils.cc",
-    "rounded_corner_utils.h",
     "rounded_image_view.cc",
     "rounded_image_view.h",
     "saved_desk_delegate.h",
@@ -460,7 +458,7 @@ component("cpp") {
     "//chromeos/ui/frame",
     "//chromeos/ui/vector_icons",
     "//components/access_code_cast/common:metrics",
-    "//components/language/core/browser:browser",
+    "//components/language/core/browser",
     "//components/pref_registry",
     "//components/prefs",
     "//components/search_engines",
@@ -468,10 +466,11 @@ component("cpp") {
     "//components/sync_device_info",
     "//components/tab_groups",
     "//components/user_manager",
+    "//ipc:mojom_constants",
     "//mojo/public/cpp/bindings",
     "//net/traffic_annotation",
     "//services/data_decoder/public/cpp",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//skia/public/mojom",
     "//ui/aura",
     "//ui/base",
@@ -518,7 +517,7 @@ component("cpp") {
     "//ui/base/ime/ash",
     "//ui/base/ime/ash:ime_types",
     "//ui/base/mojom:ui_base_types",
-    "//ui/chromeos/resources:resources",
+    "//ui/chromeos/resources",
     "//ui/chromeos/resources:resources_grit",
     "//ui/gfx",
   ]
@@ -531,6 +530,10 @@ component("cpp") {
   }
 
   output_name = "ash_public_cpp"
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {
@@ -569,6 +572,8 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//chromeos/ui/vector_icons",
+    "//components/account_id",
+    "//components/account_id:test_support",
     "//components/prefs:test_support",
     "//mojo/public/cpp/bindings",
     "//services/data_decoder/public/mojom",
@@ -592,6 +597,10 @@ source_set("unit_tests") {
     # Needed to make commit bots run unit_tests on enums.xml changes.
     "//tools/metrics/histograms/metadata/chromeos/enums.xml",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("accelerator_actions") {
@@ -658,7 +667,7 @@ source_set("test_support") {
     "//services/data_decoder/public/cpp:test_support",
     "//services/data_decoder/public/mojom",
     "//services/device/public/cpp:test_support",
-    "//services/network/public/cpp:cpp",
+    "//services/network/public/cpp",
     "//skia",
     "//testing/gmock",
     "//testing/gtest",

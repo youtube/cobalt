@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 
+#include <memory>
 #include <string_view>
 
 #include "base/memory/raw_ptr.h"
@@ -27,6 +28,7 @@
 #include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
 #include "chrome/browser/ui/views/controls/rich_hover_button.h"
 #include "chrome/browser/ui/views/page_info/chosen_object_view.h"
+#include "chrome/browser/ui/views/page_info/page_info_bubble_specification.h"
 #include "chrome/browser/ui/views/page_info/page_info_main_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_permission_content_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_security_content_view.h"
@@ -52,11 +54,13 @@
 #include "components/permissions/permission_recovery_success_rate_tracker.h"
 #include "components/permissions/permission_uma_util.h"
 #include "components/permissions/permission_util.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/browser/ssl_status.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/navigation_simulator.h"
 #include "content/public/test/test_renderer_host.h"
@@ -69,7 +73,6 @@
 #include "net/test/cert_test_util.h"
 #include "net/test/test_certificate_data.h"
 #include "net/test/test_data_directory.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/device/public/cpp/test/fake_usb_device_manager.h"
 #include "services/device/public/mojom/usb_device.mojom.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -124,14 +127,16 @@ class PageInfoBubbleViewTestApi {
       bubble_delegate_->GetWidget()->CloseNow();
     }
 
-    views::View* anchor_view = nullptr;
-    auto* bubble = static_cast<PageInfoBubbleView*>(
-        PageInfoBubbleView::CreatePageInfoBubble(
-            anchor_view, gfx::Rect(), parent_, web_contents_, GURL(kUrl),
-            base::DoNothing(),
-            base::BindOnce(&PageInfoBubbleViewTestApi::OnPageInfoBubbleClosed,
-                           base::Unretained(this), run_loop_.QuitClosure()),
-            /*allow_extended_site_info=*/true));
+    std::unique_ptr<PageInfoBubbleSpecification> specification =
+        PageInfoBubbleSpecification::Builder(nullptr, parent_, web_contents_,
+                                             GURL(kUrl))
+            .AddPageInfoClosingCallback(base::BindOnce(
+                &PageInfoBubbleViewTestApi::OnPageInfoBubbleClosed,
+                base::Unretained(this), run_loop_.QuitClosure()))
+            .Build();
+
+    auto* const bubble = static_cast<PageInfoBubbleView*>(
+        PageInfoBubbleView::CreatePageInfoBubble(std::move(specification)));
     presenter_ = bubble->presenter_for_testing();
     navigation_handler_ = bubble;
     bubble_delegate_ = bubble;
@@ -314,7 +319,7 @@ class PageInfoBubbleViewTestApi {
   }
 
   // Simulates updating the number of blocked and allowed sites and rws info.
-  void SetCookieInfo(const PageInfoUI::CookiesNewInfo& cookie_info) {
+  void SetCookieInfo(const PageInfoUI::CookiesInfo& cookie_info) {
     presenter_->ui_for_testing()->SetCookieInfo(cookie_info);
   }
 
@@ -424,7 +429,7 @@ class ScopedWebContentsTestHelper {
   content::WebContents* web_contents() { return web_contents_; }
   Profile* profile() { return profile_; }
   TestingPrefServiceSimple* local_state() {
-    return testing_profile_manager_.local_state()->Get();
+    return TestingBrowserProcess::GetGlobal()->GetTestingLocalState();
   }
 
  private:
@@ -451,10 +456,12 @@ class PageInfoBubbleViewTest : public testing::Test {
   void SetUp() override {
     TestingBrowserProcess::GetGlobal()->CreateGlobalFeaturesForTesting();
 
-    if (!web_contents_helper_) {
-      web_contents_helper_ =
-          std::make_unique<ScopedWebContentsTestHelper>(false);
-    }
+    // Create after the global features to ensure that there are no
+    // dangling pointers during teardown.
+    CHECK(!web_contents_helper_);
+    web_contents_helper_ =
+        std::make_unique<ScopedWebContentsTestHelper>(off_the_record_);
+
     views_helper_ = std::make_unique<views::ScopedViewsTestHelper>(
         std::make_unique<ChromeTestViewsDelegate<>>());
     views::Widget::InitParams parent_params(
@@ -483,6 +490,8 @@ class PageInfoBubbleViewTest : public testing::Test {
   void TearDown() override { parent_window_->CloseNow(); }
 
  protected:
+  bool off_the_record_ = false;
+
   std::unique_ptr<ScopedWebContentsTestHelper> web_contents_helper_;
   std::unique_ptr<views::ScopedViewsTestHelper> views_helper_;
   raw_ptr<MockTrustSafetySentimentService> mock_sentiment_service_;
@@ -629,9 +638,7 @@ TEST_F(PageInfoBubbleViewTest, CheckToggleSettingForCapturedSurfaceControl) {
 
 class PageInfoBubbleViewOffTheRecordTest : public PageInfoBubbleViewTest {
  public:
-  PageInfoBubbleViewOffTheRecordTest() {
-    web_contents_helper_ = std::make_unique<ScopedWebContentsTestHelper>(true);
-  }
+  PageInfoBubbleViewOffTheRecordTest() { off_the_record_ = true; }
 };
 
 // Test resetting blocked in Incognito permission.
@@ -1009,7 +1016,7 @@ TEST_F(PageInfoBubbleViewTest, UpdatingSiteDataRetainsLayout) {
   EXPECT_EQ(kExpectedChildren, api_->current_view()->children().size());
 
   // Create a fake cookies info.
-  PageInfoUI::CookiesNewInfo cookies;
+  PageInfoUI::CookiesInfo cookies;
   cookies.allowed_sites_count = 10;
   cookies.enforcement = CookieControlsEnforcement::kNoEnforcement;
   cookies.blocking_status = CookieBlocking3pcdStatus::kNotIn3pcd;
@@ -1192,8 +1199,7 @@ class PageInfoBubbleViewCookies3pcdButtonTest
   PageInfoBubbleViewCookies3pcdButtonTest() {
     feature_list_.InitWithFeatures(
         {content_settings::features::kTrackingProtection3pcd}, {});
-    web_contents_helper_ =
-        std::make_unique<ScopedWebContentsTestHelper>(GetParam());
+    off_the_record_ = GetParam();
   }
 
  protected:
@@ -1254,8 +1260,7 @@ class PageInfoBubbleViewCookiesSubpageTitleTest
   PageInfoBubbleViewCookiesSubpageTitleTest() {
     feature_list_.InitWithFeatures(
         {content_settings::features::kTrackingProtection3pcd}, {});
-    web_contents_helper_ = std::make_unique<ScopedWebContentsTestHelper>(
-        testing::get<2>(GetParam()));
+    off_the_record_ = testing::get<2>(GetParam());
   }
 
  private:
@@ -1264,7 +1269,7 @@ class PageInfoBubbleViewCookiesSubpageTitleTest
 
 TEST_P(PageInfoBubbleViewCookiesSubpageTitleTest,
        DisplaysCookiesAndSiteDataTitle) {
-  PageInfoUI::CookiesNewInfo cookie_info;
+  PageInfoUI::CookiesInfo cookie_info;
   cookie_info.controls_state = testing::get<0>(GetParam());
   cookie_info.blocking_status = testing::get<1>(GetParam());
   api_->SetCookieInfo(cookie_info);
@@ -1290,7 +1295,7 @@ class PageInfoBubbleViewPrivacyAndSiteDataSubpageTitleTest
         {privacy_sandbox::kActUserBypassUx,
          privacy_sandbox::kFingerprintingProtectionUx},
         {});
-    web_contents_helper_ = std::make_unique<ScopedWebContentsTestHelper>(true);
+    off_the_record_ = true;
   }
 
  private:
@@ -1299,7 +1304,7 @@ class PageInfoBubbleViewPrivacyAndSiteDataSubpageTitleTest
 
 TEST_P(PageInfoBubbleViewPrivacyAndSiteDataSubpageTitleTest,
        DisplaysPrivacyAndSiteDataTitle) {
-  PageInfoUI::CookiesNewInfo cookie_info;
+  PageInfoUI::CookiesInfo cookie_info;
   cookie_info.controls_state = GetParam();
   api_->SetCookieInfo(cookie_info);
 

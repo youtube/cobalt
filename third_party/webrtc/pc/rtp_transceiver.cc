@@ -10,9 +10,8 @@
 
 #include "pc/rtp_transceiver.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <memory>

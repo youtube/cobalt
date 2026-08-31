@@ -24,7 +24,12 @@
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util.h"
 
+using autofill::SuggestionType;
+
 namespace {
+
+// The string ' ••••••••' appended to the username of a password suggestion.
+constexpr NSString* kPasswordFormSuggestionSuffix = @" ••••••••";
 
 // Font size of button titles.
 constexpr CGFloat kIpadFontSize = 15;
@@ -54,6 +59,9 @@ constexpr CGFloat kShadowOpacity = 1.0;
 
 // The preferred minimum width of the icon shown on the label.
 constexpr CGFloat kSuggestionIconWidth = 40;
+
+// The highlight color's alpha when using liquid glass.
+constexpr CGFloat kHighlightColorAlpha = 0.5;
 
 // Offset required to see half of the icon of the 2nd credit card suggestion
 // when the first credit card suggestion is at maximum width. This number
@@ -172,7 +180,7 @@ UILabel* AttributedTextLabel(NSString* suggestion_text,
 // Splits a credit card label into 2 labels, with one being an incompressible
 // credit card number label. Returns the label as is if this is not a credit
 // card.
-UIView* splitLabel(UILabel* label, BOOL is_credit_card) {
+UIView* SplitLabel(UILabel* label, BOOL is_credit_card) {
   if (!is_credit_card) {
     return label;
   }
@@ -220,22 +228,121 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
   UILabel* value_label =
       TextLabel(suggestion_text, [UIColor colorNamed:kTextPrimaryColor],
                 /*bold=*/YES, /*is_title=*/YES);
-  [views addObject:splitLabel(value_label, is_credit_card)];
+  [views addObject:SplitLabel(value_label, is_credit_card)];
 
   if ([minor_value length] > 0) {
     UILabel* minor_value_label =
         TextLabel(minor_value, [UIColor colorNamed:kTextPrimaryColor],
                   /*bold=*/YES, /*is_title=*/NO);
-    [views addObject:splitLabel(minor_value_label, is_credit_card)];
+    [views addObject:SplitLabel(minor_value_label, is_credit_card)];
   }
 
   if ([display_description length] > 0) {
     UILabel* description =
         TextLabel(display_description, [UIColor colorNamed:kTextSecondaryColor],
                   /*bold=*/NO, /*is_title=*/NO);
-    [views addObject:splitLabel(description, is_credit_card)];
+    [views addObject:SplitLabel(description, is_credit_card)];
   }
   return views;
+}
+
+// Returns whether the provided `suggestion` is a password suggestion from the
+// user's saved data.
+bool IsPasswordSuggestion(FormSuggestion* suggestion) {
+  switch (suggestion.type) {
+    case SuggestionType::kPasswordEntry:
+    case SuggestionType::kBackupPasswordEntry:
+      return true;
+    case SuggestionType::kAutocompleteEntry:
+    case SuggestionType::kAddressEntry:
+    case SuggestionType::kAddressEntryOnTyping:
+    case SuggestionType::kAddressFieldByFieldFilling:
+    case SuggestionType::kManageAddress:
+    case SuggestionType::kManageAutofillAi:
+    case SuggestionType::kManageCreditCard:
+    case SuggestionType::kManageIban:
+    case SuggestionType::kManagePlusAddress:
+    case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kComposeResumeNudge:
+    case SuggestionType::kComposeDisable:
+    case SuggestionType::kComposeGoToSettings:
+    case SuggestionType::kComposeNeverShowOnThisSiteAgain:
+    case SuggestionType::kComposeProactiveNudge:
+    case SuggestionType::kComposeSavedStateNotification:
+    case SuggestionType::kDatalistEntry:
+    case SuggestionType::kTroubleSigningInEntry:
+    case SuggestionType::kFreeformFooter:
+    case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kGeneratePasswordEntry:
+    case SuggestionType::kAccountStoragePasswordEntry:
+    case SuggestionType::kPasswordFieldByFieldFilling:
+    case SuggestionType::kFillPassword:
+    case SuggestionType::kViewPasswordDetails:
+    case SuggestionType::kCreditCardEntry:
+    case SuggestionType::kInsecureContextPaymentDisabledMessage:
+    case SuggestionType::kSaveAndFillCreditCardEntry:
+    case SuggestionType::kScanCreditCard:
+    case SuggestionType::kVirtualCreditCardEntry:
+    case SuggestionType::kIbanEntry:
+    case SuggestionType::kBnplEntry:
+    case SuggestionType::kCreateNewPlusAddress:
+    case SuggestionType::kCreateNewPlusAddressInline:
+    case SuggestionType::kFillExistingPlusAddress:
+    case SuggestionType::kPlusAddressError:
+    case SuggestionType::kMerchantPromoCodeEntry:
+    case SuggestionType::kSeePromoCodeDetails:
+    case SuggestionType::kWebauthnCredential:
+    case SuggestionType::kWebauthnSignInWithAnotherDevice:
+    case SuggestionType::kIdentityCredential:
+    case SuggestionType::kTitle:
+    case SuggestionType::kSeparator:
+    case SuggestionType::kUndoOrClear:
+    case SuggestionType::kMixedFormMessage:
+    case SuggestionType::kDevtoolsTestAddresses:
+    case SuggestionType::kDevtoolsTestAddressByCountry:
+    case SuggestionType::kDevtoolsTestAddressEntry:
+    case SuggestionType::kFillAutofillAi:
+    case SuggestionType::kPendingStateSignin:
+    case SuggestionType::kLoyaltyCardEntry:
+    case SuggestionType::kAllLoyaltyCardsEntry:
+    case SuggestionType::kOneTimePasswordEntry:
+      return false;
+  }
+  NOTREACHED();
+}
+
+// Returns the text to display for a password suggestion.
+NSString* PasswordSuggestionDisplayText(NSString* suggestion_value) {
+  if (!IsKeyboardAccessoryUpgradeEnabled()) {
+    return [suggestion_value
+        stringByAppendingString:kPasswordFormSuggestionSuffix];
+  }
+
+  if ([suggestion_value length] == 0) {
+    return l10n_util::GetNSString(IDS_IOS_AUTOFILL_PASSWORD_NO_USERNAME);
+  }
+
+  return suggestion_value;
+}
+
+// Returns the string to set as the view's accessibility label.
+NSString* AccessibilityLabel(NSString* suggestion_text,
+                             NSString* suggestion_description,
+                             BOOL is_backup_password_suggestion) {
+  std::u16string accessibility_label = l10n_util::GetStringFUTF16(
+      IDS_IOS_AUTOFILL_ACCNAME_SUGGESTION,
+      base::SysNSStringToUTF16(suggestion_text),
+      base::SysNSStringToUTF16(suggestion_description));
+
+  if (is_backup_password_suggestion) {
+    // Append an additional mention to the accessibility label.
+    accessibility_label = l10n_util::GetStringFUTF16(
+        IDS_IOS_AUTOFILL_ACCNAME_SUGGESTION, accessibility_label,
+        l10n_util::GetStringUTF16(
+            IDS_IOS_KEYBOARD_ACCESSORY_RECOVERY_PASSWORD_ACCESSIBILITY_LABEL));
+  }
+
+  return base::SysUTF16ToNSString(accessibility_label);
 }
 
 }  // namespace
@@ -244,6 +351,7 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
   // Client of this view.
   __weak id<FormSuggestionLabelDelegate> _delegate;
   FormSuggestion* _suggestion;
+  NSUInteger _suggestionIndex;
 }
 
 #pragma mark - Public
@@ -256,6 +364,7 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
   self = [super initWithFrame:CGRectZero];
   if (self) {
     _suggestion = suggestion;
+    _suggestionIndex = index;
     _delegate = delegate;
 
     UIStackView* stackView = [[UIStackView alloc] initWithArrangedSubviews:@[]];
@@ -267,7 +376,15 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
     stackView.spacing = kSpacing;
     stackView.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:stackView];
-    AddSameConstraints(stackView, self);
+    if (IsLiquidGlassEffectEnabled()) {
+      AddSameConstraintsToSides(
+          stackView, self,
+          LayoutSides::kTop | LayoutSides::kLeading | LayoutSides::kTrailing);
+      [stackView.heightAnchor constraintEqualToAnchor:self.heightAnchor]
+          .active = YES;
+    } else {
+      AddSameConstraints(stackView, self);
+    }
 
     if (suggestion.icon) {
       UIImageView* iconView = [[UIImageView alloc]
@@ -281,8 +398,12 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
       [stackView addArrangedSubview:iconView];
     }
 
+    NSString* suggestionText =
+        IsPasswordSuggestion(suggestion)
+            ? PasswordSuggestionDisplayText(suggestion.value)
+            : suggestion.value;
+
     BOOL isTablet = ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET;
-    NSString* suggestionText = suggestion.value;
     if (IsKeyboardAccessoryUpgradeEnabled()) {
       // On phones, store the suggestion information in a stack view so that it
       // can be selectively truncated if necessary.
@@ -297,18 +418,8 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
         verticalStackView.spacing = kVerticalSpacing;
         [stackView addArrangedSubview:verticalStackView];
 
-        // Insert the next subviews vertically instead of horizonatally.
+        // Insert the next subviews vertically instead of horizontally.
         stackView = verticalStackView;
-      }
-
-      if ([suggestionText hasSuffix:kPasswordFormSuggestionSuffix]) {
-        suggestionText = [suggestionText
-            substringToIndex:suggestionText.length -
-                             kPasswordFormSuggestionSuffix.length];
-        if ([suggestionText length] == 0) {
-          suggestionText =
-              l10n_util::GetNSString(IDS_IOS_AUTOFILL_PASSWORD_NO_USERNAME);
-        }
       }
     }
 
@@ -336,15 +447,18 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
     }
 
     [self setBackgroundColor:[self customBackgroundColor]];
+    if (IsLiquidGlassEffectEnabled()) {
+      [self setOpaque:NO];
+    }
 
     [self setClipsToBounds:YES];
     [self setUserInteractionEnabled:YES];
     [self setIsAccessibilityElement:YES];
-    [self setAccessibilityLabel:l10n_util::GetNSStringF(
-                                    IDS_IOS_AUTOFILL_ACCNAME_SUGGESTION,
-                                    base::SysNSStringToUTF16(suggestionText),
-                                    base::SysNSStringToUTF16(
-                                        suggestion.displayDescription))];
+    [self
+        setAccessibilityLabel:AccessibilityLabel(
+                                  suggestionText, suggestion.displayDescription,
+                                  suggestion.type ==
+                                      SuggestionType::kBackupPasswordEntry)];
     [self setAccessibilityValue:l10n_util::GetNSStringF(
                                     IDS_IOS_AUTOFILL_SUGGESTION_INDEX_VALUE,
                                     base::NumberToString16(index + 1),
@@ -365,12 +479,20 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
   return self;
 }
 
+- (FormSuggestion*)suggestion {
+  return _suggestion;
+}
+
+- (NSUInteger)suggestionIndex {
+  return _suggestionIndex;
+}
+
 #pragma mark - UIView
 
 - (void)layoutSubviews {
   [super layoutSubviews];
-  self.layer.cornerRadius = [self cornerRadius];
-  if (IsKeyboardAccessoryUpgradeEnabled()) {
+  [self setCornerRadius:[self cornerRadius]];
+  if (!IsLiquidGlassEffectEnabled() && IsKeyboardAccessoryUpgradeEnabled()) {
     self.layer.shadowRadius = kShadowRadius;
     self.layer.shadowOffset = CGSizeMake(0, kShadowVerticalOffset);
     self.layer.shadowOpacity = kShadowOpacity;
@@ -383,7 +505,12 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
 #pragma mark - UIResponder
 
 - (void)touchesBegan:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
-  [self setBackgroundColor:[UIColor colorNamed:kGrey300Color]];
+  UIColor* highlightColor = [UIColor colorNamed:kGrey300Color];
+  if (IsLiquidGlassEffectEnabled()) {
+    highlightColor =
+        [highlightColor colorWithAlphaComponent:kHighlightColorAlpha];
+  }
+  [self setBackgroundColor:highlightColor];
 }
 
 - (void)touchesMoved:(NSSet<UITouch*>*)touches withEvent:(UIEvent*)event {
@@ -406,8 +533,29 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
 
 #pragma mark - Private
 
+// Sets the corner radius. Can be dymamic if the liquid glass effect is enabled.
+- (void)setCornerRadius:(CGFloat)cornerRadius {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (IsLiquidGlassEffectEnabled()) {
+    if (@available(iOS 26, *)) {
+      self.cornerConfiguration = [UICornerConfiguration
+          configurationWithRadius:
+              [UICornerRadius
+                  containerConcentricRadiusWithMinimum:[self cornerRadius]]];
+      return;
+    }
+  }
+#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
+        // __IPHONE_26_0
+  self.layer.cornerRadius = [self cornerRadius];
+}
+
 // Color of the suggestion chips.
 - (UIColor*)customBackgroundColor {
+  if (IsLiquidGlassEffectEnabled()) {
+    return UIColor.clearColor;
+  }
+
   return
       [UIColor colorNamed:IsKeyboardAccessoryUpgradeEnabled() ? kBackgroundColor
                                                               : kGrey100Color];
@@ -425,9 +573,8 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
 
 // Returns whether this label is for a credit card suggestion.
 - (BOOL)isCreditCardSuggestion {
-  return (_suggestion.type == autofill::SuggestionType::kCreditCardEntry) ||
-         (_suggestion.type ==
-          autofill::SuggestionType::kVirtualCreditCardEntry);
+  return (_suggestion.type == SuggestionType::kCreditCardEntry) ||
+         (_suggestion.type == SuggestionType::kVirtualCreditCardEntry);
 }
 
 // Resize the icon if it's a credit card icon which requires an upscaling.
@@ -453,15 +600,15 @@ NSArray<UIView*>* TextViews(NSString* suggestion_text,
   CGSize windowSize = [[UIScreen mainScreen] bounds].size;
   CGFloat portraitScreenWidth = MIN(windowSize.width, windowSize.height);
   switch (_suggestion.type) {
-    case autofill::SuggestionType::kCreditCardEntry:
-    case autofill::SuggestionType::kVirtualCreditCardEntry: {
+    case SuggestionType::kCreditCardEntry:
+    case SuggestionType::kVirtualCreditCardEntry: {
       // Max width is just enough to show half of the credit card icon on the
       // 2nd suggestion, in portrait mode.
       CGFloat staticButtonsWidth = accessoryTrailingView.frame.size.width;
       maxWidth = (portraitScreenWidth - staticButtonsWidth) -
                  kHalfCreditCardIconOffset;
     } break;
-    case autofill::SuggestionType::kAddressEntry:
+    case SuggestionType::kAddressEntry:
       // Max width is half width, in portrait mode.
       maxWidth = portraitScreenWidth * 0.5;
       break;

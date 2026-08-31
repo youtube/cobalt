@@ -6,7 +6,7 @@
   "manifest_version": 3,
   "minimum_chrome_version": "93",
   "background": {
-    "service_worker": "chromevox/chromevox_loader.js",
+    "service_worker": "chromevox/mv3/chromevox_loader.js",
     "type": "module"
   },
 {% else %}
@@ -74,7 +74,7 @@
   "content_security_policy": "default-src 'none'; script-src 'self' 'wasm-eval' chrome://resources; style-src 'unsafe-inline' chrome://resources; img-src 'self' data:;",
 {% else %}
   "content_security_policy": {
-    "extension_pages": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'unsafe-inline' chrome://resources; img-src 'self' data:;"
+    "extension_pages": "default-src 'none'; script-src 'self' chrome://resources 'wasm-unsafe-eval'; style-src 'unsafe-inline' chrome://resources; img-src 'self' data:;"
   },
 {% endif %}
   "externally_connectable": {

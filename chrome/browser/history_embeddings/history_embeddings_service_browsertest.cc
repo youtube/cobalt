@@ -27,8 +27,8 @@
 #include "components/history_embeddings/history_embeddings_features.h"
 #include "components/history_embeddings/mock_answerer.h"
 #include "components/history_embeddings/mock_intent_classifier.h"
+#include "components/optimization_guide/core/delivery/test_model_info_builder.h"
 #include "components/optimization_guide/core/model_execution/model_execution_features.h"
-#include "components/optimization_guide/core/test_model_info_builder.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_content_annotations/core/page_content_annotations_service.h"
 #include "components/page_content_annotations/core/test_page_content_annotator.h"
@@ -365,8 +365,7 @@ class HistoryEmbeddingsWithDatabaseCacheBrowserTest
     : public HistoryEmbeddingsBrowserTest {
   void InitializeFeatureList() override {
     feature_list_.InitWithFeaturesAndParameters(
-        {{kHistoryEmbeddings,
-          {{"SendQualityLog", "true"}, {"UseDatabaseBeforeEmbedder", "true"}}},
+        {{kHistoryEmbeddings, {{"SendQualityLog", "true"}}},
 #if BUILDFLAG(IS_CHROMEOS)
          {chromeos::features::kFeatureManagementHistoryEmbedding, {{}}},
 #endif  // BUILDFLAG(IS_CHROMEOS)

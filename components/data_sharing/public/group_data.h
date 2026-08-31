@@ -5,7 +5,9 @@
 #ifndef COMPONENTS_DATA_SHARING_PUBLIC_GROUP_DATA_H_
 #define COMPONENTS_DATA_SHARING_PUBLIC_GROUP_DATA_H_
 
+#include <optional>
 #include <string>
+#include <vector>
 
 #include "base/time/time.h"
 #include "base/types/strong_alias.h"
@@ -43,7 +45,9 @@ struct GroupMember {
               std::string email,
               MemberRole role,
               GURL avatar_url,
-              std::string given_name);
+              std::string given_name,
+              base::Time creation_time = base::Time(),
+              base::Time last_updated_time = base::Time());
 
   GroupMember(const GroupMember&);
   GroupMember& operator=(const GroupMember&);
@@ -59,6 +63,8 @@ struct GroupMember {
   MemberRole role = MemberRole::kUnknown;
   GURL avatar_url;
   std::string given_name;
+  base::Time creation_time;
+  base::Time last_updated_time;
 };
 
 // Subset of GroupMember fields that could be temporarily stored after member is
@@ -83,6 +89,8 @@ struct GroupMemberPartialData {
   std::string email;
   GURL avatar_url;
   std::string given_name;
+  base::Time creation_time;
+  base::Time last_updated_time;
 };
 
 struct GroupToken {

@@ -38,14 +38,13 @@ class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
   VideoDmpReader dmp_reader_;
 };
 
-scoped_refptr<DecodedAudio> MakeDecodedAudio(int channels, int64_t timestamp) {
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+DecodedAudio MakeDecodedAudio(int channels, int64_t timestamp) {
+  DecodedAudio decoded_audio(
       channels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
       GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) * channels * 1536);
 
-  memset(decoded_audio->data(), timestamp % 256,
-         decoded_audio->size_in_bytes());
+  memset(decoded_audio.data(), timestamp % 256, decoded_audio.size_in_bytes());
 
   return decoded_audio;
 }
@@ -59,7 +58,7 @@ TEST_P(AudioFrameDiscarderTest, Empty) {
 
 TEST_P(AudioFrameDiscarderTest, NonPartialAudio) {
   InputBuffers input_buffers;
-  std::vector<scoped_refptr<DecodedAudio>> decoded_audios;
+  std::vector<DecodedAudio> decoded_audios;
   const auto& audio_stream_info = dmp_reader_.audio_stream_info();
 
   for (int i = 0; i < std::min<int>(32, dmp_reader_.number_of_audio_buffers());
@@ -75,30 +74,30 @@ TEST_P(AudioFrameDiscarderTest, NonPartialAudio) {
 
   for (size_t i = 0; i < input_buffers.size(); ++i) {
     discarder.OnInputBuffers({input_buffers[i]});
-    auto copy = decoded_audios[i]->Clone();
+    DecodedAudio copy = decoded_audios[i].CloneForTesting();
     discarder.AdjustForDiscardedDurations(audio_stream_info.samples_per_second,
                                           &copy);
-    ASSERT_EQ(*copy, *decoded_audios[i]);
+    ASSERT_EQ(copy, decoded_audios[i]);
   }
 
   discarder.Reset();
 
   discarder.OnInputBuffers(input_buffers);
 
-  for (auto decoded_audio : decoded_audios) {
-    auto copy = decoded_audio->Clone();
+  for (const auto& decoded_audio : decoded_audios) {
+    DecodedAudio copy = decoded_audio.CloneForTesting();
     discarder.AdjustForDiscardedDurations(audio_stream_info.samples_per_second,
                                           &copy);
-    ASSERT_EQ(*copy, *decoded_audio);
+    ASSERT_EQ(copy, decoded_audio);
   }
 }
 
 TEST_P(AudioFrameDiscarderTest, PartialAudio) {
   InputBuffers input_buffers;
-  std::vector<scoped_refptr<DecodedAudio>> decoded_audios;
+  std::vector<DecodedAudio> decoded_audios;
   const auto& audio_stream_info = dmp_reader_.audio_stream_info();
   const int64_t duration = AudioFramesToDuration(
-      MakeDecodedAudio(audio_stream_info.number_of_channels, 0)->frames(),
+      MakeDecodedAudio(audio_stream_info.number_of_channels, 0).frames(),
       audio_stream_info.samples_per_second);
 
   for (int i = 0; i < std::min<int>(32, dmp_reader_.number_of_audio_buffers());
@@ -120,13 +119,13 @@ TEST_P(AudioFrameDiscarderTest, PartialAudio) {
 
   for (size_t i = 0; i < input_buffers.size(); ++i) {
     discarder.OnInputBuffers({input_buffers[i]});
-    auto copy = decoded_audios[i]->Clone();
+    DecodedAudio copy = decoded_audios[i].CloneForTesting();
     discarder.AdjustForDiscardedDurations(audio_stream_info.samples_per_second,
                                           &copy);
     if (i % 2 == 0) {
-      ASSERT_NEAR(copy->frames(), decoded_audios[i]->frames() / 2, 2);
+      ASSERT_NEAR(copy.frames(), decoded_audios[i].frames() / 2, 2);
     } else {
-      ASSERT_EQ(*copy, *decoded_audios[i]);
+      ASSERT_EQ(copy, decoded_audios[i]);
     }
   }
 
@@ -135,18 +134,18 @@ TEST_P(AudioFrameDiscarderTest, PartialAudio) {
   discarder.OnInputBuffers(input_buffers);
 
   for (size_t i = 0; i < decoded_audios.size(); ++i) {
-    auto copy = decoded_audios[i]->Clone();
+    DecodedAudio copy = decoded_audios[i].CloneForTesting();
     discarder.AdjustForDiscardedDurations(audio_stream_info.samples_per_second,
                                           &copy);
     if (i % 2 == 0) {
-      ASSERT_NEAR(copy->frames(), decoded_audios[i]->frames() / 2, 2);
+      ASSERT_NEAR(copy.frames(), decoded_audios[i].frames() / 2, 2);
     } else {
-      ASSERT_EQ(*copy, *decoded_audios[i]);
+      ASSERT_EQ(copy, decoded_audios[i]);
     }
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
+INSTANTIATE_TEST_SUITE_P(
     AudioFrameDiscarderTests,
     AudioFrameDiscarderTest,
     ValuesIn(

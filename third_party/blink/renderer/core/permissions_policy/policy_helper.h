@@ -13,6 +13,7 @@
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/hash_traits.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
@@ -39,14 +40,14 @@ class PolicyParserMessageBuffer {
   void Warn(const String& message) {
     if (!discard_message_) {
       message_buffer_.emplace_back(mojom::blink::ConsoleMessageLevel::kWarning,
-                                   prefix_ + message);
+                                   StrCat({prefix_, message}));
     }
   }
 
   void Error(const String& message) {
     if (!discard_message_) {
       message_buffer_.emplace_back(mojom::blink::ConsoleMessageLevel::kError,
-                                   prefix_ + message);
+                                   StrCat({prefix_, message}));
     }
   }
 
@@ -69,7 +70,7 @@ struct FeatureNameMapCacheKey {
   FeatureNameMapCacheKey() : is_empty_value(true) {}
   explicit FeatureNameMapCacheKey(const bool& IsIsolatedContext)
       : IsIsolatedContext(IsIsolatedContext) {}
-  explicit FeatureNameMapCacheKey(WTF::HashTableDeletedValueType)
+  explicit FeatureNameMapCacheKey(HashTableDeletedValueType)
       : is_deleted_value(true) {}
 
   bool IsHashTableDeletedValue() const { return is_deleted_value; }
@@ -130,27 +131,23 @@ String PermissionsPolicyFeatureToProtocol(
     network::mojom::PermissionsPolicyFeature,
     ExecutionContext*);
 
-}  // namespace blink
-
-namespace WTF {
-
 // A helper that defines the hash function and the invalid 'empty value' that
 // HashMap should use internally.
 template <>
-struct HashTraits<blink::FeatureNameMapCacheKey>
-    : SimpleClassHashTraits<blink::FeatureNameMapCacheKey> {
-  static unsigned GetHash(const blink::FeatureNameMapCacheKey& key) {
+struct HashTraits<FeatureNameMapCacheKey>
+    : SimpleClassHashTraits<FeatureNameMapCacheKey> {
+  static unsigned GetHash(const FeatureNameMapCacheKey& key) {
     unsigned hash = HashInt(key.IsIsolatedContext);
     AddIntToHash(hash, key.is_deleted_value);
     AddIntToHash(hash, key.is_empty_value);
     return hash;
   }
   static const bool kEmptyValueIsZero = false;
-  static blink::FeatureNameMapCacheKey EmptyValue() {
-    return blink::FeatureNameMapCacheKey();
+  static FeatureNameMapCacheKey EmptyValue() {
+    return FeatureNameMapCacheKey();
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_CORE_PERMISSIONS_POLICY_POLICY_HELPER_H_

@@ -19,6 +19,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/notimplemented.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
@@ -32,6 +33,8 @@
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/install_approval.h"
 #include "chrome/browser/extensions/install_tracker.h"
+#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
+#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/extensions/scoped_active_install.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_observer.h"
@@ -39,6 +42,7 @@
 #include "chrome/browser/safe_browsing/safe_browsing_navigation_observer_manager_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
+#include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -69,9 +73,6 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
-#include "chrome/browser/extensions/mv2_experiment_stage.h"
-#include "chrome/browser/ui/extensions/extensions_dialogs.h"
 #include "extensions/browser/api/management/management_api.h"
 #endif
 
@@ -959,15 +960,9 @@ void WebstorePrivateBeginInstallWithManifest3Function::
     return;
   }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   ShowExtensionInstallBlockedDialog(extension->id(), extension->name(),
                                     blocked_by_policy_error_message_, image,
                                     contents, std::move(done_callback));
-#else
-  LOG(ERROR) << "Install blocked. Dialog not supported on Android. Extension: "
-             << extension->name()
-             << ", message: " << blocked_by_policy_error_message_;
-#endif
 }
 
 WebstorePrivateCompleteInstallFunction::
@@ -1356,7 +1351,6 @@ WebstorePrivateGetMV2DeprecationStatusFunction::
 
 ExtensionFunction::ResponseAction
 WebstorePrivateGetMV2DeprecationStatusFunction::Run() {
-#if BUILDFLAG(ENABLE_EXTENSIONS)
   ManifestV2ExperimentManager* experiment_manager =
       ManifestV2ExperimentManager::Get(browser_context());
   MV2ExperimentStage current_stage =
@@ -1364,9 +1358,6 @@ WebstorePrivateGetMV2DeprecationStatusFunction::Run() {
   api::webstore_private::MV2DeprecationStatus api_status =
       api::webstore_private::MV2DeprecationStatus::kInactive;
   switch (current_stage) {
-    case MV2ExperimentStage::kNone:
-      api_status = api::webstore_private::MV2DeprecationStatus::kInactive;
-      break;
     case MV2ExperimentStage::kWarning:
       api_status = api::webstore_private::MV2DeprecationStatus::kWarning;
       break;
@@ -1381,12 +1372,6 @@ WebstorePrivateGetMV2DeprecationStatusFunction::Run() {
   return RespondNow(ArgumentList(
       api::webstore_private::GetMV2DeprecationStatus::Results::Create(
           api_status)));
-#else
-  // Android does not support Manifest V2 experiments.
-  return RespondNow(ArgumentList(
-      api::webstore_private::GetMV2DeprecationStatus::Results::Create(
-          api::webstore_private::MV2DeprecationStatus::kInactive)));
-#endif
 }
 
 }  // namespace extensions

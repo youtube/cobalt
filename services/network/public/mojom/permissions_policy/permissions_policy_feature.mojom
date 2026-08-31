@@ -252,7 +252,7 @@ enum PermissionsPolicyFeature {
   // https://github.com/WICG/pending-beacon/blob/main/docs/fetch-later-api.md
   kDeferredFetch = 119,
 
-  // Digital Credentials (https://wicg.github.io/digital-credentials/)
+  // Digital Credentials (https://w3c-fedid.github.io/digital-credentials/)
   kDigitalCredentialsGet = 120,
 
   kMediaPlaybackWhileNotVisible = 121,
@@ -293,27 +293,23 @@ enum PermissionsPolicyFeature {
   // See https://wicg.github.io/ua-client-hints/#ch-ua-high-entropy-values.
   kClientHintUAHighEntropyValues = 129,
 
-  // Allows sites to delegate access to the Summarizer API to cross-origin
-  // iframes.
-  // See https://webmachinelearning.github.io/writing-assistance-apis/#summarizer-permissions-policy
+  // Allows sites to delegate Summarizer API access to iframes.
+  // See https://webmachinelearning.github.io/writing-assistance-apis
   kSummarizer = 130,
 
-  // Allows sites to delegate access to the Writer API to cross-origin iframes.
+  // Allows sites to delegate Writer API access to iframes.
   // See https://github.com/webmachinelearning/writing-assistance-apis
   kWriter = 131,
 
-  // Allows sites to delegate access to the Rewriter API to cross-origin
-  // iframes.
+  // Allows sites to delegate Rewriter API access to iframes.
   // See https://github.com/webmachinelearning/writing-assistance-apis
   kRewriter = 132,
 
-  // Allows sites to delegate access to the Translator API to cross-origin
-  // iframes.
+  // Allows sites to delegate Translator API access to iframes.
   // See https://github.com/webmachinelearning/translation-api
   kTranslator = 133,
 
-  // Allows sites to delegate access to the Language Detector API to
-  // cross-origin iframes.
+  // Allows sites to delegate Language Detector API access to iframes.
   // See https://github.com/webmachinelearning/translation-api
   kLanguageDetector = 134,
 
@@ -323,7 +319,7 @@ enum PermissionsPolicyFeature {
   kDeviceAttributes = 135,
 
   // Allows a site to make local network access requests.
-  // See https://github.com/explainers-by-googlers/local-network-access
+  // See: https://wicg.github.io/local-network-access/
   kLocalNetworkAccess = 136,
 
   // Controls Protected Audience API's view and click functionality.
@@ -334,6 +330,16 @@ enum PermissionsPolicyFeature {
   // Allows sites to delegate access to install on-device speech via the Web
   // Speech API to cross-origin iframes.
   kOnDeviceSpeechRecognition = 138,
+
+  // Allows sites to delegate Language Model API access to iframes.
+  // See https://github.com/webmachinelearning/prompt-api
+  kLanguageModel = 139,
+
+  // Controls use of ARIA notify for accessibility notifications in iframes.
+  kAriaNotify = 140,
+
+  // Digital Credentials (https://w3c-fedid.github.io/digital-credentials/)
+  kDigitalCredentialsCreate = 141,
 
   // Don't change assigned numbers of any item, and don't reuse removed slots.
   // Add new features at the end of the enum.

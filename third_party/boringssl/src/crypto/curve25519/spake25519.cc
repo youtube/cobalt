@@ -20,7 +20,7 @@
 #include <openssl/bytestring.h>
 #include <openssl/mem.h>
 #include <openssl/rand.h>
-#include <openssl/sha.h>
+#include <openssl/sha2.h>
 
 #include "../fipsmodule/bn/internal.h"
 #include "../internal.h"

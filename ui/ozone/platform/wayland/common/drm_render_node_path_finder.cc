@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "ui/ozone/platform/wayland/common/drm_render_node_path_finder.h"
 
 #include <fcntl.h>
@@ -17,10 +12,11 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/files/scoped_file.h"
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "ui/gfx/linux/scoped_gbm_device.h"  // nogncheck
-#include "ui/gl/startup_trace.h"
 #include "ui/ozone/public/ozone_switches.h"
 
 namespace ui {
@@ -64,7 +60,8 @@ void DrmRenderNodePathFinder::FindDrmRenderNodePath() {
     }
 
     CHECK(device->nodes);
-    const std::string dri_render_node(device->nodes[DRM_NODE_RENDER]);
+    const std::string dri_render_node(
+        UNSAFE_TODO(device->nodes[DRM_NODE_RENDER]));
     base::ScopedFD drm_fd(open(dri_render_node.c_str(), O_RDWR));
     if (drm_fd.get() < 0) {
       continue;
@@ -84,7 +81,7 @@ void DrmRenderNodePathFinder::FindDrmRenderNodePath() {
     // In case the first node /dev/dri/renderD128 can be opened but fails to
     // create gbm device on certain driver (E.g. PowerVR). Skip such paths.
     {
-      GPU_STARTUP_TRACE_EVENT("scoped attempt of gbm_create_device");
+      TRACE_EVENT("gpu,startup", "scoped attempt of gbm_create_device");
       ScopedGbmDevice gbm_device(gbm_create_device(drm_fd.get()));
       if (!gbm_device) {
         continue;

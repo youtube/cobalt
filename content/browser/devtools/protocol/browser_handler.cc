@@ -21,11 +21,13 @@
 #include "base/metrics/statistics_recorder.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/download/public/common/download_item.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "content/browser/devtools/browser_devtools_agent_host.h"
+#include "content/browser/devtools/devtools_agent_host_impl.h"
 #include "content/browser/devtools/devtools_manager.h"
 #include "content/browser/devtools/protocol/devtools_download_manager_delegate.h"
 #include "content/browser/gpu/gpu_process_host.h"
@@ -395,9 +397,12 @@ Response BrowserHandler::SetPermission(
       return Response::InvalidParams(
           "Permission can't be granted to opaque origins.");
   }
+  // TODO(crbug.com/434724810): Once SetPermission accepts a requesting
+  // and embedding origin, we will pass those rather than just
+  // 'overridden_origin.'
   PermissionControllerImpl::OverrideStatus status =
-      permission_controller->SetOverrideForDevTools(overridden_origin, type,
-                                                    permission_status);
+      permission_controller->SetOverrideForDevTools(
+          overridden_origin, overridden_origin, type, permission_status);
   if (status != PermissionControllerImpl::OverrideStatus::kOverrideSet) {
     return Response::InvalidParams(
         "Permission can't be granted in current context.");
@@ -436,9 +441,12 @@ Response BrowserHandler::GrantPermissions(
       return Response::InvalidParams(
           "Permission can't be granted to opaque origins.");
   }
+  // TODO(crbug.com/434724810): Once GrantPermissions accepts a requesting
+  // and embedding origin, we will pass those rather than just
+  // 'overridden_origin.'
   PermissionControllerImpl::OverrideStatus status =
-      permission_controller->GrantOverridesForDevTools(overridden_origin,
-                                                       internal_permissions);
+      permission_controller->GrantOverridesForDevTools(
+          overridden_origin, overridden_origin, internal_permissions);
 
   if (status != PermissionControllerImpl::OverrideStatus::kOverrideSet) {
     return Response::InvalidParams(

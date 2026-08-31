@@ -4,9 +4,10 @@
 
 #include "chrome/browser/extensions/api/chrome_extensions_api_client.h"
 
+#include <memory>
+
 #include "base/notimplemented.h"
-#include "extensions/browser/api/messaging/messaging_delegate.h"
-#include "extensions/browser/api/messaging/native_message_host.h"
+#include "extensions/browser/supervised_user_extensions_delegate.h"
 #include "extensions/buildflags/buildflags.h"
 
 // TODO(crbug.com/417770773): This file contains stubs for the parts of
@@ -38,8 +39,8 @@ std::unique_ptr<SupervisedUserExtensionsDelegate>
 ChromeExtensionsAPIClient::CreateSupervisedUserExtensionsDelegate(
     content::BrowserContext* browser_context) const {
   // TODO(crbug.com/402488726): Support supervised users on desktop Android.
-  NOTIMPLEMENTED();
-  return nullptr;
+  // This is a stub implementation that always blocks installs.
+  return std::make_unique<SupervisedUserExtensionsDelegate>();
 }
 
 std::unique_ptr<DisplayInfoProvider>
@@ -49,20 +50,6 @@ ChromeExtensionsAPIClient::CreateDisplayInfoProvider() const {
   return nullptr;
 }
 
-MessagingDelegate* ChromeExtensionsAPIClient::GetMessagingDelegate() {
-  if (!messaging_delegate_) {
-    // The default implementation does nothing, which is fine for now, since
-    // this is mostly needed for:
-    //   a) tab-specifics,
-    //   b) platform apps, and
-    //   c) native messaging
-    // TODO(crbug.com/371432155): Use ChromeMessagingDelegate when we have
-    // better support for tabs.
-    messaging_delegate_ = std::make_unique<MessagingDelegate>();
-  }
-  return messaging_delegate_.get();
-}
-
 std::vector<KeyedServiceBaseFactory*>
 ChromeExtensionsAPIClient::GetFactoryDependencies() {
   // TODO(crbug.com/402488726): Delete this stub and use the version from
@@ -70,15 +57,6 @@ ChromeExtensionsAPIClient::GetFactoryDependencies() {
   // Don't use NOTIMPLEMENTED() here because this is the correct implementation
   // for this stub class.
   return {};
-}
-
-std::unique_ptr<NativeMessagePortDispatcher>
-ChromeExtensionsAPIClient::CreateNativeMessagePortDispatcher(
-    std::unique_ptr<NativeMessageHost> host,
-    base::WeakPtr<NativeMessagePort> port,
-    scoped_refptr<base::SingleThreadTaskRunner> message_service_task_runner) {
-  // TODO(crbug.com/417786914): Support native messaging on desktop Android.
-  return nullptr;
 }
 
 }  // namespace extensions

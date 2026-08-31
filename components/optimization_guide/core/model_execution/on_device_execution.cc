@@ -86,10 +86,29 @@ void LogResponseCompleteTokens(ModelBasedCapabilityKey feature,
       tokens);
 }
 
+void LogResponseTimeToNextToken(ModelBasedCapabilityKey feature,
+                                uint32_t tokens,
+                                base::TimeDelta token_time) {
+  if (tokens == 0) {
+    return;
+  }
+  base::UmaHistogramTimes(
+      base::StrCat({"OptimizationGuide.ModelExecution."
+                    "OnDeviceResponseTokensTimeToNextToken.",
+                    GetStringNameForModelExecutionFeature(feature)}),
+      token_time / tokens);
+}
+
 std::string GenerateExecutionId() {
   return "on-device:" + base::Uuid::GenerateRandomV4().AsLowercaseString();
 }
 
+bool GetOnDeviceModelWithholdNewlines() {
+  static const base::FeatureParam<bool> kOnDeviceModelWitholdNewlines{
+      &features::kOptimizationGuideOnDeviceModel,
+      "on_device_model_withhold_newlines", true};
+  return kOnDeviceModelWitholdNewlines.Get();
+}
 }  // namespace
 
 OnDeviceExecution::OnDeviceExecution(
@@ -237,7 +256,8 @@ void OnDeviceExecution::OnResponse(
       MutableLoggedResponse();
 
   if (current_response_.empty()) {
-    base::TimeDelta time_to_first_response = base::TimeTicks::Now() - start_;
+    first_response_time_ = base::TimeTicks::Now();
+    base::TimeDelta time_to_first_response = first_response_time_ - start_;
     base::UmaHistogramMediumTimes(
         base::StrCat(
             {"OptimizationGuide.ModelExecution.OnDeviceFirstResponseTime.",
@@ -247,9 +267,19 @@ void OnDeviceExecution::OnResponse(
         time_to_first_response.InMilliseconds());
   }
 
-  current_response_ += chunk->text;
-  num_unchecked_response_tokens_++;
-  num_response_tokens_++;
+  if (GetOnDeviceModelWithholdNewlines()) {
+    NewlineBuffer::Chunk trimmed_chunk = newline_buffer_.Append(chunk->text);
+    if (trimmed_chunk.text.empty()) {
+      return;
+    }
+    current_response_ += trimmed_chunk.text;
+    num_unchecked_response_tokens_ += trimmed_chunk.num_tokens;
+    num_response_tokens_ += trimmed_chunk.num_tokens;
+  } else {
+    current_response_ += chunk->text;
+    num_unchecked_response_tokens_++;
+    num_response_tokens_++;
+  }
 
   if (HasRepeatingSuffix(current_response_)) {
     // If a repeat is detected, halt the response, and cancel/finish early.
@@ -281,14 +311,17 @@ void OnDeviceExecution::OnResponse(
 
 void OnDeviceExecution::OnComplete(
     on_device_model::mojom::ResponseSummaryPtr summary) {
+  base::TimeTicks completion_time = base::TimeTicks::Now();
+  base::TimeDelta time_to_completion = completion_time - start_;
   receiver_.reset();  // Suppress expected disconnect
 
   bool has_repeats = MutableLoggedResponse()->has_repeats();
 
   LogResponseHasRepeats(feature_, has_repeats);
   LogResponseCompleteTokens(feature_, num_response_tokens_);
-  base::TimeDelta time_to_completion = base::TimeTicks::Now() - start_;
   LogResponseCompleteTime(feature_, time_to_completion);
+  LogResponseTimeToNextToken(feature_, num_response_tokens_,
+                             completion_time - first_response_time_);
   MutableLoggedResponse()->set_time_to_completion_millis(
       time_to_completion.InMilliseconds());
 

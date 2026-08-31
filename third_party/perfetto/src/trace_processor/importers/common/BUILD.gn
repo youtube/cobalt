@@ -66,7 +66,6 @@ source_set("common") {
     "thread_state_tracker.h",
     "trace_file_tracker.cc",
     "trace_file_tracker.h",
-    "trace_parser.cc",
     "track_compressor.cc",
     "track_compressor.h",
     "track_tracker.cc",
@@ -78,7 +77,7 @@ source_set("common") {
     "virtual_memory_mapping.h",
   ]
   public_deps = [
-    ":trace_parser_hdr",
+    ":synthetic_tid_hdr",
     "../../util:proto_to_args_parser",
     "../../util:protozero_to_text",
   ]
@@ -93,7 +92,9 @@ source_set("common") {
     "../../../base",
     "../../../protozero",
     "../../containers",
-    "../../db:minimal",
+    "../../dataframe",
+    "../../sorter",
+    "../../sorter",
     "../../storage",
     "../../tables:tables",
     "../../types",
@@ -105,11 +106,6 @@ source_set("common") {
   ]
 }
 
-source_set("trace_parser_hdr") {
-  sources = [ "trace_parser.h" ]
-  deps = [ "../../../../gn:default_deps" ]
-}
-
 source_set("parser_types") {
   sources = [ "parser_types.h" ]
   deps = [
@@ -118,6 +114,11 @@ source_set("parser_types") {
     "../../containers",
     "../proto:packet_sequence_state_generation_hdr",
   ]
+}
+
+source_set("synthetic_tid_hdr") {
+  sources = [ "synthetic_tid.h" ]
+  deps = [ "../../../../gn:default_deps" ]
 }
 
 source_set("unittests") {

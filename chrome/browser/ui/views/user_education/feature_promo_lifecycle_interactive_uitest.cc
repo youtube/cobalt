@@ -24,6 +24,8 @@
 #include "chrome/browser/ui/views/user_education/browser_help_bubble.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
+#include "chrome/browser/user_education/user_education_service.h"
+#include "chrome/browser/user_education/user_education_service_factory.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -252,7 +254,8 @@ class FeaturePromoLifecycleUiTest : public TestBase {
   static user_education::FeaturePromoControllerCommon* GetPromoController(
       Browser* browser) {
     return static_cast<user_education::FeaturePromoControllerCommon*>(
-        browser->window()->GetFeaturePromoControllerForTesting());
+        UserEducationServiceFactory::GetForBrowserContext(browser->profile())
+            ->GetFeaturePromoControllerForTesting());
   }
 
   static user_education::UserEducationStorageService* GetStorageService(
@@ -463,8 +466,7 @@ IN_PROC_BROWSER_TEST_F(FeaturePromoLifecycleUiTest,
                }),
       If([&bubble_widget]() { return !bubble_widget->IsActive(); },
          Then(WaitForState(
-             views::test::kCurrentWidgetFocus,
-             [&bubble_widget]() { return bubble_widget->GetNativeView(); }))),
+             views::test::kCurrentWidgetFocus, std::ref(bubble_widget)))),
       SendAccelerator(
           user_education::HelpBubbleView::kHelpBubbleElementIdForTesting, kEsc),
       WaitForHide(

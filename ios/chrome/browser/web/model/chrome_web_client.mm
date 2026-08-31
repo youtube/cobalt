@@ -19,6 +19,7 @@
 #import "base/notreached.h"
 #import "base/strings/stringprintf.h"
 #import "base/strings/sys_string_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/autofill/ios/browser/autofill_java_script_feature.h"
 #import "components/autofill/ios/browser/suggestion_controller_java_script_feature.h"
 #import "components/autofill/ios/common/features.h"
@@ -53,8 +54,7 @@
 #import "ios/chrome/browser/permissions/model/features.h"
 #import "ios/chrome/browser/permissions/model/geolocation_api_usage_java_script_feature.h"
 #import "ios/chrome/browser/permissions/model/media_api_usage_java_script_feature.h"
-#import "ios/chrome/browser/prerender/model/prerender_service.h"
-#import "ios/chrome/browser/prerender/model/prerender_service_factory.h"
+#import "ios/chrome/browser/prerender/model/prerender_tab_helper.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
 #import "ios/chrome/browser/reader_mode/model/reader_mode_java_script_feature.h"
 #import "ios/chrome/browser/reading_list/model/offline_page_tab_helper.h"
@@ -141,10 +141,6 @@ NSString* GetSafeBrowsingErrorPageHTML(web::WebState* web_state,
   switch (static_cast<SafeBrowsingErrorCode>(error_code)) {
     case SafeBrowsingErrorCode::kUnsafeResource: {
       page = SafeBrowsingBlockingPage::Create(*resource);
-      // Report the unsafe site visits events, guarding it behind a feature
-      // flag.
-      if (base::FeatureList::IsEnabled(
-              enterprise_connectors::kEnterpriseRealtimeEventReportingOnIOS)) {
         ProfileIOS* profile =
             ProfileIOS::FromBrowserState(web_state->GetBrowserState());
         PrefService* prefs = profile->GetPrefs();
@@ -162,7 +158,6 @@ NSString* GetSafeBrowsingErrorPageHTML(web::WebState* web_state,
               prefs->GetBoolean(prefs::kSafeBrowsingProceedAnywayDisabled),
               referrer_chain);
         }
-      }
       break;
     }
     case SafeBrowsingErrorCode::kEnterpriseBlock:
@@ -206,7 +201,7 @@ NSString* GetLookalikeUrlErrorPageHtml(web::WebState* web_state,
           lookalike_info->match_type,
           std::make_unique<LookalikeUrlControllerClient>(
               web_state, lookalike_info->safe_url, lookalike_info->request_url,
-              GetApplicationContext()->GetApplicationLocale()));
+              GetApplicationContext()->GetApplicationLocaleStorage()->Get()));
   std::string error_page_content = page->GetHtmlContents();
   security_interstitials::IOSBlockingPageTabHelper::FromWebState(web_state)
       ->AssociateBlockingPage(navigation_id, std::move(page));
@@ -231,7 +226,7 @@ NSString* GetHttpsOnlyModeErrorPageHtml(web::WebState* web_state,
           web_state, container->http_url(), service,
           std::make_unique<HttpsOnlyModeControllerClient>(
               web_state, container->http_url(),
-              GetApplicationContext()->GetApplicationLocale()));
+              GetApplicationContext()->GetApplicationLocaleStorage()->Get()));
 
   std::string error_page_content = page->GetHtmlContents();
   security_interstitials::IOSBlockingPageTabHelper::FromWebState(web_state)
@@ -261,12 +256,12 @@ NSString* GetSupervisedUserErrorPageHTML(web::WebState* web_state,
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state->GetBrowserState());
   std::string error_page_content =
-      supervised_user::SupervisedUserInterstitial::GetHTMLContents(
+      supervised_user::SupervisedUserInterstitial::GetHTMLContentsWithApprovals(
           SupervisedUserServiceFactory::GetForProfile(profile),
           profile->GetPrefs(), error_info->filtering_behavior_reason(),
           container->IsRemoteApprovalPendingForUrl(url),
           error_info->is_main_frame(),
-          GetApplicationContext()->GetApplicationLocale(),
+          GetApplicationContext()->GetApplicationLocaleStorage()->Get(),
           ui_util::SystemSuggestedFontSizeMultiplier());
 
   security_interstitials::IOSBlockingPageTabHelper::FromWebState(web_state)
@@ -336,7 +331,7 @@ void ChromeWebClient::AddAdditionalSchemes(Schemes* schemes) const {
 
 std::string ChromeWebClient::GetApplicationLocale() const {
   DCHECK(GetApplicationContext());
-  return GetApplicationContext()->GetApplicationLocale();
+  return GetApplicationContext()->GetApplicationLocaleStorage()->Get();
 }
 
 bool ChromeWebClient::IsAppSpecificURL(const GURL& url) const {
@@ -604,11 +599,8 @@ void ChromeWebClient::CleanupNativeRestoreURLs(web::WebState* web_state) const {
 void ChromeWebClient::WillDisplayMediaCapturePermissionPrompt(
     web::WebState* web_state) const {
   // When a prendered page displays a prompt, cancel the prerender.
-  PrerenderService* prerender_service = PrerenderServiceFactory::GetForProfile(
-      ProfileIOS::FromBrowserState(web_state->GetBrowserState()));
-  if (prerender_service &&
-      prerender_service->IsWebStatePrerendered(web_state)) {
-    prerender_service->CancelPrerender();
+  if (auto* tab_helper = PrerenderTabHelper::FromWebState(web_state)) {
+    tab_helper->CancelPrerender();
   }
 }
 

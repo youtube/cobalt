@@ -103,7 +103,7 @@ class CC_EXPORT LayerTreeFrameSink : public viz::ContextLostObserver,
     return worker_context_provider_.get();
   }
 
-  scoped_refptr<gpu::ClientSharedImageInterface> shared_image_interface() const;
+  scoped_refptr<gpu::SharedImageInterface> shared_image_interface() const;
 
   // If supported, this sets the viz::LocalSurfaceId the LayerTreeFrameSink will
   // use to submit a CompositorFrame.
@@ -129,6 +129,11 @@ class CC_EXPORT LayerTreeFrameSink : public viz::ContextLostObserver,
   // the client did not lead to a CompositorFrame submission.
   virtual void DidNotProduceFrame(const viz::BeginFrameAck& ack,
                                   FrameSkippedReason reason) = 0;
+
+  // Notifies that a new local surface id is expected although rendering may be
+  // paused. This can be used to clean up pending output requests that would
+  // have been cleaned up by a new local surface id frame submission.
+  virtual void NotifyNewLocalSurfaceIdExpectedWhilePaused() = 0;
 
   virtual void ExportFrameTiming() {}
 

@@ -170,6 +170,12 @@ void FileChooserImpl::OpenFileChooser(blink::mojom::FileChooserParamsPtr params,
     return;
   }
 
+  // Do not allow open dialogs to have renderer-controlled default_file_name.
+  // See https://crbug.com/433800617 for context.
+  if (params->mode != blink::mojom::FileChooserParams::Mode::kSave) {
+    params->default_file_name = base::FilePath();
+  }
+
   // Don't allow page with open FileChooser to enter BackForwardCache to avoid
   // any unexpected behaviour from BackForwardCache.
   BackForwardCache::DisableForRenderFrameHost(
@@ -219,20 +225,20 @@ void FileChooserImpl::FileSelected(
   for (const auto& file : files) {
     if (mode == blink::mojom::FileChooserParams::Mode::kSave) {
       policy->GrantCreateReadWriteFile(pid, file->get_native_file()->file_path);
-    } else {
-      if (file->is_file_system()) {
-        if (!file_system_context) {
-          file_system_context = render_frame_host()
-                                    ->GetStoragePartition()
-                                    ->GetFileSystemContext();
-        }
-        policy->GrantReadFileSystem(
-            pid, file_system_context
-                     ->CrackURLInFirstPartyContext(file->get_file_system()->url)
-                     .mount_filesystem_id());
-      } else {
-        policy->GrantReadFile(pid, file->get_native_file()->file_path);
+      continue;
+    }
+
+    if (file->is_file_system()) {
+      if (!file_system_context) {
+        file_system_context =
+            render_frame_host()->GetStoragePartition()->GetFileSystemContext();
       }
+      policy->GrantReadFileSystem(
+          pid, file_system_context
+                   ->CrackURLInFirstPartyContext(file->get_file_system()->url)
+                   .mount_filesystem_id());
+    } else {
+      policy->GrantReadFile(pid, file->get_native_file()->file_path);
     }
   }
   std::move(callback_).Run(FileChooserResult::New(std::move(files), base_dir));
@@ -245,10 +251,7 @@ void FileChooserImpl::FileSelectionCanceled() {
 
 RenderFrameHostImpl* FileChooserImpl::render_frame_host() {
   RenderFrameHostImpl* rfh = RenderFrameHostImpl::FromID(render_frame_host_id_);
-  if (rfh && rfh->IsRenderFrameLive()) {
-    return rfh;
-  }
-  return nullptr;
+  return (rfh && rfh->IsRenderFrameLive()) ? rfh : nullptr;
 }
 
 }  // namespace content

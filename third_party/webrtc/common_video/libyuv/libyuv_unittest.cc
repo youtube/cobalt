@@ -8,11 +8,10 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <math.h>
-#include <string.h>
-
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <string>
@@ -148,10 +147,10 @@ TEST_F(TestLibYuv, ConvertTest) {
   int ret = libyuv::I420Copy(
       out_i420_buffer.get(), width_, out_i420_buffer.get() + y_size,
       width_ >> 1, out_i420_buffer.get() + y_size + u_size, width_ >> 1,
-      res_i420_buffer.get()->MutableDataY(), res_i420_buffer.get()->StrideY(),
-      res_i420_buffer.get()->MutableDataU(), res_i420_buffer.get()->StrideU(),
-      res_i420_buffer.get()->MutableDataV(), res_i420_buffer.get()->StrideV(),
-      width_, height_);
+      res_i420_buffer->MutableDataY(), res_i420_buffer->StrideY(),
+      res_i420_buffer->MutableDataU(), res_i420_buffer->StrideU(),
+      res_i420_buffer->MutableDataV(), res_i420_buffer->StrideV(), width_,
+      height_);
   EXPECT_EQ(0, ret);
 
   if (PrintVideoFrame(*res_i420_buffer, output_file) < 0) {
@@ -174,10 +173,10 @@ TEST_F(TestLibYuv, ConvertTest) {
                                res_rgb_buffer2.get()));
 
   ret = libyuv::ConvertToI420(
-      res_rgb_buffer2.get(), 0, res_i420_buffer.get()->MutableDataY(),
-      res_i420_buffer.get()->StrideY(), res_i420_buffer.get()->MutableDataU(),
-      res_i420_buffer.get()->StrideU(), res_i420_buffer.get()->MutableDataV(),
-      res_i420_buffer.get()->StrideV(), 0, 0, width_, height_,
+      res_rgb_buffer2.get(), 0, res_i420_buffer->MutableDataY(),
+      res_i420_buffer->StrideY(), res_i420_buffer->MutableDataU(),
+      res_i420_buffer->StrideU(), res_i420_buffer->MutableDataV(),
+      res_i420_buffer->StrideV(), 0, 0, width_, height_,
       res_i420_buffer->width(), res_i420_buffer->height(), libyuv::kRotate0,
       ConvertVideoType(VideoType::kRGB24));
 
@@ -198,10 +197,10 @@ TEST_F(TestLibYuv, ConvertTest) {
                                out_uyvy_buffer.get()));
 
   ret = libyuv::ConvertToI420(
-      out_uyvy_buffer.get(), 0, res_i420_buffer.get()->MutableDataY(),
-      res_i420_buffer.get()->StrideY(), res_i420_buffer.get()->MutableDataU(),
-      res_i420_buffer.get()->StrideU(), res_i420_buffer.get()->MutableDataV(),
-      res_i420_buffer.get()->StrideV(), 0, 0, width_, height_,
+      out_uyvy_buffer.get(), 0, res_i420_buffer->MutableDataY(),
+      res_i420_buffer->StrideY(), res_i420_buffer->MutableDataU(),
+      res_i420_buffer->StrideU(), res_i420_buffer->MutableDataV(),
+      res_i420_buffer->StrideV(), 0, 0, width_, height_,
       res_i420_buffer->width(), res_i420_buffer->height(), libyuv::kRotate0,
       ConvertVideoType(VideoType::kUYVY));
 
@@ -220,10 +219,10 @@ TEST_F(TestLibYuv, ConvertTest) {
                                out_yuy2_buffer.get()));
 
   ret = libyuv::ConvertToI420(
-      out_yuy2_buffer.get(), 0, res_i420_buffer.get()->MutableDataY(),
-      res_i420_buffer.get()->StrideY(), res_i420_buffer.get()->MutableDataU(),
-      res_i420_buffer.get()->StrideU(), res_i420_buffer.get()->MutableDataV(),
-      res_i420_buffer.get()->StrideV(), 0, 0, width_, height_,
+      out_yuy2_buffer.get(), 0, res_i420_buffer->MutableDataY(),
+      res_i420_buffer->StrideY(), res_i420_buffer->MutableDataU(),
+      res_i420_buffer->StrideU(), res_i420_buffer->MutableDataV(),
+      res_i420_buffer->StrideV(), 0, 0, width_, height_,
       res_i420_buffer->width(), res_i420_buffer->height(), libyuv::kRotate0,
       ConvertVideoType(VideoType::kYUY2));
 
@@ -244,10 +243,10 @@ TEST_F(TestLibYuv, ConvertTest) {
                                out_rgb565_buffer.get()));
 
   ret = libyuv::ConvertToI420(
-      out_rgb565_buffer.get(), 0, res_i420_buffer.get()->MutableDataY(),
-      res_i420_buffer.get()->StrideY(), res_i420_buffer.get()->MutableDataU(),
-      res_i420_buffer.get()->StrideU(), res_i420_buffer.get()->MutableDataV(),
-      res_i420_buffer.get()->StrideV(), 0, 0, width_, height_,
+      out_rgb565_buffer.get(), 0, res_i420_buffer->MutableDataY(),
+      res_i420_buffer->StrideY(), res_i420_buffer->MutableDataU(),
+      res_i420_buffer->StrideU(), res_i420_buffer->MutableDataV(),
+      res_i420_buffer->StrideV(), 0, 0, width_, height_,
       res_i420_buffer->width(), res_i420_buffer->height(), libyuv::kRotate0,
       ConvertVideoType(VideoType::kRGB565));
 
@@ -271,10 +270,10 @@ TEST_F(TestLibYuv, ConvertTest) {
                                out_argb8888_buffer.get()));
 
   ret = libyuv::ConvertToI420(
-      out_argb8888_buffer.get(), 0, res_i420_buffer.get()->MutableDataY(),
-      res_i420_buffer.get()->StrideY(), res_i420_buffer.get()->MutableDataU(),
-      res_i420_buffer.get()->StrideU(), res_i420_buffer.get()->MutableDataV(),
-      res_i420_buffer.get()->StrideV(), 0, 0, width_, height_,
+      out_argb8888_buffer.get(), 0, res_i420_buffer->MutableDataY(),
+      res_i420_buffer->StrideY(), res_i420_buffer->MutableDataU(),
+      res_i420_buffer->StrideU(), res_i420_buffer->MutableDataV(),
+      res_i420_buffer->StrideV(), 0, 0, width_, height_,
       res_i420_buffer->width(), res_i420_buffer->height(), libyuv::kRotate0,
       ConvertVideoType(VideoType::kARGB));
 
@@ -316,10 +315,10 @@ TEST_F(TestLibYuv, ConvertAlignedFrame) {
   int ret = libyuv::I420Copy(
       out_i420_buffer.get(), width_, out_i420_buffer.get() + y_size,
       width_ >> 1, out_i420_buffer.get() + y_size + u_size, width_ >> 1,
-      res_i420_buffer.get()->MutableDataY(), res_i420_buffer.get()->StrideY(),
-      res_i420_buffer.get()->MutableDataU(), res_i420_buffer.get()->StrideU(),
-      res_i420_buffer.get()->MutableDataV(), res_i420_buffer.get()->StrideV(),
-      width_, height_);
+      res_i420_buffer->MutableDataY(), res_i420_buffer->StrideY(),
+      res_i420_buffer->MutableDataU(), res_i420_buffer->StrideU(),
+      res_i420_buffer->MutableDataV(), res_i420_buffer->StrideV(), width_,
+      height_);
 
   EXPECT_EQ(0, ret);
 

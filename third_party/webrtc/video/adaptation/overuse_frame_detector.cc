@@ -10,11 +10,10 @@
 
 #include "video/adaptation/overuse_frame_detector.h"
 
-#include <math.h>
-#include <stdio.h>
-
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <list>
 #include <map>
 #include <memory>

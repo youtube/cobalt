@@ -92,7 +92,7 @@ public class SemanticColorUtils {
 
     /** Returns the semantic color value that corresponds to divider_line_bg_color. */
     public static @ColorInt int getDividerLineBgColor(Context context) {
-        return resolve(R.attr.colorSurfaceContainerHighest, context);
+        return ContextCompat.getColor(context, R.color.drag_handlebar_color_list);
     }
 
     /** Returns the semantic color value that corresponds to bottom_system_nav_color. */
@@ -142,7 +142,7 @@ public class SemanticColorUtils {
 
     /** Returns the semantic color value that corresponds to drag_handlebar_color. */
     public static @ColorInt int getDragHandlebarColor(Context context) {
-        return getDividerLineBgColor(context);
+        return ContextCompat.getColor(context, R.color.drag_handlebar_color_list);
     }
 
     /** Returns the surface color value of the conceptual dialog_bg_color. */

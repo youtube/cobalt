@@ -33,6 +33,7 @@ import type {DomIf} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundle
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import type {CheckupSectionElement} from './checkup_section.js';
+import type {BackupPasswordRemovedEvent} from './credential_details/backup_password_details_card.js';
 import type {PasswordRemovedEvent} from './credential_details/password_details_card.js';
 import type {FocusConfig} from './focus_config.js';
 import {getTemplate} from './password_manager_app.html.js';
@@ -197,7 +198,7 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
       controlledSettingParent:
           loadTimeData.getString('controlledSettingParent'),
 
-      // <if expr="chromeos_ash">
+      // <if expr="is_chromeos">
       controlledSettingShared:
           loadTimeData.getString('controlledSettingShared'),
       controlledSettingWithOwner:
@@ -310,6 +311,12 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
 
   private onPasswordRemoved_(_event: PasswordRemovedEvent) {
     // TODO(crbug.com/40234318): Show different message if account store user.
+    this.showUndo_ = true;
+    this.toastMessage_ = this.i18n('passwordDeleted');
+    this.$.toast.show();
+  }
+
+  private onBackupPasswordRemoved_(_event: BackupPasswordRemovedEvent) {
     this.showUndo_ = true;
     this.toastMessage_ = this.i18n('passwordDeleted');
     this.$.toast.show();

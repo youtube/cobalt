@@ -117,13 +117,20 @@ void AutofillKeyboardAccessoryViewImpl::Show() {
       }
     }
 
+    base::android::ScopedJavaLocalRef<jobject> payload;
+    if (const Suggestion::AutofillProfilePayload* profile_payload =
+            std::get_if<Suggestion::AutofillProfilePayload>(
+                &suggestion.payload)) {
+      payload = profile_payload->CreateJavaObject();
+    }
+
     auto* custom_icon_url =
         std::get_if<Suggestion::CustomIconUrl>(&suggestion.custom_icon);
     java_suggestions.push_back(
         Java_AutofillKeyboardAccessoryViewBridge_createAutofillSuggestion(
             env, label, sublabel, android_icon_id,
             base::to_underlying(suggestion.type),
-            controller_->GetRemovalConfirmationText(i, nullptr, nullptr),
+            controller_->GetRemovalConfirmationText(i, nullptr),
             suggestion.iph_metadata.feature
                 ? suggestion.iph_metadata.feature->name
                 : "",
@@ -131,39 +138,38 @@ void AutofillKeyboardAccessoryViewImpl::Show() {
             custom_icon_url
                 ? url::GURLAndroid::FromNativeGURL(env, **custom_icon_url)
                 : url::GURLAndroid::EmptyGURL(env),
-            suggestion.HasDeactivatedStyle()));
+            suggestion.HasDeactivatedStyle(), payload));
   }
   Java_AutofillKeyboardAccessoryViewBridge_show(env, java_object_,
                                                 std::move(java_suggestions));
 }
 
 void AutofillKeyboardAccessoryViewImpl::AxAnnounce(const std::u16string& text) {
-  AnnounceTextForA11y(text);
+  AutofillAccessibilityHelper::GetInstance()->AnnounceTextForA11y(text);
 }
 
 void AutofillKeyboardAccessoryViewImpl::ConfirmDeletion(
     const std::u16string& confirmation_title,
     const std::u16string& confirmation_body,
+    const std::u16string& confirmation_body_link,
+    const std::u16string& confirmation_button_text,
     base::OnceCallback<void(bool)> deletion_callback) {
   JNIEnv* env = base::android::AttachCurrentThread();
   deletion_callback_ = std::move(deletion_callback);
   Java_AutofillKeyboardAccessoryViewBridge_confirmDeletion(
-      env, java_object_, confirmation_title, confirmation_body);
+      env, java_object_, confirmation_title, confirmation_body,
+      confirmation_body_link, confirmation_button_text);
 }
 
-void AutofillKeyboardAccessoryViewImpl::SuggestionSelected(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    jint list_index) {
+void AutofillKeyboardAccessoryViewImpl::SuggestionSelected(JNIEnv* env,
+                                                           jint list_index) {
   if (controller_) {
     controller_->AcceptSuggestion(list_index);
   }
 }
 
-void AutofillKeyboardAccessoryViewImpl::DeletionRequested(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
-    jint list_index) {
+void AutofillKeyboardAccessoryViewImpl::DeletionRequested(JNIEnv* env,
+                                                          jint list_index) {
   if (controller_) {
     controller_->RemoveSuggestion(
         list_index,
@@ -173,7 +179,6 @@ void AutofillKeyboardAccessoryViewImpl::DeletionRequested(
 
 void AutofillKeyboardAccessoryViewImpl::OnDeletionDialogClosed(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     jboolean confirmed) {
   if (deletion_callback_.is_null()) {
     LOG(DFATAL) << "OnDeletionDialogClosed called but no deletion is pending!";
@@ -182,9 +187,7 @@ void AutofillKeyboardAccessoryViewImpl::OnDeletionDialogClosed(
   std::move(deletion_callback_).Run(confirmed);
 }
 
-void AutofillKeyboardAccessoryViewImpl::ViewDismissed(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& obj) {
+void AutofillKeyboardAccessoryViewImpl::ViewDismissed(JNIEnv* env) {
   if (controller_) {
     controller_->ViewDestroyed();
   }

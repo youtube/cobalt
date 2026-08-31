@@ -24,7 +24,7 @@
 
 namespace {
 
-static const char kFakeCodecFactoryCodecName[] = "FakeCodec";
+const char kFakeCodecFactoryCodecName[] = "FakeCodec";
 
 }  // anonymous namespace
 

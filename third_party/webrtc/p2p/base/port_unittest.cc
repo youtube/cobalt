@@ -10,10 +10,10 @@
 
 #include "p2p/base/port.h"
 
-#include <string.h>
-
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <list>
 #include <memory>
@@ -29,6 +29,7 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "api/packet_socket_factory.h"
 #include "api/rtc_error.h"
 #include "api/test/rtc_error_matchers.h"
@@ -71,9 +72,9 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
-#include "test/scoped_key_value_config.h"
 #include "test/wait_until.h"
 
 using ::testing::Eq;
@@ -105,10 +106,10 @@ constexpr int kMaxExpectedSimulatedRtt = 200;
 const SocketAddress kLocalAddr1("192.168.1.2", 0);
 const SocketAddress kLocalAddr2("192.168.1.3", 0);
 const SocketAddress kLinkLocalIPv6Addr("fe80::aabb:ccff:fedd:eeff", 0);
-const SocketAddress kNatAddr1("77.77.77.77", webrtc::NAT_SERVER_UDP_PORT);
-const SocketAddress kNatAddr2("88.88.88.88", webrtc::NAT_SERVER_UDP_PORT);
-const SocketAddress kStunAddr("99.99.99.1", webrtc::STUN_SERVER_PORT);
-const SocketAddress kTurnUdpIntAddr("99.99.99.4", webrtc::STUN_SERVER_PORT);
+const SocketAddress kNatAddr1("77.77.77.77", NAT_SERVER_UDP_PORT);
+const SocketAddress kNatAddr2("88.88.88.88", NAT_SERVER_UDP_PORT);
+const SocketAddress kStunAddr("99.99.99.1", STUN_SERVER_PORT);
+const SocketAddress kTurnUdpIntAddr("99.99.99.4", STUN_SERVER_PORT);
 const SocketAddress kTurnTcpIntAddr("99.99.99.4", 5010);
 const SocketAddress kTurnUdpExtAddr("99.99.99.5", 0);
 const RelayCredentials kRelayCredentials("test", "test");
@@ -123,7 +124,7 @@ constexpr int kTiebreaker1 = 11111;
 constexpr int kTiebreaker2 = 22222;
 constexpr int kTiebreakerDefault = 44444;
 
-const char* kTestData = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+constexpr char kTestData[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
 
 Candidate GetCandidate(Port* port) {
   RTC_DCHECK_GE(port->Candidates().size(), 1);
@@ -155,7 +156,7 @@ class TestPort : public Port {
  public:
   TestPort(const PortParametersRef& args, uint16_t min_port, uint16_t max_port)
       : Port(args, IceCandidateType::kHost, min_port, max_port) {}
-  ~TestPort() {}
+  ~TestPort() override {}
 
   // Expose GetStunMessage so that we can test it.
   using Port::GetStunMessage;
@@ -178,7 +179,7 @@ class TestPort : public Port {
     return code;
   }
 
-  virtual void PrepareAddress() {
+  void PrepareAddress() override {
     // Act as if the socket was bound to the best IP on the network, to the
     // first port in the allowed range.
     SocketAddress addr(Network()->GetBestIP(), min_port());
@@ -186,11 +187,11 @@ class TestPort : public Port {
                ICE_TYPE_PREFERENCE_HOST, 0, "", true);
   }
 
-  virtual bool SupportsProtocol(absl::string_view /* protocol */) const {
+  bool SupportsProtocol(absl::string_view /* protocol */) const override {
     return true;
   }
 
-  virtual ProtocolType GetProtocol() const { return webrtc::PROTO_UDP; }
+  ProtocolType GetProtocol() const override { return PROTO_UDP; }
 
   // Exposed for testing candidate building.
   void AddCandidateAddress(const SocketAddress& addr) {
@@ -206,8 +207,8 @@ class TestPort : public Port {
                type_preference, 0, "", final);
   }
 
-  virtual Connection* CreateConnection(const Candidate& remote_candidate,
-                                       CandidateOrigin /* origin */) {
+  Connection* CreateConnection(const Candidate& remote_candidate,
+                               CandidateOrigin /* origin */) override {
     Connection* conn = new ProxyConnection(NewWeakPtr(), 0, remote_candidate);
     AddOrReplaceConnection(conn);
     // Set use-candidate attribute flag as this will add USE-CANDIDATE attribute
@@ -215,11 +216,11 @@ class TestPort : public Port {
     conn->set_use_candidate_attr(true);
     return conn;
   }
-  virtual int SendTo(const void* data,
-                     size_t size,
-                     const SocketAddress& /* addr */,
-                     const AsyncSocketPacketOptions& /* options */,
-                     bool payload) {
+  int SendTo(const void* data,
+             size_t size,
+             const SocketAddress& /* addr */,
+             const AsyncSocketPacketOptions& /* options */,
+             bool payload) override {
     if (!payload) {
       auto msg = std::make_unique<IceMessage>();
       auto buf = std::make_unique<BufferT<uint8_t>>(
@@ -233,9 +234,11 @@ class TestPort : public Port {
     }
     return static_cast<int>(size);
   }
-  virtual int SetOption(Socket::Option /* opt */, int /* value */) { return 0; }
-  virtual int GetOption(Socket::Option opt, int* value) { return -1; }
-  virtual int GetError() { return 0; }
+  int SetOption(Socket::Option /* opt */, int /* value */) override {
+    return 0;
+  }
+  int GetOption(Socket::Option opt, int* value) override { return -1; }
+  int GetError() override { return 0; }
   void Reset() {
     last_stun_buf_.reset();
     last_stun_msg_.reset();
@@ -246,7 +249,7 @@ class TestPort : public Port {
 
  private:
   void OnSentPacket(AsyncPacketSocket* socket,
-                    const SentPacketInfo& sent_packet) {
+                    const SentPacketInfo& sent_packet) override {
     PortInterface::SignalSentPacket(sent_packet);
   }
   std::unique_ptr<BufferT<uint8_t>> last_stun_buf_;
@@ -269,20 +272,18 @@ static void SendPingAndReceiveResponse(Connection* lconn,
                                        TestPort* rport,
                                        ScopedFakeClock* clock,
                                        int64_t ms) {
-  lconn->Ping(webrtc::TimeMillis());
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
+  lconn->Ping(TimeMillis());
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(lport->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport->last_stun_buf(), SocketAddress(), std::nullopt));
 
   clock->AdvanceTime(TimeDelta::Millis(ms));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(rport->last_stun_buf().size(), 0u);
   lconn->OnReadPacket(
       ReceivedIpPacket(rport->last_stun_buf(), SocketAddress(), std::nullopt));
@@ -298,7 +299,7 @@ class TestChannel : public sigslot::has_slots<> {
         [this](PortInterface* port) { OnSrcPortDestroyed(port); });
   }
 
-  ~TestChannel() { Stop(); }
+  ~TestChannel() override { Stop(); }
 
   int complete_count() { return complete_count_; }
   Connection* conn() { return conn_; }
@@ -309,10 +310,9 @@ class TestChannel : public sigslot::has_slots<> {
   void CreateConnection(const Candidate& remote_candidate) {
     RTC_DCHECK(!conn_);
     conn_ = port_->CreateConnection(remote_candidate, Port::ORIGIN_MESSAGE);
-    IceMode remote_ice_mode = (ice_mode_ == webrtc::ICEMODE_FULL)
-                                  ? webrtc::ICEMODE_LITE
-                                  : webrtc::ICEMODE_FULL;
-    conn_->set_use_candidate_attr(remote_ice_mode == webrtc::ICEMODE_FULL);
+    IceMode remote_ice_mode =
+        (ice_mode_ == ICEMODE_FULL) ? ICEMODE_LITE : ICEMODE_FULL;
+    conn_->set_use_candidate_attr(remote_ice_mode == ICEMODE_FULL);
     conn_->SignalStateChange.connect(this,
                                      &TestChannel::OnConnectionStateChange);
     conn_->SignalDestroyed.connect(this, &TestChannel::OnDestroyed);
@@ -412,7 +412,7 @@ class TestChannel : public sigslot::has_slots<> {
     connection_ready_to_send_ = true;
   }
 
-  IceMode ice_mode_ = webrtc::ICEMODE_FULL;
+  IceMode ice_mode_ = ICEMODE_FULL;
   std::unique_ptr<Port> port_;
 
   int complete_count_ = 0;
@@ -436,12 +436,12 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
         nat_socket_factory2_(&nat_factory2_),
         stun_server_(TestStunServer::Create(ss_.get(), kStunAddr, main_)),
         turn_server_(&main_, ss_.get(), kTurnUdpIntAddr, kTurnUdpExtAddr),
-        username_(webrtc::CreateRandomString(ICE_UFRAG_LENGTH)),
-        password_(webrtc::CreateRandomString(ICE_PWD_LENGTH)),
+        username_(CreateRandomString(ICE_UFRAG_LENGTH)),
+        password_(CreateRandomString(ICE_PWD_LENGTH)),
         role_conflict_(false),
         ports_destroyed_(0) {}
 
-  ~PortTest() {
+  ~PortTest() override {
     // Workaround for tests that trigger async destruction of objects that we
     // need to give an opportunity here to run, before proceeding with other
     // teardown.
@@ -453,84 +453,82 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
   void TestLocalToLocal() {
     auto port1 = CreateUdpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
     auto port2 = CreateUdpPort(kLocalAddr2);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity("udp", std::move(port1), "udp", std::move(port2), true,
                      true, true, true);
   }
   void TestLocalToStun(NATType ntype) {
     auto port1 = CreateUdpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
     nat_server2_ = CreateNatServer(kNatAddr2, ntype);
     auto port2 = CreateStunPort(kLocalAddr2, &nat_socket_factory2_);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity("udp", std::move(port1), StunName(ntype), std::move(port2),
-                     ntype == webrtc::NAT_OPEN_CONE, true,
-                     ntype != webrtc::NAT_SYMMETRIC, true);
+                     ntype == NAT_OPEN_CONE, true, ntype != NAT_SYMMETRIC,
+                     true);
   }
   void TestLocalToRelay(ProtocolType proto) {
     auto port1 = CreateUdpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
-    auto port2 = CreateRelayPort(kLocalAddr2, proto, webrtc::PROTO_UDP);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
+    auto port2 = CreateRelayPort(kLocalAddr2, proto, PROTO_UDP);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity("udp", std::move(port1), RelayName(proto),
                      std::move(port2), false, true, true, true);
   }
   void TestStunToLocal(NATType ntype) {
     nat_server1_ = CreateNatServer(kNatAddr1, ntype);
     auto port1 = CreateStunPort(kLocalAddr1, &nat_socket_factory1_);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
     auto port2 = CreateUdpPort(kLocalAddr2);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity(StunName(ntype), std::move(port1), "udp", std::move(port2),
-                     true, ntype != webrtc::NAT_SYMMETRIC, true, true);
+                     true, ntype != NAT_SYMMETRIC, true, true);
   }
   void TestStunToStun(NATType ntype1, NATType ntype2) {
     nat_server1_ = CreateNatServer(kNatAddr1, ntype1);
     auto port1 = CreateStunPort(kLocalAddr1, &nat_socket_factory1_);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
     nat_server2_ = CreateNatServer(kNatAddr2, ntype2);
     auto port2 = CreateStunPort(kLocalAddr2, &nat_socket_factory2_);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity(StunName(ntype1), std::move(port1), StunName(ntype2),
-                     std::move(port2), ntype2 == webrtc::NAT_OPEN_CONE,
-                     ntype1 != webrtc::NAT_SYMMETRIC,
-                     ntype2 != webrtc::NAT_SYMMETRIC,
-                     ntype1 + ntype2 <
-                         (webrtc::NAT_PORT_RESTRICTED + webrtc::NAT_SYMMETRIC));
+                     std::move(port2), ntype2 == NAT_OPEN_CONE,
+                     ntype1 != NAT_SYMMETRIC, ntype2 != NAT_SYMMETRIC,
+                     ntype1 + ntype2 < (NAT_PORT_RESTRICTED + NAT_SYMMETRIC));
   }
   void TestStunToRelay(NATType ntype, ProtocolType proto) {
     nat_server1_ = CreateNatServer(kNatAddr1, ntype);
     auto port1 = CreateStunPort(kLocalAddr1, &nat_socket_factory1_);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
-    auto port2 = CreateRelayPort(kLocalAddr2, proto, webrtc::PROTO_UDP);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
+    auto port2 = CreateRelayPort(kLocalAddr2, proto, PROTO_UDP);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity(StunName(ntype), std::move(port1), RelayName(proto),
-                     std::move(port2), false, ntype != webrtc::NAT_SYMMETRIC,
-                     true, true);
+                     std::move(port2), false, ntype != NAT_SYMMETRIC, true,
+                     true);
   }
   void TestTcpToTcp() {
     auto port1 = CreateTcpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
     auto port2 = CreateTcpPort(kLocalAddr2);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity("tcp", std::move(port1), "tcp", std::move(port2), true,
                      false, true, true);
   }
   void TestTcpToRelay(ProtocolType proto) {
     auto port1 = CreateTcpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
-    auto port2 = CreateRelayPort(kLocalAddr2, proto, webrtc::PROTO_TCP);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
+    auto port2 = CreateRelayPort(kLocalAddr2, proto, PROTO_TCP);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity("tcp", std::move(port1), RelayName(proto),
                      std::move(port2), false, false, true, true);
   }
   void TestSslTcpToRelay(ProtocolType proto) {
     auto port1 = CreateTcpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
-    auto port2 = CreateRelayPort(kLocalAddr2, proto, webrtc::PROTO_SSLTCP);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
+    auto port2 = CreateRelayPort(kLocalAddr2, proto, PROTO_SSLTCP);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
     TestConnectivity("ssltcp", std::move(port1), RelayName(proto),
                      std::move(port2), false, false, true, true);
   }
@@ -544,7 +542,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   Network* MakeNetworkMultipleAddrs(const SocketAddress& global_addr,
                                     const SocketAddress& link_local_addr) {
     networks_.emplace_back("unittest", "unittest", global_addr.ipaddr(), 32,
-                           webrtc::ADAPTER_TYPE_UNKNOWN);
+                           ADAPTER_TYPE_UNKNOWN);
     networks_.back().AddIP(link_local_addr.ipaddr());
     networks_.back().AddIP(global_addr.ipaddr());
     networks_.back().AddIP(link_local_addr.ipaddr());
@@ -623,7 +621,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
                                            ProtocolType int_proto,
                                            ProtocolType ext_proto) {
     SocketAddress server_addr =
-        int_proto == webrtc::PROTO_TCP ? kTurnTcpIntAddr : kTurnUdpIntAddr;
+        int_proto == PROTO_TCP ? kTurnTcpIntAddr : kTurnUdpIntAddr;
     return CreateTurnPort(addr, socket_factory, int_proto, ext_proto,
                           server_addr);
   }
@@ -656,13 +654,13 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   }
   static const char* StunName(NATType type) {
     switch (type) {
-      case webrtc::NAT_OPEN_CONE:
+      case NAT_OPEN_CONE:
         return "stun(open cone)";
-      case webrtc::NAT_ADDR_RESTRICTED:
+      case NAT_ADDR_RESTRICTED:
         return "stun(addr restricted)";
-      case webrtc::NAT_PORT_RESTRICTED:
+      case NAT_PORT_RESTRICTED:
         return "stun(port restricted)";
-      case webrtc::NAT_SYMMETRIC:
+      case NAT_SYMMETRIC:
         return "stun(symmetric)";
       default:
         return "stun(?)";
@@ -670,13 +668,13 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   }
   static const char* RelayName(ProtocolType proto) {
     switch (proto) {
-      case webrtc::PROTO_UDP:
+      case PROTO_UDP:
         return "turn(udp)";
-      case webrtc::PROTO_TCP:
+      case PROTO_TCP:
         return "turn(tcp)";
-      case webrtc::PROTO_SSLTCP:
+      case PROTO_SSLTCP:
         return "turn(ssltcp)";
-      case webrtc::PROTO_TLS:
+      case PROTO_TLS:
         return "turn(tls)";
       default:
         return "turn(?)";
@@ -702,21 +700,19 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
   // TCP reconnecting mechanism before entering this function.
   void ConnectStartedChannels(TestChannel* ch1, TestChannel* ch2) {
     ASSERT_TRUE(ch1->conn());
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return ch1->conn()->connected(); }, IsTrue(),
+    EXPECT_THAT(WaitUntil([&] { return ch1->conn()->connected(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());  // for TCP connect
+                IsRtcOk());  // for TCP connect
     ch1->Ping();
     WAIT(!ch2->remote_address().IsNil(), kShortTimeout);
 
     // Send a ping from dst to src.
     ch2->AcceptConnection(GetCandidate(ch1->port()));
     ch2->Ping();
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return ch2->conn()->write_state(); },
+    EXPECT_THAT(WaitUntil([&] { return ch2->conn()->write_state(); },
                           Eq(Connection::STATE_WRITABLE),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
   }
 
   // This connects and disconnects the provided channels in the same sequence as
@@ -745,14 +741,12 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
                                  tcp_conn2->socket()->GetLocalAddress()));
 
     // Wait for both OnClose are delivered.
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return !ch1->conn()->connected(); }, IsTrue(),
+    EXPECT_THAT(WaitUntil([&] { return !ch1->conn()->connected(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return !ch2->conn()->connected(); }, IsTrue(),
+                IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return !ch2->conn()->connected(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
 
     // Ensure redundant SignalClose events on TcpConnection won't break tcp
     // reconnection. Chromium will fire SignalClose for all outstanding IPC
@@ -763,18 +757,17 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
     // Speed up destroying ch2's connection such that the test is ready to
     // accept a new connection from ch1 before ch1's connection destroys itself.
     ch2->Stop();
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return ch2->conn(); }, IsNull(),
+    EXPECT_THAT(WaitUntil([&] { return ch2->conn(); }, IsNull(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
   }
 
   void TestTcpReconnect(bool ping_after_disconnected,
                         bool send_after_disconnected) {
     auto port1 = CreateTcpPort(kLocalAddr1);
-    port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    port1->SetIceRole(ICEROLE_CONTROLLING);
     auto port2 = CreateTcpPort(kLocalAddr2);
-    port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    port2->SetIceRole(ICEROLE_CONTROLLED);
 
     port1->set_component(ICE_CANDIDATE_COMPONENT_DEFAULT);
     port2->set_component(ICE_CANDIDATE_COMPONENT_DEFAULT);
@@ -787,14 +780,12 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
 
     ch1.Start();
     ch2.Start();
-    ASSERT_THAT(
-        webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+    ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
-    ASSERT_THAT(
-        webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+                IsRtcOk());
+    ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
 
     // Initial connecting the channel, create connection on channel1.
     ch1.CreateConnection(GetCandidate(ch2.port()));
@@ -827,17 +818,16 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
       }
 
       // Wait for channel's outgoing TCPConnection connected.
-      EXPECT_THAT(
-          webrtc::WaitUntil([&] { return ch1.conn()->connected(); }, IsTrue(),
+      EXPECT_THAT(WaitUntil([&] { return ch1.conn()->connected(); }, IsTrue(),
                             {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-          webrtc::IsRtcOk());
+                  IsRtcOk());
 
       // Verify that we could still connect channels.
       ConnectStartedChannels(&ch1, &ch2);
-      EXPECT_THAT(webrtc::WaitUntil(
-                      [&] { return ch1.connection_ready_to_send(); }, IsTrue(),
-                      {.timeout = TimeDelta::Millis(kTcpReconnectTimeout)}),
-                  webrtc::IsRtcOk());
+      EXPECT_THAT(
+          WaitUntil([&] { return ch1.connection_ready_to_send(); }, IsTrue(),
+                    {.timeout = TimeDelta::Millis(kTcpReconnectTimeout)}),
+          IsRtcOk());
       // Channel2 is the passive one so a new connection is created during
       // reconnect. This new connection should never have issued ENOTCONN
       // hence the connection_ready_to_send() should be false.
@@ -846,25 +836,22 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
       EXPECT_EQ(ch1.conn()->write_state(), Connection::STATE_WRITABLE);
       // Since the reconnection never happens, the connections should have been
       // destroyed after the timeout.
-      EXPECT_THAT(
-          webrtc::WaitUntil([&] { return !ch1.conn(); }, IsTrue(),
+      EXPECT_THAT(WaitUntil([&] { return !ch1.conn(); }, IsTrue(),
                             {.timeout = TimeDelta::Millis(kTcpReconnectTimeout +
                                                           kDefaultTimeout)}),
-          webrtc::IsRtcOk());
+                  IsRtcOk());
       EXPECT_TRUE(!ch2.conn());
     }
 
     // Tear down and ensure that goes smoothly.
     ch1.Stop();
     ch2.Stop();
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return ch1.conn(); }, IsNull(),
+    EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, IsNull(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
-    EXPECT_THAT(
-        webrtc::WaitUntil([&] { return ch2.conn(); }, IsNull(),
+                IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return ch2.conn(); }, IsNull(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
   }
 
   std::unique_ptr<IceMessage> CreateStunMessage(StunMessageType type) {
@@ -904,7 +891,7 @@ class PortTest : public ::testing::Test, public sigslot::has_slots<> {
     port->SetIceTiebreaker(tiebreaker);
     return port;
   }
-  // Overload to create a test port given an webrtc::Network directly.
+  // Overload to create a test port given an Network directly.
   std::unique_ptr<TestPort> CreateTestPort(const Network* network,
                                            absl::string_view username,
                                            absl::string_view password) {
@@ -981,23 +968,22 @@ void PortTest::TestConnectivity(absl::string_view name1,
   // Acquire addresses.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
 
   // Send a ping from src to dst. This may or may not make it.
   ch1.CreateConnection(GetCandidate(ch2.port()));
   ASSERT_TRUE(ch1.conn() != nullptr);
-  EXPECT_THAT(
-      webrtc::WaitUntil(
-          [&] { return ch1.conn()->connected(); }, IsTrue(),
-          {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-      webrtc::IsRtcOk());  // for TCP connect
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->connected(); }, IsTrue(),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());  // for TCP connect
   ch1.Ping();
   SIMULATED_WAIT(!ch2.remote_address().IsNil(), kShortTimeout, clock);
 
@@ -1017,12 +1003,11 @@ void PortTest::TestConnectivity(absl::string_view name1,
     ch2.AcceptConnection(GetCandidate(ch1.port()));
     ASSERT_TRUE(ch2.conn() != nullptr);
     ch2.Ping();
-    EXPECT_THAT(
-        webrtc::WaitUntil(
-            [&] { return ch2.conn()->write_state(); },
-            Eq(Connection::STATE_WRITABLE),
-            {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-        webrtc::IsRtcOk());
+    EXPECT_THAT(WaitUntil([&] { return ch2.conn()->write_state(); },
+                          Eq(Connection::STATE_WRITABLE),
+                          {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                           .clock = &clock}),
+                IsRtcOk());
   } else {
     // We can't send a ping from src to dst, so flip it around. This will happen
     // when the destination NAT is addr/port restricted or symmetric.
@@ -1045,12 +1030,11 @@ void PortTest::TestConnectivity(absl::string_view name1,
       // through.  So we will have to do another.
       if (ch1.conn()->write_state() == Connection::STATE_WRITE_INIT) {
         ch1.Ping();
-        EXPECT_THAT(
-            webrtc::WaitUntil([&] { return ch1.conn()->write_state(); },
+        EXPECT_THAT(WaitUntil([&] { return ch1.conn()->write_state(); },
                               Eq(Connection::STATE_WRITABLE),
                               {.timeout = TimeDelta::Millis(kDefaultTimeout),
                                .clock = &clock}),
-            webrtc::IsRtcOk());
+                    IsRtcOk());
       }
     } else if (!same_addr1 && possible) {
       // The new ping went to the candidate address, but that address was bad.
@@ -1062,10 +1046,10 @@ void PortTest::TestConnectivity(absl::string_view name1,
       // able to get a ping from it. This gives us the real source address.
       ch1.Ping();
       EXPECT_THAT(
-          webrtc::WaitUntil(
+          WaitUntil(
               [&] { return !ch2.remote_address().IsNil(); }, IsTrue(),
               {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-          webrtc::IsRtcOk());
+          IsRtcOk());
       EXPECT_FALSE(ch2.conn()->receiving());
       EXPECT_TRUE(ch1.remote_address().IsNil());
 
@@ -1073,12 +1057,11 @@ void PortTest::TestConnectivity(absl::string_view name1,
       ch2.AcceptConnection(GetCandidate(ch1.port()));
       ASSERT_TRUE(ch2.conn() != nullptr);
       ch2.Ping();
-      EXPECT_THAT(
-          webrtc::WaitUntil(
-              [&] { return ch2.conn()->write_state(); },
-              Eq(Connection::STATE_WRITABLE),
-              {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-          webrtc::IsRtcOk());
+      EXPECT_THAT(WaitUntil([&] { return ch2.conn()->write_state(); },
+                            Eq(Connection::STATE_WRITABLE),
+                            {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                             .clock = &clock}),
+                  IsRtcOk());
     } else if (!same_addr2 && possible) {
       // The new ping came in, but from an unexpected address. This will happen
       // when the destination NAT is symmetric.
@@ -1088,12 +1071,11 @@ void PortTest::TestConnectivity(absl::string_view name1,
       // Update our address and complete the connection.
       ch1.AcceptConnection(GetCandidate(ch2.port()));
       ch1.Ping();
-      EXPECT_THAT(
-          webrtc::WaitUntil(
-              [&] { return ch1.conn()->write_state(); },
-              Eq(Connection::STATE_WRITABLE),
-              {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-          webrtc::IsRtcOk());
+      EXPECT_THAT(WaitUntil([&] { return ch1.conn()->write_state(); },
+                            Eq(Connection::STATE_WRITABLE),
+                            {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                             .clock = &clock}),
+                  IsRtcOk());
     } else {  // (!possible)
       // There should be s no way for the pings to reach each other. Check it.
       EXPECT_TRUE(ch1.remote_address().IsNil());
@@ -1123,14 +1105,14 @@ void PortTest::TestConnectivity(absl::string_view name1,
   // Tear down and ensure that goes smoothly.
   ch1.Stop();
   ch2.Stop();
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ch1.conn(); }, IsNull(),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ch2.conn(); }, IsNull(),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, IsNull(),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch2.conn(); }, IsNull(),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
 }
 
 class FakePacketSocketFactory : public PacketSocketFactory {
@@ -1191,38 +1173,38 @@ class FakeAsyncPacketSocket : public AsyncPacketSocket {
  public:
   // Returns current local address. Address may be set to NULL if the
   // socket is not bound yet (GetState() returns STATE_BINDING).
-  virtual SocketAddress GetLocalAddress() const { return local_address_; }
+  SocketAddress GetLocalAddress() const override { return local_address_; }
 
   // Returns remote address. Returns zeroes if this is not a client TCP socket.
-  virtual SocketAddress GetRemoteAddress() const { return remote_address_; }
+  SocketAddress GetRemoteAddress() const override { return remote_address_; }
 
   // Send a packet.
-  virtual int Send(const void* pv,
-                   size_t cb,
-                   const AsyncSocketPacketOptions& options) {
+  int Send(const void* pv,
+           size_t cb,
+           const AsyncSocketPacketOptions& options) override {
     if (error_ == 0) {
       return static_cast<int>(cb);
     } else {
       return -1;
     }
   }
-  virtual int SendTo(const void* pv,
-                     size_t cb,
-                     const SocketAddress& addr,
-                     const AsyncSocketPacketOptions& options) {
+  int SendTo(const void* pv,
+             size_t cb,
+             const SocketAddress& addr,
+             const AsyncSocketPacketOptions& options) override {
     if (error_ == 0) {
       return static_cast<int>(cb);
     } else {
       return -1;
     }
   }
-  virtual int Close() { return 0; }
+  int Close() override { return 0; }
 
-  virtual State GetState() const { return state_; }
-  virtual int GetOption(Socket::Option opt, int* value) { return 0; }
-  virtual int SetOption(Socket::Option opt, int value) { return 0; }
-  virtual int GetError() const { return 0; }
-  virtual void SetError(int error) { error_ = error; }
+  State GetState() const override { return state_; }
+  int GetOption(Socket::Option opt, int* value) override { return 0; }
+  int SetOption(Socket::Option opt, int value) override { return 0; }
+  int GetError() const override { return 0; }
+  void SetError(int error) override { error_ = error; }
 
   void set_state(State state) { state_ = state; }
 
@@ -1238,14 +1220,14 @@ class FakeAsyncListenSocket : public AsyncListenSocket {
  public:
   // Returns current local address. Address may be set to NULL if the
   // socket is not bound yet (GetState() returns STATE_BINDING).
-  virtual SocketAddress GetLocalAddress() const { return local_address_; }
+  SocketAddress GetLocalAddress() const override { return local_address_; }
   void Bind(const SocketAddress& address) {
     local_address_ = address;
     state_ = State::kBound;
   }
   virtual int GetOption(Socket::Option opt, int* value) { return 0; }
   virtual int SetOption(Socket::Option opt, int value) { return 0; }
-  virtual State GetState() const { return state_; }
+  State GetState() const override { return state_; }
 
  private:
   SocketAddress local_address_;
@@ -1258,127 +1240,127 @@ TEST_F(PortTest, TestLocalToLocal) {
 }
 
 TEST_F(PortTest, TestLocalToConeNat) {
-  TestLocalToStun(webrtc::NAT_OPEN_CONE);
+  TestLocalToStun(NAT_OPEN_CONE);
 }
 
 TEST_F(PortTest, TestLocalToARNat) {
-  TestLocalToStun(webrtc::NAT_ADDR_RESTRICTED);
+  TestLocalToStun(NAT_ADDR_RESTRICTED);
 }
 
 TEST_F(PortTest, TestLocalToPRNat) {
-  TestLocalToStun(webrtc::NAT_PORT_RESTRICTED);
+  TestLocalToStun(NAT_PORT_RESTRICTED);
 }
 
 TEST_F(PortTest, TestLocalToSymNat) {
-  TestLocalToStun(webrtc::NAT_SYMMETRIC);
+  TestLocalToStun(NAT_SYMMETRIC);
 }
 
 // Flaky: https://code.google.com/p/webrtc/issues/detail?id=3316.
 TEST_F(PortTest, DISABLED_TestLocalToTurn) {
-  TestLocalToRelay(webrtc::PROTO_UDP);
+  TestLocalToRelay(PROTO_UDP);
 }
 
 // Cone NAT -> XXXX
 TEST_F(PortTest, TestConeNatToLocal) {
-  TestStunToLocal(webrtc::NAT_OPEN_CONE);
+  TestStunToLocal(NAT_OPEN_CONE);
 }
 
 TEST_F(PortTest, TestConeNatToConeNat) {
-  TestStunToStun(webrtc::NAT_OPEN_CONE, webrtc::NAT_OPEN_CONE);
+  TestStunToStun(NAT_OPEN_CONE, NAT_OPEN_CONE);
 }
 
 TEST_F(PortTest, TestConeNatToARNat) {
-  TestStunToStun(webrtc::NAT_OPEN_CONE, webrtc::NAT_ADDR_RESTRICTED);
+  TestStunToStun(NAT_OPEN_CONE, NAT_ADDR_RESTRICTED);
 }
 
 TEST_F(PortTest, TestConeNatToPRNat) {
-  TestStunToStun(webrtc::NAT_OPEN_CONE, webrtc::NAT_PORT_RESTRICTED);
+  TestStunToStun(NAT_OPEN_CONE, NAT_PORT_RESTRICTED);
 }
 
 TEST_F(PortTest, TestConeNatToSymNat) {
-  TestStunToStun(webrtc::NAT_OPEN_CONE, webrtc::NAT_SYMMETRIC);
+  TestStunToStun(NAT_OPEN_CONE, NAT_SYMMETRIC);
 }
 
 TEST_F(PortTest, TestConeNatToTurn) {
-  TestStunToRelay(webrtc::NAT_OPEN_CONE, webrtc::PROTO_UDP);
+  TestStunToRelay(NAT_OPEN_CONE, PROTO_UDP);
 }
 
 // Address-restricted NAT -> XXXX
 TEST_F(PortTest, TestARNatToLocal) {
-  TestStunToLocal(webrtc::NAT_ADDR_RESTRICTED);
+  TestStunToLocal(NAT_ADDR_RESTRICTED);
 }
 
 TEST_F(PortTest, TestARNatToConeNat) {
-  TestStunToStun(webrtc::NAT_ADDR_RESTRICTED, webrtc::NAT_OPEN_CONE);
+  TestStunToStun(NAT_ADDR_RESTRICTED, NAT_OPEN_CONE);
 }
 
 TEST_F(PortTest, TestARNatToARNat) {
-  TestStunToStun(webrtc::NAT_ADDR_RESTRICTED, webrtc::NAT_ADDR_RESTRICTED);
+  TestStunToStun(NAT_ADDR_RESTRICTED, NAT_ADDR_RESTRICTED);
 }
 
 TEST_F(PortTest, TestARNatToPRNat) {
-  TestStunToStun(webrtc::NAT_ADDR_RESTRICTED, webrtc::NAT_PORT_RESTRICTED);
+  TestStunToStun(NAT_ADDR_RESTRICTED, NAT_PORT_RESTRICTED);
 }
 
 TEST_F(PortTest, TestARNatToSymNat) {
-  TestStunToStun(webrtc::NAT_ADDR_RESTRICTED, webrtc::NAT_SYMMETRIC);
+  TestStunToStun(NAT_ADDR_RESTRICTED, NAT_SYMMETRIC);
 }
 
 TEST_F(PortTest, TestARNatToTurn) {
-  TestStunToRelay(webrtc::NAT_ADDR_RESTRICTED, webrtc::PROTO_UDP);
+  TestStunToRelay(NAT_ADDR_RESTRICTED, PROTO_UDP);
 }
 
 // Port-restricted NAT -> XXXX
 TEST_F(PortTest, TestPRNatToLocal) {
-  TestStunToLocal(webrtc::NAT_PORT_RESTRICTED);
+  TestStunToLocal(NAT_PORT_RESTRICTED);
 }
 
 TEST_F(PortTest, TestPRNatToConeNat) {
-  TestStunToStun(webrtc::NAT_PORT_RESTRICTED, webrtc::NAT_OPEN_CONE);
+  TestStunToStun(NAT_PORT_RESTRICTED, NAT_OPEN_CONE);
 }
 
 TEST_F(PortTest, TestPRNatToARNat) {
-  TestStunToStun(webrtc::NAT_PORT_RESTRICTED, webrtc::NAT_ADDR_RESTRICTED);
+  TestStunToStun(NAT_PORT_RESTRICTED, NAT_ADDR_RESTRICTED);
 }
 
 TEST_F(PortTest, TestPRNatToPRNat) {
-  TestStunToStun(webrtc::NAT_PORT_RESTRICTED, webrtc::NAT_PORT_RESTRICTED);
+  TestStunToStun(NAT_PORT_RESTRICTED, NAT_PORT_RESTRICTED);
 }
 
 TEST_F(PortTest, TestPRNatToSymNat) {
   // Will "fail"
-  TestStunToStun(webrtc::NAT_PORT_RESTRICTED, webrtc::NAT_SYMMETRIC);
+  TestStunToStun(NAT_PORT_RESTRICTED, NAT_SYMMETRIC);
 }
 
 TEST_F(PortTest, TestPRNatToTurn) {
-  TestStunToRelay(webrtc::NAT_PORT_RESTRICTED, webrtc::PROTO_UDP);
+  TestStunToRelay(NAT_PORT_RESTRICTED, PROTO_UDP);
 }
 
 // Symmetric NAT -> XXXX
 TEST_F(PortTest, TestSymNatToLocal) {
-  TestStunToLocal(webrtc::NAT_SYMMETRIC);
+  TestStunToLocal(NAT_SYMMETRIC);
 }
 
 TEST_F(PortTest, TestSymNatToConeNat) {
-  TestStunToStun(webrtc::NAT_SYMMETRIC, webrtc::NAT_OPEN_CONE);
+  TestStunToStun(NAT_SYMMETRIC, NAT_OPEN_CONE);
 }
 
 TEST_F(PortTest, TestSymNatToARNat) {
-  TestStunToStun(webrtc::NAT_SYMMETRIC, webrtc::NAT_ADDR_RESTRICTED);
+  TestStunToStun(NAT_SYMMETRIC, NAT_ADDR_RESTRICTED);
 }
 
 TEST_F(PortTest, TestSymNatToPRNat) {
   // Will "fail"
-  TestStunToStun(webrtc::NAT_SYMMETRIC, webrtc::NAT_PORT_RESTRICTED);
+  TestStunToStun(NAT_SYMMETRIC, NAT_PORT_RESTRICTED);
 }
 
 TEST_F(PortTest, TestSymNatToSymNat) {
   // Will "fail"
-  TestStunToStun(webrtc::NAT_SYMMETRIC, webrtc::NAT_SYMMETRIC);
+  TestStunToStun(NAT_SYMMETRIC, NAT_SYMMETRIC);
 }
 
 TEST_F(PortTest, TestSymNatToTurn) {
-  TestStunToRelay(webrtc::NAT_SYMMETRIC, webrtc::PROTO_UDP);
+  TestStunToRelay(NAT_SYMMETRIC, PROTO_UDP);
 }
 
 // Outbound TCP -> XXXX
@@ -1402,7 +1384,7 @@ TEST_F(PortTest, TestTcpReconnectTimeout) {
 // destroy the connection.
 TEST_F(PortTest, TestTcpNeverConnect) {
   auto port1 = CreateTcpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   port1->set_component(ICE_CANDIDATE_COMPONENT_DEFAULT);
 
   // Set up a channel and ensure the port will be deleted.
@@ -1410,10 +1392,9 @@ TEST_F(PortTest, TestTcpNeverConnect) {
   EXPECT_EQ(0, ch1.complete_count());
 
   ch1.Start();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   std::unique_ptr<Socket> server(
       vss()->CreateSocket(kLocalAddr2.family(), SOCK_STREAM));
@@ -1425,10 +1406,9 @@ TEST_F(PortTest, TestTcpNeverConnect) {
 
   ch1.CreateConnection(c);
   EXPECT_TRUE(ch1.conn());
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return !ch1.conn(); }, IsTrue(),
+  EXPECT_THAT(WaitUntil([&] { return !ch1.conn(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());  // for TCP connect
+              IsRtcOk());  // for TCP connect
 }
 
 /* TODO(?): Enable these once testrelayserver can accept external TCP.
@@ -1463,19 +1443,17 @@ TEST_F(PortTest, TestConnectionDead) {
   // Acquire address.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   // Test case that the connection has never received anything.
-  int64_t before_created = webrtc::TimeMillis();
+  int64_t before_created = TimeMillis();
   ch1.CreateConnection(GetCandidate(ch2.port()));
-  int64_t after_created = webrtc::TimeMillis();
+  int64_t after_created = TimeMillis();
   Connection* conn = ch1.conn();
   ASSERT_NE(conn, nullptr);
   // It is not dead if it is after MIN_CONNECTION_LIFETIME but not pruned.
@@ -1489,29 +1467,27 @@ TEST_F(PortTest, TestConnectionDead) {
   EXPECT_TRUE(ch1.conn() != nullptr);
   // It will be dead after MIN_CONNECTION_LIFETIME and pruned.
   conn->UpdateState(after_created + MIN_CONNECTION_LIFETIME + 1);
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   // Test case that the connection has received something.
   // Create a connection again and receive a ping.
   ch1.CreateConnection(GetCandidate(ch2.port()));
   conn = ch1.conn();
   ASSERT_NE(conn, nullptr);
-  int64_t before_last_receiving = webrtc::TimeMillis();
+  int64_t before_last_receiving = TimeMillis();
   conn->ReceivedPing();
-  int64_t after_last_receiving = webrtc::TimeMillis();
+  int64_t after_last_receiving = TimeMillis();
   // The connection will be dead after DEAD_CONNECTION_RECEIVE_TIMEOUT
   conn->UpdateState(before_last_receiving + DEAD_CONNECTION_RECEIVE_TIMEOUT -
                     1);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
   conn->UpdateState(after_last_receiving + DEAD_CONNECTION_RECEIVE_TIMEOUT + 1);
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 }
 
 TEST_F(PortTest, TestConnectionDeadWithDeadConnectionTimeout) {
@@ -1520,14 +1496,12 @@ TEST_F(PortTest, TestConnectionDeadWithDeadConnectionTimeout) {
   // Acquire address.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   // Note: set field trials manually since they are parsed by
   // P2PTransportChannel but P2PTransportChannel is not used in this test.
@@ -1540,26 +1514,25 @@ TEST_F(PortTest, TestConnectionDeadWithDeadConnectionTimeout) {
   conn->SetIceFieldTrials(&field_trials);
 
   ASSERT_NE(conn, nullptr);
-  int64_t before_last_receiving = webrtc::TimeMillis();
+  int64_t before_last_receiving = TimeMillis();
   conn->ReceivedPing();
-  int64_t after_last_receiving = webrtc::TimeMillis();
+  int64_t after_last_receiving = TimeMillis();
   // The connection will be dead after 90s
   conn->UpdateState(before_last_receiving + 90000 - 1);
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
   conn->UpdateState(after_last_receiving + 90000 + 1);
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 }
 
 TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
   auto port1 = CreateUdpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   port1->SetIceTiebreaker(kTiebreaker1);
   auto port2 = CreateUdpPort(kLocalAddr2);
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
   port2->SetIceTiebreaker(kTiebreaker2);
 
   TestChannel ch1(std::move(port1));
@@ -1567,14 +1540,12 @@ TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
   // Acquire address.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   // Note: set field trials manually since they are parsed by
   // P2PTransportChannel but P2PTransportChannel is not used in this test.
@@ -1589,7 +1560,7 @@ TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
 
   ASSERT_NE(conn, nullptr);
   conn->ReceivedPing();
-  int64_t send_ping_timestamp = webrtc::TimeMillis();
+  int64_t send_ping_timestamp = TimeMillis();
   conn->Ping(send_ping_timestamp);
 
   // The connection will be dead 30s after the ping was sent.
@@ -1597,10 +1568,9 @@ TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
   Thread::Current()->ProcessMessages(100);
   EXPECT_TRUE(ch1.conn() != nullptr);
   conn->UpdateState(send_ping_timestamp + DEAD_CONNECTION_RECEIVE_TIMEOUT + 1);
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn(); }, Eq(nullptr),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 }
 
 // This test case verifies standard ICE features in STUN messages. Currently it
@@ -1608,10 +1578,10 @@ TEST_F(PortTest, TestConnectionDeadOutstandingPing) {
 // binding request will have colon (":") between remote and local username.
 TEST_F(PortTest, TestLocalToLocalStandard) {
   auto port1 = CreateUdpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   port1->SetIceTiebreaker(kTiebreaker1);
   auto port2 = CreateUdpPort(kLocalAddr2);
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
   port2->SetIceTiebreaker(kTiebreaker2);
   // Same parameters as TestLocalToLocal above.
   TestConnectivity("udp", std::move(port1), "udp", std::move(port2), true, true,
@@ -1624,7 +1594,7 @@ TEST_F(PortTest, TestLocalToLocalStandard) {
 // must be in controlling.
 TEST_F(PortTest, TestLoopbackCall) {
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
   lport->PrepareAddress();
   ASSERT_FALSE(lport->Candidates().empty());
@@ -1632,18 +1602,16 @@ TEST_F(PortTest, TestLoopbackCall) {
       lport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   conn->Ping(0);
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = lport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   conn->OnReadPacket(
       ReceivedIpPacket(lport->last_stun_buf(), SocketAddress(), std::nullopt));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   msg = lport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_RESPONSE, msg->type());
 
@@ -1656,10 +1624,9 @@ TEST_F(PortTest, TestLoopbackCall) {
       lport->CreateConnection(lport->Candidates()[1], Port::ORIGIN_MESSAGE);
   conn1->Ping(0);
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   msg = lport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   std::unique_ptr<IceMessage> modified_req(
@@ -1681,10 +1648,9 @@ TEST_F(PortTest, TestLoopbackCall) {
   conn1->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
       reinterpret_cast<const char*>(buf->Data()), buf->Length(),
       /*packet_time_us=*/-1));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   msg = lport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_ERROR_RESPONSE, msg->type());
 }
@@ -1696,10 +1662,10 @@ TEST_F(PortTest, TestLoopbackCall) {
 // send role conflict signal.
 TEST_F(PortTest, TestIceRoleConflict) {
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
   auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  rport->SetIceRole(ICEROLE_CONTROLLING);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   lport->PrepareAddress();
@@ -1712,20 +1678,18 @@ TEST_F(PortTest, TestIceRoleConflict) {
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   rconn->Ping(0);
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = rport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   // Send rport binding request to lport.
   lconn->OnReadPacket(
       ReceivedIpPacket(rport->last_stun_buf(), SocketAddress(), std::nullopt));
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_EQ(STUN_BINDING_RESPONSE, lport->last_stun_msg()->type());
   EXPECT_TRUE(role_conflict());
 }
@@ -1733,14 +1697,14 @@ TEST_F(PortTest, TestIceRoleConflict) {
 TEST_F(PortTest, TestTcpNoDelay) {
   ScopedFakeClock clock;
   auto port1 = CreateTcpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   int option_value = -1;
   int success = port1->GetOption(Socket::OPT_NODELAY, &option_value);
   ASSERT_EQ(0, success);  // GetOption() should complete successfully w/ 0
   EXPECT_EQ(1, option_value);
 
   auto port2 = CreateTcpPort(kLocalAddr2);
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
 
   // Set up a connection, and verify that option is set on connected sockets at
   // both ends.
@@ -1749,22 +1713,21 @@ TEST_F(PortTest, TestTcpNoDelay) {
   // Acquire addresses.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
   // Connect and send a ping from src to dst.
   ch1.CreateConnection(GetCandidate(ch2.port()));
   ASSERT_TRUE(ch1.conn() != nullptr);
-  EXPECT_THAT(
-      webrtc::WaitUntil(
-          [&] { return ch1.conn()->connected(); }, IsTrue(),
-          {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-      webrtc::IsRtcOk());  // for TCP connect
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->connected(); }, IsTrue(),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());  // for TCP connect
   ch1.Ping();
   SIMULATED_WAIT(!ch2.remote_address().IsNil(), kShortTimeout, clock);
 
@@ -1817,9 +1780,9 @@ TEST_F(PortTest, TestDisableInterfaceOfTcpPort) {
   lsocket->Bind(kLocalAddr1);
   rsocket->Bind(kLocalAddr2);
 
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   lport->PrepareAddress();
@@ -1997,16 +1960,16 @@ TEST_F(PortTest, TestDefaultDscpValue) {
   EXPECT_EQ(0, stunport->SetOption(Socket::OPT_DSCP, DSCP_AF41));
   EXPECT_EQ(0, stunport->GetOption(Socket::OPT_DSCP, &dscp));
   EXPECT_EQ(DSCP_AF41, dscp);
-  auto turnport1 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                  webrtc::PROTO_UDP, webrtc::PROTO_UDP);
+  auto turnport1 =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP, PROTO_UDP);
   // Socket is created in PrepareAddress.
   turnport1->PrepareAddress();
   EXPECT_EQ(0, turnport1->SetOption(Socket::OPT_DSCP, DSCP_CS7));
   EXPECT_EQ(0, turnport1->GetOption(Socket::OPT_DSCP, &dscp));
   EXPECT_EQ(DSCP_CS7, dscp);
   // This will verify correct value returned without the socket.
-  auto turnport2 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                  webrtc::PROTO_UDP, webrtc::PROTO_UDP);
+  auto turnport2 =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP, PROTO_UDP);
   EXPECT_EQ(0, turnport2->SetOption(Socket::OPT_DSCP, DSCP_CS6));
   EXPECT_EQ(0, turnport2->GetOption(Socket::OPT_DSCP, &dscp));
   EXPECT_EQ(DSCP_CS6, dscp);
@@ -2016,9 +1979,9 @@ TEST_F(PortTest, TestDefaultDscpValue) {
 TEST_F(PortTest, TestSendStunMessage) {
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
   auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   // Send a fake ping from lport to rport.
@@ -2032,10 +1995,9 @@ TEST_F(PortTest, TestSendStunMessage) {
   lconn->Ping(0);
 
   // Check that it's a proper BINDING-REQUEST.
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = lport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   EXPECT_FALSE(msg->IsLegacy());
@@ -2137,10 +2099,9 @@ TEST_F(PortTest, TestSendStunMessage) {
   rconn->Ping(0);
   rconn->Ping(0);
   rconn->Ping(0);
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   msg = rport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   const StunUInt64Attribute* ice_controlled_attr =
@@ -2185,9 +2146,9 @@ TEST_F(PortTest, TestSendStunMessage) {
 TEST_F(PortTest, TestNomination) {
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
   auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   lport->PrepareAddress();
@@ -2211,10 +2172,9 @@ TEST_F(PortTest, TestNomination) {
   // Send ping (including the nomination value) from `lconn` to `rconn`. This
   // should set the remote nomination of `rconn`.
   lconn->Ping(0);
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(lport->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport->last_stun_buf(), SocketAddress(), std::nullopt));
@@ -2227,10 +2187,9 @@ TEST_F(PortTest, TestNomination) {
 
   // This should result in an acknowledgment sent back from `rconn` to `lconn`,
   // updating the acknowledged nomination of `lconn`.
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(rport->last_stun_buf().size(), 0u);
   lconn->OnReadPacket(
       ReceivedIpPacket(rport->last_stun_buf(), SocketAddress(), std::nullopt));
@@ -2247,9 +2206,9 @@ TEST_F(PortTest, TestRoundTripTime) {
 
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
   auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   lport->PrepareAddress();
@@ -2286,9 +2245,9 @@ TEST_F(PortTest, TestRoundTripTime) {
 TEST_F(PortTest, TestUseCandidateAttribute) {
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
   auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   // Send a fake ping from lport to rport.
@@ -2298,10 +2257,9 @@ TEST_F(PortTest, TestUseCandidateAttribute) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   lconn->Ping(0);
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = lport->last_stun_msg();
   const StunUInt64Attribute* ice_controlling_attr =
       msg->GetUInt64(STUN_ATTR_ICE_CONTROLLING);
@@ -2318,51 +2276,50 @@ TEST_F(PortTest, TestNetworkCostChange) {
   Network* test_network = MakeNetwork(kLocalAddr1);
   auto lport = CreateTestPort(test_network, "lfrag", "lpass");
   auto rport = CreateTestPort(test_network, "rfrag", "rpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
   lport->PrepareAddress();
   rport->PrepareAddress();
 
-  // Default local port cost is webrtc::kNetworkCostUnknown.
-  EXPECT_EQ(webrtc::kNetworkCostUnknown, lport->network_cost());
+  // Default local port cost is kNetworkCostUnknown.
+  EXPECT_EQ(kNetworkCostUnknown, lport->network_cost());
   ASSERT_TRUE(!lport->Candidates().empty());
   for (const Candidate& candidate : lport->Candidates()) {
-    EXPECT_EQ(webrtc::kNetworkCostUnknown, candidate.network_cost());
+    EXPECT_EQ(kNetworkCostUnknown, candidate.network_cost());
   }
 
   // Change the network type to wifi.
-  test_network->set_type(webrtc::ADAPTER_TYPE_WIFI);
-  EXPECT_EQ(webrtc::kNetworkCostLow, lport->network_cost());
+  test_network->set_type(ADAPTER_TYPE_WIFI);
+  EXPECT_EQ(kNetworkCostLow, lport->network_cost());
   for (const Candidate& candidate : lport->Candidates()) {
-    EXPECT_EQ(webrtc::kNetworkCostLow, candidate.network_cost());
+    EXPECT_EQ(kNetworkCostLow, candidate.network_cost());
   }
 
   // Add a connection and then change the network type.
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   // Change the network type to cellular.
-  test_network->set_type(webrtc::ADAPTER_TYPE_CELLULAR);
-  EXPECT_EQ(webrtc::kNetworkCostHigh, lport->network_cost());
+  test_network->set_type(ADAPTER_TYPE_CELLULAR);
+  EXPECT_EQ(kNetworkCostHigh, lport->network_cost());
   for (const Candidate& candidate : lport->Candidates()) {
-    EXPECT_EQ(webrtc::kNetworkCostHigh, candidate.network_cost());
+    EXPECT_EQ(kNetworkCostHigh, candidate.network_cost());
   }
 
-  test_network->set_type(webrtc::ADAPTER_TYPE_WIFI);
+  test_network->set_type(ADAPTER_TYPE_WIFI);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
-  test_network->set_type(webrtc::ADAPTER_TYPE_CELLULAR);
+  test_network->set_type(ADAPTER_TYPE_CELLULAR);
   lconn->Ping(0);
-  // The rconn's remote candidate cost is webrtc::kNetworkCostLow, but the ping
-  // contains an attribute of network cost of webrtc::kNetworkCostHigh. Once the
+  // The rconn's remote candidate cost is kNetworkCostLow, but the ping
+  // contains an attribute of network cost of kNetworkCostHigh. Once the
   // message is handled in rconn, The rconn's remote candidate will have cost
-  // webrtc::kNetworkCostHigh;
-  EXPECT_EQ(webrtc::kNetworkCostLow, rconn->remote_candidate().network_cost());
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  // kNetworkCostHigh;
+  EXPECT_EQ(kNetworkCostLow, rconn->remote_candidate().network_cost());
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = lport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   // Pass the binding request to rport.
@@ -2370,20 +2327,19 @@ TEST_F(PortTest, TestNetworkCostChange) {
       ReceivedIpPacket(lport->last_stun_buf(), SocketAddress(), std::nullopt));
 
   // Wait until rport sends the response and then check the remote network cost.
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
-  EXPECT_EQ(webrtc::kNetworkCostHigh, rconn->remote_candidate().network_cost());
+              IsRtcOk());
+  EXPECT_EQ(kNetworkCostHigh, rconn->remote_candidate().network_cost());
 }
 
 TEST_F(PortTest, TestNetworkInfoAttribute) {
   Network* test_network = MakeNetwork(kLocalAddr1);
   auto lport = CreateTestPort(test_network, "lfrag", "lpass");
   auto rport = CreateTestPort(test_network, "rfrag", "rpass");
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
   lport->SetIceTiebreaker(kTiebreaker1);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   uint16_t lnetwork_id = 9;
@@ -2394,10 +2350,9 @@ TEST_F(PortTest, TestNetworkInfoAttribute) {
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
   lconn->Ping(0);
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = lport->last_stun_msg();
   const StunUInt32Attribute* network_info_attr =
       msg->GetUInt32(STUN_ATTR_GOOG_NETWORK_INFO);
@@ -2405,26 +2360,25 @@ TEST_F(PortTest, TestNetworkInfoAttribute) {
   uint32_t network_info = network_info_attr->value();
   EXPECT_EQ(lnetwork_id, network_info >> 16);
   // Default network has unknown type and cost kNetworkCostUnknown.
-  EXPECT_EQ(webrtc::kNetworkCostUnknown, network_info & 0xFFFF);
+  EXPECT_EQ(kNetworkCostUnknown, network_info & 0xFFFF);
 
   // Set the network type to be cellular so its cost will be kNetworkCostHigh.
   // Send a fake ping from rport to lport.
-  test_network->set_type(webrtc::ADAPTER_TYPE_CELLULAR);
+  test_network->set_type(ADAPTER_TYPE_CELLULAR);
   uint16_t rnetwork_id = 8;
   test_network->set_id(rnetwork_id);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   rconn->Ping(0);
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   msg = rport->last_stun_msg();
   network_info_attr = msg->GetUInt32(STUN_ATTR_GOOG_NETWORK_INFO);
   ASSERT_TRUE(network_info_attr != nullptr);
   network_info = network_info_attr->value();
   EXPECT_EQ(rnetwork_id, network_info >> 16);
-  EXPECT_EQ(webrtc::kNetworkCostHigh, network_info & 0xFFFF);
+  EXPECT_EQ(kNetworkCostHigh, network_info & 0xFFFF);
 }
 
 // Test handling STUN messages.
@@ -2691,9 +2645,9 @@ TEST_F(PortTest,
        TestHandleStunResponseWithUnknownComprehensionRequiredAttribute) {
   // Generic setup.
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
-                              webrtc::ICEROLE_CONTROLLING, kTiebreakerDefault);
-  auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreakerDefault);
+                              ICEROLE_CONTROLLING, kTiebreakerDefault);
+  auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreakerDefault);
   lport->PrepareAddress();
   rport->PrepareAddress();
   ASSERT_FALSE(lport->Candidates().empty());
@@ -2705,18 +2659,16 @@ TEST_F(PortTest,
 
   // Send request.
   lconn->Ping(0);
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   rconn->OnReadPacket(
       ReceivedIpPacket(lport->last_stun_buf(), SocketAddress(), std::nullopt));
 
   // Intercept request and add comprehension required attribute.
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   auto modified_response = rport->last_stun_msg()->Clone();
   modified_response->AddAttribute(StunAttribute::CreateUInt32(0x7777));
   modified_response->RemoveAttribute(STUN_ATTR_FINGERPRINT);
@@ -2736,9 +2688,9 @@ TEST_F(PortTest,
        TestHandleStunIndicationWithUnknownComprehensionRequiredAttribute) {
   // Generic set up.
   auto lport = CreateTestPort(kLocalAddr2, "lfrag", "lpass",
-                              webrtc::ICEROLE_CONTROLLING, kTiebreakerDefault);
-  auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreakerDefault);
+                              ICEROLE_CONTROLLING, kTiebreakerDefault);
+  auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreakerDefault);
   lport->PrepareAddress();
   rport->PrepareAddress();
   ASSERT_FALSE(lport->Candidates().empty());
@@ -2762,7 +2714,7 @@ TEST_F(PortTest,
 // indications are allowed only to the connection which is in read mode.
 TEST_F(PortTest, TestHandleStunBindingIndication) {
   auto lport = CreateTestPort(kLocalAddr2, "lfrag", "lpass",
-                              webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+                              ICEROLE_CONTROLLING, kTiebreaker1);
 
   // Verifying encoding and decoding STUN indication message.
   std::unique_ptr<IceMessage> in_msg, out_msg;
@@ -2782,7 +2734,7 @@ TEST_F(PortTest, TestHandleStunBindingIndication) {
   // Verify connection can handle STUN indication and updates
   // last_ping_received.
   auto rport = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   rport->SetIceTiebreaker(kTiebreaker2);
 
   lport->PrepareAddress();
@@ -2796,20 +2748,18 @@ TEST_F(PortTest, TestHandleStunBindingIndication) {
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   rconn->Ping(0);
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   IceMessage* msg = rport->last_stun_msg();
   EXPECT_EQ(STUN_BINDING_REQUEST, msg->type());
   // Send rport binding request to lport.
   lconn->OnReadPacket(
       ReceivedIpPacket(rport->last_stun_buf(), SocketAddress(), std::nullopt));
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_EQ(STUN_BINDING_RESPONSE, lport->last_stun_msg()->type());
   int64_t last_ping_received1 = lconn->last_ping_received();
 
@@ -2859,7 +2809,7 @@ TEST_F(PortTest, TestComputeCandidatePriority) {
 }
 
 TEST_F(PortTest, TestComputeCandidatePriorityWithPriorityAdjustment) {
-  test::ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-IncreaseIceCandidatePriorityHostSrflx/Enabled/");
   auto port = CreateTestPort(kLocalAddr1, "name", "pass", &field_trials);
   port->SetIceTiebreaker(kTiebreakerDefault);
@@ -2876,20 +2826,15 @@ TEST_F(PortTest, TestComputeCandidatePriorityWithPriorityAdjustment) {
   port->AddCandidateAddress(SocketAddress("3ffe::1234:5678", 1234));
   // These should all be:
   // (90 << 24) | (([rfc3484 pref value] << 8) + kMaxTurnServers) | (256 - 177)
-  uint32_t expected_priority_v4 = 1509957199U + (webrtc::kMaxTurnServers << 8);
-  uint32_t expected_priority_v6 = 1509959759U + (webrtc::kMaxTurnServers << 8);
-  uint32_t expected_priority_ula = 1509962319U + (webrtc::kMaxTurnServers << 8);
+  uint32_t expected_priority_v4 = 1509957199U + (kMaxTurnServers << 8);
+  uint32_t expected_priority_v6 = 1509959759U + (kMaxTurnServers << 8);
+  uint32_t expected_priority_ula = 1509962319U + (kMaxTurnServers << 8);
   uint32_t expected_priority_v4mapped = expected_priority_v4;
-  uint32_t expected_priority_v4compat =
-      1509949775U + (webrtc::kMaxTurnServers << 8);
-  uint32_t expected_priority_6to4 =
-      1509954639U + (webrtc::kMaxTurnServers << 8);
-  uint32_t expected_priority_teredo =
-      1509952079U + (webrtc::kMaxTurnServers << 8);
-  uint32_t expected_priority_sitelocal =
-      1509949775U + (webrtc::kMaxTurnServers << 8);
-  uint32_t expected_priority_6bone =
-      1509949775U + (webrtc::kMaxTurnServers << 8);
+  uint32_t expected_priority_v4compat = 1509949775U + (kMaxTurnServers << 8);
+  uint32_t expected_priority_6to4 = 1509954639U + (kMaxTurnServers << 8);
+  uint32_t expected_priority_teredo = 1509952079U + (kMaxTurnServers << 8);
+  uint32_t expected_priority_sitelocal = 1509949775U + (kMaxTurnServers << 8);
+  uint32_t expected_priority_6bone = 1509949775U + (kMaxTurnServers << 8);
   ASSERT_EQ(expected_priority_v4, port->Candidates()[0].priority());
   ASSERT_EQ(expected_priority_v6, port->Candidates()[1].priority());
   ASSERT_EQ(expected_priority_ula, port->Candidates()[2].priority());
@@ -2919,7 +2864,7 @@ TEST_F(PortTest, TestFoundation) {
 // This test verifies the foundation of different types of ICE candidates.
 TEST_F(PortTest, TestCandidateFoundation) {
   std::unique_ptr<NATServer> nat_server(
-      CreateNatServer(kNatAddr1, webrtc::NAT_OPEN_CONE));
+      CreateNatServer(kNatAddr1, NAT_OPEN_CONE));
   auto udpport1 = CreateUdpPort(kLocalAddr1);
   udpport1->PrepareAddress();
   auto udpport2 = CreateUdpPort(kLocalAddr1);
@@ -2934,10 +2879,9 @@ TEST_F(PortTest, TestCandidateFoundation) {
             tcpport2->Candidates()[0].foundation());
   auto stunport = CreateStunPort(kLocalAddr1, nat_socket_factory1());
   stunport->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return stunport->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return stunport->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_NE(tcpport1->Candidates()[0].foundation(),
             stunport->Candidates()[0].foundation());
   EXPECT_NE(tcpport2->Candidates()[0].foundation(),
@@ -2947,56 +2891,51 @@ TEST_F(PortTest, TestCandidateFoundation) {
   EXPECT_NE(udpport2->Candidates()[0].foundation(),
             stunport->Candidates()[0].foundation());
   // Verifying TURN candidate foundation.
-  auto turnport1 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                  webrtc::PROTO_UDP, webrtc::PROTO_UDP);
+  auto turnport1 =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP, PROTO_UDP);
   turnport1->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return turnport1->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return turnport1->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_NE(udpport1->Candidates()[0].foundation(),
             turnport1->Candidates()[0].foundation());
   EXPECT_NE(udpport2->Candidates()[0].foundation(),
             turnport1->Candidates()[0].foundation());
   EXPECT_NE(stunport->Candidates()[0].foundation(),
             turnport1->Candidates()[0].foundation());
-  auto turnport2 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                  webrtc::PROTO_UDP, webrtc::PROTO_UDP);
+  auto turnport2 =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP, PROTO_UDP);
   turnport2->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return turnport2->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return turnport2->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_EQ(turnport1->Candidates()[0].foundation(),
             turnport2->Candidates()[0].foundation());
 
   // Running a second turn server, to get different base IP address.
-  SocketAddress kTurnUdpIntAddr2("99.99.98.4", webrtc::STUN_SERVER_PORT);
+  SocketAddress kTurnUdpIntAddr2("99.99.98.4", STUN_SERVER_PORT);
   SocketAddress kTurnUdpExtAddr2("99.99.98.5", 0);
   TestTurnServer turn_server2(Thread::Current(), vss(), kTurnUdpIntAddr2,
                               kTurnUdpExtAddr2);
-  auto turnport3 =
-      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), webrtc::PROTO_UDP,
-                     webrtc::PROTO_UDP, kTurnUdpIntAddr2);
+  auto turnport3 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP,
+                                  PROTO_UDP, kTurnUdpIntAddr2);
   turnport3->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return turnport3->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return turnport3->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_NE(turnport3->Candidates()[0].foundation(),
             turnport2->Candidates()[0].foundation());
 
   // Start a TCP turn server, and check that two turn candidates have
   // different foundations if their relay protocols are different.
   TestTurnServer turn_server3(Thread::Current(), vss(), kTurnTcpIntAddr,
-                              kTurnUdpExtAddr, webrtc::PROTO_TCP);
-  auto turnport4 = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                  webrtc::PROTO_TCP, webrtc::PROTO_UDP);
+                              kTurnUdpExtAddr, PROTO_TCP);
+  auto turnport4 =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_TCP, PROTO_UDP);
   turnport4->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return turnport4->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return turnport4->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_NE(turnport2->Candidates()[0].foundation(),
             turnport4->Candidates()[0].foundation());
 }
@@ -3004,7 +2943,7 @@ TEST_F(PortTest, TestCandidateFoundation) {
 // This test verifies the related addresses of different types of
 // ICE candidates.
 TEST_F(PortTest, TestCandidateRelatedAddress) {
-  auto nat_server = CreateNatServer(kNatAddr1, webrtc::NAT_OPEN_CONE);
+  auto nat_server = CreateNatServer(kNatAddr1, NAT_OPEN_CONE);
   auto udpport = CreateUdpPort(kLocalAddr1);
   udpport->PrepareAddress();
   // For UDPPort, related address will be empty.
@@ -3014,10 +2953,9 @@ TEST_F(PortTest, TestCandidateRelatedAddress) {
   // socket address.
   auto stunport = CreateStunPort(kLocalAddr1, nat_socket_factory1());
   stunport->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return stunport->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return stunport->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   // Check STUN candidate address.
   EXPECT_EQ(stunport->Candidates()[0].address().ipaddr(), kNatAddr1.ipaddr());
   // Check STUN candidate related address.
@@ -3025,13 +2963,12 @@ TEST_F(PortTest, TestCandidateRelatedAddress) {
             stunport->GetLocalAddress());
   // Verifying the related address for TURN candidate.
   // For TURN related address must be equal to the mapped address.
-  auto turnport = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                 webrtc::PROTO_UDP, webrtc::PROTO_UDP);
+  auto turnport =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP, PROTO_UDP);
   turnport->PrepareAddress();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return turnport->Candidates().size(); }, Eq(1U),
+  ASSERT_THAT(WaitUntil([&] { return turnport->Candidates().size(); }, Eq(1U),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   EXPECT_EQ(kTurnUdpExtAddr.ipaddr(),
             turnport->Candidates()[0].address().ipaddr());
   EXPECT_EQ(kNatAddr1.ipaddr(),
@@ -3066,8 +3003,8 @@ TEST_F(PortTest, TestConnectionPriority) {
 
   // RFC 5245
   // pair priority = 2^32*MIN(G,D) + 2*MAX(G,D) + (G>D?1:0)
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
@@ -3076,8 +3013,8 @@ TEST_F(PortTest, TestConnectionPriority) {
   EXPECT_EQ(0x2001EE9FC003D0BLLU, lconn->priority());
 #endif
 
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLING);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
@@ -3089,7 +3026,7 @@ TEST_F(PortTest, TestConnectionPriority) {
 
 // Test the Connection priority is calculated correctly.
 TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
-  test::ScopedKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-IncreaseIceCandidatePriorityHostSrflx/Enabled/");
   auto lport = CreateTestPort(kLocalAddr1, "lfrag", "lpass", &field_trials);
   lport->SetIceTiebreaker(kTiebreakerDefault);
@@ -3103,15 +3040,15 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
   rport->set_component(23);
   rport->AddCandidateAddress(SocketAddress("10.1.1.100", 1234));
 
-  EXPECT_EQ(0x7E001E85U + (webrtc::kMaxTurnServers << 8),
+  EXPECT_EQ(0x7E001E85U + (kMaxTurnServers << 8),
             lport->Candidates()[0].priority());
-  EXPECT_EQ(0x2001EE9U + (webrtc::kMaxTurnServers << 8),
+  EXPECT_EQ(0x2001EE9U + (kMaxTurnServers << 8),
             rport->Candidates()[0].priority());
 
   // RFC 5245
   // pair priority = 2^32*MIN(G,D) + 2*MAX(G,D) + (G>D?1:0)
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  lport->SetIceRole(ICEROLE_CONTROLLING);
+  rport->SetIceRole(ICEROLE_CONTROLLED);
   Connection* lconn =
       lport->CreateConnection(rport->Candidates()[0], Port::ORIGIN_MESSAGE);
 #if defined(WEBRTC_WIN)
@@ -3120,8 +3057,8 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
   EXPECT_EQ(0x2003EE9FC007D0BLLU, lconn->priority());
 #endif
 
-  lport->SetIceRole(webrtc::ICEROLE_CONTROLLED);
-  rport->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  lport->SetIceRole(ICEROLE_CONTROLLED);
+  rport->SetIceRole(ICEROLE_CONTROLLING);
   Connection* rconn =
       rport->CreateConnection(lport->Candidates()[0], Port::ORIGIN_MESSAGE);
   RTC_LOG(LS_ERROR) << "RCONN " << rconn->priority();
@@ -3141,9 +3078,9 @@ TEST_F(PortTest, TestConnectionPriorityWithPriorityAdjustment) {
 TEST_F(PortTest, TestWritableState) {
   ScopedFakeClock clock;
   auto port1 = CreateUdpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   auto port2 = CreateUdpPort(kLocalAddr2);
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
 
   // Set up channels.
   TestChannel ch1(std::move(port1));
@@ -3152,25 +3089,24 @@ TEST_F(PortTest, TestWritableState) {
   // Acquire addresses.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
 
   // Send a ping from src to dst.
   ch1.CreateConnection(GetCandidate(ch2.port()));
   ASSERT_TRUE(ch1.conn() != nullptr);
   EXPECT_EQ(Connection::STATE_WRITE_INIT, ch1.conn()->write_state());
   // for TCP connect
-  EXPECT_THAT(
-      webrtc::WaitUntil(
-          [&] { return ch1.conn()->connected(); }, IsTrue(),
-          {.timeout = TimeDelta::Millis(kDefaultTimeout), .clock = &clock}),
-      webrtc::IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->connected(); }, IsTrue(),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
   ch1.Ping();
   SIMULATED_WAIT(!ch2.remote_address().IsNil(), kShortTimeout, clock);
 
@@ -3183,11 +3119,11 @@ TEST_F(PortTest, TestWritableState) {
   // Accept the connection to return the binding response, transition to
   // writable, and allow data to be sent.
   ch2.AcceptConnection(GetCandidate(ch1.port()));
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ch1.conn()->write_state(); },
-                                Eq(Connection::STATE_WRITABLE),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->write_state(); },
+                        Eq(Connection::STATE_WRITABLE),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
   EXPECT_EQ(data_size, ch1.conn()->Send(data, data_size, options));
 
   // Ask the connection to update state as if enough time has passed to lose
@@ -3206,11 +3142,11 @@ TEST_F(PortTest, TestWritableState) {
 
   // And now allow the other side to process the pings and send binding
   // responses.
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ch1.conn()->write_state(); },
-                                Eq(Connection::STATE_WRITABLE),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->write_state(); },
+                        Eq(Connection::STATE_WRITABLE),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
   // Wait long enough for a full timeout (past however long we've already
   // waited).
   for (uint32_t i = 1; i <= CONNECTION_WRITE_CONNECT_FAILURES; ++i) {
@@ -3234,9 +3170,9 @@ TEST_F(PortTest, TestWritableState) {
 TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
   ScopedFakeClock clock;
   auto port1 = CreateUdpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   auto port2 = CreateUdpPort(kLocalAddr2);
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
 
   // Set up channels.
   TestChannel ch1(std::move(port1));
@@ -3245,14 +3181,14 @@ TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
   // Acquire addresses.
   ch1.Start();
   ch2.Start();
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
-  ASSERT_THAT(webrtc::WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
+  ASSERT_THAT(WaitUntil([&] { return ch2.complete_count(); }, Eq(1),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
 
   // Send a ping from src to dst.
   ch1.CreateConnection(GetCandidate(ch2.port()));
@@ -3263,11 +3199,11 @@ TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
   // Accept the connection to return the binding response, transition to
   // writable, and allow data to be sent.
   ch2.AcceptConnection(GetCandidate(ch1.port()));
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ch1.conn()->write_state(); },
-                                Eq(Connection::STATE_WRITABLE),
-                                {.timeout = TimeDelta::Millis(kDefaultTimeout),
-                                 .clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->write_state(); },
+                        Eq(Connection::STATE_WRITABLE),
+                        {.timeout = TimeDelta::Millis(kDefaultTimeout),
+                         .clock = &clock}),
+              IsRtcOk());
 
   ch1.conn()->set_unwritable_timeout(1000);
   ch1.conn()->set_unwritable_min_checks(3);
@@ -3297,9 +3233,9 @@ TEST_F(PortTest, TestWritableStateWithConfiguredThreshold) {
 
 TEST_F(PortTest, TestTimeoutForNeverWritable) {
   auto port1 = CreateUdpPort(kLocalAddr1);
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   auto port2 = CreateUdpPort(kLocalAddr2);
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
 
   // Set up channels.
   TestChannel ch1(std::move(port1));
@@ -3326,24 +3262,23 @@ TEST_F(PortTest, TestTimeoutForNeverWritable) {
 // In this test `ch1` behaves like FULL mode client and we have created
 // port which responds to the ping message just like LITE client.
 TEST_F(PortTest, TestIceLiteConnectivity) {
-  auto ice_full_port = CreateTestPort(
-      kLocalAddr1, "lfrag", "lpass", webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+  auto ice_full_port = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
+                                      ICEROLE_CONTROLLING, kTiebreaker1);
   auto* ice_full_port_ptr = ice_full_port.get();
 
   auto ice_lite_port = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                                      webrtc::ICEROLE_CONTROLLED, kTiebreaker2);
+                                      ICEROLE_CONTROLLED, kTiebreaker2);
   // Setup TestChannel. This behaves like FULL mode client.
   TestChannel ch1(std::move(ice_full_port));
-  ch1.SetIceMode(webrtc::ICEMODE_FULL);
+  ch1.SetIceMode(ICEMODE_FULL);
 
   // Start gathering candidates.
   ch1.Start();
   ice_lite_port->PrepareAddress();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_FALSE(ice_lite_port->Candidates().empty());
 
   ch1.CreateConnection(GetCandidate(ice_lite_port.get()));
@@ -3356,10 +3291,10 @@ TEST_F(PortTest, TestIceLiteConnectivity) {
 
   // Verify stun ping is without USE_CANDIDATE_ATTR. Getting message directly
   // from port.
-  ASSERT_THAT(webrtc::WaitUntil(
-                  [&] { return ice_full_port_ptr->last_stun_msg(); }, NotNull(),
-                  {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-              webrtc::IsRtcOk());
+  ASSERT_THAT(
+      WaitUntil([&] { return ice_full_port_ptr->last_stun_msg(); }, NotNull(),
+                {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
+      IsRtcOk());
   IceMessage* msg = ice_full_port_ptr->last_stun_msg();
   EXPECT_TRUE(msg->GetByteString(STUN_ATTR_USE_CANDIDATE) == nullptr);
 
@@ -3377,25 +3312,23 @@ TEST_F(PortTest, TestIceLiteConnectivity) {
                                             SocketAddress(), std::nullopt));
 
   // Verifying full mode connection becomes writable from the response.
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return ch1.conn()->write_state(); },
+  EXPECT_THAT(WaitUntil([&] { return ch1.conn()->write_state(); },
                         Eq(Connection::STATE_WRITABLE),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
-  EXPECT_THAT(
-      webrtc::WaitUntil([&] { return ch1.nominated(); }, IsTrue(),
+              IsRtcOk());
+  EXPECT_THAT(WaitUntil([&] { return ch1.nominated(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   // Clear existing stun messsages. Otherwise we will process old stun
   // message right after we send ping.
   ice_full_port_ptr->Reset();
   // Send ping. This must have USE_CANDIDATE_ATTR.
   ch1.Ping();
-  ASSERT_THAT(webrtc::WaitUntil(
-                  [&] { return ice_full_port_ptr->last_stun_msg(); }, NotNull(),
-                  {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-              webrtc::IsRtcOk());
+  ASSERT_THAT(
+      WaitUntil([&] { return ice_full_port_ptr->last_stun_msg(); }, NotNull(),
+                {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
+      IsRtcOk());
   msg = ice_full_port_ptr->last_stun_msg();
   EXPECT_TRUE(msg->GetByteString(STUN_ATTR_USE_CANDIDATE) != nullptr);
   ch1.Stop();
@@ -3453,24 +3386,23 @@ TEST_P(GoogPingTest, TestGoogPingAnnounceEnable) {
                    << " enable:" << trials.enable_goog_ping;
 
   auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
-                                     webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
   auto* port1 = port1_unique.get();
-  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreaker2);
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
 
   TestChannel ch1(std::move(port1_unique));
   // Block usage of STUN_ATTR_USE_CANDIDATE so that
   // ch1.conn() will sent GOOG_PING_REQUEST directly.
   // This only makes test a bit shorter...
-  ch1.SetIceMode(webrtc::ICEMODE_LITE);
+  ch1.SetIceMode(ICEMODE_LITE);
   // Start gathering candidates.
   ch1.Start();
   port2->PrepareAddress();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_FALSE(port2->Candidates().empty());
 
   ch1.CreateConnection(GetCandidate(port2.get()));
@@ -3481,10 +3413,9 @@ TEST_P(GoogPingTest, TestGoogPingAnnounceEnable) {
   // Send ping.
   ch1.Ping();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* request1 = port1->last_stun_msg();
 
   ASSERT_EQ(trials.enable_goog_ping,
@@ -3512,10 +3443,9 @@ TEST_P(GoogPingTest, TestGoogPingAnnounceEnable) {
   port2->Reset();
 
   ch1.Ping();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* request2 = port1->last_stun_msg();
 
   // It should be a GOOG_PING if both of these are TRUE
@@ -3552,24 +3482,23 @@ TEST_F(PortTest, TestGoogPingUnsupportedVersionInStunBinding) {
   trials.enable_goog_ping = true;
 
   auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
-                                     webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
   auto* port1 = port1_unique.get();
-  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreaker2);
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
 
   TestChannel ch1(std::move(port1_unique));
   // Block usage of STUN_ATTR_USE_CANDIDATE so that
   // ch1.conn() will sent GOOG_PING_REQUEST directly.
   // This only makes test a bit shorter...
-  ch1.SetIceMode(webrtc::ICEMODE_LITE);
+  ch1.SetIceMode(ICEMODE_LITE);
   // Start gathering candidates.
   ch1.Start();
   port2->PrepareAddress();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_FALSE(port2->Candidates().empty());
 
   ch1.CreateConnection(GetCandidate(port2.get()));
@@ -3580,10 +3509,9 @@ TEST_F(PortTest, TestGoogPingUnsupportedVersionInStunBinding) {
   // Send ping.
   ch1.Ping();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* request1 = port1->last_stun_msg();
 
   ASSERT_TRUE(GetSupportedGoogPingVersion(request1) &&
@@ -3627,24 +3555,23 @@ TEST_F(PortTest, TestGoogPingUnsupportedVersionInStunBindingResponse) {
   trials.enable_goog_ping = true;
 
   auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
-                                     webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
   auto* port1 = port1_unique.get();
-  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreaker2);
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
 
   TestChannel ch1(std::move(port1_unique));
   // Block usage of STUN_ATTR_USE_CANDIDATE so that
   // ch1.conn() will sent GOOG_PING_REQUEST directly.
   // This only makes test a bit shorter...
-  ch1.SetIceMode(webrtc::ICEMODE_LITE);
+  ch1.SetIceMode(ICEMODE_LITE);
   // Start gathering candidates.
   ch1.Start();
   port2->PrepareAddress();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_FALSE(port2->Candidates().empty());
 
   ch1.CreateConnection(GetCandidate(port2.get()));
@@ -3655,10 +3582,9 @@ TEST_F(PortTest, TestGoogPingUnsupportedVersionInStunBindingResponse) {
   // Send ping.
   ch1.Ping();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* request1 = port1->last_stun_msg();
 
   ASSERT_TRUE(GetSupportedGoogPingVersion(request1) &&
@@ -3707,10 +3633,9 @@ TEST_F(PortTest, TestGoogPingUnsupportedVersionInStunBindingResponse) {
   port2->Reset();
 
   ch1.Ping();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
 
   // This should now be a STUN_BINDING...without a kGoogPingVersion
   const IceMessage* request2 = port1->last_stun_msg();
@@ -3735,24 +3660,23 @@ TEST_F(PortTest, TestChangeInAttributeMakesGoogPingFallsbackToStunBinding) {
   trials.enable_goog_ping = true;
 
   auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
-                                     webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
   auto* port1 = port1_unique.get();
-  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreaker2);
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
 
   TestChannel ch1(std::move(port1_unique));
   // Block usage of STUN_ATTR_USE_CANDIDATE so that
   // ch1.conn() will sent GOOG_PING_REQUEST directly.
   // This only makes test a bit shorter...
-  ch1.SetIceMode(webrtc::ICEMODE_LITE);
+  ch1.SetIceMode(ICEMODE_LITE);
   // Start gathering candidates.
   ch1.Start();
   port2->PrepareAddress();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_FALSE(port2->Candidates().empty());
 
   ch1.CreateConnection(GetCandidate(port2.get()));
@@ -3763,10 +3687,9 @@ TEST_F(PortTest, TestChangeInAttributeMakesGoogPingFallsbackToStunBinding) {
   // Send ping.
   ch1.Ping();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* msg = port1->last_stun_msg();
   auto* con =
       port2->CreateConnection(port1->Candidates()[0], Port::ORIGIN_MESSAGE);
@@ -3788,10 +3711,9 @@ TEST_F(PortTest, TestChangeInAttributeMakesGoogPingFallsbackToStunBinding) {
   port2->Reset();
 
   ch1.Ping();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* msg2 = port1->last_stun_msg();
 
   // It should be a GOOG_PING if both of these are TRUE
@@ -3812,10 +3734,9 @@ TEST_F(PortTest, TestChangeInAttributeMakesGoogPingFallsbackToStunBinding) {
   ch1.conn()->set_use_candidate_attr(!ch1.conn()->use_candidate_attr());
 
   ch1.Ping();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* msg3 = port1->last_stun_msg();
 
   // It should be a STUN_BINDING_REQUEST
@@ -3831,24 +3752,23 @@ TEST_F(PortTest, TestErrorResponseMakesGoogPingFallBackToStunBinding) {
   trials.enable_goog_ping = true;
 
   auto port1_unique = CreateTestPort(kLocalAddr1, "lfrag", "lpass",
-                                     webrtc::ICEROLE_CONTROLLING, kTiebreaker1);
+                                     ICEROLE_CONTROLLING, kTiebreaker1);
   auto* port1 = port1_unique.get();
-  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass",
-                              webrtc::ICEROLE_CONTROLLED, kTiebreaker2);
+  auto port2 = CreateTestPort(kLocalAddr2, "rfrag", "rpass", ICEROLE_CONTROLLED,
+                              kTiebreaker2);
 
   TestChannel ch1(std::move(port1_unique));
   // Block usage of STUN_ATTR_USE_CANDIDATE so that
   // ch1.conn() will sent GOOG_PING_REQUEST directly.
   // This only makes test a bit shorter...
-  ch1.SetIceMode(webrtc::ICEMODE_LITE);
+  ch1.SetIceMode(ICEMODE_LITE);
   // Start gathering candidates.
   ch1.Start();
   port2->PrepareAddress();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
+  ASSERT_THAT(WaitUntil([&] { return ch1.complete_count(); }, Eq(1),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_FALSE(port2->Candidates().empty());
 
   ch1.CreateConnection(GetCandidate(port2.get()));
@@ -3859,10 +3779,9 @@ TEST_F(PortTest, TestErrorResponseMakesGoogPingFallBackToStunBinding) {
   // Send ping.
   ch1.Ping();
 
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* msg = port1->last_stun_msg();
   auto* con =
       port2->CreateConnection(port1->Candidates()[0], Port::ORIGIN_MESSAGE);
@@ -3884,10 +3803,9 @@ TEST_F(PortTest, TestErrorResponseMakesGoogPingFallBackToStunBinding) {
   port2->Reset();
 
   ch1.Ping();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* msg2 = port1->last_stun_msg();
 
   // It should be a GOOG_PING.
@@ -3915,10 +3833,9 @@ TEST_F(PortTest, TestErrorResponseMakesGoogPingFallBackToStunBinding) {
   port2->Reset();
 
   ch1.Ping();
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
+  ASSERT_THAT(WaitUntil([&] { return port1->last_stun_msg(); }, NotNull(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   const IceMessage* msg3 = port1->last_stun_msg();
 
   // It should be a STUN_BINDING_REQUEST
@@ -3936,13 +3853,13 @@ TEST_F(PortTest, TestPortTimeoutIfNotKeptAlive) {
   auto port1 = CreateUdpPort(kLocalAddr1);
   ConnectToSignalDestroyed(port1.get());
   port1->set_timeout_delay(timeout_delay);  // milliseconds
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   port1->SetIceTiebreaker(kTiebreaker1);
 
   auto port2 = CreateUdpPort(kLocalAddr2);
   ConnectToSignalDestroyed(port2.get());
   port2->set_timeout_delay(timeout_delay);  // milliseconds
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
   port2->SetIceTiebreaker(kTiebreaker2);
 
   // Set up channels and ensure both ports will be deleted.
@@ -3953,9 +3870,9 @@ TEST_F(PortTest, TestPortTimeoutIfNotKeptAlive) {
   StartConnectAndStopChannels(&ch1, &ch2);
   // After the connection is destroyed, the port will be destroyed because
   // none of them is marked as "keep alive until pruned.
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ports_destroyed(); }, Eq(2),
-                                {.clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return ports_destroyed(); }, Eq(2), {.clock = &clock}),
+      IsRtcOk());
 }
 
 // Test that if after all connection are destroyed, new connections are created
@@ -3967,14 +3884,14 @@ TEST_F(PortTest, TestPortTimeoutAfterNewConnectionCreatedAndDestroyed) {
   auto port1 = CreateUdpPort(kLocalAddr1);
   ConnectToSignalDestroyed(port1.get());
   port1->set_timeout_delay(timeout_delay);  // milliseconds
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   port1->SetIceTiebreaker(kTiebreaker1);
 
   auto port2 = CreateUdpPort(kLocalAddr2);
   ConnectToSignalDestroyed(port2.get());
   port2->set_timeout_delay(timeout_delay);  // milliseconds
 
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
   port2->SetIceTiebreaker(kTiebreaker2);
 
   // Set up channels and ensure both ports will be deleted.
@@ -3996,9 +3913,9 @@ TEST_F(PortTest, TestPortTimeoutAfterNewConnectionCreatedAndDestroyed) {
   EXPECT_EQ(0, ports_destroyed());
 
   // The ports on both sides should be destroyed after timeout.
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ports_destroyed(); }, Eq(2),
-                                {.clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return ports_destroyed(); }, Eq(2), {.clock = &clock}),
+      IsRtcOk());
 }
 
 // This test case verifies that neither the controlling port nor the controlled
@@ -4010,13 +3927,13 @@ TEST_F(PortTest, TestPortNotTimeoutUntilPruned) {
   auto port1 = CreateUdpPort(kLocalAddr1);
   ConnectToSignalDestroyed(port1.get());
   port1->set_timeout_delay(timeout_delay);  // milliseconds
-  port1->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+  port1->SetIceRole(ICEROLE_CONTROLLING);
   port1->SetIceTiebreaker(kTiebreaker1);
 
   auto port2 = CreateUdpPort(kLocalAddr2);
   ConnectToSignalDestroyed(port2.get());
   port2->set_timeout_delay(timeout_delay);  // milliseconds
-  port2->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+  port2->SetIceRole(ICEROLE_CONTROLLED);
   port2->SetIceTiebreaker(kTiebreaker2);
   // The connection must not be destroyed before a connection is attempted.
   EXPECT_EQ(0, ports_destroyed());
@@ -4039,29 +3956,29 @@ TEST_F(PortTest, TestPortNotTimeoutUntilPruned) {
   ch1.port()->Prune();
   ch2.port()->Prune();
   // The ports on both sides should be destroyed after timeout.
-  EXPECT_THAT(webrtc::WaitUntil([&] { return ports_destroyed(); }, Eq(2),
-                                {.clock = &clock}),
-              webrtc::IsRtcOk());
+  EXPECT_THAT(
+      WaitUntil([&] { return ports_destroyed(); }, Eq(2), {.clock = &clock}),
+      IsRtcOk());
 }
 
 TEST_F(PortTest, TestSupportsProtocol) {
   auto udp_port = CreateUdpPort(kLocalAddr1);
-  EXPECT_TRUE(udp_port->SupportsProtocol(webrtc::UDP_PROTOCOL_NAME));
-  EXPECT_FALSE(udp_port->SupportsProtocol(webrtc::TCP_PROTOCOL_NAME));
+  EXPECT_TRUE(udp_port->SupportsProtocol(UDP_PROTOCOL_NAME));
+  EXPECT_FALSE(udp_port->SupportsProtocol(TCP_PROTOCOL_NAME));
 
   auto stun_port = CreateStunPort(kLocalAddr1, nat_socket_factory1());
-  EXPECT_TRUE(stun_port->SupportsProtocol(webrtc::UDP_PROTOCOL_NAME));
-  EXPECT_FALSE(stun_port->SupportsProtocol(webrtc::TCP_PROTOCOL_NAME));
+  EXPECT_TRUE(stun_port->SupportsProtocol(UDP_PROTOCOL_NAME));
+  EXPECT_FALSE(stun_port->SupportsProtocol(TCP_PROTOCOL_NAME));
 
   auto tcp_port = CreateTcpPort(kLocalAddr1);
-  EXPECT_TRUE(tcp_port->SupportsProtocol(webrtc::TCP_PROTOCOL_NAME));
-  EXPECT_TRUE(tcp_port->SupportsProtocol(webrtc::SSLTCP_PROTOCOL_NAME));
-  EXPECT_FALSE(tcp_port->SupportsProtocol(webrtc::UDP_PROTOCOL_NAME));
+  EXPECT_TRUE(tcp_port->SupportsProtocol(TCP_PROTOCOL_NAME));
+  EXPECT_TRUE(tcp_port->SupportsProtocol(SSLTCP_PROTOCOL_NAME));
+  EXPECT_FALSE(tcp_port->SupportsProtocol(UDP_PROTOCOL_NAME));
 
-  auto turn_port = CreateTurnPort(kLocalAddr1, nat_socket_factory1(),
-                                  webrtc::PROTO_UDP, webrtc::PROTO_UDP);
-  EXPECT_TRUE(turn_port->SupportsProtocol(webrtc::UDP_PROTOCOL_NAME));
-  EXPECT_FALSE(turn_port->SupportsProtocol(webrtc::TCP_PROTOCOL_NAME));
+  auto turn_port =
+      CreateTurnPort(kLocalAddr1, nat_socket_factory1(), PROTO_UDP, PROTO_UDP);
+  EXPECT_TRUE(turn_port->SupportsProtocol(UDP_PROTOCOL_NAME));
+  EXPECT_FALSE(turn_port->SupportsProtocol(TCP_PROTOCOL_NAME));
 }
 
 // Test that SetIceParameters updates the component, ufrag and password
@@ -4116,9 +4033,9 @@ class ConnectionTest : public PortTest {
   ConnectionTest() {
     lport_ = CreateTestPort(kLocalAddr1, "lfrag", "lpass");
     rport_ = CreateTestPort(kLocalAddr2, "rfrag", "rpass");
-    lport_->SetIceRole(webrtc::ICEROLE_CONTROLLING);
+    lport_->SetIceRole(ICEROLE_CONTROLLING);
     lport_->SetIceTiebreaker(kTiebreaker1);
-    rport_->SetIceRole(webrtc::ICEROLE_CONTROLLED);
+    rport_->SetIceRole(ICEROLE_CONTROLLED);
     rport_->SetIceTiebreaker(kTiebreaker2);
 
     lport_->PrepareAddress();
@@ -4130,7 +4047,7 @@ class ConnectionTest : public PortTest {
 
   Connection* CreateConnection(IceRole role) {
     Connection* conn;
-    if (role == webrtc::ICEROLE_CONTROLLING) {
+    if (role == ICEROLE_CONTROLLING) {
       conn = lport_->CreateConnection(rport_->Candidates()[0],
                                       Port::ORIGIN_MESSAGE);
     } else {
@@ -4150,20 +4067,18 @@ class ConnectionTest : public PortTest {
         lconn->PortForTest() == lport_.get() ? lport_.get() : rport_.get();
     TestPort* rport =
         rconn->PortForTest() == rport_.get() ? rport_.get() : lport_.get();
-    lconn->Ping(webrtc::TimeMillis());
-    ASSERT_THAT(
-        webrtc::WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
+    lconn->Ping(TimeMillis());
+    ASSERT_THAT(WaitUntil([&] { return lport->last_stun_msg(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
     ASSERT_GT(lport->last_stun_buf().size(), 0u);
     rconn->OnReadPacket(ReceivedIpPacket(lport->last_stun_buf(),
                                          SocketAddress(), std::nullopt));
 
     clock_.AdvanceTime(TimeDelta::Millis(ms));
-    ASSERT_THAT(
-        webrtc::WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
+    ASSERT_THAT(WaitUntil([&] { return rport->last_stun_msg(); }, IsTrue(),
                           {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-        webrtc::IsRtcOk());
+                IsRtcOk());
     ASSERT_GT(rport->last_stun_buf().size(), 0u);
     reply->SetData(rport->last_stun_buf());
   }
@@ -4184,8 +4099,8 @@ class ConnectionTest : public PortTest {
 };
 
 TEST_F(ConnectionTest, ConnectionForgetLearnedState) {
-  Connection* lconn = CreateConnection(webrtc::ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(webrtc::ICEROLE_CONTROLLED);
+  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
+  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
 
   EXPECT_FALSE(lconn->writable());
   EXPECT_FALSE(lconn->receiving());
@@ -4219,8 +4134,8 @@ TEST_F(ConnectionTest, ConnectionForgetLearnedState) {
 }
 
 TEST_F(ConnectionTest, ConnectionForgetLearnedStateDiscardsPendingPings) {
-  Connection* lconn = CreateConnection(webrtc::ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(webrtc::ICEROLE_CONTROLLED);
+  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
+  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
 
   SendPingAndReceiveResponse(lconn, rconn, 10);
 
@@ -4249,8 +4164,8 @@ TEST_F(ConnectionTest, ConnectionForgetLearnedStateDiscardsPendingPings) {
 }
 
 TEST_F(ConnectionTest, ConnectionForgetLearnedStateDoesNotTriggerStateChange) {
-  Connection* lconn = CreateConnection(webrtc::ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(webrtc::ICEROLE_CONTROLLED);
+  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
+  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
 
   EXPECT_EQ(num_state_changes_, 0);
   SendPingAndReceiveResponse(lconn, rconn, 10);
@@ -4270,8 +4185,8 @@ TEST_F(ConnectionTest, ConnectionForgetLearnedStateDoesNotTriggerStateChange) {
 // Sending a delta and getting a delta ack in response.
 TEST_F(ConnectionTest, SendReceiveGoogDelta) {
   constexpr int64_t ms = 10;
-  Connection* lconn = CreateConnection(webrtc::ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(webrtc::ICEROLE_CONTROLLED);
+  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
+  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
 
   std::unique_ptr<StunByteStringAttribute> delta =
       absl::WrapUnique(new StunByteStringAttribute(STUN_ATTR_GOOG_DELTA));
@@ -4285,9 +4200,9 @@ TEST_F(ConnectionTest, SendReceiveGoogDelta) {
   lconn->SetStunDictConsumer(
       // DeltaReceived
       [](const StunByteStringAttribute* delta)
-          -> std::unique_ptr<webrtc::StunAttribute> { return nullptr; },
+          -> std::unique_ptr<StunAttribute> { return nullptr; },
       // DeltaAckReceived
-      [&](webrtc::RTCErrorOr<const StunUInt64Attribute*> error_or_ack) {
+      [&](RTCErrorOr<const StunUInt64Attribute*> error_or_ack) {
         received_goog_delta_ack = true;
         EXPECT_TRUE(error_or_ack.ok());
         EXPECT_EQ(error_or_ack.value()->value(), 133ull);
@@ -4302,24 +4217,21 @@ TEST_F(ConnectionTest, SendReceiveGoogDelta) {
         return std::move(delta_ack);
       },
       // DeltaAckReceived
-      [](webrtc::RTCErrorOr<const webrtc::StunUInt64Attribute*> error_or__ack) {
-      });
+      [](RTCErrorOr<const StunUInt64Attribute*> error_or__ack) {});
 
-  lconn->Ping(webrtc::TimeMillis(), std::move(delta));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
+  lconn->Ping(TimeMillis(), std::move(delta));
+  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(lport_->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));
   EXPECT_TRUE(received_goog_delta);
 
   clock_.AdvanceTime(TimeDelta::Millis(ms));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
+  ASSERT_THAT(WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(rport_->last_stun_buf().size(), 0u);
   lconn->OnReadPacket(
       ReceivedIpPacket(rport_->last_stun_buf(), SocketAddress(), std::nullopt));
@@ -4331,8 +4243,8 @@ TEST_F(ConnectionTest, SendReceiveGoogDelta) {
 // a delta ack in reply gives an error callback.
 TEST_F(ConnectionTest, SendGoogDeltaNoReply) {
   constexpr int64_t ms = 10;
-  Connection* lconn = CreateConnection(webrtc::ICEROLE_CONTROLLING);
-  Connection* rconn = CreateConnection(webrtc::ICEROLE_CONTROLLED);
+  Connection* lconn = CreateConnection(ICEROLE_CONTROLLING);
+  Connection* rconn = CreateConnection(ICEROLE_CONTROLLED);
 
   std::unique_ptr<StunByteStringAttribute> delta =
       absl::WrapUnique(new StunByteStringAttribute(STUN_ATTR_GOOG_DELTA));
@@ -4342,27 +4254,25 @@ TEST_F(ConnectionTest, SendGoogDeltaNoReply) {
   lconn->SetStunDictConsumer(
       // DeltaReceived
       [](const StunByteStringAttribute* delta)
-          -> std::unique_ptr<webrtc::StunAttribute> { return nullptr; },
+          -> std::unique_ptr<StunAttribute> { return nullptr; },
       // DeltaAckReceived
-      [&](webrtc::RTCErrorOr<const StunUInt64Attribute*> error_or_ack) {
+      [&](RTCErrorOr<const StunUInt64Attribute*> error_or_ack) {
         received_goog_delta_ack_error = true;
         EXPECT_FALSE(error_or_ack.ok());
       });
 
-  lconn->Ping(webrtc::TimeMillis(), std::move(delta));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
+  lconn->Ping(TimeMillis(), std::move(delta));
+  ASSERT_THAT(WaitUntil([&] { return lport_->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(lport_->last_stun_buf().size(), 0u);
   rconn->OnReadPacket(
       ReceivedIpPacket(lport_->last_stun_buf(), SocketAddress(), std::nullopt));
 
   clock_.AdvanceTime(TimeDelta::Millis(ms));
-  ASSERT_THAT(
-      webrtc::WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
+  ASSERT_THAT(WaitUntil([&] { return rport_->last_stun_msg(); }, IsTrue(),
                         {.timeout = TimeDelta::Millis(kDefaultTimeout)}),
-      webrtc::IsRtcOk());
+              IsRtcOk());
   ASSERT_GT(rport_->last_stun_buf().size(), 0u);
   lconn->OnReadPacket(
       ReceivedIpPacket(rport_->last_stun_buf(), SocketAddress(), std::nullopt));

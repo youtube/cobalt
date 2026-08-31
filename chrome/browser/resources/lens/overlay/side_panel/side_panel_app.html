@@ -28,6 +28,16 @@
     background-color: #1F1F1F;
   }
 
+  :host([enable-aim-searchbox]) .results-pane {
+    /*
+     * If AIM searchbox is enabled, make the results pane the full height of
+     * the side panel.
+     */
+    height: 100%;
+    inset-block-start: 0;
+    position: absolute;
+  }
+
   /* Set z-index to hide results to prevent ghost frames when reshowing. */
   :host([is-loading-results]) #results {
     z-index: 0;
@@ -67,6 +77,14 @@
     position: fixed;
     width: 100%;
     --color-searchbox-results-background: #ffffffff;
+    /* Colors for searchbox ghost loader */
+    --color-searchbox-ghost-loader-loading-bar-1: #F1F3F4;
+    --color-searchbox-ghost-loader-loading-bar-2: #ECEDEF;
+  }
+
+  /* Hide the old searchbox when the AIM searchbox is enabled. */
+  :host([enable-aim-searchbox]) #searchboxContainer {
+    display: none;
   }
 
   :host([dark-mode]) #searchboxContainer {
@@ -104,6 +122,8 @@
     --color-searchbox-shadow: #20212451;
     /* Colors for searchbox ghost loader */
     --color-searchbox-ghost-loader-spinner: #70757A;
+    --color-searchbox-ghost-loader-loading-bar-1: #3C4043;
+    --color-searchbox-ghost-loader-loading-bar-2: #4D5156;
     /* Colors for logo in searchbox. */
     --color-searchbox-google-g-background: white;
   }
@@ -162,6 +182,21 @@
     z-index: 2; /* Ensure that the progress bar is above the ghost loader. */
   }
 
+  #composeboxContainer {
+    /* Temporary CSS to make the composebox visible. */
+    --ntp-composebox-background-color: #F0F2F5;
+    inset-block-end: 0;
+    position: absolute;
+    width: 100%;
+    z-index: 2;
+    display: none;
+  }
+
+  /* Show the composebox when enabled. */
+  :host([enable-aim-searchbox]) #composeboxContainer {
+    display: block;
+  }
+
   :host(:not([show-upload-progress])) #uploadProgressBarContainer,
   :host([is-error-page-visible]) #uploadProgressBarContainer {
     visibility: hidden;
@@ -174,6 +209,45 @@
    */
   :host([show-ghost-loader]) #searchboxContainer:has(cr-searchbox:not([dropdown-is-visible])) cr-searchbox-ghost-loader {
     display: block;
+  }
+
+  /**
+   * When CSB motion tweaks are enabled, show the ghost loader when the
+   * searchbox is focused.
+   */
+   :host([enable-csb-motion-tweaks][show-ghost-loader]) cr-searchbox-ghost-loader {
+    display: block;
+  }
+
+  /**
+   * Slide in the ghost loader when the searchbox is not already manually
+   * focused (e.g., on initial invocation). Once it has been manually focused,
+   * subsequent focus events will not trigger the slide in animation.
+   */
+  :host([enable-csb-motion-tweaks]:not([is-searchbox-focused])) cr-searchbox-ghost-loader {
+    animation: ghost-loader-enter-animation 483ms cubic-bezier(0, 0, 0, 1) forwards;
+  }
+
+  @keyframes ghost-loader-enter-animation {
+    0% {
+      transform: translateY(-10px);
+    }
+    100% {
+      transform: translateY(0px);
+    }
+  }
+
+  /* Default values for the searchbox dropdown that enable the fade in animation. */
+  :host([enable-csb-motion-tweaks][show-ghost-loader]) cr-searchbox::part(searchbox-dropdown) {
+    opacity: 0;
+    display: block;
+  }
+
+  /* Fade in the searchbox dropdown once the dropdown becomes visible. */
+  :host([enable-csb-motion-tweaks][show-ghost-loader])
+    #searchboxContainer:has(cr-searchbox[dropdown-is-visible]) cr-searchbox::part(searchbox-dropdown) {
+    transition: opacity 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 1;
   }
 </style>
 <div id="searchboxContainer"
@@ -195,6 +269,7 @@
       id="searchboxGhostLoader"
       show-error-state="{{showErrorState}}"
       page-content-type="[[pageContentType]]"
+      suggestion-count="[[searchboxSuggestionCount]]"
       tabindex="-1">
   </cr-searchbox-ghost-loader>
 </div>
@@ -215,14 +290,20 @@
     class="results-pane"></side-panel-ghost-loader>
 
 <iframe name="results" id="results" class="results-pane"
-    allow="cross-origin-isolated; display-capture; geolocation; microphone;"
+    allow="cross-origin-isolated; display-capture; geolocation; microphone;
+           clipboard-read; clipboard-write;"
     frameBorder="0">
 </iframe>
 <feedback-toast id="feedbackToast"></feedback-toast>
 
 <cr-toast id="messageToast" duration="4000">
   <div>[[toastMessage]]</div>
-  <cr-button on-click="onHideMessageToastClick">
+  <cr-button id="messageToastDismissButton" on-click="onHideMessageToastClick">
     $i18n{dismiss}
   </cr-button>
 </cr-toast>
+
+<div id="composeboxContainer">
+  <ntp-composebox id="composebox">
+  </ntp-composebox>
+</div>

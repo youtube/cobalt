@@ -29,8 +29,8 @@ source_set("quick_pair") {
     "//ash/quick_pair/common",
     "//chromeos/ash/services/quick_pair/public/cpp",
     "//chromeos/ash/services/quick_pair/public/mojom",
-    "//components/cross_device/logging:logging",
-    "//crypto:crypto",
+    "//components/cross_device/logging",
+    "//crypto",
     "//device/bluetooth",
     "//mojo/public/cpp/bindings",
     "//third_party/abseil-cpp:absl",
@@ -78,6 +78,10 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 fuzzer_test("fast_pair_data_parser_fuzzer") {

@@ -152,6 +152,16 @@
 			<key>Type</key>
 			<string>PSToggleSwitchSpecifier</string>
 			<key>Title</key>
+			<string>Ignore Device Locale Conditions</string>
+			<key>Key</key>
+			<string>IgnoreDeviceLocaleConditions</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
 			<string>Force Upgrade Promo</string>
 			<key>Key</key>
 			<string>UpgradePromoForceEnabled</string>
@@ -176,7 +186,7 @@
 				<string>promos_manager::Promo::OmniboxPosition</string>
 				<string>promos_manager::Promo::DockingPromo</string>
 				<string>promos_manager::Promo::PostDefaultAbandonment</string>
-				<string>promos_manager::Promo::GLICPromo</string>
+				<string>promos_manager::Promo::BWGPromo</string>
 			</array>
 			<key>Titles</key>
 			<array>
@@ -187,7 +197,7 @@
 				<string>Omnibox Position</string>
 				<string>Docking Promo</string>
 				<string>Post-Default Browser Abandonment Alert</string>
-				<string>GLIC Promo</string>
+				<string>BWG Promo</string>
 			</array>
 		</dict>
 		<dict>
@@ -596,6 +606,9 @@
 				<integer>7</integer>
 				<integer>8</integer>
 				<integer>9</integer>
+				<integer>10</integer>
+				<integer>11</integer>
+				<integer>13</integer>
 			</array>
 			<key>Titles</key>
 			<array>
@@ -608,6 +621,9 @@
 				<string>Omnibox Position</string>
 				<string>Lens</string>
 				<string>Enhanced Safe Browsing</string>
+				<string>Lens Overlay</string>
+				<string>CPE</string>
+				<string>Trusted Vault</string>
 			</array>
 		</dict>
 		<dict>
@@ -862,7 +878,7 @@
 			<key>AutocorrectionType</key>
 			<string>No</string>
 		</dict>
-			<dict>
+		<dict>
 			<key>Type</key>
 			<string>PSTextFieldSpecifier</string>
 			<key>Title</key>

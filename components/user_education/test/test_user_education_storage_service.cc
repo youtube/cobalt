@@ -4,6 +4,7 @@
 
 #include "components/user_education/test/test_user_education_storage_service.h"
 
+#include "components/user_education/common/ntp_promo/ntp_promo_specification.h"
 #include "components/user_education/common/user_education_data.h"
 
 namespace user_education::test {
@@ -84,6 +85,37 @@ void TestUserEducationStorageService::SaveProductMessagingData(
 
 void TestUserEducationStorageService::ResetProductMessagingData() {
   product_messaging_data_ = ProductMessagingData();
+}
+
+std::optional<NtpPromoData> TestUserEducationStorageService::ReadNtpPromoData(
+    const NtpPromoIdentifier& id) const {
+  const auto it = ntp_promo_data_.find(id);
+  return it == ntp_promo_data_.end() ? std::nullopt
+                                     : std::make_optional(it->second);
+}
+
+void TestUserEducationStorageService::SaveNtpPromoData(
+    const NtpPromoIdentifier& id,
+    const NtpPromoData& ntp_promo_data) {
+  ntp_promo_data_[id] = ntp_promo_data;
+}
+
+void TestUserEducationStorageService::ResetNtpPromoData(
+    const NtpPromoIdentifier& id) {
+  ntp_promo_data_.erase(id);
+}
+
+NtpPromoPreferences TestUserEducationStorageService::ReadNtpPromoPreferences() {
+  return ntp_promo_prefs_;
+}
+
+void TestUserEducationStorageService::SaveNtpPromoPreferences(
+    const NtpPromoPreferences& data) {
+  ntp_promo_prefs_ = data;
+}
+
+void TestUserEducationStorageService::ResetNtpPromoPreferences() {
+  ntp_promo_prefs_ = NtpPromoPreferences();
 }
 
 }  // namespace user_education::test

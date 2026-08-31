@@ -7,6 +7,7 @@
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/layout/block_node.h"
 #include "third_party/blink/renderer/core/layout/constraint_space.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
@@ -226,16 +227,12 @@ bool LayoutTable::HasBackgroundForPaint() const {
 void LayoutTable::AddChild(LayoutObject* child, LayoutObject* before_child) {
   NOT_DESTROYED();
   TableGridStructureChanged();
-  // Only TablesNG table parts are allowed.
-  // TODO(1229581): Change this DCHECK to caption || column || section.
-  DCHECK(child->IsLayoutNGObject() ||
-         (!child->IsTableCaption() && !child->IsLayoutTableCol() &&
-          !child->IsTableSection()));
-  bool wrap_in_anonymous_section = !child->IsTableCaption() &&
-                                   !child->IsLayoutTableCol() &&
-                                   !child->IsTableSection();
 
-  if (!wrap_in_anonymous_section) {
+  const bool can_be_direct_child = child->IsTableCaption() ||
+                                   child->IsLayoutTableCol() ||
+                                   child->IsTableSection();
+
+  if (can_be_direct_child) {
     if (before_child && before_child->Parent() != this)
       before_child = SplitAnonymousBoxesAroundChild(before_child);
     LayoutBox::AddChild(child, before_child);

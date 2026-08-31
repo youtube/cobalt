@@ -61,9 +61,9 @@ source_set("common_syncable_prefs_database") {
     "//components/password_manager/core/common",
     "//components/payments/core",
     "//components/plus_addresses:prefs",
+    "//components/privacy_sandbox:tracking_protection_prefs",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
     "//components/saved_tab_groups/public",
-    "//components/search_engines",
     "//components/sharing_message",
     "//components/translate/core/browser",
     "//components/variations/service",
@@ -114,4 +114,8 @@ source_set("unit_tests") {
   if (is_chromeos) {
     deps += [ "//ash/constants" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

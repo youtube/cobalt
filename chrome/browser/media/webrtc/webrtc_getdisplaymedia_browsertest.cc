@@ -18,6 +18,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/values.h"
 #include "build/build_config.h"
 #include "build/config/chromebox_for_meetings/buildflags.h"  // PLATFORM_CFM
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
@@ -33,6 +34,7 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
+#include "components/permissions/permission_request_manager.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
 #include "components/policy/core/common/policy_map.h"
@@ -40,12 +42,15 @@
 #include "components/policy/policy_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/url_formatter/elide_url.h"
+#include "content/public/browser/audio_service.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/mock_captured_surface_controller.h"
+#include "media/audio/audio_features.h"
+#include "media/audio/audio_system.h"
 #include "media/base/media_switches.h"
 #include "net/base/filename_util.h"
 #include "third_party/blink/public/common/features.h"
@@ -137,6 +142,19 @@ struct TestConfigForMediaResolution {
   int constraint_height;
 };
 
+struct TestConfigForRestrictOwnAudio {
+  TestConfigForRestrictOwnAudio(bool restrict_own_audio,
+                                bool suppress_local_audio_playback)
+      : restrict_own_audio(restrict_own_audio),
+        suppress_local_audio_playback(suppress_local_audio_playback) {}
+
+  explicit TestConfigForRestrictOwnAudio(std::tuple<bool, bool> input_tuple)
+      : TestConfigForRestrictOwnAudio(std::get<0>(input_tuple),
+                                      std::get<1>(input_tuple)) {}
+  bool restrict_own_audio;
+  bool suppress_local_audio_playback;
+};
+
 constexpr char kAppWindowTitle[] = "AppWindow Display Capture Test";
 
 constexpr char kEmbeddedTestServerOrigin[] = "http://127.0.0.1";
@@ -186,6 +204,16 @@ void RunGetDisplayMedia(content::WebContents* tab,
   EXPECT_EQ(result, expect_success           ? "capture-success"
                     : expected_error.empty() ? "capture-failure"
                                              : "expected-error");
+}
+
+void RunGetUserMedia(content::WebContents* tab,
+                     const std::string& constraints) {
+  const std::string script =
+      base::StrCat({"runGetUserMedia(", constraints, ");"});
+  std::string result = content::EvalJs(tab->GetPrimaryMainFrame(), script,
+                                       content::EXECUTE_SCRIPT_NO_USER_GESTURE)
+                           .ExtractString();
+  EXPECT_EQ(result, "gum-success");
 }
 
 void StopAllTracks(content::WebContents* tab) {
@@ -283,10 +311,23 @@ class WebRtcScreenCaptureBrowserTest : public WebRtcTestBase {
 
   virtual bool PreferCurrentTab() const = 0;
 
-  std::string GetConstraints(bool video, bool audio) const {
+  std::string GetConstraints(bool video,
+                             bool audio,
+                             bool prefer_current_tab) const {
     return base::StringPrintf("{video: %s, audio: %s, preferCurrentTab: %s}",
                               base::ToString(video), base::ToString(audio),
-                              base::ToString(PreferCurrentTab()));
+                              base::ToString(prefer_current_tab));
+  }
+
+  std::string GetConstraints(bool video,
+                             bool audio,
+                             GetDisplayMediaVariant variant) const {
+    return GetConstraints(video, audio,
+                          variant == GetDisplayMediaVariant::kPreferCurrentTab);
+  }
+
+  std::string GetConstraints(bool video, bool audio) const {
+    return GetConstraints(video, audio, PreferCurrentTab());
   }
 };
 
@@ -1126,7 +1167,7 @@ class GetDisplayMediaChangeSourceBrowserTest
     AdjustCommandLineForZeroCopyCapture(command_line);
 
     if (!user_shared_audio_) {
-      command_line->AppendSwitch(switches::kScreenCaptureAudioDefaultUnchecked);
+      command_line->AppendSwitch(switches::kTabCaptureAudioDefaultUnchecked);
     }
   }
 
@@ -1428,6 +1469,7 @@ IN_PROC_BROWSER_TEST_P(GetDisplayMediaSelfBrowserSurfaceBrowserTest,
   EXPECT_FALSE(other_tab->IsBeingCaptured());
 }
 
+// Covers whether transient activation is required to call getDisplayMedia.
 class GetDisplayMediaTransientActivationRequiredTest
     : public WebRtcScreenCaptureBrowserTest,
       public testing::WithParamInterface<
@@ -1535,6 +1577,178 @@ INSTANTIATE_TEST_SUITE_P(
         /*policy_allowlist_value=*/
         Values(std::nullopt, kEmbeddedTestServerOrigin, kOtherOrigin)),
     &GetDisplayMediaTransientActivationRequiredTest::GetDescription);
+
+// Covers whether transient activation is conferred by the user's interaction
+// with the prompt shown by getDisplayMedia.
+class GetDisplayMediaConfersTransientActivationTest
+    : public WebRtcScreenCaptureBrowserTest,
+      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+ public:
+  static std::string GetDescription(
+      const testing::TestParamInfo<
+          GetDisplayMediaConfersTransientActivationTest::ParamType>& info) {
+    const bool feature_enabled = std::get<0>(info.param);
+    const bool prefer_current_tab = std::get<1>(info.param);
+    const bool user_accepts = std::get<2>(info.param);
+    return base::StrCat(
+        {"WithFeature", feature_enabled ? "Enabled" : "Disabled",
+         prefer_current_tab ? "PreferCurrentTabVariant" : "StandardVariant",
+         "User", user_accepts ? "Accepts" : "Rejects", "Prompt"});
+  }
+
+  GetDisplayMediaConfersTransientActivationTest()
+      : feature_enabled_(std::get<0>(GetParam())),
+        prefer_current_tab_(std::get<1>(GetParam())),
+        user_accepts_(std::get<2>(GetParam())) {}
+  ~GetDisplayMediaConfersTransientActivationTest() override = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    if (prefer_current_tab_) {
+      command_line->AppendSwitch(user_accepts_
+                                     ? switches::kThisTabCaptureAutoAccept
+                                     : switches::kThisTabCaptureAutoReject);
+    } else {
+      if (user_accepts_) {
+        command_line->AppendSwitchASCII(
+            switches::kAutoSelectTabCaptureSourceByTitle, kCapturedTabTitle);
+      } else {
+        command_line->AppendSwitch(switches::kCaptureAutoReject);
+      }
+    }
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    WebRtcScreenCaptureBrowserTest::SetUpInProcessBrowserTestFixture();
+    feature_list_.InitWithFeatureState(media::kGetDisplayMediaConfersActivation,
+                                       feature_enabled_);
+    DetectErrorsInJavaScript();
+  }
+
+  bool PreferCurrentTab() const override { return prefer_current_tab_; }
+
+ protected:
+  const bool feature_enabled_;
+  const bool prefer_current_tab_;
+  const bool user_accepts_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    GetDisplayMediaConfersTransientActivationTest,
+    Combine(
+        /*feature_enabled=*/Bool(),
+        /*prefer_current_tab=*/Bool(),
+        /*user_accepts=*/Bool()),
+    &GetDisplayMediaConfersTransientActivationTest::GetDescription);
+
+// TODO(crbug.com/420406085): Re-enable the tests.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER)
+#define MAYBE_GdmActivation_RunTest DISABLED_RunTest
+#else
+#define MAYBE_GdmActivation_RunTest RunTest
+#endif
+IN_PROC_BROWSER_TEST_P(GetDisplayMediaConfersTransientActivationTest,
+                       MAYBE_GdmActivation_RunTest) {
+  // Setup
+  ASSERT_TRUE(embedded_test_server()->Start());
+  OpenTestPageInNewTab(kCapturedPageMain);
+  content::WebContents* capturing_tab = OpenTestPageInNewTab(kMainHtmlPage);
+
+  ASSERT_FALSE(
+      capturing_tab->GetPrimaryMainFrame()->HasTransientUserActivation());
+
+  // `with_user_gesture` is set to `false` because `getDisplayMedia()` does not
+  // currently consume the activation (nor requires it).
+  RunGetDisplayMedia(
+      capturing_tab,
+      GetConstraints(/*video=*/true, /*audio=*/true, prefer_current_tab_),
+      /*is_fake_ui=*/false, /*expect_success=*/user_accepts_,
+      /*is_tab_capture=*/true, /*expected_error=*/"",
+      /*with_user_gesture=*/false);
+
+  EXPECT_EQ(capturing_tab->GetPrimaryMainFrame()->HasTransientUserActivation(),
+            feature_enabled_ && user_accepts_);
+}
+
+// This test suite ensures that, no matter the combination of inputs,
+// an interaction with getUserMedia() does not confer transient activation.
+// That is, the code authored for gDM does not mistrigger and run for gUM.
+class GetUserMediaDoesNotConferTransientActivationTest
+    : public WebRtcTestBase,
+      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+ public:
+  static std::string GetDescription(
+      const testing::TestParamInfo<
+          GetUserMediaDoesNotConferTransientActivationTest::ParamType>& info) {
+    const bool video = std::get<0>(info.param);
+    const bool audio = std::get<1>(info.param);
+    const bool user_accepts = std::get<2>(info.param);
+    return base::StrCat({"Video", video ? "On" : "Off", "Audio",
+                         audio ? "On" : "Off", "User",
+                         user_accepts ? "Accepts" : "Rejects", "Prompt"});
+  }
+
+  GetUserMediaDoesNotConferTransientActivationTest()
+      : video_(std::get<0>(GetParam())),
+        audio_(std::get<1>(GetParam())),
+        user_accepts_(std::get<2>(GetParam())) {}
+  ~GetUserMediaDoesNotConferTransientActivationTest() override = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    command_line->AppendSwitch(switches::kUseFakeDeviceForMediaStream);
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+    WebRtcTestBase::SetUpInProcessBrowserTestFixture();
+    DetectErrorsInJavaScript();
+  }
+
+ protected:
+  const bool video_;
+  const bool audio_;
+  const bool user_accepts_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ,
+    GetUserMediaDoesNotConferTransientActivationTest,
+    Combine(
+        /*video=*/Bool(),
+        /*audio=*/Bool(),
+        /*user_accepts=*/Bool()),
+    &GetUserMediaDoesNotConferTransientActivationTest::GetDescription);
+
+// TODO(crbug.com/420406085): Re-enable the tests.
+#if defined(MEMORY_SANITIZER) || defined(ADDRESS_SANITIZER)
+#define MAYBE_GumActivation_RunTest DISABLED_RunTest
+#else
+#define MAYBE_GumActivation_RunTest RunTest
+#endif
+IN_PROC_BROWSER_TEST_P(GetUserMediaDoesNotConferTransientActivationTest,
+                       MAYBE_GumActivation_RunTest) {
+  if (!video_ && !audio_) {
+    GTEST_SKIP();
+  }
+
+  // Setup
+  ASSERT_TRUE(embedded_test_server()->Start());
+  content::WebContents* const wc = OpenTestPageInNewTab(kMainHtmlPage);
+  permissions::PermissionRequestManager::FromWebContents(wc)
+      ->set_auto_response_for_test(
+          permissions::PermissionRequestManager::ACCEPT_ALL);
+
+  ASSERT_FALSE(wc->GetPrimaryMainFrame()->HasTransientUserActivation());
+
+  const std::string constraints =
+      base::StringPrintf("{video: %s, audio: %s}", video_ ? "true" : "false",
+                         audio_ ? "true" : "false");
+  RunGetUserMedia(wc, constraints);
+
+  EXPECT_FALSE(wc->GetPrimaryMainFrame()->HasTransientUserActivation());
+}
 
 // Encapsulates information about a capture-session in which one tab starts
 // out capturing a specific other tab, and later possibly moves to capturing
@@ -1710,8 +1924,9 @@ class CaptureSessionDetails {
   std::optional<int> GetZoomLevel() {
     const content::EvalJsResult result = content::EvalJs(
         capturing_tab_->GetPrimaryMainFrame(), "getZoomLevel();");
-    return (result == nullptr) ? std::nullopt
-                               : std::make_optional<int>(result.ExtractInt());
+    return (result == base::Value())
+               ? std::nullopt
+               : std::make_optional<int>(result.ExtractInt());
   }
 
   // Call `controller.getSupportedZoomLevels()`.
@@ -1720,7 +1935,7 @@ class CaptureSessionDetails {
     content::EvalJsResult js_result = content::EvalJs(
         capturing_tab_->GetPrimaryMainFrame(), "getSupportedZoomLevels();");
 
-    base::Value::List list = js_result.ExtractList();
+    const base::Value::List& list = js_result.ExtractList();
     EXPECT_GE(list.size(), 1u);
     if (list.size() == 1u) {
       // Reserved for an error.
@@ -2512,3 +2727,180 @@ IN_PROC_BROWSER_TEST_P(
   EXPECT_FALSE(HasCscIndicator(capture_session.initially_captured_tab()));
   EXPECT_FALSE(HasCscIndicator(capture_session.other_tab()));
 }
+
+class WebRtcScreenCaptureBrowserTestUserRejection
+    : public WebRtcScreenCaptureBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  WebRtcScreenCaptureBrowserTestUserRejection()
+      : prefer_current_tab_(GetParam()) {}
+  ~WebRtcScreenCaptureBrowserTestUserRejection() override = default;
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    WebRtcScreenCaptureBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(prefer_current_tab_
+                                   ? switches::kThisTabCaptureAutoReject
+                                   : switches::kCaptureAutoReject);
+  }
+
+  bool PreferCurrentTab() const override { return prefer_current_tab_; }
+
+ private:
+  const bool prefer_current_tab_;
+};
+
+INSTANTIATE_TEST_SUITE_P(, WebRtcScreenCaptureBrowserTestUserRejection, Bool());
+
+IN_PROC_BROWSER_TEST_P(WebRtcScreenCaptureBrowserTestUserRejection,
+                       CorrectErrorReported) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  OpenTestPageInNewTab(kCapturedPageMain);
+  content::WebContents* capturing_tab = OpenTestPageInNewTab(kMainHtmlPage);
+
+  RunGetDisplayMedia(
+      capturing_tab,
+      GetConstraints(
+          /*video=*/true, /*audio=*/false),
+      /*is_fake_ui=*/false,
+      /*expect_success=*/false,
+      /*is_tab_capture=*/true,
+      /*expected_error=*/"NotAllowedError: Permission denied by user");
+}
+
+// RestrictOwnAudio is only supported on macOS and Windows.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+class GetDisplayMediaRestrictOwnAudioTest
+    : public WebRtcTestBase,
+      public testing::WithParamInterface<std::tuple<bool, bool>> {
+ public:
+  GetDisplayMediaRestrictOwnAudioTest() : test_config_(GetParam()) {}
+
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    command_line->AppendSwitch(switches::kAutoSelectScreenCaptureSource);
+    command_line->AppendSwitch(switches::kSystemAudioCaptureDefaultChecked);
+  }
+
+  void SetUpOnMainThread() override {
+    WebRtcTestBase::SetUpOnMainThread();
+    // Ensure that the bot has audio devices since we know that the test will
+    // fail without it. getDisplayMedia() hangs on bots without audio devices
+    // unless fake audio is used. A real audio track is required to verify that
+    // both the device ID and track label are correct; hence using a fake audio
+    // device will not work for this test.
+    if (!HasAudioOutputDevices() || !HasAudioInputDevices()) {
+      GTEST_SKIP() << "Missing audio devices: skipping test...";
+    }
+#if BUILDFLAG(IS_MAC)
+    // The API for system audio sharing is available from macOS 14.2. If macOS
+    // older then 14.2 is used, there will be no option in the UI for sharing
+    // system audio, and we will not have an audio track in the test.
+    int mac_os_version = base::mac::MacOSVersion();
+    int major_mac_os_version = mac_os_version / 1'00'00;
+    int minor_mac_os_version = (mac_os_version / 1'00) % 1'00;
+    if (major_mac_os_version <= 13 ||
+        (major_mac_os_version == 14 && minor_mac_os_version < 2)) {
+      GTEST_SKIP() << "macOS version do not support system audio sharing: "
+                      "skipping test...";
+    }
+#endif
+  }
+
+  void SetUpInProcessBrowserTestFixture() override {
+#if BUILDFLAG(IS_MAC)
+    feature_list_.InitWithFeatures({media::kMacCatapLoopbackAudioForCast,
+                                    media::kMacCatapLoopbackAudioForScreenShare,
+                                    blink::features::kRestrictOwnAudio},
+                                   {media::kUseSCContentSharingPicker});
+#elif BUILDFLAG(IS_WIN)
+    feature_list_.InitWithFeatures({blink::features::kRestrictOwnAudio}, {});
+#endif
+
+    WebRtcTestBase::SetUpInProcessBrowserTestFixture();
+
+    DetectErrorsInJavaScript();
+  }
+
+  // Synchronously checks if the system/bot has audio output devices.
+  bool HasAudioOutputDevices() {
+    bool has_devices = false;
+    base::RunLoop run_loop;
+    auto audio_system = content::CreateAudioSystemForAudioService();
+    audio_system->HasOutputDevices(base::BindOnce(
+        [](base::OnceClosure finished_callback, bool* result, bool received) {
+          *result = received;
+          std::move(finished_callback).Run();
+        },
+        run_loop.QuitClosure(), &has_devices));
+    run_loop.Run();
+    return has_devices;
+  }
+  // Synchronously checks if the system/bot has audio input devices.
+  bool HasAudioInputDevices() {
+    bool has_devices = false;
+    base::RunLoop run_loop;
+    auto audio_system = content::CreateAudioSystemForAudioService();
+    audio_system->HasInputDevices(base::BindOnce(
+        [](base::OnceClosure finished_callback, bool* result, bool received) {
+          *result = received;
+          std::move(finished_callback).Run();
+        },
+        run_loop.QuitClosure(), &has_devices));
+    run_loop.Run();
+    return has_devices;
+  }
+
+  std::string GetConstraintsSystemAudio(bool suppress_local_audio_playback,
+                                        bool restrict_own_audio) const {
+    return base::StringPrintf(
+        "{video: true, audio: {suppressLocalAudioPlayback: %s, "
+        "restrictOwnAudio: %s}, preferCurrentTab: false, systemAudio: "
+        "\"include\"}",
+        base::ToString(suppress_local_audio_playback),
+        base::ToString(restrict_own_audio));
+  }
+
+  const TestConfigForRestrictOwnAudio test_config_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         GetDisplayMediaRestrictOwnAudioTest,
+                         Combine(
+                             /*restrict_own_audio=*/Bool(),
+                             /*suppress_local_audio_playback=*/Bool()));
+
+IN_PROC_BROWSER_TEST_P(GetDisplayMediaRestrictOwnAudioTest,
+                       ScreenCaptureWithRestrictOwnAudio) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  content::WebContents* tab = OpenTestPageInNewTab(kMainHtmlPage);
+  RunGetDisplayMedia(
+      tab,
+      GetConstraintsSystemAudio(test_config_.suppress_local_audio_playback,
+                                test_config_.restrict_own_audio),
+      /*is_fake_ui=*/false,
+      /*expect_success=*/true,
+      /*is_tab_capture=*/false);
+  EXPECT_EQ(content::EvalJs(tab->GetPrimaryMainFrame(), "hasAudioTrack();"),
+            "true");
+  EXPECT_EQ(
+      content::EvalJs(tab->GetPrimaryMainFrame(), "getAudioTrackLabel();"),
+      "System Audio");
+
+  if (test_config_.restrict_own_audio) {
+    EXPECT_EQ(
+        content::EvalJs(tab->GetPrimaryMainFrame(), "getAudioDeviceId();"),
+        "loopbackWithoutChrome");
+  } else if (test_config_.suppress_local_audio_playback) {
+    EXPECT_EQ(
+        content::EvalJs(tab->GetPrimaryMainFrame(), "getAudioDeviceId();"),
+        "loopbackWithMute");
+  } else {
+    EXPECT_EQ(
+        content::EvalJs(tab->GetPrimaryMainFrame(), "getAudioDeviceId();"),
+        "loopback");
+  }
+}
+
+#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)

@@ -4,13 +4,15 @@
 
 package org.chromium.chrome.browser.toolbar.home_button;
 
-import static org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils.buildMenuListItem;
-
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.view.View;
 import android.view.View.OnClickListener;
 
+import androidx.annotation.DrawableRes;
+import androidx.annotation.IdRes;
 import androidx.annotation.VisibleForTesting;
+import androidx.core.widget.ImageViewCompat;
 
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.Supplier;
@@ -18,7 +20,9 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.toolbar.MenuBuilderHelper;
 import org.chromium.chrome.browser.toolbar.R;
+import org.chromium.chrome.browser.toolbar.top.HomeButtonDisplay;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu;
 import org.chromium.ui.listmenu.ListMenuDelegate;
@@ -31,7 +35,7 @@ import org.chromium.ui.widget.RectProvider;
  */
 // TODO(crbug.com/40676825): Fix the visibility bug on NTP.
 @NullMarked
-public class HomeButtonCoordinator {
+public class HomeButtonCoordinator implements HomeButtonDisplay {
     private static final int ID_SETTINGS = 0;
 
     private final Context mContext;
@@ -71,10 +75,11 @@ public class HomeButtonCoordinator {
             RectProvider rectProvider = MenuBuilderHelper.getRectProvider(mHomeButton);
             mMenuList = new MVCListAdapter.ModelList();
             mMenuList.add(
-                    buildMenuListItem(
-                            R.string.options_homepage_edit_title,
-                            ID_SETTINGS,
-                            R.drawable.ic_edit_24dp));
+                    new ListItemBuilder()
+                            .withTitleRes(R.string.options_homepage_edit_title)
+                            .withMenuId(ID_SETTINGS)
+                            .withStartIconRes(R.drawable.ic_edit_24dp)
+                            .build());
             BasicListMenu listMenu =
                     BrowserUiListMenuUtils.getBasicListMenu(
                             mContext,
@@ -96,6 +101,78 @@ public class HomeButtonCoordinator {
         }
         mHomeButton.showMenu();
         return true;
+    }
+
+    // {@link HomeButtonDisplay} implementation.
+
+    @Override
+    public View getView() {
+        return mHomeButton;
+    }
+
+    @Override
+    public void setVisibility(int visibility) {
+        mHomeButton.setVisibility(visibility);
+    }
+
+    @Override
+    public int getVisibility() {
+        return mHomeButton.getVisibility();
+    }
+
+    @Override
+    public void setForegroundColor(@Nullable ColorStateList colorStateList) {
+        ImageViewCompat.setImageTintList(mHomeButton, colorStateList);
+    }
+
+    @Nullable
+    @Override
+    public ColorStateList getForegroundColor() {
+        return ImageViewCompat.getImageTintList(mHomeButton);
+    }
+
+    @Override
+    public void setBackgroundResource(@DrawableRes int resId) {
+        mHomeButton.setBackgroundResource(resId);
+    }
+
+    @Override
+    public int getMeasuredWidth() {
+        return mHomeButton.getMeasuredWidth();
+    }
+
+    @Override
+    public void updateState(
+            int toolbarVisualState,
+            boolean isHomeButtonEnabled,
+            boolean isHomepageNonNtp,
+            boolean urlHasFocus) {
+        boolean hideHomeButton = !isHomeButtonEnabled;
+        if (hideHomeButton) {
+            mHomeButton.setVisibility(View.GONE);
+        } else {
+            mHomeButton.setVisibility(urlHasFocus ? View.INVISIBLE : View.VISIBLE);
+        }
+    }
+
+    @Override
+    public void setAccessibilityTraversalBefore(@IdRes int viewId) {
+        mHomeButton.setAccessibilityTraversalBefore(viewId);
+    }
+
+    @Override
+    public void setTranslationY(float translationY) {
+        mHomeButton.setTranslationY(translationY);
+    }
+
+    @Override
+    public void setClickable(boolean clickable) {
+        mHomeButton.setClickable(clickable);
+    }
+
+    @Override
+    public void setOnKeyListener(View.OnKeyListener listener) {
+        mHomeButton.setOnKeyListener(listener);
     }
 
     public MVCListAdapter.@Nullable ModelList getMenuForTesting() {

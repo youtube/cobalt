@@ -15,7 +15,6 @@
 
 #include "api/units/data_rate.h"
 #include "api/video/video_frame.h"
-#include "test/testsupport/file_utils.h"
 #include "video/corruption_detection/evaluation/test_clip.h"
 
 namespace webrtc {

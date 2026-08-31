@@ -11,7 +11,9 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/grit/generated_resources.h"
 #include "extensions/common/error_utils.h"
 #include "extensions/common/manifest.h"
@@ -26,24 +28,13 @@ namespace errors = manifest_errors;
 
 namespace {
 
-BASE_FEATURE(kValidateThemeImageMimeType,
-             "ValidateThemeImageMimeType",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 bool IsThemeImageMimeTypeValid(const base::FilePath& relative_path,
                                std::vector<std::string>* warnings) {
-  // TODO(crbug.com/40059598): Remove this if-check and always validate the mime
-  // type in M140.
-  if (!base::FeatureList::IsEnabled(kValidateThemeImageMimeType)) {
-    return true;
-  }
-
   // In case of an image with no file extension, issue a warning and allow it
   // for compatibility with existing themes.
   if (relative_path.Extension().empty()) {
-    warnings->emplace_back(
-        ErrorUtils::FormatErrorMessage(errors::kThemeImageMissingFileExtension,
-                                       relative_path.AsUTF8Unsafe().c_str()));
+    warnings->emplace_back(ErrorUtils::FormatErrorMessage(
+        errors::kThemeImageMissingFileExtension, relative_path.AsUTF8Unsafe()));
     return true;
   }
 
@@ -52,9 +43,8 @@ bool IsThemeImageMimeTypeValid(const base::FilePath& relative_path,
     // Issue a warning and ignore this entry. This is a warning and not a
     // hard-error to preserve both backwards compatibility and potential
     // future-compatibility if mime types change.
-    warnings->emplace_back(
-        ErrorUtils::FormatErrorMessage(errors::kInvalidThemeImageMimeType,
-                                       relative_path.AsUTF8Unsafe().c_str()));
+    warnings->emplace_back(ErrorUtils::FormatErrorMessage(
+        errors::kInvalidThemeImageMimeType, relative_path.AsUTF8Unsafe()));
     return false;
   }
 
@@ -154,8 +144,9 @@ bool LoadTints(const base::Value::Dict& theme_dict,
                std::u16string* error,
                ThemeInfo* theme_info) {
   const base::Value::Dict* tints_dict = theme_dict.FindDict(keys::kThemeTints);
-  if (!tints_dict)
+  if (!tints_dict) {
     return true;
+  }
 
   // Validate that the tints are all reals.
   for (const auto [key, value] : *tints_dict) {
@@ -188,6 +179,43 @@ bool LoadDisplayProperties(const base::Value::Dict& theme_dict,
           theme_dict.FindDict(keys::kThemeDisplayProperties)) {
     theme_info->theme_display_properties_ = display_properties_value->Clone();
   }
+  return true;
+}
+
+// Parses the `tab_group_color_palette_dict` dictionary. Validates whether the
+// values are all integers. If they are then it loads the dictionary into
+// `theme_info` and returns true. And if the check fails then it populates the
+// `error` message and returns false.
+bool LoadTabGroupColorPalette(
+    const base::Value::Dict& theme_dict,
+    // TODO(crbug.com/427972612): Take string by reference instead of taking a
+    // pointer to the string.
+    std::u16string* error,
+    // TODO(crbug.com/427972612): Take object by reference instead of taking a
+    // pointer to the object.
+    ThemeInfo* theme_info) {
+  DCHECK(error);
+  DCHECK(theme_info);
+
+  if (!base::FeatureList::IsEnabled(features::kCustomizeTabGroupColorPalette)) {
+    return true;
+  }
+
+  const base::Value::Dict* tab_group_color_palette_dict =
+      theme_dict.FindDict(keys::kThemeTabGroupColorPalette);
+  if (!tab_group_color_palette_dict) {
+    return true;
+  }
+
+  for (const auto [key, value] : *tab_group_color_palette_dict) {
+    if (!value.is_int()) {
+      *error = errors::kInvalidThemeTabGroupColorPalette;
+      return false;
+    }
+  }
+
+  theme_info->theme_tab_group_color_palette_ =
+      tab_group_color_palette_dict->Clone();
   return true;
 }
 
@@ -226,6 +254,13 @@ const base::Value::Dict* ThemeInfo::GetDisplayProperties(
   return theme_info ? &theme_info->theme_display_properties_ : nullptr;
 }
 
+// static
+const base::Value::Dict* ThemeInfo::GetTabGroupColorPalette(
+    const Extension* extension) {
+  const ThemeInfo* theme_info = GetInfo(extension);
+  return theme_info ? &theme_info->theme_tab_group_color_palette_ : nullptr;
+}
+
 ThemeHandler::ThemeHandler() = default;
 
 ThemeHandler::~ThemeHandler() = default;
@@ -251,6 +286,9 @@ bool ThemeHandler::Parse(Extension* extension, std::u16string* error) {
   if (!LoadDisplayProperties(*theme_dict, error, theme_info.get())) {
     return false;
   }
+  if (!LoadTabGroupColorPalette(*theme_dict, error, theme_info.get())) {
+    return false;
+  }
 
   for (const auto& warning : image_warnings) {
     extension->AddInstallWarning(InstallWarning(warning, keys::kThemeImages));
@@ -260,24 +298,36 @@ bool ThemeHandler::Parse(Extension* extension, std::u16string* error) {
   return true;
 }
 
-bool ThemeHandler::Validate(const Extension* extension,
+bool ThemeHandler::Validate(const Extension& extension,
                             std::string* error,
                             std::vector<InstallWarning>* warnings) const {
   // Validate that theme images exist.
-  if (extension->is_theme()) {
+  if (extension.is_theme()) {
     const base::Value::Dict* images_value =
-        extensions::ThemeInfo::GetImages(extension);
+        extensions::ThemeInfo::GetImages(&extension);
     if (images_value) {
       for (const auto [key, value] : *images_value) {
-        const std::string* val = value.GetIfString();
-        if (val) {
-          base::FilePath image_path =
-              extension->path().Append(base::FilePath::FromUTF8Unsafe(*val));
-          if (!base::PathExists(image_path)) {
-            *error =
-                l10n_util::GetStringFUTF8(IDS_EXTENSION_INVALID_IMAGE_PATH,
-                                          image_path.LossyDisplayName());
+        if (value.is_string()) {
+          const std::string& val = value.GetString();
+          base::FilePath image_path = extension.GetResource(val).GetFilePath();
+          if (image_path.empty() || !base::PathExists(image_path)) {
+            *error = l10n_util::GetStringFUTF8(IDS_EXTENSION_INVALID_IMAGE_PATH,
+                                               base::UTF8ToUTF16(val));
             return false;
+          }
+        } else if (value.is_dict()) {
+          for (const auto [scale, path] : value.GetDict()) {
+            if (path.is_string()) {
+              const std::string& val = path.GetString();
+              base::FilePath image_path =
+                  extension.GetResource(val).GetFilePath();
+              if (image_path.empty() || !base::PathExists(image_path)) {
+                // This is a warning and not a hard-error for backwards
+                // compatibility with existing themes.
+                warnings->emplace_back(ErrorUtils::FormatErrorMessage(
+                    errors::kInvalidThemeDictImagePath, key, scale, val));
+              }
+            }
           }
         }
       }

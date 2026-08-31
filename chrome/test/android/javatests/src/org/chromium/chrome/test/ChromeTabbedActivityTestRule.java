@@ -8,7 +8,6 @@ import android.app.ActivityOptions;
 import android.app.Instrumentation;
 import android.content.Intent;
 import android.os.Bundle;
-import android.provider.Browser;
 import android.text.TextUtils;
 
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -44,6 +43,10 @@ import java.util.concurrent.TimeoutException;
 public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeTabbedActivity> {
     private static final String TAG = "ChromeTabbedATR";
 
+    /**
+     * @deprecated use ChromeTransitTestRules instead.
+     */
+    @Deprecated
     public ChromeTabbedActivityTestRule() {
         super(ChromeTabbedActivity.class);
     }
@@ -92,18 +95,6 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
      */
     public void startMainActivityOnBlankPage() {
         startMainActivityWithURL("about:blank");
-    }
-
-    /**
-     * Starts the Main activity as if it was started from an external application, on the
-     * specified URL.
-     */
-    public void startMainActivityFromExternalApp(String url, String appId) {
-        Intent intent = new Intent(Intent.ACTION_VIEW);
-        if (appId != null) {
-            intent.putExtra(Browser.EXTRA_APPLICATION_ID, appId);
-        }
-        startMainActivityFromIntent(intent, url);
     }
 
     /**
@@ -180,7 +171,7 @@ public class ChromeTabbedActivityTestRule extends ChromeActivityTestRule<ChromeT
         }
         ThreadUtils.runOnUiThreadBlocking(() -> incognitoTabModel.removeObserver(observer));
 
-        Tab tab = getActivity().getActivityTab();
+        Tab tab = getActivityTab();
 
         ChromeTabUtils.waitForTabPageLoaded(tab, (String) null);
         NewTabPageTestUtils.waitForNtpLoaded(tab);

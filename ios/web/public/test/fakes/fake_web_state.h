@@ -43,7 +43,7 @@ class FakeWebState : public WebState {
   void SetDelegate(WebStateDelegate* delegate) override;
   std::unique_ptr<WebState> Clone() const override;
   bool IsRealized() const final;
-  WebState* ForceRealized() final;
+  WebState* ForceRealizedWithPolicy(RealizationPolicy policy) final;
   bool IsWebUsageEnabled() const override;
   void SetWebUsageEnabled(bool enabled) override;
   UIView* GetView() override;
@@ -218,7 +218,8 @@ class FakeWebState : public WebState {
   id<CRWWebViewDownloadDelegate> download_delegate_;
 
   // A list of observers notified when page state changes. Weak references.
-  base::ObserverList<WebStateObserver, true> observers_;
+  WebStateObserverList observers_;
+
   // All the WebStatePolicyDeciders asked for navigation decision. Weak
   // references.
   base::ObserverList<WebStatePolicyDecider, true> policy_deciders_;

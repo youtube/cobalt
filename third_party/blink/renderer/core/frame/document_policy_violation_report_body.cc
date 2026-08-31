@@ -18,9 +18,9 @@ DocumentPolicyViolationReportBody::DocumentPolicyViolationReportBody(
     : LocationReportBody(resource_url),
       feature_id_(feature_id),
       message_(message.empty()
-                   ? WTF::StrCat({"Document policy violation: ", feature_id,
-                                  " is not allowed in this document."})
-                   : WTF::StrCat({"Document policy violation: ", message})),
+                   ? StrCat({"Document policy violation: ", feature_id,
+                             " is not allowed in this document."})
+                   : StrCat({"Document policy violation: ", message})),
       disposition_(disposition) {
   DCHECK(!feature_id.empty());
   DCHECK(!disposition.empty());
@@ -36,9 +36,9 @@ void DocumentPolicyViolationReportBody::BuildJSONValue(
 
 unsigned DocumentPolicyViolationReportBody::MatchId() const {
   unsigned hash = LocationReportBody::MatchId();
-  hash = WTF::HashInts(hash, featureId().Impl()->GetHash());
-  hash = WTF::HashInts(hash, disposition().Impl()->GetHash());
-  hash = WTF::HashInts(hash, message().Impl()->GetHash());
+  hash = HashInts(hash, featureId().Impl()->GetHash());
+  hash = HashInts(hash, disposition().Impl()->GetHash());
+  hash = HashInts(hash, message().Impl()->GetHash());
   return hash;
 }
 

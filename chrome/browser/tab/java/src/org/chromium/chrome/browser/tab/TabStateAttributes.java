@@ -262,7 +262,9 @@ public class TabStateAttributes extends TabWebContentsUserData {
     }
 
     @VisibleForTesting
-    void updateIsDirty(@DirtinessState int dirtiness) {
+    // TODO(https://crbug.com/430996004): Reset to package protected after
+    // TAB_STORAGE_SQLITE_PROTOTYPE is done.
+    public void updateIsDirty(@DirtinessState int dirtiness) {
         updateIsDirtyInternal(
                 dirtiness, tab -> isTabUrlContentScheme(tab) || isNtpWithoutNavigationState(tab));
     }
@@ -304,8 +306,10 @@ public class TabStateAttributes extends TabWebContentsUserData {
         if (mNumberOpenBatchEdits > 0) {
             updatePendingDirty(mDirtinessState);
         } else {
+            // All observers should see the new state, even if it's not the current state anymore.
+            @DirtinessState int newState = mDirtinessState;
             for (Observer observer : mObservers) {
-                observer.onTabStateDirtinessChanged(mTab, mDirtinessState);
+                observer.onTabStateDirtinessChanged(mTab, newState);
             }
         }
     }

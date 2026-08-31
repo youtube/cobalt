@@ -50,6 +50,7 @@
 #include "third_party/blink/renderer/platform/wtf/construct_traits.h"
 #include "third_party/blink/renderer/platform/wtf/container_annotations.h"
 #include "third_party/blink/renderer/platform/wtf/forward.h"  // For default Vector template parameters.
+#include "third_party/blink/renderer/platform/wtf/gc_plugin.h"
 #include "third_party/blink/renderer/platform/wtf/hash_table_deleted_value_type.h"
 #include "third_party/blink/renderer/platform/wtf/stack_util.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
@@ -65,12 +66,7 @@
 #define INLINE_CAPACITY InlineCapacity
 #endif
 
-namespace WTF {
-template <typename T, wtf_size_t InlineCapacity, typename Allocator>
-class Vector;
-}
-
-namespace WTF {
+namespace blink {
 
 #if defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
 // The allocation pool for nodes is one big chunk that ASAN has no insight
@@ -80,9 +76,6 @@ static const wtf_size_t kInitialVectorSize = 1;
 #else
 static const wtf_size_t kInitialVectorSize = 4;
 #endif
-
-template <typename T, wtf_size_t inlineBuffer, typename Allocator>
-class Deque;
 
 //
 // Vector Traits
@@ -170,193 +163,210 @@ template <typename T, typename Allocator>
 struct VectorTypeOperations {
   STATIC_ONLY(VectorTypeOperations);
 
-  using ConstructTraits = WTF::ConstructTraits<T, VectorTraits<T>, Allocator>;
+  using ConstructTraits = ConstructTraits<T, VectorTraits<T>, Allocator>;
 
-  static void Destruct(T* begin, T* end) {
-    if constexpr (VectorTraits<T>::kNeedsDestruction) {
-      for (T* cur = begin; cur != end; ++cur)
-        cur->~T();
+  ALWAYS_INLINE static void Destruct(T* begin, T* end) {
+    if constexpr (!VectorTraits<T>::kNeedsDestruction) {
+      return;
+    }
+    for (T* cur = begin; cur != end; ++cur) {
+      cur->~T();
     }
   }
 
-  static void Initialize(T* begin, T* end) {
+  ALWAYS_INLINE static void Initialize(T* begin,
+                                       T* end,
+                                       VectorOperationOrigin origin,
+                                       bool maybe_inline_storage) {
     if constexpr (VectorTraits<T>::kCanInitializeWithMemset) {
-      size_t size =
+      // For GCed out-of-line storage during construction we are guaranteed to
+      // have  memory initialized with zeros.
+      if (Allocator::kIsGarbageCollected &&
+          origin == VectorOperationOrigin::kConstruction &&
+          !maybe_inline_storage) {
+        return;
+      }
+
+      const size_t bytes =
           reinterpret_cast<char*>(end) - reinterpret_cast<char*>(begin);
-      if constexpr (!Allocator::kIsGarbageCollected || !IsTraceable<T>::value) {
-        if (size != 0) {
+      if constexpr (IsTraceable<T>::value) {
+        // Traceable values must only exist on GCed vectors.
+        static_assert(Allocator::kIsGarbageCollected);
+        AtomicMemzero(begin, bytes);
+      } else {
+        // Anything else (non-GCed, or GCed with non-traceables) can use regular
+        // memset.
+        if (bytes != 0) {
           // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-          memset(begin, 0, size);
+          memset(begin, 0, bytes);
         }
-      } else {
-        AtomicMemzero(begin, size);
       }
     } else {
-      for (T* cur = begin; cur != end; ++cur)
+      for (T* cur = begin; cur != end; ++cur) {
         ConstructTraits::Construct(cur);
+      }
+      // We assume that default construction using T() doesn't set interesting
+      // pointers. Otherwise, we'd need `NotifyNewElements` if `origin` is
+      // `kRegularModification`.
     }
   }
 
-  static void Move(T* const src,
-                   T* const src_end,
-                   T* const dst,
-                   VectorOperationOrigin origin) {
+  ALWAYS_INLINE static void Move(T* const src,
+                                 T* const src_end,
+                                 T* const dst,
+                                 VectorOperationOrigin origin) {
     if (!src || !dst) [[unlikely]] {
       return;
     }
-    if constexpr (!VectorTraits<T>::kCanMoveWithMemcpy) {
-      if (origin == VectorOperationOrigin::kConstruction) {
-        for (T *s = src, *d = dst; s != src_end; ++s, ++d) {
-          ConstructTraits::Construct(d, std::move(*s));
-          s->~T();
+    if constexpr (VectorTraits<T>::kCanMoveWithMemcpy) {
+      const size_t bytes = reinterpret_cast<const char*>(src_end) -
+                           reinterpret_cast<const char*>(src);
+      if constexpr (IsTraceable<T>::value) {
+        static_assert(Allocator::kIsGarbageCollected);
+        AtomicWriteMemcpy(dst, src, bytes);
+      } else {
+        // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
+        memcpy(dst, src, bytes);
+      }
+    } else {
+      for (T *s = src, *d = dst; s != src_end; ++s, ++d) {
+        ConstructTraits::Construct(d, std::move(*s));
+        s->~T();
+      }
+    }
+    if constexpr (IsTraceable<T>::value) {
+      static_assert(Allocator::kIsGarbageCollected);
+      if (origin != VectorOperationOrigin::kConstruction) {
+        // SAFETY: TODO(359904345): VectorTypeOperations should operate on
+        // spans.
+        base::span<T> UNSAFE_BUFFERS(elements(
+            dst, static_cast<wtf_size_t>(std::distance(src, src_end))));
+        ConstructTraits::NotifyNewElements(elements);
+      }
+    }
+  }
+
+  ALWAYS_INLINE static void MoveOverlapping(T* const src,
+                                            T* const src_end,
+                                            T* const dst,
+                                            VectorOperationOrigin origin) {
+    if (!src || !dst || dst == src) [[unlikely]] {
+      return;
+    }
+    if constexpr (VectorTraits<T>::kCanMoveWithMemcpy) {
+      if constexpr (IsTraceable<T>::value) {
+        static_assert(Allocator::kIsGarbageCollected);
+        if (dst < src) {
+          // Regular Move() works as it's not relying on memcpy() in this case.
+          Move(src, src_end, dst, origin);
+          return;
+        }
+        DCHECK_GT(dst, src);
+        T* s = src_end - 1;
+        T* d = dst + (s - src);
+        for (; s >= src; --s, --d) {
+          AtomicWriteMemcpy<sizeof(T), alignof(T)>(d, s);
         }
       } else {
-        for (T *s = src, *d = dst; s != src_end; ++s, ++d) {
-          ConstructTraits::ConstructAndNotifyElement(d, std::move(*s));
-          s->~T();
-        }
-      }
-    } else if constexpr (Allocator::kIsGarbageCollected &&
-                         IsTraceable<T>::value) {
-      static_assert(VectorTraits<T>::kCanMoveWithMemcpy);
-      AtomicWriteMemcpy(dst, src,
-                        reinterpret_cast<const char*>(src_end) -
-                            reinterpret_cast<const char*>(src));
-      if (origin != VectorOperationOrigin::kConstruction) {
-        // SAFETY: TODO(359904345): VectorTypeOperations should operate on spans.
-        base::span<T> UNSAFE_BUFFERS(
-            elements(dst, static_cast<size_t>(src_end - src)));
-        ConstructTraits::NotifyNewElements(elements);
-      }
-    } else {
-      static_assert(VectorTraits<T>::kCanMoveWithMemcpy);
-      // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-      memcpy(dst, src,
-             reinterpret_cast<const char*>(src_end) -
-                 reinterpret_cast<const char*>(src));
-    }
-  }
-
-  static void MoveOverlapping(T* const src,
-                              T* const src_end,
-                              T* const dst,
-                              VectorOperationOrigin origin) {
-    if (!src || !dst) [[unlikely]] {
-      return;
-    }
-    if constexpr (!VectorTraits<T>::kCanMoveWithMemcpy) {
-      if (dst < src) {
-        Move(src, src_end, dst, origin);
-      } else if (dst > src) {
-        T* s = src_end - 1;
-        T* d = dst + (s - src);
-        if (origin == VectorOperationOrigin::kConstruction) {
-          for (; s >= src; --s, --d) {
-            ConstructTraits::Construct(d, std::move(*s));
-            s->~T();
-          }
-        } else {
-          for (; s >= src; --s, --d) {
-            ConstructTraits::ConstructAndNotifyElement(d, std::move(*s));
-            s->~T();
-          }
-        }
-      }
-    } else if constexpr (Allocator::kIsGarbageCollected &&
-                         IsTraceable<T>::value) {
-      static_assert(VectorTraits<T>::kCanMoveWithMemcpy);
-      if (dst < src) {
-        for (T *s = src, *d = dst; s < src_end; ++s, ++d)
-          AtomicWriteMemcpy<sizeof(T), alignof(T)>(d, s);
-      } else if (dst > src) {
-        T* s = src_end - 1;
-        T* d = dst + (s - src);
-        for (; s >= src; --s, --d)
-          AtomicWriteMemcpy<sizeof(T), alignof(T)>(d, s);
-      }
-      if (origin != VectorOperationOrigin::kConstruction) {
-        // SAFETY: TODO(359904345): VectorTypeOperations should operate on spans.
-        base::span<T> UNSAFE_BUFFERS(
-            elements(dst, static_cast<size_t>(src_end - src)));
-        ConstructTraits::NotifyNewElements(elements);
-      }
-    } else {
-      static_assert(VectorTraits<T>::kCanMoveWithMemcpy);
-      // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-      memmove(dst, src,
-              reinterpret_cast<const char*>(src_end) -
-                  reinterpret_cast<const char*>(src));
-    }
-  }
-
-  static void Swap(T* const src,
-                   T* const src_end,
-                   T* const dst,
-                   VectorOperationOrigin src_origin) {
-    if constexpr (!VectorTraits<T>::kCanMoveWithMemcpy) {
-      std::swap_ranges(src, src_end, dst);
-    } else if constexpr (Allocator::kIsGarbageCollected &&
-                         IsTraceable<T>::value) {
-      static_assert(VectorTraits<T>::kCanMoveWithMemcpy);
-      constexpr size_t boundary = std::max(alignof(T), sizeof(size_t));
-      alignas(boundary) char buf[sizeof(T)];
-      for (T *s = src, *d = dst; s < src_end; ++s, ++d) {
         // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-        memcpy(buf, d, sizeof(T));
-        AtomicWriteMemcpy<sizeof(T), alignof(T)>(d, s);
-        AtomicWriteMemcpy<sizeof(T), alignof(T)>(s, buf);
+        memmove(dst, src,
+                reinterpret_cast<const char*>(src_end) -
+                    reinterpret_cast<const char*>(src));
       }
-      const size_t len = src_end - src;
-      if (src_origin != VectorOperationOrigin::kConstruction) {
-        // SAFETY: TODO(359904345): VectorTypeOperations should operate on spans.
-        base::span<T> UNSAFE_BUFFERS(elements(src, len));
+    } else {
+      if (dst < src) {
+        // Regular Move() works as it's not relying on memcpy() in this case.
+        Move(src, src_end, dst, origin);
+        return;
+      }
+      DCHECK_GT(dst, src);
+      T* s = src_end - 1;
+      T* d = dst + (s - src);
+      for (; s >= src; --s, --d) {
+        ConstructTraits::Construct(d, std::move(*s));
+        s->~T();
+      }
+    }
+    if constexpr (IsTraceable<T>::value) {
+      static_assert(Allocator::kIsGarbageCollected);
+      if (origin != VectorOperationOrigin::kConstruction) {
+        // SAFETY: TODO(359904345): VectorTypeOperations should operate on
+        // spans.
+        base::span<T> UNSAFE_BUFFERS(elements(
+            dst, static_cast<wtf_size_t>(std::distance(src, src_end))));
         ConstructTraits::NotifyNewElements(elements);
       }
-      // SAFETY: TODO(359904345): VectorTypeOperations should operate on spans.
-      base::span<T> UNSAFE_BUFFERS(elements(dst, len));
-      ConstructTraits::NotifyNewElements(elements);
-    } else {
-      static_assert(VectorTraits<T>::kCanMoveWithMemcpy);
-      std::swap_ranges(reinterpret_cast<char*>(src),
-                       reinterpret_cast<char*>(src_end),
-                       reinterpret_cast<char*>(dst));
     }
   }
 
-  static void Copy(const T* src,
-                   const T* src_end,
-                   T* dst,
-                   VectorOperationOrigin origin) {
-    if constexpr (!VectorTraits<T>::kCanCopyWithMemcpy) {
-      std::copy(src, src_end, dst);
-    } else if constexpr (Allocator::kIsGarbageCollected &&
-                         IsTraceable<T>::value) {
-      static_assert(VectorTraits<T>::kCanCopyWithMemcpy);
-      AtomicWriteMemcpy(dst, src,
-                        reinterpret_cast<const char*>(src_end) -
-                            reinterpret_cast<const char*>(src));
-      if (origin != VectorOperationOrigin::kConstruction) {
+  ALWAYS_INLINE static void Swap(T* const src,
+                                 T* const src_end,
+                                 T* const dst,
+                                 VectorOperationOrigin src_origin) {
+    if constexpr (VectorTraits<T>::kCanMoveWithMemcpy) {
+      if constexpr (IsTraceable<T>::value) {
+        static_assert(Allocator::kIsGarbageCollected);
+        constexpr size_t boundary = std::max(alignof(T), sizeof(size_t));
+        alignas(boundary) char buf[sizeof(T)];
+        for (T *s = src, *d = dst; s < src_end; ++s, ++d) {
+          // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
+          memcpy(buf, d, sizeof(T));
+          AtomicWriteMemcpy<sizeof(T), alignof(T)>(d, s);
+          AtomicWriteMemcpy<sizeof(T), alignof(T)>(s, buf);
+        }
+        const wtf_size_t len = std::distance(src, src_end);
+        if (src_origin != VectorOperationOrigin::kConstruction) {
+          // SAFETY: TODO(359904345): VectorTypeOperations should operate on
+          // spans.
+          base::span<T> UNSAFE_BUFFERS(elements(src, len));
+          ConstructTraits::NotifyNewElements(elements);
+        }
         // SAFETY: TODO(359904345): VectorTypeOperations should operate on spans.
-        base::span<T> UNSAFE_BUFFERS(
-            elements(dst, static_cast<size_t>(src_end - src)));
+        base::span<T> UNSAFE_BUFFERS(elements(dst, len));
         ConstructTraits::NotifyNewElements(elements);
+      } else {
+        std::swap_ranges(reinterpret_cast<char*>(src),
+                         reinterpret_cast<char*>(src_end),
+                         reinterpret_cast<char*>(dst));
       }
     } else {
-      static_assert(VectorTraits<T>::kCanCopyWithMemcpy);
-      // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
-      if (src != src_end) {
-        memcpy(dst, src,
-               reinterpret_cast<const char*>(src_end) -
-                   reinterpret_cast<const char*>(src));
+      std::swap_ranges(src, src_end, dst);
+    }
+  }
+
+  ALWAYS_INLINE static void Copy(const T* const src,
+                                 const T* const src_end,
+                                 T* dst,
+                                 VectorOperationOrigin origin) {
+    if constexpr (VectorTraits<T>::kCanCopyWithMemcpy) {
+      const size_t bytes = reinterpret_cast<const char*>(src_end) -
+                           reinterpret_cast<const char*>(src);
+      if constexpr (IsTraceable<T>::value) {
+        static_assert(Allocator::kIsGarbageCollected);
+        AtomicWriteMemcpy(dst, src, bytes);
+        if (origin != VectorOperationOrigin::kConstruction) {
+          // SAFETY: TODO(359904345): VectorTypeOperations should operate on
+          // spans.
+          base::span<T> UNSAFE_BUFFERS(elements(
+              dst, static_cast<wtf_size_t>(std::distance(src, src_end))));
+          ConstructTraits::NotifyNewElements(elements);
+        }
+      } else {
+        // NOLINTNEXTLINE(bugprone-undefined-memory-manipulation)
+        if (src != src_end) {
+          memcpy(dst, src, bytes);
+        }
       }
+    } else {
+      std::copy(src, src_end, dst);
     }
   }
 
   template <typename U>
-  static void UninitializedCopy(const U* src,
-                                const U* src_end,
-                                T* dst,
-                                VectorOperationOrigin origin) {
+  ALWAYS_INLINE static void UninitializedCopy(const U* const src,
+                                              const U* const src_end,
+                                              T* dst,
+                                              VectorOperationOrigin origin) {
     if (!dst || !src) [[unlikely]] {
       return;
     }
@@ -368,32 +378,35 @@ struct VectorTypeOperations {
   }
 
   template <typename InputIterator, typename Proj>
-  static void UninitializedTransform(InputIterator src,
-                                     InputIterator src_end,
-                                     T* dst,
-                                     VectorOperationOrigin origin,
-                                     Proj proj) {
-    if (origin == VectorOperationOrigin::kConstruction) {
-      while (src != src_end) {
-        ConstructTraits::Construct(
-            dst, std::invoke(proj, std::forward<decltype(*src)>(*src)));
-        ++dst;
-        ++src;
-      }
-    } else {
-      while (src != src_end) {
-        ConstructTraits::ConstructAndNotifyElement(
-            dst, std::invoke(proj, std::forward<decltype(*src)>(*src)));
-        ++dst;
-        ++src;
+  ALWAYS_INLINE static void UninitializedTransform(InputIterator src,
+                                                   InputIterator src_end,
+                                                   T* dst,
+                                                   VectorOperationOrigin origin,
+                                                   Proj proj) {
+    size_t size = 0;
+    T* dst_begin = dst;
+    while (src != src_end) {
+      ConstructTraits::Construct(
+          dst, std::invoke(proj, std::forward<decltype(*src)>(*src)));
+      ++dst;
+      ++src;
+      ++size;
+    }
+    if constexpr (IsTraceable<T>::value) {
+      static_assert(Allocator::kIsGarbageCollected);
+      if (origin != VectorOperationOrigin::kConstruction) {
+        // SAFETY: TODO(359904345): VectorTypeOperations should operate on
+        // spans.
+        base::span<T> UNSAFE_BUFFERS(elements(dst_begin, size));
+        ConstructTraits::NotifyNewElements(elements);
       }
     }
   }
 
-  static void UninitializedFill(T* dst,
-                                T* dst_end,
-                                const T& val,
-                                VectorOperationOrigin origin) {
+  ALWAYS_INLINE static void UninitializedFill(T* const dst,
+                                              T* const dst_end,
+                                              const T& val,
+                                              VectorOperationOrigin origin) {
     if (!dst) [[unlikely]] {
       return;
     }
@@ -402,20 +415,24 @@ struct VectorTypeOperations {
       static_assert(!Allocator::kIsGarbageCollected,
                     "memset is unsupported for garbage-collected vectors.");
       memset(dst, static_cast<unsigned char>(val), dst_end - dst);
-    } else if (origin == VectorOperationOrigin::kConstruction) {
-      while (dst != dst_end) {
-        ConstructTraits::Construct(dst, T(val));
-        ++dst;
-      }
     } else {
-      while (dst != dst_end) {
-        ConstructTraits::ConstructAndNotifyElement(dst, T(val));
-        ++dst;
+      for (T* current = dst; current != dst_end; ++current) {
+        ConstructTraits::Construct(current, T(val));
+      }
+      if constexpr (IsTraceable<T>::value) {
+        static_assert(Allocator::kIsGarbageCollected);
+        if (origin != VectorOperationOrigin::kConstruction) {
+          // SAFETY: TODO(359904345): VectorTypeOperations should operate on
+          // spans.
+          base::span<T> UNSAFE_BUFFERS(elements(
+              dst, static_cast<wtf_size_t>(std::distance(dst, dst_end))));
+          ConstructTraits::NotifyNewElements(elements);
+        }
       }
     }
   }
 
-  static bool Compare(const T* a, const T* b, size_t size) {
+  ALWAYS_INLINE static bool Compare(const T* a, const T* b, size_t size) {
     DCHECK(a);
     DCHECK(b);
     if constexpr (VectorTraits<T>::kCanCompareWithMemcmp)
@@ -425,7 +442,7 @@ struct VectorTypeOperations {
   }
 
   template <typename U>
-  static bool CompareElement(const T& left, U&& right) {
+  ALWAYS_INLINE static bool CompareElement(const T& left, U&& right) {
     return VectorElementComparer<T>::CompareElement(left,
                                                     std::forward<U>(right));
   }
@@ -442,7 +459,7 @@ struct VectorTypeOperations {
 // Not meant for general consumption.
 
 template <typename T, typename Allocator>
-class VectorBufferBase {
+class GC_PLUGIN_IGNORE("crbug.com/428987863") VectorBufferBase {
   DISALLOW_NEW();
 
  public:
@@ -991,7 +1008,7 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
     if constexpr (Allocator::kIsGarbageCollected) {
       const bool is_zeroed =
           std::ranges::all_of(inline_buffer_, [](char c) { return c == 0; });
-      DCHECK(is_zeroed || WTF::IsOnStack(inline_buffer_));
+      DCHECK(is_zeroed || IsOnStack(inline_buffer_));
     }
   }
 
@@ -1001,9 +1018,9 @@ class VectorBuffer : protected VectorBufferBase<T, Allocator> {
 };
 
 // UncheckedIteraotr<T> is just a wrapper of a T pointer with no bounds
-// checking, and the default iterator implementation of WTF::Vector.
+// checking, and the default iterator implementation of blink::Vector.
 template <typename T>
-class UncheckedIterator {
+class GC_PLUGIN_IGNORE("crbug.com/428987863") UncheckedIterator {
  public:
   using difference_type = std::ptrdiff_t;
   using value_type = std::remove_cv_t<T>;
@@ -1689,13 +1706,13 @@ class Vector : private VectorBuffer<T, INLINE_CAPACITY, Allocator> {
   struct TypeConstraints {
     constexpr TypeConstraints() {
       // This condition is relied upon by TraceCollectionIfEnabled.
-      static_assert(!IsWeak<T>::value);
+      static_assert(!IsWeakV<T>);
       static_assert(!IsStackAllocatedTypeV<T>);
       static_assert(!std::is_polymorphic_v<T> ||
                         !VectorTraits<T>::kCanInitializeWithMemset,
                     "Cannot initialize with memset if there is a vtable.");
       static_assert(Allocator::kIsGarbageCollected || !IsDisallowNew<T> ||
-                        !IsTraceable<T>::value,
+                        !IsTraceableV<T>,
                     "Cannot put DISALLOW_NEW() objects that have trace methods "
                     "into an off-heap Vector.");
       static_assert(
@@ -1728,7 +1745,9 @@ inline Vector<T, InlineCapacity, Allocator>::Vector(wtf_size_t size)
     : Base(size) {
   ANNOTATE_NEW_BUFFER(data(), capacity(), size);
   size_ = size;
-  TypeOperations::Initialize(data(), DataEnd());
+  TypeOperations::Initialize(data(), DataEnd(),
+                             VectorOperationOrigin::kConstruction,
+                             SupportsInlineCapacity());
 }
 
 template <typename T, wtf_size_t InlineCapacity, typename Allocator>
@@ -2050,7 +2069,9 @@ inline void Vector<T, InlineCapacity, Allocator>::resize(wtf_size_t size) {
       ExpandCapacity(size);
     MARKING_AWARE_ANNOTATE_CHANGE_SIZE(Allocator, data(), capacity(), size_,
                                        size);
-    TypeOperations::Initialize(DataEnd(), data() + size);
+    TypeOperations::Initialize(DataEnd(), data() + size,
+                               VectorOperationOrigin::kRegularModification,
+                               SupportsInlineCapacity());
   }
 
   size_ = size;
@@ -2073,7 +2094,9 @@ void Vector<T, InlineCapacity, Allocator>::Grow(wtf_size_t size) {
     ExpandCapacity(size);
   MARKING_AWARE_ANNOTATE_CHANGE_SIZE(Allocator, data(), capacity(), size_,
                                      size);
-  TypeOperations::Initialize(DataEnd(), data() + size);
+  TypeOperations::Initialize(DataEnd(), data() + size,
+                             VectorOperationOrigin::kRegularModification,
+                             SupportsInlineCapacity());
   size_ = size;
 }
 
@@ -2428,7 +2451,7 @@ inline void Vector<T, InlineCapacity, Allocator>::Reverse() {
 template <typename T, wtf_size_t InlineCapacity, typename Allocator>
 inline void swap(Vector<T, InlineCapacity, Allocator>& a,
                  Vector<T, InlineCapacity, Allocator>& b) {
-  a.Swap(b);
+  a.swap(b);
 }
 
 template <typename T,
@@ -2605,8 +2628,18 @@ auto ToVector(Range&& range, Proj proj = {}) {
   return Vector<ProjectedType>(std::forward<Range>(range), std::move(proj));
 }
 
-}  // namespace WTF
+}  // namespace blink
 
-using WTF::Vector;
+// TODO(crbug.com/422768753): Remove these `using` directives.
+namespace WTF {
+using blink::Erase;
+using blink::EraseIf;
+using blink::kVectorNeedsDestructor;
+using blink::ToVector;
+using blink::Vector;
+using blink::VectorBuffer;
+using blink::VectorOperationOrigin;
+using blink::VectorTypeOperations;
+}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_VECTOR_H_

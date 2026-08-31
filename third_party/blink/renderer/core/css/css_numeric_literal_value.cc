@@ -214,7 +214,7 @@ static String FormatInfinityOrNaN(double number, const char* suffix) {
   }
 
   if (strlen(suffix) > 0) {
-    result = result + String::Format(" * 1%s", suffix);
+    result = StrCat({result, " * 1", suffix});
   }
   return result;
 }
@@ -374,8 +374,7 @@ bool CSSNumericLiteralValue::Equals(const CSSNumericLiteralValue& other) const {
 
 unsigned CSSNumericLiteralValue::CustomHash() const {
   uint64_t val = base::bit_cast<uint64_t>(num_);
-  return WTF::HashInts(static_cast<unsigned>(GetType()),
-                       WTF::HashInts(val >> 32, val));
+  return HashInts(static_cast<unsigned>(GetType()), HashInts(val >> 32, val));
 }
 
 CSSPrimitiveValue::UnitType CSSNumericLiteralValue::CanonicalUnit() const {

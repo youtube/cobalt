@@ -28,10 +28,10 @@
 #include "chrome/browser/keyboard_accessory/android/manual_filling_controller.h"
 #include "chrome/browser/keyboard_accessory/android/manual_filling_utils.h"
 #include "chrome/browser/keyboard_accessory/android/password_accessory_controller.h"
-#include "chrome/browser/password_manager/android/access_loss/password_access_loss_warning_bridge_impl.h"
 #include "chrome/browser/password_manager/android/all_passwords_bottom_sheet_controller.h"
 #include "chrome/browser/password_manager/android/grouped_affiliations/acknowledge_grouped_credential_sheet_controller.h"
 #include "chrome/browser/password_manager/android/password_generation_controller.h"
+#include "chrome/browser/password_manager/android/password_manager_error_message_helper_bridge_impl.h"
 #include "chrome/browser/password_manager/android/password_manager_launcher_android.h"
 #include "chrome/browser/password_manager/android/password_manager_ui_util_android.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
@@ -55,11 +55,13 @@
 #include "components/password_manager/core/browser/password_manager_client.h"
 #include "components/password_manager/core/browser/password_manager_driver.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/password_manager/core/browser/password_store/password_store_backend_error.h"
 #include "components/password_manager/core/browser/webauthn_credentials_delegate.h"
 #include "components/plus_addresses/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/plus_address_service.h"
 #include "components/plus_addresses/plus_address_types.h"
 #include "components/resources/android/theme_resources.h"
+#include "components/sync/service/sync_service_utils.h"
 #include "components/url_formatter/elide_url.h"
 #include "components/webauthn/android/webauthn_cred_man_delegate.h"
 #include "content/public/browser/render_frame_host.h"
@@ -79,6 +81,7 @@ using plus_addresses::PlusProfile;
 using webauthn::WebAuthnCredManDelegate;
 using BlocklistedStatus =
     password_manager::OriginCredentialStore::BlocklistedStatus;
+using BackendErrorType = password_manager::PasswordStoreBackendErrorType;
 using FillingSource = ManualFillingController::FillingSource;
 using IsExactMatch = autofill::UserInfo::IsExactMatch;
 using ShouldShowAction = ManualFillingController::ShouldShowAction;
@@ -86,15 +89,30 @@ using password_manager_util::GetLoginMatchType;
 
 namespace {
 
+constexpr auto kRequiresTrustedVaultRetrievalErrorTypes =
+    base::MakeFixedFlatSet<BackendErrorType>(
+        {BackendErrorType::kKeyRetrievalRequired,
+         BackendErrorType::kEmptySecurityDomain,
+         BackendErrorType::kIrretrievableSecurityDomain});
+
+bool RequiresTrustedVaultRetrieval(
+    const std::optional<password_manager::PasswordStoreBackendError>&
+        backend_error) {
+  return backend_error &&
+         kRequiresTrustedVaultRetrievalErrorTypes.contains(backend_error->type);
+}
+
 autofill::UserInfo TranslateCredentials(const UiCredential& credential,
                                         const url::Origin& frame_origin,
                                         bool current_field_is_password,
                                         int username_icon_id) {
   DCHECK(!credential.origin().opaque());
+
   UserInfo user_info(
       credential.origin().Serialize(),
       IsExactMatch(credential.match_type() ==
-                   password_manager_util::GetLoginMatchType::kExact));
+                   password_manager_util::GetLoginMatchType::kExact),
+      UserInfo::IsBackupCredential(credential.is_backup_credential().value()));
 
   std::u16string username = GetDisplayUsername(credential);
   user_info.add_field(
@@ -120,12 +138,18 @@ autofill::UserInfo TranslateCredentials(const UiCredential& credential,
   return user_info;
 }
 
-std::u16string GetPasswordTitle(bool has_credentials,
-                                bool has_standalone_plus_addresses,
-                                const url::Origin& origin) {
+std::u16string GetPasswordTitle(
+    bool has_credentials,
+    bool has_standalone_plus_addresses,
+    std::optional<password_manager::PasswordStoreBackendError> backend_error,
+    const url::Origin& origin) {
   const std::u16string elided_url =
       url_formatter::FormatOriginForSecurityDisplay(
           origin, url_formatter::SchemeDisplay::OMIT_CRYPTOGRAPHIC);
+  if (RequiresTrustedVaultRetrieval(backend_error)) {
+    return l10n_util::GetStringUTF16(
+        IDS_PASSWORD_MANAGER_ACCESSORY_TRUSTED_VAULT_KEY_RETRIEVAL_REQUIRED_MESSAGE);
+  }
   if (!has_credentials) {
     return l10n_util::GetStringFUTF16(
         IDS_PASSWORD_MANAGER_ACCESSORY_PASSWORD_LIST_EMPTY_MESSAGE, elided_url);
@@ -288,7 +312,7 @@ PasswordAccessoryControllerImpl::GetSheetData() const {
   AccessorySheetData data = autofill::CreateAccessorySheetData(
       autofill::AccessoryTabType::PASSWORDS,
       GetPasswordTitle(has_suggestions, !plus_address_info_to_add.empty(),
-                       origin),
+                       credential_cache_->backend_error(), origin),
       GetPlusAddressTitle(!plus_address_info_to_add.empty(), origin),
       std::move(info_to_add), CreateManagePasswordsFooter());
   std::ranges::for_each(std::move(passkeys_to_add),
@@ -364,7 +388,7 @@ void PasswordAccessoryControllerImpl::CreateForWebContents(
             ChromePasswordManagerClient::FromWebContents(web_contents),
             base::BindRepeating(GetPasswordManagerDriver),
             std::make_unique<AcknowledgeGroupedCredentialSheetController>(),
-            std::make_unique<PasswordAccessLossWarningBridgeImpl>())));
+            std::make_unique<PasswordManagerErrorMessageHelperBridgeImpl>())));
   }
 }
 
@@ -377,8 +401,8 @@ void PasswordAccessoryControllerImpl::CreateForWebContentsForTesting(
     PasswordDriverSupplierForFocusedFrame driver_supplier,
     std::unique_ptr<AcknowledgeGroupedCredentialSheetController>
         grouped_credential_sheet_controller,
-    std::unique_ptr<PasswordAccessLossWarningBridge>
-        access_loss_warning_bridge) {
+    std::unique_ptr<PasswordManagerErrorMessageHelperBridge>
+        password_manager_error_message_helper_bridge) {
   DCHECK(web_contents) << "Need valid WebContents to attach controller to!";
   DCHECK(!FromWebContents(web_contents)) << "Controller already attached!";
   DCHECK(manual_filling_controller);
@@ -390,7 +414,7 @@ void PasswordAccessoryControllerImpl::CreateForWebContentsForTesting(
           web_contents, credential_cache, std::move(manual_filling_controller),
           password_client, std::move(driver_supplier),
           std::move(grouped_credential_sheet_controller),
-          std::move(access_loss_warning_bridge))));
+          std::move(password_manager_error_message_helper_bridge))));
 }
 
 void PasswordAccessoryControllerImpl::OnOptionSelected(
@@ -481,6 +505,12 @@ void PasswordAccessoryControllerImpl::OnOptionSelected(
       autofill::ShowManagePlusAddressesPage(GetWebContents());
       base::RecordAction(base::UserMetricsAction(
           "PlusAddresses.ManageOptionOnPasswordManualFallbackSelected"));
+      return;
+    case autofill::AccessoryAction::RETRIEVE_TRUSTED_VAULT_KEY:
+      password_manager_error_message_helper_bridge_
+          ->StartTrustedVaultKeyRetrievalFlow(
+              &GetWebContents(), syncer::TrustedVaultUserActionTriggerForUMA::
+                                     kPasswordManagerKeyboardAccessory);
       return;
     default:
       NOTREACHED() << "Unhandled selected action: "
@@ -596,7 +626,8 @@ PasswordAccessoryControllerImpl::PasswordAccessoryControllerImpl(
     PasswordDriverSupplierForFocusedFrame driver_supplier,
     std::unique_ptr<AcknowledgeGroupedCredentialSheetController>
         grouped_credential_sheet_controller,
-    std::unique_ptr<PasswordAccessLossWarningBridge> access_loss_warning_bridge)
+    std::unique_ptr<PasswordManagerErrorMessageHelperBridge>
+        password_manager_error_message_helper_bridge)
     : content::WebContentsObserver(web_contents),
       content::WebContentsUserData<PasswordAccessoryControllerImpl>(
           *web_contents),
@@ -604,9 +635,10 @@ PasswordAccessoryControllerImpl::PasswordAccessoryControllerImpl(
       manual_filling_controller_(std::move(manual_filling_controller)),
       password_client_(password_client),
       driver_supplier_(std::move(driver_supplier)),
+      password_manager_error_message_helper_bridge_(
+          std::move(password_manager_error_message_helper_bridge)),
       grouped_credential_sheet_controller_(
           std::move(grouped_credential_sheet_controller)),
-      access_loss_warning_bridge_(std::move(access_loss_warning_bridge)),
       plus_address_service_(PlusAddressServiceFactory::GetForBrowserContext(
           GetWebContents().GetBrowserContext())) {}
 
@@ -629,6 +661,13 @@ PasswordAccessoryControllerImpl::CreateManagePasswordsFooter() const {
         }
       }
     }
+  }
+
+  if (RequiresTrustedVaultRetrieval(credential_cache_->backend_error())) {
+    footer_commands_to_add.emplace_back(
+        l10n_util::GetStringUTF16(
+            IDS_PASSWORD_MANAGER_ACCESSORY_RETRIEVE_TRUSTED_VAULT_KEY),
+        autofill::AccessoryAction::RETRIEVE_TRUSTED_VAULT_KEY);
   }
 
   if (all_passwords_helper_.available_credentials().has_value() &&
@@ -875,17 +914,6 @@ void PasswordAccessoryControllerImpl::FillSelection(
           plus_addresses::hats::SurveyType::kFilledPlusAddressViaManualFallack);
     }
   }
-
-  Profile* profile =
-      Profile::FromBrowserContext(GetWebContents().GetBrowserContext());
-  if (profile && access_loss_warning_bridge_->ShouldShowAccessLossNoticeSheet(
-                     profile->GetPrefs(), /*called_at_startup=*/false)) {
-    access_loss_warning_bridge_->MaybeShowAccessLossNoticeSheet(
-        profile->GetPrefs(), GetWebContents().GetTopLevelNativeWindow(),
-        profile, /*called_at_startup=*/false,
-        password_manager_android_util::PasswordAccessLossWarningTriggers::
-            kKeyboardAcessorySheet);
-  }
 }
 
 void PasswordAccessoryControllerImpl::AllPasswordsSheetDismissed() {
@@ -925,6 +953,21 @@ void PasswordAccessoryControllerImpl::RefreshSuggestions() {
   }
 
   bool sheet_provides_value = last_focus_info_->is_generation_allowed_in_frame;
+
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::
+              kRetrieveTrustedVaultKeyKeyboardAccessoryAction)) {
+    ShouldShowAction show_unlock_password(
+        (last_focus_info_->focused_field_type ==
+             FocusedFieldType::kFillableUsernameField ||
+         last_focus_info_->focused_field_type ==
+             FocusedFieldType::kFillablePasswordField) &&
+        RequiresTrustedVaultRetrieval(credential_cache_->backend_error()));
+    sheet_provides_value |= show_unlock_password.value();
+    GetManualFillingController()->OnAccessoryActionAvailabilityChanged(
+        show_unlock_password,
+        autofill::AccessoryAction::RETRIEVE_TRUSTED_VAULT_KEY);
+  }
 
   all_passwords_helper_.ClearUpdateCallback();
   if (!all_passwords_helper_.available_credentials().has_value()) {

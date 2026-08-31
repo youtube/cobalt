@@ -38,6 +38,20 @@
 
 namespace mojo {
 
+bool StructTraits<network::mojom::EnabledClientHintsDataView,
+                  network::ResourceRequest::TrustedParams::EnabledClientHints>::
+    Read(network::mojom::EnabledClientHintsDataView data,
+         network::ResourceRequest::TrustedParams::EnabledClientHints* out) {
+  if (!data.ReadOrigin(&out->origin)) {
+    return false;
+  }
+  out->is_outermost_main_frame = data.is_outermost_main_frame();
+  if (!data.ReadHints(&out->hints)) {
+    return false;
+  }
+  return true;
+}
+
 bool StructTraits<network::mojom::TrustedUrlRequestParamsDataView,
                   network::ResourceRequest::TrustedParams>::
     Read(network::mojom::TrustedUrlRequestParamsDataView data,
@@ -50,6 +64,9 @@ bool StructTraits<network::mojom::TrustedUrlRequestParamsDataView,
   out->allow_cookies_from_browser = data.allow_cookies_from_browser();
   out->include_request_cookies_with_response =
       data.include_request_cookies_with_response();
+  if (!data.ReadEnabledClientHints(&out->enabled_client_hints)) {
+    return false;
+  }
   out->cookie_observer = data.TakeCookieObserver<
       mojo::PendingRemote<network::mojom::CookieAccessObserver>>();
   out->trust_token_observer = data.TakeTrustTokenObserver<
@@ -328,6 +345,7 @@ bool StructTraits<network::mojom::FetchRetryOptionsDataView,
   out->backoff_factor = data.backoff_factor();
   out->retry_after_unload = data.retry_after_unload();
   out->retry_non_idempotent = data.retry_non_idempotent();
+  out->retry_only_if_server_unreached = data.retry_only_if_server_unreached();
   return true;
 }
 

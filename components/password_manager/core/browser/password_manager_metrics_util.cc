@@ -365,13 +365,6 @@ void LogDownloadedPasswordsCountFromAccountStoreAfterUnlock(
       account_store_passwords_count);
 }
 
-void LogDownloadedBlocklistedEntriesCountFromAccountStoreAfterUnlock(
-    int blocklist_entries_count) {
-  base::UmaHistogramCounts100(
-      "PasswordManager.AccountStoreBlocklistedEntriesAfterOptIn",
-      blocklist_entries_count);
-}
-
 void LogPasswordSettingsReauthResult(device_reauth::ReauthResult result) {
   base::UmaHistogramEnumeration(
       "PasswordManager.ReauthToAccessPasswordInSettings", result);
@@ -524,14 +517,6 @@ void LogProcessIncomingPasswordSharingInvitationResult(
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void LogLocalPwdMigrationProgressState(
-    LocalPwdMigrationProgressState scheduling_state) {
-  base::UmaHistogramEnumeration(
-      "PasswordManager.UnifiedPasswordManager.MigrationForLocalUsers."
-      "ProgressState",
-      scheduling_state);
-}
-
 void LogSharedPrefCredentialsAccessOutcome(
     SharedPrefCredentialsAccessOutcome outcome) {
   base::UmaHistogramEnumeration(
@@ -657,6 +642,29 @@ void LogDuplicateCredentialsMetrics(
                       "DuplicateCredentialsTypesWhenExists"}),
         type);
   }
+}
+
+void LogCumulativeGetCredentialsMetrics(
+    password_manager::CredentialManagerError error) {
+  base::UmaHistogramBoolean(
+      "PasswordManager.CredentialRequest.Get.Success",
+      error == password_manager::CredentialManagerError::SUCCESS);
+}
+
+void LogPageContentCaptureFailure(PasswordChangeFlowStep step) {
+  base::UmaHistogramEnumeration(
+      "PasswordManager.PasswordChange.FailedCapturingPageContent", step);
+}
+
+void LogPrimaryPasswordUpdatedWithBackup(ukm::SourceId ukm_source_id) {
+  base::UmaHistogramEnumeration(
+      "PasswordManager.PasswordChangeRecoveryFlow",
+      password_manager::metrics_util::PasswordChangeRecoveryFlowState::
+          kPrimaryPasswordUpdated);
+  ukm::builders::PasswordManager_ChangeRecovery(ukm_source_id)
+      .SetPasswordChangeRecoveryFlow(static_cast<int>(
+          PasswordChangeRecoveryFlowState::kPrimaryPasswordUpdated))
+      .Record(ukm::UkmRecorder::Get());
 }
 
 }  // namespace password_manager::metrics_util

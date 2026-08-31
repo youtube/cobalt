@@ -9,21 +9,20 @@
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/enterprise/identifiers/profile_id_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/pref_names.h"
 #include "components/device_signals/core/browser/browser_utils.h"
 #include "components/device_signals/core/browser/signals_types.h"
 #include "components/device_signals/core/browser/user_permission_service.h"
 #include "components/device_signals/core/common/platform_utils.h"
+#include "components/enterprise/browser/identifiers/profile_id_service.h"
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/policy/content/policy_blocklist_service.h"
 #include "components/policy/core/common/cloud/cloud_policy_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
-
-#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
-#endif
 
 namespace device_signals {
 
@@ -48,11 +47,12 @@ ProfileSignalsCollector::ProfileSignalsCollector(Profile* profile)
       policy_manager_(profile->GetCloudPolicyManager()),
       connectors_service_(
           enterprise_connectors::ConnectorsServiceFactory::GetForBrowserContext(
-              profile)) {
-#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-  DCHECK(connectors_service_);
-#endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
-  DCHECK(policy_blocklist_service_);
+              profile)),
+      profile_id_service_(
+          enterprise::ProfileIdServiceFactory::GetForProfile(profile)) {
+  CHECK(connectors_service_);
+  CHECK(policy_blocklist_service_);
+  CHECK(profile_id_service_);
 }
 
 ProfileSignalsCollector::~ProfileSignalsCollector() = default;
@@ -76,9 +76,12 @@ void ProfileSignalsCollector::GetProfileSignals(
       device_signals::GetSafeBrowsingProtectionLevel(profile_prefs_);
   signal_response.site_isolation_enabled =
       device_signals::GetSiteIsolationEnabled();
-#if BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+  signal_response.profile_id = profile_id_service_->GetProfileId();
   signal_response.realtime_url_check_mode =
       connectors_service_->GetAppliedRealTimeUrlCheck();
+  signal_response.security_event_providers =
+      connectors_service_->GetReportingServiceProviderNames();
+#if !BUILDFLAG(IS_ANDROID)
   signal_response.file_downloaded_providers =
       connectors_service_->GetAnalysisServiceProviderNames(
           enterprise_connectors::FILE_DOWNLOADED);
@@ -91,9 +94,7 @@ void ProfileSignalsCollector::GetProfileSignals(
   signal_response.print_providers =
       connectors_service_->GetAnalysisServiceProviderNames(
           enterprise_connectors::PRINT);
-  signal_response.security_event_providers =
-      connectors_service_->GetReportingServiceProviderNames();
-#endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   response.profile_signals_response = std::move(signal_response);
 

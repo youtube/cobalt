@@ -30,12 +30,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -84,12 +84,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -138,12 +138,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -192,12 +192,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -246,12 +246,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -300,12 +300,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -354,12 +354,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -408,12 +408,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -462,12 +462,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -516,12 +516,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -570,12 +570,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -624,12 +624,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -678,12 +678,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -732,12 +732,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -786,12 +786,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -840,12 +840,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -894,12 +894,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -948,12 +948,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1002,12 +1002,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1056,12 +1056,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1110,12 +1110,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1164,12 +1164,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1218,12 +1218,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1272,12 +1272,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1327,12 +1327,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1378,12 +1378,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1429,12 +1429,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1480,12 +1480,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1503,112 +1503,6 @@
         "test": "ios_chrome_bookmarks_eg2tests_module",
         "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_bookmarks_eg2tests_module/",
         "variant_id": "iPhone 15 18.2"
-      },
-      {
-        "args": [
-          "--clones",
-          "2",
-          "--platform",
-          "iPad Air (5th generation)",
-          "--version",
-          "17.5",
-          "--xcodebuild-sim-runner",
-          "--out-dir",
-          "${ISOLATED_OUTDIR}",
-          "--xcode-build-version",
-          "16c5032a",
-          "--xctest"
-        ],
-        "isolate_profile_data": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "name": "ios_chrome_integration_eg2tests_module iPad Air (5th generation) 17.5",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "swarming": {
-          "cipd_packages": [
-            {
-              "cipd_package": "infra/tools/mac_toolchain/${platform}",
-              "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
-            }
-          ],
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
-          },
-          "named_caches": [
-            {
-              "name": "runtime_ios_17_5",
-              "path": "Runtime-ios-17.5"
-            },
-            {
-              "name": "xcode_ios_16c5032a",
-              "path": "Xcode.app"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 8
-        },
-        "test": "ios_chrome_integration_eg2tests_module",
-        "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
-        "variant_id": "iPad Air (5th generation) 17.5"
-      },
-      {
-        "args": [
-          "--clones",
-          "2",
-          "--platform",
-          "iPad Air 11-inch (M2)",
-          "--version",
-          "18.2",
-          "--xcodebuild-sim-runner",
-          "--out-dir",
-          "${ISOLATED_OUTDIR}",
-          "--xcode-build-version",
-          "16c5032a",
-          "--xctest"
-        ],
-        "isolate_profile_data": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "name": "ios_chrome_integration_eg2tests_module iPad Air (6th generation) 18.2",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "swarming": {
-          "cipd_packages": [
-            {
-              "cipd_package": "infra/tools/mac_toolchain/${platform}",
-              "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
-            }
-          ],
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
-          },
-          "named_caches": [
-            {
-              "name": "runtime_ios_18_2",
-              "path": "Runtime-ios-18.2"
-            },
-            {
-              "name": "xcode_ios_16c5032a",
-              "path": "Xcode.app"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 8
-        },
-        "test": "ios_chrome_integration_eg2tests_module",
-        "test_id_prefix": "ninja://ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module/",
-        "variant_id": "iPad Air (6th generation) 18.2"
       },
       {
         "args": [
@@ -1639,12 +1533,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1692,12 +1586,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1745,12 +1639,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1798,12 +1692,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1851,12 +1745,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1904,12 +1798,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -1957,12 +1851,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2010,12 +1904,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2061,12 +1955,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2112,12 +2006,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2163,12 +2057,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2214,12 +2108,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2265,12 +2159,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2315,12 +2209,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2365,12 +2259,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2415,12 +2309,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2467,12 +2361,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2520,12 +2414,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2573,12 +2467,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2626,12 +2520,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2676,12 +2570,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2730,12 +2624,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2784,12 +2678,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2838,12 +2732,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2893,12 +2787,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2944,12 +2838,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -2995,12 +2889,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3046,12 +2940,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3096,12 +2990,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3150,12 +3044,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3204,12 +3098,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3259,12 +3153,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3314,12 +3208,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3368,12 +3262,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3422,12 +3316,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3476,12 +3370,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3530,12 +3424,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3584,12 +3478,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3611,106 +3505,6 @@
         "test": "ios_web_inttests",
         "test_id_prefix": "ninja://ios/web:ios_web_inttests/",
         "variant_id": "iPhone 15 18.2"
-      },
-      {
-        "args": [
-          "--platform",
-          "iPad Air (5th generation)",
-          "--version",
-          "17.5",
-          "--xcodebuild-sim-runner",
-          "--out-dir",
-          "${ISOLATED_OUTDIR}",
-          "--xcode-build-version",
-          "16c5032a",
-          "--xctest"
-        ],
-        "isolate_profile_data": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "name": "ios_web_shell_eg2tests_module iPad Air (5th generation) 17.5",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "swarming": {
-          "cipd_packages": [
-            {
-              "cipd_package": "infra/tools/mac_toolchain/${platform}",
-              "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
-            }
-          ],
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
-          },
-          "named_caches": [
-            {
-              "name": "runtime_ios_17_5",
-              "path": "Runtime-ios-17.5"
-            },
-            {
-              "name": "xcode_ios_16c5032a",
-              "path": "Xcode.app"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "ios_web_shell_eg2tests_module",
-        "test_id_prefix": "ninja://ios/web/shell/test:ios_web_shell_eg2tests_module/",
-        "variant_id": "iPad Air (5th generation) 17.5"
-      },
-      {
-        "args": [
-          "--platform",
-          "iPad Air 11-inch (M2)",
-          "--version",
-          "18.2",
-          "--xcodebuild-sim-runner",
-          "--out-dir",
-          "${ISOLATED_OUTDIR}",
-          "--xcode-build-version",
-          "16c5032a",
-          "--xctest"
-        ],
-        "isolate_profile_data": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
-        },
-        "name": "ios_web_shell_eg2tests_module iPad Air (6th generation) 18.2",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "swarming": {
-          "cipd_packages": [
-            {
-              "cipd_package": "infra/tools/mac_toolchain/${platform}",
-              "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
-            }
-          ],
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
-          },
-          "named_caches": [
-            {
-              "name": "runtime_ios_18_2",
-              "path": "Runtime-ios-18.2"
-            },
-            {
-              "name": "xcode_ios_16c5032a",
-              "path": "Xcode.app"
-            }
-          ],
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "ios_web_shell_eg2tests_module",
-        "test_id_prefix": "ninja://ios/web/shell/test:ios_web_shell_eg2tests_module/",
-        "variant_id": "iPad Air (6th generation) 18.2"
       },
       {
         "args": [
@@ -3739,12 +3533,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3789,12 +3583,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3839,12 +3633,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3889,12 +3683,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3938,12 +3732,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -3992,12 +3786,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4046,12 +3840,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4100,12 +3894,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4154,12 +3948,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4208,12 +4002,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4262,12 +4056,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4316,12 +4110,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4370,12 +4164,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4424,12 +4218,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4478,12 +4272,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4532,12 +4326,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4586,12 +4380,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4640,12 +4434,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4694,12 +4488,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4748,12 +4542,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4802,12 +4596,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4856,12 +4650,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4910,12 +4704,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -4964,12 +4758,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5018,12 +4812,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5072,12 +4866,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5126,12 +4920,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5180,12 +4974,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5234,12 +5028,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5288,12 +5082,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5342,12 +5136,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {
@@ -5396,12 +5190,12 @@
             {
               "cipd_package": "infra/tools/mac_toolchain/${platform}",
               "location": ".",
-              "revision": "git_revision:a18b7d95d26f3c6bf9591978b19cf0ca8268ac7d"
+              "revision": "git_revision:4c7290150d1c360cecc6a93c0214dc531585c3ab"
             }
           ],
           "dimensions": {
             "cpu": "arm64",
-            "os": "Mac-14|Mac-15"
+            "os": "Mac-15"
           },
           "named_caches": [
             {

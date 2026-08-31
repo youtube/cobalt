@@ -12,6 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_cleaner.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/addresses/home_and_work_metadata_store.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_comparator.h"
 #include "components/autofill/core/browser/data_quality/addresses/profile_requirement_utils.h"
@@ -155,15 +156,9 @@ void ProfileImportProcess::DetermineProfileImportType() {
     // confirmation.
     if (AutofillProfileComparator::ProfilesHaveDifferentSettingsVisibleValues(
             *existing_profile, merged_profile, app_locale_)) {
-      if (allow_only_silent_updates_) {
-        ++number_of_unchanged_profiles;
-        continue;
-      }
-
       // Determine if the existing profile is blocked for updates.
-      // If the address data manager is not available the profile is considered
-      // as not blocked. Also, updates can be disabled by a feature flag.
       bool is_blocked_for_update =
+          allow_only_silent_updates_ ||
           address_data_manager_->IsProfileUpdateBlocked(
               existing_profile->guid()) ||
           base::FeatureList::IsEnabled(
@@ -205,38 +200,34 @@ void ProfileImportProcess::DetermineProfileImportType() {
   // If the profile is not mergeable with an existing profile, the import
   // corresponds to a new profile.
   if (!is_mergeable_with_existing_profile) {
-    if (!allow_only_silent_updates_) {
-      // There should be no import candidate yet.
-      DCHECK(!import_candidate_.has_value());
-      if (address_data_manager_->IsNewProfileImportBlockedForDomain(
-              form_source_url_)) {
-        import_type_ = AutofillProfileImportType::kSuppressedNewProfile;
-      } else {
-        import_type_ = AutofillProfileImportType::kNewProfile;
-        import_candidate_ = observed_profile();
-      }
+    // There should be no import candidate yet.
+    DCHECK(!import_candidate_.has_value());
+    if (allow_only_silent_updates_ ||
+        address_data_manager_->IsNewProfileImportBlockedForDomain(
+            form_source_url_)) {
+      import_type_ = AutofillProfileImportType::kSuppressedNewProfile;
     } else {
-      import_type_ = AutofillProfileImportType::kUnusableIncompleteProfile;
+      import_type_ = AutofillProfileImportType::kNewProfile;
+      import_candidate_ = observed_profile();
     }
   } else {
     bool silent_updates_present = !silently_updated_profiles_.empty();
 
     if (merge_candidate_.has_value()) {
-      import_type_ =
-          silent_updates_present
-              ? AutofillProfileImportType::kConfirmableMergeAndSilentUpdate
-              : AutofillProfileImportType::kConfirmableMerge;
+      if (import_candidate_->IsHomeAndWorkProfile()) {
+        import_type_ = AutofillProfileImportType::kHomeAndWorkSuperset;
+      } else {
+        import_type_ =
+            silent_updates_present
+                ? AutofillProfileImportType::kConfirmableMergeAndSilentUpdate
+                : AutofillProfileImportType::kConfirmableMerge;
+      }
     } else if (number_of_blocked_profile_updates > 0) {
       import_type_ =
           silent_updates_present
               ? AutofillProfileImportType::
                     kSuppressedConfirmableMergeAndSilentUpdate
               : AutofillProfileImportType::kSuppressedConfirmableMerge;
-    } else if (allow_only_silent_updates_) {
-      import_type_ =
-          silent_updates_present
-              ? AutofillProfileImportType::kSilentUpdateForIncompleteProfile
-              : AutofillProfileImportType::kUnusableIncompleteProfile;
     } else if (!migration_candidate) {
       import_type_ = silent_updates_present
                          ? AutofillProfileImportType::kSilentUpdate
@@ -267,7 +258,12 @@ void ProfileImportProcess::DetermineProfileImportType() {
 }
 
 void ProfileImportProcess::DetermineSourceOfImportCandidate() {
-  if (import_type_ != AutofillProfileImportType::kNewProfile) {
+  // kHomeAndWorkSuperset prompts use the "Update profile" UI, but store a new
+  // profile under the hood, since Home & Work is read-only. This makes sure
+  // that the profile created is an account profile, since Home & Work is only
+  // available for users eligible to account address storage.
+  if (import_type_ != AutofillProfileImportType::kNewProfile &&
+      import_type_ != AutofillProfileImportType::kHomeAndWorkSuperset) {
     return;
   }
   CHECK(import_candidate_);
@@ -279,17 +275,11 @@ void ProfileImportProcess::DetermineSourceOfImportCandidate() {
 void ProfileImportProcess::MaybeSetMigrationCandidate(
     std::optional<AutofillProfile>& migration_candidate,
     const AutofillProfile& profile) const {
-  // Basic checks: No migration candidate was selected yet, prompts can be shown
-  // (i.e. not only silent updates) and the `profile` is not stored in the
-  // user's account already.
   if (migration_candidate || allow_only_silent_updates_ ||
-      profile.IsAccountProfile()) {
+      !IsEligibleForMigrationToAccount(*address_data_manager_, profile)) {
     return;
   }
-  // Check the eligiblity of the user and profile.
-  if (IsEligibleForMigrationToAccount(*address_data_manager_, profile)) {
-    migration_candidate = profile;
-  }
+  migration_candidate = profile;
 }
 
 void ProfileImportProcess::ApplyImport() {
@@ -300,22 +290,28 @@ void ProfileImportProcess::ApplyImport() {
   }
 
   // Apply silent updates.
+  HomeAndWorkMetadataStore* home_and_work_metadata_store =
+      address_data_manager_->home_and_work_metadata_store();
   for (const AutofillProfile& updated_profile : silently_updated_profiles_) {
     address_data_manager_->UpdateProfile(updated_profile);
+    if (home_and_work_metadata_store) {
+      home_and_work_metadata_store->RecordSilentUpdate(updated_profile);
+    }
   }
 
   if (!confirmed_import_candidate_.has_value()) {
     return;
   }
-  const AutofillProfile& confirmed_profile = *confirmed_import_candidate_;
   // Confirming an import candidate corresponds to either a new/update profile
   // or a migration prompt.
   if (is_migration()) {
-    address_data_manager_->MigrateProfileToAccount(confirmed_profile);
+    address_data_manager_->MigrateProfileToAccount(
+        *confirmed_import_candidate_);
   } else if (is_confirmable_update()) {
-    address_data_manager_->UpdateProfile(confirmed_profile);
+    address_data_manager_->UpdateProfile(*confirmed_import_candidate_);
   } else {
-    address_data_manager_->AddProfile(confirmed_profile);
+    // New update or Home & Work superset prompt.
+    address_data_manager_->AddProfile(*confirmed_import_candidate_);
   }
 }
 
@@ -444,9 +440,7 @@ void ProfileImportProcess::CollectMetrics(
   if (allow_only_silent_updates_) {
     // Record the import type for the silent updates.
     autofill_metrics::LogSilentUpdatesProfileImportType(import_type_);
-    if (import_type_ == AutofillProfileImportType::kSilentUpdate ||
-        import_type_ ==
-            AutofillProfileImportType::kSilentUpdateForIncompleteProfile) {
+    if (import_type_ == AutofillProfileImportType::kSilentUpdate) {
       LogUkmMetrics();
     }
     return;
@@ -470,6 +464,16 @@ void ProfileImportProcess::CollectMetrics(
     if (UserAccepted()) {
       autofill_metrics::LogNewProfileStorageLocation(
           *confirmed_import_candidate_);
+    }
+  } else if (import_type_ == AutofillProfileImportType::kHomeAndWorkSuperset) {
+    autofill_metrics::LogHomeAndWorkSupersetImportDecision(user_decision_);
+    CHECK(merge_candidate_.has_value() && import_candidate_.has_value());
+    // Log the types that triggered the prompt.
+    for (const ProfileValueDifference& difference :
+         AutofillProfileComparator::GetSettingsVisibleProfileDifference(
+             import_candidate_.value(), merge_candidate_.value(),
+             app_locale_)) {
+      autofill_metrics::LogHomeAndWorkSupersetAffectedType(difference.type);
     }
   } else if (is_confirmable_update()) {
     autofill_metrics::LogProfileUpdateImportDecision(
@@ -515,9 +519,11 @@ int ProfileImportProcess::CollectedEditedTypeHistograms() const {
       autofill_metrics::LogNewProfileEditedType(difference.type);
     } else if (is_confirmable_update()) {
       autofill_metrics::LogProfileUpdateEditedType(difference.type);
-    } else {
-      CHECK(is_migration());
+    } else if (is_migration()) {
       autofill_metrics::LogProfileMigrationEditedType(difference.type);
+    } else {
+      CHECK_EQ(import_type(), AutofillProfileImportType::kHomeAndWorkSuperset);
+      autofill_metrics::LogHomeAndWorkSupersetEditedType(difference.type);
     }
   }
   return edit_difference.size();

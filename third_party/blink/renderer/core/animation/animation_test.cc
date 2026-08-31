@@ -39,14 +39,22 @@
 #include "cc/trees/target_property.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/web/web_document.h"
+#include "third_party/blink/public/web/web_local_frame.h"
+#include "third_party/blink/public/web/web_script_source.h"
+#include "third_party/blink/public/web/web_settings.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_animation_play_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_optional_effect_timing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_timeline_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_timeline_range_offset.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_double.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_string_unrestricteddouble.h"
 #include "third_party/blink/renderer/core/animation/animation_clock.h"
+#include "third_party/blink/renderer/core/animation/animation_trigger.h"
 #include "third_party/blink/renderer/core/animation/css/compositor_keyframe_double.h"
+#include "third_party/blink/renderer/core/animation/css/css_animation.h"
 #include "third_party/blink/renderer/core/animation/css_number_interpolation_type.h"
+#include "third_party/blink/renderer/core/animation/document_animations.h"
 #include "third_party/blink/renderer/core/animation/document_timeline.h"
 #include "third_party/blink/renderer/core/animation/element_animations.h"
 #include "third_party/blink/renderer/core/animation/keyframe_effect.h"
@@ -64,10 +72,14 @@
 #include "third_party/blink/renderer/core/dom/qualified_name.h"
 #include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
+#include "third_party/blink/renderer/core/exported/web_view_impl.h"
+#include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
+#include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/page/page_animator.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
+#include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
@@ -75,6 +87,8 @@
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
+#include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
+#include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
@@ -2213,116 +2227,6 @@ TEST_P(AnimationAnimationTestNoCompositing,
   EXPECT_FALSE(animation->HasPendingActivity());
 }
 
-TEST_P(AnimationAnimationTestNoCompositing, PendingActivityWithOnceTrigger) {
-  SetBodyInnerHTML(R"HTML(
-    <style>
-      @keyframes myAnim {
-        from { transform: scaleX(1); }
-        to { transform: scaleX(5); }
-      }
-      .subject {
-        height: 50px;
-        width: 50px;
-        animation: myAnim linear 0.5s none;
-        animation-trigger: scroll() once 50px 100px;
-      }
-     .scroller {
-        overflow-y: scroll;
-        height: 500px;
-        width: 500px;
-        border: solid 1px;
-        position: relative;
-      }
-      #space {
-        width: 50px;
-        height: 600px;
-      }
-    </style>
-    <div id="scroller" class="scroller">
-      <div id="space"></div>
-      <div id="target" class="subject"></div>
-      <div id="space"></div>
-    </div>
-  )HTML");
-  Element* target = GetDocument().getElementById(AtomicString("target"));
-  ElementAnimations* animations = target->GetElementAnimations();
-  animation = (*animations->Animations().begin()).key;
-
-  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kIdle);
-  EXPECT_TRUE(animation->HasPendingActivity());
-
-  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
-
-  scroller->scrollTo(0, 75);
-  UpdateAllLifecyclePhasesForTest();
-
-  animation->trigger()->ActionAnimation(animation);
-
-  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
-  // Finish the animation.
-  animation->finish();
-
-  UpdateAllLifecyclePhasesForTest();
-
-  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
-  EXPECT_FALSE(animation->HasPendingActivity());
-}
-
-TEST_P(AnimationAnimationTestNoCompositing, PendingActivityWithRepeatTrigger) {
-  SetBodyInnerHTML(R"HTML(
-    <style>
-      @keyframes myAnim {
-        from { transform: scaleX(1); }
-        to { transform: scaleX(5); }
-      }
-      .subject {
-        height: 50px;
-        width: 50px;
-        animation: myAnim linear 0.5s none;
-        animation-trigger: scroll() repeat 50px 100px;
-      }
-     .scroller {
-        overflow-y: scroll;
-        height: 500px;
-        width: 500px;
-        border: solid 1px;
-        position: relative;
-      }
-      #space {
-        width: 50px;
-        height: 600px;
-      }
-    </style>
-    <div id="scroller" class="scroller">
-      <div id="space"></div>
-      <div id="target" class="subject"></div>
-      <div id="space"></div>
-    </div>
-  )HTML");
-  Element* target = GetDocument().getElementById(AtomicString("target"));
-  ElementAnimations* animations = target->GetElementAnimations();
-  animation = (*animations->Animations().begin()).key;
-
-  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kIdle);
-  EXPECT_TRUE(animation->HasPendingActivity());
-
-  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
-
-  scroller->scrollTo(0, 75);
-  UpdateAllLifecyclePhasesForTest();
-
-  animation->trigger()->ActionAnimation(animation);
-
-  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
-  // Finish the animation.
-  animation->finish();
-
-  UpdateAllLifecyclePhasesForTest();
-
-  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
-  EXPECT_TRUE(animation->HasPendingActivity());
-}
-
 TEST_P(AnimationAnimationTestCompositing, InvalidExecutionContext) {
   // Test for crbug.com/1254444. Guard against setting an invalid execution
   // context.
@@ -2736,6 +2640,339 @@ TEST_P(AnimationAnimationTestNoCompositing,
   EXPECT_TRUE(animation->effect()->getTiming());
   EXPECT_TRUE(
       GetDocument().IsUseCounted(WebFeature::kGetEffectTimingDelayZero));
+}
+
+TEST_P(AnimationAnimationTestCompositing,
+       CanceledTriggeredAnimationGarbageCollected) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      #target {
+        width: 100px; height: 50px; background: blue;
+      }
+    </style>
+    <div id ='target'></div>
+  )HTML");
+
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  WeakPersistent<AnimationTimeline> timeline =
+      MakeGarbageCollected<ViewTimeline>(&GetDocument(), target,
+                                         ScrollSnapshotTimeline::ScrollAxis::kY,
+                                         TimelineInset());
+  const HeapHashSet<WeakMember<AnimationTimeline>>& timelines =
+      GetDocument().GetDocumentAnimations().GetTimelinesForTesting();
+  EXPECT_TRUE(timelines.Contains(timeline));
+  AnimationTrigger* trigger;
+  Animation* animation;
+  {
+    // Create an animation.
+    animation = CreateAnimation(CSSPropertyID::kTransform,
+                                "translate(100%, 100%)", "translate(0%, 0%)");
+    // The animation should be associated with the target element and be idle.
+    EXPECT_TRUE(
+        target->GetElementAnimations()->Animations().Contains(animation));
+    EXPECT_EQ(animation->CalculateAnimationPlayState(),
+              V8AnimationPlayState::Enum::kIdle);
+
+    // Create a trigger.
+    TimelineRangeOffset* dummy_offset =
+        MakeGarbageCollected<TimelineRangeOffset>();
+    AnimationTrigger::RangeBoundary* dummy_range_boundary =
+        MakeGarbageCollected<AnimationTrigger::RangeBoundary>(dummy_offset);
+    trigger = MakeGarbageCollected<AnimationTrigger>(
+        timeline,
+        AnimationTrigger::Behavior(AnimationTrigger::Behavior::Enum::kRepeat),
+        dummy_range_boundary, dummy_range_boundary, dummy_range_boundary,
+        dummy_range_boundary);
+
+    // Attach the trigger to the animation.
+    trigger->addAnimation(animation, ASSERT_NO_EXCEPTION);
+    EXPECT_EQ(animation->CalculateAnimationPlayState(),
+              V8AnimationPlayState::Enum::kPaused);
+
+    // The trigger and animation are still connected and should persist beyond
+    // garbage collection. Same with the trigger's timeline.
+    ThreadState::Current()->CollectAllGarbageForTesting();
+    EXPECT_TRUE(timelines.Contains(timeline));
+    EXPECT_TRUE(
+        target->GetElementAnimations()->Animations().Contains(animation));
+
+    // Cancel the animation.
+    animation->cancel();
+    EXPECT_EQ(animation->CalculateAnimationPlayState(),
+              V8AnimationPlayState::Enum::kIdle);
+    EXPECT_TRUE(
+        target->GetElementAnimations()->Animations().Contains(animation));
+    EXPECT_TRUE(timelines.Contains(timeline));
+  }
+
+  // Do Garbage collection.
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+  EXPECT_EQ(timeline, nullptr);
+  EXPECT_FALSE(
+      target->GetElementAnimations()->Animations().Contains(animation));
+}
+
+class ScriptedAnimationTriggerTest : public PageTestBase {
+ public:
+  static void ConfigureSettings(WebSettings* settings) {
+    settings->SetJavaScriptEnabled(true);
+  }
+
+  ScriptedAnimationTriggerTest() {
+    helper_.InitializeWithSettings(&ConfigureSettings);
+  }
+
+  WebViewImpl* WebView() const { return helper_.GetWebView(); }
+  WebLocalFrame* WebLocalFrame() const { return WebView()->MainFrameImpl(); }
+  WebLocalFrameImpl* LocalMainFrame() const { return helper_.LocalMainFrame(); }
+
+  void ExecuteScript(const WebString& code) {
+    WebLocalFrame()->ExecuteScript(WebScriptSource(code));
+    WebLocalFrame()->View()->MainFrameWidget()->UpdateAllLifecyclePhases(
+        DocumentUpdateReason::kTest);
+    test::RunPendingTasks();
+  }
+
+  void Initialize() {
+    const char html[] = R"HTML(
+      <style>
+      div {
+        width: 100px; height: 50px; background: blue;
+      }
+      </style>
+      <div id ='subject'></div>
+      <div id ='target'></div>
+      )HTML";
+    frame_test_helpers::LoadHTMLString(WebLocalFrame(), html,
+                                       url_test_helpers::ToKURL("about:blank"));
+
+    UpdateAllLifecyclePhasesForTest();
+
+    const char make_animation_js[] = (R"JS(
+      function setupTriggeredAnimation() {
+        const animation = new Animation(
+          new KeyframeEffect(
+            document.getElementById('target'),
+            [
+              { left: "0px" },
+              { left: "100px" },
+            ],
+            { duration: 300, fill: "none" }
+          ));
+
+        let trigger = new AnimationTrigger({
+          type: "alternate",
+          timeline: new ViewTimeline({
+            subject: document.getElementById('subject'), axis: "y"
+          }),
+          rangeStart: "contain 0%",
+          rangeEnd: "contain 100%"});
+
+        trigger.addAnimation(animation);
+      }
+
+      setupTriggeredAnimation();
+    )JS");
+
+    ExecuteScript(make_animation_js);
+
+    WebLocalFrameImpl* frame = LocalMainFrame();
+    document_ = frame->GetFrame()->GetDocument();
+
+    target_ = document_->getElementById(AtomicString("target"));
+    subject_ = document_->getElementById(AtomicString("subject"));
+    animation_ = target_->GetElementAnimations()->Animations().begin()->key;
+    trigger_ = *animation_->triggers_.begin();
+    timeline_ = trigger_->timeline();
+
+    ThreadState::Current()->CollectAllGarbageForTesting();
+
+    // All objects are still connected to the DOM.
+    EXPECT_NE(target_, nullptr);
+    EXPECT_NE(subject_, nullptr);
+    EXPECT_NE(trigger_, nullptr);
+    EXPECT_NE(timeline_, nullptr);
+    EXPECT_NE(animation_, nullptr);
+  }
+
+ protected:
+  frame_test_helpers::WebViewHelper helper_;
+  // The element that is the target of |animation_|.
+  WeakPersistent<Element> target_;
+  // The subject of |trigger_|'s timeline.
+  WeakPersistent<Element> subject_;
+  // The animation created by the test.
+  WeakPersistent<Animation> animation_;
+  // The trigger created by the test
+  WeakPersistent<AnimationTrigger> trigger_;
+  // The timeline driving |trigger_|.
+  WeakPersistent<AnimationTimeline> timeline_;
+  Persistent<Document> document_;
+};
+
+TEST_F(ScriptedAnimationTriggerTest, AttachDetachTrigger) {
+  // Keep no reference.
+  // Attach trigger to animation.
+  // Detach trigger from animation.
+  Initialize();
+
+  // The animation is paused. We must finish it. Otherwise, the document
+  // timeline keeps the animation alive via animations_needing_update_.
+  animation_->finish();
+  // This ensures the event listener is dispatched so the animation no longer
+  // has a pending_finish_event_ and can be destroyed.
+  document_->GetPage()->Animate(base::TimeTicks());
+
+  trigger_->removeAnimation(animation_);
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // Since the trigger no longer controls any animation and thus the animation
+  // is finished and can no longer run, all of the animation, trigger and
+  // associated timeline should be collected.
+  EXPECT_NE(target_, nullptr);
+  EXPECT_NE(subject_, nullptr);
+  EXPECT_EQ(trigger_, nullptr);
+  EXPECT_EQ(timeline_, nullptr);
+  EXPECT_EQ(animation_, nullptr);
+}
+
+TEST_F(ScriptedAnimationTriggerTest, RemoveTriggerTimelineSubject) {
+  // Keep no reference.
+  // Remove trigger timeline subject.
+  Initialize();
+
+  subject_->remove();
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // The trigger can no longer update the animation since its timeline's subject
+  // has been removed. Thus, we can garbage collect the removed |subject_| and
+  // the trigger and its timeline.
+  // The animation and its target should not be collected as the animation is
+  // paused and its target is still in the DOM.
+  EXPECT_NE(target_, nullptr);
+  EXPECT_EQ(subject_, nullptr);
+  EXPECT_EQ(trigger_, nullptr);
+  EXPECT_EQ(timeline_, nullptr);
+  EXPECT_NE(animation_, nullptr);
+
+  animation_->finish();
+  // This ensures the event listener is dispatched so the animation no longer
+  // has a pending_finish_event_ and can be destroyed.
+  document_->GetPage()->Animate(base::TimeTicks());
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // The (fill: "none") animation is now finished and can be collected.
+  EXPECT_NE(target_, nullptr);
+  EXPECT_EQ(animation_, nullptr);
+}
+
+TEST_F(ScriptedAnimationTriggerTest,
+       KeepTriggerTimelineSubjectFinishAnimation) {
+  // Keep no reference.
+  // Add finish event listener.
+  // Remove trigger timeline subject.
+  Initialize();
+
+  // The animation is paused. We must finish it. Otherwise, the document
+  // timeline keeps the animation alive via animations_needing_update_.
+  animation_->finish();
+  // This ensures the event listener is dispatched so the animation no longer
+  // has a pending_finish_event_ and can be destroyed.
+  document_->GetPage()->Animate(base::TimeTicks());
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // The animation was finished but since its trigger is still active, it should
+  // not be collected.
+  EXPECT_NE(target_, nullptr);
+  EXPECT_NE(subject_, nullptr);
+  EXPECT_NE(trigger_, nullptr);
+  EXPECT_NE(timeline_, nullptr);
+  EXPECT_NE(animation_, nullptr);
+}
+
+TEST_F(ScriptedAnimationTriggerTest, KeepTriggerTimelineReference) {
+  // Keep trigger timeline reference.
+  // Remove trigger timeline subject.
+  Initialize();
+
+  Persistent<AnimationTimeline> timeline = timeline_;
+
+  subject_->remove();
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // Although the trigger's timeline's subject has been removed from the DOM,
+  // because we keep a reference to the trigger's timeline, the subject could be
+  // added back into the DOM which should make the trigger active again.
+  // Thus, none of them should be collected.
+  EXPECT_NE(target_, nullptr);
+  EXPECT_NE(subject_, nullptr);
+  EXPECT_NE(trigger_, nullptr);
+  EXPECT_NE(timeline_, nullptr);
+  EXPECT_NE(animation_, nullptr);
+}
+
+TEST_F(ScriptedAnimationTriggerTest, RemoveAnimationTargetAddFinishListener) {
+  // Keep no reference.
+  // Add finish event listener.
+  // Remove animation target.
+  Initialize();
+
+  MockEventListener* event_listener = MakeGarbageCollected<MockEventListener>();
+  animation_->addEventListener(event_type_names::kFinish, event_listener);
+
+  target_->remove();
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // The animation's target has been removed from the DOM but as the animation
+  // has a finish event listener and could still be played by the trigger,
+  // none of them should be collected.
+  EXPECT_NE(target_, nullptr);
+  EXPECT_NE(subject_, nullptr);
+  EXPECT_NE(trigger_, nullptr);
+  EXPECT_NE(timeline_, nullptr);
+  EXPECT_NE(animation_, nullptr);
+}
+
+TEST_F(ScriptedAnimationTriggerTest, RemoveAnimationTarget) {
+  // Keep no reference.
+  // Remove animation target.
+  Initialize();
+
+  // The animation is paused. We must finish it. Otherwise, the document
+  // timeline keeps the animation alive via animations_needing_update_.
+  animation_->finish();
+  // This ensures the event listener is dispatched so the animation no longer
+  // has a pending_finish_event_ and can be destroyed.
+  document_->GetPage()->Animate(base::TimeTicks());
+
+  target_->remove();
+
+  UpdateAllLifecyclePhasesForTest();
+  ThreadState::Current()->CollectAllGarbageForTesting();
+
+  // As the target has been removed from the DOM and the animation has no event
+  // listener, running the animation can't be observed so we should collect the
+  // animation and its target. Since we are collecting the only animation
+  // associated with the trigger, we can also collect the trigger and its
+  // timeline.
+  EXPECT_EQ(target_, nullptr);
+  EXPECT_NE(subject_, nullptr);
+  EXPECT_EQ(trigger_, nullptr);
+  EXPECT_EQ(timeline_, nullptr);
+  EXPECT_EQ(animation_, nullptr);
 }
 
 }  // namespace blink

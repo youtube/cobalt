@@ -10,8 +10,7 @@
 
 #include "modules/audio_coding/neteq/red_payload_splitter.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <list>
 #include <utility>

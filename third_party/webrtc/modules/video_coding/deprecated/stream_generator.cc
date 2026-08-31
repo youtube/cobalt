@@ -10,9 +10,8 @@
 
 #include "modules/video_coding/deprecated/stream_generator.h"
 
-#include <string.h>
-
 #include <cstdint>
+#include <cstring>
 #include <list>
 
 #include "api/video/video_frame_type.h"

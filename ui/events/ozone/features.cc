@@ -30,26 +30,10 @@ BASE_FEATURE(kEnableNeuralPalmDetectionFilter,
              "EnableNeuralPalmDetectionFilter",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableNeuralPalmAdaptiveHold,
-             "EnableNeuralPalmAdaptiveHold",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableEdgeDetection,
-             "EnableEdgeDetection",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // TODO(b/171249701): Remove this flag when we can support this in all cases.
 BASE_FEATURE(kEnableOrdinalMotion,
              "EnableOrdinalMotion",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnablePalmOnMaxTouchMajor,
-             "EnablePalmOnMaxTouchMajor",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnablePalmOnToolTypePalm,
-             "EnablePalmOnToolTypePalm",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 /// Used for marking the whole screen as a palm when any palm is detected.
 BASE_FEATURE(kEnablePalmSuppression,

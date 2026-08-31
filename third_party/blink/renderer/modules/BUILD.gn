@@ -84,7 +84,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/contacts_picker",
     "//third_party/blink/renderer/modules/content_extraction",
     "//third_party/blink/renderer/modules/content_index",
-    "//third_party/blink/renderer/modules/context_menu",
     "//third_party/blink/renderer/modules/cookie_store",
     "//third_party/blink/renderer/modules/credentialmanagement",
     "//third_party/blink/renderer/modules/crypto",
@@ -105,7 +104,6 @@ component("modules") {
     "//third_party/blink/renderer/modules/file_system_access",
     "//third_party/blink/renderer/modules/font_access",
     "//third_party/blink/renderer/modules/gamepad",
-    "//third_party/blink/renderer/modules/geolocation",
     "//third_party/blink/renderer/modules/handwriting",
     "//third_party/blink/renderer/modules/hid",
     "//third_party/blink/renderer/modules/idle",
@@ -183,11 +181,13 @@ component("modules") {
       "//third_party/blink/renderer/modules/shared_storage",
       "//third_party/blink/renderer/modules/storage_access",
       "//third_party/blink/renderer/modules/ad_auction",
+      "//third_party/blink/renderer/modules/credentialmanagement",
     ]
   }
 
   if (is_cobalt) {
     sub_modules -= [
+      "//third_party/blink/renderer/modules/mediarecorder",
       "//third_party/blink/renderer/modules/ml",
       "//third_party/blink/renderer/modules/webgpu",
       "//third_party/blink/renderer/modules/xr",
@@ -203,6 +203,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_native_stability",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
@@ -219,7 +220,8 @@ component("modules") {
     }
 
     if (enable_native_on_screen_keyboard) {
-      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
+      sub_modules +=
+          [ "//third_party/blink/renderer/modules/cobalt/on_screen_keyboard" ]
     }
 
     if (enable_in_app_dial) {
@@ -261,7 +263,7 @@ component("modules") {
     "//cc",
     "//components/webrtc:thread_wrapper",
     "//gin",
-    "//net:net",
+    "//net",
     "//third_party/blink/renderer/bindings/modules/v8:generated",
     "//third_party/blink/renderer/core",
     "//third_party/icu",
@@ -331,7 +333,12 @@ source_set("modules_testing") {
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
-    _ad_auction_testing_filtered_sources = filter_exclude(sources, [ "ad_auction/testing/*" ])
+    _ad_auction_testing_filtered_sources =
+        filter_exclude(sources,
+                       [
+                         "ad_auction/testing/*",
+                         "credentialmanagement/testing/*",
+                       ])
     sources = []
     sources = _ad_auction_testing_filtered_sources
   }
@@ -351,7 +358,7 @@ source_set("modules_testing") {
 
   public_deps = [
     "//mojo/public/cpp/bindings",
-    "//testing/gmock:gmock",
+    "//testing/gmock",
   ]
   deps = [
     "//services/device/public/cpp/generic_sensor",
@@ -524,6 +531,7 @@ source_set("unit_tests") {
     "content_extraction/inner_html_builder_unittest.cc",
     "content_extraction/inner_text_builder_unittest.cc",
     "content_index/content_description_type_converter_test.cc",
+    "cookie_store/cookie_store_unittest.cc",
     "credentialmanagement/authentication_credentials_container_test.cc",
     "credentialmanagement/credential_manager_type_converters_unittest.cc",
     "credentialmanagement/digital_identity_credential_test.cc",
@@ -704,7 +712,7 @@ source_set("unit_tests") {
     "webaudio/audio_node_input_test.cc",
     "webaudio/audio_worklet_global_scope_test.cc",
     "webaudio/audio_worklet_thread_test.cc",
-    "webaudio/biquad_dsp_kernel_test.cc",
+    "webaudio/biquad_filter_handler_test.cc",
     "webaudio/convolver_node_test.cc",
     "webaudio/dynamics_compressor_node_test.cc",
     "webaudio/media_stream_audio_destination_handler_test.cc",
@@ -762,6 +770,7 @@ source_set("unit_tests") {
   }
 
   if (is_cobalt) {
+    sources -= filter_include(sources, [ "mediarecorder/*" ])
     sources += [
       "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
       "cobalt/h5vcc_experiments/experiments_utils_test.cc",
@@ -790,12 +799,12 @@ source_set("unit_tests") {
     "//components/ukm:test_support",
     "//media:test_support",
     "//media/capture/mojom:image_capture_blink",
-    "//media/gpu:gpu",
+    "//media/gpu",
     "//media/mojo:buildflags",
     "//media/mojo:test_support",
     "//media/mojo/mojom",
-    "//media/mojo/services:services",
-    "//media/webrtc:webrtc",
+    "//media/mojo/services",
+    "//media/webrtc",
     "//mojo/public/cpp/bindings",
     "//mojo/public/cpp/test_support:test_utils",
     "//net:test_support",
@@ -836,16 +845,27 @@ source_set("unit_tests") {
     "//third_party/opus",
     "//third_party/webrtc_overrides:logging_test",
     "//third_party/webrtc_overrides:webrtc_component",
+    "//ui/accessibility",
     "//ui/strings:ax_strings_grit",
     "//v8",
   ]
 
   # If in the future privacy sandbox components are removed from the code base, ignore this if block.
+  # If in the future privacy sandbox components are removed from the code base, ignore this if block.
   if (!enable_privacy_sandbox_apis) {
-    sources -= [ "shared_storage/shared_storage_worklet_unittest.cc" ]
+    sources -= [
+      "credentialmanagement/authentication_credentials_container_test.cc",
+      "credentialmanagement/credential_manager_type_converters_unittest.cc",
+      "credentialmanagement/digital_identity_credential_test.cc",
+      "credentialmanagement/password_credential_test.cc",
+      "credentialmanagement/public_key_credential_unittest.cc",
+      "payments/payment_request_secure_payment_confirmation_availability_test.cc",
+      "payments/secure_payment_confirmation_helper_test.cc",
+      "shared_storage/shared_storage_worklet_unittest.cc",
+    ]
     deps -= [
-      "//third_party/blink/renderer/modules/storage_access:unit_tests",
       "//third_party/blink/renderer/modules/ad_auction:unit_tests",
+      "//third_party/blink/renderer/modules/storage_access:unit_tests",
     ]
   }
 
@@ -892,6 +912,10 @@ source_set("unit_tests") {
     ":accessibility_unittests_data",
     ":mediastream_unittests_data",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (is_ios) {
@@ -1096,7 +1120,7 @@ fuzzer_test("webcodecs_audio_encoder_fuzzer") {
 
   deps = [
     ":modules",
-    "//media/mojo/services:services",
+    "//media/mojo/services",
     "//third_party/blink/renderer/core:testing",
     "//third_party/blink/renderer/modules/webcodecs:fuzzer_protos",
     "//third_party/blink/renderer/platform:blink_fuzzer_test_support",

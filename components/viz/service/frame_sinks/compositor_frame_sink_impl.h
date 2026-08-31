@@ -7,6 +7,7 @@
 
 #include <memory>
 #include <optional>
+#include <variant>
 #include <vector>
 
 #include "base/memory/read_only_shared_memory_region.h"
@@ -15,6 +16,7 @@
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
+#include "mojo/public/cpp/bindings/direct_receiver.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -50,35 +52,23 @@ class CompositorFrameSinkImpl : public mojom::CompositorFrameSink {
       CompositorFrame frame,
       std::optional<HitTestRegionList> hit_test_region_list,
       uint64_t submit_time) override;
-  void SubmitCompositorFrameSync(
-      const LocalSurfaceId& local_surface_id,
-      CompositorFrame frame,
-      std::optional<HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      SubmitCompositorFrameSyncCallback callback) override;
   void DidNotProduceFrame(const BeginFrameAck& begin_frame_ack) override;
-  void InitializeCompositorFrameSinkType(
-      mojom::CompositorFrameSinkType type) override;
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused() override;
   void BindLayerContext(mojom::PendingLayerContextPtr context,
-                        bool draw_mode_is_gpu) override;
+                        mojom::LayerContextSettingsPtr settings) override;
 #if BUILDFLAG(IS_ANDROID)
   void SetThreads(const std::vector<Thread>& threads) override;
 #endif
 
  private:
-  void SubmitCompositorFrameInternal(
-      const LocalSurfaceId& local_surface_id,
-      CompositorFrame frame,
-      std::optional<HitTestRegionList> hit_test_region_list,
-      uint64_t submit_time,
-      mojom::CompositorFrameSink::SubmitCompositorFrameSyncCallback);
-
   void OnClientConnectionLost();
 
   mojo::Remote<mojom::CompositorFrameSinkClient> compositor_frame_sink_client_;
   std::unique_ptr<mojom::CompositorFrameSinkClient> proxying_client_;
 
-  mojo::Receiver<mojom::CompositorFrameSink> compositor_frame_sink_receiver_;
+  using Receiver = mojo::Receiver<mojom::CompositorFrameSink>;
+  using DirectReceiver = mojo::DirectReceiver<mojom::CompositorFrameSink>;
+  std::variant<Receiver, DirectReceiver> compositor_frame_sink_receiver_;
 
   // Must be destroyed before |compositor_frame_sink_client_|. This must never
   // change for the lifetime of CompositorFrameSinkImpl.

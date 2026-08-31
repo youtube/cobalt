@@ -56,6 +56,7 @@
 #include "ui/views/view_class_properties.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/base/ime/virtual_keyboard_controller.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -271,9 +272,11 @@ void BrowserAppMenuButton::OnTouchUiChanged() {
 
 void BrowserAppMenuButton::ButtonPressed(const ui::Event& event) {
 #if BUILDFLAG(IS_CHROMEOS)
-  if (toolbar_view_->browser()->window()->IsFeaturePromoActive(
+  auto* const user_education =
+      BrowserUserEducationInterface::From(toolbar_view_->browser());
+  if (user_education->IsFeaturePromoActive(
           feature_engagement::kIPHPasswordsSavePrimingPromoFeature)) {
-    toolbar_view_->browser()->window()->NotifyFeaturePromoFeatureUsed(
+    user_education->NotifyFeaturePromoFeatureUsed(
         feature_engagement::kIPHPasswordsSavePrimingPromoFeature,
         FeaturePromoFeatureUsedAction::kClosePromoIfPresent);
   }

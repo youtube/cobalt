@@ -10,6 +10,7 @@
 #include "include/codec/SkCodecAnimation.h"
 #include "include/core/SkBitmap.h"
 #include "include/core/SkColor.h"
+#include "include/core/SkColorType.h"
 #include "include/core/SkData.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkImageInfo.h"
@@ -638,7 +639,8 @@ DEF_TEST(RustPngCodec_png_cicp, r) {
         return;
     }
 
-    REPORTER_ASSERT(r, skcms_TransferFunction_isPQish(&profile->trc[0].parametric));
+    REPORTER_ASSERT(r, skcms_TransferFunction_isPQish(&profile->trc[0].parametric) ||
+                       skcms_TransferFunction_isPQ(&profile->trc[0].parametric));
 }
 
 DEF_TEST(RustPngCodec_green15x15, r) {
@@ -668,4 +670,19 @@ DEF_TEST(RustPngCodec_exif_orientation, r) {
     }
 
     REPORTER_ASSERT(r, codec->getOrigin() == kRightTop_SkEncodedOrigin);
+}
+
+DEF_TEST(RustPngCodec_f16_trc_tables, r) {
+    std::unique_ptr<SkCodec> codec = SkPngRustDecoderDecode(r, "images/f16-trc-tables.png");
+    REPORTER_ASSERT(r, codec);
+
+    const SkImageInfo info = codec->getInfo();
+    REPORTER_ASSERT(r, info.colorSpace());
+
+    // Decoding to F16 without color space conversion.
+    const SkImageInfo dstInfo = info.makeColorType(kRGBA_F16_SkColorType)
+                                    .makeColorSpace(nullptr);
+    // This should not crash.
+    auto [image, result] = codec->getImage(dstInfo);
+    REPORTER_ASSERT_SUCCESSFUL_CODEC_RESULT(r, result);
 }

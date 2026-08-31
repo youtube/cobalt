@@ -12,6 +12,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <optional>
 
 #include "api/array_view.h"
 #include "modules/audio_device/audio_device_buffer.h"

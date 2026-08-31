@@ -21,6 +21,7 @@
 #include "base/trace_event/trace_event.h"
 #include "base/values.h"
 #include "build/build_config.h"
+#include "components/headless/console_message_logger/headless_console_message_logger.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_termination_info.h"
 #include "content/public/browser/navigation_controller.h"
@@ -276,6 +277,16 @@ class HeadlessWebContentsImpl::Delegate : public content::WebContentsDelegate {
     headless_web_contents_->SetBounds(bounds);
   }
 
+  bool DidAddMessageToConsole(content::WebContents* source,
+                              blink::mojom::ConsoleMessageLevel log_level,
+                              const std::u16string& message,
+                              int32_t line_no,
+                              const std::u16string& source_id) override {
+    LogConsoleMessage(log_level, message, line_no,
+                      /*is_builtin_component=*/false, source_id);
+    return true;
+  }
+
  private:
   HeadlessBrowserImpl* browser() { return headless_web_contents_->browser(); }
 
@@ -401,31 +412,31 @@ void HeadlessWebContentsImpl::InitializeWindow(
   window_id_ = window_id++;
 
   browser()->PlatformInitializeWebContents(this);
+  SetVisible(/*visible=*/true);
   SetBounds(bounds);
   SetWindowState(window_state);
 }
 
+void HeadlessWebContentsImpl::SetVisible(bool visible) {
+  headless_window_->SetVisible(visible);
+}
+
 void HeadlessWebContentsImpl::SetWindowState(HeadlessWindowState window_state) {
-  switch (window_state) {
-    case HeadlessWindowState::kNormal:
-    case HeadlessWindowState::kMaximized:
-    case HeadlessWindowState::kFullscreen:
-      web_contents_->WasShown();
-      break;
-    case HeadlessWindowState::kMinimized:
-      web_contents_->WasHidden();
-      break;
-  }
-  window_state_ = window_state;
+  headless_window_->SetWindowState(window_state);
+}
+
+HeadlessWindowState HeadlessWebContentsImpl::GetWindowState() const {
+  return headless_window_->window_state();
 }
 
 void HeadlessWebContentsImpl::SetBounds(const gfx::Rect& bounds) {
-  browser()->PlatformSetWebContentsBounds(this, bounds);
+  headless_window_->SetBounds(bounds);
 }
 
 HeadlessWebContentsImpl::HeadlessWebContentsImpl(
     std::unique_ptr<content::WebContents> web_contents)
     : web_contents_delegate_(new HeadlessWebContentsImpl::Delegate(this)),
+      headless_window_(std::make_unique<HeadlessWindow>(this)),
       web_contents_(std::move(web_contents)) {
 #if BUILDFLAG(ENABLE_PRINTING)
   HeadlessPrintManager::CreateForWebContents(web_contents_.get());
@@ -528,6 +539,18 @@ void HeadlessWebContentsImpl::BeginFrame(
       args, /*force=*/true,
       base::BindOnce(&PendingFrame::OnFrameComplete, pending_frame));
 }
+
+void HeadlessWebContentsImpl::OnVisibilityChanged() {
+  headless_window_->visible() ? web_contents_->WasShown()
+                              : web_contents_->WasHidden();
+}
+
+void HeadlessWebContentsImpl::OnBoundsChanged(const gfx::Rect& old_bounds) {
+  const gfx::Rect bounds = headless_window_->bounds();
+  browser()->PlatformSetWebContentsBounds(this, bounds);
+}
+
+// HeadlessWebContents::Builder ----------------------------------------------
 
 HeadlessWebContents::Builder::Builder(
     HeadlessBrowserContextImpl* browser_context)

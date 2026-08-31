@@ -11,8 +11,7 @@
 #ifndef P2P_BASE_TURN_PORT_H_
 #define P2P_BASE_TURN_PORT_H_
 
-#include <stdio.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -93,7 +92,8 @@ class TurnPort : public Port {
                       .socket_factory = args.socket_factory,
                       .network = args.network,
                       .ice_username_fragment = args.username,
-                      .ice_password = args.password},
+                      .ice_password = args.password,
+                      .lna_permission_factory = args.lna_permission_factory},
                      socket, *args.server_address, args.config->credentials,
                      args.relative_priority, args.config->tls_alpn_protocols,
                      args.config->tls_elliptic_curves, args.turn_customizer,
@@ -115,7 +115,8 @@ class TurnPort : public Port {
          .socket_factory = args.socket_factory,
          .network = args.network,
          .ice_username_fragment = args.username,
-         .ice_password = args.password},
+         .ice_password = args.password,
+         .lna_permission_factory = args.lna_permission_factory},
         min_port, max_port, *args.server_address, args.config->credentials,
         args.relative_priority, args.config->tls_alpn_protocols,
         args.config->tls_elliptic_curves, args.turn_customizer,
@@ -259,6 +260,7 @@ class TurnPort : public Port {
   bool SetAlternateServer(const SocketAddress& address);
   void ResolveTurnAddress(const SocketAddress& address);
   void OnResolveResult(const AsyncDnsResolverResult& result);
+  void OnLocalNetworkAccessPermissionGranted();
 
   void AddRequestAuthInfo(StunMessage* msg);
   void OnSendStunPacket(const void* data, size_t size, StunRequest* request);
@@ -368,12 +370,5 @@ class TurnPort : public Port {
 
 }  // namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::TurnPort;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_TURN_PORT_H_

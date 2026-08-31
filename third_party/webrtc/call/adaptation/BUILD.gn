@@ -89,10 +89,11 @@ if (rtc_include_tests) {
       "../../rtc_base:stringutils",
       "../../rtc_base:task_queue_for_test",
       "../../rtc_base:threading",
-      "../../test:scoped_key_value_config",
+      "../../test:create_test_field_trials",
       "../../test:test_support",
       "../../test:wait_until",
       "../../video/config:encoder_config",
+      "//third_party/abseil-cpp/absl/strings",
     ]
   }
 

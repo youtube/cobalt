@@ -49,14 +49,10 @@
 #include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
 #include "third_party/blink/renderer/core/layout/layout_block_flow.h"
-#include "third_party/blink/renderer/core/layout/layout_flow_thread.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
-#include "third_party/blink/renderer/core/layout/layout_multi_column_flow_thread.h"
-#include "third_party/blink/renderer/core/layout/layout_multi_column_spanner_placeholder.h"
 #include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/layout/legacy_layout_tree_walking.h"
 #include "third_party/blink/renderer/core/layout/logical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/shapes/shape_outside_info.h"
@@ -82,14 +78,8 @@ namespace {
 // returned, and there are inline children, an anonymous block wrapper needs to
 // be created.
 bool AllowsInlineChildren(const LayoutBlockFlow& block) {
-  bool is_multicol;
-  if (RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-    is_multicol = block.IsMulticolContainer();
-  } else {
-    is_multicol = IsA<LayoutMultiColumnFlowThread>(block);
-  }
   const auto* inner_editor = DynamicTo<LayoutTextControlInnerEditor>(block);
-  return !is_multicol && !block.IsScrollMarkerGroup() &&
+  return !block.IsMulticolContainer() && !block.IsScrollMarkerGroup() &&
          !(inner_editor && inner_editor->IsMultiline());
 }
 
@@ -100,7 +90,6 @@ bool IsInnerEditorChild(const LayoutBlockFlow& block) {
 }  // anonymous namespace
 
 struct SameSizeAsLayoutBlockFlow : public LayoutBlock {
-  Member<void*> member;
   Member<void*> inline_node_data;
 };
 
@@ -149,20 +138,69 @@ void LayoutBlockFlow::WillBeDestroyed() {
   LayoutBlock::WillBeDestroyed();
 }
 
-void LayoutBlockFlow::AddChild(LayoutObject* new_child,
-                               LayoutObject* before_child) {
+void LayoutBlockFlow::AddChildBeforeDescendant(
+    LayoutObject* new_child,
+    LayoutObject* before_descendant) {
   NOT_DESTROYED();
+  DCHECK(RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled());
+  DCHECK_NE(before_descendant->Parent(), this);
+  LayoutObject* before_descendant_container = before_descendant->Parent();
+  while (before_descendant_container->Parent() != this) {
+    before_descendant_container = before_descendant_container->Parent();
+  }
+  DCHECK(before_descendant_container);
 
-  if (LayoutMultiColumnFlowThread* flow_thread = MultiColumnFlowThread()) {
-    if (before_child == flow_thread)
-      before_child = flow_thread->FirstChild();
-    DCHECK(!before_child || before_child->IsDescendantOf(flow_thread));
-    flow_thread->AddChild(new_child, before_child);
+  // We really can't go on if what we have found isn't anonymous. We're not
+  // supposed to use some random non-anonymous object and put the child there.
+  // That's a recipe for security issues.
+  CHECK(before_descendant_container->IsAnonymous());
+
+  // If the requested insertion point is not one of our children, then this is
+  // because there is an anonymous container within this object that contains
+  // the beforeDescendant.
+  if (before_descendant_container->IsAnonymousBlockFlow()) {
+    // Insert the child into the anonymous block box instead of here. Note that
+    // a LayoutOutsideListMarker is out-of-flow for tree building purposes, and
+    // that is not inline level, although IsInline() is true.
+    if ((new_child->IsInline() && !new_child->IsLayoutOutsideListMarker()) ||
+        new_child->IsFloatingOrOutOfFlowPositioned() ||
+        before_descendant->PreviousSibling()) {
+      before_descendant_container->AddChild(new_child, before_descendant);
+    } else {
+      AddChild(new_child, before_descendant->Parent());
+    }
     return;
   }
 
+  DCHECK(before_descendant_container->IsTable());
+  if (new_child->IsTablePart()) {
+    // Insert into the anonymous table.
+    before_descendant_container->AddChild(new_child, before_descendant);
+    return;
+  }
+
+  LayoutObject* before_child =
+      SplitAnonymousBoxesAroundChild(before_descendant);
+
+  DCHECK_EQ(before_child->Parent(), this);
+  if (before_child->Parent() != this) {
+    // We should never reach here. If we do, we need to use the
+    // safe fallback to use the topmost beforeChild container.
+    before_child = before_descendant_container;
+  }
+
+  AddChild(new_child, before_child);
+}
+
+void LayoutBlockFlow::AddChild(LayoutObject* new_child,
+                               LayoutObject* before_child) {
+  NOT_DESTROYED();
   if (before_child && before_child->Parent() != this) {
-    AddChildBeforeDescendant(new_child, before_child);
+    if (RuntimeEnabledFeatures::LayoutAddChildBeforeDescendantFixEnabled()) {
+      AddChildBeforeDescendant(new_child, before_child);
+    } else {
+      AddChildBeforeDescendantDeprecated(new_child, before_child);
+    }
     return;
   }
 
@@ -621,7 +659,7 @@ bool LayoutBlockFlow::ShouldTruncateOverflowingText() const {
     object_to_check = parent;
   }
   return object_to_check->HasNonVisibleOverflow() &&
-         object_to_check->StyleRef().TextOverflow() != ETextOverflow::kClip;
+         !object_to_check->StyleRef().TextOverflow().IsClip();
 }
 
 Node* LayoutBlockFlow::NodeForHitTest() const {
@@ -696,9 +734,10 @@ void LayoutBlockFlow::DirtyLinesFromChangedChild(LayoutObject* child) {
 
 bool LayoutBlockFlow::AllowsColumns() const {
   NOT_DESTROYED();
-  // Ruby elements manage child insertion in a special way, and would mess up
-  // insertion of the flow thread. The flow thread needs to be a direct child of
-  // the multicol block (|this|).
+  // TODO(crbug.com/40414064): Ruby elements manage child insertion in a special
+  // way, and this would come in conflict with the legacy multicol
+  // implementation. However, that implementation is now gone, and it should be
+  // safe to enable multicol for ruby.
   if (IsRuby())
     return false;
 
@@ -715,26 +754,8 @@ bool LayoutBlockFlow::AllowsColumns() const {
   return true;
 }
 
-// TODO(crbug.com/371802475): Remove the parameter.
-void LayoutBlockFlow::UpdateForMulticol(const ComputedStyle* old_style) {
+void LayoutBlockFlow::UpdateForMulticol() {
   NOT_DESTROYED();
-  bool specifies_columns = StyleRef().SpecifiesColumns();
-
-  if (MultiColumnFlowThread()) {
-    DCHECK(!RuntimeEnabledFeatures::FlowThreadLessEnabled());
-    DCHECK(old_style);
-    if (specifies_columns != old_style->SpecifiesColumns()) {
-      // If we're no longer to be multicol/paged, destroy the flow thread. Also
-      // destroy it when switching between multicol and paged, since that
-      // affects the column set structure (multicol containers may have
-      // spanners, paged containers may not).
-      MultiColumnFlowThread()->EvacuateAndDestroy();
-      SetIsMulticolContainer(false);
-      DCHECK(!MultiColumnFlowThread());
-    }
-    return;
-  }
-
   auto ShouldBeMulticol = [this]() -> bool {
     if (!StyleRef().SpecifiesColumns() || !AllowsColumns()) {
       return false;
@@ -766,34 +787,6 @@ void LayoutBlockFlow::UpdateForMulticol(const ComputedStyle* old_style) {
 
   if (IsListItem()) {
     UseCounter::Count(GetDocument(), WebFeature::kMultiColAndListItem);
-  }
-
-  if (!RuntimeEnabledFeatures::FlowThreadLessEnabled()) {
-    if (!should_be_multicol) {
-      return;
-    }
-
-    auto* flow_thread =
-        LayoutMultiColumnFlowThread::CreateAnonymous(GetDocument(), StyleRef());
-    AddChild(flow_thread);
-    if (IsLayoutNGObject()) {
-      // For simplicity of layout algorithm, we assume flow thread having block
-      // level children only.
-      // For example, we can handle them in same way:
-      //   <div style="columns:3">abc<br>def<br>ghi<br></div>
-      //   <div style="columns:3"><div>abc<br>def<br>ghi<br></div></div>
-      flow_thread->SetChildrenInline(false);
-    }
-
-    // Check that addChild() put the flow thread as a direct child, and didn't
-    // do fancy things.
-    DCHECK_EQ(flow_thread->Parent(), this);
-
-    flow_thread->Populate();
-
-    DCHECK(!multi_column_flow_thread_);
-    multi_column_flow_thread_ = flow_thread;
-    return;
   }
 
   // Descendants are inside multicol if this is now a multicol container, or if

@@ -95,7 +95,7 @@ struct GridSpan {
     // In general, a negative `end_line_` will reduce collisions of indefinite
     // spans since it represents the range `[-end_line_, 0]`, which can never
     // occur in definite spans that ensure `start_line_ < end_line_`.
-    return WTF::HashInts(start_line_, IsIndefinite() ? -end_line_ : end_line_);
+    return HashInts(start_line_, IsIndefinite() ? -end_line_ : end_line_);
   }
 
   bool Intersects(GridSpan span) const {
@@ -111,8 +111,7 @@ struct GridSpan {
 
   wtf_size_t IntegerSpan() const {
     DCHECK(IsTranslatedDefinite());
-    DCHECK_LT(start_line_, end_line_);
-    return end_line_ - start_line_;
+    return SpanSize();
   }
 
   wtf_size_t IndefiniteSpanSize() const {
@@ -120,6 +119,11 @@ struct GridSpan {
     DCHECK_EQ(start_line_, 0);
     DCHECK_GT(end_line_, 0);
     return end_line_;
+  }
+
+  wtf_size_t SpanSize() const {
+    DCHECK_LT(start_line_, end_line_);
+    return end_line_ - start_line_;
   }
 
   int UntranslatedStartLine() const {
@@ -215,6 +219,15 @@ struct GridArea {
     } else {
       rows = span;
     }
+  }
+
+  const GridSpan& MaybeTranslateSpan(wtf_size_t start_offset,
+                                     GridTrackSizingDirection track_direction) {
+    GridSpan& span = (track_direction == kForColumns) ? columns : rows;
+    if (span.IsUntranslatedDefinite()) {
+      span.Translate(start_offset);
+    }
+    return span;
   }
 
   wtf_size_t StartLine(GridTrackSizingDirection track_direction) const {

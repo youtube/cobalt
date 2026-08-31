@@ -38,9 +38,9 @@
 #include "pdf/mojom/pdf.mojom.h"
 #include "pdf/paint_ready_rect.h"
 #include "pdf/pdf_accessibility_data_handler.h"
-#include "pdf/pdf_accessibility_image_fetcher.h"
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_ink_annotation_mode.h"
+#include "pdf/test/fake_annotation_agent_host.h"
 #include "pdf/test/mock_web_associated_url_loader.h"
 #include "pdf/test/mouse_event_builder.h"
 #include "pdf/test/test_helpers.h"
@@ -56,6 +56,7 @@
 #include "third_party/blink/public/common/input/web_keyboard_event.h"
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/common/loader/http_body_element_type.h"
+#include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/platform/web_data.h"
 #include "third_party/blink/public/platform/web_http_body.h"
 #include "third_party/blink/public/platform/web_http_header_visitor.h"
@@ -138,12 +139,6 @@ constexpr SkColor kDefaultColor = SK_ColorGREEN;
 
 constexpr SkColor kPaintColor = SK_ColorRED;
 
-// This constant should have the same value as the one in
-// `pdf_view_web_plugin.cc`.
-// LINT.IfChange(searchify_state_propagation_delay)
-constexpr base::TimeDelta kSearchifyStatePropagationDelay = base::Seconds(1);
-// LINT.ThenChange(//pdf/pdf_view_web_plugin.cc:searchify_state_propagation_delay)
-
 struct PaintParams {
   // The plugin container's device scale.
   float device_scale;
@@ -199,11 +194,13 @@ SkBitmap GenerateExpectedBitmapForPaint(const gfx::Rect& expected_clipped_rect,
   return expected_bitmap;
 }
 
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 base::Value::Dict GenerateShowSearchifyInProgressMessage(bool show) {
   return base::Value::Dict()
       .Set("type", "showSearchifyInProgress")
       .Set("show", show);
 }
+#endif
 
 class MockHeaderVisitor : public blink::WebHTTPHeaderVisitor {
  public:
@@ -351,10 +348,7 @@ class FakePdfViewWebPluginClient : public PdfViewWebPlugin::Client {
 
   MOCK_METHOD(std::unique_ptr<PdfAccessibilityDataHandler>,
               CreateAccessibilityDataHandler,
-              (PdfAccessibilityActionHandler*,
-               PdfAccessibilityImageFetcher*,
-               blink::WebPluginContainer*,
-               bool),
+              (PdfAccessibilityActionHandler*, blink::WebPluginContainer*),
               (override));
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
   MOCK_METHOD(void,
@@ -1850,35 +1844,81 @@ TEST_F(PdfViewWebPluginTest, OnDocumentLoadComplete) {
   plugin_->DocumentLoadComplete();
 }
 
+TEST_F(PdfViewWebPluginTest, OnRendererPreferencesUpdated) {
+  auto message = base::Value::Dict()
+                     .Set("type", "rendererPreferencesUpdated")
+                     .Set("caretBrowsingEnabled", false);
+
+  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(false));
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+
+  blink::RendererPreferences prefs;
+  plugin_->OnRendererPreferencesUpdated(prefs);
+
+  message.Set("caretBrowsingEnabled", true);
+
+  EXPECT_CALL(*engine_ptr_, SetCaretBrowsingEnabled(true));
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+
+  prefs.caret_browsing_enabled = true;
+  plugin_->OnRendererPreferencesUpdated(prefs);
+}
+
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+// Searchify in progress not shown when searchify just starts.
 TEST_F(PdfViewWebPluginTest, OnSearchifyStarted) {
   base::Value::Dict message = GenerateShowSearchifyInProgressMessage(true);
 
-  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message)))).Times(0);
+  EXPECT_CALL(pdf_host_, OnSearchifyStarted);
 
   plugin_->OnSearchifyStateChange(true);
-
-  EXPECT_CALL(pdf_host_, OnSearchifyStarted);
 
   pdf_receiver_.FlushForTesting();
 }
 
-TEST_F(PdfViewWebPluginTest, OnSearchifyStartedAndStoppedFast) {
-  base::Value::Dict message_show = GenerateShowSearchifyInProgressMessage(true);
-  base::Value::Dict message_hide =
-      GenerateShowSearchifyInProgressMessage(false);
+// Searchify in progress not shown when searchify didn't starts.
+TEST_F(PdfViewWebPluginTest, OnSearchifyNotStartedAndMaybeShowInProgress) {
+  base::Value::Dict message = GenerateShowSearchifyInProgressMessage(true);
 
-  // Since "hide" message is sent with some delay, it is expected to only
-  // observe one "show" message.
-  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message_show))));
-  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message_hide)))).Times(0);
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message)))).Times(0);
+  EXPECT_CALL(pdf_host_, OnSearchifyStarted).Times(0);
+
+  plugin_->MaybeShowSearchifyInProgress();
+
+  pdf_receiver_.FlushForTesting();
+}
+
+// Searchify in progress shown when asked after start.
+TEST_F(PdfViewWebPluginTest, OnSearchifyStartedAndMaybeShowInProgress) {
+  base::Value::Dict message = GenerateShowSearchifyInProgressMessage(true);
+
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
+  EXPECT_CALL(pdf_host_, OnSearchifyStarted);
+
+  plugin_->OnSearchifyStateChange(true);
+  plugin_->MaybeShowSearchifyInProgress();
+
+  pdf_receiver_.FlushForTesting();
+}
+
+// Searchify in progress not shown when asked after stop.
+TEST_F(PdfViewWebPluginTest,
+       OnSearchifyStartedAndStoppedAndMaybeShowInProgress) {
+  base::Value::Dict message_show = GenerateShowSearchifyInProgressMessage(true);
+
+  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message_show)))).Times(0);
+  EXPECT_CALL(pdf_host_, OnSearchifyStarted);
 
   plugin_->OnSearchifyStateChange(true);
   plugin_->OnSearchifyStateChange(false);
+  plugin_->MaybeShowSearchifyInProgress();
 
   pdf_receiver_.FlushForTesting();
 }
 
-TEST_F(PdfViewWebPluginTest, OnSearchifyStopped) {
+// Searchify in progress hides after stop.
+TEST_F(PdfViewWebPluginTest, OnSearchifyShowProgressHideAfterStopped) {
   base::Value::Dict message_show = GenerateShowSearchifyInProgressMessage(true);
   base::Value::Dict message_hide =
       GenerateShowSearchifyInProgressMessage(false);
@@ -1887,37 +1927,8 @@ TEST_F(PdfViewWebPluginTest, OnSearchifyStopped) {
   EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message_hide))));
 
   plugin_->OnSearchifyStateChange(true);
+  plugin_->MaybeShowSearchifyInProgress();
   plugin_->OnSearchifyStateChange(false);
-
-  // Wait for the state to be propagated and indicator be hidden.
-  base::RunLoop run_loop;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, run_loop.QuitClosure(), kSearchifyStatePropagationDelay);
-  run_loop.Run();
-}
-
-TEST_F(PdfViewWebPluginTest, OnSearchifyStartedAndStoppedAndStarted) {
-  base::Value::Dict message_show = GenerateShowSearchifyInProgressMessage(true);
-  base::Value::Dict message_hide =
-      GenerateShowSearchifyInProgressMessage(false);
-
-  // Since `PdfViewWebPlugin` does not keep two distinct states for "progress
-  // indicator is showing" and "progress indicator will be hidden a bit later",
-  // an unnecessary show message is sent to UI. This has no effect in the UI as
-  // the progress indicator is already showing.
-  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message_show)))).Times(2);
-  EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message_hide)))).Times(0);
-
-  plugin_->OnSearchifyStateChange(true);
-  plugin_->OnSearchifyStateChange(false);
-
-  // Wait, but not enough for the state to be propagated.
-  base::RunLoop run_loop;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-      FROM_HERE, run_loop.QuitClosure(), kSearchifyStatePropagationDelay / 2);
-  run_loop.Run();
-
-  plugin_->OnSearchifyStateChange(true);
 
   pdf_receiver_.FlushForTesting();
 }
@@ -1938,10 +1949,26 @@ TEST_F(PdfViewWebPluginTest, OnHasSearchifyText) {
   EXPECT_CALL(*client_ptr_, PostMessage(Eq(std::ref(message))));
   plugin_->OnHasSearchifyText();
 }
+#endif  // BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
 
-TEST_F(PdfViewWebPluginTest, HighlightTextFragments) {
-  EXPECT_CALL(*engine_ptr_, HighlightTextFragments(
-                                ElementsAre("hello-,world", "world,-hello")));
+TEST_F(PdfViewWebPluginTest, FindAndHighlightTextFragments) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments(
+                                ElementsAre("hello-,world", "world,-hello")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment);
+
+  plugin_->OnMessage(base::Value::Dict()
+                         .Set("type", "highlightTextFragments")
+                         .Set("textFragments", base::Value::List()
+                                                   .Append("hello-,world")
+                                                   .Append("world,-hello")));
+}
+
+TEST_F(PdfViewWebPluginTest, FindAndHighlightTextFragmentsNotFound) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments(
+                                ElementsAre("hello-,world", "world,-hello")))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
 
   plugin_->OnMessage(base::Value::Dict()
                          .Set("type", "highlightTextFragments")
@@ -2133,7 +2160,9 @@ class PdfViewWebPluginSaveTest : public PdfViewWebPluginTest {
 };
 
 #if BUILDFLAG(ENABLE_INK)
-TEST_F(PdfViewWebPluginSaveTest, AnnotationInNonEditMode) {
+// TODO(crbug.com/425604529): This behavior is exclusive to Ink1. Remove this
+// test when Ink2 launches.
+TEST_F(PdfViewWebPluginSaveTest, DISABLED_AnnotationInNonEditMode) {
   base::Value expected_response = base::test::ParseJson(R"({
     "type": "saveData",
     "token": "annotation-in-non-edit-mode",
@@ -2148,7 +2177,7 @@ TEST_F(PdfViewWebPluginSaveTest, AnnotationInNonEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 0,
+    "saveRequestType": "ANNOTATION",
     "token": "annotation-in-non-edit-mode",
   })"));
 
@@ -2173,7 +2202,7 @@ TEST_F(PdfViewWebPluginSaveTest, AnnotationInEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 0,
+    "saveRequestType": "ANNOTATION",
     "token": "annotation-in-edit-mode",
   })"));
 
@@ -2197,7 +2226,7 @@ TEST_F(PdfViewWebPluginSaveTest, OriginalInNonEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 1,
+    "saveRequestType": "ORIGINAL",
     "token": "original-in-non-edit-mode",
   })"));
 
@@ -2225,7 +2254,7 @@ TEST_F(PdfViewWebPluginSaveTest, OriginalInEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 1,
+    "saveRequestType": "ORIGINAL",
     "token": "original-in-edit-mode",
   })"));
 
@@ -2233,7 +2262,9 @@ TEST_F(PdfViewWebPluginSaveTest, OriginalInEditMode) {
 }
 
 #if BUILDFLAG(ENABLE_INK)
-TEST_F(PdfViewWebPluginSaveTest, EditedInNonEditMode) {
+// TODO(crbug.com/425604529): This behavior is exclusive to Ink1. Remove this
+// test when Ink2 launches.
+TEST_F(PdfViewWebPluginSaveTest, DISABLED_EditedInNonEditMode) {
   base::Value expected_response = base::test::ParseJson(R"({
     "type": "saveData",
     "token": "edited-in-non-edit-mode",
@@ -2247,7 +2278,7 @@ TEST_F(PdfViewWebPluginSaveTest, EditedInNonEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 2,
+    "saveRequestType": "EDITED",
     "token": "edited-in-non-edit-mode",
   })"));
 }
@@ -2269,21 +2300,35 @@ TEST_F(PdfViewWebPluginSaveTest, EditedInEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 2,
+    "saveRequestType": "EDITED",
     "token": "edited-in-edit-mode",
   })"));
 }
 
 class PdfViewWebPluginSaveInBlocksTest : public PdfViewWebPluginTest {
  protected:
-  base::Value::Dict CreateRequest(
-      PdfViewWebPlugin::SaveRequestType request_type,
-      uint32_t offset,
-      uint32_t block_size,
-      std::string token) {
+  base::Value::Dict CreateRequest(pdf::mojom::SaveRequestType request_type,
+                                  uint32_t offset,
+                                  uint32_t block_size,
+                                  std::string token) {
+    std::string request_type_string;
+    switch (request_type) {
+      case pdf::mojom::SaveRequestType::kAnnotation:
+        request_type_string = "ANNOTATION";
+        break;
+      case pdf::mojom::SaveRequestType::kOriginal:
+        request_type_string = "ORIGINAL";
+        break;
+      case pdf::mojom::SaveRequestType::kEdited:
+        request_type_string = "EDITED";
+        break;
+      case pdf::mojom::SaveRequestType::kSearchified:
+        request_type_string = "SEARCHIFIED";
+        break;
+    }
     return base::Value::Dict()
         .Set("type", "getSaveDataBlock")
-        .Set("saveRequestType", static_cast<int>(request_type))
+        .Set("saveRequestType", request_type_string)
         .Set("offset", static_cast<int>(offset))
         .Set("blockSize", static_cast<int>(block_size))
         .Set("token", token);
@@ -2332,8 +2377,8 @@ TEST_F(PdfViewWebPluginSaveInBlocksTest, GetSuggestedFileName) {
 TEST_F(PdfViewWebPluginSaveInBlocksTest, OriginalInOneBlock) {
   base::span data(TestPDFiumEngine::kLoadedData);
   ExpectResponse(data, 0, data.size(), "token-1");
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kOriginal,
-                                   0, 0, "token-1"));
+  plugin_->OnMessage(
+      CreateRequest(pdf::mojom::SaveRequestType::kOriginal, 0, 0, "token-1"));
   EXPECT_TRUE(plugin_->IsSaveDataBufferEmptyForTesting());
   pdf_receiver_.FlushForTesting();
 }
@@ -2345,11 +2390,11 @@ TEST_F(PdfViewWebPluginSaveInBlocksTest, OriginalInMulipleBlocks) {
   ASSERT_GT(data.size(), 3u);
   ExpectResponse(data, 0, 3, "token-1");
   ExpectResponse(data, 3, data.size() - 3, "token-2");
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kOriginal,
-                                   0, 0, "token-1"));
+  plugin_->OnMessage(
+      CreateRequest(pdf::mojom::SaveRequestType::kOriginal, 0, 0, "token-1"));
   EXPECT_TRUE(plugin_->IsSaveDataBufferEmptyForTesting());
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kOriginal,
-                                   3, data.size() - 3, "token-2"));
+  plugin_->OnMessage(CreateRequest(pdf::mojom::SaveRequestType::kOriginal, 3,
+                                   data.size() - 3, "token-2"));
   EXPECT_TRUE(plugin_->IsSaveDataBufferEmptyForTesting());
   pdf_receiver_.FlushForTesting();
 }
@@ -2359,8 +2404,8 @@ TEST_F(PdfViewWebPluginSaveInBlocksTest, EditedInOneBlock) {
 
   base::span data(TestPDFiumEngine::kSaveData);
   ExpectResponse(data, 0, data.size(), "token-1");
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kEdited,
-                                   0, 0, "token-1"));
+  plugin_->OnMessage(
+      CreateRequest(pdf::mojom::SaveRequestType::kEdited, 0, 0, "token-1"));
   EXPECT_TRUE(plugin_->IsSaveDataBufferEmptyForTesting());
   pdf_receiver_.FlushForTesting();
 }
@@ -2374,11 +2419,11 @@ TEST_F(PdfViewWebPluginSaveInBlocksTest, EditedInMultipleBlock) {
   ExpectResponse(data, 0, 2, "token-1");
   ExpectResponse(data, 2, data.size() - 2, "token-2");
 
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kEdited,
-                                   0, 0, "token-1"));
+  plugin_->OnMessage(
+      CreateRequest(pdf::mojom::SaveRequestType::kEdited, 0, 0, "token-1"));
   EXPECT_FALSE(plugin_->IsSaveDataBufferEmptyForTesting());
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kEdited,
-                                   2, data.size() - 2, "token-2"));
+  plugin_->OnMessage(CreateRequest(pdf::mojom::SaveRequestType::kEdited, 2,
+                                   data.size() - 2, "token-2"));
   EXPECT_TRUE(plugin_->IsSaveDataBufferEmptyForTesting());
   pdf_receiver_.FlushForTesting();
 }
@@ -2391,8 +2436,8 @@ TEST_F(PdfViewWebPluginSaveInBlocksTest, ReleaseSaveBuffer) {
   ASSERT_GT(data.size(), 2u);
   ExpectResponse(data, 0, 2, "token-1");
 
-  plugin_->OnMessage(CreateRequest(PdfViewWebPlugin::SaveRequestType::kEdited,
-                                   0, 0, "token-1"));
+  plugin_->OnMessage(
+      CreateRequest(pdf::mojom::SaveRequestType::kEdited, 0, 0, "token-1"));
   EXPECT_FALSE(plugin_->IsSaveDataBufferEmptyForTesting());
 
   plugin_->OnMessage(
@@ -3080,12 +3125,13 @@ TEST_P(PdfViewWebPluginInkTest, GetPageSizeInPoints) {
                 /*page_index=*/0));
 }
 
-TEST_P(PdfViewWebPluginInkTest, GetSelectionRects) {
-  const std::vector<gfx::Rect> selection_rects = {gfx::Rect(10, 20, 30, 40)};
-  ON_CALL(*engine_ptr_, GetSelectionRects)
-      .WillByDefault(Return(selection_rects));
-  EXPECT_THAT(plugin_->ink_module_client_for_testing()->GetSelectionRects(),
-              ElementsAre(gfx::Rect(10, 20, 30, 40)));
+TEST_P(PdfViewWebPluginInkTest, GetSelectionRectMap) {
+  static constexpr gfx::Rect kRect(10, 20, 30, 40);
+  PdfInkModuleClient::SelectionRectMap selection_map{{0, {kRect}}};
+  ON_CALL(*engine_ptr_, GetSelectionRectMap)
+      .WillByDefault(Return(selection_map));
+  EXPECT_THAT(plugin_->ink_module_client_for_testing()->GetSelectionRectMap(),
+              ElementsAre(Pair(0, ElementsAre(kRect))));
 }
 
 TEST_P(PdfViewWebPluginInkTest, GetThumbnailSize) {
@@ -3297,9 +3343,10 @@ class PdfViewWebPluginInkTextHighlightTest : public PdfViewWebPluginInkTest {
                 OnTextOrLinkAreaClick(gfx::PointF(5.0f, 60.0f), 1));
     EXPECT_CALL(*engine_ptr_,
                 ExtendSelectionByPoint(gfx::PointF(25.0f, 65.0f)));
-    std::vector<gfx::Rect> mock_selection_rects = {gfx::Rect(5, 60, 20, 5)};
-    ON_CALL(*engine_ptr_, GetSelectionRects())
-        .WillByDefault(Return(mock_selection_rects));
+    PdfInkModuleClient::SelectionRectMap mock_selection_rect_map{
+        {0, {gfx::Rect(5, 60, 20, 5)}}};
+    ON_CALL(*engine_ptr_, GetSelectionRectMap())
+        .WillByDefault(Return(mock_selection_rect_map));
     ON_CALL(*engine_ptr_, IsSelectableTextOrLinkArea(_))
         .WillByDefault(Return(true));
   }
@@ -3374,7 +3421,7 @@ TEST_F(PdfViewWebPluginInk2SaveTest, AnnotationInNonEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 0,
+    "saveRequestType": "ANNOTATION",
     "token": "annotation-in-non-edit-mode",
   })"));
 
@@ -3401,7 +3448,7 @@ TEST_F(PdfViewWebPluginInk2SaveTest, AnnotationInEditMode) {
 
   plugin_->OnMessage(ParseMessage(R"({
     "type": "save",
-    "saveRequestType": 0,
+    "saveRequestType": "ANNOTATION",
     "token": "annotation-in-edit-mode",
   })"));
 
@@ -3478,5 +3525,119 @@ INSTANTIATE_TEST_SUITE_P(
     PdfViewWebPluginInkTextHighlightTest,
     testing::ValuesIn(GetInkTestVariationsWithTextHighlighting()));
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
+
+class PdfViewWebPluginAnnotationAgentContainerTest
+    : public PdfViewWebPluginTest {
+ public:
+  ~PdfViewWebPluginAnnotationAgentContainerTest() override = default;
+
+  void CreateAgent(blink::mojom::SelectorPtr selector) {
+    fake_annotation_agent_host_.reset();
+    // IPC disconnection is asynchronous. FlushForTesting() does not work.
+    base::RunLoop().RunUntilIdle();
+
+    mojo::PendingReceiver<blink::mojom::AnnotationAgentHost>
+        annotation_agent_host_receiver;
+    mojo::PendingRemote<blink::mojom::AnnotationAgent> annotation_agent_remote;
+
+    plugin_->CreateAgent(
+        annotation_agent_host_receiver.InitWithNewPipeAndPassRemote(),
+        annotation_agent_remote.InitWithNewPipeAndPassReceiver(),
+        blink::mojom::AnnotationType::kGlic, std::move(selector), std::nullopt);
+    fake_annotation_agent_host_ = std::make_unique<FakeAnnotationAgentHost>(
+        std::move(annotation_agent_host_receiver),
+        std::move(annotation_agent_remote));
+  }
+
+ protected:
+  std::unique_ptr<FakeAnnotationAgentHost> fake_annotation_agent_host_;
+};
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest, TextFragmentFound) {
+  EXPECT_CALL(*engine_ptr_,
+              FindAndHighlightTextFragments(ElementsAre("does_not_matter")))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+  EXPECT_EQ(fake_annotation_agent_host_->WaitForAttachmentResult(),
+            blink::mojom::AttachmentResult::kSuccess);
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest, TextFragmentNotFound) {
+  EXPECT_CALL(*engine_ptr_,
+              FindAndHighlightTextFragments(ElementsAre("does_not_matter")))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+  EXPECT_EQ(fake_annotation_agent_host_->WaitForAttachmentResult(),
+            blink::mojom::AttachmentResult::kSelectorNotMatched);
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest, EmptySelector) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments).Times(0);
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector(""));
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest, NodeSelector) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments).Times(0);
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
+  CreateAgent(blink::mojom::Selector::NewNodeId(1));
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest,
+       ResetPreviousTextFragment) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments)
+      .Times(2)
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
+  EXPECT_CALL(*engine_ptr_, RemoveTextFragments);
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+  // When creating the second agent, the IPC to the first agent is disconnected.
+  // The disconnection will trigger a `RemoveTextFragments()`.
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest, ScrollIntoView) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments)
+      .WillOnce(Return(true));
+  EXPECT_CALL(*engine_ptr_,
+              ScrollToFirstTextFragment(/*force_smooth_scroll=*/true));
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+  fake_annotation_agent_host_->ScrollIntoView();
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest, ConsecutiveQueries) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments)
+      .Times(2)
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(*engine_ptr_, RemoveTextFragments);
+  {
+    EXPECT_CALL(*engine_ptr_,
+                ScrollToFirstTextFragment(/*force_smooth_scroll=*/true));
+    CreateAgent(
+        blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+    fake_annotation_agent_host_->ScrollIntoView();
+  }
+  {
+    EXPECT_CALL(*engine_ptr_,
+                ScrollToFirstTextFragment(/*force_smooth_scroll=*/true));
+    CreateAgent(
+        blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+    fake_annotation_agent_host_->ScrollIntoView();
+  }
+}
+
+TEST_F(PdfViewWebPluginAnnotationAgentContainerTest,
+       CannotScrollAfterInvalidation) {
+  EXPECT_CALL(*engine_ptr_, FindAndHighlightTextFragments)
+      .WillOnce(Return(true));
+  EXPECT_CALL(*engine_ptr_, ScrollToFirstTextFragment).Times(0);
+  EXPECT_CALL(*engine_ptr_, RemoveTextFragments);
+
+  CreateAgent(blink::mojom::Selector::NewSerializedSelector("does_not_matter"));
+  plugin_->OnNewTextFragmentsSearchStarted();
+  fake_annotation_agent_host_->ScrollIntoView();
+}
 
 }  // namespace chrome_pdf

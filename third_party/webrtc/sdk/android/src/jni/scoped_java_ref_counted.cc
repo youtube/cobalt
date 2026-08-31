@@ -12,6 +12,7 @@
 
 #include "rtc_base/checks.h"
 #include "sdk/android/generated_base_jni/RefCounted_jni.h"
+#include "sdk/android/native_api/jni/jvm.h"
 
 #define CHECK_EXCEPTION(jni)        \
   RTC_CHECK(!jni->ExceptionCheck()) \

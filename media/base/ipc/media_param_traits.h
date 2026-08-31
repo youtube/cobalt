@@ -11,6 +11,7 @@
 
 namespace media {
 class AudioParameters;
+class EncryptionPattern;
 }
 
 namespace IPC {
@@ -34,6 +35,17 @@ struct ParamTraits<media::AudioParameters::HardwareCapabilities> {
                    param_type* r);
   static void Log(const param_type& p, std::string* l);
 };
+
+template <>
+struct ParamTraits<media::EncryptionPattern> {
+  typedef media::EncryptionPattern param_type;
+  static void Write(base::Pickle* m, const param_type& p);
+  static bool Read(const base::Pickle* m,
+                   base::PickleIterator* iter,
+                   param_type* r);
+  static void Log(const param_type& p, std::string* l);
+};
+
 }  // namespace IPC
 
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_H_

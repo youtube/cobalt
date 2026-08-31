@@ -56,7 +56,9 @@ import org.chromium.chrome.browser.keyboard_accessory.data.UserInfoField;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabItemsModel.AccessorySheetDataPiece;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
 
 import java.util.concurrent.ExecutionException;
@@ -66,15 +68,17 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class PasswordAccessorySheetViewTest {
+    private WebPageStation mPage;
     private AccessorySheetTabItemsModel mModel;
     private final AtomicReference<RecyclerView> mView = new AtomicReference<>();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     mModel = new AccessorySheetTabItemsModel();
@@ -340,6 +344,47 @@ public class PasswordAccessorySheetViewTest {
         assertThat(getUserInfoAt(0).getTitle().isShown(), is(false));
         assertThat(getUserInfoAt(1).getTitle().isShown(), is(true));
         assertThat(getUserInfoAt(1).getTitle().getText(), is("other.origin.eg"));
+    }
+
+    @Test
+    @MediumTest
+    public void testDisplaysBackupCredentialCorrectly() {
+        assertThat(mView.get().getChildCount(), is(0));
+        final UserInfoField kUnusedInfoField =
+                new UserInfoField.Builder()
+                        .setSuggestionType(AccessorySuggestionType.CREDENTIAL_USERNAME)
+                        .setDisplayText("Unused Name")
+                        .setA11yDescription("Unused Password")
+                        .setCallback(cb -> {})
+                        .build();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    UserInfo mainCredentialInfo = new UserInfo("psl.matched.origin.com", false);
+                    mainCredentialInfo.addField(kUnusedInfoField);
+                    mainCredentialInfo.addField(kUnusedInfoField);
+                    mModel.add(
+                            new AccessorySheetDataPiece(
+                                    mainCredentialInfo,
+                                    AccessorySheetDataPiece.Type.PASSWORD_INFO));
+
+                    UserInfo backupCredentialInfo =
+                            new UserInfo("psl.matched.origin.com", false, null, true);
+                    backupCredentialInfo.addField(kUnusedInfoField);
+                    backupCredentialInfo.addField(kUnusedInfoField);
+                    mModel.add(
+                            new AccessorySheetDataPiece(
+                                    backupCredentialInfo,
+                                    AccessorySheetDataPiece.Type.PASSWORD_INFO));
+                });
+
+        CriteriaHelper.pollUiThread(() -> Criteria.checkThat(mView.get().getChildCount(), is(2)));
+        assertThat(getUserInfoAt(0).getTitle().isShown(), is(true));
+        assertThat(getUserInfoAt(0).getTitle().getText(), is("psl.matched.origin.com"));
+        assertThat(getUserInfoAt(1).getTitle().isShown(), is(true));
+        assertThat(
+                getUserInfoAt(1).getTitle(),
+                withText(R.string.password_accessory_recovery_password_title));
     }
 
     @Test

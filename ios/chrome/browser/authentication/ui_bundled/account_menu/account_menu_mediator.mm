@@ -44,8 +44,8 @@
                                    IdentityManagerObserverBridgeDelegate,
                                    SyncObserverModelBridge>
 
-// Whether the account menu’s interaction is blocked.
-@property(nonatomic, assign) BOOL userInteractionsBlocked;
+// Redefine as readwrite.
+@property(nonatomic, assign, readwrite) BOOL userInteractionsBlocked;
 
 @end
 
@@ -323,6 +323,7 @@
     case syncer::SyncService::UserActionableError::kNeedsPassphrase:
       base::RecordAction(
           base::UserMetricsAction("Signin_AccountMenu_ErrorButton_Passphrase"));
+      self.userInteractionsBlocked = YES;
       [self.syncErrorSettingsCommandHandler
           openPassphraseDialogWithModalPresentation:YES];
       break;
@@ -353,6 +354,9 @@
               openTrustedVaultReauthForDegradedRecoverability];
       break;
     case syncer::SyncService::UserActionableError::kNone:
+    // TODO(crbug.com/370026230): Update this case once GetAccountErrorUIInfo()
+    // returns a non-nil value for it.
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       NOTREACHED();
   }
 }
@@ -375,21 +379,19 @@
   if (self.userInteractionsBlocked) {
     return;
   }
-  self.userInteractionsBlocked = YES;
-  [self.delegate didTapAddAccount];
-}
-
-- (void)didTapSettingsButton {
-  if (self.userInteractionsBlocked) {
-    return;
+  if (@available(iOS 26, *)) {
+    self.userInteractionsBlocked = YES;
   }
-  [self.delegate didTapSettingsButton];
+  // The interaction should not be blocked, because, up to iOS 18, the Add
+  // Account view may disappear without the signinCompletion to be called. See
+  // crbug.com/395959814.
+  [self.delegate didTapAddAccount];
 }
 
 #pragma mark - Callbacks
 
 // Callback for didTapAddAccount
-- (void)accountAddedIsDone {
+- (void)accountMenuIsUsable {
   [self restartUpdates];
   self.userInteractionsBlocked = NO;
 }
@@ -453,23 +455,31 @@
   _identityToSignin = nil;
 }
 
-- (ChangeProfileContinuation)authenticationFlowWillChangeProfile {
+- (void)authenticationFlowWillSwitchProfileWithReadyCompletion:
+    (ReadyForProfileSwitchingCompletion)readyCompletion {
   _authenticationFlow = nil;
   [_delegate signinFinished];
+  ChangeProfileContinuation continuation;
   switch (_accessPoint) {
     case AccountMenuAccessPoint::kNewTabPage:
-      return CreateChangeProfileOpensNTPContinuation();
+      continuation = CreateChangeProfileOpensNTPContinuation();
+      break;
     case AccountMenuAccessPoint::kSettings:
-      return CreateChangeProfileSettingsContinuation();
+      continuation = CreateChangeProfileSettingsContinuation();
+      break;
     case AccountMenuAccessPoint::kWeb: {
       GetApplicationContext()->GetLocalState()->SetBoolean(
           prefs::kHasSwitchedAccountsViaWebFlow, true);
       if (_prepareChangeProfile) {
         _prepareChangeProfile();
-      };
-      return CreateChangeProfileOpensURLContinuation(_url);
+      }
+      continuation = CreateChangeProfileOpensURLContinuation(_url);
+      break;
     }
   }
+  void (^completion)() = base::CallbackToBlock(
+      base::BindOnce(std::move(readyCompletion), std::move(continuation)));
+  [self.delegate profileWillSwitchWithCompletion:completion];
 }
 
 #pragma mark - Private

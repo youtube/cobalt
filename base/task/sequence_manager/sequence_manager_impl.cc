@@ -43,7 +43,7 @@
 #include "base/threading/thread_id_name_manager.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/tick_clock.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/blink_buildflags.h"
 #include "build/build_config.h"
 
@@ -133,10 +133,10 @@ void ReclaimMemoryFromQueue(internal::TaskQueueImpl* queue, LazyNow* lazy_now) {
 // Writes |address| in hexadecimal ("0x11223344") form starting from |output|
 // and moving backwards in memory. Returns a pointer to the first digit of the
 // result. Does *not* NUL-terminate the number.
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
 char* PrependHexAddress(char* output, const void* address) {
   uintptr_t value = reinterpret_cast<uintptr_t>(address);
-  static const char kHexChars[] = "0123456789ABCDEF";
+  static const std::string_view kHexChars = "0123456789ABCDEF";
   do {
     *output-- = kHexChars[value % 16];
     value /= 16;
@@ -145,7 +145,7 @@ char* PrependHexAddress(char* output, const void* address) {
   *output = '0';
   return output;
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Atomic to avoid TSAN flags when a test  tries to access the value before the
 // feature list is available.
@@ -493,7 +493,6 @@ void SequenceManagerImpl::SetNextWakeUp(LazyNow* lazy_now,
 void SequenceManagerImpl::MaybeEmitTaskDetails(
     perfetto::EventContext& ctx,
     const SequencedTaskSource::SelectedTask& selected_task) const {
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   // Other parameters are included only when "scheduler" category is enabled.
   const uint8_t* scheduler_category_enabled =
       TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED("scheduler");
@@ -506,8 +505,6 @@ void SequenceManagerImpl::MaybeEmitTaskDetails(
   sequence_manager_task->set_priority(
       settings().priority_settings.TaskPriorityToProto(selected_task.priority));
   sequence_manager_task->set_queue_name(selected_task.task_queue_name);
-
-#endif  //  BUILDFLAG(ENABLE_BASE_TRACING)
 }
 
 void SequenceManagerImpl::SetRunTaskSynchronouslyAllowed(
@@ -528,7 +525,7 @@ SequenceManagerImpl::SelectNextTask(LazyNow& lazy_now,
   return selected_task;
 }
 
-#if DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#if DCHECK_IS_ON()
 void SequenceManagerImpl::LogTaskDebugInfo(
     const WorkQueue* selected_work_queue) const {
   const Task* task = selected_work_queue->GetFrontTask();
@@ -583,7 +580,7 @@ void SequenceManagerImpl::LogTaskDebugInfo(
     }
   }
 }
-#endif  // DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#endif  // DCHECK_IS_ON()
 
 std::optional<SequenceManagerImpl::SelectedTask>
 SequenceManagerImpl::SelectNextTaskImpl(LazyNow& lazy_now,
@@ -635,9 +632,9 @@ SequenceManagerImpl::SelectNextTaskImpl(LazyNow& lazy_now,
       continue;
     }
 
-#if DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#if DCHECK_IS_ON()
     LogTaskDebugInfo(work_queue);
-#endif  // DCHECK_IS_ON() && !BUILDFLAG(IS_NACL)
+#endif  // DCHECK_IS_ON()
 
     main_thread_only().task_execution_stack.emplace_back(
         work_queue->TakeTaskFromWorkQueue(), work_queue->task_queue(),
@@ -1197,17 +1194,17 @@ bool SequenceManagerImpl::IsType(MessagePumpType type) const {
 
 void SequenceManagerImpl::EnableCrashKeys(const char* async_stack_crash_key) {
   DCHECK(!main_thread_only().async_stack_crash_key);
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
   main_thread_only().async_stack_crash_key = debug::AllocateCrashKeyString(
       async_stack_crash_key, debug::CrashKeySize::Size64);
   static_assert(sizeof(main_thread_only().async_stack_buffer) ==
                     static_cast<size_t>(debug::CrashKeySize::Size64),
                 "Async stack buffer size must match crash key size.");
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 void SequenceManagerImpl::RecordCrashKeys(const PendingTask& pending_task) {
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID)
   // SetCrashKeyString is a no-op even if the crash key is null, but we'd still
   // have construct the std::string_view that is passed in.
   if (!main_thread_only().async_stack_crash_key) {
@@ -1239,7 +1236,7 @@ void SequenceManagerImpl::RecordCrashKeys(const PendingTask& pending_task) {
   debug::SetCrashKeyString(
       main_thread_only().async_stack_crash_key,
       std::string_view(pos, static_cast<size_t>(buffer_end - pos)));
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_ANDROID)
+#endif  // !BUILDFLAG(IS_ANDROID)
 }
 
 internal::TaskQueueImpl* SequenceManagerImpl::currently_executing_task_queue()

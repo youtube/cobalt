@@ -8,7 +8,6 @@
 #include <variant>
 
 #include "ash/constants/ash_features.h"
-#include "base/debug/stack_trace.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -142,10 +141,9 @@ void AppInstallServiceAsh::InstallApp(
     case PackageType::kWeb:
     case PackageType::kWebsite: {
       // Observe for `anchor_window` being destroyed during async work.
-      std::unique_ptr<views::NativeWindowTracker> anchor_window_tracker;
+      std::unique_ptr<ui::NativeWindowTracker> anchor_window_tracker;
       if (anchor_window) {
-        anchor_window_tracker =
-            views::NativeWindowTracker::Create(*anchor_window);
+        anchor_window_tracker = ui::NativeWindowTracker::Create(*anchor_window);
       }
 
       FetchAppInstallData(
@@ -233,7 +231,7 @@ void AppInstallServiceAsh::ShowDialogAndInstall(
     AppInstallSurface surface,
     PackageId expected_package_id,
     std::optional<gfx::NativeWindow> anchor_window,
-    std::unique_ptr<views::NativeWindowTracker> anchor_window_tracker,
+    std::unique_ptr<ui::NativeWindowTracker> anchor_window_tracker,
     base::OnceCallback<void(AppInstallResult)> callback,
     base::expected<AppInstallData, QueryError> data) {
   gfx::NativeWindow parent =

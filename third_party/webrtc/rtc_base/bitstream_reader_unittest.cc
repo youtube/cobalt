@@ -10,17 +10,16 @@
 
 #include "rtc_base/bitstream_reader.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <optional>
+#include <utility>
 
 #include "absl/numeric/bits.h"
 #include "api/array_view.h"
 #include "rtc_base/checks.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {

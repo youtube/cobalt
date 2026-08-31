@@ -30,6 +30,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_frame.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -38,10 +39,10 @@
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/webplugininfo.h"
 #include "net/base/filename_util.h"
 #include "net/base/mime_util.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/mime_util/mime_util.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "ui/base/clipboard/clipboard_constants.h"
@@ -538,6 +539,14 @@ void BrowserRootView::OnFilteringComplete(int sequence,
 void BrowserRootView::SetOnFilteringCompleteClosureForTesting(
     base::OnceClosure closure) {
   on_filtering_complete_closure_ = std::move(closure);
+}
+
+TabStrip* BrowserRootView::tabstrip() {
+  return browser_view_->tabstrip();
+}
+
+ToolbarView* BrowserRootView::toolbar() {
+  return browser_view_->toolbar();
 }
 
 std::optional<GURL> BrowserRootView::GetPasteAndGoURL(

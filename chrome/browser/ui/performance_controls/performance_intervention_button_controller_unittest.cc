@@ -11,7 +11,6 @@
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/feature_engagement/public/tracker.h"
@@ -25,23 +24,11 @@
 class PerformanceInterventionButtonControllerUnitTest : public testing::Test {
  public:
   void SetUp() override {
-    std::map<std::string, std::string> params;
-    params["availability"] = "any";
-    params["session_rate"] = "any";
-    params["event_used"] = "name:;comparator:any;window:0;storage:360";
-    params["event_trigger"] =
-        "name:performance_intervention_dialog_trigger;comparator:<5;window:1;"
-        "storage:360";
-    params["event_weekly"] =
-        "name:performance_intervention_dialog_trigger;comparator:<35;window:7;"
-        "storage:360";
-
     feature_list_.InitAndEnableFeaturesWithParameters(
         {{performance_manager::features::
               kPerformanceInterventionNotificationImprovements,
           {}},
-         {feature_engagement::kIPHPerformanceInterventionDialogFeature,
-          params}});
+         {feature_engagement::kIPHPerformanceInterventionDialogFeature, {}}});
 
     tracker_ = feature_engagement::CreateTestTracker();
     base::RunLoop run_loop;
@@ -113,8 +100,6 @@ class PerformanceInterventionButtonControllerUnitTest : public testing::Test {
   feature_engagement::test::ScopedIphFeatureList feature_list_;
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  ScopedTestingLocalState scoped_testing_local_state_{
-      TestingBrowserProcess::GetGlobal()};
   std::unique_ptr<PerformanceInterventionButtonController> controller_;
   std::unique_ptr<feature_engagement::Tracker> tracker_;
 };
@@ -151,9 +136,9 @@ TEST_F(PerformanceInterventionButtonControllerUnitTest,
   task_environment().FastForwardBy(base::Days(1));
   EXPECT_TRUE(SimulateTriggeringIntervention());
 
-  // Adjust the acceptance rate to 30% so that the intervention should be
+  // Adjust the acceptance rate to 40% so that the intervention should be
   // eligible to show twice per day now.
-  PopulateAcceptHistory(3);
+  PopulateAcceptHistory(4);
   task_environment().FastForwardBy(
       performance_manager::features::kMinimumTimeBetweenReshow.Get());
   EXPECT_TRUE(SimulateTriggeringIntervention());
@@ -189,8 +174,8 @@ TEST_F(PerformanceInterventionButtonControllerUnitTest, ZeroAcceptanceRate) {
   EXPECT_TRUE(SimulateTriggeringIntervention());
 
   // Since the acceptance rate is still 0, the intervention should not be
-  // allowed to show until a month has passed since the last shown time.
-  task_environment().FastForwardBy(base::Days(7));
+  // allowed to show until a week has passed since the last shown time.
+  task_environment().FastForwardBy(base::Days(3));
   EXPECT_FALSE(SimulateTriggeringIntervention());
 
   task_environment().FastForwardBy(

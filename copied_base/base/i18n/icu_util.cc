@@ -58,7 +58,6 @@
 
 namespace base::i18n {
 
-#if !BUILDFLAG(IS_NACL)
 namespace {
 
 #if DCHECK_IS_ON()
@@ -440,7 +439,5 @@ void AllowMultipleInitializeCallsForTesting() {
   g_check_called_once = false;
 #endif
 }
-
-#endif  // !BUILDFLAG(IS_NACL)
 
 }  // namespace base::i18n

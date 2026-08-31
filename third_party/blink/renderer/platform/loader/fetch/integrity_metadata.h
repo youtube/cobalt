@@ -5,6 +5,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_INTEGRITY_METADATA_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_LOADER_FETCH_INTEGRITY_METADATA_H_
 
+#include "services/network/public/cpp/integrity_metadata.h"
 #include "services/network/public/mojom/integrity_algorithm.mojom-blink.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -17,18 +18,7 @@
 namespace blink {
 
 using IntegrityAlgorithm = network::mojom::blink::IntegrityAlgorithm;
-
-struct PLATFORM_EXPORT IntegrityMetadata {
-  IntegrityMetadata() = default;
-  IntegrityMetadata(String digest, IntegrityAlgorithm);
-
-  bool operator==(const IntegrityMetadata& other) const {
-    return this->digest == other.digest && this->algorithm == other.algorithm;
-  }
-
-  String digest;
-  IntegrityAlgorithm algorithm;
-};
+using IntegrityMetadata = network::IntegrityMetadata;
 
 // Contains the result of SRI's "Parse Metadata" algorithm:
 //

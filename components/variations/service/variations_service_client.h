@@ -64,6 +64,10 @@ class VariationsServiceClient {
   // returns nullptr.
   virtual std::unique_ptr<SeedResponse> TakeSeedFromNativeVariationsSeedStore();
 
+  // If an invalid command-line was specified by the user, flag an error to the
+  // user and exit the process.
+  virtual void ExitWithMessage(const std::string& message);
+
   // Returns whether the client is enterprise.
   // TODO(manukh): crbug.com/1003025. This is inconsistent with UMA which
   // analyzes brand_code to determine if the client is an enterprise user:
@@ -84,6 +88,10 @@ class VariationsServiceClient {
   // This is a no-op on platforms that do not support multiple profiles.
   virtual void RemoveGoogleGroupsFromPrefsForDeletedProfiles(
       PrefService* local_state) = 0;
+
+  // Whether support for STICKY_AFTER_QUERY activation for studies is enabled.
+  // TODO: crbug.com/435630455 - Fully enable and remove this once ready.
+  virtual bool IsStickyActivationEnabled();
 
  private:
   // Gets the channel of the embedder. But all variations callers should use

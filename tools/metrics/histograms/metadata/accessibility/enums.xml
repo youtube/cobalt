@@ -1600,6 +1600,17 @@ Unknown properties are collapsed to zero. -->
 
 <!-- LINT.ThenChange(//chrome/renderer/accessibility/phrase_segmentation/dependency_parser_model.h:DependencyParserModelState) -->
 
+<!-- LINT.IfChange(DistillationParseResult)-->
+
+<enum name="DistillationParseResult">
+  <summary>Describes the result of a disillation parsing attempt</summary>
+  <int value="0" label="Success"/>
+  <int value="1" label="Parse Failure"/>
+  <int value="2" label="No Data"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/dom_distiller/core/distiller_page.cc:DistillationParseResult) -->
+
 <!-- LINT.IfChange(DistillationResult)-->
 
 <enum name="DistillationResult">
@@ -1675,22 +1686,17 @@ Unknown properties are collapsed to zero. -->
   <int value="18" label="Focus the next web contents pane (not implemented)"/>
   <int value="19" label="Scroll down (not implemented)"/>
   <int value="20" label="Scroll up (not implemented)"/>
-  <int value="21"
-      label="Place keyboard focus on the toolbar (not implemented)"/>
-  <int value="22"
-      label="Place keyboard focus on the bookmarks bar (not implemented)"/>
+  <int value="21" label="Place keyboard focus on the toolbar"/>
+  <int value="22" label="Place keyboard focus on the bookmarks bar"/>
   <int value="23"
       label="Switch which row of the top controls (tab strip, toolbar,
-             bookmarks bar) is keyboard-focused (not implemented)"/>
+             bookmarks bar) is keyboard-focused"/>
   <int value="24"
-      label="Open the context menu for the keyboard-focused tab strip item
-             (not implemented)"/>
+      label="Open the context menu for the keyboard-focused tab strip item"/>
   <int value="25"
-      label="Reorder the keyboard-focused tab strip item to the left (not
-             implemented)"/>
+      label="Reorder the keyboard-focused tab strip item to the left"/>
   <int value="26"
-      label="Reorder the keyboard-focused tab strip item to the right (not
-             implemented)"/>
+      label="Reorder the keyboard-focused tab strip item to the right"/>
   <int value="27"
       label="Reorder the currently-open tab to the left (not implemented)"/>
   <int value="28"
@@ -2089,15 +2095,6 @@ Unknown properties are collapsed to zero. -->
 
 <!-- LINT.ThenChange(//services/screen_ai/screen_ai_service_impl.cc:OCRClientType) -->
 
-<!-- LINT.IfChange(PdfOcrRequestStatus) -->
-
-<enum name="PdfOcrRequestStatus">
-  <int value="0" label="OCR requested"/>
-  <int value="1" label="OCR performed"/>
-</enum>
-
-<!-- LINT.ThenChange(//components/pdf/renderer/pdf_ocr_helper.h:PdfOcrRequestStatus) -->
-
 <!-- LINT.IfChange(ReadAnythingColor) -->
 
 <enum name="ReadAnythingColor">
@@ -2109,6 +2106,17 @@ Unknown properties are collapsed to zero. -->
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/read_anything/read_anything.mojom:Colors) -->
+
+<!-- LINT.IfChange(ReadAnythingDistillationStatus) -->
+
+<enum name="ReadAnythingDistillationStatus">
+  <int value="0" label="Failed"/>
+  <int value="1" label="Success"/>
+  <int value="2" label="Still running"/>
+  <int value="3" label="Restarted"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/common/read_anything/read_anything.mojom:DistillationStatus) -->
 
 <!-- LINT.IfChange(ReadAnythingEmptyState) -->
 
@@ -2130,7 +2138,7 @@ Unknown properties are collapsed to zero. -->
   <int value="5" label="EB Garamond"/>
   <int value="6" label="STIX Two Text"/>
   <int value="7" label="Andika"/>
-  <int value="8" label="Atkinson Hyperlegible"/>
+  <int value="8" label="Atkinson Hyperlegible Next"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/common/read_anything/read_anything_util.cc:ReadAnythingFont) -->
@@ -2146,6 +2154,18 @@ Unknown properties are collapsed to zero. -->
 </enum>
 
 <!-- LINT.ThenChange(//chrome/renderer/accessibility/read_anything/read_anything_app_model.cc:ReadAnythingHeuristics) -->
+
+<!-- LINT.IfChange(ReadAnythingHighlightGranularity) -->
+
+<enum name="ReadAnythingHighlightGranularity">
+  <int value="0" label="Highlight auto"/>
+  <int value="1" label="Highlight off"/>
+  <int value="2" label="Highlight word"/>
+  <int value="3" label="Highlight phrase"/>
+  <int value="4" label="Hihglight sentence"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/resources/side_panel/read_anything/metrics_browser_proxy.ts:ReadAloudHighlightGranularity) -->
 
 <!-- LINT.IfChange(ReadAnythingHighlightState) -->
 
@@ -2368,6 +2388,31 @@ Unknown properties are collapsed to zero. -->
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/speech/extension_api/tts_extension_api.cc:TextToSpeechSource) -->
+
+<!-- LINT.IfChange(TranslationDispatcherLoadResult) -->
+
+<enum name="TranslationDispatcherLoadResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="NetworkError"/>
+  <int value="2" label="HttpError"/>
+  <int value="3" label="EmptyResponse"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/live_caption/translation_dispatcher.cc:TranslationDispatcherLoadResult) -->
+
+<!-- LINT.IfChange(TranslationDispatcherParseResult) -->
+
+<enum name="TranslationDispatcherParseResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="JsonParseError"/>
+  <int value="2" label="ValueNotDict"/>
+  <int value="3" label="DataDictNotFound"/>
+  <int value="4" label="TranslationsListNotFound"/>
+  <int value="5" label="TranslatedTextNotDict"/>
+  <int value="6" label="TranslatedTextNotFound"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/live_caption/translation_dispatcher.cc:TranslationDispatcherParseResult) -->
 
 </enums>
 

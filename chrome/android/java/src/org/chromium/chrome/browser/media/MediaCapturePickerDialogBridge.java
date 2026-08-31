@@ -4,19 +4,15 @@
 
 package org.chromium.chrome.browser.media;
 
-import android.app.Activity;
-
-import androidx.annotation.NonNull;
-
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.ui.base.WindowAndroid;
-import org.chromium.ui.modaldialog.ModalDialogManagerHolder;
 
 /** Glue for the media capture picker dialog UI code and communication with the native backend. */
+@NullMarked
 public class MediaCapturePickerDialogBridge implements MediaCapturePickerDialog.Delegate {
     private long mNativeMediaCapturePickerDialogBridge;
 
@@ -42,22 +38,17 @@ public class MediaCapturePickerDialogBridge implements MediaCapturePickerDialog.
     /**
      * Shows the media capture picker dialog.
      *
-     * @param windowAndroid Window to show the dialog on.
+     * @param webContents The {@link WebContents} to show the dialog on behalf of.
      * @param appName Name of the app that wants to share content.
      * @param requestAudio True if audio sharing is also requested.
      */
     @CalledByNative
     public void showDialog(
-            WindowAndroid windowAndroid,
+            WebContents webContents,
             @JniType("std::u16string") String appName,
             boolean requestAudio) {
-        Activity activity = windowAndroid.getActivity().get();
         MediaCapturePickerDialog.showDialog(
-                activity,
-                ((ModalDialogManagerHolder) activity).getModalDialogManager(),
-                appName,
-                requestAudio,
-                this);
+                webContents, appName, requestAudio, /* delegate= */ this);
     }
 
     @CalledByNative
@@ -66,7 +57,7 @@ public class MediaCapturePickerDialogBridge implements MediaCapturePickerDialog.
     }
 
     @Override
-    public void onPickTab(@NonNull WebContents webContents, boolean audioShare) {
+    public void onPickTab(WebContents webContents, boolean audioShare) {
         // We know `mNativeMediaCapturePickerDialogBridge` is non-zero because
         // `destroy` will only be called after the dialog is dismissed.
         assert mNativeMediaCapturePickerDialogBridge != 0;

@@ -59,7 +59,7 @@ public class TabGroupListRenderTest {
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(Component.UI_BROWSER_MOBILE_TAB_GROUPS)
-                    .setRevision(1)
+                    .setRevision(2)
                     .build();
 
     @Test
@@ -105,7 +105,7 @@ public class TabGroupListRenderTest {
                                             TabLaunchType.FROM_LONGPRESS_BACKGROUND,
                                             null);
                     filter.createSingleTabGroup(tab);
-                    filter.setTabGroupTitle(tab.getRootId(), title);
+                    filter.setTabGroupTitle(tab.getTabGroupId(), title);
                 });
         if (wait) {
             onViewWaiting(withText(title)).check(matches(isDisplayed()));

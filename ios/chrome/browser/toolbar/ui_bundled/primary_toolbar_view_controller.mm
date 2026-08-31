@@ -45,7 +45,7 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
              "PrimaryToolbarViewDidLoadUpdateViews",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-@interface PrimaryToolbarViewController ()
+@interface PrimaryToolbarViewController () <TabGroupIndicatorViewDelegate>
 
 // Redefined to be a PrimaryToolbarView.
 @property(nonatomic, strong) PrimaryToolbarView* view;
@@ -219,14 +219,14 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self.delegate close];
 }
 
 #pragma mark - Public
 
 - (void)setTabGroupIndicatorView:(TabGroupIndicatorView*)view {
-  CHECK(IsTabGroupInGridEnabled());
+  view.delegate = self;
   self.view.tabGroupIndicatorView = view;
 }
 
@@ -238,19 +238,17 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
   }
   [super setIsNTP:isNTP];
   _isNTP = isNTP;
-  if (IsSplitToolbarMode(self) || !self.shouldHideOmniboxOnNTP) {
+
+  // The omnibox is always visible when having two toolbars and no TabStrip.
+  BOOL omniboxAlwaysVisible =
+      IsSplitToolbarMode(self) && !CanShowTabStrip(self);
+  if (omniboxAlwaysVisible || !self.shouldHideOmniboxOnNTP) {
     return;
   }
 
   // This is hiding/showing and positionning the omnibox. This is only needed
   // if the omnibox should be hidden when there is only one toolbar.
-  if (!isNTP) {
-    // Reset any location bar view updates when not an NTP.
-    [self setScrollProgressForTabletOmnibox:1];
-  } else {
-    // Hides the omnibox.
-    [self setScrollProgressForTabletOmnibox:0];
-  }
+  [self setScrollProgressForTabletOmnibox:(isNTP ? 0 : 1)];
 }
 
 - (BOOL)locationBarIsExpanded {
@@ -413,9 +411,7 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
       [self verticalMarginForLocationBarForFullscreenProgress:
                 self.previousFullscreenProgress];
   self.view.topCornersRounded = NO;
-  if (IsTabGroupInGridEnabled()) {
-    [self.view updateTabGroupIndicatorAvailability];
-  }
+  [self.view updateTabGroupIndicatorAvailability];
   [self.delegate
       viewControllerTraitCollectionDidChange:previousTraitCollection];
 }
@@ -455,4 +451,13 @@ BASE_FEATURE(kPrimaryToolbarViewDidLoadUpdateViews,
   view.locationBarContainerHeight.constant = height;
   view.locationBarContainer.layer.cornerRadius = height / 2;
 }
+
+#pragma mark - TabGroupIndicatorViewDelegate
+
+- (void)tabGroupIndicatorViewVisibilityUpdated:(BOOL)visible {
+  [self.view tabGroupIndicatorViewVisibilityUpdated:visible];
+  [self.delegate viewController:self
+      tabGroupIndicatorVisibilityUpdated:visible];
+}
+
 @end

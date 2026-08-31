@@ -4,60 +4,16 @@
 
 module tabs_api.mojom;
 
-import "chrome/browser/ui/webui/tabs/tabs.mojom";
+import "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api_data_model.mojom";
+import "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api_events.mojom";
+import "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api_types.mojom";
 import "mojo/public/mojom/base/empty.mojom";
 import "mojo/public/mojom/base/error.mojom";
 import "url/mojom/url.mojom";
 
-// References a tab object. The id can refer to different types of underlying
-// resource. The |type| field can be used to differentiate between the type
-// of underlying resources.
-struct TabId {
-  // The type of object referenced by the id.
-  enum Type {
-    // An unknown type. This will never be returned by the service and usually
-    // indicates an invalid argument from the client.
-    kUnknown,
-    // A content tab.
-    kContent,
-    // A collection of tabs.
-    kCollection,
-  };
-
-  // An opaque string that uniquely identifies the underlying resource. This
-  // id will be unique across all resource types. Users should not try to
-  // extrapolate any sort of pattern from this string.
-  string id;
-
-  // The type of resource referenced by this id.
-  Type type;
-};
-
-struct Tab {
-  TabId id;
-  string title;
-  url.mojom.Url url;
-
-  // TODO(crbug.com/414630734). The favicon should be typemapped to ImageModel
-  // in c++. Leave this as a data uri for now.
-  url.mojom.Url favicon_url;
-
-  array<tabs.mojom.TabAlertState> alert_states;
-  tabs.mojom.TabNetworkState network_state;
-};
-
-// Position is an ephemeral object that should not be saved nor act as an
-// identifier. It is purely used in this API to determine the position within
-// the TabstripModel.
-struct Position {
-  // TODO (crbug.com/412935316). Create a generic id that represents the parent
-  // collection id.
-  uint32 index;
-};
-
 // A snapshot of the current tabs in the tab strip.
 struct TabsSnapshot {
-  array<Tab> tabs;
+  TabCollectionContainer tab_strip;
   // Updates to tabs would be sent through this update stream. Clients may
   // subscribe to this stream to receive update events.
   // The interface is associated with the interface used to retrieve this
@@ -80,7 +36,7 @@ interface TabStripService {
 
   // Get a single tab.
   [Sync]
-  GetTab(TabId id) => result<Tab, mojo_base.mojom.Error>;
+  GetTab(NodeId id) => result<Tab, mojo_base.mojom.Error>;
 
   // Creates a new tab.
   // Position specifies the location of the Tab after creation. If position is
@@ -97,34 +53,39 @@ interface TabStripService {
   // invocation will be rejected with a |Code.kNotFound| error.
   // If the method call succeeds, all of the tabs will have been closed.
   [Sync]
-  CloseTabs(array<TabId> id)
+  CloseTabs(array<NodeId> id)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 
   // Activates a tab. The only accepted id type for this method are |kContent|
   // ids.
   [Sync]
-  ActivateTab(TabId id)
+  ActivateTab(NodeId id)
+      => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
+
+  // Moves a tab identified by id to a specified position.
+  [Sync]
+  MoveTab(NodeId id, Position position)
       => result<mojo_base.mojom.Empty, mojo_base.mojom.Error>;
 };
 
-// TODO (crbug.com/411134070). Add in missing TabData.
-struct OnTabsCreatedEvent {
-  // Tab ids of the newly created tabs.
-  array<TabId> tabs;
-};
-
-struct OnTabsClosedEvent {
-  // Tab ids of the closed tabs.
-  array<TabId> tabs;
-};
-
-// TODO (crbug.com/412955607)
-// TabsObserver is not a CheckedObserver. There is a potential UaF if the
-// observer list attempts to call a destroyed TabsObserver that hasn't removed
-// itself from the list.
+// TabsObserver is an interface a client can implement to receive events
+// about changes to the tab strip.
 interface TabsObserver {
   // When new tabs have been created on the tab strip.
   OnTabsCreated(OnTabsCreatedEvent event);
+
   // When tabs have been closed on the tab strip.
   OnTabsClosed(OnTabsClosedEvent event);
+
+  // When a tab has been moved.
+  OnTabMoved(OnTabMovedEvent event);
+
+  // When tab data has been updated.
+  OnTabDataChanged(OnTabDataChangedEvent tab);
+
+  // When a new tab group has been created.
+  OnTabGroupCreated(OnTabGroupCreatedEvent event);
+
+  // When a tab group's visuals have been changed.
+  OnTabGroupVisualsChanged(OnTabGroupVisualsChangedEvent event);
 };

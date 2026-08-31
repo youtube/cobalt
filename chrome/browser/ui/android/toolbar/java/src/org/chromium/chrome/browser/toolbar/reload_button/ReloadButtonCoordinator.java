@@ -17,6 +17,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
+import org.chromium.chrome.browser.toolbar.top.ToolbarUtils;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 import org.chromium.ui.widget.Toast;
@@ -57,7 +58,8 @@ public class ReloadButtonCoordinator {
             ObservableSupplier<@Nullable Tab> tabSupplier,
             ObservableSupplier<Boolean> ntpLoadingSupplier,
             ObservableSupplier<Boolean> enabledSupplier,
-            ThemeColorProvider themeColorProvider) {
+            ThemeColorProvider themeColorProvider,
+            boolean isWebApp) {
         mView = view;
 
         // ThemeColorProvider might not be updated by this time. Keep existing color list.
@@ -87,7 +89,8 @@ public class ReloadButtonCoordinator {
                         enabledSupplier,
                         (text) -> Toast.showAnchoredToast(mView.getContext(), mView, text),
                         mView.getResources(),
-                        mView.getContext());
+                        mView.getContext(),
+                        isWebApp);
         PropertyModelChangeProcessor.create(model, mView, ReloadButtonViewBinder::bind);
     }
 
@@ -120,7 +123,10 @@ public class ReloadButtonCoordinator {
      * @return {@link ObjectAnimator} that animates view's alpha.
      */
     public ObjectAnimator getFadeAnimator(boolean shouldShow) {
-        return mMediator.getFadeAnimator(shouldShow);
+        ObjectAnimator fadeAnimator = mMediator.getFadeAnimator(shouldShow);
+        return shouldShow
+                ? ToolbarUtils.asFadeInAnimation(fadeAnimator)
+                : ToolbarUtils.asFadeOutAnimation(fadeAnimator);
     }
 
     /**

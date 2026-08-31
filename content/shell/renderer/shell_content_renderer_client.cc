@@ -20,6 +20,7 @@
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
 #include "components/web_cache/renderer/web_cache_impl.h"
+#include "build/buildflag.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/pseudonymization_util.h"
 #include "content/public/common/web_identity.h"
@@ -35,7 +36,6 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "net/base/net_errors.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/sandbox.h"
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/public/platform/web_url_error.h"
@@ -45,10 +45,6 @@
 #include "third_party/blink/public/web/web_view.h"
 #include "v8/include/v8-initialization.h"
 #include "v8/include/v8.h"
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-#include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
-#endif
 
 #if BUILDFLAG(ENABLE_MOJO_CDM)
 #include "base/feature_list.h"
@@ -186,6 +182,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
       const network::ResourceRequest& request) override {
     std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
     if (local_frame_token.has_value()) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       auto throttle =
           content::MaybeCreateIdentityUrlLoaderThrottle(base::BindRepeating(
               [](const blink::LocalFrameToken& token,
@@ -206,6 +203,7 @@ class ShellContentRendererUrlLoaderThrottleProvider
               local_frame_token.value(), main_thread_task_runner_));
       if (throttle)
         throttles.push_back(std::move(throttle));
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
     }
 
     return throttles;
@@ -293,13 +291,13 @@ void ShellContentRendererClient::RenderThreadStarted() {
 void ShellContentRendererClient::ExposeInterfacesToBrowser(
     mojo::BinderMap* binders) {
   binders->Add<mojom::TestService>(
-      base::BindRepeating(&CreateRendererTestService),
+      &CreateRendererTestService,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<mojom::PowerMonitorTest>(
-      base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
+      &PowerMonitorTestImpl::MakeSelfOwnedReceiver,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<mojom::MainFrameCounterTest>(
-      base::BindRepeating(&MainFrameCounterTestImpl::Bind),
+      &MainFrameCounterTestImpl::Bind,
       base::SingleThreadTaskRunner::GetCurrentDefault());
   binders->Add<web_cache::mojom::WebCache>(
       base::BindRepeating(&web_cache::WebCacheImpl::BindReceiver,

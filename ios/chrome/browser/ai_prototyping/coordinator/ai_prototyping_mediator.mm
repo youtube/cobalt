@@ -138,9 +138,11 @@
   __weak __typeof(self) weakSelf = self;
   base::OnceCallback<void(const std::string&)> handle_response_callback =
       base::BindOnce(^void(const std::string& response_string) {
-        [weakSelf.consumer
-            updateQueryResult:base::SysUTF8ToNSString(response_string)
-                   forFeature:AIPrototypingFeature::kFreeform];
+        if (weakSelf) {
+          [weakSelf.consumer
+              updateQueryResult:base::SysUTF8ToNSString(response_string)
+                     forFeature:AIPrototypingFeature::kFreeform];
+        }
       });
 
   // Execute the query immediately and early return if `includePageContext` is
@@ -152,21 +154,24 @@
     return;
   }
 
-  base::OnceCallback<void(
-      std::unique_ptr<optimization_guide::proto::PageContext>)>
-      page_context_completion_callback = base::BindOnce(
-          ^void(std::unique_ptr<optimization_guide::proto::PageContext>
-                    page_context) {
-            [weakSelf executeServerQueryWithPageContext:std::move(page_context)
-                                        freeformRequest:request];
+  base::OnceCallback<void(PageContextWrapperCallbackResponse)>
+      page_context_completion_callback =
+          base::BindOnce(^void(PageContextWrapperCallbackResponse response) {
+            // TODO(crbug.com/425736226): Handle PageContextWrapper errors.
+            if (response.has_value()) {
+              [weakSelf
+                  executeServerQueryWithPageContext:std::move(response.value())
+                                    freeformRequest:request];
+            }
           });
 
   // Populate the PageContext proto and then execute the query.
   _pageContextWrapper = [[PageContextWrapper alloc]
         initWithWebState:_webStateList->GetActiveWebState()
       completionCallback:std::move(page_context_completion_callback)];
-  [_pageContextWrapper setShouldGetInnerText:YES];
+  [_pageContextWrapper setShouldGetAnnotatedPageContent:YES];
   [_pageContextWrapper setShouldGetSnapshot:YES];
+  [_pageContextWrapper setShouldGetFullPagePDF:YES];
   [_pageContextWrapper populatePageContextFieldsAsync];
 }
 

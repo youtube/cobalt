@@ -101,9 +101,6 @@ bool CallerAppIsFirstParty(MobileSessionCallerApp callerApp) {
     case CALLER_APP_GOOGLE_OTHER:
     case CALLER_APP_GOOGLE_YOUTUBE:
     case CALLER_APP_GOOGLE_MAPS:
-    case CALLER_APP_GOOGLE_CHROME_TODAY_EXTENSION:
-    case CALLER_APP_GOOGLE_CHROME_SEARCH_EXTENSION:
-    case CALLER_APP_GOOGLE_CHROME_CONTENT_EXTENSION:
     case CALLER_APP_GOOGLE_CHROME_SHARE_EXTENSION:
     case CALLER_APP_GOOGLE_CHROME_OPEN_EXTENSION:
     case CALLER_APP_GOOGLE_CHROME:
@@ -540,7 +537,7 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
                           sourceApplication:(NSString*)appID
                     secureSourceApplication:(NSString*)secureAppID
                        forceApplicationMode:(BOOL)forceApplicationMode {
-  SearchExtensionAction action = ACTION_NO_ACTION;
+  ExtensionAction action = ACTION_NO_ACTION;
   ChromeAppStartupParameters* params = nil;
 
   if ([command
@@ -637,7 +634,7 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
         forceApplicationMode:forceApplicationMode];
 
     params.textQuery = externalText;
-
+    params.openedViaShareExtensionScheme = YES;
     action = ACTION_SEARCH_TEXT;
   }
 
@@ -656,7 +653,7 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
         forceApplicationMode:forceApplicationMode];
 
     params.textQuery = externalText;
-
+    params.openedViaShareExtensionScheme = YES;
     action = ACTION_SEARCH_TEXT;
   }
 
@@ -676,6 +673,7 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
         forceApplicationMode:forceApplicationMode];
 
     params.imageSearchData = externalData;
+    params.openedViaShareExtensionScheme = YES;
 
     action = ACTION_SEARCH_IMAGE;
   }
@@ -695,7 +693,7 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
         forceApplicationMode:forceApplicationMode];
 
     params.imageSearchData = externalData;
-
+    params.openedViaShareExtensionScheme = YES;
     action = ACTION_SEARCH_IMAGE;
   }
 
@@ -755,17 +753,6 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
     action = ACTION_NO_ACTION;
   }
 
-  if ([secureAppID
-          isEqualToString:app_group::kOpenCommandSourceSearchExtension]) {
-    UMA_HISTOGRAM_ENUMERATION(kSearchExtensionActionHistogram, action,
-                              SEARCH_EXTENSION_ACTION_COUNT);
-  }
-  if ([secureAppID
-          isEqualToString:app_group::kOpenCommandSourceContentExtension] &&
-      index) {
-    UMA_HISTOGRAM_COUNTS_100("IOS.ContentExtension.Index",
-                             [index integerValue]);
-  }
   if ([secureAppID isEqualToString:kWidgetKitHostSearchWidget]) {
     LogWidgetKitAction(WidgetKitExtensionAction::ACTION_SEARCH_WIDGET_SEARCH);
   }
@@ -845,18 +832,6 @@ TabOpeningPostOpeningAction XCallbackPoaToPostOpeningAction(
 }
 
 - (MobileSessionCallerApp)callerApp {
-  if ([_secureSourceApp
-          isEqualToString:app_group::kOpenCommandSourceTodayExtension]) {
-    return CALLER_APP_GOOGLE_CHROME_TODAY_EXTENSION;
-  }
-  if ([_secureSourceApp
-          isEqualToString:app_group::kOpenCommandSourceSearchExtension]) {
-    return CALLER_APP_GOOGLE_CHROME_SEARCH_EXTENSION;
-  }
-  if ([_secureSourceApp
-          isEqualToString:app_group::kOpenCommandSourceContentExtension]) {
-    return CALLER_APP_GOOGLE_CHROME_CONTENT_EXTENSION;
-  }
   if ([_secureSourceApp
           isEqualToString:app_group::kOpenCommandSourceShareExtension]) {
     return CALLER_APP_GOOGLE_CHROME_SHARE_EXTENSION;

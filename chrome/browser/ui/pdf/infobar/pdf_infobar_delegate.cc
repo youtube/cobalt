@@ -8,6 +8,7 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "base/path_service.h"
+#include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/infobars/confirm_infobar_creator.h"
 #include "chrome/browser/shell_integration.h"
@@ -28,6 +29,7 @@
 #include "ui/views/win/hwnd_util.h"
 #endif  // BUILDFLAG(IS_WIN)
 
+namespace pdf::infobar {
 namespace {
 
 void RecordUserInteractionHistogram(PdfInfoBarUserInteraction interaction) {
@@ -85,7 +87,8 @@ bool PdfInfoBarDelegate::Accept() {
       infobars::ContentInfoBarManager::WebContentsFromInfoBar(infobar())
           ->GetTopLevelNativeWindow();
   base::ThreadPool::PostTask(
-      FROM_HERE, {base::MayBlock()},
+      FROM_HERE,
+      {base::MayBlock(), base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
       base::BindOnce(base::IgnoreResult(
                          &ShellUtil::ShowSetDefaultForFileExtensionSystemUI),
                      base::PathService::CheckedGet(base::FILE_EXE),
@@ -94,8 +97,6 @@ bool PdfInfoBarDelegate::Accept() {
 #else
 #error PdfInfoBarDelegate should only be created on Windows or MacOS
 #endif
-  // TODO(crbug.com/396202897): record metrics when the user accepts, dismisses,
-  // or ignores the infobar, and whether opening the system UI succeeds.
   return ConfirmInfoBarDelegate::Accept();
 }
 
@@ -104,3 +105,5 @@ void PdfInfoBarDelegate::InfoBarDismissed() {
   RecordUserInteractionHistogram(PdfInfoBarUserInteraction::kDismissed);
   ConfirmInfoBarDelegate::InfoBarDismissed();
 }
+
+}  // namespace pdf::infobar

@@ -4,8 +4,10 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils_desktop.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
 #include "components/bookmarks/browser/bookmark_utils.h"
@@ -33,7 +35,8 @@ TEST_F(BookmarkTest, NonEmptyBookmarkBarShownOnNTP) {
                                 std::u16string());
 
   AddTab(browser(), GURL(chrome::kChromeUINewTabURL));
-  EXPECT_EQ(BookmarkBar::SHOW, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::SHOW,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
 }
 
 TEST_F(BookmarkTest, EmptyBookmarkBarNotShownOnNTP) {
@@ -42,7 +45,8 @@ TEST_F(BookmarkTest, EmptyBookmarkBarNotShownOnNTP) {
   bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
 
   AddTab(browser(), GURL(chrome::kChromeUINewTabURL));
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
 }
 
 // Verify that the bookmark bar is hidden on custom NTP pages.
@@ -61,10 +65,12 @@ TEST_F(BookmarkTest, BookmarkBarOnCustomNTP) {
   entry->SetVirtualURL(GURL(chrome::kChromeUINewTabURL));
 
   // Verify that the bookmark bar is hidden.
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
   browser()->tab_strip_model()->AppendWebContents(std::move(web_contents),
                                                   true);
-  EXPECT_EQ(BookmarkBar::HIDDEN, browser()->bookmark_bar_state());
+  EXPECT_EQ(BookmarkBar::HIDDEN,
+            BookmarkBarController::From(browser())->bookmark_bar_state());
 }
 
 TEST_F(BookmarkTest, BookmarkReaderModePageActuallyBookmarksOriginal) {
@@ -94,14 +100,14 @@ TEST_F(BookmarkTest, NoTabsInGroups) {
   std::vector<std::pair<GURL, std::u16string>> tab_entries;
   auto test_url =
       std::make_pair(GURL("https://www.example.com/article.html"), u"");
-  base::flat_map<int, chrome::TabGroupData> groups_by_index;
+  base::flat_map<int, bookmarks::TabGroupData> groups_by_index;
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(i, std::make_pair(std::nullopt, u""));
   }
 
-  chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
-                                         tab_entries, groups_by_index);
+  bookmarks::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
+                                            tab_entries, groups_by_index);
 
   EXPECT_EQ(details.bookmark_data.children.size(), 6u);
   for (auto child : details.bookmark_data.children) {
@@ -117,15 +123,15 @@ TEST_F(BookmarkTest, AllTabsInOneGroup) {
   std::vector<std::pair<GURL, std::u16string>> tab_entries;
   auto test_url =
       std::make_pair(GURL("https://www.example.com/article.html"), u"");
-  base::flat_map<int, chrome::TabGroupData> groups_by_index;
+  base::flat_map<int, bookmarks::TabGroupData> groups_by_index;
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(i,
                             std::make_pair(std::make_optional(group_id), u""));
   }
 
-  chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
-                                         tab_entries, groups_by_index);
+  bookmarks::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
+                                            tab_entries, groups_by_index);
 
   EXPECT_EQ(details.bookmark_data.children.size(), 1u);
   EXPECT_EQ(details.bookmark_data.children.begin()->url.has_value(), false);
@@ -139,7 +145,7 @@ TEST_F(BookmarkTest, AllTabsInMultipleGroups) {
   std::vector<std::pair<GURL, std::u16string>> tab_entries;
   auto test_url =
       std::make_pair(GURL("https://www.example.com/article.html"), u"");
-  base::flat_map<int, chrome::TabGroupData> groups_by_index;
+  base::flat_map<int, bookmarks::TabGroupData> groups_by_index;
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(
@@ -147,8 +153,8 @@ TEST_F(BookmarkTest, AllTabsInMultipleGroups) {
                std::make_optional(tab_groups::TabGroupId::GenerateNew()), u""));
   }
 
-  chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
-                                         tab_entries, groups_by_index);
+  bookmarks::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
+                                            tab_entries, groups_by_index);
 
   EXPECT_EQ(details.bookmark_data.children.size(), 6u);
   for (auto child : details.bookmark_data.children) {
@@ -165,7 +171,7 @@ TEST_F(BookmarkTest, SomeTabsInOneGroup) {
   std::vector<std::pair<GURL, std::u16string>> tab_entries;
   auto test_url =
       std::make_pair(GURL("https://www.example.com/article.html"), u"");
-  base::flat_map<int, chrome::TabGroupData> groups_by_index;
+  base::flat_map<int, bookmarks::TabGroupData> groups_by_index;
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(
@@ -174,8 +180,8 @@ TEST_F(BookmarkTest, SomeTabsInOneGroup) {
                u""));
   }
 
-  chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
-                                         tab_entries, groups_by_index);
+  bookmarks::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
+                                            tab_entries, groups_by_index);
 
   EXPECT_EQ(details.bookmark_data.children.size(), 4u);
   for (size_t i = 0; i < details.bookmark_data.children.size(); i++) {
@@ -196,7 +202,7 @@ TEST_F(BookmarkTest, SomeTabsInMultipleGroups) {
   std::vector<std::pair<GURL, std::u16string>> tab_entries;
   auto test_url =
       std::make_pair(GURL("https://www.example.com/article.html"), u"");
-  base::flat_map<int, chrome::TabGroupData> groups_by_index;
+  base::flat_map<int, bookmarks::TabGroupData> groups_by_index;
   for (int i = 0; i < 6; i++) {
     tab_entries.push_back(test_url);
     groups_by_index.emplace(
@@ -207,8 +213,8 @@ TEST_F(BookmarkTest, SomeTabsInMultipleGroups) {
                u""));
   }
 
-  chrome::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
-                                         tab_entries, groups_by_index);
+  bookmarks::GetURLsAndFoldersForTabEntries(&(details.bookmark_data.children),
+                                            tab_entries, groups_by_index);
 
   EXPECT_EQ(details.bookmark_data.children.size(), 6u);
   for (size_t i = 0; i < details.bookmark_data.children.size(); i++) {

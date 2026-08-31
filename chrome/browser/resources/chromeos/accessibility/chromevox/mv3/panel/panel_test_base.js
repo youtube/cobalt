@@ -13,42 +13,28 @@ ChromeVoxPanelTestBase = class extends ChromeVoxE2ETest {
   async setUpDeferred() {
     await super.setUpDeferred();
 
-    await new PanelCommand(PanelCommandType.ENABLE_TEST_HOOKS).send();
     await this.waitForPendingMethods();
-    this.getPanelWindow().MenuManager.disableMissingMsgsErrorsForTesting = true;
-  }
-
-  getPanelWindow() {
-    let panelWindow = null;
-    while (!panelWindow) {
-      panelWindow = chrome.extension.getViews().find(
-          view => view.location.href.indexOf('chromevox/mv3/panel/panel.html') > 0);
-    }
-    return panelWindow;
-  }
-
-  /**
-   * Gets the Panel object in the panel.html window. Note that the extension
-   * system destroys our reference to this object unpredictably so always ask
-   * chrome.extension.getViews for it.
-   */
-  getPanel() {
-    return this.getPanelWindow().Panel;
+    await PanelBridge.disableMessagesForTest();
   }
 
 
-  // TODO(crbug.com/388867840): Replace with chrome.runtime.sendMessage to
-  // panel.html
-  async waitForMenu(menuMsg) {
-    const menuManager = this.getPanel().instance.menuManager_;
+  async isMenuTitleMessage(menuTitleMessage) {
+    const response = await PanelBridge.getActiveMenuDataForTest()
 
-    // Menu and menu item updates occur in a different js context, so tests need
-    // to wait until an update has been made.
-    return new Promise(
-        resolve =>
-            this.addCallbackPostMethod(menuManager, 'activateMenu', () => {
-              assertEquals(menuMsg, menuManager.activeMenu_.menuMsg);
-              resolve();
-            }, () => true));
+    return menuTitleMessage === response.menuMsg;
+  }
+
+  async waitForMenu(menuTitleMessage) {
+    // TODO(crbug.com/424764877): Replace polling.
+    let pollForMenu = async (resolve) => {
+      if (await this.isMenuTitleMessage(menuTitleMessage)) {
+        resolve();
+      } else {
+        setTimeout(() => pollForMenu(resolve), 500)
+      }
+    };
+    return new Promise(resolve => {
+      pollForMenu(resolve);
+    });
   }
 };

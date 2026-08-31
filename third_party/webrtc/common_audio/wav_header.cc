@@ -14,6 +14,7 @@
 
 #include "common_audio/wav_header.h"
 
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <string>

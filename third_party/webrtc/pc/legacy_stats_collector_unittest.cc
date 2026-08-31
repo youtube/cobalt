@@ -10,9 +10,8 @@
 
 #include "pc/legacy_stats_collector.h"
 
-#include <stdio.h>
-
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 #include <optional>
 #include <string>
@@ -61,35 +60,26 @@
 #include "test/gmock.h"
 #include "test/gtest.h"
 
+namespace webrtc {
+
 using ::testing::_;
 using ::testing::AtMost;
 using ::testing::Eq;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
-using ::webrtc::ConnectionInfo;
-using ::webrtc::SsrcReceiverInfo;
-using ::webrtc::TransportChannelStats;
-using ::webrtc::VideoMediaInfo;
-using ::webrtc::VideoReceiverInfo;
-using ::webrtc::VideoSenderInfo;
-using ::webrtc::VoiceMediaInfo;
-using ::webrtc::VoiceReceiverInfo;
-using ::webrtc::VoiceSenderInfo;
-
-namespace webrtc {
 
 // Error return values
-const char kNotFound[] = "NOT FOUND";
+constexpr char kNotFound[] = "NOT FOUND";
 
 // Constant names for track identification.
-const char kLocalTrackId[] = "local_track_id";
-const char kRemoteTrackId[] = "remote_track_id";
-const uint32_t kSsrcOfTrack = 1234;
+constexpr char kLocalTrackId[] = "local_track_id";
+constexpr char kRemoteTrackId[] = "remote_track_id";
+constexpr uint32_t kSsrcOfTrack = 1234;
 
 class FakeAudioProcessor : public AudioProcessorInterface {
  public:
   FakeAudioProcessor() {}
-  ~FakeAudioProcessor() {}
+  ~FakeAudioProcessor() override {}
 
  private:
   AudioProcessorInterface::AudioProcessorStatistics GetStats(
@@ -131,7 +121,7 @@ class FakeAudioTrack : public MediaStreamTrack<AudioTrackInterface> {
 class FakeAudioProcessorWithInitValue : public AudioProcessorInterface {
  public:
   FakeAudioProcessorWithInitValue() {}
-  ~FakeAudioProcessorWithInitValue() {}
+  ~FakeAudioProcessorWithInitValue() override {}
 
  private:
   AudioProcessorInterface::AudioProcessorStatistics GetStats(
@@ -701,7 +691,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
     std::string local_certificate_id =
         ExtractStatsValue(StatsReport::kStatsReportTypeComponent, reports,
                           StatsReport::kStatsValueNameLocalCertificateId);
-    if (local_ders.size() > 0) {
+    if (!local_ders.empty()) {
       EXPECT_NE(kNotFound, local_certificate_id);
       StatsReport::Id id(IdFromCertIdString(local_certificate_id));
       CheckCertChainReports(reports, local_ders, id);
@@ -713,7 +703,7 @@ class LegacyStatsCollectorTest : public ::testing::Test {
     std::string remote_certificate_id =
         ExtractStatsValue(StatsReport::kStatsReportTypeComponent, reports,
                           StatsReport::kStatsValueNameRemoteCertificateId);
-    if (remote_ders.size() > 0) {
+    if (!remote_ders.empty()) {
       EXPECT_NE(kNotFound, remote_certificate_id);
       StatsReport::Id id(IdFromCertIdString(remote_certificate_id));
       CheckCertChainReports(reports, remote_ders, id);

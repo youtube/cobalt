@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/omnibox/browser/builtin_provider.h"
 
 #include <stddef.h>
@@ -17,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/format_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
@@ -112,9 +108,9 @@ class BuiltinProviderTest : public testing::Test {
   }
   void TearDown() override { provider_ = nullptr; }
 
-  void RunTest(const TestData cases[], size_t num_cases) {
+  void RunTest(base::span<const TestData> cases) {
     ACMatches matches;
-    for (size_t i = 0; i < num_cases; ++i) {
+    for (size_t i = 0; i < cases.size(); ++i) {
       SCOPED_TRACE(base::StringPrintf(
           "case %" PRIuS ": %s", i, base::UTF16ToUTF8(cases[i].input).c_str()));
       AutocompleteInput input(cases[i].input, metrics::OmniboxEventProto::OTHER,
@@ -178,7 +174,7 @@ TEST_F(BuiltinProviderTest, TypingScheme) {
       {u"ChRoMe://", {kURL1, kURL2, kURL3}},
   };
 
-  RunTest(typing_scheme_cases, std::size(typing_scheme_cases));
+  RunTest(typing_scheme_cases);
 }
 
 TEST_F(BuiltinProviderTest, NonEmbedderURLs) {
@@ -196,7 +192,7 @@ TEST_F(BuiltinProviderTest, NonEmbedderURLs) {
       {u"scheme://host/path?query#ref", {}},
   };
 
-  RunTest(test_cases, std::size(test_cases));
+  RunTest(test_cases);
 }
 
 TEST_F(BuiltinProviderTest, EmbedderProvidedURLs) {
@@ -245,7 +241,7 @@ TEST_F(BuiltinProviderTest, EmbedderProvidedURLs) {
       {kEmbedder + kSep2 + kHostM3, {kURLM2, kURLM3}},
   };
 
-  RunTest(test_cases, std::size(test_cases));
+  RunTest(test_cases);
 }
 
 TEST_F(BuiltinProviderTest, AboutBlank) {
@@ -303,7 +299,7 @@ TEST_F(BuiltinProviderTest, AboutBlank) {
       {kAboutBlank.substr(0, 9) + u"#r", {}},
   };
 
-  RunTest(about_blank_cases, std::size(about_blank_cases));
+  RunTest(about_blank_cases);
 }
 
 TEST_F(BuiltinProviderTest, DoesNotSupportMatchesOnFocus) {
@@ -336,7 +332,7 @@ TEST_F(BuiltinProviderTest, Subpages) {
       {kSubpage + kPageTwo, {kURLTwo}},
   };
 
-  RunTest(settings_subpage_cases, std::size(settings_subpage_cases));
+  RunTest(settings_subpage_cases);
 }
 
 TEST_F(BuiltinProviderTest, Inlining) {

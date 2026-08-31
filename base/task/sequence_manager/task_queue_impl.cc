@@ -36,7 +36,8 @@
 #include "base/task/task_observer.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/interned_args_helper.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/container/inlined_vector.h"
 
@@ -438,10 +439,8 @@ void TaskQueueImpl::PostImmediateTaskImpl(PostedTask task,
     bool add_queue_time_to_tasks = sequence_manager_->GetAddQueueTimeToTasks();
     TimeTicks queue_time;
     bool config_category_enabled = false;
-#if BUILDFLAG(ENABLE_BASE_TRACING)
     config_category_enabled =
         TRACE_EVENT_CATEGORY_ENABLED("config.scheduler.record_task_post_time");
-#endif
     if (config_category_enabled || add_queue_time_to_tasks ||
         delayed_fence_allowed_) {
       queue_time = sequence_manager_->any_thread_clock()->NowTicks();
@@ -1540,7 +1539,6 @@ TaskQueueImpl::CreateQueueEnabledVoter() {
 }
 
 void TaskQueueImpl::RemoveCancelledTasks() {
-#if !BUILDFLAG(IS_NACL)
   // TODO(crbug.com/394266102): Remove these crash keys after the bug is
   // understood and fixed.
   //
@@ -1566,7 +1564,6 @@ void TaskQueueImpl::RemoveCancelledTasks() {
   static auto* post_remove_cancelled_tasks_delayed_work_queue_size =
       debug::AllocateCrashKeyString("post_rct_delayed_work_queue_size",
                                     debug::CrashKeySize::Size32);
-#endif  // !BUILDFLAG(IS_NACL)
 
   // Because callback destructors could have a side-effect of posting new tasks,
   // move cancelled callbacks into a temporary container before deleting them.
@@ -1575,11 +1572,9 @@ void TaskQueueImpl::RemoveCancelledTasks() {
   {
     base::internal::CheckedAutoLock lock(any_thread_lock_);
 
-#if !BUILDFLAG(IS_NACL)
     debug::SetCrashKeyString(
         pre_remove_cancelled_tasks_immediate_incoming_queue_size,
         NumberToString(any_thread_.immediate_incoming_queue.size()));
-#endif  // !BUILDFLAG(IS_NACL)
 
     for (auto& task : any_thread_.immediate_incoming_queue) {
       if (task.task.IsCancelled()) {
@@ -1589,21 +1584,18 @@ void TaskQueueImpl::RemoveCancelledTasks() {
     std::erase_if(any_thread_.immediate_incoming_queue,
                   [](const Task& task) { return task.task.is_null(); });
 
-#if !BUILDFLAG(IS_NACL)
     debug::SetCrashKeyString(
         post_remove_cancelled_tasks_immediate_incoming_queue_size,
         NumberToString(any_thread_.immediate_incoming_queue.size()));
-#endif  // !BUILDFLAG(IS_NACL)
   }
 
-#if !BUILDFLAG(IS_NACL)
   debug::SetCrashKeyString(
       pre_remove_cancelled_tasks_immediate_work_queue_size,
       NumberToString(main_thread_only_.immediate_work_queue->Size()));
-#endif  // !BUILDFLAG(IS_NACL)
+
   main_thread_only_.immediate_work_queue->RemoveCancelledTasks(
       WorkQueue::RemoveCancelledTasksPolicy::kAll);
-#if !BUILDFLAG(IS_NACL)
+
   debug::SetCrashKeyString(
       post_remove_cancelled_tasks_immediate_work_queue_size,
       NumberToString(main_thread_only_.immediate_work_queue->Size()));
@@ -1611,14 +1603,13 @@ void TaskQueueImpl::RemoveCancelledTasks() {
   debug::SetCrashKeyString(
       pre_remove_cancelled_tasks_delayed_work_queue_size,
       NumberToString(main_thread_only_.delayed_work_queue->Size()));
-#endif  // !BUILDFLAG(IS_NACL)
+
   main_thread_only_.delayed_work_queue->RemoveCancelledTasks(
       WorkQueue::RemoveCancelledTasksPolicy::kAll);
-#if !BUILDFLAG(IS_NACL)
+
   debug::SetCrashKeyString(
       post_remove_cancelled_tasks_delayed_work_queue_size,
       NumberToString(main_thread_only_.delayed_work_queue->Size()));
-#endif  // !BUILDFLAG(IS_NACL)
 }
 
 void TaskQueueImpl::AddQueueEnabledVoter(bool voter_is_enabled,

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #import "ios/chrome/browser/sessions/model/session_restoration_service_impl.h"
 
 #import <map>
@@ -369,8 +374,7 @@ class SessionRestorationServiceImplTest : public PlatformTest {
 
     // Create the service, force enabling features support.
     service_ = std::make_unique<SessionRestorationServiceImpl>(
-        kSaveDelay, /*enable_pinned_web_states=*/true,
-        /*enable_tab_groups=*/true, profile_->GetStatePath(),
+        kSaveDelay, /*enable_pinned_web_states=*/true, profile_->GetStatePath(),
         base::SequencedTaskRunner::GetCurrentDefault());
   }
 
@@ -521,7 +525,8 @@ TEST_F(SessionRestorationServiceImplTest, LoadSession) {
     // Check that closing the all the tabs after disconnecting the Browser
     // does not delete the sesion.
     SnapshotFiles();
-    CloseAllWebStates(*browser.GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+    CloseAllWebStates(*browser.GetWebStateList(),
+                      WebStateList::ClosingReason::kDefault);
 
     WaitForSessionSaveComplete();
     EXPECT_EQ(ModifiedFiles(), FilePathSet{});
@@ -929,7 +934,8 @@ TEST_F(SessionRestorationServiceImplTest, DeleteDataOnClose) {
       /*expect_session_metadata_storage=*/true, {});
 
   // Close all WebStates, check that the data is deleted.
-  CloseAllWebStates(*browser.GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*browser.GetWebStateList(),
+                    WebStateList::ClosingReason::kDefault);
 
   WaitForSessionSaveComplete();
 
@@ -982,7 +988,8 @@ TEST_F(SessionRestorationServiceImplTest, DeleteDataOnClose_AfterMove) {
   MoveWebStateBetweenWebStateList(browser0.GetWebStateList(),
                                   browser1.GetWebStateList());
 
-  CloseAllWebStates(*browser1.GetWebStateList(), WebStateList::CLOSE_NO_FLAGS);
+  CloseAllWebStates(*browser1.GetWebStateList(),
+                    WebStateList::ClosingReason::kDefault);
 
   WaitForSessionSaveComplete();
 

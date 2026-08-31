@@ -1,0 +1,43 @@
+# Copyright 2025 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("autocomplete") {
+  sources = [
+    "autocomplete_classifier_factory.h",
+    "chrome_autocomplete_scheme_classifier.h",
+  ]
+  public_deps = [
+    "//base",
+    "//chrome/browser/profiles:profile",
+    "//components/omnibox/browser:location_bar",
+  ]
+}
+
+source_set("aim_eligibility_service") {
+  sources = [
+    "aim_eligibility_service.cc",
+    "aim_eligibility_service.h",
+    "aim_eligibility_service_factory.cc",
+    "aim_eligibility_service_factory.h",
+    "aim_eligibility_service_observer.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/browser:browser_process",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/search_engines",
+    "//chrome/browser/signin",
+    "//components/keyed_service/core",
+    "//components/omnibox/browser",
+    "//components/prefs",
+    "//components/search",
+    "//components/search_engines",
+    "//components/signin/public/identity_manager",
+    "//components/variations/service",
+    "//content/public/browser",
+    "//net",
+    "//services/network/public/cpp",
+    "//url",
+  ]
+}

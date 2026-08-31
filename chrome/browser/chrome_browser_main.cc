@@ -91,7 +91,6 @@
 #include "components/metrics/expired_histogram_util.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_shutdown.h"
-#include "components/nacl/common/buildflags.h"
 #include "components/offline_pages/buildflags/buildflags.h"
 #include "components/policy/core/browser/policy_data_utils.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
@@ -108,6 +107,8 @@
 #include "components/variations/synthetic_trials_active_group_id_provider.h"
 #include "components/variations/variations_ids_provider.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/synthetic_trial_syncer.h"
 #include "content/public/browser/web_ui_controller_factory.h"
 #include "content/public/common/content_features.h"
@@ -122,6 +123,7 @@
 #include "third_party/blink/public/common/origin_trials/origin_trials_settings_provider.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/color/color_provider_manager.h"
+#include "ui/gl/gl_switches.h"
 
 // Per-platform #include blocks, in alphabetical order.
 
@@ -143,6 +145,7 @@
 #include "chrome/browser/usb/web_usb_detector.h"
 #include "chrome/browser/win/browser_util.h"
 #include "components/soda/soda_installer.h"
+#include "components/soda/soda_util.h"
 #endif
 
 #if !BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_RLZ)
@@ -184,7 +187,7 @@
 #include "chrome/browser/headless/headless_mode_metrics.h"  // nogncheck
 #include "chrome/browser/headless/headless_mode_util.h"     // nogncheck
 #include "chrome/browser/metrics/desktop_session_duration/desktop_session_duration_tracker.h"
-#include "chrome/browser/metrics/desktop_session_duration/touch_mode_stats_tracker.h"
+#include "chrome/browser/metrics/desktop_session_duration/touch_ui_controller_stats_tracker.h"
 #include "chrome/browser/profiles/profile_activity_metrics_recorder.h"
 #include "components/headless/select_file_dialog/headless_select_file_dialog.h"
 #include "ui/base/pointer/touch_ui_controller.h"
@@ -235,12 +238,6 @@
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "extensions/components/javascript_dialog_extensions_client/javascript_dialog_extension_client_impl.h"
-#endif
-
-#if BUILDFLAG(ENABLE_NACL)
-#include "chrome/browser/nacl_host/nacl_browser_delegate_impl.h"
-#include "components/nacl/browser/nacl_browser.h"
-#include "components/nacl/browser/nacl_process_host.h"
 #endif
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
@@ -1005,19 +1002,22 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
         !base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kAppId)) {
       browser_creator_->AddFirstRunTabs(master_prefs_->new_tabs);
     }
-
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-    // Create directory for user-level Native Messaging manifest files. This
-    // makes it less likely that the directory will be created by third-party
-    // software with incorrect owner or permission. See crbug.com/725513 .
-    base::FilePath user_native_messaging_dir;
-    CHECK(base::PathService::Get(chrome::DIR_USER_NATIVE_MESSAGING,
-                                 &user_native_messaging_dir));
-    if (!base::PathExists(user_native_messaging_dir))
-      base::CreateDirectory(user_native_messaging_dir);
-#endif
   }
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS_CORE) &&                                   \
+    (BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+     BUILDFLAG(IS_ANDROID))
+  // Create directory for user-level Native Messaging manifest files. This
+  // makes it less likely that the directory will be created by third-party
+  // software with incorrect owner or permission. See crbug.com/725513 .
+  base::FilePath user_native_messaging_dir;
+  CHECK(base::PathService::Get(chrome::DIR_USER_NATIVE_MESSAGING,
+                               &user_native_messaging_dir));
+  if (!base::PathExists(user_native_messaging_dir)) {
+    base::CreateDirectory(user_native_messaging_dir);
+  }
+#endif
 
 #if BUILDFLAG(IS_MAC)
 #if defined(ARCH_CPU_X86_64)
@@ -1054,7 +1054,7 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
   metrics::DesktopSessionDurationTracker::Initialize();
   ProfileActivityMetricsRecorder::Initialize();
-  TouchModeStatsTracker::Initialize(
+  TouchUIControllerStatsTracker::Initialize(
       metrics::DesktopSessionDurationTracker::Get(),
       ui::TouchUiController::Get());
 #endif
@@ -1075,6 +1075,10 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
   if (!local_state->GetBoolean(prefs::kDataURLWhitespacePreservationEnabled) &&
       !command_line->HasSwitch(net::kRemoveWhitespaceForDataURLs)) {
     command_line->AppendSwitch(net::kRemoveWhitespaceForDataURLs);
+  }
+
+  if (local_state->GetBoolean(prefs::kEnableUnsafeSwiftShader)) {
+    command_line->AppendSwitch(switches::kEnableUnsafeSwiftShader);
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1105,6 +1109,7 @@ int ChromeBrowserMainParts::PreCreateThreadsImpl() {
 }
 
 void ChromeBrowserMainParts::PostCreateThreads() {
+  TRACE_EVENT("startup", "ChromeBrowserMainParts::PostCreateThreads");
   // This task should be posted after the IO thread starts, and prior to the
   // base version of the function being invoked. It is functionally okay to post
   // this task in method ChromeBrowserMainParts::BrowserThreadsStarted() which
@@ -1126,6 +1131,23 @@ void ChromeBrowserMainParts::PostCreateThreads() {
       base::BindOnce(&tracing::TracingSamplerProfiler::
                          CreateOnChildThreadWithCustomUnwinders,
                      base::BindRepeating(&CreateCoreUnwindersFactory)));
+#else
+  if (content::IsInProcessNetworkService() &&
+      base::FeatureList::IsEnabled(content::kNetworkServiceDedicatedThread)) {
+    auto task_runner = content::GetNetworkTaskRunner();
+    // In some tests, we don't initialize the Network Service, so we check that
+    // here to avoid crashing.
+    //
+    // TODO(thiabaud): Make this more robust, regarding initialization order.
+    // The current implementation will silently fail if this is called before
+    // |GetNetworkService()| is called for the first time.
+    if (task_runner) {
+      task_runner->PostTask(
+          FROM_HERE,
+          base::BindOnce(&sampling_profiler::ThreadProfiler::StartOnChildThread,
+                         sampling_profiler::ProfilerThreadType::kNetwork));
+    }
+  }
 #endif
 
 #if BUILDFLAG(ENABLE_PROCESS_SINGLETON)
@@ -1191,10 +1213,12 @@ void ChromeBrowserMainParts::PreProfileInit() {
 #endif
 
 #if BUILDFLAG(IS_MAC)
-  if (base::FeatureList::IsEnabled(features::kViewsJSAppModalDialog))
+  if (base::FeatureList::IsEnabled(features::kViewsJSAppModalDialog) ||
+      headless::IsHeadlessMode()) {
     InstallChromeJavaScriptAppModalDialogViewFactory();
-  else
+  } else {
     InstallChromeJavaScriptAppModalDialogViewCocoaFactory();
+  }
 #else
   InstallChromeJavaScriptAppModalDialogViewFactory();
 #endif
@@ -1260,6 +1284,9 @@ void ChromeBrowserMainParts::PostProfileInit(Profile* profile,
 #if !BUILDFLAG(IS_ANDROID)
   if (ShouldInstallSodaDuringPostProfileInit(
           *base::CommandLine::ForCurrentProcess(), profile)) {
+    base::UmaHistogramBoolean(
+        "Accessibility.WebSpeech.IsOnDeviceSpeechRecognitionSupported",
+        speech::IsOnDeviceSpeechRecognitionSupported());
     speech::SodaInstaller::GetInstance()->Init(profile->GetPrefs(),
                                                browser_process_->local_state());
   }
@@ -1495,13 +1522,6 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
   // Desktop construction occurs here, (required before profile creation).
   PreProfileInit();
 
-#if BUILDFLAG(ENABLE_NACL)
-  // NaClBrowserDelegateImpl is accessed inside CreateInitialProfile().
-  // So make sure to create it before that.
-  nacl::NaClBrowser::SetDelegate(std::make_unique<NaClBrowserDelegateImpl>(
-      browser_process_->profile_manager()));
-#endif
-
   // This step is costly and is already measured in Startup.CreateFirstProfile
   // and more directly Profile.CreateAndInitializeProfile.
   StartupProfileInfo profile_info = CreateInitialProfile(
@@ -1654,10 +1674,6 @@ int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)
   offline_pages::OfflinePageInfoHandler::Register();
-#endif
-
-#if BUILDFLAG(ENABLE_NACL)
-  nacl::NaClProcessHost::EarlyStartup();
 #endif
 
   PreBrowserStart();
@@ -1941,9 +1957,26 @@ bool ChromeBrowserMainParts::ProcessSingletonNotificationCallback(
 
   // Drop the request if this or the requesting process is running with
   // automation enabled to avoid hard to cope with startup races.
-  if (command_line.HasSwitch(switches::kEnableAutomation) ||
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kEnableAutomation)) {
+  auto should_drop_for_automation = [](const base::CommandLine& command_line) {
+    bool current_enables_automation =
+        base::CommandLine::ForCurrentProcess()->HasSwitch(
+            switches::kEnableAutomation);
+    bool new_enables_automation =
+        command_line.HasSwitch(switches::kEnableAutomation);
+    bool new_has_app_id = command_line.HasSwitch(switches::kAppId);
+
+    // Make an exception for the case where the new command line is used to
+    // launch an installed web app from OS artifacts like shortcuts. The command
+    // line must also explicitly include the
+    // --enable-automation switch to acknowledge the potential for startup
+    // races.
+    if (current_enables_automation && new_enables_automation &&
+        new_has_app_id) {
+      return /*should_drop=*/false;
+    }
+    return /*should_drop=*/current_enables_automation || new_enables_automation;
+  };
+  if (should_drop_for_automation(command_line)) {
     return false;
   }
 

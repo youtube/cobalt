@@ -7,7 +7,6 @@
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
-#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/page_info/about_this_site_service_factory.h"
@@ -37,7 +36,7 @@
 #include "components/content_settings/core/common/cookie_blocking_3pcd_status.h"
 #include "components/content_settings/core/common/cookie_controls_state.h"
 #include "components/content_settings/core/common/features.h"
-#include "components/history/core/browser/history_service.h"
+#include "components/optimization_guide/core/optimization_guide_proto_util.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
 #include "components/page_info/core/about_this_site_service.h"
 #include "components/page_info/core/features.h"
@@ -72,7 +71,6 @@ constexpr int kTopicsAPITestTaxonomyVersion = 1;
 
 constexpr char kExpiredCertificateFile[] = "expired_cert.pem";
 constexpr char kAboutThisSiteUrl[] = "a.test";
-constexpr char kHistoryUrl[] = "b.test";
 constexpr char kMerchantTrustUrl[] = "b.test";
 constexpr char kMerchantTrustUrlWithoutSummary[] = "c.test";
 
@@ -126,8 +124,8 @@ optimization_guide::OptimizationMetadata GetAboutThisSiteMetadata() {
 
   auto* more_about = site_info->mutable_more_about();
   more_about->set_url("https://example.com/moreinfo");
-
-  optimization_metadata.SetAnyMetadataForTesting(metadata);
+  optimization_metadata.set_any_metadata(
+      optimization_guide::AnyWrapProto(metadata));
   return optimization_metadata;
 }
 
@@ -139,7 +137,8 @@ optimization_guide::OptimizationMetadata GetMerchantTrustMetadata() {
   metadata.set_merchant_details_page_url("https://reviews.test");
   metadata.set_shopper_voice_summary("Test summary");
 
-  optimization_metadata.SetAnyMetadataForTesting(metadata);
+  optimization_metadata.set_any_metadata(
+      optimization_guide::AnyWrapProto(metadata));
   return optimization_metadata;
 }
 
@@ -151,13 +150,14 @@ GetMerchantTrustMetadataWithoutSummary() {
   metadata.set_merchant_count_rating(89);
   metadata.set_merchant_details_page_url("https://shopper-reviews.test");
 
-  optimization_metadata.SetAnyMetadataForTesting(metadata);
+  optimization_metadata.set_any_metadata(
+      optimization_guide::AnyWrapProto(metadata));
   return optimization_metadata;
 }
 
 }  // namespace
 
-// TODO(crbug.com/392934324): Add QWAC test cases.
+// TODO(crbug.com/436274241): Add 1-QWAC and 2-QWAC test cases.
 class PageInfoBubbleViewDialogBrowserTest : public DialogBrowserTest {
  public:
   PageInfoBubbleViewDialogBrowserTest() {
@@ -638,6 +638,7 @@ class PageInfoBubbleViewAboutThisSiteDialogBrowserTest
 
 IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewAboutThisSiteDialogBrowserTest,
                        InvokeUi_AboutThisSite) {
+  set_baseline("6730899");
   ShowAndVerifyUi();
 }
 
@@ -714,62 +715,13 @@ IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewPrivacySandboxDialogBrowserTest,
   ShowAndVerifyUi();
 }
 
-class PageInfoBubbleViewHistoryDialogBrowserTest : public DialogBrowserTest {
- public:
-  PageInfoBubbleViewHistoryDialogBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {page_info::kPageInfoHistoryDesktop},
-        {content_settings::features::kTrackingProtection3pcd});
-  }
-
-  void SetUpOnMainThread() override {
-    https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
-    https_server_.ServeFilesFromSourceDirectory(GetChromeTestDataDir());
-    ASSERT_TRUE(https_server_.Start());
-
-    host_resolver()->AddRule("*", "127.0.0.1");
-
-    base::Time yesterday = base::Time::Now() - base::Days(1);
-    auto* history_service = HistoryServiceFactory::GetForProfile(
-        browser()->profile(), ServiceAccessType::EXPLICIT_ACCESS);
-    history_service->AddPage(GetUrl(kHistoryUrl), yesterday,
-                             history::SOURCE_BROWSED);
-  }
-
-  // DialogBrowserTest:
-  void ShowUi(const std::string& name) override {
-    // Bubble dialogs' bounds may exceed the display's work area.
-    // https://crbug.com/893292.
-    set_should_verify_dialog_bounds(false);
-
-    ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetUrl(kHistoryUrl)));
-    OpenPageInfoBubble(browser());
-    // Set static site name to prevent flakes caused by changing port.
-    SetStaticSiteName(u"Example site");
-  }
-
-  GURL GetUrl(const std::string& host) {
-    return https_server_.GetURL(host, "/title1.html");
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-  net::EmbeddedTestServer https_server_{net::EmbeddedTestServer::TYPE_HTTPS};
-};
-
-IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewHistoryDialogBrowserTest,
-                       InvokeUi_History) {
-  ShowAndVerifyUi();
-}
-
 class PageInfoBubbleViewCookiesSubpageBrowserTest
     : public DialogBrowserTest,
       public testing::WithParamInterface<CookieBlocking3pcdStatus> {
  public:
   PageInfoBubbleViewCookiesSubpageBrowserTest() {
-    feature_list_.InitWithFeatures(
-        {privacy_sandbox::kPrivacySandboxRelatedWebsiteSetsUi},
-        {content_settings::features::kTrackingProtection3pcd});
+    feature_list_.InitAndDisableFeature(
+        content_settings::features::kTrackingProtection3pcd);
   }
 
   static base::Time GetReferenceTime() {
@@ -784,13 +736,11 @@ class PageInfoBubbleViewCookiesSubpageBrowserTest
     // https://crbug.com/893292.
     set_should_verify_dialog_bounds(false);
 
-    PageInfoUI::CookiesNewInfo cookie_info;
+    PageInfoUI::CookiesInfo cookie_info;
     cookie_info.allowed_sites_count = 9;
     cookie_info.enforcement = enforcement_;
     cookie_info.blocking_status = blocking_status_;
     cookie_info.controls_state = controls_state_;
-    // TODO(crbug.com/40854087): Add rws enforcement info when finished
-    // implementing it.
     if (rws_enabled_) {
       const std::u16string kSiteOrigin = u"example.com";
       cookie_info.rws_info = {PageInfoUI::CookiesRwsInfo(kSiteOrigin)};
@@ -982,9 +932,17 @@ class PageInfoBubbleViewIsolatedWebAppBrowserTest : public DialogBrowserTest {
 // Test renamed, as currently Skia Gold doesn't support resetting test
 // expectation for tests run on windows.
 // crbug.com/1403038
+// Flaky on Win10 Tests x64 (crbug.com/40261456)
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2 \
+  DISABLED_InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2
+#else
+#define MAYBE_InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2 \
+  InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2
+#endif
 IN_PROC_BROWSER_TEST_F(
     PageInfoBubbleViewIsolatedWebAppBrowserTest,
-    InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2) {
+    MAYBE_InvokeUi_AppNameIsDisplayedInsteadOfOriginForIsolatedWebApps_REV2) {
   ShowAndVerifyUi();
 }
 
@@ -1190,13 +1148,13 @@ class PageInfoBubbleViewMerchantTrustDialogBrowserTest
 
 IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewMerchantTrustDialogBrowserTest,
                        InvokeUi_MerchantTrustMainPageWithoutSummary) {
-  set_baseline("6304742");
+  set_baseline("6730899");
   ShowAndVerifyUi();
 }
 
 IN_PROC_BROWSER_TEST_F(PageInfoBubbleViewMerchantTrustDialogBrowserTest,
                        InvokeUi_MerchantTrustMainPage) {
-  set_baseline("6070208");
+  set_baseline("6730899");
   ShowAndVerifyUi();
 }
 

@@ -63,6 +63,22 @@ bool IsFillOnAccountSelectFeatureEnabled() {
 }
 #endif
 
+bool ShouldNotifyAboutFillingOnPageload(
+    PasswordManagerClient* client,
+    const std::optional<PasswordForm>& preferred_match) {
+  // Change password url override is provided. Always notify about filling on
+  // page load.
+  if (!GetChangePasswordUrlOverrides().empty()) {
+    return true;
+  }
+  // TODO(crbug.com/392020509): Consider removing check for leak when password
+  // change is launched.
+  return preferred_match && preferred_match->change_password_url.is_valid() &&
+         preferred_match->password_issues.contains(InsecureType::kLeaked) &&
+         client->GetPasswordChangeService() &&
+         client->GetPasswordChangeService()->IsPasswordChangeAvailable();
+}
+
 void Autofill(PasswordManagerClient* client,
               PasswordManagerDriver* driver,
               const PasswordForm& form_for_autofill,
@@ -78,11 +94,8 @@ void Autofill(PasswordManagerClient* client,
     logger->LogMessage(Logger::STRING_PASSWORDMANAGER_AUTOFILL);
   }
 
-  // TODO(crbug.com/394297841): Check password change availability per website.
-  // Finch experiment should not be started without fixing it.
   bool notify_browser_of_successful_filling =
-      client->GetPasswordChangeService() &&
-      client->GetPasswordChangeService()->IsPasswordChangeAvailable();
+      ShouldNotifyAboutFillingOnPageload(client, preferred_match);
 
   PasswordFormFillData fill_data = CreatePasswordFormFillData(
       form_for_autofill, best_matches, std::move(preferred_match),
@@ -318,7 +331,8 @@ PasswordFormFillData CreatePasswordFormFillData(
         preferred_match.value().username_value;
     result.preferred_login.password_value =
         preferred_match.value().password_value;
-
+    result.preferred_login.backup_password_value =
+        preferred_match->GetPasswordBackup();
     result.preferred_login.uses_account_store =
         preferred_match->IsUsingAccountStore();
     result.preferred_login.is_grouped_affiliation =
@@ -342,6 +356,7 @@ PasswordFormFillData CreatePasswordFormFillData(
     PasswordAndMetadata value;
     value.username_value = match.username_value;
     value.password_value = match.password_value;
+    value.backup_password_value = match.GetPasswordBackup();
     value.uses_account_store = match.IsUsingAccountStore();
     value.is_grouped_affiliation =
         (GetMatchType(match) == GetLoginMatchType::kGrouped);

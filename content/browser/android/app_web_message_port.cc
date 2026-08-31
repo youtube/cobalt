@@ -21,6 +21,7 @@
 #include "third_party/blink/public/common/messaging/transferable_message.h"
 #include "third_party/blink/public/common/messaging/transferable_message_mojom_traits.h"
 #include "third_party/blink/public/common/messaging/web_message_port.h"
+#include "third_party/blink/public/mojom/blob/blob.mojom.h"
 #include "third_party/blink/public/mojom/messaging/transferable_message.mojom.h"
 #if BUILDFLAG(IS_COBALT)
 #include "third_party/jni_zero/cobalt_for_google3_buildflags.h" // nogncheck
@@ -125,10 +126,10 @@ void AppWebMessagePort::PostMessage(
   transferable_message.ports =
       blink::MessagePortChannel::CreateFromHandles(Release(env, j_ports));
   // As the message is posted from an Android app and not from another renderer,
-  // set the agent cluster ID to the embedder's, and nullify its parent task ID.
+  // set the agent cluster ID to the embedder's, and nullify its task state ID.
   transferable_message.sender_agent_cluster_id =
       blink::WebMessagePort::GetEmbedderAgentClusterID();
-  transferable_message.parent_task_id = std::nullopt;
+  transferable_message.task_state_id = std::nullopt;
 
   mojo::Message mojo_message =
       blink::mojom::TransferableMessage::SerializeAsMessage(

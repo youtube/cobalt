@@ -21,6 +21,7 @@
 #include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/sequence_checker.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/ash/file_manager/open_util.h"
 #include "chrome/browser/ash/policy/skyvault/policy_utils.h"
@@ -75,7 +76,7 @@ void HandleCompletedNotificationClick(Profile* profile,
                                       std::optional<int> button) {
   if (button.has_value() && button == 0) {
     file_manager::util::ShowItemInFolder(profile, path, base::DoNothing());
-    ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+    ash::NewWindowDelegate::GetInstance()->OpenUrl(
         net::FilePathToFileURL(path),
         ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
         ash::NewWindowDelegate::Disposition::kNewForegroundTab);
@@ -89,7 +90,7 @@ void HandleErrorNotificationClick(Profile* profile,
                                   const base::FilePath& path,
                                   std::optional<int> button) {
   if (button.has_value() && button == 0) {
-    ash::NewWindowDelegate::GetPrimary()->OpenUrl(
+    ash::NewWindowDelegate::GetInstance()->OpenUrl(
         net::FilePathToFileURL(path),
         ash::NewWindowDelegate::OpenUrlFrom::kUserInteraction,
         ash::NewWindowDelegate::Disposition::kNewForegroundTab);

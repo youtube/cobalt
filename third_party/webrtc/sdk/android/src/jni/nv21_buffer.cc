@@ -10,14 +10,12 @@
 
 #include <jni.h>
 
-#include <vector>
+#include <cstdint>
 
 #include "common_video/libyuv/include/webrtc_libyuv.h"
 #include "rtc_base/checks.h"
 #include "sdk/android/generated_video_jni/NV21Buffer_jni.h"
 #include "third_party/jni_zero/jni_zero.h"
-#include "third_party/libyuv/include/libyuv/convert.h"
-#include "third_party/libyuv/include/libyuv/scale.h"
 
 namespace webrtc {
 namespace jni {

@@ -18,7 +18,6 @@
 #include <keyboard-shortcuts-inhibit-unstable-v1-client-protocol.h>
 #include <linux-dmabuf-unstable-v1-client-protocol.h>
 #include <linux-drm-syncobj-v1-client-protocol.h>
-#include <linux-explicit-synchronization-unstable-v1-client-protocol.h>
 #include <overlay-prioritizer-client-protocol.h>
 #include <pointer-constraints-unstable-v1-client-protocol.h>
 #include <pointer-gestures-unstable-v1-client-protocol.h>
@@ -26,6 +25,7 @@
 #include <primary-selection-unstable-v1-client-protocol.h>
 #include <relative-pointer-unstable-v1-client-protocol.h>
 #include <single-pixel-buffer-v1-client-protocol.h>
+#include <tablet-unstable-v2-client-protocol.h>
 #include <text-input-extension-unstable-v1-client-protocol.h>
 #include <text-input-unstable-v1-client-protocol.h>
 #include <text-input-unstable-v3-client-protocol.h>
@@ -225,11 +225,9 @@ IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_idle_inhibit_manager_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_idle_inhibitor_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_keyboard_shortcuts_inhibit_manager_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_keyboard_shortcuts_inhibitor_v1)
-IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_linux_buffer_release_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_linux_buffer_params_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_linux_dmabuf_v1)
-IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_linux_explicit_synchronization_v1)
-IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_linux_surface_synchronization_v1)
+IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_linux_dmabuf_feedback_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_locked_pointer_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_pointer_constraints_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_pointer_gesture_pinch_v1)
@@ -241,6 +239,11 @@ IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_primary_selection_offer_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_primary_selection_source_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_relative_pointer_manager_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_relative_pointer_v1)
+IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_tablet_manager_v2)
+IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_tablet_pad_v2)
+IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_tablet_seat_v2)
+IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_tablet_tool_v2)
+IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_tablet_v2)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_text_input_manager_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_text_input_v1)
 IMPLEMENT_WAYLAND_OBJECT_TRAITS(zwp_text_input_manager_v3)

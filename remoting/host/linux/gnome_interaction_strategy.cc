@@ -22,7 +22,6 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
-#include "base/notimplemented.h"
 #include "base/sequence_checker.h"
 #include "base/strings/strcat.h"
 #include "base/task/sequenced_task_runner.h"
@@ -32,16 +31,24 @@
 #include "remoting/host/active_display_monitor.h"
 #include "remoting/host/audio_capturer.h"
 #include "remoting/host/base/screen_resolution.h"
+#include "remoting/host/curtain_mode.h"
 #include "remoting/host/desktop_display_info.h"
 #include "remoting/host/desktop_display_info_loader.h"
 #include "remoting/host/desktop_display_info_monitor.h"
 #include "remoting/host/desktop_resizer.h"
 #include "remoting/host/input_monitor/local_input_monitor.h"
 #include "remoting/host/keyboard_layout_monitor.h"
+#include "remoting/host/linux/curtain_mode_wayland.h"
 #include "remoting/host/linux/dbus_interfaces/org_gnome_Mutter_RemoteDesktop.h"
 #include "remoting/host/linux/dbus_interfaces/org_gnome_Mutter_ScreenCast.h"
-#include "remoting/host/linux/dbus_interfaces/org_gnome_ScreenSaver.h"
 #include "remoting/host/linux/ei_sender_session.h"
+#include "remoting/host/linux/gnome_action_executor.h"
+#include "remoting/host/linux/gnome_desktop_display_info_monitor.h"
+#include "remoting/host/linux/gnome_desktop_resizer.h"
+#include "remoting/host/linux/gnome_input_injector.h"
+#include "remoting/host/linux/gnome_keyboard_layout_monitor.h"
+#include "remoting/host/linux/gnome_local_input_monitor.h"
+#include "remoting/host/linux/pipewire_capture_stream.h"
 #include "remoting/host/linux/pipewire_desktop_capturer.h"
 #include "remoting/host/linux/pipewire_mouse_cursor_monitor.h"
 #include "remoting/proto/action.pb.h"
@@ -96,31 +103,6 @@ GnomeInteractionStrategy::~GnomeInteractionStrategy() {
 std::unique_ptr<ActionExecutor>
 GnomeInteractionStrategy::CreateActionExecutor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  class GnomeActionExecutor : public ActionExecutor {
-   public:
-    explicit GnomeActionExecutor(GDBusConnectionRef connection)
-        : connection_(std::move(connection)) {}
-    ~GnomeActionExecutor() override = default;
-    void ExecuteAction(const protocol::ActionRequest& request) override {
-      switch (request.action()) {
-        case protocol::ActionRequest::LOCK_WORKSTATION:
-          connection_.Call<org_gnome_ScreenSaver::Lock>(
-              "org.gnome.ScreenSaver", "/org/gnome/ScreenSaver", std::tuple(),
-              base::BindOnce([](base::expected<std::tuple<>, Loggable> result) {
-                if (!result.has_value()) {
-                  LOG(WARNING) << "Failed to lock screen: " << result.error();
-                }
-              }));
-          break;
-        default:
-          break;
-      }
-    }
-
-   private:
-    GDBusConnectionRef connection_;
-  };
-
   return std::make_unique<GnomeActionExecutor>(connection_);
 }
 
@@ -131,151 +113,78 @@ std::unique_ptr<AudioCapturer> GnomeInteractionStrategy::CreateAudioCapturer() {
 
 std::unique_ptr<InputInjector> GnomeInteractionStrategy::CreateInputInjector() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  class GnomeInputInjector : public InputInjector {
-   public:
-    explicit GnomeInputInjector(base::WeakPtr<GnomeInteractionStrategy> session)
-        : session_(std::move(session)) {}
-    ~GnomeInputInjector() override = default;
 
-    // InputInjector implementation
-    void Start(
-        std::unique_ptr<protocol::ClipboardStub> client_clipboard) override {}
+  // The EI session is guaranteed to exist, because this InteractionStrategy
+  // (and DesktopEnvironment) are only returned to the caller (ClientSession)
+  // after the EI session is initialized.
+  DCHECK(ei_session_);
 
-    // InputStub implementation
-    void InjectKeyEvent(const protocol::KeyEvent& event) override {
-      if (!session_) {
-        return;
-      }
-      session_->InjectKeyEvent(event);
-    }
-    void InjectTextEvent(const protocol::TextEvent& event) override {
-      NOTIMPLEMENTED();
-    }
-    void InjectMouseEvent(const protocol::MouseEvent& event) override {
-      if (!session_) {
-        return;
-      }
-      session_->InjectMouseEvent(event);
-    }
-    void InjectTouchEvent(const protocol::TouchEvent& event) override {
-      NOTIMPLEMENTED();
-    }
-
-    // ClipboardStub implementation
-    void InjectClipboardEvent(const protocol::ClipboardEvent& event) override {
-      NOTIMPLEMENTED();
-    }
-
-   private:
-    base::WeakPtr<GnomeInteractionStrategy> session_;
-  };
-  return std::make_unique<GnomeInputInjector>(weak_ptr_factory_.GetWeakPtr());
+  // Passing exclusive ownership to the input-injector allows it to use the EI
+  // session on a different thread.
+  return std::make_unique<GnomeInputInjector>(
+      std::move(ei_session_), capture_stream_manager_.GetWeakPtr(), connection_,
+      session_path_);
 }
 
 std::unique_ptr<DesktopResizer>
 GnomeInteractionStrategy::CreateDesktopResizer() {
-  // TODO(jamiewalch): Actually implement.
-  class GnomeDesktopResizer : public DesktopResizer {
-   public:
-    explicit GnomeDesktopResizer(
-        base::WeakPtr<GnomeInteractionStrategy> session)
-        : session_(std::move(session)) {}
-    ~GnomeDesktopResizer() override = default;
-    ScreenResolution GetCurrentResolution(webrtc::ScreenId screen_id) override {
-      // TODO(jamiewalch): Expose resolution from SharedScreencastStream
-      return {};
-    }
-    std::list<ScreenResolution> GetSupportedResolutions(
-        const ScreenResolution& preferred,
-        webrtc::ScreenId screen_id) override {
-      return {preferred};
-    }
-
-    void SetResolution(const ScreenResolution& resolution,
-                       webrtc::ScreenId screen_id) override {
-      if (!session_) {
-        return;
-      }
-      DCHECK_CALLED_ON_VALID_SEQUENCE(session_->sequence_checker_);
-      session_->capture_stream_.SetResolution(resolution);
-    }
-
-    void RestoreResolution(const ScreenResolution& original,
-                           webrtc::ScreenId screen_id) override {}
-    void SetVideoLayout(const protocol::VideoLayout& layout) override {}
-
-   private:
-    base::WeakPtr<GnomeInteractionStrategy> session_;
-  };
   return std::make_unique<GnomeDesktopResizer>(weak_ptr_factory_.GetWeakPtr());
 }
 
 std::unique_ptr<DesktopCapturer> GnomeInteractionStrategy::CreateVideoCapturer(
     webrtc::ScreenId id) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return std::make_unique<PipewireDesktopCapturer>(
-      capture_stream_.GetWeakPtr());
+  // `stream` will only be non-null after the AddStreamCallback of a newly added
+  // stream is called. This is currently not a problem for the initial stream,
+  // since `init_callback_` is called after the AddStreamCallback of the initial
+  // stream is called. However, this may be racy when additional streams are
+  // being added.
+  // TODO(crbug.com/432217140): Refactor PipewireDesktopCapturer so that
+  // PipewireCaptureStream can be provided after it is constructed.
+  base::WeakPtr<PipewireCaptureStream> stream =
+      capture_stream_manager_.GetStream(id);
+  if (!stream) {
+    LOG(ERROR) << "Cannot find pipewire stream for screen ID: " << id;
+    return nullptr;
+  }
+  return std::make_unique<PipewireDesktopCapturer>(std::move(stream));
 }
+
 std::unique_ptr<webrtc::MouseCursorMonitor>
 GnomeInteractionStrategy::CreateMouseCursorMonitor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return std::make_unique<PipewireMouseCursorMonitor>(
-      capture_stream_.GetWeakPtr());
+      capture_stream_manager_.GetWeakPtr());
 }
 
 std::unique_ptr<KeyboardLayoutMonitor>
 GnomeInteractionStrategy::CreateKeyboardLayoutMonitor(
     base::RepeatingCallback<void(const protocol::KeyboardLayout&)> callback) {
-  // TODO(jamiewalch): Implement
-  class GnomeKeyboardLayoutMonitor : public KeyboardLayoutMonitor {
-   public:
-    ~GnomeKeyboardLayoutMonitor() override = default;
-    void Start() override {}
-  };
   return std::make_unique<GnomeKeyboardLayoutMonitor>();
 }
 
 std::unique_ptr<ActiveDisplayMonitor>
 GnomeInteractionStrategy::CreateActiveDisplayMonitor(
     base::RepeatingCallback<void(webrtc::ScreenId)> callback) {
-  // TODO(jamiewalch): Implement
-  class GnomeActiveDisplayMonitor : public ActiveDisplayMonitor {
-   public:
-    ~GnomeActiveDisplayMonitor() override = default;
-  };
-  return std::make_unique<GnomeActiveDisplayMonitor>();
+  return nullptr;
 }
 
 std::unique_ptr<DesktopDisplayInfoMonitor>
 GnomeInteractionStrategy::CreateDisplayInfoMonitor() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(jamiewalch): Implement
-  class GnomeDisplayInfoLoader : public DesktopDisplayInfoLoader {
-   public:
-    DesktopDisplayInfo GetCurrentDisplayInfo() override {
-      DesktopDisplayInfo info;
-      // TODO(jamiewalch):
-      info.AddDisplay(
-          DisplayGeometry{0, 0, 0, 1280, 960, 96, 24, true, "Default display"});
-      return info;
-    }
-  };
-  return std::make_unique<DesktopDisplayInfoMonitor>(
-      ui_task_runner_, std::make_unique<GnomeDisplayInfoLoader>());
+
+  return std::make_unique<GnomeDesktopDisplayInfoMonitor>(
+      display_config_client_.GetWeakPtr());
 }
 
 std::unique_ptr<LocalInputMonitor>
 GnomeInteractionStrategy::CreateLocalInputMonitor() {
-  // TODO(jamiewalch): Implement
-  class GnomeLocalInputMonitor : public LocalInputMonitor {
-   public:
-    void StartMonitoringForClientSession(
-        base::WeakPtr<ClientSessionControl> client_session_control) override {}
-    void StartMonitoring(PointerMoveCallback on_pointer_input,
-                         KeyPressedCallback on_keyboard_input,
-                         base::RepeatingClosure on_error) override {}
-  };
   return std::make_unique<GnomeLocalInputMonitor>();
+}
+
+std::unique_ptr<CurtainMode> GnomeInteractionStrategy::CreateCurtainMode(
+    base::WeakPtr<ClientSessionControl> client_session_control) {
+  return std::make_unique<CurtainModeWayland>();
 }
 
 GnomeInteractionStrategy::GnomeInteractionStrategy(
@@ -314,12 +223,14 @@ void GnomeInteractionStrategy::OnInitError(std::string_view error_message,
 
 void GnomeInteractionStrategy::Init(
     base::OnceCallback<void(base::expected<void, std::string>)> callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   HOST_LOG << "Starting Mutter remote desktop session";
   DCHECK(!init_callback_);
   init_callback_ = std::move(callback);
   GDBusConnectionRef::CreateForSessionBus(
       CheckResultAndContinue(&GnomeInteractionStrategy::OnConnectionCreated,
                              "Failed to connect to D-Bus session bus"));
+  display_config_client_.Init();
 }
 
 void GnomeInteractionStrategy::OnConnectionCreated(
@@ -431,134 +342,14 @@ void GnomeInteractionStrategy::OnEiSession(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   ei_session_ = std::move(ei_session);
 
-  // Include the cursor in the Pipewire stream metadata.
-  constexpr std::uint32_t kCursorModeMetadata = 2;
-
-  connection_.Call<org_gnome_Mutter_ScreenCast_Session::RecordVirtual>(
-      kScreenCastBusName, screencast_session_path_,
-      std::tuple{std::array{
-          std::pair{"cursor-mode", GVariantFrom(Boxed{kCursorModeMetadata})},
-          std::pair{"is-platform", GVariantFrom(Boxed{true})}}},
-      CheckResultAndContinue(&GnomeInteractionStrategy::OnStreamCreated,
-                             "Failed to record virtual monitor"));
-}
-
-void GnomeInteractionStrategy::OnStreamCreated(
-    std::tuple<gvariant::ObjectPath> args) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  HOST_LOG << "Starting initial monitor stream";
-  std::tie(stream_path_) = args;
-
-  connection_.GetProperty<org_gnome_Mutter_ScreenCast_Stream::Parameters>(
-      kScreenCastBusName, stream_path_,
-      CheckResultAndContinue(&GnomeInteractionStrategy::OnStreamParameters,
-                             "Failed to retrieve stream parameters"));
-}
-
-void GnomeInteractionStrategy::OnStreamParameters(
-    GVariantRef<"a{sv}"> parameters) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  gchar* param_str = g_variant_print(parameters.raw(), true);
-  HOST_LOG << "Stream parameters: " << param_str;
-  g_free(param_str);
-
-  auto maybe_boxed_mapping_id = parameters.LookUp("mapping-id");
-  if (!maybe_boxed_mapping_id.has_value()) {
-    std::move(init_callback_)
-        .Run(base::unexpected("mapping-id stream parameter not present"));
-    return;
-  }
-  std::string mapping_id;
-  auto destructure_result = maybe_boxed_mapping_id->TryDestructure(mapping_id);
-  if (!destructure_result.has_value()) {
-    std::move(init_callback_)
-        .Run(base::unexpected(
-            base::StrCat({" Failed to retrieve mapping-id stream parameter: ",
-                          destructure_result.error().ToString()})));
-    return;
-  }
-  // Note that both OnStreamStarted and OnPipeWireStreamAdded may invoke
-  // init_callback_, but the former only does so on error and the latter
-  // unsubscribes from the signal, meaning that it is guaranteed only to
-  // be called once.
-  stream_added_signal_ = connection_.SignalSubscribe<
-      org_gnome_Mutter_ScreenCast_Stream::PipeWireStreamAdded>(
-      kScreenCastBusName, stream_path_,
-      base::BindRepeating(&GnomeInteractionStrategy::OnPipeWireStreamAdded,
-                          weak_ptr_factory_.GetWeakPtr(),
-                          std::move(mapping_id)));
-  connection_.Call<org_gnome_Mutter_ScreenCast_Stream::Start>(
-      kScreenCastBusName, stream_path_, std::tuple(),
-      CheckResultAndContinue(&GnomeInteractionStrategy::OnStreamStarted,
-                             "Failed to start monitor stream"));
-}
-
-void GnomeInteractionStrategy::OnStreamStarted(std::tuple<> args) {
-  // Do nothing. Still need to wait for PipeWire-stream-added signal.
-}
-
-void GnomeInteractionStrategy::OnPipeWireStreamAdded(
-    std::string mapping_id,
-    std::tuple<std::uint32_t> args) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // Ensure method is only run this once.
-  stream_added_signal_.release();
-
-  capture_stream_.SetPipeWireStream(get<0>(args), kInitialResolution,
-                                    mapping_id, webrtc::kInvalidPipeWireFd);
-
-  std::move(init_callback_).Run(base::ok());
-}
-
-void GnomeInteractionStrategy::InjectKeyEvent(const protocol::KeyEvent& event) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (!event.has_usb_keycode() || !event.has_pressed()) {
-    LOG(WARNING) << "Key event with no key info";
-    return;
-  }
-  ei_session_->InjectKeyEvent(event.usb_keycode(), event.pressed());
-}
-
-void GnomeInteractionStrategy::InjectMouseEvent(
-    const protocol::MouseEvent& event) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  bool event_sent = false;
-  if (event.has_fractional_coordinate() &&
-      event.fractional_coordinate().has_x() &&
-      event.fractional_coordinate().has_y()) {
-    ei_session_->InjectAbsolutePointerMove(capture_stream_.mapping_id(),
-                                           event.fractional_coordinate().x(),
-                                           event.fractional_coordinate().y());
-    event_sent = true;
-
-  } else if (event.has_delta_x() || event.has_delta_y()) {
-    ei_session_->InjectRelativePointerMove(
-        event.has_delta_x() ? event.delta_x() : 0,
-        event.has_delta_y() ? event.delta_y() : 0);
-    event_sent = true;
-  }
-
-  if (event.has_button() && event.has_button_down()) {
-    ei_session_->InjectButton(event.button(), event.button_down());
-    event_sent = true;
-  }
-
-  if (event.has_wheel_delta_x() || event.has_wheel_delta_y()) {
-    ei_session_->InjectScrollDelta(
-        event.has_wheel_delta_x() ? event.wheel_delta_x() : 0,
-        event.has_wheel_delta_y() ? event.wheel_delta_y() : 0);
-    event_sent = true;
-  } else if (event.has_wheel_ticks_x() || event.has_wheel_ticks_y()) {
-    ei_session_->InjectScrollDiscrete(
-        event.has_wheel_ticks_x() ? event.wheel_ticks_x() : 0,
-        event.has_wheel_ticks_y() ? event.wheel_ticks_y() : 0);
-    event_sent = true;
-  }
-
-  if (event_sent) {
-  } else {
-    LOG(WARNING) << "Mouse event with no relevant fields";
-  }
+  capture_stream_manager_.Init(&connection_,
+                               display_config_client_.GetWeakPtr(),
+                               screencast_session_path_);
+  capture_stream_manager_.AddStream(
+      base::BindOnce([](base::expected<webrtc::ScreenId, std::string> result) {
+        // Transform the value to void, while keeping the error unchanged.
+        return result.transform([](webrtc::ScreenId screen_id) { return; });
+      }).Then(std::move(init_callback_)));
 }
 
 GnomeInteractionStrategyFactory::GnomeInteractionStrategyFactory(
@@ -577,7 +368,8 @@ void GnomeInteractionStrategyFactory::Create(
       [](std::unique_ptr<GnomeInteractionStrategy> session,
          CreateCallback callback, base::expected<void, std::string> result) {
         if (!result.has_value()) {
-          LOG(ERROR) << result.error();
+          LOG(ERROR) << "Failed to initialize Gnome Remote Desktop session: "
+                     << result.error();
           std::move(callback).Run(nullptr);
           return;
         }
@@ -585,20 +377,6 @@ void GnomeInteractionStrategyFactory::Create(
         std::move(callback).Run(std::move(session));
       },
       std::move(session), std::move(callback)));
-}
-
-void GnomeInteractionStrategyFactory::OnSessionInit(
-    std::unique_ptr<GnomeInteractionStrategy> session,
-    CreateCallback callback,
-    base::expected<void, std::string> result) {
-  if (!result.has_value()) {
-    LOG(ERROR) << "Failed to initialize Gnome Remote Desktop session: "
-               << result.error();
-    std::move(callback).Run(nullptr);
-    return;
-  }
-
-  std::move(callback).Run(std::move(session));
 }
 
 }  // namespace remoting

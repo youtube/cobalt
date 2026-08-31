@@ -601,11 +601,8 @@ AcceleratorControllerImpl::AcceleratorControllerImpl(
         shift_disable_state_machine_.get(),
         ui::EventTarget::Priority::kAccessibility);
   }
-  if (features::IsSuspendStateMachineEnabled()) {
-    aura::Env::GetInstance()->AddPreTargetHandler(
-        suspend_state_machine_.get(),
-        ui::EventTarget::Priority::kAccessibility);
-  }
+  aura::Env::GetInstance()->AddPreTargetHandler(
+      suspend_state_machine_.get(), ui::EventTarget::Priority::kAccessibility);
   aura::Env::GetInstance()->AddPreTargetHandler(
       top_row_key_usage_recorder_.get(),
       ui::EventTarget::Priority::kAccessibility);
@@ -635,10 +632,8 @@ AcceleratorControllerImpl::~AcceleratorControllerImpl() {
     aura::Env::GetInstance()->RemovePreTargetHandler(
         shift_disable_state_machine_.get());
   }
-  if (features::IsSuspendStateMachineEnabled()) {
-    aura::Env::GetInstance()->RemovePreTargetHandler(
-        suspend_state_machine_.get());
-  }
+  aura::Env::GetInstance()->RemovePreTargetHandler(
+      suspend_state_machine_.get());
   aura::Env::GetInstance()->RemovePreTargetHandler(
       top_row_key_usage_recorder_.get());
 }
@@ -1050,8 +1045,8 @@ bool AcceleratorControllerImpl::CanPerformAction(
       return ::features::IsAccessibilityMouseKeysEnabled();
     case AcceleratorAction::kToggleOverview:
       return accelerators::CanToggleOverview();
-    case AcceleratorAction::kCreateSnapGroup:
-      return accelerators::CanCreateSnapGroup();
+    case AcceleratorAction::kToggleSnapGroup:
+      return accelerators::CanToggleSnapGroup();
     case AcceleratorAction::kToggleSnapGroupWindowsMinimizeAndRestore:
       return false;
     case AcceleratorAction::kToggleMultitaskMenu:
@@ -1133,7 +1128,7 @@ bool AcceleratorControllerImpl::CanPerformAction(
     case AcceleratorAction::kRotateWindow:
     case AcceleratorAction::kShowEmojiPicker:
     case AcceleratorAction::kToggleImeMenuBubble:
-    case AcceleratorAction::kTogglePicker:
+    case AcceleratorAction::kToggleQuickInsert:
     case AcceleratorAction::kShowShortcutViewer:
     case AcceleratorAction::kShowTaskManager:
     case AcceleratorAction::kSuspend:
@@ -1515,7 +1510,7 @@ void AcceleratorControllerImpl::PerformAction(
       base::RecordAction(UserMetricsAction("Accel_Show_Ime_Menu_Bubble"));
       accelerators::ToggleImeMenuBubble();
       break;
-    case AcceleratorAction::kTogglePicker:
+    case AcceleratorAction::kToggleQuickInsert:
       accelerators::ToggleQuickInsert(accelerator.time_stamp());
       break;
     case AcceleratorAction::kToggleProjectorMarker:
@@ -1541,11 +1536,7 @@ void AcceleratorControllerImpl::PerformAction(
       break;
     case AcceleratorAction::kSuspend:
       base::RecordAction(UserMetricsAction("Accel_Suspend"));
-      if (!features::IsSuspendStateMachineEnabled()) {
-        accelerators::Suspend();
-      } else {
-        suspend_state_machine_->StartObservingToTriggerSuspend(accelerator);
-      }
+      suspend_state_machine_->StartObservingToTriggerSuspend(accelerator);
       break;
     case AcceleratorAction::kSwapPrimaryDisplay:
       base::RecordAction(UserMetricsAction("Accel_Swap_Primary_Display"));
@@ -1668,8 +1659,8 @@ void AcceleratorControllerImpl::PerformAction(
       base::RecordAction(base::UserMetricsAction("Accel_Overview_F5"));
       accelerators::ToggleOverview();
       break;
-    case AcceleratorAction::kCreateSnapGroup:
-      accelerators::CreateSnapGroup();
+    case AcceleratorAction::kToggleSnapGroup:
+      accelerators::ToggleSnapGroup();
       break;
     case AcceleratorAction::kToggleSnapGroupWindowsMinimizeAndRestore:
       accelerators::ToggleSnapGroupsMinimize();

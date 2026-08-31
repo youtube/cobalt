@@ -20,9 +20,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
-#include "api/candidate.h"
 #include "api/jsep.h"
-#include "api/jsep_ice_candidate.h"
 
 namespace webrtc {
 
@@ -59,8 +57,9 @@ class JsepSessionDescription : public SessionDescriptionInterface {
   virtual SdpType GetType() const { return type_; }
   virtual std::string type() const { return SdpTypeToString(type_); }
   // Allows changing the type. Used for testing.
-  virtual bool AddCandidate(const IceCandidateInterface* candidate);
-  virtual size_t RemoveCandidates(const std::vector<Candidate>& candidates);
+  virtual bool AddCandidate(const IceCandidate* candidate);
+  virtual bool RemoveCandidate(const IceCandidate* candidate);
+
   virtual size_t number_of_mediasections() const;
   virtual const IceCandidateCollection* candidates(
       size_t mediasection_index) const;
@@ -73,9 +72,9 @@ class JsepSessionDescription : public SessionDescriptionInterface {
   SdpType type_;
   std::vector<JsepCandidateCollection> candidate_collection_;
 
-  bool GetMediasectionIndex(const IceCandidateInterface* candidate,
-                            size_t* index);
-  int GetMediasectionIndex(const Candidate& candidate);
+  bool IsValidMLineIndex(int index) const;
+  bool GetMediasectionIndex(const IceCandidate* candidate, size_t* index) const;
+  int GetMediasectionIndex(absl::string_view mid) const;
 };
 
 }  // namespace webrtc

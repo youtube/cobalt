@@ -3,9 +3,7 @@
 # found in the LICENSE file.
 """Methods for managing deps based on .params.json files."""
 
-from __future__ import annotations
 import collections
-
 import dataclasses
 import json
 import logging
@@ -21,7 +19,7 @@ _SRC_PATH = pathlib.Path(__file__).resolve().parents[4]
 
 sys.path.append(str(_SRC_PATH / 'build/android'))
 # Import list_java_targets so that the dependency is found by print_python_deps.
-import list_java_targets
+import list_java_targets  # pylint: disable=unused-import
 
 
 @dataclasses.dataclass(frozen=True)
@@ -125,7 +123,7 @@ class ClassLookupIndex:
     logging.debug('Running list_java_targets.py...')
     list_java_targets_command = [
         'build/android/list_java_targets.py', '--print-params-paths',
-        f'--output-directory={self._abs_build_output_dir}'
+        '--omit-targets', f'--output-directory={self._abs_build_output_dir}'
     ]
     if self._should_build:
       list_java_targets_command += ['--build']
@@ -143,21 +141,14 @@ class ClassLookupIndex:
 
     # Parse output of list_java_targets.py into BuildConfig objects.
     path_to_build_config: Dict[str, BuildConfig] = {}
-    target_lines = list_java_targets_run.stdout.splitlines()
-    for target_line in target_lines:
-      # Skip empty lines
-      if not target_line:
-        continue
-
-      target_line_parts = target_line.split(': ')
-      assert len(target_line_parts) == 2, target_line_parts
-      _, params_path = target_line_parts
-
+    for params_path in list_java_targets_run.stdout.splitlines():
+      params_path = os.path.join(_SRC_PATH, params_path)
+      # .params.json can not exist when running remote builds.
       if not os.path.exists(params_path):
         assert not self._should_build
         continue
 
-      with open(params_path) as data:
+      with open(params_path, encoding='utf-8') as data:
         params_json: Dict = json.load(data)
 
       # Checking the library type here instead of in list_java_targets.py avoids
@@ -211,7 +202,8 @@ class ClassLookupIndex:
     sources_path = params_json.get('target_sources_file')
     if sources_path:
       # Read the target_sources_file, indexing the classes found
-      with open(self._abs_build_output_dir / sources_path) as sources_contents:
+      with open(self._abs_build_output_dir / sources_path,
+                encoding='utf-8') as sources_contents:
         for source_line in sources_contents:
           source_path = pathlib.Path(source_line.strip())
           java_class = jar_utils.parse_full_java_class(source_path)

@@ -6,9 +6,10 @@
 
 #include "base/feature_list.h"
 #include "base/metrics/user_metrics.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/search_engines/template_url_table_model.h"
-#include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
@@ -18,7 +19,10 @@ using base::UserMetricsAction;
 
 KeywordEditorController::KeywordEditorController(Profile* profile)
     : url_model_(TemplateURLServiceFactory::GetForProfile(profile)) {
-  table_model_ = std::make_unique<TemplateURLTableModel>(url_model_);
+  raw_ptr<AimEligibilityService> aim_eligibility_service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  table_model_ = std::make_unique<TemplateURLTableModel>(
+      url_model_, aim_eligibility_service->IsAimEligible());
 }
 
 KeywordEditorController::~KeywordEditorController() = default;
@@ -63,7 +67,9 @@ void KeywordEditorController::ModifyTemplateURL(TemplateURL* template_url,
 bool KeywordEditorController::CanEdit(const TemplateURL* url) const {
   return (url->type() == TemplateURL::NORMAL) &&
          (url != url_model_->GetDefaultSearchProvider() ||
-          !url_model_->is_default_search_managed());
+          !url_model_->is_default_search_managed()) &&
+         (!url->CreatedByNonDefaultSearchProviderPolicy() ||
+          (url->CanPolicyBeOverridden() && !url->featured_by_policy()));
 }
 
 bool KeywordEditorController::CanMakeDefault(const TemplateURL* url) const {
@@ -73,7 +79,9 @@ bool KeywordEditorController::CanMakeDefault(const TemplateURL* url) const {
 bool KeywordEditorController::CanRemove(const TemplateURL* url) const {
   return (url->type() == TemplateURL::NORMAL) &&
          (url != url_model_->GetDefaultSearchProvider()) &&
-         (url->starter_pack_id() == 0);
+         (url->starter_pack_id() == 0) &&
+         (!url->CreatedByNonDefaultSearchProviderPolicy() ||
+          (url->CanPolicyBeOverridden() && !url->featured_by_policy()));
 }
 
 bool KeywordEditorController::CanActivate(const TemplateURL* url) const {
@@ -82,20 +90,25 @@ bool KeywordEditorController::CanActivate(const TemplateURL* url) const {
 }
 
 bool KeywordEditorController::CanDeactivate(const TemplateURL* url) const {
-  return (url->is_active() == TemplateURLData::ActiveStatus::kTrue &&
-          url != url_model_->GetDefaultSearchProvider() &&
-          url->prepopulate_id() == 0);
+  return url->is_active() == TemplateURLData::ActiveStatus::kTrue &&
+         url != url_model_->GetDefaultSearchProvider() &&
+         url->prepopulate_id() == 0 &&
+         (!url->CreatedByNonDefaultSearchProviderPolicy() ||
+          url->CanPolicyBeOverridden());
 }
 
 bool KeywordEditorController::ShouldConfirmDeletion(
     const TemplateURL* url) const {
-  // Currently, only built-in search engines require confirmation before
-  // deletion.
-  return url->prepopulate_id() != 0;
+  // Currently, only built-in search engines and non default search engines
+  // created by policy require confirmation before deletion.
+  return url->prepopulate_id() != 0 ||
+         url->CreatedByNonDefaultSearchProviderPolicy();
 }
 
 bool KeywordEditorController::IsManaged(const TemplateURL* url) const {
-  return url->CreatedByPolicy() && url->enforced_by_policy();
+  return (url->CreatedByDefaultSearchProviderPolicy() &&
+          url->enforced_by_policy()) ||
+         url->CreatedByNonDefaultSearchProviderPolicy();
 }
 
 void KeywordEditorController::RemoveTemplateURL(int index) {

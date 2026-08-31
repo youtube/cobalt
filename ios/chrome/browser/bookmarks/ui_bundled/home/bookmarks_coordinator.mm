@@ -9,6 +9,7 @@
 
 #import "base/apple/foundation_util.h"
 #import "base/check_op.h"
+#import "base/functional/callback_helpers.h"
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/notreached.h"
@@ -17,6 +18,7 @@
 #import "base/time/time.h"
 #import "components/bookmarks/browser/bookmark_model.h"
 #import "components/bookmarks/browser/bookmark_utils.h"
+#import "components/send_tab_to_self/features.h"
 #import "components/signin/public/identity_manager/account_info.h"
 #import "components/sync/service/sync_service.h"
 #import "components/sync/service/sync_service_utils.h"
@@ -38,6 +40,7 @@
 #import "ios/chrome/browser/default_browser/model/default_browser_interest_signals.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/metrics/model/new_tab_page_uma.h"
+#import "ios/chrome/browser/reminder_notifications/coordinator/reminder_notifications_coordinator.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
@@ -134,6 +137,10 @@ enum class PresentedState {
   base::WeakPtr<ProfileIOS> _profile;
 
   base::WeakPtr<bookmarks::BookmarkModel> _bookmarkModel;
+
+  // Coordinator to display the "Set a reminder" UI for the user's selected
+  // bookmark.
+  ReminderNotificationsCoordinator* _reminderNotificationsCoordinator;
 }
 
 @synthesize applicationCommandsHandler = _applicationCommandsHandler;
@@ -169,6 +176,10 @@ enum class PresentedState {
 - (void)stop {
   [_mediator disconnect];
   _mediator = nil;
+  // TODO(crbug.com/431224365): Create ReminderNotificationsCoordinatorDelegate
+  // for more complete coordinator lifecycle management.
+  [_reminderNotificationsCoordinator stop];
+  _reminderNotificationsCoordinator = nil;
   switch (self.currentPresentedState) {
     case PresentedState::BOOKMARK_BROWSER:
       [self bookmarkBrowserDismissed];
@@ -353,44 +364,35 @@ enum class PresentedState {
         feature_engagement::TrackerFactory::GetForProfile(
             _currentBrowserState.get()));
   }
-  // If trying to open urls with tab mode changed, we need to postpone openUrls
-  // until the dismissal of Bookmarks is done.  This is to prevent the race
-  // condition between the dismissal of bookmarks and switch of BVC.
-  const BOOL openUrlsAfterDismissal =
-      !urlsToOpen.empty() &&
-      ((!!inIncognito) != _currentBrowserState->IsOffTheRecord());
 
-  // A copy of the urls vector for the completion block.
-  std::vector<GURL> urlsToOpenAfterDismissal;
-  if (openUrlsAfterDismissal) {
-    // open urls in the completion block after dismissal.
-    urlsToOpenAfterDismissal = urlsToOpen;
-  } else if (!urlsToOpen.empty()) {
-    // open urls now.
-    [self openUrls:urlsToOpen inIncognito:inIncognito newTab:newTab];
-  }
-
-  __weak __typeof(self) weakSelf = self;
-  ProceduralBlock completion = ^{
-    if (!openUrlsAfterDismissal) {
-      return;
-    }
-    [weakSelf openUrls:urlsToOpenAfterDismissal
-           inIncognito:inIncognito
-                newTab:newTab];
-  };
+  // First the bookmark view should be dismissed to have the animation, and
+  // the URLs should be opened.
+  // Otherwise, opening directly the URLs would automatically dismiss the
+  // bookmark view without animation.
+  ProceduralBlock dismissCompletion = base::CallbackToBlock(base::BindOnce(
+      [](__weak __typeof(self) weakSelf, std::vector<GURL> urls_to_open,
+         BOOL in_incognito, BOOL new_tab) {
+        [weakSelf openUrls:urls_to_open
+               inIncognito:in_incognito
+                    newTab:new_tab];
+      },
+      self, urlsToOpen, inIncognito, newTab));
 
   if (self.baseViewController.presentedViewController) {
     [self.baseViewController dismissViewControllerAnimated:animated
-                                                completion:completion];
+                                                completion:dismissCompletion];
   } else {
-    completion();
+    // TODO(crbug.com/428694164): This should probably not be possible.
+    // This case should probably be changed in to:
+    // CHECK(self.baseViewController.presentedViewController);
+    dismissCompletion();
   }
+  [self bookmarkBrowserDismissed];
 }
 
 - (void)bookmarkBrowserDismissed {
-  DCHECK_EQ(PresentedState::BOOKMARK_BROWSER, self.currentPresentedState)
-      << [self description];
+  CHECK_EQ(PresentedState::BOOKMARK_BROWSER, self.currentPresentedState,
+           base::NotFatalUntil::M144);
   DCHECK(self.bookmarkNavigationController) << [self description];
   for (UIViewController* controller in self.bookmarkNavigationController
            .viewControllers) {
@@ -582,6 +584,20 @@ enum class PresentedState {
       [self openURLInNewTab:url inIncognito:inIncognito inBackground:YES];
     }
   }  // end for
+}
+
+- (void)bookmarkHomeViewController:(BookmarksHomeViewController*)controller
+    wantsToShowSetTabReminderUIForNode:(const bookmarks::BookmarkNode*)node {
+  CHECK(
+      send_tab_to_self::IsSendTabIOSPushNotificationsEnabledWithTabReminders());
+  CHECK(node && node->is_url());
+  CHECK(self.bookmarkNavigationController);
+
+  _reminderNotificationsCoordinator = [[ReminderNotificationsCoordinator alloc]
+      initWithBaseViewController:self.bookmarkNavigationController
+                         browser:self.browser];
+
+  [_reminderNotificationsCoordinator start];
 }
 
 #pragma mark - BookmarksCommands

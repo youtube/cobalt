@@ -26,7 +26,8 @@ enum class ClearBrowsingDataMask {
   kRemoveWebSQL = 1 << 4,
   kRemoveCacheStorage = 1 << 5,
   kRemoveVisitedLinks = 1 << 6,
-
+  kRemoveOriginPrivateFileSystem = 1 << 7,
+  kRemoveServiceWorkers = 1 << 8,
 };
 
 // Clears the browsing data store in the Web layer. `modified_since` is the data

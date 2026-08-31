@@ -7,6 +7,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "services/webnn/ort/environment.h"
 #include "services/webnn/ort/ort_session_options.h"
 #include "services/webnn/ort/scoped_ort_types.h"
 #include "services/webnn/public/cpp/webnn_types.h"
@@ -25,8 +26,7 @@ class ContextImplOrt final : public WebNNContextImpl {
   ContextImplOrt(mojo::PendingReceiver<mojom::WebNNContext> receiver,
                  WebNNContextProviderImpl* context_provider,
                  mojom::CreateContextOptionsPtr options,
-                 ScopedOrtEnv env,
-                 scoped_refptr<SessionOptions> session_options);
+                 scoped_refptr<Environment> env);
 
   ContextImplOrt(const WebNNContextImpl&) = delete;
   ContextImplOrt& operator=(const ContextImplOrt&) = delete;
@@ -38,8 +38,14 @@ class ContextImplOrt final : public WebNNContextImpl {
 
   static ContextProperties GetContextProperties();
 
+  scoped_refptr<Environment> env() const { return env_; }
+
   scoped_refptr<SessionOptions> session_options() const {
     return session_options_;
+  }
+
+  bool is_external_data_supported() const {
+    return is_external_data_supported_;
   }
 
  private:
@@ -57,12 +63,19 @@ class ContextImplOrt final : public WebNNContextImpl {
       mojom::TensorInfoPtr tensor_info,
       CreateTensorImplCallback callback) override;
 
-  // It is sequence bound.
-  ScopedOrtEnv env_;
+  void CreateTensorFromMailboxImpl(
+      mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+      mojom::TensorInfoPtr tensor_info,
+      gpu::Mailbox mailbox,
+      CreateTensorImplCallback callback) override;
+
+  scoped_refptr<Environment> env_;
 
   // The session options are shared among all the sessions created by this
   // context.
   scoped_refptr<SessionOptions> session_options_;
+
+  const bool is_external_data_supported_;
 
   base::WeakPtrFactory<ContextImplOrt> weak_factory_{this};
 };

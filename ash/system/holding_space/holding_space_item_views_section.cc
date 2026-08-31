@@ -111,10 +111,12 @@ class HoldingSpaceScrollView : public views::ScrollView,
   }
 
   void OnViewVisibilityChanged(views::View* observed_view,
-                               views::View* starting_view) override {
+                               views::View* starting_view,
+                               bool visible) override {
     // Sync scroll view visibility with contents visibility.
-    if (GetVisible() != observed_view->GetVisible())
+    if (GetVisible() != observed_view->GetVisible()) {
       SetVisible(observed_view->GetVisible());
+    }
   }
 
   void OnViewIsDeleting(View* observed_view) override {
@@ -327,19 +329,6 @@ void HoldingSpaceItemViewsSection::RemoveAllHoldingSpaceItemViews() {
 
 std::unique_ptr<views::View> HoldingSpaceItemViewsSection::CreatePlaceholder() {
   return nullptr;
-}
-
-void HoldingSpaceItemViewsSection::DestroyPlaceholder() {
-  if (!placeholder_)
-    return;
-
-  RemoveChildViewT(placeholder_.get());
-  placeholder_ = nullptr;
-
-  // In the absence of `placeholder_`, the `header_` should only be visible
-  // when `container_` is non-empty.
-  if (header_->GetVisible() && container_->children().empty())
-    header_->SetVisible(false);
 }
 
 bool HoldingSpaceItemViewsSection::IsExpanded() {

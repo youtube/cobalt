@@ -39,6 +39,7 @@
 #include "third_party/blink/renderer/core/inspector/identifiers_factory.h"
 #include "third_party/blink/renderer/core/inspector/inspector_trace_events.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_video.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/loader/resource/image_resource_content.h"
@@ -280,6 +281,16 @@ void LayoutImage::PaintReplaced(const PaintInfo& paint_info,
 void LayoutImage::Paint(const PaintInfo& paint_info) const {
   NOT_DESTROYED();
   ImagePainter(*this).Paint(paint_info);
+
+  if (image_resource_ && image_resource_->MaybeAnimated()) {
+    if (const auto* cached_image = image_resource_->CachedImage();
+        cached_image && (cached_image->NumberOfObservers() > 2)) {
+      // Images have 2 observers HTMLImageLoader and LayoutImage, when they're
+      // repeated in the same document they'll have more than 2.
+      UseCounter::Count(GetDocument(),
+                        WebFeature::kAnimatedImageUsedMoreThanOnce);
+    }
+  }
 }
 
 void LayoutImage::AreaElementFocusChanged(HTMLAreaElement* area_element) {

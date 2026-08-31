@@ -83,7 +83,7 @@ void LogDurationMetrics(const FormStructure& form,
       form, [](const auto& field) { return field->is_autofilled(); });
   bool has_observed_one_time_code_field =
       std::ranges::any_of(form, [](const auto& field) {
-        return field->Type().html_type() == HtmlFieldType::kOneTimeCode;
+        return field->html_type() == HtmlFieldType::kOneTimeCode;
       });
   if (num_detected_field_types >= kMinRequiredFieldsForHeuristics ||
       num_detected_field_types >= kMinRequiredFieldsForQuery) {
@@ -149,7 +149,7 @@ void LogSubmittedAlternativeNameCharacterSetValues(const FormStructure& form) {
     return;
   }
   for (const std::unique_ptr<AutofillField>& field : form) {
-    if (IsAlternativeNameType(field->Type().GetStorableType()) &&
+    if (IsAlternativeNameType(field->Type().GetAddressType()) &&
         !field->value().empty()) {
       base::UmaHistogramEnumeration(
           "Autofill.SubmittedAlternativeNameFieldValueCharacterSet",
@@ -224,7 +224,7 @@ void LogFillingMetrics(const FormStructure& form,
     }
     if (FieldHasMeaningfulPossibleFieldTypes(*field) &&
         field->is_autofilled()) {
-      autofilled_field_types.insert(field->Type().GetStorableType());
+      autofilled_field_types.insert_all(field->Type().GetTypes());
     }
   }
   if (base::Contains(form.GetFormTypes(), FormType::kCreditCardForm)) {

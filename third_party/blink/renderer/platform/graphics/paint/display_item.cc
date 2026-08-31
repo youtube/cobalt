@@ -66,7 +66,7 @@ bool DisplayItem::EqualsForUnderInvalidation(const DisplayItem& other) const {
 
 #if DCHECK_IS_ON()
 
-static WTF::String PaintPhaseAsDebugString(int paint_phase) {
+static String PaintPhaseAsDebugString(int paint_phase) {
   // Must be kept in sync with PaintPhase.
   switch (paint_phase) {
     case 0:
@@ -103,7 +103,7 @@ static WTF::String PaintPhaseAsDebugString(int paint_phase) {
 #define PAINT_PHASE_BASED_DEBUG_STRINGS(Category)                            \
   if (type >= DisplayItem::k##Category##PaintPhaseFirst &&                   \
       type <= DisplayItem::k##Category##PaintPhaseLast) {                    \
-    return WTF::StrCat(                                                      \
+    return StrCat(                                                           \
         {#Category, PaintPhaseAsDebugString(                                 \
                         type - DisplayItem::k##Category##PaintPhaseFirst)}); \
   }
@@ -116,7 +116,7 @@ static WTF::String PaintPhaseAsDebugString(int paint_phase) {
   default:           \
     NOTREACHED();
 
-static WTF::String SpecialDrawingTypeAsDebugString(DisplayItem::Type type) {
+static String SpecialDrawingTypeAsDebugString(DisplayItem::Type type) {
   switch (type) {
     DEBUG_STRING_CASE(BoxDecorationBackground);
     DEBUG_STRING_CASE(FixedAttachmentBackground);
@@ -149,9 +149,9 @@ static WTF::String SpecialDrawingTypeAsDebugString(DisplayItem::Type type) {
   }
 }
 
-static WTF::String DrawingTypeAsDebugString(DisplayItem::Type type) {
+static String DrawingTypeAsDebugString(DisplayItem::Type type) {
   PAINT_PHASE_BASED_DEBUG_STRINGS(Drawing);
-  return WTF::StrCat({"Drawing", SpecialDrawingTypeAsDebugString(type)});
+  return StrCat({"Drawing", SpecialDrawingTypeAsDebugString(type)});
 }
 
 static String ForeignLayerTypeAsDebugString(DisplayItem::Type type) {
@@ -169,7 +169,7 @@ static String ForeignLayerTypeAsDebugString(DisplayItem::Type type) {
   }
 }
 
-WTF::String DisplayItem::TypeAsDebugString(Type type) {
+String DisplayItem::TypeAsDebugString(Type type) {
   if (IsDrawingType(type))
     return DrawingTypeAsDebugString(type);
 
@@ -207,7 +207,7 @@ String DisplayItem::IdAsString(const PaintArtifact& paint_artifact) const {
   if (IsSubsequenceTombstone())
     return "SUBSEQUENCE TOMBSTONE";
   if (IsTombstone())
-    return WTF::StrCat({"TOMBSTONE ", paint_artifact.IdAsString(GetId())});
+    return StrCat({"TOMBSTONE ", paint_artifact.IdAsString(GetId())});
   return paint_artifact.IdAsString(GetId());
 }
 

@@ -126,7 +126,7 @@ base::Value GetJavaScriptExecutionResult(v8::Local<v8::Value> result,
 v8::MaybeLocal<v8::Value> GetProperty(v8::Local<v8::Context> context,
                                       v8::Local<v8::Value> object,
                                       const String& name) {
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   v8::Local<v8::String> name_str = V8String(isolate, name);
   v8::Local<v8::Object> object_obj;
   if (!object->ToObject(context).ToLocal(&object_obj)) {
@@ -143,7 +143,7 @@ v8::MaybeLocal<v8::Value> CallMethodOnFrame(LocalFrame* local_frame,
   v8::Local<v8::Context> context = MainWorldScriptContext(local_frame);
 
   v8::Context::Scope context_scope(context);
-  v8::LocalVector<v8::Value> args(context->GetIsolate());
+  v8::LocalVector<v8::Value> args(v8::Isolate::GetCurrent());
   for (const auto& argument : arguments) {
     args.push_back(converter->ToV8Value(argument, context));
   }
@@ -570,11 +570,6 @@ void LocalFrameMojoHandler::NotifyVirtualKeyboardOverlayRect(
   frame_->NotifyVirtualKeyboardOverlayRectObservers(scaled_rect);
 }
 
-void LocalFrameMojoHandler::NotifyContextMenuInsetsObservers(
-    const gfx::Rect& safe_area) {
-  frame_->NotifyContextMenuInsetsObservers(safe_area);
-}
-
 void LocalFrameMojoHandler::ShowInterestInElement(int nodeID) {
   frame_->ShowInterestInElement(nodeID);
 }
@@ -751,7 +746,7 @@ void LocalFrameMojoHandler::AdvanceFocusForIME(
 
 void LocalFrameMojoHandler::ReportContentSecurityPolicyViolation(
     network::mojom::blink::CSPViolationPtr violation) {
-  auto source_location = std::make_unique<SourceLocation>(
+  auto* source_location = MakeGarbageCollected<SourceLocation>(
       violation->source_location->url, String(),
       violation->source_location->line, violation->source_location->column,
       nullptr);
@@ -759,7 +754,7 @@ void LocalFrameMojoHandler::ReportContentSecurityPolicyViolation(
   frame_->Console().AddMessage(MakeGarbageCollected<ConsoleMessage>(
       mojom::blink::ConsoleMessageSource::kSecurity,
       mojom::blink::ConsoleMessageLevel::kError, violation->console_message,
-      source_location->Clone()));
+      source_location));
 
   auto directive_type =
       ContentSecurityPolicy::GetDirectiveType(violation->effective_directive);
@@ -772,8 +767,8 @@ void LocalFrameMojoHandler::ReportContentSecurityPolicyViolation(
       violation->directive, directive_type, violation->console_message,
       violation->blocked_url, violation->report_endpoints,
       violation->use_reporting_api, violation->header, violation->type,
-      ContentSecurityPolicyViolationType::kURLViolation,
-      std::move(source_location), context_frame, nullptr /* Element */);
+      ContentSecurityPolicyViolationType::kURLViolation, source_location,
+      context_frame, nullptr /* Element */);
 }
 
 void LocalFrameMojoHandler::DidUpdateFramePolicy(
@@ -996,19 +991,14 @@ void LocalFrameMojoHandler::GetFirstRectForRange(const gfx::Range& range) {
     // Pepper-free PDF will reach here.
     rect = plugin_container->Plugin()->GetPluginCaretBounds();
   } else {
-    // TODO(crbug.com/40511450): Remove `pepper_has_caret` once PPAPI is gone.
-    bool pepper_has_caret = client->GetCaretBoundsFromFocusedPlugin(rect);
-    if (!pepper_has_caret) {
-      // When request range is invalid we will try to obtain it from current
-      // frame selection. The fallback value will be 0.
-      size_t start = range.IsValid()
-                           ? range.start()
-                           : GetCurrentCursorPositionInFrame(frame_);
+    // When request range is invalid we will try to obtain it from current
+    // frame selection. The fallback value will be 0.
+    size_t start = range.IsValid() ? range.start()
+                                   : GetCurrentCursorPositionInFrame(frame_);
 
-      WebLocalFrameImpl::FromFrame(frame_)->FirstRectForCharacterRange(
-          base::checked_cast<uint32_t>(start),
-          base::checked_cast<uint32_t>(range.length()), rect);
-    }
+    WebLocalFrameImpl::FromFrame(frame_)->FirstRectForCharacterRange(
+        base::checked_cast<uint32_t>(start),
+        base::checked_cast<uint32_t>(range.length()), rect);
   }
 
   TextInputHost().GotFirstRectForRange(rect);
@@ -1021,8 +1011,8 @@ void LocalFrameMojoHandler::GetStringForRange(
   ui::mojom::blink::AttributedStringPtr attributed_string = nullptr;
   base::apple::ScopedCFTypeRef<CFAttributedStringRef> string =
       SubstringUtil::AttributedSubstringInRange(
-          frame_, base::checked_cast<WTF::wtf_size_t>(range.start()),
-          base::checked_cast<WTF::wtf_size_t>(range.length()), baseline_point);
+          frame_, base::checked_cast<wtf_size_t>(range.start()),
+          base::checked_cast<wtf_size_t>(range.length()), baseline_point);
   if (string) {
     attributed_string = ui::mojom::blink::AttributedString::From(string.get());
   }
@@ -1076,15 +1066,16 @@ void LocalFrameMojoHandler::MixedContentFound(
     const KURL& url_before_redirects,
     bool had_redirect,
     network::mojom::blink::SourceLocationPtr source_location) {
-  std::unique_ptr<SourceLocation> source;
-  if (source_location) {
-    source = std::make_unique<SourceLocation>(source_location->url, String(),
-                                              source_location->line,
-                                              source_location->column, nullptr);
-  }
+  SourceLocation* source =
+      source_location
+          ? MakeGarbageCollected<SourceLocation>(
+                source_location->url, String(), source_location->line,
+                source_location->column, nullptr)
+          : nullptr;
+
   MixedContentChecker::MixedContentFound(
       frame_, main_resource_url, mixed_content_url, request_context,
-      was_allowed, url_before_redirects, had_redirect, std::move(source));
+      was_allowed, url_before_redirects, had_redirect, source);
 }
 
 void LocalFrameMojoHandler::BindDevToolsAgent(
@@ -1234,6 +1225,9 @@ void LocalFrameMojoHandler::ClosePage(
   // when unloading itself.
   IgnoreOpensDuringUnloadCountIncrementer ignore_opens_during_unload(
       frame_->GetDocument());
+  // Don't allow navigations to be triggered from the unload events below.
+  FrameNavigationDisabler navigation_disabler(*frame_);
+
   frame_->Loader().DispatchUnloadEventAndFillOldDocumentInfoIfNeeded(
       false /* need_unload_info_for_new_document */);
 
@@ -1333,8 +1327,10 @@ void LocalFrameMojoHandler::UpdateBrowserControlsState(
       constraints, current, animate, offset_tag_modifications);
 }
 
-void LocalFrameMojoHandler::Discard() {
+void LocalFrameMojoHandler::Discard(
+    mojom::blink::LocalMainFrame::DiscardCallback completion_callback) {
   frame_->Discard();
+  std::move(completion_callback).Run();
 }
 
 void LocalFrameMojoHandler::FinalizeNavigationConfidence(
@@ -1345,7 +1341,6 @@ void LocalFrameMojoHandler::FinalizeNavigationConfidence(
 
 void LocalFrameMojoHandler::SetV8CompileHints(
     base::ReadOnlySharedMemoryRegion data) {
-  CHECK(base::FeatureList::IsEnabled(blink::features::kConsumeCompileHints));
   Page* page = GetPage();
   if (page == nullptr) {
     return;

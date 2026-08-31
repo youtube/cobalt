@@ -326,14 +326,17 @@ account to move this bug into that component.
 ### Assign
 
 Security bugs are not automatically visible, so you must add people to get them
-fixed. For each bug, set:
+fixed. **Every security bug that is severity S0, S1, or S2 must have an assigned
+owner.** For each bug, set:
 
 * The **Component** – due to a limited set of auto-cc rules, this may add
   some visibility. This will "move" the bug into that component; this is the
   expected outcome. It can also be helpful to set additional **Component Tags**
   when a bug does not fall neatly into a single component.
 * An **assignee/owner**. Use `git blame` or look for similar past bugs in the
-  tracker.
+  tracker. Every security bug that is severity S0, S1, or S2 must always have an
+  assigned owner. Every security bug, regardless of severity, should initially
+  be assigned to an owner.
 * Lots of **cc**s. Copy everyone who could possibly be relevant. Use the owners
   file for a particular feature to help achieve this.
 * Add a **comment** so that recipients know what’s expected, and why you think
@@ -608,10 +611,20 @@ right side of the banner, and triage the report as you normally would.
 
 * [Current Shepherds](http://go/whos-the-shepherd)
 * [Rotation schedule](https://docs.google.com/spreadsheets/d/10sLYZbi6QfLcXrhO-j5eSc82uc7NKnBz_o1pR9y8h7U/edit#gid=0)
-* If you're a Shepherd, you should get a calendar invite.
-  Please accept it to acknowledge your upcoming shepherding duty.
-* If you need to swap shifts, ask around for a volunteer and then just update
-  the [rotation sheet](https://docs.google.com/spreadsheets/d/10sLYZbi6QfLcXrhO-j5eSc82uc7NKnBz_o1pR9y8h7U/edit#gid=0) and wait 10 minutes for the calendar invites to be updated.
+* A calendar invite will be sent for your upcoming shift. Please accept it to
+  acknowledge your upcoming shepherding duty.
+* If you **cannot make the shift**:
+  * Declining the invite does not alert anyone or trigger any re-assignment.
+  * If you are OOO or the assigned shift is during a holiday, please do your
+    best to swap shifts with someone! You are not expected to shepherd on a
+    holiday (: but we do want to maximize coverage where/when possible.
+  * Ask around (shepherding chat is a good place!) for a volunteer and then
+  update the [rotation sheet](https://docs.google.com/spreadsheets/d/10sLYZbi6QfLcXrhO-j5eSc82uc7NKnBz_o1pR9y8h7U/edit#gid=0).
+  The calendar invites should be updated in ~10 minutes.
+* To become a shepherd, please reach out to the Chrome Product Security team.
+* To stop shepherding, remove yourself from g/chrome-security-shepherds. Please
+  find suitable substitutes for shifts that have already been assigned to you.
+  Automation should take care of the rest.
 
 ### Incident response
 

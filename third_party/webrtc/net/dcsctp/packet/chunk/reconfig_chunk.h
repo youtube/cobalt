@@ -9,14 +9,14 @@
  */
 #ifndef NET_DCSCTP_PACKET_CHUNK_RECONFIG_CHUNK_H_
 #define NET_DCSCTP_PACKET_CHUNK_RECONFIG_CHUNK_H_
-#include <stddef.h>
-#include <stdint.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "net/dcsctp/packet/chunk/chunk.h"
 #include "net/dcsctp/packet/parameter/parameter.h"

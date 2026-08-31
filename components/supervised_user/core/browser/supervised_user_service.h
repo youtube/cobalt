@@ -25,8 +25,13 @@
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/common/supervised_user_constants.h"
 #include "components/supervised_user/core/common/supervised_users.h"
+#include "components/supervised_user/core/browser/supervised_user_content_filters_service.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "components/supervised_user/core/browser/android/content_filters_observer_bridge.h"
+#endif
 
 class PrefService;
 class SupervisedUserServiceObserver;
@@ -116,6 +121,16 @@ class SupervisedUserService : public KeyedService {
   // on the UI thread.
   SupervisedUserURLFilter* GetURLFilter() const;
 
+  // Returns true if the user is supervised locally (e.g. on the device).
+  // Currently, local supervision is only supported on Android.
+  bool IsSupervisedLocally() const;
+  // Returns true if the user is supervised locally (e.g. on the device) and
+  // requested browser content to be filtered.
+  bool IsLocalBrowserFilteringEnabled() const;
+  // Returns true if the user is supervised locally (e.g. on the device) and
+  // requested search content to be filtered.
+  bool IsLocalSearchFilteringEnabled() const;
+
   std::optional<Custodian> GetCustodian() const;
   std::optional<Custodian> GetSecondCustodian() const;
 
@@ -146,20 +161,36 @@ class SupervisedUserService : public KeyedService {
       scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
       PrefService& user_prefs,
       SupervisedUserSettingsService& settings_service,
+      SupervisedUserContentFiltersService* content_filters_service,
       syncer::SyncService* sync_service,
       std::unique_ptr<SupervisedUserURLFilter> url_filter,
-      std::unique_ptr<SupervisedUserService::PlatformDelegate>
-          platform_delegate);
+      std::unique_ptr<SupervisedUserService::PlatformDelegate> platform_delegate
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      ContentFiltersObserverBridge::Factory
+          content_filters_observer_bridge_factory
+#endif
+  );
+
+ protected:
+#if BUILDFLAG(IS_ANDROID)
+  ContentFiltersObserverBridge* browser_content_filters_observer();
+  ContentFiltersObserverBridge* search_content_filters_observer();
+#endif  // BUILDFLAG(IS_ANDROID)
 
  private:
+  // Activates the service which controls managed settings of url filtering and
+  // incognito mode.
   void SetSettingsServiceActive(bool active);
 
   void OnCustodianInfoChanged();
+  void OnSupervisedUserIdChanged();
 
-  void OnParentalControlsEnabled();
-  void OnParentalControlsDisabled();
-
-  void OnIncognitoModeAvailabilityChanged();
+  // Handles the change of supervision status driven by Family Link parental
+  // controls.
+  void OnFamilyLinkParentalControlsEnabled();
+  // Handler when supervision is disabled. Intentionally idempotent.
+  void OnFamilyLinkParentalControlsDisabled();
 
   // Single handler for all url filter changes.
   // If present, `pref_name` indicates the actual pref that changed and might
@@ -171,16 +202,30 @@ class SupervisedUserService : public KeyedService {
   // Interface for the above suitable for pref change registrar.
   void OnURLFilterChanged(const std::string& pref_name);
 
-  // Add or remove all pref handlers related to URL filtering.
+  // Adds url filtering change handlers, originating from Family Link.
   void AddURLFilterPrefChangeHandlers();
+  // Adds sentinel handlers that prevent unintended changes to url filtering.
+  void AddURLFilterPrefChangeSentinels();
+  // Removes all url filtering change handlers. Intentionally idempotent.
   void RemoveURLFilterPrefChangeHandlers();
-  // Add or remove all pref handlers related to custodians.
+  // Add or remove all pref handlers related to custodians. The removal method
+  // is intentionally idempotent.
   void AddCustodianPrefChangeHandlers();
   void RemoveCustodianPrefChangeHandlers();
+
+#if BUILDFLAG(IS_ANDROID)
+  // Enables content filters and then notifies observers.
+  void EnableSearchContentFilters();
+  void DisableSearchContentFilters();
+  void EnableBrowserContentFilters();
+  void DisableBrowserContentFilters();
+#endif  // BUILDFLAG(IS_ANDROID)
 
   const raw_ref<PrefService> user_prefs_;
 
   const raw_ref<SupervisedUserSettingsService> settings_service_;
+
+  const raw_ptr<SupervisedUserContentFiltersService> content_filters_service_;
 
   const raw_ptr<syncer::SyncService> sync_service_;
 
@@ -188,25 +233,32 @@ class SupervisedUserService : public KeyedService {
 
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
-  // Manages the status of parental controls and notifies this instance when the
-  // state changes.
-  ParentalControlsState parental_controls_state_;
+  std::unique_ptr<SupervisedUserURLFilter> url_filter_;
 
   std::unique_ptr<PlatformDelegate> platform_delegate_;
 
   // Registrar for core prefs that drive this service.
   PrefChangeRegistrar main_pref_change_registrar_;
-  // Registrar for preferences that drive URL filtering. They're observed
-  // only when the profile is subject to parental controls.
+  // Registrar for preferences that drive URL filtering. All prefs except for
+  // the safe sites mode are observed only when the profile is subject to
+  // parental controls. The safe sites pref is observed at all times, with
+  // varying handlers for enabled or disabled parental controls.
   PrefChangeRegistrar url_filter_pref_change_registrar_;
   // Registrar for preferences that control custodian data. They're observed
   // only when the profile is subject to parental controls.
   PrefChangeRegistrar custodian_pref_change_registrar_;
 
+#if BUILDFLAG(IS_ANDROID)
+  // Observers for the content filters
+  std::unique_ptr<ContentFiltersObserverBridge>
+      browser_content_filters_observer_;
+  std::unique_ptr<ContentFiltersObserverBridge>
+      search_content_filters_observer_;
+
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // True only when |Shutdown()| method has been called.
   bool did_shutdown_ = false;
-
-  std::unique_ptr<SupervisedUserURLFilter> url_filter_;
 
   // Manages remote web approvals.
   RemoteWebApprovalsManager remote_web_approvals_manager_;
@@ -216,8 +268,6 @@ class SupervisedUserService : public KeyedService {
 #if BUILDFLAG(IS_CHROMEOS)
   bool signout_required_after_supervision_enabled_ = false;
 #endif
-
-  base::WeakPtrFactory<SupervisedUserService> weak_ptr_factory_{this};
 };
 
 }  // namespace supervised_user

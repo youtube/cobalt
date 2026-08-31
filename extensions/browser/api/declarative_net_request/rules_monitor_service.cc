@@ -15,7 +15,6 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
@@ -60,10 +59,6 @@ namespace declarative_net_request {
 namespace {
 
 namespace dnr_api = api::declarative_net_request;
-
-static base::LazyInstance<
-    BrowserContextKeyedAPIFactory<RulesMonitorService>>::Leaky g_factory =
-    LAZY_INSTANCE_INITIALIZER;
 
 bool RulesetInfoCompareByID(const RulesetInfo& lhs, const RulesetInfo& rhs) {
   return lhs.source().id() < rhs.source().id();
@@ -255,7 +250,12 @@ class RulesMonitorService::ApiCallQueue {
   // will queue api calls for future execution.
   // Note that this can start running a queued api call synchronously.
   void SetReadyToExecuteApiCalls() {
-    DCHECK(!ready_to_execute_api_calls_);
+    // TODO(crbug.com/358617943): Replace LOG_IF() and histogram with CHECK().
+    LOG_IF(ERROR, ready_to_execute_api_calls_)
+        << "SetReadyToExecuteApiCalls() was already called";
+    base::UmaHistogramBoolean(
+        "Extensions.DeclarativeNetRequest.RedundantSetReadyToExecuteApiCalls",
+        ready_to_execute_api_calls_);
     DCHECK(!executing_api_call_);
     ready_to_execute_api_calls_ = true;
     ExecuteApiCallIfNecessary();
@@ -331,7 +331,9 @@ class RulesMonitorService::ApiCallQueue {
 // static
 BrowserContextKeyedAPIFactory<RulesMonitorService>*
 RulesMonitorService::GetFactoryInstance() {
-  return g_factory.Pointer();
+  static base::NoDestructor<BrowserContextKeyedAPIFactory<RulesMonitorService>>
+      instance;
+  return instance.get();
 }
 
 // static

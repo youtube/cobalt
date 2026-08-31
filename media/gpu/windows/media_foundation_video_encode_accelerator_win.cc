@@ -24,6 +24,7 @@
 #include "base/memory/shared_memory_mapping.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/native_library.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
@@ -59,7 +60,7 @@
 #include "third_party/libvpx/source/libvpx/vp9/ratectrl_rtc.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "ui/gfx/color_space_win.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -629,28 +630,37 @@ void MediaFoundationVideoEncodeAccelerator::Encode(
     scoped_refptr<VideoFrame> frame,
     const EncodeOptions& options) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  bool force_key_frame =
+      (input_since_keyframe_count_ + pending_input_queue_.size()) %
+          gop_length_ ==
+      0;
+  EncodeOptions effective_options(options);
+  effective_options.key_frame |= force_key_frame;
+
   // Avoid corruption triggered by consecutive key frames on Intel drivers.
   // See also https://crbug.com/40069818 and https://crbug.com/378681055.
-  if (codec_ == VideoCodec::kVP9 &&
-      last_frame_was_keyframe_request_ && options.key_frame) {
+  if (codec_ == VideoCodec::kVP9 && last_frame_was_keyframe_request_ &&
+      effective_options.key_frame) {
     // Force a fake frame in between two key frames that come in a row. The
     // MFVEA will discard the output of this frame, and the client will never
     // see any side effects, but it helps working around crbug.com/1473665.
     EncodeOptions discard_options(/*key_frame=*/false);
     EncodeInternal(frame, discard_options, /*discard_output=*/true);
-  }
 
-  bool force_key_frame =
-      (input_since_keyframe_count_ + pending_input_queue_.size()) %
-          gop_length_ ==
-      0;
+    // If the |force_key_frame| is true, it indicates that the above fake frame
+    // will also be a keyframe. In this case, we need to generate an additional
+    // fake frame to avoid consecutive keyframes.
+    if (force_key_frame) {
+      EncodeInternal(frame, discard_options, /*discard_output=*/true);
+    }
+  }
 
   bool discard_high_layer_frames =
       (((codec_ == VideoCodec::kVP9 || codec_ == VideoCodec::kAV1) &&
         vendor_ == DriverVendor::kIntel) ||
        (codec_ == VideoCodec::kH264 && (vendor_ == DriverVendor::kIntel ||
                                         vendor_ == DriverVendor::kNvidia))) &&
-      IsTemporalScalabilityCoding() && (options.key_frame || force_key_frame);
+      IsTemporalScalabilityCoding() && effective_options.key_frame;
 
   if (discard_high_layer_frames) {
     // Currently, Intel and NVIDIA drivers only allow apps to request keyframe
@@ -670,8 +680,8 @@ void MediaFoundationVideoEncodeAccelerator::Encode(
     }
   }
 
-  EncodeInternal(std::move(frame), options, /*discard_output=*/false);
-  last_frame_was_keyframe_request_ = options.key_frame;
+  EncodeInternal(std::move(frame), effective_options, /*discard_output=*/false);
+  last_frame_was_keyframe_request_ = effective_options.key_frame;
 }
 
 void MediaFoundationVideoEncodeAccelerator::QueueInput(
@@ -686,7 +696,8 @@ void MediaFoundationVideoEncodeAccelerator::QueueInput(
     return;
   }
   result.timestamp = frame->timestamp();
-  result.color_space = frame->ColorSpace();
+  result.color_space =
+      GetEncoderOutputColorSpaceFromInputColorSpace(frame->ColorSpace());
   result.options = options;
   result.discard_output = discard_output;
 
@@ -1185,7 +1196,7 @@ void MediaFoundationVideoEncodeAccelerator::SetCommandBufferHelperCB(
     base::RepeatingCallback<scoped_refptr<CommandBufferHelper>()>
         get_command_buffer_helper_cb,
     scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner) {
-  if (!base::FeatureList::IsEnabled(kMediaFoundationSharedImageEncode)) {
+  if (!SupportsSharedImageEncoding(workarounds_)) {
     return;
   }
 
@@ -1197,14 +1208,17 @@ void MediaFoundationVideoEncodeAccelerator::SetCommandBufferHelperCB(
   // work in ANGLE and is much better than readback.
   // With GraphiteDawn, MFVEA will use a shared D3D device and directly
   // access textures, with D3DImageBacking handling synchronization.
+  bool use_shared_device =
+      gpu_preferences_.gr_context_type == gpu::GrContextType::kGraphiteDawn;
+  if (workarounds_.disable_mfvea_shared_device) {
+    use_shared_device = false;
+  }
   SetState(kAcquiringCommandBuffer);
   gpu_task_runner_ = gpu_task_runner;
   gpu_task_runner->PostTaskAndReplyWithResult(
       FROM_HERE,
       base::BindOnce(&GetCommandBufferHelperOnGpuThread,
-                     get_command_buffer_helper_cb, luid_,
-                     gpu_preferences_.gr_context_type ==
-                         gpu::GrContextType::kGraphiteDawn),
+                     get_command_buffer_helper_cb, luid_, use_shared_device),
       base::BindOnce(&MediaFoundationVideoEncodeAccelerator::
                          OnCommandBufferHelperAvailable,
                      weak_ptr_));
@@ -1436,10 +1450,21 @@ void MediaFoundationVideoEncodeAccelerator::SetSWRateControl() {
       return;
     }
 
-    if (vendor_ == DriverVendor::kQualcomm) {
-      // Qualcomm H264 HMFT does not work with SW BRC.
-      // More info: https://crbug.com/390581539
-      return;
+    if (workarounds_.disable_h264_accelerator_sw_brc) {
+      if ((vendor_ == DriverVendor::kAMD &&
+           base::FeatureList::IsEnabled(
+               kMediaFoundationSWBRCForH264ForceAMDGPU)) ||
+          (vendor_ == DriverVendor::kQualcomm &&
+           base::FeatureList::IsEnabled(
+               kMediaFoundationSWBRCForH264ForceARMGPU))) {
+        // Force using SW BRC on AMD and ARM platforms when the corresponding
+        // feature flags are enabled.
+      } else {
+        // Disable SW BRC for H264 HMFT on AMD and ARM.
+        // More info:
+        // https://crbug.com/417752242 and https://crbug.com/390581539
+        return;
+      }
     }
 
     // Check feature flag for the camera source.
@@ -1707,11 +1732,8 @@ HRESULT MediaFoundationVideoEncodeAccelerator::ProcessInput(
       return E_FAIL;
     }
   } else {
-    // Force key frame for the first frame in GOP.
-    bool force_key_frame = input_since_keyframe_count_ % gop_length_ == 0;
-
     // Reset the frame count when keyframe is requested.
-    if (input.options.key_frame || force_key_frame) {
+    if (input.options.key_frame) {
       input_since_keyframe_count_ = 0;
     }
 
@@ -1725,7 +1747,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::ProcessInput(
     } else if (rate_ctrl_ && !input.discard_output) {
       VideoRateControlWrapper::FrameParams frame_params{};
       frame_params.frame_type =
-          input.options.key_frame || force_key_frame
+          input.options.key_frame
               ? VideoRateControlWrapper::FrameParams::FrameType::kKeyFrame
               : VideoRateControlWrapper::FrameParams::FrameType::kInterFrame;
       // H.264 and H.265 SW BRC need timestamp information.
@@ -1768,7 +1790,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::ProcessInput(
                                          var.ullVal);
       RETURN_ON_HR_FAILURE(hr, "Couldn't set input sample attribute QP", hr);
     }
-    if (input.options.key_frame || force_key_frame) {
+    if (input.options.key_frame) {
       VARIANT var;
       var.vt = VT_UI4;
       var.ulVal = 1;
@@ -1944,7 +1966,7 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PopulateInputSampleBuffer(
     return E_FAIL;
   }
 
-  if (!base::FeatureList::IsEnabled(kMediaFoundationSharedImageEncode)) {
+  if (!SupportsSharedImageEncoding(workarounds_)) {
     return S_OK;
   }
 

@@ -11,9 +11,12 @@
 #import "base/task/sequenced_task_runner.h"
 #import "base/time/time.h"
 #import "ios/chrome/browser/autofill/ui_bundled/manual_fill/manual_fill_action_cell.h"
+#import "ios/chrome/browser/net/model/crurl.h"
+#import "ios/chrome/browser/passwords/ui_bundled/password_suggestion_utils.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_text_header_footer_item.h"
 #import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/table_view_favicon_data_source.h"
 #import "ios/chrome/browser/shared/ui/table_view/table_view_utils.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -21,6 +24,7 @@
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/device_form_factor.h"
 #import "ui/base/l10n/l10n_util_mac.h"
+#import "url/gurl.h"
 
 typedef NS_ENUM(NSInteger, SectionIdentifier) {
   HeaderSectionIdentifier = kSectionIdentifierEnumZero,
@@ -74,6 +78,19 @@ bool ShouldResizeViewForPopover(
          modal_presentation_style == UIModalPresentationPopover;
 }
 
+// Returns the color to use for the table view's background.
+UIColor* GetBackgroundColor() {
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    return UIColor.clearColor;
+  }
+#endif
+
+  return [UIColor colorNamed:IsKeyboardAccessoryUpgradeEnabled()
+                                 ? kGroupedPrimaryBackgroundColor
+                                 : kBackgroundColor];
+}
+
 }  // namespace
 
 @interface FallbackViewController ()
@@ -98,6 +115,10 @@ bool ShouldResizeViewForPopover(
 
   // The number of data items that are currently being presented.
   NSInteger _dataItemCount;
+
+  // Attributes for the default globe favicon shown when no site-specific
+  // favicon can be retrieved.
+  FaviconAttributes* _defaultGlobeFaviconAttributes;
 }
 
 - (instancetype)init {
@@ -115,10 +136,7 @@ bool ShouldResizeViewForPopover(
 - (void)viewDidLoad {
   // Super's `viewDidLoad` uses `styler.tableViewBackgroundColor` so it needs to
   // be set before.
-  self.styler.tableViewBackgroundColor =
-      [UIColor colorNamed:IsKeyboardAccessoryUpgradeEnabled()
-                              ? kGroupedPrimaryBackgroundColor
-                              : kBackgroundColor];
+  self.styler.tableViewBackgroundColor = GetBackgroundColor();
 
   [super viewDidLoad];
 
@@ -184,6 +202,30 @@ bool ShouldResizeViewForPopover(
 
 - (void)presentPlusAddressActionItems:(NSArray<TableViewItem*>*)actions {
   [self presentItems:actions ofItemType:ItemType::kItemTypePlusAddressAction];
+}
+
+- (void)loadFaviconForCellIdentifier:(NSString*)cellIdentifier
+                      itemIdentifier:(NSString*)itemIdentifier
+                          faviconURL:(const GURL&)faviconURL
+                          completion:
+                              (ConfigureFaviconCompletionBlock)completion {
+  // Only set the favicon if the cell hasn't been reused.
+  if (![cellIdentifier isEqualToString:itemIdentifier]) {
+    return;
+  }
+
+  if (faviconURL.is_empty()) {
+    completion([self defaultGlobeFaviconAttributes]);
+    return;
+  }
+
+  CrURL* crURL = [[CrURL alloc] initWithGURL:faviconURL];
+  [self.imageDataSource
+      faviconForPageURL:crURL
+             completion:^(FaviconAttributes* faviconAttributes) {
+               CHECK(faviconAttributes);
+               completion(faviconAttributes);
+             }];
 }
 
 #pragma mark - UITableViewDelegate
@@ -499,6 +541,15 @@ bool ShouldResizeViewForPopover(
         removeSectionWithIdentifier:NoDataItemsSectionIdentifier];
     self.noRegularDataItemsToShowHeaderItem = nil;
   }
+}
+
+// Creates the default globe favicon attributes if needed, and returns them.
+- (FaviconAttributes*)defaultGlobeFaviconAttributes {
+  if (!_defaultGlobeFaviconAttributes) {
+    _defaultGlobeFaviconAttributes = GetDefaultGlobeFaviconAttributes();
+  }
+
+  return _defaultGlobeFaviconAttributes;
 }
 
 @end

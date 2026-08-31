@@ -122,5 +122,4 @@ ANAStats AudioEncoder::GetANAStats() const {
   return ANAStats();
 }
 
-constexpr int AudioEncoder::kMaxNumberOfChannels;
 }  // namespace webrtc

@@ -23,7 +23,7 @@
 #include "chrome/browser/extensions/extension_install_prompt.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/theme_installed_infobar_delegate.h"
-#include "chrome/browser/infobars/infobar_observer.h"
+#include "chrome/browser/infobars/test_support/infobar_observer.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
@@ -47,19 +47,17 @@
 #include "components/crx_file/crx_verifier.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
-#include "components/nacl/common/buildflags.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_dialog_auto_confirm.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/sandboxed_unpacker.h"
 #include "extensions/browser/test_extension_registry_observer.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/switches.h"
 #include "ui/base/l10n/l10n_util.h"
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-#include "chrome/browser/plugins/hung_plugin_infobar_delegate.h"
 #include "chrome/browser/plugins/plugin_observer.h"
 #include "chrome/browser/plugins/reload_plugin_infobar_delegate.h"
 #endif
@@ -76,10 +74,6 @@
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "components/translate/core/browser/translate_infobar_delegate.h"
 #include "components/translate/core/browser/translate_manager.h"
-#endif
-
-#if BUILDFLAG(ENABLE_NACL)
-#include "chrome/browser/nacl_host/nacl_infobar_delegate.h"
 #endif
 
 class InfoBarsTest : public InProcessBrowserTest {
@@ -174,7 +168,6 @@ class InfoBarUiTest : public TestInfoBar {
 
 void InfoBarUiTest::ShowUi(const std::string& name) {
   if (name == "multiple_infobars") {
-    ShowUi("hung_plugin");
     ShowUi("dev_tools");
     ShowUi("extension_dev_tools");
     ShowUi("incognito_connectability");
@@ -189,7 +182,6 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
           {"incognito_connectability",
            IBD::INCOGNITO_CONNECTABILITY_INFOBAR_DELEGATE},
           {"theme_installed", IBD::THEME_INSTALLED_INFOBAR_DELEGATE},
-          {"nacl", IBD::NACL_INFOBAR_DELEGATE},
           {"file_access_disabled", IBD::FILE_ACCESS_DISABLED_INFOBAR_DELEGATE},
           {"keystone_promotion", IBD::KEYSTONE_PROMOTION_INFOBAR_DELEGATE_MAC},
           {"collected_cookies", IBD::COLLECTED_COOKIES_INFOBAR_DELEGATE},
@@ -204,7 +196,6 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
           {"tab_sharing", IBD::TAB_SHARING_INFOBAR_DELEGATE},
 
 #if BUILDFLAG(ENABLE_PLUGINS)
-          {"hung_plugin", IBD::HUNG_PLUGIN_INFOBAR_DELEGATE},
           {"reload_plugin", IBD::RELOAD_PLUGIN_INFOBAR_DELEGATE},
           {"plugin_observer", IBD::PLUGIN_OBSERVER_INFOBAR_DELEGATE},
 #endif  // BUILDFLAG(ENABLE_PLUGINS)
@@ -248,20 +239,7 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
               browser()->profile(), base::OnceClosure()));
       break;
 
-    case IBD::NACL_INFOBAR_DELEGATE:
-#if BUILDFLAG(ENABLE_NACL)
-      NaClInfoBarDelegate::Create(GetInfoBarManager());
-#else
-      ADD_FAILURE() << "This infobar is not supported when NaCl is disabled.";
-#endif
-      break;
-
 #if BUILDFLAG(ENABLE_PLUGINS)
-    case IBD::HUNG_PLUGIN_INFOBAR_DELEGATE:
-      HungPluginInfoBarDelegate::Create(GetInfoBarManager(), nullptr, 0,
-                                        u"Test Plugin");
-      break;
-
     case IBD::RELOAD_PLUGIN_INFOBAR_DELEGATE:
       ReloadPluginInfoBarDelegate::Create(
           GetInfoBarManager(), nullptr,
@@ -324,10 +302,6 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
 
     case IBD::OBSOLETE_SYSTEM_INFOBAR_DELEGATE:
       ObsoleteSystemInfoBarDelegate::Create(GetInfoBarManager());
-      break;
-
-    case IBD::SESSION_CRASHED_INFOBAR_DELEGATE_IOS:
-      ADD_FAILURE() << "This infobar is not supported on this OS.";
       break;
 
     case IBD::PAGE_INFO_INFOBAR_DELEGATE:
@@ -411,17 +385,7 @@ IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_theme_installed) {
   ShowAndVerifyUi();
 }
 
-#if BUILDFLAG(ENABLE_NACL)
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_nacl) {
-  ShowAndVerifyUi();
-}
-#endif
-
 #if BUILDFLAG(ENABLE_PLUGINS)
-IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_hung_plugin) {
-  ShowAndVerifyUi();
-}
-
 IN_PROC_BROWSER_TEST_F(InfoBarUiTest, InvokeUi_reload_plugin) {
   ShowAndVerifyUi();
 }

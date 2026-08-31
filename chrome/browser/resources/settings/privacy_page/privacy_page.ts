@@ -13,7 +13,7 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
+import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import '../controls/settings_toggle_button.js';
 import '../icons.html.js';
 import '../privacy_icons.html.js';
@@ -23,6 +23,7 @@ import '../settings_page/settings_subpage.js';
 import '../settings_shared.css.js';
 import '../site_settings/geolocation_page.js';
 import '../site_settings/notifications_page.js';
+import '../site_settings/protected_content_page.js';
 import '../site_settings/settings_category_default_radio_group.js';
 import '../site_settings/smart_card_readers_page.js';
 import './privacy_guide/privacy_guide_dialog.js';
@@ -31,6 +32,7 @@ import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {PrivacyPageBrowserProxy} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
 import {PrivacyPageBrowserProxyImpl} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
 import type {CrLinkRowElement} from 'chrome://resources/cr_elements/cr_link_row/cr_link_row.js';
+import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
@@ -107,13 +109,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         },
       },
 
-      enableManagePhones_: {
-        type: Boolean,
-        value() {
-          return loadTimeData.getBoolean('enableSecurityKeysManagePhones');
-        },
-      },
-
       blockAutoplayStatus_: {
         type: Object,
         value() {
@@ -153,14 +148,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         value() {
           return loadTimeData.getBoolean(
               'enableExperimentalWebPlatformFeatures');
-        },
-      },
-
-      enableSecurityKeysSubpage_: {
-        type: Boolean,
-        readOnly: true,
-        value() {
-          return loadTimeData.getBoolean('enableSecurityKeysSubpage');
         },
       },
 
@@ -250,10 +237,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
             map.set(routes.PRIVACY_GUIDE.path, '#privacyGuideLinkRow');
           }
 
-          if (routes.PRIVACY_SANDBOX) {
-            map.set(routes.PRIVACY_SANDBOX.path, '#privacySandboxLinkRow');
-          }
-
           if (routes.INCOGNITO_TRACKING_PROTECTIONS) {
             map.set(routes.INCOGNITO_TRACKING_PROTECTIONS.path,
               '#incognitoTrackingProtectionsLinkRow');
@@ -263,11 +246,7 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         },
       },
 
-      searchFilter_: {
-        type: String,
-        value: '',
-        observer: 'updateAllSitesPageTitle_',
-      },
+      searchFilter_: String,
 
       /**
        * Expose ContentSettingsTypes enum to HTML bindings.
@@ -293,13 +272,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         value: ChooserType,
       },
 
-      shouldShowSafetyHub_: {
-        type: Boolean,
-        value() {
-          return !loadTimeData.getBoolean('isGuest');
-        },
-      },
-
       enableKeyboardLockPrompt_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableKeyboardLockPrompt'),
@@ -308,11 +280,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
       enableWebAppInstallation_: {
         type: Boolean,
         value: () => loadTimeData.getBoolean('enableWebAppInstallation'),
-      },
-
-      enableRelatedWebsiteSetsV2Ui_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('isRelatedWebsiteSetsV2UiEnabled'),
       },
 
       enableLocalNetworkAccessSetting_: {
@@ -331,7 +298,17 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         value: () => loadTimeData.getBoolean('enableBundledSecuritySettings'),
       },
 
-      allSitesPageTitle_: String,
+      // The label of the confirmation toast that is displayed after deletion
+      // from 'Delete Browsing data' is completed.
+      dbdDeletionConfirmationToastLabel_: {
+        type: String,
+        value: '',
+      },
+
+      shouldShowDbdDeletionConfirmationToast_: {
+        type: Boolean,
+        value: false,
+      },
     };
   }
 
@@ -341,14 +318,12 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   declare private showPrivacyGuideDialog_: boolean;
   declare private enableSafeBrowsingSubresourceFilter_: boolean;
   declare private enableBlockAutoplayContentSetting_: boolean;
-  declare private enableManagePhones_: boolean;
   declare private blockAutoplayStatus_: BlockAutoplayStatus;
   declare private enableDeleteBrowsingDataRevamp_: boolean;
   declare private enableFederatedIdentityApiContentSetting_: boolean;
   declare private enablePaymentHandlerContentSetting_: boolean;
   declare private enableHandTrackingContentSetting_: boolean;
   declare private enableExperimentalWebPlatformFeatures_: boolean;
-  declare private enableSecurityKeysSubpage_: boolean;
   // <if expr="is_chromeos">
   declare private enableSmartCardReadersContentSetting_: boolean;
   // </if>
@@ -360,7 +335,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   private privateStateTokensEnabled_: boolean;
   declare private autoPictureInPictureEnabled_: boolean;
   declare private capturedSurfaceControlEnabled_: boolean;
-  declare private shouldShowSafetyHub_: boolean;
   declare private enableWebAppInstallation_: boolean;
   declare private enableLocalNetworkAccessSetting_: boolean;
   declare private focusConfig_: FocusConfig;
@@ -374,10 +348,10 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
   private safetyHubBrowserProxy_: SafetyHubBrowserProxy =
       SafetyHubBrowserProxyImpl.getInstance();
   declare private enableKeyboardLockPrompt_: boolean;
-  declare private enableRelatedWebsiteSetsV2Ui_: boolean;
-  declare private allSitesPageTitle_: string;
   declare private enableIncognitoTrackingProtections_: boolean;
   declare private enableBundledSecuritySettings_: boolean;
+  declare private dbdDeletionConfirmationToastLabel_: string;
+  declare private shouldShowDbdDeletionConfirmationToast_: boolean;
 
   override ready() {
     super.ready();
@@ -395,8 +369,6 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
         'onBlockAutoplayStatusChanged',
         (status: BlockAutoplayStatus) =>
             this.onBlockAutoplayStatusChanged_(status));
-
-    this.updateAllSitesPageTitle_();
   }
 
   override currentRouteChanged() {
@@ -436,6 +408,16 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
 
   private onCbdDialogClosed_() {
     Router.getInstance().navigateTo(routes.CLEAR_BROWSER_DATA.parent!);
+
+    if (this.shouldShowDbdDeletionConfirmationToast_) {
+      assert(this.dbdDeletionConfirmationToastLabel_);
+      const toast = this.shadowRoot!.querySelector<CrToastElement>(
+          '#deleteBrowsingDataToast');
+      assert(toast);
+      toast.show();
+      this.shouldShowDbdDeletionConfirmationToast_ = false;
+    }
+
     setTimeout(() => {
       // Focus after a timeout to ensure any a11y messages get read before
       // screen readers read out the newly focused element.
@@ -476,7 +458,8 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
 
   private onIncognitoTrackingProtectionsClick_() {
     this.interactedWithPage_();
-    // TODO(crbug.com/408036586): Add user action for Incognito tracking protections row click.
+    this.metricsBrowserProxy_.recordAction(
+        'Settings.TrackingProtections.OpenedFromPrivacyPage');
     Router.getInstance().navigateTo(routes.INCOGNITO_TRACKING_PROTECTIONS);
   }
 
@@ -529,22 +512,45 @@ export class SettingsPrivacyPageElement extends SettingsPrivacyPageElementBase {
     }
   }
 
-  private updateAllSitesPageTitle_(): void {
-    const rwsPrefix = 'related:';
-    if (this.enableRelatedWebsiteSetsV2Ui_ &&
-        this.searchFilter_.length > rwsPrefix.length &&
-        this.searchFilter_.startsWith(rwsPrefix)) {
-      this.allSitesPageTitle_ = loadTimeData.getStringF(
-          'allSitesRwsFilterViewTitle',
-          this.searchFilter_.substring(rwsPrefix.length));
-    } else {
-      this.allSitesPageTitle_ = this.i18n('siteSettingsAllSites');
-    }
-  }
-
   private shouldShowAdPrivacy_(): boolean {
     return !this.isPrivacySandboxRestricted_ ||
         this.isPrivacySandboxRestrictedNoticeEnabled_;
+  }
+
+  private onBrowsingDataDeleted_(
+      e: CustomEvent<{deletionConfirmationText: string}>) {
+    this.dbdDeletionConfirmationToastLabel_ = e.detail.deletionConfirmationText;
+    this.shouldShowDbdDeletionConfirmationToast_ = true;
+  }
+
+  getAssociatedControlFor(childViewId: string): HTMLElement {
+    let triggerId: string|null = null;
+    switch (childViewId) {
+      case 'cookies':
+        triggerId = 'thirdPartyCookiesLinkRow';
+        break;
+      case 'securityKeys':
+        triggerId = 'securityLinkRow';
+        break;
+      case 'privacySandbox':
+      case 'privacySandboxAdMeasurement':
+      case 'privacySandboxFledge':
+      case 'privacySandboxManageTopics':
+      case 'privacySandboxTopics':
+        triggerId = 'privacySandboxLinkRow';
+        break;
+      // TODO(crbug.com/424223101): Add more child view IDs as they
+      // are migrated to the new architecture.
+      default:
+        assertNotReached();
+    }
+
+    assert(triggerId);
+
+    const control =
+        this.shadowRoot!.querySelector<HTMLElement>(`#${triggerId}`);
+    assert(control);
+    return control;
   }
 }
 

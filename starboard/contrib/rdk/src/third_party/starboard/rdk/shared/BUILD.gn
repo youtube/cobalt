@@ -28,14 +28,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/linux/rdk/config_variables.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 import("//build/config/linux/pkg_config.gni")
 import("$rdk_starboard_root/third_party/starboard/rdk/shared/build/rdk_toolchain.gni")
+
+assert(is_starboard_toolchain)
 
 declare_args() {
   rdk_enable_securityagent = true
   rdk_enable_ocdm = true
   rdk_enable_rfc_api = false
+  rdk_enable_firebolt_api = false
+  rdk_enable_rdkservices_api = true
+  rdk_enable_wpecryptography = true
+  rdk_enable_firebolt_legacy_rpc_v1 = false
 }
 
 rdk_pkgconfig_extra_args = []
@@ -75,17 +81,24 @@ pkg_config("wpeframework") {
   extra_args = rdk_pkgconfig_extra_args
   packages = [
     "WPEFrameworkCore",
+  ]
+}
+
+pkg_config("wpeframework_websocket") {
+  packages = [
     "WPEFrameworkDefinitions",
     "WPEFrameworkWebSocket",
   ]
   supports_isystem = false
 }
 
-pkg_config("cryptography") {
-  extra_args = rdk_pkgconfig_extra_args
-  packages = [ "WPEFrameworkCryptography" ]
-  defines = [ "HAS_CRYPTOGRAPHY=1" ]
-  supports_isystem = false
+if (rdk_enable_wpecryptography) {
+  pkg_config("wpecryptography") {
+    extra_args = rdk_pkgconfig_extra_args
+    packages = [ "WPEFrameworkCryptography" ]
+    defines = [ "HAS_WPECRYPTOGRAPHY=1" ]
+    supports_isystem = false
+  }
 }
 
 if (rdk_enable_securityagent) {
@@ -108,7 +121,7 @@ if (rdk_enable_ocdm) {
 
 group("starboard_platform") {
   public_deps = [ ":starboard_platform_sources" ]
-  data_deps = [ ":rdk_cobalt_content" ]
+  data_deps = [ "cobalt:rdk_cobalt_content" ]
 }
 
 static_library("starboard_platform_sources") {
@@ -197,19 +210,19 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/decode_target_release.cc",
     "//starboard/shared/starboard/log_raw_dump_stack.cc",
     "//starboard/shared/stub/media_can_change_type.cc",
-    "//starboard/shared/stub/microphone_close.cc",
-    "//starboard/shared/stub/microphone_create.cc",
-    "//starboard/shared/stub/microphone_destroy.cc",
-    "//starboard/shared/stub/microphone_get_available.cc",
-    "//starboard/shared/stub/microphone_is_sample_rate_supported.cc",
-    "//starboard/shared/stub/microphone_open.cc",
-    "//starboard/shared/stub/microphone_read.cc",
+    "//starboard/shared/starboard/microphone/microphone_close.cc",
+    "//starboard/shared/starboard/microphone/microphone_create.cc",
+    "//starboard/shared/starboard/microphone/microphone_destroy.cc",
+    "//starboard/shared/starboard/microphone/microphone_get_available.cc",
+    "//starboard/shared/starboard/microphone/microphone_internal.h",
+    "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
+    "//starboard/shared/starboard/microphone/microphone_open.cc",
+    "//starboard/shared/starboard/microphone/microphone_read.cc",
     "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_raise_platform_error.cc",
     "//starboard/shared/linux/system_symbolize.cc",
 
     # RDK implementation
-    "accessibility_data.cc",
     "accessibility_extension.cc",
     "accessibility_extension.h",
     "application_rdk.cc",
@@ -238,13 +251,15 @@ static_library("starboard_platform_sources") {
     "media/media_get_buffer_allocation_unit.cc",
     "media/media_get_buffer_garbage_collection_duration_threshold.cc",
     "media/media_get_initial_buffer_capacity.cc",
-    "media/media_get_max_buffer_capacity.cc",
     "media/media_get_video_buffer_budget.cc",
     "media/media_is_audio_supported.cc",
     "media/media_is_buffer_pool_allocate_on_demand.cc",
-    "media/media_is_output_protected.cc",
     "media/media_is_key_system_supported.cc",
+    "microphone/local_aows_server.cc",
+    "microphone/microphone_impl.cc",
     "media/media_is_video_supported.cc",
+    "platform/platform_interface.cc",
+    "platform/platform_interface.h",
     "platform_service.cc",
     "platform_service.h",
     "player/player_create.cc",
@@ -264,9 +279,7 @@ static_library("starboard_platform_sources") {
     "player/player_write_sample.cc",
     "player/elements/gst_audio_clipping.cc",
     "player/elements/gst_audio_clipping.h",
-    "rdkservices.cc",
     "run_starboard_main.cc",
-    "speech/accessibility_get_text_to_speech_settings.cc",
     "speech/speech_synthesis_cancel.cc",
     "speech/speech_synthesis_is_supported.cc",
     "speech/speech_synthesis_speak.cc",
@@ -281,6 +294,8 @@ static_library("starboard_platform_sources") {
     "system/system_get_total_cpu_memory.cc",
     "system/system_get_total_gpu_memory.cc",
     "system/system_get_used_gpu_memory.cc",
+    "system/system_properties_override.cc",
+    "system/system_properties_override.h",
     "time_zone_get_name.cc",
     "window/window_create.cc",
     "window/window_destroy.cc",
@@ -318,11 +333,7 @@ static_library("starboard_platform_sources") {
     ]
   }
 
-  if (!sb_is_modular || is_starboard) {
-    sources += [
-      "main_rdk.cc",
-    ]
-  }
+  sources += [ "main_rdk.cc" ]
 
   cflags = []
 
@@ -338,7 +349,6 @@ static_library("starboard_platform_sources") {
     ":glib",
     ":gstreamer",
     ":wpeframework",
-    ":cryptography",
   ]
 
   if (rdk_enable_rfc_api) {
@@ -359,40 +369,50 @@ static_library("starboard_platform_sources") {
     configs += [ ":ocdm" ]
   }
 
+  if (rdk_enable_rdkservices_api) {
+    sources += [
+      "accessibility_data.cc",
+      "accessibility_data.h",
+      "rdkservices.cc",
+      "rdkservices.h",
+    ]
+    configs += [
+      ":wpeframework_websocket",
+    ]
+    defines += [ "ENABLE_RDKSERVICES_API=1" ]
+  }
+
+  if (rdk_enable_firebolt_api) {
+    sources += [
+      "platform/firebolt_interface.cc",
+      "platform/firebolt_interface.h",
+    ]
+    libs += [
+      "FireboltClient",
+      "FireboltTransport",
+    ]
+    defines += [ "ENABLE_FIREBOLT_API=1" ]
+    if (rdk_enable_firebolt_legacy_rpc_v1) {
+      defines += [ "FIREBOLT_LEGACY_RPC_V1=1" ]
+    }
+  }
+
+  if (rdk_enable_wpecryptography) {
+    configs += [
+      ":wpecryptography",
+    ]
+  }
+
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
+    "//third_party/modp_b64",
   ]
 
+  deps = []
   if (sb_evergreen_compatible_use_libunwind) {
-    deps = [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
 }
 
-group("rdk_cobalt_content") {
-  data_deps = [ ":rdk_cobalt_keymap($default_toolchain)" ]
-}
-
-copy("rdk_cobalt_keymap") {
-  sources = [ "cobalt/content/etc/keymapping.json" ]
-  outputs = [ "$root_out_dir/app/cobalt/content/etc/keymapping.json" ]
-}
-
-group("loader_app_rdk_plugin") {
-  data_deps = [":loader_app($starboard_toolchain)"]
-}
-
-if (is_starboard && current_toolchain == starboard_toolchain) {
-  if (starboard_level_final_executable_type == "shared_library") {
-    group("loader_app") {
-      deps = [ "//starboard/loader_app:loader_app" ]
-    }
-  } else {
-    target("shared_library", "loader_app") {
-      output_dir = root_build_dir
-      deps = [ "//starboard/loader_app:loader_app_sources" ]
-      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-    }
-  }
-}

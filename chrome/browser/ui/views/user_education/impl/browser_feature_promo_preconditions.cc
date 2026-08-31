@@ -10,6 +10,7 @@
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service.h"
 #include "chrome/browser/search_engine_choice/search_engine_choice_dialog_service_factory.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
@@ -24,7 +25,6 @@
 #include "components/user_education/common/feature_promo/feature_promo_precondition.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "components/user_education/common/feature_promo/impl/common_preconditions.h"
-#include "components/user_education/common/feature_promo/impl/precondition_data.h"
 #include "components/user_education/common/user_education_features.h"
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "components/user_education/webui/tracked_element_webui.h"
@@ -51,13 +51,13 @@ WindowActivePrecondition::WindowActivePrecondition()
 WindowActivePrecondition::~WindowActivePrecondition() = default;
 
 user_education::FeaturePromoResult WindowActivePrecondition::CheckPrecondition(
-    ComputedData& data) const {
+    ui::UnownedTypedDataCollection& data) const {
   if (user_education::FeaturePromoControllerCommon::
           active_window_check_blocked()) {
     return user_education::FeaturePromoResult::Success();
   }
   auto& element_ref =
-      data.Get(user_education::AnchorElementPrecondition::kAnchorElement);
+      data[user_education::AnchorElementPrecondition::kAnchorElement];
   views::Widget* widget = nullptr;
   if (auto* const view_el = element_ref.get_as<views::TrackedElementViews>()) {
     widget = view_el->view()->GetWidget();
@@ -87,9 +87,11 @@ ContentNotFullscreenPrecondition::ContentNotFullscreenPrecondition(
 ContentNotFullscreenPrecondition::~ContentNotFullscreenPrecondition() = default;
 
 user_education::FeaturePromoResult
-ContentNotFullscreenPrecondition::CheckPrecondition(ComputedData& data) const {
-  auto* const fullscreen_controller =
-      browser_->exclusive_access_manager()->fullscreen_controller();
+ContentNotFullscreenPrecondition::CheckPrecondition(
+    ui::UnownedTypedDataCollection& data) const {
+  auto* const fullscreen_controller = browser_->GetFeatures()
+                                          .exclusive_access_manager()
+                                          ->fullscreen_controller();
   if (fullscreen_controller->IsWindowFullscreenForTabOrPending() ||
       fullscreen_controller->IsExtensionFullscreenOrPending()) {
     return user_education::FeaturePromoResult::kBlockedByUi;
@@ -105,7 +107,8 @@ OmniboxNotOpenPrecondition::OmniboxNotOpenPrecondition(
 OmniboxNotOpenPrecondition::~OmniboxNotOpenPrecondition() = default;
 
 user_education::FeaturePromoResult
-OmniboxNotOpenPrecondition::CheckPrecondition(ComputedData&) const {
+OmniboxNotOpenPrecondition::CheckPrecondition(
+    ui::UnownedTypedDataCollection&) const {
   const OmniboxPopupView* const popup = browser_view_->GetLocationBarView()
                                             ->GetOmniboxView()
                                             ->model()
@@ -123,7 +126,8 @@ ToolbarNotCollapsedPrecondition::ToolbarNotCollapsedPrecondition(
 ToolbarNotCollapsedPrecondition::~ToolbarNotCollapsedPrecondition() = default;
 
 user_education::FeaturePromoResult
-ToolbarNotCollapsedPrecondition::CheckPrecondition(ComputedData&) const {
+ToolbarNotCollapsedPrecondition::CheckPrecondition(
+    ui::UnownedTypedDataCollection&) const {
   if (const auto* const controller =
           browser_view_->toolbar()->toolbar_controller()) {
     if (controller->InOverflowMode()) {
@@ -141,7 +145,8 @@ BrowserNotClosingPrecondition::BrowserNotClosingPrecondition(
 BrowserNotClosingPrecondition::~BrowserNotClosingPrecondition() = default;
 
 user_education::FeaturePromoResult
-BrowserNotClosingPrecondition::CheckPrecondition(ComputedData&) const {
+BrowserNotClosingPrecondition::CheckPrecondition(
+    ui::UnownedTypedDataCollection&) const {
   if (browser_view_->browser()->IsBrowserClosing() ||
       browser_view_->GetWidget()->IsClosed()) {
     return user_education::FeaturePromoResult::kBlockedByContext;
@@ -158,7 +163,8 @@ NoCriticalNoticeShowingPrecondition::~NoCriticalNoticeShowingPrecondition() =
     default;
 
 user_education::FeaturePromoResult
-NoCriticalNoticeShowingPrecondition::CheckPrecondition(ComputedData&) const {
+NoCriticalNoticeShowingPrecondition::CheckPrecondition(
+    ui::UnownedTypedDataCollection&) const {
   // Turn off IPH while a required privacy interstitial is visible or pending.
   auto* const privacy_sandbox_service =
       PrivacySandboxServiceFactory::GetForProfile(browser_view_->GetProfile());
@@ -215,7 +221,7 @@ void UserNotActivePrecondition::OnEvent(const ui::Event& event) {
 }
 
 user_education::FeaturePromoResult UserNotActivePrecondition::CheckPrecondition(
-    ComputedData&) const {
+    ui::UnownedTypedDataCollection&) const {
   // Only do check if min idle time is nonzero and positive; otherwise this is a
   // no-op. Explicitly verify this in case of non-monotonic clock weirdness.
   const auto min_idle_time =

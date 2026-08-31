@@ -2011,26 +2011,9 @@ void StateManagerGL::setClearDepth(float clearDepth)
 
 void StateManagerGL::setClearColor(const gl::ColorF &clearColor)
 {
-    gl::ColorF modifiedClearColor = clearColor;
-    if (mFeatures.clearToZeroOrOneBroken.enabled &&
-        (clearColor.red == 1.0f || clearColor.red == 0.0f) &&
-        (clearColor.green == 1.0f || clearColor.green == 0.0f) &&
-        (clearColor.blue == 1.0f || clearColor.blue == 0.0f) &&
-        (clearColor.alpha == 1.0f || clearColor.alpha == 0.0f))
+    if (mClearColor != clearColor)
     {
-        if (clearColor.alpha == 1.0f)
-        {
-            modifiedClearColor.alpha = 2.0f;
-        }
-        else
-        {
-            modifiedClearColor.alpha = -1.0f;
-        }
-    }
-
-    if (mClearColor != modifiedClearColor)
-    {
-        mClearColor = modifiedClearColor;
+        mClearColor = clearColor;
         mFunctions->clearColor(mClearColor.red, mClearColor.green, mClearColor.blue,
                                mClearColor.alpha);
 
@@ -2523,7 +2506,8 @@ angle::Result StateManagerGL::syncState(const gl::Context *context,
                         case gl::state::EXTENDED_DIRTY_BIT_SHADER_DERIVATIVE_HINT:
                             // These hints aren't forwarded to GL yet.
                             break;
-                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE:
+                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_QCOM:
+                        case gl::state::EXTENDED_DIRTY_BIT_SHADING_RATE_EXT:
                             // Unimplemented extensions.
                             break;
                         case gl::state::EXTENDED_DIRTY_BIT_BLEND_ADVANCED_COHERENT:

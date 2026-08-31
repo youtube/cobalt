@@ -29,6 +29,8 @@
 #include "third_party/blink/renderer/core/animation/css_font_style_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/css_font_variation_settings_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/css_font_weight_interpolation_type.h"
+#include "third_party/blink/renderer/core/animation/css_gap_color_list_interpolation_type.h"
+#include "third_party/blink/renderer/core/animation/css_gap_length_list_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/css_grid_template_property_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/css_image_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/css_image_list_interpolation_type.h"
@@ -149,6 +151,8 @@ const InterpolationTypes* InterpolationTypesMap::Get(
       case CSSPropertyID::kOffsetDistance:
       case CSSPropertyID::kOutlineOffset:
       case CSSPropertyID::kOutlineWidth:
+      case CSSPropertyID::kColumnRuleOutset:
+      case CSSPropertyID::kRowRuleOutset:
       case CSSPropertyID::kPaddingBottom:
       case CSSPropertyID::kPaddingLeft:
       case CSSPropertyID::kPaddingRight:
@@ -169,7 +173,6 @@ const InterpolationTypes* InterpolationTypesMap::Get(
       case CSSPropertyID::kWebkitBorderVerticalSpacing:
       case CSSPropertyID::kColumnGap:
       case CSSPropertyID::kRowGap:
-      case CSSPropertyID::kColumnRuleWidth:
       case CSSPropertyID::kColumnWidth:
       case CSSPropertyID::kColumnHeight:
       case CSSPropertyID::kWebkitPerspectiveOriginX:
@@ -193,6 +196,27 @@ const InterpolationTypes* InterpolationTypesMap::Get(
         applicable_types->push_back(
             MakeGarbageCollected<CSSGridTemplatePropertyInterpolationType>(
                 property));
+        break;
+      case CSSPropertyID::kColumnRuleColor:
+      case CSSPropertyID::kRowRuleColor:
+        if (RuntimeEnabledFeatures::CSSGapDecorationEnabled()) {
+          applicable_types->push_back(
+              MakeGarbageCollected<CSSGapColorListInterpolationType>(property));
+          break;
+        }
+        applicable_types->push_back(
+            MakeGarbageCollected<CSSColorInterpolationType>(property));
+        break;
+      case CSSPropertyID::kColumnRuleWidth:
+      case CSSPropertyID::kRowRuleWidth:
+        if (RuntimeEnabledFeatures::CSSGapDecorationEnabled()) {
+          applicable_types->push_back(
+              MakeGarbageCollected<CSSGapLengthListInterpolationType>(
+                  property));
+        } else {
+          applicable_types->push_back(
+              MakeGarbageCollected<CSSLengthInterpolationType>(property));
+        }
         break;
       case CSSPropertyID::kContainIntrinsicWidth:
       case CSSPropertyID::kContainIntrinsicHeight:
@@ -243,8 +267,8 @@ const InterpolationTypes* InterpolationTypesMap::Get(
         applicable_types->push_back(
             MakeGarbageCollected<CSSNumberInterpolationType>(property));
         break;
-      case CSSPropertyID::kInterestTargetShowDelay:
-      case CSSPropertyID::kInterestTargetHideDelay:
+      case CSSPropertyID::kInterestShowDelay:
+      case CSSPropertyID::kInterestHideDelay:
         applicable_types->push_back(
             MakeGarbageCollected<CSSTimeInterpolationType>(property));
         break;
@@ -262,8 +286,6 @@ const InterpolationTypes* InterpolationTypesMap::Get(
       case CSSPropertyID::kStopColor:
       case CSSPropertyID::kTextDecorationColor:
       case CSSPropertyID::kTextEmphasisColor:
-      case CSSPropertyID::kColumnRuleColor:
-      case CSSPropertyID::kRowRuleColor:
       case CSSPropertyID::kWebkitTextStrokeColor:
         applicable_types->push_back(
             MakeGarbageCollected<CSSColorInterpolationType>(property));

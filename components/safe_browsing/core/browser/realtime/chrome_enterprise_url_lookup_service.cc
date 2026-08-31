@@ -75,22 +75,26 @@ ChromeEnterpriseRealTimeUrlLookupService::
         bool is_off_the_record,
         bool is_guest_session,
         base::RepeatingCallback<std::string()> get_profile_email_callback,
+        base::RepeatingCallback<std::string(const GURL&)>
+            get_content_area_account_email_callback,
         base::RepeatingCallback<bool()> is_profile_affiliated_callback,
         bool is_command_line_switch_supported)
     : RealTimeUrlLookupServiceBase(url_loader_factory,
                                    cache_manager,
                                    get_user_population_callback,
                                    referrer_chain_provider,
+                                   std::move(token_fetcher),
                                    pref_service,
                                    webui_delegate),
       connectors_service_(connectors_service),
-      token_fetcher_(std::move(token_fetcher)),
       pref_service_(pref_service),
       identity_manager_(identity_manager),
       management_service_(management_service),
       is_off_the_record_(is_off_the_record),
       is_guest_session_(is_guest_session),
       get_profile_email_callback_(get_profile_email_callback),
+      get_content_area_account_email_callback_(
+          get_content_area_account_email_callback),
       is_profile_affiliated_callback_(is_profile_affiliated_callback),
       is_command_line_switch_supported_(is_command_line_switch_supported) {}
 
@@ -146,37 +150,6 @@ bool ChromeEnterpriseRealTimeUrlLookupService::
   // Check allowlist if it can check database and allowlist bypass is
   // disabled.
   return CanCheckSafeBrowsingDb() && !CanPerformFullURLLookup();
-}
-
-void ChromeEnterpriseRealTimeUrlLookupService::GetAccessToken(
-    const GURL& url,
-    RTLookupResponseCallback response_callback,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-    SessionID tab_id,
-    std::optional<internal::ReferringAppInfo> referring_app_info) {
-  token_fetcher_->Start(base::BindOnce(
-      &ChromeEnterpriseRealTimeUrlLookupService::OnGetAccessToken,
-      weak_factory_.GetWeakPtr(), url, std::move(response_callback),
-      std::move(callback_task_runner), base::TimeTicks::Now(), tab_id,
-      std::move(referring_app_info)));
-}
-
-void ChromeEnterpriseRealTimeUrlLookupService::OnGetAccessToken(
-    const GURL& url,
-    RTLookupResponseCallback response_callback,
-    scoped_refptr<base::SequencedTaskRunner> callback_task_runner,
-    base::TimeTicks get_token_start_time,
-    SessionID tab_id,
-    std::optional<internal::ReferringAppInfo> referring_app_info,
-    const std::string& access_token) {
-  if (shutting_down()) {
-    return;
-  }
-
-  MaybeSendRequest(url, access_token, std::move(response_callback),
-                   std::move(callback_task_runner),
-                   /* is_sampled_report */ false, tab_id,
-                   std::move(referring_app_info));
 }
 
 std::optional<std::string>
@@ -238,11 +211,6 @@ std::string ChromeEnterpriseRealTimeUrlLookupService::GetMetricSuffix() const {
   return ".Enterprise";
 }
 
-void ChromeEnterpriseRealTimeUrlLookupService::Shutdown() {
-  RealTimeUrlLookupServiceBase::Shutdown();
-  token_fetcher_.reset();
-}
-
 bool ChromeEnterpriseRealTimeUrlLookupService::CanCheckUrl(const GURL& url) {
   // Any URL can be checked in the enterprise case since URLs that might return
   // false when passed to `safe_browsing::CanGetReputationOfUrl` could still
@@ -291,6 +259,12 @@ std::string ChromeEnterpriseRealTimeUrlLookupService::GetProfileDMTokenString()
 std::unique_ptr<enterprise_connectors::ClientMetadata>
 ChromeEnterpriseRealTimeUrlLookupService::GetClientMetadata() const {
   return connectors_service_->BuildClientMetadata(true);
+}
+
+std::string
+ChromeEnterpriseRealTimeUrlLookupService::GetContentAreaAccountEmail(
+    const GURL& tab_url) const {
+  return get_content_area_account_email_callback_.Run(tab_url);
 }
 
 }  // namespace safe_browsing

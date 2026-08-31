@@ -34,6 +34,7 @@ class H5vccRuntime;
 class H5vccStorage;
 class H5vccSettings;
 class H5vccUpdater;
+class H5vccNativeStability;
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
@@ -64,6 +65,8 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
   H5vccSettings* settings() { return settings_; }
 
+  H5vccNativeStability* nativeStability() { return native_stability_; }
+
   void Trace(Visitor*) const override;
 
  private:
@@ -76,6 +79,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   Member<H5vccStorage> storage_;
   Member<H5vccSettings> settings_;
   Member<H5vccUpdater> updater_;
+  Member<H5vccNativeStability> native_stability_;
 };
 
 }  // namespace blink

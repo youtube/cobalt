@@ -25,6 +25,7 @@ suite('MojomConversionUtilsTest', () => {
     const formerEmail: string = 'former@gmail.com';
     const formerGivenName: string = 'TEST_FORMER_GIVEN_NAME';
 
+
     const groupData: GroupData = toMojomGroupData({
       groupId: groupId,
       displayName: groupName,
@@ -36,6 +37,8 @@ suite('MojomConversionUtilsTest', () => {
         role: DataSharingMemberRoleEnum.INVITEE,
         avatarUrl,
         givenName,
+        createdAtTimeMs: 300,
+        lastUpdatedAtTimeMs: 400,
       }],
       formerMembers: [{
         focusObfuscatedGaiaId: formerGaiaId,
@@ -44,6 +47,8 @@ suite('MojomConversionUtilsTest', () => {
         role: DataSharingMemberRoleEnum.FORMER_MEMBER,
         avatarUrl: formerAvatarUrl,
         givenName: formerGivenName,
+        createdAtTimeMs: 100,
+        lastUpdatedAtTimeMs: 200,
       }],
     });
 
@@ -58,6 +63,8 @@ suite('MojomConversionUtilsTest', () => {
         role: MemberRole.kInvitee,
         avatarUrl: {url: avatarUrl},
         givenName,
+        creationTime: new Date(300),
+        lastUpdatedTime: new Date(400),
       }],
       formerMembers: [{
         gaiaId: formerGaiaId,
@@ -66,6 +73,8 @@ suite('MojomConversionUtilsTest', () => {
         role: MemberRole.kFormerMember,
         avatarUrl: {url: formerAvatarUrl},
         givenName: formerGivenName,
+        creationTime: new Date(100),
+        lastUpdatedTime: new Date(200),
       }],
     };
 

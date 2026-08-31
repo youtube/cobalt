@@ -15,6 +15,7 @@
 #include <string>
 
 #include "api/environment/environment.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
@@ -44,6 +45,8 @@ struct CreateRelayPortArgs {
   // to the candidates from other servers. Required because ICE priorities
   // need to be unique.
   int relative_priority = 0;
+  LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory =
+      nullptr;
 };
 
 // A factory for creating RelayPort's.
@@ -64,13 +67,5 @@ class RelayPortFactoryInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::CreateRelayPortArgs;
-using ::webrtc::RelayPortFactoryInterface;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_CLIENT_RELAY_PORT_FACTORY_INTERFACE_H_

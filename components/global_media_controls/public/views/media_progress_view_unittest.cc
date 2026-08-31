@@ -5,6 +5,7 @@
 #include "components/global_media_controls/public/views/media_progress_view.h"
 
 #include "base/i18n/rtl.h"
+#include "base/test/icu_test_util.h"
 #include "base/timer/mock_timer.h"
 #include "components/strings/grit/components_strings.h"
 #include "services/media_session/public/mojom/media_session.mojom.h"
@@ -65,8 +66,6 @@ class MediaProgressViewTest : public views::ViewsTestBase {
     progress_drag_started_delay_timer_ = mock_timer.get();
     view_->set_progress_drag_started_delay_timer_for_testing(
         std::move(mock_timer));
-
-    default_locale_ = base::i18n::GetConfiguredLocale();
   }
 
   void TearDown() override {
@@ -75,7 +74,6 @@ class MediaProgressViewTest : public views::ViewsTestBase {
     progress_drag_started_delay_timer_ = nullptr;
     view_ = nullptr;
     widget_->Close();
-    base::i18n::SetICUDefaultLocale(default_locale_);
     ViewsTestBase::TearDown();
   }
 
@@ -97,12 +95,12 @@ class MediaProgressViewTest : public views::ViewsTestBase {
   MOCK_METHOD1(OnProgressUpdated, void(base::TimeDelta));
 
  private:
+  base::test::ScopedRestoreICUDefaultLocale restore_default_locale_;
   std::unique_ptr<views::Widget> widget_;
   raw_ptr<MediaProgressView> view_ = nullptr;
   raw_ptr<base::MockOneShotTimer> update_progress_timer_ = nullptr;
   raw_ptr<base::MockOneShotTimer> switch_progress_colors_delay_timer_ = nullptr;
   raw_ptr<base::MockOneShotTimer> progress_drag_started_delay_timer_ = nullptr;
-  std::string default_locale_;
 };
 
 TEST_F(MediaProgressViewTest, MediaPlaying) {
@@ -502,6 +500,49 @@ TEST_F(MediaProgressViewTest, MediaProgressAccessibleValue) {
   view()->GetViewAccessibility().GetAccessibleNodeData(&data);
   EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kValue),
             u"0:03");
+}
+
+TEST_F(MediaProgressViewTest, PausesForDraggingIfPlayedAfterDraggingStarted) {
+  // Simulate a paused media.
+  media_session::MediaPosition paused_media_position(
+      /*playback_rate=*/0, /*duration=*/base::Seconds(600),
+      /*position=*/base::Seconds(100), /*end_of_media=*/false);
+  view()->UpdateProgress(paused_media_position);
+
+  // Simulate a mouse press event. This should not fire a
+  // "PauseForDraggingStarted" notification since media is already paused.
+  gfx::Point point(view()->width() / 2, view()->height() / 2);
+  ui::MouseEvent pressed_event(ui::EventType::kMousePressed, point, point,
+                               ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
+                               ui::EF_LEFT_MOUSE_BUTTON);
+  EXPECT_CALL(*this,
+              OnPlaybackStateChangeForProgressDrag(
+                  PlaybackStateChangeForDragging::kPauseForDraggingStarted))
+      .Times(0);
+  view()->OnMousePressed(pressed_event);
+  progress_drag_started_delay_timer()->Fire();
+  testing::Mock::VerifyAndClearExpectations(this);
+
+  // Now update the media to start playing. This should fire a
+  // "PauseForDraggingStarted" notification to pause the media.
+  media_session::MediaPosition playing_media_position(
+      /*playback_rate=*/1.0, /*duration=*/base::Seconds(600),
+      /*position=*/base::Seconds(100), /*end_of_media=*/false);
+  EXPECT_CALL(*this,
+              OnPlaybackStateChangeForProgressDrag(
+                  PlaybackStateChangeForDragging::kPauseForDraggingStarted));
+  view()->UpdateProgress(playing_media_position);
+  testing::Mock::VerifyAndClearExpectations(this);
+
+  // Simulate a mouse release event. This should fire a
+  // "ResumeForDraggingEnded" notification.
+  ui::MouseEvent released_event = ui::MouseEvent(
+      ui::EventType::kMouseReleased, point, point, ui::EventTimeForNow(),
+      ui::EF_LEFT_MOUSE_BUTTON, ui::EF_LEFT_MOUSE_BUTTON);
+  EXPECT_CALL(*this,
+              OnPlaybackStateChangeForProgressDrag(
+                  PlaybackStateChangeForDragging::kResumeForDraggingEnded));
+  view()->OnMouseReleased(released_event);
 }
 
 }  // namespace global_media_controls

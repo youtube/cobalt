@@ -31,6 +31,9 @@ void AttachInfobarOverlayBrowserAgent(Browser* browser) {
       InfobarType::kInfobarTypeSaveCard);
 
   browser_agent->AddDefaultInfobarInteractionHandlerForInfobarType(
+      InfobarType::kInfobarTypeSaveCvc);
+
+  browser_agent->AddDefaultInfobarInteractionHandlerForInfobarType(
       InfobarType::kInfobarTypeSyncError);
 
   browser_agent->AddDefaultInfobarInteractionHandlerForInfobarType(
@@ -41,6 +44,9 @@ void AttachInfobarOverlayBrowserAgent(Browser* browser) {
 
   browser_agent->AddDefaultInfobarInteractionHandlerForInfobarType(
       InfobarType::kInfobarTypeCollaborationGroup);
+
+  browser_agent->AddDefaultInfobarInteractionHandlerForInfobarType(
+      InfobarType::kInfobarTypeCollaborationOutOfDate);
 
   browser_agent->AddInfobarInteractionHandler(
       std::make_unique<InfobarInteractionHandler>(

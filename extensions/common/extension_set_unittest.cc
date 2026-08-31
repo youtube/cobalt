@@ -87,15 +87,12 @@ TEST(ExtensionSetTest, ExtensionSet) {
   EXPECT_EQ(3u, extensions.size());
 
   // Get extension by its chrome-extension:// URL
-  EXPECT_EQ(
-      ext2.get(),
-      extensions.GetExtensionOrAppByURL(ext2->GetResourceURL("test.html")));
-  EXPECT_EQ(
-      ext3.get(),
-      extensions.GetExtensionOrAppByURL(ext3->GetResourceURL("test.html")));
-  EXPECT_EQ(
-      ext4.get(),
-      extensions.GetExtensionOrAppByURL(ext4->GetResourceURL("test.html")));
+  EXPECT_EQ(ext2.get(), extensions.GetExtensionOrAppByURL(
+                            ext2->GetResourceURL("test.html")));
+  EXPECT_EQ(ext3.get(), extensions.GetExtensionOrAppByURL(
+                            ext3->GetResourceURL("test.html")));
+  EXPECT_EQ(ext4.get(), extensions.GetExtensionOrAppByURL(
+                            ext4->GetResourceURL("test.html")));
 
   // Get extension by a filesystem or blob URL within it.
   GURL ext2_filesystem_url =

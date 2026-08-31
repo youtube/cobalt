@@ -279,6 +279,11 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Had missing callbacks"/>
 </enum>
 
+<enum name="BooleanRuntimeError">
+  <int value="0" label="Runtime error"/>
+  <int value="1" label="No runtime error"/>
+</enum>
+
 <enum name="BreakoutBoxUsage">
   <int value="0" label="ReadableVideo"/>
   <int value="1" label="ReadableVideoWorker"/>
@@ -326,6 +331,33 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Hardware VP9 encoder"/>
   <int value="7" label="Software AV1 encoder"/>
   <int value="8" label="Hardware AV1 encoder"/>
+</enum>
+
+<enum name="CatapAudioInputStreamHostTimeStatus">
+  <int value="0" label="kNoMissingHostTime"/>
+  <int value="1" label="kSometimesMissingHostTimeNoRecover"/>
+  <int value="2" label="kSometimesMissingHostTimeRecovered"/>
+  <int value="3" label="kAlwaysMissingHostTime"/>
+</enum>
+
+<enum name="CatapAudioInputStreamStatusClose">
+  <int value="0" label="kOk"/>
+  <int value="1" label="kErrorDestroyingIOProcID"/>
+  <int value="2" label="kErrorDestroyingAggregateDevice"/>
+  <int value="3" label="kErrorDestroyingProcessTap"/>
+</enum>
+
+<enum name="CatapAudioInputStreamStatusOpen">
+  <int value="0" label="kOk"/>
+  <int value="1" label="kErrorDeviceAlreadyOpen"/>
+  <int value="2" label="kErrorCreatingProcessTap"/>
+  <int value="3" label="kErrorCreatingAggregateDevice"/>
+  <int value="4" label="kErrorCreatingIOProcID"/>
+  <int value="5" label="kErrorMissingAudioTapPermission"/>
+  <int value="6" label="kGetProcessAudioDeviceIdsReturnedEmpty"/>
+  <int value="7" label="kErrorConfiguringSampleRate"/>
+  <int value="8" label="kErrorConfiguringFramesPerBuffer"/>
+  <int value="9" label="kErrorCreatingTapDescription"/>
 </enum>
 
 <enum name="CdmCapabilityQueryStatus">
@@ -476,7 +508,7 @@ chromium-metrics-reviews@google.com.
       label="Disconnection error. The remote process dropped the callback.
              e.g. in case of crash."/>
   <int value="14" label="EME use is not allowed on unique origins."/>
-  <int value="15" label="Android: MediaDrmBridge creation failed."/>
+  <int value="15" label="(Obsolete) Android: MediaDrmBridge creation failed."/>
   <int value="16" label="Android: MediaCrypto not available."/>
   <int value="17" label="CrOs: Only one instance allowed."/>
   <int value="18" label="CrOs: Insufficient GPU memory available."/>
@@ -496,6 +528,35 @@ chromium-metrics-reviews@google.com.
 <enum name="CrosCdmType">
   <int value="0" label="Chrome CDM"/>
   <int value="1" label="Platform CDM"/>
+</enum>
+
+<enum name="DecoderStatus">
+  <int value="0" label="kOk"/>
+  <int value="1" label="kFailed"/>
+  <int value="2" label="kAborted"/>
+  <int value="3" label="kInvalidArgument"/>
+  <int value="4" label="kInterrupted"/>
+  <int value="5" label="kDisconnected"/>
+  <int value="6" label="kOutOfMemory"/>
+  <int value="100" label="kNotInitialized"/>
+  <int value="101" label="kMissingCDM"/>
+  <int value="102" label="kFailedToGetVideoFrame"/>
+  <int value="103" label="kPlatformDecodeFailure"/>
+  <int value="104" label="kMalformedBitstream"/>
+  <int value="107" label="kFailedToGetDecoderBuffer"/>
+  <int value="108" label="kDecoderStreamInErrorState"/>
+  <int value="110" label="kDecoderStreamDemuxerError"/>
+  <int value="111" label="kKeyFrameRequired"/>
+  <int value="112" label="kMissingTimestamp"/>
+  <int value="200" label="kUnsupportedProfile"/>
+  <int value="201" label="kUnsupportedCodec"/>
+  <int value="202" label="kUnsupportedConfig"/>
+  <int value="203" label="kUnsupportedEncryptionMode"/>
+  <int value="204" label="kCantChangeCodec"/>
+  <int value="205" label="kFailedToCreateDecoder"/>
+  <int value="206" label="kTooManyDecoders"/>
+  <int value="207" label="kMediaFoundationNotAvailable"/>
+  <int value="300" label="kElidedEndOfStreamForConfigChange"/>
 </enum>
 
 <enum name="DesktopCaptureImplementationAndType">
@@ -542,7 +603,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Unknown"/>
   <int value="1" label="Temporary"/>
   <int value="2" label="Persistent License"/>
-  <int value="3" label="Persistent Usage Record"/>
+  <int value="3" label="(Obsolete) Persistent Usage Record"/>
 </enum>
 
 <enum name="EnumerateDevicesResult">
@@ -1052,6 +1113,13 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Exclude"/>
 </enum>
 
+<enum name="GetDisplayMediaSystemWindowOrExcludeConstraint">
+  <int value="0" label="Not specified"/>
+  <int value="1" label="System"/>
+  <int value="2" label="Window"/>
+  <int value="3" label="Exclude"/>
+</enum>
+
 <enum name="GetDisplayMediaTransientActivation">
   <int value="0" label="Present"/>
   <int value="1" label="Missing"/>
@@ -1264,6 +1332,16 @@ chromium-metrics-reviews@google.com.
   <int value="15" label="FailedToSetPlaybackRate"/>
   <int value="16" label="FailedToGetMediaEngineEx"/>
 </enum>
+
+<!-- LINT.IfChange(MediaFoundationRendererRenderedVideoFrameDetectionResult) -->
+
+<enum name="MediaFoundationRendererRenderedVideoFrameDetectionResult">
+  <int value="0" label="kUnknown"/>
+  <int value="1" label="kDetected"/>
+  <int value="2" label="kNotDetected"/>
+</enum>
+
+<!-- LINT.ThenChange(/media/renderers/win/media_foundation_renderer.h:RenderedVideoFrameDetectionResult) -->
 
 <enum name="MediaHardwareKeyAction">
   <int value="0" label="Play"/>
@@ -1507,11 +1585,6 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="kGmcDialogErrorShown"/>
   <int value="3" label="kGmcDialogLinkClicked"/>
   <int value="4" label="kGmcDialogErrorDismissed"/>
-</enum>
-
-<enum name="MediaRouterUserPromptWhenLaunchingCast">
-  <int value="0" label="Total prompts"/>
-  <int value="1" label="User rejects cast request"/>
 </enum>
 
 <enum name="MediaSessionActionSource">
@@ -1761,6 +1834,15 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//chrome/browser/picture_in_picture/picture_in_picture_window_manager.h:PictureInPictureDisallowedType) -->
 
+<!-- LINT.IfChange(PictureInPictureTuckedTypeEnum) -->
+
+<enum name="PictureInPictureTuckedType">
+  <int value="0" label="Existing picture-in-picture window was tucked"/>
+  <int value="1" label="New picture-in-picture window was tucked"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/picture_in_picture/picture_in_picture_window_manager.h:PictureInPictureTuckedType) -->
+
 <enum name="PlaylistSegmentType">
   <int value="0" label="kTS"/>
   <int value="1" label="kMP4"/>
@@ -1814,6 +1896,15 @@ chromium-metrics-reviews@google.com.
 <enum name="ReasonToClearRenderBuffer">
   <int value="0" label="Video frame with out-of-order timestamp."/>
   <int value="1" label="Call to UpdateCurrentFrame() is overdue."/>
+</enum>
+
+<enum name="ReferenceOpenOutcome">
+  <int value="0" label="Success"/>
+  <int value="1" label="Stream create error"/>
+  <int value="2" label="Stream open error"/>
+  <int value="3" label="System permissions error"/>
+  <int value="4" label="Device in use error"/>
+  <int value="5" label="Previous stream error"/>
 </enum>
 
 <enum name="RemotingCompatibility">
@@ -2001,6 +2092,7 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="Not Supported Error"/>
   <int value="11" label="Insecure Context"/>
   <int value="12" label="Invalid State Error"/>
+  <int value="13" label="Explicit User Rejection"/>
 </enum>
 
 <enum name="V4l2VideoDecoderFunctions">

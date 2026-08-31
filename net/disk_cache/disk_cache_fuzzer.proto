@@ -20,6 +20,7 @@ message FuzzCommands {
     SIMPLE = 0;
     IN_MEMORY = 1;
     BLOCK = 2;
+    SQL = 3;
   }
   required CacheBackend cache_backend = 5;
 
@@ -27,7 +28,6 @@ message FuzzCommands {
     APP_CACHE = 1;
     REMOVED_MEDIA_CACHE = 2;
     SHADER_CACHE = 3;
-    PNACL_CACHE = 4;
     GENERATED_BYTE_CODE_CACHE = 5;
     DISK_CACHE = 6;
     GENERATED_NATIVE_CODE_CACHE = 7;

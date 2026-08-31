@@ -17,10 +17,6 @@
 #include "extensions/renderer/bindings/api_binding_types.h"
 #include "v8/include/v8-forward.h"
 
-namespace base {
-class Value;
-}
-
 namespace gin {
 class Arguments;
 }
@@ -151,9 +147,32 @@ class OneTimeMessageHandler {
   void OnOneTimeMessageResponse(const PortId& port_id,
                                 gin::Arguments* arguments);
 
+  // Creates a JS function that calls `PromiseRejectedResponse()` to handle when
+  // listeners return promises that reject.
+  v8::Local<v8::Function> CreatePromiseRejectedFunction(
+      v8::Isolate* isolate,
+      v8::Local<v8::Context> context,
+      const PortId& port_id);
+
+  // Triggered when a receiver's returned promise rejects.
+  void PromiseRejectedResponse(const PortId& port_id,
+                               gin::Arguments* arguments);
+
+  using OneTimeMessageCallback =
+      base::OnceCallback<void(gin::Arguments* arguments)>;
+
+  // Helper method for creating delayed callbacks that can be called as a result
+  // of message listener behavior.
+  v8::Local<v8::Function> CreateDelayedOneTimeMessageCallback(
+      v8::Isolate* isolate,
+      v8::Local<v8::Context> context,
+      const PortId& port_id,
+      OneTimeMessageCallback* callback,
+      ScriptContext* script_context);
+
   // Identifier for a `OneTimeMessageCallback` to scope the lifetime for
   // references. `CallbackID` is derived from `OneTimeMessageCallback*`, used in
-  // comparison only, and are never deferenced.
+  // comparison only, and are never dereferenced.
   using CallbackID = std::uintptr_t;
 
   // Triggered when the callback for replying is garbage collected. Used to
@@ -161,15 +180,13 @@ class OneTimeMessageHandler {
   // associated message port. `raw_callback` is a raw pointer to the associated
   // OneTimeMessageCallback, needed for finding and erasing it from the
   // OneTimeMessageContextData.
-  void OnResponseCallbackCollected(ScriptContext* script_context,
-                                   const PortId& port_id,
-                                   CallbackID callback_id);
+  void OnDelayedOneTimeMessageCallbackCollected(ScriptContext* script_context,
+                                                const PortId& port_id,
+                                                CallbackID callback_id);
 
   // Called when the messaging event has been dispatched with the result of the
   // listeners.
-  void OnEventFired(const PortId& port_id,
-                    v8::Local<v8::Context> context,
-                    std::optional<base::Value> result);
+  void OnEventFired(const PortId& port_id, gin::Arguments* arguments);
 
   // The associated bindings system. Outlives this object.
   const raw_ptr<NativeExtensionBindingsSystem> bindings_system_;

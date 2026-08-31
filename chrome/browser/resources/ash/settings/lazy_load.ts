@@ -85,7 +85,6 @@ import './os_languages_page/input_page.js';
 import './os_languages_page/os_edit_dictionary_page.js';
 import './os_languages_page/os_japanese_manage_user_dictionary_page.js';
 import './os_languages_page/os_languages_page_v2.js';
-import './os_search_page/google_assistant_subpage.js';
 import './os_search_page/search_subpage.js';
 import './os_people_page/fingerprint_list_subpage.js';
 import './os_people_page/lock_screen_subpage.js';
@@ -165,6 +164,7 @@ export {SettingsPerDeviceTouchpadElement} from './device_page/per_device_touchpa
 export {SettingsPerDeviceTouchpadSubsectionElement} from './device_page/per_device_touchpad_subsection.js';
 export {SettingsPointersElement} from './device_page/pointers.js';
 export {SettingsPowerElement} from './device_page/power.js';
+export {PowerOptimizedChargingDialogElement} from './device_page/power_optimized_charging_dialog.js';
 export {setShortcutInputProviderForTesting} from './device_page/shortcut_input_mojo_interface_provider.js';
 export {SettingsStorageElement} from './device_page/storage.js';
 export {SettingsStylusElement} from './device_page/stylus.js';
@@ -333,7 +333,5 @@ export {OsSettingsPowerwashDialogElement} from './os_reset_page/os_powerwash_dia
 export {OsResetBrowserProxyImpl} from './os_reset_page/os_reset_browser_proxy.js';
 export {OsSettingsSanitizeDialogElement} from './os_reset_page/os_sanitize_dialog.js';
 export {ResetSettingsCardElement} from './os_reset_page/reset_settings_card.js';
-export {GoogleAssistantBrowserProxy, GoogleAssistantBrowserProxyImpl} from './os_search_page/google_assistant_browser_proxy.js';
-export {ConsentStatus, DspHotwordState, SettingsGoogleAssistantSubpageElement} from './os_search_page/google_assistant_subpage.js';
 export {SettingsSearchSubpageElement} from './os_search_page/search_subpage.js';
 export {OsSettingsSubpageElement} from './os_settings_page/os_settings_subpage.js';

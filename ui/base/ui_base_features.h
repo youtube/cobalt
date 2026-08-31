@@ -23,8 +23,6 @@ BASE_DECLARE_FEATURE(kDragDropOnlySynthesizeHttpOrHttpsUrlsFromText);
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kSettingsShowsPerKeyboardSettings);
 #endif  // BUILDFLAG(IS_CHROMEOS)
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kInputMethodSettingsUiUpdate);
 COMPONENT_EXPORT(UI_BASE_FEATURES) BASE_DECLARE_FEATURE(kSystemKeyboardLock);
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kUiCompositorScrollWithLayers);
@@ -33,13 +31,14 @@ BASE_DECLARE_FEATURE(kUiCompositorUsesLayerLists);
 
 COMPONENT_EXPORT(UI_BASE_FEATURES) bool IsUiGpuRasterizationEnabled();
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_APPLE)
 COMPONENT_EXPORT(UI_BASE_FEATURES) BASE_DECLARE_FEATURE(kElasticOverscroll);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
+#endif
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kLimitScrollDeltaToScrollerSize);
 
 #if BUILDFLAG(IS_WIN)
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kApplyNativeOccludedRegionToWindowTracker);
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kCalculateNativeWinOcclusion);
 
@@ -123,19 +122,8 @@ COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kWaylandTextInputV3);
 
 COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kWaylandUiScale);
-
-COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kWaylandSessionManagement);
 #endif  // BUILDFLAG(IS_OZONE)
-
-#if BUILDFLAG(IS_LINUX)
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kOverrideDefaultOzonePlatformHintToAuto);
-#endif  // BUILDFLAG(IS_LINUX)
-
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kXInput2KeyEvents);
 
 // Indicates whether DrmOverlayManager should used the synchronous API to
 // perform pageflip tests.
@@ -163,15 +151,10 @@ COMPONENT_EXPORT(UI_BASE_FEATURES) extern const char kPredictorNameEmpty[];
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kResamplingScrollEventsExperimentalPrediction);
 
-// The type of prediction used. TimeBased uses a fixed timing, FramesBased uses
-// a ratio of the vsync refresh rate. The timing/ratio can be changed on the
-// command line through a `latency` param.
-COMPONENT_EXPORT(UI_BASE_FEATURES) extern const char kPredictionTypeTimeBased[];
+// Uses a ratio of the vsync refresh rate. The timing/ratio can be changed on
+// the command line through a `latency` param.
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 extern const char kPredictionTypeFramesBased[];
-// The default values for `latency`
-COMPONENT_EXPORT(UI_BASE_FEATURES)
-extern const char kPredictionTypeDefaultTime[];
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 extern const char kPredictionTypeDefaultFramesVariation1[];
 COMPONENT_EXPORT(UI_BASE_FEATURES)
@@ -197,8 +180,6 @@ COMPONENT_EXPORT(UI_BASE_FEATURES) BASE_DECLARE_FEATURE(kRawDraw);
 COMPONENT_EXPORT(UI_BASE_FEATURES) bool IsUsingRawDraw();
 COMPONENT_EXPORT(UI_BASE_FEATURES) double RawDrawTileSizeFactor();
 COMPONENT_EXPORT(UI_BASE_FEATURES) bool IsRawDrawUsingMSAA();
-
-COMPONENT_EXPORT(UI_BASE_FEATURES) BASE_DECLARE_FEATURE(kStylusSpecificTapSlop);
 
 // This feature indicates that this device should have variable refresh rates
 // enabled by default if available. This overrides the default value of
@@ -245,12 +226,18 @@ BASE_DECLARE_FEATURE(kAsyncFullscreenWindowState);
 // Enable ClipboardChange event API
 // https://chromestatus.com/feature/5085102657503232
 COMPONENT_EXPORT(UI_BASE_FEATURES)
-BASE_DECLARE_FEATURE(kClipboardChangeEvent);
+BASE_DECLARE_FEATURE(kPlatformClipboardMonitor);
 
 COMPONENT_EXPORT(UI_BASE_FEATURES)
 BASE_DECLARE_FEATURE(kEnablePixelCanvasRecording);
 
 bool COMPONENT_EXPORT(UI_BASE_FEATURES) IsPixelCanvasRecordingEnabled();
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+BASE_DECLARE_FEATURE(kHandleIMESpanChangesOnUpdateComposition);
+
+COMPONENT_EXPORT(UI_BASE_FEATURES)
+bool IsHandleIMESpanChangesOnUpdateCompositionEnabled();
 
 }  // namespace features
 

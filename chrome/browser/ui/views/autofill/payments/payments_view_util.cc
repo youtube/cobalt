@@ -98,6 +98,14 @@ std::unique_ptr<views::ImageView> CreateIconView(
           *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
               IDR_AUTOFILL_GOOGLE_PAY_ZIP_DARK));
       break;
+    case TitleWithIconAfterLabelView::Icon::GOOGLE_PAY_AND_KLARNA:
+      model = ui::ImageModel::FromImageSkia(
+          *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+              IDR_AUTOFILL_GOOGLE_PAY_KLARNA));
+      model_dark = ui::ImageModel::FromImageSkia(
+          *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+              IDR_AUTOFILL_GOOGLE_PAY_KLARNA_DARK));
+      break;
     case TitleWithIconAfterLabelView::Icon::GOOGLE_G: {
       const gfx::VectorIcon& icon = vector_icons::kGoogleGLogoIcon;
 #else
@@ -105,7 +113,8 @@ std::unique_ptr<views::ImageView> CreateIconView(
     case TitleWithIconAfterLabelView::Icon::GOOGLE_G:
     case TitleWithIconAfterLabelView::Icon::GOOGLE_PAY_AND_AFFIRM:
     case TitleWithIconAfterLabelView::Icon::GOOGLE_PAY_AND_AFTERPAY:
-    case TitleWithIconAfterLabelView::Icon::GOOGLE_PAY_AND_ZIP: {
+    case TitleWithIconAfterLabelView::Icon::GOOGLE_PAY_AND_ZIP:
+    case TitleWithIconAfterLabelView::Icon::GOOGLE_PAY_AND_KLARNA: {
       const gfx::VectorIcon& icon = kCreditCardIcon;
 #endif
       model = ui::ImageModel::FromVectorIcon(icon, ui::kColorIcon, kIconHeight);
@@ -126,6 +135,37 @@ TextLinkInfo::TextLinkInfo(TextLinkInfo&& other) = default;
 TextLinkInfo& TextLinkInfo::operator=(TextLinkInfo&& other) = default;
 
 TextLinkInfo::~TextLinkInfo() = default;
+
+LabeledTextfieldWithErrorMessage::LabeledTextfieldWithErrorMessage() = default;
+
+LabeledTextfieldWithErrorMessage::LabeledTextfieldWithErrorMessage(
+    LabeledTextfieldWithErrorMessage&& other) = default;
+LabeledTextfieldWithErrorMessage& LabeledTextfieldWithErrorMessage::operator=(
+    LabeledTextfieldWithErrorMessage&& other) = default;
+
+LabeledTextfieldWithErrorMessage::~LabeledTextfieldWithErrorMessage() = default;
+
+views::Textfield& LabeledTextfieldWithErrorMessage::GetInputTextField() const {
+  CHECK(input);
+  return *input;
+}
+
+void LabeledTextfieldWithErrorMessage::SetErrorState(
+    bool is_valid,
+    std::optional<std::u16string> error_message) {
+  CHECK(input);
+  is_valid_input = is_valid;
+  input->SetInvalid(!is_valid);
+  if (error_label) {
+    if (error_message.has_value()) {
+      error_label->SetText(error_message.value());
+    }
+    error_label->SetVisible(!is_valid);
+  }
+  if (error_label_placeholder) {
+    error_label_placeholder->SetVisible(is_valid);
+  }
+}
 
 ui::ImageModel GetProfileAvatar(const AccountInfo& account_info) {
   // Get the user avatar icon.
@@ -346,25 +386,56 @@ gfx::ImageSkia CreateTiledGooglePayLogo(int width,
 }
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
-std::unique_ptr<views::View> CreateLabelAndTextfieldView(
-    const std::u16string& text) {
-  auto view_builder =
+LabeledTextfieldWithErrorMessage CreateLabelAndTextfieldView(
+    const std::u16string& label_text,
+    std::optional<std::u16string> error_message) {
+  LabeledTextfieldWithErrorMessage result;
+
+  result.container =
       views::Builder<views::BoxLayoutView>()
           .SetOrientation(views::BoxLayout::Orientation::kVertical)
-          .SetBetweenChildSpacing(
-              ChromeLayoutProvider::Get()->GetDistanceMetric(
-                  DISTANCE_RELATED_CONTROL_VERTICAL_SMALL));
+          .Build();
+  result.container->AddChildView(
+      views::Builder<views::Label>()
+          .SetText(label_text)
+          .SetTextContext(views::style::CONTEXT_LABEL)
+          .SetTextStyle(views::style::STYLE_PRIMARY)
+          .SetHorizontalAlignment(gfx::ALIGN_TO_HEAD)
+          .Build());
+  result.container->AddChildView(
+      views::Builder<views::View>()
+          .SetPreferredSize(
+              gfx::Size(0, ChromeLayoutProvider::Get()->GetDistanceMetric(
+                               views::DISTANCE_RELATED_CONTROL_VERTICAL)))
+          .Build());
+  result.input = result.container->AddChildView(
+      views::Builder<views::Textfield>().SetAccessibleName(label_text).Build());
 
-  view_builder.AddChild(views::Builder<views::Label>()
-                            .SetText(text)
-                            .SetTextContext(views::style::CONTEXT_LABEL)
-                            .SetTextStyle(views::style::STYLE_PRIMARY)
-                            .SetHorizontalAlignment(gfx::ALIGN_TO_HEAD));
-
-  view_builder.AddChild(
-      views::Builder<views::Textfield>().SetAccessibleName(text));
-
-  return std::move(view_builder).Build();
+  if (error_message.has_value()) {
+    result.error_label = result.container->AddChildView(
+        views::Builder<views::Label>()
+            .SetText(*error_message)
+            .SetTextContext(views::style::CONTEXT_TEXTFIELD_SUPPORTING_TEXT)
+            .SetTextStyle(STYLE_RED)
+            .SetHorizontalAlignment(gfx::HorizontalAlignment::ALIGN_LEFT)
+            .SetVisible(false)
+            .SetEnabled(false)
+            .SetMultiLine(true)
+            .Build());
+    // Add a padding view which will be visible initially to reserve
+    // space for the error label. This helps maintain the height of the
+    // dialog regardless of whether the error message is visible or not,
+    // preventing the dialog from shifting and stretching. When the error
+    // message appears, this padding is hidden, and when the error message
+    // disappears, the padding reappears to fill the space.
+    result.error_label_placeholder = result.container->AddChildView(
+        views::Builder<views::View>()
+            .SetPreferredSize(result.error_label->GetPreferredSize(
+                views::SizeBounds(result.error_label->width(), {})))
+            .SetVisible(true)
+            .Build());
+  }
+  return result;
 }
 
 }  // namespace autofill

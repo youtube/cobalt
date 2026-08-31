@@ -8,7 +8,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_view.h"
 
-namespace WTF {
+namespace blink {
 
 TEST(IntegerToStringConversionTest, SimpleIntConversion) {
   const IntegerToStringConverter<int> conv(100500);
@@ -45,4 +45,4 @@ TYPED_TEST(IntegerToStringConversionBoundsTest, UpperBound) {
   EXPECT_EQ(StringView(expected.c_str()), StringView(conv.Span()));
 }
 
-}  // namespace WTF
+}  // namespace blink

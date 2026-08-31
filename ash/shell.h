@@ -184,7 +184,6 @@ class KeyAccessibilityEnabler;
 class KeyboardBacklightColorController;
 class KeyboardBrightnessControlDelegate;
 class KeyboardControllerImpl;
-class KeyboardModifierMetricsRecorder;
 class LaserPointerController;
 class LobsterController;
 class LocalAuthenticationRequestController;
@@ -290,10 +289,6 @@ class TasksController;
 namespace diagnostics {
 class DiagnosticsLogController;
 }  // namespace diagnostics
-
-namespace federated {
-class FederatedServiceControllerImpl;
-}  // namespace federated
 
 namespace quick_pair {
 class Mediator;
@@ -571,10 +566,6 @@ class ASH_EXPORT Shell : public SessionObserver,
     return event_transformation_handler_.get();
   }
 
-  federated::FederatedServiceControllerImpl* federated_service_controller() {
-    return federated_service_controller_.get();
-  }
-
   FirmwareUpdateNotificationController*
   firmware_update_notification_controller() {
     return firmware_update_notification_controller_.get();
@@ -632,9 +623,6 @@ class ASH_EXPORT Shell : public SessionObserver,
   }
   KeyboardControllerImpl* keyboard_controller() {
     return keyboard_controller_.get();
-  }
-  KeyboardModifierMetricsRecorder* keyboard_modifier_metrics_recorder() {
-    return keyboard_modifier_metrics_recorder_.get();
   }
   TouchscreenMetricsRecorder* touchscreen_metrics_recorder() {
     return touchscreen_metrics_recorder_.get();
@@ -981,6 +969,9 @@ class ASH_EXPORT Shell : public SessionObserver,
   // Initializes the root window so that it can host browser windows.
   void InitRootWindow(aura::Window* root_window);
 
+  // Close All windows that are considered application windows.
+  void CloseAllAppWindows();
+
   // Destroys all child windows including widgets across all roots.
   void CloseAllRootWindowChildWindows();
 
@@ -1021,8 +1012,6 @@ class ASH_EXPORT Shell : public SessionObserver,
   std::unique_ptr<InputDeviceSettingsDispatcher>
       input_device_settings_dispatcher_;
   std::unique_ptr<InputDeviceTracker> input_device_tracker_;
-  std::unique_ptr<KeyboardModifierMetricsRecorder>
-      keyboard_modifier_metrics_recorder_;
   std::unique_ptr<TouchscreenMetricsRecorder> touchscreen_metrics_recorder_;
   std::unique_ptr<InputDeviceKeyAliasManager> input_device_key_alias_manager_;
   std::unique_ptr<ShortcutInputHandler> shortcut_input_handler_;
@@ -1302,9 +1291,6 @@ class ASH_EXPORT Shell : public SessionObserver,
   std::unique_ptr<OcclusionTrackerPauser> occlusion_tracker_pauser_;
 
   std::unique_ptr<MultiCaptureService> multi_capture_service_;
-
-  std::unique_ptr<federated::FederatedServiceControllerImpl>
-      federated_service_controller_;
 
   std::unique_ptr<quick_pair::Mediator> quick_pair_mediator_;
 

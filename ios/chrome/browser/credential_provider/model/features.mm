@@ -12,8 +12,16 @@ BASE_FEATURE(kCredentialProviderPasskeyPRF,
              "CredentialProviderPasskeyPRF",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kCredentialProviderPasskeyLargeBlob,
+             "CredentialProviderPasskeyLargeBlob",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kCredentialProviderPerformanceImprovements,
              "CredentialProviderPerformanceImprovements",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kCredentialProviderSignalAPI,
+             "CredentialProviderSignalAPI",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsCPEPerformanceImprovementsEnabled() {

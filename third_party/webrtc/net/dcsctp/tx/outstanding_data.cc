@@ -10,14 +10,24 @@
 #include "net/dcsctp/tx/outstanding_data.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <optional>
 #include <set>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/common/math.h"
 #include "net/dcsctp/common/sequence_numbers.h"
+#include "net/dcsctp/packet/chunk/forward_tsn_chunk.h"
+#include "net/dcsctp/packet/chunk/iforward_tsn_chunk.h"
+#include "net/dcsctp/packet/chunk/sack_chunk.h"
+#include "net/dcsctp/packet/data.h"
 #include "net/dcsctp/public/types.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"

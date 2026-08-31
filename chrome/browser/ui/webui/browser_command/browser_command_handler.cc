@@ -49,9 +49,9 @@
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/glic_enabling.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_settings_util.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
@@ -148,6 +148,9 @@ void BrowserCommandHandler::CanExecuteCommand(
     case Command::kOpenGlicSettings:
       can_execute = true;
       break;
+    case Command::kPrewarmGlicFre:
+      can_execute = true;
+      break;
   }
   std::move(callback).Run(can_execute);
 }
@@ -236,6 +239,9 @@ void BrowserCommandHandler::ExecuteCommandWithDisposition(
     }
     case Command::kOpenGlicSettings:
       OpenGlicSettings();
+      break;
+    case Command::kPrewarmGlicFre:
+      PrewarmGlicFre();
       break;
     default:
       NOTREACHED() << "Unspecified behavior for command " << id;
@@ -341,9 +347,6 @@ void BrowserCommandHandler::StartSavedTabGroupTutorial() {
 
 void BrowserCommandHandler::OpenGlic() {
 #if BUILDFLAG(ENABLE_GLIC)
-  if (!glic::GlicEnabling::IsEnabledForProfile(profile_)) {
-    return;
-  }
 
   glic::GlicKeyedService* glic_service = glic::GlicKeyedService::Get(profile_);
 
@@ -386,6 +389,15 @@ void BrowserCommandHandler::OpenGlicSettings() {
                   WindowOpenDisposition::SINGLETON_TAB);
   }
 #endif
+}
+
+void BrowserCommandHandler::PrewarmGlicFre() {
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicKeyedService* glic_service = glic::GlicKeyedService::Get(profile_);
+  if (glic_service) {
+    glic_service->TryPreloadFre(glic::GlicPrewarmingFreSource::kBrowserCommand);
+  }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 }
 
 void BrowserCommandHandler::OpenFeedbackForm() {

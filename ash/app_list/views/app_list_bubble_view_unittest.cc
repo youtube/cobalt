@@ -31,11 +31,12 @@
 #include "ash/app_list/views/search_box_view.h"
 #include "ash/assistant/model/assistant_ui_model.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/web_app_id_constants.h"
 #include "ash/controls/scroll_view_gradient_helper.h"
 #include "ash/public/cpp/app_list/app_list_features.h"
 #include "ash/public/cpp/assistant/controller/assistant_ui_controller.h"
 #include "ash/public/cpp/style/color_provider.h"
-#include "ash/public/cpp/test/assistant_test_api.h"
+#include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
 #include "ash/style/ash_color_provider.h"
 #include "ash/system/notification_center/notification_center_tray.h"
@@ -75,10 +76,6 @@ using views::Widget;
 namespace ash {
 namespace {
 
-constexpr std::string_view kNoAssistantForNewEntryPoint =
-    "Assistant is not available if new entry point is enabled. "
-    "crbug.com/388361414";
-
 constexpr int kBorderInset = 1;
 
 SearchModel* GetSearchModel() {
@@ -102,10 +99,6 @@ views::View* GetSearchBoxSeparator() {
   return GetBubblePresenter()->bubble_view_for_test()->separator_for_test();
 }
 
-AssistantVisibility GetAssistantVisibility() {
-  return AssistantUiController::Get()->GetModel()->visibility();
-}
-
 bool IsAnimatingProperty(
     ui::Layer* layer,
     ui::LayerAnimationElement::AnimatableProperty property) {
@@ -117,12 +110,6 @@ class AppListBubbleViewTest : public AshTestBase {
  public:
   AppListBubbleViewTest() = default;
   ~AppListBubbleViewTest() override = default;
-
-  // Simulates the Assistant being enabled.
-  void SimulateAssistantEnabled() {
-    assistant_test_api_ = AssistantTestApi::Create();
-    assistant_test_api_->EnableAssistantAndWait();
-  }
 
   // Shows the app list on the primary display.
   void ShowAppList() { GetAppListTestHelper()->ShowAppList(); }
@@ -173,10 +160,6 @@ class AppListBubbleViewTest : public AshTestBase {
     return GetAppListTestHelper()->GetBubbleSearchPage();
   }
 
-  AppListBubbleAssistantPage* GetAssistantPage() {
-    return GetAppListTestHelper()->GetBubbleAssistantPage();
-  }
-
   views::View* GetFocusedView() {
     return GetAppListTestHelper()
         ->GetBubbleView()
@@ -196,7 +179,26 @@ class AppListBubbleViewTest : public AshTestBase {
     return view ? view->GetClassName() : "none";
   }
 
-  std::unique_ptr<AssistantTestApi> assistant_test_api_;
+  void SimulateGeminiAppInstalled() {
+    auto kTestAccountId =
+        Shell::Get()->session_controller()->GetActiveAccountId();
+
+    apps::AppRegistryCacheWrapper::Get().AddAppRegistryCache(kTestAccountId,
+                                                             &cache);
+
+    std::unique_ptr<apps::App> app =
+        std::make_unique<apps::App>(apps::AppType::kChromeApp, kGeminiAppId);
+    app->name = "Gemini App";
+
+    std::vector<apps::AppPtr> apps;
+    apps.push_back(std::move(app));
+
+    cache.OnAppsForTesting(std::move(apps), apps::AppType::kChromeApp,
+                           /*should_notify_initialized=*/false);
+  }
+
+ private:
+  apps::AppRegistryCache cache;
 };
 
 TEST_F(AppListBubbleViewTest, LayerConfiguration) {
@@ -471,41 +473,6 @@ TEST_F(AppListBubbleViewTest, HideAnimationsRecordsSmoothnessHistogram) {
       "Apps.ClamshellLauncher.AnimationSmoothness.Close", 1);
 }
 
-TEST_F(AppListBubbleViewTest, AssistantScreenshotClosesBubbleWithoutAnimation) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  AddAppItems(5);
-
-  // Show the app list without animation.
-  ShowAppList();
-
-  // Switch to the assistant page.
-  LeftClickOn(GetSearchBoxView()->assistant_button());
-
-  // Enable animations.
-  ui::ScopedAnimationDurationScaleMode duration(
-      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
-
-  // Simulate the app list being closed by taking a screenshot with assistant.
-  // This makes AppListControllerImpl::ShouldDismissImmediately() return true.
-  AssistantUiController::Get()->ToggleUi(
-      std::nullopt, assistant::AssistantExitPoint::kScreenshot);
-
-  // The bubble dismissed immediately so it is not animating.
-  ui::Layer* bubble_layer = GetAppListTestHelper()->GetBubbleView()->layer();
-  ASSERT_TRUE(bubble_layer);
-  EXPECT_FALSE(IsAnimatingProperty(
-      bubble_layer, ui::LayerAnimationElement::AnimatableProperty::BOUNDS));
-  EXPECT_FALSE(IsAnimatingProperty(
-      bubble_layer, ui::LayerAnimationElement::AnimatableProperty::OPACITY));
-
-  // App list is closed.
-  EXPECT_FALSE(Shell::Get()->app_list_controller()->IsVisible());
-}
-
 TEST_F(AppListBubbleViewTest, ShutdownDuringHideAnimationDoesNotCrash) {
   base::HistogramTester histograms;
 
@@ -585,7 +552,6 @@ TEST_F(AppListBubbleViewTest, ClosingBubbleClearsSearch) {
 
   EXPECT_FALSE(GetAppsPage()->GetVisible());
   EXPECT_TRUE(GetSearchPage()->GetVisible());
-  EXPECT_FALSE(GetAssistantPage()->GetVisible());
 
   views::Textfield* search_box_input = GetSearchBoxView()->search_box();
   EXPECT_TRUE(search_box_input->HasFocus());
@@ -603,7 +569,6 @@ TEST_F(AppListBubbleViewTest, ClosingBubbleClearsSearch) {
   ShowAppList();
   EXPECT_TRUE(GetAppsPage()->GetVisible());
   EXPECT_FALSE(GetSearchPage()->GetVisible());
-  EXPECT_FALSE(GetAssistantPage()->GetVisible());
 
   search_box_input = GetSearchBoxView()->search_box();
   EXPECT_TRUE(search_box_input->HasFocus());
@@ -619,67 +584,6 @@ TEST_F(AppListBubbleViewTest, SearchBoxTextUsesPrimaryTextColor) {
                 AshColorProvider::ContentLayerType::kTextColorPrimary));
 }
 
-TEST_F(AppListBubbleViewTest, SearchBoxShowsAssistantButton) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  ShowAppList();
-
-  // By default the assistant button is visible.
-  SearchBoxView* view = GetSearchBoxView();
-  EXPECT_TRUE(view->edge_button_container()->GetVisible());
-  EXPECT_FALSE(view->filter_and_close_button_container()->GetVisible());
-
-  // Typing text shows the close button instead.
-  PressAndReleaseKey(ui::VKEY_A);
-  EXPECT_FALSE(view->edge_button_container()->GetVisible());
-  EXPECT_TRUE(view->filter_and_close_button_container()->GetVisible());
-}
-
-TEST_F(AppListBubbleViewTest, ClickingAssistantButtonShowsAssistantPage) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  ShowAppList();
-  ASSERT_EQ(AssistantVisibility::kClosed, GetAssistantVisibility());
-
-  SearchBoxView* search_box = GetSearchBoxView();
-  LeftClickOn(search_box->assistant_button());
-
-  EXPECT_FALSE(search_box->GetVisible());
-  EXPECT_FALSE(GetSearchBoxSeparator()->GetVisible());
-  EXPECT_FALSE(GetAppsPage()->GetVisible());
-  EXPECT_FALSE(GetSearchPage()->GetVisible());
-  EXPECT_TRUE(GetAssistantPage()->GetVisible());
-
-  // Assistant was notified of visibility change.
-  EXPECT_EQ(AssistantVisibility::kVisible, GetAssistantVisibility());
-}
-
-TEST_F(AppListBubbleViewTest, AssistantPageLayout) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  ShowAppList();
-  LeftClickOn(GetSearchBoxView()->assistant_button());
-
-  // Assistant not have a background so the blurred launcher is visible
-  // underneath the AppListBubbleAssistantPage view.
-  EXPECT_FALSE(GetAssistantPage()->GetBackground());
-
-  // Assistant fills the bubble view, so that any suggestion chips will appear
-  // at the bottom.
-  auto* app_list_bubble_view = GetAppListTestHelper()->GetBubbleView();
-  gfx::Rect expected_bounds = app_list_bubble_view->bounds();
-  expected_bounds.Inset(kBorderInset);
-  EXPECT_EQ(GetAssistantPage()->bounds(), expected_bounds);
-}
 
 TEST_F(AppListBubbleViewTest, SearchBoxCloseButton) {
   ShowAppList();
@@ -713,7 +617,6 @@ TEST_F(AppListBubbleViewTest, AppsPageShownByDefault) {
 
   EXPECT_TRUE(GetAppsPage()->GetVisible());
   EXPECT_FALSE(GetSearchPage()->GetVisible());
-  EXPECT_FALSE(GetAssistantPage()->GetVisible());
 }
 
 TEST_F(AppListBubbleViewTest, TypingTextShowsSearchPage) {
@@ -894,48 +797,6 @@ class AppListBubbleViewSunfishDisabledTest : public AppListBubbleViewTest {
   base::test::ScopedFeatureList feature_list_;
 };
 
-// Exercises ButtonFocusSkipper with only the Assistant button.
-TEST_F(AppListBubbleViewSunfishDisabledTest,
-       DownAndUpArrowSkipsAssistantButton) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  // Add an app, but no "Continue" suggestions.
-  AddAppItems(1);
-  ShowAppList();
-
-  auto* apps_grid_view = GetAppListTestHelper()->GetScrollableAppsGridView();
-  AppListItemView* app_item = apps_grid_view->GetItemViewAt(0);
-  SearchBoxView* search_box_view = GetSearchBoxView();
-  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
-  ASSERT_TRUE(search_box_view->assistant_button());
-  ASSERT_TRUE(search_box_view->assistant_button()->GetVisible());
-
-  // Pressing down arrow moves focus into apps.
-  PressAndReleaseKey(ui::VKEY_DOWN);
-  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-  EXPECT_TRUE(app_item->HasFocus());
-
-  // Pressing up arrow moves focus back to search box.
-  PressAndReleaseKey(ui::VKEY_UP);
-  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-  EXPECT_FALSE(app_item->HasFocus());
-
-  // Tab key moves focus to assistant button.
-  PressAndReleaseKey(ui::VKEY_TAB);
-  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
-  EXPECT_TRUE(search_box_view->assistant_button()->HasFocus());
-
-  // Shift-tab moves focus back to search box.
-  PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
-  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-}
-
 class AppListBubbleViewSunfishEnabledTest : public AppListBubbleViewTest {
  public:
   AppListBubbleViewSunfishEnabledTest() {
@@ -952,6 +813,110 @@ class AppListBubbleViewSunfishEnabledTest : public AppListBubbleViewTest {
  private:
   base::test::ScopedFeatureList feature_list_;
 };
+
+// Exercises ButtonFocusSkipper with the Gemini button.
+TEST_F(AppListBubbleViewSunfishDisabledTest, DownAndUpArrowSkipsGeminiButton) {
+  SimulateGeminiAppInstalled();
+
+  // Add an app, but no "Continue" suggestions.
+  AddAppItems(1);
+  ShowAppList();
+
+  auto* apps_grid_view = GetAppsGridView();
+  AppListItemView* app_item = apps_grid_view->GetItemViewAt(0);
+  SearchBoxView* search_box_view = GetSearchBoxView();
+
+  // Enable animations.
+  ui::ScopedAnimationDurationScaleMode duration(
+      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
+
+  // Wait for the animation to finish.
+  ui::Layer* layer = GetAppsGridView()->layer();
+  ui::LayerAnimationStoppedWaiter().Wait(layer);
+
+  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
+  ASSERT_TRUE(search_box_view->gemini_button());
+  ASSERT_TRUE(search_box_view->gemini_button()->GetVisible());
+
+  // Pressing down arrow moves focus into apps.
+  PressAndReleaseKey(ui::VKEY_DOWN);
+  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+  EXPECT_TRUE(app_item->HasFocus());
+
+  // Pressing up arrow moves focus back to search box.
+  PressAndReleaseKey(ui::VKEY_UP);
+  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+  EXPECT_FALSE(app_item->HasFocus());
+
+  // Tab key moves focus to Gemini button.
+  PressAndReleaseKey(ui::VKEY_TAB);
+  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view->gemini_button()->HasFocus());
+
+  // Shift-tab moves focus back to search box.
+  PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
+  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+}
+
+// Exercises ButtonFocusSkipper with both Sunfish and Gemini buttons.
+TEST_F(AppListBubbleViewSunfishEnabledTest,
+       DownAndUpArrowSkipsSunfishAndGeminiButton) {
+  SimulateGeminiAppInstalled();
+
+  // Add an app, but no "Continue" suggestions.
+  AddAppItems(1);
+  ShowAppList();
+
+  auto* apps_grid_view = GetAppListTestHelper()->GetScrollableAppsGridView();
+  AppListItemView* app_item = apps_grid_view->GetItemViewAt(0);
+  SearchBoxView* search_box_view = GetSearchBoxView();
+  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
+  ASSERT_TRUE(search_box_view->sunfish_button());
+  ASSERT_TRUE(search_box_view->sunfish_button()->GetVisible());
+  ASSERT_TRUE(search_box_view->gemini_button());
+  ASSERT_TRUE(search_box_view->gemini_button()->GetVisible());
+
+  // Pressing down arrow moves focus into apps.
+  PressAndReleaseKey(ui::VKEY_DOWN);
+  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+  EXPECT_TRUE(app_item->HasFocus());
+
+  // Pressing up arrow moves focus back to search box.
+  PressAndReleaseKey(ui::VKEY_UP);
+  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+  EXPECT_FALSE(app_item->HasFocus());
+
+  // Tab key moves focus to Sunfish button.
+  PressAndReleaseKey(ui::VKEY_TAB);
+  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+
+  // Tab key moves focus to Gemini button.
+  PressAndReleaseKey(ui::VKEY_TAB);
+  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
+  EXPECT_TRUE(search_box_view->gemini_button()->HasFocus());
+
+  // Shift-tab moves focus back to Sunfish button.
+  PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
+  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
+  EXPECT_TRUE(search_box_view->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+
+  // Shift-tab moves focus back to search box.
+  PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
+  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
+  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
+  EXPECT_FALSE(search_box_view->gemini_button()->HasFocus());
+}
 
 // Exercises ButtonFocusSkipper with only the Sunfish button.
 TEST_F(AppListBubbleViewSunfishEnabledTest, DownAndUpArrowSkipsSunfishButton) {
@@ -987,66 +952,6 @@ TEST_F(AppListBubbleViewSunfishEnabledTest, DownAndUpArrowSkipsSunfishButton) {
   PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
   EXPECT_TRUE(search_box_view->search_box()->HasFocus());
   EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
-}
-
-// Exercises ButtonFocusSkipper with both Sunfish and Assistant buttons.
-TEST_F(AppListBubbleViewSunfishEnabledTest,
-       DownAndUpArrowSkipsSunfishAndAssistantButton) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  // Add an app, but no "Continue" suggestions.
-  AddAppItems(1);
-  ShowAppList();
-
-  auto* apps_grid_view = GetAppListTestHelper()->GetScrollableAppsGridView();
-  AppListItemView* app_item = apps_grid_view->GetItemViewAt(0);
-  SearchBoxView* search_box_view = GetSearchBoxView();
-  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
-  ASSERT_TRUE(search_box_view->sunfish_button());
-  ASSERT_TRUE(search_box_view->sunfish_button()->GetVisible());
-  ASSERT_TRUE(search_box_view->assistant_button());
-  ASSERT_TRUE(search_box_view->assistant_button()->GetVisible());
-
-  // Pressing down arrow moves focus into apps.
-  PressAndReleaseKey(ui::VKEY_DOWN);
-  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-  EXPECT_TRUE(app_item->HasFocus());
-
-  // Pressing up arrow moves focus back to search box.
-  PressAndReleaseKey(ui::VKEY_UP);
-  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-  EXPECT_FALSE(app_item->HasFocus());
-
-  // Tab key moves focus to Sunfish button.
-  PressAndReleaseKey(ui::VKEY_TAB);
-  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
-  EXPECT_TRUE(search_box_view->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-
-  // Tab key moves focus to assistant button.
-  PressAndReleaseKey(ui::VKEY_TAB);
-  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
-  EXPECT_TRUE(search_box_view->assistant_button()->HasFocus());
-
-  // Shift-tab moves focus back to Sunfish button.
-  PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
-  EXPECT_FALSE(search_box_view->search_box()->HasFocus());
-  EXPECT_TRUE(search_box_view->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
-
-  // Shift-tab moves focus back to search box.
-  PressAndReleaseKey(ui::VKEY_TAB, ui::EF_SHIFT_DOWN);
-  EXPECT_TRUE(search_box_view->search_box()->HasFocus());
-  EXPECT_FALSE(search_box_view->sunfish_button()->HasFocus());
-  EXPECT_FALSE(search_box_view->assistant_button()->HasFocus());
 }
 
 TEST_F(AppListBubbleViewTest, DownArrowSelectsRecentsThenApps) {
@@ -1286,26 +1191,6 @@ TEST_F(AppListBubbleViewTest, FolderClosedOnAppListDismiss) {
 
   // The folder is closed when the app list is reopened.
   ShowAppList();
-  EXPECT_FALSE(GetAppListTestHelper()->IsInFolderView());
-  EXPECT_FALSE(GetAppListTestHelper()->GetBubbleFolderView()->GetVisible());
-}
-
-TEST_F(AppListBubbleViewTest, FolderClosedAfterInvokingAssistant) {
-  if (ash::assistant::features::IsNewEntryPointEnabled()) {
-    GTEST_SKIP() << kNoAssistantForNewEntryPoint;
-  }
-
-  SimulateAssistantEnabled();
-  AddFolderWithApps(3);
-  ShowAppList();
-
-  AppListItemView* folder_item = GetAppsGridView()->GetItemViewAt(0);
-  LeftClickOn(folder_item);
-  ASSERT_TRUE(GetAppListTestHelper()->IsInFolderView());
-  ASSERT_TRUE(GetAppListTestHelper()->GetBubbleFolderView()->GetVisible());
-
-  PressAndReleaseKey(ui::VKEY_ASSISTANT);
-  EXPECT_TRUE(GetAssistantPage()->GetVisible());
   EXPECT_FALSE(GetAppListTestHelper()->IsInFolderView());
   EXPECT_FALSE(GetAppListTestHelper()->GetBubbleFolderView()->GetVisible());
 }

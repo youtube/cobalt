@@ -353,7 +353,7 @@ void TaskAnnotator::LongTaskTracker::EmitReceivedIPCDetails(
     perfetto::EventContext& ctx) {
   if (!ipc_interface_name_ || !ipc_hash_ || !ipc_method_info_)
     return;
-#if BUILDFLAG(ENABLE_BASE_TRACING) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   // Emit all of the IPC hash information if this task
   // comes from a mojo interface.
   auto* info = ctx.event()->set_chrome_mojo_event_info();

@@ -6,6 +6,7 @@
 #define EXTENSIONS_BROWSER_EXTENSION_NAVIGATION_REGISTRY_H_
 
 #include "base/containers/flat_map.h"
+#include "base/memory/raw_ptr.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/browser_context_keyed_api_factory.h"
 #include "url/gurl.h"
@@ -60,9 +61,6 @@ class ExtensionNavigationRegistry : public BrowserContextKeyedAPI {
                    const Extension& extension);
 
  private:
-  // Determine whether the feature is enabled.
-  bool IsEnabled();
-
   // BrowserContextKeyedAPIFactory or BrowserContextKeyedAPI related.
   friend class BrowserContextKeyedAPIFactory<ExtensionNavigationRegistry>;
   static const char* service_name() { return "ExtensionNavigationRegistry"; }

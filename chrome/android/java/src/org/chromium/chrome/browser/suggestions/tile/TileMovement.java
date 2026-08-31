@@ -35,7 +35,7 @@ public class TileMovement {
     TileMovement(List<TileView> tileViews) {
         assert !tileViews.isEmpty();
         mTileViews = tileViews;
-        mOriginalX = new ArrayList<Float>();
+        mOriginalX = new ArrayList<>();
         mAnimators = new ArrayList<@Nullable ViewPropertyAnimator>();
         for (TileView tileView : mTileViews) {
             float x = tileView.getX();
@@ -206,7 +206,7 @@ public class TileMovement {
                 oldAnimator.cancel();
                 mAnimators.set(i, null);
             }
-            mTileViews.get(i).setTranslationX(0f);
+            mTileViews.get(i).setX(mOriginalX.get(i));
         }
     }
 }

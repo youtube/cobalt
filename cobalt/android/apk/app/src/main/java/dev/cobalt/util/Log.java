@@ -15,10 +15,10 @@
 package dev.cobalt.util;
 
 /**
- * Logging wrapper that delegates directly to Chromium's base Log class at compile time.
- * This proxy completely eliminates JNI reflection overhead, retains optimal ProGuard
- * dead-code stripping, and restores global usability of Log.d and Log.v.
- * This class is thread-safe and its methods can be safely called from any thread.
+ * Logging wrapper that delegates directly to Chromium's base Log class at compile time. This proxy
+ * completely eliminates JNI reflection overhead, retains optimal ProGuard dead-code stripping, and
+ * restores global usability of Log.d and Log.v. This class is thread-safe and its methods can be
+ * safely called from any thread.
  */
 public final class Log {
   public static final String TAG = "starboard";
@@ -67,7 +67,8 @@ public final class Log {
     org.chromium.base.Log.v(tag, messageTemplate, p1, p2, p3);
   }
 
-  public static void v(String tag, String messageTemplate, Object p1, Object p2, Object p3, Object p4) {
+  public static void v(
+      String tag, String messageTemplate, Object p1, Object p2, Object p3, Object p4) {
     if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.VERBOSE)) return;
     org.chromium.base.Log.v(tag, messageTemplate, p1, p2, p3, p4);
   }
@@ -97,7 +98,8 @@ public final class Log {
     org.chromium.base.Log.d(tag, messageTemplate, p1, p2, p3);
   }
 
-  public static void d(String tag, String messageTemplate, Object p1, Object p2, Object p3, Object p4) {
+  public static void d(
+      String tag, String messageTemplate, Object p1, Object p2, Object p3, Object p4) {
     if (!org.chromium.base.Log.isLoggable(tag, org.chromium.base.Log.DEBUG)) return;
     org.chromium.base.Log.d(tag, messageTemplate, p1, p2, p3, p4);
   }
@@ -118,5 +120,4 @@ public final class Log {
   public static void e(String tag, String messageTemplate, Object... args) {
     org.chromium.base.Log.e(tag, messageTemplate, args);
   }
-
 }

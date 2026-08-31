@@ -72,30 +72,30 @@ public class TabSwitcherGroupCardFacility extends TabSwitcherCardFacility {
 
         declareEnterCondition(
                 new TabGroupExistsCondition(
-                        mHostStation.isIncognito(),
-                        mTabIdsToGroup,
-                        mHostStation.tabModelSelectorElement));
+                        mHostStation.tabGroupModelFilterElement, mTabIdsToGroup));
     }
 
     /** Clicks the group card to open the tab group dialog. */
     public TabGroupDialogFacility<TabSwitcherStation> clickCard() {
-        boolean isIncognito = mHostStation.isIncognito();
-        return mHostStation.enterFacilitySync(
-                new TabGroupDialogFacility<>(mTabIdsToGroup, isIncognito),
-                titleElement.getClickTrigger());
+        return titleElement.clickTo().enterFacility(new TabGroupDialogFacility<>(mTabIdsToGroup));
     }
 
     /** Clicks the ("...") action button on a tab group to open the overflow menu. */
     public TabSwitcherGroupCardAppMenuFacility openAppMenu() {
         boolean isIncognito = mHostStation.isIncognito();
-        return mHostStation.enterFacilitySync(
-                new TabSwitcherGroupCardAppMenuFacility(isIncognito, mTitle),
-                menuButtonElement.getClickTrigger());
+        return menuButtonElement
+                .clickTo()
+                .enterFacility(new TabSwitcherGroupCardAppMenuFacility(isIncognito, mTitle));
     }
 
+    /**
+     * Waits for the tab group card to have a specific color.
+     *
+     * @param color The expected {@link TabGroupColorId}.
+     * @return The {@link TabGroupCardColorFacility} for the given color.
+     */
     public TabGroupCardColorFacility expectColor(@TabGroupColorId int color) {
-        return mHostStation.enterFacilitySync(
-                new TabGroupCardColorFacility(color), /* trigger= */ null);
+        return noopTo().enterFacility(new TabGroupCardColorFacility(color));
     }
 
     public class TabGroupCardColorFacility extends Facility<TabSwitcherStation> {

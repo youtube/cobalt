@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "base/check_is_test.h"
+#include "base/debug/crash_logging.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
@@ -14,12 +15,15 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/content_settings/core/common/features.h"
 #include "content/browser/background_sync/background_sync_scheduler.h"
 #include "content/browser/browsing_data/browsing_data_remover_impl.h"
 #include "content/browser/btm/btm_service_impl.h"
 #include "content/browser/download/download_manager_impl.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/in_memory_federated_permission_context.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/permissions/permission_controller_impl.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/renderer_host/navigation_transitions/navigation_entry_screenshot_cache.h"
@@ -36,10 +40,9 @@
 #include "content/public/browser/shared_worker_service.h"
 #include "content/public/common/content_client.h"
 #include "media/capabilities/webrtc_video_stats_db_impl.h"
-#include "media/learning/common/media_learning_tasks.h"
-#include "media/learning/impl/learning_session_impl.h"
 #include "media/mojo/services/video_decode_perf_history.h"
 #include "media/mojo/services/webrtc_video_perf_history.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "storage/browser/file_system/external_mount_points.h"
@@ -52,15 +55,6 @@ namespace {
 void NotifyContextWillBeDestroyed(StoragePartition* partition) {
   static_cast<StoragePartitionImpl*>(partition)
       ->OnBrowserContextWillBeDestroyed();
-}
-
-void RegisterMediaLearningTask(
-    media::learning::LearningSessionImpl* learning_session,
-    const media::learning::LearningTask& task) {
-  // The RegisterTask method cannot be directly used in base::Bind, because it
-  // provides a default argument value for the 2nd parameter
-  // (`feature_provider`).
-  learning_session->RegisterTask(task);
 }
 
 // Kill switch that controls whether to cancel navigations as part of
@@ -166,9 +160,9 @@ BrowserContextImpl::~BrowserContextImpl() {
                                           std::move(resource_context_));
   }
 
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      "shutdown", "BrowserContextImpl::NotifyWillBeDestroyed() called.", this,
-      "browser_context_impl", static_cast<void*>(this));
+  // Corresponds to the TRACE_EVENT_BEGIN in NotifyWillBeDestroyed.
+  TRACE_EVENT_END("shutdown", perfetto::Track::FromPointer(this),
+                  "browser_context_impl", static_cast<void*>(this));
 }
 
 bool BrowserContextImpl::ShutdownStarted() {
@@ -178,9 +172,10 @@ bool BrowserContextImpl::ShutdownStarted() {
 void BrowserContextImpl::NotifyWillBeDestroyed() {
   TRACE_EVENT1("shutdown", "BrowserContextImpl::NotifyWillBeDestroyed",
                "browser_context_impl", static_cast<void*>(this));
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
-      "shutdown", "BrowserContextImpl::NotifyWillBeDestroyed() called.", this,
-      "browser_context_impl", static_cast<void*>(this));
+  TRACE_EVENT_BEGIN("shutdown",
+                    "BrowserContextImpl::NotifyWillBeDestroyed() called.",
+                    perfetto::Track::FromPointer(this), "browser_context_impl",
+                    static_cast<void*>(this));
   // Make sure NotifyWillBeDestroyed is idempotent.  This helps facilitate the
   // pattern where NotifyWillBeDestroyed is called from *both*
   // ShellBrowserContext and its derived classes (e.g. WebTestBrowserContext).
@@ -229,22 +224,6 @@ BrowsingDataRemoverImpl* BrowserContextImpl::GetBrowsingDataRemover() {
   }
 
   return browsing_data_remover_.get();
-}
-
-media::learning::LearningSession* BrowserContextImpl::GetLearningSession() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-
-  if (!learning_session_) {
-    learning_session_ = std::make_unique<media::learning::LearningSessionImpl>(
-        base::SequencedTaskRunner::GetCurrentDefault());
-
-    // Using base::Unretained is safe below, because the callback here will not
-    // be called or retained after the Register method below returns.
-    media::learning::MediaLearningTasks::Register(base::BindRepeating(
-        &RegisterMediaLearningTask, base::Unretained(learning_session_.get())));
-  }
-
-  return learning_session_.get();
 }
 
 media::VideoDecodePerfHistory* BrowserContextImpl::GetVideoDecodePerfHistory() {
@@ -364,6 +343,7 @@ PrefetchService* BrowserContextImpl::GetPrefetchService() {
   return prefetch_service_.get();
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 InMemoryFederatedPermissionContext*
 BrowserContextImpl::GetFederatedPermissionContext() {
   if (!federated_permission_context_) {
@@ -376,6 +356,7 @@ BrowserContextImpl::GetFederatedPermissionContext() {
 void BrowserContextImpl::ResetFederatedPermissionContext() {
   federated_permission_context_.reset();
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void BrowserContextImpl::SetPrefetchServiceForTesting(
     std::unique_ptr<PrefetchService> prefetch_service) {

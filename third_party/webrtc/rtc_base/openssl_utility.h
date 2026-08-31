@@ -13,7 +13,7 @@
 
 #include <openssl/ossl_typ.h>
 
-#include <string>
+#include <cstdint>
 
 #include "absl/strings/string_view.h"
 
@@ -57,26 +57,5 @@ CRYPTO_BUFFER_POOL* GetBufferPool();
 }  // namespace openssl
 }  // namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-namespace openssl {
-
-#ifndef WEBRTC_EXCLUDE_BUILT_IN_SSL_ROOT_CERTS
-using ::webrtc::openssl::LoadBuiltinSSLRootCertificates;
-#endif
-
-using ::webrtc::openssl::LogSSLErrors;
-using ::webrtc::openssl::VerifyPeerCertMatchesHost;
-
-#ifdef OPENSSL_IS_BORINGSSL
-using ::webrtc::openssl::GetBufferPool;
-using ::webrtc::openssl::ParseCertificate;
-#endif
-
-}  // namespace openssl
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_OPENSSL_UTILITY_H_

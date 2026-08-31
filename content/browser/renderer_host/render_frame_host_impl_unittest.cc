@@ -28,6 +28,7 @@
 #include "content/test/test_web_contents.h"
 #include "net/base/features.h"
 #include "net/base/isolation_info.h"
+#include "net/base/network_isolation_partition.h"
 #include "net/cookies/site_for_cookies.h"
 #include "services/network/public/cpp/cors/origin_access_list.h"
 #include "services/network/public/mojom/cors.mojom.h"
@@ -234,7 +235,9 @@ TEST_F(RenderFrameHostImplTest, CrossSiteAncestorInFrameTree) {
       blink::mojom::AncestorChainBit::kCrossSite);
   net::IsolationInfo expected_final_isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther, expected_final_origin,
-      expected_final_origin, net::SiteForCookies());
+      expected_final_origin, net::SiteForCookies(), /*nonce=*/std::nullopt,
+      net::NetworkIsolationPartition::kGeneral,
+      net::IsolationInfo::FrameAncestorRelation::kCrossSite);
 
   EXPECT_EQ(expected_final_origin, child_rfh_2->GetLastCommittedOrigin());
   EXPECT_EQ(expected_final_storage_key, child_rfh_2->GetStorageKey());
@@ -264,7 +267,9 @@ TEST_F(RenderFrameHostImplTest_NoOriginKeyedProcessesByDefault,
       net::IsolationInfo::Create(
           net::IsolationInfo::RequestType::kOther, expected_initial_origin,
           expected_initial_origin,
-          net::SiteForCookies::FromOrigin(expected_initial_origin));
+          net::SiteForCookies::FromOrigin(expected_initial_origin),
+          /*nonce=*/std::nullopt, net::NetworkIsolationPartition::kGeneral,
+          net::IsolationInfo::FrameAncestorRelation::kSameOrigin);
 
   GURL final_url = GURL("https://final.example.test/");
   url::Origin expected_final_origin = url::Origin::Create(final_url);
@@ -273,8 +278,9 @@ TEST_F(RenderFrameHostImplTest_NoOriginKeyedProcessesByDefault,
   net::IsolationInfo expected_final_isolation_info = net::IsolationInfo::Create(
       net::IsolationInfo::RequestType::kOther, expected_final_origin,
       expected_final_origin,
-      net::SiteForCookies::FromOrigin(expected_final_origin));
-
+      net::SiteForCookies::FromOrigin(expected_final_origin),
+      /*nonce=*/std::nullopt, net::NetworkIsolationPartition::kGeneral,
+      net::IsolationInfo::FrameAncestorRelation::kSameOrigin);
   // Start the test with a simple navigation.
   {
     std::unique_ptr<NavigationSimulator> simulator =
@@ -874,9 +880,9 @@ TEST_F(RenderFrameHostImplTest,
     if (disable_sp) {
       NavigationRequest* request =
           NavigationRequest::From(navigation->GetNavigationHandle());
-      // Disable Storage Partitioning by enabling the deprecation trial.
+      // Disable Storage Partitioning by enabling the user bypass.
       request->GetMutableRuntimeFeatureStateContext()
-          .SetDisableThirdPartyStoragePartitioning3Enabled(true);
+          .SetThirdPartyStoragePartitioningUserBypassEnabled(true);
     }
 
     navigation->Commit();
@@ -1032,7 +1038,7 @@ TEST_F(RenderFrameHostImplTest,
       NavigationRequest* request =
           NavigationRequest::From(navigation->GetNavigationHandle());
       request->GetMutableRuntimeFeatureStateContext()
-          .SetDisableThirdPartyStoragePartitioning3Enabled(true);
+          .SetThirdPartyStoragePartitioningUserBypassEnabled(true);
     }
 
     navigation->Commit();
@@ -1109,15 +1115,15 @@ TEST_F(RenderFrameHostImplTest, CalculateStorageKeyOfUnnavigatedFrame) {
   NavigationRequest* request =
       NavigationRequest::From(navigation->GetNavigationHandle());
 
-  // Disable Storage Partitioning by enabling the deprecation trial.
+  // Disable Storage Partitioning by enabling the user bypass.
   request->GetMutableRuntimeFeatureStateContext()
-      .SetDisableThirdPartyStoragePartitioning3Enabled(true);
+      .SetThirdPartyStoragePartitioningUserBypassEnabled(true);
 
   navigation->Commit();
 
   EXPECT_TRUE(RuntimeFeatureStateDocumentData::GetForCurrentDocument(main_rfh())
                   ->runtime_feature_state_read_context()
-                  .IsDisableThirdPartyStoragePartitioning3Enabled());
+                  .IsThirdPartyStoragePartitioningUserBypassEnabled());
 
   // Create a child frame and navigate to `child_url`.
   auto* child_frame = main_test_rfh()->AppendChild("child");
@@ -1220,7 +1226,7 @@ class TestUnpartitionedStorageAcessContentBrowserClient
 };
 
 // Test that CalculateStorageKey will create a first-party or third-party key,
-// in the presence of a deprecation trial, depending on the state of
+// in the presence of a user bypass, depending on the state of
 // IsUnpartitionedStorageAccessAllowedByUserPreference()
 TEST_F(
     RenderFrameHostImplTest,
@@ -1238,7 +1244,7 @@ TEST_F(
   client.SetIsUnpartitionedStorageAccessAllowedByUserPreference(true);
 
   // This test will create a main frame that has a storage partitioning
-  // deprecation trial active and a child frame that is navigated to a
+  // user bypass active and a child frame that is navigated to a
   // third-party site. Since IsUnpartitionedStorageAccessAllowedByUserPreference
   // returns true the child frame's StorageKey should be first-party.
 
@@ -1254,15 +1260,15 @@ TEST_F(
   NavigationRequest* request =
       NavigationRequest::From(navigation->GetNavigationHandle());
 
-  // Disable Storage Partitioning by enabling the deprecation trial.
+  // Disable Storage Partitioning by enabling the user bypass.
   request->GetMutableRuntimeFeatureStateContext()
-      .SetDisableThirdPartyStoragePartitioning3Enabled(true);
+      .SetThirdPartyStoragePartitioningUserBypassEnabled(true);
 
   navigation->Commit();
 
   EXPECT_TRUE(RuntimeFeatureStateDocumentData::GetForCurrentDocument(main_rfh())
                   ->runtime_feature_state_read_context()
-                  .IsDisableThirdPartyStoragePartitioning3Enabled());
+                  .IsThirdPartyStoragePartitioningUserBypassEnabled());
 
   // Create a child frame and navigate to `child_url`.
   auto* child_frame = main_test_rfh()->AppendChild("child");

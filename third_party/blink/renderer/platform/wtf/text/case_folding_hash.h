@@ -29,10 +29,11 @@
 
 // Case-insensitive hash lookups, using the Unicode case folding algorithm.
 
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/unicode.h"
 
-namespace WTF {
+namespace blink {
 
 // Sends the input data through the Unicode case-folding table.
 // Unlike normal PlainHashReader, or the ASCII lower-case lookups,
@@ -46,7 +47,7 @@ namespace WTF {
 // always treat data as UTF-16, expanding Latin1 as we go. This means
 // we also don't bother to try to make tricky SIMD implementations
 // for Latin1; we just use the most straightforward code. (Full lookup
-// into WTF::unicode::FoldCase is slow enough that it probably dwarfs
+// into blink::unicode::FoldCase is slow enough that it probably dwarfs
 // all other performance concerns anyway.)
 template <class T>
   requires std::is_same_v<T, LChar> || std::is_same_v<T, UChar>
@@ -81,11 +82,11 @@ struct CaseFoldingHashReader {
     if (std::is_same<T, LChar>::value) {
       return StringImpl::kLatin1CaseFoldTable[ch];
     }
-    // It's possible for WTF::unicode::foldCase() to return a 32-bit value
+    // It's possible for blink::unicode::FoldCase() to return a 32-bit value
     // that's not representable as a UChar.  However, since this is rare and
     // deterministic, and the result of this is merely used for hashing, go
     // ahead and clamp the value.
-    return static_cast<UChar>(WTF::unicode::FoldCase(ch));
+    return static_cast<UChar>(unicode::FoldCase(ch));
   }
 };
 
@@ -130,13 +131,13 @@ class CaseFoldingHash {
     // Save one branch inside each StringView by derefing the StringImpl,
     // and another branch inside the compare function by skipping the null
     // checks.
-    return DeprecatedEqualIgnoringCaseAndNullity(*a, *b);
+    return blink::DeprecatedEqualIgnoringCaseAndNullity(*a, *b);
   }
 
   static inline bool Equal(const char* a, const char* b) {
     DCHECK(a);
     DCHECK(b);
-    return DeprecatedEqualIgnoringCaseAndNullity(a, b);
+    return blink::DeprecatedEqualIgnoringCaseAndNullity(a, b);
   }
 
   static unsigned GetHash(const scoped_refptr<StringImpl>& key) {
@@ -170,9 +171,6 @@ struct CaseFoldingHashTraits : HashTraits<T>, CaseFoldingHash {
   using CaseFoldingHash::kSafeToCompareToEmptyOrDeleted;
 };
 
-}  // namespace WTF
-
-using WTF::CaseFoldingHash;
-using WTF::CaseFoldingHashTraits;
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_TEXT_CASE_FOLDING_HASH_H_

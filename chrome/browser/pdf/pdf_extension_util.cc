@@ -120,6 +120,13 @@ void AddPdfViewerStrings(base::Value::Dict* dict) {
       {"tooltipRotateCCW", IDS_PDF_TOOLTIP_ROTATE_CCW},
       {"tooltipThumbnails", IDS_PDF_TOOLTIP_THUMBNAILS},
       {"zoomTextInputAriaLabel", IDS_PDF_ZOOM_TEXT_INPUT_ARIA_LABEL},
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+      {"saveToDriveDialogCancelUploadButtonLabel",
+       IDS_SAVE_TO_DRIVE_DIALOG_CANCEL_UPLOAD_BUTTON_LABEL},
+      {"saveToDriveDialogUploadingTitle",
+       IDS_SAVE_TO_DRIVE_DIALOG_UPLOADING_TITLE},
+      {"tooltipSaveToDrive", IDS_PDF_TOOLTIP_SAVE_TO_DRIVE},
+#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(ENABLE_PDF_INK2)
       {"tooltipAnnotate", IDS_PDF_ANNOTATION_ANNOTATE},
       {"annotationDocumentTooLarge", IDS_PDF_ANNOTATION_DOCUMENT_TOO_LARGE},
@@ -313,15 +320,19 @@ void AddAdditionalData(content::BrowserContext* context,
   dict->Set("pdfTextAnnotationsEnabled",
             use_ink2 && chrome_pdf::features::kPdfInk2TextAnnotations.Get());
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
-
-  dict->Set("PdfGetSaveDataInBlocks",
-            base::FeatureList::IsEnabled(
-                chrome_pdf::features::kPdfGetSaveDataInBlocks));
+  dict->Set("pdfGetSaveDataInBlocks",
+            chrome_pdf::features::IsPdfGetSaveDataInBlocksEnabled());
   dict->Set("pdfUseShowSaveFilePicker",
             base::FeatureList::IsEnabled(
                 chrome_pdf::features::kPdfUseShowSaveFilePicker));
-  dict->Set("pdfSearchifySaveEnabled",
-            chrome_pdf::features::IsPdfSearchifySaveEnabled());
+  dict->Set(
+      "pdfSearchifySaveEnabled",
+      base::FeatureList::IsEnabled(chrome_pdf::features::kPdfSearchifySave));
+
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+  dict->Set("pdfSaveToDrive", base::FeatureList::IsEnabled(
+                                  chrome_pdf::features::kPdfSaveToDrive));
+#endif
 }
 
 bool MaybeDispatchSaveEvent(content::RenderFrameHost* embedder_host) {

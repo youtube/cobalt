@@ -20,6 +20,7 @@
 #include "api/audio/audio_device.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/data_channel_interface.h"
 #include "api/enable_media.h"
@@ -87,30 +88,29 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
-static const char kStunIceServer[] = "stun:stun.l.google.com:19302";
-static const char kTurnIceServer[] = "turn:test.com:1234";
-static const char kTurnIceServerWithTransport[] =
-    "turn:hello.com?transport=tcp";
-static const char kSecureTurnIceServer[] = "turns:hello.com?transport=tcp";
-static const char kSecureTurnIceServerWithoutTransportParam[] =
+constexpr char kStunIceServer[] = "stun:stun.l.google.com:19302";
+constexpr char kTurnIceServer[] = "turn:test.com:1234";
+constexpr char kTurnIceServerWithTransport[] = "turn:hello.com?transport=tcp";
+constexpr char kSecureTurnIceServer[] = "turns:hello.com?transport=tcp";
+constexpr char kSecureTurnIceServerWithoutTransportParam[] =
     "turns:hello.com:443";
-static const char kSecureTurnIceServerWithoutTransportAndPortParam[] =
+constexpr char kSecureTurnIceServerWithoutTransportAndPortParam[] =
     "turns:hello.com";
-static const char kTurnIceServerWithNoUsernameInUri[] = "turn:test.com:1234";
-static const char kTurnPassword[] = "turnpassword";
-static const int kDefaultStunPort = 3478;
-static const int kDefaultStunTlsPort = 5349;
-static const char kTurnUsername[] = "test";
-static const char kStunIceServerWithIPv4Address[] = "stun:1.2.3.4:1234";
-static const char kStunIceServerWithIPv4AddressWithoutPort[] = "stun:1.2.3.4";
-static const char kStunIceServerWithIPv6Address[] = "stun:[2401:fa00:4::]:1234";
-static const char kStunIceServerWithIPv6AddressWithoutPort[] =
+constexpr char kTurnIceServerWithNoUsernameInUri[] = "turn:test.com:1234";
+constexpr char kTurnPassword[] = "turnpassword";
+constexpr int kDefaultStunPort = 3478;
+constexpr int kDefaultStunTlsPort = 5349;
+constexpr char kTurnUsername[] = "test";
+constexpr char kStunIceServerWithIPv4Address[] = "stun:1.2.3.4:1234";
+constexpr char kStunIceServerWithIPv4AddressWithoutPort[] = "stun:1.2.3.4";
+constexpr char kStunIceServerWithIPv6Address[] = "stun:[2401:fa00:4::]:1234";
+constexpr char kStunIceServerWithIPv6AddressWithoutPort[] =
     "stun:[2401:fa00:4::]";
-static const char kTurnIceServerWithIPv6Address[] = "turn:[2401:fa00:4::]:1234";
+constexpr char kTurnIceServerWithIPv6Address[] = "turn:[2401:fa00:4::]:1234";
 
 class NullPeerConnectionObserver : public PeerConnectionObserver {
  public:
-  virtual ~NullPeerConnectionObserver() = default;
+  ~NullPeerConnectionObserver() override = default;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override {}
   void OnAddStream(scoped_refptr<MediaStreamInterface> stream) override {}
@@ -122,7 +122,7 @@ class NullPeerConnectionObserver : public PeerConnectionObserver {
       PeerConnectionInterface::IceConnectionState new_state) override {}
   void OnIceGatheringChange(
       PeerConnectionInterface::IceGatheringState new_state) override {}
-  void OnIceCandidate(const IceCandidateInterface* candidate) override {}
+  void OnIceCandidate(const IceCandidate* candidate) override {}
 };
 
 class MockNetworkManager : public NetworkManager {
@@ -143,7 +143,7 @@ class PeerConnectionFactoryTest : public ::testing::Test {
         main_thread_(socket_server_.get()) {}
 
  private:
-  void SetUp() {
+  void SetUp() override {
 #ifdef WEBRTC_ANDROID
     InitializeAndroidObjects();
 #endif
@@ -665,8 +665,7 @@ TEST_F(PeerConnectionFactoryTest, LocalRendering) {
 
 TEST(PeerConnectionFactoryDependenciesTest,
      CanInjectFieldTrialsWithEnvironment) {
-  std::unique_ptr<FieldTrialsView> field_trials =
-      FieldTrials::CreateNoGlobal("");
+  std::unique_ptr<FieldTrialsView> field_trials = FieldTrials::Create("");
   ASSERT_THAT(field_trials, NotNull());
   FieldTrialsView* raw_field_trials = field_trials.get();
 
@@ -678,29 +677,6 @@ TEST(PeerConnectionFactoryDependenciesTest,
   scoped_refptr<PeerConnectionFactory> pcf =
       PeerConnectionFactory::Create(std::move(pcf_dependencies));
   EXPECT_EQ(&pcf->field_trials(), raw_field_trials);
-}
-
-TEST(PeerConnectionFactoryDependenciesTest,
-     PreferFieldTrialsInjectedExplicetly) {
-  std::unique_ptr<FieldTrialsView> env_field_trials =
-      FieldTrials::CreateNoGlobal("");
-  std::unique_ptr<FieldTrialsView> explicit_field_trials =
-      FieldTrials::CreateNoGlobal("");
-  ASSERT_FALSE(env_field_trials.get() == explicit_field_trials.get());
-  FieldTrialsView* raw_explicit_field_trials = explicit_field_trials.get();
-
-  PeerConnectionFactoryDependencies pcf_dependencies;
-  pcf_dependencies.env = CreateEnvironment(std::move(env_field_trials));
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-  pcf_dependencies.trials = std::move(explicit_field_trials);
-#pragma clang diagnostic pop
-  pcf_dependencies.adm = FakeAudioCaptureModule::Create();
-  EnableMediaWithDefaults(pcf_dependencies);
-
-  scoped_refptr<PeerConnectionFactory> pcf =
-      PeerConnectionFactory::Create(std::move(pcf_dependencies));
-  EXPECT_EQ(&pcf->field_trials(), raw_explicit_field_trials);
 }
 
 TEST(PeerConnectionFactoryDependenciesTest, UsesNetworkManager) {

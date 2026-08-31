@@ -2,12 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//console-header.star", "HEADER")
+load("//console-header.star", "get_header")
 
 luci.console_view(
     name = "chromium.webrtc",
     repo = "https://chromium.googlesource.com/chromium/src",
-    header = HEADER,
+    header = get_header(),
     entries = [
         luci.console_view_entry(
             builder = "webrtc/WebRTC Chromium Android Builder",
@@ -47,7 +47,7 @@ luci.console_view(
         luci.console_view_entry(
             builder = "webrtc/WebRTC Chromium Win10 Tester",
             category = "win",
-            short_name = "10",
+            short_name = "tst",
         ),
     ],
 )

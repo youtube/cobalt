@@ -5,6 +5,8 @@
 #ifndef CHROME_TEST_USER_EDUCATION_INTERACTIVE_FEATURE_PROMO_TEST_H_
 #define CHROME_TEST_USER_EDUCATION_INTERACTIVE_FEATURE_PROMO_TEST_H_
 
+#include <variant>
+
 #include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
@@ -142,6 +144,12 @@ class InteractiveFeaturePromoTestApi
   [[nodiscard]] StepBuilder CheckPromoRequested(
       const base::Feature& iph_feature,
       bool requested = true);
+
+  // Same as `CheckPromoRequested()` but ignores queued promos. Usually prefer
+  // to use `CheckPromoRequested()`. Note that "active" includes both "bubble
+  // visible" and "bubble closed but promo continued".
+  [[nodiscard]] StepBuilder CheckPromoActive(const base::Feature& iph_feature,
+                                             bool requested = true);
 
   // Ends the specified promo via the API, with reason `kAborted`.
   [[nodiscard]] MultiStep AbortPromo(const base::Feature& iph_feature,

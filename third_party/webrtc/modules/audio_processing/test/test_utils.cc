@@ -11,12 +11,22 @@
 #include "modules/audio_processing/test/test_utils.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/audio/audio_view.h"
+#include "common_audio/channel_buffer.h"
+#include "common_audio/include/audio_util.h"
+#include "common_audio/wav_file.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/system/arch.h"
 
 namespace webrtc {
 

@@ -10,9 +10,8 @@
 
 #include "api/video/encoded_image.h"
 
-#include <stdlib.h>
-
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <utility>
 

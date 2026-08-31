@@ -12,6 +12,7 @@
 #include "content/public/browser/client_hints_controller_delegate.h"
 #include "net/http/http_request_headers.h"
 #include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/parsed_headers.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -70,6 +71,14 @@ CONTENT_EXPORT bool AreCriticalHintsMissing(
     FrameTreeNode* frame_tree_node,
     ClientHintsControllerDelegate* delegate,
     const std::vector<network::mojom::WebClientHintsType>& critical_hints);
+
+// Return an origin and a list of client hints that are both allowed and cached
+// based on the Accept-CH response header. The algorithm follows the
+// `AreCriticalHintsMissing` function.
+CONTENT_EXPORT network::ResourceRequest::TrustedParams::EnabledClientHints
+GetEnabledClientHints(const url::Origin& origin,
+                      FrameTreeNode* frame_tree_node,
+                      ClientHintsControllerDelegate* delegate);
 
 // Updates the user agent client hint headers. This is called if the value of
 // |override_ua| changes after the NavigationRequest was created.

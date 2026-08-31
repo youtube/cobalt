@@ -67,8 +67,6 @@ struct OpenXrExtensionMethods {
   // since the API is still under development we'll try to limit the scope for
   // the time being.
 #if BUILDFLAG(IS_ANDROID)
-  OPENXR_DECLARE_FN(xrGetReferenceSpaceBoundsPolygonANDROID);
-
   // Trackables and Raycasting.
   OPENXR_DECLARE_FN(xrCreateTrackableTrackerANDROID);
   OPENXR_DECLARE_FN(xrDestroyTrackableTrackerANDROID);
@@ -148,7 +146,11 @@ class OpenXrExtensionHelper {
       XrSpace base_space) const;
 
   std::unique_ptr<OpenXRSceneUnderstandingManager>
-  CreateSceneUnderstandingManager(XrSession session, XrSpace base_space) const;
+  CreateSceneUnderstandingManager(
+      XrSession session,
+      XrSpace base_space,
+      const std::vector<mojom::XRSessionFeature>& required_features,
+      const std::vector<mojom::XRSessionFeature>& optional_features) const;
 
   std::unique_ptr<OpenXrStageBoundsProvider> CreateStageBoundsProvider(
       XrSession session) const;

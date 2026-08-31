@@ -39,11 +39,11 @@ from blinkpy.common import exit_codes
 from blinkpy.common.host import Host
 from blinkpy.common.path_finder import PathFinder
 from blinkpy.common.system.log_utils import configure_logging
+from blinkpy.web_tests.command_line import platform_options
 from blinkpy.web_tests.models.test_expectations import (TestExpectations,
                                                         ParseError)
 from blinkpy.web_tests.models.typ_types import ResultType
 from blinkpy.web_tests.port.base import Port
-from blinkpy.web_tests.port.factory import platform_options
 
 _log = logging.getLogger(__name__)
 
@@ -441,11 +441,11 @@ def check_test_lists(port):
 
 
 def run_checks(host, options):
-    if host.filesystem.getcwd().startswith('/google/cog/cloud'):
+    finder = PathFinder(host.filesystem)
+    if finder.is_cog():
         _log.warning('Skipping run_checks for cog workspace')
         # Return 2 to indicate a warning and make it explicit this test is getting skipped.
         return 2
-    finder = PathFinder(host.filesystem)
     # Add all extra expectation files to be linted.
     options.additional_expectations.extend([
         finder.path_from_web_tests('WebGPUExpectations'),

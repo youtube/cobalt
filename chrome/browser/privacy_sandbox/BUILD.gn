@@ -11,6 +11,7 @@ source_set("headers") {
 
   public_deps = [
     ":countries",
+    "notice:notice_definitions",
     "//base",
     "//chrome/browser/first_party_sets",
     "//components/content_settings/core/browser",
@@ -59,7 +60,7 @@ source_set("countries_browser_test") {
     "//chrome/browser:browser_process",
     "//chrome/test:test_support",
     "//components/privacy_sandbox:features",
-    "//components/variations/service:service",
+    "//components/variations/service",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -135,8 +136,8 @@ if (!is_android) {
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
     sources = [ "privacy_sandbox_survey_desktop_controller_browsertest.cc" ]
     deps = [
+      "//base",
       "//base/test:test_support",
-      "//base/version_info:channel",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/hats",
       "//chrome/browser/ui/hats:test_support",
@@ -227,6 +228,7 @@ source_set("service_impl_unittest") {
     "//chrome/browser/privacy_sandbox/notice:factory",
     "//chrome/browser/privacy_sandbox/notice:notice_mojom",
     "//chrome/browser/privacy_sandbox/notice:test_support",
+    "//chrome/browser/signin",
     "//chrome/common:chrome_features",
     "//chrome/test:test_support",
     "//components/browsing_topics:test_support",
@@ -268,6 +270,10 @@ source_set("service_impl_unittest") {
       "//chromeos/components/kiosk:test_support",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("settings_delegate_unittest") {
@@ -292,6 +298,10 @@ source_set("settings_delegate_unittest") {
     "//content/public/common",
     "//content/test:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("utils_unittest") {
@@ -316,8 +326,8 @@ source_set("survey_desktop_controller_unittest") {
   if (!is_android) {
     sources = [ "privacy_sandbox_survey_desktop_controller_unittest.cc" ]
     deps = [
+      "//base",
       "//base/test:test_support",
-      "//base/version_info:channel",
       "//chrome/browser/profiles:profile",
       "//chrome/browser/ui/hats",
       "//chrome/browser/ui/hats:test_support",

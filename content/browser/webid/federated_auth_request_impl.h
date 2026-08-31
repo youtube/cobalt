@@ -26,11 +26,11 @@
 #include "content/browser/webid/idp_network_request_manager.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/document_service.h"
-#include "content/public/browser/federated_auth_autofill_source.h"
-#include "content/public/browser/federated_identity_api_permission_context_delegate.h"
-#include "content/public/browser/federated_identity_permission_context_delegate.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/webid/federated_auth_autofill_source.h"
+#include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
+#include "content/public/browser/webid/federated_identity_permission_context_delegate.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/credentialmanagement/credential_manager.mojom.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
 #include "url/gurl.h"
@@ -98,8 +98,8 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   void SetIdpSigninStatus(
       const url::Origin& origin,
       blink::mojom::IdpSigninStatus status,
-      const std::optional<::blink::common::webid::LoginStatusOptions>& options)
-      override;
+      const std::optional<::blink::common::webid::LoginStatusOptions>& options,
+      SetIdpSigninStatusCallback) override;
   void RegisterIdP(const ::GURL& idp, RegisterIdPCallback) override;
   void UnregisterIdP(const ::GURL& idp, UnregisterIdPCallback) override;
 
@@ -314,6 +314,14 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
       std::vector<blink::mojom::IdentityProviderRequestOptionsPtr>& providers);
 
   void MaybeShowAccountsDialog();
+  void OnShouldShowAccountsPassiveDialogResult(
+      bool did_succeed_for_at_least_one_idp,
+      bool should_show);
+  // To be called immediately after ShowAccountsDialog for correct devtools
+  // integration and metrics reporting.
+  // `did_succeed_for_at_least_one_idp` needs to be passed as a parameter
+  // because `fetch_data_` has been cleared at this point.
+  void AfterAccountsDialogShown(bool did_succeed_for_at_least_one_idp);
   void ShowModalDialog(DialogType dialog_type,
                        const GURL& idp_config_url,
                        const GURL& url_to_show);
@@ -360,12 +368,6 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
       RequestUserInfoCallback callback,
       blink::mojom::RequestUserInfoStatus status,
       std::optional<std::vector<blink::mojom::IdentityUserInfoPtr>> user_info);
-
-  // When two APIs that are associated with the same frame, hence
-  // fedcm_metrics_, are triggered concurrently, we need to reset
-  // `fedcm_metrics` to record UKM for the first request when it's completed and
-  // recreate one for the second if needed.
-  void HandleMetricsForPotentialConcurrentRequests();
 
   // Validates the input from the renderer and signals to terminate the request
   // if needed.
@@ -437,7 +439,7 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   void OnRegisterIdPPermissionResponse(RegisterIdPCallback callback,
                                        const GURL& idp,
                                        bool accepted);
-  void MaybeCreateFedCmMetrics();
+  std::unique_ptr<FedCmMetrics> CreateFedCmMetrics();
 
   bool IsNewlyLoggedIn(const IdentityRequestAccount& account);
 
@@ -593,9 +595,6 @@ class CONTENT_EXPORT FederatedAuthRequestImpl
   // such that the previous user gesture is expired. Therefore we store the
   // information to use it during the entire the active flow.
   bool had_transient_user_activation_{false};
-
-  // Whether we have shown any UI during this flow.
-  bool did_show_ui_{false};
 
   // Keeps track of the state of the use other account flow. Is std::nullopt
   // when the flow is not active.

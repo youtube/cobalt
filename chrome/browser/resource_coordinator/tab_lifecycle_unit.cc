@@ -53,6 +53,18 @@ namespace resource_coordinator {
 
 namespace {
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+//
+// LINT.IfChange(AttemptFastKillForDiscardResult)
+enum class AttemptFastKillForDiscardResult {
+  kKilled = 0,
+  kSkipped = 1,
+  kKilledWithoutUnloadHandlers = 2,
+  kMaxValue = kKilledWithoutUnloadHandlers,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:AttemptFastKillForDiscardResult)
+
 using StateChangeReason = LifecycleUnitStateChangeReason;
 
 StateChangeReason DiscardReasonToStateChangeReason(
@@ -132,6 +144,13 @@ void TabLifecycleUnitSource::TabLifecycleUnit::SetFocused(bool focused) {
     return;
   }
 
+  bool success = MaybeLoad();
+  if (success) {
+    web_contents()->Focus();
+  }
+}
+
+bool TabLifecycleUnitSource::TabLifecycleUnit::MaybeLoad() {
   if (is_discarded_) {
     // Transition to the active state.
     is_discarded_ = false;
@@ -151,10 +170,12 @@ void TabLifecycleUnitSource::TabLifecycleUnit::SetFocused(bool focused) {
     // it explicitly from here.
     if (web_contents()->WasDiscarded() &&
         !base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
-      bool loaded = Load();
-      DCHECK(loaded);
+      CHECK(Load());
+      return true;
     }
   }
+
+  return false;
 }
 
 void TabLifecycleUnitSource::TabLifecycleUnit::SetRecentlyAudible(
@@ -210,7 +231,6 @@ bool TabLifecycleUnitSource::TabLifecycleUnit::Load() {
   // session restore is handled by LifecycleManager.
   web_contents()->GetController().SetNeedsReload();
   web_contents()->GetController().LoadIfNecessary();
-  web_contents()->Focus();
   return true;
 }
 
@@ -272,9 +292,12 @@ bool TabLifecycleUnitSource::TabLifecycleUnit::CanDiscard(
   if (web_contents()->GetVisibility() == content::Visibility::VISIBLE)
     decision_details->AddReason(DecisionFailureReason::LIVE_STATE_VISIBLE);
 #else
-  // Do not discard the tab if it is currently active in its window.
-  if (tab_strip_model_->GetActiveWebContents() == web_contents())
+  // Do not discard the tab if it is currently active in its window, or if it is
+  // in the same split as the currently active tab.
+  if (base::Contains(tab_strip_model_->GetForegroundTabs(), web_contents(),
+                     &tabs::TabInterface::GetContents)) {
     decision_details->AddReason(DecisionFailureReason::LIVE_STATE_VISIBLE);
+  }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Do not discard tabs in which the user has entered text in a form.
@@ -420,13 +443,19 @@ void TabLifecycleUnitSource::TabLifecycleUnit::FinishDiscard(
 void TabLifecycleUnitSource::TabLifecycleUnit::
     FinishDiscardAndPreserveWebContents(
         LifecycleUnitDiscardReason discard_reason,
-        uint64_t tab_memory_footprint_estimate) {
+        uint64_t tab_memory_footprint_estimate,
+        const base::TimeTicks discard_start_time) {
   UpdatePreDiscardResourceUsage(web_contents(), discard_reason,
                                 tab_memory_footprint_estimate);
 
   AttemptFastKillForDiscard(web_contents(), discard_reason);
 
-  web_contents()->Discard();
+  web_contents()->Discard(base::BindOnce(
+      [](const base::TimeTicks start_time) {
+        base::UmaHistogramTimes("Discarding.TabLifecycleUnit.DiscardLatency",
+                                NowTicks() - start_time);
+      },
+      discard_start_time));
   tab_strip_model_->UpdateWebContentsStateAt(
       tab_strip_model_->GetIndexOfWebContents(web_contents()),
       TabChangeType::kAll);
@@ -444,26 +473,32 @@ void TabLifecycleUnitSource::TabLifecycleUnit::AttemptFastKillForDiscard(
   CHECK(render_process_host);
 
   // First try to fast-kill the process, if it's just running a single tab.
+  bool succeed = render_process_host->FastShutdownIfPossible(1u, false);
+  AttemptFastKillForDiscardResult result =
+      succeed ? AttemptFastKillForDiscardResult::kKilled
+              : AttemptFastKillForDiscardResult::kSkipped;
+
 #if BUILDFLAG(IS_CHROMEOS)
-  if (!render_process_host->FastShutdownIfPossible(1u, false) &&
-      discard_reason == LifecycleUnitDiscardReason::URGENT) {
+  if (!succeed && discard_reason == LifecycleUnitDiscardReason::URGENT) {
     // We avoid fast shutdown on tabs with beforeunload handlers on the main
     // frame, as that is often an indication of unsaved user state.
     if (!main_frame->GetSuddenTerminationDisablerState(
             blink::mojom::SuddenTerminationDisablerType::
-                kBeforeUnloadHandler)) {
-      render_process_host->FastShutdownIfPossible(
-          1u, /*skip_unload_handlers=*/true);
+                kBeforeUnloadHandler) &&
+        render_process_host->FastShutdownIfPossible(
+            1u, /*skip_unload_handlers=*/true)) {
+      result = AttemptFastKillForDiscardResult::kKilledWithoutUnloadHandlers;
     }
   }
-#else
-  render_process_host->FastShutdownIfPossible(1u, false);
 #endif
+  base::UmaHistogramEnumeration("Discarding.AttemptFastKillForDiscardResult",
+                                result);
 }
 
 bool TabLifecycleUnitSource::TabLifecycleUnit::Discard(
     LifecycleUnitDiscardReason reason,
     uint64_t tab_memory_footprint_estimate) {
+  const base::TimeTicks discard_start_time = NowTicks();
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
   // LINT.IfChange(DiscardTabOutcome)
@@ -502,9 +537,12 @@ bool TabLifecycleUnitSource::TabLifecycleUnit::Discard(
   discard_reason_ = reason;
 
   if (base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
-    FinishDiscardAndPreserveWebContents(reason, tab_memory_footprint_estimate);
+    FinishDiscardAndPreserveWebContents(reason, tab_memory_footprint_estimate,
+                                        discard_start_time);
   } else {
     FinishDiscard(reason, tab_memory_footprint_estimate);
+    base::UmaHistogramTimes("Discarding.TabLifecycleUnit.DiscardLatency",
+                            NowTicks() - discard_start_time);
   }
 
   outcome = DiscardTabOutcome::kSuccess;

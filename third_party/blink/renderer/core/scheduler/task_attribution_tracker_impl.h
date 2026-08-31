@@ -39,44 +39,38 @@ class CORE_EXPORT TaskAttributionTrackerImpl : public TaskAttributionTracker {
  public:
   static std::unique_ptr<TaskAttributionTracker> Create(v8::Isolate*);
 
-  TaskAttributionInfo* RunningTask() const override;
+  TaskAttributionInfo* CurrentTaskState() const override;
 
-  TaskScope CreateTaskScope(ScriptState* script_state,
-                            TaskAttributionInfo* task_state,
+  TaskScope CreateTaskScope(TaskAttributionInfo* task_state,
                             TaskScopeType type) override;
 
-  TaskScope CreateTaskScope(ScriptState* script_state,
-                            SoftNavigationContext*) override;
+  TaskScope CreateTaskScope(SoftNavigationContext*) override;
 
   TaskScope CreateTaskScope(
-      ScriptState* script_state,
       TaskAttributionInfo* task_state,
       TaskScopeType type,
       SchedulerTaskContext* continuation_context) override;
 
   std::optional<TaskScope> MaybeCreateTaskScopeForCallback(
-      ScriptState*,
       TaskAttributionInfo* task_state) override;
 
-  ObserverScope RegisterObserver(Observer* observer) override;
-  void AddSameDocumentNavigationTask(TaskAttributionInfo* task) override;
-  void ResetSameDocumentNavigationTasks() override;
+  std::optional<TaskAttributionId> AsyncSameDocumentNavigationStarted()
+      override;
   TaskAttributionInfo* CommitSameDocumentNavigation(TaskAttributionId) override;
+  void ResetSameDocumentNavigationTasks() override;
 
  private:
   explicit TaskAttributionTrackerImpl(v8::Isolate*);
 
   void OnTaskScopeDestroyed(const TaskScope&) override;
-  void OnObserverScopeDestroyed(const ObserverScope&) override;
 
   TaskAttributionId next_task_id_;
-  Persistent<Observer> observer_ = nullptr;
 
   // A queue of TaskAttributionInfo objects representing tasks that initiated a
   // same-document navigation that was sent to the browser side. They are kept
   // here to ensure the relevant object remains alive (and hence properly
   // tracked through task attribution).
-  WTF::Deque<Persistent<TaskAttributionInfo>> same_document_navigation_tasks_;
+  Deque<Persistent<TaskAttributionInfo>> same_document_navigation_tasks_;
 
   // The lifetime of this class is tied to the `isolate_`.
   v8::Isolate* isolate_;

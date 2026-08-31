@@ -9,8 +9,7 @@
  */
 #include "net/dcsctp/packet/parameter/outgoing_ssn_reset_request_parameter.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -21,7 +20,6 @@
 #include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 #include "net/dcsctp/public/types.h"
 #include "rtc_base/strings/string_builder.h"
 
@@ -46,7 +44,6 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //  |  Stream Number N-1 (optional) |    Stream Number N (optional) |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-constexpr int OutgoingSSNResetRequestParameter::kType;
 
 std::optional<OutgoingSSNResetRequestParameter>
 OutgoingSSNResetRequestParameter::Parse(webrtc::ArrayView<const uint8_t> data) {

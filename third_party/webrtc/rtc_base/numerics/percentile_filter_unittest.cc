@@ -10,11 +10,10 @@
 
 #include "rtc_base/numerics/percentile_filter.h"
 
-#include <stdlib.h>
-
 #include <array>
 #include <climits>
 #include <cstdint>
+#include <cstdlib>
 #include <numbers>
 #include <random>
 

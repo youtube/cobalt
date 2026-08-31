@@ -117,9 +117,9 @@ bool IsValidTag(const String& tag) {
     return false;
   }
 
-  return WTF::VisitCharacters(tag, [](const auto& chars) {
+  return VisitCharacters(tag, [](const auto& chars) {
     for (char ch : chars) {
-      if (!WTF::IsASCIIPrintable(ch)) {
+      if (!IsASCIIPrintable(ch)) {
         return false;
       }
     }
@@ -143,7 +143,6 @@ SpeculationRule* ParseSpeculationRule(JSONObject* input,
                                       String* out_error,
                                       Vector<String>& out_warnings) {
   // https://wicg.github.io/nav-speculation/speculation-rules.html#parse-a-speculation-rule
-
   // If input has any key other than these keys listed below, then return null.
   const char* const kKnownKeys[] = {
       "source",      "urls",        "where",
@@ -389,7 +388,9 @@ SpeculationRule* ParseSpeculationRule(JSONObject* input,
       return nullptr;
     }
 
-    if (eagerness_str == "eager" || eagerness_str == "immediate") {
+    if (eagerness_str == "immediate") {
+      eagerness = mojom::blink::SpeculationEagerness::kImmediate;
+    } else if (eagerness_str == "eager") {
       eagerness = mojom::blink::SpeculationEagerness::kEager;
     } else if (eagerness_str == "moderate") {
       eagerness = mojom::blink::SpeculationEagerness::kModerate;
@@ -404,7 +405,7 @@ SpeculationRule* ParseSpeculationRule(JSONObject* input,
     UseCounter::Count(context, WebFeature::kSpeculationRulesExplicitEagerness);
   } else {
     eagerness = source == "list"
-                    ? mojom::blink::SpeculationEagerness::kEager
+                    ? mojom::blink::SpeculationEagerness::kImmediate
                     : mojom::blink::SpeculationEagerness::kConservative;
   }
 
@@ -619,10 +620,15 @@ SpeculationRuleSet* SpeculationRuleSet::Parse(Source* source,
     String duplicate_key_warning;
     if (parse_error.duplicate_keys.size() == 1) {
       String key = parse_error.duplicate_keys[0];
+      static const char* const action_allow_list[]{
+          "prefetch",
+          "prerender",
+          "prerender_until_script",
+      };
       duplicate_key_warning =
           "An object contained more than one key named " +
           key.EncodeForDebugging() + ". All but the last are ignored." +
-          ((key == "prefetch" || key == "prerender")
+          (base::Contains(action_allow_list, key)
                ? " It is likely that either one of them was intended to be "
                  "another action, or that their rules should be merged into a "
                  "single array."
@@ -647,14 +653,16 @@ SpeculationRuleSet* SpeculationRuleSet::Parse(Source* source,
   if (JSONValue* tag_value = parsed->Get("tag")) {
     String tag_str;
     if (!tag_value->AsString(&tag_str)) {
-      result->SetError(SpeculationRuleSetErrorType::kInvalidRulesSkipped,
+      result->SetError(SpeculationRuleSetErrorType::kInvalidRulesetLevelTag,
                        "Tag value must be a string.");
-    } else if (!IsValidTag(tag_str)) {
-      result->SetError(SpeculationRuleSetErrorType::kInvalidRulesSkipped,
-                       "Tag value is invalid: must be ASCII printable.");
-    } else {
-      ruleset_tag = WTF::String(tag_str);
+      return result;
     }
+    if (!IsValidTag(tag_str)) {
+      result->SetError(SpeculationRuleSetErrorType::kInvalidRulesetLevelTag,
+                       "Tag value is invalid: must be ASCII printable.");
+      return result;
+    }
+    ruleset_tag = WTF::String(tag_str);
   }
 
   const auto parse_for_action =
@@ -734,7 +742,8 @@ SpeculationRuleSet* SpeculationRuleSet::Parse(Source* source,
             result->selectors_.AppendVector(rule->predicate()->GetStyleRules());
           }
 
-          if (rule->eagerness() != mojom::blink::SpeculationEagerness::kEager) {
+          if (rule->eagerness() !=
+              mojom::blink::SpeculationEagerness::kImmediate) {
             result->requires_unfiltered_input_ = true;
           }
 
@@ -762,6 +771,13 @@ SpeculationRuleSet* SpeculationRuleSet::Parse(Source* source,
       /*allow_target_hint=*/true,
       /*allow_requires_anonymous_client_ip_when_cross_origin=*/false);
 
+  // If parsed["prerender_until_script"] exists and is a list, then for
+  // each...
+  parse_for_action(
+      "prerender_until_script", result->prerender_until_script_rules_,
+      /*allow_target_hint=*/true,
+      /*allow_requires_anonymous_client_ip_when_cross_origin=*/false);
+
   return result;
 }
 
@@ -777,6 +793,7 @@ bool SpeculationRuleSet::ShouldReportUMAForError() const {
   // We report UMAs only if entire parse failed.
   switch (error_type_) {
     case SpeculationRuleSetErrorType::kSourceIsNotJsonObject:
+    case SpeculationRuleSetErrorType::kInvalidRulesetLevelTag:
       return true;
     case SpeculationRuleSetErrorType::kNoError:
     case SpeculationRuleSetErrorType::kInvalidRulesSkipped:
@@ -804,6 +821,7 @@ void SpeculationRuleSet::Trace(Visitor* visitor) const {
   visitor->Trace(prefetch_rules_);
   visitor->Trace(prefetch_with_subresources_rules_);
   visitor->Trace(prerender_rules_);
+  visitor->Trace(prerender_until_script_rules_);
   visitor->Trace(source_);
   visitor->Trace(selectors_);
 }

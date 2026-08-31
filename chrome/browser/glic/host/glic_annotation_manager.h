@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -36,7 +37,6 @@ class GlicAnnotationManager {
   // a single selector. If this is called a second time before finishing
   // the first request, the first request is cancelled.
   // TODO(crbug.com/397664100): Support scrolling without highlighting.
-  // TODO(crbug.com/395859365): Support PDFs.
   void ScrollTo(mojom::ScrollToParamsPtr params,
                 mojom::WebClientHandler::ScrollToCallback callback);
 
@@ -59,7 +59,7 @@ class GlicAnnotationManager {
                    mojo::PendingReceiver<blink::mojom::AnnotationAgentHost>
                        annotation_agent_host,
                    mojom::WebClientHandler::ScrollToCallback callback,
-                   content::Page& page);
+                   content::RenderFrameHost& render_frame_host);
     ~AnnotationTask() override;
 
     // Returns true if the task is still running, false if it is complete. The
@@ -120,7 +120,7 @@ class GlicAnnotationManager {
                            Browser* attached_browser) override;
 
     // GlicFocusedTabManager::FocusedTabChangedCallback
-    void OnFocusedTabChanged(FocusedTabData focused_tab_data);
+    void OnFocusedTabChanged(const FocusedTabData& focused_tab_data);
 
     // `pref_change_registrar_` callback.
     void OnTabContextPermissionChanged(const std::string& pref_name);
@@ -128,8 +128,7 @@ class GlicAnnotationManager {
     // Uniquely owns `this`.
     base::raw_ref<GlicAnnotationManager> annotation_manager_;
 
-    // Used for bi-directional communication with `page_`'s main document's
-    // AnnotationAgent.
+    // Used for bi-directional communication with `document_`'s AnnotationAgent.
     mojo::Remote<blink::mojom::AnnotationAgent> annotation_agent_;
     mojo::Receiver<blink::mojom::AnnotationAgentHost>
         annotation_agent_host_receiver_;
@@ -137,8 +136,10 @@ class GlicAnnotationManager {
     // Callback for ScrollTo() that's run when the task completes or fails.
     mojom::WebClientHandler::ScrollToCallback scroll_to_callback_;
 
-    // Page this task is running in.
-    base::WeakPtr<content::Page> page_;
+    // The document this task is running in. This is in an iframe/guest main
+    // frame for PDFs (depending on whether `chrome_pdf::features::kPdfOopif` is
+    // enabled), or in the outermost main frame for all other documents.
+    content::WeakDocumentPtr document_;
 
     // Subscription to listen to focused tab changes/primary page navigations
     // while the task is running. Cleared after the task completes/fails.

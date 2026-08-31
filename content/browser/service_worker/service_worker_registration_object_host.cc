@@ -153,6 +153,7 @@ void ServiceWorkerRegistrationObjectHost::Unregister(
   context_->UnregisterServiceWorker(
       registration_->scope(), registration_->key(),
       /*is_immediate=*/false,
+      ServiceWorkerRegistration::DeleteInitiator::kUnregister,
       base::BindOnce(
           &ServiceWorkerRegistrationObjectHost::UnregistrationComplete,
           weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
@@ -176,7 +177,7 @@ void ServiceWorkerRegistrationObjectHost::EnableNavigationPreload(
     return;
   }
 
-  context_->registry()->UpdateNavigationPreloadEnabled(
+  context_->registry().UpdateNavigationPreloadEnabled(
       registration_->id(), registration_->key(), enable,
       base::BindOnce(&ServiceWorkerRegistrationObjectHost::
                          DidUpdateNavigationPreloadEnabled,
@@ -226,7 +227,7 @@ void ServiceWorkerRegistrationObjectHost::SetNavigationPreloadHeader(
     return;
   }
 
-  context_->registry()->UpdateNavigationPreloadHeader(
+  context_->registry().UpdateNavigationPreloadHeader(
       registration_->id(), registration_->key(), value,
       base::BindOnce(&ServiceWorkerRegistrationObjectHost::
                          DidUpdateNavigationPreloadHeader,

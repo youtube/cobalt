@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_CONTROL_BUTTON_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_CONTROL_BUTTON_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/color/color_id.h"
@@ -89,6 +90,9 @@ class TabStripControlButton : public views::LabelButton,
 
   // views::MaskedTargeterDelegate
   bool GetHitTestMask(SkPath* mask) const override;
+
+  // views::LabelButton
+  void SetText(std::u16string_view text) override;
 
  protected:
   // Returns colors based on the Frame active status.

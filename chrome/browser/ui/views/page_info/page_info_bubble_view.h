@@ -5,10 +5,13 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PAGE_INFO_BUBBLE_VIEW_H_
 #define CHROME_BROWSER_UI_VIEWS_PAGE_INFO_PAGE_INFO_BUBBLE_VIEW_H_
 
+#include <memory>
+
+#include "base/callback_list.h"
+#include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/page_info/page_info_dialog.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view_base.h"
-#include "chrome/browser/ui/views/page_info/page_info_history_controller.h"
 #include "chrome/browser/ui/views/page_info/page_info_navigation_handler.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/page_info/core/page_info_types.h"
@@ -16,6 +19,7 @@
 
 class ChromePageInfoUiDelegate;
 class PageSwitcherView;
+class PageInfoBubbleSpecification;
 class PageInfoViewFactory;
 class PageInfoMerchantTrustCoordinator;
 
@@ -35,16 +39,16 @@ class PageInfoBubbleView : public PageInfoBubbleViewBase,
   // |anchor_rect| will be used instead.  |parent_window| will become the
   // parent of the widget hosting the bubble view.
   static views::BubbleDialogDelegateView* CreatePageInfoBubble(
-      views::View* anchor_view,
-      const gfx::Rect& anchor_rect,
-      gfx::NativeWindow parent_window,
-      content::WebContents* web_contents,
-      const GURL& url,
-      base::OnceClosure initialized_callback,
-      PageInfoClosingCallback closing_callback,
-      bool allow_extended_site_info,
-      std::optional<ContentSettingsType> type = std::nullopt,
-      bool open_merchant_trust_page = false);
+      std::unique_ptr<PageInfoBubbleSpecification> specification);
+
+  using PageInfoBubbleCreatedCallbackList =
+      base::RepeatingCallbackList<void(content::WebContents* web_contents,
+                                       views::Widget* bubble_widget)>;
+  using PageInfoBubbleCreatedCallback =
+      PageInfoBubbleCreatedCallbackList::CallbackType;
+
+  static base::CallbackListSubscription RegisterPageInfoCreatedCallback(
+      PageInfoBubbleCreatedCallback callback);
 
   // PageInfoNavigationHandler:
   void OpenMainPage(base::OnceClosure initialized_callback) override;
@@ -87,8 +91,6 @@ class PageInfoBubbleView : public PageInfoBubbleViewBase,
   std::unique_ptr<ChromePageInfoUiDelegate> ui_delegate_;
 
   std::unique_ptr<PageInfoViewFactory> view_factory_;
-
-  std::unique_ptr<PageInfoHistoryController> history_controller_;
 
   std::unique_ptr<PageInfoMerchantTrustCoordinator> merchant_trust_coordinator_;
 

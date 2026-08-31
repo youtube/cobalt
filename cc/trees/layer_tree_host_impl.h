@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/types/optional_ref.h"
+#include "cc/base/delayed_unique_notifier.h"
 #include "cc/benchmarks/micro_benchmark_controller_impl.h"
 #include "cc/cc_export.h"
 #include "cc/input/actively_scrolling_type.h"
@@ -37,7 +39,6 @@
 #include "cc/input/scrollbar_animation_controller.h"
 #include "cc/layers/layer_collections.h"
 #include "cc/metrics/average_lag_tracking_manager.h"
-#include "cc/metrics/dropped_frame_counter.h"
 #include "cc/metrics/event_latency_tracker.h"
 #include "cc/metrics/event_metrics.h"
 #include "cc/metrics/events_metrics_manager.h"
@@ -45,7 +46,6 @@
 #include "cc/metrics/frame_sequence_tracker.h"
 #include "cc/metrics/frame_sequence_tracker_collection.h"
 #include "cc/metrics/submit_info.h"
-#include "cc/metrics/total_frame_counter.h"
 #include "cc/paint/paint_worklet_job.h"
 #include "cc/scheduler/begin_frame_tracker.h"
 #include "cc/scheduler/commit_earlyout_reason.h"
@@ -54,7 +54,6 @@
 #include "cc/tiles/tile_manager.h"
 #include "cc/tiles/tile_manager_client.h"
 #include "cc/trees/animated_paint_worklet_tracker.h"
-#include "cc/trees/frame_rate_estimator.h"
 #include "cc/trees/image_animation_controller.h"
 #include "cc/trees/layer_tree_frame_sink_client.h"
 #include "cc/trees/layer_tree_host.h"
@@ -70,6 +69,7 @@
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/gpu/context_cache_controller.h"
 #include "components/viz/common/quads/compositor_render_pass.h"
+#include "components/viz/common/quads/trees_in_viz_timing.h"
 #include "components/viz/common/surfaces/child_local_surface_id_allocator.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "components/viz/common/surfaces/region_capture_bounds.h"
@@ -155,6 +155,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     FrameData& operator=(const FrameData&) = delete;
     void AsValueInto(base::trace_event::TracedValue* value) const;
     std::string ToString() const;
+    void set_trees_in_viz_timestamps(
+        const viz::TreesInVizTiming& timing_details);
 
     // frame_token is populated by the LayerTreeHostImpl when submitted.
     uint32_t frame_token = 0;
@@ -171,7 +173,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     RAW_PTR_EXCLUSION const RenderSurfaceList* render_surface_list = nullptr;
     RAW_PTR_EXCLUSION LayerImplList will_draw_layers;
     bool has_no_damage = false;
-    bool may_contain_video = false;
     viz::BeginFrameAck begin_frame_ack;
     // The original BeginFrameArgs that triggered the latest update from the
     // main thread.
@@ -188,6 +189,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     // that we clear pending copy requests after drawing a frame and request
     // a new tree commit.
     bool has_copy_requests = false;
+    // Only set when LTHI is in TreesInViz mode
+    std::optional<viz::TreesInVizTiming> trees_in_viz_timing_details;
   };
 
   // A struct of data for a single UIResource, including the backing
@@ -271,6 +274,14 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     return viewport_damage_rect_;
   }
 
+  void ResetViewportDamageRectForTesting() {
+    viewport_damage_rect_ = gfx::Rect();
+  }
+
+  bool HasPendingRasterInvalidationScrollForTesting(ElementId id) const {
+    return pending_invalidation_raster_inducing_scrolls_.contains(id);
+  }
+
   virtual void WillSendBeginMainFrame() {}
   virtual void BeginMainFrameAborted(
       CommitEarlyOutReason reason,
@@ -279,7 +290,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
       bool next_bmf,
       bool scroll_and_viewport_changes_synced);
   virtual void ReadyToCommit(
-      const viz::BeginFrameArgs& commit_args,
       bool scroll_and_viewport_changes_synced,
       const BeginMainFrameMetrics* begin_main_frame_metrics,
       bool commit_timeout);
@@ -335,6 +345,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<EventsMetricsManager::ScopedMonitor>
   GetScopedEventMetricsMonitor(
       EventsMetricsManager::ScopedMonitor::DoneCallback done_callback) override;
+  void DidScrollForMetrics() override;
   void NotifyInputEvent(bool is_fling) override;
   bool HasAnimatedScrollbars() const override;
   // Already overridden for BrowserControlsOffsetManagerClient which declares a
@@ -496,26 +507,29 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
                                    ScrollbarOrientation orientation);
   ScrollbarAnimationController* ScrollbarAnimationControllerForElementId(
       ElementId scroll_element_id) const;
-  void FlashAllScrollbars(bool did_scroll);
+
+  // Flashes scrollbars when the page scale is updated.
+  void OnPageScaleUpdated();
 
   DrawMode GetDrawMode() const;
 
   void DidNotNeedBeginFrame();
 
-  bool ScrollCheckerboardsIncompleteRecording() const {
-    return scroll_checkerboards_incomplete_recording_;
+  bool PrioritizeNewContentDueToCheckerboarding() const {
+    return prioritize_new_content_due_to_checkerboarding_;
   }
 
   // TileManagerClient implementation.
   void NotifyReadyToActivate() override;
   void NotifyReadyToDraw() override;
   void NotifyAllTileTasksCompleted() override;
-  void NotifyTileStateChanged(const Tile* tile, bool update_damage) override;
+  void NotifyTileStateChanged(const Tile* tile,
+                              bool update_damage,
+                              bool set_needs_redraw) override;
   std::unique_ptr<RasterTilePriorityQueue> BuildRasterQueue(
       TreePriority tree_priority,
       RasterTilePriorityQueue::Type type) override;
-  std::unique_ptr<EvictionTilePriorityQueue> BuildEvictionQueue(
-      TreePriority tree_priority) override;
+  std::unique_ptr<EvictionTilePriorityQueue> BuildEvictionQueue() override;
   void SetIsLikelyToRequireADraw(bool is_likely_to_require_a_draw) override;
   std::unique_ptr<TilesWithResourceIterator> CreateTilesWithResourceIterator()
       override;
@@ -591,10 +605,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     return raster_caps().use_gpu_rasterization;
   }
 
-  bool create_low_res_tiling() const {
-    return settings_.create_low_res_tiling &&
-           !raster_caps().use_gpu_rasterization;
-  }
   ResourcePool* resource_pool() { return resource_pool_.get(); }
   ImageAnimationController* image_animation_controller() {
     return &image_animation_controller_;
@@ -602,7 +612,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   ImageDecodeCache* GetImageDecodeCache() const;
 
-  uint32_t next_frame_token() const { return *next_frame_token_; }
+  uint32_t next_frame_token() const;
+  void set_next_frame_token_from_client(uint32_t frame_token);
 
   // Buffers `callback` until a relevant presentation feedback arrives, at which
   // point the callback will be posted to run on the main thread. A presentation
@@ -638,11 +649,23 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // has been activated.
   void SetTargetLocalSurfaceId(
       const viz::LocalSurfaceId& target_local_surface_id);
+  const viz::LocalSurfaceId& last_draw_local_surface_id() const {
+    return last_draw_local_surface_id_;
+  }
+  // Returns the current local surface id.
+  const viz::LocalSurfaceId& GetCurrentLocalSurfaceId() const {
+    if (settings().trees_in_viz_in_viz_process) {
+      return current_local_surface_id_from_client_;
+    }
+    return child_local_surface_id_allocator_.GetCurrentLocalSurfaceId();
+  }
   const viz::LocalSurfaceId& target_local_surface_id() const {
     return target_local_surface_id_;
   }
-  const viz::LocalSurfaceId& last_draw_local_surface_id() const {
-    return last_draw_local_surface_id_;
+  void set_current_local_surface_id_from_client(
+      const viz::LocalSurfaceId& local_surface_id_from_client) {
+    DCHECK(settings().trees_in_viz_in_viz_process);
+    current_local_surface_id_from_client_ = local_surface_id_from_client;
   }
 
   LayerTreeImpl* active_tree() { return active_tree_.get(); }
@@ -683,7 +706,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool visible() const { return visible_; }
 
   void SetNeedsOneBeginImplFrame();
-  void SetNeedsRedraw(bool animation_only = false);
+  void SetNeedsRedraw(bool animation_only, bool skip_if_inside_draw) override;
 
   ManagedMemoryPolicy ActualManagedMemoryPolicy() const;
 
@@ -694,9 +717,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<CompositorCommitData> ProcessCompositorDeltas(
       const MutatorHost* main_thread_mutator_host);
 
-  DroppedFrameCounter* dropped_frame_counter() {
-    return &dropped_frame_counter_;
-  }
+  FrameSorter* frame_sorter() { return &frame_sorter_; }
   MemoryHistory* memory_history() { return memory_history_.get(); }
   DebugRectHistory* debug_rect_history() { return debug_rect_history_.get(); }
   viz::ClientResourceProvider* resource_provider() {
@@ -846,8 +867,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   void SetActiveURL(const GURL& url, ukm::SourceId source_id);
 
-  void SetUkmSmoothnessDestination(
-      base::WritableSharedMemoryMapping ukm_smoothness_data);
   void SetUkmDroppedFramesDestination(
       base::WritableSharedMemoryMapping ukm_dropped_frames_data);
 
@@ -874,12 +893,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   Viewport& viewport() const { return *viewport_.get(); }
 
-  TotalFrameCounter* total_frame_counter_for_testing() {
-    return &total_frame_counter_;
-  }
-  DroppedFrameCounter* dropped_frame_counter_for_testing() {
-    return &dropped_frame_counter_;
-  }
   FrameSorter* frame_sorter_for_testing() { return &frame_sorter_; }
 
   // Returns true if the client is currently compositing synchronously.
@@ -912,6 +925,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void UpdateChildLocalSurfaceId();
 
   void ReturnResource(viz::ReturnedResource returned_resource);
+
+  void NotifyNewLocalSurfaceIdExpectedWhilePaused();
 
  protected:
   LayerTreeHostImpl(
@@ -1062,6 +1077,39 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // Returns the most up to date display color spaces.
   gfx::DisplayColorSpaces GetDisplayColorSpaces() const;
 
+  void ResetHasInputForFrameInterval();
+
+  // Requests scrollbars' flashes. Returns true if a scrollbar with
+  // |tracking_element_id| has been flashed as part of the bulk flash. If
+  // `settings.scrollbar_flash_once_after_scroll_update` is true, invokes
+  // `MaybeFlashAllScrollbarsOnce`. If
+  // `settings.scrollbar_flash_after_any_scroll_update` is true, invokes
+  // FlashAllScrollbars.
+  bool MaybeFlashAllScrollbars(ElementId tracking_element_id, bool did_scroll);
+
+  // Flashes all scrollbars. Can be used when
+  // `settings.scrollbar_flash_after_any_scroll_update` is true.
+  void FlashAllScrollbars(bool did_scroll);
+
+  // Erases track of flashed scrollbars. Can be used when
+  // `settings.scrollbar_flash_once_after_scroll_update` is true.
+  void EraseFlashedScrollbars();
+
+  // Flashes all scrollbars if they haven't been flashed yet. Scrollbars that
+  // have been flashed are stored in |flashed_scrollbars_|. Returns true if a
+  // scrollbar with |tracking_element_id| has been flashed.
+  // Can used when `settings.scrollbar_flash_once_after_scroll_update` is true.
+  bool MaybeFlashAllScrollbarsOnce(ElementId tracking_element_id,
+                                   bool did_scroll);
+
+  // If `settings.scrollbar_flash_once_visible_on_viewport` is true, flashes
+  // scrollbars that become visible on the viewport. |element_id| is treated as
+  // the scrolling element and is ignored. |scroll_delta| is used to determine
+  // total amount of scroll, which is tested against a threshold to reduce
+  // expensiveness of this function.
+  void MaybeFlashEnteredViewportScrollbars(ElementId element_id,
+                                           const gfx::Vector2dF& scroll_delta);
+
   // Once bound, this instance owns the InputHandler. However, an InputHandler
   // need not be bound so this should be null-checked before dereferencing.
   std::unique_ptr<InputDelegateForCompositor> input_delegate_;
@@ -1138,6 +1186,11 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // time a CompositorFrame is generated.
   gfx::Vector2dF scroll_accumulated_this_frame_;
 
+  // This is used to track the accumulated scroll deltas for each element.
+  // See `MaybeFlashEnteredViewportScrollbars` for more details.
+  std::unordered_map<ElementId, gfx::Vector2dF, ElementIdHash>
+      accumulated_scroll_deltas_by_element_id_;
+
   std::vector<std::unique_ptr<SwapPromise>>
       swap_promises_for_main_thread_scroll_update_;
 
@@ -1156,11 +1209,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   base::WritableSharedMemoryMapping ukm_smoothness_mapping_;
   base::WritableSharedMemoryMapping ukm_dropped_frames_mapping_;
-
-  TotalFrameCounter total_frame_counter_;
-  // `dropped_frame_counter_` holds a pointer `to ukm_smoothness_mapping_` so
-  // it must be declared last and deleted first;
-  DroppedFrameCounter dropped_frame_counter_;
 
   std::unique_ptr<MemoryHistory> memory_history_;
   std::unique_ptr<DebugRectHistory> debug_rect_history_;
@@ -1196,6 +1244,9 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
                      ElementIdHash>
       scrollbar_animation_controllers_;
 
+  // Set of scrollbars that have already been flashed (for flash-once behavior).
+  std::unordered_set<ElementId, ElementIdHash> flashed_scrollbars_;
+
   raw_ptr<RenderingStatsInstrumentation> rendering_stats_instrumentation_;
   MicroBenchmarkControllerImpl micro_benchmark_controller_;
   std::unique_ptr<SynchronousTaskGraphRunner>
@@ -1217,7 +1268,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // it's lost instead of having this bool.
   bool has_valid_layer_tree_frame_sink_ = false;
 
-  bool scroll_checkerboards_incomplete_recording_ = false;
+  bool prioritize_new_content_due_to_checkerboarding_ = false;
 
   // If it is enabled in the LayerTreeSettings, we can check damage in
   // WillBeginImplFrame and abort early if there is no damage. We only check
@@ -1257,6 +1308,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   std::unique_ptr<RenderFrameMetadataObserver> render_frame_metadata_observer_;
 
   viz::FrameTokenGenerator next_frame_token_;
+  uint32_t next_frame_token_from_client_ = viz::kInvalidFrameToken;
 
   viz::LocalSurfaceId last_draw_local_surface_id_;
   base::flat_set<viz::SurfaceRange> last_draw_referenced_surfaces_;
@@ -1265,6 +1317,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   viz::LocalSurfaceId target_local_surface_id_;
   viz::LocalSurfaceId evicted_local_surface_id_;
   viz::ChildLocalSurfaceIdAllocator child_local_surface_id_allocator_;
+  viz::LocalSurfaceId current_local_surface_id_from_client_;
 
   // Indicates the direction of the last vertical scroll of the root layer.
   // Until the first vertical scroll occurs, this value is |kNull|. Note that
@@ -1276,8 +1329,8 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   PresentationTimeCallbackBuffer presentation_time_callbacks_;
 
-  // `compositor_frame_reporting_controller_` has a dependency on
-  // `dropped_frame_counter_` so it must be declared last and deleted first.
+  // `compositor_frame_reporting_controller_` is an observer of
+  // `frame_sorter_` so it must be declared last and deleted first.
   FrameSorter frame_sorter_;
   std::unique_ptr<CompositorFrameReportingController>
       compositor_frame_reporting_controller_;
@@ -1316,13 +1369,10 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
 
   std::unique_ptr<LCDTextMetricsReporter> lcd_text_metrics_reporter_;
 
-  FrameRateEstimator frame_rate_estimator_;
+  bool has_input_for_frame_interval_ = false;
+  DelayedUniqueNotifier has_input_resetter_;
   bool has_non_fling_input_since_last_frame_ = false;
   bool has_observed_first_scroll_delay_ = false;
-
-  // True if we are measuring smoothness in TotalFrameCounter and
-  // DroppedFrameCounter. Currently true when first contentful paint is done.
-  bool is_measuring_smoothness_ = false;
 
   // Cache for the results of calls to gfx::ColorSpace::Contains() on sRGB. This
   // computation is deterministic for a given color space, can be called
@@ -1358,10 +1408,13 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   // was reused.
   viz::BeginFrameArgs last_draw_active_tree_begin_frame_args_;
 
-  // When true we will save all `EventMetrics` associated with a scroll, even
-  // if they cause no damage. This way their termination time can be properly
-  // attributed to the end of frame production for the given VSync.
-  const bool zero_scroll_metrics_update_enabled_;
+  // When true, we are expected to get a new local surface id with the next
+  // commit.
+  bool new_local_surface_id_expected_ = false;
+
+  // Track previously visible scrollable elements for viewport visibility
+  // detection.
+  base::flat_set<ElementId> previously_visible_scrollable_elements_;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

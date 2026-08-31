@@ -12,24 +12,29 @@ mojom("notice_mojom") {
   generate_java = true
 }
 
+source_set("notice_definitions") {
+  sources = [ "notice_definitions.cc" ]
+  public = [ "notice_definitions.h" ]
+  deps = [ "//base" ]
+}
+
 source_set("core") {
   sources = [
     "notice_catalog.cc",
-    "notice_features.cc",
     "notice_model.cc",
     "notice_storage.cc",
   ]
   public = [
     "notice_catalog.h",
-    "notice_features.h",
     "notice_model.h",
     "notice_storage.h",
   ]
   deps = [
+    ":notice_definitions",
     ":notice_mojom",
     "//base",
-    "//base/version_info:version_info",
-    "//components/pref_registry:pref_registry",
+    "//base/version_info",
+    "//components/pref_registry",
     "//components/prefs",
     "//components/privacy_sandbox:features",
   ]
@@ -82,7 +87,11 @@ if (!is_android) {
   source_set("desktop_entrypoint_handlers_helper") {
     sources = [ "desktop_entrypoint_handlers_helper.cc" ]
     public = [ "desktop_entrypoint_handlers_helper.h" ]
-    deps = [ "//chrome/common" ]
+    deps = [
+      "//chrome/browser/search",
+      "//chrome/common",
+      "//extensions/browser",
+    ]
   }
 
   source_set("desktop_view_manager") {
@@ -93,6 +102,7 @@ if (!is_android) {
     public = [
       "desktop_entrypoint_handlers.h",
       "desktop_view_manager.h",
+      "desktop_view_manager_test_peer.h",
     ]
     deps = [
       ":core",
@@ -101,13 +111,19 @@ if (!is_android) {
       ":notice_mojom",
       "//base",
       "//chrome/browser/profiles:profile",
-      "//chrome/browser/ui:ui",
-      "//chrome/browser/ui/browser_window:browser_window",
-      "//chrome/browser/ui/privacy_sandbox:privacy_sandbox",
+      "//chrome/browser/search_engine_choice",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/privacy_sandbox",
+      "//chrome/browser/ui/profiles",
+      "//chrome/browser/ui/signin",
       "//chrome/common",
       "//components/privacy_sandbox:features",
+      "//components/regional_capabilities",
+      "//components/search_engines:search_engines_switches",
       "//components/tabs:public",
-      "//components/web_modal:web_modal",
+      "//components/web_modal",
       "//content/public/browser",
     ]
   }
@@ -141,8 +157,8 @@ source_set("test_support") {
     ":interfaces",
     ":notice_mojom",
     "//base",
-    "//components/keyed_service/core:core",
-    "//content/public/browser:browser",
+    "//components/keyed_service/core",
+    "//content/public/browser",
     "//testing/gmock",
   ]
 
@@ -188,6 +204,10 @@ source_set("unit_tests") {
     sources += [ "desktop_view_manager_unittest.cc" ]
     deps += [ ":desktop_view_manager" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("browser_tests") {
@@ -212,10 +232,18 @@ source_set("browser_tests") {
   }
 
   if (!is_android) {
-    sources += [ "desktop_entrypoint_handlers_browsertest.cc" ]
+    sources += [
+      "desktop_entrypoint_handlers_browsertest.cc",
+      "desktop_view_manager_browsertest.cc",
+    ]
     deps += [
       ":desktop_view_manager",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui/browser_window",
+      "//chrome/browser/ui/privacy_sandbox",
+      "//chrome/browser/ui/signin",
       "//chrome/test:test_support_ui",
+      "//components/privacy_sandbox:features",
     ]
   }
 }

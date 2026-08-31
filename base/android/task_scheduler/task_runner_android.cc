@@ -20,7 +20,7 @@
 #include "base/task/thread_pool/thread_pool_impl.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/android_runtime_jni_headers/Runnable_jni.h"
@@ -100,6 +100,8 @@ std::unique_ptr<TaskRunnerAndroid> TaskRunnerAndroid::Create(
     case ::TaskTraits::UI_USER_VISIBLE:
       [[fallthrough]];
     case ::TaskTraits::UI_USER_BLOCKING:
+      [[fallthrough]];
+    case ::TaskTraits::UI_STARTUP:
       use_thread_pool = false;
       break;
   }

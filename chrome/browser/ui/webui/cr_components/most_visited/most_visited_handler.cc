@@ -16,7 +16,7 @@
 #include "chrome/browser/predictors/loading_predictor_config.h"
 #include "chrome/browser/predictors/loading_predictor_factory.h"
 #include "chrome/browser/preloading/chrome_preloading.h"
-#include "chrome/browser/preloading/prerender/prerender_manager.h"
+#include "chrome/browser/preloading/new_tab_page_preload/new_tab_page_preload_pipeline_manager.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/web_applications/preinstalled_web_app_manager.h"
@@ -205,8 +205,7 @@ void MostVisitedHandler::OnMostVisitedTileNavigation(
 }
 
 void MostVisitedHandler::PrerenderMostVisitedTile(
-    most_visited::mojom::MostVisitedTilePtr tile,
-    bool is_hover_trigger) {
+    most_visited::mojom::MostVisitedTilePtr tile) {
   if (!base::FeatureList::IsEnabled(
           features::kNewTabPageTriggerForPrerender2)) {
     page_handler_.ReportBadMessage(
@@ -215,25 +214,10 @@ void MostVisitedHandler::PrerenderMostVisitedTile(
     return;
   }
 
-  if (is_hover_trigger &&
-      !features::kPrerenderNewTabPageOnMouseHoverTrigger.Get()) {
-    page_handler_.ReportBadMessage(
-        "PrerenderMostVisitedTile by hovering is only expected to be called "
-        "when kPrerenderNewTabPageOnMouseHoverTrigger is true.");
-    return;
-  }
-
-  if (!is_hover_trigger &&
-      !features::kPrerenderNewTabPageOnMousePressedTrigger.Get()) {
-    page_handler_.ReportBadMessage(
-        "PrerenderMostVisitedTile by pressing is only expected to be called "
-        "when kPrerenderNewTabPageOnMousePressedTrigger is true.");
-    return;
-  }
-  PrerenderManager::CreateForWebContents(web_contents_);
-  auto* prerender_manager = PrerenderManager::FromWebContents(web_contents_);
-
-  prerender_handle_ = prerender_manager->StartPrerenderNewTabPage(
+  new_tab_page_preload_manager_ =
+      NewTabPagePreloadPipelineManager::GetOrCreateForWebContents(web_contents_)
+          ->GetWeakPtr();
+  new_tab_page_preload_manager_->StartPrerender(
       tile->url,
       chrome_preloading_predictor::kMouseHoverOrMouseDownOnNewTabPage);
 }
@@ -267,12 +251,13 @@ void MostVisitedHandler::CancelPrerender() {
     return;
   }
 
-  auto* prerender_manager = PrerenderManager::FromWebContents(web_contents_);
-  prerender_manager->StopPrerenderNewTabPage(prerender_handle_);
-  prerender_handle_ = nullptr;
+  if (new_tab_page_preload_manager_) {
+    new_tab_page_preload_manager_->ResetPrerender();
+  }
 }
 
 void MostVisitedHandler::OnURLsAvailable(
+    bool is_user_triggered,
     const std::map<ntp_tiles::SectionType, ntp_tiles::NTPTilesVector>&
         sections) {
   auto* template_url_service =

@@ -254,6 +254,11 @@ bool NetEqImpl::RegisterPayloadType(int rtp_payload_type,
          DecoderDatabase::kOK;
 }
 
+bool NetEqImpl::CreateDecoder(int rtp_payload_type) {
+  MutexLock lock(&mutex_);
+  return decoder_database_->GetDecoder(rtp_payload_type) != nullptr;
+}
+
 int NetEqImpl::RemovePayloadType(uint8_t rtp_payload_type) {
   MutexLock lock(&mutex_);
   int ret = decoder_database_->Remove(rtp_payload_type);
@@ -750,6 +755,11 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   last_decoded_packet_infos_.clear();
   tick_timer_->Increment();
 
+  // Sanity check - should already be taken care of when setting
+  // output_size_samples_.
+  RTC_DCHECK_LE(output_size_samples_ * sync_buffer_->Channels(),
+                AudioFrame::kMaxDataSizeSamples);
+
   // Check for muted state.
   if (enable_muted_state_ && expand_->Muted() && packet_buffer_->Empty()) {
     RTC_DCHECK_EQ(last_mode_, Mode::kExpand);
@@ -757,14 +767,6 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
     RTC_DCHECK(audio_frame->muted());  // Reset() should mute the frame.
     playout_timestamp_ += static_cast<uint32_t>(output_size_samples_);
     audio_frame->sample_rate_hz_ = fs_hz_;
-    // Make sure the total number of samples fits in the AudioFrame.
-    if (output_size_samples_ * sync_buffer_->Channels() >
-        AudioFrame::kMaxDataSizeSamples) {
-      // TODO(tommi): Remove this check. This should no longer happen
-      // after stricter checks were added to SetSampleRateAndChannels().
-      RTC_DCHECK_NOTREACHED();
-      return kSampleUnderrun;
-    }
     audio_frame->samples_per_channel_ = output_size_samples_;
     audio_frame->timestamp_ =
         first_packet_
@@ -886,23 +888,12 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
   sync_buffer_->PushBack(*algorithm_buffer_);
 
   // Extract data from `sync_buffer_` to `output`.
-  size_t num_output_samples_per_channel = output_size_samples_;
-  size_t num_output_samples = output_size_samples_ * sync_buffer_->Channels();
-  if (num_output_samples > AudioFrame::kMaxDataSizeSamples) {
-    // TODO(tommi): Remove this check. This should no longer happen
-    // after stricter checks were added to SetSampleRateAndChannels().
-    RTC_DCHECK_NOTREACHED();
-    RTC_LOG(LS_WARNING) << "Output array is too short. "
-                        << AudioFrame::kMaxDataSizeSamples << " < "
-                        << output_size_samples_ << " * "
-                        << sync_buffer_->Channels();
-    num_output_samples = AudioFrame::kMaxDataSizeSamples;
-    num_output_samples_per_channel =
-        AudioFrame::kMaxDataSizeSamples / sync_buffer_->Channels();
-  }
-  sync_buffer_->GetNextAudioInterleaved(num_output_samples_per_channel,
-                                        audio_frame);
-  audio_frame->sample_rate_hz_ = fs_hz_;
+  audio_frame->ResetWithoutMuting();
+  audio_frame->SetSampleRateAndChannelSize(fs_hz_);
+  InterleavedView<int16_t> view =
+      audio_frame->mutable_data(output_size_samples_, sync_buffer_->Channels());
+  bool got_audio = sync_buffer_->GetNextAudioInterleaved(view);
+
   // TODO(bugs.webrtc.org/10757):
   //   We don't have the ability to properly track individual packets once their
   //   audio samples have entered `sync_buffer_`. So for now, treat it as if
@@ -920,7 +911,8 @@ int NetEqImpl::GetAudioInternal(AudioFrame* audio_frame,
     sync_buffer_->set_next_index(sync_buffer_->next_index() -
                                  missing_lookahead_samples);
   }
-  if (audio_frame->samples_per_channel_ != output_size_samples_) {
+
+  if (!got_audio) {
     RTC_LOG(LS_ERROR) << "audio_frame->samples_per_channel_ ("
                       << audio_frame->samples_per_channel_
                       << ") != output_size_samples_ (" << output_size_samples_

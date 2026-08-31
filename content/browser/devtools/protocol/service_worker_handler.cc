@@ -131,9 +131,8 @@ void DidFindRegistrationForDispatchPeriodicSyncEvent(
 
 }  // namespace
 
-ServiceWorkerHandler::ServiceWorkerHandler(bool allow_inspect_worker)
+ServiceWorkerHandler::ServiceWorkerHandler()
     : DevToolsDomainHandler(ServiceWorker::Metainfo::domainName),
-      allow_inspect_worker_(allow_inspect_worker),
       enabled_(false),
       browser_context_(nullptr),
       storage_partition_(nullptr) {}
@@ -272,26 +271,6 @@ Response ServiceWorkerHandler::UpdateRegistration(
   return Response::Success();
 }
 
-Response ServiceWorkerHandler::InspectWorker(const std::string& version_id) {
-  if (!enabled_)
-    return CreateDomainNotEnabledErrorResponse();
-  if (!context_)
-    return CreateContextErrorResponse();
-  if (!allow_inspect_worker_)
-    return Response::ServerError("Permission denied");
-  int64_t id = blink::mojom::kInvalidServiceWorkerVersionId;
-  if (!base::StringToInt64(version_id, &id))
-    return CreateInvalidVersionIdErrorResponse();
-
-  if (content::ServiceWorkerVersion* version = context_->GetLiveVersion(id)) {
-    OpenNewDevToolsWindow(
-        version->embedded_worker()->process_id(),
-        version->embedded_worker()->worker_devtools_agent_route_id());
-  }
-
-  return Response::Success();
-}
-
 Response ServiceWorkerHandler::SetForceUpdateOnPageLoad(
     bool force_update_on_page_load) {
   if (!context_)
@@ -314,9 +293,10 @@ Response ServiceWorkerHandler::DeliverPushMessage(
   std::optional<std::string> payload;
   if (data.size() > 0)
     payload = data;
-  browser_context_->DeliverPushMessage(GURL(origin), id,
-                                       /* message_id= */ std::string(),
-                                       std::move(payload), base::DoNothing());
+  browser_context_->DeliverPushMessage(
+      GURL(origin), id,
+      /* message_id= */ std::string(), std::move(payload),
+      /* record_network_requests=  */ false, base::DoNothing());
 
   return Response::Success();
 }

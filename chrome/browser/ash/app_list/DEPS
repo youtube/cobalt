@@ -20,7 +20,6 @@ include_rules = [
   "+chrome/browser/ash/arc",
   "+chrome/browser/ash/borealis",
   "+chrome/browser/ash/bruschetta",
-  "+chrome/browser/ash/crosapi",
   "+chrome/browser/ash/crostini",
   "+chrome/browser/ash/drive",
   "+chrome/browser/ash/extensions",
@@ -37,8 +36,6 @@ include_rules = [
   "+chrome/browser/autocomplete",
   "+chrome/browser/bitmap_fetcher",
   "+chrome/browser/bookmarks",
-  "+chrome/browser/browser_process.h",
-  "+chrome/browser/chromeos/launcher_search",
   "+chrome/browser/extensions/chrome_app_icon.h",
   "+chrome/browser/extensions/context_menu_matcher.h",
   "+chrome/browser/extensions/extension_browsertest.h",
@@ -51,12 +48,9 @@ include_rules = [
   "+chrome/browser/extensions/launch_util.h",
   "+chrome/browser/extensions/menu_manager_factory.h",
   "+chrome/browser/extensions/menu_manager.h",
-  "+chrome/browser/extensions/pending_extension_manager.h",
   "+chrome/browser/favicon",
   "+chrome/browser/feature_engagement",
   "+chrome/browser/history",
-  "+chrome/browser/image_decoder",
-  "+chrome/browser/metrics",
   "+chrome/browser/notifications",
   "+chrome/browser/platform_util.h",
   "+chrome/browser/policy",
@@ -66,9 +60,6 @@ include_rules = [
   "+chrome/browser/signin",
   "+chrome/browser/sync",
   "+chrome/browser/trusted_vault",
-  "+chrome/browser/ui/app_icon_loader_delegate.h",
-  "+chrome/browser/ui/app_icon_loader.h",
-  "+chrome/browser/ui/app_list",
   "+chrome/browser/ui/ash",
   "+chrome/browser/ui/browser_commands.h",
   "+chrome/browser/ui/browser_finder.h",
@@ -78,7 +69,6 @@ include_rules = [
   "+chrome/browser/ui/browser_navigator_params.h",
   "+chrome/browser/ui/browser_window.h",
   "+chrome/browser/ui/chrome_pages.h",
-  "+chrome/browser/ui/extensions",
   "+chrome/browser/ui/settings_window_manager_chromeos.h",
   "+chrome/browser/ui/web_applications",
   "+chrome/browser/ui/webui/ash/settings/app_management",
@@ -87,7 +77,6 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/settings/search",
   "+chrome/browser/ui/webui/ash/settings/services/settings_manager",
   "+chrome/browser/ui/webui/ash/settings/test_support",
-  "+chrome/browser/ui/webui/chrome_web_ui_controller_factory.h",
   "+chrome/browser/web_applications/externally_managed_app_manager.h",
   "+chrome/browser/web_applications/mojom",
   "+chrome/browser/web_applications/test",
@@ -95,7 +84,6 @@ include_rules = [
   "+chrome/browser/web_applications/web_app_icon_manager.h",
   "+chrome/browser/web_applications/web_app_install_info.h",
   "+chrome/browser/web_applications/web_app_provider.h",
-  "+chrome/common/channel_info.h",
   "+chrome/common/chrome_constants.h",
   "+chrome/common/chrome_features.h",
   "+chrome/common/chrome_paths.h",
@@ -111,18 +99,27 @@ include_rules = [
   "+ash/resources",
   "+ash/strings",
   "+components/app_constants",
+  "+components/app_icon_loader",
   "+components/services/app_service/public",
 ]
 
 specific_include_rules = {
-  "app_service_app_item_browsertest\.cc": [
+  "app_service_app_item_browsertest\\.cc": [
     "+ash/app_list/app_list_controller_impl.h",
     "+ash/app_list/app_list_model_provider.h",
     "+ash/app_list/model/app_list_item.h",
     "+ash/shell.h",
   ],
 
-  "app_list_sort_browsertest\.cc": [
+  ".*unittest\\.cc": [
+    "+chrome/browser/global_features.h",
+  ],
+
+  ".*browsertest\\.cc": [
+    "+chrome/browser/browser_process.h",
+  ],
+
+  "app_list_sort_browsertest\\.cc": [
     "+ash/app_list/app_list_model_provider.h",
     "+ash/app_list/views/app_list_item_view.h",
     "+ash/app_list/views/app_list_menu_model_adapter.h",
@@ -131,7 +128,7 @@ specific_include_rules = {
     "+ash/shell.h",
   ],
 
-  "app_list_syncable_service_unittest\.cc": [
+  "app_list_syncable_service_unittest\\.cc": [
     "+cc/base/math_util.h",
   ],
 }

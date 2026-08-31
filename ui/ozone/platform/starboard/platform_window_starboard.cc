@@ -19,6 +19,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "starboard/event.h"
 #include "ui/events/event.h"
@@ -163,6 +164,14 @@ void PlatformWindowStarboard::Show(bool inactive) {
     sb_window_ = SbWindowCreate(&options);
     CHECK(SbWindowIsValid(sb_window_));
 
+    SbWindowSize size{};
+    if (SbWindowGetSize(sb_window_, &size)) {
+      bounds_ = gfx::Rect(bounds_.x(), bounds_.y(), size.width, size.height);
+    } else {
+      LOG(WARNING)
+          << "PlatformWindowStarboard::Show(): SbWindowGetSize failed.";
+    }
+
     (*g_created_callback).Run(sb_window_);
   }
 
@@ -246,6 +255,14 @@ void PlatformWindowStarboard::Restore() {
 
     sb_window_ = SbWindowCreate(&options);
     CHECK(SbWindowIsValid(sb_window_));
+
+    SbWindowSize size{};
+    if (SbWindowGetSize(sb_window_, &size)) {
+      bounds_ = gfx::Rect(bounds_.x(), bounds_.y(), size.width, size.height);
+    } else {
+      LOG(WARNING)
+          << "PlatformWindowStarboard::Restore(): SbWindowGetSize failed.";
+    }
 
     (*g_created_callback).Run(sb_window_);
   }

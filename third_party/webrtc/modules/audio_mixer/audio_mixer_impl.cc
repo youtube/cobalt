@@ -10,17 +10,21 @@
 
 #include "modules/audio_mixer/audio_mixer_impl.h"
 
-#include <stdint.h>
-
 #include <algorithm>
-#include <iterator>
-#include <type_traits>
+#include <cstddef>
+#include <memory>
 #include <utility>
+#include <vector>
 
-#include "modules/audio_mixer/audio_frame_manipulator.h"
+#include "api/array_view.h"
+#include "api/audio/audio_frame.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "modules/audio_mixer/default_output_rate_calculator.h"
+#include "modules/audio_mixer/output_rate_calculator.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 

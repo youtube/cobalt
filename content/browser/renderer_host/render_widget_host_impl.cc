@@ -45,6 +45,7 @@
 #include "cc/trees/browser_controls_params.h"
 #include "cc/trees/render_frame_metadata.h"
 #include "components/input/dispatch_to_renderer_callback.h"
+#include "components/input/features.h"
 #include "components/input/input_constants.h"
 #include "components/input/input_router_config_helper.h"
 #include "components/input/native_web_keyboard_event.h"
@@ -104,6 +105,7 @@
 #include "content/public/common/result_codes.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/service/gpu_switches.h"
+#include "ipc/constants.mojom.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/system/platform_handle.h"
@@ -247,7 +249,8 @@ std::vector<DropData::Metadata> DropDataToMetaData(const DropData& drop_data) {
   // On Aura, filenames are available before drop.
   for (const auto& file_info : drop_data.filenames) {
     if (!file_info.path.empty()) {
-      metadata.push_back(DropData::Metadata::CreateForFilePath(file_info.path));
+      metadata.push_back(DropData::Metadata::CreateForFilePath(
+          file_info.path, file_info.display_name));
     }
   }
 
@@ -417,7 +420,7 @@ RenderWidgetHostImpl::RenderWidgetHostImpl(
   frame_token_message_queue_->Init(this);
 
   CHECK(delegate_);
-  CHECK_NE(MSG_ROUTING_NONE, routing_id_);
+  CHECK_NE(IPC::mojom::kRoutingIdNone, routing_id_);
   CHECK(base::ThreadPoolInstance::Get());
 
   AddInputEventObserver(BrowserAccessibilityStateImpl::GetInstance());
@@ -700,6 +703,17 @@ void RenderWidgetHostImpl::SetIntersectsViewport(bool intersects) {
   }
 
   intersects_viewport_ = intersects;
+  UpdatePriority();
+}
+
+void RenderWidgetHostImpl::SetShouldContributePriorityToProcess(
+    bool should_contribute_priority_to_process) {
+  if (should_contribute_priority_to_process_ ==
+      should_contribute_priority_to_process) {
+    return;
+  }
+  should_contribute_priority_to_process_ =
+      should_contribute_priority_to_process;
   UpdatePriority();
 }
 
@@ -1503,7 +1517,7 @@ void RenderWidgetHostImpl::RenderProcessBlockedStateChanged(bool blocked) {
 
 void RenderWidgetHostImpl::NotifyVizOfPageVisibilityUpdates() {
   if (auto* delegate_remote =
-          delegate()->GetRenderInputRouterDelegateRemote()) {
+          mojo_rir_delegate_impl_.GetRenderInputRouterDelegateRemote()) {
     delegate_remote->NotifyVisibilityChanged(frame_sink_id_, is_hidden_);
   }
 }
@@ -1514,7 +1528,8 @@ void RenderWidgetHostImpl::RestartRenderInputRouterInputEventAckTimeout() {
   }
   // Notifies RenderInputRouters on both browser and VizCompositor to restart
   // their input event ack timers.
-  if (auto* remote = delegate()->GetRenderInputRouterDelegateRemote()) {
+  if (auto* remote =
+          mojo_rir_delegate_impl_.GetRenderInputRouterDelegateRemote()) {
     remote->RestartInputEventAckTimeoutIfNecessary(GetFrameSinkId());
   }
   GetRenderInputRouter()->RestartInputEventAckTimeoutIfNecessary();
@@ -2094,17 +2109,32 @@ void RenderWidgetHostImpl::InsertVisualStateCallback(
 
 RenderProcessHostPriorityClient::Priority RenderWidgetHostImpl::GetPriority() {
   RenderProcessHostPriorityClient::Priority priority = {
-      is_hidden_,
-      frame_depth_,
-      intersects_viewport_,
+      is_hidden_,  frame_depth_, intersects_viewport_, is_discarding_,
 #if BUILDFLAG(IS_ANDROID)
       importance_,
 #endif
   };
-  if (owner_delegate_ &&
-      !owner_delegate_->ShouldContributePriorityToProcess()) {
+  bool should_contribute = false;
+  if (base::FeatureList::IsEnabled(features::kSubframePriorityContribution)) {
+    should_contribute = should_contribute_priority_to_process_;
+    if (owner_delegate_ && !owner_delegate_->IsMainFrameActive()) {
+      // If this RenderWidgetHost is owned by a RenderViewHost which does not
+      // have an active main frame, it should not contribute to the priority of
+      // the process. This can happen for an OOPIF which not only has its own
+      // RenderWidgetHost, but also has an inactive RenderViewHost in its
+      // SiteInstance, and that RenderViewHost owns another unused
+      // RenderWidgetHost which is what's being excluded here.
+      should_contribute = false;
+    }
+  } else {
+    should_contribute = !owner_delegate_ ||
+                        owner_delegate_->ShouldContributePriorityToProcess();
+  }
+
+  if (!should_contribute) {
     priority.is_hidden = true;
     priority.frame_depth = RenderProcessHostImpl::kMaxFrameDepthForPriority;
+    priority.is_discarding = false;
 #if BUILDFLAG(IS_ANDROID)
     priority.importance = ChildProcessImportance::NORMAL;
 #endif
@@ -2462,8 +2492,9 @@ void RenderWidgetHostImpl::OnInputEventAckTimeout(
 
   // If a widget's visibility changed mid-input sequence handling and an ack
   // later times out, defer marking the renderer unresponsive until the widget
-  // has been shown for at least `kHungRendererDelay`.
-  if ((ack_timeout_ts - latest_shown_time_) < input::kHungRendererDelay) {
+  // has been shown for at least `kRendererHangWatcherDelay`.
+  if ((ack_timeout_ts - latest_shown_time_) <
+      input::features::kRendererHangWatcherDelay.Get()) {
     return;
   }
 
@@ -3226,7 +3257,7 @@ void RenderWidgetHostImpl::RequestMouseLock(
   }
 
   delegate_->RequestToLockPointer(this, from_user_gesture,
-                                  is_last_unlocked_by_target_, false);
+                                  is_last_unlocked_by_target_);
   // We need to reset |is_last_unlocked_by_target_| here as we don't know
   // request source in |LostPointerLock()|.
   is_last_unlocked_by_target_ = false;
@@ -3632,6 +3663,11 @@ void RenderWidgetHostImpl::CreateFrameSink(
       std::move(compositor_frame_sink_client), std::move(viz_rir_client_remote),
       GetRenderInputRouter()->GetForceEnableZoom());
 
+  if (input::InputUtils::IsTransferInputToVizSupported()) {
+    // Handles setting up GPU mojo endpoint connections for
+    // RenderInputRouterDelegate[Client] interfaces.
+    mojo_rir_delegate_impl_.SetupRenderInputRouterDelegateConnection();
+  }
   MaybeDispatchBufferedFrameSinkRequest();
 }
 
@@ -3739,6 +3775,10 @@ void RenderWidgetHostImpl::SetupInputRouter() {
 }
 
 void RenderWidgetHostImpl::SetForceEnableZoom(bool enabled) {
+  if (auto* remote =
+          mojo_rir_delegate_impl_.GetRenderInputRouterDelegateRemote()) {
+    remote->ForceEnableZoomStateChanged(enabled, frame_sink_id_);
+  }
   GetRenderInputRouter()->SetForceEnableZoom(enabled);
 }
 
@@ -3824,10 +3864,9 @@ void RenderWidgetHostImpl::OnRenderFrameMetadataChangedAfterActivation(
 
   if (mobile_optimized_state_changed) {
     input_router()->NotifySiteIsMobileOptimized(is_mobile_optimized_);
-    if (auto* touch_emulator =
-            GetTouchEmulator(/*create_if_necessary=*/false)) {
-      touch_emulator->SetDoubleTapSupportForPageEnabled(!is_mobile_optimized_);
-    }
+  }
+  if (auto* touch_emulator = GetTouchEmulator(/*create_if_necessary=*/false)) {
+    touch_emulator->SetDoubleTapSupportForPageEnabled(!is_mobile_optimized_);
   }
 
   // TODO(danakj): Can this method be called during WebContents destruction?
@@ -3989,6 +4028,14 @@ void RenderWidgetHostImpl::ForceRedrawForTesting() {
   CHECK(blink_widget_);
 
   blink_widget_->ForceRedraw(base::DoNothing());
+}
+
+void RenderWidgetHostImpl::SetIsDiscarding(bool is_discarding) {
+  if (is_discarding_ == is_discarding) {
+    return;
+  }
+  is_discarding_ = is_discarding;
+  UpdatePriority();
 }
 
 RenderWidgetHostImpl::CompositorMetricRecorder::CompositorMetricRecorder(

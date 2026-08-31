@@ -36,6 +36,7 @@ static_library("policy") {
     "//chrome/browser/ash/profiles",
     "//chrome/browser/chromeos/platform_keys",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/signin",
     "//chrome/common:constants",
     "//chromeos/ash/components/system",
     "//chromeos/ash/experiences/arc",
@@ -103,4 +104,8 @@ source_set("unit_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }

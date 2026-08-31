@@ -13,10 +13,13 @@
 
 #include <jni.h>
 
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "api/array_view.h"
 #include "api/audio_codecs/audio_format.h"
 #include "api/call/transport.h"
 #include "api/voip/voip_base.h"
@@ -26,7 +29,8 @@
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
-#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "rtc_base/thread_annotations.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc_examples {
 

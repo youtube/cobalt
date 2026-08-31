@@ -76,9 +76,6 @@ assertNever<CheckEnumCompatibility<
 assertNever<CheckEnumCompatibility<
     Omit<typeof mojom.WebClientMode, 'kUnknown'>, typeof api.WebClientMode>>();
 assertNever<CheckEnumCompatibility<
-    typeof mojom.ActInFocusedTabErrorReason,
-    typeof api.ActInFocusedTabErrorReason>>();
-assertNever<CheckEnumCompatibility<
     typeof mojom.CaptureScreenshotErrorReason,
     typeof api.CaptureScreenshotErrorReason>>();
 assertNever<CheckEnumCompatibility<
@@ -88,3 +85,11 @@ assertNever<CheckEnumCompatibility<
 assertNever<CheckEnumCompatibility<
     Omit<typeof mojom.SettingsPageField, 'kNone'>,
     typeof api.SettingsPageField>>();
+assertNever<CheckEnumCompatibility<
+    typeof mojom.HostCapability, typeof api.HostCapability>>();
+assertNever<CheckEnumCompatibility<
+    typeof mojom.ActorTaskState, typeof api.ActorTaskState>>();
+assertNever<CheckEnumCompatibility<
+    typeof mojom.ActorTaskPauseReason, typeof api.ActorTaskPauseReason>>();
+assertNever<CheckEnumCompatibility<
+    typeof mojom.ActorTaskStopReason, typeof api.ActorTaskStopReason>>();

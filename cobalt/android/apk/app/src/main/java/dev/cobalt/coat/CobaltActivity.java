@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.chromium.base.CommandLine;
@@ -64,6 +65,7 @@ import org.chromium.base.memory.MemoryPressureMonitor;
 import org.chromium.base.memory.MemoryPressureUma;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.version_info.VersionInfo;
+import org.chromium.components.origin_matcher.OriginMatcher;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
@@ -104,6 +106,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
   private Boolean mIsKeepScreenOnEnabled = false;
   private Runnable mFreezeRunnable;
   private final Handler mHandler = new Handler(Looper.getMainLooper());
+
   private boolean mIsCobaltUsingAndroidOverlay;
 
   private NetworkChangeNotifier.ConnectionTypeObserver mNetworkRecoveryObserver;
@@ -152,7 +155,7 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     boolean enableSplashScreen = metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
     if (!enableSplashScreen) {
-      args.add("--disable-splash-screen");
+      args.add("--enable-features=DisableSplashScreen");
     }
 
     String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
@@ -249,9 +252,9 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
+        mShellManager.getContentViewRenderView().getAnchorView());
     mA11yHelper =
-        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
+        new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getAnchorView());
 
     maybeRegisterNetworkRecoveryObserver();
 
@@ -282,6 +285,8 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
             false, // Do not start a separate GPU process
             // TODO(b/377025565): Figure out what this means
             false, // Do not start in "minimal" or paused mode
+            /* singleProcess= */ true, // Cobalt always runs in single-process mode
+            /* scheduleFlushStartupTasks= */ false,
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
@@ -506,14 +511,22 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
-      Log.d(
-          TAG,
-          "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-      javascriptInjector.addPossiblyUnsafeInterface(
-          javascriptAndroidObject,
-          javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class,
-          /* originAllowlist= */ new ArrayList<String>());
+      OriginMatcher matcher = new OriginMatcher();
+      try {
+        matcher.setRuleList(new ArrayList<String>());
+        Log.d(
+              TAG,
+              "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+        javascriptInjector.addPossiblyUnsafeInterfaceToOrigins(
+            javascriptAndroidObject,
+            javascriptAndroidObject.getJavaScriptInterfaceName(),
+            CobaltJavaScriptInterface.class,
+            matcher);
+        // We always need to clean the matcher when we
+        // are done with it.
+      } finally {
+        matcher.destroy();
+      }
     }
   }
 
@@ -529,10 +542,6 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStart() {
-    DisplayUtil.cacheDefaultDisplay(this);
-    DisplayUtil.addDisplayListener(this);
-    mWasDisplayOn = isDisplayOn();
-    registerDisplayListener();
     StartupGuard.getInstance().setStartupMilestone(10);
     if (isDevelopmentBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
@@ -545,23 +554,33 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
       createNewSurfaceView();
     }
 
+    DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
     AudioOutputManager.addAudioDeviceListener(this);
+
+    if (isNvidiaShield()) {
+      mWasDisplayOn = isDisplayOn();
+      registerDisplayListener();
+    }
 
     super.onStart();
 
-    if (mFreezeRunnable != null) {
+    if (isNvidiaShield() && mFreezeRunnable != null) {
       mHandler.removeCallbacks(mFreezeRunnable);
       mFreezeRunnable = null;
     }
     WebContents webContents = getActiveWebContents();
     if (webContents != null
-        && (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)
-            || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
+        && (isNvidiaShield() || getJavaSwitches().containsKey(JavaSwitches.ENABLE_FREEZE))) {
       // document.onresume event
       webContents.onResume();
     }
     // visibility:visible event
-    updateShellActivityVisible(mWasDisplayOn);
+    if (isNvidiaShield()) {
+      updateShellActivityVisible(mWasDisplayOn);
+    } else {
+      updateShellActivityVisible(true);
+    }
     MemoryPressureMonitor.INSTANCE.enablePolling(false);
 
     StartupGuard.getInstance().setStartupMilestone(11);
@@ -576,14 +595,16 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onStop() {
-    unregisterDisplayListener();
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+    }
     super.onStop();
 
     // visibility:hidden event
     updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
-      if (getJavaSwitches().containsKey(JavaSwitches.DELAY_FREEZE_ON_BACKGROUND)) {
+      if (isNvidiaShield()) {
         if (mFreezeRunnable != null) {
           mHandler.removeCallbacks(mFreezeRunnable);
         }
@@ -603,6 +624,10 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
         // If ENABLE_FREEZE is specified, fire freeze event immediately
         webContents.onFreeze();
       }
+    }
+
+    if (getJavaSwitches().containsKey(JavaSwitches.ENABLE_DOM_STORAGE_SMART_FLUSHING)) {
+      CobaltContentBrowserClient.flushCookiesAndLocalStorage();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -631,11 +656,13 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
 
   @Override
   protected void onDestroy() {
-    unregisterDisplayListener();
     unregisterNetworkRecoveryObserver();
-    if (mFreezeRunnable != null) {
-      mHandler.removeCallbacks(mFreezeRunnable);
-      mFreezeRunnable = null;
+    if (isNvidiaShield()) {
+      unregisterDisplayListener();
+      if (mFreezeRunnable != null) {
+        mHandler.removeCallbacks(mFreezeRunnable);
+        mFreezeRunnable = null;
+      }
     }
     if (mShellManager != null) {
       mShellManager.destroy();
@@ -910,6 +937,12 @@ public abstract class CobaltActivity extends BaseCobaltActivity {
     if (mShellManager != null) {
       mShellManager.onActivityVisible(isVisible);
     }
+  }
+
+  private static boolean isNvidiaShield() {
+    return "NVIDIA".equalsIgnoreCase(Build.MANUFACTURER)
+        || "NVIDIA".equalsIgnoreCase(Build.BRAND)
+        || (Build.MODEL != null && Build.MODEL.toLowerCase(Locale.US).contains("shield"));
   }
 
   private boolean isDisplayOn() {

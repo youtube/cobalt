@@ -21,8 +21,8 @@
 #include "base/values.h"
 #include "content/browser/webid/test/mock_permission_delegate.h"
 #include "content/common/features.h"
-#include "content/public/browser/identity_request_dialog_controller.h"
 #include "content/public/browser/manifest_icon_downloader.h"
+#include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "net/base/isolation_info.h"
@@ -1718,15 +1718,15 @@ TEST_F(IdpNetworkRequestManagerTest, AccountSignedInStatus) {
   EXPECT_EQ(ParseStatus::kSuccess, accounts_response.parse_status);
   EXPECT_EQ(net::HTTP_OK, accounts_response.response_code);
   ASSERT_EQ(5ul, accounts.size());
-  ASSERT_TRUE(accounts[0]->login_state.has_value());
-  EXPECT_EQ(LoginState::kSignIn, *accounts[0]->login_state);
-  ASSERT_TRUE(accounts[1]->login_state.has_value());
-  EXPECT_EQ(LoginState::kSignUp, *accounts[1]->login_state);
-  ASSERT_TRUE(accounts[2]->login_state.has_value());
-  EXPECT_EQ(LoginState::kSignUp, *accounts[2]->login_state);
-  EXPECT_FALSE(accounts[3]->login_state.has_value());
-  ASSERT_TRUE(accounts[4]->login_state.has_value());
-  EXPECT_EQ(LoginState::kSignIn, *accounts[4]->login_state);
+  ASSERT_TRUE(accounts[0]->idp_claimed_login_state.has_value());
+  EXPECT_EQ(LoginState::kSignIn, *accounts[0]->idp_claimed_login_state);
+  ASSERT_TRUE(accounts[1]->idp_claimed_login_state.has_value());
+  EXPECT_EQ(LoginState::kSignUp, *accounts[1]->idp_claimed_login_state);
+  ASSERT_TRUE(accounts[2]->idp_claimed_login_state.has_value());
+  EXPECT_EQ(LoginState::kSignUp, *accounts[2]->idp_claimed_login_state);
+  EXPECT_FALSE(accounts[3]->idp_claimed_login_state.has_value());
+  ASSERT_TRUE(accounts[4]->idp_claimed_login_state.has_value());
+  EXPECT_EQ(LoginState::kSignIn, *accounts[4]->idp_claimed_login_state);
 }
 
 // Tests the token request implementation.

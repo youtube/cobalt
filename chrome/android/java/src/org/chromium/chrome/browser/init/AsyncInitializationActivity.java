@@ -12,7 +12,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.view.Display;
-import android.view.Menu;
 import android.view.View;
 import android.view.WindowManager;
 
@@ -27,6 +26,7 @@ import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LoaderErrors;
+import org.chromium.ui.base.UiAndroidFeatureList;
 import org.chromium.base.library_loader.ProcessInitException;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.build.BuildConfig;
@@ -149,6 +149,7 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
     @CallSuper
     protected boolean applyOverrides(Context baseContext, Configuration overrideConfig) {
         super.applyOverrides(baseContext, overrideConfig);
+         if (!UiAndroidFeatureList.sFormFactorUseMaxWindowMetrics.isEnabled()) {
 
         // We override the smallestScreenWidthDp here for two reasons:
         // 1. To prevent multi-window from hiding the tabstrip when on a tablet.
@@ -158,6 +159,8 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
         overrideConfig.smallestScreenWidthDp =
                 DisplayUtil.getCurrentSmallestScreenWidth(baseContext);
         return true;
+        }
+        return false;
     }
 
     @Override
@@ -452,10 +455,10 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
     }
 
     /**
-     * Allows subclasses to override the instance state passed to super.onCreate().
-     * The original instance state will still be available via getSavedInstanceState().
+     * Allows subclasses to override the instance state passed to super.onCreate(). The original
+     * instance state will still be available via getSavedInstanceState().
      */
-    protected Bundle transformSavedInstanceStateForOnCreate(Bundle savedInstanceState) {
+    protected @Nullable Bundle transformSavedInstanceStateForOnCreate(Bundle savedInstanceState) {
         return savedInstanceState;
     }
 
@@ -665,12 +668,6 @@ public abstract class AsyncInitializationActivity extends ChromeBaseAppCompatAct
 
     @Override
     public abstract boolean shouldStartGpuProcess();
-
-    @CallSuper
-    @Override
-    public void onContextMenuClosed(Menu menu) {
-        if (mWindowAndroid != null) mWindowAndroid.onContextMenuClosed();
-    }
 
     /**
      * Called when the content view gets drawn for the first time. See {@link FirstDrawDetector} for

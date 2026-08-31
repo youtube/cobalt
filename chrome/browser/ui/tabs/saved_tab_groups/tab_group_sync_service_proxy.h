@@ -49,6 +49,9 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
   void UpdateGroupPosition(const base::Uuid& sync_id,
                            std::optional<bool> is_pinned,
                            std::optional<int> new_index) override;
+  void UpdateBookmarkNodeId(
+      const base::Uuid& sync_id,
+      std::optional<base::Uuid> bookmark_node_id) override;
 
   void AddTab(const LocalTabGroupID& group_id,
               const LocalTabID& tab_id,
@@ -74,10 +77,13 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
   void UnsaveGroup(const LocalTabGroupID& local_id) override;
 
   void MakeTabGroupShared(const LocalTabGroupID& local_group_id,
-                          std::string_view collaboration_id,
+                          const syncer::CollaborationId& collaboration_id,
                           TabGroupSharingCallback callback) override;
-  void MakeTabGroupSharedForTesting(const LocalTabGroupID& local_group_id,
-                                    std::string_view collaboration_id) override;
+  void MakeTabGroupSharedForTesting(
+      const LocalTabGroupID& local_group_id,
+      const syncer::CollaborationId& collaboration_id) override;
+  void MakeTabGroupUnsharedForTesting(
+      const LocalTabGroupID& local_group_id) override;
 
   void AboutToUnShareTabGroup(const LocalTabGroupID& local_group_id,
                               base::OnceClosure on_complete_cb) override;
@@ -137,6 +143,8 @@ class TabGroupSyncServiceProxy : public TabGroupSyncService,
       TabGroupSyncService::UrlRestrictionCallback callback) override;
   std::unique_ptr<std::vector<SavedTabGroup>>
   TakeSharedTabGroupsAvailableAtStartupForMessaging() override;
+  bool HadSharedTabGroupsLastSession(bool open_shared_tab_groups) override;
+  VersioningMessageController* GetVersioningMessageController() override;
   void OnLastTabClosed(const SavedTabGroup& saved_tab_group) override;
 
   void AddObserver(Observer* observer) override;

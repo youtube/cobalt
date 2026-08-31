@@ -11,19 +11,20 @@ source_set("model") {
   ]
   deps = [
     ":shopping_service",
+    "//components/application_locale_storage",
     "//components/commerce/core:feature_list",
     "//components/commerce/core:proto",
     "//components/optimization_guide/core",
     "//components/payments/core:currency_formatter",
     "//components/prefs",
+    "//components/signin/public/identity_manager",
     "//components/unified_consent",
     "//ios/chrome/browser/optimization_guide/model",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/features",
-    "//ios/chrome/browser/signin/model:authentication_service",
-    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/signin/model",
     "//ios/web",
     "//ios/web/public",
   ]
@@ -38,6 +39,7 @@ source_set("shopping_service") {
   deps = [
     ":session_proto_db",
     "//base",
+    "//components/application_locale_storage",
     "//components/commerce/core:commerce_subscription_db_content_proto",
     "//components/commerce/core:feature_list",
     "//components/commerce/core:parcel_tracking_db_content_proto",

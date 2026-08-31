@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static org.chromium.chrome.browser.tabmodel.TabGroupUtils.mergeTabsToDest;
+
 import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.annotations.NullMarked;
@@ -12,9 +14,8 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabGroupUtils.TabMovedCallback;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupFaviconCluster.ClusterData;
-import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinator.TabMovedCallback;
-import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetMediator.TabGroupListBottomSheetRowMergeOperation;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupRowView.TabGroupRowViewTitleData;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.url.GURL;
@@ -27,7 +28,7 @@ import java.util.Objects;
  * TabGroupModelFilter} as its primary source of truth.
  */
 @NullMarked
-class LocalTabGroupListBottomSheetRowMediator implements TabGroupListBottomSheetRowMergeOperation {
+class LocalTabGroupListBottomSheetRowMediator {
     private final Token mGroupId;
     private final TabGroupModelFilter mTabGroupModelFilter;
     private final @Nullable TabMovedCallback mTabMovedCallback;
@@ -53,7 +54,6 @@ class LocalTabGroupListBottomSheetRowMediator implements TabGroupListBottomSheet
         mTabMovedCallback = tabMovedCallback;
 
         int numTabs = mTabGroupModelFilter.getTabCountForGroup(mGroupId);
-        int rootId = tabGroupModelFilter.getRootIdFromTabGroupId(mGroupId);
         List<GURL> urlList =
                 TabGroupFaviconCluster.buildUrlListFromFilter(mGroupId, mTabGroupModelFilter);
 
@@ -62,11 +62,11 @@ class LocalTabGroupListBottomSheetRowMediator implements TabGroupListBottomSheet
                 TabGroupRowProperties.CLUSTER_DATA,
                 new ClusterData(faviconResolver, numTabs, urlList));
         builder.with(
-                TabGroupRowProperties.COLOR_INDEX, mTabGroupModelFilter.getTabGroupColor(rootId));
+                TabGroupRowProperties.COLOR_INDEX, mTabGroupModelFilter.getTabGroupColor(groupId));
 
         TabGroupRowViewTitleData titleData =
                 new TabGroupRowViewTitleData(
-                        mTabGroupModelFilter.getTabGroupTitle(rootId),
+                        mTabGroupModelFilter.getTabGroupTitle(groupId),
                         numTabs,
                         R.plurals.tab_group_bottom_sheet_row_accessibility_text);
         builder.with(TabGroupRowProperties.TITLE_DATA, titleData);

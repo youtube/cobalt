@@ -5,9 +5,11 @@
 #include "chrome/browser/ui/startup/startup_browser_creator_impl.h"
 
 #include "base/command_line.h"
+#include "base/strings/stringprintf.h"
 #include "build/build_config.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/ui/startup/startup_tab_provider.h"
+#include "chrome/common/chrome_version.h"
 #include "chrome/common/url_constants.h"
 #include "components/signin/public/base/signin_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -77,15 +79,6 @@ class FakeStartupTabProvider : public StartupTabProvider {
     StartupTabs tabs;
     if (options_ & kNewTabPageTabs) {
       tabs.emplace_back(GURL("https://new-tab"));
-    }
-    return tabs;
-  }
-
-  StartupTabs GetPostCrashTabs(
-      bool has_incompatible_applications) const override {
-    StartupTabs tabs;
-    if (has_incompatible_applications && (options_ & kPostCrashTabs)) {
-      tabs.emplace_back(GURL("https://incompatible-applications"));
     }
     return tabs;
   }
@@ -162,7 +155,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/false,
       /*privacy_sandbox_confirmation_required=*/false);
   EXPECT_EQ(LaunchResult::kNormally, output.launch_result);
@@ -177,7 +169,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs) {
   output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/false, /*whats_new_enabled=*/false,
       /*privacy_sandbox_confirmation_required=*/false);
   EXPECT_EQ(LaunchResult::kNormally, output.launch_result);
@@ -191,7 +182,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs) {
   output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/false,
       /*privacy_sandbox_confirmation_required=*/false);
   EXPECT_EQ(LaunchResult::kNormally, output.launch_result);
@@ -216,7 +206,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_Incognito) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/true, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
@@ -242,7 +231,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_Crash) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/true,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
@@ -252,18 +240,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_Crash) {
   // fake, because the Provider is ignored entirely when short-circuited by
   // the post-crash logic.
   EXPECT_EQ(GURL(chrome::kChromeUINewTabURL), output.tabs[0].url);
-
-  // Crash Recovery case with problem applications:
-  output = impl.DetermineStartupTabs(
-      provider, chrome::startup::IsProcessStartup::kYes,
-      /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/true,
-      /*has_incompatible_applications=*/true, /*promotional_tabs_enabled=*/true,
-      /*whats_new_enabled=*/true,
-      /*privacy_sandbox_confirmation_required=*/true);
-  EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
-
-  ASSERT_EQ(1U, output.tabs.size());
-  EXPECT_EQ(GURL("https://incompatible-applications"), output.tabs[0].url);
 }
 
 // If initial preferences specify content, this should block all other
@@ -280,7 +256,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_InitialPrefs) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
@@ -304,7 +279,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_CommandLine) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(LaunchResult::kWithGivenUrls, output.launch_result);
@@ -321,7 +295,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_CommandLine) {
   output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/true, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(LaunchResult::kWithGivenUrls, output.launch_result);
@@ -333,22 +306,10 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_CommandLine) {
   output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/true,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(LaunchResult::kWithGivenUrls, output.launch_result);
 
-  ASSERT_EQ(1U, output.tabs.size());
-  EXPECT_EQ("cmd-line", output.tabs[0].url.host());
-
-  // Crash Recovery with incompatible applications.
-  output = impl.DetermineStartupTabs(
-      provider, chrome::startup::IsProcessStartup::kYes,
-      /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/true,
-      /*has_incompatible_applications=*/true, /*promotional_tabs_enabled=*/true,
-      /*whats_new_enabled=*/true,
-      /*privacy_sandbox_confirmation_required=*/true);
-  EXPECT_EQ(LaunchResult::kWithGivenUrls, output.launch_result);
   ASSERT_EQ(1U, output.tabs.size());
   EXPECT_EQ("cmd-line", output.tabs[0].url.host());
 }
@@ -365,8 +326,8 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_NewTabPage) {
   auto output = impl.DetermineStartupTabs(
       provider_allows_ntp, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false,
-      /*is_post_crash_launch=*/false, /*has_incompatible_applications=*/false,
-      /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/false,
+      /*is_post_crash_launch=*/false, /*promotional_tabs_enabled=*/true,
+      /*whats_new_enabled=*/false,
       /*privacy_sandbox_confirmation_required=*/false);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
   ASSERT_EQ(3U, output.tabs.size());
@@ -389,7 +350,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_NewFeaturesPage) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(LaunchResult::kNormally, output.launch_result);
@@ -403,8 +363,8 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_NewFeaturesPage) {
   output = impl.DetermineStartupTabs(
       provider_with_pinned, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false,
-      /*is_post_crash_launch=*/false, /*has_incompatible_applications=*/false,
-      /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
+      /*is_post_crash_launch=*/false, /*promotional_tabs_enabled=*/true,
+      /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(LaunchResult::kNormally, output.launch_result);
   ASSERT_EQ(3U, output.tabs.size());
@@ -421,8 +381,8 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_NewFeaturesPage) {
   output = first_run_impl.DetermineStartupTabs(
       provider_with_onboarding, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false,
-      /*is_post_crash_launch=*/false, /*has_incompatible_applications=*/false,
-      /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
+      /*is_post_crash_launch=*/false, /*promotional_tabs_enabled=*/true,
+      /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(LaunchResult::kNormally, output.launch_result);
 
@@ -449,7 +409,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_PrivacySandbox) {
   auto output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
@@ -462,7 +421,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_PrivacySandbox) {
   output = impl.DetermineStartupTabs(
       provider, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/false, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
@@ -478,7 +436,6 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_PrivacySandbox) {
   output = impl.DetermineStartupTabs(
       provider_pinned_prefs_features, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false, /*is_post_crash_launch=*/false,
-      /*has_incompatible_applications=*/false,
       /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
@@ -497,8 +454,8 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineStartupTabs_PrivacySandbox) {
   output = first_run_impl.DetermineStartupTabs(
       provider_with_onboarding, chrome::startup::IsProcessStartup::kYes,
       /*is_ephemeral_profile=*/false,
-      /*is_post_crash_launch=*/false, /*has_incompatible_applications=*/false,
-      /*promotional_tabs_enabled=*/true, /*whats_new_enabled=*/true,
+      /*is_post_crash_launch=*/false, /*promotional_tabs_enabled=*/true,
+      /*whats_new_enabled=*/true,
       /*privacy_sandbox_confirmation_required=*/true);
   EXPECT_EQ(Creator::LaunchResult::kNormally, output.launch_result);
   std::vector<std::string> expected_tab_hosts = {"new-tab", "privacy-sandbox"};
@@ -612,4 +569,14 @@ TEST_F(StartupBrowserCreatorImplTest, DetermineBrowserOpenBehavior_NotStartup) {
 
   output = Creator::DetermineBrowserOpenBehavior(pref_last_and_urls, 0);
   EXPECT_EQ(Creator::BrowserOpenBehavior::NEW, output);
+}
+
+TEST_F(StartupBrowserCreatorImplTest, DetermineNonMilestoneUpdate) {
+  EXPECT_EQ(false, Creator::IsNonMilestoneUpdate("", "140.0.7297.0"));
+  EXPECT_EQ(false,
+            Creator::IsNonMilestoneUpdate("140.0.7297.0", "140.0.7297.0"));
+  EXPECT_EQ(false,
+            Creator::IsNonMilestoneUpdate("140.0.7297.0", "141.0.7327.0"));
+  EXPECT_EQ(true,
+            Creator::IsNonMilestoneUpdate("140.0.7297.0", "140.0.7297.1"));
 }

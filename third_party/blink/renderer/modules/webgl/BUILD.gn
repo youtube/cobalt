@@ -7,6 +7,7 @@ if (is_cobalt) {
 }
 
 import("//third_party/blink/renderer/modules/modules.gni")
+import("//ui/gl/features.gni")
 
 blink_modules_sources("webgl") {
   sources = [
@@ -198,13 +199,18 @@ blink_modules_sources("webgl") {
 
   public_deps = [ "//device/vr/public/mojom:vr_service_blink" ]
   deps = [
-    "//device/vr/buildflags:buildflags",
-    "//third_party/blink/renderer/modules/webcodecs:webcodecs",
-    "//third_party/blink/renderer/modules/xr:xr",
+    "//device/vr/buildflags",
+    "//gpu/command_buffer/client:gles2_implementation",
+    "//third_party/blink/renderer/modules/webcodecs",
+    "//third_party/blink/renderer/modules/xr",
+    "//ui/gl",
   ]
+  if (use_static_angle) {
+    deps += [ "//third_party/angle:libGLESv2_thin_static" ]
+  }
 
   if (is_cobalt) {
-    deps -= [ "//third_party/blink/renderer/modules/xr:xr" ]
+    deps -= [ "//third_party/blink/renderer/modules/xr" ]
   }
 
   allow_circular_includes_from = deps
@@ -213,6 +219,18 @@ blink_modules_sources("webgl") {
     sources += [
       "cobalt/oes_egl_image_external.cc",
       "cobalt/oes_egl_image_external.h",
+    ]
+  }
+
+  # This uses target_os rather than current_os (which is what is_android is set
+  # from) for the case of generating the v8 context snapshot for android. When
+  # generating the snapshot for android, blink is compiled with
+  # current_os="linux" and target_os="android". Using target_os is necessary as
+  # we need to compile in the same way as would happen when current_os="android".
+  if (is_cobalt && use_starboard_media && target_os_is_android) {
+    sources += [
+      "cobalt/cobalt_video_texture_transform.cc",
+      "cobalt/cobalt_video_texture_transform.h",
     ]
   }
 }

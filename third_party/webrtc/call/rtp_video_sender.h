@@ -113,9 +113,8 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   std::map<uint32_t, RtpPayloadState> GetRtpPayloadStates() const
       RTC_LOCKS_EXCLUDED(mutex_) override;
 
-  void DeliverRtcp(const uint8_t* packet, size_t length)
+  void DeliverRtcp(ArrayView<const uint8_t> packet)
       RTC_LOCKS_EXCLUDED(mutex_) override;
-
   // Implements webrtc::VCMProtectionCallback.
   int ProtectionRequest(const FecProtectionParams* delta_params,
                         const FecProtectionParams* key_params,
@@ -150,6 +149,12 @@ class RtpVideoSender : public RtpVideoSenderInterface,
   uint32_t GetPayloadBitrateBps() const RTC_LOCKS_EXCLUDED(mutex_) override;
   uint32_t GetProtectionBitrateBps() const RTC_LOCKS_EXCLUDED(mutex_) override;
   void SetEncodingData(size_t width, size_t height, size_t num_temporal_layers)
+      RTC_LOCKS_EXCLUDED(mutex_) override;
+
+  // Sets the list of CSRCs to be included in every packet. If more than
+  // kRtpCsrcSize CSRCs are provided, only the first kRtpCsrcSize elements are
+  // kept.
+  void SetCsrcs(ArrayView<const uint32_t> csrcs)
       RTC_LOCKS_EXCLUDED(mutex_) override;
 
   std::vector<RtpSequenceNumberMap::Info> GetSentRtpPacketInfos(
@@ -200,6 +205,9 @@ class RtpVideoSender : public RtpVideoSenderInterface,
       rtp_streams_;
   const RtpConfig rtp_config_;
   RtpTransportControllerSendInterface* const transport_;
+
+  // The list of CSRCs to be included when sending an encoded image.
+  std::vector<uint32_t> csrcs_ RTC_GUARDED_BY(mutex_);
 
   // When using the generic descriptor we want all simulcast streams to share
   // one frame id space (so that the SFU can switch stream without having to

@@ -19,6 +19,7 @@ source_set("search_preload") {
     "search_preload_service.h",
     "search_preload_service_factory.cc",
     "search_preload_service_factory.h",
+    "search_preload_signal_result.h",
   ]
 
   public_deps = [ "//content/public/browser" ]
@@ -27,8 +28,7 @@ source_set("search_preload") {
     "//base",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/search_engines",
-    "//chrome/browser/search_engines:search_engines",
-    "//components/omnibox/browser:browser",
+    "//components/omnibox/browser",
     "//components/omnibox/browser:mojo_bindings",
     "//components/search_engines",
   ]
@@ -44,6 +44,7 @@ source_set("browser_tests") {
   deps = [
     ":search_preload",
     "//base/test:test_support",
+    "//chrome/browser/autocomplete",
     "//chrome/browser/search_engines",
     "//chrome/test:platform_browser_tests",
     "//chrome/test:test_support",

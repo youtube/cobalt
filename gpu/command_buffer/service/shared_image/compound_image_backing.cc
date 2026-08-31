@@ -8,12 +8,12 @@
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
-#include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
@@ -23,9 +23,9 @@
 #include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/shared_memory_image_backing.h"
+#include "gpu/command_buffer/service/shared_image/shared_memory_image_backing_factory.h"
 #include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 #include "gpu/config/gpu_finch_features.h"
-#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "third_party/skia/include/core/SkAlphaType.h"
 #include "third_party/skia/include/core/SkPixmap.h"
 #include "third_party/skia/include/core/SkSurface.h"
@@ -38,7 +38,7 @@
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 
 namespace gpu {
 namespace {
@@ -64,13 +64,14 @@ constexpr bool kAllowShmOverlays = false;
 #endif
 
 gpu::SharedImageUsageSet GetShmSharedImageUsage(SharedImageUsageSet usage) {
-  if (kAllowShmOverlays) {
-    return usage.Has(gpu::SHARED_IMAGE_USAGE_SCANOUT)
-               ? SHARED_IMAGE_USAGE_CPU_WRITE_ONLY | SHARED_IMAGE_USAGE_SCANOUT
-               : SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+  gpu::SharedImageUsageSet new_usage = SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+  if (usage.Has(SHARED_IMAGE_USAGE_CPU_READ)) {
+    new_usage |= SHARED_IMAGE_USAGE_CPU_READ;
   }
-
-  return SHARED_IMAGE_USAGE_CPU_WRITE_ONLY;
+  if (kAllowShmOverlays && usage.Has(gpu::SHARED_IMAGE_USAGE_SCANOUT)) {
+    new_usage |= SHARED_IMAGE_USAGE_SCANOUT;
+  }
+  return new_usage;
 }
 
 }  // namespace
@@ -371,8 +372,7 @@ bool CompoundImageBacking::IsValidSharedMemoryBufferFormat(
     return false;
   }
 
-  if (!gpu::IsImageSizeValidForGpuMemoryBufferFormat(size,
-                                                     ToBufferFormat(format))) {
+  if (!IsSizeForBufferHandleValid(size, format)) {
     DVLOG(1) << "Invalid image size: " << size.ToString()
              << " for format: " << format.ToString();
     return false;
@@ -391,7 +391,17 @@ SharedImageUsageSet CompoundImageBacking::GetGpuSharedImageUsage(
     // Remove SCANOUT usage since it was previously moved to the shmem backing.
     // See: |GetShmSharedImageUsage|
     usage.RemoveAll(SharedImageUsageSet(gpu::SHARED_IMAGE_USAGE_SCANOUT));
-    return usage;
+  }
+  if (usage.Has(SHARED_IMAGE_USAGE_CPU_READ)) {
+    // Remove CPU_READ usage since it was previously moved to the shmem backing.
+    // See: |GetShmSharedImageUsage|
+    usage.RemoveAll(SharedImageUsageSet(gpu::SHARED_IMAGE_USAGE_CPU_READ));
+  }
+  if (usage.Has(SHARED_IMAGE_USAGE_CPU_WRITE_ONLY)) {
+    // Remove CPU_WRITE usage since it was previously moved to the shmem
+    // backing. See: |GetShmSharedImageUsage|
+    usage.RemoveAll(
+        SharedImageUsageSet(gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY));
   }
 
   return usage;
@@ -442,20 +452,13 @@ std::unique_ptr<SharedImageBacking> CompoundImageBacking::CreateSharedMemory(
     gfx::BufferUsage buffer_usage) {
   DCHECK(IsValidSharedMemoryBufferFormat(size, format));
 
-  auto buffer_format = ToBufferFormat(format);
-  auto handle = GpuMemoryBufferImplSharedMemory::CreateGpuMemoryBuffer(
-      gfx::GpuMemoryBufferId(0), size, buffer_format, buffer_usage);
-
-  SharedMemoryRegionWrapper shm_wrapper;
-  if (!shm_wrapper.Initialize(handle, size, buffer_format)) {
-    DLOG(ERROR) << "Failed to create SharedMemoryRegionWrapper";
+  auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
+      mailbox, format, kNullSurfaceHandle, size, color_space, surface_origin,
+      alpha_type, GetShmSharedImageUsage(usage), debug_label,
+      /*is_thread_safe=*/false, buffer_usage);
+  if (!shm_backing) {
     return nullptr;
   }
-
-  auto shm_backing = std::make_unique<SharedMemoryImageBacking>(
-      mailbox, format, size, color_space, surface_origin, alpha_type,
-      GetShmSharedImageUsage(usage), debug_label, std::move(shm_wrapper),
-      std::move(handle));
   shm_backing->SetNotRefCounted();
 
   return base::WrapUnique(new CompoundImageBacking(
@@ -473,7 +476,7 @@ CompoundImageBacking::CompoundImageBacking(
     SkAlphaType alpha_type,
     SharedImageUsageSet usage,
     std::string debug_label,
-    std::unique_ptr<SharedMemoryImageBacking> shm_backing,
+    std::unique_ptr<SharedImageBacking> shm_backing,
     base::WeakPtr<SharedImageBackingFactory> gpu_backing_factory,
     std::optional<gfx::BufferUsage> buffer_usage)
     : SharedImageBacking(mailbox,

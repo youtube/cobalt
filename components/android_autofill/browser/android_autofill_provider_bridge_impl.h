@@ -26,7 +26,7 @@ class AndroidAutofillProviderBridgeImpl : public AndroidAutofillProviderBridge {
   // AndroidAutofillProviderBridge:
   void AttachToJavaAutofillProvider(
       JNIEnv* env,
-      const base::android::JavaRef<jobject>& jcaller) override;
+      const base::android::JavaRef<jobject>& obj) override;
   void SendPrefillRequest(FormDataAndroid& form) override;
   void StartAutofillSession(FormDataAndroid& form,
                             const FieldInfo& field,
@@ -67,7 +67,7 @@ class AndroidAutofillProviderBridgeImpl : public AndroidAutofillProviderBridge {
   // anchor rect for `anchor_view` to the specified bounds. Invoked when opening
   // a datalist popup.
   void SetAnchorViewRect(JNIEnv* env,
-                         jobject anchor_view,
+                         const base::android::JavaRef<jobject>& anchor_view,
                          jfloat x,
                          jfloat y,
                          jfloat width,

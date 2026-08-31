@@ -22,6 +22,7 @@
 #include "components/prefs/pref_service.h"
 #include "components/sync/service/sync_service.h"
 #include "components/user_prefs/user_prefs.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/extension_function_registry.h"
 
@@ -426,6 +427,17 @@ ResponseAction PasswordsPrivateSetAccountStorageEnabledFunction::Run() {
   GetDelegate(browser_context())
       ->SetAccountStorageEnabled(parameters->enabled, GetSenderWebContents());
   return RespondNow(NoArguments());
+}
+
+// PasswordsPrivateShouldShowAccountStorageSettingToggleFunction
+ResponseAction
+PasswordsPrivateShouldShowAccountStorageSettingToggleFunction::Run() {
+  if (!GetDelegate(browser_context())) {
+    return RespondNow(Error(kNoDelegateError));
+  }
+
+  return RespondNow(WithArguments(
+      GetDelegate(browser_context())->ShouldShowAccountStorageSettingToggle()));
 }
 
 // PasswordsPrivateGetInsecureCredentialsFunction:

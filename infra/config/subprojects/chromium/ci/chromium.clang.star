@@ -3,22 +3,25 @@
 # found in the LICENSE file.
 """Definitions of builders in the chromium.clang builder group."""
 
-load("//lib/args.star", "args")
-load("//lib/branches.star", "branches")
-load("//lib/builder_config.star", "builder_config")
-load("//lib/builder_health_indicators.star", "health_spec")
-load("//lib/builders.star", "builders", "cpu", "gardener_rotations", "os", "siso")
-load("//lib/ci.star", "ci")
-load("//lib/consoles.star", "consoles")
-load("//lib/gn_args.star", "gn_args")
-load("//lib/html.star", "linkify_builder")
-load("//lib/targets.star", "targets")
+load("@chromium-luci//args.star", "args")
+load("@chromium-luci//branches.star", "branches")
+load("@chromium-luci//builder_config.star", "builder_config")
+load("@chromium-luci//builder_health_indicators.star", "health_spec")
+load("@chromium-luci//builders.star", "builders", "cpu", "os")
+load("@chromium-luci//ci.star", "ci")
+load("@chromium-luci//consoles.star", "consoles")
+load("@chromium-luci//gn_args.star", "gn_args")
+load("@chromium-luci//html.star", "linkify_builder")
+load("@chromium-luci//targets.star", "targets")
+load("//lib/ci_constants.star", "ci_constants")
+load("//lib/gardener_rotations.star", "gardener_rotations")
+load("//lib/siso.star", "siso")
 load("//lib/xcode.star", "xcode")
 
 ci.defaults.set(
-    executable = ci.DEFAULT_EXECUTABLE,
+    executable = ci_constants.DEFAULT_EXECUTABLE,
     builder_group = "chromium.clang",
-    pool = ci.DEFAULT_POOL,
+    pool = ci_constants.DEFAULT_POOL,
     builderless = True,
     cores = 32,
     os = os.LINUX_DEFAULT,
@@ -37,11 +40,12 @@ ci.defaults.set(
     }),
     properties = {
         "perf_dashboard_machine_group": "ChromiumClang",
+        "$build/chromium": {
+            "fail_build_on_clang_warnings": True,
+        },
     },
-    reclient_enabled = False,
-    service_account = ci.DEFAULT_SERVICE_ACCOUNT,
-    shadow_service_account = ci.DEFAULT_SHADOW_SERVICE_ACCOUNT,
-    siso_enabled = True,
+    service_account = ci_constants.DEFAULT_SERVICE_ACCOUNT,
+    shadow_service_account = ci_constants.DEFAULT_SHADOW_SERVICE_ACCOUNT,
     siso_project = siso.project.DEFAULT_TRUSTED,
 )
 
@@ -190,6 +194,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "cfi_full",
             "cfi_icall",
             "cfi_diag",
@@ -236,6 +241,7 @@ ci.builder(
         configs = [
             "asan",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "fuzzer",
             "release_builder",
             "v8_heap",
@@ -286,6 +292,7 @@ ci.builder(
         configs = [
             "asan",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "release",
             "v8_heap",
@@ -345,6 +352,7 @@ ci.builder(
             "minimal_symbols",
             "strip_debug_info",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "arm",
         ],
     ),
@@ -356,13 +364,13 @@ ci.builder(
             "all",
         ],
         mixins = [
-            "chromium_pixel_2_pie",
+            "chromium_pixel_2_q",
             "has_native_resultdb_integration",
         ],
         per_test_modifications = {
             "base_unittests": targets.mixin(
                 args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.pie_tot.base_unittests.filter",
+                    "--test-launcher-filter-file=../../testing/buildbot/filters/android.device_10.tot.base_unittests.filter",
                 ],
             ),
         },
@@ -403,6 +411,7 @@ ci.builder(
             "android_builder_without_codecs",
             "android_with_static_analysis",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "debug",
             "arm",
@@ -446,6 +455,7 @@ ci.builder(
             "android_builder_without_codecs",
             "android_with_static_analysis",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "release",
             "x64",
@@ -501,6 +511,7 @@ ci.builder(
             "android_builder_without_codecs",
             "android_with_static_analysis",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "release",
             "x86",
@@ -545,6 +556,7 @@ ci.builder(
             "android_builder_without_codecs",
             "android_with_static_analysis",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "release",
             "x86",
@@ -590,6 +602,7 @@ ci.builder(
             "android_builder_without_codecs",
             "android_with_static_analysis",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "release",
             "arm64",
         ],
@@ -638,6 +651,7 @@ ci.builder(
             "minimal_symbols",
             "official_optimize",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "arm64",
         ],
     ),
@@ -680,6 +694,7 @@ ci.builder(
             "chromeos_on_linux",
             "release",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "x64",
         ],
     ),
@@ -719,6 +734,7 @@ ci.builder(
             "chromeos_on_linux",
             "debug",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "x64",
         ],
     ),
@@ -760,8 +776,10 @@ ci.builder(
             "fuchsia",
             "release_builder",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "cast_receiver_size_optimized",
             "x64",
+            "dcheck_always_on",
         ],
     ),
     targets = targets.bundle(
@@ -852,9 +870,11 @@ ci.builder(
             "fuchsia",
             "arm64",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "static",
             "arm64_host",
             "cast_receiver_size_optimized",
+            "dcheck_always_on",
         ],
     ),
     targets = targets.bundle(
@@ -868,7 +888,7 @@ ci.builder(
         mixins = [
             "arm64",
             "docker",
-            "linux-jammy-or-focal",
+            "linux-jammy",
         ],
     ),
     console_view_entry = [
@@ -902,6 +922,7 @@ clang_tot_linux_builder(
         # optimized debug info.
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "full_symbols",
             "shared",
             "release",
@@ -942,6 +963,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "debug",
             "x64",
@@ -980,6 +1002,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "asan",
             "lsan",
             "release_builder",
@@ -1027,6 +1050,7 @@ clang_tot_linux_builder(
             "libfuzzer",
             "asan",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "release",
             "chromeos_codecs",
@@ -1057,6 +1081,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "use_clang_coverage",
             "minimal_symbols",
             "release",
@@ -1087,6 +1112,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "msan",
             "release",
             "x64",
@@ -1100,10 +1126,9 @@ clang_tot_linux_builder(
             "all",
         ],
         mixins = [
-            "linux-focal",
+            "linux-jammy",
         ],
     ),
-    os = os.LINUX_FOCAL,
     short_name = "msn",
 )
 
@@ -1127,6 +1152,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "official_optimize",
             "no_symbols",
             "pgo_phase_1",
@@ -1167,6 +1193,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "tsan",
             "release",
             "x64",
@@ -1206,6 +1233,7 @@ clang_tot_linux_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "ubsan_vptr_no_recover_hack",
             "release_builder",
             "x64",
@@ -1244,6 +1272,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "minimal_symbols",
             "release_builder",
             "x86",
@@ -1291,6 +1320,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "debug",
             "x86",
@@ -1339,6 +1369,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "minimal_symbols",
             "shared",
             "release",
@@ -1388,6 +1419,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "minimal_symbols",
             "release_builder",
             "win",
@@ -1436,6 +1468,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "debug",
             "win",
@@ -1484,6 +1517,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "release",
             "dcheck_always_on",
@@ -1535,6 +1569,7 @@ ci.builder(
             "libfuzzer",
             "asan",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "release",
             "chrome_with_codecs",
             "pdf_xfa",
@@ -1585,6 +1620,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "official_optimize",
             "no_symbols",
             "pgo_phase_1",
@@ -1618,6 +1654,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "use_clang_coverage",
             "minimal_symbols",
             "release",
@@ -1654,6 +1691,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "official_optimize",
             "no_symbols",
             "pgo_phase_1",
@@ -1710,6 +1748,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "win_cross",
             "minimal_symbols",
             "shared",
@@ -1758,6 +1797,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "ios_simulator",
             "x64",
             "ios_disable_code_signing",
@@ -1817,6 +1857,7 @@ ci.builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "ios_device",
             "arm64",
             "release",
@@ -1895,6 +1936,7 @@ clang_mac_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "minimal_symbols",
             "shared",
             "release",
@@ -1940,6 +1982,7 @@ clang_mac_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "shared",
             "debug",
             "x64",
@@ -1982,6 +2025,7 @@ clang_mac_builder(
         configs = [
             "asan",
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "minimal_symbols",
             "release_builder",
             "x64",
@@ -2017,6 +2061,7 @@ clang_mac_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "official_optimize",
             "no_symbols",
             "pgo_phase_1",
@@ -2045,6 +2090,7 @@ clang_mac_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "official_optimize",
             "no_symbols",
             "pgo_phase_1",
@@ -2070,6 +2116,7 @@ clang_mac_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "minimal_symbols",
             "arm64",
             "release",
@@ -2095,6 +2142,7 @@ clang_mac_builder(
     gn_args = gn_args.config(
         configs = [
             "clang_tot",
+            "no_treat_warnings_as_errors",
             "use_clang_coverage",
             "minimal_symbols",
             "release",

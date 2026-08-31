@@ -25,7 +25,6 @@
 #import "ios/chrome/browser/saved_tab_groups/model/tab_group_sync_service_factory.h"
 #import "ios/chrome/browser/saved_tab_groups/ui/tab_group_utils.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_avatar_configuration.h"
-#import "ios/chrome/browser/share_kit/model/share_kit_face_pile_configuration.h"
 #import "ios/chrome/browser/share_kit/model/share_kit_service.h"
 #import "ios/chrome/browser/share_kit/model/sharing_state.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -36,7 +35,6 @@
 #import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_drag_drop_metrics.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/activity_label_data.h"
@@ -64,9 +62,6 @@ using tab_groups::SharingState;
 
 namespace {
 
-// The preferred size in points for the avatar icons.
-constexpr CGFloat kLegacyFacePileAvatarSize = 24;
-constexpr CGFloat kFacePileAvatarSize = 26;
 // The preferred size in points for the avatar icon in the activity label.
 constexpr CGFloat kActivityLabelAvatarSize = 16;
 
@@ -103,6 +98,8 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
   // The bridge between the C++ MessagingBackendService observer and this
   // Objective-C class.
   std::unique_ptr<MessagingBackendServiceBridge> _messagingBackendServiceBridge;
+  // Tab group mediator delegate.
+  __weak id<TabGroupMediatorDelegate> _tabGroupDelegate;
 }
 
 - (instancetype)
@@ -116,11 +113,9 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
                 consumer:(id<TabGroupConsumer>)groupConsumer
             gridConsumer:(id<TabCollectionConsumer>)gridConsumer
               modeHolder:(TabGridModeHolder*)modeHolder
-        messagingService:(collaboration::messaging::MessagingBackendService*)
-                             messagingService {
-  CHECK(IsTabGroupInGridEnabled())
-      << "You should not be able to create a tab group mediator outside the "
-         "Tab Groups experiment.";
+        messagingService:
+            (collaboration::messaging::MessagingBackendService*)messagingService
+        tabGroupDelegate:(id<TabGroupMediatorDelegate>)tabGroupDelegate {
   CHECK(webStateList);
   CHECK(groupConsumer);
   CHECK(tabGroup);
@@ -131,6 +126,7 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
     _dataSharingService = dataSharingService;
     _tabGroupSyncServiceObserver =
         std::make_unique<TabGroupSyncServiceObserverBridge>(self);
+    _tabGroupDelegate = tabGroupDelegate;
 
     // The `_tabGroupSyncService` is nil in incognito.
     if (_tabGroupSyncService) {
@@ -201,16 +197,11 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
 - (void)closeGroup {
   [self.tabGridIdleStatusHandler
       tabGridDidPerformAction:TabGridActionType::kInPageAction];
-  if (IsTabGroupSyncEnabled()) {
-    tab_groups::TabGroupSyncService* syncService =
-        tab_groups::TabGroupSyncServiceFactory::GetForProfile(
-            self.browser->GetProfile());
-    tab_groups::utils::CloseTabGroupLocally(_tabGroup.get(), self.webStateList,
-                                            syncService);
-  } else {
-    CloseAllWebStatesInGroup(*self.webStateList, _tabGroup.get(),
-                             WebStateList::CLOSE_USER_ACTION);
-  }
+  tab_groups::TabGroupSyncService* syncService =
+      tab_groups::TabGroupSyncServiceFactory::GetForProfile(
+          self.browser->GetProfile());
+  tab_groups::utils::CloseTabGroupLocally(_tabGroup.get(), self.webStateList,
+                                          syncService);
   _tabGroup.reset();
 }
 
@@ -218,7 +209,7 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
   [self.tabGridIdleStatusHandler
       tabGridDidPerformAction:TabGridActionType::kInPageAction];
   CloseAllWebStatesInGroup(*self.webStateList, _tabGroup.get(),
-                           WebStateList::CLOSE_USER_ACTION);
+                           WebStateList::ClosingReason::kUserAction);
   _tabGroup.reset();
 }
 
@@ -686,8 +677,7 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
 
 // Updates the facePile UI and the share state of the consumer.
 - (void)updateFacePileUI {
-  if (!_shareKitService || !_shareKitService->IsSupported() ||
-      !_collaborationService || !_tabGroupSyncService) {
+  if (!_shareKitService || !_collaborationService || !_tabGroupSyncService) {
     return;
   }
 
@@ -703,17 +693,10 @@ constexpr CGFloat kActivityLabelAvatarSize = 16;
     return;
   }
 
-  // Configure the face pile.
-  ShareKitFacePileConfiguration* config =
-      [[ShareKitFacePileConfiguration alloc] init];
-  config.collabID = base::SysUTF8ToNSString(savedCollabID.value());
-  config.showsEmptyState = YES;
-  if (IsContainedTabGroupEnabled()) {
-    config.avatarSize = kFacePileAvatarSize;
-  } else {
-    config.avatarSize = kLegacyFacePileAvatarSize;
-  }
-  [_groupConsumer setFacePileView:_shareKitService->FacePileView(config)];
+  [_groupConsumer
+      setFacePileProvider:[_tabGroupDelegate
+                              facePileProviderForGroupID:savedCollabID
+                                                             .value()]];
 }
 
 // Inserts an item representing `webState` in the consumer at `index`.

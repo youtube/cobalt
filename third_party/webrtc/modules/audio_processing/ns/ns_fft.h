@@ -11,6 +11,7 @@
 #ifndef MODULES_AUDIO_PROCESSING_NS_NS_FFT_H_
 #define MODULES_AUDIO_PROCESSING_NS_NS_FFT_H_
 
+#include <cstddef>
 #include <vector>
 
 #include "api/array_view.h"

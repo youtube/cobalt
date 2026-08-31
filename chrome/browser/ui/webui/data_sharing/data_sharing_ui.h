@@ -5,9 +5,11 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_DATA_SHARING_DATA_SHARING_UI_H_
 #define CHROME_BROWSER_UI_WEBUI_DATA_SHARING_DATA_SHARING_UI_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/webui/data_sharing/data_sharing.mojom.h"
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/browser/ui/webui/top_chrome/untrusted_top_chrome_web_ui_controller.h"
+#include "mojo/public/cpp/bindings/receiver.h"
 #include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
 
 namespace ui {
@@ -71,7 +73,9 @@ class DataSharingUI : public UntrustedTopChromeWebUIController,
 
   DataSharingPageHandler* page_handler() { return page_handler_.get(); }
 
-  static constexpr std::string GetWebUIName() { return "DataSharingBubble"; }
+  static constexpr std::string_view GetWebUIName() {
+    return "DataSharingBubble";
+  }
 
   void SetDelegate(Delegate* delegate) { delegate_ = delegate; }
 

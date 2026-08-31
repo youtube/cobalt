@@ -6,7 +6,7 @@ package org.chromium.chrome.browser.omnibox.suggestions.action;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.components.omnibox.EntityInfoProto;
+import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
 import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.components.omnibox.action.OmniboxActionFactory;
 import org.chromium.components.omnibox.action.OmniboxActionFactoryJni;
@@ -65,13 +65,15 @@ public class OmniboxActionFactoryImpl implements OmniboxActionFactory {
             long nativeInstance,
             String hint,
             String accessibilityHint,
-            /* EntityInfoProto.ActionInfo.ActionType */ int actionType,
-            String actionUri) {
-        if (actionType == EntityInfoProto.ActionInfo.ActionType.CALL_VALUE && !mDialerAvailable) {
+            /* SuggestTemplateInfo.TemplateAction.ActionType */ int actionType,
+            String actionUri,
+            boolean showAsActionButton) {
+        if (actionType == SuggestTemplateInfo.TemplateAction.ActionType.CALL_VALUE
+                && !mDialerAvailable) {
             return null;
         }
         return new OmniboxActionInSuggest(
-                nativeInstance, hint, accessibilityHint, actionType, actionUri);
+                nativeInstance, hint, accessibilityHint, actionType, actionUri, showAsActionButton);
     }
 
     @Override

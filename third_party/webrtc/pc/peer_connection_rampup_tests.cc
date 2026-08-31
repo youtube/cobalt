@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "api/audio_options.h"
+#include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
@@ -67,18 +68,18 @@ using test::GetGlobalMetricsLogger;
 using test::ImprovementDirection;
 using test::Unit;
 
-static const int kDefaultTestTimeMs = 15000;
-static const int kRampUpTimeMs = 5000;
-static const int kPollIntervalTimeMs = 50;
-static const SocketAddress kDefaultLocalAddress("1.1.1.1", 0);
-static const char kTurnInternalAddress[] = "88.88.88.0";
-static const char kTurnExternalAddress[] = "88.88.88.1";
-static const int kTurnInternalPort = 3478;
-static const int kTurnExternalPort = 0;
+const int kDefaultTestTimeMs = 15000;
+const int kRampUpTimeMs = 5000;
+const int kPollIntervalTimeMs = 50;
+const SocketAddress kDefaultLocalAddress("1.1.1.1", 0);
+const char kTurnInternalAddress[] = "88.88.88.0";
+const char kTurnExternalAddress[] = "88.88.88.1";
+const int kTurnInternalPort = 3478;
+const int kTurnExternalPort = 0;
 // The video's configured max bitrate in webrtcvideoengine.cc is 1.7 Mbps.
 // Setting the network bandwidth to 1 Mbps allows the video's bitrate to push
 // the network's limitations.
-static const int kNetworkBandwidth = 1000000;
+const int kNetworkBandwidth = 1000000;
 
 }  // namespace
 
@@ -111,7 +112,7 @@ class PeerConnectionWrapperForRampUpTest : public PeerConnectionWrapper {
                                                      pc,
                                                      std::move(observer)) {}
 
-  bool AddIceCandidates(std::vector<const IceCandidateInterface*> candidates) {
+  bool AddIceCandidates(std::vector<const IceCandidate*> candidates) {
     bool success = true;
     for (const auto candidate : candidates) {
       if (!pc()->AddIceCandidate(candidate)) {
@@ -160,7 +161,7 @@ class PeerConnectionRampUpTest : public ::testing::Test {
     virtual_socket_server_.set_bandwidth(kNetworkBandwidth / 8);
   }
 
-  virtual ~PeerConnectionRampUpTest() {
+  ~PeerConnectionRampUpTest() override {
     SendTask(network_thread(), [this] { turn_servers_.clear(); });
   }
 

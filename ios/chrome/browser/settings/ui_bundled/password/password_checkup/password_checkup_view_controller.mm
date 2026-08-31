@@ -7,6 +7,7 @@
 #import "base/apple/foundation_util.h"
 #import "base/metrics/user_metrics.h"
 #import "base/strings/string_number_conversions.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/google/core/common/google_util.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/net/model/crurl.h"
@@ -223,12 +224,10 @@ NSString* NotificationsOptInItemText(BOOL enabled) {
 
   [self loadModel];
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits =
-        TraitCollectionSetForTraits(@[ UITraitVerticalSizeClass.class ]);
-    [self registerForTraitChanges:traits
-                       withAction:@selector(updateUIOnTraitChange)];
-  }
+  NSArray<UITrait>* traits =
+      TraitCollectionSetForTraits(@[ UITraitVerticalSizeClass.class ]);
+  [self registerForTraitChanges:traits
+                     withAction:@selector(updateUIOnTraitChange)];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -253,20 +252,6 @@ NSString* NotificationsOptInItemText(BOOL enabled) {
     [self.handler dismissPasswordCheckupViewController];
   }
 }
-
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
-    return;
-  }
-
-  if (self.traitCollection.verticalSizeClass !=
-      previousTraitCollection.verticalSizeClass) {
-    [self updateUIOnTraitChange];
-  }
-}
-#endif
 
 #pragma mark - SettingsRootTableViewController
 
@@ -434,7 +419,7 @@ NSString* NotificationsOptInItemText(BOOL enabled) {
           google_util::AppendGoogleLocaleParam(
               GURL(password_manager::
                        kPasswordManagerHelpCenterChangeUnsafePasswordsURL),
-              GetApplicationContext()->GetApplicationLocale())];
+              GetApplicationContext()->GetApplicationLocaleStorage()->Get())];
   footerItem.urls = @[ footerURL ];
   return footerItem;
 }

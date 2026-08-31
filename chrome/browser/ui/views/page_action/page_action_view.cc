@@ -8,6 +8,7 @@
 
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback_forward.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_controller.h"
@@ -24,6 +25,16 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/view_class_properties.h"
+
+namespace {
+
+// Icon images that aren't vector icons use special padding.
+gfx::Insets InsetsForNonVectorIcon() {
+  return gfx::Insets::VH(GetLayoutConstant(LOCATION_BAR_CHILD_INTERIOR_PADDING),
+                         GetLayoutConstant(LOCATION_BAR_CHIP_PADDING));
+}
+
+}  // namespace
 
 namespace page_actions {
 
@@ -58,7 +69,12 @@ PageActionView::PageActionView(actions::ActionItem* action_item,
           &PageActionView::OnLabelVisibilityChanged, base::Unretained(this)));
 }
 
-PageActionView::~PageActionView() = default;
+PageActionView::~PageActionView() {
+  // If this is currently highlighted, destroying the `ScopedAnchorHighlight`
+  // might attempt to trigger an ink drop change even though we're
+  // mid-destruction. Disable the ink drop to prevent this.
+  views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
+}
 
 bool PageActionView::IsChipVisible() const {
   return ShouldShowLabel();
@@ -69,12 +85,20 @@ base::CallbackListSubscription PageActionView::AddChipVisibilityChangedCallback(
   return chip_visibility_changed_callbacks_.Add(std::move(callback));
 }
 
+void PageActionView::SetIsChipShowingChangedCallback(
+    IsChipShowingChangedCallback callback) {
+  is_chip_showing_changed_callback_ = std::move(callback);
+}
+
 void PageActionView::OnNewActiveController(PageActionController* controller) {
   observation_.Reset();
   action_item_controller_subscription_ = {};
   if (controller) {
-    click_callback_ =
-        controller->GetClickCallback(action_item_->GetActionId().value());
+    controller->RegisterIsChipShowingChangedCallback(
+        PassKey(), action_item_->GetActionId().value(), this);
+
+    click_callback_ = controller->GetClickCallback(
+        PassKey(), action_item_->GetActionId().value());
     controller->AddObserver(action_item_->GetActionId().value(), observation_);
     // TODO(crbug.com/388524315): Have the controller manage its own ActionItem
     // observation. See bug for more explanation.
@@ -94,12 +118,19 @@ void PageActionView::OnPageActionModelChanged(
   SetTooltipText(model.GetTooltipText());
   UpdateIconImage();
 
+  if (model.GetActionActive() && !highlight_) {
+    highlight_ = AddAnchorHighlight();
+  } else {
+    highlight_.reset();
+  }
+
   const bool was_chip_visible = IsChipVisible();
   if (!model.GetVisible()) {
     ResetSlideAnimation(/*show=*/false);
   } else if (!model.GetShouldAnimateChip()) {
-    ResetSlideAnimation(/*show=*/model.GetShowSuggestionChip());
-  } else if (model.GetShowSuggestionChip()) {
+    ResetSlideAnimation(/*show=*/model.ShouldShowSuggestionChip());
+    NotifyIsChipShowingChange();
+  } else if (model.ShouldShowSuggestionChip()) {
     AnimateIn(/*string_id=*/std::nullopt);
   } else {
     AnimateOut();
@@ -142,7 +173,12 @@ void PageActionView::ViewHierarchyChanged(
 }
 
 void PageActionView::UpdateBorder() {
-  SetBorder(views::CreateEmptyBorder(icon_insets_));
+  gfx::Insets border_insets = icon_insets_;
+  if (observation_.IsObserving() &&
+      !observation_.GetSource()->GetImage().IsVectorIcon()) {
+    border_insets = InsetsForNonVectorIcon();
+  }
+  SetBorder(views::CreateEmptyBorder(border_insets));
 }
 
 bool PageActionView::ShouldShowSeparator() const {
@@ -158,8 +194,6 @@ bool PageActionView::ShouldUpdateInkDropOnClickCanceled() const {
 }
 
 void PageActionView::NotifyClick(const ui::Event& event) {
-  IconLabelBubbleView::NotifyClick(event);
-
   PageActionTrigger trigger_source;
   if (event.IsMouseEvent()) {
     trigger_source = PageActionTrigger::kMouse;
@@ -169,15 +203,25 @@ void PageActionView::NotifyClick(const ui::Event& event) {
     CHECK(event.IsGestureEvent());
     trigger_source = PageActionTrigger::kGesture;
   }
+
+  // Click is expected to only happen when the page action is visible.
+  // Therefore, the click metric should be recorded before executing the click
+  // callback since that may change the page action visibility.
+  CHECK(click_callback_);
+  click_callback_.Run(trigger_source);
+
+  IconLabelBubbleView::NotifyClick(event);
   action_item_->InvokeAction(
       actions::ActionInvocationContext::Builder()
           .SetProperty(kPageActionTriggerKey,
                        static_cast<std::underlying_type_t<PageActionTrigger>>(
                            trigger_source))
           .Build());
+}
 
-  CHECK(click_callback_);
-  click_callback_.Run(trigger_source);
+void PageActionView::AnimationEnded(const gfx::Animation* animation) {
+  IconLabelBubbleView::AnimationEnded(animation);
+  NotifyIsChipShowingChange();
 }
 
 void PageActionView::UpdateIconImage() {
@@ -197,6 +241,10 @@ void PageActionView::UpdateIconImage() {
     }
   } else {
     SetImageModel(icon_image);
+    // For non-vector icons, the border needs to be updated to accommodate the
+    // icon, as the icon size may vary. For vector icons, the border gets
+    // set on instantiation and does not need to be updated again.
+    UpdateBorder();
   }
 }
 
@@ -207,7 +255,13 @@ void PageActionView::SetModel(PageActionModelInterface* model) {
 
 gfx::Size PageActionView::GetMinimumSize() const {
   gfx::Size icon_preferred_size = image_container_view()->GetPreferredSize();
-  icon_preferred_size.Enlarge(icon_insets_.width(), icon_insets_.height());
+  if (observation_.IsObserving() &&
+      !observation_.GetSource()->GetImage().IsVectorIcon()) {
+    auto insets = InsetsForNonVectorIcon();
+    icon_preferred_size.Enlarge(insets.width(), insets.height());
+  } else {
+    icon_preferred_size.Enlarge(icon_insets_.width(), icon_insets_.height());
+  }
 
   return icon_preferred_size;
 }
@@ -245,6 +299,13 @@ views::View* PageActionView::GetLabelForTesting() {
 
 gfx::SlideAnimation& PageActionView::GetSlideAnimationForTesting() {
   return slide_animation_;
+}
+
+void PageActionView::NotifyIsChipShowingChange() {
+  // Defer to avoid re-entrancy into PageActionModel::NotifyChange().
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(is_chip_showing_changed_callback_, IsChipVisible()));
 }
 
 BEGIN_METADATA(PageActionView)

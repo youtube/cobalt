@@ -26,17 +26,6 @@ class ExtensionPrefs;
 class ExtensionRegistry;
 }  // namespace extensions
 
-// The state of Safe Browsing settings.
-enum class SafeBrowsingState {
-  kEnabledEnhanced = 0,
-  kEnabledStandard = 1,
-  kDisabledByAdmin = 2,
-  kDisabledByExtension = 3,
-  kDisabledByUser = 4,
-  // New enum values must go above here.
-  kMaxValue = kDisabledByUser,
-};
-
 /**
  * This handler deals with the permission-related operations on the site
  * settings page.
@@ -68,8 +57,7 @@ class SafetyHubHandler : public settings::SettingsPageUIHandler,
 
  private:
   friend class SafetyHubHandlerTest;
-  friend class
-      SafetyHubHandlerEitherAbusiveOrUnusedPermissionRevocationDisabledTest;
+  friend class SafetyHubHandlerUnusedPermissionRevocationDisabledTest;
   FRIEND_TEST_ALL_PREFIXES(SafetyHubHandlerTest,
                            PopulateUnusedSitePermissionsData);
   FRIEND_TEST_ALL_PREFIXES(SafetyHubHandlerTest,
@@ -112,13 +100,13 @@ class SafetyHubHandler : public settings::SettingsPageUIHandler,
   FRIEND_TEST_ALL_PREFIXES(SafetyHubHandlerTest,
                            ExtensionPrefAndInitialization);
   FRIEND_TEST_ALL_PREFIXES(
-      SafetyHubHandlerEitherAbusiveOrUnusedPermissionRevocationDisabledTest,
+      SafetyHubHandlerUnusedPermissionRevocationDisabledTest,
       PopulateSitePermissionsData);
   FRIEND_TEST_ALL_PREFIXES(
-      SafetyHubHandlerEitherAbusiveOrUnusedPermissionRevocationDisabledTest,
+      SafetyHubHandlerUnusedPermissionRevocationDisabledTest,
       HandleAllowPermissionsAgainForSite);
   FRIEND_TEST_ALL_PREFIXES(
-      SafetyHubHandlerEitherAbusiveOrUnusedPermissionRevocationDisabledTest,
+      SafetyHubHandlerUnusedPermissionRevocationDisabledTest,
       HandleAcknowledgeRevokedSitePermissionsList);
 
   // SettingsPageUIHandler implementation.

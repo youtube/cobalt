@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/webui/settings/site_settings_handler.h"
 
+#include <algorithm>
 #include <array>
 #include <memory>
 #include <optional>
@@ -114,6 +115,7 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_web_ui.h"
@@ -125,7 +127,6 @@
 #include "extensions/common/extension_builder.h"
 #include "google_apis/gaia/gaia_id.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/device/public/cpp/test/fake_hid_manager.h"
 #include "services/device/public/cpp/test/fake_serial_port_manager.h"
 #include "services/device/public/cpp/test/fake_usb_device_manager.h"
@@ -791,7 +792,13 @@ class SiteSettingsHandlerBaseTest : public testing::Test {
 
   void ValidateZoom(const std::vector<ZoomLevel>& zoom_levels,
                     size_t expected_total_calls) {
-    EXPECT_EQ(expected_total_calls, web_ui()->call_data().size());
+    const size_t zoom_changed_count = std::ranges::count_if(
+        web_ui()->call_data(),
+        [](const std::unique_ptr<content::TestWebUI::CallData>& call_data_ptr) {
+          return call_data_ptr && call_data_ptr->arg1() &&
+                 *call_data_ptr->arg1() == "onZoomLevelsChanged";
+        });
+    EXPECT_EQ(expected_total_calls, zoom_changed_count);
 
     const content::TestWebUI::CallData& data = *web_ui()->call_data().back();
     EXPECT_EQ("cr.webUIListenerCallback", data.function_name());

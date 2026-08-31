@@ -28,6 +28,7 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/field_trials_view.h"
+#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -42,7 +43,6 @@
 #include "p2p/client/relay_port_factory_interface.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/crypto_random.h"
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
@@ -182,11 +182,14 @@ BasicPortAllocator::BasicPortAllocator(
     NetworkManager* absl_nonnull network_manager,
     PacketSocketFactory* absl_nonnull socket_factory,
     TurnCustomizer* absl_nullable turn_customizer,
-    RelayPortFactoryInterface* absl_nullable relay_port_factory)
+    RelayPortFactoryInterface* absl_nullable relay_port_factory,
+    std::unique_ptr<LocalNetworkAccessPermissionFactoryInterface> absl_nullable
+        lna_permission_factory)
     : env_(env),
       network_manager_(network_manager),
       socket_factory_(socket_factory),
-      relay_port_factory_(relay_port_factory) {
+      relay_port_factory_(relay_port_factory),
+      lna_permission_factory_(std::move(lna_permission_factory)) {
   RTC_CHECK(socket_factory_);
   RTC_DCHECK(network_manager_);
   SetConfiguration(ServerAddresses(), std::vector<RelayServerConfig>(), 0,
@@ -450,14 +453,11 @@ void BasicPortAllocatorSession::RegatherOnFailedNetworks() {
     }
   }
 
-  bool disable_equivalent_phases = true;
-  Regather(failed_networks, disable_equivalent_phases,
-           IceRegatheringReason::NETWORK_FAILURE);
+  Regather(failed_networks, IceRegatheringReason::NETWORK_FAILURE);
 }
 
 void BasicPortAllocatorSession::Regather(
     const std::vector<const Network*>& networks,
-    bool disable_equivalent_phases,
     IceRegatheringReason reason) {
   RTC_DCHECK_RUN_ON(network_thread_);
   // Remove ports from being used locally and send signaling to remove
@@ -471,7 +471,7 @@ void BasicPortAllocatorSession::Regather(
   if (allocation_started_ && network_manager_started_ && !IsStopped()) {
     SignalIceRegathering(this, reason);
 
-    DoAllocate(disable_equivalent_phases);
+    DoAllocate();
   }
 }
 
@@ -659,8 +659,7 @@ void BasicPortAllocatorSession::OnAllocate(int allocation_epoch) {
     return;
 
   if (network_manager_started_ && !IsStopped()) {
-    bool disable_equivalent_phases = true;
-    DoAllocate(disable_equivalent_phases);
+    DoAllocate();
   }
 
   allocation_started_ = true;
@@ -704,9 +703,7 @@ std::vector<const Network*> BasicPortAllocatorSession::GetNetworks() {
   // Filter out link-local networks if needed.
   if (flags() & PORTALLOCATOR_DISABLE_LINK_LOCAL_NETWORKS) {
     NetworkFilter link_local_filter(
-        [](const webrtc::Network* network) {
-          return IPIsLinkLocal(network->prefix());
-        },
+        [](const Network* network) { return IPIsLinkLocal(network->prefix()); },
         "link-local");
     FilterNetworks(&networks, link_local_filter);
   }
@@ -797,7 +794,7 @@ std::vector<const Network*> BasicPortAllocatorSession::SelectIPv6Networks(
 
 // For each network, see if we have a sequence that covers it already.  If not,
 // create a new sequence to create the appropriate ports.
-void BasicPortAllocatorSession::DoAllocate(bool disable_equivalent) {
+void BasicPortAllocatorSession::DoAllocate() {
   RTC_DCHECK_RUN_ON(network_thread_);
   bool done_signal_needed = false;
   std::vector<const Network*> networks = GetNetworks();
@@ -836,15 +833,13 @@ void BasicPortAllocatorSession::DoAllocate(bool disable_equivalent) {
         continue;
       }
 
-      if (disable_equivalent) {
-        // Disable phases that would only create ports equivalent to
-        // ones that we have already made.
-        DisableEquivalentPhases(networks[i], config, &sequence_flags);
+      // Disable phases that would only create ports equivalent to
+      // ones that we have already made.
+      DisableEquivalentPhases(networks[i], config, &sequence_flags);
 
-        if ((sequence_flags & DISABLE_ALL_PHASES) == DISABLE_ALL_PHASES) {
-          // New AllocationSequence would have nothing to do, so don't make it.
-          continue;
-        }
+      if ((sequence_flags & DISABLE_ALL_PHASES) == DISABLE_ALL_PHASES) {
+        // New AllocationSequence would have nothing to do, so don't make it.
+        continue;
       }
 
       AllocationSequence* sequence =
@@ -891,8 +886,8 @@ void BasicPortAllocatorSession::OnNetworksChanged() {
       // If the network manager has started, it must be regathering.
       SignalIceRegathering(this, IceRegatheringReason::NETWORK_CHANGE);
     }
-    bool disable_equivalent_phases = true;
-    DoAllocate(disable_equivalent_phases);
+
+    DoAllocate();
   }
 
   if (!network_manager_started_) {
@@ -1459,7 +1454,9 @@ void AllocationSequence::CreateUDPPorts() {
          .socket_factory = session_->socket_factory(),
          .network = network_,
          .ice_username_fragment = session_->username(),
-         .ice_password = session_->password()},
+         .ice_password = session_->password(),
+         .lna_permission_factory =
+             session_->allocator()->lna_permission_factory()},
         udp_socket_.get(), emit_local_candidate_for_anyaddress,
         session_->allocator()->stun_candidate_keepalive_interval());
   } else {
@@ -1469,7 +1466,9 @@ void AllocationSequence::CreateUDPPorts() {
          .socket_factory = session_->socket_factory(),
          .network = network_,
          .ice_username_fragment = session_->username(),
-         .ice_password = session_->password()},
+         .ice_password = session_->password(),
+         .lna_permission_factory =
+             session_->allocator()->lna_permission_factory()},
         session_->allocator()->min_port(), session_->allocator()->max_port(),
         emit_local_candidate_for_anyaddress,
         session_->allocator()->stun_candidate_keepalive_interval());
@@ -1544,7 +1543,9 @@ void AllocationSequence::CreateStunPorts() {
        .socket_factory = session_->socket_factory(),
        .network = network_,
        .ice_username_fragment = session_->username(),
-       .ice_password = session_->password()},
+       .ice_password = session_->password(),
+       .lna_permission_factory =
+           session_->allocator()->lna_permission_factory()},
       session_->allocator()->min_port(), session_->allocator()->max_port(),
       config_->StunServers(),
       session_->allocator()->stun_candidate_keepalive_interval());
@@ -1616,6 +1617,8 @@ void AllocationSequence::CreateTurnPort(const RelayServerConfig& config,
     args.config = &config;
     args.turn_customizer = session_->allocator()->turn_customizer();
     args.relative_priority = relative_priority;
+    args.lna_permission_factory =
+        session_->allocator()->lna_permission_factory();
 
     std::unique_ptr<Port> port;
     // Shared socket mode must be enabled only for UDP based ports. Hence

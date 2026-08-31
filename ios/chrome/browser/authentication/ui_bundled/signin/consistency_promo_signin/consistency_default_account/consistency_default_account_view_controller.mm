@@ -16,6 +16,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/views/identity_button_control.h"
 #import "ios/chrome/browser/authentication/ui_bundled/views/identity_view.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
+#import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/button_util.h"
@@ -118,33 +119,47 @@ UIFont* GetNavigationBarTitleFont() {
 
 - (void)viewDidLoad {
   [super viewDidLoad];
-  // Set the navigation title in the left bar button item to have left
-  // alignment.
-  UILabel* titleLabel = [[UILabel alloc] init];
-  titleLabel.adjustsFontForContentSizeCategory = YES;
-  titleLabel.font = GetNavigationBarTitleFont();
-  titleLabel.text =
-      l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
-  titleLabel.textAlignment = NSTextAlignmentLeft;
-  titleLabel.adjustsFontSizeToFitWidth = YES;
-  titleLabel.minimumScaleFactor = 0.1;
-  titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+  if (@available(iOS 26, *)) {
+    self.navigationItem.title =
+        l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
+  } else {
+    // Set the navigation title in the left bar button item to have left
+    // alignment.
+    UILabel* titleLabel = [[UILabel alloc] init];
+    titleLabel.adjustsFontForContentSizeCategory = YES;
+    titleLabel.font = GetNavigationBarTitleFont();
+    titleLabel.text =
+        l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_DEFAULT_ACCOUNT_TITLE);
+    titleLabel.textAlignment = NSTextAlignmentLeft;
+    titleLabel.adjustsFontSizeToFitWidth = YES;
+    titleLabel.minimumScaleFactor = 0.1;
+    titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
 
-  // Add the title label to the navigation bar.
-  UIBarButtonItem* leftItem =
-      [[UIBarButtonItem alloc] initWithCustomView:titleLabel];
-  self.navigationItem.leftBarButtonItem = leftItem;
+    // Add the title label to the navigation bar.
+    UIBarButtonItem* leftItem =
+        [[UIBarButtonItem alloc] initWithCustomView:titleLabel];
+    self.navigationItem.leftBarButtonItem = leftItem;
+  }
   self.navigationController.navigationBar.minimumContentSizeCategory =
       UIContentSizeCategoryLarge;
   self.navigationController.navigationBar.maximumContentSizeCategory =
       UIContentSizeCategoryExtraExtraLarge;
   // Create the skip button.
   CHECK(self.skipButtonText);
-  UIBarButtonItem* rightItem =
-      [[UIBarButtonItem alloc] initWithTitle:self.skipButtonText
-                                       style:UIBarButtonItemStylePlain
-                                      target:self
-                                      action:@selector(skipButtonAction:)];
+  UIBarButtonItem* rightItem;
+  if (@available(iOS 26, *)) {
+    rightItem =
+        [[UIBarButtonItem alloc] initWithImage:DefaultCloseButtonForToolbar()
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(skipButtonAction:)];
+  } else {
+    rightItem =
+        [[UIBarButtonItem alloc] initWithTitle:self.skipButtonText
+                                         style:UIBarButtonItemStylePlain
+                                        target:self
+                                        action:@selector(skipButtonAction:)];
+  }
   rightItem.accessibilityIdentifier =
       kWebSigninSkipButtonAccessibilityIdentifier;
   self.navigationItem.rightBarButtonItem = rightItem;
@@ -216,8 +231,7 @@ UIFont* GetNavigationBarTitleFont() {
         constraintEqualToAnchor:self.contentView.widthAnchor]
   ]];
   // Add the primary button (the "Continue as"/"Sign in" button).
-  self.primaryButton =
-      PrimaryActionButton(/* pointer_interaction_enabled */ YES);
+  self.primaryButton = PrimaryActionButton();
   UIButtonConfiguration* buttonConfiguration = self.primaryButton.configuration;
   buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
       kPrimaryButtonVerticalInsets, 0, kPrimaryButtonVerticalInsets, 0);
@@ -249,23 +263,31 @@ UIFont* GetNavigationBarTitleFont() {
 #pragma mark - UI actions
 
 - (void)skipButtonAction:(id)sender {
+  base::RecordAction(
+      base::UserMetricsAction("Signin_BottomSheet_DefaultAccount_Skip"));
   [self.actionDelegate consistencyDefaultAccountViewControllerSkip:self];
 }
 
 - (void)identityButtonControlAction:(id)sender forEvent:(UIEvent*)event {
+  base::RecordAction(base::UserMetricsAction(
+      "Signin_BottomSheet_DefaultAccount_IdentityButtonTapped"));
   [self.actionDelegate
       consistencyDefaultAccountViewControllerOpenIdentityChooser:self];
 }
 
 - (void)primaryButtonAction:
     (ConsistencyDefaultAccountViewController*)viewController {
-  // If the IdentityButtonControl is hidden, there is no account avaiable on the
-  // device.
   if (!self.identityButtonControl.hidden) {
+    base::RecordAction(
+        base::UserMetricsAction("Signin_BottomSheet_DefaultAccount_Signin"));
     [self.actionDelegate
         consistencyDefaultAccountViewControllerContinueWithSelectedIdentity:
             self];
   } else {
+    // If the IdentityButtonControl is hidden, there is no account available on
+    // the device.
+    base::RecordAction(base::UserMetricsAction(
+        "Signin_BottomSheet_DefaultAccount_AddAccount"));
     [self.actionDelegate
         consistencyDefaultAccountViewControllerAddAccountAndSignin:self];
   }
@@ -336,6 +358,13 @@ UIFont* GetNavigationBarTitleFont() {
       l10n_util::GetNSString(IDS_IOS_CONSISTENCY_PROMO_SIGN_IN));
 }
 
+#pragma mark - UIAccessibilityAction
+
+- (BOOL)accessibilityPerformEscape {
+  [self.actionDelegate consistencyDefaultAccountViewControllerSkip:self];
+  return YES;
+}
+
 #pragma mark - UIResponder
 
 // To always be able to register key commands via -keyCommands, the VC must be
@@ -349,7 +378,7 @@ UIFont* GetNavigationBarTitleFont() {
 }
 
 - (void)keyCommand_close {
-  base::RecordAction(base::UserMetricsAction("MobileKeyCommandClose"));
+  base::RecordAction(base::UserMetricsAction(kMobileKeyCommandClose));
   [self.actionDelegate consistencyDefaultAccountViewControllerSkip:self];
 }
 

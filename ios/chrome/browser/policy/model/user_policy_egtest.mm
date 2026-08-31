@@ -95,8 +95,9 @@ void SetUpPolicyServer(policy::EmbeddedPolicyTestServer* policy_server) {
       ->mutable_policy_options()
       ->set_mode(enterprise_management::PolicyOptions::MANDATORY);
   settings.mutable_incognitomodeavailability()->set_value(1);
-  policy_storage->SetPolicyPayload(policy::dm_protocol::kChromeUserPolicyType,
-                                   settings.SerializeAsString());
+  policy_storage->SetPolicyPayload(
+      policy::dm_protocol::GetChromeUserPolicyType(),
+      settings.SerializeAsString());
 
   policy_storage->add_managed_user("*");
   policy_storage->set_policy_user(GetTestEmail());
@@ -157,12 +158,8 @@ id<GREYMatcher> ManagedProfileCreationSubtitleMatcher() {
         base::UTF8ToUTF16(
             std::string(policy::SignatureProvider::kTestDomain1))));
   }
-  return grey_accessibilityLabel([NSString
-      stringWithFormat:
-          @"%@\n\n%@",
-          l10n_util::GetNSString(IDS_IOS_ENTERPRISE_PROFILE_CREATION_SUBTITLE),
-          l10n_util::GetNSString(
-              IDS_IOS_ENTERPRISE_PROFILE_CREATION_ACCOUNT_KEEP_BROWSING_DATA_DESCRIPTION)]);
+  return grey_accessibilityLabel(
+      l10n_util::GetNSString(IDS_IOS_ENTERPRISE_PROFILE_CREATION_SUBTITLE));
 }
 
 void VerifyTheNotificationUI() {

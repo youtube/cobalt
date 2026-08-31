@@ -20,6 +20,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.toolbar.MenuBuilderHelper;
 import org.chromium.chrome.browser.toolbar.R;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.ui.listmenu.BasicListMenu;
 import org.chromium.ui.listmenu.ListMenu;
 import org.chromium.ui.listmenu.ListMenuButton;
@@ -58,7 +59,6 @@ public class AdaptiveButtonActionMenuCoordinator {
                         buildMenuItems(),
                         id -> onItemClicked.onResult(id));
             } else {
-                // TODO(crbug.com/414373110): Align the displayed text with UI work once finalized.
                 return showAnchoredToastInternal(view, view.getContentDescription());
             }
             return true;
@@ -132,15 +132,18 @@ public class AdaptiveButtonActionMenuCoordinator {
     public ModelList buildMenuItems() {
         ModelList itemList = new ModelList();
         itemList.add(
-                BrowserUiListMenuUtils.buildMenuListItem(
-                        R.string.adaptive_toolbar_menu_edit_shortcut,
-                        R.id.customize_adaptive_button_menu_id,
-                        /* startIconId= */ 0,
-                        /* enabled= */ true));
+                new ListItemBuilder()
+                        .withTitleRes(R.string.adaptive_toolbar_menu_edit_shortcut)
+                        .withMenuId(R.id.customize_adaptive_button_menu_id)
+                        .build());
         return itemList;
     }
 
     public View getContentViewForTesting() {
         return assumeNonNull(mListMenu).getContentView();
+    }
+
+    public @Nullable BasicListMenu getListMenuForTesting() {
+        return mListMenu;
     }
 }

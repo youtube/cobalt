@@ -10,8 +10,9 @@
 
 #include "modules/audio_processing/utility/delay_estimator_wrapper.h"
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "modules/audio_processing/utility/delay_estimator.h"
 #include "modules/audio_processing/utility/delay_estimator_internal.h"

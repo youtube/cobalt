@@ -1,12 +1,14 @@
 include_rules = [
   "-chrome",
   "+chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupCreationDialogManager.java",
+  "+chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabShareUtils.java",
   "+chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabUiFeatureUtilities.java",
   "+chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabUiThemeProvider.java",
   "+chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/PriceTrackingUtilities.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/ActivityTabProvider.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/ActivityUtils.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/AppHooks.java",
+  "+chrome/android/java/src/org/chromium/chrome/browser/LaunchIntentDispatcher.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/TabHidingType.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/ZoomController.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/accessibility/AccessibilityTabHelper.java",
@@ -16,6 +18,7 @@ include_rules = [
   "+chrome/android/java/src/org/chromium/chrome/browser/compositor/CompositorViewHolder.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/compositor/bottombar/ephemeraltab/EphemeralTabCoordinator.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/dom_distiller/ReaderModeManager.java",
+  "+chrome/android/java/src/org/chromium/chrome/browser/download/DownloadUtils.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/dragdrop/ChromeDragAndDropBrowserDelegate.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/feedback/HelpAndFeedbackLauncherImpl.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/app/bluetooth/BluetoothNotificationService.java",
@@ -23,6 +26,7 @@ include_rules = [
   "+chrome/android/java/src/org/chromium/chrome/browser/app/usb/UsbNotificationService.java",
   "+chrome/browser/usb/android/java/src/org/chromium/chrome/browser/usb/UsbNotificationManager.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/app/serial/SerialNotificationService.java",
+  "+chrome/android/java/src/org/chromium/chrome/browser/app/tabmodel/HeadlessTabDelegateFactory.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/app/tab_activity_glue/ReparentingTask.java",
   "+chrome/browser/serial/android/java/src/org/chromium/chrome/browser/serial/SerialNotificationManager.java",
   "+chrome/android/java/src/org/chromium/chrome/browser/automotive/AutomotiveUtils.java",
@@ -53,7 +57,6 @@ include_rules = [
   "+chrome/browser/contextmenu/java/src/org/chromium/chrome/browser/contextmenu/ContextMenuPopulatorFactory.java",
   "+chrome/browser/gesturenav/android/java/src/org/chromium/chrome/browser/gesturenav/NativePageBitmapCapturer.java",
   "+chrome/browser/incognito/android/java/src/org/chromium/chrome/browser/incognito/IncognitoUtils.java",
-  "+chrome/browser/password_check/android/java/src/org/chromium/chrome/browser/password_check/PasswordCheckUkmRecorder.java",
   "+chrome/browser/profiles/android/java/src/org/chromium/chrome/browser/profiles/Profile.java",
   "+chrome/browser/tabmodel/android/java/src/org/chromium/chrome/browser/tabmodel/TabGroupModelFilter.java",
   "+chrome/browser/ui/messages/android/java/src/org/chromium/chrome/browser/ui/messages/snackbar/SnackbarManager.java",
@@ -65,6 +68,8 @@ include_rules = [
   "+chrome/browser/tab",
   "+chrome/browser/ui/android/ephemeraltab",
   "+chrome/browser/ui/android/native_page",
+  "+chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/NightModeUtils.java",
+  "+chrome/browser/ui/android/night_mode/java/src/org/chromium/chrome/browser/night_mode/ThemeType.java",
   "+chrome/browser/version",
   "+components/browser_ui/styles/android",
   "+components/browser_ui/widget/android",
@@ -105,6 +110,7 @@ specific_include_rules = {
   ],
   'TabImpl\.java': [
     "+chrome/android/features/vr/java/src/org/chromium/chrome/browser/vr/VrModuleProvider.java",
+    "+chrome/android/java/src/org/chromium/chrome/browser/app/tabwindow/TabWindowManagerSingleton.java",
     "+chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java",
     "+chrome/android/java/src/org/chromium/chrome/browser/WarmupManager.java",
     "+chrome/android/java/src/org/chromium/chrome/browser/native_page/FrozenNativePage.java",
@@ -114,6 +120,9 @@ specific_include_rules = {
     "+chrome/android/java/src/org/chromium/chrome/browser/paint_preview/StartupPaintPreviewHelper.java",
     "+chrome/android/java/src/org/chromium/chrome/browser/rlz/RevenueStats.java",
     "+chrome/android/java/src/org/chromium/chrome/browser/night_mode",
+    "+chrome/browser/tabmodel/android/java/src/org/chromium/chrome/browser/tabmodel/TabClosureParams.java",
+    "+chrome/browser/tabmodel/android/java/src/org/chromium/chrome/browser/tabmodel/TabModel.java",
+    "+chrome/browser/tabwindow/android/java/src/org/chromium/chrome/browser/tabwindow/TabWindowManager.java",
     "+chrome/browser/util/android/java/src/org/chromium/chrome/browser/util/UrlConstants.java",
     "+chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfUtils.java",
     "+chrome/browser/ui/android/pdf/java/src/org/chromium/chrome/browser/pdf/PdfInfo.java",
@@ -138,6 +147,7 @@ specific_include_rules = {
   ],
   'TabUtils\.java' : [
     "+chrome/android/java/src/org/chromium/chrome/browser/app/ChromeActivity.java",
+    "+chrome/android/java/src/org/chromium/chrome/browser/media/MediaCaptureDevicesDispatcherAndroid.java",
     "+chrome/browser/browser_controls/android/java/src/org/chromium/chrome/browser/browser_controls/BrowserControlsStateProvider.java",
   ],
   'TabViewManagerImpl\.java': [
@@ -162,6 +172,6 @@ specific_include_rules = {
   ],
   'TabHelpers\.java': [
     "+chrome/android/java/src/org/chromium/chrome/browser/display_cutout/DisplayCutoutTabHelper.java",
-    "+chrome/browser/ui/android/edge_to_edge/internal/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeControllerFactory.java"
+    "+chrome/browser/ui/android/edge_to_edge/java/src/org/chromium/chrome/browser/ui/edge_to_edge/EdgeToEdgeUtils.java"
   ]
 }

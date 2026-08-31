@@ -19,6 +19,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
@@ -282,23 +283,21 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
     public boolean start(
             @OverscrollAction int type, @BackGestureEventSwipeEdge int initiatingEdge) {
         mSwipeType = type;
-        if (isRefreshOnOverscrollSupported()) {
-            if (type == OverscrollAction.PULL_TO_REFRESH) {
-                if (mSwipeRefreshLayout == null) initSwipeRefreshLayout(mTab.getContext());
-                attachSwipeRefreshLayoutIfNecessary();
-                return mSwipeRefreshLayout.start();
-            } else if (type == OverscrollAction.HISTORY_NAVIGATION) {
-                if (mNavigationCoordinator != null) {
-                    mNavigationCoordinator.startGesture();
-                    // Note: triggerUi returns true as long as the handler is in a valid state, i.e.
-                    // even if the navigation direction doesn't have further history entries.
-                    boolean navigable = mNavigationCoordinator.triggerUi(initiatingEdge);
-                    return navigable;
-                }
-            } else if (type == OverscrollAction.PULL_FROM_BOTTOM_EDGE) {
-                if (mBrowserControls != null) {
-                    recordEdgeToEdgeOverscrollFromBottom(mBrowserControls);
-                }
+        if (type == OverscrollAction.PULL_TO_REFRESH && isRefreshOnOverscrollSupported()) {
+            if (mSwipeRefreshLayout == null) initSwipeRefreshLayout(mTab.getContext());
+            attachSwipeRefreshLayoutIfNecessary();
+            return mSwipeRefreshLayout.start();
+        } else if (type == OverscrollAction.HISTORY_NAVIGATION) {
+            if (mNavigationCoordinator != null) {
+                mNavigationCoordinator.startGesture();
+                // Note: triggerUi returns true as long as the handler is in a valid state, i.e.
+                // even if the navigation direction doesn't have further history entries.
+                boolean navigable = mNavigationCoordinator.triggerUi(initiatingEdge);
+                return navigable;
+            }
+        } else if (type == OverscrollAction.PULL_FROM_BOTTOM_EDGE) {
+            if (mBrowserControls != null) {
+                recordEdgeToEdgeOverscrollFromBottom(mBrowserControls);
             }
         }
 
@@ -437,8 +436,13 @@ public class SwipeRefreshHandler extends TabWebContentsUserData
      *
      * @return true if page refresh on overscroll is supported.
      */
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     boolean isRefreshOnOverscrollSupported() {
-        return !DeviceInput.supportsPrecisionPointer();
+        // TODO(https://crbug.com/422413654) Remove this after long-term fix
+        if (DeviceInfo.isDesktop()) {
+            return !DeviceInput.supportsPrecisionPointer();
+        } else {
+            return true;
+        }
     }
 }

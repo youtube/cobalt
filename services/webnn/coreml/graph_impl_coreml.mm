@@ -32,7 +32,6 @@
 #include "base/task/thread_pool.h"
 #include "base/types/expected_macros.h"
 #include "build/build_config.h"
-#include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/bindings/self_owned_associated_receiver.h"
 #include "services/webnn/coreml/buffer_content_coreml.h"
 #include "services/webnn/coreml/context_impl_coreml.h"
@@ -43,6 +42,7 @@
 #include "services/webnn/public/cpp/operand_descriptor.h"
 #include "services/webnn/public/cpp/webnn_trace.h"
 #include "services/webnn/public/cpp/webnn_types.h"
+#include "services/webnn/public/mojom/features.mojom.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #include "services/webnn/public/mojom/webnn_error.mojom.h"
 #include "services/webnn/queueable_resource_state_base.h"
@@ -79,58 +79,20 @@ namespace webnn::coreml {
 
 namespace {
 
-
-// Compute strides which may be used to construct an `MLMultiArray` given
-// `multi_array_constraint`.
-// See https://developer.apple.com/documentation/coreml/mlmultiarray/strides.
-//
-// For example, given a 4D input `shape`, its strides would be as follows:
-// [
-//   shape[1] * shape[2] * shape[3],
-//   shape[2] * shape[3],
-//   shape[3],
-//   1
-// ];
-NSMutableArray* CalculateStrides(
-    MLMultiArrayConstraint* multi_array_constraint) {
-  // Empty shapes are not supported for input or output operands.
-  CHECK_GT(multi_array_constraint.shape.count, 0u);
-
-  NSMutableArray* strides =
-      [NSMutableArray arrayWithCapacity:multi_array_constraint.shape.count];
-
-  // Fill `strides` in reverse order, then return the list in reverse.
-
-  // The last stride is always 1.
-  uint32_t current_stride = 1;
-  [strides addObject:@(current_stride)];
-
-  for (uint32_t i = multi_array_constraint.shape.count - 1; i > 0; --i) {
-    // Overflow checks are not needed here because this calculation will always
-    // result in a value less than the similar calculation performed (with
-    // overflow checks) in `OperandDescriptor::Create()` - and
-    // `multi_array_constraint` corresponds to an `OperandDescriptor`.
-    current_stride *= multi_array_constraint.shape[i].unsignedIntegerValue;
-
-    [strides addObject:@(current_stride)];
-  }
-
-  return [[[strides reverseObjectEnumerator] allObjects] mutableCopy];
-}
-
 API_AVAILABLE(macos(12.3))
 base::flat_map<std::string,
                scoped_refptr<QueueableResourceState<BufferContent>>>
 ToNamedBufferStateMap(
-    const base::flat_map<std::string, WebNNTensorImpl*>& named_tensors) {
+    const base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>>&
+        named_tensors) {
   base::flat_map<std::string,
                  scoped_refptr<QueueableResourceState<BufferContent>>>
       buffer_states;
   buffer_states.reserve(named_tensors.size());
 
   for (const auto& [name, tensor] : named_tensors) {
-    buffer_states.emplace(
-        name, static_cast<TensorImplCoreml*>(tensor)->GetBufferState());
+    auto* coreml_tensor = static_cast<TensorImplCoreml*>(tensor.get());
+    buffer_states.emplace(name, coreml_tensor->GetBufferState());
   }
 
   return buffer_states;
@@ -332,6 +294,24 @@ class GraphImplCoreml::ComputeResources
   const MLModel* __strong ml_model_;
 };
 
+// Parameters needed to construct a `GraphImplCoreml`. Used for shuttling
+// these objects between the background thread where the model is compiled and
+// the originating thread.
+struct GraphImplCoreml::Params {
+  Params(ComputeResourceInfo compute_resource_info,
+         base::flat_map<std::string, std::string> coreml_name_to_operand_name);
+  ~Params();
+
+  ComputeResourceInfo compute_resource_info;
+  base::flat_map<std::string, std::string> coreml_name_to_operand_name;
+
+  // Represents the compiled and configured Core ML model. This member must be
+  // set before these params are used to construct a new `GraphImplCoreml`.
+  MLModel* __strong ml_model;
+
+  std::vector<mojom::Device> devices;
+};
+
 // static
 void GraphImplCoreml::CreateAndBuild(
     mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
@@ -460,12 +440,18 @@ void GraphImplCoreml::LoadCompiledModelOnBackgroundThread(
       configuration.computeUnits = MLComputeUnitsCPUOnly;
       break;
     case mojom::Device::kGpu:
-      // TODO: crbug.com/344935458 - Switch to MLComputeUnitsCPUAndGPU
-      // when we figure out how to fix the crashes.
-      configuration.computeUnits = MLComputeUnitsAll;
+      configuration.computeUnits =
+          base::FeatureList::IsEnabled(
+              mojom::features::kWebNNCoreMLExplicitGPUOrNPU)
+              ? MLComputeUnitsCPUAndGPU
+              : MLComputeUnitsAll;
       break;
     case mojom::Device::kNpu:
-      configuration.computeUnits = MLComputeUnitsAll;
+      configuration.computeUnits =
+          base::FeatureList::IsEnabled(
+              mojom::features::kWebNNCoreMLExplicitGPUOrNPU)
+              ? MLComputeUnitsCPUAndNeuralEngine
+              : MLComputeUnitsAll;
       break;
   }
 
@@ -544,6 +530,26 @@ void GraphImplCoreml::ReadComputePlan(
       NOTREACHED();
     }
 
+    if (DLOG_IS_ON(INFO)) {
+      std::string supported_devices;
+      for (id<MLComputeDeviceProtocol> device in compute_device_usage
+               .supportedComputeDevices) {
+        if (!device) {
+          continue;
+        }
+        if ([device isKindOfClass:[MLCPUComputeDevice class]]) {
+          supported_devices += " CPU";
+        } else if ([device isKindOfClass:[MLGPUComputeDevice class]]) {
+          supported_devices += " GPU";
+        } else if ([device isKindOfClass:[MLNeuralEngineComputeDevice class]]) {
+          supported_devices += " ANE";
+        } else {
+          NOTREACHED();
+        }
+      }
+      DLOG(INFO) << operation.operatorName
+                 << " supported devices:" << supported_devices;
+    }
     // Get the estimated cost of executing the operation.
     MLComputePlanCost* estimated_cost =
         [compute_plan estimatedCostOfMLProgramOperation:operation];
@@ -577,29 +583,8 @@ void GraphImplCoreml::DidCreateAndBuild(
   context->AssertCalledOnValidSequence();
 #endif
 
-  std::move(callback).Run(base::WrapUnique(new GraphImplCoreml(
-      std::move(receiver), static_cast<ContextImplCoreml*>(context.get()),
-      *std::move(result))));
-}
-
-// static
-MLFeatureValue* GraphImplCoreml::CreateMultiArrayFeatureValueFromBytes(
-    MLMultiArrayConstraint* multi_array_constraint,
-    mojo_base::BigBuffer data) {
-  NSError* error;
-  __block mojo_base::BigBuffer captured_data = std::move(data);
-  MLMultiArray* multi_array = [[MLMultiArray alloc]
-      initWithDataPointer:captured_data.data()
-                    shape:multi_array_constraint.shape
-                 dataType:multi_array_constraint.dataType
-                  strides:CalculateStrides(multi_array_constraint)
-              deallocator:^(void* bytes) {
-                mojo_base::BigBuffer destroy_in_block =
-                    std::move(captured_data);
-              }
-                    error:&error];
-  CHECK(!error);
-  return [MLFeatureValue featureValueWithMultiArray:multi_array];
+  std::move(callback).Run(base::MakeRefCounted<GraphImplCoreml>(
+      std::move(receiver), std::move(context), *std::move(result)));
 }
 
 GraphImplCoreml::ScopedModelPath::ScopedModelPath(base::ScopedTempDir file_dir)
@@ -634,10 +619,10 @@ GraphImplCoreml::ScopedModelPath::~ScopedModelPath() {
 
 GraphImplCoreml::GraphImplCoreml(
     mojo::PendingAssociatedReceiver<mojom::WebNNGraph> receiver,
-    ContextImplCoreml* context,
+    base::WeakPtr<WebNNContextImpl> context,
     std::unique_ptr<Params> params)
     : WebNNGraphImpl(std::move(receiver),
-                     context,
+                     std::move(context),
                      std::move(params->compute_resource_info),
                      std::move(params->devices)),
       compute_resources_(base::MakeRefCounted<ComputeResources>(
@@ -647,8 +632,8 @@ GraphImplCoreml::GraphImplCoreml(
 GraphImplCoreml::~GraphImplCoreml() = default;
 
 void GraphImplCoreml::DispatchImpl(
-    base::flat_map<std::string, WebNNTensorImpl*> named_inputs,
-    base::flat_map<std::string, WebNNTensorImpl*> named_outputs) {
+    base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>> named_inputs,
+    base::flat_map<std::string, scoped_refptr<WebNNTensorImpl>> named_outputs) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   ScopedTrace scoped_trace("GraphImplCoreml::DispatchImpl");

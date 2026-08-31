@@ -12,23 +12,23 @@
 #define RTC_BASE_EVENT_H_
 
 #include "api/units/time_delta.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/synchronization/yield_policy.h"
 
 #if defined(WEBRTC_WIN)
 #include <windows.h>
 #elif defined(WEBRTC_POSIX)
-#include <pthread.h>
+#include <pthread.h>  // IWYU pragma: keep
 #else
 #error "Must define either WEBRTC_WIN or WEBRTC_POSIX."
 #endif
-
-#include "rtc_base/synchronization/yield_policy.h"
 
 namespace webrtc {
 
 // RTC_DISALLOW_WAIT() utility
 //
-// Sets a stack-scoped flag that disallows use of `webrtc::Event::Wait` by means
-// of raising a DCHECK when a call to `webrtc::Event::Wait()` is made..
+// Sets a stack-scoped flag that disallows use of `Event::Wait` by means
+// of raising a DCHECK when a call to `Event::Wait()` is made..
 // This is useful to guard synchronization-free scopes against regressions.
 //
 // Example of what this would catch (`ScopeToProtect` calls `Foo`):
@@ -99,7 +99,7 @@ class Event {
 };
 
 // These classes are provided for compatibility with Chromium.
-// The webrtc::Event implementation is overriden inside of Chromium for the
+// The Event implementation is overriden inside of Chromium for the
 // purposes of detecting when threads are blocked that shouldn't be as well as
 // to use the more accurate event implementation that's there than is provided
 // by default on some platforms (e.g. Windows).
@@ -128,20 +128,11 @@ class ScopedDisallowWait {
    public:
     void YieldExecution() override { RTC_DCHECK_NOTREACHED(); }
   } handler_;
-  webrtc::ScopedYieldPolicy policy{&handler_};
+  ScopedYieldPolicy policy{&handler_};
 };
 #endif
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::Event;
-using ::webrtc::ScopedAllowBaseSyncPrimitives;
-using ::webrtc::ScopedAllowBaseSyncPrimitivesForTesting;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_EVENT_H_

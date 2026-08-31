@@ -1196,19 +1196,11 @@ void NativeInputMethodEngineObserver::OnAssistiveWindowButtonClicked(
       }
       if (button.window_type ==
           ash::ime::AssistiveWindowType::kLongpressDiacriticsSuggestion) {
-        if (features::IsInputDeviceSettingsSplitEnabled()) {
-          chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-              ProfileManager::GetActiveUserProfile(),
-              SettingToQueryString(
-                  chromeos::settings::mojom::kPerDeviceKeyboardSubpagePath,
-                  chromeos::settings::mojom::Setting::kShowDiacritic));
-        } else {
-          chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-              ProfileManager::GetActiveUserProfile(),
-              SettingToQueryString(
-                  chromeos::settings::mojom::kKeyboardSubpagePath,
-                  chromeos::settings::mojom::Setting::kShowDiacritic));
-        }
+        chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
+            ProfileManager::GetActiveUserProfile(),
+            SettingToQueryString(
+                chromeos::settings::mojom::kPerDeviceKeyboardSubpagePath,
+                chromeos::settings::mojom::Setting::kShowDiacritic));
       }
       if (button.window_type == ash::ime::AssistiveWindowType::kLearnMore) {
         autocorrect_manager_->HideUndoWindow();
@@ -1458,11 +1450,9 @@ void NativeInputMethodEngineObserver::DEPRECATED_ReportSuggestionOpportunity(
       ToUmaSuggestionType(mode));
 }
 
-void NativeInputMethodEngineObserver::ReportHistogramSample(
-    base::Histogram* histogram,
-    uint16_t value) {
-  histogram->Add(base::strict_cast<base::Histogram::Sample32>(value));
-}
+void NativeInputMethodEngineObserver::DEPRECATED_ReportHistogramSample(
+    mojom::BucketedHistogramPtr histogram,
+    uint16_t value) {}
 
 void NativeInputMethodEngineObserver::UpdateQuickSettings(
     mojom::InputMethodQuickSettingsPtr quick_settings) {

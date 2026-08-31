@@ -24,6 +24,7 @@
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -335,9 +336,9 @@ TEST_F(ClipboardHistoryControllerTest, VerifyAvailabilityInUserModes) {
   } kTestCases[] = {{user_manager::UserType::kRegular, true},
                     {user_manager::UserType::kGuest, true},
                     {user_manager::UserType::kPublicAccount, false},
-                    {user_manager::UserType::kKioskApp, false},
+                    {user_manager::UserType::kKioskChromeApp, false},
                     {user_manager::UserType::kChild, true},
-                    {user_manager::UserType::kWebKioskApp, false}};
+                    {user_manager::UserType::kKioskWebApp, false}};
 
   for (const auto& test_case : kTestCases) {
     ClearLogin();
@@ -786,12 +787,7 @@ class ClipboardHistoryControllerShowSourceTest
     : public ClipboardHistoryControllerTest,
       public testing::WithParamInterface<ClipboardHistoryControllerShowSource> {
  public:
-  ClipboardHistoryControllerShowSourceTest() {
-    scoped_feature_list_.InitWithFeatureState(
-        features::kClipboardHistoryLongpress,
-        GetSource() ==
-            ClipboardHistoryControllerShowSource::kControlVLongpress);
-  }
+  ClipboardHistoryControllerShowSourceTest() = default;
 
   ClipboardHistoryControllerShowSource GetSource() const { return GetParam(); }
 
@@ -805,6 +801,10 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 // Tests that `ShowMenu()` returns whether the menu was shown successfully.
 TEST_P(ClipboardHistoryControllerShowSourceTest, ShowMenuReturnsSuccess) {
+  if (GetSource() == ClipboardHistoryControllerShowSource::kControlVLongpress) {
+    GTEST_SKIP();
+  }
+
   base::HistogramTester histogram_tester;
 
   // Try to show the menu without populating the clipboard. The menu should not

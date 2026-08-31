@@ -10,9 +10,8 @@
 
 #include "common_audio/resampler/include/push_resampler.h"
 
-#include <stdint.h>
-#include <string.h>
-
+#include <cstdint>
+#include <cstring>
 #include <memory>
 
 #include "api/audio/audio_view.h"

@@ -140,23 +140,6 @@ bool HasDynamicFieldTrialGroupPrefix(const char* group_prefix);
 void GetActiveSuggestFieldTrialHashes(std::vector<uint32_t>* field_trial_hash);
 
 // ---------------------------------------------------------
-// For the SearchHistory experiment that's part of the bundled omnibox
-// field trial.
-
-// ---------------------------------------------------------
-// For the DemoteByType experiment that's part of the bundled omnibox field
-// trial.
-
-// If the user is in an experiment group that, in the provided
-// |current_page_classification| context, demotes the relevance scores
-// of certain types of matches, populates the |demotions_by_type| map
-// appropriately.  Otherwise, sets |demotions_by_type| to its default
-// value based on the context.
-void GetDemotionsByType(
-    metrics::OmniboxEventProto::PageClassification current_page_classification,
-    DemotionMultipliers* demotions_by_type);
-
-// ---------------------------------------------------------
 // For experiments related to the number of suggestions shown.
 
 // If the user is in an experiment group that specifies the max results for a
@@ -382,6 +365,9 @@ extern int kDefaultMinimumTimeBetweenSuggestQueriesMs;
 // optionally subdomains) in the steady state.
 extern const char kOmniboxUIUnelideURLOnHoverThresholdMsParam[];
 
+// Parameter names used by MIA experiments.
+extern const char kSuppressPsuggestBackfillWithMIAParam[];
+
 // `FeatureParam`s
 
 // Local history zero-prefix (aka zero-suggest) and prefix suggestions.
@@ -431,42 +417,6 @@ extern const base::FeatureParam<size_t>
 // Specifies the relevance scores for the Site Search Starter Pack ACMatches
 // (e.g. @bookmarks, @history) provided by the Builtin Provider.
 extern const base::FeatureParam<int> kSiteSearchStarterPackRelevanceScore;
-
-// Domain suggestions.
-// Whether enabled for counterfactual logging; i.e. shouldn't use domain
-// suggestions/scores.
-extern const base::FeatureParam<bool> kDomainSuggestionsCounterfactual;
-// The minimum number of unique URLs a domain needs to be considered highly
-// visited.
-extern const base::FeatureParam<int> kDomainSuggestionsTypedUrlsThreshold;
-// The minimum number of typed visits a URL needs to count for
-// `kDomainSuggestionsTypedUrlsThreshold`
-extern const base::FeatureParam<int> kDomainSuggestionsTypedUrlsOffset;
-// The minimum number of typed visits a domain needs to be considered highly
-// visited.
-extern const base::FeatureParam<int> kDomainSuggestionsTypedVisitThreshold;
-// The value to subtract from each URL's typed visits before contributing to
-// `kDomainSuggestionsTypedVisitThreshold`.
-extern const base::FeatureParam<int> kDomainSuggestionsTypedVisitOffset;
-// The max each visit can contribute to `kDomainSuggestionsTypedVisitThreshold`.
-// E.g. if 2, 'google.com/x' is typed-visited 5 times, and 'google.com/y' is
-// typed visited 1 time, then 'google.com' will be scored min(5,2) + min(1,2) =
-// 3, rather than 5+1 = 6.
-extern const base::FeatureParam<int> kDomainSuggestionsTypedVisitCapPerVisit;
-// The input inclusive minimum length to trigger domain suggestions.
-extern const base::FeatureParam<int> kDomainSuggestionsMinInputLength;
-// The maximum number of matches per domain to suggest.
-extern const base::FeatureParam<int> kDomainSuggestionsMaxMatchesPerDomain;
-// The scoring factor used to boost HQP suggestions from highly visited domains.
-// A value of 1 is the control behavior. A value of 2 will boost scores, but not
-// necessarily double them due to how HQP maps the factors to actual scores.
-extern const base::FeatureParam<double> kDomainSuggestionsScoreFactor;
-// Whether to use an alternative scoring algorithm based on last visit time to
-// boost scores (e.g., 1000 - 80 / day). If disabled, domain suggestions use
-// traditional HQP scoring (optionally scaled by
-// `kDomainSuggestionsScoreFactor`). If enabled, they use the max of the
-// traditional and the alternate scoring algorithms.
-extern const base::FeatureParam<bool> kDomainSuggestionsAlternativeScoring;
 
 // ---------------------------------------------------------
 // ML Relevance Scoring ->
@@ -681,18 +631,6 @@ std::vector<std::pair<double, int>> GetPiecewiseMappingBreakPoints(
     PiecewiseMappingVariant mapping_variant =
         PiecewiseMappingVariant::kRegular);
 
-// Ipad suggestions limit ->
-
-constexpr base::FeatureParam<int> kIpadAdditionalTrendingQueries(
-    &omnibox::kIpadZeroSuggestMatches,
-    "IpadAdditionalTrendingQueries",
-    5);
-
-constexpr base::FeatureParam<int> kIpadZPSLimit(
-    &omnibox::kIpadZeroSuggestMatches,
-    "IpadZPSSuggestionsLimit",
-    20);
-
 // <- Ipad suggestions limit
 // ---------------------------------------------------------
 // <- ML Relevance Scoring
@@ -731,7 +669,7 @@ extern const base::FeatureParam<int>
 // DB or TemplateURLService's copy of the URL.
 extern const base::FeatureParam<std::string> kGeminiUrlOverride;
 
-// Whether the expansion pack (the StarterPackID::kGemini keyword/engine) for
+// Whether the expansion pack (the `StarterPackId::kGemini` keyword/engine) for
 // the site search starter pack is enabled.
 bool IsStarterPackExpansionEnabled();
 
@@ -740,20 +678,6 @@ bool IsStarterPackExpansionEnabled();
 bool IsStarterPackIPHEnabled();
 
 // <- Site Search Starter Pack
-// ---------------------------------------------------------
-// Android Hub Search -->
-//
-// Controls different variations of android hub search including what
-// primitives are included.
-#if BUILDFLAG(IS_ANDROID)
-constexpr base::FeatureParam<bool> kAndroidHubSearchEnableBookmarkProvider{
-    &omnibox::kAndroidHubSearch, "enable_bookmark_provider", true};
-
-constexpr base::FeatureParam<bool> kAndroidHubSearchEnableHistoryProvider{
-    &omnibox::kAndroidHubSearch, "enable_history_provider", true};
-#endif
-
-// <- Android Hub Search
 // ---------------------------------------------------------
 // Power Tools -->
 constexpr base::FeatureParam<size_t> kOmniboxNumNtpZpsRecentSearches{
@@ -787,11 +711,22 @@ inline constexpr base::FeatureParam<bool> kAndroidDiagInputConnection{
 // <- Diagnostics
 // ---------------------------------------------------------
 // Mobile Parity update -->
-#if BUILDFLAG(IS_ANDROID)
-inline constexpr base::FeatureParam<bool> kMobileParityRetrieveTrueFavicon{
-    &omnibox::kOmniboxMobileParityUpdate, "retrieve_true_favicon", false};
-#endif
+inline constexpr base::FeatureParam<bool> kMobileParityRetrieveBuiltinFavicon{
+    &omnibox::kOmniboxMobileParityUpdateV2, "retrieve_builtin_favicon", false};
+
+
+inline constexpr base::FeatureParam<bool> kMobileParityEnableFeedForGoogleOnly{
+    &omnibox::kOmniboxMobileParityUpdate, "enable_feed_for_google_only", true};
 // <-- Mobile Parity update
+
+// Aim shortcut for typed state ->
+
+constexpr base::FeatureParam<int> kMinimumTypedCharactersToInvokeAimShortcut(
+    &omnibox::kOmniboxAimShortcutTypedState,
+    "MinimumTypedCharactersToInvokeAimShortcut",
+    1);
+
+// <- Aim shortcut for typed state
 
 // New params should be inserted above this comment. They should be ordered
 // consistently with `omnibox_features.h`. They should be formatted as:
@@ -818,39 +753,6 @@ inline constexpr base::FeatureParam<bool> kMobileParityRetrieveTrueFavicon{
   // If true, document suggestions will be hidden but logged for analysis.
   extern const base::FeatureParam<bool> kDocumentCounterfactual;
 */
-
-namespace internal {
-// The bundled omnibox experiment comes with a set of parameters
-// (key-value pairs).  Each key indicates a certain rule that applies in
-// a certain context.  The value indicates what the consequences of
-// applying the rule are.  For example, the value of a SearchHistory rule
-// in the context of a search results page might indicate that we should
-// prevent search history matches from inlining.
-//
-// This function returns the value associated with the |rule| that applies
-// in the current context (which currently consists of |page_classification|
-// and whether Instant Extended is enabled).  If no such rule exists in the
-// current context, fall back to the rule in various wildcard contexts and
-// return its value if found.  If the rule remains unfound in the global
-// context, returns the empty string.  For more details, including how we
-// prioritize different wildcard contexts, see the implementation.  How to
-// interpret the value is left to the caller; this is rule-dependent.
-//
-// Deprecated. Use GetValueForRuleInContextByFeature instead.
-std::string GetValueForRuleInContext(
-    const std::string& rule,
-    metrics::OmniboxEventProto::PageClassification page_classification);
-
-// Same as GetValueForRuleInContext, but by |feature| instead of the bundled
-// omnibox experiment.  Prefer to use this method over GetValueForRuleInContext
-// when possible, as it can be useful to configure parameters outside of the
-// omnibox bundled experiment.
-std::string GetValueForRuleInContextByFeature(
-    const base::Feature& feature,
-    const std::string& rule,
-    metrics::OmniboxEventProto::PageClassification page_classification);
-
-}  // namespace internal
 
 }  // namespace OmniboxFieldTrial
 

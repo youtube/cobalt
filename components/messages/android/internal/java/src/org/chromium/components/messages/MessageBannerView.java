@@ -34,6 +34,7 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.BrowserUiListMenuUtils;
+import org.chromium.components.browser_ui.widget.ListItemBuilder;
 import org.chromium.components.browser_ui.widget.RoundedCornerOutlineProvider;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.SwipeHandler;
@@ -404,7 +405,9 @@ public class MessageBannerView extends RelativeLayout {
         // TODO(crbug.com/315815559): pressing the button will trigger an unexpected exit, which
         // will make the close button disappear. Check #isPrimaryButton to prevent from that.
         // Remove the check once the fix lands.
-        if (mEnableCloseButton && MotionEventUtils.isMouseEvent(event)) {
+        if (mEnableCloseButton
+                && (MotionEventUtils.isMouseEvent(event)
+                        || MotionEventUtils.isTrackpadEvent(event))) {
             if (event.getAction() == MotionEvent.ACTION_HOVER_ENTER) {
                 mCloseButton.setVisibility(VISIBLE);
             } else if (event.getAction() == MotionEvent.ACTION_HOVER_EXIT
@@ -438,7 +441,7 @@ public class MessageBannerView extends RelativeLayout {
     private ListMenuDelegate buildDelegateForSingleMenuItem() {
         assumeNonNull(mSecondaryButtonMenuText);
         MVCListAdapter.ListItem listItem =
-                BrowserUiListMenuUtils.buildMenuListItem(mSecondaryButtonMenuText, 0, 0, true);
+                new ListItemBuilder().withTitle(mSecondaryButtonMenuText).build();
         MVCListAdapter.ModelList menuItems = new MVCListAdapter.ModelList();
         menuItems.add(listItem);
 

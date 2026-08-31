@@ -9,9 +9,9 @@
  */
 #include "net/dcsctp/packet/chunk/cookie_ack_chunk.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "api/array_view.h"
@@ -25,7 +25,6 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //  |   Type = 11   |Chunk  Flags   |     Length = 4                |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-constexpr int CookieAckChunk::kType;
 
 std::optional<CookieAckChunk> CookieAckChunk::Parse(
     webrtc::ArrayView<const uint8_t> data) {

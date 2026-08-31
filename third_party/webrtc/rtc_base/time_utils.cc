@@ -8,14 +8,14 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <stdint.h>
+#include <cstdint>
+#include <ctime>
 
 #if defined(WEBRTC_POSIX)
 #include <sys/time.h>
 #endif
 
 #include "rtc_base/checks.h"
-#include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/system_time.h"
 #include "rtc_base/time_utils.h"
 #if defined(WEBRTC_WIN)
@@ -156,10 +156,6 @@ int64_t TimeNanos() {
     return g_clock->TimeNanos();
   }
   return SystemTimeNanos();
-}
-
-uint32_t Time32() {
-  return static_cast<uint32_t>(TimeNanos() / kNumNanosecsPerMillisec);
 }
 
 int64_t TimeMillis() {

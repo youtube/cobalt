@@ -30,6 +30,7 @@
 #import "base/strings/safe_sprintf.h"
 #import "base/task/thread_pool.h"
 #import "base/threading/platform_thread.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/crash/core/common/crash_key.h"
 #import "components/crash/core/common/crash_keys.h"
 #import "components/history/core/browser/history_service.h"
@@ -38,9 +39,11 @@
 #import "components/metrics/cpu_metrics_provider.h"
 #import "components/metrics/demographics/demographic_metrics_provider.h"
 #import "components/metrics/drive_metrics_provider.h"
+#import "components/metrics/dwa/dwa_recorder.h"
 #import "components/metrics/dwa/dwa_service.h"
 #import "components/metrics/entropy_state_provider.h"
 #import "components/metrics/field_trials_provider.h"
+#import "components/metrics/fre_source_trial.h"
 #import "components/metrics/install_date_provider.h"
 #import "components/metrics/metrics_data_validation.h"
 #import "components/metrics/metrics_log_uploader.h"
@@ -113,8 +116,8 @@ std::unique_ptr<metrics::FileMetricsProvider> CreateFileMetricsProvider(
     bool metrics_reporting_enabled) {
   // Create an object to monitor files of metrics and include them in reports.
   std::unique_ptr<metrics::FileMetricsProvider> file_metrics_provider(
-      new metrics::FileMetricsProvider(
-          GetApplicationContext()->GetLocalState()));
+      new metrics::FileMetricsProvider(GetApplicationContext()->GetLocalState(),
+                                       IsFirstRun()));
 
   base::FilePath user_data_dir;
   if (base::PathService::Get(ios::DIR_USER_DATA, &user_data_dir)) {
@@ -184,6 +187,7 @@ void IOSChromeMetricsServiceClient::RegisterPrefs(
   metrics::RegisterMetricsReportingStatePrefs(registry);
   ukm::UkmService::RegisterPrefs(registry);
   metrics::dwa::DwaService::RegisterPrefs(registry);
+  metrics::fre_source_trial::RegisterLocalStatePrefs(registry);
 }
 
 variations::SyntheticTrialRegistry*
@@ -213,7 +217,7 @@ int32_t IOSChromeMetricsServiceClient::GetProduct() {
 }
 
 std::string IOSChromeMetricsServiceClient::GetApplicationLocale() {
-  return GetApplicationContext()->GetApplicationLocale();
+  return GetApplicationContext()->GetApplicationLocaleStorage()->Get();
 }
 
 const network_time::NetworkTimeTracker*
@@ -283,7 +287,7 @@ void IOSChromeMetricsServiceClient::Initialize() {
     RegisterUKMProviders();
   }
 
-  if (base::FeatureList::IsEnabled(metrics::dwa::kDwaFeature)) {
+  if (metrics::dwa::DwaRecorder::IsDwaOrPrivateMetricsFeatureEnabled()) {
     dwa_service_ =
         std::make_unique<metrics::dwa::DwaService>(this, local_state);
   }

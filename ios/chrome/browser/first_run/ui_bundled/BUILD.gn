@@ -11,6 +11,7 @@ source_set("features") {
     "//base",
     "//components/regional_capabilities",
     "//ios/chrome/browser/regional_capabilities/model",
+    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/profile",
   ]
 }
@@ -48,6 +49,7 @@ source_set("ui_bundled") {
     ":utils",
     "//base",
     "//base:i18n",
+    "//components/feature_engagement/public",
     "//components/metrics",
     "//components/signin/public/identity_manager",
     "//ios/chrome/app:tests_hook",
@@ -57,7 +59,9 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/authentication/ui_bundled/history_sync",
     "//ios/chrome/browser/authentication/ui_bundled/signin:constants",
     "//ios/chrome/browser/docking_promo/coordinator",
+    "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/first_run/model",
+    "//ios/chrome/browser/first_run/ui_bundled/animated_lens/coordinator",
     "//ios/chrome/browser/first_run/ui_bundled/best_features/coordinator",
     "//ios/chrome/browser/first_run/ui_bundled/default_browser",
     "//ios/chrome/browser/first_run/ui_bundled/interactive_lens/coordinator",
@@ -91,6 +95,8 @@ source_set("ui_bundled") {
 
 source_set("first_run_provider") {
   sources = [
+    "first_run_post_action_provider.h",
+    "first_run_post_action_provider.mm",
     "first_run_screen_provider.h",
     "first_run_screen_provider.mm",
   ]
@@ -98,12 +104,15 @@ source_set("first_run_provider") {
     ":features",
     ":field_trial",
     "//base",
+    "//components/regional_capabilities",
     "//components/search_engines",
     "//components/sync/base:features",
     "//ios/chrome/app:tests_hook",
     "//ios/chrome/browser/first_run/ui_bundled/best_features/coordinator",
     "//ios/chrome/browser/first_run/ui_bundled/omnibox_position:omnibox_position_ui",
+    "//ios/chrome/browser/passwords/model:features",
     "//ios/chrome/browser/policy/model",
+    "//ios/chrome/browser/regional_capabilities/model",
     "//ios/chrome/browser/screen/ui_bundled:screen_provider",
     "//ios/chrome/browser/screen/ui_bundled:screen_provider_protected",
     "//ios/chrome/browser/screen/ui_bundled:screen_type",
@@ -174,6 +183,7 @@ source_set("eg2_tests") {
     "//components/policy/core/common:common_constants",
     "//components/policy/test_support",
     "//components/regional_capabilities",
+    "//components/regional_capabilities:test_support",
     "//components/search_engines",
     "//components/signin/internal/identity_manager",
     "//components/signin/ios/browser:features",

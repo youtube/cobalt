@@ -15,6 +15,7 @@
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/permissions/permission_request_id.h"
+#include "components/permissions/resolvers/content_setting_permission_resolver.h"
 #include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/mock_render_process_host.h"
@@ -44,9 +45,9 @@ class TestPermissionContext : public payments::PaymentHandlerPermissionContext {
 
   bool permission_set() { return permission_set_; }
 
-  void TrackPermissionDecision(ContentSetting content_setting) {
+  void TrackPermissionDecision(PermissionStatus permission_status) {
     permission_set_ = true;
-    permission_granted_ = content_setting == CONTENT_SETTING_ALLOW;
+    permission_granted_ = permission_status == PermissionStatus::GRANTED;
   }
 
  private:
@@ -90,8 +91,9 @@ TEST_F(PaymentHandlerPermissionContextTests, TestInsecureRequestingUrl) {
       permissions::PermissionRequestID::RequestLocalId());
   permission_context.RequestPermission(
       std::make_unique<permissions::PermissionRequestData>(
-          &permission_context, id,
-          /*user_gesture=*/true, url),
+          std::make_unique<permissions::ContentSettingPermissionResolver>(
+              ContentSettingsType::PAYMENT_HANDLER),
+          id, /*user_gesture=*/true, url),
       base::BindOnce(&TestPermissionContext::TrackPermissionDecision,
                      base::Unretained(&permission_context)));
 

@@ -12,15 +12,18 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/controls/rich_controls_container_view.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/browser_resources.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
+#include "components/autofill/core/browser/integrators/autofill_ai/metrics/autofill_ai_metrics.h"
 #include "components/autofill/core/browser/permissions/autofill_ai/autofill_ai_permission_utils.h"
-#include "components/autofill_ai/core/browser/autofill_ai_metrics.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/image_model.h"
+#include "ui/base/resource/resource_bundle.h"
 
 namespace feature_first_run {
 
@@ -34,19 +37,20 @@ const gfx::VectorIcon& kGoogleGLogoIcon =
 #endif
 
 void OnLearnMoreClicked(content::WebContents* web_contents) {
-  autofill_ai::LogOptInFunnelEvent(
-      autofill_ai::AutofillAiOptInFunnelEvents::kFFRLearnMoreButtonClicked);
+  autofill::LogOptInFunnelEvent(
+      autofill::AutofillAiOptInFunnelEvents::kFFRLearnMoreButtonClicked);
   Browser* browser = chrome::FindBrowserWithTab(web_contents);
   chrome::ShowSettingsSubPage(browser, chrome::kAutofillAiSubPage);
 }
 
 void OnDialogAccepted(content::WebContents* web_contents) {
-  autofill_ai::LogOptInFunnelEvent(
-      autofill_ai::AutofillAiOptInFunnelEvents::kFFRDialogAccepted);
+  autofill::LogOptInFunnelEvent(
+      autofill::AutofillAiOptInFunnelEvents::kFFRDialogAccepted);
   autofill::AutofillClient* client =
       autofill::ContentAutofillClient::FromWebContents(web_contents);
 
-  autofill::SetAutofillAiOptInStatus(*client, true);
+  autofill::SetAutofillAiOptInStatus(*client,
+                                     autofill::AutofillAiOptInStatus::kOptedIn);
 }
 
 void OnDialogCancelled() {
@@ -75,12 +79,13 @@ std::unique_ptr<views::View> CreateDialogContentView(
 }  // namespace
 
 void ShowAutofillAiFirstRunDialog(content::WebContents* web_contents) {
-  autofill_ai::LogOptInFunnelEvent(
-      autofill_ai::AutofillAiOptInFunnelEvents::kFFRDialogShown);
+  autofill::LogOptInFunnelEvent(
+      autofill::AutofillAiOptInFunnelEvents::kFFRDialogShown);
+
+  ui::ResourceBundle& bundle = ui::ResourceBundle::GetSharedInstance();
   ShowFeatureFirstRunDialog(
       l10n_util::GetStringUTF16(IDS_AUTOFILL_AI_OPT_IN_IPH_TITLE),
-      ui::ImageModel::FromResourceId(IDR_AUTOFILL_AI_FFR_BANNER),
-      ui::ImageModel::FromResourceId(IDR_AUTOFILL_AI_FFR_BANNER_DARK),
+      bundle.GetThemedLottieImageNamed(IDR_AUTOFILL_AI_FFR_BANNER_LOTTIE),
       CreateDialogContentView(web_contents),
       base::BindOnce(&OnDialogAccepted, web_contents),
       base::BindOnce(&OnDialogCancelled), web_contents);

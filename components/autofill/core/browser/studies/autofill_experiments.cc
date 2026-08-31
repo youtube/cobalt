@@ -43,7 +43,7 @@
 #include "components/sync/service/sync_service_utils.h"
 #include "components/sync/service/sync_user_settings.h"
 #include "components/variations/variations_associated_data.h"
-#include "crypto/sha2.h"
+#include "crypto/hash.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/ui_base_features.h"
@@ -81,24 +81,26 @@ int GetSyncTransportOptInBitFieldForAccount(const PrefService* prefs,
 }  // namespace
 
 // The list of countries for which the credit card upload save feature is fully
-// launched. Last updated M129.
+// launched. Last updated M141.
 const char* const kAutofillUpstreamLaunchedCountries[] = {
-    "AD", "AE", "AF", "AG", "AI", "AL", "AO", "AR", "AS", "AT", "AU", "AW",
-    "AZ", "BA", "BB", "BE", "BF", "BG", "BH", "BJ", "BM", "BN", "BR", "BS",
-    "BT", "BW", "BZ", "CA", "CD", "CF", "CG", "CH", "CI", "CK", "CL", "CM",
-    "CO", "CR", "CV", "CX", "CY", "CZ", "DE", "DJ", "DK", "DM", "DO", "EC",
-    "EE", "EH", "ER", "ES", "FI", "FJ", "FK", "FM", "FO", "FR", "GA", "GB",
-    "GD", "GE", "GF", "GH", "GI", "GL", "GM", "GN", "GP", "GQ", "GR", "GT",
-    "GU", "GW", "GY", "HK", "HN", "HR", "HT", "HU", "IE", "IL", "IO", "IS",
-    "IT", "JP", "KE", "KH", "KI", "KM", "KN", "KW", "KY", "KZ", "LA", "LC",
-    "LI", "LK", "LR", "LS", "LT", "LU", "LV", "MC", "MD", "ME", "MG", "MH",
-    "MK", "ML", "MN", "MO", "MP", "MQ", "MR", "MS", "MT", "MU", "MW", "MX",
-    "MY", "MZ", "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NR", "NZ",
+    "AD", "AE", "AF", "AG", "AI", "AL", "AO", "AQ", "AR", "AS", "AT", "AU",
+    "AW", "AZ", "BA", "BB", "BE", "BF", "BG", "BH", "BI", "BJ", "BL", "BM",
+    "BN", "BR", "BS", "BT", "BW", "BY", "BZ", "CA", "CC", "CD", "CF", "CG",
+    "CH", "CI", "CK", "CL", "CM", "CO", "CR", "CV", "CX", "CY", "CZ", "DE",
+    "DJ", "DK", "DM", "DO", "EC", "EE", "EH", "ER", "ES", "FI", "FJ", "FK",
+    "FM", "FO", "FR", "GA", "GB", "GD", "GE", "GF", "GH", "GI", "GL", "GM",
+    "GN", "GP", "GQ", "GR", "GT", "GU", "GW", "GY", "HK", "HN", "HR", "HT",
+    "HU", "ID", "IE", "IL", "IO", "IS", "IT", "JM", "JP", "KE", "KG", "KH",
+    "KI", "KM", "KN", "KW", "KY", "KZ", "LA", "LB", "LC", "LI", "LK", "LR",
+    "LS", "LT", "LU", "LV", "MC", "MD", "ME", "MF", "MG", "MH", "MK", "ML",
+    "MN", "MO", "MP", "MQ", "MR", "MS", "MT", "MU", "MV", "MW", "MX", "MY",
+    "MZ", "NA", "NC", "NE", "NF", "NG", "NI", "NL", "NO", "NR", "NU", "NZ",
     "OM", "PA", "PE", "PF", "PG", "PH", "PL", "PM", "PR", "PT", "PW", "PY",
-    "QA", "RE", "RO", "SB", "SC", "SE", "SG", "SI", "SJ", "SK", "SL", "SM",
-    "SN", "SR", "ST", "SV", "SZ", "TC", "TD", "TG", "TH", "TL", "TM", "TO",
-    "TR", "TT", "TV", "TW", "TZ", "UA", "UG", "US", "UY", "VC", "VE", "VG",
-    "VI", "VN", "VU", "WS", "YT", "ZA", "ZM", "ZW"};
+    "QA", "RE", "RO", "RW", "SA", "SB", "SC", "SE", "SG", "SH", "SI", "SJ",
+    "SK", "SL", "SM", "SN", "SO", "SR", "ST", "SV", "SX", "SZ", "TC", "TD",
+    "TG", "TH", "TK", "TL", "TM", "TO", "TR", "TT", "TV", "TW", "TZ", "UA",
+    "UG", "US", "UY", "VA", "VC", "VE", "VG", "VI", "VN", "VU", "WF", "WS",
+    "YT", "ZA", "ZM", "ZW"};
 
 bool IsCreditCardUploadEnabled(
     const syncer::SyncService* sync_service,
@@ -299,7 +301,7 @@ bool IsUserOptedInWalletSyncTransport(const PrefService* prefs,
 
   // Get the hash of the account id.
   std::string account_hash =
-      base::Base64Encode(crypto::SHA256HashString(account_id.ToString()));
+      base::Base64Encode(crypto::hash::Sha256(account_id.ToString()));
 
   // Return whether the wallet opt-in bit is set.
   return GetSyncTransportOptInBitFieldForAccount(prefs, account_hash) &
@@ -314,7 +316,7 @@ void SetUserOptedInWalletSyncTransport(PrefService* prefs,
   // obfuscation. The primary privacy guarantees are handled by clearing this
   // whenever cookies are cleared.
   std::string account_hash =
-      base::Base64Encode(crypto::SHA256HashString(account_id.ToString()));
+      base::Base64Encode(crypto::hash::Sha256(account_id.ToString()));
 
   ScopedDictPrefUpdate update(prefs, prefs::kAutofillSyncTransportOptIn);
   int value = GetSyncTransportOptInBitFieldForAccount(prefs, account_hash);

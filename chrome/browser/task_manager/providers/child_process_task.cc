@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/i18n/rtl.h"
+#include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/browser_process.h"
@@ -20,7 +21,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
-#include "components/nacl/common/nacl_process_type.h"
 #include "content/public/browser/browser_child_process_host.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -38,10 +38,6 @@
 #include "extensions/common/extension_set.h"        // nogncheck
 #endif
 
-#if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/resources/grit/glic_browser_resources.h"
-#endif
-
 namespace task_manager {
 
 namespace {
@@ -50,18 +46,6 @@ std::u16string GetLocalizedTitle(const std::u16string& title,
                                  int process_type,
                                  ChildProcessTask::ProcessSubtype subtype) {
   std::u16string result_title = title;
-  if (result_title.empty()) {
-    switch (process_type) {
-      case content::PROCESS_TYPE_PPAPI_PLUGIN:
-      case content::PROCESS_TYPE_PPAPI_BROKER:
-        result_title = l10n_util::GetStringUTF16(
-            IDS_TASK_MANAGER_UNKNOWN_PLUGIN_NAME);
-        break;
-      default:
-        // Nothing to do for non-plugin processes.
-        break;
-    }
-  }
 
   // Explicitly mark name as LTR if there is no strong RTL character,
   // to avoid the wrong concatenation result similar to "!Yahoo Mail: the
@@ -75,42 +59,9 @@ std::u16string GetLocalizedTitle(const std::u16string& title,
                                         result_title);
     case content::PROCESS_TYPE_GPU:
       return l10n_util::GetStringUTF16(IDS_TASK_MANAGER_GPU_PREFIX);
-    case content::PROCESS_TYPE_PPAPI_PLUGIN:
-      return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_PLUGIN_PREFIX,
-                                        result_title);
-    case content::PROCESS_TYPE_PPAPI_BROKER:
-      return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_PLUGIN_BROKER_PREFIX,
-                                        result_title);
-    case PROCESS_TYPE_NACL_BROKER:
-      return l10n_util::GetStringUTF16(IDS_TASK_MANAGER_NACL_BROKER_PREFIX);
-    case PROCESS_TYPE_NACL_LOADER: {
-#if !BUILDFLAG(IS_ANDROID)
-      auto* profile_manager = g_browser_process->profile_manager();
-      if (profile_manager) {
-        // TODO(afakhry): Fix the below looping by plumbing a way to get the
-        // profile or the profile path from the child process host if any.
-        auto loaded_profiles = profile_manager->GetLoadedProfiles();
-        for (auto* profile : loaded_profiles) {
-          // Some profiles cannot have extensions, such as the System Profile.
-          if (extensions::ChromeContentBrowserClientExtensionsPart::
-                  AreExtensionsDisabledForProfile(profile)) {
-            continue;
-          }
-
-          const extensions::ExtensionSet& enabled_extensions =
-              extensions::ExtensionRegistry::Get(profile)->enabled_extensions();
-          const extensions::Extension* extension =
-              enabled_extensions.GetExtensionOrAppByURL(GURL(result_title));
-          if (extension) {
-            result_title = base::UTF8ToUTF16(extension->name());
-            break;
-          }
-        }
-      }
-#endif  // !BUILDFLAG(IS_ANDROID)
-      return l10n_util::GetStringFUTF16(IDS_TASK_MANAGER_NACL_PREFIX,
-                                        result_title);
-    }
+    case content::PROCESS_TYPE_PPAPI_PLUGIN_DEPRECATED:
+    case content::PROCESS_TYPE_PPAPI_BROKER_DEPRECATED:
+      NOTREACHED();
     case content::PROCESS_TYPE_RENDERER: {
       switch (subtype) {
         case ChildProcessTask::ProcessSubtype::kSpareRenderProcess:
@@ -213,9 +164,9 @@ void ChildProcessTask::Refresh(const base::TimeDelta& update_interval,
 Task::Type ChildProcessTask::GetType() const {
   // Convert |content::ProcessType| to |task_manager::Task::Type|.
   switch (process_type_) {
-    case content::PROCESS_TYPE_PPAPI_PLUGIN:
-    case content::PROCESS_TYPE_PPAPI_BROKER:
-      return Task::PLUGIN;
+    case content::PROCESS_TYPE_PPAPI_PLUGIN_DEPRECATED:
+    case content::PROCESS_TYPE_PPAPI_BROKER_DEPRECATED:
+      NOTREACHED();
     case content::PROCESS_TYPE_UTILITY:
       return Task::UTILITY;
     case content::PROCESS_TYPE_ZYGOTE:
@@ -224,9 +175,6 @@ Task::Type ChildProcessTask::GetType() const {
       return Task::SANDBOX_HELPER;
     case content::PROCESS_TYPE_GPU:
       return Task::GPU;
-    case PROCESS_TYPE_NACL_LOADER:
-    case PROCESS_TYPE_NACL_BROKER:
-      return Task::NACL;
     case content::PROCESS_TYPE_RENDERER:
       return Task::RENDERER;
     default:

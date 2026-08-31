@@ -9,6 +9,7 @@
 #include "base/strings/string_util.h"
 #include "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #include "components/autofill/core/browser/payments/constants.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 
 namespace autofill::autofill_metrics {
 
@@ -22,6 +23,8 @@ std::string GetHistogramSuffixFromIssuerId(IssuerId issuer_id) {
       return "Zip";
     case IssuerId::kBnplAfterpay:
       return "Afterpay";
+    case IssuerId::kBnplKlarna:
+      return "Klarna";
   }
   NOTREACHED();
 }
@@ -104,6 +107,20 @@ void LogBnplFormEvent(BnplFormEvent event) {
   base::UmaHistogramEnumeration("Autofill.FormEvents.CreditCard.Bnpl", event);
 }
 
+void LogBnplSuggestionShown(ukm::SourceId ukm_source_id) {
+  LogBnplFormEvent(BnplFormEvent::kBnplSuggestionShown);
+  ukm::builders::Autofill_BnplSuggestionShown(ukm_source_id)
+      .SetShown(true)
+      .Record(ukm::UkmRecorder::Get());
+}
+
+void LogBnplSuggestionAccepted(ukm::SourceId ukm_source_id) {
+  LogBnplFormEvent(BnplFormEvent::kBnplSuggestionAccepted);
+  ukm::builders::Autofill_BnplSuggestionAccepted(ukm_source_id)
+      .SetAccepted(true)
+      .Record(ukm::UkmRecorder::Get());
+}
+
 void LogFormFilledWithBnplVcn(IssuerId issuer_id) {
   switch (issuer_id) {
     case IssuerId::kBnplAffirm:
@@ -114,6 +131,9 @@ void LogFormFilledWithBnplVcn(IssuerId issuer_id) {
       return;
     case IssuerId::kBnplAfterpay:
       LogBnplFormEvent(BnplFormEvent::kFormFilledWithAfterpay);
+      return;
+    case IssuerId::kBnplKlarna:
+      LogBnplFormEvent(BnplFormEvent::kFormFilledWithKlarna);
       return;
   }
   NOTREACHED();
@@ -129,6 +149,9 @@ void LogFormSubmittedWithBnplVcn(IssuerId issuer_id) {
       return;
     case IssuerId::kBnplAfterpay:
       LogBnplFormEvent(BnplFormEvent::kFormSubmittedWithAfterpay);
+      return;
+    case IssuerId::kBnplKlarna:
+      LogBnplFormEvent(BnplFormEvent::kFormSubmittedWithKlarna);
       return;
   }
   NOTREACHED();

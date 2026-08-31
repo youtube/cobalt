@@ -94,24 +94,26 @@ struct AccountInfo : public CoreAccountInfo {
   // one field was updated.
   bool UpdateWith(const AccountInfo& other);
 
-  // Returns whether the given `hosted_domain` is managed (different from
-  // kNoHostedDomainFound). Returns false for gmail.com and other non-managed
-  // domains like yahoo.com.
-  // NOTE: Also returns false if `hosted_domain` is still unknown (empty). If
-  // you need to distinguish this case, check `hosted_domain.empty()` first!
-  // TODO(crbug.com/406436335): Change the return type to signin::Tribool.
-  static bool IsManaged(const std::string& hosted_domain);
+  // Returns `kTrue` the given `hosted_domain` is managed (different from
+  // kNoHostedDomainFound). Returns `kFalse` for gmail.com and other non-managed
+  // domains like yahoo.com. Returns `kUnknown` if `hosted_domain` is still
+  // unknown (empty).
+  static signin::Tribool IsManaged(const std::string& hosted_domain);
 
   // Returns true if the account has no hosted domain but is a dasher account.
   bool IsMemberOfFlexOrg() const;
 
-  // Returns whether the account is managed (`hosted_domain` is different from
-  // kNoHostedDomainFound). Returns false for gmail.com accounts and other
-  // non-managed accounts like yahoo.com.
-  // NOTE: Also returns false if `hosted_domain` is still unknown (empty). If
-  // you need to distinguish this case, check `hosted_domain.empty()` first!
-  // TODO(crbug.com/406436335): Change the return type to signin::Tribool.
-  bool IsManaged() const;
+  // Returns `kTrue` if the account is managed (`hosted_domain` is non empty
+  // different from kNoHostedDomainFound). Returns `kFalse` for gmail.com
+  // accounts and other non-managed accounts like yahoo.com. Returns `kUnknown`
+  // if `hosted_domain` is still unknown (empty).
+  signin::Tribool IsManaged() const;
+
+  // Returns `kTrue` if the account is managed and can apply account level
+  // enterprise policies. Returns `kFalse` if the account is not managed or if
+  // the account is managed but cannot apply account level enterprise policies.
+  // Returns `kUnknown` the value is unknown.
+  signin::Tribool CanApplyAccountLevelEnterprisePolicies() const;
 
   bool IsEduAccount() const;
 
@@ -145,16 +147,6 @@ base::android::ScopedJavaLocalRef<jobject> ConvertToJavaAccountInfo(
     JNIEnv* env,
     const AccountInfo& account_info);
 
-// Constructs a Java CoreAccountId from the provided C++ CoreAccountId.
-base::android::ScopedJavaLocalRef<jobject> ConvertToJavaCoreAccountId(
-    JNIEnv* env,
-    const CoreAccountId& account_id);
-
-// Constructs a Java GaiaId from the provided C++ GaiaId.
-base::android::ScopedJavaLocalRef<jobject> ConvertToJavaGaiaId(
-    JNIEnv* env,
-    const GaiaId& gaia_id);
-
 // Constructs a C++ CoreAccountInfo from the provided Java CoreAccountInfo.
 CoreAccountInfo ConvertFromJavaCoreAccountInfo(
     JNIEnv* env,
@@ -164,15 +156,6 @@ CoreAccountInfo ConvertFromJavaCoreAccountInfo(
 AccountInfo ConvertFromJavaAccountInfo(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& j_account_info);
-
-// Constructs a C++ CoreAccountId from the provided Java CoreAccountId.
-CoreAccountId ConvertFromJavaCoreAccountId(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& j_core_account_id);
-
-// Constructs a C++ GaiaId from the provided Java GaiaId.
-GaiaId ConvertFromJavaGaiaId(JNIEnv* env,
-                             const base::android::JavaRef<jobject>& j_gaia_id);
 
 namespace jni_zero {
 template <>

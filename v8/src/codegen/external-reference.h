@@ -77,8 +77,6 @@ enum class IsolateFieldId : uint8_t;
     "RegExpStack::stack_pointer_address()")                                    \
   V(address_of_regexp_static_result_offsets_vector,                            \
     "Isolate::address_of_regexp_static_result_offsets_vector")                 \
-  V(thread_in_wasm_flag_address_address,                                       \
-    "Isolate::thread_in_wasm_flag_address_address")                            \
   EXTERNAL_REFERENCE_LIST_WITH_ISOLATE_SANDBOX(V)
 
 #ifdef V8_ENABLE_SANDBOX
@@ -120,7 +118,6 @@ enum class IsolateFieldId : uint8_t;
   V(address_of_uint32_bias, "uint32_bias")                                     \
   V(allocate_and_initialize_young_external_pointer_table_entry,                \
     "AllocateAndInitializeYoungExternalPointerTableEntry")                     \
-  V(baseline_pc_for_bytecode_offset, "BaselinePCForBytecodeOffset")            \
   V(baseline_pc_for_next_executed_bytecode,                                    \
     "BaselinePCForNextExecutedBytecode")                                       \
   V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
@@ -261,8 +258,10 @@ enum class IsolateFieldId : uint8_t;
     "simple_name_dictionary_lookup_forwarded_string")                          \
   V(simple_name_dictionary_find_insertion_entry_forwarded_string,              \
     "simple_name_dictionary_find_insertion_entry_forwarded_string")            \
-  IF_WASM(V, wasm_switch_stacks, "wasm_switch_stacks")                         \
-  IF_WASM(V, wasm_return_switch, "wasm_return_switch")                         \
+  IF_WASM(V, wasm_start_stack, "wasm_start_stack")                             \
+  IF_WASM(V, wasm_suspend_stack, "wasm_suspend_stack")                         \
+  IF_WASM(V, wasm_resume_stack, "wasm_resume_stack")                           \
+  IF_WASM(V, wasm_return_stack, "wasm_return_stack")                           \
   IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
@@ -504,6 +503,8 @@ enum class IsolateFieldId : uint8_t;
 #define EXTERNAL_REFERENCE_LIST_SANDBOX(V)                               \
   V(sandbox_base_address, "Sandbox::base()")                             \
   V(sandbox_end_address, "Sandbox::end()")                               \
+  V(sandboxed_mode_pkey_mask_address,                                    \
+    "SandboxHardwareSupport::sandboxed_mode_pkey_mask()")                \
   V(empty_backing_store_buffer, "EmptyBackingStoreBuffer()")             \
   V(memory_chunk_metadata_table_address, "MemoryChunkMetadata::Table()") \
   V(global_code_pointer_table_base_address,                              \
@@ -612,7 +613,7 @@ class ExternalReference {
          const CFunctionInfo* const* c_signatures, unsigned num_functions);
   static ExternalReference Create(const Runtime::Function* f);
   static ExternalReference Create(IsolateAddressId id, Isolate* isolate);
-  static ExternalReference Create(Runtime::FunctionId id);
+  static V8_EXPORT_PRIVATE ExternalReference Create(Runtime::FunctionId id);
   static ExternalReference Create(IsolateFieldId id);
   static V8_EXPORT_PRIVATE ExternalReference
   Create(Address address, Type type = ExternalReference::BUILTIN_CALL);

@@ -16,6 +16,7 @@
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/notreached.h"
+#include "base/version.h"
 #include "build/build_config.h"
 #include "chrome/browser/apps/platform_apps/install_chrome_app.h"
 #include "chrome/browser/browser_process.h"
@@ -41,14 +42,21 @@
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/startup/infobar_utils.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/startup_tab.h"
 #include "chrome/browser/ui/startup/startup_tab_provider.h"
 #include "chrome/browser/ui/startup/startup_types.h"
+#include "chrome/browser/ui/tabs/shared_tab_group_version_upgrade_modal.h"
+#include "chrome/browser/ui/toasts/api/toast_id.h"
+#include "chrome/browser/ui/toasts/toast_controller.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webui/whats_new/whats_new_util.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/common/chrome_version.h"
 #include "chrome/common/pref_names.h"
+#include "chrome/common/webui_url_constants.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/prefs/pref_service.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
@@ -62,10 +70,6 @@
 #include "base/mac/mac_util.h"
 #include "chrome/browser/app_controller_mac.h"
 #endif  // BUILDFLAG(IS_MAC)
-
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-#include "chrome/browser/win/conflicts/incompatible_applications_updater.h"
-#endif
 
 #if BUILDFLAG(ENABLE_RLZ)
 #include "components/google/core/common/google_util.h"
@@ -135,6 +139,8 @@ StartupBrowserCreatorImpl::StartupBrowserCreatorImpl(
       command_line_(command_line),
       browser_creator_(browser_creator),
       is_first_run_(is_first_run) {}
+
+StartupBrowserCreatorImpl::~StartupBrowserCreatorImpl() = default;
 
 // static
 void StartupBrowserCreatorImpl::MaybeToggleFullscreen(Browser* browser) {
@@ -338,15 +344,6 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
 
   const bool is_incognito_or_guest = profile_->IsOffTheRecord();
   bool is_post_crash_launch = HasPendingUncleanExit(profile_);
-  bool has_incompatible_applications = false;
-#if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  if (is_post_crash_launch) {
-    // Check if there are any incompatible applications cached from the last
-    // Chrome run.
-    has_incompatible_applications =
-        IncompatibleApplicationsUpdater::HasCachedApplications();
-  }
-#endif
 
   // Presentation of promotional and/or educational tabs may be controlled via
   // administrative policy.
@@ -391,8 +388,8 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
 
   auto result = DetermineStartupTabs(
       StartupTabProviderImpl(), process_startup, is_incognito_or_guest,
-      is_post_crash_launch, has_incompatible_applications, promotions_enabled,
-      whats_new_enabled, privacy_sandbox_dialog_required);
+      is_post_crash_launch, promotions_enabled, whats_new_enabled,
+      privacy_sandbox_dialog_required);
   StartupTabs tabs = std::move(result.tabs);
 
   // Return immediately if we start an async restore, since the remainder of
@@ -442,6 +439,17 @@ void StartupBrowserCreatorImpl::DetermineURLsAndLaunch(
   // Finally, add info bars.
   AddInfoBarsIfNecessary(browser, profile_, *command_line_, is_first_run_,
                          /*is_web_app=*/false);
+
+  tab_groups::MaybeShowSharedTabGroupVersionOutOfDateModal(browser);
+  tab_groups::MaybeShowSharedTabGroupVersionUpToDateToast(browser);
+
+  if (base::FeatureList::IsEnabled(features::kNonMilestoneUpdateToast)) {
+    std::string current_version_string =
+        current_chrome_version_string_for_testing_.has_value()
+            ? current_chrome_version_string_for_testing_.value()
+            : CHROME_VERSION_STRING;
+    MaybeShowNonMilestoneUpdateToast(browser, current_version_string);
+  }
 }
 
 StartupBrowserCreatorImpl::DetermineStartupTabsResult::
@@ -464,7 +472,6 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
     chrome::startup::IsProcessStartup process_startup,
     bool is_incognito_or_guest,
     bool is_post_crash_launch,
-    bool has_incompatible_applications,
     bool promotions_enabled,
     bool whats_new_enabled,
     bool privacy_sandbox_dialog_required) {
@@ -484,13 +491,6 @@ StartupBrowserCreatorImpl::DetermineStartupTabs(
   if (is_incognito_or_guest || is_post_crash_launch) {
     if (!tabs.empty()) {
       return {std::move(tabs), launch_result};
-    }
-
-    if (is_post_crash_launch) {
-      tabs = provider.GetPostCrashTabs(has_incompatible_applications);
-      if (!tabs.empty()) {
-        return {std::move(tabs), launch_result};
-      }
     }
 
     return {StartupTabs({StartupTab(GURL(chrome::kChromeUINewTabURL))}),
@@ -699,6 +699,38 @@ StartupBrowserCreatorImpl::DetermineSynchronousRestoreOptions(
   }
 
   return options;
+}
+
+// static
+void StartupBrowserCreatorImpl::MaybeShowNonMilestoneUpdateToast(
+    Browser* browser,
+    const std::string& current_version_string) {
+  if (!browser) {
+    return;
+  }
+
+  PrefService* local_state = g_browser_process->local_state();
+  std::string last_version_string =
+      local_state->GetString(prefs::kNonMilestoneUpdateToastVersion);
+
+  if (IsNonMilestoneUpdate(last_version_string, current_version_string)) {
+    browser->GetFeatures().toast_controller()->MaybeShowToast(
+        ToastParams(ToastId::kNonMilestoneUpdate));
+  }
+  local_state->SetString(prefs::kNonMilestoneUpdateToastVersion,
+                         current_version_string);
+}
+
+bool StartupBrowserCreatorImpl::IsNonMilestoneUpdate(
+    const std::string& last_version_string,
+    const std::string& current_version_string) {
+  base::Version last_version(last_version_string);
+  base::Version current_version(current_version_string);
+  if (!last_version.IsValid() || !current_version.IsValid()) {
+    return false;
+  }
+  return last_version.components()[0] == current_version.components()[0] &&
+         last_version < current_version;
 }
 
 // static

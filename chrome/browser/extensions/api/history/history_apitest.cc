@@ -102,10 +102,6 @@ INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          HistoryApiTest,
                          ::testing::Values(ContextType::kServiceWorker));
 
-// TODO(crbug.com/419057486): Enable for desktop Android once
-// SetUpBrowserContextKeyedServices can be called for Android browser tests.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-
 class SyncEnabledHistoryApiTest : public HistoryApiTest {
  public:
   void SetUpBrowserContextKeyedServices(
@@ -131,8 +127,6 @@ INSTANTIATE_TEST_SUITE_P(PersistentBackground,
 INSTANTIATE_TEST_SUITE_P(ServiceWorker,
                          SyncEnabledHistoryApiTest,
                          ::testing::Values(ContextType::kServiceWorker));
-
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_P(HistoryApiTest, MiscSearch) {
   ASSERT_TRUE(StartEmbeddedTestServer());
@@ -160,10 +154,6 @@ IN_PROC_BROWSER_TEST_P(HistoryApiTest, GetVisits) {
   ASSERT_TRUE(StartEmbeddedTestServer());
   ASSERT_TRUE(RunExtensionTest("history/regular/get_visits")) << message_;
 }
-
-// TODO(crbug.com/419057486): Enable for desktop Android once
-// SetUpBrowserContextKeyedServices can be called for Android browser tests.
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 
 IN_PROC_BROWSER_TEST_P(SyncEnabledHistoryApiTest, GetVisits_Foreign) {
   ASSERT_TRUE(StartEmbeddedTestServer());
@@ -228,8 +218,6 @@ IN_PROC_BROWSER_TEST_P(SyncEnabledHistoryApiTest, GetVisits_Foreign) {
   ASSERT_TRUE(RunExtensionTest(test_dir.UnpackedPath(), {}, {})) << message_;
 }
 
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
-
 IN_PROC_BROWSER_TEST_P(HistoryApiTest, SearchAfterAdd) {
   ASSERT_TRUE(StartEmbeddedTestServer());
   ASSERT_TRUE(RunExtensionTest("history/regular/search_after_add")) << message_;
@@ -288,8 +276,9 @@ IN_PROC_BROWSER_TEST_P(HistoryApiTest, Incognito) {
                                "countItemsInHistory()"));
 
   // Perform navigation in regular mode.
-  content::TestNavigationObserver regular_observer(GetActiveWebContents());
-  ASSERT_TRUE(NavigateToURL(b_com));
+  auto* web_contents = GetActiveWebContents();
+  content::TestNavigationObserver regular_observer(web_contents);
+  ASSERT_TRUE(NavigateToURL(web_contents, b_com));
 
   EXPECT_TRUE(regular_observer.last_navigation_succeeded());
 

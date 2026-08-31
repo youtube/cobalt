@@ -16,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/logging.h"
@@ -30,12 +31,12 @@
 #include "chrome/browser/ash/platform_keys/platform_keys_service.h"
 #include "chrome/browser/ash/platform_keys/platform_keys_service_factory.h"
 #include "chrome/browser/certificate_provider/certificate_provider_service_factory.h"
-#include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chrome/browser/net/nss_service.h"
 #include "chrome/browser/net/nss_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_keyed_service_factory.h"
 #include "chrome/common/net/x509_certificate_model_nss.h"
+#include "chromeos/ash/components/platform_keys/platform_keys.h"
 #include "chromeos/ash/experiences/arc/arc_browser_context_keyed_service_factory_base.h"
 #include "chromeos/ash/experiences/arc/arc_util.h"
 #include "chromeos/ash/experiences/arc/keymaster/arc_keymaster_bridge.h"
@@ -46,7 +47,6 @@
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
-#include "crypto/rsa_private_key.h"
 #include "net/cert/x509_util_nss.h"
 
 // Enable VLOG level 1.
@@ -227,7 +227,7 @@ void IsCertificateAllowed(IsCertificateAllowedCallback callback,
   ash::platform_keys::KeyPermissionsServiceFactory::GetForBrowserContext(
       context)
       ->IsCorporateKey(
-          chromeos::platform_keys::GetSubjectPublicKeyInfoBlob(cert),
+          chromeos::platform_keys::GetSubjectPublicKeyInfo(cert),
           base::BindOnce(&CheckCorporateFlag, std::move(callback)));
 }
 
@@ -271,10 +271,9 @@ std::optional<CertDescription> BuildCertDescritionOnWorkerThread(
 
   // TODO(b/193784305) Try to avoid (some) key generation if possible.
   // Generate the placeholder RSA key that will be installed in ARC.
-  auto placeholder_key = crypto::RSAPrivateKey::Create(2048);
-  DCHECK(placeholder_key);
+  auto placeholder_key = crypto::keypair::PrivateKey::GenerateRsa2048();
 
-  return CertDescription(placeholder_key.release(), nss_cert.release(), slot,
+  return CertDescription(placeholder_key, nss_cert.release(), slot,
                          pkcs11_label, pkcs11_id);
 }
 
@@ -310,7 +309,8 @@ std::vector<keymaster::mojom::ChromeOsKeyPtr> PrepareChromeOsKeysForKeymaster(
         keymaster::mojom::ChapsKeyData::New(certificate.label, certificate.id,
                                             certificate.slot);
     keymaster::mojom::ChromeOsKeyPtr key = keymaster::mojom::ChromeOsKey::New(
-        ExportSpki(certificate.placeholder_key.get()),
+        base::Base64Encode(
+            certificate.placeholder_key.ToSubjectPublicKeyInfo()),
         keymaster::mojom::KeyData::NewChapsKeyData(std::move(key_data)));
 
     chrome_os_keys.push_back(std::move(key));
@@ -334,7 +334,8 @@ std::vector<keymint::mojom::ChromeOsKeyPtr> PrepareChromeOsKeysForKeyMint(
         keymint::mojom::ChapsKeyData::New(certificate.label, certificate.id,
                                           certificate.slot);
     keymint::mojom::ChromeOsKeyPtr key = keymint::mojom::ChromeOsKey::New(
-        ExportSpki(certificate.placeholder_key.get()),
+        base::Base64Encode(
+            certificate.placeholder_key.ToSubjectPublicKeyInfo()),
         keymint::mojom::KeyData::NewChapsKeyData(std::move(key_data)));
 
     chrome_os_keys.push_back(std::move(key));

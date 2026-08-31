@@ -211,8 +211,8 @@ v8::StartupData SerializeAPIWrapperCallback(v8::Local<v8::Object> holder,
   if (!wrappable) {
     return {nullptr, 0};
   }
-  const WrapperTypeInfo* wrapper_type_info = wrappable->GetWrapperTypeInfo();
-  CHECK_EQ(wrappable, ToAnyScriptWrappable(holder->GetIsolate(), holder));
+  const WrapperTypeInfo* wrapper_type_info = ToWrapperTypeInfo(wrappable);
+  CHECK_EQ(wrappable, ToAnyScriptWrappable(v8::Isolate::GetCurrent(), holder));
   constexpr size_t kSize = 1;
   static_assert(sizeof (InternalFieldSerializedValue) == kSize);
   auto* serialized_value = new InternalFieldSerializedValue();
@@ -473,10 +473,9 @@ const intptr_t* V8ContextSnapshotImpl::GetReferenceTable() {
   size_t size_bytes = 0;
   for (const auto& table : tables)
     size_bytes += table.size_bytes();
-  intptr_t* unified_table =
-      static_cast<intptr_t*>(::WTF::Partitions::FastMalloc(
-          size_bytes, "V8ContextSnapshotImpl::GetReferenceTable"));
-  // SAFETY: `::WTF::Partitions::FastMalloc` ensures `unified_table` points to
+  intptr_t* unified_table = static_cast<intptr_t*>(Partitions::FastMalloc(
+      size_bytes, "V8ContextSnapshotImpl::GetReferenceTable"));
+  // SAFETY: `Partitions::FastMalloc` ensures `unified_table` points to
   // `size_bytes` bytes.
   auto unified_table_span =
       UNSAFE_BUFFERS(base::span(unified_table, size_bytes));

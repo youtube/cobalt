@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "base/strings/strcat.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/process_internals/process_internals.mojom.h"
@@ -190,7 +191,9 @@ ProcessInternalsHandlerImpl::~ProcessInternalsHandlerImpl() = default;
 void ProcessInternalsHandlerImpl::GetProcessCountInfo(
     GetProcessCountInfoCallback callback) {
   ::mojom::ProcessCountInfoPtr info = ::mojom::ProcessCountInfo::New();
-  info->renderer_process_count_total = RenderProcessHostImpl::GetProcessCount();
+  info->renderer_process_count_total = RenderProcessHostImpl::GetCount();
+  info->live_renderer_processes_count_total =
+      RenderProcessHostImpl::GetLiveCount();
   info->renderer_process_count_for_limit =
       RenderProcessHostImpl::GetProcessCountForLimit();
   info->renderer_process_limit =

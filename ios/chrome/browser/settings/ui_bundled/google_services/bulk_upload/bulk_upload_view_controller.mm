@@ -63,8 +63,7 @@ const char kBulkUploadCloseUserAction[] = "Signin_BulkUpload_Close";
   [self.view addSubview:tableView];
   [_tableViewController didMoveToParentViewController:self];
   // Create the save in account button.
-  _saveInAccountButton =
-      PrimaryActionButton(/*pointer_interaction_enabled=*/YES);
+  _saveInAccountButton = PrimaryActionButton();
   _saveInAccountButton.accessibilityIdentifier =
       kBulkUploadSaveButtonAccessibilityIdentifer;
   SetConfigurationTitle(
@@ -155,20 +154,6 @@ const char kBulkUploadCloseUserAction[] = "Signin_BulkUpload_Close";
 // Updates the state of `_saveInAccountButton` according to
 // `_saveInAccountButtonEnabled`.
 - (void)updateSaveInAccountButton {
-  UIButtonConfiguration* buttonConfiguration =
-      _saveInAccountButton.configuration;
-  if (_saveInAccountButtonEnabled) {
-    buttonConfiguration.background.backgroundColor =
-        [UIColor colorNamed:kBlueColor];
-    buttonConfiguration.baseForegroundColor =
-        [UIColor colorNamed:kSolidButtonTextColor];
-  } else {
-    buttonConfiguration.background.backgroundColor =
-        [UIColor colorNamed:kUpdatedTertiaryBackgroundColor];
-    buttonConfiguration.baseForegroundColor =
-        [UIColor colorNamed:kDisabledTintColor];
-  }
-  _saveInAccountButton.configuration = buttonConfiguration;
   _saveInAccountButton.enabled = _saveInAccountButtonEnabled;
 }
 

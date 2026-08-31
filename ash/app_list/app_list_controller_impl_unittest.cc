@@ -4,7 +4,9 @@
 
 #include "ash/app_list/app_list_controller_impl.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ash/app_list/app_list_badge_controller.h"
@@ -13,6 +15,7 @@
 #include "ash/app_list/model/search/search_box_model.h"
 #include "ash/app_list/quick_app_access_model.h"
 #include "ash/app_list/test/app_list_test_helper.h"
+#include "ash/app_list/test_app_list_client.h"
 #include "ash/app_list/views/app_list_bubble_view.h"
 #include "ash/app_list/views/app_list_item_view.h"
 #include "ash/app_list/views/app_list_main_view.h"
@@ -29,10 +32,12 @@
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
+#include "ash/constants/web_app_id_constants.h"
 #include "ash/drag_drop/drag_drop_controller.h"
 #include "ash/keyboard/keyboard_controller_impl.h"
 #include "ash/keyboard/ui/test/keyboard_test_util.h"
 #include "ash/public/cpp/app_list/app_list_features.h"
+#include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/public/cpp/assistant/controller/assistant_ui_controller.h"
 #include "ash/public/cpp/session/session_types.h"
 #include "ash/public/cpp/shelf_config.h"
@@ -40,7 +45,6 @@
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/public/cpp/shelf_types.h"
 #include "ash/public/cpp/system_tray_test_api.h"
-#include "ash/public/cpp/test/assistant_test_api.h"
 #include "ash/public/cpp/test/shell_test_api.h"
 #include "ash/public/cpp/test/test_shelf_item_delegate.h"
 #include "ash/scanner/scanner_enterprise_policy.h"
@@ -59,8 +63,13 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "chromeos/ash/services/assistant/public/cpp/features.h"
+#include "components/services/app_service/public/cpp/app.h"
+#include "components/services/app_service/public/cpp/app_registry_cache.h"
+#include "components/services/app_service/public/cpp/app_registry_cache_wrapper.h"
+#include "components/services/app_service/public/cpp/app_types.h"
 #include "components/session_manager/session_manager_types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/compositor/layer.h"
@@ -186,6 +195,20 @@ class AppListControllerImplTest : public AshTestBase {
     }
   }
 
+  void AddGeminiApp() {
+    std::unique_ptr<apps::App> app = std::make_unique<apps::App>(
+        apps::AppType::kSystemWeb, std::string(kGeminiAppId));
+    app->name = "Gemini";
+    std::vector<apps::AppPtr> apps;
+    apps.push_back(std::move(app));
+    apps::AppRegistryCache* cache =
+        apps::AppRegistryCacheWrapper::Get().GetAppRegistryCache(
+            Shell::Get()->session_controller()->GetActiveAccountId());
+    ASSERT_TRUE(cache);
+    cache->OnAppsForTesting(std::move(apps), apps::AppType::kSystemWeb,
+                            /*should_notify_initialized=*/false);
+  }
+
   bool IsAppListBoundsAnimationRunning() {
     AppListView* app_list_view = GetAppListTestHelper()->GetAppListView();
     ui::Layer* widget_layer =
@@ -202,6 +225,61 @@ class AppListControllerImplTest : public AshTestBase {
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
+
+TEST_F(AppListControllerImplTest, GeminiSearchBoxIconVisibility) {
+  ShowAppListNow(AppListViewState::kFullscreenAllApps);
+  EXPECT_FALSE(
+      GetAppListView()->search_box_view()->gemini_button()->GetVisible());
+
+  AddGeminiApp();
+  EXPECT_TRUE(
+      GetAppListView()->search_box_view()->gemini_button()->GetVisible());
+}
+
+TEST_F(AppListControllerImplTest, GeminiSearchBoxIconActivate) {
+  AddGeminiApp();
+  ShowAppListNow(AppListViewState::kFullscreenAllApps);
+
+  TestAppListClient* app_list_client = GetTestAppListClient();
+  ASSERT_TRUE(app_list_client);
+  ASSERT_EQ(0, app_list_client->activate_item_count());
+
+  GetEventGenerator()->MoveMouseTo(GetAppListView()
+                                       ->search_box_view()
+                                       ->gemini_button()
+                                       ->GetBoundsInScreen()
+                                       .CenterPoint());
+  GetEventGenerator()->ClickLeftButton();
+
+  EXPECT_EQ(1, app_list_client->activate_item_count());
+  EXPECT_EQ(kGeminiAppId, app_list_client->activate_item_last_id());
+}
+
+TEST_F(AppListControllerImplTest, GeminiSearchBoxIconHistogram) {
+  base::HistogramTester histogram_tester;
+
+  ShowAppListNow(AppListViewState::kFullscreenAllApps);
+  histogram_tester.ExpectBucketCount(
+      SearchBoxView::kGeminiSearchBoxIconHistogramName,
+      SearchBoxView::SearchBoxIconEvent::kImpression, 0);
+
+  AddGeminiApp();
+  views::test::RunScheduledLayout(GetAppListView());
+  histogram_tester.ExpectBucketCount(
+      SearchBoxView::kGeminiSearchBoxIconHistogramName,
+      SearchBoxView::SearchBoxIconEvent::kImpression, 1);
+
+  views::View* gemini_icon_button =
+      GetAppListView()->search_box_view()->gemini_button();
+  ASSERT_TRUE(gemini_icon_button->GetVisible());
+  GetEventGenerator()->MoveMouseTo(
+      gemini_icon_button->GetBoundsInScreen().CenterPoint());
+  GetEventGenerator()->ClickLeftButton();
+
+  histogram_tester.ExpectBucketCount(
+      SearchBoxView::kGeminiSearchBoxIconHistogramName,
+      SearchBoxView::SearchBoxIconEvent::kClick, 1);
+}
 
 // Tests that the AppList hides when shelf alignment changes. This necessary
 // because the AppList is shown with certain assumptions based on shelf
@@ -1249,187 +1327,6 @@ TEST_F(AppListControllerImplKioskTest,
 
   EXPECT_FALSE(controller->bubble_presenter_for_test()->IsShowing());
   EXPECT_FALSE(controller->IsVisible());
-}
-
-// App list assistant tests.
-class AppListControllerWithAssistantTest : public AppListControllerImplTest {
- public:
-  AppListControllerWithAssistantTest()
-      : assistant_test_api_(AssistantTestApi::Create()) {}
-  AppListControllerWithAssistantTest(
-      const AppListControllerWithAssistantTest&) = delete;
-  AppListControllerWithAssistantTest& operator=(
-      const AppListControllerWithAssistantTest&) = delete;
-  ~AppListControllerWithAssistantTest() override = default;
-
-  // AppListControllerImplTest:
-  void SetUp() override {
-    AppListControllerImplTest::SetUp();
-
-    if (ash::assistant::features::IsNewEntryPointEnabled()) {
-      GTEST_SKIP()
-          << "Assistant is not available if new entry point is enabled. "
-             "crbug.com/388361414";
-    }
-
-    assistant_test_api_->SetAssistantEnabled(true);
-    assistant_test_api_->GetAssistantState()->NotifyFeatureAllowed(
-        assistant::AssistantAllowedState::ALLOWED);
-    assistant_test_api_->GetAssistantState()->NotifyStatusChanged(
-        assistant::AssistantStatus::READY);
-    assistant_test_api_->WaitUntilIdle();
-  }
-
- protected:
-  void ToggleAssistantUiWithAccelerator() {
-    PressAndReleaseKey(ui::KeyboardCode::VKEY_A, ui::EF_COMMAND_DOWN);
-    EXPECT_TRUE(assistant_test_api_->IsVisible());
-  }
-
-  AssistantVisibility GetAssistantVisibility() const {
-    return AssistantUiController::Get()->GetModel()->visibility();
-  }
-
-  std::unique_ptr<AssistantTestApi> assistant_test_api_;
-};
-
-// Verifies the assistant can open and close with the Search-A shortcut.
-TEST_F(AppListControllerWithAssistantTest, HotkeySearchA) {
-  // Press once to open the assistant.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_A, ui::EF_COMMAND_DOWN);
-  EXPECT_TRUE(assistant_test_api_->IsVisible());
-  EXPECT_EQ(GetAssistantVisibility(), AssistantVisibility::kVisible);
-  EXPECT_TRUE(Shell::Get()->app_list_controller()->IsVisible());
-
-  // Press again to close the assistant.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_A, ui::EF_COMMAND_DOWN);
-  EXPECT_FALSE(assistant_test_api_->IsVisible());
-  EXPECT_EQ(GetAssistantVisibility(), AssistantVisibility::kClosed);
-  EXPECT_FALSE(Shell::Get()->app_list_controller()->IsVisible());
-}
-
-// Verifies the assistant can open and close with the assistant keyboard key.
-TEST_F(AppListControllerWithAssistantTest, HotkeyAssistant) {
-  // Press once to open the assistant.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_ASSISTANT);
-  EXPECT_TRUE(assistant_test_api_->IsVisible());
-  EXPECT_EQ(GetAssistantVisibility(), AssistantVisibility::kVisible);
-  EXPECT_TRUE(Shell::Get()->app_list_controller()->IsVisible());
-
-  // Press again to close the assistant.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_ASSISTANT);
-  EXPECT_FALSE(assistant_test_api_->IsVisible());
-  EXPECT_EQ(GetAssistantVisibility(), AssistantVisibility::kClosed);
-  EXPECT_FALSE(Shell::Get()->app_list_controller()->IsVisible());
-}
-
-// Verifies the scenario that the Assistant shortcut is triggered when the app
-// list close animation is running.
-TEST_F(AppListControllerWithAssistantTest,
-       TriggerAssistantKeyWhenAppListClosing) {
-  // Show the Assistant and verify the app list state.
-  ToggleAssistantUiWithAccelerator();
-  auto* app_list_controller = Shell::Get()->app_list_controller();
-  EXPECT_TRUE(app_list_controller->IsVisible());
-  EXPECT_FALSE(AssistantUiController::Get()->HasShownOnboarding());
-  EXPECT_EQ(AssistantVisibility::kVisible, GetAssistantVisibility());
-
-  assistant_test_api_->input_text_field()->SetText(u"xyz");
-  EXPECT_EQ(u"xyz", assistant_test_api_->input_text_field()->GetText());
-
-  {
-    // Enable animation with non-zero duration.
-    ui::ScopedAnimationDurationScaleMode non_zero_duration(
-        ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
-
-    // Press the search key. The launcher starts to close.
-    PressAndReleaseKey(ui::KeyboardCode::VKEY_COMMAND);
-    EXPECT_EQ(AssistantVisibility::kClosing, GetAssistantVisibility());
-
-    // Toggle the Assistant ui and wait for app list animation to finish.
-    AppListBubbleView* bubble_view =
-        app_list_controller->bubble_presenter_for_test()
-            ->bubble_view_for_test();
-    ToggleAssistantUiWithAccelerator();
-    ui::LayerAnimationStoppedWaiter().Wait(bubble_view->layer());
-  }
-
-  // Verify that the Assistant ui is visible. In addition, the text in the
-  // textfield does not change.
-  EXPECT_TRUE(assistant_test_api_->IsVisible());
-  EXPECT_EQ(u"xyz", assistant_test_api_->input_text_field()->GetText());
-  EXPECT_TRUE(app_list_controller->IsVisible());
-  EXPECT_EQ(AssistantVisibility::kVisible, GetAssistantVisibility());
-
-  // Press the search key to close the app list.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_COMMAND);
-  EXPECT_FALSE(app_list_controller->IsVisible());
-
-  // Toggle the Assistant ui. The text is still the same in the input field.
-  ToggleAssistantUiWithAccelerator();
-  EXPECT_TRUE(app_list_controller->IsVisible());
-  EXPECT_TRUE(assistant_test_api_->IsVisible());
-  EXPECT_EQ(u"xyz", assistant_test_api_->input_text_field()->GetText());
-}
-
-// Verifies the scenario that the search key is triggered when the app list
-// close animation is running.
-TEST_F(AppListControllerWithAssistantTest, TriggerSearchKeyWhenAppListClosing) {
-  ToggleAssistantUiWithAccelerator();
-  auto* app_list_controller = Shell::Get()->app_list_controller();
-  EXPECT_TRUE(app_list_controller->IsVisible());
-
-  // Enable animation with non-zero duration.
-  ui::ScopedAnimationDurationScaleMode non_zero_duration(
-      ui::ScopedAnimationDurationScaleMode::NON_ZERO_DURATION);
-
-  // Press the search key to close the app list.
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_COMMAND);
-  EXPECT_EQ(AssistantVisibility::kClosing, GetAssistantVisibility());
-
-  // Press the search key to reshow the app list.
-  AppListBubbleView* bubble_view =
-      app_list_controller->bubble_presenter_for_test()->bubble_view_for_test();
-  PressAndReleaseKey(ui::KeyboardCode::VKEY_COMMAND);
-  ui::LayerAnimationStoppedWaiter().Wait(bubble_view->layer());
-
-  // The Assistant should be closed.
-  EXPECT_EQ(AssistantVisibility::kClosed, GetAssistantVisibility());
-}
-
-TEST_F(AppListControllerWithAssistantTest,
-       AppListWindowIsNotShowingOnTopOfOtherApps) {
-  CreateAppWindow();
-  ash::TabletModeControllerTestApi().EnterTabletMode();
-
-  auto* home_screen_container = Shell::GetPrimaryRootWindow()->GetChildById(
-      kShellWindowId_HomeScreenContainer);
-  auto* app_list_window = Shell::Get()
-                              ->app_list_controller()
-                              ->fullscreen_presenter()
-                              ->GetView()
-                              ->GetWidget()
-                              ->GetNativeWindow();
-
-  // Default placement is in home screen container behind other app windows.
-  EXPECT_TRUE(home_screen_container->Contains(app_list_window));
-
-  // The app list window shows on top of other app windows when assistant UI is
-  // active.
-  ToggleAssistantUiWithAccelerator();
-  EXPECT_FALSE(home_screen_container->Contains(app_list_window));
-
-  // And stays there during tablet -> clamshell mode transition when assistant
-  // UI is active.
-  ash::TabletModeControllerTestApi().LeaveTabletMode();
-  EXPECT_FALSE(home_screen_container->Contains(app_list_window));
-
-  // Enter tablet mode again. App list window should return to its default
-  // position and shouldn't move during transition to clamshell mode.
-  ash::TabletModeControllerTestApi().EnterTabletMode();
-  EXPECT_TRUE(home_screen_container->Contains(app_list_window));
-  ash::TabletModeControllerTestApi().LeaveTabletMode();
-  EXPECT_TRUE(home_screen_container->Contains(app_list_window));
 }
 
 }  // namespace ash

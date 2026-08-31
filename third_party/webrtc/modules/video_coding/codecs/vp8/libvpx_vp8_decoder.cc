@@ -10,11 +10,10 @@
 
 #include "modules/video_coding/codecs/vp8/libvpx_vp8_decoder.h"
 
-#include <stdio.h>
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -35,11 +34,11 @@
 #include "rtc_base/numerics/exp_filter.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8.h"
+#include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_image.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
-#include "vpx/vp8.h"
-#include "vpx/vp8dx.h"
-#include "vpx/vpx_decoder.h"
-#include "vpx/vpx_image.h"
 
 namespace webrtc {
 namespace {
@@ -286,7 +285,7 @@ int LibvpxVp8Decoder::ReturnFrame(const vpx_image_t* img,
   scoped_refptr<I420Buffer> i420_buffer =
       buffer_pool_.CreateI420Buffer(img->d_w, img->d_h);
   buffer = i420_buffer;
-  if (i420_buffer.get()) {
+  if (i420_buffer) {
     libyuv::I420Copy(img->planes[VPX_PLANE_Y], img->stride[VPX_PLANE_Y],
                      img->planes[VPX_PLANE_U], img->stride[VPX_PLANE_U],
                      img->planes[VPX_PLANE_V], img->stride[VPX_PLANE_V],
@@ -296,7 +295,7 @@ int LibvpxVp8Decoder::ReturnFrame(const vpx_image_t* img,
                      img->d_w, img->d_h);
   }
 
-  if (!buffer.get()) {
+  if (!buffer) {
     // Pool has too many pending frames.
     RTC_HISTOGRAM_BOOLEAN("WebRTC.Video.LibvpxVp8Decoder.TooManyPendingFrames",
                           1);

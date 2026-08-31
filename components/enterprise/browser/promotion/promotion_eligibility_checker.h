@@ -10,13 +10,16 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "components/policy/core/common/cloud/cloud_policy_client.h"
+#include "base/memory/weak_ptr.h"
+#include "components/policy/proto/device_management_backend.pb.h"
 #include "components/signin/public/identity_manager/access_token_fetcher.h"
 
+namespace policy {
+class CloudPolicyClient;
+}  // namespace policy
+
 namespace signin {
-
 class IdentityManager;
-
 }  // namespace signin
 
 namespace enterprise_promotion {
@@ -26,12 +29,11 @@ class PromotionEligibilityChecker {
   using PromotionEligibilityCallback = base::OnceCallback<void(
       enterprise_management::GetUserEligiblePromotionsResponse)>;
 
-  explicit PromotionEligibilityChecker(
-      const std::string& profile_id,
-      policy::CloudPolicyClient* client,
-      signin::IdentityManager* identity_manager,
-      std::string locale,
-      bool dismissed_banner_pref);
+  PromotionEligibilityChecker(const std::string& profile_id,
+                              policy::CloudPolicyClient* client,
+                              signin::IdentityManager* identity_manager,
+                              std::string locale,
+                              bool dismissed_banner_pref);
 
   PromotionEligibilityChecker(const PromotionEligibilityChecker&) = delete;
   PromotionEligibilityChecker& operator=(const PromotionEligibilityChecker&) =
@@ -40,7 +42,6 @@ class PromotionEligibilityChecker {
   ~PromotionEligibilityChecker();
 
   void MaybeCheckPromotionEligibility(
-      const CoreAccountId account_id,
       PromotionEligibilityChecker::PromotionEligibilityCallback callback);
 
   void OnAuthTokenFetched(GoogleServiceAuthError error,

@@ -31,6 +31,7 @@
 #if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/web_applications/isolated_web_apps/commands/copy_bundle_to_cache_command.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
+#include "components/webapps/isolated_web_apps/error/uma_logging.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace web_app {
@@ -39,6 +40,8 @@ namespace {
 
 #if BUILDFLAG(IS_CHROMEOS)
 constexpr char kCopyToCacheResult[] = "copy_to_cache_result";
+constexpr char kCopyBundleToCacheAfterUpdateMetric[] =
+    "WebApp.Isolated.CopyBundleToCacheAfterUpdate";
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
@@ -58,7 +61,7 @@ IsolatedWebAppUpdateApplyTask::IsolatedWebAppUpdateApplyTask(
                    .Set("bundle_id", url_info_.web_bundle_id().id())
                    .Set("app_id", url_info_.app_id());
 #if BUILDFLAG(IS_CHROMEOS)
-  if (IsIwaBundleCacheEnabled()) {
+  if (IsIwaBundleCacheEnabledInCurrentSession()) {
     debug_log_.Set("bundle_cache", "IWA bundle cache is enabled");
     cache_client_ = std::make_unique<IwaCacheClient>();
   }
@@ -94,7 +97,7 @@ void IsolatedWebAppUpdateApplyTask::OnUpdateApplied(CompletionStatus result) {
                                .error_or("Success"));
 
 #if BUILDFLAG(IS_CHROMEOS)
-  if (result.has_value() && IsIwaBundleCacheEnabled()) {
+  if (result.has_value() && IsIwaBundleCacheEnabledInCurrentSession()) {
     CopyUpdatedBundleToCache(result.value());
     return;
   }
@@ -115,6 +118,7 @@ void IsolatedWebAppUpdateApplyTask::CopyUpdatedBundleToCache(
 void IsolatedWebAppUpdateApplyTask::OnBundleCopiedToCache(
     const IsolatedWebAppApplyUpdateCommandSuccess& apply_success_result,
     CopyBundleToCacheResult result) {
+  web_app::UmaLogExpectedStatus(kCopyBundleToCacheAfterUpdateMetric, result);
   if (result.has_value()) {
     debug_log_.Set(kCopyToCacheResult,
                    "Successfully copied bundle to: " +

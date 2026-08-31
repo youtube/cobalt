@@ -5,12 +5,16 @@
 package org.chromium.chrome.browser.ntp;
 
 import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.longClick;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withParent;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.AllOf.allOf;
 import static org.junit.Assert.assertEquals;
@@ -18,19 +22,23 @@ import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.app.Activity;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.drawable.GradientDrawable;
+import android.os.SystemClock;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.StringRes;
+import androidx.test.espresso.UiController;
+import androidx.test.espresso.ViewAction;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
+import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Before;
@@ -46,6 +54,7 @@ import org.chromium.base.Token;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -85,6 +94,7 @@ import java.util.concurrent.ExecutionException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @EnableFeatures({ChromeFeatureList.UNO_PHASE_2_FOLLOW_UP})
+@DoNotBatch(reason = "Tests manipulate UI which can interfere between tests.")
 public class RecentTabsPageTest {
     private static final int COLOR_ID = TabGroupColorId.YELLOW;
     private static final int COLOR_ID_2 = TabGroupColorId.RED;
@@ -143,7 +153,7 @@ public class RecentTabsPageTest {
         final View view = waitForView(title);
 
         openContextMenuAndInvokeItem(
-                mActivity, view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_OPEN_IN_NEW_TAB);
+                view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_OPEN_IN_NEW_TAB);
         verify(mManager, times(1))
                 .openRecentlyClosedTab(mTabModel, tab, WindowOpenDisposition.NEW_BACKGROUND_TAB);
 
@@ -157,7 +167,7 @@ public class RecentTabsPageTest {
 
         // Clear the recently closed tabs with the context menu and confirm the view is gone.
         openContextMenuAndInvokeItem(
-                mActivity, view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
+                view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
         assertEquals(0, mManager.getRecentlyClosedEntries(1).size());
         waitForViewToDisappear(title);
     }
@@ -173,7 +183,7 @@ public class RecentTabsPageTest {
         setRecentlyClosedEntries(Collections.singletonList(group));
         assertEquals(1, mManager.getRecentlyClosedEntries(1).size());
         final String title = group.getTitle();
-        final View view = waitForView(title);
+        waitForView(title);
 
         ImageView iconView = (ImageView) mPage.getView().findViewById(R.id.row_icon);
         assertNotNull(iconView.getBackground());
@@ -220,7 +230,7 @@ public class RecentTabsPageTest {
 
         // Clear the recently closed tabs with the context menu and confirm the view is gone.
         openContextMenuAndInvokeItem(
-                mActivity, view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
+                view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
         assertEquals(0, mManager.getRecentlyClosedEntries(1).size());
         waitForViewToDisappear(groupString);
 
@@ -294,7 +304,7 @@ public class RecentTabsPageTest {
 
         // Clear the recently closed tabs with the context menu and confirm the view is gone.
         openContextMenuAndInvokeItem(
-                mActivity, view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
+                view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
         assertEquals(0, mManager.getRecentlyClosedEntries(1).size());
         waitForViewToDisappear(groupString);
     }
@@ -385,7 +395,7 @@ public class RecentTabsPageTest {
 
         // Clear the recently closed tabs with the context menu and confirm the view is gone.
         openContextMenuAndInvokeItem(
-                mActivity, view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
+                view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
         assertEquals(0, mManager.getRecentlyClosedEntries(1).size());
         waitForViewToDisappear(groupString);
     }
@@ -467,9 +477,64 @@ public class RecentTabsPageTest {
 
         // Clear the recently closed tabs with the context menu and confirm the view is gone.
         openContextMenuAndInvokeItem(
-                mActivity, view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
+                view, RecentTabsRowAdapter.RecentlyClosedTabsGroup.ID_REMOVE_ALL);
         assertEquals(0, mManager.getRecentlyClosedEntries(1).size());
         waitForViewToDisappear(eventString);
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"RecentTabsPage", "RenderTest"})
+    @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
+    public void testListItem_PressedState() throws Exception {
+        mPage = loadRecentTabsPage();
+        final RecentlyClosedTab tab =
+                new RecentlyClosedTab(
+                        0, 0, "Tab Title", new GURL("https://www.example.com/"), null);
+        setRecentlyClosedEntries(Collections.singletonList(tab));
+        final View view = waitForView(tab.getTitle());
+
+        // Perform a press action to activate the pressed state for the screenshot.
+        onView(is(view)).perform(pressDown());
+
+        mRenderTestRule.render(view, "recent_tabs_list_item_pressed");
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"RecentTabsPage", "RenderTest"})
+    @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
+    public void testListItem_HoverState() throws Exception {
+        mPage = loadRecentTabsPage();
+        final RecentlyClosedTab tab =
+                new RecentlyClosedTab(
+                        0, 0, "Tab Title", new GURL("https://www.example.com/"), null);
+        setRecentlyClosedEntries(Collections.singletonList(tab));
+        final View view = waitForView(tab.getTitle());
+
+        // Perform a hover action to activate the hover state for the screenshot.
+        onView(is(view)).perform(hover());
+
+        mRenderTestRule.render(view, "recent_tabs_list_item_hovered");
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"RecentTabsPage", "RenderTest"})
+    @Policies.Add(@Policies.Item(key = "BrowserSignin", string = "0"))
+    public void testCollapseIcon_HoverState() throws Exception {
+        mPage = loadRecentTabsPage();
+        final RecentlyClosedTab tab =
+                new RecentlyClosedTab(
+                        0, 0, "Tab Title", new GURL("https://www.example.com/"), null);
+        setRecentlyClosedEntries(Collections.singletonList(tab));
+        final View groupView = mPage.getView().findViewById(R.id.recent_tabs_group_view);
+        final View expandCollapseIcon = groupView.findViewById(R.id.expand_collapse_icon);
+
+        // Perform a hover action to activate the hover state for the screenshot.
+        onView(is(expandCollapseIcon)).perform(hover());
+
+        mRenderTestRule.render(groupView, "recent_tabs_collapse_icon_hovered");
     }
 
     @Test
@@ -586,13 +651,67 @@ public class RecentTabsPageTest {
     }
 
     private static void openContextMenuAndInvokeItem(
-            final Activity activity, final View view, final int itemId) {
-        // IMPLEMENTATION NOTE: Instrumentation.invokeContextMenuAction would've been much simpler,
-        // but it requires the View to be focused which is hard to achieve in touch mode.
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    view.performLongClick();
-                    activity.getWindow().performContextMenuIdentifierAction(itemId, 0);
-                });
+            final View view, @StringRes final int stringId) {
+        onView(is(view)).perform(longClick());
+        onView(withText(stringId)).check(matches(isDisplayed())).perform(click());
+    }
+
+    /**
+     * A custom ViewAction to simulate a hover event. This is necessary because Espresso does not
+     * have a built-in hover action.
+     */
+    private static ViewAction hover() {
+        return new ViewAction() {
+            @Override
+            public Matcher<View> getConstraints() {
+                return isDisplayed();
+            }
+
+            @Override
+            public String getDescription() {
+                return "Simulate a hover event.";
+            }
+
+            @Override
+            public void perform(UiController uiController, View view) {
+                MotionEvent hoverEvent =
+                        MotionEvent.obtain(
+                                SystemClock.uptimeMillis(),
+                                SystemClock.uptimeMillis(),
+                                MotionEvent.ACTION_HOVER_ENTER,
+                                view.getLeft() + view.getWidth() / 2,
+                                view.getTop() + view.getHeight() / 2,
+                                0);
+                view.dispatchTouchEvent(hoverEvent);
+            }
+        };
+    }
+
+    /** A custom ViewAction to simulate a press event. */
+    private static ViewAction pressDown() {
+        return new ViewAction() {
+            @Override
+            public Matcher<View> getConstraints() {
+                return isDisplayed();
+            }
+
+            @Override
+            public String getDescription() {
+                return "Simulate a press event.";
+            }
+
+            @Override
+            public void perform(UiController uiController, View view) {
+                MotionEvent downEvent =
+                        MotionEvent.obtain(
+                                SystemClock.uptimeMillis(),
+                                SystemClock.uptimeMillis(),
+                                MotionEvent.ACTION_DOWN,
+                                view.getLeft() + view.getWidth() / 2,
+                                view.getTop() + view.getHeight() / 2,
+                                0);
+                view.dispatchTouchEvent(downEvent);
+            }
+        };
     }
 }

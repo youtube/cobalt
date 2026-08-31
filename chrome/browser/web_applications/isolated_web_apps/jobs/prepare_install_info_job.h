@@ -12,12 +12,12 @@
 #include "base/types/expected.h"
 #include "base/values.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_integrity_block_data.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_storage_location.h"
 #include "chrome/browser/web_applications/web_app_constants.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_integrity_block.h"
 #include "components/webapps/browser/web_contents/web_app_url_loader.h"
+#include "components/webapps/isolated_web_apps/types/source.h"
+#include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 
@@ -102,13 +102,13 @@ class PrepareInstallInfoJob {
   void CheckInstallabilityAndRetrieveManifest(
       base::OnceCallback<void(blink::mojom::ManifestPtr)> next_step_callback);
 
-  void ValidateManifestAndCreateInstallInfo(
-      base::OnceCallback<void(WebAppInstallInfo)> next_step_callback,
+  void ValidateManifestAndGetVersion(
+      base::OnceCallback<void(base::Version)> next_step_callback,
       blink::mojom::ManifestPtr manifest);
 
-  void RetrieveIconsAndPopulateInstallInfo(
+  void ParseInstallInfoFromManifest(
       base::OnceCallback<void(WebAppInstallInfo)> next_step_callback,
-      WebAppInstallInfo install_info);
+      const base::Version parsed_version);
 
   void FinishJob(WebAppInstallInfo info);
 
@@ -117,6 +117,7 @@ class PrepareInstallInfoJob {
   const IwaSourceWithMode source_;
   const std::optional<base::Version> expected_version_;
   const raw_ref<content::WebContents> web_contents_;
+  blink::mojom::ManifestPtr manifest_;
   const raw_ref<IsolatedWebAppInstallCommandHelper> command_helper_;
 
   ResultCallback callback_;

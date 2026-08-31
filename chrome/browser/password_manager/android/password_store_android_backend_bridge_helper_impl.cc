@@ -10,6 +10,7 @@
 #include "base/android/build_info.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -34,7 +35,6 @@ PasswordStoreAndroidBackendBridgeHelper::Create(
     password_manager::IsAccountStore is_account_store) {
   // The bridge is not supposed to be created when UPM is completely unusable.
   // But it should be created for non-syncing users if sync is enabled later.
-  CHECK(password_manager_android_util::AreMinUpmRequirementsMet());
   return std::make_unique<PasswordStoreAndroidBackendBridgeHelperImpl>(
       is_account_store);
 }

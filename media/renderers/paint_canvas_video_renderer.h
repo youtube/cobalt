@@ -206,7 +206,7 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
   [[nodiscard]] gpu::SyncToken CopyVideoFrameToSharedImage(
       viz::RasterContextProvider* raster_context_provider,
       scoped_refptr<VideoFrame> video_frame,
-      const gpu::Mailbox& dest_mailbox,
+      scoped_refptr<gpu::ClientSharedImage> dest_shared_image,
       const gpu::SyncToken& dest_sync_token,
       bool use_visible_rect);
 
@@ -243,10 +243,6 @@ class MEDIA_EXPORT PaintCanvasVideoRenderer {
     // The backing for the source texture. This is also responsible for managing
     // the lifetime of the texture.
     sk_sp<VideoTextureBacking> texture_backing;
-
-    // The GL texture ID used in non-OOP code path.
-    // This is only set if the VideoFrame was texture-backed.
-    uint32_t source_texture = 0;
 
     // The allocated size of VideoFrame texture.
     // This is only set if the VideoFrame was texture-backed.

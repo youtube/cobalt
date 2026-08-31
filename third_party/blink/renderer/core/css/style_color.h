@@ -51,7 +51,7 @@ class ColorProvider;
 
 namespace blink {
 class CalculationValue;
-class CSSLengthResolver;
+class CSSToLengthConversionData;
 class CSSValue;
 
 class CORE_EXPORT StyleColor {
@@ -180,7 +180,7 @@ class CORE_EXPORT StyleColor {
                             const CSSValue& channel1,
                             const CSSValue& channel2,
                             const CSSValue* alpha,
-                            const CSSLengthResolver& length_resolver);
+                            const CSSToLengthConversionData& conversion_data);
     virtual ~UnresolvedRelativeColor() = default;
     void Trace(Visitor* visitor) const override;
     CSSValue* ToCSSValue() const override;
@@ -196,10 +196,10 @@ class CORE_EXPORT StyleColor {
     bool alpha_was_specified_ = false;
 
     // nullptr on any of these fields represents `none`.
-    scoped_refptr<const CalculationValue> channel0_;
-    scoped_refptr<const CalculationValue> channel1_;
-    scoped_refptr<const CalculationValue> channel2_;
-    scoped_refptr<const CalculationValue> alpha_;
+    Member<const CalculationValue> channel0_;
+    Member<const CalculationValue> channel1_;
+    Member<const CalculationValue> channel2_;
+    Member<const CalculationValue> alpha_;
   };
 
   StyleColor() = default;

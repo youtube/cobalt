@@ -100,6 +100,18 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Checked dont launch"/>
 </enum>
 
+<!-- LINT.IfChange(LanguageDetectionStatus) -->
+
+<enum name="LanguageDetectionStatus">
+  <int value="0" label="NoResultDueToTimeout"/>
+  <int value="1" label="ImmediatelyAvailableEnglish"/>
+  <int value="2" label="ImmediatelyAvailableNotEnglish"/>
+  <int value="3" label="DelayedDetectedEnglish"/>
+  <int value="4" label="DelayedDetectedNotEnglish"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/permissions/permission_request_enums.h:LanguageDetectionStatus) -->
+
 <enum name="OneTimePermissionEvent">
   <summary>One-time permission events.</summary>
   <int value="0" label="Granted one time"/>
@@ -121,14 +133,6 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/permissions/permission_uma_util.h:OsScreenAction) -->
-
-<enum name="PageInfoDialogAccessType">
-  <int value="0" label="Click on lock without confirmation chip context"/>
-  <int value="1" label="Click on lock while confirmation chip is displayed"/>
-  <int value="2" label="Click on confirmation chip"/>
-  <int value="3"
-      label="Click on lock within 20 seconds after confirmation chip collapse"/>
-</enum>
 
 <enum name="PermissionAction">
   <int value="0" label="GRANTED"/>
@@ -170,12 +174,26 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(PermissionPredictionSource) -->
 
 <enum name="PermissionPredictionSource">
-  <int value="0" label="ON_DEVICE_TFLITE"/>
-  <int value="1" label="SERVER_SIDE"/>
-  <int value="2" label="ONDEVICE_AI_AND_SERVER_SIDE"/>
+  <int value="0" label="No CPSS model"/>
+  <int value="1" label="CPSSv1 model"/>
+  <int value="2" label="CPSSv3 model"/>
+  <int value="3" label="AIv1 model"/>
+  <int value="4" label="AIv3 model"/>
+  <int value="5" label="AIv4 model"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/permissions/permission_request_enums.h:PermissionPredictionSource) -->
+
+<!-- LINT.IfChange(PermissionPredictionSupportedType) -->
+
+<enum name="PermissionPredictionSupportedType">
+  <int value="0" label="Notifications"/>
+  <int value="1" label="Geolocation"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/permissions/permission_request_enums.h:PermissionPredictionSupportedType) -->
+
+<!-- LINT.IfChange(PermissionPromptDismissMethod) -->
 
 <enum name="PermissionPromptDismissMethod">
   <int value="0" label="Unspecified"/>
@@ -188,7 +206,10 @@ chromium-metrics-reviews@google.com.
       label="Autodismissed after prompt was accepted but OS permission was
              denied"/>
   <int value="5" label="Autodismissed due to no modal dialog manager"/>
+  <int value="6" label="Dismiss via dialog's close button"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/permissions/permission_uma_util.h:DismissalType) -->
 
 <enum name="PermissionRequestIgnoredReason">
   <summary>
@@ -218,10 +239,11 @@ chromium-metrics-reviews@google.com.
 
 <enum name="PermissionSourceUI">
   <int value="0" label="Prompt"/>
-  <int value="1" label="Origin info bubble"/>
+  <int value="1" label="Page info bubble"/>
   <int value="2" label="Site settings"/>
   <int value="3" label="Page action bubble"/>
-  <int value="4" label="Permission settings from Android OS"/>
+  <int value="4"
+      label="Android notification channel settings (when opened from Chrome)"/>
   <int value="5" label="Inline settings as part of the event's UI"/>
   <int value="6" label="Automatic revocation from Safe Browsing"/>
   <int value="7" label="Automatic revocation from Safety Hub"/>

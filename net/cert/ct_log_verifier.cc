@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "net/cert/ct_log_verifier.h"
 
 #include <string.h>
@@ -15,8 +10,10 @@
 #include <string_view>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "crypto/evp.h"
 #include "crypto/openssl_util.h"
 #include "crypto/sha2.h"
 #include "net/cert/ct_log_verifier_util.h"
@@ -24,7 +21,6 @@
 #include "net/cert/merkle_audit_proof.h"
 #include "net/cert/merkle_consistency_proof.h"
 #include "net/cert/signed_tree_head.h"
-#include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 
 namespace net {
@@ -96,8 +92,9 @@ bool CTLogVerifier::VerifySignedTreeHead(
 
   if (signed_tree_head.tree_size == 0) {
     // Root hash must equate SHA256 hash of the empty string.
-    return memcmp(signed_tree_head.sha256_root_hash, kSHA256EmptyStringHash,
-                  ct::kSthRootHashLength) == 0;
+    return UNSAFE_TODO(memcmp(signed_tree_head.sha256_root_hash,
+                              kSHA256EmptyStringHash,
+                              ct::kSthRootHashLength)) == 0;
   }
 
   return true;
@@ -271,12 +268,10 @@ CTLogVerifier::~CTLogVerifier() = default;
 bool CTLogVerifier::Init(std::string_view public_key) {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
-  CBS cbs;
-  CBS_init(&cbs, reinterpret_cast<const uint8_t*>(public_key.data()),
-           public_key.size());
-  public_key_.reset(EVP_parse_public_key(&cbs));
-  if (!public_key_ || CBS_len(&cbs) != 0)
+  public_key_ = crypto::evp::PublicKeyFromBytes(base::as_byte_span(public_key));
+  if (!public_key_) {
     return false;
+  }
 
   key_id_ = crypto::SHA256HashString(public_key);
 

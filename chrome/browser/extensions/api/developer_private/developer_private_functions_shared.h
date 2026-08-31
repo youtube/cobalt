@@ -9,10 +9,15 @@
 #include <optional>
 
 #include "base/memory/scoped_refptr.h"
+#include "chrome/browser/extensions/api/developer_private/developer_private_api.h"
 #include "chrome/browser/extensions/api/developer_private/extension_info_generator.h"
+#include "chrome/browser/extensions/load_error_reporter.h"
+#include "chrome/browser/extensions/pack_extension_job.h"
 #include "chrome/common/extensions/api/developer_private.h"
 #include "chrome/common/extensions/webstore_install_result.h"
+#include "extensions/browser/extension_creator.h"
 #include "extensions/browser/extension_function.h"
+#include "extensions/browser/extension_registry_observer.h"
 #include "extensions/common/extension.h"
 #include "ui/base/clipboard/file_info.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
@@ -76,6 +81,28 @@ class DeveloperPrivateAPIFunction : public ExtensionFunction {
       "Extension with ID '*' cannot be uploaded to the user's account.";
 
   static constexpr char kManifestFile[] = "manifest.json";
+
+  // Following helpers are temporarily here during migration for desktop
+  // android. We should move them back to anonymous namespace after the
+  // migration.
+  using GetManifestErrorCallback =
+      base::OnceCallback<void(const base::FilePath& file_path,
+                              const std::string& error,
+                              size_t line_number,
+                              const std::string& manifest)>;
+  // Takes in an `error` string and tries to parse it as a manifest error (with
+  // line number), asynchronously calling `callback` with the results.
+  void GetManifestError(const std::string& error,
+                        const base::FilePath& extension_path,
+                        GetManifestErrorCallback callback);
+
+  // Creates a developer::LoadError from the provided data.
+  developer_private::LoadError CreateLoadError(
+      const base::FilePath& file_path,
+      const std::string& error,
+      size_t line_number,
+      const std::string& manifest,
+      const DeveloperPrivateAPI::UnpackedRetryId& retry_guid);
 
   ~DeveloperPrivateAPIFunction() override;
 
@@ -200,6 +227,121 @@ class DeveloperPrivateUpdateExtensionConfigurationFunction
   ResponseAction Run() override;
 };
 
+class DeveloperPrivateReloadFunction : public DeveloperPrivateAPIFunction,
+                                       public ExtensionRegistryObserver,
+                                       public LoadErrorReporter::Observer {
+ public:
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.reload", DEVELOPERPRIVATE_RELOAD)
+
+  DeveloperPrivateReloadFunction();
+
+  DeveloperPrivateReloadFunction(const DeveloperPrivateReloadFunction&) =
+      delete;
+  DeveloperPrivateReloadFunction& operator=(
+      const DeveloperPrivateReloadFunction&) = delete;
+
+  // ExtensionRegistryObserver:
+  void OnExtensionLoaded(content::BrowserContext* browser_context,
+                         const Extension* extension) override;
+  void OnShutdown(ExtensionRegistry* registry) override;
+
+  // LoadErrorReporter::Observer:
+  void OnLoadFailure(content::BrowserContext* browser_context,
+                     const base::FilePath& file_path,
+                     const std::string& error) override;
+
+ protected:
+  ~DeveloperPrivateReloadFunction() override;
+
+  // ExtensionFunction:
+  ResponseAction Run() override;
+
+ private:
+  // Callback once we parse a manifest error from a failed reload.
+  void OnGotManifestError(const base::FilePath& file_path,
+                          const std::string& error,
+                          size_t line_number,
+                          const std::string& manifest);
+
+  // Clears the scoped observers.
+  void ClearObservers();
+
+  // The file path of the extension that's reloading.
+  base::FilePath reloading_extension_path_;
+
+  base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
+      registry_observation_{this};
+  base::ScopedObservation<LoadErrorReporter, LoadErrorReporter::Observer>
+      error_reporter_observation_{this};
+};
+
+class DeveloperPrivateLoadUnpackedFunction
+    : public DeveloperPrivateAPIFunction,
+      public ui::SelectFileDialog::Listener {
+ public:
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.loadUnpacked",
+                             DEVELOPERPRIVATE_LOADUNPACKED)
+  DeveloperPrivateLoadUnpackedFunction();
+
+  // ui::SelectFileDialog::Listener:
+  void FileSelected(const ui::SelectedFileInfo& file, int index) override;
+  void FileSelectionCanceled() override;
+
+  // For testing:
+  void set_accept_dialog_for_testing(bool accept) {
+    accept_dialog_for_testing_ = accept;
+  }
+  void set_selected_file_for_testing(const ui::SelectedFileInfo& file) {
+    selected_file_for_testing_ = file;
+  }
+
+ protected:
+  ~DeveloperPrivateLoadUnpackedFunction() override;
+
+  // DeveloperPrivateAPIFunction:
+  ResponseAction Run() override;
+
+ private:
+  // Shows the file picker dialog.
+  void ShowSelectFileDialog();
+
+  // Starts loading the given `file_path`.
+  void StartFileLoad(const base::FilePath file_path);
+
+  // Called when `file_path` load is completed
+  void OnLoadComplete(const Extension* extension,
+                      const base::FilePath& file_path,
+                      const std::string& error);
+
+  // Called when `file_path` load encounters a manifest parsing `error`.
+  void OnGotManifestError(const base::FilePath& file_path,
+                          const std::string& error,
+                          size_t line_number,
+                          const std::string& manifest);
+
+  // Returns `response_value` when the function should finish asynchronously.
+  void Finish(ResponseValue response_value);
+
+  // Whether or not we should fail quietly in the event of a load error.
+  bool fail_quietly_ = false;
+
+  // Whether we populate a developer_private::LoadError on load failure, as
+  // opposed to simply passing the message in lastError.
+  bool populate_error_ = false;
+
+  // The identifier for the selected path when retrying an unpacked load.
+  DeveloperPrivateAPI::UnpackedRetryId retry_guid_;
+
+  // The dialog with the select file picker.
+  scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
+
+  // For testing:
+  // Whether to accept or reject the select file dialog without showing it.
+  std::optional<bool> accept_dialog_for_testing_;
+  // File to load when accepting the select file dialog without showing it.
+  std::optional<ui::SelectedFileInfo> selected_file_for_testing_;
+};
+
 class DeveloperPrivateInstallDroppedFileFunction
     : public DeveloperPrivateAPIFunction {
  public:
@@ -248,6 +390,37 @@ class DeveloperPrivateDeleteExtensionErrorsFunction
 
  protected:
   ~DeveloperPrivateDeleteExtensionErrorsFunction() override;
+  ResponseAction Run() override;
+};
+
+class DeveloperPrivateShowOptionsFunction : public DeveloperPrivateAPIFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.showOptions",
+                             DEVELOPERPRIVATE_SHOWOPTIONS)
+
+ protected:
+  ~DeveloperPrivateShowOptionsFunction() override;
+  ResponseAction Run() override;
+};
+
+class DeveloperPrivateShowPathFunction : public DeveloperPrivateAPIFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.showPath",
+                             DEVELOPERPRIVATE_SHOWPATH)
+
+ protected:
+  ~DeveloperPrivateShowPathFunction() override;
+  ResponseAction Run() override;
+};
+
+class DeveloperPrivateSetShortcutHandlingSuspendedFunction
+    : public DeveloperPrivateAPIFunction {
+ public:
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.setShortcutHandlingSuspended",
+                             DEVELOPERPRIVATE_SETSHORTCUTHANDLINGSUSPENDED)
+
+ protected:
+  ~DeveloperPrivateSetShortcutHandlingSuspendedFunction() override;
   ResponseAction Run() override;
 };
 
@@ -432,6 +605,31 @@ class DeveloperPrivateDismissSafetyHubExtensionsMenuNotificationFunction
  private:
   ~DeveloperPrivateDismissSafetyHubExtensionsMenuNotificationFunction()
       override;
+};
+
+class DeveloperPrivatePackDirectoryFunction
+    : public DeveloperPrivateAPIFunction,
+      public PackExtensionJob::Client {
+ public:
+  DECLARE_EXTENSION_FUNCTION("developerPrivate.packDirectory",
+                             DEVELOPERPRIVATE_PACKDIRECTORY)
+
+  DeveloperPrivatePackDirectoryFunction();
+
+  // ExtensionPackJob::Client implementation.
+  void OnPackSuccess(const base::FilePath& crx_file,
+                     const base::FilePath& key_file) override;
+  void OnPackFailure(const std::string& error,
+                     ExtensionCreator::ErrorType error_type) override;
+
+ protected:
+  ~DeveloperPrivatePackDirectoryFunction() override;
+  ResponseAction Run() override;
+
+ private:
+  std::unique_ptr<PackExtensionJob> pack_job_;
+  std::string item_path_str_;
+  std::string key_path_str_;
 };
 
 class DeveloperPrivateChoosePathFunction

@@ -89,6 +89,34 @@ rtc_library("default_neteq_controller_factory") {
   ]
 }
 
+rtc_library("custom_neteq_controller_factory") {
+  visibility = [ "*" ]
+  sources = [
+    "custom_neteq_controller_factory.cc",
+    "custom_neteq_controller_factory.h",
+  ]
+  deps = [
+    ":delay_manager_api",
+    ":neteq_controller_api",
+    "../../modules/audio_coding:neteq",
+    "../../rtc_base:checks",
+    "../environment",
+  ]
+}
+
+rtc_library("delay_manager_api") {
+  visibility = [ "*" ]
+  sources = [
+    "delay_manager_factory.h",
+    "delay_manager_interface.h",
+  ]
+  deps = [
+    ":neteq_controller_api",
+    ":tick_timer",
+    "..:field_trials_view",
+  ]
+}
+
 rtc_library("tick_timer") {
   visibility = [ "*" ]
   sources = [

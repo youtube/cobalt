@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import '/strings.m.js';
+import '/icons.html.js';
 import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_checkbox/cr_checkbox.js';
-import '/strings.m.js';
 import './managed_user_profile_notice_disclosure.js';
 import './managed_user_profile_notice_value_prop.js';
 import './managed_user_profile_notice_state.js';
@@ -91,17 +92,19 @@ export class ManagedUserProfileNoticeAppElement extends
       showSuccess_: {type: Boolean},
       showTimeout_: {type: Boolean},
       showError_: {type: Boolean},
-
       processingSubtitle_: {type: String},
-
       showUserDataHandling_: {type: Boolean},
-
-      useUpdatedUi_: {
-        type: Boolean,
-        reflect: true,
-      },
-
       selectedDataHandling_: {type: String},
+
+      valuePropTitle_: {type: String},
+      valuePropSubtitle_: {type: String},
+      disclosureTitle_: {type: String},
+      disclosureSubtitle_: {type: String},
+      separateDataTitle_: {type: String},
+      separateDataChoiceTitle_: {type: String},
+      separateDataChoiceDetails_: {type: String},
+      mergeDataChoiceTitle_: {type: String},
+      mergeDataChoiceDetails_: {type: String},
     };
   }
 
@@ -126,12 +129,21 @@ export class ManagedUserProfileNoticeAppElement extends
   protected accessor showSuccess_: boolean = false;
   protected accessor showTimeout_: boolean = false;
   protected accessor showError_: boolean = false;
-  protected accessor useUpdatedUi_: boolean =
-      loadTimeData.getBoolean('useUpdatedUi');
   protected accessor processingSubtitle_: string =
       loadTimeData.getString('processingSubtitle');
   protected accessor showUserDataHandling_: boolean = false;
   protected accessor selectedDataHandling_: BrowsingDataHandling|null = null;
+
+  protected accessor valuePropTitle_: string = '';
+  protected accessor valuePropSubtitle_: string = '';
+  protected accessor disclosureTitle_: string = '';
+  protected accessor disclosureSubtitle_: string = '';
+  protected accessor separateDataTitle_: string = '';
+  protected accessor separateDataChoiceTitle_: string = '';
+  protected accessor separateDataChoiceDetails_: string = '';
+  protected accessor mergeDataChoiceTitle_: string = '';
+  protected accessor mergeDataChoiceDetails_: string = '';
+
   private managedUserProfileNoticeBrowserProxy_:
       ManagedUserProfileNoticeBrowserProxy =
           ManagedUserProfileNoticeBrowserProxyImpl.getInstance();
@@ -210,6 +222,23 @@ export class ManagedUserProfileNoticeAppElement extends
     this.selectedDataHandling_ = info.checkLinkDataCheckboxByDefault ?
         BrowsingDataHandling.MERGE :
         BrowsingDataHandling.SEPARATE;
+
+    // Update the string that may have changed with the new profile info.
+    // This is done here because the strings are not constants and may change,
+    // the selector $18n{key} does not work with dynamic strings when we are in
+    // a dialog. This is a workaround to update the strings after the profile
+    // info is set.
+    this.valuePropTitle_ = this.i18n('valuePropTitle');
+    this.valuePropSubtitle_ = this.i18n('valuePropSubtitle');
+    this.disclosureTitle_ = this.i18n('profileDisclosureTitle');
+    this.disclosureSubtitle_ = this.i18n('profileDisclosureSubtitle');
+    this.separateDataTitle_ = this.i18n('separateBrowsingDataTitle');
+    this.separateDataChoiceTitle_ =
+        this.i18n('separateBrowsingDataChoiceTitle');
+    this.separateDataChoiceDetails_ =
+        this.i18n('separateBrowsingDataChoiceDetails');
+    this.mergeDataChoiceTitle_ = this.i18n('mergeBrowsingDataChoiceTitle');
+    this.mergeDataChoiceDetails_ = this.i18n('mergeBrowsingDataChoiceDetails');
   }
 
   private updateCurrentState_(state: State) {

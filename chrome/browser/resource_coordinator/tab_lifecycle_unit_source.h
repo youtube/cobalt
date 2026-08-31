@@ -90,13 +90,14 @@ class TabLifecycleUnitSource : public BrowserListObserver,
   TabStripModel* GetFocusedTabStripModel() const;
 
   // Updates the focused TabLifecycleUnit.
-  void UpdateFocusedTab();
+  void UpdateFocusedTab(Browser* browser = nullptr);
 
   // Updates the focused TabLifecycleUnit to |new_focused_lifecycle_unit|.
   // TabInsertedAt() calls this directly instead of UpdateFocusedTab() because
   // the active WebContents of a TabStripModel isn't updated when
   // TabInsertedAt() is called.
-  void UpdateFocusedTabTo(TabLifecycleUnit* new_focused_lifecycle_unit);
+  void UpdateFocusedTabTo(TabLifecycleUnit* new_focused_lifecycle_unit,
+                          TabStripModel* tab_strip_model);
 
   // Methods called by OnTabStripModelChanged()
   void OnTabInserted(TabStripModel* tab_strip_model,

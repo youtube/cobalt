@@ -10,11 +10,10 @@
 
 #include "modules/rtp_rtcp/source/rtcp_receiver.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <iterator>
 #include <limits>
 #include <map>

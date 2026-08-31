@@ -14,8 +14,6 @@
 // The error messages when the tests fail are intended to contain C++ code
 // that can be pasted into the test when updating it.
 
-#include <stdint.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>

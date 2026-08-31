@@ -133,7 +133,7 @@ public class LocationBarLayoutTest {
     }
 
     private View getStatusIconView() {
-        return mActivityTestRule.getActivity().findViewById(R.id.location_bar_status_icon_frame);
+        return mActivityTestRule.getActivity().findViewById(R.id.location_bar_status_icon);
     }
 
     private void setUrlBarTextAndFocus(String text) {
@@ -145,7 +145,7 @@ public class LocationBarLayoutTest {
         CriteriaHelper.pollUiThread(() -> urlBar.hasFocus());
 
         ThreadUtils.runOnUiThreadBlocking(
-                new Callable<Void>() {
+                new Callable<>() {
                     @Override
                     public Void call() throws InterruptedException {
                         mActivityTestRule.typeInOmnibox(text, false);
@@ -334,7 +334,7 @@ public class LocationBarLayoutTest {
 
     @Test
     @MediumTest
-    @Restriction({DeviceFormFactor.TABLET})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testTabletUrlBarTranslation_revampEnabled() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -381,7 +381,7 @@ public class LocationBarLayoutTest {
     @Test
     @MediumTest
     @DisableFeatures(ChromeFeatureList.AVOID_RELAYOUT_DURING_FOCUS_ANIMATION)
-    @Restriction({DeviceFormFactor.TABLET})
+    @Restriction(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testTabletUrlBarTranslation_revampEnabled_avoidRelayoutDisabled() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {

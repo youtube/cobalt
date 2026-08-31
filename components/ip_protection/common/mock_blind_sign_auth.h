@@ -31,6 +31,12 @@ class MockBlindSignAuth : public quiche::BlindSignAuthInterface {
                  quiche::BlindSignAuthServiceType /*service_type*/,
                  quiche::SignedTokenCallback callback) override;
 
+  void GetAttestationTokens(
+      int num_tokens,
+      quiche::ProxyLayer layer,
+      quiche::AttestationDataCallback attestation_data_callback,
+      quiche::SignedTokenCallback token_callback) override;
+
   void set_tokens(std::vector<quiche::BlindSignToken> tokens) {
     tokens_ = std::move(tokens);
   }

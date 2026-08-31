@@ -65,13 +65,12 @@ class FacilitatedPaymentsPaymentMethodsControllerBridge
     }
 
     @Override
-    public boolean showFinancialAccountsManagementSettings(Context context) {
-        if (context == null) {
-            return false;
+    public void onPaymentAppSelected(String packageName, String activityName) {
+        if (mNativeFacilitatedPaymentsController != 0) {
+            FacilitatedPaymentsPaymentMethodsControllerBridgeJni.get()
+                    .onPaymentAppSelected(
+                            mNativeFacilitatedPaymentsController, packageName, activityName);
         }
-        SettingsNavigationFactory.createSettingsNavigation()
-                .startSettings(context, SettingsNavigation.SettingsFragment.FINANCIAL_ACCOUNTS);
-        return true;
     }
 
     @Override
@@ -111,5 +110,8 @@ class FacilitatedPaymentsPaymentMethodsControllerBridge
         void onPixAccountLinkingPromptAccepted(long nativeFacilitatedPaymentsController);
 
         void onPixAccountLinkingPromptDeclined(long nativeFacilitatedPaymentsController);
+
+        void onPaymentAppSelected(
+                long nativeFacilitatedPaymentsController, String packageName, String activityName);
     }
 }

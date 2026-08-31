@@ -5,12 +5,15 @@
 #ifndef CHROME_BROWSER_UI_LENS_LENS_SEARCH_CONTEXTUALIZATION_CONTROLLER_H_
 #define CHROME_BROWSER_UI_LENS_LENS_SEARCH_CONTEXTUALIZATION_CONTROLLER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/lens/core/mojom/lens_side_panel.mojom.h"
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/omnibox/browser/autocomplete_match_type.h"
+#include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/tabs/public/tab_interface.h"
+#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "pdf/buildflags.h"
 
 #if BUILDFLAG(ENABLE_PDF)
@@ -22,6 +25,7 @@ class LensSearchController;
 
 namespace content {
 class RenderFrameHost;
+class RenderWidgetHostView;
 }  // namespace content
 
 namespace content_extraction {
@@ -34,6 +38,9 @@ struct AIPageContentResult;
 
 using GetIsContextualSearchboxCallback =
     lens::mojom::LensSidePanelPageHandler::GetIsContextualSearchboxCallback;
+
+// Callback type alias for the when the page context eligibility is fetched.
+using LensSearchPageContextEligibilityCallback = base::OnceCallback<void(bool)>;
 
 namespace lens {
 
@@ -117,9 +124,84 @@ class LensSearchContextualizationController {
   // Resets the state of the contextualization controller to kOff.
   void ResetState();
 
+  // Records the UMA for the metrics relating to the document where the
+  // contextual search box was shown. If this is a webpage, records the size of
+  // the innerText. If this is a PDF, records the byte size of the PDF and the
+  // number of pages. `pdf_page_count` is only used for PDFs.
+  void RecordDocumentMetrics(std::optional<uint32_t> pdf_page_count);
+
+  // Posts a task to the background thread to calculate the OCR DOM similarity
+  // and then records the result. Only records the similarity once per session.
+  // Only records the similarity if the OCR text and page content are available.
+  void TryCalculateAndRecordOcrDomSimilarity();
+
+  // Sets the text of the page. Used to calculate the OCR DOM similarity.
+  // Should only be called once per session.
+  void SetText(lens::mojom::TextPtr text);
+
+  // TODO(crbug.com/418825720): Remove this code once the early start query flow
+  // optimization is fully launched as this will no longer be needed as all
+  // context updates will go through this controller. Sets the page content and
+  // primary content type for the controller. Only used in when the start query
+  // flow optimization is not enabled to ensure that the page content is still
+  // passed to the contextualization controller even if it does not make the
+  // request to the server.
+  void SetPageContent(std::vector<lens::PageContent> page_contents,
+                      lens::MimeType primary_content_type);
+
+  // Returns whether the page is context eligible based on the URL and frame
+  // metadata provided. Calls the provided callback with the result. This
+  // function makes a call to the page context eligibility API on whether the
+  // latest contextualized data is eligible to be sent. This is in contrast to
+  // `GetCurrentPageContextEligibility` which returns the latest cached state.
+  void IsPageContextEligible(
+      const GURL& main_frame_url,
+      std::vector<optimization_guide::FrameMetadata> frame_metadata,
+      LensSearchPageContextEligibilityCallback callback);
+
+  // Override these methods to be able to track calls made to the page context
+  // eligibility API.
+  virtual void CreatePageContextEligibilityAPI();
+
+  // Returns whether the page is context eligible based on the latest cached
+  // state. If the page context eligibility API has not been loaded, this will
+  // return false.
+  virtual bool GetCurrentPageContextEligibility();
+
   bool IsActive() const { return state_ == State::kActive; }
 
+ protected:
+  // The page context eligibility API if it has been fetched. Can be nullptr.
+  // This is marked protected so that it can be accessed by the test
+  // implementation of this class.
+  raw_ptr<optimization_guide::PageContextEligibility> page_context_eligibility_;
+
  private:
+  struct PageContextEligibilityParams {
+   public:
+    PageContextEligibilityParams(
+        const GURL& main_frame_url,
+        std::vector<optimization_guide::FrameMetadata> frame_metadata);
+    ~PageContextEligibilityParams();
+
+    GURL main_frame_url;
+    std::vector<optimization_guide::FrameMetadata> frame_metadata;
+  };
+
+  // Called when the page context eligibility API is loaded.
+  void OnPageContextEligibilityAPILoaded(
+      optimization_guide::PageContextEligibility* page_context_eligibility);
+
+  // Called when the initial page context eligibility is fetched. This should be
+  // used for the initial check as the APC may not have been received yet. For
+  // subsequent checks, use `OnPageContextEligibilityFetched`.
+  void OnInitialPageContextEligibilityFetched(
+      const SkBitmap& bitmap,
+      const std::vector<gfx::Rect>& all_bounds,
+      std::optional<uint32_t> pdf_current_page,
+      OnPageContextUpdatedCallback callback,
+      bool is_page_context_eligible);
+
   // Begin updating page contextualization by potentially taking a new
   // screenshot.
   void UpdatePageContextualization(std::vector<lens::PageContent> page_contents,
@@ -143,19 +225,6 @@ class LensSearchContextualizationController {
       std::optional<uint32_t> pdf_page_count,
       const SkBitmap& bitmap,
       std::optional<uint32_t> pdf_current_page);
-
-  // Gets the inner HTML for contextualization if flag enabled. Otherwise skip
-  // to MaybeGetInnerText().
-  void MaybeGetInnerHtml(std::vector<lens::PageContent> page_contents,
-                         content::RenderFrameHost* render_frame_host,
-                         PageContentRetrievedCallback callback);
-
-  // Callback for when the inner HTML is retrieved from the underlying page.
-  // Calls MaybeGetInnerText().
-  void OnInnerHtmlReceived(std::vector<lens::PageContent> page_contents,
-                           content::RenderFrameHost* render_frame_host,
-                           PageContentRetrievedCallback callback,
-                           const std::optional<std::string>& result);
 
   // Gets the inner text for contextualization if flag enabled. Otherwise skip
   // to MaybeGetAnnotatedPageContent().
@@ -184,6 +253,15 @@ class LensSearchContextualizationController {
       std::vector<lens::PageContent> page_contents,
       PageContentRetrievedCallback callback,
       std::optional<optimization_guide::AIPageContentResult> apc);
+
+  // Callback for when the page context eligibility is fetched. This should only
+  // be used after the APC has been received. For the initial check before the
+  // APC is received, use `OnInitialPageContextEligibilityFetched`.
+  void OnPageContextEligibilityFetched(
+      std::vector<lens::PageContent> page_contents,
+      PageContentRetrievedCallback callback,
+      std::optional<optimization_guide::AIPageContentResult> result,
+      bool is_page_context_eligible);
 
 #if BUILDFLAG(ENABLE_PDF)
   // Gets the PDF bytes from the IPC call to the PDF renderer if the PDF
@@ -245,6 +323,10 @@ class LensSearchContextualizationController {
       OnPageContextUpdatedCallback callback,
       const std::vector<gfx::Rect>& bounds);
 
+  // Callback to record the size of the innerText once it is fetched.
+  void RecordInnerTextSize(
+      std::unique_ptr<content_extraction::InnerTextResult> result);
+
   float GetUiScaleFactor();
 
   lens::LensOverlayQueryController* GetQueryController();
@@ -293,8 +375,30 @@ class LensSearchContextualizationController {
   // the page context has been updated and sent to the server.
   OnPageContextUpdatedCallback on_page_context_updated_callback_;
 
+  // The text of the page. Used to calculate the OCR DOM similarity. Used once
+  // per session and then cleared.
+  lens::mojom::TextPtr text_;
+
   // The source of the invocation.
   lens::LensOverlayInvocationSource invocation_source_;
+
+  // Whether the OCR DOM similarity has been recorded in the current session.
+  bool ocr_dom_similarity_recorded_in_session_ = false;
+
+  // Whether the page context eligibility API has been loaded in the current tab
+  // session.
+  bool has_page_context_eligibility_api_loaded_ = false;
+
+  // Stored page context eligibility parameters to be used once the API is
+  // loaded. This is only used if the API is not yet loaded when
+  // IsPageContextEligible() is called and `page_context_eligibility_callback_`
+  // is set.
+  std::optional<PageContextEligibilityParams>
+      pending_context_eligibility_params_;
+
+  // A stored context eligibility callback to be called once the page context
+  // eligibility API is loaded.
+  LensSearchPageContextEligibilityCallback page_context_eligibility_callback_;
 
   // Owns this.
   const raw_ptr<LensSearchController> lens_search_controller_;

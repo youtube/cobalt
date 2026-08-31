@@ -34,11 +34,12 @@ if (is_android) {
       "//chrome/browser/profiles/android:java",
       "//chrome/browser/segmentation_platform:factory_java",
       "//chrome/test/android:chrome_java_integration_test_support",
+      "//chrome/test/android:chrome_java_transit",
       "//components/segmentation_platform/public:public_java",
       "//third_party/androidx:androidx_test_runner_java",
       "//third_party/hamcrest:hamcrest_core_java",
       "//third_party/hamcrest:hamcrest_library_java",
-      "//third_party/junit:junit",
+      "//third_party/junit",
       "//url:gurl_java",
     ]
   }
@@ -68,6 +69,11 @@ if (is_android) {
   }
 }
 
+source_set("segmentation_platform") {
+  sources = [ "segmentation_platform_service_factory.h" ]
+  public_deps = [ "//chrome/browser/profiles:profile" ]
+}
+
 static_library("test_utils") {
   testonly = true
   sources = [
@@ -75,6 +81,7 @@ static_library("test_utils") {
     "ukm_data_manager_test_utils.h",
   ]
   deps = [
+    ":segmentation_platform",
     "//base/test:test_support",
     "//chrome/browser",
     "//components/segmentation_platform/embedder",

@@ -55,7 +55,10 @@ public class MediaCodecOutputTrackerTest {
     mTracker.register(mockBridge);
     mTracker.forceReportForTesting();
 
-    assertEquals(1, RecordHistogram.getHistogramValueCountForTesting("Memory.Media.EstimatedDecodedBuffer", 29));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            "Memory.Media.EstimatedDecodedBuffer", 29));
   }
 
   @Test
@@ -76,7 +79,10 @@ public class MediaCodecOutputTrackerTest {
     mTracker.register(bridge2);
     mTracker.forceReportForTesting();
 
-    assertEquals(1, RecordHistogram.getHistogramValueCountForTesting("Memory.Media.EstimatedDecodedBuffer", 30));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting(
+            "Memory.Media.EstimatedDecodedBuffer", 30));
   }
 
   @Test
@@ -97,6 +103,8 @@ public class MediaCodecOutputTrackerTest {
     mTracker.forceReportForTesting();
 
     // Only bridge2 should be counted: 5.72 MiB -> 5 MiB
-    assertEquals(1, RecordHistogram.getHistogramValueCountForTesting("Memory.Media.EstimatedDecodedBuffer", 5));
+    assertEquals(
+        1,
+        RecordHistogram.getHistogramValueCountForTesting("Memory.Media.EstimatedDecodedBuffer", 5));
   }
 }

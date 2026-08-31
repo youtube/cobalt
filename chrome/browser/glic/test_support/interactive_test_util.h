@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_GLIC_TEST_SUPPORT_INTERACTIVE_TEST_UTIL_H_
 #define CHROME_BROWSER_GLIC_TEST_SUPPORT_INTERACTIVE_TEST_UTIL_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/scoped_observation_traits.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
@@ -32,7 +33,7 @@ namespace glic::test {
 
 namespace internal {
 
-// Observes FRE showing dialog for changes to state().
+// Observes FRE controller for changes to dialog being shown.
 class GlicFreShowingDialogObserver
     : public ui::test::PollingStateObserver<bool> {
  public:
@@ -54,6 +55,17 @@ class GlicWindowControllerStateObserver
 
 DECLARE_STATE_IDENTIFIER_VALUE(GlicWindowControllerStateObserver,
                                kGlicWindowControllerState);
+
+// Observes `controller` for changes to animation state.
+class GlicWindowContorllerResizeObserver
+    : public ui::test::PollingStateObserver<bool> {
+ public:
+  explicit GlicWindowContorllerResizeObserver(GlicWindowController& controller);
+  ~GlicWindowContorllerResizeObserver() override;
+};
+
+DECLARE_STATE_IDENTIFIER_VALUE(GlicWindowContorllerResizeObserver,
+                               kGlicWindowControllerResizeState);
 
 // Observers the glic app internal state.
 class GlicAppStateObserver
@@ -106,6 +118,25 @@ class WebUiStateObserver : public ui::test::StateObserver<mojom::WebUiState>,
 };
 
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(WebUiStateObserver, kWebUiState);
+
+class OnViewChangedObserver
+    : public ui::test::StateObserver<mojom::CurrentView>,
+      public Host::Observer {
+ public:
+  explicit OnViewChangedObserver(Host* host);
+
+  ~OnViewChangedObserver() override;
+
+  mojom::CurrentView GetStateObserverInitialState() const override;
+
+  void OnViewChanged(mojom::CurrentView state) override;
+
+ private:
+  base::ScopedObservation<Host, Host::Observer> observation_{this};
+  raw_ptr<Host> host_;
+};
+
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(OnViewChangedObserver, kFloatyViewState);
 
 }  // namespace internal
 

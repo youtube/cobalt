@@ -81,7 +81,6 @@ class BASE_EXPORT SequenceManager {
       return default_priority_;
     }
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
     void SetProtoPriorityConverter(
         perfetto::protos::pbzero::SequenceManagerTask::Priority (
             *proto_priority_converter)(TaskQueue::QueuePriority)) {
@@ -90,16 +89,13 @@ class BASE_EXPORT SequenceManager {
 
     perfetto::protos::pbzero::SequenceManagerTask::Priority TaskPriorityToProto(
         TaskQueue::QueuePriority priority) const;
-#endif
 
    private:
     TaskQueue::QueuePriority priority_count_;
     TaskQueue::QueuePriority default_priority_;
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
     perfetto::protos::pbzero::SequenceManagerTask::Priority (
         *proto_priority_converter_)(TaskQueue::QueuePriority) = nullptr;
-#endif
 
 #if DCHECK_IS_ON()
    public:
@@ -164,6 +160,13 @@ class BASE_EXPORT SequenceManager {
     bool can_run_tasks_by_batches = false;
 
     PrioritySettings priority_settings = PrioritySettings::CreateDefault();
+
+    // Whether this sequence manager represents the main thread of the process.
+    // This is only used to set
+    // base::SingleThreadTaskRunner::GetMainThreadDefault().
+    bool is_main_thread = false;
+
+    bool should_report_lock_metrics = false;
 
 #if DCHECK_IS_ON()
     // TODO(alexclarke): Consider adding command line flags to control these.
@@ -319,6 +322,11 @@ class BASE_EXPORT SequenceManager::Settings::Builder {
 
   Builder& SetPrioritySettings(PrioritySettings settings);
 
+  Builder& SetIsMainThread(bool is_main_thread);
+
+  // Whether lock contention metrics should be reported to UMA.
+  Builder& SetShouldReportLockMetrics(bool enable);
+
 #if DCHECK_IS_ON()
   // Controls task execution logging.
   Builder& SetTaskLogging(TaskLogging task_execution_logging);
@@ -362,6 +370,20 @@ CreateSequenceManagerOnCurrentThreadWithPump(
 // on the target thread by calling one of the Bind*() methods.
 BASE_EXPORT std::unique_ptr<SequenceManager> CreateUnboundSequenceManager(
     SequenceManager::Settings settings = SequenceManager::Settings());
+
+// Wrapper around SequenceManager::Settings.
+//
+// If you need `SequenceManager::Settings` in a header file, forward declare
+// this `SequenceManagerSettings` instead of including the full
+// `sequence_manager.h` header file. This helps avoid increasing compile size.
+// For an example of its usage, see base/thread.h.
+struct BASE_EXPORT SequenceManagerSettings {
+  explicit SequenceManagerSettings(SequenceManager::Settings settings);
+  SequenceManagerSettings(const SequenceManagerSettings&) = delete;
+  SequenceManagerSettings& operator=(const SequenceManagerSettings&) = delete;
+
+  SequenceManager::Settings settings;
+};
 
 }  // namespace sequence_manager
 }  // namespace base

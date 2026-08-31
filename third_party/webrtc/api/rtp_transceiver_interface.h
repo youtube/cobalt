@@ -59,11 +59,11 @@ struct RTC_EXPORT RtpTransceiverInit final {
 //
 // WebRTC specification for RTCRtpTransceiver, the JavaScript analog:
 // https://w3c.github.io/webrtc-pc/#dom-rtcrtptransceiver
-class RTC_EXPORT RtpTransceiverInterface : public webrtc::RefCountInterface {
+class RTC_EXPORT RtpTransceiverInterface : public RefCountInterface {
  public:
   // Media type of the transceiver. Any sender(s)/receiver(s) will have this
   // type as well.
-  virtual webrtc::MediaType media_type() const = 0;
+  virtual MediaType media_type() const = 0;
 
   // The mid attribute is the mid negotiated and present in the local and
   // remote descriptions. Before negotiation is complete, the mid value may be
@@ -165,7 +165,7 @@ class RTC_EXPORT RtpTransceiverInterface : public webrtc::RefCountInterface {
   // The SetHeaderExtensionsToNegotiate method modifies the next SDP negotiation
   // so that it negotiates use of header extensions which are not kStopped.
   // https://w3c.github.io/webrtc-extensions/#rtcrtptransceiver-interface
-  virtual webrtc::RTCError SetHeaderExtensionsToNegotiate(
+  virtual RTCError SetHeaderExtensionsToNegotiate(
       ArrayView<const RtpHeaderExtensionCapability> header_extensions) = 0;
 
  protected:

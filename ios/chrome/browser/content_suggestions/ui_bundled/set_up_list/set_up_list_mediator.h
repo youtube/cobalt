@@ -9,7 +9,10 @@
 
 #import "base/ios/block_types.h"
 
-class AuthenticationService;
+namespace signin {
+class IdentityManager;
+}
+
 @protocol ContentSuggestionsDelegate;
 @class ContentSuggestionsMetricsRecorder;
 @protocol ContentSuggestionsViewControllerAudience;
@@ -18,14 +21,6 @@ class PrefService;
 @class SetUpListConfig;
 @class SetUpListItem;
 @class SetUpListItemViewData;
-
-namespace signin {
-class IdentityManager;
-}  // namespace signin
-
-namespace syncer {
-class SyncService;
-}  // namespace syncer
 
 // Interface for listening to events occurring in SetUpListMediator.
 @protocol SetUpListConsumer
@@ -71,9 +66,7 @@ class SyncService;
 
 // Default initializer.
 - (instancetype)initWithPrefService:(PrefService*)prefService
-                        syncService:(syncer::SyncService*)syncService
                     identityManager:(signin::IdentityManager*)identityManager
-              authenticationService:(AuthenticationService*)authService
                          sceneState:(SceneState*)sceneState
               isDefaultSearchEngine:(BOOL)isDefaultSearchEngine
                priceTrackingEnabled:(BOOL)priceTrackingEnabled

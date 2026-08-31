@@ -9,6 +9,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPathEffect.h"
 #include "include/core/SkString.h"
 #include "include/core/SkStrokeRec.h"
@@ -71,7 +72,7 @@ protected:
         SkPath path;
         this->makePath(&path);
 
-        paint.setPathEffect(SkDashPathEffect::Make(fIntervals.begin(), fIntervals.size(), 0));
+        paint.setPathEffect(SkDashPathEffect::Make(fIntervals, 0));
 
         if (fDoClip) {
             SkRect r = path.getBounds();
@@ -182,7 +183,7 @@ public:
         proc(&fPath);
 
         SkScalar vals[] = { SkIntToScalar(4), SkIntToScalar(4) };
-        fPE = SkDashPathEffect::Make(vals, 2, 0);
+        fPE = SkDashPathEffect::Make(vals, 0);
     }
 
 protected:
@@ -191,12 +192,12 @@ protected:
     }
 
     void onDraw(int loops, SkCanvas*) override {
-        SkPath dst;
+        SkPathBuilder dst;
         for (int i = 0; i < loops; ++i) {
             SkStrokeRec rec(SkStrokeRec::kHairline_InitStyle);
 
-            fPE->filterPath(&dst, fPath, &rec, nullptr);
-            dst.rewind();
+            fPE->filterPath(&dst, fPath, &rec);
+            dst.reset();
         }
     }
 
@@ -220,7 +221,7 @@ public:
         fIsRound = isRound;
 
         SkScalar vals[] = { SK_Scalar1, SK_Scalar1 };
-        fPE = SkDashPathEffect::Make(vals, 2, 0);
+        fPE = SkDashPathEffect::Make(vals, 0);
     }
 
 protected:
@@ -259,7 +260,7 @@ public:
         fDoAA = doAA;
 
         SkScalar vals[] = { SkIntToScalar(dashLength), SkIntToScalar(dashLength) };
-        fPathEffect = SkDashPathEffect::Make(vals, 2, SK_Scalar1);
+        fPathEffect = SkDashPathEffect::Make(vals, SK_Scalar1);
     }
 
 protected:
@@ -283,7 +284,7 @@ protected:
 
         for (int i = 0; i < loops; ++i) {
             pts[0].fY = pts[1].fY = SkIntToScalar(i % 480);
-            canvas->drawPoints(SkCanvas::kLines_PointMode, 2, pts, p);
+            canvas->drawPoints(SkCanvas::kLines_PointMode, pts, p);
         }
     }
 
@@ -319,7 +320,7 @@ public:
         // deliberately pick intervals that won't be caught by asPoints(), so
         // we can test the filterPath code-path.
         const SkScalar intervals[] = { 20, 10, 10, 10 };
-        fPathEffect = SkDashPathEffect::Make(intervals, std::size(intervals), 0);
+        fPathEffect = SkDashPathEffect::Make(intervals, 0);
 
         SkScalar cx = 640 / 2;  // center X
         SkScalar cy = 480 / 2;  // center Y
@@ -344,7 +345,7 @@ public:
         const SkPoint pts[2] = {
             { -overshoot, cy }, { 640 + overshoot, cy }
         };
-        matrix.mapPoints(fPts, pts, 2);
+        matrix.mapPoints(fPts, pts);
     }
 
 protected:
@@ -360,7 +361,7 @@ protected:
         p.setPathEffect(fPathEffect);
 
         for (int i = 0; i < loops; i++) {
-            canvas->drawPoints(SkCanvas::kLines_PointMode, 2, fPts, p);
+            canvas->drawPoints(SkCanvas::kLines_PointMode, fPts, p);
         }
     }
 
@@ -384,7 +385,7 @@ public:
         fDoAA = doAA;
 
         SkScalar vals[] = { SkIntToScalar(dashLength), SkIntToScalar(dashLength) };
-        fPathEffect = SkDashPathEffect::Make(vals, 2, SK_Scalar1);
+        fPathEffect = SkDashPathEffect::Make(vals, SK_Scalar1);
     }
 
 protected:
@@ -417,7 +418,7 @@ protected:
                     horPts[0].fY = pts[0].fY + j * 22.f;
                     horPts[1].fX = pts[1].fX + k * 22.f;
                     horPts[1].fY = pts[1].fY + j * 22.f;
-                    canvas->drawPoints(SkCanvas::kLines_PointMode, 2, horPts, p);
+                    canvas->drawPoints(SkCanvas::kLines_PointMode, horPts, p);
 
                     // Vertical line
                     SkPoint vertPts[2];
@@ -425,7 +426,7 @@ protected:
                     vertPts[0].fY = pts[2].fY + j * 22.f;
                     vertPts[1].fX = pts[3].fX + k * 22.f;
                     vertPts[1].fY = pts[3].fY + j * 22.f;
-                    canvas->drawPoints(SkCanvas::kLines_PointMode, 2, vertPts, p);
+                    canvas->drawPoints(SkCanvas::kLines_PointMode, vertPts, p);
                 }
             }
         }

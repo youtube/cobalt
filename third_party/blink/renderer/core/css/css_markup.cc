@@ -47,7 +47,7 @@ static bool IsCSSTokenizerIdentifier(const StringView& string) {
     return false;
   }
 
-  return WTF::VisitCharacters(string, [](auto chars) {
+  return VisitCharacters(string, [](auto chars) {
     size_t index{0};
 
     // -?
@@ -149,7 +149,7 @@ String SerializeString(const String& string) {
 }
 
 String SerializeURI(const String& string) {
-  return WTF::StrCat({"url(", SerializeString(string), ")"});
+  return StrCat({"url(", SerializeString(string), ")"});
 }
 
 String SerializeFontFamily(const AtomicString& string) {

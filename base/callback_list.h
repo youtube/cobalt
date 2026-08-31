@@ -132,10 +132,6 @@ class CallbackListBase {
   using CallbackType =
       typename CallbackListTraits<CallbackListImpl>::CallbackType;
 
-  // TODO(crbug.com/40139093): Update references to use this directly and by
-  // value, then remove.
-  using Subscription = CallbackListSubscription;
-
   CallbackListBase() = default;
   CallbackListBase(const CallbackListBase&) = delete;
   CallbackListBase& operator=(const CallbackListBase&) = delete;
@@ -254,7 +250,7 @@ class CallbackListBase {
     // that were executed above have all been removed regardless of whether
     // they're counted in |erased_callbacks_|.
     if (removal_callback_ &&
-        (erased_callbacks || is_instantiation<OnceCallback, CallbackType>)) {
+        (erased_callbacks || is_instantiation<CallbackType, OnceCallback>)) {
       removal_callback_.Run();  // May delete |this|!
     }
   }

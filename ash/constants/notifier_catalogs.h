@@ -184,7 +184,7 @@ enum class NotificationCatalogName {
   kIPHGoogleOneOffer = 165,
   kLockScreen = 166,
   kWebAppSettings = 167,
-  kEOLIncentive = 168,
+  // [Deprecated] kEOLIncentive = 168,
   kHotspot = 169,
   kGeolocationSwitch = 170,
   kMultiCaptureOnLogin = 171,
@@ -215,8 +215,9 @@ enum class NotificationCatalogName {
   kBocaSpotlightStarted = 196,
   kFaceGazeActive = 197,
   kUsbPeripheralDeviceOrEndpointLimit = 198,
-  kOnTaskResourceNotSupported = 199,
-  kMaxValue = kOnTaskResourceNotSupported
+  kDemoMode = 199,
+  kArcDlcInstall = 200,
+  kMaxValue = kArcDlcInstall
 };
 
 // A living catalog that registers system nudges.

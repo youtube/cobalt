@@ -67,10 +67,11 @@ ChromePageInfoUiDelegate::ChromePageInfoUiDelegate(
 
 bool ChromePageInfoUiDelegate::ShouldShowAllow(ContentSettingsType type) {
   switch (type) {
-    // Notifications and idle detection do not support CONTENT_SETTING_ALLOW in
-    // incognito.
+    // Notifications, idle detection, and web app installation do not support
+    // CONTENT_SETTING_ALLOW in incognito.
     case ContentSettingsType::NOTIFICATIONS:
     case ContentSettingsType::IDLE_DETECTION:
+    case ContentSettingsType::WEB_APP_INSTALLATION:
       return !GetProfile()->IsOffTheRecord();
     // Media only supports CONTENT_SETTING_ALLOW for secure origins.
     case ContentSettingsType::MEDIASTREAM_MIC:
@@ -94,10 +95,11 @@ bool ChromePageInfoUiDelegate::ShouldShowAllow(ContentSettingsType type) {
 std::u16string ChromePageInfoUiDelegate::GetAutomaticallyBlockedReason(
     ContentSettingsType type) {
   switch (type) {
-    // Notifications and idle detection do not support CONTENT_SETTING_ALLOW in
-    // incognito.
+    // Notifications, idle detection, and web app installation do not support
+    // CONTENT_SETTING_ALLOW in incognito.
     case ContentSettingsType::NOTIFICATIONS:
-    case ContentSettingsType::IDLE_DETECTION: {
+    case ContentSettingsType::IDLE_DETECTION:
+    case ContentSettingsType::WEB_APP_INSTALLATION: {
       if (GetProfile()->IsOffTheRecord()) {
         return l10n_util::GetStringUTF16(
             GetProfile()->IsGuestSession()
@@ -223,8 +225,7 @@ bool ChromePageInfoUiDelegate::ShouldShowSettingsLinkForPermission(
       // ), however as we don't have any testcase for this branch, the changes
       // were refused by the test coverage bot.
       // TODO(b/345431801): Add a testcase to cover this case.
-      if (base::FeatureList::IsEnabled(
-              features::kAppShimNotificationAttribution)) {
+      if (web_app::UseNotificationAttributionForWebAppShims()) {
         // If this notification permission is associated with a locally
         // installed web app, the corresponding app shim needs to have system
         // level notification permission for notifications to work. If system
@@ -288,6 +289,15 @@ bool ChromePageInfoUiDelegate::ShouldShowSettingsLinkForPermission(
       }
       return false;
 #endif
+    case ContentSettingsType::CLIPBOARD_READ_WRITE:
+      if (base::FeatureList::IsEnabled(
+              content_settings::features::kLeftHandSideActivityIndicators) &&
+          system_permission_settings::IsDenied(type)) {
+        *text_id = IDS_PAGE_INFO_CLIPBOARD_SYSTEM_SETTINGS_DESCRIPTION;
+        *link_id = IDS_PAGE_INFO_SETTINGS_OF_A_SYSTEM_LINK;
+        return true;
+      }
+      return false;
     default:
       return false;
   }

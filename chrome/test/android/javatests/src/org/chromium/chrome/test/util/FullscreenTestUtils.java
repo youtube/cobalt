@@ -5,9 +5,7 @@
 package org.chromium.chrome.test.util;
 
 import android.app.Activity;
-import android.os.Build;
 import android.view.View;
-import android.view.WindowManager;
 
 import androidx.core.view.WindowInsetsCompat;
 
@@ -136,7 +134,8 @@ public class FullscreenTestUtils {
                 TaskTraits.UI_DEFAULT,
                 () -> {
                     if (state) {
-                        delegate.enterFullscreenModeForTab(prefersNavigationBar, prefersStatusBar);
+                        delegate.enterFullscreenModeForTab(
+                                0, prefersNavigationBar, prefersStatusBar);
                     } else {
                         delegate.exitFullscreenModeForTab();
                     }
@@ -178,6 +177,14 @@ public class FullscreenTestUtils {
                 CriteriaHelper.DEFAULT_POLLING_INTERVAL);
     }
 
+    public static void waitForPictureInPicture(
+            final boolean isInPictureInPicture, final Activity activity) {
+        CriteriaHelper.pollUiThread(
+                () -> isPictureInPictureMode(isInPictureInPicture, activity),
+                6000L,
+                CriteriaHelper.DEFAULT_POLLING_INTERVAL);
+    }
+
     /**
      * Waits for the specified {@link Tab} to enter fullscreen. mode
      *
@@ -210,6 +217,11 @@ public class FullscreenTestUtils {
         return !windowInsets.isVisible(WindowInsetsCompat.Type.navigationBars()) == state;
     }
 
+    private static boolean isPictureInPictureMode(
+            final boolean isInPictureInPictureMode, final Activity activity) {
+        return activity.isInPictureInPictureMode() == isInPictureInPictureMode;
+    }
+
     private static boolean isFullscreenFlagSet(
             final Tab tab, final boolean state, Activity activity) {
         // Status bars persist in fullscreen mode in automotive (see crrev.com/c/4569720) so system
@@ -217,19 +229,14 @@ public class FullscreenTestUtils {
         if (BuildInfo.getInstance().isAutomotive) {
             return true;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            View view = tab.getContentView();
-            int visibility = view.getSystemUiVisibility();
+        View view = tab.getContentView();
+        int visibility = view.getSystemUiVisibility();
 
-            // SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN should only be used during the transition between
-            // fullscreen states, so it should always be cleared when fullscreen transitions are
-            // completed.
-            return !isFlagSet(visibility, View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
-                    && (isFlagSet(visibility, View.SYSTEM_UI_FLAG_FULLSCREEN) == state);
-        } else {
-            WindowManager.LayoutParams attributes = activity.getWindow().getAttributes();
-            return isFlagSet(attributes.flags, WindowManager.LayoutParams.FLAG_FULLSCREEN) == state;
-        }
+        // SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN should only be used during the transition between
+        // fullscreen states, so it should always be cleared when fullscreen transitions are
+        // completed.
+        return !isFlagSet(visibility, View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
+                && (isFlagSet(visibility, View.SYSTEM_UI_FLAG_FULLSCREEN) == state);
     }
 
     private static boolean isHideNavigationFlagSet(

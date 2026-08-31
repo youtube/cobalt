@@ -21,6 +21,7 @@
 #include "base/i18n/time_formatting.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chromeos/ui/base/file_icon_util.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -300,7 +301,7 @@ void BirchCalendarItem::PerformAction() {
     return;
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       calendar_url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }
@@ -313,7 +314,7 @@ void BirchCalendarItem::PerformAddonAction() {
   // TODO(jamescook): Decide if we want differerent metrics for secondary
   // actions.
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       conference_url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }
@@ -432,7 +433,7 @@ void BirchAttachmentItem::PerformAction() {
     LOG(ERROR) << "No valid URL for attachment item";
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       file_url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }
@@ -500,7 +501,7 @@ std::string BirchFileItem::ToString() const {
 
 void BirchFileItem::PerformAction() {
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenFile(file_path_);
+  NewWindowDelegate::GetInstance()->OpenFile(file_path_);
 }
 
 void BirchFileItem::LoadIcon(LoadIconCallback callback) const {
@@ -563,7 +564,7 @@ void BirchWeatherItem::PerformAction() {
   RecordActionMetrics();
   // TODO(jamescook): Localize the query string.
   GURL url("https://google.com/search?q=weather");
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       url, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }
@@ -675,7 +676,7 @@ void BirchTabItem::PerformAction() {
     return;
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kSwitchToTab);
 }
@@ -747,7 +748,7 @@ void BirchLastActiveItem::PerformAction() {
     return;
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       page_url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kSwitchToTab);
 }
@@ -821,7 +822,7 @@ void BirchMostVisitedItem::PerformAction() {
     return;
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       page_url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kSwitchToTab);
 }
@@ -891,7 +892,7 @@ void BirchSelfShareItem::PerformAction() {
     activation_callback_.Run();
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kSwitchToTab);
 }
@@ -1022,7 +1023,7 @@ void BirchReleaseNotesItem::PerformAction() {
     return;
   }
   RecordActionMetrics();
-  NewWindowDelegate::GetPrimary()->OpenUrl(
+  NewWindowDelegate::GetInstance()->OpenUrl(
       url_, NewWindowDelegate::OpenUrlFrom::kUserInteraction,
       NewWindowDelegate::Disposition::kNewForegroundTab);
 }

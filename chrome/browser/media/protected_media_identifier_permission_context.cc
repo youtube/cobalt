@@ -15,6 +15,7 @@
 #include "chrome/common/pref_names.h"
 #include "components/content_settings/browser/page_specific_content_settings.h"
 #include "components/permissions/permission_util.h"
+#include "components/policy/core/common/policy_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
@@ -42,10 +43,24 @@
 #error This file currently only supports Chrome OS, Android and Windows.
 #endif
 
+namespace {
+
+// Returns whether the use of protected content identifier is allowed by
+// enterprise policy.
+bool IsProtectedContentIdentifierAllowedByPolicy(Profile* profile) {
+  PrefService* service = profile->GetPrefs();
+  DCHECK(service);
+
+  return service->GetBoolean(
+      policy::policy_prefs::kProtectedContentIdentifiersAllowed);
+}
+
+}  // namespace
+
 ProtectedMediaIdentifierPermissionContext::
     ProtectedMediaIdentifierPermissionContext(
         content::BrowserContext* browser_context)
-    : PermissionContextBase(
+    : permissions::ContentSettingPermissionContextBase(
           browser_context,
           ContentSettingsType::PROTECTED_MEDIA_IDENTIFIER,
           network::mojom::PermissionsPolicyFeature::kEncryptedMedia) {}
@@ -54,7 +69,7 @@ ProtectedMediaIdentifierPermissionContext::
     ~ProtectedMediaIdentifierPermissionContext() = default;
 
 ContentSetting
-ProtectedMediaIdentifierPermissionContext::GetPermissionStatusInternal(
+ProtectedMediaIdentifierPermissionContext::GetContentSettingStatusInternal(
     content::RenderFrameHost* render_frame_host,
     const GURL& requesting_origin,
     const GURL& embedding_origin) const {
@@ -67,8 +82,8 @@ ProtectedMediaIdentifierPermissionContext::GetPermissionStatusInternal(
     return CONTENT_SETTING_BLOCK;
   }
 
-  ContentSetting content_setting =
-      permissions::PermissionContextBase::GetPermissionStatusInternal(
+  ContentSetting content_setting = permissions::
+      ContentSettingPermissionContextBase::GetContentSettingStatusInternal(
           render_frame_host, requesting_origin, embedding_origin);
   DCHECK(content_setting == CONTENT_SETTING_ALLOW ||
 #if BUILDFLAG(IS_ANDROID)
@@ -157,6 +172,12 @@ bool ProtectedMediaIdentifierPermissionContext::
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 #endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
+
+  if (!IsProtectedContentIdentifierAllowedByPolicy(profile)) {
+    DVLOG(1)
+        << "Protected content identifier disabled due to enterprise policy.";
+    return false;
+  }
 
   return true;
 }

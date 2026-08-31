@@ -46,7 +46,6 @@ if (is_android) {
   import("//build/android/test_wrapper/logdog_wrapper.gni")
   import("//build/config/android/config.gni")
   import("//build/config/android/create_unwind_table.gni")
-  import("//build/config/android/extract_unwind_tables.gni")
   import("//build/config/android/rules.gni")
   import("//build/config/sanitizers/sanitizers.gni")
 } else if (is_fuchsia) {
@@ -179,7 +178,14 @@ template("mixed_test") {
                              "*",
                              TESTONLY_AND_VISIBILITY + _rs_vars + [
                                    "fuzztests",
-                                   "fuzztest_stack_limit_kb",
+                                   "fuzztest_additional_args",
+                                   "libfuzzer_options",
+                                   "centipede_options",
+                                   "asan_options",
+                                   "msan_options",
+                                   "ubsan_options",
+                                   "environment_variables",
+                                   "grammar_options",
                                  ])
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
       sources = _cc_sources
@@ -215,6 +221,9 @@ template("mixed_test") {
     # is 'executable', since we generate a wrapper script that assumes so.
     # At the moment, we aim to fuzz these fuzztests only on Linux so that's
     # fine. In future we may need to broaden this.
+
+    # It makes no sense to have an empty fuzztests variable, let's forbid it.
+    assert(invoker.fuzztests != [])
     if (defined(invoker.output_name)) {
       _output_name = invoker.output_name
     } else {
@@ -235,9 +244,8 @@ template("mixed_test") {
     # all fuzz tests in this executable.
     _common_fuzzer_args = [ "--corpus_database=" ]
 
-    if (use_centipede && defined(invoker.fuzztest_stack_limit_kb)) {
-      _common_fuzzer_args +=
-          [ "--stack_limit_kb=${invoker.fuzztest_stack_limit_kb}" ]
+    if (defined(invoker.fuzztest_additional_args)) {
+      _common_fuzzer_args += invoker.fuzztest_additional_args
     }
 
     # Confirming that the "fuzztests =" directive is correct can only
@@ -304,13 +312,70 @@ template("mixed_test") {
               NEWLINE
         }
 
+        _additional_fuzz_deps = []
+        gen_fuzzer_config_args = []
+
+        if (defined(invoker.libfuzzer_options)) {
+          gen_fuzzer_config_args += [ "--libfuzzer_options" ]
+          gen_fuzzer_config_args += invoker.libfuzzer_options
+        }
+
+        if (defined(invoker.centipede_options)) {
+          gen_fuzzer_config_args += [ "--centipede_options" ]
+          gen_fuzzer_config_args += invoker.centipede_options
+        }
+
+        if (defined(invoker.asan_options)) {
+          gen_fuzzer_config_args += [ "--asan_options" ]
+          gen_fuzzer_config_args += invoker.asan_options
+        }
+
+        if (defined(invoker.msan_options)) {
+          gen_fuzzer_config_args += [ "--msan_options" ]
+          gen_fuzzer_config_args += invoker.msan_options
+        }
+
+        if (defined(invoker.ubsan_options)) {
+          gen_fuzzer_config_args += [ "--ubsan_options" ]
+          gen_fuzzer_config_args += invoker.ubsan_options
+        }
+
+        if (defined(invoker.environment_variables)) {
+          gen_fuzzer_config_args += [ "--environment_variables" ]
+          gen_fuzzer_config_args += invoker.environment_variables
+        }
+
+        if (defined(invoker.grammar_options)) {
+          gen_fuzzer_config_args += [ "--grammar_options" ]
+          gen_fuzzer_config_args += invoker.grammar_options
+        }
+
+        if (gen_fuzzer_config_args != []) {
+          _config_file_name = _fuzzer_name + ".options"
+          _additional_fuzz_deps += [ ":" + _config_file_name ]
+
+          # Generate .options file.
+          action(_config_file_name) {
+            script = "//testing/libfuzzer/gen_fuzzer_config.py"
+            args = [
+              "--config",
+              rebase_path("$root_build_dir/" + _config_file_name,
+                          root_build_dir),
+            ]
+
+            args += gen_fuzzer_config_args
+
+            outputs = [ "$root_build_dir/$_config_file_name" ]
+          }
+        }
+
         _fuzzer_target_name = target_name
         executable(_fuzztest_generate_fuzzer) {
           testonly = true
           data_deps = [
-            ":" + _fuzztest_target_name,
-            ":" + _fuzzer_target_name,
-          ]
+                        ":" + _fuzztest_target_name,
+                        ":" + _fuzzer_target_name,
+                      ] + _additional_fuzz_deps
           deps = [
             "//testing/libfuzzer:individual_fuzztest_wrapper",
             ":" + _fuzztest_generate_fuzzer + "_constants",
@@ -324,6 +389,12 @@ template("mixed_test") {
           write_runtime_deps = "$root_build_dir/${_fuzzer_name}.runtime_deps"
         }
       }
+    } else {
+      not_needed([
+                   "_common_fuzzer_args",
+                   "_fuzzer_binary_name",
+                   "_fuzztest_target_name",
+                 ])
     }
   }
 }
@@ -352,8 +423,7 @@ template("mixed_test") {
 #      fuzzing infrastructure can find and run such tests.
 #      This should be a list of the test names, for example
 #      fuzztests = [ "MyTestClass.MyTestName" ]
-#   fuzztest_stack_limit_kb: soft limit on the size of the stack in KB, enforced
-#     for fuzz tests in fuzzing mode only.
+#   fuzztest_additional_args: additional arguments to be forwarded to fuzztest.
 template("test") {
   # Ensures a test filter file exists and if not, creates a dummy file.
   # The Regression Test Selection (rts) flag is passed in mb.py and used
@@ -528,29 +598,16 @@ template("test") {
       # Adds the unwind tables from unstripped binary as an asset file in the
       # apk, if |add_unwind_tables_in_apk| is specified by the test.
       if (_add_unwind_tables_in_apk) {
-        # TODO(crbug.com/40833600): Remove generation of v1 unwind asset when
-        # `CFIBacktraceAndroid` is replaced with `ChromeUnwinderAndroid`.
-        _unwind_table_name = "${_library_target_name}_unwind_v1"
-        unwind_table_v1(_unwind_table_name) {
+        _unwind_table_v2_name = "${_library_target_name}_unwind_v2"
+        unwind_table_v2(_unwind_table_v2_name) {
           library_target = ":$_library_target_name"
-        }
-
-        if (use_android_unwinder_v2) {
-          _unwind_table_v2_name = "${_library_target_name}_unwind_v2"
-          unwind_table_v2(_unwind_table_v2_name) {
-            library_target = ":$_library_target_name"
-          }
         }
 
         _unwind_table_asset_name = "${target_name}__unwind_assets"
         android_assets(_unwind_table_asset_name) {
-          sources = [ "$target_out_dir/$_unwind_table_name/$unwind_table_asset_v1_filename" ]
           disable_compression = true
-          deps = [ ":$_unwind_table_name" ]
-          if (use_android_unwinder_v2) {
-            sources += [ "$target_out_dir/$_unwind_table_v2_name/$unwind_table_asset_v2_filename" ]
-            deps += [ ":$_unwind_table_v2_name" ]
-          }
+          sources = [ "$target_out_dir/$_unwind_table_v2_name/$unwind_table_asset_v2_filename" ]
+          deps = [ ":$_unwind_table_v2_name" ]
         }
       }
 
@@ -841,7 +898,6 @@ template("test") {
                                "data",
                                "data_deps",
                                "package_deps",
-                               "use_test_server",
                              ])
 
       is_test_exe = true
@@ -1037,7 +1093,7 @@ template("test") {
         data_deps += [ ":${invoker.target_name}__rts_filters" ]
       }
     }
-  } else if (!is_nacl) {
+  } else {
     if (is_mac || is_win) {
       assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb)
     }
@@ -1116,29 +1172,6 @@ template("test") {
 
       write_runtime_deps = _runtime_deps_file
       deps += [ ":$_gen_runner_target" ]
-
-      if (!defined(data_deps)) {
-        data_deps = []
-      }
-
-      data_deps += [ "//testing:test_scripts_shared" ]
-      if (use_rts) {
-        data_deps += [ ":${invoker.target_name}__rts_filters" ]
-      }
-    }
-  } else {
-    # This is a catch-all clause for NaCl toolchains and other random
-    # configurations that might define tests; test() in these configs
-    # will just define the underlying executables.
-    assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb,
-           "use_xvfb should not be defined for a non-linux configuration")
-    mixed_test(target_name) {
-      target_type = "executable"
-      forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
-      forward_variables_from(invoker, [ "visibility" ])
-      if (!defined(deps)) {
-        deps = []
-      }
 
       if (!defined(data_deps)) {
         data_deps = []

@@ -10,6 +10,10 @@
 #ifndef NET_DCSCTP_SOCKET_PACKET_SENDER_H_
 #define NET_DCSCTP_SOCKET_PACKET_SENDER_H_
 
+#include <cstdint>
+#include <functional>
+
+#include "api/array_view.h"
 #include "net/dcsctp/packet/sctp_packet.h"
 #include "net/dcsctp/public/dcsctp_socket.h"
 

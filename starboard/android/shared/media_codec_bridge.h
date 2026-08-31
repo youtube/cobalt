@@ -65,7 +65,7 @@ class MediaCodecBridge : public MediaCodec {
   explicit MediaCodecBridge(Handler* handler);
   ~MediaCodecBridge() override;
 
-  void Initialize(jobject j_media_codec_bridge);
+  void Initialize(const jni_zero::JavaRef<jobject>& j_media_codec_bridge);
 
   // MediaCodec implementation
   Span<uint8_t> GetInputBufferAddress(jint index) override;

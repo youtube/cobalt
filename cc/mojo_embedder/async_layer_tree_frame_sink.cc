@@ -146,9 +146,6 @@ bool AsyncLayerTreeFrameSink::BindToClient(LayerTreeFrameSinkClient* client) {
             viz::BeginFrameSource::kNotRestartableId);
   }
 
-  compositor_frame_sink_ptr_->InitializeCompositorFrameSinkType(
-      viz::mojom::CompositorFrameSinkType::kLayerTree);
-
 #if BUILDFLAG(IS_ANDROID)
   std::vector<viz::Thread> threads;
   threads.push_back(
@@ -334,13 +331,10 @@ void AsyncLayerTreeFrameSink::DidNotProduceFrame(const viz::BeginFrameAck& ack,
 }
 
 void AsyncLayerTreeFrameSink::ExportFrameTiming() {
-  if (base::FeatureList::IsEnabled(
-          features::kExportFrameTimingAfterFrameDone)) {
-    for (const auto& pair : timing_details_) {
-      client_->DidPresentCompositorFrame(pair.first, pair.second);
-    }
-    timing_details_.clear();
+  for (const auto& pair : timing_details_) {
+    client_->DidPresentCompositorFrame(pair.first, pair.second);
   }
+  timing_details_.clear();
 }
 
 std::unique_ptr<LayerContext> AsyncLayerTreeFrameSink::CreateLayerContext(
@@ -354,7 +348,9 @@ void AsyncLayerTreeFrameSink::DidReceiveCompositorFrameAck(
     std::vector<viz::ReturnedResource> resources) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_->ReclaimResources(std::move(resources));
-  client_->DidReceiveCompositorFrameAck();
+  if (!base::FeatureList::IsEnabled(features::kNoCompositorFrameAcks)) {
+    client_->DidReceiveCompositorFrameAck();
+  }
 }
 
 void AsyncLayerTreeFrameSink::OnBeginFrame(
@@ -386,17 +382,9 @@ void AsyncLayerTreeFrameSink::OnBeginFrame(
     ReclaimResources(std::move(resources));
   }
 
-  bool timing_export =
-      base::FeatureList::IsEnabled(features::kExportFrameTimingAfterFrameDone);
-  if (timing_export) {
-    timing_details_.insert(timing_details.begin(), timing_details.end());
-  }
+  timing_details_.insert(timing_details.begin(), timing_details.end());
+
   for (const auto& pair : timing_details) {
-    // Cache timing details to be exported in either SubmitCompositorFrame() or
-    // DidNotProduceFrame().
-    if (!timing_export) {
-      client_->DidPresentCompositorFrame(pair.first, pair.second);
-    }
     if (synthetic_begin_frame_source_ &&
         use_begin_frame_presentation_feedback_) {
       const auto& feedback = pair.second.presentation_feedback;
@@ -435,6 +423,13 @@ void AsyncLayerTreeFrameSink::OnBeginFramePausedChanged(bool paused) {
   begin_frames_paused_ = paused;
   if (begin_frame_source_)
     begin_frame_source_->OnSetBeginFrameSourcePaused(paused);
+  if (use_internal_begin_frame_source_) {
+    if (paused) {
+      client_->SetBeginFrameSource(begin_frame_source_.get());
+    } else {
+      client_->SetBeginFrameSource(internal_begin_frame_source_.get());
+    }
+  }
 }
 
 void AsyncLayerTreeFrameSink::ReclaimResources(
@@ -451,6 +446,11 @@ void AsyncLayerTreeFrameSink::OnCompositorFrameTransitionDirectiveProcessed(
 void AsyncLayerTreeFrameSink::OnSurfaceEvicted(
     const viz::LocalSurfaceId& local_surface_id) {
   client_->OnSurfaceEvicted(local_surface_id);
+}
+
+void AsyncLayerTreeFrameSink::NotifyNewLocalSurfaceIdExpectedWhilePaused() {
+  DCHECK(compositor_frame_sink_ptr_);
+  compositor_frame_sink_ptr_->NotifyNewLocalSurfaceIdExpectedWhilePaused();
 }
 
 void AsyncLayerTreeFrameSink::OnNeedsBeginFrames(bool needs_begin_frames) {
@@ -529,7 +529,9 @@ void AsyncLayerTreeFrameSink::UpdateInternalBeginFrameSource(
       internal_begin_frame_source_->OnUpdateVSyncParameters(
           last_args.frame_time, last_args.interval);
     }
-    client_->SetBeginFrameSource(internal_begin_frame_source_.get());
+    if (!begin_frames_paused_) {
+      client_->SetBeginFrameSource(internal_begin_frame_source_.get());
+    }
     use_internal_begin_frame_source_ = true;
   } else {
     client_->SetBeginFrameSource(begin_frame_source_.get());

@@ -27,6 +27,7 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
+import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.ui.base.TestActivity;
@@ -93,6 +94,45 @@ public class DisplayUtilTest {
                 DisplayMetrics.DENSITY_260,
                 DisplayUtil.getUiDensityForAutomotive(
                         ContextUtils.getApplicationContext(), DisplayMetrics.DENSITY_180));
+    }
+
+    @Test
+    @Config(sdk = Build.VERSION_CODES.R)
+    public void testGetUiDensityForAutomotive_clampedToMaxValue() {
+        DisplayUtil.resetUiScalingFactorForAutomotiveForTesting();
+        assertEquals(
+                "Density 200 should be scaled to 280 when the scaling factor is 1.34.",
+                DisplayMetrics.DENSITY_280,
+                DisplayUtil.getUiDensityForAutomotive(
+                        ContextUtils.getApplicationContext(), DisplayMetrics.DENSITY_200));
+
+        CommandLine.getInstance().appendSwitchWithValue("clamp-automotive-scale-up", "1.0");
+        assertEquals(
+                "The scaling factor should be clamped to the max scaling factor of 1.",
+                DisplayMetrics.DENSITY_200,
+                DisplayUtil.getUiDensityForAutomotive(
+                        ContextUtils.getApplicationContext(), DisplayMetrics.DENSITY_200));
+
+        CommandLine.getInstance().removeSwitch("clamp-automotive-scale-up");
+        DisplayUtil.resetUiScalingFactorForAutomotiveForTesting();
+    }
+
+    // Tests when we have opted out of Clank's internal scaling when display compatibility is true.
+    @Test
+    @Config(sdk = Build.VERSION_CODES.R)
+    public void testGetUiDensityForAutomotive_displayCompatTrue() {
+        DisplayUtil.setCarmaPhase1Version2ComplianceForTesting(true);
+        DisplayUtil.setIsDisplayCompatAppForTesting(true);
+
+        DisplayUtil.resetUiScalingFactorForAutomotiveForTesting();
+
+        assertEquals(
+                "Density should be the base density when opted out of Clank's internal scaling.",
+                DisplayMetrics.DENSITY_DEFAULT,
+                DisplayUtil.getUiDensityForAutomotive(
+                        ContextUtils.getApplicationContext(), DisplayMetrics.DENSITY_DEFAULT));
+
+        DisplayUtil.resetUiScalingFactorForAutomotiveForTesting();
     }
 
     @Test

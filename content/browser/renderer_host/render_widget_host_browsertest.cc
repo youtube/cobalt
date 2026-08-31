@@ -26,6 +26,7 @@
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/input/synthetic_smooth_drag_gesture.h"
+#include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_widget_host_observer.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -34,10 +35,12 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test.h"
+#include "content/public/test/content_browser_test_content_browser_client.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/test_utils.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
+#include "ipc/constants.mojom.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -706,7 +709,7 @@ class ShowPopupInterceptor
 
   // blink::mojom::PopupWidgetHostInterceptorForTesting:
   blink::mojom::PopupWidgetHost* GetForwardingInterface() override {
-    DCHECK_NE(MSG_ROUTING_NONE, routing_id_);
+    DCHECK_NE(IPC::mojom::kRoutingIdNone, routing_id_);
     return RenderWidgetHostImpl::FromID(process_id_, routing_id_);
   }
 
@@ -718,10 +721,11 @@ class ShowPopupInterceptor
     run_loop_.Quit();
   }
 
-  void DidCreatePopupWidget(RenderWidgetHostImpl* render_widget_host) {
+  void DidCreatePopupWidget(RenderWidgetHost* render_widget_host) {
     process_id_ = render_widget_host->GetProcess()->GetDeprecatedID();
     routing_id_ = render_widget_host->GetRoutingID();
-    std::ignore = render_widget_host->popup_widget_host_receiver_for_testing()
+    std::ignore = static_cast<RenderWidgetHostImpl*>(render_widget_host)
+                      ->popup_widget_host_receiver_for_testing()
                       .SwapImplForTesting(this);
   }
 
@@ -731,7 +735,7 @@ class ShowPopupInterceptor
   CreateNewPopupWidgetInterceptor create_new_popup_widget_interceptor_;
   base::RunLoop run_loop_;
   gfx::Rect overriden_bounds_;
-  int32_t routing_id_ = MSG_ROUTING_NONE;
+  int32_t routing_id_ = IPC::mojom::kRoutingIdNone;
   int32_t process_id_ = 0;
 };
 
@@ -1187,6 +1191,7 @@ IN_PROC_BROWSER_TEST_F(RenderWidgetHostDelegatedInkMetadataTest,
                    .delegated_ink_metadata.has_value());
 }
 
+#if BUILDFLAG(IS_ANDROID)
 namespace {
 
 class LocalSurfaceIdChangedObserver
@@ -1262,37 +1267,21 @@ class RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest
     : public RenderWidgetHostBrowserTest,
       public ::testing::WithParamInterface<bool> {
  public:
-  RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest() {
-    bool increment_local_surface_id = GetParam();
-    if (increment_local_surface_id) {
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          /*enabled_features=*/
-          {{blink::features::
-                kIncrementLocalSurfaceIdForMainframeSameDocNavigation,
-            {}}},
-          /*disabled_features=*/{});
-    } else {
-      scoped_feature_list_.InitWithFeaturesAndParameters(
-          /*enabled_features=*/
-          {},
-          /*disabled_features=*/{
-              blink::features::
-                  kIncrementLocalSurfaceIdForMainframeSameDocNavigation});
-    }
-  }
+  RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest() = default;
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
     ASSERT_TRUE(embedded_test_server()->Start());
+    auto preferences = web_contents()->GetOrCreateWebPreferences();
+    preferences.increment_local_surface_id_for_mainframe_same_doc_navigation =
+        GetParam();
+    web_contents()->SetWebPreferences(preferences);
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
     RenderWidgetHostBrowserTest::SetUpCommandLine(command_line);
     command_line->AppendSwitch(switches::kForcePrefersNoReducedMotion);
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Assert that with `IncrementLocalSurfaceIdForMainframeSameDocNavigation`
@@ -1300,10 +1289,6 @@ class RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest
 IN_PROC_BROWSER_TEST_P(RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest,
                        SameDocNavigationUpdatesLocalSurfaceId) {
   bool increment_local_surface_id = GetParam();
-  ASSERT_EQ(increment_local_surface_id,
-            base::FeatureList::IsEnabled(
-                blink::features::
-                    kIncrementLocalSurfaceIdForMainframeSameDocNavigation));
   ASSERT_TRUE(NavigateToURL(shell(), embedded_test_server()->GetURL(
                                          "/session_history/fragment.html")));
   // Changes the background color when navigate to "fragment.html#a".
@@ -1338,6 +1323,8 @@ IN_PROC_BROWSER_TEST_P(RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest,
 INSTANTIATE_TEST_SUITE_P(All,
                          RenderWidgetHostSameDocNavUpdatesLocalSurfaceIdTest,
                          ::testing::Bool());
+
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace {
 

@@ -52,6 +52,7 @@ public class FormFieldData {
     public final String mHeuristicType;
     public final String[] mDatalistValues;
     public final String[] mDatalistLabels;
+    public final String mOrigin;
 
     // The bounds in the viewport's coordinates
     private RectF mBounds;
@@ -98,7 +99,8 @@ public class FormFieldData {
             String[] datalistValues,
             String[] datalistLabels,
             boolean visible,
-            boolean isAutofilled) {
+            boolean isAutofilled,
+            String origin) {
         mName = name;
         mLabel = label;
         mValue = value;
@@ -112,6 +114,7 @@ public class FormFieldData {
         mIsChecked = isChecked;
         mDatalistLabels = datalistLabels;
         mDatalistValues = datalistValues;
+        mOrigin = origin;
         if (mOptionValues != null && mOptionValues.length != 0) {
             mControlType = ControlType.LIST;
         } else if (mDatalistValues != null && mDatalistValues.length != 0) {
@@ -210,7 +213,7 @@ public class FormFieldData {
                 : getEmptyServerPredictionsString();
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static String getEmptyServerPredictionsString() {
         return "NO_SERVER_DATA";
     }
@@ -243,7 +246,7 @@ public class FormFieldData {
     }
 
     @CalledByNative
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     public static FormFieldData createFormFieldData(
             String name,
             String label,
@@ -269,7 +272,8 @@ public class FormFieldData {
             String[] datalistValues,
             String[] datalistLabels,
             boolean visible,
-            boolean isAutofilled) {
+            boolean isAutofilled,
+            String origin) {
         return new FormFieldData(
                 name,
                 label,
@@ -295,6 +299,7 @@ public class FormFieldData {
                 datalistValues,
                 datalistLabels,
                 visible,
-                isAutofilled);
+                isAutofilled,
+                origin);
     }
 }

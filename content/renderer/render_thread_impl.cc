@@ -77,6 +77,7 @@
 #include "content/common/main_frame_counter.h"
 #include "content/common/process_visibility_tracker.h"
 #include "content/common/pseudonymization_salt.h"
+#include "content/public/common/buildflags.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_constants.h"
 #include "content/public/common/content_features.h"
@@ -132,7 +133,6 @@
 #include "net/base/port_util.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
-#include "ppapi/buildflags/buildflags.h"
 #include "services/network/public/cpp/network_switches.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "services/viz/public/cpp/gpu/context_provider_command_buffer.h"
@@ -162,6 +162,7 @@
 #include "third_party/blink/public/web/web_user_level_memory_pressure_signal_generator.h"
 #include "third_party/blink/public/web/web_v8_features.h"
 #include "third_party/blink/public/web/web_view.h"
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkGraphics.h"
 #include "ui/base/ui_base_switches.h"
@@ -198,7 +199,6 @@
 #endif
 
 #if defined(ENABLE_IPC_FUZZER)
-#include "content/common/external_ipc_dumper.h"
 #include "mojo/public/cpp/bindings/message_dumper.h"
 #endif
 
@@ -279,7 +279,6 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateOffscreenContext(
     bool support_gles2_interface,
     bool support_raster_interface,
     bool support_gpu_rasterization,
-    bool support_grcontext,
     bool automatic_flushes,
     viz::command_buffer_metrics::ContextType type,
     int32_t stream_id,
@@ -292,11 +291,9 @@ scoped_refptr<viz::ContextProviderCommandBuffer> CreateOffscreenContext(
   // This is for an offscreen context, so the default framebuffer doesn't need
   // alpha, depth, stencil, antialiasing.
   gpu::ContextCreationAttribs attributes;
-  attributes.bind_generates_resource = false;
   attributes.lose_context_when_out_of_memory = true;
   attributes.enable_gles2_interface = support_gles2_interface;
   attributes.enable_raster_interface = support_raster_interface;
-  attributes.enable_grcontext = support_grcontext;
   // Using RasterDecoder for OOP-R backend, so we need support_raster_interface
   // and !support_gles2_interface.
   attributes.enable_gpu_rasterization = support_gpu_rasterization &&
@@ -337,6 +334,15 @@ bool IsBackgrounded(std::optional<base::Process::Priority> process_priority) {
       return false;
   }
 }
+
+#if BUILDFLAG(IS_COBALT)
+bool IsCriticalAllowedInForeground() {
+  static const bool kAllowCriticalInForeground =
+      base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "allow-critical-memory-pressure-handling-in-foreground");
+  return kAllowCriticalInForeground;
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 perfetto::StaticString ProcessPriorityToString(
     std::optional<base::Process::Priority> priority) {
@@ -546,11 +552,6 @@ void RenderThreadImpl::Init() {
 
   GetContentClient()->renderer()->PostIOThreadCreated(GetIOTaskRunner().get());
 
-#if BUILDFLAG(USE_EXTERNAL_POPUP_MENU)
-  // On Mac and Android Java UI, the select popups are rendered by the browser.
-    blink::WebView::SetUseExternalPopupMenus(true);
-#endif
-
   render_thread = this;
   g_main_task_runner.Get() = base::SingleThreadTaskRunner::GetCurrentDefault();
 
@@ -601,9 +602,6 @@ void RenderThreadImpl::Init() {
   if (command_line.HasSwitch(switches::kIpcDumpDirectory)) {
     base::FilePath dump_directory =
         command_line.GetSwitchValuePath(switches::kIpcDumpDirectory);
-    IPC::ChannelProxy::OutgoingMessageFilter* filter =
-        LoadExternalIPCDumper(dump_directory);
-    GetChannel()->set_outgoing_message_filter(filter);
     mojo::MessageDumper::SetMessageDumpDirectory(dump_directory);
   }
 #endif
@@ -643,9 +641,15 @@ void RenderThreadImpl::Init() {
   memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
       FROM_HERE,
       base::BindRepeating(&RenderThreadImpl::OnMemoryPressure,
-                          base::Unretained(this)),
-      base::BindRepeating(&RenderThreadImpl::OnSyncMemoryPressure,
                           base::Unretained(this)));
+  // In tests or in single-process mode, the render thread does not live on the
+  // main thread of the process, so we can't register a sync listener.
+  if (base::SingleThreadTaskRunner::GetMainThreadDefault()
+          ->BelongsToCurrentThread()) {
+    sync_memory_pressure_listener_ =
+        std::make_unique<base::SyncMemoryPressureListener>(base::BindRepeating(
+            &RenderThreadImpl::OnSyncMemoryPressure, base::Unretained(this)));
+  }
 
   discardable_memory_allocator_ = CreateDiscardableMemoryAllocator();
 
@@ -762,36 +766,6 @@ void RenderThreadImpl::OnTraceLogEnabled() {
 }
 
 void RenderThreadImpl::OnTraceLogDisabled() {}
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-IPC::SyncMessageFilter* RenderThreadImpl::GetSyncMessageFilter() {
-  return sync_message_filter();
-}
-
-void RenderThreadImpl::AddRoute(int32_t routing_id, IPC::Listener* listener) {
-  ChildThreadImpl::GetRouter()->AddRoute(routing_id, listener);
-}
-
-void RenderThreadImpl::AttachTaskRunnerToRoute(
-    int32_t routing_id,
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner) {
-  GetChannel()->AddListenerTaskRunner(routing_id, std::move(task_runner));
-}
-
-void RenderThreadImpl::RemoveRoute(int32_t routing_id) {
-  ChildThreadImpl::GetRouter()->RemoveRoute(routing_id);
-  GetChannel()->RemoveListenerTaskRunner(routing_id);
-}
-
-void RenderThreadImpl::AddFilter(IPC::MessageFilter* filter) {
-  channel()->AddFilter(filter);
-}
-
-void RenderThreadImpl::RemoveFilter(IPC::MessageFilter* filter) {
-  channel()->RemoveFilter(filter);
-}
-
-#endif
 
 mojom::RendererHost* RenderThreadImpl::GetRendererHost() {
   if (!renderer_host_) {
@@ -1055,13 +1029,11 @@ media::GpuVideoAcceleratorFactories* RenderThreadImpl::GetGpuFactories() {
   bool support_gles2_interface = true;
   bool support_raster_interface = false;
   bool support_oop_rasterization = false;
-  bool support_grcontext = false;
   bool automatic_flushes = false;
   scoped_refptr<viz::ContextProviderCommandBuffer> media_context_provider =
       CreateOffscreenContext(gpu_channel_host, limits, support_locking,
                              support_gles2_interface, support_raster_interface,
-                             support_oop_rasterization, support_grcontext,
-                             automatic_flushes,
+                             support_oop_rasterization, automatic_flushes,
                              viz::command_buffer_metrics::ContextType::MEDIA,
                              kGpuStreamIdMedia, kGpuStreamPriorityMedia);
 
@@ -1147,12 +1119,10 @@ RenderThreadImpl::GetVideoFrameCompositorContextProvider(
   bool support_gles2_interface = false;
   bool support_raster_interface = true;
   bool support_oop_rasterization = false;
-  bool support_grcontext = false;
   bool automatic_flushes = false;
   video_frame_compositor_context_provider_ = CreateOffscreenContext(
       gpu_channel_host, limits, support_locking, support_gles2_interface,
-      support_raster_interface, support_oop_rasterization, support_grcontext,
-      automatic_flushes,
+      support_raster_interface, support_oop_rasterization, automatic_flushes,
       viz::command_buffer_metrics::ContextType::RENDER_COMPOSITOR,
       kGpuStreamIdMedia, kGpuStreamPriorityMedia);
   return video_frame_compositor_context_provider_;
@@ -1198,32 +1168,23 @@ RenderThreadImpl::SharedMainThreadContextProvider() {
     return nullptr;
   }
 
-  if (base::FeatureList::IsEnabled(
-          ::features::kDisallowRasterInterfaceWithoutSkiaBackend) &&
-      gpu_channel_host->gpu_info().skia_backend_type ==
-          gpu::SkiaBackendType::kNone) {
+  if (gpu_channel_host->gpu_info().skia_backend_type ==
+      gpu::SkiaBackendType::kNone) {
     return nullptr;
   }
 
-  bool support_locking = false;
-  bool support_raster_interface = true;
-  // TODO(zmo): today if Skia backend is set, Chrome either runs in GPU
-  // acceleration mode, either on top of real GPU, or on top of SwiftShader
-  // (for testing). This may change in the future if we move Skia software
-  // rendering to be OOP as well.
-  bool support_oop_rasterization =
-      gpu_channel_host->gpu_info().skia_backend_type !=
-      gpu::SkiaBackendType::kNone;
-  bool support_gles2_interface = false;
-  bool support_grcontext = !support_oop_rasterization;
+  const bool support_locking = false;
+  const bool support_raster_interface = true;
+  const bool support_oop_rasterization = true;
+  const bool support_gles2_interface = false;
   // Enable automatic flushes to improve canvas throughput.
   // See https://crbug.com/880901
-  bool automatic_flushes = true;
+  const bool automatic_flushes = true;
 
   shared_main_thread_contexts_ = CreateOffscreenContext(
       std::move(gpu_channel_host), gpu::SharedMemoryLimits(), support_locking,
       support_gles2_interface, support_raster_interface,
-      support_oop_rasterization, support_grcontext, automatic_flushes,
+      support_oop_rasterization, automatic_flushes,
       viz::command_buffer_metrics::ContextType::RENDERER_MAIN_THREAD,
       kGpuStreamIdDefault, kGpuStreamPriorityDefault);
   auto result = shared_main_thread_contexts_->BindToCurrentSequence();
@@ -1369,17 +1330,6 @@ void RenderThreadImpl::OnProcessFinalRelease() {
   NOTREACHED();
 }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-bool RenderThreadImpl::OnControlMessageReceived(const IPC::Message& msg) {
-  for (auto& observer : observers_) {
-    if (observer.OnControlMessageReceived(msg))
-      return true;
-  }
-
-  return false;
-}
-#endif
-
 void RenderThreadImpl::SetProcessState(
     base::Process::Priority process_priority,
     mojom::RenderProcessVisibleState visible_state) {
@@ -1494,13 +1444,12 @@ scoped_refptr<gpu::GpuChannelHost> RenderThreadImpl::EstablishGpuChannelSync() {
 
 void RenderThreadImpl::EstablishGpuChannel(
     EstablishGpuChannelCallback callback) {
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
-      "gpu", "RenderThreadImpl::EstablishGpuChannel", this);
+  TRACE_EVENT_BEGIN("gpu", "RenderThreadImpl::EstablishGpuChannel",
+                    perfetto::Track::FromPointer(this));
   gpu_->EstablishGpuChannel(base::BindOnce(
       [](EstablishGpuChannelCallback callback, RenderThreadImpl* thread,
          scoped_refptr<gpu::GpuChannelHost> host) {
-        TRACE_EVENT_NESTABLE_ASYNC_END0(
-            "gpu", "RenderThreadImpl::EstablishGpuChannel", thread);
+        TRACE_EVENT_END("gpu", perfetto::Track::FromPointer(thread));
         if (host)
           GetContentClient()->SetGpuInfo(host->gpu_info());
         std::move(callback).Run(std::move(host));
@@ -1743,7 +1692,6 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
 
   bool support_gles2_interface = false;
   bool support_raster_interface = true;
-  bool support_grcontext = false;
   bool automatic_flushes = false;
   auto shared_memory_limits =
       support_gpu_rasterization ? gpu::SharedMemoryLimits::ForOOPRasterContext()
@@ -1751,7 +1699,7 @@ RenderThreadImpl::SharedCompositorWorkerContextProvider(
   shared_worker_context_provider_ = CreateOffscreenContext(
       std::move(gpu_channel_host), shared_memory_limits, support_locking,
       support_gles2_interface, support_raster_interface,
-      support_gpu_rasterization, support_grcontext, automatic_flushes,
+      support_gpu_rasterization, automatic_flushes,
       viz::command_buffer_metrics::ContextType::RENDER_WORKER,
       kGpuStreamIdWorker, kGpuStreamPriorityWorker);
 
@@ -1822,9 +1770,15 @@ void RenderThreadImpl::OnSyncMemoryPressure(
 #if !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
   // In order to reduce performance impact, translate critical level to
   // moderate level for foreground renderer.
+#if BUILDFLAG(IS_COBALT)
+  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
+      v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
+    v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#else
   if (!RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
+#endif  // BUILDFLAG(IS_COBALT)
 #endif  // !BUILDFLAG(ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)
 
   if (base::FeatureList::IsEnabled(

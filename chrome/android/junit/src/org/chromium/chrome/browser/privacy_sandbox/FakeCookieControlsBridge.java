@@ -30,11 +30,14 @@ public class FakeCookieControlsBridge implements CookieControlsBridge.Natives {
             boolean isIncognitoBranded) {}
 
     @Override
-    public void destroy(long nativeCookieControlsBridge, CookieControlsBridge caller) {}
+    public void destroy(long nativeCookieControlsBridge) {}
 
     @Override
     public void setThirdPartyCookieBlockingEnabledForSite(
             long nativeCookieControlsBridge, boolean blockCookies) {}
+
+    @Override
+    public void onTrackingProtectionsChangedForSite(long nativeCookieControlsBridge) {}
 
     @Override
     public void onUiClosing(long nativeCookieControlsBridge) {}

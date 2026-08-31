@@ -23,8 +23,11 @@
 #include "extensions/browser/api/declarative_net_request/indexed_rule.h"
 #include "extensions/browser/api/declarative_net_request/test_utils.h"
 #include "extensions/browser/api/declarative_net_request/utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/api/declarative_net_request.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions::declarative_net_request {
 namespace {
@@ -527,8 +530,7 @@ TEST_F(FlatRulesetIndexerTest, MultipleRules) {
       {}));
   rules_to_index.push_back(CreateIndexedRule(
       16, kMinValidPriority,
-      flat_rule::OptionFlag_IS_ALLOWLIST |
-          flat_rule::OptionFlag_IS_CASE_INSENSITIVE,
+      flat_rule::OptionFlag_IS_ALLOWLIST | flat_rule::OptionFlag_IS_MATCH_CASE,
       flat_rule::ElementType_IMAGE, flat_rule::ActivationType_NONE,
       flat_rule::UrlPatternType_SUBSTRING, flat_rule::AnchorType_NONE,
       flat_rule::AnchorType_NONE, "example3", {}, {}, std::nullopt,
@@ -559,7 +561,7 @@ TEST_F(FlatRulesetIndexerTest, MultipleRules) {
       dnr_api::HeaderOperation::kSet, "custom-2", "value-2"));
 
   rules_to_index.push_back(CreateIndexedRule(
-      23, kMinValidPriority, flat_rule::OptionFlag_IS_CASE_INSENSITIVE,
+      23, kMinValidPriority, flat_rule::OptionFlag_IS_MATCH_CASE,
       flat_rule::ElementType_SUBDOCUMENT, flat_rule::ActivationType_NONE,
       flat_rule::UrlPatternType_SUBSTRING, flat_rule::AnchorType_SUBDOMAIN,
       flat_rule::AnchorType_NONE, "example.com", {}, {}, std::nullopt,
@@ -588,7 +590,7 @@ TEST_F(FlatRulesetIndexerTest, MultipleRules) {
   }
 
   rules_to_index.push_back(CreateIndexedRule(
-      24, kMinValidPriority, flat_rule::OptionFlag_IS_CASE_INSENSITIVE,
+      24, kMinValidPriority, flat_rule::OptionFlag_IS_MATCH_CASE,
       flat_rule::ElementType_SUBDOCUMENT, flat_rule::ActivationType_NONE,
       flat_rule::UrlPatternType_SUBSTRING, flat_rule::AnchorType_SUBDOMAIN,
       flat_rule::AnchorType_NONE, "example.com", {}, {}, std::nullopt,
@@ -689,7 +691,7 @@ TEST_F(FlatRulesetIndexerTest, RegexRules) {
   request_headers.push_back(CreateModifyHeaderInfo(
       dnr_api::HeaderOperation::kSet, "cookie", "sample-cookie"));
   rules_to_index.push_back(CreateIndexedRule(
-      21, kMinValidPriority, flat_rule::OptionFlag_IS_CASE_INSENSITIVE,
+      21, kMinValidPriority, flat_rule::OptionFlag_IS_MATCH_CASE,
       flat_rule::ElementType_SUBDOCUMENT, flat_rule::ActivationType_NONE,
       flat_rule::UrlPatternType_REGEXP, flat_rule::AnchorType_NONE,
       flat_rule::AnchorType_NONE, "*", {}, {}, std::nullopt,

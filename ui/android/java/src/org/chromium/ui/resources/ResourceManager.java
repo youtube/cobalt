@@ -26,13 +26,13 @@ import org.chromium.ui.resources.statics.StaticResourceLoader;
 import org.chromium.ui.resources.system.SystemResourceLoader;
 
 /**
- * The Java component of a manager for all static resources to be loaded and used by CC layers.
- * This class does not hold any resource state, but passes it directly to native as they are loaded.
+ * The Java component of a manager for all static resources to be loaded and used by CC layers. This
+ * class does not hold any resource state, but passes it directly to native as they are loaded.
  */
 @JNINamespace("ui")
 @NullMarked
 public class ResourceManager implements ResourceLoaderCallback {
-    private final SparseArray<ResourceLoader> mResourceLoaders = new SparseArray<ResourceLoader>();
+    private final SparseArray<ResourceLoader> mResourceLoaders = new SparseArray<>();
     private final SparseArray<SparseArray<LayoutResource>> mLoadedResources =
             new SparseArray<SparseArray<LayoutResource>>();
 
@@ -148,7 +148,6 @@ public class ResourceManager implements ResourceLoaderCallback {
         ResourceManagerJni.get()
                 .onResourceReady(
                         mNativeResourceManagerPtr,
-                        ResourceManager.this,
                         resType,
                         resId,
                         bitmap,
@@ -167,22 +166,20 @@ public class ResourceManager implements ResourceLoaderCallback {
 
         if (mNativeResourceManagerPtr == 0) return;
 
-        ResourceManagerJni.get()
-                .removeResource(mNativeResourceManagerPtr, ResourceManager.this, resType, resId);
+        ResourceManagerJni.get().removeResource(mNativeResourceManagerPtr, resType, resId);
     }
 
     /** Clear the cache of tinted assets that the native manager holds. */
     public void clearTintedResourceCache() {
         if (mNativeResourceManagerPtr == 0) return;
-        ResourceManagerJni.get()
-                .clearTintedResourceCache(mNativeResourceManagerPtr, ResourceManager.this);
+        ResourceManagerJni.get().clearTintedResourceCache(mNativeResourceManagerPtr);
     }
 
     private void saveMetadataForLoadedResource(
             @AndroidResourceType int resType, int resId, Resource resource) {
         SparseArray<LayoutResource> bucket = mLoadedResources.get(resType);
         if (bucket == null) {
-            bucket = new SparseArray<LayoutResource>();
+            bucket = new SparseArray<>();
             mLoadedResources.put(resType, bucket);
         }
         bucket.put(resId, new LayoutResource(mPxToDp, resource));
@@ -215,16 +212,14 @@ public class ResourceManager implements ResourceLoaderCallback {
         mResourceLoaders.put(loader.getResourceType(), loader);
     }
 
-    public void dumpIfNoResource(int resType, int resId) {
-        ResourceManagerJni.get()
-                .dumpIfNoResource(mNativeResourceManagerPtr, ResourceManager.this, resType, resId);
+    public void assertResourceExists(int resType, int resId) {
+        ResourceManagerJni.get().assertResourceExists(mNativeResourceManagerPtr, resType, resId);
     }
 
     @NativeMethods
     interface Natives {
         void onResourceReady(
                 long nativeResourceManagerImpl,
-                ResourceManager caller,
                 int resType,
                 int resId,
                 Bitmap bitmap,
@@ -232,12 +227,10 @@ public class ResourceManager implements ResourceLoaderCallback {
                 int height,
                 long nativeResource);
 
-        void removeResource(
-                long nativeResourceManagerImpl, ResourceManager caller, int resType, int resId);
+        void removeResource(long nativeResourceManagerImpl, int resType, int resId);
 
-        void clearTintedResourceCache(long nativeResourceManagerImpl, ResourceManager caller);
+        void clearTintedResourceCache(long nativeResourceManagerImpl);
 
-        void dumpIfNoResource(
-                long nativeResourceManagerImpl, ResourceManager caller, int resType, int resId);
+        void assertResourceExists(long nativeResourceManagerImpl, int resType, int resId);
     }
 }

@@ -5,6 +5,7 @@
 #include "chrome/browser/extensions/api/bookmark_manager_private/bookmark_manager_private_api.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/profiles/profile.h"
@@ -42,7 +43,7 @@ class BookmarkManagerPrivateApiBrowsertest : public InProcessBrowserTest {
  private:
   BookmarkModel* WaitForBookmarkModel() {
     BookmarkModel* model =
-        BookmarkModelFactory::GetForBrowserContext(browser()->profile());
+        BookmarkModelFactory::GetForBrowserContext(GetProfile());
     bookmarks::test::WaitForBookmarkModelToLoad(model);
     return model;
   }
@@ -61,7 +62,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
       base::MakeRefCounted<BookmarkManagerPrivateOpenInNewWindowFunction>();
   std::string args = base::StringPrintf(R"([["%s"], false])", node_id.c_str());
   ASSERT_TRUE(api_test_utils::RunFunction(new_window_function.get(), args,
-                                          browser()->profile()));
+                                          GetProfile()));
 }
 
 IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
@@ -75,7 +76,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
       base::MakeRefCounted<BookmarkManagerPrivateOpenInNewWindowFunction>();
   std::string args = base::StringPrintf(R"([["%s"], true])", node_id.c_str());
   ASSERT_TRUE(api_test_utils::RunFunction(new_window_function.get(), args,
-                                          browser()->profile()));
+                                          GetProfile()));
 }
 
 IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
@@ -95,7 +96,7 @@ IN_PROC_BROWSER_TEST_F(BookmarkManagerPrivateApiBrowsertest,
   std::string args = base::StringPrintf(R"([["%s","%s"]])", node_id1.c_str(),
                                         node_id2.c_str());
   ASSERT_TRUE(api_test_utils::RunFunction(new_tab_group_function.get(), args,
-                                          browser()->profile()));
+                                          GetProfile()));
 
   // Verify the tab group and the tabs are created.
   ASSERT_EQ(

@@ -9,10 +9,9 @@
  */
 #include "api/video/i420_buffer.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <utility>
 
 #include "api/make_ref_counted.h"

@@ -145,7 +145,7 @@ class SaveCardBubbleControllerImpl
   void OnBubbleClosed(PaymentsUiClosedReason closed_reason) override;
   const LegalMessageLines& GetLegalMessageLines() const override;
   bool IsUploadSave() const override;
-  BubbleType GetBubbleType() const override;
+  PaymentsBubbleType GetPaymentsBubbleType() const override;
   bool IsPaymentsSyncTransportEnabledWithoutSyncFeature() const override;
   void HideSaveCardBubble() override;
 
@@ -157,6 +157,10 @@ class SaveCardBubbleControllerImpl
   bool IsIconVisible() const override;
   AutofillBubbleBase* GetPaymentBubbleView() const override;
   int GetSaveSuccessAnimationStringId() const override;
+
+  // BubbleControllerBase:
+  BubbleType GetBubbleType() const override;
+  base::WeakPtr<BubbleControllerBase> GetBubbleControllerBaseWeakPtr() override;
 
   static base::AutoReset<bool> IgnoreWindowActivationForTesting();
 
@@ -177,7 +181,7 @@ class SaveCardBubbleControllerImpl
   friend class SaveCardBubbleViewsFullFormBrowserTest;
 
   // Displays both the offer-to-save bubble and is associated omnibox icon.
-  void ShowBubble();
+  void SetupAndShowBubble();
 
   // Displays the omnibox icon without popping up the offer-to-save bubble.
   void ShowIconOnly();
@@ -202,7 +206,7 @@ class SaveCardBubbleControllerImpl
 
   // The type of bubble that is either currently being shown or would
   // be shown when the save card icon is clicked.
-  BubbleType current_bubble_type_ = BubbleType::INACTIVE;
+  PaymentsBubbleType current_bubble_type_ = PaymentsBubbleType::kInactive;
 
   // Callback to run once the user makes a decision with respect to the credit
   // card upload offer-to-save prompt or the CVC upload offer-to-save prompt

@@ -448,13 +448,18 @@ test("printing_unittests") {
 
     if (is_chromeos) {
       sources += [ "printing_context_chromeos_unittest.cc" ]
-    } else {
+    }
+    if (is_linux) {
       sources += [
         "backend/cups_helper_unittest.cc",
         "backend/print_backend_cups_unittest.cc",
       ]
     }
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (use_cups) {

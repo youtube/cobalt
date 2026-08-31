@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/strings/grit/components_strings.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin_earl_grey.h"
@@ -155,8 +156,8 @@ id<GREYMatcher> DismissWarningButton() {
 // Matcher for the "Dismiss" button of the confirmation dialog found in a
 // compromised password's details page when trying to dismiss the warning.
 id<GREYMatcher> DismissWarningConfirmationDialogButton() {
-  return ButtonWithAccessibilityLabel(
-      l10n_util::GetNSString(IDS_IOS_DISMISS_WARNING_DIALOG_DISMISS_BUTTON));
+  return chrome_test_util::AlertItemWithAccessibilityLabelId(
+      IDS_IOS_DISMISS_WARNING_DIALOG_DISMISS_BUTTON);
 }
 
 // Matcher for the "Restore Warning" button found in a muted compromised
@@ -415,12 +416,7 @@ NSString* LeakedPasswordDescription() {
 }
 
 // Tests the loading state of the Password Checkup Homepage.
-// TODO(crbug.com/40921746): Fix and re enable the test.
-- (void)DISABLED_testPasswordCheckupHomepageLoadingState {
-  // TODO(crbug.com/41484731): Test fails on iPad.
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    EARL_GREY_TEST_DISABLED(@"Fails on iPad.");
-  }
+- (void)testPasswordCheckupHomepageLoadingState {
   SaveCompromisedPasswordFormToProfileStore();
 
   NSInteger numberOfAffiliatedGroups = 1;
@@ -428,6 +424,11 @@ NSString* LeakedPasswordDescription() {
   OpenPasswordCheckupHomepage(
       /*result_state=*/PasswordCheckStateUnmutedCompromisedPasswords,
       /*result_password_count=*/1);
+
+  // Artificially keep the loading state while we verify the UI.
+  [PasswordSettingsAppInterface
+      setFakeBulkLeakCheckBufferedState:
+          password_manager::BulkLeakCheckServiceInterface::State::kRunning];
 
   // Trigger a new check by tapping the "Check Again" button.
   [[EarlGrey selectElementWithMatcher:CheckAgainButton()]
@@ -448,6 +449,11 @@ NSString* LeakedPasswordDescription() {
   // Verify that the "Check Again" button is disabled.
   [[EarlGrey selectElementWithMatcher:CheckAgainButton()]
       assertWithMatcher:grey_not(grey_userInteractionEnabled())];
+
+  // Artificially reset the loading state to idle.
+  [PasswordSettingsAppInterface
+      setFakeBulkLeakCheckBufferedStateAndNotifyObservers:
+          password_manager::BulkLeakCheckServiceInterface::State::kIdle];
 
   // Wait for Password Checkup to finish loading.
   [ChromeEarlGrey waitForNotSufficientlyVisibleElementWithMatcher:
@@ -495,7 +501,11 @@ NSString* LeakedPasswordDescription() {
 
 // Tests that the Password Checkup Homepage header image view is correctly
 // shown/hidden depending on the device's orientation.
+// TODO(crbug.com/435095080): Reenable this test.
 - (void)testPasswordCheckupHomepageDeviceOrientation {
+  if (![ChromeEarlGrey isIPadIdiom]) {
+    EARL_GREY_TEST_DISABLED(@"Failing on iPhone Simulator");
+  }
   if ([ChromeEarlGrey isIPadIdiom]) {
     EARL_GREY_TEST_SKIPPED(@"Landscape orientation doesn't change the look of "
                            @"the Password Checkup Homepage.");

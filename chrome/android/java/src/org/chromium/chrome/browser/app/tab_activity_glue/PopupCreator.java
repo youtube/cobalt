@@ -4,15 +4,19 @@
 
 package org.chromium.chrome.browser.app.tab_activity_glue;
 
-import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.content.Intent;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.Pair;
 
+import org.chromium.base.AconfigFlaggedApiDelegate;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ResettersForTesting;
+import org.chromium.base.ServiceLoaderUtil;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider;
@@ -23,9 +27,10 @@ import org.chromium.ui.display.DisplayAndroid;
 import org.chromium.ui.display.DisplayUtil;
 
 /** Handles launching new popup windows as CCTs. */
+@NullMarked
 public class PopupCreator {
-    private static Boolean sArePopupsEnabledForTesting;
-    private static ReparentingTask sReparentingTaskForTesting;
+    private static @Nullable Boolean sArePopupsEnabledForTesting;
+    private static @Nullable ReparentingTask sReparentingTaskForTesting;
 
     // TODO(https://crbug.com/411002260): remove the display argument when Android display topology
     // API is available in Chrome
@@ -42,7 +47,9 @@ public class PopupCreator {
                         null);
     }
 
-    public static boolean arePopupsEnabled(Activity activity) {
+    // TODO(https://crbug.com/411002260): retrieve the display from bounds when Android Display
+    // Topology API is available to Chrome
+    public static boolean arePopupsEnabled(DisplayAndroid display) {
         if (!ChromeFeatureList.isEnabled(ChromeFeatureList.ANDROID_WINDOW_POPUP_LARGE_SCREEN)) {
             return false;
         }
@@ -51,8 +58,15 @@ public class PopupCreator {
             return sArePopupsEnabledForTesting;
         }
 
-        // TODO(https://crbug.com/411013760): update this when relevant Android API is landed
-        return activity.isInMultiWindowMode();
+        AconfigFlaggedApiDelegate delegate =
+                ServiceLoaderUtil.maybeCreate(AconfigFlaggedApiDelegate.class);
+        if (delegate == null) {
+            return false;
+        }
+
+        ActivityManager am =
+                ContextUtils.getApplicationContext().getSystemService(ActivityManager.class);
+        return delegate.isTaskMoveAllowedOnDisplay(am, display.getDisplayId());
     }
 
     public static void setArePopupsEnabledForTesting(boolean value) {

@@ -956,7 +956,6 @@ TEST_F(PowerButtonControllerTest, FormerlyActiveWindowInShowingMenu) {
   // painted as active to avoid frame color change.
   EXPECT_FALSE(widget->IsActive());
   EXPECT_TRUE(widget->ShouldPaintAsActive());
-  EXPECT_TRUE(widget->non_client_view()->frame_view()->ShouldPaintAsActive());
   EXPECT_TRUE(
       wm::IsActiveWindow(power_button_test_api_->GetPowerButtonMenuView()
                              ->GetWidget()
@@ -1098,7 +1097,7 @@ TEST_F(PowerButtonControllerTest, PartiallyShownMenuInTabletMode) {
 
 TEST_F(PowerButtonControllerTest, PowerMenuItemsInTabletKiosk) {
   ClearLogin();
-  SimulateKioskMode(user_manager::UserType::kWebKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskWebApp);
   SetCanLockScreen(false);
 
   EnableTabletMode(true);
@@ -1114,7 +1113,7 @@ TEST_F(PowerButtonControllerTest, PowerMenuItemsInTabletKiosk) {
 
 TEST_F(PowerButtonControllerTest, PowerMenuItemsInLaptopKiosk) {
   ClearLogin();
-  SimulateKioskMode(user_manager::UserType::kWebKioskApp);
+  SimulateKioskMode(user_manager::UserType::kKioskWebApp);
   SetCanLockScreen(false);
 
   EnableTabletMode(false);

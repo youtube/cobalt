@@ -82,10 +82,9 @@ public interface WebContents extends Parcelable {
     }
 
     /**
-     *
      * Initialize various content objects of {@link WebContents} lifetime.
      *
-     * Note: This method is more of to set the {@link ViewAndroidDelegate} and {@link
+     * <p>Note: This method is more of to set the {@link ViewAndroidDelegate} and {@link
      * ViewEventSink.InternalAccessDelegate}, most of the embedder should only call this once during
      * the whole lifecycle of the {@link WebContents}, but it is safe to call it multiple times.
      *
@@ -98,7 +97,7 @@ public interface WebContents extends Parcelable {
     void setDelegates(
             String productVersion,
             ViewAndroidDelegate viewDelegate,
-            ViewEventSink.InternalAccessDelegate accessDelegate,
+            ViewEventSink.@Nullable InternalAccessDelegate accessDelegate,
             @Nullable WindowAndroid windowAndroid,
             InternalsHolder internalsHolder);
 
@@ -117,10 +116,11 @@ public interface WebContents extends Parcelable {
      */
     @Nullable WindowAndroid getTopLevelNativeWindow();
 
-    /*
+    /**
      * Updates the native {@link WebContents} with a new window. This moves the NativeView and
      * attached it to the new NativeWindow linked with the given {@link WindowAndroid}.
      * TODO(jinsukkim): This should happen through view android tree instead.
+     *
      * @param windowAndroid The new {@link WindowAndroid} for this {@link WebContents}.
      */
     void setTopLevelNativeWindow(@Nullable WindowAndroid windowAndroid);
@@ -256,12 +256,17 @@ public interface WebContents extends Parcelable {
 
     /**
      * ChildProcessImportance on Android allows controls of the renderer process bindings
-     * independent of visibility. Note this does not affect importance of subframe processes or main
-     * frames processeses for non-primary pages.
+     * independent of visibility. Note this does not affect importance of processes for non-primary
+     * pages.
      *
-     * @param importance importance of the primary page's main frame process.
+     * <p>The subframeImportance must be less than or equal to the mainFrameImportance.
+     *
+     * @param mainFrameImportance importance of the primary page's main frame process.
+     * @param subframeImportance importance of the primary page's subframes process.
      */
-    void setPrimaryMainFrameImportance(@ChildProcessImportance int importance);
+    void setPrimaryPageImportance(
+            @ChildProcessImportance int mainFrameImportance,
+            @ChildProcessImportance int subframeImportance);
 
     /**
      * Suspends all media players for this WebContents. Note: There may still be activities
@@ -566,14 +571,6 @@ public interface WebContents extends Parcelable {
     void setDisplayCutoutSafeArea(Rect insets);
 
     /**
-     * Sets the context menu "safe area" of the WebContents. These are insets from each edge in
-     * physical pixels.
-     *
-     * @param insets The insets stored in a Rect.
-     */
-    void setContextMenuInsets(Rect insets);
-
-    /**
      * Instructs the web contents to "show interest" in the Element corresponding to the provided
      * nodeID.
      *
@@ -628,6 +625,15 @@ public interface WebContents extends Parcelable {
      * @param enabled {@code true} to enabled the behavior.
      */
     void setLongPressLinkSelectText(boolean enabled);
+
+    /**
+     * Allow drag-drop of files such as an image to load and replace contents.
+     *
+     * @param enabled whether the behavior should be enabled.
+     */
+    void setCanAcceptLoadDrops(boolean enabled);
+
+    boolean getCanAcceptLoadDropsForTesting();
 
     /**
      * Update the OffsetTagDefinitions. This could be because the controls' visibility constraints

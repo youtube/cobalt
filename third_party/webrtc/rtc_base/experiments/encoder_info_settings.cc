@@ -10,11 +10,19 @@
 
 #include "rtc_base/experiments/encoder_info_settings.h"
 
-#include <stdio.h>
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "api/field_trials_view.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/video_encoder.h"
 #include "rtc_base/experiments/field_trial_list.h"
+#include "rtc_base/experiments/field_trial_parser.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {

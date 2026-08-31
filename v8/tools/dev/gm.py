@@ -153,6 +153,8 @@ if out_dir_override and Path(out_dir_override).is_file:
 else:
   OUTDIR = Path("out")
 
+build_dir_prefix = os.getenv("V8_GM_BUILD_DIR_PREFIX")
+
 V8_DIR = Path(__file__).resolve().parent.parent.parent
 GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
 RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
@@ -362,6 +364,8 @@ def _get_machine():
 
 
 def get_path(arch, mode):
+  if build_dir_prefix:
+    return OUTDIR / f"{build_dir_prefix}-{arch}.{mode}"
   return OUTDIR / f"{arch}.{mode}"
 
 
@@ -755,6 +759,9 @@ class ArgumentParser(object):
   def parse_arguments(self, argv):
     if len(argv) == 0:
       print_help_and_exit()
+    if len(argv) >= 2 and argv[0] == "args" and os.path.exists(argv[1]):
+      code = _call(f"gn args {argv[1]}")
+      sys.exit(code)
     for argstring in argv:
       self.parse_arg(argstring)
     self.process_global_actions()

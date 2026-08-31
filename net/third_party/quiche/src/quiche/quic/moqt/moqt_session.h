@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -12,15 +13,15 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
-#include "quiche/quic/core/quic_clock.h"
-#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -32,9 +33,10 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/namespace_tree.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
-#include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -61,7 +63,8 @@ class MoqtPublishingMonitorInterface {
  public:
   virtual ~MoqtPublishingMonitorInterface() = default;
 
-  virtual void OnObjectAckSupportKnown(bool supported) = 0;
+  virtual void OnObjectAckSupportKnown(
+      std::optional<quic::QuicTimeDelta> time_window) = 0;
   virtual void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
                                    quic::QuicTimeDelta delta_from_deadline) = 0;
 };
@@ -95,22 +98,22 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   quic::Perspective perspective() const { return parameters_.perspective; }
 
   // Returns true if message was sent.
-  bool SubscribeAnnounces(FullTrackName track_namespace,
+  bool SubscribeAnnounces(TrackNamespace track_namespace,
                           MoqtOutgoingSubscribeAnnouncesCallback callback,
                           VersionSpecificParameters parameters);
-  bool UnsubscribeAnnounces(FullTrackName track_namespace);
+  bool UnsubscribeAnnounces(TrackNamespace track_namespace);
 
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
   // there is already an unresolved ANNOUNCE for that namespace.
-  void Announce(FullTrackName track_namespace,
+  void Announce(TrackNamespace track_namespace,
                 MoqtOutgoingAnnounceCallback announce_callback,
                 VersionSpecificParameters parameters);
   // Returns true if message was sent, false if there is no ANNOUNCE to cancel.
-  bool Unannounce(FullTrackName track_namespace);
+  bool Unannounce(TrackNamespace track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
-  void CancelAnnounce(FullTrackName track_namespace, RequestErrorCode code,
+  void CancelAnnounce(TrackNamespace track_namespace, RequestErrorCode code,
                       absl::string_view reason_phrase);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
@@ -155,19 +158,19 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // in the FETCH will not be filled by with ObjectDoesNotExist. If the FETCH
   // fails for any reason, the application will not receive a notification; it
   // will just appear to be missing objects.
-  bool JoiningFetch(const FullTrackName& name,
-                    SubscribeRemoteTrack::Visitor* visitor,
-                    uint64_t num_previous_groups,
-                    VersionSpecificParameters parameters) override;
+  bool RelativeJoiningFetch(const FullTrackName& name,
+                            SubscribeRemoteTrack::Visitor* visitor,
+                            uint64_t num_previous_groups,
+                            VersionSpecificParameters parameters) override;
   // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
   // groups before the current group. The application provides |callback| to
   // fully control acceptance of Fetched objects.
-  bool JoiningFetch(const FullTrackName& name,
-                    SubscribeRemoteTrack::Visitor* visitor,
-                    FetchResponseCallback callback,
-                    uint64_t num_previous_groups, MoqtPriority priority,
-                    std::optional<MoqtDeliveryOrder> delivery_order,
-                    VersionSpecificParameters parameters) override;
+  bool RelativeJoiningFetch(const FullTrackName& name,
+                            SubscribeRemoteTrack::Visitor* visitor,
+                            FetchResponseCallback callback,
+                            uint64_t num_previous_groups, MoqtPriority priority,
+                            std::optional<MoqtDeliveryOrder> delivery_order,
+                            VersionSpecificParameters parameters) override;
 
   // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
   // called by the client.
@@ -213,6 +216,15 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   struct Empty {};
 
+  struct NewStreamParameters {
+    DataStreamIndex index;
+    uint64_t first_object;
+
+    NewStreamParameters(uint64_t group, uint64_t subgroup,
+                        uint64_t first_object)
+        : index(group, subgroup), first_object(first_object) {}
+  };
+
   class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
                                       public MoqtControlParserVisitor {
    public:
@@ -240,7 +252,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
     void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
     void OnTrackStatusRequestMessage(
-        const MoqtTrackStatusRequest& message) override {};
+        const MoqtTrackStatusRequest& message) override;
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
@@ -258,6 +270,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnFetchOkMessage(const MoqtFetchOk& message) override;
     void OnFetchErrorMessage(const MoqtFetchError& message) override;
     void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override;
+    void OnPublishMessage(const MoqtPublish& message) override;
+    void OnPublishOkMessage(const MoqtPublishOk& message) override {};
+    void OnPublishErrorMessage(const MoqtPublishError& message) override {};
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
@@ -280,13 +295,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
 
     void SendSubscribeError(uint64_t request_id, RequestErrorCode error_code,
-                            absl::string_view reason_phrase,
-                            uint64_t track_alias);
+                            absl::string_view reason_phrase);
 
    private:
     friend class test::MoqtSessionPeer;
-    void SendFetchError(uint64_t subscribe_id, RequestErrorCode error_code,
-                        absl::string_view reason_phrase);
+    void SendFetchError(uint64_t request_id, RequestErrorCode error_code,
+                        absl::string_view error_reason);
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
@@ -325,6 +339,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     friend class test::MoqtSessionPeer;
     void OnControlMessageReceived();
 
+    uint64_t next_object_id_ = 0;
+    bool no_more_objects_ = false;  // EndOfGroup or EndOfTrack was received.
     MoqtSession* session_;
     webtransport::Stream* stream_;
     // Once the subscribe ID is identified, set it here.
@@ -350,7 +366,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t request_id() const { return request_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
-    uint64_t track_alias() const { return track_alias_; }
+    std::optional<uint64_t> track_alias() const { return track_alias_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
     MoqtPriority subscriber_priority() const { return subscriber_priority_; }
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
@@ -364,10 +380,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         MoqtSubscribeErrorReason reason,
         std::optional<uint64_t> track_alias = std::nullopt) override;
     // This is only called for objects that have just arrived.
-    void OnNewObjectAvailable(Location sequence) override;
+    void OnNewObjectAvailable(Location location, uint64_t subgroup) override;
     void OnTrackPublisherGone() override;
-    void OnNewFinAvailable(Location sequence) override;
-    void OnSubgroupAbandoned(Location sequence,
+    void OnNewFinAvailable(Location location, uint64_t subgroup) override;
+    void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
                              webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
@@ -386,6 +402,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     bool InWindow(Location sequence) {
       return forward_ && window_.has_value() && window_->InWindow(sequence);
     }
+    bool GroupInWindow(uint64_t group) {
+      return forward_ && window_.has_value() && window_->GroupInWindow(group);
+    }
     Location GetWindowStart() const {
       QUICHE_CHECK(window_.has_value());
       return window_->start();
@@ -393,44 +412,45 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtFilterType filter_type() const { return filter_type_; };
 
     void OnDataStreamCreated(webtransport::StreamId id,
-                             Location start_sequence);
+                             DataStreamIndex start_sequence);
     void OnDataStreamDestroyed(webtransport::StreamId id,
-                               Location end_sequence);
+                               DataStreamIndex end_sequence);
     void OnObjectSent(Location sequence);
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
-    webtransport::SendOrder GetSendOrder(Location sequence) const;
+    webtransport::SendOrder GetSendOrder(Location sequence,
+                                         uint64_t subgroup) const;
 
-    void AddQueuedOutgoingDataStream(Location first_object);
+    void AddQueuedOutgoingDataStream(const NewStreamParameters& parameters);
     // Pops the pending outgoing data stream, with the highest send order.
     // The session keeps track of which subscribes have pending streams. This
     // function will trigger a QUICHE_DCHECK if called when there are no pending
     // streams.
-    Location NextQueuedOutgoingDataStream();
+    NewStreamParameters NextQueuedOutgoingDataStream();
 
     quic::QuicTimeDelta delivery_timeout() const { return delivery_timeout_; }
     void set_delivery_timeout(quic::QuicTimeDelta timeout) {
       delivery_timeout_ = timeout;
     }
 
-    void OnStreamTimeout(Location sequence) {
-      sequence.object = 0;
-      reset_subgroups_.insert(sequence);
+    void OnStreamTimeout(DataStreamIndex index) {
+      reset_subgroups_.insert(index);
       if (session_->alternate_delivery_timeout_) {
-        first_active_group_ = std::max(first_active_group_, sequence.group + 1);
+        first_active_group_ = std::max(first_active_group_, index.group + 1);
       }
     }
 
     uint64_t first_active_group() const { return first_active_group_; }
 
-    absl::flat_hash_set<Location>& reset_subgroups() {
+    absl::flat_hash_set<DataStreamIndex>& reset_subgroups() {
       return reset_subgroups_;
     }
 
     uint64_t streams_opened() const { return streams_opened_; }
 
    private:
+    friend class test::MoqtSessionPeer;
     SendStreamMap& stream_map();
     quic::Perspective perspective() const {
       return session_->parameters_.perspective;
@@ -446,7 +466,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t request_id_;
-    uint64_t track_alias_;
+    std::optional<const uint64_t> track_alias_;
     MoqtFilterType filter_type_;
     bool forward_;
     // If window_ is nullopt, any arriving objects are ignored. This could be
@@ -461,7 +481,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t first_active_group_ = 0;
     // If a stream has been reset due to delivery timeout, do not open a new
     // stream if more object arrive for it.
-    absl::flat_hash_set<Location> reset_subgroups_;
+    absl::flat_hash_set<DataStreamIndex> reset_subgroups_;
     // The min of DELIVERY_TIMEOUT from SUBSCRIBE and SUBSCRIBE_OK.
     quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
 
@@ -474,14 +494,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // Store the send order of queued outgoing data streams. Use a
     // subscriber_priority_ of zero to avoid having to update it, and call
     // FinalizeSendOrder() whenever delivering it to the MoqtSession.
-    absl::btree_multimap<webtransport::SendOrder, Location>
+    absl::btree_multimap<webtransport::SendOrder, NewStreamParameters>
         queued_outgoing_data_streams_;
   };
   class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
    public:
     OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream,
                        PublishedSubscription& subscription,
-                       Location first_object);
+                       const NewStreamParameters& parameters);
     ~OutgoingDataStream();
 
     // webtransport::StreamVisitor implementation.
@@ -519,6 +539,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // alarm is already created.
     void CreateAndSetAlarm(quic::QuicTime deadline);
 
+    DataStreamIndex index() const { return index_; }
+
    private:
     friend class test::MoqtSessionPeer;
     friend class DeliveryTimeoutDelegate;
@@ -530,10 +552,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
-    // A Location with the minimum object ID that should go out next. The
-    // session doesn't know what the next object ID in the stream is because
-    // the next object could be in a different subgroup or simply be skipped.
-    Location next_object_;
+    DataStreamIndex index_;
+    MoqtDataStreamType stream_type_;
+    // Minimum object ID that should go out next. The session doesn't know the
+    // exact ID of the next object in the stream because the next object could
+    // be in a different subgroup or simply be skipped.
+    uint64_t next_object_;
     bool stream_header_written_ = false;
     // If this data stream is for SUBSCRIBE, reset it if an object has been
     // excessively delayed per Section 7.1.1.2.
@@ -545,9 +569,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   class QUICHE_EXPORT PublishedFetch {
    public:
-    PublishedFetch(uint64_t fetch_id, MoqtSession* session,
+    PublishedFetch(uint64_t request_id, MoqtSession* session,
                    std::unique_ptr<MoqtFetchTask> fetch)
-        : session_(session), fetch_(std::move(fetch)), fetch_id_(fetch_id) {}
+        : session_(session),
+          fetch_(std::move(fetch)),
+          request_id_(request_id) {}
 
     class FetchStreamVisitor : public webtransport::StreamVisitor {
      public:
@@ -560,7 +586,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       ~FetchStreamVisitor() {
         std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
         if (fetch != nullptr) {
-          fetch->session()->incoming_fetches_.erase(fetch->fetch_id_);
+          fetch->session()->incoming_fetches_.erase(fetch->request_id_);
         }
       }
       // webtransport::StreamVisitor implementation.
@@ -580,15 +606,79 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     MoqtFetchTask* fetch_task() { return fetch_.get(); }
     MoqtSession* session() { return session_; }
-    uint64_t fetch_id() const { return fetch_id_; }
+    uint64_t request_id() const { return request_id_; }
     void SetStreamId(webtransport::StreamId id) { stream_id_ = id; }
 
    private:
     MoqtSession* session_;
     std::unique_ptr<MoqtFetchTask> fetch_;
-    uint64_t fetch_id_;
+    uint64_t request_id_;
     // Store the stream ID in case a FETCH_CANCEL requires a reset.
     std::optional<webtransport::StreamId> stream_id_;
+  };
+
+  class QUICHE_EXPORT DownstreamTrackStatus : public MoqtObjectListener {
+   public:
+    DownstreamTrackStatus(uint64_t request_id,
+                          MoqtSession* absl_nonnull session,
+                          MoqtTrackPublisher* absl_nonnull publisher)
+        : request_id_(request_id), session_(session), publisher_(publisher) {
+      publisher_->AddObjectListener(this);
+    }
+    ~DownstreamTrackStatus() {
+      if (publisher_ != nullptr) {
+        publisher_->RemoveObjectListener(this);
+      }
+    }
+
+    void OnSubscribeAccepted() override {
+      MoqtTrackStatus track_status;
+      track_status.request_id = request_id_;
+      QUICHE_CHECK(publisher_ != nullptr);
+      absl::StatusOr<MoqtTrackStatusCode> status = publisher_->GetTrackStatus();
+      if (!status.ok()) {
+        session_->Error(MoqtError::kInternalError,
+                        "Failed to get track status");
+        return;
+      }
+      track_status.status_code = *status;
+      if (*status != MoqtTrackStatusCode::kDoesNotExist &&
+          *status != MoqtTrackStatusCode::kNotYetBegun) {
+        track_status.largest_location = publisher_->GetLargestLocation();
+      }  // Else, leave it at (0,0).
+      session_->SendControlMessage(
+          session_->framer_.SerializeTrackStatus(track_status));
+      session_->incoming_track_status_.erase(request_id_);
+      // No class access below this line!
+    }
+
+    // TODO(martinduke): In draft-13, this will trigger TRACK_STATUS_ERROR.
+    void OnSubscribeRejected(MoqtSubscribeErrorReason /*error_code*/,
+                             std::optional<uint64_t> /*track_alias*/) override {
+      OnSubscribeAccepted();
+    }
+
+    void OnNewObjectAvailable(Location sequence, uint64_t subgroup) override {}
+    void OnNewFinAvailable(Location location, uint64_t subgroup) override {}
+    void OnSubgroupAbandoned(
+        uint64_t group, uint64_t subgroup,
+        webtransport::StreamErrorCode error_code) override {}
+    void OnGroupAbandoned(uint64_t group_id) override {}
+    void OnTrackPublisherGone() override {
+      publisher_ = nullptr;
+      MoqtTrackStatus track_status;
+      track_status.request_id = request_id_;
+      track_status.status_code = MoqtTrackStatusCode::kDoesNotExist;
+      track_status.largest_location = Location(0, 0);
+      session_->SendControlMessage(
+          session_->framer_.SerializeTrackStatus(track_status));
+      session_->incoming_track_status_.erase(request_id_);
+    }
+
+   private:
+    uint64_t request_id_;
+    MoqtSession* session_;
+    MoqtTrackPublisher* publisher_;
   };
 
   class GoAwayTimeoutDelegate : public quic::QuicAlarm::DelegateWithoutContext {
@@ -614,8 +704,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Private members of MoqtSession.
   // Returns true if SUBSCRIBE_DONE was sent.
-  bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
-                       absl::string_view reason_phrase);
+  bool SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
+                       absl::string_view error_reason);
   void MaybeDestroySubscription(SubscribeRemoteTrack* subscribe);
   void DestroySubscription(SubscribeRemoteTrack* subscribe);
 
@@ -625,19 +715,18 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
 
-  // Returns false if the SUBSCRIBE isn't sent. |provided_track_alias| has a
-  // value only if this call is due to a SUBSCRIBE_ERROR.
-  bool Subscribe(MoqtSubscribe& message, SubscribeRemoteTrack::Visitor* visitor,
-                 std::optional<uint64_t> provided_track_alias = std::nullopt);
+  // Returns false if the SUBSCRIBE isn't sent.
+  bool Subscribe(MoqtSubscribe& message,
+                 SubscribeRemoteTrack::Visitor* visitor);
 
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.
-  webtransport::Stream* OpenOrQueueDataStream(uint64_t subscription_id,
-                                              Location first_object);
+  webtransport::Stream* OpenOrQueueDataStream(
+      uint64_t subscription_id, const NewStreamParameters& parameters);
   // Same as above, except the session is required to be not flow control
   // blocked.
   webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
-                                       Location first_object);
+                                       const NewStreamParameters& parameters);
   // Returns false if creation failed.
   [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
                                     webtransport::SendOrder send_order);
@@ -654,11 +743,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // and metadata in |object|. Not for use with datagrams. Returns |true| if
   // the write was successful.
   bool WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
-                           const PublishedObject& object,
+                           const PublishedObjectMetadata& metadata,
+                           quiche::QuicheMemSlice payload,
                            MoqtDataStreamType type, bool is_first_on_stream,
                            bool fin);
 
-  void CancelFetch(uint64_t subscribe_id);
+  void CancelFetch(uint64_t request_id);
 
   // Sends an OBJECT_ACK message for a specific subscribe ID.
   void SendObjectAck(uint64_t subscribe_id, uint64_t group_id,
@@ -679,6 +769,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool SupportsObjectAck() const {
     return parameters_.support_object_acks && peer_supports_object_ack_;
   }
+
+  // Called when the incoming track is malformed per Section 2.5 of
+  // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
+  // the error can be propagated downstream, if necessary.
+  void OnMalformedTrack(RemoteTrack* track);
+
   bool is_closing_ = false;
 
   webtransport::Session* session_;
@@ -700,8 +796,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, SubscribeRemoteTrack*> subscribe_by_alias_;
   // All SUBSCRIBEs, indexed by track name.
   absl::flat_hash_map<FullTrackName, SubscribeRemoteTrack*> subscribe_by_name_;
-  // The next track alias to guess on a SUBSCRIBE.
-  uint64_t next_remote_track_alias_ = 0;
+
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_request_id_ = 0;
   // The local endpoint can send subscribe IDs less than this value.
@@ -730,21 +825,31 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, std::shared_ptr<PublishedFetch>>
       incoming_fetches_;
 
+  absl::flat_hash_map<uint64_t, DownstreamTrackStatus> incoming_track_status_;
+
   // Monitoring interfaces for expected incoming subscriptions.
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
 
-  // Indexed by track namespace. If the value is not nullptr, no OK or ERROR
-  // has been received. The entry is deleted after sending UNANNOUNCE or
-  // receiving ANNOUNCE_CANCEL.
-  absl::flat_hash_map<FullTrackName, MoqtOutgoingAnnounceCallback>
+  // Outgoing ANNOUNCE for which no OK or ERROR has been received.
+  absl::flat_hash_map<uint64_t, TrackNamespace> pending_outgoing_announces_;
+  // All outgoing ANNOUNCE.
+  absl::flat_hash_map<TrackNamespace, MoqtOutgoingAnnounceCallback>
       outgoing_announces_;
+
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
   // result from this subscription use incoming_announce_callback.
-  absl::flat_hash_map<FullTrackName, MoqtOutgoingSubscribeAnnouncesCallback>
-      outgoing_subscribe_announces_;
+  struct PendingSubscribeAnnouncesData {
+    TrackNamespace track_namespace;
+    MoqtOutgoingSubscribeAnnouncesCallback callback;
+  };
+  absl::flat_hash_map<uint64_t, PendingSubscribeAnnouncesData>
+      pending_outgoing_subscribe_announces_;
+  absl::flat_hash_set<TrackNamespace> outgoing_subscribe_announces_;
+  // It's an error if the namespaces overlap, so keep track of them.
+  NamespaceTree incoming_subscribe_announces_;
 
   // The minimum request ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_request_id_ = 0;

@@ -46,7 +46,7 @@ class PeerConnectionObserverJni : public PeerConnectionObserver {
 
   // Implementation of PeerConnectionObserver interface, which propagates
   // the callbacks to the Java observer.
-  void OnIceCandidate(const IceCandidateInterface* candidate) override;
+  void OnIceCandidate(const IceCandidate* candidate) override;
   void OnIceCandidateError(const std::string& address,
                            int port,
                            const std::string& url,

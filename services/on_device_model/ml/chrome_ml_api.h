@@ -32,8 +32,10 @@ using ChromeMLScheduleFn = void (*)(uintptr_t context,
 
 #if defined(_WIN32)
 using PlatformFile = void*;
+extern const PlatformFile kInvalidPlatformFile;
 #else
 using PlatformFile = int;
+inline constexpr PlatformFile kInvalidPlatformFile = -1;
 #endif
 
 // Opaque handle to an instance of a ChromeML model.
@@ -44,6 +46,8 @@ using ChromeMLSession = uintptr_t;
 using ChromeMLCancel = uintptr_t;
 // Opaque handle to an instance of a ChromeMLTS model.
 using ChromeMLTSModel = uintptr_t;
+// Opaque handle to an instance of a ChromeML ASR stream.
+using ChromeMLASRStream = uintptr_t;
 // Opaque handle to a video-frame-specific ML inference engine.
 using ChromeMLInferenceEngine = uintptr_t;
 // Opaque handle to a constraint object.
@@ -65,9 +69,11 @@ struct ChromeMLModelData {
   // Matching `file_id` tells the backend that the data also matches.
   std::optional<uint32_t> file_id;
 
-  // File holding the weight cache. The file will be owned by the inference
+  // Files holding the weight cache. These files will be owned by the inference
   // library and closed upon model destruction.
-  PlatformFile cache_file;
+  PlatformFile cache_file = kInvalidPlatformFile;
+  PlatformFile encoder_cache_file = kInvalidPlatformFile;
+  PlatformFile adapter_cache_file = kInvalidPlatformFile;
 
   // Null-terminated model path pointing to the model to use. Only kApuBackend
   // provides this field. Other backends provide model through the
@@ -394,6 +400,32 @@ struct ChromeMLTSAPI {
                                              size_t* num_scores);
 };
 
+struct ChromeMLASRStreamOutputTranscript {
+  const char* transcript;
+  bool is_final;
+};
+using ChromeMLASRStreamOutput = std::vector<ChromeMLASRStreamOutputTranscript>;
+
+using ChromeMLASRStreamOutputFn =
+    std::function<void(const ChromeMLASRStreamOutput&)>;
+
+struct ChromeMLASRStreamOptions {
+  uint32_t sample_rate_hz;
+  // Function to call with transcribed audio.
+  const ChromeMLASRStreamOutputFn* output_fn;
+};
+
+struct ChromeMLASRAPI {
+  // Create a new ASR stream on an existing ML session.
+  ChromeMLASRStream (*CreateStream)(ChromeMLSession session,
+                                    const ChromeMLASRStreamOptions* options);
+  // Add an audio chunk to the ASR session.
+  void (*AddAudioChunk)(ChromeMLASRStream stream,
+                        ml::AudioBuffer* audio_buffer);
+  // Note: This does not destroy the parent ChromeMLSession.
+  void (*DestroyStream)(ChromeMLASRStream stream);
+};
+
 // IMPORTANT: All functions that call ChromeMLAPI should be annotated with
 // DISABLE_CFI_DLSYM.
 
@@ -558,6 +590,7 @@ struct ChromeMLAPI {
   void (*DestroyGpuDelegate)(TfLiteDelegate* delegate);
 
   ChromeMLTSAPI ts_api;
+  ChromeMLASRAPI asr_api;
 };
 
 // Signature of the GetChromeMLAPI() function which the shared library exports.

@@ -4,12 +4,14 @@
 
 #include "chrome/updater/external_constants_builder.h"
 
+#include <cstdint>
 #include <iterator>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/base64.h"
 #include "base/files/file_util.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/logging.h"
@@ -17,6 +19,7 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "chrome/updater/constants.h"
+#include "chrome/updater/external_constants.h"
 #include "chrome/updater/external_constants_default.h"
 #include "chrome/updater/external_constants_override.h"
 #include "chrome/updater/updater_scope.h"
@@ -75,17 +78,6 @@ ExternalConstantsBuilder& ExternalConstantsBuilder::ClearCrashUploadURL() {
   return *this;
 }
 
-ExternalConstantsBuilder& ExternalConstantsBuilder::SetDeviceManagementURL(
-    const std::string& url) {
-  overrides_.Set(kDevOverrideKeyDeviceManagementUrl, url);
-  return *this;
-}
-
-ExternalConstantsBuilder& ExternalConstantsBuilder::ClearDeviceManagementURL() {
-  overrides_.Remove(kDevOverrideKeyDeviceManagementUrl);
-  return *this;
-}
-
 ExternalConstantsBuilder& ExternalConstantsBuilder::SetAppLogoURL(
     const std::string& url) {
   overrides_.Set(kDevOverrideKeyAppLogoUrl, url);
@@ -94,6 +86,56 @@ ExternalConstantsBuilder& ExternalConstantsBuilder::SetAppLogoURL(
 
 ExternalConstantsBuilder& ExternalConstantsBuilder::ClearAppLogoURL() {
   overrides_.Remove(kDevOverrideKeyAppLogoUrl);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetEventLoggingUrl(
+    const std::string& url) {
+  overrides_.Set(kDevOverrideKeyEventLoggingUrl, url);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearEventLoggingUrl() {
+  overrides_.Remove(kDevOverrideKeyEventLoggingUrl);
+  return *this;
+}
+
+ExternalConstantsBuilder&
+ExternalConstantsBuilder::SetEventLoggingPermissionProvider(
+    std::optional<EventLoggingPermissionProvider>
+        event_logging_permission_provider) {
+  if (!event_logging_permission_provider) {
+    return ClearEventLoggingPermissionProvider();
+  }
+  overrides_.Set(kDevOverrideKeyEventLoggingPermissionProviderAppId,
+                 event_logging_permission_provider->app_id);
+#if BUILDFLAG(IS_MAC)
+  overrides_.Set(kDevOverrideKeyEventLoggingPermissionProviderDirectoryName,
+                 event_logging_permission_provider->directory_name);
+#endif
+  return *this;
+}
+
+ExternalConstantsBuilder&
+ExternalConstantsBuilder::ClearEventLoggingPermissionProvider() {
+  overrides_.Remove(kDevOverrideKeyEventLoggingPermissionProviderAppId);
+#if BUILDFLAG(IS_MAC)
+  overrides_.Remove(kDevOverrideKeyEventLoggingPermissionProviderDirectoryName);
+#endif
+  return *this;
+}
+
+ExternalConstantsBuilder&
+ExternalConstantsBuilder::SetMinimumEventLoggingCooldown(
+    base::TimeDelta cooldown) {
+  overrides_.Set(kDevOverrideKeyMinumumEventLoggingCooldownSeconds,
+                 base::checked_cast<int>(cooldown.InSeconds()));
+  return *this;
+}
+
+ExternalConstantsBuilder&
+ExternalConstantsBuilder::ClearMinimumEventLoggingCooldown() {
+  overrides_.Remove(kDevOverrideKeyMinumumEventLoggingCooldownSeconds);
   return *this;
 }
 
@@ -140,6 +182,19 @@ ExternalConstantsBuilder& ExternalConstantsBuilder::SetCrxVerifierFormat(
 
 ExternalConstantsBuilder& ExternalConstantsBuilder::ClearCrxVerifierFormat() {
   overrides_.Remove(kDevOverrideKeyCrxVerifierFormat);
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::SetCrxPublicKeyHash(
+    std::optional<std::vector<uint8_t>> crx_public_key_hash) {
+  overrides_.Set(
+      kDevOverrideKeyCrxPublicKeyHash,
+      crx_public_key_hash ? base::Base64Encode(*crx_public_key_hash) : "");
+  return *this;
+}
+
+ExternalConstantsBuilder& ExternalConstantsBuilder::ClearCrxPublicKeyHash() {
+  overrides_.Remove(kDevOverrideKeyCrxPublicKeyHash);
   return *this;
 }
 
@@ -238,10 +293,6 @@ bool ExternalConstantsBuilder::Modify() {
   if (!overrides_.contains(kDevOverrideKeyCrashUploadUrl)) {
     SetCrashUploadURL(verifier->CrashUploadURL().possibly_invalid_spec());
   }
-  if (!overrides_.contains(kDevOverrideKeyDeviceManagementUrl)) {
-    SetDeviceManagementURL(
-        verifier->DeviceManagementURL().possibly_invalid_spec());
-  }
   if (!overrides_.contains(kDevOverrideKeyAppLogoUrl)) {
     SetAppLogoURL(verifier->AppLogoURL().possibly_invalid_spec());
   }
@@ -256,6 +307,9 @@ bool ExternalConstantsBuilder::Modify() {
   }
   if (!overrides_.contains(kDevOverrideKeyCrxVerifierFormat)) {
     SetCrxVerifierFormat(verifier->CrxVerifierFormat());
+  }
+  if (!overrides_.contains(kDevOverrideKeyCrxPublicKeyHash)) {
+    SetCrxPublicKeyHash(verifier->CrxPublicKeyHash());
   }
   if (!overrides_.contains(kDevOverrideKeyDictPolicies)) {
     SetDictPolicies(verifier->DictPolicies());

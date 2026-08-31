@@ -38,16 +38,18 @@ source_set("permissions") {
     "permission_manager_factory.h",
     "permission_revocation_request.cc",
     "permission_revocation_request.h",
-    "permissions_aiv1_handler.cc",
-    "permissions_aiv1_handler.h",
-    "prediction_based_permission_ui_selector.cc",
-    "prediction_based_permission_ui_selector.h",
-    "prediction_model_handler_provider.cc",
-    "prediction_model_handler_provider.h",
-    "prediction_service_factory.cc",
-    "prediction_service_factory.h",
-    "prediction_service_request.cc",
-    "prediction_service_request.h",
+    "prediction_service/language_detection_observer.cc",
+    "prediction_service/language_detection_observer.h",
+    "prediction_service/permissions_aiv1_handler.cc",
+    "prediction_service/permissions_aiv1_handler.h",
+    "prediction_service/prediction_based_permission_ui_selector.cc",
+    "prediction_service/prediction_based_permission_ui_selector.h",
+    "prediction_service/prediction_model_handler_provider.cc",
+    "prediction_service/prediction_model_handler_provider.h",
+    "prediction_service/prediction_service_factory.cc",
+    "prediction_service/prediction_service_factory.h",
+    "prediction_service/prediction_service_request.cc",
+    "prediction_service/prediction_service_request.h",
     "pref_based_quiet_permission_ui_selector.cc",
     "pref_based_quiet_permission_ui_selector.h",
     "quiet_notification_permission_ui_config.cc",
@@ -66,29 +68,33 @@ source_set("permissions") {
   deps = [
     ":permissions_proto",
     "//chrome/browser:browser_process",
-    "//chrome/browser/content_extraction:content_extraction",
+    "//chrome/browser/content_extraction",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/favicon",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles",
+    "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
-    "//chrome/browser/profiles:profiles",
     "//chrome/browser/safe_browsing",
     "//chrome/browser/search_engines",
     "//chrome/browser/serial",
     "//chrome/browser/storage_access_api",
     "//chrome/browser/top_level_storage_access_api:permissions",
+    "//chrome/browser/translate",
     "//chrome/browser/ui/hats",
+    "//chrome/browser/ui/page_info",
     "//chrome/common",
     "//chrome/common:chrome_features",
     "//chrome/common:constants",
     "//components/background_sync",
+    "//components/content_extraction/content/browser",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/browser:cookie_settings",
     "//components/embedder_support:permissions",
     "//components/google/core/common",
     "//components/infobars/content",
     "//components/keyed_service/content",
+    "//components/language_detection/core",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/permissions",
@@ -103,9 +109,9 @@ source_set("permissions") {
     "//components/subresource_filter/content/browser",
     "//components/supervised_user/core/common:features",
     "//components/unified_consent",
-    "//components/vector_icons:vector_icons",
+    "//components/vector_icons",
     "//content/public/browser",
-    "//extensions/buildflags:buildflags",
+    "//extensions/buildflags",
     "//services/device/public/cpp/geolocation",
   ]
 
@@ -115,8 +121,6 @@ source_set("permissions") {
       "permission_blocked_dialog_controller_android.h",
       "permission_blocked_message_delegate_android.cc",
       "permission_blocked_message_delegate_android.h",
-      "permission_infobar_delegate_android.cc",
-      "permission_infobar_delegate_android.h",
       "permission_update_message_controller_android.cc",
       "permission_update_message_controller_android.h",
       "permission_update_message_delegate_android.cc",
@@ -129,7 +133,6 @@ source_set("permissions") {
 
     deps += [
       "//chrome/android:chrome_jni_headers",
-      "//components/infobars/android",
       "//components/messages/android",
       "//components/messages/android:feature_flags",
       "//ui/android",
@@ -157,13 +160,19 @@ source_set("permissions") {
 
   if (build_with_tflite_lib) {
     sources += [
-      "prediction_model_handler_provider_factory.cc",
-      "prediction_model_handler_provider_factory.h",
+      "prediction_service/passage_embedder_delegate.cc",
+      "prediction_service/passage_embedder_delegate.h",
+      "prediction_service/prediction_model_handler_provider_factory.cc",
+      "prediction_service/prediction_model_handler_provider_factory.h",
     ]
     if (!is_android) {
       deps += [ "//third_party/tflite_support" ]
     }
-    deps += [ "//components/segmentation_platform/internal:optimization_guide_segmentation_handler" ]
+    deps += [
+      "//chrome/browser/passage_embeddings",
+      "//components/passage_embeddings",
+      "//components/segmentation_platform/internal:optimization_guide_segmentation_handler",
+    ]
   }
 
   if (!is_android) {
@@ -172,8 +181,8 @@ source_set("permissions") {
 
   if (safe_browsing_mode != 0) {
     sources += [
-      "contextual_notification_permission_ui_selector.cc",
-      "contextual_notification_permission_ui_selector.h",
+      "prediction_service/contextual_notification_permission_ui_selector.cc",
+      "prediction_service/contextual_notification_permission_ui_selector.h",
     ]
   }
 }
@@ -186,12 +195,18 @@ source_set("test_support") {
   testonly = true
 
   sources = [
+    "//chrome/browser/permissions/test/enums_to_string.cc",
+    "//chrome/browser/permissions/test/enums_to_string.h",
+    "//chrome/browser/permissions/test/mock_passage_embedder.cc",
+    "//chrome/browser/permissions/test/mock_passage_embedder.h",
     "system/mock_platform_handle.cc",
     "system/mock_platform_handle.h",
   ]
 
   deps = [
     ":permissions",
+    "//components/passage_embeddings:test_support",
+    "//components/permissions:test_support",
     "//testing/gmock",
   ]
 }
@@ -202,15 +217,15 @@ source_set("unit_tests") {
   sources = [
     "chrome_permission_manager_unittest.cc",
     "chrome_permission_request_manager_unittest.cc",
-    "contextual_notification_permission_ui_selector_unittest.cc",
     "crowd_deny_preload_data_unittest.cc",
     "crowd_deny_safe_browsing_request_unittest.cc",
     "notifications_engagement_service_unittest.cc",
     "permission_context_base_permissions_policy_unittest.cc",
     "permission_revocation_request_unittest.cc",
     "permission_subscription_unittest.cc",
-    "permissions_aiv1_handler_unittest.cc",
-    "prediction_based_permission_ui_selector_unittest.cc",
+    "prediction_service/contextual_notification_permission_ui_selector_unittest.cc",
+    "prediction_service/permissions_aiv1_handler_unittest.cc",
+    "prediction_service/prediction_based_permission_ui_selector_unittest.cc",
     "pref_based_quiet_permission_ui_selector_unittest.cc",
   ]
 
@@ -224,7 +239,7 @@ source_set("unit_tests") {
     "//chrome/browser/search_engines",
     "//chrome/test:test_support",
     "//components/optimization_guide/core:test_support",
-    "//components/permissions/prediction_service:prediction_service",
+    "//components/permissions/prediction_service",
     "//components/site_engagement/content",
     "//components/ukm/content",
     "//components/unified_consent",
@@ -235,11 +250,9 @@ source_set("unit_tests") {
   if (is_android) {
     sources += [
       "permission_blocked_message_delegate_android_unittest.cc",
-      "permission_prompt_android_unittest.cc",
       "permission_update_message_controller_android_unittest.cc",
     ]
     deps += [
-      "//components/infobars/content",
       "//components/messages/android:test_support",
       "//components/ukm:test_support",
     ]
@@ -254,6 +267,10 @@ source_set("unit_tests") {
       "//chrome/browser/ash/login/users:test_support",
     ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 if (!is_android) {
@@ -273,6 +290,7 @@ if (!is_android) {
 
     deps = [
       ":permissions",
+      ":test_support",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/media/webrtc",
       "//chrome/browser/optimization_guide",
@@ -282,6 +300,7 @@ if (!is_android) {
       "//chrome/test:test_support",
       "//components/back_forward_cache",
       "//components/optimization_guide/core:test_support",
+      "//components/passage_embeddings:test_support",
     ]
 
     if (is_chromeos) {
@@ -290,9 +309,13 @@ if (!is_android) {
     }
 
     if (build_with_tflite_lib) {
-      sources += [ "prediction_service_browsertest.cc" ]
+      sources += [ "prediction_service/prediction_service_browsertest.cc" ]
       deps += [ "//components/permissions/prediction_service" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 }
 
@@ -308,6 +331,7 @@ if (!is_android && !is_chromeos_device) {
       ":permissions",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/permissions/system",
+      "//chrome/browser/ui/extensions:test_support",
       "//chrome/test:test_support",
       "//components/content_settings/browser",
       "//components/embedder_support",

@@ -33,9 +33,7 @@ enum OpenAllBookmarksContext {
   kInSplit = 2,  // Open all bookmarks in a split tab.
   kMaxValue = kInSplit,
 };
-}  // namespace bookmarks
 
-namespace chrome {
 // Wraps bookmark navigations to support view testing.
 class BookmarkNavigationWrapper {
  public:
@@ -48,6 +46,9 @@ class BookmarkNavigationWrapper {
   // Provide an instance for use in testing.
   static void SetInstanceForTesting(BookmarkNavigationWrapper* instance);
 };
+
+// Set whether to override connected group to skip UI for testing.
+void SetOverrideConnectedGroupForTesting(bool value);
 
 using TabGroupData =
     std::pair<std::optional<tab_groups::TabGroupId>, std::u16string>;
@@ -119,6 +120,6 @@ void GetURLsAndFoldersForTabEntries(
     std::vector<std::pair<GURL, std::u16string>> tab_entries,
     base::flat_map<int, TabGroupData> groups_by_index);
 
-}  // namespace chrome
+}  // namespace bookmarks
 
 #endif  // CHROME_BROWSER_UI_BOOKMARKS_BOOKMARK_UTILS_DESKTOP_H_

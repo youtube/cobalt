@@ -6,7 +6,6 @@
 
 #include "base/test/bind.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/events/event.h"
-#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom-forward.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -15,39 +14,33 @@ namespace {
 
 class TestableRecorder : public TabStripEventRecorder {
  public:
+  // init'ing with nullptr is not correct, but we need to redesign the event
+  // transformation code to make this more easy to test.
+  explicit TestableRecorder(EventNotificationCallback notification)
+      : TabStripEventRecorder(nullptr, std::move(notification)) {}
   void Handle(Event event) { TabStripEventRecorder::Handle(std::move(event)); }
 };
 
 TEST(TabStripServiceEventRecorderTest, Notification) {
-  TestableRecorder recorder;
-
   bool notified = false;
-  recorder.SetOnEventNotification(
-      base::BindLambdaForTesting([&](Event& event) { notified = true; }));
+  TestableRecorder recorder(
+      base::BindLambdaForTesting([&](const Event& event) { notified = true; }));
 
   recorder.Handle(mojom::OnTabsCreatedEvent::New());
 
   ASSERT_TRUE(notified);
 }
 
-TEST(TabStripServiceEventRecorderTest, NoNotificationRegistered) {
-  TestableRecorder recorder;
-  recorder.Handle(mojom::OnTabsCreatedEvent::New());
-
-  // Effectively noop, but is allowed.
-}
-
 TEST(TabStripServiceEventRecorderTest, StoppingAndStartingNotification) {
-  TestableRecorder recorder;
-
   bool notified = false;
-  recorder.SetOnEventNotification(
-      base::BindLambdaForTesting([&](Event& event) { notified = true; }));
+  TestableRecorder recorder(
+      base::BindLambdaForTesting([&](const Event& event) { notified = true; }));
 
   recorder.StopNotificationAndStartRecording();
 
   auto event = mojom::OnTabsCreatedEvent::New();
-  event->tabs.emplace_back(TabId::Type::kContent, "123");
+  auto container = tabs_api::mojom::TabCreatedContainer::New();
+  event->tabs.emplace_back(std::move(container));
 
   recorder.Handle(std::move(event));
 

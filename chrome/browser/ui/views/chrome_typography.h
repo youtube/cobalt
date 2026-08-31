@@ -57,14 +57,11 @@ enum ChromeTextContext {
   // Text for suggestion row chips; e.g. the history embeddings chip.
   CONTEXT_OMNIBOX_POPUP_ROW_CHIP,
 
+  // Text for toolbelt buttons.
+  CONTEXT_OMNIBOX_TOOLBELT_BUTTON,
+
   // ToolbarButton label
   CONTEXT_TOOLBAR_BUTTON,
-
-  // Most text in the download shelf.  Usually 13pt.
-  CONTEXT_DOWNLOAD_SHELF,
-
-  // Status labels in the download shelf.  Usually 10pt.
-  CONTEXT_DOWNLOAD_SHELF_STATUS,
 
   // Title label in the IPH bubble. Usually 18pt.
   CONTEXT_IPH_BUBBLE_TITLE,

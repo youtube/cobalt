@@ -35,7 +35,7 @@
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_size_t.h"
 
-namespace WTF {
+namespace blink {
 
 template <typename KeyTraits, typename MappedTraits>
 struct HashMapValueTraits;
@@ -62,7 +62,7 @@ struct KeyValuePairExtractor {
   template <typename T>
   static void ClearValue(T& p) {
     using ValueType = typename T::ValueType;
-    if (IsTraceable<ValueType>::value) {
+    if (IsTraceableV<ValueType>) {
       AtomicMemzero<sizeof(ValueType), alignof(ValueType)>(&p.value);
     } else {
       UNSAFE_TODO(memset(static_cast<void*>(&p.value), 0, sizeof(p.value)));
@@ -76,8 +76,8 @@ struct KeyValuePairExtractor {
 // the restriction with a custom key hash traits. See hash_traits.h for how to
 // define hash traits.
 // Commonly used key types define their key hash traits separately from the
-// class itself, so e.g if you want a `WTF::HashMap<WTF::String, ...>` you must
-// include `string_hash.h`.
+// class itself, so e.g if you want a `blink::HashMap<blink::String, ...>` you
+// must include `string_hash.h`.
 template <typename KeyArg,
           typename MappedArg,
           typename KeyTraitsArg = HashTraits<KeyArg>,
@@ -144,7 +144,7 @@ class HashMap {
 
   wtf_size_t size() const;
   wtf_size_t Capacity() const;
-  void ReserveCapacityForSize(unsigned size) {
+  void ReserveCapacityForSize(wtf_size_t size) {
     impl_.ReserveCapacityForSize(size);
   }
 
@@ -202,7 +202,7 @@ class HashMap {
   void clear();
   template <typename Collection>
   void RemoveAll(const Collection& to_be_removed) {
-    WTF::RemoveAll(*this, to_be_removed);
+    blink::RemoveAll(*this, to_be_removed);
   }
 
   MappedType Take(KeyPeekInType);  // efficient combination of get with remove
@@ -585,8 +585,15 @@ inline bool operator!=(const HashMap<T, U, V, W, X>& a,
   return !(a == b);
 }
 
-}  // namespace WTF
+template <typename T, typename U, typename V, typename W, typename X>
+inline void swap(HashMap<T, U, V, W, X>& a, HashMap<T, U, V, W, X>& b) {
+  a.swap(b);
+}
 
-using WTF::HashMap;
+}  // namespace blink
+
+namespace WTF {
+using blink::HashMap;
+}  // namespace WTF
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_HASH_MAP_H_

@@ -11,15 +11,16 @@ import '//resources/cr_elements/cr_hidden_style.css.js';
 
 import {loadTimeData} from '//resources/js/load_time_data.js';
 import {sanitizeInnerHtml} from '//resources/js/parse_html_subset.js';
+import {NavigationPredictor} from '//resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
+import type {ACMatchClassification, Action, AutocompleteMatch, OmniboxPopupSelection, PageHandlerInterface, SideType} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import {SelectionLineState} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {PolymerElement} from '//resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {NavigationPredictor} from './omnibox.mojom-webui.js';
 import {SearchboxBrowserProxy} from './searchbox_browser_proxy.js';
 import type {SearchboxIconElement} from './searchbox_icon.js';
 import {getTemplate} from './searchbox_match.html.js';
-import type {ACMatchClassification, Action, AutocompleteMatch, OmniboxPopupSelection, PageHandlerInterface, SideType} from './searchbox.mojom-webui.js';
-import {SelectionLineState} from './searchbox.mojom-webui.js';
 import {decodeString16, mojoTimeTicks} from './utils.js';
+
 
 
 // clang-format off
@@ -128,6 +129,12 @@ export class SearchboxMatchElement extends PolymerElement {
         reflectToAttribute: true,
       },
 
+      showEllipsis: {
+        type: Boolean,
+        computed:
+            `computeShowEllipsis_(showThumbnail, isLensSearchbox_, forceHideEllipsis_)`,
+      },
+
       sideType: Number,
 
       //========================================================================
@@ -140,6 +147,11 @@ export class SearchboxMatchElement extends PolymerElement {
         reflectToAttribute: true,
       },
 
+      forceHideEllipsis_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('forceHideEllipsis'),
+      },
+
       /** Rendered match contents based on autocomplete provided styling. */
       contentsHtml_: {
         type: String,
@@ -150,6 +162,12 @@ export class SearchboxMatchElement extends PolymerElement {
       descriptionHtml_: {
         type: String,
         computed: `computeDescriptionHtml_(match)`,
+      },
+
+      enableCsbMotionTweaks_: {
+        type: Boolean,
+        value: () => loadTimeData.getBoolean('enableCsbMotionTweaks'),
+        reflectToAttribute: true,
       },
 
       /** Remove button's 'aria-label' attribute. */
@@ -186,9 +204,12 @@ export class SearchboxMatchElement extends PolymerElement {
   declare matchIndex: number;
   declare sideType: SideType;
   declare showThumbnail: boolean;
+  declare showEllipsis: boolean;
   declare private isLensSearchbox_: boolean;
+  declare private forceHideEllipsis_: boolean;
   declare private contentsHtml_: TrustedHTML;
   declare private descriptionHtml_: TrustedHTML;
+  declare private enableCsbMotionTweaks_: boolean;
   declare private removeButtonAriaLabel_: string;
   declare private removeButtonTitle_: string;
   declare private separatorText_: string;
@@ -379,9 +400,20 @@ export class SearchboxMatchElement extends PolymerElement {
   }
 
   private computeSeparatorText_(): string {
-    return this.match && decodeString16(this.match.description) ?
+    return this.match &&
+            decodeString16(
+                this.match.swapContentsAndDescription ?
+                    this.match.contents :
+                    this.match.description) ?
         loadTimeData.getString('searchboxSeparator') :
         '';
+  }
+
+  private computeShowEllipsis_(): boolean {
+    if (this.isLensSearchbox_ && this.forceHideEllipsis_) {
+      return false;
+    }
+    return this.showThumbnail;
   }
 
   /**

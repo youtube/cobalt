@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -25,6 +26,7 @@
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service_factory.h"
 #include "chrome/browser/preloading/prerender/prerender_manager.h"
 #include "chrome/browser/preloading/prerender/prerender_utils.h"
+#include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/test_safe_browsing_navigation_observer_manager.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
@@ -197,11 +199,11 @@ class PrerenderOmniboxUIBrowserTest : public InProcessBrowserTest,
     predictor_observer.WaitForInitialization();
   }
 
- private:
   OmniboxView* omnibox() {
     return browser()->window()->GetLocationBar()->GetOmniboxView();
   }
 
+ private:
   void FocusOmnibox() {
     // If the omnibox already has focus, just notify OmniboxTabHelper.
     if (omnibox()->model()->has_focus()) {
@@ -251,6 +253,8 @@ class PrerenderOmniboxUIBrowserTest : public InProcessBrowserTest,
 
   base::ScopedMockElapsedTimersForTest scoped_test_timer_;
   content::test::PrerenderTestHelper prerender_helper_;
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::kDisabled};
   base::test::ScopedFeatureList scoped_feature_list_;
   ui::PageTransition last_finished_page_transition_type_;
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
@@ -1007,6 +1011,66 @@ IN_PROC_BROWSER_TEST_F(PrerenderOmniboxReferrerChainUIBrowserTest,
   // frame.
   auto* nav_event = GetNavigationEvent(*index);
   EXPECT_FALSE(nav_event->initiator_outermost_main_frame_id);
+}
+
+class PrewarmOmniboxUIBrowserTest : public PrerenderOmniboxUIBrowserTest {
+ public:
+  void StopPrewarm() {
+    auto* manager = PrerenderManager::FromWebContents(GetActiveWebContents());
+    if (manager) {
+      manager->StopPrewarmSearchResultForTesting();
+    }
+  }
+
+  void InitiatePrewarm() {
+    OmniboxController* omnibox_controller = omnibox()->controller();
+    ASSERT_TRUE(omnibox_controller);
+    omnibox_controller->StartZeroSuggestPrefetch();
+  }
+
+ private:
+  test::ScopedPrewarmFeatureList scoped_prewarm_feature_list_{
+      test::ScopedPrewarmFeatureList::PrewarmState::
+          kEnabledWithDefaultTrigger};
+};
+
+// Basic scenario for the interactive_ui_tests to trigger the prewarm feature
+// from the omnibox.
+IN_PROC_BROWSER_TEST_F(PrewarmOmniboxUIBrowserTest,
+                       StartPrewarmOnZeroSuggestPrefetch) {
+  // Add a new tab to make it possible to close the tab to flush metrics.
+  ASSERT_EQ(0, browser()->tab_strip_model()->active_index());
+  ASSERT_TRUE(AddTabAtIndex(0, embedded_test_server()->GetURL("/empty.html"),
+                            ui::PAGE_TRANSITION_TYPED));
+
+  // Prewarm might be triggered before the test starts. Stop it to avoid
+  // affecting the test.
+  StopPrewarm();
+
+  // Start monitoring the histogram here.
+  base::HistogramTester histogram_tester;
+
+  // Override the prewarm URL here as we cannot provide this valid URL when
+  // we initialize the ScopedFeatureList.
+  const GURL prewarm_url(embedded_test_server()->GetURL("/prewarm.html"));
+  PrerenderManager::GetOrCreateForWebContents(GetActiveWebContents())
+      ->SetPrewarmUrlForTesting(prewarm_url);
+
+  // Trigger prewarm from the Omnibox.
+  content::test::PrerenderHostRegistryObserver registry_observer(
+      *GetActiveWebContents());
+  InitiatePrewarm();
+  registry_observer.WaitForTrigger(prewarm_url);
+
+  // Close the WebContents that hosted the prewarm page to flush metrics.
+  browser()->tab_strip_model()->CloseWebContentsAt(0,
+                                                   TabCloseTypes::CLOSE_NONE);
+
+  // Check metrics that should be recorded for the prewarmed page.
+  histogram_tester.ExpectUniqueSample(
+      "Prerender.Experimental.PrerenderHostFinalStatus.Embedder_"
+      "PrewarmDefaultSearchEngine",
+      /*kPrimaryMainFrameRendererProcessKilled*/ 57, 1);
 }
 
 }  // namespace

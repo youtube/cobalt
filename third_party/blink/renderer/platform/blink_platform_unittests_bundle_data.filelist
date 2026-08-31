@@ -38,6 +38,7 @@
 ../../web_tests/external/wpt/fonts/ahem-extra/AHEM_monospace.TTF
 ../../web_tests/external/wpt/fonts/ahem-extra/AHEM_sans-serif.TTF
 ../../web_tests/external/wpt/fonts/ahem-extra/AHEM_serif.TTF
+../../web_tests/external/wpt/fonts/ahem-visible-zwnj.otf
 ../../web_tests/external/wpt/fonts/fail.woff
 ../../web_tests/external/wpt/fonts/hasubi-mono/HasubiMono-Regular.woff2
 ../../web_tests/external/wpt/fonts/math/axisheight5000-verticalarrow14000.woff
@@ -86,6 +87,7 @@
 ../../web_tests/external/wpt/fonts/math/radical-kernafterdegreeminus5000-rulethickness1000.woff
 ../../web_tests/external/wpt/fonts/math/radical-kernbeforedegree4000-rulethickness1000.woff
 ../../web_tests/external/wpt/fonts/math/radical-negativekernbeforedegree1000-rulethickness1000.woff
+../../web_tests/external/wpt/fonts/math/radical-rtlm.woff
 ../../web_tests/external/wpt/fonts/math/radical-rulethickness8000.woff
 ../../web_tests/external/wpt/fonts/math/radical-verticalgap6000-rulethickness1000.woff
 ../../web_tests/external/wpt/fonts/math/scriptpercentscaledown0-scriptscriptpercentscaledown40.woff
@@ -112,6 +114,7 @@
 ../../web_tests/external/wpt/fonts/math/stretchstack-gapbelowmin11000.woff
 ../../web_tests/external/wpt/fonts/math/stretchstack-topshiftup5000.woff
 ../../web_tests/external/wpt/fonts/math/stretchy-centered-on-baseline.woff
+../../web_tests/external/wpt/fonts/math/stretchy-text-direction-asymetrical.woff
 ../../web_tests/external/wpt/fonts/math/stretchy.woff
 ../../web_tests/external/wpt/fonts/math/underover-accentbaseheight4000-overbarextraascender3000.woff
 ../../web_tests/external/wpt/fonts/math/underover-accentbaseheight4000-overbarverticalgap11000.woff
@@ -127,6 +130,9 @@
 ../../web_tests/external/wpt/fonts/noto/NotoSansMongolian-regular.woff2
 ../../web_tests/external/wpt/fonts/noto/NotoSansNko-regular-webfont.woff2
 ../../web_tests/external/wpt/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-chws.otf
+../../web_tests/external/wpt/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-halt-3002.otf
+../../web_tests/external/wpt/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-halt-300C.otf
+../../web_tests/external/wpt/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-halt-FF1A.otf
 ../../web_tests/external/wpt/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-halt-min.otf
 ../../web_tests/external/wpt/fonts/noto/cjk/NotoSansCJKjp-Regular-subset-halt.otf
 ../../web_tests/external/wpt/fonts/noto/noto-sans-v8-latin-regular.woff
@@ -241,6 +247,7 @@
 ../../web_tests/images/resources/animated-10color.gif
 ../../web_tests/images/resources/animated-gif-with-offsets.gif
 ../../web_tests/images/resources/animated.gif
+../../web_tests/images/resources/animated.png
 ../../web_tests/images/resources/animated2.gif
 ../../web_tests/images/resources/apng-test-suite-dispose-op-none-basic.png
 ../../web_tests/images/resources/apng00.png
@@ -363,6 +370,9 @@
 ../../web_tests/images/resources/count-down-color-test.png
 ../../web_tests/images/resources/count-down-color-test.webp
 ../../web_tests/images/resources/crbug.364830.webp
+../../web_tests/images/resources/crbug423310049.png
+../../web_tests/images/resources/crbug432516335-big-height.png
+../../web_tests/images/resources/crbug432516335-i32-overflow.png
 ../../web_tests/images/resources/crbug702934.png
 ../../web_tests/images/resources/crbug752898.bmp
 ../../web_tests/images/resources/crbug779261.gif
@@ -630,6 +640,7 @@
 ../../web_tests/third_party/adobe-fonts/CSSFWOrientationTest.otf
 ../../web_tests/third_party/adobe-fonts/CSSHWOrientationTest.otf
 ../../web_tests/third_party/gsubtest/gsubtest-lookup3.otf
+image-decoders/testing/apng-with-malformed-2nd-frame.png
 image-decoders/testing/bad-code.gif
 image-decoders/testing/bad-initial-code.gif
 image-decoders/testing/basn3p01-based-long-plte.png

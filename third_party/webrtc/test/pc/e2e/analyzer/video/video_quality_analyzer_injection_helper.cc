@@ -10,27 +10,31 @@
 
 #include "test/pc/e2e/analyzer/video/video_quality_analyzer_injection_helper.h"
 
-#include <stdio.h>
-
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_report.h"
 #include "api/test/pclf/media_configuration.h"
-#include "api/video/i420_buffer.h"
+#include "api/test/video/video_frame_writer.h"
+#include "api/test/video_quality_analyzer_interface.h"
+#include "api/video/video_sink_interface.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
-#include "rtc_base/strings/string_builder.h"
 #include "system_wrappers/include/clock.h"
 #include "test/pc/e2e/analyzer/video/analyzing_video_sink.h"
+#include "test/pc/e2e/analyzer/video/encoded_image_data_injector.h"
 #include "test/pc/e2e/analyzer/video/quality_analyzing_video_decoder.h"
 #include "test/pc/e2e/analyzer/video/quality_analyzing_video_encoder.h"
-#include "test/pc/e2e/analyzer/video/simulcast_dummy_buffer_helper.h"
 #include "test/pc/e2e/analyzer/video/video_dumping.h"
-#include "test/testsupport/fixed_fps_video_frame_writer_adapter.h"
+#include "test/test_video_capturer.h"
 #include "test/video_renderer.h"
 
 namespace webrtc {

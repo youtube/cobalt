@@ -54,6 +54,7 @@
 #include "third_party/blink/renderer/core/css/css_initial_color_value.h"
 #include "third_party/blink/renderer/core/css/css_keyframe_rule.h"
 #include "third_party/blink/renderer/core/css/css_keyframes_rule.h"
+#include "third_party/blink/renderer/core/css/css_math_function_value.h"
 #include "third_party/blink/renderer/core/css/css_position_try_rule.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/css_rule_list.h"
@@ -126,6 +127,8 @@
 #include "third_party/blink/renderer/core/style/style_initial_data.h"
 #include "third_party/blink/renderer/core/style_property_shorthand.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
+#include "third_party/blink/renderer/core/svg/svg_svg_element.h"
+#include "third_party/blink/renderer/core/view_transition/view_transition_pseudo_element_base.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -165,10 +168,10 @@ bool ShouldStoreOldStyle(const StyleRecalcContext& style_recalc_context,
   // inside a size query container, or doing multiple style resolutions for
   // position-try-fallbacks.
   //
-  // For anchored elements that generate pseudo elements, we also need to store
-  // the old style for animating pseudo elements because style recalc for the
-  // originating anchored elements will always update its pseudo elements,
-  // causing the pseudo element styling to also have multiple passes.
+  // For anchored elements that generate pseudo-elements, we also need to store
+  // the old style for animating pseudo-elements because style recalc for the
+  // originating anchored elements will always update its pseudo-elements,
+  // causing the pseudo-element styling to also have multiple passes.
   //
   // If we are not inside a size query container or an element with
   // position-try-fallbacks, we can fall back to the default behavior (in
@@ -180,6 +183,7 @@ bool ShouldStoreOldStyle(const StyleRecalcContext& style_recalc_context,
   // properties from the element with position-try-fallbacks. This applies to
   // descendants of elements with anchor queries as well.
   return (style_recalc_context.container ||
+          style_recalc_context.has_anchored_container ||
           state.StyleBuilder().HasAnchorFunctions() ||
           state.StyleBuilder().PositionAnchor() ||
           state.GetElement().ImplicitAnchorElement() ||
@@ -367,7 +371,7 @@ String ComputeBaseComputedStyleDiff(const ComputedStyle* base_computed_style,
     return g_null_atom;
   }
 
-  return String("Field diff: ") + builder.ReleaseString();
+  return StrCat({"Field diff: ", builder.ReleaseString()});
 }
 #endif  // DCHECK_IS_ON()
 
@@ -666,7 +670,7 @@ struct UAShadowPseudoResult {
 };
 
 inline UAShadowPseudoResult UAShadowPseudoCascading(const Element& element) {
-  // Rules for ::cue and custom pseudo elements like
+  // Rules for ::cue and custom pseudo-elements like
   // ::-webkit-meter-bar pierce through a single shadow dom boundary and apply
   // to elements in sub-scopes.
   TreeScope* tree_scope = element.GetTreeScope().ParentTreeScope();
@@ -686,7 +690,7 @@ inline UAShadowPseudoResult UAShadowPseudoCascading(const Element& element) {
   // pseudo-elements, we expect styles specified by the author using the
   // pseudo-element to override styles specified in style attributes in
   // the user agent shadow DOM.  However, since we have a substantial
-  // number of existing uses with :-webkit-* and :-internal-* pseudo
+  // number of existing uses with :-webkit-* and :-internal-* pseudo-
   // elements that do not override the style attribute, we do not apply
   // this (developer-expected) behavior to those existing
   // pseudo-elements.  (It's possible that we could, but it would
@@ -729,8 +733,8 @@ void MatchSlottedRulesForUAHost(const Element& element,
     return;
   }
 
-  // We allow ::placeholder pseudo element after ::slotted(). Since we are
-  // matching such pseudo elements starting from inside the UA shadow DOM of
+  // We allow ::placeholder pseudo-element after ::slotted(). Since we are
+  // matching such pseudo-elements starting from inside the UA shadow DOM of
   // the element having the placeholder, we need to match ::slotted rules from
   // the scopes to which the placeholder's host element may be slotted.
   //
@@ -820,7 +824,7 @@ void MatchVTTRules(const Element& element,
     RuleSetGroup rule_set_group{rule_set_group_index++};
 
     for (CSSStyleSheet* style : styles) {
-      RuleSet* rule_set = style_engine.RuleSetForSheet(*style);
+      RuleSet* rule_set = style_engine.RuleSetForSheet(*style, /*mixins=*/{});
       if (!rule_set) {
         continue;
       }
@@ -1228,6 +1232,21 @@ void StyleResolver::MatchPresentationalHints(StyleResolverState& state,
         element.PresentationAttributeStyle(),
         CascadeOrigin::kAuthorPresentationalHint);
 
+    if (RuntimeEnabledFeatures::
+            WidthAndHeightAsPresentationAttributesOnNestedSvgEnabled() &&
+        state.GetStyledElement() != &element) {
+      auto* svg_svg_element =
+          DynamicTo<SVGSVGElement>(state.GetStyledElement());
+
+      if (svg_svg_element) {
+        collector.AddElementStyleProperties(
+            svg_svg_element
+                ->CreateWidthAndHeightPresentationAttributeStyleIfNeeded(
+                    element),
+            CascadeOrigin::kAuthorPresentationalHint);
+      }
+    }
+
     // Now we check additional mapped declarations.
     // Tables and table cells share an additional mapped rule that must be
     // applied after all attributes, since their mapped style depends on the
@@ -1382,13 +1401,18 @@ const ComputedStyle* StyleResolver::ResolveStyle(
 
   ApplyAnchorData(state);
   ApplyInertness(state);
+  ApplyTriggerData(state);
 
   IncrementResolvedStyleCounters(style_request, GetDocument());
   if (InvalidationTracingFlag::IsEnabled()) [[unlikely]] {
+    Element* styled_element = state.GetStyledElement();
+    if (styled_element == nullptr) {
+      styled_element = element;
+    }
     DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT_WITH_CATEGORIES(
         TRACE_DISABLED_BY_DEFAULT("devtools.timeline.invalidationTracking"),
         "StyleResolver::ResolveStyle",
-        inspector_style_resolver_resolve_style_event::Data, element,
+        inspector_style_resolver_resolve_style_event::Data, styled_element,
         style_request.pseudo_id);
   }
 
@@ -1476,7 +1500,7 @@ void StyleResolver::InitStyle(Element& element,
                               const ComputedStyle& source_for_noninherited,
                               const ComputedStyle* parent_style,
                               StyleResolverState& state) {
-  if (state.UsesHighlightPseudoInheritance()) {
+  if (state.IsForHighlight()) {
     // When resolving highlight styles for children, we need to default all
     // properties (whether or not defined as inherited) to parent values.
 
@@ -1512,7 +1536,7 @@ void StyleResolver::InitStyle(Element& element,
   // status, the font and the line height from the originating element. The
   // font and line height are necessary to correctly resolve font relative
   // units.
-  if (state.UsesHighlightPseudoInheritance()) {
+  if (state.IsForHighlight()) {
     state.StyleBuilder().SetInForcedColorsMode(
         style_request.originating_element_style->InForcedColorsMode());
     state.StyleBuilder().SetForcedColorAdjust(
@@ -1667,6 +1691,15 @@ bool CanApplyInlineStyleIncrementally(Element* element,
           property.Value().IsPendingSubstitutionValue() ||
           property.Value().IsRevertValue() ||
           property.Value().IsRevertLayerValue()) {
+        return false;
+      }
+      // Even though they are not substitution functions (and therefore not
+      // covered by the unparsed/pending-substitution value check above),
+      // anchor() and anchor-size() functions can still become IACVT,
+      // which must be handled by the StyleCascade.
+      if (auto* math_function =
+              DynamicTo<CSSMathFunctionValue>(property.Value());
+          math_function && math_function->HasAnchorFunctions()) {
         return false;
       }
     }
@@ -2464,6 +2497,24 @@ void StyleResolver::CollectPseudoRulesForElement(
     // TODO(crbug.com/339298411): handle :current?
     style_request.search_text_request = StyleRequest::kNotCurrent;
   }
+
+  if (IsTransitionPseudoElement(pseudo_id) &&
+      pseudo_id != kPseudoIdViewTransition) {
+    // Check view transition classes in addition to view transition names.
+    auto* view_transition_element =
+        element.GetPseudoElement(kPseudoIdViewTransition);
+    if (view_transition_element) {
+      auto* view_transition_group_element =
+          view_transition_element->GetPseudoElement(
+              kPseudoIdViewTransitionGroup, view_transition_name);
+      if (view_transition_group_element) {
+        style_request.pseudo_ident_list =
+            To<ViewTransitionPseudoElementBase>(*view_transition_group_element)
+                .ViewTransitionClassList();
+      }
+    }
+  }
+
   collector.SetPseudoElementStyleRequest(style_request);
 
   if (rules_to_include & kUACSSRules) {
@@ -2485,9 +2536,9 @@ bool StyleResolver::ApplyAnimatedStyle(
     const StyleRecalcContext& style_recalc_context) {
   Element& element = state.GetUltimateOriginatingElementOrSelf();
 
-  // The animating element may be this element, the pseudo element we are
-  // resolving style for, or null if we are resolving style for a pseudo
-  // element which is not represented by a PseudoElement like scrollbar pseudo
+  // The animating element may be this element, the pseudo-element we are
+  // resolving style for, or null if we are resolving style for a pseudo-
+  // element which is not represented by a PseudoElement like scrollbar pseudo-
   // elements.
   Element* animating_element = state.GetAnimatingElement();
 
@@ -2505,7 +2556,7 @@ bool StyleResolver::ApplyAnimatedStyle(
   }
 
   // TODO(crbug.com/1276575) : This assert is currently hit for nested ::marker
-  // pseudo elements.
+  // pseudo-elements.
   DCHECK(
       animating_element == &element ||
       (animating_element->IsSVGElement() &&
@@ -2537,20 +2588,16 @@ bool StyleResolver::ApplyAnimatedStyle(
     cascade.AddInterpolations(&animations, CascadeOrigin::kAnimation);
     cascade.AddInterpolations(&transitions, CascadeOrigin::kTransition);
 
-    // Note: this applies the same filter to pseudo elements as its originating
+    // Note: this applies the same filter to pseudo-elements as its originating
     // element since state.GetElement() returns the originating element when
-    // resolving style for pseudo elements.
+    // resolving style for pseudo-elements.
     CascadeFilter filter =
         UltimateOriginatingElementOrSelf(state.GetElement()).GetCascadeFilter();
     if (state.StyleBuilder().StyleType() == kPseudoIdMarker) {
       filter = filter.Add(CSSProperty::kValidForMarker);
     }
     if (IsHighlightPseudoElement(state.StyleBuilder().StyleType())) {
-      if (UsesHighlightPseudoInheritance(state.StyleBuilder().StyleType())) {
-        filter = filter.Add(CSSProperty::kValidForHighlight);
-      } else {
-        filter = filter.Add(CSSProperty::kValidForHighlightLegacy);
-      }
+      filter = filter.Add(CSSProperty::kValidForHighlight);
     }
     filter = filter.Add(CSSProperty::kNotAnimation);
 
@@ -2668,7 +2715,7 @@ StyleResolver::CacheSuccess StyleResolver::ApplyMatchedCache(
   // NOTE: Do not add anything here without also adding it to
   // MatchedPropertiesCache::IsCacheable(); you would be inserting
   // elements that can never be fetched.
-  if (state.UsesHighlightPseudoInheritance()) {
+  if (state.IsForHighlight()) {
     // Some pseudo-elements, like ::highlight, are special in that
     // they inherit _non-inherited_ properties from their parent.
     // This is different from what the MPC expects; it checks that
@@ -3003,9 +3050,9 @@ void StyleResolver::ApplyPropertiesFromCascade(StyleResolverState& state,
     old_style = state.StyleBuilder().CloneStyle();
   }
 
-  // Note: this applies the same filter to pseudo elements as its originating
+  // Note: this applies the same filter to pseudo-elements as its originating
   // element since state.GetElement() returns the originating element when
-  // resolving style for pseudo elements.
+  // resolving style for pseudo-elements.
   CascadeFilter filter = state.GetElement().GetCascadeFilter();
 
   // In order to use-count whether or not legacy overlapping properties
@@ -3421,6 +3468,19 @@ void StyleResolver::PropagateStyleToViewport() {
       }
     }
 
+    if (overscroll_behavior_style) {
+      if (GetDocument().IsInOutermostMainFrame()) {
+        using OverscrollBehaviorType = cc::OverscrollBehavior::Type;
+        GetDocument().GetPage()->GetChromeClient().SetOverscrollBehavior(
+            *GetDocument().GetFrame(),
+            cc::OverscrollBehavior(
+                static_cast<OverscrollBehaviorType>(
+                    overscroll_behavior_style->OverscrollBehaviorX()),
+                static_cast<OverscrollBehaviorType>(
+                    overscroll_behavior_style->OverscrollBehaviorY())));
+      }
+    }
+
     EOverflow overflow_x = EOverflow::kAuto;
     EOverflow overflow_y = EOverflow::kAuto;
     EOverflowAnchor overflow_anchor = EOverflowAnchor::kAuto;
@@ -3443,16 +3503,6 @@ void StyleResolver::PropagateStyleToViewport() {
       }
       if (overflow_anchor == EOverflowAnchor::kVisible) {
         overflow_anchor = EOverflowAnchor::kAuto;
-      }
-
-      if (GetDocument().IsInOutermostMainFrame()) {
-        using OverscrollBehaviorType = cc::OverscrollBehavior::Type;
-        GetDocument().GetPage()->GetChromeClient().SetOverscrollBehavior(
-            *GetDocument().GetFrame(),
-            cc::OverscrollBehavior(static_cast<OverscrollBehaviorType>(
-                                       overflow_style->OverscrollBehaviorX()),
-                                   static_cast<OverscrollBehaviorType>(
-                                       overflow_style->OverscrollBehaviorY())));
       }
 
       if (overflow_style->HasCustomScrollbarStyle(document_element)) {
@@ -3614,6 +3664,11 @@ StyleRulePositionTry* StyleResolver::ResolvePositionTryRule(
   }
 
   return position_try_rule;
+}
+
+void StyleResolver::ApplyTriggerData(StyleResolverState& state) {
+  CSSAnimations::UpdateNamedTriggers(
+      state.StyleBuilder(), state.AnimationUpdate(), state.GetElement());
 }
 
 }  // namespace blink

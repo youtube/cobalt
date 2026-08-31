@@ -42,6 +42,7 @@
 #include "third_party/blink/renderer/platform/fonts/font_selection_types.h"
 #include "third_party/blink/renderer/platform/fonts/font_selector.h"
 #include "third_party/blink/renderer/platform/fonts/text_rendering_mode.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_high_entropy_op_type.h"
 #include "third_party/blink/renderer/platform/graphics/draw_looper_builder.h"
 #include "third_party/blink/renderer/platform/graphics/filters/filter_effect.h"
 #include "third_party/blink/renderer/platform/graphics/filters/paint_filter_builder.h"
@@ -160,7 +161,6 @@ TextRenderingMode CanvasTextRenderingToTextRenderingMode(
 CanvasRenderingContext2DState::CanvasRenderingContext2DState()
     : shadow_blur_(0.0),
       shadow_color_(Color::kTransparent),
-      global_alpha_(1.0),
       line_dash_offset_(0.0),
       unparsed_font_(defaultFont),
       font_(MakeGarbageCollected<Font>()),
@@ -179,14 +179,17 @@ CanvasRenderingContext2DState::CanvasRenderingContext2DState()
       image_smoothing_quality_(cc::PaintFlags::FilterQuality::kLow) {
   fill_flags_.setStyle(cc::PaintFlags::kFill_Style);
   fill_flags_.setAntiAlias(true);
+  fill_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
   image_flags_.setStyle(cc::PaintFlags::kFill_Style);
   image_flags_.setAntiAlias(true);
+  image_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
   stroke_flags_.setStyle(cc::PaintFlags::kStroke_Style);
   stroke_flags_.setStrokeWidth(1);
   stroke_flags_.setStrokeCap(cc::PaintFlags::kButt_Cap);
   stroke_flags_.setStrokeMiter(10);
   stroke_flags_.setStrokeJoin(cc::PaintFlags::kMiter_Join);
   stroke_flags_.setAntiAlias(true);
+  stroke_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
   SetImageSmoothingEnabled(true);
 }
 
@@ -212,6 +215,7 @@ CanvasRenderingContext2DState::CanvasRenderingContext2DState(
       shadow_and_foreground_image_filter_(
           other.shadow_and_foreground_image_filter_),
       global_alpha_(other.global_alpha_),
+      global_hdr_headroom_(other.global_hdr_headroom_),
       transform_(other.transform_),
       line_dash_(other.line_dash_),
       line_dash_offset_(other.line_dash_offset_),
@@ -343,6 +347,18 @@ void CanvasRenderingContext2DState::SetGlobalAlpha(double alpha) {
   image_flags_.setColor(ScaleAlpha(SK_ColorBLACK, alpha));
 }
 
+void CanvasRenderingContext2DState::SetGlobalHDRHeadroom(double h) {
+  // Invalid values (negatives and NaNs) are expected to be avoided by the
+  // caller.
+  global_hdr_headroom_ = h;
+
+  // This will cast `global_hdr_headroom_` from a double to a float. This will
+  // not remove any needed precision, and rounding up to infinity is acceptable.
+  stroke_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
+  fill_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
+  image_flags_.setTargetedHdrHeadroom(global_hdr_headroom_);
+}
+
 void CanvasRenderingContext2DState::ClipPath(
     const SkPath& path,
     AntiAliasingMode anti_aliasing_mode) {
@@ -385,7 +401,7 @@ void CanvasRenderingContext2DState::SetFont(
     // Convert word spacing to pixel length and set it in font_description.
     float word_spacing_in_pixel =
         conversion_data.ZoomedComputedPixels(word_spacing_, word_spacing_unit_);
-    font_description.SetWordSpacing(word_spacing_in_pixel);
+    font_description.SetWordSpacing(Length::Fixed(word_spacing_in_pixel));
   }
 
   // If wordSpacing is set in CanvasRenderingContext2D, then update the
@@ -394,7 +410,7 @@ void CanvasRenderingContext2DState::SetFont(
     // Convert letter spacing to pixel length and set it in font_description.
     float letter_spacing_in_pixel = conversion_data.ZoomedComputedPixels(
         letter_spacing_, letter_spacing_unit_);
-    font_description.SetLetterSpacing(letter_spacing_in_pixel);
+    font_description.SetLetterSpacing(Length::Fixed(letter_spacing_in_pixel));
   }
   font_description.SetKerning(font_kerning_);
   font_description.SetTextRendering(
@@ -715,11 +731,15 @@ void CanvasRenderingContext2DState::SetShadowOffsetY(double y) {
 void CanvasRenderingContext2DState::SetShadowBlur(double shadow_blur) {
   shadow_blur_ = ClampTo<float>(shadow_blur);
   ShadowParameterChanged();
+  if (shadow_blur_ > 0) {
+    AddHighEntropyCanvasOpTypes(HighEntropyCanvasOpType::kSetShadowBlur);
+  }
 }
 
 void CanvasRenderingContext2DState::SetShadowColor(Color shadow_color) {
   shadow_color_ = shadow_color;
   ShadowParameterChanged();
+  AddHighEntropyCanvasOpTypes(HighEntropyCanvasOpType::kSetShadowColor);
 }
 
 void CanvasRenderingContext2DState::SetCSSFilter(const CSSValue* filter_value) {
@@ -739,6 +759,10 @@ void CanvasRenderingContext2DState::SetGlobalComposite(SkBlendMode mode) {
   stroke_flags_.setBlendMode(mode);
   fill_flags_.setBlendMode(mode);
   image_flags_.setBlendMode(mode);
+  if (mode != SkBlendMode::kSrcOver) {
+    AddHighEntropyCanvasOpTypes(
+        HighEntropyCanvasOpType::kGlobalCompositionOperation);
+  }
 }
 
 SkBlendMode CanvasRenderingContext2DState::GlobalComposite() const {
@@ -891,7 +915,7 @@ void CanvasRenderingContext2DState::SetLetterSpacing(
   float letter_spacing_in_pixel =
       conversion_data.ZoomedComputedPixels(num_spacing, unit);
 
-  font_description.SetLetterSpacing(letter_spacing_in_pixel);
+  font_description.SetLetterSpacing(Length::Fixed(letter_spacing_in_pixel));
   if (selector) {
     SetFontInternal(font_description, selector);
   }
@@ -929,7 +953,7 @@ void CanvasRenderingContext2DState::SetWordSpacing(
   float word_spacing_in_pixel =
       conversion_data.ZoomedComputedPixels(num_spacing, unit);
 
-  font_description.SetWordSpacing(word_spacing_in_pixel);
+  font_description.SetWordSpacing(Length::Fixed(word_spacing_in_pixel));
   if (selector) {
     SetFontInternal(font_description, selector);
   }

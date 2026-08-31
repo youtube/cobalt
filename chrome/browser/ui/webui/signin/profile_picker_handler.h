@@ -120,11 +120,11 @@ class ProfilePickerHandler : public content::WebUIMessageHandler,
   void HandleRecordSignInPromoImpression(const base::Value::List& args);
 
   void OnLoadSigninFinished(bool success);
+  void OnResetPickerButtons(bool success);
   void GatherProfileStatistics(Profile* profile);
   void OnProfileStatisticsReceived(const base::FilePath& profile_path,
                                    profiles::ProfileCategoryStats result);
 
-  void OnProfileCreationFinished(bool finished_successfully);
   void PushProfilesList();
   base::Value::List GetProfilesList();
   // Adds a profile with `profile_path` to `profiles_order_` and notifies
@@ -144,8 +144,7 @@ class ProfilePickerHandler : public content::WebUIMessageHandler,
       const base::FilePath& profile_path) override;
   void OnProfileNameChanged(const base::FilePath& profile_path,
                             const std::u16string& old_profile_name) override;
-  void OnProfileHostedDomainChanged(
-      const base::FilePath& profile_path) override;
+  void OnProfileIsManagedChanged(const base::FilePath& profile_path) override;
   void OnProfileSupervisedUserIdChanged(
       const base::FilePath& profile_path) override;
 

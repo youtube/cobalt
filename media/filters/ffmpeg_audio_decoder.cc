@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "media/filters/ffmpeg_audio_decoder.h"
 
 #include <stdint.h>
@@ -14,6 +9,7 @@
 #include <functional>
 #include <memory>
 
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
@@ -233,8 +229,8 @@ bool FFmpegAudioDecoder::FFmpegDecode(const DecoderBuffer& buffer) {
   // Even if we didn't decode a frame this loop, we should still send the packet
   // to the discard helper for caching.
   if (!decoded_frame_this_loop && !buffer.end_of_stream()) {
-    const bool result =
-        discard_helper_->ProcessBuffers(buffer.time_info(), nullptr);
+    const bool result = discard_helper_->ProcessBuffers(
+        AudioDiscardHelper::TimeInfo::FromBuffer(buffer), nullptr);
     DCHECK(!result);
   }
 
@@ -302,7 +298,8 @@ bool FFmpegAudioDecoder::OnNewFrame(const DecoderBuffer& buffer,
     output->TrimEnd(unread_frames);
 
   *decoded_frame_this_loop = true;
-  if (discard_helper_->ProcessBuffers(buffer.time_info(), output.get())) {
+  if (discard_helper_->ProcessBuffers(
+          AudioDiscardHelper::TimeInfo::FromBuffer(buffer), output.get())) {
     if (is_config_change &&
         output->sample_rate() != config_.samples_per_second()) {
       // At the boundary of the config change, FFmpeg's AAC decoder gives the
@@ -462,7 +459,7 @@ int FFmpegAudioDecoder::GetAudioBuffer(struct AVCodecContext* s,
   if (number_of_planes <= AV_NUM_DATA_POINTERS) {
     DCHECK_EQ(frame->extended_data, frame->data);
     for (int i = 0; i < number_of_planes; ++i)
-      frame->data[i] = buffer->channel_data()[i];
+      UNSAFE_TODO(frame->data[i]) = buffer->channel_data()[i];
   } else {
     // There are more channels than can fit into data[], so allocate
     // extended_data[] and fill appropriately.
@@ -470,9 +467,10 @@ int FFmpegAudioDecoder::GetAudioBuffer(struct AVCodecContext* s,
         av_malloc(number_of_planes * sizeof(*frame->extended_data)));
     int i = 0;
     for (; i < AV_NUM_DATA_POINTERS; ++i)
-      frame->extended_data[i] = frame->data[i] = buffer->channel_data()[i];
+      UNSAFE_TODO(frame->extended_data[i]) = UNSAFE_TODO(frame->data[i]) =
+          buffer->channel_data()[i];
     for (; i < number_of_planes; ++i)
-      frame->extended_data[i] = buffer->channel_data()[i];
+      UNSAFE_TODO(frame->extended_data[i]) = buffer->channel_data()[i];
   }
 
   // Now create an AVBufferRef for the data just allocated. It will own the

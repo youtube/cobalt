@@ -4,6 +4,8 @@
 
 #include "components/persistent_cache/sqlite/vfs/sqlite_database_vfs_file_set.h"
 
+#include <atomic>
+
 #include "base/files/file_path.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
@@ -19,29 +21,22 @@ constexpr const char kPathSeperator[] = "_";
 
 namespace persistent_cache {
 
-SqliteVfsFileSet::SqliteVfsFileSet(SandboxedFile db_file,
-                                   SandboxedFile journal_file)
+SqliteVfsFileSet::SqliteVfsFileSet(std::unique_ptr<SandboxedFile> db_file,
+                                   std::unique_ptr<SandboxedFile> journal_file)
     : db_file_(std::move(db_file)),
       journal_file_(std::move(journal_file)),
       virtual_fs_path_(base::NumberToString(
-          g_file_set_id_generator.fetch_add(1, std::memory_order_relaxed))) {}
-
-SqliteVfsFileSet::SqliteVfsFileSet(SandboxedFile db_file,
-                                   SandboxedFile journal_file,
-                                   std::string virtual_fs_path)
-    : db_file_(std::move(db_file)),
-      journal_file_(std::move(journal_file)),
-      virtual_fs_path_(virtual_fs_path) {}
+          g_file_set_id_generator.fetch_add(1, std::memory_order_relaxed))),
+      read_only_(db_file_->access_rights() ==
+                 SandboxedFile::AccessRights::kReadOnly) {
+  // It makes no sense to have a file writeable and not the other.
+  CHECK_EQ(db_file_->access_rights(), journal_file_->access_rights());
+}
 
 SqliteVfsFileSet::SqliteVfsFileSet(SqliteVfsFileSet&& other) = default;
 SqliteVfsFileSet& SqliteVfsFileSet::operator=(SqliteVfsFileSet&& other) =
     default;
 SqliteVfsFileSet::~SqliteVfsFileSet() = default;
-
-SqliteVfsFileSet SqliteVfsFileSet::Copy() const {
-  return SqliteVfsFileSet(db_file_.Copy(), journal_file_.Copy(),
-                          virtual_fs_path_);
-}
 
 base::FilePath SqliteVfsFileSet::GetDbVirtualFilePath() const {
   constexpr const char kDbFileName[] = "data.db";
@@ -55,10 +50,10 @@ base::FilePath SqliteVfsFileSet::GetJournalVirtualFilePath() const {
       base::StrCat({virtual_fs_path_, kPathSeperator, kJournalFileName}));
 }
 
-std::array<std::pair<base::FilePath, SandboxedFile>, 2>
+std::array<std::pair<base::FilePath, raw_ptr<SandboxedFile>>, 2>
 SqliteVfsFileSet::GetFiles() const {
-  return {std::make_pair(GetDbVirtualFilePath(), db_file_.Copy()),
-          std::make_pair(GetJournalVirtualFilePath(), journal_file_.Copy())};
+  return {std::make_pair(GetDbVirtualFilePath(), db_file_.get()),
+          std::make_pair(GetJournalVirtualFilePath(), journal_file_.get())};
 }
 
 }  // namespace persistent_cache

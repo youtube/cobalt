@@ -168,6 +168,11 @@ PushNotificationClient::PushNotificationClient(
 
 PushNotificationClient::~PushNotificationClient() = default;
 
+std::optional<NotificationType> PushNotificationClient::GetNotificationType(
+    UNNotification* notification) {
+  return std::nullopt;
+}
+
 PushNotificationClientId PushNotificationClient::GetClientId() const {
   return client_id_;
 }
@@ -219,7 +224,7 @@ void PushNotificationClient::OnSceneActiveForegroundBrowserReady() {
   }
 }
 
-Browser* PushNotificationClient::GetActiveForegroundBrowser() {
+Browser* PushNotificationClient::GetActiveForegroundBrowser() const {
   if (!IsMultiProfilePushNotificationHandlingEnabled() ||
       client_scope_ != PushNotificationClientScope::kPerProfile) {
     for (ProfileIOS* profile :
@@ -236,7 +241,7 @@ Browser* PushNotificationClient::GetActiveForegroundBrowser() {
   return GetSceneLevelForegroundActiveBrowserForProfile(profile_.get());
 }
 
-ProfileIOS* PushNotificationClient::GetProfile() {
+ProfileIOS* PushNotificationClient::GetProfile() const {
   CHECK_EQ(client_scope_, PushNotificationClientScope::kPerProfile);
 
   return profile_.get();

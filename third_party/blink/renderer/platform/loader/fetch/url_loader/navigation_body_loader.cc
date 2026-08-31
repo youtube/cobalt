@@ -639,13 +639,21 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
       is_main_frame ? net::HIGHEST : net::LOWEST, is_ad_frame);
   size_t redirect_count = commit_params->redirect_response.size();
 
-  if (redirect_count != commit_params->redirects.size()) {
-    // We currently incorrectly send empty redirect_response and redirect_infos
-    // on frame reloads and some cases involving throttles. There are also other
-    // reports of non-empty cases, so further investigation is still needed.
-    // TODO(https://crbug.com/1171225): Fix this.
-    redirect_count = std::min(redirect_count, commit_params->redirects.size());
+  if (!base::FeatureList::IsEnabled(
+          blink::features::kRemoveCommitRedirectUrlsArray)) {
+    if (redirect_count != commit_params->redirects.size()) {
+      // We currently incorrectly send empty redirect_response and
+      // redirect_infos on frame reloads and some cases involving throttles.
+      // There are also other reports of non-empty cases, so further
+      // investigation is still needed.
+      // TODO(https://crbug.com/1171225): Fix this.
+      // TODO(https://crbug.com/422803238): Remove this entire statement as it
+      // should not be necessary.
+      redirect_count =
+          std::min(redirect_count, commit_params->redirects.size());
+    }
   }
+
   navigation_params->redirects.reserve(redirect_count);
   navigation_params->redirects.resize(redirect_count);
   for (size_t i = 0; i < redirect_count; ++i) {
@@ -660,6 +668,7 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
         redirect_info, std::move(redirect_response));
     if (url.ProtocolIsData())
       redirect.redirect_response.SetHttpStatusCode(200);
+
     redirect.new_url = KURL(redirect_info.new_url);
     // WebString treats default and empty strings differently while std::string
     // does not. A default value is expected for new_referrer rather than empty.
@@ -671,8 +680,21 @@ void WebNavigationBodyLoader::FillNavigationParamsResponseAndBodyLoader(
     url = KURL(redirect_info.new_url);
   }
 
-  navigation_params->response = WebURLResponse::Create(
-      url, *response_head, response_head->ssl_info.has_value(), request_id);
+  KURL commit_url = url;
+  if (base::FeatureList::IsEnabled(
+          blink::features::kUseCommitUrlInsteadOfRedirectUrl)) {
+    // In the long run we want to use `common_params->url` as the actual URL to
+    // commit instead of the URL from the redirect chain and sanitize all the
+    // redirect chain URLs. For now, let's ensure that the expectation of those
+    // two being equal holds in reality so the switch can be safely made.
+    // TODO(https://crbug.com/422803238): Make this the default behavior and
+    // remove the feature flag.
+    commit_url = KURL(common_params->url);
+    CHECK_EQ(url, commit_url);
+  }
+  navigation_params->response =
+      WebURLResponse::Create(commit_url, *response_head,
+                             response_head->ssl_info.has_value(), request_id);
   if (url.ProtocolIsData())
     navigation_params->response.SetHttpStatusCode(200);
 

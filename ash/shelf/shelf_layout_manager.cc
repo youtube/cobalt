@@ -502,8 +502,7 @@ ShelfLayoutManager::ScopedVisibilityLock::~ScopedVisibilityLock() {
 ShelfLayoutManager::ShelfLayoutManager(ShelfWidget* shelf_widget, Shelf* shelf)
     : shelf_widget_(shelf_widget),
       shelf_(shelf),
-      is_background_blur_enabled_(features::IsBackgroundBlurEnabled() &&
-                                  chromeos::features::IsSystemBlurEnabled()) {
+      is_background_blur_enabled_(chromeos::features::IsSystemBlurEnabled()) {
   DCHECK(shelf_widget_);
   DCHECK(shelf_);
 }
@@ -3072,7 +3071,9 @@ bool ShelfLayoutManager::MaybeStartDragWindowFromShelf(
   if (drag_status_ != kDragInProgress)
     return false;
 
-  // Do not drag on an auto-hidden shelf or a hidden shelf.
+  // Do not start a window drag from a shelf that is not fully visible. The
+  // shelf state is not updated during a drag, so a single gesture from a
+  // hidden shelf cannot start a window drag.
   if ((visibility_state() == SHELF_AUTO_HIDE &&
        auto_hide_state() == SHELF_AUTO_HIDE_HIDDEN) ||
       visibility_state() == SHELF_HIDDEN) {

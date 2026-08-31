@@ -19,8 +19,11 @@
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/animated_coordinator.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
+#import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/elements/activity_overlay_coordinator.h"
+#import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
@@ -66,6 +69,8 @@
                               contextStyle:contextStyle
                                accessPoint:accessPoint];
   if (self) {
+    CHECK(browser, base::NotFatalUntil::M142);
+    CHECK(viewController, base::NotFatalUntil::M142);
     CHECK(continuationProvider);
     _identity = identity;
     _promoAction = promoAction;
@@ -87,14 +92,19 @@
 - (void)start {
   [super start];
   signin::IdentityManager* identityManager =
-      IdentityManagerFactory::GetForProfile(self.profile);
+      IdentityManagerFactory::GetForProfile(self.profile->GetOriginalProfile());
   CHECK(!identityManager->HasPrimaryAccount(signin::ConsentLevel::kSignin),
         base::NotFatalUntil::M142);
   _signinLogger = [[UserSigninLogger alloc] initWithAccessPoint:self.accessPoint
                                                     promoAction:_promoAction];
   [_signinLogger logSigninStarted];
+  AuthenticationService* authenticationService =
+      AuthenticationServiceFactory::GetForProfile(
+          self.profile->GetOriginalProfile());
   _mediator =
       [[InstantSigninMediator alloc] initWithAccessPoint:self.accessPoint
+                                   authenticationService:authenticationService
+                                         identityManager:identityManager
                                     continuationProvider:_continuationProvider];
   _mediator.delegate = self;
 
@@ -156,10 +166,28 @@
   CHECK(!_activityOverlayCoordinator, base::NotFatalUntil::M145);
   CHECK(!_identityChooserCoordinator, base::NotFatalUntil::M145);
   _signinLogger = nil;
-  [_mediator disconnect];
+  // Methods on mediator's delegate should not be called anymore. If the sign-in
+  // is progress, when calling the mediator disconnect method, it will call
+  // `-[<InstantSigninMediatorDelegate> instantSigninMediator:
+  // didSigninWithResult]` on this coordinator.
+  // That will trigger the signinCompletion block. And the coordinator's oner
+  // will dealloc this self.
+  // Result, at the end of `[_mediator disconnect]`, self would be deallocated.
+  // The owner is already aware that InstantSigninCoordinator is aborted since
+  // stop is called.
   _mediator.delegate = nil;
+  [_mediator disconnect];
   _mediator = nil;
   [super stopAnimated:animated];
+}
+
+#pragma mark - SigninCoordinator
+
+- (BOOL)isAtRiskOfASWViewBug {
+  // This coordinator has no view of its own. The view may only have disappeared
+  // if it owns a started coordinator whose view silently disappeared. The only
+  // coordinator for which this is possible is the add account one.
+  return _addAccountSigninCoordinator.isAtRiskOfASWViewBug;
 }
 
 #pragma mark - IdentityChooserCoordinatorDelegate
@@ -233,6 +261,13 @@
                    completionIdentity:_identity];
 }
 
+- (void)instantSigninMediatorSigninIsImpossible:
+    (InstantSigninMediator*)mediator {
+  CHECK_EQ(mediator, _mediator, base::NotFatalUntil::M144);
+  [self runCompletionWithSigninResult:SigninCoordinatorResultInterrupted
+                   completionIdentity:nil];
+}
+
 #pragma mark - Private
 
 // Starts the sign-in flow.
@@ -266,6 +301,10 @@
 
 // Starts the add account coordinator.
 - (void)startAddAccountForSignInOnly {
+  // In case of double-tap, we must stop the first coordinator. This may occur
+  // because, up to iOS 18, the view may have disappeared without calling the
+  // signin completion. See crbug.com/395959814
+  [_addAccountSigninCoordinator stop];
   _addAccountSigninCoordinator = [SigninCoordinator
       addAccountCoordinatorWithBaseViewController:self.baseViewController
                                           browser:self.browser

@@ -50,16 +50,14 @@ if (!is_cronet_build && is_android) {
     # External code should depend on ":foo_java" instead.
     visibility = [ ":*" ]
     sources = [ "//components/metrics/metrics_features.cc" ]
-    template =
-        "//components/metrics/android/java_templates/MetricsFeatures.java.tmpl"
+    class_name = "org.chromium.components.metrics.MetricsFeatures"
   }
 
   java_cpp_strings("java_switches_srcjar") {
     # External code should depend on ":metrics_java" instead.
     visibility = [ ":*" ]
     sources = [ "//components/metrics/metrics_switches.cc" ]
-    template =
-        "//components/metrics/android/java_templates/MetricsSwitches.java.tmpl"
+    class_name = "org.chromium.components.metrics.MetricsSwitches"
   }
 
   java_cpp_enum("java_enum_srcjar") {
@@ -101,10 +99,7 @@ source_set("client_info") {
 
 # Used by the Chrome installer, which doesn't need the whole metrics library.
 source_set("metrics_pref_names") {
-  sources = [
-    "metrics_pref_names.cc",
-    "metrics_pref_names.h",
-  ]
+  sources = [ "metrics_pref_names.h" ]
   configs += [
     "//build/config/compiler:wexit_time_destructors",
     "//build/config/compiler:wglobal_constructors",
@@ -186,6 +181,8 @@ if (!is_cronet_build || is_ios) {
       "field_trials_provider.h",
       "file_metrics_provider.cc",
       "file_metrics_provider.h",
+      "fre_source_trial.cc",
+      "fre_source_trial.h",
       "install_date_provider.cc",
       "install_date_provider.h",
       "log_decoder.cc",
@@ -282,7 +279,7 @@ if (!is_cronet_build || is_ios) {
       "//components/prefs",
       "//components/variations",
       "//components/variations/field_trial_config",
-      "//components/version_info:version_info",
+      "//components/version_info",
       "//components/webui/flags:switches",
       "//crypto",
       "//extensions/buildflags",
@@ -394,8 +391,6 @@ if (!is_cronet_build) {
       sources = [
         "content/content_stability_metrics_provider.cc",
         "content/content_stability_metrics_provider.h",
-        "content/dwa_web_contents_observer.cc",
-        "content/dwa_web_contents_observer.h",
         "content/extensions_helper.h",
         "content/gpu_metrics_provider.cc",
         "content/gpu_metrics_provider.h",
@@ -444,8 +439,8 @@ if (!is_cronet_build) {
 
     deps = [
       "//base",
+      "//components/encrypted_messages",
       "//components/encrypted_messages:encrypted_message_proto",
-      "//components/encrypted_messages:encrypted_messages",
       "//components/variations",
       "//net",
       "//services/network/public/cpp",
@@ -509,7 +504,7 @@ if (!is_cronet_build) {
     ]
 
     deps = [
-      "//base:base",
+      "//base",
       "//components/sampling_profiler:profile_params",
       "//third_party/metrics_proto",
     ]
@@ -654,7 +649,7 @@ if (!is_cronet_build) {
       "//mojo/public/cpp/bindings",
       "//net:test_support",
       "//services/network:test_support",
-      "//services/network/public/cpp:cpp",
+      "//services/network/public/cpp",
       "//services/service_manager/public/cpp",
       "//testing/gmock",
       "//testing/gtest",
@@ -713,7 +708,6 @@ if (!is_cronet_build) {
     } else {
       sources += [
         "content/content_stability_metrics_provider_unittest.cc",
-        "content/dwa_web_contents_observer_unittest.cc",
         "content/subprocess_metrics_provider_unittest.cc",
       ]
       deps += [ "//extensions/buildflags" ]
@@ -722,6 +716,10 @@ if (!is_cronet_build) {
     if (is_win || is_linux) {
       sources += [ "motherboard_metrics_provider_unittest.cc" ]
     }
+
+    # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+    # enable the diagnostic by removing this line.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
   }
 
   # Convenience testing target

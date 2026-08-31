@@ -60,6 +60,14 @@ void ClearNativeWindow(void* raw_context) {
     return;
   }
 
+  // Save pre-existing EGL context state to restore at the end of this function.
+  // This prevents unbinding the shared GPU thread's context from other active
+  // players.
+  EGLDisplay old_display = eglGetCurrentDisplay();
+  EGLSurface old_draw_surface = eglGetCurrentSurface(EGL_DRAW);
+  EGLSurface old_read_surface = eglGetCurrentSurface(EGL_READ);
+  EGLContext old_context = eglGetCurrentContext();
+
   const EGLint kAttributeList[] = {
       EGL_RED_SIZE,
       8,
@@ -128,9 +136,9 @@ void ClearNativeWindow(void* raw_context) {
 
   EGL_CALL(eglSwapBuffers(display, surface));
 
-  // Cleanup all used resources.
-  EGL_CALL(
-      eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
+  // Restore pre-existing EGL state and destroy temporary cleanup resources.
+  EGL_CALL(eglMakeCurrent(old_context == EGL_NO_CONTEXT ? display : old_display,
+                          old_draw_surface, old_read_surface, old_context));
   EGL_CALL(eglDestroyContext(display, context));
   EGL_CALL(eglDestroySurface(display, surface));
 }
@@ -186,19 +194,7 @@ void VideoSurfaceHolder::ReleaseVideoSurface() {
   }
 }
 
-bool VideoSurfaceHolder::GetVideoWindowSize(int* width, int* height) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_native_video_window == NULL) {
-    return false;
-  } else {
-    *width = ANativeWindow_getWidth(g_native_video_window);
-    *height = ANativeWindow_getHeight(g_native_video_window);
-    return true;
-  }
-}
-
-void VideoSurfaceHolder::CleanUpVideoWindow(
-    bool force_clear,
+void VideoSurfaceHolder::CleanUpVideoSurface(
     SbDecodeTargetGraphicsContextProvider* gpu_provider) {
   // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
   // during painting.
@@ -209,22 +205,25 @@ void VideoSurfaceHolder::CleanUpVideoWindow(
     return;
   }
 
+  SB_CHECK(gpu_provider);
+  gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
+                                    g_native_video_window);
+  SB_LOG(INFO) << "Video surface has been cleared.";
+}
+
+void VideoSurfaceHolder::ResetVideoSurface() {
+  // Lock *GetViewSurfaceMutex() here, to avoid releasing g_native_video_window
+  // during painting.
+  std::lock_guard lock(*GetViewSurfaceMutex());
+
   JNIEnv* env = AttachCurrentThread();
   if (!env) {
-    SB_LOG(INFO) << "Tried to clean up video window when JNIEnv was null.";
-    return;
-  }
-
-  if (force_clear) {
-    SB_CHECK(gpu_provider);
-    gpu_provider->gles_context_runner(gpu_provider, &ClearNativeWindow,
-                                      g_native_video_window);
-    SB_LOG(INFO) << "Video surface has been cleared.";
+    SB_LOG(INFO) << "Tried to reset video window when JNIEnv was null.";
     return;
   }
 
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
-  SB_LOG(INFO) << "Video surface has been reset (default behavior).";
+  SB_LOG(INFO) << "Video surface has been reset.";
 }
 
 }  // namespace starboard

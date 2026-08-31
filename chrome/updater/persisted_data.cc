@@ -11,6 +11,7 @@
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
+#include "base/json/values_util.h"
 #include "base/logging.h"
 #include "base/sequence_checker.h"
 #include "base/strings/string_util.h"
@@ -54,11 +55,16 @@ constexpr char kLang[] = "lang";
 
 constexpr char kHadApps[] = "had_apps";
 constexpr char kUsageStatsEnabledKey[] = "usage_stats_enabled";
+constexpr char kRemoteLoggingCookie[] = "remote_logging_cookie";
+constexpr char kNextAllowedLoggingAttemptTime[] = "next_logging_attempt_time";
 constexpr char kEulaRequired[] = "eula_required";
 
 constexpr char kLastChecked[] = "last_checked";
 constexpr char kLastStarted[] = "last_started";
 constexpr char kLastOSVersion[] = "last_os_version";
+
+constexpr char kCookieValueKey[] = "value";
+constexpr char kCookieExpirationKey[] = "expiration";
 
 }  // namespace
 
@@ -658,15 +664,59 @@ void PersistedData::SetHadApps() {
   }
 }
 
-bool PersistedData::GetUsageStatsEnabled() const {
+std::optional<PersistedData::Cookie> PersistedData::GetRemoteLoggingCookie()
+    const {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return pref_service_ && pref_service_->GetBoolean(kUsageStatsEnabledKey);
+  if (!pref_service_) {
+    return std::nullopt;
+  }
+
+  const base::Value::Dict& cookie =
+      pref_service_->GetDict(kRemoteLoggingCookie);
+  const std::string* value = cookie.FindString(kCookieValueKey);
+  std::optional<base::Time> expiration =
+      base::ValueToTime(cookie.Find(kCookieExpirationKey));
+  if (!value || !expiration) {
+    return std::nullopt;
+  }
+
+  return Cookie{
+      .value = *value,
+      .expiration = *expiration,
+  };
 }
 
-void PersistedData::SetUsageStatsEnabled(bool usage_stats_enabled) {
+void PersistedData::SetRemoteLoggingCookie(const Cookie& logging_cookie) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (pref_service_) {
-    pref_service_->SetBoolean(kUsageStatsEnabledKey, usage_stats_enabled);
+    pref_service_->SetDict(
+        kRemoteLoggingCookie,
+        base::Value::Dict()
+            .Set(kCookieValueKey, logging_cookie.value)
+            .Set(kCookieExpirationKey,
+                 base::TimeToValue(logging_cookie.expiration)));
+  }
+}
+
+void PersistedData::ClearRemoteLoggingCookie() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (pref_service_) {
+    pref_service_->ClearPref(kRemoteLoggingCookie);
+  }
+}
+
+base::Time PersistedData::GetNextAllowedLoggingAttemptTime() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!pref_service_) {
+    return base::Time();
+  }
+  return pref_service_->GetTime(kNextAllowedLoggingAttemptTime);
+}
+
+void PersistedData::SetNextAllowedLoggingAttemptTime(base::Time time) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (pref_service_) {
+    pref_service_->SetTime(kNextAllowedLoggingAttemptTime, time);
   }
 }
 
@@ -779,11 +829,20 @@ void PersistedData::SetLastOSVersion() {
 // kPersistedDataPreference is registered by update_client::RegisterPrefs.
 void RegisterPersistedDataPrefs(scoped_refptr<PrefRegistrySimple> registry) {
   registry->RegisterBooleanPref(kHadApps, false);
-  registry->RegisterBooleanPref(kUsageStatsEnabledKey, false);
   registry->RegisterBooleanPref(kEulaRequired, false);
+  registry->RegisterTimePref(kNextAllowedLoggingAttemptTime, {});
   registry->RegisterTimePref(kLastChecked, {});
   registry->RegisterTimePref(kLastStarted, {});
   registry->RegisterStringPref(kLastOSVersion, {});
+  registry->RegisterDictionaryPref(kRemoteLoggingCookie, {});
+
+  // TODO(crbug.com/422187975): Remove obsolete pref no earlier than 6/3/2026.
+  registry->RegisterBooleanPref(kUsageStatsEnabledKey, false);
+}
+
+void MigrateObsoletePersistedDataPrefs(PrefService* pref_service) {
+  // TODO(crbug.com/422187975): Remove obsolete pref no earlier than 6/3/2026.
+  pref_service->ClearPref(kUsageStatsEnabledKey);
 }
 
 }  // namespace updater

@@ -109,6 +109,13 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="L1T3"/>
 </enum>
 
+<enum name="FullScreenDetectorResult">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Success"/>
+  <int value="2" label="FailureDueToSameTitleWindows"/>
+  <int value="3" label="FailureDueToSlideShowWasNotChosen"/>
+</enum>
+
 <enum name="GenerateCertificateAlgorithms">
   <int value="0" label="ECDSA-P256"/>
   <int value="1" label="RSA-1024"/>
@@ -153,6 +160,14 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="IceconnectionFailed"/>
   <int value="5" label="IceconnectionDisconnected"/>
   <int value="6" label="IceconnectionClosed"/>
+</enum>
+
+<enum name="IpAddressType">
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Any"/>
+  <int value="2" label="Loopback"/>
+  <int value="3" label="Private"/>
+  <int value="4" label="Public"/>
 </enum>
 
 <enum name="PeerConnectionBundlePolicy">

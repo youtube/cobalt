@@ -9,6 +9,8 @@ import android.graphics.RectF;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.layouts.EventFilter;
 import org.chromium.chrome.browser.layouts.SceneOverlay;
@@ -24,6 +26,7 @@ import java.util.List;
  * relay status, e.g. indicate user is offline.
  */
 @JNINamespace("android")
+@NullMarked
 class StatusIndicatorSceneLayer extends SceneOverlayLayer implements SceneOverlay {
     /** Handle to the native side of this class. */
     private long mNativePtr;
@@ -64,15 +67,14 @@ class StatusIndicatorSceneLayer extends SceneOverlayLayer implements SceneOverla
     @Override
     protected void initializeNative() {
         if (mNativePtr == 0) {
-            mNativePtr = StatusIndicatorSceneLayerJni.get().init(StatusIndicatorSceneLayer.this);
+            mNativePtr = StatusIndicatorSceneLayerJni.get().init(this);
         }
         assert mNativePtr != 0;
     }
 
     @Override
     public void setContentTree(SceneLayer contentTree) {
-        StatusIndicatorSceneLayerJni.get()
-                .setContentTree(mNativePtr, StatusIndicatorSceneLayer.this, contentTree);
+        StatusIndicatorSceneLayerJni.get().setContentTree(mNativePtr, contentTree);
     }
 
     @Override
@@ -80,12 +82,8 @@ class StatusIndicatorSceneLayer extends SceneOverlayLayer implements SceneOverla
             RectF viewport, RectF visibleViewport, ResourceManager resourceManager, float yOffset) {
         final int offset = mBrowserControlsStateProvider.getTopControlsMinHeightOffset();
         StatusIndicatorSceneLayerJni.get()
-                .updateStatusIndicatorLayer(
-                        mNativePtr,
-                        StatusIndicatorSceneLayer.this,
-                        resourceManager,
-                        mResourceId,
-                        offset);
+                .updateStatusIndicatorLayer(mNativePtr, resourceManager, mResourceId, offset);
+
         return this;
     }
 
@@ -95,7 +93,7 @@ class StatusIndicatorSceneLayer extends SceneOverlayLayer implements SceneOverla
     }
 
     @Override
-    public EventFilter getEventFilter() {
+    public @Nullable EventFilter getEventFilter() {
         return null;
     }
 
@@ -128,16 +126,12 @@ class StatusIndicatorSceneLayer extends SceneOverlayLayer implements SceneOverla
 
     @NativeMethods
     interface Natives {
-        long init(StatusIndicatorSceneLayer caller);
+        long init(StatusIndicatorSceneLayer self);
 
-        void setContentTree(
-                long nativeStatusIndicatorSceneLayer,
-                StatusIndicatorSceneLayer caller,
-                SceneLayer contentTree);
+        void setContentTree(long nativeStatusIndicatorSceneLayer, SceneLayer contentTree);
 
         void updateStatusIndicatorLayer(
                 long nativeStatusIndicatorSceneLayer,
-                StatusIndicatorSceneLayer caller,
                 ResourceManager resourceManager,
                 int viewResourceId,
                 int offset);

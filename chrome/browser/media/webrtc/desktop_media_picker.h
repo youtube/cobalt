@@ -12,11 +12,13 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
+#include "base/types/expected.h"
 #include "build/android_buildflags.h"
 #include "build/buildflag.h"
 #include "content/public/browser/desktop_media_id.h"
 #include "content/public/browser/media_stream_request.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/gfx/native_widget_types.h"
@@ -27,7 +29,7 @@ namespace content {
 class WebContents;
 }
 
-#if BUILDFLAG(IS_DESKTOP_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 BASE_DECLARE_FEATURE(kAndroidMediaPicker);
 #endif
 
@@ -37,7 +39,10 @@ BASE_DECLARE_FEATURE(kAndroidMediaPicker);
 // TODO(crbug.com/40637301): Rename this class.
 class DesktopMediaPicker {
  public:
-  using DoneCallback = base::OnceCallback<void(content::DesktopMediaID id)>;
+  using DoneCallbackArgumentType =
+      base::expected<content::DesktopMediaID,
+                     blink::mojom::MediaStreamRequestResult>;
+  using DoneCallback = base::OnceCallback<void(DoneCallbackArgumentType)>;
 
   struct Params {
     // Possible sources of the request.
@@ -75,10 +80,15 @@ class DesktopMediaPicker {
     std::u16string target_name;
     // Whether audio capture should be shown as an option in the picker.
     bool request_audio = false;
-    // If audio is requested, |exclude_system_audio| can indicate that
-    // system-audio should nevertheless not be offered to the user.
+    // If audio is requested, |exclude_system_audio| indicates that
+    // audio should not be offered to the user when sharing a window surface.
     // Mutually exclusive with |force_audio_checkboxes_to_default_checked|.
     bool exclude_system_audio = false;
+    // If audio is requested, |window_audio_preference| can indicate that
+    // audio should be offered to the user when sharing a window surface.
+    // Mutually exclusive with |force_audio_checkboxes_to_default_checked|.
+    blink::mojom::WindowAudioPreference window_audio_preference =
+        blink::mojom::WindowAudioPreference::kExclude;
     // Normally, the media-picker sets the default states for the audio
     // checkboxes. If |force_audio_checkboxes_to_default_checked| is |true|,
     // it sets them all to |checked|. This is used by Chromecasting.

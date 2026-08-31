@@ -8,7 +8,7 @@
 #include "base/logging.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/time/time.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_APPLE)
@@ -70,8 +70,6 @@ void MessagePumpDefault::Run(Delegate* delegate) {
         event_.Wait();
       }
     } else {
-      TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("base"), "TimeWait", "delay_ms",
-                  next_work_info.remaining_delay().InMilliseconds());
       // Not handling shorter sleeps to keep the code as simple as possible.
       if (ShouldBusyLoop() &&
           next_work_info.remaining_delay() > max_busy_loop_time_) {

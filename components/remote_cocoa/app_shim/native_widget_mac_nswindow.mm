@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #import "components/remote_cocoa/app_shim/native_widget_mac_nswindow.h"
 
 #include "base/apple/foundation_util.h"
@@ -209,7 +204,6 @@ struct NSEdgeAndCornerThicknesses {
   BOOL _willUpdateRestorableState;
   BOOL _willSaveRestorableStateAfterDelay;
   BOOL _isEnforcingNeverMadeVisible;
-  BOOL _preventKeyWindow;
   BOOL _activationIndependence;
   BOOL _isTooltip;
   BOOL _isHeadless;
@@ -221,6 +215,7 @@ struct NSEdgeAndCornerThicknesses {
 @synthesize isTooltip = _isTooltip;
 @synthesize isHeadless = _isHeadless;
 @synthesize isShufflingForOrdering = _isShufflingForOrdering;
+@synthesize preventKeyWindow = _preventKeyWindow;
 @synthesize childWindowAddedHandler = _childWindowAddedHandler;
 @synthesize childWindowRemovedHandler = _childWindowRemovedHandler;
 @synthesize commandDispatchParentOverride = _commandDispatchParentOverride;
@@ -730,12 +725,11 @@ struct NSEdgeAndCornerThicknesses {
 
   _willUpdateRestorableState = NO;
 
-  // On macOS 12+, create restorable state archives with secure encoding. See
-  // the article at
+  // Create restorable state archives with secure encoding. See the article at
   // https://sector7.computest.nl/post/2022-08-process-injection-breaking-all-macos-security-layers-with-a-single-vulnerability/
   // for more details.
-  NSKeyedArchiver* encoder = [[NSKeyedArchiver alloc]
-      initRequiringSecureCoding:base::mac::MacOSMajorVersion() >= 12];
+  NSKeyedArchiver* encoder =
+      [[NSKeyedArchiver alloc] initRequiringSecureCoding:YES];
   encoder.delegate = self;
   [self encodeRestorableStateWithCoder:encoder];
   [encoder finishEncoding];
@@ -748,9 +742,10 @@ struct NSEdgeAndCornerThicknesses {
   }
   _lastSavedRestorableState = restorableState;
 
-  auto* bytes = static_cast<uint8_t const*>(restorableState.bytes);
-  _bridge->host()->OnWindowStateRestorationDataChanged(
-      std::vector<uint8_t>(bytes, bytes + restorableState.length));
+  auto data_span = base::apple::NSDataToSpan(restorableState);
+  std::vector<uint8_t> data(data_span.size());
+  base::span<uint8_t>(data).copy_from(data_span);
+  _bridge->host()->OnWindowStateRestorationDataChanged(std::move(data));
 }
 
 // AppKit calls -invalidateRestorableState when a property of the window which

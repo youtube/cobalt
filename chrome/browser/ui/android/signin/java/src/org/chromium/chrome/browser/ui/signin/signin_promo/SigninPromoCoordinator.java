@@ -54,12 +54,12 @@ public class SigninPromoCoordinator {
     public SigninPromoCoordinator(Context context, Profile profile, SigninPromoDelegate delegate) {
         mContext = context;
         mDelegate = delegate;
-        ProfileDataCache profileDataCache =
-                ProfileDataCache.createWithDefaultImageSizeAndNoBadge(mContext);
         IdentityManager identityManager =
                 IdentityServicesProvider.get().getIdentityManager(profile);
-        SyncService syncService = SyncServiceFactory.getForProfile(profile);
         assumeNonNull(identityManager);
+        ProfileDataCache profileDataCache =
+                ProfileDataCache.createWithDefaultImageSizeAndNoBadge(mContext, identityManager);
+        SyncService syncService = SyncServiceFactory.getForProfile(profile);
         assumeNonNull(syncService);
         mMediator =
                 new SigninPromoMediator(
@@ -81,7 +81,7 @@ public class SigninPromoCoordinator {
     }
 
     /** Builds a promo view object for the corresponding access point. */
-    public View buildPromoView(ViewGroup parent) {
+    public View buildPromoView(@Nullable ViewGroup parent) {
         return LayoutInflater.from(mContext)
                 .inflate(getLayoutResId(mDelegate.getAccessPoint()), parent, false);
     }

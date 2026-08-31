@@ -13,9 +13,8 @@ found in the LICENSE file.
         android:summary="@string/incognito_tracking_protections_page_description"
         app:allowDividerBelow="false" />
 
-    <PreferenceCategory
-        android:title="@string/incognito_tracking_protections_header"/>
-    <org.chromium.components.browser_ui.settings.TextMessagePreference
+    <org.chromium.chrome.browser.privacy_sandbox.PreferenceCategoryWithClickableSummary
+        android:title="@string/incognito_tracking_protections_header"
         android:key="incognito_tracking_protections_description"
         app:allowDividerBelow="false" />
 
@@ -26,12 +25,12 @@ found in the LICENSE file.
       android:enabled="false"/>
     <Preference
         android:key="ip_protection"
-        android:title="@string/incognito_tracking_protections_ip_protection_toggle_label"
+        android:title="@string/ip_protection_link_row_label"
         android:fragment="org.chromium.components.privacy_sandbox.IpProtectionSettingsFragment"
         app:isPreferenceVisible="false" />
     <Preference
         android:key="fp_protection"
-        android:title="@string/incognito_tracking_protections_fingerprinting_protection_toggle_label"
+        android:title="@string/fingerprinting_protection_link_row_label"
         android:fragment="org.chromium.components.privacy_sandbox.FingerprintingProtectionSettingsFragment"
         app:isPreferenceVisible="false" />
 

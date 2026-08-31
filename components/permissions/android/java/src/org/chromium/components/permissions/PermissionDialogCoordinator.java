@@ -140,8 +140,10 @@ public class PermissionDialogCoordinator {
                 LayoutInflaterUtils.inflate(
                         context,
                         (mDialogDelegate.isEmbeddedPromptVariant()
-                                        || mDialogDelegate.canShowEphemeralOption())
-                                ? R.layout.permission_dialog_one_time_permission
+                                        || mDialogDelegate.canShowEphemeralOption()
+                                        || PermissionDialogModelFactory.shouldUseVerticalButtons(
+                                                mDialogDelegate))
+                                ? R.layout.permission_dialog_vertical_buttons_permission
                                 : R.layout.permission_dialog,
                         null);
 
@@ -150,9 +152,8 @@ public class PermissionDialogCoordinator {
                 PropertyModelChangeProcessor.create(
                         mCustomViewModel,
                         customView,
-                        (mDialogDelegate.isEmbeddedPromptVariant()
-                                        || mDialogDelegate.canShowEphemeralOption())
-                                ? PermissionOneTimeDialogCustomViewBinder::bind
+                        PermissionDialogModelFactory.shouldUseVerticalButtons(mDialogDelegate)
+                                ? PermissionVerticalButtonsDialogCustomViewBinder::bind
                                 : PermissionDialogCustomViewBinder::bind);
         return customView;
     }
@@ -198,6 +199,11 @@ public class PermissionDialogCoordinator {
         assumeNonNull(mMediator).dismissFromNative();
     }
 
+    /** Dismiss the dialog by the close button. */
+    public void dismissByCloseButton() {
+        assumeNonNull(mMediator).dismissByCloseButton();
+    }
+
     /** Update the current dialog. This may hide the current dialog and show OS prompt instead. */
     public void updateDialog() {
         assumeNonNull(mMediator).updateDialog(createCustomView());
@@ -233,7 +239,7 @@ public class PermissionDialogCoordinator {
         Context context = mDialogDelegate.getWindow().getContext().get();
         assert context != null;
         // Use the context to access resources instead of the activity because the activity may not
-        // have the correct resources in some cases (e.g. WebLayer).
+        // have the correct resources in some cases.
         return context;
     }
 

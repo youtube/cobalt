@@ -7,6 +7,7 @@
 
 #include <optional>
 
+#include "base/gtest_prod_util.h"
 #include "components/permissions/permission_request.h"
 
 namespace url {
@@ -15,13 +16,7 @@ class Origin;
 
 class SmartCardPermissionRequest : public permissions::PermissionRequest {
  public:
-  enum class Result {
-    kAllowOnce = 0,
-    kAllowAlways = 1,
-    kDontAllow = 2,
-  };
-
-  using ResultCallback = base::OnceCallback<void(Result)>;
+  using ResultCallback = base::OnceCallback<void(PermissionDecision)>;
 
   SmartCardPermissionRequest(const url::Origin& requesting_origin,
                              const std::string& reader_name,
@@ -29,6 +24,12 @@ class SmartCardPermissionRequest : public permissions::PermissionRequest {
   ~SmartCardPermissionRequest() override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(SmartCardPermissionRequestTest, IsDuplicateOf);
+  FRIEND_TEST_ALL_PREFIXES(SmartCardPermissionRequestTest,
+                           IsDuplicateOf_DifferentReader);
+  FRIEND_TEST_ALL_PREFIXES(SmartCardPermissionRequestTest,
+                           IsDuplicateOf_DifferentOrigin);
+
   // permissions::PermissionRequest:
   bool IsDuplicateOf(
       permissions::PermissionRequest* other_request) const override;
@@ -37,8 +38,7 @@ class SmartCardPermissionRequest : public permissions::PermissionRequest {
   std::optional<std::u16string> GetBlockText() const override;
 
   void OnPermissionDecided(
-      ContentSetting result,
-      bool is_one_time,
+      PermissionDecision decision,
       bool is_final_decision,
       const permissions::PermissionRequestData& request_data);
 

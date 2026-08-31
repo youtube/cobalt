@@ -31,20 +31,37 @@ uint64_t SharedFence::GetFenceValue() const {
 TensorImplDml::TensorImplDml(
     mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
     Microsoft::WRL::ComPtr<ID3D12Resource> buffer,
-    ContextImplDml* context,
+    base::WeakPtr<WebNNContextImpl> context,
     mojom::TensorInfoPtr tensor_info)
-    : WebNNTensorImpl(std::move(receiver), context, std::move(tensor_info)),
+    : WebNNTensorImpl(std::move(receiver),
+                      std::move(context),
+                      std::move(tensor_info)),
       buffer_(std::move(buffer)) {}
+
+TensorImplDml::TensorImplDml(
+    mojo::PendingAssociatedReceiver<mojom::WebNNTensor> receiver,
+    std::unique_ptr<gpu::WebNNTensorRepresentation> representation,
+    base::WeakPtr<WebNNContextImpl> context,
+    mojom::TensorInfoPtr tensor_info)
+    : WebNNTensorImpl(std::move(receiver),
+                      std::move(context),
+                      std::move(tensor_info),
+                      std::move(representation)),
+      buffer_(representation_->GetD3D12Buffer()) {}
 
 TensorImplDml::~TensorImplDml() = default;
 
 void TensorImplDml::ReadTensorImpl(ReadTensorCallback callback) {
-  static_cast<ContextImplDml*>(context_.get())
+  WebNNContextImpl* context_impl = context_.get();
+  CHECK(context_impl);
+  static_cast<ContextImplDml*>(context_impl)
       ->ReadTensor(this, std::move(callback));
 }
 
 void TensorImplDml::WriteTensorImpl(mojo_base::BigBuffer src_buffer) {
-  static_cast<ContextImplDml*>(context_.get())
+  WebNNContextImpl* context_impl = context_.get();
+  CHECK(context_impl);
+  static_cast<ContextImplDml*>(context_impl)
       ->WriteTensor(this, std::move(src_buffer));
 }
 

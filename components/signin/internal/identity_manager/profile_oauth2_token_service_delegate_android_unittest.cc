@@ -12,6 +12,7 @@
 #include "components/signin/internal/identity_manager/mock_profile_oauth2_token_service_observer.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_delegate.h"
 #include "components/signin/internal/identity_manager/profile_oauth2_token_service_observer.h"
+#include "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "google_apis/gaia/gaia_id.h"
@@ -86,6 +87,8 @@ class OAuth2TokenServiceDelegateAndroidTest : public testing::Test {
     account_info.full_name = "fullname";
     account_info.given_name = "givenname";
     account_info.hosted_domain = "example.com";
+    AccountCapabilitiesTestMutator(&account_info.capabilities)
+        .set_is_subject_to_enterprise_features(true);
     account_info.locale = "en";
     account_info.picture_url = "https://example.com";
     account_info.account_id = account_tracker_service_.PickAccountIdForAccount(
@@ -148,6 +151,10 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
 
   delegate_->SeedAccountsThenReloadAllAccountsWithPrimaryAccount(
       {account1_}, account1_.account_id);
@@ -181,9 +188,17 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account2_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account2_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
 
   delegate_->SeedAccountsThenReloadAllAccountsWithPrimaryAccount(
       {account1_, account2_}, account2_.account_id);
@@ -240,6 +255,10 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
 
   delegate_->UpdateAccountList(account1_.account_id, {},
                                {account1_.account_id});
@@ -258,6 +277,10 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
 
   delegate_->UpdateAccountList(account1_.account_id, {account1_.account_id},
                                {account1_.account_id});
@@ -277,6 +300,10 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
   EXPECT_CALL(*observer_, OnRefreshTokenRevoked(account2_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
@@ -346,9 +373,17 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account2_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account2_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
 
   delegate_->UpdateAccountList(account2_.account_id, {},
                                {account1_.account_id, account2_.account_id});
@@ -368,9 +403,17 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account2_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account2_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
   delegate_->UpdateAccountList(account1_.account_id, {account2_.account_id},
                                {account1_.account_id, account2_.account_id});
   EXPECT_THAT(
@@ -389,6 +432,10 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
   EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
+  EXPECT_CALL(*observer_,
+              OnAuthErrorChanged(account1_.account_id,
+                                 GoogleServiceAuthError::AuthErrorNone(), _))
+      .InSequence(seq);
   EXPECT_CALL(*observer_, OnRefreshTokenRevoked(account2_.account_id))
       .InSequence(seq)
       .WillOnce(Return());
@@ -408,10 +455,12 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
 
   {
     InSequence in_sequence;
-    // `OnAuthErrorChanged()` is not called after adding a new account on
-    // Android.
-    EXPECT_CALL(*observer_, OnAuthErrorChanged).Times(0);
     EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id));
+    // `OnAuthErrorChanged()` is called after `OnRefreshTokenAvailable()`
+    // after adding a new account on Android.
+    EXPECT_CALL(*observer_,
+                OnAuthErrorChanged(account1_.account_id,
+                                   GoogleServiceAuthError::AuthErrorNone(), _));
     EXPECT_CALL(*observer_, OnEndBatchChanges());
     delegate_->UpdateAccountList(account1_.account_id, {},
                                  {account1_.account_id});
@@ -420,10 +469,12 @@ TEST_F(OAuth2TokenServiceDelegateAndroidTest,
 
   {
     InSequence in_sequence;
-    // `OnAuthErrorChanged()` is not called when a token is updated without
-    // changing its error state.
-    EXPECT_CALL(*observer_, OnAuthErrorChanged).Times(0);
     EXPECT_CALL(*observer_, OnRefreshTokenAvailable(account1_.account_id));
+    // `OnAuthErrorChanged()` is also called when a token is updated without
+    // changing its error state.
+    EXPECT_CALL(*observer_,
+                OnAuthErrorChanged(account1_.account_id,
+                                   GoogleServiceAuthError::AuthErrorNone(), _));
     EXPECT_CALL(*observer_, OnEndBatchChanges());
     delegate_->UpdateAccountList(account1_.account_id, {account1_.account_id},
                                  {account1_.account_id});

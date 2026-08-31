@@ -23,6 +23,7 @@
 #include "components/page_info/core/page_info_action.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/security_state/core/security_state.h"
+#include "content/public/browser/reload_type.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/schemeful_site.h"
 
@@ -142,9 +143,9 @@ class PageInfo : private content_settings::CookieControlsObserver,
     // Site permission |type|.
     ContentSettingsType type = ContentSettingsType::DEFAULT;
     // The current value for the permission |type| (e.g. ALLOW or BLOCK).
-    ContentSetting setting = CONTENT_SETTING_DEFAULT;
+    std::optional<PermissionSetting> setting;
     // The global default settings for this permission |type|.
-    ContentSetting default_setting = CONTENT_SETTING_DEFAULT;
+    PermissionSetting default_setting;
     // The settings source e.g. user, extensions, policy, ... .
     content_settings::SettingSource source =
         content_settings::SettingSource::kNone;
@@ -179,7 +180,7 @@ class PageInfo : private content_settings::CookieControlsObserver,
 
   // Called when the protections button in the privacy and site data subpage
   // gets clicked.
-  void OnTrackingProtectionButtonPressed(bool pause_protections);
+  void OnTrackingProtectionButtonPressed();
 
   // Checks whether this permission is currently the factory default, as set by
   // Chrome. Specifically, that the following three conditions are true:
@@ -208,7 +209,7 @@ class PageInfo : private content_settings::CookieControlsObserver,
 
   // This method is called when ever a permission setting is changed.
   void OnSitePermissionChanged(ContentSettingsType type,
-                               ContentSetting value,
+                               std::optional<PermissionSetting> value,
                                std::optional<url::Origin> requesting_origin,
                                bool is_one_time);
 
@@ -339,7 +340,7 @@ class PageInfo : private content_settings::CookieControlsObserver,
   void PopulatePermissionInfo(PermissionInfo& permission_info,
                               HostContentSettingsMap* content_settings,
                               const content_settings::SettingInfo& info,
-                              ContentSetting setting) const;
+                              PermissionSetting setting) const;
 
   // Returns whether |info| should be displayed in the UI.
   bool ShouldShowPermission(const PageInfo::PermissionInfo& info) const;
@@ -421,6 +422,9 @@ class PageInfo : private content_settings::CookieControlsObserver,
   // settings UI is closed or not.
   bool show_info_bar_;
 
+  // The type of reload the info bar should trigger when closed.
+  content::ReloadType info_bar_reload_type_ = content::ReloadType::NORMAL;
+
   // The Omnibox URL of the website for which to display site permissions and
   // site information.
   GURL site_url_;
@@ -437,6 +441,9 @@ class PageInfo : private content_settings::CookieControlsObserver,
 
   // For secure connection |certificate_| is set to the server certificate.
   scoped_refptr<net::X509Certificate> certificate_;
+
+  // The 2-QWAC certificate for a website, if it has one.
+  scoped_refptr<net::X509Certificate> two_qwac_;
 
   // Status of the connection to the website.
   SiteConnectionStatus site_connection_status_;

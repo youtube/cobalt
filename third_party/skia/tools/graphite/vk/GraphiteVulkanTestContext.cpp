@@ -24,9 +24,9 @@ namespace skiatest::graphite {
 std::unique_ptr<GraphiteTestContext> VulkanTestContext::Make() {
     skgpu::VulkanBackendContext backendContext;
     skgpu::VulkanExtensions* extensions;
-    VkPhysicalDeviceFeatures2* features;
-    VkDebugReportCallbackEXT debugCallback = VK_NULL_HANDLE;
-    PFN_vkDestroyDebugReportCallbackEXT destroyCallback = nullptr;
+    sk_gpu_test::TestVkFeatures* features;
+    VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+    PFN_vkDestroyDebugUtilsMessengerEXT destroyCallback = nullptr;
 
     PFN_vkGetInstanceProcAddr instProc;
     if (!sk_gpu_test::LoadVkLibraryAndGetProcAddrFuncs(&instProc)) {
@@ -34,27 +34,27 @@ std::unique_ptr<GraphiteTestContext> VulkanTestContext::Make() {
     }
 
     extensions = new skgpu::VulkanExtensions();
-    features = new VkPhysicalDeviceFeatures2;
-    memset(features, 0, sizeof(VkPhysicalDeviceFeatures2));
-    if (!sk_gpu_test::CreateVkBackendContext(instProc, &backendContext, extensions,
-                                             features, &debugCallback,
-                                             nullptr, sk_gpu_test::CanPresentFn(),
+    features = new sk_gpu_test::TestVkFeatures;
+    memset(&features->deviceFeatures, 0, sizeof(VkPhysicalDeviceFeatures2));
+    if (!sk_gpu_test::CreateVkBackendContext(instProc,
+                                             &backendContext,
+                                             extensions,
+                                             features,
+                                             &debugMessenger,
+                                             nullptr,
+                                             sk_gpu_test::CanPresentFn(),
                                              gCreateProtectedContext)) {
-        sk_gpu_test::FreeVulkanFeaturesStructs(features);
         delete features;
         delete extensions;
         return nullptr;
     }
-    if (debugCallback != VK_NULL_HANDLE) {
-        destroyCallback = (PFN_vkDestroyDebugReportCallbackEXT) instProc(
-                backendContext.fInstance, "vkDestroyDebugReportCallbackEXT");
+    if (debugMessenger != VK_NULL_HANDLE) {
+        destroyCallback = (PFN_vkDestroyDebugUtilsMessengerEXT)instProc(
+                backendContext.fInstance, "vkDestroyDebugUtilsMessengerEXT");
     }
 
-    return std::unique_ptr<GraphiteTestContext>(new VulkanTestContext(backendContext,
-                                                                      extensions,
-                                                                      features,
-                                                                      debugCallback,
-                                                                      destroyCallback));
+    return std::unique_ptr<GraphiteTestContext>(new VulkanTestContext(
+            backendContext, extensions, features, debugMessenger, destroyCallback));
 }
 
 #define ACQUIRE_VK_PROC_LOCAL(name, inst)                                                \
@@ -75,18 +75,16 @@ VulkanTestContext::~VulkanTestContext() {
     localVkDeviceWaitIdle(fVulkan.fDevice);
     localVkDestroyDevice(fVulkan.fDevice, nullptr);
 #ifdef SK_ENABLE_VK_LAYERS
-    if (fDebugCallback != VK_NULL_HANDLE) {
-        fDestroyDebugReportCallbackEXT(fVulkan.fInstance, fDebugCallback, nullptr);
+    if (fDebugMessenger != VK_NULL_HANDLE) {
+        fDestroyDebugUtilsMessengerEXT(fVulkan.fInstance, fDebugMessenger, nullptr);
     }
 #else
     // Surpress unused private member variable warning
-    (void)fDebugCallback;
-    (void)fDestroyDebugReportCallbackEXT;
+    (void)fDebugMessenger;
+    (void)fDestroyDebugUtilsMessengerEXT;
 #endif
     localVkDestroyInstance(fVulkan.fInstance, nullptr);
     delete fExtensions;
-
-    sk_gpu_test::FreeVulkanFeaturesStructs(fFeatures);
     delete fFeatures;
 }
 

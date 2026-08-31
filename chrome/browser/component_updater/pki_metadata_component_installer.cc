@@ -8,12 +8,14 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/barrier_closure.h"
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/span.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -30,7 +32,9 @@
 #include "base/values.h"
 #include "chrome/browser/browser_features.h"
 #include "chrome/browser/net/key_pinning.pb.h"
+#include "chrome/browser/net/system_network_context_manager.h"
 #include "content/public/browser/network_service_instance.h"
+#include "net/base/hash_value.h"
 #include "net/net_buildflags.h"
 #include "services/cert_verifier/public/mojom/cert_verifier_service_factory.mojom.h"
 #include "services/network/public/cpp/network_service_buildflags.h"
@@ -48,13 +52,13 @@
 #include "mojo/public/cpp/base/big_buffer.h"
 #include "mojo/public/cpp/base/proto_wrapper.h"
 #include "mojo/public/cpp/base/proto_wrapper_passkeys.h"
+#include "net/cert/internal/trust_store_chrome.h"
+#include "net/cert/root_store_proto_lite/root_store.pb.h"  // nogncheck
 #endif
 
 #if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 #include "net/http/transport_security_state.h"
 #endif
-
-using component_updater::ComponentUpdateService;
 
 namespace {
 
@@ -123,6 +127,34 @@ network::mojom::CTLogInfo::LogType ProtoLogTypeToLogType(
   }
 }
 
+// Converts a protobuf repeated bytes array to an array of uint8_t arrays.
+std::vector<std::vector<uint8_t>> BytesArrayFromProtoBytes(
+    const google::protobuf::RepeatedPtrField<std::string>& proto_bytes) {
+  std::vector<std::vector<uint8_t>> bytes;
+  bytes.reserve(proto_bytes.size());
+  std::ranges::transform(
+      proto_bytes, std::back_inserter(bytes), [](const std::string& element) {
+        const auto bytes = base::as_byte_span(element);
+        return std::vector<uint8_t>(bytes.begin(), bytes.end());
+      });
+  return bytes;
+}
+
+// Converts a protobuf repeated bytes array to an array of SHA256HashValues.
+// Elements in `proto_bytes` that are not 32 bytes long are silently ignored.
+std::vector<net::SHA256HashValue> SHA256HashValueArrayFromProtoBytes(
+    const google::protobuf::RepeatedPtrField<std::string>& proto_bytes) {
+  std::vector<net::SHA256HashValue> hashes;
+  hashes.reserve(proto_bytes.size());
+  for (const auto& proto_hash : proto_bytes) {
+    if (proto_hash.size() == crypto::hash::kSha256Size) {
+      base::span(hashes.emplace_back())
+          .copy_from(base::as_byte_span(proto_hash));
+    }
+  }
+  return hashes;
+}
+
 }  // namespace
 
 namespace component_updater {
@@ -166,12 +198,42 @@ void PKIMetadataComponentInstallerService::ConfigureChromeRootStore() {
 void PKIMetadataComponentInstallerService::UpdateChromeRootStoreOnUI(
     std::optional<mojo_base::ProtoWrapper> chrome_root_store) {
   if (chrome_root_store.has_value()) {
+    UpdateTrustAnchorIDs(chrome_root_store.value());
     content::GetCertVerifierServiceFactory()->UpdateChromeRootStore(
         std::move(chrome_root_store.value()),
         base::BindOnce(&PKIMetadataComponentInstallerService::
                            NotifyChromeRootStoreConfigured,
                        weak_factory_.GetWeakPtr()));
   }
+}
+void PKIMetadataComponentInstallerService::UpdateTrustAnchorIDs(
+    const mojo_base::ProtoWrapper& chrome_root_store) {
+  std::vector<std::vector<uint8_t>> trust_anchor_ids;
+  auto message = chrome_root_store.As<chrome_root_store::RootStore>();
+  if (!message.has_value()) {
+    LOG(ERROR) << "error parsing proto for Chrome Root Store";
+    return;
+  }
+  if (message->version_major() <= net::CompiledChromeRootStoreVersion()) {
+    return;
+  }
+  for (const auto& anchor : message->trust_anchors()) {
+    if (anchor.has_trust_anchor_id()) {
+      trust_anchor_ids.emplace_back(
+          base::ToVector(base::as_byte_span(anchor.trust_anchor_id())));
+    }
+  }
+  for (const auto& additional_cert : message->additional_certs()) {
+    if (additional_cert.has_trust_anchor_id() &&
+        additional_cert.tls_trust_anchor()) {
+      trust_anchor_ids.emplace_back(base::ToVector(
+          base::as_byte_span(additional_cert.trust_anchor_id())));
+    }
+  }
+  SystemNetworkContextManager* network_context_manager =
+      SystemNetworkContextManager::GetInstance();
+  CHECK(network_context_manager);
+  network_context_manager->UpdateTrustAnchorIDs(std::move(trust_anchor_ids));
 }
 
 void PKIMetadataComponentInstallerService::NotifyChromeRootStoreConfigured() {
@@ -381,9 +443,9 @@ void PKIMetadataComponentInstallerService::UpdateNetworkServiceCTListOnUI(
       std::move(log_list_mojo_clone_network_service), done_callback);
 
   // Send the updated popular SCTs list to the network service, if available.
+  // TODO(crbug.com/41286522): should this also be vector<SHA256HashValue>?
   std::vector<std::vector<uint8_t>> popular_scts =
-      component_updater::PKIMetadataComponentInstallerPolicy::
-          BytesArrayFromProtoBytes(proto->popular_scts());
+      BytesArrayFromProtoBytes(proto->popular_scts());
   network_service->UpdateCtKnownPopularSCTs(std::move(popular_scts),
                                             done_callback);
 #endif  // BUILDFLAG(IS_CT_SUPPORTED)
@@ -406,12 +468,15 @@ void PKIMetadataComponentInstallerService::UpdateNetworkServiceKPListOnUI(
   base::Time proto_timestamp = base::Time::UnixEpoch() +
                                base::Seconds(proto->timestamp().seconds()) +
                                base::Nanoseconds(proto->timestamp().nanos());
+
+#if BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
   // Do not update the pins list with the component data if it's older than the
   // built in list.
   if (proto_timestamp <
       net::TransportSecurityState::GetBuiltInPinsListTimestamp()) {
     return;
   }
+#endif  // BUILDFLAG(INCLUDE_TRANSPORT_SECURITY_STATE_PRELOAD_LIST)
 
   network::mojom::PinListPtr pinlist_ptr = network::mojom::PinList::New();
 
@@ -419,12 +484,9 @@ void PKIMetadataComponentInstallerService::UpdateNetworkServiceKPListOnUI(
     network::mojom::PinSetPtr pinset_ptr = network::mojom::PinSet::New();
     pinset_ptr->name = pinset.name();
     pinset_ptr->static_spki_hashes =
-        component_updater::PKIMetadataComponentInstallerPolicy::
-            BytesArrayFromProtoBytes(pinset.static_spki_hashes_sha256());
-    pinset_ptr->bad_static_spki_hashes =
-        component_updater::PKIMetadataComponentInstallerPolicy::
-            BytesArrayFromProtoBytes(pinset.bad_static_spki_hashes_sha256());
-    pinset_ptr->report_uri = pinset.report_uri();
+        SHA256HashValueArrayFromProtoBytes(pinset.static_spki_hashes_sha256());
+    pinset_ptr->bad_static_spki_hashes = SHA256HashValueArrayFromProtoBytes(
+        pinset.bad_static_spki_hashes_sha256());
     pinlist_ptr->pinsets.push_back(std::move(pinset_ptr));
   }
 
@@ -457,16 +519,16 @@ PKIMetadataComponentInstallerPolicy::~PKIMetadataComponentInstallerPolicy() =
 
 // static
 std::vector<std::vector<uint8_t>>
-PKIMetadataComponentInstallerPolicy::BytesArrayFromProtoBytes(
-    google::protobuf::RepeatedPtrField<std::string> proto_bytes) {
-  std::vector<std::vector<uint8_t>> bytes;
-  bytes.reserve(proto_bytes.size());
-  std::ranges::transform(
-      proto_bytes, std::back_inserter(bytes), [](const std::string& element) {
-        const auto bytes = base::as_byte_span(element);
-        return std::vector<uint8_t>(bytes.begin(), bytes.end());
-      });
-  return bytes;
+PKIMetadataComponentInstallerPolicy::BytesArrayFromProtoBytesForTesting(
+    const google::protobuf::RepeatedPtrField<std::string>& proto_bytes) {
+  return BytesArrayFromProtoBytes(proto_bytes);
+}
+
+// static
+std::vector<net::SHA256HashValue> PKIMetadataComponentInstallerPolicy::
+    SHA256HashValueArrayFromProtoBytesForTesting(
+        const google::protobuf::RepeatedPtrField<std::string>& proto_bytes) {
+  return SHA256HashValueArrayFromProtoBytes(proto_bytes);
 }
 
 bool PKIMetadataComponentInstallerPolicy::

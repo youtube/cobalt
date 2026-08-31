@@ -51,9 +51,6 @@
 // Opens the recent tabs and tap in the primary sign-in button.
 + (void)tapPrimarySignInButtonInRecentTabs;
 
-// Opens the tab switcher and tap in the primary sign-in button.
-+ (void)tapPrimarySignInButtonInTabSwitcher;
-
 // Checks that the sign-in promo view (with a close button) is visible using the
 // right mode.
 + (void)verifySigninPromoVisibleWithMode:(SigninPromoViewMode)mode;
@@ -84,6 +81,11 @@
 // should be opened
 + (void)addFakeAccountInFakeAddAccountMenu:(FakeSystemIdentity*)fakeIdentity
                    withUnknownCapabilities:(BOOL)unknownCapabilities;
+
+// Dismisses the identity confirmaiton snackbar on signin, if shown.
++ (void)maybeDismissIdentityConfirmationSnackbarOnSignin:
+    (FakeSystemIdentity*)fakeIdentity;
+
 @end
 
 #endif  // IOS_CHROME_BROWSER_AUTHENTICATION_UI_BUNDLED_SIGNIN_EARL_GREY_UI_TEST_UTIL_H_

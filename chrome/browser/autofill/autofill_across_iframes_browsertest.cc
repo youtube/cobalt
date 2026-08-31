@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/scoped_feature_list.h"
@@ -150,10 +151,11 @@ std::map<LocalFrameToken, std::vector<std::string>> AllFieldValues(
   web_contents->GetPrimaryMainFrame()->ForEachRenderFrameHost(
       [&](content::RenderFrameHost* rfh) {
         content::EvalJsResult r = content::EvalJs(rfh, kExtractValue);
-        if (r.error.empty()) {
+        if (r.is_ok()) {
           LocalFrameToken frame(rfh->GetFrameToken().value());
-          for (const base::Value& value : r.value.GetList())
+          for (const base::Value& value : r.ExtractList()) {
             values[frame].push_back(value.GetString());
+          }
         }
       });
   return values;
@@ -191,8 +193,11 @@ std::vector<std::string> AllFieldValues(content::WebContents* web_contents,
 auto IsWithinAutofillLimits() {
   auto frequencies = [](const FormStructure& form) {
     std::map<FieldType, size_t> counts;
-    for (const auto& field : form)
-      ++counts[field->Type().GetStorableType()];
+    for (const auto& field : form) {
+      for (FieldType field_type : field->Type().GetTypes()) {
+        ++counts[field_type];
+      }
+    }
     return counts;
   };
   return ResultOf(frequencies,
@@ -967,78 +972,6 @@ class AutofillAcrossIframesTest_FullIframes
  private:
   base::test::ScopedFeatureList feature_list_;
 };
-
-class AutofillAcrossIframesTest_FullIframes_ElementRemovalDetection
-    : public AutofillAcrossIframesTest_FullIframes {
-  base::test::ScopedFeatureList scoped_feature_list_{
-      features::kAutofillDetectRemovedFormControls};
-};
-
-// Tests that autofilling on a main-origin field fills all same-origin fields.
-IN_PROC_BROWSER_TEST_F(
-    AutofillAcrossIframesTest_FullIframes_ElementRemovalDetection,
-    FillAll) {
-  ASSERT_TRUE(LoadForm());
-  const FormStructure* form = FormAfterRemovalOfExtraFields();
-  ASSERT_TRUE(form);
-  EXPECT_THAT(FillForm(*form, *form->field(0)),
-              ElementsAre(kNameFull, kNumber, kExp, kCvc));
-}
-
-IN_PROC_BROWSER_TEST_F(
-    AutofillAcrossIframesTest_FullIframes_ElementRemovalDetection,
-    Submit) {
-  ASSERT_TRUE(LoadForm());
-  const FormStructure* form = FormAfterRemovalOfExtraFields();
-  ASSERT_TRUE(form);
-  ASSERT_THAT(FillForm(*form, *form->field(0)),
-              ElementsAre(kNameFull, kNumber, kExp, kCvc));
-  ASSERT_TRUE(SubmitInMainFrame());
-  EXPECT_THAT(
-      main_autofill_manager().submitted_form(),
-      Optional(Property(&FormData::fields,
-                        ElementsAre(HasValue(kNameFull), HasValue(kNumber),
-                                    HasValue(kExp), HasValue(kCvc)))));
-}
-
-// Tests that the Autofill Manager notices if an entire <form> is removed.
-IN_PROC_BROWSER_TEST_F(
-    AutofillAcrossIframesTest_FullIframes_ElementRemovalDetection,
-    DetectFormRemoval) {
-  // This loads 4 iframes, each containing a <form> element with 4 fields.
-  ASSERT_TRUE(LoadForm());
-
-  // This removes the entire <form> element for the first iframe.
-  ASSERT_TRUE(content::ExecJs(web_contents(), R"(
-      document.getElementsByTagName("IFRAME")[0]
-        .contentWindow
-        .deleteForm();
-  )"));
-
-  // As a consequence only 3 forms of 4 fields remain.
-  EXPECT_TRUE(GetOrWaitForFormWithFocusableFields(
-      /*num_fields=*/3 * 4));
-}
-
-// Tests that the Autofill Manager notices if the parent containing a <form> is
-// removed.
-IN_PROC_BROWSER_TEST_F(
-    AutofillAcrossIframesTest_FullIframes_ElementRemovalDetection,
-    DetectParentOfFormRemoval) {
-  // This loads 4 iframes, each containing a <form> element with 4 fields.
-  ASSERT_TRUE(LoadForm());
-
-  // This removes the entire <form> element for the first iframe.
-  ASSERT_TRUE(content::ExecJs(web_contents(), R"(
-      document.getElementsByTagName("IFRAME")[0]
-        .contentWindow
-        .deleteParentOfForm();
-  )"));
-
-  // As a consequence only 3 forms of 4 fields remain.
-  EXPECT_TRUE(GetOrWaitForFormWithFocusableFields(
-      /*num_fields=*/3 * 4));
-}
 
 }  // namespace
 }  // namespace autofill

@@ -12,7 +12,6 @@ import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.tab.TabArchiveSettings;
@@ -74,13 +73,13 @@ public class TabArchiveSettingsFragment extends ChromeBaseSettingsFragment {
         // Auto delete switch.
         ChromeSwitchPreference enableAutoDeleteSwitch =
                 (ChromeSwitchPreference) findPreference(PREF_TAB_ARCHIVE_ALLOW_AUTODELETE);
-        int autoDeleteTimeDeltaDays = mArchiveSettings.getAutoDeleteTimeDeltaDays();
-        enableAutoDeleteSwitch.setTitle(
+        int autoDeleteTimeDeltaMonths = mArchiveSettings.getAutoDeleteTimeDeltaMonths();
+        enableAutoDeleteSwitch.setSummary(
                 getResources()
                         .getQuantityString(
-                                R.plurals.archive_settings_allow_autodelete_title,
-                                autoDeleteTimeDeltaDays,
-                                autoDeleteTimeDeltaDays));
+                                R.plurals.archive_settings_allow_autodelete_summary,
+                                autoDeleteTimeDeltaMonths,
+                                autoDeleteTimeDeltaMonths));
         boolean isAutoDeleteEnabled =
                 mArchiveSettings.getArchiveEnabled() && mArchiveSettings.isAutoDeleteEnabled();
         enableAutoDeleteSwitch.setEnabled(mArchiveSettings.getArchiveEnabled());
@@ -99,8 +98,7 @@ public class TabArchiveSettingsFragment extends ChromeBaseSettingsFragment {
                 (ChromeSwitchPreference) findPreference(PREF_TAB_ARCHIVE_INCLUDE_DUPLICATE_TABS);
         enableArchiveDuplicateTabsSwitch.setTitle(
                 getString(R.string.archive_settings_archive_duplicate_tabs_title));
-        enableArchiveDuplicateTabsSwitch.setEnabled(
-                ChromeFeatureList.sAndroidTabDeclutterArchiveDuplicateTabs.isEnabled());
+        enableArchiveDuplicateTabsSwitch.setEnabled(mArchiveSettings.getArchiveEnabled());
         enableArchiveDuplicateTabsSwitch.setChecked(
                 mArchiveSettings.isArchiveDuplicateTabsEnabled());
         enableArchiveDuplicateTabsSwitch.setOnPreferenceChangeListener(

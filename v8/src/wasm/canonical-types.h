@@ -50,7 +50,9 @@ class TypeCanonicalizer {
  public:
   static constexpr CanonicalTypeIndex kPredefinedArrayI8Index{0};
   static constexpr CanonicalTypeIndex kPredefinedArrayI16Index{1};
-  static constexpr uint32_t kNumberOfPredefinedTypes = 2;
+  static constexpr CanonicalTypeIndex kPredefinedArrayExternRefIndex{2};
+  static constexpr CanonicalTypeIndex kPredefinedArrayFuncRefIndex{3};
+  static constexpr uint32_t kNumberOfPredefinedTypes = 4;
 
   TypeCanonicalizer();
 
@@ -252,14 +254,13 @@ class TypeCanonicalizer {
 
     void Add(CanonicalValueType value_type) {
       if (value_type.has_index() && recgroup.Contains(value_type.ref_index())) {
-        // For relative indexed types, add their nullability, exactness, and
-        // the relative index to the hash.
+        // For relative indexed types, add the relative index and the other bits
+        // separately.
         // Shift the relative index by {kMaxCanonicalTypes} to map it to a
         // different index space (note that collisions in hashing are OK
         // though).
         static_assert(kMaxCanonicalTypes <= kMaxUInt32 / 2);
-        // TODO(403372470): Add the 'exact' bit.
-        hasher.Add((value_type.is_exact() << 1) | value_type.is_nullable());
+        hasher.Add(value_type.all_bits_without_index());
         hasher.Add((value_type.ref_index().index - recgroup.first.index) +
                    kMaxCanonicalTypes);
       } else {
@@ -295,7 +296,12 @@ class TypeCanonicalizer {
       }
     }
 
-    size_t hash() const { return hasher.hash(); }
+    size_t hash() const {
+#if V8_HASHES_COLLIDE
+      if (v8_flags.hashes_collide) return base::kCollidingHash;
+#endif  // V8_HASHES_COLLIDE
+      return hasher.hash();
+    }
   };
 
   // Support for equality checking of recursion groups, where type indexes have
@@ -359,7 +365,8 @@ class TypeCanonicalizer {
       const bool indexed = type1.has_index();
       if (indexed != type2.has_index()) return false;
       if (indexed) {
-        return EqualTypeIndex(type1.ref_index(), type2.ref_index());
+        return type1.is_equal_except_index(type2) &&
+               EqualTypeIndex(type1.ref_index(), type2.ref_index());
       }
       return type1 == type2;
     }
@@ -559,9 +566,12 @@ class TypeCanonicalizer {
 
   std::vector<CanonicalTypeIndex> canonical_supertypes_;
   // Set of all known canonical recgroups of size >=2.
-  std::unordered_set<CanonicalGroup> canonical_groups_;
+  std::unordered_set<CanonicalGroup, base::hash<CanonicalGroup>>
+      canonical_groups_;
   // Set of all known canonical recgroups of size 1.
-  std::unordered_set<CanonicalSingletonGroup> canonical_singleton_groups_;
+  std::unordered_set<CanonicalSingletonGroup,
+                     base::hash<CanonicalSingletonGroup>>
+      canonical_singleton_groups_;
   // Maps canonical indices back to the types.
   CanonicalTypeVector canonical_types_;
   AccountingAllocator allocator_;

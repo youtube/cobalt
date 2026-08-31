@@ -163,6 +163,9 @@ class ChannelSend : public ChannelSendInterface,
   // Muting, Volume and Level.
   void SetInputMute(bool enable) override;
 
+  // CSRCs.
+  void SetCsrcs(ArrayView<const uint32_t> csrcs) override;
+
   // Stats.
   ANAStats GetANAStatistics() const override;
 
@@ -320,6 +323,8 @@ class ChannelSend : public ChannelSendInterface,
   mutable Mutex bitrate_accountant_mutex_;
   AudioBitrateAccountant bitrate_accountant_
       RTC_GUARDED_BY(bitrate_accountant_mutex_);
+
+  std::vector<uint32_t> csrcs_ RTC_GUARDED_BY(encoder_queue_checker_);
 };
 
 const int kTelephoneEventAttenuationdB = 10;
@@ -393,12 +398,11 @@ int32_t ChannelSend::SendData(AudioFrameType frameType,
     frame_transformer_delegate_->Transform(
         frameType, payloadType, rtp_timestamp + rtp_rtcp_->StartTimestamp(),
         payloadData, payloadSize, absolute_capture_timestamp_ms,
-        rtp_rtcp_->SSRC(), mime_type.str(), audio_level_dbov);
+        rtp_rtcp_->SSRC(), mime_type.str(), audio_level_dbov, csrcs_);
     return 0;
   }
   return SendRtpAudio(frameType, payloadType, rtp_timestamp, payload,
-                      absolute_capture_timestamp_ms, /*csrcs=*/{},
-                      audio_level_dbov);
+                      absolute_capture_timestamp_ms, csrcs_, audio_level_dbov);
 }
 
 int32_t ChannelSend::SendRtpAudio(AudioFrameType frameType,
@@ -694,6 +698,17 @@ bool ChannelSend::InputMute() const {
   return input_mute_;
 }
 
+void ChannelSend::SetCsrcs(ArrayView<const uint32_t> csrcs) {
+  RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+  std::vector<uint32_t> csrcs_copy(
+      csrcs.begin(),
+      csrcs.begin() + std::min<size_t>(csrcs.size(), kRtpCsrcSize));
+  encoder_queue_->PostTask([this, csrcs = std::move(csrcs_copy)]() mutable {
+    RTC_DCHECK_RUN_ON(&encoder_queue_checker_);
+    csrcs_ = csrcs;
+  });
+}
+
 bool ChannelSend::SendTelephoneEventOutband(int event, int duration_ms) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
   RTC_DCHECK_LE(0, event);
@@ -795,6 +810,8 @@ CallSendStatistics ChannelSend::GetRTCPStatistics() const {
   stats.retransmitted_bytes_sent = rtp_stats.retransmitted.payload_bytes;
   stats.packetsSent =
       rtp_stats.transmitted.packets + rtx_stats.transmitted.packets;
+  stats.packets_sent_with_ect1 = rtp_stats.transmitted.packets_with_ect1 +
+                                 rtx_stats.transmitted.packets_with_ect1;
   stats.total_packet_send_delay = rtp_stats.transmitted.total_packet_delay;
   stats.retransmitted_packets_sent = rtp_stats.retransmitted.packets;
   stats.report_block_datas = rtp_rtcp_->GetLatestReportBlockData();

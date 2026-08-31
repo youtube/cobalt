@@ -8,7 +8,8 @@ found in the LICENSE file.
   xmlns:app="http://schemas.android.com/apk/res-auto"
   xmlns:tools="http://schemas.android.com/tools"
   android:layout_width="match_parent"
-  android:layout_height="@dimen/tab_group_row_height"
+  android:layout_height="wrap_content"
+  android:minHeight="@dimen/tab_group_row_height"
   android:gravity="center_vertical"
   android:orientation="horizontal"
   tools:ignore="UnusedResources">
@@ -88,12 +89,12 @@ found in the LICENSE file.
   </FrameLayout>
 
   <org.chromium.ui.listmenu.ListMenuButton
-      android:id="@+id/tab_group_menu"
-      android:layout_width="@dimen/min_touch_target_size"
-      android:layout_height="match_parent"
-      android:background="@null"
-      android:src="@drawable/ic_more_vert_24dp"
-      app:tint="@color/default_icon_color_tint_list"
-      android:visibility="gone"/>
+    android:id="@+id/tab_group_menu"
+    android:layout_width="@dimen/min_touch_target_size"
+    android:layout_height="match_parent"
+    android:background="@drawable/small_icon_background"
+    android:src="@drawable/ic_more_vert_24dp"
+    app:tint="@color/default_icon_color_tint_list"
+    android:visibility="gone" />
 
 </org.chromium.chrome.browser.tasks.tab_management.TabGroupRowView>

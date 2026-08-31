@@ -14,6 +14,7 @@ import androidx.annotation.ColorInt;
 
 import org.chromium.base.MathUtils;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 
@@ -37,8 +38,9 @@ public abstract class StripLayoutView implements VirtualView {
          * @param motionEventButtonState {@link MotionEvent#getButtonState()} at the moment of the
          *     click if the click is detected via motion events; otherwise, this parameter is {@link
          *     org.chromium.ui.util.MotionEventUtils#MOTION_EVENT_BUTTON_NONE}.
+         * @param modifiers State of all Meta/Modifier keys that are pressed.
          */
-        void onClick(long time, StripLayoutView view, int motionEventButtonState);
+        void onClick(long time, StripLayoutView view, int motionEventButtonState, int modifiers);
     }
 
     /** Handler for keyboard focus on VirtualViews. */
@@ -117,6 +119,7 @@ public abstract class StripLayoutView implements VirtualView {
     private boolean mIsIncognito;
     private boolean mIsForegrounded;
     private boolean mIsDraggedOffStrip;
+    private boolean mIsNonDragReordering;
     private boolean mWillClose;
 
     // A11y variables.
@@ -357,6 +360,16 @@ public abstract class StripLayoutView implements VirtualView {
         return mIsDraggedOffStrip;
     }
 
+    /** Sets if the view is reordering for a non-drag operation. */
+    public void setIsNonDragReordering(boolean isNonDragReordering) {
+        mIsNonDragReordering = isNonDragReordering;
+    }
+
+    /** Gets whether or not the view is reordering for a non-drag operation. */
+    public boolean getIsNonDragReordering() {
+        return mIsNonDragReordering;
+    }
+
     /** Marks that the view will be closed due to an incoming TabModel update. */
     public void setWillClose() {
         mWillClose = true;
@@ -398,8 +411,8 @@ public abstract class StripLayoutView implements VirtualView {
     }
 
     @Override
-    public void handleClick(long time, int motionEventButtonState) {
-        mOnClickHandler.onClick(time, this, motionEventButtonState);
+    public void handleClick(long time, int motionEventButtonState, int modifiers) {
+        mOnClickHandler.onClick(time, this, motionEventButtonState, modifiers);
     }
 
     /** Returns cached touch target bounds. */
@@ -415,7 +428,11 @@ public abstract class StripLayoutView implements VirtualView {
      * @param right Right inset to apply to touch target.
      * @param bottom Bottom inset to apply to touch target.
      */
-    public void setTouchTargetInsets(Float left, Float top, Float right, Float bottom) {
+    public void setTouchTargetInsets(
+            @Nullable Float left,
+            @Nullable Float top,
+            @Nullable Float right,
+            @Nullable Float bottom) {
         if (left != null) mTouchTargetInsetLeft = left;
         if (right != null) mTouchTargetInsetRight = right;
         if (top != null) mTouchTargetInsetTop = top;

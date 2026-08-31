@@ -8,6 +8,7 @@
 #include <memory>
 
 class Profile;
+class QwacWebContentsObserver;
 
 namespace content {
 class WebContents;
@@ -16,10 +17,6 @@ class WebContents;
 namespace sync_sessions {
 class SyncSessionsRouterTabHelper;
 }  // namespace sync_sessions
-
-namespace metrics {
-class DwaWebContentsObserver;
-}  // namespace metrics
 
 namespace privacy_sandbox {
 class PrivacySandboxIncognitoTabObserver;
@@ -37,9 +34,9 @@ class TabFeatures {
  private:
   std::unique_ptr<sync_sessions::SyncSessionsRouterTabHelper>
       sync_sessions_router_;
-  std::unique_ptr<metrics::DwaWebContentsObserver> dwa_web_contents_observer_;
   std::unique_ptr<privacy_sandbox::PrivacySandboxIncognitoTabObserver>
       privacy_sandbox_incognito_tab_observer_;
+  std::unique_ptr<QwacWebContentsObserver> qwac_web_contents_observer_;
 };
 
 }  // namespace tabs

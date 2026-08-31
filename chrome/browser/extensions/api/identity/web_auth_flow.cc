@@ -15,8 +15,6 @@
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/extensions/api/identity/web_auth_flow_info_bar_delegate.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_window.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
@@ -24,6 +22,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_observer.h"
+#include "extensions/buildflags/buildflags.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "ui/base/page_transition_types.h"
@@ -32,6 +31,11 @@
 
 using content::WebContents;
 using content::WebContentsObserver;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window.h"
+#endif
 
 namespace extensions {
 
@@ -48,7 +52,9 @@ WebAuthFlow::WebAuthFlow(
       profile_(profile),
       provider_url_(provider_url),
       mode_(mode),
+#if BUILDFLAG(ENABLE_EXTENSIONS)
       user_gesture_(user_gesture),
+#endif
       abort_on_load_for_non_interactive_(abort_on_load_for_non_interactive),
       timeout_for_non_interactive_(timeout_for_non_interactive),
       non_interactive_timeout_timer_(std::make_unique<base::OneShotTimer>()),
@@ -57,6 +63,11 @@ WebAuthFlow::WebAuthFlow(
   if (timeout_for_non_interactive_) {
     DCHECK_GE(*timeout_for_non_interactive_, base::TimeDelta());
     DCHECK_LE(*timeout_for_non_interactive_, base::Minutes(1));
+  }
+
+  // profile_ can be null in unit tests.
+  if (profile_ != nullptr) {
+    profile_observation_.Observe(profile_);
   }
 }
 
@@ -100,18 +111,25 @@ void WebAuthFlow::Start() {
 
 void WebAuthFlow::DetachDelegateAndDelete() {
   delegate_ = nullptr;
+
+  // WebAuthFlow must be destroyed asynchronously to avoid reentrancy issues.
+  //
+  // WebAuthFlow observes WebContents and notifies its delegate from within
+  // WebContentsObserver callbacks. The delegate may call
+  // DetachDelegateAndDelete() in response.
+  //
+  // If WebAuthFlow is destroyed synchronously during such a callback, it would
+  // synchronously destroy its owned WebContents. However, WebContents cannot be
+  // destroyed while it's in the middle of notifying observers — doing so
+  // triggers a CHECK().
+  //
+  // Therefore, destruction of WebAuthFlow must be deferred to avoid violating
+  // this constraint. If the Profile is destroyed before the async destruction
+  // runs, WebAuthFlow will be notified via OnProfileWillBeDestroyed, and the
+  // WebContents will be explicitly destroyed at that point, ensuring they do
+  // not outlive the Profile.
   base::SingleThreadTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
                                                                 this);
-}
-
-void WebAuthFlow::Stop() {
-  if (web_contents()) {
-    web_contents()->Close();
-  }
-  WebContentsObserver::Observe(nullptr);
-  web_contents_.reset();
-  delegate_ = nullptr;
-  profile_ = nullptr;
 }
 
 void WebAuthFlow::DisplayInfoBar() {
@@ -127,6 +145,7 @@ void WebAuthFlow::CloseInfoBar() {
   }
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 bool WebAuthFlow::DisplayAuthPageInPopupWindow() {
   if (Browser::GetCreationStatusForProfile(profile_) !=
       Browser::CreationStatus::kOk) {
@@ -150,6 +169,11 @@ bool WebAuthFlow::DisplayAuthPageInPopupWindow() {
   browser->window()->Show();
   return true;
 }
+#else
+bool WebAuthFlow::DisplayAuthPageInPopupWindow() {
+  return false;
+}
+#endif
 
 void WebAuthFlow::BeforeUrlLoaded(const GURL& url) {
   if (delegate_) {
@@ -158,6 +182,13 @@ void WebAuthFlow::BeforeUrlLoaded(const GURL& url) {
 }
 
 void WebAuthFlow::AfterUrlLoaded() {
+  CHECK(profile_);
+  if (profile_->ShutdownStarted()) {
+    // Don't process further if the profile is being deleted. The pending
+    // extension functions will be aborted during KeyedService shutdown.
+    return;
+  }
+
   initial_url_loaded_ = true;
   if (delegate_ && mode_ == WebAuthFlow::SILENT) {
     if (abort_on_load_for_non_interactive_ == AbortOnLoad::kYes) {
@@ -243,6 +274,13 @@ void WebAuthFlow::DidRedirectNavigation(
 
 void WebAuthFlow::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+  CHECK(profile_);
+  if (profile_->ShutdownStarted()) {
+    // Don't process further if the profile is being deleted. The pending
+    // extension functions will be aborted during KeyedService shutdown.
+    return;
+  }
+
   // Websites may create and remove <iframe> during the auth flow. In
   // particular, to integrate CAPTCHA tests. Chrome shouldn't abort the auth
   // flow if a navigation failed in a sub-frame. https://crbug.com/1049565.
@@ -297,6 +335,26 @@ void WebAuthFlow::DidFinishNavigation(
   if (failed && delegate_) {
     delegate_->OnAuthFlowFailure(LOAD_FAILED);
   }
+}
+
+void WebAuthFlow::OnProfileWillBeDestroyed(Profile* profile) {
+  CHECK_EQ(profile, profile_);
+  profile_observation_.Reset();
+
+  // Null out the delegate early so that we do not call into it while
+  // WebContents are being destroyed. It would be cleaner to send a "profile
+  // destroyed" notification to the delegate, but all the current delegates
+  // already observe Profile destruction, so we can just be silent here.
+  delegate_ = nullptr;
+
+  // Destroy the WebContents so that they don't outlive the profile.
+  if (web_contents()) {
+    web_contents()->Close();
+  }
+
+  WebContentsObserver::Observe(nullptr);
+  web_contents_.reset();
+  profile_ = nullptr;
 }
 
 void WebAuthFlow::SetShouldShowInfoBar(

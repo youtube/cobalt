@@ -10,10 +10,10 @@
 
 #include "modules/audio_processing/utility/delay_estimator.h"
 
-#include <stdlib.h>
-#include <string.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 
 #include "rtc_base/checks.h"
 
@@ -23,24 +23,24 @@ namespace {
 
 // Number of right shifts for scaling is linearly depending on number of bits in
 // the far-end binary spectrum.
-static const int kShiftsAtZero = 13;  // Right shifts at zero binary spectrum.
-static const int kShiftsLinearSlope = 3;
+const int kShiftsAtZero = 13;  // Right shifts at zero binary spectrum.
+const int kShiftsLinearSlope = 3;
 
-static const int32_t kProbabilityOffset = 1024;      // 2 in Q9.
-static const int32_t kProbabilityLowerLimit = 8704;  // 17 in Q9.
-static const int32_t kProbabilityMinSpread = 2816;   // 5.5 in Q9.
+const int32_t kProbabilityOffset = 1024;      // 2 in Q9.
+const int32_t kProbabilityLowerLimit = 8704;  // 17 in Q9.
+const int32_t kProbabilityMinSpread = 2816;   // 5.5 in Q9.
 
 // Robust validation settings
-static const float kHistogramMax = 3000.f;
-static const float kLastHistogramMax = 250.f;
-static const float kMinHistogramThreshold = 1.5f;
-static const int kMinRequiredHits = 10;
-static const int kMaxHitsWhenPossiblyNonCausal = 10;
-static const int kMaxHitsWhenPossiblyCausal = 1000;
-static const float kQ14Scaling = 1.f / (1 << 14);  // Scaling by 2^14 to get Q0.
-static const float kFractionSlope = 0.05f;
-static const float kMinFractionWhenPossiblyCausal = 0.5f;
-static const float kMinFractionWhenPossiblyNonCausal = 0.25f;
+const float kHistogramMax = 3000.f;
+const float kLastHistogramMax = 250.f;
+const float kMinHistogramThreshold = 1.5f;
+const int kMinRequiredHits = 10;
+const int kMaxHitsWhenPossiblyNonCausal = 10;
+const int kMaxHitsWhenPossiblyCausal = 1000;
+const float kQ14Scaling = 1.f / (1 << 14);  // Scaling by 2^14 to get Q0.
+const float kFractionSlope = 0.05f;
+const float kMinFractionWhenPossiblyCausal = 0.5f;
+const float kMinFractionWhenPossiblyNonCausal = 0.25f;
 
 }  // namespace
 

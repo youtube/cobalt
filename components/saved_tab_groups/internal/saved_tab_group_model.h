@@ -97,6 +97,7 @@ class SavedTabGroupModel {
   // updated group is retrieved from the service before use.
   void MakeTabGroupSharedForTesting(const LocalTabGroupID& local_group_id,
                                     CollaborationId collaboration_id);
+  void MakeTabGroupUnsharedForTesting(const LocalTabGroupID& local_group_id);
 
   // Mark whether the tab group identified by `local_group_id` is transitioning
   // to a saved group.
@@ -201,11 +202,12 @@ class SavedTabGroupModel {
   void UpdateLastUserInteractionTimeLocally(
       const LocalTabGroupID& local_group_id);
 
-  // Update the last time a tab was seen.
-  void UpdateTabLastSeenTime(const base::Uuid& group_id,
-                             const base::Uuid& tab_id,
-                             base::Time time,
-                             TriggerSource source);
+  // Update the last seen time for a tab.
+  void UpdateTabLastSeenTimeFromLocal(const base::Uuid& group_id,
+                                      const base::Uuid& tab_id);
+  void UpdateTabLastSeenTimeFromSync(const base::Uuid& group_id,
+                                     const base::Uuid& tab_id,
+                                     base::Time time);
 
   // Update the position for a share group from sync. If the position is
   // nullopt, the group will be moved to the end of the list.
@@ -263,6 +265,10 @@ class SavedTabGroupModel {
 
   // Update the archival status and archival timestamp of the local tab group.
   void UpdateArchivalStatus(const base::Uuid& id, bool archivalStatus);
+
+  // Update bookmark node id of the local tab group.
+  void UpdateBookmarkNodeId(const base::Uuid& id,
+                            const std::optional<base::Uuid>& bookmark_node_id);
 
  private:
   // Returns mutable group containing tab with ID `saved_tab_guid`, otherwise

@@ -9,11 +9,11 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.AUTOF
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.SharedPreferences.Editor;
-import android.os.Build;
 import android.view.autofill.AutofillManager;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ResettersForTesting;
@@ -52,7 +52,7 @@ public class AutofillClientProviderUtils {
      * @param availability The return value for tests.
      */
     public static void setAutofillAvailabilityToUseForTesting(
-            @AndroidAutofillAvailabilityStatus Integer availability) {
+            @Nullable @AndroidAutofillAvailabilityStatus Integer availability) {
         sAndroidAutofillFrameworkAvailabilityForTesting = availability;
         ResettersForTesting.register(() -> sAndroidAutofillFrameworkAvailabilityForTesting = null);
     }
@@ -84,7 +84,8 @@ public class AutofillClientProviderUtils {
      *     or a reason why it can't.
      */
     @CalledByNative
-    public static int getAndroidAutofillFrameworkAvailability(PrefService prefs) {
+    public static int getAndroidAutofillFrameworkAvailability(
+            @JniType("PrefService*") PrefService prefs) {
         if (sAndroidAutofillFrameworkAvailabilityForTesting != null) {
             return sAndroidAutofillFrameworkAvailabilityForTesting;
         }
@@ -95,9 +96,6 @@ public class AutofillClientProviderUtils {
         }
         if (!prefs.getBoolean(Pref.AUTOFILL_THIRD_PARTY_PASSWORD_MANAGERS_ALLOWED)) {
             return AndroidAutofillAvailabilityStatus.NOT_ALLOWED_BY_POLICY;
-        }
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
-            return AndroidAutofillAvailabilityStatus.ANDROID_VERSION_TOO_OLD;
         }
         AutofillManager manager =
                 ContextUtils.getApplicationContext().getSystemService(AutofillManager.class);

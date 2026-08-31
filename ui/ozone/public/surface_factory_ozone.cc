@@ -5,9 +5,11 @@
 #include "ui/ozone/public/surface_factory_ozone.h"
 
 #include <stdlib.h>
+
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/notimplemented.h"
 #include "gpu/vulkan/buildflags.h"
 #include "ui/gfx/native_pixmap.h"
 #include "ui/gl/gl_implementation.h"
@@ -91,16 +93,6 @@ bool SurfaceFactoryOzone::CanCreateNativePixmapForFormat(
   // It's up to specific implementations of this method to report an inability
   // to create native pixmap handles for a specific format.
   return true;
-}
-
-void SurfaceFactoryOzone::CreateNativePixmapAsync(
-    gfx::AcceleratedWidget widget,
-    gpu::VulkanDeviceQueue* device_queue,
-    gfx::Size size,
-    gfx::BufferFormat format,
-    gfx::BufferUsage usage,
-    NativePixmapCallback callback) {
-  std::move(callback).Run(nullptr);
 }
 
 scoped_refptr<gfx::NativePixmap>

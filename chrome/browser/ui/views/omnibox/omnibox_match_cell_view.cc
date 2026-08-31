@@ -60,6 +60,12 @@ static constexpr int kUniformRowHeightIconSize = 28;
 // since the text will have to be further right to accommodate the icons.
 static constexpr int kIphTextIndent = 14;
 
+// The extra space added to the left-side inset of the toolbelt suggestion.
+static constexpr int kToolbeltTextInsetLeft = 12;
+
+// The right-side inset of the toolbelt suggestion.
+static constexpr int kToolbeltTextInsetRight = 8;
+
 // The radius of the rounded square backgrounds of icons, answers, and entities.
 static constexpr int kIconAndImageCornerRadius = 4;
 
@@ -233,7 +239,9 @@ void OmniboxMatchCellView::OnMatchUpdate(const OmniboxResultView* result_view,
     layout_style_ = LayoutStyle::SEARCH_SUGGESTION_WITH_IMAGE;
   } else if (AutocompleteMatch::IsSearchType(match.type)) {
     layout_style_ = LayoutStyle::SEARCH_SUGGESTION;
-  } else if (match.IsIPHSuggestion()) {
+  } else if (match.IsToolbelt()) {
+    layout_style_ = LayoutStyle::TOOLBELT;
+  } else if (match.IsIphSuggestion()) {
     layout_style_ = LayoutStyle::IPH_SUGGESTION;
   } else if (match.type ==
              AutocompleteMatchType::Type::HISTORY_EMBEDDINGS_ANSWER) {
@@ -347,8 +355,18 @@ void OmniboxMatchCellView::SetIcon(const gfx::ImageSkia& image,
       match.type == AutocompleteMatchType::HISTORY_CLUSTER;
   const bool is_instant_keyword_row =
       AutocompleteMatch::IsFeaturedSearchType(match.type);
-  if (is_pedal_suggestion_row || is_journeys_suggestion_row ||
-      is_instant_keyword_row) {
+  bool should_draw_icon_background = is_pedal_suggestion_row ||
+                                     is_journeys_suggestion_row ||
+                                     is_instant_keyword_row;
+
+  // Do not apply the distinctive background color to the open lens action when
+  // the UI tweaks are enabled.
+  if (match.HasTakeoverAction(OmniboxActionId::CONTEXTUAL_SEARCH_OPEN_LENS) &&
+      omnibox_feature_configs::ContextualSearch::Get().open_lens_action_ui_tweaks) {
+    should_draw_icon_background = false;
+  }
+
+  if (should_draw_icon_background) {
     // When a PEDAL suggestion has been split out to its own row, apply a square
     // background with a distinctive color to the respective icon. Journeys
     // suggestion rows should also receive the same treatment.
@@ -430,10 +448,13 @@ void OmniboxMatchCellView::SetImage(const gfx::ImageSkia& image,
 
 gfx::Insets OmniboxMatchCellView::GetInsets() const {
   const int vertical_margin = 0;
-  // IPH text bounds should be centered within the IPH background when there's
-  // no IPH icon. So make their `right_margin` equal to their text's x position.
+  // Toolbelt text bounds are set to match the UX spec. IPH text bounds should
+  // be centered within the IPH background when there's no IPH icon. So make
+  // their `right_margin` equal to their text's x position.
   const int right_margin =
-      layout_style_ == LayoutStyle::IPH_SUGGESTION
+      layout_style_ == LayoutStyle::TOOLBELT
+          ? kToolbeltTextInsetRight
+      : layout_style_ == LayoutStyle::IPH_SUGGESTION
           ? OmniboxMatchCellView::kMarginLeft + kIphTextIndent
           : 7;
   return gfx::Insets::TLBR(vertical_margin, OmniboxMatchCellView::kMarginLeft,
@@ -566,8 +587,9 @@ gfx::Size OmniboxMatchCellView::CalculatePreferredSize(
                description_view_->GetLineHeight() + kHistoryEmbeddingAnswerGap +
                kHistoryEmbeddingAnswerBottomPadding;
     }
-  } else if (layout_style_ == LayoutStyle::IPH_SUGGESTION) {
-    // IPH suggestions have extra height.
+  } else if (layout_style_ == LayoutStyle::IPH_SUGGESTION ||
+             layout_style_ == LayoutStyle::TOOLBELT) {
+    // IPH and toolbelt suggestions have extra height.
     height = kRowHeight + 4;
   } else {
     // The height for traditional 1-line matches.
@@ -577,13 +599,18 @@ gfx::Size OmniboxMatchCellView::CalculatePreferredSize(
   return gfx::Size(width, height);
 }
 
+gfx::Size OmniboxMatchCellView::GetMinimumSize() const {
+  return gfx::Size(GetTextIndent(), GetPreferredSize().height());
+}
+
 int OmniboxMatchCellView::GetImageIndent() const {
   // Image indent ignores the `OmniboxMatchCellView::GetInsets()`.
 
   // This number is independent of other layout numbers; i.e., it's not meant to
   // align with any other UI; it's just arbitrarily chosen by UX. Hence, it's
   // not derived from other matches' `indent` below.
-  if (layout_style_ == LayoutStyle::IPH_SUGGESTION) {
+  if (layout_style_ == LayoutStyle::IPH_SUGGESTION ||
+      layout_style_ == LayoutStyle::TOOLBELT) {
     return 2;
   }
 
@@ -607,6 +634,11 @@ int OmniboxMatchCellView::GetImageIndent() const {
 int OmniboxMatchCellView::GetTextIndent() const {
   // Text indent is added to the `OmniboxMatchCellView::GetInsets()`. It is not
   // added to the image position & size.
+
+  // Toolbelt layout is similar to IPH and has a custom indent.
+  if (layout_style_ == LayoutStyle::TOOLBELT) {
+    return kToolbeltTextInsetLeft;
+  }
 
   // Some IPH matches have no icons. They should be moved further left so the
   // gap between the IPH background and the start of the IPH text isn't jarring.
@@ -635,12 +667,12 @@ int OmniboxMatchCellView::GetTextIndent() const {
                 .Get()
                 .match_text_indent_offset;
 
-  // The IPH row left inset is +`kIphOffset` from other suggestions, so the text
-  // indent should be -`kIphOffset` to keep the text aligned. IPH matches seem
-  // to have inner padding, so the gap between the left edge of this
-  // `OmniboxMatchCellView` and the IPH icon/text is actually larger than
-  // `indent`.
   if (layout_style_ == LayoutStyle::IPH_SUGGESTION) {
+    // The IPH row left inset is +`kIphOffset` from other suggestions, so the
+    // text indent should be -`kIphOffset` to keep the text aligned. IPH matches
+    // seem to have inner padding, so the gap between the left edge of this
+    // `OmniboxMatchCellView` and the IPH icon/text is actually larger than
+    // `indent`.
     indent -= kIphOffset;
   }
 

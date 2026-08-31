@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "third_party/blink/renderer/platform/peerconnection/rtc_video_encoder.h"
 
 #include <array>
@@ -15,6 +10,7 @@
 #include <vector>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
@@ -26,6 +22,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/bind_post_task.h"
@@ -180,7 +177,8 @@ class ScopedSignaledValue {
 
 // TODO(https://crbug.com/1448809): Move to base/memory/ref_counted_memory.h
 class RefCountedWritableSharedMemoryMapping
-    : public ThreadSafeRefCounted<RefCountedWritableSharedMemoryMapping> {
+    : public blink::ThreadSafeRefCounted<
+          RefCountedWritableSharedMemoryMapping> {
  public:
   explicit RefCountedWritableSharedMemoryMapping(
       base::WritableSharedMemoryMapping mapping)
@@ -200,7 +198,8 @@ class RefCountedWritableSharedMemoryMapping
   size_t size() const { return mapping_.size(); }
 
  private:
-  friend class ThreadSafeRefCounted<RefCountedWritableSharedMemoryMapping>;
+  friend class blink::ThreadSafeRefCounted<
+      RefCountedWritableSharedMemoryMapping>;
   ~RefCountedWritableSharedMemoryMapping() = default;
 
   base::WritableSharedMemoryMapping mapping_;
@@ -345,7 +344,7 @@ bool IsValidTemporalSVC(
 
 }  // namespace
 
-namespace WTF {
+namespace blink {
 
 template <>
 struct CrossThreadCopier<webrtc::VideoEncoder::RateControlParameters>
@@ -381,9 +380,6 @@ struct CrossThreadCopier<SignaledValue> {
     return sv;  // this is a move in fact.
   }
 };
-}  // namespace WTF
-
-namespace blink {
 
 namespace features {
 
@@ -454,17 +450,14 @@ bool CreateSpatialLayersConfig(
 
   // We fill SpatialLayer only in temporal layer or spatial layer encoding.
   switch (codec_settings.codecType) {
-    case webrtc::kVideoCodecH264:
-      if (scalability_mode.has_value() &&
-          *scalability_mode != webrtc::ScalabilityMode::kL1T1) {
-        DVLOG(1)
-            << "H264 temporal layers not yet supported by HW codecs, but use"
-            << " HW codecs and leave the fallback decision to a webrtc client"
-            << " by seeing metadata in webrtc::CodecSpecificInfo";
-
-        return true;
+    case webrtc::kVideoCodecH264: {
+      int number_of_temporal_layers = 1;
+      if (!IsValidTemporalSVC(scalability_mode, number_of_temporal_layers)) {
+        return false;
       }
-      break;
+      return SetLayerConfigForTemporalScalability(
+          codec_settings, *spatial_layers, number_of_temporal_layers);
+    }
     case webrtc::kVideoCodecVP8: {
       int number_of_temporal_layers = 1;
       if (!IsValidTemporalSVC(scalability_mode, number_of_temporal_layers)) {
@@ -500,7 +493,8 @@ bool CreateSpatialLayersConfig(
         spatial_layers->clear();
         for (size_t i = 0; i < codec_settings.VP9().numberOfSpatialLayers;
              ++i) {
-          const webrtc::SpatialLayer& rtc_sl = codec_settings.spatialLayers[i];
+          const webrtc::SpatialLayer& rtc_sl =
+              UNSAFE_TODO(codec_settings.spatialLayers[i]);
           // We ignore non active spatial layer and don't proceed further. There
           // must NOT be an active higher spatial layer than non active spatial
           // layer.
@@ -718,8 +712,7 @@ bool UseSoftwareForLowResolution(const webrtc::VideoCodecType codec,
 scoped_refptr<gpu::ClientSharedImage> CreateClientSharedImage(
     media::GpuVideoAcceleratorFactories* gpu_factories,
     gfx::Size size) {
-  const auto buffer_format = gfx::BufferFormat::YUV_420_BIPLANAR;
-  const auto si_format = viz::GetSharedImageFormat(buffer_format);
+  const auto si_format = viz::MultiPlaneFormat::kNV12;
   const auto buffer_usage =
       gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE;
 
@@ -964,7 +957,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // Metadata for frames passed to Encode(), matched to encoded frames using
   // timestamps.
-  WTF::Deque<FrameInfo> submitted_frames_;
+  Deque<FrameInfo> submitted_frames_;
 
   // Indicates that timestamp match failed and we should no longer attempt
   // matching.
@@ -972,7 +965,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // The pending frames to be encoded with the boolean representing whether the
   // frame must be encoded keyframe.
-  WTF::Deque<FrameChunk> pending_frames_;
+  Deque<FrameChunk> pending_frames_;
 
   // Frame sizes.
   gfx::Size input_frame_coded_size_;
@@ -1224,10 +1217,11 @@ void RTCVideoEncoder::Impl::Enqueue(FrameChunk frame_chunk) {
 // is not a black frame.
 #if BUILDFLAG(IS_WIN)
   {
-    // Check if the incoming frame is backed by unowned memory. This could
-    // happen when: 1. Zero-copy capture feature is turned on but device does
-    // not support MediaFoundation; 2. The video track gets disabled so black
-    // frames are sent.
+    // Check if the incoming frame is backed by owned or unowned memory type.
+    // This could happen when: 1. Zero-copy capture feature is turned on but
+    // device does not support MediaFoundation; 2. Zero-copy is enabled and
+    // video frame is backed up by an ArrayBuffer; 3. The video track gets
+    // disabled so black frames are sent.
     scoped_refptr<media::VideoFrame> frame;
     webrtc::scoped_refptr<webrtc::VideoFrameBuffer> frame_buffer =
         frame_chunk.video_frame_buffer;
@@ -1237,7 +1231,8 @@ void RTCVideoEncoder::Impl::Enqueue(FrameChunk frame_chunk) {
     if (frame_buffer->type() == webrtc::VideoFrameBuffer::Type::kNative) {
       frame = static_cast<WebRtcVideoFrameAdapterInterface*>(frame_buffer.get())
                   ->getMediaVideoFrame();
-      if (frame->storage_type() == media::VideoFrame::STORAGE_UNOWNED_MEMORY) {
+      if (frame->storage_type() == media::VideoFrame::STORAGE_UNOWNED_MEMORY ||
+          frame->storage_type() == media::VideoFrame::STORAGE_OWNED_MEMORY) {
         if (use_native_input_) {
           use_native_input_ = false;
         }
@@ -1820,8 +1815,9 @@ void RTCVideoEncoder::Impl::BitstreamBufferReady(
           }
 
           const std::vector<gfx::Size> expected_resolutions(
-              init_spatial_layer_resolutions_.begin() + begin_index,
-              init_spatial_layer_resolutions_.begin() + end_index);
+              UNSAFE_TODO(init_spatial_layer_resolutions_.begin() +
+                          begin_index),
+              UNSAFE_TODO(init_spatial_layer_resolutions_.begin() + end_index));
           if (metadata.vp9->spatial_layer_resolutions != expected_resolutions) {
             NotifyErrorStatus(
                 {media::EncoderStatus::Codes::kEncoderFailedEncode,
@@ -1872,7 +1868,7 @@ void RTCVideoEncoder::Impl::BitstreamBufferReady(
             metadata.vp9->reference_lower_spatial_layers;
         vp9.num_ref_pics = metadata.vp9->p_diffs.size();
         for (size_t i = 0; i < metadata.vp9->p_diffs.size(); ++i)
-          vp9.p_diff[i] = metadata.vp9->p_diffs[i];
+          UNSAFE_TODO(vp9.p_diff[i]) = metadata.vp9->p_diffs[i];
         vp9.ss_data_available = metadata.key_frame;
 
         // |num_spatial_layers| is not the number of active spatial layers,
@@ -1885,14 +1881,16 @@ void RTCVideoEncoder::Impl::BitstreamBufferReady(
           vp9.gof.num_frames_in_gof = 0;
           for (size_t i = 0; i < vea_active_spatial_layers.begin_index; ++i) {
             // Signal disabled layers.
-            vp9.width[i] = 0;
-            vp9.height[i] = 0;
+            UNSAFE_TODO(vp9.width[i]) = 0;
+            UNSAFE_TODO(vp9.height[i]) = 0;
           }
           for (size_t i = vea_active_spatial_layers.begin_index;
                i < vea_active_spatial_layers.end_index; ++i) {
             wtf_size_t wtf_i = base::checked_cast<wtf_size_t>(i);
-            vp9.width[i] = init_spatial_layer_resolutions_[wtf_i].width();
-            vp9.height[i] = init_spatial_layer_resolutions_[wtf_i].height();
+            UNSAFE_TODO(vp9.width[i]) =
+                init_spatial_layer_resolutions_[wtf_i].width();
+            UNSAFE_TODO(vp9.height[i]) =
+                init_spatial_layer_resolutions_[wtf_i].height();
           }
         }
         vp9.flexible_mode = true;
@@ -2111,8 +2109,7 @@ RTCVideoEncoder::Impl::CreateI420SharedMemoryFrameByLibyuv(
   // The timestamp is set later in EncodeOneFrame().
   auto frame = media::VideoFrame::WrapExternalData(
       media::PIXEL_FORMAT_I420, input_frame_coded_size_,
-      gfx::Rect(input_visible_size_), input_visible_size_,
-      static_cast<uint8_t*>(mapping.memory()), mapping.size(),
+      gfx::Rect(input_visible_size_), input_visible_size_, mapping,
       base::TimeDelta());
   if (!frame) {
     NotifyErrorStatus({media::EncoderStatus::Codes::kEncoderFailedEncode,
@@ -3012,7 +3009,7 @@ void RTCVideoEncoder::UpdateEncoderInfo(
   for (size_t i = 0; i < std::size(media_enc_info.fps_allocation); ++i) {
     if (media_enc_info.fps_allocation[i].empty())
       continue;
-    encoder_info_.fps_allocation[i] =
+    UNSAFE_TODO(encoder_info_.fps_allocation[i]) =
         absl::InlinedVector<uint8_t, webrtc::kMaxTemporalStreams>(
             media_enc_info.fps_allocation[i].begin(),
             media_enc_info.fps_allocation[i].end());

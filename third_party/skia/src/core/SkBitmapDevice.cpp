@@ -33,6 +33,7 @@
 #include "src/core/SkCPURecorderImpl.h"
 #include "src/core/SkDraw.h"
 #include "src/core/SkImagePriv.h"
+#include "src/core/SkMaskFilterBase.h"
 #include "src/core/SkMatrixPriv.h"
 #include "src/core/SkRasterClip.h"
 #include "src/core/SkSpecialImage.h"
@@ -359,9 +360,9 @@ void SkBitmapDevice::drawPaint(const SkPaint& paint) {
     BDDraw(this).drawPaint(paint);
 }
 
-void SkBitmapDevice::drawPoints(SkCanvas::PointMode mode, size_t count,
-                                const SkPoint pts[], const SkPaint& paint) {
-    LOOP_TILER( drawPoints(mode, count, pts, paint, nullptr), nullptr)
+void SkBitmapDevice::drawPoints(SkCanvas::PointMode mode, SkSpan<const SkPoint> pts,
+                                const SkPaint& paint) {
+    LOOP_TILER( drawPoints(mode, pts, paint, nullptr), nullptr)
 }
 
 void SkBitmapDevice::drawRect(const SkRect& r, const SkPaint& paint) {
@@ -369,7 +370,7 @@ void SkBitmapDevice::drawRect(const SkRect& r, const SkPaint& paint) {
 }
 
 void SkBitmapDevice::drawOval(const SkRect& oval, const SkPaint& paint) {
-    this->drawPath(SkPath::Oval(oval), paint, true);
+    LOOP_TILER( drawOval(oval, paint), Bounder(oval, paint))
 }
 
 void SkBitmapDevice::drawRRect(const SkRRect& rrect, const SkPaint& paint) {
@@ -441,7 +442,7 @@ void SkBitmapDevice::drawImageRect(const SkImage* image, const SkRect* src, cons
     } else {
         tmpSrc = bitmapBounds;
     }
-    SkMatrix matrix = SkMatrix::RectToRect(tmpSrc, dst);
+    SkMatrix matrix = SkMatrix::RectToRectOrIdentity(tmpSrc, dst);
 
     const SkRect* dstPtr = &dst;
     const SkBitmap* bitmapPtr = &bitmap;
@@ -558,18 +559,12 @@ void SkBitmapDevice::drawMesh(const SkMesh&, sk_sp<SkBlender>, const SkPaint&) {
     // TODO: Implement, maybe with a subclass of BitmapDevice that has SkSL support.
 }
 
-void SkBitmapDevice::drawAtlas(const SkRSXform xform[],
-                               const SkRect tex[],
-                               const SkColor colors[],
-                               int count,
+void SkBitmapDevice::drawAtlas(SkSpan<const SkRSXform> xform,
+                               SkSpan<const SkRect> tex,
+                               SkSpan<const SkColor> colors,
                                sk_sp<SkBlender> blender,
                                const SkPaint& paint) {
-    // set this to true for performance comparisons with the old drawVertices way
-    if ((false)) {
-        this->SkDevice::drawAtlas(xform, tex, colors, count, std::move(blender), paint);
-        return;
-    }
-    BDDraw(this).drawAtlas(xform, tex, colors, count, std::move(blender), paint);
+    BDDraw(this).drawAtlas(xform, tex, colors, std::move(blender), paint);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -594,6 +589,45 @@ void SkBitmapDevice::drawSpecial(SkSpecialImage* src,
         draw.fRC = &fRCStack.rc();
         draw.drawBitmap(resultBM, SkMatrix::I(), nullptr, sampling, paint);
     }
+}
+
+void SkBitmapDevice::drawCoverageMask(const SkSpecialImage* mask,
+                                      const SkMatrix& maskToDevice,
+                                      const SkSamplingOptions& sampling,
+                                      const SkPaint& paint) {
+    SkASSERT(!mask->isGaneshBacked());
+    SkASSERT(!mask->isGraphiteBacked());
+
+    SkBitmap maskBM;
+    if (!SkSpecialImages::AsBitmap(mask, &maskBM)) {
+        return;
+    }
+
+    SkDraw draw;
+    if (!this->accessPixels(&draw.fDst)) {
+      return; // no pixels to draw to so skip it
+    }
+    draw.fRC = &fRCStack.rc();
+    draw.fCTM = &maskToDevice;
+    draw.drawBitmapAsMask(maskBM, sampling, paint, &this->localToDevice());
+}
+
+// Try to filter as nine patch as a fast path.
+bool SkBitmapDevice::drawBlurredRRect(const SkRRect& rrect, const SkPaint& paint, float) {
+    SkASSERT(paint.getMaskFilter()
+             && as_MFB(paint.getMaskFilter())->type() == SkMaskFilterBase::Type::kBlur);
+
+    SkDrawTiler tiler(this, Bounder(rrect.getBounds(), paint));
+    // Check if the tiler only needs one iteration (common case). If there are multiple
+    // tiles, we just return false and fall back to the general mask filter path as we
+    // don't want to be in the scenario where only a subset fail/succeed.
+    if (!tiler.needsTiling()) {
+        if (const SkDraw* draw = tiler.next()) {
+            return draw->drawRRectNinePatch(rrect, paint);
+        }
+    }
+
+    return false;
 }
 
 sk_sp<SkSpecialImage> SkBitmapDevice::snapSpecial(const SkIRect& bounds, bool forceCopy) {

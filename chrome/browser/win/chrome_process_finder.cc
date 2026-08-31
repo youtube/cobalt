@@ -20,7 +20,7 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "base/win/message_window.h"
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
@@ -64,9 +64,11 @@ NotifyChromeResult AttemptToNotifyRunningChrome(HWND remote_window) {
   // launch mode correctly.
   STARTUPINFOW si = {sizeof(si)};
   ::GetStartupInfoW(&si);
-  if (si.dwFlags & STARTF_TITLEISLINKNAME)
+  if (si.dwFlags & STARTF_TITLEISLINKNAME) {
     new_command_line.AppendSwitchNative(switches::kSourceShortcut, si.lpTitle);
-
+  } else if (si.dwFlags & STARTF_TITLEISAPPID) {
+    new_command_line.AppendSwitch(switches::kSourceAppId);
+  }
   // Send the command line to the remote chrome window.
   // Format is "START\0<<<current directory>>>\0<<<commandline>>>".
   std::wstring to_send = base::StrCat(

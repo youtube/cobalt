@@ -45,9 +45,9 @@ namespace webrtc {
 
 namespace {
 
-static size_t kMaxQueuedReceivedDataBytes = 16 * 1024 * 1024;
+size_t kMaxQueuedReceivedDataBytes = 16 * 1024 * 1024;
 
-static std::atomic<int> g_unique_id{0};
+std::atomic<int> g_unique_id{0};
 
 int GenerateUniqueId() {
   return ++g_unique_id;
@@ -730,7 +730,7 @@ void SctpDataChannel::OnDataReceived(DataMessageType type,
   if (state_ == kOpen && observer_) {
     ++messages_received_;
     bytes_received_ += buffer->size();
-    observer_->OnMessage(*buffer.get());
+    observer_->OnMessage(*buffer);
   } else {
     if (queued_received_data_.byte_count() + payload.size() >
         kMaxQueuedReceivedDataBytes) {

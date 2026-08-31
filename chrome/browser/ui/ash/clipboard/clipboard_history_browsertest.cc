@@ -39,9 +39,6 @@
 #include "chrome/browser/ash/login/login_manager_test.h"
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
-#include "chrome/browser/history/history_service_factory.h"
-#include "chrome/browser/history/history_test_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/renderer_context_menu/render_view_context_menu_test_util.h"
 #include "chrome/browser/ui/ash/clipboard/clipboard_history_test_util.h"
@@ -815,11 +812,10 @@ class ClipboardHistoryPasteTypeBrowserTest
  private:
   // Returns all valid data formats for the last paste.
   base::Value::List GetLastPaste() {
-    auto result =
-        content::EvalJs(web_contents_.get(),
-                        "(function() { return window.getLastPaste(); })();");
-    EXPECT_TRUE(result.error.empty());
-    return result.ExtractList();
+    return content::EvalJs(web_contents_.get(),
+                           "(function() { return window.getLastPaste(); })();")
+        .TakeValue()
+        .TakeList();
   }
 
   raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
@@ -1653,8 +1649,8 @@ IN_PROC_BROWSER_TEST_F(ClipboardHistoryRefreshAshBrowserTest,
 
   // Get the textfield center in the the web contents coordinates.
   auto result = content::EvalJs(web_contents, "getTextfieldCenterOnPage();");
-  ASSERT_TRUE(result.error.empty());
-  auto center_as_list = result.ExtractList();
+  ASSERT_TRUE(result.is_ok());
+  const auto& center_as_list = result.ExtractList();
   ASSERT_EQ(center_as_list.size(), 2u);
 
   // Calculate the textfield center in the screen coordinates. Then right click
@@ -1861,157 +1857,4 @@ IN_PROC_BROWSER_TEST_F(ClipboardHistoryRefreshAshBrowserTest,
   GetEventGenerator()->ReleaseTouch();
   EXPECT_TRUE(second_item_delete_button->GetVisible());
   EXPECT_FALSE(second_item_contents_view->clip_path().isEmpty());
-}
-
-// Base class for tests exercising the `ClipboardHistoryUrlTitleFetcher`'s
-// end-to-end functionality, parameterized by whether the clipboard history URL
-// titles feature is enabled.
-class ClipboardHistoryUrlTitleFetcherBrowserTest
-    : public ClipboardHistoryBrowserTest,
-      public testing::WithParamInterface</*enable_url_titles=*/bool> {
- public:
-  ClipboardHistoryUrlTitleFetcherBrowserTest() {
-    scoped_feature_list_.InitWithFeatureStates(
-        {{ash::features::kClipboardHistoryUrlTitles,
-          IsClipboardHistoryUrlTitlesEnabled()}});
-  }
-
- protected:
-  GURL GetTestUrl(std::string_view base_name) {
-    return ui_test_utils::GetTestUrl(
-        base::FilePath(base::FilePath::kCurrentDirectory),
-        base::FilePath(base_name));
-  }
-
-  std::vector<GURL> GetHistoryContents() {
-    ui_test_utils::HistoryEnumerator enumerator(GetProfile());
-    return enumerator.urls();
-  }
-
-  bool IsClipboardHistoryUrlTitlesEnabled() const { return GetParam(); }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         ClipboardHistoryUrlTitleFetcherBrowserTest,
-                         /*enable_url_titles=*/testing::Bool());
-
-// Verifies that if the clipboard history URL titles feature is enabled and the
-// user copies a URL they have visited before, then the clipboard history item
-// will show that page's title.
-IN_PROC_BROWSER_TEST_P(ClipboardHistoryUrlTitleFetcherBrowserTest, UrlTitles) {
-  const auto unvisited_url = GetTestUrl("title1.html");
-  const auto visited_url = GetTestUrl("title2.html");
-  ui::test::EventGenerator event_generator(ash::Shell::GetPrimaryRootWindow());
-
-  // Populate the primary user's browsing history with a URL.
-  ui_test_utils::WaitForHistoryToLoad(HistoryServiceFactory::GetForProfile(
-      GetProfile(), ServiceAccessType::EXPLICIT_ACCESS));
-  EXPECT_TRUE(GetHistoryContents().empty());
-
-  ASSERT_TRUE(
-      ui_test_utils::NavigateToURL(CreateBrowser(GetProfile()), visited_url));
-  WaitForHistoryBackendToRun(GetProfile());
-
-  std::vector<GURL> urls(GetHistoryContents());
-  ASSERT_EQ(urls.size(), 1u);
-  EXPECT_EQ(visited_url.spec(), urls[0].spec());
-
-  // Verify that copying the unvisited URL produces a clipboard history item
-  // with no URL title.
-  SetClipboardText(unvisited_url.spec());
-  ASSERT_EQ(GetClipboardItems().size(), 1u);
-  EXPECT_FALSE(GetClipboardItems().front().secondary_display_text());
-
-  // Show the clipboard history menu and verify that the unvisited URL's item
-  // has no title label.
-  event_generator.PressAndReleaseKeyAndModifierKeys(ui::VKEY_V,
-                                                    ui::EF_COMMAND_DOWN);
-  EXPECT_FALSE(GetMenuItemViewForClipboardHistoryItemAtIndex(0u)->GetViewByID(
-      ash::clipboard_history_util::kSecondaryDisplayTextLabelID));
-  event_generator.PressAndReleaseKey(ui::VKEY_ESCAPE);
-
-  // Verify that copying the visited URL produces a clipboard history item with
-  // a URL title iff the clipboard history URL titles feature is enabled.
-  SetClipboardText(visited_url.spec());
-  ASSERT_EQ(GetClipboardItems().size(), 2u);
-  EXPECT_EQ(!!GetClipboardItems().front().secondary_display_text(),
-            IsClipboardHistoryUrlTitlesEnabled());
-
-  // Show the clipboard history menu and verify that the visited URL's item has
-  // a title label iff the clipboard history URL titles feature is enabled.
-  event_generator.PressAndReleaseKeyAndModifierKeys(ui::VKEY_V,
-                                                    ui::EF_COMMAND_DOWN);
-  EXPECT_EQ(!!GetMenuItemViewForClipboardHistoryItemAtIndex(0u)->GetViewByID(
-                ash::clipboard_history_util::kSecondaryDisplayTextLabelID),
-            IsClipboardHistoryUrlTitlesEnabled());
-  event_generator.PressAndReleaseKey(ui::VKEY_ESCAPE);
-}
-
-// Base class used to test features that only exist when the Ctrl+V longpress
-// feature is enabled.
-class ClipboardHistoryLongpressEnabledBrowserTest
-    : public ClipboardHistoryTextfieldBrowserTest {
- public:
-  ClipboardHistoryLongpressEnabledBrowserTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        ash::features::kClipboardHistoryLongpress);
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// Verifies that clicking the clipboard history menu's footer does nothing and
-// that tab and arrow key traversal pass over the footer.
-IN_PROC_BROWSER_TEST_F(ClipboardHistoryLongpressEnabledBrowserTest,
-                       FooterNotInteractive) {
-  // Write some things to the clipboard.
-  SetClipboardText("A");
-  SetClipboardText("B");
-
-  // Show the clipboard history menu via the Ctrl+V long-press shortcut so that
-  // the menu's educational footer shows.
-  EXPECT_TRUE(GetClipboardHistoryController()->ShowMenu(
-      gfx::Rect(), ui::mojom::MenuSourceType::kNone,
-      crosapi::mojom::ClipboardHistoryControllerShowSource::
-          kControlVLongpress));
-  EXPECT_TRUE(GetClipboardHistoryController()->IsMenuShowing());
-
-  // Verify that the menu has two clipboard history items and a third item (the
-  // menu footer). A fourth item (the menu header) will also be present.
-  const auto* menu = GetClipboardHistoryController()->context_menu_for_test();
-  EXPECT_EQ(menu->GetMenuItemsCount(), 2u);
-  ASSERT_EQ(menu->GetModelForTest()->GetItemCount(), 4u);
-
-  // Verify that clicking on the footer does nothing.
-  EXPECT_TRUE(textfield_->GetText().empty());
-  const auto* footer = menu->GetMenuItemViewAtForTest(
-      /*index=*/3u);
-  GetEventGenerator()->MoveMouseTo(footer->GetBoundsInScreen().CenterPoint());
-  GetEventGenerator()->ClickLeftButton();
-  EXPECT_TRUE(textfield_->GetText().empty());
-
-  // Verify that traversing over the menu with arrow keys skips the footer.
-  const auto* item1 =
-      GetMenuItemViewForClipboardHistoryItemAtIndex(/*index=*/0u);
-  const auto* item2 =
-      GetMenuItemViewForClipboardHistoryItemAtIndex(/*index=*/1u);
-  PressAndRelease(ui::VKEY_DOWN);
-  EXPECT_TRUE(item1->IsSelected());
-  PressAndRelease(ui::VKEY_DOWN);
-  EXPECT_TRUE(item2->IsSelected());
-  PressAndRelease(ui::VKEY_DOWN);
-  EXPECT_TRUE(item1->IsSelected());
-
-  // Verify that traversing over the menu with the Tab key (two presses at a
-  // time for each item's main button and delete button) skips the footer.
-  PressAndRelease(ui::VKEY_TAB);
-  PressAndRelease(ui::VKEY_TAB);
-  EXPECT_TRUE(item2->IsSelected());
-  PressAndRelease(ui::VKEY_TAB);
-  PressAndRelease(ui::VKEY_TAB);
-  EXPECT_TRUE(item1->IsSelected());
 }

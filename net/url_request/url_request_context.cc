@@ -40,6 +40,7 @@
 #include "net/ssl/ssl_config_service.h"
 #include "net/url_request/url_request.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "url/gurl_debug.h"
 
 #if BUILDFLAG(ENABLE_REPORTING)
 #include "net/network_error_logging/network_error_logging_service.h"
@@ -93,6 +94,14 @@ URLRequestContext::~URLRequestContext() {
 
   DCHECK(host_resolver());
   host_resolver()->OnShutdown();
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  if (device_bound_session_service_) {
+    // The SessionService may have pending URLRequests that use this
+    // context.
+    device_bound_session_service_.reset();
+  }
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
   AssertNoURLRequests();
 }

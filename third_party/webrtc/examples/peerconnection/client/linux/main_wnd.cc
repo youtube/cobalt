@@ -18,11 +18,11 @@
 #include <glibconfig.h>
 #include <gobject/gclosure.h>
 #include <gtk/gtk.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <map>
 
 #include "api/media_stream_interface.h"
@@ -374,7 +374,7 @@ void GtkMainWnd::OnClicked(GtkWidget* widget) {
   gtk_widget_set_sensitive(widget, false);
   server_ = gtk_entry_get_text(GTK_ENTRY(server_edit_));
   port_ = gtk_entry_get_text(GTK_ENTRY(port_edit_));
-  int port = port_.length() ? atoi(port_.c_str()) : 0;
+  int port = !port_.empty() ? atoi(port_.c_str()) : 0;
   callback_->StartLogin(server_, port);
 }
 

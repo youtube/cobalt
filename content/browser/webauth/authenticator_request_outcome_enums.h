@@ -56,7 +56,10 @@ enum class MakeCredentialOutcome {
   kEnclaveError = 15,
   kUiTimeout = 16,
   kOtherFailure = 17,
+  kConditionalCreateFailure = 18,
 };
+
+// LINT.IfChange(AuthenticationRequestMode)
 
 // This must match the `WebAuthenticationRequestMode` in
 // tools/metrics/histograms/metadata/webauthn/enums.xml. These must not be
@@ -68,7 +71,9 @@ enum class AuthenticationRequestMode {
   kConditional = 1,
   kPayment = 2,
   kPasskeyUpgrade = 3,
+  kImmediate = 4,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/webauthn/enums.xml:WebAuthenticationRequestMode)
 
 }  // namespace content
 

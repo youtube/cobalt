@@ -31,7 +31,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
@@ -54,6 +55,8 @@ import org.chromium.ui.test.util.BlankUiTestActivity;
 /** Unit tests for {@link ImageDescriptionsController} */
 @RunWith(BaseJUnit4ClassRunner.class)
 public class ImageDescriptionsControllerTest {
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+
     @Rule
     public BaseActivityTestRule<BlankUiTestActivity> mActivityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
@@ -78,8 +81,6 @@ public class ImageDescriptionsControllerTest {
     @Before
     public void setUp() throws Exception {
         mActivityTestRule.launchActivity(null);
-
-        MockitoAnnotations.initMocks(this);
 
         ProfileJni.setInstanceForTesting(mProfileJniMock);
         when(mProfileJniMock.fromWebContents(mWebContents)).thenReturn(mProfile);
@@ -222,6 +223,47 @@ public class ImageDescriptionsControllerTest {
         verify(mPrefService, times(1))
                 .setBoolean(Pref.ACCESSIBILITY_IMAGE_LABELS_ENABLED_ANDROID, false);
         verify(mModalDialogManager, never()).showDialog(any(), anyInt());
+
+        onView(withText(R.string.image_descriptions_toast_off))
+                .inRoot(
+                        withDecorView(
+                                not(
+                                        is(
+                                                mActivityTestRule
+                                                        .getActivity()
+                                                        .getWindow()
+                                                        .getDecorView()))))
+                .check(matches(isDisplayed()));
+    }
+
+    @Test
+    @SmallTest
+    public void testMenuItemSelected_featureEnabled_onlyOnWifi_ethernetConnected()
+            throws Exception {
+        when(mPrefService.getBoolean(Pref.ACCESSIBILITY_IMAGE_LABELS_ENABLED_ANDROID))
+                .thenReturn(true);
+        when(mPrefService.getBoolean(Pref.ACCESSIBILITY_IMAGE_LABELS_ONLY_ON_WIFI))
+                .thenReturn(true);
+        Assert.assertTrue(
+                "Image descriptions should be enabled",
+                mController.imageDescriptionsEnabled(mProfile));
+        Assert.assertTrue(
+                "Image descriptions only on wifi option should be enabled",
+                mController.onlyOnWifiEnabled(mProfile));
+
+        // Setup ETHERNET connection
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    DeviceConditions.sForceConnectionTypeForTesting = true;
+                    DeviceConditions.mConnectionTypeForTesting = ConnectionType.CONNECTION_ETHERNET;
+                });
+
+        simulateMenuItemClick();
+
+        verify(mPrefService, times(1))
+                .setBoolean(Pref.ACCESSIBILITY_IMAGE_LABELS_ENABLED_ANDROID, false);
+        verify(mModalDialogManager, never()).showDialog(any(), anyInt());
+        verify(mControllerJniMock, never()).getImageDescriptionsOnce(eq(mWebContents));
 
         onView(withText(R.string.image_descriptions_toast_off))
                 .inRoot(

@@ -21,13 +21,13 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/lazy_instance.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/system/sys_info.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/time/time.h"
@@ -54,19 +54,21 @@ namespace disk_cache {
 namespace {
 
 // Maximum fraction of the cache that one entry can consume.
-const int kMaxFileRatio = 8;
+constexpr int kMaxFileRatio = 8;
 
 // Native code entries can be large. Rather than increasing the overall cache
 // size, allow an individual entry to occupy up to half of the cache.
-const int kMaxNativeCodeFileRatio = 2;
+constexpr int kMaxNativeCodeFileRatio = 2;
 
 // Overrides the above.
-const int64_t kMinFileSizeLimit = 5 * 1024 * 1024;
+constexpr int64_t kMinFileSizeLimit = 5 * 1024 * 1024;
 
 // Global context of all the files we have open --- this permits some to be
 // closed on demand if too many FDs are being used, to avoid running out.
-base::LazyInstance<SimpleFileTracker>::Leaky g_simple_file_tracker =
-    LAZY_INSTANCE_INITIALIZER;
+SimpleFileTracker* GetSimpleFileTracker() {
+  static base::NoDestructor<SimpleFileTracker> file_tracker;
+  return file_tracker.get();
+}
 
 // Detects if the files in the cache directory match the current disk cache
 // backend type and version. If the directory contains no cache, occupies it
@@ -219,8 +221,7 @@ SimpleBackendImpl::SimpleBackendImpl(
               ? std::move(file_operations_factory)
               : base::MakeRefCounted<TrivialFileOperationsFactory>()),
       cleanup_tracker_(std::move(cleanup_tracker)),
-      file_tracker_(file_tracker ? file_tracker
-                                 : g_simple_file_tracker.Pointer()),
+      file_tracker_(file_tracker ? file_tracker : GetSimpleFileTracker()),
       path_(path),
       orig_max_size_(max_bytes),
       entry_operations_mode_(CacheTypeToOperationsMode(cache_type)),
@@ -358,7 +359,8 @@ void SimpleBackendImpl::DoomEntries(std::vector<uint64_t>* entry_hashes,
                      std::move(mass_doom_entry_hashes), barrier_callback));
 }
 
-int32_t SimpleBackendImpl::GetEntryCount() const {
+int32_t SimpleBackendImpl::GetEntryCount(
+    net::Int32CompletionOnceCallback callback) const {
   // TODO(pasko): Use directory file count when index is not ready.
   return index_->GetEntryCount();
 }

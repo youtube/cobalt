@@ -56,7 +56,6 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/ash/policy/core/device_policy_builder.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_test_helper.h"
 #include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
@@ -84,6 +83,7 @@
 #include "chromeos/ash/components/login/auth/public/user_context.h"
 #include "chromeos/ash/components/network/network_state_test_helper.h"
 #include "chromeos/ash/components/osauth/public/auth_session_storage.h"
+#include "chromeos/ash/components/policy/device_policy/device_policy_builder.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/tpm/tpm_token_loader.h"
 #include "chromeos/dbus/tpm_manager/tpm_manager_client.h"
@@ -133,9 +133,10 @@
 #include "net/ssl/ssl_info.h"
 #include "net/ssl/ssl_server_config.h"
 #include "net/test/cert_test_util.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
 #include "net/test/embedded_test_server/http_response.h"
-#include "net/test/spawned_test_server/spawned_test_server.h"
+#include "net/test/embedded_test_server/register_basic_auth_handler.h"
 #include "net/test/test_data_directory.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -1441,28 +1442,11 @@ class ReauthEndpointWebviewLoginOwnerTest
   ReauthEndpointWebviewLoginOwnerTest() = default;
   ~ReauthEndpointWebviewLoginOwnerTest() override = default;
 
-  void SetUp() override {
-    ReauthEndpointWebviewLoginTest::SetUp();
-
-    auto user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    scoped_user_manager_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(user_manager));
-  }
-
   void SetUpOnMainThread() override {
     ReauthEndpointWebviewLoginTest::SetUpOnMainThread();
-
-    GetFakeUserManager().SetOwnerId(AccountId::FromUserEmailGaiaId(
+    user_manager::UserManager::Get()->SetOwnerId(AccountId::FromUserEmailGaiaId(
         FakeGaiaMixin::kFakeUserEmail, FakeGaiaMixin::kFakeUserGaiaId));
   }
-
- private:
-  ash::FakeChromeUserManager& GetFakeUserManager() {
-    return CHECK_DEREF(static_cast<ash::FakeChromeUserManager*>(
-        user_manager::UserManager::Get()));
-  }
-
-  std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_;
 };
 
 IN_PROC_BROWSER_TEST_F(ReauthEndpointWebviewLoginOwnerTest, SupervisedUser) {
@@ -2426,10 +2410,7 @@ IN_PROC_BROWSER_TEST_F(WebviewClientCertsTokenLoadingLoginTest,
 
 class WebviewProxyAuthLoginTest : public WebviewLoginTest {
  public:
-  WebviewProxyAuthLoginTest()
-      : auth_proxy_server_(std::make_unique<net::SpawnedTestServer>(
-            net::SpawnedTestServer::TYPE_BASIC_AUTH_PROXY,
-            base::FilePath())) {}
+  WebviewProxyAuthLoginTest() = default;
 
   WebviewProxyAuthLoginTest(const WebviewProxyAuthLoginTest&) = delete;
   WebviewProxyAuthLoginTest& operator=(const WebviewProxyAuthLoginTest&) =
@@ -2437,9 +2418,13 @@ class WebviewProxyAuthLoginTest : public WebviewLoginTest {
 
  protected:
   void SetUp() override {
-    // Start proxy server
-    auth_proxy_server_->set_redirect_connect_to_localhost(true);
-    ASSERT_TRUE(auth_proxy_server_->Start());
+    net::test_server::RegisterProxyBasicAuthHandler(auth_proxy_server_, "user",
+                                                    "pass");
+    // Can't actually start accepting connections until after the Gaia server
+    // has started, which happens during the nested FakeGaiaMixin calls, but
+    // still need to open the listen socket here to get a port for the
+    // SetUpCommandLine() call.
+    ASSERT_TRUE(auth_proxy_server_.InitializeAndListen());
 
     WebviewLoginTest::SetUp();
   }
@@ -2447,11 +2432,19 @@ class WebviewProxyAuthLoginTest : public WebviewLoginTest {
   void SetUpCommandLine(base::CommandLine* command_line) override {
     command_line->AppendSwitchASCII(
         ::switches::kProxyServer,
-        auth_proxy_server_->host_port_pair().ToString());
+        auth_proxy_server_.host_port_pair().ToString());
     WebviewLoginTest::SetUpCommandLine(command_line);
   }
 
   void SetUpInProcessBrowserTestFixture() override {
+    // Finish setting up the proxy, now that the Gaia server has started. This
+    // test needs the proxy to handle "accounts.google.com" on the fake Gaia
+    // server, so set that up.
+    CHECK(fake_gaia_.gaia_server()->Started());
+    auth_proxy_server_.EnableConnectProxy({net::HostPortPair::FromURL(
+        fake_gaia_.gaia_server()->GetURL("accounts.google.com", "/"))});
+    auth_proxy_server_.StartAcceptingConnections();
+
     WebviewLoginTest::SetUpInProcessBrowserTestFixture();
 
     // Prepare device policy which will be used for two purposes:
@@ -2495,7 +2488,9 @@ class WebviewProxyAuthLoginTest : public WebviewLoginTest {
  private:
   // A proxy server which requires authentication using the 'Basic'
   // authentication method.
-  std::unique_ptr<net::SpawnedTestServer> auth_proxy_server_;
+  net::test_server::EmbeddedTestServer auth_proxy_server_{
+      net::test_server::EmbeddedTestServer::Type::TYPE_HTTP};
+
   EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
   policy::DevicePolicyBuilder device_policy_builder_;
 
@@ -2536,7 +2531,7 @@ IN_PROC_BROWSER_TEST_F(WebviewProxyAuthLoginTest, ProxyAuthTransfer) {
 
   // Now enter auth data, which should trigger a gaia page which should now be
   // successful.
-  auth_dialog->SupplyCredentialsForTest(u"foo", u"bar");
+  auth_dialog->SupplyCredentialsForTest(u"user", u"pass");
   WaitForGaiaPageLoad();
 
   // Wait for the policy-mapped pref to change, because the supplied proxy auth

@@ -14,6 +14,7 @@
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/task_environment.h"
+#include "base/trace_event/memory_allocator_dump_guid.h"
 #include "base/uuid.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
@@ -21,6 +22,7 @@
 #include "components/services/storage/dom_storage/session_storage_metadata.h"
 #include "components/services/storage/dom_storage/storage_area_test_util.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "storage/common/database/db_status.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
@@ -36,7 +38,7 @@ std::vector<uint8_t> StdStringToUint8Vector(const std::string& s) {
   return std::vector<uint8_t>(s.begin(), s.end());
 }
 
-MATCHER(OKStatus, "Equality matcher for type OK leveldb::Status") {
+MATCHER(OKStatus, "Equality matcher for type OK DbStatus") {
   return arg.ok();
 }
 
@@ -48,7 +50,7 @@ class MockListener : public SessionStorageDataMap::Listener {
                void(const std::vector<uint8_t>& map_id,
                     SessionStorageDataMap* map));
   MOCK_METHOD1(OnDataMapDestruction, void(const std::vector<uint8_t>& map_id));
-  MOCK_METHOD1(OnCommitResult, void(leveldb::Status));
+  MOCK_METHOD1(OnCommitResult, void(DbStatus));
 };
 
 class SessionStorageNamespaceImplTest
@@ -65,7 +67,7 @@ class SessionStorageNamespaceImplTest
     base::RunLoop loop(base::RunLoop::Type::kNestableTasksAllowed);
     database_->RunBatchDatabaseTasks(
         RunBatchTasksContext::kTest, std::move(tasks),
-        base::BindLambdaForTesting([&](leveldb::Status) { loop.Quit(); }));
+        base::BindLambdaForTesting([&](DbStatus) { loop.Quit(); }));
     loop.Run();
   }
 
@@ -75,7 +77,7 @@ class SessionStorageNamespaceImplTest
     database_ = AsyncDomStorageDatabase::OpenInMemory(
         std::nullopt, "SessionStorageNamespaceImplTest",
         base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()}),
-        base::BindLambdaForTesting([&](leveldb::Status) { loop.Quit(); }));
+        base::BindLambdaForTesting([&](DbStatus) { loop.Quit(); }));
     loop.Run();
 
     metadata_.SetupNewDatabase();

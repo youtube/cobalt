@@ -10,11 +10,25 @@
 
 #include "audio/channel_send_frame_transformer_delegate.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/frame_transformer_interface.h"
+#include "api/scoped_refptr.h"
+#include "api/sequence_checker.h"
+#include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "modules/audio_coding/include/audio_coding_module_typedefs.h"
+#include "rtc_base/buffer.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 namespace {
@@ -183,14 +197,15 @@ void ChannelSendFrameTransformerDelegate::Transform(
     size_t payload_size,
     int64_t absolute_capture_timestamp_ms,
     uint32_t ssrc,
-    const std::string& codec_mimetype,
-    std::optional<uint8_t> audio_level_dbov) {
+    const std::string& codec_mime_type,
+    std::optional<uint8_t> audio_level_dbov,
+    const std::vector<uint32_t>& csrcs) {
   {
     MutexLock lock(&send_lock_);
     if (short_circuit_) {
       send_frame_callback_(frame_type, payload_type, rtp_timestamp,
                            ArrayView<const uint8_t>(payload_data, payload_size),
-                           absolute_capture_timestamp_ms, /*csrcs=*/{},
+                           absolute_capture_timestamp_ms, csrcs,
                            audio_level_dbov);
       return;
     }
@@ -198,8 +213,7 @@ void ChannelSendFrameTransformerDelegate::Transform(
   frame_transformer_->Transform(
       std::make_unique<TransformableOutgoingAudioFrame>(
           frame_type, payload_type, rtp_timestamp, payload_data, payload_size,
-          absolute_capture_timestamp_ms, ssrc,
-          /*csrcs=*/std::vector<uint32_t>(), codec_mimetype,
+          absolute_capture_timestamp_ms, ssrc, csrcs, codec_mime_type,
           /*sequence_number=*/std::nullopt, audio_level_dbov));
 }
 

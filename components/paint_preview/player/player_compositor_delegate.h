@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_PAINT_PREVIEW_PLAYER_PLAYER_COMPOSITOR_DELEGATE_H_
 #define COMPONENTS_PAINT_PREVIEW_PLAYER_PLAYER_COMPOSITOR_DELEGATE_H_
 
+#include <array>
 #include <optional>
 
 #include "base/cancelable_callback.h"
@@ -182,7 +183,7 @@ class PlayerCompositorDelegate {
   raw_ptr<PaintPreviewBaseService> paint_preview_service_{nullptr};
   DirectoryKey key_;
   bool compress_on_close_{true};
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_;
+  std::unique_ptr<base::SyncMemoryPressureListener> memory_pressure_;
 
   std::unique_ptr<PaintPreviewCompositorService, base::OnTaskRunnerDeleter>
       paint_preview_compositor_service_;

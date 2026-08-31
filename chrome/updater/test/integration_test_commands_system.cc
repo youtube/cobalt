@@ -23,6 +23,7 @@
 #include "base/version.h"
 #include "build/build_config.h"
 #include "chrome/updater/constants.h"
+#include "chrome/updater/external_constants.h"
 #include "chrome/updater/persisted_data.h"
 #include "chrome/updater/prefs.h"
 #include "chrome/updater/registration_data.h"
@@ -147,17 +148,29 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
 
   void EnterTestMode(const GURL& update_url,
                      const GURL& crash_upload_url,
-                     const GURL& device_management_url,
                      const GURL& app_logo_url,
+                     const GURL& event_logging_url,
                      base::TimeDelta idle_timeout,
                      base::TimeDelta server_keep_alive_time,
-                     base::TimeDelta ceca_connection_timeout) const override {
+                     base::TimeDelta ceca_connection_timeout,
+                     std::optional<EventLoggingPermissionProvider>
+                         event_logging_permission_provider) const override {
     RunCommand(
         "enter_test_mode",
         {Param("update_url", update_url.spec()),
          Param("crash_upload_url", crash_upload_url.spec()),
-         Param("device_management_url", device_management_url.spec()),
          Param("app_logo_url", app_logo_url.spec()),
+         Param("event_logging_url", event_logging_url.spec()),
+         Param("event_logging_permission_provider_app_id",
+               event_logging_permission_provider
+                   ? event_logging_permission_provider->app_id
+                   : ""),
+#if BUILDFLAG(IS_MAC)
+         Param("event_logging_permission_provider_directory_name",
+               event_logging_permission_provider
+                   ? event_logging_permission_provider->directory_name
+                   : ""),
+#endif
          Param("idle_timeout", base::NumberToString(idle_timeout.InSeconds())),
          Param("server_keep_alive_time",
                base::NumberToString(server_keep_alive_time.InSeconds())),
@@ -613,6 +626,34 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
                 Param("language", language)});
   }
 
+  void RunMockOfflineMetaInstall(const std::string& app_id,
+                                 const base::Version& version,
+                                 const std::string& tag,
+                                 const base::FilePath& installer_path,
+                                 const std::string& arguments,
+                                 bool is_silent_install,
+                                 const std::string& platform,
+                                 const std::string& installer_text,
+                                 const bool always_launch_cmd,
+                                 const int expected_exit_code,
+                                 bool expect_success) override {
+    RunCommand(
+        "run_mock_offline_meta_install",
+        {
+            Param("app_id", app_id),
+            Param("version", version.GetString()),
+            Param("tag", tag),
+            Param("installer_path", installer_path.AsUTF8Unsafe()),
+            Param("arguments", arguments),
+            Param("is_silent_install", BoolToString(is_silent_install)),
+            Param("platform", platform),
+            Param("installer_text", installer_text),
+            Param("always_launch_cmd", BoolToString(always_launch_cmd)),
+            Param("expected_exit_code", base::ToString(expected_exit_code)),
+            Param("expect_success", BoolToString(expect_success)),
+        });
+  }
+
   void DMPushEnrollmentToken(const std::string& enrollment_token) override {
     RunCommand("dm_push_enrollment_token",
                {Param("enrollment_token", enrollment_token)});
@@ -621,12 +662,6 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
   void DMCleanup() override { RunCommand("dm_cleanup"); }
   void InstallEnterpriseCompanionApp() override {
     RunCommand("install_enterprise_companion_app");
-  }
-  void InstallBrokenEnterpriseCompanionApp() override {
-    RunCommand("install_broken_enterprise_companion_app");
-  }
-  void UninstallBrokenEnterpriseCompanionApp() override {
-    RunCommand("uninstall_broken_enterprise_companion_app");
   }
   void InstallEnterpriseCompanionAppOverrides(
       const base::Value::Dict& external_overrides) override {
@@ -642,6 +677,18 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
     RunCommand("uninstall_enterprise_companion_app");
   }
 
+  void SetAppAllowsUsageStats(const std::string& identifier,
+                              bool allowed) override {
+    RunCommand("set_app_allows_usage_stats",
+               {Param("identifier", identifier),
+                Param("allowed", BoolToString(allowed))});
+  }
+
+  void ClearAppAllowsUsageStats(const std::string& identifier) override {
+    RunCommand("clear_app_allows_usage_stats",
+               {Param("identifier", identifier)});
+  }
+
  private:
   ~IntegrationTestCommandsSystem() override = default;
 
@@ -652,11 +699,9 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
     std::string value;
   };
 
-  // Invokes the test helper command by running a unit test from the
-  // "updater_integration_tests_helper" program. The program returns 0 if
-  // the unit test passes.
-  void RunCommand(const std::string& command_switch,
-                  const std::vector<Param>& params) const {
+  base::CommandLine GenerateHelperCommand(
+      const std::string& command_switch,
+      const std::vector<Param>& params) const {
     const base::CommandLine command_line =
         *base::CommandLine::ForCurrentProcess();
     base::FilePath path(command_line.GetProgram());
@@ -693,9 +738,17 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
                                           command_line.GetSwitchValueNative(s));
       }
     }
+    return helper_command;
+  }
 
+  // Invokes the test helper command by running a unit test from the
+  // "updater_integration_tests_helper" program. The program returns 0 if
+  // the unit test passes.
+  void RunCommand(const std::string& command_switch,
+                  const std::vector<Param>& params) const {
     int exit_code = -1;
-    Run(updater_scope_, helper_command, &exit_code);
+    Run(updater_scope_, GenerateHelperCommand(command_switch, params),
+        &exit_code);
 
     // A failure here indicates that the integration test helper
     // process ran but the invocation of the test helper command was not
@@ -709,6 +762,15 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
 
   void RunCommand(const std::string& command_switch) const {
     RunCommand(command_switch, {});
+  }
+
+  // Similar to `RunCommand` above, but runs the test helper de-elevated.
+  void RunCommandDeElevated(const std::string& command_switch,
+                            const std::vector<Param>& params) const {
+    int exit_code = -1;
+    RunDeElevated(updater_scope_, GenerateHelperCommand(command_switch, params),
+                  &exit_code);
+    ASSERT_EQ(exit_code, 0);
   }
 
   const UpdaterScope updater_scope_;

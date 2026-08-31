@@ -16,7 +16,6 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/field_trials_view.h"
@@ -129,24 +128,22 @@ std::vector<RtpExtension> FilterRtpExtensions(
   // Sort by name, ascending (prioritise encryption), so that we don't reset
   // extensions if they were specified in a different order (also allows us
   // to use std::unique below).
-  absl::c_sort(result, [](const webrtc::RtpExtension& rhs,
-                          const webrtc::RtpExtension& lhs) {
+  absl::c_sort(result, [](const RtpExtension& rhs, const RtpExtension& lhs) {
     return rhs.encrypt == lhs.encrypt ? rhs.uri < lhs.uri
                                       : rhs.encrypt > lhs.encrypt;
   });
 
   // Remove unnecessary extensions (used on send side).
   if (filter_redundant_extensions) {
-    auto it = std::unique(
-        result.begin(), result.end(),
-        [](const webrtc::RtpExtension& rhs, const webrtc::RtpExtension& lhs) {
-          return rhs.uri == lhs.uri && rhs.encrypt == lhs.encrypt;
-        });
+    auto it =
+        std::unique(result.begin(), result.end(),
+                    [](const RtpExtension& rhs, const RtpExtension& lhs) {
+                      return rhs.uri == lhs.uri && rhs.encrypt == lhs.encrypt;
+                    });
     result.erase(it, result.end());
 
     // Keep just the highest priority extension of any in the following lists.
-    if (absl::StartsWith(trials.Lookup("WebRTC-FilterAbsSendTimeExtension"),
-                         "Enabled")) {
+    if (trials.IsEnabled("WebRTC-FilterAbsSendTimeExtension")) {
       static const char* const kBweExtensionPriorities[] = {
           RtpExtension::kTransportSequenceNumberUri,
           RtpExtension::kAbsSendTimeUri, RtpExtension::kTimestampOffsetUri};

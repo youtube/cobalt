@@ -302,7 +302,7 @@ public class LoadUrlParams {
     }
 
     /** Sets the referrer of this load. */
-    public void setReferrer(Referrer referrer) {
+    public void setReferrer(@Nullable Referrer referrer) {
         mReferrer = referrer;
     }
 
@@ -605,7 +605,7 @@ public class LoadUrlParams {
      * @param additionalNavigationParams Additional navigation params associated with the load.
      */
     public void setAdditionalNavigationParams(
-            AdditionalNavigationParams additionalNavigationParams) {
+            @Nullable AdditionalNavigationParams additionalNavigationParams) {
         mAdditionalNavigationParams = additionalNavigationParams;
     }
 

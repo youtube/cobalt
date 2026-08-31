@@ -430,7 +430,7 @@ inline constexpr uint32_t kAcceleratorLayouts[] = {
     // Text > Text editing
     AcceleratorAction::kToggleCapsLock,
     AcceleratorAction::kShowEmojiPicker,
-    AcceleratorAction::kTogglePicker,
+    AcceleratorAction::kToggleQuickInsert,
     NonConfigurableActions::kAmbientCopy,
     NonConfigurableActions::kAmbientCut,
     NonConfigurableActions::kAmbientPaste,
@@ -459,7 +459,7 @@ inline constexpr uint32_t kAcceleratorLayouts[] = {
     AcceleratorAction::kWindowCycleSnapRight,
     AcceleratorAction::kMoveActiveWindowBetweenDisplays,
     AcceleratorAction::kMinimizeTopWindowOnBack,
-    AcceleratorAction::kCreateSnapGroup,
+    AcceleratorAction::kToggleSnapGroup,
     AcceleratorAction::kToggleSnapGroupWindowsMinimizeAndRestore,
     AcceleratorAction::kToggleFloating,
     // TODO(b/343559364): Temporary location pending UI review.

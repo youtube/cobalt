@@ -65,10 +65,6 @@ bool PhoneticsInfo::AudioUrlAvailable() const {
 }
 
 bool PhoneticsInfo::TtsAudioAvailable() const {
-  if (!tts_audio_enabled) {
-    return false;
-  }
-
   return !query_text.empty() && !locale.empty();
 }
 
@@ -79,12 +75,12 @@ IntentInfo::IntentInfo() = default;
 IntentInfo::IntentInfo(const IntentInfo& other) = default;
 IntentInfo::IntentInfo(const std::string& intent_text,
                        IntentType intent_type,
-                       const std::string& device_language,
-                       const std::string& source_language) {
+                       std::string_view device_language,
+                       std::string_view source_language) {
   this->intent_text = intent_text;
   this->intent_type = intent_type;
-  this->device_language = device_language;
-  this->source_language = source_language;
+  this->device_language = std::string(device_language);
+  this->source_language = std::string(source_language);
 }
 IntentInfo::~IntentInfo() = default;
 

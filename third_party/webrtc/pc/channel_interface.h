@@ -19,7 +19,6 @@
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "media/base/media_channel.h"
-#include "media/base/media_config.h"
 #include "media/base/stream_params.h"
 #include "pc/rtp_transport_internal.h"
 #include "pc/session_description.h"
@@ -103,12 +102,5 @@ class ChannelInterface {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::ChannelInterface;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // PC_CHANNEL_INTERFACE_H_

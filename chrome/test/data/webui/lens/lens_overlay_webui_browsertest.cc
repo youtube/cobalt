@@ -36,8 +36,11 @@ class LensOverlayWebUIBrowserTest : public WebUIMochaBrowserTest {
     set_test_loader_scheme(content::kChromeUIUntrustedScheme);
     set_test_loader_host(chrome::kChromeUILensOverlayHost);
     scoped_feature_list_.InitWithFeatures(
-        {lens::features::kLensOverlay},
-        {lens::features::kLensOverlayContextualSearchbox});
+        /*enabled_features=*/{lens::features::kLensOverlay},
+        /*disabled_features=*/{
+            lens::features::kLensOverlayContextualSearchbox,
+            lens::features::
+                kLensOverlayContextualSearchboxForOmniboxSuggestions});
   }
 
   void SetUp() override {
@@ -73,11 +76,8 @@ class LensOverlayTest : public LensOverlayWebUIBrowserTest {
     WaitForPaint();
 
     // State should start in off.
-    auto* search_controller = browser()
-                                  ->tab_strip_model()
-                                  ->GetActiveTab()
-                                  ->GetTabFeatures()
-                                  ->lens_search_controller();
+    auto* search_controller =
+        LensSearchController::From(browser()->GetActiveTabInterface());
     auto* overlay_controller = search_controller->lens_overlay_controller();
     ASSERT_EQ(overlay_controller->state(), State::kOff);
 
@@ -150,7 +150,13 @@ IN_PROC_BROWSER_TEST_F(LensOverlayTest, OverlayTheme) {
   RunOverlayTest("lens/overlay/overlay_theme_test.js", "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_F(LensOverlayTest, ManualRegionSelection) {
+// TODO(crbug.com/414207670): Test is failing on Linux and Win bot.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
+#define MAYBE_ManualRegionSelection DISABLED_ManualRegionSelection
+#else
+#define MAYBE_ManualRegionSelection ManualRegionSelection
+#endif
+IN_PROC_BROWSER_TEST_F(LensOverlayTest, MAYBE_ManualRegionSelection) {
   RunOverlayTest("lens/overlay/region_selection_test.js", "mocha.run()");
 }
 

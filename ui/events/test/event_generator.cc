@@ -18,6 +18,7 @@
 
 #include "base/check.h"
 #include "base/containers/adapters.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
@@ -152,7 +153,6 @@ void EventGenerator::PressButton(int flag) {
     gfx::Point location = GetLocationInCurrentRoot();
     ui::MouseEvent mouseev(ui::EventType::kMousePressed, location, location,
                            ui::EventTimeForNow(), flags_, flag);
-    mouseev.set_source_device_id(mouse_source_device_id_);
     Dispatch(&mouseev);
   }
 }
@@ -162,7 +162,6 @@ void EventGenerator::ReleaseButton(int flag) {
     gfx::Point location = GetLocationInCurrentRoot();
     ui::MouseEvent mouseev(ui::EventType::kMouseReleased, location, location,
                            ui::EventTimeForNow(), flags_, flag);
-    mouseev.set_source_device_id(mouse_source_device_id_);
     Dispatch(&mouseev);
     flags_ ^= flag;
   }
@@ -207,7 +206,6 @@ void EventGenerator::MoveMouseWheel(int delta_x, int delta_y) {
   gfx::Point location = GetLocationInCurrentRoot();
   ui::MouseWheelEvent wheelev(gfx::Vector2d(delta_x, delta_y), location,
                               location, ui::EventTimeForNow(), flags_, 0);
-  wheelev.set_source_device_id(mouse_source_device_id_);
   Dispatch(&wheelev);
 }
 
@@ -216,7 +214,6 @@ void EventGenerator::SendMouseEnter() {
   delegate()->ConvertPointToTarget(current_target_, &enter_location);
   ui::MouseEvent mouseev(ui::EventType::kMouseEntered, enter_location,
                          enter_location, ui::EventTimeForNow(), flags_, 0);
-  mouseev.set_source_device_id(mouse_source_device_id_);
   Dispatch(&mouseev);
 }
 
@@ -225,7 +222,6 @@ void EventGenerator::SendMouseExit() {
   delegate()->ConvertPointToTarget(current_target_, &exit_location);
   ui::MouseEvent mouseev(ui::EventType::kMouseExited, exit_location,
                          exit_location, ui::EventTimeForNow(), flags_, 0);
-  mouseev.set_source_device_id(mouse_source_device_id_);
   Dispatch(&mouseev);
 }
 
@@ -240,7 +236,6 @@ void EventGenerator::MoveMouseToWithNative(const gfx::Point& point_in_host,
       new ui::MouseEvent(ui::EventType::kMouseMoved, point_in_host,
                          point_in_host, ui::EventTimeForNow(), flags_, 0));
   ui::MouseEvent mouseev(native_event.get());
-  mouseev.set_source_device_id(mouse_source_device_id_);
   native_event->set_location(point_for_native);
   Dispatch(&mouseev);
 
@@ -255,7 +250,6 @@ void EventGenerator::MoveMouseToInHost(const gfx::Point& point_in_host) {
                                        : ui::EventType::kMouseMoved;
   ui::MouseEvent mouseev(event_type, point_in_host, point_in_host,
                          ui::EventTimeForNow(), flags_, 0);
-  mouseev.set_source_device_id(mouse_source_device_id_);
   Dispatch(&mouseev);
 
   SetCurrentScreenLocation(point_in_host);
@@ -280,7 +274,6 @@ void EventGenerator::MoveMouseTo(const gfx::Point& point_in_screen,
     delegate()->ConvertPointToTarget(current_target_, &move_point);
     ui::MouseEvent mouseev(event_type, move_point, move_point,
                            ui::EventTimeForNow(), flags_, 0);
-    mouseev.set_source_device_id(mouse_source_device_id_);
     Dispatch(&mouseev);
   }
   SetCurrentScreenLocation(point_in_screen);
@@ -515,20 +508,25 @@ void EventGenerator::GestureScrollSequenceWithCallback(
 }
 
 void EventGenerator::GestureMultiFingerScrollWithDelays(
-    int count,
-    const gfx::Point start[],
-    const gfx::Vector2d delta[],
-    const int delay_adding_finger_ms[],
-    const int delay_releasing_finger_ms[],
+    int spanification_suspected_redundant_count,
+    base::span<const gfx::Point> start,
+    base::span<const gfx::Vector2d> delta,
+    base::span<const int> delay_adding_finger_ms,
+    base::span<const int> delay_releasing_finger_ms,
     int event_separation_time_ms,
     int steps) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(
+      spanification_suspected_redundant_count == static_cast<int>(start.size()),
+      base::NotFatalUntil::M143);
   const int kMaxTouchPoints = 10;
-  CHECK_LE(count, kMaxTouchPoints);
+  CHECK_LE(spanification_suspected_redundant_count, kMaxTouchPoints);
   CHECK_GT(steps, 0);
 
   std::array<gfx::Point, kMaxTouchPoints> points;
   std::array<gfx::Vector2d, kMaxTouchPoints> delta_per_step;
-  for (int i = 0; i < count; ++i) {
+  for (int i = 0; i < spanification_suspected_redundant_count; ++i) {
     points[i] = start[i];
     delta_per_step[i].set_x(delta[i].x() / steps);
     delta_per_step[i].set_y(delta[i].y() / steps);
@@ -538,7 +536,7 @@ void EventGenerator::GestureMultiFingerScrollWithDelays(
   std::array<base::TimeTicks, kMaxTouchPoints> press_time;
   std::array<base::TimeTicks, kMaxTouchPoints> release_time;
   std::array<bool, kMaxTouchPoints> pressed;
-  for (int i = 0; i < count; ++i) {
+  for (int i = 0; i < spanification_suspected_redundant_count; ++i) {
     pressed[i] = false;
     press_time[i] =
         press_time_first + base::Milliseconds(delay_adding_finger_ms[i]);
@@ -551,7 +549,7 @@ void EventGenerator::GestureMultiFingerScrollWithDelays(
     base::TimeTicks move_time =
         press_time_first + base::Milliseconds(event_separation_time_ms * step);
 
-    for (int i = 0; i < count; ++i) {
+    for (int i = 0; i < spanification_suspected_redundant_count; ++i) {
       if (!pressed[i] && move_time >= press_time[i]) {
         ui::TouchEvent press(
             ui::EventType::kTouchPressed, points[i], press_time[i],
@@ -563,7 +561,9 @@ void EventGenerator::GestureMultiFingerScrollWithDelays(
 
     // All touch release events should occur at the end if
     // |event_separation_time_ms| is 0.
-    for (int i = 0; i < count && event_separation_time_ms > 0; ++i) {
+    for (int i = 0; i < spanification_suspected_redundant_count &&
+                    event_separation_time_ms > 0;
+         ++i) {
       if (pressed[i] && move_time >= release_time[i]) {
         ui::TouchEvent release(
             ui::EventType::kTouchReleased, points[i], release_time[i],
@@ -573,7 +573,7 @@ void EventGenerator::GestureMultiFingerScrollWithDelays(
       }
     }
 
-    for (int i = 0; i < count; ++i) {
+    for (int i = 0; i < spanification_suspected_redundant_count; ++i) {
       points[i] += delta_per_step[i];
       if (pressed[i]) {
         ui::TouchEvent move(
@@ -587,7 +587,7 @@ void EventGenerator::GestureMultiFingerScrollWithDelays(
   base::TimeTicks default_release_time =
       press_time_first + base::Milliseconds(event_separation_time_ms * steps);
   // Ensures that all pressed fingers are released in the end.
-  for (int i = 0; i < count; ++i) {
+  for (int i = 0; i < spanification_suspected_redundant_count; ++i) {
     if (pressed[i]) {
       ui::TouchEvent release(
           ui::EventType::kTouchReleased, points[i], default_release_time,
@@ -599,36 +599,49 @@ void EventGenerator::GestureMultiFingerScrollWithDelays(
 }
 
 void EventGenerator::GestureMultiFingerScrollWithDelays(
-    int count,
-    const gfx::Point start[],
-    const int delay_adding_finger_ms[],
+    int spanification_suspected_redundant_count,
+    base::span<const gfx::Point> start,
+    base::span<const int> delay_adding_finger_ms,
     int event_separation_time_ms,
     int steps,
     int move_x,
     int move_y) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(
+      spanification_suspected_redundant_count == static_cast<int>(start.size()),
+      base::NotFatalUntil::M143);
   const int kMaxTouchPoints = 10;
-  int delay_releasing_finger_ms[kMaxTouchPoints];
-  gfx::Vector2d delta[kMaxTouchPoints];
+  std::array<int, kMaxTouchPoints> delay_releasing_finger_ms;
+  std::array<gfx::Vector2d, kMaxTouchPoints> delta;
   for (int i = 0; i < kMaxTouchPoints; ++i) {
     delay_releasing_finger_ms[i] = event_separation_time_ms * steps;
     delta[i].set_x(move_x);
     delta[i].set_y(move_y);
   }
-  GestureMultiFingerScrollWithDelays(
-      count, start, delta, delay_adding_finger_ms, delay_releasing_finger_ms,
-      event_separation_time_ms, steps);
+  GestureMultiFingerScrollWithDelays(spanification_suspected_redundant_count,
+                                     start, delta, delay_adding_finger_ms,
+                                     delay_releasing_finger_ms,
+                                     event_separation_time_ms, steps);
 }
 
-void EventGenerator::GestureMultiFingerScroll(int count,
-                                              const gfx::Point start[],
-                                              int event_separation_time_ms,
-                                              int steps,
-                                              int move_x,
-                                              int move_y) {
+void EventGenerator::GestureMultiFingerScroll(
+    int spanification_suspected_redundant_count,
+    base::span<const gfx::Point> start,
+    int event_separation_time_ms,
+    int steps,
+    int move_x,
+    int move_y) {
+  // TODO(crbug.com/431824301): Remove unneeded parameter once validated to be
+  // redundant in M143.
+  CHECK(
+      spanification_suspected_redundant_count == static_cast<int>(start.size()),
+      base::NotFatalUntil::M143);
   const int kMaxTouchPoints = 10;
   int delays[kMaxTouchPoints] = {};
-  GestureMultiFingerScrollWithDelays(
-      count, start, delays, event_separation_time_ms, steps, move_x, move_y);
+  GestureMultiFingerScrollWithDelays(spanification_suspected_redundant_count,
+                                     start, delays, event_separation_time_ms,
+                                     steps, move_x, move_y);
 }
 
 void EventGenerator::ScrollSequence(const gfx::Point& start,
@@ -641,22 +654,25 @@ void EventGenerator::ScrollSequence(const gfx::Point& start,
   UpdateCurrentDispatcher(start);
 
   base::TimeTicks timestamp = ui::EventTimeForNow();
-  ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel, start,
-                               timestamp, 0, 0, 0, 0, 0, num_fingers);
-  Dispatch(&fling_cancel);
+  if (end_state != ScrollSequenceType::ScrollOnly) {
+    ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel, start,
+                                 timestamp, 0, 0, 0, 0, 0, num_fingers);
+    Dispatch(&fling_cancel);
+    timestamp += step_delay;
+  }
 
   float dx = x_offset / steps;
   float dy = y_offset / steps;
   for (int i = 0; i < steps; ++i) {
-    timestamp += step_delay;
     ui::ScrollEvent move(ui::EventType::kScroll, start, timestamp, 0, dx, dy,
                          dx, dy, num_fingers);
     Dispatch(&move);
+    timestamp += step_delay;
   }
 
   // End the scroll sequence early if we want to end with the fingers rested on
   // the trackpad.
-  if (end_state == ScrollSequenceType::ScrollOnly) {
+  if (end_state != ScrollSequenceType::UpToFling) {
     return;
   }
 
@@ -743,6 +759,10 @@ void EventGenerator::PressAndReleaseKeyAndModifierKeys(KeyboardCode key_code,
 }
 
 void EventGenerator::Dispatch(ui::Event* event) {
+  if (event->IsMouseEvent() || event->IsScrollEvent()) {
+    event->set_source_device_id(mouse_source_device_id_);
+  }
+
   if (event->IsTouchEvent()) {
     ui::TouchEvent* touch_event = static_cast<ui::TouchEvent*>(event);
     touch_pointer_details_.id = touch_event->pointer_details().id;

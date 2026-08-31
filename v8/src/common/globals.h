@@ -19,6 +19,7 @@
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/base/numbers/double.h"
 #include "src/base/strong-alias.h"
 
 #define V8_INFINITY std::numeric_limits<double>::infinity()
@@ -100,6 +101,12 @@ namespace internal {
 #define COMPRESS_POINTERS_BOOL false
 #endif
 
+#if V8_TARGET_ARCH_X64 && V8_BUILTINS_GEARBOX
+#define V8_ENABLE_GEARBOX true
+#else
+#define V8_ENABLE_GEARBOX false
+#endif  // V8_TARGET_ARCH_X64 && V8_BUILTINS_GEARBOX
+
 #if COMPRESS_POINTERS_BOOL && V8_TARGET_ARCH_X64
 #define DECOMPRESS_POINTER_BY_ADDRESSING_MODE true
 #else
@@ -139,14 +146,11 @@ namespace internal {
 #ifdef V8_ENABLE_LEAPTIERING
 #define V8_ENABLE_LEAPTIERING_BOOL true
 
-// If we have predictable and shared builtin objects, then dispatch handles of
-// builtins are stored in the read only segment of the JSDispatchTable.
-// Otherwise, we need a table of per-isolate dispatch handles of builtins.
-#ifdef V8_STATIC_ROOTS
+#ifdef V8_COMPRESS_POINTERS
 #define V8_STATIC_DISPATCH_HANDLES_BOOL true
 #else
 #define V8_STATIC_DISPATCH_HANDLES_BOOL false
-#endif  // !V8_STATIC_ROOTS
+#endif  // !V8_COMPRESS_POINTERS
 
 #else
 #define V8_ENABLE_LEAPTIERING_BOOL false
@@ -508,16 +512,6 @@ constexpr size_t kReservedCodeRangePages = 0;
 
 static_assert(kSystemPointerSize == (1 << kSystemPointerSizeLog2));
 
-#ifdef V8_COMPRESS_ZONES
-#define COMPRESS_ZONES_BOOL true
-#else
-#define COMPRESS_ZONES_BOOL false
-#endif  // V8_COMPRESS_ZONES
-
-// The flag controls whether zones pointer compression should be enabled for
-// TurboFan graphs or not.
-static constexpr bool kCompressGraphZone = COMPRESS_ZONES_BOOL;
-
 #ifdef V8_COMPRESS_POINTERS
 static_assert(
     kSystemPointerSize == kInt64Size,
@@ -698,6 +692,9 @@ constexpr int kOneByteSize = kCharSize;
 
 // 128 bit SIMD value size.
 constexpr int kSimd128Size = 16;
+
+// Half of 128 bit SIMD value size.
+constexpr int kSimd128HalfSize = kSimd128Size / 2;
 
 // 256 bit SIMD value size.
 constexpr int kSimd256Size = 32;
@@ -966,11 +963,11 @@ const Address kWeakHeapObjectMask = 1 << 1;
 // The lower 32 bits of the cleared weak reference value is always equal to
 // the |kClearedWeakHeapObjectLower32| constant but on 64-bit architectures
 // the value of the upper 32 bits part may be
-// 1) zero when pointer compression is disabled,
-// 2) upper 32 bits of the isolate root value when pointer compression is
-//    enabled.
-// This is necessary to make pointer decompression computation also suitable
-// for cleared weak reference.
+// 1) zero when pointer compression is disabled or for a kClearedWeakValue
+//    constant,
+// 2) upper 32 bits of the respective cage base when pointer compression is
+//    enabled (this is useful for detecting cases when a cleared value loaded
+//    from once cage is written to another cage).
 // Note, that real heap objects can't have lower 32 bits equal to 3 because
 // this offset belongs to page header. So, in either case it's enough to
 // compare only the lower 32 bits of a Tagged<MaybeObject> value in order to
@@ -1342,6 +1339,10 @@ constexpr bool IsAnySharedSpace(AllocationSpace space) {
 constexpr bool IsAnyNewSpace(AllocationSpace space) {
   return space == NEW_SPACE || space == NEW_LO_SPACE;
 }
+constexpr bool IsAnyLargeSpace(AllocationSpace space) {
+  return space == NEW_LO_SPACE || space == LO_SPACE || space == CODE_LO_SPACE ||
+         space == SHARED_LO_SPACE || space == TRUSTED_LO_SPACE;
+}
 
 constexpr const char* ToString(AllocationSpace space) {
   switch (space) {
@@ -1417,6 +1418,8 @@ inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
   return os << ToString(type);
 }
 
+enum class PerformHeapLimitCheck { kYes, kNo };
+
 class AllocationHint final {
  public:
   AllocationHint() = default;
@@ -1466,10 +1469,10 @@ enum class GarbageCollectionReason : int {
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
   kFinalizeConcurrentMinorMS = 26,
-  kFinalizeMinorMSForMajorGC = 27,
-  kCppHeapAllocationFailure = 28,
-  kFrozen = 29,
-  kIdleContextDisposal = 30,
+  kCppHeapAllocationFailure = 27,
+  kFrozen = 28,
+  kIdleContextDisposal = 29,
+  kFinalizeMinorMSForMajorGC = 30,
 
   NUM_REASONS,
 };
@@ -1978,20 +1981,16 @@ constexpr uint64_t kHoleNanInt64 =
 #ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 constexpr uint64_t kUndefinedNanInt64 =
     (static_cast<uint64_t>(kUndefinedNanUpper32) << 32) | kUndefinedNanLower32;
-#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
-#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 // TODO(nicohartmann): Use proper constants.
-inline bool IsUndefinedNan(double d) {
-  uint64_t b;
-  std::memcpy(&b, &d, sizeof(double));
-  return b == kUndefinedNanInt64;
+inline constexpr bool IsUndefinedNan(double d) {
+  return base::double_to_uint64(d) == kUndefinedNanInt64;
 }
-inline double UndefinedNan() {
-  uint64_t b = kUndefinedNanInt64;
-  double d;
-  std::memcpy(&d, &b, sizeof(double));
-  return d;
+inline constexpr double UndefinedNan() {
+  return base::uint64_to_double(kUndefinedNanInt64);
+}
+inline constexpr double HoleNan() {
+  return base::uint64_to_double(kHoleNanInt64);
 }
 #endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
@@ -2342,6 +2341,7 @@ class CompareOperationFeedback {
 
     kInternalizedString = kInternalizedStringFlag,
     kString = kInternalizedString | kOtherStringFlag,
+    kStringOrOddball = kString | kOddball,
 
     kReceiver = kReceiverFlag,
     kReceiverOrNullOrUndefined = kReceiver | kNullOrUndefined,
@@ -2592,7 +2592,11 @@ enum class CachedTieringDecision : int32_t {
   kNormal,
 };
 
-enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+enum class SpeculationMode {
+  kAllowSpeculation = 0,
+  kDisallowBoundsCheckSpeculation = 1,
+  kDisallowSpeculation = 3
+};
 enum class CallFeedbackContent { kTarget, kReceiver };
 
 inline std::ostream& operator<<(std::ostream& os,
@@ -2600,6 +2604,8 @@ inline std::ostream& operator<<(std::ostream& os,
   switch (speculation_mode) {
     case SpeculationMode::kAllowSpeculation:
       return os << "SpeculationMode::kAllowSpeculation";
+    case SpeculationMode::kDisallowBoundsCheckSpeculation:
+      return os << "SpeculationMode::kDisallowBoundsCheckSpeculation";
     case SpeculationMode::kDisallowSpeculation:
       return os << "SpeculationMode::kDisallowSpeculation";
   }
@@ -2682,7 +2688,7 @@ enum IsolateAddressId {
   V(TrapArrayTooLarge)             \
   V(TrapStringOffsetOutOfBounds)
 
-enum class KeyedAccessLoadMode {
+enum class KeyedAccessLoadMode : uint8_t {
   kInBounds = 0b00,
   kHandleOOB = 0b01,
   kHandleHoles = 0b10,
@@ -2714,7 +2720,7 @@ inline bool LoadModeHandlesHoles(KeyedAccessLoadMode load_mode) {
           static_cast<T>(KeyedAccessLoadMode::kHandleHoles)) != 0;
 }
 
-enum class KeyedAccessStoreMode {
+enum class KeyedAccessStoreMode : uint8_t {
   kInBounds,
   kGrowAndHandleCOW,
   kIgnoreTypedArrayOOB,
@@ -2943,7 +2949,12 @@ static constexpr ReleaseStoreTag kReleaseStore;
 static constexpr RelaxedStoreTag kRelaxedStore;
 static constexpr SeqCstAccessTag kSeqCstAccess;
 
-static constexpr int kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset = 1;
+static constexpr int kAdd_StringConstant_Internalize_CacheSlotOffset = 1;
+
+enum class AddStringConstantAndInternalizeVariant : uint8_t {
+  kLhsIsStringConstant = 0,
+  kRhsIsStringConstant = 1,
+};
 
 }  // namespace v8
 

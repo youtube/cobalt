@@ -195,6 +195,20 @@ struct TypePrecision
     GLint precision            = 0;
 };
 
+struct FragmentShadingRateProperties
+{
+    GLuint minFragmentShadingRateAttachmentTexelWidth;
+    GLuint minFragmentShadingRateAttachmentTexelHeight;
+    GLuint maxFragmentShadingRateAttachmentTexelWidth;
+    GLuint maxFragmentShadingRateAttachmentTexelHeight;
+    GLuint maxFragmentShadingRateAttachmentTexelAspectRatio;
+    GLuint maxFragmentShadingRateAttachmentLayers;
+    bool layeredShadingRateAttachments;
+    bool fragmentShadingRateNonTrivialCombinersSupport;
+    bool fragmentShadingRateWithShaderDepthStencilWritesSupport;
+    bool fragmentShadingRateWithSampleMaskSupport;
+};
+
 struct Caps
 {
     Caps();
@@ -416,9 +430,13 @@ struct Caps
 
     // GL_ARM_shader_framebuffer_fetch
     bool fragmentShaderFramebufferFetchMRT = false;
+
+    // EXT_fragment_shading_rate
+    FragmentShadingRateProperties fragmentShadingRateProperties = {};
 };
 
 Caps GenerateMinimumCaps(const Version &clientVersion, const Extensions &extensions);
+
 }  // namespace gl
 
 namespace egl
@@ -711,6 +729,9 @@ struct DisplayExtensions
 
     // EGL_ANGLE_webgpu_texture_client_buffer
     bool webgpuTextureClientBuffer = false;
+
+    // EXT_ANGLE_create_context_passthrough_shaders
+    bool createContextPassthroughShadersANGLE = false;
 };
 
 struct DeviceExtensions

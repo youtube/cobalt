@@ -304,8 +304,7 @@ jboolean RecentlyClosedTabsBridge::OpenRecentlyClosedTab(
     return false;
   }
 
-  auto* model = TabModelList::FindNativeTabModelForJavaObject(
-      ScopedJavaLocalRef<jobject>(env, jtab_model.obj()));
+  auto* model = TabModelList::FindNativeTabModelForJavaObject(jtab_model);
   if (model == nullptr) {
     return false;
   }
@@ -328,8 +327,7 @@ jboolean RecentlyClosedTabsBridge::OpenRecentlyClosedEntry(
     return false;
   }
 
-  auto* model = TabModelList::FindNativeTabModelForJavaObject(
-      ScopedJavaLocalRef<jobject>(env, jtab_model.obj()));
+  auto* model = TabModelList::FindNativeTabModelForJavaObject(jtab_model);
   if (model == nullptr) {
     return false;
   }
@@ -351,8 +349,7 @@ jboolean RecentlyClosedTabsBridge::OpenMostRecentlyClosedEntry(
     return false;
   }
 
-  auto* model = TabModelList::FindNativeTabModelForJavaObject(
-      ScopedJavaLocalRef<jobject>(env, jtab_model.obj()));
+  auto* model = TabModelList::FindNativeTabModelForJavaObject(jtab_model);
   if (model == nullptr) {
     return false;
   }
@@ -422,7 +419,7 @@ static jlong JNI_RecentlyClosedBridge_Init(JNIEnv* env,
                                            const JavaParamRef<jobject>& jbridge,
                                            Profile* profile) {
   RecentlyClosedTabsBridge* bridge = new RecentlyClosedTabsBridge(
-      ScopedJavaGlobalRef<jobject>(env, jbridge.obj()), profile);
+      ScopedJavaGlobalRef<jobject>(env, jbridge), profile);
   return reinterpret_cast<intptr_t>(bridge);
 }
 

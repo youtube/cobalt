@@ -6,13 +6,14 @@
 #define MEDIA_GPU_CHROMEOS_PLATFORM_VIDEO_FRAME_UTILS_H_
 
 #include <optional>
+#include <set>
 
 #include "base/memory/scoped_refptr.h"
 #include "base/unguessable_token.h"
 #include "media/base/video_frame.h"
 #include "media/gpu/media_gpu_export.h"
 #include "ui/gfx/buffer_types.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/linux/native_pixmap_dmabuf.h"
 
 namespace gpu {
@@ -59,10 +60,6 @@ class UniqueTrackingTokenHelper {
 
   std::set<base::UnguessableToken> tokens_;
 };
-
-// Returns a GpuMemoryBufferId that's guaranteed to be different from those
-// returned by previous calls. This function is thread safe.
-MEDIA_GPU_EXPORT gfx::GpuMemoryBufferId GetNextGpuMemoryBufferId();
 
 // Creates a GpuMemoryBufferHandle. This function is thread safe.
 gfx::GpuMemoryBufferHandle AllocateGpuMemoryBufferHandle(
@@ -127,13 +124,6 @@ MEDIA_GPU_EXPORT gfx::GpuMemoryBufferHandle CreateGpuMemoryBufferHandle(
 // compositing/scanout.
 MEDIA_GPU_EXPORT scoped_refptr<gfx::NativePixmapDmaBuf>
 CreateNativePixmapDmaBuf(const VideoFrame* video_frame);
-
-// Returns true if |gmb_handle| can be imported into minigbm and false
-// otherwise.
-bool CanImportGpuMemoryBufferHandle(
-    const gfx::Size& size,
-    gfx::BufferFormat format,
-    const gfx::GpuMemoryBufferHandle& gmb_handle);
 
 }  // namespace media
 

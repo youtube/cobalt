@@ -47,9 +47,11 @@ import type {Route} from '../router.js';
 import { RouteObserverMixin} from '../router.js';
 
 import {getTemplate} from './languages_page.html.js';
-import type { LanguageSettingsMetricsProxy} from './languages_settings_metrics_proxy.js';
+import type {LanguageSettingsMetricsProxy} from './languages_settings_metrics_proxy.js';
 import {LanguageSettingsActionType, LanguageSettingsMetricsProxyImpl, LanguageSettingsPageImpressionType} from './languages_settings_metrics_proxy.js';
 import type {LanguageHelper, LanguagesModel, LanguageState} from './languages_types.js';
+import {getLanguageHelperInstance} from './languages.js';
+import {convertLanguageCodeForTranslate} from './languages_util.js';
 
 // clang-format on
 
@@ -84,12 +86,7 @@ export class SettingsLanguagesPageElement extends
        * Read-only reference to the languages model provided by the
        * 'settings-languages' instance.
        */
-      languages: {
-        type: Object,
-        notify: true,
-      },
-
-      languageHelper: Object,
+      languages: Object,
 
       /**
        * The language to display the details for.
@@ -107,18 +104,24 @@ export class SettingsLanguagesPageElement extends
   }
 
   declare languages?: LanguagesModel;
-  declare languageHelper: LanguageHelper;
   declare private detailLanguage_?: LanguageState;
   declare private showAddLanguagesDialog_: boolean;
   declare private addLanguagesDialogLanguages_:
       chrome.languageSettingsPrivate.Language[]|null;
   declare private showManagedLanguageDialog_: boolean;
+  private languageHelper_: LanguageHelper;
   private languageSettingsMetricsProxy_: LanguageSettingsMetricsProxy =
       LanguageSettingsMetricsProxyImpl.getInstance();
 
   // <if expr="is_win">
   private isChangeInProgress_: boolean = false;
   // </if>
+
+  override connectedCallback() {
+    super.connectedCallback();
+
+    this.languageHelper_ = getLanguageHelperInstance();
+  }
 
   /**
    * Stamps and opens the Add Languages dialog, registering a listener to
@@ -130,14 +133,14 @@ export class SettingsLanguagesPageElement extends
     this.languageSettingsMetricsProxy_.recordPageImpressionMetric(
         LanguageSettingsPageImpressionType.ADD_LANGUAGE);
     this.addLanguagesDialogLanguages_ = this.languages.supported.filter(
-        language => this.languageHelper.canEnableLanguage(language));
+        language => this.languageHelper_.canEnableLanguage(language));
     this.showAddLanguagesDialog_ = true;
   }
 
   private onLanguagesAdded_(e: CustomEvent<string[]>) {
     const languagesToAdd = e.detail;
     languagesToAdd.forEach(languageCode => {
-      this.languageHelper.enableLanguage(languageCode);
+      this.languageHelper_.enableLanguage(languageCode);
       LanguageSettingsMetricsProxyImpl.getInstance().recordSettingsMetric(
           LanguageSettingsActionType.LANGUAGE_ADDED);
     });
@@ -166,7 +169,10 @@ export class SettingsLanguagesPageElement extends
    */
   private canEnableSomeSupportedLanguage_(languages?: LanguagesModel): boolean {
     return languages !== undefined && languages.supported.some(language => {
-      return this.languageHelper.canEnableLanguage(language);
+      // Need to call getLanguageHelperInstance() instead of
+      // this.languageHelper_ here, because Polymer observers fire before
+      // connectedCallback sometimes.
+      return getLanguageHelperInstance().canEnableLanguage(language);
     });
   }
 
@@ -214,8 +220,7 @@ export class SettingsLanguagesPageElement extends
    */
   private isTranslationTarget_(languageCode: string, translateTarget: string):
       string {
-    if (this.languageHelper.convertLanguageCodeForTranslate(languageCode) ===
-        translateTarget) {
+    if (convertLanguageCodeForTranslate(languageCode) === translateTarget) {
       return 'target';
     } else {
       return 'non-target';
@@ -231,8 +236,15 @@ export class SettingsLanguagesPageElement extends
    */
   private isRestartRequired_(
       languageCode: string, prospectiveUILanguage: string): boolean {
+    if (!this.isConnected) {
+      // Mysteriously happens in SettingsLanguagePageTest.LanguageMenu.
+      return false;
+    }
+
+    // Using getLanguageHelperInstance() directly for the same reason as in
+    // `canEnableSomeSupportedLanguage_` (see comment there).
     return prospectiveUILanguage === languageCode &&
-        this.languageHelper.requiresRestart();
+        getLanguageHelperInstance().requiresRestart();
   }
 
   private onCloseMenu_() {
@@ -289,9 +301,9 @@ export class SettingsLanguagesPageElement extends
     // simpler widget.
     assert((e.target as CrCheckboxElement).checked);
     this.isChangeInProgress_ = true;
-    this.languageHelper.setProspectiveUiLanguage(
+    this.languageHelper_.setProspectiveUiLanguage(
         this.detailLanguage_!.language.code);
-    this.languageHelper.moveLanguageToFront(
+    this.languageHelper_.moveLanguageToFront(
         this.detailLanguage_!.language.code);
     LanguageSettingsMetricsProxyImpl.getInstance().recordSettingsMetric(
         LanguageSettingsActionType.CHANGE_CHROME_LANGUAGE);
@@ -332,7 +344,7 @@ export class SettingsLanguagesPageElement extends
       this.showManagedLanguageDialog_ = true;
       return;
     }
-    this.languageHelper.moveLanguageToFront(
+    this.languageHelper_.moveLanguageToFront(
         this.detailLanguage_!.language.code);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
         LanguageSettingsActionType.LANGUAGE_LIST_REORDERED);
@@ -348,7 +360,7 @@ export class SettingsLanguagesPageElement extends
       this.showManagedLanguageDialog_ = true;
       return;
     }
-    this.languageHelper.moveLanguage(
+    this.languageHelper_.moveLanguage(
         this.detailLanguage_!.language.code, true /* upDirection */);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
         LanguageSettingsActionType.LANGUAGE_LIST_REORDERED);
@@ -364,7 +376,7 @@ export class SettingsLanguagesPageElement extends
       this.showManagedLanguageDialog_ = true;
       return;
     }
-    this.languageHelper.moveLanguage(
+    this.languageHelper_.moveLanguage(
         this.detailLanguage_!.language.code, false /* upDirection */);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
         LanguageSettingsActionType.LANGUAGE_LIST_REORDERED);
@@ -380,7 +392,7 @@ export class SettingsLanguagesPageElement extends
       this.showManagedLanguageDialog_ = true;
       return;
     }
-    this.languageHelper.disableLanguage(this.detailLanguage_!.language.code);
+    this.languageHelper_.disableLanguage(this.detailLanguage_!.language.code);
     this.languageSettingsMetricsProxy_.recordSettingsMetric(
         LanguageSettingsActionType.LANGUAGE_REMOVED);
   }

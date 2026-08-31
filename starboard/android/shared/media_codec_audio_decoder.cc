@@ -164,12 +164,12 @@ void MediaCodecAudioDecoder::WriteEndOfStream() {
   }
 }
 
-scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
+std::optional<DecodedAudio> MediaCodecAudioDecoder::Read(
     int* samples_per_second) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  scoped_refptr<DecodedAudio> result;
+  std::optional<DecodedAudio> result;
   {
     std::lock_guard lock(decoded_audios_mutex_);
     SB_DCHECK(!decoded_audios_.empty());
@@ -268,12 +268,12 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
       size /= 2;
     }
 
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+    DecodedAudio decoded_audio(
         audio_stream_info_.number_of_channels, sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
 
-    memcpy(decoded_audio->data(), data, size);
+    memcpy(decoded_audio.data(), data, size);
     audio_frame_discarder_.AdjustForDiscardedDurations(
         audio_stream_info_.samples_per_second, &decoded_audio);
 
@@ -281,7 +281,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
       std::lock_guard lock(decoded_audios_mutex_);
       decoded_audios_.push(std::move(decoded_audio));
       VERBOSE_MEDIA_LOG() << "T2: timestamp "
-                          << decoded_audios_.front()->timestamp();
+                          << decoded_audios_.front().timestamp();
     }
     Schedule(output_cb_);
   }
@@ -290,7 +290,7 @@ void MediaCodecAudioDecoder::ProcessOutputBuffer(
   if (dequeue_output_result.flags & MediaCodec::kBufferFlagEndOfStream) {
     {
       std::lock_guard lock(decoded_audios_mutex_);
-      decoded_audios_.push(new DecodedAudio());
+      decoded_audios_.push(DecodedAudio::CreateEOSBuffer());
     }
     audio_frame_discarder_.OnDecodedAudioEndOfStream();
     Schedule(output_cb_);

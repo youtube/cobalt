@@ -10,10 +10,9 @@
 
 #include "api/video_codecs/video_encoder.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <tuple>
@@ -86,12 +85,6 @@ VideoEncoder::ScalingSettings::ScalingSettings(const ScalingSettings&) =
     default;
 
 VideoEncoder::ScalingSettings::~ScalingSettings() {}
-
-// static
-constexpr VideoEncoder::ScalingSettings::KOff
-    VideoEncoder::ScalingSettings::kOff;
-// static
-constexpr uint8_t VideoEncoder::EncoderInfo::kMaxFramerateFraction;
 
 bool VideoEncoder::ResolutionBitrateLimits::operator==(
     const ResolutionBitrateLimits& rhs) const {

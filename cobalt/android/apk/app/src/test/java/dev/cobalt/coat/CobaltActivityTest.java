@@ -129,7 +129,7 @@ public class CobaltActivityTest {
     when(metaData.getString("cobalt.ENABLE_FEATURES")).thenReturn(null);
     String[] args = new String[] {"--arg1"};
     String[] result = CobaltActivity.appendArgsFromMetaData(metaData, args);
-    assertArrayEquals(new String[] {"--arg1", "--disable-splash-screen"}, result);
+    assertArrayEquals(new String[] {"--arg1", "--enable-features=DisableSplashScreen"}, result);
   }
 
   @Test

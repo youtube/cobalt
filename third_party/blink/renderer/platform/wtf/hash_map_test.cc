@@ -42,9 +42,7 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_test_helper.h"
 
-namespace WTF {
-
-int DummyRefCounted::ref_invokes_count_ = 0;
+namespace blink {
 
 namespace {
 
@@ -597,6 +595,7 @@ TEST(HashMapTest, InitializerList) {
 }
 
 TEST(HashMapTest, IsValidKey) {
+  using blink::AtomicString;
   static_assert(HashTraits<int>::kSafeToCompareToEmptyOrDeleted,
                 "type should be comparable to empty or deleted");
   static_assert(HashTraits<int*>::kSafeToCompareToEmptyOrDeleted,
@@ -630,7 +629,7 @@ TEST(HashMapTest, EraseIf) {
   HashMap<int, int> map{{1, 1}, {2, 3}, {5, 8}, {13, 21}, {34, 56}};
   map.erase(2);
   int num_buckets_seen = 0;
-  map.erase_if([&num_buckets_seen](const WTF::KeyValuePair<int, int>& bucket) {
+  map.erase_if([&num_buckets_seen](const KeyValuePair<int, int>& bucket) {
     auto [key, value] = bucket;
     ++num_buckets_seen;
     EXPECT_TRUE(key == 1 || key == 5 || key == 13 || key == 34)
@@ -672,7 +671,7 @@ TEST(HashMapTest, ConstructFromOtherContainerIterators) {
   convert_and_verify(base::span(kArray), "span");
 }
 
-static_assert(!IsTraceable<HashMap<int, int>>::value,
+static_assert(!IsTraceableV<HashMap<int, int>>,
               "HashMap<int, int> must not be traceable.");
 
 static_assert(
@@ -748,4 +747,4 @@ static_assert(
 
 }  // anonymous namespace
 
-}  // namespace WTF
+}  // namespace blink

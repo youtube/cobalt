@@ -41,7 +41,12 @@ class Profile;
 
 namespace supervised_user {
 class SupervisedUserSettingsService;
+class SupervisedUserContentFiltersService;
 }  // namespace supervised_user
+
+namespace os_crypt_async {
+class OSCryptAsync;
+}  // namespace os_crypt_async
 
 namespace chrome_prefs {
 
@@ -75,19 +80,24 @@ std::unique_ptr<sync_preferences::PrefServiceSyncable> CreateProfilePrefs(
         validation_delegate,
     policy::PolicyService* policy_service,
     supervised_user::SupervisedUserSettingsService* supervised_user_settings,
+    supervised_user::SupervisedUserContentFiltersService*
+        content_filters_service,
     scoped_refptr<PrefStore> extension_prefs,
     scoped_refptr<user_prefs::PrefRegistrySyncable> pref_registry,
     policy::BrowserPolicyConnector* connector,
     bool async,
-    scoped_refptr<base::SequencedTaskRunner> io_task_runner);
+    scoped_refptr<base::SequencedTaskRunner> io_task_runner,
+    os_crypt_async::OSCryptAsync* os_crypt_async);
 
 // determining the active SettingsEnforcement group. For testing only.
 void DisableDomainCheckForTesting();
 
 // Initializes the preferences for the profile at |profile_path| with the
 // preference values in |master_prefs|. Returns true on success.
-bool InitializePrefsFromMasterPrefs(const base::FilePath& profile_path,
-                                    base::Value::Dict master_prefs);
+bool InitializePrefsFromMasterPrefs(
+    const base::FilePath& profile_path,
+    base::Value::Dict master_prefs,
+    os_crypt_async::OSCryptAsync* os_crypt_async);
 
 // Retrieves the time of the last preference reset event, if any, for the
 // provided profile. If no reset has occurred, returns a null |Time|.

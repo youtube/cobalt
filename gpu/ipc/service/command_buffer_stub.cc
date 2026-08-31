@@ -23,7 +23,6 @@
 #include "gpu/command_buffer/common/constants.h"
 #include "gpu/command_buffer/common/sync_token.h"
 #include "gpu/command_buffer/service/decoder_context.h"
-#include "gpu/command_buffer/service/gpu_command_buffer_memory_tracker.h"
 #include "gpu/command_buffer/service/logger.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/query_manager.h"
@@ -167,17 +166,6 @@ void CommandBufferStub::ExecuteDeferredRequest(
     case mojom::DeferredCommandBufferRequestParams::Tag::kDestroyTransferBuffer:
       OnDestroyTransferBuffer(params.get_destroy_transfer_buffer());
       break;
-
-    case mojom::DeferredCommandBufferRequestParams::Tag::
-        kSetDefaultFramebufferSharedImage: {
-      OnSetDefaultFramebufferSharedImage(
-          params.get_set_default_framebuffer_shared_image()->mailbox,
-          params.get_set_default_framebuffer_shared_image()->samples_count,
-          params.get_set_default_framebuffer_shared_image()->preserve,
-          params.get_set_default_framebuffer_shared_image()->needs_depth,
-          params.get_set_default_framebuffer_shared_image()->needs_stencil);
-      break;
-    }
   }
 
   if (!context_label_.empty()) {
@@ -661,15 +649,15 @@ void CommandBufferStub::RemoveDestructionObserver(
   destruction_observers_.RemoveObserver(observer);
 }
 
-std::unique_ptr<MemoryTracker> CommandBufferStub::CreateMemoryTracker() const {
+scoped_refptr<MemoryTracker> CommandBufferStub::CreateMemoryTracker() const {
   MemoryTrackerFactory current_factory = GetMemoryTrackerFactory();
   if (current_factory)
     return current_factory.Run();
 
-  return std::make_unique<GpuCommandBufferMemoryTracker>(
+  return base::MakeRefCounted<MemoryTracker>(
       command_buffer_id_, channel_->client_tracing_id(),
-      channel_->task_runner(),
-      channel_->gpu_channel_manager()->peak_memory_monitor());
+      channel_->gpu_channel_manager()->peak_memory_monitor(),
+      GpuPeakMemoryAllocationSource::COMMAND_BUFFER);
 }
 
 // static

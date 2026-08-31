@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "base/check.h"
+#include "base/notimplemented.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/url_constants.h"
@@ -28,9 +29,18 @@ using blink::WebOptionElement;
 using blink::WebSelectElement;
 using blink::WebString;
 
-SelectTool::SelectTool(mojom::SelectActionPtr action,
-                       content::RenderFrame& frame)
-    : frame_(frame), action_(std::move(action)) {}
+SelectTool::SelectTool(content::RenderFrame& frame,
+                       Journal::TaskId task_id,
+                       Journal& journal,
+                       mojom::SelectActionPtr action,
+                       mojom::ToolTargetPtr target,
+                       mojom::ObservedToolTargetPtr observed_target)
+    : ToolBase(frame,
+               task_id,
+               journal,
+               std::move(target),
+               std::move(observed_target)),
+      action_(std::move(action)) {}
 
 SelectTool::~SelectTool() = default;
 
@@ -45,6 +55,11 @@ void SelectTool::Execute(ToolFinishedCallback callback) {
   WebString value = validated_result.value().option_value;
   select.SetValue(value, /*send_events=*/true);
 
+  // If the select tool makes the selection in a popup widget (e.g., a dropdown
+  // menu), de-focus so the popup is hidden. An visible popup could occlude
+  // the contents underneath it.
+  select.Blur();
+
   // Check if the set value is now the current value in the <select>
   if (select.Value() != value) {
     std::move(callback).Run(
@@ -57,31 +72,26 @@ void SelectTool::Execute(ToolFinishedCallback callback) {
 }
 
 std::string SelectTool::DebugString() const {
-  return absl::StrFormat("SelectTool[%s;value(%s)]",
-                         ToDebugString(action_->target), action_->value);
+  return absl::StrFormat("SelectTool[%s;value(%s)]", ToDebugString(target_),
+                         action_->value);
 }
 
 SelectTool::ValidatedResult SelectTool::Validate() const {
-  if (!frame_->GetWebFrame()->FrameWidget()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kFrameWentAway));
-  }
+  CHECK(frame_->GetWebFrame());
+  CHECK(frame_->GetWebFrame()->FrameWidget());
 
-  mojom::ToolTargetPtr& target = action_->target;
-
-  if (target->is_coordinate()) {
+  if (target_->is_coordinate()) {
     NOTIMPLEMENTED() << "Coordinate-based target is not yet supported.";
     return base::unexpected(MakeErrorResult());
   }
 
-  int32_t dom_node_id = target->get_dom_node_id();
-
-  WebNode node = GetNodeFromId(frame_.get(), dom_node_id);
-  if (node.IsNull()) {
-    return base::unexpected(
-        MakeResult(mojom::ActionResultCode::kInvalidDomNodeId));
+  auto resolved_target = ValidateAndResolveTarget();
+  if (!resolved_target.has_value()) {
+    return base::unexpected(std::move(resolved_target.error()));
   }
 
+  // Perform select validation on the resolved node.
+  const WebNode& node = resolved_target->node;
   WebSelectElement select = node.DynamicTo<WebSelectElement>();
   if (!select) {
     return base::unexpected(

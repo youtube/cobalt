@@ -6,15 +6,19 @@
 #define COMPONENTS_OMNIBOX_BROWSER_CONTEXTUAL_SEARCH_PROVIDER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/callback_list.h"
+#include "components/lens/proto/server/lens_overlay_response.pb.h"
 #include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/base_search_provider.h"
+#include "components/omnibox/browser/search_suggestion_parser.h"
 
 class AutocompleteProviderClient;
 class AutocompleteProviderListener;
+class TemplateURL;
 
 namespace network {
 class SimpleURLLoader;
@@ -26,6 +30,8 @@ class SimpleURLLoader;
 // distinct from the ZeroSuggestProvider. It does its main work when explicitly
 // invoked via the '@page' keyword mode, and also surfaces action matches for
 // empty/zero inputs to help the user find their way into the '@page' scope.
+// It also produces the omnibox toolbelt which can be used to enter various
+// forms of scoped search (Lens or some starter pack keywords, for example).
 class ContextualSearchProvider : public BaseSearchProvider {
  public:
   ContextualSearchProvider(AutocompleteProviderClient* client,
@@ -37,6 +43,10 @@ class ContextualSearchProvider : public BaseSearchProvider {
   void Start(const AutocompleteInput& input, bool minimal_changes) override;
   void Stop(AutocompleteStopReason stop_reason) override;
   void AddProviderInfo(ProvidersInfo* provider_info) const override;
+
+  // Whether or not the Lens action (i.e. "Ask Google about this page") is
+  // present in the Omnibox toolbelt.
+  bool HasToolbeltLensAction() const;
 
  protected:
   ~ContextualSearchProvider() override;
@@ -71,14 +81,18 @@ class ContextualSearchProvider : public BaseSearchProvider {
       const SearchSuggestionParser::Results& results,
       const AutocompleteInput& input);
 
-  // Populates `matches_` with special matches that help the user find their
-  // way into the '@page' scope.
-  void AddPageSearchActionMatches(const AutocompleteInput& input);
+  // Adds the Lens entrypoint takeover action match.
+  void AddLensEntrypointMatch(const AutocompleteInput& input);
 
   // Adds a default match for verbatim input, or keyword instructions if there
   // is no input yet. This is the match that holds the omnibox in keyword mode
   // when no other matches are available yet.
   void AddDefaultVerbatimMatch(const AutocompleteInput& input);
+
+  // Appends the toolbelt match with specified `actions`. The `input` is used
+  // to avoid clearing user edit text when toolbelt match is selected.
+  void AddToolbeltMatch(const AutocompleteInput& input,
+                        std::vector<scoped_refptr<OmniboxAction>> actions);
 
   // Gets the '@page' starter pack engine using `input_keyword_`.
   const TemplateURL* GetKeywordTemplateURL() const;

@@ -8,6 +8,8 @@ source_set("prefs") {
   sources = [
     "pref_backed_boolean.h",
     "pref_backed_boolean.mm",
+    "pref_backed_string.h",
+    "pref_backed_string.mm",
   ]
   deps = [
     "//base",
@@ -42,12 +44,13 @@ source_set("browser_prefs") {
     "//components/enterprise/browser/identifiers",
     "//components/enterprise/connectors/core",
     "//components/enterprise/idle",
+    "//components/feature_engagement/public:prefs",
     "//components/feed/core/v2/public/ios:feed_ios_public",
     "//components/gcm_driver",
     "//components/handoff",
     "//components/history/core/common",
     "//components/image_fetcher/core/cache",
-    "//components/invalidation/impl",
+    "//components/invalidation:legacy_topics_cleanup",
     "//components/language/core/browser",
     "//components/lens:enterprise_policy",
     "//components/metrics",
@@ -129,6 +132,7 @@ source_set("browser_prefs") {
     "//ios/chrome/browser/prerender/model:prerender_pref",
     "//ios/chrome/browser/push_notification/model:push_notification_client",
     "//ios/chrome/browser/push_notification/model:push_notification_service_header",
+    "//ios/chrome/browser/reader_mode/model:reader_mode_prefs",
     "//ios/chrome/browser/reading_list/ui_bundled:reading_list_constants",
     "//ios/chrome/browser/safety_check/model:constants",
     "//ios/chrome/browser/settings/ui_bundled/clear_browsing_data:features",
@@ -156,6 +160,7 @@ source_set("unit_tests") {
   sources = [
     "browser_prefs_unittest.mm",
     "pref_backed_boolean_unittest.mm",
+    "pref_backed_string_unittest.mm",
   ]
   deps = [
     ":browser_prefs",

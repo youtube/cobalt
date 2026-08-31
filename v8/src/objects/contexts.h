@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
+#include "src/objects/cell.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
@@ -252,10 +253,6 @@ enum ContextLookupFlags {
   V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
     promise_withresolvers_result_map)                                          \
   V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)                        \
-  V(TEMPORAL_INSTANT_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,     \
-    temporal_instant_fixed_array_from_iterable)                                \
-  V(STRING_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,               \
-    string_fixed_array_from_iterable)                                          \
   /* Context maps */                                                           \
   V(META_MAP_INDEX, Map, meta_map)                                             \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
@@ -327,7 +324,8 @@ enum ContextLookupFlags {
   V(SET_UINT8_ARRAY_RESULT_MAP, Map, set_unit8_array_result_map)               \
   V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
-  V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
+  V(INITIAL_ARRAY_PROTOTYPE_VALIDITY_CELL_INDEX, Cell,                         \
+    initial_array_prototype_validity_cell)                                     \
   /* All *_FUNCTION_MAP_INDEX definitions used by Context::FunctionMapIndex */ \
   /* must remain together. */                                                  \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map)                       \

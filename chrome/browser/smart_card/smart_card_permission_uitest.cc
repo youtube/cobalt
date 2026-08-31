@@ -23,6 +23,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/views/views_switches.h"
 
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTestTab);
@@ -159,6 +160,13 @@ class SmartCardPermissionUiTest
     ASSERT_TRUE(embedded_https_test_server().Start());
   }
 
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InteractiveBrowserTestT::SetUpCommandLine(command_line);
+    // Disables the disregarding of potentially unintended input events.
+    command_line->AppendSwitch(
+        views::switches::kDisableInputEventActivationProtectionForTesting);
+  }
+
   std::optional<bool> permission_decision_;
   base::test::ScopedFeatureList scoped_feature_list_{
       blink::features::kSmartCard};
@@ -223,6 +231,15 @@ IN_PROC_BROWSER_TEST_F(SmartCardPermissionUiTest, AllowedByPolicy) {
       InstrumentTab(kTestTab),
       NavigateWebContents(kTestTab, embedded_https_test_server().GetURL(
                                         "a.com", "/simple.html")),
+      CheckReaderPermission(/*has_permission=*/false),
+      RequestReaderPermission(),
+      WaitForShow(PermissionPromptBubbleBaseView::kMainViewId),
+      CheckViewProperty(PermissionPromptBubbleBaseView::kBlockButtonElementId,
+                        &views::LabelButton::GetText,
+                        l10n_util::GetStringUTF16(IDS_PERMISSION_DONT_ALLOW)),
+      PressButtonAndWaitResult(
+          PermissionPromptBubbleBaseView::kBlockButtonElementId,
+          /*granted=*/false),
       CheckReaderPermission(/*has_permission=*/false),
       SetSmartCardConnectAllowedFor(
           embedded_https_test_server().GetURL("a.com", "/")),

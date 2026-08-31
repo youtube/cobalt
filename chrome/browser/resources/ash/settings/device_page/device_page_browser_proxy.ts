@@ -67,6 +67,14 @@ export enum LidClosedBehavior {
   DO_NOTHING = 3,
 }
 
+/**
+ * Mirrors chromeos::PowerPolicyController::OptimizedChargingStrategy
+ */
+export enum OptimizedChargingStrategy {
+  STRATEGY_ADAPTIVE_CHARGING = 0,
+  STRATEGY_CHARGE_LIMIT = 1,
+}
+
 export interface PowerManagementSettings {
   possibleAcIdleBehaviors: IdleBehavior[];
   possibleBatteryIdleBehaviors: IdleBehavior[];
@@ -79,6 +87,8 @@ export interface PowerManagementSettings {
   hasLid: boolean;
   adaptiveCharging: boolean;
   adaptiveChargingManaged: boolean;
+  chargeLimit: boolean;
+  optimizedChargingStrategy: OptimizedChargingStrategy;
   batterySaverFeatureEnabled: boolean;
 }
 
@@ -139,6 +149,13 @@ export interface DevicePageBrowserProxy {
    * Sets adaptive charging on or off.
    */
   setAdaptiveCharging(enabled: boolean): void;
+
+  /**
+   * Makes a call to C++ which sets the `strategy` to `enabled`, and disables
+   * the other strategy if already active.
+   */
+  setOptimizedCharging(strategy: OptimizedChargingStrategy, enabled: boolean):
+      void;
 
   /**
    * |callback| is run when there is new note-taking app information
@@ -251,6 +268,11 @@ export class DevicePageBrowserProxyImpl implements DevicePageBrowserProxy {
 
   setAdaptiveCharging(enabled: boolean): void {
     chrome.send('setAdaptiveCharging', [enabled]);
+  }
+
+  setOptimizedCharging(strategy: OptimizedChargingStrategy, enabled: boolean):
+      void {
+    chrome.send('setOptimizedCharging', [strategy, enabled]);
   }
 
   setLidClosedBehavior(behavior: LidClosedBehavior): void {

@@ -15,11 +15,11 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/unsafe_shared_memory_region.h"
 #include "base/trace_event/memory_allocator_dump.h"
-#include "gpu/gpu_export.h"
+#include "gpu/command_buffer/common/gpu_command_buffer_common_export.h"
 
 namespace gpu {
 
-class GPU_EXPORT BufferBacking {
+class GPU_COMMAND_BUFFER_COMMON_EXPORT BufferBacking {
  public:
   virtual ~BufferBacking() = default;
   virtual const base::UnsafeSharedMemoryRegion& shared_memory_region() const;
@@ -28,10 +28,18 @@ class GPU_EXPORT BufferBacking {
     return const_cast<void*>(std::as_const(*this).GetMemory());
   }
   virtual const void* GetMemory() const = 0;
+  base::span<uint8_t> as_byte_span() {
+    // SAFETY, this is the same as_byte_span() just without const.
+    base::span<const uint8_t> tmp = std::as_const(*this).as_byte_span();
+    return UNSAFE_BUFFERS(
+        base::span<uint8_t>(const_cast<uint8_t*>(tmp.data()), tmp.size()));
+  }
+  virtual base::span<const uint8_t> as_byte_span() const = 0;
   virtual uint32_t GetSize() const = 0;
 };
 
-class GPU_EXPORT MemoryBufferBacking : public BufferBacking {
+class GPU_COMMAND_BUFFER_COMMON_EXPORT MemoryBufferBacking
+    : public BufferBacking {
  public:
   explicit MemoryBufferBacking(uint32_t size, uint32_t alignment = 0);
 
@@ -40,6 +48,7 @@ class GPU_EXPORT MemoryBufferBacking : public BufferBacking {
 
   ~MemoryBufferBacking() override;
   const void* GetMemory() const override;
+  base::span<const uint8_t> as_byte_span() const override;
   uint32_t GetSize() const override;
 
  private:
@@ -48,8 +57,8 @@ class GPU_EXPORT MemoryBufferBacking : public BufferBacking {
   uint32_t alignment_;
 };
 
-
-class GPU_EXPORT SharedMemoryBufferBacking : public BufferBacking {
+class GPU_COMMAND_BUFFER_COMMON_EXPORT SharedMemoryBufferBacking
+    : public BufferBacking {
  public:
   SharedMemoryBufferBacking(
       base::UnsafeSharedMemoryRegion shared_memory_region,
@@ -63,6 +72,7 @@ class GPU_EXPORT SharedMemoryBufferBacking : public BufferBacking {
   const base::UnsafeSharedMemoryRegion& shared_memory_region() const override;
   base::UnguessableToken GetGUID() const override;
   const void* GetMemory() const override;
+  base::span<const uint8_t> as_byte_span() const override;
   uint32_t GetSize() const override;
 
  private:
@@ -71,7 +81,8 @@ class GPU_EXPORT SharedMemoryBufferBacking : public BufferBacking {
 };
 
 // Buffer owns a piece of shared-memory of a certain size.
-class GPU_EXPORT Buffer : public base::RefCountedThreadSafe<Buffer> {
+class GPU_COMMAND_BUFFER_COMMON_EXPORT Buffer
+    : public base::RefCountedThreadSafe<Buffer> {
  public:
   explicit Buffer(std::unique_ptr<BufferBacking> backing);
 
@@ -81,6 +92,10 @@ class GPU_EXPORT Buffer : public base::RefCountedThreadSafe<Buffer> {
   BufferBacking* backing() const { return backing_.get(); }
   void* memory() { return memory_; }
   const void* memory() const { return memory_; }
+  base::span<uint8_t> as_byte_span() { return backing_->as_byte_span(); }
+  base::span<const uint8_t> as_byte_span() const {
+    return backing_->as_byte_span();
+  }
   uint32_t size() const { return size_; }
 
   // Returns nullptr if the address overflows the memory.
@@ -122,12 +137,11 @@ inline scoped_refptr<Buffer> MakeMemoryBuffer(uint32_t size,
 
 // Generates a process unique buffer ID which can be safely used with
 // GetBufferGUIDForTracing.
-GPU_EXPORT int32_t GetNextBufferId();
+GPU_COMMAND_BUFFER_COMMON_EXPORT int32_t GetNextBufferId();
 
 // Generates GUID which can be used to trace buffer using an Id.
-GPU_EXPORT base::trace_event::MemoryAllocatorDumpGuid GetBufferGUIDForTracing(
-    uint64_t tracing_process_id,
-    int32_t buffer_id);
+GPU_COMMAND_BUFFER_COMMON_EXPORT base::trace_event::MemoryAllocatorDumpGuid
+GetBufferGUIDForTracing(uint64_t tracing_process_id, int32_t buffer_id);
 
 }  // namespace gpu
 

@@ -18,7 +18,6 @@
 #include "ipc/ipc_channel.h"
 #include "ipc/ipc_listener.h"
 #include "mojo/public/cpp/bindings/associated_group.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
 
@@ -26,13 +25,8 @@ namespace IPC {
 
 class UrgentMessageObserver;
 
-// Incoming legacy IPCs have always been dispatched to one of two threads: the
-// IO thread (when an installed MessageFilter handles the message), or the
-// thread which owns the corresponding ChannelProxy receiving the message. There
-// were no other places to route legacy IPC messages, so when a message arrived
-// the legacy IPC system would run through its MessageFilters and if the message
-// was still unhandled, it would be posted to the ChannelProxy thread for
-// further processing.
+// Incoming legacy IPCs are now always dispatched to the thread which owns
+// the corresponding ChannelProxy receiving the message.
 //
 // Mojo on the other hand allows for mutually associated endpoints (that is,
 // endpoints which locally share the same message pipe) to span any number of

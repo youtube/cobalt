@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@import "theme";
+@import "../theme";
 
 @mixin filled-color-scheme($intent-color, $text-color) {
   color: $text-color;
@@ -53,12 +53,6 @@
 
   & > .pf-right-icon {
     margin-left: 6px; // Make some room between the icon and label
-  }
-
-  & > .material-icons,
-  & > .material-icons-filled {
-    font-size: inherit;
-    line-height: inherit;
   }
 
   &:focus-visible {
@@ -183,4 +177,21 @@
   flex-direction: row;
   gap: 2px;
   align-items: baseline;
+}
+
+.pf-button-group {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+
+  .pf-button:not(:last-child) {
+    border-top-right-radius: unset;
+    border-bottom-right-radius: unset;
+    border-right: unset;
+  }
+
+  .pf-button:not(:first-child) {
+    border-top-left-radius: unset;
+    border-bottom-left-radius: unset;
+  }
 }

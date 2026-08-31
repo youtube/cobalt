@@ -10,8 +10,11 @@
 
 #include "rtc_base/string_encode.h"
 
-#include <string.h>
+#include <cstring>
+#include <string>
+#include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "test/gtest.h"
 

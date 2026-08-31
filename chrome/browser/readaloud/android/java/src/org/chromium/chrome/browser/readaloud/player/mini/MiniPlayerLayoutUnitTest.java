@@ -17,7 +17,6 @@ import static org.mockito.Mockito.verify;
 
 import android.animation.ObjectAnimator;
 import android.app.Activity;
-import android.view.TouchDelegate;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
@@ -82,6 +81,17 @@ public class MiniPlayerLayoutUnitTest {
         assertEquals(View.VISIBLE, mLayout.findViewById(R.id.buffering_layout).getVisibility());
         assertEquals(View.GONE, mLayout.findViewById(R.id.normal_layout).getVisibility());
         assertEquals(View.GONE, mLayout.findViewById(R.id.error_layout).getVisibility());
+    }
+
+    @Test
+    public void testBufferingWhenCreatingPlayback() {
+      mLayout.onPlaybackStateChanged(PlaybackListener.State.PLAYBACK_CREATION);
+      assertEquals(View.GONE, mLayout.findViewById(R.id.progress_bar).getVisibility());
+
+      // Only the buffering layout is visible.
+      assertEquals(View.VISIBLE, mLayout.findViewById(R.id.buffering_layout).getVisibility());
+      assertEquals(View.GONE, mLayout.findViewById(R.id.normal_layout).getVisibility());
+      assertEquals(View.GONE, mLayout.findViewById(R.id.error_layout).getVisibility());
     }
 
     @Test
@@ -169,7 +179,7 @@ public class MiniPlayerLayoutUnitTest {
         mLayout.onPlaybackStateChanged(PlaybackListener.State.PLAYING);
         mLayout.setPlaybackMode(PlaybackMode.OVERVIEW);
         assertEquals(
-                "AI audio playback", ((TextView) mLayout.findViewById(R.id.subtitle)).getText());
+                "AI playback", ((TextView) mLayout.findViewById(R.id.subtitle)).getText());
     }
 
     @Test
@@ -324,21 +334,6 @@ public class MiniPlayerLayoutUnitTest {
         mLayout.onLayout(true, 0, 0, 0, 0);
 
         verify(mMediator).onHeightKnown(eq(187));
-    }
-
-    @Test
-    public void testOnLayoutSetsCloseButtonTouchDelegate() {
-        // Fake the backdrop height so onLayout() doesn't return early.
-        View spyBackdrop = replaceWithSpy(R.id.backdrop);
-        mLayout.onFinishInflate();
-        doReturn(187).when(spyBackdrop).getHeight();
-        assertEquals(187, mLayout.findViewById(R.id.backdrop).getHeight());
-
-        mLayout.onLayout(true, 0, 0, 0, 0);
-
-        TouchDelegate delegate =
-                ((View) mLayout.findViewById(R.id.close_button).getParent()).getTouchDelegate();
-        assertNotNull(delegate);
     }
 
     @Test

@@ -11,12 +11,12 @@
 #include "chrome/browser/ui/webui/top_chrome/top_chrome_webui_config.h"
 #include "chrome/browser/ui/webui/top_chrome/untrusted_top_chrome_web_ui_controller.h"
 #include "chrome/common/webui_url_constants.h"
+#include "components/omnibox/browser/searchbox.mojom-forward.h"
 #include "components/user_education/webui/help_bubble_handler.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "ui/webui/resources/cr_components/color_change_listener/color_change_listener.mojom.h"
 #include "ui/webui/resources/cr_components/help_bubble/help_bubble.mojom.h"
-#include "ui/webui/resources/cr_components/searchbox/searchbox.mojom-forward.h"
 
 class LensSearchController;
 class LensOverlayController;
@@ -79,7 +79,9 @@ class LensOverlayUntrustedUI
       mojo::PendingReceiver<help_bubble::mojom::HelpBubbleHandlerFactory>
           pending_receiver);
 
-  static constexpr std::string GetWebUIName() { return "LensOverlayUntrusted"; }
+  static constexpr std::string_view GetWebUIName() {
+    return "LensOverlayUntrusted";
+  }
 
  private:
   LensSearchController& GetLensSearchController();

@@ -1046,16 +1046,11 @@ bool SQLitePersistentCookieStore::Backend::MakeCookiesFromSQLStatement(
     UMA_HISTOGRAM_BOOLEAN("Cookie.EncryptedAndPlaintextValues",
                           encrypted_and_plaintext_values);
 
-    // Ensure feature is fully activated for all users who load cookies, before
-    // checking the validity of the row.
-    if (base::FeatureList::IsEnabled(
-            features::kEncryptedAndPlaintextValuesAreInvalid)) {
-      if (encrypted_and_plaintext_values) {
-        RecordCookieLoadProblem(
-            CookieLoadProblem::kValuesExistInBothEncryptedAndPlaintext);
-        ok = false;
-        continue;
-      }
+    if (encrypted_and_plaintext_values) {
+      RecordCookieLoadProblem(
+          CookieLoadProblem::kValuesExistInBothEncryptedAndPlaintext);
+      ok = false;
+      continue;
     }
 
     if (!encrypted_value.empty()) {
@@ -1643,8 +1638,7 @@ void SQLitePersistentCookieStore::Backend::DoCommit() {
               continue;
             }
             add_statement.BindCString(4, "");  // value
-            // BindBlob() immediately makes an internal copy of the data.
-            add_statement.BindBlob(5, encrypted_value);
+            add_statement.BindBlob(5, std::move(encrypted_value));
           } else {
             add_statement.BindString(4, po->cc().Value());
             add_statement.BindBlob(5,

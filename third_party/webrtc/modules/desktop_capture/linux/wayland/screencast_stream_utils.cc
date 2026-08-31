@@ -12,10 +12,21 @@
 
 #include <libdrm/drm_fourcc.h>
 #include <pipewire/pipewire.h>
-#include <spa/param/video/format-utils.h>
+#include <spa/param/format.h>
+#include <spa/param/param.h>
+#include <spa/pod/builder.h>
+#include <spa/pod/iter.h>
+#include <spa/pod/pod.h>
+#include <spa/pod/vararg.h>
+#include <spa/utils/type.h>
 
-#include <string>
+#include <cstdint>
+#include <optional>
+#include <tuple>
+#include <vector>
 
+#include "absl/strings/string_view.h"
+#include "rtc_base/string_encode.h"
 #include "rtc_base/string_to_number.h"
 
 #if !PW_CHECK_VERSION(0, 3, 29)
@@ -28,15 +39,15 @@
 namespace webrtc {
 
 PipeWireVersion PipeWireVersion::Parse(const absl::string_view& version) {
-  std::vector<absl::string_view> parsed_version = webrtc::split(version, '.');
+  std::vector<absl::string_view> parsed_version = split(version, '.');
 
   if (parsed_version.size() != 3) {
     return {};
   }
 
-  std::optional<int> major = webrtc::StringToNumber<int>(parsed_version.at(0));
-  std::optional<int> minor = webrtc::StringToNumber<int>(parsed_version.at(1));
-  std::optional<int> micro = webrtc::StringToNumber<int>(parsed_version.at(2));
+  std::optional<int> major = StringToNumber<int>(parsed_version.at(0));
+  std::optional<int> minor = StringToNumber<int>(parsed_version.at(1));
+  std::optional<int> micro = StringToNumber<int>(parsed_version.at(2));
 
   // Return invalid version if we failed to parse it
   if (!major || !minor || !micro) {
@@ -80,7 +91,7 @@ spa_pod* BuildFormat(spa_pod_builder* builder,
                       SPA_POD_Id(SPA_MEDIA_SUBTYPE_raw), 0);
   spa_pod_builder_add(builder, SPA_FORMAT_VIDEO_format, SPA_POD_Id(format), 0);
 
-  if (modifiers.size()) {
+  if (!modifiers.empty()) {
     if (modifiers.size() == 1 && modifiers[0] == DRM_FORMAT_MOD_INVALID) {
       spa_pod_builder_prop(builder, SPA_FORMAT_VIDEO_modifier,
                            SPA_POD_PROP_FLAG_MANDATORY);

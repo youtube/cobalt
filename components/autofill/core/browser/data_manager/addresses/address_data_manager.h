@@ -27,6 +27,7 @@
 #include "components/autofill/core/browser/strike_databases/strike_database_base.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_observer.h"
+#include "components/autofill/core/common/dense_set.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/prefs/pref_member.h"
 #include "components/signin/public/identity_manager/account_info.h"
@@ -41,9 +42,11 @@ class PrefService;
 
 namespace autofill {
 
+class AccountNameEmailStore;
 class AddressDataCleaner;
 class AlternativeStateNameMapUpdater;
 class ContactInfoPreconditionChecker;
+class HomeAndWorkMetadataStore;
 
 // Contains all address-related logic of the `PersonalDataManager`. See comment
 // above the `PersonalDataManager` first. In the `AddressDataManager` (ADM),
@@ -123,6 +126,9 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
   std::vector<const AutofillProfile*> GetProfilesByRecordType(
       AutofillProfile::RecordType record_type,
       ProfileOrder order = ProfileOrder::kNone) const;
+  std::vector<const AutofillProfile*> GetProfilesByRecordType(
+      DenseSet<AutofillProfile::RecordType> record_types,
+      ProfileOrder order = ProfileOrder::kNone) const;
 
   // Returns the profiles to suggest to the user for filling, ordered by
   // frecency.
@@ -133,7 +139,7 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
   std::vector<const AutofillProfile*> GetProfilesForSettings() const;
 
   // Returns the profile with the specified `guid`, or nullptr if there is no
-  // profile such profile. See `GetProfiles()` for the lifetime of the pointer.
+  // such profile. See `GetProfiles()` for the lifetime of the pointer.
   const AutofillProfile* GetProfileByGUID(const std::string& guid) const;
 
   // Adds |profile| to the web database.
@@ -298,6 +304,10 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
     return alternative_state_name_map_updater_.get();
   }
 
+  HomeAndWorkMetadataStore* home_and_work_metadata_store() {
+    return home_and_work_metadata_.get();
+  }
+
  protected:
   friend class AddressDataManagerTestApi;
 
@@ -447,6 +457,15 @@ class AddressDataManager : public AutofillWebDataServiceObserverOnUISequence {
   // deduplication, disused address removal) at browser startup or when the sync
   // starts.
   std::unique_ptr<AddressDataCleaner> address_data_cleaner_;
+
+  // Manages metadata sync for Home and Work addresses. Non-null if Home and
+  // Work support is enabled and a pref service is available.
+  std::unique_ptr<HomeAndWorkMetadataStore> home_and_work_metadata_;
+
+  // Manages Account Name Email autofill profile and prefs related to it.
+  // Non-null if Account Name Email support is enabled and pref service is
+  // available.
+  std::unique_ptr<AccountNameEmailStore> account_name_email_store_;
 
   // If true, new addresses imports are automatically accepted without a prompt.
   // Only to be used for testing.

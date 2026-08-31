@@ -1,21 +1,16 @@
 ci/Android FYI Experimental Release (Pixel 6)
 ci/Android FYI Release (NVIDIA Shield TV)
-ci/Android FYI Release (Nexus 5X)
 ci/Android FYI Release (Pixel 2)
 ci/Android FYI Release (Pixel 4)
 ci/Android FYI Release (Pixel 6)
 ci/Android FYI Release (Samsung A13)
 ci/Android FYI Release (Samsung A23)
 ci/Android FYI Release (Samsung S23)
-ci/Android Release (Nexus 5X)
 ci/Android Release (Pixel 2)
 ci/ChromeOS FYI Release (amd64-generic)
-ci/ChromeOS FYI Release Skylab (volteer)
 ci/Dawn Android arm Builder
 ci/Dawn Android arm DEPS Builder
-ci/Dawn Android arm DEPS Release (Nexus 5X)
 ci/Dawn Android arm DEPS Release (Pixel 4)
-ci/Dawn Android arm Release (Nexus 5X)
 ci/Dawn Android arm Release (Pixel 4)
 ci/Dawn Android arm64 Builder
 ci/Dawn Android arm64 DEPS Builder
@@ -23,7 +18,6 @@ ci/Dawn Android arm64 DEPS Release (Pixel 6)
 ci/Dawn Android arm64 Experimental Release (Pixel 6)
 ci/Dawn Android arm64 Release (Pixel 6)
 ci/Dawn Android arm64 Release (Samsung S24)
-ci/Dawn ChromeOS Skylab Release (volteer)
 ci/Dawn Chromium Presubmit
 ci/Dawn Linux TSAN Release
 ci/Dawn Linux x64 Builder
@@ -112,7 +106,6 @@ ci/Mac FYI Experimental Release (Apple M1)
 ci/Mac FYI Experimental Release (Intel)
 ci/Mac FYI Experimental Retina Release (AMD)
 ci/Mac FYI Experimental Retina Release (Apple M2)
-ci/Mac FYI Experimental Retina Release (NVIDIA)
 ci/Mac FYI Release (Apple M1)
 ci/Mac FYI Release (Intel)
 ci/Mac FYI Retina ASAN (AMD)
@@ -120,7 +113,6 @@ ci/Mac FYI Retina Debug (AMD)
 ci/Mac FYI Retina Release (AMD)
 ci/Mac FYI Retina Release (Apple M2)
 ci/Mac FYI Retina Release (Apple M3)
-ci/Mac FYI Retina Release (NVIDIA)
 ci/Mac Pro FYI Release (AMD)
 ci/Mac Release (Intel)
 ci/Mac Retina Debug (AMD)
@@ -139,6 +131,7 @@ ci/Win10 FYI x86 Release (NVIDIA)
 ci/Win10 x64 Debug (NVIDIA)
 ci/Win10 x64 Release (NVIDIA)
 ci/Win11 FYI arm64 Release (Qualcomm Adreno 690)
+ci/Win11 FYI x64 Experimental Release (Intel Arc 140V)
 ci/Win11 FYI x64 Release (AMD RX 7600)
 ci/Win11 FYI x64 Release (NVIDIA RTX 4070 Super)
 ci/linux-swangle-chromium-x64
@@ -163,7 +156,6 @@ try/dawn-chromium-presubmit
 try/dawn-linux-x64-deps-rel
 try/dawn-mac-arm64-deps-rel
 try/dawn-mac-x64-deps-rel
-try/dawn-try-chromeos-volteer-rel
 try/dawn-try-linux-tsan-rel
 try/dawn-try-linux-x64-intel-uhd770-rel
 try/dawn-try-mac-amd-exp
@@ -185,15 +177,13 @@ try/dawn-win11-arm64-deps-rel
 try/gpu-fyi-cq-android-arm64
 try/gpu-fyi-try-android-a13-32
 try/gpu-fyi-try-android-a23-32
-try/gpu-fyi-try-android-m-nexus-5x-64
 try/gpu-fyi-try-android-nvidia-shield-tv
-try/gpu-fyi-try-android-p-pixel-2-32
 try/gpu-fyi-try-android-pixel-6-64
 try/gpu-fyi-try-android-pixel-6-64-exp
+try/gpu-fyi-try-android-q-pixel-2-32
 try/gpu-fyi-try-android-r-pixel-4-32
 try/gpu-fyi-try-android-s23-64
 try/gpu-fyi-try-chromeos-amd64-generic
-try/gpu-fyi-try-chromeos-skylab-volteer
 try/gpu-fyi-try-linux-amd-rel
 try/gpu-fyi-try-linux-amd-rx-7600-rel
 try/gpu-fyi-try-linux-intel-exp
@@ -219,8 +209,6 @@ try/gpu-fyi-try-mac-intel-asan
 try/gpu-fyi-try-mac-intel-dbg
 try/gpu-fyi-try-mac-intel-exp
 try/gpu-fyi-try-mac-intel-rel
-try/gpu-fyi-try-mac-nvidia-retina-exp
-try/gpu-fyi-try-mac-nvidia-retina-rel
 try/gpu-fyi-try-win10-amd-rel-64
 try/gpu-fyi-try-win10-intel-exp-64
 try/gpu-fyi-try-win10-intel-rel-64
@@ -234,7 +222,7 @@ try/gpu-fyi-try-win10-nvidia-rel-64
 try/gpu-fyi-try-win11-amd-rel-64
 try/gpu-fyi-try-win11-nvidia-4070-rel-64
 try/gpu-fyi-try-win11-qualcomm-rel-64
-try/gpu-try-android-m-nexus-5x-64
+try/gpu-fyi-try-win11-x64-intel-arc-140v-exp
 try/gpu-try-android-pixel-2-64
 try/gpu-try-linux-nvidia-dbg
 try/gpu-try-linux-nvidia-rel

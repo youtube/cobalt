@@ -17,7 +17,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
 #include "chrome/browser/ui/views/frame/opaque_browser_frame_view_layout.h"
-#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/tab_icon_view.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -250,12 +250,6 @@ gfx::Rect OpaqueBrowserFrameView::GetBoundsForTabStripRegion(
 gfx::Rect OpaqueBrowserFrameView::GetBoundsForWebAppFrameToolbar(
     const gfx::Size& toolbar_preferred_size) const {
   return layout_->GetBoundsForWebAppFrameToolbar(toolbar_preferred_size);
-}
-
-void OpaqueBrowserFrameView::LayoutWebAppWindowTitle(
-    const gfx::Rect& available_space,
-    views::Label& window_title_label) const {
-  layout_->LayoutWebAppWindowTitle(available_space, window_title_label);
 }
 
 int OpaqueBrowserFrameView::GetTopInset(bool restored) const {
@@ -538,7 +532,7 @@ int OpaqueBrowserFrameView::GetTabStripHeight() const {
 }
 
 gfx::Size OpaqueBrowserFrameView::GetTabstripMinimumSize() const {
-  return browser_view()->tab_strip_region_view()->GetMinimumSize();
+  return browser_view()->tab_strip_view()->GetMinimumSize();
 }
 
 int OpaqueBrowserFrameView::GetTopAreaHeight() const {
@@ -868,13 +862,14 @@ void OpaqueBrowserFrameView::PaintClientEdge(gfx::Canvas* canvas) const {
   }
 
   // For popup windows, draw location bar sides.
+  static constexpr int kLocationBarBorderThickness = 1;
   const SkColor location_bar_border_color =
       GetColorProvider()->GetColor(kColorLocationBarBorderOpaque);
   if (!tabstrip_visible && IsToolbarVisible()) {
-    gfx::Rect side(client_bounds.x() - kClientEdgeThickness, y,
-                   kClientEdgeThickness, toolbar_bounds.height());
+    gfx::Rect side(client_bounds.x() - kLocationBarBorderThickness, y,
+                   kLocationBarBorderThickness, toolbar_bounds.height());
     canvas->FillRect(side, location_bar_border_color);
-    side.Offset(client_bounds.width() + kClientEdgeThickness, 0);
+    side.Offset(client_bounds.width() + kLocationBarBorderThickness, 0);
     canvas->FillRect(side, location_bar_border_color);
   }
 }

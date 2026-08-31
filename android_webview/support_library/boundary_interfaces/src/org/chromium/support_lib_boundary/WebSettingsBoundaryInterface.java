@@ -4,12 +4,16 @@
 
 package org.chromium.support_lib_boundary;
 
+import androidx.annotation.IntDef;
+
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.reflect.InvocationHandler;
 import java.util.Map;
 import java.util.Set;
 
@@ -126,6 +130,11 @@ public interface WebSettingsBoundaryInterface {
 
     boolean getBackForwardCacheEnabled();
 
+    void setBackForwardCacheSettings(
+            /* BackForwardCacheSettings */ InvocationHandler backForwardCacheSettings);
+
+    @Nullable /* BackForwardCacheSettings */ InvocationHandler getBackForwardCacheSettings();
+
     void setPaymentRequestEnabled(boolean enabled);
 
     boolean getPaymentRequestEnabled();
@@ -137,4 +146,29 @@ public interface WebSettingsBoundaryInterface {
     void setIncludeCookiesOnIntercept(boolean includeCookiesOnIntercept);
 
     boolean getIncludeCookiesOnIntercept();
+
+    /**
+     * Do not change these constants. Apps rely on them for compatibility across WebView versions.
+     */
+
+    // LINT.IfChange(BoundaryHyperlinkContextMenuItems)
+    @IntDef(
+            flag = true,
+            value = {
+                HyperlinkContextMenuItems.DISABLED,
+                HyperlinkContextMenuItems.COPY_LINK_ADDRESS,
+                HyperlinkContextMenuItems.COPY_LINK_TEXT,
+                HyperlinkContextMenuItems.OPEN_LINK
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface HyperlinkContextMenuItems {
+        int DISABLED = 0;
+        int COPY_LINK_ADDRESS = 1; // 2^0
+        int COPY_LINK_TEXT = 1 << 1; // 2^1
+        int OPEN_LINK = 1 << 2; // 2^2
+    }
+
+    // LINT.ThenChange(/android_webview/java/src/org/chromium/android_webview/AwSettings.java:AwSettingsHyperlinkContextMenuItems)
+
+    void setHyperlinkContextMenuItems(@HyperlinkContextMenuItems int hyperlinkMenuItems);
 }

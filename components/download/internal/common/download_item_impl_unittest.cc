@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "components/download/public/common/download_item_impl.h"
 
 #include <stdint.h>
@@ -17,6 +12,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/containers/circular_deque.h"
 #include "base/containers/queue.h"
 #include "base/files/file_util.h"
@@ -216,15 +212,15 @@ ACTION_P3(ScheduleCallbackWithParams, param1, param2, task_runner) {
                         base::BindOnce(std::move(arg0), param1, param2));
 }
 
-const char kTestData1[] = {'M', 'a', 'r', 'y', ' ', 'h', 'a', 'd',
-                           ' ', 'a', ' ', 'l', 'i', 't', 't', 'l',
-                           'e', ' ', 'l', 'a', 'm', 'b', '.'};
+static constexpr auto kTestData1 = std::to_array<uint8_t>(
+    {'M', 'a', 'r', 'y', ' ', 'h', 'a', 'd', ' ', 'a', ' ', 'l',
+     'i', 't', 't', 'l', 'e', ' ', 'l', 'a', 'm', 'b', '.'});
 
 // SHA256 hash of TestData1
-const uint8_t kHashOfTestData1[] = {
-    0xd2, 0xfc, 0x16, 0xa1, 0xf5, 0x1a, 0x65, 0x3a, 0xa0, 0x19, 0x64,
-    0xef, 0x9c, 0x92, 0x33, 0x36, 0xe1, 0x06, 0x53, 0xfe, 0xc1, 0x95,
-    0xf4, 0x93, 0x45, 0x8b, 0x3b, 0x21, 0x89, 0x0e, 0x1b, 0x97};
+static constexpr auto kHashOfTestData1 = std::to_array<uint8_t>(
+    {0xd2, 0xfc, 0x16, 0xa1, 0xf5, 0x1a, 0x65, 0x3a, 0xa0, 0x19, 0x64,
+     0xef, 0x9c, 0x92, 0x33, 0x36, 0xe1, 0x06, 0x53, 0xfe, 0xc1, 0x95,
+     0xf4, 0x93, 0x45, 0x8b, 0x3b, 0x21, 0x89, 0x0e, 0x1b, 0x97});
 
 class DownloadItemTest : public testing::Test {
  public:
@@ -1637,7 +1633,7 @@ TEST_F(DownloadItemTest, DestinationError_NoRestartRequired) {
 
   std::unique_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-  hash->Update(kTestData1, sizeof(kTestData1));
+  hash->Update(kTestData1);
 
   EXPECT_CALL(*download_file, Detach());
   as_observer->DestinationError(DOWNLOAD_INTERRUPT_REASON_NETWORK_FAILED, 1,
@@ -1646,9 +1642,8 @@ TEST_F(DownloadItemTest, DestinationError_NoRestartRequired) {
   EXPECT_TRUE(observer.CheckAndResetDownloadUpdated());
   EXPECT_EQ(DownloadItem::INTERRUPTED, item->GetState());
   EXPECT_EQ(DOWNLOAD_INTERRUPT_REASON_NETWORK_FAILED, item->GetLastReason());
-  EXPECT_EQ(
-      std::string(std::begin(kHashOfTestData1), std::end(kHashOfTestData1)),
-      item->GetHash());
+  EXPECT_EQ(std::string(base::as_string_view(kHashOfTestData1)),
+            item->GetHash());
   histogram_tester.ExpectBucketCount(
       "Download.InterruptedReason",
       ToHistogramSample<DownloadInterruptReason>(
@@ -1671,7 +1666,7 @@ TEST_F(DownloadItemTest, DestinationError_RestartRequired) {
 
   std::unique_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-  hash->Update(kTestData1, sizeof(kTestData1));
+  hash->Update(kTestData1);
 
   EXPECT_CALL(*download_file, Cancel());
   as_observer->DestinationError(DOWNLOAD_INTERRUPT_REASON_FILE_FAILED, 1,
@@ -1711,7 +1706,7 @@ TEST_F(DownloadItemTest, DestinationCompleted) {
 
   std::unique_ptr<crypto::SecureHash> hash(
       crypto::SecureHash::Create(crypto::SecureHash::SHA256));
-  hash->Update(kTestData1, sizeof(kTestData1));
+  hash->Update(kTestData1);
 
   EXPECT_CALL(*mock_delegate(), ShouldCompleteDownload_(_, _));
   as_observer->DestinationCompleted(10, std::move(hash));
@@ -2237,7 +2232,7 @@ std::vector<EventList> DistributeObservationsIntoEvents(
     int event_count) {
   std::vector<EventList> all_event_lists;
   for (auto partition = begin;; ++partition) {
-    ObservationList first_group_of_observations(begin, partition);
+    ObservationList UNSAFE_TODO(first_group_of_observations(begin, partition));
     if (event_count > 1) {
       std::vector<EventList> list_of_subsequent_events =
           DistributeObservationsIntoEvents(partition, end, event_count - 1);

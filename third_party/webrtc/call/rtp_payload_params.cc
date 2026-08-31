@@ -10,15 +10,13 @@
 
 #include "call/rtp_payload_params.h"
 
-#include <stddef.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iterator>
 #include <optional>
 
 #include "absl/container/inlined_vector.h"
-#include "absl/strings/match.h"
 #include "api/field_trials_view.h"
 #include "api/transport/rtp/dependency_descriptor.h"
 #include "api/video/encoded_image.h"
@@ -186,11 +184,9 @@ RtpPayloadParams::RtpPayloadParams(const uint32_t ssrc,
                                    const FieldTrialsView& trials)
     : ssrc_(ssrc),
       generic_picture_id_experiment_(
-          absl::StartsWith(trials.Lookup("WebRTC-GenericPictureId"),
-                           "Enabled")),
-      simulate_generic_structure_(absl::StartsWith(
-          trials.Lookup("WebRTC-GenericCodecDependencyDescriptor"),
-          "Enabled")) {
+          trials.IsEnabled("WebRTC-GenericPictureId")),
+      simulate_generic_structure_(
+          trials.IsEnabled("WebRTC-GenericCodecDependencyDescriptor")) {
   for (auto& spatial_layer : last_frame_id_)
     spatial_layer.fill(-1);
 

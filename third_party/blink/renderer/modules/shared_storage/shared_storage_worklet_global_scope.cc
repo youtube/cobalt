@@ -1018,7 +1018,7 @@ SharedStorageWorkletGlobalScope::interestGroups(
 
               if (mojom_group->interest_group->additional_bid_key) {
                 Vector<char> original_additional_bid_key;
-                WTF::Base64Encode(
+                Base64Encode(
                     base::span(
                         *mojom_group->interest_group->additional_bid_key),
                     original_additional_bid_key);
@@ -1146,7 +1146,7 @@ int64_t SharedStorageWorkletGlobalScope::GetCurrentOperationId() {
 void SharedStorageWorkletGlobalScope::OnModuleScriptDownloaded(
     const KURL& script_source_url,
     mojom::blink::SharedStorageWorkletService::AddModuleCallback callback,
-    std::unique_ptr<std::string> response_body,
+    std::optional<std::string> response_body,
     std::string error_message,
     network::mojom::URLResponseHeadPtr response_head) {
   module_script_downloader_.reset();
@@ -1177,7 +1177,7 @@ void SharedStorageWorkletGlobalScope::OnModuleScriptDownloaded(
           &SharedStorageWorkletGlobalScope::RecordAddModuleFinished,
           WrapPersistent(this)));
 
-  if (!response_body) {
+  if (!response_body.has_value()) {
     std::move(add_module_finished_callback)
         .Run(false, String(error_message.c_str()));
     return;
@@ -1211,7 +1211,7 @@ void SharedStorageWorkletGlobalScope::OnModuleScriptDownloaded(
         GetSecurityOrigin());
 
     cached_metadata_handler = MakeGarbageCollected<ScriptCachedMetadataHandler>(
-        WTF::TextEncoding(response_head->charset.c_str()), std::move(sender));
+        TextEncoding(response_head->charset.c_str()), std::move(sender));
 
     if (cached_metadata) {
       cached_metadata_handler->SetSerializedCachedMetadata(

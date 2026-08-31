@@ -120,7 +120,10 @@ class CC_PAINT_EXPORT CorePaintFlags {
           constrained_high_mix(constrained_high_mix) {}
     friend bool operator==(const DynamicRangeLimitMixture&,
                            const DynamicRangeLimitMixture&) = default;
-    float ComputeHdrHeadroom(float target_hdr_headroom) const;
+    // Compute the effective HDR headroom when this limit is applied to
+    // `target_hdr_headroom`.
+    float ComputeEffectiveHdrHeadroom(float target_hdr_headroom) const;
+
     float standard_mix = 0.f;
     float constrained_high_mix = 0.f;
     // The weight for "high" is implicit and calculated as "one minus the
@@ -212,6 +215,10 @@ class CC_PAINT_EXPORT CorePaintFlags {
 
 class CC_PAINT_EXPORT PaintFlags final : public CorePaintFlags {
  public:
+  // Sentinel value for targeted HDR headroom indicating to read the value
+  // from the PlaybackParams at playback time.
+  static constexpr float kTargetedHdrHeadroomFromPlaybackParams = -1.0f;
+
   PaintFlags();
   PaintFlags(const PaintFlags& flags);
   explicit PaintFlags(const CorePaintFlags& flags);
@@ -266,6 +273,21 @@ class CC_PAINT_EXPORT PaintFlags final : public CorePaintFlags {
     draw_looper_ = std::move(looper);
   }
 
+  // Sets the targeted HDR headroom. The targeted HDR headroom property
+  // indicates the HDR headroom value that (adjusted by the dynamic range
+  // limit) will be used for tone mapping. The range of meaningful values is
+  // [0, infinity], with infinity indicating to tone map using the maximum
+  // HDR headroom. The default value is kTargetedHdrHeadroomFromPlaybackParams,
+  // which indicates to use the HDR headroom specified in PlaybackParams,
+  // specified at playback time.
+  ALWAYS_INLINE void setTargetedHdrHeadroom(float value) {
+    targeted_hdr_headroom_ = value;
+  }
+  // Gets the targeted HDR headroom.
+  ALWAYS_INLINE float getTargetedHdrHeadroom() const {
+    return targeted_hdr_headroom_;
+  }
+
   // Returns true if this (of a drawOp) allows the sequence
   // saveLayerAlphaf/drawOp/restore to be folded into a single drawOp by baking
   // the alpha in the saveLayerAlphaf into the flags of the drawOp.
@@ -303,6 +325,8 @@ class CC_PAINT_EXPORT PaintFlags final : public CorePaintFlags {
   friend class PaintOpReader;
   friend class PaintOpWriter;
 
+  // See documentation at `setTargetedHdrHeadroom`.
+  float targeted_hdr_headroom_ = kTargetedHdrHeadroomFromPlaybackParams;
   sk_sp<PathEffect> path_effect_;
   sk_sp<PaintShader> shader_;
   sk_sp<ColorFilter> color_filter_;

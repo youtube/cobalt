@@ -207,8 +207,6 @@ Element* CSSComputedStyleDeclaration::StyledElement() const {
   }
 
   if (pseudo_element_specifier_ == kPseudoIdInvalid) {
-    CHECK(RuntimeEnabledFeatures::
-              CSSComputedStyleFullPseudoElementParserEnabled());
     return nullptr;
   }
 
@@ -531,8 +529,8 @@ void CSSComputedStyleDeclaration::setProperty(const ExecutionContext*,
                                               ExceptionState& exception_state) {
   exception_state.ThrowDOMException(
       DOMExceptionCode::kNoModificationAllowedError,
-      WTF::StrCat({"These styles are computed, and therefore the '", name,
-                   "' property is read-only."}));
+      StrCat({"These styles are computed, and therefore the '", name,
+              "' property is read-only."}));
 }
 
 String CSSComputedStyleDeclaration::removeProperty(
@@ -540,8 +538,8 @@ String CSSComputedStyleDeclaration::removeProperty(
     ExceptionState& exception_state) {
   exception_state.ThrowDOMException(
       DOMExceptionCode::kNoModificationAllowedError,
-      WTF::StrCat({"These styles are computed, and therefore the '", name,
-                   "' property is read-only."}));
+      StrCat({"These styles are computed, and therefore the '", name,
+              "' property is read-only."}));
   return String();
 }
 
@@ -588,9 +586,9 @@ void CSSComputedStyleDeclaration::SetPropertyInternal(
     ExceptionState& exception_state) {
   exception_state.ThrowDOMException(
       DOMExceptionCode::kNoModificationAllowedError,
-      "These styles are computed, and therefore the '" +
-          CSSUnresolvedProperty::Get(id).GetPropertyNameString() +
-          "' property is read-only.");
+      StrCat({"These styles are computed, and therefore the '",
+              CSSUnresolvedProperty::Get(id).GetPropertyNameString(),
+              "' property is read-only."}));
 }
 
 void CSSComputedStyleDeclaration::Trace(Visitor* visitor) const {

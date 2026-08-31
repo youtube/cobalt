@@ -6,10 +6,10 @@ package org.chromium.chrome.browser.app.tabmodel;
 
 import android.app.Activity;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tabmodel.MismatchedIndicesHandler;
@@ -25,21 +25,26 @@ import org.chromium.chrome.browser.tabmodel.TabPersistentStore.TabPersistentStor
  * Implementers are glue-level objects that manage lifetime of root .tabmodel objects: {@link
  * TabPersistentStore} and {@link TabModelSelectorImpl}.
  */
+@NullMarked
 public abstract class TabModelOrchestrator {
     protected TabPersistentStore mTabPersistentStore;
-    @Nullable protected TabModelSelectorBase mTabModelSelector;
+    protected TabModelSelectorBase mTabModelSelector;
     protected TabPersistencePolicy mTabPersistencePolicy;
     private boolean mTabModelsInitialized;
-    private Callback<String> mOnStandardActiveIndexRead;
+    private @Nullable Callback<String> mOnStandardActiveIndexRead;
     private boolean mTabPersistentStoreDestroyedEarly;
 
     // TabModelStartupInfo variables
-    private ObservableSupplierImpl<TabModelStartupInfo> mTabModelStartupInfoSupplier;
+    private @Nullable ObservableSupplierImpl<TabModelStartupInfo> mTabModelStartupInfoSupplier;
     private boolean mIgnoreIncognitoFiles;
     private int mStandardCount;
     private int mIncognitoCount;
     private int mStandardActiveIndex = TabModel.INVALID_TAB_INDEX;
     private int mIncognitoActiveIndex = TabModel.INVALID_TAB_INDEX;
+
+    // Protected members are initialized by subclasses.
+    @SuppressWarnings("NullAway")
+    TabModelOrchestrator() {}
 
     /**
      * @return Whether the tab models have been fully initialized.
@@ -119,12 +124,13 @@ public abstract class TabModelOrchestrator {
     /**
      * Load the saved tab state. This should be called before any new tabs are created. The saved
      * tabs shall not be restored until {@link #restoreTabs} is called.
+     *
      * @param ignoreIncognitoFiles Whether to skip loading incognito tabs.
      * @param onStandardActiveIndexRead The callback to be called when the active non-incognito Tab
-     *                                  is found.
+     *     is found.
      */
     public void loadState(
-            boolean ignoreIncognitoFiles, Callback<String> onStandardActiveIndexRead) {
+            boolean ignoreIncognitoFiles, @Nullable Callback<String> onStandardActiveIndexRead) {
         mIgnoreIncognitoFiles = ignoreIncognitoFiles;
         mOnStandardActiveIndexRead = onStandardActiveIndexRead;
         if (!mTabPersistentStoreDestroyedEarly) mTabPersistentStore.loadState(ignoreIncognitoFiles);
@@ -187,23 +193,23 @@ public abstract class TabModelOrchestrator {
     public void cleanupInstance(int instanceId) {}
 
     /**
-     * If there is an asynchronous session restore in-progress, try to synchronously restore
-     * the state of a tab with the given url as a frozen tab. This method has no effect if
-     * there isn't a tab being restored with this url, or the tab has already been restored.
+     * If there is an asynchronous session restore in-progress, try to synchronously restore the
+     * state of a tab with the given url as a frozen tab. This method has no effect if there isn't a
+     * tab being restored with this url, or the tab has already been restored.
      */
     public void tryToRestoreTabStateForUrl(String url) {
-        if (mTabModelSelector.isSessionRestoreInProgress() && !mTabPersistentStoreDestroyedEarly) {
+        if (!mTabModelSelector.isTabStateInitialized() && !mTabPersistentStoreDestroyedEarly) {
             mTabPersistentStore.restoreTabStateForUrl(url);
         }
     }
 
     /**
-     * If there is an asynchronous session restore in-progress, try to synchronously restore
-     * the state of a tab with the given id as a frozen tab. This method has no effect if
-     * there isn't a tab being restored with this id, or the tab has already been restored.
+     * If there is an asynchronous session restore in-progress, try to synchronously restore the
+     * state of a tab with the given id as a frozen tab. This method has no effect if there isn't a
+     * tab being restored with this id, or the tab has already been restored.
      */
     public void tryToRestoreTabStateForId(int id) {
-        if (mTabModelSelector.isSessionRestoreInProgress() && !mTabPersistentStoreDestroyedEarly) {
+        if (!mTabModelSelector.isTabStateInitialized() && !mTabPersistentStoreDestroyedEarly) {
             mTabPersistentStore.restoreTabStateForId(id);
         }
     }
@@ -247,7 +253,7 @@ public abstract class TabModelOrchestrator {
                             String url,
                             boolean isStandardActiveIndex,
                             boolean isIncognitoActiveIndex,
-                            Boolean isIncognito,
+                            @Nullable Boolean isIncognito,
                             boolean fromMerge) {
                         if (isIncognito == null || !isIncognito.booleanValue()) {
                             mStandardCount++;

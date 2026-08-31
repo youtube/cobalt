@@ -21,12 +21,12 @@
 #include "base/containers/circular_deque.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
+#include "base/containers/to_vector.h"
 #include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/functional/overloaded.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/histogram_functions.h"
@@ -77,6 +77,7 @@
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/network/public/cpp/attribution_utils.h"
 #include "services/network/public/mojom/attribution.mojom-forward.h"
+#include "third_party/abseil-cpp/absl/functional/overload.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom.h"
@@ -395,14 +396,28 @@ class AttributionDataHostManagerImpl::NavigationForPendingRegistration {
     return eligible_.value();
   }
 
-  void DeclareIneligible() {
-    CHECK(!eligible_.has_value());
+  void DeclareIneligible(int64_t navigation_id) {
+    if (eligible_.has_value()) {
+      SCOPED_CRASH_KEY_NUMBER("AttributionReporting", "ineligible_nav_id",
+                              navigation_id);
+      SCOPED_CRASH_KEY_NUMBER("AttributionReporting", "existing_nav_id",
+                              navigation_id_.value_or(0));
+      base::debug::DumpWithoutCrashing();
+      return;
+    }
 
     eligible_ = false;
   }
 
   void Set(int64_t navigation_id, AttributionSuitableContext suitable_context) {
-    CHECK(!eligible_.has_value());
+    if (eligible_.has_value()) {
+      SCOPED_CRASH_KEY_NUMBER("AttributionReporting", "set_nav_id",
+                              navigation_id);
+      SCOPED_CRASH_KEY_NUMBER("AttributionReporting", "existing_nav_id",
+                              navigation_id_.value_or(0));
+      base::debug::DumpWithoutCrashing();
+      return;
+    }
 
     navigation_id_ = navigation_id;
     suitable_context_ = std::move(suitable_context);
@@ -1394,7 +1409,7 @@ void AttributionDataHostManagerImpl::NotifyNavigationRegistrationStarted(
     const blink::AttributionSrcToken& attribution_src_token,
     int64_t navigation_id,
     std::string devtools_request_id) {
-  if (auto [_, inserted] = registrations_.emplace(
+  if (auto [it, inserted] = registrations_.emplace(
           RegistrationsId(attribution_src_token),
           RegistrationContext(suitable_context,
                               RegistrationEligibility::kSource,
@@ -1405,6 +1420,11 @@ void AttributionDataHostManagerImpl::NotifyNavigationRegistrationStarted(
       !inserted) {
     RecordNavigationUnexpectedRegistration(
         NavigationUnexpectedRegistration::kRegistrationAlreadyExists);
+    SCOPED_CRASH_KEY_NUMBER("AttributionReporting", "start_nav_id",
+                            navigation_id);
+    SCOPED_CRASH_KEY_NUMBER("AttributionReporting", "exist_nav_id",
+                            it->navigation_id().value_or(0));
+    base::debug::DumpWithoutCrashing();
     return;
   }
 
@@ -1526,7 +1546,8 @@ void AttributionDataHostManagerImpl::
 }
 
 void AttributionDataHostManagerImpl::NotifyNavigationRegistrationCompleted(
-    const blink::AttributionSrcToken& attribution_src_token) {
+    const blink::AttributionSrcToken& attribution_src_token,
+    int64_t navigation_id) {
   // The eligible data host should have been bound in
   // `NotifyNavigationRegistrationStarted()`. For non-top level navigation and
   // same document navigation, `AttributionHost::RegisterNavigationDataHost()`
@@ -1554,7 +1575,7 @@ void AttributionDataHostManagerImpl::NotifyNavigationRegistrationCompleted(
     MaybeOnRegistrationsFinished(registrations_it);
   } else if (waiting_it !=
              navigations_waiting_on_background_registrations_.end()) {
-    waiting_it->second.DeclareIneligible();
+    waiting_it->second.DeclareIneligible(navigation_id);
   }
 
   if (waiting_it != navigations_waiting_on_background_registrations_.end()) {
@@ -2334,7 +2355,29 @@ void AttributionDataHostManagerImpl::ClearRegistrationsDeferUntilNavigation(
   if (!BackgroundRegistrationsEnabled()) {
     return;
   }
-  for (auto it = registrations_.begin(); it != registrations_.end(); ++it) {
+
+  // Iterate over a copy of the IDs to avoid concurrent modification of
+  // `registrations_` from the ultimate call to
+  // `MaybeOnRegistrationsFinished()`, which erases from that set, and from any
+  // recursive call to this method itself. This assumes that registration IDs
+  // are unique for the entire recursive call stack, but we believe that to be
+  // true, because we never *insert* into `registrations_` in that call stack.
+  // See http://crbug.com/427800555 for crashes due to iterator invalidation
+  // resulting from the concurrent modification.
+
+  std::vector<RegistrationsId> registration_ids =
+      base::ToVector(registrations_, &Registrations::id);
+
+  for (auto id : registration_ids) {
+    auto it = registrations_.find(id);
+
+    bool ok = it != registrations_.end();
+    base::UmaHistogramBoolean("Conversions.DataHostRegistrationInSet", ok);
+
+    if (!ok) {
+      continue;
+    }
+
     if (it->defer_until_navigation() == navigation_id) {
       it->ClearDeferUntilNavigation();
       if (!it->pending_registration_data().empty()) {
@@ -2407,7 +2450,7 @@ void AttributionDataHostManagerImpl::MaybeLogAuditIssueAndReportHeaderError(
           registration_type] = std::move(pending_decode);
 
   AttributionReportingIssueType issue_type = std::visit(
-      base::Overloaded{
+      absl::Overload{
           [](SourceRegistrationError) {
             return AttributionReportingIssueType::kInvalidRegisterSourceHeader;
           },

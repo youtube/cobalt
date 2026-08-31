@@ -8,25 +8,25 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include "rtc_base/ip_address.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <string>
+
+#include "absl/strings/string_view.h"
+#include "rtc_base/byte_order.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/string_utils.h"
+
 #if defined(WEBRTC_POSIX)
 #ifdef OPENBSD
 #include <netinet/in_systm.h>
 #endif
-#ifndef __native_client__
-#endif
 #include <netdb.h>
 #endif
-
-#include "absl/strings/string_view.h"
-#include "rtc_base/byte_order.h"
-#include "rtc_base/ip_address.h"
-#include "rtc_base/net_helpers.h"
-#include "rtc_base/string_utils.h"
 
 namespace webrtc {
 

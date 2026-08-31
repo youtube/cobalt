@@ -7,12 +7,16 @@ package org.chromium.chrome.browser.ntp_customization;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.FEED;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.MAIN;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.MVT;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.NTP_CARDS;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.LAYOUT_TO_DISPLAY;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.LIST_CONTAINER_VIEW_DELEGATE;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.MAIN_BOTTOM_SHEET_FEED_SECTION_SUBTITLE;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationViewProperties.MAIN_BOTTOM_SHEET_MVT_SECTION_SUBTITLE;
 
 import android.content.Context;
+import android.support.annotation.StringRes;
 import android.support.annotation.VisibleForTesting;
 import android.view.View;
 import android.widget.ViewFlipper;
@@ -22,6 +26,7 @@ import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feed.FeedFeatures;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
@@ -54,9 +59,10 @@ public class NtpCustomizationMediator {
     private final NtpCustomizationBottomSheetContent mBottomSheetContent;
     private final BottomSheetObserver mBottomSheetObserver;
     private final PropertyModel mViewFlipperPropertyModel;
-    private List<Integer> mListContent;
+    private final List<Integer> mListContent;
     private final Supplier<Profile> mProfileSupplier;
     private final @Nullable PropertyModel mContainerPropertyModel;
+    private final boolean mNtpCustomizationForMvtFeatureEnabled;
     private @Nullable Profile mProfile;
     private @Nullable Integer mCurrentBottomSheet;
     private static @Nullable PrefService sPrefServiceForTest;
@@ -75,6 +81,8 @@ public class NtpCustomizationMediator {
         mViewFlipperMap = new HashMap<>();
         mTypeToListenersMap = new HashMap<>();
         mListContent = buildListContent();
+        mNtpCustomizationForMvtFeatureEnabled =
+                ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled();
 
         mBottomSheetObserver =
                 new EmptyBottomSheetObserver() {
@@ -133,6 +141,11 @@ public class NtpCustomizationMediator {
             // Updates the visibility status (on or off) of the feeds section in the main bottom
             // sheet.
             updateFeedSectionSubtitle(getPrefService().getBoolean(Pref.ARTICLES_LIST_VISIBLE));
+
+            boolean isMvtVisible =
+                    mNtpCustomizationForMvtFeatureEnabled
+                            && NtpCustomizationConfigManager.getInstance().getPrefIsMvtToggleOn();
+            updateMvtSectionSubtitle(isMvtVisible);
         }
     }
 
@@ -156,10 +169,14 @@ public class NtpCustomizationMediator {
             @Override
             public int getListItemId(int type) {
                 switch (type) {
+                    case MVT:
+                        return R.id.mvt_settings;
                     case NTP_CARDS:
                         return R.id.ntp_cards;
                     case FEED:
                         return R.id.feed_settings;
+                    case THEME:
+                        return R.id.theme;
                     default:
                         return View.NO_ID;
                 }
@@ -168,10 +185,14 @@ public class NtpCustomizationMediator {
             @Override
             public String getListItemTitle(int type, Context context) {
                 switch (type) {
+                    case MVT:
+                        return context.getString(R.string.ntp_customization_mvt_settings_title);
                     case NTP_CARDS:
                         return context.getString(R.string.home_modules_configuration);
                     case FEED:
                         return context.getString(R.string.ntp_customization_feed_settings_title);
+                    case THEME:
+                        return context.getString(R.string.ntp_customization_theme_title);
                     default:
                         assert false : "Bottom sheet type not supported!";
                         return assumeNonNull(null);
@@ -182,6 +203,10 @@ public class NtpCustomizationMediator {
             public @Nullable String getListItemSubtitle(int type, Context context) {
                 if (type == FEED) {
                     return context.getString(getFeedSectionSubtitleId());
+                }
+
+                if (type == MVT) {
+                    return context.getString(getMvtSectionSubtitleId());
                 }
                 return null;
             }
@@ -194,6 +219,11 @@ public class NtpCustomizationMediator {
             @Override
             public @Nullable Integer getTrailingIcon(int type) {
                 return R.drawable.forward_arrow_icon;
+            }
+
+            @Override
+            public @Nullable Integer getTrailingIconDescriptionResId(int type) {
+                return R.string.ntp_customization_show_more;
             }
         };
     }
@@ -226,9 +256,15 @@ public class NtpCustomizationMediator {
 
         mProfile = mProfileSupplier.get().getOriginalProfile();
         List<Integer> content = new ArrayList<>();
+        if (ChromeFeatureList.sNewTabPageCustomizationForMvt.isEnabled()) {
+            content.add(MVT);
+        }
         content.add(NTP_CARDS);
         if (FeedFeatures.isFeedEnabled(mProfile)) {
             content.add(FEED);
+        }
+        if (ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()) {
+            content.add(THEME);
         }
         return content;
     }
@@ -253,9 +289,24 @@ public class NtpCustomizationMediator {
                 isFeedVisible ? R.string.text_on : R.string.text_off);
     }
 
+    void updateMvtSectionSubtitle(boolean isMvtVisible) {
+        assumeNonNull(mContainerPropertyModel);
+        mContainerPropertyModel.set(
+                MAIN_BOTTOM_SHEET_MVT_SECTION_SUBTITLE,
+                isMvtVisible ? R.string.text_on : R.string.text_off);
+    }
+
     /** Returns the source id of the feed section subtitle. */
     private int getFeedSectionSubtitleId() {
         return getPrefService().getBoolean(Pref.ARTICLES_LIST_VISIBLE)
+                ? R.string.text_on
+                : R.string.text_off;
+    }
+
+    /** Returns the source id of the mvt section subtitle. */
+    @StringRes
+    private int getMvtSectionSubtitleId() {
+        return NtpCustomizationConfigManager.getInstance().getPrefIsMvtToggleOn()
                 ? R.string.text_on
                 : R.string.text_off;
     }
@@ -296,9 +347,5 @@ public class NtpCustomizationMediator {
 
     Map<Integer, View.OnClickListener> getTypeToListenersForTesting() {
         return mTypeToListenersMap;
-    }
-
-    void setListContetForTesting(List<Integer> listContent) {
-        mListContent = listContent;
     }
 }

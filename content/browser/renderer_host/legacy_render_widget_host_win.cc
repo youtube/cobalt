@@ -9,16 +9,20 @@
 #include <memory>
 #include <utility>
 
+#include "base/check.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/win/win_util.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/browser/renderer_host/direct_manipulation_helper_win.h"
 #include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_aura.h"
+#include "content/common/features.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_switches.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/platform/ax_fragment_root_win.h"
 #include "ui/accessibility/platform/ax_platform.h"
 #include "ui/accessibility/platform/ax_system_caret_win.h"
@@ -72,17 +76,29 @@ void LegacyRenderWidgetHostHWND::Destroy() {
   }
 }
 
+// TODO(crbug.com/424432184): Remove this function when the feature is cleaned
+// up.
 void LegacyRenderWidgetHostHWND::CreateDirectManipulationHelper() {
+  CHECK(!base::FeatureList::IsEnabled(
+      features::kUpdateDirectManipulationHelperOnParentChange));
   // Direct Manipulation is enabled on Windows 10+. The CreateInstance function
   // returns NULL if Direct Manipulation is not available. Recreate
   // |direct_manipulation_helper_| when parent changed (compositor and window
   // event target updated).
-  direct_manipulation_helper_ = DirectManipulationHelper::CreateInstance(
-      hwnd(), host_->GetNativeView()->GetHost()->compositor(),
-      GetWindowEventTarget(GetParent()));
+  direct_manipulation_helper_ =
+      DirectManipulationHelper::CreateInstance(hwnd());
+  if (direct_manipulation_helper_) {
+    direct_manipulation_helper_->UpdateEventHandler(
+        host_->GetNativeView()->GetHost()->GetWeakPtr(),
+        GetWindowEventTarget(GetParent()));
+  }
 }
 
 void LegacyRenderWidgetHostHWND::UpdateParent(HWND new_parent) {
+  const bool only_update_direct_manipulation_helper =
+      base::FeatureList::IsEnabled(
+          features::kUpdateDirectManipulationHelperOnParentChange);
+
   // Performance profiles for resizing show that roughly 1/3 of the
   // browser main thread CPU samples are inside of the ::SetParent call, even
   // though the parent is never changed during this operation. The CPU samples
@@ -92,7 +108,9 @@ void LegacyRenderWidgetHostHWND::UpdateParent(HWND new_parent) {
   if (current_parent != new_parent) {
     ::SetParent(hwnd(), new_parent);
 
-    CreateDirectManipulationHelper();
+    if (!only_update_direct_manipulation_helper) {
+      CreateDirectManipulationHelper();
+    }
 
     // Reset tooltips when parent changed; otherwise tooltips could stay open as
     // the former parent wouldn't be forwarded any mouse leave messages.
@@ -104,8 +122,22 @@ void LegacyRenderWidgetHostHWND::UpdateParent(HWND new_parent) {
     // if we haven't already done so. After initial creation, the
     // DirectManipulationHelper only needs to be re-created if the parent
     // subsequently changes.
-    if (!direct_manipulation_helper_) {
+    if (!only_update_direct_manipulation_helper &&
+        !direct_manipulation_helper_) {
       CreateDirectManipulationHelper();
+    }
+  }
+
+  if (only_update_direct_manipulation_helper) {
+    // The DirectManipulationHelper was created in InitOrDeleteSelf. It must be
+    // initialized on the first call to UpdateParent. After that it only needs
+    // to be updated if the parent changes.
+    if (direct_manipulation_helper_ &&
+        (!direct_manipulation_helper_->event_target() ||
+         current_parent != new_parent)) {
+      direct_manipulation_helper_->UpdateEventHandler(
+          host_->GetNativeView()->GetHost()->GetWeakPtr(),
+          GetWindowEventTarget(new_parent));
     }
   }
 }
@@ -218,6 +250,16 @@ bool LegacyRenderWidgetHostHWND::InitOrDeleteSelf(HWND parent) {
       hwnd(), aura::WindowTreeHost::kWindowTreeHostUsesParent,
       reinterpret_cast<HANDLE>(true));
 
+  if (base::FeatureList::IsEnabled(
+          features::kUpdateDirectManipulationHelperOnParentChange)) {
+    // Create the DirectManipulationHelper as soon as hwnd() is set.
+    // UpdateParent() will assign an event target to it. Note Direct
+    // Manipulation is enabled on Windows 10+. The CreateInstance function
+    // returns NULL if Direct Manipulation is not available.
+    direct_manipulation_helper_ =
+        DirectManipulationHelper::CreateInstance(hwnd());
+  }
+
   return true;
 }
 
@@ -257,6 +299,14 @@ LRESULT LegacyRenderWidgetHostHWND::OnGetObject(UINT message,
   const bool is_uia_active =
       is_uia_request && ::ui::AXPlatform::GetInstance().IsUiaProviderEnabled();
   const bool is_msaa_request = static_cast<DWORD>(OBJID_CLIENT) == obj_id;
+
+  if (is_uia_active && disconnecting_fragment_root_) {
+    // An application that calls UiaDisconnectProvider should not respond to a
+    // re-entrant WM_GETOBJECT message by returning a pointer to the provider
+    // that it is trying to disconnect.
+    // https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiadisconnectprovider
+    return 0;
+  }
 
   if (is_uia_request) {
     CHECK_DEREF(CHECK_DEREF(GetContentClient()).browser())
@@ -559,11 +609,21 @@ LRESULT LegacyRenderWidgetHostHWND::OnSize(UINT message,
 LRESULT LegacyRenderWidgetHostHWND::OnDestroy(UINT message,
                                               WPARAM w_param,
                                               LPARAM l_param) {
-  // If we have ever returned a UIA object via WM_GETOBJECT, signal that all
-  // objects associated with this HWND can be discarded. See:
-  // https://docs.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiareturnrawelementprovider#remarks
+  if (ax_fragment_root_ &&
+      base::FeatureList::IsEnabled(features::kUiaDisconnectRootProviders)) {
+    // Note that the fragment root's element provider is being disconnected so
+    // that re-entrant WM_GETOBJECT messages are not serviced.
+    disconnecting_fragment_root_ = true;
+
+    // Clean up UIA resources associated with this window's fragment root; see
+    // https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiadisconnectprovider.
+    ::UiaDisconnectProvider(ax_fragment_root_->GetProvider());
+  }
+
   if (did_return_uia_object_) {
-    UiaReturnRawElementProvider(hwnd(), 0, 0, nullptr);
+    // Disassociate this window from MSAA clients that are observing events; see
+    // https://docs.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiareturnrawelementprovider#remarks
+    ::UiaReturnRawElementProvider(hwnd(), 0, 0, nullptr);
   }
 
   return 0;

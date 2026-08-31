@@ -11,6 +11,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "build/build_config.h"
@@ -37,15 +38,6 @@
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom.h"
 #include "ui/base/mojom/menu_source_type.mojom.h"
 
-void FakeWebPushSender::SendMessage(const std::string& fcm_token,
-                                    crypto::ECPrivateKey* vapid_key,
-                                    WebPushMessage message,
-                                    WebPushCallback callback) {
-  fcm_token_ = fcm_token;
-  message_ = std::move(message);
-  std::move(callback).Run(SendWebPushMessageResult::kSuccessful, "message_id");
-}
-
 void FakeSharingMessageBridge::SendSharingMessage(
     std::unique_ptr<sync_pb::SharingMessageSpecifics> specifics,
     CommitFinishedCallback on_commit_callback) {
@@ -64,8 +56,7 @@ SharingBrowserTest::SharingBrowserTest()
     : SyncTest(TWO_CLIENT),
       scoped_testing_factory_installer_(
           base::BindRepeating(&gcm::FakeGCMProfileService::Build)),
-      sharing_service_(nullptr),
-      fake_web_push_sender_(nullptr) {}
+      sharing_service_(nullptr) {}
 
 SharingBrowserTest::~SharingBrowserTest() = default;
 
@@ -78,7 +69,7 @@ void SharingBrowserTest::SetUpOnMainThread() {
 void SharingBrowserTest::Init(
     sync_pb::SharingSpecificFields_EnabledFeatures first_device_feature,
     sync_pb::SharingSpecificFields_EnabledFeatures second_device_feature) {
-  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
+  ASSERT_TRUE(SetupSync());
 
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url = embedded_test_server()->GetURL("mock.http", GetTestPageURL());
@@ -91,9 +82,6 @@ void SharingBrowserTest::Init(
 
   SharingFCMSender* sharing_fcm_sender =
       sharing_service_->GetMessageSenderForTesting()->GetFCMSenderForTesting();
-  fake_web_push_sender_ = new FakeWebPushSender();
-  sharing_fcm_sender->SetWebPushSenderForTesting(
-      base::WrapUnique(fake_web_push_sender_.get()));
   sharing_fcm_sender->SetSharingMessageBridgeForTesting(
       &fake_sharing_message_bridge_);
 

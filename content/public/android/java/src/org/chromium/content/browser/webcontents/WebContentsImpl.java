@@ -223,7 +223,7 @@ public class WebContentsImpl
     public void setDelegates(
             String productVersion,
             ViewAndroidDelegate viewDelegate,
-            InternalAccessDelegate accessDelegate,
+            @Nullable InternalAccessDelegate accessDelegate,
             @Nullable WindowAndroid windowAndroid,
             InternalsHolder internalsHolder) {
         assert internalsHolder != null;
@@ -610,12 +610,17 @@ public class WebContentsImpl
     }
 
     @Override
-    public void setPrimaryMainFrameImportance(@ChildProcessImportance int importance) {
+    public void setPrimaryPageImportance(
+            @ChildProcessImportance int mainFrameImportance,
+            @ChildProcessImportance int subframeImportance) {
         checkNotDestroyed();
         assert ChildProcessConnection.supportNotPerceptibleBinding()
-                || importance != ChildProcessImportance.PERCEPTIBLE;
+                || (mainFrameImportance != ChildProcessImportance.PERCEPTIBLE
+                        && subframeImportance != ChildProcessImportance.PERCEPTIBLE);
+        assert mainFrameImportance >= subframeImportance;
         WebContentsImplJni.get()
-                .setPrimaryMainFrameImportance(mNativeWebContentsAndroid, importance);
+                .setPrimaryPageImportance(
+                        mNativeWebContentsAndroid, mainFrameImportance, subframeImportance);
     }
 
     @Override
@@ -885,19 +890,22 @@ public class WebContentsImpl
                     new EventForwarder.StylusWritingDelegate() {
                         @Override
                         public boolean handleTouchEvent(MotionEvent motionEvent) {
+                            ViewAndroidDelegate viewAndroidDelegate = getViewAndroidDelegate();
                             return mStylusWritingHandler != null
+                                    && viewAndroidDelegate != null
+                                    && viewAndroidDelegate.getContainerView() != null
                                     && mStylusWritingHandler.handleTouchEvent(
-                                            motionEvent,
-                                            assumeNonNull(getViewAndroidDelegate())
-                                                    .getContainerView());
+                                            motionEvent, viewAndroidDelegate.getContainerView());
                         }
 
                         @Override
                         public void handleHoverEvent(MotionEvent motionEvent) {
-                            if (mStylusWritingHandler != null) {
+                            ViewAndroidDelegate viewAndroidDelegate = getViewAndroidDelegate();
+                            if (mStylusWritingHandler != null
+                                    && viewAndroidDelegate != null
+                                    && viewAndroidDelegate.getContainerView() != null) {
                                 mStylusWritingHandler.handleHoverEvent(
-                                        motionEvent,
-                                        assumeNonNull(getViewAndroidDelegate()).getContainerView());
+                                        motionEvent, viewAndroidDelegate.getContainerView());
                             }
                         }
                     });
@@ -1155,18 +1163,6 @@ public class WebContentsImpl
     }
 
     @Override
-    public void setContextMenuInsets(Rect insets) {
-        if (mNativeWebContentsAndroid == 0) return;
-        WebContentsImplJni.get()
-                .setContextMenuInsets(
-                        mNativeWebContentsAndroid,
-                        insets.top,
-                        insets.left,
-                        insets.bottom,
-                        insets.right);
-    }
-
-    @Override
     public void showInterestInElement(int nodeID) {
         if (mNativeWebContentsAndroid == 0) return;
         WebContentsImplJni.get().showInterestInElement(mNativeWebContentsAndroid, nodeID);
@@ -1235,6 +1231,19 @@ public class WebContentsImpl
     public void setLongPressLinkSelectText(boolean enabled) {
         checkNotDestroyed();
         WebContentsImplJni.get().setLongPressLinkSelectText(mNativeWebContentsAndroid, enabled);
+    }
+
+    @Override
+    public void setCanAcceptLoadDrops(boolean enabled) {
+        checkNotDestroyed();
+        WebContentsImplJni.get().setCanAcceptLoadDrops(mNativeWebContentsAndroid, enabled);
+    }
+
+    @Override
+    public boolean getCanAcceptLoadDropsForTesting() {
+        checkNotDestroyed();
+        return WebContentsImplJni.get()
+                .getCanAcceptLoadDropsForTesting(mNativeWebContentsAndroid); // IN-TEST
     }
 
     @Override
@@ -1341,7 +1350,8 @@ public class WebContentsImpl
 
         void collapseSelection(long nativeWebContentsAndroid);
 
-        void setPrimaryMainFrameImportance(long nativeWebContentsAndroid, int importance);
+        void setPrimaryPageImportance(
+                long nativeWebContentsAndroid, int mainFrameImportance, int subframeImportance);
 
         void onFreeze(long nativeWebContentsAndroid);
 
@@ -1469,9 +1479,6 @@ public class WebContentsImpl
         void setDisplayCutoutSafeArea(
                 long nativeWebContentsAndroid, int top, int left, int bottom, int right);
 
-        void setContextMenuInsets(
-                long nativeWebContentsAndroid, int top, int left, int bottom, int right);
-
         void showInterestInElement(long nativeWebContentsAndroid, int nodeID);
 
         void notifyRendererPreferenceUpdate(long nativeWebContentsAndroid);
@@ -1488,6 +1495,10 @@ public class WebContentsImpl
         int getCurrentBackForwardTransitionStage(long nativeWebContentsAndroid);
 
         void setLongPressLinkSelectText(long nativeWebContentsAndroid, boolean enabled);
+
+        void setCanAcceptLoadDrops(long nativeWebContentsAndroid, boolean enabled);
+
+        boolean getCanAcceptLoadDropsForTesting(long nativeWebContentsAndroid);
 
         void updateOffsetTagDefinitions(
                 long nativeWebContentsAndroid,

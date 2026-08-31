@@ -28,6 +28,8 @@ static_library("app_restore") {
     "arc_ghost_window_view.h",
     "arc_window_utils.cc",
     "arc_window_utils.h",
+    "browser_restore_observer.cc",
+    "browser_restore_observer.h",
     "full_restore_app_launch_handler.cc",
     "full_restore_app_launch_handler.h",
     "full_restore_data_handler.cc",
@@ -47,6 +49,7 @@ static_library("app_restore") {
     "//base",
     "//chrome/browser:browser_public_dependencies",
     "//chrome/browser/profiles:profile",
+    "//chrome/browser/sessions",
     "//chrome/common:buildflags",
     "//chromeos/ash/components/dbus/resourced",
     "//chromeos/ash/components/scheduler_config",
@@ -87,17 +90,19 @@ static_library("app_restore") {
     "//chrome/browser/ash/arc/session",
     "//chrome/browser/ash/arc/window_predictor",
     "//chrome/browser/ash/floating_workspace:utils",
-    "//chrome/browser/ash/login/demo_mode",
     "//chrome/browser/ash/login/session",
     "//chrome/browser/ash/policy/scheduled_task_handler",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/lifetime:termination_notification",
     "//chrome/browser/prefs:util",
+    "//chrome/browser/ui:browser_navigator_params_headers",
+    "//chrome/browser/ui/startup",
     "//chrome/browser/ui/startup:startup_tab",
     "//chrome/browser/web_applications",
     "//chrome/common:chrome_features",
     "//chrome/common:constants",
     "//chrome/common:non_code_constants",
+    "//chromeos/ash/components/demo_mode",
     "//chromeos/ash/components/system",
     "//chromeos/ash/experiences/arc:arc_base_utils",
     "//chromeos/ash/experiences/arc:arc_features",
@@ -107,6 +112,7 @@ static_library("app_restore") {
     "//chromeos/ui/frame",
     "//components/account_id",
     "//components/app_constants",
+    "//components/custom_handlers",
     "//components/pref_registry",
     "//components/strings:components_strings",
     "//components/user_manager",
@@ -203,7 +209,7 @@ source_set("browser_tests") {
     "//chrome/browser/ui/ash/desks",
     "//chrome/browser/ui/ash/device_scheduled_reboot",
     "//chrome/browser/ui/ash/system_web_apps",
-    "//chrome/browser/ui/webui/ash/settings:settings",
+    "//chrome/browser/ui/webui/ash/settings",
     "//chrome/browser/web_applications",
     "//chrome/browser/web_applications:web_applications_test_support",
     "//chrome/common",
@@ -239,6 +245,10 @@ source_set("browser_tests") {
     "//ui/views:test_support",
     "//ui/wm",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("unit_tests") {
@@ -249,6 +259,7 @@ source_set("unit_tests") {
     "arc_ghost_window_handler_unittest.cc",
     "arc_ghost_window_view_unittest.cc",
     "arc_window_utils_unittest.cc",
+    "browser_restore_observer_unittest.cc",
     "full_restore_prefs_unittest.cc",
     "full_restore_service_unittest.cc",
   ]

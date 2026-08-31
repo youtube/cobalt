@@ -133,6 +133,8 @@ class OmniboxViewViews
   void SelectAll(bool reversed) override;
   void RevertAll() override;
   void SetFocus(bool is_user_initiated) override;
+  void RequestViewFocus() override;
+  void RequestAimButtonFocus() override;
   bool IsImeComposing() const override;
   gfx::NativeView GetRelativeWindowForPopup() const override;
   bool IsImeShowingPopup() const override;
@@ -365,6 +367,10 @@ class OmniboxViewViews
   // We select in response to a click that focuses the omnibox, but we defer
   // until release, setting this variable back to false if we saw a drag, to
   // allow the user to select just a portion of the text.
+  //
+  // This also controls whether we trigger zero-prefix suggestions on mouse
+  // release, potentially presenting the popup, which we don't want to do if the
+  // user made a selection via a click-drag gesture.
   bool select_all_on_mouse_release_ = false;
 
   // Indicates if we want to select all text in the omnibox when we get a

@@ -8,6 +8,7 @@
 #import "base/memory/ptr_util.h"
 #import "base/strings/string_number_conversions.h"
 #import "base/time/time.h"
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "components/enterprise/connectors/core/features.h"
 #import "components/enterprise/connectors/core/reporting_event_router.h"
 #import "components/feature_engagement/public/event_constants.h"
@@ -85,8 +86,6 @@ void ReportOnSecurityInterstitialProceeded(
     ProfileIOS* profile,
     GURL url,
     safe_browsing::SBThreatType threat_type) {
-  if (base::FeatureList::IsEnabled(
-          enterprise_connectors::kEnterpriseRealtimeEventReportingOnIOS)) {
     enterprise_connectors::ReportingEventRouter* router =
         enterprise_connectors::IOSReportingEventRouterFactory::GetForProfile(
             profile);
@@ -98,7 +97,6 @@ void ReportOnSecurityInterstitialProceeded(
     router->OnSecurityInterstitialProceeded(
         url, safe_browsing::GetThreatTypeStringForInterstitial(threat_type),
         /*net_error_code=*/0, referrer_chain);
-  }
 }
 
 }  // namespace
@@ -202,7 +200,7 @@ SafeBrowsingBlockingPage::SafeBrowsingControllerClient::
     : IOSBlockingPageControllerClient(
           resource.weak_web_state.get(),
           CreateMetricsHelper(resource),
-          GetApplicationContext()->GetApplicationLocale()),
+          GetApplicationContext()->GetApplicationLocaleStorage()->Get()),
       url_(SafeBrowsingUrlAllowList::GetDecisionUrl(resource)),
       threat_type_(resource.threat_type),
       threat_source_(resource.threat_source) {}

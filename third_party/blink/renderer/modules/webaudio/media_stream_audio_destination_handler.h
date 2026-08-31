@@ -9,11 +9,11 @@
 #include "base/synchronization/lock.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_handler.h"
-#include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 
 namespace blink {
 
+class AudioBus;
 class AudioNode;
 class ExceptionState;
 class AudioNodeInput;
@@ -30,6 +30,10 @@ class MODULES_EXPORT MediaStreamAudioDestinationHandler final
       AudioNode&,
       uint32_t number_of_channels,
       WebAudioDestinationConsumer*);
+  MediaStreamAudioDestinationHandler(
+      const MediaStreamAudioDestinationHandler&) = delete;
+  MediaStreamAudioDestinationHandler& operator=(
+      const MediaStreamAudioDestinationHandler&) = delete;
   ~MediaStreamAudioDestinationHandler() override;
 
   // This handler must release its reference to the consumer when the
@@ -57,8 +61,6 @@ class MODULES_EXPORT MediaStreamAudioDestinationHandler final
   void PullInputs(uint32_t frames_to_process) override;
   void UpdatePullStatusIfNeeded() override;
 
-  uint32_t MaxChannelCount() const;
-
   // Sets the WebAudioDestinationConsumer that receives audio data from this
   // handler. The consumer is then responsible for providing this data to the
   // MediaStream infrastructure.
@@ -66,14 +68,9 @@ class MODULES_EXPORT MediaStreamAudioDestinationHandler final
                    int number_of_channels,
                    float sample_rate);
 
-  // Sets the audio format (number of channels and sample rate) for the
-  // associated MediaStreamSource. This method can be called from either the
-  // main thread or the WebAudio rendering thread.
-  void SetConsumerFormat(int number_of_channels, float sample_rate);
-
   // Pushes rendered WebAudio data to the WebAudioDestinationConsumer.
   // Must be called on the WebAudio rendering thread.
-  void ConsumeAudio(AudioBus* bus, int number_of_frames);
+  void ConsumeAudio(const AudioBus* const bus, int number_of_frames);
 
   // https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/media/capture/README.md#logs
   void SendLogMessage(const char* const function_name, const String& message);

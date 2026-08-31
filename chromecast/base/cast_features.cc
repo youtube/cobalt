@@ -10,6 +10,7 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/feature_list.h"
+#include "base/logging.h"
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_param_associator.h"
 #include "base/metrics/field_trial_params.h"
@@ -174,6 +175,15 @@ BASE_FEATURE(kEnableStarboardMimeChecks,
              "enable_starboard_mime_checks",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If true, AV1 support will be checked against starboard via
+// SbMediaCanPlayMimeAndKeySystem.
+//
+// If this is false, this device will always return "false" when apps check for
+// AV1 support.
+BASE_FEATURE(kEnableStarboardAv1Checks,
+             "enable_starboard_av1_checks",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // End Chromecast Feature definitions.
 const base::Feature* kFeatures[] = {
     &kAllowUserMediaAccess,
@@ -186,6 +196,7 @@ const base::Feature* kFeatures[] = {
     &kEnableChromeAudioManagerAndroid,
     &kEnableCastAudioOutputDevice,
     &kEnableStarboardMimeChecks,
+    &kEnableStarboardAv1Checks,
 };
 
 std::vector<const base::Feature*> GetInternalFeatures();

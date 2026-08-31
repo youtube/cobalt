@@ -162,7 +162,7 @@ class RTC_EXPORT UDPPort : public Port {
 
  private:
   // A helper class which can be called repeatedly to resolve multiple
-  // addresses, as opposed to webrtc::AsyncDnsResolverInterface, which can only
+  // addresses, as opposed to AsyncDnsResolverInterface, which can only
   // resolve one address per instance.
   class AddressResolver {
    public:
@@ -212,7 +212,7 @@ class RTC_EXPORT UDPPort : public Port {
   // Sends STUN requests to the server.
   void OnSendPacket(const void* data, size_t size, StunRequest* req);
 
-  // TODO(mallinaht): Move this up to webrtc::Port when SignalAddressReady is
+  // TODO(mallinaht): Move this up to Port when SignalAddressReady is
   // changed to SignalPortReady.
   void MaybeSetPortCompleteOrError();
 
@@ -222,7 +222,7 @@ class RTC_EXPORT UDPPort : public Port {
   // requests indefinitely to keep the NAT binding alive. Otherwise, stop
   // sending STUN binding requests after HIGH_COST_PORT_KEEPALIVE_LIFETIME.
   int GetStunKeepaliveLifetime() {
-    return (network_cost() >= webrtc::kNetworkCostHigh)
+    return (network_cost() >= kNetworkCostHigh)
                ? HIGH_COST_PORT_KEEPALIVE_LIFETIME
                : INFINITE_LIFETIME;
   }
@@ -269,15 +269,5 @@ class StunPort : public UDPPort {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace cricket {
-using ::webrtc::HIGH_COST_PORT_KEEPALIVE_LIFETIME;
-using ::webrtc::INFINITE_LIFETIME;
-using ::webrtc::StunPort;
-using ::webrtc::UDPPort;
-}  // namespace cricket
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_STUN_PORT_H_

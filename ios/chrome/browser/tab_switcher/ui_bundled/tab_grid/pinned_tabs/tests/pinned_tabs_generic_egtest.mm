@@ -61,17 +61,20 @@ id<GREYMatcher> GetMatcherForPinnedCellWithTitle(NSString* title) {
 
 // Matcher for the "Done" button on the Tab Grid.
 id<GREYMatcher> GetMatcherForDoneButton() {
-  return grey_accessibilityID(kTabGridDoneButtonIdentifier);
+  return grey_allOf(grey_accessibilityID(kTabGridDoneButtonIdentifier),
+                    grey_sufficientlyVisible(), nil);
 }
 
 // Matcher for the "Edit" button on the Tab Grid.
 id<GREYMatcher> GetMatcherForEditButton() {
-  return grey_accessibilityID(kTabGridEditButtonIdentifier);
+  return grey_allOf(grey_accessibilityID(kTabGridEditButtonIdentifier),
+                    grey_sufficientlyVisible(), nil);
 }
 
 // Matcher for the "Undo" button on the Tab Grid.
 id<GREYMatcher> GetMatcherForUndoButton() {
-  return grey_accessibilityID(kTabGridUndoCloseAllButtonIdentifier);
+  return grey_allOf(grey_accessibilityID(kTabGridUndoCloseAllButtonIdentifier),
+                    grey_sufficientlyVisible(), nil);
 }
 
 // Matcher for the pinned view.
@@ -344,8 +347,10 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
       assertWithMatcher:grey_enabled()];
 
   // Verify "Edit" button is disabled.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
-      assertWithMatcher:grey_not(grey_enabled())];
+  [self
+      waitForAnimationCompletionWithMacther:grey_allOf(
+                                                GetMatcherForEditButton(),
+                                                grey_not(grey_enabled()), nil)];
 
   [self waitForAnimationCompletionWithMacther:GetMatcherForPinnedCellWithTitle(
                                                   @"PinnedTab0")];
@@ -376,8 +381,10 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
       performAction:grey_tap()];
 
   // Verify "Done" button is disabled.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForDoneButton()]
-      assertWithMatcher:grey_not(grey_enabled())];
+  [self
+      waitForAnimationCompletionWithMacther:grey_allOf(
+                                                GetMatcherForDoneButton(),
+                                                grey_not(grey_enabled()), nil)];
 
   // Verify "Edit" button is disabled.
   [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
@@ -456,8 +463,10 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
       performAction:grey_tap()];
 
   // Verify "Done" button is disabled.
-  [[EarlGrey selectElementWithMatcher:GetMatcherForDoneButton()]
-      assertWithMatcher:grey_not(grey_enabled())];
+  [self
+      waitForAnimationCompletionWithMacther:grey_allOf(
+                                                GetMatcherForDoneButton(),
+                                                grey_not(grey_enabled()), nil)];
 
   // Verify "Edit" button is disabled.
   [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
@@ -495,6 +504,14 @@ GURL GetURLForTitle(net::EmbeddedTestServer* test_server, NSString* title) {
   // Tap on "Edit" button.
   [[EarlGrey selectElementWithMatcher:GetMatcherForEditButton()]
       performAction:grey_tap()];
+
+  if (@available(iOS 19, *)) {
+    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
+    // this workaround when it's not needed anymore. On iOS 26, the keyboard
+    // appears when the "Edit" button is tapped and it hides the elements
+    // behind. Close the keyboard by typing a return key.
+    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
+  }
 
   // Tap on "Close All Tabs" menu action.
   [[EarlGrey selectElementWithMatcher:chrome_test_util::

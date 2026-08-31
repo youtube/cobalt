@@ -10,16 +10,22 @@
 
 #include "rtc_base/firewall_socket_server.h"
 
-#include <errno.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include <string>
+#include <algorithm>
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 
 #include "absl/algorithm/container.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/async_socket.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/socket.h"
+#include "rtc_base/socket_address.h"
+#include "rtc_base/socket_server.h"
+#include "rtc_base/synchronization/mutex.h"
 
 namespace webrtc {
 

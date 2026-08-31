@@ -21,6 +21,19 @@ BOOL IsPasskeyPRFEnabled() {
       boolValue];
 }
 
+BOOL IsPasskeyLargeBlobEnabled() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:
+          AppGroupUserDefaulsCredentialProviderPasskeyLargeBlobEnabled()]
+      boolValue];
+}
+
+BOOL IsSignalApiEnabled() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:AppGroupUserDefaulsCredentialProviderSignalAPIEnabled()]
+      boolValue];
+}
+
 BOOL IsPasswordCreationUserEnabled() {
   return [[app_group::GetGroupUserDefaults()
       objectForKey:
@@ -49,10 +62,4 @@ std::optional<bool> GetPasskeyCreationPolicy() {
     return std::nullopt;
   }
   return [passkeyCreationPolicy boolValue];
-}
-
-BOOL IsPasskeysM2Enabled() {
-  return [[app_group::GetGroupUserDefaults()
-      objectForKey:AppGroupUserDefaultsCredentialProviderPasskeysM2Enabled()]
-      boolValue];
 }

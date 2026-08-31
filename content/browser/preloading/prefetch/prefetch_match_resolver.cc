@@ -19,6 +19,7 @@
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/public/browser/navigation_handle_user_data.h"
+#include "services/network/public/cpp/url_loader_completion_status.h"
 
 namespace content {
 
@@ -221,7 +222,9 @@ void PrefetchMatchResolver::StartWaitFor(
   // https://chromium-review.googlesource.com/c/chromium/src/+/5668924 and
   // write tests.
   base::TimeDelta timeout = PrefetchBlockUntilHeadTimeout(
-      prefetch_container.GetPrefetchType(), is_nav_prerender_);
+      prefetch_container.GetPrefetchType(),
+      prefetch_container.ShouldDisableBlockUntilHeadTimeout(),
+      is_nav_prerender_);
   if (timeout.is_positive()) {
     candidate_data->timeout_timer = std::make_unique<base::OneShotTimer>();
     candidate_data->timeout_timer->Start(
@@ -236,7 +239,8 @@ void PrefetchMatchResolver::StartWaitFor(
 
 void PrefetchMatchResolver::UnregisterCandidate(
     const PrefetchContainer::Key& prefetch_key,
-    bool is_served) {
+    bool is_served,
+    PrefetchPotentialCandidateServingResult matching_reuslt) {
   // By #prefetch-key-availability
   CHECK(candidates_.contains(prefetch_key));
   auto& candidate_data = candidates_[prefetch_key];
@@ -244,6 +248,7 @@ void PrefetchMatchResolver::UnregisterCandidate(
   PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
   prefetch_container.OnUnregisterCandidate(navigated_key_.url(), is_served,
+                                           matching_reuslt, is_nav_prerender_,
                                            GetBlockedDuration());
   prefetch_container.RemoveObserver(this);
   candidates_.erase(prefetch_key);
@@ -251,7 +256,9 @@ void PrefetchMatchResolver::UnregisterCandidate(
 
 void PrefetchMatchResolver::OnWillBeDestroyed(
     PrefetchContainer& prefetch_container) {
-  MaybeUnblockForUnmatch(prefetch_container.key());
+  MaybeUnblockForUnmatch(prefetch_container.key(),
+                         PrefetchPotentialCandidateServingResult::
+                             kNotServedPrefetchWillBeDestroyed);
 }
 
 void PrefetchMatchResolver::OnGotInitialEligibility(
@@ -260,7 +267,9 @@ void PrefetchMatchResolver::OnGotInitialEligibility(
   CHECK(features::UsePrefetchPrerenderIntegration());
 
   if (eligibility != PreloadingEligibility::kEligible) {
-    MaybeUnblockForUnmatch(prefetch_container.key());
+    MaybeUnblockForUnmatch(
+        prefetch_container.key(),
+        PrefetchPotentialCandidateServingResult::kNotServedIneligiblePrefetch);
   }
 }
 
@@ -286,7 +295,9 @@ void PrefetchMatchResolver::OnDeterminedHead(
   if (prefetch_container.service_worker_state() !=
       expected_service_worker_state_) {
     CHECK(base::FeatureList::IsEnabled(features::kPrefetchServiceWorker));
-    MaybeUnblockForUnmatch(prefetch_container.key());
+    MaybeUnblockForUnmatch(prefetch_container.key(),
+                           PrefetchPotentialCandidateServingResult::
+                               kNotServedPrefetchServiceWorkerStateMismatch);
     return;
   }
 
@@ -305,7 +316,9 @@ void PrefetchMatchResolver::OnDeterminedHead(
     // -> here
     case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
     case PrefetchContainer::ServableState::kNotServable:
-      MaybeUnblockForUnmatch(prefetch_container.key());
+      MaybeUnblockForUnmatch(prefetch_container.key(),
+                             PrefetchPotentialCandidateServingResult::
+                                 kNotServedUnsatisfiedPrefetchServeableState);
       return;
     case PrefetchContainer::ServableState::kServable:
       // Proceed.
@@ -323,12 +336,9 @@ void PrefetchMatchResolver::OnDeterminedHead(
       prefetch_container.IsExactMatch(navigated_key_.url()) ||
       prefetch_container.IsNoVarySearchHeaderMatch(navigated_key_.url());
   if (!is_match) {
-    MaybeUnblockForUnmatch(prefetch_container.key());
-    return;
-  }
-
-  if (prefetch_container.HasPrefetchBeenConsideredToServe()) {
-    MaybeUnblockForUnmatch(prefetch_container.key());
+    MaybeUnblockForUnmatch(prefetch_container.key(),
+                           PrefetchPotentialCandidateServingResult::
+                               kNotServedDeterminedNVSHeaderMismatch);
     return;
   }
 
@@ -336,13 +346,20 @@ void PrefetchMatchResolver::OnDeterminedHead(
   UnblockForMatch(prefetch_container.key());
 }
 
+void PrefetchMatchResolver::OnPrefetchCompletedOrFailed(
+    PrefetchContainer& prefetch_container,
+    const network::URLLoaderCompletionStatus& completion_status,
+    const std::optional<int>& response_code) {}
+
 void PrefetchMatchResolver::OnTimeout(PrefetchContainer::Key prefetch_key) {
   // `timeout_timer` is alive, which implies `candidate` is alive.
   CHECK(candidates_.contains(prefetch_key));
   auto& candidate_data = candidates_[prefetch_key];
   CHECK(candidate_data->prefetch_container);
 
-  MaybeUnblockForUnmatch(prefetch_key);
+  MaybeUnblockForUnmatch(
+      prefetch_key,
+      PrefetchPotentialCandidateServingResult::kNotServedBlockUntilHeadTimeout);
 }
 
 void PrefetchMatchResolver::UnblockForMatch(
@@ -358,11 +375,14 @@ void PrefetchMatchResolver::UnblockForMatch(
   CHECK_EQ(prefetch_container.service_worker_state(),
            expected_service_worker_state_);
 
-  UnregisterCandidate(prefetch_key, /*is_served=*/true);
+  UnregisterCandidate(prefetch_key, /*is_served=*/true,
+                      PrefetchPotentialCandidateServingResult::kServed);
 
   // Unregister remaining candidates as not served.
   for (auto& key2 : Keys(candidates_)) {
-    UnregisterCandidate(key2, /*is_served=*/false);
+    UnregisterCandidate(key2, /*is_served=*/false,
+                        PrefetchPotentialCandidateServingResult::
+                            kNotServedOtherCandidatesAreMatched);
   }
 
   // Postprocess for success case.
@@ -398,8 +418,9 @@ void PrefetchMatchResolver::UnblockForNoCandidates() {
 }
 
 void PrefetchMatchResolver::MaybeUnblockForUnmatch(
-    const PrefetchContainer::Key& prefetch_key) {
-  UnregisterCandidate(prefetch_key, /*is_served=*/false);
+    const PrefetchContainer::Key& prefetch_key,
+    PrefetchPotentialCandidateServingResult matching_result) {
+  UnregisterCandidate(prefetch_key, /*is_served=*/false, matching_result);
 
   if (candidates_.size() == 0) {
     UnblockForNoCandidates();
@@ -419,7 +440,9 @@ void PrefetchMatchResolver::UnblockForCookiesChanged(
     CHECK(candidate_data->prefetch_container);
     PrefetchContainer& prefetch_container = *candidate_data->prefetch_container;
 
-    UnregisterCandidate(prefetch_key, /*is_served=*/false);
+    UnregisterCandidate(
+        prefetch_key, /*is_served=*/false,
+        PrefetchPotentialCandidateServingResult::kNotServedCookiesChanged);
 
     prefetch_container.OnDetectedCookiesChange(
         /*is_unblock_for_cookies_changed_triggered_by_this_prefetch_container*/

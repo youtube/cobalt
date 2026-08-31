@@ -85,6 +85,33 @@ public class TabUiThemeUtil {
         return SurfaceColorUpdateUtils.getDefaultThemeColor(context, isIncognito);
     }
 
+    /**
+     * Returns the tab strip multi-selected tab color. This is a semitransparent color intended to
+     * be shown on the tab strip. To prevent transparency issues with overlapping tab strip views,
+     * the returned color is fully opaque, but constructed by overlaying the semitransparent color
+     * on top of the tab strip background color.
+     */
+    public static @ColorInt int getTabStripMultiSelectedTabColor(
+            Context context, boolean isIncognito) {
+        int baseColor = getTabStripBackgroundColor(context, isIncognito);
+        int overlayColor = SurfaceColorUpdateUtils.getDefaultThemeColor(context, isIncognito);
+        float overlayAlpha =
+                ResourcesCompat.getFloat(context.getResources(), R.dimen.multi_selected_tab_alpha);
+
+        return ColorUtils.getColorWithOverlay(baseColor, overlayColor, overlayAlpha);
+    }
+
+    /** Returns the tab strip multi-selected and hovered tab color. */
+    public static @ColorInt int getTabStripMultiSelectedHoveredTabColor(
+            Context context, boolean isIncognito) {
+        int baseColor = SurfaceColorUpdateUtils.getDefaultThemeColor(context, isIncognito);
+
+        float alpha =
+                ResourcesCompat.getFloat(
+                        context.getResources(), R.dimen.multi_selected_tab_hovered_alpha);
+        return ColorUtils.setAlphaComponentWithFloat(baseColor, alpha);
+    }
+
     /** Returns the tab strip title text color. */
     public static @ColorInt int getTabTextColor(Context context, boolean isIncognito) {
         return context.getColor(
@@ -163,7 +190,7 @@ public class TabUiThemeUtil {
      */
     public static @ColorInt int getDividerTint(Context context, boolean isIncognito) {
         if (isIncognito) {
-            return context.getColor(R.color.tab_strip_tablet_divider_bg_incognito);
+            return ContextCompat.getColor(context, R.color.tab_strip_tablet_divider_bg_incognito);
         }
 
         if (!ColorUtils.inNightMode(context)) {

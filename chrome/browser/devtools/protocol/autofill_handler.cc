@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "base/check_deref.h"
+#include "base/containers/to_vector.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/devtools/protocol/autofill.h"
@@ -20,6 +21,7 @@
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/addresses/field_filling_address_util.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
@@ -215,11 +217,11 @@ void AutofillHandler::SetAddresses(
   std::move(callback)->sendSuccess();
 }
 
-void AutofillHandler::OnFillOrPreviewDataModelForm(
+void AutofillHandler::OnFillOrPreviewForm(
     autofill::AutofillManager& manager,
-    autofill::FormGlobalId form,
+    autofill::FormGlobalId form_id,
     autofill::mojom::ActionPersistence action_persistence,
-    base::span<const autofill::FormFieldData* const> filled_fields,
+    const base::flat_set<autofill::FieldGlobalId>& filled_field_ids,
     const autofill::FillingPayload& filling_payload) {
   // We only care about address forms that were filled.
   if (action_persistence != autofill::mojom::ActionPersistence::kFill ||
@@ -228,73 +230,84 @@ void AutofillHandler::OnFillOrPreviewDataModelForm(
     return;
   }
 
-  autofill::FormStructure& form_structure =
-      CHECK_DEREF(manager.FindCachedFormById(form));
+  autofill::FormStructure& form =
+      CHECK_DEREF(manager.FindCachedFormById(form_id));
   const autofill::AutofillProfile* profile_used_to_fill_form =
       std::get<const autofill::AutofillProfile*>(filling_payload);
 
-  auto field_id_to_form_field_data =
-      base::MakeFlatMap<autofill::FieldGlobalId,
-                        const autofill::FormFieldData*>(
-          filled_fields, {}, [](const autofill::FormFieldData* field) {
-            return std::make_pair(field->global_id(), field);
-          });
+  auto filled_form_ids = [&] {
+    base::flat_set<autofill::FormGlobalId> ids;
+    for (const std::unique_ptr<autofill::AutofillField>& field : form) {
+      if (filled_field_ids.contains(field->global_id())) {
+        ids.insert(field->renderer_form_id());
+      }
+    }
+    return ids;
+  }();
 
-  auto filled_form_ids = base::MakeFlatSet<autofill::FormGlobalId>(
-      filled_fields, {}, &autofill::FormFieldData::renderer_form_id);
+  // Devtools is already in English, so we can default the locale to en-US.
+  const std::string locale = "en-US";
+
   auto filled_fields_to_be_sent_to_devtools =
       std::make_unique<protocol::Array<protocol::Autofill::FilledField>>();
-  filled_fields_to_be_sent_to_devtools->reserve(filled_fields.size());
-  for (const auto& autofill_field : form_structure) {
+  filled_fields_to_be_sent_to_devtools->reserve(filled_field_ids.size());
+  for (const std::unique_ptr<autofill::AutofillField>& field : form) {
     // `form_structure` may contains fields from multiple forms, filter out
     // fields from forms that have no autofilled fields as irrelevant.
-    if (!filled_form_ids.contains(autofill_field->renderer_form_id())) {
+    if (!filled_form_ids.contains(field->renderer_form_id())) {
       continue;
     }
+    autofill::FieldTypeSet field_types = field->Type().GetTypes();
     // Whether the field was classified from the autocomplete attribute or
     // predictions. If no autocomplete attribute exists OR the actual ServerType
     // differs from what it would have been with only autocomplete, autofill
     // inferred the type.
     bool autofill_inferred =
-        autofill_field->html_type() == autofill::HtmlFieldType::kUnspecified ||
-        autofill_field->html_type() == autofill::HtmlFieldType::kUnrecognized ||
-        autofill::HtmlFieldTypeToBestCorrespondingFieldType(
-            autofill_field->html_type()) !=
-            autofill_field->Type().GetStorableType();
-    auto filled_field_iterator =
-        field_id_to_form_field_data.find(autofill_field->global_id());
-    const std::u16string filled_value =
-        filled_field_iterator != field_id_to_form_field_data.end()
-            ? filled_field_iterator->second->value()
-            : u"";
+        field->html_type() == autofill::HtmlFieldType::kUnspecified ||
+        field->html_type() == autofill::HtmlFieldType::kUnrecognized ||
+        !field_types.contains(
+            autofill::HtmlFieldTypeToBestCorrespondingFieldType(
+                field->html_type()));
+
+    std::vector<std::string_view> field_type_strings = base::ToVector(
+        field_types, &autofill::FieldTypeToDeveloperRepresentationString);
+    std::erase(field_type_strings, "");
+    // TODO(crbug.com/436489442): Reading the filled value from the profile is
+    // brittle because it could diverge from the values that are actually sent
+    // to the renderer. A more robust solution should be found.
+    std::u16string filled_value = u"";
+    if (filled_field_ids.contains(field->global_id())) {
+      std::string failure_to_fill;
+      filled_value =
+          autofill::GetFillingValueAndTypeForProfile(
+              *profile_used_to_fill_form, locale, field->Type(), *field,
+              manager.client().GetAddressNormalizer(), &failure_to_fill)
+              .first;
+    }
     filled_fields_to_be_sent_to_devtools->push_back(
         protocol::Autofill::FilledField::Create()
-            .SetId(base::UTF16ToUTF8(autofill_field->id_attribute()))
-            .SetName(base::UTF16ToUTF8(autofill_field->name_attribute()))
+            .SetId(base::UTF16ToUTF8(field->id_attribute()))
+            .SetName(base::UTF16ToUTF8(field->name_attribute()))
             .SetValue(base::UTF16ToUTF8(filled_value))
-            .SetHtmlType(std::string(autofill::FormControlTypeToString(
-                autofill_field->form_control_type())))
-            .SetAutofillType(
-                std::string(FieldTypeToDeveloperRepresentationString(
-                    autofill_field->Type().GetStorableType())))
+            .SetHtmlType(std::string(
+                autofill::FormControlTypeToString(field->form_control_type())))
+            .SetAutofillType(base::JoinString(field_type_strings, ", "))
             .SetFillingStrategy(
                 autofill_inferred
                     ? protocol::Autofill::FillingStrategyEnum::AutofillInferred
                     : protocol::Autofill::FillingStrategyEnum::
                           AutocompleteAttribute)
-            .SetFrameId(GetRenderFrameDevtoolsToken(
-                            target_id_,
-                            autofill_field->global_id().frame_token->ToString())
-                            .value_or(""))
-            .SetFieldId(autofill_field->renderer_id().value())
+            .SetFrameId(
+                GetRenderFrameDevtoolsToken(
+                    target_id_, field->global_id().frame_token->ToString())
+                    .value_or(""))
+            .SetFieldId(field->renderer_id().value())
             .Build());
   }
 
   // Send profile information to devtools so that it can build the UI.
   // We use the same format we see in the settings page.
   std::vector<std::vector<autofill::AutofillAddressUIComponent>> components;
-  // Devtools is already in english, so we can default the local to en-US.
-  const std::string locale = "en-US";
   autofill::GetAddressComponents(
       base::UTF16ToUTF8(profile_used_to_fill_form->GetInfo(
           autofill::FieldType::ADDRESS_HOME_COUNTRY, locale)),
@@ -400,7 +413,7 @@ void AutofillHandler::OnContentAutofillDriverCreated(
   // If the outermost frame driver (returned by `GetAutofillDriver()`) was
   // recreated (e.g. happens after certain navigations) we need to resubscribe
   // to the autofill manager, which is also recreated, to keep getting observer
-  // callbacks like `OnFillOrPreviewDataModelForm`.
+  // callbacks like `OnFillOrPreviewForm`.
   if (enabled_ && &new_driver == GetAutofillDriver()) {
     autofill_manager_observation_.Reset();
     autofill_manager_observation_.Observe(&new_driver.GetAutofillManager());

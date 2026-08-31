@@ -79,7 +79,9 @@ class CORE_EXPORT StyleRuleBase : public GarbageCollected<StyleRuleBase> {
     kFunction,
     kMixin,
     kApplyMixin,
+    kContents,
     kPositionTry,
+    kCustomMedia,
   };
 
   // Name of a cascade layer as given by an @layer rule, split at '.' into a
@@ -129,7 +131,9 @@ class CORE_EXPORT StyleRuleBase : public GarbageCollected<StyleRuleBase> {
   bool IsFunctionRule() const { return GetType() == kFunction; }
   bool IsMixinRule() const { return GetType() == kMixin; }
   bool IsApplyMixinRule() const { return GetType() == kApplyMixin; }
+  bool IsContentsRule() const { return GetType() == kContents; }
   bool IsPositionTryRule() const { return GetType() == kPositionTry; }
+  bool IsCustomMediaRule() const { return GetType() == kCustomMedia; }
 
   StyleRuleBase* Copy() const;
 
@@ -586,7 +590,9 @@ class CORE_EXPORT StyleRuleContainer : public StyleRuleCondition {
     return MakeGarbageCollected<StyleRuleContainer>(*this);
   }
 
-  void SetConditionText(const ExecutionContext*, String);
+  void SetConditionText(const ExecutionContext*,
+                        StyleSheetContents* parent_contents,
+                        String);
 
   void TraceAfterDispatch(blink::Visitor*) const;
 
@@ -658,7 +664,11 @@ class CORE_EXPORT StyleRuleFunction : public StyleRuleGroup {
                     HeapVector<Parameter> parameters,
                     HeapVector<Member<StyleRuleBase>> child_rules,
                     CSSSyntaxDefinition return_type);
-  StyleRuleFunction(const StyleRuleFunction&) = delete;
+  StyleRuleFunction(const StyleRuleFunction&) = default;
+
+  StyleRuleFunction* Copy() const {
+    return MakeGarbageCollected<StyleRuleFunction>(*this);
+  }
 
   const AtomicString& Name() const { return name_; }
   const HeapVector<Parameter>& GetParameters() const { return parameters_; }
@@ -695,18 +705,86 @@ class CORE_EXPORT StyleRuleMixin : public StyleRuleBase {
   Member<StyleRule> fake_parent_rule_;
 };
 
+using MixinMap = HeapHashMap<AtomicString, Member<StyleRuleMixin>>;
+
 // An @apply rule, representing applying a mixin.
 class CORE_EXPORT StyleRuleApplyMixin : public StyleRuleBase {
  public:
-  explicit StyleRuleApplyMixin(AtomicString name);
+  StyleRuleApplyMixin(AtomicString name,
+                      StyleRule* fake_parent_rule_for_declarations)
+      : StyleRuleBase(kApplyMixin),
+        name_(name),
+        fake_parent_rule_for_declarations_(fake_parent_rule_for_declarations) {}
   StyleRuleApplyMixin(const StyleRuleMixin&) = delete;
 
   const AtomicString& GetName() const { return name_; }
+
+  // Declarations argument (for @contents). May be nullptr.
+  StyleRule* FakeParentRuleForDeclarations() const {
+    return fake_parent_rule_for_declarations_;
+  }
 
   void TraceAfterDispatch(blink::Visitor*) const;
 
  private:
   AtomicString name_;
+  Member<StyleRule> fake_parent_rule_for_declarations_;
+};
+
+// A @contents rule, representing a placeholder within a mixin
+// for rules sent in through a parameter to @apply. The @contents
+// rule may have a declaration block, which is used as a fallback
+// if no @contents is given. We store that declaration block
+// as a dummy rule, similar to how StyleRuleMixin works.
+//
+// This class is named “…Statement” to avoid confusion with
+// the more general concept of contents of a style rule.
+class CORE_EXPORT StyleRuleContentsStatement : public StyleRuleBase {
+ public:
+  explicit StyleRuleContentsStatement(StyleRule* fake_parent_rule_for_fallback)
+      : StyleRuleBase(kContents),
+        fake_parent_rule_for_fallback_(fake_parent_rule_for_fallback) {}
+  StyleRuleContentsStatement(const StyleRuleMixin&) = delete;
+
+  // May be nullptr.
+  StyleRule* FakeParentRuleForFallback() const {
+    return fake_parent_rule_for_fallback_;
+  }
+
+  void TraceAfterDispatch(blink::Visitor*) const;
+
+ private:
+  Member<StyleRule> fake_parent_rule_for_fallback_;
+};
+
+class CORE_EXPORT StyleRuleCustomMedia : public StyleRuleBase {
+ public:
+  StyleRuleCustomMedia(AtomicString name, MediaQuerySet* media_query_set);
+  StyleRuleCustomMedia(AtomicString name, bool value);
+
+  const String& GetName() const { return name_; }
+  bool IsMediaQueryValue() const {
+    return std::holds_alternative<Member<const MediaQuerySet>>(value_);
+  }
+  bool IsBooleanValue() const { return std::holds_alternative<bool>(value_); }
+  const MediaQuerySet* GetMediaQueryValue() const {
+    DCHECK(std::holds_alternative<Member<const MediaQuerySet>>(value_));
+    return std::get<Member<const MediaQuerySet>>(value_);
+  }
+  bool GetBooleanValue() const {
+    DCHECK(std::holds_alternative<bool>(value_));
+    return std::get<bool>(value_);
+  }
+  void SetMediaQueries(const MediaQuerySet* media_queries) {
+    value_ = media_queries;
+  }
+
+  void TraceAfterDispatch(blink::Visitor*) const;
+
+ private:
+  AtomicString name_;
+  using CustomMediaValue = std::variant<Member<const MediaQuerySet>, bool>;
+  CustomMediaValue value_;
 };
 
 template <>
@@ -826,6 +904,20 @@ template <>
 struct DowncastTraits<StyleRuleApplyMixin> {
   static bool AllowFrom(const StyleRuleBase& rule) {
     return rule.IsApplyMixinRule();
+  }
+};
+
+template <>
+struct DowncastTraits<StyleRuleContentsStatement> {
+  static bool AllowFrom(const StyleRuleBase& rule) {
+    return rule.IsContentsRule();
+  }
+};
+
+template <>
+struct DowncastTraits<StyleRuleCustomMedia> {
+  static bool AllowFrom(const StyleRuleBase& rule) {
+    return rule.IsCustomMediaRule();
   }
 };
 

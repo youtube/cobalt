@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 #include "base/test/metrics/histogram_tester.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_container_view_controller.h"
 #include "chrome/browser/ui/views/user_education/custom_webui_help_bubble.h"
-#include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo.mojom-forward.h"
 #include "chrome/browser/ui/webui/extensions_zero_state_promo/zero_state_promo.mojom.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/user_education/common/user_education_data.h"
@@ -35,14 +36,9 @@ class ExtensionsZeroStatePromoTestBase : public InteractiveFeaturePromoTest {
                 feature_engagement::kIPHExtensionsZeroStatePromoVariantParam
                     .GetName(iphVariant)}}}})) {}
 
-  void PreRunTestOnMainThread() override {
-    // Block zero state promo IPH during browser launch, to prevent a race
-    // condition where the IPH steals focus from the browser, and causes the
-    // PreRunTestOnMainThread method to time out waiting for the browser to
-    // come to focus.
-    auto auto_reset = ExtensionsToolbarContainerViewController::
-        BlockZeroStatePromoForTesting();
-    InProcessBrowserTest::PreRunTestOnMainThread();
+  void SetUpOnMainThread() override {
+    InteractiveFeaturePromoTest::SetUpOnMainThread();
+    ExtensionsToolbarContainerViewController::WakeZeroStatePromoForTesting();
   }
 
   auto CheckZeroStatePromoClosedReason(
@@ -59,7 +55,7 @@ class ExtensionsZeroStatePromoTestBase : public InteractiveFeaturePromoTest {
       base::HistogramBase::Count32 expected_count) {
     return Do([this, link, expected_count]() {
       histogram_tester_.ExpectBucketCount(
-          "Extension.ZeroStatePromo.IphActionChromeWebStoreLink", link,
+          "Extensions.ZeroStatePromo.IphActionChromeWebStoreLink", link,
           expected_count);
     });
   }
@@ -106,7 +102,22 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomActionIphTest,
       InAnyContext(WaitForPromo(
           feature_engagement::kIPHExtensionsZeroStatePromoFeature)),
       PressDefaultPromoButton(),
-      WaitForTabOpenedTo(1, extension_urls::GetWebstoreLaunchURL()));
+      WaitForTabOpenedTo(
+          1, GURL("https://chrome.google.com/"
+                  "webstore?utm_source=ext_zero_state_promo_generic_iph")));
+}
+
+// Test that IPH does not show when the user does not have the PromotionEnabled
+// policy.
+IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomActionIphTest,
+                       RespectPromotionEnabledPolicy) {
+  g_browser_process->local_state()->SetBoolean(prefs::kPromotionsEnabled,
+                                               false);
+  RunTestSequence(
+      InstrumentTab(kFirstTabContents),
+      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUIAboutURL)),
+      InAnyContext(CheckPromoRequested(
+          feature_engagement::kIPHExtensionsZeroStatePromoFeature, false)));
 }
 
 class ExtensionsZeroStateCustomUiChipIphTest
@@ -148,7 +159,10 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiChipIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kCouponButton,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(1, GURL(zero_state_promo::mojom::kCouponWebStoreUrl)),
+      WaitForTabOpenedTo(
+          1,
+          GURL("https://chromewebstore.google.com/category/extensions/"
+               "lifestyle/shopping?utm_source=ext_zero_state_promo_chips_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kCoupon, 1));
 }
@@ -173,7 +187,10 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiChipIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kWritingButton,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(1, GURL(zero_state_promo::mojom::kWritingWebStoreUrl)),
+      WaitForTabOpenedTo(
+          1,
+          GURL("https://chromewebstore.google.com/collection/"
+               "writing_essentials?utm_source=ext_zero_state_promo_chips_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kWriting, 1));
 }
@@ -199,7 +216,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiChipIphTest,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
       WaitForTabOpenedTo(
-          1, GURL(zero_state_promo::mojom::kProductivityWebStoreUrl)),
+          1, GURL("https://chromewebstore.google.com/collection/"
+                  "productivity?utm_source=ext_zero_state_promo_chips_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kProductivity, 1));
 }
@@ -224,7 +242,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiChipIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kAiButton,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(1, GURL(zero_state_promo::mojom::kAiWebStoreUrl)),
+      WaitForTabOpenedTo(
+          1, GURL("https://chromewebstore.google.com/collection/"
+                  "ai_productivity?utm_source=ext_zero_state_promo_chips_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kAi, 1));
 }
@@ -249,6 +269,19 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiChipIphTest,
           "CheckTabCount"),
       CheckZeroStatePromoClosedReason(
           user_education::FeaturePromoClosedReason::kDismiss));
+}
+
+// Test that IPH does not show when the user does not have the PromotionEnabled
+// policy.
+IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiChipIphTest,
+                       RespectPromotionEnabledPolicy) {
+  g_browser_process->local_state()->SetBoolean(prefs::kPromotionsEnabled,
+                                               false);
+  RunTestSequence(
+      InstrumentTab(kFirstTabContents),
+      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUIAboutURL)),
+      InAnyContext(CheckPromoRequested(
+          feature_engagement::kIPHExtensionsZeroStatePromoFeature, false)));
 }
 
 class ExtensionsZeroStateCustomUiPlainLinkIphTest
@@ -293,7 +326,10 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kCouponLink,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(1, GURL(zero_state_promo::mojom::kCouponWebStoreUrl)),
+      WaitForTabOpenedTo(
+          1,
+          GURL("https://chromewebstore.google.com/category/extensions/"
+               "lifestyle/shopping?utm_source=ext_zero_state_promo_links_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kCoupon, 1));
 }
@@ -315,7 +351,10 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kWritingLink,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(1, GURL(zero_state_promo::mojom::kWritingWebStoreUrl)),
+      WaitForTabOpenedTo(
+          1,
+          GURL("https://chromewebstore.google.com/collection/"
+               "writing_essentials?utm_source=ext_zero_state_promo_links_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kWriting, 1));
 }
@@ -338,7 +377,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
       WaitForTabOpenedTo(
-          1, GURL(zero_state_promo::mojom::kProductivityWebStoreUrl)),
+          1, GURL("https://chromewebstore.google.com/collection/"
+                  "productivity?utm_source=ext_zero_state_promo_links_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kProductivity, 1));
 }
@@ -360,7 +400,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kAiLink,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(1, GURL(zero_state_promo::mojom::kAiWebStoreUrl)),
+      WaitForTabOpenedTo(
+          1, GURL("https://chromewebstore.google.com/collection/"
+                  "ai_productivity?utm_source=ext_zero_state_promo_links_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kAi, 1));
 }
@@ -382,8 +424,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
       ClickElement(kZeroStatePromoWebUiIphId, kDiscoverExtensionsButton,
                    ExecuteJsMode::kFireAndForget),
       WaitForHide(CustomWebUIHelpBubble::kWebViewIdForTesting),
-      WaitForTabOpenedTo(
-          1, GURL(zero_state_promo::mojom::kDiscoverExtensionWebStoreUrl)),
+      WaitForTabOpenedTo(1, GURL("https://"
+                                 "chromewebstore.google.com?utm_source=ext_"
+                                 "zero_state_promo_links_iph")),
       CheckZeroStatePromoLinkClickCount(
           zero_state_promo::mojom::WebStoreLinkClicked::kDiscoverExtension, 1));
 }
@@ -430,4 +473,17 @@ IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
           "CheckTabCount"),
       CheckZeroStatePromoClosedReason(
           user_education::FeaturePromoClosedReason::kDismiss));
+}
+
+// Test that IPH does not show when the user does not have the PromotionEnabled
+// policy.
+IN_PROC_BROWSER_TEST_F(ExtensionsZeroStateCustomUiPlainLinkIphTest,
+                       RespectPromotionEnabledPolicy) {
+  g_browser_process->local_state()->SetBoolean(prefs::kPromotionsEnabled,
+                                               false);
+  RunTestSequence(
+      InstrumentTab(kFirstTabContents),
+      NavigateWebContents(kFirstTabContents, GURL(chrome::kChromeUIAboutURL)),
+      InAnyContext(CheckPromoRequested(
+          feature_engagement::kIPHExtensionsZeroStatePromoFeature, false)));
 }

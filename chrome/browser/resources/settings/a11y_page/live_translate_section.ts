@@ -23,7 +23,8 @@ import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
 import type {DropdownMenuOptionList} from '../controls/settings_dropdown_menu.js';
 import type {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
 import {loadTimeData} from '../i18n_setup.js';
-import type {LanguageHelper, LanguagesModel} from '../languages_page/languages_types.js';
+import {getLanguageHelperInstance} from '../languages_page/languages.js';
+import {isTranslateBaseLanguage} from '../languages_page/languages_util.js';
 
 import {getTemplate} from './live_translate_section.html.js';
 
@@ -48,17 +49,6 @@ export class SettingsLiveTranslateElement extends
 
   static get properties() {
     return {
-      /**
-       * Read-only reference to the languages model provided by the
-       * 'settings-languages' instance.
-       */
-      languages: {
-        type: Object,
-        notify: true,
-      },
-
-      languageHelper: Object,
-
       enableLiveTranslateSubtitle_: {
         type: String,
         value: loadTimeData.getString('captionsEnableLiveTranslateSubtitle'),
@@ -76,19 +66,18 @@ export class SettingsLiveTranslateElement extends
     };
   }
 
-  declare languages: LanguagesModel;
-  declare languageHelper: LanguageHelper;
   declare private enableLiveTranslateSubtitle_: string;
   declare private languageOptions_: DropdownMenuOptionList;
   declare private translatableLanguages_: DropdownMenuOptionList;
 
-  override ready() {
-    super.ready();
-    this.languageHelper.whenReady().then(() => {
+  override connectedCallback() {
+    super.connectedCallback();
+    const languageHelper = getLanguageHelperInstance();
+    languageHelper.whenReady().then(() => {
       this.translatableLanguages_ =
-          this.languages?.supported
+          languageHelper.languages!.supported
               .filter(language => {
-                return this.languageHelper.isTranslateBaseLanguage(language);
+                return isTranslateBaseLanguage(language);
               })
               .map(language => {
                 return {value: language.code, name: language.displayName};

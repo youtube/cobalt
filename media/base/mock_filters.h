@@ -106,7 +106,7 @@ class MockPipeline : public Pipeline {
   }
   MOCK_METHOD2(OnResume, void(base::TimeDelta, PipelineStatusCallback&));
   MOCK_METHOD2(OnEnabledAudioTracksChanged,
-               void(const std::vector<MediaTrack::Id>&, base::OnceClosure));
+               void(std::optional<MediaTrack::Id>, base::OnceClosure));
   MOCK_METHOD2(OnSelectedVideoTrackChanged,
                void(std::optional<MediaTrack::Id>, base::OnceClosure));
   MOCK_METHOD0(OnExternalVideoFrameRequest, void());
@@ -195,7 +195,7 @@ class MockDemuxer : public Demuxer {
   MOCK_METHOD(void,
               OnTracksChanged,
               (DemuxerStream::Type,
-               const std::vector<MediaTrack::Id>&,
+               std::optional<MediaTrack::Id>,
                base::TimeDelta,
                TrackChangeCB),
               (override));
@@ -221,16 +221,10 @@ class MockDemuxerStream : public DemuxerStream {
   VideoDecoderConfig video_decoder_config() override;
   MOCK_METHOD0(EnableBitstreamConverter, void());
   MOCK_METHOD0(SupportsConfigChanges, bool());
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void set_audio_decoder_config(const AudioDecoderConfig& config);
   void set_video_decoder_config(const VideoDecoderConfig& config);
   void set_liveness(StreamLiveness liveness);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void set_mime_type(const std::string& mime_type);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   Type type_ = DemuxerStream::Type::UNKNOWN;
@@ -881,6 +875,7 @@ class MockMediaClient : public media::MediaClient {
   MOCK_METHOD1(IsDecoderSupportedVideoType, bool(const media::VideoType& type));
   MOCK_METHOD1(IsEncoderSupportedVideoType, bool(const media::VideoType& type));
   MOCK_METHOD1(IsSupportedBitstreamAudioCodec, bool(media::AudioCodec codec));
+  MOCK_METHOD0(ShouldSuppressAudioTracks, bool());
   MOCK_METHOD1(GetAudioRendererAlgorithmParameters,
                std::optional<::media::AudioRendererAlgorithmParameters>(
                    media::AudioParameters audio_parameters));

@@ -35,7 +35,7 @@ public class FormData {
     public final String mHost;
     public final List<FormFieldData> mFields;
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    @VisibleForTesting
     @CalledByNative
     static FormData createFormData(
             int sessionId,
@@ -76,6 +76,9 @@ public class FormData {
                 child.setAutofillHints(field.mAutocompleteAttr.split(" +"));
             }
             child.setHint(field.mPlaceholder);
+            if (AndroidAutofillFeatures.ANDROID_AUTOFILL_FORWARD_IFRAME_ORIGIN.isEnabled()) {
+                child.setWebDomain(field.mOrigin);
+            }
 
             RectF bounds = field.getBoundsInContainerViewCoordinates();
             // Field has no scroll.

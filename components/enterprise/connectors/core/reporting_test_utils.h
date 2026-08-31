@@ -34,11 +34,19 @@ class EventReportValidatorBase {
 
   void ExpectNoReport();
 
+  // TODO(crbug.com/396439420): Rename this method and delete the other two url
+  // filtering event validation methods
+  void ExpectProtoBasedUrlFilteringInterstitialEvent(
+      chrome::cros::reporting::proto::UrlFilteringInterstitialEvent
+          expected_urlf_event);
+
   void ExpectURLFilteringInterstitialEvent(
-      chrome::cros::reporting::proto::UrlFilteringInterstitialEvent event);
+      chrome::cros::reporting::proto::UrlFilteringInterstitialEvent
+          expected_urlf_event);
 
   void ExpectURLFilteringInterstitialEventWithReferrers(
-      chrome::cros::reporting::proto::UrlFilteringInterstitialEvent event);
+      chrome::cros::reporting::proto::UrlFilteringInterstitialEvent
+          expected_urlf_event);
 
   // TODO(crbug.com/396438091): Delete this method once proto migration is
   // complete.
@@ -52,8 +60,12 @@ class EventReportValidatorBase {
   void ExpectLoginEvent(
       chrome::cros::reporting::proto::LoginEvent expected_login_event);
 
-  // TODO(crbug.com/396436374): Use password breach event proto instead of raw
-  // json string for validation.
+  void ExpectPasswordBreachEvent(
+      chrome::cros::reporting::proto::PasswordBreachEvent
+          expected_password_breach_event);
+
+  // TODO(crbug.com/396436374): Delete this method once proto migration is
+  // complete.
   void ExpectPasswordBreachEvent(
       const std::string& expected_trigger,
       const std::vector<std::pair<std::string, std::u16string>>&
@@ -61,8 +73,12 @@ class EventReportValidatorBase {
       const std::string& expected_profile_username,
       const std::string& expected_profile_identifier);
 
-  // TODO(crbug.com/396437152): Use password reuse event proto instead of raw
-  // json string for validation.
+  void ExpectPasswordReuseEvent(
+      chrome::cros::reporting::proto::SafeBrowsingPasswordReuseEvent
+          expected_password_reuse_event);
+
+  // TODO(crbug.com/396437152): Delete this method once proto migration is
+  // complete.
   void ExpectPasswordReuseEvent(const std::string& expected_url,
                                 const std::string& expected_username,
                                 bool expected_is_phishing_url,
@@ -70,24 +86,23 @@ class EventReportValidatorBase {
                                 const std::string& expected_profile_username,
                                 const std::string& expected_profile_identifier);
 
-  // TODO(crbug.com/396437063): Use password changed event proto instead of raw
-  // json string for validation.
+  void ExpectPasswordChangedEvent(
+      chrome::cros::reporting::proto::SafeBrowsingPasswordChangedEvent
+          expected_password_changed_event);
+
+  // TODO(crbug.com/396437063): Delete this method once proto migration is
+  // complete.
   void ExpectPassowrdChangedEvent(
       const std::string& expected_username,
       const std::string& expected_profile_username,
       const std::string& expected_profile_identifier);
 
-  // TODO(crbug.com/396437371): Use secutiry interstital event proto instead of
-  // raw json string for validation.
   void ExpectSecurityInterstitialEvent(
-      const std::string& expected_url,
-      const std::string& expected_reason,
-      const std::string& expected_profile_username,
-      const std::string& expected_profile_identifier,
-      const std::string& result,
-      const bool expected_click_through,
-      int expected_net_error_code);
+      chrome::cros::reporting::proto::SafeBrowsingInterstitialEvent
+          expected_interstitial_event);
 
+  // TODO(crbug.com/396437371):  Delete this method once proto migration is
+  // complete.
   void ExpectSecurityInterstitialEventWithReferrers(
       const std::string& expected_url,
       const std::string& expected_reason,
@@ -97,6 +112,9 @@ class EventReportValidatorBase {
       const bool expected_click_through,
       int expected_net_error_code,
       const ::chrome::cros::reporting::proto::UrlInfo& expected_referrers);
+
+  // Closure to run once all expected events are validated.
+  void SetDoneClosure(base::RepeatingClosure closure);
 
  protected:
   void ValidateField(const base::Value::Dict* value,

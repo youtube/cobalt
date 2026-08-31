@@ -37,6 +37,7 @@
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_restrictions.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/loader/worker_main_script_load_parameters.h"
 #include "third_party/blink/public/mojom/frame/lifecycle.mojom-shared.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -102,7 +103,7 @@ static int GetNextWorkerThreadId() {
 // thread and the worker thread with this wrapper. See
 // WorkerThread::PerformShutdownOnWorkerThread() for details.
 class WorkerThread::RefCountedWaitableEvent
-    : public WTF::ThreadSafeRefCounted<RefCountedWaitableEvent> {
+    : public ThreadSafeRefCounted<RefCountedWaitableEvent> {
  public:
   static scoped_refptr<RefCountedWaitableEvent> Create() {
     return base::AdoptRef<RefCountedWaitableEvent>(new RefCountedWaitableEvent);
@@ -443,19 +444,40 @@ scoped_refptr<base::SingleThreadTaskRunner> WorkerThread::GetTaskRunner(
   return worker_task_runners_.at(type);
 }
 
-void WorkerThread::ChildThreadStartedOnWorkerThread(WorkerThread* child) {
+void WorkerThread::ChildThreadStartedOnWorkerThreadLegacy(WorkerThread* child) {
   DCHECK(IsCurrentThread());
   child_threads_.insert(child);
   {
     base::AutoLock locker(lock_);
     DCHECK_EQ(ThreadState::kRunning, thread_state_);
-    CHECK_EQ(TerminationProgress::kNotRequested, termination_progress_);
     if (base::FeatureList::IsEnabled(
             blink::features::kWorkerThreadSequentialShutdown)) {
+      CHECK_EQ(TerminationProgress::kNotRequested, termination_progress_);
       ++num_child_threads_;
       CHECK_EQ(child_threads_.size(), num_child_threads_);
     }
   }
+}
+
+bool WorkerThread::ChildThreadStartedOnWorkerThread(WorkerThread* child) {
+  DCHECK(IsCurrentThread());
+  CHECK(base::FeatureList::IsEnabled(
+      blink::features::kWorkerThreadSequentialShutdown));
+  CHECK(base::FeatureList::IsEnabled(
+      blink::features::kWorkerThreadRespectTermRequest));
+  {
+    base::AutoLock locker(lock_);
+    // This thread is requested to terminate.
+    // No new thread can be added.
+    if (termination_progress_ != TerminationProgress::kNotRequested) {
+      return false;
+    }
+    CHECK_EQ(ThreadState::kRunning, thread_state_);
+    child_threads_.insert(child);
+    ++num_child_threads_;
+    CHECK_EQ(child_threads_.size(), num_child_threads_);
+  }
+  return true;
 }
 
 void WorkerThread::ChildThreadTerminatedOnWorkerThread(WorkerThread* child) {
@@ -463,7 +485,7 @@ void WorkerThread::ChildThreadTerminatedOnWorkerThread(WorkerThread* child) {
   child_threads_.erase(child);
   if (!base::FeatureList::IsEnabled(
           blink::features::kWorkerThreadSequentialShutdown)) {
-    if (child_threads_.empty() && CheckRequestedToTerminate()) {
+    if (child_threads_.empty() && IsRequestedToTerminate()) {
       PerformShutdownOnWorkerThread();
     }
     return;
@@ -595,6 +617,7 @@ void WorkerThread::InitializeOnWorkerThread(
   // We only capture task types that are actually used. When you want to use a
   // new task type, add it here.
   static constexpr TaskType kAvailableTaskTypes[] = {
+      TaskType::kBackForwardCachePostedMessage,
       TaskType::kBackgroundFetch,
       TaskType::kCanvasBlobSerialization,
       TaskType::kDatabaseAccess,
@@ -695,7 +718,7 @@ void WorkerThread::InitializeOnWorkerThread(
     SetThreadState(ThreadState::kRunning);
   }
 
-  if (CheckRequestedToTerminate()) {
+  if (IsRequestedToTerminate()) {
     // Stop further worker tasks from running after this point. WorkerThread
     // was requested to terminate before initialization.
     // PerformShutdownOnWorkerThread() will be called soon.
@@ -903,7 +926,7 @@ void WorkerThread::SetExitCode(ExitCode exit_code) {
   exit_code_ = exit_code;
 }
 
-bool WorkerThread::CheckRequestedToTerminate() {
+bool WorkerThread::IsRequestedToTerminate() {
   base::AutoLock locker(lock_);
   return termination_progress_ != TerminationProgress::kNotRequested;
 }

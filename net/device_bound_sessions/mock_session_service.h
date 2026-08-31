@@ -34,14 +34,14 @@ class SessionServiceMock : public SessionService {
   MOCK_METHOD(std::optional<SessionService::DeferralParams>,
               ShouldDefer,
               (URLRequest * request,
+               HttpRequestHeaders* extra_headers,
                const FirstPartySetMetadata& first_party_set_metadata),
               (override));
   MOCK_METHOD(void,
               DeferRequestForRefresh,
               (URLRequest * request,
                DeferralParams deferral,
-               RefreshCompleteCallback restart_callback,
-               RefreshCompleteCallback continue_callback),
+               RefreshCompleteCallback callback),
               (override));
   MOCK_METHOD(void,
               SetChallengeForBoundSession,
@@ -56,13 +56,14 @@ class SessionServiceMock : public SessionService {
       (override));
   MOCK_METHOD(void,
               DeleteSessionAndNotify,
-              (const SchemefulSite& site,
-               const Session::Id& id,
+              (DeletionReason reason,
+               const SessionKey& session_key,
                SessionService::OnAccessCallback per_request_callback),
               (override));
   MOCK_METHOD(void,
               DeleteAllSessions,
-              (std::optional<base::Time> created_after_time,
+              (DeletionReason reason,
+               std::optional<base::Time> created_after_time,
                std::optional<base::Time> created_before_time,
                base::RepeatingCallback<bool(const url::Origin&,
                                             const net::SchemefulSite&)>

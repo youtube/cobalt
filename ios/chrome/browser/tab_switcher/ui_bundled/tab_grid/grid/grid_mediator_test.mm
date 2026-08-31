@@ -37,10 +37,9 @@
 #import "ios/chrome/browser/sync/model/mock_sync_service_utils.h"
 #import "ios/chrome/browser/sync/model/sync_service_factory.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/base_grid_mediator.h"
+#import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/coordinator/base_grid_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/toolbars/test/fake_tab_grid_toolbars_mediator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/test/fake_tab_collection_consumer.h"
-#import "ios/chrome/browser/tabs/model/closing_web_state_observer_browser_agent.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
 #import "ios/chrome/browser/url_loading/model/fake_url_loading_delegate.h"
 #import "ios/chrome/browser/url_loading/model/scene_url_loading_service.h"
@@ -151,7 +150,6 @@ void GridMediatorTestClass::SetUp() {
   url_loading_delegate_ = [[FakeURLLoadingDelegate alloc] init];
 
   WebUsageEnablerBrowserAgent::CreateForBrowser(browser_.get());
-  ClosingWebStateObserverBrowserAgent::CreateForBrowser(browser_.get());
   SnapshotBrowserAgent::CreateForBrowser(browser_.get());
   SnapshotBrowserAgent::FromBrowser(browser_.get())->SetSessionID(kIdentifier);
 

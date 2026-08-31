@@ -5,12 +5,16 @@
 #include "chrome/browser/facilitated_payments/ui/android/facilitated_payments_controller.h"
 
 #include <memory>
+#include <vector>
 
+#include "base/android/jni_string.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
 #include "chrome/browser/facilitated_payments/ui/android/facilitated_payments_bottom_sheet_bridge.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/facilitated_payments/core/browser/facilitated_payments_app_info_list.h"
+#include "components/facilitated_payments/core/browser/mock_facilitated_payments_app_info_list.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -38,10 +42,13 @@ class MockFacilitatedPaymentsBottomSheetBridge
       RequestShowContent,
       (base::span<const autofill::BankAccount> bank_account_suggestions),
       (override));
-  MOCK_METHOD(void,
-              RequestShowContentForEwallet,
-              (base::span<const autofill::Ewallet> ewallet_suggestions),
-              (override));
+  MOCK_METHOD(
+      void,
+      RequestShowContentForPaymentLink,
+      (base::span<const autofill::Ewallet> ewallet_suggestions,
+       std::unique_ptr<payments::facilitated::FacilitatedPaymentsAppInfoList>
+           app_suggestions),
+      (override));
   MOCK_METHOD(void, ShowProgressScreen, (), (override));
   MOCK_METHOD(void, ShowErrorScreen, (), (override));
   MOCK_METHOD(void, Dismiss, (), (override));
@@ -62,6 +69,8 @@ class FacilitatedPaymentsControllerTest
         web_contents(), controller_.get());
     mock_view_ = mock_view.get();
     controller_->SetViewForTesting(std::move(mock_view));
+    apps_ = std::make_unique<
+        payments::facilitated::MockFacilitatedPaymentsAppInfoList>();
   }
 
   void TearDown() override {
@@ -77,6 +86,8 @@ class FacilitatedPaymentsControllerTest
   const std::vector<autofill::Ewallet> ewallets_ = {
       autofill::test::CreateEwalletAccount(100L),
       autofill::test::CreateEwalletAccount(200L)};
+  std::unique_ptr<payments::facilitated::MockFacilitatedPaymentsAppInfoList>
+      apps_;
 };
 
 // Test controller forwards call for showing the Pix FOP selector to the view.
@@ -130,7 +141,34 @@ TEST_F(FacilitatedPaymentsControllerTest, ShowErrorScreen) {
 TEST_F(FacilitatedPaymentsControllerTest, ShowPixAccountLinkingPrompt) {
   EXPECT_CALL(*mock_view_, ShowPixAccountLinkingPrompt);
 
-  controller_->ShowPixAccountLinkingPrompt();
+  controller_->ShowPixAccountLinkingPrompt(base::DoNothing(),
+                                           base::DoNothing());
+}
+
+TEST_F(FacilitatedPaymentsControllerTest, OnPixAccountLinkingPromptAccepted) {
+  base::MockCallback<base::OnceCallback<void()>> mock_on_accepted;
+  base::MockCallback<base::OnceCallback<void()>> mock_on_declined;
+  controller_->ShowPixAccountLinkingPrompt(mock_on_accepted.Get(),
+                                           mock_on_declined.Get());
+
+  // When the Pix account linking prompt is accepted, callback should be called.
+  EXPECT_CALL(mock_on_accepted, Run());
+  EXPECT_CALL(mock_on_declined, Run).Times(0);
+
+  controller_->OnPixAccountLinkingPromptAccepted(nullptr);
+}
+
+TEST_F(FacilitatedPaymentsControllerTest, OnPixAccountLinkingPromptDeclined) {
+  base::MockCallback<base::OnceCallback<void()>> mock_on_accepted;
+  base::MockCallback<base::OnceCallback<void()>> mock_on_declined;
+  controller_->ShowPixAccountLinkingPrompt(mock_on_accepted.Get(),
+                                           mock_on_declined.Get());
+
+  // When the Pix account linking prompt is declined, callback should be called.
+  EXPECT_CALL(mock_on_accepted, Run).Times(0);
+  EXPECT_CALL(mock_on_declined, Run());
+
+  controller_->OnPixAccountLinkingPromptDeclined(nullptr);
 }
 
 // Test that the view is able to process requests to show different screens back
@@ -170,6 +208,7 @@ INSTANTIATE_TEST_SUITE_P(
     FacilitatedPaymentsControllerTest,
     FacilitatedPaymentsControllerTestForUiEvents,
     testing::Values(payments::facilitated::UiEvent::kNewScreenShown,
+                    payments::facilitated::UiEvent::kScreenCouldNotBeShown,
                     payments::facilitated::UiEvent::kScreenClosedNotByUser,
                     payments::facilitated::UiEvent::kScreenClosedByUser));
 
@@ -182,7 +221,8 @@ TEST_P(FacilitatedPaymentsControllerTestForUiEvents, OnUiEvent) {
 
   // Verify that the UI event is communicated to the feature via the callback.
   EXPECT_CALL(mock_ui_event_listener, Run(ui_event()));
-  if (ui_event() == payments::facilitated::UiEvent::kScreenClosedNotByUser ||
+  if (ui_event() == payments::facilitated::UiEvent::kScreenCouldNotBeShown ||
+      ui_event() == payments::facilitated::UiEvent::kScreenClosedNotByUser ||
       ui_event() == payments::facilitated::UiEvent::kScreenClosedByUser) {
     // Verify that the screen closing event is communicated to the
     // view. The second OnDismissed call is triggered when the test
@@ -193,23 +233,53 @@ TEST_P(FacilitatedPaymentsControllerTestForUiEvents, OnUiEvent) {
   controller_->OnUiEvent(nullptr, static_cast<jint>(ui_event()));
 }
 
-// Test controller forwards call for showing the eWallet FOP selector to the
-// view.
+// Test controller forwards call for showing the payment link FOP selector to
+// the view when there are eWallets.
 TEST_F(FacilitatedPaymentsControllerTest,
-       ShowForEwallet_UserHasEwalletAccounts) {
-  EXPECT_CALL(*mock_view_, RequestShowContentForEwallet(
-                               testing::ElementsAreArray(ewallets_)));
+       ShowForPaymentLink_UserHasEwalletAccounts) {
+  ON_CALL(*apps_, Size).WillByDefault(testing::Return(0));
+  EXPECT_CALL(*mock_view_,
+              RequestShowContentForPaymentLink(
+                  testing::ElementsAreArray(ewallets_), testing::_));
 
-  controller_->ShowForEwallet(ewallets_, base::DoNothing());
+  controller_->ShowForPaymentLink(ewallets_, std::move(apps_),
+                                  base::DoNothing(), base::DoNothing());
 }
 
-// Test controller does not forward call for showing the eWallet FOP selector to
-// the view when there are no eWallet accounts.
+// Test controller forwards call for showing the payment link FOP selector to
+// the view when there are payment apps.
 TEST_F(FacilitatedPaymentsControllerTest,
-       ShowForEwallet_UserHasNoEwalletAccounts) {
-  EXPECT_CALL(*mock_view_, RequestShowContentForEwallet).Times(0);
+       ShowForPaymentLink_UserHasPaymentApps) {
+  EXPECT_CALL(*mock_view_,
+              RequestShowContentForPaymentLink(testing::IsEmpty(), testing::_));
+  EXPECT_CALL(*apps_, Size).WillOnce(testing::Return(2));
 
-  controller_->ShowForEwallet({}, base::DoNothing());
+  controller_->ShowForPaymentLink({}, std::move(apps_), base::DoNothing(),
+                                  base::DoNothing());
+}
+
+// Test controller forwards call for showing the payment link FOP selector to
+// the view when there are eWallets and payment apps.
+TEST_F(FacilitatedPaymentsControllerTest,
+       ShowForPaymentLink_UserHasEwalletAccountsAndPaymentApps) {
+  ON_CALL(*apps_, Size).WillByDefault(testing::Return(2));
+  EXPECT_CALL(*mock_view_,
+              RequestShowContentForPaymentLink(
+                  testing::ElementsAreArray(ewallets_), testing::_));
+
+  controller_->ShowForPaymentLink(ewallets_, std::move(apps_),
+                                  base::DoNothing(), base::DoNothing());
+}
+
+// Test controller does not forward call for showing the payment link FOP
+// selector to the view when there are no eWallet accounts and no payment apps.
+TEST_F(FacilitatedPaymentsControllerTest,
+       ShowForPaymentLink_UserHasNoEwalletAccounts) {
+  EXPECT_CALL(*mock_view_, RequestShowContentForPaymentLink).Times(0);
+  EXPECT_CALL(*apps_, Size).WillOnce(testing::Return(0));
+
+  controller_->ShowForPaymentLink({}, std::move(apps_), base::DoNothing(),
+                                  base::DoNothing());
 }
 
 // Test OnEwalletSelected method.
@@ -218,8 +288,9 @@ TEST_F(FacilitatedPaymentsControllerTest, OnEwalletSelected) {
       mock_on_payment_account_selected;
 
   // view_ is assigned when the bottom sheet is shown.
-  controller_->ShowForEwallet(ewallets_,
-                              mock_on_payment_account_selected.Get());
+  controller_->ShowForPaymentLink(ewallets_, std::move(apps_),
+                                  mock_on_payment_account_selected.Get(),
+                                  base::DoNothing());
 
   // When an eWallet is selected, call back should be called with the instrument
   // id of the selected eWallet.
@@ -227,4 +298,28 @@ TEST_F(FacilitatedPaymentsControllerTest, OnEwalletSelected) {
               Run(/*selected_ewallet_instrument_id=*/100L));
 
   controller_->OnEwalletSelected(nullptr, 100L);
+}
+
+// Test OnPaymentAppSelected method.
+TEST_F(FacilitatedPaymentsControllerTest, OnPaymentAppSelected) {
+  base::MockCallback<
+      base::OnceCallback<void(std::string_view, std::string_view)>>
+      mock_on_payment_app_selected;
+  const std::string package_name = "com.example.app";
+  const std::string activity_name = "com.example.app.activity";
+
+  ON_CALL(*apps_, Size).WillByDefault(testing::Return(1));
+
+  // view_ is assigned when the bottom sheet is shown.
+  controller_->ShowForPaymentLink({}, std::move(apps_), base::DoNothing(),
+                                  mock_on_payment_app_selected.Get());
+
+  // When a payment app is selected, callback should be called with the package
+  // name and activity name of the selected payment app.
+  EXPECT_CALL(mock_on_payment_app_selected, Run(package_name, activity_name));
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  controller_->OnPaymentAppSelected(
+      env, base::android::ConvertUTF8ToJavaString(env, package_name),
+      base::android::ConvertUTF8ToJavaString(env, activity_name));
 }

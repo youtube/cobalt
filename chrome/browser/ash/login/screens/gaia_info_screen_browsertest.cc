@@ -4,12 +4,12 @@
 
 #include "chrome/browser/ash/login/screens/gaia_info_screen.h"
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/ash/login/oobe_quick_start/connectivity/fake_target_device_connection_broker.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
+#include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/login/test/js_checker.h"
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/oobe_screen_exit_waiter.h"
@@ -43,10 +43,6 @@ constexpr test::UIPath kQuickStartCancelButtonPath = {
 
 class GaiaInfoScreenTest : public OobeBaseTest {
  public:
-  GaiaInfoScreenTest() {
-    feature_list_.InitAndEnableFeature(features::kOobeGaiaInfoScreen);
-  }
-
   ~GaiaInfoScreenTest() override = default;
 
   void SetUpOnMainThread() override {
@@ -72,7 +68,6 @@ class GaiaInfoScreenTest : public OobeBaseTest {
   }
 
  protected:
-  base::test::ScopedFeatureList feature_list_;
   base::test::TestFuture<GaiaInfoScreen::Result> screen_result_waiter_;
   GaiaInfoScreen::ScreenExitCallback original_callback_;
 };
@@ -115,9 +110,6 @@ class GaiaInfoScreenTestQuickStartEnabled : public GaiaInfoScreenTest {
   quick_start::FakeTargetDeviceConnectionBroker::Factory
       connection_broker_factory_;
   base::HistogramTester histogram_tester_;
-
- protected:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(GaiaInfoScreenTestQuickStartEnabled, ForwardFlowManual) {
@@ -141,6 +133,9 @@ IN_PROC_BROWSER_TEST_F(GaiaInfoScreenTestQuickStartEnabled, ForwardFlowManual) {
 
 IN_PROC_BROWSER_TEST_F(GaiaInfoScreenTestQuickStartEnabled,
                        ForwardFlowUserEntersQuickStart) {
+  // Showing GAIA Info screen after exiting quick start screen requires OOBE to
+  // be completed.
+  StartupUtils::MarkOobeCompleted();
   ShowGaiaInfoScreen();
   OobeScreenWaiter(GaiaInfoScreenView::kScreenId).Wait();
 

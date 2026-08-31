@@ -27,7 +27,10 @@
 #include "components/browsing_data/content/browsing_data_helper.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/base/signin_switches.h"
 #include "components/signin/public/identity_manager/account_info.h"
+#include "components/signin/public/identity_manager/signin_constants.h"
+#include "components/signin/public/identity_manager/tribool.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/browsing_data_remover.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -38,8 +41,8 @@
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_switches.h"
-#include "chrome/browser/ash/login/demo_mode/demo_session.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
+#include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #else
 #include <algorithm>
@@ -301,7 +304,7 @@ void RemoveBrowsingDataForProfile(const base::FilePath& profile_path) {
 
 bool IsDemoSession() {
 #if BUILDFLAG(IS_CHROMEOS)
-  return ash::DemoSession::IsDeviceInDemoMode();
+  return ash::demo_mode::IsDeviceInDemoMode();
 #else
   return false;
 #endif
@@ -318,21 +321,22 @@ bool IsChromeAppKioskSession() {
 #if !BUILDFLAG(IS_CHROMEOS)
 std::u16string GetDefaultNameForNewEnterpriseProfile(
     const std::string& hosted_domain) {
-  if (AccountInfo::IsManaged(hosted_domain)) {
-    std::u16string hosted_domain_name = base::UTF8ToUTF16(hosted_domain);
-    CHECK(!hosted_domain_name.empty());
-    return hosted_domain_name;
+  std::u16string name;
+  if (!hosted_domain.empty() &&
+      hosted_domain != signin::constants::kNoHostedDomainFound) {
+    name = base::UTF8ToUTF16(hosted_domain);
+  } else {
+    name = l10n_util::GetStringUTF16(
+        IDS_SIGNIN_DICE_WEB_INTERCEPT_ENTERPRISE_PROFILE_NAME);
   }
-  std::u16string default_name = l10n_util::GetStringUTF16(
-      IDS_SIGNIN_DICE_WEB_INTERCEPT_ENTERPRISE_PROFILE_NAME);
-  CHECK(!default_name.empty());
-  return default_name;
+  CHECK(!name.empty());
+  return name;
 }
 
 std::u16string GetDefaultNameForNewSignedInProfile(
     const AccountInfo& account_info) {
   DCHECK(account_info.IsValid());
-  if (!account_info.IsManaged()) {
+  if (account_info.IsManaged() != signin::Tribool::kTrue) {
     std::u16string given_name = base::UTF8ToUTF16(account_info.given_name);
     CHECK(!given_name.empty());
     return given_name;

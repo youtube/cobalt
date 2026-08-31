@@ -41,9 +41,9 @@ using ::testing::SetArgPointee;
 namespace webrtc {
 
 namespace {
-static const size_t kMaxNumSamples = 48 * 10 * 2;  // 10 ms @ 48 kHz stereo.
-static const size_t kMockReturnEncodedBytes = 17;
-static const int kCngPayloadType = 18;
+constexpr size_t kMaxNumSamples = 48 * 10 * 2;  // 10 ms @ 48 kHz stereo.
+constexpr size_t kMockReturnEncodedBytes = 17;
+constexpr int kCngPayloadType = 18;
 }  // namespace
 
 class AudioEncoderCngTest : public ::testing::Test {

@@ -55,6 +55,7 @@
 #import "ios/chrome/browser/shared/public/commands/activity_service_commands.h"
 #import "ios/chrome/browser/shared/public/commands/application_commands.h"
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
+#import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
@@ -72,14 +73,13 @@
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
 #import "ios/chrome/browser/start_surface/ui_bundled/start_surface_recent_tab_browser_agent.h"
-#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_strip/coordinator/tab_strip_coordinator.h"
+#import "ios/chrome/browser/tab_switcher/tab_strip/coordinator/tab_strip_coordinator.h"
 #import "ios/chrome/browser/tabs/model/tab_helper_util.h"
 #import "ios/chrome/browser/tabs/ui_bundled/foreground_tab_animation_view.h"
 #import "ios/chrome/browser/tips_manager/model/tips_manager_ios_factory.h"
 #import "ios/chrome/browser/toolbar/ui_bundled/toolbar_coordinator.h"
 #import "ios/chrome/browser/url_loading/model/new_tab_animation_tab_helper.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_notifier_browser_agent.h"
-#import "ios/chrome/browser/web/model/page_placeholder_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_navigation_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_state_update_browser_agent.h"
 #import "ios/chrome/browser/web_state_list/model/web_usage_enabler/web_usage_enabler_browser_agent.h"
@@ -157,7 +157,6 @@ class BrowserViewControllerTest : public BlockCleanupTest {
     LensBrowserAgent::CreateForBrowser(browser_.get());
     WebNavigationBrowserAgent::CreateForBrowser(browser_.get());
     TabUsageRecorderBrowserAgent::CreateForBrowser(browser_.get());
-    PagePlaceholderBrowserAgent::CreateForBrowser(browser_.get());
     StartSurfaceRecentTabBrowserAgent::CreateForBrowser(browser_.get());
     OmniboxPositionBrowserAgent::CreateForBrowser(browser_.get());
     BrowserViewVisibilityNotifierBrowserAgent::CreateForBrowser(browser_.get());
@@ -217,6 +216,10 @@ class BrowserViewControllerTest : public BlockCleanupTest {
         OCMProtocolMock(@protocol(PageActionMenuCommands));
     [dispatcher startDispatchingToTarget:page_action_menu_handler
                              forProtocol:@protocol(PageActionMenuCommands)];
+
+    id bwg_handler = OCMProtocolMock(@protocol(BWGCommands));
+    [dispatcher startDispatchingToTarget:bwg_handler
+                             forProtocol:@protocol(BWGCommands)];
 
     // Set up Applicationhander and SettingsHandler mocks.
     mock_application_handler_ = OCMProtocolMock(@protocol(ApplicationCommands));
@@ -279,8 +282,6 @@ class BrowserViewControllerTest : public BlockCleanupTest {
 
     tab_usage_recorder_browser_agent_ =
         TabUsageRecorderBrowserAgent::FromBrowser(browser_.get());
-    page_placeholder_browser_agent_ =
-        PagePlaceholderBrowserAgent::FromBrowser(browser_.get());
     NTPCoordinator_ = [[NewTabPageCoordinator alloc]
          initWithBrowser:browser_.get()
         componentFactory:[[NewTabPageComponentFactory alloc] init]];
@@ -300,7 +301,6 @@ class BrowserViewControllerTest : public BlockCleanupTest {
         LayoutGuideCenterForBrowser(browser_.get());
     dependencies.webStateList = browser_->GetWebStateList()->AsWeakPtr();
     dependencies.safeAreaProvider = safe_area_provider_;
-    dependencies.pagePlaceholderBrowserAgent = page_placeholder_browser_agent_;
     dependencies.applicationCommandsHandler = mock_application_handler_;
     dependencies.ntpCoordinator = NTPCoordinator_;
 
@@ -370,7 +370,7 @@ class BrowserViewControllerTest : public BlockCleanupTest {
 
   std::unique_ptr<web::WebState> CreateOffTheRecordWebState() {
     web::WebState::CreateParams params(
-        GetProfile()->CreateOffTheRecordBrowserStateWithTestingFactories(
+        GetProfile()->CreateOffTheRecordProfileWithTestingFactories(
             {TestProfileIOS::TestingFactory{
                 TipsManagerIOSFactory::GetInstance(),
                 TipsManagerIOSFactory::GetDefaultFactory()}}));
@@ -383,12 +383,10 @@ class BrowserViewControllerTest : public BlockCleanupTest {
   void LoadNTP(web::WebState* web_state) {
     web::FakeWebState fake_web_state;
     fake_web_state.SetVisibleURL(GURL("chrome://newtab/"));
-    web::WebStateObserver* NTPHelper =
-        (web::WebStateObserver*)NewTabPageTabHelper::FromWebState(web_state);
     // Use the fake_web_state to fake the NTPHelper into believing that the NTP
     // has been loaded.
-    NTPHelper->PageLoaded(&fake_web_state,
-                          web::PageLoadCompletionStatus::SUCCESS);
+    NewTabPageTabHelper::FromWebState(web_state)->PageLoaded(
+        &fake_web_state, web::PageLoadCompletionStatus::SUCCESS);
   }
 
   void ExpectNewTabInsertionAnimation(bool animated, ProceduralBlock block) {
@@ -440,7 +438,6 @@ class BrowserViewControllerTest : public BlockCleanupTest {
   NewTabPageCoordinator* NTPCoordinator_;
   raw_ptr<TabUsageRecorderBrowserAgent> tab_usage_recorder_browser_agent_;
   SafeAreaProvider* safe_area_provider_;
-  raw_ptr<PagePlaceholderBrowserAgent> page_placeholder_browser_agent_;
   id mock_application_handler_;
 };
 

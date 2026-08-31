@@ -52,7 +52,7 @@ class SigninPrepareUserListTest : public testing::Test {
   void SetUp() override {
     testing::Test::SetUp();
     profile_manager_ = std::make_unique<TestingProfileManager>(
-        TestingBrowserProcess::GetGlobal(), &local_state_);
+        TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
 
     for (size_t i = 0; i < std::size(kUsersPublic); ++i) {
@@ -80,7 +80,6 @@ class SigninPrepareUserListTest : public testing::Test {
   FakeChromeUserManager* user_manager() { return fake_user_manager_; }
 
  private:
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
   content::BrowserTaskEnvironment task_environment_;
   ScopedCrosSettingsTestHelper cros_settings_test_helper_;
   raw_ptr<FakeChromeUserManager, DanglingUntriaged> fake_user_manager_;

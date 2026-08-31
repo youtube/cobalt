@@ -17,6 +17,11 @@
 namespace {
 // Matcher for the cancel button on the printer options view.
 id<GREYMatcher> PrintOptionsCancelButton() {
+  if (@available(iOS 26, *)) {
+    return grey_allOf(grey_accessibilityLabel(@"Close"),
+                      grey_kindOfClassName(@"_UIModernBarButton"),
+                      grey_kindOfClass([UIButton class]), nil);
+  }
   return grey_allOf(grey_accessibilityLabel(@"Cancel"),
                     grey_kindOfClass([UIButton class]), nil);
 }
@@ -53,7 +58,7 @@ id<GREYMatcher> PrintOptionsCancelButton() {
     dialogTitle = @"Options";
   }
   [[EarlGrey selectElementWithMatcher:grey_accessibilityID(dialogTitle)]
-      assertWithMatcher:grey_sufficientlyVisible()];
+      assertWithMatcher:grey_minimumVisiblePercent(0.7)];
 
   // Clean up and close print dialog.
   [[EarlGrey selectElementWithMatcher:PrintOptionsCancelButton()]

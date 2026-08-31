@@ -28,7 +28,10 @@ config("disable_unreachable_warnings") {
 }
 
 source_set("starboard") {
-  visibility = [ "//media" ]
+  visibility = [
+    "//media",
+    "//media/starboard:*",
+  ]
 
   sources = []
   deps = []
@@ -60,6 +63,12 @@ source_set("starboard") {
     ]
 
     deps += [ ":buildflags" ]
+    if (is_ios && target_platform == "tvos") {
+      sources += [
+        "url_player_demuxer.cc",
+        "url_player_demuxer.h",
+      ]
+    }
   }
 
   deps += [
@@ -87,6 +96,26 @@ source_set("starboard") {
   ]
 }
 
+source_set("test_support") {
+  testonly = true
+  sources = []
+  if (use_starboard_media) {
+    sources += [
+      "mock_sbplayer_interface.cc",
+      "mock_sbplayer_interface.h",
+    ]
+  }
+  configs += [ "//media:media_config" ]
+  deps = [ "//base" ]
+  if (use_starboard_media) {
+    deps += [
+      ":starboard",
+      "//starboard:starboard_group",
+      "//testing/gmock",
+    ]
+  }
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = []
@@ -103,6 +132,7 @@ source_set("unit_tests") {
   }
   configs += [ "//media:media_config" ]
   deps = [
+    ":test_support",
     "//base",
     "//base/test:test_support",
     "//media:test_support",

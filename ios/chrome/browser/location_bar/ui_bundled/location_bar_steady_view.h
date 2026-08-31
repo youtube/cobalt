@@ -8,6 +8,8 @@
 #import <UIKit/UIKit.h>
 
 @protocol BadgeViewVisibilityDelegate;
+@protocol IncognitoBadgeViewVisibilityDelegate;
+@protocol ReaderModeChipVisibilityDelegate;
 @protocol ContextualPanelEntrypointVisibilityDelegate;
 @class LocationBarBadgesContainerView;
 
@@ -59,18 +61,31 @@
 // display a label, momentarily using significant portion of the location bar.
 - (void)setLocationBarLabelCenteredBetweenContent:(BOOL)centered;
 
-// Sets the view displaying badges in the leading corner of the view.
+// Sets the view displaying incognito badge in the leading corner of the view.
+- (void)setIncognitoBadgeView:(UIView*)incognitoBadgeView;
+
+// Sets the view displaying badges.
 - (void)setBadgeView:(UIView*)badgeView;
 
 // Sets the view displaying the Contextual Panel's entrypoint.
 - (void)setContextualPanelEntrypointView:(UIView*)contextualPanelEntrypointView;
 
+// Sets the view displaying the Reader Mode chip.
+- (void)setReaderModeChipView:(UIView*)readerModeChipView;
+
 // Returns the contextual panel entrypoint visibility delegate;
 - (id<ContextualPanelEntrypointVisibilityDelegate>)
     contextualEntrypointVisibilityDelegate;
 
+// Returns the reader mode chip visibility delegate;
+- (id<ReaderModeChipVisibilityDelegate>)readerModeChipVisibilityDelegate;
+
 // Returns the badge view visibility delegate.
 - (id<BadgeViewVisibilityDelegate>)badgeViewVisibilityDelegate;
+
+// Returns the incognito badge view visibility delegate.
+- (id<IncognitoBadgeViewVisibilityDelegate>)
+    incognitoBadgeViewVisibilityDelegate;
 
 // Set the placeholder view when there is no badge to display.
 - (void)setPlaceholderView:(UIView*)placeholderView;

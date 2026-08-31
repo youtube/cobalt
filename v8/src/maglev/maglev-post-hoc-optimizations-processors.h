@@ -5,15 +5,15 @@
 #ifndef V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 #define V8_MAGLEV_MAGLEV_POST_HOC_OPTIMIZATIONS_PROCESSORS_H_
 
+#include <type_traits>
+
 #include "src/compiler/heap-refs.h"
 #include "src/maglev/maglev-compilation-info.h"
-#include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
-#include "src/objects/js-function.h"
 
 namespace v8::internal::maglev {
 
@@ -28,7 +28,7 @@ class SweepIdentityNodes {
   void PostPhiProcessing() {}
   ProcessResult Process(NodeBase* node, const ProcessingState& state) {
     for (int i = 0; i < node->input_count(); i++) {
-      Input& input = node->input(i);
+      Input input = node->input(i);
       while (input.node() && input.node()->Is<Identity>()) {
         node->change_input(i, input.node()->input(0).node());
       }
@@ -43,16 +43,21 @@ class SweepIdentityNodes {
     }
     return ProcessResult::kContinue;
   }
+  ProcessResult Process(Identity* node, const ProcessingState& state) {
+    // Since we're bypassing all the identity node uses, we can remove them from
+    // the graph.
+    return ProcessResult::kRemove;
+  }
 };
 
 // Optimizations involving loops which cannot be done at graph building time.
 // Currently mainly loop invariant code motion.
 class LoopOptimizationProcessor {
  public:
-  explicit LoopOptimizationProcessor(MaglevGraphBuilder* builder)
-      : zone(builder->zone()) {
+  explicit LoopOptimizationProcessor(MaglevCompilationInfo* info)
+      : zone(info->zone()) {
     was_deoptimized =
-        builder->compilation_unit()->feedback().was_once_deoptimized();
+        info->toplevel_compilation_unit()->feedback().was_once_deoptimized();
   }
 
   void PreProcessGraph(Graph* graph) {}
@@ -168,8 +173,9 @@ class LoopOptimizationProcessor {
       if (auto j = current_block->predecessor_at(0)
                        ->control_node()
                        ->TryCast<CheckpointedJump>()) {
-        maps->SetEagerDeoptInfo(zone, j->eager_deopt_info()->top_frame(),
-                                maps->eager_deopt_info()->feedback_to_update());
+        maps->SetEagerDeoptInfo(
+            zone, zone->New<DeoptFrame>(j->eager_deopt_info()->top_frame()),
+            maps->eager_deopt_info()->feedback_to_update());
         return ProcessResult::kHoist;
       }
     }
@@ -216,6 +222,9 @@ class AnyUseMarkingProcessor {
       if (!node->is_used()) {
         if (!node->unused_inputs_were_visited()) {
           DropInputUses(node);
+        }
+        if constexpr (std::is_same_v<NodeT, InitialValue>) {
+          node->mark_unused();
         }
         return ProcessResult::kRemove;
       }
@@ -306,7 +315,7 @@ class AnyUseMarkingProcessor {
     }
   }
 
-  void DropInputUses(Input& input) {
+  void DropInputUses(Input input) {
     ValueNode* input_node = input.node();
     if (input_node->properties().is_required_when_unused() &&
         !input_node->Is<ArgumentsElements>())
@@ -318,7 +327,7 @@ class AnyUseMarkingProcessor {
   }
 
   void DropInputUses(ValueNode* node) {
-    for (Input& input : *node) {
+    for (Input input : node->inputs()) {
       DropInputUses(input);
     }
     DCHECK(!node->properties().can_eager_deopt());
@@ -329,13 +338,11 @@ class AnyUseMarkingProcessor {
 
 class DeadNodeSweepingProcessor {
  public:
-  explicit DeadNodeSweepingProcessor(MaglevCompilationInfo* compilation_info) {
-    if (V8_UNLIKELY(compilation_info->has_graph_labeller())) {
-      labeller_ = compilation_info->graph_labeller();
+  void PreProcessGraph(Graph* graph) {
+    if (graph->has_graph_labeller()) {
+      labeller_ = graph->graph_labeller();
     }
   }
-
-  void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
   void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
@@ -365,8 +372,8 @@ class DeadNodeSweepingProcessor {
     // Remove inlined allocation that became non-escaping.
     if (!node->HasEscaped()) {
       if (v8_flags.trace_maglev_escape_analysis) {
-        std::cout << "* Removing allocation node "
-                  << PrintNodeLabel(labeller_, node) << std::endl;
+        std::cout << "* Removing allocation node " << PrintNodeLabel(node)
+                  << std::endl;
       }
       return ProcessResult::kRemove;
     }
@@ -389,9 +396,9 @@ class DeadNodeSweepingProcessor {
               node->input(0).node()->template TryCast<InlinedAllocation>()) {
         if (!object->HasEscaped()) {
           if (v8_flags.trace_maglev_escape_analysis) {
-            std::cout << "* Removing store node "
-                      << PrintNodeLabel(labeller_, node) << " to allocation "
-                      << PrintNodeLabel(labeller_, object) << std::endl;
+            std::cout << "* Removing store node " << PrintNodeLabel(node)
+                      << " to allocation " << PrintNodeLabel(object)
+                      << std::endl;
           }
           return ProcessResult::kRemove;
         }

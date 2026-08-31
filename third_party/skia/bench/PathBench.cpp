@@ -10,6 +10,7 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPathUtils.h"
 #include "include/core/SkRRect.h"
 #include "include/core/SkShader.h"
@@ -326,8 +327,8 @@ protected:
         fVerbs.reset(kNumVerbs);
         for (int i = 0; i < kNumVerbs; ++i) {
             do {
-                fVerbs[i] = static_cast<SkPath::Verb>(fRandom.nextULessThan(SkPath::kDone_Verb));
-            } while (!allowMoves && SkPath::kMove_Verb == fVerbs[i]);
+                fVerbs[i] = static_cast<SkPathVerb>(fRandom.nextULessThan((int)SkPathVerb::kClose));
+            } while (!allowMoves && SkPathVerb::kMove == fVerbs[i]);
         }
         fPoints.reset(kNumPoints);
         for (int i = 0; i < kNumPoints; ++i) {
@@ -346,32 +347,32 @@ protected:
     void makePath(SkPath* path) {
         int vCount = fVerbCnts[(fCurrPath++) & (kNumVerbCnts - 1)];
         for (int v = 0; v < vCount; ++v) {
-            int verb = fVerbs[(fCurrVerb++) & (kNumVerbs - 1)];
+            SkPathVerb verb = fVerbs[(fCurrVerb++) & (kNumVerbs - 1)];
             switch (verb) {
-                case SkPath::kMove_Verb:
+                case SkPathVerb::kMove:
                     path->moveTo(fPoints[(fCurrPoint++) & (kNumPoints - 1)]);
                     break;
-                case SkPath::kLine_Verb:
+                case SkPathVerb::kLine:
                     path->lineTo(fPoints[(fCurrPoint++) & (kNumPoints - 1)]);
                     break;
-                case SkPath::kQuad_Verb:
+                case SkPathVerb::kQuad:
                     path->quadTo(fPoints[(fCurrPoint + 0) & (kNumPoints - 1)],
                                  fPoints[(fCurrPoint + 1) & (kNumPoints - 1)]);
                     fCurrPoint += 2;
                     break;
-                case SkPath::kConic_Verb:
+                case SkPathVerb::kConic:
                     path->conicTo(fPoints[(fCurrPoint + 0) & (kNumPoints - 1)],
                                   fPoints[(fCurrPoint + 1) & (kNumPoints - 1)],
                                   SK_ScalarHalf);
                     fCurrPoint += 2;
                     break;
-                case SkPath::kCubic_Verb:
+                case SkPathVerb::kCubic:
                     path->cubicTo(fPoints[(fCurrPoint + 0) & (kNumPoints - 1)],
                                   fPoints[(fCurrPoint + 1) & (kNumPoints - 1)],
                                   fPoints[(fCurrPoint + 2) & (kNumPoints - 1)]);
                     fCurrPoint += 3;
                     break;
-                case SkPath::kClose_Verb:
+                case SkPathVerb::kClose:
                     path->close();
                     break;
                 default:
@@ -394,13 +395,13 @@ private:
         kNumVerbs    = 1 << 5,
         kNumPoints   = 1 << 5,
     };
-    AutoTArray<int>           fVerbCnts;
-    AutoTArray<SkPath::Verb>  fVerbs;
-    AutoTArray<SkPoint>       fPoints;
-    int                         fCurrPath;
-    int                         fCurrVerb;
-    int                         fCurrPoint;
-    SkRandom                    fRandom;
+    AutoTArray<int>         fVerbCnts;
+    AutoTArray<SkPathVerb>  fVerbs;
+    AutoTArray<SkPoint>     fPoints;
+    int                     fCurrPath;
+    int                     fCurrVerb;
+    int                     fCurrPoint;
+    SkRandom                fRandom;
     using INHERITED = Benchmark;
 };
 
@@ -516,6 +517,49 @@ private:
     SkMatrix fMatrix;
     bool fInPlace;
     using INHERITED = RandomPathBench;
+};
+
+class PathTransformPerspectiveBench : public Benchmark {
+public:
+    PathTransformPerspectiveBench(bool useBuilder) : fUseBuilder(useBuilder) {}
+
+protected:
+    const char* onGetName() override {
+        return fUseBuilder ? "transform_perspective_builder" : "transform_perspective_path";
+    }
+
+    bool isSuitableFor(Backend backend) override {
+        return backend == Backend::kNonRendering;
+    }
+
+    void onDelayedSetup() override {
+        const SkRect r = {0, 0, 100, 100};
+        fBuilderSrc.addOval(r);
+        fBuilderSrc.addOval(r.makeInset(10, 10));
+        fPathSrc = fBuilderSrc.snapshot();
+
+        fMatrix[6] = 1;
+    }
+
+    void onDraw(int loops, SkCanvas*) override {
+        if (fUseBuilder) {
+            for (int i = 0; i < loops; ++i) {
+                fBuilderSrc.transform(fMatrix);
+                (void)fBuilderSrc.snapshot();
+            }
+        } else {
+            for (int i = 0; i < loops; ++i) {
+                (void)fPathSrc.makeTransform(fMatrix);
+            }
+        }
+    }
+
+private:
+    SkPath          fPathSrc;
+    SkPathBuilder   fBuilderSrc;
+
+    SkMatrix fMatrix;
+    bool fUseBuilder;
 };
 
 class PathEqualityBench : public RandomPathBench {
@@ -998,10 +1042,12 @@ protected:
         // The large y scale factor produces a tiny error threshold.
         const SkMatrix mtx = SkMatrix::MakeAll(3.07294035f, 0.833333373f, 361.111115f, 0.0f,
                                                6222222.5f, 28333.334f, 0.0f, 0.0f, 1.0f);
+        const SkScalar scale = SkMatrixPriv::ComputeResScaleForStroking(mtx);
+        const SkMatrix mx = SkMatrix::Scale(scale, scale);
+
         for (int i = 0; i < loops; ++i) {
-            SkPath dst;
-            skpathutils::FillPathWithPaint(path, paint, &dst, nullptr,
-                                           SkMatrixPriv::ComputeResScaleForStroking(mtx));
+            SkPathBuilder dst;
+            skpathutils::FillPathWithPaint(path, paint, &dst, nullptr, mx);
         }
     }
 
@@ -1205,6 +1251,9 @@ DEF_BENCH( return new PathTransformBench(true); )
 DEF_BENCH( return new PathTransformBench(false); )
 DEF_BENCH( return new PathEqualityBench(); )
 
+DEF_BENCH( return new PathTransformPerspectiveBench(true); )
+DEF_BENCH( return new PathTransformPerspectiveBench(false); )
+
 DEF_BENCH( return new SkBench_AddPathTest(SkBench_AddPathTest::kAdd_AddType); )
 DEF_BENCH( return new SkBench_AddPathTest(SkBench_AddPathTest::kAddTrans_AddType); )
 DEF_BENCH( return new SkBench_AddPathTest(SkBench_AddPathTest::kAddMatrix_AddType); )
@@ -1283,3 +1332,46 @@ DEF_BENCH( return new CommonConvexBench(200, 16, false, false); )
 DEF_BENCH( return new CommonConvexBench(200, 16, true,  false); )
 DEF_BENCH( return new CommonConvexBench(200, 16, false, true); )
 DEF_BENCH( return new CommonConvexBench(200, 16, true,  true); )
+
+class PathBuildBench : public Benchmark {
+public:
+    using Builder = void(SkPath*, const SkRect&);
+
+    Builder* fBuilder;
+    SkString fName;
+
+    PathBuildBench(const char name[], Builder* builder) : fBuilder(builder) {
+        fName.printf("path_buider_%s", name);
+    }
+
+protected:
+    const char* onGetName() override {
+        return fName.c_str();
+    }
+
+    void onDraw(int loops, SkCanvas* canvas) override {
+        const SkRect r = {1, 2, 3, 4};
+        for (int i = 0; i < loops; ++i) {
+            SkPath path;
+            fBuilder(&path, r);
+            (void)path.getBounds();
+        }
+    }
+
+    bool isSuitableFor(Backend backend) override {
+        return backend == Backend::kNonRendering;
+    }
+
+private:
+    using INHERITED = Benchmark;
+};
+
+DEF_BENCH( return new PathBuildBench("addRect", [](SkPath* path, const SkRect& r) {
+    path->addRect(r);
+}));
+DEF_BENCH( return new PathBuildBench("addOval", [](SkPath* path, const SkRect& r) {
+    path->addOval(r);
+}));
+DEF_BENCH( return new PathBuildBench("addRRect", [](SkPath* path, const SkRect& r) {
+    path->addRRect(SkRRect::MakeRectXY(r, 0.1f, 0.1f));
+}));

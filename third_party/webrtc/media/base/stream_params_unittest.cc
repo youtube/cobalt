@@ -10,9 +10,8 @@
 
 #include "media/base/stream_params.h"
 
-#include <stdint.h>
-
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 

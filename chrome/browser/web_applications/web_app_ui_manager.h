@@ -27,6 +27,7 @@
 class Browser;
 class BrowserWindow;
 class Profile;
+class SkBitmap;
 
 namespace base {
 class FilePath;
@@ -105,6 +106,8 @@ enum class LaunchWebAppWindowSetting {
 // events from WebAppTabHelpers.
 class WebAppUiManager {
  public:
+  using ShowIntentPickerBubbleCallback = base::OnceCallback<void(bool)>;
+
   struct RoolNotificationBehavior {
     bool is_rool_enabled = false;
     bool is_prevent_close_enabled = false;
@@ -123,6 +126,13 @@ class WebAppUiManager {
       const std::optional<GURL>& protocol_handler_launch_url,
       const std::optional<GURL>& file_launch_url,
       const std::vector<base::FilePath>& launch_files);
+
+  // Triggers the install not supported dialog when a user attempts to install
+  // a web app from off-the-record profiles. Used for the Web Install API.
+  static void TriggerInstallNotSupportedDialog(
+      content::WebContents* web_contents,
+      Profile* profile,
+      base::OnceClosure callback);
 
   WebAppUiManager();
   virtual ~WebAppUiManager();
@@ -178,6 +188,13 @@ class WebAppUiManager {
       const webapps::AppId& app_id,
       WebAppLaunchAcceptanceCallback launch_callback) = 0;
 
+  // Shows the pre-launch dialog for a protocol web app launch. The user can
+  // allow or block the launch.
+  virtual void ShowWebAppProtocolLaunchDialog(
+      const GURL& protocol_url,
+      const webapps::AppId& app_id,
+      WebAppLaunchAcceptanceCallback launch_callback) = 0;
+
   virtual void ShowWebAppIdentityUpdateDialog(
       const std::string& app_id,
       bool title_change,
@@ -198,21 +215,12 @@ class WebAppUiManager {
   // windows if configured by the launch handlers, etc. See
   // `web_app::LaunchWebApp` and `WebAppLaunchProcess` for more info.
   // If the app_id is invalid, an empty browser window is opened.
-  // Note: this function should typically be run after the completion of the
-  // `WebAppUiManager::WaitForFirstRunService` function.
   // Any lock that locks apps will extend the `WithAppResources` mixin.
   virtual void LaunchWebApp(apps::AppLaunchParams params,
                             LaunchWebAppWindowSetting launch_setting,
                             Profile& profile,
                             LaunchWebAppDebugValueCallback callback,
                             WithAppResources& app_resources) = 0;
-
-  // This function calls the callback as soon as first run service is completed.
-  // Note: The callback will be called synchronously on platforms that do not
-  // have a first-run service.
-  virtual void WaitForFirstRunService(
-      Profile& profile,
-      FirstRunServiceCompletedCallback callback) = 0;
 
 #if BUILDFLAG(IS_CHROMEOS)
   // Migrates launcher state, such as parent folder id, position in App Launcher
@@ -267,6 +275,18 @@ class WebAppUiManager {
       const std::optional<GURL>& manifest_id,
       InstallCallback callback) = 0;
 
+  using WebInstallAppLaunchAcceptanceCallback =
+      base::OnceCallback<void(bool accepted)>;
+  // Triggers the web app launch dialog anchored to `initiating_web_contents`
+  // to launch the app given by `app_id`. Used for the Web Install API.
+  virtual void TriggerLaunchDialogForBackgroundInstall(
+      content::WebContents* initiating_web_contents,
+      const webapps::AppId& app_id,
+      Profile* profile,
+      const std::string& app_name,
+      const SkBitmap& icon,
+      WebInstallAppLaunchAcceptanceCallback callback) = 0;
+
   // The uninstall dialog will be modal to |parent_window|, or a non-modal if
   // |parent_window| is nullptr. Use this API if a Browser window needs to be
   // passed in along with an UninstallCompleteCallback.
@@ -292,6 +312,12 @@ class WebAppUiManager {
       gfx::NativeWindow parent_window,
       UninstallCompleteCallback callback,
       UninstallScheduledCallback scheduled_callback) = 0;
+
+  // This assumes the app is already installed. The callback is called with
+  // true when the user chooses to open the app, otherwise, false is called.
+  virtual void ShowIntentPicker(const GURL& url,
+                                content::WebContents* web_contents,
+                                ShowIntentPickerBubbleCallback callback) = 0;
 
   // Launches the Isolated Web App installer for a bundle with the given path.
   // If an installer with the given path already exists, brings it to front and

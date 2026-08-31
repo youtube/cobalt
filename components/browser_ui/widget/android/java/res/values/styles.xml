@@ -74,7 +74,7 @@ found in the LICENSE file.
     <style name="ListItemEndIcon">
         <item name="android:layout_width">@dimen/list_item_end_icon_width</item>
         <item name="android:layout_height">match_parent</item>
-        <item name="android:background">@null</item>
+        <item name="android:background">@drawable/default_icon_background</item>
         <item name="android:scaleType">center</item>
     </style>
     <style name="ListItemSmallIconContainer" parent="ListItemContainer">
@@ -176,7 +176,7 @@ found in the LICENSE file.
     <style name="ChipTextView">
         <item name="android:gravity">center</item>
         <item name="android:maxLines">1</item>
-        <item name="android:paddingStart">@dimen/chip_element_leading_padding</item>
+        <item name="android:paddingStart">@dimen/chip_primary_text_start_padding</item>
         <item name="android:textAlignment">center</item>
     </style>
 

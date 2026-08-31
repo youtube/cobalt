@@ -332,7 +332,7 @@ struct FontSelectionRequestKey {
 
   FontSelectionRequestKey(FontSelectionRequest request) : request(request) {}
 
-  explicit FontSelectionRequestKey(WTF::HashTableDeletedValueType)
+  explicit FontSelectionRequestKey(HashTableDeletedValueType)
       : isDeletedValue(true) {}
 
   bool IsHashTableDeletedValue() const { return isDeletedValue; }
@@ -358,7 +358,7 @@ struct FontSelectionCapabilities {
                             FontSelectionRange weight)
       : width(width), slope(slope), weight(weight), is_deleted_value_(false) {}
 
-  FontSelectionCapabilities(WTF::HashTableDeletedValueType)
+  FontSelectionCapabilities(HashTableDeletedValueType)
       : is_deleted_value_(true) {}
 
   bool IsHashTableDeletedValue() const { return is_deleted_value_; }
@@ -399,31 +399,25 @@ struct PLATFORM_EXPORT FontSelectionCapabilitiesHashTraits
   static unsigned GetHash(const FontSelectionCapabilities& key);
 };
 
-}  // namespace blink
-
-namespace WTF {
+template <>
+struct HashTraits<FontSelectionRequestKey> : FontSelectionRequestKeyHashTraits {
+};
 
 template <>
-struct HashTraits<blink::FontSelectionRequestKey>
-    : blink::FontSelectionRequestKeyHashTraits {};
-
-template <>
-struct HashTraits<blink::FontSelectionCapabilities>
-    : blink::FontSelectionCapabilitiesHashTraits {};
-
-}  // namespace WTF
+struct HashTraits<FontSelectionCapabilities>
+    : FontSelectionCapabilitiesHashTraits {};
 
 // Used for ClampTo for example in StyleBuilderConverter
 template <>
-inline blink::FontSelectionValue
-DefaultMinimumForClamp<blink::FontSelectionValue>() {
-  return blink::FontSelectionValue::MinimumValue();
+inline FontSelectionValue DefaultMinimumForClamp<FontSelectionValue>() {
+  return FontSelectionValue::MinimumValue();
 }
 
 template <>
-inline blink::FontSelectionValue
-DefaultMaximumForClamp<blink::FontSelectionValue>() {
-  return blink::FontSelectionValue::MaximumValue();
+inline FontSelectionValue DefaultMaximumForClamp<FontSelectionValue>() {
+  return FontSelectionValue::MaximumValue();
 }
+
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_FONTS_FONT_SELECTION_TYPES_H_

@@ -2,6 +2,7 @@ Name: Android
 URL: http://source.android.com
 Description: Android shared memory implementation. Only applies to OS_ANDROID.
 Version: 7203eb2a8a29a7b721a48cd291700f38f3da1456
+Update Mechanism: Manual
 Security Critical: yes
 Shipped: yes
 License: Apache-2.0
@@ -22,3 +23,6 @@ Patches:
   0005-Fix-ashmem-availability-check.patch:
      Use builtin_available instead of a weak reference as weak references
      seem to still trigger SDK level checks in new NDK (r28).
+  0006-Allocate-memfds-directly-instead-of-relying-on-AShar.patch:
+     Use memfd instead of relying on ASharedMemory_create for devices that
+     conform to API level 202604.

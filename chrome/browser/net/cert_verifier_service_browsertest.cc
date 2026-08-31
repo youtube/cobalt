@@ -23,6 +23,7 @@
 #include "net/base/features.h"
 #include "net/base/ip_address.h"
 #include "net/cert/internal/trust_store_chrome.h"
+#include "net/cert/root_store_proto_lite/root_store.pb.h"  // nogncheck
 #include "net/cert/test_root_certs.h"
 #include "net/cert/x509_util.h"
 #include "net/dns/mock_host_resolver.h"
@@ -43,7 +44,6 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/common/chrome_features.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/server_certificate_database/server_certificate_database.h"  // nogncheck
@@ -76,13 +76,24 @@ class CertVerifierServiceChromeRootStoreOptionalTest
     : public PlatformBrowserTest,
       public testing::WithParamInterface<bool> {
  public:
-  void SetUpOnMainThread() override {
+  void SetUp() override {
     // This test puts a test cert in the Chrome Root Store, which will fail in
     // builds where Certificate Transparency is required, so disable CT
     // during this test.
     SystemNetworkContextManager::SetEnableCertificateTransparencyForTesting(
         false);
 
+    PlatformBrowserTest::SetUp();
+  }
+
+  void TearDown() override {
+    PlatformBrowserTest::TearDown();
+
+    SystemNetworkContextManager::SetEnableCertificateTransparencyForTesting(
+        std::nullopt);
+  }
+
+  void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
 
     content::GetCertVerifierServiceFactory()->SetUseChromeRootStore(
@@ -90,8 +101,6 @@ class CertVerifierServiceChromeRootStoreOptionalTest
   }
 
   void TearDownOnMainThread() override {
-    SystemNetworkContextManager::SetEnableCertificateTransparencyForTesting(
-        std::nullopt);
     // Reset to default.
     content::GetCertVerifierServiceFactory()->SetUseChromeRootStore(
         true, base::DoNothing());
@@ -230,12 +239,6 @@ IN_PROC_BROWSER_TEST_F(CertVerifierTestCrsConstraintsSwitchTest,
 
 class CertVerifierUserSettingsTest : public PlatformBrowserTest {
  public:
-  CertVerifierUserSettingsTest() {
-    feature_list_.InitWithFeatures({features::kEnableCertManagementUIV2,
-                                    features::kEnableCertManagementUIV2Write},
-                                   {});
-  }
-
   testing::AssertionResult AddCertificateToDatabaseAndWaitForVerifierUpdate(
       net::ServerCertificateDatabase::CertInformation cert_info) {
     return AddCertificateToProfileDatabaseAndWaitForVerifierUpdate(
@@ -265,9 +268,6 @@ class CertVerifierUserSettingsTest : public PlatformBrowserTest {
     }
     return testing::AssertionSuccess();
   }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(CertVerifierUserSettingsTest, TestUserSettingsUsed) {
@@ -739,27 +739,19 @@ IN_PROC_BROWSER_TEST_F(CertVerifierMultiProfileUserSettingsTest,
 class CertVerifierNSSMigrationTest : public PlatformBrowserTest {
  public:
   CertVerifierNSSMigrationTest() {
-    const std::vector<base::test::FeatureRef> feature_flags = {
-        features::kEnableCertManagementUIV2,
-        features::kEnableCertManagementUIV2Write};
     if (GetTestPreCount() == 2) {
-      feature_list_.InitWithFeatures(/*enabled_features=*/{},
-                                     /*disabled_features=*/feature_flags);
-    } else {
-      feature_list_.InitWithFeatures(/*enabled_features=*/feature_flags,
-                                     /*disabled_features=*/{});
+      net::ServerCertificateDatabaseService::
+          DisableNSSCertMigrationForTesting();
     }
   }
 
  protected:
   base::HistogramTester histogram_tester_;
-
- private:
-  base::test::ScopedFeatureList feature_list_;
 };
 
 // Setup the NSS database before doing migration. The PRE_PRE_ test is run with
-// the feature flag disabled so migration will not be attempted yet.
+// DisableNSSCertMigrationForTesting() so the migration will not be attempted
+// yet.
 IN_PROC_BROWSER_TEST_F(CertVerifierNSSMigrationTest,
                        PRE_PRE_TestNSSCertMigration) {
   // PRE_ test and main test don't share state, so there isn't an easy way use a
@@ -793,9 +785,8 @@ IN_PROC_BROWSER_TEST_F(CertVerifierNSSMigrationTest,
       "Net.CertVerifier.NSSCertMigrationQueuedRequestsWhenFinished", 0);
 }
 
-// Tests that when the feature flag is set, NSS cert migration is done on
-// initialization and that the verification is blocked on the migration
-// completing.
+// Tests that NSS cert migration is done on initialization and that the
+// verification is blocked on the migration completing.
 IN_PROC_BROWSER_TEST_F(CertVerifierNSSMigrationTest, PRE_TestNSSCertMigration) {
   net::EmbeddedTestServer https_test_server{
       net::EmbeddedTestServer::TYPE_HTTPS};

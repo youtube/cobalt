@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <optional>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -105,6 +107,11 @@ CryptoOptions::EphemeralKeyExchangeCipherGroups::GetSupported() {
   return SSLStreamAdapter::GetSupportedEphemeralKeyExchangeCipherGroups();
 }
 
+std::optional<std::string>
+CryptoOptions::EphemeralKeyExchangeCipherGroups::GetName(uint16_t group_id) {
+  return SSLStreamAdapter::GetEphemeralKeyExchangeCipherGroupName(group_id);
+}
+
 void CryptoOptions::EphemeralKeyExchangeCipherGroups::AddFirst(uint16_t group) {
   std::erase(enabled_, group);
   enabled_.insert(enabled_.begin(), group);
@@ -120,16 +127,22 @@ void CryptoOptions::EphemeralKeyExchangeCipherGroups::Update(
           field_trials);
   // Remove all disabled.
   if (disabled_groups) {
-    default_groups.erase(std::remove_if(
-        default_groups.begin(), default_groups.end(), [&](uint16_t val) {
-          return std::find(disabled_groups->begin(), disabled_groups->end(),
-                           val) != disabled_groups->end();
-        }));
-    enabled_.erase(
-        std::remove_if(enabled_.begin(), enabled_.end(), [&](uint16_t val) {
-          return std::find(disabled_groups->begin(), disabled_groups->end(),
-                           val) != disabled_groups->end();
-        }));
+    default_groups.erase(
+        std::remove_if(default_groups.begin(), default_groups.end(),
+                       [&](uint16_t val) {
+                         return std::find(disabled_groups->begin(),
+                                          disabled_groups->end(),
+                                          val) != disabled_groups->end();
+                       }),
+        default_groups.end());
+    enabled_.erase(std::remove_if(enabled_.begin(), enabled_.end(),
+                                  [&](uint16_t val) {
+                                    return std::find(disabled_groups->begin(),
+                                                     disabled_groups->end(),
+                                                     val) !=
+                                           disabled_groups->end();
+                                  }),
+                   enabled_.end());
   }
 
   // Add those enabled by field-trials first.

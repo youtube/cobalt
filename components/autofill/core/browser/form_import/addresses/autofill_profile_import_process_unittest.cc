@@ -4,15 +4,18 @@
 
 #include "components/autofill/core/browser/form_import/addresses/autofill_profile_import_process.h"
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
 #include "components/autofill/core/browser/data_manager/addresses/test_address_data_manager.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_component.h"
 #include "components/autofill/core/browser/data_model/addresses/autofill_structured_address_test_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/test_profiles.h"
 #include "components/autofill/core/common/autofill_features.h"
@@ -22,6 +25,8 @@
 namespace autofill {
 
 namespace {
+
+using autofill_metrics::SettingsVisibleFieldTypeForMetrics;
 
 // Test that two AutofillProfiles have the same `record_type() and `Compare()`
 // equal. This is useful for testing profile migration, which changes a
@@ -437,7 +442,7 @@ TEST_F(AutofillProfileImportProcessTest, ImportSilentUpdate_kAccount) {
                                    /*allow_only_silent_updates=*/true);
 
   EXPECT_EQ(import_data.import_type(),
-            AutofillProfileImportType::kSilentUpdateForIncompleteProfile);
+            AutofillProfileImportType::kSilentUpdate);
   import_data.AcceptWithoutPrompt();
   EXPECT_TRUE(import_data.ProfilesChanged());
   // Expect that the existing profiles was updated to the standard profile,
@@ -830,53 +835,6 @@ TEST_F(AutofillProfileImportProcessTest, BlockedMerge) {
               testing::UnorderedElementsAre(mergeable_profile));
 }
 
-// Tests the scenario in which the observed profile results in a silent update
-// of the only already existing profile. The import process only supports
-// silent updates.
-TEST_F(AutofillProfileImportProcessTest,
-       SilentlyUpdateProfile_WithIncompleteProfile) {
-  AutofillProfile observed_profile = test::StandardProfile();
-  // The profile should be updateable with the observed profile.
-  AutofillProfile updateable_profile = test::UpdateableStandardProfile();
-
-  // Set a modification date and subsequently advance the test clock.
-  updateable_profile.usage_history().set_modification_date(base::Time::Now());
-  AdvanceClock(base::Days(1));
-
-  address_data_manager().AddProfile(updateable_profile);
-
-  // Create the import process for the scenario that there is an existing
-  // profile that is updateable with the observed profile.
-  auto import_data = CreateProfileImportProcess(
-      observed_profile, /*allow_only_silent_updates=*/true);
-
-  // Test that the type of import was determined correctly.
-  EXPECT_EQ(import_data.import_type(),
-            AutofillProfileImportType::kSilentUpdateForIncompleteProfile);
-  // There should be no merge candidate since this is only a silent update.
-  EXPECT_FALSE(import_data.merge_candidate().has_value());
-  // But there should be one updated profiles.
-  EXPECT_EQ(import_data.silently_updated_profiles().size(), 1u);
-
-  // In this scenario, the user should not be prompted.
-  import_data.AcceptWithoutPrompt();
-
-  // The operation should result in a change of the profiles
-  EXPECT_TRUE(import_data.ProfilesChanged());
-
-  // Test that the existing profile was correctly updated.
-  AutofillProfile updated_profile = test::StandardProfile();
-  updated_profile.set_guid(updateable_profile.guid());
-
-  std::vector<AutofillProfile> resulting_profiles =
-      ApplyImportAndGetProfiles(import_data);
-  ASSERT_EQ(resulting_profiles.size(), 1U);
-  EXPECT_THAT(resulting_profiles,
-              testing::UnorderedElementsAre(updated_profile));
-  EXPECT_EQ(resulting_profiles.at(0).usage_history().modification_date(),
-            base::Time::Now());
-}
-
 // Tests the scenario in which the observed profile is not imported since the
 // import process only silent updates.
 TEST_F(AutofillProfileImportProcessTest, SilentlyUpdateProfile_WithNewProfile) {
@@ -889,7 +847,7 @@ TEST_F(AutofillProfileImportProcessTest, SilentlyUpdateProfile_WithNewProfile) {
 
   // Test that the type of import was determined correctly.
   EXPECT_EQ(import_data.import_type(),
-            AutofillProfileImportType::kUnusableIncompleteProfile);
+            AutofillProfileImportType::kSuppressedNewProfile);
   // There should be no merge candidate since this is only a silent update.
   EXPECT_FALSE(import_data.merge_candidate().has_value());
   // But there should be one updated profiles.
@@ -921,8 +879,9 @@ TEST_F(AutofillProfileImportProcessTest,
       observed_profile, /*allow_only_silent_updates=*/true);
 
   // Test that the type of import was determined correctly.
-  EXPECT_EQ(import_data.import_type(),
-            AutofillProfileImportType::kSilentUpdateForIncompleteProfile);
+  EXPECT_EQ(
+      import_data.import_type(),
+      AutofillProfileImportType::kSuppressedConfirmableMergeAndSilentUpdate);
   // There should be no merge candidate because the only potential candidate is
   // blocked but there should be a silent update.
   EXPECT_FALSE(import_data.merge_candidate().has_value());
@@ -1063,6 +1022,83 @@ TEST_F(AutofillProfileImportProcessTest,
       CreateProfileImportProcess(profile, /*allow_only_silent_updates=*/false);
   EXPECT_EQ(import_data.import_type(),
             AutofillProfileImportType::kDuplicateImport);
+}
+
+// Tests that importing a superset of Home & Work profile results in an update
+// prompt which in fact adds a new profile with `kAccount` type.
+TEST_F(AutofillProfileImportProcessTest, ImportingHomeAndWorkProfileSuperset) {
+  address_data_manager().SetIsEligibleForAddressAccountStorage(true);
+
+  AutofillProfile observed_profile = test::StandardProfile();
+  AutofillProfile home_profile = test::SubsetOfStandardProfile();
+  test_api(home_profile)
+      .set_record_type(AutofillProfile::RecordType::kAccountHome);
+  address_data_manager().AddProfile(home_profile);
+
+  // Create the import process for the scenario the `observed_profile` is a
+  // superset of the existing `home_profile`.
+  auto import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  // Test that the type of import was determined correctly.
+  EXPECT_EQ(import_data.import_type(),
+            AutofillProfileImportType::kHomeAndWorkSuperset);
+
+  // There should be a merge candidate that is the `home_profile`.
+  ASSERT_TRUE(import_data.merge_candidate().has_value());
+  EXPECT_EQ(import_data.merge_candidate(), home_profile);
+
+  // Simulate that the user accepts this import without edits.
+  import_data.AcceptWithoutEdits();
+  EXPECT_TRUE(import_data.ProfilesChanged());
+
+  // Confirm two profiles exist post-import: the original `home_profile` and a
+  // merged superset profile of type `kAccount`.
+  EXPECT_THAT(ApplyImportAndGetProfiles(import_data),
+              testing::UnorderedPointwise(
+                  CompareWithRecordType(),
+                  {observed_profile.ConvertToAccountProfile(), home_profile}));
+}
+
+// Tests that when importing a superset of Home & Work profile, metrics are
+// correctly emitted.
+TEST_F(AutofillProfileImportProcessTest,
+       ImportingHomeAndWorkProfileSuperset_Metrics) {
+  address_data_manager().SetIsEligibleForAddressAccountStorage(true);
+  AutofillProfile observed_profile = test::StandardProfile();
+  AutofillProfile home_profile = test::SubsetOfStandardProfile();
+  test_api(home_profile)
+      .set_record_type(AutofillProfile::RecordType::kAccountHome);
+  address_data_manager().AddProfile(home_profile);
+  auto import_data = CreateProfileImportProcess(
+      observed_profile, /*allow_only_silent_updates=*/false);
+
+  // Simulate that the user accepts this import with edits.
+  AutofillProfile edited_profile = *import_data.import_candidate();
+  edited_profile.SetRawInfoWithVerificationStatus(
+      ADDRESS_HOME_CITY, u"updated city", VerificationStatus::kUserVerified);
+  import_data.AcceptWithEdits(edited_profile);
+
+  base::HistogramTester histogram_tester;
+  import_data.CollectMetrics(/*ukm_recorder=*/nullptr,
+                             address_data_manager().GetProfiles());
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.ProfileImportType",
+      AutofillProfileImportType::kHomeAndWorkSuperset, 1);
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.HomeAndWorkSupersetProfileDecision",
+      AutofillClient::AddressPromptUserDecision::kEditAccepted, 1);
+  // `observed_profile` has city and zip, both of which `home_profile` is
+  // lacking. This caused the home/work superset prompt.
+  EXPECT_THAT(histogram_tester.GetAllSamples(
+                  "Autofill.ProfileImport.HomeAndWorkSupersetAffectedType"),
+              base::BucketsAre(
+                  base::Bucket(SettingsVisibleFieldTypeForMetrics::kCity, 1),
+                  base::Bucket(SettingsVisibleFieldTypeForMetrics::kZip, 1)));
+  // The user manually edited the value of the city field.
+  histogram_tester.ExpectUniqueSample(
+      "Autofill.ProfileImport.HomeAndWorkSupersetEditedType",
+      SettingsVisibleFieldTypeForMetrics::kCity, 1);
 }
 
 }  // namespace

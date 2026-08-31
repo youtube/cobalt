@@ -22,6 +22,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_content_type.h"
 #include "api/video/video_frame.h"
@@ -40,6 +41,7 @@
 #include "rtc_base/rate_tracker.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
+#include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/stats_counter.h"
 #include "video/video_quality_observer2.h"
 #include "video/video_stream_buffer_controller.h"
@@ -55,7 +57,8 @@ struct VideoFrameMetaData;
 
 class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
                                public RtcpCnameCallback,
-                               public RtcpPacketTypeCounterObserver {
+                               public RtcpPacketTypeCounterObserver,
+                               public CorruptionScoreObserver {
  public:
   ReceiveStatisticsProxy(uint32_t remote_ssrc,
                          Clock* clock,
@@ -115,7 +118,7 @@ class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
   void OnCname(uint32_t ssrc, absl::string_view cname) override;
 
   void OnCorruptionScore(double corruption_score,
-                         VideoContentType content_type);
+                         VideoContentType content_type) override;
 
   // Implements RtcpPacketTypeCounterObserver.
   void RtcpPacketTypesCounterUpdated(
@@ -165,7 +168,7 @@ class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
       int64_t now_ms) const;
 
   Clock* const clock_;
-  const int64_t start_ms_;
+  const Timestamp start_;
 
   // Note: The `stats_.rtp_stats` member is not used or populated by this class.
   mutable VideoReceiveStreamInterface::Stats stats_
@@ -201,7 +204,7 @@ class ReceiveStatisticsProxy : public VideoStreamBufferControllerStatsObserver,
   std::optional<int64_t> last_decoded_frame_time_ms_
       RTC_GUARDED_BY(main_thread_);
   size_t num_delayed_frames_rendered_ RTC_GUARDED_BY(main_thread_);
-  int64_t sum_missed_render_deadline_ms_ RTC_GUARDED_BY(main_thread_);
+  TimeDelta sum_missed_render_deadline_ RTC_GUARDED_BY(main_thread_);
   // Mutable because calling Max() on MovingMaxCounter is not const. Yet it is
   // called from const GetStats().
   mutable MovingMaxCounter<TimingFrameInfo> timing_frame_info_counter_

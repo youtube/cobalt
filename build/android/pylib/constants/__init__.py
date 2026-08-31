@@ -79,11 +79,6 @@ PACKAGE_INFO.update({
     chrome.PackageInfo('org.chromium.webview_ui_test',
                        'org.chromium.webview_ui_test.WebViewUiTestActivity',
                        'webview-command-line', None),
-    'weblayer_browsertests':
-    chrome.PackageInfo(
-        'org.chromium.weblayer_browsertests_apk',
-        'org.chromium.weblayer_browsertests_apk.WebLayerBrowserTestsActivity',
-        'chrome-native-tests-command-line', None),
 })
 
 
@@ -160,7 +155,6 @@ PYTHON_UNIT_TEST_SUITES = {
             'java_cpp_enum_tests',
             'java_cpp_strings_tests',
             'java_google_api_keys_tests',
-            'extract_unwind_tables_tests',
         ]
     },
 }

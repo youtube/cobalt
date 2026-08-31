@@ -12,7 +12,6 @@ namespace base::sequence_manager {
 
 namespace {
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 perfetto::protos::pbzero::SequenceManagerTask::Priority
 DefaultTaskPriorityToProto(TaskQueue::QueuePriority priority) {
   DCHECK_EQ(priority, static_cast<TaskQueue::QueuePriority>(
@@ -20,7 +19,6 @@ DefaultTaskPriorityToProto(TaskQueue::QueuePriority priority) {
   return perfetto::protos::pbzero::SequenceManagerTask::Priority::
       NORMAL_PRIORITY;
 }
-#endif
 
 void CheckPriorities(TaskQueue::QueuePriority priority_count,
                      TaskQueue::QueuePriority default_priority) {
@@ -39,9 +37,7 @@ SequenceManager::PrioritySettings::CreateDefault() {
   PrioritySettings settings(
       TaskQueue::DefaultQueuePriority::kQueuePriorityCount,
       TaskQueue::DefaultQueuePriority::kNormalPriority);
-#if BUILDFLAG(ENABLE_BASE_TRACING)
   settings.SetProtoPriorityConverter(&DefaultTaskPriorityToProto);
-#endif
   return settings;
 }
 
@@ -77,7 +73,6 @@ SequenceManager::PrioritySettings::PrioritySettings(
 }
 #endif
 
-#if BUILDFLAG(ENABLE_BASE_TRACING)
 perfetto::protos::pbzero::SequenceManagerTask::Priority
 SequenceManager::PrioritySettings::TaskPriorityToProto(
     TaskQueue::QueuePriority priority) const {
@@ -87,7 +82,6 @@ SequenceManager::PrioritySettings::TaskPriorityToProto(
       << "A tracing priority-to-proto-priority function was not provided";
   return proto_priority_converter_(priority);
 }
-#endif
 
 SequenceManager::PrioritySettings::~PrioritySettings() = default;
 
@@ -151,6 +145,18 @@ SequenceManager::Settings::Builder::SetPrioritySettings(
   return *this;
 }
 
+SequenceManager::Settings::Builder&
+SequenceManager::Settings::Builder::SetIsMainThread(bool is_main_thread_val) {
+  settings_.is_main_thread = is_main_thread_val;
+  return *this;
+}
+
+SequenceManager::Settings::Builder&
+SequenceManager::Settings::Builder::SetShouldReportLockMetrics(bool enable) {
+  settings_.should_report_lock_metrics = enable;
+  return *this;
+}
+
 #if DCHECK_IS_ON()
 
 SequenceManager::Settings::Builder&
@@ -185,5 +191,9 @@ SequenceManager::Settings::Builder::SetLogTaskDelayExpiry(
 SequenceManager::Settings SequenceManager::Settings::Builder::Build() {
   return std::move(settings_);
 }
+
+SequenceManagerSettings::SequenceManagerSettings(
+    SequenceManager::Settings settings)
+    : settings(std::move(settings)) {}
 
 }  // namespace base::sequence_manager

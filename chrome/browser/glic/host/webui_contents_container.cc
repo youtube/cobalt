@@ -5,10 +5,11 @@
 #include "chrome/browser/glic/host/webui_contents_container.h"
 
 #include "base/check.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
-#include "chrome/browser/glic/glic_keyed_service.h"
-#include "chrome/browser/glic/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/widget/glic_view.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
@@ -66,7 +67,11 @@ void WebUIContentsContainer::RequestMediaAccessPermission(
 
 void WebUIContentsContainer::PrimaryMainFrameRenderProcessGone(
     base::TerminationStatus status) {
-  base::RecordAction(base::UserMetricsAction("GlicSessionWebUiCrash"));
+  base::UmaHistogramEnumeration("Glic.Session.WebUiCrash.TerminationStatus",
+                                status, base::TERMINATION_STATUS_MAX_ENUM);
+  if (status != base::TERMINATION_STATUS_NORMAL_TERMINATION) {
+    base::RecordAction(base::UserMetricsAction("GlicSessionWebUiCrash"));
+  }
   auto* keyed_service = GlicKeyedServiceFactory::GetGlicKeyedService(
       web_contents_->GetBrowserContext());
   keyed_service->CloseUI();

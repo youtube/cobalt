@@ -135,11 +135,15 @@ extern const char kClassifyUrlThrottleStatusHistogramName[] =
     "SupervisedUsers.ClassifyUrlThrottle.Status";
 extern const char kClassifyUrlThrottleFinalStatusHistogramName[] =
     "SupervisedUsers.ClassifyUrlThrottle.FinalStatus";
-extern const char kClassifyUrlThrottleUseCaseHistogramName[] =
-    "SupervisedUsers.ClassifyUrlThrottle.UseCase";
 
 const char kLocalWebApprovalDurationMillisecondsHistogramName[] =
     "FamilyLinkUser.LocalWebApprovalCompleteRequestTotalDuration";
 const char kLocalWebApprovalErrorTypeHistogramName[] =
     "FamilyLinkUser.LocalWebApprovalErrorType";
+
+const char kBrowserContentFiltersSettingName[] =
+    "browser_content_filters_enabled";
+const char kSearchContentFiltersSettingName[] =
+    "search_content_filters_enabled";
+
 }  // namespace supervised_user

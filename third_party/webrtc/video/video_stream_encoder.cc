@@ -602,25 +602,20 @@ std::optional<int> ParseEncoderThreadLimit(const FieldTrialsView& trials) {
 }  //  namespace
 
 VideoStreamEncoder::EncoderRateSettings::EncoderRateSettings()
-    : rate_control(),
-      encoder_target(DataRate::Zero()),
-      stable_encoder_target(DataRate::Zero()) {}
+    : rate_control(), encoder_target(DataRate::Zero()) {}
 
 VideoStreamEncoder::EncoderRateSettings::EncoderRateSettings(
     const VideoBitrateAllocation& bitrate,
     double framerate_fps,
     DataRate bandwidth_allocation,
-    DataRate encoder_target,
-    DataRate stable_encoder_target)
+    DataRate encoder_target)
     : rate_control(bitrate, framerate_fps, bandwidth_allocation),
-      encoder_target(encoder_target),
-      stable_encoder_target(stable_encoder_target) {}
+      encoder_target(encoder_target) {}
 
 bool VideoStreamEncoder::EncoderRateSettings::operator==(
     const EncoderRateSettings& rhs) const {
   return rate_control == rhs.rate_control &&
-         encoder_target == rhs.encoder_target &&
-         stable_encoder_target == rhs.stable_encoder_target;
+         encoder_target == rhs.encoder_target;
 }
 
 bool VideoStreamEncoder::EncoderRateSettings::operator!=(
@@ -1094,7 +1089,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
   // Stream dimensions may be not equal to given because of a simulcast
   // restrictions.
   auto highest_stream = absl::c_max_element(
-      streams, [](const webrtc::VideoStream& a, const webrtc::VideoStream& b) {
+      streams, [](const VideoStream& a, const VideoStream& b) {
         return std::tie(a.width, a.height) < std::tie(b.width, b.height);
       });
   int highest_stream_width = static_cast<int>(highest_stream->width);
@@ -1372,6 +1367,7 @@ void VideoStreamEncoder::ReconfigureEncoder() {
     frame_encode_metadata_writer_.Reset();
     last_encode_info_ms_ = std::nullopt;
     was_encode_called_since_last_initialization_ = false;
+    encoder_fallback_requested_ = false;
   }
 
   // Inform dependents of updated encoder settings.
@@ -1530,7 +1526,7 @@ void VideoStreamEncoder::RequestEncoderSwitch() {
   }
 
   if (!preferred_fallback_encoder) {
-    if (env_.field_trials().IsEnabled(
+    if (!env_.field_trials().IsDisabled(
             kSwitchEncoderFollowCodecPreferenceOrderFieldTrial)) {
       encoder_fallback_requested_ = true;
       settings_.encoder_switch_request_callback->RequestEncoderFallback();
@@ -1694,7 +1690,7 @@ VideoStreamEncoder::UpdateBitrateAllocation(
   // might cap the bitrate to the min bitrate configured.
   if (rate_allocator_ && rate_settings.encoder_target > DataRate::Zero()) {
     new_allocation = rate_allocator_->Allocate(VideoBitrateAllocationParameters(
-        rate_settings.encoder_target, rate_settings.stable_encoder_target,
+        rate_settings.encoder_target,
         rate_settings.rate_control.framerate_fps));
   }
 
@@ -2083,7 +2079,7 @@ void VideoStreamEncoder::EncodeVideoFrame(const VideoFrame& video_frame,
       << send_codec_.height << " received a too small frame "
       << out_frame.width() << "x" << out_frame.height();
 
-  TRACE_EVENT2("webrtc", "webrtc::VideoEncoder::Encode", "rtp_timestamp",
+  TRACE_EVENT2("webrtc", "VideoEncoder::Encode", "rtp_timestamp",
                out_frame.rtp_timestamp(), "storage_representation",
                out_frame.video_frame_buffer()->storage_representation());
 
@@ -2350,21 +2346,19 @@ DataRate VideoStreamEncoder::UpdateTargetBitrate(DataRate target_bitrate,
 }
 
 void VideoStreamEncoder::OnBitrateUpdated(DataRate target_bitrate,
-                                          DataRate stable_target_bitrate,
                                           DataRate link_allocation,
                                           uint8_t fraction_lost,
                                           int64_t round_trip_time_ms,
                                           double cwnd_reduce_ratio) {
   RTC_DCHECK_GE(link_allocation, target_bitrate);
   if (!encoder_queue_->IsCurrent()) {
-    encoder_queue_->PostTask([this, target_bitrate, stable_target_bitrate,
-                              link_allocation, fraction_lost,
-                              round_trip_time_ms, cwnd_reduce_ratio] {
+    encoder_queue_->PostTask([this, target_bitrate, link_allocation,
+                              fraction_lost, round_trip_time_ms,
+                              cwnd_reduce_ratio] {
       DataRate updated_target_bitrate =
           UpdateTargetBitrate(target_bitrate, cwnd_reduce_ratio);
-      OnBitrateUpdated(updated_target_bitrate, stable_target_bitrate,
-                       link_allocation, fraction_lost, round_trip_time_ms,
-                       cwnd_reduce_ratio);
+      OnBitrateUpdated(updated_target_bitrate, link_allocation, fraction_lost,
+                       round_trip_time_ms, cwnd_reduce_ratio);
     });
     return;
   }
@@ -2384,7 +2378,6 @@ void VideoStreamEncoder::OnBitrateUpdated(DataRate target_bitrate,
   RTC_DCHECK(sink_) << "sink_ must be set before the encoder is active.";
 
   RTC_LOG(LS_VERBOSE) << "OnBitrateUpdated, bitrate " << target_bitrate.bps()
-                      << " stable bitrate = " << stable_target_bitrate.bps()
                       << " link allocation bitrate = " << link_allocation.bps()
                       << " packet loss " << static_cast<int>(fraction_lost)
                       << " rtt " << round_trip_time_ms;
@@ -2397,9 +2390,9 @@ void VideoStreamEncoder::OnBitrateUpdated(DataRate target_bitrate,
   uint32_t framerate_fps = GetInputFramerateFps();
   frame_dropper_.SetRates((target_bitrate.bps() + 500) / 1000, framerate_fps);
 
-  EncoderRateSettings new_rate_settings{
-      VideoBitrateAllocation(), static_cast<double>(framerate_fps),
-      link_allocation, target_bitrate, stable_target_bitrate};
+  EncoderRateSettings new_rate_settings{VideoBitrateAllocation(),
+                                        static_cast<double>(framerate_fps),
+                                        link_allocation, target_bitrate};
   SetEncoderRates(UpdateBitrateAllocation(new_rate_settings));
 
   if (target_bitrate.bps() != 0)

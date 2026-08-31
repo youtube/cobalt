@@ -12,10 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-.trace-info-page {
+.pf-trace-info-page {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0 20px;
+
+  &__help-icon {
+    font-size: 18px;
+    margin-left: 10px;
+    color: #43a047;
+    cursor: default;
+  }
 
   section {
     margin: 20px auto;
@@ -24,11 +31,11 @@
     padding: 20px;
     border-radius: 8px;
 
-    &.errors {
+    &__errors {
       background-color: #f3e5f5;
     }
 
-    .metric-error {
+    &__metric-error {
       font-family: var(--monospace-font);
       font-size: 12px;
       padding: 5px;
@@ -44,18 +51,19 @@
     }
 
     h3 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      margin-top: 1.25rem;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+
+    h4 {
       font-size: 0.9rem;
       font-weight: 400;
       line-height: 1.25rem;
       margin: 10px 0;
       color: #333;
-    }
-
-    .contextual-help {
-      font-size: 18px;
-      margin-left: 10px;
-      color: #43a047;
-      cursor: default;
     }
 
     table {

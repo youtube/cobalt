@@ -41,6 +41,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/synchronization/lock.h"
 #include "base/test/bind.h"
@@ -1955,7 +1956,7 @@ function generateBid(
     EvalJsResult result =
         EvalJs(adapter, JsReplace("navigator.deprecatedURNToURL($1, $2)",
                                   urn_url, send_reports));
-    if (!result.error.empty() || result.value.is_none()) {
+    if (!result.is_ok() || result == base::Value()) {
       return std::nullopt;
     }
     return GURL(result.ExtractString());
@@ -1977,9 +1978,9 @@ function generateBid(
     })())",
                            urn_url, base::Value(std::move(replacement_value))));
     if (error_out != nullptr) {
-      *error_out = result.error;
+      *error_out = result.is_ok() ? "" : result.ExtractError();
     }
-    return result.error == "" && result == "done";
+    return result == "done";
   }
 
   void AttachInterestGroupObserver() {
@@ -2113,8 +2114,11 @@ try {
                        TestTimeouts::action_max_timeout().InMilliseconds())
                        .c_str()));
 
-    ASSERT_TRUE(eval_result.value.is_none())
-        << "Expected string, but got " << eval_result.value;
+    ASSERT_THAT(
+        eval_result,
+        AnyOf(EvalJsResult::IsError(),
+              EvalJsResult::IsOkAndHolds(base::test::IsJson(base::Value()))))
+        << "Expected string, but got " << eval_result;
     WaitForFencedFrameNavigation(expected_ad_url, *execution_target, observer);
   }
 
@@ -2265,19 +2269,19 @@ try {
         base::StringPrintf("navigator.adAuctionComponents(%i)", num_params));
     // Return nullopt if an exception was thrown, as should be the case for
     // loading pages that are not the result of an auction.
-    if (!result.error.empty()) {
+    if (!result.is_ok()) {
       return std::nullopt;
     }
 
     // Otherwise, adAuctionComponents should always return a list, since it
     // forces its input to be a number, and clamps it to the expected range.
-    EXPECT_TRUE(result.value.is_list());
-    if (!result.value.is_list()) {
+    EXPECT_TRUE(result.is_list());
+    if (!result.is_list()) {
       return std::nullopt;
     }
 
     std::vector<GURL> out;
-    for (const auto& value : result.value.GetList()) {
+    for (const auto& value : result.ExtractList()) {
       if (!value.is_string()) {
         ADD_FAILURE() << "Expected string: " << value;
         return std::vector<GURL>();
@@ -2468,10 +2472,10 @@ class InterestGroupPrivateNetworkBrowserTest : public InterestGroupBrowserTest {
   //
   // embedded_https_test_server() is also served from a localhost IP address,
   // but without the command line switch, that's considered
-  // IPAddressSpace::kLocal, using the standard IP to IPAddressSpace mapping
+  // IPAddressSpace::kLoopback, using the standard IP to IPAddressSpace mapping
   // logic.
   //
-  // These are are based around interactions between the "local"
+  // These are are based around interactions between the "loopback"
   // `embedded_https_test_server()` and the "public" `remote_test_server_` and
   // the Private Network Access preflight logic.
   net::test_server::EmbeddedTestServer remote_test_server_;
@@ -5765,12 +5769,13 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                                })",
                                origin, almost_too_long_seller_url)));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(R"({
                                                    seller: $1,
                                                    decisionLogicURL: $2,
                                                    interestGroupBuyers: [$1]
                                                  })",
-                                                 origin, too_long_seller_url)));
+                                        origin, too_long_seller_url)));
 }
 
 // Run two multi-seller auctions with two components. In the first auction, both
@@ -5831,7 +5836,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       embedded_https_test_server().GetURL(origin.host(),
                                           "/interest_group/decision_logic.js"),
       too_long_seller_url);
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 
   // Run an auction where only one component auction has a too-long decision
   // logic URLs. There should be a winner from the other component auction.
@@ -5909,7 +5914,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   // This should fail with an attestation failure, since the too-long URL will
   // be passed as a null URL to the cross-origin attestion check, which will
   // fail on a null URL.
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(
                 R"({
                   seller: $1,
@@ -5934,12 +5939,12 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), url));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(R"({
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(JsReplace(R"({
       seller: $1,
       decisionLogicURL: $2,
       maxTrustedScoringSignalsURLLength: 1000
   })",
-                                                 origin, url)));
+                                                       origin, url)));
   WaitForAccessObserved({});
 }
 
@@ -5950,12 +5955,12 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), url));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(R"({
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(JsReplace(R"({
       seller: $1,
       decisionLogicURL: $2,
       maxTrustedScoringSignalsURLLength: 0
   })",
-                                                 origin, url)));
+                                                       origin, url)));
   WaitForAccessObserved({});
 }
 
@@ -6186,12 +6191,12 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), url));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(R"({
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(JsReplace(R"({
     seller: $1,
     decisionLogicURL: $2,
     trustedScoringSignalsCoordinator: "https://example.test"
 })",
-                                                 origin, url)));
+                                                       origin, url)));
   WaitForAccessObserved({});
 }
 
@@ -6325,7 +6330,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   AttachInterestGroupObserver();
 
   base::HistogramTester histogram_tester;
-  EXPECT_EQ(nullptr, RunAuctionAndWait(R"({
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(R"({
       seller: 'https://test.com',
       decisionLogicURL: 'https://test.com',
   })"));
@@ -6350,7 +6355,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       shell(), embedded_https_test_server().GetURL("a.test", "/echo")));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(R"({
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(R"({
       seller: 'https://test.com',
       decisionLogicURL: 'https://test.com',
       interestGroupBuyers: [],
@@ -7414,8 +7419,9 @@ IN_PROC_BROWSER_TEST_F(
   console_observer.SetPattern(
       "Worklet error: When looking for directFromSellerSignalsHeaderAdSlot "
       "notFound, failed to find a matching response.");
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(kAuctionConfigTemplate,
-                                                 test_origin, decision_url)));
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(
+                JsReplace(kAuctionConfigTemplate, test_origin, decision_url)));
   EXPECT_TRUE(console_observer.Wait());
 }
 
@@ -8339,7 +8345,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       auctionNonce: $3
   })";
 
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(kAuctionConfigTemplate, test_origin,
                                         decision_url, auction_nonce)));
 
@@ -8368,7 +8374,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       auctionNonce: $3
   })";
 
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(kAuctionConfigTemplate, test_origin,
                                         decision_url, auction_nonce)));
 
@@ -8398,7 +8404,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       auctionNonce: $3
   })";
 
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(kAuctionConfigTemplate, test_origin,
                                         decision_url, auction_nonce)));
 
@@ -9183,15 +9189,16 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
                          })",
-                         url::Origin::Create(test_url),
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                url::Origin::Create(test_url),
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
   WaitForAccessObserved({});
 }
 
@@ -9270,8 +9277,9 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     auctionReportBuyerKeys: [1n],
@@ -9279,9 +9287,9 @@ IN_PROC_BROWSER_TEST_F(
       unknownReportType: { bucket: 0n, scale: 1 },
     }
                          })",
-                         url::Origin::Create(test_url),
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                url::Origin::Create(test_url),
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
   WaitForAccessObserved({});
 }
 
@@ -9334,15 +9342,16 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
   AttachInterestGroupObserver();
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     requiredSellerCapabilities: ['non-valid-capability'],
                          })",
-                         url::Origin::Create(test_url),
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                url::Origin::Create(test_url),
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
   WaitForAccessObserved({});
 }
 
@@ -10064,16 +10073,17 @@ IN_PROC_BROWSER_TEST_F(
   // There is no winner, because "cars" is removed for not satisfying
   // requiredSellerCapabilities, and "bikes" is removed since it only grants
   // "interest-group-counts" to `other_origin`, not seller `test_origin`.
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
     requiredSellerCapabilities: ['interest-group-counts'],
                 })",
-                         test_origin,
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                test_origin,
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
 
   // A post-auction update occurs.
   WaitForInterestGroupsSatisfying(
@@ -10247,8 +10257,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), test_url_d));
 
   // Auction should not be run since d.test has the API disabled.
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
@@ -10256,10 +10267,10 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
     sellerSignals: {yet: 'more', info: 1},
     perBuyerSignals: {$3: {even: 'more', x: 4.5}}
           })",
-                         url::Origin::Create(test_url_d),
-                         embedded_https_test_server().GetURL(
-                             "d.test", "/interest_group/decision_logic.js"),
-                         test_origin_a)));
+                url::Origin::Create(test_url_d),
+                embedded_https_test_server().GetURL(
+                    "d.test", "/interest_group/decision_logic.js"),
+                test_origin_a)));
 
   // No requests should have been made for the interest group or auction URLs.
   base::AutoLock auto_lock(requests_lock_);
@@ -12592,7 +12603,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                     .Build()));
 
   EXPECT_EQ(
-      nullptr,
+      base::Value(),
       RunAuctionAndWait(JsReplace(
           R"({
     seller: $1,
@@ -12681,7 +12692,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, RunAdAuctionRepro1451572) {
       embedded_https_test_server().GetURL("a.test",
                                           "/interest_group/bidding_logic.js"));
 
-  EXPECT_EQ(nullptr, EvalJs(shell(), repro_script));
+  EXPECT_EQ(base::Value(), EvalJs(shell(), repro_script));
 }
 
 // Test that the FLEDGE properly handles detached documents.
@@ -13084,8 +13095,6 @@ perBuyerSignals: {$1: {even: 'more', x: 4.5}}
                             embedded_https_test_server().GetURL(
                                 "a.test", "/interest_group/decision_logic.js")),
                         shell());
-  ASSERT_TRUE(urn_url_string.value.is_string())
-      << "Expected string, but got " << urn_url_string.value;
 
   GURL urn_url(urn_url_string.ExtractString());
   ASSERT_TRUE(urn_url.is_valid())
@@ -13476,8 +13485,8 @@ perBuyerSignals: {$1: {even: 'more', x: 4.5}}
   // on b.test, but the IG owner is a.test. Do the failed leave case first so
   // that subsequent WaitForAccessObserved() calls would likely catch an
   // unexpected leave event.
-  EXPECT_EQ(nullptr, EvalJs(GetFencedFrameRenderFrameHost(rfh1),
-                            "navigator.leaveAdInterestGroup()"));
+  EXPECT_EQ(base::Value(), EvalJs(GetFencedFrameRenderFrameHost(rfh1),
+                                  "navigator.leaveAdInterestGroup()"));
 
   ASSERT_NO_FATAL_FAILURE(RunAuctionAndNavigateFencedFrame(
       ad_url2,
@@ -13508,8 +13517,8 @@ perBuyerSignals: {$1: {even: 'more', x: 4.5}}
   // Try to leave the winning interest group, which should succeed this time. Do
   // it by calling Javascript directly instead of loading a page that does this
   // to avoid races with logging kBin or kWin.
-  EXPECT_EQ(nullptr, EvalJs(GetFencedFrameRenderFrameHost(rfh2),
-                            "navigator.leaveAdInterestGroup()"));
+  EXPECT_EQ(base::Value(), EvalJs(GetFencedFrameRenderFrameHost(rfh2),
+                                  "navigator.leaveAdInterestGroup()"));
   WaitForAccessObserved(
       {{"global", TestInterestGroupObserver::kLeave, test_origin, "trucks"}});
 
@@ -13580,10 +13589,10 @@ perBuyerSignals: {$1: {even: 'more', x: 4.5}}
   // Leave the interest group and wait to observe the event. Do this after the
   // above WaitForAccessObserved() call, as leaving is racy with recording the
   // result of an auction.
-  EXPECT_EQ(nullptr, EvalJs(GetFencedFrameRenderFrameHost(web_contents())
-                                ->child_at(0)
-                                ->current_frame_host(),
-                            "navigator.leaveAdInterestGroup()"));
+  EXPECT_EQ(base::Value(), EvalJs(GetFencedFrameRenderFrameHost(web_contents())
+                                      ->child_at(0)
+                                      ->current_frame_host(),
+                                  "navigator.leaveAdInterestGroup()"));
   WaitForAccessObserved(
       {{"global", TestInterestGroupObserver::kLeave, test_origin, "cars"}});
 
@@ -14450,7 +14459,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
 
     // Some auctions will have no winner, depending on which interest groups
     // were chosen to participate. No need to do anything more for those.
-    if (result.value.is_none()) {
+    if (!result.is_ok() || result == base::Value()) {
       continue;
     }
 
@@ -14902,8 +14911,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
 })())",
                                               kName, test_origin)));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
@@ -14911,9 +14921,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
     sellerSignals: {yet: 'more', info: 1},
     perBuyerSignals: {$1: {even: 'more', x: 4.5}}
                          })",
-                         test_origin,
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                test_origin,
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
 }
 
 // The winning ad's render url is invalid (invalid url or has http scheme).
@@ -14934,15 +14944,16 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, RunAdAuctionWithInvalidAdUrl) {
                          R"({"ad":"metadata","here":[1,2]})"}}})
               .Build()));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
                          })",
-                         test_origin,
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                test_origin,
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
 }
 
 // Test that when there are no ad components, an array of ad components is still
@@ -15137,8 +15148,6 @@ IN_PROC_BROWSER_TEST_F(InterestGroupFencedFrameBrowserTest,
       url::Origin::Create(test_url),
       embedded_https_test_server().GetURL(
           "a.test", "/interest_group/decision_logic.js")));
-  ASSERT_TRUE(urn_url_string.value.is_string())
-      << "Expected string, but got " << urn_url_string.value;
 
   GURL urn_url(urn_url_string.ExtractString());
   ASSERT_TRUE(urn_url.is_valid())
@@ -15776,7 +15785,7 @@ function reportResult(auctionConfig, browserSignals) {
       origin,
       embedded_https_test_server().GetURL("a.test", kDecisionLogicPath));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
   EXPECT_TRUE(console_observer.Wait());
 }
 
@@ -15804,16 +15813,17 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                          R"({"ad":"metadata","here":[1,2,3]})"}}})
               .Build()));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"(
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"(
 {
   seller: $1,
   decisionLogicURL: $2,
   interestGroupBuyers: [$1],
 })",
-                         test_origin,
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                test_origin,
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
 }
 
 IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, ComponentAuction) {
@@ -15912,7 +15922,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       test_origin,
       embedded_https_test_server().GetURL("a.test",
                                           "/interest_group/decision_logic.js"));
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 }
 
 // Test the case of a component argument in the case the top-level seller
@@ -15955,7 +15965,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       test_origin,
       embedded_https_test_server().GetURL("a.test",
                                           "/interest_group/decision_logic.js"));
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 }
 
 // Test the case of a component argument in the case a component seller refuses
@@ -15999,7 +16009,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       test_origin,
       embedded_https_test_server().GetURL("a.test",
                                           "/interest_group/decision_logic.js"));
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 }
 
 class InterestGroupWorkletValidationBrowserTest
@@ -17109,7 +17119,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
                          R"({"ad":"metadata","here":[1,2,3]})"}}})
               .Build()));
 
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(
                 R"(
 {
@@ -17482,7 +17492,7 @@ function validateAuctionConfig(auctionConfig) {
       test_origin,
       embedded_https_test_server().GetURL("a.test", kDecisionLogicPath));
   EXPECT_EQ("a JavaScript error: \"manual cancel\"\n",
-            EvalJs(shell(), script).error);
+            EvalJs(shell(), script).ExtractError());
 }
 
 // Test for auctionSignals, perBuyerSignals, directFromSellerSignals, and
@@ -18218,7 +18228,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
 
   // The auction fails, since seller's scoreAd() script times out after 1 ms.
   EXPECT_EQ(
-      nullptr,
+      base::Value(),
       RunAuctionAndWait(JsReplace(
           R"({
     seller: $1,
@@ -18533,7 +18543,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
                        BidderOnPrivateNetwork) {
   URLLoaderMonitor url_loader_monitor;
 
-  // Learn the bidder IG, served from the local server.
+  // Learn the bidder IG, served from the loopback server.
   GURL bidder_url = embedded_https_test_server().GetURL(
       "b.test", "/interest_group/bidding_logic.js");
   ASSERT_TRUE(NavigateToURL(
@@ -18553,18 +18563,19 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
   GURL test_url = remote_test_server_.GetURL("a.test", "/echo");
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"(
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"(
 {
   seller: $1,
   decisionLogicURL: $2,
   interestGroupBuyers: [$3]
 }
                          )",
-                         url::Origin::Create(test_url),
-                         remote_test_server_.GetURL(
-                             "a.test", "/interest_group/decision_logic.js"),
-                         bidder_origin)));
+                url::Origin::Create(test_url),
+                remote_test_server_.GetURL("a.test",
+                                           "/interest_group/decision_logic.js"),
+                bidder_origin)));
 
   // The URLLoaderMonitor should have seen a request for the bidder URL, which
   // should have been made from a public address space.
@@ -18583,7 +18594,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
               Optional(network::CorsErrorStatus(
                   network::mojom::CorsError::kInsecurePrivateNetwork,
                   network::mojom::IPAddressSpace::kUnknown,
-                  network::mojom::IPAddressSpace::kLocal)));
+                  network::mojom::IPAddressSpace::kLoopback)));
 }
 
 IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
@@ -18613,7 +18624,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
                 {{{GURL("https://example.com/render"),
                    /*metadata=*/std::nullopt}}}));
 
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(
                 R"(
 {
@@ -18641,7 +18652,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
       Optional(network::CorsErrorStatus(
           network::mojom::CorsError::kLocalNetworkAccessPermissionDenied,
           network::mojom::IPAddressSpace::kUnknown,
-          network::mojom::IPAddressSpace::kLocal)));
+          network::mojom::IPAddressSpace::kLoopback)));
 }
 
 // Have the auction and worklets server from public IPs, but send reports to a
@@ -18721,7 +18732,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
                 Optional(network::CorsErrorStatus(
                     network::mojom::CorsError::kInsecurePrivateNetwork,
                     network::mojom::IPAddressSpace::kUnknown,
-                    network::mojom::IPAddressSpace::kLocal)));
+                    network::mojom::IPAddressSpace::kLoopback)));
   }
 }
 
@@ -18897,7 +18908,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
           request.trusted_params->client_security_state->ip_address_space);
     } else {
       EXPECT_EQ(
-          network::mojom::IPAddressSpace::kLocal,
+          network::mojom::IPAddressSpace::kLoopback,
           request.trusted_params->client_security_state->ip_address_space);
     }
     // Not the main purpose of this test, but it should be using a transient
@@ -19167,7 +19178,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
     if (test_case.run_auction_from_public_address_space) {
       // The auction fails because the scripts get blocked; the update request
       // should still happen.
-      EXPECT_EQ(nullptr, auction_result);
+      EXPECT_EQ(base::Value(), auction_result);
     } else {
       TestFencedFrameURLMappingResultObserver observer;
       ConvertFencedFrameURNToURL(GURL(auction_result.ExtractString()),
@@ -19186,7 +19197,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupPrivateNetworkBrowserTest,
           request.trusted_params->client_security_state->ip_address_space);
     } else {
       EXPECT_EQ(
-          network::mojom::IPAddressSpace::kLocal,
+          network::mojom::IPAddressSpace::kLoopback,
           request.trusted_params->client_security_state->ip_address_space);
     }
 
@@ -19776,7 +19787,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
   console_observer.SetPattern(
       "Worklet error: https://a.test:*/hung perBuyerCumulativeTimeout "
       "exceeded during bid generation.");
-  EXPECT_EQ(nullptr,
+  EXPECT_EQ(base::Value(),
             RunAuctionAndWait(JsReplace(kAuctionConfigTemplate, test_origin,
                                         decision_url, other_origin)));
   EXPECT_TRUE(console_observer.Wait());
@@ -21398,15 +21409,16 @@ IN_PROC_BROWSER_TEST_F(InterestGroupAuctionLimitBrowserTest,
 
   // 3rd auction -- after navigations; should fail due to hitting the auction
   // limit.
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
                 })",
-                         test_origin,
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                test_origin,
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
 }
 
 // Create a page with a cross-origin iframe. Run an auction in the main frame,
@@ -21465,7 +21477,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupAuctionLimitBrowserTest,
   // 3rd auction -- in cross-origin iframe; should fail due to hitting the
   // auction limit.
   EXPECT_EQ(
-      nullptr,
+      base::Value(),
       RunAuctionAndWait(JsReplace(
                             R"({
     seller: $1,
@@ -22855,7 +22867,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBiddingAndAuctionServerBrowserTest,
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
 
   base::HistogramTester histogram_tester;
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
   content::FetchHistogramsFromChildProcesses();
   // Make sure the right histogram was logged (not the on-device histogram).
   histogram_tester.ExpectTotalCount(
@@ -22926,7 +22938,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBiddingAndAuctionServerBrowserTest,
 
   ASSERT_TRUE(NavigateToURL(shell(), test_url));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 }
 
 class InterestGroupBiddingAndAuctionMultiSellerServerDisabledBrowserTest
@@ -23086,7 +23098,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       "Invalid AuctionConfig. The config provided an auctionNonce value "
       "that was _not_ created by a previous call to createAuctionNonce.");
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 
   // Verify the expected error is logged to the console.
   ASSERT_TRUE(console_observer.Wait());
@@ -23134,7 +23146,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       "Invalid AuctionConfig. The config provided an auctionNonce value "
       "that was _not_ created by a previous call to createAuctionNonce.");
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 
   // Verify the expected error is logged to the console.
   ASSERT_TRUE(console_observer.Wait());
@@ -23439,7 +23451,7 @@ IN_PROC_BROWSER_TEST_F(
   return navigator.deprecatedRunAdAuctionEnforcesKAnonymity;
 })())";
 
-  EXPECT_EQ(nullptr, EvalJs(shell(), script));
+  EXPECT_EQ(base::Value(), EvalJs(shell(), script));
 }
 
 class InterestGroupBiddingAndAuctionServerRestrictedPermissionsPolicyBrowserTest
@@ -24068,7 +24080,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest,
       auction_nonce, additional_bid_ad_url, additional_bid_logic_url,
       url::Origin::Create(additional_bid_logic_url));
 
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 }
 
 // Basic negative IG test: one negative IG specified in the additional bid,
@@ -25638,7 +25650,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, DetachedFramePromiseResolve) {
              JsReplace(kFrameScriptTemplate, url::Origin::Create(test_url),
                        embedded_https_test_server().GetURL(
                            kTestOrigin, "/interest_group/decision_logic.js"))));
-  EXPECT_EQ(nullptr, EvalJs(shell(), kTopLevelScript));
+  EXPECT_EQ(base::Value(), EvalJs(shell(), kTopLevelScript));
 }
 
 IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, FeatureDetection) {
@@ -25713,8 +25725,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, FeatureDetection) {
   EXPECT_EQ(kDefaultMaxGroupLifetimeMs,
             EvalJs(shell(), kQueryMaxGroupLifetimeMs));
   auto all_result = EvalJs(shell(), kQueryAll);
-  EXPECT_THAT(all_result.value, base::test::IsJson(base::StringPrintf(
-                                    R"({
+  EXPECT_THAT(all_result,
+              EvalJsResult::IsOkAndHolds(base::test::IsJson(base::StringPrintf(
+                  R"({
    "adComponentsLimit": 40,
    "deprecatedRenderURLReplacements": true,
    "permitCrossOriginTrustedSignals": true,
@@ -25725,8 +25738,8 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, FeatureDetection) {
    "trustedSignalsKVv2": true,
    "maxGroupLifetimeMs": %f
 })",
-                                    kDefaultMaxGroupLifetimeMs)))
-      << all_result.error;
+                  kDefaultMaxGroupLifetimeMs))))
+      << all_result;
 }
 
 // Worklet handling of zero seller timeout.
@@ -25762,7 +25775,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, ZeroSellerTimeout) {
       JsReplace(kConfigTemplate, test_origin,
                 embedded_https_test_server().GetURL(
                     "a.test", "/interest_group/decision_logic.js"));
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 
   ASSERT_TRUE(console_observer.Wait());
   // We should get a nice error, not a worklet crash.
@@ -25803,7 +25816,7 @@ IN_PROC_BROWSER_TEST_F(InterestGroupBrowserTest, ZeroBuyerTimeout) {
       JsReplace(kConfigTemplate, test_origin,
                 embedded_https_test_server().GetURL(
                     "a.test", "/interest_group/decision_logic.js"));
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 
   ASSERT_TRUE(console_observer.Wait());
   // We should get a nice warning, not a worklet crash.
@@ -26604,7 +26617,7 @@ void InterestGroupCrossOriginTrustedSignalsBrowserTest::
   if (expect_success) {
     EXPECT_EQ(ad_url, RunAuctionAndWaitForUrl(config));
   } else {
-    EXPECT_EQ(nullptr, RunAuctionAndWait(config));
+    EXPECT_EQ(base::Value(), RunAuctionAndWait(config));
   }
 
   if (!attest_signals_origin) {
@@ -26742,7 +26755,7 @@ void InterestGroupCrossOriginTrustedSignalsBrowserTest::
   if (expect_success) {
     EXPECT_EQ(ad_url, RunAuctionAndWaitForUrl(config));
   } else {
-    EXPECT_EQ(nullptr, RunAuctionAndWait(config));
+    EXPECT_EQ(base::Value(), RunAuctionAndWait(config));
   }
 }
 
@@ -26794,8 +26807,9 @@ IN_PROC_BROWSER_TEST_F(InterestGroupCrossOriginTrustedSignalsBrowserTest,
   EXPECT_EQ(true, EvalJs(shell(), kTestExpression));
 
   auto all_result = EvalJs(shell(), kQueryAll);
-  EXPECT_THAT(all_result.value, base::test::IsJson(base::StringPrintf(
-                                    R"({
+  EXPECT_THAT(all_result,
+              EvalJsResult::IsOkAndHolds(base::test::IsJson(base::StringPrintf(
+                  R"({
    "adComponentsLimit": 40,
    "deprecatedRenderURLReplacements": true,
    "permitCrossOriginTrustedSignals": true,
@@ -26806,8 +26820,8 @@ IN_PROC_BROWSER_TEST_F(InterestGroupCrossOriginTrustedSignalsBrowserTest,
    "trustedSignalsKVv2": true,
    "maxGroupLifetimeMs": %f
 })",
-                                    kDefaultMaxGroupLifetimeMs)))
-      << all_result.error;
+                  kDefaultMaxGroupLifetimeMs))))
+      << all_result;
 }
 
 IN_PROC_BROWSER_TEST_F(InterestGroupCrossOriginTrustedSignalsBrowserTest,
@@ -28223,8 +28237,9 @@ IN_PROC_BROWSER_TEST_F(RealTimeReportingEnabledTest, FeatureDetection) {
   EXPECT_EQ(true, EvalJs(shell(), kQueryRealTimeReporting));
 
   auto all_result = EvalJs(shell(), kQueryAll);
-  EXPECT_THAT(all_result.value, base::test::IsJson(base::StringPrintf(
-                                    R"({
+  EXPECT_THAT(all_result,
+              EvalJsResult::IsOkAndHolds(base::test::IsJson(base::StringPrintf(
+                  R"({
    "adComponentsLimit": 40,
    "deprecatedRenderURLReplacements": true,
    "permitCrossOriginTrustedSignals": true,
@@ -28235,8 +28250,8 @@ IN_PROC_BROWSER_TEST_F(RealTimeReportingEnabledTest, FeatureDetection) {
    "trustedSignalsKVv2": true,
    "maxGroupLifetimeMs": %f
 })",
-                                    kDefaultMaxGroupLifetimeMs)))
-      << all_result.error;
+                  kDefaultMaxGroupLifetimeMs))))
+      << all_result;
 }
 
 class FledgeUnNoisedRealTimeReportEnabledTest
@@ -29132,7 +29147,7 @@ void InterestGroupTrustedSignalsKVv2BrowserTest::
   if (expect_success) {
     EXPECT_EQ(ad_url, RunAuctionAndWaitForUrl(auction_config));
   } else {
-    EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+    EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
   }
 }
 
@@ -29280,7 +29295,7 @@ void InterestGroupTrustedSignalsKVv2BrowserTest::
   if (expect_success) {
     EXPECT_EQ(ad_url, RunAuctionAndWaitForUrl(auction_config));
   } else {
-    EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+    EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
   }
 
   if (!attest_signals_origin) {
@@ -30250,8 +30265,9 @@ IN_PROC_BROWSER_TEST_F(DisableLocalAuctionInterestGroupBrowserTest,
   // there's no "serverResponse" key in the auctionConfig, runAdAuction will
   // not throw an error. It will return nullptr, which matches what happens
   // when there is no auction winner.
-  EXPECT_EQ(nullptr, RunAuctionAndWait(JsReplace(
-                         R"({
+  EXPECT_EQ(base::Value(),
+            RunAuctionAndWait(JsReplace(
+                R"({
     seller: $1,
     decisionLogicURL: $2,
     interestGroupBuyers: [$1],
@@ -30259,9 +30275,9 @@ IN_PROC_BROWSER_TEST_F(DisableLocalAuctionInterestGroupBrowserTest,
     auctionReportBuyers: {
       bidCount: { bucket: 100n, scale: 10 },
     }})",
-                         test_origin_,
-                         embedded_https_test_server().GetURL(
-                             "a.test", "/interest_group/decision_logic.js"))));
+                test_origin_,
+                embedded_https_test_server().GetURL(
+                    "a.test", "/interest_group/decision_logic.js"))));
 }
 
 IN_PROC_BROWSER_TEST_F(DisableLocalAuctionInterestGroupBrowserTest,
@@ -30296,7 +30312,7 @@ IN_PROC_BROWSER_TEST_F(DisableLocalAuctionInterestGroupBrowserTest,
       test_origin_,
       embedded_https_test_server().GetURL(test_origin_.host(),
                                           "/interest_group/decision_logic.js"));
-  EXPECT_EQ(nullptr, RunAuctionAndWait(auction_config));
+  EXPECT_EQ(base::Value(), RunAuctionAndWait(auction_config));
 }
 
 }  // namespace

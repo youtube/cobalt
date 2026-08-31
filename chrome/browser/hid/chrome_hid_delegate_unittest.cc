@@ -1060,10 +1060,6 @@ class ChromeHidDelegateServiceWorkerTestBase
         profile_, GetHidConnectionTrackerTestingFactory());
     return testing_profile;
   }
-
- private:
-  ScopedTestingLocalState testing_local_state_{
-      TestingBrowserProcess::GetGlobal()};
 };
 
 class ChromeHidDelegateServiceWorkerTest

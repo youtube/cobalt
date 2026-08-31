@@ -12,20 +12,21 @@
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
-#include "chrome/browser/ui/tabs/test_util.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/common/pref_names.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/infobars/content/content_infobar_manager.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_browser_context.h"
 #include "content/public/test/test_renderer_host.h"
 #include "content/public/test/web_contents_tester.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace pdf::infobar {
 
 class PdfInfoBarControllerTest : public testing::Test {
  protected:
@@ -36,7 +37,7 @@ class PdfInfoBarControllerTest : public testing::Test {
             std::make_unique<TabStripModel>(delegate(), profile())),
         browser_window_interface_(
             std::make_unique<MockBrowserWindowInterface>()) {
-    ON_CALL(*browser_window_interface_, GetTabStripModel)
+    ON_CALL(*browser_window_interface_, GetTabStripModel())
         .WillByDefault(::testing::Return(tab_strip_model()));
     ON_CALL(*browser_window_interface_, GetProfile)
         .WillByDefault(::testing::Return(profile()));
@@ -88,7 +89,9 @@ class PdfInfoBarControllerTest : public testing::Test {
     return did_show_infobar;
   }
 
-  TestingPrefServiceSimple* local_state() { return local_state_.Get(); }
+  TestingPrefServiceSimple* local_state() {
+    return TestingBrowserProcess::GetGlobal()->GetTestingLocalState();
+  }
   TestingProfile* profile() { return profile_.get(); }
   TestTabStripModelDelegate* delegate() { return delegate_.get(); }
   TabStripModel* tab_strip_model() { return tab_strip_model_.get(); }
@@ -103,9 +106,6 @@ class PdfInfoBarControllerTest : public testing::Test {
 
   base::test::ScopedFeatureList feature_list_;
 
-  // Must be before `profile_`.
-  ScopedTestingLocalState local_state_{TestingBrowserProcess::GetGlobal()};
-
   // `ChromeLayoutProvider::Get()` is called when an infobar is created.
   ChromeLayoutProvider layout_provider_;
 
@@ -114,7 +114,7 @@ class PdfInfoBarControllerTest : public testing::Test {
   const std::unique_ptr<TestTabStripModelDelegate> delegate_;
   const std::unique_ptr<TabStripModel> tab_strip_model_;
   const std::unique_ptr<MockBrowserWindowInterface> browser_window_interface_;
-  tabs::PreventTabFeatureInitialization prevent_;
+  const tabs::TabModel::PreventFeatureInitializationForTesting prevent_;
 };
 
 class PdfInfoBarControllerPdfLoadTest : public PdfInfoBarControllerTest {
@@ -144,7 +144,7 @@ class PdfInfoBarControllerStartupTest : public PdfInfoBarControllerTest {
   void SetUp() override {
     feature_list().InitAndEnableFeatureWithParameters(features::kPdfInfoBar,
                                                       {{"trigger", "startup"}});
-    PdfInfoBarController::SetDefaultBrowserPromptShownForTesting(false);
+    PdfInfoBarController::SetHigherPriorityInfoBarShownForTesting(false);
     PdfInfoBarControllerTest::SetUp();
   }
 };
@@ -193,8 +193,10 @@ TEST_F(PdfInfoBarControllerStartupTest,
 
 TEST_F(PdfInfoBarControllerStartupTest,
        DontShowInfoBarIfDefaultBrowserPromptShown) {
-  PdfInfoBarController::SetDefaultBrowserPromptShownForTesting(true);
+  PdfInfoBarController::SetHigherPriorityInfoBarShownForTesting(true);
   EXPECT_FALSE(
       DidShowInfoBar(BrowserWindowInterface::Type::TYPE_NORMAL,
                      shell_integration::DefaultWebClientState::NOT_DEFAULT));
 }
+
+}  // namespace pdf::infobar

@@ -20,6 +20,27 @@
 
 @implementation SeparateProfilesRollbackTestCase
 
++ (void)setUpForTestCase {
+  [SigninEarlGrey setUseFakeResponsesForProfileSeparationPolicyRequests];
+}
+
++ (void)tearDown {
+  [SigninEarlGrey clearUseFakeResponsesForProfileSeparationPolicyRequests];
+  [super tearDown];
+}
+
+- (void)setUp {
+  [super setUp];
+  ClearHistorySyncPrefs();
+}
+
+- (void)tearDownHelper {
+  ClearHistorySyncPrefs();
+  // Make sure any pending prefs changes are written to disk.
+  [ChromeEarlGrey commitPendingUserPrefsWrite];
+  [super tearDownHelper];
+}
+
 - (AppLaunchConfiguration)appConfigurationForTestCase {
   AppLaunchConfiguration config = [super appConfigurationForTestCase];
 
@@ -108,10 +129,10 @@
              @"Separate profiles should be disabled now");
 }
 
-// TODO(crbug.com/411035267): Fix this flaky test on simulator.
-#if TARGET_OS_SIMULATOR
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
 #define MAYBE_testRollbackWithManagedProfile \
-  FLAKY_testRollbackWithManagedProfile
+  DISABLED_testRollbackWithManagedProfile
 #else
 #define MAYBE_testRollbackWithManagedProfile testRollbackWithManagedProfile
 #endif
@@ -209,10 +230,10 @@
       @"Should be in the managed profile again");
 }
 
-// TODO(crbug.com/411035267): Fix this flaky test on simulator.
-#if TARGET_OS_SIMULATOR
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
 #define MAYBE_testRollbackWithManagedProfile_ManagedAccountRemoved \
-  FLAKY_testRollbackWithManagedProfile_ManagedAccountRemoved
+  DISABLED_testRollbackWithManagedProfile_ManagedAccountRemoved
 #else
 #define MAYBE_testRollbackWithManagedProfile_ManagedAccountRemoved \
   testRollbackWithManagedProfile_ManagedAccountRemoved
@@ -308,10 +329,10 @@
              @"Separate profiles should still be enabled");
 }
 
-// TODO(crbug.com/411035267): Fix this flaky test on simulator.
-#if TARGET_OS_SIMULATOR
+// TODO(crbug.com/433320893): Re-enable this test on device.
+#if !TARGET_OS_SIMULATOR
 #define MAYBE_testRollbackWithManagedProfile_KillSwitch \
-  FLAKY_testRollbackWithManagedProfile_KillSwitch
+  DISABLED_testRollbackWithManagedProfile_KillSwitch
 #else
 #define MAYBE_testRollbackWithManagedProfile_KillSwitch \
   testRollbackWithManagedProfile_KillSwitch

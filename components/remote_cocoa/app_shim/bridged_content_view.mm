@@ -9,7 +9,7 @@
 #import "base/apple/foundation_util.h"
 #include "base/apple/owned_objc.h"
 #include "base/check_op.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/strings/sys_string_conversions.h"
 #import "components/remote_cocoa/app_shim/drag_drop_client.h"
 #import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
@@ -283,17 +283,36 @@ ui::TextEditCommand GetTextEditCommandForMenuAction(SEL action) {
   return current == [super inputContext];
 }
 
-// If |point| is classified as a draggable background (HTCAPTION), return nil so
-// that it can lead to a window drag or double-click in the title bar. Dragging
-// could be optimized by telling the window server which regions should be
-// instantly draggable without asking (tracked at https://crbug.com/830962).
+// NSWindow calls -[contentView hitTest:] to determine the target NSView for
+// mouse up and down events. The default implementation recursively calls
+// hitTest: on each subview until it finds a non-nil target.
 - (NSView*)hitTest:(NSPoint)point {
-  gfx::Point flippedPoint(point.x, NSHeight(self.superview.bounds) - point.y);
-  bool isDraggableBackground = false;
-  _bridge->host()->GetIsDraggableBackgroundAt(flippedPoint,
-                                              &isDraggableBackground);
-  if (isDraggableBackground)
+  // `point` is in superview's coordinate. Convert it to local coordinate.
+  // This is important when the window has a native titlebar, in which case the
+  // superview is taller than the contentView.
+  NSPoint pointInView = [self convertPoint:point fromView:self.superview];
+  gfx::Point flippedPoint(point.x, NSHeight(self.frame) - pointInView.y);
+  remote_cocoa::mojom::HitTestResult hitTestResult;
+  _bridge->host()->GetHitTestResult(flippedPoint, &hitTestResult);
+
+  // If `point` is classified as a draggable background (HTCAPTION), return nil
+  // so that it can lead to a window drag or double-click in the title bar.
+  // Dragging could be optimized by telling the window server which regions
+  // should be instantly draggable without asking (tracked at
+  // https://crbug.com/830962).
+  if (hitTestResult ==
+      remote_cocoa::mojom::HitTestResult::kDraggableBackground) {
     return nil;
+  }
+
+  // Send event to views::RootView.
+  if (hitTestResult == remote_cocoa::mojom::HitTestResult::kRootView) {
+    // Most commonly this NSView is NSWindow's contentView. However in immersive
+    // fullscreen, the view may be a subview of another AppKit-owned view in the
+    // titlebar.
+    return self;
+  }
+
   return [super hitTest:point];
 }
 

@@ -49,15 +49,20 @@ BrowserAccessibilityManagerAuraLinux::BrowserAccessibilityManagerAuraLinux(
 }
 
 BrowserAccessibilityManagerAuraLinux::~BrowserAccessibilityManagerAuraLinux() {
-  if (IsRootFrameManager()) {
-    DCHECK(GetBrowserAccessibilityRoot());
-    gfx::NativeViewAccessible obj =
-        GetBrowserAccessibilityRoot()->GetNativeViewAccessible();
-    // We don't fire state:changed:defunct on every object in order to reduce
-    // event noise, but it is useful for the root node of a document.
-    if (ATK_IS_OBJECT(obj)) {
-      atk_object_notify_state_change(obj, ATK_STATE_DEFUNCT, TRUE);
-    }
+  if (!IsRootFrameManager()) {
+    return;
+  }
+
+  CHECK(!delegate() || delegate()->AccessibilityIsWebContentSource())
+      << "We should never get here in non-web content sourced managers.";
+
+  DCHECK(GetBrowserAccessibilityRoot());
+  gfx::NativeViewAccessible obj =
+      GetBrowserAccessibilityRoot()->GetNativeViewAccessible();
+  // We don't fire state:changed:defunct on every object in order to reduce
+  // event noise, but it is useful for the root node of a document.
+  if (ATK_IS_OBJECT(obj)) {
+    atk_object_notify_state_change(obj, ATK_STATE_DEFUNCT, TRUE);
   }
 }
 
@@ -411,15 +416,49 @@ void BrowserAccessibilityManagerAuraLinux::FireAriaNotificationEvent(
   DCHECK(node);
 
   // Only newer Atk versions support the notification signal type.
-  if (base::Version(atk_get_version()).CompareTo(base::Version("2.50.0")) >= 0) {
-    ToBrowserAccessibilityAuraLinux(node)->GetNode()->OnAriaNotificationPosted(
-        announcement, priority_property);
-  } else {
-    ToBrowserAccessibilityAuraLinux(node)
-        ->GetExtraAnnouncementNode(priority_property)
+  if (ShouldExposeExtraAnnouncementNodes()) {
+    ToBrowserAccessibilityAuraLinux(
+        node->GetExtraAnnouncementNode(priority_property))
         ->GetNode()
         ->OnAriaNotificationPosted(announcement, priority_property);
+  } else {
+    ToBrowserAccessibilityAuraLinux(node)->GetNode()->OnAriaNotificationPosted(
+        announcement, priority_property);
   }
+}
+
+bool BrowserAccessibilityManagerAuraLinux::ShouldExposeExtraAnnouncementNodes()
+    const {
+  // Compute this once and cache it, since it is expensive to call
+  // atk_get_version() and compare it to a version string for each call or
+  // check made in the BrowserAccessibility APIs.
+  static bool should_expose =
+      base::Version(atk_get_version()).CompareTo(base::Version("2.50.0")) < 0;
+  return should_expose;
+}
+
+BrowserAccessibility*
+BrowserAccessibilityManagerAuraLinux::GetExtraAnnouncementNodeFromNode(
+    const BrowserAccessibility* node,
+    ax::mojom::AriaNotificationPriority priority_property) const {
+  CHECK(ShouldExposeExtraAnnouncementNodes());
+  if (!node) {
+    return nullptr;
+  }
+  AXNode* extra_announcement_node =
+      node->node()->GetExtraAnnouncementNode(priority_property);
+  return GetFromAXNode(extra_announcement_node);
+}
+
+bool BrowserAccessibilityManagerAuraLinux::TreeHasExtraAnnouncementNodes()
+    const {
+  return ax_tree()->extra_announcement_nodes();
+}
+
+size_t BrowserAccessibilityManagerAuraLinux::TreeExtraAnnouncementNodesCount()
+    const {
+  CHECK(TreeHasExtraAnnouncementNodes());
+  return ax_tree()->extra_announcement_nodes()->Count();
 }
 
 void BrowserAccessibilityManagerAuraLinux::OnNodeWillBeDeleted(
@@ -470,7 +509,7 @@ void BrowserAccessibilityManagerAuraLinux::OnAtomicUpdateFinished(
   BrowserAccessibilityManager::OnAtomicUpdateFinished(tree, root_changed,
                                                       changes);
 
-  std::set<AXPlatformNode*> objs_to_update;
+  absl::flat_hash_set<AXPlatformNode*> objs_to_update;
   CollectChangedNodesAndParentsForAtomicUpdate(tree, changes, &objs_to_update);
 
   for (auto* node : objs_to_update)

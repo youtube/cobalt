@@ -12,9 +12,11 @@
 #include "components/commerce/core/account_checker.h"
 #include "components/commerce/core/commerce_constants.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/commerce/core/commerce_utils.h"
 #include "components/commerce/core/compare/compare_utils.h"
 #include "components/commerce/core/feature_utils.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "google_apis/gaia/gaia_constants.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -139,11 +141,22 @@ void ClusterServerProxy::GetComparableProducts(
 std::unique_ptr<EndpointFetcher> ClusterServerProxy::CreateEndpointFetcher(
     const GURL& url,
     const std::string& post_data) {
+  EndpointFetcher::RequestParams::Builder request_params =
+      EndpointFetcher::RequestParams::Builder(
+          endpoint_fetcher::HttpMethod::kPost,
+          kGetComparableProductsTrafficAnnotation);
+  request_params.SetUrl(url)
+      .SetContentType(kContentType)
+      .SetAuthType(endpoint_fetcher::OAUTH)
+      .SetOauthScopes(
+          std::vector<std::string>{GaiaConstants::kChromeMemexOAuth2Scope})
+      .SetConsentLevel(signin::ConsentLevel::kSignin)
+      .SetTimeout(base::Milliseconds(kTimeoutMs))
+      .SetOauthConsumerName(kOAuthName)
+      .SetPostData(post_data);
+  commerce::MaybeUseAlternateShoppingServer(request_params);
   return std::make_unique<EndpointFetcher>(
-      url_loader_factory_, kOAuthName, url, kPostHttpMethod, kContentType,
-      std::vector<std::string>{kOAuthScope}, base::Milliseconds(kTimeoutMs),
-      post_data, kGetComparableProductsTrafficAnnotation, identity_manager_,
-      signin::ConsentLevel::kSync);
+      url_loader_factory_, identity_manager_, request_params.Build());
 }
 
 void ClusterServerProxy::HandleCompareResponse(

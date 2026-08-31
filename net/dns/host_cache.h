@@ -26,7 +26,6 @@
 #include "base/numerics/clamped_math.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "base/types/optional_util.h"
 #include "base/values.h"
 #include "net/base/address_family.h"
 #include "net/base/connection_endpoint_metadata.h"
@@ -79,10 +78,6 @@ class NET_EXPORT HostCache {
 
     bool operator==(const Key& other) const {
       return GetTuple(this) == GetTuple(&other);
-    }
-
-    bool operator!=(const Key& other) const {
-      return GetTuple(this) != GetTuple(&other);
     }
 
     bool operator<(const Key& other) const {
@@ -182,12 +177,11 @@ class NET_EXPORT HostCache {
 
     bool ContentsEqual(const Entry& other) const {
       return std::tie(error_, ip_endpoints_, endpoint_metadatas_, aliases_,
-                      text_records_, hostnames_, https_record_compatibility_,
-                      canonical_names_) ==
-             std::tie(
-                 other.error_, other.ip_endpoints_, other.endpoint_metadatas_,
-                 other.aliases_, other.text_records_, other.hostnames_,
-                 other.https_record_compatibility_, other.canonical_names_);
+                      text_records_, hostnames_, canonical_names_) ==
+             std::tie(other.error_, other.ip_endpoints_,
+                      other.endpoint_metadatas_, other.aliases_,
+                      other.text_records_, other.hostnames_,
+                      other.canonical_names_);
     }
 
     int error() const { return error_; }
@@ -218,13 +212,6 @@ class NET_EXPORT HostCache {
     const std::vector<HostPortPair>& hostnames() const { return hostnames_; }
     void set_hostnames(std::vector<HostPortPair> hostnames) {
       hostnames_ = std::move(hostnames);
-    }
-    const std::vector<bool>& https_record_compatibility() const {
-      return https_record_compatibility_;
-    }
-    void set_https_record_compatibility(
-        std::vector<bool> https_record_compatibility) {
-      https_record_compatibility_ = std::move(https_record_compatibility);
     }
     std::optional<bool> pinning() const { return pinning_; }
     void set_pinning(std::optional<bool> pinning) { pinning_ = pinning; }
@@ -293,12 +280,9 @@ class NET_EXPORT HostCache {
           std::set<std::string> aliases,
           std::vector<std::string>&& text_results,
           std::vector<HostPortPair>&& hostnames,
-          std::vector<bool>&& https_record_compatibility,
           Source source,
           base::TimeTicks expires,
           int network_changes);
-
-    void PrepareForCacheInsertion();
 
     void SetResult(
         std::multimap<HttpsRecordPriority, ConnectionEndpointMetadata>
@@ -310,9 +294,6 @@ class NET_EXPORT HostCache {
     }
     void SetResult(std::vector<HostPortPair> hostnames) {
       hostnames_ = std::move(hostnames);
-    }
-    void SetResult(std::vector<bool> https_record_compatibility) {
-      https_record_compatibility_ = std::move(https_record_compatibility);
     }
 
     int total_hits() const { return total_hits_; }
@@ -334,16 +315,6 @@ class NET_EXPORT HostCache {
     std::set<std::string> aliases_;
     std::vector<std::string> text_records_;
     std::vector<HostPortPair> hostnames_;
-
-    // Bool of whether each HTTPS record received is compatible
-    // (draft-ietf-dnsop-svcb-https-08#section-8), considering alias records to
-    // always be compatible.
-    //
-    // This field may be reused for experimental query types to record
-    // successfully received records of that experimental type.
-    //
-    // For either usage, cleared before inserting in cache.
-    std::vector<bool> https_record_compatibility_;
 
     // Where results were obtained (e.g. DNS lookup, hosts file, etc).
     Source source_ = SOURCE_UNKNOWN;

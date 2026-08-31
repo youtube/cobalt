@@ -24,12 +24,20 @@ namespace base {
 // TODO(416209124): Once this has stabilized further, consider moving it into a
 // MemoryProtectionKeyProvider or similar class expsed via the Platform and
 // provided by the Embedder.
+// TODO(416209124): Formalize the interaction between this class (which manages
+// memory protection keys), and VirtualAddressSpace (which manages memory,
+// potentially using a key managed by this class).
+// TODO(416209124): Consider reusing the MemoryProtectionKeyId type from
+// VirtualAddressSpace instead of raw ints. That would also give us some
+// assurance that the values are compatible.
 class V8_BASE_EXPORT MemoryProtectionKey {
  public:
   // Sentinel value if there is no PKU support or allocation of a key failed.
   // This is also the return value on an error of pkey_alloc() and has the
   // benefit that calling pkey_mprotect() with -1 behaves the same as regular
   // mprotect().
+  // TODO(416209124): consider using an std::optional instead like we do in the
+  // VirtualAddressSpace API.
   static constexpr int kNoMemoryProtectionKey = -1;
 
   // The default ProtectionKey can be used to remove pkey assignments.
@@ -94,9 +102,8 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // consistent with {SetPermissions()}). The {page_permissions} are the
   // permissions of the page, not the key. For changing the permissions of the
   // key, use {SetPermissionsForKey()} instead.
-  static bool SetPermissionsAndKey(
-      base::AddressRegion region,
-      v8::PageAllocator::Permission page_permissions, int key);
+  static bool SetPermissionsAndKey(base::AddressRegion region,
+                                   PagePermissions permissions, int key);
 
   // Set the key's permissions. {key} must be valid, i.e. not
   // {kNoMemoryProtectionKey}.
@@ -104,6 +111,16 @@ class V8_BASE_EXPORT MemoryProtectionKey {
 
   // Get the permissions of the protection key {key} for the current thread.
   static Permission GetKeyPermission(int key);
+
+  // Compute the register mask for switching the permissions of the given key.
+  //
+  // The returned mask indicates which bit(s) of the memory protection key CPU
+  // register (e.g. the PKRU register on x86) must be set to set the given
+  // permissions on the given key.
+  //
+  // This is mostly useful for generating code that switches key permissions.
+  static uint32_t ComputeRegisterMaskForPermissionSwitch(
+      int key, Permission permissions);
 
   // Set the default permissions for all active keys in a signal handler.
   //
@@ -117,7 +134,14 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // (kDisableWrite). If necessary in the future, we could make that
   // configurable by passing in the default permissions into AllocateKey and
   // remembering them alongside the key.
-  static void SetDefaultPermissionsForAllKeysInSignalHandler();
+  static void SetDefaultPermissionsForAllKeysInSignalHandler(
+      bool needs_full_access = false);
+
+  // Tag the stack of the current thread with the given key.
+  //
+  // This will attempt to determine the start and size of the current thread's
+  // stack, then tag that memory with the given key.
+  static bool SetKeyForCurrentThreadsStack(int key);
 };
 
 }  // namespace base

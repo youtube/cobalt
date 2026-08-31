@@ -4,28 +4,29 @@
 // space names.
 const SERVER_PORTS = {
   "http": {
-    "local": {{ports[http][0]}},
-    "private": {{ports[http-local][0]}},
+    "loopback": {{ports[http][0]}},
+    "other-loopback": {{ports[http][1]}},
+    "local": {{ports[http-local][0]}},
     "public": {{ports[http-public][0]}},
   },
   "https": {
-    "local": {{ports[https][0]}},
-    "other-local": {{ports[https][1]}},
-    "private": {{ports[https-local][0]}},
+    "loopback": {{ports[https][0]}},
+    "other-loopback": {{ports[https][1]}},
+    "local": {{ports[https-local][0]}},
     "public": {{ports[https-public][0]}},
   },
   "ws": {
-    "local": {{ports[ws][0]}},
+    "loopback": {{ports[ws][0]}},
   },
   "wss": {
-    "local": {{ports[wss][0]}},
+    "loopback": {{ports[wss][0]}},
   },
 };
 
 // A `Server` is a web server accessible by tests. It has the following shape:
 //
 // {
-//   addressSpace: the IP address space of the server ("local", "private" or
+//   addressSpace: the IP address space of the server ("loopback", "local" or
 //     "public"),
 //   name: a human-readable name for the server,
 //   port: the port on which the server listens for connections,
@@ -56,15 +57,16 @@ class Server {
     };
   }
 
+  static HTTP_LOOPBACK = Server.get("http", "loopback");
+  static OTHER_HTTP_LOOPBACK = Server.get("http", "other-loopback");
   static HTTP_LOCAL = Server.get("http", "local");
-  static HTTP_PRIVATE = Server.get("http", "private");
   static HTTP_PUBLIC = Server.get("http", "public");
+  static HTTPS_LOOPBACK = Server.get("https", "loopback");
+  static OTHER_HTTPS_LOOPBACK = Server.get("https", "other-loopback");
   static HTTPS_LOCAL = Server.get("https", "local");
-  static OTHER_HTTPS_LOCAL = Server.get("https", "other-local");
-  static HTTPS_PRIVATE = Server.get("https", "private");
   static HTTPS_PUBLIC = Server.get("https", "public");
-  static WS_LOCAL = Server.get("ws", "local");
-  static WSS_LOCAL = Server.get("wss", "local");
+  static WS_LOOPBACK = Server.get("ws", "loopback");
+  static WSS_LOOPBACK = Server.get("wss", "loopback");
 };
 
 // Resolves a URL relative to the current location, returning an absolute URL.
@@ -186,4 +188,67 @@ function checkTestResult(actual, expected) {
   if (expected.type !== undefined) {
     assert_equals(type, expected.type, "response type mismatch");
   }
+}
+
+// Registers an event listener that will resolve this promise when this
+// window receives a message posted to it.
+function futureMessage(options) {
+  return new Promise(resolve => {
+    window.addEventListener('message', (e) => {
+      resolve(e.data);
+    });
+  });
+};
+
+const NavigationTestResult = {
+  SUCCESS: 'loaded',
+  FAILURE: 'timeout',
+};
+
+async function iframeTest(
+    t, {source, target, expected, permission = 'denied'}) {
+  const targetUrl =
+      resolveUrl('resources/openee.html', sourceResolveOptions(target));
+
+  const sourceUrl =
+      resolveUrl('resources/iframer.html', sourceResolveOptions(source));
+  sourceUrl.searchParams.set('permission', permission);
+  sourceUrl.searchParams.set('url', targetUrl);
+
+  const popup = window.open(sourceUrl);
+  t.add_cleanup(() => popup.close());
+
+  // The child frame posts a message iff it loads successfully.
+  // There exists no interoperable way to check whether an iframe failed to
+  // load, so we use a timeout.
+  // See: https://github.com/whatwg/html/issues/125
+  const result = await Promise.race([
+    futureMessage().then((data) => data.message),
+    new Promise((resolve) => {
+      t.step_timeout(() => resolve('timeout'), 2000 /* ms */);
+    }),
+  ]);
+
+  assert_equals(result, expected);
+}
+
+async function navigateTest(t, {source, target, expected}) {
+  const targetUrl =
+      resolveUrl('resources/openee.html', sourceResolveOptions(target));
+
+  const sourceUrl =
+      resolveUrl('resources/navigate.html', sourceResolveOptions(source));
+  sourceUrl.searchParams.set('url', targetUrl);
+
+  const popup = window.open(sourceUrl);
+  t.add_cleanup(() => popup.close());
+
+  const result = await Promise.race([
+    futureMessage().then((data) => data.message),
+    new Promise((resolve) => {
+      t.step_timeout(() => resolve('timeout'), 2000 /* ms */);
+    }),
+  ]);
+
+  assert_equals(result, expected);
 }

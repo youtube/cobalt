@@ -30,10 +30,12 @@ import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.blink.mojom.Authenticator;
 import org.chromium.blink.mojom.WebAuthnClientCapability;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.device.DeviceFeatureList;
 import org.chromium.url.GURL;
 import org.chromium.url.Origin;
 
@@ -42,6 +44,10 @@ import org.chromium.url.Origin;
 @Config(manifest = Config.NONE)
 @Batch(Batch.UNIT_TESTS)
 @SmallTest
+@EnableFeatures({
+    DeviceFeatureList.WEBAUTHN_PASSKEY_UPGRADE,
+    DeviceFeatureList.WEBAUTHN_IMMEDIATE_GET
+})
 public class AuthenticatorImplTest {
     private AuthenticatorImpl mAuthenticator;
     private Origin mOrigin;
@@ -108,7 +114,7 @@ public class AuthenticatorImplTest {
         mAuthenticator.getClientCapabilities(callback);
 
         verify(callback).call(mCapabilitiesCaptor.capture());
-        assertEquals(5, mCapabilitiesCaptor.getValue().length);
+        assertEquals(7, mCapabilitiesCaptor.getValue().length);
     }
 
     @Test
@@ -133,6 +139,18 @@ public class AuthenticatorImplTest {
     public void testGetClientCapabilities_ConditionalGet_Supported_WhenUvpaaAvailable() {
         GmsCoreUtils.setGmsCoreVersionForTesting(GmsCoreUtils.GMSCORE_MIN_VERSION);
         testCapability(AuthenticatorConstants.CAPABILITY_CONDITIONAL_GET, true);
+    }
+
+    @Test
+    public void testGetClientCapabilities_ConditionalCreate_Supported_WhenUvpaaAvailable() {
+        GmsCoreUtils.setGmsCoreVersionForTesting(GmsCoreUtils.GMSCORE_MIN_VERSION);
+        testCapability(AuthenticatorConstants.CAPABILITY_CONDITIONAL_CREATE, true);
+    }
+
+    @Test
+    public void testGetClientCapabilities_ImmediateGet_Supported_WhenUvpaaAvailable() {
+        GmsCoreUtils.setGmsCoreVersionForTesting(GmsCoreUtils.GMSCORE_MIN_VERSION);
+        testCapability(AuthenticatorConstants.CAPABILITY_IMMEDIATE_GET, true);
     }
 
     @Test
@@ -161,15 +179,19 @@ public class AuthenticatorImplTest {
 
         verify(callback).call(mCapabilitiesCaptor.capture());
         WebAuthnClientCapability[] capabilities = mCapabilitiesCaptor.getValue();
-        assertEquals(5, capabilities.length);
+        assertEquals(7, capabilities.length);
         assertCapabilitySupported(
                 capabilities, AuthenticatorConstants.CAPABILITY_CONDITIONAL_GET, false);
+        assertCapabilitySupported(
+                capabilities, AuthenticatorConstants.CAPABILITY_CONDITIONAL_CREATE, false);
         assertCapabilitySupported(capabilities, AuthenticatorConstants.CAPABILITY_UVPAA, false);
         assertCapabilitySupported(
                 capabilities, AuthenticatorConstants.CAPABILITY_RELATED_ORIGINS, true);
         assertCapabilitySupported(
                 capabilities, AuthenticatorConstants.CAPABILITY_HYBRID_TRANSPORT, true);
         assertCapabilitySupported(capabilities, AuthenticatorConstants.CAPABILITY_PPAA, true);
+        assertCapabilitySupported(
+                capabilities, AuthenticatorConstants.CAPABILITY_IMMEDIATE_GET, false);
     }
 
     private void testCapability(String capability, boolean expectedSupported) {

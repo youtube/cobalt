@@ -14,8 +14,8 @@
 #include "base/command_line.h"
 #include "base/i18n/rtl.h"
 #include "base/i18n/unicodestring.h"
-#include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -49,8 +49,10 @@ struct UResClose {
   }
 };
 
-base::LazyInstance<base::Lock>::Leaky g_timezone_bundle_lock =
-    LAZY_INSTANCE_INITIALIZER;
+base::Lock& GetTimezoneBundleLock() {
+  static base::NoDestructor<base::Lock> timezone_bundle_lock;
+  return *timezone_bundle_lock;
+}
 
 const size_t kMaxGeolocationResponseLength = 8;
 
@@ -64,7 +66,7 @@ std::u16string GetExemplarCity(const icu::TimeZone& zone) {
   {
     // TODO(jungshik): After upgrading to ICU 4.6, use U_ICUDATA_ZONE in
     // ures_open().
-    base::AutoLock lock(g_timezone_bundle_lock.Get());
+    base::AutoLock lock(GetTimezoneBundleLock());
     if (!zone_bundle)
       zone_bundle = ures_open(nullptr, uloc_getDefault(), &status);
 
@@ -334,9 +336,10 @@ bool CanSetSystemTimezone(const user_manager::User* user) {
 
   switch (user->GetType()) {
     case user_manager::UserType::kRegular:
-    case user_manager::UserType::kKioskApp:
-    case user_manager::UserType::kWebKioskApp:
+    case user_manager::UserType::kKioskChromeApp:
+    case user_manager::UserType::kKioskWebApp:
     case user_manager::UserType::kKioskIWA:
+    case user_manager::UserType::kKioskArcvmApp:
     case user_manager::UserType::kChild:
       return true;
 

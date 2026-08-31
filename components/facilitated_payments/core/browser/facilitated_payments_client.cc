@@ -5,14 +5,17 @@
 #include "components/facilitated_payments/core/browser/facilitated_payments_client.h"
 
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/span.h"
 #include "base/functional/callback.h"
 #include "components/autofill/core/browser/data_model/payments/bank_account.h"
 #include "components/autofill/core/browser/data_model/payments/ewallet.h"
+#include "components/facilitated_payments/core/browser/facilitated_payments_app_info_list.h"
 #include "components/facilitated_payments/core/browser/pix_account_linking_manager.h"
 #include "components/facilitated_payments/core/utils/facilitated_payments_ui_utils.h"
+#include "url/origin.h"
 
 namespace payments::facilitated {
 
@@ -26,9 +29,12 @@ void FacilitatedPaymentsClient::ShowPixPaymentPrompt(
     base::span<const autofill::BankAccount> bank_account_suggestions,
     base::OnceCallback<void(int64_t)> on_payment_account_selected) {}
 
-void FacilitatedPaymentsClient::ShowEwalletPaymentPrompt(
+void FacilitatedPaymentsClient::ShowPaymentLinkPrompt(
     base::span<const autofill::Ewallet> ewallet_suggestions,
-    base::OnceCallback<void(int64_t)> on_payment_account_selected) {}
+    std::unique_ptr<FacilitatedPaymentsAppInfoList> app_suggestions,
+    base::OnceCallback<void(int64_t)> on_ewallet_account_selected,
+    base::OnceCallback<void(std::string_view, std::string_view)>
+        on_payment_app_selected) {}
 
 void FacilitatedPaymentsClient::ShowProgressScreen() {}
 
@@ -39,15 +45,19 @@ void FacilitatedPaymentsClient::DismissPrompt() {}
 void FacilitatedPaymentsClient::SetUiEventListener(
     base::RepeatingCallback<void(UiEvent)> ui_event_listener) {}
 
-void FacilitatedPaymentsClient::InitPixAccountLinkingFlow() {
-  pix_account_linking_manager_->MaybeShowPixAccountLinkingPrompt();
+void FacilitatedPaymentsClient::InitPixAccountLinkingFlow(
+    const url::Origin& pix_payment_page_origin) {
+  pix_account_linking_manager_->MaybeShowPixAccountLinkingPrompt(
+      pix_payment_page_origin);
 }
 
-bool FacilitatedPaymentsClient::IsPixAccountLinkingSupported() const {
+void FacilitatedPaymentsClient::ShowPixAccountLinkingPrompt(
+    base::OnceCallback<void()> on_accepted,
+    base::OnceCallback<void()> on_declined) {}
+
+bool FacilitatedPaymentsClient::HasScreenlockOrBiometricSetup() {
   return false;
 }
-
-void FacilitatedPaymentsClient::ShowPixAccountLinkingPrompt() {}
 
 void FacilitatedPaymentsClient::SetPixAccountLinkingManagerForTesting(
     std::unique_ptr<PixAccountLinkingManager> pix_account_linking_manager) {

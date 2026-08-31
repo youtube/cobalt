@@ -14,12 +14,15 @@
 #include <jni.h>
 
 #include <memory>
-#include <string>
 
 #include "api/peer_connection_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_sink_interface.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread.h"
+#include "rtc_base/thread_annotations.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/native_api/video/video_source.h"
 

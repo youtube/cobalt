@@ -18,6 +18,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/not_fatal_until.h"
+#include "base/notimplemented.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -26,6 +27,7 @@
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
 #include "media/base/cdm_promise.h"
+#include "media/base/media_switches.h"
 #include "media/base/win/hresults.h"
 #include "media/base/win/media_foundation_cdm_proxy.h"
 #include "media/base/win/mf_helpers.h"
@@ -369,6 +371,7 @@ void MediaFoundationCdm::SetServerCertificate(
     return;
   }
 
+  server_certificate_set_ = true;
   promise->resolve();
 }
 
@@ -407,6 +410,17 @@ void MediaFoundationCdm::CreateSessionAndGenerateRequest(
 
   if (!mf_cdm_) {
     promise->reject(Exception::INVALID_STATE_ERROR, 0, "CDM Unavailable");
+    return;
+  }
+
+  // Check if server certificate requirement is enforced
+  if (base::FeatureList::IsEnabled(
+          kHardwareSecureDecryptionRequireServerCert) &&
+      MediaFoundationCdmModule::GetInstance()->IsOsCdm() &&
+      !server_certificate_set_) {
+    promise->reject(Exception::INVALID_STATE_ERROR, 0,
+                    "setServerCertificate must be called before "
+                    "generateRequest");
     return;
   }
 
@@ -689,6 +703,9 @@ void MediaFoundationCdm::OnHardwareContextReset() {
 
   // Reset IMFContentDecryptionModule which also holds the old ITA.
   mf_cdm_.Reset();
+
+  // Reset server certificate flag since the CDM is being recreated
+  server_certificate_set_ = false;
 
   // Recreates IMFContentDecryptionModule so we can create new sessions.
   if (FAILED(Initialize())) {

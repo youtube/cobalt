@@ -25,6 +25,8 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notimplemented.h"
+#include "base/strings/string_util.h"
 #include "base/strings/string_util_win.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/current_thread.h"
@@ -38,6 +40,7 @@
 #include "services/tracing/public/cpp/perfetto/macros.h"
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_window_handle_event_info.pbzero.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/platform/ax_fragment_root_win.h"
 #include "ui/accessibility/platform/ax_platform.h"
 #include "ui/accessibility/platform/ax_platform_node_win.h"
@@ -293,6 +296,23 @@ int GetFlagsFromRawInputMessage(RAWINPUT* input) {
   }
 
   return ui::GetModifiersFromKeyState() | flags;
+}
+
+// Maps HWNDs to their owners.
+using WindowOwnerMap = base::flat_map<HWND, std::vector<HWND>>;
+
+// Callback for GetOwnedWindows(). For each window checks for an owner. If an
+// owner exists, it adds the window to the owner's list in the map.
+BOOL CALLBACK EnumOwnedWindowsProc(HWND hwnd, LPARAM l_param) {
+  HWND owner = ::GetWindow(hwnd, GW_OWNER);
+  if (owner) {
+    // The LPARAM is a direct pointer to our flat_map.
+    WindowOwnerMap* window_owner_map =
+        reinterpret_cast<WindowOwnerMap*>(l_param);
+    // Create an entry if it doesn't exist.
+    (*window_owner_map)[owner].push_back(hwnd);
+  }
+  return TRUE;  // Continue enumeration.
 }
 
 constexpr auto kTouchDownContextResetTimeout = base::Milliseconds(500);
@@ -611,6 +631,43 @@ void HWNDMessageHandler::SetParentOrOwner(HWND new_parent) {
     SetWindowLongPtr(hwnd(), GWLP_HWNDPARENT,
                      reinterpret_cast<LONG_PTR>(new_parent));
   }
+}
+
+std::vector<HWND> HWNDMessageHandler::GetOwnedWindows() {
+  std::vector<HWND> owned_windows;
+
+  // Build a map associating owned HWNDs with their owners.
+  WindowOwnerMap window_owner_map;
+  ::EnumThreadWindows(GetCurrentThreadId(), &EnumOwnedWindowsProc,
+                      reinterpret_cast<LPARAM>(&window_owner_map));
+
+  // If this handler's hwnd() is not in the map it doesn't own any windows.
+  if (window_owner_map.find(hwnd()) == window_owner_map.end()) {
+    return owned_windows;
+  }
+
+  // BFS to find all transitively owned windows.
+  base::queue<HWND> to_process;
+  to_process.push(hwnd());
+
+  while (!to_process.empty()) {
+    HWND current_owner = to_process.front();
+    to_process.pop();
+
+    // Find all windows directly owned by the current HWND.
+    auto it = window_owner_map.find(current_owner);
+    if (it != window_owner_map.end()) {
+      for (HWND owned_child : it->second) {
+        // The window could have been destroyed between EnumWindows and now.
+        if (IsWindow(owned_child)) {
+          owned_windows.push_back(owned_child);
+          // Queue the current child for BFS exploration.
+          to_process.push(owned_child);
+        }
+      }
+    }
+  }
+  return owned_windows;
 }
 
 void HWNDMessageHandler::SetDwmFrameExtension(DwmFrameState state) {
@@ -1585,7 +1642,7 @@ void HWNDMessageHandler::ClientAreaSizeChanged() {
 
 bool HWNDMessageHandler::GetClientAreaInsets(gfx::Insets* insets,
                                              HMONITOR monitor) const {
-  int frame_thickness = ui::GetFrameThickness(
+  int frame_thickness = ui::GetResizableFrameThicknessFromMonitorInPixels(
       monitor, GetWindowLong(hwnd(), GWL_STYLE) & WS_CAPTION);
   if (delegate_->GetClientAreaInsets(insets, frame_thickness)) {
     return true;
@@ -1841,11 +1898,21 @@ void HWNDMessageHandler::OnDestroy() {
     map.erase(i);
   }
 
-  // If we have ever returned a UIA object via WM_GETOBJECT, signal that all
-  // objects associated with this HWND can be discarded. See:
-  // https://docs.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiareturnrawelementprovider#remarks
+  if (ax_fragment_root_ &&
+      base::FeatureList::IsEnabled(features::kUiaDisconnectRootProviders)) {
+    // Note that the fragment root's element provider is being disconnected so
+    // that re-entrant WM_GETOBJECT messages are not serviced.
+    disconnecting_fragment_root_ = true;
+
+    // Clean up UIA resources associated with this window's fragment root; see
+    // https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiadisconnectprovider.
+    ::UiaDisconnectProvider(ax_fragment_root_->GetProvider());
+  }
+
   if (did_return_uia_object_) {
-    UiaReturnRawElementProvider(hwnd(), 0, 0, nullptr);
+    // Disassociate this window from MSAA clients that are observing events; see
+    // https://docs.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiareturnrawelementprovider#remarks
+    ::UiaReturnRawElementProvider(hwnd(), 0, 0, nullptr);
   }
 }
 
@@ -2018,6 +2085,14 @@ LRESULT HWNDMessageHandler::OnGetObject(UINT message,
   const bool is_uia_active =
       is_uia_request && ::ui::AXPlatform::GetInstance().IsUiaProviderEnabled();
   const bool is_msaa_request = static_cast<DWORD>(OBJID_CLIENT) == obj_id;
+
+  if (is_uia_active && disconnecting_fragment_root_) {
+    // An application that calls UiaDisconnectProvider should not respond to a
+    // re-entrant WM_GETOBJECT message by returning a pointer to the provider
+    // that it is trying to disconnect.
+    // https://learn.microsoft.com/en-us/windows/win32/api/uiautomationcoreapi/nf-uiautomationcoreapi-uiadisconnectprovider
+    return 0;
+  }
 
   if (is_uia_request) {
     ::ui::AXPlatform::GetInstance().OnUiaProviderRequested(is_uia_active);
@@ -2605,7 +2680,10 @@ void HWNDMessageHandler::OnPaint(HDC dc) {
   }
 
   if (!IsRectEmpty(&ps.rcPaint)) {
-    HBRUSH brush = reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+    HBRUSH brush = delegate_->GetBackgroundPaintBrush();
+    if (!brush) {
+      brush = reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
+    }
 
     if (HasChildRenderingWindow()) {
       // If there's a child window that's being rendered to then clear the
@@ -2850,16 +2928,6 @@ void HWNDMessageHandler::OnSysCommand(UINT notification_code,
                                 modifiers);
     delegate_->HandleAccelerator(accelerator);
     return;
-  }
-
-  // Identify a End Task from Task Manager by a SC_CLOSE which is sent using
-  // SendMessage (ISMEX_SEND) as opposed to SendNotifyMessage (ISMEX_NOTIFY).
-  if (notification_code == SC_CLOSE) {
-    DWORD send_message_ex = ::InSendMessageEx(nullptr);
-    if (send_message_ex == ISMEX_SEND) {
-      delegate_->HandleRequestClose();
-      return;
-    }
   }
 
   if (delegate_->HandleCommand(static_cast<int>(notification_code))) {

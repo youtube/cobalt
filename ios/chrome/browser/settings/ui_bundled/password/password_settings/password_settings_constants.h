@@ -9,6 +9,18 @@
 
 #import "ios/chrome/browser/shared/ui/list_model/list_model.h"
 
+// Sections of the password settings UI.
+typedef NS_ENUM(NSInteger, PasswordSettingsSectionIdentifier) {
+  SectionIdentifierSavePasswordsSwitch = kSectionIdentifierEnumZero,
+  SectionIdentifierBulkMovePasswordsToAccount,
+  SectionIdentifierPasswordsInOtherApps,
+  SectionIdentifierAutomaticPasskeyUpgradesSwitch,
+  SectionIdentifierGooglePasswordManagerPin,
+  SectionIdentifierOnDeviceEncryption,
+  SectionIdentifierExportPasswordsButton,
+  SectionIdentifierDeleteCredentialsButton,
+};
+
 // Accessibility ID for the dialog asking users to confirm the export of their
 // passwords.
 extern NSString* const kPasswordSettingsExportConfirmViewId;
@@ -41,5 +53,8 @@ extern NSString* const kPasswordSettingsOnDeviceEncryptionSetUpId;
 // Accessibility IDs of change PIN elements.
 extern NSString* const kPasswordSettingsChangePinButtonId;
 extern NSString* const kPasswordSettingsChangePinDescriptionId;
+
+// Accessibility ID of automatic passkey upgrade toggle.
+extern NSString* const kPasswordSettingsAutomaticPasskeyUpgradeToggleId;
 
 #endif  // IOS_CHROME_BROWSER_SETTINGS_UI_BUNDLED_PASSWORD_PASSWORD_SETTINGS_PASSWORD_SETTINGS_CONSTANTS_H_

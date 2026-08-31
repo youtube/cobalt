@@ -14,11 +14,13 @@
 #include "base/path_service.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/types/optional_util.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/net/storage_test_utils.h"
@@ -332,8 +334,6 @@ class StorageAccessAPIBaseBrowserTest : public policy::PolicyTest {
     base::PathService::Get(content::DIR_TEST_DATA, &path);
     https_server_.SetSSLConfig(net::EmbeddedTestServer::CERT_TEST_NAMES);
     https_server_.ServeFilesFromDirectory(path);
-    https_server_.ServeFilesFromSourceDirectory(
-        net::GetWebSocketTestDataDirectory());
     https_server_.AddDefaultHandlers(GetChromeTestDataDir());
     https_server_.RegisterRequestHandler(
         base::BindRepeating(&HandleEchoCookiesWithCorsRequest));
@@ -626,7 +626,7 @@ class StorageAccessAPIBaseBrowserTest : public policy::PolicyTest {
 
     ASSERT_TRUE(content::NavigateToURLFromRenderer(
         frame, https_server()
-                   .GetURL(kHostB, "/connect_to.html")
+                   .GetURL(kHostB, "/websocket/connect_to.html")
                    .ReplaceComponents(replacements)));
   }
 
@@ -1013,8 +1013,8 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(ReadCookies(GetFrame(), kHostB), kNoCookies);
 }
 
-// Validate that in a A(B) frame tree, the iframe can make credentialed
-// same-site requests, even if the requests are cross-origin.
+// Validate that in a A(B) frame tree, the iframe's cross-origin same-site
+// fetches are not credentialed.
 IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
                        ThirdPartyCookiesIFrameRequestsAccess_CrossOriginFetch) {
   SetBlockThirdPartyCookies(true);
@@ -1031,8 +1031,7 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
 
   ASSERT_TRUE(storage::test::RequestAndCheckStorageAccessForFrame(GetFrame()));
 
-  EXPECT_EQ(CookiesFromFetch(GetFrame(), kHostBSubdomain2),
-            "cross-site=b.test");
+  EXPECT_EQ(CookiesFromFetch(GetFrame(), kHostBSubdomain2), "None");
 
   metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
 
@@ -1040,7 +1039,7 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
       kUseCounterHistogram,
       blink::mojom::WebFeature::
           kCrossOriginSameSiteCookieAccessViaStorageAccessAPI,
-      1);
+      0);
   histogram_tester.ExpectUniqueSample(
       kNetRequestHistogram,
       /*kCrossOriginSameSiteCredentialsIncluded*/ 3,
@@ -1120,6 +1119,7 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
   histogram_tester.ExpectUniqueSample(kNetRequestHistogram,
                                       /*kCrossSite*/ 2,
                                       /*expected_bucket_count=*/1);
+  EXPECT_EQ(CookiesFromFetch(GetFrame(), kHostBSubdomain2), "None");
 }
 
 // Validate that in a A(B(B)) frame tree, the middle B iframe can obtain access,
@@ -1613,11 +1613,10 @@ IN_PROC_BROWSER_TEST_P(
   NavigateNestedFrameTo(EchoCookiesURL(kHostBSubdomain));
 
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetNestedFrame()));
-  // The navigation itself carried cookies due to the initiator's storage
-  // access, but the new document did not inherit storage access, since the
-  // navigation was not self-initiated.
+  // The navigation itself didn't carry cookies since the fetch was
+  // cross-origin, and the new document did not inherit storage access.
   EXPECT_EQ(ReadCookiesAndContent(GetNestedFrame(), kHostB),
-            std::make_tuple("", "None", "cross-site=b.test"));
+            kNoCookiesWithContent);
 }
 
 // Validate that if an iframe is navigated (by a same-site initiator) to a
@@ -1647,11 +1646,10 @@ IN_PROC_BROWSER_TEST_P(
   NavigateNestedFrameTo(EchoCookiesURL(kHostBSubdomain));
 
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetNestedFrame()));
-  // The navigation itself carried cookies due to the initiator's storage
-  // access, but the new document did not inherit storage access, since the
-  // navigation was not self-initiated.
+  // The navigation itself didn't carry cookies since the fetch was
+  // cross-origin, and the new document did not inherit storage access.
   EXPECT_EQ(ReadCookiesAndContent(GetNestedFrame(), kHostB),
-            std::make_tuple("", "None", "cross-site=b.test"));
+            kNoCookiesWithContent);
 }
 
 // Validate that if an iframe navigates itself to a same-site cross-origin
@@ -1675,10 +1673,9 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
       GetFrame(), EchoCookiesURL(kHostBSubdomain)));
 
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
-  // The navigation itself carried cookies from the previous document's storage
-  // access, but the new document did not inherit storage access.
-  EXPECT_EQ(ReadCookiesAndContent(GetFrame(), kHostB),
-            std::make_tuple("", "None", "cross-site=b.test"));
+  // The navigation itself didn't carry cookies since the fetch was
+  // cross-origin, and the new document did not inherit storage access.
+  EXPECT_EQ(ReadCookiesAndContent(GetFrame(), kHostB), kNoCookiesWithContent);
 }
 
 // Validate that if an iframe navigates itself to a cross-site endpoint, and
@@ -1731,10 +1728,10 @@ IN_PROC_BROWSER_TEST_F(
       /*expected_commit_url=*/dest));
 
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
-  // The navigation itself carried cookies from the previous document's storage
-  // access, but the new document did not inherit storage access.
+  // The navigation itself didn't carry cookies since the fetch was
+  // cross-origin, and the new document did not inherit storage access.
   EXPECT_EQ(ReadCookiesAndContent(GetFrame(), kHostBSubdomain),
-            std::make_tuple("", "None", "cross-site=b.test"));
+            kNoCookiesWithContent);
 }
 
 // Validate that if an iframe navigates itself to a same-origin endpoint, and
@@ -1764,10 +1761,10 @@ IN_PROC_BROWSER_TEST_F(
       /*expected_commit_url=*/dest));
 
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
-  // The navigation itself carried cookies from the previous document's storage
-  // access, but the new document did not inherit storage access.
+  // The navigation itself didn't carry cookies since the fetch was
+  // cross-origin, and the new document did not inherit storage access.
   EXPECT_EQ(ReadCookiesAndContent(GetFrame(), kHostBSubdomain),
-            std::make_tuple("", "None", "cross-site=b.test"));
+            kNoCookiesWithContent);
 }
 
 IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
@@ -1829,10 +1826,9 @@ IN_PROC_BROWSER_TEST_F(StorageAccessAPIBrowserTest,
   }
 
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
-  // The navigation itself carried cookies from the previous document's storage
-  // access, but the new document did not inherit storage access.
-  EXPECT_EQ(ReadCookiesAndContent(GetFrame(), kHostB),
-            std::make_tuple("", "None", "cross-site=b.test"));
+  // The navigation itself didn't carry cookies since the fetch was
+  // cross-origin, and the new document did not inherit storage access.
+  EXPECT_EQ(ReadCookiesAndContent(GetFrame(), kHostB), kNoCookiesWithContent);
 }
 
 // Validate that in a A(A) frame tree, the inner A iframe can obtain cookie
@@ -2194,9 +2190,14 @@ IN_PROC_BROWSER_TEST_P(StorageAccessAPIStorageBrowserTest,
   ExpectStorage(GetFrame(), DoesPermissionGrantStorage());
   EXPECT_FALSE(storage::test::HasStorageAccessForFrame(GetFrame()));
 }
-
+// TODO(crbug.com/430495897): Test is flaky on Windows ASAN builds.
+#if BUILDFLAG(IS_WIN) && defined(ADDRESS_SANITIZER)
+#define MAYBE_NestedThirdPartyIFrameStorage DISABLED_NestedThirdPartyIFrameStorage
+#else
+#define MAYBE_NestedThirdPartyIFrameStorage NestedThirdPartyIFrameStorage
+#endif
 IN_PROC_BROWSER_TEST_P(StorageAccessAPIStorageBrowserTest,
-                       NestedThirdPartyIFrameStorage) {
+                       MAYBE_NestedThirdPartyIFrameStorage) {
   EnsureUserInteractionOn(kHostC);
 
   NavigateToPageWithFrame(kHostA);

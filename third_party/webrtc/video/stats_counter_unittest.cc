@@ -17,8 +17,8 @@
 
 namespace webrtc {
 namespace {
-const int kDefaultProcessIntervalMs = 2000;
-const uint32_t kStreamId = 123456;
+constexpr int kDefaultProcessIntervalMs = 2000;
+constexpr uint32_t kStreamId = 123456;
 
 class StatsCounterObserverImpl : public StatsCounterObserver {
  public:

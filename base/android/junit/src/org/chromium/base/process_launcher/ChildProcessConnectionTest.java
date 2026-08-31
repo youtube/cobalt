@@ -37,19 +37,19 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.robolectric.annotation.Config;
-import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowLooper;
 
 import org.chromium.base.BuildInfo;
 import org.chromium.base.ChildBindingState;
+import org.chromium.base.library_loader.IRelroLibInfo;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 
 /** Unit tests for ChildProcessConnection. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
-@LooperMode(LooperMode.Mode.LEGACY)
 public class ChildProcessConnectionTest {
     private static class ChildServiceConnectionMock implements ChildServiceConnection {
         private final Intent mBindIntent;
@@ -72,8 +72,11 @@ public class ChildProcessConnectionTest {
         }
 
         @Override
-        public void unbindServiceConnection() {
+        public void unbindServiceConnection(@Nullable Runnable onStateChangeCallback) {
             mBound = false;
+            if (onStateChangeCallback != null) {
+                onStateChangeCallback.run();
+            }
         }
 
         @Override
@@ -151,7 +154,7 @@ public class ChildProcessConnectionTest {
     private final ArrayList<ChildServiceConnectionMock> mMockConnections = new ArrayList<>();
 
     // Parameters captured from the IChildProcessService.setupConnection() call
-    private Bundle mConnectionBundle;
+    private IChildProcessArgs mChildProcessArgs;
     private IParentProcess mConnectionParentProcess;
 
     @Before
@@ -160,24 +163,21 @@ public class ChildProcessConnectionTest {
 
         mIChildProcessService = mock(IChildProcessService.class);
         ApplicationInfo appInfo = BuildInfo.getInstance().getBrowserApplicationInfo();
-        when(mIChildProcessService.getAppInfo()).thenReturn(appInfo);
+        String[] appInfoStrings = ChildProcessService.convertToStrings(appInfo);
+        when(mIChildProcessService.getAppInfoStrings()).thenReturn(appInfoStrings);
         // Capture the parameters passed to the IChildProcessService.setupConnection() call.
         doAnswer(
                         new Answer<Void>() {
                             @Override
                             public Void answer(InvocationOnMock invocation) {
-                                mConnectionBundle = (Bundle) invocation.getArgument(0);
+                                mChildProcessArgs = invocation.getArgument(0);
                                 mConnectionParentProcess =
                                         (IParentProcess) invocation.getArgument(1);
                                 return null;
                             }
                         })
                 .when(mIChildProcessService)
-                .setupConnection(
-                        or(isNull(), any()),
-                        or(isNull(), any()),
-                        or(isNull(), any()),
-                        or(isNull(), any()));
+                .setupConnection(or(isNull(), any()), or(isNull(), any()), or(isNull(), any()));
 
         mChildProcessServiceBinder = new Binder();
         mChildProcessServiceBinder.attachInterface(
@@ -215,10 +215,12 @@ public class ChildProcessConnectionTest {
 
     private void sendPid(int pid) throws RemoteException {
         mConnectionParentProcess.finishSetupConnection(
-                pid,
-                /* zygotePid= */ 0,
-                /* zygoteStartupTimeMillis= */ -1,
-                /* relroBundle= */ null);
+                pid, /* zygotePid= */ 0, /* zygoteStartupTimeMillis= */ -1, /* relroInfo= */ null);
+    }
+
+    private IChildProcessArgs createTestArgs() {
+        IChildProcessArgs args = new IChildProcessArgs();
+        return args;
     }
 
     @Test
@@ -381,9 +383,8 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         verify(mConnectionCallback, never()).onConnected(any());
@@ -391,6 +392,7 @@ public class ChildProcessConnectionTest {
         ShadowLooper.runUiThreadTasks();
         assertNotNull(mConnectionParentProcess);
         sendPid(34);
+        ShadowLooper.runUiThreadTasks();
         verify(mConnectionCallback, times(1)).onConnected(connection);
     }
 
@@ -400,9 +402,8 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         verify(mConnectionCallback, never()).onConnected(any());
@@ -411,6 +412,7 @@ public class ChildProcessConnectionTest {
         assertNotNull(mConnectionParentProcess);
 
         sendPid(34);
+        ShadowLooper.runUiThreadTasks();
         assertEquals(34, connection.getPid());
         sendPid(543);
         assertEquals(34, connection.getPid());
@@ -422,9 +424,8 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         verify(mConnectionCallback, never()).onConnected(any());
@@ -437,7 +438,8 @@ public class ChildProcessConnectionTest {
                 456
                 /* zygotePid= */ ,
                 /* zygoteStartupTimeMillis= */ 789,
-                /* relroBundle= */ null);
+                /* relroInfo= */ null);
+        ShadowLooper.runUiThreadTasks();
         assertTrue(connection.hasUsableZygoteInfo());
         assertEquals(456, connection.getZygotePid());
     }
@@ -449,9 +451,8 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection1.start(/* useStrongBinding= */ true, /* serviceCallback= */ null);
         connection1.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
@@ -462,7 +463,7 @@ public class ChildProcessConnectionTest {
                 /* pid= */ 125,
                 /* zygotePid= */ 0,
                 /* zygoteStartupTimeMillis= */ -1,
-                /* relroBundle= */ null);
+                /* relroInfo= */ null);
 
         // Allow the following setupConnection() to create a new service connection for
         // |connection2|.
@@ -473,9 +474,8 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection2.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         connection2.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
@@ -487,7 +487,8 @@ public class ChildProcessConnectionTest {
                 126,
                 /* zygotePid= */ 300,
                 /* zygoteStartupTimeMillis= */ -1,
-                /* relroBundle= */ null);
+                /* relroInfo= */ null);
+        ShadowLooper.runUiThreadTasks();
         assertTrue(connection2.hasUsableZygoteInfo());
         assertEquals(300, connection2.getZygotePid());
         assertFalse(connection1.hasUsableZygoteInfo());
@@ -499,9 +500,8 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 mZygoteInfoCallback);
         verify(mConnectionCallback, never()).onConnected(any());
@@ -509,47 +509,47 @@ public class ChildProcessConnectionTest {
         ShadowLooper.runUiThreadTasks();
         assertNotNull(mConnectionParentProcess);
 
-        Bundle relroBundle = new Bundle();
+        IRelroLibInfo relroInfo = new IRelroLibInfo();
         mConnectionParentProcess.finishSetupConnection(
                 /* pid= */ 123,
                 456
                 /* zygotePid= */ ,
                 /* zygoteStartupTimeMillis= */ 789,
-                relroBundle);
+                relroInfo);
+        ShadowLooper.runUiThreadTasks();
         assertTrue(connection.hasUsableZygoteInfo());
         assertEquals(456, connection.getZygotePid());
-        verify(mZygoteInfoCallback, times(1)).onReceivedZygoteInfo(connection, relroBundle);
+        verify(mZygoteInfoCallback, times(1)).onReceivedZygoteInfo(connection, relroInfo);
 
-        connection.consumeZygoteBundle(relroBundle);
-        verify(mIChildProcessService, times(1)).consumeRelroBundle(relroBundle);
+        connection.consumeRelroLibInfo(relroInfo);
+        verify(mIChildProcessService, times(1)).consumeRelroLibInfo(relroInfo);
     }
 
     @Test
-    public void testConsumeZygoteBundle() throws RemoteException {
+    public void testConsumeRelroLibInfo() throws RemoteException {
         ChildProcessConnection connection = createDefaultTestConnection();
         assertNotNull(mFirstServiceConnection);
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 mZygoteInfoCallback);
         verify(mConnectionCallback, never()).onConnected(any());
         mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
         ShadowLooper.runUiThreadTasks();
         assertNotNull(mConnectionParentProcess);
-        Bundle relroBundle = new Bundle();
+        IRelroLibInfo relroInfo = new IRelroLibInfo();
         mConnectionParentProcess.finishSetupConnection(
                 /* pid= */ 123,
                 456
                 /* zygotePid= */ ,
                 /* zygoteStartupTimeMillis= */ 789,
-                relroBundle);
+                relroInfo);
 
-        verify(mIChildProcessService, never()).consumeRelroBundle(any());
-        connection.consumeZygoteBundle(relroBundle);
-        verify(mIChildProcessService, times(1)).consumeRelroBundle(relroBundle);
+        verify(mIChildProcessService, never()).consumeRelroLibInfo(any());
+        connection.consumeRelroLibInfo(relroInfo);
+        verify(mIChildProcessService, times(1)).consumeRelroLibInfo(relroInfo);
     }
 
     @Test
@@ -559,15 +559,15 @@ public class ChildProcessConnectionTest {
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         verify(mConnectionCallback, never()).onConnected(any());
         ShadowLooper.runUiThreadTasks();
         assertNotNull(mConnectionParentProcess);
         sendPid(34);
+        ShadowLooper.runUiThreadTasks();
         verify(mConnectionCallback, times(1)).onConnected(connection);
     }
 
@@ -578,15 +578,15 @@ public class ChildProcessConnectionTest {
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         verify(mConnectionCallback, never()).onConnected(any());
         ShadowLooper.runUiThreadTasks();
         assertNotNull(mConnectionParentProcess);
         sendPid(34);
+        ShadowLooper.runUiThreadTasks();
         verify(mConnectionCallback, times(1)).onConnected(connection);
 
         // Add strong binding so that connection is oom protected.
@@ -605,7 +605,92 @@ public class ChildProcessConnectionTest {
         // Kill and verify state.
         connection.kill();
         verify(mIChildProcessService).forceKill();
+        assertEquals(ChildBindingState.UNBOUND, connection.bindingStateCurrent());
         assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrentOrWhenDied());
+        Assert.assertTrue(connection.isKilledByUs());
+    }
+
+    @Test
+    public void testBindingDowngrade() throws RemoteException {
+        ChildProcessConnection connection = createDefaultTestConnection();
+        assertNotNull(mFirstServiceConnection);
+        connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
+        mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
+        connection.setupConnection(
+                createTestArgs(),
+                /* clientInterfaces= */ null,
+                mConnectionCallback,
+                /* zygoteInfoCallback= */ null);
+        verify(mConnectionCallback, never()).onConnected(any());
+        ShadowLooper.runUiThreadTasks();
+        assertNotNull(mConnectionParentProcess);
+        sendPid(34);
+        ShadowLooper.runUiThreadTasks();
+        verify(mConnectionCallback, times(1)).onConnected(connection);
+        connection.removeVisibleBinding();
+
+        // Add all bindings
+        connection.addStrongBinding();
+        connection.addVisibleBinding();
+        if (ChildProcessConnection.supportNotPerceptibleBinding()) {
+            connection.addNotPerceptibleBinding();
+        }
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrentOrWhenDied());
+
+        // Remove binding from the highest.
+        connection.removeStrongBinding();
+        assertEquals(ChildBindingState.VISIBLE, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.VISIBLE, connection.bindingStateCurrentOrWhenDied());
+        connection.removeVisibleBinding();
+        if (ChildProcessConnection.supportNotPerceptibleBinding()) {
+            assertEquals(ChildBindingState.NOT_PERCEPTIBLE, connection.bindingStateCurrent());
+            assertEquals(
+                    ChildBindingState.NOT_PERCEPTIBLE, connection.bindingStateCurrentOrWhenDied());
+
+            connection.removeNotPerceptibleBinding();
+        }
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrentOrWhenDied());
+
+        // Add all bindings
+        connection.addStrongBinding();
+        connection.addVisibleBinding();
+        if (ChildProcessConnection.supportNotPerceptibleBinding()) {
+            connection.addNotPerceptibleBinding();
+        }
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrentOrWhenDied());
+
+        // Remove the binding in the middle priority.
+        connection.removeVisibleBinding();
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrentOrWhenDied());
+        connection.removeStrongBinding();
+        if (ChildProcessConnection.supportNotPerceptibleBinding()) {
+            assertEquals(ChildBindingState.NOT_PERCEPTIBLE, connection.bindingStateCurrent());
+            assertEquals(
+                    ChildBindingState.NOT_PERCEPTIBLE, connection.bindingStateCurrentOrWhenDied());
+
+            connection.removeNotPerceptibleBinding();
+        }
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrentOrWhenDied());
+
+        // Add strong binding only
+        connection.addStrongBinding();
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.STRONG, connection.bindingStateCurrentOrWhenDied());
+        // Remove the strong binding
+        connection.removeStrongBinding();
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrentOrWhenDied());
+
+        // Kill and verify state from waived binding only.
+        connection.kill();
+        verify(mIChildProcessService).forceKill();
+        assertEquals(ChildBindingState.UNBOUND, connection.bindingStateCurrent());
+        assertEquals(ChildBindingState.WAIVED, connection.bindingStateCurrentOrWhenDied());
         Assert.assertTrue(connection.isKilledByUs());
     }
 
@@ -618,7 +703,7 @@ public class ChildProcessConnectionTest {
         connection.updateGroupImportance(1, 2);
         assertEquals(1, connection.getGroup());
         assertEquals(2, connection.getImportanceInGroup());
-        assertEquals(3, mMockConnections.size());
+        assertEquals(4, mMockConnections.size());
         // Group should be set on the wavied (last) binding.
         ChildServiceConnectionMock mock = mMockConnections.get(mMockConnections.size() - 1);
         assertEquals(1, mock.getGroup());
@@ -632,15 +717,15 @@ public class ChildProcessConnectionTest {
         connection.start(/* useStrongBinding= */ false, /* serviceCallback= */ null);
         mFirstServiceConnection.notifyServiceConnected(mChildProcessServiceBinder);
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
         verify(mConnectionCallback, never()).onConnected(any());
         ShadowLooper.runUiThreadTasks();
         assertNotNull(mConnectionParentProcess);
         sendPid(34);
+        ShadowLooper.runUiThreadTasks();
         verify(mConnectionCallback, times(1)).onConnected(connection);
 
         String exceptionString = "test exception string";
@@ -666,7 +751,7 @@ public class ChildProcessConnectionTest {
         assertNotNull(mFirstServiceConnection);
         connection.start(/* useStrongBinding= */ false, mServiceCallback);
 
-        Assert.assertEquals(3, mMockConnections.size());
+        Assert.assertEquals(4, mMockConnections.size());
         boolean anyServiceConnectionBound = false;
         for (ChildServiceConnectionMock serviceConnection : mMockConnections) {
             anyServiceConnectionBound = anyServiceConnectionBound || serviceConnection.isBound();
@@ -683,9 +768,8 @@ public class ChildProcessConnectionTest {
         }
 
         connection.setupConnection(
-                /* childProcessArgs= */ null,
+                createTestArgs(),
                 /* clientInterfaces= */ null,
-                /* binderBox= */ null,
                 mConnectionCallback,
                 /* zygoteInfoCallback= */ null);
 
@@ -695,15 +779,15 @@ public class ChildProcessConnectionTest {
         verify(mServiceCallback, never()).onChildStartFailed(any());
         verify(mServiceCallback, never()).onChildProcessDied(any());
 
-        Assert.assertEquals(6, mMockConnections.size());
+        Assert.assertEquals(8, mMockConnections.size());
         // First 4 should be unbound now.
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 4; ++i) {
             verify(mMockConnections.get(i), times(1)).retire();
             Assert.assertFalse(mMockConnections.get(i).isBound());
         }
         // New connection for fallback service should be bound.
         ChildServiceConnectionMock boundServiceConnection = null;
-        for (int i = 3; i < 6; ++i) {
+        for (int i = 4; i < 8; ++i) {
             if (mMockConnections.get(i).isBound()) {
                 boundServiceConnection = mMockConnections.get(i);
             }
@@ -743,16 +827,16 @@ public class ChildProcessConnectionTest {
         verify(mServiceCallback, never()).onChildStartFailed(any());
         verify(mServiceCallback, never()).onChildProcessDied(any());
 
-        Assert.assertEquals(6, mMockConnections.size());
+        Assert.assertEquals(8, mMockConnections.size());
         // First 4 should be unbound now.
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 4; ++i) {
             verify(mMockConnections.get(i), times(1)).retire();
             Assert.assertFalse(mMockConnections.get(i).isBound());
         }
         // New connection for fallback service should be bound.
         ChildServiceConnectionMock boundServiceConnection = null;
         int boundConnectionCount = 0;
-        for (int i = 3; i < 6; ++i) {
+        for (int i = 4; i < 8; ++i) {
             if (mMockConnections.get(i).isBound()) {
                 boundServiceConnection = mMockConnections.get(i);
                 boundConnectionCount++;

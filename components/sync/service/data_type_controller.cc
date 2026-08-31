@@ -8,8 +8,10 @@
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
+#include "base/strings/strcat.h"
 #include "components/sync/base/data_type.h"
 #include "components/sync/engine/data_type_activation_response.h"
 #include "components/sync/model/data_type_activation_request.h"
@@ -168,8 +170,6 @@ void DataTypeController::LoadModels(
   request.error_handler = base::BindRepeating(
       &DataTypeController::ReportModelError, weak_ptr_factory_.GetWeakPtr());
   request.authenticated_gaia_id = configure_context.authenticated_gaia_id;
-  request.previously_syncing_gaia_id_info =
-      configure_context.previously_syncing_gaia_id_info;
   request.cache_guid = configure_context.cache_guid;
   request.sync_mode = configure_context.sync_mode;
   request.configuration_start_time = configure_context.configuration_start_time;
@@ -331,6 +331,7 @@ DataTypeControllerDelegate* DataTypeController::GetDelegateForTesting(
 
 void DataTypeController::ReportModelError(const ModelError& error) {
   DCHECK(CalledOnValidThread());
+  LogModelErrorToHistogram(error);
 
   switch (state_) {
     case MODEL_LOADED:
@@ -383,6 +384,18 @@ void DataTypeController::RecordRunFailure() const {
   DCHECK(CalledOnValidThread());
   UMA_HISTOGRAM_ENUMERATION("Sync.DataTypeRunFailures2",
                             DataTypeHistogramValue(type()));
+}
+
+void DataTypeController::LogModelErrorToHistogram(
+    const ModelError& model_error) const {
+  DCHECK(CalledOnValidThread());
+  // Log specific error type for all sync data types.
+  base::UmaHistogramSparse("Sync.ModelError",
+                           static_cast<int>(model_error.type()));
+  // Log specific error type for the current sync data type.
+  base::UmaHistogramSparse(
+      base::StrCat({"Sync.ModelError.", DataTypeToHistogramSuffix(type())}),
+      static_cast<int>(model_error.type()));
 }
 
 void DataTypeController::OnDelegateStarted(

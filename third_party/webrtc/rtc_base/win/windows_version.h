@@ -11,8 +11,7 @@
 #ifndef RTC_BASE_WIN_WINDOWS_VERSION_H_
 #define RTC_BASE_WIN_WINDOWS_VERSION_H_
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <string>
 
 typedef void* HANDLE;

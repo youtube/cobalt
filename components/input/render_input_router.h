@@ -5,6 +5,7 @@
 #ifndef COMPONENTS_INPUT_RENDER_INPUT_ROUTER_H_
 #define COMPONENTS_INPUT_RENDER_INPUT_ROUTER_H_
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -18,7 +19,6 @@
 #include "components/input/render_input_router_iterator.h"
 #include "components/input/render_input_router_latency_tracker.h"
 #include "components/viz/common/resources/peak_gpu_memory_tracker.h"
-#include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"

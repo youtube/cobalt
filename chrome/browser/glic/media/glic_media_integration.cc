@@ -4,25 +4,57 @@
 
 #include "chrome/browser/glic/media/glic_media_integration.h"
 
-#include "base/feature_list.h"
-#include "base/no_destructor.h"
 #include "base/supports_user_data.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
 #include "chrome/browser/glic/media/glic_media_context.h"
 #include "chrome/browser/glic/media/glic_media_page_cache.h"
+#include "chrome/browser/glic/media/media_transcript_provider_impl.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/live_caption/caption_controller_base.h"
 #include "components/live_caption/caption_util.h"
 #include "components/live_caption/live_caption_controller.h"
 #include "components/live_caption/pref_names.h"
-#include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/prefs/pref_service.h"
+#include "content/public/browser/peer_connection_tracker_host_observer.h"
 #include "content/public/browser/web_contents.h"
-#include "media/base/media_switches.h"
 
 namespace {
 
 constexpr char kGlicMediaIntegrationKey[] = "GlicMediaIntegration";
+
+class GlicMediaPeerConnectionObserver
+    : public content::PeerConnectionTrackerHostObserver {
+ public:
+  ~GlicMediaPeerConnectionObserver() override = default;
+
+  void OnPeerConnectionAdded(
+      content::GlobalRenderFrameHostId render_frame_host_id,
+      int lid,
+      base::ProcessId pid,
+      const std::string& url,
+      const std::string& rtc_configuration) override {
+    auto* rfh = content::RenderFrameHost::FromID(render_frame_host_id);
+    if (!rfh) {
+      return;
+    }
+
+    auto* wc = content::WebContents::FromRenderFrameHost(rfh);
+    if (!wc) {
+      return;
+    }
+
+    // For now, attribute everything to the primary main frame of the
+    // WebContents, even for subframes.
+    auto* context = glic::GlicMediaContext::GetOrCreateForCurrentDocument(
+        wc->GetPrimaryMainFrame());
+    if (!context) {
+      return;
+    }
+
+    context->OnPeerConnectionAdded();
+  }
+};
 
 class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
                                  public base::SupportsUserData::Data {
@@ -30,11 +62,16 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
   explicit GlicMediaIntegrationImpl(Profile*);
   ~GlicMediaIntegrationImpl() override = default;
 
-  // glic::GlicMediaIntegration
+  // glic::GlicMediaIntegration:
   void AppendContext(
       content::WebContents* web_contents,
       optimization_guide::proto::ContentNode* context_root) override;
+  void AppendContextForFrame(
+      content::RenderFrameHost* rfh,
+      optimization_guide::proto::ContentNode* context_root) override;
+  void OnPeerConnectionAddedForTesting(content::RenderFrameHost*) override;
 
+  // GlicMediaIntegrationImpl:
   void OnContextUpdated(glic::GlicMediaContext* context);
 
  protected:
@@ -42,6 +79,8 @@ class GlicMediaIntegrationImpl : public glic::GlicMediaIntegration,
   // Don't let the transcript grow unbounded.
   static constexpr size_t max_size_bytes_ = 20000;
   glic::GlicMediaPageCache page_cache_;
+
+  std::unique_ptr<GlicMediaPeerConnectionObserver> rtc_observer_;
 };
 
 class CaptionListenerImpl : public captions::CaptionControllerBase::Listener {
@@ -49,23 +88,29 @@ class CaptionListenerImpl : public captions::CaptionControllerBase::Listener {
   explicit CaptionListenerImpl(Profile* profile) : profile_(profile) {}
   ~CaptionListenerImpl() override = default;
 
-  bool OnTranscription(content::WebContents* web_contents,
+  bool OnTranscription(content::RenderFrameHost* rfh,
                        captions::CaptionBubbleContext*,
                        const media::SpeechRecognitionResult& result) override {
-    if (auto* context = glic::GlicMediaContext::GetOrCreateFor(web_contents)) {
-      context->OnResult(result);
+    if (!rfh) {
+      return false;
+    }
+    bool continue_transcribing = false;
+    if (auto* context =
+            glic::GlicMediaContext::GetOrCreateForCurrentDocument(rfh)) {
+      continue_transcribing = context->OnResult(result);
+      auto* web_contents = content::WebContents::FromRenderFrameHost(rfh);
       static_cast<GlicMediaIntegrationImpl*>(
           glic::GlicMediaIntegration::GetFor(web_contents))
           ->OnContextUpdated(context);
     }
 
-    return true;
+    return continue_transcribing;
   }
 
-  void OnAudioStreamEnd(content::WebContents*,
+  void OnAudioStreamEnd(content::RenderFrameHost*,
                         captions::CaptionBubbleContext*) override {}
   void OnLanguageIdentificationEvent(
-      content::WebContents*,
+      content::RenderFrameHost*,
       captions::CaptionBubbleContext*,
       const media::mojom::LanguageIdentificationEventPtr&) override {}
 
@@ -74,7 +119,8 @@ class CaptionListenerImpl : public captions::CaptionControllerBase::Listener {
 };
 
 GlicMediaIntegrationImpl::GlicMediaIntegrationImpl(Profile* profile)
-    : profile_(profile) {
+    : profile_(profile),
+      rtc_observer_(std::make_unique<GlicMediaPeerConnectionObserver>()) {
   auto* lc = captions::LiveCaptionControllerFactory::GetForProfile(profile_);
   lc->AddListener(std::make_unique<CaptionListenerImpl>(profile));
 
@@ -86,10 +132,35 @@ GlicMediaIntegrationImpl::GlicMediaIntegrationImpl(Profile* profile)
 void GlicMediaIntegrationImpl::AppendContext(
     content::WebContents* web_contents,
     optimization_guide::proto::ContentNode* context_root) {
+  if (!web_contents) {
+    return;
+  }
+  // Walk the tree and find a transcript.
+  content::RenderFrameHost* rfh = nullptr;
+  web_contents->ForEachRenderFrameHost([&rfh](content::RenderFrameHost* host) {
+    auto* context = glic::GlicMediaContext::GetForCurrentDocument(host);
+    if (!context) {
+      return;
+    }
+    if (context->GetContext() != "") {
+      rfh = host;
+    }
+  });
+  if (rfh) {
+    AppendContextForFrame(rfh, context_root);
+  }
+}
+
+void GlicMediaIntegrationImpl::AppendContextForFrame(
+    content::RenderFrameHost* rfh,
+    optimization_guide::proto::ContentNode* context_root) {
+  if (!rfh) {
+    return;
+  }
   context_root->mutable_content_attributes()->set_attribute_type(
       optimization_guide::proto::CONTENT_ATTRIBUTE_TEXT);
 
-  auto* context = glic::GlicMediaContext::GetIfExistsFor(web_contents);
+  auto* context = glic::GlicMediaContext::GetForCurrentDocument(rfh);
   std::string result;
   if (context != nullptr) {
     result = context->GetContext();
@@ -120,20 +191,29 @@ void GlicMediaIntegrationImpl::OnContextUpdated(
   page_cache_.PlaceAtFront(context);
 }
 
+void GlicMediaIntegrationImpl::OnPeerConnectionAddedForTesting(
+    content::RenderFrameHost* rfh) {
+  auto id = rfh->GetGlobalId();
+  rtc_observer_->OnPeerConnectionAdded(id, /*lid=*/0, /*pid=*/{}, /*url=*/"",
+                                       /*rtc_configuration=*/"");
+}
+
 }  // namespace
 
 namespace glic {
 
 // static
-GlicMediaIntegration* GlicMediaIntegration::GetFor(content::WebContents* wc) {
+GlicMediaIntegration* GlicMediaIntegration::GetFor(
+    content::WebContents* web_contents) {
   // This should also check the pref, once it's not toggled automatically.
   // We'll want to install a pref listener, and possibly clean up if the pref
   // is switched off after construction.
-  if (!wc || !captions::IsHeadlessCaptionFeatureSupported()) {
+  if (!web_contents || !captions::IsHeadlessCaptionFeatureSupported()) {
     return nullptr;
   }
 
-  Profile* profile = Profile::FromBrowserContext(wc->GetBrowserContext());
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents->GetBrowserContext());
   if (!profile) {
     return nullptr;
   }
@@ -144,6 +224,11 @@ GlicMediaIntegration* GlicMediaIntegration::GetFor(content::WebContents* wc) {
     auto new_data = std::make_unique<GlicMediaIntegrationImpl>(profile);
     data = new_data.get();
     profile->SetUserData(kGlicMediaIntegrationKey, std::move(new_data));
+  }
+
+  if (!optimization_guide::MediaTranscriptProvider::GetFor(web_contents)) {
+    optimization_guide::MediaTranscriptProvider::SetFor(
+        web_contents, std::make_unique<glic::MediaTranscriptProviderImpl>());
   }
 
   return data;

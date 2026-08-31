@@ -12,9 +12,11 @@
 
 #include <openssl/rand.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -32,9 +34,8 @@ namespace {
 // The OpenSSL RNG.
 class SecureRandomGenerator : public RandomGenerator {
  public:
-  SecureRandomGenerator() {}
-  ~SecureRandomGenerator() override {}
-  bool Init(const void* /* seed */, size_t /* len */) override { return true; }
+  SecureRandomGenerator() = default;
+  ~SecureRandomGenerator() override = default;
   bool Generate(void* buf, size_t len) override {
     return (RAND_bytes(reinterpret_cast<unsigned char*>(buf), len) > 0);
   }
@@ -44,8 +45,7 @@ class SecureRandomGenerator : public RandomGenerator {
 class TestRandomGenerator : public RandomGenerator {
  public:
   TestRandomGenerator() : seed_(7) {}
-  ~TestRandomGenerator() override {}
-  bool Init(const void* /* seed */, size_t /* len */) override { return true; }
+  ~TestRandomGenerator() override = default;
   bool Generate(void* buf, size_t len) override {
     for (size_t i = 0; i < len; ++i) {
       static_cast<uint8_t*>(buf)[i] = static_cast<uint8_t>(GetRandom());
@@ -61,17 +61,17 @@ class TestRandomGenerator : public RandomGenerator {
 };
 
 // TODO: Use Base64::Base64Table instead.
-static const char kBase64[64] = {
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'};
+const char kBase64[64] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K',
+                          'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+                          'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g',
+                          'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r',
+                          's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2',
+                          '3', '4', '5', '6', '7', '8', '9', '+', '/'};
 
-static const char kHex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                              '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+const char kHex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
+                       '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
-static const char kUuidDigit17[4] = {'8', '9', 'a', 'b'};
+const char kUuidDigit17[4] = {'8', '9', 'a', 'b'};
 
 // Lock for the global random generator, only needed to serialize changing the
 // generator.

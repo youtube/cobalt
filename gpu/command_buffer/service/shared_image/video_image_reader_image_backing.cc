@@ -9,6 +9,7 @@
 #include "base/android/android_hardware_buffer_compat.h"
 #include "base/android/scoped_hardware_buffer_fence_sync.h"
 #include "base/android/scoped_hardware_buffer_handle.h"
+#include "base/notimplemented.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "components/viz/common/gpu/vulkan_context_provider.h"
@@ -685,11 +686,10 @@ VideoImageReaderImageBacking::ProduceSkiaGanesh(
   }
 
   DCHECK(context_state->GrContextIsGL());
-  auto* texture_base = stream_texture_sii_->GetTextureBase();
-  DCHECK(texture_base);
-  const bool passthrough =
-      (texture_base->GetType() == gpu::TextureBase::Type::kPassthrough);
 
+  gles2::FeatureInfo* feature_info = context_state->feature_info();
+  const bool passthrough =
+      (feature_info && feature_info->is_passthrough_cmd_decoder());
   auto texture = GenAbstractTexture(passthrough);
   if (!texture)
     return nullptr;

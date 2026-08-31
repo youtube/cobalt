@@ -6,6 +6,7 @@ import 'chrome://resources/cr_components/history_clusters/clusters.js';
 import 'chrome://resources/cr_components/history_embeddings/filter_chips.js';
 import 'chrome://resources/cr_components/history_embeddings/history_embeddings.js';
 import 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
+import 'chrome://resources/cr_elements/cr_scrollable.css.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/cr_elements/cr_tabs/cr_tabs.js';
@@ -17,10 +18,8 @@ import './query_manager.js';
 import './shared_style.css.js';
 import './side_bar.js';
 import '/strings.m.js';
-import './product_specifications_lists.js';
 
 import {HelpBubbleMixin} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
-import type {HelpBubbleMixinInterface} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
 import {HistoryResultType} from 'chrome://resources/cr_components/history/constants.js';
 import type {HistoryEntry, HistoryQuery, PageCallbackRouter, PageHandlerRemote, QueryState} from 'chrome://resources/cr_components/history/history.mojom-webui.js';
 import {HistoryEmbeddingsBrowserProxyImpl} from 'chrome://resources/cr_components/history_embeddings/browser_proxy.js';
@@ -30,17 +29,14 @@ import {getInstance as getAnnouncerInstance} from 'chrome://resources/cr_element
 import type {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
 import type {CrLazyRenderElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render.js';
 import type {CrPageSelectorElement} from 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
-import type {FindShortcutListener} from 'chrome://resources/cr_elements/find_shortcut_manager.js';
 import {FindShortcutMixin} from 'chrome://resources/cr_elements/find_shortcut_mixin.js';
-import type {WebUiListenerMixinInterface} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {EventTracker} from 'chrome://resources/js/event_tracker.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {getTrustedScriptURL} from 'chrome://resources/js/static_types.js';
 import {hasKeyModifiers} from 'chrome://resources/js/util.js';
-import {IronScrollTargetBehavior} from 'chrome://resources/polymer/v3_0/iron-scroll-target-behavior/iron-scroll-target-behavior.js';
-import {mixinBehaviors, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './app.html.js';
 import type {BrowserService} from './browser_service.js';
@@ -64,7 +60,6 @@ export function ensureLazyLoaded(): Promise<void> {
 
     lazyLoadPromise = Promise.all([
       customElements.whenDefined('history-synced-device-manager'),
-      customElements.whenDefined('product-specifications-lists'),
       customElements.whenDefined('cr-action-menu'),
       customElements.whenDefined('cr-button'),
       customElements.whenDefined('cr-checkbox'),
@@ -149,13 +144,8 @@ export interface QueryResult {
   sessionList?: ForeignSession[];
 }
 
-const HistoryAppElementBase = mixinBehaviors(
-                                  [IronScrollTargetBehavior],
-                                  HelpBubbleMixin(FindShortcutMixin(
-                                      WebUiListenerMixin(PolymerElement)))) as {
-  new (): PolymerElement & HelpBubbleMixinInterface & FindShortcutListener &
-      IronScrollTargetBehavior & WebUiListenerMixinInterface,
-};
+const HistoryAppElementBase =
+    HelpBubbleMixin(FindShortcutMixin(WebUiListenerMixin(PolymerElement)));
 
 export class HistoryAppElement extends HistoryAppElementBase {
   static get is() {
@@ -200,12 +190,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
       },
 
       pendingDelete_: Boolean,
-
-      toolbarShadow_: {
-        type: Boolean,
-        reflectToAttribute: true,
-        notify: true,
-      },
 
       queryState_: Object,
 
@@ -288,11 +272,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
         reflectToAttribute: true,
       },
 
-      compareHistoryEnabled_: {
-        type: Boolean,
-        value: () => loadTimeData.getBoolean('compareHistoryEnabled'),
-      },
-
       tabContentScrollOffset_: {
         type: Number,
         value: 0,
@@ -313,10 +292,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
         value: false,
       },
     };
-  }
-
-  static get observers() {
-    return ['onQueryStateChanged_(queryState_.*)'];
   }
 
   declare footerInfo: FooterInfo;
@@ -343,13 +318,11 @@ export class HistoryAppElement extends HistoryAppElementBase {
   declare private showHistoryClusters_: boolean;
   declare private tabsIcons_: string[];
   declare private tabsNames_: string[];
-  declare private toolbarShadow_: boolean;
   private historyClustersViewStartTime_: Date|null = null;
   private onHasOtherFormsChangedListenerId_: number|null = null;
   declare private scrollTarget_: HTMLElement;
   declare private queryStateAfterDate_?: Date;
   declare private hasHistoryEmbeddingsResults_: boolean;
-  declare private compareHistoryEnabled_: boolean;
   private historyEmbeddingsResizeObserver_?: ResizeObserver;
   declare private historyEmbeddingsDisclaimerLinkClicked_: boolean;
   declare private tabContentScrollOffset_: number;
@@ -408,10 +381,8 @@ export class HistoryAppElement extends HistoryAppElementBase {
 
     this.addEventListener('cr-toolbar-menu-click', this.onCrToolbarMenuClick_);
     this.addEventListener('delete-selected', this.deleteSelected);
+    this.addEventListener('open-selected', this.openSelected);
     this.addEventListener('history-checkbox-select', this.checkboxSelected);
-    this.addEventListener(
-        'product-spec-item-select',
-        this.productSpecificationsCheckboxSelected_);
     this.addEventListener('history-close-drawer', this.closeDrawer_);
     this.addEventListener('history-view-changed', this.historyViewChanged_);
     this.addEventListener('unselect-all', this.unselectAll);
@@ -428,15 +399,22 @@ export class HistoryAppElement extends HistoryAppElementBase {
     }
   }
 
-  private getShowResultsByGroup_() {
+  getScrollTargetForTesting(): HTMLElement {
+    return this.scrollTarget_;
+  }
+
+  private getShowResultsByGroup_(): boolean {
     return this.selectedPage_ === Page.HISTORY_CLUSTERS;
   }
 
-  private getShowHistoryList_() {
+  private getShowHistoryList_(): boolean {
     return this.selectedPage_ === Page.HISTORY;
   }
 
   private onShowResultsByGroupChanged_(e: CustomEvent<{value: boolean}>) {
+    if (!this.selectedPage_) {
+      return;
+    }
     const showResultsByGroup = e.detail.value;
     if (showResultsByGroup) {
       this.selectedTab_ = TABBED_PAGES.indexOf(Page.HISTORY_CLUSTERS);
@@ -476,11 +454,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
         this.showHistoryClusters_;
   }
 
-  private comparisonTablesSelected_(_selectedPage: string): boolean {
-    return this.compareHistoryEnabled_ &&
-        this.selectedPage_ === Page.PRODUCT_SPECIFICATIONS_LISTS;
-  }
-
   private onFirstRender_() {
     // Focus the search field on load. Done here to ensure the history page
     // is rendered before we try to take focus.
@@ -498,19 +471,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
     });
   }
 
-  /** Overridden from IronScrollTargetBehavior */
-  /* eslint-disable-next-line @typescript-eslint/naming-convention */
-  override _scrollHandler() {
-    if (this.scrollTarget) {
-      // When the tabs are visible, show the toolbar shadow for the synced
-      // devices page or product specifications page.
-      this.toolbarShadow_ = this.scrollTarget.scrollTop !== 0 &&
-          (!this.showHistoryClusters_ ||
-           this.syncedTabsSelected_(this.selectedPage_) ||
-           this.selectedPage_ === Page.PRODUCT_SPECIFICATIONS_LISTS);
-    }
-  }
-
   private onCrToolbarMenuClick_() {
     this.$.drawer.get().toggle();
   }
@@ -523,29 +483,7 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.$.toolbar.count = this.$.history.getSelectedItemCount();
   }
 
-  /**
-   * Listens for product-specs-item being selected or deselected (through
-   * checkbox) and changes the view of the top toolbar.
-   */
-  private productSpecificationsCheckboxSelected_() {
-    if (this.selectedPage_ !== Page.PRODUCT_SPECIFICATIONS_LISTS) {
-      return;
-    }
-    const productSpecsListElement =
-        this.shadowRoot!.querySelector('product-specifications-lists');
-    assert(productSpecsListElement);
-    this.$.toolbar.count = productSpecsListElement.getSelectedItemCount();
-  }
-
   selectOrUnselectAll() {
-    if (this.selectedPage_ === Page.PRODUCT_SPECIFICATIONS_LISTS) {
-      const productSpecsListElement =
-          this.shadowRoot!.querySelector('product-specifications-lists');
-      assert(productSpecsListElement);
-      productSpecsListElement.selectOrUnselectAll();
-      this.$.toolbar.count = productSpecsListElement.getSelectedItemCount();
-      return;
-    }
     this.$.history.selectOrUnselectAll();
     this.$.toolbar.count = this.$.history.getSelectedItemCount();
   }
@@ -555,40 +493,21 @@ export class HistoryAppElement extends HistoryAppElementBase {
    * checkbox to be unselected.
    */
   private unselectAll() {
-    if (this.selectedPage_ === Page.PRODUCT_SPECIFICATIONS_LISTS) {
-      this.productSpecificationsUnselectAll_();
-      return;
-    }
     this.$.history.unselectAllItems();
     this.$.toolbar.count = 0;
   }
 
-  private productSpecificationsUnselectAll_() {
-    const productSpecsListElement =
-        this.shadowRoot!.querySelector('product-specifications-lists');
-
-    // This method is also called on selectedPageChanged, so it is possible
-    // for the list element to be empty.
-    if (productSpecsListElement) {
-      productSpecsListElement.unselectAllItems();
-      this.$.toolbar.count = 0;
-    }
-  }
-
   deleteSelected() {
-    if (this.selectedPage_ === Page.PRODUCT_SPECIFICATIONS_LISTS) {
-      const productSpecsListElement =
-          this.shadowRoot!.querySelector('product-specifications-lists');
-      assert(productSpecsListElement);
-      productSpecsListElement.deleteSelectedWithPrompt();
-    } else {
-      this.$.history.deleteSelectedWithPrompt();
-    }
+    this.$.history.deleteSelectedWithPrompt();
   }
 
-  private onQueryFinished_() {
-    this.$.history.historyResult(
-        this.queryResult_.info!, this.queryResult_.value!);
+  openSelected() {
+    this.$.history.openSelected();
+  }
+
+  private onQueryFinished_(e: CustomEvent<{result: QueryResult}>) {
+    this.queryResult_ = e.detail.result;
+    this.$.history.historyResult(e.detail.result.info!, e.detail.result.value!);
     if (document.body.classList.contains('loading')) {
       document.body.classList.remove('loading');
       this.onFirstRender_();
@@ -720,7 +639,8 @@ export class HistoryAppElement extends HistoryAppElementBase {
    * Update sign in state of synced device manager after user logs in or out.
    */
   private onHasOtherFormsChanged_(hasOtherForms: boolean) {
-    this.set('footerInfo.otherFormsOfHistory', hasOtherForms);
+    this.footerInfo = Object.assign(
+        {}, this.footerInfo, {otherFormsOfHistory: hasOtherForms});
   }
 
   private syncedTabsSelected_(_selectedPage: string): boolean {
@@ -740,9 +660,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
     switch (this.selectedPage_) {
       case Page.SYNCED_TABS:
         this.contentPage_ = Page.SYNCED_TABS;
-        break;
-      case Page.PRODUCT_SPECIFICATIONS_LISTS:
-        this.contentPage_ = Page.PRODUCT_SPECIFICATIONS_LISTS;
         break;
       default:
         this.contentPage_ = Page.HISTORY;
@@ -778,24 +695,15 @@ export class HistoryAppElement extends HistoryAppElementBase {
     const topLevelHistoryPage = this.$['tabs-container'];
     if (topLevelIronPages.selectedItem &&
         topLevelIronPages.selectedItem === topLevelHistoryPage) {
-      if (this.enableHistoryEmbeddings_) {
-        // The top-level History page has another inner IronPages element that
-        // can toggle between different pages.
-        this.scrollTarget = this.$.tabsScrollContainer;
-      } else {
-        this.scrollTarget = this.$['tabs-content'].selectedItem as HTMLElement;
-      }
-    } else if (topLevelIronPages.selectedItem) {
-      this.scrollTarget = topLevelIronPages.selectedItem as HTMLElement;
-    } else {
-      this.scrollTarget = null;
-    }
+      this.scrollTarget_ = this.$.tabsScrollContainer;
 
-    // Notify iron-list parents of potential resize, since the selected
-    // page or tab has changed.
-    setTimeout(() => {
-      this.$.history.notifyResize();
-    }, 0);
+      // Scroll target won't change as the scroll target for both Date and Group
+      // view is this.$.tabsScrollContainer, which means history-list's
+      // callbacks to fill the viewport do not get triggered automatically.
+      this.$.history.fillCurrentViewport();
+    } else {
+      this.scrollTarget_ = topLevelIronPages.selectedItem as HTMLElement;
+    }
   }
 
   private selectedTabChanged_() {
@@ -817,11 +725,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
   }
 
   private historyViewChanged_() {
-    // This allows the synced-device-manager to render so that it can be set
-    // as the scroll target.
-    requestAnimationFrame(() => {
-      this._scrollHandler();
-    });
     this.recordHistoryPageView_();
   }
 
@@ -861,9 +764,6 @@ export class HistoryAppElement extends HistoryAppElementBase {
         histogramValue = this.isUserSignedIn_ ?
             HistoryPageViewHistogram.SYNCED_TABS :
             HistoryPageViewHistogram.SIGNIN_PROMO;
-        break;
-      case Page.PRODUCT_SPECIFICATIONS_LISTS:
-        histogramValue = HistoryPageViewHistogram.PRODUCT_SPECIFICATIONS_LISTS;
         break;
       default:
         histogramValue = HistoryPageViewHistogram.HISTORY;
@@ -980,8 +880,16 @@ export class HistoryAppElement extends HistoryAppElementBase {
     this.historyEmbeddingsResizeObserver_.observe(historyEmbeddingsContainer);
   }
 
-  private onQueryStateChanged_() {
+  private onQueryStateChanged_(e: CustomEvent<{value: QueryState}>) {
     this.nonEmbeddingsResultClicked_ = false;
+    this.queryState_ = e.detail.value;
+    if (this.selectedPage_ && this.$.router) {
+      this.$.router.serializeUrl();
+    }
+  }
+
+  private onSelectedPageChanged_(e: CustomEvent<{value: string}>) {
+    this.selectedPage_ = e.detail.value;
   }
 
   private onToolbarSearchInputNativeBeforeInput_(
@@ -1012,6 +920,10 @@ export class HistoryAppElement extends HistoryAppElementBase {
 
   private onToolbarSearchCleared_() {
     this.numCharsTypedInSearch_ = 0;
+  }
+
+  private onListPendingDeleteChanged_(e: CustomEvent<{value: boolean}>) {
+    this.pendingDelete_ = e.detail.value;
   }
 }
 

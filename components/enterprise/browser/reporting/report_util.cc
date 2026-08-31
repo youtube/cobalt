@@ -199,6 +199,11 @@ std::string GetSecuritySignalsInReport(
     signals_dict.Set("antivirus_info", std::move(anti_virus_list));
 
     signals_dict.Set("hotfixes", RepeatedFieldptrToList(os_report.hotfixes()));
+#elif BUILDFLAG(IS_LINUX)
+    if (os_report.has_distribution_version()) {
+      signals_dict.Set("distribution_version",
+                       os_report.distribution_version());
+    }
 #endif  // BUILDFLAG(IS_WIN)
   }
 
@@ -218,6 +223,8 @@ std::string GetSecuritySignalsInReport(
   }
 
   auto chrome_user_profile_info = browser_report.chrome_user_profile_infos(0);
+  signals_dict.Set("profile_id", chrome_user_profile_info.profile_id());
+
   if (chrome_user_profile_info.has_profile_signals_report()) {
     auto profile_signals_report =
         chrome_user_profile_info.profile_signals_report();

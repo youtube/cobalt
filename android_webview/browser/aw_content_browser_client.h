@@ -39,7 +39,6 @@ class IsolationInfo;
 
 namespace android_webview {
 
-class AwBrowserContext;
 class AwFeatureListCreator;
 
 std::string GetProduct();
@@ -65,9 +64,9 @@ class AwContentBrowserClient : public content::ContentBrowserClient {
 
   ~AwContentBrowserClient() override;
 
-  // Allows AwBrowserMainParts to initialize a BrowserContext at the right
-  // moment during startup. AwContentBrowserClient owns the result.
-  AwBrowserContext* InitBrowserContext();
+  // Allows AwBrowserMainParts to initialize a BrowserContextStore at the right
+  // moment during startup.
+  void InitBrowserContextStore();
 
   // content::ContentBrowserClient:
   void OnNetworkServiceCreated(
@@ -132,14 +131,6 @@ class AwContentBrowserClient : public content::ContentBrowserClient {
   base::FilePath GetDefaultDownloadDirectory() override;
   std::string GetDefaultDownloadName() override;
   std::optional<base::FilePath> GetLocalTracesDirectory() override;
-  void DidCreatePpapiPlugin(content::BrowserPpapiHost* browser_host) override;
-  bool AllowPepperSocketAPI(
-      content::BrowserContext* browser_context,
-      const GURL& url,
-      bool private_api,
-      const content::SocketPermissionRequest* params) override;
-  bool IsPepperVpnProviderAPIAllowed(content::BrowserContext* browser_context,
-                                     const GURL& url) override;
   std::unique_ptr<content::TracingDelegate> CreateTracingDelegate() override;
   void GetAdditionalMappedFilesForChildProcess(
       const base::CommandLine& command_line,
@@ -189,7 +180,9 @@ class AwContentBrowserClient : public content::ContentBrowserClient {
                                 ui::PageTransition transition,
                                 bool* ignore_navigation) override;
   bool SupportsAvoidUnnecessaryBeforeUnloadCheckSync() override;
-  bool ShouldAllowSameSiteRenderFrameHostChange(
+
+  content::ContentBrowserClient::ShouldAllowSameSiteRenderFrameHostChangeResult
+  ShouldAllowSameSiteRenderFrameHostChange(
       const content::RenderFrameHost& rfh) override;
   std::unique_ptr<content::LoginDelegate> CreateLoginDelegate(
       const net::AuthChallengeInfo& auth_info,

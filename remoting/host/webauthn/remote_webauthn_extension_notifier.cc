@@ -19,7 +19,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
-#include "base/notreached.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
@@ -209,16 +209,24 @@ void RemoteWebAuthnExtensionNotifier::Core::WakeUpExtension() {
 const std::vector<base::FilePath::StringType>&
 RemoteWebAuthnExtensionNotifier::GetRemoteWebAuthnExtensionIds() {
   static const base::NoDestructor<std::vector<base::FilePath::StringType>> ids({
-    // Prod extension ID
-    FILE_PATH_LITERAL("djjmngfglakhkhmgcfdmjalogilepkhd"),
+      // LINT.IfChange(extension_ids)
+      // Prod security key extension ID
+      FILE_PATH_LITERAL("djjmngfglakhkhmgcfdmjalogilepkhd"),
 
-    // For debug builds we wake up both extensions, so that developers don't
-    // have to build and install the dev extension for using WebAuthn
-    // forwarding.
+      // Prod companion extension ID
+      FILE_PATH_LITERAL("inomeogfingihgjfjlpeplalcfajhgai"),
+
+  // For debug builds we wake up both extensions, so that developers don't
+  // have to build and install the dev extension for using WebAuthn
+  // forwarding.
 #if !defined(NDEBUG)
-        // Dev extension ID
-        FILE_PATH_LITERAL("hfmpidnhglhndeamkbopljnclamhmnaj"),
+      // Dev security key extension ID
+      FILE_PATH_LITERAL("kbapnajlciffffomeaphfpckfdcfopef"),
+
+      // Dev companion extension ID
+      FILE_PATH_LITERAL("pbnaomcgbfiofkfobmlhmdobjchjkphi"),
 #endif
+      // LINT.ThenChange(/remoting/host/BUILD.gn:extension_ids)
   });
   return *ids;
 }

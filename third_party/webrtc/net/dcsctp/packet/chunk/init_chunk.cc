@@ -9,18 +9,17 @@
  */
 #include "net/dcsctp/packet/chunk/init_chunk.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "api/array_view.h"
+#include "net/dcsctp/common/internal_types.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
 #include "net/dcsctp/packet/parameter/parameter.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 #include "rtc_base/strings/string_format.h"
 
 namespace dcsctp {
@@ -44,7 +43,6 @@ namespace dcsctp {
 //  /              Optional/Variable-Length Parameters              /
 //  \                                                               \
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-constexpr int InitChunk::kType;
 
 std::optional<InitChunk> InitChunk::Parse(
     webrtc::ArrayView<const uint8_t> data) {

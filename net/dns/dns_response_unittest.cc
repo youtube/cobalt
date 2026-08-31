@@ -2,16 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "net/dns/dns_response.h"
 
 #include <stdint.h>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -19,6 +15,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/compiler_specific.h"
 #include "base/containers/span.h"
 #include "base/containers/span_writer.h"
 #include "base/time/time.h"
@@ -47,7 +44,7 @@ TEST(DnsRecordParserTest, Constructor) {
 }
 
 TEST(DnsRecordParserTest, ReadName) {
-  const uint8_t data[] = {
+  const auto data = std::to_array<uint8_t>({
       // all labels "foo.example.com"
       0x03, 'f', 'o', 'o', 0x07, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 0x03, 'c',
       'o', 'm',
@@ -60,60 +57,79 @@ TEST(DnsRecordParserTest, ReadName) {
       // all pointer to "bar.example.com", 2 jumps
       0xc0, 0x11,
       // byte 0x1a
-  };
+  });
 
   std::string out;
   DnsRecordParser parser(data, 0, /*num_records=*/0);
   ASSERT_TRUE(parser.IsValid());
 
-  EXPECT_EQ(0x11u, parser.ReadName(data + 0x00, &out));
+  EXPECT_EQ(0x11u,
+            parser.ReadName(base::span(data).subspan(0x00u).data(), &out));
   EXPECT_EQ("foo.example.com", out);
   // Check that the last "." is never stored.
   out.clear();
-  EXPECT_EQ(0x1u, parser.ReadName(data + 0x10, &out));
+  EXPECT_EQ(0x1u,
+            parser.ReadName(base::span(data).subspan(0x10u).data(), &out));
   EXPECT_EQ("", out);
   out.clear();
-  EXPECT_EQ(0x6u, parser.ReadName(data + 0x11, &out));
+  EXPECT_EQ(0x6u,
+            parser.ReadName(base::span(data).subspan(0x11u).data(), &out));
   EXPECT_EQ("bar.example.com", out);
   out.clear();
-  EXPECT_EQ(0x2u, parser.ReadName(data + 0x17, &out));
+  EXPECT_EQ(0x2u,
+            parser.ReadName(base::span(data).subspan(0x17u).data(), &out));
   EXPECT_EQ("bar.example.com", out);
 
   // Parse name without storing it.
-  EXPECT_EQ(0x11u, parser.ReadName(data + 0x00, nullptr));
-  EXPECT_EQ(0x1u, parser.ReadName(data + 0x10, nullptr));
-  EXPECT_EQ(0x6u, parser.ReadName(data + 0x11, nullptr));
-  EXPECT_EQ(0x2u, parser.ReadName(data + 0x17, nullptr));
+  EXPECT_EQ(0x11u,
+            parser.ReadName(base::span(data).subspan(0x00u).data(), nullptr));
+  EXPECT_EQ(0x1u,
+            parser.ReadName(base::span(data).subspan(0x10u).data(), nullptr));
+  EXPECT_EQ(0x6u,
+            parser.ReadName(base::span(data).subspan(0x11u).data(), nullptr));
+  EXPECT_EQ(0x2u,
+            parser.ReadName(base::span(data).subspan(0x17u).data(), nullptr));
 
   // Check that it works even if initial position is different.
   parser = DnsRecordParser(data, 0x12, /*num_records=*/0);
-  EXPECT_EQ(0x6u, parser.ReadName(data + 0x11, nullptr));
+  EXPECT_EQ(0x6u,
+            parser.ReadName(base::span(data).subspan(0x11u).data(), nullptr));
 }
 
 TEST(DnsRecordParserTest, ReadNameFail) {
-  const uint8_t data[] = {
+  const auto data = std::to_array<uint8_t>({
       // label length beyond packet
-      0x30, 'x', 'x', 0x00,
+      0x30,
+      'x',
+      'x',
+      0x00,
       // pointer offset beyond packet
-      0xc0, 0x20,
+      0xc0,
+      0x20,
       // pointer loop
-      0xc0, 0x08, 0xc0, 0x06,
+      0xc0,
+      0x08,
+      0xc0,
+      0x06,
       // incorrect label type (currently supports only direct and pointer)
-      0x80, 0x00,
+      0x80,
+      0x00,
       // truncated name (missing root label)
-      0x02, 'x', 'x',
-  };
+      0x02,
+      'x',
+      'x',
+  });
 
   DnsRecordParser parser(data, 0, /*num_records=*/0);
   ASSERT_TRUE(parser.IsValid());
 
   std::string out;
-  EXPECT_EQ(0u, parser.ReadName(data + 0x00, &out));
-  EXPECT_EQ(0u, parser.ReadName(data + 0x04, &out));
-  EXPECT_EQ(0u, parser.ReadName(data + 0x08, &out));
-  EXPECT_EQ(0u, parser.ReadName(data + 0x0a, &out));
-  EXPECT_EQ(0u, parser.ReadName(data + 0x0c, &out));
-  EXPECT_EQ(0u, parser.ReadName(data + 0x0e, &out));
+  EXPECT_EQ(0u, parser.ReadName(base::span(data).subspan(0x00u).data(), &out));
+  EXPECT_EQ(0u, parser.ReadName(base::span(data).subspan(0x04u).data(), &out));
+  EXPECT_EQ(0u, parser.ReadName(base::span(data).subspan(0x08u).data(), &out));
+  EXPECT_EQ(0u, parser.ReadName(base::span(data).subspan(0x0au).data(), &out));
+  EXPECT_EQ(0u, parser.ReadName(base::span(data).subspan(0x0cu).data(), &out));
+  EXPECT_EQ(0u, parser.ReadName(base::span(data).subspan(0x0eu).data(), &out));
 }
 
 // Returns an RFC 1034 style domain name with a length of |name_len|.
@@ -558,7 +574,8 @@ TEST(DnsResponseTest, InitParse) {
   };
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data)));
 
   EXPECT_FALSE(resp.id());
 
@@ -652,7 +669,8 @@ TEST(DnsResponseTest, InitParseInvalidFlags) {
   };
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data)));
 
   EXPECT_FALSE(resp.InitParse(sizeof(response_data), *query));
   EXPECT_FALSE(resp.IsValid());
@@ -675,7 +693,8 @@ TEST(DnsResponseTest, InitParseRejectsResponseWithoutQuestions) {
       "\xa0\xa0\xa0\xa0";              // 10.10.10.10
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   // Validate that the response is fine if not matching against a query.
   ASSERT_TRUE(resp.InitParseWithoutQuery(sizeof(kResponse) - 1));
@@ -702,7 +721,8 @@ TEST(DnsResponseTest, InitParseRejectsResponseWithTooManyQuestions) {
       "\x00\x01";                        // CLASS=IN
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   // Validate that the response is fine if not matching against a query.
   ASSERT_TRUE(resp.InitParseWithoutQuery(sizeof(kResponse) - 1));
@@ -715,8 +735,8 @@ TEST(DnsResponseTest, InitParseRejectsResponseWithTooManyQuestions) {
 
 TEST(DnsResponseTest, InitParseWithoutQuery) {
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), kT0ResponseDatagram,
-         sizeof(kT0ResponseDatagram));
+  UNSAFE_TODO(memcpy(resp.io_buffer()->data(), kT0ResponseDatagram,
+                     sizeof(kT0ResponseDatagram)));
 
   // Accept matching question.
   EXPECT_TRUE(resp.InitParseWithoutQuery(sizeof(kT0ResponseDatagram)));
@@ -763,7 +783,8 @@ TEST(DnsResponseTest, InitParseWithoutQueryNoQuestions) {
   };
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data)));
 
   EXPECT_TRUE(resp.InitParseWithoutQuery(sizeof(response_data)));
 
@@ -812,7 +833,8 @@ TEST(DnsResponseTest, InitParseWithoutQueryInvalidFlags) {
   };
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data)));
 
   EXPECT_FALSE(resp.InitParseWithoutQuery(sizeof(response_data)));
   EXPECT_THAT(resp.id(), testing::Optional(0xcafe));
@@ -905,7 +927,8 @@ TEST(DnsResponseTest, InitParseWithoutQueryTwoQuestions) {
   };
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data)));
 
   EXPECT_TRUE(resp.InitParseWithoutQuery(sizeof(response_data)));
 
@@ -943,7 +966,8 @@ TEST(DnsResponseTest, InitParseWithoutQueryPacketTooShort) {
   };
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data));
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), response_data, sizeof(response_data)));
 
   EXPECT_FALSE(resp.InitParseWithoutQuery(sizeof(response_data)));
 }
@@ -970,7 +994,8 @@ TEST(DnsResponseTest, InitParseAllowsQuestionWithLongName) {
       4);
 
   DnsResponse resp1;
-  memcpy(resp1.io_buffer()->data(), response_data.data(), response_data.size());
+  UNSAFE_TODO(memcpy(resp1.io_buffer()->data(), response_data.data(),
+                     response_data.size()));
 
   EXPECT_TRUE(resp1.InitParseWithoutQuery(response_data.size()));
 
@@ -1005,7 +1030,8 @@ TEST(DnsResponseTest, InitParseRejectsQuestionWithTooLongName) {
       4);
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), response_data.data(), response_data.size());
+  UNSAFE_TODO(memcpy(resp.io_buffer()->data(), response_data.data(),
+                     response_data.size()));
 
   EXPECT_FALSE(resp.InitParseWithoutQuery(response_data.size()));
 
@@ -1036,7 +1062,8 @@ TEST(DnsResponseTest, InitParseRejectsQuestionWithNonendedName) {
       "\003www\006google\006test";  // Name extending past the end.
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   EXPECT_FALSE(resp.InitParseWithoutQuery(sizeof(kResponse) - 1));
 
@@ -1068,7 +1095,8 @@ TEST(DnsResponseTest, InitParseRejectsResponseWithMissingQuestions) {
   // Missing third question.
 
   DnsResponse resp;
-  memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   EXPECT_FALSE(resp.InitParseWithoutQuery(sizeof(kResponse) - 1));
 
@@ -1133,7 +1161,8 @@ TEST(DnsResponseTest, ParserLimitedToNumClaimedRecords) {
       "\xc0\xa8\x00\x06";  // 192.168.0.6
 
   DnsResponse resp1;
-  memcpy(resp1.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp1.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   ASSERT_TRUE(resp1.InitParseWithoutQuery(sizeof(kResponse) - 1));
   DnsRecordParser parser1 = resp1.Parser();
@@ -1151,7 +1180,8 @@ TEST(DnsResponseTest, ParserLimitedToNumClaimedRecords) {
 
   // Repeat using InitParse()
   DnsResponse resp2;
-  memcpy(resp2.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp2.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   const char kQueryName[] = "\003www\006google\004test";
   DnsQuery query(
@@ -1202,7 +1232,8 @@ TEST(DnsResponseTest, ParserLimitedToBufferSize) {
       "\xc0\xa8\x00\x02";  // 192.168.0.2
 
   DnsResponse resp1;
-  memcpy(resp1.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp1.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   ASSERT_TRUE(resp1.InitParseWithoutQuery(sizeof(kResponse) - 1));
   DnsRecordParser parser1 = resp1.Parser();
@@ -1217,7 +1248,8 @@ TEST(DnsResponseTest, ParserLimitedToBufferSize) {
 
   // Repeat using InitParse()
   DnsResponse resp2;
-  memcpy(resp2.io_buffer()->data(), kResponse, sizeof(kResponse) - 1);
+  UNSAFE_TODO(
+      memcpy(resp2.io_buffer()->data(), kResponse, sizeof(kResponse) - 1));
 
   ASSERT_TRUE(resp2.InitParseWithoutQuery(sizeof(kResponse) - 1));
   DnsRecordParser parser2 = resp2.Parser();
@@ -1659,8 +1691,8 @@ TEST(DnsResponseWriteTest, AAAAQuestionAndCnameAnswer) {
   answer.type = dns_protocol::kTypeCNAME;
   answer.klass = dns_protocol::kClassIN;
   answer.ttl = 120;  // 120 seconds.
-  answer.SetOwnedRdata(base::span<const uint8_t>(dns_name.value().data(),
-                                                 dns_name.value().size()));
+  answer.SetOwnedRdata(UNSAFE_TODO(base::span<const uint8_t>(
+      dns_name.value().data(), dns_name.value().size())));
   std::vector<DnsResourceRecord> answers(1, answer);
 
   std::optional<DnsQuery> query(std::in_place, 114 /* id */, dns_name.value(),

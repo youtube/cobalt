@@ -26,7 +26,6 @@
 #include "content/test/test_navigation_url_loader.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_render_widget_host.h"
-#include "ipc/ipc_message.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -333,6 +332,7 @@ void TestRenderFrameHost::SimulateManifestURLUpdate(const GURL& manifest_url) {
   GetPage().UpdateManifestUrl(manifest_url);
 }
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 TestRenderFrameHost* TestRenderFrameHost::AppendFencedFrame() {
   fenced_frames_.push_back(std::make_unique<FencedFrame>(
       weak_ptr_factory_.GetSafeRef(), /* was_discarded= */ false));
@@ -351,6 +351,7 @@ TestRenderFrameHost* TestRenderFrameHost::AppendFencedFrame() {
       base::UnguessableToken::Create());
   return static_cast<TestRenderFrameHost*>(fenced_frame->GetInnerRoot());
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
 void TestRenderFrameHost::SendNavigate(int nav_entry_id,
                                        bool did_create_new_entry,
@@ -660,6 +661,7 @@ void TestRenderFrameHost::SendCommitFailedNavigation(
     std::unique_ptr<blink::PendingURLLoaderFactoryBundle>
         subresource_loader_factories,
     const blink::DocumentToken& document_token,
+    const base::UnguessableToken& devtools_navigation_token,
     blink::mojom::PolicyContainerPtr policy_container) {
   CHECK(navigation_client);
   commit_failed_callback_[navigation_request] =

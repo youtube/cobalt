@@ -26,13 +26,14 @@
 #include "api/audio_codecs/opus/audio_encoder_opus_config.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "modules/audio_coding/codecs/opus/audio_encoder_opus.h"
 #include "modules/audio_coding/test/PCMFile.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_conversions.h"
 #include "rtc_base/random.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"
@@ -40,8 +41,7 @@
 namespace webrtc {
 namespace {
 
-using test::ExplicitKeyValueConfig;
-using testing::SizeIs;
+using ::testing::SizeIs;
 
 using DecodeResult = AudioDecoder::EncodedAudioFrame::DecodeResult;
 using ParseResult = AudioDecoder::ParseResult;
@@ -139,7 +139,7 @@ void EncodeDecodeSpeech(AudioEncoderOpusImpl& encoder,
     encoder.Encode(rtp_timestamp++, audio_frame.data_view().data(), &payload);
 
     // Ignore empty payloads: the encoder needs more audio to produce a packet.
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -171,7 +171,7 @@ void EncodeDecodeNoiseUntilDecoderInDtxMode(AudioEncoderOpusImpl& encoder,
         encoder.Encode(rtp_timestamp++, input_frame, &payload);
 
     // Ignore empty payloads: the encoder needs more audio to produce a packet.
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -222,7 +222,7 @@ std::vector<int16_t> EncodeDecodeSpeechUntilOneFrameIsDecoded(
     encoder.Encode(rtp_timestamp++, audio_frame.data_view().data(), &payload);
 
     // Ignore empty payloads: the encoder needs more audio to produce a packet.
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -265,7 +265,7 @@ TEST(AudioDecoderOpusTest, MonoEncoderStereoDecoderOutputsTrivialStereo) {
     generator.GenerateNextFrame(input_frame);
     Buffer payload;
     encoder.Encode(rtp_timestamp++, input_frame, &payload);
-    if (payload.size() == 0) {
+    if (payload.empty()) {
       continue;
     }
 
@@ -328,10 +328,9 @@ TEST(AudioDecoderOpusTest,
 }
 
 TEST(AudioDecoderOpusTest, MonoEncoderStereoDecoderOutputsTrivialStereoPlc) {
-  const ExplicitKeyValueConfig trials("WebRTC-Audio-OpusGeneratePlc/Enabled/");
-  EnvironmentFactory env_factory;
-  env_factory.Set(&trials);
-  const Environment env = env_factory.Create();
+  const FieldTrials trials =
+      CreateTestFieldTrials("WebRTC-Audio-OpusGeneratePlc/Enabled/");
+  const Environment env = CreateEnvironment(&trials);
   // Create a mono encoder.
   const AudioEncoderOpusConfig encoder_config =
       GetEncoderConfig(/*num_channels=*/1, /*dtx_enabled=*/false);
@@ -407,10 +406,9 @@ TEST(AudioDecoderOpusTest,
 
 TEST(AudioDecoderOpusTest,
      StereoEncoderStereoDecoderOutputsNonTrivialStereoPlc) {
-  const ExplicitKeyValueConfig trials("WebRTC-Audio-OpusGeneratePlc/Enabled/");
-  EnvironmentFactory env_factory;
-  env_factory.Set(&trials);
-  const Environment env = env_factory.Create();
+  const FieldTrials trials =
+      CreateTestFieldTrials("WebRTC-Audio-OpusGeneratePlc/Enabled/");
+  const Environment env = CreateEnvironment(&trials);
   // Create a stereo encoder.
   const AudioEncoderOpusConfig encoder_config =
       GetEncoderConfig(/*num_channels=*/2, /*dtx_enabled=*/false);

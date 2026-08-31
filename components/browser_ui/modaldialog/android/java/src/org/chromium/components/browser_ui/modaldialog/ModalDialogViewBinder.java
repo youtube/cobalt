@@ -14,6 +14,9 @@ import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
+import java.util.ArrayList;
+import java.util.Collections;
+
 /**
  * This class is responsible for binding view properties from {@link ModalDialogProperties} to a
  * {@link ModalDialogView}.
@@ -33,9 +36,18 @@ public class ModalDialogViewBinder
         } else if (ModalDialogProperties.TITLE_ICON == propertyKey) {
             view.setTitleIcon(model.get(ModalDialogProperties.TITLE_ICON));
         } else if (ModalDialogProperties.MESSAGE_PARAGRAPH_1 == propertyKey) {
-            view.setMessageParagraph1(model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_1));
-        } else if (ModalDialogProperties.MESSAGE_PARAGRAPH_2 == propertyKey) {
-            view.setMessageParagraph2(model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_2));
+            assert model.get(ModalDialogProperties.MESSAGE_PARAGRAPHS) == null
+                    : "Do not use MESSAGE_PARAGRAPH_1 and MESSAGE_PARAGRAPHS at the same time.";
+            CharSequence message = model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_1);
+            if (TextUtils.isEmpty(message)) {
+                view.setMessageParagraphs(null);
+            } else {
+                view.setMessageParagraphs(new ArrayList<>(Collections.singletonList(message)));
+            }
+        } else if (ModalDialogProperties.MESSAGE_PARAGRAPHS == propertyKey) {
+            assert model.get(ModalDialogProperties.MESSAGE_PARAGRAPH_1) == null
+                    : "Do not use MESSAGE_PARAGRAPH_1 and MESSAGE_PARAGRAPHS at the same time.";
+            view.setMessageParagraphs(model.get(ModalDialogProperties.MESSAGE_PARAGRAPHS));
         } else if (ModalDialogProperties.BUTTON_GROUP_BUTTON_SPEC_LIST == propertyKey) {
             assert checkFilterTouchConsistency(model);
             assert checkDefaultButtonsNotCombinedWithButtonGroup(model);
@@ -44,6 +56,26 @@ public class ModalDialogViewBinder
             view.setCustomView(model.get(ModalDialogProperties.CUSTOM_VIEW));
         } else if (ModalDialogProperties.CUSTOM_BUTTON_BAR_VIEW == propertyKey) {
             view.setCustomButtonBar(model.get(ModalDialogProperties.CUSTOM_BUTTON_BAR_VIEW));
+        } else if (ModalDialogProperties.CHECKBOX_TEXT == propertyKey) {
+            String text = model.get(ModalDialogProperties.CHECKBOX_TEXT);
+            view.setCheckboxText(text);
+
+            if (!TextUtils.isEmpty(text)) {
+                view.setOnCheckboxCheckedChangeListener(
+                        (buttonView, isChecked) -> {
+                            model.set(ModalDialogProperties.CHECKBOX_CHECKED, isChecked);
+
+                            ModalDialogProperties.Controller controller =
+                                    model.get(ModalDialogProperties.CONTROLLER);
+                            if (controller != null) {
+                                controller.onCheckboxChecked(isChecked);
+                            }
+                        });
+            } else {
+                view.setOnCheckboxCheckedChangeListener(null);
+            }
+        } else if (ModalDialogProperties.CHECKBOX_CHECKED == propertyKey) {
+            view.setCheckboxChecked(model.get(ModalDialogProperties.CHECKBOX_CHECKED));
         } else if (ModalDialogProperties.POSITIVE_BUTTON_TEXT == propertyKey) {
             assert checkFilterTouchConsistency(model);
             assert checkDefaultButtonsNotCombinedWithButtonGroup(model);
@@ -130,6 +162,8 @@ public class ModalDialogViewBinder
         } else if (ModalDialogProperties.CHANGE_CUSTOM_VIEW_OR_BUTTONS == propertyKey) {
             // Intentionally left empty since this is a property used for switching button group to
             // default buttons, or switching custom view.
+        } else if (ModalDialogProperties.DISABLE_SCRIM == propertyKey) {
+            // Intentionally left empty since this is a property used for the dialog container.
         } else {
             assert false : "Unhandled property detected in ModalDialogViewBinder!";
         }
@@ -237,7 +271,6 @@ public class ModalDialogViewBinder
      * and default buttons are present, and we should tolerate some above assertions.
      */
     private static boolean canChangeCustomViewOrButtons(PropertyModel model) {
-        return model.containsKey(ModalDialogProperties.CHANGE_CUSTOM_VIEW_OR_BUTTONS)
-                && model.get(ModalDialogProperties.CHANGE_CUSTOM_VIEW_OR_BUTTONS);
+        return model.containsKeyEqualTo(ModalDialogProperties.CHANGE_CUSTOM_VIEW_OR_BUTTONS, true);
     }
 }

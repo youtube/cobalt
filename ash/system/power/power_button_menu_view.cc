@@ -65,12 +65,11 @@ PowerButtonMenuView::PowerButtonMenuView(
       views::HighlightBorder::Type::kHighlightBorderOnShadow));
   SetBackground(
       views::CreateSolidBackground(kPowerButtonMenuBackgroundColorId));
+  layer()->SetFillsBoundsOpaquely(false);
 
   layer()->SetRoundedCornerRadius(
       gfx::RoundedCornersF(kPowerButtonMenuCornerRadius));
-  if (features::IsBackgroundBlurEnabled() &&
-      chromeos::features::IsSystemBlurEnabled()) {
-    layer()->SetFillsBoundsOpaquely(false);
+  if (chromeos::features::IsSystemBlurEnabled()) {
     layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
     layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
   }

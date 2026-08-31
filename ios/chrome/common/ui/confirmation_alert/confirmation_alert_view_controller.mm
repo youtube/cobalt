@@ -9,7 +9,9 @@
 #import "ios/chrome/common/ui/confirmation_alert/confirmation_alert_action_handler.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
 #import "ios/chrome/common/ui/elements/gradient_view.h"
+#import "ios/chrome/common/ui/promo_style/utils.h"
 #import "ios/chrome/common/ui/util/button_util.h"
+#import "ios/chrome/common/ui/util/chrome_button.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/dynamic_type_util.h"
 #import "ios/chrome/common/ui/util/pointer_interaction_util.h"
@@ -19,14 +21,14 @@ namespace {
 
 const CGFloat kDefaultActionsBottomMargin = 10;
 const CGFloat kActionButtonImageInsets = 10;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+const CGFloat kButtonStackViewSpacing = 12;
+#endif
 // Gradient height.
 const CGFloat kGradientHeight = 40.;
 const CGFloat kScrollViewBottomInsets = 20;
 const CGFloat kStackViewSpacing = 8;
 const CGFloat kStackViewSpacingAfterIllustration = 27;
-// The multiplier used when in regular horizontal size class.
-const CGFloat kSafeAreaMultiplier = 0.65;
-const CGFloat kContentOptimalWidth = 327;
 
 // The size of the symbol image.
 const CGFloat kSymbolBadgeImagePointSize = 13;
@@ -82,14 +84,6 @@ void SetConfigurationImage(UIButton* button,
   button.imageView.accessibilityIdentifier = image.accessibilityIdentifier;
 }
 
-// Sets the color of the button's background in the button configuration's
-// background configuration.
-void SetButtonColor(UIButton* button, UIColor* color) {
-  UIButtonConfiguration* configuration = button.configuration;
-  configuration.background.backgroundColor = color;
-  button.configuration = configuration;
-}
-
 // Gets the default checkmark circle fill symbol with default configuration of
 // the given point size.
 //
@@ -112,19 +106,23 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 
 // References to the UI properties that need to be updated when the trait
 // collection changes.
+@property(nonatomic, strong) UILayoutGuide* widthLayoutGuide;
+@property(nonatomic, strong) UIStackView* stackView;
+@property(nonatomic, strong) UIView* actionStackView;
 @property(nonatomic, strong) UIButton* tertiaryActionButton;
 @property(nonatomic, strong) UINavigationBar* navigationBar;
 @property(nonatomic, strong) UIImageView* imageView;
 @property(nonatomic, strong) UIView* imageContainerView;
 @property(nonatomic, strong) NSLayoutConstraint* imageViewAspectRatioConstraint;
 @property(nonatomic, strong) UIScrollView* scrollView;
-@property(nonatomic, strong) GradientView* gradientView;
-@property(nonatomic, strong) NSLayoutConstraint* gradientViewHeightConstraint;
+@property(nonatomic, strong) CAGradientLayer* gradientMask;
 @property(nonatomic, strong)
     NSLayoutConstraint* scrollViewBottomAnchorConstraint;
 @end
 
-@implementation ConfirmationAlertViewController
+@implementation ConfirmationAlertViewController {
+  ChromeButton* _primaryButton;
+}
 
 #pragma mark - Public
 
@@ -141,10 +139,8 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     _dismissBarButtonSystemItem = UIBarButtonSystemItemDone;
     _shouldFillInformationStack = NO;
     _actionStackBottomMargin = kDefaultActionsBottomMargin;
-    _activityIndicatorColor = [UIColor colorNamed:kSolidWhiteColor];
-    _confirmationButtonColor = [UIColor colorNamed:kBlue100Color];
-    _confirmationCheckmarkColor = [UIColor colorNamed:kBlue700Color];
     _imageBackgroundColor = [UIColor colorNamed:kBackgroundColor];
+    _mainBackgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
   }
   return self;
 }
@@ -152,7 +148,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 - (void)viewDidLoad {
   [super viewDidLoad];
 
-  self.view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  self.view.backgroundColor = self.mainBackgroundColor;
 
   if (self.hasNavigationBar) {
     self.navigationBar = [self createNavigationBar];
@@ -202,11 +198,10 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 
   DCHECK(stackSubviews);
 
-  UIStackView* stackView =
-      [self createStackViewWithArrangedSubviews:stackSubviews];
+  self.stackView = [self createStackViewWithArrangedSubviews:stackSubviews];
 
   self.scrollView = [self createScrollView];
-  [self.scrollView addSubview:stackView];
+  [self.scrollView addSubview:self.stackView];
   [self.view addSubview:self.scrollView];
 
   self.view.preservesSuperviewLayoutMargins = YES;
@@ -223,8 +218,9 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   // the content area. No need to contraint horizontally as we don't want
   // horizontal scroll.
   [NSLayoutConstraint activateConstraints:@[
-    [stackView.topAnchor constraintEqualToAnchor:self.scrollView.topAnchor],
-    [stackView.bottomAnchor
+    [self.stackView.topAnchor
+        constraintEqualToAnchor:self.scrollView.topAnchor],
+    [self.stackView.bottomAnchor
         constraintEqualToAnchor:self.scrollView.bottomAnchor
                        constant:-self.customScrollViewBottomInsets]
   ]];
@@ -239,25 +235,6 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   heightConstraint.priority = UILayoutPriorityDefaultHigh - 1;
   heightConstraint.active = YES;
 
-  [NSLayoutConstraint activateConstraints:@[
-    [stackView.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-    // Width Scroll View constraint for regular mode.
-    [stackView.widthAnchor
-        constraintGreaterThanOrEqualToAnchor:margins.widthAnchor
-                                  multiplier:kSafeAreaMultiplier],
-    // Disable horizontal scrolling.
-    [stackView.widthAnchor
-        constraintLessThanOrEqualToAnchor:margins.widthAnchor],
-  ]];
-
-  // This constraint is added to enforce that the content width should be as
-  // close to the optimal width as possible, within the range already activated
-  // for "stackView.widthAnchor" previously, with a higher priority.
-  NSLayoutConstraint* contentLayoutGuideWidthConstraint =
-      [stackView.widthAnchor constraintEqualToConstant:kContentOptimalWidth];
-  contentLayoutGuideWidthConstraint.priority = UILayoutPriorityRequired - 1;
-  contentLayoutGuideWidthConstraint.active = YES;
-
   // The bottom anchor for the scroll view.
   NSLayoutYAxisAnchor* scrollViewBottomAnchor =
       self.view.safeAreaLayoutGuide.bottomAnchor;
@@ -269,14 +246,6 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     UIView* actionStackView = [self createActionStackView];
     [self.view addSubview:actionStackView];
 
-    // Add a low priority width constraints to make sure that the buttons are
-    // taking as much width as they can.
-    CGFloat extraBottomMargin =
-        self.secondaryActionString ? 0 : self.actionStackBottomMargin;
-    NSLayoutConstraint* lowPriorityWidthConstraint =
-        [actionStackView.widthAnchor
-            constraintEqualToConstant:kContentOptimalWidth];
-    lowPriorityWidthConstraint.priority = UILayoutPriorityDefaultHigh + 1;
     // Also constrain the bottom of the action stack view to the bottom of the
     // safe area, but with a lower priority, so that the action stack view is
     // put as close to the bottom as possible.
@@ -285,15 +254,9 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     actionBottomConstraint.priority = UILayoutPriorityDefaultLow;
     actionBottomConstraint.active = YES;
 
+    CGFloat extraBottomMargin =
+        self.secondaryActionString ? 0 : self.actionStackBottomMargin;
     [NSLayoutConstraint activateConstraints:@[
-      [actionStackView.leadingAnchor
-          constraintGreaterThanOrEqualToAnchor:self.scrollView.leadingAnchor],
-      [actionStackView.trailingAnchor
-          constraintLessThanOrEqualToAnchor:self.scrollView.trailingAnchor],
-      [actionStackView.centerXAnchor
-          constraintEqualToAnchor:self.view.centerXAnchor],
-      [actionStackView.widthAnchor
-          constraintEqualToAnchor:stackView.widthAnchor],
       [actionStackView.bottomAnchor
           constraintLessThanOrEqualToAnchor:self.view.bottomAnchor
                                    constant:-self.actionStackBottomMargin -
@@ -302,24 +265,21 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
           constraintLessThanOrEqualToAnchor:self.view.safeAreaLayoutGuide
                                                 .bottomAnchor
                                    constant:-extraBottomMargin],
-      lowPriorityWidthConstraint
     ]];
+
     scrollViewBottomAnchor = actionStackView.topAnchor;
+    self.actionStackView = actionStackView;
 
-    self.gradientView = [self createGradientView];
-    [self.view addSubview:self.gradientView];
-
-    [NSLayoutConstraint activateConstraints:@[
-      [self.gradientView.bottomAnchor
-          constraintEqualToAnchor:actionStackView.topAnchor],
-      [self.gradientView.leadingAnchor
-          constraintEqualToAnchor:self.scrollView.leadingAnchor],
-      [self.gradientView.trailingAnchor
-          constraintEqualToAnchor:self.scrollView.trailingAnchor],
-    ]];
-    self.gradientViewHeightConstraint = [self.gradientView.heightAnchor
-        constraintEqualToConstant:self.customGradientViewHeight];
-    self.gradientViewHeightConstraint.active = YES;
+    if (self.customGradientViewHeight > 0) {
+      self.gradientMask = [CAGradientLayer layer];
+      self.gradientMask.endPoint = CGPointMake(0.0, 1.0);
+      UIColor* bottomColor =
+          BlendColors([UIColor clearColor], [UIColor whiteColor],
+                      kScrollViewBottomInsets / self.customGradientViewHeight);
+      self.gradientMask.colors =
+          @[ (id)[UIColor whiteColor].CGColor, (id)bottomColor.CGColor ];
+      self.scrollView.layer.mask = self.gradientMask;
+    }
   }
 
   self.scrollViewBottomAnchorConstraint = [self.scrollView.bottomAnchor
@@ -382,19 +342,18 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
     self.imageViewAspectRatioConstraint.active = YES;
   }
   [self updateButtonState];
+  [self updatePromoStyleWidth];
 
-  if (@available(iOS 17, *)) {
-    NSArray<UITrait>* traits = @[
-      UITraitPreferredContentSizeCategory.class,
-      UITraitHorizontalSizeClass.class, UITraitVerticalSizeClass.class
-    ];
-    auto* __weak weakSelf = self;
-    id handler = ^(id<UITraitEnvironment> traitEnvironment,
-                   UITraitCollection* previousCollection) {
-      [weakSelf updateRegisteredTraits:previousCollection];
-    };
-    [self registerForTraitChanges:traits withHandler:handler];
-  }
+  NSArray<UITrait>* traits = @[
+    UITraitPreferredContentSizeCategory.class, UITraitHorizontalSizeClass.class,
+    UITraitVerticalSizeClass.class
+  ];
+  auto* __weak weakSelf = self;
+  id handler = ^(id<UITraitEnvironment> traitEnvironment,
+                 UITraitCollection* previousCollection) {
+    [weakSelf updateRegisteredTraits:previousCollection];
+  };
+  [self.view registerForTraitChanges:traits withHandler:handler];
 }
 
 - (void)setIsLoading:(BOOL)isLoading {
@@ -418,16 +377,28 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   [self.scrollView flashScrollIndicators];
 }
 
-#if !defined(__IPHONE_17_0) || __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_17_0
-- (void)traitCollectionDidChange:(UITraitCollection*)previousTraitCollection {
-  [super traitCollectionDidChange:previousTraitCollection];
-  if (@available(iOS 17, *)) {
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+
+  // The portion of the gradient view actually covering the scroll view.
+  CGFloat effectiveGradientHeight =
+      self.customGradientViewHeight - kScrollViewBottomInsets;
+  if (effectiveGradientHeight <= 0) {
     return;
   }
 
-  [self updateRegisteredTraits:previousTraitCollection];
+  // Match the mask's size to the scroll view's size.
+  self.gradientMask.frame = self.scrollView.bounds;
+
+  // Determine the starting point of the gradient so that it has the desired
+  // number of pixels of height at the bottom of the scroll view.
+  CGFloat startY =
+      (effectiveGradientHeight >= self.gradientMask.frame.size.height)
+          ? 0.0
+          : 1.0 -
+                (effectiveGradientHeight / self.gradientMask.frame.size.height);
+  self.gradientMask.startPoint = CGPointMake(0.0, startY);
 }
-#endif
 
 - (void)viewSafeAreaInsetsDidChange {
   [super viewSafeAreaInsetsDidChange];
@@ -467,7 +438,11 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 }
 
 - (void)displayGradientView:(BOOL)shouldShow {
-  self.gradientView.hidden = !shouldShow;
+  self.scrollView.layer.mask = shouldShow ? self.gradientMask : nil;
+}
+
+- (UIButton*)primaryActionButton {
+  return _primaryButton;
 }
 
 - (BOOL)isScrolledToBottom {
@@ -518,6 +493,13 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
         MAX(self.actionStackBottomMargin, containerView.safeAreaInsets.bottom);
   }
   return height;
+}
+
+- (void)scrollToBottom {
+  CGFloat scrollLimit = self.scrollView.contentSize.height -
+                        self.scrollView.bounds.size.height +
+                        self.scrollView.contentInset.bottom;
+  [self.scrollView setContentOffset:CGPointMake(0, scrollLimit) animated:YES];
 }
 
 #pragma mark - Private
@@ -586,9 +568,10 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 // Helper to create the navigation bar.
 - (UINavigationBar*)createNavigationBar {
   UINavigationBar* navigationBar = [[UINavigationBar alloc] init];
-  navigationBar.translucent = NO;
+  navigationBar.translucent =
+      CGColorGetAlpha(self.mainBackgroundColor.CGColor) < 1.0;
   [navigationBar setShadowImage:[[UIImage alloc] init]];
-  [navigationBar setBarTintColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
+  [navigationBar setBarTintColor:self.mainBackgroundColor];
 
   UINavigationItem* navigationItem = [[UINavigationItem alloc] init];
   if (self.helpButtonAvailable) {
@@ -743,7 +726,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   view.editable = NO;
   view.selectable = NO;
   view.scrollEnabled = NO;
-  view.backgroundColor = [UIColor colorNamed:kPrimaryBackgroundColor];
+  view.backgroundColor = self.mainBackgroundColor;
   return view;
 }
 
@@ -819,16 +802,6 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   return scrollView;
 }
 
-// Helper to create the gradient view.
-- (GradientView*)createGradientView {
-  GradientView* gradientView = [[GradientView alloc]
-      initWithTopColor:[[UIColor colorNamed:kPrimaryBackgroundColor]
-                           colorWithAlphaComponent:0]
-           bottomColor:[UIColor colorNamed:kPrimaryBackgroundColor]];
-  gradientView.translatesAutoresizingMaskIntoConstraints = NO;
-  return gradientView;
-}
-
 // Helper to create the stack view.
 - (UIStackView*)createStackViewWithArrangedSubviews:
     (NSArray<UIView*>*)subviews {
@@ -855,9 +828,15 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   actionStackView.axis = UILayoutConstraintAxisVertical;
   actionStackView.translatesAutoresizingMaskIntoConstraints = NO;
 
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    actionStackView.spacing = kButtonStackViewSpacing;
+  }
+#endif
+
   if (self.primaryActionString) {
-    _primaryActionButton = [self createPrimaryActionButton];
-    [actionStackView addArrangedSubview:self.primaryActionButton];
+    _primaryButton = [self createPrimaryActionButton];
+    [actionStackView addArrangedSubview:_primaryButton];
   }
 
   if (self.secondaryActionString) {
@@ -873,8 +852,10 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 }
 
 // Helper to create the primary action button.
-- (UIButton*)createPrimaryActionButton {
-  UIButton* primaryActionButton = PrimaryActionButton(YES);
+- (ChromeButton*)createPrimaryActionButton {
+  ChromeButton* primaryActionButton = self.destructiveAction
+                                          ? PrimaryDestructiveActionButton()
+                                          : PrimaryActionButton();
   [primaryActionButton addTarget:self
                           action:@selector(didTapPrimaryActionButton)
                 forControlEvents:UIControlEventTouchUpInside];
@@ -888,77 +869,39 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 // Helper to create the primary action button.
 - (UIButton*)createSecondaryActionButton {
   DCHECK(self.secondaryActionString);
-  UIButton* secondaryActionButton =
-      [UIButton buttonWithType:UIButtonTypeSystem];
+  UIButton* secondaryActionButton = SecondaryActionButton();
   [secondaryActionButton addTarget:self
                             action:@selector(didTapSecondaryActionButton)
                   forControlEvents:UIControlEventTouchUpInside];
 
   UIButtonConfiguration* buttonConfiguration =
-      secondaryActionButton.configuration
-          ? secondaryActionButton.configuration
-          : [UIButtonConfiguration plainButtonConfiguration];
-  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
+      secondaryActionButton.configuration;
+  buttonConfiguration.title = self.secondaryActionString;
 
   if (self.secondaryActionImage) {
     buttonConfiguration.image = self.secondaryActionImage;
     buttonConfiguration.imagePadding = kActionButtonImageInsets;
   }
 
-  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  NSDictionary* attributes = @{NSFontAttributeName : font};
-  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
-      initWithString:self.secondaryActionString];
-  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
-  buttonConfiguration.attributedTitle = string;
-
-  UIColor* titleColor = [UIColor colorNamed:self.secondaryActionTextColor
-                                                ? self.secondaryActionTextColor
-                                                : kBlueColor];
-  buttonConfiguration.baseForegroundColor = titleColor;
   buttonConfiguration.background.backgroundColor = [UIColor clearColor];
   secondaryActionButton.configuration = buttonConfiguration;
 
-  secondaryActionButton.translatesAutoresizingMaskIntoConstraints = NO;
   secondaryActionButton.accessibilityIdentifier =
       kConfirmationAlertSecondaryActionAccessibilityIdentifier;
-  secondaryActionButton.pointerInteractionEnabled = YES;
-  secondaryActionButton.pointerStyleProvider =
-      CreateOpaqueButtonPointerStyleProvider();
 
   return secondaryActionButton;
 }
 
 - (UIButton*)createTertiaryButton {
   DCHECK(self.tertiaryActionString);
-  UIButton* tertiaryActionButton = [UIButton buttonWithType:UIButtonTypeSystem];
+  UIButton* tertiaryActionButton = SecondaryActionButton();
   [tertiaryActionButton addTarget:self
                            action:@selector(didTapTertiaryActionButton)
                  forControlEvents:UIControlEventTouchUpInside];
 
-  UIButtonConfiguration* buttonConfiguration =
-      [UIButtonConfiguration plainButtonConfiguration];
-  buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
-      kButtonVerticalInsets, 0, kButtonVerticalInsets, 0);
-  buttonConfiguration.background.backgroundColor = [UIColor clearColor];
-  buttonConfiguration.baseForegroundColor = [UIColor colorNamed:kBlueColor];
-
-  // Customize title string.
-  UIFont* font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
-  NSDictionary* attributes = @{NSFontAttributeName : font};
-  NSMutableAttributedString* string = [[NSMutableAttributedString alloc]
-      initWithString:self.tertiaryActionString];
-  [string addAttributes:attributes range:NSMakeRange(0, string.length)];
-  buttonConfiguration.attributedTitle = string;
-  tertiaryActionButton.configuration = buttonConfiguration;
-
-  tertiaryActionButton.translatesAutoresizingMaskIntoConstraints = NO;
+  SetConfigurationTitle(tertiaryActionButton, self.tertiaryActionString);
   tertiaryActionButton.accessibilityIdentifier =
       kConfirmationAlertTertiaryActionAccessibilityIdentifier;
-  tertiaryActionButton.pointerInteractionEnabled = YES;
-  tertiaryActionButton.pointerStyleProvider =
-      CreateOpaqueButtonPointerStyleProvider();
 
   return tertiaryActionButton;
 }
@@ -967,24 +910,50 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 // loading is true; otherwise, applies button labels and enables buttons.
 - (void)updateButtonState {
   const BOOL showingProgressState = _isLoading || _isConfirmed;
-  _primaryActionButton.enabled = !showingProgressState;
+  _primaryButton.enabled = !showingProgressState;
   if (_isConfirmed) {
-    SetButtonColor(_primaryActionButton, _confirmationButtonColor);
+    _primaryButton.tunedDownStyle = YES;
     SetConfigurationImage(
-        _primaryActionButton,
+        _primaryButton,
         DefaultCheckmarkCircleFillSymbol(kSymbolConfirmationCheckmarkPointSize),
-        _confirmationCheckmarkColor);
+        self.destructiveAction ? [UIColor colorNamed:kRed600Color]
+                               : [UIColor colorNamed:kBlue700Color]);
   } else {
-    UpdateButtonColorOnEnableDisable(_primaryActionButton);
-    SetConfigurationImage(_primaryActionButton, /*image=*/nil, /*color=*/nil);
+    SetConfigurationImage(_primaryButton, /*image=*/nil, /*color=*/nil);
   }
-  SetConfigurationActivityIndicator(_primaryActionButton, _isLoading,
-                                    _activityIndicatorColor);
-  SetConfigurationTitle(_primaryActionButton,
+  SetConfigurationActivityIndicator(_primaryButton, _isLoading,
+                                    UIColor.whiteColor);
+  SetConfigurationTitle(_primaryButton,
                         showingProgressState ? @"" : _primaryActionString);
 
   _secondaryActionButton.enabled = !showingProgressState;
   _tertiaryActionButton.enabled = !showingProgressState;
+}
+
+// Update the width of the content area and action buttons to match
+// `PromoStyleViewController`. Should be invoked on `-viewDidLoad` to setup the
+// initial width, and also when the horizontal size class changes.
+- (void)updatePromoStyleWidth {
+  if (self.widthLayoutGuide) {
+    [self.view removeLayoutGuide:self.widthLayoutGuide];
+  }
+  self.widthLayoutGuide = AddPromoStyleWidthLayoutGuide(self.view);
+  [NSLayoutConstraint activateConstraints:@[
+    [self.stackView.leadingAnchor
+        constraintEqualToAnchor:self.widthLayoutGuide.leadingAnchor],
+    // Width Scroll View constraint for regular mode.
+    [self.stackView.trailingAnchor
+        constraintEqualToAnchor:self.widthLayoutGuide.trailingAnchor],
+  ]];
+  UIView* actionStackView = self.actionStackView;
+  if (actionStackView) {
+    [NSLayoutConstraint activateConstraints:@[
+      [actionStackView.leadingAnchor
+          constraintEqualToAnchor:self.widthLayoutGuide.leadingAnchor],
+      [actionStackView.trailingAnchor
+          constraintEqualToAnchor:self.widthLayoutGuide.trailingAnchor]
+    ]];
+  }
 }
 
 // Checks which trait has been changed and adapts the UI to reflect this new
@@ -993,13 +962,22 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
   // Update fonts for specific content sizes.
   if (previousTraitCollection.preferredContentSizeCategory !=
       self.traitCollection.preferredContentSizeCategory) {
-    SetConfigurationFont(self.primaryActionButton,
+    SetConfigurationFont(_primaryButton,
                          PreferredFontForTextStyleWithMaxCategory(
                              UIFontTextStyleHeadline,
                              self.traitCollection.preferredContentSizeCategory,
                              UIContentSizeCategoryExtraExtraExtraLarge));
 
-    UIFont* newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+    UIFont* newFont;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    if (@available(iOS 26, *)) {
+      newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+    } else {
+#endif
+      newFont = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+    }
+#endif
     if (self.secondaryActionString) {
       SetConfigurationFont(self.secondaryActionButton, newFont);
     }
@@ -1017,6 +995,7 @@ UIImage* DefaultCheckmarkCircleFillSymbol(CGFloat point_size) {
 
   if (hasNewHorizontalSizeClass || hasNewVerticalSizeClass) {
     [self.view setNeedsUpdateConstraints];
+    [self updatePromoStyleWidth];
   }
 }
 

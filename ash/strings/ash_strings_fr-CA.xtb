@@ -21,7 +21,6 @@ Voici quelques exemples de choses que vous pouvez essayer pour commencer.</trans
 <translation id="1056898198331236512">Avertissement</translation>
 <translation id="1058009965971887428">Envoyer vos commentaires</translation>
 <translation id="1059120031266247284">Partagé avec vous</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" /> : <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> avec le bouton Retirer</translation>
 <translation id="1062407476771304334">Remplacer</translation>
 <translation id="1073899992769346247">Remplacez ou rechargez la pile</translation>
@@ -540,7 +539,6 @@ Sinon, le pavé tactile intégré sera réactivé dans <ph name="TIMEOUT_SECONDS
 <translation id="2814448776515246190">Capture partielle</translation>
 <translation id="2819276065543622893">Vous allez maintenant être déconnecté.</translation>
 <translation id="2822551631199737692">L'appareil photo est en cours d'utilisation</translation>
-<translation id="2825224105325558319"><ph name="DISPLAY_NAME" /> ne permet pas un affichage avec une résolution de <ph name="SPECIFIED_RESOLUTION" />. La résolution a donc été remise à <ph name="FALLBACK_RESOLUTION" />.</translation>
 <translation id="2825619548187458965">Étagère</translation>
 <translation id="2831035692318564937">Activé jusqu'à l'aube</translation>
 <translation id="2834813915651407382">Ouvert récemment</translation>
@@ -605,8 +603,6 @@ Sinon, le pavé tactile intégré sera réactivé dans <ph name="TIMEOUT_SECONDS
 <translation id="3026897869154397692">Ajouté à Agenda</translation>
 <translation id="3033545621352269033">Activé</translation>
 <translation id="3033912566804961911">Combiner avec <ph name="DESK_NAME" /></translation>
-<translation id="3036649622769666520">Ouvrir des fichiers</translation>
-<translation id="3038571455154067151">Pour vous connecter, entrez votre code d'accès parental Family Link</translation>
 <translation id="3039939407102840004">La pile du stylet est chargée à <ph name="PERCENTAGE" /> pour cent.</translation>
 <translation id="304097922505898963">Ouvrir l'application Raccourcis clavier</translation>
 <translation id="304417730895741346">Vos applications épinglées et ouvertes sont sur l'étagère. Pour épingler une application sur l'étagère, faites un clic droit sur une application ou touchez votre pavé tactile avec deux doigts.</translation>
@@ -761,6 +757,7 @@ Sinon, le pavé tactile intégré sera réactivé dans <ph name="TIMEOUT_SECONDS
 <translation id="3552189655002856821">Le Wi-Fi est désactivé</translation>
 <translation id="3554215588514239132">Afficher ou masquer le panneau Outils pour les développeurs</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> a été épinglé</translation>
+<translation id="3554928024630051016">Pour ajouter des appareils USB supplémentaires, essayez d'en retirer un, puis d'en brancher un autre.</translation>
 <translation id="3558768885091059911">Activer l'accès à la caméra et au microphone?</translation>
 <translation id="3560174576767922131">Enregistrer une vidéo</translation>
 <translation id="3563775809269155755">Activer le point d'accès sans fil</translation>
@@ -868,6 +865,7 @@ Branchez votre appareil sur une source d'alimentation.</translation>
 <translation id="3861651314799684201">Appuyez sur Entrée pour enregistrer en plein écran</translation>
 <translation id="3870197372373144624">Essayez d'éteindre votre appareil.</translation>
 <translation id="3879748587602334249">Gestionnaire de téléchargement</translation>
+<translation id="3884007280698606545">Limite USB atteinte</translation>
 <translation id="3886872229787704059">Ouvert aujourd'hui</translation>
 <translation id="3891340733213178823">Appuyez deux fois sur Ctrl + Maj + Q pour vous déconnecter.</translation>
 <translation id="3892148308691398805">Copier le texte</translation>
@@ -1011,6 +1009,7 @@ Branchez votre appareil sur une source d'alimentation.</translation>
 <translation id="4305817255990598646">Changer</translation>
 <translation id="4307713728991152670">Configurer l'affichage des photos, des applications et du contenu multimédia récents de votre téléphone</translation>
 <translation id="4312840429157639164">Caméra alignée sur le coin supérieur droit. Conflit avec la surface du système.</translation>
+<translation id="4312935606722154789">Grouper ou dégrouper deux fenêtres côte à côte</translation>
 <translation id="4316910396681052118">TOUTES LES APPLICATIONS</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">Masquer toutes les suggestions du navigateur Chrome</translation>
@@ -1450,7 +1449,6 @@ Aucun appareil n'est connecté.</translation>
 <translation id="5691772641933328258">Empreinte digitale non reconnue</translation>
 <translation id="5693255400847650006">Le microphone est en cours d'utilisation</translation>
 <translation id="5699366815052349604">Attribuez la fenêtre active à tous les bureaux</translation>
-<translation id="5701785125601597013">Envoyez rapidement des messages sur votre téléphone ou répondez aux messages à l'aide de Phone Hub</translation>
 <translation id="570390244361237317">Toutes les applications, naviguer avec les touches fléchées pour accéder à toutes les applications</translation>
 <translation id="5705197514573687092">Afficher les paramètres du mode Sans distractions. Minuterie réglée à <ph name="FOCUS_DURATION" />.</translation>
 <translation id="5707775774148071965">Votre appareil prend en charge un débit de données supérieur à celui de votre câble. La performance de l'appareil peut être limitée.</translation>
@@ -1580,7 +1578,6 @@ Aucun appareil n'est connecté.</translation>
 <translation id="6095425951508823973">Ajouter une connexion avec <ph name="PROVIDER" /></translation>
 <translation id="6099678161144790572">Modifié au cours du dernier mois</translation>
 <translation id="6103838137565245112">système</translation>
-<translation id="610395411842312282">Grouper deux fenêtres côte à côte</translation>
 <translation id="6108952804512516814">Créer avec l'IA</translation>
 <translation id="6114505516289286752">Fichiers vocaux en <ph name="LANGUAGE" /> téléchargés</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1604,7 +1601,6 @@ Aucun appareil n'est connecté.</translation>
 <translation id="6166852626429024716">Rechercher sur votre appareil, dans vos applications, dans vos paramètres, sur le Web…</translation>
 <translation id="6168318496333165060">Ouvrir l'application Diagnostics</translation>
 <translation id="6168622430237609329">Vos applications installées</translation>
-<translation id="6179832488876878285">Vous pouvez épingler vos fichiers importants ici. Ouvrez l'application Fichiers pour commencer.</translation>
 <translation id="6180193585172850042">Bouton Précédent</translation>
 <translation id="6180651297859206670">Bouton Suivant</translation>
 <translation id="6182592640011875895">Ouvrir le bureau</translation>
@@ -1637,7 +1633,6 @@ Aucun appareil n'est connecté.</translation>
 <translation id="6267036997247669271"><ph name="NAME" /> : activation en cours…</translation>
 <translation id="6274202259872570803">Vidéocapture d'écran</translation>
 <translation id="6276708887952587684">Afficher la source de la page</translation>
-<translation id="6284232397434400372">Résolution modifiée</translation>
 <translation id="6285871695023807425">Ajouter à Agenda</translation>
 <translation id="6288235558961782912">L'utilisateur <ph name="USER_EMAIL_ADDRESS" /> peut être ajouté de nouveau plus tard, avec l'autorisation d'un parent.</translation>
 <translation id="6291221004442998378">La pile n'est pas en train d'être rechargée</translation>
@@ -1685,7 +1680,6 @@ Aucun appareil n'est connecté.</translation>
 <translation id="6452181791372256707">Refuser</translation>
 <translation id="6453179446719226835">La langue a été modifiée</translation>
 <translation id="6456096448804832585">Seul le format portrait est disponible</translation>
-<translation id="6459472438155181876">Extension de l'écran à <ph name="DISPLAY_NAME" /></translation>
 <translation id="6464094930452079790">Images</translation>
 <translation id="6467290994038932560">Activées pour <ph name="GAME_APP_NAME" /></translation>
 <translation id="6468406072297048412">{0,plural, =1{Mettez à jour l'appareil vers la version précédente dans un délai d'une minute}one{Mettez à jour l'appareil vers la version précédente dans un délai de # minute}other{Mettez à jour l'appareil vers la version précédente dans un délai de # minutes}}</translation>
@@ -1918,6 +1912,7 @@ Nouvelle installation</translation>
 <translation id="7240636904654154599">Feuille de calcul Google créée</translation>
 <translation id="7244725679040769470">Il reste <ph name="PERCENTAGE" /> % de pile. Branchez votre appareil à une source d'alimentation.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. Ce Chromebook doit redémarrer pour installer une mise à jour. Cela peut prendre jusqu'à une minute.</translation>
+<translation id="7248100343060254997">Rechercher sur mon écran</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">Microphone arrière</translation>
 <translation id="7258828758145722155">Modifié hier</translation>
@@ -2416,7 +2411,6 @@ Pour éteindre l'appareil, appuyez à nouveau sur le bouton d'alimentation de l'
 <translation id="8876148469852588625">Événement <ph name="EVENT_POSITION" /> sur <ph name="EVENT_TOTAL_COUNT" /></translation>
 <translation id="8876661425082386199">Vérifiez votre connexion</translation>
 <translation id="8877788021141246043">Créer un rappel</translation>
-<translation id="8878886163241303700">Extension de l'écran</translation>
 <translation id="8885424115080869847">Impossible de se connecter à YouTube Music</translation>
 <translation id="888982883502837004">Des mises à jour du micrologiciel sont disponibles pour votre appareil. Cliquez pour les passer en revue et lancer la mise à jour.</translation>
 <translation id="8896630965521842259">Le modèle <ph name="DESK_TEMPLATE_NAME" /> sera définitivement supprimé</translation>

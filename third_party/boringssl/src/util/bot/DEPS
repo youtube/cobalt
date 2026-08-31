@@ -21,6 +21,7 @@ vars = {
   'checkout_go': True,
   'checkout_fuzzer': False,
   'checkout_perl': True,
+  'checkout_rust': False,
   'checkout_sde': False,
   'checkout_nasm': False,
   'checkout_libcxx': False,
@@ -33,9 +34,9 @@ vars = {
   # Keep this in sync with .bazelversion.
   'bazel_version': 'version:3@7.5.0.chromium.1',
   # infra/3pp/tools/cmake/linux-amd64
-  'cmake_version': 'version:3@3.31.7.chromium.8',
+  'cmake_version': 'version:3@3.31.8.chromium.8',
   # infra/3pp/tools/go/linux-amd64
-  'go_version': 'version:3@1.24.3',
+  'go_version': 'version:3@1.24.4',
   # infra/3pp/tools/perl/windows-amd64
   'perl_version': 'version:3@5.38.2.2',
   # chrome_internal/third_party/sdk/windows, but if an update switches this to a
@@ -46,14 +47,19 @@ vars = {
   # https://chromium.googlesource.com/chromium/src/+/main/DEPS
   'android_sdk_platform-tools_version': 'mjFmRj7k_XR9yj60pYbr9mG38FyEbU5oWdU56bZQ5cwC',
   'libfuzzer_revision': 'e31b99917861f891308269c36a32363b120126bb',
-  'libcxx_revision': 'bf30ab1b37bc976f82a46fa7f15e30235c4a1a49',
-  'libcxxabi_revision': 'e01dce316dd430f006c8af7d1179f83270236e24',
-  'llvm_libc_revision': 'f86693f91c5aa0566fa403f4189c943744155ca6',
+  'libcxx_revision': 'b5d83e70a1537fbce965e6319877c76794daaa80',
+  'libcxxabi_revision': '02570151a883c93800bd336774e26d2bad8fee0d',
+  'llvm_libc_revision': '34e6c8e85a1acd219c32edf0650e2dc47ef95519',
   'ninja_version': 'version:2@1.12.1.chromium.4',
 
   # Update to the latest revision of
   # https://chromium.googlesource.com/chromium/src/tools/clang
-  'tools_clang_revision': '92a5f60019f3a9ff63b9388d181fa65047377fb4',
+  'tools_clang_revision': '3454fad2d461a3d0ba08a55daede8bc183e403ad',
+
+  # Update to the latest revision of
+  # https://chromium.googlesource.com/chromium/src/tools/rust
+  # and also ensure that `tools_clang_revision` above is up-to-date.
+  'tools_rust_revision': '51c21fc75b69394363af6f2796970ea944a7379f',
 
   # The Android NDK cannot be updated until https://crbug.com/42290318 is fixed.
   # We rely on an older NDK to test building without NEON instructions as the baseline.
@@ -163,7 +169,13 @@ deps = {
 
   'boringssl/util/bot/tools/clang': {
     'url': Var('chromium_git') + '/chromium/src/tools/clang.git' + '@' + Var('tools_clang_revision'),
-    'condition': 'checkout_clang',
+    # tools/rust/update_rust.py depends upon tools/clang/scripts/update.py.
+    'condition': 'checkout_clang or checkout_rust',
+  },
+
+  'boringssl/util/bot/tools/rust': {
+    'url': Var('chromium_git') + '/chromium/src/tools/rust.git' + '@' + Var('tools_rust_revision'),
+    'condition': 'checkout_rust',
   },
 }
 
@@ -187,10 +199,20 @@ hooks = [
   {
     'name': 'clang',
     'pattern': '.',
-    'condition': 'checkout_clang',
+    # bindgen in the packaged rust-toolchain requires packaged clang.
+    'condition': 'checkout_clang or checkout_rust',
     'action': [ 'python3',
                 'boringssl/util/bot/tools/clang/scripts/update.py',
                 '--output-dir', 'boringssl/util/bot/llvm-build',
+    ],
+  },
+  {
+    'name': 'rust',
+    'pattern': '.',
+    'condition': 'checkout_rust',
+    'action': [ 'python3',
+                'boringssl/util/bot/tools/rust/update_rust.py',
+                '--output-dir', 'boringssl/util/bot/rust-toolchain',
     ],
   },
   {

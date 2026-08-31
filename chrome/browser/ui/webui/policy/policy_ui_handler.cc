@@ -161,6 +161,7 @@ void PolicyUIHandler::AddCommonLocalizedStringsToSource(
       {"future", IDS_POLICY_LABEL_FUTURE},
       {"info", IDS_POLICY_LABEL_INFO},
       {"ignored", IDS_POLICY_LABEL_IGNORED},
+      {"ignoredByExtension", IDS_POLICY_IGNORED_EXTENSION},
       {"notSpecified", IDS_POLICY_NOT_SPECIFIED},
       {"ok", IDS_POLICY_OK},
       {"scopeDevice", IDS_POLICY_SCOPE_DEVICE},
@@ -273,6 +274,16 @@ void PolicyUIHandler::RegisterMessages() {
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 }
 
+void PolicyUIHandler::AddPolicyPromotionObserver(
+    PolicyPromotionObserver* observer) {
+  promotion_eligibility_observers_.AddObserver(observer);
+}
+
+void PolicyUIHandler::RemovePolicyPromotionObserver(
+    PolicyPromotionObserver* observer) {
+  promotion_eligibility_observers_.RemoveObserver(observer);
+}
+
 void PolicyUIHandler::OnPolicyValueAndStatusChanged() {
   SendPolicies();
   // Send also the status to UI because when policy value is updated, policy
@@ -351,7 +362,7 @@ void PolicyUIHandler::HandleCopyPoliciesJson(const base::Value::List& args) {
 
 void PolicyUIHandler::HandleSetLocalTestPolicies(
     const base::Value::List& args) {
-  std::string policies = args[1].GetString();
+  const std::string& policies = args[1].GetString();
   AllowJavascript();
 
   if (!PolicyUI::ShouldLoadTestPage(Profile::FromWebUI(web_ui()))) {
@@ -367,7 +378,7 @@ void PolicyUIHandler::HandleSetLocalTestPolicies(
   CHECK(local_test_provider);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
-  std::string profile_separation_policy_response = args[2].GetString();
+  const std::string& profile_separation_policy_response = args[2].GetString();
   Profile::FromWebUI(web_ui())->GetPrefs()->ClearPref(
       prefs::kUserCloudSigninPolicyResponseFromPolicyTestPage);
   Profile::FromWebUI(web_ui())->GetPrefs()->SetDefaultPrefValue(
@@ -402,7 +413,7 @@ void PolicyUIHandler::HandleRevertLocalTestPolicies(
 
 void PolicyUIHandler::HandleRestartBrowser(const base::Value::List& args) {
   CHECK(args.size() == 2);
-  std::string policies = args[1].GetString();
+  const std::string& policies = args[1].GetString();
 
   // Set policies to preference
   PrefService* prefs = g_browser_process->local_state();
@@ -447,7 +458,7 @@ void PolicyUIHandler::HandleGetPolicyLogs(const base::Value::List& args) {
 void PolicyUIHandler::HandleUploadReport(const base::Value::List& args) {
   upload_report_count_ += 1;
   DCHECK_EQ(1u, args.size());
-  std::string callback_id = args[0].GetString();
+  const std::string& callback_id = args[0].GetString();
   auto* report_scheduler = g_browser_process->browser_policy_connector()
                                ->chrome_browser_cloud_management_controller()
                                ->report_scheduler();
@@ -513,44 +524,24 @@ void PolicyUIHandler::HandleShouldShowPromotion(const base::Value::List& args) {
   AllowJavascript();
 #if !BUILDFLAG(IS_ANDROID)
   Profile* profile = Profile::FromWebUI(web_ui());
-  std::string callback_id = args[0].GetString();
-
-  if (!base::FeatureList::IsEnabled(features::kEnablePolicyPromotionBanner) ||
-      profile->IsIncognitoProfile() || profile->IsGuestSession() ||
-      !profile->GetCloudPolicyManager() ||
-      !profile->GetCloudPolicyManager()->core()->client()) {
-    OnPromotionEligibilityFetched(
-        callback_id,
-        enterprise_management::GetUserEligiblePromotionsResponse());
-    return;
-  }
-
-  auto* profile_id_service =
-      enterprise::ProfileIdServiceFactory::GetForProfile(profile);
-  if (!profile_id_service->GetProfileId().has_value()) {
-    OnPromotionEligibilityFetched(
-        callback_id,
-        enterprise_management::GetUserEligiblePromotionsResponse());
-    return;
-  }
-
-  auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
-
-  std::string locale = g_browser_process->GetApplicationLocale();
+  const std::string& callback_id = args[0].GetString();
 
   bool dismissed_banner_pref = profile->GetPrefs()->GetBoolean(
       policy::policy_prefs::kHasDismissedPolicyPagePromotionBanner);
 
+  bool feature_enabled =
+      base::FeatureList::IsEnabled(features::kEnablePolicyPromotionBanner);
+
   promotion_eligibility_checker_ =
-      std::make_unique<enterprise_promotion::PromotionEligibilityChecker>(
-          /*profile_id=*/profile_id_service->GetProfileId().value(),
-          /*client=*/
-          profile->GetCloudPolicyManager()->core()->client(),
-          /*identity_manager=*/identity_manager,
-          /*locale=*/locale,
-          /*dismissed_banner_pref=*/dismissed_banner_pref);
+      policy::CreatePromotionEligibilityChecker(
+          profile, dismissed_banner_pref, feature_enabled);
+  if (!promotion_eligibility_checker_) {
+    OnPromotionEligibilityFetched(
+        callback_id,
+        enterprise_management::GetUserEligiblePromotionsResponse());
+    return;
+  }
   promotion_eligibility_checker_->MaybeCheckPromotionEligibility(
-      identity_manager->GetPrimaryAccountId(signin::ConsentLevel::kSignin),
       base::BindOnce(&PolicyUIHandler::OnPromotionEligibilityFetched,
                      weak_factory_.GetWeakPtr(), callback_id));
   return;
@@ -593,7 +584,6 @@ void PolicyUIHandler::OnPromotionEligibilityFetched(
     const std::string& callback_id,
     enterprise_management::GetUserEligiblePromotionsResponse response) {
   AllowJavascript();
-
   bool should_show_promotion = response.promotions().policy_page_promotion() ==
                                enterprise_management::CHROME_ENTERPRISE_CORE;
   // Log the UMA metric for the promotion banner displayed.
@@ -601,6 +591,12 @@ void PolicyUIHandler::OnPromotionEligibilityFetched(
                             should_show_promotion);
 
   ResolveJavascriptCallback(base::Value(callback_id), should_show_promotion);
+
+  for (PolicyPromotionObserver& observer : promotion_eligibility_observers_) {
+    observer.OnPromotionEligibilityFetched(callback_id, response);
+  }
+
+  promotion_checked_ = true;
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 

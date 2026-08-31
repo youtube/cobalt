@@ -22,8 +22,9 @@ var logging = requireNative('logging');
 var customElementCallbacks = {
   connectedCallback: function() {
     var internal = privates(this).internal;
-    if (!internal)
+    if (!internal) {
       return;
+    }
 
     internal.elementAttached = true;
     internal.willAttachElement();
@@ -32,8 +33,9 @@ var customElementCallbacks = {
 
   attributeChangedCallback: function(name, oldValue, newValue) {
     var internal = privates(this).internal;
-    if (!internal)
+    if (!internal) {
       return;
+    }
 
     // Let the changed attribute handle its own mutation.
     internal.attributes[name].maybeHandleMutation(oldValue, newValue);
@@ -41,8 +43,9 @@ var customElementCallbacks = {
 
   disconnectedCallback: function() {
     var internal = privates(this).internal;
-    if (!internal)
+    if (!internal) {
       return;
+    }
 
     internal.elementAttached = false;
     internal.internalInstanceId = 0;
@@ -53,7 +56,7 @@ var customElementCallbacks = {
 
 // Registers the guestview as a custom element.
 // |containerElementType| is a GuestViewContainerElement (e.g. WebViewElement)
-function registerElement(elementName, containerElementType) {
+function registerElement(elementName, className, containerElementType) {
   GuestViewInternalNatives.AllowGuestViewElementDefinition(() => {
     // We set the lifecycle callbacks so that they're available during
     // registration. Once that's done, we'll delete them so developers cannot
@@ -68,7 +71,7 @@ function registerElement(elementName, containerElementType) {
     $CustomElementRegistry.define(
         window.customElements, $String.toLowerCase(elementName),
         containerElementType);
-    $Object.defineProperty(window, elementName, {
+    $Object.defineProperty(window, className, {
       value: containerElementType,
     });
 
@@ -209,8 +212,9 @@ class GuestViewContainerElement extends HTMLElement {}
 // Override |focus| to let |internal| handle it.
 GuestViewContainerElement.prototype.focus = function() {
   var internal = privates(this).internal;
-  if (!internal)
+  if (!internal) {
     return;
+  }
 
   internal.focus();
 };

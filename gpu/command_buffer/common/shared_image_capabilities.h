@@ -8,11 +8,11 @@
 #include <stdint.h>
 
 #include "build/build_config.h"
-#include "gpu/gpu_export.h"
+#include "gpu/command_buffer/common/gpu_command_buffer_common_export.h"
 
 namespace gpu {
 
-struct GPU_EXPORT SharedImageCapabilities {
+struct GPU_COMMAND_BUFFER_COMMON_EXPORT SharedImageCapabilities {
   SharedImageCapabilities();
   SharedImageCapabilities(const SharedImageCapabilities& other);
   ~SharedImageCapabilities();
@@ -32,6 +32,7 @@ struct GPU_EXPORT SharedImageCapabilities {
   bool is_r16f_supported = false;
   bool disable_r8_shared_images = false;
   bool disable_webgpu_shared_images = false;
+  bool disable_one_component_textures = false;
 
   bool shared_image_d3d = false;
   bool shared_image_swap_chain = false;

@@ -51,6 +51,74 @@ vpython3 pull_uma_histogram_set_via_cdp.py [OPTIONS]
     If set, suppresses all non-essential print output. Useful for cleaner logs
     or for running in automated scripts.
 
+### Verifying Cobalt Memory Breakdown Metrics via CDP
+
+Cobalt integrates real-time live memory metrics, session median (P50) breakdown histograms, and time-windowed peak guardrails directly into the Chrome DevTools Protocol (`Performance.getMetrics`).
+
+When `pull_uma_histogram_set_via_cdp.py` runs, it issues `Performance.enable` and `Performance.getMetrics` on every polling cycle, printing the full dual-stream memory metrics without requiring any external metric list files.
+
+#### Step 1: Launch Cobalt with Remote Debugging
+
+* **On Linux (Evergreen x64 devel)**:
+  ```bash
+  ./out/evergreen-x64_devel/loader_app \
+      --remote-debugging-port=9222 \
+      --remote-allow-origins=* \
+      --url="https://www.youtube.com/tv"
+  ```
+  *(Tip: To accelerate background UMA memory dumps for local testing, add `--enable-features=CobaltMetricsInterval:memory-metrics-interval/10`)*.
+
+* **On Android / RDK Device (via ADB)**:
+  ```bash
+  adb shell am start -n dev.cobalt.coat/dev.cobalt.app.MainActivity \
+      --esa commandLineArgs '--remote-debugging-port=9222,--remote-allow-origins=*'
+  ```
+
+#### Step 2: Run the Verification Script
+
+* **Targeting Linux**:
+  ```bash
+  vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+      --platform=linux \
+      --port=9222 \
+      --poll-interval-s=2
+  ```
+
+* **Targeting Android**:
+  ```bash
+  vpython3 cobalt/tools/uma/pull_uma_histogram_set_via_cdp.py \
+      --platform=android \
+      --package-name=dev.cobalt.coat \
+      --poll-interval-s=5
+  ```
+
+#### Step 3: Expected Output
+
+On each polling iteration, the script will output the Performance metrics block containing both **Live instantaneous** memory values and **Session P50 / Peak** guardrails:
+
+```text
+Connected to WebSocket: ws://127.0.0.1:9222/devtools/page/...
+Enabled Performance domain (ID: 1)
+
+Performance Metrics for https://www.youtube.com/tv:
+  JSHeapUsedSize: 14581348
+  JSHeapTotalSize: 16998400
+
+  === Live Real-Time Subsystem Metrics ===
+  Memory.Browser.ResidentSet.Live: 471416832            (449.58 MB)
+  Memory.Browser.PrivateMemoryFootprint.Live: 359141376 (342.50 MB)
+  Memory.Experimental.Browser2.V8.Live: 14649192       ( 13.97 MB)
+  Memory.Experimental.Browser2.Stacks.Live: 1073152     (  1.02 MB)
+
+  === Session Median (P50) & Guardrail Metrics ===
+  Memory.GPU.PeakMemoryUsage2.PageLoad.P50: 17825792    ( 17.00 MB)
+  Memory.Experimental.Renderer.HighestPrivateMemoryFootprint.0to2min: 157286400 (150.00 MB)
+```
+
+> **Platform Note**:
+> * `*.Live` metrics read `/proc/self/statm` directly via `base::ProcessMetrics` and populate immediately across all Linux and Android platforms without elevated privileges.
+> * UMA background dumps (`CobaltMemoryMetricsEmitter`) rely on `/proc/self/pagemap`, which is accessible on production Android/RDK hardware. On Linux workstations, `CAP_SYS_ADMIN` restrictions prevent background `/proc/self/pagemap` parsing; deterministic testing of P50 histograms on desktop can be verified via `blink_unittests --gtest_filter="CobaltMemoryMetricsHelperTest.*"`.
+
 ### Troubleshooting
 
 #### Handshake status 403 Forbidden

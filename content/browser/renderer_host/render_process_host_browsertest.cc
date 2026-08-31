@@ -23,6 +23,8 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/mock_callback.h"
+#include "base/test/run_until.h"
+#include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/hang_watcher.h"
 #include "base/timer/elapsed_timer.h"
@@ -68,6 +70,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
 #include "media/mojo/buildflags.h"
+#include "media/mojo/mojom/video_decoder.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_status_code.h"
@@ -1300,6 +1303,78 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest, ConstructedButNotInitializedYet) {
   process->Cleanup();
 }
 
+class DiscardFrameBrowserTest : public RenderProcessHostTestBase,
+                                public WebContentsObserver {
+ public:
+  void SetUp() override {
+    feature_list_.InitAndEnableFeature(features::kWebContentsDiscard);
+    RenderProcessHostTestBase::SetUp();
+  }
+
+  void SetUpOnMainThread() override {
+    WebContentsObserver::Observe(shell()->web_contents());
+    RenderProcessHostTestBase::SetUpOnMainThread();
+  }
+
+  WebContents& web_contents() { return *shell()->web_contents(); }
+
+  // WebContentsObserver implementation
+  void AboutToBeDiscarded(WebContents* web_contents) override {
+    RenderProcessHost* process =
+        web_contents->GetPrimaryMainFrame()->GetProcess();
+    priority_at_about_to_be_discarded_ = process->GetPriority();
+  }
+
+  void WasDiscarded() override {
+    RenderProcessHost* process =
+        web_contents().GetPrimaryMainFrame()->GetProcess();
+    priority_at_was_discarded_ = process->GetPriority();
+  }
+
+ protected:
+  std::optional<base::Process::Priority> priority_at_about_to_be_discarded_;
+  std::optional<base::Process::Priority> priority_at_was_discarded_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(DiscardFrameBrowserTest,
+                       VerifyRenderProcessPriorityBoostedOnDiscard) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  GURL test_url(embedded_test_server()->GetURL("a.com", "/simple_page.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), test_url));
+
+  // Put the tab in the background.
+  web_contents().WasHidden();
+  RenderProcessHost* process =
+      web_contents().GetPrimaryMainFrame()->GetProcess();
+  EXPECT_EQ(process->GetPriority(), base::Process::Priority::kBestEffort);
+
+  // Keep the renderer process alive after discard.
+  EXPECT_TRUE(process->IsInitializedAndNotDead());
+  process->IncrementWorkerRefCount();
+
+  // Discard the page.
+  web_contents().Discard(base::NullCallback());
+
+  ASSERT_TRUE(priority_at_about_to_be_discarded_.has_value());
+  EXPECT_EQ(*priority_at_about_to_be_discarded_,
+            base::Process::Priority::kBestEffort);
+
+  ASSERT_TRUE(priority_at_was_discarded_.has_value());
+  EXPECT_EQ(*priority_at_was_discarded_,
+            base::Process::Priority::kUserBlocking);
+
+  // Now, wait for the discard to complete in the renderer and priority to drop.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return process->GetPriority() == base::Process::Priority::kBestEffort;
+  }));
+  EXPECT_EQ(process->GetPriority(), base::Process::Priority::kBestEffort);
+
+  process->DecrementWorkerRefCount();
+}
+
 // This test verifies that a fast shutdown is possible for a starting process.
 IN_PROC_BROWSER_TEST_P(RenderProcessHostTest, FastShutdownForStartingProcess) {
   RenderProcessHost* process = RenderProcessHostImpl::CreateRenderProcessHost(
@@ -2001,6 +2076,21 @@ IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
   }
 }
 
+// This test verifies that a renderer process is correctly sandboxed.
+IN_PROC_BROWSER_TEST_F(RenderProcessHostTestBase, IsSandboxed) {
+  RenderProcessHost* rph = RenderProcessHostImpl::CreateRenderProcessHost(
+      ShellContentBrowserClient::Get()->browser_context(),
+      /*site_instance=*/nullptr);
+  ASSERT_TRUE(rph->Init());
+
+  mojo::Remote<mojom::TestService> service;
+  rph->BindReceiver(service.BindNewPipeAndPassReceiver());
+
+  base::test::TestFuture<bool> future;
+  service->IsProcessSandboxed(future.GetCallback());
+  ASSERT_TRUE(future.Take());
+}
+
 class CreationObserver : public RenderProcessHostCreationObserver {
  public:
   explicit CreationObserver(
@@ -2501,8 +2591,16 @@ IN_PROC_BROWSER_TEST_F(RenderProcessHostTestOOPVideoDecoderTest,
 
 // Asserts RenderProcessHosts are configured to reflect the embedder's policy
 // defined by `ContentBrowserClient::DisallowV8FeatureFlagOverridesForSite()`.
+// TODO(crbug.com/420278695): Flaky on TSan.
+#if defined(THREAD_SANITIZER)
+#define MAYBE_DisallowV8FeatureFlagOverridesAppliedToHosts \
+  DISABLED_DisallowV8FeatureFlagOverridesAppliedToHosts
+#else
+#define MAYBE_DisallowV8FeatureFlagOverridesAppliedToHosts \
+  DisallowV8FeatureFlagOverridesAppliedToHosts
+#endif
 IN_PROC_BROWSER_TEST_P(RenderProcessHostTest,
-                       DisallowV8FeatureFlagOverridesAppliedToHosts) {
+                       MAYBE_DisallowV8FeatureFlagOverridesAppliedToHosts) {
   class DisallowV8FeatureOverridesContentBrowserClient
       : public ContentBrowserTestContentBrowserClient {
    public:

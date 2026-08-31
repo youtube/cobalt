@@ -21,7 +21,6 @@
 <translation id="1056898198331236512">മുന്നറിയിപ്പ്</translation>
 <translation id="1058009965971887428">റിപ്പോർട്ട് ചെയ്തതിന്റെ ഫീഡ്ബാക്ക്</translation>
 <translation id="1059120031266247284">നിങ്ങളുമായി പങ്കിട്ടു</translation>
-<translation id="1059194134494239015"><ph name="DISPLAY_NAME" />: <ph name="RESOLUTION" /></translation>
 <translation id="1060847216467038176"><ph name="ITEM_LABEL" /> എന്നതും നീക്കം ചെയ്യുക ബട്ടണും</translation>
 <translation id="1062407476771304334">മാറ്റിസ്ഥാപിക്കുക</translation>
 <translation id="1073899992769346247">ബാറ്ററി മാറ്റുക അല്ലെങ്കിൽ റീചാർജ് ചെയ്യുക</translation>
@@ -540,7 +539,6 @@
 <translation id="2814448776515246190">ഭാഗികമായി ക്യാപ്‌ചർ ചെയ്യൽ</translation>
 <translation id="2819276065543622893">നിങ്ങൾ ഇപ്പോൾ സൈൻ ഔട്ട് ചെയ്യും.</translation>
 <translation id="2822551631199737692">ക്യാമറ ഉപയോഗിക്കുന്നു</translation>
-<translation id="2825224105325558319"><ph name="DISPLAY_NAME" />, <ph name="SPECIFIED_RESOLUTION" /> എന്നതിനെ പിന്തുണയ്‌ക്കുന്നില്ല. റെസല്യൂഷൻ <ph name="FALLBACK_RESOLUTION" /> എന്നതിലേക്ക് മാറ്റി.</translation>
 <translation id="2825619548187458965">ഷെൽഫ്</translation>
 <translation id="2831035692318564937">സൂര്യാസ്തമയം വരെ ഓണാണ്</translation>
 <translation id="2834813915651407382">അടുത്തിടെ തുറന്നത്</translation>
@@ -605,8 +603,6 @@
 <translation id="3026897869154397692">കലണ്ടറിൽ ചേർത്തു</translation>
 <translation id="3033545621352269033">ഓണാണ്</translation>
 <translation id="3033912566804961911"><ph name="DESK_NAME" /> എന്ന ഡെസ്ക്കുമായി സംയോജിപ്പിക്കുക</translation>
-<translation id="3036649622769666520">ഫയലുകള്‍‌ തുറക്കുക</translation>
-<translation id="3038571455154067151">സൈൻ ഇൻ ചെയ്യാൻ, നിങ്ങളുടെ Family Link രക്ഷാകർതൃ ആക്‌സസ് കോഡ് നൽകുക</translation>
 <translation id="3039939407102840004">സ്റ്റൈലസ് ബാറ്ററി <ph name="PERCENTAGE" /> ശതമാനത്തിലാണ്.</translation>
 <translation id="304097922505898963">Key Shortcuts ആപ്പ് തുറക്കുക</translation>
 <translation id="304417730895741346">നിങ്ങളുടെ പിൻ ചെയ്‌തതും തുറന്നതുമായ ആപ്പുകൾ ഷെൽഫിലാണ്. ഷെൽഫിലേക്ക് ഒരു ആപ്പ് പിൻ ചെയ്യാൻ, ആപ്പിൽ വലത്-ക്ലിക്ക് ചെയ്യുക അല്ലെങ്കിൽ രണ്ട് വിരലുകൾ ഉപയോഗിച്ച് നിങ്ങളുടെ ടച്ച്പാഡിൽ ടാപ്പ് ചെയ്യുക.</translation>
@@ -761,6 +757,7 @@
 <translation id="3552189655002856821">വൈഫൈ ഓഫാണ്</translation>
 <translation id="3554215588514239132">ഡെവലപ്പർ ടൂളുകളുടെ പാനൽ കാണിക്കുക അല്ലെങ്കിൽ മറയ്ക്കുക</translation>
 <translation id="3554637740840164787"><ph name="ITEM_TITLE" /> പിൻ ചെയ്‌തു</translation>
+<translation id="3554928024630051016">അധിക USB ഉപകരണങ്ങൾ ചേർക്കാൻ, ഒരെണ്ണം നീക്കം ചെയ്ത് പുതിയൊരെണ്ണം പ്ലഗ്-ഇൻ ചെയ്യുക</translation>
 <translation id="3558768885091059911">ക്യാമറ, മൈക്രോഫോൺ ആക്‌സസ് ഓണാക്കണോ?</translation>
 <translation id="3560174576767922131">വീഡിയോ റെക്കോർഡ് ചെയ്യുക</translation>
 <translation id="3563775809269155755">ഹോട്ട്‌സ്പോട്ട് പ്രവർത്തനക്ഷമമാക്കുക</translation>
@@ -868,6 +865,7 @@
 <translation id="3861651314799684201">പൂർണ്ണ സ്ക്രീൻ റെക്കോർഡ് ചെയ്യാൻ Enter അമർത്തുക</translation>
 <translation id="3870197372373144624">നിങ്ങളുടെ ഉപകരണം ഷട്ട് ഡൗൺ ചെയ്യാൻ ശ്രമിക്കുക.</translation>
 <translation id="3879748587602334249">ഡൗൺലോഡ് മാനേജർ</translation>
+<translation id="3884007280698606545">USB പരിധിയെത്തി</translation>
 <translation id="3886872229787704059">ഇന്ന് തുറന്നത്</translation>
 <translation id="3891340733213178823">സൈൻ ഔട്ട് ചെയ്യുന്നതിന് രണ്ടു‌തവണ Ctrl+Shift+Q അമർത്തുക.</translation>
 <translation id="3892148308691398805">ടെക്‌സ്‌റ്റ് പകർത്തുക</translation>
@@ -1012,6 +1010,7 @@
 <translation id="4305817255990598646">സ്വിച്ച് ചെയ്യുക</translation>
 <translation id="4307713728991152670">നിങ്ങളുടെ ഫോണിലെ പുതിയ ഫോട്ടോകളും മീഡിയയും ആപ്പുകളും കാണുന്നത് സജ്ജീകരിക്കുക</translation>
 <translation id="4312840429157639164">മുകളിൽ വലത് കോണിലേക്ക് ക്യാമറ സ്‌നാപ്പ് ചെയ്തു. സിസ്റ്റം സർഫേസിനെ ഓവർലാപ്പ് ചെയ്യുന്നു.</translation>
+<translation id="4312935606722154789">അടുത്തടുത്തുള്ള രണ്ട് വിൻഡോകൾ ഗ്രൂപ്പ് ചെയ്യുക അല്ലെങ്കിൽ അൺഗ്രൂപ്പ് ചെയ്യുക</translation>
 <translation id="4316910396681052118">എല്ലാ ആപ്പുകളും</translation>
 <translation id="4321179778687042513">ctrl</translation>
 <translation id="4322385711258710213">എല്ലാ Chrome ബ്രൗസർ നിർദ്ദേശങ്ങളും മറയ്ക്കുക</translation>
@@ -1451,7 +1450,6 @@
 <translation id="5691772641933328258">വിരലടയാളം തിരിച്ചറിഞ്ഞില്ല</translation>
 <translation id="5693255400847650006">മൈക്രോഫോൺ ഉപയോഗിക്കുന്നു</translation>
 <translation id="5699366815052349604">സജീവമായ വിൻഡോ എല്ലാ ഡെസ്ക്കുകളിലേക്കും അസൈൻ ചെയ്യുക</translation>
-<translation id="5701785125601597013">ഫോൺ ഹബ് ഉപയോഗിച്ച് നിങ്ങളുടെ ഫോണിൽ നിന്ന് വേഗത്തിൽ സന്ദേശങ്ങൾ അയയ്‌ക്കുകയോ അവയ്‌ക്ക് മറുപടി നൽകുകയോ ചെയ്യുക</translation>
 <translation id="570390244361237317">എല്ലാ ആപ്പുകളും, എല്ലാ ആപ്പുകളും ആക്സസ് ചെയ്യാൻ അമ്പടയാള കീകൾ ഉപയോഗിച്ച് നാവിഗേറ്റ് ചെയ്യുക</translation>
 <translation id="5705197514573687092">ഫോക്കസ് ക്രമീകരണം കാണിക്കുക. <ph name="FOCUS_DURATION" /> എന്നതിലേക്ക് ടൈമർ സജ്ജീകരിച്ചു.</translation>
 <translation id="5707775774148071965">നിങ്ങളുടെ ഉപകരണം, നിങ്ങളുടെ കേബിളിനേക്കാൾ കൂടുതൽ ഡാറ്റാ നിരക്കിനെ പിന്തുണയ്ക്കുന്നു. ഉപകരണ പ്രകടനം പരിമിതപ്പെട്ടേക്കാം.</translation>
@@ -1581,7 +1579,6 @@
 <translation id="6095425951508823973"><ph name="PROVIDER" /> ഉപയോഗിച്ച് കണക്ഷൻ ചേർക്കുക</translation>
 <translation id="6099678161144790572">കഴിഞ്ഞ മാസം എഡിറ്റ് ചെയ്‌തത്</translation>
 <translation id="6103838137565245112">സിസ്റ്റം</translation>
-<translation id="610395411842312282">അടുത്തടുത്തുള്ള രണ്ട് വിൻഡോകൾ ഗ്രൂപ്പ് ചെയ്യുക</translation>
 <translation id="6108952804512516814">AI ഉപയോഗിച്ച് സൃഷ്ടിക്കുക</translation>
 <translation id="6114505516289286752"><ph name="LANGUAGE" /> സംഭാഷണ ഫയലുകൾ ഡൗൺലോഡ് ചെയ്‌തു</translation>
 <translation id="6119360623251949462"><ph name="CHARGING_STATE" />. <ph name="BATTERY_SAVER_STATE" /></translation>
@@ -1605,7 +1602,6 @@
 <translation id="6166852626429024716">നിങ്ങളുടെ ഉപകരണവും ആപ്പുകളും ക്രമീകരണവും വെബും തിരയുക...</translation>
 <translation id="6168318496333165060">Diagnostics ആപ്പ് തുറക്കുക</translation>
 <translation id="6168622430237609329">നിങ്ങളുടെ ഇൻസ്റ്റാൾ ചെയ്‌ത ആപ്പുകൾ</translation>
-<translation id="6179832488876878285">നിങ്ങളുടെ പ്രധാനപ്പെട്ട ഫയലുകൾ ഇവിടെ പിൻ ചെയ്യാം. ആരംഭിക്കാൻ Files ആപ്പ് തുറക്കുക.</translation>
 <translation id="6180193585172850042">മടങ്ങുക ബട്ടൺ</translation>
 <translation id="6180651297859206670">മുന്നോട്ട് പോകാനുള്ള ബട്ടൺ</translation>
 <translation id="6182592640011875895">ഡെസ്ക് തുറക്കുക</translation>
@@ -1638,7 +1634,6 @@
 <translation id="6267036997247669271"><ph name="NAME" />: സജീവമാക്കുന്നു...</translation>
 <translation id="6274202259872570803">സ്ക്രീൻകാസ്റ്റ്</translation>
 <translation id="6276708887952587684">പേജ് ഉറവിടം കാണുക</translation>
-<translation id="6284232397434400372">റെസല്യൂഷൻ മാറ്റി</translation>
 <translation id="6285871695023807425">കലണ്ടറിൽ ചേർക്കുക</translation>
 <translation id="6288235558961782912">രക്ഷിതാവിന്റെ അനുമതിയോടെ <ph name="USER_EMAIL_ADDRESS" /> എന്നത് പിന്നീട് വീണ്ടും ചേർക്കാനാവും.</translation>
 <translation id="6291221004442998378">ചാർജ് ചെയ്യുന്നില്ല</translation>
@@ -1686,7 +1681,6 @@
 <translation id="6452181791372256707">നിരസിക്കുക</translation>
 <translation id="6453179446719226835">ഭാഷ മാറ്റിയിരിക്കുന്നു</translation>
 <translation id="6456096448804832585">പോർട്രെയ്‌റ്റ് മാത്രം ലഭ്യം</translation>
-<translation id="6459472438155181876">സ്‌ക്രീൻ <ph name="DISPLAY_NAME" /> എന്നതിലേക്ക് വികസിപ്പിക്കുന്നു</translation>
 <translation id="6464094930452079790">ചിത്രങ്ങൾ</translation>
 <translation id="6467290994038932560"><ph name="GAME_APP_NAME" /> എന്നതിന് ഓണാണ്</translation>
 <translation id="6468406072297048412">{0,plural, =1{ഉപകരണം ഒരു മിനിറ്റിനുള്ളിൽ മുമ്പത്തെ പതിപ്പിലേക്ക് അപ്ഡേറ്റ് ചെയ്യുക}other{ഉപകരണം # മിനിറ്റിനുള്ളിൽ മുമ്പത്തെ പതിപ്പിലേക്ക് അപ്ഡേറ്റ് ചെയ്യുക}}</translation>
@@ -1920,6 +1914,7 @@
 <translation id="7244725679040769470"><ph name="PERCENTAGE" />% ബാറ്ററി ചാർജ് ശേഷിക്കുന്നു.
 നിങ്ങളുടെ ഉപകരണം പവറിലേക്ക് കണക്റ്റ് ചെയ്യുക.</translation>
 <translation id="7246071203293827765"><ph name="UPDATE_TEXT" />. അപ്‌ഡേറ്റ് നടപ്പിലാക്കാൻ ഈ Chromebook റീസ്‌റ്റാർട്ട് ചെയ്യേണ്ടതുണ്ട്. ഇതിന് ഒരു മിനിറ്റ് വരെ സമയമെടുത്തേക്കാം.</translation>
+<translation id="7248100343060254997">എന്റെ സ്‌ക്രീനിലുള്ളവ തിരയുക</translation>
 <translation id="7256057185598509352">ExpressKey 2</translation>
 <translation id="7256634071279256947">പിൻഭാഗത്തെ മൈക്രോഫോൺ</translation>
 <translation id="7258828758145722155">ഇന്നലെ എഡിറ്റ് ചെയ്‌തത്</translation>
@@ -2419,7 +2414,6 @@
 <translation id="8876148469852588625">ആകെ <ph name="EVENT_TOTAL_COUNT" /> ഇവന്റുകളിൽ <ph name="EVENT_POSITION" /> എണ്ണം</translation>
 <translation id="8876661425082386199">നിങ്ങളുടെ കണക്ഷൻ പരിശോധിക്കുക</translation>
 <translation id="8877788021141246043">ഒരു റിമൈൻഡർ സജ്ജീകരിക്കുക</translation>
-<translation id="8878886163241303700">സ്‌ക്രീൻ വിപുലീകരിക്കുന്നു</translation>
 <translation id="8885424115080869847">YouTube Music-ലേക്ക് കണക്‌റ്റ് ചെയ്യാനാകുന്നില്ല</translation>
 <translation id="888982883502837004">നിങ്ങളുടെ ഉപകരണത്തിന് ഫേം‌വെയർ അപ്ഡേറ്റുകൾ ലഭ്യമാണ്. അവലോകനം ചെയ്ത് അപ്ഡേറ്റ് ചെയ്യാൻ ക്ലിക്ക് ചെയ്യുക.</translation>
 <translation id="8896630965521842259"><ph name="DESK_TEMPLATE_NAME" /> ശാശ്വതമായി ഇല്ലാതാക്കും</translation>

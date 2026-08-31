@@ -52,7 +52,7 @@ public class WebsitePreferenceBridge {
             case ContentSettingsType.MEDIASTREAM_MIC:
                 managedOnly = !isContentSettingUserModifiable(browserContextHandle, type);
         }
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .getOriginsForPermission(browserContextHandle, type, list, managedOnly);
         return list;
     }
@@ -85,12 +85,12 @@ public class WebsitePreferenceBridge {
 
     @CalledByNative
     private static Object createStorageInfoList() {
-        return new ArrayList<StorageInfo>();
+        return new ArrayList<>();
     }
 
     @CalledByNative
     private static Object createLocalStorageInfoMap() {
-        return new HashMap<String, LocalStorageInfo>();
+        return new HashMap<>();
     }
 
     @SuppressWarnings("unchecked")
@@ -103,7 +103,7 @@ public class WebsitePreferenceBridge {
 
     @CalledByNative
     private static Object createSharedDictionaryInfoList() {
-        return new ArrayList<SharedDictionaryInfo>();
+        return new ArrayList<>();
     }
 
     @SuppressWarnings("unchecked")
@@ -115,7 +115,7 @@ public class WebsitePreferenceBridge {
 
     @CalledByNative
     private static Object createCookiesInfoMap() {
-        return new HashMap<String, CookiesInfo>();
+        return new HashMap<>();
     }
 
     @CalledByNative
@@ -132,14 +132,14 @@ public class WebsitePreferenceBridge {
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
         List<ContentSettingException> exceptions = new ArrayList<>();
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .getContentSettingsExceptions(
                         browserContextHandle, contentSettingsType, exceptions);
         if (!isContentSettingManaged(browserContextHandle, contentSettingsType)) {
             return exceptions;
         }
 
-        List<ContentSettingException> managedExceptions = new ArrayList<ContentSettingException>();
+        List<ContentSettingException> managedExceptions = new ArrayList<>();
         for (ContentSettingException exception : exceptions) {
             if (exception.getSource() == ProviderType.POLICY_PROVIDER) {
                 managedExceptions.add(exception);
@@ -152,27 +152,24 @@ public class WebsitePreferenceBridge {
             BrowserContextHandle browserContextHandle,
             Callback<HashMap> callback,
             boolean fetchImportant) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .fetchLocalStorageInfo(browserContextHandle, callback, fetchImportant);
     }
 
     public void fetchStorageInfo(
             BrowserContextHandle browserContextHandle, Callback<ArrayList> callback) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .fetchStorageInfo(browserContextHandle, callback);
+        WebsitePreferenceBridgeJni.get().fetchStorageInfo(browserContextHandle, callback);
     }
 
     public void fetchSharedDictionaryInfo(
             BrowserContextHandle browserContextHandle, Callback<ArrayList> callback) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .fetchSharedDictionaryInfo(browserContextHandle, callback);
+        WebsitePreferenceBridgeJni.get().fetchSharedDictionaryInfo(browserContextHandle, callback);
     }
 
     public void fetchCookiesInfo(
             BrowserContextHandle browserContextHandle,
             Callback<Map<String, CookiesInfo>> callback) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .fetchCookiesInfo(browserContextHandle, callback);
+        WebsitePreferenceBridgeJni.get().fetchCookiesInfo(browserContextHandle, callback);
     }
 
     /**
@@ -185,8 +182,8 @@ public class WebsitePreferenceBridge {
     public List<ChosenObjectInfo> getChosenObjectInfo(
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
-        ArrayList<ChosenObjectInfo> list = new ArrayList<ChosenObjectInfo>();
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        ArrayList<ChosenObjectInfo> list = new ArrayList<>();
+        WebsitePreferenceBridgeJni.get()
                 .getChosenObjects(browserContextHandle, contentSettingsType, list);
         return list;
     }
@@ -205,8 +202,7 @@ public class WebsitePreferenceBridge {
 
     /** Returns whether the DSE (Default Search Engine) origin matches the given origin. */
     public static boolean isDSEOrigin(BrowserContextHandle browserContextHandle, String origin) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .isDSEOrigin(browserContextHandle, origin);
+        return WebsitePreferenceBridgeJni.get().isDSEOrigin(browserContextHandle, origin);
     }
 
     /**
@@ -215,7 +211,7 @@ public class WebsitePreferenceBridge {
      */
     public static boolean getAdBlockingActivated(
             BrowserContextHandle browserContextHandle, String origin) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .getAdBlockingActivated(browserContextHandle, origin);
     }
 
@@ -250,7 +246,7 @@ public class WebsitePreferenceBridge {
     public static boolean isContentSettingEnabled(
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .isContentSettingEnabled(browserContextHandle, contentSettingsType);
     }
 
@@ -296,7 +292,7 @@ public class WebsitePreferenceBridge {
     private static @ContentSettingSource int getDefaultContentSettingProviderSource(
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .getDefaultContentSettingProviderSource(browserContextHandle, contentSettingsType);
     }
 
@@ -310,7 +306,7 @@ public class WebsitePreferenceBridge {
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType,
             boolean enabled) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .setContentSettingEnabled(browserContextHandle, contentSettingsType, enabled);
     }
 
@@ -352,7 +348,7 @@ public class WebsitePreferenceBridge {
     public static int getDefaultContentSetting(
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .getDefaultContentSetting(browserContextHandle, contentSettingsType);
     }
 
@@ -363,7 +359,7 @@ public class WebsitePreferenceBridge {
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType,
             int setting) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .setDefaultContentSetting(browserContextHandle, contentSettingsType, setting);
     }
 
@@ -374,14 +370,15 @@ public class WebsitePreferenceBridge {
      */
     public static boolean isCookieDeletionDisabled(
             BrowserContextHandle browserContextHandle, String origin) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .isCookieDeletionDisabled(browserContextHandle, origin);
     }
 
-    /** @return Whether geolocation information access is set to be shared with all sites, by policy. */
+    /**
+     * @return Whether geolocation information access is set to be shared with all sites, by policy.
+     */
     public static boolean isLocationAllowedByPolicy(BrowserContextHandle browserContextHandle) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .getLocationAllowedByPolicy(browserContextHandle);
+        return WebsitePreferenceBridgeJni.get().getLocationAllowedByPolicy(browserContextHandle);
     }
 
     /** @return Whether location is enabled system-wide and the Chrome location setting is enabled. */
@@ -396,7 +393,7 @@ public class WebsitePreferenceBridge {
     public static boolean isContentSettingUserModifiable(
             BrowserContextHandle browserContextHandle,
             @ContentSettingsType.EnumType int contentSettingsType) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .isContentSettingUserModifiable(browserContextHandle, contentSettingsType);
     }
 
@@ -409,7 +406,7 @@ public class WebsitePreferenceBridge {
             @ContentSettingsType.EnumType int contentSettingType,
             GURL primaryUrl,
             GURL secondaryUrl) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .getContentSetting(
                         browserContextHandle, contentSettingType, primaryUrl, secondaryUrl);
     }
@@ -422,7 +419,7 @@ public class WebsitePreferenceBridge {
             @ContentSettingsType.EnumType int contentSettingType,
             GURL primaryUrl,
             GURL secondaryUrl) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        return WebsitePreferenceBridgeJni.get()
                 .isContentSettingGlobal(
                         browserContextHandle, contentSettingType, primaryUrl, secondaryUrl);
     }
@@ -438,7 +435,7 @@ public class WebsitePreferenceBridge {
             GURL primaryUrl,
             GURL secondaryUrl,
             @ContentSettingValues int setting) {
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .setContentSettingDefaultScope(
                         browserContextHandle,
                         contentSettingType,
@@ -472,7 +469,7 @@ public class WebsitePreferenceBridge {
             assert secondaryPattern.equals(SITE_WILDCARD) || secondaryPattern.isEmpty();
         }
 
-        org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
+        WebsitePreferenceBridgeJni.get()
                 .setContentSettingCustomScope(
                         browserContextHandle,
                         contentSettingType,
@@ -482,24 +479,32 @@ public class WebsitePreferenceBridge {
     }
 
     /**
+     * Returns whether the Android device supports adding exceptions for the javascript-optimizer
+     * content-setting.
+     */
+    public static boolean canAddExceptionsForJavascriptOptimizerSetting() {
+        return WebsitePreferenceBridgeJni.get().canAddExceptionsForJavascriptOptimizerSetting();
+    }
+
+    /**
      * Convert pattern to domain wildcard pattern. If fail to extract domain from the pattern,
      * return the original pattern.
+     *
      * @param pattern The original pattern to be converted to domain wildcard pattern.
      * @return The domain wildcard pattern.
      */
     public static String toDomainWildcardPattern(String pattern) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .toDomainWildcardPattern(pattern);
+        return WebsitePreferenceBridgeJni.get().toDomainWildcardPattern(pattern);
     }
 
     /**
      * Convert pattern to host only pattern.
+     *
      * @param pattern The original pattern to be converted to host only pattern.
      * @return The host only pattern.
      */
     public static String toHostOnlyPattern(String pattern) {
-        return org.chromium.components.browser_ui.site_settings.WebsitePreferenceBridgeJni.get()
-                .toHostOnlyPattern(pattern);
+        return WebsitePreferenceBridgeJni.get().toHostOnlyPattern(pattern);
     }
 
     @NativeMethods
@@ -575,6 +580,22 @@ public class WebsitePreferenceBridge {
                 String origin,
                 String embedder,
                 @ContentSettingValues int value);
+
+        boolean canAddExceptionsForJavascriptOptimizerSetting();
+
+        GeolocationSetting getGeolocationSettingForOrigin(
+                BrowserContextHandle browserContextHandle,
+                @ContentSettingsType.EnumType int contentSettingsType,
+                String origin,
+                String embedder);
+
+        void setGeolocationSettingForOrigin(
+                BrowserContextHandle browserContextHandle,
+                @ContentSettingsType.EnumType int contentSettingsType,
+                String origin,
+                String embedder,
+                @ContentSettingValues int approximate,
+                @ContentSettingValues int precise);
 
         void setEphemeralGrantForTesting( // IN-TEST
                 BrowserContextHandle browserContextHandle,

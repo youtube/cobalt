@@ -23,6 +23,7 @@
 #include "api/scoped_refptr.h"
 #include "api/test/mock_frame_transformer.h"
 #include "api/test/mock_transformable_audio_frame.h"
+#include "api/units/timestamp.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "test/gmock.h"
@@ -197,6 +198,59 @@ TEST(ChannelSendFrameTransformerDelegateTest,
                       sizeof(mock_data), 0,
                       /*ssrc=*/0, /*mimeType=*/"audio/opus",
                       /*audio_level_dbov=*/std::nullopt);
+  channel_queue.WaitForPreviouslyPostedTasks();
+}
+
+// Test that CSRCs are propagated correctly from the Transform call to the frame
+// transformer.
+TEST(ChannelSendFrameTransformerDelegateTest,
+     TransformForwardsCsrcsViaFrameTransformer) {
+  TaskQueueForTest channel_queue("channel_queue");
+  scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      make_ref_counted<NiceMock<MockFrameTransformer>>();
+  MockChannelSend mock_channel;
+  scoped_refptr<ChannelSendFrameTransformerDelegate> delegate =
+      make_ref_counted<ChannelSendFrameTransformerDelegate>(
+          mock_channel.callback(), mock_frame_transformer, channel_queue.Get());
+  scoped_refptr<TransformedFrameCallback> callback;
+  EXPECT_CALL(*mock_frame_transformer, RegisterTransformedFrameCallback)
+      .WillOnce(SaveArg<0>(&callback));
+  delegate->Init();
+  ASSERT_TRUE(callback);
+
+  std::vector<uint32_t> csrcs = {123, 234, 345, 456};
+  EXPECT_CALL(mock_channel,
+              SendFrame(_, _, _, _, _, ElementsAreArray(csrcs), _));
+  ON_CALL(*mock_frame_transformer, Transform)
+      .WillByDefault(
+          [&callback](std::unique_ptr<TransformableFrameInterface> frame) {
+            callback->OnTransformedFrame(std::move(frame));
+          });
+  delegate->Transform(
+      AudioFrameType::kEmptyFrame, 0, 0, mock_data, sizeof(mock_data), 0,
+      /*ssrc=*/0, /*mimeType=*/"audio/opus", /*audio_level_dbov=*/31, csrcs);
+  channel_queue.WaitForPreviouslyPostedTasks();
+}
+
+// Test that CSRCs are propagated correctly from the Transform call to the send
+// frame callback when short circuiting is enabled.
+TEST(ChannelSendFrameTransformerDelegateTest,
+     TransformForwardsCsrcsViaShortCircuiting) {
+  TaskQueueForTest channel_queue("channel_queue");
+  scoped_refptr<MockFrameTransformer> mock_frame_transformer =
+      make_ref_counted<testing::NiceMock<MockFrameTransformer>>();
+  MockChannelSend mock_channel;
+  scoped_refptr<ChannelSendFrameTransformerDelegate> delegate =
+      make_ref_counted<ChannelSendFrameTransformerDelegate>(
+          mock_channel.callback(), mock_frame_transformer, channel_queue.Get());
+
+  std::vector<uint32_t> csrcs = {123, 234, 345, 456};
+  delegate->StartShortCircuiting();
+  EXPECT_CALL(mock_channel,
+              SendFrame(_, _, _, _, _, ElementsAreArray(csrcs), _));
+  delegate->Transform(
+      AudioFrameType::kEmptyFrame, 0, 0, mock_data, sizeof(mock_data), 0,
+      /*ssrc=*/0, /*mimeType=*/"audio/opus", /*audio_level_dbov=*/31, csrcs);
   channel_queue.WaitForPreviouslyPostedTasks();
 }
 

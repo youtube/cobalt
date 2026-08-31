@@ -21,11 +21,11 @@
 #include "components/cbor/writer.h"
 #include "components/sync/protocol/webauthn_credential_specifics.pb.h"
 #include "crypto/aead.h"
-#include "crypto/ec_private_key.h"
-#include "crypto/ec_signature_creator.h"
+#include "crypto/hash.h"
 #include "crypto/hkdf.h"
+#include "crypto/keypair.h"
 #include "crypto/random.h"
-#include "crypto/sha2.h"
+#include "crypto/sign.h"
 #include "device/fido/attestation_object.h"
 #include "device/fido/attestation_statement.h"
 #include "device/fido/attested_credential_data.h"
@@ -144,22 +144,6 @@ bool ExtensionInputData::hasPRF() const {
   return prf_input.has_value();
 }
 
-std::optional<cbor::Value> ExtensionInputData::ToCBOR() const {
-  if (!hasPRF()) {
-    return std::nullopt;
-  }
-
-  cbor::Value::MapValue prf_ext;
-  prf_ext.emplace(device::kExtensionPRFEnabled, true);
-  if (!prf_input->input1.empty()) {
-    prf_ext.emplace(device::kExtensionPRFEval, prf_input->ToCBOR());
-  }
-
-  cbor::Value::MapValue extensions;
-  extensions.emplace(device::kExtensionPRF, std::move(prf_ext));
-  return cbor::Value(std::move(extensions));
-}
-
 ExtensionOutputData ExtensionInputData::ToOutputData(
     const sync_pb::WebauthnCredentialSpecifics_Encrypted& encrypted) const {
   if (!hasPRF() || prf_input->input1.empty()) {
@@ -234,9 +218,8 @@ GeneratePasskeyAndEncryptSecrets(std::string_view rp_id,
   specifics.set_creation_time(base::Time::Now().InMillisecondsSinceUnixEpoch());
 
   sync_pb::WebauthnCredentialSpecifics_Encrypted encrypted;
-  auto ec_key = crypto::ECPrivateKey::Create();
-  std::vector<uint8_t> private_key_pkcs8;
-  CHECK(ec_key->ExportPrivateKey(&private_key_pkcs8));
+  auto ec_key = crypto::keypair::PrivateKey::GenerateEcP256();
+  std::vector<uint8_t> private_key_pkcs8 = ec_key.ToPrivateKeyInfo();
   encrypted.set_private_key(
       {private_key_pkcs8.begin(), private_key_pkcs8.end()});
   if (extension_input_data.hasPRF()) {
@@ -251,8 +234,7 @@ GeneratePasskeyAndEncryptSecrets(std::string_view rp_id,
     *extension_output_data = extension_input_data.ToOutputData(encrypted);
   }
 
-  std::vector<uint8_t> public_key_spki;
-  CHECK(ec_key->ExportPublicKey(&public_key_spki));
+  std::vector<uint8_t> public_key_spki = ec_key.ToSubjectPublicKeyInfo();
   return {std::move(specifics), std::move(public_key_spki)};
 }
 
@@ -348,29 +330,22 @@ bool EncryptWebauthnCredentialSpecificsData(
   return true;
 }
 
-std::vector<uint8_t> MakeAuthenticatorDataForAssertion(
-    std::string_view rp_id,
-    const ExtensionInputData& extension_input_data) {
+std::vector<uint8_t> MakeAuthenticatorDataForAssertion(std::string_view rp_id) {
   using Flag = device::AuthenticatorData::Flag;
   uint8_t flags = base::strict_cast<uint8_t>(Flag::kTestOfUserPresence) |
                   base::strict_cast<uint8_t>(Flag::kTestOfUserVerification) |
                   base::strict_cast<uint8_t>(Flag::kBackupEligible) |
                   base::strict_cast<uint8_t>(Flag::kBackupState);
-  std::optional<cbor::Value> extensions = extension_input_data.ToCBOR();
-  if (extensions.has_value()) {
-    flags |= base::strict_cast<uint8_t>(Flag::kExtensionDataIncluded);
-  }
-  return device::AuthenticatorData(
-             crypto::SHA256Hash(base::as_byte_span(rp_id)), flags,
-             kSignatureCounter, /*data=*/std::nullopt, std::move(extensions))
+  return device::AuthenticatorData(crypto::hash::Sha256(rp_id), flags,
+                                   kSignatureCounter, /*data=*/std::nullopt,
+                                   /*extensions=*/std::nullopt)
       .SerializeToByteArray();
 }
 
 std::vector<uint8_t> MakeAttestationObjectForCreation(
     std::string_view rp_id,
     base::span<const uint8_t> credential_id,
-    base::span<const uint8_t> public_key_spki_der,
-    const ExtensionInputData& extension_input_data) {
+    base::span<const uint8_t> public_key_spki_der) {
   static constexpr std::array<const uint8_t, 16> kGpmAaguid{
       0xea, 0x9b, 0x8d, 0x66, 0x4d, 0x01, 0x1d, 0x21,
       0x3c, 0xe4, 0xb6, 0xb4, 0x8c, 0xb5, 0x75, 0xd4};
@@ -382,18 +357,14 @@ std::vector<uint8_t> MakeAttestationObjectForCreation(
           public_key_spki_der);
   device::AttestedCredentialData attested_credential_data(
       kGpmAaguid, credential_id, std::move(public_key));
-  std::optional<cbor::Value> extensions = extension_input_data.ToCBOR();
   uint8_t flags = base::strict_cast<uint8_t>(Flag::kTestOfUserPresence) |
                   base::strict_cast<uint8_t>(Flag::kTestOfUserVerification) |
                   base::strict_cast<uint8_t>(Flag::kBackupEligible) |
                   base::strict_cast<uint8_t>(Flag::kBackupState) |
                   base::strict_cast<uint8_t>(Flag::kAttestation);
-  if (extensions.has_value()) {
-    flags |= base::strict_cast<uint8_t>(Flag::kExtensionDataIncluded);
-  }
   device::AuthenticatorData authenticator_data(
-      crypto::SHA256Hash(base::as_byte_span(rp_id)), flags, kSignatureCounter,
-      std::move(attested_credential_data), std::move(extensions));
+      crypto::hash::Sha256(rp_id), flags, kSignatureCounter,
+      std::move(attested_credential_data), /*extensions=*/std::nullopt);
   device::AttestationObject attestationObject(
       std::move(authenticator_data),
       std::make_unique<device::NoneAttestationStatement>());
@@ -405,16 +376,13 @@ std::optional<std::vector<uint8_t>> GenerateEcSignature(
     base::span<const uint8_t> pkcs8_ec_private_key,
     base::span<const uint8_t> signed_over_data) {
   auto ec_private_key =
-      crypto::ECPrivateKey::CreateFromPrivateKeyInfo(pkcs8_ec_private_key);
-  if (!ec_private_key) {
+      crypto::keypair::PrivateKey::FromPrivateKeyInfo(pkcs8_ec_private_key);
+  if (!ec_private_key || !ec_private_key->IsEc()) {
     return std::nullopt;
   }
-  auto signer = crypto::ECSignatureCreator::Create(ec_private_key.get());
-  std::vector<uint8_t> signature;
-  if (!signer->Sign(signed_over_data, &signature)) {
-    return std::nullopt;
-  }
-  return signature;
+
+  return crypto::sign::Sign(crypto::sign::SignatureKind::ECDSA_SHA256,
+                            *ec_private_key, signed_over_data);
 }
 
 bool IsSupportedAlgorithm(int32_t algorithm) {

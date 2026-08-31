@@ -4,31 +4,38 @@
 
 #include "chrome/browser/ui/webui/whats_new/whats_new_storage_service_impl.h"
 
+#include "chrome/browser/global_features.h"
 #include "chrome/common/chrome_version.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
+#include "components/user_education/webui/whats_new_registry.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 class WhatsNewStorageServiceTest : public testing::Test {
  public:
-  WhatsNewStorageServiceTest()
-      : local_state_(TestingBrowserProcess::GetGlobal()) {}
+  WhatsNewStorageServiceTest() = default;
   ~WhatsNewStorageServiceTest() override = default;
 
   void SetUp() override {
     testing::Test::SetUp();
-    storage_service_ =
-        std::make_unique<whats_new::WhatsNewStorageServiceImpl>();
+
+    // WhatsNewStorageServiceImpl is created and initialized in
+    // GlobalFeatures::CreateWhatsNewRegistry() in the same way as the
+    // production.
+    storage_service_ = TestingBrowserProcess::GetGlobal()
+                           ->GetFeatures()
+                           ->whats_new_registry()
+                           ->GetMutableStorageServiceForTesting();
+    // Resets it here to satisfy the precondition.
+    storage_service_->Reset();
   }
 
   void TearDown() override {
-    storage_service_.reset();
+    storage_service_ = nullptr;
     testing::Test::TearDown();
   }
 
  protected:
-  std::unique_ptr<whats_new::WhatsNewStorageService> storage_service_;
-  ScopedTestingLocalState local_state_;
+  raw_ptr<whats_new::WhatsNewStorageService> storage_service_;
 };
 
 TEST_F(WhatsNewStorageServiceTest, StoresModulesData) {
@@ -114,7 +121,8 @@ TEST_F(WhatsNewStorageServiceTest, StoresEditionsData) {
 }
 
 TEST_F(WhatsNewStorageServiceTest, StoresEditionsDataWithPreviousData) {
-  ScopedDictPrefUpdate update(local_state_.Get(), prefs::kWhatsNewEditionUsed);
+  ScopedDictPrefUpdate update(TestingBrowserProcess::GetGlobal()->local_state(),
+                              prefs::kWhatsNewEditionUsed);
   update->Set("OldEdition100", 100);
   update->Set("OldEdition101", 101);
   EXPECT_FALSE(storage_service_->ReadEditionData().empty());

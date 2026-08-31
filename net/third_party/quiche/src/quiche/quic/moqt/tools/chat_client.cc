@@ -25,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
@@ -39,7 +40,7 @@
 namespace moqt::moq_chat {
 
 std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
-    const moqt::FullTrackName& track_namespace,
+    const moqt::TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> parameters) {
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore ANNOUNCE for my own track.
@@ -185,9 +186,9 @@ void ChatClient::RemoteTrackVisitor::OnReply(
 }
 
 void ChatClient::RemoteTrackVisitor::OnObjectFragment(
-    const FullTrackName& full_track_name, Location /*sequence*/,
-    MoqtPriority /*publisher_priority*/, MoqtObjectStatus /*status*/,
-    absl::string_view object, bool end_of_message) {
+    const FullTrackName& full_track_name,
+    const PublishedObjectMetadata& /*metadata*/, absl::string_view object,
+    bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
@@ -217,7 +218,7 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
   publisher_.Add(queue_);
   session_->set_publisher(&publisher_);
   MoqtOutgoingAnnounceCallback announce_callback =
-      [this](FullTrackName track_namespace,
+      [this](TrackNamespace track_namespace,
              std::optional<MoqtAnnounceErrorReason> reason) {
         if (reason.has_value()) {
           std::cout << "ANNOUNCE rejected, " << reason->reason_phrase << "\n";
@@ -236,7 +237,7 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
   // Send SUBSCRIBE_ANNOUNCE. Pop 3 levels of namespace to get to {moq-chat,
   // chat-id}
   MoqtOutgoingSubscribeAnnouncesCallback subscribe_announces_callback =
-      [this](FullTrackName track_namespace,
+      [this](TrackNamespace track_namespace,
              std::optional<RequestErrorCode> error, absl::string_view reason) {
         if (error.has_value()) {
           std::cout << "SUBSCRIBE_ANNOUNCES rejected, " << reason << "\n";

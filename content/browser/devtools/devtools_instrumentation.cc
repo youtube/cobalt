@@ -17,12 +17,15 @@
 #include "content/browser/devtools/dedicated_worker_devtools_agent_host.h"
 #include "content/browser/devtools/devtools_issue_storage.h"
 #include "content/browser/devtools/devtools_preload_storage.h"
+#include "build/buildflag.h"
 #include "content/browser/devtools/protocol/audits.h"
 #include "content/browser/devtools/protocol/audits_handler.h"
 #include "content/browser/devtools/protocol/browser_handler.h"
 #include "content/browser/devtools/protocol/device_access_handler.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/fedcm_handler.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/fetch_handler.h"
 #include "content/browser/devtools/protocol/input_handler.h"
 #include "content/browser/devtools/protocol/log_handler.h"
@@ -36,6 +39,7 @@
 #include "content/browser/devtools/protocol/tracing_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/devtools/service_worker_devtools_agent_host.h"
+#include "content/browser/devtools/shared_worker_devtools_agent_host.h"
 #include "content/browser/devtools/web_contents_devtools_agent_host.h"
 #include "content/browser/devtools/worker_devtools_manager.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
@@ -981,7 +985,8 @@ void ReportBlockedByResponseIssue(
           .SetDetails(issueDetails.Build())
           .Build();
 
-  ReportBrowserInitiatedIssue(ftn->current_frame_host(), inspector_issue.get());
+  ReportBrowserInitiatedIssue(ftn->current_frame_host(),
+                              std::move(inspector_issue));
 }
 
 }  // namespace
@@ -1663,7 +1668,7 @@ void OnAuctionWorkletNetworkRequestComplete(
                    status);
 }
 
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 bool NeedInterestGroupAuctionEvents(FrameTreeNodeId frame_tree_node_id) {
   FrameTreeNode* ftn = FrameTreeNode::GloballyFindByID(frame_tree_node_id);
   if (!ftn) {
@@ -1704,7 +1709,7 @@ void OnInterestGroupAuctionNetworkRequestCreated(
                        NotifyInterestGroupAuctionNetworkRequestCreated,
                    type, request_id, devtools_auction_ids);
 }
-#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {
@@ -2104,12 +2109,12 @@ void ReportCookieIssue(
     issue->SetIssueId(devtools_issue_id.value());
   }
 
-  ReportBrowserInitiatedIssue(render_frame_host_impl, issue.get());
+  ReportBrowserInitiatedIssue(render_frame_host_impl, std::move(issue));
 }
 
 namespace {
 
-void AddIssueToIssueStorage(
+const protocol::Audits::InspectorIssue& AddIssueToIssueStorage(
     RenderFrameHost* rfh,
     std::unique_ptr<protocol::Audits::InspectorIssue> issue) {
   // We only utilize a central storage on the page. Each issue is still
@@ -2118,7 +2123,7 @@ void AddIssueToIssueStorage(
       DevToolsIssueStorage::GetOrCreateForPage(
           rfh->GetOutermostMainFrame()->GetPage());
 
-  issue_storage->AddInspectorIssue(rfh, std::move(issue));
+  return issue_storage->AddInspectorIssue(rfh, std::move(issue));
 }
 
 }  // namespace
@@ -2133,6 +2138,14 @@ BuildUserReidentificationIssue(
                               : protocol::Audits::AffectedRequest::Create()
                                     .SetUrl(issue_details->request->url)
                                     .Build();
+  auto source_code_location =
+      issue_details->sourceCodeLocation.is_null()
+          ? nullptr
+          : protocol::Audits::SourceCodeLocation::Create()
+                .SetUrl(issue_details->sourceCodeLocation->url.value())
+                .SetLineNumber(issue_details->sourceCodeLocation->line)
+                .SetColumnNumber(issue_details->sourceCodeLocation->column)
+                .Build();
   std::string issue_type;
   switch (issue_details->type) {
     case blink::mojom::UserReidentificationIssueType::kBlockedFrameNavigation:
@@ -2142,6 +2155,10 @@ BuildUserReidentificationIssue(
     case blink::mojom::UserReidentificationIssueType::kBlockedSubresource:
       issue_type = protocol::Audits::UserReidentificationIssueTypeEnum::
           BlockedSubresource;
+      break;
+    case blink::mojom::UserReidentificationIssueType::kNoisedCanvasReadback:
+      issue_type = protocol::Audits::UserReidentificationIssueTypeEnum::
+          NoisedCanvasReadback;
       break;
     default:
       NOTREACHED();
@@ -2169,15 +2186,16 @@ BuildUserReidentificationIssue(
 
 }  // namespace
 
-void ReportBrowserInitiatedIssue(RenderFrameHostImpl* frame,
-                                 protocol::Audits::InspectorIssue* issue) {
+void ReportBrowserInitiatedIssue(
+    RenderFrameHostImpl* frame,
+    std::unique_ptr<protocol::Audits::InspectorIssue> issue) {
   FrameTreeNode* ftn = frame->frame_tree_node();
   if (!ftn) {
     return;
   }
 
-  AddIssueToIssueStorage(frame, issue->Clone());
-  DispatchToAgents(ftn, &protocol::AuditsHandler::OnIssueAdded, issue);
+  const auto& issue_ptr = AddIssueToIssueStorage(frame, std::move(issue));
+  DispatchToAgents(ftn, &protocol::AuditsHandler::OnIssueAdded, issue_ptr);
 }
 
 void BuildAndReportBrowserInitiatedIssue(
@@ -2220,7 +2238,7 @@ void BuildAndReportBrowserInitiatedIssue(
   } else {
     NOTREACHED() << "Unsupported type of browser-initiated issue";
   }
-  ReportBrowserInitiatedIssue(frame, issue.get());
+  ReportBrowserInitiatedIssue(frame, std::move(issue));
 }
 
 void OnWebTransportHandshakeFailed(
@@ -2574,36 +2592,44 @@ void CleanUpDeviceRequestPrompt(RenderFrameHost* render_frame_host,
 void WillSendFedCmRequest(RenderFrameHost& render_frame_host,
                           bool* intercept,
                           bool* disable_delay) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::WillSendRequest, intercept,
                    disable_delay);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void WillShowFedCmDialog(RenderFrameHost& render_frame_host, bool* intercept) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::WillShowDialog, intercept);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void DidShowFedCmDialog(RenderFrameHost& render_frame_host) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::DidShowDialog);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void DidCloseFedCmDialog(RenderFrameHost& render_frame_host) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   FrameTreeNode* ftn = FrameTreeNode::From(&render_frame_host);
   if (!ftn) {
     return;
   }
   DispatchToAgents(ftn, &protocol::FedCmHandler::DidCloseDialog);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 }
 
 void WillSendFedCmNetworkRequest(FrameTreeNodeId frame_tree_node_id,
@@ -2635,7 +2661,7 @@ void WillSendFedCmNetworkRequest(FrameTreeNodeId frame_tree_node_id,
   DispatchToAgents(frame_tree_node_id, &protocol::NetworkHandler::RequestSent,
                    request.devtools_request_id.value(),
                    loader_id.value().ToString(), request.headers, *request_info,
-                   protocol::Network::ResourceTypeEnum::Other, initiator_url,
+                   protocol::Network::ResourceTypeEnum::FedCM, initiator_url,
                    /*initiator_devtools_request_id=*/"", frame_token,
                    base::TimeTicks::Now());
 }
@@ -2670,7 +2696,7 @@ void DidReceiveFedCmNetworkResponse(
     DispatchToAgents(frame_tree_node_id,
                      &protocol::NetworkHandler::ResponseReceived,
                      devtools_request_id, loader_id.value().ToString(), url,
-                     protocol::Network::ResourceTypeEnum::Other, *head_info,
+                     protocol::Network::ResourceTypeEnum::FedCM, *head_info,
                      frame_token.value().ToString());
   }
 
@@ -2683,7 +2709,7 @@ void DidReceiveFedCmNetworkResponse(
 
   DispatchToAgents(
       frame_tree_node_id, &protocol::NetworkHandler::LoadingComplete,
-      devtools_request_id, protocol::Network::ResourceTypeEnum::Other, status);
+      devtools_request_id, protocol::Network::ResourceTypeEnum::FedCM, status);
 }
 
 void OnFencedFrameReportRequestSent(

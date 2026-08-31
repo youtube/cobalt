@@ -39,8 +39,6 @@ class SingleThreadTaskRunner;
 namespace IPC {
 
 class ChannelFactory;
-class MessageFilter;
-class MessageFilterRouter;
 class UrgentMessageObserver;
 
 //-----------------------------------------------------------------------------
@@ -61,13 +59,6 @@ class UrgentMessageObserver;
 // channel will not get cycles to flush its message queue until the thread, on
 // which it is running, returns to its message loop.)
 //
-// An IPC::ChannelProxy can have a MessageFilter associated with it, which will
-// be notified of incoming messages on the IPC::Channel's thread.  This gives
-// the consumer of IPC::ChannelProxy the ability to respond to incoming
-// messages on this background thread instead of on their own thread, which may
-// be bogged down with other processing.  The result can be greatly improved
-// latency for messages that can be handled on a background thread.
-//
 // The consumer of IPC::ChannelProxy is responsible for allocating the Thread
 // instance where the IPC::Channel will be created and operated.
 //
@@ -81,15 +72,6 @@ class UrgentMessageObserver;
 //
 class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
  public:
-#if defined(ENABLE_IPC_FUZZER)
-  // Interface for a filter to be imposed on outgoing messages which can
-  // re-write the message. Used for testing.
-  class OutgoingMessageFilter {
-   public:
-    virtual Message* Rewrite(Message* message) = 0;
-  };
-#endif
-
   // Initializes a channel proxy.  The channel_handle and mode parameters are
   // passed directly to the underlying IPC::Channel.  The listener is called on
   // the thread that creates the ChannelProxy.  The filter's OnMessageReceived
@@ -146,28 +128,11 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
   // Close the IPC::Channel.  This operation completes asynchronously, once the
   // background thread processes the command to close the channel.  It is ok to
   // call this method multiple times.  Redundant calls are ignored.
-  //
-  // WARNING: MessageFilter objects held by the ChannelProxy is also
-  // released asynchronously, and it may in fact have its final reference
-  // released on the background thread.  The caller should be careful to deal
-  // with / allow for this possibility.
   void Close();
 
   // Send a message asynchronously.  The message is routed to the background
   // thread where it is passed to the IPC::Channel's Send method.
   bool Send(Message* message) override;
-
-  // Used to intercept messages as they are received on the background thread.
-  //
-  // Ordinarily, messages sent to the ChannelProxy are routed to the matching
-  // listener on the worker thread.  This API allows code to intercept messages
-  // before they are sent to the worker thread.
-  // If you call this before the target process is launched, then you're
-  // guaranteed to not miss any messages.  But if you call this anytime after,
-  // then some messages might be missed since the filter is added internally on
-  // the IO thread.
-  void AddFilter(MessageFilter* filter);
-  void RemoveFilter(MessageFilter* filter);
 
   // Set the `UrgentMessageObserver` for the channel. Must be called on the
   // proxy thread before initialization.
@@ -209,12 +174,6 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
   void GetRemoteAssociatedInterface(mojo::AssociatedRemote<Interface>* proxy) {
     GetRemoteAssociatedInterface(proxy->BindNewEndpointAndPassReceiver());
   }
-
-#if defined(ENABLE_IPC_FUZZER)
-  void set_outgoing_message_filter(OutgoingMessageFilter* filter) {
-    outgoing_message_filter_ = filter;
-  }
-#endif
 
   // Creates a SharedAssociatedRemote for |Interface|. This object may be used
   // to send messages on the interface from any thread and those messages will
@@ -323,18 +282,14 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
 
    private:
     friend class ChannelProxy;
-    friend class IpcSecurityTestUtil;
 
     // Create the Channel
     void CreateChannel(std::unique_ptr<ChannelFactory> factory);
 
     // Methods called on the IO thread.
     void OnSendMessage(std::unique_ptr<Message> message_ptr);
-    void OnAddFilter();
-    void OnRemoveFilter(MessageFilter* filter);
 
     // Methods called on the listener thread.
-    void AddFilter(MessageFilter* filter);
     void OnDispatchConnected();
     void OnDispatchError();
     void OnDispatchBadMessage(const Message& message);
@@ -362,8 +317,6 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
     scoped_refptr<base::SingleThreadTaskRunner> default_listener_task_runner_;
     raw_ptr<Listener> listener_;
 
-    // List of filters.  This is only accessed on the IPC thread.
-    std::vector<scoped_refptr<MessageFilter> > filters_;
     scoped_refptr<base::SingleThreadTaskRunner> ipc_task_runner_;
 
     // Note, channel_ may be set on the Listener thread or the IPC thread.
@@ -377,14 +330,7 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
     // thread-safe send.
     base::Lock channel_lifetime_lock_;
 
-    // Routes a given message to a proper subset of |filters_|, depending
-    // on which message classes a filter might support.
-    std::unique_ptr<MessageFilterRouter> message_filter_router_;
-
-    // Holds filters between the AddFilter call on the listerner thread and the
-    // IPC thread when they're added to filters_.
-    std::vector<scoped_refptr<MessageFilter> > pending_filters_;
-    // Lock for pending_filters_.
+    // Lock for pending_io_thread_interfaces_ (formerly for pending_filters_)
     base::Lock pending_filters_lock_;
 
     // Cached copy of the peer process ID. Set on IPC but read on both IPC and
@@ -408,20 +354,12 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
 
   Context* context() { return context_.get(); }
 
-#if defined(ENABLE_IPC_FUZZER)
-  OutgoingMessageFilter* outgoing_message_filter() const {
-    return outgoing_message_filter_;
-  }
-#endif
-
   bool did_init() const { return did_init_; }
 
   // A Send() which doesn't DCHECK if the message is synchronous.
   void SendInternal(Message* message);
 
  private:
-  friend class IpcSecurityTestUtil;
-
   template <typename Interface>
   static void BindPendingAssociatedReceiver(
       const AssociatedInterfaceFactory<Interface>& factory,
@@ -439,10 +377,6 @@ class COMPONENT_EXPORT(IPC) ChannelProxy : public Sender {
 
   // Whether the channel has been initialized.
   bool did_init_ = false;
-
-#if defined(ENABLE_IPC_FUZZER)
-  raw_ptr<OutgoingMessageFilter> outgoing_message_filter_ = nullptr;
-#endif
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

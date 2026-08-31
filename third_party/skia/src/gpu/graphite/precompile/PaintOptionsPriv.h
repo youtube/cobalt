@@ -27,6 +27,14 @@ public:
         fPaintOptions->setClipShaders(std::move(clipShaders));
     }
 
+    void setPrimitiveBlendMode(SkBlendMode primitiveBlendMode) {
+        fPaintOptions->setPrimitiveBlendMode(primitiveBlendMode);
+    }
+
+    void setSkipColorXform(bool skipColorXform) {
+        fPaintOptions->setSkipColorXform(skipColorXform);
+    }
+
     int numCombinations() const {
         return fPaintOptions->numCombinations();
     }

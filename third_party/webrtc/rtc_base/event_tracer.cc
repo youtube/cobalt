@@ -10,19 +10,19 @@
 
 #include "rtc_base/event_tracer.h"
 
-#include <stdio.h>
+#include <cstdio>
 
+#include "api/units/time_delta.h"
 #include "rtc_base/trace_event.h"
 
 #if defined(RTC_USE_PERFETTO)
 #include "rtc_base/trace_categories.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #else
-#include <inttypes.h>
-#include <stdint.h>
-#include <string.h>
-
 #include <atomic>
+#include <cinttypes>
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -111,7 +111,7 @@ namespace tracing {
 namespace {
 
 // Atomic-int fast path for avoiding logging when disabled.
-static std::atomic<int> g_event_logging_active(0);
+std::atomic<int> g_event_logging_active(0);
 
 // TODO(pbos): Log metadata for all threads, etc.
 class EventLogger final {
@@ -354,8 +354,8 @@ class EventLogger final {
   bool output_file_owned_ = false;
 };
 
-static std::atomic<EventLogger*> g_event_logger(nullptr);
-static const char* const kDisabledTracePrefix = TRACE_DISABLED_BY_DEFAULT("");
+std::atomic<EventLogger*> g_event_logger(nullptr);
+const char* const kDisabledTracePrefix = TRACE_DISABLED_BY_DEFAULT("");
 const unsigned char* InternalGetCategoryEnabled(const char* name) {
   const char* prefix_ptr = &kDisabledTracePrefix[0];
   const char* name_ptr = name;

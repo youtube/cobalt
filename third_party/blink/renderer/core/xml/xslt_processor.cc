@@ -94,7 +94,7 @@ Document* XSLTProcessor::CreateDocumentFromSource(
     WebNavigationParams::FillStaticResponse(
         params.get(), mime_type,
         source_encoding.empty() ? "UTF-8" : source_encoding,
-        StringUTF8Adaptor(document_source));
+        StringUtf8Adaptor(document_source));
     params->frame_load_type = WebFrameLoadType::kReplaceCurrentItem;
     frame->Loader().CommitNavigation(std::move(params), nullptr,
                                      CommitReason::kXSLT);
@@ -108,9 +108,8 @@ Document* XSLTProcessor::CreateDocumentFromSource(
           .WithExecutionContext(owner_document->GetExecutionContext())
           .WithAgent(owner_document->GetAgent());
   Document* document = init.CreateDocument();
-  auto parsed_source_encoding = source_encoding.empty()
-                                    ? UTF8Encoding()
-                                    : WTF::TextEncoding(source_encoding);
+  auto parsed_source_encoding =
+      source_encoding.empty() ? Utf8Encoding() : TextEncoding(source_encoding);
   if (parsed_source_encoding.IsValid()) {
     DocumentEncodingData data;
     data.SetEncoding(parsed_source_encoding);

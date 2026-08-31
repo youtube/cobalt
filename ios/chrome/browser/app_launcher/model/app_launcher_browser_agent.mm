@@ -6,7 +6,9 @@
 
 #import "base/check.h"
 #import "base/functional/bind.h"
+#import "base/functional/callback_helpers.h"
 #import "base/metrics/histogram_macros.h"
+#import "base/task/sequenced_task_runner.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper.h"
 #import "ios/chrome/browser/mailto_handler/model/mailto_handler_service.h"
 #import "ios/chrome/browser/mailto_handler/model/mailto_handler_service_factory.h"
@@ -153,9 +155,8 @@ RequestCauseFromActionCause(AppLauncherAlertCause cause) {
 #pragma mark - AppLauncherBrowserAgent
 
 AppLauncherBrowserAgent::AppLauncherBrowserAgent(Browser* browser)
-    : BrowserUserData(browser),
-      tab_helper_delegate_(browser),
-      tab_helper_delegate_installer_(&tab_helper_delegate_, browser) {
+    : BrowserUserData(browser), tab_helper_delegate_(browser) {
+  StartObserving(browser->GetWebStateList(), Policy::kAccordingToFeature);
   browser->AddObserver(this);
   app_launcher_scene_state_observer_ = [[AppLauncherSceneStateObserver alloc]
       initWithTransitionCallback:
@@ -165,13 +166,36 @@ AppLauncherBrowserAgent::AppLauncherBrowserAgent(Browser* browser)
   [browser->GetSceneState() addObserver:app_launcher_scene_state_observer_];
 }
 
-AppLauncherBrowserAgent::~AppLauncherBrowserAgent() = default;
+AppLauncherBrowserAgent::~AppLauncherBrowserAgent() {
+  StopObserving();
+}
 
 #pragma mark - BrowserObserver
 
 void AppLauncherBrowserAgent::BrowserDestroyed(Browser* browser) {
   [browser->GetSceneState() removeObserver:app_launcher_scene_state_observer_];
   browser->RemoveObserver(this);
+}
+
+#pragma mark - TabsDependencyInstaller
+
+void AppLauncherBrowserAgent::OnWebStateInserted(web::WebState* web_state) {
+  AppLauncherTabHelper::FromWebState(web_state)->SetDelegate(
+      &tab_helper_delegate_);
+}
+
+void AppLauncherBrowserAgent::OnWebStateRemoved(web::WebState* web_state) {
+  AppLauncherTabHelper::FromWebState(web_state)->SetDelegate(nullptr);
+}
+
+void AppLauncherBrowserAgent::OnWebStateDeleted(web::WebState* web_state) {
+  // Nothing to do.
+}
+
+void AppLauncherBrowserAgent::OnActiveWebStateChanged(
+    web::WebState* old_active,
+    web::WebState* new_active) {
+  // Nothing to do.
 }
 
 #pragma mark - AppLauncherBrowserAgent::TabHelperDelegate

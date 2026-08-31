@@ -169,6 +169,10 @@ class MEDIA_EXPORT WASAPIAudioInputStream
     async_activation_timeout_ms_ = async_activation_timeout_ms;
   }
 
+  // Triggers a call to OnError() on the sink to simulate a stream error.
+  // This method is for testing purposes only.
+  void SimulateErrorForTesting();
+
  private:
   class DataDiscontinuityReporter;
   class EchoCancellationConfig;
@@ -228,7 +232,7 @@ class MEDIA_EXPORT WASAPIAudioInputStream
 
   // Creates the FIFO used to store audio data between the audio engine and the
   // converter.
-  void CreateFifoIfNeeded();
+  HRESULT CreateFifoIfNeeded();
 
   // Our creator, the audio manager needs to be notified when we close.
   const raw_ptr<AudioManagerWin> manager_;
@@ -298,6 +302,18 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // An IAudioClient interface which enables a client to create and initialize
   // an audio stream between an audio application and the audio engine.
   Microsoft::WRL::ComPtr<IAudioClient> audio_client_;
+
+  // Loopback IAudioClient supports event-driven mode but it requires an active
+  // audio output. Some clients (e.g. Chromecast) needs to be able to deliver
+  // a (silent) captured loopback stream even without active output audio, so a
+  // separate IAudioClient is needed to receive notifications when data is
+  // available in the buffer. For loopback input |audio_client_| is used to
+  // receive data, while |audio_render_client_for_loopback_| is used as a helper
+  // to get notifications when a new buffer is ready.
+  // The extra rendering client is only created and used in combination
+  // with endpoint devices or when |is_process_loopback_capture_| is false.
+  // See comment inInitializeAudioEngine() for more details.
+  Microsoft::WRL::ComPtr<IAudioClient> audio_render_client_for_loopback_;
 
   // The IAudioCaptureClient interface enables a client to read input data
   // from a capture endpoint buffer.
@@ -380,6 +396,8 @@ class MEDIA_EXPORT WASAPIAudioInputStream
   // Timeout period for waiting on the OS to activate the audio interface for
   // application loopback capture.
   base::TimeDelta async_activation_timeout_ms_ = base::Seconds(10);
+
+  bool simulate_error_for_testing_ = false;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

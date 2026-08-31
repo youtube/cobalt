@@ -9,17 +9,14 @@
  */
 #include "net/dcsctp/packet/error_cause/stale_cookie_error_cause.h"
 
-#include <stdint.h>
-
+#include <cstdint>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "api/array_view.h"
 #include "net/dcsctp/packet/bounded_byte_reader.h"
 #include "net/dcsctp/packet/bounded_byte_writer.h"
-#include "net/dcsctp/packet/tlv_trait.h"
 #include "rtc_base/strings/string_builder.h"
 
 namespace dcsctp {
@@ -31,7 +28,6 @@ namespace dcsctp {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //  |                 Measure of Staleness (usec.)                  |
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-constexpr int StaleCookieErrorCause::kType;
 
 std::optional<StaleCookieErrorCause> StaleCookieErrorCause::Parse(
     webrtc::ArrayView<const uint8_t> data) {

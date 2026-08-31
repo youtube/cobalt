@@ -13,7 +13,6 @@
 #include <tuple>
 #include <utility>
 
-#include "base/compiler_specific.h"
 #include "base/containers/adapters.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -393,7 +392,7 @@ static bool ConvertEventToUpdate(int render_process_id,
 
   base::Value::Dict dict;
   dict.Set("renderer", render_process_id);
-  dict.Set("player", event.id);
+  dict.Set("player", static_cast<int>(event.id.value()));
 
   // TODO(dalecurtis): This is technically not correct.  TimeTicks "can't" be
   // converted to to a human readable time format.  See base/time/time.h.
@@ -596,7 +595,8 @@ void MediaInternals::UpdateVideoCaptureDeviceCapabilities(
 std::unique_ptr<media::AudioLog> MediaInternals::CreateAudioLog(
     AudioComponent component,
     int component_id) {
-  return CreateAudioLogImpl(component, component_id, -1, MSG_ROUTING_NONE);
+  return CreateAudioLogImpl(component, component_id, -1,
+                            IPC::mojom::kRoutingIdNone);
 }
 
 mojo::PendingRemote<media::mojom::AudioLog> MediaInternals::CreateMojoAudioLog(
@@ -641,8 +641,8 @@ MediaInternals::CreateAudioLogImpl(
     int render_frame_id) {
   base::AutoLock auto_lock(lock_);
   return std::make_unique<AudioLogImpl>(
-      UNSAFE_TODO(owner_ids_[base::to_underlying(component)]++), component,
-      this, component_id, render_process_id, render_frame_id);
+      owner_ids_[base::to_underlying(component)]++, component, this,
+      component_id, render_process_id, render_frame_id);
 }
 
 void MediaInternals::SendUpdate(const std::u16string& update) {
@@ -666,7 +666,7 @@ void MediaInternals::SaveEvent(int process_id,
   if (saved_events.size() > media::MediaLog::kLogLimit) {
     // Remove all events for a given player as soon as we have to remove a
     // single event for that player to avoid showing incomplete players.
-    const int id_to_remove = saved_events.front().id;
+    const media::MediaPlayerLoggingID id_to_remove = saved_events.front().id;
     std::erase_if(saved_events, [&](const media::MediaLogRecord& event) {
       return event.id == id_to_remove;
     });

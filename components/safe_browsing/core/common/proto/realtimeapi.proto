@@ -56,6 +56,10 @@ message RTLookupRequest {
   // Only populated for enterprise requests.
   optional string email = 13;
 
+  // The email of the currently active user in the content area. Only populated
+  // for Workspace sites (enterprise-only).
+  optional string content_area_account_email = 17;
+
   // |version| helps the Safe Browsing server understand what version of the
   // proto Chrome understands, and also what kinds of behaviours it supports.
   // It should be incremented when adding new fields and/or when making changes
@@ -297,6 +301,7 @@ message MatchedUrlNavigationRule {
   optional bool block_screenshot = 8;
 
   message DataMaskingAction {
+    // The display name of the data masking detector.
     optional string display_name = 1;
 
     // The type of masking to be applied. This is either "LIGHT", "HARD" or
@@ -307,6 +312,9 @@ message MatchedUrlNavigationRule {
 
     // This is a regex pattern that will be used to match the URL.
     optional string pattern = 3;
+
+    // The id of the data masking detector.
+    optional string detector_id = 4;
   }
 
   // The set of data masking actions that should be applied to the URL due to

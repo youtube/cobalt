@@ -15,17 +15,20 @@
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
-#include "base/notreached.h"
 #include "base/types/cxx23_to_underlying.h"
 #include "base/types/strong_alias.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
+#include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "ui/gfx/image/image.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/scoped_java_ref.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace autofill {
 
@@ -33,17 +36,21 @@ struct Suggestion {
   struct PasswordSuggestionDetails {
     std::u16string username;
     std::u16string password;
+    // Password used in the recovery flow initiated after failed password
+    // change.
+    std::optional<std::u16string> backup_password;
     // The signon realm of the password. Unlike the `display_signon_realm`, it
     // is not necessarily user friendly/readable, but rather has the raw
     // `PasswordForm::signon_realm` value.
-    std::string signon_realm;
+    std::optional<std::string> signon_realm;
     // Stores either the password signon realm or the Android app name for which
     // the password was saved.
-    std::u16string display_signon_realm;
+    std::optional<std::u16string> display_signon_realm;
     // This flag is set to `false` for the manual fallback suggestions which
     // represent exact, strongly affiliated, PSL and weakly affiliated matches
-    // for the domain the suggestions are shown for. All other suggestions have
-    // this flag set to `true`.
+    // for the domain the suggestions are shown for. All other manual fallback
+    // suggestions have this flag set to `true`.
+    // Note that non-manual-fallback suggestions are never cross domain.
     bool is_cross_domain = false;
 
     PasswordSuggestionDetails();
@@ -52,6 +59,10 @@ struct Suggestion {
                               std::string_view signon_realm,
                               std::u16string_view display_signon_realm,
                               bool is_cross_domain);
+    // Used to construct the payload of a backup password suggestion.
+    PasswordSuggestionDetails(std::u16string_view username,
+                              std::u16string_view password,
+                              std::u16string_view backup_password);
     PasswordSuggestionDetails(const PasswordSuggestionDetails&);
     PasswordSuggestionDetails(PasswordSuggestionDetails&&);
     PasswordSuggestionDetails& operator=(const PasswordSuggestionDetails&);
@@ -110,6 +121,10 @@ struct Suggestion {
     PaymentsPayload& operator=(PaymentsPayload&&);
     ~PaymentsPayload();
 
+#if BUILDFLAG(IS_ANDROID)
+    base::android::ScopedJavaLocalRef<jobject> CreateJavaObject() const;
+#endif  // BUILDFLAG(IS_ANDROID)
+
     friend bool operator==(const PaymentsPayload&,
                            const PaymentsPayload&) = default;
 
@@ -129,7 +144,7 @@ struct Suggestion {
     // The amount of the payment as extracted from the page. For example, used
     // for BNPL suggestions to confirm the amount is in the supported range for
     // a BNPL provider.
-    std::optional<uint64_t> extracted_amount_in_micros = std::nullopt;
+    std::optional<uint64_t> extracted_amount_in_micros;
   };
 
   struct AutofillProfilePayload final {
@@ -141,6 +156,10 @@ struct Suggestion {
     AutofillProfilePayload& operator=(const AutofillProfilePayload&);
     AutofillProfilePayload& operator=(AutofillProfilePayload&&);
     ~AutofillProfilePayload();
+
+#if BUILDFLAG(IS_ANDROID)
+    base::android::ScopedJavaLocalRef<jobject> CreateJavaObject() const;
+#endif  // BUILDFLAG(IS_ANDROID)
 
     friend bool operator==(const AutofillProfilePayload&,
                            const AutofillProfilePayload&) = default;
@@ -174,6 +193,22 @@ struct Suggestion {
     std::map<FieldType, std::u16string> fields;
   };
 
+  struct OneTimePasswordPayload final {
+    OneTimePasswordPayload();
+    explicit OneTimePasswordPayload(
+        std::map<FieldGlobalId, std::u16string> filling_data);
+    OneTimePasswordPayload(const OneTimePasswordPayload&);
+    OneTimePasswordPayload(OneTimePasswordPayload&&);
+    OneTimePasswordPayload& operator=(const OneTimePasswordPayload&);
+    OneTimePasswordPayload& operator=(OneTimePasswordPayload&&);
+    ~OneTimePasswordPayload();
+
+    friend bool operator==(const OneTimePasswordPayload&,
+                           const OneTimePasswordPayload&) = default;
+
+    std::map<FieldGlobalId, std::u16string> filling_data;
+  };
+
   using IsLoading = base::StrongAlias<class IsLoadingTag, bool>;
   using InstrumentId = base::StrongAlias<class InstrumentIdTag, uint64_t>;
   using Payload = std::variant<Guid,
@@ -184,7 +219,9 @@ struct Suggestion {
                                PlusAddressPayload,
                                AutofillAiPayload,
                                PaymentsPayload,
-                               IdentityCredentialPayload>;
+                               IdentityCredentialPayload,
+                               AutocompleteEntry,
+                               OneTimePasswordPayload>;
 
   // This struct is used to provide password suggestions with custom icons,
   // using the favicon of the website associated with the credentials. While
@@ -200,6 +237,20 @@ struct Suggestion {
 
     friend bool operator==(const FaviconDetails&,
                            const FaviconDetails&) = default;
+  };
+
+  // This struct is used to provide data for monochrome icons that are rendered
+  // when there is no loyalty card program logo available.
+  struct LetterMonochromeIcon {
+    explicit LetterMonochromeIcon(std::u16string monogram_text)
+        : monogram_text(monogram_text) {}
+
+    friend bool operator==(const LetterMonochromeIcon&,
+                           const LetterMonochromeIcon&) = default;
+
+    // `monogram_text` is a std::u16string in order to support 2 letter
+    // monograms.
+    std::u16string monogram_text;
   };
 
   // This struct is used to provide the In-Product-Help bubble. It contains both
@@ -289,7 +340,10 @@ struct Suggestion {
     kMagic,
     kOfferTag,
     kPenSpark,
+    kPersonCheck,
     kPlusAddress,
+    kQuestionMark,
+    kRecoveryPassword,
     kScanCreditCard,
     kSettings,
     kSettingsAndroid,
@@ -312,6 +366,7 @@ struct Suggestion {
     kIban,
     kBnpl,
     kSaveAndFill,
+    kAndroidMessages,
   };
 
   // This enum is used to control filtration of suggestions (see it's used in
@@ -350,8 +405,6 @@ struct Suggestion {
   // constructors. Some expect UTF16 strings and others UTF8, while internally
   // we only use UTF16. The ones expecting UTF8 are only used by tests and could
   // be easily refactored.
-  Suggestion();
-  explicit Suggestion(std::u16string main_text);
   explicit Suggestion(SuggestionType type);
   Suggestion(std::u16string main_text, SuggestionType type);
   // Constructor for unit tests. It will convert the strings from UTF-8 to
@@ -400,6 +453,8 @@ struct Suggestion {
                std::holds_alternative<PasswordSuggestionDetails>(payload);
       case SuggestionType::kFillPassword:
       case SuggestionType::kViewPasswordDetails:
+      case SuggestionType::kBackupPasswordEntry:
+      case SuggestionType::kTroubleSigningInEntry:
         return std::holds_alternative<PasswordSuggestionDetails>(payload);
       case SuggestionType::kSeePromoCodeDetails:
         return std::holds_alternative<GURL>(payload);
@@ -417,6 +472,8 @@ struct Suggestion {
                std::holds_alternative<PaymentsPayload>(payload);
       case SuggestionType::kBnplEntry:
         return std::holds_alternative<PaymentsPayload>(payload);
+      case SuggestionType::kOneTimePasswordEntry:
+        return std::holds_alternative<OneTimePasswordPayload>(payload);
       case SuggestionType::kDevtoolsTestAddressEntry:
       default:
         return std::holds_alternative<Guid>(payload) ||
@@ -436,7 +493,7 @@ struct Suggestion {
   Payload payload;
 
   // Determines popup identifier for the suggestion.
-  SuggestionType type = SuggestionType::kAutocompleteEntry;
+  SuggestionType type;
 
   // The texts that will be displayed on the first line in a suggestion. The
   // order of showing the two texts on the first line depends on whether it is
@@ -452,16 +509,24 @@ struct Suggestion {
   // the second line, third column in the grid view of label).
   std::vector<std::vector<Text>> labels;
 
-  // Used only for passwords to show the credential signon realm if applicable.
-  // Also used to display an extra line of information if two line
-  // display is enabled.
+  // Used only for passwords to:
+  // 1. show the credential signon realm if applicable
+  // 2. show the obfuscated backup password in a password recovery flow.
+  // 3. show a "recovery" string next to the backup credential when displaying
+  // backups alongside the primary credentials.
+  // Also used to display an extra line of information if two line display is
+  // enabled.
   std::u16string additional_label;
+
+  // Whether the additional label is aligned to the right (or left in RTL).
+  bool additional_label_alignment_right = false;
 
   // This field outlines various methods for specifying the custom icon.
   // Depending on the use case and platform, it can be a `gfx::Image` instance
-  // or imply more complex semantic of fetching the icon (see `CustomIconUrl`
-  // and `FaviconDetails` docs for details).
-  std::variant<gfx::Image, CustomIconUrl, FaviconDetails> custom_icon;
+  // or imply more complex semantic of fetching the icon (see `CustomIconUrl`,
+  // `LetterMonochromeIcon` and `FaviconDetails` docs for details).
+  std::variant<gfx::Image, CustomIconUrl, FaviconDetails, LetterMonochromeIcon>
+      custom_icon;
 
   // The children of this suggestion. If present, the autofill popup will have
   // submenus.
@@ -514,13 +579,6 @@ struct Suggestion {
 
   // The acceptability of the suggestion, see the enum values doc for details.
   Acceptability acceptability = Acceptability::kAcceptable;
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-  // If true, selecting a suggestion or, when it exists, expanding its
-  // sub-popup, highlights the background of the suggestion row and its
-  // contained cells.
-  bool highlight_on_select = true;
-#endif
 
   // Returns whether the user is able to preview the suggestion by hovering on
   // it or accept it by clicking on it.

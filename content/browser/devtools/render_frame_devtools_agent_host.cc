@@ -11,10 +11,10 @@
 
 #include "base/functional/bind.h"
 #include "base/json/json_reader.h"
-#include "base/lazy_instance.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "components/viz/common/buildflags.h"
@@ -31,7 +31,9 @@
 #include "content/browser/devtools/protocol/device_orientation_handler.h"
 #include "content/browser/devtools/protocol/dom_handler.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/fedcm_handler.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/devtools/protocol/fetch_handler.h"
 #include "content/browser/devtools/protocol/handler_helpers.h"
 #include "content/browser/devtools/protocol/input_handler.h"
@@ -94,16 +96,16 @@ namespace content {
 namespace {
 using RenderFrameDevToolsMap =
     std::map<FrameTreeNode*, RenderFrameDevToolsAgentHost*>;
-base::LazyInstance<RenderFrameDevToolsMap>::Leaky g_agent_host_instances =
-    LAZY_INSTANCE_INITIALIZER;
+RenderFrameDevToolsMap& GetAgentHostInstances() {
+  static base::NoDestructor<RenderFrameDevToolsMap> agent_host_instances;
+  return *agent_host_instances;
+}
 
 static bool g_was_ever_attached_to_any_frame = false;
 
 RenderFrameDevToolsAgentHost* FindAgentHost(FrameTreeNode* frame_tree_node) {
-  if (!g_agent_host_instances.IsCreated())
-    return nullptr;
-  auto it = g_agent_host_instances.Get().find(frame_tree_node);
-  return it == g_agent_host_instances.Get().end() ? nullptr : it->second;
+  auto it = GetAgentHostInstances().find(frame_tree_node);
+  return it == GetAgentHostInstances().end() ? nullptr : it->second;
 }
 
 bool ShouldCreateDevToolsForNode(FrameTreeNode* ftn) {
@@ -139,6 +141,18 @@ DevToolsAgentHostImpl* RenderFrameDevToolsAgentHost::GetFor(
     FrameTreeNode* frame_tree_node) {
   frame_tree_node = GetFrameTreeNodeAncestor(frame_tree_node);
   return FindAgentHost(frame_tree_node);
+}
+
+// static
+DevToolsAgentHostImpl* RenderFrameDevToolsAgentHost::GetForWithAncestorFallback(
+    FrameTreeNode* frame_tree_node) {
+  frame_tree_node = GetFrameTreeNodeAncestor(frame_tree_node);
+  DevToolsAgentHostImpl* agent_host = FindAgentHost(frame_tree_node);
+  if (agent_host || !frame_tree_node->parent()) {
+    return agent_host;
+  }
+  return FindAgentHost(
+      GetFrameTreeNodeAncestor(FrameTreeNode::From(frame_tree_node->parent())));
 }
 
 // static
@@ -252,7 +266,7 @@ void RenderFrameDevToolsAgentHost::UpdateRawHeadersAccess(
   }
   RenderProcessHost* rph = rfh->GetProcess();
   std::set<url::Origin> process_origins;
-  for (const auto& entry : g_agent_host_instances.Get()) {
+  for (const auto& entry : GetAgentHostInstances()) {
     RenderFrameHostImpl* frame_host = entry.second->frame_host_;
     if (!frame_host)
       continue;
@@ -295,7 +309,7 @@ RenderFrameDevToolsAgentHost::RenderFrameDevToolsAgentHost(
 void RenderFrameDevToolsAgentHost::SetFrameTreeNode(
     FrameTreeNode* frame_tree_node) {
   if (frame_tree_node_)
-    g_agent_host_instances.Get().erase(frame_tree_node_);
+    GetAgentHostInstances().erase(frame_tree_node_);
   frame_tree_node_ = frame_tree_node;
   if (frame_tree_node_) {
     DCHECK(web_contents() ==
@@ -304,7 +318,7 @@ void RenderFrameDevToolsAgentHost::SetFrameTreeNode(
     // we may get two agent hosts for the same FrameTreeNode.
     // That is definitely a bug, and we should fix that, and DCHECK
     // here that there is no other agent host.
-    g_agent_host_instances.Get()[frame_tree_node] = this;
+    GetAgentHostInstances()[frame_tree_node] = this;
   }
 }
 
@@ -375,8 +389,7 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
                           base::Unretained(this)));
   session->CreateAndAddHandler<protocol::SchemaHandler>();
   const bool may_attach_to_browser = session->GetClient()->IsTrusted();
-  session->CreateAndAddHandler<protocol::ServiceWorkerHandler>(
-      /* allow_inspect_worker= */ may_attach_to_browser);
+  session->CreateAndAddHandler<protocol::ServiceWorkerHandler>();
   session->CreateAndAddHandler<protocol::StorageHandler>(session->GetClient());
   session->CreateAndAddHandler<protocol::SystemInfoHandler>(
       /* is_browser_session= */ false);
@@ -401,7 +414,9 @@ bool RenderFrameDevToolsAgentHost::AttachSession(DevToolsSession* session) {
                                                            root_session);
   }
   session->CreateAndAddHandler<protocol::LogHandler>();
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   session->CreateAndAddHandler<protocol::FedCmHandler>();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #if !BUILDFLAG(IS_ANDROID)
   session->CreateAndAddHandler<protocol::WebAuthnHandler>();
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -967,7 +982,7 @@ void RenderFrameDevToolsAgentHost::MainThreadDebuggerPaused() {
 
   bool is_same_origin_debugger_attached_in_another_renderer = false;
   bool is_same_origin_debugger_paused_in_another_renderer = false;
-  for (const auto& entry : g_agent_host_instances.Get()) {
+  for (const auto& entry : GetAgentHostInstances()) {
     RenderFrameDevToolsAgentHost* agent_host = entry.second;
     if (agent_host == this || !agent_host->GetWebContents()) {
       continue;

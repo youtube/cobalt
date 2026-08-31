@@ -13,7 +13,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.components.signin.AccountManagerFacade.ChildAccountStatusListener;
 import org.chromium.components.signin.base.AccountInfo;
-import org.chromium.components.signin.base.GaiaId;
+import org.chromium.google_apis.gaia.GaiaId;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -97,35 +97,6 @@ public class AccountUtils {
             Promise<List<AccountInfo>> promise) {
         final List<AccountInfo> accounts = getAccountsIfFulfilledOrEmpty(promise);
         return accounts.isEmpty() ? null : accounts.get(0);
-    }
-
-    /**
-     * Checks the child account status on device based on the list of (zero or more) provided
-     * `accounts`.
-     *
-     * <p>If there are no child account on the device, the listener will be invoked with isChild =
-     * false. If there is a child account on device, the listener will be called with that account
-     * and isChild = true. Note that it is not currently possible to have more than one child
-     * account on device.
-     *
-     * <p>It should be safe to invoke this method before the native library is initialized.
-     *
-     * @param accountManagerFacade The singleton instance of {@link AccountManagerFacade}.
-     * @param accounts The list of {@link AccountInfo} on device.
-     * @param listener The listener is called when the status of the account (whether it is a child
-     *     one) is ready.
-     */
-    public static void checkChildAccountStatus(
-            AccountManagerFacade accountManagerFacade,
-            List<AccountInfo> accounts,
-            ChildAccountStatusListener listener) {
-        if (!accounts.isEmpty()) {
-            // If a child account is present then there can be only one, and it must be the first
-            // account on the device.
-            accountManagerFacade.checkChildAccountStatus(accounts.get(0), listener);
-        } else {
-            listener.onStatusReady(false, null);
-        }
     }
 
     /**

@@ -34,7 +34,6 @@
 #include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
 #include "components/sync/base/pref_names.h"
-#include "components/sync/base/previously_syncing_gaia_id_info_for_metrics.h"
 #include "components/sync/base/sync_util.h"
 #include "components/sync/base/user_selectable_type.h"
 #include "components/sync/engine/nigori/key_derivation_params.h"
@@ -196,7 +195,6 @@ class SyncServiceImplTest : public ::testing::Test {
     std::unique_ptr<SyncClientMock> sync_client =
         sync_service_impl_bundle_.CreateSyncClientMock();
     sync_client_ = sync_client.get();
-    ON_CALL(*sync_client, IsPasswordSyncAllowed).WillByDefault(Return(true));
     ON_CALL(*sync_client, GetIdentityManager)
         .WillByDefault(Return(identity_manager()));
 
@@ -533,7 +531,10 @@ TEST_F(SyncServiceImplTest, AbortedByShutdown) {
 }
 
 // Certain SyncServiceImpl tests don't apply to Chrome OS, for example
-// things that deal with concepts like "signing out".
+// things that deal with concepts like "signing out" or "transport mode"
+// (transport mode technically does exits on ChromeOS if Sync is disabled via
+// dashboard, but the behavior is not the same as on other platforms, e.g. the
+// user cannot enable individual types).
 #if !BUILDFLAG(IS_CHROMEOS)
 // Test the user signing out before the backend's initialization completes.
 TEST_F(SyncServiceImplTest, EarlySignOut) {
@@ -563,11 +564,7 @@ TEST_F(SyncServiceImplTest, EarlySignOut) {
   EXPECT_FALSE(service()->IsSyncFeatureActive());
   EXPECT_FALSE(service()->IsSyncFeatureEnabled());
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS)
 
-// Certain SyncServiceImpl tests don't apply to Chrome OS, for example
-// things that deal with concepts like "signing out".
-#if !BUILDFLAG(IS_CHROMEOS)
 TEST_F(SyncServiceImplTest, SignOutDisablesSyncTransportAndSyncFeature) {
   // Sign-in and enable sync.
   PopulatePrefsForInitialSyncFeatureSetupComplete();
@@ -607,9 +604,6 @@ TEST_F(SyncServiceImplTest,
   ASSERT_TRUE(
       engine_factory()->HasTransportDataIncludingFirstSync(gaia_id_hash()));
 
-  SyncPrefs sync_prefs(prefs());
-  ASSERT_TRUE(sync_prefs.IsFirstSyncCompletedInFullSyncMode());
-
   // Sign-out.
   signin::PrimaryAccountMutator* account_mutator =
       identity_manager()->GetPrimaryAccountMutator();
@@ -625,7 +619,6 @@ TEST_F(SyncServiceImplTest,
             service()->GetDisableReasons());
   EXPECT_FALSE(
       engine_factory()->HasTransportDataIncludingFirstSync(gaia_id_hash()));
-  EXPECT_FALSE(sync_prefs.IsFirstSyncCompletedInFullSyncMode());
 }
 
 TEST_F(SyncServiceImplTest, SignInWhilePausedClearsCachedPersistentAuthError) {
@@ -860,14 +853,6 @@ TEST_F(
   std::vector<FakeControllerInitParams> params;
   params.emplace_back(CONTACT_INFO, /*enable_transport_mode=*/true);
   InitializeService(std::move(params));
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // Sync-the-feature is normally enabled in Ash. Triggering a dashboard reset
-  // is one way to achieve otherwise.
-  SyncProtocolError client_cmd;
-  client_cmd.action = DISABLE_SYNC_ON_CLIENT;
-  service()->OnActionableProtocolError(client_cmd);
-#endif
 
   base::RunLoop().RunUntilIdle();
 
@@ -1639,179 +1624,6 @@ TEST_F(SyncServiceImplTest, ConfigureDataTypeManagerReason) {
   ShutdownAndReleaseService();
 }
 
-TEST_F(SyncServiceImplTest, PreviouslySyncingGaiaIdInfoWithLocalSync) {
-  InitializeServiceWithLocalSyncBackend();
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  EXPECT_EQ(PreviouslySyncingGaiaIdInfoForMetrics::kUnspecified,
-            get_controller(DEVICE_INFO)
-                ->model(SyncMode::kTransportOnly)
-                ->previously_syncing_gaia_id_info());
-}
-
-TEST_F(
-    SyncServiceImplTest,
-    DifferentPreviouslySyncingGaiaIdInfoWithSyncFeatureAlreadyEnabledUponStartup) {
-  PopulatePrefsForInitialSyncFeatureSetupComplete();
-  SignInWithSyncConsent();
-  // If sync is on, the pref is already populated with the current gaia ID.
-  prefs()->SetString(::prefs::kGoogleServicesLastSyncingGaiaId,
-                     identity_test_env()
-                         ->identity_manager()
-                         ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                         .gaia.ToString());
-  // In this case the second pref becomes relevant and is different to the
-  // current one.
-  prefs()->SetString(::prefs::kGoogleServicesSecondLastSyncingGaiaId, "other");
-  InitializeService();
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  EXPECT_EQ(
-      PreviouslySyncingGaiaIdInfoForMetrics::
-          kCurrentGaiaIdIfDiffersPreviousWithSyncFeatureOn,
-      get_controller(DEVICE_INFO)->model()->previously_syncing_gaia_id_info());
-}
-
-TEST_F(
-    SyncServiceImplTest,
-    SamePreviouslySyncingGaiaIdInfoWithSyncFeatureAlreadyEnabledUponStartup) {
-  PopulatePrefsForInitialSyncFeatureSetupComplete();
-  SignInWithSyncConsent();
-  // If sync is on, the pref is already populated with the current gaia ID.
-  prefs()->SetString(::prefs::kGoogleServicesLastSyncingGaiaId,
-                     identity_test_env()
-                         ->identity_manager()
-                         ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                         .gaia.ToString());
-  // In this case the second pref becomes relevant and matches the current one.
-  prefs()->SetString(::prefs::kGoogleServicesSecondLastSyncingGaiaId,
-                     identity_test_env()
-                         ->identity_manager()
-                         ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                         .gaia.ToString());
-  InitializeService();
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  EXPECT_EQ(
-      PreviouslySyncingGaiaIdInfoForMetrics::
-          kCurrentGaiaIdMatchesPreviousWithSyncFeatureOn,
-      get_controller(DEVICE_INFO)->model()->previously_syncing_gaia_id_info());
-}
-
-TEST_F(SyncServiceImplTest, PreviouslySyncingGaiaIdInfoWithNoPreviousAccount) {
-  InitializeService();
-  base::RunLoop().RunUntilIdle();
-
-  SignInWithoutSyncConsent();
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  EXPECT_EQ(PreviouslySyncingGaiaIdInfoForMetrics::
-                kSyncFeatureNeverPreviouslyTurnedOn,
-            get_controller(DEVICE_INFO)
-                ->model(SyncMode::kTransportOnly)
-                ->previously_syncing_gaia_id_info());
-}
-
-TEST_F(SyncServiceImplTest,
-       PreviouslySyncingGaiaIdInfoWithSamePreviousAccount) {
-  prefs()->SetString(::prefs::kGoogleServicesLastSyncingGaiaId,
-                     signin::GetTestGaiaIdForEmail(kTestUser).ToString());
-
-  InitializeService();
-  base::RunLoop().RunUntilIdle();
-  ASSERT_EQ(SyncService::TransportState::DISABLED,
-            service()->GetTransportState());
-
-  SignInWithoutSyncConsent();
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  EXPECT_EQ(PreviouslySyncingGaiaIdInfoForMetrics::
-                kCurrentGaiaIdMatchesPreviousWithSyncFeatureOn,
-            get_controller(DEVICE_INFO)
-                ->model(SyncMode::kTransportOnly)
-                ->previously_syncing_gaia_id_info());
-}
-
-TEST_F(SyncServiceImplTest,
-       PreviouslySyncingGaiaIdInfoWithDifferentPreviousAccount) {
-  prefs()->SetString(::prefs::kGoogleServicesLastSyncingGaiaId,
-                     "DifferentGaiaId");
-
-  InitializeService();
-  base::RunLoop().RunUntilIdle();
-  ASSERT_EQ(SyncService::TransportState::DISABLED,
-            service()->GetTransportState());
-
-  SignInWithoutSyncConsent();
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  EXPECT_EQ(PreviouslySyncingGaiaIdInfoForMetrics::
-                kCurrentGaiaIdIfDiffersPreviousWithSyncFeatureOn,
-            get_controller(DEVICE_INFO)
-                ->model(SyncMode::kTransportOnly)
-                ->previously_syncing_gaia_id_info());
-}
-
-TEST_F(SyncServiceImplTest,
-       PreviouslySyncingGaiaIdInfoWithFirstSyncAlreadyCompleted) {
-  // Sign in and enable sync.
-  InitializeService();
-  SignInWithSyncConsent();
-
-#if BUILDFLAG(IS_CHROMEOS)
-  // On ChromeOS Ash, the first setup is marked as complete automatically.
-  ASSERT_TRUE(
-      service()->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
-#else
-  // For any platform except ChromeOS Ash, the user needs to turn sync on
-  // manually.
-  ASSERT_FALSE(
-      service()->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
-  service()->GetUserSettings()->SetInitialSyncFeatureSetupComplete(
-      syncer::SyncFirstSetupCompleteSource::BASIC_FLOW);
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-  base::RunLoop().RunUntilIdle();
-
-  ASSERT_EQ(SyncService::TransportState::ACTIVE,
-            service()->GetTransportState());
-  ASSERT_EQ(PreviouslySyncingGaiaIdInfoForMetrics::
-                kSyncFeatureNeverPreviouslyTurnedOn,
-            get_controller(BOOKMARKS)
-                ->model(SyncMode::kFull)
-                ->previously_syncing_gaia_id_info());
-  ASSERT_TRUE(SyncPrefs(prefs()).IsFirstSyncCompletedInFullSyncMode());
-
-  // Disable all types from settings.
-  service()->GetUserSettings()->SetSelectedTypes(/*sync_everything=*/false,
-                                                 /*types=*/{});
-  base::RunLoop().RunUntilIdle();
-
-  // Re-enable all types from settings.
-  service()->GetUserSettings()->SetSelectedTypes(/*sync_everything=*/true,
-                                                 /*types=*/{});
-  base::RunLoop().RunUntilIdle();
-
-  // Reconfiguration as a result of customizing toggles in settings should be
-  // reported as `kUnspecified` (i.e. not relevant for metric recording).
-  EXPECT_EQ(PreviouslySyncingGaiaIdInfoForMetrics::kUnspecified,
-            get_controller(BOOKMARKS)
-                ->model(SyncMode::kFull)
-                ->previously_syncing_gaia_id_info());
-}
-
 // Regression test for crbug.com/1043642, can be removed once
 // SyncServiceImpl usages after shutdown are addressed.
 TEST_F(SyncServiceImplTest, ShouldProvideDisableReasonsAfterShutdown) {
@@ -1938,7 +1750,7 @@ TEST_F(SyncServiceImplTest, ShouldNotSubscribeToFailedTypes) {
   params.emplace_back(DEVICE_INFO, /*enable_transport_mode=*/true);
   InitializeService(std::move(params));
   get_controller(BOOKMARKS)->model()->SimulateModelError(
-      ModelError(FROM_HERE, "Model error"));
+      ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError));
 
   EXPECT_CALL(*sync_invalidations_service(),
               SetInterestedDataTypes(AllOf(ContainsDataType(DEVICE_INFO),
@@ -2024,7 +1836,7 @@ TEST_F(SyncServiceImplTest, ShouldUnsubscribeOnTypeFailure) {
               SetInterestedDataTypes(AllOf(ContainsDataType(DEVICE_INFO),
                                            Not(ContainsDataType(BOOKMARKS)))));
   get_controller(BOOKMARKS)->model()->SimulateModelError(
-      ModelError(FROM_HERE, "Model error"));
+      ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError));
   service()->DataTypePreconditionChanged(BOOKMARKS);
   base::RunLoop().RunUntilIdle();
 }
@@ -2114,7 +1926,7 @@ TEST_F(SyncServiceImplTest, ShouldReturnErrorDownloadStatus) {
   base::RunLoop().RunUntilIdle();
 
   get_controller(BOOKMARKS)->model()->SimulateModelError(
-      ModelError(FROM_HERE, "Model error"));
+      ModelError(FROM_HERE, syncer::ModelError::Type::kGenericTestError));
   EXPECT_EQ(service()->GetDownloadStatusFor(syncer::BOOKMARKS),
             SyncService::DataTypeDownloadStatus::kError);
 }

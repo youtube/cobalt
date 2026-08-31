@@ -12,7 +12,7 @@
 #include "mojo/public/cpp/bindings/enum_traits.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
 #include "ui/gfx/buffer_types.h"
-#include "ui/gfx/gpu_memory_buffer.h"
+#include "ui/gfx/gpu_memory_buffer_handle.h"
 #include "ui/gfx/mojom/buffer_types.mojom-shared.h"
 #include "ui/gfx/mojom/native_handle_types.mojom.h"
 
@@ -212,28 +212,11 @@ struct COMPONENT_EXPORT(GFX_SHARED_MOJOM_TRAITS)
                    gfx::BufferUsageAndFormat* out);
 };
 
-template <>
-struct COMPONENT_EXPORT(GFX_SHARED_MOJOM_TRAITS)
-    StructTraits<gfx::mojom::GpuMemoryBufferIdDataView,
-                 gfx::GpuMemoryBufferId> {
-  static int32_t id(const gfx::GpuMemoryBufferId& buffer_id) {
-    return buffer_id.id;
-  }
-  static bool Read(gfx::mojom::GpuMemoryBufferIdDataView data,
-                   gfx::GpuMemoryBufferId* out) {
-    out->id = data.id();
-    return true;
-  }
-};
-
 #if BUILDFLAG(USE_BLINK)
 template <>
 struct COMPONENT_EXPORT(GFX_SHARED_MOJOM_TRAITS)
     StructTraits<gfx::mojom::GpuMemoryBufferHandleDataView,
                  gfx::GpuMemoryBufferHandle> {
-  static gfx::GpuMemoryBufferId id(const gfx::GpuMemoryBufferHandle& handle) {
-    return handle.id;
-  }
   static uint32_t offset(const gfx::GpuMemoryBufferHandle& handle) {
     return handle.offset;
   }

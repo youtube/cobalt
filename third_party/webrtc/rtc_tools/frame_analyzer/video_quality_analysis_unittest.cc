@@ -9,6 +9,8 @@
  */
 #include "rtc_tools/frame_analyzer/video_quality_analysis.h"
 
+#include <cstdio>
+#include <ostream>
 #include <string>
 #include <vector>
 

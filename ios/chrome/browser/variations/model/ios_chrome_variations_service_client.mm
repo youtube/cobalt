@@ -9,10 +9,8 @@
 #import "base/time/time.h"
 #import "base/version.h"
 #import "components/variations/seed_response.h"
-#import "components/variations/service/limited_entropy_synthetic_trial.h"
 #import "components/variations/synthetic_trials.h"
 #import "components/version_info/version_info.h"
-#import "ios/chrome/browser/metrics/model/ios_chrome_metrics_service_accessor.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/paths/paths.h"
 #import "ios/chrome/browser/variations/model/ios_chrome_variations_seed_store.h"
@@ -63,6 +61,13 @@ bool IOSChromeVariationsServiceClient::IsEnterprise() {
 // Nothing to do, as iOS doesn't support multiple profiles.
 void IOSChromeVariationsServiceClient::
     RemoveGoogleGroupsFromPrefsForDeletedProfiles(PrefService* local_state) {}
+
+bool IOSChromeVariationsServiceClient::IsStickyActivationEnabled() {
+  // TODO: crbug.com/435630455 - Roll out to later channels once ready.
+  const auto channel = GetChannelForVariations();
+  return channel == version_info::Channel::UNKNOWN ||
+         channel == version_info::Channel::CANARY;
+}
 
 version_info::Channel IOSChromeVariationsServiceClient::GetChannel() {
   return ::GetChannel();

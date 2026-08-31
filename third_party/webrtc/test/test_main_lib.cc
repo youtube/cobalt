@@ -10,6 +10,8 @@
 
 #include "test/test_main_lib.h"
 
+#include <stdlib.h>
+
 #include <cstddef>
 #include <cstdlib>
 #include <fstream>
@@ -26,18 +28,15 @@
 #include "api/test/metrics/metric.h"
 #include "api/test/metrics/metrics_exporter.h"
 #include "api/test/metrics/metrics_set_proto_file_exporter.h"
-#include "api/test/metrics/print_result_proxy_metrics_exporter.h"
 #include "api/test/metrics/stdout_metrics_exporter.h"
 #include "rtc_base/event_tracer.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
 #include "rtc_base/ssl_stream_adapter.h"
-#include "system_wrappers/include/field_trial.h"
 #include "system_wrappers/include/metrics.h"
 #include "test/gtest.h"
 #include "test/test_flags.h"
 #include "test/testsupport/file_utils.h"
-#include "test/testsupport/perf_test.h"
 #include "test/testsupport/resources_dir_flag.h"
 
 #if defined(RTC_USE_PERFETTO)
@@ -140,10 +139,6 @@ class TestMainImpl : public TestMain {
     LogMessage::SetLogToStderr(absl::GetFlag(FLAGS_logs) ||
                                absl::GetFlag(FLAGS_verbose));
 
-    // InitFieldTrialsFromString stores the char*, so the char array must
-    // outlive the application.
-    field_trials_ = absl::GetFlag(FLAGS_force_fieldtrials);
-    field_trial::InitFieldTrialsFromString(field_trials_.c_str());
     metrics::Enable();
 
 #if defined(WEBRTC_WIN)
@@ -191,7 +186,6 @@ class TestMainImpl : public TestMain {
 #if defined(WEBRTC_IOS)
     test::InitTestSuite(RUN_ALL_TESTS, argc, argv,
                         absl::GetFlag(FLAGS_write_perf_output_on_ios),
-                        absl::GetFlag(FLAGS_export_perf_results_new_api),
                         absl::GetFlag(FLAGS_webrtc_test_metrics_output_path),
                         metrics_to_plot);
     test::RunTestsFromIOSApp();
@@ -200,21 +194,16 @@ class TestMainImpl : public TestMain {
     int exit_code = RUN_ALL_TESTS();
 
     std::vector<std::unique_ptr<test::MetricsExporter>> exporters;
-    if (absl::GetFlag(FLAGS_export_perf_results_new_api)) {
-      exporters.push_back(std::make_unique<test::StdoutMetricsExporter>());
-      if (!absl::GetFlag(FLAGS_webrtc_test_metrics_output_path).empty()) {
-        exporters.push_back(std::make_unique<test::MetricsSetProtoFileExporter>(
-            test::MetricsSetProtoFileExporter::Options(
-                absl::GetFlag(FLAGS_webrtc_test_metrics_output_path))));
-      }
-      if (!absl::GetFlag(FLAGS_isolated_script_test_perf_output).empty()) {
-        exporters.push_back(
-            std::make_unique<test::ChromePerfDashboardMetricsExporter>(
-                absl::GetFlag(FLAGS_isolated_script_test_perf_output)));
-      }
-    } else {
+    exporters.push_back(std::make_unique<test::StdoutMetricsExporter>());
+    if (!absl::GetFlag(FLAGS_webrtc_test_metrics_output_path).empty()) {
+      exporters.push_back(std::make_unique<test::MetricsSetProtoFileExporter>(
+          test::MetricsSetProtoFileExporter::Options(
+              absl::GetFlag(FLAGS_webrtc_test_metrics_output_path))));
+    }
+    if (!absl::GetFlag(FLAGS_isolated_script_test_perf_output).empty()) {
       exporters.push_back(
-          std::make_unique<test::PrintResultProxyMetricsExporter>());
+          std::make_unique<test::ChromePerfDashboardMetricsExporter>(
+              absl::GetFlag(FLAGS_isolated_script_test_perf_output)));
     }
     // Log number of tests that should be run, are disabled or skipped and total
     // number.
@@ -242,18 +231,6 @@ class TestMainImpl : public TestMain {
 
     test::ExportPerfMetric(*test::GetGlobalMetricsLogger(),
                            std::move(exporters));
-    if (!absl::GetFlag(FLAGS_export_perf_results_new_api)) {
-      std::string perf_output_file =
-          absl::GetFlag(FLAGS_isolated_script_test_perf_output);
-      if (!perf_output_file.empty()) {
-        if (!test::WritePerfResults(perf_output_file)) {
-          return 1;
-        }
-      }
-      if (metrics_to_plot) {
-        test::PrintPlottableResults(*metrics_to_plot);
-      }
-    }
 
     std::string result_filename =
         absl::GetFlag(FLAGS_isolated_script_test_output);

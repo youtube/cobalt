@@ -41,8 +41,8 @@ namespace test {
 
 namespace {
 
-const int kWidth = 352;
-const int kHeight = 288;
+constexpr int kWidth = 352;
+constexpr int kHeight = 288;
 
 }  // namespace
 
@@ -64,7 +64,7 @@ class VideoProcessorTest : public ::testing::Test {
     });
   }
 
-  ~VideoProcessorTest() {
+  ~VideoProcessorTest() override {
     q_.SendTask([this] { video_processor_.reset(); });
   }
 

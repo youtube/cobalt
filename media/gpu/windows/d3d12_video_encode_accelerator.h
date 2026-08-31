@@ -13,7 +13,10 @@
 
 #include <vector>
 
+#include "base/containers/circular_deque.h"
 #include "base/containers/queue.h"
+#include "gpu/config/gpu_driver_bug_workarounds.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/bitstream_buffer.h"
 #include "media/base/encoder_status.h"
 #include "media/base/media_log.h"
@@ -26,6 +29,12 @@
 
 namespace media {
 
+class CommandBufferHelper;
+typedef base::OnceCallback<void(scoped_refptr<VideoFrame> frame,
+                                Microsoft::WRL::ComPtr<ID3D12Resource> resource,
+                                HRESULT hr)>
+    FrameAvailableCB;
+
 class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
     : public VideoEncodeAccelerator {
  public:
@@ -36,11 +45,15 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
         ID3D12VideoDevice3* video_device,
         VideoCodecProfile profile) = 0;
     virtual SupportedProfiles GetSupportedProfiles(
-        ID3D12VideoDevice3* video_device) = 0;
+        ID3D12VideoDevice3* video_device,
+        const std::vector<D3D12_VIDEO_ENCODER_CODEC>& codecs) = 0;
   };
 
+  using GetCommandBufferStubCB =
+      base::RepeatingCallback<gpu::CommandBufferStub*()>;
   explicit D3D12VideoEncodeAccelerator(
-      Microsoft::WRL::ComPtr<ID3D12Device> device);
+      Microsoft::WRL::ComPtr<ID3D12Device> device,
+      const gpu::GpuDriverBugWorkarounds& gpu_workarounds);
   ~D3D12VideoEncodeAccelerator() override;
 
   void SetEncoderFactoryForTesting(
@@ -59,6 +72,20 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
       uint32_t framerate,
       const std::optional<gfx::Size>& size) override;
   void Destroy() override;
+  void Flush(FlushCallback flush_callback) override;
+  bool IsFlushSupported() override;
+  void SetCommandBufferHelperCB(
+      base::RepeatingCallback<scoped_refptr<CommandBufferHelper>()>
+          command_buffer_helper_cb,
+      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner) override;
+
+  struct GetCommandBufferHelperResult {
+    GetCommandBufferHelperResult();
+    GetCommandBufferHelperResult(const GetCommandBufferHelperResult& other);
+    ~GetCommandBufferHelperResult();
+    scoped_refptr<CommandBufferHelper> command_buffer_helper;
+    Microsoft::WRL::ComPtr<ID3D11Device> shared_d3d_device;
+  };
 
   base::SingleThreadTaskRunner* GetEncoderTaskRunnerForTesting() const;
   size_t GetInputFramesQueueSizeForTesting() const;
@@ -84,12 +111,32 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
                   const VideoEncoder::EncodeOptions& options);
 
   void DoEncodeTask(scoped_refptr<VideoFrame> frame,
+                    Microsoft::WRL::ComPtr<ID3D12Resource> resolved_texture,
                     const VideoEncoder::EncodeOptions& options,
                     const BitstreamBuffer& bitstream_buffer);
 
+  void TryEncodeFrames();
+
+  void ResolveQueuedSharedImages();
+
   void DestroyTask();
 
+  void FlushTask();
+
+  void NotifyFlushDone(bool succeed);
+
   void NotifyError(EncoderStatus status);
+
+  // Invoked when the CommandBufferHelper is available.
+  void OnCommandBufferHelperAvailable(
+      const GetCommandBufferHelperResult& result);
+
+  // Invoked when a shared image backed VideoFrame is resolved.
+  void OnSharedImageResolved(scoped_refptr<VideoFrame> frame,
+                             Microsoft::WRL::ComPtr<ID3D12Resource> resource,
+                             HRESULT hr);
+
+  std::vector<D3D12_VIDEO_ENCODER_CODEC> codecs_;
 
   Microsoft::WRL::ComPtr<ID3D12Device> device_;
   Microsoft::WRL::ComPtr<ID3D12VideoDevice3> video_device_;
@@ -101,6 +148,12 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
   // Encoder sequence and its checker. All tasks are executed on it.
   const scoped_refptr<base::SingleThreadTaskRunner> encoder_task_runner_;
   SEQUENCE_CHECKER(encoder_sequence_checker_);
+
+  // Used to post tasks to the gpu thread for shared image access
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
+
+  // Helper for accessing shared textures.
+  scoped_refptr<CommandBufferHelper> command_buffer_helper_;
 
   VideoEncoderInfo encoder_info_;
 
@@ -116,6 +169,16 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
 
   bool error_occurred_ = false;
 
+  // True if Destroy() has been called.
+  bool destroy_requested_ GUARDED_BY_CONTEXT(child_sequence_checker_) = false;
+
+  // True if a flush request is pending.
+  bool flush_requested_ GUARDED_BY_CONTEXT(encoder_sequence_checker_) = false;
+
+  // The accelerator has acquired the command buffer helper that
+  // would be used for accessing incoming shared images.
+  bool acquired_command_buffer_ = false;
+
   std::unique_ptr<D3D12CopyCommandQueueWrapper> copy_command_queue_
       GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
@@ -128,9 +191,12 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
   // Used for frame format conversion.
   VideoFrameConverter frame_converter_;
 
+  // Invoked once flush is completed.
+  FlushCallback flush_callback_;
+
   struct InputFrameRef;
 
-  base::queue<InputFrameRef> input_frames_queue_
+  base::circular_deque<InputFrameRef> input_frames_queue_
       GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   base::queue<BitstreamBuffer> bitstream_buffers_

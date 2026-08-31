@@ -89,6 +89,9 @@ class PrerenderHostObserver {
   // True if the PrerenderHost was activated to be the primary page.
   bool was_activated() const;
 
+  // Returns true if the PrerenderHost is reused.
+  bool WasHostReused() const;
+
  private:
   std::unique_ptr<PrerenderHostObserverImpl> impl_;
 };
@@ -150,6 +153,10 @@ class PrerenderTestHelper {
                                        const GURL& url);
   FrameTreeNodeId GetHostForUrl(const GURL& url);
 
+  static FrameTreeNodeId GetPrewarmSearchResultHost(WebContents& web_contents,
+                                                    const GURL& prewarm_url);
+  FrameTreeNodeId GetPrewarmSearchResultHost(const GURL& prewarm_url);
+
   // Returns whether the registry holds the handler for prerender-into-new-tab.
   bool HasNewTabHandle(FrameTreeNodeId host_id);
 
@@ -170,6 +177,7 @@ class PrerenderTestHelper {
   static void WaitForPrerenderLoadCancellation(WebContents& web_contents,
                                                const GURL& url);
   void WaitForPrerenderLoadCancellation(const GURL& url);
+  void WaitForPrerenderLoadCancellation(FrameTreeNodeId host_id);
 
   // Adds <script type="speculationrules"> in the current main frame and waits
   // until the completion of prerendering. Returns the id of the resulting
@@ -204,6 +212,7 @@ class PrerenderTestHelper {
       const std::string& target_hint,
       std::optional<std::string> ruleset_tag = std::nullopt,
       int32_t world_id = ISOLATED_WORLD_ID_GLOBAL);
+  void AddPrerenderUntilScriptAsync(const GURL& url);
 
   void AddPrefetchAsync(const GURL& prefetch_url);
 

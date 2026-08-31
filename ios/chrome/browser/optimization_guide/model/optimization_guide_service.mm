@@ -5,7 +5,7 @@
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service.h"
 
 #import "base/apple/bundle_locations.h"
-#import "base/files/file_util.h"
+#import "base/functional/bind.h"
 #import "base/functional/callback.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/path_service.h"
@@ -13,19 +13,19 @@
 #import "base/task/thread_pool.h"
 #import "base/time/default_clock.h"
 #import "components/component_updater/pref_names.h"
-#import "components/optimization_guide/core/command_line_top_host_provider.h"
-#import "components/optimization_guide/core/hints_processing_util.h"
+#import "components/optimization_guide/core/delivery/prediction_manager.h"
+#import "components/optimization_guide/core/hints/command_line_top_host_provider.h"
+#import "components/optimization_guide/core/hints/hints_processing_util.h"
+#import "components/optimization_guide/core/hints/optimization_guide_navigation_data.h"
+#import "components/optimization_guide/core/hints/optimization_guide_store.h"
+#import "components/optimization_guide/core/hints/top_host_provider.h"
 #import "components/optimization_guide/core/model_execution/model_execution_manager.h"
 #import "components/optimization_guide/core/model_execution/on_device_model_service_controller.h"
-#import "components/optimization_guide/core/optimization_guide_constants.h"
 #import "components/optimization_guide/core/optimization_guide_features.h"
 #import "components/optimization_guide/core/optimization_guide_logger.h"
-#import "components/optimization_guide/core/optimization_guide_navigation_data.h"
-#import "components/optimization_guide/core/optimization_guide_store.h"
 #import "components/optimization_guide/core/optimization_guide_util.h"
-#import "components/optimization_guide/core/prediction_manager.h"
-#import "components/optimization_guide/core/top_host_provider.h"
 #import "components/prefs/pref_service.h"
+#import "components/services/unzip/in_process_unzipper.h"
 #import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/variations/synthetic_trials.h"
 #import "ios/chrome/browser/metrics/model/ios_chrome_metrics_service_accessor.h"
@@ -53,18 +53,6 @@ using ModelExecutionError = optimization_guide::
 #if BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
 using ::optimization_guide::OnDeviceModelComponentStateManager;
 #endif  // BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
-
-// Deletes old store paths that were written in incorrect locations.
-void DeleteOldStorePaths(const base::FilePath& profile_path) {
-  // Added 11/2023
-  //
-  // Delete the old profile-wide model download store path, since
-  // the install-wide model store is enabled now.
-  base::ThreadPool::PostTask(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
-      base::GetDeletePathRecursivelyCallback(profile_path.Append(
-          optimization_guide::kOldOptimizationGuidePredictionModelDownloads)));
-}
 
 #if BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
 class OnDeviceModelComponentStateManagerDelegate
@@ -126,7 +114,6 @@ OptimizationGuideService::OptimizationGuideService(
     PrefService* pref_service,
     BrowserList* browser_list,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
-    BackgroundDownloadServiceProvider background_download_service_provider,
     signin::IdentityManager* identity_manager)
     : pref_service_(pref_service), off_the_record_(off_the_record) {
   DCHECK(optimization_guide::features::IsOptimizationHintsEnabled());
@@ -134,7 +121,6 @@ OptimizationGuideService::OptimizationGuideService(
   // In off the record profile, the stores of normal profile should be
   // passed to the constructor. In normal profile, they will be created.
   DCHECK(!off_the_record_ || hint_store);
-  base::FilePath models_dir;
   if (!off_the_record_) {
     // Only create a top host provider from the command line if provided.
     top_host_provider_ =
@@ -148,8 +134,7 @@ OptimizationGuideService::OptimizationGuideService(
                   profile_path.Append(
                       optimization_guide::kOptimizationGuideHintStore),
                   base::ThreadPool::CreateSequencedTaskRunner(
-                      {base::MayBlock(), base::TaskPriority::BEST_EFFORT}),
-                  pref_service)
+                      {base::MayBlock(), base::TaskPriority::BEST_EFFORT}))
             : nullptr;
     hint_store = hint_store_ ? hint_store_->AsWeakPtr() : nullptr;
   }
@@ -164,13 +149,9 @@ OptimizationGuideService::OptimizationGuideService(
     prediction_manager_ =
         std::make_unique<optimization_guide::PredictionManager>(
             optimization_guide::IOSChromePredictionModelStore::GetInstance(),
-            url_loader_factory, pref_service, off_the_record_,
-            application_locale, models_dir, optimization_guide_logger_.get(),
-            std::move(background_download_service_provider),
-            base::BindRepeating([]() {
-              return GetApplicationContext()->GetLocalState()->GetBoolean(
-                  ::prefs::kComponentUpdatesEnabled);
-            }));
+            url_loader_factory, GetApplicationContext()->GetLocalState(),
+            application_locale, optimization_guide_logger_.get(),
+            base::BindRepeating(&unzip::LaunchInProcessUnzipper));
   }
 
   if (!off_the_record_) {
@@ -211,14 +192,6 @@ OptimizationGuideService::OptimizationGuideService(
 #endif  // BUILDFLAG(BUILD_WITH_INTERNAL_OPTIMIZATION_GUIDE)
   }
 
-  // Some previous paths were written in incorrect locations. Delete the
-  // old paths.
-  //
-  // TODO(crbug.com/40842340): Remove this code in 05/2023 since it should be
-  // assumed that all clients that had the previous path have had their previous
-  // stores deleted.
-  DeleteOldStorePaths(profile_path);
-
   OPTIMIZATION_GUIDE_LOG(
       optimization_guide_common::mojom::LogSource::SERVICE_AND_SETTINGS,
       optimization_guide_logger_,
@@ -234,20 +207,21 @@ OptimizationGuideService::~OptimizationGuideService() {
 
 void OptimizationGuideService::DoFinalInit(
     download::BackgroundDownloadService* background_download_service) {
-  if (!off_the_record_) {
-    bool optimization_guide_fetching_enabled =
-        optimization_guide::IsUserPermittedToFetchFromRemoteOptimizationGuide(
-            off_the_record_, pref_service_);
-    base::UmaHistogramBoolean("OptimizationGuide.RemoteFetchingEnabled",
-                              optimization_guide_fetching_enabled);
-    IOSChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
-        "SyntheticOptimizationGuideRemoteFetching",
-        optimization_guide_fetching_enabled ? "Enabled" : "Disabled",
-        variations::SyntheticTrialAnnotationMode::kCurrentLog);
-    if (background_download_service) {
-      prediction_manager_->MaybeInitializeModelDownloads(
-          background_download_service);
-    }
+  if (off_the_record_) {
+    return;
+  }
+  bool optimization_guide_fetching_enabled =
+      optimization_guide::IsUserPermittedToFetchFromRemoteOptimizationGuide(
+          off_the_record_, pref_service_);
+  base::UmaHistogramBoolean("OptimizationGuide.RemoteFetchingEnabled",
+                            optimization_guide_fetching_enabled);
+  IOSChromeMetricsServiceAccessor::RegisterSyntheticFieldTrial(
+      "SyntheticOptimizationGuideRemoteFetching",
+      optimization_guide_fetching_enabled ? "Enabled" : "Disabled",
+      variations::SyntheticTrialAnnotationMode::kCurrentLog);
+  if (background_download_service) {
+    prediction_manager_->MaybeInitializeModelDownloads(
+        GetApplicationContext()->GetLocalState(), background_download_service);
   }
 }
 

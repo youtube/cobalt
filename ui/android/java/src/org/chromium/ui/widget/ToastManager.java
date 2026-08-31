@@ -14,6 +14,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.JNINamespace;
 
+import org.chromium.base.ResettersForTesting;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 
@@ -61,6 +62,13 @@ public class ToastManager {
         return sInstance;
     }
 
+    /** Override the toast manager for use in testing. */
+    public static void setInstanceForTesting(ToastManager manager) {
+        ToastManager previousManager = sInstance;
+        sInstance = manager;
+        ResettersForTesting.register(() -> sInstance = previousManager);
+    }
+
     private ToastManager() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             mToastEvent = new ToastEventPreR(this::toastHidden);
@@ -102,9 +110,8 @@ public class ToastManager {
         }
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
-    @Nullable
-    Toast getCurrentToast() {
+    @VisibleForTesting
+    @Nullable Toast getCurrentToast() {
         return mToast;
     }
 

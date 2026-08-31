@@ -11,8 +11,8 @@ import android.util.SparseArray;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
-import org.chromium.components.omnibox.EntityInfoProto;
 import org.chromium.components.omnibox.R;
+import org.chromium.components.omnibox.SuggestTemplateInfoProto.SuggestTemplateInfo;
 import org.chromium.components.omnibox.action.OmniboxAction;
 import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.omnibox.action.OmniboxActionId;
@@ -22,11 +22,11 @@ import java.net.URISyntaxException;
 /** Omnibox action for showing the Action in Suggest UI. */
 @NullMarked
 public class OmniboxActionInSuggest extends OmniboxAction {
-    /** Map of {@link EntityInfoProto.ActionInfo.ActionType} to {@link ChipIcon}. */
+    /** Map of {@link SuggestTemplateInfo.TemplateAction.ActionType} to {@link ChipIcon}. */
     private static final SparseArray<ChipIcon> ICON_MAP = createIconMap();
 
     /** The details about the underlying action. */
-    public final /* EntityInfoProto.ActionInfo.ActionType */ int actionType;
+    public final /* SuggestTemplateInfo.TemplateAction.ActionType */ int actionType;
 
     private final String mActionUri;
 
@@ -34,15 +34,17 @@ public class OmniboxActionInSuggest extends OmniboxAction {
             long nativeInstance,
             String hint,
             String accessibilityHint,
-            /* EntityInfoProto.ActionInfo.ActionType */ int actionType,
-            String actionUri) {
+            /* SuggestTemplateInfo.TemplateAction.ActionType */ int actionType,
+            String actionUri,
+            boolean showAsActionButton) {
         super(
                 OmniboxActionId.ACTION_IN_SUGGEST,
                 nativeInstance,
                 hint,
                 accessibilityHint,
                 ICON_MAP.get(actionType, DEFAULT_ICON),
-                R.style.TextAppearance_ChipText);
+                R.style.TextAppearance_ChipText,
+                showAsActionButton);
         this.actionType = actionType;
         mActionUri = actionUri;
     }
@@ -62,14 +64,19 @@ public class OmniboxActionInSuggest extends OmniboxAction {
     private static SparseArray<ChipIcon> createIconMap() {
         var map = new SparseArray<ChipIcon>();
         map.put(
-                EntityInfoProto.ActionInfo.ActionType.CALL_VALUE,
+                SuggestTemplateInfo.TemplateAction.ActionType.CALL_VALUE,
                 new ChipIcon(R.drawable.action_call, true));
         map.put(
-                EntityInfoProto.ActionInfo.ActionType.DIRECTIONS_VALUE,
+                SuggestTemplateInfo.TemplateAction.ActionType.DIRECTIONS_VALUE,
                 new ChipIcon(R.drawable.action_directions, true));
         map.put(
-                EntityInfoProto.ActionInfo.ActionType.REVIEWS_VALUE,
+                SuggestTemplateInfo.TemplateAction.ActionType.REVIEWS_VALUE,
                 new ChipIcon(R.drawable.action_reviews, true));
+        map.put(
+                SuggestTemplateInfo.TemplateAction.ActionType.CHROME_AIM_VALUE,
+                new ChipIcon(
+                        org.chromium.chrome.browser.omnibox.R.drawable.search_spark_black_24dp,
+                        true));
         return map;
     }
 
@@ -88,12 +95,13 @@ public class OmniboxActionInSuggest extends OmniboxAction {
         }
 
         switch (actionType) {
-            case EntityInfoProto.ActionInfo.ActionType.REVIEWS_VALUE:
+            case SuggestTemplateInfo.TemplateAction.ActionType.REVIEWS_VALUE:
+            case SuggestTemplateInfo.TemplateAction.ActionType.CHROME_AIM_VALUE:
                 delegate.loadPageInCurrentTab(assumeNonNull(intent.getDataString()));
                 actionStarted = true;
                 break;
 
-            case EntityInfoProto.ActionInfo.ActionType.CALL_VALUE:
+            case SuggestTemplateInfo.TemplateAction.ActionType.CALL_VALUE:
                 // Don't call directly. Use `DIAL` instead to let the user decide.
                 // Note also that ACTION_CALL requires a dedicated permission.
                 intent.setAction(Intent.ACTION_DIAL);
@@ -103,7 +111,7 @@ public class OmniboxActionInSuggest extends OmniboxAction {
                 actionStarted = delegate.startActivity(intent);
                 break;
 
-            case EntityInfoProto.ActionInfo.ActionType.DIRECTIONS_VALUE:
+            case SuggestTemplateInfo.TemplateAction.ActionType.DIRECTIONS_VALUE:
                 // Open directions in maps only if maps are installed and the incognito mode is
                 // not engaged. In all other cases, redirect the action to Browser.
                 if (!isIncognito) {
@@ -127,7 +135,7 @@ public class OmniboxActionInSuggest extends OmniboxAction {
                         OmniboxMetrics.ActionInSuggestIntentResult.ACTIVITY_NOT_FOUND);
             }
 
-            if (actionType == EntityInfoProto.ActionInfo.ActionType.DIRECTIONS_VALUE) {
+            if (actionType == SuggestTemplateInfo.TemplateAction.ActionType.DIRECTIONS_VALUE) {
                 delegate.loadPageInCurrentTab(assumeNonNull(intent.getDataString()));
             }
         }

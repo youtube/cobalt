@@ -105,8 +105,8 @@ constexpr auto kHistogramValue = base::MakeFixedFlatMap<ContentSettingsType,
     {ContentSettingsType::NOTIFICATION_INTERACTIONS, 86},
     {ContentSettingsType::REDUCED_ACCEPT_LANGUAGE, 87},
     {ContentSettingsType::NOTIFICATION_PERMISSION_REVIEW, 88},
-    {ContentSettingsType::PRIVATE_NETWORK_GUARD, 89},
-    {ContentSettingsType::PRIVATE_NETWORK_CHOOSER_DATA, 90},
+    // Removed PRIVATE_NETWORK_GUARD in M140
+    // Removed PRIVATE_NETWORK_CHOOSER_DATA in M140
     {ContentSettingsType::FEDERATED_IDENTITY_IDENTITY_PROVIDER_SIGNIN_STATUS,
      91},
     {ContentSettingsType::REVOKED_UNUSED_SITE_PERMISSIONS, 92},
@@ -159,6 +159,8 @@ constexpr auto kHistogramValue = base::MakeFixedFlatMap<ContentSettingsType,
      136},
     {ContentSettingsType::INITIALIZED_TRANSLATIONS, 137},
     {ContentSettingsType::SUSPICIOUS_NOTIFICATION_IDS, 138},
+    {ContentSettingsType::GEOLOCATION_WITH_OPTIONS, 139},
+    {ContentSettingsType::DEVICE_ATTRIBUTES, 140},
 
     // As mentioned at the top, please don't forget to update ContentType in
     // enums.xml when you add entries here!

@@ -312,6 +312,15 @@ bool SkCodec::conversionSupported(const SkImageInfo& dst, bool srcIsOpaque, bool
     }
 }
 
+bool SkCodec::rewindStream() {
+    // Some codecs do not have a stream.  They may hold onto their own data or another codec.
+    // They must handle rewinding themselves.
+    if (fStream && !fStream->rewind()) {
+        return false;
+    }
+    return true;
+}
+
 bool SkCodec::rewindIfNeeded() {
     // Store the value of fNeedsRewind so we can update it. Next read will
     // require a rewind.
@@ -325,12 +334,6 @@ bool SkCodec::rewindIfNeeded() {
     fCurrScanline = -1;
     // startIncrementalDecode will need to be called before incrementalDecode.
     fStartedIncrementalDecode = false;
-
-    // Some codecs do not have a stream.  They may hold onto their own data or another codec.
-    // They must handle rewinding themselves.
-    if (fStream && !fStream->rewind()) {
-        return false;
-    }
 
     return this->onRewind();
 }
@@ -350,9 +353,12 @@ bool zero_rect(const SkImageInfo& dstInfo, void* pixels, size_t rowBytes,
     if (dimensions != srcDimensions) {
         SkRect src = SkRect::Make(srcDimensions);
         SkRect dst = SkRect::Make(dimensions);
-        SkMatrix map = SkMatrix::RectToRect(src, dst);
+        auto map = SkMatrix::Rect2Rect(src, dst);
+        if (!map) {
+            return false;
+        }
         SkRect asRect = SkRect::Make(prevRect);
-        if (!map.mapRect(&asRect)) {
+        if (!map->mapRect(&asRect)) {
             return false;
         }
         asRect.roundOut(&prevRect);
@@ -521,7 +527,7 @@ SkCodec::Result SkCodec::getPixels(const SkImageInfo& info, void* pixels, size_t
     // their own.  They indicate that all of the memory has been filled by
     // setting rowsDecoded equal to the height.
     if ((kIncompleteInput == result || kErrorInInput == result) && rowsDecoded != info.height()) {
-        // FIXME: (skbug.com/5772) fillIncompleteImage will fill using the swizzler's width, unless
+        // FIXME: (skbug.com/40036982) fillIncompleteImage will fill using the swizzler's width, unless
         // there is a subset. In that case, it will use the width of the subset. From here, the
         // subset will only be non-null in the case of SkWebpCodec, but it treats the subset
         // differenty from the other codecs, and it needs to use the width specified by the info.
@@ -794,6 +800,9 @@ bool SkCodecPriv::SelectXformFormat(SkColorType colorType,
         case kRGBA_F16_SkColorType:
             *outFormat = skcms_PixelFormat_RGBA_hhhh;
             break;
+        case kRGBA_1010102_SkColorType:
+            *outFormat = skcms_PixelFormat_RGBA_1010102;
+            break;
         case kBGR_101010x_XR_SkColorType:
             *outFormat = skcms_PixelFormat_BGR_101010x_XR;
             break;
@@ -812,22 +821,25 @@ bool SkCodec::initializeColorXform(const SkImageInfo& dstInfo, SkEncodedInfo::Al
     bool needsColorXform = false;
     if (this->usesColorXform()) {
         if (kRGBA_F16_SkColorType == dstInfo.colorType() ||
+                kRGBA_1010102_SkColorType == dstInfo.colorType() ||
                 kBGR_101010x_XR_SkColorType == dstInfo.colorType()) {
             needsColorXform = true;
             if (dstInfo.colorSpace()) {
-                dstInfo.colorSpace()->toProfile(&fDstProfile);
+                dstInfo.colorSpace()->toProfile(&fDstProfileStorage);
+                fDstProfile = &fDstProfileStorage;
             } else {
                 // Use the srcProfile to avoid conversion.
                 const auto* srcProfile = fEncodedInfo.profile();
-                fDstProfile = srcProfile ? *srcProfile : *skcms_sRGB_profile();
+                fDstProfile = srcProfile ? srcProfile : skcms_sRGB_profile();
             }
         } else if (dstInfo.colorSpace()) {
-            dstInfo.colorSpace()->toProfile(&fDstProfile);
+            dstInfo.colorSpace()->toProfile(&fDstProfileStorage);
+            fDstProfile = &fDstProfileStorage;
             const auto* srcProfile = fEncodedInfo.profile();
             if (!srcProfile) {
                 srcProfile = skcms_sRGB_profile();
             }
-            if (!skcms_ApproximatelyEqualProfiles(srcProfile, &fDstProfile) ) {
+            if (!skcms_ApproximatelyEqualProfiles(srcProfile, fDstProfile) ) {
                 needsColorXform = true;
             }
         }
@@ -859,7 +871,7 @@ void SkCodec::applyColorXform(void* dst, const void* src, int count) const {
     // It is okay for srcProfile to be null. This will use sRGB.
     const auto* srcProfile = fEncodedInfo.profile();
     SkAssertResult(skcms_Transform(src, fSrcXformFormat, skcms_AlphaFormat_Unpremul, srcProfile,
-                                   dst, fDstXformFormat, fDstXformAlphaFormat, &fDstProfile,
+                                   dst, fDstXformFormat, fDstXformAlphaFormat, fDstProfile,
                                    count));
 }
 

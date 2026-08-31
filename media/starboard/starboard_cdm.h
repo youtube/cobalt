@@ -76,6 +76,7 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
       EventCB event_cb) override;
 
   SbDrmSystem GetSbDrmSystem() override;
+  std::optional<std::string> GetKeySystem() const override;
 
   bool HasValidSbDrm();
 
@@ -172,6 +173,7 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
 
   // Default task runner.
   scoped_refptr<base::SequencedTaskRunner> const task_runner_;
+  const std::optional<std::string> key_system_;
   const SbDrmSystem sb_drm_;
   SessionMessageCB message_cb_;
   SessionClosedCB closed_cb_;

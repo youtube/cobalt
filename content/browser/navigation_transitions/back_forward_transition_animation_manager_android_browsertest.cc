@@ -376,9 +376,8 @@ class BackForwardTransitionAnimationManagerBrowserTest
  public:
   BackForwardTransitionAnimationManagerBrowserTest() {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
-        {blink::features::kBackForwardTransitions, {}},
-        {blink::features::kIncrementLocalSurfaceIdForMainframeSameDocNavigation,
-         {}}};
+        {blink::features::kBackForwardTransitions,
+         {{"min-required-physical-ram-mb", "0"}}}};
     scoped_feature_list_.InitWithFeaturesAndParameters(
         enabled_features,
         /*disabled_features=*/{});
@@ -654,7 +653,8 @@ class BackForwardTransitionAnimationManagerBothEdgeBrowserTest
   BackForwardTransitionAnimationManagerBothEdgeBrowserTest() {
     scoped_feature_list_.Reset();
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
-        {blink::features::kBackForwardTransitions, {}},
+        {blink::features::kBackForwardTransitions,
+         {{"min-required-physical-ram-mb", "0"}}},
         {ui::kMirrorBackForwardGesturesInRTL, {}}};
     scoped_feature_list_.InitWithFeaturesAndParameters(
         enabled_features,
@@ -1936,10 +1936,7 @@ IN_PROC_BROWSER_TEST_F(BackForwardTransitionAnimationManagerBrowserTest,
 
   ui::WindowAndroid* window = web_contents()->GetTopLevelNativeWindow();
   // The first two args don't matter in tests.
-  window->OnVisibilityChanged(
-      /*env=*/nullptr,
-      /*obj=*/base::android::JavaParamRef<jobject>(nullptr),
-      /*visible=*/false);
+  window->OnVisibilityChanged(/*env=*/nullptr, /*visible=*/false);
   ASSERT_TRUE(destroyed.Wait());
   EXPECT_STATE_EQ(kAnimationAborted, destroyed.Get());
 
@@ -4513,9 +4510,8 @@ class BackForwardTransitionAnimationManagerBrowserTestNoPaintHolding
   BackForwardTransitionAnimationManagerBrowserTestNoPaintHolding() {
     scoped_feature_list_.Reset();
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
-        {blink::features::kBackForwardTransitions, {}},
-        {blink::features::kIncrementLocalSurfaceIdForMainframeSameDocNavigation,
-         {}},
+        {blink::features::kBackForwardTransitions,
+         {{"min-required-physical-ram-mb", "0"}}},
         {features::kRenderDocument,
          {{kRenderDocumentLevelParameterName,
            GetRenderDocumentLevelName(RenderDocumentLevel::kAllFrames)}}}};

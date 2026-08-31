@@ -10,14 +10,18 @@
 
 #include "rtc_base/rtc_certificate_generator.h"
 
-#include <time.h>
-
 #include <algorithm>
+#include <cstdint>
+#include <ctime>
 #include <memory>
+#include <optional>
 #include <utility>
 
+#include "api/scoped_refptr.h"
 #include "rtc_base/checks.h"
+#include "rtc_base/rtc_certificate.h"
 #include "rtc_base/ssl_identity.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 

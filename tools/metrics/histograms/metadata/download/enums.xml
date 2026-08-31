@@ -26,6 +26,13 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<enum name="AndroidDownloadWarningBypassDialogEvent">
+  <int value="0" label="Dialog shown"/>
+  <int value="1" label="User validated download"/>
+  <int value="2" label="User tapped Learn More"/>
+  <int value="3" label="Dialog dismissed"/>
+</enum>
+
 <enum name="BooleanOpenFromDuplicates">
   <int value="0" label="Created New file"/>
   <int value="1" label="Opened existing duplicate"/>
@@ -406,6 +413,8 @@ chromium-metrics-reviews@google.com.
   <int value="9" label="Multiple downloads pending"/>
   <int value="10" label="Scheduled"/>
   <int value="11" label="Multiple downloads scheduled"/>
+  <int value="12" label="Dangerous"/>
+  <int value="13" label="Multiple downloads dangerous"/>
 </enum>
 
 <enum name="DownloadInputStreamReadErrorType">
@@ -520,7 +529,16 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Success after resolving conflict"/>
 </enum>
 
-<enum name="DownloadShelfContextMenuAction">
+<enum name="DownloadTextType">
+  <int value="0" label="UNRECOGNIZED"/>
+  <int value="1" label="PLAIN"/>
+  <int value="2" label="CSS"/>
+  <int value="3" label="CSV"/>
+  <int value="4" label="HTML"/>
+  <int value="5" label="CALENDAR"/>
+</enum>
+
+<enum name="DownloadUiContextMenuAction">
   <int value="0" label="Drop down shown"/>
   <int value="1" label="Drop down enabled"/>
   <int value="2" label="Show in folder enabled"/>
@@ -558,15 +576,6 @@ chromium-metrics-reviews@google.com.
   <int value="34" label="Review enabled (obsolete)"/>
   <int value="35" label="Review clicked (obsolete)"/>
   <int value="36" label="Should never be logged"/>
-</enum>
-
-<enum name="DownloadTextType">
-  <int value="0" label="UNRECOGNIZED"/>
-  <int value="1" label="PLAIN"/>
-  <int value="2" label="CSS"/>
-  <int value="3" label="CSV"/>
-  <int value="4" label="HTML"/>
-  <int value="5" label="CALENDAR"/>
 </enum>
 
 <enum name="DownloadVideoType">
@@ -714,6 +723,7 @@ chromium-metrics-reviews@google.com.
   <int value="0" label="Attached on job start"/>
   <int value="1" label="Attached after job start"/>
   <int value="2" label="Never attached before job complete"/>
+  <int value="3" label="Resumption job started"/>
 </enum>
 
 <enum name="OpenDownloadWithExternalAppsSource">

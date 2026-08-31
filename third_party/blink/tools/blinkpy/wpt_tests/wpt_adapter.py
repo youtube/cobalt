@@ -10,7 +10,6 @@ import json
 import logging
 import optparse
 import signal
-import subprocess
 import sys
 import textwrap
 import tempfile
@@ -20,12 +19,11 @@ from typing import List, Optional
 from blinkpy.common import exit_codes
 from blinkpy.common import path_finder
 from blinkpy.common.host import Host
-from blinkpy.common.system import command_line
 from blinkpy.tool.blink_tool import BlinkTool
 from blinkpy.w3c.local_wpt import LocalWPT
+from blinkpy.web_tests import command_line
 from blinkpy.web_tests.controllers.web_test_finder import WebTestFinder
 from blinkpy.web_tests.models.test_expectations import TestExpectations
-from blinkpy.web_tests.port import factory
 from blinkpy.wpt_tests import product
 from blinkpy.wpt_tests.logging import (
     GroupingFormatter,
@@ -203,19 +201,16 @@ class WPTAdapter:
         if verbose_level >= 1:
             runner_options.log_mach = '-'
             runner_options.log_mach_level = 'info'
-            runner_options.log_mach_verbose = True
         if verbose_level >= 2:
-            runner_options.log_mach_level = 'debug'
+            # Log individual subtest results and `chromedriver` process output.
+            runner_options.log_mach_verbose = True
         if verbose_level >= 3:
+            # Trace test runner and testdriver events.
+            runner_options.log_mach_level = 'debug'
+            # Trace individual CDP requests and events.
             runner_options.webdriver_args.append('--verbose')
         else:
-            # Disable all `chromedriver` logs except from `chrome_launcher.cc`,
-            # which logs the `chrome` command that `WPTResultsProcessor` will
-            # extract.
-            runner_options.webdriver_args.extend([
-                '--log-level=INFO',
-                '--vmodule=chrome_launcher=0,*/chrome/test/chromedriver/*=-1',
-            ])
+            runner_options.webdriver_args.append('--log-level=WARNING')
 
         if self.options.use_upstream_wpt:
             runner_options.log_wptreport = [
@@ -229,6 +224,9 @@ class WPTAdapter:
         runner_options.reftest_screenshot = 'fail'
         runner_options.log = wptlogging.setup(dict(vars(runner_options)),
                                               {'grouped': sys.stdout})
+        runner_options.log.send_message('show_logs', 'on')
+        if self.options.driver_logging:
+            runner_options.log.send_message('driver_logging', 'enable')
         logging.root.handlers.clear()
         logging.root.addHandler(StructuredLogAdapter(runner_options.log))
 
@@ -258,13 +256,8 @@ class WPTAdapter:
             *self.port.additional_driver_flags(),
         ])
 
-        # Implicitly pass `--enable-blink-features=MojoJS,MojoJSTest` and
-        # `--enable-experimental-web-platform-features` to the browser binary.
-        # The latter is needed in addition to `--enable-blink-test-features`
-        # because it enables some Chromium-side `base::Feature()`s:
-        # https://chromium.googlesource.com/chromium/src/+/main/content/public/common/content_switch_dependent_feature_overrides.cc
+        # Implicitly pass `--enable-blink-features=MojoJS,MojoJSTest`.
         runner_options.mojojs_path = self.port.generated_sources_directory()
-        runner_options.enable_experimental = True
 
         # TODO: RWT has subtle control on how tests are retried. For example
         # there won't be automatic retry of failed tests when they are specified
@@ -486,6 +479,7 @@ class WPTAdapter:
             logger.debug(f'Running WPT tests from {self.tests_root}')
 
             runner_options.run_info = tmp_dir
+            runner_options.deps_path = self.fs.join(tmp_dir, 'deps')
             self._initialize_run_info(tmp_dir, self.tests_root)
             if self.options.wrapper:
                 runner_options.debug_test = True
@@ -503,7 +497,7 @@ class WPTAdapter:
         show_results = self.port.get_option('show_results')
         try:
             with self.test_env() as runner_options:
-                run = _load_entry_point()
+                run = _load_entry_point(runner_options.deps_path)
                 exit_code = 1 if run(**vars(runner_options)) else 0
         except KeyboardInterrupt:
             logger.critical('Harness exited after signal interrupt')
@@ -626,16 +620,22 @@ class WPTAdapter:
         logger.info('Running against upstream wpt@%s', commit)
 
 
-def _load_entry_point():
+def _load_entry_point(deps_path: str):
     """Import and return a callable that runs wptrunner.
+
+    Arguments:
+        deps_path: Scratch directory for installing dependencies. Third-party
+            Python packages are not installed here because vpython already
+            installs them elsewhere. However, in `--stable` mode, other
+            dependencies like `chromedriver` may be downloaded here from Chrome
+            for Testing. Therefore, this directory should not be tracked by
+            `git`.
 
     Returns:
         Callable whose keyword arguments are the namespace corresponding to
         command line options.
     """
-    # vpython, not virtualenv, vends third-party packages in chromium/src.
-    dummy_venv = Virtualenv(path_finder.get_source_dir(),
-                            skip_virtualenv_setup=True)
+    dummy_venv = Virtualenv(deps_path, skip_virtualenv_setup=True)
     return functools.partial(run.run, dummy_venv)
 
 
@@ -658,15 +658,15 @@ def handle_interrupt_signals():
 def parse_arguments(argv):
     parser = command_line.ArgumentParser(usage='%(prog)s [options] [tests]',
                                          description=__doc__.splitlines()[0])
-    factory.add_configuration_options_group(
+    command_line.add_configuration_options_group(
         parser,
         rwt=False,
         product_choices=list(product.make_product_registry()))
-    factory.add_logging_options_group(parser)
-    factory.add_results_options_group(parser, rwt=False)
-    factory.add_testing_options_group(parser, rwt=False)
-    factory.add_android_options_group(parser)
-    factory.add_ios_options_group(parser)
+    command_line.add_logging_options_group(parser)
+    command_line.add_results_options_group(parser, rwt=False)
+    command_line.add_testing_options_group(parser, rwt=False)
+    command_line.add_android_options_group(parser)
+    command_line.add_ios_options_group(parser)
 
     parser.add_argument('tests',
                         nargs='*',
@@ -677,22 +677,18 @@ def parse_arguments(argv):
     return options, args
 
 
-def _install_xcode(xcode_build_version: str):
+def _maybe_install_xcode(build_version: str | None):
+    if not build_version:
+        logger.warning('Skipping Xcode installation (no build version given)')
+        return
+
     path_finder.add_build_ios_to_sys_path()
-    import xcode_util as xcode
-    if xcode_build_version:
-        try:
-            xcode.install_xcode('../../mac_toolchain', xcode_build_version,
-                                '../../Xcode.app', '../../Runtime-ios-',
-                                product.IOS_VERSION)
-        except subprocess.CalledProcessError as e:
-            logger.error('Xcode build version %s failed to install: %s ',
-                         xcode_build_version, e)
-        else:
-            logger.info('Xcode build version %s successfully installed.',
-                        xcode_build_version)
-    else:
-        logger.warning('Skip the Xcode installation, no xcode_build_version.')
+    import xcode_util
+    xcode_util.install_xcode('../../mac_toolchain', build_version,
+                             '../../Xcode.app', '../../Runtime-ios-',
+                             product.IOS_DEVICE, product.IOS_VERSION)
+    logger.info('Xcode build version %s successfully installed.',
+                build_version)
 
 
 def main(argv) -> int:
@@ -715,9 +711,9 @@ def main(argv) -> int:
     exit_code = exit_codes.UNEXPECTED_ERROR_EXIT_STATUS
     try:
         adapter = WPTAdapter.from_args(host, argv)
-        if (adapter.product.name == 'chrome_ios'
-                and adapter.options.xcode_build_version):
-            _install_xcode(adapter.options.xcode_build_version)
+        if adapter.product.name == 'chrome_ios':
+            # Xcode needs to be installed early so that `git clone` works.
+            _maybe_install_xcode(adapter.options.xcode_build_version)
         if adapter.options.use_upstream_wpt:
             adapter.checkout_upstream_wpt()
         adapter.set_up_derived_options()

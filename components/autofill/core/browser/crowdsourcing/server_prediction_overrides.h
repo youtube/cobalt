@@ -120,15 +120,17 @@ enum class OverrideFormat {
   //          "predictions": ["NAME_FIRST"]
   //        },
   //        "456": {
-  //          "predictions": ["NAME_FIRST", "PASSPORT_NAME_TAG"]
+  //          "predictions": ["NAME_FIRST", "PASSPORT_NUMBER"]
   //        },
   //     },
   //     "67890": {
   //        "789": [ {
   //          "predictions": ["PASSPORT_ISSUE_DATE"],
+  //          "format_string_type": "DATE",
   //          "format_string": "YYYY-MM-DD"
   //        }, {
   //          "predictions": [172],
+  //          "format_string_type": "DATE",
   //          "format_string": "DD/MM/YYYY"
   //        } ],
   //     }

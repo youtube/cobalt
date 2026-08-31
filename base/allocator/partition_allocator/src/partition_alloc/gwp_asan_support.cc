@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "partition_alloc/gwp_asan_support.h"
 
 #if PA_BUILDFLAG(ENABLE_GWP_ASAN_SUPPORT)
@@ -49,8 +54,7 @@ void* GwpAsanSupport::MapRegion(size_t slot_count,
   auto* bucket = root->buckets + bucket_index;
 
   const size_t kSuperPagePayloadStartOffset =
-      internal::SuperPagePayloadStartOffset(
-          /* is_managed_by_normal_buckets = */ true);
+      internal::SuperPagePayloadStartOffset();
   PA_CHECK(kSuperPagePayloadStartOffset % kSlotSize == 0);
   const size_t kSuperPageGwpAsanSlotAreaBeginOffset =
       kSuperPagePayloadStartOffset;
@@ -69,7 +73,7 @@ void* GwpAsanSupport::MapRegion(size_t slot_count,
   {
     internal::ScopedGuard locker{internal::PartitionRootLock(root)};
     super_page_span_start = bucket->AllocNewSuperPageSpanForGwpAsan(
-        root, super_page_count, AllocFlags::kNone);
+        root, super_page_count, AllocFlags::kReturnNull);
 
     if (!super_page_span_start) {
       return nullptr;
@@ -91,7 +95,7 @@ void* GwpAsanSupport::MapRegion(size_t slot_count,
     for (uintptr_t super_page = super_page_span_start;
          super_page < super_page_span_end; super_page += kSuperPageSize) {
       auto* page_metadata =
-          internal::PartitionSuperPageToMetadataArea(super_page);
+          internal::PartitionSuperPageToMetadataArea(super_page, root);
 
       // Index 0 is invalid because it is the super page extent metadata.
       for (size_t partition_page_idx = 1;
@@ -100,10 +104,9 @@ void* GwpAsanSupport::MapRegion(size_t slot_count,
            partition_page_idx += bucket->get_pages_per_slot_span()) {
         auto* slot_span_metadata =
             &page_metadata[partition_page_idx].slot_span_metadata;
-        bucket->InitializeSlotSpanForGwpAsan(slot_span_metadata, root);
-        auto slot_span_start =
-            internal::SlotSpanMetadata<internal::MetadataKind::kReadOnly>::
-                ToSlotSpanStart(slot_span_metadata);
+        bucket->InitializeSlotSpanForGwpAsan(slot_span_metadata);
+        auto slot_span_start = internal::SlotSpanMetadata::ToSlotSpanStart(
+            slot_span_metadata, root);
 
         for (uintptr_t slot_idx = 0; slot_idx < kSlotsPerSlotSpan; ++slot_idx) {
           auto slot_start = slot_span_start + slot_idx * kSlotSize;
@@ -141,8 +144,7 @@ bool GwpAsanSupport::CanReuse(uintptr_t slot_start) {
 // static
 void GwpAsanSupport::DestructForTesting() {
   static PartitionRoot* root = RootInstance();
-  internal::ScopedGuard locker{internal::PartitionRootLock(root)};
-  root->DestructForTesting();  // IN-TEST
+  root->ResetForTesting(true);  // IN-TEST
 }
 
 }  // namespace partition_alloc

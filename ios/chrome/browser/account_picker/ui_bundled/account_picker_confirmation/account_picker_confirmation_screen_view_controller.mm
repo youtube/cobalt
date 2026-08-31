@@ -15,6 +15,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/string_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/elements/branded_navigation_item_title_view.h"
 #import "ios/chrome/common/ui/util/button_util.h"
@@ -200,8 +201,7 @@ UILabel* CreateGooglePhotosTitleLabel(NSString* title) {
   [super viewDidLoad];
   // Set the navigation title in the left bar button item to have left
   // alignment.
-  if (IsSaveToPhotosTitleImprovementEnabled() &&
-      _configuration.useBrandedTitle) {
+  if (_configuration.useBrandedTitle) {
     if (_configuration.brandedSymbolName) {
       self.navigationItem.titleView = CreateGooglePhotosImageView(
           _configuration.titleText, _configuration.brandedSymbolName);
@@ -281,9 +281,9 @@ UILabel* CreateGooglePhotosTitleLabel(NSString* title) {
   if (bodyText) {
     UILabel* label = [[UILabel alloc] init];
     label.adjustsFontForContentSizeCategory = YES;
-    label.text = bodyText;
+    label.attributedText =
+        PutBoldPartInString(bodyText, UIFontTextStyleSubheadline);
     label.textColor = [UIColor colorNamed:kGrey700Color];
-    label.font = [UIFont preferredFontForTextStyle:UIFontTextStyleSubheadline];
     label.numberOfLines = 0;
     [_contentView addArrangedSubview:label];
     [label.widthAnchor constraintEqualToAnchor:_contentView.widthAnchor]
@@ -344,10 +344,8 @@ UILabel* CreateGooglePhotosTitleLabel(NSString* title) {
     [_askEveryTimeSwitch addTarget:self
                             action:@selector(askEveryTimeSwitchAction:)
                   forControlEvents:UIControlEventValueChanged];
-    _askEveryTimeSwitch.on = YES;
-    if (IsSaveToPhotosAccountPickerImprovementEnabled()) {
-      _askEveryTimeSwitch.on = NO;
-    }
+    _askEveryTimeSwitch.on = NO;
+
     [_askEveryTimeSwitch
         setContentCompressionResistancePriority:UILayoutPriorityRequired
                                         forAxis:
@@ -394,7 +392,7 @@ UILabel* CreateGooglePhotosTitleLabel(NSString* title) {
   ]];
 
   // Add the primary button (the "Continue as"/"Sign in" button).
-  _primaryButton = PrimaryActionButton(/* pointer_interaction_enabled */ YES);
+  _primaryButton = PrimaryActionButton();
   UIButtonConfiguration* buttonConfiguration = _primaryButton.configuration;
   buttonConfiguration.contentInsets = NSDirectionalEdgeInsetsMake(
       kPrimaryButtonVerticalInsets, 0, kPrimaryButtonVerticalInsets, 0);
@@ -445,8 +443,7 @@ UILabel* CreateGooglePhotosTitleLabel(NSString* title) {
 }
 
 - (void)askEveryTimeSwitchAction:(id)sender {
-  BOOL shouldAskEveryTime = !(_askEveryTimeSwitch.on ==
-                              IsSaveToPhotosAccountPickerImprovementEnabled());
+  BOOL shouldAskEveryTime = !_askEveryTimeSwitch.on;
   [_actionDelegate
       accountPickerConfirmationScreenViewController:self
                                     setAskEveryTime:shouldAskEveryTime];

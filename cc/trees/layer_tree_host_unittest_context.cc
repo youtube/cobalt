@@ -71,6 +71,13 @@ class LayerTreeHostContextTest : public LayerTreeTest {
     media::InitializeMediaLibrary();
   }
 
+  void AfterTest() override {
+    // Clear raw_ptr members before destruction starts to prevent
+    // dangling pointer detection when LayerTreeFrameSink is destroyed.
+    ClearContextPointers();
+    LayerTreeTest::AfterTest();
+  }
+
   void LoseContext() {
     // CreateDisplayLayerTreeFrameSink happens on a different thread, so lock
     // gl_ to make sure we don't set it to null after recreating it
@@ -102,9 +109,13 @@ class LayerTreeHostContextTest : public LayerTreeTest {
       ExpectCreateToFail();
       gl_->LoseContextCHROMIUM(GL_GUILTY_CONTEXT_RESET_ARB,
                                GL_INNOCENT_CONTEXT_RESET_ARB);
+      // Clear pointers immediately when we're intentionally failing creation
+      // to prevent dangling pointer errors when the context is destroyed.
+      gl_ = nullptr;
+      sii_ = nullptr;
+    } else {
+      sii_ = provider->SharedImageInterface();
     }
-
-    sii_ = provider->SharedImageInterface();
 
     return LayerTreeTest::CreateLayerTreeFrameSink(
         renderer_settings, refresh_rate, std::move(provider),
@@ -156,13 +167,22 @@ class LayerTreeHostContextTest : public LayerTreeTest {
 
   void ExpectCreateToFail() { ++times_to_expect_create_failed_; }
 
+  // Clear raw_ptr members before LayerTreeFrameSink destruction to prevent
+  // dangling pointers. The gl_ and sii_ pointers refer to objects owned by
+  // the LayerTreeFrameSink's context provider which gets destroyed when the
+  // LayerTreeFrameSink is released.
+  void ClearContextPointers() {
+    base::AutoLock lock(gl_lock_);
+    gl_ = nullptr;
+    sii_ = nullptr;
+  }
+
  protected:
   // Protects use of gl_ so LoseContext and
   // CreateDisplayLayerTreeFrameSink can both use it on different threads.
   base::Lock gl_lock_;
-  raw_ptr<viz::TestGLES2Interface, AcrossTasksDanglingUntriaged> gl_ = nullptr;
-  raw_ptr<gpu::TestSharedImageInterface, AcrossTasksDanglingUntriaged> sii_ =
-      nullptr;
+  raw_ptr<viz::TestGLES2Interface> gl_ = nullptr;
+  raw_ptr<gpu::TestSharedImageInterface> sii_ = nullptr;
 
   int times_to_fail_create_;
   int times_to_lose_during_commit_;
@@ -213,7 +233,10 @@ class LayerTreeHostContextTestLostContextSucceeds
     recovered_context_ = true;
   }
 
-  void AfterTest() override { EXPECT_EQ(11u, test_case_); }
+  void AfterTest() override {
+    EXPECT_EQ(11u, test_case_);
+    LayerTreeHostContextTest::AfterTest();
+  }
 
   void DidCommitAndDrawFrame() override {
     // If the last frame had a context loss, then we'll commit again to
@@ -413,6 +436,9 @@ class LayerTreeHostClientTakeAwayLayerTreeFrameSink
   void HideAndReleaseLayerTreeFrameSink() {
     EXPECT_TRUE(layer_tree_host()->GetTaskRunnerProvider()->IsMainThread());
     layer_tree_host()->SetVisible(false);
+    // Clear raw_ptr members before releasing LayerTreeFrameSink to prevent
+    // dangling pointers when the context provider is destroyed.
+    ClearContextPointers();
     std::unique_ptr<LayerTreeFrameSink> surface =
         layer_tree_host()->ReleaseLayerTreeFrameSink();
     CHECK(surface);
@@ -602,6 +628,7 @@ class LayerTreeHostContextTestCreateLayerTreeFrameSinkFailsOnce
   void AfterTest() override {
     EXPECT_EQ(times_to_fail_, times_create_failed_);
     EXPECT_NE(0, times_initialized_);
+    LayerTreeHostContextTest::AfterTest();
   }
 
  private:
@@ -620,6 +647,13 @@ class LayerTreeHostContextTestLostContextAndEvictTextures
         impl_host_(nullptr),
         num_commits_(0),
         lost_context_(false) {}
+
+  void AfterTest() override {
+    // Clear raw_ptr members before destruction starts to prevent
+    // dangling pointer detection when LayerTreeHostImpl is destroyed.
+    impl_host_ = nullptr;
+    LayerTreeHostContextTest::AfterTest();
+  }
 
   void SetupTree() override {
     // Paint non-solid color.
@@ -695,7 +729,7 @@ class LayerTreeHostContextTestLostContextAndEvictTextures
  protected:
   bool lose_after_evict_;
   FakeContentLayerClient client_;
-  raw_ptr<LayerTreeHostImpl, AcrossTasksDanglingUntriaged> impl_host_;
+  raw_ptr<LayerTreeHostImpl> impl_host_;
   int num_commits_;
   bool lost_context_;
 };
@@ -824,8 +858,16 @@ class LayerTreeHostContextTestDontUseLostResources
   void SetupTree() override {
     auto* ri = child_context_provider_->RasterInterface();
 
+    auto si_size = gfx::Size(4, 4);
+    gpu::SharedImageMetadata metadata;
+    metadata.format = viz::SinglePlaneFormat::kRGBA_8888;
+    metadata.size = si_size;
+    metadata.color_space = gfx::ColorSpace::CreateSRGB();
+    metadata.surface_origin = kTopLeft_GrSurfaceOrigin;
+    metadata.alpha_type = kOpaque_SkAlphaType;
+    metadata.usage = gpu::SharedImageUsageSet();
     scoped_refptr<gpu::ClientSharedImage> shared_image =
-        gpu::ClientSharedImage::CreateForTesting();
+        gpu::ClientSharedImage::CreateForTesting(metadata);
 
     gpu::SyncToken sync_token;
     ri->GenSyncTokenCHROMIUM(sync_token.GetData());
@@ -842,10 +884,9 @@ class LayerTreeHostContextTestDontUseLostResources
     scoped_refptr<TextureLayer> texture = TextureLayer::Create(nullptr);
     texture->SetBounds(gfx::Size(10, 10));
     texture->SetIsDrawable(true);
-    constexpr gfx::Size size(64, 64);
-    auto resource = viz::TransferableResource::MakeGpu(
-        shared_image, GL_TEXTURE_2D, sync_token, size,
-        viz::SinglePlaneFormat::kRGBA_8888, false /* is_overlay_candidate */);
+    auto resource = viz::TransferableResource::Make(
+        shared_image, viz::TransferableResource::ResourceSource::kTest,
+        sync_token);
     texture->SetTransferableResource(
         resource, base::BindOnce(&LayerTreeHostContextTestDontUseLostResources::
                                      EmptyReleaseCallback));
@@ -880,18 +921,18 @@ class LayerTreeHostContextTestDontUseLostResources
     video_scaled_hw->SetIsDrawable(true);
     root->AddChild(video_scaled_hw);
 
-    color_video_frame_ = VideoFrame::CreateColorFrame(
-        gfx::Size(4, 4), 0x80, 0x80, 0x80, base::TimeDelta());
+    color_video_frame_ = VideoFrame::CreateColorFrame(si_size, 0x80, 0x80, 0x80,
+                                                      base::TimeDelta());
     ASSERT_TRUE(color_video_frame_);
     hw_video_frame_ = VideoFrame::WrapSharedImage(
         media::PIXEL_FORMAT_ARGB, shared_image, sync_token,
-        media::VideoFrame::ReleaseMailboxCB(), gfx::Size(4, 4),
-        gfx::Rect(0, 0, 4, 4), gfx::Size(4, 4), base::TimeDelta());
+        media::VideoFrame::ReleaseMailboxCB(), si_size, gfx::Rect(si_size),
+        si_size, base::TimeDelta());
     ASSERT_TRUE(hw_video_frame_);
     scaled_hw_video_frame_ = VideoFrame::WrapSharedImage(
         media::PIXEL_FORMAT_ARGB, shared_image, sync_token,
-        media::VideoFrame::ReleaseMailboxCB(), gfx::Size(4, 4),
-        gfx::Rect(0, 0, 3, 2), gfx::Size(4, 4), base::TimeDelta());
+        media::VideoFrame::ReleaseMailboxCB(), si_size, gfx::Rect(0, 0, 3, 2),
+        si_size, base::TimeDelta());
     ASSERT_TRUE(scaled_hw_video_frame_);
 
     color_frame_provider_.set_frame(color_video_frame_);
@@ -957,7 +998,10 @@ class LayerTreeHostContextTestDontUseLostResources
     }
   }
 
-  void AfterTest() override { EXPECT_TRUE(lost_context_); }
+  void AfterTest() override {
+    EXPECT_TRUE(lost_context_);
+    LayerTreeHostContextTest::AfterTest();
+  }
 
  private:
   FakeContentLayerClient client_;
@@ -1396,6 +1440,7 @@ class UIResourceLostEviction : public UIResourceLostTestSimple {
         ui_resource2_ = nullptr;
         ui_resource3_ = nullptr;
         EndTest();
+        test_ended_ = true;
         break;
       case 4:
         NOTREACHED();
@@ -1403,6 +1448,12 @@ class UIResourceLostEviction : public UIResourceLostTestSimple {
   }
 
   void DidSetVisibleOnImplTree(LayerTreeHostImpl* impl, bool visible) override {
+    // LayerTreeTest will change the visibility of the tree to false as part of
+    // tearing down the LayerTreeHost. sii_ and other resources will already be
+    // destroyed.
+    if (test_ended_) {
+      return;
+    }
     if (!visible) {
       // All resources should have been evicted.
       ASSERT_EQ(0u, sii_->shared_image_count());
@@ -1488,6 +1539,7 @@ class UIResourceLostEviction : public UIResourceLostTestSimple {
  private:
   std::unique_ptr<FakeScopedUIResource> ui_resource2_;
   std::unique_ptr<FakeScopedUIResource> ui_resource3_;
+  bool test_ended_ = false;
 };
 
 SINGLE_AND_MULTI_THREAD_TEST_F(UIResourceLostEviction);
@@ -1530,6 +1582,7 @@ class UIResourceFreedIfLostWhileExported : public LayerTreeHostContextTest {
 
   void DeleteAndEndTest() {
     ui_resource_->DeleteResource();
+    ui_resource_.reset();
     EndTest();
   }
 

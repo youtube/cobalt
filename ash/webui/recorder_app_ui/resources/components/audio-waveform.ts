@@ -13,9 +13,8 @@ import {
 } from 'chrome://resources/mwc/lit/index.js';
 
 import {
+  POWER_BARS_PER_SECOND,
   POWER_SCALE_FACTOR,
-  SAMPLE_RATE,
-  SAMPLES_PER_SLICE,
 } from '../core/audio_constants.js';
 import {i18n} from '../core/i18n.js';
 import {ReactiveLitElement} from '../core/reactive/lit.js';
@@ -61,11 +60,8 @@ function toViewBoxString(viewBox: Rect|null): string|typeof nothing {
 /*
  * There are multiple different coordinate system for the "timestamp" of the
  * waveform used in this component:
- * (1) Time (in seconds). Each second contains SAMPLE_RATE audio samples.
- * (2) Index of the "bar" in the waveform, starting from 0. Each "bar" is an
- *     aggregate of SAMPLES_PER_SLICE audio samples. So index 0 corresponds to
- *     [0, SAMPLES_PER_SLICE) audio samples, index 1 corresponds to
- *     [SAMPLES_PER_SLICE, 2*SAMPLES_PER_SLICE) audio samples, and so on...
+ * (1) Time (in seconds). Each second contains `barsPerSecond` bars.
+ * (2) Index of the "bar" in the waveform, starting from 0.
  * (3) The x coordinate that is rendered in the SVG. Time 0 always corresponds
  *     to x = 0, and the viewBox of the whole SVG is set to show around the
  *     current time.
@@ -81,8 +77,8 @@ function toViewBoxString(viewBox: Rect|null): string|typeof nothing {
  * rendered x coordinate (3) and doesn't corresponds to actual slice of audio
  * samples.
  */
-function timestampToBarIndex(seconds: number): number {
-  return Math.floor((seconds * SAMPLE_RATE) / SAMPLES_PER_SLICE);
+function timestampToBarIndex(seconds: number, barsPerSecond: number): number {
+  return Math.floor(seconds * barsPerSecond);
 }
 
 function getBarX(barIdx: number): number {
@@ -262,6 +258,7 @@ export class AudioWaveform extends ReactiveLitElement {
     values: {attribute: false},
     size: {state: true},
     currentTime: {type: Number},
+    barsPerSecond: {attribute: false},
     transcription: {attribute: false},
   };
 
@@ -270,13 +267,18 @@ export class AudioWaveform extends ReactiveLitElement {
 
   currentTime: number|null = null;
 
+  barsPerSecond: number = POWER_BARS_PER_SECOND;
+
   private readonly currentTimeSignal = this.propSignal('currentTime');
 
   private readonly currentTimeBarIdx = computed(() => {
     if (this.currentTimeSignal.value === null) {
       return null;
     }
-    return timestampToBarIndex(this.currentTimeSignal.value);
+    return timestampToBarIndex(
+      this.currentTimeSignal.value,
+      this.barsPerSecond,
+    );
   });
 
   private size: DOMRect|null = null;
@@ -318,8 +320,9 @@ export class AudioWaveform extends ReactiveLitElement {
       // The timestamps should be increasing.
       assert(startMs <= endMs);
 
-      const startBarIdx = timestampToBarIndex(startMs / 1000);
-      const endBarIdx = timestampToBarIndex(endMs / 1000);
+      const startBarIdx =
+        timestampToBarIndex(startMs / 1000, this.barsPerSecond);
+      const endBarIdx = timestampToBarIndex(endMs / 1000, this.barsPerSecond);
       assert(
         ranges.length === 0 ||
           assertExists(ranges.at(-1)).endBarIdx <= startBarIdx,
@@ -594,55 +597,68 @@ export class AudioWaveform extends ReactiveLitElement {
       (_, i) => i + startIdx,
     );
 
-    return repeat(
-      idxRange,
-      (i) => i,
-      (i) => {
-        const ret: RenderResult[] = [];
+    const toRenderBars: Array<{
+      idx: number,
+      rect: Rect,
+      classes: Record<string, boolean>,
+    }> = [];
+    const toRenderSpeakerLabelRanges: SpeakerLabelRange[] = [];
 
-        const val = assertExists(this.values.array[i]);
-        const rect = this.getBarLocation(
-          i,
-          val,
-          BAR_MIN_HEIGHT,
-          Math.min(viewBox.height, BAR_MAX_HEIGHT),
-        );
-        if (rect.x + rect.width < viewBox.x ||
-            rect.x > viewBox.x + viewBox.width) {
-          return nothing;
+    for (const i of idxRange) {
+      const val = assertExists(this.values.array[i]);
+      const rect = this.getBarLocation(
+        i,
+        val,
+        BAR_MIN_HEIGHT,
+        Math.min(viewBox.height, BAR_MAX_HEIGHT),
+      );
+      if (rect.x + rect.width < viewBox.x ||
+          rect.x > viewBox.x + viewBox.width) {
+        continue;
+      }
+      const classes: Record<string, boolean> = {
+        future: this.isAfterCurrentTime(i),
+      };
+      const range = getSpeakerLabelRange(i);
+
+      if (range !== null) {
+        if (!currentSpeakerLabelRangeRendered) {
+          toRenderSpeakerLabelRanges.push(range);
+          currentSpeakerLabelRangeRendered = true;
         }
-        const classes: Record<string, boolean> = {
-          future: this.isAfterCurrentTime(i),
-        };
-        const range = getSpeakerLabelRange(i);
 
-        if (range !== null) {
-          if (!currentSpeakerLabelRangeRendered) {
-            ret.push(
-              this.renderSpeakerRange(
-                this.speakerLabelInfo.value.speakerLabels,
-                range,
-                viewBox,
-              ),
-            );
-            currentSpeakerLabelRangeRendered = true;
-          }
+        classes[getSpeakerLabelClass(range.speakerLabelIndex)] = true;
+      } else {
+        classes['no-speaker'] = true;
+      }
+      toRenderBars.push({idx: i, rect, classes});
+    }
 
-          classes[getSpeakerLabelClass(range.speakerLabelIndex)] = true;
-        } else {
-          classes['no-speaker'] = true;
-        }
-        ret.push(svg`<rect
+    return [
+      repeat(
+        toRenderSpeakerLabelRanges,
+        ({startBarIdx}) => startBarIdx,
+        (range) => this.renderSpeakerRange(
+          this.speakerLabelInfo.value.speakerLabels,
+          range,
+          viewBox,
+        ),
+      ),
+      repeat(
+        toRenderBars,
+        ({idx}) => idx,
+        ({rect, classes}) => {
+          return svg`<rect
           x=${rect.x}
           y=${rect.y}
           width=${rect.width}
           height=${rect.height}
           rx=${rect.width / 2}
           class="bar ${classMap(classes)}"
-        />`);
-        return ret;
-      },
-    );
+        />`;
+        },
+      ),
+    ];
   }
 
   private renderSvgContent(viewBox: Rect|null) {

@@ -60,26 +60,6 @@
 #include "third_party/blink/public/platform/scheduler/web_thread_scheduler.h"
 #include "ui/base/ui_base_switches.h"
 
-// IPC messages for testing ----------------------------------------------------
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-// TODO(mdempsky): Fix properly by moving into a separate
-// browsertest_message_generator.cc file.
-#undef IPC_IPC_MESSAGE_MACROS_H_
-#undef IPC_MESSAGE_EXTRA
-#define IPC_MESSAGE_IMPL
-#include "ipc/ipc_message_macros.h"
-#include "ipc/ipc_message_start.h"
-#include "ipc/ipc_message_templates_impl.h"
-
-#undef IPC_MESSAGE_START
-#define IPC_MESSAGE_START TestMsgStart
-IPC_MESSAGE_CONTROL0(TestMsg_QuitRunLoop)
-
-#endif
-
-// -----------------------------------------------------------------------------
-
 // These tests leak memory, this macro disables the test when under the
 // LeakSanitizer.
 #ifdef LEAK_SANITIZER
@@ -126,34 +106,6 @@ class TestTaskCounter : public base::SingleThreadTaskRunner {
   int count_;
 };
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-class QuitOnTestMsgFilter : public IPC::MessageFilter {
- public:
-  explicit QuitOnTestMsgFilter(base::OnceClosure quit_closure)
-      : origin_task_runner_(
-            blink::scheduler::GetSequencedTaskRunnerForTesting()),
-        quit_closure_(std::move(quit_closure)) {}
-
-  // IPC::MessageFilter overrides:
-  bool OnMessageReceived(const IPC::Message& message) override {
-    origin_task_runner_->PostTask(FROM_HERE, std::move(quit_closure_));
-    return true;
-  }
-
-  bool GetSupportedMessageClasses(
-      std::vector<uint32_t>* supported_message_classes) const override {
-    supported_message_classes->push_back(TestMsgStart);
-    return true;
-  }
-
- private:
-  ~QuitOnTestMsgFilter() override {}
-
-  scoped_refptr<base::SequencedTaskRunner> origin_task_runner_;
-  base::OnceClosure quit_closure_;
-};
-#endif
-
 class RenderThreadImplBrowserTest : public testing::Test,
                                     public ChildProcessHostDelegate {
  public:
@@ -171,8 +123,7 @@ class RenderThreadImplBrowserTest : public testing::Test,
         GetIOThreadTaskRunner({});
 
     InitializeMojo();
-    process_host_ =
-        ChildProcessHost::Create(this, ChildProcessHost::IpcMode::kNormal);
+    process_host_ = ChildProcessHost::Create(this);
     process_host_->CreateChannelMojo();
 
     CHECK(!process_.get());
@@ -210,12 +161,6 @@ class RenderThreadImplBrowserTest : public testing::Test,
     cmd->InitFromArgv(old_argv);
 
     run_loop_ = std::make_unique<base::RunLoop>();
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-    test_msg_filter_ = base::MakeRefCounted<QuitOnTestMsgFilter>(
-        run_loop_->QuitWhenIdleClosure());
-    thread_->AddFilter(test_msg_filter_.get());
-#endif
-
     main_thread_scheduler_ =
         static_cast<blink::scheduler::WebMockThreadScheduler*>(
             thread_->GetWebMainThreadScheduler());
@@ -250,12 +195,9 @@ class RenderThreadImplBrowserTest : public testing::Test,
   }
 
   // ChildProcessHostDelegate implementation:
-  bool OnMessageReceived(const IPC::Message&) override { return true; }
   const base::Process& GetProcess() override { return null_process_; }
 
  protected:
-  IPC::Sender* sender() { return process_host_.get(); }
-
   void SetBackgroundState(base::Process::Priority process_priority) {
     mojom::Renderer* renderer_interface = thread_;
     const mojom::RenderProcessVisibleState visible_state =
@@ -290,10 +232,6 @@ class RenderThreadImplBrowserTest : public testing::Test,
   std::unique_ptr<ChildProcessHost> process_host_;
 
   std::unique_ptr<RenderProcess> process_;
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  scoped_refptr<QuitOnTestMsgFilter> test_msg_filter_;
-#endif
-
   raw_ptr<blink::scheduler::WebMockThreadScheduler> main_thread_scheduler_;
 
   // RenderThreadImpl doesn't currently support a proper shutdown sequence
@@ -304,28 +242,6 @@ class RenderThreadImplBrowserTest : public testing::Test,
   std::unique_ptr<base::RunLoop> run_loop_;
 };
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-// Disabled under LeakSanitizer due to memory leaks.
-TEST_F(RenderThreadImplBrowserTest,
-       WILL_LEAK(NonResourceDispatchIPCTasksDontGoThroughScheduler)) {
-  // This seems to deflake the test on Android.
-  browser_threads_.RunIOThreadUntilIdle();
-
-  // NOTE other than not being a resource message, the actual message is
-  // unimportant.
-  sender()->Send(new TestMsg_QuitRunLoop());
-
-  // In-process RenderThreadImpl does not start a browser loop so the random
-  // browser seed is never generated. To allow the ChildProcessHost to correctly
-  // send a seed to the ChildProcess without hitting a DCHECK, set the seed to
-  // an arbitrary non-zero value.
-  SetPseudonymizationSalt(0xDEADBEEF);
-
-  run_loop_->Run();
-
-  EXPECT_EQ(0, test_task_counter_->NumTasksPosted());
-}
-#endif
 
 TEST_F(RenderThreadImplBrowserTest, RendererIsBackgrounded) {
   SetBackgroundState(base::Process::Priority::kBestEffort);

@@ -10,8 +10,7 @@
 
 #include "modules/rtp_rtcp/source/tmmbr_help.h"
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <vector>

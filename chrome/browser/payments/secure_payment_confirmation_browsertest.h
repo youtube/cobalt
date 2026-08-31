@@ -15,6 +15,7 @@
 #include "components/webdata/common/web_data_service_consumer.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace base {
 class CommandLine;
@@ -33,7 +34,8 @@ class SecurePaymentConfirmationTest
         // TODO(crbug.com/40868539): Refactor code to allow mocking out the
         // credential store APIs.
         /*disabled_features=*/{
-            features::kSecurePaymentConfirmationUseCredentialStoreAPIs});
+            features::kSecurePaymentConfirmationUseCredentialStoreAPIs,
+            blink::features::kSecurePaymentConfirmationUxRefresh});
   }
 
   // PaymentRequestPlatformBrowserTestBase
@@ -53,6 +55,10 @@ class SecurePaymentConfirmationTest
 
   // Returns the generic WebAuthn error message, to compare against SPC output.
   static std::string GetWebAuthnErrorMessage();
+
+  // Returns the cancel error message when the user closes the SPC dialog, to
+  // compare against SPC output.
+  static std::string GetCancelErrorMessage();
 
   bool database_write_responded_ = false;
   bool confirm_payment_ = false;

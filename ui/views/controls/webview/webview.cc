@@ -16,7 +16,6 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
-#include "ipc/ipc_message.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
@@ -158,6 +157,10 @@ void WebView::LoadInitialURL(const GURL& url,
 
 void WebView::SetFastResize(bool fast_resize) {
   holder_->set_fast_resize(fast_resize);
+}
+
+bool WebView::GetFastResize() const {
+  return holder_->fast_resize();
 }
 
 void WebView::EnableSizingFromWebContents(const gfx::Size& min_size,

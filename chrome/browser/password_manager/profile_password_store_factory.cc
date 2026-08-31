@@ -8,11 +8,12 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/password_manager/credentials_cleaner_runner_factory.h"
-#include "chrome/browser/password_manager/password_store_backend_factory.h"
+#include "chrome/browser/password_manager/factories/credentials_cleaner_runner_factory.h"
+#include "chrome/browser/password_manager/factories/password_store_backend_factory.h"
 #include "chrome/browser/password_manager/password_store_utils.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"

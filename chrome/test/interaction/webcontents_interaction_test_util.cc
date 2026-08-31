@@ -747,21 +747,16 @@ base::Value WebContentsInteractionTestUtil::Evaluate(
     std::string* error_message) {
   CHECK(is_page_loaded());
   auto result = EvalJsLocal(web_contents(), function);
-  if (!result.error.empty()) {
+  if (!result.is_ok()) {
     if (error_message) {
-      *error_message = result.error;
+      *error_message = result.ExtractError();
       return base::Value();
     } else {
-      NOTREACHED() << "Uncaught JS exception: " << result.error;
+      NOTREACHED() << "Uncaught JS exception: " << result;
     }
   }
 
-  // Despite the fact that EvalJsResult::value is const, base::Value in general
-  // is moveable and nothing special is done on EvalJsResult destructor, which
-  // means it's safe to const-cast and move the value out of the struct.
-  auto& value = const_cast<base::Value&>(result.value);
-
-  return std::move(value);
+  return std::move(result).TakeValue();
 }
 
 void WebContentsInteractionTestUtil::Execute(const std::string& function) {

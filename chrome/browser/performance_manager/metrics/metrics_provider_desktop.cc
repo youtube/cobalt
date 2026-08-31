@@ -13,7 +13,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/timer/timer.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -80,7 +80,8 @@ CpuThroughputEstimatedStatus EstimateCpuThroughputStatus(
   return CpuThroughputEstimatedStatus::kNormal;
 }
 
-constexpr char kCpuEstimationEventCategory[] = "power";
+constexpr char kCpuEstimationEventCategory[] =
+    "performance_manager.cpu_metrics";
 constexpr char kCpuEstimationEvent[] = "CpuStatusSampling";
 
 constexpr char kCpuEstimationStatusNormalEvent[] =

@@ -13,7 +13,7 @@
 #include "base/notreached.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/timer/elapsed_timer.h"
-#include "base/trace_event/base_tracing.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -28,11 +28,9 @@ File::Info::~Info() = default;
 
 File::File() = default;
 
-#if !BUILDFLAG(IS_NACL)
 File::File(const FilePath& path, uint32_t flags) : error_details_(FILE_OK) {
   Initialize(path, flags);
 }
-#endif
 
 File::File(ScopedPlatformFile platform_file)
     : File(std::move(platform_file), false) {}
@@ -85,7 +83,6 @@ File& File::operator=(File&& other) {
   return *this;
 }
 
-#if !BUILDFLAG(IS_NACL)
 void File::Initialize(const FilePath& path, uint32_t flags) {
   if (path.ReferencesParent()) {
 #if BUILDFLAG(IS_WIN)
@@ -98,17 +95,12 @@ void File::Initialize(const FilePath& path, uint32_t flags) {
     error_details_ = FILE_ERROR_ACCESS_DENIED;
     return;
   }
-  if (FileTracing::IsCategoryEnabled()
-#if BUILDFLAG(IS_ANDROID)
-      || path.IsContentUri()
-#endif
-  ) {
+  if (FileTracing::IsCategoryEnabled()) {
     path_ = path;
   }
   SCOPED_FILE_TRACE("Initialize");
   DoInitialize(path, flags);
 }
-#endif
 
 std::optional<size_t> File::Read(int64_t offset, span<uint8_t> data) {
   span<char> chars = base::as_writable_chars(data);

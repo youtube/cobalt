@@ -105,7 +105,8 @@ bool InputTransferHandlerAndroid::OnTouchEvent(
     return false;
   }
 
-  if (event.GetToolType() != ui::MotionEvent::ToolType::FINGER) {
+  if (event.ui::MotionEvent::GetToolType() !=
+      ui::MotionEvent::ToolType::FINGER) {
     EmitTransferResultHistogramAndTraceEvent(
         TransferInputToVizResult::kNonFingerToolType);
     return false;
@@ -148,6 +149,15 @@ bool InputTransferHandlerAndroid::OnTouchEvent(
         TransferInputToVizResult::kWebContentsIgnoringInputEvents);
     // Let browser handle this sequence since it might potentially be filtered
     // out at WebContents level.
+    return false;
+  }
+
+  if (!client_->IsMojoRIRDelegateConnectionSetup()) {
+    EmitTransferResultHistogramAndTraceEvent(
+        TransferInputToVizResult::kRIRDelegateConnectionNotSetup);
+    // Let browser handle this sequence since the input handling interfaces on
+    // VizCompositorThread have not been yet setup for this
+    // RenderWidgetHostViewAndroid.
     return false;
   }
 

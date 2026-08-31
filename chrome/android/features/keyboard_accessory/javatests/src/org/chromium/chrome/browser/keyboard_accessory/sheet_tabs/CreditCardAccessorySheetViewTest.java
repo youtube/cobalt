@@ -58,7 +58,9 @@ import org.chromium.chrome.browser.keyboard_accessory.data.UserInfoField;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_tabs.AccessorySheetTabItemsModel.AccessorySheetDataPiece;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.widget.chips.ChipView;
 import org.chromium.url.GURL;
 
@@ -76,19 +78,21 @@ public class CreditCardAccessorySheetViewTest {
     private static final Bitmap TEST_CARD_ART_IMAGE =
             Bitmap.createBitmap(100, 200, Bitmap.Config.ARGB_8888);
 
+    private WebPageStation mPage;
     private AccessorySheetTabItemsModel mModel;
     private final AtomicReference<RecyclerView> mView = new AtomicReference<>();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     @Mock AutofillImageFetcher mMockImageFetcher;
 
     @Before
     public void setUp() throws InterruptedException {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mPage = mActivityTestRule.startOnBlankPage();
         AutofillImageFetcherFactory.setInstanceForTesting(mMockImageFetcher);
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
@@ -575,8 +579,8 @@ public class CreditCardAccessorySheetViewTest {
         LoyaltyCardInfoView loyaltyCardView = (LoyaltyCardInfoView) mView.get().getChildAt(0);
         assertThat(loyaltyCardView.getMerchantName().isShown(), is(true));
         assertThat(loyaltyCardView.getMerchantName().getText(), is(kMerchantName));
-        // The icon should be hidden since the image is not cached.
-        assertThat(loyaltyCardView.findViewById(R.id.loyalty_card_icon).isShown(), is(false));
+        // Default generated monogram logo icon should be shown.
+        assertThat(loyaltyCardView.findViewById(R.id.loyalty_card_icon).isShown(), is(true));
         assertThat(
                 loyaltyCardView.getLoyaltyCardNumber().getPrimaryTextView().getText(),
                 is(kLoyaltyCardNumber));
@@ -595,7 +599,7 @@ public class CreditCardAccessorySheetViewTest {
             String cvc,
             GURL iconUrl,
             AtomicBoolean clickRecorder) {
-        UserInfo info = new UserInfo(origin, true, iconUrl);
+        UserInfo info = new UserInfo(origin, true, iconUrl, false);
         info.addField(
                 new UserInfoField.Builder()
                         .setSuggestionType(AccessorySuggestionType.CREDIT_CARD_NUMBER)

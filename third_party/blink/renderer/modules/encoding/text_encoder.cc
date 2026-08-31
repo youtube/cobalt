@@ -48,10 +48,10 @@ BASE_FEATURE(kThrowExceptionWhenTextEncodeOOM,
 
 TextEncoder* TextEncoder::Create(ExecutionContext* context,
                                  ExceptionState& exception_state) {
-  return MakeGarbageCollected<TextEncoder>(UTF8Encoding());
+  return MakeGarbageCollected<TextEncoder>(Utf8Encoding());
 }
 
-TextEncoder::TextEncoder(const WTF::TextEncoding& encoding)
+TextEncoder::TextEncoder(const TextEncoding& encoding)
     : encoding_(encoding), codec_(NewTextCodec(encoding)) {
   DCHECK_EQ(encoding_.GetName(), "UTF-8");
 }
@@ -71,8 +71,8 @@ NotShared<DOMUint8Array> TextEncoder::encode(const String& input,
   // U+FFFD-replacement rather than ASCII fallback substitution when
   // unencodable sequences (for instance, unpaired UTF-16 surrogates)
   // are present in the input.
-  std::string result = WTF::VisitCharacters(input, [this](auto chars) {
-    return codec_->Encode(chars, WTF::kNoUnencodables);
+  std::string result = VisitCharacters(input, [this](auto chars) {
+    return codec_->Encode(chars, UnencodableHandling::kNoUnencodables);
   });
   if (base::FeatureList::IsEnabled(kThrowExceptionWhenTextEncodeOOM)) {
     NotShared<DOMUint8Array> result_array(
@@ -94,7 +94,7 @@ TextEncoderEncodeIntoResult* TextEncoder::encodeInto(
       TextEncoderEncodeIntoResult::Create();
 
   TextCodec::EncodeIntoResult encode_into_result_data =
-      WTF::VisitCharacters(source, [this, &destination](auto chars) {
+      VisitCharacters(source, [this, &destination](auto chars) {
         return codec_->EncodeInto(chars, destination->ByteSpan());
       });
   encode_into_result->setRead(encode_into_result_data.code_units_read);

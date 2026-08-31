@@ -37,7 +37,7 @@ source_set("common") {
     "//base",
     "//components/crash/core/common:crash_key",
     "//skia",
-    "//third_party:freetype_harfbuzz",
+    "//third_party/harfbuzz-ng",
     "//ui/gfx/geometry",
     "//url",
   ]
@@ -57,6 +57,7 @@ source_set("test_utils") {
   ]
 
   deps = [
+    "//base/test:test_support",
     "//components/paint_preview/common",
     "//testing/gmock",
     "//testing/gtest",
@@ -85,7 +86,7 @@ source_set("unit_tests") {
     "//skia",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party:freetype_harfbuzz",
+    "//third_party/harfbuzz-ng",
     "//ui/gfx/geometry",
   ]
   if (is_ios) {

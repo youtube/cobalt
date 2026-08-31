@@ -39,6 +39,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/trace_event/trace_event.h"
+#include "media/audio/audio_features.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_glitch_info.h"
 #include "third_party/blink/public/common/features.h"
@@ -81,25 +82,11 @@ const char* DeviceStateToString(AudioDestination::DeviceState state) {
   }
 }
 
-bool BypassOutputBuffer(const WebAudioLatencyHint& latency_hint) {
+bool BypassOutputBuffer() {
   if (RuntimeEnabledFeatures::WebAudioBypassOutputBufferingOptOutEnabled()) {
     return false;
   }
-  if (!RuntimeEnabledFeatures::WebAudioBypassOutputBufferingEnabled()) {
-    return false;
-  }
-  switch (latency_hint.Category()) {
-    case WebAudioLatencyHint::kCategoryInteractive:
-      return features::kWebAudioBypassOutputBufferingInteractive.Get();
-    case WebAudioLatencyHint::kCategoryBalanced:
-      return features::kWebAudioBypassOutputBufferingBalanced.Get();
-    case WebAudioLatencyHint::kCategoryPlayback:
-      return features::kWebAudioBypassOutputBufferingPlayback.Get();
-    case WebAudioLatencyHint::kCategoryExact:
-      return features::kWebAudioBypassOutputBufferingExact.Get();
-    default:
-      return false;
-  }
+  return RuntimeEnabledFeatures::WebAudioBypassOutputBufferingEnabled();
 }
 
 }  // namespace
@@ -175,13 +162,13 @@ int AudioDestination::Render(base::TimeDelta delay,
     if (worklet_task_runner_) {
       // Use the dual-thread rendering if the AudioWorklet is activated.
       output_buffer_bypass_wait_event_.Reset();
-      PostCrossThreadTask(
+      const bool posted_successfully = PostCrossThreadTask(
           *worklet_task_runner_, FROM_HERE,
           CrossThreadBindOnce(
               &AudioDestination::RequestRenderWait, WrapRefCounted(this),
               number_of_frames, frames_to_render, delay, delay_timestamp,
               glitch_info, /*request_timestamp=*/base::TimeTicks::Now()));
-      {
+      if (posted_successfully) {
         TRACE_EVENT0("webaudio", "AudioDestination::Render waiting");
         base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
         // This is `Wait()`ing on the audio render thread for a `Signal()` from
@@ -200,6 +187,9 @@ int AudioDestination::Render(base::TimeDelta delay,
         // both threads waiting on each other. There is, however, no guarantee
         // that the task runner will finish within the real-time budget.
         output_buffer_bypass_wait_event_.Wait();
+      } else {
+        // The render request failed to post
+        state_change_underrun_in_bypass_mode_ = true;
       }
     } else {
       // Otherwise use the single-thread rendering.
@@ -444,7 +434,7 @@ AudioDestination::AudioDestination(
           AudioDestinationUmaReporter(latency_hint,
                                       callback_buffer_size_,
                                       web_audio_device_->SampleRate())),
-      is_output_buffer_bypassed_(BypassOutputBuffer(latency_hint)) {
+      is_output_buffer_bypassed_(BypassOutputBuffer()) {
   CHECK(web_audio_device_);
 
   SendLogMessage(__func__, String::Format("({output_channels=%u})",
@@ -484,7 +474,7 @@ AudioDestination::AudioDestination(
   double scale_factor = 1.0;
 
   if (!base::FeatureList::IsEnabled(
-          features::kWebAudioRemoveAudioDestinationResampler) &&
+          ::features::kWebAudioRemoveAudioDestinationResampler) &&
       context_sample_rate_ != web_audio_device_->SampleRate()) {
     scale_factor = context_sample_rate_ / web_audio_device_->SampleRate();
     SendLogMessage(__func__,

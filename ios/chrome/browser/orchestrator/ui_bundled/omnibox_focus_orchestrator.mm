@@ -475,24 +475,12 @@
 // Returns YES if the focus event was triggered by the NTP Fakebox in its
 // unpinned state.
 - (BOOL)isTriggerUnpinnedFakebox {
-  switch (_trigger) {
-    case OmniboxFocusTrigger::kUnpinnedFakebox:
-      return YES;
-    case OmniboxFocusTrigger::kOther:
-    case OmniboxFocusTrigger::kPinnedFakebox:
-      return NO;
-  }
+  return _trigger == OmniboxFocusTrigger::kUnpinnedFakebox;
 }
 
 // Returns YES if the focus event was triggered by the NTP Fakebox in its
 // pinned state.
 - (BOOL)isTriggerPinnedFakebox {
-  switch (_trigger) {
-    case OmniboxFocusTrigger::kPinnedFakebox:
-      return YES;
-    case OmniboxFocusTrigger::kOther:
-    case OmniboxFocusTrigger::kUnpinnedFakebox:
-      return NO;
-  }
+  return _trigger == OmniboxFocusTrigger::kPinnedFakebox;
 }
 @end

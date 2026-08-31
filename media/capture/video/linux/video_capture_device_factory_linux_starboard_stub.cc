@@ -14,6 +14,8 @@
 
 #include "media/capture/video/linux/video_capture_device_factory_linux.h"
 
+#include "base/notimplemented.h"
+
 namespace media {
 
 // TODO: b/412467942 - Cobalt: Make media changes which can

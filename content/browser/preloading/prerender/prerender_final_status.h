@@ -147,8 +147,8 @@ enum class PrerenderFinalStatus {
   // status is specified.
   kActivatedWithAuxiliaryBrowsingContexts = 72,
 
-  kMaxNumOfRunningEagerPrerendersExceeded = 73,
-  kMaxNumOfRunningNonEagerPrerendersExceeded = 74,
+  kMaxNumOfRunningImmediatePrerendersExceeded = 73,
+  kMaxNumOfRunningNonImmediatePrerendersExceeded = 74,
   kMaxNumOfRunningEmbedderPrerendersExceeded = 75,
 
   kPrerenderingUrlHasEffectiveUrl = 76,
@@ -177,8 +177,11 @@ enum class PrerenderFinalStatus {
 
   // Prerendering canceled by clearing cache from browsing data removal.
   kBrowsingDataRemoved = 87,
+  // Prerendering cancelled but the PrerenderHost is reused for future
+  // navigation.
+  kPrerenderHostReused = 88,
 
-  kMaxValue = kBrowsingDataRemoved,
+  kMaxValue = kPrerenderHostReused,
 };
 // LINT.ThenChange(//third_party/blink/public/devtools_protocol/browser_protocol.pdl)
 

@@ -160,9 +160,12 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
 - (void)disconnect {
   _syncObserver.reset();
   _syncService = nullptr;
+  _consumer = nullptr;
   _identityManager = nullptr;
   _identityManagerObserver.reset();
   _authenticationService = nullptr;
+  self.commandHandler = nullptr;
+  self.syncErrorHandler = nullptr;
   _chromeAccountManagerService = nullptr;
   _prefService = nullptr;
   _signedInIdentity = nil;
@@ -773,9 +776,7 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
       break;
     case syncer::UserSelectableType::kPasswords:
       itemType = PasswordsDataTypeItemType;
-      textStringID = IOSPasskeysM2Enabled()
-                         ? IDS_SYNC_DATATYPE_PASSWORDS_AND_PASSKEYS
-                         : IDS_SYNC_DATATYPE_PASSWORDS;
+      textStringID = IDS_SYNC_DATATYPE_PASSWORDS_AND_PASSKEYS;
       accessibilityIdentifier = kSyncPasswordsIdentifier;
       break;
     case syncer::UserSelectableType::kTabs:
@@ -914,8 +915,13 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
 #pragma mark - SyncObserverModelBridge
 
 - (void)onSyncStateChanged {
-  if (_ignoreSyncStateChanges) {
+  if (_ignoreSyncStateChanges || self.signOutFlowInProgress ||
+      _identityManager->IsBatchOfPrimaryAccountChangesInProgress()) {
     // The UI should not updated so the switch animations can run smoothly.
+    return;
+  }
+  if (!_syncService->GetDisableReasons().empty()) {
+    [self.commandHandler closeManageSyncSettings];
     return;
   }
   [self updateSyncErrorsSection:YES];
@@ -941,19 +947,19 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
   }
 }
 
-- (void)onPrimaryAccountChanged:
-    (const signin::PrimaryAccountChangeEvent&)event {
-  switch (event.GetEventTypeFor(signin::ConsentLevel::kSignin)) {
-    case signin::PrimaryAccountChangeEvent::Type::kSet:
-      _signedInIdentity = _authenticationService->GetPrimaryIdentity(
-          signin::ConsentLevel::kSignin);
-      [self updatePrimaryAccountDetails];
-      break;
-    case signin::PrimaryAccountChangeEvent::Type::kCleared:
-      // Temporary state, we can ignore this event, until the UI is signed out.
-    case signin::PrimaryAccountChangeEvent::Type::kNone:
-      break;
+- (void)onEndBatchOfPrimaryAccountChanges {
+  if (!_authenticationService->HasPrimaryIdentity(
+          signin::ConsentLevel::kSignin)) {
+    return;
   }
+  id<SystemIdentity> signedInIdentity =
+      _authenticationService->GetPrimaryIdentity(signin::ConsentLevel::kSignin);
+  if ([signedInIdentity isEqual:_signedInIdentity]) {
+    // Identity is the same, nothing to do.
+    return;
+  }
+  _signedInIdentity = signedInIdentity;
+  [self updatePrimaryAccountDetails];
 }
 
 #pragma mark - ManageSyncSettingsServiceDelegate
@@ -1291,6 +1297,8 @@ constexpr CGFloat kBatchUploadSymbolPointSize = 22.;
         kTrustedVaultRecoverabilityDegradedForEverything:
       return SyncTrustedVaultRecoverabilityDegradedErrorItemType;
     case syncer::SyncService::UserActionableError::kNone:
+    // UI not implemented for this case.
+    case syncer::SyncService::UserActionableError::kNeedsClientUpgrade:
       return std::nullopt;
   }
   NOTREACHED();

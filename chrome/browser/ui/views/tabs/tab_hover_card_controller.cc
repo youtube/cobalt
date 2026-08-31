@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "base/callback_list.h"
+#include "base/check_is_test.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
@@ -124,6 +125,7 @@ base::TimeDelta GetShowDelay(int tab_width) {
 
 bool IsBrowserForSystemWebApp(const Browser* browser) {
 #if BUILDFLAG(IS_CHROMEOS)
+  CHECK(browser);
   const auto* const app_controller = browser->app_controller();
   if (app_controller && app_controller->system_app()) {
     return true;
@@ -210,7 +212,10 @@ TabHoverCardController::TabHoverCardController(TabStrip* tab_strip)
 
     // Register for memory usage enabled pref change events. Exclude
     // tracking them for system web apps (e.g. ChromeOS terminal app).
-    if (!IsBrowserForSystemWebApp(tab_strip_->GetBrowser())) {
+    Browser* browser = tab_strip_->GetBrowser();
+    if (!browser) {
+      CHECK_IS_TEST();
+    } else if (!IsBrowserForSystemWebApp(browser)) {
       OnHovercardMemoryUsageEnabledChanged();
       pref_change_registrar_.Add(
           prefs::kHoverCardMemoryUsageEnabled,
@@ -477,21 +482,15 @@ void TabHoverCardController::OnViewIsDeleting(views::View* observed_view) {
   }
 }
 
-void TabHoverCardController::OnViewVisibilityChanged(
-    views::View* observed_view,
-    views::View* starting_view) {
+void TabHoverCardController::OnViewVisibilityChanged(views::View* observed_view,
+                                                     views::View* starting_view,
+                                                     bool visible) {
   // Only care about target tab becoming invisible.
   if (observed_view != target_tab_) {
     return;
   }
-  // Visibility comes from `starting_view` or the widget, if no starting view;
-  // see documentation for ViewObserver::OnViewVisibilityChanged().
-  const bool visible = starting_view
-                           ? starting_view->GetVisible()
-                           : (observed_view->GetWidget() &&
-                              observed_view->GetWidget()->IsVisible());
-  // If visibility changed to false, treat it as if the target tab had gone
-  // away.
+  // If visibility anywhere in the hierarchy changed to false, then the target
+  // view is not visible, so treat it as if it is going away.
   if (!visible) {
     OnViewIsDeleting(observed_view);
   }

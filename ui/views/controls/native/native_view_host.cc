@@ -20,9 +20,6 @@
 
 namespace views {
 
-// static
-const char kWidgetNativeViewHostKey[] = "WidgetNativeViewHost";
-
 ////////////////////////////////////////////////////////////////////////////////
 // NativeViewHost, public:
 
@@ -75,6 +72,9 @@ gfx::NativeViewAccessible NativeViewHost::GetParentAccessible() {
 }
 
 bool NativeViewHost::SetCornerRadii(const gfx::RoundedCornersF& corner_radii) {
+  if (!native_wrapper_) {
+    return false;
+  }
   return native_wrapper_->SetCornerRadii(corner_radii);
 }
 

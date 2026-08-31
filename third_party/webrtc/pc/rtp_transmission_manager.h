@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/functional/any_invocable.h"
 #include "api/environment/environment.h"
 #include "api/media_stream_interface.h"
 #include "api/media_types.h"
@@ -28,6 +29,7 @@
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "media/base/media_channel.h"
+#include "media/base/media_engine.h"
 #include "pc/codec_vendor.h"
 #include "pc/connection_context.h"
 #include "pc/legacy_stats_collector_interface.h"
@@ -239,7 +241,8 @@ class RtpTransmissionManager : public RtpSenderBase::SetStreamsObserver {
   scoped_refptr<RtpReceiverInterface> RemoveAndStopReceiver(
       const RtpSenderInfo& remote_sender_info) RTC_RUN_ON(signaling_thread());
 
-  PeerConnectionObserver* Observer() const;
+  void RunWithObserver(
+      absl::AnyInvocable<void(webrtc::PeerConnectionObserver*) &&>);
   void OnNegotiationNeeded();
 
   MediaEngineInterface* media_engine() const;

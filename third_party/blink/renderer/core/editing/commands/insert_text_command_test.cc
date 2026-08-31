@@ -30,7 +30,7 @@ TEST_F(InsertTextCommandTest, WithTypingStyle) {
 
   EXPECT_EQ(
       "<div contenteditable=\"true\"><option id=\"sample\">x</option></div>",
-      GetDocument().body()->innerHTML())
+      GetDocument().body()->GetInnerHTMLString())
       << "Content of OPTION is distributed into shadow node as text"
          "without applying typing style.";
 }
@@ -231,10 +231,9 @@ TEST_F(InsertTextCommandTest, NoVisibleSelectionAfterDeletingSelection) {
   // This is only for recording the current behavior, which can be changed.
   EXPECT_EQ(
       "<div contenteditable>"
-      "  <ruby><strike>"
-      "    <navi></navi>"
-      "    ^</strike></ruby>"
-      "|</div>",
+      "  <ruby><strike>x|<navi></navi>"
+      "    </strike></ruby>"
+      "</div>",
       GetSelectionTextFromBody());
 }
 
@@ -284,7 +283,7 @@ TEST_F(InsertTextCommandTest, AnchorElementWithBlockCrash) {
   Element* iElement = GetDocument().CreateRawElement(html_names::kITag);
 
   nested_anchor->setAttribute(html_names::kHrefAttr, AtomicString("www"));
-  iElement->setInnerHTML("home");
+  iElement->SetInnerHTMLWithoutTrustedTypes("home");
 
   anchor->AppendChild(nested_anchor);
   nested_anchor->AppendChild(iElement);

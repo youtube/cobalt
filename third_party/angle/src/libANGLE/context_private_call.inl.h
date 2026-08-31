@@ -473,11 +473,26 @@ inline void ContextPrivateClipControl(PrivateState *privateState,
     privateState->setClipControl(origin, depth);
 }
 
-inline void ContextPrivateShadingRate(PrivateState *privateState,
-                                      PrivateStateCache *privateStateCache,
-                                      GLenum rate)
+inline void ContextPrivateShadingRateQCOM(PrivateState *privateState,
+                                          PrivateStateCache *privateStateCache,
+                                          ShadingRate rate)
 {
-    privateState->setShadingRate(rate);
+    privateState->setShadingRateQCOM(rate);
+}
+
+inline void ContextPrivateShadingRateEXT(PrivateState *privateState,
+                                         PrivateStateCache *privateStateCache,
+                                         ShadingRate rate)
+{
+    privateState->setShadingRateEXT(rate);
+}
+
+inline void ContextPrivateShadingRateCombinerOps(PrivateState *privateState,
+                                                 PrivateStateCache *privateStateCache,
+                                                 CombinerOp combinerOp0,
+                                                 CombinerOp combinerOp1)
+{
+    privateState->setShadingRateCombinerOps(combinerOp0, combinerOp1);
 }
 
 inline void ContextPrivateBlendColor(PrivateState *privateState,
@@ -1498,4 +1513,84 @@ inline void ContextPrivateTranslatex(PrivateState *privateState,
     ContextPrivateTranslatef(privateState, privateStateCache, ConvertFixedToFloat(x),
                              ConvertFixedToFloat(y), ConvertFixedToFloat(z));
 }
+
+inline void ContextPrivateDisableVertexAttribArray(PrivateState *privateState,
+                                                   PrivateStateCache *privateStateCache,
+                                                   GLuint index)
+{
+    const VertexArrayPrivate *vao = privateState->getVertexArrayPrivate();
+    if (!vao->getEnabledAttributesMask().test(index))
+    {
+        return;
+    }
+
+    privateState->setEnableVertexAttribArray(index, false);
+    privateStateCache->onVertexArrayStateChange();
+}
+
+inline void ContextPrivateEnableVertexAttribArray(PrivateState *privateState,
+                                                  PrivateStateCache *privateStateCache,
+                                                  GLuint index)
+{
+    const VertexArrayPrivate *vao = privateState->getVertexArrayPrivate();
+    if (vao->getEnabledAttributesMask().test(index))
+    {
+        return;
+    }
+
+    privateState->setEnableVertexAttribArray(index, true);
+    privateStateCache->onVertexArrayStateChange();
+}
+
+inline void ContextPrivateVertexAttribDivisor(PrivateState *privateState,
+                                              PrivateStateCache *privateStateCache,
+                                              GLuint index,
+                                              GLuint divisor)
+{
+    privateState->setVertexAttribDivisor(index, divisor);
+    privateStateCache->onVertexArrayStateChange();
+}
+
+inline void ContextPrivateVertexAttribBinding(PrivateState *privateState,
+                                              PrivateStateCache *privateStateCache,
+                                              GLuint attribIndex,
+                                              GLuint bindingIndex)
+{
+    privateState->setVertexAttribBinding(attribIndex, bindingIndex);
+    privateStateCache->onVertexArrayStateChange();
+}
+
+inline void ContextPrivateVertexBindingDivisor(PrivateState *privateState,
+                                               PrivateStateCache *privateStateCache,
+                                               GLuint bindingIndex,
+                                               GLuint divisor)
+{
+    privateState->setVertexBindingDivisor(bindingIndex, divisor);
+    privateStateCache->onVertexArrayFormatChange();
+}
+
+inline void ContextPrivateVertexAttribFormat(PrivateState *privateState,
+                                             PrivateStateCache *privateStateCache,
+                                             GLuint attribIndex,
+                                             GLint size,
+                                             VertexAttribType type,
+                                             GLboolean normalized,
+                                             GLuint relativeOffset)
+{
+    privateState->setVertexAttribFormat(attribIndex, size, type, ConvertToBool(normalized), false,
+                                        relativeOffset);
+    privateStateCache->onVertexArrayFormatChange();
+}
+
+inline void ContextPrivateVertexAttribIFormat(PrivateState *privateState,
+                                              PrivateStateCache *privateStateCache,
+                                              GLuint attribIndex,
+                                              GLint size,
+                                              VertexAttribType type,
+                                              GLuint relativeOffset)
+{
+    privateState->setVertexAttribFormat(attribIndex, size, type, false, true, relativeOffset);
+    privateStateCache->onVertexArrayFormatChange();
+}
+
 }  // namespace gl

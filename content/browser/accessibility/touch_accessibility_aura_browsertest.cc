@@ -21,6 +21,7 @@
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
+#include "ui/accessibility/platform/browser_accessibility_manager.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/events/event.h"
@@ -72,8 +73,15 @@ class TouchAccessibilityBrowserTest : public ContentBrowserTest {
   std::optional<ScopedAccessibilityModeOverride> accessibility_mode_;
 };
 
+// TODO(crbug.com/421286357): Flaky on linux builders.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_TouchExplorationSendsHoverEvents \
+  DISABLED_TouchExplorationSendsHoverEvents
+#else
+#define MAYBE_TouchExplorationSendsHoverEvents TouchExplorationSendsHoverEvents
+#endif
 IN_PROC_BROWSER_TEST_F(TouchAccessibilityBrowserTest,
-                       TouchExplorationSendsHoverEvents) {
+                       MAYBE_TouchExplorationSendsHoverEvents) {
   // Create HTML with a 7 x 5 table, each exactly 50 x 50 pixels.
   std::string html_url =
       "data:text/html,"
@@ -83,7 +91,7 @@ IN_PROC_BROWSER_TEST_F(TouchAccessibilityBrowserTest,
       "  td { width: 50px; height: 50px; padding: 0; }"
       "</style>"
       "<body>"
-      "<table>";
+      "<table aria-label='test-table'>";
   int cell = 0;
   for (int row = 0; row < 5; ++row) {
     html_url += "<tr>";
@@ -103,6 +111,11 @@ IN_PROC_BROWSER_TEST_F(TouchAccessibilityBrowserTest,
   ui::BrowserAccessibilityManager* manager =
       web_contents->GetRootBrowserAccessibilityManager();
   ASSERT_NE(nullptr, manager);
+
+  // Eliminate test flakiness by waiting for the accessibility tree to contain
+  // the "test-table" node. That should indicate that the table has been fully
+  // parsed by `AXObjectCacheImpl`.
+  WaitForAccessibilityTreeToContainNodeWithName(web_contents, "test-table");
 
   // Loop over all of the cells in the table. For each one, send a simulated
   // touch exploration event in the center of that cell, and assert that we
@@ -133,13 +146,26 @@ IN_PROC_BROWSER_TEST_F(TouchAccessibilityBrowserTest,
   }
 }
 
+// TODO(crbug.com/421286357): Flaky on linux builders.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_TouchExplorationInIframe DISABLED_TouchExplorationInIframe
+#else
+#define MAYBE_TouchExplorationInIframe TouchExplorationInIframe
+#endif
 IN_PROC_BROWSER_TEST_F(TouchAccessibilityBrowserTest,
-                       TouchExplorationInIframe) {
+                       MAYBE_TouchExplorationInIframe) {
   NavigateToUrlAndWaitForAccessibilityTree(embedded_test_server()->GetURL(
       "/accessibility/html/iframe-coordinates.html"));
 
+  // Eliminate test flakiness by waiting for the accessibility tree to contain
+  // both the button from the first child frame and the button from the second
+  // child frame after it has been renamed. This should ensure that the
+  // accessibility tree is fully updated prior to sending the touch exploration
+  // event.
   WaitForAccessibilityTreeToContainNodeWithName(shell()->web_contents(),
                                                 "Ordinary Button");
+  WaitForAccessibilityTreeToContainNodeWithName(shell()->web_contents(),
+                                                "Scrolled Button");
 
   // Get the BrowserAccessibilityManager for the first child frame.
   RenderFrameHostImpl* main_frame = static_cast<RenderFrameHostImpl*>(

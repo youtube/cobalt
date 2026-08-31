@@ -31,13 +31,14 @@
 #include "chrome/common/chrome_features.h"
 #include "components/web_package/signed_web_bundles/signed_web_bundle_id.h"
 #include "components/web_package/test_support/signed_web_bundles/ed25519_key_pair.h"
-#include "components/webapps/isolated_web_apps/update_channel.h"
+#include "components/webapps/isolated_web_apps/types/update_channel.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
 #include "ash/constants/ash_paths.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_cache_client.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -55,6 +56,13 @@ constexpr char kVersion3[] = "7.0.8";
 const SignedWebBundleId kBundleId = test::GetDefaultEd25519WebBundleId();
 const Ed25519KeyPair kKeyPair = test::GetDefaultEd25519KeyPair();
 const UpdateChannel kBetaChannel = UpdateChannel::Create("beta").value();
+
+#if BUILDFLAG(IS_CHROMEOS)
+constexpr char kCopyBundleToCacheSuccessMetric[] =
+    "WebApp.Isolated.CopyBundleToCacheAfterInstallationSuccess";
+constexpr char kCopyBundleToCacheErrorMetric[] =
+    "WebApp.Isolated.CopyBundleToCacheAfterInstallationError";
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -403,6 +411,8 @@ class IwaMgsCachingInstallerTest : public IwaInstallerBaseTest {
         ash::DIR_DEVICE_LOCAL_ACCOUNT_IWA_CACHE, CacheRootPath());
   }
 
+  void DestroyCacheDir() { cache_root_dir_override_.reset(); }
+
   base::FilePath GetBundleDirWithVersion(const SignedWebBundleId& bundle_id,
                                          const base::Version& version) {
     auto session_cache_dir =
@@ -427,9 +437,30 @@ class IwaMgsCachingInstallerTest : public IwaInstallerBaseTest {
                                GetFullBundlePath(web_bundle_id, version)));
   }
 
+  void ExpectEmptyCopyBundleMetrics() {
+    histogram_tester_.ExpectTotalCount(kCopyBundleToCacheSuccessMetric, 0);
+    histogram_tester_.ExpectTotalCount(kCopyBundleToCacheErrorMetric, 0);
+  }
+
+  void ExpectSuccessCopyBundleMetric() {
+    EXPECT_THAT(
+        histogram_tester_.GetAllSamples(kCopyBundleToCacheSuccessMetric),
+        BucketsAre(base::Bucket(true, 1)));
+    histogram_tester_.ExpectTotalCount(kCopyBundleToCacheErrorMetric, 0);
+  }
+
+  void ExpectErrorCopyBundleMetric(const CopyBundleToCacheError& error) {
+    EXPECT_THAT(
+        histogram_tester_.GetAllSamples(kCopyBundleToCacheSuccessMetric),
+        BucketsAre(base::Bucket(false, 1)));
+    EXPECT_THAT(histogram_tester_.GetAllSamples(kCopyBundleToCacheErrorMetric),
+                BucketsAre(base::Bucket(error, 1)));
+  }
+
  protected:
   const base::FilePath& CacheRootPath() { return cache_root_dir_.GetPath(); }
 
+  base::HistogramTester histogram_tester_;
   base::ScopedTempDir cache_root_dir_;
   std::unique_ptr<base::ScopedPathOverride> cache_root_dir_override_;
   base::test::ScopedFeatureList scoped_feature_list_{
@@ -438,29 +469,48 @@ class IwaMgsCachingInstallerTest : public IwaInstallerBaseTest {
 
 TEST_F(IwaMgsCachingInstallerTest,
        BundleCopiedToCacheAfterSuccessfulInstallation) {
+  ExpectEmptyCopyBundleMetrics();
   CreateAndPublishIwaBundle(kBundleId, kVersion1);
+
   ASSERT_EQ(RunInstallerAndWaitForResult(kBundleId),
             IwaInstallerResult::Type::kSuccess);
-  AssertAppInstalledAtVersion(kBundleId, kVersion1);
 
+  AssertAppInstalledAtVersion(kBundleId, kVersion1);
   // Checks that bundle exists in cache after successful installation.
   EXPECT_TRUE(
       base::PathExists(GetFullBundlePath(kBundleId, base::Version(kVersion1))));
+  ExpectSuccessCopyBundleMetric();
 }
 
 TEST_F(IwaMgsCachingInstallerTest,
        BundleNotCopiedToCacheAfterFailedInstallation) {
+  ExpectEmptyCopyBundleMetrics();
   CreateAndPublishIwaBundle(kBundleId, kVersion1);
   test_update_server().SetServedUpdateManifestResponse(
       kBundleId, net::HttpStatusCode::HTTP_NOT_FOUND, /*json_content=*/"");
 
   EXPECT_EQ(RunInstallerAndWaitForResult(kBundleId),
             IwaInstallerResult::Type::kErrorUpdateManifestDownloadFailed);
+
   EXPECT_FALSE(
       base::PathExists(GetFullBundlePath(kBundleId, base::Version(kVersion1))));
+  ExpectEmptyCopyBundleMetrics();
+}
+
+TEST_F(IwaMgsCachingInstallerTest, FailedToCopyBundleToCache) {
+  ExpectEmptyCopyBundleMetrics();
+  DestroyCacheDir();
+  CreateAndPublishIwaBundle(kBundleId, kVersion1);
+
+  ASSERT_EQ(RunInstallerAndWaitForResult(kBundleId),
+            IwaInstallerResult::Type::kSuccess);
+
+  AssertAppInstalledAtVersion(kBundleId, kVersion1);
+  ExpectErrorCopyBundleMetric(CopyBundleToCacheError::kFailedToCreateDir);
 }
 
 TEST_F(IwaMgsCachingInstallerTest, InstallFromCache) {
+  histogram_tester_.ExpectTotalCount("WebApp.Isolated.InstallFromCache", 0);
   // Change the response, so the installation can only happen from the cache.
   std::unique_ptr<ScopedBundledIsolatedWebApp> app =
       CreateIwaBundle(kBundleId, kVersion1);
@@ -473,9 +523,13 @@ TEST_F(IwaMgsCachingInstallerTest, InstallFromCache) {
   ASSERT_EQ(RunInstallerAndWaitForResult(kBundleId),
             IwaInstallerResult::Type::kSuccess);
   AssertAppInstalledAtVersion(kBundleId, kVersion1);
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples("WebApp.Isolated.InstallFromCache"),
+      BucketsAre(base::Bucket(true, 1)));
 }
 
 TEST_F(IwaMgsCachingInstallerTest, InstallFromCacheFailedRetryFromInternet) {
+  histogram_tester_.ExpectTotalCount("WebApp.Isolated.InstallFromCache", 0);
   // Change the response, so the installation can only happen from the cache.
   std::unique_ptr<ScopedBundledIsolatedWebApp> app =
       CreateIwaBundle(kBundleId, kVersion1);
@@ -493,6 +547,9 @@ TEST_F(IwaMgsCachingInstallerTest, InstallFromCacheFailedRetryFromInternet) {
 
   EXPECT_EQ(RunInstallerAndWaitForResult(kBundleId),
             IwaInstallerResult::Type::kErrorUpdateManifestDownloadFailed);
+  EXPECT_THAT(
+      histogram_tester_.GetAllSamples("WebApp.Isolated.InstallFromCache"),
+      BucketsAre(base::Bucket(false, 1)));
 }
 
 #endif  // BUILDFLAG(IS_CHROMEOS)

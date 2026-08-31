@@ -209,12 +209,21 @@ void ThrottleManager::MaybeCreateAndAddNavigationThrottles(
   }
 }
 
-// Pull the AsyncDocumentSubresourceFilter and its associated
-// mojom::ActivationState out of the activation state computing throttle. Store
-// it for later filtering of child frame navigations.
+// Pull the mojom::ActivationState out of the activation state computing
+// throttle and send it to any FingerprintingProtectionAgent on the Renderer.
 void ThrottleManager::ReadyToCommitInFrameNavigation(
     content::NavigationHandle* navigation_handle) {
-  std::ignore = ActivationStateForNextCommittedLoad(navigation_handle);
+  content::RenderFrameHost* frame_host =
+      navigation_handle->GetRenderFrameHost();
+
+  subresource_filter::mojom::ActivationState activation_state =
+      ActivationStateForNextCommittedLoad(navigation_handle);
+
+  mojo::AssociatedRemote<mojom::FingerprintingProtectionAgent> agent;
+
+  frame_host->GetRemoteAssociatedInterfaces()->GetInterface(&agent);
+
+  agent->ActivateForNextCommittedLoad(activation_state.Clone());
 }
 
 void ThrottleManager::DidFinishInFrameNavigation(
@@ -387,37 +396,27 @@ void ThrottleManager::LogActivationDecisionUkm(
 
 void ThrottleManager::MaybeNotifyOnBlockedResource(
     content::RenderFrameHost* frame_host) {
-  CHECK(page_);
-  CHECK_EQ(&GetSubresourceFilterRootPage(frame_host), page_);
-
   if (current_committed_load_has_notified_disallowed_load_) {
     return;
   }
+  current_committed_load_has_notified_disallowed_load_ = true;
 
-  FilterHandle* filter_handle =
-      FilterHandle::GetForCurrentDocument(&page_->GetMainDocument());
-  if (!filter_handle ||
-      filter_handle->filter()->activation_state().activation_level ==
-          subresource_filter::mojom::ActivationLevel::kDisabled) {
+  // A subresource has been blocked on the renderer before the ThrottleManager
+  // moved from its NavigationHandle to a Page. When the page is created and
+  // becomes primary we'll check
+  // |current_committed_load_has_notified_disallowed_load_| and try again.
+  if (!page_) {
     return;
   }
 
-  current_committed_load_has_notified_disallowed_load_ = true;
+  CHECK_EQ(&GetSubresourceFilterRootPage(frame_host), page_);
 
   // Non-primary pages shouldn't affect UI. When the page becomes primary we'll
   // check |current_committed_load_has_notified_disallowed_load_| and try
   // again.
   if (page_->IsPrimary()) {
     web_contents_helper_->NotifyOnBlockedSubresource(
-        filter_handle->filter()->activation_state().activation_level);
-
-    if (features::IsFingerprintingProtectionConsoleLoggingEnabled()) {
-      // Log generic "subresource blocked" message in non-debug builds. In debug
-      // builds, a more specific message logs per blocked subresource.
-      frame_host->GetMainFrame()->AddMessageToConsole(
-          blink::mojom::ConsoleMessageLevel::kError,
-          kDisallowFirstResourceConsoleMessage);
-    }
+        page_activation_state_.activation_level);
   }
 }
 
@@ -460,11 +459,6 @@ ThrottleManager::ActivationStateForNextCommittedLoad(
 
 void ThrottleManager::DidDisallowFirstSubresource() {
   MaybeNotifyOnBlockedResource(receivers_.GetCurrentTargetFrame());
-}
-
-void ThrottleManager::CheckActivation(CheckActivationCallback callback) {
-  std::move(callback).Run(
-      subresource_filter::mojom::ActivationState::New(page_activation_state_));
 }
 
 void ThrottleManager::SetDocumentLoadStatistics(

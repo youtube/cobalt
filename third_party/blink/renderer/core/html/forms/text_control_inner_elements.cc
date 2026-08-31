@@ -157,7 +157,14 @@ const ComputedStyle* TextControlInnerEditorElement::CustomStyleForLayoutObject(
     style_builder.SetHasLineIfEmpty(true);
   }
   if (!start_style.ApplyControlFixedSize(host)) {
-    Length caret_width(GetDocument().View()->CaretWidth(), Length::kFixed);
+    const Font* font = start_style.GetFont();
+    const SimpleFontData* font_data = font->PrimaryFont();
+    LayoutUnit default_width = GetDocument().View()->BarCaretWidth();
+    CaretShape caret_shape = GetCaretShapeFromComputedStyle(start_style);
+    if (caret_shape != CaretShape::kBar && font_data) [[unlikely]] {
+      default_width = LayoutUnit(font_data->AvgCharWidth());
+    }
+    Length caret_width(default_width, Length::kFixed);
     if (IsHorizontalWritingMode(style_builder.GetWritingMode())) {
       style_builder.SetMinWidth(caret_width);
     } else {

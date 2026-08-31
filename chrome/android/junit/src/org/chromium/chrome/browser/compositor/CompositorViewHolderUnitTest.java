@@ -6,12 +6,14 @@ package org.chromium.chrome.browser.compositor;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -22,6 +24,8 @@ import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.content.Context;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.os.IBinder;
 import android.view.ContextThemeWrapper;
 import android.view.InputDevice;
@@ -70,6 +74,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObserver;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorTabObserver;
+import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.top.ToolbarControlContainer;
 import org.chromium.chrome.test.util.browser.tabmodel.MockTabModelSelector;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
@@ -83,6 +88,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.base.ApplicationViewportInsetSupplier;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.mojom.VirtualKeyboardMode;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
@@ -177,6 +183,8 @@ public class CompositorViewHolderUnitTest {
     @Mock private ContentCaptureFeatures.Natives mContentCaptureFeaturesJni;
     @Mock private InputHintChecker.Natives mInputHintCheckerJni;
     @Mock private MultiWindowModeStateDispatcher mMultiWindowModeStateDispatcher;
+    @Mock private InsetObserver mInsetObserver;
+    @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
 
     @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
 
@@ -202,6 +210,9 @@ public class CompositorViewHolderUnitTest {
         KeyboardVisibilityDelegate.setInstance(mMockKeyboard);
 
         mViewportInsets = ApplicationViewportInsetSupplier.createForTests();
+        when(mInsetObserver.isKeyboardInOverlayMode()).thenReturn(false);
+        mViewportInsets.setInsetObserver(mInsetObserver);
+
         mKeyboardInsetSupplier = new ObservableSupplierImpl<>();
         mViewportInsets.setKeyboardInsetSupplier(mKeyboardInsetSupplier);
         mKeyboardAccessoryInsetSupplier = new ObservableSupplierImpl<>();
@@ -252,6 +263,7 @@ public class CompositorViewHolderUnitTest {
 
         mCompositorViewHolder = spy(new CompositorViewHolder(mContext, null));
 
+        mCompositorViewHolder.setTopUiThemeColorProvider(mTopUiThemeColorProvider);
         mCompositorViewHolder.setLayoutManager(mLayoutManager);
         mCompositorViewHolder.setControlContainer(mControlContainer);
         mCompositorViewHolder.setCompositorViewForTesting(mCompositorView);
@@ -721,6 +733,55 @@ public class CompositorViewHolderUnitTest {
                 .notifyVirtualKeyboardOverlayRect(mWebContents, 0, 0, 0, 0);
     }
 
+    // Keyboard resize tests for geometrychange event fired to JS.
+    @Test
+    public void testWebContentResizeTriggeredDueToKeyboardShow_keyboardInOverlayMode() {
+        mCompositorViewHolder.updateVirtualKeyboardMode(VirtualKeyboardMode.OVERLAYS_CONTENT);
+        reset(mWebContents);
+
+        // Viewport dimensions when keyboard is hidden.
+        int fullViewportHeight = 941;
+        int fullViewportWidth = 1080;
+
+        // adjustedHeight is the height of the CompositorViewHolder from Android View layout
+        // after showing the keyboard. This simulates a reduced layout height from the keyboard
+        // taking up the bottom space.
+        int adjustedHeight = fullViewportHeight - KEYBOARD_HEIGHT;
+
+        when(mMockKeyboard.isKeyboardShowing(any(), any())).thenReturn(true);
+        when(mMockKeyboard.calculateTotalKeyboardHeight(any())).thenReturn(KEYBOARD_HEIGHT);
+        when(mCompositorViewHolder.getWidth()).thenReturn(fullViewportWidth);
+        // The CompositorViewHolder does not account for the keyboard since the keyboard inset has
+        // been consumed by an inset consumer, which deliberately did not update the CVH.
+        when(mCompositorViewHolder.getHeight()).thenReturn(fullViewportHeight);
+        when(mInsetObserver.isKeyboardInOverlayMode()).thenReturn(true);
+
+        mKeyboardInsetSupplier.set(KEYBOARD_HEIGHT);
+        mCompositorViewHolder.updateWebContentsSize(mTab);
+
+        // Expect fullViewportHeight since in OVERLAYS_CONTENT the keyboard doesn't cause a resize
+        // to the WebContents.
+        verify(mWebContents, times(1)).setSize(fullViewportWidth, fullViewportHeight);
+        verify(mCompositorViewHolder, times(1))
+                .notifyVirtualKeyboardOverlayRect(
+                        mWebContents, 0, 0, fullViewportWidth, KEYBOARD_HEIGHT);
+
+        reset(mWebContents);
+
+        // Hide the keyboard.
+        when(mMockKeyboard.isKeyboardShowing(any(), any())).thenReturn(false);
+        when(mMockKeyboard.calculateTotalKeyboardHeight(any())).thenReturn(0);
+        when(mCompositorViewHolder.getWidth()).thenReturn(fullViewportWidth);
+        when(mCompositorViewHolder.getHeight()).thenReturn(fullViewportHeight);
+        when(mInsetObserver.isKeyboardInOverlayMode()).thenReturn(true);
+        mKeyboardInsetSupplier.set(0);
+        mCompositorViewHolder.updateWebContentsSize(mTab);
+
+        verify(mWebContents, times(1)).setSize(fullViewportWidth, fullViewportHeight);
+        verify(mCompositorViewHolder, times(1))
+                .notifyVirtualKeyboardOverlayRect(mWebContents, 0, 0, 0, 0);
+    }
+
     @Test
     public void testOverlayGeometryNotTriggeredDueToNoKeyboard() {
         mCompositorViewHolder.updateVirtualKeyboardMode(VirtualKeyboardMode.OVERLAYS_CONTENT);
@@ -1018,5 +1079,47 @@ public class CompositorViewHolderUnitTest {
     private void verifyBackgroundRemoved() {
         runCurrentTasks();
         verify(mCompositorView, times(1)).setBackgroundResource(anyInt());
+    }
+
+    @Test
+    public void testAccessibilityNode_boundsAreCorrect() {
+        mContext.getResources().getDisplayMetrics().density = 1.375f;
+
+        var virtualView = mock(org.chromium.chrome.browser.layouts.components.VirtualView.class);
+        // Values in this test case are real numbers captured from clank running
+        // in a maximized window.
+        RectF dpRect = new RectF(100.36364f, 2.18182f, 337.36365f, 42.18182f);
+        doAnswer(
+                        invocation -> {
+                            ((RectF) invocation.getArgument(0)).set(dpRect);
+                            return null;
+                        })
+                .when(virtualView)
+                .getTouchTarget(any(RectF.class));
+        when(virtualView.getAccessibilityDescription()).thenReturn("test-node");
+        doAnswer(
+                        invocation -> {
+                            ((List<org.chromium.chrome.browser.layouts.components.VirtualView>)
+                                            invocation.getArgument(0))
+                                    .add(virtualView);
+                            return null;
+                        })
+                .when(mLayoutManager)
+                .getVirtualViews(any(List.class));
+
+        mCompositorViewHolder.onAccessibilityModeChanged(true);
+        assertNotNull(mCompositorViewHolder.mAccessibilityView);
+
+        mCompositorViewHolder.mAccessibilityView.createAccessibilityNodeInfo();
+        var accessibilityProvider =
+                mCompositorViewHolder.mAccessibilityView.getAccessibilityNodeProvider();
+        assertNotNull(accessibilityProvider);
+        var nodeInfo = accessibilityProvider.createAccessibilityNodeInfo(0);
+        Rect actualRect = new Rect();
+        nodeInfo.getBoundsInScreen(actualRect);
+        // Top coordinate: 2.18182 * 1.375 = 3.0000025. Should be floored or
+        // rounded to 3.
+        Rect expectedRect = new Rect(138, 3, 464, 59);
+        assertEquals(expectedRect, actualRect);
     }
 }

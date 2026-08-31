@@ -7,11 +7,5 @@ include_rules = [
   "+third_party/skia",
   "+components/crash/core/common/crash_key.h",
   "+components/optimization_guide/core/optimization_guide_features.h",
+  "+components/optimization_guide/proto",
 ]
-
-specific_include_rules = {
-  "pre_sandbox_init\.cc": [
-    "+chromeos/ash/components/dbus",
-    "+chromeos/dbus/init",
-  ],
-}

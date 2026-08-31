@@ -5,9 +5,14 @@
 #ifndef COMPONENTS_OPTIMIZATION_GUIDE_CORE_MODEL_EXECUTION_TEST_FAKE_MODEL_BROKER_H_
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_MODEL_EXECUTION_TEST_FAKE_MODEL_BROKER_H_
 
+#include <memory>
+
 #include "base/memory/scoped_refptr.h"
 #include "base/test/scoped_feature_list.h"
+#include "components/optimization_guide/core/delivery/optimization_guide_model_provider.h"
 #include "components/optimization_guide/core/model_execution/model_broker_client.h"
+#include "components/optimization_guide/core/model_execution/model_broker_state.h"
+#include "components/optimization_guide/core/model_execution/on_device_asset_manager.h"
 #include "components/optimization_guide/core/model_execution/test/fake_model_assets.h"
 #include "components/optimization_guide/core/model_execution/test/feature_config_builder.h"
 #include "components/optimization_guide/core/model_execution/test/test_on_device_model_component_state_manager.h"
@@ -32,17 +37,27 @@ class FakeModelBroker {
 
   void UpdateModelAdaptation(const FakeAdaptationAsset& asset);
   void UpdateSafetyModel(const optimization_guide::ModelInfo& model_info) {
-    test_controller_->MaybeUpdateSafetyModel(model_info);
+    controller().MaybeUpdateSafetyModel(model_info);
+  }
+
+  std::unique_ptr<OnDeviceAssetManager> CreateAssetManager(
+      OptimizationGuideModelProvider* provider);
+
+  TestingPrefServiceSimple& local_state() { return local_state_; }
+  OnDeviceModelServiceController& controller() {
+    return model_broker_state_.service_controller();
   }
 
  private:
   base::test::ScopedFeatureList feature_list_;
-  TestingPrefServiceSimple pref_service_;
+  TestingPrefServiceSimple local_state_;
   FakeBaseModelAsset base_model_;
   on_device_model::FakeOnDeviceServiceSettings fake_settings_;
   on_device_model::FakeServiceLauncher fake_launcher_{&fake_settings_};
-  TestOnDeviceModelComponentStateManager component_manager_{&pref_service_};
-  scoped_refptr<OnDeviceModelServiceController> test_controller_;
+  TestComponentState component_state_;
+  ModelBrokerState model_broker_state_{&local_state_,
+                                       component_state_.CreateDelegate(),
+                                       fake_launcher_.LaunchFn()};
 };
 
 }  // namespace optimization_guide

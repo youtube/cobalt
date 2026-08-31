@@ -14,12 +14,12 @@
 #include "base/metrics/field_trial.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/rand_util.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/system/sys_info.h"
 #include "components/optimization_guide/core/feature_registry/mqls_feature_registry.h"
-#include "components/optimization_guide/core/insertion_ordered_set.h"
 #include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_constants.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
@@ -52,29 +52,10 @@ BASE_FEATURE(kOptimizationHints,
              "OptimizationHints",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables fetching from a remote Optimization Guide Service.
-BASE_FEATURE(kRemoteOptimizationGuideFetching,
-             "OptimizationHintsFetching",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kRemoteOptimizationGuideFetchingAnonymousDataConsent,
-             "OptimizationHintsFetchingAnonymousDataConsent",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables the prediction of optimization targets.
 BASE_FEATURE(kOptimizationTargetPrediction,
              "OptimizationTargetPrediction",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the downloading of models.
-BASE_FEATURE(kOptimizationGuideModelDownloading,
-             "OptimizationGuideModelDownloading",
-#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else   // BUILD_WITH_TFLITE_LIB
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif  // !BUILD_WITH_TFLITE_LIB
-);
 
 // Enables push notification of hints.
 BASE_FEATURE(kPushNotifications,
@@ -115,7 +96,8 @@ BASE_FEATURE(kModelQualityLogging,
              "ModelQualityLogging",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables fetching personalized metadata from Optimization Guide Service.
+// Enables fetching personalized metadata from the Optimization Guide Service
+// (on-demand fetching).
 BASE_FEATURE(kOptimizationGuidePersonalizedFetching,
              "OptimizationPersonalizedHintsFetching",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -136,7 +118,8 @@ BASE_FEATURE(kOptimizationGuideModelExecution,
 // Whether to use the on device model service in optimization guide.
 BASE_FEATURE(kOptimizationGuideOnDeviceModel,
              "OptimizationGuideOnDeviceModel",
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -165,11 +148,6 @@ BASE_FEATURE(kTextSafetyScanLanguageDetection,
              "TextSafetyScanLanguageDetection",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Whether the on-device model validation checks are enabled.
-BASE_FEATURE(kOnDeviceModelValidation,
-             "OnDeviceModelValidation",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Whether performance class should be fetched each startup or just after a
 // version update.
 BASE_FEATURE(kOnDeviceModelFetchPerformanceClassEveryStartup,
@@ -186,11 +164,11 @@ BASE_FEATURE(kAiSettingsPageForceAvailable,
 // Enable AI settings page integration with Privacy Guide.
 BASE_FEATURE(kPrivacyGuideAiSettings,
              "PrivacyGuideAiSettings",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kAiSettingsPageEnterpriseDisabledUi,
              "AiSettingsPageEnterpriseDisabledUi",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOnDeviceModelPerformanceParams,
              "OnDeviceModelPerformanceParams",
@@ -198,6 +176,10 @@ BASE_FEATURE(kOnDeviceModelPerformanceParams,
 
 BASE_FEATURE(kAnnotatedPageContentWithActionableElements,
              "AnnotatedPageContentWithActionableElements",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kAnnotatedPageContentWithMediaData,
+             "AnnotatedPageContentWithMediaData",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kPerformanceClassListForOnDeviceModel{
@@ -225,6 +207,12 @@ BASE_FEATURE(kBrokerModelSessionsForUntrustedProcesses,
              "BrokerModelSessionsForUntrustedProcesses",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables proactively sending GAIA information to the Optimization Guide
+// Service.
+BASE_FEATURE(kOptimizationGuideProactivePersonalizedHintsFetching,
+             "OptimizationGuideProactivePersonalizedHintsFetching",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // The default value here is a bit of a guess.
 // TODO(crbug.com/40163041): This should be tuned once metrics are available.
 base::TimeDelta PageTextExtractionOutstandingRequestsGracePeriod() {
@@ -232,44 +220,10 @@ base::TimeDelta PageTextExtractionOutstandingRequestsGracePeriod() {
       kPageTextExtraction, "outstanding_requests_grace_period_ms", 1000));
 }
 
-bool ShouldBatchUpdateHintsForActiveTabsAndTopHosts() {
-  if (base::FeatureList::IsEnabled(kRemoteOptimizationGuideFetching)) {
-    // Batch update active tabs should only apply to non-desktop platforms.
-    return GetFieldTrialParamByFeatureAsBool(kRemoteOptimizationGuideFetching,
-                                             "batch_update_hints_for_top_hosts",
-                                             enabled_by_default_mobile_only);
-  }
-  return false;
-}
-
 size_t MaxResultsForSRPFetch() {
   static int max_urls = GetFieldTrialParamByFeatureAsInt(
       kOptimizationGuideFetchingForSRP, "max_urls_for_srp_fetch", 10);
   return max_urls;
-}
-
-size_t MaxHostsForOptimizationGuideServiceHintsFetch() {
-  return GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "max_hosts_for_optimization_guide_service_hints_fetch", 30);
-}
-
-size_t MaxUrlsForOptimizationGuideServiceHintsFetch() {
-  return GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "max_urls_for_optimization_guide_service_hints_fetch", 30);
-}
-
-size_t MaxHostsForRecordingSuccessfullyCovered() {
-  return GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "max_hosts_for_recording_successfully_covered", 200);
-}
-
-base::TimeDelta StoredFetchedHintsFreshnessDuration() {
-  return base::Days(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "max_store_duration_for_featured_hints_in_days", 1));
 }
 
 std::string GetOptimizationGuideServiceAPIKey() {
@@ -281,29 +235,6 @@ std::string GetOptimizationGuideServiceAPIKey() {
   }
 
   return google_apis::GetAPIKey();
-}
-
-GURL GetOptimizationGuideServiceGetHintsURL() {
-  // Command line override takes priority.
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kOptimizationGuideServiceGetHintsURL)) {
-    // Assume the command line switch is correct and return it.
-    return GURL(command_line->GetSwitchValueASCII(
-        switches::kOptimizationGuideServiceGetHintsURL));
-  }
-
-  std::string url = base::GetFieldTrialParamValueByFeature(
-      kRemoteOptimizationGuideFetching, "optimization_guide_service_url");
-  if (url.empty() || !GURL(url).SchemeIs(url::kHttpsScheme)) {
-    if (!url.empty()) {
-      LOG(WARNING)
-          << "Empty or invalid optimization_guide_service_url provided: "
-          << url;
-    }
-    return GURL(kOptimizationGuideServiceGetHintsDefaultURL);
-  }
-
-  return GURL(url);
 }
 
 GURL GetOptimizationGuideServiceGetModelsURL() {
@@ -342,10 +273,6 @@ bool IsModelQualityLoggingEnabledForFeature(
   return metadata->LoggingEnabledViaFieldTrial();
 }
 
-bool IsRemoteFetchingEnabled() {
-  return base::FeatureList::IsEnabled(kRemoteOptimizationGuideFetching);
-}
-
 bool IsSRPFetchingEnabled() {
   return base::FeatureList::IsEnabled(kOptimizationGuideFetchingForSRP);
 }
@@ -354,109 +281,10 @@ bool IsPushNotificationsEnabled() {
   return base::FeatureList::IsEnabled(kPushNotifications);
 }
 
-bool IsRemoteFetchingForAnonymousDataConsentEnabled() {
-  return base::FeatureList::IsEnabled(
-      kRemoteOptimizationGuideFetchingAnonymousDataConsent);
-}
-
-int MaxServerBloomFilterByteSize() {
-  return base::GetFieldTrialParamByFeatureAsInt(
-      kOptimizationHints, "max_bloom_filter_byte_size", 250 * 1024 /* 250KB */);
-}
-
-base::TimeDelta GetHostHintsFetchRefreshDuration() {
-  return base::Hours(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching, "hints_fetch_refresh_duration_in_hours",
-      1));
-}
-
-base::TimeDelta GetActiveTabsFetchRefreshDuration() {
-  return base::Hours(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "active_tabs_fetch_refresh_duration_in_hours", 1));
-}
-
-base::TimeDelta GetActiveTabsStalenessTolerance() {
-  // 90 days initially chosen since that's how long local history lasts for.
-  return base::Days(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "active_tabs_staleness_tolerance_in_days", 90));
-}
-
-size_t MaxConcurrentBatchUpdateFetches() {
-  // If overridden, this needs to be large enough where we do not thrash the
-  // inflight batch update fetches since if we approach the limit here, we will
-  // abort the oldest batch update fetch that is in flight.
-  return GetFieldTrialParamByFeatureAsInt(kRemoteOptimizationGuideFetching,
-                                          "max_concurrent_batch_update_fetches",
-                                          20);
-}
-
-size_t MaxConcurrentPageNavigationFetches() {
-  // If overridden, this needs to be large enough where we do not thrash the
-  // inflight page navigations since if we approach the limit here, we will
-  // abort the oldest page navigation fetch that is in flight.
-  return GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching,
-      "max_concurrent_page_navigation_fetches", 20);
-}
-
-base::TimeDelta ActiveTabsHintsFetchRandomMinDelay() {
-  return base::Seconds(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching, "fetch_random_min_delay_secs", 30));
-}
-
-base::TimeDelta ActiveTabsHintsFetchRandomMaxDelay() {
-  return base::Seconds(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching, "fetch_random_max_delay_secs", 60));
-}
-
-base::TimeDelta StoredHostModelFeaturesFreshnessDuration() {
-  return base::Days(GetFieldTrialParamByFeatureAsInt(
-      kOptimizationTargetPrediction,
-      "max_store_duration_for_host_model_features_in_days", 7));
-}
-
-base::TimeDelta StoredModelsValidDuration() {
-  // TODO(crbug.com/40191801) This field should not be changed without VERY
-  // careful consideration. This is the default duration for models that do not
-  // specify retention, so changing this can cause models to be removed and
-  // refetch would only apply to newer models. Any feature relying on the model
-  // would have a period of time without a valid model, and would need to push a
-  // new version.
-  return base::Days(GetFieldTrialParamByFeatureAsInt(
-      kOptimizationTargetPrediction, "valid_duration_for_models_in_days", 30));
-}
-
-base::TimeDelta URLKeyedHintValidCacheDuration() {
-  return base::Seconds(GetFieldTrialParamByFeatureAsInt(
-      kOptimizationHints, "max_url_keyed_hint_valid_cache_duration_in_seconds",
-      60 * 60 /* 1 hour */));
-}
-
-size_t MaxHostsForOptimizationGuideServiceModelsFetch() {
-  return GetFieldTrialParamByFeatureAsInt(
-      kOptimizationTargetPrediction,
-      "max_hosts_for_optimization_guide_service_models_fetch", 30);
-}
-
-size_t MaxHostModelFeaturesCacheSize() {
-  return GetFieldTrialParamByFeatureAsInt(
-      kOptimizationTargetPrediction, "max_host_model_features_cache_size", 100);
-}
-
 size_t MaxHostKeyedHintCacheSize() {
   size_t max_host_keyed_hint_cache_size = GetFieldTrialParamByFeatureAsInt(
       kOptimizationHints, "max_host_keyed_hint_cache_size", 30);
   return max_host_keyed_hint_cache_size;
-}
-
-size_t MaxURLKeyedHintCacheSize() {
-  size_t max_url_keyed_hint_cache_size = GetFieldTrialParamByFeatureAsInt(
-      kOptimizationHints, "max_url_keyed_hint_cache_size", 50);
-  DCHECK_GE(max_url_keyed_hint_cache_size,
-            MaxUrlsForOptimizationGuideServiceHintsFetch());
-  return max_url_keyed_hint_cache_size;
 }
 
 bool ShouldPersistHintsToDisk() {
@@ -488,14 +316,28 @@ RequestContextSet GetAllowedContextsForPersonalizedMetadata() {
   return allowed_contexts;
 }
 
-bool ShouldOverrideOptimizationTargetDecisionForMetricsPurposes(
-    proto::OptimizationTarget optimization_target) {
-  if (optimization_target != proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD) {
-    return false;
+OptimizationTypeSet GetAllowedOptimizationTypesForProactivePersonalization() {
+  OptimizationTypeSet allowed_optimization_types;
+  if (!base::FeatureList::IsEnabled(
+          kOptimizationGuideProactivePersonalizedHintsFetching)) {
+    return allowed_optimization_types;
   }
-
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kOptimizationTargetPrediction, "painful_page_load_metrics_only", false);
+  base::FieldTrialParams params;
+  if (base::GetFieldTrialParamsByFeature(
+          kOptimizationGuideProactivePersonalizedHintsFetching, &params) &&
+      params.contains("allowed_optimization_types")) {
+    for (const auto& context_str : base::SplitString(
+             base::GetFieldTrialParamValueByFeature(
+                 kOptimizationGuideProactivePersonalizedHintsFetching,
+                 "allowed_optimization_types"),
+             ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+      proto::OptimizationType optimization_type;
+      if (proto::OptimizationType_Parse(context_str, &optimization_type)) {
+        allowed_optimization_types.Put(optimization_type);
+      }
+    }
+  }
+  return allowed_optimization_types;
 }
 
 base::TimeDelta PredictionModelFetchRandomMinDelay() {
@@ -547,22 +389,6 @@ base::TimeDelta ModelExecutionWatchdogDefaultTimeout() {
       2000
 #endif
       ));
-}
-
-bool IsModelDownloadingEnabled() {
-  return base::FeatureList::IsEnabled(kOptimizationGuideModelDownloading);
-}
-
-bool IsUnrestrictedModelDownloadingEnabled() {
-  return base::GetFieldTrialParamByFeatureAsBool(
-      kOptimizationGuideModelDownloading, "unrestricted_model_downloading",
-      true);
-}
-
-base::TimeDelta GetOnloadDelayForHintsFetching() {
-  return base::Milliseconds(GetFieldTrialParamByFeatureAsInt(
-      kRemoteOptimizationGuideFetching, "onload_delay_for_hints_fetching_ms",
-      0));
 }
 
 bool ShouldMetadataValidationFetchHostKeyed() {
@@ -856,44 +682,6 @@ std::vector<uint32_t> GetOnDeviceModelAllowedAdaptationRanks() {
     }
   }
   return ranks;
-}
-
-bool ForceCpuBackendForOnDeviceModel() {
-  static const base::FeatureParam<bool> kForceCpuBackend{
-      &kOptimizationGuideOnDeviceModel, "on_device_model_force_cpu_backend",
-      false};
-  return kForceCpuBackend.Get();
-}
-
-bool IsOnDeviceModelValidationEnabled() {
-  return base::FeatureList::IsEnabled(kOnDeviceModelValidation);
-}
-
-bool ShouldOnDeviceModelBlockOnValidationFailure() {
-  static const base::FeatureParam<bool> kParam{
-      &kOnDeviceModelValidation, "on_device_model_block_on_validation_failure",
-      false};
-  return kParam.Get();
-}
-
-bool ShouldOnDeviceModelClearValidationOnVersionChange() {
-  static const base::FeatureParam<bool> kParam{
-      &kOnDeviceModelValidation,
-      "on_device_model_clear_validation_on_version_change", false};
-  return kParam.Get();
-}
-
-base::TimeDelta GetOnDeviceModelValidationDelay() {
-  static const base::FeatureParam<base::TimeDelta> kParam{
-      &kOnDeviceModelValidation, "on_device_model_validation_delay",
-      base::Seconds(30)};
-  return kParam.Get();
-}
-
-int GetOnDeviceModelValidationAttemptCount() {
-  static const base::FeatureParam<int> kParam{
-      &kOnDeviceModelValidation, "on_device_model_validation_attempt_count", 3};
-  return kParam.Get();
 }
 
 bool ShouldEnableOptimizationGuideIconView() {

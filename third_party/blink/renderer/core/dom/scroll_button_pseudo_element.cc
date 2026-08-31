@@ -127,7 +127,7 @@ void ScrollButtonPseudoElement::DefaultEventHandler(Event& event) {
       is_key_down && (To<KeyboardEvent>(event).keyCode() == VKEY_RETURN ||
                       To<KeyboardEvent>(event).keyCode() == VKEY_SPACE);
   bool should_intercept =
-      event.target() == this && (is_click || is_enter_or_space);
+      event.RawTarget() == this && (is_click || is_enter_or_space);
   if (should_intercept) {
     HandleButtonActivation();
     event.SetDefaultHandled();
@@ -143,11 +143,11 @@ FocusableState ScrollButtonPseudoElement::SupportsFocus(
   return PseudoElement::SupportsFocus(update_behavior);
 }
 
-bool ScrollButtonPseudoElement::UpdateSnapshotInternal() {
+bool ScrollButtonPseudoElement::UpdateSnapshot() {
   // Note: we can hit it here, since we don't unsubscribe from
   // scroll snapshot client (maybe we should).
   if (!isConnected()) {
-    return true;
+    return false;
   }
   LayoutBox* scroller =
       DynamicTo<LayoutBox>(UltimateOriginatingElement().GetLayoutObject());
@@ -160,9 +160,9 @@ bool ScrollButtonPseudoElement::UpdateSnapshotInternal() {
       SetNeedsStyleRecalc(
           StyleChangeType::kLocalStyleChange,
           StyleChangeReasonForTracing::Create(style_change_reason::kControl));
-      return false;
+      return true;
     }
-    return true;
+    return false;
   }
   ScrollableArea* scrollable_area =
       scroller->IsDocumentElement() ? scroller->GetFrameView()->LayoutViewport()
@@ -206,17 +206,9 @@ bool ScrollButtonPseudoElement::UpdateSnapshotInternal() {
     SetNeedsStyleRecalc(
         StyleChangeType::kLocalStyleChange,
         StyleChangeReasonForTracing::Create(style_change_reason::kControl));
-    return false;
+    return true;
   }
-  return true;
-}
-
-void ScrollButtonPseudoElement::UpdateSnapshot() {
-  UpdateSnapshotInternal();
-}
-
-bool ScrollButtonPseudoElement::ValidateSnapshot() {
-  return UpdateSnapshotInternal();
+  return false;
 }
 
 bool ScrollButtonPseudoElement::ShouldScheduleNextService() {

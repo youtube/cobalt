@@ -4,12 +4,14 @@
 
 #include "chromecast/starboard/media/media/mime_utils.h"
 
+#include <limits>
 #include <string>
 #include <string_view>
 
 #include "base/containers/fixed_flat_map.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
+#include "chromecast/media/base/media_codec_support.h"
 
 namespace chromecast {
 namespace media {
@@ -170,6 +172,44 @@ std::string GetVp9MimeType(VideoProfile profile, int32_t level) {
   return base::StringPrintf(R"-(video/webm; codecs="%s")-", codec_str.c_str());
 }
 
+// Returns a MIME string for AV1 for the given profile/level. Returns an empty
+// string if a MIME type cannot be determined.
+//
+// Since color info, monochrome, etc. are not available to this function, we use
+// the simple version of an AV1 MIME string (no optional info is included). We
+// also guess a tier (M) and bit depth (08).
+std::string GetAv1MimeType(VideoProfile profile, int32_t level) {
+  if (level < 0 || level > 31) {
+    LOG(ERROR) << "Invalid AV1 level: " << level;
+    return "";
+  }
+
+  int profile_int = 0;
+  switch (profile) {
+    case kAV1ProfileMain:
+      profile_int = 0;
+      break;
+    case kAV1ProfileHigh:
+      profile_int = 1;
+      break;
+    case kAV1ProfilePro:
+      profile_int = 2;
+      break;
+    case kVideoProfileUnknown:
+      // This can happen for progressive playback.
+      LOG(WARNING) << "Unknown AV1 profile. Guessing main profile";
+      profile_int = 0;
+      break;
+    default:
+      LOG(ERROR) << "Unsupported AV1 profile: " << profile;
+      return "";
+  }
+
+  // Note: here we assume tier M and bit depth 08.
+  return base::StringPrintf(R"-(video/mp4; codecs="av01.%d.%02dM.08")-",
+                            profile_int, level);
+}
+
 }  // namespace
 
 std::string GetMimeType(VideoCodec codec, VideoProfile profile, int32_t level) {
@@ -184,10 +224,24 @@ std::string GetMimeType(VideoCodec codec, VideoProfile profile, int32_t level) {
       return GetVp9MimeType(profile, level);
     case kCodecVP8:
       return R"-(video/webm; codecs="vp8")-";
+    case kCodecAV1:
+      return GetAv1MimeType(profile, level);
     default:
       LOG(ERROR) << "Unsupported video codec=" << codec;
       return "";
   }
+}
+
+std::string GetMimeType(::media::VideoCodec codec,
+                        ::media::VideoCodecProfile profile,
+                        uint32_t level) {
+  // Ensure that `level` can be converted to int32_t safely.
+  if (int64_t{level} > int64_t{std::numeric_limits<int32_t>::max()}) {
+    LOG(ERROR) << "Invalid codec level: " << level;
+    return "";
+  }
+  return GetMimeType(ToCastVideoCodec(codec, profile),
+                     ToCastVideoProfile(profile), static_cast<int32_t>(level));
 }
 
 std::string GetMimeType(AudioCodec codec) {
@@ -195,6 +249,10 @@ std::string GetMimeType(AudioCodec codec) {
     return std::string(it->second);
   }
   return "";
+}
+
+std::string GetMimeType(::media::AudioCodec codec) {
+  return GetMimeType(ToCastAudioCodec(codec));
 }
 
 }  // namespace media

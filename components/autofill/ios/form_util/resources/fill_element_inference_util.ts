@@ -324,7 +324,10 @@ gCrWebLegacy.fill.isCheckableElement = function(element: any): boolean {
  *     can be autofilled.
  */
 gCrWebLegacy.fill.isAutofillableInputElement = function(element: Element): boolean {
-  return isTextField(element) || gCrWebLegacy.fill.isCheckableElement(element);
+  return isTextField(element) ||
+      (gCrWebLegacy.fill.isCheckableElement(element) &&
+       !gCrWebLegacy.autofill_form_features
+            .isAutofillIgnoreCheckableElementsEnabled());
 };
 
 /**
@@ -349,10 +352,7 @@ interface InferredLabel {
  */
 function buildInferredLabelIfValid(label: string): InferredLabel | null {
   // LINT.IfChange(InvalidLabelCriteria)
-  const isValid = gCrWebLegacy.autofill_form_features
-                      .isAutofillDisallowSlashDotLabelsEnabled() ?
-      label.search(/[^\s*:()\/\.\u2013-]/) >= 0 :
-      label.search(/[^\s*:()\u2013-]/) >= 0;
+  const isValid = label.search(/[^\s*:()\/\.\u2013-]/) >= 0;
   // LINT.ThenChange(/components/autofill/content/renderer/form_autofill_util.cc:InvalidLabelCriteria)
   if (isValid) {
     return {label: label.trim()};

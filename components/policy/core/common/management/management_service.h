@@ -54,7 +54,7 @@ enum EnterpriseManagementAuthority : int {
   NONE = 0,
   COMPUTER_LOCAL =
       1 << 0,  // local GPO or registry, /etc files, local root profile
-  DOMAIN_LOCAL = 1 << 1,  // AD joined, puppet
+  DOMAIN_LOCAL = 1 << 1,  // AD joined
   CLOUD = 1 << 2,         // MDM, GSuite user
   CLOUD_DOMAIN = 1 << 3   // Azure AD, CBCM, CrosEnrolled
 };
@@ -107,7 +107,8 @@ class POLICY_EXPORT ManagementService {
   // Observers observing updates to the enterprise custom or default work label.
   class POLICY_EXPORT Observer : public base::CheckedObserver {
    public:
-    virtual void OnEnterpriseLabelUpdated() = 0;
+    virtual void OnEnterpriseLabelUpdated() {}
+    virtual void OnEnterpriseLogoUpdatedForBrowser() {}
   };
 
   explicit ManagementService(
@@ -174,6 +175,7 @@ class POLICY_EXPORT ManagementService {
       std::unique_ptr<ManagementStatusProvider> provider);
 
   void NotifyEnterpriseLabelUpdated();
+  void NotifyEnterpriseLogoForBrowserUpdated();
 
   const std::vector<std::unique_ptr<ManagementStatusProvider>>&
   management_status_providers() {

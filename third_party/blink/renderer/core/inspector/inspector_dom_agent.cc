@@ -33,6 +33,7 @@
 #include <memory>
 
 #include "base/notreached.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/binding_security.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
@@ -73,6 +74,7 @@
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
+#include "third_party/blink/renderer/core/html/html_element.h"
 #include "third_party/blink/renderer/core/html/html_frame_owner_element.h"
 #include "third_party/blink/renderer/core/html/html_link_element.h"
 #include "third_party/blink/renderer/core/html/html_slot_element.h"
@@ -120,9 +122,9 @@ template <typename Functor>
 void ForEachSupportedPseudo(const Element* element, Functor& func) {
   for (PseudoId pseudo_id :
        {kPseudoIdCheckMark, kPseudoIdBefore, kPseudoIdAfter,
-        kPseudoIdPickerIcon, kPseudoIdMarker, kPseudoIdBackdrop,
-        kPseudoIdScrollMarker, kPseudoIdScrollMarkerGroupBefore,
-        kPseudoIdScrollMarkerGroupAfter,
+        kPseudoIdPickerIcon, kPseudoIdInterestHint, kPseudoIdMarker,
+        kPseudoIdBackdrop, kPseudoIdScrollMarker,
+        kPseudoIdScrollMarkerGroupBefore, kPseudoIdScrollMarkerGroupAfter,
         kPseudoIdScrollButtonBlockStart, kPseudoIdScrollButtonInlineStart,
         kPseudoIdScrollButtonInlineEnd, kPseudoIdScrollButtonBlockEnd}) {
     if (!PseudoElement::IsWebExposed(pseudo_id, element))
@@ -190,12 +192,12 @@ void InspectorRevalidateDOMTask::Trace(Visitor* visitor) const {
 protocol::Response InspectorDOMAgent::ToResponse(
     DummyExceptionStateForTesting& exception_state) {
   if (exception_state.HadException()) {
-    String name_prefix = IsDOMExceptionCode(exception_state.Code())
-                             ? DOMException::GetErrorName(
-                                   exception_state.CodeAs<DOMExceptionCode>()) +
-                                   " "
-                             : g_empty_string;
-    String msg = name_prefix + exception_state.Message();
+    String msg = exception_state.Message();
+    if (IsDOMExceptionCode(exception_state.Code())) {
+      msg = StrCat({DOMException::GetErrorName(
+                        exception_state.CodeAs<DOMExceptionCode>()),
+                    " ", msg});
+    }
     return protocol::Response::ServerError(msg.Utf8());
   }
   return protocol::Response::Success();
@@ -216,6 +218,8 @@ protocol::DOM::PseudoType InspectorDOMAgent::ProtocolPseudoElementType(
       return protocol::DOM::PseudoTypeEnum::After;
     case kPseudoIdPickerIcon:
       return protocol::DOM::PseudoTypeEnum::PickerIcon;
+    case kPseudoIdInterestHint:
+      return protocol::DOM::PseudoTypeEnum::InterestHint;
     case kPseudoIdMarker:
       return protocol::DOM::PseudoTypeEnum::Marker;
     case kPseudoIdBackdrop:
@@ -280,6 +284,8 @@ protocol::DOM::PseudoType InspectorDOMAgent::ProtocolPseudoElementType(
       return protocol::DOM::PseudoTypeEnum::ViewTransitionGroup;
     case kPseudoIdViewTransitionImagePair:
       return protocol::DOM::PseudoTypeEnum::ViewTransitionImagePair;
+    case kPseudoIdViewTransitionGroupChildren:
+      return protocol::DOM::PseudoTypeEnum::ViewTransitionGroupChildren;
     case kPseudoIdViewTransitionNew:
       return protocol::DOM::PseudoTypeEnum::ViewTransitionNew;
     case kPseudoIdViewTransitionOld:
@@ -379,6 +385,9 @@ PseudoId InspectorDOMAgent::ProtocolPseudoTypeToPseudoId(
   }
   if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionImagePair) {
     return kPseudoIdViewTransitionImagePair;
+  }
+  if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionGroupChildren) {
+    return kPseudoIdViewTransitionGroupChildren;
   }
   if (type == protocol::DOM::PseudoTypeEnum::ViewTransitionOld) {
     return kPseudoIdViewTransitionOld;
@@ -679,6 +688,7 @@ protocol::Response InspectorDOMAgent::enable(
 protocol::Response InspectorDOMAgent::disable() {
   if (!enabled_.Get())
     return protocol::Response::ServerError("DOM agent hasn't been enabled");
+  ReleaseForcedPopovers();
   include_whitespace_.Clear();
   enabled_.Clear();
   instrumenting_agents_->RemoveInspectorDOMAgent(this);
@@ -839,6 +849,7 @@ void InspectorDOMAgent::PushChildNodesToFrontend(int node_id,
 }
 
 void InspectorDOMAgent::DiscardFrontendBindings() {
+  ReleaseForcedPopovers();
   if (history_)
     history_->Reset();
   search_results_.clear();
@@ -1085,11 +1096,10 @@ protocol::Response InspectorDOMAgent::setAttributesAsText(
 
   auto getParsedElement = [](Element* element, Element* contextElement,
                              const String& text, bool is_html_document) {
-    String markup = element->IsSVGElement()
-                        ? "<svg " + text + "></svg>"
-                        : element->IsMathMLElement()
-                              ? "<math " + text + "></math>"
-                              : "<span " + text + "></span>";
+    String markup = element->IsSVGElement() ? StrCat({"<svg ", text, "></svg>"})
+                    : element->IsMathMLElement()
+                        ? StrCat({"<math ", text, "></math>"})
+                        : StrCat({"<span ", text, "></span>"});
     DocumentFragment* fragment =
         element->GetDocument().createDocumentFragment();
     if (is_html_document && contextElement)
@@ -1207,6 +1217,7 @@ protocol::Response InspectorDOMAgent::getOuterHTML(
     std::optional<int> node_id,
     std::optional<int> backend_node_id,
     std::optional<String> object_id,
+    std::optional<bool> include_shadow_dom,
     WTF::String* outer_html) {
   Node* node = nullptr;
   protocol::Response response =
@@ -1214,7 +1225,12 @@ protocol::Response InspectorDOMAgent::getOuterHTML(
   if (!response.IsSuccess())
     return response;
 
-  *outer_html = CreateMarkup(node);
+  ShadowRootInclusion shadow_roots{
+      include_shadow_dom.value_or(false)
+          ? ShadowRootInclusion::Behavior::kIncludeAllShadowRootsForInspector
+          : ShadowRootInclusion::Behavior::kOnlyProvidedShadowRoots};
+  *outer_html =
+      CreateMarkup(node, kIncludeNode, kDoNotResolveURLs, shadow_roots);
   return protocol::Response::Success();
 }
 
@@ -1348,15 +1364,34 @@ protocol::Response InspectorDOMAgent::performSearch(
   // Selector evaluation
   for (Document* document : docs) {
     DummyExceptionStateForTesting exception_state;
+
+    // First, evaluate the query selector on the document
     StaticElementList* element_list = document->QuerySelectorAll(
         AtomicString(whitespace_trimmed_query), exception_state);
-    if (exception_state.HadException() || !element_list) {
-      continue;
+    if (element_list && !exception_state.HadException()) {
+      for (unsigned i = 0; i < element_list->length(); ++i) {
+        result_collector.insert(element_list->item(i));
+      }
     }
 
-    unsigned size = element_list->length();
-    for (unsigned i = 0; i < size; ++i) {
-      result_collector.insert(element_list->item(i));
+    // Second, evaluate the query selector on each shadow root
+    Node* document_element = document->documentElement();
+    Node* node = document_element;
+    if (!node) {
+      continue;
+    }
+    for (; node; node = NextNodeWithShadowDOMInMind(
+                     *node, document_element, include_user_agent_shadow_dom)) {
+      if (auto* shadow_root = DynamicTo<ShadowRoot>(node)) {
+        element_list = shadow_root->QuerySelectorAll(
+            AtomicString(whitespace_trimmed_query), exception_state);
+        if (exception_state.HadException() || !element_list) {
+          continue;
+        }
+        for (unsigned i = 0; i < element_list->length(); ++i) {
+          result_collector.insert(element_list->item(i));
+        }
+      }
     }
   }
 
@@ -1665,8 +1700,7 @@ protocol::Response InspectorDOMAgent::getNodeStackTraces(
 
   auto it = node_to_creation_source_location_map_.find(node);
   if (it != node_to_creation_source_location_map_.end()) {
-    SourceLocation& source_location = it->value->GetSourceLocation();
-    *creation = source_location.BuildInspectorObject();
+    *creation = it->value->BuildInspectorObject();
   }
   return protocol::Response::Success();
 }
@@ -1807,6 +1841,7 @@ protocol::Response InspectorDOMAgent::getContainerForNode(
     std::optional<protocol::DOM::PhysicalAxes> physical_axes,
     std::optional<protocol::DOM::LogicalAxes> logical_axes,
     std::optional<bool> queries_scroll_state,
+    std::optional<bool> queries_anchored,
     std::optional<int>* container_node_id) {
   Element* element = nullptr;
   protocol::Response response = AssertElement(node_id, element);
@@ -1845,7 +1880,7 @@ protocol::Response InspectorDOMAgent::getContainerForNode(
       element,
       ContainerSelector(AtomicString(container_name.value_or(g_null_atom)),
                         physical, logical, queries_scroll_state.value_or(false),
-                        /* anchored_query */ false),
+                        queries_anchored.value_or(false)),
       nullptr /* selector_tree_scope */);
   if (container)
     *container_node_id = PushNodePathToFrontend(container);
@@ -1889,7 +1924,7 @@ protocol::Response InspectorDOMAgent::getElementByRelation(
   } else if (relation == protocol::DOM::GetElementByRelation::RelationEnum::
                              InterestTarget) {
     if (auto* invoker = DynamicTo<Element>(node)) {
-      element = invoker->InterestTargetElement();
+      element = invoker->InterestForElement();
     }
   } else if (relation ==
              protocol::DOM::GetElementByRelation::RelationEnum::CommandFor) {
@@ -1946,6 +1981,88 @@ protocol::Response InspectorDOMAgent::getAnchorElement(
     }
   }
   return protocol::Response::Success();
+}
+
+static void HidePopover(Node* node) {
+  if (auto* element = DynamicTo<HTMLElement>(node);
+      element && element->popoverOpen()) {
+    element->HidePopoverInternal(
+        /*invoker=*/nullptr, HidePopoverFocusBehavior::kNone,
+        HidePopoverTransitionBehavior::kNoEventsNoWaiting,
+        /*exception_state=*/nullptr);
+  }
+}
+
+void InspectorDOMAgent::ReleaseForcedPopovers() {
+  HeapHashSet<WeakMember<Node>> forced_popovers;
+  forced_popovers_.swap(forced_popovers);
+  for (auto& popover : forced_popovers) {
+    HidePopover(popover);
+  }
+}
+
+protocol::Response InspectorDOMAgent::forceShowPopover(
+    int node_id,
+    bool enable,
+    std::unique_ptr<protocol::Array<int>>* out_node_ids) {
+  if (!base::FeatureList::IsEnabled(features::kDevToolsAllowPopoverForcing)) {
+    return protocol::Response::ServerError("Feature is not enabled");
+  }
+
+  Node* node = nullptr;
+  protocol::Response response = AssertNode(node_id, node);
+  if (!response.IsSuccess()) {
+    return response;
+  }
+  *out_node_ids = std::make_unique<protocol::Array<int>>();
+  if (!enable) {
+    if (forced_popovers_.Contains(node)) {
+      forced_popovers_.erase(node);
+      popovers_currently_being_hidden_.insert(node);
+      HidePopover(node);
+    }
+  } else {
+    auto* element = DynamicTo<HTMLElement>(node);
+    if (!element || !element->IsPopover()) {
+      return protocol::Response::ServerError("node is not a popover");
+    }
+
+    bool should_open = forced_popovers_.insert(node).is_new_entry;
+    if (should_open && !element->popoverOpen()) {
+      // Insert the current node into the hiding list to signal that we're a
+      // force-open is in progress ...
+      popovers_currently_being_hidden_.insert(node);
+      element->ShowPopoverInternal(/*invoker=*/nullptr,
+                                   /*exception_state=*/nullptr);
+      // ... and remove it after.
+      popovers_currently_being_hidden_.erase(node);
+    }
+  }
+  NodeToIdMap* nodes_map = document_node_to_id_map_.Get();
+  for (Node* closed_node : popovers_currently_being_hidden_) {
+    if (closed_node) {
+      int id = PushNodePathToFrontend(closed_node, nodes_map);
+      (*out_node_ids)->push_back(id);
+    }
+  }
+  popovers_currently_being_hidden_.clear();
+  return protocol::Response::Success();
+}
+
+void InspectorDOMAgent::WillHidePopover(HTMLElement* element,
+                                        bool* force_open) {
+  if (base::FeatureList::IsEnabled(features::kDevToolsAllowPopoverForcing) &&
+      force_open && forced_popovers_.Contains(element)) {
+    if (!popovers_currently_being_hidden_.empty()) {
+      // We are currently in the process of force-hiding a popover, that means
+      // we're getting called during cleanup of the popover stack. Don't keep
+      // this popover open, but record that it's being closed.
+      popovers_currently_being_hidden_.insert(element);
+      forced_popovers_.erase(element);
+    } else {
+      *force_open = true;
+    }
+  }
 }
 
 // static
@@ -2058,8 +2175,10 @@ std::unique_ptr<protocol::DOM::Node> InspectorDOMAgent::BuildObjectForNode(
     case Node::kCommentNode:
     case Node::kCdataSectionNode:
       node_value = node->nodeValue();
-      if (node_value.length() > kMaxTextSize)
-        node_value = node_value.Left(kMaxTextSize) + kEllipsisUChar;
+      if (node_value.length() > kMaxTextSize) {
+        node_value =
+            StrCat({node_value.Left(kMaxTextSize), StringView(kEllipsisUChar)});
+      }
       break;
     case Node::kAttributeNode:
       local_name = To<Attr>(node)->localName();
@@ -2685,7 +2804,7 @@ void InspectorDOMAgent::PseudoElementDestroyed(PseudoElement* pseudo_element) {
   Element* parent = pseudo_element->ParentOrShadowHostElement();
   DCHECK(parent);
   int parent_id = BoundNodeId(parent);
-  // Since the pseudo element tree created for a view transition is destroyed
+  // Since the pseudo-element tree created for a view transition is destroyed
   // with in-order traversal, the parent node (::view-transition) are destroyed
   // before its children
   // (::view-transition-group).
@@ -2699,12 +2818,10 @@ void InspectorDOMAgent::NodeCreated(Node* node) {
   if (!capture_node_stack_traces_.Get())
     return;
 
-  std::unique_ptr<SourceLocation> creation_source_location =
+  SourceLocation* creation_source_location =
       SourceLocation::CaptureWithFullStackTrace();
   if (creation_source_location) {
-    node_to_creation_source_location_map_.Set(
-        node, MakeGarbageCollected<InspectorSourceLocation>(
-                  std::move(creation_source_location)));
+    node_to_creation_source_location_map_.Set(node, creation_source_location);
   }
 }
 
@@ -3072,6 +3189,8 @@ void InspectorDOMAgent::Trace(Visitor* visitor) const {
   visitor->Trace(history_);
   visitor->Trace(dom_editor_);
   visitor->Trace(node_to_creation_source_location_map_);
+  visitor->Trace(forced_popovers_);
+  visitor->Trace(popovers_currently_being_hidden_);
   InspectorBaseAgent::Trace(visitor);
 }
 

@@ -19,6 +19,13 @@ using testing::Return;
 
 namespace media {
 
+class D3D12VideoEncodeH265ReferenceFrameManagerTest : public ::testing::Test {
+ protected:
+  void SetUp() override { device_ = MakeComPtr<NiceMock<D3D12DeviceMock>>(); }
+
+  Microsoft::WRL::ComPtr<D3D12DeviceMock> device_;
+};
+
 class D3D12VideoEncodeH265DelegateTest
     : public D3D12VideoEncodeDelegateTestBase {
  protected:
@@ -33,6 +40,38 @@ class D3D12VideoEncodeH265DelegateTest
         .WillByDefault([](D3D12_FEATURE_VIDEO feature, void*, UINT) {
           EXPECT_TRUE(false) << "Unexpected feature: " << feature;
           return E_INVALIDARG;
+        });
+    ON_CALL(
+        *video_device3_.Get(),
+        CheckFeatureSupport(
+            D3D12_FEATURE_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT, _, _))
+        .WillByDefault([](D3D12_FEATURE_VIDEO, void* data, UINT size) {
+          EXPECT_EQ(
+              size,
+              sizeof(
+                  D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT));
+          if (size !=
+              sizeof(
+                  D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT)) {
+            return E_INVALIDARG;
+          }
+          auto* picture_control = static_cast<
+              D3D12_FEATURE_DATA_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT*>(
+              data);
+          picture_control->Codec = D3D12_VIDEO_ENCODER_CODEC_HEVC;
+          picture_control->IsSupported =
+              picture_control->Codec == D3D12_VIDEO_ENCODER_CODEC_HEVC;
+          EXPECT_EQ(
+              picture_control->PictureSupport.DataSize,
+              sizeof(D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_HEVC));
+          if (picture_control->PictureSupport.DataSize !=
+              sizeof(D3D12_VIDEO_ENCODER_CODEC_PICTURE_CONTROL_SUPPORT_HEVC)) {
+            return E_INVALIDARG;
+          }
+          picture_control->PictureSupport.pHEVCSupport->MaxLongTermReferences =
+              1;
+          picture_control->PictureSupport.pHEVCSupport->MaxDPBCapacity = 16;
+          return S_OK;
         });
     ON_CALL(*video_device3_.Get(),
             CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC, _, _))
@@ -191,6 +230,77 @@ class D3D12VideoEncodeH265DelegateTest
   Microsoft::WRL::ComPtr<D3D12VideoDevice3Mock> video_device3_;
 };
 
+TEST_F(D3D12VideoEncodeH265ReferenceFrameManagerTest,
+       MarkReferenceFrameAndCheckDescriptors) {
+  D3D12VideoEncodeH265ReferenceFrameManager reference_manager;
+  ASSERT_TRUE(reference_manager.InitializeTextureArray(
+      device_.Get(), {1280, 720}, DXGI_FORMAT_NV12, 4));
+  EXPECT_EQ(reference_manager.GetReferenceFrameId(0), std::nullopt);
+
+  std::vector<uint32_t> list0_reference_frames;
+  D3D12_VIDEO_ENCODER_PICTURE_CONTROL_CODEC_DATA_HEVC pic_params{};
+  reference_manager.WriteReferencePictureDescriptorsToPictureParameters(
+      &pic_params, list0_reference_frames);
+  EXPECT_EQ(pic_params.ReferenceFramesReconPictureDescriptorsCount, 0u);
+
+  // Mark frame #0 as short-term reference #0.
+  reference_manager.MarkCurrentFrameReferenced(0, 0, false);
+  EXPECT_EQ(reference_manager.GetReferenceFrameId(0), 0u);
+  list0_reference_frames = {0};
+  pic_params.List0ReferenceFramesCount = list0_reference_frames.size();
+  pic_params.pList0ReferenceFrames = list0_reference_frames.data();
+  reference_manager.WriteReferencePictureDescriptorsToPictureParameters(
+      &pic_params, list0_reference_frames);
+  ASSERT_EQ(pic_params.ReferenceFramesReconPictureDescriptorsCount, 1u);
+  // SAFETY: |pReferenceFramesReconPictureDescriptors| is guaranteed to have
+  // |ReferenceFramesReconPictureDescriptorsCount| elements.
+  base::span<const D3D12_VIDEO_ENCODER_REFERENCE_PICTURE_DESCRIPTOR_HEVC>
+      descriptors = UNSAFE_BUFFERS(
+          base::span(pic_params.pReferenceFramesReconPictureDescriptors,
+                     pic_params.ReferenceFramesReconPictureDescriptorsCount));
+  EXPECT_EQ(descriptors[0].IsRefUsedByCurrentPic, true);
+  EXPECT_EQ(descriptors[0].IsLongTermReference, false);
+  EXPECT_EQ(descriptors[0].PictureOrderCountNumber, 0u);
+
+  // Mark frame #1 as long-term reference #2.
+  reference_manager.MarkCurrentFrameReferenced(1, 2, true);
+  EXPECT_EQ(reference_manager.GetReferenceFrameId(2), 1u);
+  list0_reference_frames = {1};
+  pic_params.List0ReferenceFramesCount = list0_reference_frames.size();
+  pic_params.pList0ReferenceFrames = list0_reference_frames.data();
+  reference_manager.WriteReferencePictureDescriptorsToPictureParameters(
+      &pic_params, list0_reference_frames);
+  ASSERT_EQ(pic_params.ReferenceFramesReconPictureDescriptorsCount, 2u);
+  // SAFETY: |pReferenceFramesReconPictureDescriptors| is guaranteed to have
+  // |ReferenceFramesReconPictureDescriptorsCount| elements.
+  descriptors = UNSAFE_BUFFERS(
+      base::span(pic_params.pReferenceFramesReconPictureDescriptors,
+                 pic_params.ReferenceFramesReconPictureDescriptorsCount));
+  EXPECT_EQ(descriptors[0].IsRefUsedByCurrentPic, false);
+  EXPECT_EQ(descriptors[1].IsRefUsedByCurrentPic, true);
+  EXPECT_EQ(descriptors[1].IsLongTermReference, true);
+  EXPECT_EQ(descriptors[1].PictureOrderCountNumber, 1u);
+
+  // Mark frame #0 as not referenced.
+  reference_manager.MarkFrameUnreferenced(0);
+  EXPECT_EQ(reference_manager.GetReferenceFrameId(0), std::nullopt);
+  EXPECT_EQ(reference_manager.GetReferenceFrameId(2), 0u);
+  list0_reference_frames = {0};
+  pic_params.List0ReferenceFramesCount = list0_reference_frames.size();
+  pic_params.pList0ReferenceFrames = list0_reference_frames.data();
+  reference_manager.WriteReferencePictureDescriptorsToPictureParameters(
+      &pic_params, list0_reference_frames);
+  ASSERT_EQ(pic_params.ReferenceFramesReconPictureDescriptorsCount, 1u);
+  // SAFETY: |pReferenceFramesReconPictureDescriptors| is guaranteed to have
+  // |ReferenceFramesReconPictureDescriptorsCount| elements.
+  descriptors = UNSAFE_BUFFERS(
+      base::span(pic_params.pReferenceFramesReconPictureDescriptors,
+                 pic_params.ReferenceFramesReconPictureDescriptorsCount));
+  EXPECT_EQ(descriptors[0].IsRefUsedByCurrentPic, true);
+  EXPECT_EQ(descriptors[0].IsLongTermReference, true);
+  EXPECT_EQ(descriptors[0].PictureOrderCountNumber, 1u);
+}
+
 TEST_F(D3D12VideoEncodeH265DelegateTest, UnsupportedCodec) {
   ON_CALL(*video_device3_.Get(),
           CheckFeatureSupport(D3D12_FEATURE_VIDEO_ENCODER_CODEC, _, _))
@@ -216,8 +326,8 @@ TEST_F(D3D12VideoEncodeH265DelegateTest, EncodeFrame) {
   constexpr size_t kStreamSize = 512;
   auto shared_memory = base::UnsafeSharedMemoryRegion::Create(kBufferSize);
   BitstreamBuffer bitstream_buffer(0, shared_memory.Duplicate(), kBufferSize);
-  EXPECT_CALL(*GetVideoEncoderWrapper(), GetEncodedBitstreamWrittenBytesCount())
-      .WillOnce(Return(kStreamSize));
+  EXPECT_CALL(*GetVideoEncoderWrapper(), GetEncoderOutputMetadata())
+      .WillOnce(Return(GetEncoderOutputMetadataResourceMap(kStreamSize)));
   bool is_key_frame;
   EXPECT_CALL(*GetVideoEncoderWrapper(), Encode)
       .WillOnce([&](const D3D12_VIDEO_ENCODER_ENCODEFRAME_INPUT_ARGUMENTS&
@@ -246,7 +356,7 @@ TEST_F(D3D12VideoEncodeH265DelegateTest, EncodeFrame) {
   ASSERT_TRUE(result_or_error.has_value());
 
   BitstreamBufferMetadata metadata =
-      std::move(result_or_error).value().metadata_;
+      std::move(result_or_error).value().metadata;
   EXPECT_EQ(metadata.key_frame, is_key_frame);
   if (encoder_delegate_->ReportsAverageQp()) {
     EXPECT_GE(metadata.qp, 0);
@@ -284,9 +394,8 @@ TEST_F(D3D12VideoEncodeH265DelegateTest, EncodeFramesAndVerifyKeyFrameFlag) {
   for (uint32_t i = 0; i < config.gop_length.value() * 2; i++) {
     SCOPED_TRACE(base::StringPrintf("Frame #%u", i));
     bool should_be_key_frame = i % config.gop_length.value() == 0;
-    EXPECT_CALL(*GetVideoEncoderWrapper(),
-                GetEncodedBitstreamWrittenBytesCount())
-        .WillOnce(Return(kStreamSize));
+    EXPECT_CALL(*GetVideoEncoderWrapper(), GetEncoderOutputMetadata())
+        .WillOnce(Return(GetEncoderOutputMetadataResourceMap(kStreamSize)));
     EXPECT_CALL(*GetVideoEncoderWrapper(), Encode)
         .WillOnce([&](const D3D12_VIDEO_ENCODER_ENCODEFRAME_INPUT_ARGUMENTS&
                           input_arguments,

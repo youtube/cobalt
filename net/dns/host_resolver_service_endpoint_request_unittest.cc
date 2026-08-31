@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
@@ -166,7 +167,7 @@ class Requester : public ServiceEndpointRequest::Delegate {
     finished_result_ = rv;
 
     if (request_) {
-      finished_endpoints_ = request_->GetEndpointResults();
+      finished_endpoints_ = base::ToVector(request_->GetEndpointResults());
     }
   }
 
@@ -758,7 +759,7 @@ TEST_F(HostResolverServiceEndpointRequestTest, HttpsSlow) {
               ElementsAre(MakeIPEndPoint("::1", 443)),
               ConnectionEndpointMetadata(
                   /*supported_protocol_alpns=*/{"http/1.1"},
-                  /*ech_config_list=*/{}, std::string("https_slow_ok"))),
+                  /*ech_config_list=*/{}, std::string("https_slow_ok"), {})),
           // Non-SVCB endpoints.
           ExpectServiceEndpoint(ElementsAre(MakeIPEndPoint("127.0.0.1", 443)),
                                 ElementsAre(MakeIPEndPoint("::1", 443)))));

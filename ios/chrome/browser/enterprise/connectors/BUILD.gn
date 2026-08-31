@@ -13,7 +13,6 @@ source_set("connectors") {
   ]
 
   deps = [
-    ":features",
     ":util",
     "//base",
     "//components/enterprise",
@@ -39,6 +38,7 @@ source_set("interstitials") {
   ]
 
   deps = [
+    "//components/application_locale_storage",
     "//components/enterprise/connectors/core",
     "//components/resources:components_resources_grit",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
@@ -63,7 +63,6 @@ source_set("util") {
   ]
 
   deps = [
-    ":features",
     "//base",
     "//components/enterprise",
     "//components/enterprise/common/proto:connectors_proto",
@@ -81,15 +80,6 @@ source_set("util") {
   ]
 }
 
-source_set("features") {
-  sources = [
-    "features.h",
-    "features.mm",
-  ]
-
-  deps = [ "//base" ]
-}
-
 source_set("unit_tests") {
   testonly = true
 
@@ -101,7 +91,6 @@ source_set("unit_tests") {
 
   deps = [
     ":connectors",
-    ":features",
     ":interstitials",
     "//base",
     "//components/enterprise:test_support",
@@ -123,7 +112,9 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/profile/test",
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/signin/model:test_support",
+    "//ios/chrome/test:test_support",
     "//ios/components/security_interstitials/safe_browsing",
+    "//ios/web/common:user_agent",
     "//ios/web/public/test",
     "//ios/web/public/test/fakes",
     "//services/network:test_support",

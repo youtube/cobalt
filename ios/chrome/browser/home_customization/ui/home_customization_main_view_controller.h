@@ -9,10 +9,11 @@
 
 #import "ios/chrome/browser/home_customization/ui/home_customization_main_consumer.h"
 
+@protocol HomeCustomizationBackgroundPickerPresentationDelegate;
+@protocol HomeCustomizationColorPaletteProvider;
 @protocol HomeCustomizationDelegate;
 @protocol HomeCustomizationMutator;
-@protocol HomeCustomizationBackgroundPickerPresentationDelegate;
-@protocol HomeCustomizationLogoVendorProvider;
+@protocol HomeCustomizationSearchEngineLogoMediatorProvider;
 
 // The view controller representing the first page of the Home customization
 // menu.
@@ -31,8 +32,12 @@
         backgroundPickerPresentationDelegate;
 
 // A provider responsible for supplying a logo vendor object.
-@property(nonatomic, weak) id<HomeCustomizationLogoVendorProvider>
-    logoVendorProvider;
+@property(nonatomic, weak) id<HomeCustomizationSearchEngineLogoMediatorProvider>
+    searchEngineLogoMediatorProvider;
+
+// A provider responsible for supplying a color palette object.
+@property(nonatomic, weak) id<HomeCustomizationColorPaletteProvider>
+    colorPaletteProvider;
 
 @end
 

@@ -200,6 +200,11 @@ class CORE_EXPORT BoxFragmentBuilder final : public FragmentBuilder {
     return size_.block_size;
   }
 
+  LayoutUnit FragmentInlineSize() const {
+    DCHECK(size_.inline_size != kIndefiniteSize);
+    return size_.inline_size;
+  }
+
   LogicalSize SizeForAnchorQueries() const {
     // TODO(layout-dev): This isn't great. But sometimes anchor queries are
     // evaluated in the middle of layout of an OOF container. This happens when
@@ -421,13 +426,6 @@ class CORE_EXPORT BoxFragmentBuilder final : public FragmentBuilder {
   // building now.
   void SetConsumedBlockSize(LayoutUnit size) {
     EnsureBreakTokenData()->consumed_block_size = size;
-  }
-
-  // Set how much to adjust |consumed_block_size_| for legacy write-back. See
-  // BlockBreakToken::ConsumedBlockSizeForLegacy() for more details.
-  void SetConsumedBlockSizeLegacyAdjustment(LayoutUnit adjustment) {
-    DCHECK(!RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled());
-    EnsureBreakTokenData()->consumed_block_size_legacy_adjustment = adjustment;
   }
 
   void ReserveSpaceForMonolithicOverflow(LayoutUnit monolithic_overflow) {
@@ -653,9 +651,8 @@ class CORE_EXPORT BoxFragmentBuilder final : public FragmentBuilder {
     table_grid_rect_ = table_grid_rect;
   }
 
-  void SetTableColumnGeometries(
-      const TableColumnGeometries& table_column_geometries) {
-    table_column_geometries_ = table_column_geometries;
+  void SetTableColumnGeometries(TableColumnGeometries table_column_geometries) {
+    table_column_geometries_ = std::move(table_column_geometries);
   }
 
   void SetTableCollapsedBorders(const TableBorders& table_collapsed_borders) {
@@ -724,9 +721,10 @@ class CORE_EXPORT BoxFragmentBuilder final : public FragmentBuilder {
   void CheckNoBlockFragmentation() const;
 #endif
 
-  // Moves all the children by |offset| in the block-direction. (Ensure that
-  // any baselines, OOFs, etc, are also moved by the appropriate amount).
-  void MoveChildrenInBlockDirection(LayoutUnit offset);
+  // Moves all the children by `offset` in the block or inline direction.
+  // (Ensure that any baselines, OOFs, etc, are also moved by the appropriate
+  // amount).
+  void MoveChildrenInDirection(LayoutUnit offset, bool is_block_direction);
 
   void SetMathItalicCorrection(LayoutUnit italic_correction) {
     math_italic_correction_ = italic_correction;
@@ -807,7 +805,7 @@ class CORE_EXPORT BoxFragmentBuilder final : public FragmentBuilder {
   bool is_at_block_end_ = false;
   bool is_truncated_by_fragmentation_line = false;
   bool use_last_baseline_for_inline_baseline_ = false;
-  bool has_moved_children_in_block_direction_ = false;
+  bool has_moved_children_ = false;
 
   // Whether the `text-box-trim` is effective for block-start/end edges of a
   // node.

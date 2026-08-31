@@ -10,30 +10,37 @@
 
 #include "modules/audio_processing/aec3/echo_canceller3.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "api/audio/echo_control.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/field_trials.h"
 #include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/block.h"
 #include "modules/audio_processing/aec3/block_processor.h"
-#include "modules/audio_processing/aec3/frame_blocker.h"
 #include "modules/audio_processing/aec3/mock/mock_block_processor.h"
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/high_pass_filter.h"
-#include "modules/audio_processing/utility/cascaded_biquad_filter.h"
+#include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/strings/string_builder.h"
-#include "test/explicit_key_value_config.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
 
-using test::ExplicitKeyValueConfig;
 using ::testing::_;
 using ::testing::StrictMock;
 
@@ -133,7 +140,7 @@ class CaptureTransportVerificationProcessor : public BlockProcessor {
 
   void SetAudioBufferDelay(int /* delay_ms */) override {}
 
-  void SetCaptureOutputUsage(bool /* capture_output_used */) {}
+  void SetCaptureOutputUsage(bool /* capture_output_used */) override {}
 };
 
 // Class for testing that the render data is properly received by the block
@@ -169,7 +176,7 @@ class RenderTransportVerificationProcessor : public BlockProcessor {
 
   void SetAudioBufferDelay(int /* delay_ms */) override {}
 
-  void SetCaptureOutputUsage(bool /* capture_output_used */) {}
+  void SetCaptureOutputUsage(bool /* capture_output_used */) override {}
 
  private:
   std::deque<Block> received_render_blocks_;
@@ -737,12 +744,12 @@ TEST(EchoCanceller3Messaging, EchoLeakage) {
 TEST(EchoCanceller3FieldTrials, Aec3SuppressorAntiHowlingGainOverride) {
   EchoCanceller3Config default_config;
   EchoCanceller3Config adjusted_config =
-      AdjustConfig(default_config, ExplicitKeyValueConfig(""));
+      AdjustConfig(default_config, CreateTestFieldTrials());
   ASSERT_EQ(
       default_config.suppressor.high_bands_suppression.anti_howling_gain,
       adjusted_config.suppressor.high_bands_suppression.anti_howling_gain);
 
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-Aec3SuppressorAntiHowlingGainOverride/0.02/");
   adjusted_config = AdjustConfig(default_config, field_trials);
 
@@ -759,12 +766,12 @@ TEST(EchoCanceller3FieldTrials, Aec3SuppressorAntiHowlingGainOverride) {
 TEST(EchoCanceller3FieldTrials, Aec3EnforceLowActiveRenderLimit) {
   EchoCanceller3Config default_config;
   EchoCanceller3Config adjusted_config =
-      AdjustConfig(default_config, ExplicitKeyValueConfig(""));
+      AdjustConfig(default_config, CreateTestFieldTrials());
   ASSERT_EQ(default_config.render_levels.active_render_limit,
             adjusted_config.render_levels.active_render_limit);
 
-  ExplicitKeyValueConfig field_trials(
-      "WebRTC-Aec3EnforceLowActiveRenderLimit/Enabled/");
+  FieldTrials field_trials =
+      CreateTestFieldTrials("WebRTC-Aec3EnforceLowActiveRenderLimit/Enabled/");
   adjusted_config = AdjustConfig(default_config, field_trials);
 
   ASSERT_NE(default_config.render_levels.active_render_limit,
@@ -775,7 +782,7 @@ TEST(EchoCanceller3FieldTrials, Aec3EnforceLowActiveRenderLimit) {
 // Testing the field trial-based override of the suppressor parameters for a
 // joint passing of all parameters.
 TEST(EchoCanceller3FieldTrials, Aec3SuppressorTuningOverrideAllParams) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-Aec3SuppressorTuningOverride/"
       "nearend_tuning_mask_lf_enr_transparent:0.1,nearend_tuning_mask_lf_enr_"
       "suppress:0.2,nearend_tuning_mask_hf_enr_transparent:0.3,nearend_tuning_"
@@ -870,7 +877,7 @@ TEST(EchoCanceller3FieldTrials, Aec3SuppressorTuningOverrideAllParams) {
 // Testing the field trial-based override of the suppressor parameters for
 // passing one parameter.
 TEST(EchoCanceller3FieldTrials, Aec3SuppressorTuningOverrideOneParam) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-Aec3SuppressorTuningOverride/nearend_tuning_max_inc_factor:0.5/");
 
   EchoCanceller3Config default_config;
@@ -921,7 +928,7 @@ TEST(EchoCanceller3FieldTrials, Aec3SuppressorTuningOverrideOneParam) {
 
 // Testing the field trial-based that override the exponential decay parameters.
 TEST(EchoCanceller3FieldTrials, Aec3UseNearendReverb) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-Aec3UseNearendReverbLen/default_len:0.9,nearend_len:0.8/");
   EchoCanceller3Config default_config;
   EchoCanceller3Config adjusted_config =
@@ -933,7 +940,7 @@ TEST(EchoCanceller3FieldTrials, Aec3UseNearendReverb) {
 // Testing the field trial-based that overrides the maximum allowed ecess render
 // blocks in the render buffering.
 TEST(EchoCanceller3FieldTrials, Aec3BufferingMaxAllowedExcessRenderBlocks) {
-  ExplicitKeyValueConfig field_trials(
+  FieldTrials field_trials = CreateTestFieldTrials(
       "WebRTC-Aec3BufferingMaxAllowedExcessRenderBlocksOverride/2/");
   EchoCanceller3Config default_config;
   EchoCanceller3Config adjusted_config =

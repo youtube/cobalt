@@ -34,7 +34,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -119,6 +118,7 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // ExecutionContext overrides:
   bool IsServiceWorkerGlobalScope() const override { return true; }
   bool ShouldInstallV8Extensions() const final;
+  void MaybeRecordNetworkRequestUrlForPushEvents(const KURL& url) override;
   bool IsInFencedFrame() const override;
   void NotifyWebSocketActivity() override;
 
@@ -189,6 +189,12 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   // Resumes the toplevel script evaluation. Must be called only after
   // PauseEvaluation() is called.
   void ResumeEvaluation();
+
+  // Defers `PrepareForEvaluation()` until `RunDeferredPrepareForEvaluation` is
+  // called.
+  void DeferPrepareForEvaluation();
+  // Run deferred preparing for worker script evaluation.
+  void RunDeferredPrepareForEvaluation();
 
   // Creates a ServiceWorkerEventQueue::StayAwakeToken to ensure that the idle
   // timer won't be triggered while any of these are alive.
@@ -503,6 +509,9 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
       DispatchNotificationCloseEventCallback callback) override;
   void DispatchPushEvent(const String& payload,
                          DispatchPushEventCallback callback) override;
+  void DispatchPushEventRecordingNetworkRequests(
+      const String& payload,
+      DispatchPushEventRecordingNetworkRequestsCallback callback) override;
   void DispatchPushSubscriptionChangeEvent(
       mojom::blink::PushSubscriptionPtr old_subscription,
       mojom::blink::PushSubscriptionPtr new_subscription,
@@ -701,6 +710,8 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   HashMap<int, DispatchNotificationCloseEventCallback>
       notification_close_event_callbacks_;
   HashMap<int, DispatchPushEventCallback> push_event_callbacks_;
+  HashMap<int, DispatchPushEventRecordingNetworkRequestsCallback>
+      push_event_recording_network_requests_callback_;
   HashMap<int, DispatchPushSubscriptionChangeEventCallback>
       push_subscription_change_event_callbacks_;
   HashMap<int, DispatchFetchEventInternalCallback> fetch_event_callbacks_;
@@ -752,6 +763,19 @@ class MODULES_EXPORT ServiceWorkerGlobalScope final
   bool pause_evaluation_ = false;
   // ResumeEvaluation() evaluates the top level script when this flag is true.
   bool global_scope_initialized_ = false;
+
+  // Whether `PrepareForEvaluation` should be deferred.
+  bool defer_prepare_for_evaluation_ = false;
+
+  // Whether network requests made during a push event should be recorded for
+  // later forwarding to the browser process.
+  mojom::blink::RecordNetworkRequestsDuringPushEvent
+      should_record_network_requests_ =
+          mojom::blink::RecordNetworkRequestsDuringPushEvent::kDoNotRecord;
+
+  // The collection of network request urls contacted during the life of a push
+  // event.
+  Vector<KURL> push_event_network_request_urls_;
 
   // Connected by the ServiceWorkerHost in the browser process and by the
   // controllees. |controller_bindings_| should be destroyed before

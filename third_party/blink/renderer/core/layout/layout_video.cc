@@ -27,6 +27,7 @@
 
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/video_painter.h"
 
@@ -34,8 +35,10 @@ namespace blink {
 
 LayoutVideo::LayoutVideo(HTMLVideoElement* video)
     : LayoutMedia(video),
-      natural_dimensions_(PhysicalNaturalSizingInfo::MakeFixed(DefaultSize())) {
-}
+      natural_dimensions_(
+          RuntimeEnabledFeatures::VideoAspectRatioNaturalDimensionEnabled()
+              ? PhysicalNaturalSizingInfo::None()
+              : PhysicalNaturalSizingInfo::MakeFixed(DefaultSize())) {}
 
 LayoutVideo::~LayoutVideo() = default;
 
@@ -103,6 +106,10 @@ PhysicalNaturalSizingInfo LayoutVideo::GetNaturalDimensions() const {
         }
       }
       break;
+  }
+
+  if (RuntimeEnabledFeatures::VideoAspectRatioNaturalDimensionEnabled()) {
+    return PhysicalNaturalSizingInfo::None();
   }
 
   // Natural dimensions are missing.

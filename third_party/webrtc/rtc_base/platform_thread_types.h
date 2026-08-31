@@ -21,6 +21,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #elif defined(WEBRTC_FUCHSIA)
+#include <pthread.h>
 #include <zircon/types.h>
 #include <zircon/process.h>
 #elif defined(WEBRTC_POSIX)
@@ -32,6 +33,10 @@
 #endif
 // clang-format on
 // IWYU pragma: end_exports
+
+#if !defined(WEBRTC_WIN)
+#include <sched.h>
+#endif
 
 namespace webrtc {
 #if defined(WEBRTC_WIN)
@@ -61,17 +66,5 @@ void SetCurrentThreadName(const char* name);
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::CurrentThreadId;
-using ::webrtc::CurrentThreadRef;
-using ::webrtc::IsThreadRefEqual;
-using ::webrtc::PlatformThreadId;
-using ::webrtc::PlatformThreadRef;
-using ::webrtc::SetCurrentThreadName;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_PLATFORM_THREAD_TYPES_H_

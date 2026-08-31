@@ -1,4 +1,4 @@
-# Copyright 2025 The WebRTC project authors. All rights reserved.
+# Copyright (c) 2025 The WebRTC project authors. All rights reserved.
 #
 # Use of this source code is governed by a BSD-style license
 # that can be found in the LICENSE file in the root of the source
@@ -7,6 +7,22 @@
 # be found in the AUTHORS file in the root of the source tree.
 
 import("../../../webrtc.gni")
+
+rtc_library("file_based_decoder") {
+  testonly = true
+  sources = [ "file_based_decoder.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/strings:string_view" ]
+}
+
+rtc_library("file_based_encoder") {
+  testonly = true
+  sources = [ "file_based_encoder.h" ]
+  deps = [
+    ":test_clip",
+    "../../../api/units:data_rate",
+    "../../../api/video:video_frame",
+  ]
+}
 
 rtc_library("picture_pair_provider") {
   testonly = true
@@ -42,11 +58,47 @@ rtc_library("utils") {
   ]
   deps = [
     "../../../api:array_view",
+    "../../../api/video:video_frame",
+    "../../../api/video_codecs:video_codecs_api",
     "../../../rtc_base:checks",
     "../../../rtc_base:stringutils",
     "../../../rtc_base/system:file_wrapper",
     "../../../test:fileutils",
     "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
+rtc_library("webrtc_picture_pair_provider") {
+  testonly = true
+  sources = [
+    "webrtc_picture_pair_provider.cc",
+    "webrtc_picture_pair_provider.h",
+  ]
+  deps = [
+    ":picture_pair_provider",
+    ":test_clip",
+    ":utils",
+    "../../../api:scoped_refptr",
+    "../../../api:sequence_checker",
+    "../../../api/environment",
+    "../../../api/environment:environment_factory",
+    "../../../api/units:data_rate",
+    "../../../api/video:encoded_image",
+    "../../../api/video:resolution",
+    "../../../api/video:video_frame",
+    "../../../api/video:video_frame_type",
+    "../../../api/video_codecs:scalability_mode",
+    "../../../api/video_codecs:video_codecs_api",
+    "../../../modules/video_coding:video_codec_interface",
+    "../../../modules/video_coding:video_coding_utility",
+    "../../../modules/video_coding/svc:svc_rate_allocator",
+    "../../../rtc_base:checks",
+    "../../../rtc_base:logging",
+    "../../../rtc_base:macromagic",
+    "../../../rtc_base/system:no_unique_address",
+    "../../../test:fileutils",
+    "../../../test:test_support",
+    "../../../test:video_test_support",
   ]
 }
 
@@ -79,12 +131,51 @@ if (rtc_include_tests) {
     ]
   }
 
+  rtc_library("webrtc_picture_pair_provider_unittest") {
+    testonly = true
+    sources = [ "webrtc_picture_pair_provider_unittest.cc" ]
+    data = [ "../../../resources/ConferenceMotion_1280_720_50.yuv" ]
+    deps = [
+      ":picture_pair_provider",
+      ":utils",
+      ":webrtc_picture_pair_provider",
+      "../../../api:field_trials_view",
+      "../../../api:mock_video_codec_factory",
+      "../../../api:mock_video_decoder",
+      "../../../api:mock_video_encoder",
+      "../../../api:scoped_refptr",
+      "../../../api/environment:environment_factory",
+      "../../../api/units:data_rate",
+      "../../../api/video:encoded_image",
+      "../../../api/video:video_frame",
+      "../../../api/video:video_frame_type",
+      "../../../api/video_codecs:builtin_video_decoder_factory",
+      "../../../api/video_codecs:builtin_video_encoder_factory",
+      "../../../api/video_codecs:scalability_mode",
+      "../../../api/video_codecs:video_codecs_api",
+      "../../../api/video_codecs:video_decoder_factory_template",
+      "../../../api/video_codecs:video_decoder_factory_template_dav1d_adapter",
+      "../../../api/video_codecs:video_encoder_factory_template",
+      "../../../api/video_codecs:video_encoder_factory_template_libaom_av1_adapter",
+      "../../../common_video",
+      "../../../modules/video_coding:video_codec_interface",
+      "../../../modules/video_coding:video_coding_utility",
+      "../../../modules/video_coding/svc:svc_rate_allocator",
+      "../../../rtc_base:checks",
+      "../../../test:fileutils",
+      "../../../test:test_support",
+      "../../../video/corruption_detection/evaluation:test_clip",
+      "//third_party/abseil-cpp/absl/strings:string_view",
+    ]
+  }
+
   rtc_library("corruption_detection_eval_tests") {
     testonly = true
     sources = []
     deps = [
       ":test_clip_unittest",
       ":utils_unittest",
+      ":webrtc_picture_pair_provider_unittest",
     ]
   }
 }

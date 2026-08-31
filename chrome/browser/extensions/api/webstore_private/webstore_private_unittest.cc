@@ -56,8 +56,8 @@ constexpr char kExtensionManifest[] = R"({
   \"name\" : \"Extension\",
   \"manifest_version\": 3,
   \"version\": \"0.1\",
-  \"permissions\": [ \"example.com\", \"downloads\"],
-  \"optional_permissions\" : [\"audio\"]})";
+  \"permissions\": [ \"example.com\", \"cookies\"],
+  \"optional_permissions\" : [\"notifications\"]})";
 
 constexpr char kBlockAllExtensionSettings[] = R"({
   "*": {
@@ -77,13 +77,13 @@ constexpr char kBlockedManifestTypeExtensionSettings[] = R"({
   }
 })";
 
-constexpr char kBlockedDownloadsPermissionsExtensionSettings[] = R"({
+constexpr char kBlockedCookiesPermissionsExtensionSettings[] = R"({
   "*": {
-    "blocked_permissions": ["downloads"]
+    "blocked_permissions": ["cookies"]
   }
 })";
 
-constexpr char kBlockedAudioPermissionsExtensionSettings[] = R"({
+constexpr char kBlockedNotificationsPermissionsExtensionSettings[] = R"({
   "*": {
     "blocked_permissions": ["audio"]
   }
@@ -297,8 +297,7 @@ TEST_F(WebstorePrivateGetExtensionStatusTest, ExtensionBlockedByManifestType) {
 }
 
 TEST_F(WebstorePrivateGetExtensionStatusTest, ExtensionBlockedByPermission) {
-  SetExtensionSettings(kBlockedDownloadsPermissionsExtensionSettings,
-                       profile());
+  SetExtensionSettings(kBlockedCookiesPermissionsExtensionSettings, profile());
   auto function =
       base::MakeRefCounted<WebstorePrivateGetExtensionStatusFunction>();
   std::optional<base::Value> response = RunFunctionAndReturnValue(
@@ -308,7 +307,8 @@ TEST_F(WebstorePrivateGetExtensionStatusTest, ExtensionBlockedByPermission) {
 
 TEST_F(WebstorePrivateGetExtensionStatusTest,
        ExtensionNotBlockedByOptionalPermission) {
-  SetExtensionSettings(kBlockedAudioPermissionsExtensionSettings, profile());
+  SetExtensionSettings(kBlockedNotificationsPermissionsExtensionSettings,
+                       profile());
   auto function =
       base::MakeRefCounted<WebstorePrivateGetExtensionStatusFunction>();
   std::optional<base::Value> response = RunFunctionAndReturnValue(
@@ -628,7 +628,7 @@ TEST_F(WebstorePrivateBeginInstallWithManifest3Test,
 
 TEST_F(WebstorePrivateBeginInstallWithManifest3Test,
        ExtensionBlockedByPermission) {
-  SetExtensionSettings(kBlockedDownloadsPermissionsExtensionSettings);
+  SetExtensionSettings(kBlockedCookiesPermissionsExtensionSettings);
 
   std::unique_ptr<content::WebContents> web_contents =
       content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
@@ -645,7 +645,7 @@ TEST_F(WebstorePrivateBeginInstallWithManifest3Test,
 
 TEST_F(WebstorePrivateBeginInstallWithManifest3Test,
        ExtensionNotBlockedByOptionalPermission) {
-  SetExtensionSettings(kBlockedAudioPermissionsExtensionSettings);
+  SetExtensionSettings(kBlockedNotificationsPermissionsExtensionSettings);
 
   std::unique_ptr<content::WebContents> web_contents =
       content::WebContentsTester::CreateTestWebContents(profile(), nullptr);
@@ -840,17 +840,7 @@ WebstorePrivateManifestV2DeprecationUnitTest::
   std::vector<base::test::FeatureRef> enabled_features;
   std::vector<base::test::FeatureRef> disabled_features;
   switch (GetParam()) {
-    case MV2ExperimentStage::kNone:
-      disabled_features.push_back(
-          extensions_features::kExtensionManifestV2DeprecationWarning);
-      disabled_features.push_back(
-          extensions_features::kExtensionManifestV2Disabled);
-      disabled_features.push_back(
-          extensions_features::kExtensionManifestV2Unsupported);
-      break;
     case MV2ExperimentStage::kWarning:
-      enabled_features.push_back(
-          extensions_features::kExtensionManifestV2DeprecationWarning);
       disabled_features.push_back(
           extensions_features::kExtensionManifestV2Disabled);
       disabled_features.push_back(
@@ -860,8 +850,6 @@ WebstorePrivateManifestV2DeprecationUnitTest::
       enabled_features.push_back(
           extensions_features::kExtensionManifestV2Disabled);
       disabled_features.push_back(
-          extensions_features::kExtensionManifestV2DeprecationWarning);
-      disabled_features.push_back(
           extensions_features::kExtensionManifestV2Unsupported);
       break;
     case MV2ExperimentStage::kUnsupported:
@@ -869,8 +857,6 @@ WebstorePrivateManifestV2DeprecationUnitTest::
           extensions_features::kExtensionManifestV2Unsupported);
       disabled_features.push_back(
           extensions_features::kExtensionManifestV2Disabled);
-      disabled_features.push_back(
-          extensions_features::kExtensionManifestV2DeprecationWarning);
       break;
   }
 
@@ -880,14 +866,11 @@ WebstorePrivateManifestV2DeprecationUnitTest::
 INSTANTIATE_TEST_SUITE_P(
     ,
     WebstorePrivateManifestV2DeprecationUnitTest,
-    testing::Values(MV2ExperimentStage::kNone,
-                    MV2ExperimentStage::kWarning,
+    testing::Values(MV2ExperimentStage::kWarning,
                     MV2ExperimentStage::kDisableWithReEnable,
                     MV2ExperimentStage::kUnsupported),
     [](const testing::TestParamInfo<MV2ExperimentStage>& info) {
       switch (info.param) {
-        case MV2ExperimentStage::kNone:
-          return "ExperimentDisabled";
         case MV2ExperimentStage::kWarning:
           return "WarningExperiment";
         case MV2ExperimentStage::kDisableWithReEnable:
@@ -909,9 +892,6 @@ TEST_P(WebstorePrivateManifestV2DeprecationUnitTest,
 
   std::string expected;
   switch (GetParam()) {
-    case MV2ExperimentStage::kNone:
-      expected = "inactive";
-      break;
     case MV2ExperimentStage::kWarning:
       expected = "warning";
       break;

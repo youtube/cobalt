@@ -76,7 +76,7 @@ public class BrowsingDataRemoverIntegrationTest {
     @MediumTest
     public void testUnregisteringWebapps() throws Exception {
         // Register three web apps.
-        final HashMap<String, String> apps = new HashMap<String, String>();
+        final HashMap<String, String> apps = new HashMap<>();
         apps.put("webapp1", "https://www.google.com/index.html");
         apps.put("webapp2", "https://www.chrome.com/foo/bar");
         apps.put("webapp3", "http://example.com/");
@@ -109,7 +109,7 @@ public class BrowsingDataRemoverIntegrationTest {
 
         // The last two webapps should have been unregistered.
         Assert.assertEquals(
-                new HashSet<String>(Arrays.asList("webapp1")),
+                new HashSet<>(Arrays.asList("webapp1")),
                 WebappRegistry.getRegisteredWebappIdsForTesting());
 
         CallbackHelper dataClearedNoUrlFilterHelper = new CallbackHelper();
@@ -191,14 +191,16 @@ public class BrowsingDataRemoverIntegrationTest {
 
         Assert.assertTrue(
                 UrlUtilities.isNtpUrl(mActivityTestRule.getWebContents().getVisibleUrl()));
-        Assert.assertEquals(
-                new GURL(testUrl),
-                mActivityTestRule
-                        .getActivity()
-                        .getTabModelSelectorSupplier()
-                        .get()
-                        .getModel(/* incognito= */ true)
-                        .getTabAt(0)
-                        .getUrl());
+        GURL url =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                mActivityTestRule
+                                        .getActivity()
+                                        .getTabModelSelectorSupplier()
+                                        .get()
+                                        .getModel(/* incognito= */ true)
+                                        .getTabAt(0)
+                                        .getUrl());
+        Assert.assertEquals(new GURL(testUrl), url);
     }
 }

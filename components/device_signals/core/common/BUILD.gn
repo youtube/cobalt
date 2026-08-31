@@ -34,7 +34,7 @@ static_library("common") {
     ]
   }
 
-  if (is_mac || is_linux) {
+  if (is_mac || is_linux || is_chromeos) {
     sources += [ "posix/platform_utils_posix.cc" ]
   }
 
@@ -42,7 +42,7 @@ static_library("common") {
     sources += [ "mac/platform_utils_mac.mm" ]
   }
 
-  if (is_linux) {
+  if (is_linux || is_chromeos) {
     if (use_glib) {
       deps += [ "//ui/base/glib" ]
     }
@@ -54,6 +54,10 @@ static_library("common") {
   if (use_gio) {
     configs += [ "//build/linux:gio_config" ]
   }
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("features") {
@@ -62,4 +66,23 @@ source_set("features") {
   sources = [ "signals_features.cc" ]
 
   public_deps = [ "//base" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  sources = []
+  deps = []
+
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [ "platform_utils_unittest.cc" ]
+
+    deps += [
+      ":common",
+      "//base",
+      "//base/test:test_support",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
 }

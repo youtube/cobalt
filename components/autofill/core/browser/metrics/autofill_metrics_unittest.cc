@@ -34,6 +34,7 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/data_manager/test_personal_data_manager.h"
+#include "components/autofill/core/browser/data_manager/valuables/valuables_data_manager_test_api.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/data_quality/autofill_data_util.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -61,6 +62,7 @@
 #include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
 #include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "components/autofill/core/browser/test_utils/test_autofill_clock.h"
+#include "components/autofill/core/browser/test_utils/valuables_data_test_utils.h"
 #include "components/autofill/core/browser/ui/autofill_external_delegate.h"
 #include "components/autofill/core/browser/ui/test_autofill_external_delegate.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
@@ -152,27 +154,6 @@ class AutofillMetricsTest : public AutofillMetricsBaseTest,
 
   void TearDown() override { TearDownHelper(); }
 };
-
-// Parameterized test class to test
-// kAutofillEnableLogFormEventsToAllParsedFormTypes and ensure form event
-// logging still works in the appropriate histograms when logging to parsed form
-// types on a webpage.
-class AutofillMetricsTestWithParsedFormLogging
-    : public testing::WithParamInterface<bool>,
-      public AutofillMetricsTest {
- public:
-  AutofillMetricsTestWithParsedFormLogging() {
-    feature_list_.InitWithFeatureState(
-        features::kAutofillEnableLogFormEventsToAllParsedFormTypes, GetParam());
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         AutofillMetricsTestWithParsedFormLogging,
-                         testing::Bool());
 
 TEST_F(AutofillMetricsTest, PerfectFilling_Addresses_CreditCards) {
   FormData address_form = test::GetFormData(
@@ -303,8 +284,6 @@ TEST_F(AutofillMetricsTest, StoredProfileCountNonAutofillableFormSubmission) {
 
 // Tests the logging of type-specific field-wise correctness.
 TEST_F(AutofillMetricsTest, EditedAutofilledFieldAtSubmission) {
-  base::test::ScopedFeatureList scoped_feature_list{
-      features::kAutofillRecordCorrectionOfSelectElements};
   test::FormDescription form_description = {
       .description_for_logging = "NumberOfAutofilledFields",
       .fields = {{.role = NAME_FULL,
@@ -689,9 +668,7 @@ TEST_F(AutofillMetricsTest, CreditCardCheckoutFlowUserActions) {
 
   // Disable mandatory reauth as it is not part of this test and will
   // interfere with the card retrieval flow.
-  personal_data()
-      .payments_data_manager()
-      .SetPaymentMethodsMandatoryReauthEnabled(false);
+  paydm().SetPaymentMethodsMandatoryReauthEnabled(false);
   RecreateCreditCards(/*include_local_credit_card=*/true,
                       /*include_masked_server_credit_card=*/false,
                       /*masked_card_is_enrolled_for_virtual_card=*/false);
@@ -821,8 +798,7 @@ TEST_F(AutofillMetricsTest, CreditCardCheckoutFlowUserActions) {
     autofill_manager().FillOrPreviewForm(
         mojom::ActionPersistence::kFill, form,
         form.fields().front().global_id(),
-        personal_data().payments_data_manager().GetCreditCardByGUID(
-            kTestLocalCardId),
+        paydm().GetCreditCardByGUID(kTestLocalCardId),
         AutofillTriggerSource::kPopup);
     EXPECT_EQ(1, user_action_tester.GetActionCount(
                      "Autofill_FilledCreditCardSuggestion"));
@@ -1009,6 +985,44 @@ TEST_F(AutofillMetricsTest, ProfileCheckoutFlowUserActions) {
                Collapse(CalculateFormSignature(form)).value()}}});
 }
 
+// Test that the loyalty card checkout flow user actions are correctly logged.
+TEST_F(AutofillMetricsTest, LoyaltyCardCheckoutFlowUserActions) {
+  // Set up test loyalty cards.
+  const LoyaltyCard loyalty_card = test::CreateLoyaltyCard();
+  test_api(valuables_data_manager()).SetLoyaltyCards({loyalty_card});
+
+  FormData form =
+      CreateForm({CreateTestFormField("Loyalty Program", "loyalty-program", "",
+                                      FormControlType::kInputText),
+                  CreateTestFormField("Loyalty Number", "loyalty-number", "",
+                                      FormControlType::kInputText)});
+  // Simulate an Autofill query on a profile field.
+  {
+    base::UserActionTester user_action_tester;
+    autofill_manager().AddSeenForm(
+        form, {LOYALTY_MEMBERSHIP_PROGRAM, LOYALTY_MEMBERSHIP_ID});
+    EXPECT_EQ(
+        1, user_action_tester.GetActionCount("Autofill_ParsedLoyaltyCardForm"));
+  }
+
+  // Simulate an Autofill query on a loyalty card field.
+  {
+    base::UserActionTester user_action_tester;
+    autofill_manager().OnAskForValuesToFillTest(form,
+                                                form.fields()[1].global_id());
+    EXPECT_EQ(1, user_action_tester.GetActionCount(
+                     "Autofill_PolledLoyaltyCardSuggestions"));
+  }
+  // Simulate showing a loyalty card suggestion polled from "Loyalty Number"
+  // field.
+  {
+    base::UserActionTester user_action_tester;
+    DidShowAutofillSuggestions(form);
+    EXPECT_EQ(1, user_action_tester.GetActionCount(
+                     "Autofill_ShowedLoyaltyCardSuggestions"));
+  }
+}
+
 // Tests that the Autofill_PolledCreditCardSuggestions user action is only
 // logged once if the field is queried repeatedly.
 TEST_F(AutofillMetricsTest, PolledCreditCardSuggestions_DebounceLogs) {
@@ -1185,8 +1199,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
         mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
-        personal_data().payments_data_manager().GetCreditCardByGUID(
-            kTestMaskedCardId),
+        paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup);
     OnDidGetRealPan(PaymentsRpcResult::kSuccess, "6011000990139424");
     histogram_tester.ExpectTotalCount(
@@ -1209,8 +1222,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
         mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
-        personal_data().payments_data_manager().GetCreditCardByGUID(
-            kTestMaskedCardId),
+        paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup);
     OnDidGetRealPan(PaymentsRpcResult::kPermanentFailure, std::string());
     histogram_tester.ExpectTotalCount(
@@ -1233,8 +1245,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_ServerCard) {
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
         mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
-        personal_data().payments_data_manager().GetCreditCardByGUID(
-            kTestMaskedCardId),
+        paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup);
     OnDidGetRealPan(PaymentsRpcResult::kClientSideTimeout, std::string());
     histogram_tester.ExpectTotalCount(
@@ -1269,8 +1280,7 @@ TEST_F(AutofillMetricsTest, CreditCardGetRealPanDuration_BadServerResponse) {
     base::HistogramTester histogram_tester;
     autofill_manager().FillOrPreviewForm(
         mojom::ActionPersistence::kFill, form, form.fields().back().global_id(),
-        personal_data().payments_data_manager().GetCreditCardByGUID(
-            kTestMaskedCardId),
+        paydm().GetCreditCardByGUID(kTestMaskedCardId),
         AutofillTriggerSource::kPopup);
     OnDidGetRealPanWithNonHttpOkResponse();
     histogram_tester.ExpectTotalCount(
@@ -1421,7 +1431,7 @@ TEST_F(AutofillMetricsTest, ShouldNotLogFormEventNoCardForAddressForm) {
 }
 
 // Test that we log parsed form events for address.
-TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressParsedFormEvents) {
+TEST_F(AutofillMetricsTest, AddressParsedFormEvents) {
   FormData form = CreateForm(
       {CreateTestFormField("State", "state", "", FormControlType::kInputText),
        CreateTestFormField("City", "city", "", FormControlType::kInputText),
@@ -1451,7 +1461,7 @@ TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressParsedFormEvents) {
 }
 
 // Test that we log interacted form events for address.
-TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressInteractedFormEvents) {
+TEST_F(AutofillMetricsTest, AddressInteractedFormEvents) {
   FormData form = CreateForm(
       {CreateTestFormField("State", "state", "", FormControlType::kInputText),
        CreateTestFormField("City", "city", "", FormControlType::kInputText),
@@ -1530,7 +1540,7 @@ TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressInteractedFormEvents) {
 }
 
 // Test that we log suggestion shown form events for address.
-TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressShownFormEvents) {
+TEST_F(AutofillMetricsTest, AddressShownFormEvents) {
   RecreateProfile();
   FormData form = CreateForm(
       {CreateTestFormField("State", "state", "", FormControlType::kInputText),
@@ -1659,7 +1669,7 @@ TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressShownFormEvents) {
 }
 
 // Test that we log filled form events for address.
-TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressFilledFormEvents) {
+TEST_F(AutofillMetricsTest, AddressFilledFormEvents) {
   RecreateProfile();
   FormData form = CreateForm(
       {CreateTestFormField("State", "state", "", FormControlType::kInputText),
@@ -1727,7 +1737,7 @@ TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressFilledFormEvents) {
 }
 
 // Test that we log submitted form events for address.
-TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressSubmittedFormEvents) {
+TEST_F(AutofillMetricsTest, AddressSubmittedFormEvents) {
   RecreateProfile();
   FormData form = CreateForm(
       {CreateTestFormField("State", "state", "", FormControlType::kInputText),
@@ -1869,7 +1879,7 @@ TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressSubmittedFormEvents) {
 }
 
 // Test that we log "will submit" and "submitted" form events for address.
-TEST_P(AutofillMetricsTestWithParsedFormLogging, AddressWillSubmitFormEvents) {
+TEST_F(AutofillMetricsTest, AddressWillSubmitFormEvents) {
   RecreateProfile();
   FormData form = CreateForm(
       {CreateTestFormField("State", "state", "", FormControlType::kInputText),

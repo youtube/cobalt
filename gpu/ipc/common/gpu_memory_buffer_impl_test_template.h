@@ -7,7 +7,7 @@
 #pragma allow_unsafe_buffers
 #endif
 
-// This file defines tests that implementations of GpuMemoryBufferFactory should
+// This file defines tests that implementations of GpuMemoryBufferImpl should
 // pass in order to be conformant.
 
 #ifndef GPU_IPC_COMMON_GPU_MEMORY_BUFFER_IMPL_TEST_TEMPLATE_H_
@@ -25,6 +25,7 @@
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
 #include "components/viz/test/test_gpu_service_holder.h"
+#include "gpu/ipc/common/gpu_memory_buffer_impl_shared_memory.h"
 #include "gpu/ipc/common/gpu_memory_buffer_support.h"
 #include "mojo/public/cpp/base/shared_memory_mojom_traits.h"
 #include "mojo/public/cpp/test_support/test_utils.h"
@@ -40,24 +41,72 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
+#if BUILDFLAG(IS_OZONE)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
+#include "ui/ozone/public/client_native_pixmap_factory_ozone.h"
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
+#if BUILDFLAG(IS_MAC)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_io_surface.h"
+#endif
+
+#if BUILDFLAG(IS_OZONE)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_native_pixmap.h"
+#include "ui/ozone/public/client_native_pixmap_factory_ozone.h"
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "gpu/ipc/common/gpu_memory_buffer_impl_dxgi.h"
+#endif
+
 namespace gpu {
 
 template <typename GpuMemoryBufferImplType>
 class GpuMemoryBufferImplTest : public testing::Test {
  public:
-  GpuMemoryBufferImplTest() = default;
+  GpuMemoryBufferImplTest() {
+#if BUILDFLAG(IS_OZONE)
+    client_native_pixmap_factory_ = ui::CreateClientNativePixmapFactoryOzone();
+#endif
+  }
 
-  GpuMemoryBufferImpl::DestructionCallback CreateGpuMemoryBuffer(
+  void CreateGpuMemoryBuffer(const gfx::Size& size,
+                             gfx::BufferFormat format,
+                             gfx::BufferUsage usage,
+                             gfx::GpuMemoryBufferHandle* handle) {
+    GpuMemoryBufferImplType::AllocateForTesting(size, format, usage, handle);
+  }
+
+  std::unique_ptr<GpuMemoryBufferImpl> CreateGpuMemoryBufferImplFromHandle(
+      gfx::GpuMemoryBufferHandle handle,
       const gfx::Size& size,
       gfx::BufferFormat format,
-      gfx::BufferUsage usage,
-      gfx::GpuMemoryBufferHandle* handle,
-      bool* destroyed) {
-    return base::BindOnce(&GpuMemoryBufferImplTest::FreeGpuMemoryBuffer,
-                          base::Unretained(this),
-                          GpuMemoryBufferImplType::AllocateForTesting(
-                              size, format, usage, handle),
-                          base::Unretained(destroyed));
+      gfx::BufferUsage usage) {
+    switch (handle.type) {
+      case gfx::SHARED_MEMORY_BUFFER:
+        return GpuMemoryBufferImplSharedMemory::CreateFromHandleForTesting(
+            std::move(handle), size, format, usage);
+#if BUILDFLAG(IS_MAC)
+      case gfx::IO_SURFACE_BUFFER:
+        return GpuMemoryBufferImplIOSurface::CreateFromHandleForTesting(
+            std::move(handle), size, format, usage);
+#endif
+#if BUILDFLAG(IS_OZONE)
+      case gfx::NATIVE_PIXMAP:
+        return GpuMemoryBufferImplNativePixmap::CreateFromHandleForTesting(
+            client_native_pixmap_factory_.get(), std::move(handle), size,
+            format, usage);
+#endif
+#if BUILDFLAG(IS_WIN)
+      case gfx::DXGI_SHARED_HANDLE:
+        return GpuMemoryBufferImplDXGI::CreateFromHandleForTesting(
+            std::move(handle), size, format);
+#endif
+      default:
+        NOTREACHED();
+    }
   }
 
   GpuMemoryBufferSupport* gpu_memory_buffer_support() {
@@ -71,8 +120,8 @@ class GpuMemoryBufferImplTest : public testing::Test {
     // GmbImplTestNativePixmap is a no-op, we should run it on a gpu runner.
 #if BUILDFLAG(IS_OZONE)
     // TODO(329211602): Currently only wayland has a valid
-    // IsConfigurationSupportedForTest. We should implement that in X11 and
-    // other platforms either.
+    // IsNativeGpuMemoryBufferConfigurationSupportedForTesting. We should
+    // implement that in X11 and other platforms either.
     if (ui::OzonePlatform::GetPlatformNameForTest() == "wayland") {
       run_gpu_test_ = true;
     }
@@ -127,13 +176,9 @@ class GpuMemoryBufferImplTest : public testing::Test {
   bool run_gpu_test_ = false;
   GpuMemoryBufferSupport gpu_memory_buffer_support_;
   raw_ptr<gl::GLDisplay> display_ = nullptr;
-
-  void FreeGpuMemoryBuffer(base::OnceClosure free_callback, bool* destroyed) {
-    std::move(free_callback).Run();
-    if (destroyed) {
-      *destroyed = true;
-    }
-  }
+#if BUILDFLAG(IS_OZONE)
+  std::unique_ptr<gfx::ClientNativePixmapFactory> client_native_pixmap_factory_;
+#endif
 };
 
 // Subclass test case for tests that require a Create() method,
@@ -171,33 +216,24 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, CreateFromHandle) {
         gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
     };
     for (auto usage : usages) {
-      if (!TestFixture::gpu_memory_buffer_support()
-               ->IsConfigurationSupportedForTest(TypeParam::kBufferType, format,
-                                                 usage)) {
+      if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
+          !TestFixture::gpu_memory_buffer_support()
+               ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
+                   format, usage)) {
         continue;
       }
 
-      bool destroyed = false;
       gfx::GpuMemoryBufferHandle handle;
-      GpuMemoryBufferImpl::DestructionCallback destroy_callback =
-          TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage,
-                                             &handle, &destroyed);
+      TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage, &handle);
 
       if (!TestFixture::CheckGpuMemoryBufferHandle(handle)) {
         continue;
       }
 
       std::unique_ptr<GpuMemoryBufferImpl> buffer(
-          TestFixture::gpu_memory_buffer_support()
-              ->CreateGpuMemoryBufferImplFromHandle(
-                  std::move(handle), kBufferSize, format, usage,
-                  std::move(destroy_callback)));
+          TestFixture::CreateGpuMemoryBufferImplFromHandle(
+              std::move(handle), kBufferSize, format, usage));
       ASSERT_TRUE(buffer);
-      EXPECT_EQ(buffer->GetFormat(), format);
-
-      // Check if destruction callback is executed when deleting the buffer.
-      buffer.reset();
-      ASSERT_TRUE(destroyed);
     }
   }
 }
@@ -220,18 +256,15 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, CreateFromHandleSmallBuffer) {
         gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
     };
     for (auto usage : usages) {
-      if (!TestFixture::gpu_memory_buffer_support()
-               ->IsConfigurationSupportedForTest(TypeParam::kBufferType, format,
-                                                 usage)) {
+      if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
+          !TestFixture::gpu_memory_buffer_support()
+               ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
+                   format, usage)) {
         continue;
       }
 
-      bool destroyed = false;
       gfx::GpuMemoryBufferHandle handle;
-      GpuMemoryBufferImpl::DestructionCallback destroy_callback =
-          TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage,
-                                             &handle, &destroyed);
-
+      TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage, &handle);
       if (!TestFixture::CheckGpuMemoryBufferHandle(handle)) {
         continue;
       }
@@ -241,10 +274,8 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, CreateFromHandleSmallBuffer) {
 
       // Handle import should fail when the size is bigger than expected.
       std::unique_ptr<GpuMemoryBufferImpl> buffer(
-          TestFixture::gpu_memory_buffer_support()
-              ->CreateGpuMemoryBufferImplFromHandle(
-                  std::move(handle), bogus_size, format, usage,
-                  std::move(destroy_callback)));
+          TestFixture::CreateGpuMemoryBufferImplFromHandle(
+              std::move(handle), bogus_size, format, usage));
 
       // Only non-mappable GMB implementations can be imported with invalid
       // size. In other words all GMP implementations that allow memory mapping
@@ -261,29 +292,25 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, Map) {
   const gfx::Size kBufferSize(4, 4);
 
   for (auto format : gfx::GetBufferFormatsForTesting()) {
-    if (!TestFixture::gpu_memory_buffer_support()
-             ->IsConfigurationSupportedForTest(
-                 TypeParam::kBufferType, format,
-                 gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
+    if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
+        !TestFixture::gpu_memory_buffer_support()
+             ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
+                 format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
       continue;
     }
 
     gfx::GpuMemoryBufferHandle handle;
-    GpuMemoryBufferImpl::DestructionCallback destroy_callback =
-        TestFixture::CreateGpuMemoryBuffer(
-            kBufferSize, format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-            &handle, nullptr);
-
+    TestFixture::CreateGpuMemoryBuffer(
+        kBufferSize, format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+        &handle);
     if (!TestFixture::CheckGpuMemoryBufferHandle(handle)) {
       continue;
     }
 
     std::unique_ptr<GpuMemoryBufferImpl> buffer(
-        TestFixture::gpu_memory_buffer_support()
-            ->CreateGpuMemoryBufferImplFromHandle(
-                std::move(handle), kBufferSize, format,
-                gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-                std::move(destroy_callback)));
+        TestFixture::CreateGpuMemoryBufferImplFromHandle(
+            std::move(handle), kBufferSize, format,
+            gfx::BufferUsage::GPU_READ_CPU_READ_WRITE));
     ASSERT_TRUE(buffer);
 
     const size_t num_planes = gfx::NumberOfPlanesForLinearBufferFormat(format);
@@ -327,29 +354,25 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, PersistentMap) {
   const gfx::Size kBufferSize(4, 4);
 
   for (auto format : gfx::GetBufferFormatsForTesting()) {
-    if (!TestFixture::gpu_memory_buffer_support()
-             ->IsConfigurationSupportedForTest(
-                 TypeParam::kBufferType, format,
-                 gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
+    if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
+        !TestFixture::gpu_memory_buffer_support()
+             ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
+                 format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE)) {
       continue;
     }
 
     gfx::GpuMemoryBufferHandle handle;
-    GpuMemoryBufferImpl::DestructionCallback destroy_callback =
-        TestFixture::CreateGpuMemoryBuffer(
-            kBufferSize, format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-            &handle, nullptr);
-
+    TestFixture::CreateGpuMemoryBuffer(
+        kBufferSize, format, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
+        &handle);
     if (!TestFixture::CheckGpuMemoryBufferHandle(handle)) {
       continue;
     }
 
     std::unique_ptr<GpuMemoryBufferImpl> buffer(
-        TestFixture::gpu_memory_buffer_support()
-            ->CreateGpuMemoryBufferImplFromHandle(
-                std::move(handle), kBufferSize, format,
-                gfx::BufferUsage::GPU_READ_CPU_READ_WRITE,
-                std::move(destroy_callback)));
+        TestFixture::CreateGpuMemoryBufferImplFromHandle(
+            std::move(handle), kBufferSize, format,
+            gfx::BufferUsage::GPU_READ_CPU_READ_WRITE));
     ASSERT_TRUE(buffer);
 
     // Map buffer into user space.
@@ -421,18 +444,15 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, SerializeAndDeserialize) {
         gfx::BufferUsage::VEA_READ_CAMERA_AND_CPU_READ_WRITE,
     };
     for (auto usage : usages) {
-      if (!TestFixture::gpu_memory_buffer_support()
-               ->IsConfigurationSupportedForTest(TypeParam::kBufferType, format,
-                                                 usage)) {
+      if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
+          !TestFixture::gpu_memory_buffer_support()
+               ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(
+                   format, usage)) {
         continue;
       }
 
-      bool destroyed = false;
       gfx::GpuMemoryBufferHandle handle;
-      GpuMemoryBufferImpl::DestructionCallback destroy_callback =
-          TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage,
-                                             &handle, &destroyed);
-
+      TestFixture::CreateGpuMemoryBuffer(kBufferSize, format, usage, &handle);
       if (!TestFixture::CheckGpuMemoryBufferHandle(handle)) {
         continue;
       }
@@ -443,16 +463,9 @@ TYPED_TEST_P(GpuMemoryBufferImplTest, SerializeAndDeserialize) {
       EXPECT_EQ(output_handle.type, kBufferType);
 
       std::unique_ptr<GpuMemoryBufferImpl> buffer(
-          TestFixture::gpu_memory_buffer_support()
-              ->CreateGpuMemoryBufferImplFromHandle(
-                  std::move(output_handle), kBufferSize, format, usage,
-                  std::move(destroy_callback)));
+          TestFixture::CreateGpuMemoryBufferImplFromHandle(
+              std::move(output_handle), kBufferSize, format, usage));
       ASSERT_TRUE(buffer);
-      EXPECT_EQ(buffer->GetFormat(), format);
-
-      // Check if destruction callback is executed when deleting the buffer.
-      buffer.reset();
-      ASSERT_TRUE(destroyed);
     }
   }
 }
@@ -469,27 +482,19 @@ REGISTER_TYPED_TEST_SUITE_P(GpuMemoryBufferImplTest,
 TYPED_TEST_SUITE_P(GpuMemoryBufferImplCreateTest);
 
 TYPED_TEST_P(GpuMemoryBufferImplCreateTest, Create) {
-  const gfx::GpuMemoryBufferId kBufferId(1);
   const gfx::Size kBufferSize(8, 8);
   gfx::BufferUsage usage = gfx::BufferUsage::GPU_READ;
 
   for (auto format : gfx::GetBufferFormatsForTesting()) {
-    if (!TestFixture::gpu_memory_buffer_support()
-             ->IsConfigurationSupportedForTest(TypeParam::kBufferType, format,
-                                               usage)) {
+    if (TypeParam::kBufferType != gfx::SHARED_MEMORY_BUFFER &&
+        !TestFixture::gpu_memory_buffer_support()
+             ->IsNativeGpuMemoryBufferConfigurationSupportedForTesting(format,
+                                                                       usage)) {
       continue;
     }
-    bool destroyed = false;
-    std::unique_ptr<TypeParam> buffer(TypeParam::Create(
-        kBufferId, kBufferSize, format, usage,
-        base::BindOnce([](bool* destroyed) { *destroyed = true; },
-                       base::Unretained(&destroyed))));
+    std::unique_ptr<TypeParam> buffer(
+        TypeParam::CreateForTesting(kBufferSize, format, usage));
     ASSERT_TRUE(buffer);
-    EXPECT_EQ(buffer->GetFormat(), format);
-
-    // Check if destruction callback is executed when deleting the buffer.
-    buffer.reset();
-    ASSERT_TRUE(destroyed);
   }
 }
 // The GpuMemoryBufferImplCreateTest test case verifies behavior that is

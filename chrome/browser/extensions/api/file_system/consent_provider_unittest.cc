@@ -13,7 +13,6 @@
 #include "base/run_loop.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/extensions/api/file_system/consent_provider_impl.h"
-#include "chrome/test/base/scoped_testing_local_state.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/user_manager/scoped_user_manager.h"
@@ -124,8 +123,6 @@ class FileSystemApiConsentProviderTest : public testing::Test {
   }
 
  protected:
-  ScopedTestingLocalState scoped_testing_local_state_{
-      TestingBrowserProcess::GetGlobal()};
   raw_ptr<ash::FakeChromeUserManager, DanglingUntriaged>
       user_manager_;  // Owned by the scope enabler.
   std::unique_ptr<user_manager::ScopedUserManager> scoped_user_manager_enabler_;
@@ -191,7 +188,7 @@ TEST_F(FileSystemApiConsentProviderTest, ForKioskApps) {
             .SetManifestKey("kiosk_enabled", true)
             .SetManifestKey("kiosk_only", true)
             .Build());
-    auto* auto_user = user_manager_->AddKioskAppUser(
+    auto* auto_user = user_manager_->AddKioskChromeAppUser(
         AccountId::FromUserEmail(auto_launch_kiosk_app->id()));
     user_manager_->LoginUser(auto_user->GetAccountId());
 
@@ -219,7 +216,7 @@ TEST_F(FileSystemApiConsentProviderTest, ForKioskApps) {
           .SetManifestKey("kiosk_enabled", true)
           .SetManifestKey("kiosk_only", true)
           .Build());
-  auto* manual_user = user_manager_->AddKioskAppUser(
+  auto* manual_user = user_manager_->AddKioskChromeAppUser(
       AccountId::FromUserEmail(manual_launch_kiosk_app->id()));
   user_manager_->LoginUser(manual_user->GetAccountId());
   {

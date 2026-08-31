@@ -48,6 +48,7 @@ rtc_library("common_audio") {
     "../api:array_view",
     "../api/audio:audio_frame_api",
     "../rtc_base:checks",
+    "../rtc_base:cpu_info",
     "../rtc_base:gtest_prod",
     "../rtc_base:logging",
     "../rtc_base:safe_conversions",
@@ -56,8 +57,8 @@ rtc_library("common_audio") {
     "../rtc_base/memory:aligned_malloc",
     "../rtc_base/system:arch",
     "../rtc_base/system:file_wrapper",
-    "../system_wrappers",
     "third_party/ooura:fft_size_256",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 
   defines = []
@@ -184,7 +185,6 @@ rtc_library("common_audio_c") {
     "../rtc_base:compile_assert_c",
     "../rtc_base:sanitizer",
     "../rtc_base/system:arch",
-    "../system_wrappers",
     "third_party/ooura:fft_size_256",
     "third_party/spl_sqrt_floor",
   ]
@@ -197,19 +197,16 @@ rtc_library("common_audio_cc") {
     "signal_processing/dot_product_with_scale.h",
   ]
 
-  deps = [
-    "../rtc_base:safe_conversions",
-    "../system_wrappers",
-  ]
+  deps = [ "../rtc_base:safe_conversions" ]
 }
 
 rtc_source_set("sinc_resampler") {
   sources = [ "resampler/sinc_resampler.h" ]
   deps = [
+    "../rtc_base:cpu_info",
     "../rtc_base:gtest_prod",
     "../rtc_base/memory:aligned_malloc",
     "../rtc_base/system:arch",
-    "../system_wrappers",
   ]
 }
 
@@ -229,8 +226,8 @@ rtc_library("fir_filter_factory") {
   deps = [
     ":fir_filter",
     "../rtc_base:checks",
+    "../rtc_base:cpu_info",
     "../rtc_base/system:arch",
-    "../system_wrappers",
   ]
   if (current_cpu == "x86" || current_cpu == "x64") {
     deps += [ ":common_audio_sse2" ]
@@ -376,14 +373,15 @@ if (rtc_include_tests && !build_with_chromium) {
       ":fir_filter",
       ":fir_filter_factory",
       ":sinc_resampler",
+      "../api/audio:audio_frame_api",
+      "../api/units:time_delta",
       "../rtc_base:checks",
+      "../rtc_base:cpu_info",
       "../rtc_base:logging",
-      "../rtc_base:macromagic",
       "../rtc_base:rtc_base_tests_utils",
       "../rtc_base:stringutils",
       "../rtc_base:timeutils",
       "../rtc_base/system:arch",
-      "../system_wrappers",
       "../test:fileutils",
       "../test:rtc_expect_death",
       "../test:test_main",

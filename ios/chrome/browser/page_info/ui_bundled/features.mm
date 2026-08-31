@@ -4,16 +4,17 @@
 
 #import "components/page_info/core/features.h"
 
+#import "components/application_locale_storage/application_locale_storage.h"
 #import "ios/chrome/browser/page_info/ui_bundled/features.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 
 BASE_FEATURE(kPageInfoLastVisitedIOS,
              "PageInfoLastVisitedIOS",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsAboutThisSiteFeatureEnabled() {
   return page_info::IsAboutThisSiteFeatureEnabled(
-      GetApplicationContext()->GetApplicationLocale());
+      GetApplicationContext()->GetApplicationLocaleStorage()->Get());
 }
 
 bool IsPageInfoLastVisitedIOSEnabled() {

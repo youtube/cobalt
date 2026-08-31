@@ -14,10 +14,13 @@
 #include "base/containers/flat_map.h"
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
+#include "base/functional/function_ref.h"
+#include "base/process/launch.h"
 #include "base/process/process_iterator.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "build/build_config.h"
+#include "chrome/updater/external_constants.h"
 #include "chrome/updater/test/server.h"
 #include "chrome/updater/update_service.h"
 #include "chrome/updater/updater_version.h"
@@ -35,7 +38,6 @@ class GURL;
 namespace base {
 class CommandLine;
 class TimeDelta;
-class Value;
 }  // namespace base
 
 namespace updater {
@@ -154,11 +156,13 @@ base::TimeDelta GetOverinstallTimeoutForEnterTestMode();
 // Places the updater into test mode (redirect server URLs and disable CUP).
 void EnterTestMode(const GURL& update_url,
                    const GURL& crash_upload_url,
-                   const GURL& device_management_url,
                    const GURL& app_logo_url,
+                   const GURL& event_logging_url,
                    base::TimeDelta idle_timeout,
                    base::TimeDelta server_keep_alive_time,
-                   base::TimeDelta ceca_connection_timeout);
+                   base::TimeDelta ceca_connection_timeout,
+                   std::optional<EventLoggingPermissionProvider>
+                       event_logging_permission_provider);
 
 // Takes the updater our of the test mode by deleting the external constants
 // JSON file.
@@ -273,9 +277,19 @@ void DeleteUpdaterDirectory(UpdaterScope scope);
 void DeleteActiveUpdaterExecutable(UpdaterScope scope);
 
 // Runs the command and waits for it to exit or time out.
-void Run(UpdaterScope scope,
-         base::CommandLine command_line,
-         int* exit_code = nullptr);
+void Run(
+    UpdaterScope scope,
+    base::CommandLine command_line,
+    int* exit_code = nullptr,
+    base::FunctionRef<base::Process(const base::CommandLine&)> launch_process =
+        [](const base::CommandLine& command_line) {
+          return base::LaunchProcess(command_line, {});
+        });
+
+// Similar to `Run`, but runs the command de-elevated on Windows.
+void RunDeElevated(UpdaterScope scope,
+                   base::CommandLine command_line,
+                   int* exit_code);
 
 // Runs the command (via sudo if `elevate` is true) and waits for it to exit,
 // then asserts that it returned the expected exit code (if provided) and
@@ -519,6 +533,19 @@ void RunOfflineInstallOsNotSupported(UpdaterScope scope,
                                      bool is_silent_install,
                                      const std::string& language);
 
+void RunMockOfflineMetaInstall(UpdaterScope scope,
+                               const std::string& app_id,
+                               const base::Version& version,
+                               const std::string& tag,
+                               const base::FilePath& installer_path,
+                               const std::string& arguments,
+                               bool is_silent_install,
+                               const std::string& platform,
+                               const std::string& installer_text,
+                               const bool always_launch_cmd,
+                               const int expected_exit_code,
+                               bool expect_success);
+
 base::CommandLine MakeElevated(base::CommandLine command_line);
 
 // Stores a device management enrollment token and deletes any existing
@@ -534,16 +561,6 @@ void DMCleanup(UpdaterScope scope);
 // the system scope.
 void InstallEnterpriseCompanionApp();
 
-// Manually uninstalls the enterprise companion app installed via
-// `InstallBrokenEnterpriseCompanionApp`. This should be done before the updater
-// uninstalls, as the broken companion app is unable to uninstall itself which
-// will cause the updater's uninstaller to return an error.
-void UninstallBrokenEnterpriseCompanionApp();
-
-// Installs a stub enterprise companion app which will fail to launch, always at
-// the system scope.
-void InstallBrokenEnterpriseCompanionApp();
-
 // Installs the constants overrides for the enterprise companion app, always at
 // the system scope.
 void InstallEnterpriseCompanionAppOverrides(
@@ -556,6 +573,24 @@ void ExpectEnterpriseCompanionAppNotInstalled();
 // Uninstalls the enterprise companion app, always at the system scope.
 void UninstallEnterpriseCompanionApp();
 
+// Configures whether an app allows the transmission of usage statistics. The
+// app is indicated by a platform-specific `identifier` following the semantics
+// of the event logging permission provider. That is, on macOS the basename of
+// an application's directory within Application Support and an AppId on
+// Windows.
+void SetAppAllowsUsageStats(UpdaterScope scope,
+                            const std::string& identifier,
+                            bool allowed);
+void ClearAppAllowsUsageStats(UpdaterScope scope,
+                              const std::string& identifier);
+
+void ExpectDeviceManagementRequest(ScopedServer* test_server,
+                                   const std::string& request_type,
+                                   const std::string& authorization_type,
+                                   const std::string& authorization_token,
+                                   net::HttpStatusCode response_status,
+                                   const std::string& response,
+                                   std::optional<GURL> target_url = {});
 void ExpectDeviceManagementRegistrationRequest(
     ScopedServer* test_server,
     const std::string& enrollment_token,
@@ -568,31 +603,9 @@ void ExpectDeviceManagementPolicyFetchRequest(
     bool first_request = true,
     bool rotate_public_key = false,
     std::optional<GURL> target_url = std::nullopt);
-void ExpectDeviceManagementPolicyFetchWithNewPublicKeyRequest(
-    ScopedServer* test_server,
-    const std::string& dm_token,
-    const ::wireless_android_enterprise_devicemanagement::
-        OmahaSettingsClientProto& omaha_settings);
 void ExpectDeviceManagementTokenDeletionRequest(ScopedServer* test_server,
                                                 const std::string& dm_token,
                                                 bool invalidate_token);
-void ExpectDeviceManagementPolicyValidationRequest(ScopedServer* test_server,
-                                                   const std::string& dm_token);
-void ExpectDeviceManagementRegistrationRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& enrollment_token,
-    const std::string& dm_token);
-void ExpectDeviceManagementPolicyFetchRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& dm_token,
-    const ::wireless_android_enterprise_devicemanagement::
-        OmahaSettingsClientProto& omaha_settings,
-    bool first_request = true,
-    bool rotate_public_key = false,
-    std::optional<GURL> target_url = std::nullopt);
-void ExpectDeviceManagementPolicyValidationRequestViaCompanionApp(
-    ScopedServer* test_server,
-    const std::string& dm_token);
 void ExpectProxyPacScriptRequest(ScopedServer* test_server);
 
 #if BUILDFLAG(IS_MAC)

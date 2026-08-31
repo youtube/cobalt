@@ -627,6 +627,60 @@ class PixelTestPages():
             crop_action=ca.NonWhiteContentCropAction(
                 initial_crop=ca.FixedRectCropAction(0, 0, 500, 300)),
         ),
+
+        # The following tests are a subset of the above, only that they
+        # run in TreesInViz mode, to make sure basic graphics features render
+        # correctly in this mode. They should be deleted once TreesInViz is
+        # turned on by default on GPU bots.
+        PixelTestPage('pixel_canvas2d.html',
+            base_name + '_Canvas2DRedBox' + '_TreesInViz',
+            crop_action=standard_crop,
+            matching_algorithm=algo.FuzzyMatchingAlgorithm(
+                max_different_pixels=130,
+                pixel_per_channel_delta_threshold=2),
+            browser_args=['--enable-features=TreesInViz']),
+        PixelTestPage('pixel_css3d.html',
+            base_name + '_CSS3DBlueBox' + '_TreesInViz',
+            crop_action=standard_crop,
+            matching_algorithm=algo.SobelMatchingAlgorithm(
+                max_different_pixels=0,
+                pixel_delta_threshold=0,
+                edge_threshold=90),
+            browser_args=['--enable-features=TreesInViz']),
+        PixelTestPage('pixel_webgl_aa_alpha.html',
+            base_name + '_WebGLGreenTriangle_AA_Alpha' + '_TreesInViz',
+            crop_action=standard_crop,
+            browser_args=['--enable-features=TreesInViz']),
+        PixelTestPage(
+            'pixel_video_mp4.html?width=240&height=135&use_timer=1',
+            base_name + '_Video_MP4' + '_TreesInViz',
+            crop_action=standard_crop,
+            # Most images are actually very similar, but Pixel 2
+            # tends to produce images with all colors shifted by a
+            # small amount.
+            matching_algorithm=GENERAL_MP4_ALGO,
+            browser_args=['--enable-features=TreesInViz']),
+        PixelTestPage('pixel_view_transitions_capture.html',
+            base_name + '_ViewTransitionsCapture' + '_TreesInViz',
+            crop_action=standard_crop,
+            matching_algorithm=algo.SobelMatchingAlgorithm(
+                max_different_pixels=0,
+                pixel_delta_threshold=0,
+                edge_threshold=90),
+            browser_args=['--enable-features=TreesInViz']),
+        PixelTestPage('pixel_background.html',
+            base_name + '_SolidColorBackground' + '_TreesInViz',
+            crop_action=ca.FixedRectCropAction(500, 500, 600, 600),
+            # Small Fuchsia screens result in an incomplete capture
+            # without this.
+            should_capture_full_screenshot_func=CaptureFullScreenshotOnFuchsia,
+            browser_args=['--enable-features=TreesInViz']),
+        PixelTestPage('pixel_render_passes.html',
+            base_name + '_RenderPasses' + '_TreesInViz',
+            crop_action=ca.FixedRectCropAction(3, 90, 485, 245),
+            requires_fullscreen_os_screenshot_func=\
+            RequiresFullScreenOSScreenshot,
+            browser_args=['--enable-features=TreesInViz']),
     ]
 
   @staticmethod
@@ -1769,30 +1823,34 @@ class PixelTestPages():
         '--use-fake-device-for-media-stream',
         f'--use-file-for-fake-video-capture={video_path}'
     ]
+    meet_sample_area_matching = algo.SampleAreaMatchingAlgorithm(
+        sample_area_width=5,
+        max_different_pixels_per_area=2,
+        sample_area_channel_delta_threshold=5)
     # The video is rather large on the page, which can cause a horizontal
     # scrollbar to appear along the bottom. So, crop that first.
     standard_crop = ca.NonWhiteContentCropAction(
         ca.FixedRectCropAction(0, 60, None, -20))
     # Run the tests on CI for a while to see how stable they are with
     # fuzzy matching enabled.
-    grace_period_end = date(2025, 7, 1)
+    grace_period_end = date(2025, 10, 1)
     return [
         PixelTestPage('meet_effects/meet-gpu-tests/index.html?effectId=359',
                       f'{base_name}_MeetEffectsCatOnHead',
                       crop_action=standard_crop,
                       browser_args=video_args,
-                      matching_algorithm=ROUNDING_ERROR_ALGO,
+                      matching_algorithm=meet_sample_area_matching,
                       grace_period_end=grace_period_end),
         PixelTestPage('meet_effects/meet-gpu-tests/index.html?effectId=539',
                       f'{base_name}_MeetEffectsRainbowWig',
                       crop_action=standard_crop,
                       browser_args=video_args,
-                      matching_algorithm=ROUNDING_ERROR_ALGO,
+                      matching_algorithm=meet_sample_area_matching,
                       grace_period_end=grace_period_end),
         PixelTestPage('meet_effects/meet-gpu-tests/index.html?effectId=530',
                       f'{base_name}_MeetEffectsTruckerHat',
                       crop_action=standard_crop,
                       browser_args=video_args,
-                      matching_algorithm=ROUNDING_ERROR_ALGO,
+                      matching_algorithm=meet_sample_area_matching,
                       grace_period_end=grace_period_end),
     ]

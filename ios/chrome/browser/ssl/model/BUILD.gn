@@ -18,6 +18,7 @@ source_set("model") {
   deps = [
     "//base",
     "//base:i18n",
+    "//components/application_locale_storage",
     "//components/captive_portal/core",
     "//components/safe_browsing/core/browser:safe_browsing_metrics_collector",
     "//components/security_interstitials/core",
@@ -49,6 +50,7 @@ source_set("unit_tests") {
   deps = [
     ":model",
     "//base/test:test_support",
+    "//components/captive_portal/core",
     "//components/security_interstitials/core",
     "//components/security_state/core",
     "//ios/chrome/browser/shared/model/profile/test",

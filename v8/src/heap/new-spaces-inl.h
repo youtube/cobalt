@@ -11,6 +11,7 @@
 #include "src/base/sanitizer/msan.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
+#include "src/heap/page-metadata.h"
 #include "src/heap/paged-spaces-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
@@ -62,23 +63,34 @@ bool NewSpace::Contains(Tagged<HeapObject> o) const {
 // SemiSpaceObjectIterator
 
 SemiSpaceObjectIterator::SemiSpaceObjectIterator(const SemiSpaceNewSpace* space)
-    : current_(space->first_allocatable_address()) {}
+    : current_page_(space->first_page()),
+      current_object_(current_page_ ? current_page_->area_start()
+                                    : kNullAddress) {}
 
 Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
-  if (!current_) return {};
+  if (!current_page_) return {};
+
+  DCHECK(current_page_->ContainsLimit(current_object_));
 
   while (true) {
-    if (PageMetadata::IsAlignedToPageSize(current_)) {
-      PageMetadata* page = PageMetadata::FromAllocationAreaAddress(current_);
-      page = page->next_page();
-      if (page == nullptr) return {};
-      current_ = page->area_start();
+    while (current_object_ < current_page_->area_end()) {
+      Tagged<HeapObject> object = HeapObject::FromAddress(current_object_);
+      int object_size = object->Size();
+      DCHECK_LE(object_size, PageMetadata::kPageSize);
+      Address next_object =
+          current_object_ + ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+      DCHECK_GT(next_object, current_object_);
+      current_object_ = next_object;
+      if (!IsFreeSpaceOrFiller(object)) return object;
     }
-    Tagged<HeapObject> object = HeapObject::FromAddress(current_);
-    current_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
-    if (!IsFreeSpaceOrFiller(object)) return object;
+    current_page_ = current_page_->next_page();
+    if (current_page_ == nullptr) return {};
+    current_object_ = current_page_->area_start();
   }
 }
+
+// -----------------------------------------------------------------------------
+// SemiSpaceNewSpace
 
 void SemiSpaceNewSpace::IncrementAllocationTop(Address new_top) {
   DCHECK_LE(allocation_top_, new_top);
@@ -102,9 +114,11 @@ bool SemiSpaceNewSpace::IsAddressBelowAgeMark(Address address) const {
   // This method is only ever used on non-large pages in the young generation.
   // However, on page promotion (new to old) during a full GC the page flags are
   // already updated to old space before using this method.
-  DCHECK(chunk->InYoungGeneration() ||
-         chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
-  DCHECK(!chunk->IsLargePage());
+#ifdef DEBUG
+  auto* metadata = chunk->Metadata(heap()->isolate());
+  DCHECK_IMPLIES(!chunk->InYoungGeneration(), metadata->will_be_promoted());
+  DCHECK(!metadata->is_large());
+#endif  // DEBUG
 
   if (!chunk->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
     return false;

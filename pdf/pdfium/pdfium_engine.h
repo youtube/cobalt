@@ -21,7 +21,6 @@
 #include "base/dcheck_is_on.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_span.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -33,11 +32,14 @@
 #include "pdf/document_layout.h"
 #include "pdf/document_metadata.h"
 #include "pdf/loader/document_loader.h"
+#include "pdf/pdf_caret.h"
+#include "pdf/pdf_caret_client.h"
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_form_filler.h"
 #include "pdf/pdfium/pdfium_page.h"
 #include "pdf/pdfium/pdfium_print.h"
 #include "pdf/pdfium/pdfium_range.h"
+#include "pdf/region_data.h"
 #include "printing/mojom/print.mojom-forward.h"
 #include "services/screen_ai/buildflags/buildflags.h"
 #include "third_party/pdfium/public/cpp/fpdf_scopers.h"
@@ -142,7 +144,9 @@ using AddSearchResultCallback = base::RepeatingCallback<void(PDFiumRange)>;
 // This class implements a PDF rendering engine using the PDFium library.
 //
 // Many methods in this class are virtual to facilitate testing.
-class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
+class PDFiumEngine : public DocumentLoader::Client,
+                     public IFSDK_PAUSE,
+                     public PdfCaretClient {
  public:
   // Maximum number of parameters a nameddest view can contain.
   static constexpr size_t kMaxViewParams = 4;
@@ -320,9 +324,6 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   // Set color / grayscale rendering modes.
   virtual void SetGrayscale(bool grayscale);
 
-  // Returns the image as a 32-bit bitmap format for OCR.
-  SkBitmap GetImageForOcr(int page_index, int image_index);
-
   // Gets the PDF document's print scaling preference. True if the document can
   // be scaled to fit.
   bool GetPrintScaling();
@@ -464,9 +465,9 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   // `point` must be in device coordinates. Virtual to support testing.
   virtual bool ExtendSelectionByPoint(const gfx::PointF& point);
 
-  // Returns all current text selection rects in screen coordinates. Virtual to
-  // support testing.
-  virtual std::vector<gfx::Rect> GetSelectionRects();
+  // Returns all current text selection rects in screen coordinates, indexed by
+  // their page indices. Virtual to support testing.
+  virtual std::map<int, std::vector<gfx::Rect>> GetSelectionRectMap();
 
   // Returns whether `point` is within a selectable text area or within a link
   // area, excluding form fields. `point` must be in device coordinates. Virtual
@@ -496,6 +497,12 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   void OnDocumentComplete() override;
   void OnDocumentCanceled() override;
 
+  // PdfCaretClient:
+  uint32_t GetCharCount(uint32_t page_index) const override;
+  std::vector<gfx::Rect> GetScreenRectsForChar(
+      const PageCharacterIndex& index) const override;
+  void InvalidateRect(const gfx::Rect& rect) override;
+
 #if defined(PDF_ENABLE_XFA)
   void UpdatePageCount();
 #endif  // defined(PDF_ENABLE_XFA)
@@ -511,7 +518,7 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   base::RepeatingClosure GetOcrDisconnectHandler();
 
   // Tells if the page is waiting to be searchified.
-  bool PageNeedsSearchify(int page_index) const;
+  bool IsPageScheduledForSearchify(int page_index) const;
 
   // Schedules searchify for the page if it has no text. `page` must be non-null
   // and in an available state.
@@ -552,11 +559,20 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   // Sets whether form highlight should be enabled or cleared.
   virtual void SetFormHighlight(bool enable_form);
 
-  // Attempts to render highlights for all of the fragments provided in
-  // `text_fragments`. If a fragment is not found, it is skipped and the
-  // engine will attempt to find and highlight the next fragment in the list.
-  virtual void HighlightTextFragments(
+  // Attempts to find and highlight all the `text_fragments` in the PDF. Returns
+  // true if any of the fragments is found, and caches the results in
+  // `text_fragment_highlights_`.
+  virtual bool FindAndHighlightTextFragments(
       base::span<const std::string> text_fragments);
+
+  // Scrolls to and highlights the first entry in `text_fragment_highlights_`.
+  // Only valid if `text_fragment_highlights_` is non-empty (gated by a CHECK).
+  // `force_smooth_scroll` forces smooth scrolling regardless of the current
+  // animation settings.
+  virtual void ScrollToFirstTextFragment(bool force_smooth_scroll);
+
+  // Removes the text fragments and their highlights.
+  virtual void RemoveTextFragments();
 
   // Searches for a text fragment within the text of the PDF.
   void SearchForFragment(const std::u16string& term,
@@ -564,6 +580,10 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
                          int last_character_index_to_search,
                          int page_to_search,
                          AddSearchResultCallback add_result_callback);
+
+  // Sets whether caret browsing is enabled or not. Initializes `caret_` if it
+  // is the first time enabling caret browsing mode. Virtual to support testing.
+  virtual void SetCaretBrowsingEnabled(bool enabled);
 
  private:
   // This is a base class for shared functions and data needed for change
@@ -646,16 +666,6 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
     int char_index = -1;
     int form_type = FPDF_FORMFIELD_UNKNOWN;
     PDFiumPage::LinkTarget target;
-  };
-
-  struct RegionData {
-    RegionData(base::span<uint8_t> buffer, size_t stride);
-    RegionData(RegionData&&) noexcept;
-    RegionData& operator=(RegionData&&) noexcept;
-    ~RegionData();
-
-    base::raw_span<uint8_t> buffer;  // Never empty.
-    size_t stride;
   };
 
   friend class FormFillerTest;
@@ -853,6 +863,9 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
 
   void PaintPageShadow(size_t progressive_index, SkBitmap& image_data);
 
+  // Draw the text caret. No-op if `caret_` is nullptr.
+  void DrawCaret(size_t progressive_index, SkBitmap& image_data) const;
+
   // Highlight visible find results and selections.
   void DrawSelections(size_t progressive_index, SkBitmap& image_data) const;
 
@@ -997,8 +1010,10 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   void ScrollAnnotationIntoView(FPDF_ANNOTATION annot, int page_index);
 
   // Scrolls to the bounding rectangles that represent the `range` on the
-  // screen.
-  void ScrollToBoundingRects(const PDFiumRange& range);
+  // screen. `force_smooth_scroll` forces smooth scrolling regardless of the
+  // current animation settings.
+  void ScrollToBoundingRects(const PDFiumRange& range,
+                             bool force_smooth_scroll);
 
   void OnFocusedAnnotationUpdated(FPDF_ANNOTATION annot, int page_index);
 
@@ -1279,6 +1294,9 @@ class PDFiumEngine : public DocumentLoader::Client, public IFSDK_PAUSE {
   bool read_only_ = false;
 
   PDFiumPrint print_;
+
+  // The text caret on the PDF, excluding AcroForms.
+  std::unique_ptr<PdfCaret> caret_;
 
   // The list of text fragments to highlight on the PDF.
   std::vector<PDFiumRange> text_fragment_highlights_;

@@ -10,11 +10,10 @@
 
 #include "call/call.h"
 
-#include <string.h>
-
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <optional>
@@ -26,6 +25,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
+#include "api/array_view.h"
 #include "api/environment/environment.h"
 #include "api/fec_controller.h"
 #include "api/field_trials_view.h"
@@ -655,7 +655,7 @@ Call::SendStats::~SendStats() {
     return;
 
   TimeDelta elapsed = clock_->CurrentTime() - *first_sent_packet_time_;
-  if (elapsed.seconds() < metrics::kMinRunTimeInSeconds)
+  if (elapsed < metrics::kMinRunTime)
     return;
 
   const int kMinRequiredPeriodicSamples = 5;
@@ -1406,23 +1406,24 @@ void Call::DeliverRtcpPacket(CopyOnWriteBuffer packet) {
 
   receive_stats_.AddReceivedRtcpBytes(static_cast<int>(packet.size()));
   bool rtcp_delivered = false;
+  ArrayView<const uint8_t> packet_view(packet.cdata(), packet.size());
   for (VideoReceiveStream2* stream : video_receive_streams_) {
-    if (stream->DeliverRtcp(packet.cdata(), packet.size()))
+    if (stream->DeliverRtcp(packet_view))
       rtcp_delivered = true;
   }
 
   for (AudioReceiveStreamImpl* stream : audio_receive_streams_) {
-    stream->DeliverRtcp(packet.cdata(), packet.size());
+    stream->DeliverRtcp(packet_view);
     rtcp_delivered = true;
   }
 
   for (VideoSendStreamImpl* stream : video_send_streams_) {
-    stream->DeliverRtcp(packet.cdata(), packet.size());
+    stream->DeliverRtcp(packet);
     rtcp_delivered = true;
   }
 
   for (auto& kv : audio_send_ssrcs_) {
-    kv.second->DeliverRtcp(packet.cdata(), packet.size());
+    kv.second->DeliverRtcp(packet_view);
     rtcp_delivered = true;
   }
 

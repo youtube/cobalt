@@ -8,21 +8,15 @@
 #include "build/build_config.h"
 #include "media/media_buildflags.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "base/mac/mac_util.h"
-#endif
+namespace features {
 
-namespace {
-#if BUILDFLAG(IS_MAC)
-// Enables system audio loopback capture using the macOS Screen Capture Kit
-// framework, regardless of the system version.
-BASE_FEATURE(kMacSckSystemAudioLoopbackOverride,
-             "MacSckSystemAudioLoopbackOverride",
+#if BUILDFLAG(IS_WIN)
+// Enables application audio capture for getDisplayMedia (gDM) window capture in
+// Windows.
+BASE_FEATURE(kApplicationAudioCaptureWin,
+             "ApplicationAudioCaptureWin",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-}  // namespace
-
-namespace features {
 
 #if BUILDFLAG(IS_ANDROID)
 // Enables loading and using AAudio instead of OpenSLES on compatible devices,
@@ -44,55 +38,59 @@ BASE_FEATURE(kUseAAudioInput,
 // of using communication streams and managing the system-wide communication
 // route. This is not fully reliable on all Android devices.
 //
-// Requires `UseAAudioDriver`, `UseAAudioInput`, and an Android API level >=
-// `AAUDIO_MIN_API`, otherwise it will have no effect.
+// Requires `UseAAudioDriver` and `UseAAudioInput`, otherwise it will have no
+// effect.
 BASE_FEATURE(kAAudioPerStreamDeviceSelection,
              "AAudioPerStreamDeviceSelection",
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Use buffer size from AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER for
+// optimal output frame size.
+BASE_FEATURE(kAlwaysUseAudioManagerOutputFramesPerBuffer,
+             "AlwaysUseAudioManagerOutputFramesPerBuffer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the AudioDeviceListener, which listens for changes to the list of
+// audio devices exposed by the OS.
+BASE_FEATURE(kAndroidAudioDeviceListener,
+             "AndroidAudioDeviceListener",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
+// This feature flag controls whether the WebAudio destination resampler is
+// bypassed. When enabled, if the WebAudio context's sample rate differs from
+// the hardware's sample rate, the resampling step that normally occurs within
+// the WebAudio destination node is skipped. This allows the AudioService to
+// handle any necessary resampling, potentially reducing latency and overhead.
+BASE_FEATURE(kWebAudioRemoveAudioDestinationResampler,
+             "WebAudioRemoveAudioDestinationResampler",
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
+
 #if BUILDFLAG(IS_MAC)
-// Enables system audio loopback capture using the macOS CoreAudio tap API.
-BASE_FEATURE(kMacCatapSystemAudioLoopbackCapture,
-             "MacCatapSystemAudioLoopbackCapture",
+// Enabling this feature will allow AudioManagerMac to generate AVFoundation
+// AudioOutputStreams instead of AUHALStreams in cases of multichannel audio.
+// MacOS will then "Spatialize" the audio for users on compatible Airpods. The
+// end result will give users the option to change modes on their Airpods (Off,
+// Fixed, Head Tracking).
+BASE_FEATURE(kMacAVFoundationPlayback,
+             "MacAVFoundationPlayback",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 }  // namespace features
 
 namespace media {
-#if BUILDFLAG(IS_MAC)
-bool IsMacCatapSystemAudioLoopbackCaptureEnabled() {
-  return (base::mac::MacOSVersion() >= 14'02'00 &&
-          base::FeatureList::IsEnabled(
-              features::kMacCatapSystemAudioLoopbackCapture));
-}
 
-bool IsMacSckSystemAudioLoopbackCaptureEnabled() {
-  // Only supported on macOS 13.0+.
-  // Disabled on macOS 15.0 due to problems with permission prompt.
-  // The override feature is useful for testing on unsupported versions.
-  return (base::mac::MacOSVersion() >= 13'00'00 &&
-          base::mac::MacOSVersion() < 15'00'00) ||
-         base::FeatureList::IsEnabled(kMacSckSystemAudioLoopbackOverride);
-}
-#endif
-
-bool IsSystemLoopbackCaptureSupported() {
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(USE_CRAS)
-  return true;
-#elif BUILDFLAG(IS_MAC)
-  // For system audio loopback to be enabled in getDisplayMedia(), the feature
-  // kMacLoopbackAudioForScreenShare must also be enabled.
-  // TODO(crbug.com/365602111): Implement SCContentPicker compatible capture
-  // for MacOS 15.
-  return IsMacSckSystemAudioLoopbackCaptureEnabled() ||
-         IsMacCatapSystemAudioLoopbackCaptureEnabled();
-#elif BUILDFLAG(IS_LINUX) && defined(USE_PULSEAUDIO)
-  return true;
+bool IsApplicationAudioCaptureSupported() {
+#if BUILDFLAG(IS_WIN)
+  return base::FeatureList::IsEnabled(features::kApplicationAudioCaptureWin);
 #else
   return false;
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(USE_CRAS)
+#endif  // BUILDFLAG(IS_WIN)
 }
 
 }  // namespace media

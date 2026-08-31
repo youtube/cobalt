@@ -335,11 +335,23 @@ void WasmGCTypeAnalyzer::ProcessAllocateStruct(
     }
     const wasm::TypeDefinition& desc_typedef =
         module_->type(desc_type.ref_index());
-    DCHECK(desc_typedef.is_descriptor());
+    if (!desc_typedef.is_descriptor()) {
+      // This can only happen in unreachable code.
+      RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmBottom,
+                          allocate_struct);
+      return;
+    }
     type_index = desc_typedef.describes;
   } else {
-    // The graph builder only emits the two patterns above.
-    UNREACHABLE();
+    // While the graph builder only emits the two patterns above, other
+    // graph modifications (e.g. loop unrolling) can create other situations
+    // (e.g. Phi nodes).
+    // Similar to the comment above, we could be smarter here if the AllocateOp
+    // knew its own type index. Having dedicated "LoadRttOp" would likely
+    // also be helpful, e.g. by enabling us to type Phis that hold RTTs.
+    RefineTypeKnowledge(graph_.Index(allocate_struct), wasm::kWasmStructRef,
+                        allocate_struct);
+    return;
   }
   RefineTypeKnowledge(graph_.Index(allocate_struct),
                       wasm::ValueType::Ref(module_->heap_type(type_index)),

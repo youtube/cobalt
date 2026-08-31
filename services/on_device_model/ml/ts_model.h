@@ -9,7 +9,6 @@
 #include "base/memory/raw_ref.h"
 #include "base/threading/sequence_bound.h"
 #include "components/translate/core/language_detection/language_detection_model.h"
-#include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/unique_receiver_set.h"
 #include "services/on_device_model/ml/chrome_ml.h"
 #include "services/on_device_model/ml/chrome_ml_api.h"
@@ -25,8 +24,7 @@ class COMPONENT_EXPORT(ON_DEVICE_MODEL_ML) TsHolder final {
   explicit TsHolder(raw_ref<const ChromeML> chrome_ml);
   ~TsHolder();
 
-  static base::SequenceBound<TsHolder> Create(
-      raw_ref<const ChromeML> chrome_ml);
+  static base::SequenceBound<TsHolder> Create(const ChromeML& chrome_ml);
 
   void Reset(
       on_device_model::mojom::TextSafetyModelParamsPtr params,

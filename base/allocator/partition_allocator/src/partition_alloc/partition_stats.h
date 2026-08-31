@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef PARTITION_ALLOC_PARTITION_STATS_H_
 #define PARTITION_ALLOC_PARTITION_STATS_H_
 
@@ -56,7 +61,7 @@ struct ThreadAllocStats {
   uint64_t dealloc_total_size;
 };
 
-struct LightweightQuarantineStats {
+struct SchedulerLoopQuarantineStats {
   size_t size_in_bytes;
   size_t count;
   size_t cumulative_size_in_bytes;
@@ -93,7 +98,7 @@ struct PartitionMemoryStats {
   ThreadCacheStats all_thread_caches_stats;
 
   bool has_scheduler_loop_quarantine;
-  LightweightQuarantineStats scheduler_loop_quarantine_stats_total;
+  SchedulerLoopQuarantineStats scheduler_loop_quarantine_stats_total;
 
   // Count and total duration of system calls made since process start. May not
   // be reported on all platforms.

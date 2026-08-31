@@ -179,6 +179,23 @@ bool SavedPasswordsPresenter::RemoveCredential(
   undo_helper_->EndGroupingActions();
   return !forms_to_delete.empty();
 }
+bool SavedPasswordsPresenter::RemoveBackupPassword(
+    const CredentialUIEntry& credential) {
+  std::vector<PasswordForm> forms_to_update =
+      GetCorrespondingPasswordForms(credential);
+  undo_helper_->StartGroupingActions();
+  for (const auto& current_form : forms_to_update) {
+    PasswordForm without_backup(current_form);
+    without_backup.DeletePasswordBackupNote();
+    // |current_form| is unchanged result obtained from
+    // 'OnGetPasswordStoreResultsFrom'. So it can be present only in one
+    // store at a time.
+    GetStoreFor(current_form).UpdateLogin(without_backup);
+    undo_helper_->BackupPasswordRemoved(current_form);
+  }
+  undo_helper_->EndGroupingActions();
+  return !forms_to_update.empty();
+}
 
 void SavedPasswordsPresenter::DeleteAllData(
     base::OnceCallback<void(bool)> success_callback) {
@@ -267,15 +284,17 @@ SavedPasswordsPresenter::GetExpectedAddResult(
 
 bool SavedPasswordsPresenter::AddCredential(
     const CredentialUIEntry& credential,
-    password_manager::PasswordForm::Type type) {
+    password_manager::PasswordForm::Type type,
+    base::OnceClosure completion) {
   if (GetExpectedAddResult(credential) != AddResult::kSuccess) {
+    std::move(completion).Run();
     return false;
   }
 
   UnblocklistBothStores(credential);
   PasswordForm form = GenerateFormFromCredential(credential, type);
 
-  GetStoreFor(form).AddLogin(form);
+  GetStoreFor(form).AddLogin(form, std::move(completion));
   return true;
 }
 

@@ -25,6 +25,7 @@ import org.chromium.build.annotations.NullMarked;
 @NullMarked
 public class DialogListItemDecoration extends RecyclerView.ItemDecoration {
     private final int mVerticalSpacing;
+    private boolean mCommandUiEnabled;
 
     /**
      * Creates a {@link DialogListItemDecoration}.
@@ -33,6 +34,8 @@ public class DialogListItemDecoration extends RecyclerView.ItemDecoration {
      */
     public DialogListItemDecoration(@Px int verticalSpacing) {
         mVerticalSpacing = verticalSpacing;
+        // Default to false or handle initial state appropriately.
+        mCommandUiEnabled = false;
     }
 
     @Override
@@ -59,8 +62,22 @@ public class DialogListItemDecoration extends RecyclerView.ItemDecoration {
             child.setBackground(
                     AppCompatResources.getDrawable(
                             parent.getContext(),
-                            getBackgroundDrawable(positionInAdapter, itemCount)));
+                            getBackgroundDrawable(
+                                    positionInAdapter,
+                                    itemCount,
+                                    child.isSelected(),
+                                    mCommandUiEnabled)));
         }
+    }
+
+    /**
+     * Sets whether Command UI items in the dialog are enabled. When enabled, the background
+     * drawable for items may change based on their position in the list.
+     *
+     * @param commandUiEnabled True if the command button is visible and enabled, false otherwise.
+     */
+    public void setCommandUiEnabled(boolean commandUiEnabled) {
+        mCommandUiEnabled = commandUiEnabled;
     }
 
     /**
@@ -71,18 +88,25 @@ public class DialogListItemDecoration extends RecyclerView.ItemDecoration {
      *
      * @param position The zero-indexed position in the adapter.
      * @param itemCount The number of items in the adapter.
+     * @param isSelected Whether the current item is selected.
+     * @param commandUiEnabled Whether the Command UI items in Dialog are visible.
      * @return The resource ID of the item background.
      */
-    private static @DrawableRes int getBackgroundDrawable(int position, int itemCount) {
-        if (itemCount == 1) {
+    private static @DrawableRes int getBackgroundDrawable(
+            int position, int itemCount, boolean isSelected, boolean commandUiEnabled) {
+        if (isSelected) {
             return R.drawable.single_list_item_background;
         }
 
-        if (position == 0) {
+        if (itemCount == 1 && !commandUiEnabled) {
+            return R.drawable.single_list_item_background;
+        }
+
+        if (position == 0 || (itemCount == 1 && commandUiEnabled)) {
             return R.drawable.list_item_background_top;
         }
 
-        if (position == itemCount - 1) {
+        if (position == itemCount - 1 && !commandUiEnabled) {
             return R.drawable.list_item_background_bottom;
         }
 

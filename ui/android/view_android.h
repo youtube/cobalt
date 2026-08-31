@@ -217,6 +217,8 @@ class UI_ANDROID_EXPORT ViewAndroid {
   void RequestDisallowInterceptTouchEvent();
   void RequestUnbufferedDispatch(const MotionEventAndroid& event);
 
+  void SetTooltip(const std::u16string& text);
+
   void SetCopyOutputCallback(CopyViewCallback callback);
   // Return the CopyOutputRequest back if view cannot perform readback.
   std::unique_ptr<viz::CopyOutputRequest> MaybeRequestCopyOfView(
@@ -233,8 +235,6 @@ class UI_ANDROID_EXPORT ViewAndroid {
   }
 
   void NotifyVirtualKeyboardOverlayRect(const gfx::Rect& keyboard_rect);
-
-  void NotifyContextMenuInsetsObservers(const gfx::Rect&);
 
   void ShowInterestInElement(int);
 

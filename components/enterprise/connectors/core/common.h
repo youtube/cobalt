@@ -79,13 +79,6 @@ inline constexpr char kKeyOptInEventUrlPatterns[] = "url_patterns";
 inline constexpr char kDlpTag[] = "dlp";
 inline constexpr char kMalwareTag[] = "malware";
 
-// A MIME type string that matches all MIME types.
-inline constexpr char kWildcardMimeType[] = "*";
-
-// The reporting connector subdirectory in User_Data_Directory
-inline constexpr base::FilePath::CharType RC_BASE_DIR[] =
-    FILE_PATH_LITERAL("Enterprise/ReportingConnector/");
-
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. Keep this enum in sync with
 // EnterpriseReportingEventType in enums.xml.
@@ -131,33 +124,6 @@ inline constexpr auto kEventNameToUmaEnumMap =
          EnterpriseReportingEventType::kExtensionInstallEvent},
         {kBrowserCrashEvent, EnterpriseReportingEventType::kBrowserCrashEvent},
         {kExtensionTelemetryEvent,
-         EnterpriseReportingEventType::kExtensionTelemetryEvent},
-    });
-
-inline constexpr auto kEventCaseToUmaEnumMap =
-    base::MakeFixedFlatMap<EventCase, EnterpriseReportingEventType>({
-        {EventCase::kPasswordReuseEvent,
-         EnterpriseReportingEventType::kPasswordReuseEvent},
-        {EventCase::kPasswordChangedEvent,
-         EnterpriseReportingEventType::kPasswordChangedEvent},
-        {EventCase::kDangerousDownloadEvent,
-         EnterpriseReportingEventType::kDangerousDownloadEvent},
-        {EventCase::kInterstitialEvent,
-         EnterpriseReportingEventType::kInterstitialEvent},
-        {EventCase::kSensitiveDataEvent,
-         EnterpriseReportingEventType::kSensitiveDataEvent},
-        {EventCase::kUnscannedFileEvent,
-         EnterpriseReportingEventType::kUnscannedFileEvent},
-        {EventCase::kLoginEvent, EnterpriseReportingEventType::kLoginEvent},
-        {EventCase::kPasswordBreachEvent,
-         EnterpriseReportingEventType::kPasswordBreachEvent},
-        {EventCase::kUrlFilteringInterstitialEvent,
-         EnterpriseReportingEventType::kUrlFilteringInterstitialEvent},
-        {EventCase::kBrowserExtensionInstallEvent,
-         EnterpriseReportingEventType::kExtensionInstallEvent},
-        {EventCase::kBrowserCrashEvent,
-         EnterpriseReportingEventType::kBrowserCrashEvent},
-        {EventCase::kExtensionTelemetryEvent,
          EnterpriseReportingEventType::kExtensionTelemetryEvent},
     });
 
@@ -347,6 +313,48 @@ std::string EventResultToString(EventResult result);
 // or an empty string if no account is signed in.  If `identity_manager` is null
 // then the empty string is returned.
 std::string GetProfileEmail(signin::IdentityManager* identity_manager);
+
+// Returns the UMA metrics for tracking the successful uploaded event duration.
+std::string GetSuccessfulUploadDurationUmaMetricName(
+    EnterpriseReportingEventType event_type);
+
+// Returns the UMA metrics for tracking the failed-to-upload event duration.
+std::string GetFailedUploadDurationUmaMetricName(
+    EnterpriseReportingEventType event_type);
+
+// Access points used to record UMA metrics and specify which code location is
+// initiating a deep scan. Any new caller of
+// ContentAnalysisDelegate::CreateForWebContents should add an access point
+// here instead of reusing an existing value. histograms.xml should also be
+// updated by adding histograms with names
+//   "SafeBrowsing.DeepScan.<access-point>.BytesPerSeconds"
+//   "SafeBrowsing.DeepScan.<access-point>.Duration"
+//   "SafeBrowsing.DeepScan.<access-point>.<result>.Duration"
+// for the new access point and every possible result.
+// LINT.IfChange(DeepScanAccessPoint)
+enum class DeepScanAccessPoint {
+  // A deep scan was initiated from downloading 1+ file(s).
+  DOWNLOAD,
+
+  // A deep scan was initiated from uploading 1+ file(s) via a system dialog.
+  UPLOAD,
+
+  // A deep scan was initiated from drag-and-dropping text or 1+ file(s).
+  DRAG_AND_DROP,
+
+  // A deep scan was initiated from pasting text.
+  PASTE,
+
+  // A deep scan was initiated from printing a page.
+  PRINT,
+
+  // A deep scan was initiated from transferring 1+ file(s) within ChromeOS.
+  FILE_TRANSFER,
+
+  kMaxValue = FILE_TRANSFER,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:DeepScanAccessPoint)
+std::string DeepScanAccessPointToString(DeepScanAccessPoint access_point);
 
 }  // namespace enterprise_connectors
 

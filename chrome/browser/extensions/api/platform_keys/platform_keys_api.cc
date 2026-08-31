@@ -16,10 +16,10 @@
 #include "chrome/browser/ash/crosapi/keystore_service_factory_ash.h"
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service.h"
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service_factory.h"
-#include "chrome/browser/chromeos/platform_keys/platform_keys.h"
 #include "chrome/browser/extensions/api/platform_keys/verify_trust_api_service.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/platform_keys_internal.h"
+#include "chromeos/ash/components/platform_keys/platform_keys.h"
 #include "chromeos/crosapi/cpp/keystore_service_util.h"
 #include "chromeos/crosapi/mojom/keystore_error.mojom-shared.h"
 #include "chromeos/crosapi/mojom/keystore_service.mojom.h"
@@ -276,8 +276,7 @@ PlatformKeysInternalGetPublicKeyBySpkiFunction::Run() {
   }
 
   PublicKeyInfo key_info;
-  key_info.public_key_spki_der.assign(std::begin(public_key_spki_der),
-                                      std::end(public_key_spki_der));
+  key_info.public_key_spki_der = public_key_spki_der;
 
   if (!chromeos::platform_keys::GetPublicKeyBySpki(key_info.public_key_spki_der,
                                                    &key_info.key_type,

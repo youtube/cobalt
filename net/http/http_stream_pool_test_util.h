@@ -104,7 +104,7 @@ class FakeServiceEndpointRequest : public HostResolver::ServiceEndpointRequest {
 
   // HostResolver::ServiceEndpointRequest methods:
   int Start(Delegate* delegate) override;
-  const std::vector<ServiceEndpoint>& GetEndpointResults() override;
+  base::span<const ServiceEndpoint> GetEndpointResults() override;
   const std::set<std::string>& GetDnsAliasResults() override;
   bool EndpointsCryptoReady() override;
   ResolveErrorInfo GetResolveErrorInfo() override;
@@ -189,6 +189,9 @@ class ServiceEndpointBuilder {
 
   ServiceEndpointBuilder& set_ech_config_list(
       std::vector<uint8_t> ech_config_list);
+
+  ServiceEndpointBuilder& set_trust_anchor_ids(
+      std::vector<std::vector<uint8_t>> trust_anchor_ids);
 
   ServiceEndpoint endpoint() const { return endpoint_; }
 
@@ -324,9 +327,9 @@ class TestJobDelegate : public HttpStreamPool::Job::Delegate {
   HttpStreamPool::RespectLimits respect_limits() const override;
   const std::vector<SSLConfig::CertAndStatus>& allowed_bad_certs()
       const override;
-  bool enable_ip_based_pooling() const override;
+  bool enable_ip_based_pooling_for_h2() const override;
   bool enable_alternative_services() const override;
-  bool is_http1_allowed() const override;
+  NextProtoSet allowed_alpns() const override;
   const ProxyInfo& proxy_info() const override;
   const NetLogWithSource& net_log() const override;
   void OnStreamFailed(HttpStreamPool::Job* job,

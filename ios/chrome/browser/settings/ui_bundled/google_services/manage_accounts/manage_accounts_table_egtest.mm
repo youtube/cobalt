@@ -198,10 +198,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
       performAction:grey_tap()];
 
   // Tap on fakeIdentity1 confirm remove button.
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 
   // Check that the user is signed out and the Main Settings screen is shown.
   [[EarlGrey selectElementWithMatcher:SettingsSignInRowMatcher()]
@@ -238,8 +237,8 @@ using chrome_test_util::SettingsSignInRowMatcher;
       performAction:grey_tap()];
 
   // Cancel it.
-  if ([ChromeEarlGrey isIPadIdiom]) {
-    // There is no Cancel button on ipad.
+  if ([ChromeEarlGrey isIPadIdiom] || iOS26_OR_ABOVE()) {
+    // There is no Cancel button on ipad and on newer iOS versions.
     // Tap on Remove fakeIdentity1 button to dismiss the alert.
     [[EarlGrey
         selectElementWithMatcher:
@@ -259,10 +258,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
               [kSettingsAccountsRemoveAccountButtonAccessibilityIdentifier
                   stringByAppendingString:fakeIdentity2.userEmail])]
       performAction:grey_tap()];
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 
   // Open it a third time for `fakeIdentity3`, confirmal removal.
   [[EarlGrey
@@ -271,10 +269,9 @@ using chrome_test_util::SettingsSignInRowMatcher;
               [kSettingsAccountsRemoveAccountButtonAccessibilityIdentifier
                   stringByAppendingString:fakeIdentity3.userEmail])]
       performAction:grey_tap()];
-  [[EarlGrey
-      selectElementWithMatcher:chrome_test_util::ButtonWithAccessibilityLabelId(
-                                   IDS_IOS_REMOVE_ACCOUNT_LABEL)]
-      performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:
+                 chrome_test_util::ActionSheetItemWithAccessibilityLabelId(
+                     IDS_IOS_REMOVE_ACCOUNT_LABEL)] performAction:grey_tap()];
 }
 
 // Tests add account flow.

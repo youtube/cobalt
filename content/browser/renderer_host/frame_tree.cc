@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
 #include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -23,6 +24,7 @@
 #include "base/trace_event/optional_trace_event.h"
 #include "base/trace_event/typed_macros.h"
 #include "base/types/cxx23_from_range.h"
+#include "build/buildflag.h"
 #include "base/unguessable_token.h"
 #include "content/browser/renderer_host/batched_proxy_ipc_sender.h"
 #include "content/browser/renderer_host/navigation_controller_impl.h"
@@ -41,6 +43,7 @@
 #include "content/common/content_navigation_policy.h"
 #include "content/common/content_switches_internal.h"
 #include "content/common/features.h"
+#include "ipc/constants.mojom.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/frame/frame_owner_element_type.h"
 #include "third_party/blink/public/common/frame/frame_policy.h"
@@ -391,7 +394,7 @@ FrameTreeNode* FrameTree::AddFrame(
     bool was_discarded,
     blink::FrameOwnerElementType owner_type,
     bool is_dummy_frame_for_inner_tree) {
-  CHECK_NE(new_routing_id, MSG_ROUTING_NONE);
+  CHECK_NE(new_routing_id, IPC::mojom::kRoutingIdNone);
   // Normally this path is for blink adding a child local frame. But fenced
   // frames add a dummy child frame that never gets a corresponding
   // RenderFrameImpl in any renderer process, and therefore its `frame_remote`
@@ -433,7 +436,9 @@ FrameTreeNode* FrameTree::AddFrame(
       document_token, devtools_frame_token, frame_policy, frame_name,
       frame_unique_name);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   added_node->SetFencedFramePropertiesIfNeeded();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   if (browser_interface_broker_receiver.is_valid()) {
     added_node->current_frame_host()->BindBrowserInterfaceBrokerReceiver(
@@ -949,7 +954,9 @@ void FrameTree::Init(SiteInstanceImpl* main_frame_site_instance,
   root_.render_manager()->InitRoot(main_frame_site_instance,
                                    renderer_initiated_creation, frame_policy,
                                    main_frame_name, devtools_frame_token);
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   root_.SetFencedFramePropertiesIfNeeded();
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 
   // The initial empty document should inherit the origin (the origin may
   // change after the first commit) and other state (such as the
@@ -1098,8 +1105,8 @@ void FrameTree::FocusOuterFrameTrees() {
   }
 }
 
-void FrameTree::Discard() {
-  const auto attempt_discard = [this]() {
+void FrameTree::Discard(base::OnceClosure on_discarded_cb) {
+  const auto attempt_discard = [this](base::OnceClosure on_discarded_cb) {
     // A speculative pending-commit rfh should not be cancelled or deleted. In
     // this case ignore the discard request and allow the navigation to complete
     // as normal.
@@ -1110,13 +1117,14 @@ void FrameTree::Discard() {
     }
 
     root()->set_was_discarded();
-    root()->current_frame_host()->DiscardFrame();
+    root()->current_frame_host()->DiscardFrame(std::move(on_discarded_cb));
     NavigationControllerImpl& navigation_controller = controller();
     navigation_controller.SetNeedsReload();
     navigation_controller.GetBackForwardCache().Flush();
     return true;
   };
-  base::UmaHistogramBoolean("Discarding.DiscardFrameTree", attempt_discard());
+  base::UmaHistogramBoolean("Discarding.DiscardFrameTree",
+                            attempt_discard(std::move(on_discarded_cb)));
 }
 
 }  // namespace content

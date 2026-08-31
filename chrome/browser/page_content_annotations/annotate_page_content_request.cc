@@ -5,18 +5,25 @@
 #include "chrome/browser/page_content_annotations/annotate_page_content_request.h"
 
 #include "base/metrics/histogram_macros.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
+#include "chrome/browser/page_content_annotations/page_content_extraction_types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
+#include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/pdf/common/constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_handle.h"
+#include "net/http/http_response_headers.h"
 #include "pdf/buildflags.h"
 #include "services/metrics/public/cpp/metrics_utils.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/blink/public/common/features.h"
 
 #if BUILDFLAG(ENABLE_PDF)
 #include "components/pdf/browser/pdf_document_helper.h"
@@ -45,24 +52,11 @@ void RecordPdfPageCountMetrics(
 
 // static
 std::unique_ptr<AnnotatedPageContentRequest>
-AnnotatedPageContentRequest::MaybeCreate(content::WebContents* web_contents) {
-  Profile* profile =
-      Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  auto* page_content_extraction_service = page_content_annotations::
-      PageContentExtractionServiceFactory::GetForProfile(profile);
-
-  if (!page_content_extraction_service ||
-      !page_content_extraction_service->ShouldEnablePageContentExtraction()) {
-    return nullptr;
-  }
-
+AnnotatedPageContentRequest::Create(content::WebContents* web_contents) {
   auto request = blink::mojom::AIPageContentOptions::New();
+  request->mode = blink::mojom::AIPageContentMode::kDefault;
   request->on_critical_path = page_content_annotations::features::
       IsAnnotatedPageContentOnCriticalPath();
-  request->include_geometry = page_content_annotations::features::
-      ShouldAnnotatedPageContentIncludeGeometry();
-  request->include_hidden_searchable_content = page_content_annotations::
-      features::ShouldIncludeHiddenButSearchableContent();
 
   return std::make_unique<AnnotatedPageContentRequest>(web_contents,
                                                        std::move(request));
@@ -77,7 +71,15 @@ AnnotatedPageContentRequest::AnnotatedPageContentRequest(
                  GetAnnotatedPageContentCaptureDelay()),
       include_inner_text_(
           page_content_annotations::features::
-              ShouldAnnotatedPageContentStudyIncludeInnerText()) {}
+              ShouldAnnotatedPageContentStudyIncludeInnerText()) {
+  // Post to a background thread to avoid blocking the set up of the overlay.
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, {base::TaskPriority::BEST_EFFORT, base::MayBlock()},
+      base::BindOnce(&optimization_guide::PageContextEligibility::Get),
+      base::BindOnce(
+          &AnnotatedPageContentRequest::OnPageContextEligibilityAPILoaded,
+          weak_factory_.GetWeakPtr()));
+}
 
 AnnotatedPageContentRequest::~AnnotatedPageContentRequest() = default;
 
@@ -103,6 +105,25 @@ void AnnotatedPageContentRequest::DidFinishNavigation(
   // change in page state.
   if (!navigation_handle->ShouldUpdateHistory()) {
     return;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          blink::features::kVisitedLinksOnErrorNavigation)) {
+    // With the flag enabled, navigations with a 404 status code will be
+    // eligible for History. We want to ignore 404s. At this point, we should
+    // only be looking at committed same-document navigations. Same-document
+    // navigations have no network request and therefore no response code, so we
+    // should look at the response code for the request that brought us to the
+    // current document instead of the `NavigationHandle`.
+    const auto* document_response_head =
+        navigation_handle->GetRenderFrameHost()->GetLastResponseHead();
+    if (!document_response_head || !document_response_head->headers) {
+      return;
+    }
+    const int status_code = document_response_head->headers->response_code();
+    if (status_code == 404) {
+      return;
+    }
   }
 
   ResetForNewNavigation();
@@ -146,6 +167,8 @@ void AnnotatedPageContentRequest::ResetForNewNavigation() {
   lifecycle_ = Lifecycle::kPending;
   waiting_for_fcp_ = true;
   waiting_for_load_ = true;
+
+  cached_content_ = std::nullopt;
 
   // Drop pending extraction request for the previous page, if any.
   weak_factory_.InvalidateWeakPtrs();
@@ -213,6 +236,17 @@ void AnnotatedPageContentRequest::OnPageContentReceived(
       PageContentExtractionServiceFactory::GetForProfile(profile);
   page_content_extraction_service->OnPageContentExtracted(
       web_contents_->GetPrimaryPage(), page_content->proto);
+
+  GURL url = web_contents_->GetLastCommittedURL();
+  bool is_eligible_for_server_upload =
+      !page_context_eligibility_ ||
+      optimization_guide::IsPageContextEligible(
+          url.host(), url.path(),
+          optimization_guide::GetFrameMetadataFromPageContent(*page_content),
+          page_context_eligibility_);
+  cached_content_ = ExtractedPageContentResult{
+      .page_content = std::move(page_content->proto),
+      .is_eligible_for_server_upload = is_eligible_for_server_upload};
 }
 
 void AnnotatedPageContentRequest::OnInnerTextReceived(
@@ -253,5 +287,15 @@ void AnnotatedPageContentRequest::OnPdfDocumentLoadComplete() {
   }
 }
 #endif  // BUILDFLAG(ENABLE_PDF)
+
+void AnnotatedPageContentRequest::OnPageContextEligibilityAPILoaded(
+    optimization_guide::PageContextEligibility* page_context_eligibility) {
+  page_context_eligibility_ = page_context_eligibility;
+}
+
+std::optional<ExtractedPageContentResult>
+AnnotatedPageContentRequest::GetCachedContentAndEligibility() {
+  return cached_content_;
+}
 
 }  // namespace page_content_annotations

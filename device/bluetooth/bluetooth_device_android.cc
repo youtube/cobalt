@@ -15,6 +15,7 @@
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/notimplemented.h"
 #include "base/stl_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "device/base/features.h"
@@ -23,7 +24,6 @@
 #include "device/bluetooth/bluetooth_common.h"
 #include "device/bluetooth/bluetooth_remote_gatt_service_android.h"
 #include "device/bluetooth/bluetooth_socket_android.h"
-
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "device/bluetooth/jni_headers/ChromeBluetoothDevice_jni.h"
 
@@ -300,11 +300,9 @@ void BluetoothDeviceAndroid::ConnectToServiceInsecurely(
                   std::move(error_callback));
 }
 
-void BluetoothDeviceAndroid::OnConnectionStateChange(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller,
-    int32_t status,
-    bool connected) {
+void BluetoothDeviceAndroid::OnConnectionStateChange(JNIEnv* env,
+                                                     int32_t status,
+                                                     bool connected) {
   gatt_connected_ = connected;
   if (gatt_connected_) {
     DidConnectGatt(/*error_code=*/std::nullopt);
@@ -323,9 +321,7 @@ void BluetoothDeviceAndroid::OnConnectionStateChange(
   }
 }
 
-void BluetoothDeviceAndroid::OnGattServicesDiscovered(
-    JNIEnv* env,
-    const JavaParamRef<jobject>& jcaller) {
+void BluetoothDeviceAndroid::OnGattServicesDiscovered(JNIEnv* env) {
   device_uuids_.ReplaceServiceUUIDs(gatt_services_);
   SetGattServicesDiscoveryComplete(true);
   adapter_->NotifyGattServicesDiscovered(this);
@@ -334,7 +330,6 @@ void BluetoothDeviceAndroid::OnGattServicesDiscovered(
 
 void BluetoothDeviceAndroid::CreateGattRemoteService(
     JNIEnv* env,
-    const JavaParamRef<jobject>& caller,
     const JavaParamRef<jstring>& instance_id,
     const JavaParamRef<jobject>&
         bluetooth_gatt_service_wrapper) {  // BluetoothGattServiceWrapper

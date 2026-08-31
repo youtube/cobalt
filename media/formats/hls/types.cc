@@ -64,13 +64,39 @@ ParseStatus::Or<ByteRangeExpression> ByteRangeExpression::Parse(
 }
 
 // static
+ParseStatus::Or<base::Time> ISO8601Date::Parse(ResolvedSourceString str) {
+  base::Time time;
+  if (base::Time::FromString(str.Str().data(), &time)) {
+    return time;
+  }
+  return ParseStatusCode::kMalformedTag;
+}
+
+// static
 ParseStatus::Or<ResolvedSourceString> RawStr::Parse(ResolvedSourceString str) {
   return str;
 }
 
 // static
+ParseStatus::Or<DecimalInteger> RawInt::Parse(ResolvedSourceString str) {
+  return ParseDecimalInteger(str);
+}
+
+// static
+ParseStatus::Or<DecimalFloatingPoint> RawFloat::Parse(
+    ResolvedSourceString str) {
+  return ParseDecimalFloatingPoint(str);
+}
+
+// static
 ParseStatus::Or<bool> YesOrNo::Parse(ResolvedSourceString str) {
   return str.Str() == "YES";
+}
+
+// static
+ParseStatus::Or<::media::hls::types::DecimalResolution>
+DecimalResolution::Parse(ResolvedSourceString str) {
+  return ::media::hls::types::DecimalResolution::Parse(str);
 }
 
 }  // namespace parsing

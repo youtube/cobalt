@@ -16,7 +16,6 @@
 
 #include <jni.h>
 
-#include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
@@ -29,7 +28,6 @@
 #include "content/public/common/content_switches.h"
 
 using base::android::AttachCurrentThread;
-using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -109,36 +107,6 @@ void ShellPlatformDelegate::UpdateContents(Shell* shell) {
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->GetRenderWidgetHostView()->SetSize(content_size);
-}
-
-void ShellPlatformDelegate::EnableUIControl(Shell* shell,
-                                            UIControl control,
-                                            bool is_enabled) {
-  JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  if (shell_data.java_object.is_null()) {
-    return;
-  }
-  Java_Shell_enableUiControl(env, shell_data.java_object, control, is_enabled);
-}
-
-void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {
-  JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  ScopedJavaLocalRef<jstring> j_url = ConvertUTF8ToJavaString(env, url.spec());
-  Java_Shell_onUpdateUrl(env, shell_data.java_object, j_url);
-}
-
-void ShellPlatformDelegate::SetIsLoading(Shell* shell, bool loading) {
-  JNIEnv* env = AttachCurrentThread();
-  DCHECK(base::Contains(shell_data_map_, shell));
-  ShellData& shell_data = shell_data_map_[shell];
-
-  Java_Shell_setIsLoading(env, shell_data.java_object, loading);
 }
 
 void ShellPlatformDelegate::SetTitle(Shell* shell,

@@ -50,6 +50,8 @@ static_library("scalable_iph") {
     "//chrome/browser/ash/printing",
     "//chrome/browser/ash/profiles",
     "//chrome/browser/ash/system_web_apps/apps/help_app",
+    "//chrome/browser/feature_engagement",
+    "//chrome/browser/signin",
     "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/scalable_iph:buildflags",
     "//chromeos/ash/resources",
@@ -89,9 +91,11 @@ static_library("test_support") {
     "//base/test:test_support",
     "//chrome/browser/ash/settings",
     "//chrome/browser/ash/settings:test_support",
+    "//chrome/browser/feature_engagement",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/ui/ash/multi_user",
     "//chrome/test:test_support_ui",
+    "//chromeos/ash/components/policy/device_policy:test_support",
     "//chromeos/ash/components/scalable_iph",
     "//chromeos/services/network_config/public/cpp:test_support",
     "//components/feature_engagement/test:test_support",
@@ -107,6 +111,7 @@ static_library("test_support") {
     "//chrome/browser",
     "//chrome/browser/ash/login/test:test_support",
     "//chrome/browser/ash/scalable_iph",
+    "//chrome/browser/signin",
     "//chrome/browser/ui",
     "//chromeos/ash/components/browser_context_helper",
     "//chromeos/ash/components/scalable_iph:constants",
@@ -117,6 +122,10 @@ static_library("test_support") {
     "//components/keyed_service/content",
     "//components/signin/public/identity_manager:test_support",
   ]
+
+  # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
+  # enable the diagnostic by removing this line.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
 }
 
 source_set("browser_tests") {

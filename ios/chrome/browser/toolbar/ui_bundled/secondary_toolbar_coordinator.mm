@@ -64,15 +64,33 @@
   [super stop];
 }
 
+#pragma mark - Setters
+
+// TODO(crbug.com/429955447): Remove when diamond prototype is cleaned.
+- (void)setUsedAsPrimaryToolbar:(BOOL)usedAsPrimaryToolbar {
+  CHECK(IsDiamondPrototypeEnabled());
+  if (_usedAsPrimaryToolbar == usedAsPrimaryToolbar) {
+    return;
+  }
+  _usedAsPrimaryToolbar = usedAsPrimaryToolbar;
+  self.viewController.usedAsPrimaryToolbar = usedAsPrimaryToolbar;
+}
+
+#pragma mark - Subclassing
+
+- (BOOL)hasTabGridButton {
+  return IsSplitToolbarMode(self.viewController);
+}
+
 #pragma mark - GuidedTourCommands
 
 - (void)highlightViewInStep:(GuidedTourStep)step {
-  if (IsSplitToolbarMode(self.viewController) && step == GuidedTourStepNTP) {
+  if ([self hasTabGridButton] && step == GuidedTourStep::kNTP) {
     [self.viewController IPHHighlightTabGridButton:YES];
   }
 }
 - (void)stepCompleted:(GuidedTourStep)step {
-  if (IsSplitToolbarMode(self.viewController) && step == GuidedTourStepNTP) {
+  if ([self hasTabGridButton] && step == GuidedTourStep::kNTP) {
     [self.viewController IPHHighlightTabGridButton:NO];
   }
 }

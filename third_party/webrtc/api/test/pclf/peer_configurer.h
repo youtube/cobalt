@@ -23,7 +23,7 @@
 #include "api/audio_codecs/audio_decoder_factory.h"
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/fec_controller.h"
-#include "api/field_trials_view.h"
+#include "api/field_trials.h"
 #include "api/ice_transport_interface.h"
 #include "api/neteq/neteq_factory.h"
 #include "api/peer_connection_interface.h"
@@ -176,8 +176,12 @@ class PeerConfigurer {
   // Set bitrate parameters on PeerConnection. This constraints will be
   // applied to all summed RTP streams for this peer.
   PeerConfigurer* SetBitrateSettings(BitrateSettings bitrate_settings);
-  // Set field trials used for this PeerConnection.
-  PeerConfigurer* SetFieldTrials(std::unique_ptr<FieldTrialsView> field_trials);
+
+  // Appends field trials for this PeerConnection.
+  PeerConfigurer* AddFieldTrials(const FieldTrials& field_trials) {
+    GetFieldTrials().Merge(field_trials);
+    return this;
+  }
 
   // Returns InjectableComponents and transfer ownership to the caller.
   // Can be called once.
@@ -207,6 +211,10 @@ class PeerConfigurer {
   std::vector<VideoSource>* video_sources() { return &video_sources_; }
 
  private:
+  FieldTrials& GetFieldTrials() {
+    return *components_->pcf_dependencies->field_trials;
+  }
+
   std::unique_ptr<InjectableComponents> components_;
   std::unique_ptr<Params> params_;
   std::unique_ptr<ConfigurableParams> configurable_params_;

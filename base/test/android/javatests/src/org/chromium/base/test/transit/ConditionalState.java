@@ -129,6 +129,11 @@ public abstract class ConditionalState {
      */
     public abstract String getName();
 
+    @Override
+    public String toString() {
+        return getName();
+    }
+
     /**
      * @return the lifecycle {@link Phase} this ConditionalState is in.
      */
@@ -327,5 +332,52 @@ public abstract class ConditionalState {
     /** Declare a custom Element. */
     public <T extends Element<?>> T declareElement(T element) {
         return mElements.declareElement(element);
+    }
+
+    /**
+     * Do nothing to trigger a Transition.
+     *
+     * <p>This is useful to wait ConditionalStates/Conditions to be reached without performing any
+     * action.
+     *
+     * <p>Adds this ConditionalState as context.
+     *
+     * @return a {@link TripBuilder} to perform the Transition.
+     */
+    public TripBuilder noopTo() {
+        return Triggers.noopTo().withContext(this);
+    }
+
+    /**
+     * Run an arbitrary function on the instrumentation thread to trigger a Transition.
+     *
+     * <p>Adds this ConditionalState as context.
+     *
+     * @return a {@link TripBuilder} to perform the Transition.
+     */
+    public TripBuilder runTo(Runnable runnable) {
+        return Triggers.runTo(runnable).withContext(this);
+    }
+
+    /**
+     * Run an arbitrary function on the UI thread to trigger a Transition.
+     *
+     * <p>Adds this ConditionalState as context.
+     *
+     * @return a {@link TripBuilder} to perform the Transition.
+     */
+    public TripBuilder runOnUiThreadTo(Runnable runnable) {
+        return Triggers.runOnUiThreadTo(runnable).withContext(this);
+    }
+
+    /**
+     * Press back to trigger a Transition.
+     *
+     * <p>Adds this ConditionalState as context.
+     *
+     * @return a {@link TripBuilder} to perform the Transition.
+     */
+    public TripBuilder pressBackTo() {
+        return Triggers.pressBackTo().withContext(this);
     }
 }

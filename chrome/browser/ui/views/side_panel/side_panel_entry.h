@@ -16,6 +16,7 @@
 #include "base/time/time.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "extensions/common/extension_id.h"
 #include "ui/base/class_property.h"
 #include "ui/base/models/image_model.h"
@@ -46,7 +47,7 @@ class SidePanelEntry final : public ui::PropertyHandler {
                  base::RepeatingCallback<GURL()> open_in_new_tab_url_callback,
                  base::RepeatingCallback<std::unique_ptr<ui::MenuModel>()>
                      more_info_callback,
-                 int default_content_width);
+                 base::RepeatingCallback<int()> default_content_width_callback);
 
   // This constructor is primarily used for extensions.Extensions don't have
   // `Open in New Tab` functionality. Other side panels can use this if nothing
@@ -54,7 +55,7 @@ class SidePanelEntry final : public ui::PropertyHandler {
   // base::NullCallback()).
   SidePanelEntry(Key key,
                  CreateContentCallback create_content_callback,
-                 int default_content_width);
+                 base::RepeatingCallback<int()> default_content_width_callback);
   SidePanelEntry(const SidePanelEntry&) = delete;
   SidePanelEntry& operator=(const SidePanelEntry&) = delete;
   ~SidePanelEntry() override;
@@ -74,6 +75,14 @@ class SidePanelEntry final : public ui::PropertyHandler {
   void OnEntryHidden();
 
   const Key& key() const { return key_; }
+
+  void set_last_open_trigger(std::optional<SidePanelOpenTrigger> trigger) {
+    last_open_trigger_ = trigger;
+  }
+
+  std::optional<SidePanelOpenTrigger> last_open_trigger() const {
+    return last_open_trigger_;
+  }
 
   void AddObserver(SidePanelEntryObserver* observer);
   void RemoveObserver(SidePanelEntryObserver* observer);
@@ -127,6 +136,12 @@ class SidePanelEntry final : public ui::PropertyHandler {
   // If this returns null, the more info button is hidden.
   base::RepeatingCallback<std::unique_ptr<ui::MenuModel>()> more_info_callback_;
 
+  // When specified sets the default starting width for this entry. However, if
+  // the user manually changes the size of the side panel that preference is
+  // used instead (prefs::kSidePanelIdToWidth). If nothing is specified, then
+  // the default minimum content width of the side panel is used.
+  base::RepeatingCallback<int()> default_content_width_callback_;
+
   // Timestamp of when the side panel was triggered to be shown.
   base::TimeTicks entry_show_triggered_timestamp_;
 
@@ -134,10 +149,14 @@ class SidePanelEntry final : public ui::PropertyHandler {
 
   base::ObserverList<SidePanelEntryObserver> observers_;
 
-  // When specified sets the default starting width for this entry. However, if
-  // the user manually changes the size of the side panel that preference is
-  // used instead (prefs::kSidePanelIdToWidth). If nothing is specified, then
-  // the default minimum content width of the side panel is used.
+  // The last trigger that caused this side panel entry to be shown. This is
+  // used for metrics.
+  std::optional<SidePanelOpenTrigger> last_open_trigger_;
+
+  // The default minimum content width for the side panel that can be overridden
+  // for testing. This is used if the default_content_width_callback_ is not
+  // set. However, if the user manually changes the size of the side panel that
+  // preference is used instead (prefs::kSidePanelIdToWidth).
   int default_content_width_ = kSidePanelDefaultContentWidth;
 
   base::WeakPtrFactory<SidePanelEntry> weak_factory_{this};

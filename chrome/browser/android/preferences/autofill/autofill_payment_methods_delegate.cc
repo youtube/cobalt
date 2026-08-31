@@ -17,6 +17,7 @@
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
+#include "components/autofill/core/browser/payments/multiple_request_payments_network_interface.h"
 #include "components/autofill/core/browser/payments/payments_network_interface.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_flow.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
@@ -58,10 +59,23 @@ AutofillPaymentMethodsDelegate::AutofillPaymentMethodsDelegate(Profile* profile)
           profile->GetURLLoaderFactory(),
           IdentityManagerFactory::GetForProfile(profile),
           &personal_data_manager_->payments_data_manager());
+  multiple_request_payments_network_interface_ =
+      std::make_unique<payments::MultipleRequestPaymentsNetworkInterface>(
+          profile->GetURLLoaderFactory(),
+          *IdentityManagerFactory::GetForProfile(profile),
+          profile->IsOffTheRecord());
+
+  PaymentsNetworkInterfaceVariation interface;
+  if (base::FeatureList::IsEnabled(
+          features::
+              kAutofillEnableMultipleRequestInVirtualCardDownstreamEnrollment)) {
+    interface = multiple_request_payments_network_interface_.get();
+  } else {
+    interface = payments_network_interface_.get();
+  }
   virtual_card_enrollment_manager_ =
       std::make_unique<VirtualCardEnrollmentManager>(
-          &personal_data_manager_->payments_data_manager(),
-          payments_network_interface_.get());
+          &personal_data_manager_->payments_data_manager(), interface);
 }
 
 AutofillPaymentMethodsDelegate::~AutofillPaymentMethodsDelegate() = default;
@@ -87,10 +101,11 @@ void AutofillPaymentMethodsDelegate::InitVirtualCardEnrollment(
       personal_data_manager_->payments_data_manager()
           .GetCreditCardByInstrumentId(instrument_id);
   virtual_card_enrollment_manager_->InitVirtualCardEnroll(
-      *credit_card, VirtualCardEnrollmentSource::kSettingsPage, std::nullopt,
-      profile_->GetPrefs(), base::BindOnce(&risk_util::LoadRiskDataHelper),
+      *credit_card, VirtualCardEnrollmentSource::kSettingsPage,
       base::BindOnce(&RunVirtualCardEnrollmentFieldsLoadedCallback,
-                     ScopedJavaGlobalRef<jobject>(jcallback)));
+                     ScopedJavaGlobalRef<jobject>(jcallback)),
+      std::nullopt, profile_->GetPrefs(),
+      base::BindOnce(&risk_util::LoadRiskDataHelper));
 }
 
 void AutofillPaymentMethodsDelegate::EnrollOfferedVirtualCard(

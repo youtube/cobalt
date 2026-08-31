@@ -13,6 +13,7 @@
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/pdf/pdf_test_util.h"
 #include "chrome/browser/pdf/pdf_viewer_stream_manager.h"
+#include "chrome/browser/save_to_drive/save_to_drive_flow.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "components/pdf/common/constants.h"
 #include "content/public/browser/navigation_entry.h"
@@ -20,6 +21,7 @@
 #include "content/public/test/web_contents_tester.h"
 #include "extensions/browser/api_test_utils.h"
 #include "extensions/browser/guest_view/mime_handler_view/mime_handler_view_guest.h"
+#include "pdf/buildflags.h"
 
 namespace extensions {
 
@@ -311,5 +313,63 @@ TEST_F(PdfViewerPrivateApiUnitTest,
             api_test_utils::RunFunctionAndReturnError(
                 function.get(), kSetPdfPluginAttributesArgs, profile()));
 }
+
+#if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
+// Succeed in sending a request to save a PDF to Drive.
+TEST_F(PdfViewerPrivateApiUnitTest, SaveToDrive) {
+  CreateAndClaimStreamContainer();
+
+  auto function = base::MakeRefCounted<PdfViewerPrivateSaveToDriveFunction>();
+  function->SetRenderFrameHost(extension_host());
+
+  EXPECT_TRUE(
+      api_test_utils::RunFunction(function, R"(["ORIGINAL"])", profile()));
+}
+
+// Failed in sending a request to save a PDF to Drive if there is already a
+// request in progress.
+TEST_F(PdfViewerPrivateApiUnitTest, SaveToDriveFailedIfAlreadyInProgress) {
+  CreateAndClaimStreamContainer();
+  {
+    auto function = base::MakeRefCounted<PdfViewerPrivateSaveToDriveFunction>();
+    function->SetRenderFrameHost(extension_host());
+
+    EXPECT_TRUE(api_test_utils::RunFunction(function.get(), R"(["ORIGINAL"])",
+                                            profile()));
+  }
+  {
+    auto function = base::MakeRefCounted<PdfViewerPrivateSaveToDriveFunction>();
+    function->SetRenderFrameHost(extension_host());
+
+    EXPECT_EQ("An upload is already in progress",
+              api_test_utils::RunFunctionAndReturnError(
+                  function.get(), R"(["ORIGINAL"])", profile()));
+  }
+}
+
+// Succeed in sending a request to save a PDF to Drive after the previous
+// request is canceled.
+TEST_F(PdfViewerPrivateApiUnitTest, SaveToDriveCanceledAndStartNew) {
+  CreateAndClaimStreamContainer();
+  {
+    auto function = base::MakeRefCounted<PdfViewerPrivateSaveToDriveFunction>();
+    function->SetRenderFrameHost(extension_host());
+
+    EXPECT_TRUE(api_test_utils::RunFunction(function.get(), R"(["ORIGINAL"])",
+                                            profile()));
+    auto* flow =
+        save_to_drive::SaveToDriveFlow::GetForCurrentDocument(extension_host());
+    ASSERT_TRUE(flow);
+    flow->Stop();
+  }
+  {
+    auto function = base::MakeRefCounted<PdfViewerPrivateSaveToDriveFunction>();
+    function->SetRenderFrameHost(extension_host());
+    EXPECT_TRUE(api_test_utils::RunFunction(function.get(), R"(["ORIGINAL"])",
+                                            profile()));
+  }
+}
+
+#endif  // BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
 
 }  // namespace extensions

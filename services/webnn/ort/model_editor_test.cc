@@ -26,16 +26,19 @@ TEST_F(WebNNOrtModelEditorTest, AddAndGather) {
   // Add an input.
   constexpr base::cstring_view input = "input";
   auto input_desc = OperandDescriptor::CreateForDeserialization(
-      OperandDataType::kUint32, {4, 2, 4});
+      OperandDataType::kUint32, {4, 2, 4}, {});
   ASSERT_TRUE(input_desc.has_value());
-  model_editor.AddInput(input, input_desc.value());
+  mojom::OperandPtr input_operand =
+      mojom::Operand::New(mojom::Operand::Kind::kInput,
+                          std::move(input_desc.value()), "input_operand");
+  model_editor.AddInput(input, *input_operand);
 
   // Add two initializers.
   constexpr base::cstring_view add_initializer = "add_initializer";
   std::array<uint32_t, 32> add_initializer_data;  // 128 bytes
   add_initializer_data.fill(1);
   auto add_initializer_desc = OperandDescriptor::CreateForDeserialization(
-      OperandDataType::kUint32, {4, 2, 4});
+      OperandDataType::kUint32, {4, 2, 4}, {});
   ASSERT_TRUE(add_initializer_desc.has_value());
   auto add_initializer_operand = std::make_unique<WebNNConstantOperand>(
       std::move(add_initializer_desc.value()),
@@ -49,7 +52,8 @@ TEST_F(WebNNOrtModelEditorTest, AddAndGather) {
   std::array<int64_t, 4> gather_indices_initializer_data = {0, 1, 0,
                                                             1};  // 32 bytes
   auto gather_indices_initializer_desc =
-      OperandDescriptor::CreateForDeserialization(OperandDataType::kInt64, {4});
+      OperandDescriptor::CreateForDeserialization(OperandDataType::kInt64, {4},
+                                                  {});
   ASSERT_TRUE(gather_indices_initializer_desc.has_value());
   auto gather_indices_initializer_operand =
       std::make_unique<WebNNConstantOperand>(
@@ -81,17 +85,17 @@ TEST_F(WebNNOrtModelEditorTest, AddAndGather) {
       gather_outputs, gather_attrs);
 
   // Add an output.
-  model_editor.AddOutput(output, OperandDescriptor::CreateForDeserialization(
-                                     OperandDataType::kUint32, {4, 4, 4})
-                                     .value());
+  auto output_desc = OperandDescriptor::CreateForDeserialization(
+      OperandDataType::kUint32, {4, 4, 4}, {});
+  ASSERT_TRUE(output_desc.has_value());
+  mojom::OperandPtr output_operand =
+      mojom::Operand::New(mojom::Operand::Kind::kOutput,
+                          std::move(output_desc.value()), "output_operand");
+  model_editor.AddOutput(output, *output_operand);
 
   std::unique_ptr<ModelEditor::ModelInfo> model_info =
       model_editor.BuildAndTakeModelInfo();
   ASSERT_NE(model_info, nullptr);
-
-  // `add_initializer` data should be saved into `external_data` since it
-  // reaches `kMinExternalDataSize`.
-  EXPECT_EQ(model_info->external_data.size(), 1u);
   EXPECT_TRUE(model_info->model.is_valid());
 }
 
@@ -101,9 +105,12 @@ TEST_F(WebNNOrtModelEditorTest, ReshapeToScalar) {
   // Add an input.
   constexpr base::cstring_view input = "input";
   auto input_desc = OperandDescriptor::CreateForDeserialization(
-      OperandDataType::kInt32, {1, 1, 1, 1});
+      OperandDataType::kInt32, {1, 1, 1, 1}, {});
   ASSERT_TRUE(input_desc.has_value());
-  model_editor.AddInput(input, input_desc.value());
+  mojom::OperandPtr input_operand =
+      mojom::Operand::New(mojom::Operand::Kind::kInput,
+                          std::move(input_desc.value()), "input_operand");
+  model_editor.AddInput(input, *input_operand);
 
   // Add an initializer which is an empty tensor that represents an empty shape
   // of a scalar.
@@ -122,16 +129,17 @@ TEST_F(WebNNOrtModelEditorTest, ReshapeToScalar) {
       reshape_outputs);
 
   // Add an output.
-  auto output_desc =
-      OperandDescriptor::CreateForDeserialization(OperandDataType::kInt32, {});
+  auto output_desc = OperandDescriptor::CreateForDeserialization(
+      OperandDataType::kInt32, {}, {});
   ASSERT_TRUE(output_desc.has_value());
-  model_editor.AddOutput(output, output_desc.value());
+  mojom::OperandPtr output_operand =
+      mojom::Operand::New(mojom::Operand::Kind::kOutput,
+                          std::move(output_desc.value()), "output_operand");
+  model_editor.AddOutput(output, *output_operand);
 
   std::unique_ptr<ModelEditor::ModelInfo> model_info =
       model_editor.BuildAndTakeModelInfo();
   ASSERT_NE(model_info, nullptr);
-
-  EXPECT_EQ(model_info->external_data.size(), 0u);
   EXPECT_TRUE(model_info->model.is_valid());
 }
 

@@ -273,10 +273,8 @@ bool PendingLayer::CanMerge(
   if (!guest.has_decomposited_blend_mode_) {
     float sum_area = new_home_bounds.Rect().size().GetArea() +
                      new_guest_bounds.Rect().size().GetArea();
-    float tolerance = kMergeSparsityAreaTolerance;
-    if (RuntimeEnabledFeatures::FewerSubsequencesEnabled()) {
-      tolerance *= device_pixel_ratio * device_pixel_ratio;
-    }
+    float tolerance =
+        kMergeSparsityAreaTolerance * device_pixel_ratio * device_pixel_ratio;
     if (merged_bounds.size().GetArea() - sum_area > tolerance) {
       return false;
     }
@@ -449,7 +447,7 @@ bool PendingLayer::PropertyTreeStateChanged(
       old_pending_layer->property_tree_state_ != property_tree_state_)
     return true;
 
-  auto change = PaintPropertyChangeType::kChangedOnlyNonRerasterValues;
+  auto change = PaintPropertyChangeType::kChangedOnlySimpleValues;
   if (change_of_decomposited_transforms_ >= change)
     return true;
 

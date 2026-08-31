@@ -104,6 +104,14 @@ ui::BrowserAccessibility* BrowserAccessibilityManagerAndroid::GetFocus() const {
   return ui::BrowserAccessibilityManager::GetFocus();
 }
 
+ui::BrowserAccessibility*
+BrowserAccessibilityManagerAndroid::GetAccessibilityFocus() const {
+  if (auto* wcax = GetWebContentsAXFromRootManager()) {
+    return wcax->GetAccessibilityFocus();
+  }
+  return nullptr;
+}
+
 ui::AXNode* BrowserAccessibilityManagerAndroid::RetargetForEvents(
     ui::AXNode* node,
     RetargetEventType type) const {
@@ -187,7 +195,9 @@ void BrowserAccessibilityManagerAndroid::FireFocusEvent(ui::AXNode* node) {
 
   BrowserAccessibilityAndroid* android_node =
       static_cast<BrowserAccessibilityAndroid*>(GetFromAXNode(node));
-  wcax->HandleFocusChanged(android_node->GetUniqueId());
+  wcax->HandleFocusChanged(
+      android_node->GetUniqueId(),
+      android_node->manager()->GetBrowserAccessibilityRoot() == android_node);
 }
 
 void BrowserAccessibilityManagerAndroid::FireLocationChanged(
@@ -637,8 +647,8 @@ BrowserAccessibilityManagerAndroid::CreateBrowserAccessibility(
 
 void BrowserAccessibilityManagerAndroid::OnAtomicUpdateStarting(
     ui::AXTree* tree,
-    const std::set<ui::AXNodeID>& deleting_nodes,
-    const std::set<ui::AXNodeID>& reparenting_nodes) {
+    const absl::flat_hash_set<ui::AXNodeID>& deleting_nodes,
+    const absl::flat_hash_set<ui::AXNodeID>& reparenting_nodes) {
   WebContentsAccessibilityAndroid* wcax = GetWebContentsAXFromRootManager();
   if (wcax) {
     // This set needs to start fresh. This secondary cache is of requests to
@@ -728,7 +738,7 @@ void BrowserAccessibilityManagerAndroid::OnAtomicUpdateFinished(
 }
 
 WebContentsAccessibilityAndroid*
-BrowserAccessibilityManagerAndroid::GetWebContentsAXFromRootManager() {
+BrowserAccessibilityManagerAndroid::GetWebContentsAXFromRootManager() const {
   ui::BrowserAccessibility* parent_node =
       GetParentNodeFromParentTreeAsBrowserAccessibility();
   if (!parent_node) {

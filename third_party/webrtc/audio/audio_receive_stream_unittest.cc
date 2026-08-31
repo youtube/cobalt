@@ -65,14 +65,14 @@ AudioDecodingCallStats MakeAudioDecodeStatsForTest() {
   return audio_decode_stats;
 }
 
-const uint32_t kRemoteSsrc = 1234;
-const uint32_t kLocalSsrc = 5678;
-const int kJitterBufferDelay = -7;
-const int kPlayoutBufferDelay = 302;
-const unsigned int kSpeechOutputLevel = 99;
-const double kTotalOutputEnergy = 0.25;
-const double kTotalOutputDuration = 0.5;
-const int64_t kPlayoutNtpTimestampMs = 5678;
+constexpr uint32_t kRemoteSsrc = 1234;
+constexpr uint32_t kLocalSsrc = 5678;
+constexpr int kJitterBufferDelay = -7;
+constexpr int kPlayoutBufferDelay = 302;
+constexpr unsigned int kSpeechOutputLevel = 99;
+constexpr double kTotalOutputEnergy = 0.25;
+constexpr double kTotalOutputDuration = 0.5;
+constexpr int64_t kPlayoutNtpTimestampMs = 5678;
 
 const CallReceiveStatistics kCallStats = {678, 234, -12, 567, 78, 890, 123};
 const std::pair<int, SdpAudioFormat> kReceiveCodec = {
@@ -242,7 +242,7 @@ TEST(AudioReceiveStreamTest, ReceiveRtcpPacket) {
     EXPECT_CALL(*helper.channel_receive(),
                 ReceivedRTCPPacket(&rtcp_packet[0], rtcp_packet.size()))
         .WillOnce(Return());
-    recv_stream->DeliverRtcp(&rtcp_packet[0], rtcp_packet.size());
+    recv_stream->DeliverRtcp(rtcp_packet);
     recv_stream->UnregisterFromTransport();
   }
 }

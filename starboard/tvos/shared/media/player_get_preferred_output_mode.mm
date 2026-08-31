@@ -18,7 +18,6 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/tvos/shared/media/player_configuration.h"
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {
@@ -76,13 +75,6 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
   // Check |kSbPlayerOutputModeDecodeToTexture| first if the caller prefers it.
   if (creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
     std::swap(output_modes_to_check[0], output_modes_to_check[1]);
-  } else if (starboard::shared::uikit::IsDecodeToTexturePreferred()) {
-    const char* mime = creation_param->video_stream_info.mime;
-    // Sw vp9 doesn't support HDR yet, so we only use decode to texture
-    // mode for SDR contents.
-    if (mime && starboard::IsSDRVideo(mime)) {
-      std::swap(output_modes_to_check[0], output_modes_to_check[1]);
-    }
   }
 
   if (PlayerComponents::Factory::OutputModeSupported(output_modes_to_check[0],

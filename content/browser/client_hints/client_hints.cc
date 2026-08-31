@@ -21,6 +21,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "build/buildflag.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/preloading/prerender/prerender_host.h"
 #include "content/browser/renderer_host/frame_tree.h"
@@ -547,12 +548,14 @@ struct ClientHintsExtendedData {
       // fenced frame properties from the urn iframe because it does a bottom
       // up traversal.
       // See crbug.com/1470634.
+      base::span<const network::mojom::PermissionsPolicyFeature> permissions;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       const std::optional<FencedFrameProperties>& fenced_frame_properties =
           frame_tree_node->GetFencedFrameProperties();
-      base::span<const network::mojom::PermissionsPolicyFeature> permissions;
       if (fenced_frame_properties) {
         permissions = fenced_frame_properties->effective_enabled_permissions();
       }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       permissions_policy =
           network::PermissionsPolicy::CreateFixedForFencedFrame(
               resource_origin, /*header_policy=*/{}, permissions);
@@ -1059,6 +1062,28 @@ bool AreCriticalHintsMissing(
   }
 
   return false;
+}
+
+network::ResourceRequest::TrustedParams::EnabledClientHints
+GetEnabledClientHints(const url::Origin& origin,
+                      FrameTreeNode* frame_tree_node,
+                      ClientHintsControllerDelegate* delegate) {
+  ClientHintsExtendedData data(origin, frame_tree_node, delegate, std::nullopt);
+
+  network::ResourceRequest::TrustedParams::EnabledClientHints
+      enabled_client_hints;
+  enabled_client_hints.is_outermost_main_frame = data.is_outermost_main_frame;
+  const auto& client_hints_map = network::GetClientHintToNameMap();
+  // Note: these only check for per-hint origin/permissions policy settings, not
+  // origin-level or "browser-level" policies like disabiling JS or other
+  // features.
+  for (const auto& [hint, _] : client_hints_map) {
+    if (ShouldAddClientHint(data, hint)) {
+      enabled_client_hints.hints.push_back(hint);
+    }
+  }
+  enabled_client_hints.origin = data.main_frame_origin;
+  return enabled_client_hints;
 }
 
 }  // namespace content

@@ -8,6 +8,7 @@ import static org.chromium.support_lib_glue.SupportLibWebViewChromiumFactory.rec
 
 import android.webkit.WebSettings;
 
+import org.chromium.android_webview.AwBackForwardCacheSettings;
 import org.chromium.android_webview.AwDarkMode;
 import org.chromium.android_webview.AwSettings;
 import org.chromium.android_webview.common.MediaIntegrityApiStatus;
@@ -16,8 +17,11 @@ import org.chromium.base.Log;
 import org.chromium.base.TraceEvent;
 import org.chromium.components.webauthn.WebauthnMode;
 import org.chromium.support_lib_boundary.WebSettingsBoundaryInterface;
+import org.chromium.support_lib_boundary.WebViewBackForwardCacheSettingsBoundaryInterface;
+import org.chromium.support_lib_boundary.util.BoundaryInterfaceReflectionUtil;
 import org.chromium.support_lib_glue.SupportLibWebViewChromiumFactory.ApiCall;
 
+import java.lang.reflect.InvocationHandler;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -490,6 +494,34 @@ class SupportLibWebSettingsAdapter implements WebSettingsBoundaryInterface {
     }
 
     @Override
+    public void setBackForwardCacheSettings(
+            /* BackForwardCacheSettings */ InvocationHandler backForwardCacheSettings) {
+        try (TraceEvent ignored =
+                TraceEvent.scoped("WebView.APICall.AndroidX.SET_BACK_FORWARD_CACHE_SETTINGS")) {
+            recordApiCall(ApiCall.SET_BACK_FORWARD_CACHE_SETTINGS);
+            WebViewBackForwardCacheSettingsBoundaryInterface boundaryInterface =
+                    BoundaryInterfaceReflectionUtil.castToSuppLibClass(
+                            WebViewBackForwardCacheSettingsBoundaryInterface.class,
+                            backForwardCacheSettings);
+            mAwSettings.setBackForwardCacheSettings(
+                    new AwBackForwardCacheSettings(
+                            boundaryInterface.getTimeoutInSeconds(),
+                            boundaryInterface.getMaxPagesInCache()));
+        }
+    }
+
+    @Override
+    public /* BackForwardCacheSettings */ InvocationHandler getBackForwardCacheSettings() {
+        try (TraceEvent ignored =
+                TraceEvent.scoped("WebView.APICall.AndroidX.GET_BACK_FORWARD_CACHE_SETTINGS")) {
+            recordApiCall(ApiCall.GET_BACK_FORWARD_CACHE_SETTINGS);
+            return BoundaryInterfaceReflectionUtil.createInvocationHandlerFor(
+                    new SupportLibWebViewBackForwardCacheSettingsAdapter(
+                            mAwSettings.getBackForwardCacheSettings()));
+        }
+    }
+
+    @Override
     public void setPaymentRequestEnabled(boolean enabled) {
         try (TraceEvent ignored =
                 TraceEvent.scoped("WebView.APICall.AndroidX.SET_PAYMENT_REQUEST_ENABLED")) {
@@ -540,6 +572,28 @@ class SupportLibWebSettingsAdapter implements WebSettingsBoundaryInterface {
                 TraceEvent.scoped("WebView.APICall.AndroidX.GET_INCLUDE_COOKIES_ON_INTERCEPT")) {
             recordApiCall(ApiCall.GET_INCLUDE_COOKIES_ON_INTERCEPT);
             return mAwSettings.getIncludeCookiesOnIntercept();
+        }
+    }
+
+    @Override
+    public void setHyperlinkContextMenuItems(@HyperlinkContextMenuItems int hyperlinkMenuItems) {
+        try (TraceEvent ignored =
+                TraceEvent.scoped("WebView.APICall.AndroidX.SET_HYPERLINK_CONTEXT_MENU_ITEMS")) {
+            recordApiCall(ApiCall.SET_HYPERLINK_CONTEXT_MENU_ITEMS);
+
+            int awMenuItems = AwSettings.HyperlinkContextMenuItems.DISABLED;
+
+            if ((hyperlinkMenuItems & HyperlinkContextMenuItems.COPY_LINK_ADDRESS) != 0) {
+                awMenuItems |= AwSettings.HyperlinkContextMenuItems.COPY_LINK_ADDRESS;
+            }
+            if ((hyperlinkMenuItems & HyperlinkContextMenuItems.COPY_LINK_TEXT) != 0) {
+                awMenuItems |= AwSettings.HyperlinkContextMenuItems.COPY_LINK_TEXT;
+            }
+            if ((hyperlinkMenuItems & HyperlinkContextMenuItems.OPEN_LINK) != 0) {
+                awMenuItems |= AwSettings.HyperlinkContextMenuItems.OPEN_LINK;
+            }
+
+            mAwSettings.setHyperlinkContextMenuItems(awMenuItems);
         }
     }
 }

@@ -4,7 +4,6 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
 #ifndef skgpu_graphite_BufferManager_DEFINED
 #define skgpu_graphite_BufferManager_DEFINED
 
@@ -12,13 +11,14 @@
 #include "include/private/base/SkTArray.h"
 #include "src/gpu/BufferWriter.h"
 #include "src/gpu/graphite/Buffer.h"
-#include "src/gpu/graphite/DrawTypes.h"
 #include "src/gpu/graphite/ResourceTypes.h"
 #include "src/gpu/graphite/UploadBufferManager.h"
 
 #include <array>
-#include <optional>
-#include <tuple>
+#include <cstddef>
+#include <cstdint>
+#include <string_view>
+#include <utility>
 
 namespace skgpu::graphite {
 
@@ -122,7 +122,8 @@ public:
     };
 
     DrawBufferManager(ResourceProvider* resourceProvider, const Caps* caps,
-                      UploadBufferManager* uploadManager, DrawBufferManagerOptions dbmOpts = {});
+                      UploadBufferManager* uploadManager,
+                      DrawBufferManagerOptions dbmOpts = {});
     ~DrawBufferManager();
 
     // Let possible users check if the manager is already in a bad mapping state and skip any extra
@@ -315,6 +316,9 @@ private:
         BindBufferInfo  fSource;            // The CPU-to-GPU buffer and offset for the source of the copy
         BindBufferInfo* fTarget;            // The late-assigned destination of the copy
         size_t          fRequiredAlignment; // The requested stride of the data.
+#if defined(GPU_TEST_UTILS)
+        size_t          fUnalignedSize;     // The requested size without count-4 alignment
+#endif
     };
     struct BufferInfo {
         BufferInfo(BufferType type, const Caps* caps);

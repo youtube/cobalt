@@ -27,6 +27,8 @@ using chrome_test_util::BackButton;
 using chrome_test_util::ForwardButton;
 using chrome_test_util::NTPCollectionView;
 using chrome_test_util::OmniboxText;
+using chrome_test_util::ShowTabsButton;
+using chrome_test_util::ToolsMenuButton;
 
 namespace {
 
@@ -154,7 +156,13 @@ std::unique_ptr<net::test_server::HttpResponse> CountResponse(
 
 // Navigates to a set of cross-domains, chrome URLs and error pages, and then
 // tests that they are properly restored.
-- (void)testRestoreHistory {
+// TODO(crbug.com/435144099): Reenable test.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testRestoreHistory testRestoreHistory
+#else
+#define MAYBE_testRestoreHistory FLAKY_testRestoreHistory
+#endif
+- (void)MAYBE_testRestoreHistory {
   [self setUpRestoreServers];
   [self loadTestPages];
   [self verifyRestoredTestPages:YES];
@@ -162,7 +170,13 @@ std::unique_ptr<net::test_server::HttpResponse> CountResponse(
 
 // Navigates to a set of cross-domains, chrome URLs and error pages, and then
 // tests that they are properly restored in airplane mode.
-- (void)testRestoreNoNetwork {
+// TODO(crbug.com/435144099): Reenable test.
+#if TARGET_OS_SIMULATOR
+#define MAYBE_testRestoreNoNetwork testRestoreNoNetwork
+#else
+#define MAYBE_testRestoreNoNetwork FLAKY_testRestoreNoNetwork
+#endif
+- (void)MAYBE_testRestoreNoNetwork {
   [self setUpRestoreServers];
   [self loadTestPages];
   self.serverRespondsWithContent = false;
@@ -286,7 +300,9 @@ std::unique_ptr<net::test_server::HttpResponse> CountResponse(
                                               kPageOneTitle)),
                                           grey_sufficientlyVisible(), nil)]
       assertWithMatcher:grey_notNil()];
-  [[EarlGrey selectElementWithMatcher:BackButton()] performAction:grey_tap()];
+
+  [[EarlGrey selectElementWithMatcher:ShowTabsButton()]
+      performAction:grey_tap()];
 
   // Go back to error page.
   [[EarlGrey selectElementWithMatcher:BackButton()] performAction:grey_tap()];
@@ -327,7 +343,8 @@ std::unique_ptr<net::test_server::HttpResponse> CountResponse(
                                                 kPageTwoTitle)),
                                             grey_sufficientlyVisible(), nil)]
         assertWithMatcher:grey_notNil()];
-    [[EarlGrey selectElementWithMatcher:ForwardButton()]
+
+    [[EarlGrey selectElementWithMatcher:ToolsMenuButton()]
         performAction:grey_tap()];
   }
   [self triggerRestore];
@@ -342,7 +359,8 @@ std::unique_ptr<net::test_server::HttpResponse> CountResponse(
                                                 kPageTwoTitle)),
                                             grey_sufficientlyVisible(), nil)]
         assertWithMatcher:grey_notNil()];
-    [[EarlGrey selectElementWithMatcher:ForwardButton()]
+
+    [[EarlGrey selectElementWithMatcher:ToolsMenuButton()]
         performAction:grey_tap()];
   }
   [[EarlGrey selectElementWithMatcher:BackButton()] performAction:grey_tap()];

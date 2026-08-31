@@ -14,6 +14,7 @@
 #include "include/private/base/SkMacros.h"
 #include "include/private/base/SkTPin.h"
 #include "src/core/SkColorPriv.h"
+#include "src/core/SkMatrixPriv.h"
 #include "src/core/SkMemset.h"
 #include "src/core/SkMipmapAccessor.h"
 
@@ -230,9 +231,10 @@ bool SkBitmapProcState::init(const SkMatrix& inv, SkAlpha paintAlpha,
         // if it's already pure translate then we won't do this inversion.
 
         if (matrix_only_scale_translate(fInvMatrix)) {
-            SkMatrix forward;
-            if (fInvMatrix.invert(&forward) && just_trans_general(forward)) {
-                fInvMatrix.setTranslate(-forward.getTranslateX(), -forward.getTranslateY());
+            if (auto forward = fInvMatrix.invert()) {
+                if (just_trans_general(*forward)) {
+                    fInvMatrix.setTranslate(-forward->getTranslateX(), -forward->getTranslateY());
+                }
             }
         }
 
@@ -267,7 +269,6 @@ bool SkBitmapProcState::chooseProcs() {
 
     SkASSERT(fTileModeX != SkTileMode::kDecal);
 
-    fInvProc            = SkMatrixPriv::GetMapXYProc(fInvMatrix);
     fInvSxFractionalInt = SkScalarToFractionalInt(fInvMatrix.getScaleX());
     fInvKyFractionalInt = SkScalarToFractionalInt(fInvMatrix.getSkewY ());
 

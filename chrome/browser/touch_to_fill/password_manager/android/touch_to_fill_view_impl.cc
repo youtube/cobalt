@@ -56,7 +56,9 @@ UiCredential ConvertJavaCredential(JNIEnv* env,
       static_cast<password_manager_util::GetLoginMatchType>(
           Java_Credential_getMatchType(env, credential)),
       base::Time::FromMillisecondsSinceUnixEpoch(
-          Java_Credential_lastUsedMsSinceEpoch(env, credential)));
+          Java_Credential_lastUsedMsSinceEpoch(env, credential)),
+      UiCredential::IsBackupCredential(
+          Java_Credential_isBackupCredential(env, credential)));
 }
 
 PasskeyCredential ConvertJavaWebauthnCredential(
@@ -128,7 +130,8 @@ bool TouchToFillViewImpl::Show(
         ConvertUTF16ToJavaString(env, credential.sender_name()),
         url::GURLAndroid::FromNativeGURL(env,
                                          credential.sender_profile_image_url()),
-        credential.sharing_notification_displayed());
+        credential.sharing_notification_displayed(),
+        credential.is_backup_credential().value());
   }
 
   base::android::ScopedJavaLocalRef<jobjectArray> passkey_array =
@@ -148,7 +151,6 @@ bool TouchToFillViewImpl::Show(
       env, java_object_internal_, url::GURLAndroid::FromNativeGURL(env, url),
       is_origin_secure.value(), passkey_array, credential_array,
       !!(flags & TouchToFillView::kTriggerSubmission),
-      !(flags & TouchToFillView::kCanManagePasswordsWhenPasskeysPresent),
       !!(flags & TouchToFillView::kShouldShowHybridOption),
       !!(flags & TouchToFillView::kShouldShowCredManEntry));
   return true;

@@ -77,21 +77,17 @@ static_assert(kBlinkMemberGCHasDebugChecks ||
                   sizeof(Member<void*>) <= sizeof(void*),
               "Member<> should stay small!");
 
-}  // namespace blink
-
-namespace WTF {
-
 template <typename T>
-struct IsTraceable<blink::Member<T>> {
+struct IsTraceable<Member<T>> {
   STATIC_ONLY(IsTraceable);
   static const bool value = true;
 };
 
 template <typename T>
-struct IsWeak<blink::WeakMember<T>> : std::true_type {};
+struct IsWeak<WeakMember<T>> : std::true_type {};
 
 template <typename T>
-struct IsTraceable<blink::WeakMember<T>> {
+struct IsTraceable<WeakMember<T>> {
   STATIC_ONLY(IsTraceable);
   static const bool value = true;
 };
@@ -101,37 +97,35 @@ struct IsTraceable<blink::WeakMember<T>> {
 // directly with any of those types.
 template <typename T>
 class ValuePeeker final {
-  DISALLOW_NEW();
+  STACK_ALLOCATED();
 
  public:
   // NOLINTNEXTLINE
   ALWAYS_INLINE ValuePeeker(T* ptr) : ptr_(ptr) {}
   template <typename U>
   // NOLINTNEXTLINE
-  ALWAYS_INLINE ValuePeeker(const blink::Member<U>& m) : ptr_(m.Get()) {}
+  ALWAYS_INLINE ValuePeeker(const Member<U>& m) : ptr_(m.Get()) {}
   template <typename U>
   // NOLINTNEXTLINE
-  ALWAYS_INLINE ValuePeeker(const blink::WeakMember<U>& m) : ptr_(m.Get()) {}
+  ALWAYS_INLINE ValuePeeker(const WeakMember<U>& m) : ptr_(m.Get()) {}
   template <typename U>
   // NOLINTNEXTLINE
-  ALWAYS_INLINE ValuePeeker(const blink::UntracedMember<U>& m)
-      : ptr_(m.Get()) {}
+  ALWAYS_INLINE ValuePeeker(const UntracedMember<U>& m) : ptr_(m.Get()) {}
   template <typename U>
   // NOLINTNEXTLINE
-  ALWAYS_INLINE ValuePeeker(const blink::Persistent<U>& p) : ptr_(p.Get()) {}
+  ALWAYS_INLINE ValuePeeker(const Persistent<U>& p) : ptr_(p.Get()) {}
   template <typename U>
   // NOLINTNEXTLINE
-  ALWAYS_INLINE ValuePeeker(const blink::WeakPersistent<U>& p)
-      : ptr_(p.Get()) {}
+  ALWAYS_INLINE ValuePeeker(const WeakPersistent<U>& p) : ptr_(p.Get()) {}
 
   // NOLINTNEXTLINE
   ALWAYS_INLINE operator T*() const { return ptr_; }
   // NOLINTNEXTLINE
-  ALWAYS_INLINE operator blink::Member<T>() const { return ptr_; }
+  ALWAYS_INLINE operator Member<T>() const { return ptr_; }
   // NOLINTNEXTLINE
-  ALWAYS_INLINE operator blink::WeakMember<T>() const { return ptr_; }
+  ALWAYS_INLINE operator WeakMember<T>() const { return ptr_; }
   // NOLINTNEXTLINE
-  ALWAYS_INLINE operator blink::UntracedMember<T>() const { return ptr_; }
+  ALWAYS_INLINE operator UntracedMember<T>() const { return ptr_; }
 
  private:
   T* ptr_;
@@ -154,12 +148,12 @@ struct BaseMemberHashTraits : SimpleClassHashTraits<MemberType> {
 #else
     cppgc::internal::RawPointer st(key);
 #endif
-    return WTF::GetHash(st.GetAsInteger());
+    return blink::GetHash(st.GetAsInteger());
   }
   template <typename Member>
-    requires(WTF::IsAnyMemberType<Member>::value)
+    requires(IsAnyMemberType<Member>::value)
   static unsigned GetHash(const Member& m) {
-    return WTF::GetHash(m.GetRawStorage().GetAsInteger());
+    return blink::GetHash(m.GetRawStorage().GetAsInteger());
   }
 
   static constexpr bool kEmptyValueIsZero = true;
@@ -216,7 +210,8 @@ class MemberConstructTraits {
   static T* Construct(void* location, Args&&... args) {
     // `Construct()` creates a new Member which must not be visible to the
     // concurrent marker yet, similar to regular ctors in Member.
-    return new (NotNullTag::kNotNull, location) T(std::forward<Args>(args)...);
+    return new (base::NotNullTag::kNotNull, location)
+        T(std::forward<Args>(args)...);
   }
 
   template <typename... Args>
@@ -224,37 +219,37 @@ class MemberConstructTraits {
     // `ConstructAndNotifyElement()` updates an existing Member which might
     // also be concurrently traced while we update it. The regular ctors
     // for Member don't use an atomic write which can lead to data races.
-    T* object = new (NotNullTag::kNotNull, location)
+    T* object = new (base::NotNullTag::kNotNull, location)
         T(std::forward<Args>(args)..., typename T::AtomicInitializerTag());
     NotifyNewElement(object);
     return object;
   }
 
   static void NotifyNewElement(T* element) {
-    blink::WriteBarrier::DispatchForObject(element);
+    WriteBarrier::DispatchForObject(element);
   }
 
   static void NotifyNewElements(base::span<T> members) {
     // Checking the first element is sufficient for determining whether a
     // marking or generational barrier is required.
     if (members.empty() ||
-               !blink::WriteBarrier::IsWriteBarrierNeeded(&members.front())) [[likely]] {
+        !WriteBarrier::IsWriteBarrierNeeded(&members.front())) [[likely]] {
       return;
     }
     for (auto& member : members) {
-      blink::WriteBarrier::DispatchForObject(&member);
+      WriteBarrier::DispatchForObject(&member);
     }
   }
 };
 
 template <typename T, typename Traits, typename Allocator>
-class ConstructTraits<blink::Member<T>, Traits, Allocator> final
-    : public MemberConstructTraits<blink::Member<T>> {};
+class ConstructTraits<Member<T>, Traits, Allocator> final
+    : public MemberConstructTraits<Member<T>> {};
 
 template <typename T, typename Traits, typename Allocator>
-class ConstructTraits<blink::WeakMember<T>, Traits, Allocator> final
-    : public MemberConstructTraits<blink::WeakMember<T>> {};
+class ConstructTraits<WeakMember<T>, Traits, Allocator> final
+    : public MemberConstructTraits<WeakMember<T>> {};
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_HEAP_MEMBER_H_

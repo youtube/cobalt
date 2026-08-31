@@ -14,8 +14,9 @@ namespace blink {
 bool BidiParagraph::SetParagraph(const String& text,
                                  std::optional<TextDirection> base_direction) {
   DCHECK(!text.IsNull());
-  DCHECK(!ubidi_);
-  ubidi_ = UBidiPtr(ubidi_open());
+  if (!ubidi_) {
+    ubidi_ = UBidiPtr(ubidi_open());
+  }
 
   UBiDiLevel para_level;
   if (base_direction) {
@@ -96,10 +97,10 @@ String BidiParagraph::StringWithDirectionalOverride(const StringView& text,
                                                     TextDirection direction) {
   StringBuilder builder;
   builder.Reserve16BitCapacity(text.length() + 2);
-  builder.Append(IsLtr(direction) ? kLeftToRightOverrideCharacter
-                                  : kRightToLeftOverrideCharacter);
+  builder.Append(IsLtr(direction) ? uchar::kLeftToRightOverride
+                                  : uchar::kRightToLeftOverride);
   builder.Append(text);
-  builder.Append(kPopDirectionalFormattingCharacter);
+  builder.Append(uchar::kPopDirectionalFormatting);
   return builder.ToString();
 }
 

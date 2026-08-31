@@ -38,6 +38,15 @@
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/gfx/geometry/rect_f.h"
 
+#if BUILDFLAG(IS_LINUX)
+#include "partition_alloc/buildflags.h"
+
+#if PA_BUILDFLAG( \
+    ENABLE_ALLOCATOR_SHIM_PARTITION_ALLOC_DISPATCH_WITH_ADVANCED_CHECKS_SUPPORT)
+#include "base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc_with_advanced_checks.h"
+#endif
+#endif
+
 #if BUILDFLAG(USE_FAKE_SCREEN_AI)
 #include "services/screen_ai/screen_ai_library_wrapper_fake.h"
 #else
@@ -119,6 +128,7 @@ MainContentExtractionClientTypeForMetrics GetClientType(
   }
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 ui::AXTreeUpdate ConvertVisualAnnotationToTreeUpdate(
     std::optional<chrome_screen_ai::VisualAnnotation>& annotation_proto,
     const gfx::Rect& image_rect) {
@@ -129,6 +139,7 @@ ui::AXTreeUpdate ConvertVisualAnnotationToTreeUpdate(
 
   return VisualAnnotationToAXTreeUpdate(*annotation_proto, image_rect);
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 ui::AXNodeID ComputeMainNode(
     const ui::AXTree* tree,
@@ -255,6 +266,16 @@ ScreenAIService::ScreenAIService(
     : factory_receiver_(this, std::move(receiver)),
       ocr_receiver_(this),
       main_content_extraction_receiver_(this) {
+#if BUILDFLAG(IS_LINUX) && \
+    PA_BUILDFLAG(          \
+        ENABLE_ALLOCATOR_SHIM_PARTITION_ALLOC_DISPATCH_WITH_ADVANCED_CHECKS_SUPPORT)
+  // TODO(crbug.com/418199684): Remove when the bug is fixed.
+  if (base::FeatureList::IsEnabled(
+          ::features::kScreenAIPartitionAllocAdvancedChecksEnabled)) {
+    allocator_shim::InstallCustomDispatchForPartitionAllocWithAdvancedChecks();
+  }
+#endif
+
   screen2x_main_content_extractors_.set_disconnect_handler(
       base::BindRepeating(&ScreenAIService::MceReceiverDisconnected,
                           weak_ptr_factory_.GetWeakPtr()));
@@ -419,6 +440,14 @@ ScreenAIService::PerformOcrAndRecordMetrics(const SkBitmap& image) {
   base::UmaHistogramEnumeration("Accessibility.ScreenAI.OCR.ClientType",
                                 client_type);
 
+  bool light_client = base::Contains(light_ocr_clients_,
+                                     screen_ai_annotators_.current_receiver());
+  if (light_client != last_ocr_light_) {
+    library_->SetOCRLightMode(light_client);
+    last_ocr_light_ = light_client;
+    ocr_mode_switch_count_++;
+  }
+
   base::TimeTicks start_time = base::TimeTicks::Now();
   base::SequenceBound<HangTimer> hang_timer(background_task_runner_,
                                             /*is_ocr=*/true);
@@ -516,6 +545,19 @@ void ScreenAIService::GetMaxImageDimension(
   std::move(callback).Run(max_ocr_dimension_);
 }
 
+void ScreenAIService::SetOCRLightMode(bool enabled) {
+  const auto client = screen_ai_annotators_.current_receiver();
+  if (enabled) {
+    light_ocr_clients_.insert(client);
+  } else {
+    light_ocr_clients_.erase(client);
+  }
+}
+
+void ScreenAIService::IsOCRBusy(IsOCRBusyCallback callback) {
+  std::move(callback).Run(screen_ai_annotators_.size() > 1);
+}
+
 void ScreenAIService::PerformOcrAndReturnAnnotation(
     const SkBitmap& image,
     PerformOcrAndReturnAnnotationCallback callback) {
@@ -530,6 +572,7 @@ void ScreenAIService::PerformOcrAndReturnAnnotation(
   std::move(callback).Run(mojom::VisualAnnotation::New());
 }
 
+#if BUILDFLAG(IS_CHROMEOS)
 void ScreenAIService::PerformOcrAndReturnAXTreeUpdate(
     const SkBitmap& image,
     PerformOcrAndReturnAXTreeUpdateCallback callback) {
@@ -542,6 +585,7 @@ void ScreenAIService::PerformOcrAndReturnAXTreeUpdate(
   // that the annotation function was not successful.
   std::move(callback).Run(update);
 }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 void ScreenAIService::ExtractMainContent(const ui::AXTreeUpdate& snapshot,
                                          ExtractMainContentCallback callback) {
@@ -687,6 +731,13 @@ void ScreenAIService::ShutDownOnIdle() {
   if (ocr_last_used_ < kIdlenessThreshold &&
       mce_last_used_ < kIdlenessThreshold) {
     screen_ai_shutdown_handler_->ShuttingDownOnIdle();
+
+    // If OCR was used, record the number of times it's mode was switched.
+    if (ocr_last_used_ != base::TimeTicks()) {
+      base::UmaHistogramCounts100("Accessibility.ScreenAI.OCR.ModeSwitch",
+                                  ocr_mode_switch_count_);
+    }
+
     base::Process::TerminateCurrentProcessImmediately(0);
   }
 }

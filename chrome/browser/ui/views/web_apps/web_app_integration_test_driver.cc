@@ -38,6 +38,7 @@
 #include "base/path_service.h"
 #include "base/strings/pattern.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -54,12 +55,16 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/shell_integration.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
+#include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/startup/web_app_startup_utils.h"
 #include "chrome/browser/ui/ui_features.h"
@@ -71,6 +76,7 @@
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_chip_button.h"
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
+#include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -158,10 +164,12 @@
 #include "third_party/boringssl/src/include/openssl/curve25519.h"
 #include "third_party/re2/src/re2/re2.h"
 #include "ui/accessibility/ax_action_data.h"
+#include "ui/views/controls/button/button.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/test/dialog_test.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_interactive_uitest_utils.h"
 #include "ui/webui/resources/cr_components/app_management/app_management.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -1208,8 +1216,10 @@ void WebAppIntegrationTestDriver::EnterFullScreenApp() {
   if (!BeforeStateChangeAction(__FUNCTION__)) {
     return;
   }
-  FullscreenController* fullscreen_controller =
-      app_browser()->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* fullscreen_controller = app_browser()
+                                                    ->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
   ASSERT_FALSE(fullscreen_controller->IsFullscreenForBrowser());
   ui_test_utils::ToggleFullscreenModeAndWait(app_browser());
   ASSERT_TRUE(fullscreen_controller->IsFullscreenForBrowser());
@@ -1220,8 +1230,10 @@ void WebAppIntegrationTestDriver::ExitFullScreenApp() {
   if (!BeforeStateChangeAction(__FUNCTION__)) {
     return;
   }
-  FullscreenController* fullscreen_controller =
-      app_browser()->exclusive_access_manager()->fullscreen_controller();
+  FullscreenController* fullscreen_controller = app_browser()
+                                                    ->GetFeatures()
+                                                    .exclusive_access_manager()
+                                                    ->fullscreen_controller();
   ASSERT_TRUE(fullscreen_controller->IsFullscreenForBrowser());
   ui_test_utils::ToggleFullscreenModeAndWait(app_browser());
   ASSERT_FALSE(fullscreen_controller->IsFullscreenForBrowser());
@@ -1344,10 +1356,23 @@ void WebAppIntegrationTestDriver::InstallOmniboxIcon(InstallableSite site) {
       web_app::SetDontCloseOnDeactivateForTesting();
 
   BrowserAddedWaiter browser_added_waiter;
+  views::test::PropertyWaiter(
+      base::BindRepeating(&views::View::GetVisible,
+                          base::Unretained(pwa_install_view())),
+      /*expected_value=*/true)
+      .Wait();
   ASSERT_TRUE(pwa_install_view()->GetVisible());
   WebAppTestInstallWithOsHooksObserver install_observer(profile());
   install_observer.BeginListening();
-  pwa_install_view()->ExecuteForTesting();
+  if (IsPageActionMigrated(PageActionIconType::kPwaInstall)) {
+    actions::ActionManager::Get()
+        .FindAction(kActionInstallPwa,
+                    browser()->GetActions()->root_action_item())
+        ->InvokeAction();
+  } else {
+    browser()->window()->ExecutePageActionIconForTesting(
+        PageActionIconType::kPwaInstall);
+  }
 
   WaitForAndAcceptInstallDialogForSite(InstallableSiteToSite(site));
 
@@ -1493,11 +1518,11 @@ void WebAppIntegrationTestDriver::InstallSubApp(
       content::EvalJs(web_contents, script);
 
   if (option == SubAppInstallDialogOptions::kUserDeny) {
-    EXPECT_FALSE(add_result.error.empty());
+    EXPECT_FALSE(add_result.is_ok());
   } else {
     base::Value::Dict expected_output;
     expected_output.Set(sub_url, "success");
-    EXPECT_EQ(expected_output, add_result.value);
+    EXPECT_EQ(expected_output, add_result);
   }
 
   AfterStateChangeAction();
@@ -1513,11 +1538,9 @@ void WebAppIntegrationTestDriver::RemoveSubApp(Site parent_app, Site sub_app) {
       << "No open tab or window for the parent app was found.";
   std::string sub_url = GetRelativeSubAppPath(sub_app);
 
-  const base::Value& remove_result =
-      content::EvalJs(
-          web_contents,
-          content::JsReplace("navigator.subApps.remove([$1])", sub_url))
-          .value;
+  const content::EvalJsResult remove_result = content::EvalJs(
+      web_contents,
+      content::JsReplace("navigator.subApps.remove([$1])", sub_url));
 
   base::Value::Dict expected_output;
   expected_output.Set(sub_url, "success");
@@ -2730,15 +2753,13 @@ void WebAppIntegrationTestDriver::CorruptAppShim(Site site,
       EXPECT_TRUE(base::WriteFile(bin_path, bin_contents));
 
       // Since we modified the binary, we need to re-sign it.
-      if (base::mac::MacOSMajorVersion() >= 12) {
-        std::string codesign_output;
-        std::vector<std::string> codesign_argv = {
-            "codesign", "--force", "--sign", "-", bin_path.value()};
-        EXPECT_TRUE(base::GetAppOutputAndError(base::CommandLine(codesign_argv),
-                                               &codesign_output))
-            << "Failed to sign executable at " << bin_path << ": "
-            << codesign_output;
-      }
+      std::string codesign_output;
+      std::vector<std::string> codesign_argv = {"codesign", "--force", "--sign",
+                                                "-", bin_path.value()};
+      EXPECT_TRUE(base::GetAppOutputAndError(base::CommandLine(codesign_argv),
+                                             &codesign_output))
+          << "Failed to sign executable at " << bin_path << ": "
+          << codesign_output;
       break;
     }
   }
@@ -3225,7 +3246,7 @@ void WebAppIntegrationTestDriver::CheckFilesLoadedInSite(
       }
 
       base::Value::List test_content_list =
-          EvalJs(web_contents, "launchFinishedPromise").ExtractList();
+          EvalJs(web_contents, "launchFinishedPromise").TakeValue().TakeList();
       for (const auto& test_content : test_content_list) {
         if (base::EndsWith(url_str, kFooHandler)) {
           found_foo_files.push_back(test_content.GetString());
@@ -3255,6 +3276,11 @@ void WebAppIntegrationTestDriver::CheckInstallIconShown() {
         webapps::TestAppBannerManagerDesktop::FromWebContents(web_contents);
     app_banner_manager->WaitForInstallableCheck();
   }
+  views::test::PropertyWaiter(
+      base::BindRepeating(&views::View::GetVisible,
+                          base::Unretained(pwa_install_view())),
+      /*expected_value=*/true)
+      .Wait();
   EXPECT_TRUE(pwa_install_view()->GetVisible());
   AfterStateCheckAction();
 }
@@ -3783,10 +3809,10 @@ void WebAppIntegrationTestDriver::CheckHasSubApp(Site parent_app,
 
   std::string sub_app_url = GetRelativeSubAppPath(sub_app);
 
-  const base::Value& list_result =
-      content::EvalJs(web_contents, "navigator.subApps.list()").value;
+  const content::EvalJsResult list_result =
+      content::EvalJs(web_contents, "navigator.subApps.list()");
 
-  const base::Value::Dict& list_result_dict = list_result.GetDict();
+  const base::Value::Dict& list_result_dict = list_result.ExtractDict();
 
   // Check that list() contained the sub_app_url key.
   EXPECT_NE(nullptr, list_result_dict.FindDict(sub_app_url));
@@ -3807,10 +3833,10 @@ void WebAppIntegrationTestDriver::CheckNotHasSubApp(Site parent_app,
 
   std::string sub_app_url = GetRelativeSubAppPath(sub_app);
 
-  const base::Value& list_result =
-      content::EvalJs(web_contents, "navigator.subApps.list()").value;
+  const content::EvalJsResult list_result =
+      content::EvalJs(web_contents, "navigator.subApps.list()");
 
-  const base::Value::Dict& list_result_dict = list_result.GetDict();
+  const base::Value::Dict& list_result_dict = list_result.ExtractDict();
 
   // Check that list() did not contain the sub_app_url key.
   EXPECT_EQ(nullptr, list_result_dict.FindDict(sub_app_url));
@@ -3828,8 +3854,8 @@ void WebAppIntegrationTestDriver::CheckNoSubApps(Site parent_app) {
   ASSERT_TRUE(web_contents)
       << "No open tab or window for the parent app was found.";
 
-  const base::Value& result =
-      content::EvalJs(web_contents, "navigator.subApps.list()").value;
+  const content::EvalJsResult result =
+      content::EvalJs(web_contents, "navigator.subApps.list()");
 
   // Check that list() returned an empty dictionary.
   EXPECT_EQ(base::Value(base::Value::Type::DICT), result);
@@ -4708,16 +4734,23 @@ std::vector<Profile*> WebAppIntegrationTestDriver::GetAllProfiles() {
   return profiles;
 }
 
-PageActionIconView* WebAppIntegrationTestDriver::pwa_install_view() {
-  PageActionIconView* pwa_install_view =
+IconLabelBubbleView* WebAppIntegrationTestDriver::pwa_install_view() {
+  IconLabelBubbleView* pwa_install_view =
       BrowserView::GetBrowserViewForBrowser(browser())
           ->toolbar_button_provider()
-          ->GetPageActionIconView(PageActionIconType::kPwaInstall);
+          ->GetPageActionView(kActionInstallPwa);
   CHECK(pwa_install_view);
   return pwa_install_view;
 }
 
-IntentChipButton* WebAppIntegrationTestDriver::intent_chip_view() {
+views::Button* WebAppIntegrationTestDriver::intent_chip_view() {
+  if (IsPageActionMigrated(PageActionIconType::kIntentPicker)) {
+    auto* intent_chip_button = BrowserView::GetBrowserViewForBrowser(browser())
+                                   ->toolbar_button_provider()
+                                   ->GetPageActionView(kActionShowIntentPicker);
+    CHECK(intent_chip_button);
+    return intent_chip_button;
+  }
   IntentChipButton* intent_chip_button = GetIntentPickerIcon(browser());
   CHECK(intent_chip_button);
   return intent_chip_button;

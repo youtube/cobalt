@@ -11,10 +11,20 @@
 #include "modules/audio_processing/aec3/signal_dependent_erle_estimator.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <functional>
+#include <memory>
 #include <numeric>
+#include <vector>
 
+#include "api/array_view.h"
+#include "api/audio/echo_canceller3_config.h"
+#include "modules/audio_processing/aec3/aec3_common.h"
+#include "modules/audio_processing/aec3/render_buffer.h"
 #include "modules/audio_processing/aec3/spectrum_buffer.h"
+#include "modules/audio_processing/logging/apm_data_dumper.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/numerics/safe_minmax.h"
 
 namespace webrtc {

@@ -364,6 +364,8 @@ void FedCmAccountsFetcher::OnAccountsResponseReceived(
   }
   RecordReadyToShowAccountsSize(accounts.size());
   ComputeLoginStates(idp_info->provider->config->config_url, accounts);
+  ComputeAccountFields(GetDisclosureFields(idp_info->provider->fields),
+                       accounts);
 
   OnAccountsFetchSucceeded(std::move(idp_info), status, std::move(accounts));
 }
@@ -373,13 +375,22 @@ void FedCmAccountsFetcher::OnAccountsFetchSucceeded(
     IdpNetworkRequestManager::FetchStatus status,
     std::vector<IdentityRequestAccountPtr> accounts) {
   bool need_client_metadata = false;
-  if (!idp_info->provider->config->from_idp_registration_api &&
+  if (IsFedCmIframeOriginEnabled()) {
+    // For cross-site iframes, we need to fetch client metadata in case the
+    // IDP sends `client_matches_top_frame_origin: false`.
+    url::Origin embedding_origin =
+        render_frame_host_->GetMainFrame()->GetLastCommittedOrigin();
+    url::Origin rp_origin = render_frame_host_->GetLastCommittedOrigin();
+    need_client_metadata |=
+        !net::SchemefulSite::IsSameSite(embedding_origin, rp_origin);
+  }
+  if (!need_client_metadata &&
+      !idp_info->provider->config->from_idp_registration_api &&
       !GetDisclosureFields(idp_info->provider->fields).empty()) {
     for (const auto& account : accounts) {
-      // ComputeLoginStates() should have populated the login_state.
-      DCHECK(account->login_state);
-      if (*account->login_state == LoginState::kSignUp) {
-        need_client_metadata = true;
+      if (account->idp_claimed_login_state.value_or(
+              account->browser_trusted_login_state) == LoginState::kSignUp) {
+        need_client_metadata |= true;
         break;
       }
     }
@@ -543,7 +554,8 @@ void FedCmAccountsFetcher::ComputeLoginStates(
   // Populate the accounts login state.
   for (auto& account : accounts) {
     // Record when IDP and browser have different user sign-in states.
-    bool idp_claimed_sign_in = account->login_state == LoginState::kSignIn;
+    bool idp_claimed_sign_in =
+        account->idp_claimed_login_state == LoginState::kSignIn;
     account->last_used_timestamp = permission_delegate_->GetLastUsedTimestamp(
         render_frame_host_->GetLastCommittedOrigin(),
         federated_auth_request_impl_->GetEmbeddingOrigin(), idp_origin,
@@ -563,26 +575,20 @@ void FedCmAccountsFetcher::ComputeLoginStates(
               idp_config_url, SignInStateMatchStatus::kBrowserObservedSignIn);
     }
 
-    // We set the login state based on the IDP response if it sends
-    // back an approved_clients list. If it does not, we need to set
-    // it here based on browser state.
-    if (!account->login_state) {
-      // Consider this a sign-in if we have seen a successful sign-up for
-      // this account before.
-      account->login_state = account->last_used_timestamp.has_value()
-                                 ? LoginState::kSignIn
-                                 : LoginState::kSignUp;
-    }
-
     if (webid::HasSharingPermissionOrIdpHasThirdPartyCookiesAccess(
             *render_frame_host_, /*provider_url=*/idp_config_url,
             federated_auth_request_impl_->GetEmbeddingOrigin(),
             render_frame_host_->GetLastCommittedOrigin(), account->id,
             permission_delegate_, api_permission_delegate_)) {
+      LoginState browser_observed_login_state =
+          account->last_used_timestamp.has_value() ? LoginState::kSignIn
+                                                   : LoginState::kSignUp;
       // At this moment we can trust login_state even though it's controlled
       // by IdP. If it's kSignUp, it could mean that the browser's sharing
       // permission is obsolete.
-      account->browser_trusted_login_state = account->login_state.value();
+      account->browser_trusted_login_state =
+          account->idp_claimed_login_state.value_or(
+              browser_observed_login_state);
     }
   }
 }
@@ -621,17 +627,13 @@ void FedCmAccountsFetcher::HandleAccountsFetchFailure(
   if (params_.mediation_requirement == MediationRequirement::kSilent) {
     // By this moment we know that the user has granted permission in the
     // past for the RP/IdP. Because otherwise we have returned already in
-    // `ShouldFailBeforeFetchingAccounts`. It means that we can do the
-    // following without privacy cost:
-    // 1. Reject the promise immediately without delay
-    // 2. Not to show any UI to respect `mediation: silent`
-    // TODO(crbug.com/40266561): validate the statement above with
-    // stakeholders
+    // `ShouldFailBeforeFetchingAccounts`. It means that we don't need to show
+    // any UI to respect `mediation: silent`.
     federated_auth_request_impl_->OnFetchDataForIdpFailed(
         std::move(idp_info),
         FederatedAuthRequestResult::kSilentMediationFailure,
         TokenStatus::kSilentMediationFailure,
-        /*should_delay_callback=*/false);
+        /*should_delay_callback=*/true);
     return;
   }
 

@@ -11,6 +11,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/strings/escape.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -323,8 +324,15 @@ IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
             expected_final_viewport_density);
 }
 
+// TODO(crbug.com/431787502): Re-enable this test
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_AverageViewportAdDensity_ImageAd \
+  DISABLED_AverageViewportAdDensity_ImageAd
+#else
+#define MAYBE_AverageViewportAdDensity_ImageAd AverageViewportAdDensity_ImageAd
+#endif
 IN_PROC_BROWSER_TEST_F(AdsPageLoadMetricsObserverBrowserTest,
-                       AverageViewportAdDensity_ImageAd) {
+                       MAYBE_AverageViewportAdDensity_ImageAd) {
   SetRulesetWithRules(
       {subresource_filter::testing::CreateSuffixRule("pixel.png")});
 
@@ -2311,8 +2319,14 @@ IN_PROC_BROWSER_TEST_P(AdsPageLoadMetricsObserverResourceBrowserTest,
 }
 
 // Verify that UKM metrics are recorded correctly.
+// TODO(crbug.com/436944391): test is failing on Windows bots.
+#if BUILDFLAG(IS_WIN)
+#define MAYBE_RecordedUKMMetrics DISABLED_RecordedUKMMetrics
+#else
+#define MAYBE_RecordedUKMMetrics RecordedUKMMetrics
+#endif
 IN_PROC_BROWSER_TEST_P(AdsPageLoadMetricsObserverResourceBrowserTest,
-                       RecordedUKMMetrics) {
+                       MAYBE_RecordedUKMMetrics) {
   base::HistogramTester histogram_tester;
   ukm::TestAutoSetUkmRecorder ukm_recorder;
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -2327,7 +2341,16 @@ IN_PROC_BROWSER_TEST_P(AdsPageLoadMetricsObserverResourceBrowserTest,
   contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
       u"createAdFrame('multiple_mimes.html', 'test');", base::NullCallback(),
       content::ISOLATED_WORLD_ID_GLOBAL);
-  waiter->AddMinimumAdResourceExpectation(8);
+#if BUILDFLAG(IS_CHROMEOS)
+  // TODO(crbug.com/324635792): OOPIF PDF loads an additional CSS resource
+  // instead of inlining styles. This is considered an ad resource since it was
+  // created by ad_script.js. Remove when OOPIF PDF field trial testing is
+  // enabled for ChromeOS.
+  constexpr int kExpectedNumAdResources = 8;
+#else
+  constexpr int kExpectedNumAdResources = 9;
+#endif
+  waiter->AddMinimumAdResourceExpectation(kExpectedNumAdResources);
   waiter->Wait();
 
   // Close all tabs to report metrics.

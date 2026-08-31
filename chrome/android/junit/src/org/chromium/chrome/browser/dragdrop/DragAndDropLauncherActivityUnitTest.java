@@ -38,6 +38,7 @@ import org.chromium.ui.dragdrop.DragDropMetricUtils.UrlIntentSource;
 import org.chromium.url.JUnitTestGURLs;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -129,6 +130,20 @@ public class DragAndDropLauncherActivityUnitTest {
     }
 
     @Test
+    public void testGetMultiTabIntent_specificWindowId() {
+        testGetTabOrGroupIntent(
+                /* isGroupDrag= */ false, /* isMultiTabDrag= */ true, /* destWindowId= */ 2);
+    }
+
+    @Test
+    public void testGetMultiTabIntent_defaultWindowId() {
+        testGetTabOrGroupIntent(
+                /* isGroupDrag= */ false,
+                /* isMultiTabDrag= */ true,
+                /* destWindowId= */ TabWindowManager.INVALID_WINDOW_ID);
+    }
+
+    @Test
     public void testIsIntentValid_invalidIntentAction() {
         Intent intent =
                 DragAndDropLauncherActivity.getLinkLauncherIntent(
@@ -158,11 +173,20 @@ public class DragAndDropLauncherActivityUnitTest {
     }
 
     private void testGetTabOrGroupIntent(boolean isGroupDrag, int destWindowId) {
+        testGetTabOrGroupIntent(isGroupDrag, /* isMultiTabDrag= */ false, destWindowId);
+    }
+
+    private void testGetTabOrGroupIntent(
+            boolean isGroupDrag, boolean isMultiTabDrag, int destWindowId) {
         Tab tab = MockTab.createAndInitialize(1, mProfile);
-        ChromeDropDataAndroid dropData =
-                isGroupDrag
-                        ? createTabGroupDropData(/* allowDragToCreateNewInstance= */ true)
-                        : createTabDropData(tab, /* allowDragToCreateNewInstance= */ true);
+        ChromeDropDataAndroid dropData;
+        if (isGroupDrag) {
+            dropData = createTabGroupDropData(/* allowDragToCreateNewInstance= */ true);
+        } else if (isMultiTabDrag) {
+            dropData = createMultiTabDropData(tab, /* allowDragToCreateNewInstance= */ true);
+        } else {
+            dropData = createTabDropData(tab, /* allowDragToCreateNewInstance= */ true);
+        }
         int sourceWindowId = 1;
         Intent intent =
                 DragAndDropLauncherActivity.buildTabOrGroupIntent(
@@ -205,6 +229,20 @@ public class DragAndDropLauncherActivityUnitTest {
                     "The TabGroupMetadata intent extra value should match.",
                     buildTabGroupMetadata(),
                     IntentHandler.getTabGroupMetadata(intent));
+        } else if (isMultiTabDrag) {
+            assertEquals(
+                    "The EXTRA_URL_SOURCE intent extra value should match.",
+                    UrlIntentSource.TAB_IN_STRIP,
+                    intent.getIntExtra(
+                            IntentHandler.EXTRA_URL_DRAG_SOURCE, UrlIntentSource.UNKNOWN));
+            assertEquals(
+                    "The intent data value should match.",
+                    Collections.singletonList(tab.getUrl().getSpec()),
+                    intent.getStringArrayListExtra(IntentHandler.MULTI_TAB_KEY_TAB_URLS));
+            assertEquals(
+                    "The intent data value should match.",
+                    Collections.singletonList(tab.getId()),
+                    intent.getIntegerArrayListExtra(IntentHandler.MULTI_TAB_KEY_TAB_IDS));
         } else {
             assertEquals(
                     "The EXTRA_URL_SOURCE intent extra value should match.",
@@ -229,6 +267,14 @@ public class DragAndDropLauncherActivityUnitTest {
                 .build();
     }
 
+    private ChromeDropDataAndroid createMultiTabDropData(
+            Tab tab, boolean allowDragToCreateNewInstance) {
+        return new ChromeMultiTabDropDataAndroid.Builder()
+                .withTabs(List.of(tab))
+                .withAllowDragToCreateInstance(allowDragToCreateNewInstance)
+                .build();
+    }
+
     private ChromeDropDataAndroid createTabGroupDropData(boolean allowDragToCreateNewInstance) {
         return new ChromeTabGroupDropDataAndroid.Builder()
                 .withTabGroupMetadata(buildTabGroupMetadata())
@@ -239,7 +285,6 @@ public class DragAndDropLauncherActivityUnitTest {
     private TabGroupMetadata buildTabGroupMetadata() {
         Token tabGroupId = new Token(2L, 2L);
         String tabGroupTitle = "Regrouped tabs";
-        int rootId = 1;
         ArrayList<Entry<Integer, String>> tabIdsToUrls =
                 new ArrayList<>(
                         List.of(
@@ -249,8 +294,7 @@ public class DragAndDropLauncherActivityUnitTest {
 
         TabGroupMetadata tabGroupMetadata =
                 new TabGroupMetadata(
-                        rootId,
-                        /* selectedTabId= */ rootId,
+                        /* selectedTabId= */ 1,
                         /* sourceWindowId= */ TabWindowManager.INVALID_WINDOW_ID,
                         tabGroupId,
                         tabIdsToUrls,

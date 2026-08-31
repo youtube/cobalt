@@ -72,10 +72,12 @@ const char kArch[] =
 const char kChrome[] = "chrome";
 const char kCrx[] = "chromecrx";
 const char kWebView[] = "googleandroidwebview";
+const char kIOsWebView[] = "googleioswebview";
 #else
 const char kChrome[] = "chromium";
 const char kCrx[] = "chromiumcrx";
 const char kWebView[] = "androidwebview";
+const char kIOsWebView[] = "ioswebview";
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
 UpdateQueryParamsDelegate* g_delegate = nullptr;
@@ -85,9 +87,9 @@ UpdateQueryParamsDelegate* g_delegate = nullptr;
 // static
 std::string UpdateQueryParams::Get(ProdId prod) {
   return base::StringPrintf(
-      "os=%s&arch=%s&os_arch=%s&nacl_arch=%s&prod=%s%s&acceptformat=crx3,puff",
-      kOs, kArch, base::SysInfo().OperatingSystemArchitecture().c_str(),
-      GetNaclArch(), GetProdIdString(prod),
+      "os=%s&arch=%s&os_arch=%s&prod=%s%s&acceptformat=crx3,puff", kOs, kArch,
+      base::SysInfo().OperatingSystemArchitecture().c_str(),
+      GetProdIdString(prod),
       g_delegate ? g_delegate->GetExtraParams().c_str() : "");
 }
 
@@ -100,6 +102,8 @@ const char* UpdateQueryParams::GetProdIdString(UpdateQueryParams::ProdId prod) {
       return kCrx;
     case UpdateQueryParams::WEBVIEW:
       return kWebView;
+    case UpdateQueryParams::IOS_WEBVIEW:
+      return kIOsWebView;
   }
   return kUnknown;
 }
@@ -112,38 +116,6 @@ const char* UpdateQueryParams::GetOS() {
 // static
 const char* UpdateQueryParams::GetArch() {
   return kArch;
-}
-
-// static
-const char* UpdateQueryParams::GetNaclArch() {
-#if defined(ARCH_CPU_X86_FAMILY)
-#if defined(ARCH_CPU_X86_64)
-  return "x86-64";
-#elif BUILDFLAG(IS_WIN)
-  bool x86_64 = base::win::OSInfo::GetInstance()->IsWowX86OnAMD64();
-  return x86_64 ? "x86-64" : "x86-32";
-#else
-  return "x86-32";
-#endif
-#elif defined(ARCH_CPU_ARM_FAMILY)
-  return "arm";
-#elif defined(ARCH_CPU_MIPSEL)
-  return "mips32";
-#elif defined(ARCH_CPU_MIPS64EL)
-  return "mips64";
-#elif defined(ARCH_CPU_PPC64)
-  return "ppc64";
-#elif defined(ARCH_CPU_LOONGARCH32)
-  return "loongarch32";
-#elif defined(ARCH_CPU_LOONGARCH64)
-  return "loongarch64";
-#elif defined(ARCH_CPU_RISCV64)
-  return "riscv64";
-#else
-  // NOTE: when adding new values here, please remember to update the
-  // comment in the .h file about possible return values from this function.
-#error "You need to add support for your architecture here"
-#endif
 }
 
 // static

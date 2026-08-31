@@ -181,12 +181,12 @@ String CookieJar::Cookies() {
     return String();
 
   base::ElapsedTimer timer;
+
+  // This can affect the result of the IPCNeeded() call below, so needs to be
+  // done first.
   RequestRestrictedCookieManagerIfNeeded();
 
   String value = g_empty_string;
-  base::ReadOnlySharedMemoryRegion new_mapped_region;
-  const bool get_version_shared_memory =
-      !shared_memory_version_client_.has_value();
 
   // Store the latest cookie version to update |last_version_| after attempting
   // to get the string. Will get updated once more by GetCookiesString() if an
@@ -196,6 +196,10 @@ String CookieJar::Cookies() {
   const bool ipc_needed = IPCNeeded(should_apply_devtools_overrides);
   base::UmaHistogramBoolean("Blink.Experimental.Cookies.IpcNeeded", ipc_needed);
   if (ipc_needed) {
+    base::ReadOnlySharedMemoryRegion new_mapped_region;
+    const bool get_version_shared_memory =
+        !shared_memory_version_client_.has_value();
+
     bool is_ad_tagged =
         document_->GetFrame() && document_->GetFrame()->IsAdFrame();
 
@@ -214,16 +218,22 @@ String CookieJar::Cookies() {
       return g_empty_string;
     }
     last_cookies_ = value;
-  }
-  if (new_mapped_region.IsValid()) {
-    shared_memory_version_client_.emplace(std::move(new_mapped_region));
+    if (new_mapped_region.IsValid()) {
+      shared_memory_version_client_.emplace(std::move(new_mapped_region));
+    }
   }
 
   base::TimeDelta elapsed = timer.Elapsed();
+  constexpr int kMinTimeMicros = 10;
+  constexpr int kMaxTimeMicros = 1 * 1000 * 1000;  // 1 second
   if (ipc_needed) {
-    base::UmaHistogramTimes("Blink.CookiesTime.IpcNeeded", elapsed);
+    base::UmaHistogramCustomCounts("Blink.CookiesTime.IpcNeeded2",
+                                   elapsed.InMicroseconds(), kMinTimeMicros,
+                                   kMaxTimeMicros, 50);
   } else {
-    base::UmaHistogramTimes("Blink.CookiesTime.IpcNotNeeded", elapsed);
+    base::UmaHistogramCustomCounts("Blink.CookiesTime.IpcNotNeeded2",
+                                   elapsed.InMicroseconds(), kMinTimeMicros,
+                                   kMaxTimeMicros, 50);
   }
 
   // We should run the ablation study only for scenarios with ipc.
@@ -231,7 +241,11 @@ String CookieJar::Cookies() {
     base::TimeDelta delay = elapsed * kCookieJarAblationDelayFactor.Get() +
                             kCookieJarAblationDelayOffset.Get();
     base::UmaHistogramMediumTimes("Blink.CookiesTime.AblationDelay2", delay);
+
     if (delay.is_positive()) {
+      // Report the actual delay caused by PlatformThread::Sleep(). See
+      // https://crbug.com/412532502 for more details.
+      SCOPED_UMA_HISTOGRAM_TIMER_MICROS("Blink.CookiesTime.AblationSleepTime");
       base::PlatformThread::Sleep(delay);
     }
   }
@@ -333,8 +347,8 @@ void CookieJar::UpdateCacheAfterGetRequest(const KURL& cookie_url,
                                            const String& cookie_string,
                                            uint64_t new_version) {
   std::optional<unsigned> new_hash =
-      WTF::HashInts(WTF::GetHash(cookie_url),
-                    cookie_string.IsNull() ? 0 : WTF::GetHash(cookie_string));
+      HashInts(blink::GetHash(cookie_url),
+               cookie_string.IsNull() ? 0 : blink::GetHash(cookie_string));
 
   CookieCacheLookupResult result =
       CookieCacheLookupResult::kCacheMissFirstAccess;

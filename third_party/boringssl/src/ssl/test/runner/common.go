@@ -10,12 +10,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"math/big"
-	"os"
 	"sync"
 	"time"
 
@@ -329,6 +326,7 @@ type ConnectionState struct {
 	NegotiatedProtocolIsMutual bool                  // negotiated protocol was advertised by server
 	NegotiatedProtocolFromALPN bool                  // protocol negotiated with ALPN
 	ServerName                 string                // server name requested by client, if any (server side only)
+	ServerNameAck              bool                  // whether the server acknowledged the server name (client side only)
 	PeerCertificates           []*x509.Certificate   // certificate chain presented by remote peer
 	PeerDelegatedCredential    []byte                // delegated credential presented by remote peer
 	VerifiedChains             [][]*x509.Certificate // verified chains built from PeerCertificates
@@ -2366,11 +2364,6 @@ type Credential struct {
 	// SignatureAlgorithms, if not nil, overrides the default set of
 	// supported signature algorithms to sign with.
 	SignatureAlgorithms []signatureAlgorithm
-	// Leaf is the parsed form of the leaf certificate, which may be
-	// initialized using x509.ParseCertificate to reduce per-handshake
-	// processing for TLS clients doing client authentication. If nil, the
-	// leaf certificate will be parsed as needed.
-	Leaf *x509.Certificate
 	// DelegatedCredential is the delegated credential to use
 	// with the certificate.
 	DelegatedCredential []byte
@@ -2637,92 +2630,6 @@ func isAllZero(v []byte) bool {
 		}
 	}
 	return true
-}
-
-var baseCertTemplate = &x509.Certificate{
-	SerialNumber: big.NewInt(57005),
-	Subject: pkix.Name{
-		CommonName:   "test cert",
-		Country:      []string{"US"},
-		Province:     []string{"Some-State"},
-		Organization: []string{"Internet Widgits Pty Ltd"},
-	},
-	NotBefore:             time.Now().Add(-time.Hour),
-	NotAfter:              time.Now().Add(time.Hour),
-	DNSNames:              []string{"test"},
-	IsCA:                  true,
-	BasicConstraintsValid: true,
-}
-
-var tmpDir string
-
-func generateSingleCertChain(template *x509.Certificate, key crypto.Signer) Credential {
-	cert := generateTestCert(template, nil, key)
-	tmpCertPath, tmpKeyPath := writeTempCertFile([]*x509.Certificate{cert}), writeTempKeyFile(key)
-	return Credential{
-		Certificate:     [][]byte{cert.Raw},
-		RootCertificate: cert.Raw,
-		PrivateKey:      key,
-		Leaf:            cert,
-		ChainPath:       tmpCertPath,
-		KeyPath:         tmpKeyPath,
-		RootPath:        tmpCertPath,
-	}
-}
-
-func writeTempCertFile(certs []*x509.Certificate) string {
-	f, err := os.CreateTemp(tmpDir, "test-cert")
-	if err != nil {
-		panic(fmt.Sprintf("failed to create temp file: %s", err))
-	}
-	for _, cert := range certs {
-		if _, err := f.Write(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})); err != nil {
-			panic(fmt.Sprintf("failed to write test certificate: %s", err))
-		}
-	}
-	tmpCertPath := f.Name()
-	if err := f.Close(); err != nil {
-		panic(fmt.Sprintf("failed to close test certificate temp file: %s", err))
-	}
-	return tmpCertPath
-}
-
-func writeTempKeyFile(privKey crypto.Signer) string {
-	f, err := os.CreateTemp(tmpDir, "test-key")
-	if err != nil {
-		panic(fmt.Sprintf("failed to create temp file: %s", err))
-	}
-	keyDER, err := x509.MarshalPKCS8PrivateKey(privKey)
-	if err != nil {
-		panic(fmt.Sprintf("failed to marshal test key: %s", err))
-	}
-	if _, err := f.Write(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})); err != nil {
-		panic(fmt.Sprintf("failed to write test key: %s", err))
-	}
-	tmpKeyPath := f.Name()
-	if err := f.Close(); err != nil {
-		panic(fmt.Sprintf("failed to close test key temp file: %s", err))
-	}
-	return tmpKeyPath
-}
-
-func generateTestCert(template, issuer *x509.Certificate, key crypto.Signer) *x509.Certificate {
-	if template == nil {
-		template = baseCertTemplate
-	}
-	if issuer == nil {
-		issuer = template
-	}
-	der, err := x509.CreateCertificate(rand.Reader, template, issuer, key.Public(), key)
-	if err != nil {
-		panic(fmt.Sprintf("failed to create test certificate: %s", err))
-	}
-	cert, err := x509.ParseCertificate(der)
-	if err != nil {
-		panic(fmt.Sprintf("failed to parse test certificate: %s", err))
-	}
-
-	return cert
 }
 
 // https://github.com/golang/go/issues/45624

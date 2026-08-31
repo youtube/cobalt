@@ -91,6 +91,7 @@
 #import "ios/web/common/features.h"
 #import "ios/web/js_messaging/web_view_js_utils.h"
 #import "ios/web/public/browser_state_utils.h"
+#import "ios/web/public/js_messaging/content_world.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 #import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/navigation/navigation_manager.h"
@@ -378,10 +379,6 @@ NSString* SerializedValue(const base::Value* value) {
   chrome_test_util::SimulateExternalAppURLOpeningWithURL(URL);
 }
 
-+ (void)simulateAddAccountFromWeb {
-  chrome_test_util::SimulateAddAccountFromWeb();
-}
-
 + (void)closeCurrentTab {
   chrome_test_util::CloseCurrentTab();
 }
@@ -511,8 +508,14 @@ NSString* SerializedValue(const base::Value* value) {
 
   NSUserActivity* activity =
       [[NSUserActivity alloc] initWithActivityType:@"EG2NewWindow"];
-  UISceneActivationRequestOptions* options =
-      [[UISceneActivationRequestOptions alloc] init];
+  UIWindowSceneActivationRequestOptions* options =
+      [[UIWindowSceneActivationRequestOptions alloc] init];
+  if (@available(iOS 19.0, *)) {
+    // For iOS26 windowing, ensure the new window doesn't fully overlap the
+    // prior window.
+    options.placement = [UIWindowSceneProminentPlacement prominentPlacement];
+  }
+
   [UIApplication.sharedApplication
       requestSceneSessionActivation:nil /* make a new scene */
                        userActivity:activity
@@ -1085,12 +1088,27 @@ NSString* SerializedValue(const base::Value* value) {
 #pragma mark - JavaScript Utilities (EG2)
 
 + (JavaScriptExecutionResult*)executeJavaScript:(NSString*)javaScript {
+  return [ChromeEarlGreyAppInterface
+      executeJavaScript:javaScript
+                inWorld:static_cast<int>(web::ContentWorld::kPageContentWorld)];
+}
+
++ (JavaScriptExecutionResult*)executeJavaScriptInIsolatedWorld:
+    (NSString*)javaScript {
+  return [ChromeEarlGreyAppInterface
+      executeJavaScript:javaScript
+                inWorld:static_cast<int>(web::ContentWorld::kIsolatedWorld)];
+}
+
++ (JavaScriptExecutionResult*)executeJavaScript:(NSString*)javaScript
+                                        inWorld:(int)world {
   __block web::WebFrame* main_frame = nullptr;
   bool completed =
       WaitUntilConditionOrTimeout(kWaitForJSCompletionTimeout, ^bool {
-        main_frame = chrome_test_util::GetCurrentWebState()
-                         ->GetPageWorldWebFramesManager()
-                         ->GetMainWebFrame();
+        main_frame =
+            chrome_test_util::GetCurrentWebState()
+                ->GetWebFramesManager(static_cast<web::ContentWorld>(world))
+                ->GetMainWebFrame();
         return main_frame != nullptr;
       });
 
@@ -1169,10 +1187,6 @@ NSString* SerializedValue(const base::Value* value) {
   return base::FeatureList::IsEnabled(ukm::kUkmFeature);
 }
 
-+ (BOOL)isDWAEnabled {
-  return base::FeatureList::IsEnabled(metrics::dwa::kDwaFeature);
-}
-
 + (BOOL)isTestFeatureEnabled {
   return base::FeatureList::IsEnabled(kTestFeature);
 }
@@ -1212,10 +1226,6 @@ NSString* SerializedValue(const base::Value* value) {
   return ios::provider::IsLensSupported() &&
          ui::GetDeviceFormFactor() != ui::DEVICE_FORM_FACTOR_TABLET &&
          search_engines::SupportsSearchImageWithLens(service);
-}
-
-+ (BOOL)isTabGroupSyncEnabled {
-  return IsTabGroupSyncEnabled();
 }
 
 + (BOOL)isCurrentLayoutBottomOmnibox {
@@ -1339,6 +1349,12 @@ NSString* SerializedValue(const base::Value* value) {
   chrome_test_util::SetIntegerUserPref(
       chrome_test_util::GetOriginalProfile(),
       base::SysNSStringToUTF8(prefName).c_str(), value);
+}
+
++ (void)setDoubleValue:(double)value forUserPref:(NSString*)prefName {
+  chrome_test_util::SetDoubleUserPref(chrome_test_util::GetOriginalProfile(),
+                                      base::SysNSStringToUTF8(prefName).c_str(),
+                                      value);
 }
 
 + (BOOL)prefWithNameIsDefaultValue:(NSString*)prefName {

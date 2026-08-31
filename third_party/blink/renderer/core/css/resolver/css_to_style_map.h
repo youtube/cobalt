@@ -117,20 +117,30 @@ class CSSToStyleMap {
   static void MapNinePieceImageRepeat(StyleResolverState&,
                                       const CSSValue&,
                                       NinePieceImage&);
-  static EAnimationTriggerType MapAnimationTriggerType(StyleResolverState&,
-                                                       const CSSValue&);
-  static StyleTimeline MapAnimationTriggerTimeline(StyleResolverState&,
-                                                   const CSSValue&);
-  static std::optional<TimelineOffset> MapAnimationTriggerRangeStart(
+  static EAnimationTriggerBehavior MapAnimationTriggerBehavior(
       StyleResolverState&,
       const CSSValue&);
-  static std::optional<TimelineOffset> MapAnimationTriggerRangeEnd(
+  static Persistent<const ScopedCSSName> MapAnimationTimelineTriggerName(
       StyleResolverState&,
       const CSSValue&);
-  static TimelineOffsetOrAuto MapAnimationTriggerExitRangeStart(
+  static EAnimationTriggerBehavior MapAnimationTimelineTriggerBehavior(
       StyleResolverState&,
       const CSSValue&);
-  static TimelineOffsetOrAuto MapAnimationTriggerExitRangeEnd(
+  static std::optional<TimelineOffset> MapAnimationTimelineTriggerRangeStart(
+      StyleResolverState&,
+      const CSSValue&);
+  static std::optional<TimelineOffset> MapAnimationTimelineTriggerRangeEnd(
+      StyleResolverState&,
+      const CSSValue&);
+  static TimelineOffsetOrAuto MapAnimationTimelineTriggerExitRangeStart(
+      StyleResolverState&,
+      const CSSValue&);
+  static TimelineOffsetOrAuto MapAnimationTimelineTriggerExitRangeEnd(
+      StyleResolverState&,
+      const CSSValue&);
+  static StyleTimeline MapAnimationTimelineTriggerTimeline(StyleResolverState&,
+                                                           const CSSValue&);
+  static std::optional<Vector<AtomicString>> MapAnimationTriggerNames(
       StyleResolverState&,
       const CSSValue&);
 };

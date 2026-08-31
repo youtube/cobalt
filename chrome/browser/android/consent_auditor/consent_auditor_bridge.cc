@@ -22,9 +22,8 @@ using base::android::JavaParamRef;
 
 static void JNI_ConsentAuditorBridge_RecordConsent(
     JNIEnv* env,
-    const JavaParamRef<jobject>& obj,
     Profile* profile,
-    const JavaParamRef<jobject>& j_gaia_id,
+    GaiaId& gaia_id,
     jint j_feature,
     const JavaParamRef<jintArray>& j_consent_description,
     jint j_consent_confirmation) {
@@ -44,5 +43,5 @@ static void JNI_ConsentAuditorBridge_RecordConsent(
     sync_consent.add_description_grd_ids(id);
   }
   ConsentAuditorFactory::GetForProfile(profile)->RecordSyncConsent(
-      ConvertFromJavaGaiaId(env, j_gaia_id), sync_consent);
+      gaia_id, sync_consent);
 }

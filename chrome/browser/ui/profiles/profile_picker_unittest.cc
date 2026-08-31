@@ -19,6 +19,8 @@
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_constants.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/fake_profile_manager.h"
 #include "chrome/test/base/testing_browser_process.h"
@@ -47,7 +49,7 @@ class ProfilePickerTest : public testing::Test {
   }
 
   PrefService* local_state() {
-    return testing_profile_manager()->local_state()->Get();
+    return TestingBrowserProcess::GetGlobal()->local_state();
   }
 
  private:
@@ -146,6 +148,84 @@ TEST_F(ProfilePickerTest, ShouldShowAtLaunch_SingleProfile) {
             StartupProfileModeReason::kSingleProfile);
 }
 
+TEST_F(ProfilePickerTest,
+       ShouldShowAtLaunch_ProfileEmailSwitchCreateProfileNoMatchingProfile) {
+  {
+    base::test::ScopedFeatureList feature_list{
+        features::kCreateProfileIfNoneExists};
+
+    TestingProfile* profile1 =
+        testing_profile_manager()->CreateTestingProfile("profile1");
+    GetProfileAttributes(profile1)->SetAuthInfo(GaiaId("foo"),
+                                                u"personal@gmail.com", true);
+
+    EXPECT_EQ(ProfilePicker::GetStartupModeReason(),
+              StartupProfileModeReason::kSingleProfile);
+
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        switches::kProfileEmail, "test@corp.com");
+    EXPECT_EQ(ProfilePicker::GetStartupModeReason(),
+              StartupProfileModeReason::kSingleProfile);
+
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kCreateProfileEmailIfNotExists);
+    EXPECT_EQ(ProfilePicker::GetStartupModeReason(),
+              StartupProfileModeReason::kProfileEmailSwitchCreateProfile);
+  }
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(features::kCreateProfileIfNoneExists);
+  EXPECT_EQ(ProfilePicker::GetStartupModeReason(),
+            StartupProfileModeReason::kSingleProfile);
+}
+
+TEST_F(ProfilePickerTest,
+       ShouldNotShowAtLaunch_ProfileEmailSwitchCreateProfileExistingProfile) {
+  {
+    base::test::ScopedFeatureList feature_list{
+        features::kCreateProfileIfNoneExists};
+
+    TestingProfile* profile1 =
+        testing_profile_manager()->CreateTestingProfile("profile1");
+    GetProfileAttributes(profile1)->SetAuthInfo(GaiaId("foo"), u"test@corp.com",
+                                                true);
+    GetProfileAttributes(profile1)->SetActiveTimeToNow();
+
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        switches::kProfileEmail, "test@corp.com");
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kCreateProfileEmailIfNotExists);
+    EXPECT_EQ(ProfilePicker::GetStartupModeReason(),
+              StartupProfileModeReason::kProfileEmailSwitch);
+  }
+}
+
+TEST_F(
+    ProfilePickerTest,
+    ShouldNotShowAtLaunch_ProfileEmailSwitchCreateProfileMultipleProfiles) {
+  {
+    base::test::ScopedFeatureList feature_list{
+        features::kCreateProfileIfNoneExists};
+
+    TestingProfile* profile1 =
+        testing_profile_manager()->CreateTestingProfile("profile1");
+    GetProfileAttributes(profile1)->SetAuthInfo(GaiaId("foo"), u"test@corp.com",
+                                                true);
+    GetProfileAttributes(profile1)->SetActiveTimeToNow();
+    TestingProfile* profile2 =
+        testing_profile_manager()->CreateTestingProfile("profile2");
+    GetProfileAttributes(profile2)->SetAuthInfo(GaiaId("foo"), u"test2@corp.com",
+                                                true);
+    GetProfileAttributes(profile2)->SetActiveTimeToNow();
+
+    base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
+        switches::kProfileEmail, "test@corp.com");
+    base::CommandLine::ForCurrentProcess()->AppendSwitch(
+        switches::kCreateProfileEmailIfNotExists);
+    EXPECT_EQ(ProfilePicker::GetStartupModeReason(),
+              StartupProfileModeReason::kProfileEmailSwitch);
+  }
+}
+
 class ProfilePickerParamsTest : public testing::Test {
  public:
   ProfilePickerParamsTest() = default;
@@ -168,11 +248,24 @@ TEST_F(ProfilePickerParamsTest, FromEntryPoint_ProfilePath) {
             params.profile_path().BaseName());
 }
 
+TEST_F(ProfilePickerParamsTest, FromStartupWithEmail) {
+  const std::string kEmail = "test@gmail.com";
+  ProfilePicker::Params params =
+      ProfilePicker::Params::FromStartupWithEmail(kEmail);
+  EXPECT_EQ(base::FilePath(chrome::kSystemProfileDir),
+            params.profile_path().BaseName());
+  EXPECT_EQ(params.initial_email(), kEmail);
+  EXPECT_EQ(params.entry_point(),
+            ProfilePicker::EntryPoint::kOnStartupCreateProfileWithEmail);
+}
+
 TEST_F(ProfilePickerParamsTest, CanReuse) {
   ProfilePicker::Params params = ProfilePicker::Params::FromEntryPoint(
       ProfilePicker::EntryPoint::kProfileMenuManageProfiles);
   EXPECT_TRUE(params.CanReusePickerWindow(ProfilePicker::Params::FromEntryPoint(
       ProfilePicker::EntryPoint::kProfileMenuAddNewProfile)));
+  EXPECT_TRUE(params.CanReusePickerWindow(ProfilePicker::Params::FromEntryPoint(
+      ProfilePicker::EntryPoint::kOnStartupCreateProfileWithEmail)));
   EXPECT_TRUE(
       params.CanReusePickerWindow(ProfilePicker::Params::ForBackgroundManager(
           GURL("https://google.com/"))));

@@ -34,8 +34,6 @@
 #include "ipc/ipc.mojom.h"
 #include "ipc/ipc_channel.h"
 #include "ipc/ipc_channel_mojo.h"
-#include "ipc/ipc_logging.h"
-#include "ipc/message_filter.h"
 #include "services/resource_coordinator/public/mojom/memory_instrumentation/constants.mojom.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 
@@ -52,9 +50,8 @@ ChildProcessHost::~ChildProcessHost() = default;
 
 // static
 std::unique_ptr<ChildProcessHost> ChildProcessHost::Create(
-    ChildProcessHostDelegate* delegate,
-    IpcMode ipc_mode) {
-  return base::WrapUnique(new ChildProcessHostImpl(delegate, ipc_mode));
+    ChildProcessHostDelegate* delegate) {
+  return base::WrapUnique(new ChildProcessHostImpl(delegate));
 }
 
 // static
@@ -111,58 +108,20 @@ base::FilePath ChildProcessHost::GetChildPath(int flags) {
   return child_path;
 }
 
-ChildProcessHostImpl::ChildProcessHostImpl(ChildProcessHostDelegate* delegate,
-                                           IpcMode ipc_mode)
-    : ipc_mode_(ipc_mode), delegate_(delegate), opening_channel_(false) {
-  if (ipc_mode_ == IpcMode::kLegacy) {
-    // In legacy mode, we only have an IPC Channel. Bind ChildProcess to a
-    // disconnected pipe so it quietly discards messages.
-    std::ignore = child_process_.BindNewPipeAndPassReceiver();
-    channel_ = IPC::ChannelMojo::Create(
-        mojo_invitation_->AttachMessagePipe(
-            kChildProcessReceiverAttachmentName),
-        IPC::Channel::MODE_SERVER, this,
-        base::SingleThreadTaskRunner::GetCurrentDefault(),
-        base::SingleThreadTaskRunner::GetCurrentDefault());
-  } else if (ipc_mode_ == IpcMode::kNormal) {
-    child_process_.Bind(mojo::PendingRemote<mojom::ChildProcess>(
-        mojo_invitation_->AttachMessagePipe(
-            kChildProcessReceiverAttachmentName),
-        /*version=*/0));
-    receiver_.Bind(mojo::PendingReceiver<mojom::ChildProcessHost>(
-        mojo_invitation_->AttachMessagePipe(
-            kChildProcessHostRemoteAttachmentName)));
-    receiver_.set_disconnect_handler(
-        base::BindOnce(&ChildProcessHostImpl::OnDisconnectedFromChildProcess,
-                       base::Unretained(this)));
-  }
+ChildProcessHostImpl::ChildProcessHostImpl(ChildProcessHostDelegate* delegate)
+    : delegate_(delegate), opening_channel_(false) {
+  child_process_.Bind(mojo::PendingRemote<mojom::ChildProcess>(
+      mojo_invitation_->AttachMessagePipe(kChildProcessReceiverAttachmentName),
+      /*version=*/0));
+  receiver_.Bind(mojo::PendingReceiver<mojom::ChildProcessHost>(
+      mojo_invitation_->AttachMessagePipe(
+          kChildProcessHostRemoteAttachmentName)));
+  receiver_.set_disconnect_handler(
+      base::BindOnce(&ChildProcessHostImpl::OnDisconnectedFromChildProcess,
+                     base::Unretained(this)));
 }
 
-ChildProcessHostImpl::~ChildProcessHostImpl() {
-  // If a channel was never created than it wasn't registered and the filters
-  // weren't notified. For the sake of symmetry don't call the matching teardown
-  // functions. This is analogous to how RenderProcessHostImpl handles things.
-  if (!channel_) {
-    return;
-  }
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  for (auto& filter : filters_) {
-    filter->OnChannelClosing();
-    filter->OnFilterRemoved();
-  }
-#endif
-}
-
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-void ChildProcessHostImpl::AddFilter(IPC::MessageFilter* filter) {
-  filters_.push_back(filter);
-
-  if (channel_) {
-    filter->OnFilterAdded(channel_.get());
-  }
-}
-#endif
+ChildProcessHostImpl::~ChildProcessHostImpl() = default;
 
 void ChildProcessHostImpl::BindReceiver(mojo::GenericPendingReceiver receiver) {
   child_process_->BindReceiver(std::move(receiver));
@@ -205,25 +164,21 @@ ChildProcessHostImpl::GetMojoInvitation() {
 }
 
 void ChildProcessHostImpl::CreateChannelMojo() {
-  // If in legacy mode, |channel_| is already initialized by the constructor
-  // not bound through the ChildProcess API.
-  if (ipc_mode_ != IpcMode::kLegacy) {
-    DCHECK(!channel_);
-    DCHECK_EQ(ipc_mode_, IpcMode::kNormal);
-    DCHECK(child_process_);
+  DCHECK(!channel_);
+  DCHECK(child_process_);
 
-    mojo::ScopedMessagePipeHandle bootstrap =
-        mojo_invitation_->AttachMessagePipe(kLegacyIpcBootstrapAttachmentName);
-    channel_ = IPC::ChannelMojo::Create(
-        std::move(bootstrap), IPC::Channel::MODE_SERVER, this,
-        base::SingleThreadTaskRunner::GetCurrentDefault(),
-        base::SingleThreadTaskRunner::GetCurrentDefault());
-  }
+  mojo::ScopedMessagePipeHandle bootstrap =
+      mojo_invitation_->AttachMessagePipe(kLegacyIpcBootstrapAttachmentName);
+  channel_ = IPC::ChannelMojo::Create(
+      std::move(bootstrap), IPC::Channel::MODE_SERVER, this,
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+
   DCHECK(channel_);
 
   // Since we're initializing a legacy IPC Channel, we will use its connection
-  // status to monitor child process lifetime instead of using the status of the
-  // `receiver_` endpoint.
+  // status to monitor child process lifetime instead of using the status of
+  // the `receiver_` endpoint.
   if (receiver_.is_bound()) {
     receiver_.set_disconnect_handler(base::NullCallback());
   }
@@ -237,20 +192,7 @@ bool ChildProcessHostImpl::InitChannel() {
     return false;
   }
 
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  for (auto& filter : filters_) {
-    filter->OnFilterAdded(channel_.get());
-  }
-#endif
-
   delegate_->OnChannelInitialized(channel_.get());
-
-  // Make sure these messages get sent first.
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-  bool enabled = IPC::Logging::GetInstance()->Enabled();
-  child_process_->SetIPCLoggingEnabled(enabled);
-#endif
-
   opening_channel_ = true;
 
   return true;
@@ -260,11 +202,6 @@ void ChildProcessHostImpl::OnDisconnectedFromChildProcess() {
   if (channel_) {
     opening_channel_ = false;
     delegate_->OnChannelError();
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-    for (auto& filter : filters_) {
-      filter->OnChannelError();
-    }
-#endif
   }
 
   // This will delete host_, which will also destroy this!
@@ -273,14 +210,6 @@ void ChildProcessHostImpl::OnDisconnectedFromChildProcess() {
 
 bool ChildProcessHostImpl::IsChannelOpening() {
   return opening_channel_;
-}
-
-bool ChildProcessHostImpl::Send(IPC::Message* message) {
-  if (!channel_) {
-    delete message;
-    return false;
-  }
-  return channel_->Send(message);
 }
 
 // static
@@ -326,43 +255,6 @@ void ChildProcessHostImpl::BindHostReceiver(
   delegate_->BindHostReceiver(std::move(receiver));
 }
 
-bool ChildProcessHostImpl::OnMessageReceived(const IPC::Message& msg) {
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-  IPC::Logging* logger = IPC::Logging::GetInstance();
-  if (msg.type() == IPC_LOGGING_ID) {
-    logger->OnReceivedLoggingMessage(msg);
-    return true;
-  }
-
-  if (logger->Enabled()) {
-    logger->OnPreDispatchMessage(msg);
-  }
-#endif  // IPC_MESSAGE_LOG_ENABLED
-
-  bool handled = false;
-  for (auto& filter : filters_) {
-    if (filter->OnMessageReceived(msg)) {
-      handled = true;
-      break;
-    }
-  }
-
-  if (!handled) {
-    handled = delegate_->OnMessageReceived(msg);
-  }
-
-#if BUILDFLAG(IPC_MESSAGE_LOG_ENABLED)
-  if (logger->Enabled()) {
-    logger->OnPostDispatchMessage(msg);
-  }
-#endif  // IPC_MESSAGE_LOG_ENABLED
-  return handled;
-#else
-  return false;
-#endif  // CONTENT_ENABLE_LEGACY_IPC
-}
-
 void ChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
   // Propagate the pseudonymization salt to all the child processes.
   //
@@ -390,11 +282,6 @@ void ChildProcessHostImpl::OnChannelConnected(int32_t peer_pid) {
       peer_process.IsValid() ? peer_process.Pid() : base::GetCurrentProcId();
   opening_channel_ = false;
   delegate_->OnChannelConnected(pid);
-#if BUILDFLAG(CONTENT_ENABLE_LEGACY_IPC)
-  for (auto& filter : filters_) {
-    filter->OnChannelConnected(pid);
-  }
-#endif
 }
 
 void ChildProcessHostImpl::OnChannelError() {

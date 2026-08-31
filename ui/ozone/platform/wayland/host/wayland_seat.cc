@@ -5,11 +5,14 @@
 #include "ui/ozone/platform/wayland/host/wayland_seat.h"
 
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
 #include "ui/ozone/platform/wayland/host/wayland_connection.h"
 #include "ui/ozone/platform/wayland/host/wayland_event_source.h"
 #include "ui/ozone/platform/wayland/host/wayland_keyboard.h"
 #include "ui/ozone/platform/wayland/host/wayland_pointer.h"
+#include "ui/ozone/platform/wayland/host/wayland_tablet_manager.h"
+#include "ui/ozone/platform/wayland/host/wayland_tablet_seat.h"
 #include "ui/ozone/platform/wayland/host/wayland_touch.h"
 
 namespace ui {
@@ -123,6 +126,16 @@ void WaylandSeat::HandleCapabilities(void* data,
     }
   } else {
     touch_.reset();
+  }
+
+  if (connection_->tablet_manager()) {
+    if (!tablet_) {
+      tablet_ = std::make_unique<WaylandTabletSeat>(
+          connection_->tablet_manager()->GetTabletSeat(wl_object()).release(),
+          connection_, connection_->event_source());
+    }
+  } else {
+    tablet_.reset();
   }
 
   connection_->UpdateInputDevices();

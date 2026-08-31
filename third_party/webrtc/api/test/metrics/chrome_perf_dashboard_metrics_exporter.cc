@@ -9,8 +9,7 @@
  */
 #include "api/test/metrics/chrome_perf_dashboard_metrics_exporter.h"
 
-#include <stdio.h>
-
+#include <cstdio>
 #include <memory>
 #include <string>
 #include <vector>

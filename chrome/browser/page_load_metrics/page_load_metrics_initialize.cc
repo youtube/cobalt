@@ -38,7 +38,6 @@
 #include "chrome/browser/page_load_metrics/observers/protocol_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/scheme_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/security_state_page_load_metrics_observer.h"
-#include "chrome/browser/page_load_metrics/observers/service_worker_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/signed_exchange_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/tab_strip_page_load_metrics_observer.h"
 #include "chrome/browser/page_load_metrics/observers/third_party_cookie_deprecation_page_load_metrics_observer.h"
@@ -88,8 +87,8 @@ bool IsNonTabWebUI(content::BrowserContext* browser_context, const GURL& url) {
   return TopChromeWebUIConfig::From(browser_context, url) != nullptr;
 }
 
-std::string GetNonTabWebUIName(content::BrowserContext* browser_context,
-                               const GURL& url) {
+std::string_view GetNonTabWebUIName(content::BrowserContext* browser_context,
+                                    const GURL& url) {
   CHECK(IsNonTabWebUI(browser_context, url));
   return TopChromeWebUIConfig::From(browser_context, url)->GetWebUIName();
 }
@@ -150,9 +149,9 @@ void PageLoadMetricsEmbedder::RegisterObservers(
 #if !BUILDFLAG(IS_ANDROID)
   if (IsNonTabWebUI(navigation_handle->GetURL())) {
     // This embedder is for a non-tab chrome:// page.
-    tracker->AddObserver(
-        std::make_unique<NonTabPageLoadMetricsObserver>(GetNonTabWebUIName(
-            web_contents()->GetBrowserContext(), navigation_handle->GetURL())));
+    tracker->AddObserver(std::make_unique<NonTabPageLoadMetricsObserver>(
+        std::string(GetNonTabWebUIName(web_contents()->GetBrowserContext(),
+                                       navigation_handle->GetURL()))));
     return;
   }
 #endif
@@ -185,8 +184,6 @@ void PageLoadMetricsEmbedder::RegisterObservers(
         std::make_unique<MultiTabLoadingPageLoadMetricsObserver>());
     tracker->AddObserver(
         std::make_unique<OptimizationGuidePageLoadMetricsObserver>());
-    tracker->AddObserver(
-        std::make_unique<ServiceWorkerPageLoadMetricsObserver>());
     tracker->AddObserver(
         std::make_unique<SignedExchangePageLoadMetricsObserver>());
     tracker->AddObserver(
@@ -325,7 +322,6 @@ void InitializePageLoadMetricsForWebContents(
     content::WebContents* web_contents) {
   // Change this method? consider to modify the peer in
   // android_webview/browser/page_load_metrics/page_load_metrics_initialize.cc
-  // weblayer/browser/page_load_metrics_initialize.cc
   // as well.
   page_load_metrics::MetricsWebContentsObserver::CreateForWebContents(
       web_contents, std::make_unique<PageLoadMetricsEmbedder>(web_contents));

@@ -36,7 +36,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_server.h"
 #include "rtc_base/synchronization/mutex.h"
-#include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread_annotations.h"
 #include "rtc_base/time_utils.h"
 #include "test/gmock.h"
@@ -87,7 +86,7 @@ class MessageClient : public TestGenerator {
 };
 
 // Receives on a socket and sends by posting messages.
-class SocketClient : public TestGenerator, public sigslot::has_slots<> {
+class SocketClient : public TestGenerator {
  public:
   SocketClient(Socket* socket,
                const SocketAddress& addr,
@@ -102,7 +101,7 @@ class SocketClient : public TestGenerator, public sigslot::has_slots<> {
         });
   }
 
-  ~SocketClient() override { delete socket_; }
+  ~SocketClient() { delete socket_; }
 
   SocketAddress address() const { return socket_->GetLocalAddress(); }
 
@@ -490,9 +489,8 @@ TEST(ThreadTest, ThreeThreadsBlockingCall) {
       IsRtcOk());
 }
 
-static void DelayedPostsWithIdenticalTimesAreProcessedInFifoOrder(
-    FakeClock& clock,
-    Thread& q) {
+void DelayedPostsWithIdenticalTimesAreProcessedInFifoOrder(FakeClock& clock,
+                                                           Thread& q) {
   std::vector<int> run_order;
 
   Event done;

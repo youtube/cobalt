@@ -11,6 +11,7 @@
 #ifndef RTC_BASE_NULL_SOCKET_SERVER_H_
 #define RTC_BASE_NULL_SOCKET_SERVER_H_
 
+#include "api/units/time_delta.h"
 #include "rtc_base/event.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_server.h"
@@ -34,12 +35,5 @@ class RTC_EXPORT NullSocketServer : public SocketServer {
 
 }  //  namespace webrtc
 
-// Re-export symbols from the webrtc namespace for backwards compatibility.
-// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
-#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
-namespace rtc {
-using ::webrtc::NullSocketServer;
-}  // namespace rtc
-#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_NULL_SOCKET_SERVER_H_

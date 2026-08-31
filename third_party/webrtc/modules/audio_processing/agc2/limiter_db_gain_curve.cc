@@ -10,6 +10,7 @@
 
 #include "modules/audio_processing/agc2/limiter_db_gain_curve.h"
 
+#include <array>
 #include <cmath>
 
 #include "common_audio/include/audio_util.h"
@@ -82,10 +83,6 @@ LimiterDbGainCurve::LimiterDbGainCurve()
   static_assert(compression_ratio_ > 1.0f, "");
   RTC_CHECK_GE(max_input_level_db_, knee_start_dbfs_ + knee_smoothness_db_);
 }
-
-constexpr double LimiterDbGainCurve::max_input_level_db_;
-constexpr double LimiterDbGainCurve::knee_smoothness_db_;
-constexpr double LimiterDbGainCurve::compression_ratio_;
 
 double LimiterDbGainCurve::GetOutputLevelDbfs(double input_level_dbfs) const {
   if (input_level_dbfs < knee_start_dbfs_) {

@@ -2,21 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "chrome/browser/web_applications/test/web_app_icon_test_utils.h"
 
 #include <algorithm>
 #include <utility>
 
+#include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/containers/span.h"
 #include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/bind.h"
 #include "chrome/browser/profiles/profile.h"
@@ -130,7 +127,7 @@ SkBitmap ReadBitmap(FileUtilsWrapper* utils, const base::FilePath& file_path) {
 }
 
 base::span<const int> GetIconSizes() {
-  return base::span<const int>(kIconSizes, std::size(kIconSizes));
+  return UNSAFE_TODO(base::span<const int>(kIconSizes, std::size(kIconSizes)));
 }
 
 bool ContainsOneIconOfEachSize(
@@ -252,7 +249,8 @@ void IconManagerWriteGeneratedIcons(
     WebAppIconManager& icon_manager,
     const webapps::AppId& app_id,
     const std::vector<GeneratedIconsInfo>& icons_info) {
-  IconBitmaps icon_bitmaps;
+  IconBitmaps manifest_icon_bitmaps;
+  IconBitmaps trusted_icon_bitmaps;
 
   for (const GeneratedIconsInfo& info : icons_info) {
     DCHECK_EQ(info.sizes_px.size(), info.colors.size());
@@ -262,12 +260,14 @@ void IconManagerWriteGeneratedIcons(
     for (size_t i = 0; i < info.sizes_px.size(); ++i)
       AddGeneratedIcon(&generated_bitmaps, info.sizes_px[i], info.colors[i]);
 
-    icon_bitmaps.SetBitmapsForPurpose(info.purpose,
-                                      std::move(generated_bitmaps));
+    manifest_icon_bitmaps.SetBitmapsForPurpose(info.purpose, generated_bitmaps);
+    trusted_icon_bitmaps.SetBitmapsForPurpose(info.purpose,
+                                              std::move(generated_bitmaps));
   }
 
   base::RunLoop run_loop;
-  icon_manager.WriteData(app_id, std::move(icon_bitmaps), {}, {},
+  icon_manager.WriteData(app_id, std::move(manifest_icon_bitmaps),
+                         std::move(trusted_icon_bitmaps), {}, {},
                          base::BindLambdaForTesting([&](bool success) {
                            DCHECK(success);
                            run_loop.Quit();
@@ -282,7 +282,7 @@ SkColor IconManagerReadAppIconPixel(WebAppIconManager& icon_manager,
                                     int y) {
   SkColor result = SK_ColorTRANSPARENT;
   base::RunLoop run_loop;
-  icon_manager.ReadIcons(
+  icon_manager.ReadUntrustedIcons(
       app_id, IconPurpose::ANY, {size_px},
       base::BindLambdaForTesting(
           [&](std::map<SquareSizePx, SkBitmap> icon_bitmaps) {

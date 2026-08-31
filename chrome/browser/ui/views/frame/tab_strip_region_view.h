@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_TAB_STRIP_REGION_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/ui/views/frame/tab_strip_view_interface.h"
 #include "chrome/browser/ui/views/tabs/tab_search_container.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "ui/base/metadata/metadata_header_macros.h"
@@ -22,14 +23,14 @@ class NewTabButton;
 class TabStripActionContainer;
 class TabSearchButton;
 class TabStrip;
-class TabStripComboButton;
 class TabStripScrollContainer;
 class ProductSpecificationsButton;
 class TabSearchPositionMetricsLogger;
 
 // Container for the tabstrip and the other views sharing space with it -
 // with the exception of the caption buttons.
-class TabStripRegionView final : public views::AccessiblePaneView {
+class TabStripRegionView final : public views::AccessiblePaneView,
+                                 public TabStripViewInterface {
   METADATA_HEADER(TabStripRegionView, views::AccessiblePaneView)
 
  public:
@@ -61,23 +62,8 @@ class TabStripRegionView final : public views::AccessiblePaneView {
 
   views::Button* GetNewTabButton();
 
-  TabSearchButton* GetTabSearchButton();
-
-  TabStripActionContainer* GetTabStripActionContainer();
-
-  TabStripComboButton* tab_strip_combo_button() {
-    return tab_strip_combo_button_;
-  }
-
-  ProductSpecificationsButton* GetProductSpecificationsButton();
-
-  glic::GlicButton* GetGlicButton();
-
-  // May be nullptr if combo button is enabled. |Use GetNewTabButton()| to
-  // access the new tab button inside the combo button.
   views::Button* new_tab_button_for_testing() { return new_tab_button_; }
 
-  // May be nullptr if combo button is enabled.
   TabSearchContainer* tab_search_container_for_testing() {
     return tab_search_container_;
   }
@@ -112,12 +98,29 @@ class TabStripRegionView final : public views::AccessiblePaneView {
 
   // views::AccessiblePaneView:
   void ChildPreferredSizeChanged(views::View* child) override;
-  gfx::Size GetMinimumSize() const override;
   views::View* GetDefaultFocusableChild() override;
 
   views::View* GetTabStripContainerForTesting() { return tab_strip_container_; }
 
   const Profile* profile() { return profile_; }
+
+  TabStrip* tab_strip() { return tab_strip_; }
+
+  // TabStripViewInterface:
+  gfx::Size GetMinimumSize() const override;
+  gfx::Size GetPreferredSizeForView() const override;
+  TabSearchButton* GetTabSearchButton() const override;
+  TabStripActionContainer* GetTabStripActionContainer() const override;
+  ProductSpecificationsButton* GetProductSpecificationsButton() const override;
+  glic::GlicButton* GetGlicButton() const override;
+  bool IsAnimating() const override;
+  std::optional<int> GetFocusedTabIndex() const override;
+  Tab* GetTabAnchorViewAt(int tab_index) override;
+  views::View* GetTabGroupAnchorView(
+      const tab_groups::TabGroupId& group) override;
+  gfx::Rect GetBoundsInScreenForView() override;
+  TabDragContext* GetDragContext() override;
+  void SetTabStripObserver(TabStripObserver* observer) override;
 
  private:
   // Updates the border padding for `new_tab_button_` and
@@ -142,7 +145,6 @@ class TabStripRegionView final : public views::AccessiblePaneView {
   raw_ptr<TabStripScrollContainer> tab_strip_scroll_container_ = nullptr;
   raw_ptr<views::Button> new_tab_button_ = nullptr;
   raw_ptr<TabSearchContainer> tab_search_container_ = nullptr;
-  raw_ptr<TabStripComboButton> tab_strip_combo_button_ = nullptr;
   raw_ptr<ProductSpecificationsButton> product_specifications_button_ = nullptr;
 
   // On some platforms for Chrome Refresh, the TabSearchButton should be

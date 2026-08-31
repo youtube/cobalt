@@ -73,9 +73,9 @@ bool AddCommandLineArgsFromConfig(const base::Value::Dict& config,
   }
 
   static const std::string_view kAllowedArgs[] = {
-      blink::switches::kSharedArrayBufferAllowedOrigins,
       blink::switches::kGpuRasterizationMSAASampleCount,
       blink::switches::kMinHeightForGpuRasterTile,
+      blink::switches::kForceGpuMemAvailableMb,
       switches::kEnableClippedImageScaling,
       switches::kEnableGpuBenchmarking,
       embedder_support::kOriginTrialPublicKey,
@@ -89,7 +89,6 @@ bool AddCommandLineArgsFromConfig(const base::Value::Dict& config,
       switches::kEnableFeatures,
       switches::kEnableLowEndDeviceMode,
       switches::kForceDeviceScaleFactor,
-      switches::kForceGpuMemAvailableMb,
       switches::kForceGpuMemDiscardableLimitMb,
       switches::kForceMaxTextureSize,
       switches::kGoogleApiKey,
@@ -105,6 +104,7 @@ bool AddCommandLineArgsFromConfig(const base::Value::Dict& config,
       switches::kVulkanSyncCpuMemoryLimitMb,
       switches::kWebglAntialiasingMode,
       switches::kWebglMSAASampleCount,
+      switches::kProtectedServiceWorkers,
   };
 
   for (const auto arg : *args) {

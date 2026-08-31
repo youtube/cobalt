@@ -60,6 +60,12 @@ https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histogra
   <int value="4" label="Timeout"/>
 </enum>
 
+<enum name="NativeMemoryAblationResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Allocation Failed (OOM)"/>
+  <int value="2" label="Exceeds Max Limit"/>
+</enum>
+
 <enum name="SentinelWriteResult">
   <int value="0" label="Success"/>
   <int value="1" label="Empty Path"/>

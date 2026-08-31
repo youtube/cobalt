@@ -16,6 +16,7 @@ source_set("tab_resumption") {
   deps = [
     ":constants",
     "//base",
+    "//components/application_locale_storage",
     "//components/bookmarks/browser",
     "//components/commerce/core:commerce_constants",
     "//components/commerce/core:feature_list",
@@ -61,6 +62,7 @@ source_set("tab_resumption") {
     "//ios/chrome/browser/shared/model/url:constants",
     "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/shared/model/web_state_list",
+    "//ios/chrome/browser/shared/model/web_state_list:utils",
     "//ios/chrome/browser/shared/public/commands",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/public/features:system_flags",
@@ -69,10 +71,12 @@ source_set("tab_resumption") {
     "//ios/chrome/browser/shared/ui/util:snackbar_util",
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/snapshots/model",
+    "//ios/chrome/browser/snapshots/model:model_common",
     "//ios/chrome/browser/start_surface/ui_bundled",
     "//ios/chrome/browser/start_surface/ui_bundled:feature_flags",
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/synced_sessions/model",
+    "//ios/chrome/browser/tab_switcher/ui_bundled:utils",
     "//ios/chrome/browser/tabs/model:tab_sync_util",
     "//ios/chrome/browser/url_loading/model",
     "//ios/chrome/browser/url_loading/model:url_loading_params_header",
@@ -105,6 +109,7 @@ source_set("unit_tests") {
     "//components/segmentation_platform/public",
     "//ios/chrome/browser/content_suggestions/ui_bundled/shop_card:shop_card_data",
     "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/web/public/test/fakes",
     "//testing/gtest",
     "//url",
   ]
@@ -116,7 +121,9 @@ source_set("eg2_tests") {
   sources = [ "tab_resumption_egtest.mm" ]
   deps = [
     ":constants",
+    ":eg_test_support+eg2",
     "//base/test:test_support",
+    "//components/commerce/core:feature_list",
     "//components/segmentation_platform/public",
     "//components/sync/base:features",
     "//components/url_formatter",
@@ -139,4 +146,33 @@ source_set("eg2_tests") {
     "//ui/base",
   ]
   frameworks = [ "UIKit.framework" ]
+}
+
+source_set("eg_app_support+eg2") {
+  testonly = true
+  sources = [
+    "tab_resumption_app_interface.h",
+    "tab_resumption_app_interface.mm",
+  ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//components/commerce/core:shopping_service_test_support",
+    "//ios/chrome/browser/commerce/model:shopping_service",
+    "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/test/app:test_support",
+    "//ios/web/public",
+  ]
+}
+
+source_set("eg_test_support+eg2") {
+  testonly = true
+  sources = [
+    "tab_resumption_app_interface.h",
+    "tab_resumption_app_interface_stub.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
+  ]
 }

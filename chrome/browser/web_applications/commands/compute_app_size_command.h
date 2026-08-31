@@ -23,7 +23,9 @@ class AppLock;
 class GetIsolatedWebAppSizeJob;
 class GetProgressiveWebAppSizeJob;
 
-// ComputeAppSizeCommand calculates the app and data size of a given app
+// Calculates the total size of a web app, including the size of the app itself
+// and any data it has stored. This works for both Progressive Web Apps and
+// Isolated Web Apps.
 class ComputeAppSizeCommand
     : public WebAppCommand<AppLock, std::optional<ComputedAppSizeWithOrigin>> {
  public:

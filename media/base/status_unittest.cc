@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
-#pragma allow_unsafe_libc_calls
-#endif
-
 #include "media/base/status.h"
 
 #include <algorithm>
@@ -532,9 +527,6 @@ TEST_F(StatusTest, Okayness) {
 }
 
 TEST_F(StatusTest, MustHaveOkOrHelperMethod) {
-  static_assert(internal::StatusTraitsHelper<CustomDefaultValue>::has_default,
-                "WOW");
-
   auto nook = internal::StatusTraitsHelper<NoOkStatusTypeTraits>::OkEnumValue();
   ASSERT_FALSE(nook.has_value());
 
@@ -628,97 +620,6 @@ TEST_F(StatusTest, OrTypeMapping) {
 
   auto case_5 = GetStartingValue(5).MapValue(UnwrapPtr).MapValue(FindIntSqrt);
   ASSERT_TRUE(case_5 == MapValueCodeTraits::Codes::kBadStartCode);
-}
-
-TEST_F(StatusTest, OrTypeMappingToOtherOrType) {
-  using A = TypedStatus<NoOkStatusTypeTraits>;
-  using B = TypedStatus<MapValueCodeTraits>;
-
-  auto unwrap = [](std::unique_ptr<int> ptr) -> A::Or<int> {
-    if (!ptr)
-      return A::Codes::kFoo;
-    return *ptr;
-  };
-
-  // Returns a valid unique ptr, maps unwraps, and is successful
-  B::Or<std::unique_ptr<int>> b1 = GetStartingValue(0);
-  A::Or<int> a1 = std::move(b1).MapValue(unwrap, A::Codes::kBar);
-  ASSERT_TRUE(a1.has_value() && std::move(a1).value() == 36);
-
-  // Returns a nullptr, not and error. so the unwrapper gives a kFoo.
-  B::Or<std::unique_ptr<int>> b2 = GetStartingValue(3);
-  A::Or<int> a2 = std::move(b2).MapValue(unwrap, A::Codes::kBar);
-  ASSERT_TRUE(a2 == A::Codes::kFoo);
-
-  // b3 is an error here, so Mapping it will wrap it in kBar.
-  B::Or<std::unique_ptr<int>> b3 = GetStartingValue(5);
-  A::Or<int> a3 = std::move(b3).MapValue(unwrap, A::Codes::kBar);
-  ASSERT_TRUE(a3 == A::Codes::kBar);
-}
-
-TEST_F(StatusTest, UKMSerializerTest) {
-  using SerializeStatus = TypedStatus<TraitsWithCustomUKMSerializer>;
-  struct MockUkmBuilder {
-    internal::UKMPackHelper status, root;
-    void SetStatus(uint64_t data) { status.packed = data; }
-    void SetRootCause(uint64_t data) { root.packed = data; }
-  };
-
-  MockUkmBuilder builder;
-
-  // Normal status without PackExtraData won't have anything in |.extra_data|,
-  // but if it has a cause, that will be serialized properly.
-  NormalStatus causal = FailWithCause();
-  causal.ToUKM(builder);
-
-  ASSERT_NE(builder.root.packed, 0lu);
-  ASSERT_EQ(builder.status.bits.code,
-            static_cast<StatusCodeType>(NormalStatus::Codes::kFoo));
-  ASSERT_EQ(builder.root.bits.code,
-            static_cast<StatusCodeType>(NormalStatus::Codes::kFoo));
-  ASSERT_EQ(builder.status.bits.extra_data, 0u);
-  ASSERT_EQ(builder.root.bits.extra_data, 0u);
-
-  // Make a status that supports PackExtraData, but doesn't have the key
-  // it's lookinf for, and returns 0 instead.
-  SerializeStatus result = SerializeStatus::Codes::kFoo;
-  result.ToUKM(builder);
-  ASSERT_EQ(builder.status.bits.code,
-            static_cast<StatusCodeType>(SerializeStatus::Codes::kFoo));
-  ASSERT_EQ(builder.status.bits.extra_data, 0u);
-
-  // Add the special key, and demonstrate that |PackExtraData| is called.
-  result.WithData("might_exist_key", 2);
-  result.ToUKM(builder);
-  ASSERT_EQ(builder.status.bits.code,
-            static_cast<StatusCodeType>(SerializeStatus::Codes::kFoo));
-  ASSERT_EQ(builder.status.bits.extra_data, 0u);
-
-  // Wrap the code with extra data to ensure that |.root.extra_data| is
-  // serialized.
-  SerializeStatus wraps = SerializeStatus::Codes::kBar;
-  wraps.AddCause(std::move(result));
-  wraps.ToUKM(builder);
-  ASSERT_NE(builder.root.packed, 0u);
-  ASSERT_EQ(builder.root.bits.code,
-            static_cast<StatusCodeType>(SerializeStatus::Codes::kFoo));
-  ASSERT_EQ(builder.root.bits.extra_data, 0u);
-  ASSERT_NE(builder.status.packed, 0u);
-  ASSERT_EQ(builder.status.bits.code,
-            static_cast<StatusCodeType>(SerializeStatus::Codes::kBar));
-  ASSERT_EQ(builder.status.bits.extra_data, 0u);
-
-  // Make a copy, and ensure that the root cause is carried over.
-  SerializeStatus moved = wraps;
-  moved.ToUKM(builder);
-  ASSERT_NE(builder.root.packed, 0u);
-  ASSERT_EQ(builder.root.bits.code,
-            static_cast<StatusCodeType>(SerializeStatus::Codes::kFoo));
-  ASSERT_EQ(builder.root.bits.extra_data, 0u);
-  ASSERT_NE(builder.status.packed, 0u);
-  ASSERT_EQ(builder.status.bits.code,
-            static_cast<StatusCodeType>(SerializeStatus::Codes::kBar));
-  ASSERT_EQ(builder.status.bits.extra_data, 0u);
 }
 
 TEST_F(StatusTest, TestDefaultMessageHelper) {

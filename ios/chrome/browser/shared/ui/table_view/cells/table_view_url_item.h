@@ -77,6 +77,11 @@
 // text.
 @property(nonatomic, readonly, strong) UILabel* thirdRowLabel;
 
+// Vertical spacing between the title, URL and third row labels. Used to
+// override the default spacing value. Setting this property will trigger a
+// relayout.
+@property(nonatomic, assign) CGFloat labelSpacing;
+
 // Unique identifier that matches with one URLItem.
 @property(nonatomic, copy) NSString* cellUniqueIdentifier;
 
@@ -95,6 +100,9 @@
 
 // Sets the background color for the favicon container view.
 - (void)setFaviconContainerBackgroundColor:(UIColor*)backgroundColor;
+
+// Replaces the favicon with a custom `symbol`.
+- (void)replaceFaviconWithSymbol:(UIImage*)symbol;
 
 @end
 

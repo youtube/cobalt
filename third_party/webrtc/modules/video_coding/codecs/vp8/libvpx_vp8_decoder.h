@@ -20,8 +20,8 @@
 #include "api/video/encoded_image.h"
 #include "api/video_codecs/video_decoder.h"
 #include "common_video/include/video_frame_buffer_pool.h"
-#include "vpx/vpx_decoder.h"
-#include "vpx/vpx_image.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
+#include "third_party/libvpx/source/libvpx/vpx/vpx_image.h"
 
 namespace webrtc {
 
@@ -61,7 +61,7 @@ class LibvpxVp8Decoder : public VideoDecoder {
   int ReturnFrame(const vpx_image_t* img,
                   uint32_t timeStamp,
                   int qp,
-                  const webrtc::ColorSpace* explicit_color_space);
+                  const ColorSpace* explicit_color_space);
   const bool use_postproc_;
 
   VideoFrameBufferPool buffer_pool_;

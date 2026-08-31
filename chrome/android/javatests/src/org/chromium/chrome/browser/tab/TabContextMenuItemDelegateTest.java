@@ -11,7 +11,6 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,11 +24,13 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.flags.ActivityType;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.content_public.common.Referrer;
 import org.chromium.ui.modaldialog.DialogDismissalCause;
@@ -41,23 +42,21 @@ import org.chromium.url.GURL;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
 public class TabContextMenuItemDelegateTest {
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private Runnable mContextMenuCopyLinkObserver;
+    private WebPageStation mInitialPage;
     private ModalDialogManager mModalDialogManager;
     private TabContextMenuItemDelegate mContextMenuDelegate;
 
     @Before
     public void setUp() {
-        ChromeTabbedActivity cta = sActivityTestRule.getActivity();
+        mInitialPage = mActivityTestRule.startOnBlankPage();
+        ChromeTabbedActivity cta = mInitialPage.getActivity();
         CriteriaHelper.pollUiThread(cta.getTabModelSelectorSupplier().get()::isTabStateInitialized);
 
         mModalDialogManager = cta.getModalDialogManager();
@@ -84,7 +83,7 @@ public class TabContextMenuItemDelegateTest {
     public void testOpenInNewTabInGroup_ExistingGroup_ParityEnabled() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    ChromeTabbedActivity cta = sActivityTestRule.getActivity();
+                    ChromeTabbedActivity cta = mActivityTestRule.getActivity();
                     var tabModelSelector = cta.getTabModelSelectorSupplier().get();
                     var filter =
                             tabModelSelector
@@ -102,7 +101,7 @@ public class TabContextMenuItemDelegateTest {
     private void createContextMenuForCurrentTab() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    ChromeTabbedActivity cta = sActivityTestRule.getActivity();
+                    ChromeTabbedActivity cta = mActivityTestRule.getActivity();
                     var rootUiCoordinator = cta.getRootUiCoordinatorForTesting();
                     var tab = cta.getActivityTab();
                     var tabModelSelector = cta.getTabModelSelectorSupplier().get();
@@ -115,6 +114,7 @@ public class TabContextMenuItemDelegateTest {
                     mContextMenuDelegate =
                             new TabContextMenuItemDelegate(
                                     cta,
+                                    ActivityType.TABBED,
                                     tab,
                                     tabModelSelector,
                                     ephemeralTabCoordinatorSupplier,

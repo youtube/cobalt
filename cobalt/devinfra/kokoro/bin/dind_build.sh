@@ -115,5 +115,15 @@ pipeline () {
   else
     echo "Evergreen Loader (or Bootloader) is not configured."
   fi
+
+  # Copy libchrobalt.so to Kokoro Artifacts Directory for Android builds.
+  if [[ "${TARGET_PLATFORM}" =~ android ]] && [[ -n "${KOKORO_ARTIFACTS_DIR:-}" ]]; then
+    local build_out_dir="out/${TARGET_PLATFORM}_${CONFIG}"
+    if [[ -d "${build_out_dir}" ]]; then
+      echo "Copying libchrobalt.so to Kokoro Artifacts Directory..."
+      mkdir -p "${KOKORO_ARTIFACTS_DIR}/lib_export"
+      find "${build_out_dir}" -type f -name "libchrobalt.so" -exec cp {} "${KOKORO_ARTIFACTS_DIR}/lib_export/" \;
+    fi
+  fi
 }
 pipeline

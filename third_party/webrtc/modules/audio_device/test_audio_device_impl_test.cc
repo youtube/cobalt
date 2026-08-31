@@ -9,13 +9,16 @@
  */
 #include "modules/audio_device/test_audio_device_impl.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
-#include "api/audio/audio_device.h"
 #include "api/audio/audio_device_defines.h"
-#include "api/task_queue/task_queue_factory.h"
+#include "api/environment/environment_factory.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/audio_device/audio_device_buffer.h"
@@ -23,6 +26,7 @@
 #include "modules/audio_device/include/test_audio_device.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -157,9 +161,11 @@ TEST(TestAudioDeviceTest, EnablingRecordingProducesAudio) {
           /*max_amplitude=*/1000,
           /*sampling_frequency_in_hz=*/48000, /*num_channels=*/2);
 
-  TestAudioDevice audio_device(time_controller.GetTaskQueueFactory(),
-                               std::move(capturer),
-                               /*renderer=*/nullptr);
+  TestAudioDevice audio_device(
+      CreateEnvironment(time_controller.GetClock(),
+                        time_controller.GetTaskQueueFactory()),
+      std::move(capturer),
+      /*renderer=*/nullptr);
   ASSERT_EQ(audio_device.Init(), AudioDeviceGeneric::InitStatus::OK);
   audio_device.AttachAudioBuffer(&audio_buffer);
 
@@ -189,9 +195,11 @@ TEST(TestAudioDeviceTest, RecordingIsAvailableWhenCapturerIsSet) {
           /*max_amplitude=*/1000,
           /*sampling_frequency_in_hz=*/48000, /*num_channels=*/2);
 
-  TestAudioDevice audio_device(time_controller.GetTaskQueueFactory(),
-                               std::move(capturer),
-                               /*renderer=*/nullptr);
+  TestAudioDevice audio_device(
+      CreateEnvironment(time_controller.GetClock(),
+                        time_controller.GetTaskQueueFactory()),
+      std::move(capturer),
+      /*renderer=*/nullptr);
   ASSERT_EQ(audio_device.Init(), AudioDeviceGeneric::InitStatus::OK);
 
   bool available;
@@ -201,9 +209,11 @@ TEST(TestAudioDeviceTest, RecordingIsAvailableWhenCapturerIsSet) {
 
 TEST(TestAudioDeviceTest, RecordingIsNotAvailableWhenCapturerIsNotSet) {
   GlobalSimulatedTimeController time_controller(kStartTime);
-  TestAudioDevice audio_device(time_controller.GetTaskQueueFactory(),
-                               /*capturer=*/nullptr,
-                               /*renderer=*/nullptr);
+  TestAudioDevice audio_device(
+      CreateEnvironment(time_controller.GetClock(),
+                        time_controller.GetTaskQueueFactory()),
+      /*capturer=*/nullptr,
+      /*renderer=*/nullptr);
   ASSERT_EQ(audio_device.Init(), AudioDeviceGeneric::InitStatus::OK);
 
   bool available;
@@ -220,8 +230,10 @@ TEST(TestAudioDeviceTest, EnablingPlayoutProducesAudio) {
       TestAudioDeviceModule::CreateDiscardRenderer(
           /*sampling_frequency_in_hz=*/48000, /*num_channels=*/2);
 
-  TestAudioDevice audio_device(time_controller.GetTaskQueueFactory(),
-                               /*capturer=*/nullptr, std::move(renderer));
+  TestAudioDevice audio_device(
+      CreateEnvironment(time_controller.GetClock(),
+                        time_controller.GetTaskQueueFactory()),
+      /*capturer=*/nullptr, std::move(renderer));
   ASSERT_EQ(audio_device.Init(), AudioDeviceGeneric::InitStatus::OK);
   audio_device.AttachAudioBuffer(&audio_buffer);
 
@@ -250,8 +262,10 @@ TEST(TestAudioDeviceTest, PlayoutIsAvailableWhenRendererIsSet) {
       TestAudioDeviceModule::CreateDiscardRenderer(
           /*sampling_frequency_in_hz=*/48000, /*num_channels=*/2);
 
-  TestAudioDevice audio_device(time_controller.GetTaskQueueFactory(),
-                               /*capturer=*/nullptr, std::move(renderer));
+  TestAudioDevice audio_device(
+      CreateEnvironment(time_controller.GetClock(),
+                        time_controller.GetTaskQueueFactory()),
+      /*capturer=*/nullptr, std::move(renderer));
   ASSERT_EQ(audio_device.Init(), AudioDeviceGeneric::InitStatus::OK);
 
   bool available;
@@ -261,9 +275,11 @@ TEST(TestAudioDeviceTest, PlayoutIsAvailableWhenRendererIsSet) {
 
 TEST(TestAudioDeviceTest, PlayoutIsNotAvailableWhenRendererIsNotSet) {
   GlobalSimulatedTimeController time_controller(kStartTime);
-  TestAudioDevice audio_device(time_controller.GetTaskQueueFactory(),
-                               /*capturer=*/nullptr,
-                               /*renderer=*/nullptr);
+  TestAudioDevice audio_device(
+      CreateEnvironment(time_controller.GetClock(),
+                        time_controller.GetTaskQueueFactory()),
+      /*capturer=*/nullptr,
+      /*renderer=*/nullptr);
   ASSERT_EQ(audio_device.Init(), AudioDeviceGeneric::InitStatus::OK);
 
   bool available;

@@ -49,7 +49,7 @@ class Time;
 class UnguessableToken;
 }  // namespace base
 
-namespace WTF {
+namespace blink {
 
 template <typename T>
 struct CrossThreadCopier<scoped_refptr<T>> {
@@ -124,6 +124,6 @@ struct CrossThreadCopier<
   }
 };
 
-}  // namespace WTF
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_PLATFORM_WTF_CROSS_THREAD_COPIER_BASE_H_

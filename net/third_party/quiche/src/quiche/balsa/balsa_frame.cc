@@ -20,6 +20,8 @@
 #include "quiche/balsa/balsa_headers.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
 #include "quiche/balsa/header_properties.h"
+#include "quiche/balsa/http_validation_policy.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 // When comparing characters (other than == and !=), cast to unsigned char
@@ -1341,10 +1343,33 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           }
 
           const char c = *current;
-          if (HeaderFramingFound(c) != 0) {
-            // If we've found a "\r\n\r\n", then the message
-            // is done.
+          const int32_t framing_found = HeaderFramingFound(c);
+          if (framing_found != 0) {
+            // TODO(b/433557986) remove these code counts
+            if (framing_found == kValidTerm1 && is_request_) {
+              QUICHE_CODE_COUNT(balsa_frame_framing_found_valid_term1_request);
+            } else if (framing_found == kValidTerm1 && !is_request_) {
+              QUICHE_CODE_COUNT(balsa_frame_framing_found_valid_term1_response);
+            } else if (framing_found == kValidTerm2 && is_request_) {
+              QUICHE_CODE_COUNT(balsa_frame_framing_found_valid_term2_request);
+            } else if (framing_found == kValidTerm2 && !is_request_) {
+              QUICHE_CODE_COUNT(balsa_frame_framing_found_valid_term2_response);
+            }
+
+            // If we've found the end of the chunk, then we're done.
             ++current;
+
+            if (http_validation_policy()
+                    .require_chunked_body_end_with_crlf_crlf &&
+                framing_found != kValidTerm1) {
+              //  https://datatracker.ietf.org/doc/html/rfc9112#name-chunked-transfer-coding
+              // The ABNF for chunked coding states that both `last-chunk` _and_
+              // `chunked_body` must end with CR_LF, i.e. kValidTerm2 is not
+              // allowed.
+              HandleError(BalsaFrameEnums::INVALID_CHUNK_FRAMING);
+              return current - input;
+            }
+
             parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
             visitor_->OnRawBodyInput(
                 absl::string_view(on_entry, current - on_entry));

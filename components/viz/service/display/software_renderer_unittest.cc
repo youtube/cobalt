@@ -105,10 +105,9 @@ class SoftwareRendererTest : public VizPixelTest {
     source.readPixels(info, mapping->GetMemoryForPlane(0).data(),
                       info.minRowBytes(), 0, 0);
 
-    auto transferable_resource = TransferableResource::MakeSoftwareSharedImage(
-        shared_image, shared_image_interface->GenVerifiedSyncToken(), size,
-        SinglePlaneFormat::kBGRA_8888,
-        TransferableResource::ResourceSource::kTileRasterTask);
+    auto transferable_resource = TransferableResource::Make(
+        shared_image, TransferableResource::ResourceSource::kTileRasterTask,
+        shared_image->creation_sync_token());
     auto release_callback =
         base::BindOnce(&DeleteSharedImage, std::move(shared_image));
 
@@ -268,11 +267,11 @@ TEST_F(SoftwareRendererTest, TileQuad) {
   auto* inner_quad = root_render_pass->CreateAndAppendDrawQuad<TileDrawQuad>();
   inner_quad->SetNew(shared_quad_state, inner_rect, inner_rect, needs_blending,
                      mapped_resource_cyan, gfx::RectF(gfx::SizeF(inner_size)),
-                     inner_size, false, false);
+                     false, false);
   auto* outer_quad = root_render_pass->CreateAndAppendDrawQuad<TileDrawQuad>();
   outer_quad->SetNew(shared_quad_state, outer_rect, outer_rect, needs_blending,
                      mapped_resource_yellow, gfx::RectF(gfx::SizeF(outer_size)),
-                     outer_size, false, false);
+                     false, false);
 
   AggregatedRenderPassList list;
   list.push_back(std::move(root_render_pass));
@@ -327,8 +326,8 @@ TEST_F(SoftwareRendererTest, TileQuadVisibleRect) {
                             /*layer_id=*/0u, /*fast_rounded_corner=*/false);
   auto* quad = root_render_pass->CreateAndAppendDrawQuad<TileDrawQuad>();
   quad->SetNew(shared_quad_state, tile_rect, tile_rect, needs_blending,
-               mapped_resource_cyan, gfx::RectF(gfx::SizeF(tile_size)),
-               tile_size, false, false);
+               mapped_resource_cyan, gfx::RectF(gfx::SizeF(tile_size)), false,
+               false);
   quad->visible_rect = visible_rect;
 
   AggregatedRenderPassList list;

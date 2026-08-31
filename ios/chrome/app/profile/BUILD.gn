@@ -40,6 +40,7 @@ source_set("profile_controller") {
     ":features",
     ":first_run_profile_agent",
     ":identity_confirmation_profile_agent",
+    ":multi_profile_forced_migration_profile_agent",
     ":post_restore_profile_agent",
     ":profile",
     ":search_engine_choice_profile_agent",
@@ -78,6 +79,7 @@ source_set("profile_controller") {
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
+    "//ios/chrome/browser/shared/model/profile:features",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
@@ -187,12 +189,14 @@ source_set("docking_promo_profile_agent") {
 
 source_set("first_run_profile_agent") {
   sources = [
+    "first_run_profile_agent+Testing.h",
     "first_run_profile_agent.h",
     "first_run_profile_agent.mm",
   ]
   deps = [
     "//base",
     "//components/feature_engagement/public",
+    "//components/metrics",
     "//ios/chrome/app/application_delegate:app_state",
     "//ios/chrome/app/application_delegate:startup_information",
     "//ios/chrome/app/profile",
@@ -202,9 +206,12 @@ source_set("first_run_profile_agent") {
     "//ios/chrome/browser/first_run/ui_bundled",
     "//ios/chrome/browser/first_run/ui_bundled:first_run_provider",
     "//ios/chrome/browser/first_run/ui_bundled/guided_tour",
+    "//ios/chrome/browser/safari_data_import/coordinator",
+    "//ios/chrome/browser/safari_data_import/public",
     "//ios/chrome/browser/scoped_ui_blocker/ui_bundled",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_observer",
+    "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/features",
@@ -283,6 +290,31 @@ source_set("identity_confirmation_profile_agent") {
   ]
 }
 
+source_set("multi_profile_forced_migration_profile_agent") {
+  sources = [
+    "multi_profile_forced_migration_profile_agent.h",
+    "multi_profile_forced_migration_profile_agent.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/prefs",
+    "//ios/chrome/app/application_delegate:app_state",
+    "//ios/chrome/app/application_delegate:observing_app_state_agent",
+    "//ios/chrome/app/profile",
+    "//ios/chrome/browser/authentication/ui_bundled/enterprise/managed_profile_creation",
+    "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/model/application_context",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/browser/shared/model/prefs:pref_names",
+    "//ios/chrome/browser/shared/model/profile:features",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/signin/model:authentication_service",
+    "//ios/chrome/browser/signin/model:authentication_service_factory",
+    "//ios/chrome/browser/signin/model:system_identity_manager",
+    "//ui/base",
+  ]
+}
+
 source_set("welcome_back_profile_agent") {
   sources = [
     "welcome_back_screen_profile_agent.h",
@@ -294,11 +326,8 @@ source_set("welcome_back_profile_agent") {
     "//components/previous_session_info",
     "//components/signin/public/base",
     "//components/signin/public/identity_manager",
-    "//components/signin/public/identity_manager:identity_manager",
-    "//ios/chrome/app/profile:profile",
-    "//ios/chrome/app/profile:profile",
+    "//ios/chrome/app/profile",
     "//ios/chrome/browser/first_run/ui_bundled:features",
-    "//ios/chrome/browser/first_run/ui_bundled/welcome_back/model",
     "//ios/chrome/browser/first_run/ui_bundled/welcome_back/model",
     "//ios/chrome/browser/metrics/model",
     "//ios/chrome/browser/promos_manager/model",
@@ -327,6 +356,7 @@ source_set("unit_tests") {
   testonly = true
   sources = [
     "certificate_policy_profile_agent_unittest.mm",
+    "first_run_profile_agent_unittest.mm",
     "observing_profile_agent_unittest.mm",
     "post_restore_profile_agent_unittest.mm",
     "profile_controller_unittest.mm",
@@ -336,6 +366,7 @@ source_set("unit_tests") {
   ]
   deps = [
     ":certificate_policy_profile_agent",
+    ":first_run_profile_agent",
     ":post_restore_profile_agent",
     ":profile",
     ":profile_controller",
@@ -347,6 +378,7 @@ source_set("unit_tests") {
     "//ios/chrome/app/application_delegate:app_state",
     "//ios/chrome/app/application_delegate:test_support",
     "//ios/chrome/app/profile/test:test_support",
+    "//ios/chrome/browser/first_run/ui_bundled:features",
     "//ios/chrome/browser/metrics/model",
     "//ios/chrome/browser/promos_manager/model",
     "//ios/chrome/browser/promos_manager/model:constants",
@@ -358,6 +390,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/model/prefs:pref_names",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/model/profile/test",
+    "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",

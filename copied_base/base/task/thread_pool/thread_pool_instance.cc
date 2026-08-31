@@ -86,7 +86,6 @@ ThreadPoolInstance::ScopedFizzleBlockShutdownTasks::
     g_thread_pool->EndFizzlingBlockShutdownTasks();
 }
 
-#if !BUILDFLAG(IS_NACL)
 // static
 void ThreadPoolInstance::CreateAndStartWithDefaultParams(StringPiece name) {
   Create(name);
@@ -111,7 +110,6 @@ void ThreadPoolInstance::StartWithDefaultParams() {
 #endif  // BUILDFLAG(IS_STARBOARD)
   Start({max_num_foreground_threads});
 }
-#endif  // !BUILDFLAG(IS_NACL)
 
 void ThreadPoolInstance::Create(StringPiece name) {
   Set(std::make_unique<internal::ThreadPoolImpl>(name));

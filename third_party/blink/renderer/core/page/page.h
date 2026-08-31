@@ -35,7 +35,6 @@
 #include "third_party/blink/public/common/metrics/document_update_reason.h"
 #include "third_party/blink/public/common/page/color_provider_color_maps.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink-forward.h"
-#include "third_party/blink/public/mojom/fenced_frame/fenced_frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/color_scheme.mojom-blink-forward.h"
 #include "third_party/blink/public/mojom/frame/text_autosizer_page_info.mojom-blink.h"
 #include "third_party/blink/public/mojom/page/page.mojom-blink-forward.h"
@@ -93,7 +92,6 @@ class PageAnimator;
 struct PageScaleConstraints;
 class PageScaleConstraintsSet;
 class PluginData;
-class PluginsChangedObserver;
 class PointerLockController;
 class PreferenceOverrides;
 class ScopedPagePauser;
@@ -398,8 +396,6 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   void WillBeDestroyed();
 
-  void RegisterPluginsChangedObserver(PluginsChangedObserver*);
-
   ScrollbarTheme& GetScrollbarTheme() const;
 
   AgentGroupScheduler& GetAgentGroupScheduler() const;
@@ -407,7 +403,6 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
 
   // PageScheduler::Delegate implementation.
   bool IsOrdinary() const override;
-  bool RequestBeginMainFrameNotExpected(bool new_state) override;
   void OnSetPageFrozen(bool is_frozen) override;
 
   void AddAutoplayFlags(int32_t flags);
@@ -430,6 +425,11 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
       bool should_prepare_paint_tree_on_prerender) {
     should_prepare_paint_tree_on_prerender_ =
         should_prepare_paint_tree_on_prerender;
+  }
+  void SetShouldPauseJavaScriptExecutionOnPrerender(
+      bool should_pause_javascript_execution_on_prerender) {
+    should_pause_javascript_execution_on_prerender_ =
+        should_pause_javascript_execution_on_prerender;
   }
   bool IsPrerendering() const { return is_prerendering_; }
   const String& PrerenderMetricSuffix() const {
@@ -561,9 +561,6 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   // SettingsDelegate overrides.
   void SettingsChanged(SettingsDelegate::ChangeType) override;
 
-  // Notify |plugins_changed_observers_| that plugins have changed.
-  void NotifyPluginsChanged() const;
-
   void InvalidateColorScheme();
 
   // Connect the Page to the `opener_`'s related pages, if those exist.
@@ -683,8 +680,6 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   // overriding the light, dark or forced colors color providers.
   std::unique_ptr<ui::ColorProvider> emulated_forced_colors_provider_;
 
-  HeapHashSet<WeakMember<PluginsChangedObserver>> plugins_changed_observers_;
-
   // A circular, double-linked list of pages that are related to the current
   // browsing context.  See also RelatedPages method.
   Member<Page> next_related_page_;
@@ -713,13 +708,16 @@ class CORE_EXPORT Page final : public GarbageCollected<Page>,
   // this Page. Once initialized, it can only transition from true to false on
   // prerender activation; it does not go from false to true.
   bool is_prerendering_ = false;
-  String prerender_metric_suffix_;
 
+  // TODO(crbug.com/428500219): Do not flatten these params.
+  String prerender_metric_suffix_;
   // If true, warms up compositor on `WebLocalFrameImpl::DidCommitLoad` if the
   // page is under prerendering.
   bool should_warm_up_compositor_on_prerender_ = false;
   // If true, prepares the paint tree if the page is under prerendering.
   bool should_prepare_paint_tree_on_prerender_ = false;
+  // If true, pauses JavaScript execution until the page is activated.
+  bool should_pause_javascript_execution_on_prerender_ = false;
 
   // Whether the the Page's main document is a Fenced Frame document. This is
   // only set for the MPArch implementation and is true when the corresponding

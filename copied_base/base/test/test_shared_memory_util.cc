@@ -12,7 +12,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_POSIX)
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -33,8 +33,6 @@
 #endif
 
 namespace base {
-
-#if !BUILDFLAG(IS_NACL)
 
 static const size_t kDataSize = 1024;
 
@@ -138,8 +136,6 @@ bool CheckReadOnlyPlatformSharedMemoryRegionForTesting(
   return CheckReadOnlySharedMemoryFdPosix(region.GetPlatformHandle().fd);
 #endif
 }
-
-#endif  // !BUILDFLAG(IS_NACL)
 
 WritableSharedMemoryMapping MapForTesting(
     subtle::PlatformSharedMemoryRegion* region) {

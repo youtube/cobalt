@@ -259,6 +259,18 @@ class NET_EXPORT CertVerifyProc
              CertVerifyResult* verify_result,
              const NetLogWithSource& net_log);
 
+  // Performs 2-QWAC verification, if implemented by the subclass. Returns
+  // the verified 2-QWAC chain if `binding` is a valid 2-QWAC binding that
+  // binds `tls_cert`. The default implementation always fails.
+  virtual scoped_refptr<X509Certificate> Verify2QwacBinding(
+      std::string_view binding,
+      const std::string& hostname,
+      base::span<const uint8_t> tls_cert,
+      const NetLogWithSource& net_log);
+
+  // TODO(crbug.com/436300895): remove this (make internal to
+  // CertVerifyProcBuiltin), since it is only used internally by
+  // Verify2QwacBinding.
   // Performs 2-QWAC verification, if implemented by the subclass. The default
   // implementation always fails.
   virtual int Verify2Qwac(X509Certificate* cert,
@@ -320,7 +332,7 @@ class NET_EXPORT CertVerifyProc
   // (which are hashes of SubjectPublicKeyInfo structures) has name constraints
   // imposed on it and the names in |dns_names| are not permitted.
   static bool HasNameConstraintsViolation(
-      const HashValueVector& public_key_hashes,
+      const std::vector<SHA256HashValue>& public_key_hashes,
       const std::string& common_name,
       const std::vector<std::string>& dns_names,
       const std::vector<std::string>& ip_addrs);

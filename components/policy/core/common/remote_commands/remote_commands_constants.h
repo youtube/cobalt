@@ -7,23 +7,14 @@
 
 #include <stdint.h>
 
-#include "base/feature_list.h"
-#include "components/policy/policy_export.h"
+#include "components/invalidation/invalidation_constants.h"
 
 namespace policy {
 
-enum class PolicyInvalidationScope;
-
-POLICY_EXPORT BASE_DECLARE_FEATURE(
-    kDeviceRemoteCommandsInvalidationWithDirectMessagesEnabled);
-POLICY_EXPORT BASE_DECLARE_FEATURE(
-    kUserRemoteCommandsInvalidationWithDirectMessagesEnabled);
-POLICY_EXPORT BASE_DECLARE_FEATURE(
-    kCbcmRemoteCommandsInvalidationWithDirectMessagesEnabled);
-
-// Returns GCP number for remote commands invalidations of given `scope`.
-POLICY_EXPORT int64_t
-GetRemoteCommandsInvalidationProjectNumber(PolicyInvalidationScope scope);
+// GCP number to be used for remote commands invalidations. Remote commands
+// are considered critical to receive invalidation.
+inline constexpr int64_t kRemoteCommandsInvalidationsProjectNumber =
+    invalidation::kCriticalInvalidationsProjectNumber;
 
 }  // namespace policy
 

@@ -19,7 +19,6 @@
 
 class AmbientClientImpl;
 class AssistantBrowserDelegateImpl;
-class AssistantStateClient;
 class ChromeKeyboardControllerClient;
 class ImageDownloaderImpl;
 class LobsterClientFactoryImpl;
@@ -49,6 +48,7 @@ class CrostiniUnsupportedActionNotifier;
 
 namespace policy {
 class LockToSingleUserManager;
+class QuirksPolicyController;
 }  // namespace policy
 
 namespace video_conference {
@@ -62,6 +62,7 @@ class ApnMigrator;
 class AudioSurveyHandler;
 class BluetoothLogController;
 class BluetoothPrefStateObserver;
+class BrowserControllerImpl;
 class BulkPrintersCalculatorFactory;
 class CameraGeneralSurveyHandler;
 class ChromeAuthParts;
@@ -103,10 +104,6 @@ class CarrierLockManager;
 
 namespace cros_healthd::internal {
 class DataCollector;
-}
-
-namespace file_manager {
-class FileIndexServiceRegistry;
 }
 
 namespace internal {
@@ -183,9 +180,6 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<HatsBluetoothRevampTriggerImpl>
       hats_bluetooth_revamp_trigger_;
 
-  std::unique_ptr<::ash::file_manager::FileIndexServiceRegistry>
-      file_index_service_registry_;
-
   std::unique_ptr<internal::DBusServices> dbus_services_;
 
   base::ScopedClosureRunner mojo_service_manager_closer_;
@@ -214,8 +208,6 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<arc::ArcServiceLauncher> arc_service_launcher_;
 
   std::unique_ptr<ImageDownloaderImpl> image_downloader_;
-
-  std::unique_ptr<AssistantStateClient> assistant_state_client_;
 
   std::unique_ptr<AssistantBrowserDelegateImpl> assistant_delegate_;
 
@@ -262,6 +254,8 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<cros_healthd::internal::DataCollector>
       cros_healthd_data_collector_;
 
+  std::unique_ptr<ash::BrowserControllerImpl> browser_controller_;
+
   std::unique_ptr<chromeos::MahiWebContentsManager> mahi_web_contents_manager_;
 
   // Set when PreProfileInit() is called. If PreMainMessageLoopRun() exits
@@ -273,6 +267,8 @@ class ChromeBrowserMainPartsAsh : public ChromeBrowserMainPartsLinux {
   std::unique_ptr<policy::LockToSingleUserManager> lock_to_single_user_manager_;
   std::unique_ptr<LoginScreenExtensionsStorageCleaner>
       login_screen_extensions_storage_cleaner_;
+
+  std::unique_ptr<policy::QuirksPolicyController> quirks_policy_controller_;
 
   std::unique_ptr<GnubbyNotification> gnubby_notification_;
 

@@ -14,10 +14,9 @@ namespace autofill::autofill_metrics {
 // updated each time a new value is added.
 const int kNumCardUploadDecisionMetrics = 19;
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum CardUploadDecision {
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-
   // All the required conditions were satisfied using either the form fields
   // or we prompted the user to fix one or more conditions in the card upload
   // prompt.
@@ -78,10 +77,10 @@ enum CardUploadDecision {
 
 // Log all the scenarios that contribute to the decision of whether card
 // upload is enabled or not.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class CardUploadEnabled {
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-
   kSyncServiceNull = 0,
   kSyncServicePaused = 1,
   kSyncServiceMissingAutofillWalletDataActiveType = 2,
@@ -104,10 +103,10 @@ enum class CardUploadEnabled {
 // platforms.
 
 // Metrics to track event when the save card prompt is offered.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class SaveCardPromptOffer {
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-
   // The prompt is actually shown.
   kShown = 0,
   // The prompt is not shown because the prompt has been declined by the user
@@ -116,13 +115,15 @@ enum class SaveCardPromptOffer {
   // The prompt is not shown because the required delay since last strike has
   // not passed.
   kNotShownRequiredDelay = 2,
-  kMaxValue = kNotShownRequiredDelay,
+  // The prompt may have been for a card update instead of a new card upload, in
+  // which case CVC is required, but it was missing.
+  kCvcMissingForPotentialUpdate = 3,
+  kMaxValue = kCvcMissingForPotentialUpdate,
 };
 
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class SaveCardPromptResult {
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-
   // The user explicitly accepted the prompt by clicking the ok button.
   kAccepted = 0,
   // The user explicitly cancelled the prompt by clicking the cancel button.
@@ -140,10 +141,10 @@ enum class SaveCardPromptResult {
 };
 
 // Represents requesting expiration date reason.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class SaveCardRequestExpirationDateReason {
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-
   // Submitted card has empty month.
   kMonthMissingOnly = 0,
   // Submitted card has empty year.
@@ -156,10 +157,10 @@ enum class SaveCardRequestExpirationDateReason {
 };
 
 // Clank-specific metrics.
+//
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class SaveCreditCardPromptResult {
-  // These values are persisted to logs. Entries should not be renumbered and
-  // numeric values should never be reused.
-
   // User accepted save.
   kAccepted = 0,
   // User declined to save card.
@@ -204,6 +205,14 @@ void LogSaveCardCardholderNamePrefilled(bool prefilled);
 // from its prefilled value or not.
 void LogSaveCardCardholderNameWasEdited(bool edited);
 
+// Logs whether the save credit card prompt is shown or not. The metric logged
+// is platform-agnostic. Should not be called for prompt re-shows (e.g., prompt
+// reshown from the omnibox icon on desktop).
+void LogSaveCreditCardPromptOfferMetric(SaveCardPromptOffer metric,
+                                        bool is_upload_save);
+
+// TODO(crbug.com/430588721): Clean up this function once refactored save card
+// metrics have rolled out.
 void LogSaveCardPromptOfferMetric(
     SaveCardPromptOffer metric,
     bool is_uploading,

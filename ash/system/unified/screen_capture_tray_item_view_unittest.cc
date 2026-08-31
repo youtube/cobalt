@@ -10,8 +10,10 @@
 #include "ash/test/ash_test_base.h"
 #include "base/check_deref.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "url/origin.h"
@@ -45,12 +47,17 @@ class ScreenCaptureTrayItemViewTest : public AshTestBase {
   // testing::Test:
   void SetUp() override {
     AshTestBase::SetUp();
+    scoped_feature_list_.InitAndDisableFeature(
+        chromeos::features::kMultiCaptureReworkedUsageIndicators);
     screen_capture_tray_item_view_ =
         std::make_unique<ScreenCaptureTrayItemViewMock>(GetPrimaryShelf());
   }
 
  protected:
   std::unique_ptr<ScreenCaptureTrayItemViewMock> screen_capture_tray_item_view_;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_F(ScreenCaptureTrayItemViewTest, SingleOriginCaptureStartedAndStopped) {
@@ -148,7 +155,7 @@ TEST_F(ScreenCaptureTrayItemViewTest,
           /*scheme=*/"isolated-app",
           /*host=*/"aerugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic",
           /*port=*/0);
-  CHECK_DEREF(web_app::IwaKeyDistributionInfoProvider::GetInstance())
+  web_app::IwaKeyDistributionInfoProvider::GetInstance()
       .SetComponentDataForTesting(
           web_app::IwaKeyDistributionInfoProvider::ComponentData(
               /*version=*/base::Version("1.0.0"),
@@ -197,7 +204,7 @@ TEST_F(ScreenCaptureTrayItemViewTest,
           /*scheme=*/"isolated-app",
           /*host=*/"aerugqztij5biqquuk3mfwpsaibuegaqcitgfchwuosuofdjabzqaaic",
           /*port=*/0);
-  CHECK_DEREF(web_app::IwaKeyDistributionInfoProvider::GetInstance())
+  web_app::IwaKeyDistributionInfoProvider::GetInstance()
       .SetComponentDataForTesting(
           web_app::IwaKeyDistributionInfoProvider::ComponentData(
               /*version=*/base::Version("1.0.0"),

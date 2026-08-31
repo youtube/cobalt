@@ -10,11 +10,21 @@
 
 #include "audio/voip/voip_core.h"
 
+#include <memory>
+#include <utility>
+
+#include "api/audio/audio_processing.h"
+#include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/environment/environment_factory.h"
+#include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
+#include "api/voip/voip_base.h"
+#include "api/voip/voip_dtmf.h"
 #include "modules/audio_device/include/mock_audio_device.h"
 #include "modules/audio_processing/include/mock_audio_processing.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/mock_transport.h"
 #include "test/run_loop.h"

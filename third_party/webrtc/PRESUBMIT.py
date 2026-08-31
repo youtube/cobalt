@@ -33,8 +33,6 @@ CPPLINT_EXCEPTIONS = [
     'modules/include/module_common_types.h',
     'modules/utility',
     'modules/video_capture',
-    'p2p/base/pseudo_tcp.cc',
-    'p2p/base/pseudo_tcp.h',
     'PRESUBMIT.py',
     'presubmit_test_mocks.py',
     'presubmit_test.py',
@@ -991,6 +989,8 @@ def CommonChecks(input_api, output_api):
             bot_allowlist=[
                 'chromium-webrtc-autoroll@webrtc-ci.iam.gserviceaccount.com',
                 'webrtc-version-updater@webrtc-ci.iam.gserviceaccount.com',
+                ('chrome-cherry-picker'
+                 '@chops-service-accounts.iam.gserviceaccount.com'),
             ]))
     results.extend(
         input_api.canned_checks.CheckChangeTodoHasOwner(

@@ -19,7 +19,6 @@ import android.content.Intent;
 import androidx.test.filters.MediumTest;
 
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -30,23 +29,26 @@ import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.Feature;
+import org.chromium.base.test.util.RequiresRestart;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.WarmupManager;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.ChromeTabUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.net.test.EmbeddedTestServer;
-import org.chromium.net.test.EmbeddedTestServerRule;
 import org.chromium.url.GURL;
 
 import java.util.concurrent.TimeUnit;
@@ -58,24 +60,20 @@ import java.util.concurrent.atomic.AtomicReference;
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
 public class ChromeTabCreatorTest {
-    @ClassRule
-    public static ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public BlankCTATabInitialStateRule mBlankCTATabInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
-
-    @ClassRule public static EmbeddedTestServerRule sTestServerRule = new EmbeddedTestServerRule();
+    public AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     private static final String TEST_PATH = "/chrome/test/data/android/about.html";
     private static final String TEST_PATH_2 = "/chrome/test/data/android/simple.html";
 
     private EmbeddedTestServer mTestServer;
+    private WebPageStation mPage;
 
     @Before
     public void setUp() throws Exception {
-        mTestServer = sTestServerRule.getServer();
+        mTestServer = mActivityTestRule.getTestServer();
+        mPage = mActivityTestRule.startOnBlankPage();
         IntentUtils.setForceIsTrustedIntentForTesting(/* isTrusted= */ true);
     }
 
@@ -85,11 +83,11 @@ public class ChromeTabCreatorTest {
     @MediumTest
     @Feature({"Browser"})
     public void testCreateNewTabInBackgroundLowEnd() {
-        final Tab fgTab = sActivityTestRule.getActivity().getActivityTab();
+        final Tab fgTab = mPage.loadedTabElement.get();
         final Tab bgTab =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
-                            return sActivityTestRule
+                            return mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -109,7 +107,7 @@ public class ChromeTabCreatorTest {
                     ThreadUtils.runOnUiThreadBlocking(
                             () -> {
                                 TabModelUtils.setIndex(
-                                        sActivityTestRule.getActivity().getCurrentTabModel(),
+                                        mActivityTestRule.getActivity().getCurrentTabModel(),
                                         indexOf(bgTab));
                             });
                 });
@@ -122,11 +120,11 @@ public class ChromeTabCreatorTest {
     @MediumTest
     @Feature({"Browser"})
     public void testCreateNewTabInBackground() {
-        final Tab fgTab = sActivityTestRule.getActivity().getActivityTab();
+        final Tab fgTab = mPage.loadedTabElement.get();
         Tab bgTab =
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
-                            return sActivityTestRule
+                            return mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -155,11 +153,11 @@ public class ChromeTabCreatorTest {
     public void testCreateNewTabTakesSpareWebContents() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Tab currentTab = sActivityTestRule.getActivity().getActivityTab();
+                    Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
                     WarmupManager.getInstance()
-                            .createSpareWebContents(sActivityTestRule.getProfile(false));
+                            .createSpareWebContents(mActivityTestRule.getProfile(false));
                     assertTrue(WarmupManager.getInstance().hasSpareWebContents());
-                    sActivityTestRule
+                    mActivityTestRule
                             .getActivity()
                             .getCurrentTabCreator()
                             .createNewTab(
@@ -177,9 +175,9 @@ public class ChromeTabCreatorTest {
     public void testCreateNewTabTakesPositionIndex() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Tab currentTab = sActivityTestRule.getActivity().getActivityTab();
+                    Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
                     Tab tabOne =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -187,7 +185,7 @@ public class ChromeTabCreatorTest {
                                             TabLaunchType.FROM_EXTERNAL_APP,
                                             currentTab);
                     Tab tabTwo =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -221,7 +219,7 @@ public class ChromeTabCreatorTest {
                 ThreadUtils.runOnUiThreadBlocking(
                         () -> {
                             Tab tab =
-                                    sActivityTestRule
+                                    mActivityTestRule
                                             .getActivity()
                                             .getCurrentTabCreator()
                                             .createNewTab(
@@ -243,7 +241,7 @@ public class ChromeTabCreatorTest {
                     ThreadUtils.runOnUiThreadBlocking(
                             () -> {
                                 TabModelUtils.setIndex(
-                                        sActivityTestRule.getActivity().getCurrentTabModel(),
+                                        mActivityTestRule.getActivity().getCurrentTabModel(),
                                         indexOf(bgTab));
                             });
                 };
@@ -260,9 +258,9 @@ public class ChromeTabCreatorTest {
     public void testHistoryNavigationBackground() {
         final String url = mTestServer.getURL(TEST_PATH);
         final String url2 = mTestServer.getURL(TEST_PATH_2);
-        sActivityTestRule.loadUrl(url);
-        sActivityTestRule.loadUrl(url2);
-        final ChromeTabbedActivity activity = sActivityTestRule.getActivity();
+        mPage = mPage.loadWebPageProgrammatically(url);
+        mPage = mPage.loadWebPageProgrammatically(url2);
+        final ChromeTabbedActivity activity = mPage.getActivity();
         final TabModel tabModel = activity.getCurrentTabModel();
         final ObservableSupplier<Tab> currentTabSupplier = tabModel.getCurrentTabSupplier();
         final CallbackHelper createdCallback = new CallbackHelper();
@@ -292,7 +290,7 @@ public class ChromeTabCreatorTest {
         final Tab bgTab =
                 ThreadUtils.runOnUiThreadBlocking(
                         () ->
-                                sActivityTestRule
+                                mActivityTestRule
                                         .getActivity()
                                         .getCurrentTabCreator()
                                         .createTabWithHistory(
@@ -352,20 +350,20 @@ public class ChromeTabCreatorTest {
     public void testHistoryNavigationForeground() {
         final String url = mTestServer.getURL(TEST_PATH);
         final String url2 = mTestServer.getURL(TEST_PATH_2);
-        sActivityTestRule.loadUrl(url);
-        sActivityTestRule.loadUrl(url2);
-        final Tab parentTab = sActivityTestRule.getActivity().getActivityTab();
+        mPage = mPage.loadWebPageProgrammatically(url);
+        mPage = mPage.loadWebPageProgrammatically(url2);
+        final Tab parentTab = mPage.loadedTabElement.get();
         final Tab fgTab =
                 ThreadUtils.runOnUiThreadBlocking(
                         () ->
-                                sActivityTestRule
+                                mActivityTestRule
                                         .getActivity()
                                         .getCurrentTabCreator()
                                         .createTabWithHistory(
                                                 parentTab,
                                                 TabLaunchType.FROM_HISTORY_NAVIGATION_FOREGROUND));
         ObservableSupplier<Tab> currentTabSupplier =
-                sActivityTestRule.getActivity().getCurrentTabModel().getCurrentTabSupplier();
+                mActivityTestRule.getActivity().getCurrentTabModel().getCurrentTabSupplier();
         assertEquals(
                 "Expected TabLaunchType.FROM_HISTORY_NAVIGATION_FOREGROUND to launch tab in fg",
                 fgTab,
@@ -416,9 +414,9 @@ public class ChromeTabCreatorTest {
     public void testCreateNewTabSameGroupAsParent_FromLongpressForegroundInGroup() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Tab currentTab = sActivityTestRule.getActivity().getActivityTab();
+                    Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
                     Tab tabForGroup =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -427,7 +425,7 @@ public class ChromeTabCreatorTest {
                                             currentTab);
                     ChromeTabUtils.mergeTabsToGroup(currentTab, tabForGroup);
                     Tab newTab =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -448,9 +446,9 @@ public class ChromeTabCreatorTest {
     public void testCreateNewTabSameGroupAsParent_FromLongpressBackgroundInGroup() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Tab currentTab = sActivityTestRule.getActivity().getActivityTab();
+                    Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
                     Tab tabForGroup =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -459,7 +457,7 @@ public class ChromeTabCreatorTest {
                                             currentTab);
                     ChromeTabUtils.mergeTabsToGroup(currentTab, tabForGroup);
                     Tab newTab =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -480,9 +478,9 @@ public class ChromeTabCreatorTest {
     public void testCreateNewTab_ParentInGroup_FromLongpressBackground_OutsideGroup() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Tab currentTab = sActivityTestRule.getActivity().getActivityTab();
+                    Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
                     Tab tabForGroup =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -491,7 +489,7 @@ public class ChromeTabCreatorTest {
                                             currentTab);
                     ChromeTabUtils.mergeTabsToGroup(currentTab, tabForGroup);
                     Tab newTab =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -508,9 +506,9 @@ public class ChromeTabCreatorTest {
     public void testCreateNewTab_FromLongpressForeground_OutsideGroup() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    Tab currentTab = sActivityTestRule.getActivity().getActivityTab();
+                    Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
                     Tab tabForGroup =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -519,7 +517,7 @@ public class ChromeTabCreatorTest {
                                             currentTab);
                     ChromeTabUtils.mergeTabsToGroup(currentTab, tabForGroup);
                     Tab newTab =
-                            sActivityTestRule
+                            mActivityTestRule
                                     .getActivity()
                                     .getCurrentTabCreator()
                                     .createNewTab(
@@ -530,6 +528,35 @@ public class ChromeTabCreatorTest {
                 });
     }
 
+    @Test
+    @MediumTest
+    @Feature({"Browser"})
+    @RequiresRestart // Avoid having multiple windows mess up the other tests
+    public void testCreateNewTabInNewWindow() {
+        Tab currentTab = mActivityTestRule.getActivity().getActivityTab();
+        String testPath = mTestServer.getURL(TEST_PATH);
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mActivityTestRule
+                                .getActivity()
+                                .getCurrentTabCreator()
+                                .createNewTab(
+                                        new LoadUrlParams(testPath),
+                                        TabLaunchType.FROM_LINK_CREATING_NEW_WINDOW,
+                                        currentTab));
+
+        if (MultiWindowUtils.isMultiInstanceApi31Enabled()) {
+            CriteriaHelper.pollUiThread(
+                    () -> MultiWindowUtils.getInstanceCount() == 2,
+                    "Expected a new window to be created");
+        } else {
+            assertEquals(
+                    "Expected a new tab to be created",
+                    2,
+                    mActivityTestRule.getActivity().getCurrentTabModel().getCount());
+        }
+    }
+
     private Intent createIntent(int tabIndex) {
         Intent intent = new Intent();
         intent.putExtra(IntentHandler.EXTRA_TAB_INDEX, tabIndex);
@@ -538,6 +565,6 @@ public class ChromeTabCreatorTest {
 
     /** Returns the index of the given tab in the current tab model. */
     private int indexOf(Tab tab) {
-        return sActivityTestRule.getActivity().getCurrentTabModel().indexOf(tab);
+        return mActivityTestRule.getActivity().getCurrentTabModel().indexOf(tab);
     }
 }

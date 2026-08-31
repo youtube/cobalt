@@ -7,6 +7,7 @@
 #include "base/containers/adapters.h"
 #include "base/run_loop.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/devtools/devtools_window.h"
@@ -28,6 +29,7 @@
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_status_code.h"
 #include "net/test/embedded_test_server/http_response.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/navigation/preloading_headers.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -67,7 +69,6 @@ SearchPrefetchBaseBrowserTest::~SearchPrefetchBaseBrowserTest() = default;
 
 void SearchPrefetchBaseBrowserTest::SetUpOnMainThread() {
   InProcessBrowserTest::SetUpOnMainThread();
-  SearchPrefetchRequest::SetIsTest();
   host_resolver()->AddRule(kSearchDomain, "127.0.0.1");
   host_resolver()->AddRule(kSuggestDomain, "127.0.0.1");
 
@@ -282,10 +283,6 @@ SearchPrefetchBaseBrowserTest::HandleSearchRequest(
     return nullptr;
 
   bool is_prefetch =
-      request.headers.find(blink::kPurposeHeaderName) !=
-          request.headers.end() &&
-      request.headers.find(blink::kPurposeHeaderName)->second ==
-          blink::kSecPurposePrefetchHeaderValue &&
       request.headers.find(blink::kSecPurposeHeaderName) !=
           request.headers.end() &&
       request.headers.find(blink::kSecPurposeHeaderName)->second ==

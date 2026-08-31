@@ -5,7 +5,9 @@
 #import "ios/chrome/browser/authentication/ui_bundled/signin/reauth/reauth_coordinator.h"
 
 #import <string>
+#import <variant>
 
+#import "absl/functional/overload.h"
 #import "base/logging.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/signin/public/base/signin_metrics.h"
@@ -21,6 +23,8 @@
 @implementation ReauthCoordinator {
   raw_ptr<Browser> _browser;
   CoreAccountInfo _account;
+  std::variant<signin_metrics::ReauthAccessPoint, signin_metrics::AccessPoint>
+      _accessPoint;
   id<SystemIdentityInteractionManager> _identityInteractionManager;
 }
 
@@ -28,18 +32,52 @@
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
-                                   account:(const CoreAccountInfo&)account {
+                                   account:(const CoreAccountInfo&)account
+                         reauthAccessPoint:
+                             (signin_metrics::ReauthAccessPoint)accessPoint {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
     _account = account;
+    _accessPoint = accessPoint;
   }
   return self;
+}
+
+- (instancetype)initWithBaseViewController:(UIViewController*)viewController
+                                   browser:(Browser*)browser
+                                   account:(const CoreAccountInfo&)account
+                         signinAccessPoint:
+                             (signin_metrics::AccessPoint)accessPoint {
+  self = [super initWithBaseViewController:viewController browser:browser];
+  if (self) {
+    _account = account;
+    _accessPoint = accessPoint;
+  }
+  return self;
+}
+
+- (void)dealloc {
+  CHECK(!_identityInteractionManager, base::NotFatalUntil::M144);
+}
+
+- (BOOL)isAtRiskOfASWViewBug {
+  if (@available(iOS 26, *)) {
+    // The authentication view don’t disappear silently on iOS 26.
+    return NO;
+  }
+  // Once the authentication is done, the manager is set to nil and the view
+  // can’t have disappeared.
+  CHECK(_identityInteractionManager, base::NotFatalUntil::M144);
+  return _identityInteractionManager != nil;
 }
 
 #pragma mark - ChromeCoordinator
 
 - (void)start {
   [super start];
+
+  [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kStarted];
+
   _identityInteractionManager = GetApplicationContext()
                                     ->GetSystemIdentityManager()
                                     ->CreateInteractionManager();
@@ -58,12 +96,12 @@
 
 - (void)stop {
   if (_identityInteractionManager) {
-    // The operation hasn't finished yet - cancel and notify the delegate.
+    // The operation hasn't finished yet - cancel.
     [_identityInteractionManager cancelAuthActivityAnimated:NO];
-    [self.delegate reauthFinishedWithResult:ReauthResult::kInterrupted];
     _identityInteractionManager = nil;
+    [self.delegate reauthFinishedWithResult:ReauthResult::kInterrupted];
+    [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kInterrupted];
   }
-  self.delegate = nil;
 
   [super stop];
 }
@@ -79,15 +117,35 @@
   ReauthResult result;
   if (!error) {
     GaiaId id = GaiaId(identity.gaiaID);
-    result = id == _account.gaia ? ReauthResult::kSuccess
-                                 : ReauthResult::kCancelledByUser;
+    if (id == _account.gaia) {
+      result = ReauthResult::kSuccess;
+      [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCompleted];
+    } else {
+      result = ReauthResult::kCancelledByUser;
+      [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCancelled];
+    }
   } else if (ShouldHandleSigninError(error)) {
     result = ReauthResult::kError;
+    [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kError];
   } else {
     result = ReauthResult::kCancelledByUser;
+    [self recordReauthFlowEvent:signin_metrics::ReauthFlowEvent::kCancelled];
   }
 
   [self.delegate reauthFinishedWithResult:result];
+}
+
+- (void)recordReauthFlowEvent:(signin_metrics::ReauthFlowEvent)event {
+  std::visit(absl::Overload{
+                 [event](signin_metrics::ReauthAccessPoint ap) {
+                   signin_metrics::RecordReauthFlowEventInExplicitFlow(ap,
+                                                                       event);
+                 },
+                 [event](signin_metrics::AccessPoint ap) {
+                   signin_metrics::RecordReauthFlowEventInSigninFlow(ap, event);
+                 },
+             },
+             _accessPoint);
 }
 
 @end

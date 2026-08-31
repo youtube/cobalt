@@ -592,7 +592,7 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code,
 }
 
 Operand MacroAssembler::ClearedValue() const {
-  return Operand(static_cast<int32_t>(i::ClearedValue(isolate()).ptr()));
+  return Operand(static_cast<int32_t>(i::kClearedWeakValue.ptr()));
 }
 
 void MacroAssembler::Call(Label* target) { b(r14, target); }
@@ -2384,6 +2384,21 @@ void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
   b(fbv_undef);
 
   bind(&done);
+}
+
+void MacroAssembler::LoadInterpreterDataBytecodeArray(
+    Register destination, Register interpreter_data) {
+  LoadTaggedField(destination,
+                  FieldMemOperand(interpreter_data,
+                                  offsetof(InterpreterData, bytecode_array_)));
+}
+
+void MacroAssembler::LoadInterpreterDataInterpreterTrampoline(
+    Register destination, Register interpreter_data) {
+  LoadTaggedField(
+      destination,
+      FieldMemOperand(interpreter_data,
+                      offsetof(InterpreterData, interpreter_trampoline_)));
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
@@ -4448,8 +4463,9 @@ void MacroAssembler::SubF32(DoubleRegister dst, DoubleRegister lhs,
   if (dst == lhs) {
     sebr(dst, rhs);
   } else if (dst == rhs) {
-    sebr(dst, lhs);
-    lcebr(dst, dst);
+    ler(kScratchDoubleReg, dst);
+    ler(dst, lhs);
+    sebr(dst, kScratchDoubleReg);
   } else {
     ler(dst, lhs);
     sebr(dst, rhs);
@@ -5085,11 +5101,11 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
 }
 
 void MacroAssembler::CallJSFunction(Register function_object,
-                                    uint16_t argument_count) {
+                                    uint16_t argument_count, Register scratch) {
   Register code = kJavaScriptCallCodeStartRegister;
 #if V8_ENABLE_LEAPTIERING
   Register dispatch_handle = r0;
-  Register scratch = ip;
+  scratch = ip;
   LoadU32(dispatch_handle,
           FieldMemOperand(function_object, JSFunction::kDispatchHandleOffset));
   LoadEntrypointFromJSDispatchTable(code, dispatch_handle, scratch);

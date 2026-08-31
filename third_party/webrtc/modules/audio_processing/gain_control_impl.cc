@@ -10,10 +10,17 @@
 
 #include "modules/audio_processing/gain_control_impl.h"
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <vector>
 
+#include "api/array_view.h"
 #include "api/audio/audio_processing.h"
+#include "common_audio/include/audio_util.h"
+#include "modules/audio_processing/agc/gain_control.h"
 #include "modules/audio_processing/agc/legacy/gain_control.h"
 #include "modules/audio_processing/audio_buffer.h"
 #include "modules/audio_processing/logging/apm_data_dumper.h"

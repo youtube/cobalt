@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -28,7 +29,9 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "components/webauthn/android/jni_headers/WebauthnBrowserBridge_jni.h"
 
+using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF16ToJavaString;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
@@ -67,7 +70,7 @@ void ConvertJavaCredentialArrayToMetadataVector(
   DCHECK_GE(jlength, 0) << "Invalid array length: " << jlength;
   size_t length = static_cast<size_t>(std::max(0, jlength));
   for (size_t i = 0; i < length; ++i) {
-    ScopedJavaLocalRef<jobject> j_credential(
+    auto j_credential = ScopedJavaLocalRef<jobject>::Adopt(
         env, static_cast<jobject>(env->GetObjectArrayElement(array.obj(), i)));
     out->emplace_back(
         ConvertJavaCredentialDetailsToMetadata(env, j_credential));
@@ -78,8 +81,25 @@ void OnWebauthnCredentialSelected(
     const base::android::JavaRef<jobject>& jcallback,
     const std::vector<uint8_t>& credential_id) {
   base::android::RunObjectCallbackAndroid(
-      jcallback, base::android::ToJavaByteArray(
-                     base::android::AttachCurrentThread(), credential_id));
+      jcallback,
+      base::android::ToJavaByteArray(AttachCurrentThread(), credential_id));
+}
+
+void OnPasswordCredentialSelected(
+    const base::android::JavaRef<jobject>& jcallback,
+    std::u16string_view username,
+    std::u16string_view password) {
+  JNIEnv* env = AttachCurrentThread();
+  base::android::RunObjectCallbackAndroid(
+      jcallback, Java_WebauthnBrowserBridge_createPasswordCredentialInfo(
+                     env, ConvertUTF16ToJavaString(env, username),
+                     ConvertUTF16ToJavaString(env, password)));
+}
+
+void OnRejectImmediate(const base::android::JavaRef<jobject>& jcallback,
+                       ImmediateRequestRejectionReason rejection_reason) {
+  base::android::RunIntCallbackAndroid(jcallback,
+                                       static_cast<int32_t>(rejection_reason));
 }
 
 void OnHybridAssertionInvoked(
@@ -102,12 +122,14 @@ WebauthnBrowserBridge::~WebauthnBrowserBridge() = default;
 
 void WebauthnBrowserBridge::OnCredentialsDetailsListReceived(
     JNIEnv* env,
-    const base::android::JavaParamRef<jobject>&,
     const base::android::JavaParamRef<jobjectArray>& credentials,
     const base::android::JavaParamRef<jobject>& jframe_host,
-    jboolean is_conditional_request,
+    jint mediation_type,
     const base::android::JavaParamRef<jobject>& jget_assertion_callback,
-    const base::android::JavaParamRef<jobject>& jhybrid_callback) const {
+    const base::android::JavaParamRef<jobject>& jpassword_callback,
+    const base::android::JavaParamRef<jobject>& jhybrid_callback,
+    const base::android::JavaParamRef<jobject>& jreject_immediate_callback)
+    const {
   auto* client = WebAuthnClientAndroid::GetClient();
   auto* render_frame_host =
       content::RenderFrameHost::FromJavaRenderFrameHost(jframe_host);
@@ -129,19 +151,43 @@ void WebauthnBrowserBridge::OnCredentialsDetailsListReceived(
   ConvertJavaCredentialArrayToMetadataVector(env, credentials,
                                              &credentials_metadata);
 
+  CHECK(AssertionMediationType(mediation_type) !=
+            AssertionMediationType::kImmediatePasskeysOnly ||
+        !credentials_metadata.empty());
+
+  base::RepeatingCallback<void(const std::vector<uint8_t>&)> passkey_callback =
+      base::BindRepeating(
+          &OnWebauthnCredentialSelected,
+          ScopedJavaGlobalRef<jobject>(env, jget_assertion_callback));
+
+  base::RepeatingCallback<void(std::u16string_view, std::u16string_view)>
+      password_callback;
+  if (!jpassword_callback.is_null()) {
+    password_callback = base::BindRepeating(
+        &OnPasswordCredentialSelected,
+        ScopedJavaGlobalRef<jobject>(env, jpassword_callback));
+  }
+
   base::RepeatingCallback<void()> hybrid_callback;
-  if (jhybrid_callback != nullptr) {
+  if (!jhybrid_callback.is_null()) {
     hybrid_callback = base::BindRepeating(
         &OnHybridAssertionInvoked,
         ScopedJavaGlobalRef<jobject>(env, jhybrid_callback));
   }
 
+  base::RepeatingCallback<void(ImmediateRequestRejectionReason)>
+      reject_immediate_callback;
+  if (!jreject_immediate_callback.is_null()) {
+    reject_immediate_callback = base::BindRepeating(
+        &OnRejectImmediate,
+        ScopedJavaGlobalRef<jobject>(env, jreject_immediate_callback));
+  }
+
   client->OnWebAuthnRequestPending(
-      render_frame_host, credentials_metadata, is_conditional_request,
-      base::BindRepeating(
-          &OnWebauthnCredentialSelected,
-          ScopedJavaGlobalRef<jobject>(env, jget_assertion_callback)),
-      std::move(hybrid_callback));
+      render_frame_host, std::move(credentials_metadata),
+      AssertionMediationType(mediation_type), std::move(passkey_callback),
+      std::move(password_callback), std::move(hybrid_callback),
+      std::move(reject_immediate_callback));
 }
 
 void TriggerFullRequest(

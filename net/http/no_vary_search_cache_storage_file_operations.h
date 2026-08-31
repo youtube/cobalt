@@ -33,6 +33,10 @@ namespace net {
 // these interfaces, so calls will be devirtualized and may be inlined.
 class NET_EXPORT NoVarySearchCacheStorageFileOperations {
  public:
+  // TODO(https://crbug.com/433551601): Remove this once the rate of migrations
+  // drops to zero.
+  static constexpr char kLegacyNoVarySearchDirName[] = "no-vary-search";
+
   // Result of a call to Load().
   struct NET_EXPORT LoadResult {
     std::vector<uint8_t> contents;
@@ -68,9 +72,15 @@ class NET_EXPORT NoVarySearchCacheStorageFileOperations {
   };
 
   // Creates a NoVarySearchCacheStorageFileOperations object that accesses the
-  // real file system. All filenames will be treated as relative to `path`.
+  // real file system. All filenames will be treated as relative to
+  // `dedicated_path`. If there are existing persisted files inside
+  // `legacy_path` they will be moved to `dedicated_path` during the call to
+  // Init().
+  // TODO(https://crbug.com/433551601): Remove `legacy_path` once the rate of
+  // migrations drops to zero.
   static std::unique_ptr<NoVarySearchCacheStorageFileOperations> Create(
-      const base::FilePath& path);
+      const base::FilePath& dedicated_path,
+      const base::FilePath& legacy_path);
 
   NoVarySearchCacheStorageFileOperations(
       const NoVarySearchCacheStorageFileOperations&) = delete;
@@ -78,6 +88,13 @@ class NET_EXPORT NoVarySearchCacheStorageFileOperations {
       const NoVarySearchCacheStorageFileOperations&) = delete;
 
   virtual ~NoVarySearchCacheStorageFileOperations();
+
+  // Performs any cleanup or initialization operations that need to be done
+  // before using the object. Must be called exactly once after `path` is ready
+  // to be accessed but before calling any of the other methods. Returns true if
+  // the subdirectory `kNoVarySearchDirName` probably exists when Init()
+  // returns.
+  virtual bool Init() = 0;
 
   // Loads the complete contents of the file `filename` into memory and
   // returns it and its last modified time. Returns the appropriate Error on

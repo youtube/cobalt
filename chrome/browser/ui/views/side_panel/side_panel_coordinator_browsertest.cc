@@ -31,12 +31,14 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model.h"
 #include "chrome/browser/ui/toolbar/pinned_toolbar/pinned_toolbar_actions_model_factory.h"
 #include "chrome/browser/ui/toolbar/toolbar_actions_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/extensions/extensions_toolbar_container.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_content_proxy.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
@@ -62,6 +64,7 @@
 #include "extensions/common/extension_builder.h"
 #include "extensions/test/test_extension_dir.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/actions/actions.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/menus/simple_menu_model.h"
 #include "ui/views/layout/animating_layout_manager_test_util.h"
@@ -79,7 +82,7 @@ std::unique_ptr<SidePanelEntry> CreateEntry(const SidePanelEntry::Key& key) {
       key, base::BindRepeating([](SidePanelEntryScope&) {
         return std::make_unique<views::View>();
       }),
-      SidePanelEntry::kSidePanelDefaultContentWidth);
+      /*default_content_width_callback=*/base::NullCallback());
 }
 
 }  // namespace
@@ -104,7 +107,7 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
         base::BindRepeating([](SidePanelEntryScope&) {
           return std::make_unique<views::View>();
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth));
+        /*default_content_width_callback=*/base::NullCallback()));
     contextual_registries_.push_back(registry);
 
     // Add some entries to the second tab.
@@ -118,7 +121,7 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
         base::BindRepeating([](SidePanelEntryScope&) {
           return std::make_unique<views::View>();
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth));
+        /*default_content_width_callback=*/base::NullCallback()));
     contextual_registries_.push_back(browser()
                                          ->GetActiveTabInterface()
                                          ->GetTabFeatures()
@@ -136,13 +139,13 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
           return std::unique_ptr<ui::MenuModel>(
               new ui::SimpleMenuModel(nullptr));
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth));
+        /*default_content_width_callback=*/base::NullCallback()));
     registry->Register(std::make_unique<SidePanelEntry>(
         SidePanelEntry::Key(SidePanelEntry::Id::kShoppingInsights),
         base::BindRepeating([](SidePanelEntryScope&) {
           return std::make_unique<views::View>();
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth));
+        /*default_content_width_callback=*/base::NullCallback()));
 
     coordinator()->SetNoDelaysForTesting(true);
   }
@@ -156,7 +159,7 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
         base::BindRepeating([](SidePanelEntryScope&) {
           return std::make_unique<views::View>();
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth));
+        /*default_content_width_callback=*/base::NullCallback()));
     contextual_registries_.push_back(registry);
   }
 
@@ -278,6 +281,17 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
 
   std::vector<raw_ptr<SidePanelRegistry, DanglingUntriaged>>
       contextual_registries_;
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class SidePanelCoordinatorWithSideBySideTest : public SidePanelCoordinatorTest {
+ public:
+  SidePanelCoordinatorWithSideBySideTest() {
+    scoped_feature_list_.InitWithFeatures(
+        {features::kSidePanelResizing, features::kSideBySide}, {});
+  }
+
+ private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
@@ -562,6 +576,47 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidthMaxMin) {
             web_contents_width);
 }
 
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorWithSideBySideTest,
+                       ChangeSidePanelWidthMaxMin) {
+  Init();
+
+  // Create split view.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  // Set side panel to left-aligned so positive resize increments mean an
+  // increase in side panel width.
+  browser()->GetBrowserView().GetProfile()->GetPrefs()->SetBoolean(
+      prefs::kSidePanelHorizontalAlignment, false);
+  coordinator()->DisableAnimationsForTesting();
+
+  coordinator()->Toggle(SidePanelEntry::Key(SidePanelEntry::Id::kReadAnything),
+                        SidePanelOpenTrigger::kPinnedEntryToolbarButton);
+  const int starting_width = 500;
+  browser()->GetBrowserView().unified_side_panel()->SetPanelWidth(
+      starting_width);
+  views::test::RunScheduledLayout(&browser()->GetBrowserView());
+  EXPECT_EQ(browser()->GetBrowserView().unified_side_panel()->width(),
+            starting_width);
+
+  // Use an increment large enough to hit side panel and browser contents
+  // minimum width constraints.
+  const int large_increment = 1000000000;
+  browser()->GetBrowserView().unified_side_panel()->OnResize(large_increment,
+                                                             true);
+  views::test::RunScheduledLayout(&browser()->GetBrowserView());
+
+  BrowserViewLayout* layout_manager = static_cast<BrowserViewLayout*>(
+      browser()->GetBrowserView().GetLayoutManager());
+  EXPECT_EQ(browser()->GetBrowserView().multi_contents_view()->width(),
+            layout_manager->GetMinWebContentsWidthForTesting());
+  EXPECT_EQ(
+      browser()->GetBrowserView().multi_contents_view()->width(),
+      browser()->GetBrowserView().multi_contents_view()->GetMinViewWidth() * 2);
+}
+
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ChangeSidePanelWidthRTL) {
   Init();
   // Set side panel to right-aligned
@@ -732,6 +787,37 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, ShowOpensSidePanel) {
   // Verify that bookmarks is selected.
   EXPECT_EQ(GetTitleText(),
             l10n_util::GetStringUTF16(IDS_BOOKMARK_MANAGER_TITLE));
+}
+
+IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
+                       ChangesTitleWhenActionItemChanges) {
+  Init();
+  EXPECT_FALSE(coordinator()->IsSidePanelShowing());
+
+  coordinator()->Show(SidePanelEntry::Id::kBookmarks);
+  // Bookmarks is showing and selected.
+  EXPECT_TRUE(browser()->GetBrowserView().unified_side_panel()->GetVisible());
+  EXPECT_EQ(GetTitleText(),
+            l10n_util::GetStringUTF16(IDS_BOOKMARK_MANAGER_TITLE));
+
+  SidePanelEntry* entry = global_registry()->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntry::Id::kBookmarks));
+  actions::ActionItem* action_item = coordinator()->GetActionItem(entry->key());
+
+  // Update the action item text.
+  const std::u16string new_title = u"New Bookmarks title";
+  action_item->SetText(new_title);
+
+  // Side panel title is updated.
+  EXPECT_EQ(GetTitleText(), new_title);
+
+  // Set property to hide the title and update again.
+  entry->SetProperty(kShouldShowTitleInSidePanelHeaderKey, false);
+  const std::u16string ignored_title = u"Ignored title";
+  action_item->SetText(ignored_title);
+
+  // Side panel title is empty as it's not shown.
+  EXPECT_EQ(GetTitleText(), u"");
 }
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
@@ -1534,7 +1620,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
       base::BindRepeating(
           [](SidePanelEntryScope&) { return std::make_unique<views::View>(); }),
-      SidePanelEntry::kSidePanelDefaultContentWidth);
+      /*default_content_width_callback=*/base::NullCallback());
   entry->AddObserver(observer.get());
   contextual_registries_[0]->Register(std::move(entry));
   coordinator()->Show(SidePanelEntry::Id::kAboutThisSite);
@@ -1565,7 +1651,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
       SidePanelEntry::Key(SidePanelEntry::Id::kAboutThisSite),
       base::BindRepeating(
           [](SidePanelEntryScope&) { return std::make_unique<views::View>(); }),
-      SidePanelEntry::kSidePanelDefaultContentWidth);
+      /*default_content_width_callback=*/base::NullCallback());
   entry->AddObserver(observer.get());
   contextual_registries_[0]->Register(std::move(entry));
   coordinator()->Show(SidePanelEntry::Id::kAboutThisSite);
@@ -1598,7 +1684,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
             return std::make_unique<views::View>();
           },
           &count),
-      SidePanelEntry::kSidePanelDefaultContentWidth));
+      /*default_content_width_callback=*/base::NullCallback()));
   coordinator()->Show(SidePanelEntry::Id::kLens);
   ASSERT_EQ(1, count);
   coordinator()->Show(SidePanelEntry::Id::kLens);
@@ -1970,7 +2056,7 @@ class SidePanelCoordinatorLoadingContentTest : public SidePanelCoordinatorTest {
               ->SetAvailable(false);
           return view;
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth);
+        /*default_content_width_callback=*/base::NullCallback());
     loading_content_entry1_ = entry1.get();
     EXPECT_TRUE(global_registry()->Register(std::move(entry1)));
 
@@ -1984,7 +2070,7 @@ class SidePanelCoordinatorLoadingContentTest : public SidePanelCoordinatorTest {
               ->SetAvailable(false);
           return view;
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth);
+        /*default_content_width_callback=*/base::NullCallback());
     loading_content_entry2_ = entry2.get();
     EXPECT_TRUE(global_registry()->Register(std::move(entry2)));
 
@@ -1997,7 +2083,7 @@ class SidePanelCoordinatorLoadingContentTest : public SidePanelCoordinatorTest {
               ->SetAvailable(true);
           return view;
         }),
-        SidePanelEntry::kSidePanelDefaultContentWidth);
+        /*default_content_width_callback=*/base::NullCallback());
     loaded_content_entry1_ = entry3.get();
     EXPECT_TRUE(global_registry()->Register(std::move(entry3)));
   }

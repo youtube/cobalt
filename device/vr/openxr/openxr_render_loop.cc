@@ -393,6 +393,8 @@ void OpenXrRenderLoop::StartRuntimeFinish(
   session->device_config = device::mojom::XRSessionDeviceConfig::New();
   session->device_config->enable_anti_aliasing =
       openxr_->CanEnableAntiAliasing();
+  session->device_config->default_framebuffer_scale =
+      openxr_->RecommendedViewportScale();
   session->device_config->views = openxr_->GetDefaultViews();
   if (auto* depth = openxr_->GetDepthSensor(); depth) {
     session->device_config->depth_configuration = depth->GetDepthConfig();
@@ -562,6 +564,16 @@ void OpenXrRenderLoop::UpdateLayerBounds(int16_t frame_id,
   source_size_ = source_size;
 
   graphics_binding_->SetTransferSize(source_size);
+
+  // if `pending_frame_` exists and still has a `frame_data_`, then we haven't
+  // sent the current texture to the page yet, and it will expect to receive the
+  // shared image at this new size when it requests it. This can happen if e.g.
+  // the overlay got a request in before the page made this call.
+  if (pending_frame_ && pending_frame_->frame_data_ && context_provider_) {
+    graphics_binding_->UpdateActiveSwapchainImageSize(
+        context_provider_->SharedImageInterface());
+    PopulateSharedImageData(*pending_frame_->frame_data_);
+  }
 }
 
 void OpenXrRenderLoop::SubmitOverlayTexture(
@@ -681,13 +693,7 @@ mojom::XRFrameDataPtr OpenXrRenderLoop::GetNextFrameData() {
     return frame_data;
   }
 
-  // TODO(crbug.com/40909689): Make SwapchainInfo purely internal to the
-  // graphics bindings so that this isn't necessary here.
-  const auto& swap_chain_info = graphics_binding_->GetActiveSwapchainImage();
-  if (swap_chain_info.shared_image) {
-    frame_data->buffer_shared_image = swap_chain_info.shared_image->Export();
-    frame_data->buffer_sync_token = swap_chain_info.sync_token;
-  }
+  PopulateSharedImageData(*frame_data);
 
   const XrTime frame_time = openxr_->GetPredictedDisplayTime();
 
@@ -720,20 +726,18 @@ mojom::XRFrameDataPtr OpenXrRenderLoop::GetNextFrameData() {
     }
   }
 
-  OpenXRSceneUnderstandingManager* scene_understanding_manager =
-      openxr_->GetSceneUnderstandingManager();
-
-  if (scene_understanding_manager &&
+  // Get results for hit test subscriptions.
+  OpenXrHitTestManager* hit_test_manager = openxr_->GetHitTestManager();
+  if (hit_test_manager && frame_data->render_info->mojo_from_viewer &&
       frame_data->render_info->mojo_from_viewer->position &&
       frame_data->render_info->mojo_from_viewer->orientation) {
-    scene_understanding_manager->OnFrameUpdate(frame_time);
     device::Pose mojo_from_viewer(
         *frame_data->render_info->mojo_from_viewer->position,
         *frame_data->render_info->mojo_from_viewer->orientation);
-    // Get results for hit test subscriptions.
     frame_data->hit_test_subscription_results =
-        scene_understanding_manager->GetHitTestResults(
-            mojo_from_viewer.ToTransform(), frame_data->input_state.value());
+        hit_test_manager->GetHitTestResults(frame_time,
+                                            mojo_from_viewer.ToTransform(),
+                                            frame_data->input_state.value());
   }
 
   // If we don't have a depth_sensor, depth wasn't enabled.
@@ -918,6 +922,16 @@ void OpenXrRenderLoop::OnWebXrTokenSignaled(
   }
 }
 
+void OpenXrRenderLoop::PopulateSharedImageData(mojom::XRFrameData& frame_data) {
+  // TODO(crbug.com/40909689): Make SwapchainInfo purely internal to the
+  // graphics bindings so that this isn't necessary here.
+  const auto& swap_chain_info = graphics_binding_->GetActiveSwapchainImage();
+  if (swap_chain_info.shared_image) {
+    frame_data.buffer_shared_image = swap_chain_info.shared_image->Export();
+    frame_data.buffer_sync_token = swap_chain_info.sync_token;
+  }
+}
+
 void OpenXrRenderLoop::UpdateStageParameters() {
   std::vector<gfx::Point3F> stage_bounds;
   gfx::Transform local_from_stage;
@@ -950,18 +964,17 @@ void OpenXrRenderLoop::SubscribeToHitTest(
   DVLOG(2) << __func__ << ": ray origin=" << ray->origin.ToString()
            << ", ray direction=" << ray->direction.ToString();
 
-  OpenXRSceneUnderstandingManager* scene_understanding_manager =
-      openxr_->GetSceneUnderstandingManager();
+  OpenXrHitTestManager* hit_test_manager = openxr_->GetHitTestManager();
 
-  if (!scene_understanding_manager) {
+  if (!hit_test_manager) {
     std::move(callback).Run(
         device::mojom::SubscribeToHitTestResult::FAILURE_GENERIC, 0);
     return;
   }
 
   std::optional<HitTestSubscriptionId> maybe_subscription_id =
-      scene_understanding_manager->SubscribeToHitTest(
-          std::move(native_origin_information), entity_types, std::move(ray));
+      hit_test_manager->SubscribeToHitTest(std::move(native_origin_information),
+                                           entity_types, std::move(ray));
 
   if (!maybe_subscription_id) {
     std::move(callback).Run(
@@ -983,17 +996,16 @@ void OpenXrRenderLoop::SubscribeToHitTestForTransientInput(
   DVLOG(2) << __func__ << ": ray origin=" << ray->origin.ToString()
            << ", ray direction=" << ray->direction.ToString();
 
-  OpenXRSceneUnderstandingManager* scene_understanding_manager =
-      openxr_->GetSceneUnderstandingManager();
+  OpenXrHitTestManager* hit_test_manager = openxr_->GetHitTestManager();
 
-  if (!scene_understanding_manager) {
+  if (!hit_test_manager) {
     std::move(callback).Run(
         device::mojom::SubscribeToHitTestResult::FAILURE_GENERIC, 0);
     return;
   }
 
   std::optional<HitTestSubscriptionId> maybe_subscription_id =
-      scene_understanding_manager->SubscribeToHitTestForTransientInput(
+      hit_test_manager->SubscribeToHitTestForTransientInput(
           profile_name, entity_types, std::move(ray));
 
   if (!maybe_subscription_id) {
@@ -1009,11 +1021,11 @@ void OpenXrRenderLoop::SubscribeToHitTestForTransientInput(
 
 void OpenXrRenderLoop::UnsubscribeFromHitTest(uint64_t subscription_id) {
   DVLOG(2) << __func__;
-  OpenXRSceneUnderstandingManager* scene_understanding_manager =
-      openxr_->GetSceneUnderstandingManager();
-  if (scene_understanding_manager)
-    scene_understanding_manager->UnsubscribeFromHitTest(
+  OpenXrHitTestManager* hit_test_manager = openxr_->GetHitTestManager();
+  if (hit_test_manager) {
+    hit_test_manager->UnsubscribeFromHitTest(
         HitTestSubscriptionId(subscription_id));
+  }
 }
 
 void OpenXrRenderLoop::CreateAnchor(

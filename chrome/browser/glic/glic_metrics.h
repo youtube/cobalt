@@ -10,20 +10,75 @@
 #include <vector>
 
 #include "base/callback_list.h"
+#include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
+#include "ui/display/display.h"
 
 class Profile;
+class Browser;
 
 namespace glic {
 class GlicEnabling;
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+
+// LINT.IfChange(ChromeRelativePosition)
+enum class ChromeRelativePosition {
+  kAboveLeft = 0,
+  kCenterLeft = 1,
+  kBelowLeft = 2,
+  kAboveCenter = 3,
+  kOverlap = 4,
+  kBelowCenter = 5,
+  kAboveRight = 6,
+  kCenterRight = 7,
+  kBelowRight = 8,
+  kChromeOnOtherDisplay = 9,
+  kNoVisibleChromeBrowser = 10,
+  kMaxValue = kNoVisibleChromeBrowser,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:ChromeRelativePosition)
+
+// LINT.IfChange(DisplayPosition)
+enum class DisplayPosition {
+  kTopLeft = 0,
+  kCenterLeft = 1,
+  kBottomLeft = 2,
+  kTopCenter = 3,
+  kCenterCenter = 4,
+  kBottomCenter = 5,
+  kTopRight = 6,
+  kCenterRight = 7,
+  kBottomRight = 8,
+  kUnknown = 9,
+  kMaxValue = kUnknown,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:DisplayPosition)
+
+// LINT.IfChange(PercentOverlap)
+enum class PercentOverlap {
+  k0 = 0,
+  k10 = 1,
+  k20 = 2,
+  k30 = 3,
+  k40 = 4,
+  k50 = 5,
+  k60 = 6,
+  k70 = 7,
+  k80 = 8,
+  k90 = 9,
+  k100 = 10,
+  kNoVisibleChromeBrowser = 11,
+  kMaxValue = kNoVisibleChromeBrowser,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:PercentOverlap)
+
 // LINT.IfChange(Error)
 enum class Error {
   kResponseStartWithoutInput = 0,
@@ -34,18 +89,20 @@ enum class Error {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseError)
 
-// LINT.IfChange(EntryPointImpression)
-enum class EntryPointImpression {
-  kBeforeFre = 0,
-  kAfterFreBrowserOnly = 1,
-  kAfterFreOsOnly = 2,
-  kAfterFreEnabled = 3,
-  kAfterFreDisabled = 4,
-  kNotPermitted = 5,
-  kIncompleteFre = 6,
-  kMaxValue = kIncompleteFre,
+// LINT.IfChange(EntryPointStatus)
+enum class EntryPointStatus {
+  kBeforeFreNotEligible = 0,
+  kBeforeFreAndEligible = 1,
+  kIncompleteFreNotEligible = 2,
+  kIncompleteFreAndEligible = 3,
+  kAfterFreBrowserOnly = 4,
+  kAfterFreOsOnly = 5,
+  kAfterFreBrowserAndOs = 6,
+  kAfterFreThreeDotOnly = 7,
+  kAfterFreNotEligible = 8,
+  kMaxValue = kAfterFreNotEligible,
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicEntryPointImpression)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicEntryPointStatus)
 
 // LINT.IfChange(ResponseSegmentation)
 enum class ResponseSegmentation {
@@ -94,12 +151,19 @@ enum class ResponseSegmentation {
   kAfterSignInAttachedAudio = 42,
   kAfterSignInDetachedText = 43,
   kAfterSignInDetachedAudio = 44,
-  kMaxValue = kAfterSignInDetachedAudio,
+  kSharedTabAttachedText = 45,
+  kSharedTabAttachedAudio = 46,
+  kSharedTabDetachedText = 47,
+  kSharedTabDetachedAudio = 48,
+  kActorTaskIconAttachedText = 49,
+  kActorTaskIconAttachedAudio = 50,
+  kActorTaskIconDetachedText = 51,
+  kActorTaskIconDetachedAudio = 52,
+  kMaxValue = kActorTaskIconDetachedAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicResponseSegmentation)
 
 // LINT.IfChange(GlicInputModesUsed)
-
 enum class InputModesUsed {
   kNone = 0,
   kOnlyText = 1,
@@ -108,11 +172,9 @@ enum class InputModesUsed {
 
   kMaxValue = kTextAndAudio,
 };
-
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInputModesUsed)
 
 // LINT.IfChange(AttachChangeReason)
-
 enum class AttachChangeReason {
   // Attach state changed because of a drag gesture.
   kDrag = 0,
@@ -123,11 +185,10 @@ enum class AttachChangeReason {
 
   kMaxValue = kInit,
 };
-
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicAttachChangeReason)
 
-// LINT.IfChange(GlicRequestEvent)
 // Events related to requests to the Glic API from the web client.
+// LINT.IfChange(GlicRequestEvent)
 enum class GlicRequestEvent {
   kRequestReceived = 0,
   kRequestSent = 1,
@@ -137,9 +198,36 @@ enum class GlicRequestEvent {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicRequestEvent)
 
+// LINT.IfChange(GlicGetContextFromFocusedTabError)
+enum class GlicGetContextFromFocusedTabError {
+  kUnknown = 0,
+  kPermissionDeniedWindowNotShowing = 1,
+  kTabNotFound = 2,
+  kPermissionDeniedContextPermissionNotEnabled = 3,
+  kPermissionDenied = 4,
+  kWebContentsChanged = 5,
+  kMaxValue = kWebContentsChanged,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicGetContextFromFocusedTabError)
+
+// The different states of active tab sharing.
+// LINT.IfChange(ActiveTabSharingState)
+enum class ActiveTabSharingState {
+  kActiveTabIsShared = 0,
+  kCannotShareActiveTab = 1,
+  kNoTabCanBeShared = 2,
+  kTabContextPermissionNotGranted = 3,
+  kMaxValue = kTabContextPermissionNotGranted
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:ActiveTabSharingState)
+
 class GlicEnabling;
-class GlicFocusedTabManager;
+class GlicSharingManager;
 class GlicWindowController;
+
+namespace internal {
+class BrowserActivityObserver;
+}
 
 // Responsible for all glic web-client metrics, and all stateful glic metrics.
 // Some stateless glic metrics are logged inline in the relevant code for
@@ -152,7 +240,9 @@ class GlicMetrics {
     virtual gfx::Size GetWindowSize() const = 0;
     virtual bool IsWindowShowing() const = 0;
     virtual bool IsWindowAttached() const = 0;
-    virtual FocusedTabData GetFocusedTabData() = 0;
+    virtual content::WebContents* GetContents() = 0;
+    virtual ActiveTabSharingState GetActiveTabSharingState() = 0;
+    virtual int32_t GetNumPinnedTabs() const = 0;
   };
 
   GlicMetrics(Profile* profile, GlicEnabling* enabling);
@@ -165,19 +255,25 @@ class GlicMetrics {
   // methods are called then controller_ is guaranteed to exist.
   void OnUserInputSubmitted(mojom::WebClientMode mode);
   void OnResponseStarted();
-  void OnResponseStopped();
+  void OnResponseStopped(mojom::ResponseStopCause cause);
   void OnSessionTerminated();
   void OnResponseRated(bool positive);
+  void OnTurnCompleted(mojom::WebClientModel model, base::TimeDelta duration);
+
   void OnAttachedToBrowser(AttachChangeReason reason);
   void OnDetachedFromBrowser(AttachChangeReason reason);
 
   // ----Public API called by other glic classes-----
+  // Called when the user clicks Accept in the FRE.
+  void OnFreAccepted();
   // Called when the glic window starts to open.
   void OnGlicWindowOpen(bool attached, mojom::InvocationSource source);
-  // Called when the glic window is open and ready.
-  void OnGlicWindowOpenAndReady();
   // Called just after the the glic window has been loaded into the UI.
-  void OnGlicWindowShown();
+  void OnGlicWindowShown(Browser* browser,
+                         std::optional<display::Display> glic_display,
+                         const gfx::Rect& glic_bounds);
+  // Called when the glic window has been opened and is ready.
+  void OnGlicWindowOpenAndReady();
   // Called when the glic window is resized.
   void OnGlicWindowResize();
   // Called when the glic window starts being resized by the user.
@@ -185,12 +281,31 @@ class GlicMetrics {
   // Called when the glic window stops being resized by the user.
   void OnWidgetUserResizeEnded();
   // Called when the glic window finishes closing.
-  void OnGlicWindowClose();
+  void OnGlicWindowClose(Browser* last_active_browser,
+                         std::optional<display::Display> display,
+                         const gfx::Rect& glic_bounds);
+  // Called when glic requests a scroll.
+  void OnGlicScrollAttempt();
+  // Called when scrolling starts (after glic requests to scroll) or if
+  // the operation fails. `success` is true if a scroll was successfully
+  // triggered.
+  void OnGlicScrollComplete(bool success);
+
+  // Called when a response is received with closed captions showing.
+  void LogClosedCaptionsShown();
+
+  // Logs an error that occurred while trying to get context from the focused
+  // tab.
+  void LogGetContextFromFocusedTabError(
+      GlicGetContextFromFocusedTabError error);
+
+  // See `last_input_mode_` for details.
+  mojom::WebClientMode last_input_mode() const { return last_input_mode_; }
 
   // Must be called immediately after constructor before any calls from
   // glic.mojom.
   void SetControllers(GlicWindowController* window_controller,
-                      GlicFocusedTabManager* tab_manager);
+                      GlicSharingManager* sharing_manager);
   void SetDelegateForTesting(std::unique_ptr<Delegate> delegate);
 
   // Must be called when context is requested.
@@ -216,8 +331,29 @@ class GlicMetrics {
   // Called when kGlicPinnedToTabstrip changes.
   void OnPinningPrefChanged();
 
+  // Called when kGlicTabContextEnabled changes.
+  void OnTabContextEnabledPrefChanged();
+
   // Resets the window timing state variables.
   void ResetGlicWindowPresentationTimingState();
+
+  // Returns the area in the display a given center point is.
+  DisplayPosition GetDisplayPositionOfPoint(
+      std::optional<display::Display> display,
+      const gfx::Point& glic_center_point);
+
+  // Returns the area relative to the given chrome browser a given center point
+  // is.
+  ChromeRelativePosition GetChromeRelativePositionOfPoint(
+      Browser* browser,
+      const gfx::Point& glic_center_point);
+
+  // Returns the percent overlap of the given glic bounds and the given chrome
+  // browser.
+  PercentOverlap GetPercentOverlapWithBrowser(Browser* browser,
+                                              const gfx::Rect& glic_bounds);
+
+  base::TimeTicks fre_accepted_time_;
 
   // These members are cleared in OnResponseStopped.
   base::TimeTicks input_submitted_time_;
@@ -273,6 +409,26 @@ class GlicMetrics {
   base::TimeTicks show_start_time_;
   // Web client's operation modes.
   mojom::WebClientMode starting_mode_ = mojom::WebClientMode::kUnknown;
+
+  // The following variables are used for recording scroll related metrics.
+  // The number of scroll attempts  (tracked per session and reset when the
+  // session ends).
+  int scroll_attempt_count_ = 0;
+  // These two variables mirror `input_submitted_time_` and
+  // `input_mode_`, but are only set when `OnGlicScrollAttempt()` is
+  // called. They are reset in `OnGlicScrollComplete()`. They are separately
+  // tracked because `OnGlicScrollComplete()` could potentially be called after
+  // `OnResponseStopped()`, which resets `input_submitted_time_` and
+  // `input_mode_`.
+  base::TimeTicks scroll_input_submitted_time_;
+  mojom::WebClientMode scroll_input_mode_;
+
+  // The last input mode used by the user. This is not cleared when the response
+  // is finished, so it can be used to attribute events that happen after the
+  // response has completed to the input mode that triggered them.
+  mojom::WebClientMode last_input_mode_ = mojom::WebClientMode::kUnknown;
+
+  std::unique_ptr<internal::BrowserActivityObserver> browser_activity_observer_;
 };
 
 }  // namespace glic

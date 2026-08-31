@@ -11,10 +11,12 @@
 #ifndef MODULES_VIDEO_CAPTURE_LINUX_DEVICE_INFO_PIPEWIRE_H_
 #define MODULES_VIDEO_CAPTURE_LINUX_DEVICE_INFO_PIPEWIRE_H_
 
-#include <stdint.h>
+#include <cstdint>
 
+#include "api/scoped_refptr.h"
 #include "modules/video_capture/device_info_impl.h"
 #include "modules/video_capture/video_capture_options.h"
+#include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 namespace videocapturemodule {

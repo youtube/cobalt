@@ -27,7 +27,6 @@ namespace ash {
 class DiagnosticsServiceAsh;
 class ProbeServiceAsh;
 class TelemetryDiagnosticsRoutineServiceAsh;
-class TelemetryEventServiceAsh;
 class TelemetryManagementServiceAsh;
 class VideoConferenceManagerAsh;
 
@@ -43,24 +42,10 @@ class PrintPreviewWebcontentsAdapterAsh;
 
 namespace crosapi {
 
-class CertProvisioningAsh;
-class ChapsServiceAsh;
-class DeviceAttributesAsh;
-class DeviceOAuth2TokenServiceAsh;
 class DocumentScanAsh;
-class FileSystemAccessCloudIdentifierProviderAsh;
 class FileSystemProviderServiceAsh;
-class FullscreenControllerAsh;
 class KeystoreServiceAsh;
-class KioskSessionServiceAsh;
 class LocalPrinterAsh;
-class LoginAsh;
-class LoginStateAsh;
-class MediaUIAsh;
-class MultiCaptureServiceAsh;
-class NetworkingAttributesAsh;
-class ParentAccessAsh;
-class StructuredMetricsServiceAsh;
 class VpnServiceAsh;
 
 // Implementation of Crosapi in Ash. It provides a set of APIs that
@@ -80,29 +65,16 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindAccountManager(
       mojo::PendingReceiver<mojom::AccountManager> receiver) override;
   void BindBrowserCdmFactory(mojo::GenericPendingReceiver receiver) override;
-  void BindCertProvisioning(
-      mojo::PendingReceiver<mojom::CertProvisioning> receiver) override;
   void BindCfmServiceContext(
       mojo::PendingReceiver<chromeos::cfm::mojom::CfmServiceContext> receiver)
       override;
-  void BindChapsService(
-      mojo::PendingReceiver<mojom::ChapsService> receiver) override;
   void BindCrosDisplayConfigController(
       mojo::PendingReceiver<mojom::CrosDisplayConfigController> receiver)
       override;
-  void BindDeviceAttributes(
-      mojo::PendingReceiver<mojom::DeviceAttributes> receiver) override;
-  void BindDeviceOAuth2TokenService(
-      mojo::PendingReceiver<mojom::DeviceOAuth2TokenService> receiver) override;
   void BindDiagnosticsService(
       mojo::PendingReceiver<mojom::DiagnosticsService> receiver) override;
   void BindDocumentScan(
       mojo::PendingReceiver<mojom::DocumentScan> receiver) override;
-  void BindFileSystemAccessCloudIdentifierProvider(
-      mojo::PendingReceiver<mojom::FileSystemAccessCloudIdentifierProvider>
-          receiver) override;
-  void BindFullscreenController(
-      mojo::PendingReceiver<mojom::FullscreenController> receiver) override;
   void BindHidManager(
       mojo::PendingReceiver<device::mojom::HidManager> receiver) override;
   void BindInSessionAuth(
@@ -110,18 +82,12 @@ class CrosapiAsh : public mojom::Crosapi {
       override;
   void BindKeystoreService(
       mojo::PendingReceiver<mojom::KeystoreService> receiver) override;
-  void BindKioskSessionService(
-      mojo::PendingReceiver<mojom::KioskSessionService> receiver) override;
   void BindLocalPrinter(
       mojo::PendingReceiver<mojom::LocalPrinter> receiver) override;
-  void BindLogin(mojo::PendingReceiver<mojom::Login> receiver) override;
-  void BindLoginState(
-      mojo::PendingReceiver<mojom::LoginState> receiver) override;
   void BindMachineLearningService(
       mojo::PendingReceiver<
           chromeos::machine_learning::mojom::MachineLearningService> receiver)
       override;
-  void BindMediaUI(mojo::PendingReceiver<mojom::MediaUI> receiver) override;
   void BindMediaSessionAudioFocus(
       mojo::PendingReceiver<media_session::mojom::AudioFocusManager> receiver)
       override;
@@ -131,16 +97,8 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindMediaSessionController(
       mojo::PendingReceiver<media_session::mojom::MediaControllerManager>
           receiver) override;
-  void BindMultiCaptureService(
-      mojo::PendingReceiver<mojom::MultiCaptureService> receiver) override;
   void BindNetworkChange(
       mojo::PendingReceiver<mojom::NetworkChange> receiver) override;
-  void BindNetworkingAttributes(
-      mojo::PendingReceiver<mojom::NetworkingAttributes> receiver) override;
-  void BindParentAccess(
-      mojo::PendingReceiver<mojom::ParentAccess> receiver) override;
-  void BindPrintPreviewCrosDelegate(
-      mojo::PendingReceiver<mojom::PrintPreviewCrosDelegate> receiver) override;
   void BindRemoteAppsLacrosBridge(
       mojo::PendingReceiver<
           chromeos::remote_apps::mojom::RemoteAppsLacrosBridge> receiver)
@@ -148,14 +106,9 @@ class CrosapiAsh : public mojom::Crosapi {
   void BindSensorHalClient(
       mojo::PendingRemote<chromeos::sensors::mojom::SensorHalClient> remote)
       override;
-  void BindStructuredMetricsService(
-      ::mojo::PendingReceiver<::crosapi::mojom::StructuredMetricsService>
-          receiver) override;
   void BindTelemetryDiagnosticRoutinesService(
       mojo::PendingReceiver<mojom::TelemetryDiagnosticRoutinesService> receiver)
       override;
-  void BindTelemetryEventService(
-      mojo::PendingReceiver<mojom::TelemetryEventService> receiver) override;
   void BindTelemetryManagementService(
       mojo::PendingReceiver<mojom::TelemetryManagementService> receiver)
       override;
@@ -170,56 +123,17 @@ class CrosapiAsh : public mojom::Crosapi {
       mojo::PendingReceiver<mojom::GuestOsSkForwarderFactory> receiver)
       override;
 
-  CertProvisioningAsh* cert_provisioning_ash() {
-    return cert_provisioning_ash_.get();
-  }
-
-  ChapsServiceAsh* chaps_service_ash() { return chaps_service_ash_.get(); }
-
-  DeviceAttributesAsh* device_attributes_ash() {
-    return device_attributes_ash_.get();
-  }
-
   DocumentScanAsh* document_scan_ash() { return document_scan_ash_.get(); }
-
-  FileSystemAccessCloudIdentifierProviderAsh*
-  file_system_access_cloud_identifier_provider_ash() {
-    return file_system_access_cloud_identifier_provider_ash_.get();
-  }
 
   FileSystemProviderServiceAsh* file_system_provider_service_ash() {
     return file_system_provider_service_ash_.get();
-  }
-
-  FullscreenControllerAsh* fullscreen_controller_ash() {
-    return fullscreen_controller_ash_.get();
   }
 
   KeystoreServiceAsh* keystore_service_ash() {
     return keystore_service_ash_.get();
   }
 
-  KioskSessionServiceAsh* kiosk_session_service() {
-    return kiosk_session_service_ash_.get();
-  }
-
   LocalPrinterAsh* local_printer_ash() { return local_printer_ash_.get(); }
-
-  LoginAsh* login_ash() { return login_ash_.get(); }
-
-  LoginStateAsh* login_state_ash() { return login_state_ash_.get(); }
-
-  MediaUIAsh* media_ui_ash() { return media_ui_ash_.get(); }
-
-  MultiCaptureServiceAsh* multi_capture_service_ash() {
-    return multi_capture_service_ash_.get();
-  }
-
-  NetworkingAttributesAsh* networking_attributes_ash() {
-    return networking_attributes_ash_.get();
-  }
-
-  ParentAccessAsh* parent_access_ash() { return parent_access_ash_.get(); }
 
   ash::printing::PrintPreviewWebcontentsAdapterAsh*
   print_preview_webcontents_adapter_ash() {
@@ -227,10 +141,6 @@ class CrosapiAsh : public mojom::Crosapi {
   }
 
   ash::ProbeServiceAsh* probe_service_ash() { return probe_service_ash_.get(); }
-
-  StructuredMetricsServiceAsh* structured_metrics_service_ash() {
-    return structured_metrics_service_ash_.get();
-  }
 
   ash::VideoConferenceManagerAsh* video_conference_manager_ash() {
     return video_conference_manager_ash_.get();
@@ -242,35 +152,19 @@ class CrosapiAsh : public mojom::Crosapi {
   // Called when a connection is lost.
   void OnDisconnected();
 
-  std::unique_ptr<CertProvisioningAsh> cert_provisioning_ash_;
-  std::unique_ptr<ChapsServiceAsh> chaps_service_ash_;
-  std::unique_ptr<DeviceAttributesAsh> device_attributes_ash_;
-  std::unique_ptr<DeviceOAuth2TokenServiceAsh> device_oauth2_token_service_ash_;
   std::unique_ptr<ash::DiagnosticsServiceAsh> diagnostics_service_ash_;
   std::unique_ptr<DocumentScanAsh> document_scan_ash_;
-  std::unique_ptr<FileSystemAccessCloudIdentifierProviderAsh>
-      file_system_access_cloud_identifier_provider_ash_;
   std::unique_ptr<FileSystemProviderServiceAsh>
       file_system_provider_service_ash_;
-  std::unique_ptr<FullscreenControllerAsh> fullscreen_controller_ash_;
   std::unique_ptr<KeystoreServiceAsh> keystore_service_ash_;
-  std::unique_ptr<KioskSessionServiceAsh> kiosk_session_service_ash_;
   std::unique_ptr<LocalPrinterAsh> local_printer_ash_;
-  std::unique_ptr<LoginAsh> login_ash_;
-  std::unique_ptr<LoginStateAsh> login_state_ash_;
-  std::unique_ptr<MediaUIAsh> media_ui_ash_;
-  std::unique_ptr<MultiCaptureServiceAsh> multi_capture_service_ash_;
-  std::unique_ptr<NetworkingAttributesAsh> networking_attributes_ash_;
-  std::unique_ptr<ParentAccessAsh> parent_access_ash_;
   std::unique_ptr<ash::TelemetryDiagnosticsRoutineServiceAsh>
       telemetry_diagnostic_routine_service_ash_;
-  std::unique_ptr<ash::TelemetryEventServiceAsh> telemetry_event_service_ash_;
   std::unique_ptr<ash::TelemetryManagementServiceAsh>
       telemetry_management_service_ash_;
   std::unique_ptr<ash::ProbeServiceAsh> probe_service_ash_;
   std::unique_ptr<ash::printing::PrintPreviewWebcontentsAdapterAsh>
       print_preview_webcontents_adapter_ash_;
-  std::unique_ptr<StructuredMetricsServiceAsh> structured_metrics_service_ash_;
   std::unique_ptr<ash::VideoConferenceManagerAsh> video_conference_manager_ash_;
   std::unique_ptr<VpnServiceAsh> vpn_service_ash_;
 

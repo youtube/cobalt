@@ -52,6 +52,9 @@ struct AddressLineParsingTestCase {
   std::string cross_streets;
   std::string cross_streets_1;
   std::string cross_streets_2;
+  std::string zip;
+  std::string zip_prefix;
+  std::string zip_suffix;
 };
 
 std::ostream& operator<<(std::ostream& out,
@@ -73,19 +76,15 @@ std::ostream& operator<<(std::ostream& out,
   out << "Cross streets 2: " << test_case.cross_streets_2 << std::endl;
   out << "House number and apartment number: " << test_case.building_and_unit
       << std::endl;
+  out << "Zip: " << test_case.zip << std::endl;
+  out << "Zip prefix: " << test_case.zip_prefix << std::endl;
+  out << "Zip suffix: " << test_case.zip_suffix << std::endl;
   return out;
 }
 
 class AutofillStructuredAddress : public testing::Test {
- public:
-  AutofillStructuredAddress() {
-    features_.InitWithFeatures({features::kAutofillUseINAddressModel,
-                                features::kAutofillUseNLAddressModel},
-                               {});
-  }
-
  private:
-  base::test::ScopedFeatureList features_;
+  base::test::ScopedFeatureList features_{features::kAutofillUseINAddressModel};
 };
 
 void TestAddressLineParsing(const AddressLineParsingTestCase& test_case) {
@@ -764,23 +763,39 @@ TEST_F(AutofillStructuredAddress, TestGetCommonCountry) {
       test_api(*address2.Root()).GetNodeForType(ADDRESS_HOME_COUNTRY);
 
   // No countries set.
-  EXPECT_EQ(country1->GetCommonCountry(*country2), AddressCountryCode(""));
-  EXPECT_EQ(country2->GetCommonCountry(*country1), AddressCountryCode(""));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country1->GetCountryCode(),
+                                               country2->GetCountryCode()),
+            AddressCountryCode(""));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country2->GetCountryCode(),
+                                               country1->GetCountryCode()),
+            AddressCountryCode(""));
 
   // If exactly one country is set, use it as their common one.
   country1->SetValue(u"AT", VerificationStatus::kObserved);
-  EXPECT_EQ(country1->GetCommonCountry(*country2), AddressCountryCode("AT"));
-  EXPECT_EQ(country2->GetCommonCountry(*country1), AddressCountryCode("AT"));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country1->GetCountryCode(),
+                                               country2->GetCountryCode()),
+            AddressCountryCode("AT"));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country2->GetCountryCode(),
+                                               country1->GetCountryCode()),
+            AddressCountryCode("AT"));
 
   // If both are set to the same value, use it as their common one.
   country2->SetValue(u"AT", VerificationStatus::kObserved);
-  EXPECT_EQ(country1->GetCommonCountry(*country2), AddressCountryCode("AT"));
-  EXPECT_EQ(country2->GetCommonCountry(*country1), AddressCountryCode("AT"));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country1->GetCountryCode(),
+                                               country2->GetCountryCode()),
+            AddressCountryCode("AT"));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country2->GetCountryCode(),
+                                               country1->GetCountryCode()),
+            AddressCountryCode("AT"));
 
   // If both have a different value, there is no common one.
   country2->SetValue(u"DE", VerificationStatus::kObserved);
-  EXPECT_EQ(country1->GetCommonCountry(*country2), AddressCountryCode(""));
-  EXPECT_EQ(country2->GetCommonCountry(*country1), AddressCountryCode(""));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country1->GetCountryCode(),
+                                               country2->GetCountryCode()),
+            AddressCountryCode(""));
+  EXPECT_EQ(AddressComponent::GetCommonCountry(country2->GetCountryCode(),
+                                               country1->GetCountryCode()),
+            AddressCountryCode(""));
 }
 
 // Tests retrieving a value for comparison for a field type.
@@ -798,18 +813,18 @@ TEST_F(AutofillStructuredAddress, TestGetValueForComparisonForType) {
                                               u"Main Street\nOther Street",
                                               VerificationStatus::kObserved));
   EXPECT_EQ(street_address->GetValueForComparisonForType(
-                ADDRESS_HOME_STREET_ADDRESS, *street_address),
+                ADDRESS_HOME_STREET_ADDRESS, street_address->GetCountryCode()),
             u"main st other st");
-  EXPECT_EQ(street_address->GetValueForComparisonForType(ADDRESS_HOME_LINE1,
-                                                         *street_address),
+  EXPECT_EQ(street_address->GetValueForComparisonForType(
+                ADDRESS_HOME_LINE1, street_address->GetCountryCode()),
             u"main st");
-  EXPECT_EQ(street_address->GetValueForComparisonForType(ADDRESS_HOME_LINE2,
-                                                         *street_address),
+  EXPECT_EQ(street_address->GetValueForComparisonForType(
+                ADDRESS_HOME_LINE2, street_address->GetCountryCode()),
             u"other st");
-  EXPECT_TRUE(
-      street_address
-          ->GetValueForComparisonForType(ADDRESS_HOME_LINE3, *street_address)
-          .empty());
+  EXPECT_TRUE(street_address
+                  ->GetValueForComparisonForType(
+                      ADDRESS_HOME_LINE3, street_address->GetCountryCode())
+                  .empty());
 }
 
 // Tests that when merging two equivalent street addresses, the longer one is
@@ -2501,7 +2516,6 @@ TEST_F(AutofillStructuredAddress, ParseStreetAddressIT) {
 }
 
 TEST_F(AutofillStructuredAddress, ParseStreetLocationFR) {
-  base::test::ScopedFeatureList features_{features::kAutofillUseFRAddressModel};
   std::vector<AddressLineParsingTestCase> test_cases = {
       // Examples of street locations (building-location) for France.
       {.country_code = "FR",
@@ -2548,7 +2562,6 @@ TEST_F(AutofillStructuredAddress, ParseStreetLocationFR) {
 }
 
 TEST_F(AutofillStructuredAddress, ParseStreetAddressFR) {
-  base::test::ScopedFeatureList features_{features::kAutofillUseFRAddressModel};
   std::vector<AddressLineParsingTestCase> test_cases = {
       // Examples of street addresses for France.
       {.country_code = "FR",
@@ -2919,6 +2932,198 @@ TEST_F(AutofillStructuredAddress, ParseStreetAddressNL) {
          .value = test_case.apartment_num,
          .status = VerificationStatus::kParsed},
     };
+    VerifyTestValues(address.Root(), expectation);
+  }
+}
+
+TEST_F(AutofillStructuredAddress, ZipCodeParsing) {
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillSupportSplitZipCode};
+  std::vector<AddressLineParsingTestCase> test_cases = {
+      {.country_code = "US",
+       .zip = "90210-5555",
+       .zip_prefix = "90210",
+       .zip_suffix = "5555"},
+      {.country_code = "US",
+       .zip = "90210 - 5555",
+       .zip_prefix = "90210",
+       .zip_suffix = "5555"},
+      {.country_code = "US",
+       .zip = "902105555",
+       .zip_prefix = "90210",
+       .zip_suffix = "5555"},
+      {.country_code = "US",
+       .zip = "90210",
+       .zip_prefix = "90210",
+       .zip_suffix = ""},
+      {.country_code = "US",
+       .zip = "90210-55",
+       .zip_prefix = "90210-55",
+       .zip_suffix = ""},
+      {.country_code = "CA",
+       .zip = "K1A 0B1",
+       .zip_prefix = "K1A",
+       .zip_suffix = "0B1"},
+      {.country_code = "CA",
+       .zip = "K1A0B1",
+       .zip_prefix = "K1A",
+       .zip_suffix = "0B1"},
+      {.country_code = "CA",
+       .zip = "M5V 2T6",
+       .zip_prefix = "M5V",
+       .zip_suffix = "2T6"},
+      {.country_code = "GB",
+       .zip = "SW1A 0AA",
+       .zip_prefix = "SW1A",
+       .zip_suffix = "0AA"},
+      {.country_code = "JP",
+       .zip = "163-8001",
+       .zip_prefix = "163",
+       .zip_suffix = "8001"},
+      {.country_code = "PL",
+       .zip = "00-843",
+       .zip_prefix = "00",
+       .zip_suffix = "843"},
+      {.country_code = "PL",
+       .zip = "00843",
+       .zip_prefix = "00",
+       .zip_suffix = "843"},
+      {.country_code = "PL",
+       .zip = "00-950",
+       .zip_prefix = "00",
+       .zip_suffix = "950"},
+      {.country_code = "NL",
+       .zip = "1234 AB",
+       .zip_prefix = "1234",
+       .zip_suffix = "AB"},
+      {.country_code = "NL",
+       .zip = "1234AB",
+       .zip_prefix = "1234",
+       .zip_suffix = "AB"},
+      {.country_code = "BR",
+       .zip = "12345-678",
+       .zip_prefix = "12345",
+       .zip_suffix = "678"},
+      {.country_code = "BR",
+       .zip = "12345678",
+       .zip_prefix = "12345",
+       .zip_suffix = "678"},
+  };
+
+  for (const auto& test_case : test_cases) {
+    AddressComponentsStore address =
+        i18n_model_definition::CreateAddressComponentModel(
+            AddressCountryCode(test_case.country_code));
+
+    const AddressComponentTestValues test_value = {
+        {.type = ADDRESS_HOME_COUNTRY,
+         .value = test_case.country_code,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP,
+         .value = test_case.zip,
+         .status = VerificationStatus::kObserved}};
+
+    SetTestValues(address.Root(), test_value);
+    const AddressComponentTestValues expectation = {
+        {.type = ADDRESS_HOME_COUNTRY,
+         .value = test_case.country_code,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP,
+         .value = test_case.zip,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP_PREFIX,
+         .value = test_case.zip_prefix,
+         .status = VerificationStatus::kParsed},
+        {.type = ADDRESS_HOME_ZIP_SUFFIX,
+         .value = test_case.zip_suffix,
+         .status = VerificationStatus::kParsed},
+    };
+    VerifyTestValues(address.Root(), expectation);
+  }
+}
+
+TEST_F(AutofillStructuredAddress, ZipCodeFormatting) {
+  base::test::ScopedFeatureList scoped_feature_list_{
+      features::kAutofillSupportSplitZipCode};
+  std::vector<AddressLineParsingTestCase> test_cases = {
+      {.country_code = "US",
+       .zip = "94043-4100",
+       .zip_prefix = "94043",
+       .zip_suffix = "4100"},
+      {.country_code = "US",
+       .zip = "94043",
+       .zip_prefix = "94043",
+       .zip_suffix = ""},
+      {.country_code = "US",
+       .zip = "4100",
+       .zip_prefix = "",
+       .zip_suffix = "4100"},
+      {.country_code = "US", .zip = "", .zip_prefix = "", .zip_suffix = ""},
+      {.country_code = "JP",
+       .zip = "163-8001",
+       .zip_prefix = "163",
+       .zip_suffix = "8001"},
+      {.country_code = "CA",
+       .zip = "K1A 0B1",
+       .zip_prefix = "K1A",
+       .zip_suffix = "0B1"},
+      {.country_code = "NL",
+       .zip = "1234 AB",
+       .zip_prefix = "1234",
+       .zip_suffix = "AB"},
+      {.country_code = "BR",
+       .zip = "01311-000",
+       .zip_prefix = "01311",
+       .zip_suffix = "000"},
+      {.country_code = "PT",
+       .zip = "1000-001",
+       .zip_prefix = "1000",
+       .zip_suffix = "001"},
+      {.country_code = "GB",
+       .zip = "SW1A 1AA",
+       .zip_prefix = "SW1A",
+       .zip_suffix = "1AA"},
+      {.country_code = "IE",
+       .zip = "D02 X285",
+       .zip_prefix = "D02",
+       .zip_suffix = "X285"},
+      {.country_code = "SE",
+       .zip = "114 55",
+       .zip_prefix = "114",
+       .zip_suffix = "55"},
+  };
+
+  for (const auto& test_case : test_cases) {
+    AddressComponentsStore address =
+        i18n_model_definition::CreateAddressComponentModel(
+            AddressCountryCode(test_case.country_code));
+
+    const AddressComponentTestValues test_value = {
+        {.type = ADDRESS_HOME_COUNTRY,
+         .value = test_case.country_code,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP_PREFIX,
+         .value = test_case.zip_prefix,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP_SUFFIX,
+         .value = test_case.zip_suffix,
+         .status = VerificationStatus::kObserved}};
+
+    SetTestValues(address.Root(), test_value);
+
+    const AddressComponentTestValues expectation = {
+        {.type = ADDRESS_HOME_COUNTRY,
+         .value = test_case.country_code,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP,
+         .value = test_case.zip,
+         .status = VerificationStatus::kFormatted},
+        {.type = ADDRESS_HOME_ZIP_PREFIX,
+         .value = test_case.zip_prefix,
+         .status = VerificationStatus::kObserved},
+        {.type = ADDRESS_HOME_ZIP_SUFFIX,
+         .value = test_case.zip_suffix,
+         .status = VerificationStatus::kObserved}};
     VerifyTestValues(address.Root(), expectation);
   }
 }
