@@ -14,13 +14,17 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "build/build_config.h"
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_system_memory_info.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
+#include "v8/include/v8.h"
 
 namespace blink {
 
@@ -41,19 +45,75 @@ mojo::Remote<performance::mojom::CobaltPerformance> BindRemotePerformance(
 
 }  // namespace
 
-uint64_t PerformanceExtensions::measureAvailableCpuMemory(
+SystemMemoryInfo* PerformanceExtensions::measureSystemMemoryInfo(
     ScriptState* script_state,
     const Performance&) {
+  auto* result = SystemMemoryInfo::Create();
+
+  performance::mojom::SystemMemoryInfoPtr info;
+  BindRemotePerformance(script_state)->MeasureSystemMemoryInfo(&info);
+
+  if (info) {
+    result->setFreeRssMemory(info->free_rss_memory);
+    result->setUsedRssMemory(info->used_rss_memory);
+    result->setUsedSwapMemory(info->used_swap_memory);
+    result->setReservedVirtualMemory(info->reserved_virtual_memory);
+    result->setRssHighWaterMarkMemory(info->rss_high_water_mark_memory);
+    result->setUsedRssAnonMemory(info->used_rss_anon_memory);
+    result->setTotalCpuMemory(info->total_cpu_memory);
+    result->setUsedPssMemory(info->used_pss_memory);
+    result->setApplicationLimitMemory(info->application_limit_memory);
+    if (info->used_gpu_memory.has_value()) {
+      result->setUsedGpuMemory(info->used_gpu_memory.value());
+    }
+  }
+
+  if (script_state && script_state->GetIsolate()) {
+    v8::HeapStatistics heap_statistics;
+    script_state->GetIsolate()->GetHeapStatistics(&heap_statistics);
+    result->setUsedJSHeapSize(heap_statistics.used_heap_size());
+    result->setTotalJSHeapSize(heap_statistics.total_physical_size());
+    result->setJsHeapSizeLimit(heap_statistics.heap_size_limit());
+  }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (Platform::Current()) {
+    result->setMediaSourceTotalAllocatedMemory(
+        Platform::Current()->GetMediaSourceTotalAllocatedMemory());
+    result->setMediaSourceCurrentMemoryCapacity(
+        Platform::Current()->GetMediaSourceCurrentMemoryCapacity());
+    result->setMediaSourceMaximumMemoryCapacity(
+        Platform::Current()->GetMediaSourceMaximumMemoryCapacity());
+  }
+#endif
+
+  return result;
+}
+
+uint64_t PerformanceExtensions::measureFreeRssMemory(ScriptState* script_state,
+                                                     const Performance&) {
   uint64_t free_memory = 0;
-  BindRemotePerformance(script_state)->MeasureAvailableCpuMemory(&free_memory);
+  BindRemotePerformance(script_state)->MeasureFreeRssMemory(&free_memory);
   return free_memory;
 }
 
-uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
+uint64_t PerformanceExtensions::measureAvailableCpuMemory(
+    ScriptState* script_state,
+    const Performance& performance) {
+  return measureFreeRssMemory(script_state, performance);
+}
+
+uint64_t PerformanceExtensions::measureUsedRssMemory(ScriptState* script_state,
                                                      const Performance&) {
   uint64_t used_memory = 0;
-  BindRemotePerformance(script_state)->MeasureUsedCpuMemory(&used_memory);
+  BindRemotePerformance(script_state)->MeasureUsedRssMemory(&used_memory);
   return used_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedCpuMemory(
+    ScriptState* script_state,
+    const Performance& performance) {
+  return measureUsedRssMemory(script_state, performance);
 }
 
 uint64_t PerformanceExtensions::measureUsedSwapMemory(ScriptState* script_state,
