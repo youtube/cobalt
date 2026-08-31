@@ -308,6 +308,7 @@ source_set("resource_scheduler") {
   ]
   deps = [
     "//base",
+    "//cobalt/build/configs:buildflags",
     "//content/public/browser",
     "//net",
     "//services/network/public/cpp",

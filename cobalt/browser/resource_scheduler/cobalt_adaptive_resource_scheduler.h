@@ -24,6 +24,7 @@
 #include "base/synchronization/lock.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "cobalt/build/configs/buildflags.h"
 
 namespace cobalt {
 
@@ -64,6 +65,12 @@ class CobaltAdaptiveResourceScheduler {
   // Called when cold startup is complete (e.g. main frame rendered).
   void OnStartupCompleted();
 
+#if !defined(OFFICIAL_BUILD)
+  // Called when a visual frame is rendered after user interaction (non-official
+  // builds, e.g. devel and qa).
+  void OnVisualFrameRendered(base::TimeTicks key_time, bool success);
+#endif
+
   // Called when a D-Pad key event or navigation input is detected.
   void OnUserInteraction(int key_code);
 
@@ -102,6 +109,16 @@ class CobaltAdaptiveResourceScheduler {
   bool is_scrolling_ GUARDED_BY(lock_) = false;
   base::TimeDelta settle_delay_ GUARDED_BY(lock_);
   base::TimeTicks last_interaction_time_ GUARDED_BY(lock_);
+
+#if !defined(OFFICIAL_BUILD)
+  // Frame timing & smoothness metrics during scrolling sessions (non-official
+  // builds, e.g. devel and qa)
+  size_t session_frame_count_ GUARDED_BY(lock_) = 0;
+  size_t session_janky_frames_ GUARDED_BY(lock_) = 0;
+  base::TimeDelta session_total_latency_ GUARDED_BY(lock_);
+  base::TimeTicks session_start_time_ GUARDED_BY(lock_);
+  base::TimeTicks session_last_frame_time_ GUARDED_BY(lock_);
+#endif
 
   std::set<CobaltResourceThrottle*> deferred_throttles_ GUARDED_BY(lock_);
 };

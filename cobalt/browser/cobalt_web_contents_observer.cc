@@ -235,6 +235,14 @@ void CobaltWebContentsObserver::DidGetUserInteraction(
   auto* scheduler = CobaltAdaptiveResourceScheduler::GetInstance();
   if (scheduler) {
     scheduler->OnUserInteraction(key_code);
+#if !defined(OFFICIAL_BUILD)
+    if (web_contents() && web_contents()->GetPrimaryMainFrame()) {
+      web_contents()->GetPrimaryMainFrame()->InsertVisualStateCallback(
+          base::BindOnce(
+              &CobaltAdaptiveResourceScheduler::OnVisualFrameRendered,
+              base::Unretained(scheduler), base::TimeTicks::Now()));
+    }
+#endif
   }
 }
 

@@ -123,11 +123,27 @@ void CobaltAdaptiveResourceScheduler::SetStartupStateForTesting(
   DrainDeferredQueue();
 }
 
-void CobaltAdaptiveResourceScheduler::OnUserInteraction(int key_code) {
-  if (!IsEnabled()) {
-    return;
+#if !defined(OFFICIAL_BUILD)
+void CobaltAdaptiveResourceScheduler::OnVisualFrameRendered(
+    base::TimeTicks key_time,
+    bool success) {
+  base::TimeTicks now = base::TimeTicks::Now();
+  base::AutoLock lock(lock_);
+  if (!session_start_time_.is_null()) {
+    session_frame_count_++;
+    base::TimeDelta frame_interval = session_last_frame_time_.is_null()
+                                         ? base::Milliseconds(16)
+                                         : (now - session_last_frame_time_);
+    session_last_frame_time_ = now;
+    session_total_latency_ += frame_interval;
+    if (frame_interval > base::Milliseconds(24)) {
+      session_janky_frames_++;
+    }
   }
+}
+#endif
 
+void CobaltAdaptiveResourceScheduler::OnUserInteraction(int key_code) {
   base::TimeTicks now = base::TimeTicks::Now();
   base::TimeDelta delay;
   {
@@ -135,6 +151,13 @@ void CobaltAdaptiveResourceScheduler::OnUserInteraction(int key_code) {
     if (!is_scrolling_) {
       LOG(INFO) << "CobaltAdaptiveResourceScheduler: Interaction detected (key "
                 << key_code << "). Transitioning to SCROLLING state.";
+#if !defined(OFFICIAL_BUILD)
+      session_frame_count_ = 0;
+      session_janky_frames_ = 0;
+      session_total_latency_ = base::TimeDelta();
+      session_start_time_ = now;
+      session_last_frame_time_ = base::TimeTicks();
+#endif
     }
     is_scrolling_ = true;
     last_interaction_time_ = now;
@@ -163,10 +186,34 @@ void CobaltAdaptiveResourceScheduler::CheckScrollSettled(
       return;
     }
     is_scrolling_ = false;
+
+#if !defined(OFFICIAL_BUILD)
+    if (session_frame_count_ > 0) {
+      double avg_latency_ms =
+          session_total_latency_.InMillisecondsF() / session_frame_count_;
+      double jank_rate = (session_janky_frames_ * 100.0) / session_frame_count_;
+      double avg_fps = avg_latency_ms > 0 ? (1000.0 / avg_latency_ms) : 60.0;
+      if (avg_fps > 60.0) {
+        avg_fps = 60.0;
+      }
+      LOG(INFO) << "CobaltScheduler: Scroll Session Stats: Total Frames="
+                << session_frame_count_
+                << ", Janky Frames=" << session_janky_frames_ << " ("
+                << jank_rate << "%), Avg Latency=" << avg_latency_ms
+                << "ms, Avg FPS=" << avg_fps
+                << ", Deferred Images=" << deferred_throttles_.size();
+    } else {
+      LOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle timer expired. "
+                   "Transitioning to IDLE. "
+                << "Draining " << deferred_throttles_.size()
+                << " deferred requests.";
+    }
+#else
     LOG(INFO) << "CobaltAdaptiveResourceScheduler: Settle timer expired. "
                  "Transitioning to IDLE. "
               << "Draining " << deferred_throttles_.size()
               << " deferred requests.";
+#endif
     if (is_starting_up_) {
       return;
     }
