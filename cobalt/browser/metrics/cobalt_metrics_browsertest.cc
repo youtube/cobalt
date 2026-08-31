@@ -27,8 +27,10 @@
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "net/test/embedded_test_server/embedded_test_server.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation_features.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -354,6 +356,45 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   // on the first call
   EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
             1);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsPageLoadMetrics) {
+  base::HistogramTester histogram_tester;
+
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  auto waiter = std::make_unique<page_load_metrics::PageLoadMetricsTestWaiter>(
+      shell()->web_contents());
+  waiter->AddPageExpectation(page_load_metrics::PageLoadMetricsTestWaiter::
+                                 TimingField::kFirstContentfulPaint);
+  waiter->AddPageExpectation(page_load_metrics::PageLoadMetricsTestWaiter::
+                                 TimingField::kLargestContentfulPaint);
+  waiter->AddPageExpectation(
+      page_load_metrics::PageLoadMetricsTestWaiter::TimingField::kLoadEvent);
+
+  GURL test_url = embedded_test_server()->GetURL("/title1.html");
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), test_url));
+
+  waiter->Wait();
+
+  // Navigate away to ensure all terminal page load metrics are flushed.
+  ASSERT_TRUE(
+      content::NavigateToURL(shell()->web_contents(), GURL("about:blank")));
+
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  histogram_tester.ExpectTotalCount(
+      "PageLoad.PaintTiming.NavigationToFirstContentfulPaint", 1);
+  histogram_tester.ExpectTotalCount(
+      "PageLoad.PaintTiming.NavigationToLargestContentfulPaint2", 1);
+  histogram_tester.ExpectTotalCount(
+      "PageLoad.DocumentTiming.NavigationToDOMContentLoadedEventFired", 1);
+  histogram_tester.ExpectTotalCount(
+      "PageLoad.DocumentTiming.NavigationToLoadEventFired", 1);
+  histogram_tester.ExpectTotalCount(
+      "PageLoad.LayoutInstability.MaxCumulativeShiftScore.SessionWindow."
+      "Gap1000ms.Max5000ms2",
+      1);
 }
 
 }  // namespace cobalt

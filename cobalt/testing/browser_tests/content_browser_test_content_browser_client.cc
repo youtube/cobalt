@@ -17,9 +17,17 @@
 #include <optional>
 #include <string_view>
 
+#include "base/functional/bind.h"
 #include "base/test/task_environment.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/metrics/cobalt_page_load_metrics_embedder.h"
+#include "components/page_load_metrics/browser/metrics_navigation_throttle.h"
+#include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
+#include "components/page_load_metrics/common/page_load_metrics.mojom.h"
+#include "content/public/browser/navigation_throttle_registry.h"
 #include "content/public/common/content_client.h"
+#include "mojo/public/cpp/bindings/pending_associated_receiver.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 
 namespace content {
 
@@ -60,6 +68,37 @@ void ContentBrowserTestContentBrowserClient::
   cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
+}
+
+void ContentBrowserTestContentBrowserClient::OnWebContentsCreated(
+    WebContents* web_contents) {
+  if (!page_load_metrics::MetricsWebContentsObserver::FromWebContents(
+          web_contents)) {
+    page_load_metrics::MetricsWebContentsObserver::CreateForWebContents(
+        web_contents,
+        std::make_unique<cobalt::CobaltPageLoadMetricsEmbedder>(web_contents));
+  }
+}
+
+void ContentBrowserTestContentBrowserClient::CreateThrottlesForNavigation(
+    content::NavigationThrottleRegistry& registry) {
+  ShellContentBrowserClient::CreateThrottlesForNavigation(registry);
+  page_load_metrics::MetricsNavigationThrottle::CreateAndAdd(registry);
+}
+
+void ContentBrowserTestContentBrowserClient::
+    RegisterAssociatedInterfaceBindersForRenderFrameHost(
+        RenderFrameHost& render_frame_host,
+        blink::AssociatedInterfaceRegistry& associated_registry) {
+  associated_registry.AddInterface<page_load_metrics::mojom::PageLoadMetrics>(
+      base::BindRepeating(
+          [](content::RenderFrameHost* rfh,
+             mojo::PendingAssociatedReceiver<
+                 page_load_metrics::mojom::PageLoadMetrics> receiver) {
+            page_load_metrics::MetricsWebContentsObserver::BindPageLoadMetrics(
+                std::move(receiver), rfh);
+          },
+          base::Unretained(&render_frame_host)));
 }
 
 }  // namespace content

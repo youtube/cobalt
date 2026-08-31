@@ -19,7 +19,13 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 
+namespace blink {
+class AssociatedInterfaceRegistry;
+}  // namespace blink
+
 namespace content {
+
+class NavigationThrottleRegistry;
 
 // ContentBrowserClient implementation used in content browser tests.
 // For tests that need to change the ContentBrowserClient subclass this
@@ -37,6 +43,15 @@ class ContentBrowserTestContentBrowserClient
   void RegisterBrowserInterfaceBindersForFrame(
       RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<RenderFrameHost*>* map) override;
+
+  void OnWebContentsCreated(WebContents* web_contents) override;
+
+  void CreateThrottlesForNavigation(
+      NavigationThrottleRegistry& registry) override;
+
+  void RegisterAssociatedInterfaceBindersForRenderFrameHost(
+      RenderFrameHost& render_frame_host,
+      blink::AssociatedInterfaceRegistry& associated_registry) override;
 };
 
 }  // namespace content

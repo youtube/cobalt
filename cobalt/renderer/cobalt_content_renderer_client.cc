@@ -26,6 +26,7 @@
 #include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
+#include "components/page_load_metrics/renderer/metrics_render_frame_observer.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/decoder_buffer.h"
@@ -174,6 +175,8 @@ void CobaltContentRendererClient::RenderFrameCreated(
   CHECK(content::RenderThread::IsMainThread());
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
+  // Owned by |render_frame|.
+  new page_load_metrics::MetricsRenderFrameObserver(render_frame);
   if (render_frame->GetWebView()) {
     viewport_size_ =
         gfx::ToCeiledSize(render_frame->GetWebView()->VisualViewportSize());

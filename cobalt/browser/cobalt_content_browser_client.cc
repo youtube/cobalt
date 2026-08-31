@@ -46,6 +46,7 @@
 #include "cobalt/browser/h5vcc_settings_impl.h"
 #include "cobalt/browser/lifecycle/cobalt_lifecycle_manager.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/metrics/cobalt_page_load_metrics_embedder.h"
 #include "cobalt/browser/mojom/h5vcc_settings.mojom.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
@@ -60,6 +61,9 @@
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/page_load_metrics/browser/metrics_navigation_throttle.h"
+#include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
+#include "components/page_load_metrics/common/page_load_metrics.mojom.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -317,10 +321,12 @@ CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationThrottleRegistry& registry) {
+  content::ShellContentBrowserClient::CreateThrottlesForNavigation(registry);
   content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
   registry.AddThrottle(
       std::make_unique<content::CobaltSecureNavigationThrottle>(
           &navigation_handle));
+  page_load_metrics::MetricsNavigationThrottle::CreateAndAdd(registry);
 }
 
 content::GeneratedCodeCacheSettings
@@ -479,6 +485,12 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+  if (!page_load_metrics::MetricsWebContentsObserver::FromWebContents(
+          web_contents)) {
+    page_load_metrics::MetricsWebContentsObserver::CreateForWebContents(
+        web_contents,
+        std::make_unique<CobaltPageLoadMetricsEmbedder>(web_contents));
+  }
   // Initialize the lifecycle tracker for this WebContents to ensure we track
   // and register its frames (including the main frame) for lifecycle events
   // from the very start.
@@ -507,6 +519,21 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   PopulateCobaltFrameBinders(startup_timestamp_, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
+}
+
+void CobaltContentBrowserClient::
+    RegisterAssociatedInterfaceBindersForRenderFrameHost(
+        content::RenderFrameHost& render_frame_host,
+        blink::AssociatedInterfaceRegistry& associated_registry) {
+  associated_registry.AddInterface<page_load_metrics::mojom::PageLoadMetrics>(
+      base::BindRepeating(
+          [](content::RenderFrameHost* rfh,
+             mojo::PendingAssociatedReceiver<
+                 page_load_metrics::mojom::PageLoadMetrics> receiver) {
+            page_load_metrics::MetricsWebContentsObserver::BindPageLoadMetrics(
+                std::move(receiver), rfh);
+          },
+          base::Unretained(&render_frame_host)));
 }
 
 void CobaltContentBrowserClient::ExposeInterfacesToRenderer(

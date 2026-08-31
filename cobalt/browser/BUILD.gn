@@ -36,6 +36,8 @@ source_set("browser") {
     "h5vcc_settings_impl.h",
     "memory_ablation.cc",
     "memory_ablation.h",
+    "metrics/cobalt_page_load_metrics_embedder.cc",
+    "metrics/cobalt_page_load_metrics_embedder.h",
   ]
 
   if (is_androidtv) {
@@ -101,6 +103,8 @@ source_set("browser") {
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
+    "//components/page_load_metrics/browser",
+    "//components/page_load_metrics/common:page_load_metrics_mojom",
     "//components/prefs",
     "//components/variations/service",
     "//components/viz/common",
