@@ -112,31 +112,23 @@ DecodedAudio::DecodedAudio(int channels,
 }
 
 DecodedAudio::DecodedAudio(DecodedAudio&& other)
-    : channels_(other.channels_),
+    : channels_(std::exchange(other.channels_, 0)),
       sample_type_(other.sample_type_),
       storage_type_(other.storage_type_),
       timestamp_(other.timestamp_),
       storage_(std::move(other.storage_)),
-      offset_in_bytes_(other.offset_in_bytes_),
-      size_in_bytes_(other.size_in_bytes_) {
-  other.channels_ = 0;
-  other.size_in_bytes_ = 0;
-  other.offset_in_bytes_ = 0;
-}
+      offset_in_bytes_(std::exchange(other.offset_in_bytes_, 0)),
+      size_in_bytes_(std::exchange(other.size_in_bytes_, 0)) {}
 
 DecodedAudio& DecodedAudio::operator=(DecodedAudio&& other) {
   if (this != &other) {
-    channels_ = other.channels_;
+    channels_ = std::exchange(other.channels_, 0);
     sample_type_ = other.sample_type_;
     storage_type_ = other.storage_type_;
     timestamp_ = other.timestamp_;
     storage_ = std::move(other.storage_);
-    offset_in_bytes_ = other.offset_in_bytes_;
-    size_in_bytes_ = other.size_in_bytes_;
-
-    other.channels_ = 0;
-    other.size_in_bytes_ = 0;
-    other.offset_in_bytes_ = 0;
+    offset_in_bytes_ = std::exchange(other.offset_in_bytes_, 0);
+    size_in_bytes_ = std::exchange(other.size_in_bytes_, 0);
   }
   return *this;
 }
