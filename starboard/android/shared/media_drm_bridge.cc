@@ -158,10 +158,9 @@ MediaDrmBridge::~MediaDrmBridge() {
   }
 }
 
-DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
-    int ticket,
-    std::string_view init_data,
-    std::string_view mime) const {
+DrmOperationResult MediaDrmBridge::CreateSession(int ticket,
+                                                 std::string_view init_data,
+                                                 std::string_view mime) const {
   JNIEnv* env = AttachCurrentThread();
 
   jint j_ticket = static_cast<jint>(ticket);
@@ -169,8 +168,8 @@ DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
   auto j_mime = ScopedJavaLocalRef(ConvertUTF8ToJavaString(env, mime));
 
   return ToOperationResult(
-      env, Java_MediaDrmBridge_createSessionWithAppProvisioning(
-               env, j_media_drm_bridge_, j_ticket, j_init_data, j_mime));
+      env, Java_MediaDrmBridge_createSession(env, j_media_drm_bridge_, j_ticket,
+                                             j_init_data, j_mime));
 }
 
 std::string MediaDrmBridge::GenerateProvisionRequest() const {
@@ -210,21 +209,19 @@ void MediaDrmBridge::CloseSession(std::string_view session_id) const {
   Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, j_session_id);
 }
 
-const void* MediaDrmBridge::GetMetrics(int* size) {
+std::optional<std::string_view> MediaDrmBridge::GetMetrics() {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_metrics =
       Java_MediaDrmBridge_getMetricsInBase64(env, j_media_drm_bridge_);
 
   if (j_metrics.is_null()) {
-    *size = 0;
-    return nullptr;
+    return std::nullopt;
   }
 
   base::android::JavaByteArrayToByteVector(env, j_metrics, &metrics_);
-  *size = static_cast<int>(metrics_.size());
-
-  return metrics_.data();
+  return std::string_view(reinterpret_cast<const char*>(metrics_.data()),
+                          metrics_.size());
 }
 
 void MediaDrmBridge::OnSessionMessage(

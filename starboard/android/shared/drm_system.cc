@@ -104,42 +104,24 @@ int DrmSystem::SessionUpdateRequest::TakeTicket() {
   return std::exchange(ticket_, kSpontaneousDrmTicketId);
 }
 
-MediaDrmBridge::OperationResult
-DrmSystem::SessionUpdateRequest::GenerateWithAppProvisioning(
+MediaDrmBridge::OperationResult DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
   SB_LOG(INFO) << __func__;
   SB_CHECK(media_drm_bridge);
-  return media_drm_bridge->CreateSessionWithAppProvisioning(ticket_, init_data_,
-                                                            mime_);
+  return media_drm_bridge->CreateSession(ticket_, init_data_, mime_);
 }
 
-void DrmSystem::GenerateSessionUpdateRequest(int ticket,
-                                             const char* type,
-                                             const void* initialization_data,
-                                             int initialization_data_size) {
+void DrmSystem::GenerateSessionUpdateRequest(
+    int ticket,
+    std::string_view type,
+    std::string_view initialization_data) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  GenerateSessionUpdateRequestWithAppProvisioning(
-      std::make_unique<SessionUpdateRequest>(
-          ticket, type,
-          std::string_view(static_cast<const char*>(initialization_data),
-                           initialization_data_size)));
+  GenerateSessionUpdateRequest(std::make_unique<SessionUpdateRequest>(
+      ticket, type, initialization_data));
 }
 
-void DrmSystem::UpdateSession(int ticket,
-                              const void* key,
-                              int key_size,
-                              const void* session_id,
-                              int session_id_size) {
+void DrmSystem::CloseSession(std::string_view session_id) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  UpdateSessionWithAppProvisioning(
-      ticket, std::string_view(static_cast<const char*>(key), key_size),
-      std::string_view(static_cast<const char*>(session_id), session_id_size));
-}
-
-void DrmSystem::CloseSession(const void* session_id_data, int session_id_size) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
-  std::string session_id(static_cast<const char*>(session_id_data),
-                         session_id_size);
   {
     std::lock_guard scoped_lock(mutex_);
     auto iter = cached_drm_key_ids_.find(session_id);
@@ -148,7 +130,7 @@ void DrmSystem::CloseSession(const void* session_id_data, int session_id_size) {
     }
   }
 
-  std::string media_drm_session_id = [this, &session_id] {
+  std::string media_drm_session_id = [this, session_id] {
     std::lock_guard lock(mutex_);
     return std::string(session_id_mapper_.GetMediaDrmSessionId(session_id));
   }();
@@ -171,9 +153,9 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   return kSuccess;
 }
 
-const void* DrmSystem::GetMetrics(int* size) {
+std::optional<std::string_view> DrmSystem::GetMetrics() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
-  return media_drm_bridge_->GetMetrics(size);
+  return media_drm_bridge_->GetMetrics();
 }
 
 void DrmSystem::OnSessionUpdate(int ticket,
@@ -284,11 +266,11 @@ void DrmSystem::HandlePendingRequests() {
   }
 
   for (auto& request : pending_requests) {
-    GenerateSessionUpdateRequestWithAppProvisioning(std::move(request));
+    GenerateSessionUpdateRequest(std::move(request));
   }
 }
 
-void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
+void DrmSystem::GenerateSessionUpdateRequest(
     std::unique_ptr<SessionUpdateRequest> request) {
   {
     std::lock_guard scoped_lock(mutex_);
@@ -304,7 +286,7 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
   // |update_request_callback_| will be called asynchronously by Java calling
   // into |OnSessionUpdate| or |OnProvisioningRequest|.
   MediaDrmBridge::OperationResult result =
-      request->GenerateWithAppProvisioning(media_drm_bridge_.get());
+      request->Generate(media_drm_bridge_.get());
   switch (result.status) {
     case DRM_OPERATION_STATUS_SUCCESS:
       created_media_crypto_session_ = true;
@@ -319,14 +301,14 @@ void DrmSystem::GenerateSessionUpdateRequestWithAppProvisioning(
       return;
     case DRM_OPERATION_STATUS_OPERATION_FAILED:
     default:
-      SB_LOG(ERROR) << "GenerateWithAppProvisioning failed: " << result;
+      SB_LOG(ERROR) << "Generate failed: " << result;
       return;
   }
 }
 
-void DrmSystem::UpdateSessionWithAppProvisioning(int ticket,
-                                                 std::string_view key,
-                                                 std::string_view session_id) {
+void DrmSystem::UpdateSession(int ticket,
+                              std::string_view key,
+                              std::string_view session_id) {
   const auto media_drm_session_id =
       [this, &session_id]() -> std::optional<std::string> {
     std::lock_guard lock(mutex_);

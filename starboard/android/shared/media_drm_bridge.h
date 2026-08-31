@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -87,9 +88,9 @@ class MediaDrmBridge {
     return j_media_crypto_;
   }
 
-  OperationResult CreateSessionWithAppProvisioning(int ticket,
-                                                   std::string_view init_data,
-                                                   std::string_view mime) const;
+  OperationResult CreateSession(int ticket,
+                                std::string_view init_data,
+                                std::string_view mime) const;
   std::string GenerateProvisionRequest() const;
   OperationResult ProvideProvisionResponse(std::string_view response) const;
 
@@ -97,7 +98,7 @@ class MediaDrmBridge {
                                 std::string_view key,
                                 std::string_view session_id) const;
   void CloseSession(std::string_view session_id) const;
-  const void* GetMetrics(int* size);
+  std::optional<std::string_view> GetMetrics();
 
   void OnSessionMessage(JNIEnv* env,
                         jint ticket,

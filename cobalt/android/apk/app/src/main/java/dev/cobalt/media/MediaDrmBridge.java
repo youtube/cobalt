@@ -221,14 +221,13 @@ public class MediaDrmBridge {
   }
 
   @CalledByNative
-  OperationResult createSessionWithAppProvisioning(int ticket, byte[] initData, String mime) {
+  OperationResult createSession(int ticket, byte[] initData, String mime) {
     if (mMediaDrm == null) {
-      Log.e(TAG, "createSessionWithAppProvisioning() called when MediaDrm is null.");
-      return OperationResult.operationFailed(
-          "createSessionWithAppProvisioning() called when MediaDrm is null.");
+      Log.e(TAG, "createSession() called when MediaDrm is null.");
+      return OperationResult.operationFailed("createSession() called when MediaDrm is null.");
     }
 
-    OperationResult result = createMediaCryptoSessionWithAppProvisioning();
+    OperationResult result = createMediaCryptoSession();
     if (!result.isSuccess()) {
       return result;
     }
@@ -367,9 +366,13 @@ public class MediaDrmBridge {
     }
     byte[] metrics;
     try {
+      // Ensure a media crypto session exists so the DRM plugin has metrics populated.
+      if (mMediaCryptoSession == null) {
+        createMediaCryptoSession();
+      }
       metrics = mMediaDrm.getPropertyByteArray("metrics");
     } catch (Exception e) {
-      Log.e(TAG, "Failed to retrieve DRM Metrics.");
+      Log.e(TAG, "Failed to retrieve DRM Metrics.", e);
       return null;
     }
     return Base64.encode(metrics, Base64.NO_PADDING | Base64.NO_WRAP | Base64.URL_SAFE);
@@ -402,7 +405,7 @@ public class MediaDrmBridge {
           public void onEvent(MediaDrm md, byte[] sessionId, int event, int extra, byte[] data) {
             if (event == MediaDrm.EVENT_KEY_REQUIRED) {
               Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
-              handleKeyRequiredEventWithAppProvisioning(sessionId, data);
+              handleKeyRequiredEvent(sessionId, data);
             } else if (event == MEDIA_DRM_EVENT_KEY_EXPIRED) {
               Log.d(TAG, "MediaDrm.EVENT_KEY_EXPIRED");
             } else if (event == MediaDrm.EVENT_VENDOR_DEFINED) {
@@ -468,17 +471,14 @@ public class MediaDrmBridge {
     return hexString.toString();
   }
 
-  private void handleKeyRequiredEventWithAppProvisioning(byte[] sessionId, byte[] data) {
+  private void handleKeyRequiredEvent(byte[] sessionId, byte[] data) {
     if (sessionId == null) {
-      Log.e(TAG, "HandleKeyRequiredEventWithAppProvisioning failed: null session id");
+      Log.e(TAG, "HandleKeyRequiredEvent failed: null session id");
       return;
     }
     ByteBuffer sessionIdByteBuffer = ByteBuffer.wrap(sessionId);
     if (!mSessionIds.containsKey(sessionIdByteBuffer)) {
-      Log.e(
-          TAG,
-          "HandleKeyRequiredEventWithAppProvisioning failed: invalid session id="
-              + bytesToString(sessionId));
+      Log.e(TAG, "HandleKeyRequiredEvent failed: invalid session id=" + bytesToString(sessionId));
       return;
     }
 
@@ -491,7 +491,7 @@ public class MediaDrmBridge {
       return;
     }
     if (request == null) {
-      Log.e(TAG, "handleKeyRequiredEventWithAppProvisioning: getKeyRequest returned null");
+      Log.e(TAG, "handleKeyRequiredEvent: getKeyRequest returned null");
       return;
     }
 
@@ -621,7 +621,7 @@ public class MediaDrmBridge {
     }
   }
 
-  private OperationResult createMediaCryptoSessionWithAppProvisioning() {
+  private OperationResult createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
       Log.i(TAG, "MediaCryptoSession is already created");
       return OperationResult.success();

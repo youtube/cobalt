@@ -23,11 +23,11 @@ constexpr int64_t kTimestampUsec = 1'000'000;
 constexpr int kNumFrames = 2048;  // Realistic audio frame size
 constexpr int kSizeInBytes = kNumFrames * kChannels * sizeof(int16_t);
 
-scoped_refptr<DecodedAudio> CreateInt16PlanarBuffer() {
-  auto buffer = make_scoped_refptr<DecodedAudio>(
-      kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-      kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, kSizeInBytes);
-  int16_t* data = buffer->data_as_int16();
+DecodedAudio CreateInt16PlanarBuffer() {
+  DecodedAudio buffer(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+                      kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec,
+                      kSizeInBytes);
+  int16_t* data = buffer.data_as_int16();
   for (int i = 0; i < kNumFrames * kChannels; ++i) {
     // Generates a linear ramp covering the full range of int16_t [-32768,
     // 32767].
@@ -36,12 +36,12 @@ scoped_refptr<DecodedAudio> CreateInt16PlanarBuffer() {
   return buffer;
 }
 
-scoped_refptr<DecodedAudio> CreateFloatInterleavedBuffer() {
+DecodedAudio CreateFloatInterleavedBuffer() {
   int float_size = kNumFrames * kChannels * sizeof(float);
-  auto buffer = make_scoped_refptr<DecodedAudio>(
-      kChannels, kSbMediaAudioSampleTypeFloat32,
-      kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec, float_size);
-  float* data = buffer->data_as_float32();
+  DecodedAudio buffer(kChannels, kSbMediaAudioSampleTypeFloat32,
+                      kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec,
+                      float_size);
+  float* data = buffer.data_as_float32();
   for (int i = 0; i < kNumFrames * kChannels; ++i) {
     // Generates a linear ramp of float values in [-1.0f, 1.0f] spanning the
     // full audio range.
@@ -50,11 +50,11 @@ scoped_refptr<DecodedAudio> CreateFloatInterleavedBuffer() {
   return buffer;
 }
 
-scoped_refptr<DecodedAudio> CreateInt16InterleavedBuffer() {
-  auto buffer = make_scoped_refptr<DecodedAudio>(
-      kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-      kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec, kSizeInBytes);
-  int16_t* data = buffer->data_as_int16();
+DecodedAudio CreateInt16InterleavedBuffer() {
+  DecodedAudio buffer(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
+                      kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec,
+                      kSizeInBytes);
+  int16_t* data = buffer.data_as_int16();
   for (int i = 0; i < kNumFrames * kChannels; ++i) {
     // Generates a linear ramp covering the full range of int16_t [-32768,
     // 32767].
@@ -63,12 +63,12 @@ scoped_refptr<DecodedAudio> CreateInt16InterleavedBuffer() {
   return buffer;
 }
 
-scoped_refptr<DecodedAudio> CreateFloatPlanarBuffer() {
+DecodedAudio CreateFloatPlanarBuffer() {
   int float_size = kNumFrames * kChannels * sizeof(float);
-  auto buffer = make_scoped_refptr<DecodedAudio>(
-      kChannels, kSbMediaAudioSampleTypeFloat32,
-      kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec, float_size);
-  float* data = buffer->data_as_float32();
+  DecodedAudio buffer(kChannels, kSbMediaAudioSampleTypeFloat32,
+                      kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec,
+                      float_size);
+  float* data = buffer.data_as_float32();
   for (int i = 0; i < kNumFrames * kChannels; ++i) {
     // Generates a linear ramp of float values in [-1.0f, 1.0f] spanning the
     // full audio range.
@@ -81,9 +81,9 @@ void BM_SwitchFormat_Int16PlanarToFloatInterleaved_Cpp(
     benchmark::State& state) {
   auto src = CreateInt16PlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -94,9 +94,9 @@ void BM_SwitchFormat_Int16PlanarToFloatInterleaved_Neon(
     benchmark::State& state) {
   auto src = CreateInt16PlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -107,9 +107,9 @@ void BM_SwitchFormat_FloatInterleavedToInt16Planar_Cpp(
     benchmark::State& state) {
   auto src = CreateFloatInterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -120,9 +120,9 @@ void BM_SwitchFormat_FloatInterleavedToInt16Planar_Neon(
     benchmark::State& state) {
   auto src = CreateFloatInterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -133,9 +133,9 @@ void BM_SwitchSampleType_Int16ToFloat_Cpp(benchmark::State& state) {
   auto src = CreateInt16PlanarBuffer();  // SwitchSampleTypeTo keeps same
                                          // storage (planar)
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -145,9 +145,9 @@ BENCHMARK(BM_SwitchSampleType_Int16ToFloat_Cpp);
 void BM_SwitchSampleType_Int16ToFloat_Neon(benchmark::State& state) {
   auto src = CreateInt16PlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -157,9 +157,9 @@ BENCHMARK(BM_SwitchSampleType_Int16ToFloat_Neon);
 void BM_SwitchSampleType_FloatToInt16_Cpp(benchmark::State& state) {
   auto src = CreateFloatInterleavedBuffer();  // keeps interleaved
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -169,9 +169,9 @@ BENCHMARK(BM_SwitchSampleType_FloatToInt16_Cpp);
 void BM_SwitchSampleType_FloatToInt16_Neon(benchmark::State& state) {
   auto src = CreateFloatInterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -182,9 +182,9 @@ void BM_SwitchStorageType_Int16InterleavedToPlanar_Cpp(
     benchmark::State& state) {
   auto src = CreateInt16InterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -195,9 +195,9 @@ void BM_SwitchStorageType_Int16InterleavedToPlanar_Neon(
     benchmark::State& state) {
   auto src = CreateInt16InterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -208,9 +208,9 @@ void BM_SwitchStorageType_Int16PlanarToInterleaved_Cpp(
     benchmark::State& state) {
   auto src = CreateInt16PlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -221,9 +221,9 @@ void BM_SwitchStorageType_Int16PlanarToInterleaved_Neon(
     benchmark::State& state) {
   auto src = CreateInt16PlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeInt16Deprecated,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -234,9 +234,9 @@ void BM_SwitchStorageType_FloatInterleavedToPlanar_Cpp(
     benchmark::State& state) {
   auto src = CreateFloatInterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -247,9 +247,9 @@ void BM_SwitchStorageType_FloatInterleavedToPlanar_Neon(
     benchmark::State& state) {
   auto src = CreateFloatInterleavedBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypePlanar,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypePlanar,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -260,9 +260,9 @@ void BM_SwitchStorageType_FloatPlanarToInterleaved_Cpp(
     benchmark::State& state) {
   auto src = CreateFloatPlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/false);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/false);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
@@ -273,9 +273,9 @@ void BM_SwitchStorageType_FloatPlanarToInterleaved_Neon(
     benchmark::State& state) {
   auto src = CreateFloatPlanarBuffer();
   for (auto _ : state) {
-    auto dst = src->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
-                                   /*force_simd=*/true);
+    auto dst = src.SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
+                                  kSbMediaAudioFrameStorageTypeInterleaved,
+                                  /*force_simd=*/true);
     benchmark::DoNotOptimize(dst);
   }
   state.SetItemsProcessed(state.iterations() * kNumFrames);
