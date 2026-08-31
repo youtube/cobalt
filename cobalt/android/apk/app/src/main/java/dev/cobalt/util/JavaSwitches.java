@@ -123,6 +123,10 @@ public class JavaSwitches {
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
 
+  /** flag to enable cppgc compaction on memory pressure. */
+  public static final String ENABLE_CPPGC_COMPACTION_ON_MEMORY_PRESSURE =
+      "EnableCppgcCompactionOnMemoryPressure";
+
   /** flag to evict blink memory cache on critical memory pressure. */
   public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
       "EvictMemoryCacheOnCriticalMemoryPressure";
@@ -316,6 +320,11 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(
         JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+    }
+
+    if (javaSwitches.containsKey(
+        JavaSwitches.ENABLE_CPPGC_COMPACTION_ON_MEMORY_PRESSURE)) {
+      extraCommandLineArgs.add("--enable-cppgc-compaction-on-memory-pressure");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {
