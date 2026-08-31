@@ -1247,7 +1247,7 @@ void GpuServiceImpl::OnBackgroundCleanupGpuMainThread() {
 #if BUILDFLAG(IS_COBALT)
   // Shut down the GL display synchronously after all channels, shared contexts,
   // and surfaces have been released so the barrier reply guarantees total teardown.
-  gl::GLDisplayEGL* display = gl::GLSurfaceEGL::GetGLDisplayEGL();
+  gl::GLDisplayEGL* display = gl::GetDefaultDisplayEGL();
   if (display && display->IsInitialized()) {
     display->Shutdown();
   }
