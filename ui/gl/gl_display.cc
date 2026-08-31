@@ -457,17 +457,13 @@ void GLDisplayEGL::Shutdown() {
     gpu_switching_observer_.reset();
   }
 
-<<<<<<< HEAD
-  DCHECK(g_driver_egl.fn.eglGetProcAddressFn);
-  angle::ResetPlatform(display_, g_driver_egl.fn.eglGetProcAddressFn);
-=======
 #if BUILDFLAG(IS_COBALT)
   // Ensure the calling thread has released any bound EGL context before
   // terminating the display so driver thread-local storage is cleared.
   eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 #endif
-  angle::ResetPlatform(display_);
->>>>>>> cc0b5d257a (cobalt: Release all GPU resources and EGL contexts on background suspend (#11796))
+  DCHECK(g_driver_egl.fn.eglGetProcAddressFn);
+  angle::ResetPlatform(display_, g_driver_egl.fn.eglGetProcAddressFn);
   DCHECK(g_driver_egl.fn.eglTerminateFn);
   eglTerminate(display_);
 

@@ -24,11 +24,8 @@
 #include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-<<<<<<< HEAD
-#include "third_party/perfetto/include/perfetto/tracing/track.h"
-=======
 #include "build/buildflag.h"
->>>>>>> cc0b5d257a (cobalt: Release all GPU resources and EGL contexts on background suspend (#11796))
+#include "third_party/perfetto/include/perfetto/tracing/track.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/gpu_fence.h"
