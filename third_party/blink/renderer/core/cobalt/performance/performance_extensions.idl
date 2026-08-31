@@ -2,12 +2,21 @@
 [
     ImplementedAs=PerformanceExtensions
 ] partial interface Performance {
+    // Returns a snapshot of system memory metrics in a single call.
+    [CallWith=ScriptState] SystemMemoryInfo measureSystemMemoryInfo();
+
     // Returns the amount of available memory on the device in bytes, according
     // to base::SysInfo::AmountOfAvailablePhysicalMemory().
+    [CallWith=ScriptState] unsigned long long measureFreeRssMemory();
+
+    // Deprecated alias for measureFreeRssMemory.
     [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
 
     // Returns the amount of memory used by the Cobalt process, in bytes. This
     // is also known as the resident set size.
+    [CallWith=ScriptState] unsigned long long measureUsedRssMemory();
+
+    // Deprecated alias for measureUsedRssMemory.
     [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
 
     // Returns the amount of virtual memory that has been swapped out to disk in bytes.
