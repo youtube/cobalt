@@ -26,6 +26,10 @@ target(_benchmark_type, "benchmark") {
   sources = [
     "//starboard/common/benchmark_main.cc",
     "memory_benchmark.cc",
+    "player/player_benchmark_helper.cc",
+    "player/player_benchmark_helper.h",
+    "player/player_create_benchmark.cc",
+    "player/player_destroy_benchmark.cc",
     "thread_benchmark.cc",
     "thread_id_benchmark.cc",
   ]
@@ -33,6 +37,7 @@ target(_benchmark_type, "benchmark") {
   public_deps = [
     "//starboard:starboard_group",
     "//starboard/common",
+    "//starboard/testing:fake_graphics_context_provider",
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
