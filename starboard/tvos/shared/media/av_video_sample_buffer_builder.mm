@@ -21,7 +21,7 @@
 #import "starboard/tvos/shared/media/vp9_sw_av_video_sample_buffer_builder.h"  // nogncheck
 
 #if defined(COBALT_INTERNAL_BUILD)
-#import "cobalt/internal/starboard/shared/tvos/vp9_hw_av_video_sample_buffer_builder.h"
+#import "cobalt/internal/starboard/shared/tvos/hw_av_video_sample_buffer_builder.h"
 #endif
 
 namespace starboard {
@@ -34,10 +34,16 @@ AVVideoSampleBufferBuilder* AVVideoSampleBufferBuilder::CreateBuilder(
   } else if (video_stream_info.codec == kSbMediaVideoCodecVp9) {
 #if defined(COBALT_INTERNAL_BUILD)
     if (PlaybackCapabilities::IsHwVp9Supported()) {
-      return new Vp9HwAVVideoSampleBufferBuilder(video_stream_info);
+      return new HwAVVideoSampleBufferBuilder(video_stream_info);
     }
 #endif  // defined(COBALT_INTERNAL_BUILD)
     return new Vp9SwAVVideoSampleBufferBuilder(video_stream_info);
+  } else if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
+#if defined(COBALT_INTERNAL_BUILD)
+    if (PlaybackCapabilities::IsHwAv1Supported()) {
+      return new HwAVVideoSampleBufferBuilder(video_stream_info);
+    }
+#endif  // defined(COBALT_INTERNAL_BUILD)
   }
   SB_NOTREACHED();
   return nullptr;
