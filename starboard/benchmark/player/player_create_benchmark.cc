@@ -61,7 +61,7 @@ void AsyncPlayerErrorFunc(SbPlayer player,
 void BM_PlayerCreateSync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
-  helper.GetCreationParam(&creation_param, kSbPlayerOutputModePunchOut);
+  helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
 
   for (auto _ : state) {
     auto start_time = std::chrono::high_resolution_clock::now();
@@ -74,22 +74,25 @@ void BM_PlayerCreateSync(::benchmark::State& state) {
                        SbPlayerBenchmarkHelper::DummyPlayerErrorFunc, nullptr,
                        helper.GetDecoderTargetProvider());
 
+    if (!SbPlayerIsValid(player)) {
+      state.SkipWithError("SbPlayerCreate failed");
+      break;
+    }
+
     auto end_time = std::chrono::high_resolution_clock::now();
 
     auto elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(
         end_time - start_time);
     state.SetIterationTime(elapsed.count());
 
-    if (SbPlayerIsValid(player)) {
-      SbPlayerDestroy(player);
-    }
+    SbPlayerDestroy(player);
   }
 }
 
 void BM_PlayerCreateAsync(::benchmark::State& state) {
   SbPlayerBenchmarkHelper helper;
   SbPlayerCreationParam creation_param;
-  helper.GetCreationParam(&creation_param, kSbPlayerOutputModePunchOut);
+  helper.GetCreationParam(&creation_param, kSbPlayerOutputModeDecodeToTexture);
 
   for (auto _ : state) {
     AsyncCreateContext ctx;

@@ -121,6 +121,7 @@ public class BaseStarboardBridge {
     mServiceHolder = serviceHolder;
     mArgs = new String[0];
     mAudioOutputManager = new AudioOutputManager(appContext);
+    mResourceOverlay = new ResourceOverlay(appContext);
     mIsAmatiDevice = false;
     mNativeApp = 0;
   }

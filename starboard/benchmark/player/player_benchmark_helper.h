@@ -22,7 +22,7 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
-class QueueApplication;
+class Application;
 
 namespace benchmark {
 
@@ -59,7 +59,7 @@ class SbPlayerBenchmarkHelper {
                                    const char* message);
 
  private:
-  std::unique_ptr<starboard::QueueApplication> mock_application_;
+  std::unique_ptr<starboard::Application> mock_application_;
   starboard::FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
