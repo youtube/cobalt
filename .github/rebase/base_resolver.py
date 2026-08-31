@@ -398,10 +398,12 @@ def apply_patch_or_replacement(patch_text: str, repo_path: str) -> List[str]:
     if matches:
       modified_files = []
       for rel_file, search_b, replace_b in matches:
-        if not replace_b.strip():
+        if not replace_b.strip() and len(search_b.splitlines()) > 80:
           print(
-              f"  [GUARD] Rejecting empty REPLACE block in {rel_file}. "
-              "Use <<<<<<< DELETE ... >>>>>>> DELETE for intentional removals.",
+              f"  [GUARD] Rejecting bulk empty REPLACE block "
+              f"({len(search_b.splitlines())} lines) in {rel_file}. Use "
+              "<<<<<<< DELETE ... >>>>>>> DELETE for intentional bulk "
+              "removals.",
               file=sys.stderr,
           )
           return []

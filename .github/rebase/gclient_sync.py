@@ -7,9 +7,9 @@ traces, prompts Gemini via Vertex AI Reasoning Engine to heal DEPS syntax
 and revision errors, and validates Python AST before resuming sync.
 """
 
-import ast
 import dataclasses
 import os
+import re
 import subprocess
 import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -41,6 +41,15 @@ SYNC_ERROR_KEYWORDS = (
     "fatal:",
 )
 
+# Default robust flags for CI and local automated sync
+DEFAULT_SYNC_FLAGS = [
+    "-D",
+    "--no-history",
+    "--shallow",
+    "--nohooks",
+    "--delete_unversioned_trees",
+]
+
 
 @dataclasses.dataclass
 class GClientSyncDiagnostic:
@@ -61,9 +70,11 @@ def extract_sync_diagnostic_trace(output: str) -> str:
       capture = True
     if capture:
       error_lines.append(line)
-      if len(error_lines) > 35:
-        break
   if error_lines:
+    if len(error_lines) > 40:
+      return "\n".join(error_lines[:15] +
+                       ["... [truncated intermediate stack frames] ..."] +
+                       error_lines[-25:])
     return "\n".join(error_lines)
   return "\n".join(lines[-25:] if len(lines) > 25 else lines)
 
@@ -86,7 +97,7 @@ class GClientSyncResolver(BaseResolver):
         max_iterations=max_iterations,
         on_patch_applied_fn=on_patch_applied_fn,
     )
-    self.flags = flags if flags is not None else ["-D"]
+    self.flags = flags if flags is not None else list(DEFAULT_SYNC_FLAGS)
 
   @property
   def name(self) -> str:
@@ -130,6 +141,12 @@ class GClientSyncResolver(BaseResolver):
           check=False,
       )
       retry_output = f"{proc_retry.stdout}\n{proc_retry.stderr}"
+      if proc_retry.returncode != 0:
+        print(
+            f"[ERROR] gclient sync failed with exit code "
+            f"{proc_retry.returncode}:\n{retry_output.strip()}",
+            file=sys.stderr,
+        )
       return proc_retry.returncode == 0, retry_output, ""
     except Exception as e:  # pylint: disable=broad-exception-caught
       return False, f"Subprocess execution failed: {e}", ""
@@ -138,7 +155,14 @@ class GClientSyncResolver(BaseResolver):
                           siso_output: str) -> List[Any]:
     del siso_output  # Unused in gclient sync
     diag_trace = extract_sync_diagnostic_trace(build_output)
-    first_line = diag_trace.splitlines()[0] if diag_trace else "Sync Error"
+    non_empty = [l.strip() for l in diag_trace.splitlines() if l.strip()]
+    if non_empty:
+      if "traceback" in non_empty[0].lower() and len(non_empty) > 1:
+        first_line = non_empty[-1]
+      else:
+        first_line = non_empty[0]
+    else:
+      first_line = "Sync Error"
     return [
         GClientSyncDiagnostic(
             error_message=first_line,
@@ -147,13 +171,14 @@ class GClientSyncResolver(BaseResolver):
         )
     ]
 
+  # pylint: disable=unused-argument
   def resolve_diagnostic(
       self,
       diagnostic: Any,
       history_records: List[Dict[str, Any]],
-      use_pro: bool = False,
       use_expert: bool = False,
       expert_guidance: str = "",
+      **kwargs,
   ) -> Tuple[str, str, str]:
     del history_records  # Unused for single DEPS resolution
     if not isinstance(diagnostic, GClientSyncDiagnostic):
@@ -165,42 +190,53 @@ class GClientSyncResolver(BaseResolver):
 
     try:
       with open(deps_path, "r", encoding="utf-8", errors="replace") as f:
-        current_deps = f.read()
+        lines = f.readlines()
+        current_deps = "".join(lines)
     except OSError:
       return "", self.model, "DEPS"
 
+    line_match = re.search(r"(?:line\s+|:)(\d+)", diagnostic.diagnostic_trace)
+    if line_match and len(lines) > 250:
+      error_line = int(line_match.group(1))
+      s_line = max(1, error_line - 50)
+      e_line = min(len(lines), error_line + 50)
+      context_snippet = "".join(lines[s_line - 1:e_line])
+    else:
+      context_snippet = current_deps if len(lines) <= 250 else "".join(
+          lines[:250])
+
     instruction = (
-        f"gclient sync failed with the following error output:\n"
+        f"gclient sync failed on DEPS with the following diagnostic:\n"
         f"--------------------------------------------------\n"
         f"{diagnostic.diagnostic_trace}\n"
         f"--------------------------------------------------\n\n"
-        "Provide a concrete SEARCH/REPLACE patch for DEPS to fix the sync "
-        "error.")
+        "Resolve the conflict/error in the provided DEPS snippet. "
+        "Return ONLY the replacement code snippet.")
 
     res = self.reasoning_engine.resolve_conflict(
         file_path="DEPS",
         language="Python",
-        raw_conflict=current_deps,
+        raw_conflict=context_snippet,
         instruction=instruction,
         expert_guidance=expert_guidance,
-        use_pro=use_pro,
         use_expert=use_expert,
     )
-    raw_patch = res.get("patch", "")
-    model_used = res.get("model_used", self.model)
+    if isinstance(res, dict):
+      raw_patch = res.get("replacement", "") or res.get("patch", "")
+      model_used = res.get("model_used", self.model)
+    else:
+      raw_patch = str(res)
+      model_used = self.model
 
-    # If the model returned full replacement content, wrap it as SEARCH/REPLACE
-    if "<<<<<<< SEARCH" not in raw_patch and "=======" not in raw_patch:
-      try:
-        ast.parse(raw_patch)
-        patch = (f"FILE: DEPS\n"
-                 f"<<<<<<< SEARCH\n"
-                 f"{current_deps}\n"
-                 f"=======\n"
-                 f"{raw_patch}\n"
-                 f">>>>>>> REPLACE")
-        return patch, model_used, "DEPS"
-      except SyntaxError:
-        pass
+    # If the model returned replacement content without SEARCH/REPLACE headers,
+    # wrap it as a standard patch block.
+    if (raw_patch and "<<<<<<< SEARCH" not in raw_patch and
+        "=======" not in raw_patch):
+      raw_patch = (f"FILE: DEPS\n"
+                   f"<<<<<<< SEARCH\n"
+                   f"{context_snippet}\n"
+                   f"=======\n"
+                   f"{raw_patch.strip()}\n"
+                   f">>>>>>> REPLACE")
 
     return raw_patch, model_used, "DEPS"
