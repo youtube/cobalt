@@ -101,6 +101,13 @@ void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
     }
     cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
         static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  } else if (!is_visible_ && pending_conceal_web_contents_.empty()) {
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+    content::CleanupGpuProcessOnUI(base::BindOnce([] {
+      cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
+          nullptr);
+    }));
   }
 }
 
@@ -146,11 +153,6 @@ void ShellPlatformDelegate::OnConceal() {
     return;
   }
 
-  // Register as lifecycle manager observer to receive OnAllFramesConcealed
-  // callback!
-  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
-      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
-
   // Save the set of WebContents that were visible before conceal.
   // This is used on reveal to decide which WebContents we should wait for
   // Reveal ACK from. We only wait for those that were actually active/visible.
@@ -168,6 +170,20 @@ void ShellPlatformDelegate::OnConceal() {
     // OnAllFramesConcealed() after all frames have completed their deactivation
     // ACKs.
   }
+
+  if (pending_conceal_web_contents_.empty()) {
+    is_visible_ = false;
+    content::CleanupGpuProcessOnUI(base::BindOnce([] {
+      cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
+          nullptr);
+    }));
+    return;
+  }
+
+  // Register as lifecycle manager observer to receive OnAllFramesConcealed
+  // callback!
+  cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
+      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
 }
 
 void ShellPlatformDelegate::OnReveal() {
@@ -293,8 +309,7 @@ bool ShellPlatformDelegate::IsWaitingForRevealAck() const {
 void ShellPlatformDelegate::ClearWaitingForRevealAck() {
   waiting_for_reveal_ack_ = false;
 #if defined(USE_AURA) && BUILDFLAG(IS_STARBOARD)
-  auto* shell = Shell::windows().empty() ? nullptr : Shell::windows().front();
-  if (shell) {
+  for (auto* shell : Shell::windows()) {
     auto* platform_window = GetPlatformWindowStarboard(shell);
     if (platform_window) {
       platform_window->SetWaitingForRevealAck(false);
