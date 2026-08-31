@@ -66,22 +66,15 @@ bool MemoryUsageMonitor::HasObserver(Observer* observer) {
 void MemoryUsageMonitor::StartMonitoringIfNeeded() {
   if (timer_.IsRunning())
     return;
-<<<<<<< HEAD
-  timer_.Start(
-      FROM_HERE, kPingInterval,
-      BindRepeating(&MemoryUsageMonitor::TimerFired, Unretained(this)));
-=======
 #if BUILDFLAG(IS_COBALT)
   timer_.Start(FROM_HERE, GetPingInterval(),
-               WTF::BindRepeating(&MemoryUsageMonitor::TimerFired,
-                                  WTF::Unretained(this)));
+               BindRepeating(&MemoryUsageMonitor::TimerFired,
+                             Unretained(this)));
 #else
   timer_.Start(FROM_HERE, kPingInterval,
-               WTF::BindRepeating(&MemoryUsageMonitor::TimerFired,
-                                  WTF::Unretained(this)));
-#endif
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+               BindRepeating(&MemoryUsageMonitor::TimerFired,
+                             Unretained(this)));
+#endif}
 
 void MemoryUsageMonitor::StopMonitoring() {
   timer_.Stop();

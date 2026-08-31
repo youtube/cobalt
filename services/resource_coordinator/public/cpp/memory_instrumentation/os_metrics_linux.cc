@@ -524,14 +524,6 @@ uint32_t CountMappings(base::ProcessId pid) {
   return newline_characters;
 }
 
-<<<<<<< HEAD
-// Get values from smaps_rollup for the current process.
-void GetSmapsRollup(base::ByteCount* pss, base::ByteCount* swap_pss) {
-  auto value = base::debug::ReadAndParseSmapsRollup();
-  if (!value) {
-    *pss = base::ByteCount(0);
-    *swap_pss = base::ByteCount(0);
-=======
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 #if !BUILDFLAG(IS_ANDROID)
 struct LibChrobaltMem {
@@ -552,9 +544,7 @@ void GetSmapsRollup(base::ProcessId pid,
       (pid == base::kNullProcessId ? "self" : base::NumberToString(pid)) +
       "/smaps";
   base::ScopedFILE smaps_file(fopen(file_name.c_str(), "r"));
-  if (!smaps_file) {
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    return;
+  if (!smaps_file) {    return;
   }
 
   char line[kMaxLineSize];
@@ -867,22 +857,17 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-<<<<<<< HEAD
+#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
+    size_t pss_raw, swap_pss_raw;
+    GetSmapsRollup(handle, &pss_raw, &swap_pss_raw);
+    base::ByteCount pss = base::ByteCount::FromBytes(pss_raw);
+    base::ByteCount swap_pss = base::ByteCount::FromBytes(swap_pss_raw);
+#else
     base::ByteCount pss, swap_pss;
     GetSmapsRollup(&pss, &swap_pss);
-    dump->pss_kb = pss.InKiB();
-    dump->swap_pss_kb = swap_pss.InKiB();
-=======
-    size_t pss, swap_pss;
-#if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-    GetSmapsRollup(handle, &pss, &swap_pss);
-#else
-    GetSmapsRollup(&pss, &swap_pss);
 #endif
-    dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
-    dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  }
+    dump->pss_kb = pss.InKiB();
+    dump->swap_pss_kb = swap_pss.InKiB();  }
 
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(SUPPORTS_CODE_ORDERING)
@@ -1148,10 +1133,6 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
   // |entries| will be 2kB/MB (if |kPageSize| = 4096),
   // that would only be ~80kB on Android, and up to 200kB on Linux (for 100MB)
   std::vector<uint64_t> entries(total_pages);
-<<<<<<< HEAD
-  if (UNSAFE_TODO(fread(&entries[0], sizeof(uint64_t), total_pages,
-                        pagemap_file.get())) != total_pages) {
-=======
 #if BUILDFLAG(IS_COBALT)
   size_t read_bytes = fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get());
   if (read_bytes != total_pages) {
@@ -1165,10 +1146,8 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #else
-  if (fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()) !=
-      total_pages) {
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
+  if (UNSAFE_TODO(fread(&entries[0], sizeof(uint64_t), total_pages,
+                        pagemap_file.get())) != total_pages) {    return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #endif  // BUILDFLAG(IS_COBALT)
 

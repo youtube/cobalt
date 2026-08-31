@@ -19,8 +19,6 @@
 
 namespace blink {
 
-<<<<<<< HEAD
-=======
 namespace {
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)|| BUILDFLAG(IS_CHROMEOS)
 StringView MaybeStripFontationsSuffix(const String& font_name) {
@@ -34,7 +32,6 @@ StringView MaybeStripFontationsSuffix(const String& font_name) {
 #endif
 }  // namespace
 
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 class FontCacheTest : public FontTestBase {};
 
 TEST_F(FontCacheTest, getLastResortFallbackFont) {

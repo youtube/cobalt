@@ -7,19 +7,14 @@
 
 #include "cc/tiles/image_decode_cache_utils.h"
 
-<<<<<<< HEAD
 #include "base/byte_count.h"
-=======
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_COBALT)
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
 #include "cc/base/switches.h"
-#endif
-
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "base/check.h"
+#endif#include "base/check.h"
 #include "cc/paint/paint_flags.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -47,9 +42,40 @@ bool ImageDecodeCacheUtils::ShouldEvictCaches(
 // static
 size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
-<<<<<<< HEAD
+#if BUILDFLAG(IS_COBALT)
+  static const base::ByteCount cobalt_decoded_image_working_set_budget = []() {
+    base::ByteCount budget = base::MiB(128);
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
+      std::string value = command_line->GetSwitchValueASCII(
+          switches::kDecodedImageWorkingSetBudgetBytes);
+      int64_t parsed_value;
+      if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
+        budget = static_cast<base::ByteCount>(parsed_value);
+      }
+    }
+    return budget;
+  }();
+  return cobalt_decoded_image_working_set_budget;
+#else
   base::ByteCount decoded_image_working_set_budget = base::MiB(128);
-=======
+#endif#if !BUILDFLAG(IS_ANDROID)
+  if (for_renderer) {
+    const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
+    // If there's over 4GB of RAM, increase the working set size to 256MB for
+    // both gpu and software.
+    constexpr base::ByteCount kImageDecodeMemoryThreshold = base::GiB(4);
+    if (using_low_memory_policy) {
+      decoded_image_working_set_budget = base::MiB(32);
+    } else if (base::SysInfo::AmountOfPhysicalMemory() >=
+               kImageDecodeMemoryThreshold) {
+      decoded_image_working_set_budget = base::MiB(256);
+    }
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+// static
+size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
+    bool for_renderer) {
 #if BUILDFLAG(IS_COBALT)
   static const size_t cobalt_decoded_image_working_set_budget_bytes = []() {
     size_t budget = 128 * 1024 * 1024;
@@ -65,9 +91,8 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     return budget;
   }();
   return cobalt_decoded_image_working_set_budget_bytes;
-#else
-  size_t decoded_image_working_set_budget_bytes = 128 * 1024 * 1024;
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#else // !BUILDFLAG(IS_COBALT)
+  base::ByteCount decoded_image_working_set_budget = base::MiB(128);
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
     const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
@@ -82,13 +107,9 @@ size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
-<<<<<<< HEAD
   return decoded_image_working_set_budget.InBytesUnsigned();
-=======
-  return decoded_image_working_set_budget_bytes;
-#endif
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-}
+#endif // BUILDFLAG(IS_COBALT)
+}}
 
 #if BUILDFLAG(IS_COBALT)
 // static
