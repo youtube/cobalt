@@ -224,16 +224,24 @@ class AppEventRunnerImpl : public AppEventRunner,
     // DoFreeze() returns, because DoFreeze invokes a blocking RunLoop inside
     // WaitForAck(PendingAck::kCookieFlush) which will drain this task queue.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce([] {
-          base::MemoryPressureListener::NotifyMemoryPressure(
-              base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-          // Chromium's memory pressure listeners are invoked asynchronously on
-          // all threads. Explicitly calling ReclaimAll here forces
-          // PartitionAlloc to synchronously purge its thread caches for the
-          // main thread right now, avoiding relying solely on the asynchronous
-          // signal propagation.
-          ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
-        }));
+        FROM_HERE,
+        base::BindOnce(
+            [](AppEventRunner* runner) {
+              DCHECK(!runner->is_visible());
+              if (!runner->is_visible()) {
+                base::MemoryPressureListener::NotifyMemoryPressure(
+                    base::MemoryPressureListener::
+                        MEMORY_PRESSURE_LEVEL_CRITICAL);
+                // Chromium's memory pressure listeners are invoked
+                // asynchronously on all threads. Explicitly calling
+                // ReclaimAll here forces PartitionAlloc to
+                // synchronously purge its thread caches for the main
+                // thread right now, avoiding relying solely on the
+                // asynchronous signal propagation.
+                ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+              }
+            },
+            this));
   }
 
   void DoReveal() override {
