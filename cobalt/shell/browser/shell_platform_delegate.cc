@@ -88,6 +88,7 @@ void ShellPlatformDelegate::TrackPreviouslyVisibleWebContents(
 void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
     content::WebContents* web_contents) {
   previously_visible_web_contents_.erase(web_contents);
+  pending_conceal_web_contents_.erase(web_contents);
 }
 
 void ShellPlatformDelegate::AddPreviouslyVisibleWebContentsForTesting(
@@ -141,10 +142,12 @@ void ShellPlatformDelegate::OnConceal() {
   // This is used on reveal to decide which WebContents we should wait for
   // Reveal ACK from. We only wait for those that were actually active/visible.
   previously_visible_web_contents_.clear();
+  pending_conceal_web_contents_.clear();
   for (auto* shell : Shell::windows()) {
     if (shell->web_contents()->GetVisibility() ==
         content::Visibility::VISIBLE) {
       TrackPreviouslyVisibleWebContents(shell->web_contents());
+      pending_conceal_web_contents_.insert(shell->web_contents());
     }
     // Trigger logical JS conceal.
     shell->web_contents()->WasHidden();
@@ -322,31 +325,26 @@ void ShellPlatformDelegate::OnAllFramesVisible(
 
 void ShellPlatformDelegate::OnAllFramesConcealed(
     content::WebContents* web_contents) {
-  // Step 1: Called by CobaltLifecycleManager when all renderer frames have
-  // acknowledged JS conceal deactivation. Unmap platform windows and initiate
-  // asynchronous GPU resource and EGL display teardown.
-  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
-
   if (web_contents) {
     Shell* shell = Shell::FromWebContents(web_contents);
     if (shell) {
       ConcealShell(shell);
     }
+    pending_conceal_web_contents_.erase(web_contents);
   }
-  is_visible_ = false;
 
-  // Clean up GPU process resources (EGLSurface, GL contexts, Skia output
-  // device) and terminate EGLDisplay.
-  content::CleanupGpuProcessOnUI(base::BindOnce(
-      [](base::WeakPtr<content::WebContents> wc) {
-        // Step 2: Now that all GPU resources and the EGL display have been
-        // torn down on the GPU thread, notify the lifecycle manager that
-        // the entire conceal sequence is complete (unblocking AppEventRunner).
-        cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
-            wc ? wc.get() : nullptr);
-      },
-      web_contents ? web_contents->GetWeakPtr() : nullptr));
+  if (pending_conceal_web_contents_.empty()) {
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+    is_visible_ = false;
+
+    content::CleanupGpuProcessOnUI(base::BindOnce(
+        [](base::WeakPtr<content::WebContents> wc) {
+          cobalt::CobaltLifecycleManager::GetInstance()->OnConcealCompleted(
+              wc ? wc.get() : nullptr);
+        },
+        web_contents ? web_contents->GetWeakPtr() : nullptr));
+  }
 }
 
 #if !defined(USE_AURA) || !BUILDFLAG(IS_STARBOARD)

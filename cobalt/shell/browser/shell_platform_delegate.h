@@ -237,6 +237,7 @@ class ShellPlatformDelegate : public cobalt::CobaltLifecycleManagerObserver {
   base::flat_map<content::WebContents*,
                  std::unique_ptr<WebContentsTracker, WebContentsTrackerDeleter>>
       previously_visible_web_contents_;
+  std::set<content::WebContents*> pending_conceal_web_contents_;
 
   void TrackPreviouslyVisibleWebContents(content::WebContents* web_contents);
   void RemovePreviouslyVisibleWebContents(content::WebContents* web_contents);
