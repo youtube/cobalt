@@ -46,10 +46,6 @@ namespace update_client {
 
 Unpacker::Result::Result() = default;
 
-<<<<<<< HEAD
-Unpacker::Unpacker(const std::string& app_id,
-                   const base::FilePath& path,
-=======
 #if BUILDFLAG(IS_STARBOARD)
 Unpacker::Unpacker(const OperationResult& crx_operation_result,
                    std::unique_ptr<Unzipper> unzipper,
@@ -73,9 +69,8 @@ void Unpacker::Unpack(const std::vector<uint8_t>& pk_hash,
       ->Verify(pk_hash, crx_format);
 }
 #else
-Unpacker::Unpacker(const base::FilePath& path,
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-                   std::unique_ptr<Unzipper> unzipper,
+Unpacker::Unpacker(const std::string& app_id,
+                   const base::FilePath& path,                   std::unique_ptr<Unzipper> unzipper,
                    base::OnceCallback<void(const Result& result)> callback)
     : app_id_(app_id),
       path_(path),
@@ -139,9 +134,7 @@ void Unpacker::Verify(const std::vector<uint8_t>& pk_hash,
 
 void Unpacker::BeginUnzipping() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-<<<<<<< HEAD
-  unzip_begin_time_ = base::TimeTicks::Now();
-=======
+unzip_begin_time_ = base::TimeTicks::Now();
 #if BUILDFLAG(IS_STARBOARD)
 #if defined(IN_MEMORY_UPDATES)
   unpack_path_ = result_.installation_dir;
@@ -149,9 +142,7 @@ void Unpacker::BeginUnzipping() {
   // The directory of path_ is the installation slot.
   unpack_path_ = path_.DirName();
 #endif  // defined(IN_MEMORY_UPDATES)
-#else  // BUILDFLAG(IS_STARBOARD)
->>>>>>> parent of 644fba38572 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  if (!base::CreateNewTempDirectory(
+#else  // BUILDFLAG(IS_STARBOARD)  if (!base::CreateNewTempDirectory(
           FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
     EndUnpacking(UnpackerError::kUnzipPathError,

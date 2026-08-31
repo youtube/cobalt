@@ -3737,6 +3737,10 @@ source_set("browser") {
                        ])
     sources = []
     sources = _filtered_sources
+    sources += [
+      "fenced_frame/fenced_frame_viewport_observer.cc",
+      "fenced_frame/fenced_frame_viewport_observer.h",
+    ]
     deps -= [
       "//components/browsing_topics/common:common",
       "//content/browser/aggregation_service/proto:aggregatable_report_proto",
