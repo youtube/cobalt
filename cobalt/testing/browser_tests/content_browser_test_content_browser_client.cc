@@ -19,6 +19,8 @@
 
 #include "base/test/task_environment.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "content/public/common/content_client.h"
 
 namespace content {
@@ -60,6 +62,21 @@ void ContentBrowserTestContentBrowserClient::
   cobalt::PopulateCobaltFrameBinders(std::nullopt, render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
+}
+
+std::unique_ptr<BrowserMainParts>
+ContentBrowserTestContentBrowserClient::CreateBrowserMainParts(
+    bool /*is_integration_test*/) {
+  auto browser_main_parts =
+      std::make_unique<cobalt::CobaltBrowserMainParts>("", /*is_visible=*/true);
+  set_browser_main_parts(browser_main_parts.get());
+  return browser_main_parts;
+}
+
+void ContentBrowserTestContentBrowserClient::OnWebContentsCreated(
+    content::WebContents* web_contents) {
+  web_contents_observer_.reset(
+      new cobalt::CobaltWebContentsObserver(web_contents));
 }
 
 }  // namespace content

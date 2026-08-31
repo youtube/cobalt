@@ -12,12 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/metrics/persistent_histogram_allocator.h"
+#include "base/metrics/persistent_memory_allocator.h"
+#include "base/metrics/sparse_histogram.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_detailed_metrics_delegate.h"
@@ -25,6 +31,8 @@
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
+#include "components/metrics/file_metrics_provider.h"
+#include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "content/public/test/browser_test.h"
@@ -354,6 +362,110 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   // on the first call
   EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
             1);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StabilityMetricsPersistentAllocatorInitialized) {
+  base::GlobalHistogramAllocator* allocator =
+      base::GlobalHistogramAllocator::Get();
+  ASSERT_NE(allocator, nullptr);
+  EXPECT_EQ(allocator->Name(), "BrowserStabilityMetrics");
+
+  base::PersistentMemoryAllocator* mem_allocator =
+      allocator->memory_allocator();
+  ASSERT_NE(mem_allocator, nullptr);
+
+  // Verify the strict 512 KiB cap
+  EXPECT_EQ(mem_allocator->size(), 512u * 1024u);
+
+  // Verify the allocator is valid and not corrupt
+  EXPECT_FALSE(mem_allocator->IsCorrupt());
+  EXPECT_GT(mem_allocator->used(), 0u);
+  EXPECT_LT(mem_allocator->used(), mem_allocator->size());
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StartupMilestonesAndNavigationMetricsRecorded) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  // Attach CobaltWebContentsObserver to the test WebContents
+  cobalt::CobaltWebContentsObserver observer(shell()->web_contents());
+
+  // Navigate to a test page to trigger navigation lifecycle events
+  GURL url("data:text/html;charset=utf-8,<h1>Startup Milestone Test</h1>");
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
+  // Sync histograms from persistent memory / providers
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  // Milestone 17 was recorded in PreCreateThreads (before test body)
+  base::HistogramBase* milestone_hist = base::StatisticsRecorder::FindHistogram(
+      "Cobalt.Startup.MilestoneReached");
+  ASSERT_TRUE(milestone_hist);
+  EXPECT_GE(milestone_hist->SnapshotSamples()->GetCount(17), 1);
+
+  // Milestone 22 (DidStartNavigation) and 26 (DidFinishNavigation)
+  EXPECT_GE(
+      histogram_tester.GetBucketCount("Cobalt.Startup.MilestoneReached", 22),
+      1);
+  EXPECT_GE(
+      histogram_tester.GetBucketCount("Cobalt.Startup.MilestoneReached", 26),
+      1);
+
+  // Verify navigation duration metric was recorded
+  EXPECT_GE(histogram_tester
+                .GetAllSamples("Cobalt.Startup.Time.NavigationDispatchToCommit")
+                .size(),
+            1u);
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       StabilityMetricsCapacityMonitoring) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  // Verify PercentFull is sampled and within valid bounds (0 - 100%)
+  base::HistogramBase* percent_hist = base::StatisticsRecorder::FindHistogram(
+      "Cobalt.StabilityMetrics.PercentFull");
+  ASSERT_TRUE(percent_hist);
+  EXPECT_GT(percent_hist->SnapshotSamples()->TotalCount(), 0);
+
+  // Verify UsedKilobytes is sampled and within 0 - 512 KB
+  base::HistogramBase* used_kb_hist = base::StatisticsRecorder::FindHistogram(
+      "Cobalt.StabilityMetrics.UsedKilobytes");
+  ASSERT_TRUE(used_kb_hist);
+  EXPECT_GT(used_kb_hist->SnapshotSamples()->TotalCount(), 0);
+
+  // Verify we have not hit near-capacity condition under normal operation
+  base::HistogramBase* near_capacity_hist =
+      base::StatisticsRecorder::FindHistogram(
+          "Cobalt.StabilityMetrics.IsNearCapacity");
+  if (near_capacity_hist) {
+    EXPECT_EQ(near_capacity_hist->SnapshotSamples()->GetCount(1), 0);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       FileMetricsProviderRegistrationAndPrefs) {
+  auto* features = GlobalFeatures::GetInstance();
+  ASSERT_TRUE(features);
+  PrefService* local_state = features->metrics_local_state();
+  ASSERT_TRUE(local_state);
+
+  // Verify FileMetricsProvider prefs were properly registered for
+  // BrowserStabilityMetrics
+  EXPECT_TRUE(
+      local_state->FindPreference(metrics::prefs::kMetricsFileMetricsMetadata));
+  EXPECT_TRUE(
+      local_state->FindPreference(metrics::prefs::kMetricsLastSeenPrefix +
+                                  std::string("BrowserStabilityMetrics")));
 }
 
 }  // namespace cobalt

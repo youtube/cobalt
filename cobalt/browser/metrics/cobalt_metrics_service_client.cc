@@ -17,8 +17,10 @@
 #include <memory>
 #include <string_view>
 
+#include "base/base_paths.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -29,6 +31,7 @@
 #include "cobalt/browser/metrics/cobalt_cpu_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_memory_metrics_emitter.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "components/metrics/file_metrics_provider.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -131,6 +134,26 @@ void CobaltMetricsServiceClient::Initialize() {
 
   metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
                                                   this, local_state_.get());
+
+  // Register FileMetricsProvider for persistent stability metrics (.pma files)
+  base::FilePath base_dir;
+#if BUILDFLAG(IS_ANDROID)
+  base::PathService::Get(base::DIR_ANDROID_APP_DATA, &base_dir);
+#else
+  base::PathService::Get(base::DIR_TEMP, &base_dir);
+#endif
+  base::FilePath metrics_dir = base_dir.AppendASCII("BrowserStabilityMetrics");
+
+  auto file_metrics_provider =
+      std::make_unique<metrics::FileMetricsProvider>(local_state_.get());
+  metrics::FileMetricsProvider::Params params(
+      metrics_dir, metrics::FileMetricsProvider::SOURCE_HISTOGRAMS_ATOMIC_DIR,
+      metrics::FileMetricsProvider::ASSOCIATE_INTERNAL_PROFILE,
+      "BrowserStabilityMetrics");
+  file_metrics_provider->RegisterSource(params,
+                                        /*metrics_reporting_enabled=*/true);
+  metrics_service_->RegisterMetricsProvider(std::move(file_metrics_provider));
+
   log_uploader_ = CreateLogUploaderInternal();
   log_uploader_weak_ptr_ = log_uploader_->GetWeakPtr();
   StartIdleRefreshTimer();
