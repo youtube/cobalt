@@ -6,9 +6,9 @@
 
 #include "base/no_destructor.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/host/auth_controller.h"
 #include "chrome/browser/glic/host/glic_cookie_synchronizer.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/test_support/glic_test_util.h"
@@ -44,9 +44,8 @@ class TestCookieSynchronizer : public glic::GlicCookieSynchronizer {
         /*for_fre=*/true);
     TestCookieSynchronizer* fre_cookie_synchronizer_ptr =
         fre_cookie_synchronizer.get();
-    service->window_controller()
-        .fre_controller()
-        ->GetAuthControllerForTesting()
+    service->fre_controller()
+        .GetAuthControllerForTesting()
         .SetCookieSynchronizerForTesting(std::move(fre_cookie_synchronizer));
 
     return std::make_pair(ptr, fre_cookie_synchronizer_ptr);

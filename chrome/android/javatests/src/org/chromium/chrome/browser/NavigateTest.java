@@ -767,7 +767,9 @@ public class NavigateTest {
             final Semaphore urlServedSemaphore = new Semaphore(0);
             Runnable checkAction =
                     () -> {
-                        final Tab tab = TabModelUtils.getCurrentTab(model);
+                        final Tab tab =
+                                ThreadUtils.runOnUiThreadBlocking(
+                                        () -> TabModelUtils.getCurrentTab(model));
 
                         // Make sure that we are showing the spoofed data and a blank URL.
                         String url = getTabUrlOnUiThread(tab);
@@ -803,13 +805,14 @@ public class NavigateTest {
             mActivityTestRule.assertWaitForPageScaleFactorMatch(0.5f);
 
             // Click the page, which triggers the URL load.
-            DOMUtils.clickNode(mActivityTestRule.getActivity().getCurrentWebContents(), "body");
+            DOMUtils.clickNode(mActivityTestRule.getWebContents(), "body");
 
             // Wait for the proper URL to be served.
             Assert.assertTrue(urlServedSemaphore.tryAcquire(5, TimeUnit.SECONDS));
 
             // Wait for the url to change.
-            final Tab tab = TabModelUtils.getCurrentTab(model);
+            final Tab tab =
+                    ThreadUtils.runOnUiThreadBlocking(() -> TabModelUtils.getCurrentTab(model));
             mActivityTestRule.assertWaitForPageScaleFactorMatch(0.75f);
             CriteriaHelper.pollInstrumentationThread(
                     () -> {

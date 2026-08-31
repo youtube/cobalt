@@ -2012,27 +2012,33 @@ TEST(jump_tables1) {
   const int kNumCases = 128;
   int values[kNumCases];
   isolate->random_number_generator()->NextBytes(values, sizeof(values));
-  Label labels[kNumCases], done;
 
-  auto fn = [&labels, &done, values](MacroAssembler& assm) {
+  auto fn = [values](MacroAssembler& assm) {
     __ addi(sp, sp, -8);
     __ Sd(ra, MemOperand(sp));
     __ Align(8);
+
+    Label labels[kNumCases];
     {
+      int pc_offset_before = assm.pc_offset();
       MacroAssembler::BlockTrampolinePoolScope block(
           &assm, (kNumCases * 2 + 6) * kInstrSize);
+      // Blocking the trampoline scope shouldn't generate code,
+      // because that may interfere with the alignment.
+      CHECK_EQ(pc_offset_before, assm.pc_offset());
 
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
       __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
+      __ nop();  // For 8 byte alignment.
       for (int i = 0; i < kNumCases; ++i) {
-        __ dd(&labels[i]);
+        __ dq(&labels[i]);
       }
     }
 
+    Label done;
     for (int i = 0; i < kNumCases; ++i) {
       __ bind(&labels[i]);
       __ RV_li(a0, values[i]);
@@ -2045,6 +2051,7 @@ TEST(jump_tables1) {
 
     CHECK_EQ(0, assm.UnboundLabelsCount());
   };
+
   auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
@@ -2062,40 +2069,43 @@ TEST(jump_tables2) {
   const int kNumCases = 128;
   int values[kNumCases];
   isolate->random_number_generator()->NextBytes(values, sizeof(values));
-  Label labels[kNumCases], done, dispatch;
 
-  auto fn = [&labels, &done, &dispatch, values](MacroAssembler& assm) {
+  auto fn = [values](MacroAssembler& assm) {
+    Label dispatch;
     __ addi(sp, sp, -8);
     __ Sd(ra, MemOperand(sp));
     __ j(&dispatch);
 
+    Label labels[kNumCases];
+    Label done;
     for (int i = 0; i < kNumCases; ++i) {
       __ bind(&labels[i]);
       __ RV_li(a0, values[i]);
       __ j(&done);
     }
 
-    __ Align(8);
-    __ bind(&dispatch);
-
     {
-      MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases * 2 + 6) * kInstrSize);
-
+      const int kAlignment = 8;
+      const int kMargin = (kAlignment - 1) + (kNumCases * 2 + 6) * kInstrSize;
+      MacroAssembler::BlockTrampolinePoolScope block(&assm, kMargin);
+      __ Align(kAlignment);  // This can emit up to (kAlignment - 1) bytes.
+      __ bind(&dispatch);
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
       __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
+      __ nop();  // For 8 byte alignment.
       for (int i = 0; i < kNumCases; ++i) {
-        __ dd(&labels[i]);
+        __ dq(&labels[i]);
       }
     }
+
     __ bind(&done);
     __ Ld(ra, MemOperand(sp));
     __ addi(sp, sp, 8);
   };
+
   auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {
@@ -2116,41 +2126,37 @@ TEST(jump_tables3) {
     double value = isolate->random_number_generator()->NextDouble();
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
-  Label labels[kNumCases], done, dispatch;
-  Tagged<Object> obj;
-  int64_t imm64;
 
-  auto fn = [&labels, &done, &dispatch, values, &obj,
-             &imm64](MacroAssembler& assm) {
+  auto fn = [values](MacroAssembler& assm) {
+    Label dispatch;
     __ addi(sp, sp, -8);
     __ Sd(ra, MemOperand(sp));
-
     __ j(&dispatch);
 
+    Label labels[kNumCases];
+    Label done;
     for (int i = 0; i < kNumCases; ++i) {
       __ bind(&labels[i]);
-      obj = *values[i];
-      imm64 = obj.ptr();
-      __ nop();  // For 8 byte alignment
+      Tagged<Object> obj = *values[i];
+      int64_t imm64 = obj.ptr();
       __ RV_li(a0, imm64);
-      __ nop();  // For 8 byte alignment
       __ j(&done);
     }
 
-    __ bind(&dispatch);
     {
-      MacroAssembler::BlockTrampolinePoolScope block(
-          &assm, (kNumCases * 2 + 6) * kInstrSize);
-
-      __ Align(8);
+      const int kAlignment = 8;
+      const int kMargin = (kAlignment - 1) + (kNumCases * 2 + 6) * kInstrSize;
+      MacroAssembler::BlockTrampolinePoolScope block(&assm, kMargin);
+      __ Align(kAlignment);  // This can emit up to (kAlignment - 1) bytes.
+      __ bind(&dispatch);
       __ auipc(ra, 0);
       __ slli(t3, a0, 3);
       __ add(t3, t3, ra);
       __ Ld(t3, MemOperand(t3, 6 * kInstrSize));
       __ jr(t3);
-      __ nop();  // For 16-byte alignment
+      __ nop();  // For 8 byte alignment.
       for (int i = 0; i < kNumCases; ++i) {
-        __ dd(&labels[i]);
+        __ dq(&labels[i]);
       }
     }
 
@@ -2158,6 +2164,7 @@ TEST(jump_tables3) {
     __ Ld(ra, MemOperand(sp));
     __ addi(sp, sp, 8);
   };
+
   auto f = AssembleCode<F1>(isolate, fn);
 
   for (int i = 0; i < kNumCases; ++i) {

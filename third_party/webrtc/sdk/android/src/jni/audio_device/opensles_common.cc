@@ -12,9 +12,11 @@
 
 #include <SLES/OpenSLES.h>
 
+#include <cstddef>
 #include <iterator>
 
 #include "rtc_base/checks.h"
+#include "rtc_base/logging.h"
 
 namespace webrtc {
 

@@ -534,13 +534,13 @@ void HTMLFrameOwnerElement::ReportFallbackResourceTimingIfNeeded() {
 void HTMLFrameOwnerElement::DispatchLoad() {
   ReportFallbackResourceTimingIfNeeded();
   DispatchScopedEvent(*Event::Create(event_type_names::kLoad));
-  if (RuntimeEnabledFeatures::PotentialPermissionsPolicyReportingEnabled()) {
+  if (RuntimeEnabledFeatures::PotentialPermissionsPolicyReportingEnabled() &&
+      GetExecutionContext()) {
     CheckPotentialPermissionsPolicyViolation();
   }
 }
 
-Document* HTMLFrameOwnerElement::getSVGDocument(
-    ExceptionState& exception_state) const {
+Document* HTMLFrameOwnerElement::getSVGDocument() const {
   Document* doc = contentDocument();
   if (doc && doc->IsSVGDocument())
     return doc;

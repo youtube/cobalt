@@ -25,6 +25,7 @@ if (rtc_include_tests) {
       "../../../api:audio_options_api",
       "../../../api:libjingle_peerconnection_api",
       "../../../api:make_ref_counted",
+      "../../../api:rtc_error",
       "../../../api:rtc_stats_api",
       "../../../api:rtp_parameters",
       "../../../api:rtp_transceiver_direction",

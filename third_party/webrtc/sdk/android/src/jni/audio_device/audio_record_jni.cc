@@ -10,16 +10,21 @@
 
 #include "sdk/android/src/jni/audio_device/audio_record_jni.h"
 
-#include <string>
-#include <utility>
+#include <jni.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+
+#include "api/audio/audio_device_defines.h"
+#include "modules/audio_device/audio_device_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "rtc_base/platform_thread.h"
 #include "rtc_base/time_utils.h"
 #include "sdk/android/generated_java_audio_device_module_native_jni/WebRtcAudioRecord_jni.h"
-#include "sdk/android/src/jni/audio_device/audio_common.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "system_wrappers/include/metrics.h"
 #include "third_party/jni_zero/jni_zero.h"
 

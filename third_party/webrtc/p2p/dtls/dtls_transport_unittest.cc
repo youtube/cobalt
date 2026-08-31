@@ -53,6 +53,7 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
@@ -138,8 +139,8 @@ class DtlsTestClient : public sigslot::has_slots<> {
         });
 
     dtls_transport_ = std::make_unique<DtlsTransportInternalImpl>(
-        fake_ice_transport_.get(), crypto_options,
-        /*event_log=*/nullptr, ssl_max_version_);
+        CreateTestEnvironment(), fake_ice_transport_.get(), crypto_options,
+        ssl_max_version_);
     // Note: Certificate may be null here if testing passthrough.
     dtls_transport_->SetLocalCertificate(certificate_);
     dtls_transport_->SignalWritableState.connect(

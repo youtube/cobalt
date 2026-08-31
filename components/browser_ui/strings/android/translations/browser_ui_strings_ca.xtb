@@ -120,7 +120,9 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="2379925928934107488">Aplica el tema fosc als llocs web quan Chrome l'utilitzi i sigui possible</translation>
 <translation id="2390272837142897736">Amplia el zoom</translation>
 <translation id="2402980924095424747"><ph name="MEGABYTES" /> MB</translation>
+<translation id="2403474027143565107">Exacta</translation>
 <translation id="2404630663942400771">{PERMISSIONS_SUMMARY_ALLOWED,plural, =1{S'han permès <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i <ph name="NUM_MORE" /> més}other{S'han permès <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> i <ph name="NUM_MORE" /> més}}</translation>
+<translation id="2404857459073803936">Accés a la ubicació per a aquest lloc web</translation>
 <translation id="2410940059315936967">Els llocs web que visites poden inserir contingut d'altres llocs web, com ara imatges, anuncis i text. Les galetes establertes per aquests altres llocs web s'anomenen "galetes de tercers".</translation>
 <translation id="2411116727035790889">Activa les dreceres</translation>
 <translation id="2433507940547922241">Aparença</translation>
@@ -276,6 +278,7 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="3992684624889376114">Sobre aquesta pàgina</translation>
 <translation id="4002066346123236978">Títol</translation>
 <translation id="4031179711345676612">El micròfon es pot utilitzar</translation>
+<translation id="4042597221652780603">Aproximada</translation>
 <translation id="4046123991198612571">Pista següent</translation>
 <translation id="4077310749977440510">Els llocs web solen llegir el porta-retalls per a funcions com ara mantenir el format del text que has copiat</translation>
 <translation id="4082080074595021446">Les excepcions per a llocs web concrets no es permeten perquè el dispositiu Android no té prou RAM.</translation>
@@ -456,7 +459,7 @@ La Protecció avançada controla aquestes opcions de configuració de Chrome:
 <translation id="6165508094623778733">Més informació</translation>
 <translation id="6171020522141473435">Quan aquesta opció està activada, els llocs web poden demanar permís per utilitzar dispositius Bluetooth. Quan aquesta opció està desactivada, els llocs web no poden utilitzar dispositius Bluetooth.</translation>
 <translation id="6177128806592000436">La connexió amb aquest lloc web no és segura</translation>
-<translation id="6181444274883918285">Afegeix excepció de lloc web</translation>
+<translation id="6181444274883918285">Afegeix una excepció de lloc web</translation>
 <translation id="6192792657125177640">Excepcions</translation>
 <translation id="6194967801833346599">{DAYS,plural, =1{Chrome tornarà a bloquejar les galetes demà}other{# dies perquè es tornin a bloquejar les galetes}}</translation>
 <translation id="6195163219142236913">Galetes de tercers limitades</translation>

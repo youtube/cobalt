@@ -726,7 +726,7 @@ if (skia_compile_sksl_tests) {
     include_dirs = [ "." ]
     deps = [
       ":run_sksllex",
-      "//third_party/externals/dawn/src/tint/api:api",
+      "//third_party/dawn:tint",
       "//third_party/externals/spirv-tools:spvtools",
       "//third_party/externals/spirv-tools:spvtools_val",
       "//third_party/spirv-cross:spirv_cross",
@@ -1220,6 +1220,15 @@ optional("graphite") {
     if (skia_enable_precompile) {
       public += skia_graphite_vk_precompile_public
       sources += skia_graphite_vk_precompile_sources
+    }
+    if (is_debug) {
+      sources += skia_sksl_validate_spirv_sources
+      deps += [
+        "//third_party/externals/spirv-tools:spvtools",
+
+        #spvtools depends on this but doesn't deps it in.
+        "//third_party/externals/spirv-tools:spvtools_val",
+      ]
     }
   }
   if (skia_enable_precompile) {

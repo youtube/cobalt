@@ -406,6 +406,25 @@
     ]
   },
   {
+    "prefix": "css-anchor-update-enabled",
+    "owners": [
+      "ikilpatrick@chromium.org",
+      "rendering-core-dev@chromium.org"
+    ],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/css/css-anchor-position"
+    ],
+    "args": [
+      "--enable-blink-features=CSSAnchorUpdate"
+    ],
+    "expires": "Aug 13, 2026"
+  },
+  {
     "prefix": "css-gap-decorations-disabled",
     "platforms": ["Linux"],
     "bases": [
@@ -432,6 +451,17 @@
     "args": ["--enable-blink-features=CSSGapDecorationOptimized"],
     "expires": "Sep 1, 2026",
     "owners": ["samomekarajr@microsoft.com", "javiercon@microsoft.com"]
+  },
+  {
+    "prefix": "computed-width-values-depend-on-style-values",
+    "platforms": ["Linux"],
+    "bases": [
+      "external/wpt/css/css-typed-om/the-stylepropertymap/properties/border-width.html",
+      "external/wpt/css/css-typed-om/the-stylepropertymap/properties/outline-width.html"
+    ],
+    "args": ["--disable-blink-features=DecoupleComputedBorderWidthFromStyle"],
+    "expires": "Apr 30, 2026",
+    "owners": ["samomekarajr@microsoft.com", "kbabbitt@microsoft.com"]
   },
   {
     "prefix": "css-line-clamp-line-breaking-ellipsis",
@@ -463,6 +493,12 @@
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-004.html",
       "external/wpt/css/css-text/white-space/text-wrap-balance-line-clamp-005.html",
       "external/wpt/css/css-text/white-space/text-wrap-pretty-line-clamp-crash-001.html",
+      "external/wpt/css/css-ui/text-overflow-string-001.html",
+      "external/wpt/css/css-ui/text-overflow-string-002.html",
+      "external/wpt/css/css-ui/text-overflow-string-003.html",
+      "external/wpt/css/css-ui/text-overflow-string-004.html",
+      "external/wpt/css/css-ui/text-overflow-string-005.html",
+      "external/wpt/css/css-ui/text-overflow-string-006.tentative.html",
       "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
       "fast/deprecated-flexbox/line-clamp-crash.html",
       "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
@@ -1033,26 +1069,6 @@
     "exclusive_tests": "ALL",
     "args": [
       "--enable-features=FedCmLightweightMode"
-    ],
-    "expires": "Aug 1, 2026"
-  },
-  {
-    "prefix": "fedcm-alternative-identifiers",
-    "owners": [
-      "cbiesinger@chromium.org",
-      "web-identity-eng@google.com"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "bases": [
-      "external/wpt/fedcm/alternative-identifiers/"
-    ],
-    "exclusive_tests": "ALL",
-    "args": [
-      "--enable-features=FedCmAlternativeIdentifiers"
     ],
     "expires": "Aug 1, 2026"
   },
@@ -1687,7 +1703,8 @@
       "chrome-storage-team@google.com"
     ],
     "platforms": [
-      "Linux"
+      "Linux",
+      "Win"
     ],
     "bases": [
       "external/wpt/IndexedDB",
@@ -4377,6 +4394,25 @@
       "--disable-field-trial-config"
     ],
     "expires": "never"
+  },
+  {
+    "prefix": "svg2-cascade",
+    "owners": [
+      "futhark@chromium.org",
+      "pdr@chromium.org"
+    ],
+    "platforms": [
+      "Linux"
+    ],
+    "bases": [
+      "external/wpt/svg",
+      "paint/invalidation/svg",
+      "svg"
+    ],
+    "args": [
+      "--enable-blink-features=Svg2Cascade"
+    ],
+    "expires": "Dec 1, 2025"
   },
   {
     "prefix": "enable-shared-worker-bfcache",

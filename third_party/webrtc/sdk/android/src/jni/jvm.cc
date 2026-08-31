@@ -11,15 +11,21 @@
 #include "sdk/android/src/jni/jvm.h"
 
 #include <asm/unistd.h>
+#include <jni.h>
+#include <linux/prctl.h>
 #include <pthread.h>
 #include <sys/prctl.h>
-#include <sys/syscall.h>
 #include <unistd.h>
 
+#include <cstdio>
 #include <string>
 
 #include "rtc_base/checks.h"
 #include "third_party/jni_zero/jni_zero.h"
+
+#ifdef WEBRTC_ARCH_ARM64
+#include <asm/unistd_64.h>
+#endif
 
 namespace webrtc {
 namespace jni {

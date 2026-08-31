@@ -39,16 +39,22 @@ class CloudPolicyInvalidator
  public:
   // The number of minutes to delay a policy refresh after receiving an
   // invalidation with no payload.
-  static const int kMissingPayloadDelay;
+  static constexpr base::TimeDelta kMissingPayloadDelay = base::Minutes(5);
 
-  // The default, min and max values for max_fetch_delay_.
-  static const int kMaxFetchDelayDefault;
-  static const int kMaxFetchDelayMin;
-  static const int kMaxFetchDelayMax;
+  // The value for minimal delay of triggering a policy refresh after an
+  // received invalidation.
+  static constexpr base::TimeDelta kMinFetchDelay = base::Milliseconds(20);
 
-  // The grace period, in seconds, to allow for invalidations to be received
+  // The default, min and max values for `max_fetch_delay_`.
+  static constexpr base::TimeDelta kMaxFetchDelayDefault =
+      base::Milliseconds(10000);
+  static constexpr base::TimeDelta kMaxFetchDelayMin = base::Milliseconds(1000);
+  static constexpr base::TimeDelta kMaxFetchDelayMax =
+      base::Milliseconds(300000);
+
+  // The grace period, to allow for invalidations to be received
   // once the invalidation service starts up.
-  static const int kInvalidationGracePeriod;
+  static constexpr base::TimeDelta kInvalidationGracePeriod = base::Seconds(10);
 
   // Returns a name of a refresh metric associated with the given scope.
   static const char* GetPolicyRefreshMetricName(PolicyInvalidationScope scope);
@@ -76,16 +82,14 @@ class CloudPolicyInvalidator
       invalidation::InvalidationListener* invalidation_listener,
       CloudPolicyCore* core,
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      base::Clock* clock,
-      int64_t highest_handled_invalidation_version,
+      const base::Clock* clock,
       const std::string& device_local_account_id);
   CloudPolicyInvalidator(
       PolicyInvalidationScope scope,
       invalidation::InvalidationListener* invalidation_listener,
       CloudPolicyCore* core,
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      base::Clock* clock,
-      int64_t highest_handled_invalidation_version);
+      const base::Clock* clock);
   CloudPolicyInvalidator(const CloudPolicyInvalidator&) = delete;
   CloudPolicyInvalidator& operator=(const CloudPolicyInvalidator&) = delete;
   ~CloudPolicyInvalidator() override;
@@ -116,9 +120,8 @@ class CloudPolicyInvalidator
    public:
     PolicyInvalidationHandler(
         PolicyInvalidationScope scope,
-        int64_t highest_handled_invalidation_version,
         CloudPolicyCore* core,
-        base::Clock* clock,
+        const base::Clock* clock,
         scoped_refptr<base::SequencedTaskRunner> task_runner);
 
     ~PolicyInvalidationHandler();
@@ -148,7 +151,7 @@ class CloudPolicyInvalidator
     }
 
    private:
-    void set_max_fetch_delay(int delay);
+    void set_max_fetch_delay(base::TimeDelta delay);
 
     // Refresh the policy.
     // |is_missing_payload| is set to true if the callback is being invoked in
@@ -177,18 +180,18 @@ class CloudPolicyInvalidator
     std::optional<int64_t> in_progress_invalidation_version_;
 
     // The highest invalidation version that was handled already.
-    int64_t highest_handled_invalidation_version_;
+    int64_t highest_handled_invalidation_version_ = 0;
 
     // The hash value of the current policy. This is used to determine if a new
     // policy is different from the current one.
     std::optional<size_t> policy_hash_value_;
 
-    // The maximum random delay, in ms, between receiving an invalidation and
+    // The maximum random delay, between receiving an invalidation and
     // fetching the new policy.
-    int max_fetch_delay_ = kMaxFetchDelayDefault;
+    base::TimeDelta max_fetch_delay_ = kMaxFetchDelayDefault;
 
     // The clock.
-    const raw_ptr<base::Clock> clock_;
+    const raw_ptr<const base::Clock> clock_;
 
     // Schedules delayed tasks.
     const scoped_refptr<base::SequencedTaskRunner> task_runner_;

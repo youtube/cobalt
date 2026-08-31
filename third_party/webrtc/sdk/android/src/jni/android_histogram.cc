@@ -8,8 +8,9 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <map>
-#include <memory>
+#include <jni.h>
+
+#include <string>
 
 #include "sdk/android/generated_base_jni/Histogram_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"

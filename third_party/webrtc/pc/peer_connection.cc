@@ -695,7 +695,6 @@ JsepTransportController* PeerConnection::InitializeTransportController_n(
   config.transport_observer = this;
   config.rtcp_handler = InitializeRtcpCallback();
   config.un_demuxable_packet_handler = InitializeUnDemuxablePacketHandler();
-  config.event_log = &env_.event_log();
 #if defined(ENABLE_EXTERNAL_AUTH)
   config.enable_external_auth = true;
 #endif
@@ -1397,6 +1396,7 @@ PeerConnection::CreateDataChannelOrError(const std::string& label,
     return ret.MoveError();
   }
 
+  ClearStatsCache();
   scoped_refptr<DataChannelInterface> channel = ret.MoveValue();
 
   // Check the onRenegotiationNeeded event (with plan-b backward compat)
@@ -2080,19 +2080,14 @@ void PeerConnection::OnIceCandidatesRemoved(
   if (IsClosed()) {
     return;
   }
-  // Since this callback is based on the Candidate type, and not IceCandidate,
-  // all candidate instances should have the transport_name() property set to
-  // `mid`. See BasicPortAllocatorSession::PrunePortsAndRemoveCandidates for
-  // where the list of candidates is initially gathered.
-  std::vector<Candidate> candidates_for_notification;
-  candidates_for_notification.reserve(candidates.size());
-  for (Candidate candidate : candidates) {  // Create a copy.
+
+  for (Candidate candidate : candidates) {  // Get a copy to set the transport.
+    // For backwards compatibility reasons, all candidate instances still need
+    // to have the transport_name() property set to the `mid`.
     candidate.set_transport_name(mid);
-    candidates_for_notification.push_back(candidate);
+    IceCandidate c(mid, -1, candidate);
+    RunWithObserver([&](auto o) { o->OnIceCandidateRemoved(&c); });
   }
-  RunWithObserver([&](auto observer) {
-    observer->OnIceCandidatesRemoved(candidates_for_notification);
-  });
 }
 
 void PeerConnection::OnSelectedCandidatePairChanged(

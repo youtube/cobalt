@@ -32,7 +32,6 @@
 #include "api/local_network_access_permission.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_error.h"
-#include "api/rtc_event_log/rtc_event_log.h"
 #include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "api/transport/data_channel_transport_interface.h"
@@ -42,7 +41,6 @@
 #include "media/base/codec.h"
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "p2p/base/ice_transport_internal.h"
-#include "p2p/base/p2p_transport_channel.h"
 #include "p2p/base/packet_transport_internal.h"
 #include "p2p/base/port.h"
 #include "p2p/base/port_allocator.h"
@@ -130,7 +128,6 @@ class JsepTransportController : public PayloadTypeSuggester,
     // Initial value for whether DtlsTransport reset causes a reset
     // of SRTP parameters.
     bool active_reset_srtp_params = false;
-    RtcEventLog* event_log = nullptr;
 
     // Factory for SCTP transports.
     SctpTransportFactoryInterface* sctp_factory = nullptr;

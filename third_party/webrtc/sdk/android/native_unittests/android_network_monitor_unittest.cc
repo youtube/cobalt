@@ -10,11 +10,21 @@
 
 #include "sdk/android/src/jni/android_network_monitor.h"
 
+#include <jni.h>
+
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "api/field_trials.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/ip_address.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/network_constants.h"
 #include "rtc_base/thread.h"
 #include "sdk/android/native_api/jni/application_context_provider.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/jvm.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "test/create_test_field_trials.h"
 #include "test/gtest.h"
 

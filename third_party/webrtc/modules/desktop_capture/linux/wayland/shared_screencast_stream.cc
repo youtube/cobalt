@@ -725,8 +725,11 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
         if (bitmap && bitmap->size.width > 0 && bitmap->size.height > 0) {
           const uint8_t* bitmap_data =
               SPA_MEMBER(bitmap, bitmap->offset, uint8_t);
+          // TODO(bugs.webrtc.org/436974448): Convert `spa_video_format` to
+          // `FourCC`.
           BasicDesktopFrame* mouse_frame = new BasicDesktopFrame(
-              DesktopSize(bitmap->size.width, bitmap->size.height));
+              DesktopSize(bitmap->size.width, bitmap->size.height),
+              FOURCC_ARGB);
           mouse_frame->CopyPixelsFrom(
               bitmap_data, bitmap->stride,
               DesktopRect::MakeWH(bitmap->size.width, bitmap->size.height));
@@ -853,7 +856,7 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
   if (!queue_.current_frame() ||
       !queue_.current_frame()->size().equals(frame_size_)) {
     std::unique_ptr<DesktopFrame> frame(new BasicDesktopFrame(
-        DesktopSize(frame_size_.width(), frame_size_.height())));
+        DesktopSize(frame_size_.width(), frame_size_.height()), FOURCC_ARGB));
     queue_.ReplaceCurrentFrame(SharedDesktopFrame::Wrap(std::move(frame)));
   }
 
@@ -874,6 +877,8 @@ void SharedScreenCastStreamPrivate::ProcessBuffer(pw_buffer* buffer) {
     return;
   }
 
+  // TODO(bugs.webrtc.org/436974448): Remove this conversion when arbitrary
+  // pixel formats are supported.
   if (spa_video_format_.format == SPA_VIDEO_FORMAT_RGBx ||
       spa_video_format_.format == SPA_VIDEO_FORMAT_RGBA) {
     uint8_t* tmp_src = queue_.current_frame()->data();
@@ -985,9 +990,7 @@ bool SharedScreenCastStreamPrivate::ProcessDMABuffer(
                       << " and trying to renegotiate stream parameters";
 
     if (pw_server_version_ >= kDropSingleModifierMinVersion) {
-      modifiers_.erase(
-          std::remove(modifiers_.begin(), modifiers_.end(), modifier_),
-          modifiers_.end());
+      std::erase(modifiers_, modifier_);
     } else {
       modifiers_.clear();
     }

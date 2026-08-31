@@ -1448,6 +1448,11 @@ void LayerContextImpl::DoReturnResources() {
   }
 }
 
+void LayerContextImpl::HandleBadMojoMessage(const std::string& function,
+                                            const std::string& error) {
+  receiver_->ReportBadMessage(function + "() : " + error);
+}
+
 void LayerContextImpl::DidLoseLayerTreeFrameSinkOnImplThread() {
   NOTREACHED();
 }
@@ -1601,9 +1606,15 @@ void LayerContextImpl::SubmitCompositorFrame(CompositorFrame frame,
   // TODO(vmiura): Implement other functionality from
   // AsyncLayerTreeFrameSink::SubmitCompositorFrame()
 
-  compositor_sink_->SubmitCompositorFrame(
+  auto result = compositor_sink_->MaybeSubmitCompositorFrame(
       host_impl_->GetCurrentLocalSurfaceId(), std::move(frame),
       std::move(hit_test_region_list), 0);
+  if (result != SubmitResult::ACCEPTED) {
+    HandleBadMojoMessage(
+        "MaybeSubmitCompositorFrame",
+        CompositorFrameSinkSupport::GetSubmitResultAsString(result));
+    return;
+  }
 
   if (base::FeatureList::IsEnabled(features::kTreeAnimationsInViz)) {
     constexpr bool start_ready_animations = true;
@@ -1631,7 +1642,8 @@ void LayerContextImpl::UpdateDisplayTree(mojom::LayerTreeUpdatePtr update) {
   auto start_update_display_tree = base::TimeTicks::Now();
   auto result = DoUpdateDisplayTree(std::move(update));
   if (!result.has_value()) {
-    receiver_->ReportBadMessage(result.error());
+    HandleBadMojoMessage("UpdateDisplayTree", result.error());
+    return;
   }
 
   // After a tree update, either Draw or schedule animations.
@@ -1935,7 +1947,7 @@ void LayerContextImpl::UpdateDisplayTiling(mojom::TilingPtr tiling,
   CHECK(receiver_);
   auto result = DoUpdateDisplayTiling(std::move(tiling), update_damage);
   if (!result.has_value()) {
-    receiver_->ReportBadMessage(result.error());
+    HandleBadMojoMessage("UpdateDisplayTiling", result.error());
   }
 }
 

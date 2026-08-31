@@ -11,10 +11,14 @@
 #ifndef SDK_ANDROID_SRC_JNI_AUDIO_DEVICE_AUDIO_DEVICE_MODULE_H_
 #define SDK_ANDROID_SRC_JNI_AUDIO_DEVICE_AUDIO_DEVICE_MODULE_H_
 
+#include <jni.h>
+
+#include <cstdint>
 #include <memory>
 #include <optional>
 
 #include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
 #include "api/environment/environment.h"
 #include "api/scoped_refptr.h"
 #include "sdk/android/native_api/jni/scoped_java_ref.h"

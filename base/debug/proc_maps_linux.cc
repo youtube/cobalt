@@ -253,7 +253,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
   std::vector<std::string_view> lines = base::SplitStringPiece(
       buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
-  base::flat_map<std::string_view, size_t> tmp;
+  base::flat_map<std::string_view, ByteCount> tmp;
   for (const auto& line : lines) {
     std::vector<std::string_view> tokens = base::SplitStringPiece(
         line, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
@@ -272,9 +272,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
 
     size_t val;
     if (base::StringToSizeT(tokens[1], &val)) {
-      base::CheckedNumeric<size_t> val_bytes = val;
-      val_bytes *= 1024;
-      tmp[key] = val_bytes.ValueOrDefault(0);
+      tmp[key] = KiB(val);
     }
   }
 
@@ -392,7 +390,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
   std::vector<std::string> lines =
       SplitString(buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
 
-  std::unordered_map<std::string, size_t> tmp;
+  std::unordered_map<std::string, ByteCount> tmp;
   for (const auto& line : lines) {
     // This should be more than enough space for any output we get (but we also
     // verify the size below).
@@ -404,7 +402,7 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
       // here. |resize| does not count the length of the nul-byte, and we want
       // to trim off the trailing colon at the end, so we use |strlen - 1| here.
       key.resize(strlen(key.c_str()) - 1);
-      tmp[key] = val * 1024;
+      tmp[key] = KiB(val);
     }
   }
 

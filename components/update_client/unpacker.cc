@@ -147,8 +147,8 @@ void Unpacker::BeginUnzipping() {
   unpack_path_ = path_.DirName();
 #endif  // defined(IN_MEMORY_UPDATES)
 #else  // BUILDFLAG(IS_STARBOARD)
-  if (!base::CreateNewTempDirectory(
-          FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"), &unpack_path_)) {
+  if (!CreateTempDirectory(FILE_PATH_LITERAL("chrome_Unpacker_BeginUnzipping"),
+                           &unpack_path_)) {
     VLOG(1) << "Unable to create temporary directory for unpacking.";
     EndUnpacking(UnpackerError::kUnzipPathError,
                  ::logging::GetLastSystemErrorCode());

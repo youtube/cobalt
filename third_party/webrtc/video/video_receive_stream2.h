@@ -50,6 +50,7 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/ntp_time.h"
 #include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
 #include "video/receive_statistics_proxy.h"
@@ -195,13 +196,12 @@ class VideoReceiveStream2
   // Implements Syncable.
   uint32_t id() const override;
   std::optional<Syncable::Info> GetInfo() const override;
-  bool GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
-                              int64_t* time_ms) const override;
-  void SetEstimatedPlayoutNtpTimestampMs(int64_t ntp_timestamp_ms,
-                                         int64_t time_ms) override;
+  std::optional<Syncable::PlayoutInfo> GetPlayoutRtpTimestamp() const override;
+  void SetEstimatedPlayoutNtpTimestamp(NtpTime ntp_time,
+                                       Timestamp time) override;
 
   // SetMinimumPlayoutDelay is only called by A/V sync.
-  bool SetMinimumPlayoutDelay(int delay_ms) override;
+  bool SetMinimumPlayoutDelay(TimeDelta delay) override;
 
   std::vector<webrtc::RtpSource> GetSources() const override;
 

@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/auto_reset.h"
+#include "base/byte_count.h"
 #include "base/check_op.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/queue.h"
@@ -618,6 +619,9 @@ void PdfViewWebPlugin::DidOpen(std::unique_ptr<UrlLoader> loader,
 }
 
 void PdfViewWebPlugin::Destroy() {
+  // Holds a pointer to `engine_`. So it must be destroyed before `engine_`.
+  annotation_agent_.reset();
+
   if (initialized_) {
     // Explicitly destroy the PDFiumEngine during destruction as it may call
     // back into this object.
@@ -2784,7 +2788,8 @@ void PdfViewWebPlugin::SendMetadata() {
   if (!version.empty())
     metadata.Set("version", version);
 
-  metadata.Set("fileSize", ui::FormatBytes(document_metadata.size_bytes));
+  metadata.Set("fileSize",
+               ui::FormatBytes(base::ByteCount(document_metadata.size_bytes)));
 
   metadata.Set("linearized", document_metadata.linearized);
 
@@ -2989,8 +2994,8 @@ void PdfViewWebPlugin::CreateAgent(
     blink::mojom::AnnotationType type,
     blink::mojom::SelectorPtr selector,
     std::optional<int> search_range_start_node_id) {
-  annotation_agent_ = std::make_unique<PDFAnnotationAgent>(
-      this, type, std::move(selector), std::move(host_remote),
+  annotation_agent_ = std::make_unique<PdfAnnotationAgent>(
+      engine_.get(), type, std::move(selector), std::move(host_remote),
       std::move(agent_receiver));
 }
 
@@ -3011,24 +3016,6 @@ void PdfViewWebPlugin::SendThumbnailForTesting(base::Value::Dict reply,
                                                int page_index,
                                                Thumbnail thumbnail) {
   SendThumbnail(std::move(reply), page_index, std::move(thumbnail));
-}
-
-bool PdfViewWebPlugin::FindAndHighlightTextFragments(
-    base::span<const std::string> text_fragments) {
-  return engine_ &&
-         engine_->FindAndHighlightTextFragments(std::move(text_fragments));
-}
-
-void PdfViewWebPlugin::ScrollTextFragmentIntoView() {
-  if (engine_) {
-    engine_->ScrollToFirstTextFragment(/*force_smooth_scroll=*/true);
-  }
-}
-
-void PdfViewWebPlugin::RemoveTextFragments() {
-  if (engine_) {
-    engine_->RemoveTextFragments();
-  }
 }
 
 void PdfViewWebPlugin::SendThumbnail(base::Value::Dict reply,

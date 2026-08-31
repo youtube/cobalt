@@ -1321,10 +1321,22 @@ class PeerConnectionObserver {
                                    const std::string& /* error_text */) {}
 
   // Ice candidates have been removed.
-  // TODO(honghaiz): Make this a pure virtual method when all its subclasses
-  // implement it.
+  [[deprecated("Implement OnIceCandidateRemoved")]]
   virtual void OnIceCandidatesRemoved(
       const std::vector<Candidate>& /* candidates */) {}
+
+  // Fired when an IceCandidate has been removed.
+  // TODO(tommi): Make pure virtual when `OnIceCandidatesRemoved` can be
+  // removed.
+  virtual void OnIceCandidateRemoved(const IceCandidate* candidate) {
+    // Backwards compatibility stub implementation while downstream code is
+    // migrated over to `OnIceCandidateRemoved` and away from
+    // `OnIceCandidatesRemoved`.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    OnIceCandidatesRemoved({candidate->candidate()});
+#pragma clang diagnostic pop
+  }
 
   // Called when the ICE connection receiving status changes.
   virtual void OnIceConnectionReceivingChange(bool /* receiving */) {}

@@ -10,12 +10,17 @@
 
 #include "sdk/android/src/jni/pc/session_description.h"
 
+#include <jni.h>
+
+#include <memory>
+#include <optional>
 #include <string>
 
+#include "api/jsep.h"
 #include "rtc_base/logging.h"
 #include "sdk/android/generated_peerconnection_jni/SessionDescription_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

@@ -426,6 +426,47 @@ func (m *mlkem768KEM) decap(config *Config, ciphertext []byte) (secret []byte, e
 	return m.decapKey.Decapsulate(ciphertext)
 }
 
+// mlkem1024KEM implements ML-KEM-1024
+type mlkem1024KEM struct {
+	decapKey *mlkem.DecapsulationKey1024
+}
+
+func (e *mlkem1024KEM) encapsulationKeySize() int {
+	return mlkem.EncapsulationKeySize1024
+}
+
+func (e *mlkem1024KEM) ciphertextSize() int {
+	return mlkem.CiphertextSize1024
+}
+
+func (m *mlkem1024KEM) generate(config *Config) (publicKey []byte, err error) {
+	m.decapKey, err = mlkem.GenerateKey1024()
+	if err != nil {
+		return
+	}
+	publicKey = m.decapKey.EncapsulationKey().Bytes()
+	if config.Bugs.MLKEMEncapKeyNotReduced {
+		// Set the first 12 bits so that the first word is definitely
+		// not reduced.
+		publicKey[0] |= 0xff
+		publicKey[1] |= 0xf
+	}
+	return
+}
+
+func (m *mlkem1024KEM) encap(config *Config, peerKey []byte) (ciphertext []byte, secret []byte, err error) {
+	key, err := mlkem.NewEncapsulationKey1024(peerKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	secret, ciphertext = key.Encapsulate()
+	return
+}
+
+func (m *mlkem1024KEM) decap(config *Config, ciphertext []byte) (secret []byte, err error) {
+	return m.decapKey.Decapsulate(ciphertext)
+}
+
 // concatKEM concatenates two kemImplementations.
 type concatKEM struct {
 	kem1, kem2 kemImplementation
@@ -535,6 +576,9 @@ func kemForCurveID(id CurveID, config *Config) (kemImplementation, bool) {
 	case CurveX25519MLKEM768:
 		// draft-ietf-tls-ecdhe-mlkem-00
 		kem = &concatKEM{kem1: &mlkem768KEM{}, kem2: &ecdhKEM{curve: ecdh.X25519()}}
+	case CurveMLKEM1024:
+		// draft-ietf-tls-mlkem-04
+		kem = &mlkem1024KEM{}
 	default:
 		return nil, false
 	}

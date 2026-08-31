@@ -250,6 +250,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Returns the heap object's size in bytes
   DECL_GETTER(Size, int)
+  DECL_GETTER(SafeSize, SafeHeapObjectSize)
 
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
@@ -365,6 +366,9 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   template <ExternalPointerTag tag>
   inline void WriteLazilyInitializedExternalPointerField(
       size_t offset, IsolateForSandbox isolate, Address value);
+  inline void WriteLazilyInitializedExternalPointerField(
+      size_t offset, IsolateForSandbox isolate, Address value,
+      ExternalPointerTag tag);
 
   inline void SetupLazilyInitializedCppHeapPointerField(size_t offset);
   template <CppHeapPointerTag tag>
@@ -605,14 +609,15 @@ IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst
 // an Isolate/LocalIsolate/ReadOnlyRoots parameter.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                             \
+#define IS_TYPE_FUNCTION_DECL(Type, ...)                                  \
   V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                        \
   V8_INLINE bool Is##Type(HeapObject obj);                                \
   V8_INLINE bool Is##Type(const HeapObjectLayout* obj, Isolate* isolate); \
   V8_INLINE bool Is##Type(const HeapObjectLayout* obj);
 ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
 HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+IS_TYPE_FUNCTION_DECL(UndefinedContextCell)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined)
 #undef IS_TYPE_FUNCTION_DECL
 
 #define DECL_STRUCT_PREDICATE(NAME, Name, name)                                \

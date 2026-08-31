@@ -1807,6 +1807,8 @@ DEFINE_DEBUG_BOOL(trace_liftoff, false,
                   "trace Liftoff, the baseline compiler for WebAssembly")
 DEFINE_BOOL(trace_wasm_memory, false,
             "print all memory updates performed in wasm code")
+DEFINE_BOOL(trace_wasm_globals, false,
+            "print all global variable updates performed in wasm code")
 // Fuzzers use {wasm_tier_mask_for_testing} and {wasm_debug_mask_for_testing}
 // together with {liftoff} and {no_wasm_tier_up} to force some functions to be
 // compiled with TurboFan or for debug.
@@ -1919,6 +1921,11 @@ DEFINE_BOOL(wasm_explicit_prototypes, true,
 DEFINE_BOOL(wasm_implicit_prototypes, true,
             "enable support for engine-created 'invisible' JS Prototypes "
             "(only with --experimental-wasm-custom-descriptors)")
+DEFINE_EXPERIMENTAL_FEATURE(
+    experimental_wasm_js_interop,
+    "enable JS Interop part of Custom Descriptors proposal")
+DEFINE_IMPLICATION(experimental_wasm_js_interop,
+                   experimental_wasm_custom_descriptors)
 
 #define WASM_PRE_STAGING_IMPLICATION(feat, desc, val) \
   DEFINE_IMPLICATION(experimental_fuzzing, experimental_wasm_##feat)
@@ -3676,6 +3683,12 @@ DEFINE_EXPERIMENTAL_FEATURE(shared_heap,
 DEFINE_BOOL_READONLY(shared_heap, false,
                      "Enables a shared heap between isolates.")
 #endif
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    proto_assign_seq_opt,
+    "Enable optimizing a sequence of `Class_X.prototype.[key] = ...`"
+    "by replacing it by a runtime code somewhat equivalent to "
+    "`Object.assign(Class_X.prototype, [boilerplate_obj])`")
 
 #if defined(V8_USE_LIBM_TRIG_FUNCTIONS)
 DEFINE_BOOL(use_libm_trig_functions, true, "use libm trig functions")

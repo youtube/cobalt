@@ -6,62 +6,17 @@ import("//build/buildflag_header.gni")
 import("//components/plus_addresses/buildflags.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-if (is_android) {
-  import("//build/config/android/rules.gni")
-}
-
-component("features") {
-  output_name = "plus_addresses_features"
-  defines = [ "IS_PLUS_ADDRESSES_FEATURES_IMPL" ]
-  sources = [
-    "features.cc",
-    "features.h",
-  ]
-  public_deps = [ "//base" ]
-}
-
-source_set("types") {
-  sources = [
-    "plus_address_types.cc",
-    "plus_address_types.h",
-  ]
-  deps = [ "//net" ]
-  public_deps = [
-    "//base",
-    "//components/affiliations/core/browser:affiliations",
-    "//components/autofill/core/browser",
-  ]
-}
-
-if (is_android) {
-  java_cpp_enum("plus_address_java_enums") {
-    sources = [ "plus_address_types.h" ]
-  }
-}
-
 source_set("parsing") {
   sources = [
     "plus_address_parsing_utils.cc",
     "plus_address_parsing_utils.h",
   ]
 
-  deps = [ ":features" ]
+  deps = [ "//components/plus_addresses/core/common:features" ]
   public_deps = [
-    ":types",
     "//base",
+    "//components/plus_addresses/core/browser:types",
     "//services/data_decoder/public/cpp",
-  ]
-}
-
-source_set("prefs") {
-  sources = [
-    "plus_address_prefs.cc",
-    "plus_address_prefs.h",
-  ]
-  deps = [
-    "//base",
-    "//components/pref_registry",
-    "//components/prefs",
   ]
 }
 
@@ -113,11 +68,11 @@ source_set("plus_addresses") {
     ":blocklist_data",
     ":hats_utils",
     ":parsing",
-    ":prefs",
     "//components/affiliations/core/browser:affiliations",
     "//components/feature_engagement/public",
-    "//components/plus_addresses/metrics",
-    "//components/plus_addresses/metrics:submission_logger",
+    "//components/plus_addresses/core/browser/metrics",
+    "//components/plus_addresses/core/browser/metrics:submission_logger",
+    "//components/plus_addresses/core/common:prefs",
     "//components/plus_addresses/resources/strings",
     "//components/plus_addresses/settings",
     "//components/plus_addresses/webdata",
@@ -130,14 +85,15 @@ source_set("plus_addresses") {
     "//ui/base",
   ]
   public_deps = [
-    # While not strictly public by h file inclusion, this is a temporary move
-    # of features.h out of sources. Allowing those depending on
-    # :plus_addresses to also depend on its features to reduce churn.
-    ":features",
-    ":types",
     "//base",
     "//components/autofill/core/browser",
     "//components/keyed_service/core",
+    "//components/plus_addresses/core/browser:types",
+
+    # While not strictly public by h file inclusion, this is a temporary move
+    # of features.h out of sources. Allowing those depending on
+    # :plus_addresses to also depend on its features to reduce churn.
+    "//components/plus_addresses/core/common:features",
     "//third_party/abseil-cpp:absl",
     "//url",
   ]
@@ -164,11 +120,9 @@ source_set("unit_tests") {
 
   deps = [
     ":blocklist_data",
-    ":features",
     ":hats_utils",
     ":parsing",
     ":plus_addresses",
-    ":prefs",
     ":test_support",
     "//base/test:test_support",
     "//components/affiliations/core/browser:affiliations",
@@ -176,7 +130,9 @@ source_set("unit_tests") {
     "//components/autofill/core/browser:test_support",
     "//components/feature_engagement/public",
     "//components/os_crypt/async/browser:test_support",
-    "//components/plus_addresses/metrics",
+    "//components/plus_addresses/core/browser/metrics",
+    "//components/plus_addresses/core/common:features",
+    "//components/plus_addresses/core/common:prefs",
     "//components/plus_addresses/resources/strings",
     "//components/plus_addresses/settings:test_support",
     "//components/plus_addresses/webdata",
@@ -205,13 +161,13 @@ static_library("test_support") {
   ]
   deps = [
     ":hats_utils",
-    ":prefs",
     "//base",
     "//base/test:test_support",
     "//components/affiliations/core/browser:test_support",
     "//components/autofill/core/browser",
     "//components/autofill/core/browser:test_support",
     "//components/feature_engagement/public",
+    "//components/plus_addresses/core/common:prefs",
     "//components/plus_addresses/resources/strings",
     "//components/strings:components_strings_grit",
     "//net:test_support",
@@ -219,8 +175,8 @@ static_library("test_support") {
   ]
   public_deps = [
     ":plus_addresses",
-    ":types",
     "//components/affiliations/core/browser:test_support",
+    "//components/plus_addresses/core/browser:types",
     "//components/plus_addresses/settings:test_support",
     "//components/prefs:test_support",
     "//components/signin/public/identity_manager:test_support",

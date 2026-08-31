@@ -10,7 +10,13 @@
 
 #include "sdk/android/src/jni/pc/owned_factory_and_threads.h"
 
-#include "sdk/android/src/jni/jni_helpers.h"
+#include <memory>
+#include <utility>
+
+#include "api/peer_connection_interface.h"
+#include "api/scoped_refptr.h"
+#include "rtc_base/socket_factory.h"
+#include "rtc_base/thread.h"
 
 namespace webrtc {
 namespace jni {

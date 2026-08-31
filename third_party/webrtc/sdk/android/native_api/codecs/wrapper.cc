@@ -10,9 +10,15 @@
 
 #include "sdk/android/native_api/codecs/wrapper.h"
 
-#include <memory>
+#include <jni.h>
 
-#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include <memory>
+#include <vector>
+
+#include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "sdk/android/src/jni/video_codec_info.h"
 #include "sdk/android/src/jni/video_decoder_factory_wrapper.h"
 #include "sdk/android/src/jni/video_encoder_factory_wrapper.h"

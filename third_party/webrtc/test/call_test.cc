@@ -58,6 +58,7 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/task_queue_for_test.h"
+#include "test/create_test_environment.h"
 #include "test/create_test_field_trials.h"
 #include "test/encoder_settings.h"
 #include "test/fake_decoder.h"
@@ -75,7 +76,7 @@ namespace test {
 
 CallTest::CallTest(absl::string_view field_trials)
     : field_trials_(CreateTestFieldTrials(field_trials)),
-      env_(CreateEnvironment(&field_trials_)),
+      env_(CreateTestEnvironment({.field_trials = &field_trials_})),
       send_env_(env_),
       recv_env_(env_),
       audio_send_config_(/*send_transport=*/nullptr),

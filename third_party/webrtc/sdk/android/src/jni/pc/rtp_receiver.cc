@@ -10,9 +10,18 @@
 
 #include "sdk/android/src/jni/pc/rtp_receiver.h"
 
+#include <jni.h>
+
+#include "api/crypto/frame_decryptor_interface.h"
+#include "api/media_types.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_receiver_interface.h"
+#include "api/scoped_refptr.h"
 #include "sdk/android/generated_peerconnection_jni/RtpReceiver_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "sdk/android/src/jni/pc/media_stream_track.h"
 #include "sdk/android/src/jni/pc/rtp_parameters.h"
 #include "third_party/jni_zero/jni_zero.h"

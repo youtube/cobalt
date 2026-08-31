@@ -9,9 +9,11 @@
  */
 #include "sdk/android/src/jni/jni_helpers.h"
 
-#include <vector>
+#include <jni.h>
 
+#include "rtc_base/checks.h"
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

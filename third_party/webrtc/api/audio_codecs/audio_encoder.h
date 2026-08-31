@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/audio/audio_view.h"
 #include "api/call/bitrate_allocation.h"
@@ -201,8 +202,10 @@ class AudioEncoder {
   virtual ArrayView<std::unique_ptr<AudioEncoder>> ReclaimContainedEncoders();
 
   // Enables audio network adaptor. Returns true if successful.
+  [[deprecated]]
   virtual bool EnableAudioNetworkAdaptor(const std::string& config_string,
                                          RtcEventLog* event_log);
+  virtual bool EnableAudioNetworkAdaptor(absl::string_view config);
 
   // Disables audio network adaptor.
   virtual void DisableAudioNetworkAdaptor();

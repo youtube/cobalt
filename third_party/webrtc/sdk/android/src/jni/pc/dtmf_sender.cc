@@ -8,10 +8,11 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <jni.h>
+
 #include "api/dtmf_sender_interface.h"
 #include "sdk/android/generated_peerconnection_jni/DtmfSender_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {

@@ -82,15 +82,12 @@ TEST_F(TabStripServiceImplTest, GetTabs) {
   ASSERT_TRUE(success);
   const auto& snapshot = result.value();
   ASSERT_TRUE(snapshot->tab_strip);
-  ASSERT_TRUE(snapshot->tab_strip->collection->is_tab_strip());
-  ASSERT_EQ(1u, snapshot->tab_strip->elements.size());
-  ASSERT_TRUE(snapshot->tab_strip->elements[0]->is_tab_container());
-  ASSERT_EQ(
-      "888",
-      snapshot->tab_strip->elements[0]->get_tab_container()->tab->id.Id());
-  ASSERT_EQ(
-      NodeId::Type::kContent,
-      snapshot->tab_strip->elements[0]->get_tab_container()->tab->id.Type());
+  ASSERT_TRUE(snapshot->tab_strip->data->is_tab_strip());
+  ASSERT_EQ(1u, snapshot->tab_strip->children.size());
+  ASSERT_TRUE(snapshot->tab_strip->children[0]->data->is_tab());
+  ASSERT_EQ("888", snapshot->tab_strip->children[0]->data->get_tab()->id.Id());
+  ASSERT_EQ(NodeId::Type::kContent,
+            snapshot->tab_strip->children[0]->data->get_tab()->id.Type());
   // TODO(crbug.com/412709270): we can probably easily test the observation
   // in unit test as well. But it is already covered by the browser
   // test, so skipping for now.
@@ -223,6 +220,98 @@ TEST_F(TabStripServiceImplTest, ActivateTab_NotFound) {
 
   ASSERT_TRUE(success);
   ASSERT_EQ(result.error()->code, mojo_base::mojom::Code::kNotFound);
+}
+
+TEST_F(TabStripServiceImplTest, SetSelectedTabs) {
+  // We start with this being active (and therefore selected).
+  auto tab1 = testing::ToyTab{
+      tabs::TabHandle(1),
+      GURL("1"),
+  };
+
+  // And end with this one being active.
+  auto tab2 = testing::ToyTab{
+      tabs::TabHandle(2),
+      GURL("1"),
+  };
+
+  tab_strip_->AddTab(tab1);
+  tab_strip_->AddTab(tab2);
+  tab_strip_->ActivateTab(tab1.tab_handle);
+
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle).active);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle).selected);
+
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle).active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle).selected);
+
+  tabs_api::NodeId tab2_id(NodeId::Type::kContent,
+                           base::NumberToString(tab2.tab_handle.raw_value()));
+
+  tabs_api::mojom::TabStripService::SetSelectedTabsResult result;
+  bool success = client_->SetSelectedTabs({tab2_id}, tab2_id, &result);
+
+  ASSERT_TRUE(success);
+
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle).active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle).selected);
+
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle).active);
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle).selected);
+}
+
+TEST_F(TabStripServiceImplTest, SetSelectedTabs_MultipleSelection) {
+  auto tab1 = testing::ToyTab{
+      tabs::TabHandle(1),
+      GURL("1"),
+  };
+
+  auto tab2 = testing::ToyTab{
+      tabs::TabHandle(2),
+      GURL("1"),
+  };
+
+  auto tab3 = testing::ToyTab{
+      tabs::TabHandle(3),
+      GURL("1"),
+  };
+
+  auto tab4 = testing::ToyTab{
+      tabs::TabHandle(4),
+      GURL("1"),
+  };
+
+  tab_strip_->AddTab(tab1);
+  tab_strip_->AddTab(tab2);
+  tab_strip_->AddTab(tab3);
+  tab_strip_->AddTab(tab4);
+
+  tabs_api::NodeId tab1_id(NodeId::Type::kContent,
+                           base::NumberToString(tab1.tab_handle.raw_value()));
+  tabs_api::NodeId tab2_id(NodeId::Type::kContent,
+                           base::NumberToString(tab2.tab_handle.raw_value()));
+  tabs_api::NodeId tab3_id(NodeId::Type::kContent,
+                           base::NumberToString(tab3.tab_handle.raw_value()));
+  tabs_api::NodeId tab4_id(NodeId::Type::kContent,
+                           base::NumberToString(tab4.tab_handle.raw_value()));
+
+  tabs_api::mojom::TabStripService::SetSelectedTabsResult result;
+  bool success = client_->SetSelectedTabs({tab1_id, tab2_id, tab3_id, tab4_id},
+                                          tab4_id, &result);
+
+  ASSERT_TRUE(success);
+
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab1.tab_handle).active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab1.tab_handle).selected);
+
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab2.tab_handle).active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab2.tab_handle).selected);
+
+  ASSERT_FALSE(tab_strip_->GetToyTabFor(tab3.tab_handle).active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab3.tab_handle).selected);
+
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab4.tab_handle).active);
+  ASSERT_TRUE(tab_strip_->GetToyTabFor(tab4.tab_handle).selected);
 }
 
 TEST_F(TabStripServiceImplTest, MoveTab) {

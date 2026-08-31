@@ -102,6 +102,7 @@ static bool is_post_quantum_group(uint16_t id) {
   switch (id) {
     case SSL_GROUP_X25519_KYBER768_DRAFT00:
     case SSL_GROUP_X25519_MLKEM768:
+    case SSL_GROUP_MLKEM1024:
       return true;
     default:
       return false;

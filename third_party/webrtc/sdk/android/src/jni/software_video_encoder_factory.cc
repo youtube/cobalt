@@ -8,12 +8,13 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <jni.h>
+
 #include "api/environment/environment.h"
 #include "api/video_codecs/builtin_video_encoder_factory.h"
-#include "api/video_codecs/video_encoder.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "sdk/android/generated_swcodecs_jni/SoftwareVideoEncoderFactory_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
 #include "sdk/android/src/jni/video_codec_info.h"
 #include "third_party/jni_zero/jni_zero.h"
 

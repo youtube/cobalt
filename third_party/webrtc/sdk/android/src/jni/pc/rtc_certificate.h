@@ -11,10 +11,10 @@
 #ifndef SDK_ANDROID_SRC_JNI_PC_RTC_CERTIFICATE_H_
 #define SDK_ANDROID_SRC_JNI_PC_RTC_CERTIFICATE_H_
 
-#include "rtc_base/ref_count.h"
+#include <jni.h>
+
 #include "rtc_base/rtc_certificate.h"
-#include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

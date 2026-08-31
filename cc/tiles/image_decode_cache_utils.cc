@@ -7,6 +7,7 @@
 
 #include "cc/tiles/image_decode_cache_utils.h"
 
+#include "base/byte_count.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_COBALT)
@@ -44,37 +45,37 @@ bool ImageDecodeCacheUtils::ShouldEvictCaches(
 size_t ImageDecodeCacheUtils::GetWorkingSetBytesForImageDecode(
     bool for_renderer) {
 #if BUILDFLAG(IS_COBALT)
-  static const size_t cobalt_decoded_image_working_set_budget_bytes = []() {
-    size_t budget = 128 * 1024 * 1024;
+  static const base::ByteCount cobalt_decoded_image_working_set_budget = []() {
+    base::ByteCount budget = base::MiB(128);
     auto* command_line = base::CommandLine::ForCurrentProcess();
     if (command_line->HasSwitch(switches::kDecodedImageWorkingSetBudgetBytes)) {
       std::string value = command_line->GetSwitchValueASCII(
           switches::kDecodedImageWorkingSetBudgetBytes);
       int64_t parsed_value;
       if (base::StringToInt64(value, &parsed_value) && parsed_value >= 0) {
-        budget = parsed_value;
+        budget = base::ByteCount(parsed_value);
       }
     }
     return budget;
   }();
-  return cobalt_decoded_image_working_set_budget_bytes;
+  return cobalt_decoded_image_working_set_budget.InBytesUnsigned();
 #else
-  size_t decoded_image_working_set_budget_bytes = 128 * 1024 * 1024;
+  base::ByteCount decoded_image_working_set_budget = base::MiB(128);
 #if !BUILDFLAG(IS_ANDROID)
   if (for_renderer) {
     const bool using_low_memory_policy = base::SysInfo::IsLowEndDevice();
     // If there's over 4GB of RAM, increase the working set size to 256MB for
     // both gpu and software.
-    const int kImageDecodeMemoryThresholdMB = 4 * 1024;
+    constexpr base::ByteCount kImageDecodeMemoryThreshold = base::GiB(4);
     if (using_low_memory_policy) {
-      decoded_image_working_set_budget_bytes = 32 * 1024 * 1024;
-    } else if (base::SysInfo::AmountOfPhysicalMemoryMB() >=
-               kImageDecodeMemoryThresholdMB) {
-      decoded_image_working_set_budget_bytes = 256 * 1024 * 1024;
+      decoded_image_working_set_budget = base::MiB(32);
+    } else if (base::SysInfo::AmountOfPhysicalMemory() >=
+               kImageDecodeMemoryThreshold) {
+      decoded_image_working_set_budget = base::MiB(256);
     }
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
-  return decoded_image_working_set_budget_bytes;
+  return decoded_image_working_set_budget.InBytesUnsigned();
 #endif
 }
 

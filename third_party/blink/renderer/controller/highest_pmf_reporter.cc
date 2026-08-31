@@ -168,8 +168,8 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
   if (FirstNavigationStarted()) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
-        WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
-                      WTF::Unretained(this)),
+        blink::BindOnce(&HighestPmfReporter::OnReportMetrics,
+                        blink::Unretained(this)),
 #if BUILDFLAG(IS_COBALT)
         time_to_report_[0]);
 #else
@@ -224,8 +224,8 @@ void HighestPmfReporter::OnReportMetrics() {
 #endif
   task_runner_->PostDelayedTask(
       FROM_HERE,
-      WTF::BindOnce(&HighestPmfReporter::OnReportMetrics,
-                    WTF::Unretained(this)),
+      blink::BindOnce(&HighestPmfReporter::OnReportMetrics,
+                      blink::Unretained(this)),
       delay);
 }
 

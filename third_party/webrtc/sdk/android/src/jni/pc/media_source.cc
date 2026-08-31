@@ -8,6 +8,8 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <jni.h>
+
 #include "api/media_stream_interface.h"
 #include "sdk/android/generated_peerconnection_jni/MediaSource_jni.h"
 #include "third_party/jni_zero/jni_zero.h"

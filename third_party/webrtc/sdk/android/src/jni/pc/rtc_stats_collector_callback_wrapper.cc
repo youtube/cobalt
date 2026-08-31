@@ -10,16 +10,27 @@
 
 #include "sdk/android/src/jni/pc/rtc_stats_collector_callback_wrapper.h"
 
+#include <jni.h>
+
+#include <cstdint>
+#include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "rtc_base/string_encode.h"
+#include "absl/strings/str_cat.h"
+#include "api/scoped_refptr.h"
+#include "api/stats/attribute.h"
+#include "api/stats/rtc_stats.h"
+#include "api/stats/rtc_stats_report.h"
+#include "rtc_base/checks.h"
 #include "sdk/android/generated_external_classes_jni/BigInteger_jni.h"
 #include "sdk/android/generated_peerconnection_jni/RTCStatsCollectorCallback_jni.h"
 #include "sdk/android/generated_peerconnection_jni/RTCStatsReport_jni.h"
 #include "sdk/android/generated_peerconnection_jni/RTCStats_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/native_api/jni/jvm.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

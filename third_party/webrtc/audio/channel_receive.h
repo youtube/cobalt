@@ -39,6 +39,7 @@
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
 #include "modules/audio_coding/include/audio_coding_module_typedefs.h"
+#include "system_wrappers/include/ntp_time.h"
 
 namespace webrtc {
 
@@ -49,7 +50,7 @@ class ReceiveStatistics;
 class RtpPacketReceived;
 class RtpRtcp;
 
-struct CallReceiveStatistics {
+struct ChannelReceiveStatistics {
   int packets_lost = 0;
   uint32_t jitter_ms = 0;
   int64_t payload_bytes_received = 0;
@@ -123,11 +124,11 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
 
   // Audio+Video Sync.
   virtual uint32_t GetDelayEstimate() const = 0;
-  virtual bool SetMinimumPlayoutDelay(int delay_ms) = 0;
-  virtual bool GetPlayoutRtpTimestamp(uint32_t* rtp_timestamp,
-                                      int64_t* time_ms) const = 0;
-  virtual void SetEstimatedPlayoutNtpTimestampMs(int64_t ntp_timestamp_ms,
-                                                 int64_t time_ms) = 0;
+  virtual bool SetMinimumPlayoutDelay(TimeDelta delay) = 0;
+  virtual std::optional<Syncable::PlayoutInfo> GetPlayoutRtpTimestamp()
+      const = 0;
+  virtual void SetEstimatedPlayoutNtpTimestamp(NtpTime ntp_time,
+                                               Timestamp time) = 0;
   virtual std::optional<int64_t> GetCurrentEstimatedPlayoutNtpTimestampMs(
       int64_t now_ms) const = 0;
 
@@ -144,7 +145,7 @@ class ChannelReceiveInterface : public RtpPacketSinkInterface {
       PacketRouter* packet_router) = 0;
   virtual void ResetReceiverCongestionControlObjects() = 0;
 
-  virtual CallReceiveStatistics GetRTCPStatistics() const = 0;
+  virtual ChannelReceiveStatistics GetRTCPStatistics() const = 0;
   virtual void SetNACKStatus(bool enable, int max_packets) = 0;
   virtual void SetRtcpMode(webrtc::RtcpMode mode) = 0;
   virtual void SetNonSenderRttMeasurement(bool enabled) = 0;

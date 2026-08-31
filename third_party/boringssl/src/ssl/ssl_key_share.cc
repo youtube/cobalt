@@ -375,6 +375,66 @@ class X25519MLKEM768KeyShare : public SSLKeyShare {
   MLKEM768_private_key mlkem_private_key_;
 };
 
+// draft-ietf-tls-mlkem-04
+class MLKEM1024KeyShare : public SSLKeyShare {
+ public:
+  MLKEM1024KeyShare() = default;
+
+  uint16_t GroupID() const override { return SSL_GROUP_MLKEM1024; }
+
+  bool Generate(CBB *out_public_key) override {
+    uint8_t public_key[MLKEM1024_PUBLIC_KEY_BYTES];
+    MLKEM1024_generate_key(public_key, /*optional_out_seed=*/nullptr,
+                           &private_key_);
+    return CBB_add_bytes(out_public_key, public_key, sizeof(public_key));
+  }
+
+  bool Encap(CBB *out_ciphertext, Array<uint8_t> *out_secret,
+             uint8_t *out_alert, Span<const uint8_t> peer_key) override {
+    MLKEM1024_public_key peer_pub;
+    CBS peer_pub_cbs;
+    CBS_init(&peer_pub_cbs, peer_key.data(), peer_key.size());
+    if (!MLKEM1024_parse_public_key(&peer_pub, &peer_pub_cbs)) {
+      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
+      return false;
+    }
+
+    Array<uint8_t> secret;
+    if (!secret.InitForOverwrite(MLKEM_SHARED_SECRET_BYTES)) {
+      return false;
+    }
+    uint8_t ciphertext[MLKEM1024_CIPHERTEXT_BYTES];
+    MLKEM1024_encap(ciphertext, secret.data(), &peer_pub);
+    if (!CBB_add_bytes(out_ciphertext, ciphertext, sizeof(ciphertext))) {
+      return false;
+    }
+    *out_secret = std::move(secret);
+    return true;
+  }
+
+  bool Decap(Array<uint8_t> *out_secret, uint8_t *out_alert,
+             Span<const uint8_t> ciphertext) override {
+    Array<uint8_t> secret;
+    if (!secret.InitForOverwrite(MLKEM_SHARED_SECRET_BYTES)) {
+      *out_alert = SSL_AD_INTERNAL_ERROR;
+      return false;
+    }
+
+    if (!MLKEM1024_decap(secret.data(), ciphertext.data(), ciphertext.size(),
+                         &private_key_)) {
+      *out_alert = SSL_AD_ILLEGAL_PARAMETER;
+      OPENSSL_PUT_ERROR(SSL, SSL_R_BAD_ECPOINT);
+      return false;
+    }
+    *out_secret = std::move(secret);
+    return true;
+  }
+
+ private:
+  MLKEM1024_private_key private_key_;
+};
+
 constexpr NamedGroup kNamedGroups[] = {
     {NID_X9_62_prime256v1, SSL_GROUP_SECP256R1, "P-256", "prime256v1"},
     {NID_secp384r1, SSL_GROUP_SECP384R1, "P-384", "secp384r1"},
@@ -383,6 +443,7 @@ constexpr NamedGroup kNamedGroups[] = {
     {NID_X25519Kyber768Draft00, SSL_GROUP_X25519_KYBER768_DRAFT00,
      "X25519Kyber768Draft00", ""},
     {NID_X25519MLKEM768, SSL_GROUP_X25519_MLKEM768, "X25519MLKEM768", ""},
+    {NID_MLKEM1024, SSL_GROUP_MLKEM1024, "MLKEM1024", ""},
 };
 
 }  // namespace
@@ -403,6 +464,8 @@ UniquePtr<SSLKeyShare> SSLKeyShare::Create(uint16_t group_id) {
       return MakeUnique<X25519Kyber768KeyShare>();
     case SSL_GROUP_X25519_MLKEM768:
       return MakeUnique<X25519MLKEM768KeyShare>();
+    case SSL_GROUP_MLKEM1024:
+      return MakeUnique<MLKEM1024KeyShare>();
     default:
       return nullptr;
   }

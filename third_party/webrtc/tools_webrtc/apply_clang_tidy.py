@@ -33,6 +33,7 @@
 # https://chromium.googlesource.com/chromium/src/+/main/docs/clang_tidy.md
 
 import argparse
+import time
 import pathlib
 import subprocess
 
@@ -69,7 +70,14 @@ def _build_clang_tools(work_dir: pathlib.Path) -> None:
     if pathlib.Path(work_dir, _TIDY_RUNNER).exists() and pathlib.Path(
             work_dir, _TIDY_BINARY).exists() and pathlib.Path(
                 work_dir, _REPLACEMENTS_BINARY).exists():
-        return
+        # Assume that tidy updates at least once every 30 days, and
+        # recompile it if it's more than 30 days old.
+        tidy_binary_path = pathlib.Path(work_dir, _TIDY_BINARY)
+        age_in_seconds = time.time() - tidy_binary_path.stat().st_mtime
+        age_in_days = age_in_seconds / (24 * 60 * 60)
+        if age_in_days < 30:
+            return
+        print("Binary is %d days old - recompiling" % age_in_days)
     print("Fetching and building clang-tidy")
     build_clang_tools_cmd = (_TIDY_BUILD, "--fetch", work_dir, "clang-tidy",
                              "clang-apply-replacements")

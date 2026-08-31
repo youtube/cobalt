@@ -14,7 +14,7 @@ if (is_android) {
     testonly = true
     apk_name = "androidvoip"
     android_manifest = "AndroidManifest.xml"
-    min_sdk_version = 21
+    min_sdk_version = 23
     target_sdk_version = 31
 
     sources = [

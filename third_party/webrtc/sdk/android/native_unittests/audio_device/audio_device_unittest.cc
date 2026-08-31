@@ -10,13 +10,28 @@
 
 #include "api/audio/audio_device.h"
 
+#include <SLES/OpenSLES.h>
+#include <jni.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include <iterator>
+#include <limits>
 #include <list>
 #include <memory>
 #include <numeric>
+#include <string>
+#include <vector>
 
+#include "api/audio/audio_device_defines.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/scoped_refptr.h"
+#include "api/units/time_delta.h"
 #include "modules/audio_device/include/mock_audio_transport.h"
 #include "rtc_base/event.h"
 #include "rtc_base/synchronization/mutex.h"
@@ -24,10 +39,11 @@
 #include "sdk/android/generated_native_unittests_jni/BuildInfo_jni.h"
 #include "sdk/android/native_api/audio_device_module/audio_device_android.h"
 #include "sdk/android/native_api/jni/application_context_provider.h"
-#include "sdk/android/src/jni/audio_device/audio_common.h"
+#include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
 #include "sdk/android/src/jni/audio_device/opensles_common.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/testsupport/file_utils.h"

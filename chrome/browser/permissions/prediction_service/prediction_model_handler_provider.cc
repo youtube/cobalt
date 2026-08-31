@@ -25,8 +25,16 @@
 namespace permissions {
 
 PredictionModelHandlerProvider::PredictionModelHandlerProvider(
-    OptimizationGuideKeyedService* optimization_guide) {
+    OptimizationGuideKeyedService* optimization_guide,
+    passage_embeddings::Embedder* passage_embedder)
+    : passage_embedder_(passage_embedder) {
   VLOG(1) << "[PermissionsAI] PredictionModelHandlerProvider ctor";
+  VLOG(1) << "[PermissionsAI] PredictionModelHandlerProvider ctor "
+             "passage_embedder available: "
+          << (passage_embedder ? "true" : "false");
+  VLOG(1) << "[PermissionsAI] PredictionModelHandlerProvider ctor "
+             "optimization_guide available: "
+          << (optimization_guide ? "true" : "false");
   // We set up model handlers if necessary in order of preference:
   // Aiv4, Aiv3, Aiv1
   // CPSSv1 is defined always as backup if further requirements for AivX are not
@@ -163,7 +171,8 @@ void PredictionModelHandlerProvider::set_permissions_aiv4_handler_for_testing(
 
 void PredictionModelHandlerProvider::set_passage_embedder_for_testing(
     passage_embeddings::Embedder* passage_embedder) {
-  passage_embedder_for_testing = passage_embedder;
+  CHECK_IS_TEST();
+  passage_embedder_ = passage_embedder;
 }
 
 bool PredictionModelHandlerProvider::IsAiv4ModelAvailable() {
@@ -172,15 +181,7 @@ bool PredictionModelHandlerProvider::IsAiv4ModelAvailable() {
 
 passage_embeddings::Embedder*
 PredictionModelHandlerProvider::GetPassageEmbedder() {
-  if (passage_embedder_for_testing.has_value()) {
-    CHECK_IS_TEST();
-    return passage_embedder_for_testing.value();
-  }
-  if (auto* passage_embeddings_service_controller =
-          passage_embeddings::ChromePassageEmbeddingsServiceController::Get()) {
-    return passage_embeddings_service_controller->GetEmbedder();
-  }
-  return nullptr;
+  return passage_embedder_;
 }
 
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)

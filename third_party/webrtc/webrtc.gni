@@ -69,10 +69,6 @@ declare_args() {
   # annotated symbols.
   rtc_enable_objc_symbol_export = rtc_enable_symbol_export
 
-  # Deprecated, this flag has no effect.
-  # TODO: bugs.webrtc.org/42220378 - Delete after August 15, 2025.
-  rtc_exclude_field_trial_default = false
-
   # Setting this to true will define WEBRTC_EXCLUDE_METRICS_DEFAULT which
   # will tell the pre-processor to remove the default definition of symbols
   # needed to use metrics. In that case a new implementation needs to be
@@ -323,6 +319,9 @@ declare_args() {
 
   # Enables an experimental rust version of base64 for building and testing.
   rtc_rusty_base64 = false
+
+  # Enables PSNR calculation for video getStats.
+  rtc_video_psnr = build_with_chromium
 }
 
 declare_args() {
@@ -523,7 +522,7 @@ template("rtc_test") {
       use_default_launcher = false
       android_manifest = webrtc_root + "test/android/AndroidManifest.xml"
       use_raw_android_executable = false
-      min_sdk_version = 21
+      min_sdk_version = 23
       target_sdk_version = 24
       deps += [
         "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",

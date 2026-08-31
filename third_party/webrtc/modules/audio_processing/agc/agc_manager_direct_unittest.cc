@@ -256,7 +256,8 @@ class SpeechSamplesReader {
   // in the PCM file if `num_frames` is too large - i.e., does not loop.
   void Feed(int num_frames, int gain_db, AgcManagerDirect& agc) {
     float gain = std::pow(10.0f, gain_db / 20.0f);  // From dB to linear gain.
-    is_.seekg(0, is_.beg);  // Start from the beginning of the PCM file.
+    is_.seekg(0,
+              std::ifstream::beg);  // Start from the beginning of the PCM file.
 
     // Read and feed frames.
     for (int i = 0; i < num_frames; ++i) {
@@ -290,7 +291,8 @@ class SpeechSamplesReader {
             std::optional<float> speech_level_override,
             AgcManagerDirect& agc) {
     float gain = std::pow(10.0f, gain_db / 20.0f);  // From dB to linear gain.
-    is_.seekg(0, is_.beg);  // Start from the beginning of the PCM file.
+    is_.seekg(0,
+              std::ifstream::beg);  // Start from the beginning of the PCM file.
 
     // Read and feed frames.
     for (int i = 0; i < num_frames; ++i) {

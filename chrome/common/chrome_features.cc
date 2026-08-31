@@ -371,7 +371,7 @@ const base::FeatureParam<bool> kGlicActorUiTaskIcon{
     &kGlicActorUi, kGlicActorUiTaskIconName, true};
 // Controls whether the Actor Overlay in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiOverlay{
-    &kGlicActorUi, kGlicActorUiOverlayName, false};
+    &kGlicActorUi, kGlicActorUiOverlayName, true};
 // Controls whether the Magic Cursor in the Actor Overlay is enabled.
 const base::FeatureParam<bool> kGlicActorUiOverlayMagicCursor{
     &kGlicActorUi, kGlicActorUiOverlayMagicCursorName, false};
@@ -380,7 +380,7 @@ const base::FeatureParam<bool> kGlicActorUiToast{&kGlicActorUi,
                                                  kGlicActorUiToastName, true};
 // Controls whether the handoff button in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiHandoffButton{
-    &kGlicActorUi, kGlicActorUiHandoffButtonName, false};
+    &kGlicActorUi, kGlicActorUiHandoffButtonName, true};
 // Controls whether the tab indicator in the actor ui is enabled.
 const base::FeatureParam<bool> kGlicActorUiTabIndicator{
     &kGlicActorUi, kGlicActorUiTabIndicatorName, true};
@@ -398,7 +398,7 @@ const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityLocalTimeout{
 
 // The overall observation timeout when waiting on a renderer tool to complete.
 const base::FeatureParam<base::TimeDelta> kGlicActorPageStabilityTimeout{
-    &kGlicActor, "glic-actor-page-stability-timeout", base::Seconds(10)};
+    &kGlicActor, "glic-actor-page-stability-timeout", base::Seconds(1)};
 
 // An artificial delay before signalling the tools that the page has become
 // stable.
@@ -1047,11 +1047,6 @@ BASE_FEATURE(kHttpsFirstBalancedModeAutoEnable,
              "HttpsFirstBalancedModeAutoEnable",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables a dialog-based UI for HTTPS-First Mode.
-BASE_FEATURE(kHttpsFirstDialogUi,
-             "HttpsFirstDialogUi",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Kill switch for crbug.com/1414633.
 BASE_FEATURE(kHttpsFirstModeForAdvancedProtectionUsers,
              "HttpsOnlyModeForAdvancedProtectionUsers",
@@ -1116,6 +1111,13 @@ BASE_FEATURE(kIncompatibleApplicationsWarning,
              "IncompatibleApplicationsWarning",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
+
+#if !BUILDFLAG(IS_ANDROID)
+// A feature that controls whether Instant uses a spare renderer.
+BASE_FEATURE(kInstantUsesSpareRenderer,
+             "InstantUsesSpareRenderer",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables Isolated Web App Developer Mode, which allows developers to
 // install untrusted Isolated Web Apps.

@@ -15,6 +15,7 @@
 #include "starboard/loader_app/pending_restart.h"
 
 #include <atomic>
+#include <cstdint>
 
 namespace loader_app {
 

@@ -54,17 +54,18 @@ std::unique_ptr<RtcEventLogEncoder> CreateEncoder(const Environment& env) {
 }  // namespace
 
 RtcEventLogImpl::RtcEventLogImpl(const Environment& env)
-    : RtcEventLogImpl(CreateEncoder(env), &env.task_queue_factory()) {}
+    : RtcEventLogImpl(env, CreateEncoder(env)) {}
 
-RtcEventLogImpl::RtcEventLogImpl(std::unique_ptr<RtcEventLogEncoder> encoder,
-                                 TaskQueueFactory* task_queue_factory,
+RtcEventLogImpl::RtcEventLogImpl(const Environment& env,
+                                 std::unique_ptr<RtcEventLogEncoder> encoder,
                                  size_t max_events_in_history,
                                  size_t max_config_events_in_history)
-    : max_events_in_history_(max_events_in_history),
+    : env_(env),
+      max_events_in_history_(max_events_in_history),
       max_config_events_in_history_(max_config_events_in_history),
       event_encoder_(std::move(encoder)),
-      last_output_ms_(TimeMillis()),
-      task_queue_(task_queue_factory->CreateTaskQueue(
+      last_output_ms_(env_.clock().TimeInMilliseconds()),
+      task_queue_(env_.task_queue_factory().CreateTaskQueue(
           "rtc_event_log",
           TaskQueueFactory::Priority::NORMAL)) {}
 
@@ -99,7 +100,7 @@ bool RtcEventLogImpl::StartLogging(std::unique_ptr<RtcEventLogOutput> output,
     return false;
   }
 
-  const int64_t timestamp_us = TimeMillis() * 1000;
+  const int64_t timestamp_us = env_.clock().TimeInMicroseconds();
   const int64_t utc_time_us = TimeUTCMillis() * 1000;
   RTC_LOG(LS_INFO) << "Starting WebRTC event log. (Timestamp, UTC) = ("
                    << timestamp_us << ", " << utc_time_us << ").";
@@ -234,7 +235,7 @@ void RtcEventLogImpl::ScheduleOutput() {
       LogEventsToOutput(std::move(histories));
     }
   };
-  const int64_t now_ms = TimeMillis();
+  const int64_t now_ms = env_.clock().TimeInMilliseconds();
   const int64_t time_since_output_ms = now_ms - last_output_ms_;
   const int32_t delay =
       SafeClamp(output_period_ms_ - time_since_output_ms, 0, output_period_ms_);
@@ -257,7 +258,7 @@ void RtcEventLogImpl::LogToMemory(std::unique_ptr<RtcEvent> event) {
 }
 
 void RtcEventLogImpl::LogEventsToOutput(EventHistories histories) {
-  last_output_ms_ = TimeMillis();
+  last_output_ms_ = env_.clock().TimeInMilliseconds();
 
   // Serialize the stream configurations.
   std::string encoded_configs = event_encoder_->EncodeBatch(
@@ -318,7 +319,7 @@ void RtcEventLogImpl::StopOutput() {
 void RtcEventLogImpl::StopLoggingInternal() {
   if (event_output_) {
     RTC_DCHECK(event_output_->IsActive());
-    const int64_t timestamp_us = TimeMillis() * 1000;
+    const int64_t timestamp_us = env_.clock().TimeInMicroseconds();
     event_output_->Write(event_encoder_->EncodeLogEnd(timestamp_us));
   }
   StopOutput();

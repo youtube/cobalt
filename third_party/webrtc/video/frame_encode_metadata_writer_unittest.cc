@@ -32,6 +32,7 @@
 #include "common_video/test/utilities.h"
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_coding_defines.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -85,7 +86,7 @@ std::vector<std::vector<FrameType>> GetTimingFrames(
     const int num_streams,
     const int num_frames) {
   FakeEncodedImageCallback sink;
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   VideoCodec codec_settings;
   codec_settings.numberOfSimulcastStreams = num_streams;
   codec_settings.timing_frame_thresholds = {delay_ms,
@@ -213,7 +214,7 @@ TEST(FrameEncodeMetadataWriterTest, NoTimingFrameIfNoEncodeStartTime) {
   image.SetRtpTimestamp(static_cast<uint32_t>(timestamp * 90));
 
   FakeEncodedImageCallback sink;
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   VideoCodec codec_settings;
   // Make all frames timing frames.
   codec_settings.timing_frame_thresholds.delay_ms = 1;
@@ -247,7 +248,7 @@ TEST(FrameEncodeMetadataWriterTest, NotifiesAboutDroppedFrames) {
   const int64_t kTimestampMs4 = 47721870;
 
   FakeEncodedImageCallback sink;
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   encode_timer.OnEncoderInit(VideoCodec());
   // Any non-zero bitrate needed to be set before the first frame.
   VideoBitrateAllocation bitrate_allocation;
@@ -304,7 +305,7 @@ TEST(FrameEncodeMetadataWriterTest, RestoresCaptureTimestamps) {
   const int64_t kTimestampMs = 123456;
   FakeEncodedImageCallback sink;
 
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   encode_timer.OnEncoderInit(VideoCodec());
   // Any non-zero bitrate needed to be set before the first frame.
   VideoBitrateAllocation bitrate_allocation;
@@ -329,7 +330,7 @@ TEST(FrameEncodeMetadataWriterTest, CopiesRotation) {
   const int64_t kTimestampMs = 123456;
   FakeEncodedImageCallback sink;
 
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   encode_timer.OnEncoderInit(VideoCodec());
   // Any non-zero bitrate needed to be set before the first frame.
   VideoBitrateAllocation bitrate_allocation;
@@ -353,7 +354,7 @@ TEST(FrameEncodeMetadataWriterTest, SetsContentType) {
   const int64_t kTimestampMs = 123456;
   FakeEncodedImageCallback sink;
 
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   VideoCodec codec;
   codec.mode = VideoCodecMode::kScreensharing;
   encode_timer.OnEncoderInit(codec);
@@ -379,7 +380,7 @@ TEST(FrameEncodeMetadataWriterTest, CopiesColorSpace) {
   const int64_t kTimestampMs = 123456;
   FakeEncodedImageCallback sink;
 
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   encode_timer.OnEncoderInit(VideoCodec());
   // Any non-zero bitrate needed to be set before the first frame.
   VideoBitrateAllocation bitrate_allocation;
@@ -405,7 +406,7 @@ TEST(FrameEncodeMetadataWriterTest, SetsIsSteadyStateRefreshFrame) {
   const int64_t kTimestampMs = 123456;
   FakeEncodedImageCallback sink;
 
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   encode_timer.OnEncoderInit(VideoCodec());
   // Any non-zero bitrate needed to be set before the first frame.
   VideoBitrateAllocation bitrate_allocation;
@@ -440,7 +441,7 @@ TEST(FrameEncodeMetadataWriterTest, CopiesPacketInfos) {
   const int64_t kTimestampMs = 123456;
   FakeEncodedImageCallback sink;
 
-  FrameEncodeMetadataWriter encode_timer(&sink);
+  FrameEncodeMetadataWriter encode_timer(CreateTestEnvironment(), &sink);
   encode_timer.OnEncoderInit(VideoCodec());
   // Any non-zero bitrate needed to be set before the first frame.
   VideoBitrateAllocation bitrate_allocation;
@@ -467,7 +468,8 @@ TEST(FrameEncodeMetadataWriterTest, DoesNotRewriteBitstreamWithoutCodecInfo) {
   image.SetEncodedData(image_buffer);
 
   FakeEncodedImageCallback sink;
-  FrameEncodeMetadataWriter encode_metadata_writer(&sink);
+  FrameEncodeMetadataWriter encode_metadata_writer(CreateTestEnvironment(),
+                                                   &sink);
   encode_metadata_writer.UpdateBitstream(nullptr, &image);
   EXPECT_EQ(image.GetEncodedData(), image_buffer);
   EXPECT_EQ(image.size(), sizeof(buffer));
@@ -482,7 +484,8 @@ TEST(FrameEncodeMetadataWriterTest, DoesNotRewriteVp8Bitstream) {
   codec_specific_info.codecType = kVideoCodecVP8;
 
   FakeEncodedImageCallback sink;
-  FrameEncodeMetadataWriter encode_metadata_writer(&sink);
+  FrameEncodeMetadataWriter encode_metadata_writer(CreateTestEnvironment(),
+                                                   &sink);
   encode_metadata_writer.UpdateBitstream(&codec_specific_info, &image);
   EXPECT_EQ(image.GetEncodedData(), image_buffer);
   EXPECT_EQ(image.size(), sizeof(buffer));
@@ -506,7 +509,8 @@ TEST(FrameEncodeMetadataWriterTest, RewritesH264BitstreamWithNonOptimalSps) {
   codec_specific_info.codecType = kVideoCodecH264;
 
   FakeEncodedImageCallback sink;
-  FrameEncodeMetadataWriter encode_metadata_writer(&sink);
+  FrameEncodeMetadataWriter encode_metadata_writer(CreateTestEnvironment(),
+                                                   &sink);
   encode_metadata_writer.UpdateBitstream(&codec_specific_info, &image);
 
   EXPECT_THAT(std::vector<uint8_t>(image.data(), image.data() + image.size()),

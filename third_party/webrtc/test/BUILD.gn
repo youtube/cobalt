@@ -159,6 +159,25 @@ rtc_library("create_frame_generator_capturer") {
   ]
 }
 
+rtc_library("create_test_environment") {
+  testonly = true
+  sources = [
+    "create_test_environment.cc",
+    "create_test_environment.h",
+  ]
+  deps = [
+    ":create_test_field_trials",
+    "../api:field_trials",
+    "../api:field_trials_view",
+    "../api:time_controller",
+    "../api/environment",
+    "../api/environment:environment_factory",
+    "../rtc_base:checks",
+    "//third_party/abseil-cpp/absl/base:nullability",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
+}
+
 rtc_library("create_test_field_trials") {
   testonly = true
   sources = [ "create_test_field_trials.h" ]
@@ -699,6 +718,7 @@ if (rtc_include_tests) {
         ":call_config_utils",
         ":copy_to_file_audio_capturer_unittest",
         ":create_frame_generator_capturer",
+        ":create_test_environment",
         ":create_test_field_trials",
         ":direct_transport",
         ":fake_video_codecs",
@@ -1286,6 +1306,7 @@ if (!build_with_chromium) {
     ]
 
     deps = [
+      ":create_test_environment",
       ":create_test_field_trials",
       ":direct_transport",
       ":encoder_settings",
@@ -1458,7 +1479,6 @@ rtc_library("video_codec_tester") {
     "../api:make_ref_counted",
     "../api:scoped_refptr",
     "../api/environment",
-    "../api/environment:environment_factory",
     "../api/numerics",
     "../api/test/metrics:metric",
     "../api/test/metrics:metrics_logger",

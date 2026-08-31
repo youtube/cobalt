@@ -11,7 +11,6 @@
 #ifndef P2P_TEST_FAKE_ICE_TRANSPORT_H_
 #define P2P_TEST_FAKE_ICE_TRANSPORT_H_
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -290,15 +289,12 @@ class FakeIceTransport : public IceTransportInternal {
   }
   void RemoveRemoteCandidate(const Candidate& candidate) override {
     RTC_DCHECK_RUN_ON(network_thread_);
-    auto it = std::remove_if(
-        remote_candidates_.begin(), remote_candidates_.end(),
+    size_t num_erased = std::erase_if(
+        remote_candidates_,
         [&](const Candidate& c) { return candidate.MatchesForRemoval(c); });
-    if (it == remote_candidates_.end()) {
+    if (num_erased == 0) {
       RTC_LOG(LS_INFO) << "Trying to remove a candidate which doesn't exist.";
-      return;
     }
-
-    remote_candidates_.erase(it);
   }
 
   void RemoveAllRemoteCandidates() override {

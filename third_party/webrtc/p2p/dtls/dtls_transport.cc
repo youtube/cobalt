@@ -24,6 +24,7 @@
 #include "api/array_view.h"
 #include "api/crypto/crypto_options.h"
 #include "api/dtls_transport_interface.h"
+#include "api/environment/environment.h"
 #include "api/rtc_error.h"
 #include "api/rtc_event_log/rtc_event_log.h"
 #include "api/scoped_refptr.h"
@@ -191,11 +192,13 @@ void StreamInterfaceChannel::Close() {
 }
 
 DtlsTransportInternalImpl::DtlsTransportInternalImpl(
+    std::optional<Environment> env,
     IceTransportInternal* ice_transport,
     const CryptoOptions& crypto_options,
     RtcEventLog* event_log,
     SSLProtocolVersion max_version)
-    : component_(ice_transport->component()),
+    : env_(std::move(env)),
+      component_(ice_transport->component()),
       ice_transport_(ice_transport),
       downward_(nullptr),
       srtp_ciphers_(crypto_options.GetSupportedDtlsSrtpCryptoSuites()),

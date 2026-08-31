@@ -107,6 +107,7 @@ DesktopFrameWithCursor::DesktopFrameWithCursor(
     bool cursor_changed)
     : DesktopFrame(frame->size(),
                    frame->stride(),
+                   frame->pixel_format(),
                    frame->data(),
                    frame->shared_memory()),
       original_frame_(std::move(frame)) {
@@ -136,7 +137,7 @@ DesktopFrameWithCursor::DesktopFrameWithCursor(
 
   // Copy original screen content under cursor to `restore_frame_`.
   restore_position_ = cursor_rect_.top_left();
-  restore_frame_.reset(new BasicDesktopFrame(cursor_rect_.size()));
+  restore_frame_.reset(new BasicDesktopFrame(cursor_rect_.size(), FOURCC_ARGB));
   restore_frame_->CopyPixelsFrom(*this, cursor_rect_.top_left(),
                                  DesktopRect::MakeSize(restore_frame_->size()));
 

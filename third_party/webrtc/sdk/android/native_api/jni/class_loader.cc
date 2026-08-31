@@ -10,12 +10,15 @@
 
 #include "sdk/android/native_api/jni/class_loader.h"
 
+#include <jni.h>
+
 #include <algorithm>
 #include <string>
 
 #include "rtc_base/checks.h"
 #include "sdk/android/generated_native_api_jni/WebRtcClassLoader_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 // Abort the process if `jni` has a Java exception pending. This macros uses the

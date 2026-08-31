@@ -466,8 +466,11 @@ int32_t H264EncoderImpl::Encode(
   RTC_DCHECK_EQ(configurations_[0].width, frame_buffer->width());
   RTC_DCHECK_EQ(configurations_[0].height, frame_buffer->height());
 
+#ifdef WEBRTC_ENCODER_PSNR_STATS
   bool calculate_psnr =
       calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(input_frame);
+#endif
+
   // Encode image for each layer.
   for (size_t i = 0; i < encoders_.size(); ++i) {
     // EncodeFrame input.
@@ -476,9 +479,11 @@ int32_t H264EncoderImpl::Encode(
     pictures_[i].iPicHeight = configurations_[i].height;
     pictures_[i].iColorFormat = EVideoFormatType::videoFormatI420;
     pictures_[i].uiTimeStamp = input_frame.ntp_time_ms();
+#ifdef WEBRTC_ENCODER_PSNR_STATS
     pictures_[i].bPsnrY = calculate_psnr;
     pictures_[i].bPsnrU = calculate_psnr;
     pictures_[i].bPsnrV = calculate_psnr;
+#endif
     // Downscale images on second and ongoing layers.
     if (i == 0) {
       pictures_[i].iStride[0] = frame_buffer->StrideY();
@@ -571,6 +576,7 @@ int32_t H264EncoderImpl::Encode(
       h264_bitstream_parser_.ParseBitstream(encoded_images_[i]);
       encoded_images_[i].qp_ =
           h264_bitstream_parser_.GetLastSliceQp().value_or(-1);
+#ifdef WEBRTC_ENCODER_PSNR_STATS
       if (calculate_psnr) {
         encoded_images_[i].set_psnr(EncodedImage::Psnr({
             .y = info.sLayerInfo[info.iLayerNum - 1].rPsnr[0],
@@ -580,6 +586,7 @@ int32_t H264EncoderImpl::Encode(
       } else {
         encoded_images_[i].set_psnr(std::nullopt);
       }
+#endif
 
       // Deliver encoded image.
       CodecSpecificInfo codec_specific;

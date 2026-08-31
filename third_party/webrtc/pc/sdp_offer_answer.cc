@@ -5040,9 +5040,9 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     ContentSource source,
     const std::map<std::string, const ContentGroup*>& bundle_groups_by_mid) {
   TRACE_EVENT0("webrtc", "SdpOfferAnswerHandler::PushdownMediaDescription");
+  RTC_DCHECK_RUN_ON(signaling_thread());
   const SessionDescriptionInterface* sdesc =
       (source == CS_LOCAL ? local_description() : remote_description());
-  RTC_DCHECK_RUN_ON(signaling_thread());
   RTC_DCHECK(sdesc);
 
   if (ConfiguredForMedia()) {
@@ -5114,11 +5114,29 @@ RTCError SdpOfferAnswerHandler::PushdownMediaDescription(
     // If local and remote are both set, we assume that it's safe to trigger
     // CCFB.
     if (pc_->trials().IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
-      if (use_ccfb && local_description() && remote_description()) {
-        // The call and the congestion controller live on the worker thread.
-        context_->worker_thread()->PostTask([call = pc_->call_ptr()] {
-          call->EnableSendCongestionControlFeedbackAccordingToRfc8888();
-        });
+      if (type == SdpType::kAnswer && use_ccfb && local_description() &&
+          remote_description()) {
+        bool remote_supports_ccfb = true;
+        // Verify that the remote supports CCFB before enabling.
+        for (const auto& content :
+             remote_description()->description()->contents()) {
+          if (content.type != MediaProtocolType::kRtp || content.rejected ||
+              content.media_description() == nullptr) {
+            continue;
+          }
+          if (!content.media_description()->rtcp_fb_ack_ccfb()) {
+            remote_supports_ccfb = false;
+            break;
+          }
+        }
+        if (remote_supports_ccfb) {
+          // The call and the congestion controller live on the worker thread.
+          context_->worker_thread()->PostTask([call = pc_->call_ptr()] {
+            call->EnableSendCongestionControlFeedbackAccordingToRfc8888();
+          });
+        } else {
+          RTC_LOG(LS_WARNING) << "Local but not Remote supports CCFB.";
+        }
       }
     }
   }

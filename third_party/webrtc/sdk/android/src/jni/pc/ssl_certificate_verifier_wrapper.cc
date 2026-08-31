@@ -10,10 +10,13 @@
 
 #include "sdk/android/src/jni/pc/ssl_certificate_verifier_wrapper.h"
 
+#include <jni.h>
+
+#include "rtc_base/buffer.h"
+#include "rtc_base/ssl_certificate.h"
 #include "sdk/android/generated_peerconnection_jni/SSLCertificateVerifier_jni.h"
-#include "sdk/android/native_api/jni/class_loader.h"
-#include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/native_api/jni/jvm.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

@@ -102,6 +102,7 @@ if (rtc_include_tests && !build_with_chromium) {
     deps = [
       ":emulated_network",
       ":simulated_network",
+      "..:create_test_environment",
       "..:test_support",
       "..:wait_until",
       "../../api:audio_options_api",

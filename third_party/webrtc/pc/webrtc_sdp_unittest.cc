@@ -5096,5 +5096,15 @@ TEST_F(WebRtcSdpTest, SctpProtocolWithNonApplication) {
   EXPECT_TRUE(desc->ToString(&serialized));
 }
 
+TEST_F(WebRtcSdpTest, RejectsInvalidCharactersInBundleGroup) {
+  JsepSessionDescription desc(kDummyType);
+  std::string sdp_with_bad_bundle_tag = kSdpFullString;
+  // Inject a "shrug" unicode character.
+  InjectAfter(kSessionTime, "a=group:BUNDLE \u1f937\r\n",
+              &sdp_with_bad_bundle_tag);
+  SdpParseError error;
+  EXPECT_FALSE(SdpDeserialize(sdp_with_bad_bundle_tag, &desc, &error));
+}
+
 }  // namespace
 }  // namespace webrtc

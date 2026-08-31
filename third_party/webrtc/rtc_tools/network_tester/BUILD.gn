@@ -121,7 +121,7 @@ if (is_android) {
     testonly = true
     apk_name = "NetworkTesterMobile"
     android_manifest = "androidapp/AndroidManifest.xml"
-    min_sdk_version = 21
+    min_sdk_version = 23
     target_sdk_version = 24
 
     deps = [

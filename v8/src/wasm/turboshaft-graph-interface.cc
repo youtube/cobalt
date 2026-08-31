@@ -13,7 +13,10 @@
 #include "src/builtins/data-view-ops.h"
 #include "src/common/globals.h"
 #include "src/compiler/turboshaft/builtin-call-descriptors.h"
+#include "src/compiler/turboshaft/dataview-lowering-reducer.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/select-lowering-reducer.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/torque-defined-classes.h"
@@ -24,6 +27,7 @@
 #include "src/wasm/inlining-tree.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/turboshaft-graph-interface-inl.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -901,12 +905,20 @@ class TurboshaftGraphBuildingInterface
                  const GlobalIndexImmediate& imm) {
     bool shared = decoder->module_->globals[imm.index].shared;
     result->op = __ GlobalGet(trusted_instance_data(shared), imm.global);
+
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+      TraceGlobalOperation(decoder, imm.index, false);
+    }
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
     bool shared = decoder->module_->globals[imm.index].shared;
     __ GlobalSet(trusted_instance_data(shared), value.op, imm.global);
+
+    if (V8_UNLIKELY(v8_flags.trace_wasm_globals)) {
+      TraceGlobalOperation(decoder, imm.index, true);
+    }
   }
 
   void Trap(FullDecoder* decoder, TrapReason reason) {
@@ -4790,7 +4802,7 @@ class TurboshaftGraphBuildingInterface
       V<Any> old_value =
           __ ArrayGet(array_value, index.op, imm.array_type, true, {});
       result->op = old_value;
-      V<Word> new_value;
+      V<compiler::turboshaft::Word> new_value;
       V<Word64> old = V<Word64>::Cast(old_value);
       switch (opcode) {
         case kExprArrayAtomicAdd:
@@ -7640,6 +7652,29 @@ class TurboshaftGraphBuildingInterface
     return result.NotLoadEliminable();
   }
 
+  void TraceGlobalOperation(FullDecoder* decoder, uint32_t global_index,
+                            bool is_store) {
+    constexpr int kAlign = alignof(GlobalTracingInfo);
+    // A side benefit of the alignment is that the last bit is 0, so when we
+    // pass {info} to the runtime function in a stack slot, it looks like a
+    // tagged value (Smi), as runtime function parameters need to.
+    static_assert(kAlign >= 2 && ((kAlign & 1) == 0));
+
+    // TODO(nikolaskaipel): reuse stack slot so it doesn't grow lineraly with
+    // number of global operations
+    V<WordPtr> info = __ StackSlot(sizeof(GlobalTracingInfo), kAlign);
+
+    __ Store(info, __ Word32Constant(global_index), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::Uint32(), compiler::kNoWriteBarrier,
+             offsetof(GlobalTracingInfo, global_index));
+    __ Store(info, __ Word32Constant(is_store ? 1 : 0),
+             StoreOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+             compiler::kNoWriteBarrier, offsetof(GlobalTracingInfo, is_store));
+
+    __ WasmCallRuntime(decoder->zone(), Runtime::kWasmTraceGlobal, {info},
+                       __ NoContextConstant());
+  }
+
   void TraceMemoryOperation(FullDecoder* decoder, bool is_store,
                             uint32_t mem_index, MemoryRepresentation repr,
                             V<WordPtr> index, uintptr_t offset) {
@@ -7648,6 +7683,9 @@ class TurboshaftGraphBuildingInterface
     // pass {info} to the runtime function in a stack slot, it looks like a
     // tagged value (Smi), as runtime function parameters need to.
     static_assert(kAlign >= 2 && ((kAlign & 1) == 0));
+
+    // TODO(nikolaskaipel): reuse stack slot so it doesn't grow lineraly with
+    // number of memory operations
     V<WordPtr> info = __ StackSlot(sizeof(MemoryTracingInfo), kAlign);
     V<WordPtr> effective_offset = __ WordPtrAdd(index, offset);
     __ Store(info, effective_offset, StoreOp::Kind::RawAligned(),
@@ -8154,9 +8192,9 @@ class TurboshaftGraphBuildingInterface
                                      {{arg0, arg_type}, {arg1, arg_type}});
   }
 
-  V<WordPtr> MemOrTableAddressToUintPtrOrOOBTrap(AddressType address_type,
-                                                 V<Word> index,
-                                                 TrapId trap_reason) {
+  V<WordPtr> MemOrTableAddressToUintPtrOrOOBTrap(
+      AddressType address_type, V<compiler::turboshaft::Word> index,
+      TrapId trap_reason) {
     // Note: this {ChangeUint32ToUintPtr} doesn't just satisfy the compiler's
     // consistency checks, it's also load-bearing to prevent escaping from a
     // compromised sandbox (where in-sandbox corruption can cause the high
@@ -8173,14 +8211,14 @@ class TurboshaftGraphBuildingInterface
     return V<WordPtr>::Cast(__ TruncateWord64ToWord32(V<Word64>::Cast(index)));
   }
 
-  V<WordPtr> MemoryAddressToUintPtrOrOOBTrap(AddressType address_type,
-                                             V<Word> index) {
+  V<WordPtr> MemoryAddressToUintPtrOrOOBTrap(
+      AddressType address_type, V<compiler::turboshaft::Word> index) {
     return MemOrTableAddressToUintPtrOrOOBTrap(address_type, index,
                                                TrapId::kTrapMemOutOfBounds);
   }
 
-  V<WordPtr> TableAddressToUintPtrOrOOBTrap(AddressType address_type,
-                                            V<Word> index) {
+  V<WordPtr> TableAddressToUintPtrOrOOBTrap(
+      AddressType address_type, V<compiler::turboshaft::Word> index) {
     return MemOrTableAddressToUintPtrOrOOBTrap(address_type, index,
                                                TrapId::kTrapTableOutOfBounds);
   }

@@ -50,6 +50,7 @@ class MockVideoEncoderDelegate : public D3D12VideoEncodeDelegate {
 
   MOCK_METHOD1(Initialize, EncoderStatus(VideoEncodeAccelerator::Config));
   MOCK_METHOD(size_t, GetMaxNumOfRefFrames, (), (const override));
+  MOCK_METHOD(size_t, GetMaxNumOfManualRefBuffers, (), (const override));
   MOCK_METHOD(bool, SupportsRateControlReconfiguration, (), (const override));
   MOCK_METHOD5(
       Encode,
@@ -58,7 +59,7 @@ class MockVideoEncoderDelegate : public D3D12VideoEncodeDelegate {
                                       const gfx::ColorSpace&,
                                       const BitstreamBuffer&,
                                       const VideoEncoder::EncodeOptions&));
-  MOCK_METHOD(EncoderStatus::Or<BitstreamBufferMetadata>,
+  MOCK_METHOD(EncoderStatus,
               EncodeImpl,
               (ID3D12Resource*,
                UINT,

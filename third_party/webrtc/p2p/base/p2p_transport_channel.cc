@@ -1315,17 +1315,16 @@ void P2PTransportChannel::CheckLocalNetworkAccessPermission(
     return;
   }
 
-  if (!candidate.address().IsPrivateIP() &&
-      !candidate.address().IsLoopbackIP()) {
-    RTC_LOG(LS_VERBOSE) << "Skipping LNA permission check for public IP "
+  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
+      lna_permission_factory_->Create();
+  if (!permission_query->ShouldRequestPermission(candidate.address())) {
+    RTC_LOG(LS_VERBOSE) << "No need to request permission for candidate: "
                         << candidate.address().ipaddr().ToSensitiveString()
                         << ".";
     FinishAddingRemoteCandidate(candidate);
     return;
   }
 
-  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
-      lna_permission_factory_->Create();
   auto permission_query_ptr = permission_query.get();
   permission_queries_.emplace_back(candidate, std::move(permission_query));
 
@@ -1392,15 +1391,13 @@ void P2PTransportChannel::FinishAddingRemoteCandidate(
 void P2PTransportChannel::RemoveRemoteCandidate(
     const Candidate& cand_to_remove) {
   RTC_DCHECK_RUN_ON(network_thread_);
-  auto iter =
-      std::remove_if(remote_candidates_.begin(), remote_candidates_.end(),
-                     [cand_to_remove](const Candidate& candidate) {
-                       return cand_to_remove.MatchesForRemoval(candidate);
-                     });
-  if (iter != remote_candidates_.end()) {
+  size_t num_erased = std::erase_if(
+      remote_candidates_, [cand_to_remove](const Candidate& candidate) {
+        return cand_to_remove.MatchesForRemoval(candidate);
+      });
+  if (num_erased > 0) {
     RTC_LOG(LS_VERBOSE) << "Removed remote candidate "
                         << cand_to_remove.ToSensitiveString();
-    remote_candidates_.erase(iter, remote_candidates_.end());
   }
 }
 
@@ -1879,23 +1876,17 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
   SignalNetworkRouteChanged(network_route_);
 
   // Create event for candidate pair change.
-  if (selected_connection_) {
-    CandidatePairChangeEvent pair_change;
-    pair_change.reason = IceSwitchReasonToString(reason);
-    pair_change.selected_candidate_pair = *GetSelectedCandidatePair();
-    pair_change.last_data_received_ms =
-        selected_connection_->last_data_received();
-
-    if (old_selected_connection) {
-      pair_change.estimated_disconnected_time_ms =
-          ComputeEstimatedDisconnectedTimeMs(TimeMillis(),
-                                             old_selected_connection);
-    } else {
-      pair_change.estimated_disconnected_time_ms = 0;
-    }
-    if (candidate_pair_change_callback_) {
-      candidate_pair_change_callback_(pair_change);
-    }
+  if (selected_connection_ && candidate_pair_change_callback_) {
+    CandidatePairChangeEvent pair_change = {
+        .transport_name = transport_name(),
+        .selected_candidate_pair = *GetSelectedCandidatePair(),
+        .last_data_received_ms = selected_connection_->last_data_received(),
+        .reason = IceSwitchReasonToString(reason),
+        .estimated_disconnected_time_ms =
+            old_selected_connection ? ComputeEstimatedDisconnectedTimeMs(
+                                          TimeMillis(), old_selected_connection)
+                                    : 0};
+    candidate_pair_change_callback_(pair_change);
   }
 
   ++selected_candidate_pair_changes_;
@@ -2190,10 +2181,8 @@ void P2PTransportChannel::RemoveConnection(Connection* connection) {
 void P2PTransportChannel::OnPortDestroyed(PortInterface* port) {
   RTC_DCHECK_RUN_ON(network_thread_);
 
-  ports_.erase(std::remove(ports_.begin(), ports_.end(), port), ports_.end());
-  pruned_ports_.erase(
-      std::remove(pruned_ports_.begin(), pruned_ports_.end(), port),
-      pruned_ports_.end());
+  std::erase(ports_, port);
+  std::erase(pruned_ports_, port);
   RTC_LOG(LS_INFO) << "Removed port because it is destroyed: " << ports_.size()
                    << " remaining";
 }

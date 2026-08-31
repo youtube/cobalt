@@ -7548,6 +7548,11 @@ ReduceResult MaglevGraphBuilder::VisitSetNamedProperty() {
   return build_generic_access();
 }
 
+ReduceResult MaglevGraphBuilder::VisitSetPrototypeProperties() {
+  // VisitSetPrototypeProperties <name_index>
+  UNREACHABLE();
+}
+
 ReduceResult MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
   // DefineNamedOwnProperty <object> <name_index> <slot>
   ValueNode* object = LoadRegister(0);
@@ -13106,7 +13111,7 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       // it will get overwritten anyway.
       DCHECK_IMPLIES(property_details.representation().IsSmi() &&
                          !boilerplate_value.IsSmi(),
-                     IsUninitialized(*boilerplate_value.object()));
+                     IsUninitializedHole(*boilerplate_value.object()));
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
     index++;
@@ -15424,7 +15429,25 @@ ReduceResult MaglevGraphBuilder::VisitGetIterator() {
   return ReduceResult::Done();
 }
 
-ReduceResult MaglevGraphBuilder::VisitForOfNext() { UNREACHABLE(); }
+ReduceResult MaglevGraphBuilder::VisitForOfNext() {
+  // ForOfNext <iterator> <next> <value_done_out>
+
+  ValueNode* iterator = LoadRegister(0);
+  ValueNode* next_method = LoadRegister(1);
+
+  auto register_pair = iterator_.GetRegisterPairOperand(2);
+
+  CallBuiltin* result_struct =
+      BuildCallBuiltin<Builtin::kForOfNextBaseline>({iterator, next_method});
+
+  ValueNode* value = result_struct;
+  ValueNode* done = GetSecondValue(result_struct);
+
+  StoreRegister(register_pair.first, value);
+  StoreRegister(register_pair.second, done);
+
+  return ReduceResult::Done();
+}
 
 ReduceResult MaglevGraphBuilder::VisitDebugger() {
   return BuildCallRuntime(Runtime::kHandleDebuggerStatement, {});

@@ -449,17 +449,12 @@ class BasicPortAllocatorTestBase : public ::testing::Test,
 
   void OnCandidatesRemoved(PortAllocatorSession* session,
                            const std::vector<Candidate>& removed_candidates) {
-    auto new_end = std::remove_if(
-        candidates_.begin(), candidates_.end(),
-        [removed_candidates](Candidate& candidate) {
-          for (const Candidate& removed_candidate : removed_candidates) {
-            if (candidate.MatchesForRemoval(removed_candidate)) {
-              return true;
-            }
-          }
-          return false;
-        });
-    candidates_.erase(new_end, candidates_.end());
+    std::erase_if(candidates_, [removed_candidates](Candidate& candidate) {
+      return absl::c_any_of(
+          removed_candidates, [&candidate](const Candidate& removed_candidate) {
+            return candidate.MatchesForRemoval(removed_candidate);
+          });
+    });
   }
 
   bool HasRelayAddress(const ProtocolAddress& proto_addr) {

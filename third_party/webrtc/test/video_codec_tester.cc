@@ -33,7 +33,6 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/field_trials_view.h"
 #include "api/make_ref_counted.h"
 #include "api/numerics/samples_stats_counter.h"
@@ -137,11 +136,11 @@ scoped_refptr<VideoFrameBuffer> ScaleFrame(
 // AV1 or H264) files.
 class VideoSource {
  public:
-  explicit VideoSource(VideoSourceSettings source_settings)
+  VideoSource(const Environment& env, VideoSourceSettings source_settings)
       : source_settings_(source_settings) {
     if (absl::EndsWith(source_settings.file_path, "ivf")) {
-      ivf_reader_ = CreateFromIvfFileFrameGenerator(CreateEnvironment(),
-                                                    source_settings.file_path);
+      ivf_reader_ =
+          CreateFromIvfFileFrameGenerator(env, source_settings.file_path);
     } else if (absl::EndsWith(source_settings.file_path, "y4m")) {
       yuv_reader_ =
           CreateY4mFrameReader(source_settings_.file_path,
@@ -1692,7 +1691,7 @@ VideoCodecTester::RunEncodeTest(
     VideoEncoderFactory* encoder_factory,
     const EncoderSettings& encoder_settings,
     const std::map<uint32_t, EncodingSettings>& encoding_settings) {
-  VideoSource video_source(source_settings);
+  VideoSource video_source(env, source_settings);
   std::unique_ptr<VideoCodecAnalyzer> analyzer =
       std::make_unique<VideoCodecAnalyzer>();
   Encoder encoder(env, encoder_factory, encoder_settings, analyzer.get());
@@ -1721,7 +1720,7 @@ VideoCodecTester::RunEncodeDecodeTest(
     const EncoderSettings& encoder_settings,
     const DecoderSettings& decoder_settings,
     const std::map<uint32_t, EncodingSettings>& encoding_settings) {
-  VideoSource video_source(source_settings);
+  VideoSource video_source(env, source_settings);
   std::unique_ptr<VideoCodecAnalyzer> analyzer =
       std::make_unique<VideoCodecAnalyzer>();
   const EncodingSettings& first_frame_settings =

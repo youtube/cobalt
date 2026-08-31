@@ -50,8 +50,7 @@ GetWorkerThreadSpecificProvider(WorkerGlobalScope& worker_global_scope) {
 
 // static
 BroadcastChannel* BroadcastChannel::Create(ExecutionContext* execution_context,
-                                           const String& name,
-                                           ExceptionState& exception_state) {
+                                           const String& name) {
   LocalDOMWindow* window = DynamicTo<LocalDOMWindow>(execution_context);
   if (window && window->IsCrossSiteSubframe())
     UseCounter::Count(window, WebFeature::kThirdPartyBroadcastChannel);
@@ -104,11 +103,11 @@ void BroadcastChannel::postMessage(const ScriptValue& message,
   if (execution_context->IsWindow()) {
     Document* document = To<LocalDOMWindow>(execution_context)->document();
     if (document->IsPrerendering()) {
-      document->AddPostPrerenderingActivationStep(
-          WTF::BindOnce(&BroadcastChannel::PostMessageInternal,
-                        WrapWeakPersistent(this), std::move(value),
-                        execution_context->GetSecurityOrigin()->IsolatedCopy(),
-                        execution_context->GetAgentClusterID()));
+      document->AddPostPrerenderingActivationStep(blink::BindOnce(
+          &BroadcastChannel::PostMessageInternal, WrapWeakPersistent(this),
+          std::move(value),
+          execution_context->GetSecurityOrigin()->IsolatedCopy(),
+          execution_context->GetAgentClusterID()));
       return;
     }
   }
@@ -336,9 +335,9 @@ BroadcastChannel::BroadcastChannel(
 
 void BroadcastChannel::SetupDisconnectHandlers() {
   receiver_.set_disconnect_handler(
-      WTF::BindOnce(&BroadcastChannel::OnError, WrapWeakPersistent(this)));
+      BindOnce(&BroadcastChannel::OnError, WrapWeakPersistent(this)));
   remote_client_.set_disconnect_handler(
-      WTF::BindOnce(&BroadcastChannel::OnError, WrapWeakPersistent(this)));
+      BindOnce(&BroadcastChannel::OnError, WrapWeakPersistent(this)));
 }
 
 bool BroadcastChannel::IsRemoteClientConnectedForTesting() const {

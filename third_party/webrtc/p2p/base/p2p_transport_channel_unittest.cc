@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -30,7 +31,6 @@
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
 #include "api/ice_transport_interface.h"
-#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -112,12 +112,14 @@ using ::testing::Gt;
 using ::testing::MockFunction;
 using ::testing::Ne;
 using ::testing::NotNull;
+using ::testing::Property;
 using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::SetArgPointee;
 using ::testing::SizeIs;
 using ::testing::Values;
 using ::testing::WithParamInterface;
+using LnaFakeResult = FakeLocalNetworkAccessPermissionFactory::Result;
 
 // Default timeout for tests in this file.
 // Should be large enough for slow buildbots to run the tests reliably.
@@ -387,7 +389,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
   struct Endpoint : public sigslot::has_slots<> {
     Endpoint()
         : role_(ICEROLE_UNKNOWN),
-          tiebreaker_(0),
           role_conflict_(false),
           save_candidates_(false) {}
     bool HasTransport(const PacketTransportInternal* transport) {
@@ -427,7 +428,6 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     ChannelData cd1_;
     ChannelData cd2_;
     IceRole role_;
-    uint64_t tiebreaker_;
     bool role_conflict_;
     bool save_candidates_;
     std::vector<CandidateData> saved_candidates_;
@@ -1949,28 +1949,30 @@ TEST_F(P2PTransportChannelTest, TestIceConfigWillPassDownToPort) {
   AddAddress(0, kPublicAddrs[0]);
   AddAddress(1, kPublicAddrs[1]);
 
-  // Give the first connection the higher tiebreaker so its role won't
-  // change unless we tell it to.
   SetIceRole(0, ICEROLE_CONTROLLING);
   SetIceRole(1, ICEROLE_CONTROLLING);
 
   CreateChannels(env);
 
-  EXPECT_THAT(WaitUntil([&] { return ep1_ch1()->ports().size(); }, Eq(2u),
+  // Pick channel with the higher tiebreaker so its role won't change unless we
+  // tell it to.
+  P2PTransportChannel* channel =
+      GetEndpoint(0)->allocator_->ice_tiebreaker() >
+              GetEndpoint(1)->allocator_->ice_tiebreaker()
+          ? ep1_ch1()
+          : ep2_ch1();
+
+  EXPECT_THAT(WaitUntil([&] { return channel->ports(); }, SizeIs(2),
                         {.timeout = kShortTimeout, .clock = &clock}),
               IsRtcOk());
 
-  const std::vector<PortInterface*> ports_before = ep1_ch1()->ports();
-  for (size_t i = 0; i < ports_before.size(); ++i) {
-    EXPECT_EQ(ICEROLE_CONTROLLING, ports_before[i]->GetIceRole());
-  }
+  EXPECT_THAT(channel->ports(), Each(Property(&PortInterface::GetIceRole,
+                                              Eq(ICEROLE_CONTROLLING))));
 
-  ep1_ch1()->SetIceRole(ICEROLE_CONTROLLED);
+  channel->SetIceRole(ICEROLE_CONTROLLED);
 
-  const std::vector<PortInterface*> ports_after = ep1_ch1()->ports();
-  for (size_t i = 0; i < ports_after.size(); ++i) {
-    EXPECT_EQ(ICEROLE_CONTROLLED, ports_before[i]->GetIceRole());
-  }
+  EXPECT_THAT(channel->ports(), Each(Property(&PortInterface::GetIceRole,
+                                              Eq(ICEROLE_CONTROLLED))));
 
   EXPECT_TRUE(WaitUntil([&] { return CheckConnected(ep1_ch1(), ep2_ch1()); },
                         {.timeout = kShortTimeout, .clock = &clock}));
@@ -2380,8 +2382,7 @@ TEST_F(P2PTransportChannelTest,
                      kDefaultPortAllocatorFlags | PORTALLOCATOR_DISABLE_UDP |
                          PORTALLOCATOR_DISABLE_STUN |
                          PORTALLOCATOR_DISABLE_TCP);
-  // With conflicting ICE roles, endpoint 1 has the higher tie breaker and will
-  // send a binding error response.
+
   SetIceRole(0, ICEROLE_CONTROLLING);
   SetIceRole(1, ICEROLE_CONTROLLING);
   // We want the remote TURN candidate to show up as prflx. To do this we need
@@ -3727,6 +3728,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
     channel_state_ = channel->GetState();
   }
   void OnCandidatePairChanged(const CandidatePairChangeEvent& event) {
+    RTC_DCHECK(!event.transport_name.empty());
     last_candidate_change_event_ = event;
   }
 
@@ -6797,63 +6799,27 @@ TEST_F(P2PTransportChannelTest, EnableDnsLookupsWithTransportPolicyNoHost) {
   DestroyChannels();
 }
 
-struct LocalAreaNetworkPermissionTestConfig {
-  template <typename Sink>
-  friend void AbslStringify(
-      Sink& sink,
-      const LocalAreaNetworkPermissionTestConfig& config) {
-    sink.Append(config.address);
-    sink.Append("_");
-    switch (config.lna_permission_status) {
-      case LocalNetworkAccessPermissionStatus::kDenied:
-        sink.Append("Denied");
-        break;
-      case LocalNetworkAccessPermissionStatus::kGranted:
-        sink.Append("Granted");
-        break;
-    }
-  }
-
-  LocalNetworkAccessPermissionStatus lna_permission_status;
-  absl::string_view address;
-  bool candidate_added;
-} kAllLocalAreNetworkPermissionTestConfigs[] = {
-    {LocalNetworkAccessPermissionStatus::kDenied, "127.0.0.1",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "10.0.0.3",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "1.1.1.1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kDenied, "::1",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "fd00:4860:4860::8844",
-     /*candidate_added=*/false},
-    {LocalNetworkAccessPermissionStatus::kDenied, "2001:4860:4860::8888",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "127.0.0.1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "10.0.0.3",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "1.1.1.1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "::1",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "fd00:4860:4860::8844",
-     /*candidate_added=*/true},
-    {LocalNetworkAccessPermissionStatus::kGranted, "2001:4860:4860::8888",
-     /*candidate_added=*/true},
+constexpr absl::string_view kTestAddresses[] = {
+    "127.0.0.1",
+    "10.0.0.3",
+    "1.1.1.1",
+    "::1",
+    "fd00:4860:4860::8844",
+    "2001:4860:4860::8888",
 };
 
-class LocalAreaNetworkPermissionTest
+class LocalNetworkAccessPermissionTest
     : public P2PTransportChannelPingTest,
       public ::testing::WithParamInterface<
-          LocalAreaNetworkPermissionTestConfig> {};
+          std::tuple<absl::string_view, LnaFakeResult>> {};
 
-TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
+TEST_P(LocalNetworkAccessPermissionTest, LiteralAddresses) {
+  const auto [address, lna_fake_result] = GetParam();
+
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
   FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
-      GetParam().lna_permission_status);
+      lna_fake_result);
 
   IceTransportInit init;
   init.set_port_allocator(&pa);
@@ -6865,27 +6831,30 @@ TEST_P(LocalAreaNetworkPermissionTest, LiteralAddresses) {
   ch->MaybeStartGathering();
 
   ch->AddRemoteCandidate(
-      CreateUdpCandidate(IceCandidateType::kHost, GetParam().address, 5000, 1));
+      CreateUdpCandidate(IceCandidateType::kHost, address, 5000, 1));
 
   ASSERT_THAT(
       WaitUntil([&] { return ch->PermissionQueriesOutstandingForTesting(); },
                 Eq(0)),
       IsRtcOk());
-  if (GetParam().candidate_added) {
+  if (lna_fake_result == LnaFakeResult::kPermissionNotNeeded ||
+      lna_fake_result == LnaFakeResult::kPermissionGranted) {
     EXPECT_EQ(1u, ch->remote_candidates().size());
   } else {
     EXPECT_EQ(0u, ch->remote_candidates().size());
   }
 }
 
-TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
+TEST_P(LocalNetworkAccessPermissionTest, UnresolvedAddresses) {
+  const auto [address, lna_fake_result] = GetParam();
+
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
   FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
-      GetParam().lna_permission_status);
+      lna_fake_result);
 
   ResolverFactoryFixture resolver_fixture;
-  resolver_fixture.SetAddressToReturn({GetParam().address, 5000});
+  resolver_fixture.SetAddressToReturn({address, 5000});
 
   IceTransportInit init;
   init.set_port_allocator(&pa);
@@ -6904,7 +6873,8 @@ TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
       WaitUntil([&] { return ch->PermissionQueriesOutstandingForTesting(); },
                 Eq(0)),
       IsRtcOk());
-  if (GetParam().candidate_added) {
+  if (lna_fake_result == LnaFakeResult::kPermissionNotNeeded ||
+      lna_fake_result == LnaFakeResult::kPermissionGranted) {
     EXPECT_EQ(1u, ch->remote_candidates().size());
   } else {
     EXPECT_EQ(0u, ch->remote_candidates().size());
@@ -6913,8 +6883,11 @@ TEST_P(LocalAreaNetworkPermissionTest, UnresolvedAddresses) {
 
 INSTANTIATE_TEST_SUITE_P(
     All,
-    LocalAreaNetworkPermissionTest,
-    ::testing::ValuesIn(kAllLocalAreNetworkPermissionTestConfigs));
+    LocalNetworkAccessPermissionTest,
+    ::testing::Combine(::testing::ValuesIn(kTestAddresses),
+                       ::testing::Values(LnaFakeResult::kPermissionNotNeeded,
+                                         LnaFakeResult::kPermissionGranted,
+                                         LnaFakeResult::kPermissionDenied)));
 
 class GatherAfterConnectedTest : public P2PTransportChannelTest,
                                  public WithParamInterface<bool> {};

@@ -383,7 +383,6 @@ enum class MediaProtocolType {
 // Owns the description.
 class RTC_EXPORT ContentInfo {
  public:
-  explicit ContentInfo(MediaProtocolType type) : type(type) {}
   ContentInfo(MediaProtocolType type,
               absl::string_view mid,
               std::unique_ptr<MediaContentDescription> description,

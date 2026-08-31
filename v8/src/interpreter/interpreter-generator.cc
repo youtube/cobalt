@@ -2456,8 +2456,8 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Label maybe_osr_because_baseline(this);
   TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
       LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-  Branch(SharedFunctionInfoHasBaselineCode(sfi), &maybe_osr_because_baseline,
-         &ok);
+  GotoIfSharedFunctionInfoHasBaselineCode(sfi, &maybe_osr_because_baseline);
+  Goto(&ok);
 
   BIND(&ok);
 #endif  // !V8_JITLESS
@@ -2714,6 +2714,25 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   TNode<JSObject> result =
       constructor_assembler.CreateEmptyObjectLiteral(context);
   SetAccumulator(result);
+  Dispatch();
+}
+
+// SetPrototypeProperties <name_index>
+//
+// Merges the boilerpateObject at <name_index> into the prototype of the object
+// currently in accumulator
+IGNITION_HANDLER(SetPrototypeProperties, InterpreterLoadGlobalAssembler) {
+  TNode<Object> object = GetAccumulator();
+  TNode<Context> context = GetContext();
+
+  TNode<ObjectBoilerplateDescription> proto_boilerplate_description =
+      CAST(LoadConstantPoolEntryAtOperandIndex(0));
+
+  TNode<Object> result = CallRuntime(Runtime::kSetPrototypeProperties, context,
+                                     object, proto_boilerplate_description);
+
+  ClobberAccumulator(result);
+
   Dispatch();
 }
 
@@ -3276,18 +3295,16 @@ IGNITION_HANDLER(ForInStep, InterpreterAssembler) {
   Dispatch();
 }
 
-// ForOfNext <object> <next> <value>
+// ForOfNext <object> <next> <value_done>
 //
-// Get the next value of the iterable and returns done in the accumulator.
+// Get the next value and done of the iterable.
 IGNITION_HANDLER(ForOfNext, InterpreterAssembler) {
   TNode<Object> object = LoadRegisterAtOperandIndex(0);
   TNode<Object> next = LoadRegisterAtOperandIndex(1);
   TNode<Context> context = GetContext();
 
-  auto [done_value, value] = ForOfNextHelper(context, object, next);
-  SetAccumulator(done_value);
-  StoreRegisterAtOperandIndex(value, 2);
-
+  auto [value, done_value] = ForOfNextHelper(context, object, next);
+  StoreRegisterPairAtOperandIndex(value, done_value, 2);
   Dispatch();
 }
 

@@ -732,10 +732,10 @@ void WebRtcVoiceEngine::ApplyOptions(const AudioOptions& options_in) {
     apm_config.gain_controller1.enabled = enabled;
 #if defined(WEBRTC_IOS) || defined(WEBRTC_ANDROID)
     apm_config.gain_controller1.mode =
-        apm_config.gain_controller1.kFixedDigital;
+        AudioProcessing::Config::GainController1::kFixedDigital;
 #else
     apm_config.gain_controller1.mode =
-        apm_config.gain_controller1.kAdaptiveAnalog;
+        AudioProcessing::Config::GainController1::kAdaptiveAnalog;
 #endif
   }
 

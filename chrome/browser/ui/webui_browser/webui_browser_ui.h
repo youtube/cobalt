@@ -5,7 +5,12 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_BROWSER_WEBUI_BROWSER_UI_H_
 #define CHROME_BROWSER_UI_WEBUI_BROWSER_WEBUI_BROWSER_UI_H_
 
+#include <memory>
+
+#include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_api.mojom.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_key.h"
+#include "chrome/browser/ui/webui/metrics_reporter/metrics_reporter.h"
+#include "chrome/browser/ui/webui_browser/bookmark_bar.mojom.h"
 #include "chrome/browser/ui/webui_browser/browser.mojom.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "components/guest_contents/common/guest_contents.mojom.h"
@@ -22,7 +27,13 @@ class BrowserContext;
 class WebContents;
 }  // namespace content
 
+namespace searchbox::mojom {
+class PageHandler;
+}  // namespace searchbox::mojom
+
+class RealboxHandler;
 class WebUIBrowserUI;
+class WebUIBrowserBookmarkBarPageHandler;
 
 class WebUIBrowserUIConfig
     : public content::DefaultWebUIConfig<WebUIBrowserUI> {
@@ -35,17 +46,26 @@ class WebUIBrowserUIConfig
 
 // The WebUI for chrome://webui-browser
 class WebUIBrowserUI : public ui::MojoWebUIController,
-                       public webui_browser::mojom::PageHandlerFactory {
+                       public webui_browser::mojom::PageHandlerFactory,
+                       public bookmark_bar::mojom::PageHandlerFactory {
  public:
   explicit WebUIBrowserUI(content::WebUI* web_ui);
   ~WebUIBrowserUI() override;
 
   void BindInterface(
       mojo::PendingReceiver<webui_browser::mojom::PageHandlerFactory> receiver);
-
+  void BindInterface(
+      mojo::PendingReceiver<bookmark_bar::mojom::PageHandlerFactory> receiver);
+  void BindInterface(mojo::PendingReceiver<searchbox::mojom::PageHandler>
+                         pending_page_handler);
+  void BindInterface(
+      mojo::PendingReceiver<metrics_reporter::mojom::PageMetricsHost> receiver);
   void BindInterface(
       mojo::PendingReceiver<guest_contents::mojom::GuestContentsHost> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<tabs_api::mojom::TabStripService> receiver);
 
+  void BookmarkBarStateChanged(BookmarkBar::AnimateChangeType change_type);
   void ShowSidePanel(SidePanelEntryKey side_panel_entry_key);
   void CloseSidePanel();
 
@@ -63,12 +83,25 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
       mojo::PendingReceiver<webui_browser::mojom::PageHandler> receiver)
       override;
 
+  // bookmark_bar::mojom::PageHandlerFactory:
+  void CreatePageHandler(mojo::PendingRemote<bookmark_bar::mojom::Page> page,
+                         mojo::PendingReceiver<bookmark_bar::mojom::PageHandler>
+                             receiver) override;
+
+  MetricsReporter metrics_reporter_;
+  std::unique_ptr<RealboxHandler> realbox_handler_;
+  std::unique_ptr<WebUIBrowserBookmarkBarPageHandler>
+      bookmark_bar_page_handler_;
+
   mojo::Receiver<webui_browser::mojom::PageHandlerFactory>
       page_factory_receiver_{this};
 
   // TODO(webium): this is for testing guest contents embedding. Remove once
   // the tab strip is integrated.
   std::unique_ptr<content::WebContents> test_guest_contents_;
+
+  mojo::Receiver<bookmark_bar::mojom::PageHandlerFactory>
+      bookmark_bar_page_factory_receiver_{this};
 
   raw_ptr<Browser> browser_;
 

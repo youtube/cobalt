@@ -10,12 +10,24 @@
 
 #include "sdk/android/src/jni/pc/rtp_transceiver.h"
 
-#include <string>
+#include <jni.h>
 
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "api/rtc_error.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_transceiver_direction.h"
+#include "api/rtp_transceiver_interface.h"
+#include "api/scoped_refptr.h"
+#include "rtc_base/logging.h"
 #include "sdk/android/generated_peerconnection_jni/RtpTransceiver_jni.h"
 #include "sdk/android/generated_rtcerror_jni/RtcError_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "sdk/android/src/jni/pc/media_stream_track.h"
 #include "sdk/android/src/jni/pc/rtp_capabilities.h"
 #include "sdk/android/src/jni/pc/rtp_parameters.h"

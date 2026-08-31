@@ -1687,12 +1687,9 @@ TEST_F(SdpOfferAnswerTest, PayloadTypeMatchingWithSubsequentOfferAnswer) {
   auto video_transceiver = caller->AddTransceiver(MediaType::VIDEO);
   std::vector<RtpCodecCapability> codec_caps =
       pc_factory_->GetRtpReceiverCapabilities(MediaType::VIDEO).codecs;
-  codec_caps.erase(std::remove_if(codec_caps.begin(), codec_caps.end(),
-                                  [](const RtpCodecCapability& codec) {
-                                    return !absl::EqualsIgnoreCase(codec.name,
-                                                                   "VP8");
-                                  }),
-                   codec_caps.end());
+  std::erase_if(codec_caps, [](const RtpCodecCapability& codec) {
+    return !absl::EqualsIgnoreCase(codec.name, "VP8");
+  });
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(codec_caps).ok());
 
   auto offer1 = caller->CreateOfferAndSetAsLocal();
@@ -1716,13 +1713,10 @@ TEST_F(SdpOfferAnswerTest, PayloadTypeMatchingWithSubsequentOfferAnswer) {
 
   // 3. sCP to reenable that codec. Payload type is not matched at this point.
   codec_caps = pc_factory_->GetRtpReceiverCapabilities(MediaType::VIDEO).codecs;
-  codec_caps.erase(
-      std::remove_if(codec_caps.begin(), codec_caps.end(),
-                     [](const RtpCodecCapability& codec) {
-                       return !(absl::EqualsIgnoreCase(codec.name, "VP8") ||
-                                absl::EqualsIgnoreCase(codec.name, "AV1"));
-                     }),
-      codec_caps.end());
+  std::erase_if(codec_caps, [](const RtpCodecCapability& codec) {
+    return !(absl::EqualsIgnoreCase(codec.name, "VP8") ||
+             absl::EqualsIgnoreCase(codec.name, "AV1"));
+  });
   EXPECT_TRUE(video_transceiver->SetCodecPreferences(codec_caps).ok());
   auto offer2 = caller->CreateOffer();
   auto& contents2 = offer2->description()->contents();

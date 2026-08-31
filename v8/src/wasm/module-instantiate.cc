@@ -254,14 +254,6 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
         param_mismatch = true;
         break;
       }
-      START_ALLOW_USE_DEPRECATED()
-      if (arg.GetSequenceType() == CTypeInfo::SequenceType::kIsSequence) {
-        log_imported_function_mismatch(c_func_id,
-                                       "sequence types are not allowed");
-        param_mismatch = true;
-        break;
-      }
-      END_ALLOW_USE_DEPRECATED()
     }
     if (param_mismatch) {
       continue;
@@ -2258,7 +2250,7 @@ void InstanceBuilder::SanitizeImports() {
   const std::vector<WasmImport>& import_table = module_->import_table;
   sanitized_imports_.resize(import_table.size());
 
-  if (v8_flags.experimental_wasm_custom_descriptors &&
+  if (v8_flags.experimental_wasm_js_interop &&
       !module_->descriptors_section.is_empty()) {
     js_prototypes_setup_.emplace(isolate_, wire_bytes_, module_, thrower_,
                                  sanitized_imports_);

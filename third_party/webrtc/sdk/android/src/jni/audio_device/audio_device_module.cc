@@ -10,16 +10,25 @@
 
 #include "sdk/android/src/jni/audio_device/audio_device_module.h"
 
+#include <jni.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <utility>
 
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_device_defines.h"
 #include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
 #include "modules/audio_device/audio_device_buffer.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "sdk/android/generated_audio_device_module_base_jni/WebRtcAudioManager_jni.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "system_wrappers/include/metrics.h"
 
 namespace webrtc {

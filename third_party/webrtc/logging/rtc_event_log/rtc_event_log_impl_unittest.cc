@@ -24,6 +24,7 @@
 #include "api/units/timestamp.h"
 #include "logging/rtc_event_log/encoder/rtc_event_log_encoder.h"
 #include "rtc_base/checks.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/time_controller/simulated_time_controller.h"
@@ -115,9 +116,9 @@ class RtcEventLogImplTest : public ::testing::Test {
   std::unique_ptr<FakeOutput> output_ =
       std::make_unique<FakeOutput>(written_data_);
   FakeOutput* output_ptr_ = output_.get();
-  RtcEventLogImpl event_log_{std::move(encoder_),
-                             time_controller_.GetTaskQueueFactory(),
-                             kMaxEventsInHistory, kMaxEventsInConfigHistory};
+  RtcEventLogImpl event_log_{CreateTestEnvironment({.time = &time_controller_}),
+                             std::move(encoder_), kMaxEventsInHistory,
+                             kMaxEventsInConfigHistory};
 };
 
 TEST_F(RtcEventLogImplTest, WritesHeaderAndEventsAndTrailer) {

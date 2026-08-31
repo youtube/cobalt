@@ -26,6 +26,14 @@ template <typename T>
 class PropertyCallbackInfo;
 
 /**
+ * A tag for embedder data. Objects with different C++ types should use
+ * different values of EmbedderDataTypeTag when written to embedder data. The
+ * allowed range is 0..V8_EMBEDDER_DATA_TAG_COUNT - 1. If this is not
+ * sufficient, V8_EMBEDDER_DATA_TAG_COUNT can be increased.
+ */
+using EmbedderDataTypeTag = uint16_t;
+
+/**
  * A private symbol
  *
  * This is an experimental feature. Use at your own risk.
@@ -546,7 +554,17 @@ class V8_EXPORT Object : public Value {
    * a field, GetAlignedPointerFromInternalField must be used, everything else
    * leads to undefined behavior.
    */
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag parameter "
+      "instead.")
   void SetAlignedPointerInInternalField(int index, void* value);
+
+  void SetAlignedPointerInInternalField(int index, void* value,
+                                        EmbedderDataTypeTag tag);
+
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInInternalField with EmbedderDataTypeTag "
+      "parameter instead.")
   void SetAlignedPointerInInternalFields(int argc, int indices[],
                                          void* values[]);
 
@@ -615,34 +633,6 @@ class V8_EXPORT Object : public Value {
    * \param wrapper The JS wrapper object.
    * \param wrappable The C++ object instance that is wrapped by the JS object.
    */
-  template <CppHeapPointerTag tag>
-  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
-  static V8_INLINE
-      void Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
-                void* wrappable);
-  template <CppHeapPointerTag tag>
-  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
-  static V8_INLINE
-      void Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
-                void* wrappable);
-  template <CppHeapPointerTag tag>
-  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
-  static V8_INLINE
-      void Wrap(v8::Isolate* isolate,
-                const BasicTracedReference<Object>& wrapper, void* wrappable);
-  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
-  static V8_INLINE void Wrap(v8::Isolate* isolate,
-                             const v8::Local<v8::Object>& wrapper,
-                             void* wrappable, CppHeapPointerTag tag);
-  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
-  static V8_INLINE void Wrap(v8::Isolate* isolate,
-                             const PersistentBase<Object>& wrapper,
-                             void* wrappable, CppHeapPointerTag tag);
-  V8_DEPRECATED("Use `Wrap` with `Wrappable* wrappable` instead")
-  static V8_INLINE void Wrap(v8::Isolate* isolate,
-                             const BasicTracedReference<Object>& wrapper,
-                             void* wrappable, CppHeapPointerTag tag);
-
   template <CppHeapPointerTag tag>
   static V8_INLINE void Wrap(v8::Isolate* isolate,
                              const v8::Local<v8::Object>& wrapper,
@@ -964,7 +954,8 @@ void* Object::GetAlignedPointerFromInternalField(v8::Isolate* isolate,
                  (I::kEmbedderDataSlotSize * index) +
                  I::kEmbedderDataSlotExternalPointerOffset;
     A value =
-        I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+        I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
+                                     internal::kLastEmbedderDataTag}>(
             isolate, obj, offset);
     return reinterpret_cast<void*>(value);
   }
@@ -986,7 +977,8 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
                  I::kEmbedderDataSlotExternalPointerOffset;
     Isolate* isolate = I::GetCurrentIsolateForSandbox();
     A value =
-        I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+        I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
+                                     internal::kLastEmbedderDataTag}>(
             isolate, obj, offset);
     return reinterpret_cast<void*>(value);
   }
@@ -1077,57 +1069,6 @@ T* Object::Unwrap(v8::Isolate* isolate,
 #else   // defined(V8_ENABLE_CHECKS)
   return reinterpret_cast<T*>(Unwrap(isolate, obj, tag_range));
 #endif  // defined(V8_ENABLE_CHECKS)
-}
-
-// static
-template <CppHeapPointerTag tag>
-void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
-                  void* wrappable) {
-  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
-  Wrap(isolate, obj, tag, wrappable);
-}
-
-// static
-template <CppHeapPointerTag tag>
-void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
-                  void* wrappable) {
-  auto obj =
-      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
-  Wrap(isolate, obj, tag, wrappable);
-}
-
-// static
-template <CppHeapPointerTag tag>
-void Object::Wrap(v8::Isolate* isolate,
-                  const BasicTracedReference<Object>& wrapper,
-                  void* wrappable) {
-  auto obj =
-      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
-  Wrap(isolate, obj, tag, wrappable);
-}
-
-// static
-void Object::Wrap(v8::Isolate* isolate, const v8::Local<v8::Object>& wrapper,
-                  void* wrappable, CppHeapPointerTag tag) {
-  auto obj = internal::ValueHelper::ValueAsAddress(*wrapper);
-  Wrap(isolate, obj, tag, wrappable);
-}
-
-// static
-void Object::Wrap(v8::Isolate* isolate, const PersistentBase<Object>& wrapper,
-                  void* wrappable, CppHeapPointerTag tag) {
-  auto obj =
-      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
-  Wrap(isolate, obj, tag, wrappable);
-}
-
-// static
-void Object::Wrap(v8::Isolate* isolate,
-                  const BasicTracedReference<Object>& wrapper, void* wrappable,
-                  CppHeapPointerTag tag) {
-  auto obj =
-      internal::ValueHelper::ValueAsAddress(wrapper.template value<Object>());
-  Wrap(isolate, obj, tag, wrappable);
 }
 
 // static

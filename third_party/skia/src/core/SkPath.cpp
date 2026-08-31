@@ -833,16 +833,20 @@ void SkPath::addRaw(const SkPathRaw& raw) {
     this->incReserve(raw.points().size(), raw.verbs().size());
 
     for (auto iter = raw.iter(); auto rec = iter.next();) {
-        const auto pts = rec->pts;
-        switch (rec->vrb) {
+        const auto pts = rec->fPoints;
+        switch (rec->fVerb) {
             case SkPathVerb::kMove:  this->moveTo( pts[0]); break;
             case SkPathVerb::kLine:  this->lineTo( pts[1]); break;
             case SkPathVerb::kQuad:  this->quadTo( pts[1], pts[2]); break;
-            case SkPathVerb::kConic: this->conicTo(pts[1], pts[2], rec->w); break;
+            case SkPathVerb::kConic: this->conicTo(pts[1], pts[2], rec->fConicWeight); break;
             case SkPathVerb::kCubic: this->cubicTo(pts[1], pts[2], pts[3]); break;
             case SkPathVerb::kClose: this->close(); break;
         }
     }
+}
+
+SkPathIter SkPath::iter() const {
+    return { fPathRef->fPoints, fPathRef->verbs(), fPathRef->fConicWeights };
 }
 
 static bool arc_is_lone_point(const SkRect& oval, SkScalar startAngle, SkScalar sweepAngle,
@@ -1555,7 +1559,7 @@ void SkPath::transform(const SkMatrix& matrix, SkPath* dst) const {
                     break;
                 case SkPathVerb::kConic:
                     tmp.conicTo(pts[1], pts[2],
-                                SkConic::TransformW(pts.data(), rec->fConicWeight, matrix));
+                                SkConic::TransformW(pts.data(), rec->conicWeight(), matrix));
                     break;
                 case SkPathVerb::kCubic:
                     subdivide_cubic_to(&tmp, pts.data());
@@ -1897,7 +1901,7 @@ void SkPath::dump(SkWStream* wStream, bool dumpAsHex) const {
                 break;
             case SkPathVerb::kConic:
                 append_params(&builder, "path.conicTo", &rec->fPoints[1], 2, asType,
-                              rec->fConicWeight);
+                              rec->conicWeight());
                 break;
             case SkPathVerb::kCubic:
                 append_params(&builder, "path.cubicTo", &rec->fPoints[1], 3, asType);
@@ -2962,7 +2966,7 @@ bool SkPath::contains(SkScalar x, SkScalar y) const {
                 w += winding_quad(rec->fPoints, x, y, &onCurveCount);
                 break;
             case SkPathVerb::kConic:
-                w += winding_conic(rec->fPoints, x, y, rec->fConicWeight, &onCurveCount);
+                w += winding_conic(rec->fPoints, x, y, rec->conicWeight(), &onCurveCount);
                 break;
             case SkPathVerb::kCubic:
                 w += winding_cubic(rec->fPoints, x, y, &onCurveCount);
@@ -3000,7 +3004,7 @@ bool SkPath::contains(SkScalar x, SkScalar y) const {
                 tangent_quad(rec->fPoints, x, y, &tangents);
                 break;
             case SkPathVerb::kConic:
-                tangent_conic(rec->fPoints, x, y, rec->fConicWeight, &tangents);
+                tangent_conic(rec->fPoints, x, y, rec->conicWeight(), &tangents);
                 break;
             case SkPathVerb::kCubic:
                 tangent_cubic(rec->fPoints, x, y, &tangents);

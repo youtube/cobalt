@@ -10,10 +10,13 @@
 
 #include "sdk/android/src/jni/pc/media_stream_track.h"
 
+#include <jni.h>
+
 #include "api/media_stream_interface.h"
+#include "api/media_types.h"
 #include "sdk/android/generated_peerconnection_jni/MediaStreamTrack_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {
 namespace jni {

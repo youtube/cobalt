@@ -314,7 +314,13 @@ class V8_EXPORT Context : public Data {
    * index, growing the data as needed. Note that index 0 currently has a
    * special meaning for Chrome's debugger.
    */
+  V8_DEPRECATE_SOON(
+      "Use SetAlignedPointerInEmbedderData with EmbedderDataTypeTag parameter "
+      "instead.")
   void SetAlignedPointerInEmbedderData(int index, void* value);
+
+  void SetAlignedPointerInEmbedderData(int index, void* value,
+                                       EmbedderDataTypeTag slot);
 
   /**
    * Control whether code generation from strings is allowed. Calling
@@ -472,7 +478,8 @@ void* Context::GetAlignedPointerFromEmbedderData(Isolate* isolate, int index) {
                      (I::kEmbedderDataSlotSize * index) +
                      I::kEmbedderDataSlotExternalPointerOffset;
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+      I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
+                                   internal::kLastEmbedderDataTag}>(
           isolate, embedder_data, value_offset));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);
@@ -491,7 +498,8 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
                      I::kEmbedderDataSlotExternalPointerOffset;
   Isolate* isolate = I::GetCurrentIsolateForSandbox();
   return reinterpret_cast<void*>(
-      I::ReadExternalPointerField<internal::kEmbedderDataSlotPayloadTag>(
+      I::ReadExternalPointerField<{internal::kFirstEmbedderDataTag,
+                                   internal::kLastEmbedderDataTag}>(
           isolate, embedder_data, value_offset));
 #else
   return SlowGetAlignedPointerFromEmbedderData(index);

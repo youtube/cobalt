@@ -327,7 +327,7 @@ TEST_P(VideoReceiveStream2Test, PlayoutDelay) {
   EXPECT_EQ(kPlayoutDelay.max(), timings.max_playout_delay);
 
   // Check that the biggest minimum delay is chosen.
-  video_receive_stream_->SetMinimumPlayoutDelay(400);
+  video_receive_stream_->SetMinimumPlayoutDelay(TimeDelta::Millis(400));
   timings = timing_->GetTimings();
   EXPECT_EQ(400, timings.min_playout_delay.ms());
 
@@ -344,7 +344,7 @@ TEST_P(VideoReceiveStream2Test, PlayoutDelay) {
   timings = timing_->GetTimings();
   EXPECT_EQ(400, timings.min_playout_delay.ms());
 
-  video_receive_stream_->SetMinimumPlayoutDelay(0);
+  video_receive_stream_->SetMinimumPlayoutDelay(TimeDelta::Zero());
   timings = timing_->GetTimings();
   EXPECT_EQ(123, timings.min_playout_delay.ms());
 }
@@ -360,7 +360,7 @@ TEST_P(VideoReceiveStream2Test, MinPlayoutDelayIsLimitedByMaxPlayoutDelay) {
   EXPECT_EQ(timing_->GetTimings().min_playout_delay, kPlayoutDelay.min());
 
   // Check that the biggest minimum delay is limited by the max playout delay.
-  video_receive_stream_->SetMinimumPlayoutDelay(400);
+  video_receive_stream_->SetMinimumPlayoutDelay(TimeDelta::Millis(400));
   EXPECT_EQ(timing_->GetTimings().min_playout_delay, kPlayoutDelay.max());
 }
 

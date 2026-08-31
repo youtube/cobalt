@@ -71,6 +71,7 @@ if (rtc_include_tests && !build_with_chromium) {
     ]
     deps = [
       ":column_printer",
+      "..:create_test_environment",
       "..:create_test_field_trials",
       "..:encoder_settings",
       "..:frame_generator_capturer",

@@ -10,6 +10,8 @@
 
 #include "sdk/android/native_api/jni/jvm.h"
 
+#include <jni.h>
+
 #include "sdk/android/src/jni/jvm.h"
 
 namespace webrtc {

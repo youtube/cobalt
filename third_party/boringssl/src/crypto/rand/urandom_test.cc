@@ -697,7 +697,7 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
     };
   }
 
-  const size_t kSeedLength = CTR_DRBG_ENTROPY_LEN * (kIsFIPS ? 10 : 1);
+  const size_t kSeedLength = CTR_DRBG_SEED_LEN * (kIsFIPS ? 10 : 1);
   const size_t kAdditionalDataLength = 32;
 
   if (!have_rdrand()) {
@@ -710,7 +710,7 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
     if (  // Initialise CRNGT.
         (!used_daemon && !sysrand(true, kSeedLength + (kIsFIPS ? 16 : 0))) ||
         // Personalisation draw if the daemon was used.
-        (used_daemon && !sysrand(false, CTR_DRBG_ENTROPY_LEN)) ||
+        (used_daemon && !sysrand(false, CTR_DRBG_SEED_LEN)) ||
         // Second entropy draw.
         (!have_fork_detection() && !sysrand(true, kAdditionalDataLength))) {
       return ret;
@@ -723,7 +723,7 @@ static std::vector<Event> TestFunctionPRNGModel(unsigned flags) {
       // Opportuntistic entropy draw in FIPS mode because RDRAND was used.
       // In non-FIPS mode it's just drawn from |CRYPTO_sysrand| in a blocking
       // way.
-      !sysrand(!kIsFIPS, CTR_DRBG_ENTROPY_LEN) ||
+      !sysrand(!kIsFIPS, CTR_DRBG_SEED_LEN) ||
       // Second entropy draw's additional data.
       (!have_fast_rdrand() && !have_fork_detection() &&
        !sysrand(false, kAdditionalDataLength))) {

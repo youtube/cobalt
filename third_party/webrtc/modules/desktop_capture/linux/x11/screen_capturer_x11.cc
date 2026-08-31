@@ -269,7 +269,7 @@ void ScreenCapturerX11::CaptureFrame() {
   // may still be reading from them.
   if (!queue_.current_frame()) {
     std::unique_ptr<DesktopFrame> frame(
-        new BasicDesktopFrame(selected_monitor_rect_.size()));
+        new BasicDesktopFrame(selected_monitor_rect_.size(), FOURCC_ARGB));
 
     // We set the top-left of the frame so the mouse cursor will be composited
     // properly, and our frame buffer will not be overrun while blitting.

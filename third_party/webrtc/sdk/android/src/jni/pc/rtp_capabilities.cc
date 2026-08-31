@@ -10,9 +10,12 @@
 
 #include "sdk/android/src/jni/pc/rtp_capabilities.h"
 
+#include <jni.h>
+
+#include "api/rtp_parameters.h"
 #include "sdk/android/generated_peerconnection_jni/RtpCapabilities_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/pc/media_stream_track.h"
 
 namespace webrtc {

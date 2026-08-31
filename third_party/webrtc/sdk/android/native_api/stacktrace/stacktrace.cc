@@ -10,24 +10,28 @@
 
 #include "sdk/android/native_api/stacktrace/stacktrace.h"
 
+#include <asm-generic/siginfo.h>
+#include <asm-generic/signal-defs.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <linux/futex.h>
-#include <sys/ptrace.h>
-#include <sys/ucontext.h>
-#include <syscall.h>
-#include <ucontext.h>
+#include <signal.h>
+#include <sys/syscall.h>  // IWYU pragma: keep
 #include <unistd.h>
 #include <unwind.h>
 
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <string>
+#include <vector>
 
 // ptrace.h is polluting the namespace. Clean up to avoid conflicts with rtc.
 #if defined(DS)
 #undef DS
 #endif
 
-#include "absl/base/attributes.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"

@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
+#include "components/history/core/browser/features.h"
 #include "components/optimization_guide/core/hints/hints_processing_util.h"
 #include "components/optimization_guide/core/hints/optimization_guide_decider.h"
 #include "components/optimization_guide/core/hints/optimization_metadata.h"
@@ -37,7 +38,7 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/glic/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #endif
 
@@ -166,11 +167,10 @@ void ContextualCueingHelper::DidFinishNavigation(
     return;
   }
 
-  // If `blink::features::kVisitedLinksOnErrorNavigation` is enabled, then
-  // `navigation_handle->ShouldUpdateHistory()` will return true for committed
+  // If `history::kVisitedLinksOn404` is enabled, then
+  // `navigation_handle->ShouldUpdateHistory()` will return true for reachable
   // 404 pages. In that case, we need to ignore such pages.
-  if (base::FeatureList::IsEnabled(
-          blink::features::kVisitedLinksOnErrorNavigation)) {
+  if (base::FeatureList::IsEnabled(history::kVisitedLinksOn404)) {
     const int status_code =
         navigation_handle->GetResponseHeaders()
             ? navigation_handle->GetResponseHeaders()->response_code()

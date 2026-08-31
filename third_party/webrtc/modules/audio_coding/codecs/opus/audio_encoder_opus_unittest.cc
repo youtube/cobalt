@@ -81,9 +81,8 @@ std::unique_ptr<AudioEncoderOpusStates> CreateCodec(
 
   MockAudioNetworkAdaptor** mock_ptr = &states->mock_audio_network_adaptor;
   AudioEncoderOpusImpl::AudioNetworkAdaptorCreator creator =
-      [mock_ptr](absl::string_view, RtcEventLog* /* event_log */) {
-        std::unique_ptr<MockAudioNetworkAdaptor> adaptor(
-            new NiceMock<MockAudioNetworkAdaptor>());
+      [mock_ptr](absl::string_view) {
+        auto adaptor = std::make_unique<NiceMock<MockAudioNetworkAdaptor>>();
         EXPECT_CALL(*adaptor, Die());
         *mock_ptr = adaptor.get();
         return adaptor;
@@ -265,7 +264,7 @@ TEST_P(AudioEncoderOpusTest, SetReceiverFrameLengthRange) {
 TEST_P(AudioEncoderOpusTest,
        InvokeAudioNetworkAdaptorOnReceivedUplinkPacketLossFraction) {
   auto states = CreateCodec(sample_rate_hz_, 2);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
 
   auto config = CreateEncoderRuntimeConfig();
   EXPECT_CALL(*states->mock_audio_network_adaptor, GetEncoderRuntimeConfig())
@@ -284,7 +283,7 @@ TEST_P(AudioEncoderOpusTest,
        InvokeAudioNetworkAdaptorOnReceivedUplinkBandwidth) {
   FieldTrials field_trials = CreateTestFieldTrials("");
   auto states = CreateCodec(sample_rate_hz_, 2, &field_trials);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
 
   auto config = CreateEncoderRuntimeConfig();
   EXPECT_CALL(*states->mock_audio_network_adaptor, GetEncoderRuntimeConfig())
@@ -307,7 +306,7 @@ TEST_P(AudioEncoderOpusTest,
 TEST_P(AudioEncoderOpusTest,
        InvokeAudioNetworkAdaptorOnReceivedUplinkAllocation) {
   auto states = CreateCodec(sample_rate_hz_, 2);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
 
   auto config = CreateEncoderRuntimeConfig();
   EXPECT_CALL(*states->mock_audio_network_adaptor, GetEncoderRuntimeConfig())
@@ -326,7 +325,7 @@ TEST_P(AudioEncoderOpusTest,
 
 TEST_P(AudioEncoderOpusTest, InvokeAudioNetworkAdaptorOnReceivedRtt) {
   auto states = CreateCodec(sample_rate_hz_, 2);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
 
   auto config = CreateEncoderRuntimeConfig();
   EXPECT_CALL(*states->mock_audio_network_adaptor, GetEncoderRuntimeConfig())
@@ -342,7 +341,7 @@ TEST_P(AudioEncoderOpusTest, InvokeAudioNetworkAdaptorOnReceivedRtt) {
 
 TEST_P(AudioEncoderOpusTest, InvokeAudioNetworkAdaptorOnReceivedOverhead) {
   auto states = CreateCodec(sample_rate_hz_, 2);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
 
   auto config = CreateEncoderRuntimeConfig();
   EXPECT_CALL(*states->mock_audio_network_adaptor, GetEncoderRuntimeConfig())
@@ -481,7 +480,7 @@ TEST_P(AudioEncoderOpusTest, ConfigBandwidthAdaptation) {
 
 TEST_P(AudioEncoderOpusTest, EmptyConfigDoesNotAffectEncoderSettings) {
   auto states = CreateCodec(sample_rate_hz_, 2);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
 
   auto config = CreateEncoderRuntimeConfig();
   AudioEncoderRuntimeConfig empty_config;
@@ -502,7 +501,7 @@ TEST_P(AudioEncoderOpusTest, EmptyConfigDoesNotAffectEncoderSettings) {
 TEST_P(AudioEncoderOpusTest, UpdateUplinkBandwidthInAudioNetworkAdaptor) {
   FieldTrials field_trials = CreateTestFieldTrials("");
   auto states = CreateCodec(sample_rate_hz_, 2, &field_trials);
-  states->encoder->EnableAudioNetworkAdaptor("", nullptr);
+  states->encoder->EnableAudioNetworkAdaptor("");
   const size_t opus_rate_khz = CheckedDivExact(sample_rate_hz_, 1000);
   const std::vector<int16_t> audio(opus_rate_khz * 10 * 2, 0);
   Buffer encoded;

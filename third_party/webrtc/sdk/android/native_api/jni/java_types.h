@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
@@ -210,6 +211,8 @@ ScopedJavaLocalRef<jobject> NativeToJavaLong(JNIEnv* env, int64_t u);
 ScopedJavaLocalRef<jstring> NativeToJavaString(JNIEnv* jni, const char* str);
 ScopedJavaLocalRef<jstring> NativeToJavaString(JNIEnv* jni,
                                                const std::string& str);
+ScopedJavaLocalRef<jstring> NativeToJavaString(JNIEnv* jni,
+                                               absl::string_view str);
 
 ScopedJavaLocalRef<jobject> NativeToJavaDouble(
     JNIEnv* jni,

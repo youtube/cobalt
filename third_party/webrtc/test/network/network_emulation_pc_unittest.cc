@@ -16,7 +16,6 @@
 #include "api/create_modular_peer_connection_factory.h"
 #include "api/enable_media_with_defaults.h"
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
 #include "api/jsep.h"
 #include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
@@ -32,6 +31,7 @@
 #include "pc/test/mock_peer_connection_observers.h"
 #include "rtc_base/task_queue_for_test.h"
 #include "rtc_base/thread.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/network/network_emulation.h"
@@ -64,7 +64,7 @@ bool AddIceCandidates(PeerConnectionWrapper* peer,
 scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
     Thread* signaling_thread,
     EmulatedNetworkManagerInterface* network) {
-  const Environment env = CreateEnvironment();
+  const Environment env = CreateTestEnvironment();
   PeerConnectionFactoryDependencies pcf_deps;
   pcf_deps.env = env;
   pcf_deps.event_log_factory = std::make_unique<RtcEventLogFactory>();

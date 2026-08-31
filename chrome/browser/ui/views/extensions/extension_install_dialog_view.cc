@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ui/views/extensions/extension_install_dialog_view.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -57,7 +58,9 @@
 #include "ui/views/controls/textarea/textarea.h"
 #include "ui/views/layout/box_layout.h"
 #include "ui/views/layout/fill_layout.h"
+#include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/layout/table_layout.h"
+#include "ui/views/metadata/view_factory_internal.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -224,55 +227,6 @@ void ShowExtensionInstallDialogImpl(
       std::move(show_params), std::move(done_callback), std::move(prompt));
   constrained_window::CreateBrowserModalDialogViews(dialog, parent_window)
       ->Show();
-}
-
-// A custom scrollable view implementation for the dialog.
-class CustomScrollableView : public views::View {
-  METADATA_HEADER(CustomScrollableView, views::View)
-
- public:
-  explicit CustomScrollableView(ExtensionInstallDialogView* parent)
-      : parent_(parent) {}
-  CustomScrollableView(const CustomScrollableView&) = delete;
-  CustomScrollableView& operator=(const CustomScrollableView&) = delete;
-  ~CustomScrollableView() override = default;
-
-  // views::View:
-  void ChildPreferredSizeChanged(views::View* child) override {
-    PreferredSizeChanged();
-    parent_->ResizeWidget();
-  }
-
- private:
-  // This view is an child of the dialog view (via |scroll_view_|) and thus will
-  // not outlive it.
-  raw_ptr<ExtensionInstallDialogView> parent_;
-};
-
-BEGIN_METADATA(CustomScrollableView)
-END_METADATA
-
-// Represents one section in the scrollable info area, which could be a block of
-// permissions, a list of retained files, or a list of retained devices.
-struct ExtensionInfoSection {
-  std::u16string header;
-  std::unique_ptr<views::View> contents_view;
-};
-
-// Adds a section to |sections| for permissions of |perm_type| if there are any.
-void AddPermissions(ExtensionInstallPrompt::Prompt* prompt,
-                    std::vector<ExtensionInfoSection>& sections) {
-  DCHECK_GT(prompt->GetPermissionCount(), 0u);
-
-  auto permissions_view = std::make_unique<ExtensionPermissionsView>();
-
-  for (size_t i = 0; i < prompt->GetPermissionCount(); ++i) {
-    permissions_view->AddItem(prompt->GetPermission(i),
-                              prompt->GetPermissionsDetails(i));
-  }
-
-  sections.push_back(
-      {prompt->GetPermissionsHeading(), std::move(permissions_view)});
 }
 
 }  // namespace
@@ -705,32 +659,7 @@ void ExtensionInstallDialogView::LinkClicked() {
 void ExtensionInstallDialogView::CreateContents() {
   SetLayoutManager(std::make_unique<views::FillLayout>());
 
-  const ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
-  auto extension_info_and_justification_container =
-      std::make_unique<CustomScrollableView>(this);
-  const gfx::Insets content_insets = provider->GetDialogInsetsForContentType(
-      views::DialogContentType::kControl, views::DialogContentType::kControl);
-  extension_info_and_justification_container->SetBorder(
-      views::CreateEmptyBorder(gfx::Insets::TLBR(0, content_insets.left(), 0,
-                                                 content_insets.right())));
-  extension_info_and_justification_container->SetLayoutManager(
-      std::make_unique<views::BoxLayout>(
-          views::BoxLayout::Orientation::kVertical, gfx::Insets(),
-          provider->GetDistanceMetric(
-              views::DISTANCE_UNRELATED_CONTROL_VERTICAL)));
-  auto* extension_info_container =
-      extension_info_and_justification_container->AddChildView(
-          std::make_unique<views::View>());
-  extension_info_container->SetLayoutManager(std::make_unique<views::BoxLayout>(
-      views::BoxLayout::Orientation::kVertical, gfx::Insets(),
-      provider->GetDistanceMetric(views::DISTANCE_RELATED_CONTROL_VERTICAL)));
-
-  std::vector<ExtensionInfoSection> sections;
-  if (prompt_->GetPermissionCount() > 0) {
-    AddPermissions(prompt_.get(), sections);
-  }
-
-  if (sections.empty() &&
+  if (prompt_->GetPermissionCount() == 0 &&
       prompt_->type() !=
           ExtensionInstallPrompt::PromptType::EXTENSION_REQUEST_PROMPT) {
     // Use a smaller margin between the title area and buttons, since there
@@ -742,41 +671,60 @@ void ExtensionInstallDialogView::CreateContents() {
     return;
   }
 
+  const ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
+  const gfx::Insets content_insets = provider->GetDialogInsetsForContentType(
+      views::DialogContentType::kControl, views::DialogContentType::kControl);
   set_margins(
       gfx::Insets::TLBR(content_insets.top(), 0, content_insets.bottom(), 0));
 
-  for (ExtensionInfoSection& section : sections) {
-    views::Label* header_label = new views::Label(
-        section.header, views::style::CONTEXT_DIALOG_BODY_TEXT);
-    header_label->SetMultiLine(true);
-    header_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    extension_info_container->AddChildViewRaw(header_label);
+  auto scroll_view_contents =
+      views::Builder<views::FlexLayoutView>()
+          .SetOrientation(views::LayoutOrientation::kVertical)
+          .SetInteriorMargin(gfx::Insets::TLBR(0, content_insets.left(), 0,
+                                               content_insets.right()))
+          .Build();
 
-    if (section.contents_view) {
-      extension_info_container->AddChildViewRaw(
-          section.contents_view.release());
-    }
-  }
+  auto extension_info_container =
+      views::Builder<views::View>()
+          .SetLayoutManager(std::make_unique<views::BoxLayout>(
+              views::BoxLayout::Orientation::kVertical, gfx::Insets(),
+              provider->GetDistanceMetric(
+                  views::DISTANCE_RELATED_CONTROL_VERTICAL)))
+          .AddChildren(
+              // Permissions header.
+              views::Builder<views::Label>()
+                  .SetText(prompt_->GetPermissionsHeading())
+                  .SetTextContext(views::style::CONTEXT_DIALOG_BODY_TEXT)
+                  .SetHorizontalAlignment(gfx::ALIGN_LEFT)
+                  .SetMultiLine(true),
+              // Permissions content.
+              views::Builder<ExtensionPermissionsView>(
+                  std::make_unique<ExtensionPermissionsView>(
+                      prompt_->GetPermissions())))
+          .Build();
+  scroll_view_contents->AddChildView(std::move(extension_info_container));
 
   // Add separate section for user justification. This section isn't added to
-  // the |sections| vector since it is later referenced to extract the textfield
+  // the `sections` vector since it is later referenced to extract the textfield
   // string.
   if (prompt_->type() ==
       ExtensionInstallPrompt::PromptType::EXTENSION_REQUEST_PROMPT) {
-    justification_view_ =
-        extension_info_and_justification_container->AddChildView(
-            std::make_unique<ExtensionJustificationView>(this));
+    justification_view_ = scroll_view_contents->AddChildView(
+        std::make_unique<ExtensionJustificationView>(this));
   }
 
-  scroll_view_ = new views::ScrollView();
-  scroll_view_->SetHorizontalScrollBarMode(
-      views::ScrollView::ScrollBarMode::kDisabled);
-  scroll_view_->SetContents(
-      std::move(extension_info_and_justification_container));
-  scroll_view_->ClipHeightTo(
-      0, provider->GetDistanceMetric(
-             views::DISTANCE_DIALOG_SCROLLABLE_AREA_MAX_HEIGHT));
-  AddChildViewRaw(scroll_view_.get());
+  auto scroll_view =
+      views::Builder<views::ScrollView>()
+          .SetHorizontalScrollBarMode(
+              views::ScrollView::ScrollBarMode::kDisabled)
+          .ClipHeightTo(0,
+                        provider->GetDistanceMetric(
+                            views::DISTANCE_DIALOG_SCROLLABLE_AREA_MAX_HEIGHT))
+          .Build();
+  scroll_view->SetContents(std::move(scroll_view_contents));
+  scroll_view_ = scroll_view.get();
+
+  AddChildView(std::move(scroll_view));
 }
 
 void ExtensionInstallDialogView::ContentsChanged(

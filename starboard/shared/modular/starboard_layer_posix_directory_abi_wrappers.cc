@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 
+#include <errno.h>
 #include <string.h>
 
 #include <algorithm>

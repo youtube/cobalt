@@ -8,7 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -248,12 +247,9 @@ void TestPhysicalInternal(const SocketAddress& int_addr) {
   Thread::Current()->ProcessMessages(0);
 
   std::vector<const Network*> networks = network_manager.GetNetworks();
-  networks.erase(std::remove_if(networks.begin(), networks.end(),
-                                [](const Network* network) {
-                                  return kDefaultNetworkIgnoreMask &
-                                         network->type();
-                                }),
-                 networks.end());
+  std::erase_if(networks, [](const Network* network) {
+    return kDefaultNetworkIgnoreMask & network->type();
+  });
   if (networks.empty()) {
     RTC_LOG(LS_WARNING) << "Not enough network adapters for test.";
     return;

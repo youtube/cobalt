@@ -10,10 +10,20 @@
 
 #include "sdk/android/src/jni/encoded_image.h"
 
+#include <jni.h>
+
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "api/make_ref_counted.h"
 #include "api/video/encoded_image.h"
+#include "api/video/video_frame_type.h"
+#include "api/video/video_rotation.h"
 #include "rtc_base/time_utils.h"
 #include "sdk/android/generated_video_jni/EncodedImage_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 #include "sdk/android/src/jni/scoped_java_ref_counted.h"
 

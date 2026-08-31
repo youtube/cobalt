@@ -2,11 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "services/resource_coordinator/public/cpp/memory_instrumentation/os_metrics.h"
 
 #include <dlfcn.h>
@@ -18,6 +13,7 @@
 
 #include "base/android/library_loader/anchor_functions.h"
 #include "base/android/library_loader/anchor_functions_buildflags.h"
+#include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/debug/elf_reader.h"
 #include "base/debug/proc_maps_linux.h"
@@ -86,8 +82,8 @@ base::FilePath GetProcPidDir(base::ProcessId pid) {
 
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 void GetSmapsRollup(base::ProcessHandle handle,
-                    size_t* pss,
-                    size_t* swap_pss) {
+                    base::ByteCount* pss,
+                    base::ByteCount* swap_pss) {
   std::string content;
   bool use_mock = false;
   {
@@ -106,33 +102,34 @@ void GetSmapsRollup(base::ProcessHandle handle,
                                             : base::NumberToString(handle)) +
         "/smaps_rollup";
     if (!base::ReadFileToString(base::FilePath(file_name), &content)) {
-      *pss = size_t(0);
-      *swap_pss = size_t(0);
+      *pss = base::ByteCount(0);
+      *swap_pss = base::ByteCount(0);
       return;
     }
   }
 
   if (content.empty()) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
+    *pss = base::ByteCount(0);
+    *swap_pss = base::ByteCount(0);
     return;
   }
 
   auto value = base::debug::ParseSmapsRollup(content);
   if (!value) {
-    *pss = size_t(0);
-    *swap_pss = size_t(0);
+    *pss = base::ByteCount(0);
+    *swap_pss = base::ByteCount(0);
     return;
   }
   *pss = value->pss;
   *swap_pss = value->swap_pss;
 }
 #else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
-void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
+// Get values from smaps_rollup for the current process.
+void GetSmapsRollup(base::ByteCount* pss, base::ByteCount* swap_pss) {
   auto value = base::debug::ReadAndParseSmapsRollup();
   if (!value) {
-    *pss = 0;
-    *swap_pss = 0;
+    *pss = base::ByteCount(0);
+    *swap_pss = base::ByteCount(0);
     return;
   }
   *pss = value->pss;
@@ -319,9 +316,10 @@ bool ParseSmapsHeader(const char* header_line,
   char protection_flags[5] = {};
   char mapped_file[kMaxLineSize];
 
-  if (sscanf(header_line, "%" SCNx64 "-%" SCNx64 " %4c %*s %*s %*s%4095[^\n]\n",
-             &region->start_address, &end_addr, protection_flags,
-             mapped_file) != 4) {
+  if (UNSAFE_TODO(sscanf(
+          header_line, "%" SCNx64 "-%" SCNx64 " %4c %*s %*s %*s%4095[^\n]\n",
+          &region->start_address, &end_addr, protection_flags, mapped_file)) !=
+      4) {
     return false;
   }
 
@@ -368,7 +366,8 @@ bool ParseSmapsHeader(const char* header_line,
 
 uint64_t ReadCounterBytes(char* counter_line) {
   uint64_t counter_value = 0;
-  int res = sscanf(counter_line, "%*s %" SCNu64 " kB", &counter_value);
+  int res =
+      UNSAFE_TODO(sscanf(counter_line, "%*s %" SCNu64 " kB", &counter_value));
   return res == 1 ? counter_value * 1024 : 0;
 }
 
@@ -376,23 +375,23 @@ uint32_t ParseSmapsCounter(char* counter_line, VmRegion* region) {
   // A smaps counter lines looks as follows: "RSS:  0 Kb\n"
   uint32_t res = 1;
   char counter_name[20];
-  int did_read = sscanf(counter_line, "%19[^\n ]", counter_name);
+  int did_read = UNSAFE_TODO(sscanf(counter_line, "%19[^\n ]", counter_name));
   if (did_read != 1)
     return 0;
 
-  if (strcmp(counter_name, "Pss:") == 0) {
+  if (UNSAFE_TODO(strcmp(counter_name, "Pss:")) == 0) {
     region->byte_stats_proportional_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Private_Dirty:") == 0) {
+  } else if (UNSAFE_TODO(strcmp(counter_name, "Private_Dirty:")) == 0) {
     region->byte_stats_private_dirty_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Private_Clean:") == 0) {
+  } else if (UNSAFE_TODO(strcmp(counter_name, "Private_Clean:")) == 0) {
     region->byte_stats_private_clean_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Shared_Dirty:") == 0) {
+  } else if (UNSAFE_TODO(strcmp(counter_name, "Shared_Dirty:")) == 0) {
     region->byte_stats_shared_dirty_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Shared_Clean:") == 0) {
+  } else if (UNSAFE_TODO(strcmp(counter_name, "Shared_Clean:")) == 0) {
     region->byte_stats_shared_clean_resident = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Swap:") == 0) {
+  } else if (UNSAFE_TODO(strcmp(counter_name, "Swap:")) == 0) {
     region->byte_stats_swapped = ReadCounterBytes(counter_line);
-  } else if (strcmp(counter_name, "Locked:") == 0) {
+  } else if (UNSAFE_TODO(strcmp(counter_name, "Locked:")) == 0) {
     region->byte_locked = ReadCounterBytes(counter_line);
   } else {
     res = 0;
@@ -419,8 +418,10 @@ uint32_t ReadLinuxProcSmapsFile(FILE* smaps_file,
   ModuleData main_module_data = GetMainModuleData();
   for (;;) {
     line[0] = '\0';
-    if (fgets(line, kMaxLineSize, smaps_file) == nullptr || !strlen(line))
+    if (UNSAFE_TODO(fgets(line, kMaxLineSize, smaps_file)) == nullptr ||
+        !strlen(line)) {
       break;
+    }
     if (absl::ascii_isxdigit(static_cast<unsigned char>(line[0])) &&
         !absl::ascii_isupper(static_cast<unsigned char>(line[0]))) {
       region = VmRegion();
@@ -552,19 +553,19 @@ void GetSmapsRollup(base::ProcessId pid,
   uint64_t total_pss_kb = 0;
   uint64_t total_rss_kb = 0;
   bool is_matching_region = false;
-  while (fgets(line, kMaxLineSize, smaps_file.get())) {
+  while (UNSAFE_TODO(fgets(line, kMaxLineSize, smaps_file.get()))) {
     if (base::IsHexDigit(static_cast<unsigned char>(line[0])) &&
         !base::IsAsciiUpper(static_cast<unsigned char>(line[0]))) {
-      const char* found = strstr(line, needle);
+      const char* found = UNSAFE_TODO(strstr(line, needle));
       is_matching_region = (found != nullptr);
     } else if (is_matching_region) {
       uint64_t value_kb = 0;
-      if (strncmp(line, "Pss:", 4) == 0) {
-        if (sscanf(line, "Pss: %" SCNu64 " kB", &value_kb) == 1) {
+      if (UNSAFE_TODO(strncmp(line, "Pss:", 4)) == 0) {
+        if (UNSAFE_TODO(sscanf(line, "Pss: %" SCNu64 " kB", &value_kb)) == 1) {
           total_pss_kb += value_kb;
         }
-      } else if (strncmp(line, "Rss:", 4) == 0) {
-        if (sscanf(line, "Rss: %" SCNu64 " kB", &value_kb) == 1) {
+      } else if (UNSAFE_TODO(strncmp(line, "Rss:", 4)) == 0) {
+        if (UNSAFE_TODO(sscanf(line, "Rss: %" SCNu64 " kB", &value_kb)) == 1) {
           total_rss_kb += value_kb;
         }
       }
@@ -858,14 +859,14 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
     dump->mappings_count = CountMappings(handle);
   }
   if (flags.Has(mojom::MemDumpFlags::MEM_DUMP_PSS)) {
-    size_t pss, swap_pss;
+    base::ByteCount pss, swap_pss;
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     GetSmapsRollup(handle, &pss, &swap_pss);
 #else
     GetSmapsRollup(&pss, &swap_pss);
 #endif
-    dump->pss_kb = base::saturated_cast<uint32_t>(pss / 1024);
-    dump->swap_pss_kb = base::saturated_cast<uint32_t>(swap_pss / 1024);
+    dump->pss_kb = pss.InKiB();
+    dump->swap_pss_kb = swap_pss.InKiB();
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1049,7 +1050,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   }
 
   // Validate against smaps_rollup.
-  size_t rollup_pss, rollup_swap_pss;
+  base::ByteCount rollup_pss, rollup_swap_pss;
   GetSmapsRollup(handle, &rollup_pss, &rollup_swap_pss);
 
   uint64_t total_pss_kb = 0;
@@ -1059,7 +1060,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   }
 
   // If the difference is too large, we might have inconsistent data.
-  size_t rollup_pss_kb = rollup_pss / 1024;
+  size_t rollup_pss_kb = rollup_pss.InKiB();
   size_t abs_diff = (total_pss_kb > rollup_pss_kb) ? (total_pss_kb - rollup_pss_kb)
                                                   : (rollup_pss_kb - total_pss_kb);
 
@@ -1072,7 +1073,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   if (!use_mock && total_pss_kb > 0 && abs_diff > kPssValidationThresholdKb) {
     LOG(WARNING) << "Detailed metrics PSS validation failed. "
                  << "Detailed: " << total_pss_kb
-                 << " KiB, Rollup: " << rollup_pss / 1024 << " KiB";
+                 << " KiB, Rollup: " << rollup_pss_kb << " KiB";
     return false;
   }
 
@@ -1133,7 +1134,8 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
   // that would only be ~80kB on Android, and up to 200kB on Linux (for 100MB)
   std::vector<uint64_t> entries(total_pages);
 #if BUILDFLAG(IS_COBALT)
-  size_t read_bytes = fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get());
+  size_t read_bytes = UNSAFE_TODO(
+      fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()));
   if (read_bytes != total_pages) {
     PLOG(ERROR) << "Error in fread " << kPagemap << ", read " << read_bytes << " of " << total_pages << " entries";
     if (ferror(pagemap_file.get())) {
@@ -1145,8 +1147,8 @@ OSMetrics::MappedAndResidentPagesDumpState OSMetrics::GetMappedAndResidentPages(
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #else
-  if (fread(&entries[0], sizeof(uint64_t), total_pages, pagemap_file.get()) !=
-      total_pages) {
+  if (UNSAFE_TODO(fread(&entries[0], sizeof(uint64_t), total_pages,
+                        pagemap_file.get())) != total_pages) {
     return OSMetrics::MappedAndResidentPagesDumpState::kFailure;
   }
 #endif  // BUILDFLAG(IS_COBALT)

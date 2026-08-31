@@ -9,13 +9,49 @@ import type {WebuiBrowserAppElement} from './app.js';
 export function getHtml(this: WebuiBrowserAppElement) {
   // clang-format off
   return html`<!--_html_template_start_-->
-<h1>WebUI Browser
- <cr-button type="button" @click="${this.onMinimizeClick_}">[-]</cr-button>
- <cr-button type="button" @click="${this.onMaximizeClick_}">[+]</cr-button>
- <cr-button type="button" @click="${this.onCloseClick_}">[X]</cr-button>
-</h1>
-<div id="exampleDiv">${this.message_}</div>
-<cr-webview id="exampleWebview" guest-id="${this.guestId_}"></cr-webview>
+<div class="activeFrame">
+  <div class="titlebarDiv">
+    <div class="tabstripDiv">
+      <webui-browser-tabstrip
+        @tabstrip-added="${this.onTabstripAdded_}"
+        @tab-click="${this.onTabClick_}"
+        @tab-drag-out-of-bounds="${this.onTabDragOutOfBounds_}"
+        @tab-close="${this.onTabClosed_}"
+        @tab-add="${this.onAddTabClick_}">
+      </webui-browser-tabstrip>
+    </div>
+    <div class="captionButtonsDiv">
+      <cr-button type="button" class="caption-button"
+        @click="${this.onMinimizeClick_}">
+        <cr-icon icon="webui-browser:minimize"></cr-icon>
+      </cr-button>
+      <cr-button type="button" class="caption-button"
+        @click="${this.onMaximizeClick_}">
+        <cr-icon icon="webui-browser:maximize"></cr-icon>
+      </cr-button>
+      <cr-button type="button" class="caption-button"
+        @click="${this.onCloseClick_}">
+        <cr-icon icon="webui-browser:close"></cr-icon>
+        </cr-button>
+    </div>
+  </div>
+  <div id="searchBar">
+    <cr-icon-button iron-icon="cr:arrow-back"
+      .disabled="${this.backButtonDisabled_}"
+      @click="${this.onBackClick_}"></cr-icon-button>
+    <cr-icon-button iron-icon="cr:arrow-forward"
+      .disabled="${this.forwardButtonDisabled_}"
+      @click="${this.onForwardClick_}"></cr-icon-button>
+    <cr-searchbox id="address"></cr-searchbox>
+  </div>
+  <webui-browser-bookmark-bar
+    id="bookmarkBar"
+    @show-bookmark-bar="${this.onShowBookmarkBar_}"
+    @hide-bookmark-bar="${this.onHideBookmarkBar_}"
+    @bookmark-click="${this.onBookmarkButtonClick_}">
+  </webui-browser-bookmark-bar>
+  <cr-webview id="exampleWebview" guest-id="${this.guestId_}"></cr-webview>
+</div>
 <!--_html_template_end_-->`;
   // clang-format on
 }

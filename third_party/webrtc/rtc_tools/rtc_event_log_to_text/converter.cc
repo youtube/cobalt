@@ -12,6 +12,7 @@
 
 #include <cinttypes>
 #include <cstdio>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -50,6 +51,7 @@
 #include "logging/rtc_event_log/rtc_event_processor.h"
 #include "logging/rtc_event_log/rtc_stream_config.h"
 #include "rtc_base/logging.h"
+#include "rtc_base/strings/str_join.h"
 
 namespace webrtc {
 namespace {
@@ -65,6 +67,17 @@ void PrintHeaderExtensionConfig(
   }
 }
 
+inline const char* GetLabel(PacketDirection direction) {
+  static constexpr char kInLabel[] = "IN";
+  static constexpr char kOutLabel[] = "OUT";
+  return direction == PacketDirection::kIncomingPacket ? kInLabel : kOutLabel;
+}
+
+template <typename T>
+auto bind_direction(std::function<void(const T&, PacketDirection)> f,
+                    PacketDirection direction) {
+  return [f, direction](const T& msg) { f(msg, direction); };
+}
 }  // namespace
 
 bool Convert(std::string inputfile,
@@ -326,7 +339,7 @@ bool Convert(std::string inputfile,
   auto incoming_rtp_packet_handler = [&](const LoggedRtpPacketIncoming& event) {
     fprintf(output, "RTP_IN %" PRId64, event.log_time_ms());
     fprintf(output, " ssrc=%u", event.rtp.header.ssrc);
-    fprintf(output, " seq_no=%u", event.rtp.header.sequenceNumber);
+    fprintf(output, " seq_num=%u", event.rtp.header.sequenceNumber);
     fprintf(output, " marker=%u", event.rtp.header.markerBit);
     fprintf(output, " pt=%u", event.rtp.header.payloadType);
     fprintf(output, " timestamp=%u", event.rtp.header.timestamp);
@@ -349,7 +362,7 @@ bool Convert(std::string inputfile,
               event.rtp.header.extension.videoRotation);
     }
     if (event.rtp.header.extension.hasTransportSequenceNumber) {
-      fprintf(output, " transport_seq_no=%u",
+      fprintf(output, " transport_seq_num=%u",
               event.rtp.header.extension.transportSequenceNumber);
     }
     fprintf(output, " header_length=%zu", event.rtp.header_length);
@@ -361,7 +374,7 @@ bool Convert(std::string inputfile,
   auto outgoing_rtp_packet_handler = [&](const LoggedRtpPacketOutgoing& event) {
     fprintf(output, "RTP_OUT %" PRId64, event.log_time_ms());
     fprintf(output, " ssrc=%u", event.rtp.header.ssrc);
-    fprintf(output, " seq_no=%u", event.rtp.header.sequenceNumber);
+    fprintf(output, " seq_num=%u", event.rtp.header.sequenceNumber);
     fprintf(output, " marker=%u", event.rtp.header.markerBit);
     fprintf(output, " pt=%u", event.rtp.header.payloadType);
     fprintf(output, " timestamp=%u", event.rtp.header.timestamp);
@@ -384,7 +397,7 @@ bool Convert(std::string inputfile,
               event.rtp.header.extension.videoRotation);
     }
     if (event.rtp.header.extension.hasTransportSequenceNumber) {
-      fprintf(output, " transport_seq_no=%u",
+      fprintf(output, " transport_seq_num=%u",
               event.rtp.header.extension.transportSequenceNumber);
     }
     fprintf(output, " header_length=%zu", event.rtp.header_length);
@@ -405,17 +418,88 @@ bool Convert(std::string inputfile,
                 event.log_time_ms());
       };
 
+  auto rr_handler = [&output](const LoggedRtcpPacketReceiverReport& msg,
+                              PacketDirection direction) {
+    fprintf(output, "RTCP_RR_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto sr_handler = [&output](const LoggedRtcpPacketSenderReport& msg,
+                              PacketDirection direction) {
+    fprintf(output, "RTCP_SR_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto xr_handler = [&output](const LoggedRtcpPacketExtendedReports& msg,
+                              PacketDirection direction) {
+    fprintf(output, "RTCP_XR_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto nack_handler = [&output](const LoggedRtcpPacketNack& msg,
+                                PacketDirection direction) {
+    fprintf(output, "RTCP_NACK_%s %" PRId64 " seq_nums=%s\n",
+            GetLabel(direction), msg.log_time_ms(),
+            StrJoin(msg.nack.packet_ids(), ",").c_str());
+  };
+
+  auto remb_handler = [&output](const LoggedRtcpPacketRemb& msg,
+                                PacketDirection direction) {
+    fprintf(output, "RTCP_REMB_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto fir_handler = [&output](const LoggedRtcpPacketFir& msg,
+                               PacketDirection direction) {
+    fprintf(output, "RTCP_FIR_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto pli_handler = [&output](const LoggedRtcpPacketPli& msg,
+                               PacketDirection direction) {
+    fprintf(output, "RTCP_PLI_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto bye_handler = [&output](const LoggedRtcpPacketBye& msg,
+                               PacketDirection direction) {
+    fprintf(output, "RTCP_BYE_%s %" PRId64 " <contents omitted>\n",
+            GetLabel(direction), msg.log_time_ms());
+  };
+
+  auto transport_feedback_handler =
+      [&output](const LoggedRtcpPacketTransportFeedback& msg,
+                PacketDirection direction) {
+        fprintf(output, "RTCP_TWCC_%s %" PRId64 " <contents omitted>\n",
+                GetLabel(direction), msg.log_time_ms());
+      };
+
+  auto congestion_feedback_handler =
+      [&output](const LoggedRtcpCongestionControlFeedback& msg,
+                PacketDirection direction) {
+        fprintf(output, "RTCP_CCFB_%s %" PRId64 " <contents omitted>\n",
+                GetLabel(direction), msg.log_time_ms());
+      };
+
+  auto loss_notification_handler =
+      [&output](const LoggedRtcpPacketLossNotification& msg,
+                PacketDirection direction) {
+        fprintf(output,
+                "RTCP_LOSS_NOTIFICATION_%s %" PRId64 " <contents omitted>\n",
+                GetLabel(direction), msg.log_time_ms());
+      };
+
   auto generic_packet_received_handler =
       [&](const LoggedGenericPacketReceived& event) {
         fprintf(output,
-                "GENERIC_PACKET_RECV %" PRId64 " packet_no=%" PRId64
+                "GENERIC_PACKET_RECV %" PRId64 " packet_num=%" PRId64
                 " length=%d\n",
                 event.log_time_ms(), event.packet_number, event.packet_length);
       };
 
   auto generic_packet_sent_handler = [&](const LoggedGenericPacketSent& event) {
     fprintf(output,
-            "GENERIC_PACKET_SENT %" PRId64 " packet_no=%" PRId64
+            "GENERIC_PACKET_SENT %" PRId64 " packet_num=%" PRId64
             " overhead_length=%zu "
             "payload_length=%zu padding_length=%zu\n",
             event.log_time_ms(), event.packet_number, event.overhead_length,
@@ -505,11 +589,112 @@ bool Convert(std::string inputfile,
     processor.AddEvents(stream.outgoing_packets, outgoing_rtp_packet_handler);
   }
 
-  // RTCP
+  // RTCP packets
   processor.AddEvents(parsed_log.incoming_rtcp_packets(),
                       incoming_rtcp_packet_handler);
   processor.AddEvents(parsed_log.outgoing_rtcp_packets(),
                       outgoing_rtcp_packet_handler);
+
+  // RTCP submessages
+  processor.AddEvents(parsed_log.receiver_reports(kIncomingPacket),
+                      bind_direction<LoggedRtcpPacketReceiverReport>(
+                          rr_handler, kIncomingPacket),
+                      kIncomingPacket);
+
+  processor.AddEvents(parsed_log.receiver_reports(kOutgoingPacket),
+                      bind_direction<LoggedRtcpPacketReceiverReport>(
+                          rr_handler, kOutgoingPacket),
+                      kOutgoingPacket);
+
+  processor.AddEvents(
+      parsed_log.sender_reports(kIncomingPacket),
+      bind_direction<LoggedRtcpPacketSenderReport>(sr_handler, kIncomingPacket),
+      kIncomingPacket);
+  processor.AddEvents(
+      parsed_log.sender_reports(kOutgoingPacket),
+      bind_direction<LoggedRtcpPacketSenderReport>(sr_handler, kOutgoingPacket),
+      kOutgoingPacket);
+
+  processor.AddEvents(parsed_log.extended_reports(kIncomingPacket),
+                      bind_direction<LoggedRtcpPacketExtendedReports>(
+                          xr_handler, kIncomingPacket),
+                      kIncomingPacket);
+  processor.AddEvents(parsed_log.extended_reports(kOutgoingPacket),
+                      bind_direction<LoggedRtcpPacketExtendedReports>(
+                          xr_handler, kOutgoingPacket),
+                      kOutgoingPacket);
+
+  processor.AddEvents(
+      parsed_log.nacks(kIncomingPacket),
+      bind_direction<LoggedRtcpPacketNack>(nack_handler, kIncomingPacket),
+      kIncomingPacket);
+  processor.AddEvents(
+      parsed_log.nacks(kOutgoingPacket),
+      bind_direction<LoggedRtcpPacketNack>(nack_handler, kOutgoingPacket),
+      kOutgoingPacket);
+
+  processor.AddEvents(
+      parsed_log.rembs(kIncomingPacket),
+      bind_direction<LoggedRtcpPacketRemb>(remb_handler, kIncomingPacket),
+      kIncomingPacket);
+  processor.AddEvents(
+      parsed_log.rembs(kOutgoingPacket),
+      bind_direction<LoggedRtcpPacketRemb>(remb_handler, kOutgoingPacket),
+      kOutgoingPacket);
+
+  processor.AddEvents(
+      parsed_log.firs(kIncomingPacket),
+      bind_direction<LoggedRtcpPacketFir>(fir_handler, kIncomingPacket),
+      kIncomingPacket);
+  processor.AddEvents(
+      parsed_log.firs(kOutgoingPacket),
+      bind_direction<LoggedRtcpPacketFir>(fir_handler, kOutgoingPacket),
+      kOutgoingPacket);
+
+  processor.AddEvents(
+      parsed_log.plis(kIncomingPacket),
+      bind_direction<LoggedRtcpPacketPli>(pli_handler, kIncomingPacket),
+      kIncomingPacket);
+  processor.AddEvents(
+      parsed_log.plis(kOutgoingPacket),
+      bind_direction<LoggedRtcpPacketPli>(pli_handler, kOutgoingPacket),
+      kOutgoingPacket);
+
+  processor.AddEvents(
+      parsed_log.byes(kIncomingPacket),
+      bind_direction<LoggedRtcpPacketBye>(bye_handler, kIncomingPacket),
+      kIncomingPacket);
+  processor.AddEvents(
+      parsed_log.byes(kOutgoingPacket),
+      bind_direction<LoggedRtcpPacketBye>(bye_handler, kOutgoingPacket),
+      kOutgoingPacket);
+
+  processor.AddEvents(parsed_log.transport_feedbacks(kIncomingPacket),
+                      bind_direction<LoggedRtcpPacketTransportFeedback>(
+                          transport_feedback_handler, kIncomingPacket),
+                      kIncomingPacket);
+  processor.AddEvents(parsed_log.transport_feedbacks(kOutgoingPacket),
+                      bind_direction<LoggedRtcpPacketTransportFeedback>(
+                          transport_feedback_handler, kOutgoingPacket),
+                      kOutgoingPacket);
+
+  processor.AddEvents(parsed_log.congestion_feedback(kIncomingPacket),
+                      bind_direction<LoggedRtcpCongestionControlFeedback>(
+                          congestion_feedback_handler, kIncomingPacket),
+                      kIncomingPacket);
+  processor.AddEvents(parsed_log.congestion_feedback(kOutgoingPacket),
+                      bind_direction<LoggedRtcpCongestionControlFeedback>(
+                          congestion_feedback_handler, kOutgoingPacket),
+                      kOutgoingPacket);
+
+  processor.AddEvents(parsed_log.loss_notifications(kIncomingPacket),
+                      bind_direction<LoggedRtcpPacketLossNotification>(
+                          loss_notification_handler, kIncomingPacket),
+                      kIncomingPacket);
+  processor.AddEvents(parsed_log.loss_notifications(kOutgoingPacket),
+                      bind_direction<LoggedRtcpPacketLossNotification>(
+                          loss_notification_handler, kOutgoingPacket),
+                      kOutgoingPacket);
 
   // Generic packets
   processor.AddEvents(parsed_log.generic_packets_received(),
@@ -527,6 +712,6 @@ bool Convert(std::string inputfile,
   processor.ProcessEventsInOrder();
 
   return true;
-}
+}  // NOLINT(readability/fn_size)
 
 }  // namespace webrtc

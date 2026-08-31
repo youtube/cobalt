@@ -10,11 +10,20 @@
 
 #include "sdk/android/src/jni/video_frame.h"
 
+#include <jni.h>
+
+#include <cstdint>
+
+#include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
-#include "common_video/include/video_frame_buffer.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_buffer.h"
+#include "api/video/video_rotation.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/time_utils.h"
 #include "sdk/android/generated_video_jni/VideoFrame_jni.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "sdk/android/src/jni/wrapped_native_i420_buffer.h"
 
 namespace webrtc {

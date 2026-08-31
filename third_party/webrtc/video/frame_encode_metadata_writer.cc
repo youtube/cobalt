@@ -17,6 +17,7 @@
 #include <optional>
 #include <utility>
 
+#include "api/environment/environment.h"
 #include "api/make_ref_counted.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_bitrate_allocation.h"
@@ -63,6 +64,17 @@ FrameEncodeMetadataWriter::TimingFramesLayerInfo::TimingFramesLayerInfo() =
     default;
 FrameEncodeMetadataWriter::TimingFramesLayerInfo::~TimingFramesLayerInfo() =
     default;
+
+FrameEncodeMetadataWriter::FrameEncodeMetadataWriter(
+    const Environment& /*env*/,
+    EncodedImageCallback* frame_drop_callback)
+// TODO: bugs.webrtc.org/42223992 - Save `Environment` into member and use
+// it to query current time when deprecated constructor is removed.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    : FrameEncodeMetadataWriter(frame_drop_callback) {
+}
+#pragma clang diagnostic pop
 
 FrameEncodeMetadataWriter::FrameEncodeMetadataWriter(
     EncodedImageCallback* frame_drop_callback)

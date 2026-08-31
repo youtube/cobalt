@@ -12,10 +12,11 @@
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
 #include "components/password_manager/core/browser/import/csv_password.h"
-#include "components/password_manager/core/browser/passkey_credential.h"
 #include "components/password_manager/core/browser/password_form.h"
 
 namespace password_manager {
+
+class PasskeyCredential;
 
 using DisplayName = base::StrongAlias<class DisplayNameTag, std::string>;
 using SignonRealm = base::StrongAlias<class SignonRealmTag, std::string>;
@@ -150,6 +151,11 @@ struct CredentialUIEntry {
   // Indicates when the credential was last used by the user to login to the
   // site. Defaults to |date_created|.
   base::Time last_used_time;
+
+  // Indicates that the credential was marked for deletion (e.g. by a website)
+  // and should be marked as such in management surfaces. Used for passkeys
+  // only.
+  bool hidden = false;
 
   // Information about password insecurities.
   bool IsLeaked() const;

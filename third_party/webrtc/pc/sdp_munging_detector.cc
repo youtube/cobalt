@@ -427,6 +427,12 @@ SdpMungingType DetermineSdpMungingType(
     }
     // Validate video and audio contents.
     MediaType media_type = last_created_media_description->type();
+    bool is_rtp =
+        media_type == MediaType::AUDIO || media_type == MediaType::VIDEO;
+    if (!is_rtp) {
+      // The checks that follow only apply for RTP-based contents.
+      continue;
+    }
     if (media_type == MediaType::VIDEO) {
       type = DetermineVideoSdpMungingType(last_created_media_description,
                                           media_description_to_set);
@@ -551,6 +557,22 @@ SdpMungingType DetermineSdpMungingType(
       sdesc->description()->transport_infos());
   if (type != SdpMungingType::kNoModification) {
     return type;
+  }
+
+  // Validate number of candidates.
+  for (size_t content_index = 0; content_index < last_created_contents.size();
+       content_index++) {
+    // All contents have a (possibly empty) candidate set.
+    // Check that this holds.
+    RTC_DCHECK(sdesc->candidates(content_index));
+    if (sdesc->candidates(content_index)->count() !=
+        last_created_desc->candidates(content_index)->count()) {
+      RTC_LOG(LS_WARNING)
+          << "SDP munging: media section " << content_index << " changed from "
+          << last_created_desc->candidates(content_index)->count() << " to "
+          << sdesc->candidates(content_index)->count() << " candidates";
+      return SdpMungingType::kIceCandidateCount;
+    }
   }
 
   // TODO: crbug.com/40567530 - this serializes the descriptions back to a SDP

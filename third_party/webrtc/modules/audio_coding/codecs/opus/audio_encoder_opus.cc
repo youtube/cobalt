@@ -369,8 +369,8 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(const Environment& env,
           env,
           config,
           payload_type,
-          [this](absl::string_view config_string, RtcEventLog* event_log) {
-            return DefaultAudioNetworkAdaptorCreator(config_string, event_log);
+          [this](absl::string_view config) {
+            return DefaultAudioNetworkAdaptorCreator(config);
           },
           // We choose 5sec as initial time constant due to empirical data.
           std::make_unique<SmoothingFilterImpl>(5'000)) {}
@@ -381,11 +381,12 @@ AudioEncoderOpusImpl::AudioEncoderOpusImpl(
     int payload_type,
     const AudioNetworkAdaptorCreator& audio_network_adaptor_creator,
     std::unique_ptr<SmoothingFilter> bitrate_smoother)
-    : payload_type_(payload_type),
+    : env_(env),
+      payload_type_(payload_type),
       adjust_bandwidth_(
-          env.field_trials().IsEnabled("WebRTC-AdjustOpusBandwidth")),
+          env_.field_trials().IsEnabled("WebRTC-AdjustOpusBandwidth")),
       bitrate_changed_(true),
-      bitrate_multipliers_(GetBitrateMultipliers(env.field_trials())),
+      bitrate_multipliers_(GetBitrateMultipliers(env_.field_trials())),
       packet_loss_rate_(0.0),
       inst_(nullptr),
       packet_loss_fraction_smoother_(new PacketLossFractionSmoother()),
@@ -477,11 +478,8 @@ void AudioEncoderOpusImpl::SetMaxPlaybackRate(int frequency_hz) {
   RTC_CHECK(RecreateEncoderInstance(conf));
 }
 
-bool AudioEncoderOpusImpl::EnableAudioNetworkAdaptor(
-    const std::string& config_string,
-    RtcEventLog* event_log) {
-  audio_network_adaptor_ =
-      audio_network_adaptor_creator_(config_string, event_log);
+bool AudioEncoderOpusImpl::EnableAudioNetworkAdaptor(absl::string_view config) {
+  audio_network_adaptor_ = audio_network_adaptor_creator_(config);
   return audio_network_adaptor_ != nullptr;
 }
 
@@ -772,16 +770,15 @@ void AudioEncoderOpusImpl::ApplyAudioNetworkAdaptor() {
 
 std::unique_ptr<AudioNetworkAdaptor>
 AudioEncoderOpusImpl::DefaultAudioNetworkAdaptorCreator(
-    absl::string_view config_string,
-    RtcEventLog* event_log) const {
+    absl::string_view config_string) const {
   AudioNetworkAdaptorImpl::Config config;
-  config.event_log = event_log;
-  return std::unique_ptr<AudioNetworkAdaptor>(new AudioNetworkAdaptorImpl(
+  config.event_log = &env_.event_log();
+  return std::make_unique<AudioNetworkAdaptorImpl>(
       config, ControllerManagerImpl::Create(
                   config_string, NumChannels(), supported_frame_lengths_ms(),
                   AudioEncoderOpusConfig::kMinBitrateBps,
                   num_channels_to_encode_, next_frame_length_ms_,
-                  GetTargetBitrate(), config_.fec_enabled, GetDtx())));
+                  GetTargetBitrate(), config_.fec_enabled, GetDtx()));
 }
 
 void AudioEncoderOpusImpl::MaybeUpdateUplinkBandwidth() {

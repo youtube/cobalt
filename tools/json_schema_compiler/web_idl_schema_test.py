@@ -693,6 +693,27 @@ class WebIdlSchemaTest(unittest.TestCase):
         schema['description'],
     )
 
+  # Tests that an enum that uses the nodoc extended attribute has the related
+  # nodoc attribute set to true after processing.
+  def testNoDocOnEnum(self):
+    schema = self.idl_basics
+    nodoc_enum = getType(schema, 'EnumTypeWithNoDoc')
+    self.assertEqual(True, nodoc_enum['nodoc'])
+    # An enum without the extended attribute will not have a nodoc attribute.
+    no_nodoc_enum = getType(schema, 'EnumType')
+    self.assertFalse(hasattr(no_nodoc_enum, 'nodoc'))
+
+  # Tests that an enum with the deprecated extended attribute has the related
+  # deprecated attribute set to the provided string value after processing.
+  # TODO(crbug.com/340297705): expand this out to the other various places
+  # deprecated can be specified.
+  def testDeprecatedExtendedAttribute(self):
+    idl = web_idl_schema.Load('test/web_idl/deprecated.idl')
+    self.assertEqual(1, len(idl))
+    schema = idl[0]
+    deprecated_enum = getType(schema, 'DeprecatedEnum')
+    self.assertEqual('This enum is deprecated', deprecated_enum['deprecated'])
+
   # Tests that a function defined with the requiredCallback extended attribute
   # does not have the returns_async field marked as optional after processing.
   # Note: These are only relevant to contexts which don't support promise based

@@ -11,17 +11,28 @@
 #ifndef SDK_ANDROID_SRC_JNI_PC_PEER_CONNECTION_H_
 #define SDK_ANDROID_SRC_JNI_PC_PEER_CONNECTION_H_
 
+#include <jni.h>
+
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "api/candidate.h"
+#include "api/data_channel_interface.h"
+#include "api/jsep.h"
+#include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
-#include "pc/media_stream_observer.h"
-#include "sdk/android/src/jni/jni_helpers.h"
-#include "sdk/android/src/jni/pc/media_constraints.h"
+#include "api/rtp_receiver_interface.h"
+#include "api/rtp_transceiver_interface.h"
+#include "api/scoped_refptr.h"
+#include "p2p/base/port.h"
+#include "rtc_base/ssl_identity.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/pc/media_stream.h"
 #include "sdk/android/src/jni/pc/rtp_receiver.h"
 #include "sdk/android/src/jni/pc/rtp_transceiver.h"
+#include "sdk/media_constraints.h"
 
 namespace webrtc {
 namespace jni {
@@ -53,8 +64,7 @@ class PeerConnectionObserverJni : public PeerConnectionObserver {
                            int error_code,
                            const std::string& error_text) override;
 
-  void OnIceCandidatesRemoved(
-      const std::vector<Candidate>& candidates) override;
+  void OnIceCandidateRemoved(const IceCandidate* candidate) override;
   void OnSignalingChange(
       PeerConnectionInterface::SignalingState new_state) override;
   void OnIceConnectionChange(

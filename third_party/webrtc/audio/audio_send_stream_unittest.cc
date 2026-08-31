@@ -90,7 +90,8 @@ constexpr double kEchoReturnLoss = -65;
 constexpr double kEchoReturnLossEnhancement = 101;
 constexpr double kResidualEchoLikelihood = -1.0f;
 constexpr double kResidualEchoLikelihoodMax = 23.0f;
-constexpr CallSendStatistics kCallStats = {112, 12, 13456, 17890};
+constexpr ChannelSendStatistics kChannelStats = {TimeDelta::Millis(112), 12,
+                                                 13456, 17890};
 constexpr int kFractionLost = 123;
 constexpr int kCumulativeLost = 567;
 constexpr uint32_t kInterarrivalJitter = 132;
@@ -308,7 +309,7 @@ class ConfigHelper {
 
     EXPECT_TRUE(channel_send_);
     EXPECT_CALL(*channel_send_, GetRTCPStatistics())
-        .WillRepeatedly(Return(kCallStats));
+        .WillRepeatedly(Return(kChannelStats));
     EXPECT_CALL(*channel_send_, GetRemoteRTCPReportBlocks())
         .WillRepeatedly(Return(report_blocks));
     EXPECT_CALL(*channel_send_, GetANAStatistics())
@@ -463,17 +464,17 @@ TEST(AudioSendStreamTest, GetStats) {
     helper.SetupMockForGetStats(use_null_audio_processing);
     AudioSendStream::Stats stats = send_stream->GetStats(true);
     EXPECT_EQ(kSsrc, stats.local_ssrc);
-    EXPECT_EQ(kCallStats.payload_bytes_sent, stats.payload_bytes_sent);
-    EXPECT_EQ(kCallStats.header_and_padding_bytes_sent,
+    EXPECT_EQ(kChannelStats.payload_bytes_sent, stats.payload_bytes_sent);
+    EXPECT_EQ(kChannelStats.header_and_padding_bytes_sent,
               stats.header_and_padding_bytes_sent);
-    EXPECT_EQ(kCallStats.packetsSent, stats.packets_sent);
+    EXPECT_EQ(kChannelStats.packets_sent, stats.packets_sent);
     EXPECT_EQ(stats.packets_lost, kCumulativeLost);
     EXPECT_FLOAT_EQ(stats.fraction_lost, Q8ToFloat(kFractionLost));
     EXPECT_EQ(kIsacFormat.name, stats.codec_name);
     EXPECT_EQ(stats.jitter_ms,
               static_cast<int32_t>(kInterarrivalJitter /
                                    (kIsacFormat.clockrate_hz / 1000)));
-    EXPECT_EQ(kCallStats.rttMs, stats.rtt_ms);
+    EXPECT_EQ(kChannelStats.round_trip_time.ms(), stats.rtt_ms);
     EXPECT_EQ(0, stats.audio_level);
     EXPECT_EQ(0, stats.total_input_energy);
     EXPECT_EQ(0, stats.total_input_duration);

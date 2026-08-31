@@ -1093,7 +1093,7 @@ int LibvpxVp8Encoder::Encode(const VideoFrame& frame,
     flags[i] = send_key_frame ? VPX_EFLAG_FORCE_KF : EncodeFlags(tl_configs[i]);
   }
 
-#ifdef VPX_EFLAG_CALCULATE_PSNR
+#if defined(WEBRTC_ENCODER_PSNR_STATS) && defined(VPX_EFLAG_CALCULATE_PSNR)
   if (calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(frame)) {
     for (size_t i = 0; i < encoders_.size(); ++i) {
       flags[i] |= VPX_EFLAG_CALCULATE_PSNR;

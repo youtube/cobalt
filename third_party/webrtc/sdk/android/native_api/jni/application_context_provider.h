@@ -10,6 +10,8 @@
 #ifndef SDK_ANDROID_NATIVE_API_JNI_APPLICATION_CONTEXT_PROVIDER_H_
 #define SDK_ANDROID_NATIVE_API_JNI_APPLICATION_CONTEXT_PROVIDER_H_
 
+#include <jni.h>
+
 #include "sdk/android/native_api/jni/scoped_java_ref.h"
 
 namespace webrtc {

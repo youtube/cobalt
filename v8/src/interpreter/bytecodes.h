@@ -189,6 +189,8 @@ namespace interpreter {
   V(DefineKeyedOwnPropertyInLiteral, ImplicitRegisterUse::kReadAccumulator,    \
     OperandType::kReg, OperandType::kReg, OperandType::kFlag8,                 \
     OperandType::kIdx)                                                         \
+  V(SetPrototypeProperties, ImplicitRegisterUse::kReadAndClobberAccumulator,   \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, ImplicitRegisterUse::kReadWriteAccumulator, OperandType::kReg,        \
@@ -442,8 +444,8 @@ namespace interpreter {
   V(ForInStep, ImplicitRegisterUse::kNone, OperandType::kRegInOut)             \
                                                                                \
   /* Optimizing For..of */                                                     \
-  V(ForOfNext, ImplicitRegisterUse::kWriteAccumulator, OperandType::kReg,      \
-    OperandType::kReg, OperandType::kRegOut)                                   \
+  V(ForOfNext, ImplicitRegisterUse::kNone, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kRegOutPair)                               \
                                                                                \
   /* Update the pending message */                                             \
   V(SetPendingMessage, ImplicitRegisterUse::kReadWriteAccumulator)             \

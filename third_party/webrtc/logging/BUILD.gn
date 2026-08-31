@@ -628,6 +628,7 @@ if (rtc_enable_protobuf) {
         "../rtc_base:safe_conversions",
         "../rtc_base:timeutils",
         "../system_wrappers",
+        "../test:create_test_environment",
         "../test:create_test_field_trials",
         "../test:fileutils",
         "../test:test_support",

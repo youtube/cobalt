@@ -146,6 +146,7 @@ struct IceCandidateErrorEvent {
 };
 
 struct CandidatePairChangeEvent {
+  std::string transport_name;
   CandidatePair selected_candidate_pair;
   int64_t last_data_received_ms;
   std::string reason;

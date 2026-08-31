@@ -62,6 +62,7 @@
 #include "modules/rtp_rtcp/include/rtcp_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/absolute_capture_time_interpolator.h"
+#include "modules/rtp_rtcp/source/capture_clock_offset_updater.h"
 #include "modules/rtp_rtcp/source/corruption_detection_extension.h"
 #include "modules/rtp_rtcp/source/create_video_rtp_depacketizer.h"
 #include "modules/rtp_rtcp/source/frame_object.h"
@@ -426,15 +427,14 @@ std::optional<Syncable::Info> RtpVideoStreamReceiver2::GetSyncInfo() const {
   if (!last_sr.has_value()) {
     return std::nullopt;
   }
-  info.capture_time_ntp_secs = last_sr->last_remote_ntp_timestamp.seconds();
-  info.capture_time_ntp_frac = last_sr->last_remote_ntp_timestamp.fractions();
-  info.capture_time_source_clock = last_sr->last_remote_rtp_timestamp;
+  info.capture_time_ntp = last_sr->last_remote_ntp_timestamp;
+  info.capture_time_rtp = last_sr->last_remote_rtp_timestamp;
 
   if (!last_received_rtp_timestamp_ || !last_received_rtp_system_time_) {
     return std::nullopt;
   }
-  info.latest_received_capture_timestamp = *last_received_rtp_timestamp_;
-  info.latest_receive_time_ms = last_received_rtp_system_time_->ms();
+  info.latest_received_capture_rtp_timestamp = *last_received_rtp_timestamp_;
+  info.latest_receive_time = *last_received_rtp_system_time_;
 
   // Leaves info.current_delay_ms uninitialized.
   return info;
@@ -597,7 +597,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
           rtp_packet.GetExtension<AbsoluteCaptureTimeExtension>()));
   if (packet_info.absolute_capture_time().has_value()) {
     packet_info.set_local_capture_clock_offset(
-        capture_clock_offset_updater_.ConvertsToTimeDela(
+        CaptureClockOffsetUpdater::ConvertToTimeDelta(
             capture_clock_offset_updater_.AdjustEstimatedCaptureClockOffset(
                 packet_info.absolute_capture_time()
                     ->estimated_capture_clock_offset)));

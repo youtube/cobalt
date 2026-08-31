@@ -26,6 +26,7 @@
 #include "api/audio_codecs/audio_format.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
+#include "api/candidate.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
@@ -1425,6 +1426,21 @@ TEST_F(SdpMungingTest, VideoCodecsRtcpReducedSize) {
   EXPECT_THAT(
       metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
       ElementsAre(Pair(SdpMungingType::kVideoCodecsRtcpReducedSize, 1)));
+}
+
+TEST_F(SdpMungingTest, NumberOfCandidates) {
+  auto pc = CreatePeerConnection();
+  pc->AddVideoTrack("video_track", {});
+
+  std::unique_ptr<SessionDescriptionInterface> offer = pc->CreateOffer();
+  IceCandidate candidate("", 0, Candidate());
+  EXPECT_TRUE(offer->AddCandidate(&candidate));
+
+  RTCError error;
+  EXPECT_TRUE(pc->SetLocalDescription(std::move(offer), &error));
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kIceCandidateCount, 1)));
 }
 
 }  // namespace webrtc

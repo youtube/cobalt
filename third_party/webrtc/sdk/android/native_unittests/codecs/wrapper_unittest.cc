@@ -10,15 +10,20 @@
 
 #include "sdk/android/native_api/codecs/wrapper.h"
 
-#include <memory>
+#include <jni.h>
 
-#include "absl/memory/memory.h"
+#include <memory>
+#include <vector>
+
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
+#include "api/video_codecs/sdp_video_format.h"
+#include "api/video_codecs/video_encoder.h"
 #include "media/base/media_constants.h"
 #include "sdk/android/generated_native_unittests_jni/CodecsWrapperTestHelper_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/native_api/jni/jvm.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/video_encoder_wrapper.h"
 #include "test/gtest.h"
 

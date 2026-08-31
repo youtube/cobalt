@@ -24,10 +24,8 @@
 #include "api/candidate.h"
 #include "api/environment/environment.h"
 #include "api/environment/environment_factory.h"
-#include "api/local_network_access_permission.h"
 #include "api/packet_socket_factory.h"
 #include "api/test/mock_async_dns_resolver.h"
-#include "api/test/mock_local_network_access_permission.h"
 #include "api/test/rtc_error_matchers.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
@@ -281,12 +279,9 @@ class TurnPortTest : public ::testing::Test,
   bool CreateTurnPort(const SocketAddress& local_address,
                       absl::string_view username,
                       absl::string_view password,
-                      const ProtocolAddress& server_address,
-                      LocalNetworkAccessPermissionFactoryInterface*
-                          lna_permission_factory = nullptr) {
+                      const ProtocolAddress& server_address) {
     return CreateTurnPortWithAllParams(MakeNetwork(local_address), username,
-                                       password, server_address,
-                                       lna_permission_factory);
+                                       password, server_address);
   }
 
   bool CreateTurnPortWithNetwork(const Network* network,
@@ -303,9 +298,7 @@ class TurnPortTest : public ::testing::Test,
   bool CreateTurnPortWithAllParams(const Network* network,
                                    absl::string_view username,
                                    absl::string_view password,
-                                   const ProtocolAddress& server_address,
-                                   LocalNetworkAccessPermissionFactoryInterface*
-                                       lna_permission_factory = nullptr) {
+                                   const ProtocolAddress& server_address) {
     RelayServerConfig config;
     config.credentials = RelayCredentials(username, password);
     CreateRelayPortArgs args = {.env = env_};
@@ -317,7 +310,6 @@ class TurnPortTest : public ::testing::Test,
     args.server_address = &server_address;
     args.config = &config;
     args.turn_customizer = turn_customizer_.get();
-    args.lna_permission_factory = lna_permission_factory;
 
     turn_port_ = TurnPort::Create(args, 0, 0);
     if (!turn_port_) {
@@ -2244,151 +2236,5 @@ TEST_P(TurnPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
 INSTANTIATE_TEST_SUITE_P(All,
                          TurnPortIPAddressTypeMetricsTest,
                          ::testing::ValuesIn(kAllIPAddressTypeTestConfigs));
-
-struct LocalAreaNetworkPermissionTestConfig {
-  template <typename Sink>
-  friend void AbslStringify(
-      Sink& sink,
-      const LocalAreaNetworkPermissionTestConfig& config) {
-    sink.Append(config.address);
-    sink.Append("_");
-    switch (config.lna_permission_status) {
-      case webrtc::LocalNetworkAccessPermissionStatus::kDenied:
-        sink.Append("Denied");
-        break;
-      case webrtc::LocalNetworkAccessPermissionStatus::kGranted:
-        sink.Append("Granted");
-        break;
-    }
-  }
-
-  webrtc::LocalNetworkAccessPermissionStatus lna_permission_status;
-  absl::string_view address;
-  bool should_succeed;
-} kAllLocalAreNetworkPermissionTestConfigs[] = {
-    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "127.0.0.1",
-     /*should_succeed=*/false},
-    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "10.0.0.3",
-     /*should_succeed=*/false},
-    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "1.1.1.1",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kDenied, "::1",
-     /*should_succeed=*/false},
-    {webrtc::LocalNetworkAccessPermissionStatus::kDenied,
-     "fd00:4860:4860::8844",
-     /*should_succeed=*/false},
-    {webrtc::LocalNetworkAccessPermissionStatus::kDenied,
-     "2001:4860:4860::8888",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "127.0.0.1",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "10.0.0.3",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "1.1.1.1",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kGranted, "::1",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kGranted,
-     "fd00:4860:4860::8844",
-     /*should_succeed=*/true},
-    {webrtc::LocalNetworkAccessPermissionStatus::kGranted,
-     "2001:4860:4860::8888",
-     /*should_succeed=*/true},
-};
-
-class TurnPortLocalNetworkAccessPermissionTest
-    : public TurnPortWithMockDnsResolverTest,
-      public ::testing::WithParamInterface<
-          LocalAreaNetworkPermissionTestConfig> {
- protected:
-  void CreateTurnPort(
-      absl::string_view address,
-      LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory) {
-    ProtocolAddress server_address({address, 5000}, PROTO_UDP);
-
-    // Use the test's address instead of `server_address` because
-    // `server_address` might not be a resolved address with an unknown family.
-    SocketAddress local_address =
-        SocketAddress(GetParam().address, 5000).family() == AF_INET6
-            ? kLocalIPv6Addr
-            : kLocalAddr1;
-    TurnPortWithMockDnsResolverTest::CreateTurnPort(
-        local_address, kTurnUsername, kTurnPassword, server_address,
-        lna_permission_factory);
-  }
-
-  void setup_dns_resolver_mock() {
-    auto expectations =
-        [](webrtc::MockAsyncDnsResolver* resolver,
-           webrtc::MockAsyncDnsResolverResult* resolver_result) {
-          EXPECT_CALL(*resolver, Start(_, _, _))
-              .WillOnce(
-                  [](const webrtc::SocketAddress& /* addr */, int /* family */,
-                     absl::AnyInvocable<void()> callback) { callback(); });
-
-          EXPECT_CALL(*resolver, result)
-              .WillRepeatedly(ReturnPointee(resolver_result));
-          EXPECT_CALL(*resolver_result, GetError).WillRepeatedly(Return(0));
-          EXPECT_CALL(*resolver_result, GetResolvedAddress(_, _))
-              .WillOnce(DoAll(
-                  SetArgPointee<1>(SocketAddress(GetParam().address, 5000)),
-                  Return(true)));
-        };
-
-    SetDnsResolverExpectations(std::move(expectations));
-  }
-};
-
-TEST_P(TurnPortLocalNetworkAccessPermissionTest, ResolvedAddresses) {
-  turn_server_.AddInternalSocket({GetParam().address, 5000}, PROTO_UDP);
-
-  FakeLocalNetworkAccessPermissionFactory factory(
-      GetParam().lna_permission_status);
-  CreateTurnPort(GetParam().address, &factory);
-  turn_port_->PrepareAddress();
-
-  if (GetParam().should_succeed) {
-    EXPECT_THAT(WaitUntil([&] { return turn_ready_; }, IsTrue(),
-                          {.clock = &fake_clock_}),
-                IsRtcOk());
-    EXPECT_EQ(1u, turn_port_->Candidates().size());
-    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
-  } else {
-    EXPECT_THAT(WaitUntil([&] { return turn_error_; }, IsTrue(),
-                          {.clock = &fake_clock_}),
-                IsRtcOk());
-    EXPECT_EQ(0u, turn_port_->Candidates().size());
-    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
-  }
-}
-
-TEST_P(TurnPortLocalNetworkAccessPermissionTest, UnresolvedAddresses) {
-  turn_server_.AddInternalSocket({GetParam().address, 5000}, PROTO_UDP);
-  setup_dns_resolver_mock();
-
-  FakeLocalNetworkAccessPermissionFactory factory(
-      GetParam().lna_permission_status);
-  CreateTurnPort("fakehost.test", &factory);
-  turn_port_->PrepareAddress();
-
-  if (GetParam().should_succeed) {
-    EXPECT_THAT(WaitUntil([&] { return turn_ready_; }, IsTrue(),
-                          {.clock = &fake_clock_}),
-                IsRtcOk());
-    EXPECT_EQ(1u, turn_port_->Candidates().size());
-    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
-  } else {
-    EXPECT_THAT(WaitUntil([&] { return turn_error_; }, IsTrue(),
-                          {.clock = &fake_clock_}),
-                IsRtcOk());
-    EXPECT_EQ(0u, turn_port_->Candidates().size());
-    EXPECT_NE(SOCKET_ERROR, turn_port_->error());
-  }
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    All,
-    TurnPortLocalNetworkAccessPermissionTest,
-    ::testing::ValuesIn(kAllLocalAreNetworkPermissionTestConfigs));
 
 }  // namespace webrtc

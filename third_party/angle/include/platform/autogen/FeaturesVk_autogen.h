@@ -806,6 +806,12 @@ struct FeaturesVk : FeatureSetBase
         &members,
     };
 
+    FeatureInfo supportsPrimitiveFragmentShadingRate = {
+        "supportsPrimitiveFragmentShadingRate",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
     FeatureInfo supportsFoveatedRendering = {
         "supportsFoveatedRendering",
         FeatureCategory::VulkanFeatures,
@@ -1504,6 +1510,18 @@ struct FeaturesVk : FeatureSetBase
 
     FeatureInfo supportsMaintenance9 = {
         "supportsMaintenance9",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo supportsShaderIntegerDotProduct = {
+        "supportsShaderIntegerDotProduct",
+        FeatureCategory::VulkanFeatures,
+        &members,
+    };
+
+    FeatureInfo convertLowpAndMediumpFloatUniformsTo16Bits = {
+        "convertLowpAndMediumpFloatUniformsTo16Bits",
         FeatureCategory::VulkanFeatures,
         &members,
     };

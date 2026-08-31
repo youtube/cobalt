@@ -17,7 +17,6 @@
 #include "api/ref_counted_base.h"
 #include "api/sequence_checker.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
 
 namespace webrtc {
 

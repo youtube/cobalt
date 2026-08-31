@@ -372,6 +372,10 @@ config("common_config") {
     defines += [ "WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE" ]
   }
 
+  if (rtc_video_psnr) {
+    defines += [ "WEBRTC_ENCODER_PSNR_STATS" ]
+  }
+
   if (is_clang) {
     cflags += [
       "-Wshadow",

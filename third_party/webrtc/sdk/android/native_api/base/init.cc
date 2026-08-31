@@ -10,9 +10,11 @@
 
 #include "sdk/android/native_api/base/init.h"
 
+#include <jni.h>
+
 #include "rtc_base/checks.h"
 #include "sdk/android/native_api/jni/class_loader.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
 
 namespace webrtc {
 

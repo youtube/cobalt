@@ -210,9 +210,8 @@ int EVP_PKEY_assign(EVP_PKEY *pkey, int type, void *key) {
 
 int EVP_PKEY_set_type(EVP_PKEY *pkey, int type) {
   if (pkey && pkey->pkey) {
-    // This isn't strictly necessary, but historically |EVP_PKEY_set_type| would
-    // clear |pkey| even if |evp_pkey_asn1_find| failed, so we preserve that
-    // behavior.
+    // Some callers rely on |pkey| getting cleared even if |type| is
+    // unsupported, usually setting |type| to |EVP_PKEY_NONE|.
     free_it(pkey);
   }
 

@@ -11,17 +11,21 @@
 #include "sdk/android/native_api/stacktrace/stacktrace.h"
 
 #include <dlfcn.h>
+#include <unistd.h>
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/units/time_delta.h"
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/platform_thread.h"
 #include "rtc_base/string_utils.h"
-#include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/inline.h"
 #include "rtc_base/thread.h"

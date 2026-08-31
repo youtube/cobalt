@@ -15,7 +15,6 @@
 // do NOT add it here, but instead add it to the file
 // slow_peer_connection_integrationtest.cc
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -1123,12 +1122,9 @@ void RemoveBundleGroupSsrcsAndMidExtension(
   for (ContentInfo& content : sdp->description()->contents()) {
     MediaContentDescription* media = content.media_description();
     RtpHeaderExtensions extensions = media->rtp_header_extensions();
-    extensions.erase(std::remove_if(extensions.begin(), extensions.end(),
-                                    [](const RtpExtension& extension) {
-                                      return extension.uri ==
-                                             RtpExtension::kMidUri;
-                                    }),
-                     extensions.end());
+    std::erase_if(extensions, [](const RtpExtension& extension) {
+      return extension.uri == RtpExtension::kMidUri;
+    });
     media->set_rtp_header_extensions(extensions);
   }
 }
@@ -1171,12 +1167,9 @@ void ModifyPayloadTypesAndRemoveMidExtension(
   for (ContentInfo& content : sdp->description()->contents()) {
     MediaContentDescription* media = content.media_description();
     RtpHeaderExtensions extensions = media->rtp_header_extensions();
-    extensions.erase(std::remove_if(extensions.begin(), extensions.end(),
-                                    [](const RtpExtension& extension) {
-                                      return extension.uri ==
-                                             RtpExtension::kMidUri;
-                                    }),
-                     extensions.end());
+    std::erase_if(extensions, [](const RtpExtension& extension) {
+      return extension.uri == RtpExtension::kMidUri;
+    });
     media->set_rtp_header_extensions(extensions);
     media->set_codecs({CreateVideoCodec(pt++, "VP8")});
   }
@@ -2871,11 +2864,8 @@ TEST_P(PeerConnectionIntegrationTest, CodecNamesAreCaseInsensitive) {
             GetFirstAudioContentDescription(sdp->description());
         ASSERT_NE(nullptr, audio);
         auto audio_codecs = audio->codecs();
-        audio_codecs.erase(
-            std::remove_if(
-                audio_codecs.begin(), audio_codecs.end(),
-                [](const Codec& codec) { return codec.name != "opus"; }),
-            audio_codecs.end());
+        std::erase_if(audio_codecs,
+                      [](const Codec& codec) { return codec.name != "opus"; });
         ASSERT_EQ(1u, audio_codecs.size());
         audio_codecs[0].name = "OpUs";
         audio->set_codecs(audio_codecs);
@@ -2884,11 +2874,8 @@ TEST_P(PeerConnectionIntegrationTest, CodecNamesAreCaseInsensitive) {
             GetFirstVideoContentDescription(sdp->description());
         ASSERT_NE(nullptr, video);
         auto video_codecs = video->codecs();
-        video_codecs.erase(
-            std::remove_if(
-                video_codecs.begin(), video_codecs.end(),
-                [](const Codec& codec) { return codec.name != "VP8"; }),
-            video_codecs.end());
+        std::erase_if(video_codecs,
+                      [](const Codec& codec) { return codec.name != "VP8"; });
         ASSERT_EQ(1u, video_codecs.size());
         video_codecs[0].name = "vP8";
         video->set_codecs(video_codecs);

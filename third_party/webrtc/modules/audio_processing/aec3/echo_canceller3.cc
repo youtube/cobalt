@@ -811,7 +811,7 @@ EchoCanceller3::EchoCanceller3(
     linear_output_framer_.reset(
         new BlockFramer(/*num_bands=*/1, num_capture_channels_));
     linear_output_block_ =
-        std::make_unique<Block>(/*num_bands=*/1, num_capture_channels_),
+        std::make_unique<Block>(/*num_bands=*/1, num_capture_channels_);
     linear_output_sub_frame_view_ = std::vector<std::vector<ArrayView<float>>>(
         1, std::vector<ArrayView<float>>(num_capture_channels_));
   }

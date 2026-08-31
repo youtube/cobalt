@@ -1237,7 +1237,7 @@ int LibvpxVp9Encoder::Encode(const VideoFrame& input_image,
   if (force_key_frame_) {
     flags = VPX_EFLAG_FORCE_KF;
   }
-#ifdef VPX_EFLAG_CALCULATE_PSNR
+#if defined(WEBRTC_ENCODER_PSNR_STATS) && defined(VPX_EFLAG_CALCULATE_PSNR)
   if (calculate_psnr_ && psnr_frame_sampler_.ShouldBeSampled(input_image)) {
     flags |= VPX_EFLAG_CALCULATE_PSNR;
   }

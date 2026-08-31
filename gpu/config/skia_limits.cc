@@ -96,7 +96,7 @@ void DetermineGrCacheLimitsFromAvailableMemory(
     *max_resource_cache_bytes = GetMaxLowEndGaneshResourceCacheBytes();
 #endif
     *max_glyph_cache_texture_bytes = GetMaxLowEndGlyphCacheTextureBytes();
-  } else if (base::SysInfo::AmountOfPhysicalMemoryMB() >=
+  } else if (base::SysInfo::AmountOfPhysicalMemory().InMiB() >=
              GetHighEndMemoryThresholdMB()) {
     *max_resource_cache_bytes = GetMaxHighEndGaneshResourceCacheBytes();
   }

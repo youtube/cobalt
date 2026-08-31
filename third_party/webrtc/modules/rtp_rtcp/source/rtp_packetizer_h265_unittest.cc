@@ -34,7 +34,6 @@ using ::testing::Each;
 using ::testing::ElementsAre;
 using ::testing::ElementsAreArray;
 using ::testing::Eq;
-using ::testing::IsEmpty;
 using ::testing::SizeIs;
 
 constexpr RtpPacketToSend::ExtensionManager* kNoExtensions = nullptr;

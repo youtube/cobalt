@@ -28,6 +28,8 @@ namespace {
 
 constexpr char kHistogramIsHeaderConsistent[] =
     "ServiceWorker.SyntheticResponse.IsHeaderConsistent";
+constexpr char kHistogramIsHeaderStored[] =
+    "ServiceWorker.SyntheticResponse.IsHeaderStored";
 constexpr char kHistogramSyntheticResponseReloadReason[] =
     "ServiceWorker.SyntheticResponse.ReloadReason";
 
@@ -308,20 +310,20 @@ void ServiceWorkerSyntheticResponseManager::StartSyntheticResponse(
 
 void ServiceWorkerSyntheticResponseManager::MaybeSetResponseHead(
     const network::mojom::URLResponseHead& response_head) {
-  if (!network::IsSuccessfulStatus(response_head.headers->response_code())) {
-    // If the response is not successful, do not update the response head.
-    return;
+  bool is_header_stored = false;
+  // If the response is not successful or there is no opt-in header, do not
+  // update the response head.
+  if (network::IsSuccessfulStatus(response_head.headers->response_code()) &&
+      (IsBypassSyntheticResponseHeaderCheckEnabled() ||
+       response_head.headers->HasHeaderValue(kOptInHeaderName,
+                                             kOptInHeaderValue))) {
+    version_->SetMainScriptResponse(
+        std::make_unique<ServiceWorkerVersion::MainScriptResponse>(
+            response_head));
+    version_->SetResponseHeadForSyntheticResponse(response_head.Clone());
+    is_header_stored = true;
   }
-  if (!IsBypassSyntheticResponseHeaderCheckEnabled() &&
-      !response_head.headers->HasHeaderValue(kOptInHeaderName,
-                                             kOptInHeaderValue)) {
-    // If there is no opt-in header, do not update the response head.
-    return;
-  }
-  version_->SetMainScriptResponse(
-      std::make_unique<ServiceWorkerVersion::MainScriptResponse>(
-          response_head));
-  version_->SetResponseHeadForSyntheticResponse(response_head.Clone());
+  base::UmaHistogramBoolean(kHistogramIsHeaderStored, is_header_stored);
 }
 
 void ServiceWorkerSyntheticResponseManager::OnReceiveResponse(
@@ -394,8 +396,8 @@ bool ServiceWorkerSyntheticResponseManager::CheckHeaderConsistency(
     scoped_refptr<net::HttpResponseHeaders> headers) {
   const auto& response_head = version_->GetResponseHeadForSyntheticResponse();
   CHECK(response_head);
-  // TODO(crbug.com/352578800): Handle other necessary headers e.g. encoding.
-  base::flat_set<std::string> ignored_headers = {"date", "alt-svc", "p3p"};
+  base::flat_set<std::string> ignored_headers = {"date", "alt-svc", "p3p",
+                                                 "strict-transport-security"};
   if (IsBypassSyntheticResponseHeaderCheckEnabled()) {
     const std::string& ignored_headers_str = GetIgnoredHeadersForBypass();
     std::vector<std::string_view> testing_ignored_headers =

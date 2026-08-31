@@ -434,19 +434,20 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
   stats.local_ssrc = config_.rtp.ssrc;
   stats.target_bitrate_bps = channel_send_->GetTargetBitrate();
 
-  webrtc::CallSendStatistics call_stats = channel_send_->GetRTCPStatistics();
-  stats.payload_bytes_sent = call_stats.payload_bytes_sent;
+  webrtc::ChannelSendStatistics channel_stats =
+      channel_send_->GetRTCPStatistics();
+  stats.payload_bytes_sent = channel_stats.payload_bytes_sent;
   stats.header_and_padding_bytes_sent =
-      call_stats.header_and_padding_bytes_sent;
-  stats.retransmitted_bytes_sent = call_stats.retransmitted_bytes_sent;
-  stats.packets_sent = call_stats.packetsSent;
-  stats.packets_sent_with_ect1 = call_stats.packets_sent_with_ect1;
-  stats.total_packet_send_delay = call_stats.total_packet_send_delay;
-  stats.retransmitted_packets_sent = call_stats.retransmitted_packets_sent;
+      channel_stats.header_and_padding_bytes_sent;
+  stats.retransmitted_bytes_sent = channel_stats.retransmitted_bytes_sent;
+  stats.packets_sent = channel_stats.packets_sent;
+  stats.packets_sent_with_ect1 = channel_stats.packets_sent_with_ect1;
+  stats.total_packet_send_delay = channel_stats.total_packet_send_delay;
+  stats.retransmitted_packets_sent = channel_stats.retransmitted_packets_sent;
   // RTT isn't known until a RTCP report is received. Until then, VoiceEngine
   // returns 0 to indicate an error value.
-  if (call_stats.rttMs > 0) {
-    stats.rtt_ms = call_stats.rttMs;
+  if (channel_stats.round_trip_time.ms() > 0) {
+    stats.rtt_ms = channel_stats.round_trip_time.ms();
   }
   if (config_.send_codec_spec) {
     const auto& spec = *config_.send_codec_spec;
@@ -482,9 +483,9 @@ webrtc::AudioSendStream::Stats AudioSendStream::GetStats(
     stats.apm_statistics = ap->GetStatistics(has_remote_tracks);
   }
 
-  stats.report_block_datas = std::move(call_stats.report_block_datas);
+  stats.report_block_datas = std::move(channel_stats.report_block_datas);
 
-  stats.nacks_received = call_stats.nacks_received;
+  stats.nacks_received = channel_stats.nacks_received;
 
   return stats;
 }
@@ -604,8 +605,14 @@ bool AudioSendStream::SetupSendCodec(const Config& new_config) {
 
   // Enable ANA if configured (currently only used by Opus).
   if (new_config.audio_network_adaptor_config) {
+// TODO: bugs.webrtc.org/42223992 - call non-deprecated variant of the
+// `EnableAudioNetworkAdaptor` when deprecated one is removed from the
+// interface.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     if (encoder->EnableAudioNetworkAdaptor(
             *new_config.audio_network_adaptor_config, &env_.event_log())) {
+#pragma clang diagnostic pop
       RTC_LOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
                        << new_config.rtp.ssrc;
     } else {
@@ -705,8 +712,14 @@ void AudioSendStream::ReconfigureANA(const Config& new_config) {
   if (new_config.audio_network_adaptor_config) {
     channel_send_->CallEncoder([&](AudioEncoder* encoder) {
       RTC_DCHECK_RUN_ON(&worker_thread_checker_);
+// TODO: bugs.webrtc.org/42223992 - call non-deprecated variant of the
+// `EnableAudioNetworkAdaptor` when deprecated one is removed from the
+// interface.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
       if (encoder->EnableAudioNetworkAdaptor(
               *new_config.audio_network_adaptor_config, &env_.event_log())) {
+#pragma clang diagnostic pop
         RTC_LOG(LS_INFO) << "Audio network adaptor enabled on SSRC "
                          << new_config.rtp.ssrc;
         if (overhead_per_packet_ > 0) {

@@ -10,14 +10,22 @@
 
 #include "sdk/android/src/jni/pc/data_channel.h"
 
+#include <jni.h>
+
+#include <cstdint>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "api/data_channel_interface.h"
-#include "rtc_base/logging.h"
+#include "api/scoped_refptr.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/copy_on_write_buffer.h"
 #include "sdk/android/generated_peerconnection_jni/DataChannel_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/src/jni/jvm.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {

@@ -47,7 +47,6 @@
 namespace webrtc {
 namespace {
 
-using ::testing::_;
 using ::testing::ElementsAre;
 using ::testing::NiceMock;
 using ::testing::NotNull;

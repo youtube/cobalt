@@ -9,9 +9,7 @@
 #include <utility>
 #include <vector>
 
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
-#endif
+#include "base/android/android_info.h"
 #include "base/base64.h"
 #include "base/containers/flat_set.h"
 #include "base/strings/string_util.h"
@@ -155,8 +153,8 @@ void CreditCardFidoAuthenticator::IsUserVerifiable(
   // Because Android N key is better than P key and can provide additional PIN
   // device unlock, payments servers accept WebAuthn credentials for Android N
   // key so that Android P+ devices can use N key to do the FIDO authentication.
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_P) {
+  if (base::android::android_info::sdk_int() <
+      base::android::android_info::SDK_VERSION_P) {
     std::move(callback).Run(false);
     return;
   }
@@ -362,15 +360,15 @@ void CreditCardFidoAuthenticator::OptChange(
     case OPT_IN_WITH_CHALLENGE_FLOW:
     case OPT_IN_FETCH_CHALLENGE_FLOW:
       request_details.reason =
-          payments::OptChangeRequestDetails::ENABLE_FIDO_AUTH;
+          payments::OptChangeRequestDetails::Reason::kEnableFidoAuth;
       break;
     case OPT_OUT_FLOW:
       request_details.reason =
-          payments::OptChangeRequestDetails::DISABLE_FIDO_AUTH;
+          payments::OptChangeRequestDetails::Reason::kDisableFidoAuth;
       break;
     case FOLLOWUP_AFTER_CVC_AUTH_FLOW:
       request_details.reason =
-          payments::OptChangeRequestDetails::ADD_CARD_FOR_FIDO_AUTH;
+          payments::OptChangeRequestDetails::Reason::kAddCardForFidoAuth;
       break;
     default:
       NOTREACHED();

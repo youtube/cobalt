@@ -950,7 +950,9 @@ void Port::MaybeRequestLocalNetworkAccessPermission(
     return;
   }
 
-  if (!address.IsPrivateIP() && !address.IsLoopbackIP()) {
+  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
+      lna_permission_factory_->Create();
+  if (!permission_query->ShouldRequestPermission(address)) {
     std::move(callback)(LocalNetworkAccessPermissionStatus::kGranted);
     return;
   }
@@ -958,8 +960,6 @@ void Port::MaybeRequestLocalNetworkAccessPermission(
   RTC_LOG(LS_VERBOSE) << "Asynchronously requesting LNA permission."
                       << address.HostAsSensitiveURIString();
 
-  std::unique_ptr<LocalNetworkAccessPermissionInterface> permission_query =
-      lna_permission_factory_->Create();
   auto* permission_query_ptr = permission_query.get();
   permission_queries_.push_back(std::move(permission_query));
 

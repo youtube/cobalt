@@ -33,7 +33,7 @@
 #include "src/objects/deoptimization-data.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
-#include "src/objects/hole-inl.h"
+#include "src/objects/hole.h"
 #include "src/objects/instance-type-checker.h"
 #include "src/objects/js-proxy-inl.h"  // TODO(jkummerow): Drop.
 #include "src/objects/keys.h"
@@ -132,7 +132,7 @@ bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
 
 bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                     \
+#define IS_TYPE_FUNCTION_DEF(Type, ...)                          \
   bool Is##Type(Tagged<Object> obj, Isolate* isolate) {          \
     return Is##Type(obj, ReadOnlyRoots(isolate));                \
   }                                                              \
@@ -157,6 +157,7 @@ bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
 #if V8_STATIC_ROOTS_BOOL
@@ -174,6 +175,8 @@ HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
+                     UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
 
 bool IsNullOrUndefined(Tagged<Object> obj, Isolate* isolate) {
@@ -225,6 +228,7 @@ bool IsNoSharedNameSentinel(Tagged<Object> obj) {
 HEAP_OBJECT_ORDINARY_TYPE_LIST(IS_HELPER_DEF)
 HEAP_OBJECT_TRUSTED_TYPE_LIST(IS_HELPER_DEF)
 VIRTUAL_OBJECT_TYPE_LIST(IS_HELPER_DEF)
+HOLE_LIST(IS_HELPER_DEF)
 ODDBALL_LIST(IS_HELPER_DEF)
 
 #define IS_HELPER_DEF_STRUCT(NAME, Name, name) IS_HELPER_DEF(Name)
@@ -759,7 +763,7 @@ Representation Object::OptimalRepresentation(Tagged<Object> obj,
   Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
-  } else if (IsUninitialized(heap_object)) {
+  } else if (IsUninitializedHole(heap_object)) {
     return Representation::None();
   }
   return Representation::HeapObject();
@@ -1037,8 +1041,14 @@ bool HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(
 template <ExternalPointerTag tag>
 void HeapObject::WriteLazilyInitializedExternalPointerField(
     size_t offset, IsolateForSandbox isolate, Address value) {
+  WriteLazilyInitializedExternalPointerField(offset, isolate, value, tag);
+}
+
+void HeapObject::WriteLazilyInitializedExternalPointerField(
+    size_t offset, IsolateForSandbox isolate, Address value,
+    ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
-  static_assert(tag != kExternalPointerNullTag);
+  DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = isolate.GetExternalPointerTableFor(tag);
   auto location =
       reinterpret_cast<ExternalPointerHandle*>(field_address(offset));
@@ -1509,7 +1519,7 @@ void HeapObject::set_map(IsolateT* isolate, Tagged<Map> value,
   // This method might change object layout and therefore can't be used on
   // background threads.
   DCHECK_IMPLIES(mode != VerificationMode::kSafeMapTransition,
-                 !LocalHeap::Current());
+                 LocalHeap::Current()->is_main_thread());
   if (v8_flags.verify_heap && !value.is_null()) {
     if (mode == VerificationMode::kSafeMapTransition) {
       HeapVerifier::VerifySafeMapTransition(isolate->heap()->AsHeap(), *this,
@@ -1662,6 +1672,15 @@ int HeapObject::Size() const {
 }
 int HeapObject::Size(PtrComprCageBase cage_base) const {
   return SizeFromMap(map(cage_base));
+}
+
+SafeHeapObjectSize HeapObject::SafeSize() const {
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return HeapObject::SafeSize(cage_base);
+}
+SafeHeapObjectSize HeapObject::SafeSize(PtrComprCageBase cage_base) const {
+  return SafeSizeFromMap(map(cage_base));
 }
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {

@@ -10,9 +10,29 @@
 
 #include "sdk/android/src/jni/android_network_monitor.h"
 
+#include <asm-generic/errno.h>
 #include <dlfcn.h>
+#include <jni.h>
+#include <linux/in6.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "api/field_trials_view.h"
+#include "api/task_queue/pending_task_safety_flag.h"
+#include "rtc_base/net_helpers.h"
+#include "rtc_base/network_constants.h"
+#include "rtc_base/network_monitor.h"
+#include "rtc_base/thread.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "sdk/android/src/jni/jvm.h"
 #ifndef RTLD_NOLOAD
 // This was added in Lollipop to dlfcn.h
 #define RTLD_NOLOAD 4

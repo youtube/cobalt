@@ -163,7 +163,7 @@ class ChannelReceiveTest : public Test {
     AudioFrame audio_frame;
     channel.OnRtpPacket(CreateRtpPacket());
     channel.GetAudioFrameWithInfo(kSampleRateHz, &audio_frame);
-    CallReceiveStatistics stats = channel.GetRTCPStatistics();
+    ChannelReceiveStatistics stats = channel.GetRTCPStatistics();
     return stats.capture_start_ntp_time_ms;
   }
 

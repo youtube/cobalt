@@ -4216,6 +4216,9 @@ extern "C" {
 #define SN_X25519MLKEM768 "X25519MLKEM768"
 #define NID_X25519MLKEM768 965
 
+#define SN_MLKEM1024 "MLKEM1024"
+#define NID_MLKEM1024 966
+
 
 #if defined(__cplusplus)
 } /* extern C */

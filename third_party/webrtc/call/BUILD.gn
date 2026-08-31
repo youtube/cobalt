@@ -77,6 +77,7 @@ rtc_library("call_interfaces") {
     "../rtc_base:copy_on_write_buffer",
     "../rtc_base:stringutils",
     "../rtc_base/network:sent_packet",
+    "../system_wrappers",
     "../video/config:encoder_config",
     "//third_party/abseil-cpp/absl/functional:any_invocable",
     "//third_party/abseil-cpp/absl/strings",

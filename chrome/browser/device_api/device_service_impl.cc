@@ -40,29 +40,17 @@
 #include "url/origin.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "ash/constants/ash_features.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_data.h"
 #include "chrome/browser/ash/app_mode/isolated_web_app/kiosk_iwa_manager.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_data.h"
 #include "chrome/browser/ash/app_mode/web_app/kiosk_web_app_manager.h"
 #include "chrome/common/url_constants.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/user_manager/user_manager.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace {
 #if BUILDFLAG(IS_CHROMEOS)
-// Checks that current user is a web kiosk.
-bool IsWebKiosk() {
-  return user_manager::UserManager::IsInitialized() &&
-         user_manager::UserManager::Get()->IsLoggedInAsKioskWebApp();
-}
-
-// Checks that current user is an IWA kiosk.
-bool IsIwaKiosk() {
-  return ash::features::IsIsolatedWebAppKioskEnabled() &&
-         user_manager::UserManager::IsInitialized() &&
-         user_manager::UserManager::Get()->IsLoggedInAsKioskIWA();
-}
 
 // Returns an origin of the current kiosk web app.
 // Should only be called when the current user is a web kiosk.
@@ -86,10 +74,10 @@ url::Origin GetIwaKioskOrigin() {
 }
 
 std::optional<url::Origin> MaybeGetCurrentKioskOrigin() {
-  if (IsWebKiosk()) {
+  if (chromeos::IsWebKioskSession()) {
     return GetWebKioskOrigin();
   }
-  if (IsIwaKiosk()) {
+  if (chromeos::IsIwaKioskSession()) {
     return GetIwaKioskOrigin();
   }
   return std::nullopt;

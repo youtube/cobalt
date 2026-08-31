@@ -134,7 +134,6 @@
 #include <net/if.h>
 #include "net/base/sys_addrinfo.h"
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/build_info.h"
 #else  // !BUILDFLAG(IS_ANDROID)
 #include <ifaddrs.h>
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -1683,7 +1682,8 @@ void HostResolverManager::TryServingAllJobsFromHosts() {
   }
 }
 
-void HostResolverManager::OnIPAddressChanged() {
+void HostResolverManager::OnIPAddressChanged(
+    NetworkChangeNotifier::IPAddressChangeType change_type) {
   DCHECK(!IsBoundToNetwork());
   last_ipv6_probe_time_ = base::TimeTicks();
   // Abandon all ProbeJobs.

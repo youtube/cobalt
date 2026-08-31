@@ -14,6 +14,7 @@
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
+#include "content/browser/preloading/prefetch/prefetch_serving_handle.h"
 #include "content/browser/preloading/prerender/prerender_features.h"
 #include "content/browser/preloading/prerender/prerender_host.h"
 #include "content/browser/preloading/prerender/prerender_host_registry.h"
@@ -134,17 +135,17 @@ void PrefetchMatchResolver::FindPrefetchInternal(
   // `kNotServable`.
   for (auto& candidate : candidates_) {
     switch (servable_states.at(candidate.first)) {
-      case PrefetchContainer::ServableState::kServable:
-        if (candidate.second->prefetch_container->CreateReader()
+      case PrefetchServableState::kServable:
+        if (candidate.second->prefetch_container->CreateServingHandle()
                 .HaveDefaultContextCookiesChanged()) {
           UnblockForCookiesChanged(candidate.second->prefetch_container->key());
           return;
         }
         break;
-      case PrefetchContainer::ServableState::kNotServable:
+      case PrefetchServableState::kNotServable:
         NOTREACHED();
-      case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
-      case PrefetchContainer::ServableState::kShouldBlockUntilEligibilityGot:
+      case PrefetchServableState::kShouldBlockUntilHeadReceived:
+      case PrefetchServableState::kShouldBlockUntilEligibilityGot:
         // nop
         break;
     }
@@ -152,14 +153,14 @@ void PrefetchMatchResolver::FindPrefetchInternal(
 
   for (auto& candidate : candidates_) {
     switch (servable_states.at(candidate.first)) {
-      case PrefetchContainer::ServableState::kServable:
+      case PrefetchServableState::kServable:
         // Got matching and servable.
         UnblockForMatch(candidate.first);
         return;
-      case PrefetchContainer::ServableState::kNotServable:
+      case PrefetchServableState::kNotServable:
         NOTREACHED();
-      case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
-      case PrefetchContainer::ServableState::kShouldBlockUntilEligibilityGot:
+      case PrefetchServableState::kShouldBlockUntilHeadReceived:
+      case PrefetchServableState::kShouldBlockUntilEligibilityGot:
         // nop
         break;
     }
@@ -196,7 +197,7 @@ void PrefetchMatchResolver::RegisterCandidate(
 
 void PrefetchMatchResolver::StartWaitFor(
     const PrefetchContainer::Key& prefetch_key,
-    PrefetchContainer::ServableState servable_state) {
+    PrefetchServableState servable_state) {
   // By #prefetch-key-availability
   CHECK(candidates_.contains(prefetch_key));
   auto& candidate_data = candidates_[prefetch_key];
@@ -208,11 +209,11 @@ void PrefetchMatchResolver::StartWaitFor(
   CHECK_EQ(prefetch_container.GetServableState(PrefetchCacheableDuration()),
            servable_state);
   switch (servable_state) {
-    case PrefetchContainer::ServableState::kServable:
-    case PrefetchContainer::ServableState::kNotServable:
+    case PrefetchServableState::kServable:
+    case PrefetchServableState::kNotServable:
       NOTREACHED();
-    case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
-    case PrefetchContainer::ServableState::kShouldBlockUntilEligibilityGot:
+    case PrefetchServableState::kShouldBlockUntilHeadReceived:
+    case PrefetchServableState::kShouldBlockUntilEligibilityGot:
       // nop
       break;
   }
@@ -302,7 +303,7 @@ void PrefetchMatchResolver::OnDeterminedHead(
   }
 
   switch (prefetch_container.GetServableState(PrefetchCacheableDuration())) {
-    case PrefetchContainer::ServableState::kShouldBlockUntilEligibilityGot:
+    case PrefetchServableState::kShouldBlockUntilEligibilityGot:
       // All callsites of `PrefetchContainer::OnDeterminedHead()` are
       // `PrefetchStreamingURLLoader`, which implies the prefetch passed
       // eligibility check.
@@ -314,18 +315,19 @@ void PrefetchMatchResolver::OnDeterminedHead(
     // -> PrefetchStreamingURLLoader::HandleRedirect(kFail)
     // -> PrefetchContainer::OnDeterminedHead()
     // -> here
-    case PrefetchContainer::ServableState::kShouldBlockUntilHeadReceived:
-    case PrefetchContainer::ServableState::kNotServable:
+    case PrefetchServableState::kShouldBlockUntilHeadReceived:
+    case PrefetchServableState::kNotServable:
       MaybeUnblockForUnmatch(prefetch_container.key(),
                              PrefetchPotentialCandidateServingResult::
                                  kNotServedUnsatisfiedPrefetchServeableState);
       return;
-    case PrefetchContainer::ServableState::kServable:
+    case PrefetchServableState::kServable:
       // Proceed.
       break;
   }
 
-  if (prefetch_container.CreateReader().HaveDefaultContextCookiesChanged()) {
+  if (prefetch_container.CreateServingHandle()
+          .HaveDefaultContextCookiesChanged()) {
     UnblockForCookiesChanged(prefetch_container.key());
     return;
   }
@@ -387,7 +389,8 @@ void PrefetchMatchResolver::UnblockForMatch(
 
   // Postprocess for success case.
 
-  PrefetchContainer::Reader reader = prefetch_container.CreateReader();
+  PrefetchServingHandle serving_handle =
+      prefetch_container.CreateServingHandle();
 
   // Cookie change is handled in two paths:
   //
@@ -397,19 +400,19 @@ void PrefetchMatchResolver::UnblockForMatch(
   //   the match start timing. It is handled in `OnDeterminedHead()`.
   //
   // So, the below condition is satisfied.
-  CHECK(!reader.HaveDefaultContextCookiesChanged());
+  CHECK(!serving_handle.HaveDefaultContextCookiesChanged());
 
-  if (!reader.HasIsolatedCookieCopyStarted()) {
+  if (!serving_handle.HasIsolatedCookieCopyStarted()) {
     // Basically, we can assume `PrefetchService` is available as waiting
     // `PrefetchContainer` is owned by it. But in unit tests, we use invalid
     // frame tree node id and this `prefetch_service` is not available.
     if (prefetch_service_) {
-      prefetch_service_->CopyIsolatedCookies(reader);
+      prefetch_service_->CopyIsolatedCookies(serving_handle);
     }
   }
-  CHECK(reader);
+  CHECK(serving_handle);
 
-  UnblockInternal(std::move(reader));
+  UnblockInternal(std::move(serving_handle));
 }
 
 void PrefetchMatchResolver::UnblockForNoCandidates() {
@@ -452,7 +455,8 @@ void PrefetchMatchResolver::UnblockForCookiesChanged(
   UnblockForNoCandidates();
 }
 
-void PrefetchMatchResolver::UnblockInternal(PrefetchContainer::Reader reader) {
+void PrefetchMatchResolver::UnblockInternal(
+    PrefetchServingHandle serving_handle) {
   // Postcondition: This resolver waits for no `PrefetchContainer`s when it has
   // been unblocking.
   CHECK_EQ(candidates_.size(), 0u);
@@ -462,7 +466,7 @@ void PrefetchMatchResolver::UnblockInternal(PrefetchContainer::Reader reader) {
   base::SequencedTaskRunner::GetCurrentDefault()->DeleteSoon(FROM_HERE,
                                                              std::move(self_));
 
-  std::move(callback).Run(std::move(reader));
+  std::move(callback).Run(std::move(serving_handle));
 }
 
 }  // namespace content

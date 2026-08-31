@@ -394,6 +394,10 @@ std::string DevToolsAgentHostImpl::GetOpenerFrameId() {
   return std::string();
 }
 
+std::string DevToolsAgentHostImpl::GetParentFrameId() {
+  return std::string();
+}
+
 bool DevToolsAgentHostImpl::CanAccessOpener() {
   return false;
 }

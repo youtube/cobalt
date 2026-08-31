@@ -284,6 +284,7 @@
   'regress/regress-430201': [SKIP],
   'regress/regress-430201b': [SKIP],
   'regress/regress-716044': [SKIP],
+  'regress/regress-41433527': [SKIP],
   'regress/regress-crbug-217858': [SKIP],
   'regress/regress-crbug-808192': [SKIP],
   'regress/regress-crbug-941743': [SKIP],
@@ -914,6 +915,13 @@
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
+  'compiler/regress-331909453': [SKIP],
+  'compiler/regress-crbug-1457532': [SKIP],
+  'regress/regress-390675705': [SKIP],
+  'regress/regress-395028748': [SKIP],
+  'regress/regress-424627229': [SKIP],
+  'regress/regress-438321229': [SKIP],
+
   'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   'regress/wasm/regress-368086282': [SKIP],
 
@@ -1408,7 +1416,6 @@
 
 ##############################################################################
 ['arch == riscv64 or arch == riscv32', {
-
   # Slow tests which times out in debug mode.
   'try': [PASS, ['mode == debug', SKIP]],
   'array-constructor': [PASS, ['mode == debug', SKIP]],
@@ -1428,7 +1435,7 @@
   'regress/regress-3247124': [SKIP],
   'maglev/regress-431665299': [SKIP],
 
-  # RISCV don't preserve signalling NaNs.
+  # RISC-V don't preserve signalling NaNs.
   'regress/wasm/regress-347914831': [SKIP],
 
   # Requires bigger stack size in the Genesis and if stack size is increased,
@@ -1436,7 +1443,7 @@
   # should be platform-independent.
   'regress/regress-1132': [SKIP],
 
-  # Currently always deopt on minus zero
+  # Currently always deopt on minus zero.
   'math-floor-of-div-minus-zero': [SKIP],
 
   # Requires too much memory on RISC-V.
@@ -1446,20 +1453,11 @@
   # https://github.com/v8-riscv/v8/issues/53
   'wasm/float-constant-folding': [SKIP],
 
-  'wasm/memory_2gb_oob': [SKIP], # OOM: sorry, best effort max memory size test
-  'wasm/memory_4gb_oob': [SKIP], # OOM: sorry, best effort max memory size test
+  'wasm/memory_2gb_oob': [SKIP], # OOM: sorry, best effort max memory size test.
+  'wasm/memory_4gb_oob': [SKIP], # OOM: sorry, best effort max memory size test.
 
-  # This often fails in debug mode because it is too slow
+  # This often fails in debug mode because it is too slow.
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
-
-  # Disabling Turboshaft's from-Maglev graph building until support maglev
-  'turboshaft/maglev-frontend/*': [SKIP],
-
-  # Needs sandbox enabled.
-  'shared-memory/condition-async-wait-timeout' :['pointer_compression', SKIP],
-  'shared-memory/condition-async-wait-realm-disposed' :['pointer_compression', SKIP],
-  'shared-memory/mutex-async-lock-workers-timeout' :['pointer_compression', SKIP],
-  'shared-memory/mutex-async-lock-realm-disposed' :['pointer_compression', SKIP],
 
   # Needs FP16 support.
   'wasm/simd-fp16': [SKIP],
@@ -1470,21 +1468,34 @@
   'd8/flush-denormals-worker': [SKIP],
   'wasm/denormals': [SKIP],
 
-  # wasm deopt don't support simd128
+  # Wasm deopt doesn't support simd128.
   'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
-['variant == stress and (arch == riscv64 or arch == riscv32)', {
-'wasm/multi-value-simd': [SKIP]
-}], # 'arch == riscv64 or arch == riscv32' and 'variant == stress'
+['arch == riscv64 and pointer_compression', {
+  # Needs sandbox enabled.
+  'shared-memory/condition-async-wait-timeout': [SKIP],
+  'shared-memory/condition-async-wait-realm-disposed': [SKIP],
+  'shared-memory/mutex-async-lock-workers-timeout': [SKIP],
+  'shared-memory/mutex-async-lock-realm-disposed': [SKIP],
 
-[ 'arch == riscv32' , {
-'wasm/compare-exchange64-stress':[SKIP],
-'regress/regress-crbug-781583':[SKIP],
-'regress/wasm/regress-14171':[SKIP],
-# Don't support stack switcgihing
-'wasm/jspi-no-stress': [SKIP],
-}], # 'arch == riscv32'
+  # Maglev code bails out due to incorrect overflow check when pointer
+  # compression is enabled, but the test checks that the function remains
+  # optimized and thus fails.
+  'es6/for-of-array-iterator-optimization-maglev': [FAIL],
+}],  # 'arch == riscv64 and pointer_compression'
+
+['(arch == riscv64 or arch == riscv32) and variant == stress', {
+  'wasm/multi-value-simd': [SKIP]
+}],  # '(arch == riscv64 or arch == riscv32) and variant == stress'
+
+['arch == riscv32' , {
+  'wasm/compare-exchange64-stress': [SKIP],
+  'regress/regress-crbug-781583': [SKIP],
+  'regress/wasm/regress-14171': [SKIP],
+  # Don't support stack switching.
+  'wasm/jspi-no-stress': [SKIP],
+}],  # 'arch == riscv32'
 
 ##############################################################################
 ['system == macos', {

@@ -10,9 +10,17 @@
 
 #include "sdk/android/native_api/video/video_source.h"
 
+#include <jni.h>
+
+#include <cstdint>
 #include <vector>
 
+#include "api/media_stream_interface.h"
+#include "api/scoped_refptr.h"
+#include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
+#include "api/video/video_source_interface.h"
+#include "rtc_base/thread.h"
 #include "sdk/android/generated_native_unittests_jni/JavaVideoSourceTestHelper_jni.h"
 #include "sdk/android/native_api/jni/jvm.h"
 #include "test/gtest.h"

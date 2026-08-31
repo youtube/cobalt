@@ -22,7 +22,9 @@ suite('Highlighter', () => {
   }
 
   function assertHtml(html: string, id: number) {
-    assertEquals(html, (nodeStore.getDomNode(id) as Element).innerHTML);
+    assertEquals(
+        html, (nodeStore.getDomNode(id) as Element).innerHTML,
+        (nodeStore.getDomNode(id) as Element).innerHTML);
   }
 
   function assertHtmlContains(partialHtml: string, id: number) {
@@ -157,6 +159,36 @@ suite('Highlighter', () => {
         id);
   });
 
+  test(
+      'onWillMoveToNextGranularity with word highlighting highlights the rest of the sentence',
+      () => {
+        chrome.readingMode.onHighlightGranularityChanged(
+            chrome.readingMode.wordHighlighting);
+        wordBoundaries.updateBoundary(0);
+        const id = 10;
+        chrome.readingMode.getHighlightForCurrentSegmentIndex =
+            () => [{nodeId: id, start: 0, length: 3}];
+        const sentence = document.createElement('p');
+        const text = 'Do you believe in life after love?';
+        sentence.appendChild(document.createTextNode(text));
+        nodeStore.setDomNode(sentence, id);
+        chrome.readingMode.getCurrentText = () => [id];
+        chrome.readingMode.getTextContent = () => text;
+        chrome.readingMode.getCurrentTextStartIndex = () => 0;
+        chrome.readingMode.getCurrentTextEndIndex = () => text.length;
+
+        highlighter.highlightCurrentGranularity(
+            [id], /*scrollIntoView=*/ false,
+            /*shouldUpdateSentenceHighlight=*/ true);
+        highlighter.onWillMoveToNextGranularity();
+
+        assertFalse(highlighter.hasCurrentHighlights());
+        assertHtml(
+            '<span class="previous-read-highlight">Do you believe in life ' +
+                'after love?</span>',
+            id);
+      });
+
   test('word highlight across multiple nodes with engine length', () => {
     chrome.readingMode.onHighlightGranularityChanged(
         chrome.readingMode.wordHighlighting);
@@ -193,6 +225,38 @@ suite('Highlighter', () => {
     assertHtml(' slipping into the lava.', id2);
   });
 
+  test('word highlight on punctuation only applies previous highlight', () => {
+    chrome.readingMode.onHighlightGranularityChanged(
+        chrome.readingMode.wordHighlighting);
+    wordBoundaries.updateBoundary(0);
+    const id = 10;
+    const sentenceText = 'And I can\'t sweep you off of your feet';
+    const punctuation = '.';
+
+    // Mock the backend to return a segment for just the punctuation.
+    chrome.readingMode.getHighlightForCurrentSegmentIndex = () => [{
+      nodeId: id,
+      start: sentenceText.length,
+      length: 1,
+    }];
+
+    const sentence = document.createElement('p');
+    sentence.appendChild(document.createTextNode(sentenceText + punctuation));
+    nodeStore.setDomNode(sentence, id);
+
+    highlighter.highlightCurrentGranularity(
+        [id], /*scrollIntoView=*/ false,
+        /*shouldUpdateSentenceHighlight=*/ true);
+
+    // There should be no "current" highlight on the page.
+    assertFalse(highlighter.hasCurrentHighlights());
+    assertHtml(
+        '<span class="previous-read-highlight">' + sentenceText +
+            '</span><span class="previous-read-highlight">' + punctuation +
+            '</span>',
+        id);
+  });
+
   test('phrase highlight', () => {
     chrome.readingMode.onHighlightGranularityChanged(
         chrome.readingMode.autoHighlighting);
@@ -216,6 +280,36 @@ suite('Highlighter', () => {
             '</span> till we\'re 70.',
         id);
   });
+
+  test(
+      'onWillMoveToNextGranularity with phrase highlighting highlights the rest of the sentence',
+      () => {
+        chrome.readingMode.onHighlightGranularityChanged(
+            chrome.readingMode.autoHighlighting);
+        wordBoundaries.updateBoundary(0);
+        const id = 10;
+        chrome.readingMode.getHighlightForCurrentSegmentIndex =
+            () => [{nodeId: id, start: 0, length: 2}];
+        const sentence = document.createElement('p');
+        const text = 'I can feel something inside me say';
+        sentence.appendChild(document.createTextNode(text));
+        nodeStore.setDomNode(sentence, id);
+        chrome.readingMode.getCurrentText = () => [id];
+        chrome.readingMode.getTextContent = () => text;
+        chrome.readingMode.getCurrentTextStartIndex = () => 0;
+        chrome.readingMode.getCurrentTextEndIndex = () => text.length;
+
+        highlighter.highlightCurrentGranularity(
+            [id], /*scrollIntoView=*/ false,
+            /*shouldUpdateSentenceHighlight=*/ true);
+        highlighter.onWillMoveToNextGranularity();
+
+        assertFalse(highlighter.hasCurrentHighlights());
+        assertHtml(
+            '<span class="previous-read-highlight">I can feel something ' +
+                'inside me say</span>',
+            id);
+      });
 
   test('phrase highlight across multiple nodes', () => {
     chrome.readingMode.onHighlightGranularityChanged(

@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 
+#include <errno.h>
 #include <net/if.h>
 #include <stdlib.h>
 #include <string.h>

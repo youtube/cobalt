@@ -8,7 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <jni.h>
+
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
+#include <string>
+
+#include "rtc_base/file_rotating_stream.h"
 #include "rtc_base/log_sinks.h"
+#include "rtc_base/logging.h"
 #include "sdk/android/generated_peerconnection_jni/CallSessionFileRotatingLogSink_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/src/jni/jni_helpers.h"

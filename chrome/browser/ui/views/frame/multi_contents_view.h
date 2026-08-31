@@ -46,10 +46,6 @@ class MultiContentsView : public views::View,
   METADATA_HEADER(MultiContentsView, views::View)
 
  public:
-  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMultiContentsViewElementId);
-  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kStartContainerViewScrimElementId);
-  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kEndContainerViewScrimElementId);
-
   struct ViewWidths {
     double start_width = 0;
     double resize_width = 0;
@@ -153,7 +149,7 @@ class MultiContentsView : public views::View,
   }
 
   ContentsWebView* start_contents_view_for_testing() const {
-    return contents_container_views_[0]->GetContentsView();
+    return contents_container_views_[0]->contents_view();
   }
 
   MultiContentsResizeArea* resize_area_for_testing() const {
@@ -161,11 +157,11 @@ class MultiContentsView : public views::View,
   }
 
   ContentsWebView* end_contents_view_for_testing() const {
-    return contents_container_views_[1]->GetContentsView();
+    return contents_container_views_[1]->contents_view();
   }
 
   MultiContentsViewMiniToolbar* mini_toolbar_for_testing(int index) const {
-    return contents_container_views_[index]->GetMiniToolbar();
+    return contents_container_views_[index]->mini_toolbar();
   }
 
  private:

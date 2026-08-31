@@ -9,6 +9,7 @@
  */
 
 #include <EGL/egl.h>
+#include <jni.h>
 
 #include "sdk/android/generated_video_egl_jni/EglBase10Impl_jni.h"
 

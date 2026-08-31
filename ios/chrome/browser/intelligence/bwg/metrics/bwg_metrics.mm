@@ -8,6 +8,7 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/time/time.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 
 namespace {
 // Minimum time between FRE entry point impression logs.
@@ -34,10 +35,35 @@ const char kStartupTimeWithFREHistogram[] = "IOS.Gemini.StartupTime.FirstRun";
 
 const char kStartupTimeNoFREHistogram[] = "IOS.Gemini.StartupTime.NotFirstRun";
 
+const char kBWGSessionLengthWithPromptHistogram[] =
+    "IOS.Gemini.SessionLength.WithPrompt";
+
+const char kBWGSessionLengthAbandonedHistogram[] =
+    "IOS.Gemini.SessionLength.Abandoned";
+
+const char kBWGSessionLengthFREWithPromptHistogram[] =
+    "IOS.Gemini.SessionLength.FRE.WithPrompt";
+
+const char kBWGSessionLengthFREAbandonedHistogram[] =
+    "IOS.Gemini.SessionLength.FRE.Abandoned";
+
 const char kBWGSessionTimeHistogram[] = "IOS.Gemini.Session.Time";
 
 const char kFirstPromptSubmissionMethodHistogram[] =
     "IOS.Gemini.FirstPrompt.SubmissionMethod";
+
+const char kPromptContextAttachmentHistogram[] =
+    "IOS.Gemini.Prompt.ContextAttachment";
+
+const char kResponseLatencyWithContextHistogram[] =
+    "IOS.Gemini.Response.Latency.WithContext";
+
+const char kResponseLatencyWithoutContextHistogram[] =
+    "IOS.Gemini.Response.Latency.WithoutContext";
+
+const char kSessionPromptCountHistogram[] = "IOS.Gemini.Session.PromptCount";
+
+const char kSessionFirstPromptHistogram[] = "IOS.Gemini.Session.FirstPrompt";
 
 void RecordFREPromoAction(IOSGeminiFREAction action) {
   switch (action) {
@@ -72,6 +98,38 @@ void RecordFREConsentAction(IOSGeminiFREAction action) {
 
 void RecordBWGSessionTime(base::TimeDelta session_duration) {
   base::UmaHistogramTimes(kBWGSessionTimeHistogram, session_duration);
+}
+
+void RecordBWGSessionLengthByType(base::TimeDelta session_duration,
+                                  bool is_first_run,
+                                  IOSGeminiSessionType session_type) {
+  if (is_first_run) {
+    switch (session_type) {
+      case IOSGeminiSessionType::kWithPrompt:
+        base::UmaHistogramTimes(kBWGSessionLengthFREWithPromptHistogram,
+                                session_duration);
+        break;
+      case IOSGeminiSessionType::kAbandoned:
+        base::UmaHistogramTimes(kBWGSessionLengthFREAbandonedHistogram,
+                                session_duration);
+        break;
+      case IOSGeminiSessionType::kUnknown:
+        break;
+    }
+  } else {
+    switch (session_type) {
+      case IOSGeminiSessionType::kWithPrompt:
+        base::UmaHistogramTimes(kBWGSessionLengthWithPromptHistogram,
+                                session_duration);
+        break;
+      case IOSGeminiSessionType::kAbandoned:
+        base::UmaHistogramTimes(kBWGSessionLengthAbandonedHistogram,
+                                session_duration);
+        break;
+      case IOSGeminiSessionType::kUnknown:
+        break;
+    }
+  }
 }
 
 void RecordGeminiEntryPointImpression() {
@@ -125,4 +183,48 @@ void RecordFREConsentDismiss() {
 void RecordFREConsentLinkClick() {
   base::RecordAction(
       base::UserMetricsAction("MobileGeminiFREConsentLinkClick"));
+}
+
+void RecordPromptContextAttachment(bool has_page_context) {
+  base::UmaHistogramBoolean(kPromptContextAttachmentHistogram,
+                            has_page_context);
+}
+
+void RecordResponseLatency(base::TimeDelta latency, bool had_page_context) {
+  if (had_page_context) {
+    base::UmaHistogramMediumTimes(kResponseLatencyWithContextHistogram,
+                                  latency);
+  } else {
+    base::UmaHistogramMediumTimes(kResponseLatencyWithoutContextHistogram,
+                                  latency);
+  }
+}
+
+void RecordSessionPromptCount(int prompt_count) {
+  base::UmaHistogramCounts100(kSessionPromptCountHistogram, prompt_count);
+}
+
+void RecordSessionFirstPrompt(bool had_first_prompt) {
+  base::UmaHistogramBoolean(kSessionFirstPromptHistogram, had_first_prompt);
+}
+
+void RecordURLOpened() {
+  base::RecordAction(base::UserMetricsAction("MobileGeminiURLOpened"));
+}
+
+void RecordBWGEntryPointClick(bwg::EntryPoint entry_point, bool is_fre_flow) {
+  if (entry_point == bwg::EntryPoint::Promo) {
+    base::RecordAction(
+        base::UserMetricsAction("MobileGeminiEntryPointAutomatic"));
+  } else {
+    base::RecordAction(base::UserMetricsAction("MobileGeminiEntryPointTapped"));
+  }
+  base::UmaHistogramEnumeration(kEntryPointHistogram, entry_point);
+  if (is_fre_flow) {
+    base::UmaHistogramEnumeration(kFREEntryPointHistogram, entry_point);
+  }
+}
+
+void RecordBWGNewChatButtonTapped() {
+  base::RecordAction(base::UserMetricsAction("MobileGeminiNewChatTapped"));
 }

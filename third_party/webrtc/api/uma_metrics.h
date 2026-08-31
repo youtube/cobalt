@@ -199,6 +199,7 @@ enum SdpMungingType {
   kDirection = 29,
   kRtcpMux = 30,
   kIceOptionsTrickle = 31,
+  kIceCandidateCount = 32,
   // RTP header extension munging.
   kRtpHeaderExtensionRemoved = 40,
   kRtpHeaderExtensionAdded = 41,

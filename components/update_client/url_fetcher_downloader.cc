@@ -201,8 +201,7 @@ void UrlFetcherDownloader::DoCancelDownload() {
 
 #if !defined(IN_MEMORY_UPDATES)
 void UrlFetcherDownloader::CreateDownloadDir() {
-  base::CreateNewTempDirectory(FILE_PATH_LITERAL("chrome_url_fetcher_"),
-                               &download_dir_);
+  CreateTempDirectory(FILE_PATH_LITERAL("chrome_url_fetcher_"), &download_dir_);
 }
 #endif
 

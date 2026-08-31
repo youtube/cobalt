@@ -74,7 +74,8 @@ constexpr double kTotalOutputEnergy = 0.25;
 constexpr double kTotalOutputDuration = 0.5;
 constexpr int64_t kPlayoutNtpTimestampMs = 5678;
 
-const CallReceiveStatistics kCallStats = {678, 234, -12, 567, 78, 890, 123};
+const ChannelReceiveStatistics kChannelStats = {678, 234, -12, 567,
+                                                78,  890, 123};
 const std::pair<int, SdpAudioFormat> kReceiveCodec = {
     123,
     {"codec_name_recv", 96000, 0}};
@@ -170,7 +171,7 @@ struct ConfigHelper {
 
     ASSERT_TRUE(channel_receive_);
     EXPECT_CALL(*channel_receive_, GetRTCPStatistics())
-        .WillOnce(Return(kCallStats));
+        .WillOnce(Return(kChannelStats));
     EXPECT_CALL(*channel_receive_, GetDelayEstimate())
         .WillOnce(Return(kJitterBufferDelay + kPlayoutBufferDelay));
     EXPECT_CALL(*channel_receive_, GetSpeechOutputLevelFullRange())
@@ -256,14 +257,15 @@ TEST(AudioReceiveStreamTest, GetStats) {
     AudioReceiveStreamInterface::Stats stats =
         recv_stream->GetStats(/*get_and_clear_legacy_stats=*/true);
     EXPECT_EQ(kRemoteSsrc, stats.remote_ssrc);
-    EXPECT_EQ(kCallStats.payload_bytes_received, stats.payload_bytes_received);
-    EXPECT_EQ(kCallStats.header_and_padding_bytes_received,
+    EXPECT_EQ(kChannelStats.payload_bytes_received,
+              stats.payload_bytes_received);
+    EXPECT_EQ(kChannelStats.header_and_padding_bytes_received,
               stats.header_and_padding_bytes_received);
-    EXPECT_EQ(static_cast<uint32_t>(kCallStats.packets_received),
+    EXPECT_EQ(static_cast<uint32_t>(kChannelStats.packets_received),
               stats.packets_received);
-    EXPECT_EQ(kCallStats.packets_lost, stats.packets_lost);
+    EXPECT_EQ(kChannelStats.packets_lost, stats.packets_lost);
     EXPECT_EQ(kReceiveCodec.second.name, stats.codec_name);
-    EXPECT_EQ(kCallStats.jitter_ms, stats.jitter_ms);
+    EXPECT_EQ(kChannelStats.jitter_ms, stats.jitter_ms);
     EXPECT_EQ(kNetworkStats.currentBufferSize, stats.jitter_buffer_ms);
     EXPECT_EQ(kNetworkStats.preferredBufferSize,
               stats.jitter_buffer_preferred_ms);
@@ -327,7 +329,7 @@ TEST(AudioReceiveStreamTest, GetStats) {
     EXPECT_EQ(kAudioDecodeStats.decoded_plc_cng, stats.decoding_plc_cng);
     EXPECT_EQ(kAudioDecodeStats.decoded_muted_output,
               stats.decoding_muted_output);
-    EXPECT_EQ(kCallStats.capture_start_ntp_time_ms,
+    EXPECT_EQ(kChannelStats.capture_start_ntp_time_ms,
               stats.capture_start_ntp_time_ms);
     EXPECT_EQ(kPlayoutNtpTimestampMs, stats.estimated_playout_ntp_timestamp_ms);
     recv_stream->UnregisterFromTransport();

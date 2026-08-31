@@ -1953,11 +1953,58 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
+  CHECK_NE(tag, kUnknownIndirectPointerTag);
   return LoadIndirectPointerFromObject(object, field_offset, tag);
 #else
   return LoadObjectField<TrustedObject>(object, field_offset);
 #endif  // V8_ENABLE_SANDBOX
 }
+
+void CodeStubAssembler::LoadTrustedUnknownPointerFromObject(
+    TNode<HeapObject> object, int offset, TVariable<Object>* value_out,
+    Label* if_empty, Label* if_default,
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+  Label unreachable(this, Label::kDeferred);
+  if (!if_default) if_default = &unreachable;
+  if (!if_empty) if_empty = &unreachable;
+
+#ifdef V8_ENABLE_SANDBOX
+  TNode<IndirectPointerHandleT> handle =
+      LoadObjectField<IndirectPointerHandleT>(object, offset);
+
+  GotoIf(Word32Equal(handle, Int32Constant(kNullIndirectPointerHandle)),
+         if_empty);
+
+  ResolveIndirectUnknownPointerHandle(handle, value_out, /* type_out */ nullptr,
+                                      if_default, cases);
+#else
+  *value_out = LoadObjectField<Object>(object, offset);
+  GotoIf(TaggedIsSmi(value_out->value()), if_empty);
+  DispatchOnInstanceType(value_out->value(), /* type_out */ nullptr, if_default,
+                         cases);
+#endif
+
+  if (unreachable.is_used()) {
+    BIND(&unreachable);
+    Unreachable();
+  }
+}
+
+#ifdef V8_ENABLE_SANDBOX
+void CodeStubAssembler::ResolveIndirectUnknownPointerHandle(
+    TNode<IndirectPointerHandleT> handle, TVariable<Object>* value_out,
+    TVariable<Uint16T>* type_out, Label* if_default,
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+  *value_out = Select<TrustedObject>(
+      IsTrustedPointerHandle(handle),
+      [=, this] {
+        return ResolveTrustedPointerHandle(handle, kUnknownIndirectPointerTag);
+      },
+      [=, this] { return ResolveCodePointerHandle(handle); });
+
+  DispatchOnInstanceType(value_out->value(), type_out, if_default, cases);
+}
+#endif  // V8_ENABLE_SANDBOX
 
 TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
     TNode<HeapObject> object, int field_offset) {
@@ -2035,15 +2082,9 @@ TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
 
 TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
+  CHECK_NE(tag, kUnknownIndirectPointerTag);
   // The tag implies which pointer table to use.
-  if (tag == kUnknownIndirectPointerTag) {
-    // In this case we have to rely on the handle marking to determine which
-    // pointer table to use.
-    return Select<TrustedObject>(
-        IsTrustedPointerHandle(handle),
-        [=, this] { return ResolveTrustedPointerHandle(handle, tag); },
-        [=, this] { return ResolveCodePointerHandle(handle); });
-  } else if (tag == kCodeIndirectPointerTag) {
+  if (tag == kCodeIndirectPointerTag) {
     return ResolveCodePointerHandle(handle);
   } else {
     return ResolveTrustedPointerHandle(handle, tag);
@@ -3712,26 +3753,7 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
   return var_result.value();
 }
 
-TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoTrustedData(
-    TNode<SharedFunctionInfo> sfi) {
-#ifdef V8_ENABLE_SANDBOX
-  TNode<IndirectPointerHandleT> trusted_data_handle =
-      LoadObjectField<IndirectPointerHandleT>(
-          sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
 
-  return Select<Object>(
-      Word32Equal(trusted_data_handle,
-                  Int32Constant(kNullIndirectPointerHandle)),
-      [=, this] { return SmiConstant(0); },
-      [=, this] {
-        return ResolveIndirectPointerHandle(trusted_data_handle,
-                                            kUnknownIndirectPointerTag);
-      });
-#else
-  return LoadObjectField<Object>(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset);
-#endif
-}
 
 TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
     TNode<SharedFunctionInfo> sfi) {
@@ -3739,10 +3761,16 @@ TNode<Object> CodeStubAssembler::LoadSharedFunctionInfoUntrustedData(
       sfi, SharedFunctionInfo::kUntrustedFunctionDataOffset);
 }
 
-TNode<BoolT> CodeStubAssembler::SharedFunctionInfoHasBaselineCode(
-    TNode<SharedFunctionInfo> sfi) {
-  TNode<Object> data = LoadSharedFunctionInfoTrustedData(sfi);
-  return TaggedIsCode(data);
+void CodeStubAssembler::GotoIfSharedFunctionInfoHasBaselineCode(
+    TNode<SharedFunctionInfo> sfi, Label* if_baseline) {
+  Label if_default(this);
+
+  TVARIABLE(Object, var_result);
+  LoadTrustedUnknownPointerFromObject(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset, &var_result,
+      &if_default, &if_default, {{CODE_TYPE, if_baseline}});
+
+  BIND(&if_default);
 }
 
 TNode<Smi> CodeStubAssembler::LoadSharedFunctionInfoBuiltinId(
@@ -3753,17 +3781,25 @@ TNode<Smi> CodeStubAssembler::LoadSharedFunctionInfoBuiltinId(
 
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     TNode<SharedFunctionInfo> sfi) {
-  TNode<HeapObject> function_data = LoadTrustedPointerFromObject(
-      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset,
-      kUnknownIndirectPointerTag);
+  TVARIABLE(Object, var_result);
+  Label done(this);
 
-  TVARIABLE(HeapObject, var_result, function_data);
+  Label is_interpreter_data(this), is_code(this);
 
-  Label check_for_interpreter_data(this, &var_result);
-  Label done(this, &var_result);
+  LoadTrustedUnknownPointerFromObject(
+      sfi, SharedFunctionInfo::kTrustedFunctionDataOffset, &var_result, nullptr,
+      nullptr,
+      {{BYTECODE_ARRAY_TYPE, &done},
+       {INTERPRETER_DATA_TYPE, &is_interpreter_data},
+       {CODE_TYPE, &is_code}});
 
-  GotoIfNot(HasInstanceType(var_result.value(), CODE_TYPE),
-            &check_for_interpreter_data);
+  BIND(&is_interpreter_data);
+  {
+    var_result = LoadInterpreterDataBytecodeArray(CAST(var_result.value()));
+    Goto(&done);
+  }
+
+  BIND(&is_code);
   {
     TNode<Code> code = CAST(var_result.value());
 #ifdef DEBUG
@@ -3775,22 +3811,26 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
 #endif  // DEBUG
     TNode<HeapObject> baseline_data = CAST(LoadProtectedPointerField(
         code, Code::kDeoptimizationDataOrInterpreterDataOffset));
-    var_result = baseline_data;
+
+    Label is_interp_data(this), not_interp_data(this);
+    Branch(HasInstanceType(baseline_data, INTERPRETER_DATA_TYPE),
+           &is_interp_data, &not_interp_data);
+
+    BIND(&is_interp_data);
+    {
+      var_result = LoadInterpreterDataBytecodeArray(CAST(baseline_data));
+      Goto(&done);
+    }
+
+    BIND(&not_interp_data);
+    {
+      CSA_SBXCHECK(this, HasInstanceType(baseline_data, BYTECODE_ARRAY_TYPE));
+      var_result = baseline_data;
+      Goto(&done);
+    }
   }
-  Goto(&check_for_interpreter_data);
-
-  BIND(&check_for_interpreter_data);
-
-  GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array =
-      LoadInterpreterDataBytecodeArray(CAST(var_result.value()));
-  var_result = bytecode_array;
-  Goto(&done);
 
   BIND(&done);
-  // We need an explicit check here since we use the
-  // kUnknownIndirectPointerTag above and so don't have any type guarantees.
-  CSA_SBXCHECK(this, HasInstanceType(var_result.value(), BYTECODE_ARRAY_TYPE));
   return CAST(var_result.value());
 }
 
@@ -7718,14 +7758,14 @@ void CodeStubAssembler::TerminateExecution(TNode<Context> context) {
   Unreachable();
 }
 
-TNode<Union<Hole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
+TNode<Union<TheHole, JSMessageObject>> CodeStubAssembler::GetPendingMessage() {
   TNode<ExternalReference> pending_message = ExternalConstant(
       ExternalReference::address_of_pending_message(isolate()));
-  return UncheckedCast<Union<Hole, JSMessageObject>>(
+  return UncheckedCast<Union<TheHole, JSMessageObject>>(
       LoadFullTagged(pending_message));
 }
 void CodeStubAssembler::SetPendingMessage(
-    TNode<Union<Hole, JSMessageObject>> message) {
+    TNode<Union<TheHole, JSMessageObject>> message) {
   CSA_DCHECK(this, Word32Or(IsTheHole(message),
                             InstanceTypeEqual(LoadInstanceType(message),
                                               JS_MESSAGE_OBJECT_TYPE)));
@@ -10937,7 +10977,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
 
   TNode<Undefined> undefined = UndefinedConstant();
-  TNode<Hole> the_hole = TheHoleConstant();
+  TNode<TheHole> the_hole = TheHoleConstant();
 
   TVARIABLE(IntPtrT, var_count, count);
   Label loop(this, {&var_count, var_entry});
@@ -12409,7 +12449,7 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   TNode<Smi> zero = SmiConstant(0);
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
                                  zero);
-  TNode<Hole> the_hole = TheHoleConstant();
+  TNode<TheHole> the_hole = TheHoleConstant();
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
                                  the_hole);
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
@@ -12615,7 +12655,7 @@ void CodeStubAssembler::TryLookupElement(
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
 
     TNode<Object> element = UnsafeLoadFixedArrayElement(elements, intptr_index);
-    TNode<Hole> the_hole = TheHoleConstant();
+    TNode<TheHole> the_hole = TheHoleConstant();
     Branch(TaggedEqual(element, the_hole), if_not_found, if_found);
   }
   BIND(&if_isdouble);
@@ -17323,8 +17363,10 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
   // Fast path for JSArrayIterator.
   {
     TNode<JSArrayIterator> array_iterator = CAST(object);
-    TNode<JSArray> iterated_array = CAST(LoadObjectField(
-        array_iterator, JSArrayIterator::kIteratedObjectOffset));
+    TNode<JSReceiver> iterated_object = LoadObjectField<JSReceiver>(
+        array_iterator, JSArrayIterator::kIteratedObjectOffset);
+    GotoIfNot(IsJSArray(iterated_object), &slow_path);
+    TNode<JSArray> iterated_array = CAST(iterated_object);
 
     TNode<Map> map = LoadMap(iterated_array);
     TNode<Int32T> elements_kind = LoadMapElementsKind(map);
@@ -17405,7 +17447,7 @@ ForOfNextResult CodeStubAssembler::ForOfNextHelper(TNode<Context> context,
   }
 
   BIND(&return_result);
-  return ForOfNextResult{var_done.value(), var_value.value()};
+  return ForOfNextResult{var_value.value(), var_done.value()};
 }
 
 TNode<JSObject> CodeStubAssembler::AllocatePromiseWithResolversResult(
@@ -18096,114 +18138,135 @@ TNode<JSDispatchHandleT> CodeStubAssembler::LoadBuiltinDispatchHandle(
 
 #endif  // V8_ENABLE_LEAPTIERING
 
+void CodeStubAssembler::DispatchOnInstanceType(
+    TNode<Object> value, TVariable<Uint16T>* type_out, Label* if_default,
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+  TNode<Uint16T> data_type = LoadInstanceType(CAST(value));
+  if (type_out) {
+    *type_out = data_type;
+  }
+  Switch(data_type, if_default, cases);
+}
+
+void CodeStubAssembler::LoadSharedFunctionInfoTrustedDataAndDispatch(
+    TNode<SharedFunctionInfo> shared_info, TVariable<Object>* sfi_data_out,
+    TVariable<Uint16T>* data_type_out, Label* if_empty, Label* if_default,
+    const std::initializer_list<std::pair<InstanceType, Label*>>& cases) {
+#ifdef V8_ENABLE_SANDBOX
+  TNode<IndirectPointerHandleT> trusted_data_handle =
+      LoadObjectField<IndirectPointerHandleT>(
+          shared_info, SharedFunctionInfo::kTrustedFunctionDataOffset);
+
+  GotoIf(Word32Equal(trusted_data_handle,
+                     Int32Constant(kNullIndirectPointerHandle)),
+         if_empty);
+  ResolveIndirectUnknownPointerHandle(trusted_data_handle, sfi_data_out,
+                                      data_type_out, if_default, cases);
+#else
+  *sfi_data_out = LoadObjectField<Object>(
+      shared_info, SharedFunctionInfo::kTrustedFunctionDataOffset);
+  GotoIf(TaggedIsSmi(sfi_data_out->value()), if_empty);
+  DispatchOnInstanceType(sfi_data_out->value(), data_type_out, if_default,
+                         cases);
+#endif
+}
+
 TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
     TNode<SharedFunctionInfo> shared_info, TVariable<Uint16T>* data_type_out,
     Label* if_compile_lazy) {
-
   Label done(this);
   Label use_untrusted_data(this);
   Label unknown_data(this);
   TVARIABLE(Code, sfi_code);
+  TVARIABLE(Object, sfi_data_out);
 
-  TNode<Object> sfi_data = LoadSharedFunctionInfoTrustedData(shared_info);
-  GotoIf(TaggedEqual(sfi_data, SmiConstant(0)), &use_untrusted_data);
+  Label check_is_bytecode_array(this);
+  Label check_is_baseline_data(this);
+  Label check_is_interpreter_data(this);
+  Label check_is_uncompiled_data(this);
+  Label check_is_wasm_function_data(this);
+
+  LoadSharedFunctionInfoTrustedDataAndDispatch(
+      shared_info, &sfi_data_out, data_type_out, &use_untrusted_data,
+      &unknown_data,
+      {
+          {BYTECODE_ARRAY_TYPE, &check_is_bytecode_array},
+          {CODE_TYPE, &check_is_baseline_data},
+          {INTERPRETER_DATA_TYPE, &check_is_interpreter_data},
+          {UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
+           &check_is_uncompiled_data},
+          {UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE, &check_is_uncompiled_data},
+          {UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
+           &check_is_uncompiled_data},
+          {UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
+           &check_is_uncompiled_data},
+#if V8_ENABLE_WEBASSEMBLY
+          {WASM_CAPI_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
+          {WASM_EXPORTED_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
+          {WASM_JS_FUNCTION_DATA_TYPE, &check_is_wasm_function_data},
+#endif  // V8_ENABLE_WEBASSEMBLY
+      });
+
+  // IsBytecodeArray: Interpret bytecode
+  BIND(&check_is_bytecode_array);
+  sfi_code =
+      HeapConstantNoHole(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
+  Goto(&done);
+
+  // IsBaselineData: Execute baseline code
+  BIND(&check_is_baseline_data);
   {
-    TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
-    if (data_type_out) {
-      *data_type_out = data_type;
-    }
-
-    int32_t case_values[] = {
-        BYTECODE_ARRAY_TYPE,
-        CODE_TYPE,
-        INTERPRETER_DATA_TYPE,
-        UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE,
-        UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE,
-        UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE,
-        UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE,
-#if V8_ENABLE_WEBASSEMBLY
-        WASM_CAPI_FUNCTION_DATA_TYPE,
-        WASM_EXPORTED_FUNCTION_DATA_TYPE,
-        WASM_JS_FUNCTION_DATA_TYPE,
-#endif  // V8_ENABLE_WEBASSEMBLY
-    };
-    Label check_is_bytecode_array(this);
-    Label check_is_baseline_data(this);
-    Label check_is_interpreter_data(this);
-    Label check_is_uncompiled_data(this);
-    Label check_is_wasm_function_data(this);
-    Label* case_labels[] = {
-        &check_is_bytecode_array,     &check_is_baseline_data,
-        &check_is_interpreter_data,   &check_is_uncompiled_data,
-        &check_is_uncompiled_data,    &check_is_uncompiled_data,
-        &check_is_uncompiled_data,
-#if V8_ENABLE_WEBASSEMBLY
-        &check_is_wasm_function_data, &check_is_wasm_function_data,
-        &check_is_wasm_function_data,
-#endif  // V8_ENABLE_WEBASSEMBLY
-    };
-    static_assert(arraysize(case_values) == arraysize(case_labels));
-    Switch(data_type, &unknown_data, case_values, case_labels,
-           arraysize(case_labels));
-
-    // IsBytecodeArray: Interpret bytecode
-    BIND(&check_is_bytecode_array);
-    sfi_code =
-        HeapConstantNoHole(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
+    TNode<Code> baseline_code = CAST(sfi_data_out.value());
+    sfi_code = baseline_code;
     Goto(&done);
-
-    // IsBaselineData: Execute baseline code
-    BIND(&check_is_baseline_data);
-    {
-      TNode<Code> baseline_code = CAST(sfi_data);
-      sfi_code = baseline_code;
-      Goto(&done);
-    }
-
-    // IsInterpreterData: Interpret bytecode
-    BIND(&check_is_interpreter_data);
-    {
-      TNode<Code> trampoline =
-          LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data));
-      sfi_code = trampoline;
-    }
-    Goto(&done);
-
-    // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
-    // Compile lazy
-    BIND(&check_is_uncompiled_data);
-    sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
-    Goto(if_compile_lazy ? if_compile_lazy : &done);
-
-#if V8_ENABLE_WEBASSEMBLY
-    // IsWasmFunctionData: Use the wrapper code
-    BIND(&check_is_wasm_function_data);
-    sfi_code = CAST(LoadObjectField(
-        CAST(sfi_data), WasmExportedFunctionData::kWrapperCodeOffset));
-    Goto(&done);
-#endif  // V8_ENABLE_WEBASSEMBLY
   }
+
+  // IsInterpreterData: Interpret bytecode
+  BIND(&check_is_interpreter_data);
+  {
+    TNode<Code> trampoline =
+        LoadInterpreterDataInterpreterTrampoline(CAST(sfi_data_out.value()));
+    sfi_code = trampoline;
+  }
+  Goto(&done);
+
+  // IsUncompiledDataWithPreparseData | IsUncompiledDataWithoutPreparseData:
+  // Compile lazy
+  BIND(&check_is_uncompiled_data);
+  sfi_code = HeapConstantNoHole(BUILTIN_CODE(isolate(), CompileLazy));
+  Goto(if_compile_lazy ? if_compile_lazy : &done);
+
+#if V8_ENABLE_WEBASSEMBLY
+  // IsWasmFunctionData: Use the wrapper code
+  BIND(&check_is_wasm_function_data);
+  sfi_code =
+      CAST(LoadObjectField(CAST(sfi_data_out.value()),
+                           WasmExportedFunctionData::kWrapperCodeOffset));
+  Goto(&done);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   BIND(&use_untrusted_data);
   {
-    sfi_data = LoadSharedFunctionInfoUntrustedData(shared_info);
+    TNode<Object> untrusted_sfi_data =
+        LoadSharedFunctionInfoUntrustedData(shared_info);
     Label check_instance_type(this);
 
     // IsSmi: Is builtin
-    GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
+    GotoIf(TaggedIsNotSmi(untrusted_sfi_data), &check_instance_type);
     if (data_type_out) {
       *data_type_out = Uint16Constant(0);
     }
     if (if_compile_lazy) {
-      GotoIf(SmiEqual(CAST(sfi_data), SmiConstant(Builtin::kCompileLazy)),
+      GotoIf(SmiEqual(CAST(untrusted_sfi_data),
+                      SmiConstant(Builtin::kCompileLazy)),
              if_compile_lazy);
     }
-    sfi_code = LoadBuiltin(CAST(sfi_data));
+    sfi_code = LoadBuiltin(CAST(untrusted_sfi_data));
     Goto(&done);
 
     // Switch on data's instance type.
     BIND(&check_instance_type);
-    TNode<Uint16T> data_type = LoadInstanceType(CAST(sfi_data));
+    TNode<Uint16T> data_type = LoadInstanceType(CAST(untrusted_sfi_data));
     if (data_type_out) {
       *data_type_out = data_type;
     }

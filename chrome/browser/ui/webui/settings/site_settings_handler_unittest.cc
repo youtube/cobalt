@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "base/barrier_closure.h"
+#include "base/byte_count.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/files/scoped_temp_dir.h"
@@ -3085,18 +3086,14 @@ class SiteSettingsHandlerInfobarTest : public BrowserWithTestWindowTest {
     handler()->AllowJavascript();
     web_ui()->ClearTrackedCalls();
 
-    window2_ = CreateBrowserWindow();
-    browser2_ =
-        CreateBrowser(profile(), browser()->type(), false, window2_.get());
-    window3_ = CreateBrowserWindow();
+    browser2_ = CreateBrowser(profile(), browser()->type(), false);
 
     // Creates the second profile used by this test.
     TestingProfile* profile2_ = profile_manager()->CreateTestingProfile(
         "testing_profile2@test", nullptr, std::u16string(), 0,
         GetTestingFactories());
 
-    browser3_ =
-        CreateBrowser(profile2_, browser()->type(), false, window3_.get());
+    browser3_ = CreateBrowser(profile2_, browser()->type(), false);
 
     extensions::TestExtensionSystem* extension_system =
         static_cast<extensions::TestExtensionSystem*>(
@@ -3165,9 +3162,7 @@ class SiteSettingsHandlerInfobarTest : public BrowserWithTestWindowTest {
  private:
   content::TestWebUI web_ui_;
   std::unique_ptr<SiteSettingsHandler> handler_;
-  std::unique_ptr<BrowserWindow> window2_;
   std::unique_ptr<Browser> browser2_;
-  std::unique_ptr<BrowserWindow> window3_;
   std::unique_ptr<Browser> browser3_;
 };
 
@@ -6356,7 +6351,7 @@ TEST_F(SiteSettingsHandlerTest, HandleGetFormattedBytes) {
   EXPECT_EQ("cr.webUIResponse", data.function_name());
   EXPECT_EQ(kCallbackId, data.arg1()->GetString());
   ASSERT_TRUE(data.arg2()->GetBool());
-  EXPECT_EQ(base::UTF16ToUTF8(ui::FormatBytes(int64_t(size))),
+  EXPECT_EQ(base::UTF16ToUTF8(ui::FormatBytes(base::ByteCount(size))),
             data.arg3()->GetString());
 }
 

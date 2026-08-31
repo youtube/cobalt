@@ -16,6 +16,7 @@
 #include "absl/strings/str_cat.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
+#include "api/rtc_error.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/rtc_stats_report.h"
 #include "api/stats/rtcstats_objects.h"
@@ -326,6 +327,114 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<SupportRfc8888Params>& info) {
       return info.param.test_suffix;
     });
+
+TEST(L4STest, NoCcfbSentAfterRenegotiationAndCallerCachLocalDescription) {
+  // The caller supports CCFB, but the callee does not.
+  // This test that the caller does not start sending CCFB after renegotiation
+  // even if the local description is cached. The callers local description
+  // will contain CCFB since it was used in the initial offer.
+  PeerScenario s(*test_info_);
+  PeerScenarioClient::Config caller_config;
+  caller_config.disable_encryption = true;
+  caller_config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                                 "Enabled");
+  PeerScenarioClient* caller = s.CreateClient(caller_config);
+
+  PeerScenarioClient::Config callee_config;
+  callee_config.disable_encryption = true;
+  callee_config.field_trials.Set("WebRTC-RFC8888CongestionControlFeedback",
+                                 "Disabled");
+  PeerScenarioClient* callee = s.CreateClient(callee_config);
+
+  auto caller_to_callee = s.net()
+                              ->NodeBuilder()
+                              .capacity(DataRate::KilobitsPerSec(600))
+                              .Build()
+                              .node;
+  auto callee_to_caller = s.net()
+                              ->NodeBuilder()
+                              .capacity(DataRate::KilobitsPerSec(600))
+                              .Build()
+                              .node;
+  RtcpFeedbackCounter callee_feedback_counter;
+  caller_to_callee->router()->SetWatcher([&](const EmulatedIpPacket& packet) {
+    callee_feedback_counter.Count(packet);
+  });
+  RtcpFeedbackCounter caller_feedback_counter;
+  callee_to_caller->router()->SetWatcher([&](const EmulatedIpPacket& packet) {
+    caller_feedback_counter.Count(packet);
+  });
+
+  s.net()->CreateRoute(caller->endpoint(), {caller_to_callee},
+                       callee->endpoint());
+  s.net()->CreateRoute(callee->endpoint(), {callee_to_caller},
+                       caller->endpoint());
+
+  auto signaling = s.ConnectSignaling(caller, callee, {caller_to_callee},
+                                      {callee_to_caller});
+  PeerScenarioClient::VideoSendTrackConfig video_conf;
+  video_conf.generator.squares_video->framerate = 30;
+  video_conf.generator.squares_video->width = 640;
+  video_conf.generator.squares_video->height = 360;
+  caller->CreateVideo("FROM_CALLER", video_conf);
+  callee->CreateVideo("FROM_CALLEE", video_conf);
+
+  signaling.StartIceSignaling();
+  std::atomic<bool> offer_exchange_done(false);
+  signaling.NegotiateSdp([&](const SessionDescriptionInterface& answer) {
+    offer_exchange_done = true;
+  });
+  ASSERT_TRUE(s.WaitAndProcess(&offer_exchange_done));
+  s.ProcessMessages(TimeDelta::Seconds(2));
+
+  EXPECT_EQ(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+  EXPECT_EQ(callee_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+  int transport_cc_caller =
+      caller_feedback_counter.FeedbackAccordingToTransportCc();
+  int transport_cc_callee =
+      callee_feedback_counter.FeedbackAccordingToTransportCc();
+  EXPECT_GT(transport_cc_caller, 0);
+  EXPECT_GT(transport_cc_callee, 0);
+
+  offer_exchange_done = false;
+  // Save the caller's local description and use it as answer to the next offer
+  // from callee.
+  std::string answer_str;
+  caller->pc()->local_description()->ToString(&answer_str);
+  ASSERT_FALSE(answer_str.empty());
+  ASSERT_THAT(answer_str, HasSubstr("a=rtcp-fb:* ack ccfb\r\n"));
+
+  callee->CreateAndSetSdp(
+      [&](SessionDescriptionInterface* /*munge_offer*/) {
+        // Do not munge the offer.
+      },
+      [&](std::string offer) {
+        // Callee does not support ccfb and does not have it in the offer.
+        ASSERT_THAT(offer, Not(HasSubstr("a=rtcp-fb:* ack ccfb\r\n")));
+        caller->SetRemoteDescription(
+            offer, SdpType::kOffer, [&](RTCError error) {
+              ASSERT_TRUE(error.ok());
+              caller->SetLocalDescription(
+                  answer_str, SdpType::kAnswer, [&](RTCError error) {
+                    ASSERT_TRUE(error.ok());
+                    callee->SetRemoteDescription(answer_str, SdpType::kAnswer,
+                                                 [&](RTCError error) {
+                                                   ASSERT_TRUE(error.ok());
+                                                   offer_exchange_done = true;
+                                                 });
+                  });
+            });
+      });
+  ASSERT_TRUE(s.WaitAndProcess(&offer_exchange_done));
+  s.ProcessMessages(TimeDelta::Seconds(4));
+
+  EXPECT_EQ(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+  EXPECT_EQ(callee_feedback_counter.FeedbackAccordingToRfc8888(), 0);
+  EXPECT_GT(caller_feedback_counter.FeedbackAccordingToTransportCc(),
+            transport_cc_caller);
+  EXPECT_GT(callee_feedback_counter.FeedbackAccordingToTransportCc(),
+            transport_cc_callee);
+}
 
 // Note - this test only test that the
 // caller adapt to the link capacity. It does not test that the caller uses ECN

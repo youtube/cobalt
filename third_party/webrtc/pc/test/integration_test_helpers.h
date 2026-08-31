@@ -1125,6 +1125,9 @@ class PeerConnectionIntegrationWrapper : public PeerConnectionObserver,
     error_event_ =
         IceCandidateErrorEvent(address, port, url, error_code, error_text);
   }
+
+  void OnIceCandidateRemoved(const IceCandidate* candidate) override {}
+
   void OnDataChannel(
       scoped_refptr<DataChannelInterface> data_channel) override {
     RTC_LOG(LS_INFO) << debug_name_ << ": OnDataChannel";

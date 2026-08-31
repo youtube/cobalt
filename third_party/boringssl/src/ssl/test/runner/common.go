@@ -210,6 +210,7 @@ const (
 	CurveX25519         CurveID = 29
 	CurveX25519MLKEM768 CurveID = 0x11ec
 	CurveX25519Kyber768 CurveID = 0x6399
+	CurveMLKEM1024      CurveID = 0x0202
 )
 
 // TLS Elliptic Curve Point Formats
@@ -2246,7 +2247,7 @@ func (c *Config) maxVersion(isDTLS bool) uint16 {
 	return ret
 }
 
-var defaultCurvePreferences = []CurveID{CurveX25519MLKEM768, CurveX25519Kyber768, CurveX25519, CurveP256, CurveP384, CurveP521}
+var defaultCurvePreferences = []CurveID{CurveX25519MLKEM768, CurveX25519Kyber768, CurveMLKEM1024, CurveX25519, CurveP256, CurveP384, CurveP521}
 
 func (c *Config) curvePreferences() []CurveID {
 	if c == nil || len(c.CurvePreferences) == 0 {

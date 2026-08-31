@@ -62,8 +62,7 @@ class PeerConnectionDelegateAdapter : public PeerConnectionObserver {
                            int error_code,
                            const std::string &error_text) override;
 
-  void OnIceCandidatesRemoved(
-      const std::vector<webrtc::Candidate> &candidates) override;
+  void OnIceCandidateRemoved(const webrtc::IceCandidate *candidate) override;
 
   void OnIceSelectedCandidatePairChanged(
       const webrtc::CandidatePairChangeEvent &event) override;

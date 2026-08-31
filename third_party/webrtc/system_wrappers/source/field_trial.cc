@@ -47,11 +47,12 @@ bool FieldTrialsStringIsValidInternal(const absl::string_view trials) {
   std::map<absl::string_view, absl::string_view> field_trials;
   while (next_item < trials.length()) {
     size_t name_end = trials.find(kPersistentStringSeparator, next_item);
-    if (name_end == trials.npos || next_item == name_end)
+    if (name_end == absl::string_view::npos || next_item == name_end)
       return false;
     size_t group_name_end =
         trials.find(kPersistentStringSeparator, name_end + 1);
-    if (group_name_end == trials.npos || name_end + 1 == group_name_end)
+    if (group_name_end == absl::string_view::npos ||
+        name_end + 1 == group_name_end)
       return false;
     absl::string_view name = trials.substr(next_item, name_end - next_item);
     absl::string_view group_name =

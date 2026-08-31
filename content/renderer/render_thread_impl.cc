@@ -638,10 +638,10 @@ void RenderThreadImpl::Init() {
   // been initialized by the Zygote before this instance became a Renderer.
   media::InitializeMediaLibrary();
 
-  memory_pressure_listener_ = std::make_unique<base::MemoryPressureListener>(
-      FROM_HERE,
-      base::BindRepeating(&RenderThreadImpl::OnMemoryPressure,
-                          base::Unretained(this)));
+  memory_pressure_listener_ =
+      std::make_unique<base::AsyncMemoryPressureListener>(
+          FROM_HERE, base::BindRepeating(&RenderThreadImpl::OnMemoryPressure,
+                                         base::Unretained(this)));
   // In tests or in single-process mode, the render thread does not live on the
   // main thread of the process, so we can't register a sync listener.
   if (base::SingleThreadTaskRunner::GetMainThreadDefault()
@@ -1346,8 +1346,16 @@ void RenderThreadImpl::SetProcessState(
       restrict_thread_pool_.emplace();
     }
   }
-  if (base::FeatureList::IsEnabled(features::kSetIsolatesPriority)) {
-    blink::WebV8Features::SetIsolatePriority(process_priority);
+  if (base::FeatureList::IsEnabled(
+          features::kIsolatesPriorityUseProcessPriority)) {
+    if (visible_state == mojom::RenderProcessVisibleState::kHidden &&
+        base::FeatureList::IsEnabled(
+            features::kIsolatesPriorityBestEffortWhenHidden)) {
+      blink::WebV8Features::SetIsolatePriority(
+          base::Process::Priority::kBestEffort);
+    } else {
+      blink::WebV8Features::SetIsolatePriority(process_priority);
+    }
   }
 
   if (!process_priority_.has_value() || is_backgrounded != was_backgrounded) {
@@ -1717,7 +1725,8 @@ bool RenderThreadImpl::RendererIsHidden() const {
 }
 
 void RenderThreadImpl::OnRendererHidden() {
-  if (!base::FeatureList::IsEnabled(features::kSetIsolatesPriority)) {
+  if (!base::FeatureList::IsEnabled(
+          features::kIsolatesPriorityUseProcessPriority)) {
     blink::WebV8Features::SetIsolatePriority(
         base::Process::Priority::kBestEffort);
   }
@@ -1730,7 +1739,8 @@ void RenderThreadImpl::OnRendererHidden() {
 }
 
 void RenderThreadImpl::OnRendererVisible() {
-  if (!base::FeatureList::IsEnabled(features::kSetIsolatesPriority)) {
+  if (!base::FeatureList::IsEnabled(
+          features::kIsolatesPriorityUseProcessPriority)) {
     blink::WebV8Features::SetIsolatePriority(
         base::Process::Priority::kUserBlocking);
   }

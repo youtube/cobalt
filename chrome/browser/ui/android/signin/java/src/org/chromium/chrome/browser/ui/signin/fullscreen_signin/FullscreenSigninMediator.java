@@ -25,6 +25,9 @@ import org.chromium.chrome.browser.privacy.settings.PrivacyPreferencesManager;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
+import org.chromium.chrome.browser.signin.services.SigninFlowTimestampsLogger;
+import org.chromium.chrome.browser.signin.services.SigninFlowTimestampsLogger.Event;
+import org.chromium.chrome.browser.signin.services.SigninFlowTimestampsLogger.FlowVariant;
 import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignInCallback;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignOutCallback;
@@ -100,7 +103,7 @@ public class FullscreenSigninMediator
     private final @SigninAccessPoint int mAccessPoint;
     private final FullscreenSigninConfig mConfig;
     private final PropertyModel mModel;
-    private final ProfileDataCache mProfileDataCache;
+    private @Nullable ProfileDataCache mProfileDataCache;
     private boolean mDestroyed;
 
     /** Whether the initial load phase has been completed. See {@link #onInitialLoadCompleted}. */
@@ -128,7 +131,6 @@ public class FullscreenSigninMediator
         mDelegate = delegate;
         mPrivacyPreferencesManager = privacyPreferencesManager;
         mAccessPoint = accessPoint;
-        mProfileDataCache = ProfileDataCache.createWithDefaultImageSizeAndNoBadge(mContext);
         mConfig = config;
 
         mInitialLoadCompleted =
@@ -164,8 +166,6 @@ public class FullscreenSigninMediator
                     .onAvailable(ignored -> onChildAccountStatusAvailable());
         }
 
-        mProfileDataCache.addObserver(this);
-
         mAccountManagerFacade.addObserver(this);
         updateAccounts(
                 AccountUtils.getAccountsIfFulfilledOrEmpty(mAccountManagerFacade.getAccounts()));
@@ -178,7 +178,9 @@ public class FullscreenSigninMediator
 
     void destroy() {
         assert !mDestroyed;
-        mProfileDataCache.removeObserver(this);
+        if (mProfileDataCache != null) {
+            mProfileDataCache.removeObserver(this);
+        }
         mAccountManagerFacade.removeObserver(this);
         mDestroyed = true;
     }
@@ -247,6 +249,22 @@ public class FullscreenSigninMediator
      *     also means that native has been initialized.
      */
     void onInitialLoadCompleted(boolean hasPolicies) {
+        if (mProfileDataCache == null) {
+            Profile profile = mDelegate.getProfileSupplier().get().getOriginalProfile();
+            IdentityManager identityManager =
+                    IdentityServicesProvider.get().getIdentityManager(assertNonNull(profile));
+            mProfileDataCache =
+                    ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                            mContext, assertNonNull(identityManager));
+            mProfileDataCache.addObserver(this);
+            updateSelectedAccountData();
+        }
+
+        AccountUtils.checkIsSubjectToParentalControls(
+                mAccountManagerFacade,
+                AccountUtils.getAccountsIfFulfilledOrEmpty(mAccountManagerFacade.getAccounts()),
+                this::onChildAccountStatusReady);
+
         boolean isMetricsReportingDisabledByPolicy = false;
         Log.i(TAG, "#onInitialLoadCompleted() hasPolicies:" + hasPolicies);
         if (hasPolicies) {
@@ -309,7 +327,10 @@ public class FullscreenSigninMediator
     /** Implements {@link ProfileDataCache.Observer}. */
     @Override
     public void onProfileDataUpdated(String accountEmail) {
-        updateSelectedAccountData(accountEmail);
+        if (mSelectedAccount != null
+                && TextUtils.equals(mSelectedAccount.getEmail(), accountEmail)) {
+            updateSelectedAccountData();
+        }
     }
 
     /** Implements {@link AccountsChangeObserver}. */
@@ -392,6 +413,8 @@ public class FullscreenSigninMediator
         // This is needed to get metrics/crash reports from the sign-in flow itself.
         mDelegate.acceptTermsOfService(mAllowMetricsAndCrashUploading);
         mDelegate.recordUserSignInHistograms(getSigninPromoAction());
+        SigninFlowTimestampsLogger signinTimestampsLogger =
+                SigninFlowTimestampsLogger.startLogging(FlowVariant.FULLSCREEN);
         // If the user signs into an account on the FRE, goes to the next page and presses
         // back to come back to the welcome screen, then there will already be an account signed in.
         @Nullable CoreAccountInfo signedInAccount =
@@ -416,6 +439,7 @@ public class FullscreenSigninMediator
                 new SignInCallback() {
                     @Override
                     public void onSignInComplete() {
+                        signinTimestampsLogger.recordTimestamp(Event.SIGNIN_COMPLETED);
                         if (mDestroyed) {
                             // FirstRunActivity was destroyed while we were waiting for sign-in.
                             return;
@@ -425,6 +449,7 @@ public class FullscreenSigninMediator
 
                     @Override
                     public void onSignInAborted() {
+                        signinTimestampsLogger.recordTimestamp(Event.SIGNIN_ABORTED);
                         // TODO(crbug.com/40790332): For now we enable the buttons again to not
                         // block the
                         // users from continuing to the next page. Should show a dialog with the
@@ -446,11 +471,16 @@ public class FullscreenSigninMediator
                 // If there already exists another signed-in account, first sign-out and then
                 // sign-in with the selected account.
                 signOutThenSignInWithSelectedAccount(
-                        mSelectedAccount, signinManager, accessPoint, signInCallback);
+                        mSelectedAccount,
+                        signinManager,
+                        accessPoint,
+                        signinTimestampsLogger,
+                        signInCallback);
             } else {
                 FreManagementNoticeDialogHelper.checkAccountManagementAndSignIn(
                         mSelectedAccount,
                         signinManager,
+                        signinTimestampsLogger,
                         accessPoint,
                         signInCallback,
                         mContext,
@@ -463,12 +493,14 @@ public class FullscreenSigninMediator
             CoreAccountInfo selectedAccount,
             SigninManager signinManager,
             @SigninAccessPoint int accessPoint,
+            SigninFlowTimestampsLogger signinTimestampsLogger,
             @Nullable SignInCallback signInCallback) {
         SignOutCallback signOutCallback =
                 () ->
                         FreManagementNoticeDialogHelper.checkAccountManagementAndSignIn(
                                 selectedAccount,
                                 signinManager,
+                                signinTimestampsLogger,
                                 accessPoint,
                                 signInCallback,
                                 mContext,
@@ -540,15 +572,14 @@ public class FullscreenSigninMediator
 
     private void setSelectedAccount(CoreAccountInfo account) {
         mSelectedAccount = account;
-        updateSelectedAccountData(account.getEmail());
+        updateSelectedAccountData();
     }
 
-    private void updateSelectedAccountData(String accountEmail) {
-        if (mSelectedAccount != null
-                && TextUtils.equals(mSelectedAccount.getEmail(), accountEmail)) {
+    private void updateSelectedAccountData() {
+        if (mProfileDataCache != null && mSelectedAccount != null) {
             mModel.set(
                     FullscreenSigninProperties.SELECTED_ACCOUNT_DATA,
-                    mProfileDataCache.getProfileDataOrDefault(accountEmail));
+                    mProfileDataCache.getProfileDataOrDefault(mSelectedAccount.getEmail()));
         }
     }
 
@@ -588,6 +619,9 @@ public class FullscreenSigninMediator
     }
 
     private void onChildAccountStatusReady(boolean isChild, @Nullable CoreAccountInfo childInfo) {
+        if (mProfileDataCache == null) {
+            return;
+        }
         mModel.set(FullscreenSigninProperties.IS_SELECTED_ACCOUNT_SUPERVISED, isChild);
         // Selected account data will be updated in {@link #onProfileDataUpdated}
         mProfileDataCache.setBadge(

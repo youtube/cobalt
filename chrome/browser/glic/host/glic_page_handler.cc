@@ -14,6 +14,7 @@
 #include "base/notimplemented.h"
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
+#include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
@@ -30,7 +31,6 @@
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/feedback/feedback_uploader_chrome.h"
 #include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/glic_hotkey.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
@@ -45,7 +45,9 @@
 #include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/host/page_metadata_manager.h"
 #include "chrome/browser/glic/media/glic_media_link_helper.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/widget/browser_conditions.h"
@@ -59,15 +61,20 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_list.h"
+#include "chrome/browser/ui/tabs/tab_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/common/chrome_features.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/feedback/content/content_tracing_manager.h"
 #include "components/feedback/feedback_data.h"
 #include "components/feedback/feedback_uploader.h"
 #include "components/metrics/metrics_service.h"
+#include "components/optimization_guide/content/browser/page_content_metadata_observer.h"
 #include "components/optimization_guide/core/model_quality/model_quality_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sessions/core/session_id.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/web_contents.h"
 #include "extensions/browser/guest_view/web_view/web_view_guest.h"
@@ -76,6 +83,7 @@
 #include "mojo/public/cpp/bindings/message.h"
 #include "pdf/buildflags.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/gfx/geometry/mojom/geometry.mojom.h"
 #include "ui/gfx/geometry/size.h"
@@ -453,12 +461,13 @@ class JournalHandler {
 // events through GlicKeyedService to other components, relies on the assumption
 // that there is exactly 1 WebUI instance. If this assumption is ever violated
 // then many classes will break.
-class GlicWebClientHandler : public glic::mojom::WebClientHandler,
-                             public GlicWindowController::StateObserver,
-                             public GlicWebClientAccess,
-                             public BrowserAttachObserver,
-                             public ActiveStateCalculator::Observer,
-                             public BrowserIsOpenCalculator::Observer {
+class GlicWebClientHandler
+    : public glic::mojom::WebClientHandler,
+      public GlicWindowController::StateObserver,
+      public GlicWebClientAccess,
+      public BrowserAttachObserver,
+      public ActiveStateCalculator::Observer,
+      public BrowserIsOpenCalculator::Observer {
  public:
   explicit GlicWebClientHandler(
       GlicPageHandler* page_handler,
@@ -476,7 +485,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         receiver_(this, std::move(receiver)),
         annotation_manager_(
             std::make_unique<GlicAnnotationManager>(glic_service_)),
-        journal_handler_(profile_) {
+        journal_handler_(profile_),
+        page_metadata_manager_(&web_client_) {
     active_state_calculator_.AddObserver(this);
   }
 
@@ -641,6 +651,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       state->host_capabilities.push_back(
           mojom::HostCapability::kResetSizeAndLocationOnOpen);
     }
+    state->enable_get_page_metadata =
+        base::FeatureList::IsEnabled(blink::features::kFrameMetadataObserver);
 
     std::move(callback).Run(std::move(state));
   }
@@ -1233,6 +1245,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (web_client_) {
       web_client_->NotifyPanelActiveChange(is_active);
     }
+    page_metadata_manager_.SetPaused(!is_active);
 
     if (!is_active) {
       return;
@@ -1336,6 +1349,14 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     web_client_->NotifyPinnedTabsChanged(std::move(tab_data));
   }
 
+  void SubscribeToPageMetadata(
+      int32_t tab_id,
+      const std::vector<std::string>& names,
+      SubscribeToPageMetadataCallback callback) override {
+    page_metadata_manager_.SubscribeToPageMetadata(tab_id, names,
+                                                    std::move(callback));
+  }
+
   void OnPinnedTabDataChanged(const glic::mojom::TabData* tab_data) {
     if (!tab_data) {
       return;
@@ -1361,6 +1382,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   }
 
  private:
+
   void Uninstall() {
     SetAudioDucking(false, base::DoNothing());
     // TODO(b/409332639): centralize access indicator resetting in a single
@@ -1494,6 +1516,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
       system_permission_settings_observation_;
   JournalHandler journal_handler_;
   std::unique_ptr<DebouncerDeduper> debouncer_deduper_;
+  PageMetadataManager page_metadata_manager_;
 };
 
 GlicPageHandler::GlicPageHandler(
@@ -1567,8 +1590,9 @@ content::RenderFrameHost* GlicPageHandler::GetGuestMainFrame() {
   return web_view_guest ? web_view_guest->GetGuestMainFrame() : nullptr;
 }
 
-void GlicPageHandler::ClosePanel() {
+void GlicPageHandler::ClosePanel(ClosePanelCallback callback) {
   GetGlicService()->ClosePanel();
+  std::move(callback).Run();
 }
 
 void GlicPageHandler::OpenProfilePickerAndClosePanel() {

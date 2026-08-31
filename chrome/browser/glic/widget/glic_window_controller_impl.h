@@ -16,10 +16,10 @@
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
 #include "base/scoped_observation_traits.h"
-#include "chrome/browser/glic/glic_enabling.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/host.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/widget/application_hotkey_delegate.h"
 #include "chrome/browser/glic/widget/glic_window_config.h"
 #include "chrome/browser/glic/widget/glic_window_controller.h"
@@ -105,13 +105,11 @@ class GlicWindowControllerImpl
 
   bool IsActive() override;
   bool IsShowing() const override;
-  bool IsPanelOrFreShowing() const override;
   bool IsAttached() const override;
   bool IsDetached() const override;
   base::CallbackListSubscription AddWindowActivationChangedCallback(
       WindowActivationChangedCallback callback) override;
   void Preload() override;
-  void PreloadFre() override;
   void Reload() override;
   bool IsWarmed() const override;
   base::WeakPtr<GlicWindowController> GetWeakPtr() override;
@@ -119,11 +117,9 @@ class GlicWindowControllerImpl
   GlicView* GetGlicView() override;
   base::WeakPtr<views::View> GetGlicViewAsView() override;
   GlicWidget* GetGlicWidget() override;
-  content::WebContents* GetFreWebContents() override;
 
   Browser* attached_browser() override;
   State state() const override;
-  GlicFreController* fre_controller() override;
   GlicWindowAnimator* window_animator() override;
   Profile* profile() override;
   bool IsDragging() override;
@@ -363,8 +359,6 @@ class GlicWindowControllerImpl
   std::optional<gfx::Point> previous_position_ = std::nullopt;
 
   std::unique_ptr<ScopedGlicButtonIndicator> scoped_glic_button_indicator_;
-
-  std::unique_ptr<GlicFreController> fre_controller_;
 
   std::unique_ptr<WindowFinder> window_finder_;
 

@@ -482,7 +482,7 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
   init.set_port_allocator(port_allocator_);
   init.set_async_dns_resolver_factory(async_dns_resolver_factory_);
   init.set_lna_permission_factory(lna_permission_factory_);
-  init.set_event_log(config_.event_log);
+  init.set_event_log(&env_.event_log());
   init.set_field_trials(&env_.field_trials());
   auto transport = config_.ice_transport_factory->CreateIceTransport(
       transport_name, component, std::move(init));
@@ -504,8 +504,7 @@ JsepTransportController::CreateDtlsTransport(const ContentInfo& content_info,
         ice, config_.crypto_options, config_.ssl_max_version);
   } else {
     dtls = std::make_unique<DtlsTransportInternalImpl>(
-        ice, config_.crypto_options, config_.event_log,
-        config_.ssl_max_version);
+        env_, ice, config_.crypto_options, config_.ssl_max_version);
   }
 
   RTC_DCHECK(dtls);
@@ -1302,6 +1301,7 @@ void JsepTransportController::OnTransportCandidatesRemoved_n(
 }
 void JsepTransportController::OnTransportCandidatePairChanged_n(
     const CandidatePairChangeEvent& event) {
+  RTC_DCHECK(!event.transport_name.empty());
   signal_ice_candidate_pair_changed_.Send(event);
 }
 

@@ -62,8 +62,10 @@ class FloatFileReader : public FileReader {
     return is_.gcount() == bytes_to_read;
   }
   bool ReadValue(float& dst) override { return ReadChunk({&dst, 1}); }
-  void SeekForward(int hop) override { is_.seekg(hop * sizeof(T), is_.cur); }
-  void SeekBeginning() override { is_.seekg(0, is_.beg); }
+  void SeekForward(int hop) override {
+    is_.seekg(hop * sizeof(T), std::ifstream::cur);
+  }
+  void SeekBeginning() override { is_.seekg(0, std::ifstream::beg); }
 
  private:
   std::ifstream is_;

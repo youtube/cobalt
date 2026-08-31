@@ -194,6 +194,12 @@ class Renderer : angle::NonCopyable
     {
         return mPhysicalDeviceFeatures;
     }
+    const VkPhysicalDeviceShaderIntegerDotProductProperties &
+    getPhysicalDeviceShaderIntegerDotProductProperties() const
+    {
+        return mShaderIntegerDotProductProperties;
+    }
+
     const VkPhysicalDeviceFeatures2KHR &getEnabledFeatures() const { return mEnabledFeatures; }
     VkDevice getDevice() const { return mDevice; }
 
@@ -874,7 +880,7 @@ class Renderer : angle::NonCopyable
         mRasterizationOrderAttachmentAccessFeatures;
     VkPhysicalDeviceShaderAtomicFloatFeaturesEXT mShaderAtomicFloatFeatures;
     VkPhysicalDeviceMaintenance5FeaturesKHR mMaintenance5Features;
-    VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT mSwapchainMaintenance1Features;
+    VkPhysicalDeviceSwapchainMaintenance1FeaturesKHR mSwapchainMaintenance1Features;
     VkPhysicalDeviceLegacyDitheringFeaturesEXT mDitheringFeatures;
     VkPhysicalDeviceDrmPropertiesEXT mDrmProperties;
     VkPhysicalDeviceTimelineSemaphoreFeaturesKHR mTimelineSemaphoreFeatures;
@@ -899,6 +905,8 @@ class Renderer : angle::NonCopyable
     VkPhysicalDeviceMaintenance3Properties mMaintenance3Properties;
     VkPhysicalDeviceFaultFeaturesEXT mFaultFeatures;
     VkPhysicalDeviceASTCDecodeFeaturesEXT mPhysicalDeviceAstcDecodeFeatures;
+    VkPhysicalDeviceShaderIntegerDotProductFeatures mShaderIntegerDotProductFeatures;
+    VkPhysicalDeviceShaderIntegerDotProductProperties mShaderIntegerDotProductProperties;
 
     uint32_t mLegacyDitheringVersion = 0;
 

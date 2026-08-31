@@ -319,6 +319,7 @@ constexpr bool CanTriggerGC(T... properties) {
 #define FOR_EACH_INTRINSIC_LITERALS(F, I) \
   F(CreateArrayLiteral, 4, 1)             \
   F(CreateObjectLiteral, 4, 1)            \
+  F(SetPrototypeProperties, 2, 1)         \
   F(CreateRegExpLiteral, 4, 1)
 
 #define FOR_EACH_INTRINSIC_MODULE(F, I)    \
@@ -798,6 +799,7 @@ constexpr bool CanTriggerGC(T... properties) {
   F(WasmTraceEnter, 0, 1)                                       \
   F(WasmTraceExit, 1, 1)                                        \
   F(WasmTraceMemory, 1, 1)                                      \
+  F(WasmTraceGlobal, 1, 1)                                      \
   F(WasmTriggerTierUpForTesting, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM_DRUMBRAKE_TEST(F, I) \

@@ -7731,8 +7731,8 @@ class PrerenderLowMemoryBrowserTest : public PrerenderBrowserTest {
   PrerenderLowMemoryBrowserTest() {
     // Set the value of memory threshold more than the physical memory.  The
     // test will expect that prerendering does not occur.
-    std::string memory_threshold =
-        base::NumberToString(base::SysInfo::AmountOfPhysicalMemoryMB() + 1);
+    std::string memory_threshold = base::NumberToString(
+        base::SysInfo::AmountOfPhysicalMemory().InMiB() + 1);
     feature_list_.InitWithFeaturesAndParameters(
         {{blink::features::kPrerender2MemoryControls,
           {{blink::features::kPrerender2MemoryThresholdParamName,
@@ -15509,6 +15509,89 @@ IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest,
           host_id);
   ASSERT_TRUE(prerender_host);
   EXPECT_TRUE(prerender_host->should_pause_javascript_execution());
+}
+
+// Tests that prerender_until_script pages can defer async scripts.
+// TODO(https://crbug.com/428500219): Migrate this test to WPT. For now the
+// prerender WPTs require script execution, which is suspended by
+// prerender-until-script, and we need to update the test infra first.
+IN_PROC_BROWSER_TEST_F(PrerenderUntilScriptBrowserTest, AsyncScript) {
+  // Navigate to an initial page.
+  GURL url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(web_contents(), url));
+
+  // Start prerender-until-script.
+  GURL prerender_url = GetUrl("/prerender/async_script.html");
+  test::PrerenderHostRegistryObserver observer(*web_contents_impl());
+  prerender_helper()->AddPrerenderUntilScriptAsync(prerender_url);
+  observer.WaitForTrigger(prerender_url);
+
+  FrameTreeNodeId host_id =
+      test::PrerenderTestHelper::GetHostForUrl(*web_contents(), prerender_url);
+  ASSERT_TRUE(host_id);
+
+  PrerenderHost* prerender_host =
+      web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
+          host_id);
+  ASSERT_TRUE(prerender_host);
+  EXPECT_TRUE(prerender_host->should_pause_javascript_execution());
+
+  // Prerender-until-script does not pause downloading async scripts.
+  GURL script_url = GetUrl("/prerender/status_script.js");
+  prerender_helper()->WaitForRequest(script_url, 1);
+
+  // Parsing and subresource loading are not affected while async scripts are
+  // paused.
+  GURL image_url = GetUrl("/blank.jpg");
+  prerender_helper()->WaitForRequest(image_url, 1);
+  NavigatePrimaryPage(prerender_url);
+
+  // Make sure the deferred script runs after activation.
+  ASSERT_EQ(false, EvalJs(web_contents_impl(), "document.prerendering"));
+  EXPECT_EQ(false, EvalJs(web_contents_impl(), "executed_during_prerendering"));
+}
+
+// Tests the PrerenderHostId of the navigations in main frame and subframes.
+IN_PROC_BROWSER_TEST_F(PrerenderBrowserTest,
+                       PrerenderHostIdAssignedToNavigationRequest) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  const GURL initial_url = GetUrl("/empty.html");
+  const GURL prerendering_url = GetUrl("/page_with_iframe.html");
+  const GURL subframe_url = GetUrl("/title1.html");
+
+  // Navigate to an initial page.
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // The test navigation manager will throttle the loading of the
+  // mainframe and subframe in the prerendered page. This allows
+  // us to check the PrerenderHostId assigned to the navigation
+  // requests.
+  TestNavigationManager main_navigation_manager(web_contents(),
+                                                prerendering_url);
+  TestNavigationManager subframe_navigation_manager(web_contents(),
+                                                    subframe_url);
+  AddPrerenderAsync(prerendering_url);
+  EXPECT_TRUE(main_navigation_manager.WaitForResponse());
+  auto* main_request =
+      NavigationRequest::From(main_navigation_manager.GetNavigationHandle());
+  PrerenderHostId prerender_host_id = main_request->GetPrerenderHostId();
+  EXPECT_TRUE(prerender_host_id);
+  main_navigation_manager.ResumeNavigation();
+
+  EXPECT_TRUE(
+      subframe_navigation_manager.WaitForFirstYieldAfterDidStartNavigation());
+  auto* subframe_request = NavigationRequest::From(
+      subframe_navigation_manager.GetNavigationHandle());
+  EXPECT_EQ(subframe_request->GetPrerenderHostId(), prerender_host_id);
+  EXPECT_TRUE(main_navigation_manager.WaitForNavigationFinished());
+
+  // Activate the prerendered page.
+  test::PrerenderHostObserver prerender_observer(*web_contents_impl(),
+                                                 prerendering_url);
+  prerender_helper()->NavigatePrimaryPageAsync(prerendering_url);
+  EXPECT_TRUE(subframe_navigation_manager.WaitForNavigationFinished());
+  prerender_observer.WaitForActivation();
 }
 
 }  // namespace content

@@ -580,7 +580,7 @@ DirectHandle<PropertyDescriptorObject> Factory::NewPropertyDescriptorObject() {
       PROPERTY_DESCRIPTOR_OBJECT_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
   object->set_flags(0);
-  Tagged<Hole> the_hole = read_only_roots().the_hole_value();
+  Tagged<TheHole> the_hole = read_only_roots().the_hole_value();
   object->set_value(the_hole, SKIP_WRITE_BARRIER);
   object->set_get(the_hole, SKIP_WRITE_BARRIER);
   object->set_set(the_hole, SKIP_WRITE_BARRIER);
@@ -3477,7 +3477,8 @@ DirectHandle<SourceTextModule> Factory::NewSourceTextModule(
   DirectHandle<SourceTextModuleInfo> module_info(
       sfi->scope_info()->ModuleDescriptorInfo(), isolate());
   DirectHandle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate(), module_info->RegularExportCount());
+      ObjectHashTable::New(isolate(), module_info->RegularExportCount())
+          .ToHandleChecked();
   DirectHandle<FixedArray> regular_exports =
       NewFixedArray(module_info->RegularExportCount());
   DirectHandle<FixedArray> regular_imports =
@@ -3520,7 +3521,8 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
   ReadOnlyRoots roots(isolate());
 
   DirectHandle<ObjectHashTable> exports =
-      ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()));
+      ObjectHashTable::New(isolate(), static_cast<int>(export_names->length()))
+          .ToHandleChecked();
   DirectHandle<Foreign> evaluation_steps_foreign =
       NewForeign<kSyntheticModuleTag>(
           reinterpret_cast<Address>(evaluation_steps));

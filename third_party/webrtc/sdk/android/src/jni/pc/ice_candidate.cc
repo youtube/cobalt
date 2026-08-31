@@ -12,6 +12,7 @@
 
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "api/jsep.h"
 #include "pc/webrtc_sdp.h"
 #include "sdk/android/generated_peerconnection_jni/IceCandidate_jni.h"
@@ -25,7 +26,7 @@ namespace jni {
 namespace {
 
 ScopedJavaLocalRef<jobject> CreateJavaIceCandidate(JNIEnv* env,
-                                                   const std::string& sdp_mid,
+                                                   absl::string_view sdp_mid,
                                                    int sdp_mline_index,
                                                    const std::string& sdp,
                                                    const std::string server_url,
@@ -49,13 +50,14 @@ std::unique_ptr<IceCandidate> JavaToNativeCandidate(
   return IceCandidate::Create(sdp_mid, sdp_mline_index, sdp, nullptr);
 }
 
-ScopedJavaLocalRef<jobject> NativeToJavaCandidate(JNIEnv* env,
-                                                  const Candidate& candidate) {
+ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
+    JNIEnv* env,
+    absl::string_view mid,
+    const Candidate& candidate) {
   std::string sdp = SdpSerializeCandidate(candidate);
   RTC_CHECK(!sdp.empty()) << "got an empty ICE candidate";
   // sdp_mline_index is not used, pass an invalid value -1.
-  return CreateJavaIceCandidate(env, candidate.transport_name(),
-                                -1 /* sdp_mline_index */, sdp,
+  return CreateJavaIceCandidate(env, mid, -1 /* sdp_mline_index */, sdp,
                                 "" /* server_url */, candidate.network_type());
 }
 
@@ -67,12 +69,18 @@ ScopedJavaLocalRef<jobject> NativeToJavaIceCandidate(
       candidate.ToString(), candidate.candidate().url(), 0);
 }
 
+ScopedJavaLocalRef<jobject> NativeToJavaIceCandidatePtr(
+    JNIEnv* env,
+    const IceCandidate* candidate) {
+  return NativeToJavaIceCandidate(env, *candidate);
+}
+
 ScopedJavaLocalRef<jobjectArray> NativeToJavaCandidateArray(
     JNIEnv* jni,
-    const std::vector<Candidate>& candidates) {
-  return NativeToJavaObjectArray(jni, candidates,
-                                 org_webrtc_IceCandidate_clazz(jni),
-                                 &NativeToJavaCandidate);
+    const IceCandidate* candidate) {
+  return NativeToJavaObjectArray<const IceCandidate*>(
+      jni, {candidate}, org_webrtc_IceCandidate_clazz(jni),
+      &NativeToJavaIceCandidatePtr);
 }
 
 PeerConnectionInterface::IceTransportsType JavaToNativeIceTransportsType(

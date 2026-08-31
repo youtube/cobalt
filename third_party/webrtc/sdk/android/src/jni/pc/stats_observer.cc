@@ -10,12 +10,17 @@
 
 #include "sdk/android/src/jni/pc/stats_observer.h"
 
+#include <jni.h>
+
 #include <vector>
 
+#include "api/legacy_stats_types.h"
+#include "api/scoped_refptr.h"
 #include "sdk/android/generated_peerconnection_jni/StatsObserver_jni.h"
 #include "sdk/android/generated_peerconnection_jni/StatsReport_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "sdk/android/src/jni/jvm.h"
 
 namespace webrtc {
 namespace jni {

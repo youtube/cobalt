@@ -853,6 +853,7 @@ crypto_test_data = [
     "crypto/fipsmodule/ecdsa/ecdsa_sign_tests.txt",
     "crypto/fipsmodule/ecdsa/ecdsa_verify_tests.txt",
     "crypto/fipsmodule/keccak/keccak_tests.txt",
+    "crypto/fipsmodule/rand/ctrdrbg_df_vectors.txt",
     "crypto/fipsmodule/rand/ctrdrbg_vectors.txt",
     "crypto/hmac/hmac_tests.txt",
     "crypto/hpke/hpke_test_vectors.txt",

@@ -94,6 +94,7 @@
 #include "third_party/blink/public/mojom/origin_trials/origin_trials_settings.mojom-forward.h"
 #include "third_party/blink/public/mojom/payments/secure_payment_confirmation_service.mojom-forward.h"
 #include "third_party/blink/public/mojom/worker/shared_worker_info.mojom.h"
+#include "ui/base/clipboard/clipboard_metadata.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
 
@@ -126,6 +127,7 @@ class CommandLine;
 class FilePath;
 class Location;
 class SequencedTaskRunner;
+class ScopedClosureRunner;
 }  // namespace base
 
 namespace blink {
@@ -413,10 +415,17 @@ class CONTENT_EXPORT ContentBrowserClient {
   // Notifies that a BrowserChildProcessHost has been created.
   virtual void BrowserChildProcessHostCreated(BrowserChildProcessHost* host) {}
 
-  // Get the effective URL for the given actual URL, to allow an embedder to
+  // Gets the effective URL for the given actual URL, to allow an embedder to
   // group different url schemes in the same SiteInstance.
   virtual GURL GetEffectiveURL(BrowserContext* browser_context,
                                const GURL& url);
+
+  // Invoked during renderer process lock state transitions (e.g., invalid ->
+  // allows_any_site and allows_any_site -> locked_to_site) and when renderers
+  // are respawned after crashing. Note that this method is gated to be called
+  // only once per renderer to avoid reapplying static renderer settings.
+  virtual void OnRendererProcessLockedStateUpdated(RenderProcessHost* host,
+                                                   const GURL& site_url);
 
   // Returns true if effective URLs should be compared when choosing a
   // SiteInstance for a navigation to |destination_url|.
@@ -2513,6 +2522,11 @@ class CONTENT_EXPORT ContentBrowserClient {
   CreateWindowForVideoPictureInPicture(
       VideoPictureInPictureWindowController* controller);
 
+  // Creates a scoper that will tuck picture-in-picture windows for the lifetime
+  // of the scoper.
+  virtual base::ScopedClosureRunner MaybeGetScopedPictureInPictureTucker(
+      WebContents* web_contents);
+
   // Returns information related to auto picture in picture. The auto picture in
   // picture reason is recorded in metrics.
   virtual media::PictureInPictureEventsInfo::AutoPipInfo GetAutoPipInfo(
@@ -2739,7 +2753,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual void IsClipboardPasteAllowedByPolicy(
       const ClipboardEndpoint& source,
       const ClipboardEndpoint& destination,
-      const ClipboardMetadata& metadata,
+      const ui::ClipboardMetadata& metadata,
       ClipboardPasteData clipboard_paste_data,
       IsClipboardPasteAllowedCallback callback);
 
@@ -2748,7 +2762,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   // asynchronously.
   virtual void IsClipboardCopyAllowedByPolicy(
       const ClipboardEndpoint& source,
-      const ClipboardMetadata& metadata,
+      const ui::ClipboardMetadata& metadata,
       const ClipboardPasteData& data,
       IsClipboardCopyAllowedCallback callback);
 
@@ -3314,6 +3328,12 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual std::optional<std::vector<std::u16string>>
   GetClipboardTypesIfPolicyApplied(
       const ui::ClipboardSequenceNumberToken& seqno);
+
+  // Returns true if CanvasNoise should be enabled for `origin`'s navigation.
+  // Enablement depends on corresponding feature flag values, and whether the
+  // origin has an exception from Canvas noising. Default returns false.
+  virtual bool ShouldEnableCanvasNoise(BrowserContext* browser_context,
+                                       const GURL& origin);
 };
 
 }  // namespace content

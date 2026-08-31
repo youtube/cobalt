@@ -10,13 +10,22 @@
 
 #include "sdk/android/src/jni/video_encoder_factory_wrapper.h"
 
+#include <jni.h>
+
+#include <memory>
+#include <optional>
+#include <vector>
+
+#include "api/environment/environment.h"
+#include "api/units/data_rate.h"
 #include "api/video/render_resolution.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_encoder.h"
-#include "rtc_base/logging.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "sdk/android/generated_video_jni/VideoEncoderFactory_jni.h"
-#include "sdk/android/native_api/jni/class_loader.h"
 #include "sdk/android/native_api/jni/java_types.h"
 #include "sdk/android/native_api/jni/jvm.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "sdk/android/src/jni/video_codec_info.h"
 #include "sdk/android/src/jni/video_encoder_wrapper.h"
 

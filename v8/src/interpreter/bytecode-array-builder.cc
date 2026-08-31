@@ -761,6 +761,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::SetPrototypeProperties(
+    size_t index_obj) {
+  OutputSetPrototypeProperties(index_obj);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
                                                        int feedback_slot,
                                                        TypeofMode typeof_mode) {
@@ -943,8 +949,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::GetIterator(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForOfNext(Register object,
                                                       Register next,
-                                                      Register value) {
-  OutputForOfNext(object, next, value);
+                                                      RegisterList value_done) {
+  DCHECK_EQ(2, value_done.register_count());
+  OutputForOfNext(object, next, value_done);
   return *this;
 }
 

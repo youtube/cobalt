@@ -55,6 +55,7 @@
 #include "pdf/pdf_features.h"
 #include "pdf/pdf_transform.h"
 #include "pdf/pdfium/pdfium_api_string_buffer_adapter.h"
+#include "pdf/pdfium/pdfium_api_wrappers.h"
 #include "pdf/pdfium/pdfium_document.h"
 #include "pdf/pdfium/pdfium_document_metadata.h"
 #include "pdf/pdfium/pdfium_mem_buffer_file_write.h"
@@ -944,10 +945,15 @@ uint32_t PDFiumEngine::GetCharCount(uint32_t page_index) const {
   return base::checked_cast<uint32_t>(pages_[page_index]->GetCharCount());
 }
 
-std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForChar(
+std::vector<gfx::Rect> PDFiumEngine::GetScreenRectsForCaret(
     const PageCharacterIndex& index) const {
   CHECK(PageIndexInBounds(index.page_index));
   PDFiumPage* page = pages_[index.page_index].get();
+
+  if (page->GetCharCount() == 0 && index.char_index == 0) {
+    return GetNoTextPageScreenRectsForCaret(page);
+  }
+
   CHECK(page->IsCharIndexInBounds(index.char_index));
 
   PDFiumRange range(page, index.char_index, 1);
@@ -1057,9 +1063,14 @@ bool PDFiumEngine::FindAndHighlightTextFragments(
   HighlightChangeInvalidator invalidator(this);
   PDFiumTextFragmentFinder text_fragment_finder(this);
   client_->OnNewTextFragmentsSearchStarted();
+  // Caches results.
   text_fragment_highlights_ =
       text_fragment_finder.FindTextFragments(text_fragments);
   return !text_fragment_highlights_.empty();
+}
+
+void PDFiumEngine::ScrollTextFragmentIntoView() {
+  ScrollToFirstTextFragment(/*force_smooth_scroll=*/true);
 }
 
 void PDFiumEngine::ScrollToFirstTextFragment(bool force_smooth_scroll) {
@@ -1090,7 +1101,7 @@ void PDFiumEngine::SetCaretBrowsingEnabled(bool enabled) {
   CHECK(features::kPdfInk2TextHighlighting.Get());
   CHECK(!client_->IsPrintPreview());
 
-  if (pages_.empty() || pages_[0]->GetCharCount() == 0) {
+  if (pages_.empty()) {
     return;
   }
 
@@ -1445,7 +1456,7 @@ void PDFiumEngine::OnTextOrLinkAreaClickInternal(const PointData& point_data,
   if (click_count == 1) {
     OnSingleClick(point_data.page_index, point_data.char_index);
     if (caret_) {
-      // TODO(crbug.com/427133561): Handle corner case of clicking to the right
+      // TODO(crbug.com/437807126): Handle corner case of clicking to the right
       // of the last char on a page.
       caret_->SetChar(
           PageCharacterIndex(point_data.page_index, point_data.char_index));
@@ -3573,6 +3584,30 @@ gfx::Rect PDFiumEngine::GetScreenRect(const gfx::Rect& rect) const {
   return draw_utils::GetScreenRect(rect, position_, current_zoom_);
 }
 
+std::vector<gfx::Rect> PDFiumEngine::GetNoTextPageScreenRectsForCaret(
+    PDFiumPage* page) const {
+  // TODO(crbug.com/437807125): Determine default caret offset and height.
+  static constexpr float kCaretOffset = 10.0f;
+  static constexpr float kCaretHeight = 12.0f;
+
+  const PdfRect page_bounds = GetPageBoundingBox(page->GetPage()).value();
+  const float caret_left = page_bounds.left() + kCaretOffset;
+  const float caret_top = page_bounds.top() - kCaretOffset;
+  const PdfRect caret_rect(/*left=*/caret_left,
+                           /*bottom=*/caret_top - kCaretHeight,
+                           /*right=*/caret_left + PdfCaret::kCaretWidth,
+                           /*top=*/caret_top);
+
+  // The PDF page is too small to display the default caret size.
+  if (caret_rect.right() >= page_bounds.right() ||
+      caret_rect.top() >= page_bounds.top()) {
+    return {};
+  }
+
+  return {page->PageToScreen(GetVisibleRect().origin(), current_zoom_,
+                             caret_rect, GetCurrentOrientation())};
+}
+
 void PDFiumEngine::Highlight(const RegionData& region,
                              const gfx::Rect& rect,
                              SkColor color,
@@ -4103,13 +4138,14 @@ void PDFiumEngine::ScrollAnnotationIntoView(FPDF_ANNOTATION annot,
   if (!PageIndexInBounds(page_index))
     return;
 
-  FS_RECTF annot_rect;
-  if (!FPDFAnnot_GetRect(annot, &annot_rect))
+  const std::optional<PdfRect> maybe_annot_rect = GetAnnotRect(annot);
+  if (!maybe_annot_rect.has_value()) {
     return;
+  }
 
-  gfx::Rect rect = pages_[page_index]->PageToScreen(
-      gfx::Point(), /*zoom=*/1.0, annot_rect.left, annot_rect.top,
-      annot_rect.right, annot_rect.bottom, GetCurrentOrientation());
+  gfx::Rect rect = pages_[page_index]->PageToScreen(gfx::Point(), /*zoom=*/1.0,
+                                                    maybe_annot_rect.value(),
+                                                    GetCurrentOrientation());
 
   gfx::Rect visible_rect = GetVisibleRect();
   if (visible_rect.Contains(rect))
@@ -4175,14 +4211,15 @@ void PDFiumEngine::OnFocusedAnnotationUpdated(FPDF_ANNOTATION annot,
       is_form_text_area && IsAnnotationAnEditableFormTextArea(annot, form_type);
 
   if (editable_form_text_area_ && PageIndexInBounds(page_index)) {
-    FS_RECTF annot_rect;
-    if (!FPDFAnnot_GetRect(annot, &annot_rect))
+    const std::optional<PdfRect> maybe_annot_rect = GetAnnotRect(annot);
+    if (!maybe_annot_rect.has_value()) {
       return;
+    }
 
     // Position assuming top-left of the first page is at (0,0).
     gfx::Rect rect_screen = pages_[page_index]->PageToScreen(
-        gfx::Point(), current_zoom_, annot_rect.left, annot_rect.top,
-        annot_rect.right, annot_rect.bottom, GetCurrentOrientation());
+        gfx::Point(), current_zoom_, maybe_annot_rect.value(),
+        GetCurrentOrientation());
 
     // Position in viewport.
     caret_rect_.SetRect(rect_screen.x() - position_.x(),

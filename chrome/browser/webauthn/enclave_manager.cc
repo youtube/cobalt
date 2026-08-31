@@ -716,8 +716,7 @@ std::unique_ptr<EnclaveLocalState> ParseStateFile(
       contents.size() - crypto::kSHA256Length - sizeof(kHashPrefix));
   const std::array<uint8_t, crypto::kSHA256Length> calculated =
       crypto::SHA256Hash(payload);
-  if (UNSAFE_TODO(memcmp(calculated.data(), digest.data(),
-                         crypto::kSHA256Length)) != 0) {
+  if (calculated != digest) {
     FIDO_LOG(ERROR) << "Checksum mismatch. Discarding state.";
     return ret;
   }
@@ -1561,7 +1560,7 @@ class EnclaveManager::StateMachine {
       store_keys_args_for_joining_ = std::move(store_keys_args);
       if (!new_security_domain_secrets_.empty()) {
         state_ = State::kWaitingForEnclaveTokenForWrapping;
-        GetAccessTokenInternal(GaiaConstants::kPasskeysEnclaveOAuth2Scope);
+        GetAccessTokenInternal();
       } else if (!user_->joined() && !user_->member_public_key().empty()) {
         JoinSecurityDomain();
       }
@@ -1609,7 +1608,7 @@ class EnclaveManager::StateMachine {
       }
 
       state_ = State::kWaitingForEnclaveTokenForUnregister;
-      GetAccessTokenInternal(GaiaConstants::kPasskeysEnclaveOAuth2Scope);
+      GetAccessTokenInternal();
       return;
     }
 
@@ -1811,7 +1810,7 @@ class EnclaveManager::StateMachine {
     }
 
     state_ = State::kWaitingForEnclaveTokenForRegistration;
-    GetAccessTokenInternal(GaiaConstants::kPasskeysEnclaveOAuth2Scope);
+    GetAccessTokenInternal();
   }
 
   void DoWaitingForEnclaveTokenForRegistration(Event event) {
@@ -2126,7 +2125,7 @@ class EnclaveManager::StateMachine {
     }
 
     state_ = State::kWaitingForEnclaveTokenForPINWrapping;
-    GetAccessTokenInternal(GaiaConstants::kPasskeysEnclaveOAuth2Scope);
+    GetAccessTokenInternal();
   }
 
   void DoWaitingForEnclaveTokenForPINWrapping(Event event) {
@@ -2637,11 +2636,11 @@ class EnclaveManager::StateMachine {
                        weak_ptr_factory_.GetWeakPtr()));
   }
 
-  void GetAccessTokenInternal(const char* scope) {
+  void GetAccessTokenInternal() {
     access_token_fetcher_ =
         std::make_unique<signin::PrimaryAccountAccessTokenFetcher>(
-            "passkeys_enclave", manager_->identity_manager_,
-            signin::ScopeSet{scope},
+            signin::OAuthConsumerId::kEnclaveManager,
+            manager_->identity_manager_,
             base::BindOnce(
                 [](base::WeakPtr<StateMachine> machine,
                    GoogleServiceAuthError error,

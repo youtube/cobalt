@@ -36,6 +36,7 @@ rtc_library("primitives") {
 
   deps = [
     "../../api:scoped_refptr",
+    "../../media:video_common",
     "../../rtc_base:checks",
     "../../rtc_base:refcount",
     "../../rtc_base:stringutils",
@@ -592,6 +593,7 @@ rtc_library("desktop_capture") {
     ]
     libs += [ "dwmapi.lib" ]
     deps += [
+      "../../api/units:time_delta",
       "../../rtc_base:rtc_event",
       "../../rtc_base:threading",
       "../../rtc_base/win:hstring",

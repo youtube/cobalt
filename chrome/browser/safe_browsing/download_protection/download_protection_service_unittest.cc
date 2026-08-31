@@ -1757,6 +1757,10 @@ TEST_F(DownloadProtectionServiceTest, CheckClientDownloadZip) {
     ASSERT_TRUE(base::WriteFile(
         zip_source_dir.GetPath().Append(FILE_PATH_LITERAL("file.txt")),
         file_contents));
+    // Create a unique temp file to avoid conflicts. These will get cleaned up
+    // with `temp_dir_` eventually.
+    ASSERT_TRUE(
+        base::CreateTemporaryFileInDir(temp_dir_.GetPath(), &tmp_path_));
     ASSERT_TRUE(zip::Zip(zip_source_dir.GetPath(), tmp_path_, false));
     RunLoop run_loop;
     download_service_->CheckClientDownload(
@@ -1774,6 +1778,8 @@ TEST_F(DownloadProtectionServiceTest, CheckClientDownloadZip) {
     ASSERT_TRUE(base::WriteFile(
         zip_source_dir.GetPath().Append(FILE_PATH_LITERAL("file.exe")),
         file_contents));
+    ASSERT_TRUE(
+        base::CreateTemporaryFileInDir(temp_dir_.GetPath(), &tmp_path_));
     ASSERT_TRUE(zip::Zip(zip_source_dir.GetPath(), tmp_path_, false));
     EXPECT_CALL(*sb_service_->mock_database_manager(),
                 MatchDownloadAllowlistUrl(_, _))
@@ -1825,6 +1831,8 @@ TEST_F(DownloadProtectionServiceTest, CheckClientDownloadZip) {
     ASSERT_TRUE(base::WriteFile(
         zip_source_dir.GetPath().Append(FILE_PATH_LITERAL("file.rar")),
         file_contents));
+    ASSERT_TRUE(
+        base::CreateTemporaryFileInDir(temp_dir_.GetPath(), &tmp_path_));
     ASSERT_TRUE(zip::Zip(zip_source_dir.GetPath(), tmp_path_, false));
     RunLoop run_loop;
     download_service_->CheckClientDownload(
@@ -1844,6 +1852,8 @@ TEST_F(DownloadProtectionServiceTest, CheckClientDownloadZip) {
     // Repeat the test with just the archive inside the zip file.
     ASSERT_TRUE(
         base::DeleteFile(zip_source_dir.GetPath().AppendASCII("file.exe")));
+    ASSERT_TRUE(
+        base::CreateTemporaryFileInDir(temp_dir_.GetPath(), &tmp_path_));
     ASSERT_TRUE(zip::Zip(zip_source_dir.GetPath(), tmp_path_, false));
     RunLoop run_loop;
     download_service_->CheckClientDownload(
@@ -2910,9 +2920,11 @@ TEST_F(DownloadProtectionServiceTest,
   enterprise_connectors::test::EventReportValidator validator(client_.get());
   base::RunLoop run_loop;
   validator.SetDoneClosure(run_loop.QuitClosure());
-  validator.ExpectDangerousDownloadEvent(
+  validator.ExpectDangerousDeepScanningResult(
       "",                          // URL, not set in this test
       "",                          // Tab URL, not set in this test
+      "",                          // Source, not set in this test
+      "",                          // Destination, not set in this test
       final_path_.AsUTF8Unsafe(),  // Full path, including the directory
       "68617368",                  // SHA256 of the fake download
       "DANGEROUS_FILE_TYPE",       // expected_threat_type
@@ -2923,7 +2935,8 @@ TEST_F(DownloadProtectionServiceTest,
       enterprise_connectors::EventResultToString(
           enterprise_connectors::EventResult::BYPASSED),  // expected_result
       "",                                                 // expected_username
-      profile()->GetPath().AsUTF8Unsafe()  // expected_profile_identifier
+      profile()->GetPath().AsUTF8Unsafe(),  // expected_profile_identifier
+      std::nullopt                          // scan_id
   );
 
   content::DownloadItemUtils::AttachInfoForTesting(&item, profile(), nullptr);
@@ -3236,6 +3249,43 @@ TEST_F(DownloadProtectionServiceTest, VerifyDangerousDownloadOpenedAPICall) {
       nullptr);
   download_service_->MaybeSendDangerousDownloadOpenedReport(&item, false);
   EXPECT_EQ(1, test_event_router_->GetEventCount(
+                   OnDangerousDownloadOpened::kEventName));
+}
+
+TEST_F(DownloadProtectionServiceTest,
+       VerifyNoDangerousDownloadOpenedReportSentForSensitiveDataWarning) {
+  NiceMockDownloadItem item;
+  PrepareBasicDownloadItem(&item,
+                           {"http://example.com/a.exe"},  // empty url_chain
+                           "http://example.com/",         // referrer
+                           FILE_PATH_LITERAL("a.tmp"),    // tmp_path
+                           FILE_PATH_LITERAL("a.exe"));   // final_path
+  std::string hash = "hash";
+  EXPECT_CALL(item, GetHash()).WillRepeatedly(ReturnRef(hash));
+  base::FilePath target_path;
+  target_path = target_path.AppendASCII("filepath");
+
+  enterprise_connectors::ContentAnalysisResponse response;
+  response.add_results()->add_triggered_rules()->set_action(
+      enterprise_connectors::
+          ContentAnalysisResponse_Result_TriggeredRule_Action_WARN);
+  enterprise_connectors::FileMetadata file_metadata(
+      final_path_.AsUTF8Unsafe(), "68617368", "fake/mimetype", 1234, response);
+  auto scan_result = std::make_unique<enterprise_connectors::ScanResult>(
+      std::move(file_metadata));
+  item.SetUserData(enterprise_connectors::ScanResult::kKey,
+                   std::move(scan_result));
+  EXPECT_CALL(item, GetTargetFilePath()).WillRepeatedly(ReturnRef(target_path));
+  EXPECT_CALL(item, IsDangerous()).WillRepeatedly(Return(true));
+  EXPECT_CALL(item, GetDangerType())
+      .WillRepeatedly(
+          Return(download::DOWNLOAD_DANGER_TYPE_SENSITIVE_CONTENT_WARNING));
+
+  TestExtensionEventObserver event_observer(test_event_router_);
+  content::DownloadItemUtils::AttachInfoForTesting(&item, profile(), nullptr);
+  download_service_->MaybeSendDangerousDownloadOpenedReport(&item, false);
+
+  ASSERT_EQ(0, test_event_router_->GetEventCount(
                    OnDangerousDownloadOpened::kEventName));
 }
 #endif

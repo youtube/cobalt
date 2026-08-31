@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include "api/candidate.h"
 #include "api/data_channel_interface.h"
 #include "api/jsep.h"
 #include "api/legacy_stats_types.h"
@@ -143,9 +142,8 @@ class MockPeerConnectionObserver : public PeerConnectionObserver {
     callback_triggered_ = true;
   }
 
-  void OnIceCandidatesRemoved(
-      const std::vector<Candidate>& candidates) override {
-    num_candidates_removed_++;
+  void OnIceCandidateRemoved(const IceCandidate* candidate) override {
+    ++num_candidates_removed_;
     callback_triggered_ = true;
   }
 

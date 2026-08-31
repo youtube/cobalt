@@ -8,7 +8,6 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#include <algorithm>
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -1648,9 +1647,9 @@ static void RemoveRtpHeaderExtensionByUri(
     absl::string_view uri) {
   std::vector<RtpExtension> header_extensions =
       media_description->rtp_header_extensions();
-  header_extensions.erase(std::remove_if(
-      header_extensions.begin(), header_extensions.end(),
-      [uri](const RtpExtension& extension) { return extension.uri == uri; }));
+  std::erase_if(header_extensions, [uri](const RtpExtension& extension) {
+    return extension.uri == uri;
+  });
   media_description->set_rtp_header_extensions(header_extensions);
 }
 

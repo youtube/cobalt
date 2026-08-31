@@ -12,6 +12,7 @@ group("unit_tests") {
   deps = [
     "//chromeos/ash/components/attestation:unit_tests",
     "//chromeos/ash/components/audio:unit_tests",
+    "//chromeos/ash/components/auto_sign_out:unit_tests",
     "//chromeos/ash/components/boca:unit_tests",
     "//chromeos/ash/components/boca/babelorca:unit_tests",
     "//chromeos/ash/components/boca/on_task:unit_tests",
@@ -88,6 +89,7 @@ static_library("test_support") {
     "test/ash_test_suite.h",
   ]
   deps = [
+    "//ash/constants",
     "//base",
     "//base:i18n",
     "//base/test:test_support",

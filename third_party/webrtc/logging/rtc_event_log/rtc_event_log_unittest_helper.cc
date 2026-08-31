@@ -126,6 +126,10 @@ constexpr ExtensionPair kExtensions[kMaxNumExtensions] = {
     {RTPExtensionType::kRtpExtensionDependencyDescriptor,
      RtpExtension::kDependencyDescriptorUri}};
 
+MATCHER_P2(Near, value, margin, "") {
+  return value - margin < arg && arg < value + margin;
+}
+
 template <typename T>
 void ShuffleInPlace(Random* prng, ArrayView<T> array) {
   RTC_DCHECK_LE(array.size(), std::numeric_limits<uint32_t>::max());
@@ -1402,16 +1406,22 @@ void EventVerifier::VerifyLoggedStartEvent(
     int64_t start_time_us,
     int64_t utc_start_time_us,
     const LoggedStartEvent& logged_event) const {
-  EXPECT_EQ(start_time_us / 1000, logged_event.log_time_ms());
+  // Use approximate comparison to support various roundings to milliseconds.
+  EXPECT_THAT(logged_event.log_time(),
+              Near(Timestamp::Micros(start_time_us), TimeDelta::Millis(1)));
   if (encoding_type_ == RtcEventLog::EncodingType::NewFormat) {
-    EXPECT_EQ(utc_start_time_us / 1000, logged_event.utc_start_time.ms());
+    EXPECT_THAT(
+        logged_event.utc_start_time,
+        Near(Timestamp::Micros(utc_start_time_us), TimeDelta::Millis(1)));
   }
 }
 
 void EventVerifier::VerifyLoggedStopEvent(
     int64_t stop_time_us,
     const LoggedStopEvent& logged_event) const {
-  EXPECT_EQ(stop_time_us / 1000, logged_event.log_time_ms());
+  // Use approximate comparison to support various roundings to milliseconds.
+  EXPECT_THAT(logged_event.log_time(),
+              Near(Timestamp::Micros(stop_time_us), TimeDelta::Millis(1)));
 }
 
 void VerifyLoggedStreamConfig(const rtclog::StreamConfig& original_config,

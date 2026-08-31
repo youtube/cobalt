@@ -2218,6 +2218,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../rtc_base/network:sent_packet",
       "../rtc_base/third_party/sigslot",
       "../system_wrappers:metrics",
+      "../test:create_test_environment",
       "../test:create_test_field_trials",
       "../test:run_loop",
       "../test:test_main",

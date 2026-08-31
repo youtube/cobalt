@@ -174,8 +174,7 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
             &field_trials);
       }
       ep.dtls = std::make_unique<DtlsTransportInternalImpl>(
-          ep.ice.get(), crypto_options,
-          /*event_log=*/nullptr, std::get<2>(GetParam()));
+          ep.env, ep.ice.get(), crypto_options, std::get<2>(GetParam()));
 
       // Enable(or disable) the dtls_in_stun parameter before
       // DTLS is negotiated.

@@ -10,11 +10,14 @@
 
 #include "sdk/android/src/jni/pc/media_constraints.h"
 
+#include <jni.h>
+
 #include <memory>
 
 #include "sdk/android/generated_peerconnection_jni/MediaConstraints_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
+#include "sdk/media_constraints.h"
 
 namespace webrtc {
 namespace jni {

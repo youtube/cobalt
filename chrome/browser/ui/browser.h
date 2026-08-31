@@ -305,7 +305,11 @@ class Browser : public TabStripModelObserver,
     bool in_tab_dragging = false;
 
     // Supply a custom BrowserWindow implementation, to be used instead of the
-    // default. Intended for testing.
+    // default. Intended for testing. The resulting Browser takes ownership
+    // of `window`.
+    // TODO(crbug.com/413168662): CreateParams should be updated to be move-only
+    // and this should become a unique_ptr (or removed completely once
+    // deprecated Browser unit tests are eliminated).
     raw_ptr<BrowserWindow, DanglingUntriaged> window = nullptr;
 
     // User-set title of this browser window, if there is one.
@@ -474,10 +478,10 @@ class Browser : public TabStripModelObserver,
     return should_trigger_session_restore_;
   }
   const web_app::AppBrowserController* app_controller() const {
-    return app_controller_.get();
+    return GetAppBrowserController();
   }
   web_app::AppBrowserController* app_controller() {
-    return app_controller_.get();
+    return GetAppBrowserController();
   }
   BrowserWindowFeatures* browser_window_features() const {
     return features_.get();
@@ -1279,6 +1283,11 @@ class Browser : public TabStripModelObserver,
   // Prevent Profile deletion until this browser window is closed.
   std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive_;
 
+  // The Browser's BrowserWindow, only set by tests.
+  // TODO(crbug.com/413168662): This can be consolidated with `window_` once
+  // Browser always owns BrowserWindow.
+  std::unique_ptr<BrowserWindow> window_for_testing_;
+
   // This Browser's window.
   raw_ptr<BrowserWindow, DanglingUntriaged> window_;
 
@@ -1356,11 +1365,6 @@ class Browser : public TabStripModelObserver,
   // Dialog box used for opening and saving files.
   scoped_refptr<ui::SelectFileDialog> select_file_dialog_;
 
-  // Helper which handles bookmark app specific browser configuration.
-  // This must be initialized before |command_controller_| to ensure the correct
-  // set of commands are enabled.
-  const std::unique_ptr<web_app::AppBrowserController> app_controller_;
-
   // True if the browser window has been shown at least once.
   bool window_has_shown_;
 
@@ -1430,6 +1434,9 @@ class Browser : public TabStripModelObserver,
 #endif
   // Tracks whether a modal UI is showing.
   bool showing_call_to_action_ = false;
+
+  // Tracks whether the browser object is fully initialized.
+  bool is_initialized_ = false;
 
   ui::UnownedUserDataHost unowned_user_data_host_;
 

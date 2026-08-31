@@ -60,13 +60,6 @@ ExtensionFunction::ResponseAction WindowsCreateFunction::Run() {
   return RespondNow(Error(kWindowsNotImplemented));
 }
 
-ExtensionFunction::ResponseAction WindowsUpdateFunction::Run() {
-  std::optional<windows::Update::Params> params =
-      windows::Update::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-  return RespondNow(Error(kWindowsNotImplemented));
-}
-
 // Tabs ------------------------------------------------------------------------
 
 ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
@@ -123,13 +116,6 @@ ExtensionFunction::ResponseAction TabsCreateFunction::Run() {
   base::Value::Dict result = tab_object.ToValue();
   return RespondNow(has_callback() ? WithArguments(std::move(result))
                                    : NoArguments());
-}
-
-ExtensionFunction::ResponseAction TabsDuplicateFunction::Run() {
-  std::optional<tabs::Duplicate::Params> params =
-      tabs::Duplicate::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-  return RespondNow(Error(kTabsNotImplemented));
 }
 
 ExtensionFunction::ResponseAction TabsHighlightFunction::Run() {

@@ -8,13 +8,16 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
+#include <jni.h>
+
 #include <map>
 #include <memory>
+#include <string>
 
 #include "rtc_base/string_utils.h"
 #include "sdk/android/generated_metrics_jni/Metrics_jni.h"
 #include "sdk/android/native_api/jni/java_types.h"
-#include "sdk/android/src/jni/jni_helpers.h"
+#include "sdk/android/native_api/jni/scoped_java_ref.h"
 #include "system_wrappers/include/metrics.h"
 
 // Enables collection of native histograms and creating them.

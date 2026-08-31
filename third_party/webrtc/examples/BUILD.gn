@@ -89,7 +89,7 @@ if (is_android) {
     testonly = true
     apk_name = "AppRTCMobile"
     android_manifest = "androidapp/AndroidManifest.xml"
-    min_sdk_version = 21
+    min_sdk_version = 23
     target_sdk_version = 31
 
     deps = [
@@ -200,7 +200,7 @@ if (is_android) {
   rtc_instrumentation_test_apk("AppRTCMobile_test_apk") {
     apk_name = "AppRTCMobileTest"
     android_manifest = "androidtests/AndroidManifest.xml"
-    min_sdk_version = 21
+    min_sdk_version = 23
     target_sdk_version = 31
 
     sources = [
@@ -341,7 +341,6 @@ if (is_ios || (is_mac && target_cpu != "x86")) {
         "../sdk:helpers_objc",
         "../sdk:mediaconstraints_objc",
         "../sdk:metal_objc",
-        "../sdk:peerconnectionfactory_base_objc",
         "../sdk:peerconnectionfactory_base_objc",
         "../sdk:videocapture_objc",
         "../sdk:videocodec_objc",
@@ -541,7 +540,6 @@ if (is_ios || (is_mac && target_cpu != "x86")) {
         "../sdk:helpers_objc",
         "../sdk:mediaconstraints_objc",
         "../sdk:metal_objc",
-        "../sdk:peerconnectionfactory_base_objc",
         "../sdk:peerconnectionfactory_base_objc",
         "../sdk:videocapture_objc",
         "../sdk:videocodec_objc",

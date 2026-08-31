@@ -67,13 +67,13 @@ void MemoryUsageMonitor::StartMonitoringIfNeeded() {
   if (timer_.IsRunning())
     return;
 #if BUILDFLAG(IS_COBALT)
-  timer_.Start(FROM_HERE, GetPingInterval(),
-               WTF::BindRepeating(&MemoryUsageMonitor::TimerFired,
-                                  WTF::Unretained(this)));
+  timer_.Start(
+      FROM_HERE, GetPingInterval(),
+      BindRepeating(&MemoryUsageMonitor::TimerFired, Unretained(this)));
 #else
-  timer_.Start(FROM_HERE, kPingInterval,
-               WTF::BindRepeating(&MemoryUsageMonitor::TimerFired,
-                                  WTF::Unretained(this)));
+  timer_.Start(
+      FROM_HERE, kPingInterval,
+      BindRepeating(&MemoryUsageMonitor::TimerFired, Unretained(this)));
 #endif
 }
 
