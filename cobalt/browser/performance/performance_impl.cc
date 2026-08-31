@@ -94,7 +94,7 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
         }
 
         info->free_rss_memory =
-            base::SysInfo::AmountOfAvailablePhysicalMemory();
+            base::SysInfo::AmountOfAvailablePhysicalMemory().InBytes();
 
 #if BUILDFLAG(IS_POSIX) && defined(_SC_PHYS_PAGES)
         long pages = sysconf(_SC_PHYS_PAGES);
@@ -114,7 +114,7 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)
         auto smaps_rollup = base::debug::ReadAndParseSmapsRollup();
         if (smaps_rollup.has_value()) {
-          info->used_pss_memory = smaps_rollup->pss;
+          info->used_pss_memory = smaps_rollup->pss.InBytes();
         }
 #endif
 
