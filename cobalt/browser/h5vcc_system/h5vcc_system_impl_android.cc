@@ -16,7 +16,6 @@
 #include "base/functional/callback.h"
 #include "base/notimplemented.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
-#include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;

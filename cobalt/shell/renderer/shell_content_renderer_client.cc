@@ -1,18 +1,16 @@
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
-// Licensed under the Apache License, Version 2.0 (the
-// "License"); you may not use this file except in
-// compliance with the License. You may obtain a copy of the
-// License at
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
-// Unless required by applicable law or agreed to in
-// writing, software distributed under the License is
-// distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See
-// the License for the specific language governing
-// permissions and limitations under the License.
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 
@@ -28,7 +26,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
 #include "build/buildflag.h"
-#include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
 #include "cobalt/shell/common/shell_switches.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
@@ -89,9 +86,6 @@ class ShellContentRendererUrlLoaderThrottleProvider
       base::optional_ref<const blink::LocalFrameToken> local_frame_token,
       const network::ResourceRequest& request) override {
     std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
-    if (auto throttle = cobalt::CobaltResourceThrottle::MaybeCreate(request)) {
-      throttles.push_back(std::move(throttle));
-    }
     if (local_frame_token.has_value()) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
       auto throttle =
@@ -125,9 +119,8 @@ class ShellContentRendererUrlLoaderThrottleProvider
   void SetOnline(bool is_online) override {}
 
  private:
-  // Set only when `this` was created on the main thread, or
-  // cloned from a provider which was created on the main
-  // thread.
+  // Set only when `this` was created on the main thread, or cloned from a
+  // provider which was created on the main thread.
   scoped_refptr<base::SequencedTaskRunner> main_thread_task_runner_;
 };
 
@@ -158,8 +151,7 @@ void ShellContentRendererClient::PrepareErrorPage(
     std::string* error_html) {
   if (error_html && error_html->empty()) {
     *error_html =
-        "<head><title>Error</title></head><body>Could not "
-        "load the requested "
+        "<head><title>Error</title></head><body>Could not load the requested "
         "resource.<br/>Error code: " +
         base::NumberToString(error.reason()) +
         (error.reason() < 0 ? " (" + net::ErrorToString(error.reason()) + ")"
@@ -178,8 +170,7 @@ void ShellContentRendererClient::PrepareErrorPageForHttpStatusError(
     std::string* error_html) {
   if (error_html) {
     *error_html =
-        "<head><title>Error</title></head><body>Server "
-        "returned HTTP status " +
+        "<head><title>Error</title></head><body>Server returned HTTP status " +
         base::NumberToString(http_status) + "</body>";
   }
 }

@@ -16,7 +16,6 @@
 #include "base/functional/callback.h"
 #include "base/notreached.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
-#include "cobalt/browser/resource_scheduler/cobalt_adaptive_resource_scheduler.h"
 #include "cobalt/configuration/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
@@ -131,14 +130,7 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
   std::move(callback).Run(GetUserOnExitStrategyInternal());
 }
 
-void H5vccSystemImpl::HideSplashScreen() {
-  LOG(INFO) << "H5vccSystem HideSplashScreen: YouTube TV web app is ready. "
-               "Completing startup.";
-  auto* scheduler = cobalt::CobaltAdaptiveResourceScheduler::GetInstance();
-  if (scheduler) {
-    scheduler->OnStartupCompleted();
-  }
-}
+void H5vccSystemImpl::HideSplashScreen() {}
 
 void H5vccSystemImpl::PerformExitStrategy() {
   auto strategy = GetUserOnExitStrategyInternal();

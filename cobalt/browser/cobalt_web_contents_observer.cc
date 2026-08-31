@@ -199,29 +199,6 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   }
 }
 
-void CobaltWebContentsObserver::DidFinishLoad(
-    content::RenderFrameHost* render_frame_host,
-    const GURL& validated_url) {
-  LOG(INFO) << "CobaltWebContentsObserver::DidFinishLoad: url=" << validated_url
-            << ", is_primary_main_frame="
-            << render_frame_host->IsInPrimaryMainFrame();
-}
-
-void CobaltWebContentsObserver::DocumentOnLoadCompletedInPrimaryMainFrame() {
-  const GURL& url =
-      web_contents() ? web_contents()->GetLastCommittedURL() : GURL();
-  LOG(INFO) << "CobaltWebContentsObserver::"
-               "DocumentOnLoadCompletedInPrimaryMainFrame for "
-            << url;
-}
-
-void CobaltWebContentsObserver::DidFirstVisuallyNonEmptyPaint() {
-  const GURL& url =
-      web_contents() ? web_contents()->GetLastCommittedURL() : GURL();
-  LOG(INFO) << "CobaltWebContentsObserver::DidFirstVisuallyNonEmptyPaint for "
-            << url;
-}
-
 void CobaltWebContentsObserver::DidGetUserInteraction(
     const blink::WebInputEvent& event) {
   int key_code = 0;

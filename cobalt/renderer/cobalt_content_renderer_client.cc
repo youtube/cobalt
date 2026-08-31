@@ -1,5 +1,3 @@
-#include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
-#include "third_party/blink/public/common/loader/url_loader_throttle.h"
 // Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/renderer/cobalt_content_renderer_client.h"
+
 #include <memory>
 #include <string>
 #include <variant>
@@ -21,8 +21,8 @@
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "cobalt/browser/resource_scheduler/cobalt_resource_throttle.h"
 #include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
-#include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
@@ -40,6 +40,7 @@
 #include "media/starboard/starboard_media_external_memory_allocator.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/common/loader/url_loader_throttle.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
