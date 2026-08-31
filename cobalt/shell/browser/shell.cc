@@ -204,7 +204,7 @@ const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
 constexpr int kDefaultTestWindowWidthDip = 800;
 constexpr int kDefaultTestWindowHeightDip = 600;
 
-constexpr int kSplashTimeoutMs = 1500;
+constexpr int kSplashTimeoutMs = 20000;
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.

@@ -501,6 +501,10 @@ action("embed_loader_resources_as_header_files") {
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash.webm.
     "embedded_resources/loader_embedded_resources/splash.webm",
 
+    # Test splash video and audio in WebM container.
+    "embedded_resources/loader_embedded_resources/splash_test_audio.webm",
+    "embedded_resources/loader_embedded_resources/splash_test_video.webm",
+
     # For low spec TV, 853x480. Copied from
     # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/splash_480p.webm.
     "embedded_resources/loader_embedded_resources/splash_480.webm",

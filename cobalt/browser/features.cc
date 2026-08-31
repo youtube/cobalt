@@ -107,7 +107,7 @@ BASE_FEATURE(kDisableSplashScreen,
 
 BASE_FEATURE(kForceVideoSplashScreen,
              "ForceVideoSplashScreen",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnablePictureInPicture,
              "PictureInPicture",
