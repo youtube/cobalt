@@ -1073,7 +1073,7 @@ bool OSMetrics::FillDetailedMetrics(base::ProcessHandle handle,
   if (!use_mock && total_pss_kb > 0 && abs_diff > kPssValidationThresholdKb) {
     LOG(WARNING) << "Detailed metrics PSS validation failed. "
                  << "Detailed: " << total_pss_kb
-                 << " KiB, Rollup: " << rollup_pss / 1024 << " KiB";
+                 << " KiB, Rollup: " << rollup_pss_kb << " KiB";
     return false;
   }
 
