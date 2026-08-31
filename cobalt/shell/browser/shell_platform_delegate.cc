@@ -89,6 +89,19 @@ void ShellPlatformDelegate::RemovePreviouslyVisibleWebContents(
     content::WebContents* web_contents) {
   previously_visible_web_contents_.erase(web_contents);
   pending_conceal_web_contents_.erase(web_contents);
+  pending_reveal_web_contents_.erase(web_contents);
+  if (is_visible_ && IsWaitingForRevealAck() &&
+      pending_reveal_web_contents_.empty()) {
+    ClearWaitingForRevealAck();
+    if (deferred_focus_) {
+      for (auto* w : Shell::windows()) {
+        w->Focus();
+      }
+      deferred_focus_ = false;
+    }
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  }
 }
 
 void ShellPlatformDelegate::AddPreviouslyVisibleWebContentsForTesting(
@@ -162,11 +175,11 @@ void ShellPlatformDelegate::OnReveal() {
     return;
   }
   content::RestoreGpuProcessOnUI();
-  // Used to ensure we only register as observer once, even if there are
-  // multiple windows to wait for.
+  pending_reveal_web_contents_.clear();
   bool started_waiting = false;
   for (auto* shell : Shell::windows()) {
     if (previously_visible_web_contents_.count(shell->web_contents())) {
+      pending_reveal_web_contents_.insert(shell->web_contents());
       if (!started_waiting) {
         waiting_for_reveal_ack_ = true;
         cobalt::CobaltLifecycleManager::GetInstance()->AddObserver(
@@ -303,24 +316,27 @@ void ShellPlatformDelegate::OnProactiveMapWindow(
 
 void ShellPlatformDelegate::OnAllFramesVisible(
     content::WebContents* web_contents) {
-  // Called by CobaltLifecycleManager when all frames in the specified
-  // WebContents have completed layout and are visible. This breaks the wait
-  // initiated in OnReveal.
-  ClearWaitingForRevealAck();
-  is_visible_ = true;
-
-  // If an OS focus event arrived while we were waiting, apply it now that
-  // the page is ready.
-  if (deferred_focus_) {
-    for (auto* w : Shell::windows()) {
-      w->Focus();
-    }
-    deferred_focus_ = false;
+  if (web_contents) {
+    pending_reveal_web_contents_.erase(web_contents);
   }
 
-  // Stop observing as we only need one notification per reveal.
-  cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
-      static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  if (pending_reveal_web_contents_.empty()) {
+    ClearWaitingForRevealAck();
+    is_visible_ = true;
+
+    // If an OS focus event arrived while we were waiting, apply it now that
+    // all pages are ready.
+    if (deferred_focus_) {
+      for (auto* w : Shell::windows()) {
+        w->Focus();
+      }
+      deferred_focus_ = false;
+    }
+
+    // Stop observing once all expected windows have completed reveal.
+    cobalt::CobaltLifecycleManager::GetInstance()->RemoveObserver(
+        static_cast<cobalt::CobaltLifecycleManagerObserver*>(this));
+  }
 }
 
 void ShellPlatformDelegate::OnAllFramesConcealed(
