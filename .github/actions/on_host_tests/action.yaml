@@ -97,11 +97,12 @@ runs:
         failed_suites=""
 
         # Parse the JSON array into a bash array using jq.
-        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[]')
+        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
 
         for test_executable_path in "${test_executables[@]}"; do
           filename=$(basename "${test_executable_path}")
           test_executable="${filename%%.*}"
+          test_executable="${test_executable#*:}"
           test_executable_name="${test_executable#run_}"
 
           echo "Running tests for suite: ${test_executable_name}"
@@ -178,10 +179,11 @@ runs:
         failed_suites=""
 
         # Parse the JSON array into a bash array using jq.
-        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[]')
+        readarray -t test_executables < <(echo "${TEST_EXECUTABLES_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
 
         for test_executable_path in "${test_executables[@]}"; do
           test_executable=$(basename "${test_executable_path}")
+          test_executable="${test_executable#*:}"
 
           # JUnit tests are executed by their wrapper script "out/PLATFORM_CONFIG/bin/run_NAME".
           # We use the test executable's base name for naming its logs and results.

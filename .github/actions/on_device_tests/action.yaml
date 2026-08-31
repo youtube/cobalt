@@ -136,7 +136,7 @@ runs:
 
         # Check for missing result xml files.
         target_failed=0
-        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[]')
+        readarray -t test_targets < <(echo "${TEST_TARGETS_JSON:-[]}" | jq -r '.[] | if type == "object" then .target else . end')
         for test_target_with_path in "${test_targets[@]}"; do
           test_target=${test_target_with_path#*:}
           test_filter=$(python3 cobalt/devinfra/github/test_filter.py \

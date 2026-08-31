@@ -114,6 +114,16 @@ class TestGetGtestFilter(unittest.TestCase):
         get_gtest_filter(self.temp_dir, 'my_target', shard_index=''),
         'Suite.GlobalTest')
 
+  def test_colon_prefixed_target_name(self):
+    self._write_filter_file('my_target_filter.json',
+                            {'tests_to_run': ['Suite.TargetTest']})
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'base:my_target'), 'Suite.TargetTest')
+    self.assertEqual(
+        get_gtest_filter(self.temp_dir, 'starboard/nplb:my_target'),
+        'Suite.TargetTest')
+
+
 
 class TestCli(unittest.TestCase):
   """Tests for CLI entry point in main()."""

@@ -40,6 +40,9 @@ def get_gtest_filter(
     A string containing the gtest filter (e.g. '*', '-*', 'TestA:TestB',
     '-TestA:TestB', 'TestA-TestB').
   """
+  if target_name:
+    target_name = target_name.split(':')[-1]
+
   shard_file = os.path.join(filter_json_dir,
                             f'{target_name}_{shard_index}_filter.json')
   target_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')

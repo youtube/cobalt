@@ -21,6 +21,7 @@ runs:
         RESULTS_DIR: ${{ inputs.results_dir }}
       run: |
         set -ex
+        TEST_TARGET="${TEST_TARGET#*:}"
         FILTER_DIR="${GITHUB_WORKSPACE}/retry_filters_artifact/retry_filters"
         rm -rf "${GITHUB_WORKSPACE}/retry_filters_artifact"
         mkdir -p "${FILTER_DIR}"
@@ -31,10 +32,10 @@ runs:
 
           # Extract failing test names from parser output. Prepend gtest fail prefix.
           raw_json=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
-          failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests[] | .[] | .name] | unique')
+          failed_tests_json=$(echo "${raw_json}" | jq -c '[.failing_tests // {} | .[]? | .[]? | .name] | unique' 2>/dev/null || echo "[]")
 
           # Build filter JSON. If no failures, skip all (*).
-          jq -n --argjson tests "${failed_tests_json:-[]}" '
+          jq -n --argjson tests "${failed_tests_json:-"[]"}" '
             if ($tests | length) > 0 then
               { failing_tests: [], tests_to_run: $tests }
             else

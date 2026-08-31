@@ -24,9 +24,12 @@ from typing import Any, Dict, List, Optional, Tuple
 import grpc
 
 try:
-  from cobalt.tools.test_filter import get_gtest_filter
+  from cobalt.devinfra.github.test_filter import get_gtest_filter
 except ImportError:
-  from test_filter import get_gtest_filter
+  try:
+    from cobalt.tools.test_filter import get_gtest_filter
+  except ImportError:
+    from test_filter import get_gtest_filter
 
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
@@ -253,8 +256,12 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
         test_type = 'browser_test'
 
     elif test_type in ('e2e_test', 'yts_test', 'yts_wpt_test'):
-      test_target = target_data['target']
-      test_attempts = target_data.get('test_attempts', '')
+      if isinstance(target_data, dict):
+        test_target = target_data.get('target', '')
+        test_attempts = target_data.get('test_attempts', '')
+      else:
+        test_target = target_data
+        test_attempts = ''
       if test_attempts:
         test_args.extend([f'test_attempts={test_attempts}'])
       elif args.test_attempts:

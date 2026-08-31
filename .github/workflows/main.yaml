@@ -35,6 +35,7 @@ env:
   CI_ESSENTIALS: |
     .github
     cobalt/build
+    cobalt/devinfra
     cobalt/docker
     cobalt/testing/browser_tests/tools
     cobalt/testing/filters
@@ -1047,7 +1048,7 @@ jobs:
     if: always() && needs.initialize.result == 'success'
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_tests_passing
+    name: ${{ matrix.name }}_validation
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
@@ -1084,6 +1085,8 @@ jobs:
           xml_files=(results/**/*.xml)
           failed=false
           if [[ ${#xml_files[@]} -gt 0 && -f "${xml_files[0]}" ]]; then
+            test_failures=$(python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" || true)
+            test_failures="${test_failures:-"{}"}"
             if ! python3 cobalt/tools/junit_mini_parser.py "${xml_files[@]}" > test_failures.json; then
               failed=true
               echo "Failing Tests Summary:"
