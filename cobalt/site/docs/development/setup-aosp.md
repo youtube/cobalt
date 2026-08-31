@@ -11,7 +11,14 @@ Before following these instructions, make sure you have set up your workstation 
 
 1. Follow all steps in [Set up your environment - Linux](setup-linux.md) to install basic system dependencies, `depot_tools`, clone the Cobalt repository, and run `build/install-build-deps.sh`.
 
-2. Ensure your root `.gclient` file includes `android` in `target_os`:
+2. Install host binutils packages for ARM cross-compilation symbol stripping:
+
+   ```bash
+   sudo apt install -y binutils-arm-linux-gnueabi    # For 32-bit aosp-arm
+   # sudo apt install -y binutils-aarch64-linux-gnu # For 64-bit aosp-arm64
+   ```
+
+3. Ensure your root `.gclient` file includes `android` in `target_os`:
 
    ```python
    target_os = [ 'linux', 'android' ]
@@ -24,7 +31,7 @@ Before following these instructions, make sure you have set up your workstation 
    gclient sync
    ```
 
-3. Set up an Android debug keystore required for signing development APKs:
+4. Set up an Android debug keystore required for signing development APKs:
 
    ```bash
    keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
@@ -48,7 +55,15 @@ Because Evergreen support is required for certification, partners deploy officia
    # cobalt/build/gn.py -p aosp-arm64 -c qa --no-rbe
    ```
 
-2. Download the official prebuilt CRX file:
+2. Build the application loader APK:
+
+   ```bash
+   autoninja -C out/aosp-arm_qa cobalt_loader
+   ```
+
+   This generates the application loader APK at `out/aosp-arm_qa/apks/cobalt.apk`.
+
+3. Download the official prebuilt CRX file from [GitHub Releases](https://github.com/youtube/cobalt/releases):
 
    ```bash
    export LOCAL_CRX_DIR=/tmp/cobalt_dl
@@ -59,35 +74,22 @@ Because Evergreen support is required for certification, partners deploy officia
    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
    ```
 
-3. Unpack the CRX package:
+4. Unpack and inject the official prebuilt CRX into the compiled APK:
 
    ```bash
    unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
+
+   # Inject prebuilt Slot 0 Core library and manifest into the APK assets
+   cd $LOCAL_CRX_DIR/cobalt_prebuilt
+   mkdir -p assets/app/cobalt/lib assets/app/cobalt/content
+   cp -f manifest.json assets/app/cobalt/
+   cp -rf lib/* assets/app/cobalt/lib/
+   cp -rf content/* assets/app/cobalt/content/
+
+   zip -u $OLDPWD/out/aosp-arm_qa/apks/cobalt.apk assets/app/cobalt/manifest.json assets/app/cobalt/lib/* assets/app/cobalt/content/*
    ```
 
-4. Stage unpacked files into Slot 0 (`app/cobalt/`) layout:
-
-   > [!IMPORTANT]
-   > In Cobalt 27.lts, all Slot 0 factory binaries must be located strictly under `<target_root>/app/cobalt/`.
-
-   ```bash
-   export EVERGREEN_DIR=out/aosp-arm_qa
-   mkdir -p $EVERGREEN_DIR/app/cobalt/lib $EVERGREEN_DIR/app/cobalt/content
-
-   cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json $EVERGREEN_DIR/app/cobalt/
-   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/app/cobalt/lib/
-   cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content/* $EVERGREEN_DIR/app/cobalt/content/
-   ```
-
-5. Build the application loader APK:
-
-   ```bash
-   autoninja -C out/aosp-arm_qa cobalt_loader
-   ```
-
-   This generates the application loader APK at `out/aosp-arm_qa/apks/cobalt.apk`.
-
-6. Deploy and launch on an AOSP device or emulator:
+5. Deploy and launch on an AOSP device or emulator:
 
    Ensure your device is connected via ADB (`adb devices` or `adb connect <device_ip>:5555`).
 
