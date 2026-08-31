@@ -17,8 +17,15 @@
 
 import io
 import json
+import os
+import sys
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
+
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..'))
+if _REPO_ROOT not in sys.path:
+  sys.path.insert(0, _REPO_ROOT)
 
 from cobalt.tools.junit_mini_parser import find_failing_tests, main
 

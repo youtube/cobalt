@@ -76,6 +76,7 @@ runs:
         TEST_DIMENSIONS: ${{ inputs.test_dimensions }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         FILTER_DIR: ${{ steps.prepare-test-filters.outputs.filter_dir }}
+        PYTHONPATH: "${GITHUB_WORKSPACE}:${PYTHONPATH:-}"
       run: |
         set -x
 

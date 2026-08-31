@@ -18,10 +18,16 @@ import io
 import json
 import os
 import shutil
+import sys
 import tempfile
 from typing import Any, Mapping
 import unittest
 from unittest import mock
+
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+if _REPO_ROOT not in sys.path:
+  sys.path.insert(0, _REPO_ROOT)
 
 from cobalt.devinfra.github.test_filter import get_gtest_filter
 from cobalt.devinfra.github.test_filter import main

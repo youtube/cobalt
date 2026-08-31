@@ -18,8 +18,18 @@
 import argparse
 import json
 import logging
+import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple
+
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..'))
+if _REPO_ROOT not in sys.path:
+  sys.path.insert(0, _REPO_ROOT)
+_DEVINFRA_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'devinfra', 'github'))
+if _DEVINFRA_DIR not in sys.path:
+  sys.path.insert(0, _DEVINFRA_DIR)
 
 import grpc
 
