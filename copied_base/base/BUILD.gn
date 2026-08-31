@@ -2285,13 +2285,6 @@ component("base") {
         "allocator/partition_allocator/shim/malloc_zone_functions_mac.cc",
         "allocator/partition_allocator/shim/malloc_zone_functions_mac.h",
       ]
-    } else {
-      sources -= [
-        "sampling_heap_profiler/poisson_allocation_sampler.cc",
-        "sampling_heap_profiler/poisson_allocation_sampler.h",
-        "sampling_heap_profiler/sampling_heap_profiler.cc",
-        "sampling_heap_profiler/sampling_heap_profiler.h",
-      ]
     }
 
     if (current_cpu == "x64" || current_cpu == "arm64") {
