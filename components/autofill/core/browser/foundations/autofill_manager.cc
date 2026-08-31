@@ -136,8 +136,10 @@ struct AutofillManager::AsyncContext {
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
   std::vector<RegexPredictions> regex_predictions;
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   std::vector<ModelPredictions> autofill_predictions;
   std::vector<ModelPredictions> password_manager_predictions;
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
   GeoIpCountryCode country_code;
   LanguageCode current_page_language;
   std::unique_ptr<BufferingLogManager> log_manager;
@@ -719,12 +721,14 @@ void AutofillManager::ParseFormsAsyncCommon(
           self->form_structures_[form->global_id()] =
               std::move(context.form_structures[i]);
 
+#if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
           if (!context.autofill_predictions.empty()) {
             context.autofill_predictions[i].ApplyTo(form->fields());
           }
           if (!context.password_manager_predictions.empty()) {
             context.password_manager_predictions[i].ApplyTo(form->fields());
           }
+#endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
           if (!context.regex_predictions.empty()) {
             context.regex_predictions[i].ApplyTo(form->fields());
           }
@@ -964,15 +968,9 @@ void AutofillManager::LogCurrentFieldTypes(
 }
 
 void AutofillManager::SubscribeToMlModelChanges(
-<<<<<<< HEAD
     FieldClassificationModelHandler& handler) {
-  switch (handler.optimization_target()) {
-=======
-    FieldClassificationModelHandler& handler,
-    optimization_guide::proto::OptimizationTarget optimization_target) {
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-  switch (optimization_target) {
->>>>>>> parent of 16cb2f821b8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  switch (handler.optimization_target()) {
     case optimization_guide::proto::OptimizationTarget::
         OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
       if (!autofill_model_change_subscription_) {
