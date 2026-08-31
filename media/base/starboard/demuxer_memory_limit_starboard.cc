@@ -30,13 +30,10 @@
 namespace media {
 namespace {
 
-// |g_720p_video_buffer_size_clamp_bytes| and
-// |g_video_buffer_size_clamp_bytes| are process-wide, and are currently set by
-// h5vcc flags.
-std::atomic<size_t> g_720p_video_buffer_size_clamp_bytes{
-    std::numeric_limits<size_t>::max()};
-std::atomic<size_t> g_video_buffer_size_clamp_bytes{
-    std::numeric_limits<size_t>::max()};
+// |g_video_buffer_size_reduction_percent| is process-wide, and is currently set
+// by h5vcc flags.
+std::atomic<std::optional<int>> g_video_buffer_size_reduction_percent{
+    std::nullopt};
 
 int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
   bool is_hdr = false;
@@ -65,24 +62,10 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 }  // namespace
 
-void Set720pVideoBufferSizeClamp(int size_mb) {
-  CHECK_GE(size_mb, 0);
-  CHECK_LT(size_mb, 4096);
-  g_720p_video_buffer_size_clamp_bytes =
-      static_cast<size_t>(size_mb) * 1024 * 1024;
-}
-
-size_t GetVideoBufferSizeClamp() {
-  return g_video_buffer_size_clamp_bytes.load();
-}
-
-void SetVideoBufferSizeClamp(int size_mb) {
-  // We convert the value from MBs to bytes, as the values returned by
-  // GetVideoDecoderBufferLimitBytes's return value is in bytes.
-  CHECK_GT(size_mb, 0);
-  // Prevent overflow bugs by setting the limit to 4 GiB.
-  CHECK_LT(size_mb, 4096);
-  g_video_buffer_size_clamp_bytes = static_cast<size_t>(size_mb) * 1024 * 1024;
+void SetVideoBufferSizeReductionPercent(int reduction_pct) {
+  CHECK_GT(reduction_pct, 0);
+  CHECK_LT(reduction_pct, 100);
+  g_video_buffer_size_reduction_percent = reduction_pct;
 }
 
 size_t GetDemuxerStreamAudioMemoryLimit(
@@ -93,14 +76,6 @@ size_t GetDemuxerStreamAudioMemoryLimit(
 size_t GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
-  if (const size_t limit_720p = g_720p_video_buffer_size_clamp_bytes.load();
-      limit_720p != std::numeric_limits<size_t>::max() && video_config) {
-    const gfx::Size resolution = video_config->visible_rect().size();
-    if (resolution.width() <= 1280 && resolution.height() <= 720) {
-      return limit_720p;
-    }
-  }
-
   size_t limit;
   if (!video_config) {
     limit = GetVideoDecoderBufferLimitBytes(
@@ -111,7 +86,18 @@ size_t GetDemuxerStreamVideoMemoryLimit(
                                             GetBitsPerPixel(*video_config));
   }
 
-  return std::min(limit, g_video_buffer_size_clamp_bytes.load());
+  std::optional<int> reduction_pct =
+      g_video_buffer_size_reduction_percent.load();
+  if (!reduction_pct.has_value()) {
+    return limit;
+  }
+
+  // Multiplying limit by uint64_t remaining_pct preserves full precision and
+  // automatically promotes the calculation to 64-bit to prevent 32-bit
+  // overflow.
+  const uint64_t remaining_pct = 100 - reduction_pct.value();
+
+  return static_cast<size_t>((limit * remaining_pct) / 100);
 }
 
 size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {

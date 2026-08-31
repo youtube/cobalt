@@ -33,8 +33,42 @@ extern const base::Feature kTestFinchFeature;
 // Test finch feature param for Finch end to end testing.
 extern const base::FeatureParam<std::string> kTestFinchFeatureParam;
 
+// Enables emitting the Finch token in the User-Agent string for experiment
+// verification.
+extern const base::Feature kEnableUserAgentFinchToken;
+
+// Token value to emit in the User-Agent string.
+extern const base::FeatureParam<std::string> kUserAgentFinchTokenParam;
+
 // Enables native hang reporting via Crashpad.
 extern const base::Feature kHangReporting;
+
+// Sets the timeout in seconds for hang watching.
+extern const base::FeatureParam<int> kHangWatchTimeSeconds;
+
+// Sets the monitoring period in seconds for hang watching.
+extern const base::FeatureParam<int> kHangWatchMonitoringPeriodSeconds;
+
+// Enables thread dump on hang for the main thread.
+extern const base::Feature kHangWatchMainThreadDump;
+
+// Enables thread dump on hang for the IO thread.
+extern const base::Feature kHangWatchIOThreadDump;
+
+// Enables thread dump on hang for the thread pool threads.
+extern const base::Feature kHangWatchThreadPoolDump;
+
+// Enables thread dump on hang for the renderer thread.
+extern const base::Feature kHangWatchRendererThreadDump;
+
+// Enables detecting severe hangs (long hangs) via UMA without terminating.
+extern const base::Feature kHangWatcherLongHangDetection;
+
+// Enables native abort (LOG(FATAL)) when a long hang is detected.
+extern const base::Feature kHangWatcherLongHangKill;
+
+// Sets the timeout in seconds for a hang to be considered a long hang.
+extern const base::FeatureParam<int> kLongHangTimeoutSeconds;
 
 // Enables overriding the default metrics collection interval with a fixed
 // value.

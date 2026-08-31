@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 
+#include <optional>
 #include <tuple>
 #include <vector>
 
@@ -94,11 +95,11 @@ class AudioResamplerTest
               ? sizeof(int16_t)
               : sizeof(float);
       int audio_size = kSamplesPerInput * channels_ * sample_size;
-      scoped_refptr<DecodedAudio> input = new DecodedAudio(
-          channels_, source_sample_type_, source_storage_type_,
-          1'000'000LL * total_frames / source_sample_rate_, audio_size);
+      DecodedAudio input(channels_, source_sample_type_, source_storage_type_,
+                         1'000'000LL * total_frames / source_sample_rate_,
+                         audio_size);
       total_frames += kSamplesPerInput;
-      inputs_.push_back(input);
+      inputs_.push_back(std::move(input));
     }
   }
 
@@ -110,7 +111,7 @@ class AudioResamplerTest
   int destination_sample_rate_;
   int channels_;
 
-  std::vector<scoped_refptr<DecodedAudio>> inputs_;
+  std::vector<DecodedAudio> inputs_;
 };
 
 TEST_P(AudioResamplerTest, SunnyDay) {
@@ -120,17 +121,18 @@ TEST_P(AudioResamplerTest, SunnyDay) {
       destination_sample_rate_, channels_);
 
   int total_input_frames = 0;
-  std::vector<scoped_refptr<DecodedAudio>> outputs;
-  for (auto input : inputs_) {
-    scoped_refptr<DecodedAudio> output = resampler->Resample(input);
-    total_input_frames += input->frames();
-    if (output) {
-      outputs.push_back(output);
+  std::vector<DecodedAudio> outputs;
+  for (const auto& input : inputs_) {
+    std::optional<DecodedAudio> output =
+        resampler->Resample(input.CloneForTesting());
+    total_input_frames += input.frames();
+    if (output.has_value()) {
+      outputs.push_back(std::move(*output));
     }
   }
-  scoped_refptr<DecodedAudio> output = resampler->WriteEndOfStream();
-  if (output) {
-    outputs.push_back(output);
+  std::optional<DecodedAudio> output = resampler->WriteEndOfStream();
+  if (output.has_value()) {
+    outputs.push_back(std::move(*output));
   }
 
   // Theoretically, if the input is too small, the last output could consist
@@ -140,11 +142,11 @@ TEST_P(AudioResamplerTest, SunnyDay) {
   EXPECT_EQ(inputs_.size(), outputs.size());
   int total_output_frames = 0;
   for (size_t i = 0; i < outputs.size(); i++) {
-    EXPECT_EQ(inputs_[i]->timestamp(), outputs[i]->timestamp());
-    total_output_frames += outputs[i]->frames();
+    EXPECT_EQ(inputs_[i].timestamp(), outputs[i].timestamp());
+    total_output_frames += outputs[i].frames();
     EXPECT_NEAR(
-        inputs_[i]->frames() * destination_sample_rate_ / source_sample_rate_,
-        outputs[i]->frames(), 5);
+        inputs_[i].frames() * destination_sample_rate_ / source_sample_rate_,
+        outputs[i].frames(), 5);
   }
   EXPECT_NEAR(
       total_input_frames * destination_sample_rate_ / source_sample_rate_,

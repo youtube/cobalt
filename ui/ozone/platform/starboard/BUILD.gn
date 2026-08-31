@@ -62,6 +62,7 @@ source_set("starboard_unittests") {
   testonly = true
 
   sources = [
+    "test/platform_event_source_starboard_unittest.cc",
     "test/platform_window_starboard_unittest.cc",
     "test/starboard_test_helper.h",
     "test/surface_factory_starboard_unittest.cc",
@@ -69,6 +70,7 @@ source_set("starboard_unittests") {
 
   deps = [
     ":starboard",
+    "//base/test:test_support",
     "//starboard:starboard_headers_only",
     "//starboard/common:common",
     "//testing/gmock",
