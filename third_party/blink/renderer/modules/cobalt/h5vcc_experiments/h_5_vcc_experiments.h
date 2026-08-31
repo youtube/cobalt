@@ -62,7 +62,7 @@ class MODULES_EXPORT H5vccExperiments final
   ScriptPromise<IDLUndefined> setFinchParameters(
       ScriptState*,
       const HeapVector<
-          std::pair<WTF::String,
+          std::pair<String,
                     Member<V8UnionBooleanOrDoubleOrLongOrString>>>&,
       ExceptionState&);
 

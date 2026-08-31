@@ -60,7 +60,7 @@ void H5vccRuntime::EnsureRemoteIsBound() {
       remote_h5vcc_runtime_.BindNewPipeAndPassReceiver(task_runner));
 }
 
-void H5vccRuntime::NotifyDeepLink(const WTF::String& deeplink) {
+void H5vccRuntime::NotifyDeepLink(const String& deeplink) {
   MaybeFireDeepLinkEvent(deeplink);
 }
 

@@ -66,7 +66,7 @@ int MainThreadDebugger::ContextGroupId(LocalFrame*) {
 void MainThreadDebugger::ReportConsoleMessage(ExecutionContext*,
                                               mojom::ConsoleMessageSource,
                                               mojom::ConsoleMessageLevel,
-                                              const WTF::String&,
+                                              const String&,
                                               SourceLocation*) {}
 void MainThreadDebugger::DidClearContextsForFrame(LocalFrame*) {}
 void MainThreadDebugger::ExceptionThrown(ExecutionContext*, ErrorEvent*) {}

@@ -39,7 +39,7 @@ class FakeH5vccAccessibilityService
             std::move(handle)));
     receiver_.set_disconnect_handler(
         BindOnce(&FakeH5vccAccessibilityService::OnConnectionError,
-                 WTF::Unretained(this)));
+                 Unretained(this)));
   }
 
   void OnConnectionError() {
@@ -79,7 +79,7 @@ class H5vccAccessibilityTest : public PageTestBase {
     GetFrame().DomWindow()->GetBrowserInterfaceBroker().SetBinderForTesting(
         h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser::Name_,
         BindRepeating(&FakeH5vccAccessibilityService::BindRequest,
-                      WTF::Unretained(h5vcc_accessibility_service())));
+                      Unretained(h5vcc_accessibility_service())));
   }
 
   void TearDown() override {

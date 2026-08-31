@@ -41,7 +41,7 @@ using ServiceObserver =
 
 // static
 bool H5vccPlatformService::has(ScriptState* script_state,
-                               const WTF::String& service_name) {
+                               const String& service_name) {
   if (!script_state || !script_state->ContextIsValid()) {
     return false;
   }
@@ -67,7 +67,7 @@ bool H5vccPlatformService::has(ScriptState* script_state,
 // static
 H5vccPlatformService* H5vccPlatformService::open(
     ScriptState* script_state,
-    const WTF::String& service_name,
+    const String& service_name,
     V8ReceiveCallback* receive_callback) {
   LocalDOMWindow* window = LocalDOMWindow::From(script_state);
   if (!window || !receive_callback || !script_state->ContextIsValid()) {
@@ -124,7 +124,7 @@ H5vccPlatformService* H5vccPlatformService::open(
 }
 
 H5vccPlatformService::H5vccPlatformService(LocalDOMWindow& window,
-                                           const WTF::String& service_name,
+                                           const String& service_name,
                                            V8ReceiveCallback* receive_callback)
     : ExecutionContextLifecycleObserver(&window),
       service_name_(service_name),
@@ -159,7 +159,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
                                              ? data->ByteSpan()
                                              : base::span<const uint8_t>();
   std::optional<base::span<const uint8_t>> response_data;
-  WTF::String error_message;
+  String error_message;
 
   bool mojo_result = platform_service_remote_->Send(input_data, &response_data,
                                                     &error_message);
@@ -175,7 +175,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   }
 
   if (!response_data.has_value()) {
-    WTF::String msg = error_message.empty()
+    String msg = error_message.empty()
                           ? "Browser side could not send data to the service."
                           : error_message;
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,

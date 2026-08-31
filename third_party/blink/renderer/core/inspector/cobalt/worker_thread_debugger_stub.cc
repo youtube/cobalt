@@ -37,7 +37,7 @@ int WorkerThreadDebugger::ContextGroupId(ExecutionContext*) {
 void WorkerThreadDebugger::ReportConsoleMessage(ExecutionContext*,
                                                 mojom::ConsoleMessageSource,
                                                 mojom::ConsoleMessageLevel,
-                                                const WTF::String&,
+                                                const String&,
                                                 SourceLocation*) {}
 void WorkerThreadDebugger::runMessageLoopOnPause(int) {}
 void WorkerThreadDebugger::quitMessageLoopOnPause() {}

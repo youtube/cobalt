@@ -40,7 +40,7 @@ static int InitAndRunAllTests(int argc, char** argv) {
   BlinkUnitTestSuite<base::TestSuite> test_suite(argc, argv);
   return base::LaunchUnitTests(
       argc, argv,
-      WTF::BindOnce(&BlinkUnitTestSuite<base::TestSuite>::Run,
+      BindOnce(&BlinkUnitTestSuite<base::TestSuite>::Run,
                     base::Unretained(&test_suite)));
 }
 
