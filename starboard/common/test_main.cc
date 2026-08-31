@@ -56,10 +56,6 @@ int RunTests(int argc, char** argv) {
 int InitAndRunAllTests(int argc, char** argv) {
   starboard::testing::g_test_command_line =
       std::make_unique<starboard::CommandLine>(argc, argv);
-  for (int i = 0; i < argc; ++i) {
-    SB_LOG(INFO) << "test_main argv[" << i << "]: " << argv[i];
-  }
-
 #if BUILDFLAG(IS_IOS_TVOS)
   std::vector<std::string> arg_strings;
   std::vector<char*> new_argv;
