@@ -422,6 +422,12 @@ std::queue<Operation> MakeOperations(
   }
 
 #if BUILDFLAG(IS_STARBOARD)
+  // We enforce the presence of a crx3 verification step to prevent
+  // download-only bypass payloads. This check is purposefully positioned
+  // at the end of the sequence rather than the top so that malformed early
+  // pipeline steps (e.g., missing download URLs) correctly trigger their
+  // associated localized error events first, preserving tests and expected
+  // error granularity.
   const bool has_crx3 = std::any_of(
       pipeline.operations.begin(), pipeline.operations.end(),
       [](const ProtocolParser::Operation& op) { return op.type == "crx3"; });

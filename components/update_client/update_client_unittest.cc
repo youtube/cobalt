@@ -5281,6 +5281,10 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
 // Tests that a run action is invoked in an update scenario when there was
 // no update.
 #if !BUILDFLAG(IS_STARBOARD)
+// Cobalt explicitly enforces a rigorous signature verification on all update
+// operations, inherently rejecting "run"-only pipelines that bypass `crx3` unpacking.
+// As this test simulates successful execution of an unsupported `crx3`-less pipeline,
+// it contradicts Cobalt's pipeline invariants and is disabled on Starboard.
 TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
   MockUpdateCheckerFactory<
       MockUpdateCheckerImpl<UpdateCheckerOptionsActionRunNoUpdate>>
