@@ -3613,9 +3613,11 @@ void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
 }
 
 void NetworkContext::SetBypassIpProtectionProxy(bool bypass_proxy) {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
   if (ip_protection_core()) {
     ip_protection_core()->SetBypassProxy(bypass_proxy);
   }
+#endif
 }
 
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
