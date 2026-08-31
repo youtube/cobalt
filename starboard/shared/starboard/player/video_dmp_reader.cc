@@ -279,10 +279,15 @@ bool VideoDmpReader::ParseOneRecord() {
              &dmp_info_.audio_sample_info);
         SB_DCHECK_EQ(dmp_info_.audio_codec,
                      dmp_info_.audio_sample_info.stream_info.codec);
+        audio_mime_ = audio_mime_type();
+        dmp_info_.audio_sample_info.stream_info.mime = audio_mime_;
       }
       break;
     case kRecordTypeVideoConfig:
       Read(read_cb_, reverse_byte_order_.value(), &dmp_info_.video_codec);
+      if (dmp_info_.video_codec != kSbMediaVideoCodecNone) {
+        video_mime_ = video_mime_type();
+      }
       break;
     case kRecordTypeAudioAccessUnit:
       audio_access_units_.push_back(ReadAudioAccessUnit());
@@ -402,6 +407,7 @@ VideoDmpReader::AudioAccessUnit VideoDmpReader::ReadAudioAccessUnit() {
 
   AudioSampleInfo audio_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &audio_sample_info);
+  audio_sample_info.stream_info.mime = audio_mime_;
 
   return AudioAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
@@ -427,6 +433,7 @@ VideoDmpReader::VideoAccessUnit VideoDmpReader::ReadVideoAccessUnit() {
 
   VideoSampleInfo video_sample_info;
   Read(read_cb_, reverse_byte_order_.value(), &video_sample_info);
+  video_sample_info.stream_info.mime = video_mime_;
 
   return VideoAccessUnit(timestamp,
                          drm_sample_info_present ? &drm_sample_info : NULL,
