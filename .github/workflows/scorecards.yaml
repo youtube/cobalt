@@ -34,6 +34,8 @@ jobs:
       contents: read
       # Required to check GHA workflow permissions/configuration.
       actions: read
+      # Required to query PR modified files.
+      pull-requests: read
 
     steps:
       - name: "Checkout code"
@@ -44,6 +46,21 @@ jobs:
             .github
             cobalt
             starboard
+
+      # Dynamically check out directories containing modified files in this PR
+      # to ensure they are scanned by Scorecard.
+      - name: "Include modified files in sparse checkout"
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          echo "Fetching modified files for PR $PR_NUM..."
+          FILES=$(gh pr view "$PR_NUM" --json files --jq '.files[].path' | grep -v '^$')
+          if [ -n "$FILES" ]; then
+            DIRS=$(echo "$FILES" | xargs -I {} dirname {} | sort | uniq | grep -v '^\.$')
+            echo "$DIRS" | xargs git sparse-checkout add
+          fi
 
       - name: "Run analysis"
         uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
