@@ -1264,7 +1264,7 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
     // enabling Cobalt network module to fall back on TCP connection when QUIC
     // fails or is too slow.
     if (session_->IsQuicEnabled() && session_->UseQuicForUnknownOrigin()) {
-      url::SchemeHostPort origin(original_url);
+      url::SchemeHostPort origin(request_info.url);
 #if defined(COBALT_BUILD_TYPE_GOLD)
       // Do not default to use QUIC for unprivileged ports on release builds.
       const int kUnrestrictedPort = 1024;

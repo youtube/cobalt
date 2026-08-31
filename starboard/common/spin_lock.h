@@ -22,6 +22,7 @@
 #define STARBOARD_COMMON_SPIN_LOCK_H_
 
 #include <atomic>
+#include <cstdint>
 
 namespace starboard {
 

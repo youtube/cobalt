@@ -15,7 +15,9 @@
 #ifndef COPIED_BASE_BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 #define COPIED_BASE_BASE_MEMORY_COBALT_MEMORY_CONTEXT_H_
 
+#include <cstdint>
 #include <string_view>
+
 #include "copied_base/base/base_export.h"
 
 namespace base {

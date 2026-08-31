@@ -15,6 +15,10 @@
 #ifndef CONTENT_BROWSER_SPEECH_TTS_TVOS_H_
 #define CONTENT_BROWSER_SPEECH_TTS_TVOS_H_
 
+#if defined(__OBJC__)
+#import <Foundation/Foundation.h>
+#endif  // __OBJC__
+
 #include <map>
 
 #include "base/memory/weak_ptr.h"

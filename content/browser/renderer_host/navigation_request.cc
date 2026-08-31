@@ -53,15 +53,11 @@
 #include "content/browser/devtools/devtools_instrumentation.h"
 #include "content/browser/devtools/network_service_devtools_observer.h"
 #include "content/browser/download/download_manager_impl.h"
-<<<<<<< HEAD
-#include "content/browser/fenced_frame/fenced_frame_url_mapping.h"
-#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/fenced_frame/fenced_frame_url_mapping.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
+#include "content/browser/fingerprinting_protection/canvas_noise_token_data.h"
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/interest_group/ad_auction_headers_util.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/loader/browser_initiated_resource_request.h"

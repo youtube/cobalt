@@ -1454,16 +1454,7 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
   if (base::FeatureList::IsEnabled(network::features::kSharedStorageAPI)) {
     SharedStorageBudgetCharger::CreateForWebContents(this);
   }
-<<<<<<< HEAD
-=======
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-
-  if (base::FeatureList::IsEnabled(
-          fingerprinting_protection_interventions::features::kCanvasNoise)) {
-    renderer_preferences_.canvas_noise_token =
-        CanvasNoiseTokenData::GetToken(browser_context);
-  }
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 }
 
 WebContentsImpl::~WebContentsImpl() {

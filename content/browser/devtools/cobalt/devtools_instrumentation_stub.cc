@@ -157,7 +157,8 @@ void ApplyNetworkRequestOverrides(
     std::optional<std::vector<net::SourceStreamType>>*
         devtools_accepted_stream_types,
     bool* devtools_user_agent_overridden,
-    bool* devtools_accept_language_overridden) {}
+    bool* devtools_accept_language_overridden,
+    GURL* referrer_override) {}
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {}

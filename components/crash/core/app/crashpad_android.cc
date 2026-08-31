@@ -319,16 +319,11 @@ bool GetHandlerTrampoline(std::string* handler_trampoline,
                           std::string* handler_library) {
   // The linker doesn't support loading executables passed on its command
   // line until Q.
-<<<<<<< HEAD
   if (base::android::android_info::sdk_int() <
       base::android::android_info::SDK_VERSION_Q) {
-=======
-  if (base::android::BuildInfo::GetInstance()->sdk_int() <
-      base::android::SDK_VERSION_Q) {
 #if BUILDFLAG(IS_COBALT)
     LOG(INFO) << "SDK version below Q: No linker support.";
 #endif
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     return false;
   }
 

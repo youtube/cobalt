@@ -492,7 +492,6 @@ TEST(MediaCapabilitiesTests, BasicAudio) {
   EXPECT_TRUE(info->powerEfficient());
 }
 
-<<<<<<< HEAD
 TEST(MediaCapabilitiesTests, BasicAudioWithProfile) {
   test::TaskEnvironment task_environment;
   MediaCapabilitiesTestContext context;
@@ -509,7 +508,6 @@ TEST(MediaCapabilitiesTests, BasicAudioWithProfile) {
   }
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST(MediaCapabilitiesTests, CobaltExtraMimeParameters) {
   test::TaskEnvironment task_environment;
@@ -559,7 +557,6 @@ TEST(MediaCapabilitiesTests, CobaltMissingCodecsWithParameters) {
 }
 #endif  // BUILDFLAG(IS_COBALT)
 
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 // Other tests will assume these match. Test to be sure they stay in sync.
 TEST(MediaCapabilitiesTests, ConfigMatchesFeatures) {
   test::TaskEnvironment task_environment;
