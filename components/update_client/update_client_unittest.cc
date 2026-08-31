@@ -5280,6 +5280,7 @@ TEST_F(UpdateClientTest, ActionRun_Install) {
 
 // Tests that a run action is invoked in an update scenario when there was
 // no update.
+#if !BUILDFLAG(IS_STARBOARD)
 TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
   MockUpdateCheckerFactory<
       MockUpdateCheckerImpl<UpdateCheckerOptionsActionRunNoUpdate>>
@@ -5427,6 +5428,7 @@ TEST_F(UpdateClientTest, ActionRun_NoUpdate) {
 
   runloop_.Run();
 }
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 // Tests that custom response attributes are visible to observers.
 TEST_F(UpdateClientTest, CustomAttributeNoUpdate) {

@@ -329,15 +329,6 @@ std::queue<Operation> MakeOperations(
         void(base::OnceCallback<
              void(base::expected<base::FilePath, UnpackerError>)>)> cache_check,
     const std::string& install_data) {
-#if BUILDFLAG(IS_STARBOARD)
-  const bool has_crx3 = std::any_of(
-      pipeline.operations.begin(), pipeline.operations.end(),
-      [](const ProtocolParser::Operation& op) { return op.type == "crx3"; });
-  if (!has_crx3) {
-    return MakeErrorOperations(event_adder, kInvalidOperationAttributesError,
-                               protocol_request::kEventUnknown);
-  }
-#endif
 
   std::queue<Operation> ops;
   for (const ProtocolParser::Operation& operation : pipeline.operations) {
@@ -429,6 +420,17 @@ std::queue<Operation> MakeOperations(
                                  protocol_request::kEventUnknown);
     }
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  const bool has_crx3 = std::any_of(
+      pipeline.operations.begin(), pipeline.operations.end(),
+      [](const ProtocolParser::Operation& op) { return op.type == "crx3"; });
+  if (!has_crx3) {
+    return MakeErrorOperations(event_adder, kInvalidOperationAttributesError,
+                               protocol_request::kEventUnknown);
+  }
+#endif
+
   return ops;
 }
 
