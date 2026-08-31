@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/compiler/compiler.gni")
 import("//starboard/build/config/sanitizers.gni")
 
 config("modular") {
@@ -90,12 +89,6 @@ config("modular") {
       #         ^~~~~~~~~~~~~~~~~~~~~~~~~~~
       "-Wno-sign-compare",
     ]
-
-    if (!cobalt_is_release_build || can_unwind_with_frame_pointers) {
-      cflags += [ "-fno-omit-frame-pointer" ]
-    } else {
-      cflags += [ "-fomit-frame-pointer" ]
-    }
   }
 
   if (use_asan) {
