@@ -17,12 +17,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "build/build_config.h"
-#include "third_party/blink/public/common/buildflags.h"
-
-#if !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-#include "content/browser/devtools/cobalt/protocol/page_handler_stub.h"
-#else  // BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
-
 #include "cc/trees/render_frame_metadata.h"
 #include "content/browser/devtools/devtools_video_consumer.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
@@ -292,7 +286,5 @@ class PageHandler : public DevToolsDomainHandler,
 
 }  // namespace protocol
 }  // namespace content
-
-#endif  // !BUILDFLAG(ENABLE_DEVTOOLS_BACKEND)
 
 #endif  // CONTENT_BROWSER_DEVTOOLS_PROTOCOL_PAGE_HANDLER_H_
