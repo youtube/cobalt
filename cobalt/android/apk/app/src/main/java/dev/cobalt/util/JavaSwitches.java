@@ -163,6 +163,11 @@ public class JavaSwitches {
       }
     }
 
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_CPPGC_COMPACTION_ON_MEMORY_PRESSURE)) {
+      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+      jsFlags.add("--cppgc-compaction-on-memory-pressure");
+    }
+
     if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
       jsFlags.add(
           "--initial-old-space-size="
@@ -320,11 +325,6 @@ public class JavaSwitches {
     if (javaSwitches.containsKey(
         JavaSwitches.ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND)) {
       extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
-    }
-
-    if (javaSwitches.containsKey(
-        JavaSwitches.ENABLE_CPPGC_COMPACTION_ON_MEMORY_PRESSURE)) {
-      extraCommandLineArgs.add("--enable-cppgc-compaction-on-memory-pressure");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE)) {

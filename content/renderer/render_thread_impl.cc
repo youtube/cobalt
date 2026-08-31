@@ -345,13 +345,6 @@ bool IsCriticalAllowedInForeground() {
           "allow-critical-memory-pressure-handling-in-foreground");
   return kAllowCriticalInForeground;
 }
-
-bool IsCppgcCompactionOnMemoryPressureEnabled() {
-  static const bool kEnableCppgcCompaction =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(
-          "enable-cppgc-compaction-on-memory-pressure");
-  return kEnableCppgcCompaction;
-}
 #endif  // BUILDFLAG(IS_COBALT)
 
 perfetto::StaticString ProcessPriorityToString(
@@ -1839,8 +1832,7 @@ void RenderThreadImpl::OnSyncMemoryPressure(
   // In order to reduce performance impact, translate critical level to
   // moderate level for foreground renderer.
 #if BUILDFLAG(IS_COBALT)
-  if (!IsCriticalAllowedInForeground() &&
-      !IsCppgcCompactionOnMemoryPressureEnabled() && !RendererIsHidden() &&
+  if (!IsCriticalAllowedInForeground() && !RendererIsHidden() &&
       v8_memory_pressure_level == v8::MemoryPressureLevel::kCritical)
     v8_memory_pressure_level = v8::MemoryPressureLevel::kModerate;
 #else

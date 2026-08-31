@@ -4228,9 +4228,12 @@ void Heap::CheckMemoryPressure() {
 
 void Heap::CollectGarbageOnMemoryPressure() {
 #if BUILDFLAG(IS_COBALT)
-  EmbedderStackStateScope stack_scope(
-      this, EmbedderStackStateOrigin::kExplicitInvocation,
-      StackState::kNoHeapPointers);
+  std::optional<EmbedderStackStateScope> stack_scope;
+  if (v8_flags.cppgc_compaction_on_memory_pressure) {
+    stack_scope.emplace(
+        this, EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+  }
 #endif  // BUILDFLAG(IS_COBALT)
   const int kGarbageThresholdInBytes = 8 * MB;
   const double kGarbageThresholdAsFractionOfTotalMemory = 0.1;

@@ -2329,6 +2329,10 @@ DEFINE_BOOL(compact_on_every_full_gc, false,
             "Perform compaction on every full GC")
 DEFINE_BOOL(compact_with_stack, true,
             "Perform compaction when finalizing a full GC with stack")
+#if BUILDFLAG(IS_COBALT)
+DEFINE_BOOL(cppgc_compaction_on_memory_pressure, false,
+            "Enable cppgc compaction on memory pressure")
+#endif  // BUILDFLAG(IS_COBALT)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
