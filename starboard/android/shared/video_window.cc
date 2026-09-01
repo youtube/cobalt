@@ -135,24 +135,32 @@ void ClearNativeWindow(void* raw_context) {
   EGL_CALL(eglDestroySurface(display, surface));
 }
 
+bool IsSurfaceDestroyNotifierEnabled() {
+  return features::FeatureList::IsEnabled(
+      features::kEnableSurfaceDestroyNotifier);
+}
+
 }  // namespace
 
 void JNI_VideoSurfaceView_OnVideoSurfaceChanged(
     JNIEnv* env,
     const JavaParamRef<jobject>& surface) {
-  std::lock_guard lock(*GetViewSurfaceMutex());
-  if (g_video_surface_holder) {
-    g_video_surface_holder->OnSurfaceDestroyed();
-    g_video_surface_holder = NULL;
-  }
-  GetGlobalVideoSurface().Reset();
-  if (g_native_video_window) {
-    ANativeWindow_release(g_native_video_window);
-    g_native_video_window = NULL;
-  }
-  if (surface) {
-    GetGlobalVideoSurface().Reset(env, surface);
-    g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+  if (IsSurfaceDestroyNotifierEnabled()) {
+  } else {
+    std::lock_guard lock(*GetViewSurfaceMutex());
+    if (g_video_surface_holder) {
+      g_video_surface_holder->OnSurfaceDestroyed();
+      g_video_surface_holder = NULL;
+    }
+    GetGlobalVideoSurface().Reset();
+    if (g_native_video_window) {
+      ANativeWindow_release(g_native_video_window);
+      g_native_video_window = NULL;
+    }
+    if (surface) {
+      GetGlobalVideoSurface().Reset(env, surface);
+      g_native_video_window = ANativeWindow_fromSurface(env, surface.obj());
+    }
   }
 }
 
@@ -217,5 +225,11 @@ void VideoSurfaceHolder::ResetVideoSurface() {
   StarboardBridge::GetInstance()->ResetVideoSurface(env);
   SB_LOG(INFO) << "Video surface has been reset.";
 }
+
+void SurfaceDestroyNotifier::Disconnect() {}
+
+void SurfaceDestroyNotifier::Notify() {}
+
+void SurfaceDestroyNotifier::NotifyDestroyed() {}
 
 }  // namespace starboard
