@@ -45,6 +45,7 @@
     "NavigationBrowserTest.JavascriptURLBlockedInSandboxedWebUiPopup",
     "NavigationBrowserTest.NavigateToAboutBlankWhileFirstNavigationPending",
     "NavigationBrowserTest.NavigationRequest_GetNextPageUkmSourceId_Back",
+    "NavigationBrowserTest.OriginToCommit204",
     "NavigationBrowserTest.OriginToCommitSandboxFromResponse",
     "NavigationBrowserTest.ProcessShutdownDuringDeferredNavigationThrottle",
     "NavigationBrowserTest.RendererInitiatedCrossSiteNavigation",
