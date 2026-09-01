@@ -188,6 +188,7 @@ source_set("starboard_test_main") {
   testonly = true
   sources = [ "//starboard/common/test_main.cc" ]
   public_deps = [
+    "//starboard/common",
     "//starboard/testing:test_runner",
     "//testing/gtest",
   ]

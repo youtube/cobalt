@@ -26,8 +26,6 @@ target(_benchmark_type, "benchmark") {
 
   sources = [
     "//starboard/common/benchmark_main.cc",
-    "//starboard/shared/starboard/features_test_util.cc",
-    "//starboard/shared/starboard/features_test_util.h",
     "memory_benchmark.cc",
     "player/player_benchmark_helper.cc",
     "player/player_benchmark_helper.h",
@@ -46,6 +44,17 @@ target(_benchmark_type, "benchmark") {
     "//third_party/google_benchmark",
   ]
   deps = cobalt_platform_dependencies
+
+  if (is_android) {
+    sources += [
+      "//starboard/shared/starboard/features_test_util.cc",
+      "//starboard/shared/starboard/features_test_util.h",
+    ]
+    deps += [
+      "//starboard/extension:feature_config_header",
+      "//starboard/shared/starboard:feature_list",
+    ]
+  }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
