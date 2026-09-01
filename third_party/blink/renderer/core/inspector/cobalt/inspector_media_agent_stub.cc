@@ -28,7 +28,7 @@ void InspectorMediaAgent::PlayerMessagesLogged(
 void InspectorMediaAgent::PlayerPropertiesChanged(
     const WebString&,
     const Vector<InspectorPlayerProperty>&) {}
-void InspectorMediaAgent::PlayersCreated(const Vector<WebString>&) {}
+void InspectorMediaAgent::PlayerCreated(const MediaPlayer&) {}
 void InspectorMediaAgent::Trace(Visitor*) const {}
 
 }  // namespace blink
