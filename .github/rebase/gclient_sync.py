@@ -211,20 +211,23 @@ class GClientSyncResolver(BaseResolver):
     if not isinstance(diagnostic, GClientSyncDiagnostic):
       return "", self.model, "DEPS"
 
-    # Dynamically extract target DEPS file path from diagnostic trace
+    # Dynamically extract target file path (DEPS or repo script)
     deps_path = os.path.join(self.repo_path, "DEPS")
     rel_deps = "DEPS"
-    file_match = re.search(
-        r"(?:file\s+['\"]?|in\s+['\"]?)([^'\"\n\r]+DEPS[^'\"\n\r]*)",
+    file_matches = re.findall(
+        r"(?:File\s+['\"]|file\s+['\"]?|in\s+['\"]?)"
+        r"([^'\"\n\r]+(?:DEPS|\.py|\.gni|\.gn|\.star)[^'\"\n\r]*)",
         diagnostic.diagnostic_trace,
         re.IGNORECASE,
     )
-    if file_match:
-      cand_raw = file_match.group(1).strip().rstrip(":,")
-      cand_abs = resolve_repo_file_path(cand_raw, self.repo_path)
-      if os.path.isfile(cand_abs):
+    for cand_raw in reversed(file_matches):
+      cand_clean = cand_raw.strip().rstrip(":,")
+      cand_abs = resolve_repo_file_path(cand_clean, self.repo_path)
+      if os.path.isfile(cand_abs) and os.path.commonpath(
+          [self.repo_path, cand_abs]) == self.repo_path:
         deps_path = cand_abs
         rel_deps = os.path.relpath(cand_abs, self.repo_path)
+        break
 
     if not os.path.isfile(deps_path):
       return "", self.model, rel_deps
