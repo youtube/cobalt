@@ -119,6 +119,7 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
+        // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
         int64_t limit = SbSystemGetTotalCPUMemory();
         if (limit > 0) {
           info->application_limit_memory = static_cast<uint64_t>(limit);
@@ -130,6 +131,7 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
+        // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
         if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
           info->used_gpu_memory = SbSystemGetUsedGPUMemory();
         }
@@ -307,6 +309,7 @@ void PerformanceImpl::MeasureUsedPssMemory(
 void PerformanceImpl::MeasureApplicationLimitMemory(
     MeasureApplicationLimitMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
       base::BindOnce([]() -> uint64_t {
@@ -322,6 +325,7 @@ void PerformanceImpl::MeasureApplicationLimitMemory(
 void PerformanceImpl::MeasureApplicationUsageMemory(
     MeasureApplicationUsageMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
   int64_t usage = SbSystemGetUsedCPUMemory();
   std::move(callback).Run(usage > 0 ? static_cast<uint64_t>(usage) : 0);
 #else
@@ -343,6 +347,7 @@ void PerformanceImpl::MeasureApplicationUsageMemory(
 void PerformanceImpl::MeasureUsedGpuMemory(
     MeasureUsedGpuMemoryCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/555849706): Migrate Android/iOS to use Starboard memory APIs.
   if (!SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     std::move(callback).Run(false, 0);
     return;
