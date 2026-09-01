@@ -2870,19 +2870,13 @@ void StoragePartitionImpl::ClearDataImpl(
   helper->ClearDataOnUIThread(
       storage_key, filter_builder, std::move(storage_key_policy_matcher),
       std::move(cookie_deletion_filter), GetPath(), dom_storage_context_.get(),
-<<<<<<< HEAD
-      quota_manager_.get(), special_storage_policy_.get(),
-      filesystem_context_.get(), GetCookieManagerForBrowserProcess(),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-=======
       quota_manager_.get(),
 #if BUILDFLAG(IS_COBALT)
       cache_quota_manager_.get(),
 #endif
       special_storage_policy_.get(), filesystem_context_.get(),
       GetCookieManagerForBrowserProcess(),
-#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_138
->>>>>>> 3fc86d8654 (Use a separate quota manager for cache (#12209))
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
       interest_group_manager_.get(),
       attribution_manager_.get(),
       aggregation_service_.get(),
