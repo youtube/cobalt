@@ -247,3 +247,8 @@ reason = "Transitive devDependency (webpack-cli -> cross-spawn). media-element-d
 [[IgnoredVulns]]
 id = "GHSA-jc84-3g44-wf2q"
 reason = "Transitive devDependency (http-server -> ecstatic). media-element-demo is an optional demo not deployed to production. ecstatic is used by http-server exclusively as a local developer testing server on localhost to serve dist/. It is never exposed as an internet-facing service or deployed in production environments."
+
+[[IgnoredVulns]]
+id = "GHSA-vcc3-ghjq-m6fr"
+reason = "Transitive devDependency (webpack -> watchpack -> chokidar -> anymatch -> micromatch -> snapdragon -> source-map-resolve -> decode-uri-component). media-element-demo is an optional standalone developer demo not deployed to production or packaged in Cobalt binaries. decode-uri-component is invoked only during offline build/watch asset processing on trusted local files, never on untrusted or external URI inputs."
+
