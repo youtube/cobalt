@@ -945,17 +945,24 @@ class BaseResolver(abc.ABC):
       self,
       initial_patch: str,
       diagnostic: Any,
-      max_rounds: int = 30,
+      max_rounds: int = 12,
   ) -> Tuple[str, str]:
     """Runs multi-turn tool loop supporting batch tool requests from LLM."""
     current_patch = initial_patch
     model_used = self.model
     history_records: List[Dict[str, Any]] = []
+    seen_cmds: Dict[str, int] = collections.defaultdict(int)
 
     for round_idx in range(1, max_rounds + 1):
       tool_cmds = extract_tool_commands(current_patch)
       if not tool_cmds:
         break
+
+      repeated = False
+      for cmd in tool_cmds:
+        seen_cmds[cmd] += 1
+        if seen_cmds[cmd] >= 2:
+          repeated = True
 
       batch_outputs: List[str] = []
       for cmd_idx, tool_cmd in enumerate(tool_cmds, 1):
@@ -979,6 +986,13 @@ class BaseResolver(abc.ABC):
           if os.path.isfile(cand_path):
             diagnostic.file_path = cand_path
 
+      if repeated:
+        batch_outputs.append(
+            "\n=== SYSTEM NOTICE: Repeated tool request. You have already "
+            "inspected these lines. Do NOT request the same file range again. "
+            "Synthesize and output the final SEARCH/REPLACE patch block now "
+            "(or use TOOL_UPSTREAM_DIFF / TOOL_GREP for new information). ===")
+
       combined_output = "\n".join(batch_outputs)
       history_records.append({
           "iteration": f"Tool-{round_idx}",
@@ -993,6 +1007,14 @@ class BaseResolver(abc.ABC):
       )
       current_patch = patch_res
       model_used = m_used
+
+      if any(seen_cmds[cmd] >= 3 for cmd in tool_cmds):
+        print(
+            f"  [{self.name}] [Anti-Loop] Breaking repeated tool loop after "
+            f"{round_idx} rounds.",
+            file=sys.stderr,
+        )
+        break
 
     return current_patch, model_used
 

@@ -237,11 +237,26 @@ class GClientSyncResolver(BaseResolver):
     except OSError:
       return "", self.model, rel_deps
 
-    line_match = re.search(r"(?:line\s+|:)(\d+)", diagnostic.diagnostic_trace)
-    if line_match and len(lines) > 250:
-      error_line = int(line_match.group(1))
-      s_line = max(1, error_line - 50)
-      e_line = min(len(lines), error_line + 50)
+    target_line = None
+    # 1. Search for specific git_revision or hash tokens mentioned in diagnostic
+    hash_match = re.search(r"git_revision:([a-f0-9]{7,40})",
+                           diagnostic.diagnostic_trace)
+    if hash_match:
+      bad_hash = hash_match.group(1)
+      for idx, l in enumerate(lines):
+        if bad_hash in l:
+          target_line = idx + 1
+          break
+
+    # 2. Search for explicit DEPS line numbers if not found via token
+    if target_line is None:
+      line_match = re.search(r"(?:line\s+|:)(\d+)", diagnostic.diagnostic_trace)
+      if line_match:
+        target_line = int(line_match.group(1))
+
+    if target_line and len(lines) > 250:
+      s_line = max(1, target_line - 50)
+      e_line = min(len(lines), target_line + 50)
       context_snippet = "".join(lines[s_line - 1:e_line])
     else:
       context_snippet = current_deps if len(lines) <= 250 else "".join(
@@ -252,8 +267,13 @@ class GClientSyncResolver(BaseResolver):
         f"--------------------------------------------------\n"
         f"{diagnostic.diagnostic_trace}\n"
         f"--------------------------------------------------\n\n"
-        f"Resolve the syntax error or duplicate key in {rel_deps}.\n"
-        f"Output the standard SEARCH / REPLACE block:\n"
+        f"Instructions:\n"
+        f"- If an unresolved CIPD package or missing git_revision tag is "
+        f"reported, check upstream {rel_deps} or use "
+        f"TOOL_UPSTREAM_DIFF: {rel_deps} to find the valid upstream revision.\n"
+        f"- If duplicate keys or syntax errors exist, resolve them in "
+        f"{rel_deps}.\n"
+        f"- Output the standard SEARCH / REPLACE block:\n"
         f"FILE: {rel_deps}\n"
         f"<<<<<<< SEARCH\n"
         f"<exact lines from {rel_deps} to replace>\n"
