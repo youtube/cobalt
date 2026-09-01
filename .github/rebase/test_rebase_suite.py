@@ -617,7 +617,7 @@ void Foo() {{}}
       self.assertIn("undefined symbol", diags[0].error_message)
 
   def test_parse_compiler_errors_universal_catch_all(self):
-    """Tests that arbitrary non-standard errors trigger catch-all."""
+    """Tests that arbitrary non-standard errors trigger raw trace fallback."""
     with tempfile.TemporaryDirectory() as tmp_dir:
       java_output = (
           "FAILED: obj/cobalt/android/cobalt_apk.javac.jar\n"
@@ -625,10 +625,13 @@ void Foo() {{}}
           "  File '../../build/android/gyp/javac.py', line 45, in <module>\n"
           "    sys.exit(main())\n"
           "Java compilation failed with 2 errors in CobaltActivity.java\n")
-      diags = parse_compiler_errors(java_output, tmp_dir)
+      resolver = AutoninjaResolver(
+          repo_path=tmp_dir, out_dir="out/test", target="cobalt_apk")
+      diags = resolver.extract_diagnostics(
+          build_output="", siso_output=java_output)
       self.assertEqual(len(diags), 1)
-      self.assertIn("Build failure", diags[0].error_message)
-      self.assertIn("Java compilation failed", diags[0].raw_snippet)
+      self.assertIsInstance(diags[0], str)
+      self.assertIn("Java compilation failed", diags[0])
 
   def test_record_and_load_memory(self):
     """Tests recording and loading knowledge memory bank entries on engine."""

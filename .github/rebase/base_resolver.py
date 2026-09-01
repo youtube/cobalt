@@ -115,6 +115,12 @@ def is_unmodified_third_party(file_path: str, repo_path: str) -> bool:
   rel = os.path.relpath(file_path, repo_path)
   if not rel.startswith("third_party/"):
     return False
+  # TODO(b/547499991) This should send to the LLM with skills to decide whehter
+  # agent can modify.
+  # In-tree generator and build tooling in third_party (e.g. jni_zero) can be
+  # patched for toolchain and API compatibility.
+  if rel.startswith("third_party/jni_zero/"):
+    return False
   # Cobalt/Starboard-specific directories or files hosted under third_party
   rel_lower = rel.lower()
   if "cobalt" in rel_lower or "starboard" in rel_lower:

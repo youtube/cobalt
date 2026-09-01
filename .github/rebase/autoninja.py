@@ -160,7 +160,7 @@ def parse_compiler_errors(build_output: str,
           ))
       break
 
-  # 2. Fast Path: Linker errors (ld.lld / lld-link / gold / ld)
+  # 2. Linker errors (ld.lld / lld-link / gold / ld)
   if not diagnostics:
     lld_pattern = re.compile(
         r"(?:ld\.lld|lld-link|lld|gold|ld):\s+error:\s+(.+)$")
@@ -208,22 +208,6 @@ def parse_compiler_errors(build_output: str,
               column=1,
               error_message=f"Linker error: {primary_err}",
               raw_snippet="\n".join(linker_lines[:30]),
-              notes=[],
-          ))
-
-  # 3. Universal Catch-All Fallback (Python actions, AIDL, Mojo, Java, Rust)
-  # If build failed but didn't match standard syntax, hand failure tail to LLM
-  if not diagnostics and lines:
-    failure_tail = "\n".join(lines[-60:]).strip()
-    if failure_tail:
-      diagnostics.append(
-          CompilerDiagnostic(
-              file_path=os.path.join(repo_path, "BUILD.gn"),
-              line_number=1,
-              column=1,
-              error_message=(
-                  "Build failure in compilation / linking / action step"),
-              raw_snippet=failure_tail,
               notes=[],
           ))
 
@@ -332,9 +316,11 @@ class AutoninjaResolver(BaseResolver):
 
   def extract_diagnostics(self, build_output: str,
                           siso_output: str) -> List[Any]:
-    diags = parse_compiler_errors(build_output, self.repo_path)
-    if not diags and siso_output:
+    diags: List[Any] = []
+    if siso_output and siso_output.strip():
       diags = parse_compiler_errors(siso_output, self.repo_path)
+    if not diags and build_output and build_output.strip():
+      diags = parse_compiler_errors(build_output, self.repo_path)
     if not diags:
       raw_chunks = []
       if siso_output and siso_output.strip():
