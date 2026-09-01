@@ -58,7 +58,8 @@ const int kMinStablePlayedFrames = 12 * 1024;
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
 
-std::unique_ptr<AudioTrackAudioSinkType> audio_track_audio_sink_type_;
+[[clang::no_destroy]] std::unique_ptr<AudioTrackAudioSinkType>
+audio_track_audio_sink_type_;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;

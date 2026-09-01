@@ -28,6 +28,7 @@
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
@@ -203,8 +204,9 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
 
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
-  static const std::string user_agent_str = platform_info.ToString();
-  return user_agent_str;
+  static const base::NoDestructor<std::string> user_agent_str(
+      platform_info.ToString());
+  return *user_agent_str;
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {

@@ -18,6 +18,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
+namespace base {
+template <typename T>
+class NoDestructor;
+}  // namespace base
+
 namespace starboard {
 
 // MemFdMediaBufferPool manages a shared memory pool using memfd_create.
@@ -36,6 +41,8 @@ class MemFdMediaBufferPool {
   void Read(intptr_t position, void* buffer, size_t size);
 
  private:
+  friend class base::NoDestructor<MemFdMediaBufferPool>;
+
   MemFdMediaBufferPool();
   ~MemFdMediaBufferPool();
 

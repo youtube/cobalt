@@ -212,8 +212,8 @@ constexpr int kSplashTimeoutMs = 1500;
 ShellPlatformDelegate* g_platform = nullptr;
 }  // namespace
 
-std::vector<Shell*> Shell::windows_;
-base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
+base::NoDestructor<std::vector<Shell*>> Shell::windows_;
+base::NoDestructor<base::OnceCallback<void(Shell*)>> Shell::shell_created_callback_;
 std::atomic<bool> Shell::has_hidden_system_splash_screen_{false};
 
 void Shell::MaybeHideSystemSplashScreen() {
@@ -246,7 +246,7 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
   UpdateFontRendererPreferencesFromSystemSettings(
       web_contents_->GetMutableRendererPrefs());
 
-  windows_.push_back(this);
+  windows_->push_back(this);
 
   // Create browser-side mojo service component
   js_communication_host_ =
@@ -284,8 +284,8 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
     web_contents_->WasHidden();
   }
 
-  if (shell_created_callback_) {
-    std::move(shell_created_callback_).Run(this);
+  if (*shell_created_callback_) {
+    std::move(*shell_created_callback_).Run(this);
   }
 }
 
@@ -293,9 +293,9 @@ Shell::~Shell() {
   CHECK(g_platform);
   g_platform->CleanUp(this);
 
-  for (size_t i = 0; i < windows_.size(); ++i) {
-    if (windows_[i] == this) {
-      windows_.erase(windows_.begin() + i);
+  for (size_t i = 0; i < windows_->size(); ++i) {
+    if ((*windows_)[i] == this) {
+      windows_->erase(windows_->begin() + i);
       break;
     }
   }
@@ -423,13 +423,13 @@ void Shell::QuitMainMessageLoopForTesting() {
 // static
 void Shell::SetShellCreatedCallback(
     base::OnceCallback<void(Shell*)> shell_created_callback) {
-  DCHECK(!shell_created_callback_);
-  shell_created_callback_ = std::move(shell_created_callback);
+  DCHECK(!*shell_created_callback_);
+  *shell_created_callback_ = std::move(shell_created_callback);
 }
 
 // static
 Shell* Shell::FromWebContents(WebContents* web_contents) {
-  for (Shell* window : windows_) {
+  for (Shell* window : *windows_) {
     if (window->web_contents() && window->web_contents() == web_contents) {
       return window;
     }

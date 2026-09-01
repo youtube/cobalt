@@ -193,9 +193,7 @@ base::OnceClosure ZucchiniOperation(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback) {
-<<<<<<< HEAD
-  state_tracker.Run(ComponentState::kPatching);
-=======
+state_tracker.Run(ComponentState::kPatching);
 #if defined(IN_MEMORY_UPDATES)
   LOG(ERROR) << "Zucchini delta patching Operation not supported with Cobalt IN_MEMORY_UPDATES";
   PatchDone(std::move(callback), event_adder,
@@ -207,7 +205,6 @@ base::OnceClosure ZucchiniOperation(
 #if BUILDFLAG(IS_STARBOARD)
   const base::FilePath& patch_file = patch_operation_result.response;
 #endif
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   crx_cache->GetByHash(
       previous_hash,
       base::BindOnce(&CacheLookupDone, patcher, patch_file,

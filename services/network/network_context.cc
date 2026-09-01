@@ -3594,6 +3594,7 @@ void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
     std::move(callback).Run(status);
     return;
   }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (ip_protection_core()) {
     // ip_protection_core() should be null if either of the above features are
     // disabled, so check beforehand
@@ -3601,6 +3602,7 @@ void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
     std::move(callback).Run(status);
     return;
   }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   std::move(callback).Run(status);
 }

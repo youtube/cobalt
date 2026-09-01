@@ -15,14 +15,16 @@
 #include <pthread.h>
 #include <stdio.h>
 
+#include <sstream>
 #include <string>
 
+#include "base/no_destructor.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
 namespace {
 pthread_mutex_t log_line_mutex = PTHREAD_MUTEX_INITIALIZER;
-std::stringstream log_line;
+base::NoDestructor<std::stringstream> log_line;
 const int kFormatBufferSizeBytes = 16 * 1024;
 
 }  // namespace
@@ -42,14 +44,14 @@ void SbLogFormat(const char* format, va_list arguments) {
 
   pthread_mutex_lock(&log_line_mutex);
   std::string buffer_string(formatted_buffer);
-  log_line << buffer_string;
+  *log_line << buffer_string;
   if (newline != NULL) {
-    log_line.flush();
+    log_line->flush();
 
-    SbLogRaw(log_line.str().c_str());
+    SbLogRaw(log_line->str().c_str());
 
-    log_line.str("");
-    log_line.clear();
+    log_line->str("");
+    log_line->clear();
   }
   pthread_mutex_unlock(&log_line_mutex);
 }

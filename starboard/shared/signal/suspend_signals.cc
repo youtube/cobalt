@@ -131,7 +131,7 @@ class SignalHandlerThread : public ::starboard::Thread {
 };
 
 void ConfigureSignalHandlerThread(bool start) {
-  static SignalHandlerThread handlerThread;
+  [[clang::no_destroy]] static SignalHandlerThread handlerThread;
   if (start) {
     handlerThread.Start();
   } else {
