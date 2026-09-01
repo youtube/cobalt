@@ -55,8 +55,8 @@ const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
 DecodedAudio ConsolidateDecodedAudios(
     const std::vector<DecodedAudio>& decoded_audios) {
   if (decoded_audios.empty()) {
-    return DecodedAudio(2, kSbMediaAudioSampleTypeFloat32,
-                        kSbMediaAudioFrameStorageTypeInterleaved, 0, 0);
+    return DecodedAudio(2, kSbMediaAudioSampleTypeFloat32, /*timestamp=*/0,
+                        /*size_in_bytes=*/0);
   }
 
   int total_size_in_bytes = 0;
@@ -71,9 +71,9 @@ DecodedAudio ConsolidateDecodedAudios(
     total_size_in_bytes += decoded_audio.size_in_bytes();
   }
 
-  DecodedAudio consolidated(
-      channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      decoded_audios.front().timestamp(), total_size_in_bytes);
+  DecodedAudio consolidated(channels, sample_type,
+                            decoded_audios.front().timestamp(),
+                            total_size_in_bytes);
 
   int offset_in_bytes = 0;
   for (const auto& decoded_audio : decoded_audios) {

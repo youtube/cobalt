@@ -1,0 +1,65 @@
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Non standard interface used for Cobalt only.
+// Bulk response for system memory metrics. All values are in bytes.
+dictionary SystemMemoryInfo {
+    // Amount of available physical memory on the device.
+    unsigned long long freeRssMemory;
+
+    // Amount of resident memory used by the process (RSS).
+    unsigned long long usedRssMemory;
+
+    // Amount of virtual memory that has been swapped out to disk.
+    unsigned long long usedSwapMemory;
+
+    // Total virtual memory size reserved for the process.
+    unsigned long long reservedVirtualMemory;
+
+    // Peak resident set size (high-water mark).
+    unsigned long long rssHighWaterMarkMemory;
+
+    // Amount of memory allocated to the heap and not shared with other processes.
+    unsigned long long usedRssAnonMemory;
+
+    // Total physical RAM available on the device.
+    unsigned long long totalCpuMemory;
+
+    // Proportional set size (PSS) memory in use.
+    unsigned long long usedPssMemory;
+
+    // Maximum memory limit allocated to Cobalt by Starboard.
+    unsigned long long applicationLimitMemory;
+
+    // GPU memory used by the process, or null if unsupported on the platform.
+    unsigned long long? usedGpuMemory = null;
+
+    // The portion of the heap currently used by JavaScript objects.
+    unsigned long long? usedJSHeapSize = null;
+
+    // Total allocated heap size for JavaScript execution.
+    unsigned long long? totalJSHeapSize = null;
+
+    // Maximum JavaScript heap size allowed before terminating the execution context.
+    unsigned long long? jsHeapSizeLimit = null;
+
+    // Total memory allocated for MediaSource buffers.
+    unsigned long long? mediaSourceTotalAllocatedMemory = null;
+
+    // Current memory capacity allocated for MediaSource buffers.
+    unsigned long long? mediaSourceCurrentMemoryCapacity = null;
+
+    // Maximum allowable memory capacity for MediaSource buffers.
+    unsigned long long? mediaSourceMaximumMemoryCapacity = null;
+};

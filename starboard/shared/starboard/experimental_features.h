@@ -209,7 +209,8 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
-        "Media.IgnoreMediaCodecCallbacksDuringFlushing");
+        "Media.IgnoreMediaCodecCallbacksDuringFlushing",
+        true);
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
     "Media.NdkAudioTrack");
