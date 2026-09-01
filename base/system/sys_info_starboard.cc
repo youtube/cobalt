@@ -14,6 +14,7 @@
 
 #include "base/system/sys_info_starboard.h"
 
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -28,7 +29,7 @@ using starboard::GetSystemPropertyString;
 #include <sys/utsname.h>
 
 #include "base/containers/contains.h"
-#include "base/notimplemented.h"
+
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -80,8 +81,9 @@ std::string SbSysInfo::Brand() {
   return std::string(brand_str);
 }
 
-std::string SbSysInfo::OSFriendlyName() {
-  return "AOSP";
+std::string SbSysInfo::OSPlatformName() {
+  NOTIMPLEMENTED();
+  return "";
 }
 
 #elif BUILDFLAG(IS_STARBOARD)
@@ -101,8 +103,8 @@ std::string SbSysInfo::Brand() {
   return GetSystemPropertyString(kSbSystemPropertyBrandName);
 }
 
-std::string SbSysInfo::OSFriendlyName() {
-  return GetSystemPropertyString(kSbSystemPropertyFriendlyName);
+std::string SbSysInfo::OSPlatformName() {
+  return GetSystemPropertyString(kSbSystemPropertyPlatformName);
 }
 
 #elif BUILDFLAG(IS_IOS_TVOS)
@@ -162,7 +164,7 @@ std::string SbSysInfo::Brand() {
   return "Apple";
 }
 
-std::string SbSysInfo::OSFriendlyName() {
+std::string SbSysInfo::OSPlatformName() {
   NOTIMPLEMENTED();
   return "";
 }

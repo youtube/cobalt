@@ -16,6 +16,7 @@
 
 #include <map>
 
+#include "base/system/sys_info_starboard.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "cobalt/browser/features.h"
@@ -422,6 +423,17 @@ TEST_F(UserAgentStringTest, OmitsFinchTokenWhenFeatureDisabled) {
   std::string user_agent_string = platform_info.ToString();
   EXPECT_EQ(std::string::npos, user_agent_string.find("Finch/"));
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(UserAgentStringTest, StarboardPlatformNameIsInjectedInOsNameAndVersion) {
+  UserAgentPlatformInfo platform_info(/*for_testing=*/true);
+  std::string user_agent_string = platform_info.ToString();
+  std::string os_platform_name = base::starboard::SbSysInfo::OSPlatformName();
+  EXPECT_NE(std::string::npos, user_agent_string.find(os_platform_name));
+}
+#endif
+#endif
 
 class GetUserAgentInputMapTest : public testing::Test {};
 

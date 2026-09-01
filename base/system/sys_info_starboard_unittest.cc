@@ -47,9 +47,9 @@ TEST_F(SbSysInfoTest, Brand) {
 }
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
-TEST_F(SbSysInfoTest, OSFriendlyName) {
-  std::string os_name_str = SbSysInfo::OSFriendlyName();
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_ANDROID)
+TEST_F(SbSysInfoTest, OSPlatformName) {
+  std::string os_name_str = SbSysInfo::OSPlatformName();
   EXPECT_NE(os_name_str, "");
 }
 #endif
