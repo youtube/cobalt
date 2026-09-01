@@ -6,6 +6,7 @@
 
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state.h"
 #include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/tabs/vertical/vertical_unpinned_tab_container_view.h"
 #include "chrome/common/pref_names.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/sync_preferences/testing_pref_service_syncable.h"
@@ -69,4 +70,23 @@ TEST_F(VerticalTabStripRegionViewTest, ResizeAreaBounds) {
   // Verify resize area width.
   EXPECT_EQ(VerticalTabStripRegionView::kResizeAreaWidth,
             region_view()->resize_area_for_testing()->bounds().width());
+}
+
+// Verify that the pinned tabs container will never be larger than the unpinned
+// tabs area.
+TEST_F(VerticalTabStripRegionViewTest, PinnedTabsAreaSmallerThanUnpinned) {
+  region_view()->SetBounds(0, 0, 200, 600);
+  region_view()->pinned_tabs_container_for_testing()->SetPreferredSize(
+      gfx::Size(100, 500));
+  region_view()->unpinned_tabs_container_for_testing()->SetPreferredSize(
+      gfx::Size(100, 400));
+  EXPECT_LE(
+      region_view()->pinned_tabs_container_for_testing()->bounds().height(),
+      region_view()->unpinned_tabs_container_for_testing()->bounds().height());
+
+  region_view()->unpinned_tabs_container_for_testing()->SetPreferredSize(
+      gfx::Size(100, 50));
+  EXPECT_LE(
+      region_view()->pinned_tabs_container_for_testing()->bounds().height(),
+      region_view()->unpinned_tabs_container_for_testing()->bounds().height());
 }

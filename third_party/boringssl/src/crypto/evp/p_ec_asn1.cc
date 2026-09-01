@@ -265,14 +265,16 @@ int EVP_PKEY_set1_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
 }
 
 int EVP_PKEY_assign_EC_KEY(EVP_PKEY *pkey, EC_KEY *key) {
-  evp_pkey_set_method(pkey, &ec_asn1_meth);
-  pkey->pkey = key;
-  return key != NULL;
+  if (key == nullptr) {
+    return 0;
+  }
+  evp_pkey_set0(pkey, &ec_asn1_meth, key);
+  return 1;
 }
 
 EC_KEY *EVP_PKEY_get0_EC_KEY(const EVP_PKEY *pkey) {
-  if (pkey->type != EVP_PKEY_EC) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_AN_EC_KEY_KEY);
+  if (EVP_PKEY_id(pkey) != EVP_PKEY_EC) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_A_EC_KEY);
     return NULL;
   }
   return reinterpret_cast<EC_KEY *>(pkey->pkey);

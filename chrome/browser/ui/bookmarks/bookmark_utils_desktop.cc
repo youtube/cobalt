@@ -12,6 +12,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/user_metrics.h"
 #include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/ui/bookmarks/bookmark_stats_tab_helper.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_dialogs.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_window.h"
@@ -48,6 +50,7 @@
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/models/dialog_model.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
 
@@ -84,6 +87,24 @@ namespace {
 // the actual web contents and what browsers they are located in can be
 // determined (if necessary).
 using OpenedWebContentsSet = base::flat_set<const content::WebContents*>;
+
+// Result of user action when a dialog is shown.
+// The dialog is shown when user tries to open a bookmark folder as tab group
+// that already connected with one before.
+enum class OpenGroupMessageBoxResult {
+  // No UI shows, user does not need to make a choice. Default to create a new
+  // group.
+  kNoMessage = 0,
+
+  // User chooses to create a new group.
+  kCreateNewGroup = 1,
+
+  // User chooses to replace the old group with bookmarks in the folder.
+  kReplaceOldGroup = 2,
+
+  // User cancels the action by pressing Esc key. Do nothing.
+  kCancel = 3,
+};
 
 // Opens all of the URLs in `bookmark_urls` using `navigator` and
 // `initial_disposition` as a starting point. Returns a reference set of the
@@ -307,7 +328,12 @@ void DoOpen(Browser* browser,
             page_load_metrics::NavigationHandleUserData::InitiatorLocation
                 navigation_type,
             std::optional<BookmarkLaunchAction> launch_action,
-            chrome::MessageBoxResult result) {
+            OpenGroupMessageBoxResult result) {
+  if (result == OpenGroupMessageBoxResult::kCancel) {
+    base::RecordAction(
+        base::UserMetricsAction("BookmarkTabGroupConversion_UserSelectCancel"));
+    return;
+  }
   const auto opened_web_contents = OpenAllHelper(
       browser, std::move(url_and_ids_to_open), initial_disposition,
       navigation_type, std::move(launch_action));
@@ -345,32 +371,34 @@ void DoOpen(Browser* browser,
                                                  bookmark_folder_node_id);
     bool is_new_group = true;
     if (features::IsBookmarkTabGroupConversionEnabled() &&
-        connected_group_id.has_value() &&
-        result == chrome::MESSAGE_BOX_RESULT_YES) {
-      is_new_group = false;
+        connected_group_id.has_value()) {
+      if (result == OpenGroupMessageBoxResult::kReplaceOldGroup) {
+        is_new_group = false;
+        base::RecordAction(base::UserMetricsAction(
+            "BookmarkTabGroupConversion_UserSelectReplaceOldGroup"));
+      } else if (result == OpenGroupMessageBoxResult::kCreateNewGroup) {
+        base::RecordAction(base::UserMetricsAction(
+            "BookmarkTabGroupConversion_UserSelectCreateNewGroup"));
+      }
     }
 
     if (is_new_group) {
       // Create a new group and add the tabs.
-      std::optional<tab_groups::TabGroupId> new_group_id =
-          model->AddToNewGroup(tab_indices);
-
-      if (!new_group_id.has_value()) {
-        return;
-      }
+      tab_groups::TabGroupId new_group_id = model->AddToNewGroup(tab_indices);
 
       // Use the bookmark folder's title as the group's title.
       // TODO(http://crbug.com/436846784): Suggest a new name for the new tab
       // group if there is already a tab group with the same name.
-      TabGroup* group = model->group_model()->GetTabGroup(new_group_id.value());
+      TabGroup* group = model->group_model()->GetTabGroup(new_group_id);
       const tab_groups::TabGroupVisualData* current_visual_data =
           group->visual_data();
       tab_groups::TabGroupVisualData new_visual_data(
-          folder_title.value(), current_visual_data->color(),
-          current_visual_data->is_collapsed());
+          SuggestUniqueTabGroupName(folder_title.value(),
+                                    tab_group_sync_service),
+          current_visual_data->color(), current_visual_data->is_collapsed());
       model->ChangeTabGroupVisuals(group->id(), new_visual_data);
 
-      model->OpenTabGroupEditor(new_group_id.value());
+      model->OpenTabGroupEditor(new_group_id);
 
       if (!tab_group_sync_service ||
           !features::IsBookmarkTabGroupConversionEnabled()) {
@@ -385,7 +413,7 @@ void DoOpen(Browser* browser,
 
       // Connect to new group.
       std::optional<tab_groups::SavedTabGroup> new_tab_group =
-          tab_group_sync_service->GetGroup(new_group_id.value());
+          tab_group_sync_service->GetGroup(new_group_id);
       if (new_tab_group.has_value()) {
         tab_group_sync_service->UpdateBookmarkNodeId(
             new_tab_group->saved_guid(), bookmark_folder_node_id);
@@ -449,25 +477,46 @@ void DoOpenPromptConfirm(
              bookmark_folder_node_id, folder_title, add_to_split,
              navigation_type, launch_action,
              override_connected_group_for_testing.value()
-                 ? chrome::MESSAGE_BOX_RESULT_YES
-                 : chrome::MESSAGE_BOX_RESULT_NO);
+                 ? OpenGroupMessageBoxResult::kReplaceOldGroup
+                 : OpenGroupMessageBoxResult::kCreateNewGroup);
     } else {
       // Show UI dialog for user selection.
-      // TODO(crbug.com/436350653): Add localization strings.
-      chrome::ShowQuestionMessageBoxAsync(
-          browser->window()->GetNativeWindow(),
-          l10n_util::GetStringUTF16(IDS_PRODUCT_NAME),
-          l10n_util::GetStringUTF16(IDS_PRODUCT_NAME),
-          base::BindOnce(DoOpen, browser, std::move(url_and_ids_to_open),
-                         initial_disposition, bookmark_folder_node_id,
-                         folder_title, add_to_split, navigation_type,
-                         launch_action));
+      auto on_create_new_group = base::BindOnce(
+          DoOpen, browser, url_and_ids_to_open, initial_disposition,
+          bookmark_folder_node_id, folder_title, add_to_split, navigation_type,
+          launch_action, OpenGroupMessageBoxResult::kCreateNewGroup);
+      auto on_replace_old_group = base::BindOnce(
+          DoOpen, browser, url_and_ids_to_open, initial_disposition,
+          bookmark_folder_node_id, folder_title, add_to_split, navigation_type,
+          launch_action, OpenGroupMessageBoxResult::kReplaceOldGroup);
+      auto on_cancel = base::BindOnce(
+          DoOpen, browser, std::move(url_and_ids_to_open), initial_disposition,
+          bookmark_folder_node_id, folder_title, add_to_split, navigation_type,
+          launch_action, OpenGroupMessageBoxResult::kCancel);
+
+      auto dialog_model_builder = ui::DialogModel::Builder();
+      dialog_model_builder.SetTitle(l10n_util::GetStringUTF16(IDS_PRODUCT_NAME))
+          .AddParagraph(ui::DialogModelLabel(l10n_util::GetStringUTF16(
+              IDS_BOOKMARK_BAR_ALREADY_CREATED_GROUP)))
+          .AddOkButton(std::move(on_replace_old_group),
+                       ui::DialogModel::Button::Params().SetLabel(
+                           l10n_util::GetStringUTF16(
+                               IDS_BOOKMARK_BAR_REPLACE_OLD_GROUP_BUTTON)))
+          .AddCancelButton(std::move(on_create_new_group),
+                           ui::DialogModel::Button::Params().SetLabel(
+                               l10n_util::GetStringUTF16(
+                                   IDS_BOOKMARK_BAR_CREATE_NEW_GROUP_BUTTON)))
+          .SetCloseActionCallback(std::move(on_cancel));
+
+      chrome::ShowBrowserModal(browser, dialog_model_builder.Build());
+      base::RecordAction(base::UserMetricsAction(
+          "BookmarkTabGroupConversion_ShowGroupAlreadyCreatedDialog"));
     }
 
   } else {
     DoOpen(browser, std::move(url_and_ids_to_open), initial_disposition,
            bookmark_folder_node_id, folder_title, add_to_split, navigation_type,
-           launch_action, chrome::MESSAGE_BOX_RESULT_YES);
+           launch_action, OpenGroupMessageBoxResult::kNoMessage);
   }
 }
 
@@ -599,12 +648,16 @@ void ShowBookmarkTabGroupDialog(
                  callback) {
             // We record the profile that invoked this option.
             RecordBookmarksAdded(browser->profile());
+            base::RecordAction(base::UserMetricsAction(
+                "BookmarkTabGroupConversion_ConvertToBookmarkConfirmed"));
             if (callback) {
               std::move(callback).Run(browser, tab_group_id);
             }
           },
           base::Unretained(browser), tab_group.id(),
           std::move(on_save_callback)));
+  base::RecordAction(base::UserMetricsAction(
+      "BookmarkTabGroupConversion_ConvertToBookmarkSelected"));
 }
 
 bool HasBookmarkURLs(
@@ -664,6 +717,36 @@ void GetURLsAndFoldersForTabGroup(
     bookmark_data.title = title;
     folder_data->push_back(bookmark_data);
   }
+}
+
+std::u16string SuggestUniqueTabGroupName(
+    std::u16string folder_title,
+    const tab_groups::TabGroupSyncService* tab_group_sync_service) {
+  if (!tab_group_sync_service) {
+    return folder_title;
+  }
+
+  std::vector<tab_groups::SavedTabGroup> saved_groups =
+      tab_group_sync_service->GetAllGroups();
+  base::flat_set<std::u16string> existing_titles;
+  for (const auto& group : saved_groups) {
+    existing_titles.insert(group.title());
+  }
+
+  if (!base::Contains(existing_titles, folder_title)) {
+    return folder_title;
+  }
+
+  constexpr int kMaxAttempts = 100;
+  for (int i = 1; i < kMaxAttempts; ++i) {
+    std::u16string new_title =
+        folder_title + u" (" + base::NumberToString16(i) + u")";
+    if (!base::Contains(existing_titles, new_title)) {
+      return new_title;
+    }
+  }
+
+  return folder_title + u" (" + base::NumberToString16(kMaxAttempts) + u")";
 }
 
 }  // namespace bookmarks

@@ -78,7 +78,6 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 #include "system_wrappers/include/ntp_time.h"
@@ -658,7 +657,7 @@ void ChannelReceive::SetReceiveCodecs(
 
 void ChannelReceive::OnRtpPacket(const RtpPacketReceived& packet) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
-  Timestamp now = Timestamp::Millis(TimeMillis());
+  Timestamp now = env_.clock().CurrentTime();
 
   last_received_rtp_timestamp_ = packet.Timestamp();
   last_received_rtp_system_time_ = now;
@@ -755,7 +754,7 @@ void ChannelReceive::ReceivedRTCPPacket(const uint8_t* data, size_t length) {
   RTC_DCHECK_RUN_ON(&worker_thread_checker_);
 
   // Store playout timestamp for the received RTCP packet
-  UpdatePlayoutTimestamp(true, Timestamp::Millis(TimeMillis()));
+  UpdatePlayoutTimestamp(true, env_.clock().CurrentTime());
 
   // Deliver RTCP packet to RTP/RTCP module for parsing
   rtp_rtcp_->IncomingRtcpPacket(MakeArrayView(data, length));

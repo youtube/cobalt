@@ -1153,6 +1153,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Dynamically allocates a buffer of size `size` in C++ on the cppgc heap.
   TNode<RawPtrT> AllocateBuffer(TNode<IntPtrT> size);
+  TNode<Symbol> ArrayBufferWasmMemorySymbol();
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
@@ -1752,6 +1753,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<InterpreterData> data);
   TNode<Code> LoadInterpreterDataInterpreterTrampoline(
       TNode<InterpreterData> data);
+
+  TNode<Int32T> LoadCodeParameterCount(TNode<Code> code);
 
   TNode<Int32T> LoadBytecodeArrayParameterCount(
       TNode<BytecodeArray> bytecode_array);
@@ -3907,10 +3910,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Helpers to look up Page metadata for a given address.
   // Equivalent to MemoryChunk::FromAddress().
   TNode<IntPtrT> MemoryChunkFromAddress(TNode<IntPtrT> address);
-  // Equivalent to MemoryChunk::MutablePageMetadata().
-  TNode<IntPtrT> PageMetadataFromMemoryChunk(TNode<IntPtrT> address);
+  // Equivalent to MemoryChunk::Metadata().
+  TNode<IntPtrT> MemoryChunkMetadataFromMemoryChunk(TNode<IntPtrT> address);
   // Equivalent to MemoryChunkMetadata::FromAddress().
-  TNode<IntPtrT> PageMetadataFromAddress(TNode<IntPtrT> address);
+  TNode<IntPtrT> MemoryChunkMetadataFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.
   TNode<MaybeObject> StoreWeakReferenceInFeedbackVector(
@@ -4276,7 +4279,27 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
       TNode<JSDispatchHandleT> handle);
-#endif
+#endif  // V8_ENABLE_LEAPTIERING
+
+  // Tailcalls to the given code object with JSCall linkage. The JS arguments
+  // (including receiver) are supposed to be already on the stack.
+  // This is a building block for implementing trampoline stubs that are
+  // installed instead of code objects with JSCall linkage.
+  // Note that no arguments adaption is going on here - all the JavaScript
+  // arguments are left on the stack unmodified. Therefore, this tail call can
+  // only be used after arguments adaptation has been performed already.
+  // When Sandbox is enabled it also checks that the code's parameter count
+  // and dispatch handle's parameter counts match.
+  void TailCallJSCode(TNode<Code> code, TNode<Context> context,
+                      TNode<JSFunction> function, TNode<Object> new_target,
+                      TNode<Int32T> arg_count,
+                      TNode<JSDispatchHandleT> dispatch_handle);
+  // Same as above, but the code object is loaded from the dispatch table
+  // entry or from the function according to V8_ENABLE_LEAPTIERING state and
+  // thus the parameter count check is not necessary.
+  void TailCallJSCode(TNode<Context> context, TNode<JSFunction> function,
+                      TNode<Object> new_target, TNode<Int32T> arg_count,
+                      TNode<JSDispatchHandleT> dispatch_handle);
 
   // Indicate that this code must support a dynamic parameter count.
   //

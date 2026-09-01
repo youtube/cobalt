@@ -428,7 +428,8 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
         this.fontOptions_.indexOf(chrome.readingMode.fontName);
     if (currentFontIndex < 0) {
       currentFontIndex = 0;
-      this.propagateFontChange_(this.fontOptions_[0]!);
+      this.propagateFontChange_(
+          this.fontOptions_[0]!, /*isTemporaryFallback=*/ true);
     }
     this.fontName_ = this.fontOptions_[currentFontIndex]!;
     if (!this.isReadAloudEnabled_) {
@@ -576,8 +577,13 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     this.propagateFontChange_(this.fontName_);
   }
 
-  private propagateFontChange_(fontName: string) {
-    chrome.readingMode.onFontChange(fontName);
+  private propagateFontChange_(
+      fontName: string, isTemporaryFallback: boolean = false) {
+    if (!isTemporaryFallback) {
+      // Persist the change only if it's a direct user selection, not a
+      // temporary fallback.
+      chrome.readingMode.onFontChange(fontName);
+    }
     this.fire(ToolbarEvent.FONT);
     this.style.fontFamily = chrome.readingMode.getValidatedFontName(fontName);
   }
@@ -628,9 +634,11 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     if (button) {
       button.ironIcon = chrome.readingMode.linksEnabled ? LINKS_ENABLED_ICON :
                                                           LINKS_DISABLED_ICON;
-      button.title = chrome.readingMode.linksEnabled ?
+      const linkStatusLabel = chrome.readingMode.linksEnabled ?
           loadTimeData.getString('disableLinksLabel') :
           loadTimeData.getString('enableLinksLabel');
+      button.title = linkStatusLabel;
+      button.ariaLabel = linkStatusLabel;
     }
   }
 
@@ -640,9 +648,11 @@ export class ReadAnythingToolbarElement extends ReadAnythingToolbarElementBase {
     if (button) {
       button.ironIcon = chrome.readingMode.imagesEnabled ? IMAGES_ENABLED_ICON :
                                                            IMAGES_DISABLED_ICON;
-      button.title = chrome.readingMode.imagesEnabled ?
+      const imageStatusLabel = chrome.readingMode.imagesEnabled ?
           loadTimeData.getString('disableImagesLabel') :
           loadTimeData.getString('enableImagesLabel');
+      button.title = imageStatusLabel;
+      button.ariaLabel = imageStatusLabel;
     }
   }
 

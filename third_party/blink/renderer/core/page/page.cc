@@ -527,7 +527,7 @@ void Page::TakePropertiesForLocalMainFrameSwap(Page* old_page) {
 
   // If the previous page is an opener for other pages, make sure that the
   // openees point to the new page instead.
-  for (auto page : RelatedPages()) {
+  for (auto& page : RelatedPages()) {
     if (page->opener_ == old_page) {
       page->opener_ = this;
     }
@@ -873,7 +873,7 @@ void Page::SetVisibilityState(
   if (is_initial_state)
     return;
 
-  for (auto observer : page_visibility_observer_set_) {
+  for (auto& observer : page_visibility_observer_set_) {
     observer->PageVisibilityChanged();
   }
 
@@ -1456,7 +1456,7 @@ void Page::WillBeDestroyed() {
     validation_message_client_->WillBeDestroyed();
   main_frame_ = nullptr;
 
-  for (auto observer : page_visibility_observer_set_) {
+  for (auto& observer : page_visibility_observer_set_) {
     observer->ObserverSetWillBeCleared();
   }
   page_visibility_observer_set_.clear();

@@ -38,7 +38,6 @@
 #include "modules/rtp_rtcp/source/rtp_packet_received.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/string_encode.h"
-#include "rtc_base/time_utils.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -92,7 +91,8 @@ class ChannelReceiveTest : public Test {
 
   uint32_t RtpNow() {
     // Note - the "random" offset of this timestamp is zero.
-    return TimeMillis() * 1000 / kSampleRateHz;
+    return time_controller_.GetClock()->TimeInMilliseconds() * 1000 /
+           kSampleRateHz;
   }
 
   RtpPacketReceived CreateRtpPacket() {

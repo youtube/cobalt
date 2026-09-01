@@ -11,7 +11,7 @@
 #include "base/observer_list_types.h"
 #include "components/autofill/core/browser/autofill_type.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/integrators/password_manager/otp_suggestion_delegate.h"
+#include "components/autofill/core/browser/integrators/password_manager/otp_delegate.h"
 #include "components/autofill/core/common/unique_ids.h"
 
 namespace autofill {
@@ -24,7 +24,7 @@ class OtpFormManager;
 class PasswordManagerClient;
 
 // A class in charge of handling one time passwords, one per tab.
-class OtpManager : public autofill::OtpSuggestionDelegate {
+class OtpManager : public autofill::OtpDelegate {
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -50,7 +50,7 @@ class OtpManager : public autofill::OtpSuggestionDelegate {
                            autofill::AutofillType::ServerPrediction>&
           field_predictions);
 
-  // OtpSuggestionDelegate implementation
+  // OtpDelegate implementation
   bool IsFieldEligibleForOtpFilling(
       const autofill::FormGlobalId& form_id,
       const autofill::FieldGlobalId& field_id) const override;
@@ -58,6 +58,10 @@ class OtpManager : public autofill::OtpSuggestionDelegate {
                          const autofill::FieldGlobalId& field_id,
                          base::OnceCallback<void(std::vector<std::string>)>
                              callback) const override;
+  autofill::OtpFillData GetFillDataForOtpSuggestion(
+      const autofill::FormGlobalId& form_id,
+      const autofill::FieldGlobalId& field_id,
+      const std::u16string& otp_value) const override;
 
   // Called by the client when the renderer frame identified by `frame_token` is
   // deleted.

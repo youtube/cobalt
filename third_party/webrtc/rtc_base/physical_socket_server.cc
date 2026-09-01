@@ -1656,7 +1656,7 @@ void PhysicalSocketServer::AddEpoll(Dispatcher* pdispatcher, uint64_t key) {
     return;
   }
 
-  struct epoll_event event = {0};
+  struct epoll_event event = {};
   event.events = GetEpollEvents(pdispatcher->GetRequestedEvents());
   if (event.events == 0u) {
     // Don't add at all if we don't have any requested events. Could indicate a
@@ -1679,7 +1679,7 @@ void PhysicalSocketServer::RemoveEpoll(Dispatcher* pdispatcher) {
     return;
   }
 
-  struct epoll_event event = {0};
+  struct epoll_event event = {};
   int err = epoll_ctl(epoll_fd_, EPOLL_CTL_DEL, fd, &event);
   RTC_DCHECK(err == 0 || errno == ENOENT);
   // Ignore ENOENT, which could occur if this descriptor wasn't added due to
@@ -1697,7 +1697,7 @@ void PhysicalSocketServer::UpdateEpoll(Dispatcher* pdispatcher, uint64_t key) {
     return;
   }
 
-  struct epoll_event event = {0};
+  struct epoll_event event = {};
   event.events = GetEpollEvents(pdispatcher->GetRequestedEvents());
   event.data.u64 = key;
   // Remove if we don't have any requested events. Could indicate a closed

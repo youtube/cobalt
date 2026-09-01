@@ -16,11 +16,14 @@
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
+#import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/variations/model/client/variations_client_service.h"
 #import "ios/chrome/browser/variations/model/client/variations_client_service_factory.h"
 #import "ios/chrome/common/channel_info.h"
+#import "ios/public/provider/chrome/browser/voice_search/voice_search_api.h"
+#import "ios/web/public/web_state.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 
 @interface AIMPrototypeCoordinator () <AIMPrototypeMediatorDelegate,
@@ -30,6 +33,9 @@
 @implementation AIMPrototypeCoordinator {
   AIMPrototypeViewController* _viewController;
   AIMPrototypeMediator* _mediator;
+  id<VoiceSearchController> _voiceSearchController;
+  /// The prewarmed picker as it takes time to appear.
+  PHPickerViewController* _picker;
 }
 
 - (void)start {
@@ -37,6 +43,9 @@
   _viewController.delegate = self;
   _viewController.modalPresentationStyle = UIModalPresentationCustom;
   _viewController.transitioningDelegate = self;
+
+  _voiceSearchController =
+      ios::provider::CreateVoiceSearchController(self.browser);
 
   UrlLoadingBrowserAgent* urlLoadingBrowserAgent =
       UrlLoadingBrowserAgent::FromBrowser(self.browser);
@@ -59,6 +68,7 @@
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
   _viewController.mutator = _mediator;
+  _voiceSearchController.dispatcher = _mediator;
 
   [self.baseViewController presentViewController:_viewController
                                         animated:YES
@@ -69,6 +79,11 @@
   [_viewController.presentingViewController dismissViewControllerAnimated:YES
                                                                completion:nil];
   _viewController = nil;
+  _picker = nil;
+  [_voiceSearchController dismissMicPermissionHelp];
+  [_voiceSearchController disconnect];
+  _voiceSearchController.dispatcher = nil;
+  _voiceSearchController = nil;
   [_mediator disconnect];
   _mediator = nil;
 }
@@ -96,16 +111,27 @@
   [self.delegate aimPrototypeCoordinatorDidFinish:self];
 }
 
+- (void)aimPrototypeViewControllerDidTapMicButton:
+    (AIMPrototypeViewController*)viewController {
+  WebStateList* webStateList = self.browser->GetWebStateList();
+  if (!webStateList) {
+    return;
+  }
+  web::WebState* webState = webStateList->GetActiveWebState();
+  if (!webState) {
+    return;
+  }
+  [_voiceSearchController startRecognitionOnViewController:_viewController
+                                                  webState:webState];
+}
+
 - (void)aimPrototypeViewControllerDidTapGalleryButton:
     (AIMPrototypeViewController*)viewController {
-  PHPickerConfiguration* config = [[PHPickerConfiguration alloc]
-      initWithPhotoLibrary:PHPhotoLibrary.sharedPhotoLibrary];
-  config.selectionLimit = 1;
-  config.filter = [PHPickerFilter imagesFilter];
-  PHPickerViewController* picker =
-      [[PHPickerViewController alloc] initWithConfiguration:config];
-  picker.delegate = self;
-  [_viewController presentViewController:picker animated:YES completion:nil];
+  if (!_picker) {
+    [self aimPrototypeViewControllerMayShowGalleryPicker:viewController];
+  }
+  [_viewController presentViewController:_picker animated:YES completion:nil];
+  _picker = nil;
 }
 
 - (void)aimPrototypeViewControllerDidTapCameraButton:
@@ -119,6 +145,19 @@
   picker.delegate = self;
   picker.sourceType = UIImagePickerControllerSourceTypeCamera;
   [_viewController presentViewController:picker animated:YES completion:nil];
+}
+
+- (void)aimPrototypeViewControllerMayShowGalleryPicker:
+    (AIMPrototypeViewController*)viewController {
+  if (_picker) {
+    return;
+  }
+  PHPickerConfiguration* config = [[PHPickerConfiguration alloc]
+      initWithPhotoLibrary:PHPhotoLibrary.sharedPhotoLibrary];
+  config.selectionLimit = 1;
+  config.filter = [PHPickerFilter imagesFilter];
+  _picker = [[PHPickerViewController alloc] initWithConfiguration:config];
+  _picker.delegate = self;
 }
 
 #pragma mark - PHPickerViewControllerDelegate

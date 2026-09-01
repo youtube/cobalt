@@ -19,7 +19,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -51,8 +50,6 @@
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
 #include "call/video_receive_stream.h"
-#include "common_video/corruption_detection_converters.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "media/base/media_constants.h"
 #include "modules/include/module_common_types.h"
 #include "modules/pacing/packet_router.h"
@@ -546,25 +543,6 @@ RtpVideoStreamReceiver2::ParseGenericDependenciesExtension(
   return kHasGenericDescriptor;
 }
 
-void RtpVideoStreamReceiver2::SetLastCorruptionDetectionIndex(
-    const std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>&
-        frame_instrumentation_data,
-    int spatial_idx) {
-  RTC_CHECK_GE(spatial_idx, 0);
-  RTC_CHECK_LT(spatial_idx, kMaxSpatialLayers);
-  if (const auto* sync_data = std::get_if<FrameInstrumentationSyncData>(
-          &frame_instrumentation_data)) {
-    last_corruption_detection_state_by_layer_[spatial_idx].sequence_index =
-        sync_data->sequence_index;
-  } else if (const auto* data = std::get_if<FrameInstrumentationData>(
-                 &frame_instrumentation_data)) {
-    last_corruption_detection_state_by_layer_[spatial_idx].sequence_index =
-        data->sequence_index + data->sample_values.size();
-  } else {
-    RTC_DCHECK_NOTREACHED();
-  }
-}
-
 bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
     CopyOnWriteBuffer codec_payload,
     const RtpPacketReceived& rtp_packet,
@@ -669,7 +647,7 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
       spatial_id = video_header.generic->spatial_index;
       if (spatial_id >= kMaxSpatialLayers) {
         RTC_LOG(LS_WARNING) << "Invalid spatial id: " << *spatial_id
-                            << ". Ignoring corruption detection mesaage.";
+                            << " in generic descriptor.";
         spatial_id.reset();
       }
     } else {
@@ -680,33 +658,9 @@ bool RtpVideoStreamReceiver2::OnReceivedPayloadData(
         rtp_packet.GetExtension<CorruptionDetectionExtension>();
     if (message.has_value() && spatial_id.has_value()) {
       RTC_CHECK_GE(*spatial_id, 0);
-      if (message->sample_values().empty()) {
-        video_header.frame_instrumentation_data =
-            ConvertCorruptionDetectionMessageToFrameInstrumentationSyncData(
-                *message, last_corruption_detection_state_by_layer_[*spatial_id]
-                              .sequence_index);
-      } else {
-        // `OnReceivedPayloadData` might be called several times, however, we
-        // don't want to increase the sequence index each time.
-        if (!last_corruption_detection_state_by_layer_[*spatial_id]
-                 .timestamp.has_value() ||
-            rtp_packet.Timestamp() !=
-                last_corruption_detection_state_by_layer_[*spatial_id]
-                    .timestamp) {
-          video_header.frame_instrumentation_data =
-              ConvertCorruptionDetectionMessageToFrameInstrumentationData(
-                  *message,
-                  last_corruption_detection_state_by_layer_[*spatial_id]
-                      .sequence_index);
-          last_corruption_detection_state_by_layer_[*spatial_id].timestamp =
-              rtp_packet.Timestamp();
-        }
-      }
-
-      if (video_header.frame_instrumentation_data.has_value()) {
-        SetLastCorruptionDetectionIndex(
-            *video_header.frame_instrumentation_data, *spatial_id);
-      }
+      video_header.frame_instrumentation_data =
+          last_corruption_detection_state_by_layer_[*spatial_id].ParseMessage(
+              *message);
     }
   }
   video_header.video_frame_tracking_id =
@@ -947,6 +901,7 @@ void RtpVideoStreamReceiver2::OnInsertedPacket(
           last_packet.video_header.frame_instrumentation_data,     //
           RtpPacketInfos(std::move(packet_infos)),                 //
           std::move(bitstream)));
+      packet_infos.clear();
     }
   }
   if (result.buffer_cleared) {

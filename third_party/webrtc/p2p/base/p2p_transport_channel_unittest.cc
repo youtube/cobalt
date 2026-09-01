@@ -482,11 +482,10 @@ class P2PTransportChannelTestBase : public ::testing::Test,
       int component,
       const IceParameters& local_ice,
       const IceParameters& remote_ice) {
-    IceTransportInit init;
+    IceTransportInit init(env);
     init.set_port_allocator(GetAllocator(endpoint));
     init.set_async_dns_resolver_factory(
         GetEndpoint(endpoint)->async_dns_resolver_factory_);
-    init.set_field_trials(&env.field_trials());
     auto channel = P2PTransportChannel::Create("test content name", component,
                                                std::move(init));
     channel->SignalReadyToSend.connect(
@@ -696,7 +695,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
 
   void Test(const Environment& env, const Result& expected) {
     ScopedFakeClock clock;
-    int64_t connect_start = TimeMillis();
+    int64_t connect_start = env.clock().TimeInMilliseconds();
     int64_t connect_time;
 
     // Create the channels and wait for them to connect.
@@ -704,7 +703,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     EXPECT_TRUE(WaitUntil(
         [&] { return CheckConnected(ep1_ch1(), ep2_ch1()); },
         {.timeout = expected.connect_wait + kShortTimeout, .clock = &clock}));
-    connect_time = TimeMillis() - connect_start;
+    connect_time = env.clock().TimeInMilliseconds() - connect_start;
     if (connect_time < expected.connect_wait.ms()) {
       RTC_LOG(LS_INFO) << "Connect time: " << connect_time << " ms";
     } else {
@@ -715,7 +714,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
     // Allow a few turns of the crank for the selected connections to emerge.
     // This may take up to 2 seconds.
     if (ep1_ch1()->selected_connection() && ep2_ch1()->selected_connection()) {
-      int64_t converge_start = TimeMillis();
+      int64_t converge_start = env.clock().TimeInMilliseconds();
       int64_t converge_time;
       // Verifying local and remote channel selected connection information.
       // This is done only for the RFC 5245 as controlled agent will use
@@ -730,7 +729,7 @@ class P2PTransportChannelTestBase : public ::testing::Test,
       ExpectCandidate1(expected);
       ExpectCandidate2(expected);
 
-      converge_time = TimeMillis() - converge_start;
+      converge_time = env.clock().TimeInMilliseconds() - converge_start;
       int64_t converge_wait = 2000;
       if (converge_time < converge_wait) {
         RTC_LOG(LS_INFO) << "Converge time: " << converge_time << " ms";
@@ -3801,7 +3800,7 @@ class P2PTransportChannelPingTest : public ::testing::Test,
 TEST_F(P2PTransportChannelPingTest, TestTriggeredChecks) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("trigger checks", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "trigger checks", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -3828,7 +3827,7 @@ TEST_F(P2PTransportChannelPingTest, TestTriggeredChecks) {
 TEST_F(P2PTransportChannelPingTest, TestAllConnectionsPingedSufficiently) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("ping sufficiently", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "ping sufficiently", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -3861,7 +3860,7 @@ TEST_F(P2PTransportChannelPingTest, TestStunPingIntervals) {
   int RTT_RANGE = 10;
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("TestChannel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "TestChannel", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -3952,7 +3951,7 @@ TEST_F(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("TestChannel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "TestChannel", 1, &pa);
   ch.SetIceRole(ICEROLE_CONTROLLING);
   ch.SetIceParameters(kIceParams[0]);
   ch.MaybeStartGathering();
@@ -3993,7 +3992,7 @@ TEST_F(P2PTransportChannelPingTest, PingingStartedAsSoonAsPossible) {
 TEST_F(P2PTransportChannelPingTest, TestNoTriggeredChecksWhenWritable) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("trigger checks", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "trigger checks", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -4021,8 +4020,7 @@ TEST_F(P2PTransportChannelPingTest, TestNoTriggeredChecksWhenWritable) {
 TEST_F(P2PTransportChannelPingTest, TestFailedConnectionNotPingable) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("Do not ping failed connections", 1, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "Do not ping failed connections", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -4041,7 +4039,7 @@ TEST_F(P2PTransportChannelPingTest, TestFailedConnectionNotPingable) {
 TEST_F(P2PTransportChannelPingTest, TestSignalStateChanged) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "state change", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   ch.AddRemoteCandidate(
@@ -4066,7 +4064,7 @@ TEST_F(P2PTransportChannelPingTest, TestSignalStateChanged) {
 TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithVariousUfrags) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("add candidate", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "add candidate", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   // Add a candidate with a future ufrag.
@@ -4121,8 +4119,7 @@ TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithVariousUfrags) {
 TEST_F(P2PTransportChannelPingTest, ConnectionResurrection) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("connection resurrection", 1, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "connection resurrection", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
 
@@ -4181,7 +4178,7 @@ TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
   ScopedFakeClock clock;
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   // Default receiving timeout and checking receiving interval should not be too
   // small.
@@ -4198,8 +4195,8 @@ TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
 
   clock.AdvanceTime(TimeDelta::Seconds(1));
   conn1->ReceivedPing();
-  conn1->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("ABC", 3, TimeMicros()));
+  conn1->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "ABC", 3, env.clock().TimeInMicroseconds()));
 
   EXPECT_TRUE(WaitUntil([&] { return ch.receiving(); },
                         {.timeout = kShortTimeout, .clock = &clock}));
@@ -4216,7 +4213,7 @@ TEST_F(P2PTransportChannelPingTest, TestReceivingStateChange) {
 TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBeforeNomination) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4315,7 +4312,7 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnNomination) {
   const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/send_ping_on_nomination_ice_controlled:true/"));
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.SetIceRole(ICEROLE_CONTROLLED);
@@ -4361,7 +4358,7 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSwitch) {
   const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/send_ping_on_switch_ice_controlling:true/"));
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.SetIceRole(ICEROLE_CONTROLLING);
@@ -4404,7 +4401,7 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSelected) {
   const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/send_ping_on_selected_ice_controlling:true/"));
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.SetIceRole(ICEROLE_CONTROLLING);
@@ -4436,7 +4433,7 @@ TEST_F(P2PTransportChannelPingTest, TestPingOnSelected) {
 TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4519,7 +4516,7 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionFromUnknownAddress) {
 TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("receiving state change", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "receiving state change", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4540,8 +4537,8 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
   Connection* conn2 = WaitForConnectionTo(&ch, "2.2.2.2", 2);
   ASSERT_TRUE(conn2 != nullptr);
   conn2->ReceivedPingResponse(LOW_RTT, "id");  // Become writable and receiving.
-  conn2->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("ABC", 3, TimeMicros()));
+  conn2->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "ABC", 3, env.clock().TimeInMicroseconds()));
   EXPECT_EQ(conn2, ch.selected_connection());
   conn2->ReceivedPingResponse(LOW_RTT, "id");  // Become writable.
 
@@ -4570,8 +4567,8 @@ TEST_F(P2PTransportChannelPingTest, TestSelectConnectionBasedOnMediaReceived) {
   // selected connection was nominated by the controlling side.
   conn2->ReceivedPing();
   conn2->ReceivedPingResponse(LOW_RTT, "id");
-  conn2->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("XYZ", 3, TimeMicros()));
+  conn2->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "XYZ", 3, env.clock().TimeInMicroseconds()));
   EXPECT_THAT(WaitUntil([&] { return ch.selected_connection(); }, Eq(conn3),
                         {.timeout = kDefaultTimeout}),
               IsRtcOk());
@@ -4583,8 +4580,7 @@ TEST_F(P2PTransportChannelPingTest,
   const Environment env = CreateEnvironment();
   clock.AdvanceTime(TimeDelta::Seconds(1));
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "SwitchSelectedConnection", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4605,14 +4601,14 @@ TEST_F(P2PTransportChannelPingTest,
   // conn2 is larger.
   SIMULATED_WAIT(false, 1, clock);
 
-  conn2->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("XYZ", 3, TimeMicros()));
+  conn2->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "XYZ", 3, env.clock().TimeInMicroseconds()));
   EXPECT_EQ(1, reset_selected_candidate_pair_switches());
   EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn2));
 
   // conn1 also receives data; it becomes selected due to priority again.
-  conn1->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("ABC", 3, TimeMicros()));
+  conn1->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "ABC", 3, env.clock().TimeInMicroseconds()));
   EXPECT_EQ(1, reset_selected_candidate_pair_switches());
   EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn2));
 
@@ -4621,8 +4617,8 @@ TEST_F(P2PTransportChannelPingTest,
   SIMULATED_WAIT(false, 1, clock);
   // Need to become writable again because it was pruned.
   conn2->ReceivedPingResponse(LOW_RTT, "id");
-  conn2->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("ABC", 3, TimeMicros()));
+  conn2->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "ABC", 3, env.clock().TimeInMicroseconds()));
   EXPECT_EQ(1, reset_selected_candidate_pair_switches());
   EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn2));
 
@@ -4638,8 +4634,7 @@ TEST_F(P2PTransportChannelPingTest,
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "SwitchSelectedConnection", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4655,8 +4650,8 @@ TEST_F(P2PTransportChannelPingTest,
   // Advance the clock to have a non-zero last-data-receiving time.
   SIMULATED_WAIT(false, 1, clock);
 
-  conn1->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("XYZ", 3, TimeMicros()));
+  conn1->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "XYZ", 3, env.clock().TimeInMicroseconds()));
   EXPECT_EQ(1, reset_selected_candidate_pair_switches());
   EXPECT_TRUE(CandidatePairMatchesNetworkRoute(conn1));
 
@@ -4682,7 +4677,7 @@ TEST_F(P2PTransportChannelPingTest,
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4730,7 +4725,7 @@ TEST_F(P2PTransportChannelPingTest, TestEstimatedDisconnectedTime) {
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4758,8 +4753,8 @@ TEST_F(P2PTransportChannelPingTest, TestEstimatedDisconnectedTime) {
   {
     clock.AdvanceTime(TimeDelta::Seconds(1));
     // This will not parse as STUN, and is considered data
-    conn1->OnReadPacket(
-        ReceivedIpPacket::CreateFromLegacy("XYZ", 3, TimeMicros()));
+    conn1->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+        "XYZ", 3, env.clock().TimeInMicroseconds()));
     clock.AdvanceTime(TimeDelta::Seconds(2));
 
     // conn2 is nominated; it becomes selected.
@@ -4771,8 +4766,8 @@ TEST_F(P2PTransportChannelPingTest, TestEstimatedDisconnectedTime) {
 
   {
     clock.AdvanceTime(TimeDelta::Seconds(1));
-    conn2->OnReadPacket(
-        ReceivedIpPacket::CreateFromLegacy("XYZ", 3, TimeMicros()));
+    conn2->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+        "XYZ", 3, env.clock().TimeInMicroseconds()));
     clock.AdvanceTime(TimeDelta::Seconds(2));
     ReceivePingOnConnection(conn2, kIceUfrag[1], 1, nomination++);
 
@@ -4792,7 +4787,7 @@ TEST_F(P2PTransportChannelPingTest,
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4811,8 +4806,7 @@ TEST_F(P2PTransportChannelPingTest,
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("SwitchSelectedConnection", 1, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "SwitchSelectedConnection", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4860,7 +4854,7 @@ TEST_F(P2PTransportChannelPingTest,
 TEST_F(P2PTransportChannelPingTest, TestAddRemoteCandidateWithAddressReuse) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("candidate reuse", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "candidate reuse", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   const std::string host_address = "1.1.1.1";
@@ -4901,7 +4895,7 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneWhenWeak) {
   clock.AdvanceTime(TimeDelta::Seconds(1));
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4943,7 +4937,7 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneHighPriorityConnections) {
   ScopedFakeClock clock;
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -4957,8 +4951,8 @@ TEST_F(P2PTransportChannelPingTest, TestDontPruneHighPriorityConnections) {
   // conn2.
   NominateConnection(conn1);
   SIMULATED_WAIT(false, 1, clock);
-  conn1->OnReadPacket(
-      ReceivedIpPacket::CreateFromLegacy("XYZ", 3, TimeMicros()));
+  conn1->OnReadPacket(ReceivedIpPacket::CreateFromLegacy(
+      "XYZ", 3, env.clock().TimeInMicroseconds()));
   SIMULATED_WAIT(conn2->pruned(), 100, clock);
   EXPECT_FALSE(conn2->pruned());
 }
@@ -4969,7 +4963,7 @@ TEST_F(P2PTransportChannelPingTest, TestGetState) {
   clock.AdvanceTime(TimeDelta::Seconds(1));
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   EXPECT_EQ(IceTransportState::kNew, ch.GetIceTransportState());
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
@@ -5016,7 +5010,7 @@ TEST_F(P2PTransportChannelPingTest, TestConnectionPrunedAgain) {
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   IceConfig config = CreateIceConfig(1000, GATHER_ONCE);
   config.receiving_switching_delay = 800;
@@ -5077,7 +5071,7 @@ TEST_F(P2PTransportChannelPingTest, TestDeleteConnectionsIfAllWriteTimedout) {
   ScopedFakeClock clock;
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
   // Have one connection only but later becomes write-time-out.
@@ -5115,7 +5109,7 @@ TEST_F(P2PTransportChannelPingTest, TestDeleteConnectionsIfAllWriteTimedout) {
 TEST_F(P2PTransportChannelPingTest, TestStopPortAllocatorSessions) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(CreateIceConfig(2000, GATHER_ONCE));
   ch.MaybeStartGathering();
@@ -5151,8 +5145,8 @@ TEST_F(P2PTransportChannelPingTest, TestStopPortAllocatorSessions) {
 TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", ICE_CANDIDATE_COMPONENT_DEFAULT,
+                         &pa);
   // Starts with ICEROLE_CONTROLLING.
   PrepareChannel(&ch);
   IceConfig config = CreateIceConfig(1000, GATHER_CONTINUALLY);
@@ -5179,8 +5173,8 @@ TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnRemovedPort) {
 TEST_F(P2PTransportChannelPingTest, TestIceRoleUpdatedOnPortAfterIceRestart) {
   const Environment env = CreateEnvironment();
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", ICE_CANDIDATE_COMPONENT_DEFAULT,
+                         &pa);
   // Starts with ICEROLE_CONTROLLING.
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
@@ -5206,8 +5200,8 @@ TEST_F(P2PTransportChannelPingTest, TestPortDestroyedAfterTimeoutAndPruned) {
   const Environment env = CreateEnvironment();
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", ICE_CANDIDATE_COMPONENT_DEFAULT, &pa,
-                         &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", ICE_CANDIDATE_COMPONENT_DEFAULT,
+                         &pa);
   PrepareChannel(&ch);
   ch.SetIceRole(ICEROLE_CONTROLLED);
   ch.MaybeStartGathering();
@@ -5241,7 +5235,7 @@ TEST_F(P2PTransportChannelPingTest, TestMaxOutstandingPingsFieldTrial) {
   const Environment env = CreateEnvironment(CreateTestFieldTrialsPtr(
       "WebRTC-IceFieldTrials/max_outstanding_pings:3/"));
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("max", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "max", 1, &pa);
   ch.SetIceConfig(ch.config());
   PrepareChannel(&ch);
   ch.MaybeStartGathering();
@@ -5291,8 +5285,8 @@ class P2PTransportChannelMostLikelyToWorkFirstTest
       const Environment& env,
       bool prioritize_most_likely_to_work,
       int stable_writable_connection_ping_interval) {
-    channel_ = std::make_unique<P2PTransportChannel>(
-        "checks", 1, port_allocator_.get(), &env.field_trials());
+    channel_ = std::make_unique<P2PTransportChannel>(env, "checks", 1,
+                                                     port_allocator_.get());
     IceConfig config = channel_->config();
     config.prioritize_most_likely_candidate_pairs =
         prioritize_most_likely_to_work;
@@ -5570,10 +5564,9 @@ TEST(P2PTransportChannelResolverTest, HostnameCandidateIsResolved) {
   std::unique_ptr<SocketServer> socket_server = CreateDefaultSocketServer();
   AutoSocketServerThread main_thread(socket_server.get());
   FakePortAllocator allocator(env, socket_server.get());
-  IceTransportInit init;
+  IceTransportInit init(env);
   init.set_port_allocator(&allocator);
   init.set_async_dns_resolver_factory(&resolver_fixture);
-  init.set_field_trials(&env.field_trials());
   auto channel = P2PTransportChannel::Create("tn", 0, std::move(init));
   Candidate hostname_candidate;
   SocketAddress hostname_address("fake.test", 1000);
@@ -6495,7 +6488,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening0) {
       "WebRTC-IceFieldTrials/initial_select_dampening:0/"));
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.MaybeStartGathering();
@@ -6522,7 +6515,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampening) {
       "WebRTC-IceFieldTrials/initial_select_dampening:100/"));
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.MaybeStartGathering();
@@ -6549,7 +6542,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningPingReceived) {
       "WebRTC-IceFieldTrials/initial_select_dampening_ping_received:100/"));
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.MaybeStartGathering();
@@ -6579,7 +6572,7 @@ TEST_F(P2PTransportChannelPingTest, TestInitialSelectDampeningBoth) {
       "50/"));
 
   FakePortAllocator pa(env, ss());
-  P2PTransportChannel ch("test channel", 1, &pa, &env.field_trials());
+  P2PTransportChannel ch(env, "test channel", 1, &pa);
   PrepareChannel(&ch);
   ch.SetIceConfig(ch.config());
   ch.MaybeStartGathering();
@@ -6607,10 +6600,9 @@ TEST(P2PTransportChannelIceControllerTest, InjectIceController) {
   MockIceControllerFactory factory;
   FakePortAllocator pa(env, socket_server.get());
   EXPECT_CALL(factory, RecordIceControllerCreated()).Times(1);
-  IceTransportInit init;
+  IceTransportInit init(env);
   init.set_port_allocator(&pa);
   init.set_ice_controller_factory(&factory);
-  init.set_field_trials(&env.field_trials());
   auto dummy =
       P2PTransportChannel::Create("transport_name",
                                   /* component= */ 77, std::move(init));
@@ -6623,10 +6615,9 @@ TEST(P2PTransportChannel, InjectActiveIceController) {
   MockActiveIceControllerFactory factory;
   FakePortAllocator pa(env, socket_server.get());
   EXPECT_CALL(factory, RecordActiveIceControllerCreated()).Times(1);
-  IceTransportInit init;
+  IceTransportInit init(env);
   init.set_port_allocator(&pa);
   init.set_active_ice_controller_factory(&factory);
-  init.set_field_trials(&env.field_trials());
   auto dummy =
       P2PTransportChannel::Create("transport_name",
                                   /* component= */ 77, std::move(init));
@@ -6676,10 +6667,9 @@ TEST_F(P2PTransportChannelPingTest, TestForgetLearnedState) {
   const Environment env = CreateEnvironment();
   ForgetLearnedStateControllerFactory factory;
   FakePortAllocator pa(env, ss());
-  IceTransportInit init;
+  IceTransportInit init(env);
   init.set_port_allocator(&pa);
   init.set_ice_controller_factory(&factory);
-  init.set_field_trials(&env.field_trials());
   auto ch =
       P2PTransportChannel::Create("ping sufficiently", 1, std::move(init));
 
@@ -6821,9 +6811,8 @@ TEST_P(LocalNetworkAccessPermissionTest, LiteralAddresses) {
   FakeLocalNetworkAccessPermissionFactory lna_permission_factory(
       lna_fake_result);
 
-  IceTransportInit init;
+  IceTransportInit init(env);
   init.set_port_allocator(&pa);
-  init.set_field_trials(&env.field_trials());
   init.set_lna_permission_factory(&lna_permission_factory);
 
   auto ch = P2PTransportChannel::Create("foo", 1, std::move(init));
@@ -6856,9 +6845,8 @@ TEST_P(LocalNetworkAccessPermissionTest, UnresolvedAddresses) {
   ResolverFactoryFixture resolver_fixture;
   resolver_fixture.SetAddressToReturn({address, 5000});
 
-  IceTransportInit init;
+  IceTransportInit init(env);
   init.set_port_allocator(&pa);
-  init.set_field_trials(&env.field_trials());
   init.set_lna_permission_factory(&lna_permission_factory);
   init.set_async_dns_resolver_factory(&resolver_fixture);
 

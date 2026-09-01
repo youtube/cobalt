@@ -43,9 +43,13 @@ class EncodedImageBufferInterface : public RefCountInterface {
   using value_type = uint8_t;
 
   virtual const uint8_t* data() const = 0;
-  // TODO(bugs.webrtc.org/9378): Make interface essentially read-only, delete
-  // this non-const data method.
-  virtual uint8_t* data() = 0;
+  // TODO: bugs.webrtc.org/42234570 - Make interface essentially read-only,
+  // delete this non-const data method when an implementation in chromium is
+  // updated not to override it.
+  virtual uint8_t* data() {
+    return const_cast<uint8_t*>(
+        static_cast<const EncodedImageBufferInterface*>(this)->data());
+  }
   virtual size_t size() const = 0;
 
   const uint8_t* begin() const { return data(); }

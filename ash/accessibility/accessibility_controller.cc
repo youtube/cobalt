@@ -585,7 +585,7 @@ void ShowAccessibilityNotification(
         IDS_ASH_STATUS_TRAY_TOUCHPAD_DISABLED_TURN_ON));
 
   } else {
-    bool is_tablet = display::Screen::GetScreen()->InTabletMode();
+    bool is_tablet = display::Screen::Get()->InTabletMode();
 
     title = l10n_util::GetStringUTF16(
         type == A11yNotificationType::kSpokenFeedbackBrailleEnabled
@@ -1176,7 +1176,7 @@ AccessibilityController::AccessibilityController()
   g_instance = this;
 
   Shell::Get()->session_controller()->AddObserver(this);
-  display::Screen::GetScreen()->AddObserver(this);
+  display::Screen::Get()->AddObserver(this);
   CreateAccessibilityFeatures();
 
   accessibility_notification_controller_ =
@@ -1606,7 +1606,7 @@ void AccessibilityController::Shutdown() {
     feature->LogDurationMetric();
   }
 
-  display::Screen::GetScreen()->RemoveObserver(this);
+  display::Screen::Get()->RemoveObserver(this);
   Shell::Get()->session_controller()->RemoveObserver(this);
 
   // Clean up any child windows and widgets that might be animating out.
@@ -3269,26 +3269,17 @@ void AccessibilityController::UpdateColorCorrectionFromPrefs() {
 }
 
 void AccessibilityController::UpdateCaretBlinkIntervalFromPrefs() const {
-  base::TimeDelta caret_blink_interval = base::Milliseconds(
+  const auto caret_blink_interval = base::Milliseconds(
       active_user_prefs_->GetInteger(prefs::kAccessibilityCaretBlinkInterval));
-  bool notify_web = false;
-  bool notify_native = false;
-  auto* native_theme_web = ui::NativeTheme::GetInstanceForWeb();
-  if (native_theme_web->GetCaretBlinkInterval() != caret_blink_interval) {
-    notify_web = true;
-    native_theme_web->set_caret_blink_interval(caret_blink_interval);
-  }
-  auto* native_theme = ui::NativeTheme::GetInstanceForNativeUi();
-  if (native_theme->GetCaretBlinkInterval() != caret_blink_interval) {
-    notify_native = true;
+  if (auto* const native_theme = ui::NativeTheme::GetInstanceForNativeUi();
+      native_theme->GetCaretBlinkInterval() != caret_blink_interval) {
     native_theme->set_caret_blink_interval(caret_blink_interval);
-  }
-  // Avoid unnecessary notifications.
-  if (notify_web) {
-    native_theme_web->NotifyOnNativeThemeUpdated();
-  }
-  if (notify_native) {
     native_theme->NotifyOnNativeThemeUpdated();
+  }
+  if (auto* const native_theme_web = ui::NativeTheme::GetInstanceForWeb();
+      native_theme_web->GetCaretBlinkInterval() != caret_blink_interval) {
+    native_theme_web->set_caret_blink_interval(caret_blink_interval);
+    native_theme_web->NotifyOnNativeThemeUpdated();
   }
 }
 
@@ -3300,24 +3291,15 @@ void AccessibilityController::UpdateUseOverlayScrollbarFromPref() const {
   const bool use_overlay_scrollbar =
       overlay_scrollbar_enabled_by_feature_flag ||
       overlay_scrollbar_enabled_by_os_setting;
-  bool notify_web = false;
-  bool notify_native = false;
-  auto* native_theme_web = ui::NativeTheme::GetInstanceForWeb();
-  if (native_theme_web->use_overlay_scrollbar() != use_overlay_scrollbar) {
-    notify_web = true;
-    native_theme_web->set_use_overlay_scrollbar(use_overlay_scrollbar);
-  }
-  auto* native_theme = ui::NativeTheme::GetInstanceForNativeUi();
-  if (native_theme->use_overlay_scrollbar() != use_overlay_scrollbar) {
-    notify_native = true;
+  if (auto* const native_theme = ui::NativeTheme::GetInstanceForNativeUi();
+      native_theme->use_overlay_scrollbar() != use_overlay_scrollbar) {
     native_theme->set_use_overlay_scrollbar(use_overlay_scrollbar);
-  }
-  // Avoid unnecessary notifications.
-  if (notify_web) {
-    native_theme_web->NotifyOnNativeThemeUpdated();
-  }
-  if (notify_native) {
     native_theme->NotifyOnNativeThemeUpdated();
+  }
+  if (auto* const native_theme_web = ui::NativeTheme::GetInstanceForWeb();
+      native_theme_web->use_overlay_scrollbar() != use_overlay_scrollbar) {
+    native_theme_web->set_use_overlay_scrollbar(use_overlay_scrollbar);
+    native_theme_web->NotifyOnNativeThemeUpdated();
   }
 }
 

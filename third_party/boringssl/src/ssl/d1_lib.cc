@@ -36,6 +36,7 @@ DTLS1_STATE::DTLS1_STATE()
       handshake_read_overflow(false),
       sending_flight(false),
       sending_ack(false),
+      pending_flush(false),
       queued_key_update(QueuedKeyUpdate::kNone) {}
 
 DTLS1_STATE::~DTLS1_STATE() {}

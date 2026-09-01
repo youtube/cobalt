@@ -13,8 +13,8 @@
 #include <stdlib.h>
 
 #include "api/environment/environment.h"
-#include "api/environment/environment_factory.h"
-#include "api/task_queue/default_task_queue_factory.h"
+#include "api/scoped_refptr.h"
+#include "test/create_test_environment.h"
 
 #import "sdk/objc/components/audio/RTCAudioSession+Private.h"
 #import "sdk/objc/native/api/audio_device_module.h"
@@ -47,7 +47,7 @@
   _testEnabled = true;
 #endif
 
-  webrtc::Environment env = webrtc::CreateEnvironment();
+  webrtc::Environment env = webrtc::CreateTestEnvironment();
   _audioDeviceModule = webrtc::CreateAudioDeviceModule(env);
   _audio_device.reset(new webrtc::ios_adm::AudioDeviceIOS(
       env,
@@ -112,11 +112,8 @@
       [self.audioSession.category isEqual:AVAudioSessionCategoryPlayback]);
   XCTAssertEqual(AVAudioSessionModeVoiceChat, self.audioSession.mode);
 
-  std::unique_ptr<webrtc::TaskQueueFactory> task_queue_factory =
-      webrtc::CreateDefaultTaskQueueFactory();
-  std::unique_ptr<webrtc::AudioDeviceBuffer> audio_buffer;
-  audio_buffer.reset(new webrtc::AudioDeviceBuffer(task_queue_factory.get()));
-  _audio_device->AttachAudioBuffer(audio_buffer.get());
+  webrtc::AudioDeviceBuffer audio_buffer(webrtc::CreateTestEnvironment());
+  _audio_device->AttachAudioBuffer(&audio_buffer);
   XCTAssertEqual(webrtc::AudioDeviceGeneric::InitStatus::OK,
                  _audio_device->Init());
   XCTAssertEqual(0, _audio_device->InitPlayout());
@@ -153,7 +150,7 @@
       };
 
   _audio_device.reset(new webrtc::ios_adm::AudioDeviceIOS(
-      webrtc::CreateEnvironment(),
+      webrtc::CreateTestEnvironment(),
       /*bypass_voice_processing=*/false,
       /*muted_speech_event_handler=*/muted_speech_event_handler,
       /*render_error_handler=*/nullptr));
@@ -174,7 +171,7 @@
           };
 
   _audio_device.reset(new webrtc::ios_adm::AudioDeviceIOS(
-      webrtc::CreateEnvironment(),
+      webrtc::CreateTestEnvironment(),
       /*bypass_voice_processing=*/false,
       /*muted_speech_event_handler=*/muted_speech_event_handler,
       /*render_error_handler=*/nullptr));

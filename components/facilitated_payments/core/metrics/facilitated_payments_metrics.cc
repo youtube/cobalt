@@ -202,6 +202,28 @@ void LogApiAvailabilityCheckResultAndLatency(
   }
 }
 
+void LogNonCardPaymentMethodsFopSelected(
+    PaymentLinkFopSelectorTypes payment_link_fop_selector_fop_type,
+    PaymentLinkFopSelectorAction payment_link_fop_selector_action,
+    std::optional<PaymentLinkValidator::Scheme> scheme) {
+  std::string payment_link_fop_selector_fop_type_string =
+      PaymentLinkFopSelectorTypesToString(payment_link_fop_selector_fop_type);
+
+  base::UmaHistogramEnumeration(
+      base::StrCat({"FacilitatedPayments.",
+                    payment_link_fop_selector_fop_type_string,
+                    ".FopSelector.UserAction"}),
+      payment_link_fop_selector_action);
+
+  if (scheme.has_value() && *scheme != PaymentLinkValidator::Scheme::kInvalid) {
+    base::UmaHistogramEnumeration(
+        base::StrCat({"FacilitatedPayments.",
+                      payment_link_fop_selector_fop_type_string,
+                      ".FopSelector.UserAction.", SchemeToString(*scheme)}),
+        payment_link_fop_selector_action);
+  }
+}
+
 void LogLoadRiskDataResultAndLatency(
     FacilitatedPaymentsType payment_type,
     bool was_successful,
@@ -253,6 +275,20 @@ void LogEwalletFlowExitedReason(
   if (scheme.has_value() && *scheme != PaymentLinkValidator::Scheme::kInvalid) {
     base::UmaHistogramEnumeration(
         base::StrCat({"FacilitatedPayments.Ewallet.PayflowExitedReason.",
+                      SchemeToString(*scheme)}),
+        reason);
+  }
+}
+
+void LogA2APayflowExitedReason(
+    A2AFlowExitedReason reason,
+    std::optional<PaymentLinkValidator::Scheme> scheme) {
+  base::UmaHistogramEnumeration("FacilitatedPayments.A2A.PayflowExitedReason",
+                                reason);
+
+  if (scheme.has_value() && *scheme != PaymentLinkValidator::Scheme::kInvalid) {
+    base::UmaHistogramEnumeration(
+        base::StrCat({"FacilitatedPayments.A2A.PayflowExitedReason.",
                       SchemeToString(*scheme)}),
         reason);
   }

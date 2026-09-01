@@ -7,7 +7,9 @@
 #include "base/notimplemented.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_register.h"
 #include "chrome/browser/ui/webui/searchbox/realbox_handler.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_handler.h"
@@ -15,6 +17,7 @@
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_page_handler.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/tab_strip_api_resources_map.h"
 #include "chrome/grit/webui_browser_resources.h"
 #include "chrome/grit/webui_browser_resources_map.h"
 #include "components/guest_contents/browser/guest_contents_host_impl.h"
@@ -22,6 +25,8 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "ui/views/interaction/element_tracker_views.h"
+#include "ui/webui/tracked_element/tracked_element_handler.h"
 #include "ui/webui/webui_util.h"
 
 WebUIBrowserUIConfig::WebUIBrowserUIConfig()
@@ -51,21 +56,9 @@ WebUIBrowserUI::WebUIBrowserUI(content::WebUI* web_ui)
   // Add required resources.
   webui::SetupWebUIDataSource(source, kWebuiBrowserResources,
                               IDR_WEBUI_BROWSER_WEBUI_BROWSER_HTML);
+  source->AddResourcePaths(kTabStripApiResources);
 
   SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui));
-
-  // Make a guest contents handle for a test guest contents.
-  // TODO(webium): Remove once the tab strip is integrated.
-  test_guest_contents_ = content::WebContents::Create(
-      content::WebContents::CreateParams(browser_->profile()));
-  test_guest_contents_->GetController().LoadURL(
-      GURL("chrome://dino"), content::Referrer(), ui::PAGE_TRANSITION_FIRST,
-      std::string());
-  guest_contents::GuestId guest_id =
-      guest_contents::GuestContentsHandle::CreateForWebContents(
-          test_guest_contents_.get())
-          ->id();
-  source->AddInteger("testGuestId", guest_id);
 }
 
 WebUIBrowserUI::~WebUIBrowserUI() = default;
@@ -111,12 +104,25 @@ void WebUIBrowserUI::BindInterface(
   tab_strip_service->Accept(std::move(receiver));
 }
 
+void WebUIBrowserUI::BindInterface(
+    mojo::PendingReceiver<tracked_element::mojom::TrackedElementHandler>
+        receiver) {
+  const ui::ElementContext context =
+      BrowserElements::From(browser_)->GetContext();
+  tracked_element_handler_ = std::make_unique<ui::TrackedElementHandler>(
+      web_ui()->GetWebContents(), std::move(receiver), context,
+      GetKnownElementIdentifiers());
+}
+
 base::WeakPtr<WebUIBrowserUI> WebUIBrowserUI::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
 }
 
 void WebUIBrowserUI::CreatePageHandler(
+    mojo::PendingRemote<webui_browser::mojom::Page> page,
     mojo::PendingReceiver<webui_browser::mojom::PageHandler> receiver) {
+  page_.reset();
+  page_.Bind(std::move(page));
   auto* render_frame_host = web_ui()->GetRenderFrameHost();
   WebUIBrowserPageHandler::CreateForRenderFrameHost(*render_frame_host,
                                                     std::move(receiver), this);
@@ -128,6 +134,13 @@ void WebUIBrowserUI::CreatePageHandler(
   bookmark_bar_page_handler_ =
       std::make_unique<WebUIBrowserBookmarkBarPageHandler>(
           std::move(receiver), std::move(page), web_ui(), browser_);
+}
+
+const std::vector<ui::ElementIdentifier>&
+WebUIBrowserUI::GetKnownElementIdentifiers() const {
+  static const std::vector<ui::ElementIdentifier> kKnownElementIdentifiers{
+      kToolbarAppMenuButtonElementId, kToolbarAvatarButtonElementId};
+  return kKnownElementIdentifiers;
 }
 
 void WebUIBrowserUI::BookmarkBarStateChanged(

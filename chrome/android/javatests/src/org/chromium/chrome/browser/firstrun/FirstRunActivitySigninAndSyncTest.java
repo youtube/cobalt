@@ -43,7 +43,7 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import org.chromium.base.BuildInfo;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.Criteria;
@@ -138,6 +138,7 @@ public class FirstRunActivitySigninAndSyncTest {
     @Test
     @MediumTest
     @Restriction({DeviceRestriction.RESTRICTION_TYPE_NON_AUTO})
+    @DisabledTest(message = "Flaky, see crbug.com/440276794")
     public void dismissButtonClickSkipsSyncConsentPageWhenOneAccountIsOnDevice() {
         HistogramWatcher signinStartedWatcher =
                 HistogramWatcher.newBuilder()
@@ -496,6 +497,6 @@ public class FirstRunActivitySigninAndSyncTest {
     }
 
     private boolean isAutomotive() {
-        return BuildInfo.getInstance().isAutomotive;
+        return DeviceInfo.isAutomotive();
     }
 }

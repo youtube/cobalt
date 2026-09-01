@@ -733,8 +733,8 @@ static jboolean JNI_PeerConnection_RemoveIceCandidates(
     const jni_zero::JavaParamRef<jobject>& j_pc,
     const jni_zero::JavaParamRef<jobjectArray>& j_candidates) {
   std::vector<std::unique_ptr<IceCandidate>> candidates_owned =
-      JavaToNativeVector<std::unique_ptr<IceCandidateInterface>>(
-          jni, j_candidates, &JavaToNativeCandidate);
+      JavaToNativeVector<std::unique_ptr<IceCandidate>>(jni, j_candidates,
+                                                        &JavaToNativeCandidate);
   bool ret = false;
   for (const auto& c : candidates_owned) {
     if (ExtractNativePC(jni, j_pc)->RemoveIceCandidate(c.get())) {

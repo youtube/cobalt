@@ -321,7 +321,7 @@ declare_args() {
   rtc_rusty_base64 = false
 
   # Enables PSNR calculation for video getStats.
-  rtc_video_psnr = build_with_chromium
+  rtc_video_psnr = true
 }
 
 declare_args() {

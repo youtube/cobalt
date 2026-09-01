@@ -46,8 +46,13 @@ class PeerConnectionTestWrapper
       public webrtc::CreateSessionDescriptionObserver,
       public sigslot::has_slots<> {
  public:
+  // Asynchronously negotiates and exchanges ICE candidates between `caller` and
+  // `callee`. See also WaitForNegotiation() and other "WaitFor..." methods.
   static void Connect(PeerConnectionTestWrapper* caller,
                       PeerConnectionTestWrapper* callee);
+  // Synchronously negotiates. ICE candidates needs to be exchanged separately.
+  static void AwaitNegotiation(PeerConnectionTestWrapper* caller,
+                               PeerConnectionTestWrapper* callee);
 
   PeerConnectionTestWrapper(const std::string& name,
                             webrtc::SocketServer* socket_server,
@@ -83,6 +88,17 @@ class PeerConnectionTestWrapper
       const std::string& name) const;
 
   void WaitForNegotiation();
+
+  // Synchronous negotiation methods.
+  std::unique_ptr<webrtc::SessionDescriptionInterface> AwaitCreateOffer();
+  std::unique_ptr<webrtc::SessionDescriptionInterface> AwaitCreateAnswer();
+  void AwaitSetLocalDescription(webrtc::SessionDescriptionInterface* sdp);
+  void AwaitSetRemoteDescription(webrtc::SessionDescriptionInterface* sdp);
+  // Listen for remote ICE candidates but don't add them until
+  // AwaitAddRemoteIceCandidates().
+  void ListenForRemoteIceCandidates(
+      webrtc::scoped_refptr<PeerConnectionTestWrapper> remote_wrapper);
+  void AwaitAddRemoteIceCandidates();
 
   // Implements PeerConnectionObserver.
   void OnSignalingChange(
@@ -143,6 +159,9 @@ class PeerConnectionTestWrapper
   bool CheckForConnection();
   bool CheckForAudio();
   bool CheckForVideo();
+  void OnRemoteIceCandidate(const std::string& sdp_mid,
+                            int sdp_mline_index,
+                            const std::string& candidate);
 
   std::string name_;
   webrtc::SocketServer* const socket_server_;
@@ -158,6 +177,8 @@ class PeerConnectionTestWrapper
   bool pending_negotiation_;
   std::vector<webrtc::scoped_refptr<webrtc::FakePeriodicVideoTrackSource>>
       fake_video_sources_;
+  webrtc::scoped_refptr<PeerConnectionTestWrapper> remote_wrapper_;
+  std::vector<std::unique_ptr<webrtc::IceCandidate>> remote_ice_candidates_;
 };
 
 #endif  // PC_TEST_PEER_CONNECTION_TEST_WRAPPER_H_

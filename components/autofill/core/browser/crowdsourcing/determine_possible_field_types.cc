@@ -137,47 +137,39 @@ FindDatesAndSetFormatStrings(
   std::vector<std::pair<data_util::Date, PossibleTypes*>> dates;
 
   // Match formats against individual fields.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillAiVoteForFormatStringsFromSingleFields)) {
-    for (auto [field, pt] : base::zip(fields, possible_types)) {
-      if (!may_be_interesting(field) || !may_be_complete_date(field)) {
-        continue;
-      }
-      for (auto& [date, format] :
-           GetMatchingCompleteDateAndFormats(field->value())) {
-        pt.formats.emplace(FormatString_Type_DATE, std::move(format));
-        dates.emplace_back(date, &pt);
-      }
+  for (auto [field, pt] : base::zip(fields, possible_types)) {
+    if (!may_be_interesting(field) || !may_be_complete_date(field)) {
+      continue;
+    }
+    for (auto& [date, format] :
+         GetMatchingCompleteDateAndFormats(field->value())) {
+      pt.formats.emplace(FormatString_Type_DATE, std::move(format));
+      dates.emplace_back(date, &pt);
     }
   }
 
   // Match formats against groups of three consecutive fields.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillAiVoteForFormatStringsFromMultipleFields)) {
-    for (size_t i = 0; i + 2 < fields.size(); ++i) {
-      const base::span<const std::unique_ptr<AutofillField>, 3> group =
-          fields.subspan(i).first<3>();
-      if (!std::ranges::all_of(group, may_be_interesting) ||
-          !may_be_split_date(group)) {
-        continue;
-      }
-      static constexpr std::u16string_view kSeparator = u"-";
-      static_assert(
-          std::ranges::all_of(kSeparator, data_util::IsDateSeparatorChar));
-      const std::u16string maybe_full_date = base::JoinString(
-          {group[0]->value(), group[1]->value(), group[2]->value()},
-          kSeparator);
-      for (auto& [full_date, full_format] :
-           GetMatchingCompleteDateAndFormats(maybe_full_date)) {
-        std::vector<std::u16string> partial_formats =
-            base::SplitString(full_format, kSeparator, base::KEEP_WHITESPACE,
-                              base::SPLIT_WANT_ALL);
-        if (partial_formats.size() == 3) {
-          for (size_t j = 0; j < 3; ++j) {
-            possible_types[i + j].formats.emplace(
-                FormatString_Type_DATE, std::move(partial_formats[j]));
-            dates.emplace_back(full_date, &possible_types[i + j]);
-          }
+  for (size_t i = 0; i + 2 < fields.size(); ++i) {
+    const base::span<const std::unique_ptr<AutofillField>, 3> group =
+        fields.subspan(i).first<3>();
+    if (!std::ranges::all_of(group, may_be_interesting) ||
+        !may_be_split_date(group)) {
+      continue;
+    }
+    static constexpr std::u16string_view kSeparator = u"-";
+    static_assert(
+        std::ranges::all_of(kSeparator, data_util::IsDateSeparatorChar));
+    const std::u16string maybe_full_date = base::JoinString(
+        {group[0]->value(), group[1]->value(), group[2]->value()}, kSeparator);
+    for (auto& [full_date, full_format] :
+         GetMatchingCompleteDateAndFormats(maybe_full_date)) {
+      std::vector<std::u16string> partial_formats = base::SplitString(
+          full_format, kSeparator, base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
+      if (partial_formats.size() == 3) {
+        for (size_t j = 0; j < 3; ++j) {
+          possible_types[i + j].formats.emplace(FormatString_Type_DATE,
+                                                std::move(partial_formats[j]));
+          dates.emplace_back(full_date, &possible_types[i + j]);
         }
       }
     }
@@ -250,13 +242,6 @@ void FindAndSetPossibleCvcFieldTypes(
 
 // Returns the FieldTypes for which the given EntityInstance defines a non-empty
 // value.
-//
-// If kAutofillAiNoTagTypes is disabled:
-// This may not just include Autofill AI types like PASSPORT_NUMBER but
-// also tag types like PASSPORT_NAME_TAG together with the refined type like
-// NAME_FIRST.
-// TODO(crbug.com/422563282): Remove comment when cleaning up
-// kAutofillAiNoTagTypes.
 FieldTypeSet GetAvailableAutofillAiFieldTypes(
     base::span<const EntityInstance> entities,
     const std::string& app_locale) {
@@ -268,9 +253,6 @@ FieldTypeSet GetAvailableAutofillAiFieldTypes(
         bool is_empty = normalization::HasOnlySkippableCharacters(
             attribute.GetInfo(field_type, app_locale, std::nullopt));
         if (!is_empty) {
-          if (!base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)) {
-            types.insert(attribute.type().field_type());
-          }
           types.insert(field_type);
         }
       }
@@ -282,13 +264,6 @@ FieldTypeSet GetAvailableAutofillAiFieldTypes(
 // Scans the given `entities` for values that match `value_u16`. It adds the
 // matching `FieldType` to `PossibleTypes::types` and, if applicable, a format
 // string to `PossibleTypes::format`.
-//
-// If kAutofillAiNoTagTypes is disabled:
-// This may not just include Autofill AI types like PASSPORT_NUMBER but
-// also tag types like PASSPORT_NAME_TAG together with the refined type like
-// NAME_FIRST.
-// TODO(crbug.com/422563282): Remove comment when cleaning up
-// kAutofillAiNoTagTypes.
 void AddPossibleAutofillAiTypes(base::span<const EntityInstance> entities,
                                 std::u16string_view value_u16,
                                 const std::string& app_locale,
@@ -311,9 +286,6 @@ void AddPossibleAutofillAiTypes(base::span<const EntityInstance> entities,
         bool full_match =
             AutofillProfileComparator::Compare(value_in_field, value_on_file);
         if (full_match) {
-          if (!base::FeatureList::IsEnabled(features::kAutofillAiNoTagTypes)) {
-            pt.types.insert(attribute.type().field_type());
-          }
           pt.types.insert(field_type);
           if (IsAffixFormatStringEnabledForType(field_type) &&
               base::FeatureList::IsEnabled(

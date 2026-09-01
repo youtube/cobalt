@@ -1078,7 +1078,8 @@ void VideoSendStreamTest::TestNackRetransmission(
         config.rtcp_report_interval = TimeDelta::Millis(kRtcpIntervalMs);
         config.local_media_ssrc =
             test::VideoTestConstants::kReceiverLocalVideoSsrc;
-        RTCPSender rtcp_sender(env_, config);
+        config.schedule_next_rtcp_send_evaluation = [](TimeDelta) {};
+        RTCPSender rtcp_sender(env_, std::move(config));
 
         rtcp_sender.SetRTCPStatus(RtcpMode::kReducedSize);
         rtcp_sender.SetRemoteSSRC(test::VideoTestConstants::kVideoSendSsrcs[0]);
@@ -1280,7 +1281,8 @@ void VideoSendStreamTest::TestPacketFragmentationSize(TestVideoFormat format,
         config.outgoing_transport = transport_adapter_.get();
         config.rtcp_report_interval = TimeDelta::Millis(kRtcpIntervalMs);
         config.local_media_ssrc = test::VideoTestConstants::kVideoSendSsrcs[0];
-        RTCPSender rtcp_sender(env_, config);
+        config.schedule_next_rtcp_send_evaluation = [](TimeDelta) {};
+        RTCPSender rtcp_sender(env_, std::move(config));
 
         rtcp_sender.SetRTCPStatus(RtcpMode::kReducedSize);
         rtcp_sender.SetRemoteSSRC(test::VideoTestConstants::kVideoSendSsrcs[0]);

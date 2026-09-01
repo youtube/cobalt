@@ -10,6 +10,7 @@
 #include "base/i18n/rtl.h"
 #include "base/memory/raw_ref.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/types/to_address.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/multi_contents_drop_target_view.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
@@ -30,6 +31,7 @@ MultiContentsViewDropTargetController::MultiContentsViewDropTargetController(
 
 MultiContentsViewDropTargetController::
     ~MultiContentsViewDropTargetController() {
+  hide_drop_target_timer_.Stop();
   on_will_destroy_callback_list_.Notify();
   drop_target_view_->SetDragDelegate(nullptr);
 }
@@ -50,6 +52,11 @@ void MultiContentsViewDropTargetController::OnTabDragUpdated(
 
   const gfx::Point point_in_parent = views::View::ConvertPointFromScreen(
       &drop_target_parent_view_.get(), point_in_screen);
+  if (PointOverlapsWithOSDropTarget(point_in_parent)) {
+    ResetDropTargetTimer();
+    drop_target_view_->Hide();
+    return;
+  }
   HandleDragUpdate(point_in_parent);
 }
 
@@ -91,6 +98,8 @@ bool MultiContentsViewDropTargetController::CanDrop(
 
 void MultiContentsViewDropTargetController::OnDragEntered(
     const ui::DropTargetEvent& event) {
+  hide_drop_target_timer_.Stop();
+
   if (!drop_target_view_->GetVisible()) {
     return;
   }
@@ -101,7 +110,6 @@ void MultiContentsViewDropTargetController::OnDragEntered(
     return;
   }
 
-  CHECK(drop_target_view_->side().has_value());
   drop_target_view_->Show(
       drop_target_view_->side().value(),
       MultiContentsDropTargetView::DropTargetState::kNudgeToFull);
@@ -112,12 +120,16 @@ void MultiContentsViewDropTargetController::OnDragExited() {
     return;
   }
 
-  // If the target is not a nudge or expanded nudge, then hide it immediately.
-  // Otherwise, we should still show even when the drag exits its area.
   CHECK(drop_target_view_->state().has_value());
   if (*drop_target_view_->state() ==
       MultiContentsDropTargetView::DropTargetState::kFull) {
+    // If the target is full expanded, then hide it immediately.
     drop_target_view_->Hide();
+  } else {
+    // If we are we a nudge or expanded nudge evaluate hiding the drop target
+    // from a posted task. This is so we can determine if we are exiting the
+    // drop target into the web content area.
+    StartDropTargetHideTimer();
   }
 }
 
@@ -171,6 +183,7 @@ void MultiContentsViewDropTargetController::OnWebContentsDragUpdate(
     const content::DropData& data,
     const gfx::Point& point,
     bool is_in_split_view) {
+  hide_drop_target_timer_.Stop();
   // "Drag update" events can still be delivered even if the point is out of the
   // contents area, particularly while the drop target is animating in and
   // shifting them.
@@ -183,7 +196,8 @@ void MultiContentsViewDropTargetController::OnWebContentsDragUpdate(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge)) {
+  if (base::FeatureList::IsEnabled(features::kSideBySideDropTargetNudge) &&
+      drop_target_view_->ShouldShowAnimation()) {
     HandleDragUpdateForNudge(point);
   } else {
     HandleDragUpdate(point);
@@ -192,6 +206,12 @@ void MultiContentsViewDropTargetController::OnWebContentsDragUpdate(
 
 void MultiContentsViewDropTargetController::OnWebContentsDragExit() {
   ResetDropTargetTimer();
+
+  if (drop_target_view_->GetVisible()) {
+    // Evaluate determining whether to hide the drop target on a new task
+    // This is so we avoid hiding the view if we are entering the drop target.
+    StartDropTargetHideTimer();
+  }
 }
 
 void MultiContentsViewDropTargetController::OnWebContentsDragEnded() {
@@ -242,16 +262,25 @@ void MultiContentsViewDropTargetController::HandleDragUpdateForNudge(
   // Either hide or show the drop target if the drag is in the trigger area.
   if (point_ratio > nudge_ratio && point_ratio < 1.0f - nudge_ratio) {
     drop_target_view_->Hide();
-  } else if (point_ratio <= nudge_ratio) {
+    return;
+  }
+
+  MultiContentsDropTargetView::DropSide side;
+  if (point_ratio <= nudge_ratio) {
+    side = is_rtl ? MultiContentsDropTargetView::DropSide::END
+                  : MultiContentsDropTargetView::DropSide::START;
+
+  } else {
+    CHECK(point_ratio >= 1.0f - nudge_ratio);
+    side = is_rtl ? MultiContentsDropTargetView::DropSide::START
+                  : MultiContentsDropTargetView::DropSide::END;
+  }
+
+  // Avoid transitioning to the `kNudge` state if the drop target view is
+  // already visible on that side.
+  if (drop_target_view_->side() != side) {
     drop_target_view_->Show(
-        is_rtl ? MultiContentsDropTargetView::DropSide::END
-               : MultiContentsDropTargetView::DropSide::START,
-        MultiContentsDropTargetView::DropTargetState::kNudge);
-  } else if (point_ratio >= 1.0f - nudge_ratio) {
-    drop_target_view_->Show(
-        is_rtl ? MultiContentsDropTargetView::DropSide::START
-               : MultiContentsDropTargetView::DropSide::END,
-        MultiContentsDropTargetView::DropTargetState::kNudge);
+        side, MultiContentsDropTargetView::DropTargetState::kNudge);
   }
 }
 
@@ -284,4 +313,30 @@ void MultiContentsViewDropTargetController::ShowTimerDelayedDropTarget() {
   drop_target_view_->Show(show_drop_target_timer_->drop_side,
                           MultiContentsDropTargetView::DropTargetState::kFull);
   show_drop_target_timer_.reset();
+}
+
+void MultiContentsViewDropTargetController::StartDropTargetHideTimer() {
+  hide_drop_target_timer_.Start(
+      FROM_HERE, features::kSideBySideHideDropTargetDelay.Get(),
+      base::to_address(drop_target_view_), &MultiContentsDropTargetView::Hide);
+}
+
+bool MultiContentsViewDropTargetController::PointOverlapsWithOSDropTarget(
+    const gfx::Point& point_in_view) {
+  if (!drop_target_parent_view_->GetWidget() ||
+      !drop_target_parent_view_->GetWidget()->IsMaximized()) {
+    return false;
+  }
+
+  const float hide_for_os_width =
+      features::kSideBySideDropTargetHideForOSWidth.Get();
+  const gfx::Point point_in_screen = views::View::ConvertPointToScreen(
+      drop_target_view_->parent(), point_in_view);
+  const views::Widget* top_level_widget =
+      drop_target_parent_view_->GetWidget()->GetTopLevelWidget();
+
+  return (point_in_screen.x() < hide_for_os_width) ||
+         (point_in_screen.x() >
+          top_level_widget->GetWorkAreaBoundsInScreen().width() -
+              hide_for_os_width);
 }

@@ -771,14 +771,13 @@ void AudioEncoderOpusImpl::ApplyAudioNetworkAdaptor() {
 std::unique_ptr<AudioNetworkAdaptor>
 AudioEncoderOpusImpl::DefaultAudioNetworkAdaptorCreator(
     absl::string_view config_string) const {
-  AudioNetworkAdaptorImpl::Config config;
-  config.event_log = &env_.event_log();
   return std::make_unique<AudioNetworkAdaptorImpl>(
-      config, ControllerManagerImpl::Create(
-                  config_string, NumChannels(), supported_frame_lengths_ms(),
-                  AudioEncoderOpusConfig::kMinBitrateBps,
-                  num_channels_to_encode_, next_frame_length_ms_,
-                  GetTargetBitrate(), config_.fec_enabled, GetDtx()));
+      env_,
+      ControllerManagerImpl::Create(
+          env_, config_string, NumChannels(), supported_frame_lengths_ms(),
+          AudioEncoderOpusConfig::kMinBitrateBps, num_channels_to_encode_,
+          next_frame_length_ms_, GetTargetBitrate(), config_.fec_enabled,
+          GetDtx()));
 }
 
 void AudioEncoderOpusImpl::MaybeUpdateUplinkBandwidth() {

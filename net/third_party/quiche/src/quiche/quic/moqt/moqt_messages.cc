@@ -175,15 +175,15 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
 
 const std::array<MoqtMessageType, 8> kAllowsAuthorization = {
     MoqtMessageType::kClientSetup, MoqtMessageType::kServerSetup,
-    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeAnnounces,
-    MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatusRequest,
+    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeNamespace,
+    MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatus,
     MoqtMessageType::kFetch,       MoqtMessageType::kPublish};
 const std::array<MoqtMessageType, 6> kAllowsDeliveryTimeout = {
     MoqtMessageType::kSubscribe,       MoqtMessageType::kSubscribeOk,
-    MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatus,
+    MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatusOk,
     MoqtMessageType::kPublish,         MoqtMessageType::kPublishOk};
 const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
-    MoqtMessageType::kSubscribeOk, MoqtMessageType::kTrackStatus,
+    MoqtMessageType::kSubscribeOk, MoqtMessageType::kTrackStatusOk,
     MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};
 bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
                                        MoqtMessageType message_type) {
@@ -232,10 +232,12 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_UPDATE";
     case MoqtMessageType::kAnnounceCancel:
       return "ANNOUNCE_CANCEL";
-    case MoqtMessageType::kTrackStatusRequest:
-      return "TRACK_STATUS_REQUEST";
     case MoqtMessageType::kTrackStatus:
       return "TRACK_STATUS";
+    case MoqtMessageType::kTrackStatusOk:
+      return "TRACK_STATUS_OK";
+    case MoqtMessageType::kTrackStatusError:
+      return "TRACK_STATUS_ERROR";
     case MoqtMessageType::kAnnounce:
       return "ANNOUNCE";
     case MoqtMessageType::kAnnounceOk:
@@ -246,13 +248,13 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
-    case MoqtMessageType::kSubscribeAnnounces:
+    case MoqtMessageType::kSubscribeNamespace:
       return "SUBSCRIBE_NAMESPACE";
-    case MoqtMessageType::kSubscribeAnnouncesOk:
+    case MoqtMessageType::kSubscribeNamespaceOk:
       return "SUBSCRIBE_NAMESPACE_OK";
-    case MoqtMessageType::kSubscribeAnnouncesError:
+    case MoqtMessageType::kSubscribeNamespaceError:
       return "SUBSCRIBE_NAMESPACE_ERROR";
-    case MoqtMessageType::kUnsubscribeAnnounces:
+    case MoqtMessageType::kUnsubscribeNamespace:
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxRequestId:
       return "MAX_REQUEST_ID";

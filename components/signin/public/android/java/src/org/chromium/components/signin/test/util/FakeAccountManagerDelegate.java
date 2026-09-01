@@ -9,23 +9,27 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.signin.AccessTokenData;
 import org.chromium.components.signin.AccountManagerDelegate;
 import org.chromium.components.signin.AccountManagerDelegateException;
 import org.chromium.components.signin.AccountsChangeObserver;
 import org.chromium.components.signin.AuthException;
+import org.chromium.components.signin.PlatformAccount;
+import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.base.AccountInfo;
 import org.chromium.google_apis.gaia.CoreAccountId;
 import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.google_apis.gaia.GoogleServiceAuthError;
 import org.chromium.google_apis.gaia.GoogleServiceAuthErrorState;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -44,6 +48,8 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
     }
 
     private final Set<AccountHolder> mAccounts = Collections.synchronizedSet(new LinkedHashSet<>());
+    private final Set<PlatformAccount> mPlatformAccounts =
+            Collections.synchronizedSet(new LinkedHashSet<>());
 
     private AccountsChangeObserver mObserver;
 
@@ -65,6 +71,7 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
 
     @Override
     public Account[] getAccountsSynchronous() throws AccountManagerDelegateException {
+        assert !SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled();
         synchronized (mAccounts) {
             return mAccounts.stream().map((ah) -> ah.getAccount()).toArray(Account[]::new);
         }
@@ -72,18 +79,33 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
 
     /** Adds an AccountHolder. */
     public void addAccount(AccountInfo accountInfo) {
-        boolean added = mAccounts.add(new AccountHolder(accountInfo));
+        boolean added = false;
+        if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
+            added = mPlatformAccounts.add(new FakePlatformAccount(accountInfo));
+        } else {
+            added = mAccounts.add(new AccountHolder(accountInfo));
+        }
         assert added : "Account already added";
         callOnCoreAccountInfoChanged();
     }
 
     /** Removes an AccountHolder. */
     public void removeAccount(CoreAccountId accountId) {
-        synchronized (mAccounts) {
-            @Nullable AccountHolder accountHolder = tryGetAccountHolder(accountId);
-            if (accountHolder == null || !mAccounts.remove(accountHolder)) {
-                throw new IllegalArgumentException(
-                        String.format("Can't find the account: %s", accountId.getId()));
+        if (SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled()) {
+            synchronized (mPlatformAccounts) {
+                @Nullable PlatformAccount account = tryGetPlatformAccount(accountId);
+                if (account == null || !mPlatformAccounts.remove(account)) {
+                    throw new IllegalArgumentException(
+                            String.format("Can't find the account: %s", accountId.getId()));
+                }
+            }
+        } else {
+            synchronized (mAccounts) {
+                @Nullable AccountHolder accountHolder = tryGetAccountHolder(accountId);
+                if (accountHolder == null || !mAccounts.remove(accountHolder)) {
+                    throw new IllegalArgumentException(
+                            String.format("Can't find the account: %s", accountId.getId()));
+                }
             }
         }
         callOnCoreAccountInfoChanged();
@@ -129,7 +151,8 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
     }
 
     @Override
-    public void createAddAccountIntent(Callback<Intent> callback) {
+    public void createAddAccountIntent(
+            @Nullable String prefilledEmail, Callback<@Nullable Intent> callback) {
         ThreadUtils.assertOnUiThread();
         ThreadUtils.postOnUiThread(callback.bind(null));
     }
@@ -145,6 +168,16 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
     @Override
     public void confirmCredentials(Account account, Activity activity, Callback<Bundle> callback) {
         callback.onResult(null);
+    }
+
+    /** Returns the list of PlatformAccounts added to the AccountManagerDelegate */
+    @Override
+    public List<PlatformAccount> getPlatformAccountsSynchronous()
+            throws AccountManagerDelegateException {
+        assert SigninFeatureMap.sMigrateAccountManagerDelegate.isEnabled();
+        synchronized (mPlatformAccounts) {
+            return new ArrayList<>(mPlatformAccounts);
+        }
     }
 
     // TODO(crbug.com/40274844): Remove this method after migrating the interface to CoreAccountId.
@@ -165,6 +198,15 @@ public class FakeAccountManagerDelegate implements AccountManagerDelegate {
                     .filter(
                             accountHolder ->
                                     accountId.equals(accountHolder.getAccountInfo().getId()))
+                    .findFirst()
+                    .orElse(null);
+        }
+    }
+
+    private @Nullable PlatformAccount tryGetPlatformAccount(CoreAccountId accountId) {
+        synchronized (mPlatformAccounts) {
+            return mPlatformAccounts.stream()
+                    .filter(account -> Objects.equals(account.getId(), accountId.getId()))
                     .findFirst()
                     .orElse(null);
         }

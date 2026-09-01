@@ -4,25 +4,19 @@
 
 #include "content/browser/preloading/prefetch/prefetch_url_loader_interceptor.h"
 
-#include <memory>
-
 #include "base/debug/dump_without_crashing.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
-#include "content/browser/browser_context_impl.h"
 #include "content/browser/loader/navigation_loader_interceptor.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
 #include "content/browser/preloading/prefetch/prefetch_match_resolver.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
-#include "content/browser/preloading/prefetch/prefetch_serving_page_metrics_container.h"
 #include "content/browser/preloading/prefetch/prefetch_url_loader_helper.h"
-#include "content/browser/preloading/prerender/prerender_host.h"
-#include "content/browser/preloading/prerender/prerender_host_registry.h"
+#include "content/browser/renderer_host/frame_tree.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/navigation_request.h"
-#include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_main_resource_handle.h"
 #include "content/public/browser/web_contents.h"
 #include "services/network/public/cpp/resource_request.h"
@@ -180,23 +174,22 @@ void PrefetchURLLoaderInterceptor::GetPrefetch(
   auto callback = base::BindOnce(&OnGotPrefetchToServe, frame_tree_node_id_,
                                  tentative_resource_request_url,
                                  std::move(get_prefetch_callback));
-  auto key = PrefetchContainer::Key(initiator_document_token_,
-                                    tentative_resource_request_url);
+  auto key =
+      PrefetchKey(initiator_document_token_, tentative_resource_request_url);
 
-    const bool is_nav_prerender = [&]() -> bool {
-      auto* frame_tree_node =
-          FrameTreeNode::GloballyFindByID(frame_tree_node_id_);
-      if (!frame_tree_node) {
-        return false;
-      }
+  const bool is_nav_prerender = [&]() -> bool {
+    auto* frame_tree_node =
+        FrameTreeNode::GloballyFindByID(frame_tree_node_id_);
+    if (!frame_tree_node) {
+      return false;
+    }
 
-      return frame_tree_node->frame_tree().is_prerendering();
-    }();
+    return frame_tree_node->frame_tree().is_prerendering();
+  }();
 
-    PrefetchMatchResolver::FindPrefetch(
-        std::move(key), expected_service_worker_state_, is_nav_prerender,
-        *prefetch_service, serving_page_metrics_container_,
-        std::move(callback));
+  PrefetchMatchResolver::FindPrefetch(
+      std::move(key), expected_service_worker_state_, is_nav_prerender,
+      *prefetch_service, serving_page_metrics_container_, std::move(callback));
 }
 
 void PrefetchURLLoaderInterceptor::OnGetPrefetchComplete(

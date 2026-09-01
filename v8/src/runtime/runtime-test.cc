@@ -1738,7 +1738,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
   if (regexp->has_data()) {
     Tagged<RegExpData> data = regexp->data(isolate);
     if (data->type_tag() == RegExpData::Type::IRREGEXP) {
-      result = Cast<IrRegExpData>(data)->has_bytecode(is_latin1);
+      result = TrustedCast<IrRegExpData>(data)->has_bytecode(is_latin1);
     }
   }
   return isolate->heap()->ToBoolean(result);
@@ -1755,7 +1755,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
   if (regexp->has_data()) {
     Tagged<RegExpData> data = regexp->data(isolate);
     if (data->type_tag() == RegExpData::Type::IRREGEXP) {
-      result = Cast<IrRegExpData>(data)->has_code(is_latin1);
+      result = TrustedCast<IrRegExpData>(data)->has_code(is_latin1);
     }
   }
   return isolate->heap()->ToBoolean(result);
@@ -2169,7 +2169,7 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
 
 RUNTIME_FUNCTION(Runtime_AtomicsSynchronizationPrimitiveNumWaitersForTesting) {
   HandleScope scope(isolate);
-  if (args.length() != 1) {
+  if (args.length() != 1 || !IsJSSynchronizationPrimitive(*args.at(0))) {
     return CrashUnlessFuzzing(isolate);
   }
   DirectHandle<JSSynchronizationPrimitive> primitive =
@@ -2272,6 +2272,14 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
   DirectHandle<FeedbackVector> feedback_vector =
       direct_handle(function->feedback_vector(), isolate);
 
+  if (!feedback_vector->has_metadata()) {
+    return CrashUnlessFuzzing(isolate);
+  }
+  // Make sure the function stays compiled across the following allocations.
+  IsCompiledScope is_compiled_scope(
+      function->shared()->is_compiled_scope(isolate));
+  USE(is_compiled_scope);
+
   DirectHandle<FixedArray> result =
       isolate->factory()->NewFixedArray(feedback_vector->length());
   int result_ix = 0;
@@ -2312,7 +2320,7 @@ RUNTIME_FUNCTION(Runtime_GetFeedback) {
 }
 
 RUNTIME_FUNCTION(Runtime_CheckNoWriteBarrierNeeded) {
-#if defined(V8_ENABLE_DEBUG_CODE) && !V8_DISABLE_WRITE_BARRIERS_BOOL
+#if V8_VERIFY_WRITE_BARRIERS
   DisallowGarbageCollection no_gc;
   if (args.length() != 2) {
     return CrashUnlessFuzzing(isolate);

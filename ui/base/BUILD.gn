@@ -145,6 +145,7 @@ component("base") {
     "interaction/element_tracker.h",
     "interaction/framework_specific_implementation.cc",
     "interaction/framework_specific_implementation.h",
+    "interaction/framework_specific_registration_list.h",
     "interaction/interaction_sequence.cc",
     "interaction/interaction_sequence.h",
     "interaction/typed_data.h",
@@ -753,6 +754,20 @@ if (use_blink) {
   }
 }
 
+if (is_android) {
+  java_cpp_features("java_features_srcjar") {
+    # External code should depend on ":ui_base_features_java" instead.
+    visibility = [ ":*" ]
+    sources = [ "//ui/base/ui_base_features.cc" ]
+    class_name = "org.chromium.ui.base.UiBaseFeatures"
+  }
+  android_library("ui_base_features_java") {
+    # Right now, this only includes the Java features. But if we need more Java
+    # files, they should be added here as necessary.
+    srcjar_deps = [ ":java_features_srcjar" ]
+  }
+}
+
 static_library("test_support") {
   testonly = true
   sources = [
@@ -1012,6 +1027,7 @@ test("ui_base_unittests") {
     "interaction/element_identifier_unittest.cc",
     "interaction/element_tracker_unittest.cc",
     "interaction/framework_specific_implementation_unittest.cc",
+    "interaction/framework_specific_registration_list_unittest.cc",
     "interaction/interaction_sequence_unittest.cc",
     "interaction/interaction_test_util_unittest.cc",
     "interaction/interactive_test_unittest.cc",

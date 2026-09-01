@@ -17,13 +17,13 @@
 #include <optional>
 #include <tuple>
 #include <utility>
-#include <variant>
 
 #include "absl/algorithm/container.h"
 #include "api/field_trials_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_content_type.h"
@@ -31,7 +31,6 @@
 #include "api/video/video_frame_type.h"
 #include "api/video/video_timing.h"
 #include "api/video_codecs/video_decoder.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "common_video/include/corruption_score_calculator.h"
 #include "modules/include/module_common_types_public.h"
 #include "modules/video_coding/encoded_frame.h"
@@ -247,12 +246,9 @@ void VCMDecodedFrameCallback::Decoded(VideoFrame& decodedImage,
 
   if (corruption_score_calculator_ &&
       frame_info->frame_instrumentation_data.has_value()) {
-    if (const FrameInstrumentationData* data =
-            std::get_if<FrameInstrumentationData>(
-                &*frame_info->frame_instrumentation_data)) {
-      corruption_score_calculator_->CalculateCorruptionScore(
-          decodedImage, *data, frame_info->content_type);
-    }
+    corruption_score_calculator_->CalculateCorruptionScore(
+        decodedImage, *frame_info->frame_instrumentation_data,
+        frame_info->content_type);
   }
 }
 
@@ -327,9 +323,7 @@ int32_t VCMGenericDecoder::Decode(
     const EncodedImage& frame,
     Timestamp now,
     int64_t render_time_ms,
-    const std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>&
-        frame_instrumentation_data) {
+    const std::optional<FrameInstrumentationData>& frame_instrumentation_data) {
   TRACE_EVENT("webrtc", "VCMGenericDecoder::Decode",
               perfetto::Flow::ProcessScoped(frame.RtpTimestamp()));
   FrameInfo frame_info;

@@ -770,14 +770,15 @@ class Namespace:
     for node in self.namespace.GetListOf('Operation'):
       functions.append(Operation(node).process())
 
-    # Types are defined as Dictionaries at the top level of the IDL file, which
-    # are found on the parent node of the API Interface definition.
-    for node in self.namespace.GetParent().GetListOf('Dictionary'):
-      types.append(Dictionary(node).process())
-
-    # Enums are also defined at the top level of the IDL file.
-    for node in self.namespace.GetParent().GetListOf('Enum'):
-      types.append(Enum(node).process())
+    # Enums and Dictionary defined custom types are included at the top level of
+    # the IDL file, on the parent node of the API interface definitions. To
+    # retain the ordering from the schema, we loop over this full set of nodes
+    # one by one.
+    for node in self.namespace.GetParent().GetChildren():
+      if node.GetClass() == 'Enum':
+        types.append(Enum(node).process())
+      if node.GetClass() == 'Dictionary':
+        types.append(Dictionary(node).process())
 
     # Events are defined as Attributes on the API Interface definition, which
     # use types that are defined as Interfaces on the top level of the IDL file.

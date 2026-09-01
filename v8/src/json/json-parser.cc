@@ -20,6 +20,7 @@
 #include "src/objects/elements-kind.h"
 #include "src/objects/field-type.h"
 #include "src/objects/hash-table-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/map-updater.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-descriptor.h"
@@ -946,7 +947,7 @@ class JSDataObjectBuilder {
     Tagged<DescriptorArray> descriptors =
         raw_object->map()->instance_descriptors();
 
-    WriteBarrierMode mode = raw_object->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = raw_object->GetWriteBarrierMode(no_gc);
     FoldedMutableHeapNumberAllocator hn_allocator(isolate_, &hn_allocation,
                                                   no_gc);
 
@@ -977,7 +978,7 @@ class JSDataObjectBuilder {
                 object->map()->GetInObjectPropertyOffset(i));
       FieldIndex index = FieldIndex::ForInObjectOffset(current_property_offset,
                                                        FieldIndex::kTagged);
-      raw_object->RawFastInobjectPropertyAtPut(index, value, mode);
+      raw_object->RawFastInobjectPropertyAtPut(index, value, *mode);
       current_property_offset += kTaggedSize;
     }
     DCHECK_EQ(current_property_offset, object->map()->GetInObjectPropertyOffset(
@@ -1315,7 +1316,7 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
     // Store as dictionary elements if that would use less memory.
     if (ShouldConvertToSlowElements(cont.elements, cont.max_index + 1)) {
       Handle<NumberDictionary> elms =
-          NumberDictionary::New(isolate_, cont.elements).ToHandleChecked();
+          NumberDictionary::New(isolate_, cont.elements);
       for (int i = 0; i < length; i++) {
         const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
@@ -1332,14 +1333,14 @@ Handle<JSObject> JsonParser<Char>::BuildJsonObject(const JsonContinuation& cont,
           factory()->NewFixedArrayWithHoles(cont.max_index + 1);
       DisallowGarbageCollection no_gc;
       Tagged<FixedArray> raw_elements = *elms;
-      WriteBarrierMode mode = raw_elements->GetWriteBarrierMode(no_gc);
+      WriteBarrierModeScope mode = raw_elements->GetWriteBarrierMode(no_gc);
 
       for (int i = 0; i < length; i++) {
         const JsonProperty& property = property_stack_[start + i];
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
         DirectHandle<Object> value = property.value;
-        raw_elements->set(static_cast<int>(index), *value, mode);
+        raw_elements->set(static_cast<int>(index), *value, *mode);
       }
       elements = elms;
     }
@@ -1391,11 +1392,11 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(size_t start) {
   } else {
     DisallowGarbageCollection no_gc;
     Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
-    WriteBarrierMode mode = kind == PACKED_SMI_ELEMENTS
-                                ? SKIP_WRITE_BARRIER
-                                : elements->GetWriteBarrierMode(no_gc);
+    WriteBarrierModeScope mode = kind == PACKED_SMI_ELEMENTS
+                                     ? WriteBarrierModeScope(SKIP_WRITE_BARRIER)
+                                     : elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
-      elements->set(i, *element_stack_[start + i], mode);
+      elements->set(i, *element_stack_[start + i], *mode);
     }
   }
   return array;
@@ -1491,6 +1492,14 @@ bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
                                     uint32_t key_length) {
   return key_length < remaining_chars() && *(cursor_ + key_length) == '"' &&
          CompareCharsEqual(key_chars, cursor_, key_length);
+}
+
+template <typename Char>
+bool JsonParser<Char>::FastKeyMatch(const uint8_t* key_chars,
+                                    uint32_t key_length,
+                                    JsonString scanned_key) {
+  return key_length == scanned_key.length() &&
+         CompareCharsEqual(key_chars, chars_ + scanned_key.start(), key_length);
 }
 
 template <typename Char>
@@ -1627,7 +1636,7 @@ bool JsonParser<Char>::ParseJsonObjectProperties(
             const uint8_t* expected_chars =
                 GetFastKeyChars(isolate_, expected_key, key_map, no_gc);
             const uint32_t key_length = expected_key->length();
-            key_match = FastKeyMatch(expected_chars, key_length);
+            key_match = FastKeyMatch(expected_chars, key_length, key);
           }
         }
 
@@ -1934,7 +1943,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             // TODO(verwaest): Directly use the map instead.
             value = factory()->NewJSObject(object_constructor_);
             if constexpr (should_track_json_source) {
-              val_node = ObjectTwoHashTable::New(isolate_, 0).ToHandleChecked();
+              val_node = ObjectTwoHashTable::New(isolate_, 0);
             }
             break;
           }
@@ -2087,8 +2096,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue() {
             int num_properties =
                 static_cast<int>(property_stack_.size() - start);
             Handle<ObjectTwoHashTable> table =
-                ObjectTwoHashTable::New(isolate(), num_properties)
-                    .ToHandleChecked();
+                ObjectTwoHashTable::New(isolate(), num_properties);
             for (int i = 0; i < num_properties; i++) {
               const JsonProperty& property = property_stack_[start + i];
               DirectHandle<Object> property_val_node =

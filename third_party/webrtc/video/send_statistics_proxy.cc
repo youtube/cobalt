@@ -1053,6 +1053,14 @@ void SendStatisticsProxy::OnSendEncodedImage(
     }
   }
 
+  std::optional<EncodedImage::Psnr> psnr = encoded_image.psnr();
+  if (psnr.has_value()) {
+    stats->psnr_sum.y += psnr->y;
+    stats->psnr_sum.u += psnr->u;
+    stats->psnr_sum.v += psnr->v;
+    stats->psnr_measurements += 1;
+  }
+
   // If any of the simulcast streams have a huge frame, it should be counted
   // as a single difficult input frame.
   // https://w3c.github.io/webrtc-stats/#dom-rtcvideosenderstats-hugeframessent

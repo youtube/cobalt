@@ -210,17 +210,7 @@ class CompilationUnitQueues {
       if (units.empty()) continue;
       num_units_[tier].fetch_add(units.size(), std::memory_order_relaxed);
       for (WasmCompilationUnit unit : units) {
-        size_t func_size = module->functions[unit.func_index()].code.length();
-        if (func_size <= kBigUnitsLimit) {
-          queue->units[tier].push_back(unit);
-        } else {
-          if (!big_units_guard) {
-            big_units_guard.emplace(&big_units_queue_.mutex);
-          }
-          big_units_queue_.has_units[tier].store(true,
-                                                 std::memory_order_relaxed);
-          big_units_queue_.units[tier].emplace(func_size, unit);
-        }
+        queue->units[tier].push_back(unit);
       }
     }
   }
@@ -269,22 +259,6 @@ class CompilationUnitQueues {
   size_t EstimateCurrentMemoryConsumption() const;
 
  private:
-  // Functions bigger than {kBigUnitsLimit} will be compiled first, in ascending
-  // order of their function body size.
-  static constexpr size_t kBigUnitsLimit = 4096;
-
-  struct BigUnit {
-    BigUnit(size_t func_size, WasmCompilationUnit unit)
-        : func_size{func_size}, unit(unit) {}
-
-    size_t func_size;
-    WasmCompilationUnit unit;
-
-    bool operator<(const BigUnit& other) const {
-      return func_size < other.func_size;
-    }
-  };
-
   struct TopTierPriorityUnit {
     TopTierPriorityUnit(int priority, WasmCompilationUnit unit)
         : priority(priority), unit(unit) {}
@@ -295,23 +269,6 @@ class CompilationUnitQueues {
     bool operator<(const TopTierPriorityUnit& other) const {
       return priority < other.priority;
     }
-  };
-
-  struct BigUnitsQueue {
-    BigUnitsQueue() {
-#if !defined(__cpp_lib_atomic_value_initialization) || \
-    __cpp_lib_atomic_value_initialization < 201911L
-      for (auto& atomic : has_units) std::atomic_init(&atomic, false);
-#endif
-    }
-
-    mutable base::Mutex mutex;
-
-    // Can be read concurrently to check whether any elements are in the queue.
-    std::atomic<bool> has_units[CompilationTier::kNumTiers];
-
-    // Protected by {mutex}:
-    std::priority_queue<BigUnit> units[CompilationTier::kNumTiers];
   };
 
   struct QueueImpl : public Queue {
@@ -348,9 +305,6 @@ class CompilationUnitQueues {
       }
     }
 
-    // Then check whether there is a big unit of that tier.
-    if (auto unit = GetBigUnitOfTier(tier)) return unit;
-
     // Finally check whether our own queue has a unit of the wanted tier. If
     // so, return it, otherwise get the task id to steal from.
     int steal_task_id;
@@ -381,21 +335,6 @@ class CompilationUnitQueues {
 
     // If we reach here, we didn't find any unit of the requested tier.
     return {};
-  }
-
-  std::optional<WasmCompilationUnit> GetBigUnitOfTier(int tier) {
-    // Fast path without locking.
-    if (!big_units_queue_.has_units[tier].load(std::memory_order_relaxed)) {
-      return {};
-    }
-    base::MutexGuard guard(&big_units_queue_.mutex);
-    if (big_units_queue_.units[tier].empty()) return {};
-    WasmCompilationUnit unit = big_units_queue_.units[tier].top().unit;
-    big_units_queue_.units[tier].pop();
-    if (big_units_queue_.units[tier].empty()) {
-      big_units_queue_.has_units[tier].store(false, std::memory_order_relaxed);
-    }
-    return unit;
   }
 
   std::optional<WasmCompilationUnit> GetTopTierPriorityUnit(QueueImpl* queue) {
@@ -513,8 +452,6 @@ class CompilationUnitQueues {
   const int num_imported_functions_;
   const int num_declared_functions_;
 
-  BigUnitsQueue big_units_queue_;
-
   std::atomic<size_t> num_units_[CompilationTier::kNumTiers];
   std::atomic<size_t> num_priority_units_{0};
   std::unique_ptr<std::atomic<bool>[]> top_tier_compiled_;
@@ -522,9 +459,8 @@ class CompilationUnitQueues {
 };
 
 size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 176);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationUnitQueues, 88);
   UPDATE_WHEN_CLASS_CHANGES(QueueImpl, 112);
-  UPDATE_WHEN_CLASS_CHANGES(BigUnitsQueue, 88);
   // Not including sizeof(CompilationUnitQueues) because that's included in
   // sizeof(CompilationStateImpl).
   size_t result = 0;
@@ -533,14 +469,11 @@ size_t CompilationUnitQueues::EstimateCurrentMemoryConsumption() const {
     result += ContentSize(queues_) + queues_.size() * sizeof(QueueImpl);
     for (const auto& q : queues_) {
       base::MutexGuard guard(&q->mutex);
-      result += ContentSize(*q->units);
+      for (std::vector<WasmCompilationUnit>& units : q->units) {
+        result += ContentSize(units);
+      }
       result += q->top_tier_priority_units.size() * sizeof(TopTierPriorityUnit);
     }
-  }
-  {
-    base::MutexGuard lock(&big_units_queue_.mutex);
-    result += big_units_queue_.units[0].size() * sizeof(BigUnit);
-    result += big_units_queue_.units[1].size() * sizeof(BigUnit);
   }
   // For {top_tier_compiled_}.
   result += sizeof(std::atomic<bool>) * num_declared_functions_;
@@ -588,6 +521,11 @@ class CompilationStateImpl {
   // Apply eager tier-up to the initial compilation progress, updating all
   // internal fields accordingly.
   void ApplyEagerTierUpToInitialProgress(size_t hint_idx);
+
+  // Apply a compilation priority hint to initial compilation progress,
+  // updating all internal fields accordingly.
+  void ApplyCompilationPriorityToInitialProgress(size_t hint_idx,
+                                                 CompilationPriority priority);
 
   // Use PGO information to choose a better initial compilation progress
   // (tiering decisions).
@@ -652,7 +590,7 @@ class CompilationStateImpl {
 
   void SetError();
 
-  void WaitForCompilationEvent(CompilationEvent event);
+  void WaitForBaselineCompileJob();
 
   void TierUpAllFunctions();
 
@@ -837,7 +775,7 @@ CompilationStateImpl* BackgroundCompileScope::compilation_state() const {
 }
 
 size_t CompilationStateImpl::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 464);
+  UPDATE_WHEN_CLASS_CHANGES(CompilationStateImpl, 376);
   size_t result = sizeof(CompilationStateImpl);
 
   {
@@ -1013,9 +951,24 @@ ExecutionTierPair GetLazyCompilationTiers(NativeModule* native_module,
   // If we are in debug mode, we ignore the tier-up filter.
   if (is_in_debug_state) return tiers;
 
+  if (native_module->enabled_features().has_compilation_hints()) {
+    if (auto priority =
+            native_module->module()->GetCompilationPriority(func_index)) {
+      DCHECK_LE(priority->optimization_priority,
+                kOptimizationPriorityExecutedOnceSentinel);
+      if (priority->optimization_priority ==
+          kOptimizationPriorityExecutedOnceSentinel) {
+        // In this case, the function is only executed once. We do not want to
+        // tier it up to Turbofan.
+        tiers.top_tier = ExecutionTier::kNone;
+      }
+    }
+  }
+
   if (V8_UNLIKELY(v8_flags.wasm_tier_up_filter >= 0 &&
                   func_index !=
-                      static_cast<uint32_t>(v8_flags.wasm_tier_up_filter))) {
+                      static_cast<uint32_t>(v8_flags.wasm_tier_up_filter) &&
+                  tiers.top_tier != ExecutionTier::kNone)) {
     tiers.top_tier = tiers.baseline_tier;
   }
 
@@ -1178,6 +1131,8 @@ bool CompileLazy(Isolate* isolate,
 
   const WasmModule* module = native_module->module();
   const bool lazy_module = IsLazyModule(module);
+  DCHECK(!(native_module->enabled_features().has_compilation_hints() &&
+           module->compilation_priorities.contains(func_index)));
   if (lazy_module && tiers.baseline_tier < tiers.top_tier) {
     WasmCompilationUnit tiering_unit{func_index, tiers.top_tier,
                                      kNotForDebugging};
@@ -1690,6 +1645,8 @@ void PublishDetectedFeatures(WasmDetectedFeatures detected_features,
       {WasmDetectedFeature::non_trapping_float_to_int,
        Feature::kWasmNonTrappingFloatToInt},
       {WasmDetectedFeature::sign_extension_ops, Feature::kWasmSignExtensionOps},
+      {WasmDetectedFeature::custom_descriptors,
+       Feature::kWasmCustomDescriptors},
   };
 
   // Check that every staging or shipping feature has a use counter as that is
@@ -2212,13 +2169,12 @@ WasmError ValidateFunctions(const WasmModule* module,
     return {};
   }
 
-  // TODO(manoskouk): This will either validate all or no functions. However we
-  // believe this structure will be useful for the new compilation-hints
-  // implementation.
   std::function<bool(int)> filter;  // Initially empty for "all functions".
-  if (only_lazy_functions) {
-    const bool is_lazy_module = IsLazyModule(module);
-    filter = [is_lazy_module](int func_index) { return is_lazy_module; };
+  if (only_lazy_functions && enabled_features.has_compilation_hints()) {
+    DCHECK(IsLazyModule(module));
+    filter = [module](int func_index) {
+      return !module->compilation_priorities.contains(func_index);
+    };
   }
   // Call {ValidateFunctions} in the module decoder.
   return ValidateFunctions(module, enabled_features, wire_bytes, filter,
@@ -2276,8 +2232,7 @@ void CompileNativeModule(Isolate* isolate,
   }
 
   if (!compilation_state->failed()) {
-    compilation_state->WaitForCompilationEvent(
-        CompilationEvent::kFinishedBaselineCompilation);
+    compilation_state->WaitForBaselineCompileJob();
   }
 
   if (compilation_state->failed()) {
@@ -3116,8 +3071,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // compilation. We call {WaitForCompilationEvent} here so that the main
       // thread participates and finishes the compilation.
       if (v8_flags.wasm_num_compilation_tasks == 0 || v8_flags.wasm_jitless) {
-        compilation_state->WaitForCompilationEvent(
-            CompilationEvent::kFinishedBaselineCompilation);
+        compilation_state->WaitForBaselineCompileJob();
       }
     }
   }
@@ -3299,7 +3253,10 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(
   const bool lazy_module = v8_flags.wasm_lazy_compilation;
   CHECK_IMPLIES(v8_flags.wasm_jitless, !v8_flags.wasm_lazy_validation);
   bool validate_lazily_compiled_function =
-      v8_flags.wasm_jitless || (!v8_flags.wasm_lazy_validation && lazy_module);
+      v8_flags.wasm_jitless ||
+      (!v8_flags.wasm_lazy_validation && lazy_module &&
+       !(v8_flags.experimental_wasm_compilation_hints &&
+         module->compilation_priorities.contains(func_index)));
   if (validate_lazily_compiled_function) {
     // {bytes} is part of a section buffer owned by the streaming decoder. The
     // streaming decoder is held alive by the {AsyncCompileJob}, so we can just
@@ -3571,8 +3528,39 @@ void CompilationStateImpl::ApplyEagerTierUpToInitialProgress(size_t hint_idx) {
   progress = RequiredTopTierField::update(progress, new_top_tier);
 
   // Update counter for outstanding baseline units.
-  outstanding_baseline_units_ += (new_baseline_tier != ExecutionTier::kNone) -
-                                 (old_baseline_tier != ExecutionTier::kNone);
+  outstanding_baseline_units_ +=
+      1 - (old_baseline_tier != ExecutionTier::kNone);
+}
+
+void CompilationStateImpl::ApplyCompilationPriorityToInitialProgress(
+    size_t hint_idx, CompilationPriority priority) {
+  // Get old information.
+  uint8_t& progress = compilation_progress_[hint_idx];
+  ExecutionTier old_baseline_tier = RequiredBaselineTierField::decode(progress);
+
+  // Compute new information.
+  // If optimization_priority is present and the function is not only executed
+  // once, eagerly (blockingly) compile with Turbofan.
+  // Otherwise, eagerly (blockingly) compile with Liftoff and do not optimize
+  // eagerly.
+  bool optimization_priority_not_finite =
+      priority.optimization_priority >=
+          kOptimizationPriorityExecutedOnceSentinel ||
+      priority.optimization_priority ==
+          kOptimizationPriorityNotSpecifiedSentinel;
+  ExecutionTier new_baseline_tier = optimization_priority_not_finite
+                                        ? ExecutionTier::kLiftoff
+                                        : ExecutionTier::kTurbofan;
+  ExecutionTier new_top_tier = optimization_priority_not_finite
+                                   ? ExecutionTier::kNone
+                                   : ExecutionTier::kTurbofan;
+
+  progress = RequiredBaselineTierField::update(progress, new_baseline_tier);
+  progress = RequiredTopTierField::update(progress, new_top_tier);
+
+  // Update counter for outstanding baseline units.
+  outstanding_baseline_units_ +=
+      1 - (old_baseline_tier != ExecutionTier::kNone);
 }
 
 void CompilationStateImpl::ApplyPgoInfoToInitialProgress(
@@ -3695,8 +3683,14 @@ void CompilationStateImpl::InitializeCompilationProgress(
       outstanding_baseline_units_ += module->num_declared_functions;
     }
 
-    // Transform --wasm-eager-tier-up-function, if given, into a fake
-    // compilation hint.
+    if (native_module_->enabled_features().has_compilation_hints()) {
+      for (std::pair<uint32_t, CompilationPriority> pair :
+           module->compilation_priorities) {
+        ApplyCompilationPriorityToInitialProgress(pair.first, pair.second);
+      }
+    }
+
+    // Apply --wasm-eager-tier-up-function, if given.
     if (V8_UNLIKELY(
             v8_flags.wasm_eager_tier_up_function >= 0 &&
             static_cast<uint32_t>(v8_flags.wasm_eager_tier_up_function) >=
@@ -3833,7 +3827,7 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
   InitializeCompilationUnits(std::move(builder));
   if (!v8_flags.wasm_lazy_compilation) {
-    WaitForCompilationEvent(CompilationEvent::kFinishedBaselineCompilation);
+    WaitForBaselineCompileJob();
   }
 }
 
@@ -3959,7 +3953,7 @@ void CompilationStateImpl::OnFinishedUnits(
             ReachedTierField::update(function_progress, code->tier());
       }
       // Allow another top tier compilation if deopts are enabled and the
-      // currently installed code object is a liftoff object.
+      // currently installed code object is a Liftoff object.
       // Ideally, this would be done only if the code->tier() ==
       // ExecutionTier::Liftoff as the code object for which we run this
       // function should be the same as the one installed on the native_module.
@@ -4237,19 +4231,12 @@ void CompilationStateImpl::SetError() {
   callbacks_.clear();
 }
 
-void CompilationStateImpl::WaitForCompilationEvent(
-    CompilationEvent expect_event) {
-  switch (expect_event) {
-    case CompilationEvent::kFinishedBaselineCompilation:
-      if (baseline_compile_job_->IsValid()) baseline_compile_job_->Join();
-      break;
-    default:
-      // Waiting on other CompilationEvent doesn't make sense.
-      UNREACHABLE();
-  }
+void CompilationStateImpl::WaitForBaselineCompileJob() {
+  if (baseline_compile_job_->IsValid()) baseline_compile_job_->Join();
 #ifdef DEBUG
-  base::EnumSet<CompilationEvent> events{expect_event,
-                                         CompilationEvent::kFailedCompilation};
+  base::EnumSet<CompilationEvent> events{
+      CompilationEvent::kFinishedBaselineCompilation,
+      CompilationEvent::kFailedCompilation};
   base::MutexGuard guard(&callbacks_mutex_);
   DCHECK(finished_events_.contains_any(events));
 #endif

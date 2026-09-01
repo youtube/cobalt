@@ -3557,6 +3557,16 @@ TEST_P(PeerConnectionInterfaceTest, SetBitrateCurrentLessThanImplicitMin) {
   EXPECT_TRUE(pc_->SetBitrate(bitrate).ok());
 }
 
+TEST_P(PeerConnectionInterfaceTest, SetBitrateAfterCloseFails) {
+  CreatePeerConnection();
+  pc_->Close();
+  BitrateSettings bitrate;
+  bitrate.start_bitrate_bps = 1;
+  auto ret = pc_->SetBitrate(bitrate);
+  EXPECT_FALSE(ret.ok());
+  EXPECT_EQ(RTCErrorType::INVALID_STATE, ret.type());
+}
+
 // The following tests verify that the offer can be created correctly.
 TEST_P(PeerConnectionInterfaceTest,
        CreateOfferFailsWithInvalidOfferToReceiveAudio) {

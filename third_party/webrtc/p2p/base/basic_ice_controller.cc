@@ -449,7 +449,7 @@ BasicIceController::HandleInitialSelectDampening(
   if (!field_trials_->initial_select_dampening.has_value() &&
       !field_trials_->initial_select_dampening_ping_received.has_value()) {
     // experiment not enabled => select connection.
-    return {new_connection, std::nullopt};
+    return {.connection = new_connection};
   }
 
   int64_t now = TimeMillis();
@@ -470,7 +470,7 @@ BasicIceController::HandleInitialSelectDampening(
                      << initial_select_timestamp_ms_
                      << " selection delayed by: " << (now - start_wait) << "ms";
     initial_select_timestamp_ms_ = 0;
-    return {new_connection, std::nullopt};
+    return {.connection = new_connection};
   }
 
   // We are not yet ready to select first connection...
@@ -493,8 +493,7 @@ BasicIceController::HandleInitialSelectDampening(
   }
 
   RTC_LOG(LS_INFO) << "delay initial selection up to " << min_delay << "ms";
-  return {.connection = std::nullopt,
-          .recheck_event = IceRecheckEvent(
+  return {.recheck_event = IceRecheckEvent(
               IceSwitchReason::ICE_CONTROLLER_RECHECK, min_delay)};
 }
 
@@ -502,7 +501,7 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
     IceSwitchReason reason,
     const Connection* new_connection) {
   if (!ReadyToSend(new_connection) || selected_connection_ == new_connection) {
-    return {std::nullopt, std::nullopt};
+    return {};
   }
 
   if (selected_connection_ == nullptr) {
@@ -515,7 +514,7 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
   int compare_a_b_by_networks = CompareCandidatePairNetworks(
       new_connection, selected_connection_, config_.network_preference);
   if (compare_a_b_by_networks == b_is_better && !new_connection->receiving()) {
-    return {std::nullopt, std::nullopt};
+    return {};
   }
 
   bool missed_receiving_unchanged_threshold = false;
@@ -537,18 +536,18 @@ IceControllerInterface::SwitchResult BasicIceController::ShouldSwitchConnection(
   }
 
   if (cmp < 0) {
-    return {new_connection, std::nullopt};
+    return {.connection = new_connection};
   } else if (cmp > 0) {
-    return {std::nullopt, recheck_event};
+    return {.recheck_event = recheck_event};
   }
 
   // If everything else is the same, switch only if rtt has improved by
   // a margin.
   if (new_connection->rtt() <= selected_connection_->rtt() - kMinImprovement) {
-    return {new_connection, std::nullopt};
+    return {.connection = new_connection};
   }
 
-  return {std::nullopt, recheck_event};
+  return {.recheck_event = recheck_event};
 }
 
 IceControllerInterface::SwitchResult

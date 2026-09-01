@@ -672,6 +672,7 @@ rtc_library("rtc_audio_video") {
     "../rtc_base/synchronization:mutex",
     "../rtc_base/system:file_wrapper",
     "../rtc_base/system:no_unique_address",
+    "../system_wrappers",
     "../system_wrappers:metrics",
     "../video/config:encoder_config",
     "//third_party/abseil-cpp/absl/algorithm",

@@ -33,7 +33,6 @@
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/tree_ordered_list.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element_with_state.h"
-#include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_selected_content_element.h"
 #include "third_party/blink/renderer/core/html/forms/option_list.h"
 #include "third_party/blink/renderer/core/html/forms/type_ahead.h"
@@ -73,8 +72,6 @@ class CORE_EXPORT HTMLSelectElement final
 
     const ComputedStyle* CustomStyleForLayoutObject(
         const StyleRecalcContext& style_recalc_context) override;
-    Node::InsertionNotificationRequest InsertedInto(ContainerNode&) override;
-    void RemovedFrom(ContainerNode&) override;
 
     void Trace(Visitor*) const override;
 
@@ -245,14 +242,6 @@ class CORE_EXPORT HTMLSelectElement final
   void CloneNonAttributePropertiesFrom(const Element&,
                                        NodeCloningData&) override;
 
-  // These are all utilities that check the relevant runtime flag, *plus* check
-  // that the SelectParserRelaxationOptOut origin trial is not enabled.
-  static bool SelectParserRelaxationEnabled(const Document* document);
-  static bool SelectParserRelaxationEnabled(const Node* node);
-  static bool CustomizableSelectEnabled(const Document* document);
-  static bool CustomizableSelectEnabled(const Node* node);
-  static bool CustomizableSelectEnabledNoDocument();
-
   // InnerElement and PopupRootAXObject should be called only if UsesMenuList().
   // InnerElement is the in-page <div> element in the UA shadowroot for MenuList
   // rendering. It is excluded from the layout tree if the author sets
@@ -288,8 +277,18 @@ class CORE_EXPORT HTMLSelectElement final
   // callers already have an Element instead of a Node, and if we only had the
   // Node version then there would be an extra call to DynamicTo<Element> every
   // time.
+  // GetSelectForPopoverPickerElement runs the same check and returns the
+  // corresponding select element if the element is a popover picker element,
+  // otherwise null.
   static bool IsPopoverPickerElement(const Node*);
   static bool IsPopoverPickerElement(const Element*);
+  static HTMLSelectElement* GetSelectForPopoverPickerElement(const Element*);
+
+  // Returns true if this select element supports being rendered with base
+  // appearance. Otherwise, applying appearance:base-select to this element
+  // should not enable base appearance or do anything different from
+  // appearance:auto.
+  bool SupportsBaseAppearance() const;
 
   // <select> supports appearance:base-select on both the main element and
   // ::picker(select). IsAppearanceBase returns true if the main element has
@@ -328,13 +327,6 @@ class CORE_EXPORT HTMLSelectElement final
       HTMLSelectedContentElement* selectedcontent);
   void SelectedContentElementRemoved(
       HTMLSelectedContentElement* selectedcontent);
-
-  // These methods are used to track all descendant <input>s elements of this
-  // <select>. This is only used for customizable select and is populated by
-  // this select's MutationObserver.
-  void AddDescendantTextInput(HTMLInputElement* input);
-  void RemoveDescendantTextInput(HTMLInputElement* input);
-  HTMLInputElement* FirstDescendantTextInput() const;
 
   // This will only return an element if IsAppearanceBase(). The element
   // is a popover inside the UA shadowroot which is used to show the user a
@@ -379,7 +371,6 @@ class CORE_EXPORT HTMLSelectElement final
   FormControlState SaveFormControlState() const override;
   void RestoreFormControlState(const FormControlState&) override;
 
-  void ChildrenChanged(const ChildrenChange& change) override;
   bool ChildrenChangedAllChildrenRemovedNeedsList() const override;
   void ParseAttribute(const AttributeModificationParams&) override;
   bool IsPresentationAttribute(const QualifiedName&) const override;
@@ -457,7 +448,6 @@ class CORE_EXPORT HTMLSelectElement final
   Member<HTMLOptionElement> last_on_change_option_;
   Member<HTMLOptionElement> suggested_option_;
   TreeOrderedList<HTMLSelectedContentElement> descendant_selectedcontents_;
-  TreeOrderedList<HTMLInputElement> descendant_text_inputs_;
   bool uses_menu_list_ = true;
   bool is_multiple_;
   mutable bool should_recalc_list_items_;

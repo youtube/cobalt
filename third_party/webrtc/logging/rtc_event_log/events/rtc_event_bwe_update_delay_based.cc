@@ -14,7 +14,6 @@
 #include <memory>
 
 #include "absl/memory/memory.h"
-#include "api/rtc_event_log/rtc_event.h"
 #include "api/transport/bandwidth_usage.h"
 
 namespace webrtc {
@@ -24,18 +23,11 @@ RtcEventBweUpdateDelayBased::RtcEventBweUpdateDelayBased(
     BandwidthUsage detector_state)
     : bitrate_bps_(bitrate_bps), detector_state_(detector_state) {}
 
-RtcEventBweUpdateDelayBased::RtcEventBweUpdateDelayBased(
-    const RtcEventBweUpdateDelayBased& other)
-    : RtcEvent(other.timestamp_us_),
-      bitrate_bps_(other.bitrate_bps_),
-      detector_state_(other.detector_state_) {}
-
 RtcEventBweUpdateDelayBased::~RtcEventBweUpdateDelayBased() = default;
 
 std::unique_ptr<RtcEventBweUpdateDelayBased> RtcEventBweUpdateDelayBased::Copy()
     const {
-  return absl::WrapUnique<RtcEventBweUpdateDelayBased>(
-      new RtcEventBweUpdateDelayBased(*this));
+  return absl::WrapUnique(new RtcEventBweUpdateDelayBased(*this));
 }
 
 }  // namespace webrtc

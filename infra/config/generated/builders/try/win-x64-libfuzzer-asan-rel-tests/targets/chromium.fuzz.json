@@ -2,9 +2,13 @@
   "win-x64-libfuzzer-asan-rel-tests": {
     "gtest_tests": [
       {
+        "args": [
+          "--asan-detect-odr-violation=0"
+        ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
+        "module_name": "//testing/libfuzzer/tests:fuzzing_unittests/",
         "name": "fuzzing_unittests",
         "swarming": {
           "dimensions": {

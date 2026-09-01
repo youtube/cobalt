@@ -6,7 +6,6 @@ import 'chrome://new-tab-page/lazy_load.js';
 import './ntp_promo_test_common.js';
 
 import type {SetupListElement, SetupListItemElement, SetupListModuleWrapperElement} from 'chrome://new-tab-page/lazy_load.js';
-import {MAX_SETUP_LIST_ENTRIES} from 'chrome://new-tab-page/lazy_load.js';
 import {getTrustedHTML} from 'chrome://new-tab-page/new_tab_page.js';
 import type {Promo} from 'chrome://new-tab-page/ntp_promo.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertNull, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -19,7 +18,9 @@ suite('SetupListTest', () => {
   let testProxy: TestNtpPromoProxy;
   let setupListWrapper: SetupListModuleWrapperElement;
   const promos: Promo[] = [];
-  for (let i = 0; i < MAX_SETUP_LIST_ENTRIES + 1; ++i) {
+  // Test promos. The number of promos is not important, since slices or limits
+  // are set by tests as needed.
+  for (let i = 0; i < 10; ++i) {
     promos.push({
       id: 'promo' + i,
       iconName: '',
@@ -53,10 +54,6 @@ suite('SetupListTest', () => {
     return getSetupList().$.promos.children[index] as SetupListItemElement;
   }
 
-  function ids(start: number, length: number): string[] {
-    return promos.slice(start, start + length).map(promo => promo.id);
-  }
-
   setup(() => {
     testProxy = TestNtpPromoProxy.install();
 
@@ -68,6 +65,8 @@ suite('SetupListTest', () => {
 
     setupListWrapper = document.createElement('setup-list-module-wrapper');
     setupListWrapper.id = 'setupListWrapper';
+    setupListWrapper.maxPromos = 10;
+    setupListWrapper.maxCompletedPromos = 2;
     document.querySelector<HTMLElement>('#container')!.insertBefore(
         setupListWrapper, document.querySelector<HTMLElement>('#bodyText'));
 
@@ -84,7 +83,7 @@ suite('SetupListTest', () => {
     assertFalse(isVisible(setupListWrapper));
   });
 
-  test('set eligible and completed', async () => {
+  test('eligible then completed', async () => {
     getSetupList().onSetPromos([promos[0]!], [promos[1]!]);
     await waitForVisibilityEvents();
     assertTrue(isVisible(getSetupList()), 'promo frame should become visible');
@@ -94,34 +93,32 @@ suite('SetupListTest', () => {
     assertDeepEquals(expected, actual);
     assertEquals(2, getPromoCount());
 
-    // Completed promos come first.
+    // Pending promos come first.
     let setupList = getPromoAt(0);
-    assertTrue(setupList.completed);
-    assertEquals(promos[1]!.bodyText, setupList.$.bodyText.innerText);
-    assertNull(setupList.querySelector('#actionButton'));
-
-    // Then uncompleted promos.
-    setupList = getPromoAt(1);
     assertFalse(setupList.completed);
     assertEquals(promos[0]!.bodyText, setupList.$.bodyText.innerText);
-    assertEquals(promos[0]!.buttonText, setupList.$.actionButton.ariaLabel);
+    assertEquals(promos[0]!.buttonText, setupList.$.backing.ariaLabel);
+
+    // Then completed promos.
+    setupList = getPromoAt(1);
+    assertTrue(setupList.completed);
+    assertEquals(promos[1]!.bodyText, setupList.$.bodyText.innerText);
+    assertNull(setupList.querySelector('#actionIcon'));
   });
 
-  test('set too many promos', async () => {
-    getSetupList().onSetPromos(promos, []);
+  test('promo count limits', async () => {
+    const limit = 3;
+    const completed_limit = 1;
+    assertTrue(limit < promos.length);
+    getSetupList().maxPromos = limit;
+    getSetupList().maxCompletedPromos = completed_limit;
+    getSetupList().onSetPromos(promos, promos);
     await waitForVisibilityEvents();
-    assertEquals(1, testProxy.getHandler().getCallCount('onPromosShown'));
-    assertDeepEquals(
-        [[ids(0, MAX_SETUP_LIST_ENTRIES), []]],
-        testProxy.getHandler().getArgs('onPromosShown'));
-    assertEquals(MAX_SETUP_LIST_ENTRIES, getPromoCount());
-
-    // Check the promos are in order:
-    for (let i = 0; i < MAX_SETUP_LIST_ENTRIES; ++i) {
-      assertFalse(getPromoAt(i).completed);
-      assertEquals(promos[i]!.bodyText, getPromoAt(i).$.bodyText.innerText);
+    assertEquals(getPromoCount(), limit, 'promo count');
+    for (let i = 0; i < limit; i++) {
       assertEquals(
-          promos[i]!.buttonText, getPromoAt(i).$.actionButton.ariaLabel);
+          getPromoAt(i).completed, (i >= (limit - completed_limit)),
+          'promo completed');
     }
   });
 });

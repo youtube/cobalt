@@ -608,13 +608,13 @@ struct IPAddressTypeTestConfig {
   absl::string_view address;
   IPAddressType address_type;
 } const kAllCandidateIPAddressTypeTestConfigs[] = {
-    {"127.0.0.1", IPAddressType::kLoopback},
-    {"::1", IPAddressType::kLoopback},
-    {"localhost", IPAddressType::kLoopback},
-    {"10.0.0.3", IPAddressType::kPrivate},
-    {"FE80::3", IPAddressType::kPrivate},
-    {"1.1.1.1", IPAddressType::kPublic},
-    {"2001:4860:4860::8888", IPAddressType::kPublic},
+    {.address = "127.0.0.1", .address_type = IPAddressType::kLoopback},
+    {.address = "::1", .address_type = IPAddressType::kLoopback},
+    {.address = "localhost", .address_type = IPAddressType::kLoopback},
+    {.address = "10.0.0.3", .address_type = IPAddressType::kPrivate},
+    {.address = "FE80::3", .address_type = IPAddressType::kPrivate},
+    {.address = "1.1.1.1", .address_type = IPAddressType::kPublic},
+    {.address = "2001:4860:4860::8888", .address_type = IPAddressType::kPublic},
 };
 
 // Used by the test framework to print the param value for parameterized tests.

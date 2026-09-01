@@ -65,31 +65,19 @@ EVP_PKEY *EVP_parse_public_key(CBS *cbs) {
     return nullptr;
   }
   const EVP_PKEY_ASN1_METHOD *method = parse_key_type(&algorithm);
-  if (method == nullptr) {
+  if (method == nullptr || method->pub_decode == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return nullptr;
   }
-  if (// Every key type defined encodes the key as a byte string with the same
-      // conversion to BIT STRING.
-      !CBS_get_u8(&key, &padding) ||
-      padding != 0) {
+  // Every key type defined encodes the key as a byte string with the same
+  // conversion to BIT STRING, so perform that common conversion ahead of time.
+  if (!CBS_get_u8(&key, &padding) || padding != 0) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
     return nullptr;
   }
 
-  // Set up an |EVP_PKEY| of the appropriate type.
   bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  evp_pkey_set_method(ret.get(), method);
-
-  // Call into the type-specific SPKI decoding function.
-  if (ret->ameth->pub_decode == nullptr) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
-    return nullptr;
-  }
-  if (!ret->ameth->pub_decode(ret.get(), &algorithm, &key)) {
+  if (ret == nullptr || !method->pub_decode(ret.get(), &algorithm, &key)) {
     return nullptr;
   }
 
@@ -118,7 +106,7 @@ EVP_PKEY *EVP_parse_private_key(CBS *cbs) {
     return nullptr;
   }
   const EVP_PKEY_ASN1_METHOD *method = parse_key_type(&algorithm);
-  if (method == nullptr) {
+  if (method == nullptr || method->priv_decode == nullptr) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
     return nullptr;
   }
@@ -127,17 +115,7 @@ EVP_PKEY *EVP_parse_private_key(CBS *cbs) {
 
   // Set up an |EVP_PKEY| of the appropriate type.
   bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr) {
-    return nullptr;
-  }
-  evp_pkey_set_method(ret.get(), method);
-
-  // Call into the type-specific PrivateKeyInfo decoding function.
-  if (ret->ameth->priv_decode == nullptr) {
-    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
-    return nullptr;
-  }
-  if (!ret->ameth->priv_decode(ret.get(), &algorithm, &key)) {
+  if (ret == nullptr || !method->priv_decode(ret.get(), &algorithm, &key)) {
     return nullptr;
   }
 
@@ -209,7 +187,7 @@ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **out, const uint8_t **inp,
     if (ret == nullptr) {
       return nullptr;
     }
-    if (ret->type != type) {
+    if (EVP_PKEY_id(ret.get()) != type) {
       OPENSSL_PUT_ERROR(EVP, EVP_R_DIFFERENT_KEY_TYPES);
       return nullptr;
     }
@@ -279,7 +257,7 @@ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **out, const uint8_t **inp, long len) {
 }
 
 int i2d_PublicKey(const EVP_PKEY *key, uint8_t **outp) {
-  switch (key->type) {
+  switch (EVP_PKEY_id(key)) {
     case EVP_PKEY_RSA:
       return i2d_RSAPublicKey(EVP_PKEY_get0_RSA(key), outp);
     case EVP_PKEY_DSA:

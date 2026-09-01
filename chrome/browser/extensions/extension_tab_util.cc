@@ -58,6 +58,8 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/browser_navigator.h"
+#include "chrome/browser/ui/browser_navigator_params.h"
 #else
 #include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
@@ -769,18 +771,18 @@ void ExtensionTabUtil::ScrubTabForExtension(
 bool ExtensionTabUtil::GetTabListInterface(content::WebContents& web_contents,
                                            TabListInterface** tab_list_out,
                                            int* index_out) {
-  // In practice, none of the current mechanisms for looking up a browser window
-  // (and thus tab list) from a tab work fully on Android today.
-#if BUILDFLAG(IS_ANDROID)
-  return false;
-#else
   tabs::TabInterface* tab_interface =
       tabs::TabInterface::MaybeGetFromContents(&web_contents);
   if (!tab_interface) {
     return false;
   }
 
-  BrowserWindowInterface* browser = tab_interface->GetBrowserWindowInterface();
+  BrowserWindowInterface* browser =
+#if BUILDFLAG(IS_ANDROID)
+      GetBrowserForWebContents(&web_contents);
+#else
+      tab_interface->GetBrowserWindowInterface();
+#endif
 
   if (!browser) {
     return false;
@@ -813,7 +815,6 @@ bool ExtensionTabUtil::GetTabListInterface(content::WebContents& web_contents,
   *index_out = index;
   *tab_list_out = tab_list;
   return true;
-#endif
 }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -1254,6 +1255,33 @@ GURL ExtensionTabUtil::ResolvePossiblyRelativeURL(const std::string& url_string,
 
   return url;
 }
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+void ExtensionTabUtil::NavigateToURL(WindowOpenDisposition disposition,
+                                     Browser* browser,
+                                     const GURL& url) {
+  NavigateParams navigate_params(browser, url, ui::PAGE_TRANSITION_FROM_API);
+  navigate_params.window_action = NavigateParams::SHOW_WINDOW;
+  navigate_params.disposition = disposition;
+  Navigate(&navigate_params);
+}
+#else
+void ExtensionTabUtil::NavigateToURL(content::WebContents* web_contents,
+                                     content::BrowserContext* browser_context,
+                                     const GURL& url) {
+  TabModel* const tab_model =
+      TabModelList::GetTabModelForWebContents(web_contents);
+  std::unique_ptr<content::WebContents> new_contents =
+      content::WebContents::Create(
+          content::WebContents::CreateParams(browser_context));
+  content::WebContents* const new_web_contents = new_contents.release();
+  tab_model->CreateTab(/*parent=*/nullptr, new_web_contents,
+                       /*select=*/true);
+  content::NavigationController::LoadURLParams load_params(url);
+  load_params.transition_type = ui::PAGE_TRANSITION_FROM_API;
+  new_web_contents->GetController().LoadURLWithParams(load_params);
+}
+#endif
 
 bool ExtensionTabUtil::IsKillURL(const GURL& url) {
 #if DCHECK_IS_ON()

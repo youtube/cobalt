@@ -246,8 +246,8 @@ void VideoStreamAdapter::ClearRestrictions() {
   // Invalidate any previously returned Adaptation.
   RTC_LOG(LS_INFO) << "Resetting restrictions";
   ++adaptation_validation_id_;
-  current_restrictions_ = {VideoSourceRestrictions(),
-                           VideoAdaptationCounters()};
+  current_restrictions_ = {.restrictions = VideoSourceRestrictions(),
+                           .counters = VideoAdaptationCounters()};
   awaiting_frame_size_change_ = std::nullopt;
   BroadcastVideoRestrictionsUpdate(input_state_provider_->InputState(),
                                    nullptr);
@@ -327,9 +327,10 @@ Adaptation VideoStreamAdapter::RestrictionsOrStateToAdaptation(
     VideoStreamAdapter::RestrictionsOrState step_or_state,
     const VideoStreamInputState& input_state) const {
   RTC_DCHECK(!step_or_state.valueless_by_exception());
-  return std::visit(
-      RestrictionsOrStateVisitor{adaptation_validation_id_, input_state},
-      step_or_state);
+  return std::visit(RestrictionsOrStateVisitor{.adaptation_validation_id =
+                                                   adaptation_validation_id_,
+                                               .input_state = input_state},
+                    step_or_state);
 }
 
 Adaptation VideoStreamAdapter::GetAdaptationUp(
@@ -676,7 +677,8 @@ void VideoStreamAdapter::ApplyAdaptation(const Adaptation& adaptation,
   } else {
     awaiting_frame_size_change_ = std::nullopt;
   }
-  current_restrictions_ = {adaptation.restrictions(), adaptation.counters()};
+  current_restrictions_ = {.restrictions = adaptation.restrictions(),
+                           .counters = adaptation.counters()};
   BroadcastVideoRestrictionsUpdate(adaptation.input_state(), resource);
 }
 

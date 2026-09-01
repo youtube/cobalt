@@ -26,6 +26,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
@@ -81,7 +82,6 @@ import org.chromium.chrome.browser.xsurface.feed.FeedSurfaceScope;
 import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger;
 import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.feature_engagement.EventConstants;
 import org.chromium.components.feature_engagement.Tracker;
@@ -89,6 +89,7 @@ import org.chromium.third_party.android.swiperefresh.SwipeRefreshLayout;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.ViewUtils;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.ui.modelutil.ListModelChangeProcessor;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyListModel;
@@ -528,14 +529,20 @@ public class FeedSurfaceCoordinator
                     new NtpCustomizationConfigManager.HomepageStateListener() {
                         @Override
                         public void onBackgroundChanged(
-                                @Nullable Drawable backgroundDrawable, boolean fromInitialization) {
+                                Drawable backgroundDrawable, boolean fromInitialization) {
                             setBackground(backgroundDrawable);
+                        }
+
+                        @Override
+                        public void onBackgroundColorChanged(
+                                int backgroundColor, boolean fromInitialization) {
+                            setBackgroundColor(backgroundColor);
                         }
                     };
 
             mNtpCustomizationConfigManager.addListener(mHomepageStateListener);
         } else {
-            setBackground(null);
+            setBackgroundColor(mDefaultBackgroundColor);
         }
 
         mHandler = new Handler(Looper.getMainLooper());
@@ -631,18 +638,28 @@ public class FeedSurfaceCoordinator
     }
 
     // Sets the background image for the embedder NTP.
-    private void setBackground(@Nullable Drawable backgroundDrawable) {
-        if (backgroundDrawable == null) {
-            mRecyclerView.setBackgroundColor(mDefaultBackgroundColor);
-            if (mNtpHeader != null) {
-                mNtpHeader.setBackgroundColor(mDefaultBackgroundColor);
-            }
-            return;
-        }
+    private void setBackground(Drawable backgroundDrawable) {
+        assert backgroundDrawable != null;
 
         mRecyclerView.setBackground(backgroundDrawable);
         if (mNtpHeader != null) {
             mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
+        }
+    }
+
+    /**
+     * Sets the background color for the embedder NTP.
+     *
+     * @param backgroundColor The customized background color.
+     */
+    private void setBackgroundColor(@ColorInt int backgroundColor) {
+        mRecyclerView.setBackgroundColor(backgroundColor);
+        if (mNtpHeader != null) {
+            if (backgroundColor != mDefaultBackgroundColor) {
+                mNtpHeader.setBackgroundColor(Color.TRANSPARENT);
+            } else {
+                mNtpHeader.setBackgroundColor(mDefaultBackgroundColor);
+            }
         }
     }
 

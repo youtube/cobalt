@@ -1295,6 +1295,10 @@
       status: "experimental",
     },
     {
+      // crbug.com/417306102
+      name: "CssFitWidthTextConsistent",
+    },
+    {
       name: "CSSFontSizeAdjust",
       status: "stable",
     },
@@ -1473,8 +1477,8 @@
       status: "stable",
       depends_on: ["PseudoElementsFocusable"],
     },
-    
-    
+
+
     {
       // Non-standard 'auto' keyword for the CSS resize property. Used for
       // selectively enable resize corner for textarea via UA stylesheet, but
@@ -1505,6 +1509,12 @@
     {
       // https://github.com/w3c/csswg-drafts/issues/12122
       name: "CSSScrollMarkerGroupModes",
+      status: "experimental",
+    },
+    {
+      // https://github.com/w3c/csswg-drafts/issues/11600
+      // :target-before and :target-after pseudo classes for scroll markers.
+      name: "CSSScrollMarkerTargetBeforeAfter",
       status: "experimental",
     },
     {
@@ -1633,21 +1643,11 @@
       status: "experimental",
     },
     {
-      // Adds the appearance:base-select CSS value which makes <select>
-      // rendering using alternate content in the UA shadowroot which is
-      // customizable.
-      name: "CustomizableSelect",
-      status: "stable",
-      // SelectParserRelaxation is needed to allow more content in <select>
-      // than just <option>s etc.
-      depends_on: ["SelectParserRelaxation"],
-    },
-    {
       // appearance:base-select for <select multiple> and <select size=n>
       // https://issues.chromium.org/issues/357649033
       name: "CustomizableSelectInPage",
       status: "experimental",
-      depends_on: ["CustomizableSelect"],
+      depends_on: ["SelectMobileDesktopParity"],
     },
     {
       // appearance:base-select for <select multiple size=1> with a picker.
@@ -1704,11 +1704,19 @@
     },
     {
       name: "DeviceAttributesPermissionPolicy",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "DeviceBoundSessionCredentials",
       origin_trial_feature_name: "DeviceBoundSessionCredentials",
+      origin_trial_os: ["win", "linux", "mac"],
+      status: "experimental",
+      // Killswitch is net::features::kDeviceBoundSessions
+      base_feature: "none",
+    },
+    {
+      name: "DeviceBoundSessionCredentials2",
+      origin_trial_feature_name: "DeviceBoundSessionCredentials2",
       origin_trial_os: ["win", "linux", "mac"],
       status: "experimental",
       // Killswitch is net::features::kDeviceBoundSessions
@@ -1836,6 +1844,11 @@
       public: true,
     },
     {
+      // https://chromestatus.com/feature/5067126381215744
+      name: "DocumentActiveViewTransition",
+      status: "experimental",
+    },
+    {
       name: "DocumentCookie",
     },
     {
@@ -1948,8 +1961,9 @@
       status: {"Android": "stable"},
     },
     {
+      public: true,
       name: "ElementCapture",
-      status: {"Android": "", "default": "stable"},
+      status: {"Android": "experimental", "iOS": "", "default": "stable"},
     },
     {
       name: "ElementInnerTextHandleFirstLineStyle",
@@ -2215,6 +2229,19 @@
       status: "stable",
     },
     {
+      // When enabled, calling remove() on a FileSystemAccessHandle will also
+      // update the permission grants for the associated path. Restored after
+      // next write to the path.
+      // See crbug.com/421690393.
+      name: "FileSystemAccessRevokeReadOnRemove",
+      depends_on: ["FileSystemAccessWriteMode"],
+      status: "test",
+    },
+    {
+      // Controls the internal write-only mode for various FileSystemAccess API.
+      // This covers mostly content layer and does not expose any write mode to
+      // user visible APIs.
+      // This flag is part of crbug.com/421690393 and crbug.com/328458680.
       name: "FileSystemAccessWriteMode",
       status: "test",
     },
@@ -2237,6 +2264,10 @@
     },
     {
       name: "FindFirstMisspellingEndWhenNonEditable",
+      status: "stable",
+    },
+    {
+      name: "FirstLineOnListItem",
       status: "stable",
     },
     {
@@ -2492,7 +2523,7 @@
     // https://www.w3.org/TR/screen-capture/#dom-displaymediastreamoptions-windowaudio
     {
       name: "GetDisplayMediaWindowAudioCapture",
-      status: "experimental",
+      status: "stable",
       browser_process_read_write_access: true,
     },
     {
@@ -2543,6 +2574,10 @@
     {
       name: "HeadingOffset",
       status: "experimental",
+    },
+    {
+      name: "HighlightByLayoutObject",
+      status: "stable",
     },
     {
       name: "HighlightPointerEvents",
@@ -2596,7 +2631,7 @@
       name: "HTMLElementScrollParent",
       status: "experimental",
     },
-    
+
     // Return a natural width/height of zero from
     // HTMLImageElement.naturalWidth/Height for SVG images that don't have a
     // natural width/height set.
@@ -2671,7 +2706,7 @@
       status: {"Android": "stable"},
       base_feature: "none",
     },
-    
+
     {
       // Improved retargeting behavior of ToggleEvent.source and
       // CommandEvent.source to match Event.relatedTarget.
@@ -2707,15 +2742,6 @@
       status: "stable",
     },
     {
-      // crbug.com/370217727
-      name: "InitialLetterRaiseBySpecified",
-      status: "stable",
-    },
-    {
-      name: "InlineBlockInSameLine",
-      status: "stable",
-    },
-    {
       // If enabled, and the inner html parser is unable to successfully
       // parse, it will log histograms of why it failed. The logging is
       // non-trivial.
@@ -2738,7 +2764,6 @@
       // when the <input> is put directly within an <option> or <optgroup>.
       name: "InputInSelect",
       status: "experimental",
-      depends_on: ["SelectParserRelaxation"],
     },
     {
       name: "InputMultipleFieldsUI",
@@ -2787,10 +2812,6 @@
       name: "InterestGroupsInSharedStorageWorklet",
       public: true,
       status: "stable",
-    },
-    {
-      name: "InteroperablePrivateAttribution",
-      status: "experimental",
     },
     {
       // If enabled, IntersectionObserverScrollMargin will be parsed.
@@ -2855,14 +2876,6 @@
       name: "LayoutNGShapeCache",
       status: "stable",
       base_feature: "LayoutNGShapeCache",
-    },
-    {
-      name: "LayoutStretch",
-      status: "stable",
-    },
-    {
-      name: "LayoutStretchCacheFix",
-      status: "stable",
     },
     {
       name: "LazyInitializeMediaControls",
@@ -2988,7 +3001,7 @@
     },
     {
       name: "MaskDeserializationTimeForCrossOriginMessages",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Enables mirroring for stretchy and large MathML operators when
@@ -3138,7 +3151,7 @@
       name: "MessagePortCloseEvent",
       status: "test",
     },
-    
+
     // This is enabled by default on Windows only. The only part that's
     // "experimental" is the support on other platforms.
     {
@@ -3233,7 +3246,7 @@
       },
       base_feature: "none",
     },
-    
+
     {
       // This turns off all font antialiasing for tests unless it is
       // explicitly required and enabled using the
@@ -3482,11 +3495,13 @@
       status: "stable",
     },
     {
-      name: "PaintHighlightsForFirstLetter",
+      name: "PaintHoldingForIframes",
       status: "stable",
     },
     {
-      name: "PaintHoldingForIframes",
+      // Fix for https://crbug.com/40716515.
+      // Killswitch M141.
+      name: "PaintOffsetTranslationForBackdropFilterWithInlineElement",
       status: "stable",
     },
     {
@@ -3855,6 +3870,10 @@
       name: "ReadableStreamBYOBReaderReadMinOption",
       status: "stable",
     },
+    {
+      name: "RecordSameDocumentPresentationTimeOnce",
+      status: "stable",
+    },
     // If enabled, both Accept-Language HTTP header and JavaScript getter will
     // be reduced.
     {
@@ -3972,7 +3991,14 @@
       name: "RemoveDataUrlInSvgUse",
       status: "stable",
     },
-    
+    {
+      // Fix for removeFormat command incorrectly preserving background-color
+      // when removing styles from elements. Prevents background-color from being
+      // re-applied to child elements during style removal.
+      // See https://crbug.com/41438799
+      name: "RemoveFormatFilterBackgroundColor",
+      status: "stable",
+    },
     {
       // See https://issues.chromium.org/issues/41474791
       name: "RemoveSelectionCanonicalizationInMoveParagraph",
@@ -4047,7 +4073,7 @@
     },
     {
       name: "RestrictOwnAudio",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "RestrictTabFocusForHiddenSVGElements",
@@ -4058,6 +4084,14 @@
       // browser
       name: "RootScrollbarFollowsBrowserTheme",
       status: {"Linux": "test", "Win": "test"},
+    },
+    // Route matching, @route CSS rule, script type="routemap".
+    // https://chromestatus.com/feature/4771962874363904
+    {
+      name: "RouteMatching",
+      status: {
+        "default": "test",
+      },
     },
     {
       name: "RtcAudioJitterBufferMaxPackets",
@@ -4292,23 +4326,6 @@
       },
     },
     {
-      // Implements improved accessibility mappings for having an <input>
-      // inside of a <select> by keeping the child <input> in the a11y tree at
-      // the same place that its at in the DOM tree, but automatically setting
-      // up a controls relationship to the menu list popup.
-      name: "SelectAccessibilityNestedInput",
-      status: "test",
-      depends_on: ["CustomizableSelect"],
-    },
-    {
-      // Implements improved accessibility mappings for having an <input>
-      // inside of a <select> by reparenting the child <input> in the
-      // accessibility tree to be a sibling of the menu list popup.
-      name: "SelectAccessibilityReparentInput",
-      status: "test",
-      depends_on: ["CustomizableSelect"],
-    },
-    {
       // SelectAudioOutput API
       // https://chromestatus.com/feature/5164535504437248
       name: "SelectAudioOutput",
@@ -4323,9 +4340,8 @@
       // https://github.com/openui/open-ui/issues/1063
       name: "SelectedcontentelementAttribute",
       status: "test",
-      depends_on: ["CustomizableSelect"],
     },
-    
+
     {
       // See https://crbug.com/40664519
       name: "SelectionAndFocusedVisiblePositionMatch",
@@ -4352,27 +4368,13 @@
       name: "SelectivePermissionsIntervention",
       status: "experimental",
     },
-    
     {
-      // Makes the HTML parser allow most tags inside of <select> instead of
-      // only <option>, <optgroup>, and <hr>.
-      // https://github.com/whatwg/html/issues/10310
-      name: "SelectParserRelaxation",
-      status: "stable",
-      public: true,
-    },
-    {
-      // This is a feature used *only* for deprecation origin trial participants
-      // to opt *out* of the SelectParserRelaxation new behavior. If this
-      // feature is enabled, then SelectParserRelaxation will be disabled,
-      // regardless of the state of that flag. This deprecation trial is
-      // supported through M140, so this flag can be removed in M141+.
-      name: "SelectParserRelaxationOptOut",
-      origin_trial_feature_name: "SelectParserRelaxationOptOut",
-      origin_trial_type: "deprecation",
-      origin_trial_allows_third_party: true,
-      origin_trial_allows_insecure: true,
-      public: true,
+      // Makes the logic to choose between ListBox (in-page) or MenuList
+      // (dropdown) select element modes the same between mobile and desktop.
+      // Without this flag, mobile will always use MenuList and desktop always
+      // makes <select multiple> a ListBox.
+      name: "SelectMobileDesktopParity",
+      status: "experimental",
     },
     {
       name: "SendBeaconThrowForBlobWithNonSimpleType",
@@ -4388,7 +4390,7 @@
     },
     {
       name: "Serial",
-      status: {"Android": "test", "default": "stable"},
+      status: "stable",
       base_feature: "WebSerialAPI",
     },
     {
@@ -4742,6 +4744,14 @@
     {
       name: "SynthesizedKeyboardEventsForAccessibilityActions",
       status: "experimental",
+    },
+    {
+      name: "SystemDefaultAccentColors",
+      status: "stable",
+      base_feature: "none",
+
+      // This feature is controlled by the corresponding Chromium feature
+      // features::kUseSystemDefaultAccentColors.
     },
     {
       // This is used for emoji variation selectors support in system
@@ -5342,17 +5352,19 @@
       base_feature: "WebAppEnableTranslations",
     },
     {
+      // https://chromestatus.com/feature/6024844719947776
+      name: "WebAssemblyCustomDescriptors",
+      origin_trial_feature_name: "WebAssemblyCustomDescriptors",
+      status: "experimental",
+      base_feature: "none",
+    },
+    {
       // WebAssembly JS Promise Integration,
       // https://github.com/WebAssembly/js-promise-integration/blob/main/proposals/js-promise-integration
       name: "WebAssemblyJSPromiseIntegration",
       origin_trial_feature_name: "WebAssemblyJSPromiseIntegration",
       status: "experimental",
       base_feature: "none",
-    },
-    {
-      name: "WebAssemblyJSStringBuiltins",
-      origin_trial_feature_name: "WebAssemblyJSStringBuiltins",
-      status: "stable",
     },
     {
       // https://chromestatus.com/feature/5077691662073856

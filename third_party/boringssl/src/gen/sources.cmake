@@ -79,6 +79,8 @@ set(
   crypto/fipsmodule/ec/wnaf.cc.inc
   crypto/fipsmodule/ecdh/ecdh.cc.inc
   crypto/fipsmodule/ecdsa/ecdsa.cc.inc
+  crypto/fipsmodule/entropy/jitter.cc.inc
+  crypto/fipsmodule/entropy/sha512.cc.inc
   crypto/fipsmodule/hkdf/hkdf.cc.inc
   crypto/fipsmodule/hmac/hmac.cc.inc
   crypto/fipsmodule/keccak/keccak.cc.inc
@@ -566,7 +568,6 @@ set(
   include/openssl/evp.h
   include/openssl/evp_errors.h
   include/openssl/ex_data.h
-  include/openssl/experimental/kyber.h
   include/openssl/hkdf.h
   include/openssl/hmac.h
   include/openssl/hpke.h
@@ -650,6 +651,7 @@ set(
   crypto/fipsmodule/ec/p256-nistz.h
   crypto/fipsmodule/ec/p256_table.h
   crypto/fipsmodule/ecdsa/internal.h
+  crypto/fipsmodule/entropy/internal.h
   crypto/fipsmodule/keccak/internal.h
   crypto/fipsmodule/rand/internal.h
   crypto/fipsmodule/rsa/internal.h
@@ -775,6 +777,7 @@ set(
   crypto/fipsmodule/ec/p256-nistz_test.cc
   crypto/fipsmodule/ec/p256_test.cc
   crypto/fipsmodule/ecdsa/ecdsa_test.cc
+  crypto/fipsmodule/entropy/jitter_test.cc
   crypto/fipsmodule/hkdf/hkdf_test.cc
   crypto/fipsmodule/keccak/keccak_test.cc
   crypto/fipsmodule/rand/ctrdrbg_test.cc
@@ -856,8 +859,13 @@ set(
   crypto/cipher/test/xchacha20_poly1305_tests.txt
   crypto/curve25519/ed25519_tests.txt
   crypto/ecdh/ecdh_tests.txt
-  crypto/evp/evp_tests.txt
-  crypto/evp/scrypt_tests.txt
+  crypto/evp/test/dh_tests.txt
+  crypto/evp/test/ec_tests.txt
+  crypto/evp/test/ed25519_tests.txt
+  crypto/evp/test/evp_tests.txt
+  crypto/evp/test/rsa_tests.txt
+  crypto/evp/test/scrypt_tests.txt
+  crypto/evp/test/x25519_tests.txt
   crypto/fipsmodule/aes/aes_tests.txt
   crypto/fipsmodule/bn/test/exp_tests.txt
   crypto/fipsmodule/bn/test/gcd_tests.txt

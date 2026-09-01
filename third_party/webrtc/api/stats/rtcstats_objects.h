@@ -365,7 +365,10 @@ class RTC_EXPORT RTCOutboundRtpStreamStats final
   std::optional<uint32_t> fir_count;
   std::optional<uint32_t> pli_count;
   std::optional<uint32_t> nack_count;
+  // QP and PSNR are only defined for video.
   std::optional<uint64_t> qp_sum;
+  std::optional<std::map<std::string, double>> psnr_sum;  // y, u, v.
+  std::optional<uint32_t> psnr_measurements;
   std::optional<bool> active;
   // In JavaScript, this is only exposed if HW exposure is allowed.
   std::optional<bool> power_efficient_encoder;

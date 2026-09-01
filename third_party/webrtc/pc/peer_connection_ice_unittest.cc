@@ -617,7 +617,7 @@ TEST_P(PeerConnectionIceTest, RemoveCandidateRemovesFromRemoteDescription) {
       caller->SetRemoteDescription(callee->CreateAnswerAndSetAsLocal()));
 
   Candidate candidate = CreateLocalUdpCandidate(kCalleeAddress);
-  std::unique_ptr<IceCandidateInterface> ice_candidate =
+  std::unique_ptr<IceCandidate> ice_candidate =
       caller->CreateJsepCandidateForFirstTransport(&candidate);
 
   ASSERT_TRUE(caller->pc()->AddIceCandidate(ice_candidate.get()));

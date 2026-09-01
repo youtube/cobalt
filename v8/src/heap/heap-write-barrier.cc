@@ -284,10 +284,6 @@ bool WriteBarrier::PageFlagsAreConsistent(Tagged<HeapObject> object) {
   MemoryChunkMetadata* metadata = MemoryChunkMetadata::FromHeapObject(object);
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
-  // Slim chunk flags consistency.
-  CHECK_EQ(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING),
-           chunk->IsMarking());
-
   if (!v8_flags.sticky_mark_bits) {
     AllocationSpace identity = metadata->owner()->identity();
 
@@ -530,7 +526,7 @@ void WriteBarrier::ForRange(Heap* heap, Tagged<HeapObject> object,
   }
 }
 
-#ifdef ENABLE_SLOW_DCHECKS
+#if V8_VERIFY_WRITE_BARRIERS
 
 // static
 bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
@@ -566,6 +562,38 @@ bool WriteBarrier::VerifyDispatchHandleMarkingState(Tagged<HeapObject> host,
 #endif  // V8_ENABLE_LEAPTIERING
 }
 
-#endif  // ENABLE_SLOW_DCHECKS
+#endif  // V8_VERIFY_WRITE_BARRIERS
+
+WriteBarrierModeScope::WriteBarrierModeScope(WriteBarrierMode mode)
+    : mode_(mode) {
+  DCHECK_NE(SKIP_WRITE_BARRIER_SCOPE, mode_);
+  DCHECK_EQ(LocalHeap::Current()->write_barrier_mode_for_object_, kNullAddress);
+}
+
+WriteBarrierModeScope::WriteBarrierModeScope(Tagged<HeapObject> object,
+                                             WriteBarrierMode mode)
+    : mode_(mode) {
+#if DEBUG
+  LocalHeap* local_heap = LocalHeap::Current();
+  DCHECK_EQ(local_heap->write_barrier_mode_for_object_, kNullAddress);
+  local_heap->write_barrier_mode_for_object_ = object.address();
+#endif
+}
+
+WriteBarrierModeScope::~WriteBarrierModeScope() {
+#if DEBUG
+  LocalHeap::Current()->write_barrier_mode_for_object_ = kNullAddress;
+#endif
+}
+
+#if V8_VERIFY_WRITE_BARRIERS
+
+// static
+bool WriteBarrier::IsMostRecentYoungAllocation(Address object) {
+  LocalHeap* local_heap = LocalHeap::Current();
+  return local_heap->allocator()->IsMostRecentYoungAllocation(object);
+}
+
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
 }  // namespace v8::internal

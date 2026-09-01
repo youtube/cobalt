@@ -273,7 +273,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 //
 // TODO(v8:14214): Remove --harmony flags once transition is complete.
 #define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
   V(harmony_struct, "harmony structs, shared structs, and shared arrays")
 
@@ -292,7 +291,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V)
+#define HARMONY_STAGED_BASE(V) V(harmony_temporal, "Temporal")
+
 #define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
@@ -2206,8 +2206,6 @@ DEFINE_SIZE_T(preconfigured_old_space_size, 0,
               "preconfigured old space size (in Mbytes)")
 DEFINE_WEAK_VALUE_IMPLICATION(future, preconfigured_old_space_size, size_t{32})
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
-DEFINE_BOOL(gc_on_background_notification, false,
-            "Perform a GC after being backgrounded.")
 
 // TODO(12950): The next three flags only have an effect if
 // V8_ENABLE_ALLOCATION_TIMEOUT is set, so we should only define them in that
@@ -2373,6 +2371,16 @@ DEFINE_BOOL(verify_heap_skip_remembered_set, false,
 DEFINE_BOOL_READONLY(verify_heap, false,
                      "verify heap pointers before and after GC")
 #endif
+#if V8_VERIFY_WRITE_BARRIERS
+#ifdef ENABLE_SLOW_DCHECKS
+DEFINE_BOOL(verify_write_barriers, true, "verify skipped write barriers")
+#else
+DEFINE_BOOL(verify_write_barriers, false, "verify skipped write barriers")
+#endif  // ENABLE_SLOW_DCHECKS
+#else   // V8_VERIFY_WRITE_BARRIERS
+DEFINE_BOOL_READONLY(verify_write_barriers, false,
+                     "verify skipped write barriers")
+#endif  // V8_VERIFY_WRITE_BARRIERS
 #if V8_OS_DARWIN
 DEFINE_BOOL(safepoint_bump_qos_class, true,
             "Bump QOS class for running threads to reach safepoint")

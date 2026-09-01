@@ -76,7 +76,7 @@ class RtcEventGenericPacketReceived final : public RtcEvent {
   }
 
  private:
-  RtcEventGenericPacketReceived(const RtcEventGenericPacketReceived& packet);
+  RtcEventGenericPacketReceived(const RtcEventGenericPacketReceived&) = default;
 
   const int64_t packet_number_;
   const size_t packet_length_;

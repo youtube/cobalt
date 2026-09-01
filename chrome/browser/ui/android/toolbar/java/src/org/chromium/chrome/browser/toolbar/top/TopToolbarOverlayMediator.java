@@ -12,6 +12,7 @@ import androidx.annotation.ColorInt;
 import org.chromium.base.Callback;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.supplier.ObservableSupplier;
+import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.cc.input.BrowserControlsState;
@@ -30,6 +31,7 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.theme.ThemeUtils;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar;
+import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modelutil.PropertyModel;
 
@@ -74,6 +76,15 @@ public class TopToolbarOverlayMediator {
     /** The view state for this overlay. */
     private final PropertyModel mModel;
 
+    /**
+     * Supplies the height of the Bookmark Bar (if visible) to offset the content of the Toolbar
+     * during scroll. We do not plumb this through constructors since the ToolbarManager (which
+     * initializes |this|) is always created prior to the Bookmark Bar, so the object will always be
+     * null in the constructor.
+     */
+    // TODO(crbug.com/417238089): This should have no hard dependency on Bookmark Bar.
+    private @Nullable Supplier<Integer> mBookmarkBarHeightSupplier;
+
     private final ObservableSupplier<Integer> mBottomToolbarControlsOffsetSupplier;
     private final ObservableSupplier<Boolean> mSuppressToolbarSceneLayerSupplier;
 
@@ -97,7 +108,9 @@ public class TopToolbarOverlayMediator {
     private float mViewportHeight;
 
     private @Nullable OffsetTag mTopControlsOffsetTag;
+    private @Nullable OffsetTag mTopProgressBarOffsetTag;
     private @Nullable OffsetTag mBottomControlsOffsetTag;
+    private @Nullable OffsetTag mBottomProgressBarOffsetTag;
     private @ControlsPosition int mControlsPosition;
 
     TopToolbarOverlayMediator(
@@ -202,7 +215,15 @@ public class TopToolbarOverlayMediator {
                             // We need to set the height, as it would have changed if this is the
                             // first frame of an animation. Any existing offsets from scrolling and
                             // animations will be applied by OffsetTags.
-                            int height = mBrowserControlsStateProvider.getTopControlsHeight();
+
+                            // When the bookmark bar is enabled, the toolbar is no longer the bottom
+                            // item of the top controls, so we need to subtract the height of the
+                            // bookmark bar to shift the toolbar up.
+                            // TODO(crbug.com/417238089): Get offset from TopControlsStacker.
+                            int height =
+                                    ChromeFeatureList.sAndroidBookmarkBar.isEnabled()
+                                            ? getBookmarkBarAdjustedContentOffset()
+                                            : mBrowserControlsStateProvider.getTopControlsHeight();
                             if (mControlsPosition == ControlsPosition.TOP) {
                                 mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, height);
                             } else if (mControlsPosition == ControlsPosition.BOTTOM) {
@@ -237,7 +258,6 @@ public class TopToolbarOverlayMediator {
                             mTopControlsOffsetTag = offsetTagsInfo.getTopControlsOffsetTag();
                             mBottomControlsOffsetTag = offsetTagsInfo.getBottomControlsOffsetTag();
                             updateOffsetTag();
-
                             if (shouldUpdateOffsets) {
                                 mModel.set(
                                         TopToolbarOverlayProperties.CONTENT_OFFSET,
@@ -251,12 +271,21 @@ public class TopToolbarOverlayMediator {
                         mControlsPosition = controlsPosition;
                         if (ChromeFeatureList.sBcivBottomControls.isEnabled()) {
                             updateOffsetTag();
+                            if (ChromeFeatureList.sAndroidAnimatedCompositedProgressBar
+                                    .isEnabled()) {
+                                updateProgress();
+                            }
                         }
                     }
                 };
         mBrowserControlsStateProvider.addObserver(mBrowserControlsObserver);
         mIsBrowserControlsAndroidViewVisible =
                 mBrowserControlsStateProvider.getAndroidControlsVisibility() == View.VISIBLE;
+    }
+
+    private int getBookmarkBarAdjustedContentOffset() {
+        int offset = mBookmarkBarHeightSupplier != null ? mBookmarkBarHeightSupplier.get() : 0;
+        return mBrowserControlsStateProvider.getTopControlsHeight() - offset;
     }
 
     private void updateOffsetTag() {
@@ -342,13 +371,45 @@ public class TopToolbarOverlayMediator {
 
         // Update and set the progress info to trigger an update; the PROGRESS_BAR_INFO
         // property skips the object equality check.
-        mProgressInfoCallback.onResult(mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO));
+        DrawingInfo drawingInfo = mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO);
+        mProgressInfoCallback.onResult(drawingInfo);
+        if (ChromeFeatureList.sAndroidAnimatedCompositedProgressBar.isEnabled()) {
+            if (drawingInfo.visible) {
+                if (mTopProgressBarOffsetTag == null) {
+                    mTopProgressBarOffsetTag = OffsetTag.createRandom();
+                }
+                if (mBottomProgressBarOffsetTag == null) {
+                    mBottomProgressBarOffsetTag = OffsetTag.createRandom();
+                }
+            } else {
+                mTopProgressBarOffsetTag = null;
+                mBottomProgressBarOffsetTag = null;
+            }
+
+            if (mControlsPosition == ControlsPosition.TOP) {
+                drawingInfo.offsetTag = mTopProgressBarOffsetTag;
+            } else if (mControlsPosition == ControlsPosition.BOTTOM) {
+                drawingInfo.offsetTag = mBottomProgressBarOffsetTag;
+            } else {
+                drawingInfo.offsetTag = null;
+            }
+
+            onProgressBarOffsetTagsChanged();
+        }
+
+        // TODO(https://crbug.com/439461293) Try not updating the model if nothing changed.
         mModel.set(
                 TopToolbarOverlayProperties.PROGRESS_BAR_INFO,
                 mModel.get(TopToolbarOverlayProperties.PROGRESS_BAR_INFO));
     }
 
-    /** @return Whether this component is in tablet mode. */
+    private void onProgressBarOffsetTagsChanged() {
+        // TODO(https://crbug.com/434769428) plumb and register OffsetTags in native.
+    }
+
+    /**
+     * @return Whether this component is in tablet mode.
+     */
     private boolean isTablet() {
         if (sIsTabletForTesting != null) return sIsTabletForTesting;
         return DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext);
@@ -418,6 +479,13 @@ public class TopToolbarOverlayMediator {
         updateVisibility();
     }
 
+    /**
+     * @param bookmarkBarHeightSupplier Supplier of the current Bookmark Bar height.
+     */
+    void setBookmarkBarHeightSupplier(@Nullable Supplier<Integer> bookmarkBarHeightSupplier) {
+        mBookmarkBarHeightSupplier = bookmarkBarHeightSupplier;
+    }
+
     void setVisibilityManuallyControlledForTesting(boolean manuallyControlled) {
         mIsVisibilityManuallyControlled = manuallyControlled;
         updateShadowState();
@@ -447,13 +515,27 @@ public class TopToolbarOverlayMediator {
         // gets called in the middle of a change of position.
         if (mControlsPosition == ControlsPosition.BOTTOM) {
             contentOffset = (int) (mBottomToolbarControlsOffsetSupplier.get() + mViewportHeight);
+            mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, contentOffset);
+            return;
+        }
+
+        if (!ChromeFeatureList.sBrowserControlsInViz.isEnabled()) {
+            mModel.set(TopToolbarOverlayProperties.CONTENT_OFFSET, contentOffset);
+            return;
+        }
+
+        // If BCIV is enabled, we keep the composited view visible even when hiding the toolbar,
+        // but the shadow isn't included in the toolbar's height, so we shift the toolbar up by
+        // the shadow's height to hide the toolbar completely. We also shift the additional amount
+        // of the Bookmark Bar when applicable.
+        if (contentOffset == mBrowserControlsStateProvider.getTopControlsMinHeight()) {
+            contentOffset -= mBrowserControlsStateProvider.getTopControlsHairlineHeight();
+            if (ChromeFeatureList.sAndroidBookmarkBar.isEnabled()) {
+                contentOffset -= getBookmarkBarAdjustedContentOffset();
+            }
         } else {
-            // If BCIV is enabled, we keep the composited view visible even when hiding the toolbar,
-            // but the shadow isn't included in the toolbar's height, so we shift the toolbar up by
-            // the shadow's height to hide the toolbar completely.
-            if (ChromeFeatureList.sBrowserControlsInViz.isEnabled()
-                    && contentOffset == mBrowserControlsStateProvider.getTopControlsMinHeight()) {
-                contentOffset -= mBrowserControlsStateProvider.getTopControlsHairlineHeight();
+            if (ChromeFeatureList.sAndroidBookmarkBar.isEnabled()) {
+                contentOffset = getBookmarkBarAdjustedContentOffset();
             }
         }
 

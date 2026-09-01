@@ -343,9 +343,7 @@ int SSL_CTX_use_certificate_chain_file(SSL_CTX *ctx, const char *file) {
   }
 
   // When the while loop ends, it's usually just EOF.
-  uint32_t err = ERR_peek_last_error();
-  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
-      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+  if (ERR_equals(ERR_peek_last_error(), ERR_LIB_PEM, PEM_R_NO_START_LINE)) {
     ERR_clear_error();
     return 1;
   }

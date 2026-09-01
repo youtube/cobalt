@@ -255,21 +255,12 @@ UIViewController* TopPresentedViewController() {
   return topController;
 }
 
-// Taps the edit button in the tab grid and close the keyboard if it apprears on
-// iOS 26.
+// Taps the edit button in the tab grid.
 void TapTabGridEditButton() {
   [[EarlGrey
       selectElementWithMatcher:grey_allOf(TabGridEditButton(),
                                           grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
-
-  if (@available(iOS 19, *)) {
-    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
-    // this workaround when it's not needed anymore.
-    // On iOS 26, the keyboard appears when the "Edit" button is tapped and it
-    // hides the elements behind. Close the keyboard by typing a return key.
-    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
-  }
 }
 
 }  // namespace
@@ -877,14 +868,6 @@ void TapTabGridEditButton() {
   [[EarlGrey selectElementWithMatcher:TabGroupOverflowMenuButton()]
       performAction:grey_tap()];
 
-  if (iOS26_OR_ABOVE()) {
-    // TODO(crbug.com/428928323): Investigate why the keyboard appears. Remove
-    // this workaround when it's not needed anymore.
-    // On iOS 26, the keyboard appears when the new tab button is tapped and it
-    // hides the elements behind. Close the keyboard by typing a return key.
-    [ChromeEarlGrey simulatePhysicalKeyboardEvent:@"\\n" flags:0];
-  }
-
   // Tap the delete button.
   [[EarlGrey selectElementWithMatcher:DeleteGroupButton()]
       performAction:grey_tap()];
@@ -1437,6 +1420,10 @@ void TapTabGridEditButton() {
 
 // Tests opening a tab from the group view.
 - (void)testOpenTabFromGroupView {
+  // TODO(crbug.com/429593547): Re-enable the test on iOS26.
+  if (base::ios::IsRunningOnIOS26OrLater()) {
+    EARL_GREY_TEST_DISABLED(@"Test disabled on iOS 26.");
+  }
   std::string URL1 = "chrome://version";
   std::string URL2 = "chrome://about";
   std::string content1 = "Revision";

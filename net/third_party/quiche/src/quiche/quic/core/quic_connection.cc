@@ -494,6 +494,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       blackhole_detection_disabled_ = true;
     }
     if (config.HasClientSentConnectionOption(kNBHD, perspective_)) {
+      QUIC_CODE_COUNT(quic_no_blackhole_detection);
       blackhole_detection_disabled_ = true;
     }
   }
@@ -625,6 +626,15 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
   }
 
+  if (perspective_ == Perspective::IS_SERVER && version().HasIetfQuicFrames() &&
+      config.HasClientSentConnectionOption(kCFLS, perspective_) &&
+      GetQuicReloadableFlag(
+          quic_allow_flow_label_blackhole_avoidance_on_server)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_allow_flow_label_blackhole_avoidance_on_server);
+    EnableBlackholeAvoidanceViaFlowLabel();
+  }
+
   if (config.HasMinAckDelayDraft10ToSend()) {
     if (config.GetMinAckDelayDraft10ToSendMs() <=
         config.GetMaxAckDelayToSendMs()) {  // MinAckDelay is valid.
@@ -638,6 +648,14 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   framer_.set_process_reset_stream_at(config.SupportsReliableStreamReset());
+
+  if (config.peer_reordering_threshold() != 1 &&
+      perspective_ == Perspective::IS_CLIENT && version().UsesTls() &&
+      !config.HasMinAckDelayDraft10ToSend()) {
+    QuicAckFrequencyFrame frame;
+    frame.reordering_threshold = config.peer_reordering_threshold();
+    uber_received_packet_manager_.OnAckFrequencyFrame(frame);
+  }
 }
 
 void QuicConnection::AddDispatcherSentPackets(
@@ -1672,10 +1690,18 @@ class ReversePathValidationContext : public QuicPathValidationContext {
                                const QuicSocketAddress& effective_peer_address,
                                QuicConnection* connection)
       : QuicPathValidationContext(self_address, peer_address,
-                                  effective_peer_address),
+                                  effective_peer_address, /*network=*/-1),
         connection_(connection) {}
 
   QuicPacketWriter* WriterToUse() override { return connection_->writer(); }
+
+  // Reverse path validation always re-uses the original writer. So this method
+  // will not be called and the return value here doesn't matter.
+  bool ShouldConnectionOwnWriter() const override {
+    QUIC_BUG(client_only_writer_interface_used_in_server_side)
+        << "Reverse path validation shouldn't call this interface.";
+    return false;
+  }
 
  private:
   QuicConnection* connection_;

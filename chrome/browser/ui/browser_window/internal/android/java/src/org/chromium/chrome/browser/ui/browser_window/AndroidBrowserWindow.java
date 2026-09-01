@@ -4,21 +4,27 @@
 
 package org.chromium.chrome.browser.ui.browser_window;
 
+import android.app.Activity;
+
 import org.jni_zero.CalledByNative;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.base.ActivityWindowAndroid;
 
 /** Java class for communicating with the native {@code AndroidBrowserWindow}. */
 @NullMarked
 final class AndroidBrowserWindow {
 
+    private final ChromeAndroidTask mChromeAndroidTask;
     private final AndroidBaseWindow mAndroidBaseWindow;
 
     /** Address of the native {@code AndroidBrowserWindow}. */
     private long mNativeAndroidBrowserWindow;
 
     AndroidBrowserWindow(ChromeAndroidTask chromeAndroidTask) {
+        mChromeAndroidTask = chromeAndroidTask;
         mAndroidBaseWindow = new AndroidBaseWindow(chromeAndroidTask);
     }
 
@@ -30,7 +36,9 @@ final class AndroidBrowserWindow {
      */
     long getOrCreateNativePtr() {
         if (mNativeAndroidBrowserWindow == 0) {
-            mNativeAndroidBrowserWindow = AndroidBrowserWindowJni.get().create(this);
+            mNativeAndroidBrowserWindow =
+                    AndroidBrowserWindowJni.get()
+                            .create(this, mChromeAndroidTask.getBrowserWindowType());
         }
         return mNativeAndroidBrowserWindow;
     }
@@ -67,15 +75,24 @@ final class AndroidBrowserWindow {
         mNativeAndroidBrowserWindow = 0;
     }
 
+    @CalledByNative
+    @Nullable Activity getActivity() {
+        ActivityWindowAndroid activityWindowAndroid = mChromeAndroidTask.getActivityWindowAndroid();
+        if (activityWindowAndroid == null) return null;
+        return activityWindowAndroid.getActivity().get();
+    }
+
     @NativeMethods
     interface Natives {
         /**
          * Creates a native {@code AndroidBrowserWindow}.
          *
          * @param caller The Java object calling this method.
+         * @param browserWindowType The browser window type as defined in the native {@code
+         *     BrowserWindowInterface::Type} enum.
          * @return The address of the native {@code AndroidBrowserWindow}.
          */
-        long create(AndroidBrowserWindow caller);
+        long create(AndroidBrowserWindow caller, @BrowserWindowType int browserWindowType);
 
         /**
          * Destroys the native {@code AndroidBrowserWindow}.

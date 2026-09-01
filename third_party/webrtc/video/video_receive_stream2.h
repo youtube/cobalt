@@ -32,6 +32,8 @@
 #include "api/transport/rtp/rtp_source.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
+#include "api/video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/recordable_encoded_frame.h"
 #include "api/video/video_content_type.h"
@@ -41,7 +43,6 @@
 #include "call/rtp_packet_sink_interface.h"
 #include "call/syncable.h"
 #include "call/video_receive_stream.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "common_video/include/corruption_score_calculator.h"
 #include "modules/include/module_common_types.h"
 #include "modules/rtp_rtcp/source/source_tracker.h"
@@ -51,7 +52,6 @@
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
 #include "system_wrappers/include/ntp_time.h"
-#include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
 #include "video/receive_statistics_proxy.h"
 #include "video/rtp_streams_synchronizer2.h"
@@ -362,7 +362,7 @@ class VideoReceiveStream2
   std::vector<std::unique_ptr<EncodedFrame>> buffered_encoded_frames_
       RTC_GUARDED_BY(decode_sequence_checker_);
 
-  FrameInstrumentationEvaluation frame_evaluator_
+  std::unique_ptr<FrameInstrumentationEvaluation> frame_evaluator_
       RTC_GUARDED_BY(decode_sequence_checker_);
 
   // Used to signal destruction to potentially pending tasks.

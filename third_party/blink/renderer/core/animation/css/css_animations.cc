@@ -225,9 +225,14 @@ std::optional<AnimationTimeDelta> CSSAnimationProxy::CalculateInheritedTime(
     previous_timeline = animation->TimelineInternal();
   }
 
-  if (has_trigger_names &&
-      (!IdleTriggerAllowsVisualEffect(has_trigger_names, timing))) {
-    return std::nullopt;
+  if (has_trigger_names && !animation) {
+    // This is only to make sure the InertEffect doesn't cause a glitch in the
+    // rendering for a newly created triggered animation. The preceding if
+    // statement takes care of an existing idle animation. Triggering should not
+    // affect an existing non-idle animation.
+    if (!IdleTriggerAllowsVisualEffect(has_trigger_names, timing)) {
+      return std::nullopt;
+    }
   }
 
   bool range_changed =
@@ -1228,10 +1233,6 @@ void CSSAnimations::UpdateNamedTriggers(
       if (new_trigger_map.Contains(name)) {
         continue;
       }
-
-      // TODO: When the trigger map contains triggers from the subtree, ensure
-      // this cleanup affects only triggers owned by this element. Otherwise,
-      // we'd be disassociating triggers from the subtree.
 
       // NOTE: This is only okay as long as script has no way to
       // access CSS triggers. If it becomes possible to reference a CSS

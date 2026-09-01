@@ -13,24 +13,16 @@
 #include "api/array_view.h"
 #include "modules/rtp_rtcp/source/rtp_format.h"
 #include "modules/rtp_rtcp/source/rtp_format_vp8.h"
-#include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/codecs/vp8/include/vp8_globals.h"
-#include "rtc_base/checks.h"
 #include "test/fuzzers/fuzz_data_helper.h"
+#include "test/fuzzers/utils/validate_rtp_packetizer.h"
 
 namespace webrtc {
 void FuzzOneInput(const uint8_t* data, size_t size) {
   test::FuzzDataHelper fuzz_input(webrtc::MakeArrayView(data, size));
 
-  RtpPacketizer::PayloadSizeLimits limits;
-  limits.max_payload_len = 1200;
-  // Read uint8_t to be sure reduction_lens are much smaller than
-  // max_payload_len and thus limits structure is valid.
-  limits.first_packet_reduction_len = fuzz_input.ReadOrDefaultValue<uint8_t>(0);
-  limits.last_packet_reduction_len = fuzz_input.ReadOrDefaultValue<uint8_t>(0);
-  limits.single_packet_reduction_len =
-      fuzz_input.ReadOrDefaultValue<uint8_t>(0);
+  RtpPacketizer::PayloadSizeLimits limits = ReadPayloadSizeLimits(fuzz_input);
 
   RTPVideoHeaderVP8 hdr_info;
   hdr_info.InitRTPVideoHeaderVP8();
@@ -42,34 +34,6 @@ void FuzzOneInput(const uint8_t* data, size_t size) {
   RtpPacketizerVp8 packetizer(fuzz_input.ReadByteArray(fuzz_input.BytesLeft()),
                               limits, hdr_info);
 
-  size_t num_packets = packetizer.NumPackets();
-  if (num_packets == 0) {
-    return;
-  }
-  // When packetization was successful, validate NextPacket function too.
-  // While at it, check that packets respect the payload size limits.
-  RtpPacketToSend rtp_packet(nullptr);
-  // Single packet.
-  if (num_packets == 1) {
-    RTC_CHECK(packetizer.NextPacket(&rtp_packet));
-    RTC_CHECK_LE(rtp_packet.payload_size(),
-                 limits.max_payload_len - limits.single_packet_reduction_len);
-    return;
-  }
-  // First packet.
-  RTC_CHECK(packetizer.NextPacket(&rtp_packet));
-  RTC_CHECK_LE(rtp_packet.payload_size(),
-               limits.max_payload_len - limits.first_packet_reduction_len);
-  // Middle packets.
-  for (size_t i = 1; i < num_packets - 1; ++i) {
-    RTC_CHECK(packetizer.NextPacket(&rtp_packet))
-        << "Failed to get packet#" << i;
-    RTC_CHECK_LE(rtp_packet.payload_size(), limits.max_payload_len)
-        << "Packet #" << i << " exceeds it's limit";
-  }
-  // Last packet.
-  RTC_CHECK(packetizer.NextPacket(&rtp_packet));
-  RTC_CHECK_LE(rtp_packet.payload_size(),
-               limits.max_payload_len - limits.last_packet_reduction_len);
+  ValidateRtpPacketizer(limits, packetizer);
 }
 }  // namespace webrtc

@@ -94,7 +94,8 @@ class NetworkFetcherCobalt : public NetworkFetcher {
                 headers->EnumerateHeader(nullptr, kHeaderEtag, &etag);
                 headers->EnumerateHeader(nullptr, kHeaderXCupServerProof, &cup_proof);
                 headers->EnumerateHeader(nullptr, kHeaderCookie, &cookie);
-                retry_after = headers->GetInt64HeaderValue(kHeaderXRetryAfter);
+                retry_after =
+                    headers->GetInt64HeaderValue(kHeaderXRetryAfter).value_or(-1);
               }
               std::move(post_request_complete_callback)
                   .Run(std::move(response_body),

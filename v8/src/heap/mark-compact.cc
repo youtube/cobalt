@@ -306,7 +306,7 @@ void MarkCompactCollector::TearDown() {
 
 void MarkCompactCollector::AddEvacuationCandidate(PageMetadata* p) {
   DCHECK(!p->never_evacuate());
-  DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  DCHECK(!p->Chunk()->IsBlackAllocatedPage());
 
   if (v8_flags.trace_evacuation_candidates) {
     PrintIsolate(
@@ -1339,59 +1339,65 @@ class RecordMigratedSlotVisitor
  protected:
   inline void RecordMigratedSlot(Tagged<HeapObject> host,
                                  Tagged<MaybeObject> value, Address slot) {
-    if (value.IsStrongOrWeak()) {
-      MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
-      MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
-      if (HeapLayout::InYoungGeneration(value)) {
-        MutablePageMetadata* host_metadata =
-            MutablePageMetadata::cast(host_chunk->Metadata());
-        DCHECK_IMPLIES(
-            value_chunk->IsToPage(),
-            v8_flags.minor_ms || value_chunk->Metadata()->is_large());
-        DCHECK(host_metadata->SweepingDone());
-        RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
-            host_metadata, host_chunk->Offset(slot));
-      } else if (value_chunk->IsEvacuationCandidate()) {
-        MutablePageMetadata* host_metadata =
-            MutablePageMetadata::cast(host_chunk->Metadata());
-        if (value_chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-          // TODO(377724745): currently needed because flags are untrusted.
-          SBXCHECK(!InsideSandbox(value_chunk->address()));
-          RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
-        } else if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-                   host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
-          // When the sandbox is disabled, we use plain tagged pointers to
-          // reference trusted objects from untrusted ones. However, for these
-          // references we want to use the OLD_TO_OLD remembered set, so here
-          // we need to check that both the value chunk and the host chunk are
-          // trusted space chunks.
-          // TODO(377724745): currently needed because flags are untrusted.
-          SBXCHECK(!InsideSandbox(value_chunk->address()));
-          if (value_chunk->InWritableSharedSpace()) {
-            RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
-                AccessMode::NON_ATOMIC>(host_metadata,
-                                        host_chunk->Offset(slot));
-          } else {
-            RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
-                host_metadata, host_chunk->Offset(slot));
-          }
-        } else {
-          RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
-        }
-      } else if (value_chunk->InWritableSharedSpace() &&
-                 !HeapLayout::InWritableSharedSpace(host)) {
-        MutablePageMetadata* host_metadata =
-            MutablePageMetadata::cast(host_chunk->Metadata());
-        if (value_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED) &&
-            host_chunk->IsFlagSet(MemoryChunk::IS_TRUSTED)) {
+    if (!value.IsStrongOrWeak()) {
+      return;
+    }
+
+    MemoryChunk* host_chunk = MemoryChunk::FromHeapObject(host);
+    MemoryChunk* value_chunk = MemoryChunk::FromAddress(value.ptr());
+
+    if (HeapLayout::InYoungGeneration(value)) {
+      MutablePageMetadata* host_page =
+          MutablePageMetadata::cast(host_chunk->Metadata());
+      DCHECK_IMPLIES(value_chunk->IsToPage(),
+                     v8_flags.minor_ms || value_chunk->Metadata()->is_large());
+      DCHECK(host_page->SweepingDone());
+      RememberedSet<OLD_TO_NEW>::Insert<AccessMode::NON_ATOMIC>(
+          host_page, host_chunk->Offset(slot));
+      return;
+    }
+
+    if (value_chunk->IsEvacuationCandidate()) {
+      MutablePageMetadata* host_page =
+          MutablePageMetadata::cast(host_chunk->Metadata(heap_->isolate()));
+      const MutablePageMetadata* value_page =
+          MutablePageMetadata::cast(value_chunk->Metadata(heap_->isolate()));
+      if (value_page->is_executable()) {
+        DCHECK(!InsideSandbox(value_chunk->address()));
+        RememberedSet<TRUSTED_TO_CODE>::Insert<AccessMode::NON_ATOMIC>(
+            host_page, host_chunk->Offset(slot));
+      } else if (value_page->is_trusted() && host_page->is_trusted()) {
+        // When the sandbox is disabled, we use plain tagged pointers to
+        // reference trusted objects from untrusted ones. However, for these
+        // references we want to use the OLD_TO_OLD remembered set, so here
+        // we need to check that both the value chunk and the host chunk are
+        // trusted space chunks.
+        DCHECK(!InsideSandbox(value_chunk->address()));
+        if (value_page->is_writable_shared()) {
           RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
-              AccessMode::NON_ATOMIC>(host_metadata, host_chunk->Offset(slot));
+              AccessMode::NON_ATOMIC>(host_page, host_chunk->Offset(slot));
         } else {
-          RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
-              host_metadata, host_chunk->Offset(slot));
+          RememberedSet<TRUSTED_TO_TRUSTED>::Insert<AccessMode::NON_ATOMIC>(
+              host_page, host_chunk->Offset(slot));
         }
+      } else {
+        RememberedSet<OLD_TO_OLD>::Insert<AccessMode::NON_ATOMIC>(
+            host_page, host_chunk->Offset(slot));
+      }
+      return;
+    }
+
+    MemoryChunkMetadata* host_page = host_chunk->Metadata(heap_->isolate());
+    const MemoryChunkMetadata* value_page =
+        value_chunk->Metadata(heap_->isolate());
+    if (value_page->is_writable_shared() && !host_page->is_writable_shared()) {
+      if (value_page->is_trusted() && host_page->is_trusted()) {
+        RememberedSet<TRUSTED_TO_SHARED_TRUSTED>::Insert<
+            AccessMode::NON_ATOMIC>(MutablePageMetadata::cast(host_page),
+                                    host_chunk->Offset(slot));
+      } else {
+        RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::NON_ATOMIC>(
+            MutablePageMetadata::cast(host_page), host_chunk->Offset(slot));
       }
     }
   }
@@ -1421,14 +1427,18 @@ class ProfilingMigrationObserver final : public MigrationObserver {
     // (src and dst) is somewhat safe to access without precautions, but other
     // objects may be subject to concurrent modification.
     if (dest == CODE_SPACE) {
-      PROFILE(heap_->isolate(), CodeMoveEvent(Cast<InstructionStream>(src),
-                                              Cast<InstructionStream>(dst)));
-    } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE) &&
-               IsBytecodeArray(dst)) {
-      // TODO(saelo): remove `dest == OLD_SPACE` once BytecodeArrays are
-      // allocated in trusted space.
-      PROFILE(heap_->isolate(), BytecodeMoveEvent(Cast<BytecodeArray>(src),
-                                                  Cast<BytecodeArray>(dst)));
+      PROFILE(heap_->isolate(),
+              CodeMoveEvent(TrustedCast<InstructionStream>(src),
+                            TrustedCast<InstructionStream>(dst)));
+    } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE)) {
+      Tagged<BytecodeArray> bytecode_array;
+      if (TryCast(dst, &bytecode_array)) {
+        // TODO(saelo): remove `dest == OLD_SPACE` once BytecodeArrays are
+        // allocated in trusted space.
+        PROFILE(
+            heap_->isolate(),
+            BytecodeMoveEvent(TrustedCast<BytecodeArray>(src), bytecode_array));
+      }
     }
     heap_->OnMoveEvent(src, dst, size);
   }
@@ -1528,7 +1538,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
             reinterpret_cast<uint8_t*>(src_addr +
                                        InstructionStream::kHeaderSize),
             size - InstructionStream::kHeaderSize);
-        Tagged<InstructionStream> istream = Cast<InstructionStream>(dst);
+        Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(dst);
         istream->Relocate(writable_allocation, dst_addr - src_addr);
       }
       if (mode != MigrationMode::kFast) {
@@ -1539,7 +1549,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       base->record_visitor_->Visit(dst->map(cage_base), dst, size);
       WritableJitAllocation jit_allocation =
           WritableJitAllocation::ForInstructionStream(
-              Cast<InstructionStream>(src));
+              TrustedCast<InstructionStream>(src));
       jit_allocation.WriteHeaderSlot<MapWord, HeapObject::kMapOffset>(
           MapWord::FromForwardingAddress(src, dst));
     }
@@ -1746,7 +1756,7 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
     PretenuringHandler::UpdateAllocationSite(heap_, object->map(), object,
                                              size.value(),
                                              local_pretenuring_feedback_);
-    DCHECK(!HeapLayout::InCodeSpace(object));
+    DCHECK(!HeapLayout::SafeInCodeSpace(object));
     record_visitor_->Visit(object->map(), object, size.value());
     return true;
   }
@@ -3359,7 +3369,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
       SKIP_WRITE_BARRIER);
 
   // Create a filler object for any left over space in the bytecode array.
-  if (!heap_->IsLargeObject(compiled_data)) {
+  if (!HeapLayout::InAnyLargeSpace(compiled_data)) {
     const int aligned_filler_offset = ALIGN_TO_ALLOCATION_ALIGNMENT(
         sizeof(UncompiledDataWithoutPreparseData));
     heap_->CreateFillerObjectAt(compiled_data.address() + aligned_filler_offset,
@@ -3367,7 +3377,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
   }
 
   // Initialize the uncompiled data.
-  Tagged<UncompiledData> uncompiled_data = Cast<UncompiledData>(compiled_data);
+  Tagged<UncompiledData> uncompiled_data =
+      TrustedCast<UncompiledData>(compiled_data);
 
   uncompiled_data->InitAfterBytecodeFlush(
       heap_->isolate(), inferred_name, start_position, end_position,
@@ -4199,10 +4210,10 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
       "or WriteProtectedSlot are expected here");
   MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (!map_word.IsForwardingAddress()) return;
-  DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
-                 MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
-                     MemoryChunk::FromHeapObject(heap_obj)->IsFlagSet(
-                         MemoryChunk::COMPACTION_WAS_ABORTED));
+  DCHECK_IMPLIES(
+      (!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
+      MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
+          MemoryChunk::FromHeapObject(heap_obj)->CompactionWasAborted());
   typename TSlot::TObject target = MakeSlotValue<TSlot, reference_type>(
       map_word.ToForwardingAddress(heap_obj));
   // Needs to be atomic for map space compaction: This slot could be a map
@@ -4291,7 +4302,7 @@ static inline void UpdateStrongCodeSlot(IsolateForSandbox isolate,
   if (obj.GetHeapObject(&heap_obj)) {
     UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, heap_obj);
 
-    Tagged<Code> code = Cast<Code>(HeapObject::FromAddress(
+    Tagged<Code> code = TrustedCast<Code>(HeapObject::FromAddress(
         slot.address() - Code::kInstructionStreamOffset));
     Tagged<InstructionStream> instruction_stream =
         code->instruction_stream(code_cage_base);
@@ -4901,7 +4912,7 @@ class PrecisePagePinningVisitor final : public RootVisitor {
       metadata->set_is_quarantined(true);
       return;
     }
-    if (!chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
+    if (!chunk->IsEvacuationCandidate()) {
       return;
     }
     collector_->ReportAbortedEvacuationCandidateDueToFlags(
@@ -4995,7 +5006,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   for (PageMetadata* page : old_space_evacuation_pages_) {
     MemoryChunk* chunk = page->Chunk();
-    if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) continue;
+    if (chunk->CompactionWasAborted()) continue;
 
     live_bytes += page->live_bytes();
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
@@ -5105,7 +5116,7 @@ void MarkCompactCollector::Evacuate() {
     promoted_large_pages_.clear();
 
     for (PageMetadata* p : old_space_evacuation_pages_) {
-      if (p->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+      if (p->Chunk()->CompactionWasAborted()) {
         sweeper_->AddPage(p->owner_identity(), p);
         p->ClearFlagMaybeExecutable(MemoryChunk::COMPACTION_WAS_ABORTED);
       }
@@ -5273,10 +5284,12 @@ class RememberedSetUpdatingItem : public UpdatingItem {
     if (!HeapLayout::InYoungGeneration(heap_object)) return;
 
     if (!v8_flags.sticky_mark_bits) {
-      DCHECK_IMPLIES(v8_flags.minor_ms && !Heap::IsLargeObject(heap_object),
-                     Heap::InToPage(heap_object));
-      DCHECK_IMPLIES(!v8_flags.minor_ms || Heap::IsLargeObject(heap_object),
-                     Heap::InFromPage(heap_object));
+      DCHECK_IMPLIES(
+          v8_flags.minor_ms && !HeapLayout::InAnyLargeSpace(heap_object),
+          Heap::InToPage(heap_object));
+      DCHECK_IMPLIES(
+          !v8_flags.minor_ms || HeapLayout::InAnyLargeSpace(heap_object),
+          Heap::InFromPage(heap_object));
     }
 
     // OLD_TO_NEW slots are recorded in dead memory, so they might point to
@@ -5780,8 +5793,7 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
     if (!map_word.IsForwardingAddress()) return {};
     Tagged<HeapObject> relocated_object =
         map_word.ToForwardingAddress(heap_obj);
-    DCHECK(IsExposedTrustedObject(relocated_object));
-    return Cast<ExposedTrustedObject>(relocated_object);
+    return TrustedCast<ExposedTrustedObject>(relocated_object);
   };
 #endif  // defined(V8_ENABLE_SANDBOX) || defined(V8_ENABLE_LEAPTIERING)
 
@@ -5837,9 +5849,9 @@ void MarkCompactCollector::UpdatePointersInPointerTables() {
         Address entrypoint_address = jdt->GetEntrypoint(handle);
         Tagged<TrustedObject> relocated_code = process_entry(code_address);
         bool code_object_was_relocated = !relocated_code.is_null();
-        Tagged<Code> code = Cast<Code>(code_object_was_relocated
-                                           ? relocated_code
-                                           : Tagged<Object>(code_address));
+        Tagged<Code> code = TrustedCast<Code>(
+            code_object_was_relocated ? relocated_code
+                                      : Tagged<Object>(code_address));
         bool instruction_stream_was_relocated =
             code->instruction_start() != entrypoint_address;
         if (code_object_was_relocated || instruction_stream_was_relocated) {
@@ -5872,7 +5884,7 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToOOM(
 void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToFlags(
     PageMetadata* page, MemoryChunk* chunk) {
   DCHECK_EQ(page->Chunk(), chunk);
-  if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+  if (chunk->CompactionWasAborted()) {
     return;
   }
   page->SetFlagMaybeExecutable(MemoryChunk::COMPACTION_WAS_ABORTED);
@@ -5887,7 +5899,7 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidateDueToRunningCode(
 namespace {
 
 void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
-  DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+  DCHECK(page->Chunk()->CompactionWasAborted());
 
   // Aborted compaction page. We have to record slots here, since we
   // might not have recorded them in first place.
@@ -5924,7 +5936,7 @@ void ReRecordPage(Heap* heap, Address failed_start, PageMetadata* page) {
 size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
     PageMetadata* page = start_and_page.second;
-    DCHECK(!page->Chunk()->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED));
+    DCHECK(!page->Chunk()->CompactionWasAborted());
     page->SetFlagMaybeExecutable(MemoryChunk::COMPACTION_WAS_ABORTED);
   }
   for (auto start_and_page : aborted_evacuation_candidates_due_to_oom_) {
@@ -5939,7 +5951,7 @@ size_t MarkCompactCollector::PostProcessAbortedEvacuationCandidates() {
   size_t aborted_pages_verified = 0;
   for (PageMetadata* p : old_space_evacuation_pages_) {
     MemoryChunk* chunk = p->Chunk();
-    if (chunk->IsFlagSet(MemoryChunk::COMPACTION_WAS_ABORTED)) {
+    if (chunk->CompactionWasAborted()) {
       // Only clear EVACUATION_CANDIDATE flag after all slots were re-recorded
       // on all aborted pages. Necessary since repopulating
       // OLD_TO_OLD still requires the EVACUATION_CANDIDATE flag. After clearing
@@ -6007,7 +6019,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
   for (auto it = paged_space->begin(); it != paged_space->end();) {
     PageMetadata* p = *(it++);
     DCHECK(p->SweepingDone());
-    DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+    DCHECK(!p->Chunk()->IsBlackAllocatedPage());
 
     if (p->live_bytes() > 0) {
       // Non-empty pages will be evacuated/promoted.
@@ -6031,7 +6043,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
 void MarkCompactCollector::ResetAndRelinkBlackAllocatedPage(
     PagedSpace* space, PageMetadata* page) {
-  DCHECK(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  DCHECK(page->Chunk()->IsBlackAllocatedPage());
   DCHECK_EQ(page->live_bytes(), 0);
   DCHECK_GE(page->allocated_bytes(), 0);
   DCHECK(page->marking_bitmap()->IsClean());
@@ -6059,7 +6071,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     DCHECK(p->SweepingDone());
 
     if (p->Chunk()->IsEvacuationCandidate()) {
-      DCHECK(!p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+      DCHECK(!p->Chunk()->IsBlackAllocatedPage());
       DCHECK_NE(NEW_SPACE, space->identity());
       // Will be processed in Evacuate.
       continue;
@@ -6067,7 +6079,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
     // If the page is black, just reset the flag and don't add the page to the
     // sweeper.
-    if (p->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
+    if (p->Chunk()->IsBlackAllocatedPage()) {
       ResetAndRelinkBlackAllocatedPage(space, p);
       continue;
     }
@@ -6133,7 +6145,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
   }
   for (auto it = space->begin(); it != space->end();) {
     LargePageMetadata* current = *(it++);
-    DCHECK(!current->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+    DCHECK(!current->Chunk()->IsBlackAllocatedPage());
     Tagged<HeapObject> object = current->GetObject();
     if (!marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
@@ -6230,7 +6242,7 @@ void RootMarkingVisitor::VisitRunningCode(
   Tagged<Object> istream_or_smi_zero = *istream_or_smi_zero_slot;
   DCHECK(istream_or_smi_zero == Smi::zero() ||
          IsInstructionStream(istream_or_smi_zero));
-  Tagged<Code> code = Cast<Code>(*code_slot);
+  Tagged<Code> code = TrustedCast<Code>(*code_slot);
   DCHECK_EQ(code->raw_instruction_stream(PtrComprCageBase{
                 collector_->heap()->isolate()->code_cage_base()}),
             istream_or_smi_zero);
@@ -6241,9 +6253,9 @@ void RootMarkingVisitor::VisitRunningCode(
 
   if (istream_or_smi_zero != Smi::zero()) {
     Tagged<InstructionStream> istream =
-        Cast<InstructionStream>(istream_or_smi_zero);
+        TrustedCast<InstructionStream>(istream_or_smi_zero);
     MemoryChunk* chunk = MemoryChunk::FromHeapObject(istream);
-    if (chunk->IsFlagSet(MemoryChunk::EVACUATION_CANDIDATE)) {
+    if (chunk->IsEvacuationCandidate()) {
       PageMetadata* page = PageMetadata::cast(chunk->Metadata());
       collector_->ReportAbortedEvacuationCandidateDueToRunningCode(page);
     }

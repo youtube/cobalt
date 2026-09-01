@@ -4,6 +4,7 @@
 
 assert(is_win || is_mac || is_linux || is_chromeos)
 
+import("//chrome/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 source_set("side_panel_enums") {
@@ -70,6 +71,8 @@ source_set("side_panel") {
     "side_panel_entry_observer.h",
     "side_panel_entry_scope.cc",
     "side_panel_entry_scope.h",
+    "side_panel_entry_waiter.cc",
+    "side_panel_entry_waiter.h",
     "side_panel_enums.h",
     "side_panel_header.cc",
     "side_panel_header.h",
@@ -83,14 +86,15 @@ source_set("side_panel") {
     "side_panel_registry.h",
     "side_panel_resize_area.cc",
     "side_panel_resize_area.h",
-    "side_panel_rounded_corner.cc",
-    "side_panel_rounded_corner.h",
     "side_panel_ui.h",
+    "side_panel_ui_base.cc",
+    "side_panel_ui_base.h",
     "side_panel_util.cc",
     "side_panel_util.h",
     "side_panel_web_ui_view.cc",
     "side_panel_web_ui_view.h",
   ]
+  defines = [ "CHROME_VIEWS_IMPLEMENTATION" ]
   public_deps = [
     "//base",
     "//chrome/browser:browser_public_dependencies",
@@ -204,6 +208,10 @@ source_set("side_panel") {
       "//extensions/common",
     ]
     deps += [ "//chrome/common/extensions/api" ]
+  }
+
+  if (enable_glic) {
+    deps += [ "//chrome/browser/glic" ]
   }
 
   allow_circular_includes_from = [

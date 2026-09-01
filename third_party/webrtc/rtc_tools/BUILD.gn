@@ -107,6 +107,7 @@ rtc_library("video_quality_analysis") {
     "../api/numerics",
     "../api/test/metrics:metric",
     "../api/test/metrics:metrics_logger",
+    "../api/units:timestamp",
     "../api/video:video_frame",
     "../api/video:video_rtp_headers",
     "../common_video",

@@ -25,6 +25,7 @@
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
@@ -226,6 +227,16 @@ int Connection::ConnectionRequest::resend_delay() {
   return CONNECTION_RESPONSE_TIMEOUT;
 }
 
+Connection::Connection(const Environment& /*env*/,
+                       WeakPtr<PortInterface> port,
+                       size_t index,
+                       const Candidate& remote_candidate)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    : Connection(std::move(port), index, remote_candidate) {
+}
+#pragma clang diagnostic pop
+
 Connection::Connection(WeakPtr<PortInterface> port,
                        size_t index,
                        const Candidate& remote_candidate)
@@ -252,7 +263,7 @@ Connection::Connection(WeakPtr<PortInterface> port,
       last_ping_response_received_(0),
       state_(IceCandidatePairState::WAITING),
       time_created_ms_(TimeMillis()),
-      delta_internal_unix_epoch_ms_(TimeUTCMillis() - TimeMillis()),
+      delta_internal_unix_epoch_ms_(TimeUTCMillis() - time_created_ms_),
       field_trials_(&kDefaultFieldTrials),
       rtt_estimate_(DEFAULT_RTT_ESTIMATE_HALF_TIME_MS) {
   RTC_DCHECK_RUN_ON(network_thread_);
@@ -1872,10 +1883,19 @@ void Connection::ForgetLearnedState() {
   pings_since_last_response_.clear();
 }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 ProxyConnection::ProxyConnection(WeakPtr<PortInterface> port,
                                  size_t index,
                                  const Candidate& remote_candidate)
     : Connection(std::move(port), index, remote_candidate) {}
+#pragma clang diagnostic pop
+
+ProxyConnection::ProxyConnection(const Environment& env,
+                                 WeakPtr<PortInterface> port,
+                                 size_t index,
+                                 const Candidate& remote_candidate)
+    : Connection(env, std::move(port), index, remote_candidate) {}
 
 int ProxyConnection::Send(const void* data,
                           size_t size,

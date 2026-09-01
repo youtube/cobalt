@@ -76,6 +76,7 @@ using ::webrtc::FakeVoiceMediaSendChannel;
 using ::webrtc::FieldTrials;
 using ::webrtc::RidDescription;
 using ::webrtc::RidDirection;
+using ::webrtc::RtpExtension;
 using ::webrtc::RtpTransceiverDirection;
 using ::webrtc::SdpType;
 using ::webrtc::StreamParams;
@@ -643,6 +644,65 @@ class ChannelTest : public ::testing::Test {
     ASSERT_EQ(1U, media_send_channel1_impl()->send_codecs().size());
     EXPECT_EQ(content.codecs()[0],
               media_send_channel1_impl()->send_codecs()[0]);
+  }
+
+  void TestRemovesExtensionNotPresentInRemoteAnswer() {
+    typename T::Content local;
+    typename T::Content remote;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &remote);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+    remote.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+
+    CreateChannels(0, 0);
+    std::string err;
+    ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kOffer, err))
+        << err;
+    ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kAnswer, err))
+        << err;
+
+    EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                                  Field("uri", &RtpExtension::uri,
+                                        RtpExtension::kVideoRotationUri))));
+    EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                                  Field("uri", &RtpExtension::uri,
+                                        RtpExtension::kVideoRotationUri))));
+  }
+  void TestRemovesExtensionNotPresentInLocalAnswer() {
+    typename T::Content local;
+    typename T::Content remote;
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &local);
+    CreateContent(/*flags=*/0, kPcmuCodec, kH264Codec, &remote);
+    local.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+    remote.set_rtp_header_extensions({
+        RtpExtension(RtpExtension::kTransportSequenceNumberUri, 0),
+        RtpExtension(RtpExtension::kVideoRotationUri, 1),
+    });
+
+    CreateChannels(0, 0);
+    std::string err;
+    ASSERT_TRUE(channel1_->SetRemoteContent(&remote, SdpType::kOffer, err))
+        << err;
+    ASSERT_TRUE(channel1_->SetLocalContent(&local, SdpType::kAnswer, err))
+        << err;
+
+    EXPECT_THAT(media_receive_channel1_impl()->recv_extensions(),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                                  Field("uri", &RtpExtension::uri,
+                                        RtpExtension::kVideoRotationUri))));
+    EXPECT_THAT(media_send_channel1_impl()->send_extensions(),
+                ElementsAre(AllOf(Field("id", &RtpExtension::id, 1),
+                                  Field("uri", &RtpExtension::uri,
+                                        RtpExtension::kVideoRotationUri))));
   }
 
   // Test that SetLocalContent and SetRemoteContent properly configure
@@ -1877,6 +1937,14 @@ TEST_F(VoiceChannelSingleThreadTest, SocketOptionsMergedOnSetTransport) {
   Base::SocketOptionsMergedOnSetTransport();
 }
 
+TEST_F(VoiceChannelSingleThreadTest, RemovesExtensionNotPresentInRemoteAnswer) {
+  Base::TestRemovesExtensionNotPresentInRemoteAnswer();
+}
+
+TEST_F(VoiceChannelSingleThreadTest, RemovesExtensionNotPresentInLocalAnswer) {
+  Base::TestRemovesExtensionNotPresentInLocalAnswer();
+}
+
 // VoiceChannelDoubleThreadTest
 TEST_F(VoiceChannelDoubleThreadTest, TestInit) {
   Base::TestInit();
@@ -2155,6 +2223,14 @@ TEST_F(VideoChannelSingleThreadTest, SocketOptionsMergedOnSetTransport) {
 
 TEST_F(VideoChannelSingleThreadTest, UpdateLocalStreamsWithSimulcast) {
   Base::TestUpdateLocalStreamsWithSimulcast();
+}
+
+TEST_F(VideoChannelSingleThreadTest, RemovesExtensionNotPresentInRemoteAnswer) {
+  Base::TestRemovesExtensionNotPresentInRemoteAnswer();
+}
+
+TEST_F(VideoChannelSingleThreadTest, RemovesExtensionNotPresentInLocalAnswer) {
+  Base::TestRemovesExtensionNotPresentInLocalAnswer();
 }
 
 TEST_F(VideoChannelSingleThreadTest, TestSetLocalOfferWithPacketization) {

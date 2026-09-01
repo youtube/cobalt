@@ -6,21 +6,135 @@
 
 #import <Foundation/Foundation.h>
 
+#import <set>
+
 #import "base/base64.h"
+#import "base/containers/adapters.h"
 #import "base/logging.h"
 #import "components/prefs/pref_registry_simple.h"
 #import "components/prefs/pref_service.h"
 #import "components/sync/protocol/theme_types.pb.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service_observer.h"
 #import "ios/chrome/browser/home_customization/model/home_background_data.h"
+#import "ios/chrome/browser/home_customization/model/home_background_image_service.h"
+#import "ios/chrome/browser/home_customization/model/user_uploaded_image_manager.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "third_party/skia/include/core/SkColor.h"
 #import "url/gurl.h"
 
+namespace {
+
+// Maximum number of recently used backgrounds to store.
+const int kMaxRecentlyUsedBackgrounds = 7;
+
+}  // namespace
+
+bool operator==(RecentlyUsedBackgroundInternal const& lhs,
+                RecentlyUsedBackgroundInternal const& rhs) {
+  if (std::holds_alternative<sync_pb::ThemeSpecificsIos>(lhs) &&
+      std::holds_alternative<sync_pb::ThemeSpecificsIos>(rhs)) {
+    return std::get<sync_pb::ThemeSpecificsIos>(lhs) ==
+           std::get<sync_pb::ThemeSpecificsIos>(rhs);
+  } else {
+    return std::get<HomeUserUploadedBackground>(lhs) ==
+           std::get<HomeUserUploadedBackground>(rhs);
+  }
+}
+
+bool operator==(sync_pb::NtpCustomBackground const& lhs,
+                sync_pb::NtpCustomBackground const& rhs) {
+  return lhs.url() == rhs.url();
+}
+
+bool operator==(sync_pb::UserColorTheme const& lhs,
+                sync_pb::UserColorTheme const& rhs) {
+  return lhs.color() == rhs.color() &&
+         lhs.browser_color_variant() == rhs.browser_color_variant();
+}
+
+bool operator==(sync_pb::ThemeSpecificsIos const& lhs,
+                sync_pb::ThemeSpecificsIos const& rhs) {
+  // Ntp Background field takes precedence. Only compare colors if neither
+  // theme has an ntp background.
+  if (lhs.has_ntp_background() != rhs.has_ntp_background()) {
+    return false;
+  }
+
+  // Only compare url.
+  if (lhs.has_ntp_background()) {
+    return lhs.ntp_background() == rhs.ntp_background();
+  }
+
+  if (lhs.has_user_color_theme() != rhs.has_user_color_theme()) {
+    return false;
+  }
+
+  return lhs.user_color_theme() == rhs.user_color_theme();
+}
+
 HomeBackgroundCustomizationService::HomeBackgroundCustomizationService(
-    PrefService* pref_service)
-    : pref_service_(pref_service) {
+    PrefService* pref_service,
+    UserUploadedImageManager* user_image_manager,
+    HomeBackgroundImageService* home_background_image_service)
+    : recently_used_backgrounds_(
+          base::HashingLRUCacheSet<
+              RecentlyUsedBackgroundInternal>::NO_AUTO_EVICT),
+      pref_service_(pref_service),
+      user_image_manager_(user_image_manager),
+      home_background_image_service_(home_background_image_service),
+      weak_ptr_factory_{this} {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
   LoadCurrentTheme();
+
+  const base::Value::List& recently_used_backgrounds_list =
+      pref_service_->GetList(prefs::kIosRecentlyUsedBackgrounds);
+  std::set<base::FilePath> image_paths_in_use;
+
+  // The default value for this list is {true}, so use that as a signal for "new
+  // user."
+  if (recently_used_backgrounds_list.size() == 1 &&
+      recently_used_backgrounds_list[0].is_bool() &&
+      recently_used_backgrounds_list[0].GetBool()) {
+    home_background_image_service_->FetchDefaultCollectionImages(
+        base::BindOnce(&HomeBackgroundCustomizationService::
+                           DefaultRecentlyUsedBackgroundsLoaded,
+                       weak_ptr_factory_.GetWeakPtr()));
+    return;
+  }
+
+  for (const base::Value& background_value : recently_used_backgrounds_list) {
+    if (background_value.is_string()) {
+      recently_used_backgrounds_.Put(
+          DecodeThemeSpecificsIos(background_value.GetString()));
+    } else if (background_value.is_dict()) {
+      std::optional<HomeUserUploadedBackground> user_background =
+          HomeUserUploadedBackground::FromDict(background_value.GetDict());
+      if (user_background) {
+        recently_used_backgrounds_.Put(user_background.value());
+        image_paths_in_use.insert(base::FilePath(user_background->image_path));
+      }
+    }
+  }
+
+  std::optional<RecentlyUsedBackgroundInternal> current_background =
+      std::nullopt;
+  if (GetCurrentNtpCustomBackground() || GetCurrentColorTheme()) {
+    current_background = current_theme_;
+  }
+  if (GetCurrentUserUploadedBackground()) {
+    current_background = GetCurrentUserUploadedBackground().value();
+  }
+  if (current_background) {
+    // Make sure the current background is first in the recently used list.
+    AddToRecentlyUsedBackgroundsList(std::move(current_background.value()));
+    StoreRecentlyUsedBackgroundsList();
+  }
+
+  // Clean up any images that failed to be deleted for any reason.
+  user_image_manager_->DeleteUnusedImages(image_paths_in_use);
 }
 
 HomeBackgroundCustomizationService::~HomeBackgroundCustomizationService() {}
@@ -32,6 +146,9 @@ void HomeBackgroundCustomizationService::RegisterProfilePrefs(
   registry->RegisterStringPref(prefs::kIosSavedThemeSpecificsIos,
                                std::string());
   registry->RegisterDictionaryPref(prefs::kIosUserUploadedBackground);
+  // Use a simple list as a sentinel value to indicate "new user".
+  registry->RegisterListPref(prefs::kIosRecentlyUsedBackgrounds,
+                             base::Value::List().Append(true));
 }
 
 std::optional<HomeCustomBackground>
@@ -60,6 +177,16 @@ HomeBackgroundCustomizationService::GetCurrentColorTheme() {
   return current_theme_.user_color_theme();
 }
 
+std::vector<RecentlyUsedBackground>
+HomeBackgroundCustomizationService::GetRecentlyUsedBackgrounds() {
+  std::vector<RecentlyUsedBackground> backgrounds;
+  for (const RecentlyUsedBackgroundInternal& background :
+       recently_used_backgrounds_) {
+    backgrounds.push_back(ConvertBackgroundRepresentation(background));
+  }
+  return backgrounds;
+}
+
 void HomeBackgroundCustomizationService::SetCurrentBackground(
     const GURL& background_url,
     const GURL& thumbnail_url,
@@ -67,6 +194,10 @@ void HomeBackgroundCustomizationService::SetCurrentBackground(
     const std::string& attribution_line_2,
     const GURL& attribution_action_url,
     const std::string& collection_id) {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
+
   sync_pb::NtpCustomBackground new_background;
   new_background.set_url(background_url.spec());
   new_background.set_attribution_line_1(attribution_line_1);
@@ -85,6 +216,10 @@ void HomeBackgroundCustomizationService::SetCurrentBackground(
 void HomeBackgroundCustomizationService::SetBackgroundColor(
     SkColor color,
     sync_pb::UserColorTheme::BrowserColorVariant color_variant) {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
+
   sync_pb::UserColorTheme new_color_theme;
   new_color_theme.set_color(color);
   new_color_theme.set_browser_color_variant(color_variant);
@@ -98,6 +233,10 @@ void HomeBackgroundCustomizationService::SetBackgroundColor(
 }
 
 void HomeBackgroundCustomizationService::ClearCurrentBackground() {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
+
   current_theme_.Clear();
 
   ClearCurrentUserUploadedBackground();
@@ -105,21 +244,90 @@ void HomeBackgroundCustomizationService::ClearCurrentBackground() {
   NotifyObserversOfBackgroundChange();
 }
 
+void HomeBackgroundCustomizationService::DeleteRecentlyUsedBackground(
+    RecentlyUsedBackground recent_background) {
+  // Make sure this is not the current background.
+  std::optional<HomeCustomBackground> current_custom_background =
+      GetCurrentCustomBackground();
+  if (current_custom_background &&
+      std::holds_alternative<HomeCustomBackground>(recent_background) &&
+      current_custom_background.value() ==
+          std::get<HomeCustomBackground>(recent_background)) {
+  }
+  std::optional<sync_pb::UserColorTheme> current_color_theme =
+      GetCurrentColorTheme();
+  if (current_color_theme &&
+      std::holds_alternative<sync_pb::UserColorTheme>(recent_background) &&
+      current_color_theme.value() ==
+          std::get<sync_pb::UserColorTheme>(recent_background)) {
+    return;
+  }
+
+  RecentlyUsedBackgroundInternal internal_background =
+      ConvertBackgroundRepresentation(recent_background);
+  RecentlyUsedBackgroundsCache::iterator iterator =
+      recently_used_backgrounds_.Peek(internal_background);
+  if (iterator != recently_used_backgrounds_.end()) {
+    DeleteRecentlyUsedBackground(iterator);
+  }
+  StoreRecentlyUsedBackgroundsList();
+}
+
 void HomeBackgroundCustomizationService::StoreCurrentTheme() {
-  std::string serialized = current_theme_.SerializeAsString();
-  // Encode bytestring so it can be stored in a pref.
-  std::string encoded = base::Base64Encode(serialized);
-  pref_service_->SetString(prefs::kIosSavedThemeSpecificsIos, encoded);
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
+  // Only update recently used backgrounds list if the background is not
+  // default.
+  std::optional<RecentlyUsedBackgroundInternal> new_recent_background =
+      std::nullopt;
+  if (GetCurrentNtpCustomBackground() || GetCurrentColorTheme()) {
+    new_recent_background = current_theme_;
+  }
+
+  pref_service_->SetString(prefs::kIosSavedThemeSpecificsIos,
+                           EncodeThemeSpecificsIos(current_theme_));
 
   if (current_user_uploaded_background_) {
     pref_service_->SetDict(prefs::kIosUserUploadedBackground,
                            current_user_uploaded_background_->ToDict());
+    new_recent_background = current_user_uploaded_background_.value();
   } else {
     pref_service_->ClearPref(prefs::kIosUserUploadedBackground);
   }
+
+  if (new_recent_background) {
+    AddToRecentlyUsedBackgroundsList(std::move(new_recent_background.value()));
+    StoreRecentlyUsedBackgroundsList();
+  }
+}
+
+void HomeBackgroundCustomizationService::StoreRecentlyUsedBackgroundsList() {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
+  base::Value::List recently_used_backgrounds_list;
+  for (const RecentlyUsedBackgroundInternal& background :
+       base::Reversed(recently_used_backgrounds_)) {
+    if (std::holds_alternative<sync_pb::ThemeSpecificsIos>(background)) {
+      sync_pb::ThemeSpecificsIos theme =
+          std::get<sync_pb::ThemeSpecificsIos>(background);
+      recently_used_backgrounds_list.Append(EncodeThemeSpecificsIos(theme));
+    } else {
+      HomeUserUploadedBackground userBackground =
+          std::get<HomeUserUploadedBackground>(background);
+      recently_used_backgrounds_list.Append(userBackground.ToDict());
+    }
+  }
+
+  pref_service_->SetList(prefs::kIosRecentlyUsedBackgrounds,
+                         std::move(recently_used_backgrounds_list));
 }
 
 void HomeBackgroundCustomizationService::RestoreCurrentTheme() {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
   LoadCurrentTheme();
 
   std::optional<sync_pb::UserColorTheme> colorTheme = GetCurrentColorTheme();
@@ -140,16 +348,17 @@ void HomeBackgroundCustomizationService::RestoreCurrentTheme() {
   } else if (uploadedImage) {
     SetCurrentUserUploadedBackground(uploadedImage->image_path,
                                      uploadedImage->framing_coordinates);
+  } else {
+    ClearCurrentBackground();
   }
 }
 
 void HomeBackgroundCustomizationService::LoadCurrentTheme() {
-  std::string encoded =
-      pref_service_->GetString(prefs::kIosSavedThemeSpecificsIos);
-  // This pref is base64 encoded, so decode it first.
-  std::string serialized;
-  base::Base64Decode(encoded, &serialized);
-  current_theme_.ParseFromString(serialized);
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
+  current_theme_ = DecodeThemeSpecificsIos(
+      pref_service_->GetString(prefs::kIosSavedThemeSpecificsIos));
 
   const base::Value::Dict& background_data =
       pref_service_->GetDict(prefs::kIosUserUploadedBackground);
@@ -182,6 +391,9 @@ HomeBackgroundCustomizationService::GetCurrentUserUploadedBackground() {
 void HomeBackgroundCustomizationService::SetCurrentUserUploadedBackground(
     const std::string& image_path,
     const FramingCoordinates& framing_coordinates) {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
   HomeUserUploadedBackground background;
   background.image_path = image_path;
   background.framing_coordinates = framing_coordinates;
@@ -194,5 +406,128 @@ void HomeBackgroundCustomizationService::SetCurrentUserUploadedBackground(
 }
 
 void HomeBackgroundCustomizationService::ClearCurrentUserUploadedBackground() {
+  if (!IsNTPBackgroundCustomizationEnabled()) {
+    return;
+  }
   current_user_uploaded_background_ = std::nullopt;
+}
+
+RecentlyUsedBackground
+HomeBackgroundCustomizationService::ConvertBackgroundRepresentation(
+    RecentlyUsedBackgroundInternal background) {
+  if (std::holds_alternative<sync_pb::ThemeSpecificsIos>(background)) {
+    sync_pb::ThemeSpecificsIos theme_specifics =
+        std::get<sync_pb::ThemeSpecificsIos>(background);
+    if (theme_specifics.has_ntp_background()) {
+      return theme_specifics.ntp_background();
+    }
+    return theme_specifics.user_color_theme();
+  } else {
+    return std::get<HomeUserUploadedBackground>(background);
+  }
+}
+
+RecentlyUsedBackgroundInternal
+HomeBackgroundCustomizationService::ConvertBackgroundRepresentation(
+    RecentlyUsedBackground background) {
+  if (std::holds_alternative<HomeCustomBackground>(background)) {
+    HomeCustomBackground custom_background =
+        std::get<HomeCustomBackground>(background);
+    if (std::holds_alternative<sync_pb::NtpCustomBackground>(
+            custom_background)) {
+      sync_pb::NtpCustomBackground ntp_custom_background =
+          std::get<sync_pb::NtpCustomBackground>(custom_background);
+      sync_pb::ThemeSpecificsIos theme_specifics;
+      *theme_specifics.mutable_ntp_background() = ntp_custom_background;
+      return theme_specifics;
+    } else {
+      return std::get<HomeUserUploadedBackground>(custom_background);
+    }
+  } else {
+    sync_pb::UserColorTheme user_color_theme =
+        std::get<sync_pb::UserColorTheme>(background);
+    sync_pb::ThemeSpecificsIos theme_specifics;
+    *theme_specifics.mutable_user_color_theme() = user_color_theme;
+    return theme_specifics;
+  }
+}
+
+std::string HomeBackgroundCustomizationService::EncodeThemeSpecificsIos(
+    sync_pb::ThemeSpecificsIos theme_specifics_ios) {
+  std::string serialized = theme_specifics_ios.SerializeAsString();
+  // Encode bytestring so it can be stored in a pref.
+  return base::Base64Encode(serialized);
+}
+
+sync_pb::ThemeSpecificsIos
+HomeBackgroundCustomizationService::DecodeThemeSpecificsIos(
+    std::string encoded) {
+  // This pref is base64 encoded, so decode it first.
+  std::string serialized;
+  base::Base64Decode(encoded, &serialized);
+  sync_pb::ThemeSpecificsIos theme_specifics_ios;
+  theme_specifics_ios.ParseFromString(serialized);
+  return theme_specifics_ios;
+}
+
+void HomeBackgroundCustomizationService::AddToRecentlyUsedBackgroundsList(
+    RecentlyUsedBackgroundInternal&& recent_background) {
+  recently_used_backgrounds_.Put(
+      std::forward<RecentlyUsedBackgroundInternal>(recent_background));
+
+  while (recently_used_backgrounds_.size() > kMaxRecentlyUsedBackgrounds) {
+    auto last_element = --recently_used_backgrounds_.end();
+    DeleteRecentlyUsedBackground(last_element);
+  }
+}
+
+void HomeBackgroundCustomizationService::DeleteRecentlyUsedBackground(
+    RecentlyUsedBackgroundsCache::iterator recent_background_iterator) {
+  if (std::holds_alternative<HomeUserUploadedBackground>(
+          *recent_background_iterator)) {
+    DeleteUserBackgroundImage(
+        std::get<HomeUserUploadedBackground>(*recent_background_iterator));
+  }
+  recently_used_backgrounds_.Erase(recent_background_iterator);
+}
+
+void HomeBackgroundCustomizationService::DeleteUserBackgroundImage(
+    HomeUserUploadedBackground user_background_image) {
+  user_image_manager_->DeleteUserUploadedImage(
+      base::FilePath(user_background_image.image_path));
+}
+
+void HomeBackgroundCustomizationService::DefaultRecentlyUsedBackgroundsLoaded(
+    const HomeBackgroundImageService::CollectionImageMap& collection_map) {
+  // Iterate backwards so the items at the end of the list are pushed into the
+  // cache first, ending up at the end of the cache.
+  for (const auto& [collection_name, collection_images] :
+       base::Reversed(collection_map)) {
+    for (const auto& image : base::Reversed(collection_images)) {
+      std::string attribution_line_1;
+      std::string attribution_line_2;
+      // Set attribution lines if available.
+      if (!image.attribution.empty()) {
+        attribution_line_1 = image.attribution[0];
+        if (image.attribution.size() > 1) {
+          attribution_line_2 = image.attribution[1];
+        }
+      }
+
+      sync_pb::NtpCustomBackground new_background;
+      new_background.set_url(image.image_url.spec());
+      new_background.set_attribution_line_1(attribution_line_1);
+      new_background.set_attribution_line_2(attribution_line_2);
+      new_background.set_attribution_action_url(
+          image.attribution_action_url.spec());
+      new_background.set_collection_id(image.collection_id);
+
+      sync_pb::ThemeSpecificsIos new_theme_specifics;
+      *new_theme_specifics.mutable_ntp_background() = new_background;
+
+      AddToRecentlyUsedBackgroundsList(new_theme_specifics);
+    }
+  }
+
+  StoreRecentlyUsedBackgroundsList();
 }

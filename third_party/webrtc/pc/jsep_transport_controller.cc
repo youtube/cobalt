@@ -94,8 +94,8 @@ JsepTransportController::JsepTransportController(
             UpdateAggregateStates_n();
           }),
       config_(std::move(config)),
-      active_reset_srtp_params_(config.active_reset_srtp_params),
-      bundles_(config.bundle_policy),
+      active_reset_srtp_params_(config_.active_reset_srtp_params),
+      bundles_(config_.bundle_policy),
       payload_type_picker_(payload_type_picker) {
   // The `transport_observer` is assumed to be non-null.
   RTC_DCHECK(config_.transport_observer);
@@ -478,12 +478,10 @@ JsepTransportController::CreateIceTransport(const std::string& transport_name,
   int component =
       rtcp ? ICE_CANDIDATE_COMPONENT_RTCP : ICE_CANDIDATE_COMPONENT_RTP;
 
-  IceTransportInit init;
+  IceTransportInit init(env_);
   init.set_port_allocator(port_allocator_);
   init.set_async_dns_resolver_factory(async_dns_resolver_factory_);
   init.set_lna_permission_factory(lna_permission_factory_);
-  init.set_event_log(&env_.event_log());
-  init.set_field_trials(&env_.field_trials());
   auto transport = config_.ice_transport_factory->CreateIceTransport(
       transport_name, component, std::move(init));
   RTC_DCHECK(transport);

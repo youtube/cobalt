@@ -283,6 +283,7 @@ class Call final : public webrtc::Call,
   int FeedbackAccordingToTransportCcCount() override;
 
   const FieldTrialsView& trials() const override;
+  const Environment& env() const override;
 
   TaskQueueBase* network_thread() const override;
   TaskQueueBase* worker_thread() const override;
@@ -1186,6 +1187,10 @@ int Call::FeedbackAccordingToTransportCcCount() {
 
 const FieldTrialsView& Call::trials() const {
   return env_.field_trials();
+}
+
+const Environment& Call::env() const {
+  return env_;
 }
 
 TaskQueueBase* Call::network_thread() const {

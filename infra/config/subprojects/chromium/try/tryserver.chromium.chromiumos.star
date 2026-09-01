@@ -185,22 +185,41 @@ try_.compilator_builder(
     main_list_view = "try",
 )
 
+# Test builder for structured-test-ids experiment.
+try_.builder(
+    name = "chromeos-structured-test-ids-amd64-generic-rel-gtest-and-tast-fyi",
+    description_html = "This is an Ash chrome builder which runs gtest" +
+                       " and Tast tests with an experiment for " +
+                       " structured-test-ids enabled.",
+    mirrors = [
+        "ci/chromeos-structured-test-ids-amd64-generic-rel-fyi",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/chromeos-structured-test-ids-amd64-generic-rel-fyi",
+            "dcheck_always_on",
+        ],
+    ),
+    caches = [
+        swarming.cache(
+            name = CHROMEOS_SHARED_CACHE,
+            path = "builder",
+            wait_for_warm_cache = 4 * time.minute,
+        ),
+    ],
+    contact_team_email = "chrome-browser-infra-team@google.com",
+    experiments = {
+        "chromium_tests.resultdb_module": 100,
+    },
+    main_list_view = "try",
+)
+
 try_.builder(
     name = "chromeos-arm-generic-dbg",
     mirrors = [
         "ci/chromeos-arm-generic-dbg",
     ],
     gn_args = "ci/chromeos-arm-generic-dbg",
-)
-
-# crbug.com/40207910
-try_.builder(
-    name = "linux-chromeos-dbg-oslogin",
-    mirrors = [
-        "ci/linux-chromeos-dbg-oslogin",
-    ],
-    gn_args = "ci/linux-chromeos-dbg-oslogin",
-    contact_team_email = "chrome-dev-infra-team@google.com",
 )
 
 try_.builder(

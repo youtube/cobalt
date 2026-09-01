@@ -118,6 +118,7 @@
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifndef DCHECK
@@ -1717,7 +1718,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
                                  ? module_data->origin
                                  : ToSTLString(isolate, referrer.As<String>());
     std::string dir_name =
-        DirName(NormalizePath(source_url, GetWorkingDirectory()));
+        DirName(NormalizeModuleSpecifier(source_url, GetWorkingDirectory()));
     std::string absolute_path = NormalizeModuleSpecifier(specifier, dir_name);
 
     switch (phase) {
@@ -2743,10 +2744,9 @@ void Shell::TestVerifySourcePositions(
   i::Handle<i::TrustedByteArray> bytecode_offsets;
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {
-    bytecode_offsets = handle(
-        i::Cast<i::TrustedByteArray>(
-            function->shared()->GetCode(i_isolate)->bytecode_offset_table()),
-        i_isolate);
+    bytecode_offsets =
+        handle(function->shared()->GetCode(i_isolate)->bytecode_offset_table(),
+               i_isolate);
     offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
         bytecode_offsets, bytecodes);
     // A freshly initiated BytecodeOffsetIterator points to the prologue.
@@ -2940,6 +2940,80 @@ void Shell::SerializerDeserialize(
   if (!deserializer.ReadValue(context).ToLocal(&result)) return;
   info.GetReturnValue().Set(result);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+
+void Shell::WasmSerializeModule(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  HandleScope handle_scope(isolate);
+  if (!info[0]->IsWasmModuleObject()) {
+    ThrowError(isolate, "First argument must be a WasmModuleObject");
+    return;
+  }
+  i::DirectHandle<i::WasmModuleObject> module_obj =
+      i::Cast<i::WasmModuleObject>(Utils::OpenHandle(*info[0]));
+
+  i::wasm::NativeModule* native_module = module_obj->native_module();
+  DCHECK(!native_module->compilation_state()->failed());
+
+  i::wasm::WasmSerializer wasm_serializer(native_module);
+  size_t byte_length = wasm_serializer.GetSerializedNativeModuleSize();
+
+  Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, byte_length);
+
+  bool serialized_successfully = wasm_serializer.SerializeNativeModule(
+      {static_cast<uint8_t*>(array_buffer->GetBackingStore()->Data()),
+       byte_length});
+  CHECK(serialized_successfully || i::v8_flags.fuzzing);
+  info.GetReturnValue().Set(array_buffer);
+}
+
+void Shell::WasmDeserializeModule(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  HandleScope handle_scope(isolate);
+  if (!info[0]->IsArrayBuffer()) {
+    ThrowError(isolate, "First argument must be an ArrayBuffer");
+    return;
+  }
+  if (!info[1]->IsTypedArray()) {
+    ThrowError(isolate, "Second argument must be a TypedArray");
+    return;
+  }
+  i::DirectHandle<i::JSArrayBuffer> buffer =
+      i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
+  i::DirectHandle<i::JSTypedArray> wire_bytes =
+      i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
+  CHECK(!buffer->was_detached());
+  CHECK(!wire_bytes->WasDetached());
+
+  i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
+      wire_bytes->GetBuffer(i_isolate);
+  base::Vector<const uint8_t> wire_bytes_vec{
+      reinterpret_cast<const uint8_t*>(wire_bytes_buffer->backing_store()) +
+          wire_bytes->byte_offset(),
+      wire_bytes->byte_length()};
+  base::Vector<uint8_t> buffer_vec{
+      reinterpret_cast<uint8_t*>(buffer->backing_store()),
+      buffer->byte_length()};
+
+  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
+  // JSArrayBuffer backing store doesn't get relocated.
+  i::wasm::CompileTimeImports compile_imports{};
+  i::MaybeDirectHandle<i::WasmModuleObject> maybe_module_object =
+      i::wasm::DeserializeNativeModule(i_isolate, buffer_vec, wire_bytes_vec,
+                                       compile_imports, {});
+  i::DirectHandle<i::WasmModuleObject> module_object;
+  if (!maybe_module_object.ToHandle(&module_object)) {
+    info.GetReturnValue().Set(Undefined(isolate));
+    return;
+  }
+  info.GetReturnValue().Set(Utils::ToLocal(module_object));
+}
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 void Shell::ProfilerSetOnProfileEndListener(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -3148,7 +3222,7 @@ void Shell::CreateWasmMemoryMapDescriptor(
 }
 #endif  // V8_TARGET_OS_LINUX
 
-Local<String> Shell::ReadFromStdin(Isolate* isolate) {
+MaybeLocal<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
@@ -3162,7 +3236,10 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
     // If fgets gets an error, just give up.
     char* input = nullptr;
     input = fgets(buffer, kBufferSize, stdin);
-    if (input == nullptr) return Local<String>();
+    if (input == nullptr) {
+      ThrowError(isolate, "Error while reading from stdin");
+      return {};
+    }
     length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
@@ -3184,6 +3261,10 @@ Local<String> Shell::ReadFromStdin(Isolate* isolate) {
           String::NewFromUtf8(isolate, buffer, NewStringType::kNormal,
                               length - 1)
               .ToLocalChecked());
+    }
+    if (accumulator.IsEmpty()) {
+      ThrowError(isolate, "String limit exceeded");
+      return {};
     }
   }
 }
@@ -3321,8 +3402,16 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
   }
   *source = String::NewFromUtf8Literal(isolate, "(");
   *source = String::Concat(isolate, *source, function_string);
+  if (source->IsEmpty()) {
+    ThrowError(isolate, "String limit exceeded");
+    return false;
+  }
   Local<String> middle = String::NewFromUtf8Literal(isolate, ")(");
   *source = String::Concat(isolate, *source, middle);
+  if (source->IsEmpty()) {
+    ThrowError(isolate, "String limit exceeded");
+    return false;
+  }
   if (!arguments.IsEmpty() && !arguments->IsUndefined()) {
     if (!arguments->IsArray()) {
       ThrowError(isolate, "'arguments' must be an array");
@@ -3333,6 +3422,10 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
     for (uint32_t i = 0; i < array->Length(); ++i) {
       if (i > 0) {
         *source = String::Concat(isolate, *source, comma);
+        if (source->IsEmpty()) {
+          ThrowError(isolate, "String limit exceeded");
+          return false;
+        }
       }
       MaybeLocal<Value> maybe_argument = array->Get(context, i);
       Local<Value> argument;
@@ -3346,10 +3439,18 @@ bool Shell::FunctionAndArgumentsToString(Local<Function> function,
         return false;
       }
       *source = String::Concat(isolate, *source, argument_string);
+      if (source->IsEmpty()) {
+        ThrowError(isolate, "String limit exceeded");
+        return false;
+      }
     }
   }
   Local<String> suffix = String::NewFromUtf8Literal(isolate, ")");
   *source = String::Concat(isolate, *source, suffix);
+  if (source->IsEmpty()) {
+    ThrowError(isolate, "String limit exceeded");
+    return false;
+  }
   return true;
 }
 
@@ -4285,6 +4386,16 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                               Local<Signature>(), 1));
     d8_template->Set(isolate, "serializer", serializer_template);
   }
+#if V8_ENABLE_WEBASSEMBLY
+  {
+    Local<ObjectTemplate> wasm_template = ObjectTemplate::New(isolate);
+    wasm_template->Set(isolate, "serializeModule",
+                       FunctionTemplate::New(isolate, WasmSerializeModule));
+    wasm_template->Set(isolate, "deserializeModule",
+                       FunctionTemplate::New(isolate, WasmDeserializeModule));
+    d8_template->Set(isolate, "wasm", wasm_template);
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
   {
     Local<ObjectTemplate> profiler_template = ObjectTemplate::New(isolate);
     profiler_template->Set(
@@ -4990,7 +5101,12 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 void Shell::ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
-  info.GetReturnValue().Set(ReadFromStdin(info.GetIsolate()));
+  Local<v8::String> input;
+  if (!ReadFromStdin(info.GetIsolate()).ToLocal(&input)) {
+    // In case of an error, the empty handle will set the default return value.
+    CHECK(input.IsEmpty());
+  }
+  info.GetReturnValue().Set(input);
 }
 
 // Reads a file into a memory blob.
@@ -5049,8 +5165,8 @@ void Shell::RunShell(Isolate* isolate) {
       HandleScope scope(isolate);
       Context::Scope context_scope(context.Get(isolate));
       printf("d8> ");
-      Local<String> input = Shell::ReadFromStdin(isolate);
-      if (input.IsEmpty()) break;
+      Local<String> input;
+      if (!Shell::ReadFromStdin(isolate).ToLocal(&input)) break;
       Local<String> name = String::NewFromUtf8Literal(isolate, "(d8)");
       success = ExecuteString(isolate, input, name, kReportExceptions,
                               &global_result);
@@ -6982,13 +7098,19 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate* isolate = Isolate::New(create_params);
 
 #ifdef V8_FUZZILLI
-  // Let the parent process (Fuzzilli) know we are ready.
+
+#ifdef V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+  sanitizer_cov_prepare_for_hardware_sandbox();
+#endif  // V8_ENABLE_SANDBOX_HARDWARE_SUPPORT
+
   if (options.fuzzilli_enable_builtins_coverage) {
     cov_init_builtins_edges(static_cast<uint32_t>(
         i::BasicBlockProfiler::Get()
             ->GetCoverageBitmap(reinterpret_cast<i::Isolate*>(isolate))
             .size()));
   }
+
+  // Let the parent process (Fuzzilli) know we are ready.
   char helo[] = "HELO";
   if (write(REPRL_CWFD, helo, 4) != 4 || read(REPRL_CRFD, helo, 4) != 4) {
     fuzzilli_reprl = false;

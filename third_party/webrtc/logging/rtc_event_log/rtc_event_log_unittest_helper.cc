@@ -636,9 +636,9 @@ EventGenerator::NewGenericAckReceived() {
   if (prng_.Rand(0, 2) > 0) {
     receive_timestamp = prng_.Rand(0, 100000);
   }
-  AckedPacket packet = {prng_.Rand(40, 250), receive_timestamp};
+  AckedPacket packet[1] = {{prng_.Rand(40, 250), receive_timestamp}};
   return std::move(RtcEventGenericAckReceived::CreateLogs(
-      received_packet_number_++, std::vector<AckedPacket>{packet})[0]);
+      received_packet_number_++, packet)[0]);
 }
 
 void EventGenerator::RandomizeRtpPacket(

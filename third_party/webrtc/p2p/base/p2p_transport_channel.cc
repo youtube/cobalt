@@ -32,6 +32,7 @@
 #include "api/array_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/ice_transport_interface.h"
 #include "api/local_network_access_permission.h"
@@ -138,18 +139,35 @@ std::unique_ptr<P2PTransportChannel> P2PTransportChannel::Create(
     int component,
     IceTransportInit init) {
   return absl::WrapUnique(new P2PTransportChannel(
-      transport_name, component, init.port_allocator(),
+      init.env(), transport_name, component, init.port_allocator(),
       init.async_dns_resolver_factory(), /*owned_dns_resolver_factory=*/nullptr,
       init.lna_permission_factory(), init.event_log(),
       init.ice_controller_factory(), init.active_ice_controller_factory(),
       init.field_trials()));
 }
 
+P2PTransportChannel::P2PTransportChannel(const Environment& env,
+                                         absl::string_view transport_name,
+                                         int component,
+                                         PortAllocator* allocator)
+    : P2PTransportChannel(env,
+                          transport_name,
+                          component,
+                          allocator,
+                          /* async_dns_resolver_factory= */ nullptr,
+                          /* owned_dns_resolver_factory= */ nullptr,
+                          /* lna_permission_factory= */ nullptr,
+                          &env.event_log(),
+                          /* ice_controller_factory= */ nullptr,
+                          /* active_ice_controller_factory= */ nullptr,
+                          &env.field_trials()) {}
+
 P2PTransportChannel::P2PTransportChannel(absl::string_view transport_name,
                                          int component,
                                          PortAllocator* allocator,
                                          const FieldTrialsView* field_trials)
-    : P2PTransportChannel(transport_name,
+    : P2PTransportChannel(/*env=*/std::nullopt,
+                          transport_name,
                           component,
                           allocator,
                           /* async_dns_resolver_factory= */ nullptr,
@@ -162,6 +180,7 @@ P2PTransportChannel::P2PTransportChannel(absl::string_view transport_name,
 
 // Private constructor, called from Create()
 P2PTransportChannel::P2PTransportChannel(
+    std::optional<Environment> env,
     absl::string_view transport_name,
     int component,
     PortAllocator* allocator,
@@ -173,7 +192,8 @@ P2PTransportChannel::P2PTransportChannel(
     IceControllerFactoryInterface* ice_controller_factory,
     ActiveIceControllerFactoryInterface* active_ice_controller_factory,
     const FieldTrialsView* field_trials)
-    : transport_name_(transport_name),
+    : env_(env),
+      transport_name_(transport_name),
       component_(component),
       allocator_(allocator),
       // If owned_dns_resolver_factory is given, async_dns_resolver_factory is
@@ -219,18 +239,21 @@ P2PTransportChannel::P2PTransportChannel(
   ParseFieldTrials(field_trials);
 
   IceControllerFactoryArgs args{
-      [this] { return GetState(); }, [this] { return GetIceRole(); },
-      [this](const Connection* connection) {
-        return IsPortPruned(connection->port()) ||
-               IsRemoteCandidatePruned(connection->remote_candidate());
-      },
-      &ice_field_trials_,
-      field_trials ? field_trials->Lookup("WebRTC-IceControllerFieldTrials")
-                   : ""};
+      .ice_transport_state_func = [this] { return GetState(); },
+      .ice_role_func = [this] { return GetIceRole(); },
+      .is_connection_pruned_func =
+          [this](const Connection* connection) {
+            return IsPortPruned(connection->port()) ||
+                   IsRemoteCandidatePruned(connection->remote_candidate());
+          },
+      .ice_field_trials = &ice_field_trials_,
+      .ice_controller_field_trials =
+          field_trials ? field_trials->Lookup("WebRTC-IceControllerFieldTrials")
+                       : ""};
 
   if (active_ice_controller_factory) {
-    ActiveIceControllerFactoryArgs active_args{args,
-                                               /* ice_agent= */ this};
+    ActiveIceControllerFactoryArgs active_args{.legacy_args = args,
+                                               .ice_agent = this};
     ice_controller_ = active_ice_controller_factory->Create(active_args);
   } else {
     ice_controller_ = std::make_unique<WrappingActiveIceController>(

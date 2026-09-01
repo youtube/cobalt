@@ -63,7 +63,7 @@ class RtcEventGenericAckReceived final : public RtcEvent {
   // the same timestamp.
   static std::vector<std::unique_ptr<RtcEventGenericAckReceived>> CreateLogs(
       int64_t packet_number,
-      const std::vector<AckedPacket>& acked_packets);
+      ArrayView<const AckedPacket> acked_packets);
 
   ~RtcEventGenericAckReceived() override;
 
@@ -97,7 +97,7 @@ class RtcEventGenericAckReceived final : public RtcEvent {
   }
 
  private:
-  RtcEventGenericAckReceived(const RtcEventGenericAckReceived& packet);
+  RtcEventGenericAckReceived(const RtcEventGenericAckReceived&) = default;
 
   // When the ack is received, `packet_number` identifies the packet which
   // contained an ack for `acked_packet_number`, and contains the

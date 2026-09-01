@@ -22,6 +22,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/repeating_test_future.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -49,7 +50,6 @@
 #include "chrome/browser/web_applications/isolated_web_apps/test/policy_generator.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/policy_test_utils.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/test_iwa_installer_factory.h"
-#include "chrome/browser/web_applications/isolated_web_apps/test/test_signed_web_bundle_builder.h"
 #include "chrome/browser/web_applications/test/fake_web_app_provider.h"
 #include "chrome/browser/web_applications/test/fake_web_contents_manager.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
@@ -70,8 +70,10 @@
 #include "components/web_package/test_support/signed_web_bundles/ed25519_key_pair.h"
 #include "components/webapps/common/web_app_id.h"
 #include "components/webapps/isolated_web_apps/features.h"
+#include "components/webapps/isolated_web_apps/iwa_key_distribution_histograms.h"
 #include "components/webapps/isolated_web_apps/iwa_key_distribution_info_provider.h"
 #include "components/webapps/isolated_web_apps/proto/key_distribution.pb.h"
+#include "components/webapps/isolated_web_apps/test_support/signing_keys.h"
 #include "components/webapps/isolated_web_apps/types/storage_location.h"
 #include "content/public/common/content_features.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -251,7 +253,7 @@ TEST_F(IsolatedWebAppPolicyManagerTest, AppInstalled) {
 }
 
 TEST_F(IsolatedWebAppPolicyManagerTest, AppInstalledAtPinnedVersion) {
-  const base::Version pinned_version = base::Version("1.0.0");
+  const IwaVersion pinned_version = *IwaVersion::Create("1.0.0");
   auto url_info =
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id_1());
 
@@ -270,13 +272,13 @@ TEST_F(IsolatedWebAppPolicyManagerTest, AppInstalledAtPinnedVersion) {
   const WebApp* web_app =
       provider().registrar_unsafe().GetAppById(url_info.app_id());
   ASSERT_THAT(web_app, NotNull());
-  ASSERT_EQ(web_app->isolation_data()->version(), pinned_version);
+  ASSERT_EQ(web_app->isolation_data()->version(), pinned_version.version());
   EXPECT_THAT(web_app->GetSources(),
               Eq(WebAppManagementTypes({WebAppManagement::Type::kIwaPolicy})));
 }
 
 TEST_F(IsolatedWebAppPolicyManagerTest, AppNotInstalledIncorrectPinnedVersion) {
-  const base::Version pinned_version = base::Version("1.9.0");
+  const IwaVersion pinned_version = *IwaVersion::Create("1.9.0");
   auto url_info =
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id_1());
 
@@ -440,6 +442,7 @@ class IsolatedWebAppManagedAllowlistTest
 using base::test::HasValue;
 
 TEST_F(IsolatedWebAppManagedAllowlistTest, AllowedAppInstalled) {
+  base::HistogramTester ht;
   const auto url_info =
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id_1());
 
@@ -472,6 +475,10 @@ TEST_F(IsolatedWebAppManagedAllowlistTest, AllowedAppInstalled) {
 
   EXPECT_EQ(install_observer.Wait(), url_info.app_id());
 
+  EXPECT_THAT(
+      ht.GetAllSamples(kIwaKeyDistributionManagedInstallAllowedHistogramName),
+      base::BucketsAre(base::Bucket(true, 2)));
+
   const WebApp* web_app =
       provider().registrar_unsafe().GetAppById(url_info.app_id());
   ASSERT_THAT(web_app, NotNull());
@@ -480,6 +487,7 @@ TEST_F(IsolatedWebAppManagedAllowlistTest, AllowedAppInstalled) {
 }
 
 TEST_F(IsolatedWebAppManagedAllowlistTest, NotAllowedAppInstallationRefused) {
+  base::HistogramTester ht;
   auto url_info =
       IsolatedWebAppUrlInfo::CreateFromSignedWebBundleId(web_bundle_id_1());
 
@@ -506,6 +514,10 @@ TEST_F(IsolatedWebAppManagedAllowlistTest, NotAllowedAppInstallationRefused) {
   auto [web_bundle_id, result] = future.Take();
   EXPECT_EQ(web_bundle_id, web_bundle_id_1());
   EXPECT_EQ(result.type(), IwaInstallerResultType::kErrorAppNotInAllowlist);
+
+  EXPECT_THAT(
+      ht.GetAllSamples(kIwaKeyDistributionManagedInstallAllowedHistogramName),
+      base::BucketsAre(base::Bucket(false, 2)));
 
   const WebApp* web_app =
       provider().registrar_unsafe().GetAppById(url_info.app_id());

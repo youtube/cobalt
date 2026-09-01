@@ -39,18 +39,19 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeError,
       MoqtMessageType::kUnsubscribe,
       MoqtMessageType::kSubscribeDone,
-      MoqtMessageType::kAnnounceCancel,
-      MoqtMessageType::kTrackStatusRequest,
-      MoqtMessageType::kTrackStatus,
       MoqtMessageType::kAnnounce,
       MoqtMessageType::kAnnounceOk,
       MoqtMessageType::kAnnounceError,
       MoqtMessageType::kUnannounce,
+      MoqtMessageType::kAnnounceCancel,
+      MoqtMessageType::kTrackStatus,
+      MoqtMessageType::kTrackStatusOk,
+      MoqtMessageType::kTrackStatusError,
       MoqtMessageType::kGoAway,
-      MoqtMessageType::kSubscribeAnnounces,
-      MoqtMessageType::kSubscribeAnnouncesOk,
-      MoqtMessageType::kSubscribeAnnouncesError,
-      MoqtMessageType::kUnsubscribeAnnounces,
+      MoqtMessageType::kSubscribeNamespace,
+      MoqtMessageType::kSubscribeNamespaceOk,
+      MoqtMessageType::kSubscribeNamespaceError,
+      MoqtMessageType::kUnsubscribeNamespace,
       MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchCancel,
@@ -150,41 +151,45 @@ class MoqtFramerTest
         auto data = std::get<MoqtAnnounceError>(structured_data);
         return framer_.SerializeAnnounceError(data);
       }
-      case moqt::MoqtMessageType::kAnnounceCancel: {
-        auto data = std::get<MoqtAnnounceCancel>(structured_data);
-        return framer_.SerializeAnnounceCancel(data);
-      }
-      case moqt::MoqtMessageType::kTrackStatusRequest: {
-        auto data = std::get<MoqtTrackStatusRequest>(structured_data);
-        return framer_.SerializeTrackStatusRequest(data);
-      }
       case MoqtMessageType::kUnannounce: {
         auto data = std::get<MoqtUnannounce>(structured_data);
         return framer_.SerializeUnannounce(data);
+      }
+      case moqt::MoqtMessageType::kAnnounceCancel: {
+        auto data = std::get<MoqtAnnounceCancel>(structured_data);
+        return framer_.SerializeAnnounceCancel(data);
       }
       case moqt::MoqtMessageType::kTrackStatus: {
         auto data = std::get<MoqtTrackStatus>(structured_data);
         return framer_.SerializeTrackStatus(data);
       }
+      case moqt::MoqtMessageType::kTrackStatusOk: {
+        auto data = std::get<MoqtTrackStatusOk>(structured_data);
+        return framer_.SerializeTrackStatusOk(data);
+      }
+      case moqt::MoqtMessageType::kTrackStatusError: {
+        auto data = std::get<MoqtTrackStatusError>(structured_data);
+        return framer_.SerializeTrackStatusError(data);
+      }
       case moqt::MoqtMessageType::kGoAway: {
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
       }
-      case moqt::MoqtMessageType::kSubscribeAnnounces: {
-        auto data = std::get<MoqtSubscribeAnnounces>(structured_data);
-        return framer_.SerializeSubscribeAnnounces(data);
+      case moqt::MoqtMessageType::kSubscribeNamespace: {
+        auto data = std::get<MoqtSubscribeNamespace>(structured_data);
+        return framer_.SerializeSubscribeNamespace(data);
       }
-      case moqt::MoqtMessageType::kSubscribeAnnouncesOk: {
-        auto data = std::get<MoqtSubscribeAnnouncesOk>(structured_data);
-        return framer_.SerializeSubscribeAnnouncesOk(data);
+      case moqt::MoqtMessageType::kSubscribeNamespaceOk: {
+        auto data = std::get<MoqtSubscribeNamespaceOk>(structured_data);
+        return framer_.SerializeSubscribeNamespaceOk(data);
       }
-      case moqt::MoqtMessageType::kSubscribeAnnouncesError: {
-        auto data = std::get<MoqtSubscribeAnnouncesError>(structured_data);
-        return framer_.SerializeSubscribeAnnouncesError(data);
+      case moqt::MoqtMessageType::kSubscribeNamespaceError: {
+        auto data = std::get<MoqtSubscribeNamespaceError>(structured_data);
+        return framer_.SerializeSubscribeNamespaceError(data);
       }
-      case moqt::MoqtMessageType::kUnsubscribeAnnounces: {
-        auto data = std::get<MoqtUnsubscribeAnnounces>(structured_data);
-        return framer_.SerializeUnsubscribeAnnounces(data);
+      case moqt::MoqtMessageType::kUnsubscribeNamespace: {
+        auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);
+        return framer_.SerializeUnsubscribeNamespace(data);
       }
       case moqt::MoqtMessageType::kMaxRequestId: {
         auto data = std::get<MoqtMaxRequestId>(structured_data);
@@ -324,7 +329,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   quiche::QuicheBuffer buffer;
 
   // Non-normal status must have no payload.
-  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
                       object, MoqtDataStreamType::Subgroup(8, 0, false), false),
                   "Object metadata is invalid");
@@ -346,7 +351,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   };
   quiche::QuicheBuffer buffer;
 
-  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
@@ -365,7 +370,8 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
 
 TEST_F(MoqtFramerSimpleTest, Datagram) {
   auto datagram = std::make_unique<ObjectDatagramMessage>(
-      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true));
+      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true,
+                       /*end_of_group=*/false));
   MoqtObject object = {
       /*track_alias=*/4,
       /*group_id=*/5,
@@ -384,8 +390,28 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
 }
 
 TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
-  auto datagram =
-      std::make_unique<ObjectDatagramMessage>(MoqtDatagramType(true, true));
+  auto datagram = std::make_unique<ObjectDatagramMessage>(
+      MoqtDatagramType(true, true, false));
+  MoqtObject object = {
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/6,
+      /*publisher_priority=*/7,
+      std::string(kDefaultExtensionBlob),
+      /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
+      /*subgroup_id=*/6,
+      /*payload_length=*/0,
+  };
+  quiche::QuicheBuffer buffer;
+  buffer = framer_.SerializeObjectDatagram(object, "");
+  EXPECT_EQ(buffer.size(), datagram->total_message_size());
+  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
+}
+
+TEST_F(MoqtFramerSimpleTest, DatagramEndOfGroup) {
+  auto datagram = std::make_unique<ObjectDatagramMessage>(
+      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true,
+                       /*end_of_group=*/true));
   MoqtObject object = {
       /*track_alias=*/4,
       /*group_id=*/5,
@@ -394,10 +420,11 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/6,
-      /*payload_length=*/0,
+      /*payload_length=*/3,
   };
+  std::string payload = "foo";
   quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeObjectDatagram(object, "");
+  buffer = framer_.SerializeObjectDatagram(object, payload);
   EXPECT_EQ(buffer.size(), datagram->total_message_size());
   EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
 }

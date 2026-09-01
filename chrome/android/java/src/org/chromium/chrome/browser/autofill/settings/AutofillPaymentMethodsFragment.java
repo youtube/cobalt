@@ -24,8 +24,8 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceScreen;
 
 import org.chromium.base.ApiCompatibilityUtils;
-import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
@@ -177,7 +177,7 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
             disabled_settings_info_pref.setSummary(R.string.autofill_disable_settings_explanation);
             disabled_settings_info_pref.setButtonText(
                     getResources().getString(R.string.autofill_disable_settings_button_label));
-            disabled_settings_info_pref.setIconResource(R.drawable.ic_google_services_48dp);
+            disabled_settings_info_pref.setIconResource(R.drawable.ic_google_services_24dp);
             disabled_settings_info_pref.setOnButtonClick(
                     () -> {
                         SettingsNavigation settingsNavigation =
@@ -287,7 +287,7 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
         // TODO(crbug.com/40261690): Confirm with Product on the order of the toggles.
         // Don't show the toggle to enable mandatory reauth on automotive,
         // as the feature is always enabled for automotive builds.
-        if (BuildInfo.getInstance().isAutomotive) {
+        if (DeviceInfo.isAutomotive()) {
             // The ReauthenticatorBridge is still needed for reauthentication to view/edit
             // payment methods.
             createReauthenticatorBridge();

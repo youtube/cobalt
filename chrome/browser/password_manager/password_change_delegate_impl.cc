@@ -302,6 +302,11 @@ void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
     login_state_checker_ = std::make_unique<LoginStateChecker>(
         originator_.get(),
         ChromePasswordManagerClient::FromWebContents(originator_),
+        // Callback for the first check's result.
+        base::BindOnce(&PasswordChangeDelegateImpl::UpdateState,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       State::kLoginFormDetected),
+        // Callback for the final, definitive result.
         base::BindOnce(&PasswordChangeDelegateImpl::OnLoginStateCheckResult,
                        weak_ptr_factory_.GetWeakPtr()));
   } else {
@@ -312,10 +317,10 @@ void PasswordChangeDelegateImpl::StartPasswordChangeFlow() {
 void PasswordChangeDelegateImpl::OnLoginStateCheckResult(bool is_logged_in) {
   login_state_checker_.reset();
   if (!is_logged_in) {
-    // TODO(crbug.com/436537301): Show an error instead of canceling the flow.
-    CancelPasswordChangeFlow();
+    UpdateState(State::kChangePasswordFormNotFound);
     return;
   }
+  UpdateState(State::kWaitingForChangePasswordForm);
   StartBackgroundTab();
 }
 
@@ -472,9 +477,20 @@ void PasswordChangeDelegateImpl::OpenPasswordChangeTab() {
   TabStripModel* tab_strip_model =
       tab_interface->GetBrowserWindowInterface()->GetTabStripModel();
   CHECK(tab_strip_model);
-
-  content::WebContents* web_contents = executor_.get();
-  tab_strip_model->AppendWebContents(std::move(executor_), /*foreground=*/true);
+  content::WebContents* web_contents = nullptr;
+  if (!executor_) {
+    web_contents = originator_->OpenURL(
+        content::OpenURLParams(GURL(change_password_url_), content::Referrer(),
+                               WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                               ui::PAGE_TRANSITION_LINK,
+                               /* is_renderer_initiated= */ false),
+        /*navigation_handle_callback=*/{});
+    CHECK(web_contents);
+  } else {
+    web_contents = executor_.get();
+    tab_strip_model->AppendWebContents(std::move(executor_),
+                                       /*foreground=*/true);
+  }
   password_change_hats_->MaybeLaunchSurvey(
       kHatsSurveyTriggerPasswordChangeError,
       /*password_change_duration=*/base::Time::Now() - flow_start_time_,

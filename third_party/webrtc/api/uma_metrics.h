@@ -177,7 +177,8 @@ enum RtcpMuxPolicyUsage {
 
 // Metrics for SDP munging.
 // These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused. Keep in sync with SdpMungingType from
+// numeric values should never be reused. Keep in (loose) sync with
+// SdpMungingType from Chromium's
 // tools/metrics/histograms/metadata/web_rtc/enums.xml
 enum SdpMungingType {
   kNoModification = 0,

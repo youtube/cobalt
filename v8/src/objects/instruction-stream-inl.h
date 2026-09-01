@@ -76,12 +76,16 @@ Tagged<InstructionStream> InstructionStream::Initialize(
                                    TrailingPaddingSizeFor(body_size));
   }
 
-  Tagged<InstructionStream> istream = Cast<InstructionStream>(self);
+  Tagged<InstructionStream> istream = TrustedCast<InstructionStream>(self);
 
   // We want to keep the code minimal that runs with write access to a JIT
   // allocation, so trigger the write barriers after the WritableJitAllocation
   // went out of scope.
-  SLOW_DCHECK(!WriteBarrier::IsRequired(istream, map));
+#if V8_VERIFY_WRITE_BARRIERS
+  if (v8_flags.verify_write_barriers) {
+    CHECK(!WriteBarrier::IsRequired(istream, map));
+  }
+#endif
   CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*istream, kRelocationInfoOffset,
                                               reloc_info, UPDATE_WRITE_BARRIER);
 
@@ -176,20 +180,20 @@ Address InstructionStream::body_end() const {
 Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
   Tagged<Object> value = RawProtectedPointerField(kCodeOffset).Acquire_Load();
   DCHECK(!HeapLayout::InYoungGeneration(value));
-  DCHECK(IsSmi(value) || HeapLayout::InTrustedSpace(Cast<HeapObject>(value)));
+  DCHECK(IsSmi(value) ||
+         HeapLayout::SafeInTrustedSpace(Cast<HeapObject>(value)));
   return value;
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
-  return Cast<Code>(raw_code(tag));
+  return TrustedCast<Code>(raw_code(tag));
 }
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,
                                    AcquireLoadTag tag) const {
   Tagged<Object> maybe_code = raw_code(tag);
   if (maybe_code == Smi::zero()) return false;
-  *code_out = Cast<Code>(maybe_code);
-  return true;
+  return TryCast(maybe_code, code_out);
 }
 
 bool InstructionStream::TryGetCodeUnchecked(Tagged<Code>* code_out,
@@ -201,8 +205,7 @@ bool InstructionStream::TryGetCodeUnchecked(Tagged<Code>* code_out,
 }
 
 Tagged<TrustedByteArray> InstructionStream::relocation_info() const {
-  return Cast<TrustedByteArray>(
-      ReadProtectedPointerField(kRelocationInfoOffset));
+  return ReadProtectedPointerField<TrustedByteArray>(kRelocationInfoOffset);
 }
 
 Address InstructionStream::instruction_start() const {

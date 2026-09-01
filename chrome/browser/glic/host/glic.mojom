@@ -224,6 +224,14 @@ struct UserProfileInfo {
   bool is_managed;
 };
 
+// Information about the active browser window.
+struct ActiveBrowserInfo {
+  // The unique ID of the active browser window.
+  int32 window_id;
+  // Whether the active browser window is using the current user profile.
+  bool using_this_profile;
+};
+
 // The result of `WebClientCreated()`. Contains information that needs to be
 // available before the web client is initialized.
 struct WebClientInitialState {
@@ -242,6 +250,8 @@ struct WebClientInitialState {
   bool panel_is_active;
   bool browser_is_open;
   bool browser_is_active;
+  // The active browser window, if there is one.
+  ActiveBrowserInfo? active_browser_info;
   // Reflects the enabling state of always-detached mode.
   bool always_detached_mode;
   bool enable_zero_state_suggestions;
@@ -249,6 +259,10 @@ struct WebClientInitialState {
   bool enable_act_in_focused_tab;
   // Whether features::kGlicScrollTo is enabled.
   bool enable_scroll_to;
+  // Whether features::kGlicDefaultTabContextSetting is enabled.
+  bool enable_default_tab_context_setting_feature;
+  // Whether the glic default tab context setting is enabled.
+  bool default_tab_context_setting_enabled;
   // Whether features::kGlicClosedCaptioning is enabled.
   bool enable_closed_captioning_feature;
   // Whether the glic closed captioning setting is enabled.
@@ -264,6 +278,8 @@ struct WebClientInitialState {
   array<HostCapability> host_capabilities;
   // Whether get page metadata is enabled.
   bool enable_get_page_metadata;
+  // Whether kGlicApiActivationGating is enabled.
+  bool enable_api_activation_gating;
 };
 
 // Options for getting tab context.
@@ -749,7 +765,7 @@ interface WebClientHandler {
   // web client, such as toggle controls.
   OnViewChanged(ViewChangedNotification notification);
 
-  // Subscribe to be notified when meta tags change.  Sends the current state on
+  // Subscribe to be notified when meta tags change. Sends the current state on
   // first call, and then notifies when the state changes. Call with an empty
   // names array to stop receiving notifications.
   SubscribeToPageMetadata(int32 tab_id, array<string> names)
@@ -932,6 +948,9 @@ interface WebClient {
   // may be paused or resumed accordingly.
   NotifyBrowserIsActiveChanged(bool browser_active);
 
+  // The active browser has changed.
+  NotifyActiveBrowserChanged(ActiveBrowserInfo? active_browser_info);
+
   // Notify that the closed captioning setting has changed.
   NotifyClosedCaptioningSettingChanged(bool enabled);
 
@@ -961,6 +980,75 @@ interface WebClient {
   // Informs the client that the metadata tags have changed.
   // Contents from meta tags are passed unsanitized from the renderer.
   NotifyPageMetadataChanged(int32 tab_id, blink.mojom.PageMetadata? metadata);
+
+  // Informs the client when the default state for tab context sharing for new
+  // sessions changes.
+  NotifyDefaultTabContextPermissionStateChanged(bool enabled);
+
+  // Requests the web client to show a dialog to the user to select a credential
+  // for actor login. The web client should show the dialog and wait for the
+  // user to interact with it.
+  RequestToShowCredentialSelectionDialog(SelectCredentialDialogRequest request)
+      => (SelectCredentialDialogResponse response);
+};
+
+ // Describes how long the user grants the actor with the permission to actuate.
+ // Used when the actor is to actuate with sensitive data, such as entering
+ // payment information or login credentials.
+[Extensible]
+enum UserGrantedPermissionDuration {
+  // The user only grants a one-time permission. The user will be asked again.
+  // This is the default behavior.
+  [Default] kOneTime = 0,
+  // The user grants a permission to always allow the actor to actuate with
+  // sensitive data. The persistence of this permission is defined differently
+  // for different features.
+  kAlwaysAllow = 1,
+};
+
+//
+// Credential selection dialog.
+//
+
+// A credential for actor login. Mapped from actor_login::Credential in
+// components/password_manager/core/browser/actor_login/actor_login_types.h
+struct Credential {
+  int32 id;
+  string username;
+  string source_site_or_app;
+};
+
+struct SelectCredentialDialogRequest {
+  // The task ID that is requesting the credential selection.
+  int32 task_id;
+  // Whether the web client should show a dialog to let the user select a
+  // credential. The web client doesn't have to show the dialog if the user has
+  // granted UserGrantedPermissionDuration.ALWAYS_ALLOW to the actor.
+  bool show_dialog;
+  // The order of `credentials` is based on what the browser believes to be the
+  // best match to use.
+  array<Credential> credentials;
+  // TODO(crbug.com/438710031): Include the optional favicon for the credential.
+};
+
+[Extensible]
+enum SelectCredentialDialogErrorReason {
+  // The hosting WebUI received the request, but the web client has not
+  // subscribed to the request yet. We couldn't show the dialog in this case.
+  [Default] kDialogPromiseNoSubscriber = 0,
+};
+
+struct SelectCredentialDialogResponse {
+  // The response is associated with the request that has the same task ID.
+  int32 task_id;
+  // Encodes the error message. The browser must discard all other fields
+  // (other than the ID) if the error message is set.
+  SelectCredentialDialogErrorReason? error_reason;
+  // Only set if the user changes the permission duration.
+  UserGrantedPermissionDuration? permission_duration;
+  // The ID of the selected credential. Null if the user closed the UI without
+  // making a selection.
+  int32? selected_credential_id;
 };
 
 // Information extracted from a tab.

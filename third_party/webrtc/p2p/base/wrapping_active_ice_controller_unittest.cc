@@ -128,10 +128,10 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSwitchRequest) {
   std::vector<const Connection*> conns_to_forget{kConnectionTwo};
   int recheck_delay_ms = 10;
   IceControllerInterface::SwitchResult switch_result{
-      kConnection,
-      IceRecheckEvent(IceSwitchReason::ICE_CONTROLLER_RECHECK,
-                      recheck_delay_ms),
-      conns_to_forget};
+      .connection = kConnection,
+      .recheck_event = IceRecheckEvent(IceSwitchReason::ICE_CONTROLLER_RECHECK,
+                                       recheck_delay_ms),
+      .connections_to_forget_state_on = conns_to_forget};
 
   // ICE controller should switch to given connection immediately.
   Sequence check_then_switch;
@@ -174,10 +174,10 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSortAndSwitchRequest) {
   std::vector<const Connection*> conns_to_prune{kConnectionThree};
   int recheck_delay_ms = 10;
   IceControllerInterface::SwitchResult switch_result{
-      kConnection,
-      IceRecheckEvent(IceSwitchReason::ICE_CONTROLLER_RECHECK,
-                      recheck_delay_ms),
-      conns_to_forget};
+      .connection = kConnection,
+      .recheck_event = IceRecheckEvent(IceSwitchReason::ICE_CONTROLLER_RECHECK,
+                                       recheck_delay_ms),
+      .connections_to_forget_state_on = conns_to_forget};
 
   Sequence sort_and_switch;
   EXPECT_CALL(agent, UpdateConnectionStates()).InSequence(sort_and_switch);
@@ -239,10 +239,10 @@ TEST(WrappingActiveIceControllerTest, HandlesSortAndSwitchRequest) {
   std::vector<const Connection*> conns_to_forget{kConnectionTwo};
   int recheck_delay_ms = 10;
   IceControllerInterface::SwitchResult switch_result{
-      kConnection,
-      IceRecheckEvent(IceSwitchReason::ICE_CONTROLLER_RECHECK,
-                      recheck_delay_ms),
-      conns_to_forget};
+      .connection = kConnection,
+      .recheck_event = IceRecheckEvent(IceSwitchReason::ICE_CONTROLLER_RECHECK,
+                                       recheck_delay_ms),
+      .connections_to_forget_state_on = conns_to_forget};
 
   // Sort and switch should take place as the subsequent task.
   Sequence sort_and_switch;

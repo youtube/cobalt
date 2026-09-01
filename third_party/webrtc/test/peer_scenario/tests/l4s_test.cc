@@ -14,6 +14,7 @@
 #include <string>
 
 #include "absl/strings/str_cat.h"
+#include "api/audio_options.h"
 #include "api/jsep.h"
 #include "api/make_ref_counted.h"
 #include "api/rtc_error.h"
@@ -180,7 +181,9 @@ TEST(L4STest, NegotiateAndUseCcfbIfEnabled) {
   PeerScenarioClient::VideoSendTrackConfig video_conf;
   video_conf.generator.squares_video->framerate = 15;
 
+  caller->CreateAudio("AUDIO_1", AudioOptions());
   caller->CreateVideo("VIDEO_1", video_conf);
+  callee->CreateAudio("AUDIO_2", AudioOptions());
   callee->CreateVideo("VIDEO_2", video_conf);
 
   signaling.StartIceSignaling();

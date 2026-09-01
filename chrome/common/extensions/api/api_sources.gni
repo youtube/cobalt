@@ -30,6 +30,7 @@ schema_sources_ = [
   "permissions.json",
   "processes.idl",
   "reading_list.webidl",
+  "search.idl",
   "scripting.idl",
   "tabs.json",
   "web_authentication_proxy.webidl",
@@ -81,7 +82,6 @@ if (enable_extensions) {
     "passwords_private.idl",
     "resources_private.idl",
     "safe_browsing_private.idl",
-    "search.idl",
     "sessions.json",
     "settings_private.idl",
     "side_panel.idl",
@@ -170,11 +170,7 @@ chrome_extensions_types_only_schema_sources =
     get_path_info(types_only_schema_sources_, "abspath")
 
 chrome_extensions_manifest_only_schema_sources =
-    get_path_info([
-                    "manifest_types.json",
-                    "chrome_url_overrides.idl",
-                  ],
-                  "abspath")
+    get_path_info([ "manifest_types.json" ], "abspath")
 
 chrome_extensions_api_uncompiled_sources =
     get_path_info(uncompiled_sources_, "abspath")

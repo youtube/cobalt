@@ -591,9 +591,9 @@ static bool TestEVP(FileTest *t, KeyMap *key_map) {
          TestEVPOperation(t, key_map, /*copy_ctx=*/true);
 }
 
-TEST(EVPTest, TestVectors) {
+static void RunEVPTests(const char *path) {
   KeyMap key_map;
-  FileTestGTest("crypto/evp/evp_tests.txt", [&](FileTest *t) {
+  FileTestGTest(path, [&](FileTest *t) {
     bool result = TestEVP(t, &key_map);
     if (t->HasAttribute("Error")) {
       ASSERT_FALSE(result) << "Operation unexpectedly succeeded.";
@@ -603,6 +603,24 @@ TEST(EVPTest, TestVectors) {
       ADD_FAILURE() << "Operation unexpectedly failed.";
     }
   });
+}
+
+TEST(EVPTest, GeneralTestVectors) {
+  RunEVPTests("crypto/evp/test/evp_tests.txt");
+}
+
+TEST(EVPTest, DHTestVectors) { RunEVPTests("crypto/evp/test/dh_tests.txt"); }
+
+TEST(EVPTest, ECTestVectors) { RunEVPTests("crypto/evp/test/ec_tests.txt"); }
+
+TEST(EVPTest, Ed25519TestVectors) {
+  RunEVPTests("crypto/evp/test/ed25519_tests.txt");
+}
+
+TEST(EVPTest, RSATestVectors) { RunEVPTests("crypto/evp/test/rsa_tests.txt"); }
+
+TEST(EVPTest, X25519TestVectors) {
+  RunEVPTests("crypto/evp/test/x25519_tests.txt");
 }
 
 static void RunWycheproofVerifyTest(const char *path) {

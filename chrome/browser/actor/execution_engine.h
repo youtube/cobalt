@@ -105,9 +105,11 @@ class ExecutionEngine : public ToolDelegate {
 
   // ToolDelegate:
   AggregatedJournal& GetJournal() override;
+  favicon::FaviconService* GetFaviconService() override;
   actor_login::ActorLoginService& GetActorLoginService() override;
   void PromptToSelectCredential(
       const std::vector<actor_login::Credential>& credentials,
+      const base::flat_map<GURL, gfx::Image>& favicons,
       ToolDelegate::CredentialSelectedCallback callback) override;
 
   static std::string StateToString(State state);
@@ -185,6 +187,11 @@ class ExecutionEngine : public ToolDelegate {
 
   // The results for script tool invocations so far.
   std::vector<optimization_guide::proto::ScriptToolResult> script_tool_results_;
+
+  // Origins which the browser is allowed to navigate to under actor control
+  // without prompting the user. This is applied to all navigations, including
+  // those initiated by the renderer with web content.
+  std::set<url::Origin> allowed_navigation_origins_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 

@@ -920,11 +920,7 @@ static int send_flight(SSL *ssl) {
     }
   }
 
-  if (BIO_flush(ssl->wbio.get()) <= 0) {
-    ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
-    return -1;
-  }
-
+  ssl->d1->pending_flush = true;
   return 1;
 }
 
@@ -1015,11 +1011,7 @@ static int send_ack(SSL *ssl) {
     return bio_ret;
   }
 
-  if (BIO_flush(ssl->wbio.get()) <= 0) {
-    ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
-    return -1;
-  }
-
+  ssl->d1->pending_flush = true;
   return 1;
 }
 
@@ -1060,6 +1052,14 @@ int dtls1_flush(SSL *ssl) {
       ssl->d1->retransmit_timer.StartMicroseconds(
           now, uint64_t{ssl->d1->timeout_duration_ms} * 1000);
     }
+  }
+
+  if (ssl->d1->pending_flush) {
+    if (BIO_flush(ssl->wbio.get()) <= 0) {
+      ssl->s3->rwstate = SSL_ERROR_WANT_WRITE;
+      return -1;
+    }
+    ssl->d1->pending_flush = false;
   }
 
   return 1;

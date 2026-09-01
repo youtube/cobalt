@@ -101,9 +101,12 @@ class TestPDFiumEngine : public PDFiumEngine {
 
   MOCK_METHOD(bool, IsPDFDocTagged, (), (const override));
 
-  uint32_t GetLoadedByteSize() override;
+  MOCK_METHOD(uint32_t, GetLoadedByteSize, (), (override));
 
-  bool ReadLoadedBytes(uint32_t offset, base::span<uint8_t> buffer) override;
+  MOCK_METHOD(bool,
+              ReadLoadedBytes,
+              (uint32_t, base::span<uint8_t>),
+              (override));
 
   MOCK_METHOD(void,
               RequestThumbnail,
@@ -139,7 +142,9 @@ class TestPDFiumEngine : public PDFiumEngine {
 
   MOCK_METHOD(bool, ExtendSelectionByPoint, (const gfx::PointF&), (override));
 
-  MOCK_METHOD((std::map<int, std::vector<gfx::Rect>>),
+  MOCK_METHOD(gfx::Transform, GetCanonicalToPdfTransform, (int), (override));
+
+  MOCK_METHOD((std::map<int, std::vector<PdfRect>>),
               GetSelectionRectMap,
               (),
               (override));
@@ -155,7 +160,7 @@ class TestPDFiumEngine : public PDFiumEngine {
               (override));
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
-  std::vector<uint8_t> GetSaveData() override;
+  MOCK_METHOD(std::vector<uint8_t>, GetSaveData, (), (override));
 
   MOCK_METHOD(void, SetCaretPosition, (const gfx::Point&), (override));
 

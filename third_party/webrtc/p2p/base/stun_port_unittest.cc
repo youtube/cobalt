@@ -218,8 +218,10 @@ class StunPortTestBase : public ::testing::Test, public sigslot::has_slots<> {
     stun_port_->SignalPortComplete.connect(this,
                                            &StunPortTestBase::OnPortComplete);
     stun_port_->SignalPortError.connect(this, &StunPortTestBase::OnPortError);
-    stun_port_->SignalCandidateError.connect(
-        this, &StunPortTestBase::OnCandidateError);
+    stun_port_->SubscribeCandidateError(
+        [this](Port* port, const IceCandidateErrorEvent& event) {
+          OnCandidateError(port, event);
+        });
   }
 
   void CreateSharedUdpPort(
@@ -758,10 +760,10 @@ TEST_P(StunPortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
 }
 
 const IPAddressTypeTestConfig kAllIPAddressTypeTestConfigs[] = {
-    {"127.0.0.1", webrtc::IPAddressType::kLoopback},
-    {"localhost", webrtc::IPAddressType::kLoopback},
-    {"10.0.0.3", webrtc::IPAddressType::kPrivate},
-    {"1.1.1.1", webrtc::IPAddressType::kPublic},
+    {.address = "127.0.0.1", .address_type = webrtc::IPAddressType::kLoopback},
+    {.address = "localhost", .address_type = webrtc::IPAddressType::kLoopback},
+    {.address = "10.0.0.3", .address_type = webrtc::IPAddressType::kPrivate},
+    {.address = "1.1.1.1", .address_type = webrtc::IPAddressType::kPublic},
 };
 
 INSTANTIATE_TEST_SUITE_P(All,
@@ -1017,9 +1019,11 @@ TEST_P(StunIPv6PortIPAddressTypeMetricsTest, TestIPAddressTypeMetrics) {
 }
 
 const IPAddressTypeTestConfig kAllIPv6AddressTypeTestConfigs[] = {
-    {"::1", webrtc::IPAddressType::kLoopback},
-    {"fd00:4860:4860::8844", webrtc::IPAddressType::kPrivate},
-    {"2001:4860:4860::8888", webrtc::IPAddressType::kPublic},
+    {.address = "::1", .address_type = webrtc::IPAddressType::kLoopback},
+    {.address = "fd00:4860:4860::8844",
+     .address_type = webrtc::IPAddressType::kPrivate},
+    {.address = "2001:4860:4860::8888",
+     .address_type = webrtc::IPAddressType::kPublic},
 };
 
 INSTANTIATE_TEST_SUITE_P(All,

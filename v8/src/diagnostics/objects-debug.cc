@@ -200,7 +200,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 
   // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
   CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpaceOrFiller(*this),
-                !HeapLayout::InTrustedSpace(*this));
+                !HeapLayout::SafeInTrustedSpace(*this));
 
   switch (map(cage_base)->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -257,7 +257,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
 
     case INSTRUCTION_STREAM_TYPE:
-      Cast<InstructionStream>(*this)->InstructionStreamVerify(isolate);
+      TrustedCast<InstructionStream>(*this)->InstructionStreamVerify(isolate);
       break;
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
@@ -277,11 +277,11 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       break;
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      Cast<WasmTrustedInstanceData>(*this)->WasmTrustedInstanceDataVerify(
-          isolate);
+      TrustedCast<WasmTrustedInstanceData>(*this)
+          ->WasmTrustedInstanceDataVerify(isolate);
       break;
     case WASM_DISPATCH_TABLE_TYPE:
-      Cast<WasmDispatchTable>(*this)->WasmDispatchTableVerify(isolate);
+      TrustedCast<WasmDispatchTable>(*this)->WasmDispatchTableVerify(isolate);
       break;
     case WASM_VALUE_OBJECT_TYPE:
       Cast<WasmValueObject>(*this)->WasmValueObjectVerify(isolate);
@@ -302,7 +302,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
     case FILLER_TYPE:
       break;
     case CODE_TYPE:
-      Cast<Code>(*this)->CodeVerify(isolate);
+      TrustedCast<Code>(*this)->CodeVerify(isolate);
       break;
     case CODE_WRAPPER_TYPE:
       Cast<CodeWrapper>(*this)->CodeWrapperVerify(isolate);
@@ -311,15 +311,19 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       Cast<DoubleStringCache>(*this)->DoubleStringCacheVerify(isolate);
       break;
 
-#define MAKE_TORQUE_CASE(Name, TYPE)          \
-  case TYPE:                                  \
-    Cast<Name>(*this)->Name##Verify(isolate); \
+#define MAKE_TORQUE_CASE(Name, TYPE)                 \
+  case TYPE:                                         \
+    TrustedCast<Name>(*this)->Name##Verify(isolate); \
     break;
       // Every class that has its fields defined in a .tq file and corresponds
       // to exactly one InstanceType value is included in the following list.
       TORQUE_INSTANCE_CHECKERS_SINGLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
       TORQUE_INSTANCE_CHECKERS_MULTIPLE_FULLY_DEFINED(MAKE_TORQUE_CASE)
 #undef MAKE_TORQUE_CASE
+
+    case HOLE_TYPE:
+      Cast<Hole>(*this)->HoleVerify(isolate);
+      break;
 
     case TUPLE2_TYPE:
       Cast<Tuple2>(*this)->Tuple2Verify(isolate);
@@ -1586,7 +1590,7 @@ void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
-  CHECK(HeapLayout::InTrustedSpace(*this) || IsCode(*this));
+  CHECK(HeapLayout::SafeInTrustedSpace(*this) || IsCode(*this));
 #endif
 }
 
@@ -2215,6 +2219,7 @@ void IrRegExpData::IrRegExpDataVerify(Isolate* isolate) {
       CHECK_EQ(max_register_count(), JSRegExp::kUninitializedValue);
       CHECK_EQ(ticks_until_tier_up(), JSRegExp::kUninitializedValue);
       CHECK_EQ(backtrack_limit(), JSRegExp::kUninitializedValue);
+      CHECK_EQ(bit_field(), 0);
 
       break;
     }

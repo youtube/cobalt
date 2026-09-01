@@ -19,6 +19,7 @@
 #include <optional>
 #include <vector>
 
+#include "api/environment/environment.h"
 #include "api/units/time_delta.h"
 #include "api/video_codecs/vp8_frame_buffer_controller.h"
 #include "api/video_codecs/vp8_frame_config.h"
@@ -29,6 +30,7 @@
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/time_utils.h"
 #include "system_wrappers/include/metrics.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "third_party/libvpx/source/libvpx/vpx/vp8cx.h"
@@ -72,7 +74,7 @@ class ScreenshareLayerTest : public ::testing::Test {
   ~ScreenshareLayerTest() override {}
 
   void SetUp() override {
-    layers_.reset(new ScreenshareLayers(2));
+    layers_ = std::make_unique<ScreenshareLayers>(env_, 2);
     cfg_ = ConfigureBitrates();
   }
 
@@ -194,6 +196,7 @@ class ScreenshareLayerTest : public ::testing::Test {
     return -1;
   }
 
+  const Environment env_ = CreateTestEnvironment();
   int min_qp_;
   uint32_t max_qp_;
   int frame_size_;
@@ -215,7 +218,7 @@ class ScreenshareLayerTest : public ::testing::Test {
 };
 
 TEST_F(ScreenshareLayerTest, 1Layer) {
-  layers_.reset(new ScreenshareLayers(1));
+  layers_ = std::make_unique<ScreenshareLayers>(env_, 1);
   ConfigureBitrates();
   // One layer screenshare should not use the frame dropper as all frames will
   // belong to the base layer.

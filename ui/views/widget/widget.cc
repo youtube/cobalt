@@ -610,7 +610,10 @@ void Widget::Init(InitParams params) {
     parent_->OnChildAdded(this);
   }
 
-  native_widget_->OnWidgetThemeChanged(GetColorMode(), background_color_);
+  native_widget_->OnWidgetThemeChanged(
+      GetColorMode(), background_color_ ? GetColorProvider()->GetColor(
+                                              background_color_.value())
+                                        : std::optional<SkColor>());
 
   UpdateAccessibleNameForRootView();
   native_theme_observation_.Observe(GetNativeTheme());
@@ -668,7 +671,7 @@ gfx::NativeWindow Widget::GetNativeWindow() const {
 
 std::optional<display::Display> Widget::GetNearestDisplay() {
   if (auto native_view = GetNativeView()) {
-    return display::Screen::GetScreen()->GetDisplayNearestView(native_view);
+    return display::Screen::Get()->GetDisplayNearestView(native_view);
   }
   return std::nullopt;
 }
@@ -1479,7 +1482,10 @@ void Widget::ThemeChanged() {
   NotifyColorProviderChanged();
 
   if (native_widget_) {
-    native_widget_->OnWidgetThemeChanged(GetColorMode(), background_color_);
+    native_widget_->OnWidgetThemeChanged(
+        GetColorMode(), background_color_ ? GetColorProvider()->GetColor(
+                                                background_color_.value())
+                                          : std::optional<SkColor>());
   }
 }
 
@@ -1609,8 +1615,7 @@ gfx::Rect Widget::GetWorkAreaBoundsInScreen() const {
 
 void Widget::SynthesizeMouseMoveEvent() {
   // In screen coordinate.
-  gfx::Point mouse_location =
-      display::Screen::GetScreen()->GetCursorScreenPoint();
+  gfx::Point mouse_location = display::Screen::Get()->GetCursorScreenPoint();
   if (!GetWindowBoundsInScreen().Contains(mouse_location)) {
     return;
   }
@@ -1709,6 +1714,12 @@ void Widget::OnParentShouldPaintAsActiveChanged() {
 }
 
 void Widget::NotifyPaintAsActiveChanged() {
+  // In the case the Widget has closed do not notify paint as active changes to
+  // mitigate the risk of UAFs and attempted accesses to torn-down Widget
+  // subclass state.
+  if (widget_closed_) {
+    return;
+  }
   paint_as_active_callbacks_.Notify();
   if (native_widget_) {
     native_widget_->PaintAsActiveChanged();
@@ -2398,7 +2409,7 @@ void Widget::OnAXModeAdded(ui::AXMode mode) {
 
 void Widget::SetColorModeOverride(
     std::optional<ui::ColorProviderKey::ColorMode> color_mode,
-    std::optional<SkColor> background_color) {
+    std::optional<ui::ColorId> background_color) {
   if (color_mode != color_mode_override_ ||
       background_color != background_color_) {
     color_mode_override_ = color_mode;

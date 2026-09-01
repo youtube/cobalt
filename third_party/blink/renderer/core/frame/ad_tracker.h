@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <optional>
+#include <variant>
 
 #include "base/feature_list.h"
 #include "components/subresource_filter/core/common/scoped_rule.h"
@@ -17,7 +18,6 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_info.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
-#include "third_party/blink/renderer/platform/wtf/casting.h"
 #include "third_party/blink/renderer/platform/wtf/hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
@@ -40,75 +40,17 @@ class ExecuteScript;
 // The tracker is maintained per local root.
 class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
  public:
-  struct AdProvenance {
-    // Represents the reason why a script is classified as an ad.
-    enum class ProvenanceType {
-      // The script is flagged by the subresource filter.
-      kMatchedRule,
+  struct NoProvenance {};
 
-      // The script itself is not flagged by the subresource filter, but another
-      // ad script (i.e., the "ancestor") exists in its creation stack.
-      kAncestorScript,
-
-      // The ad script has neither an ancestor nor a rule match. This can happen
-      // if:
-      // 1) A non-filterlisted URL, initially a redirect target from a
-      //    filterlisted URL, is later encountered again when loading this
-      //    script.
-      // 2) The script originates from an ad context without further traceable
-      //    script.
-      //
-      // TODO(yaoxia): Re-evaluate the necessity of this type once
-      // crbug.com/417756984 and crbug.com/421202278 are fixed.
-      kNone,
-    };
-
-    virtual ~AdProvenance() = default;
-
-    virtual std::unique_ptr<AdProvenance> Clone() const = 0;
-
-    virtual ProvenanceType Type() const = 0;
-  };
-
-  struct AdRulesetProvenance : public AdProvenance {
-    AdRulesetProvenance(const subresource_filter::ScopedRule& filterlist_rule)
-        : filterlist_rule(filterlist_rule) {}
-
-    std::unique_ptr<AdProvenance> Clone() const override {
-      return std::make_unique<AdRulesetProvenance>(*this);
-    }
-
-    ProvenanceType Type() const override {
-      return ProvenanceType::kMatchedRule;
-    }
-
-    // The filterlist rule that caused this script to be flagged as an ad.
-    subresource_filter::ScopedRule filterlist_rule;
-  };
-
-  struct AdAncestorProvenance : public AdProvenance {
-    AdAncestorProvenance(const AdScriptIdentifier& ancestor_ad_script)
-        : ancestor_ad_script(ancestor_ad_script) {}
-
-    std::unique_ptr<AdProvenance> Clone() const override {
-      return std::make_unique<AdAncestorProvenance>(*this);
-    }
-
-    ProvenanceType Type() const override {
-      return ProvenanceType::kAncestorScript;
-    }
-
-    // This script's ancestor ad script in the creation stack.
-    AdScriptIdentifier ancestor_ad_script;
-  };
-
-  struct NoAdProvenance : public AdProvenance {
-    std::unique_ptr<AdProvenance> Clone() const override {
-      return std::make_unique<NoAdProvenance>(*this);
-    }
-
-    ProvenanceType Type() const override { return ProvenanceType::kNone; }
-  };
+  // Represents the reason why a script is classified as an ad. It can be one
+  // of:
+  // - NoProvenance: The script has neither an ancestor nor a rule match.
+  // - subresource_filter::ScopedRule: The script is flagged by the subresource
+  //   filter.
+  // - script_id: The script itself is not flagged, but another ad
+  //   script (the "ancestor") exists in its creation stack.
+  using AdProvenance =
+      std::variant<NoProvenance, subresource_filter::ScopedRule, int>;
 
   enum class StackType { kBottomOnly, kBottomAndTop };
 
@@ -191,16 +133,17 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   AdTracker& operator=(const AdTracker&) = delete;
   virtual ~AdTracker();
 
- protected:
-  // Protected for testing.
-  // Note that this outputs the `out_top_script` even when it's not an ad.
-  virtual int ScriptAtTopOfStack();
-  virtual ExecutionContext* GetCurrentExecutionContext();
-
  private:
   friend class FrameFetchContextSubresourceFilterTest;
   friend class AdTrackerSimTest;
   friend class AdTrackerTest;
+
+  struct AdScriptData {
+    AdScriptIdentifier id;
+    AdProvenance provenance;
+  };
+
+  ExecutionContext* GetCurrentExecutionContext(v8::Isolate*);
 
   // Similar to the public IsAdScriptInStack method but instead of returning an
   // ancestry chain, it returns only one script (the most immediate one).
@@ -214,7 +157,7 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   // ad scripts associated with the provided `execution_context`.
   void AppendToKnownAdScripts(ExecutionContext& execution_context,
                               const String& url,
-                              std::unique_ptr<AdProvenance> ad_provenance);
+                              AdProvenance ad_provenance);
 
   // Handles the discovery of a script ID for a known ad script. It creates and
   // links a new AdScriptIdentifier (with `script_id` and `v8_context`) to the
@@ -234,8 +177,9 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
 
   Member<LocalFrame> local_root_;
 
-  // The list of ad script ids currently in the stack.
-  Vector<int> ad_scripts_in_stack_;
+  // Indicates the bottom-most synchronous ad script on the stack or
+  // `std::nullopt` if there isn't one.
+  std::optional<int> bottom_most_ad_script_;
 
   // Indicates the bottom-most ad script on the async stack or `std::nullopt`
   // if there isn't one.
@@ -247,42 +191,17 @@ class CORE_EXPORT AdTracker : public GarbageCollected<AdTracker> {
   // - Scripts with a resource URL are identified by that URL.
   // - Inline scripts (without a URL) are assigned a unique synthetic URL
   //   generated by `GenerateFakeUrlFromScriptId()`.
-  using KnownAdScriptsAndProvenance =
-      HashMap<String, std::unique_ptr<AdProvenance>>;
+  using KnownAdScriptsAndProvenance = HashMap<String, AdProvenance>;
 
   // Tracks ad scripts detected outside of ad-frame contexts.
   HeapHashMap<WeakMember<ExecutionContext>, KnownAdScriptsAndProvenance>
       context_known_ad_scripts_;
 
-  // Maps the identifier of a detected ad script to its AdProvenance.
-  HashMap<AdScriptIdentifier, std::unique_ptr<AdProvenance>>
-      ad_script_provenances_;
+  // A map of all known ad script ids to their metadata.
+  HashMap<int, AdScriptData> ad_script_data_;
 
   // The number of ad-related async tasks currently running in the stack.
   int running_ad_async_tasks_ = 0;
-
-  // The known ad-related script ids.
-  // TODO(jkarlin): We don't use the debugger id in the
-  // AdScriptIdentifier for the AdTracker itself, it's just for dev-tools. See
-  // if we can remove it completely and just use script ids within the
-  // AdTracker.
-  HashMap<int, AdScriptIdentifier> ad_script_ids_;
-};
-
-template <>
-struct DowncastTraits<AdTracker::AdRulesetProvenance> {
-  static bool AllowFrom(const AdTracker::AdProvenance& ad_provenance) {
-    return ad_provenance.Type() ==
-           AdTracker::AdProvenance::ProvenanceType::kMatchedRule;
-  }
-};
-
-template <>
-struct DowncastTraits<AdTracker::AdAncestorProvenance> {
-  static bool AllowFrom(const AdTracker::AdProvenance& ad_provenance) {
-    return ad_provenance.Type() ==
-           AdTracker::AdProvenance::ProvenanceType::kAncestorScript;
-  }
 };
 
 }  // namespace blink

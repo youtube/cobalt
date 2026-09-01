@@ -13,25 +13,26 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <variant>
 #include <vector>
 
 #include "api/make_ref_counted.h"
 #include "api/scoped_refptr.h"
 #include "api/video/corruption_detection/corruption_detection_filter_settings.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "rtc_base/ref_counted_object.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
 namespace webrtc {
 namespace {
+using ::testing::DoubleEq;
 using ::testing::ElementsAre;
+using ::testing::Pointwise;
 
 constexpr int kDefaultScaledWidth = 4;
 constexpr int kDefaultScaledHeight = 4;
@@ -165,20 +166,15 @@ TEST(FrameInstrumentationGeneratorTest,
   encoded_image._encodedHeight = kDefaultScaledHeight;
 
   generator.OnCapturedFrame(frame);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data = generator.OnEncodedImage(encoded_image);
+  std::optional<FrameInstrumentationData> frame_instrumentation_data =
+      generator.OnEncodedImage(encoded_image);
 
-  ASSERT_TRUE(data.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data));
-  FrameInstrumentationData frame_instrumentation_data =
-      std::get<FrameInstrumentationData>(*data);
-  EXPECT_EQ(frame_instrumentation_data.sequence_index, 0);
-  EXPECT_TRUE(frame_instrumentation_data.communicate_upper_bits);
-  EXPECT_NE(frame_instrumentation_data.std_dev, 0.0);
-  EXPECT_NE(frame_instrumentation_data.luma_error_threshold, 0);
-  EXPECT_NE(frame_instrumentation_data.chroma_error_threshold, 0);
-  EXPECT_FALSE(frame_instrumentation_data.sample_values.empty());
+  ASSERT_TRUE(frame_instrumentation_data.has_value());
+  EXPECT_EQ(frame_instrumentation_data->sequence_index(), 0);
+  EXPECT_NE(frame_instrumentation_data->std_dev(), 0.0);
+  EXPECT_NE(frame_instrumentation_data->luma_error_threshold(), 0);
+  EXPECT_NE(frame_instrumentation_data->chroma_error_threshold(), 0);
+  EXPECT_FALSE(frame_instrumentation_data->sample_values().empty());
 }
 
 TEST(FrameInstrumentationGeneratorTest,
@@ -205,20 +201,15 @@ TEST(FrameInstrumentationGeneratorTest,
   encoded_image._encodedHeight = kDefaultScaledHeight;
 
   generator.OnCapturedFrame(frame);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data = generator.OnEncodedImage(encoded_image);
+  std::optional<FrameInstrumentationData> frame_instrumentation_data =
+      generator.OnEncodedImage(encoded_image);
 
-  ASSERT_TRUE(data.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data));
-  FrameInstrumentationData frame_instrumentation_data =
-      std::get<FrameInstrumentationData>(*data);
-  EXPECT_EQ(frame_instrumentation_data.sequence_index, 0);
-  EXPECT_TRUE(frame_instrumentation_data.communicate_upper_bits);
-  EXPECT_NE(frame_instrumentation_data.std_dev, 0.0);
-  EXPECT_NE(frame_instrumentation_data.luma_error_threshold, 0);
-  EXPECT_NE(frame_instrumentation_data.chroma_error_threshold, 0);
-  EXPECT_FALSE(frame_instrumentation_data.sample_values.empty());
+  ASSERT_TRUE(frame_instrumentation_data.has_value());
+  EXPECT_EQ(frame_instrumentation_data->sequence_index(), 0);
+  EXPECT_NE(frame_instrumentation_data->std_dev(), 0.0);
+  EXPECT_NE(frame_instrumentation_data->luma_error_threshold(), 0);
+  EXPECT_NE(frame_instrumentation_data->chroma_error_threshold(), 0);
+  EXPECT_FALSE(frame_instrumentation_data->sample_values().empty());
 }
 
 TEST(FrameInstrumentationGeneratorTest,
@@ -247,20 +238,15 @@ TEST(FrameInstrumentationGeneratorTest,
 
   generator.OnCapturedFrame(frame);
   generator.OnEncodedImage(encoded_image1);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data = generator.OnEncodedImage(encoded_image2);
+  std::optional<FrameInstrumentationData> frame_instrumentation_data =
+      generator.OnEncodedImage(encoded_image2);
 
-  ASSERT_TRUE(data.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data));
-  FrameInstrumentationData frame_instrumentation_data =
-      std::get<FrameInstrumentationData>(*data);
-  EXPECT_EQ(frame_instrumentation_data.sequence_index, 0);
-  EXPECT_TRUE(frame_instrumentation_data.communicate_upper_bits);
-  EXPECT_NE(frame_instrumentation_data.std_dev, 0.0);
-  EXPECT_NE(frame_instrumentation_data.luma_error_threshold, 0);
-  EXPECT_NE(frame_instrumentation_data.chroma_error_threshold, 0);
-  EXPECT_FALSE(frame_instrumentation_data.sample_values.empty());
+  ASSERT_TRUE(frame_instrumentation_data.has_value());
+  EXPECT_EQ(frame_instrumentation_data->sequence_index(), 0);
+  EXPECT_NE(frame_instrumentation_data->std_dev(), 0.0);
+  EXPECT_NE(frame_instrumentation_data->luma_error_threshold(), 0);
+  EXPECT_NE(frame_instrumentation_data->chroma_error_threshold(), 0);
+  EXPECT_FALSE(frame_instrumentation_data->sample_values().empty());
 }
 
 TEST(FrameInstrumentationGeneratorTest,
@@ -329,24 +315,17 @@ TEST(FrameInstrumentationGeneratorTest,
 
     generator.OnCapturedFrame(frame);
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data1 = generator.OnEncodedImage(encoded_image1);
+    std::optional<FrameInstrumentationData> data1 =
+        generator.OnEncodedImage(encoded_image1);
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data2 = generator.OnEncodedImage(encoded_image2);
+    std::optional<FrameInstrumentationData> data2 =
+        generator.OnEncodedImage(encoded_image2);
 
     ASSERT_TRUE(data1.has_value());
     ASSERT_TRUE(data2.has_value());
-    ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
 
-    ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
-
-    EXPECT_TRUE(
-        std::get<FrameInstrumentationData>(*data1).communicate_upper_bits);
-    EXPECT_TRUE(
-        std::get<FrameInstrumentationData>(*data2).communicate_upper_bits);
+    EXPECT_TRUE(data1->holds_upper_bits());
+    EXPECT_TRUE(data2->holds_upper_bits());
   }
 }
 
@@ -382,35 +361,24 @@ TEST(FrameInstrumentationGeneratorTest,
 
     generator.OnCapturedFrame(frame);
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data1 = generator.OnEncodedImage(encoded_image1);
+    std::optional<FrameInstrumentationData> data1 =
+        generator.OnEncodedImage(encoded_image1);
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data2 = generator.OnEncodedImage(encoded_image2);
+    std::optional<FrameInstrumentationData> data2 =
+        generator.OnEncodedImage(encoded_image2);
 
     ASSERT_TRUE(data1.has_value());
     ASSERT_TRUE(data2.has_value());
-    ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
 
-    ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
+    EXPECT_TRUE(data1->holds_upper_bits());
+    EXPECT_TRUE(data2->holds_upper_bits());
 
-    FrameInstrumentationData frame_instrumentation_data1 =
-        std::get<FrameInstrumentationData>(*data1);
-    FrameInstrumentationData frame_instrumentation_data2 =
-        std::get<FrameInstrumentationData>(*data2);
-
-    EXPECT_TRUE(frame_instrumentation_data1.communicate_upper_bits);
-    EXPECT_TRUE(frame_instrumentation_data2.communicate_upper_bits);
-
-    EXPECT_EQ(frame_instrumentation_data1.sequence_index,
-              frame_instrumentation_data2.sequence_index);
+    EXPECT_EQ(data1->sequence_index(), data2->sequence_index());
 
     // In the test the frames have equal frame buffers so the sample values
     // should be equal.
-    EXPECT_THAT(frame_instrumentation_data1.sample_values,
-                frame_instrumentation_data2.sample_values);
+    EXPECT_THAT(data1->sample_values(),
+                Pointwise(DoubleEq(), data2->sample_values()));
   }
 }
 
@@ -445,35 +413,24 @@ TEST(FrameInstrumentationGeneratorTest,
 
     generator.OnCapturedFrame(frame);
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data1 = generator.OnEncodedImage(encoded_image1);
+    std::optional<FrameInstrumentationData> data1 =
+        generator.OnEncodedImage(encoded_image1);
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data2 = generator.OnEncodedImage(encoded_image2);
+    std::optional<FrameInstrumentationData> data2 =
+        generator.OnEncodedImage(encoded_image2);
 
     if (i == 0) {
       ASSERT_TRUE(data1.has_value());
       ASSERT_TRUE(data2.has_value());
-      ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
 
-      ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
-
-      EXPECT_TRUE(
-          std::get<FrameInstrumentationData>(*data1).communicate_upper_bits);
-      EXPECT_TRUE(
-          std::get<FrameInstrumentationData>(*data2).communicate_upper_bits);
+      EXPECT_TRUE(data1->holds_upper_bits());
+      EXPECT_TRUE(data2->holds_upper_bits());
     } else if (data1.has_value() || data2.has_value()) {
       if (data1.has_value()) {
-        ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
-        EXPECT_FALSE(
-            std::get<FrameInstrumentationData>(*data1).communicate_upper_bits);
+        EXPECT_FALSE(data1->holds_upper_bits());
       }
       if (data2.has_value()) {
-        ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
-        EXPECT_FALSE(
-            std::get<FrameInstrumentationData>(*data2).communicate_upper_bits);
+        EXPECT_FALSE(data2->holds_upper_bits());
       }
       has_found_delta_frame = true;
     }
@@ -517,25 +474,16 @@ TEST(FrameInstrumentationGeneratorTest,
   generator.SetHaltonSequenceIndex(0b0010'1010,
                                    generator.GetLayerId(encoded_image1));
 
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data1 = generator.OnEncodedImage(encoded_image1);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data2 = generator.OnEncodedImage(encoded_image2);
+  std::optional<FrameInstrumentationData> data1 =
+      generator.OnEncodedImage(encoded_image1);
+  std::optional<FrameInstrumentationData> data2 =
+      generator.OnEncodedImage(encoded_image2);
 
   ASSERT_TRUE(data1.has_value());
   ASSERT_TRUE(data2.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
 
-  FrameInstrumentationData frame_instrumentation_data1 =
-      std::get<FrameInstrumentationData>(*data1);
-  FrameInstrumentationData frame_instrumentation_data2 =
-      std::get<FrameInstrumentationData>(*data2);
-
-  EXPECT_EQ(frame_instrumentation_data1.sequence_index, 0b0000'1000'0000);
-  EXPECT_EQ(frame_instrumentation_data2.sequence_index, 0b0001'0000'0000);
+  EXPECT_EQ(data1->sequence_index(), 0b0000'1000'0000);
+  EXPECT_EQ(data2->sequence_index(), 0b0001'0000'0000);
 }
 
 TEST(FrameInstrumentationGeneratorTest,
@@ -574,25 +522,16 @@ TEST(FrameInstrumentationGeneratorTest,
             generator.GetLayerId(encoded_image2));
   generator.SetHaltonSequenceIndex(0b11'1111'1111'1111,
                                    generator.GetLayerId(encoded_image1));
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data1 = generator.OnEncodedImage(encoded_image1);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data2 = generator.OnEncodedImage(encoded_image2);
+  std::optional<FrameInstrumentationData> data1 =
+      generator.OnEncodedImage(encoded_image1);
+  std::optional<FrameInstrumentationData> data2 =
+      generator.OnEncodedImage(encoded_image2);
 
   ASSERT_TRUE(data1.has_value());
   ASSERT_TRUE(data2.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
 
-  FrameInstrumentationData frame_instrumentation_data1 =
-      std::get<FrameInstrumentationData>(*data1);
-  FrameInstrumentationData frame_instrumentation_data2 =
-      std::get<FrameInstrumentationData>(*data2);
-
-  EXPECT_EQ(frame_instrumentation_data1.sequence_index, 0);
-  EXPECT_EQ(frame_instrumentation_data2.sequence_index, 0b1000'0000);
+  EXPECT_EQ(data1->sequence_index(), 0);
+  EXPECT_EQ(data2->sequence_index(), 0b1000'0000);
 }
 
 TEST(FrameInstrumentationGeneratorTest,
@@ -631,25 +570,64 @@ TEST(FrameInstrumentationGeneratorTest,
   generator.SetHaltonSequenceIndex(0b1000'0000,
                                    generator.GetLayerId(encoded_image1));
 
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data1 = generator.OnEncodedImage(encoded_image1);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data2 = generator.OnEncodedImage(encoded_image2);
+  std::optional<FrameInstrumentationData> data1 =
+      generator.OnEncodedImage(encoded_image1);
+  std::optional<FrameInstrumentationData> data2 =
+      generator.OnEncodedImage(encoded_image2);
 
   ASSERT_TRUE(data1.has_value());
   ASSERT_TRUE(data2.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data1));
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data2));
 
-  FrameInstrumentationData frame_instrumentation_data1 =
-      std::get<FrameInstrumentationData>(*data1);
-  FrameInstrumentationData frame_instrumentation_data2 =
-      std::get<FrameInstrumentationData>(*data2);
+  EXPECT_EQ(data1->sequence_index(), 0b0000'1000'0000);
+  EXPECT_EQ(data2->sequence_index(), 0b0001'0000'0000);
+}
+TEST(FrameInstrumentationGeneratorTest,
+     SequenceIndexThatWouldOverflowTo15BitsIncreasesCorrectlyAtNewDeltaFrame) {
+  FrameInstrumentationGenerator generator(VideoCodecType::kVideoCodecVP8);
+  generator.OnCapturedFrame(
+      VideoFrame::Builder()
+          .set_video_frame_buffer(MakeI420FrameBufferWithDifferentPixelValues())
+          .set_rtp_timestamp(1)
+          .build());
+  EncodedImage encoded_image;
+  encoded_image.SetRtpTimestamp(1);
+  encoded_image.SetFrameType(VideoFrameType::kVideoFrameDelta);
+  encoded_image.qp_ = 10;
+  encoded_image._encodedWidth = kDefaultScaledWidth;
+  encoded_image._encodedHeight = kDefaultScaledHeight;
+  encoded_image.SetSimulcastIndex(0);
 
-  EXPECT_EQ(frame_instrumentation_data1.sequence_index, 0b0000'1000'0000);
-  EXPECT_EQ(frame_instrumentation_data2.sequence_index, 0b0001'0000'0000);
+  constexpr int kMaxSequenceIndex = 0b11'1111'1111'1111;
+
+  generator.SetHaltonSequenceIndex(kMaxSequenceIndex,
+                                   generator.GetLayerId(encoded_image));
+  std::optional<FrameInstrumentationData> data =
+      generator.OnEncodedImage(encoded_image);
+
+  ASSERT_TRUE(data.has_value());
+  EXPECT_EQ(data->sequence_index(), kMaxSequenceIndex);
+
+  // Loop until we get a new delta frame.
+  bool has_found_delta_frame = false;
+  for (int i = 0; i < 34; ++i) {
+    generator.OnCapturedFrame(
+        VideoFrame::Builder()
+            .set_video_frame_buffer(
+                MakeI420FrameBufferWithDifferentPixelValues())
+            .set_rtp_timestamp(i + 2)
+            .build());
+
+    encoded_image.SetRtpTimestamp(i + 2);
+
+    std::optional<FrameInstrumentationData> frame_instrumentation_data =
+        generator.OnEncodedImage(encoded_image);
+    if (frame_instrumentation_data.has_value()) {
+      has_found_delta_frame = true;
+      EXPECT_EQ(frame_instrumentation_data->sequence_index(), 0);
+      break;
+    }
+  }
+  EXPECT_TRUE(has_found_delta_frame);
 }
 
 TEST(FrameInstrumentationGeneratorTest, GetterAndSetterOperatesAsExpected) {
@@ -734,17 +712,13 @@ TEST(FrameInstrumentationGeneratorTest,
                                         .chroma_error_threshold = 3});
 
   generator.OnCapturedFrame(frame);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data = generator.OnEncodedImage(encoded_image);
+  std::optional<FrameInstrumentationData> frame_instrumentation_data =
+      generator.OnEncodedImage(encoded_image);
 
-  ASSERT_TRUE(data.has_value());
-  ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data));
-  FrameInstrumentationData frame_instrumentation_data =
-      std::get<FrameInstrumentationData>(*data);
-  EXPECT_EQ(frame_instrumentation_data.std_dev, 1.0);
-  EXPECT_EQ(frame_instrumentation_data.luma_error_threshold, 2);
-  EXPECT_EQ(frame_instrumentation_data.chroma_error_threshold, 3);
+  ASSERT_TRUE(frame_instrumentation_data.has_value());
+  EXPECT_EQ(frame_instrumentation_data->std_dev(), 1.0);
+  EXPECT_EQ(frame_instrumentation_data->luma_error_threshold(), 2);
+  EXPECT_EQ(frame_instrumentation_data->chroma_error_threshold(), 3);
 }
 
 }  // namespace

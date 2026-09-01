@@ -112,6 +112,9 @@ std::optional<std::pair<EntityInstance, EntityInstance>> MaybeUpdateEntity(
     if (entity.type() != existing_entity.type()) {
       continue;
     }
+    if (existing_entity.are_attributes_read_only()) {
+      continue;
+    }
     EntityInstance::EntityMergeability mergeability =
         existing_entity.GetEntityMergeability(entity);
     if (mergeability.mergeable_attributes.empty()) {
@@ -129,7 +132,7 @@ std::optional<std::pair<EntityInstance, EntityInstance>> MaybeUpdateEntity(
         EntityInstance(existing_entity.type(), std::move(new_attributes),
                        existing_entity.guid(), existing_entity.nickname(),
                        base::Time::Now(), existing_entity.use_count(),
-                       base::Time::Now()),
+                       base::Time::Now(), existing_entity.record_type()),
         existing_entity);
   }
   return std::nullopt;
@@ -268,8 +271,9 @@ bool AutofillAiManager::MaybeImportForm(const FormStructure& form) {
     return false;
   }
   std::vector<EntityInstance> entity_instances_from_form =
-      GetPossibleEntitiesFromSubmittedForm(form.fields(),
-                                           client_->GetAppLocale());
+      GetPossibleEntitiesFromSubmittedForm(
+          form.fields(), client_->GetAppLocale(),
+          client_->GetVariationConfigCountryCode());
   if (entity_instances_from_form.empty()) {
     return false;
   }
@@ -330,7 +334,7 @@ void AutofillAiManager::HandleSavePromptResult(
 }
 
 void AutofillAiManager::HandleUpdatePromptResult(
-    const base::Uuid& entity_uuid,
+    const EntityInstance::EntityId& entity_uuid,
     AutofillClient::EntitySaveOrUpdatePromptResult result) {
   if (!result.entity) {
     if (result.did_user_decline) {
@@ -443,9 +447,9 @@ void AutofillAiManager::AddStrikeForSaveAttempt(const GURL& url,
 }
 
 void AutofillAiManager::AddStrikeForUpdateAttempt(
-    const base::Uuid& entity_uuid) {
+    const EntityInstance::EntityId& entity_uuid) {
   if (update_strike_db_) {
-    update_strike_db_->AddStrike(entity_uuid.AsLowercaseString());
+    update_strike_db_->AddStrike(*entity_uuid);
   }
 }
 
@@ -464,9 +468,10 @@ void AutofillAiManager::ClearStrikesForSave(const GURL& url,
   }
 }
 
-void AutofillAiManager::ClearStrikesForUpdate(const base::Uuid& entity_uuid) {
+void AutofillAiManager::ClearStrikesForUpdate(
+    const EntityInstance::EntityId& entity_uuid) {
   if (update_strike_db_) {
-    update_strike_db_->ClearStrikes(entity_uuid.AsLowercaseString());
+    update_strike_db_->ClearStrikes(*entity_uuid);
   }
 }
 
@@ -493,9 +498,9 @@ bool AutofillAiManager::IsSaveBlockedByStrikeDatabase(
 }
 
 bool AutofillAiManager::IsUpdateBlockedByStrikeDatabase(
-    const base::Uuid& entity_uuid) const {
+    const EntityInstance::EntityId& entity_uuid) const {
   return !update_strike_db_ ||
-         update_strike_db_->ShouldBlockFeature(entity_uuid.AsLowercaseString());
+         update_strike_db_->ShouldBlockFeature(*entity_uuid);
 }
 
 base::WeakPtr<AutofillAiManager> AutofillAiManager::GetWeakPtr() {

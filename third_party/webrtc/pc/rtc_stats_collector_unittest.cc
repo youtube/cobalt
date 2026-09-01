@@ -2620,6 +2620,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
       300;
   video_media_info.senders[0].quality_limitation_resolution_changes = 56u;
   video_media_info.senders[0].qp_sum = std::nullopt;
+  video_media_info.senders[0].psnr_measurements = 0;
   video_media_info.senders[0].content_type = VideoContentType::UNSPECIFIED;
   video_media_info.senders[0].encoder_implementation_name = std::nullopt;
   video_media_info.senders[0].power_efficient_encoder = false;
@@ -2706,6 +2707,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   expected_video.rtx_ssrc = 4404;
   // `expected_video.content_type` should be undefined.
   // `expected_video.qp_sum` should be undefined.
+  // `expected_video.psnr_sum` should be undefined.
+  // `expected_video.psnr_measurements` should be undefined.
   // `expected_video.encoder_implementation` should be undefined.
   ASSERT_TRUE(report->Get(expected_video.id()));
 
@@ -2716,6 +2719,10 @@ TEST_F(RTCStatsCollectorTest, CollectRTCOutboundRtpStreamStats_Video) {
   // Set previously undefined values and "GetStats" again.
   video_media_info.senders[0].qp_sum = 9;
   expected_video.qp_sum = 9;
+  video_media_info.senders[0].psnr_sum = {.y = 29, .u = 30, .v = 31};
+  video_media_info.senders[0].psnr_measurements = 1;
+  expected_video.psnr_sum = {{"y", 29}, {"u", 30}, {"v", 31}};
+  expected_video.psnr_measurements = 1;
   video_media_info.senders[0].content_type = VideoContentType::SCREENSHARE;
   expected_video.content_type = "screenshare";
   video_media_info.senders[0].encoder_implementation_name = "libfooencoder";

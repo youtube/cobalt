@@ -98,10 +98,11 @@ void BubbleManagerImpl::RequestShowController(
                         (GetPriorityForBubbleType(new_bubble_type) >
                          GetPriorityForBubbleType(active_bubble_type));
 
-  if (should_preempt) {
+  if (should_preempt && !active_bubble_controller_->IsMouseHovered()) {
     HideActiveBubbleForPreemption(controller_weak_ptr);
   } else {
-    // New bubble has lower or equal priority; queue it.
+    // New bubble has lower or equal priority, or the active bubble is hovered;
+    // queue it.
     AddToPendingQueue(controller_weak_ptr);
   }
 }
@@ -211,6 +212,34 @@ void BubbleManagerImpl::OnBubbleHiddenByController(
       }
     }
   }
+}
+
+bool BubbleManagerImpl::HasPendingBubble(
+    const BubbleControllerBase& controller) {
+  const BubbleType bubble_type = controller.GetBubbleType();
+  const base::TimeTicks now = base::TimeTicks::Now();
+
+  auto it = std::ranges::find_if(
+      pending_bubbles_queue_, [bubble_type](const PendingRequest& request) {
+        // Check if the controller is still valid and if its type
+        // matches.
+        return request.controller &&
+               request.controller->GetBubbleType() == bubble_type;
+      });
+
+  // If no bubble of the specified type is found in the queue.
+  if (it == pending_bubbles_queue_.end()) {
+    return false;
+  }
+
+  if ((now - it->time_added) > kPendingRequestTimeout) {
+    // A bubble of the given type was found and has timed out, remove it from
+    // the queue.
+    pending_bubbles_queue_.erase(it);
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace autofill

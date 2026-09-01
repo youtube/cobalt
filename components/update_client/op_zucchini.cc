@@ -27,6 +27,7 @@
 #include "components/update_client/pipeline_util.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/task_traits.h"
+#include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "components/zucchini/zucchini.h"
@@ -181,6 +182,7 @@ base::OnceClosure ZucchiniOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(ComponentState)> state_tracker,
     const std::string& previous_hash,
     const std::string& output_hash,
 #if BUILDFLAG(IS_STARBOARD)
@@ -202,6 +204,7 @@ base::OnceClosure ZucchiniOperation(
 #if BUILDFLAG(IS_STARBOARD)
   const base::FilePath& patch_file = patch_operation_result.response;
 #endif
+  state_tracker.Run(ComponentState::kPatching);
   crx_cache->GetByHash(
       previous_hash,
       base::BindOnce(&CacheLookupDone, patcher, patch_file,

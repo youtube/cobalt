@@ -5,21 +5,21 @@
 package org.chromium.chrome.browser.suggestions.tile;
 
 import android.annotation.SuppressLint;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 
-import org.chromium.base.CancelableRunnable;
 import org.chromium.base.metrics.RecordUserAction;
-import org.chromium.base.task.PostTask;
-import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.native_page.ContextMenuManager;
 import org.chromium.chrome.browser.native_page.ContextMenuManager.ContextMenuItemId;
 import org.chromium.chrome.browser.preloading.AndroidPrerenderManager;
 import org.chromium.chrome.browser.suggestions.SiteSuggestion;
 import org.chromium.chrome.browser.suggestions.SuggestionsMetrics;
+import org.chromium.chrome.browser.suggestions.tile.TileDragDelegate.ReorderFlow;
 import org.chromium.ui.mojom.WindowOpenDisposition;
 import org.chromium.url.GURL;
 
@@ -33,37 +33,40 @@ import java.util.Objects;
 class TileInteractionDelegateImpl
         implements TileGroup.TileInteractionDelegate,
                 ContextMenuManager.Delegate,
+                View.OnKeyListener,
                 TileDragSession.EventListener {
 
     private final ContextMenuManager mContextMenuManager;
     private final TileGroup.Delegate mTileGroupDelegate;
     private final TileDragDelegate mTileDragDelegate;
     private final TileGroup.CustomTileModificationDelegate mCustomTileModificationDelegate;
-    private final int mPrerenderDelay;
     private final Tile mTile;
+    private final View mView;
     private final AndroidPrerenderManager mAndroidPrerenderManager;
 
     private @Nullable Runnable mOnClickRunnable;
     private @Nullable Runnable mOnRemoveRunnable;
-    private @Nullable CancelableRunnable mPrerenderRunnable;
     private @Nullable GURL mPrerenderedUrl;
-    private @Nullable GURL mScheduldedPrerenderingUrl;
 
     public TileInteractionDelegateImpl(
             ContextMenuManager contextMenuManager,
             TileGroup.Delegate tileGroupDelegate,
             TileDragDelegate tileDragDelegate,
             TileGroup.CustomTileModificationDelegate customTileModificationDelegate,
-            int prerenderDelay,
             Tile tile,
             View view) {
         mContextMenuManager = contextMenuManager;
         mTileGroupDelegate = tileGroupDelegate;
         mTileDragDelegate = tileDragDelegate;
         mCustomTileModificationDelegate = customTileModificationDelegate;
-        mPrerenderDelay = prerenderDelay;
         mTile = tile;
-        view.setOnTouchListener(TileInteractionDelegateImpl.this);
+        mView = view;
+
+        mView.setOnClickListener(this);
+        mView.setOnKeyListener(this);
+        mView.setOnLongClickListener(this);
+        mView.setOnTouchListener(this);
+
         mAndroidPrerenderManager = AndroidPrerenderManager.getAndroidPrerenderManager();
 
         mTileGroupDelegate.initAndroidPrerenderManager(mAndroidPrerenderManager);
@@ -79,41 +82,49 @@ class TileInteractionDelegateImpl
     }
 
     private void maybePrerender(GURL url) {
-        // Avoid resetting the delayed task if witness several MotionEvent.ACTION_DOWN in a row. If
-        // the URL has been scheduled to be prerendered or already prerendered, it should be
-        // skipped.
-        if (Objects.equals(mScheduldedPrerenderingUrl, url)
-                || Objects.equals(mPrerenderedUrl, url)) {
+        // If the URL has been already prerendered, it should be skipped.
+        if (Objects.equals(mPrerenderedUrl, url)) {
             return;
         }
 
-        assert mScheduldedPrerenderingUrl == null;
-        mScheduldedPrerenderingUrl = url;
-        mPrerenderRunnable =
-                new CancelableRunnable(
-                        () -> {
-                            if (mAndroidPrerenderManager.startPrerendering(url)) {
-                                mPrerenderedUrl = url;
-                            }
-                            mScheduldedPrerenderingUrl = null;
-                        });
-        PostTask.postDelayedTask(TaskTraits.UI_DEFAULT, mPrerenderRunnable, mPrerenderDelay);
+        if (mAndroidPrerenderManager.startPrerendering(url)) {
+            mPrerenderedUrl = url;
+        }
     }
 
-    // This function cancels scheduled prerendering or calls stopPrerendering to stop stale
-    // prerendering.
     private void cancelPrerender() {
-        if (mPrerenderRunnable != null) {
-            mPrerenderRunnable.cancel();
-            mPrerenderRunnable = null;
-        }
-
         if (mPrerenderedUrl != null) {
             mAndroidPrerenderManager.stopPrerendering();
         }
 
         mPrerenderedUrl = null;
-        mScheduldedPrerenderingUrl = null;
+    }
+
+    // TileGroup.TileInteractionDelegate => View.OnKeyListener implementation.
+    @Override
+    public boolean onKey(View view, int keyCode, KeyEvent event) {
+        if (isCustomizationEnabledForTileSection()
+                && TileUtils.isCustomTileSwapKeyCombo(keyCode, event)) {
+            if (isCustomLink()) {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    // Complete pending reordering, skipping animation if necessary.
+                    mTileDragDelegate.reset();
+                } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                    // Start swap. Doing it here instead of ACTION_DOWN because if animation is off,
+                    // then MVT refresh would cause tile re-render and listener re-add, but then
+                    // the original ACTION_DOWN would re-fire! Handling ACTION_UP prevents this.
+                    int direction = (keyCode == KeyEvent.KEYCODE_PAGE_UP) ? -1 : 1;
+                    mTileDragDelegate.swapTiles(view, direction, this);
+                }
+            }
+            // Suppress Ctrl+Shift+{Page Up, Page Down} propagation, which would lead to undesired
+            // page scroll. This includes the following cases:
+            // * On ACTION_UP for Custom Tiles: Triggers tile swap (above).
+            // * On ACTION_DOWN for Custom Tiles: No-op.
+            // * On ACTION_UP / ACTION_DOWN for Top Sites Tiles: No-op, for consistency.
+            return true;
+        }
+        return false;
     }
 
     // TileGroup.TileInteractionDelegate => View.OnLongClickListener implementation.
@@ -135,7 +146,7 @@ class TileInteractionDelegateImpl
         // Handle tile drag-and-drop separately.
         if (event.getAction() == MotionEvent.ACTION_DOWN) {
             mTileDragDelegate.onTileTouchDown(view, event, this);
-        } else if (mTileDragDelegate.hasSession()) {
+        } else if (mTileDragDelegate.hasTileDragSession()) {
             mTileDragDelegate.onSessionTileTouch(view, event);
         }
 
@@ -188,6 +199,16 @@ class TileInteractionDelegateImpl
     }
 
     @Override
+    public void moveItemUp() {
+        mTileDragDelegate.swapTiles(mView, -1, this);
+    }
+
+    @Override
+    public void moveItemDown() {
+        mTileDragDelegate.swapTiles(mView, 1, this);
+    }
+
+    @Override
     public void editItem() {
         mCustomTileModificationDelegate.edit(mTile.getData());
     }
@@ -210,7 +231,9 @@ class TileInteractionDelegateImpl
             case ContextMenuItemId.OPEN_IN_NEW_TAB_IN_GROUP:
                 return true;
             case ContextMenuItemId.OPEN_IN_INCOGNITO_TAB:
-                return true;
+                return !IncognitoUtils.shouldOpenIncognitoAsWindow();
+            case ContextMenuItemId.OPEN_IN_INCOGNITO_WINDOW:
+                return IncognitoUtils.shouldOpenIncognitoAsWindow();
             case ContextMenuItemId.OPEN_IN_NEW_WINDOW:
                 return true;
             case ContextMenuItemId.SAVE_FOR_OFFLINE:
@@ -222,6 +245,12 @@ class TileInteractionDelegateImpl
             case ContextMenuItemId.EDIT_SHORTCUT: // Fall through.
             case ContextMenuItemId.UNPIN:
                 return isCustomizationItemSupported(/* matchIsCustomLink= */ true);
+            case ContextMenuItemId.MOVE_UP:
+                return isCustomizationItemSupported(/* matchIsCustomLink= */ true)
+                        && !mTileDragDelegate.isFirstDraggableTile(mView);
+            case ContextMenuItemId.MOVE_DOWN:
+                return isCustomizationItemSupported(/* matchIsCustomLink= */ true)
+                        && !mTileDragDelegate.isLastDraggableTile(mView);
             default:
                 return false;
         }
@@ -250,8 +279,18 @@ class TileInteractionDelegateImpl
     }
 
     @Override
-    public boolean onDragAccept(SiteSuggestion fromSuggestion, SiteSuggestion toSuggestion) {
-        RecordUserAction.record("Suggestions.Drag.ReorderItem");
+    public boolean onReorderAccept(
+            @ReorderFlow int reorderFlow,
+            SiteSuggestion fromSuggestion,
+            SiteSuggestion toSuggestion) {
+        switch (reorderFlow) {
+            case ReorderFlow.DRAG_FLOW:
+                RecordUserAction.record("Suggestions.Drag.ReorderItem");
+                break;
+            case ReorderFlow.SWAP_FLOW:
+                RecordUserAction.record("Suggestions.Keyboard.ReorderItem");
+                break;
+        }
         return mCustomTileModificationDelegate.reorder(
                 fromSuggestion,
                 toSuggestion,
@@ -264,16 +303,23 @@ class TileInteractionDelegateImpl
     }
 
     @Override
-    public void onDragCancel() {
+    public void onReorderCancel() {
         mTileDragDelegate.hideDivider(/* isAnimated= */ true);
     }
 
+    boolean isCustomizationEnabledForTileSection() {
+        return ChromeFeatureList.sMostVisitedTilesCustomization.isEnabled()
+                && mTile.getSectionType() == TileSectionType.PERSONALIZED;
+    }
+
+    boolean isCustomLink() {
+        return mTile.getSource() == TileSource.CUSTOM_LINKS;
+    }
+
     boolean isCustomizationItemSupported(boolean matchIsCustomLink) {
-        if (!ChromeFeatureList.sMostVisitedTilesCustomization.isEnabled()
-                || mTile.getSectionType() != TileSectionType.PERSONALIZED) {
+        if (!isCustomizationEnabledForTileSection()) {
             return false;
         }
-        boolean isCustomLink = (mTile.getSource() == TileSource.CUSTOM_LINKS);
-        return isCustomLink == matchIsCustomLink;
+        return isCustomLink() == matchIsCustomLink;
     }
 }

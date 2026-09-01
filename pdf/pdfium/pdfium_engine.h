@@ -35,6 +35,7 @@
 #include "pdf/pdf_annotation_agent.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_caret_client.h"
+#include "pdf/pdf_rect.h"
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_form_filler.h"
 #include "pdf/pdfium/pdfium_page.h"
@@ -69,6 +70,7 @@
 #include "pdf/pdf_ink_ids.h"
 #include "pdf/pdf_ink_metrics_handler.h"
 #include "third_party/ink/src/ink/geometry/partitioned_mesh.h"
+#include "ui/gfx/geometry/transform.h"
 #endif
 
 #if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
@@ -467,9 +469,13 @@ class PDFiumEngine : public DocumentLoader::Client,
   // `point` must be in device coordinates. Virtual to support testing.
   virtual bool ExtendSelectionByPoint(const gfx::PointF& point);
 
-  // Returns all current text selection rects in screen coordinates, indexed by
+  // Returns the transform required to convert canonical coordinates to PDF
+  // coordinates. Virtual to support testing.
+  virtual gfx::Transform GetCanonicalToPdfTransform(int page_index);
+
+  // Returns all current text selection rects in PDF coordinates, indexed by
   // their page indices. Virtual to support testing.
-  virtual std::map<int, std::vector<gfx::Rect>> GetSelectionRectMap();
+  virtual std::map<int, std::vector<PdfRect>> GetSelectionRectMap();
 
   // Returns whether `point` is within a selectable text area or within a link
   // area, excluding form fields. `point` must be in device coordinates. Virtual
@@ -504,6 +510,8 @@ class PDFiumEngine : public DocumentLoader::Client,
   std::vector<gfx::Rect> GetScreenRectsForCaret(
       const PageCharacterIndex& index) const override;
   void InvalidateRect(const gfx::Rect& rect) override;
+  bool IsSynthesizedNewline(const PageCharacterIndex& index) const override;
+  bool PageIndexInBounds(int index) const override;
 
   // `PdfAnnotationAgent::Container`:
   bool FindAndHighlightTextFragments(
@@ -963,7 +971,6 @@ class PDFiumEngine : public DocumentLoader::Client,
   bool IsAnnotationAnEditableFormTextArea(FPDF_ANNOTATION annot,
                                           int form_type) const;
 
-  bool PageIndexInBounds(int index) const;
   bool IsPageCharacterIndexInBounds(const PageCharacterIndex& index) const;
 
   void ScheduleTouchTimer(const blink::WebTouchEvent& event);

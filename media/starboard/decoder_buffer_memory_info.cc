@@ -21,16 +21,16 @@
 
 namespace media {
 
-int GetAudioDecoderBufferLimitBytes() {
-  return GetSbMediaInterface()->GetAudioBufferBudget();
+base::ByteCount GetAudioDecoderBufferLimitBytes() {
+  return base::ByteCount(GetSbMediaInterface()->GetAudioBufferBudget());
 }
 
-int GetVideoDecoderBufferLimitBytes(VideoCodec codec,
-                                    const gfx::Size& resolution,
-                                    int bits_per_pixel) {
-  return GetSbMediaInterface()->GetVideoBufferBudget(
+base::ByteCount GetVideoDecoderBufferLimitBytes(VideoCodec codec,
+                                                const gfx::Size& resolution,
+                                                int bits_per_pixel) {
+  return base::ByteCount(GetSbMediaInterface()->GetVideoBufferBudget(
       MediaVideoCodecToSbMediaVideoCodec(codec), resolution.width(),
-      resolution.height(), bits_per_pixel);
+      resolution.height(), bits_per_pixel));
 }
 
 }  // namespace media

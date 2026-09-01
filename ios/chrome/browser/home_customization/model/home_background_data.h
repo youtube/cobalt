@@ -15,6 +15,9 @@ struct HomeUserUploadedBackground;
 typedef std::variant<sync_pb::NtpCustomBackground, HomeUserUploadedBackground>
     HomeCustomBackground;
 
+bool operator==(HomeCustomBackground const& lhs,
+                HomeCustomBackground const& rhs);
+
 // C++ representation of framing coordinates for background images.
 // This struct is persisted to disk via prefs. When adding new fields,
 // ensure backward compatibility by providing defaults in FromDict().
@@ -58,6 +61,8 @@ struct HomeUserUploadedBackground {
 
   // Converts to base::Value::Dict for serialization.
   base::Value::Dict ToDict() const;
+
+  bool operator==(const HomeUserUploadedBackground& other) const = default;
 };
 
 #endif  // IOS_CHROME_BROWSER_HOME_CUSTOMIZATION_MODEL_HOME_BACKGROUND_DATA_H_

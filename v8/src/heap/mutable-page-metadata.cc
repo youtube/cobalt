@@ -70,7 +70,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::OldGenerationPageFlags(
                     MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
                     MemoryChunk::INCREMENTAL_MARKING |
                     MemoryChunk::IS_MAJOR_GC_IN_PROGRESS;
-  } else if (IsAnySharedSpace(space)) {
+  } else if (IsAnyWritableSharedSpace(space)) {
     // We need to track pointers into the SHARED_SPACE for OLD_TO_SHARED.
     flags_to_set |= MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
   } else {
@@ -117,7 +117,7 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
       // since those are never considered for evacuation. However, we have to
       // keep the old->shared remembered set across multiple GCs, so those
       // pointers still need to be recorded.
-      if (!IsAnySharedSpace(space)) {
+      if (!IsAnyWritableSharedSpace(space)) {
         flags &= ~MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING;
       }
       // And mark the page as black allocated.
@@ -125,35 +125,10 @@ MemoryChunk::MainThreadFlags MutablePageMetadata::ComputeInitialFlags(
     }
   }
 
-  if (executable == EXECUTABLE) {
-    flags |= MemoryChunk::IS_EXECUTABLE;
-    // Executable chunks are also trusted as they contain machine code and live
-    // outside the sandbox (when it is enabled). While mostly symbolic, this is
-    // needed for two reasons:
-    // 1. We have the invariant that IsTrustedObject(obj) implies
-    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
-    //   MemoryChunk::IS_TRUSTED flag on the host chunk. As InstructionStream
-    //   objects are trusted, their host chunks must also be marked as such.
-    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
-    //    remembered set. However, that will only be used if both the host
-    //    and the value chunk are marked as IS_TRUSTED.
-    flags |= MemoryChunk::IS_TRUSTED;
-  }
-
   // All pages of a shared heap need to be marked with this flag.
-  if (IsAnySharedSpace(space)) {
+  if (IsAnyWritableSharedSpace(space)) {
     flags |= MemoryChunk::IN_WRITABLE_SHARED_SPACE;
   }
-
-  // All pages belonging to a trusted space need to be marked with this flag.
-  if (IsAnyTrustedSpace(space)) {
-    flags |= MemoryChunk::IS_TRUSTED;
-  }
-
-  // "Trusted" chunks should never be located inside the sandbox as they
-  // couldn't be trusted in that case.
-  DCHECK_IMPLIES(flags & MemoryChunk::IS_TRUSTED,
-                 !InsideSandbox(ChunkAddress()));
 
   return flags;
 }
@@ -165,7 +140,7 @@ void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   MemoryChunk::MainThreadFlags flags_to_clear = MemoryChunk::NO_FLAGS;
 
   if (marking_mode != MarkingMode::kMajorMarking) {
-    if (IsAnySharedSpace(owner)) {
+    if (IsAnyWritableSharedSpace(owner)) {
       // No need to track OLD_TO_NEW or OLD_TO_SHARED within the shared space.
       flags_to_clear |= MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING |
                         MemoryChunk::INCREMENTAL_MARKING;

@@ -82,7 +82,7 @@ public class TabSwitcherSearchRenderTest {
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
-                    .setRevision(11)
+                    .setRevision(12)
                     .setBugComponent(Component.UI_BROWSER_MOBILE_TAB_SWITCHER)
                     .build();
 
@@ -122,10 +122,11 @@ public class TabSwitcherSearchRenderTest {
     @MediumTest
     @Feature({"RenderTest"})
     @Restriction(PHONE)
+    @EnableFeatures({OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS})
     public void testHubSearchBox_Phone() throws IOException {
         RegularTabSwitcherStation tabSwitcher = mInitialPage.openRegularTabSwitcher();
 
-        mRenderTestRule.render(tabSwitcher.viewHolderElement.get(), "hub_searchbox_phone");
+        mRenderTestRule.render(tabSwitcher.viewHolderElement.value(), "hub_searchbox_phone");
     }
 
     @Test
@@ -141,20 +142,21 @@ public class TabSwitcherSearchRenderTest {
                         .openIncognitoTabSwitcher();
 
         mRenderTestRule.render(
-                tabSwitcher.viewHolderElement.get(), "hub_searchbox_phone_incognito");
+                tabSwitcher.viewHolderElement.value(), "hub_searchbox_phone_incognito");
     }
 
     @Test
     @MediumTest
     @Feature({"RenderTest"})
     @Restriction(PHONE)
+    @EnableFeatures({OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS})
     public void testHubSearchBox_PhoneLandscape() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         ActivityTestUtils.rotateActivityToOrientation(cta, ORIENTATION_LANDSCAPE);
         RegularTabSwitcherStation tabSwitcher = mInitialPage.openRegularTabSwitcher();
 
         mRenderTestRule.render(
-                tabSwitcher.viewHolderElement.get(), "hub_searchbox_phone_landscape");
+                tabSwitcher.viewHolderElement.value(), "hub_searchbox_phone_landscape");
         ActivityTestUtils.clearActivityOrientation(cta);
     }
 
@@ -166,7 +168,7 @@ public class TabSwitcherSearchRenderTest {
     public void testHubSearchLoupe_Tablet(boolean nightModeEnabled) throws IOException {
         RegularTabSwitcherStation tabSwitcher = mInitialPage.openRegularTabSwitcher();
 
-        mRenderTestRule.render(tabSwitcher.viewHolderElement.get(), "hub_searchloupe_tablet");
+        mRenderTestRule.render(tabSwitcher.viewHolderElement.value(), "hub_searchloupe_tablet");
     }
 
     @Test
@@ -181,12 +183,13 @@ public class TabSwitcherSearchRenderTest {
                         .openIncognitoTabSwitcher();
 
         mRenderTestRule.render(
-                tabSwitcher.viewHolderElement.get(), "hub_searchloupe_tablet_incognito");
+                tabSwitcher.viewHolderElement.value(), "hub_searchloupe_tablet_incognito");
     }
 
     @Test
     @MediumTest
     @Feature({"RenderTest"})
+    @EnableFeatures({OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS})
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testZeroPrefixSuggestions_ShownInRegular(boolean nightModeEnabled)
             throws IOException {
@@ -261,14 +264,14 @@ public class TabSwitcherSearchRenderTest {
     @EnableFeatures({OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS})
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testRenderTypedTabGroupSuggestions(boolean nightModeEnabled) throws IOException {
-        Tab firstTab = mInitialPage.loadedTabElement.get();
+        Tab firstTab = mInitialPage.loadedTabElement.value();
         int firstTabId = firstTab.getId();
         mCtaTestRule.loadUrlInTab(
                 mCtaTestRule.getTestServer().getURL(NavigatePageStations.PATH_ONE),
                 PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR,
                 firstTab);
         RegularNewTabPageStation secondPage = mInitialPage.openNewTabFast();
-        Tab secondTab = secondPage.loadedTabElement.get();
+        Tab secondTab = secondPage.loadedTabElement.value();
         int secondTabId = secondTab.getId();
         mCtaTestRule.loadUrlInTab(
                 mCtaTestRule.getTestServer().getURL(NavigatePageStations.PATH_ONE),
@@ -305,14 +308,14 @@ public class TabSwitcherSearchRenderTest {
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testRenderTypedTabGroupSuggestions_URLMatch(boolean nightModeEnabled)
             throws IOException {
-        Tab firstTab = mInitialPage.loadedTabElement.get();
+        Tab firstTab = mInitialPage.loadedTabElement.value();
         int firstTabId = firstTab.getId();
         mCtaTestRule.loadUrlInTab(
                 mCtaTestRule.getTestServer().getURL(NavigatePageStations.PATH_ONE),
                 PageTransition.TYPED | PageTransition.FROM_ADDRESS_BAR,
                 firstTab);
         RegularNewTabPageStation secondPage = mInitialPage.openNewTabFast();
-        Tab secondTab = secondPage.loadedTabElement.get();
+        Tab secondTab = secondPage.loadedTabElement.value();
         int secondTabId = secondTab.getId();
         mCtaTestRule.loadUrlInTab(
                 mCtaTestRule.getTestServer().getURL(NavigatePageStations.PATH_ONE),
@@ -349,9 +352,9 @@ public class TabSwitcherSearchRenderTest {
     @ParameterAnnotations.UseMethodParameter(NightModeTestUtils.NightModeParams.class)
     public void testRenderTypedTabGroupSuggestions_ChromePrefixedTabsOmmitted(
             boolean nightModeEnabled) throws IOException {
-        int firstTabId = mInitialPage.loadedTabElement.get().getId();
+        int firstTabId = mInitialPage.loadedTabElement.value().getId();
         RegularNewTabPageStation secondPage = mInitialPage.openNewTabFast();
-        int secondTabId = secondPage.loadedTabElement.get().getId();
+        int secondTabId = secondPage.loadedTabElement.value().getId();
         RegularTabSwitcherStation tabSwitcher = secondPage.openRegularTabSwitcher();
         TabSwitcherListEditorFacility<RegularTabSwitcherStation> editor =
                 tabSwitcher.openAppMenu().clickSelectTabs();

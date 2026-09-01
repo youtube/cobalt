@@ -4,10 +4,7 @@
 
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 
-#include <algorithm>
-#include <memory>
 #include <tuple>
-#include <vector>
 
 #include "base/containers/contains.h"
 #include "content/browser/browser_context_impl.h"
@@ -15,6 +12,7 @@
 #include "content/browser/preloading/prefetch/prefetch_container.h"
 #include "content/browser/preloading/prefetch/prefetch_handle_impl.h"
 #include "content/browser/preloading/prefetch/prefetch_params.h"
+#include "content/browser/preloading/prefetch/prefetch_request.h"
 #include "content/browser/preloading/prefetch/prefetch_service.h"
 #include "content/browser/preloading/preload_pipeline_info_impl.h"
 #include "content/browser/preloading/preloading.h"
@@ -24,18 +22,13 @@
 #include "content/browser/preloading/speculation_rules/speculation_rules_tags.h"
 #include "content/browser/preloading/speculation_rules/speculation_rules_util.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
-#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/prefetch_metrics.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "net/http/http_no_vary_search_data.h"
 #include "services/network/public/mojom/no_vary_search.mojom.h"
-#include "services/network/public/mojom/url_response_head.mojom.h"
-#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom.h"
-#include "url/origin.h"
 
 namespace content {
 
@@ -254,7 +247,7 @@ void PrefetchDocumentManager::PrefetchUrl(
       GetPredictorForPreloadingTriggerType(prefetch_type.trigger_type());
   PreloadingURLMatchCallback matcher =
       PreloadingDataImpl::GetPrefetchServiceMatcher(
-          *prefetch_service, PrefetchContainer::Key(document_token_, url));
+          *prefetch_service, PrefetchKey(document_token_, url));
 
   auto* attempt =
       static_cast<PreloadingAttemptImpl*>(preloading_data->AddPreloadingAttempt(
@@ -291,7 +284,7 @@ bool PrefetchDocumentManager::IsPrefetchAttemptFailedOrDiscarded(
 
   return prefetch_service->IsPrefetchAttemptFailedOrDiscardedInternal(
       base::PassKey<PrefetchDocumentManager>(),
-      PrefetchContainer::Key(document_token_, url));
+      PrefetchKey(document_token_, url));
 }
 
 // static
@@ -336,7 +329,7 @@ void PrefetchDocumentManager::OnPrefetchSuccessful(
     PrefetchContainer* prefetch) {
   referring_page_metrics_.prefetch_successful_count++;
   if (IsImmediateSpeculationEagerness(
-          prefetch->GetPrefetchType().GetEagerness())) {
+          prefetch->request().prefetch_type().GetEagerness())) {
     completed_immediate_prefetches_.push_back(prefetch->GetWeakPtr());
   } else {
     completed_non_immediate_prefetches_.push_back(prefetch->GetWeakPtr());
@@ -354,7 +347,7 @@ PrefetchDocumentManager::CanPrefetchNow(PrefetchContainer* prefetch) {
     return std::make_tuple(false, nullptr);
   }
   if (IsImmediateSpeculationEagerness(
-          prefetch->GetPrefetchType().GetEagerness())) {
+          prefetch->request().prefetch_type().GetEagerness())) {
     return std::make_tuple(completed_immediate_prefetches_.size() <
                                kMaxNumberOfImmediatePrefetchesPerPage,
                            nullptr);
@@ -386,7 +379,7 @@ void PrefetchDocumentManager::PrefetchWillBeDestroyed(
 
   std::vector<base::WeakPtr<PrefetchContainer>>& completed_prefetches =
       IsImmediateSpeculationEagerness(
-          prefetch->GetPrefetchType().GetEagerness())
+          prefetch->request().prefetch_type().GetEagerness())
           ? completed_immediate_prefetches_
           : completed_non_immediate_prefetches_;
   auto it = std::ranges::find(completed_prefetches, prefetch->key(),

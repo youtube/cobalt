@@ -1993,13 +1993,25 @@ struct StaticPayloadAudioCodec {
   size_t channels;
 };
 const StaticPayloadAudioCodec kStaticPayloadAudioCodecs[] = {
-    {"PCMU", 8000, 1},  {"reserved", 0, 0}, {"reserved", 0, 0},
-    {"GSM", 8000, 1},   {"G723", 8000, 1},  {"DVI4", 8000, 1},
-    {"DVI4", 16000, 1}, {"LPC", 8000, 1},   {"PCMA", 8000, 1},
-    {"G722", 8000, 1},  {"L16", 44100, 2},  {"L16", 44100, 1},
-    {"QCELP", 8000, 1}, {"CN", 8000, 1},    {"MPA", 90000, 1},
-    {"G728", 8000, 1},  {"DVI4", 11025, 1}, {"DVI4", 22050, 1},
-    {"G729", 8000, 1},
+    {.name = "PCMU", .clockrate = 8000, .channels = 1},
+    {.name = "reserved", .clockrate = 0, .channels = 0},
+    {.name = "reserved", .clockrate = 0, .channels = 0},
+    {.name = "GSM", .clockrate = 8000, .channels = 1},
+    {.name = "G723", .clockrate = 8000, .channels = 1},
+    {.name = "DVI4", .clockrate = 8000, .channels = 1},
+    {.name = "DVI4", .clockrate = 16000, .channels = 1},
+    {.name = "LPC", .clockrate = 8000, .channels = 1},
+    {.name = "PCMA", .clockrate = 8000, .channels = 1},
+    {.name = "G722", .clockrate = 8000, .channels = 1},
+    {.name = "L16", .clockrate = 44100, .channels = 2},
+    {.name = "L16", .clockrate = 44100, .channels = 1},
+    {.name = "QCELP", .clockrate = 8000, .channels = 1},
+    {.name = "CN", .clockrate = 8000, .channels = 1},
+    {.name = "MPA", .clockrate = 90000, .channels = 1},
+    {.name = "G728", .clockrate = 8000, .channels = 1},
+    {.name = "DVI4", .clockrate = 11025, .channels = 1},
+    {.name = "DVI4", .clockrate = 22050, .channels = 1},
+    {.name = "G729", .clockrate = 8000, .channels = 1},
 };
 
 void MaybeCreateStaticPayloadAudioCodecs(const std::vector<int>& fmts,
@@ -3372,7 +3384,10 @@ bool SdpDeserializeCandidate(absl::string_view transport_name,
   if (!ParseCandidate(message, candidate, error, true)) {
     return false;
   }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
   candidate->set_transport_name(transport_name);
+#pragma clang diagnostic pop
   return true;
 }
 

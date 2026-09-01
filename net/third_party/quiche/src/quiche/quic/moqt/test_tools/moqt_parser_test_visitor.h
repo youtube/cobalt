@@ -75,36 +75,38 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override {
     OnControlMessage(message);
   }
-  void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {
-    OnControlMessage(message);
-  }
-  void OnTrackStatusRequestMessage(
-      const MoqtTrackStatusRequest& message) override {
-    OnControlMessage(message);
-  }
   void OnUnannounceMessage(const MoqtUnannounce& message) override {
+    OnControlMessage(message);
+  }
+  void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override {
     OnControlMessage(message);
   }
   void OnTrackStatusMessage(const MoqtTrackStatus& message) override {
     OnControlMessage(message);
   }
+  void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) override {
+    OnControlMessage(message);
+  }
+  void OnTrackStatusErrorMessage(const MoqtTrackStatusError& message) override {
+    OnControlMessage(message);
+  }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeAnnouncesMessage(
-      const MoqtSubscribeAnnounces& message) override {
+  void OnSubscribeNamespaceMessage(
+      const MoqtSubscribeNamespace& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeAnnouncesOkMessage(
-      const MoqtSubscribeAnnouncesOk& message) override {
+  void OnSubscribeNamespaceOkMessage(
+      const MoqtSubscribeNamespaceOk& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeAnnouncesErrorMessage(
-      const MoqtSubscribeAnnouncesError& message) override {
+  void OnSubscribeNamespaceErrorMessage(
+      const MoqtSubscribeNamespaceError& message) override {
     OnControlMessage(message);
   }
-  void OnUnsubscribeAnnouncesMessage(
-      const MoqtUnsubscribeAnnounces& message) override {
+  void OnUnsubscribeNamespaceMessage(
+      const MoqtUnsubscribeNamespace& message) override {
     OnControlMessage(message);
   }
   void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override {

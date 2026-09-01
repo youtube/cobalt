@@ -10,7 +10,11 @@
 
 #include "api/peer_connection_interface.h"
 
+#include <vector>
+
+#include "api/candidate.h"
 #include "pc/media_factory.h"
+#include "rtc_base/checks.h"
 
 namespace webrtc {
 
@@ -58,5 +62,12 @@ PeerConnectionFactoryDependencies::PeerConnectionFactoryDependencies(
 
 PeerConnectionFactoryDependencies::~PeerConnectionFactoryDependencies() =
     default;
+
+// deprecated, only implemented to make derived classes simpler.
+bool PeerConnectionInterface::RemoveIceCandidates(
+    const std::vector<Candidate>& candidates) {
+  RTC_CHECK_NOTREACHED();
+  return false;
+}
 
 }  // namespace webrtc

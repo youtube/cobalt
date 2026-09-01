@@ -100,8 +100,7 @@ class AndroidAudioDeviceModule : public AudioDeviceModule {
   int32_t Init() override {
     RTC_DLOG(LS_INFO) << __FUNCTION__;
     RTC_DCHECK(thread_checker_.IsCurrent());
-    audio_device_buffer_ =
-        std::make_unique<AudioDeviceBuffer>(&env_.task_queue_factory());
+    audio_device_buffer_ = std::make_unique<AudioDeviceBuffer>(env_);
     AttachAudioBuffer();
     if (initialized_) {
       return 0;

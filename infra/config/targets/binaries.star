@@ -7,6 +7,7 @@ load("@chromium-luci//targets.star", "targets")
 targets.binaries.console_test_launcher(
     name = "absl_hardening_tests",
     label = "//third_party/abseil-cpp:absl_hardening_tests",
+    module_scheme = "gtest",
 )
 
 targets.binaries.console_test_launcher(
@@ -19,6 +20,7 @@ targets.binaries.windowed_test_launcher(
     label = "//chrome/test:android_browsertests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -33,6 +35,7 @@ targets.binaries.generated_script(
     label = "//android_webview/test:android_webview_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.console_test_launcher(
@@ -189,6 +192,7 @@ targets.binaries.generated_script(
     label = "//base:base_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -208,6 +212,7 @@ targets.binaries.script(
 targets.binaries.console_test_launcher(
     name = "base_unittests",
     label = "//base:base_unittests",
+    module_scheme = "gtest",
 )
 
 targets.binaries.console_test_launcher(
@@ -312,6 +317,7 @@ targets.binaries.generated_script(
     label = "//build/android:build_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -436,6 +442,7 @@ targets.binaries.generated_script(
     args = [
         "--logs-dir=${ISOLATED_OUTDIR}",
     ],
+    module_scheme = "tast",
 )
 
 targets.binaries.console_test_launcher(
@@ -449,6 +456,7 @@ targets.binaries.generated_script(
     args = [
         "--logs-dir=${ISOLATED_OUTDIR}",
     ],
+    module_scheme = "tast",
 )
 
 targets.binaries.generated_script(
@@ -457,6 +465,7 @@ targets.binaries.generated_script(
     args = [
         "--logs-dir=${ISOLATED_OUTDIR}",
     ],
+    module_scheme = "tast",
 )
 
 targets.binaries.console_test_launcher(
@@ -471,6 +480,7 @@ targets.binaries.generated_script(
     label = "//chrome/test/android:chrome_java_test_pagecontroller_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.generated_script(
@@ -478,6 +488,7 @@ targets.binaries.generated_script(
     label = "//chrome/android:chrome_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.console_test_launcher(
@@ -510,6 +521,7 @@ targets.binaries.console_test_launcher(
     label = "//chrome/android:chrome_public_test_apk",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.console_test_launcher(
@@ -682,6 +694,7 @@ targets.binaries.generated_script(
     label = "//components:components_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -730,6 +743,7 @@ targets.binaries.generated_script(
     label = "//content/public/android:content_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -740,6 +754,7 @@ targets.binaries.script(
         enable = True,
         result_format = "single",
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(
@@ -782,6 +797,7 @@ targets.binaries.generated_script(
         result_format = "single",
         result_file = "${ISOLATED_OUTDIR}/sizes/test_results.json",
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(
@@ -907,6 +923,7 @@ targets.binaries.generated_script(
     label = "//device:device_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.console_test_launcher(
@@ -934,6 +951,7 @@ targets.binaries.generated_script(
             "--upload-skia-json",
         ],
     ),
+    module_scheme = "tast",
 )
 
 targets.binaries.console_test_launcher(
@@ -1049,6 +1067,7 @@ targets.binaries.script(
         enable = True,
         result_format = "single",
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.script(
@@ -1221,6 +1240,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test:ios_chrome_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1228,6 +1248,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_bookmarks_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1235,6 +1256,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_integration_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1242,6 +1264,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_settings_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1249,6 +1272,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_signin_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1256,6 +1280,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_smoke_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1263,6 +1288,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_ui_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1270,6 +1296,7 @@ targets.binaries.generated_script(
     label = "//ios/chrome/test/earl_grey2:ios_chrome_web_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1277,6 +1304,7 @@ targets.binaries.generated_script(
     label = "//third_party/crashpad/crashpad/test/ios:ios_crash_xcuitests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1284,6 +1312,7 @@ targets.binaries.generated_script(
     label = "//ios/components:ios_components_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1291,6 +1320,7 @@ targets.binaries.generated_script(
     label = "//ios/net:ios_net_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1298,6 +1328,7 @@ targets.binaries.generated_script(
     label = "//ios/testing:ios_testing_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1305,6 +1336,7 @@ targets.binaries.generated_script(
     label = "//ios/web:ios_web_inttests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1312,6 +1344,7 @@ targets.binaries.generated_script(
     label = "//ios/web/shell/test:ios_web_shell_eg2tests_module",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "xctest",
 )
 
 targets.binaries.generated_script(
@@ -1319,6 +1352,7 @@ targets.binaries.generated_script(
     label = "//ios/web:ios_web_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1326,6 +1360,7 @@ targets.binaries.generated_script(
     label = "//ios/web_view:ios_web_view_inttests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.generated_script(
@@ -1333,6 +1368,7 @@ targets.binaries.generated_script(
     label = "//ios/web_view:ios_web_view_unittests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.console_test_launcher(
@@ -1345,6 +1381,7 @@ targets.binaries.generated_script(
     label = "//testing/android/junit:junit_unit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -1401,6 +1438,7 @@ targets.binaries.generated_script(
     label = "//media/base/android:media_base_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -1481,6 +1519,7 @@ targets.binaries.generated_script(
     label = "//components/module_installer/android:module_installer_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.console_test_launcher(
@@ -1530,6 +1569,7 @@ targets.binaries.console_test_launcher(
     label = "//mojo/public/java/system:mojo_test_apk",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "gtest",
 )
 
 targets.binaries.console_test_launcher(
@@ -1584,6 +1624,7 @@ targets.binaries.generated_script(
     label = "//net/android:net_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -1677,6 +1718,7 @@ targets.binaries.generated_script(
     label = "//components/paint_preview/player/android:paint_preview_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.generated_script(
@@ -1684,6 +1726,7 @@ targets.binaries.generated_script(
     label = "//chrome/browser/password_manager/android:password_manager_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.console_test_launcher(
@@ -1829,6 +1872,7 @@ targets.binaries.generated_script(
         enable = True,
         result_format = "single",
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.console_test_launcher(
@@ -1874,6 +1918,7 @@ targets.binaries.generated_script(
     label = "//services:services_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -2103,6 +2148,7 @@ targets.binaries.generated_script(
     label = "//chrome/browser/touch_to_fill/password_manager/android:touch_to_fill_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.script(
@@ -2148,6 +2194,7 @@ targets.binaries.generated_script(
     label = "//ui:ui_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -2249,6 +2296,7 @@ targets.binaries.generated_script(
         enable = True,
         result_format = "single",
     ),
+    module_scheme = "single",
 )
 
 targets.binaries.windowed_test_launcher(
@@ -2382,6 +2430,7 @@ targets.binaries.generated_script(
     label = "//chrome/android/webapk/libs/client:webapk_client_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.generated_script(
@@ -2389,6 +2438,7 @@ targets.binaries.generated_script(
     label = "//chrome/android/webapk/shell_apk:webapk_shell_apk_h2o_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.generated_script(
@@ -2396,6 +2446,7 @@ targets.binaries.generated_script(
     label = "//chrome/android/webapk/shell_apk:webapk_shell_apk_junit_tests",
     # All references have been moved to starlark
     skip_usage_check = True,
+    module_scheme = "junit",
 )
 
 targets.binaries.generated_script(
