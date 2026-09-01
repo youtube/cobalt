@@ -39,6 +39,7 @@
     "NavigationBrowserTest.FilterURL_JavascriptURLs",
     "NavigationBrowserTest.FixedStoragePartition",
     "NavigationBrowserTest.FocusPreservedOnNavigation_MainFrame",
+    "NavigationBrowserTest.FromNavigationHandleTranslatesNavigationParamsCorrectly",
     "NavigationBrowserTest.HistoryBackCancelPendingNavigationNoUserGesture",
     "NavigationBrowserTest.IPCFlood_Navigation",
     "NavigationBrowserTest.JavascriptURLBlockedInAboutBlankWebUiPopup",
