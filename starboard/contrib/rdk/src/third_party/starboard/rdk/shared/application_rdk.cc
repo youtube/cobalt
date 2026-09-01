@@ -108,18 +108,16 @@ ApplicationRdk::ApplicationRdk(SbEventHandleCallback sb_event_handle_callback)
   : QueueApplication(sb_event_handle_callback)
   , input_handler_(new EssInput)
   , hang_monitor_(new HangMonitor("ApplicationRdk")) {
-  essos_context_destroy_ = !!getenv("COBALT_ESSOS_CONTEXT_DESTROY");
   BuildEssosContext();
 }
 
 ApplicationRdk::~ApplicationRdk() {
-  if (native_window_) {
-    EssContextDestroyNativeWindow(ctx_, native_window_);
-    native_window_ = 0;
+  if (SbWindowIsValid(window_)) {
+    DestroySbWindow(window_);
   }
   if (ctx_) {
     EssContextDestroy(ctx_);
-    ctx_ = NULL;
+    ctx_ = nullptr;
   }
 }
 
@@ -239,19 +237,53 @@ void ApplicationRdk::WakeSystemEventWait() {
 
 SbWindow ApplicationRdk::CreateSbWindow(const SbWindowOptions* options) {
   SB_DCHECK(window_ == nullptr);
-  if (window_ != nullptr)
+  if (window_ != nullptr) {
     return kSbWindowInvalid;
-  MaterializeNativeWindow();
-  window_  = new SbWindowPrivate(options);
+  }
+
+  bool error = false;
+
+  if (!EssContextGetDisplaySize(ctx_, &window_width_, &window_height_)) {
+    error = true;
+  }
+
+  if (resize_pending_) {
+    EssContextResizeWindow(ctx_, window_width_, window_height_);
+    resize_pending_ = false;
+  }
+
+  if (!EssContextCreateNativeWindow(ctx_, window_width_, window_height_,
+                                    &native_window_)) {
+    error = true;
+  } else if (!EssContextStart(ctx_)) {
+    error = true;
+  }
+
+  if (error) {
+    const char* detail = EssContextGetLastErrorDetail(ctx_);
+    SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
+    FatalError();
+  }
+
+  window_ = new SbWindowPrivate(options);
   return window_;
 }
 
 bool ApplicationRdk::DestroySbWindow(SbWindow window) {
-  if (!SbWindowIsValid(window))
+  SB_CHECK(window == window_);
+  if (!SbWindowIsValid(window)) {
     return false;
-  window_ = nullptr;
+  }
+  window_ = kSbWindowInvalid;
   delete window;
-  DestroyNativeWindow();
+
+  if (native_window_ != 0) {
+    if (!EssContextDestroyNativeWindow(ctx_, native_window_)) {
+      const char* detail = EssContextGetLastErrorDetail(ctx_);
+      SB_LOG(ERROR) << "Essos error: '" << detail << '\'';
+    }
+    native_window_ = 0;
+  }
   return true;
 }
 
@@ -277,36 +309,41 @@ void ApplicationRdk::Inject(Event* e) {
 void ApplicationRdk::OnSuspend() {
   SbSpeechSynthesisCancel();
 
-  if ( !(monitor_timer_fd_ < 0) ) {
+  if (!(monitor_timer_fd_ < 0)) {
     setTimerInterval(monitor_timer_fd_, 0s);
+  }
+
+  // Disarm Essos event loop timer while suspended to prevent periodic CPU wakeups.
+  if (!(ess_timer_fd_ < 0)) {
+    setTimerInterval(ess_timer_fd_, 0s);
   }
 
   // Unset the Essos terminate listener to prevent callback loops
   // when the window is destroyed during suspend.
   EssContextSetTerminateListener(ctx_, nullptr, nullptr);
 
-  if (essos_context_destroy_) {
-    DestroyNativeWindow();
-  }
+  // Stop Essos event dispatching while keeping the native window plane alive.
+  // Keeping the Wayland wl_surface handle registered prevents Westeros from
+  // encountering invalid object protocol errors when dispatching background
+  // state events to the client.
+  EssContextStop(ctx_);
 
-  setTimerInterval(ess_timer_fd_, 1s);
   platform::PlatformInterface::get().suspend();
 }
 
 void ApplicationRdk::OnResume() {
-  if ( essos_context_destroy_ ) {
-    BuildEssosContext();
-  } else {
-    EssContextSetTerminateListener(ctx_, this, &terminateListener);
+  EssContextSetTerminateListener(ctx_, this, &terminateListener);
+
+  if (!EssContextStart(ctx_)) {
+    const char* detail = EssContextGetLastErrorDetail(ctx_);
+    SB_LOG(ERROR) << "Essos error on start: '" << detail << '\'';
   }
 
-  if ( !(monitor_timer_fd_ < 0) && hang_monitor_ ) {
+  if (!(monitor_timer_fd_ < 0) && hang_monitor_) {
     setTimerInterval(monitor_timer_fd_, hang_monitor_->GetResetInterval());
   }
 
-  // Only restart the Essos timer run loop once the window is materialized.
   setTimerInterval(ess_timer_fd_, kEssRunLoopPeriod);
-  MaterializeNativeWindow();
   platform::PlatformInterface::get().resume();
 }
 
@@ -330,61 +367,6 @@ void ApplicationRdk::OnDisplaySize(int width, int height) {
 
   SB_DCHECK(native_window_ == 0);
   resize_pending_ = true;
-}
-
-void ApplicationRdk::MaterializeNativeWindow() {
-  if (native_window_ != 0) {
-    return;
-  }
-
-  bool error = false;
-
-  if ( !EssContextGetDisplaySize(ctx_, &window_width_, &window_height_) ) {
-    error = true;
-  }
-
-  if ( resize_pending_ ) {
-    EssContextResizeWindow(ctx_, window_width_, window_height_);
-    resize_pending_ = false;
-  }
-
-  if ( !EssContextCreateNativeWindow(ctx_, window_width_, window_height_, &native_window_) ) {
-    error = true;
-  }
-  else if ( !EssContextStart(ctx_) ) {
-    error = true;
-  }
-
-  if ( error ) {
-    const char *detail = EssContextGetLastErrorDetail(ctx_);
-    SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
-    FatalError();
-  }
-}
-
-void ApplicationRdk::DestroyNativeWindow() {
-  if (native_window_ == 0) {
-    return;
-  }
-
-  if ( essos_context_destroy_ ) {
-    // If recycling context, we must destroy the window now as it cannot
-    // survive without the context.
-    if ( !EssContextDestroyNativeWindow(ctx_, native_window_) ) {
-      const char *detail = EssContextGetLastErrorDetail(ctx_);
-      SB_LOG(ERROR) << "Essos error: '" <<  detail << '\'';
-    }
-    native_window_ = 0;
-    EssContextDestroy(ctx_);
-    ctx_ = NULL;
-  }
-  else {
-    // Keep the underlying OS-level native window plane (EssWindow handle)
-    // alive inside ApplicationRdk. This ensures that Chromium's cached EGL
-    // surfaces have a valid window reference in memory during suspend, preventing
-    // graphics driver or Wayland marshalling segmentation faults upon unfreeze.
-    EssContextStop(ctx_);
-  }
 }
 
 void ApplicationRdk::DisplayInfoChanged() {
