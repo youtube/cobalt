@@ -743,6 +743,7 @@ source_set("unit_tests") {
     sources -= [
       "ai/ai_utils_test.cc",
       "ai/model_execution_responder_test.cc",
+      "ai/proofreader_test.cc",
     ]
   }
 
