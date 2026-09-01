@@ -38,7 +38,8 @@ jobs:
       pull-requests: read
 
     steps:
-      - name: "Checkout code"
+      - name: "Checkout code (sparse for pull requests)"
+        if: github.event_name == 'pull_request'
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
@@ -46,6 +47,12 @@ jobs:
             .github
             cobalt
             starboard
+
+      - name: "Checkout code (full for postsubmit)"
+        if: github.event_name != 'pull_request'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       # Dynamically check out directories containing modified files in this PR
       # to ensure they are scanned by Scorecard.
