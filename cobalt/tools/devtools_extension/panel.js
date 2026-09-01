@@ -15,9 +15,10 @@
 /**
  * Cobalt Memory Breakdown DevTools Extension Panel Controller.
  * Connects to Cobalt's active CDP port via WebSocket and renders:
- * 1. Proportional Memory Footprint Distribution Bar (10 Canonical Allocators).
- * 2. Primary Session P50 Memory Breakdown table (12 continuous P50 allocators).
- * 3. Lifecycle Peak Memory scorecard (time-windowed PMF & Peak GPU).
+ * 1. Primary Session P50 Memory Breakdown table (12 continuous P50 allocators).
+ * 2. Integrated Proportional Memory Distribution Bar (10 Canonical Allocators).
+ * 3. Real-Time Live Memory Time Series Chart (1 Hz polling over 60s window).
+ * 4. Lifecycle Peak Memory scorecard (time-windowed PMF & Peak GPU).
  */
 
 // 12 Continuous UMA memory breakdown metrics grouped by Process Totals and Allocator Breakdown
@@ -83,6 +84,10 @@ const GUARDRAIL_METRICS = [
   }
 ];
 
+// Live Time-Series State (Rolling 60s Window at 1 Hz)
+const MAX_HISTORY_SAMPLES = 60;
+const liveHistory = [];
+
 let ws = null;
 let pollInterval = null;
 let nextRequestId = 1;
@@ -93,11 +98,19 @@ const cdpUrlInput = document.getElementById("cdp-url");
 const btnConnect = document.getElementById("btn-connect");
 const btnRefresh = document.getElementById("btn-refresh");
 const statusBadge = document.getElementById("connection-status");
+const streamingBadge = document.getElementById("streaming-badge");
 const tableBody = document.getElementById("metrics-table-body");
 const samplingProgress = document.getElementById("sampling-progress");
 const samplingHint = document.getElementById("sampling-hint");
 const distributionBar = document.getElementById("distribution-bar");
 const guardrailsGrid = document.getElementById("guardrails-grid");
+
+// Chart DOM Elements
+const chartCanvas = document.getElementById("live-memory-chart");
+const chartTooltip = document.getElementById("chart-tooltip");
+const liveValRss = document.getElementById("live-val-rss");
+const liveValPmf = document.getElementById("live-val-pmf");
+const liveValV8 = document.getElementById("live-val-v8");
 
 function formatBytesToMB(bytes) {
   if (bytes === undefined || bytes === null || isNaN(bytes)) return "-- MB";
@@ -117,6 +130,8 @@ function clearPolling() {
 // Auto-Connect on Panel Load and Restore Persisted URL
 document.addEventListener("DOMContentLoaded", () => {
   renderGuardrails();
+  setupChartInteractivity();
+  drawTimeSeriesChart();
 
   if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
     chrome.storage.local.get(["cdpUrl"], (result) => {
@@ -198,22 +213,22 @@ async function connectCDP() {
     ws.onopen = () => {
       statusBadge.textContent = "Connected ●";
       statusBadge.className = "status-badge connected";
+      streamingBadge.textContent = "● 1 Hz Active";
+      streamingBadge.className = "streaming-badge";
       btnConnect.textContent = "Disconnect";
       btnConnect.className = "btn btn-secondary";
       btnRefresh.disabled = false;
 
-      // Save the successfully connected URL
       if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
         chrome.storage.local.set({ cdpUrl: targetUrl });
       }
 
-      // Enable Performance Domain & query metrics
       sendCdpCommand("Performance.enable");
       requestMetrics();
 
-      // Start periodic polling every 3 seconds for real-time telemetry updates
+      // Static 1 Hz live telemetry streaming polling
       clearPolling();
-      pollInterval = setInterval(requestMetrics, 3000);
+      pollInterval = setInterval(requestMetrics, 1000);
     };
 
     ws.onmessage = (event) => {
@@ -236,6 +251,8 @@ async function connectCDP() {
       clearPolling();
       statusBadge.textContent = "Disconnected";
       statusBadge.className = "status-badge disconnected";
+      streamingBadge.textContent = "● 1 Hz Inactive";
+      streamingBadge.className = "streaming-badge inactive";
       btnConnect.textContent = "Connect";
       btnConnect.className = "btn btn-primary";
       btnRefresh.disabled = true;
@@ -246,6 +263,8 @@ async function connectCDP() {
       clearPolling();
       statusBadge.textContent = "Error";
       statusBadge.className = "status-badge disconnected";
+      streamingBadge.textContent = "● 1 Hz Inactive";
+      streamingBadge.className = "streaming-badge inactive";
       btnRefresh.disabled = true;
     };
   } catch (error) {
@@ -253,6 +272,8 @@ async function connectCDP() {
     clearPolling();
     statusBadge.textContent = "Failed";
     statusBadge.className = "status-badge disconnected";
+    streamingBadge.textContent = "● 1 Hz Inactive";
+    streamingBadge.className = "streaming-badge inactive";
     btnRefresh.disabled = true;
   }
 }
@@ -270,7 +291,34 @@ function handlePerformanceMetrics(metrics) {
     }
   });
 
+  // Record live time series snapshot
+  recordLiveSample();
+
   updateUi();
+}
+
+function recordLiveSample() {
+  const rssBytes = latestMetrics?.["Memory.Browser.ResidentSet.Live"] ?? null;
+  const pmfBytes = latestMetrics?.["Memory.Browser.PrivateMemoryFootprint.Live"] ?? null;
+  const v8Bytes = latestMetrics?.["Memory.Experimental.Browser2.V8.Live"] ?? null;
+
+  liveHistory.push({
+    timestamp: Date.now(),
+    rss: rssBytes,
+    pmf: pmfBytes,
+    v8: v8Bytes,
+  });
+
+  if (liveHistory.length > MAX_HISTORY_SAMPLES) {
+    liveHistory.shift();
+  }
+
+  // Update live legend values
+  liveValRss.textContent = formatBytesToMB(rssBytes);
+  liveValPmf.textContent = formatBytesToMB(pmfBytes);
+  liveValV8.textContent = formatBytesToMB(v8Bytes);
+
+  drawTimeSeriesChart();
 }
 
 function updateUi() {
@@ -432,6 +480,200 @@ function renderGuardrails() {
   });
 
   guardrailsGrid.innerHTML = html;
+}
+
+// ============================================================================
+// HTML5 Canvas Time Series Chart Rendering
+// ============================================================================
+
+function drawTimeSeriesChart() {
+  if (!chartCanvas) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const rect = chartCanvas.getBoundingClientRect();
+  const width = rect.width || 300;
+  const height = rect.height || 150;
+
+  chartCanvas.width = width * dpr;
+  chartCanvas.height = height * dpr;
+
+  const ctx = chartCanvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, width, height);
+
+  const padding = { top: 12, right: 16, bottom: 24, left: 48 };
+  const chartW = Math.max(1, width - padding.left - padding.right);
+  const chartH = Math.max(1, height - padding.top - padding.bottom);
+
+  // Compute Max Y value in MB across all series (min ceiling: 50 MB)
+  let maxBytes = 50 * 1024 * 1024;
+  liveHistory.forEach(s => {
+    const vals = [s.rss, s.pmf, s.v8].filter(v => typeof v === "number" && v > 0);
+    if (vals.length > 0) {
+      const m = Math.max(...vals);
+      if (m > maxBytes) maxBytes = m;
+    }
+  });
+  const maxYMB = Math.ceil((maxBytes / (1024 * 1024)) * 1.15); // 15% headroom
+
+  // 1. Draw Gridlines & Y-Axis Scale
+  ctx.strokeStyle = "rgba(63, 63, 70, 0.4)";
+  ctx.lineWidth = 1;
+  ctx.fillStyle = "#a1a1aa";
+  ctx.font = "10px ui-monospace, SFMono-Regular, monospace";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+
+  const numGridLines = 4;
+  for (let i = 0; i <= numGridLines; i++) {
+    const yVal = padding.top + (chartH / numGridLines) * i;
+    const mbVal = Math.round(maxYMB - (maxYMB / numGridLines) * i);
+
+    ctx.beginPath();
+    ctx.moveTo(padding.left, yVal);
+    ctx.lineTo(width - padding.right, yVal);
+    ctx.stroke();
+
+    ctx.fillText(`${mbVal} MB`, padding.left - 6, yVal);
+  }
+
+  // 2. Draw X-Axis Time Labels
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const timeLabels = ["-60s", "-45s", "-30s", "-15s", "Now"];
+  timeLabels.forEach((lbl, idx) => {
+    const xVal = padding.left + (chartW / (timeLabels.length - 1)) * idx;
+    ctx.fillText(lbl, xVal, height - padding.bottom + 6);
+  });
+
+  const validSamplesCount = liveHistory.filter(s =>
+    (typeof s.rss === "number" && s.rss > 0) ||
+    (typeof s.pmf === "number" && s.pmf > 0) ||
+    (typeof s.v8 === "number" && s.v8 > 0)
+  ).length;
+
+  if (validSamplesCount < 2) {
+    ctx.fillStyle = "#71717a";
+    ctx.font = "italic 12px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Waiting for real-time memory stream...", padding.left + chartW / 2, padding.top + chartH / 2);
+    return;
+  }
+
+  // Helper coordinate mapper
+  function getPointCoords(index, valBytes) {
+    const x = padding.left + (index / (MAX_HISTORY_SAMPLES - 1)) * chartW;
+    const mb = (typeof valBytes === "number" && valBytes > 0) ? valBytes / (1024 * 1024) : 0;
+    const y = Math.max(padding.top, Math.min(padding.top + chartH, padding.top + chartH - (mb / maxYMB) * chartH));
+    return { x, y };
+  }
+
+  // Draw Line Series with Fill
+  function drawSeries(key, strokeColor, fillColor) {
+    const hasData = liveHistory.some(s => typeof s[key] === "number" && s[key] > 0);
+    if (!hasData) return;
+
+    const startIdx = MAX_HISTORY_SAMPLES - liveHistory.length;
+
+    // Line Path
+    ctx.beginPath();
+    let isFirst = true;
+    liveHistory.forEach((sample, i) => {
+      const val = typeof sample[key] === "number" ? sample[key] : 0;
+      const { x, y } = getPointCoords(startIdx + i, val);
+      if (isFirst) {
+        ctx.moveTo(x, y);
+        isFirst = false;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Area Fill
+    if (fillColor) {
+      const lastVal = typeof liveHistory[liveHistory.length - 1][key] === "number"
+        ? liveHistory[liveHistory.length - 1][key] : 0;
+      const firstVal = typeof liveHistory[0][key] === "number"
+        ? liveHistory[0][key] : 0;
+      const lastPoint = getPointCoords(startIdx + liveHistory.length - 1, lastVal);
+      const firstPoint = getPointCoords(startIdx, firstVal);
+
+      ctx.lineTo(lastPoint.x, padding.top + chartH);
+      ctx.lineTo(firstPoint.x, padding.top + chartH);
+      ctx.closePath();
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+    }
+
+    // Draw endpoint circle at current "Now" sample if latest value is present
+    const latest = liveHistory[liveHistory.length - 1];
+    if (typeof latest[key] === "number" && latest[key] > 0) {
+      const endCoord = getPointCoords(MAX_HISTORY_SAMPLES - 1, latest[key]);
+      ctx.beginPath();
+      ctx.arc(endCoord.x, endCoord.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = strokeColor;
+      ctx.fill();
+    }
+  }
+
+  // Draw layers in order from largest to smallest to avoid line occlusion:
+  // 1. Resident Set (RSS) - Largest background area fill
+  // 2. Private Memory Footprint (PMF) - Middle area fill
+  // 3. V8 JavaScript Heap - Top layer crisp line
+  drawSeries("rss", "#a855f7", "rgba(168, 85, 247, 0.05)");
+  drawSeries("pmf", "#38bdf8", "rgba(56, 189, 248, 0.08)");
+  drawSeries("v8", "#fbbf24", "rgba(251, 191, 36, 0.1)");
+}
+
+function setupChartInteractivity() {
+  if (!chartCanvas || !chartTooltip) return;
+
+  chartCanvas.addEventListener("mousemove", (e) => {
+    if (liveHistory.length === 0) return;
+
+    const rect = chartCanvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const padding = { left: 48, right: 16 };
+    const chartW = rect.width - padding.left - padding.right;
+
+    if (mouseX < padding.left || mouseX > rect.width - padding.right) {
+      chartTooltip.style.display = "none";
+      return;
+    }
+
+    const relX = (mouseX - padding.left) / chartW;
+    const sampleSlot = Math.round(relX * (MAX_HISTORY_SAMPLES - 1));
+    const startIdx = MAX_HISTORY_SAMPLES - liveHistory.length;
+    const historyIdx = sampleSlot - startIdx;
+
+    if (historyIdx >= 0 && historyIdx < liveHistory.length) {
+      const sample = liveHistory[historyIdx];
+      const secondsAgo = Math.round((Date.now() - sample.timestamp) / 1000);
+      const timeStr = secondsAgo <= 0 ? "Now" : `-${secondsAgo}s ago`;
+
+      chartTooltip.innerHTML = `
+        <div style="font-weight: 700; color: #fff; margin-bottom: 3px;">⏱ ${timeStr}</div>
+        <div style="color: #d8b4fe;">● RSS: ${formatBytesToMB(sample.rss)}</div>
+        <div style="color: #7dd3fc;">● PMF: ${formatBytesToMB(sample.pmf)}</div>
+        <div style="color: #fde047;">● V8: ${formatBytesToMB(sample.v8)}</div>
+      `;
+      chartTooltip.style.display = "block";
+    } else {
+      chartTooltip.style.display = "none";
+    }
+  });
+
+  chartCanvas.addEventListener("mouseleave", () => {
+    chartTooltip.style.display = "none";
+  });
+
+  window.addEventListener("resize", () => {
+    drawTimeSeriesChart();
+  });
 }
 
 // Event Listeners

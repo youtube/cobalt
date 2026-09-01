@@ -100,7 +100,7 @@ FEATURE_LIST_START
 //   STARBOARD_FEATURE(kCobaltVideoDebug, "CobaltVideoDebug", false)
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+#if (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)) && (SB_API_VERSION >= 17)
 // keep-sorted start newline_separated=yes
 // Set to true to enable area-based video buffer budget calculation.
 STARBOARD_FEATURE(kAreaBasedVideoBufferBudget,
@@ -162,12 +162,8 @@ STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
 // keep-sorted end
-#endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
-
-// Set the following variable to true to reduce starboard thread stack size.
-STARBOARD_FEATURE(kReduceStarboardThreadStackSize,
-                  "ReduceStarboardThreadStackSize",
-                  false)
+#endif  // (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)) &&
+        // (SB_API_VERSION >= 17)
 
 // Set the following variable to true to reduce android thread stack size.
 STARBOARD_FEATURE(kReduceAndroidThreadStackSize,
@@ -236,7 +232,7 @@ FEATURE_PARAM_LIST_START
 //                           "standard")
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
-#if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+#if (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)) && (SB_API_VERSION >= 17)
 // By default, Cobalt restarts MediaCodec after stops/flushes during
 // Reset()/Flush(). Set the following variable to > 0 to force it to
 // wait during Reset()/Flush().
@@ -250,5 +246,6 @@ STARBOARD_FEATURE_PARAM(STARBOARD_FEATURE_PARAM_TIME_TYPE,
                         kVideoDecoderDelayUsecOverride,
                         "ResetDelayUsec",
                         base::Microseconds(0))
-#endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+#endif  // (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)) &&
+        // (SB_API_VERSION >= 17)
 FEATURE_PARAM_LIST_END

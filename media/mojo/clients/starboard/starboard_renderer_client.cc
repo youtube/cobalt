@@ -18,6 +18,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/no_destructor.h"
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
@@ -26,6 +27,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/video_frame.h"
 #include "media/mojo/clients/mojo_renderer.h"
+#include "media/mojo/common/starboard/empty_media_resource.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
@@ -107,6 +109,9 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
   DCHECK(!init_cb_);
 
   client_ = client;
+#if BUILDFLAG(IS_IOS_TVOS)
+  media_resource_ = media_resource;
+#endif  // BUILDFLAG(IS_IOS_TVOS)
   init_cb_ = std::move(init_cb);
 
   DCHECK(!AreMojoPipesConnected());
@@ -285,6 +290,24 @@ void StarboardRendererClient::GetSbWindowHandle() {
   renderer_extension_->OnSbWindowHandleReady(sb_window_handle);
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+void StarboardRendererClient::OnDurationChange(base::TimeDelta duration) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardDurationChangeToDemuxerHost(duration);
+  }
+}
+
+void StarboardRendererClient::OnBufferedTimeRangesChange(
+    base::TimeDelta start,
+    base::TimeDelta length) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (media_resource_) {
+    media_resource_->ForwardBufferedTimeRangesToDemuxerHost(start, length);
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRendererClient::RequestOverlayInfo(bool restart_for_transitions) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
@@ -437,7 +460,10 @@ void StarboardRendererClient::OnExtensionBypassInitialized(
     }
     return;
   }
-  MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+  static base::NoDestructor<EmptyMediaResource> empty_media_resource;
+  MojoRendererWrapper::Initialize(
+      bypass_bridge_ ? empty_media_resource.get() : media_resource, client,
+      std::move(init_cb));
 }
 
 void StarboardRendererClient::InitAndConstructMojoRenderer(

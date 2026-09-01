@@ -118,6 +118,12 @@ class WebSourceBuffer {
   virtual void ResetParserState() = 0;
   virtual void Remove(double start, double end) = 0;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Special Starboard versions of CanChangeType and ChangeType that accept the
+  // raw mime_type string passed from the webapp.
+  virtual bool CanChangeType(const WebString& mime_type) = 0;
+  virtual void ChangeType(const WebString& mime_type) = 0;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns true iff this SourceBuffer supports changing bytestream and codecs
   // to |content_type| and |codecs|.  |content_type| is the ContentType string
   // of the bytestream's MIME type, and |codecs| contains the "codecs" parameter
@@ -132,6 +138,7 @@ class WebSourceBuffer {
   // |content_type| and |codecs| parameters.
   virtual void ChangeType(const WebString& content_type,
                           const WebString& codecs) = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   virtual bool SetTimestampOffset(double) = 0;
 

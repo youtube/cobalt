@@ -14,13 +14,38 @@
 
 module performance.mojom;
 
+struct SystemMemoryInfo {
+  uint64 free_rss_memory;
+  uint64 used_rss_memory;
+  uint64 used_swap_memory;
+  uint64 reserved_virtual_memory;
+  uint64 rss_high_water_mark_memory;
+  uint64 used_rss_anon_memory;
+  uint64 total_cpu_memory;
+  uint64 used_pss_memory;
+  uint64 application_limit_memory;
+  uint64? used_gpu_memory;
+};
+
 interface CobaltPerformance {
+  // Get a snapshot of all system memory metrics in a single call.
+  [Sync]
+  MeasureSystemMemoryInfo() => (SystemMemoryInfo info);
+
   // Get the amount of available memory on the device in bytes.
+  [Sync]
+  MeasureFreeRssMemory() => (uint64 bytes);
+
+  // Deprecated alias for MeasureFreeRssMemory.
   [Sync]
   MeasureAvailableCpuMemory() => (uint64 bytes);
 
   // Get the amount of memory used by the Cobalt process, in bytes. This is also
   // known as the resident set size.
+  [Sync]
+  MeasureUsedRssMemory() => (uint64 bytes);
+
+  // Deprecated alias for MeasureUsedRssMemory.
   [Sync]
   MeasureUsedCpuMemory() => (uint64 bytes);
 
@@ -31,6 +56,29 @@ interface CobaltPerformance {
   // Get the amount of virtual memory currently allocated to the process in bytes.
   [Sync]
   MeasureReservedVirtualMemory() => (uint64 bytes);
+
+  // Get the peak resident set size (high water mark) used by the process in bytes.
+  [Sync]
+  MeasureRssHighWaterMarkMemory() => (uint64 bytes);
+
+  // Get the resident anonymous memory used by the process in bytes.
+  [Sync]
+  MeasureUsedRssAnonMemory() => (uint64 bytes);
+
+  // Get the total physical CPU memory on the device in bytes.
+  [Sync]
+  MeasureTotalCpuMemory() => (uint64 bytes);
+
+  // Get the proportional set size (PSS) memory used by the process in bytes.
+  [Sync]
+  MeasureUsedPssMemory() => (uint64 bytes);
+
+  // Get the application CPU memory limit in bytes.
+  [Sync]
+  MeasureApplicationLimitMemory() => (uint64 bytes);
+  // Get the amount of GPU memory used by the application, in bytes.
+  [Sync]
+  MeasureUsedGpuMemory() => (bool is_supported, uint64 bytes);
 
   // Get the application startup timestamp in microseconds (us).
   [Sync]

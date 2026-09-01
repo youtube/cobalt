@@ -226,6 +226,10 @@ inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
 
+inline constexpr ExperimentalFeatureKey<int>
+    kMediaVideoDecoderMaxPendingInputsSize(
+        "Media.VideoDecoderMaxPendingInputsSize");
+
 inline constexpr ExperimentalFeatureKey<bool> kMediaVideoFrameImplPool(
     "Media.VideoFrameImplPool");
 

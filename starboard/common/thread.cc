@@ -71,7 +71,7 @@ struct Thread::Data {
 std::optional<size_t> GetDefaultStackSize() {
 #if BUILDFLAG(IS_ANDROID)
   if (features::FeatureList::IsEnabled(
-          features::kReduceStarboardThreadStackSize)) {
+          features::kReduceAndroidThreadStackSize)) {
     return 256 * 1024;
   }
 #endif
