@@ -1283,9 +1283,6 @@ HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal(
           url::SchemeHostPort(request_info.url),
           request_info.network_anonymization_key);
   if (alternative_service_info_vector.empty()) {
-<<<<<<< HEAD
-    return AdvertisedAlternativeService();
-=======
 #if BUILDFLAG(IS_COBALT)
     // This block of code suggests QUIC connection for initial requests to a
     // new host. This method is proven to provide performance benefit while still
@@ -1297,17 +1294,17 @@ HttpStreamFactory::JobController::GetAdvertisedAltSvcInternal(
       // Do not default to use QUIC for unprivileged ports on release builds.
       const int kUnrestrictedPort = 1024;
       if (origin.port() >= kUnrestrictedPort) {
-        return AlternativeServiceInfo();
+        return AdvertisedAlternativeService();
       }
 #endif
       quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
-      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
+      return {AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
           AlternativeService(NextProto::kProtoQUIC, origin.host(), origin.port()),
-          base::Time::Max(), versions);
+          base::Time::Max(), versions),
+          AdvertisedAltSvcState::kQuicNotBroken};
     }
 #endif  // BUILDFLAG(IS_COBALT)
-    return AlternativeServiceInfo();
->>>>>>> parent of 4830f91b2e9 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+    return AdvertisedAlternativeService();
   }
 
   bool quic_advertised = false;
