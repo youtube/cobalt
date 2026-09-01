@@ -237,8 +237,14 @@ class GClientSyncResolver(BaseResolver):
         f"--------------------------------------------------\n"
         f"{diagnostic.diagnostic_trace}\n"
         f"--------------------------------------------------\n\n"
-        "Resolve the conflict/error in the provided DEPS snippet. "
-        "Return ONLY the replacement code snippet.")
+        "Resolve the syntax error or duplicate key in DEPS.\n"
+        "Output the standard SEARCH / REPLACE block:\n"
+        "FILE: DEPS\n"
+        "<<<<<<< SEARCH\n"
+        "<exact lines from DEPS to replace>\n"
+        "=======\n"
+        "<fixed replacement lines>\n"
+        ">>>>>>> REPLACE\n")
 
     res = self.reasoning_engine.resolve_conflict(
         file_path="DEPS",
@@ -249,21 +255,10 @@ class GClientSyncResolver(BaseResolver):
         use_expert=use_expert,
     )
     if isinstance(res, dict):
-      raw_patch = res.get("replacement", "") or res.get("patch", "")
+      raw_patch = res.get("patch", "") or res.get("replacement", "")
       model_used = res.get("model_used", self.model)
     else:
       raw_patch = str(res)
       model_used = self.model
-
-    # If the model returned replacement content without SEARCH/REPLACE headers,
-    # wrap it as a standard patch block.
-    if (raw_patch and "<<<<<<< SEARCH" not in raw_patch and
-        "=======" not in raw_patch):
-      raw_patch = (f"FILE: DEPS\n"
-                   f"<<<<<<< SEARCH\n"
-                   f"{context_snippet}\n"
-                   f"=======\n"
-                   f"{raw_patch.strip()}\n"
-                   f">>>>>>> REPLACE")
 
     return raw_patch, model_used, "DEPS"
