@@ -5,8 +5,11 @@
 #include "third_party/blink/renderer/platform/instrumentation/memory_pressure_listener.h"
 
 #include "base/feature_list.h"
+#include "base/functional/bind.h"
 #include "base/synchronization/lock.h"
 #include "base/system/sys_info.h"
+#include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "build/build_config.h"
 #include "partition_alloc/memory_reclaimer.h"
@@ -147,7 +150,30 @@ void MemoryPressureListenerRegistry::OnMemoryPressure(
   CHECK(IsMainThread());
   for (auto& client : clients_)
     client->OnMemoryPressure(level);
-  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+
+  // Clear decoded image caches for CRITICAL pressure to release image ArrayBuffers.
+  if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
+    ImageDecodingStore::Instance().Clear();
+  }
+
+  // Stage 1: Immediate fast reclaim of already-unpinned pages.
+  ::partition_alloc::MemoryReclaimer::Instance()->ReclaimNormal();
+
+  // Stage 2: Post an asynchronous delayed task to allow V8 GC and Blink GC
+  // to complete sweeping before executing full PartitionAlloc ReclaimAll().
+  if (auto task_runner = base::SingleThreadTaskRunner::GetCurrentDefault()) {
+    task_runner->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce([]() {
+#if BUILDFLAG(IS_COBALT)
+          LOG(INFO) << "Executing delayed PartitionAlloc ReclaimAll after GC sweep";
+#endif
+          ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+        }),
+        base::Milliseconds(150));
+  } else {
+    ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+  }
 }
 
 void MemoryPressureListenerRegistry::OnPurgeMemory() {

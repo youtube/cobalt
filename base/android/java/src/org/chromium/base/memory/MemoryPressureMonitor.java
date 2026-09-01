@@ -78,7 +78,7 @@ import org.chromium.build.annotations.Nullable;
  */
 @NullMarked
 public class MemoryPressureMonitor {
-    private static final int DEFAULT_THROTTLING_INTERVAL_MS = 60 * 1000;
+    private static final int DEFAULT_THROTTLING_INTERVAL_MS = 5 * 1000;
 
     private final int mThrottlingIntervalMs;
 
@@ -183,6 +183,13 @@ public class MemoryPressureMonitor {
         ThreadUtils.assertOnUiThread();
 
         if (mIsInsideThrottlingInterval) {
+            // CRITICAL memory pressure signals must never be dropped or delayed behind
+            // throttling on Living Room / TV devices with low memory headroom.
+            if (pressure == MemoryPressureLevel.CRITICAL) {
+                mIsInsideThrottlingInterval = false;
+                reportPressure(pressure);
+                return;
+            }
             // We've already reported during this interval. Save |pressure| and act on
             // it later, when the interval finishes.
             mThrottledPressure = pressure;

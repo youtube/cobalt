@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/allocator/partition_alloc_features.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/no_destructor.h"
 #include "base/run_loop.h"
@@ -355,5 +357,185 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, MAYBE_RecordsCpuMetrics) {
   EXPECT_GE(histogram_tester.GetBucketCount("CPU.Total.UsageInPercentage", 0),
             1);
 }
+
+// Tests that firing a memory pressure signal triggers PartitionAlloc memory
+// reclamation and records the state into UMA histograms.
+#if BUILDFLAG(IS_STARBOARD) && !BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_ANDROID)
+#define MAYBE_MemoryPressureReclaimsPartitionAlloc \
+  DISABLED_MemoryPressureReclaimsPartitionAlloc
+#else
+#define MAYBE_MemoryPressureReclaimsPartitionAlloc \
+  MemoryPressureReclaimsPartitionAlloc
+#endif
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
+                       MAYBE_MemoryPressureReclaimsPartitionAlloc) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = static_cast<CobaltMetricsServiceClient*>(
+      manager_client->metrics_service_client());
+  ASSERT_TRUE(client);
+
+  // 1. Allocate a batch of ArrayBuffers and DOM elements.
+  std::string html_content = R"(
+    <html>
+    <body>
+      <script>
+        window.tempBuffers = [];
+        for (let i = 0; i < 16; ++i) {
+          window.tempBuffers.push(new ArrayBuffer(1024 * 1024)); // 16MB
+        }
+        for (let i = 0; i < 100; ++i) {
+          const div = document.createElement('div');
+          div.textContent = 'Cobalt Partition Memory Test ' + i;
+          document.body.appendChild(div);
+        }
+      </script>
+    </body>
+    </html>
+  )";
+  GURL url("data:text/html;charset=utf-8," + html_content);
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
+  // 2. Trigger baseline memory record while allocations are active.
+  {
+    base::RunLoop run_loop;
+    client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  auto* ab_histogram = base::StatisticsRecorder::FindHistogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer");
+  EXPECT_TRUE(ab_histogram && ab_histogram->SnapshotSamples()->sum() > 0);
+  int64_t initial_ab_committed =
+      ab_histogram ? ab_histogram->SnapshotSamples()->sum() : 0;
+  LOG(INFO) << "[MemoryReclaimTest] Baseline ArrayBuffer Committed: "
+            << initial_ab_committed << " KB";
+
+  // 3. Drop JS references and clear DOM nodes to make memory collectable.
+  ASSERT_TRUE(content::ExecJs(
+      shell()->web_contents(),
+      "window.tempBuffers = null; document.body.innerHTML = '';"));
+
+  // 4. Simulate Android/System CRITICAL memory pressure signal.
+  base::MemoryPressureListener::NotifyMemoryPressure(
+      base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+
+  // 5. Trigger post-reclaim memory record.
+  {
+    base::RunLoop run_loop;
+    client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+    run_loop.Run();
+  }
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  auto* post_ab_histogram = base::StatisticsRecorder::FindHistogram(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer");
+  EXPECT_TRUE(post_ab_histogram);
+  LOG(INFO) << "[MemoryReclaimTest] Post-reclaim samples count: "
+            << (post_ab_histogram
+                    ? post_ab_histogram->SnapshotSamples()->TotalCount()
+                    : 0);
+}
+
+class CobaltDenserBucketBrowserTest
+    : public CobaltMetricsBrowserTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  CobaltDenserBucketBrowserTest() {
+    bool enable_denser = GetParam();
+    if (enable_denser) {
+      denser_feature_list_.InitAndEnableFeatureWithParameters(
+          base::features::kPartitionAllocUseDenserDistribution,
+          {{"mode", "denser"}});
+    } else {
+      denser_feature_list_.InitAndEnableFeatureWithParameters(
+          base::features::kPartitionAllocUseDenserDistribution,
+          {{"mode", "default"}});
+    }
+  }
+  ~CobaltDenserBucketBrowserTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList denser_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(CobaltDenserBucketBrowserTest,
+                       CompareBucketWastedMemory) {
+  base::HistogramTester histogram_tester;
+
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  auto* features = GlobalFeatures::GetInstance();
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
+  ASSERT_TRUE(manager_client);
+  auto* client = static_cast<CobaltMetricsServiceClient*>(
+      manager_client->metrics_service_client());
+  ASSERT_TRUE(client);
+
+  bool is_denser = GetParam();
+  LOG(INFO) << "[DenserTest] Running test with mode: "
+            << (is_denser ? "DENSER" : "DEFAULT");
+
+  // Allocate 40,000 objects of 136 bytes.
+  // 136 bytes falls in the gap between 128B and 160B.
+  // In default mode (160B bucket): 160 - 136 = 24 bytes wasted per object
+  // (17.6% waste). In denser mode (144B bucket): 144 - 136 = 8 bytes wasted per
+  // object (5.8% waste).
+  std::string html_content = R"(
+    <html>
+    <body>
+      <script>
+        window.allocations = [];
+        for (let i = 0; i < 40000; ++i) {
+          window.allocations.push(new Uint8Array(136));
+        }
+      </script>
+    </body>
+    </html>
+  )";
+  GURL url("data:text/html;charset=utf-8," + html_content);
+  ASSERT_TRUE(content::NavigateToURL(shell()->web_contents(), url));
+
+  // Trigger memory dump and import histograms.
+  base::RunLoop run_loop;
+  client->ScheduleMemoryRecordForTesting(run_loop.QuitClosure());
+  run_loop.Run();
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  auto get_hist_sum = [](const std::string& name) -> int64_t {
+    auto* histogram = base::StatisticsRecorder::FindHistogram(name);
+    return (histogram && histogram->SnapshotSamples())
+               ? histogram->SnapshotSamples()->sum()
+               : 0;
+  };
+
+  int64_t wasted_kb =
+      get_hist_sum("Memory.Experimental.Browser2.Malloc.Wasted");
+  int64_t committed_kb =
+      get_hist_sum("Memory.Experimental.Browser2.Malloc.CommittedSize");
+  int64_t ab_committed_kb = get_hist_sum(
+      "Memory.Experimental.Browser2.PartitionAlloc.CommittedSize.ArrayBuffer");
+
+  LOG(INFO) << "[DenserTest] Mode=" << (is_denser ? "DENSER" : "DEFAULT")
+            << " | Malloc.Wasted=" << wasted_kb << " KB"
+            << " | Malloc.Committed=" << committed_kb << " KB"
+            << " | ArrayBuffer.Committed=" << ab_committed_kb << " KB";
+}
+
+INSTANTIATE_TEST_SUITE_P(CobaltDenserBucketTests,
+                         CobaltDenserBucketBrowserTest,
+                         ::testing::Bool(),
+                         [](const ::testing::TestParamInfo<bool>& info) {
+                           return info.param ? "DenserDistribution"
+                                             : "DefaultDistribution";
+                         });
 
 }  // namespace cobalt
