@@ -14,7 +14,9 @@
 
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
+#if BUILDFLAG(IS_ANDROID)
 #include "starboard/shared/starboard/features_test_util.h"
+#endif
 #include "starboard/system.h"
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
@@ -37,7 +39,9 @@ int RunAllBenchmarks(int argc, char** argv) {
   perfetto_args.backends = perfetto::kSystemBackend;
   perfetto::Tracing::Initialize(perfetto_args);
 #endif
+#if BUILDFLAG(IS_ANDROID)
   starboard::features::InitializeStarboardFeatureListWithDefaults();
+#endif
   starboard::benchmark::LinkPlayerCreateBenchmark();
   starboard::benchmark::LinkPlayerDestroyBenchmark();
   starboard::benchmark::LinkPlayerSeekBenchmark();
