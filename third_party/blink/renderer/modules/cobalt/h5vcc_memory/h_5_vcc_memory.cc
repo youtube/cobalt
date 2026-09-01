@@ -52,7 +52,7 @@ void H5vccMemory::OnListenerConnectionError() {
   low_memory_receiver_.reset();
 }
 
-void H5vccMemory::NotifyLowMemory() {
+void H5vccMemory::OnLowMemory() {
   DispatchEvent(*Event::Create(event_type_names::kLowmemory));
 }
 

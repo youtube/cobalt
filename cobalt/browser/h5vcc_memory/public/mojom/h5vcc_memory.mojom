@@ -15,7 +15,7 @@
 module h5vcc_memory.mojom;
 
 interface LowMemoryListener {
-  NotifyLowMemory();
+  OnLowMemory();
 };
 
 // The browser process must provide an implementation of this interface so that

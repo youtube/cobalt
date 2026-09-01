@@ -25,7 +25,7 @@ h5vcc_memory_tests(async (t, mockH5vccMemory) => {
         window.h5vcc.memory.onlowmemory = null;
     });
 
-    await mockH5vccMemory.notifyLowMemory();
+    await mockH5vccMemory.onLowMemory();
     await eventPromise;
     assert_true(eventFired, "onlowmemory handler should have been called");
 }, 'H5vccMemory.onlowmemory: Should receive lowmemory event via onlowmemory handler');
@@ -49,7 +49,7 @@ h5vcc_memory_tests(async (t, mockH5vccMemory) => {
         window.h5vcc.memory.removeEventListener('lowmemory', listener);
     });
 
-    await mockH5vccMemory.notifyLowMemory();
+    await mockH5vccMemory.onLowMemory();
     await eventPromise;
     assert_true(eventFired, "addEventListener lowmemory callback should have been called");
 }, 'H5vccMemory.addEventListener: Should receive lowmemory event via addEventListener');

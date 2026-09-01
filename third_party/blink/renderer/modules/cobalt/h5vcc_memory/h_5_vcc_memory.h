@@ -29,6 +29,9 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 
+// H5vccMemory implements the web-exposed window.h5vcc.memory API.
+// It allows JavaScript clients to register for low memory notifications
+// forwarded from the browser process.
 class MODULES_EXPORT H5vccMemory final
     : public EventTarget,
       public ExecutionContextLifecycleObserver,
@@ -50,7 +53,7 @@ class MODULES_EXPORT H5vccMemory final
                             const RegisteredEventListener&) override;
 
   // Mojom interface:
-  void NotifyLowMemory() override;
+  void OnLowMemory() override;
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {

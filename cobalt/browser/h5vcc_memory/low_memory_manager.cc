@@ -45,7 +45,7 @@ void LowMemoryManager::AddListener(
 void LowMemoryManager::OnLowMemory() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   for (auto& listener : listeners_) {
-    listener->NotifyLowMemory();
+    listener->OnLowMemory();
   }
 }
 

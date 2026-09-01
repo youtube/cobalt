@@ -35,7 +35,7 @@ class FakeLowMemoryListener : public h5vcc_memory::mojom::LowMemoryListener {
     return receiver_.BindNewPipeAndPassRemote();
   }
 
-  void NotifyLowMemory() override {
+  void OnLowMemory() override {
     notifications_count_++;
     if (quit_closure_) {
       std::move(quit_closure_).Run();

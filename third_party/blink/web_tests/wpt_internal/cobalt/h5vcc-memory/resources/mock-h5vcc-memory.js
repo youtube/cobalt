@@ -43,12 +43,12 @@ class MockH5vccMemory {
     }
   }
 
-  async notifyLowMemory() {
+  async onLowMemory() {
     if (this.lowMemoryListeners_.length === 0) {
       await this.listenerPromise_;
     }
     for (const listener of this.lowMemoryListeners_) {
-      listener.notifyLowMemory();
+      listener.onLowMemory();
     }
   }
 }
