@@ -2083,14 +2083,27 @@ bool StyleCascade::ResolveAttrInto(CSSParserTokenStream& stream,
   if (!attribute_value.IsNull() && attr_type->IsSyntax()) {
     TokenSequence substituted_attribute_token_sequence;
     CSSParserTokenStream attribute_value_stream(attribute_value);
+    // Since attributes are not parsed by CSSVariableParser, we first need to
+    // parse substituted value, not to run into DCHECKs while resolving
+    // substitutions.
+    if (!CSSVariableParser::ParseDeclarationValue(attribute_value, false,
+                                                  context)) {
+      return false;
+    }
     if (!ResolveTokensInto(attribute_value_stream, tree_scope, resolver,
                            context, function_context,
                            /* stop_type */ kEOFToken,
                            substituted_attribute_token_sequence)) {
-      return false;
+      // Trigger fallback:
+      substituted_attribute_value = g_null_atom;
+    } else {
+      substituted_attribute_value =
+          substituted_attribute_token_sequence.OriginalText();
     }
-    substituted_attribute_value =
-        substituted_attribute_token_sequence.OriginalText();
+  }
+  if (resolver.InCycle()) {
+    // ResolveTokensInto caused a cycle; trigger fallback.
+    substituted_attribute_value = g_null_atom;
   }
 
   // Parse value according to the attribute type.
@@ -2104,6 +2117,7 @@ bool StyleCascade::ResolveAttrInto(CSSParserTokenStream& stream,
     return out.Append(substitution_value, /*is_attr_tainted=*/true,
                       CSSVariableData::kMaxVariableBytes);
   }
+  DCHECK((stream.Peek().GetType() == kCommaToken) || stream.AtEnd());
 
   TokenSequence fallback;
   if (ConsumeComma(stream)) {

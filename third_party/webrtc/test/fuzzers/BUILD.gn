@@ -39,7 +39,12 @@ rtc_library("fuzz_data_helper") {
     "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../rtc_base:checks",
   ]
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  # Only fuzzer targets can depend on this.
+  visibility = [
+    ":*",
+    "utils:*",
+  ]
 }
 
 set_defaults("webrtc_fuzzer_test") {
@@ -270,20 +275,29 @@ webrtc_fuzzer_test("rtp_packetizer_av1_fuzzer") {
     "../../api:array_view",
     "../../api/video:video_frame_type",
     "../../modules/rtp_rtcp",
-    "../../modules/rtp_rtcp:rtp_rtcp_format",
-    "../../rtc_base:checks",
+    "utils:validate_rtp_packetizer",
   ]
+}
+
+if (rtc_use_h265) {
+  webrtc_fuzzer_test("rtp_packetizer_h265_fuzzer") {
+    sources = [ "rtp_packetizer_h265_fuzzer.cc" ]
+    deps = [
+      "../../api:array_view",
+      "../../api/video:video_frame_type",
+      "../../modules/rtp_rtcp",
+      "utils:validate_rtp_packetizer",
+    ]
+  }
 }
 
 webrtc_fuzzer_test("rtp_format_h264_fuzzer") {
   sources = [ "rtp_format_h264_fuzzer.cc" ]
   deps = [
     "../../api:array_view",
-    "../../api/video:video_frame_type",
     "../../modules/rtp_rtcp",
-    "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/video_coding:codec_globals_headers",
-    "../../rtc_base:checks",
+    "utils:validate_rtp_packetizer",
   ]
 }
 
@@ -291,11 +305,9 @@ webrtc_fuzzer_test("rtp_format_vp8_fuzzer") {
   sources = [ "rtp_format_vp8_fuzzer.cc" ]
   deps = [
     "../../api:array_view",
-    "../../api/video:video_frame_type",
     "../../modules/rtp_rtcp",
-    "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/video_coding:codec_globals_headers",
-    "../../rtc_base:checks",
+    "utils:validate_rtp_packetizer",
   ]
 }
 
@@ -303,11 +315,9 @@ webrtc_fuzzer_test("rtp_format_vp9_fuzzer") {
   sources = [ "rtp_format_vp9_fuzzer.cc" ]
   deps = [
     "../../api:array_view",
-    "../../api/video:video_frame_type",
     "../../modules/rtp_rtcp",
-    "../../modules/rtp_rtcp:rtp_rtcp_format",
     "../../modules/video_coding:codec_globals_headers",
-    "../../rtc_base:checks",
+    "utils:validate_rtp_packetizer",
   ]
 }
 
@@ -883,6 +893,7 @@ group("fuzzers") {
     deps += [
       ":h265_bitstream_parser_fuzzer",
       ":h265_depacketizer_fuzzer",
+      ":rtp_packetizer_h265_fuzzer",
     ]
   }
 

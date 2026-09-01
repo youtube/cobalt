@@ -24,7 +24,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
-import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 
 import org.junit.Before;
@@ -68,10 +67,8 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelectorBase;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
 import org.chromium.chrome.browser.tasks.tab_management.TabListEditorCoordinator.TabListEditorController;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.GridCardOnClickListenerProvider;
-import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionListener;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeController;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.tab_group_sync.LocalTabGroupId;
@@ -80,6 +77,7 @@ import org.chromium.components.tab_group_sync.SavedTabGroupTab;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.tab_group_sync.TabGroupUiActionHandler;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.edge_to_edge.EdgeToEdgePadAdjuster;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.ArrayList;
@@ -117,7 +115,6 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
     @Mock private OnTabSelectingListener mOnTabSelectingListener;
     @Mock private TabArchiveSettings mTabArchiveSettings;
     @Mock private ModalDialogManager mModalDialogManager;
-    @Mock private RecyclerView mRecyclerView;
     @Mock private EdgeToEdgeController mEdgeToEdgeController;
     @Mock private TabGroupSyncService mTabGroupSyncService;
     @Mock private View mItemView1;
@@ -202,6 +199,7 @@ public class ArchivedTabsDialogCoordinatorUnitTest {
                     }
                 });
 
+        when(mArchivedTabModel.iterator()).thenAnswer(inv -> Collections.emptyList().iterator());
         when(mArchivedTabModelOrchestrator.getTabModelSelector())
                 .thenReturn(mArchivedTabModelSelector);
         when(mArchivedTabModelSelector.getModel(false)).thenReturn(mArchivedTabModel);

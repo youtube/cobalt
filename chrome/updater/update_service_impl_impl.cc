@@ -240,6 +240,8 @@ std::wstring GetTextForDownloadError(int error, const std::wstring& language) {
 
     case static_cast<int>(update_client::CrxDownloaderError::BAD_HASH):
       return GetLocalizedString(IDS_DOWNLOAD_HASH_MISMATCH_BASE);
+    case static_cast<int>(update_client::CrxDownloaderError::DISK_FULL):
+      return GetLocalizedString(IDS_UPDATER_DISK_FULL_BASE);
 
     default:
       return GetLocalizedStringF(IDS_GENERIC_DOWNLOAD_ERROR_BASE,
@@ -502,14 +504,18 @@ UpdateService::UpdateState::State ToUpdateState(
       return UpdateService::UpdateState::State::kCheckingForUpdates;
 
     case update_client::ComponentState::kDownloading:
-    case update_client::ComponentState::kDownloadingDiff:
       return UpdateService::UpdateState::State::kDownloading;
 
     case update_client::ComponentState::kCanUpdate:
       return UpdateService::UpdateState::State::kUpdateAvailable;
 
+    case update_client::ComponentState::kDecompressing:
+      return UpdateService::UpdateState::State::kDecompressing;
+
+    case update_client::ComponentState::kPatching:
+      return UpdateService::UpdateState::State::kPatching;
+
     case update_client::ComponentState::kUpdating:
-    case update_client::ComponentState::kUpdatingDiff:
       return UpdateService::UpdateState::State::kInstalling;
 
     case update_client::ComponentState::kUpdated:
@@ -522,7 +528,6 @@ UpdateService::UpdateState::State ToUpdateState(
       return UpdateService::UpdateState::State::kUpdateError;
 
     case update_client::ComponentState::kRun:
-    case update_client::ComponentState::kLastStatus:
       NOTREACHED();
   }
 }
@@ -753,6 +758,13 @@ void UpdateServiceImplImpl::RegisterApp(
     VLOG(1) << "Existence check path " << request.existence_checker_path
             << " is on read-only file system. Registration of "
             << request.app_id << " is skipped.";
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), kRegistrationError));
+    return;
+  }
+
+  if (request.app_id.empty()) {
+    VLOG(1) << "Refusing to register an empty app ID.";
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), kRegistrationError));
     return;

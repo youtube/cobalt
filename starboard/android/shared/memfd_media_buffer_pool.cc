@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <cstring>
 
+#include "base/no_destructor.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
@@ -98,14 +99,14 @@ int CreateReliableCacheFd(const char* name, size_t size) {
 
 // static
 MemFdMediaBufferPool* MemFdMediaBufferPool::Get() {
-  static MemFdMediaBufferPool instance;
+  static base::NoDestructor<MemFdMediaBufferPool> instance;
 
-  if (instance.fd_ < 0) {
+  if (instance->fd_ < 0) {
     SB_LOG(WARNING) << "Failed to create memfd for MediaBufferPool.";
     return nullptr;
   }
 
-  return &instance;
+  return instance.get();
 }
 
 void MemFdMediaBufferPool::ShrinkToZero() {

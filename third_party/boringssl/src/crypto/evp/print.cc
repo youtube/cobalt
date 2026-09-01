@@ -150,55 +150,6 @@ static int rsa_priv_print(BIO *bp, const EVP_PKEY *pkey, int indent) {
 }
 
 
-// DSA keys.
-
-static int do_dsa_print(BIO *bp, const DSA *x, int off, int ptype) {
-  const BIGNUM *priv_key = NULL;
-  if (ptype == 2) {
-    priv_key = DSA_get0_priv_key(x);
-  }
-
-  const BIGNUM *pub_key = NULL;
-  if (ptype > 0) {
-    pub_key = DSA_get0_pub_key(x);
-  }
-
-  const char *ktype = "DSA-Parameters";
-  if (ptype == 2) {
-    ktype = "Private-Key";
-  } else if (ptype == 1) {
-    ktype = "Public-Key";
-  }
-
-  if (!BIO_indent(bp, off, 128) ||
-      BIO_printf(bp, "%s: (%u bit)\n", ktype, BN_num_bits(DSA_get0_p(x))) <=
-          0 ||
-      // |priv_key| and |pub_key| may be NULL, in which case |bn_print| will
-      // silently skip them.
-      !bn_print(bp, "priv:", priv_key, off) ||
-      !bn_print(bp, "pub:", pub_key, off) ||
-      !bn_print(bp, "P:", DSA_get0_p(x), off) ||
-      !bn_print(bp, "Q:", DSA_get0_q(x), off) ||
-      !bn_print(bp, "G:", DSA_get0_g(x), off)) {
-    return 0;
-  }
-
-  return 1;
-}
-
-static int dsa_param_print(BIO *bp, const EVP_PKEY *pkey, int indent) {
-  return do_dsa_print(bp, EVP_PKEY_get0_DSA(pkey), indent, 0);
-}
-
-static int dsa_pub_print(BIO *bp, const EVP_PKEY *pkey, int indent) {
-  return do_dsa_print(bp, EVP_PKEY_get0_DSA(pkey), indent, 1);
-}
-
-static int dsa_priv_print(BIO *bp, const EVP_PKEY *pkey, int indent) {
-  return do_dsa_print(bp, EVP_PKEY_get0_DSA(pkey), indent, 2);
-}
-
-
 // EC keys.
 
 static int do_EC_KEY_print(BIO *bp, const EC_KEY *x, int off, int ktype) {
@@ -280,13 +231,7 @@ static EVP_PKEY_PRINT_METHOD kPrintMethods[] = {
         EVP_PKEY_RSA,
         rsa_pub_print,
         rsa_priv_print,
-        NULL /* param_print */,
-    },
-    {
-        EVP_PKEY_DSA,
-        dsa_pub_print,
-        dsa_priv_print,
-        dsa_param_print,
+        /*param_print=*/nullptr,
     },
     {
         EVP_PKEY_EC,

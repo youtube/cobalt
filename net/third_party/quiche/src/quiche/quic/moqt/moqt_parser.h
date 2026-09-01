@@ -43,20 +43,21 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnAnnounceMessage(const MoqtAnnounce& message) = 0;
   virtual void OnAnnounceOkMessage(const MoqtAnnounceOk& message) = 0;
   virtual void OnAnnounceErrorMessage(const MoqtAnnounceError& message) = 0;
-  virtual void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) = 0;
-  virtual void OnTrackStatusRequestMessage(
-      const MoqtTrackStatusRequest& message) = 0;
   virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
+  virtual void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
+  virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
+  virtual void OnTrackStatusErrorMessage(
+      const MoqtTrackStatusError& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
-  virtual void OnSubscribeAnnouncesMessage(
-      const MoqtSubscribeAnnounces& message) = 0;
-  virtual void OnSubscribeAnnouncesOkMessage(
-      const MoqtSubscribeAnnouncesOk& message) = 0;
-  virtual void OnSubscribeAnnouncesErrorMessage(
-      const MoqtSubscribeAnnouncesError& message) = 0;
-  virtual void OnUnsubscribeAnnouncesMessage(
-      const MoqtUnsubscribeAnnounces& message) = 0;
+  virtual void OnSubscribeNamespaceMessage(
+      const MoqtSubscribeNamespace& message) = 0;
+  virtual void OnSubscribeNamespaceOkMessage(
+      const MoqtSubscribeNamespaceOk& message) = 0;
+  virtual void OnSubscribeNamespaceErrorMessage(
+      const MoqtSubscribeNamespaceError& message) = 0;
+  virtual void OnUnsubscribeNamespaceMessage(
+      const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
   virtual void OnFetchMessage(const MoqtFetch& message) = 0;
   virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;
@@ -79,6 +80,8 @@ class MoqtDataParserVisitor {
   // OBJECT payload. If not, there will be subsequent calls with further payload
   // data. The parser retains ownership of |message| and |payload|, so the
   // visitor needs to copy anything it wants to retain.
+  // If `message.object_status` == `kNormal`, the status must not be used until
+  // `end_of_message` is true, since a FIN can change the status.
   virtual void OnObjectMessage(const MoqtObject& message,
                                absl::string_view payload,
                                bool end_of_message) = 0;
@@ -110,24 +113,33 @@ class QUICHE_EXPORT MoqtControlParser {
   // otherwise.
   size_t ProcessClientSetup(quic::QuicDataReader& reader);
   size_t ProcessServerSetup(quic::QuicDataReader& reader);
-  size_t ProcessSubscribe(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeError(quic::QuicDataReader& reader);
+  // Subscribe formats are used for TrackStatus as well, so take the message
+  // type as an argument, defaulting to the subscribe version.
+  size_t ProcessSubscribe(
+      quic::QuicDataReader& reader,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribe);
+  size_t ProcessSubscribeOk(
+      quic::QuicDataReader& reader,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
+  size_t ProcessSubscribeError(
+      quic::QuicDataReader& reader,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessSubscribeDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessAnnounce(quic::QuicDataReader& reader);
   size_t ProcessAnnounceOk(quic::QuicDataReader& reader);
   size_t ProcessAnnounceError(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceCancel(quic::QuicDataReader& reader);
-  size_t ProcessTrackStatusRequest(quic::QuicDataReader& reader);
   size_t ProcessUnannounce(quic::QuicDataReader& reader);
+  size_t ProcessAnnounceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
+  size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
+  size_t ProcessTrackStatusError(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeAnnounces(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeAnnouncesOk(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeAnnouncesError(quic::QuicDataReader& reader);
-  size_t ProcessUnsubscribeAnnounces(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeNamespaceOk(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeNamespaceError(quic::QuicDataReader& reader);
+  size_t ProcessUnsubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessMaxRequestId(quic::QuicDataReader& reader);
   size_t ProcessFetch(quic::QuicDataReader& reader);
   size_t ProcessFetchCancel(quic::QuicDataReader& reader);
@@ -224,6 +236,7 @@ class QUICHE_EXPORT MoqtDataParser {
     kObjectPayloadLength,
     kStatus,
     kData,
+    kAwaitingNextByte,  // Can't determine status until the next byte arrives.
     kPadding,
     kFailed,
   };
@@ -263,6 +276,8 @@ class QUICHE_EXPORT MoqtDataParser {
 
   bool no_more_data_ = false;  // Fatal error or fin. No more parsing.
   bool parsing_error_ = false;
+  bool contains_end_of_group_ = false;  // True if the stream contains an
+                                        // implied END_OF_GROUP object.
 
   std::string buffered_message_;
 

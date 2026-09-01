@@ -433,6 +433,7 @@ class FakeCall final : public Call, public PacketReceiver {
   void SetClientBitratePreferences(
       const BitrateSettings& /* preferences */) override {}
   const FieldTrialsView& trials() const override { return env_.field_trials(); }
+  const Environment& env() const override { return env_; }
   void EnableSendCongestionControlFeedbackAccordingToRfc8888() override {}
   int FeedbackAccordingToRfc8888Count() { return 0; }
   int FeedbackAccordingToTransportCcCount() { return 0; }

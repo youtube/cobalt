@@ -848,7 +848,7 @@ class VideoCodecAnalyzer : public VideoCodecTester::VideoCodecStats {
 
   SamplesStatsCounter::StatsSample StatsSample(double value,
                                                Timestamp time) const {
-    return SamplesStatsCounter::StatsSample{value, time};
+    return SamplesStatsCounter::StatsSample{.value = value, .time = time};
   }
 
   LimitedTaskQueue task_queue_;

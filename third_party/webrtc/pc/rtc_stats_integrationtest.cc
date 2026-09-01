@@ -21,7 +21,9 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 #include "api/audio_options.h"
 #include "api/data_channel_interface.h"
+#include "api/field_trials.h"
 #include "api/make_ref_counted.h"
+#include "api/media_stream_interface.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
@@ -39,17 +41,20 @@
 #include "rtc_base/thread.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/virtual_socket_server.h"
+#include "test/create_test_field_trials.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/wait_until.h"
 
 using ::testing::Contains;
+using ::testing::IsTrue;
+using ::testing::SizeIs;
 
 namespace webrtc {
 
 namespace {
 
-const int64_t kGetStatsTimeoutMs = 10000;
+constexpr int64_t kGetStatsTimeoutMs = 10000;
 
 class RTCStatsIntegrationTest : public ::testing::Test {
  public:
@@ -67,17 +72,22 @@ class RTCStatsIntegrationTest : public ::testing::Test {
         worker_thread_.get());
   }
 
-  void StartCall() {
+  void StartCall() { StartCall(""); }
+  void StartCall(const char* field_trial_string) {
     // Create PeerConnections and "connect" sigslots
     PeerConnectionInterface::RTCConfiguration config;
     config.sdp_semantics = SdpSemantics::kUnifiedPlan;
     PeerConnectionInterface::IceServer ice_server;
     ice_server.uri = "stun:1.1.1.1:3478";
     config.servers.push_back(ice_server);
-    EXPECT_TRUE(caller_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory()));
-    EXPECT_TRUE(callee_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory()));
+    EXPECT_TRUE(
+        caller_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
+                          CreateBuiltinAudioDecoderFactory(),
+                          CreateTestFieldTrialsPtr(field_trial_string)));
+    EXPECT_TRUE(
+        callee_->CreatePc(config, CreateBuiltinAudioEncoderFactory(),
+                          CreateBuiltinAudioDecoderFactory(),
+                          CreateTestFieldTrialsPtr(field_trial_string)));
     PeerConnectionTestWrapper::Connect(caller_.get(), callee_.get());
 
     // Get user media for audio and video
@@ -124,10 +134,10 @@ class RTCStatsIntegrationTest : public ::testing::Test {
       PeerConnectionInterface* pc) {
     scoped_refptr<RTCStatsObtainer> stats_obtainer = RTCStatsObtainer::Create();
     pc->GetStats(stats_obtainer.get());
-    EXPECT_THAT(WaitUntil([&] { return stats_obtainer->report() != nullptr; },
-                          ::testing::IsTrue(),
-                          {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-                IsRtcOk());
+    EXPECT_THAT(
+        WaitUntil([&] { return stats_obtainer->report() != nullptr; }, IsTrue(),
+                  {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
+        IsRtcOk());
     return stats_obtainer->report();
   }
 
@@ -137,10 +147,10 @@ class RTCStatsIntegrationTest : public ::testing::Test {
       scoped_refptr<T> selector) {
     scoped_refptr<RTCStatsObtainer> stats_obtainer = RTCStatsObtainer::Create();
     pc->GetStats(selector, stats_obtainer);
-    EXPECT_THAT(WaitUntil([&] { return stats_obtainer->report() != nullptr; },
-                          ::testing::IsTrue(),
-                          {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
-                IsRtcOk());
+    EXPECT_THAT(
+        WaitUntil([&] { return stats_obtainer->report() != nullptr; }, IsTrue(),
+                  {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
+        IsRtcOk());
     return stats_obtainer->report();
   }
 
@@ -571,6 +581,7 @@ class RTCStatsReportVerifier {
       verifier.TestAttributeIsUndefined(inbound_stream.decoder_implementation);
       verifier.TestAttributeIsUndefined(inbound_stream.power_efficient_decoder);
     }
+
     // As long as the corruption detection RTP header extension is not activated
     // it should not aggregate any corruption score. The tests where this header
     // extension is enabled are located in pc/peer_connection_integrationtest.cc
@@ -793,6 +804,10 @@ class RTCStatsReportVerifier {
                                           RTCAudioSourceStats::kType);
       verifier.TestAttributeIsUndefined(outbound_stream.qp_sum);
     }
+    // TODO: bugs.webrtc.org/388070060 - PSNR stats are disabled by default.
+    verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
+    verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
+
     verifier.TestAttributeIsNonNegative<uint32_t>(outbound_stream.nack_count);
     verifier.TestAttributeIsOptionalIDReference(
         outbound_stream.remote_id, RTCRemoteInboundRtpStreamStats::kType);
@@ -1050,8 +1065,7 @@ TEST_F(RTCStatsIntegrationTest, GetStatsFromCallee) {
   };
   EXPECT_THAT(
       WaitUntil([&] { return GetStatsReportAndReturnTrueIfRttIsDefined(); },
-                ::testing::IsTrue(),
-                {.timeout = TimeDelta::Millis(kMaxWaitMs)}),
+                IsTrue(), {.timeout = TimeDelta::Millis(kMaxWaitMs)}),
       IsRtcOk());
   RTCStatsReportVerifier(report.get()).VerifyReport({});
 }
@@ -1197,6 +1211,113 @@ TEST_F(RTCStatsIntegrationTest, GetStatsContainsNoDuplicateAttributes) {
       attribute_names.insert(attribute.name());
     }
   }
+}
+
+TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
+  StartCall("WebRTC-Video-CalculatePsnr/Enabled/");
+
+  // This assumes all other stats are ok and tests the stats which should be
+  // different under the field trial.
+  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
+  for (const RTCStats& stats : *report) {
+    if (stats.type() == RTCOutboundRtpStreamStats::kType) {
+      const RTCOutboundRtpStreamStats& outbound_stream(
+          stats.cast_to<RTCOutboundRtpStreamStats>());
+      RTCStatsVerifier verifier(report.get(), &outbound_stream);
+      if (outbound_stream.kind.has_value() &&
+          *outbound_stream.kind == "video") {
+        verifier.TestAttributeIsDefined(outbound_stream.psnr_sum);
+        verifier.TestAttributeIsNonNegative(outbound_stream.psnr_measurements);
+      } else {
+        verifier.TestAttributeIsUndefined(outbound_stream.psnr_sum);
+        verifier.TestAttributeIsUndefined(outbound_stream.psnr_measurements);
+      }
+    }
+  }
+}
+
+class RTCStatsRtpLifetimeTest : public RTCStatsIntegrationTest {
+ public:
+  RTCStatsRtpLifetimeTest() : RTCStatsIntegrationTest() {
+    FieldTrials field_trials =
+        CreateTestFieldTrials("WebRTC-RTP-Lifetime/Enabled/");
+    EXPECT_TRUE(caller_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
+                                  CreateBuiltinAudioDecoderFactory(),
+                                  std::make_unique<FieldTrials>(field_trials)));
+    EXPECT_TRUE(callee_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
+                                  CreateBuiltinAudioDecoderFactory(),
+                                  std::make_unique<FieldTrials>(field_trials)));
+  }
+};
+
+TEST_F(RTCStatsRtpLifetimeTest, AudioInboundRtpMissingBeforeFirstPacket) {
+  // Caller to send audio.
+  scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(
+      /*audio=*/true, {}, /*video=*/false);
+  scoped_refptr<AudioTrackInterface> track = stream->GetAudioTracks()[0];
+  caller_->pc()->AddTransceiver(track, {});
+
+  caller_->ListenForRemoteIceCandidates(callee_);
+  callee_->ListenForRemoteIceCandidates(caller_);
+  PeerConnectionTestWrapper::AwaitNegotiation(caller_.get(), callee_.get());
+
+  // The m-section has been negotiated but no inbound-rtp should be present
+  // since no packets have been received yet.
+  scoped_refptr<const RTCStatsReport> report = GetStats(callee_->pc());
+  std::vector<const RTCInboundRtpStreamStats*> inbound_rtps =
+      report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  EXPECT_THAT(inbound_rtps, SizeIs(0));
+
+  caller_->AwaitAddRemoteIceCandidates();
+  callee_->AwaitAddRemoteIceCandidates();
+
+  // Nothing is preventing packets from flowing, wait for inbound-rtp to appear.
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    report = GetStats(callee_->pc());
+                    inbound_rtps =
+                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+                    return inbound_rtps.size() > 0;
+                  },
+                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
+              IsRtcOk());
+  ASSERT_THAT(inbound_rtps, SizeIs(1));
+  EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
+}
+
+TEST_F(RTCStatsRtpLifetimeTest, VideoInboundRtpMissingBeforeFirstPacket) {
+  // Caller to send video.
+  scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(
+      /*audio=*/false, {}, /*video=*/true);
+  scoped_refptr<VideoTrackInterface> track = stream->GetVideoTracks()[0];
+  caller_->pc()->AddTransceiver(track, {});
+
+  caller_->ListenForRemoteIceCandidates(callee_);
+  callee_->ListenForRemoteIceCandidates(caller_);
+  PeerConnectionTestWrapper::AwaitNegotiation(caller_.get(), callee_.get());
+
+  // The m-section has been negotiated but no inbound-rtp should be present
+  // since no packets have been received yet.
+  scoped_refptr<const RTCStatsReport> report = GetStats(callee_->pc());
+  std::vector<const RTCInboundRtpStreamStats*> inbound_rtps =
+      report->GetStatsOfType<RTCInboundRtpStreamStats>();
+  EXPECT_THAT(inbound_rtps, SizeIs(0));
+
+  caller_->AwaitAddRemoteIceCandidates();
+  callee_->AwaitAddRemoteIceCandidates();
+
+  // Nothing is preventing packets from flowing, wait for inbound-rtp to appear.
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    report = GetStats(callee_->pc());
+                    inbound_rtps =
+                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+                    return inbound_rtps.size() > 0;
+                  },
+                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
+              IsRtcOk());
+  ASSERT_THAT(inbound_rtps, SizeIs(1));
+  EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
 }
 #endif  // WEBRTC_HAVE_SCTP
 

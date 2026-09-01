@@ -261,11 +261,8 @@ class StreamFeedbackProvider {
 
 class RtcpRttStats {
  public:
+  virtual ~RtcpRttStats() = default;
   virtual void OnRttUpdate(int64_t rtt) = 0;
-
-  virtual int64_t LastProcessedRtt() const = 0;
-
-  virtual ~RtcpRttStats() {}
 };
 
 struct RtpPacketCounter {

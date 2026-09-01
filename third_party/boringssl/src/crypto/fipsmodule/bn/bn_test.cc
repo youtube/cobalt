@@ -45,7 +45,7 @@
 
 namespace {
 
-static int HexToBIGNUM(bssl::UniquePtr<BIGNUM> *out, const char *in) {
+static int HexToBIGNUMWithReturn(bssl::UniquePtr<BIGNUM> *out, const char *in) {
   BIGNUM *raw = NULL;
   int ret = BN_hex2bn(&raw, in);
   out->reset(raw);
@@ -89,7 +89,7 @@ class BIGNUMFileTest {
     }
 
     bssl::UniquePtr<BIGNUM> ret;
-    if (HexToBIGNUM(&ret, hex.c_str()) != static_cast<int>(hex.size())) {
+    if (HexToBIGNUMWithReturn(&ret, hex.c_str()) != static_cast<int>(hex.size())) {
       t_->PrintLine("Could not decode '%s'.", hex.c_str());
       return nullptr;
     }
@@ -1173,27 +1173,27 @@ TEST_F(BNTest, Dec2BN) {
 
 TEST_F(BNTest, Hex2BN) {
   bssl::UniquePtr<BIGNUM> bn;
-  int ret = HexToBIGNUM(&bn, "0");
+  int ret = HexToBIGNUMWithReturn(&bn, "0");
   ASSERT_EQ(1, ret);
   EXPECT_TRUE(BN_is_zero(bn.get()));
   EXPECT_FALSE(BN_is_negative(bn.get()));
 
-  ret = HexToBIGNUM(&bn, "256");
+  ret = HexToBIGNUMWithReturn(&bn, "256");
   ASSERT_EQ(3, ret);
   EXPECT_TRUE(BN_is_word(bn.get(), 0x256));
   EXPECT_FALSE(BN_is_negative(bn.get()));
 
-  ret = HexToBIGNUM(&bn, "-42");
+  ret = HexToBIGNUMWithReturn(&bn, "-42");
   ASSERT_EQ(3, ret);
   EXPECT_TRUE(BN_abs_is_word(bn.get(), 0x42));
   EXPECT_TRUE(BN_is_negative(bn.get()));
 
-  ret = HexToBIGNUM(&bn, "-0");
+  ret = HexToBIGNUMWithReturn(&bn, "-0");
   ASSERT_EQ(2, ret);
   EXPECT_TRUE(BN_is_zero(bn.get()));
   EXPECT_FALSE(BN_is_negative(bn.get()));
 
-  ret = HexToBIGNUM(&bn, "abctrailing garbage is ignored");
+  ret = HexToBIGNUMWithReturn(&bn, "abctrailing garbage is ignored");
   ASSERT_EQ(3, ret);
   EXPECT_TRUE(BN_is_word(bn.get(), 0xabc));
   EXPECT_FALSE(BN_is_negative(bn.get()));
@@ -1725,7 +1725,7 @@ TEST_F(BNTest, SetGetU64) {
     bssl::UniquePtr<BIGNUM> bn(BN_new()), expected;
     ASSERT_TRUE(bn);
     ASSERT_TRUE(BN_set_u64(bn.get(), test.value));
-    ASSERT_TRUE(HexToBIGNUM(&expected, test.hex));
+    ASSERT_TRUE(HexToBIGNUMWithReturn(&expected, test.hex));
     EXPECT_BIGNUMS_EQUAL("BN_set_u64", expected.get(), bn.get());
 
     uint64_t tmp;
@@ -2301,7 +2301,7 @@ TEST_F(BNTest, PrimeChecking) {
   };
   for (const char *str : kPrimesHex) {
     SCOPED_TRACE(str);
-    EXPECT_NE(0, HexToBIGNUM(&p, str));
+    EXPECT_NE(0, HexToBIGNUMWithReturn(&p, str));
 
     ASSERT_TRUE(BN_primality_test(
         &is_probably_prime_1, p.get(), BN_prime_checks_for_generation, ctx(),

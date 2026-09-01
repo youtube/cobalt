@@ -28,7 +28,7 @@ RtcEventAudioNetworkAdaptation::RtcEventAudioNetworkAdaptation(
 
 RtcEventAudioNetworkAdaptation::RtcEventAudioNetworkAdaptation(
     const RtcEventAudioNetworkAdaptation& other)
-    : RtcEvent(other.timestamp_us_),
+    : RtcEvent(other),
       config_(std::make_unique<AudioEncoderRuntimeConfig>(*other.config_)) {}
 
 RtcEventAudioNetworkAdaptation::~RtcEventAudioNetworkAdaptation() = default;

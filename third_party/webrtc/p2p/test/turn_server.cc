@@ -128,7 +128,8 @@ void TurnServer::AddInternalServerSocket(
 
   RTC_DCHECK(server_listen_sockets_.end() ==
              server_listen_sockets_.find(socket));
-  server_listen_sockets_[socket] = {proto, std::move(ssl_adapter_factory)};
+  server_listen_sockets_[socket] = {
+      .proto = proto, .ssl_adapter_factory = std::move(ssl_adapter_factory)};
   socket->SignalReadEvent.connect(this, &TurnServer::OnNewInternalConnection);
 }
 

@@ -228,6 +228,15 @@ class TestProxyDelegateForIpProtection : public TestProxyDelegate {
     proxy_list.AddProxyChain(ProxyChain::ForIpProtection({}));
     result->UseProxyList(proxy_list);
   }
+  net::Error OnTunnelHeadersReceived(
+      const net::ProxyChain& proxy_chain,
+      size_t chain_index,
+      const net::HttpResponseHeaders& response_headers) override {
+    if (response_headers.response_code() == 502) {
+      return net::ERR_PROXY_UNABLE_TO_CONNECT_TO_DESTINATION;
+    }
+    return net::OK;
+  }
 };
 
 }  // anonymous namespace
@@ -1767,7 +1776,7 @@ TEST_P(JobControllerReconsiderProxyAfterErrorSecondNestedHttpsProxyTest, Test) {
 
 // Test proxy fallback logic for an IP Protection request.
 TEST_F(JobControllerReconsiderProxyAfterErrorTest,
-       FallbackOnProxyTunnelRequestFailed) {
+       FallbackOnTunnelConnectionFailedForIpProtection) {
   GURL dest_url = GURL("https://www.example.com");
 
   CreateSessionDeps();
@@ -1793,7 +1802,7 @@ TEST_F(JobControllerReconsiderProxyAfterErrorTest,
   // Generate errors for the first proxy server.
   std::unique_ptr<StaticSocketDataProvider> socket_data_proxy_main_job;
   std::unique_ptr<SSLSocketDataProvider> ssl_data_proxy_main_job;
-  reads.emplace_back(ASYNC, ERR_PROXY_TUNNEL_REQUEST_FAILED);
+  reads.emplace_back(ASYNC, ERR_TUNNEL_CONNECTION_FAILED);
   socket_data_proxy_main_job =
       std::make_unique<StaticSocketDataProvider>(reads, kTunnelWrites);
   ssl_data_proxy_main_job = std::make_unique<SSLSocketDataProvider>(ASYNC, OK);
@@ -1831,6 +1840,60 @@ TEST_F(JobControllerReconsiderProxyAfterErrorTest,
 
   // Verify that request was fetched without proxy.
   EXPECT_TRUE(used_proxy_info.is_direct());
+}
+
+// Test that if the proxy delegate returns
+// net::ERR_PROXY_UNABLE_TO_CONNECT_TO_DESTINATION in its
+// OnTunnelHeadersReceived method, the request fails but the proxy is not marked
+// as bad.
+TEST_F(JobControllerReconsiderProxyAfterErrorTest,
+       NoFallbackOnProxyUnableToConnectToDestination) {
+  GURL dest_url = GURL("https://www.example.com");
+
+  CreateSessionDeps();
+
+  std::unique_ptr<ConfiguredProxyResolutionService> proxy_resolution_service =
+      ConfiguredProxyResolutionService::CreateFixedFromPacResultForTest(
+          "https://not-used:70", TRAFFIC_ANNOTATION_FOR_TESTS);
+  auto test_proxy_delegate =
+      std::make_unique<TestProxyDelegateForIpProtection>();
+
+  // Before starting the test, verify that there are no proxies marked as bad.
+  ASSERT_TRUE(proxy_resolution_service->proxy_retry_info().empty());
+
+  static constexpr char kProxyTunnelRequest[] =
+      "CONNECT www.example.com:443 HTTP/1.1\r\n"
+      "Host: www.example.com:443\r\n"
+      "Proxy-Connection: keep-alive\r\n"
+      "User-Agent: test-ua\r\n"
+      "Authorization: https://ip-pro:443\r\n\r\n";
+
+  MockWrite writes[] = {{ASYNC, kProxyTunnelRequest}};
+  MockRead reads[] = {
+      {ASYNC, "HTTP/1.1 502 Bad Gateway\r\n\r\n"},
+  };
+  StaticSocketDataProvider socket_data(reads, writes);
+  session_deps_.socket_factory->AddSocketDataProvider(&socket_data);
+  SSLSocketDataProvider ssl_data(ASYNC, OK);
+  session_deps_.socket_factory->AddSSLSocketDataProvider(&ssl_data);
+
+  HttpRequestInfo request_info;
+  request_info.method = "GET";
+  request_info.url = dest_url;
+  Initialize(std::move(proxy_resolution_service),
+             std::move(test_proxy_delegate));
+
+  EXPECT_CALL(
+      request_delegate_,
+      OnStreamFailed(net::ERR_PROXY_UNABLE_TO_CONNECT_TO_DESTINATION, _, _, _));
+  std::unique_ptr<HttpStreamRequest> request =
+      CreateJobController(request_info);
+  RunUntilIdle();
+
+  // Verify that the proxy is not marked as bad.
+  const ProxyRetryInfoMap& retry_info =
+      session_->proxy_resolution_service()->proxy_retry_info();
+  EXPECT_TRUE(retry_info.empty());
 }
 
 constexpr TcpProxyTestCase kSocks5ProxyTestCases[] = {
@@ -3834,7 +3897,7 @@ TEST_F(HttpStreamFactoryJobControllerTest, ResumeMainJobLaterCanceled) {
   // The main job should be resumed without delay when alt job fails.
   EXPECT_CALL(*job_factory_.main_job(), Resume())
       .Times(1)
-      .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+      .WillOnce([&run_loop]() { run_loop.Quit(); });
   job_controller_->OnStreamFailed(job_factory_.alternative_job(),
                                   ERR_QUIC_PROTOCOL_ERROR);
   FastForwardBy(base::Microseconds(0));
@@ -5406,7 +5469,7 @@ class HttpStreamFactoryJobControllerDnsHttpsAlpnTest
       base::RunLoop run_loop;
       EXPECT_CALL(request_delegate_, OnStreamReadyImpl(_, _))
           .Times(1)
-          .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+          .WillOnce([&run_loop]() { run_loop.Quit(); });
       stream->NotifySessionOneRttKeyAvailable();
       run_loop.Run();
     } else {
@@ -5560,7 +5623,7 @@ class HttpStreamFactoryJobControllerDnsHttpsAlpnTest
       base::RunLoop run_loop;
       EXPECT_CALL(request_delegate, OnStreamReadyImpl(_, _))
           .Times(1)
-          .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+          .WillOnce([&run_loop]() { run_loop.Quit(); });
       tcp_data->socket()->OnConnectComplete(MockConnect());
       run_loop.Run();
     } else {
@@ -5944,7 +6007,7 @@ TEST_F(HttpStreamFactoryJobControllerDnsHttpsAlpnTest,
     base::RunLoop run_loop;
     EXPECT_CALL(request_delegate_, OnStreamReadyImpl(_, _))
         .Times(1)
-        .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+        .WillOnce([&run_loop]() { run_loop.Quit(); });
     run_loop.Run();
   }
   histogram_tester.ExpectUniqueSample(
@@ -6107,7 +6170,7 @@ TEST_F(HttpStreamFactoryJobControllerDnsHttpsAlpnTest,
     base::RunLoop run_loop;
     EXPECT_CALL(request_delegate_, OnStreamReadyImpl(_, _))
         .Times(1)
-        .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+        .WillOnce([&run_loop]() { run_loop.Quit(); });
     run_loop.Run();
   }
   histogram_tester.ExpectUniqueSample("Net.AlternateProtocolUsage",
@@ -6144,7 +6207,7 @@ TEST_F(HttpStreamFactoryJobControllerDnsHttpsAlpnTest,
     base::RunLoop run_loop;
     EXPECT_CALL(request_delegate_, OnStreamReadyImpl(_, _))
         .Times(1)
-        .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+        .WillOnce([&run_loop]() { run_loop.Quit(); });
     run_loop.Run();
   }
   histogram_tester.ExpectUniqueSample(
@@ -6191,7 +6254,7 @@ TEST_F(HttpStreamFactoryJobControllerDnsHttpsAlpnTest,
     base::RunLoop run_loop;
     EXPECT_CALL(request_delegate_, OnStreamReadyImpl(_, _))
         .Times(1)
-        .WillOnce(Invoke([&run_loop]() { run_loop.Quit(); }));
+        .WillOnce([&run_loop]() { run_loop.Quit(); });
     run_loop.Run();
   }
   histogram_tester.ExpectUniqueSample(

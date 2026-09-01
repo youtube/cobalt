@@ -27,8 +27,28 @@ std::vector<BrowserWindowInterface*> GetAllBrowserWindowInterfaces();
 std::vector<BrowserWindowInterface*>
 GetBrowserWindowInterfacesOrderedByActivation();
 
+// For these 2 functions, we chose not to simply return
+// std::vector<BrowserWindowInterface*> because doing so would open up the
+// possibility that a browser could be created or destroyed during iteration,
+// resulting in potential use-after-frees (example: crbug.com/405910169).
+//
+// The return value in the passed-in function indicates whether or not we should
+// continue iterating - true means continue, false means terminate.
+//
+// Example usage:
+//
+//   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
+//       [](BrowserWindowInterface* browser_window) {
+//         // do something with |browser_window|
+//         return true;
+//       });
 void ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-    base::FunctionRef<void(BrowserWindowInterface*)> on_browser);
+    base::FunctionRef<bool(BrowserWindowInterface*)> on_browser);
+
+// Note here that any windows added during iteration may not remain in
+// activation order.
+void ForEachCurrentAndNewBrowserWindowInterfaceOrderedByActivation(
+    base::FunctionRef<bool(BrowserWindowInterface*)> on_browser);
 
 // Returns the last active browser window interface. This can be nullptr if
 // there are no browser windows.

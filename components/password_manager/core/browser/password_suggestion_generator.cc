@@ -17,7 +17,7 @@
 #include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/integrators/identity_credential/identity_credential_delegate.h"
-#include "components/autofill/core/browser/suggestions/identity_credential_suggestion_generator.h"
+#include "components/autofill/core/browser/suggestions/identity_credential_suggestion_utils.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
 #include "components/autofill/core/common/password_form_fill_data.h"
@@ -388,6 +388,24 @@ void RecordPendingStatePromoHistogram(FillingReauthPromoShown sample) {
 }
 
 #endif
+
+#if !BUILDFLAG(IS_ANDROID)
+bool ShowPasskeysFromAnotherDeviceInAutofill() {
+#if BUILDFLAG(IS_IOS)
+  return true;
+#else
+  // Show the hybrid passkey item if the context menu experiment (which moves
+  // this option) is not enabled, or if the feature to reintroduce it to the
+  // dropdown is explicitly enabled.
+  return !base::FeatureList::IsEnabled(
+             password_manager::features::
+                 kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu) ||
+         base::FeatureList::IsEnabled(
+             password_manager::features::
+                 kAutofillReintroduceHybridPasskeyDropdownItem);
+#endif  // BUILDFLAG(IS_IOS)
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 }  // namespace
 
 PasswordSuggestionGenerator::PasswordSuggestionGenerator(
@@ -470,20 +488,8 @@ std::vector<Suggestion> PasswordSuggestionGenerator::GetSuggestionsForDomain(
 
 #if !BUILDFLAG(IS_ANDROID)
   // Add "Use a passkey" or "Use a different passkey" button.
-  if (uses_passkeys && delegate->IsSecurityKeyOrHybridFlowAvailable()) {
-#if !BUILDFLAG(IS_IOS)
-    const bool passkey_from_another_device_in_autofill =
-        !(base::FeatureList::IsEnabled(
-            features::kWebAuthnUsePasskeyFromAnotherDeviceInContextMenu));
-#else
-    const bool passkey_from_another_device_in_autofill = true;
-#endif  //! BUILDFLAG(IS_IOS)
-    if (passkey_from_another_device_in_autofill) {
-      bool listed_passkeys = delegate->GetPasskeys().has_value() &&
-                             delegate->GetPasskeys().value()->size() > 0;
-      suggestions.emplace_back(
-          CreatePasskeyFromAnotherDeviceEntry(listed_passkeys));
-    }
+  if (auto hybrid_suggestion = GetWebauthnSignInWithAnotherDeviceSuggestion()) {
+    suggestions.push_back(std::move(hybrid_suggestion.value()));
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -526,21 +532,24 @@ PasswordSuggestionGenerator::GetProactiveRecoverySuggestions(
   suggestion.additional_label = std::u16string(
       payload.backup_password->size(), constants::kPasswordReplacementChar);
   suggestion.additional_label_alignment_right = true;
+
+  std::u16string footer_text = l10n_util::GetStringUTF16(
+      UsesPasswordManagerGoogleBranding()
+          ? IDS_PASSWORD_MANAGER_UI_PROACTIVE_RECOVERY_FOOTER_BRANDED
+          : IDS_PASSWORD_MANAGER_UI_PROACTIVE_RECOVERY_FOOTER_NON_BRANDED);
   // This prevents the label from including the masked password string.
   suggestion.voice_over = l10n_util::GetStringUTF16(
       IDS_PASSWORD_MANAGER_UI_PROACTIVE_RECOVERY_SUGGESTION);
+  // TODO(crbug.com/439981762): Once it's possible to read out disabled
+  // suggestions, remove this.
+  *suggestion.voice_over += u"\n" + footer_text;
   suggestions.emplace_back(std::move(suggestion));
 
   Suggestion separator(SuggestionType::kSeparator);
   separator.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
   suggestions.emplace_back(std::move(separator));
 
-  Suggestion footer(
-      l10n_util::GetStringUTF16(
-          UsesPasswordManagerGoogleBranding()
-              ? IDS_PASSWORD_MANAGER_UI_PROACTIVE_RECOVERY_FOOTER_BRANDED
-              : IDS_PASSWORD_MANAGER_UI_PROACTIVE_RECOVERY_FOOTER_NON_BRANDED),
-      SuggestionType::kFreeformFooter);
+  Suggestion footer(footer_text, SuggestionType::kFreeformFooter);
   footer.filtration_policy = Suggestion::FiltrationPolicy::kStatic;
   footer.acceptability =
       autofill::Suggestion::Acceptability::kUnacceptableWithDeactivatedStyle;
@@ -629,6 +638,25 @@ PasswordSuggestionGenerator::GetManualFallbackSuggestions(
   MaybeAppendManagePasswordsEntry(&suggestions);
 
   return suggestions;
+}
+
+std::optional<autofill::Suggestion>
+PasswordSuggestionGenerator::GetWebauthnSignInWithAnotherDeviceSuggestion()
+    const {
+#if BUILDFLAG(IS_ANDROID)
+  return std::nullopt;
+#else   // BUILDFLAG(IS_ANDROID)
+  WebAuthnCredentialsDelegate* delegate =
+      password_client_->GetWebAuthnCredentialsDelegateForDriver(
+          password_manager_driver_);
+  if (!delegate || !delegate->GetPasskeys().has_value() ||
+      !delegate->IsSecurityKeyOrHybridFlowAvailable() ||
+      !ShowPasskeysFromAnotherDeviceInAutofill()) {
+    return std::nullopt;
+  }
+  return CreatePasskeyFromAnotherDeviceEntry(
+      /*listed_passkeys=*/delegate->GetPasskeys().value()->size() > 0);
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 }  // namespace password_manager

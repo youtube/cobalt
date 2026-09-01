@@ -34,8 +34,6 @@ namespace webrtc {
 
 class FrameEncodeMetadataWriter {
  public:
-  [[deprecated("bugs.webrtc.org/42223992")]]
-  explicit FrameEncodeMetadataWriter(EncodedImageCallback* frame_drop_callback);
   FrameEncodeMetadataWriter(const Environment& env,
                             EncodedImageCallback* frame_drop_callback);
   ~FrameEncodeMetadataWriter();
@@ -78,6 +76,7 @@ class FrameEncodeMetadataWriter {
     std::list<FrameMetadata> frames;
   };
 
+  const Environment env_;
   Mutex lock_;
   EncodedImageCallback* const frame_drop_callback_;
   VideoCodec codec_settings_ RTC_GUARDED_BY(&lock_);

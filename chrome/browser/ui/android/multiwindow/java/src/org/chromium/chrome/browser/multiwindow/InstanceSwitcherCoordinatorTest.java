@@ -19,6 +19,7 @@ import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.isEnabled;
 import static androidx.test.espresso.matcher.ViewMatchers.withClassName;
+import static androidx.test.espresso.matcher.ViewMatchers.withContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
@@ -75,7 +76,10 @@ import java.util.concurrent.TimeoutException;
 /** Unit tests for {@link InstanceSwitcherCoordinator}. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@DisableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+@DisableFeatures({
+    ChromeFeatureList.INSTANCE_SWITCHER_V2,
+    ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+})
 public class InstanceSwitcherCoordinatorTest {
     private static final int MAX_INSTANCE_COUNT = 5;
 
@@ -789,11 +793,38 @@ public class InstanceSwitcherCoordinatorTest {
         InstanceInfo[] instances =
                 new InstanceInfo[] {
                     new InstanceInfo(
-                            0, 57, InstanceInfo.Type.CURRENT, "url0", "title0", 1, 0, false, 0),
+                            0,
+                            57,
+                            InstanceInfo.Type.CURRENT,
+                            "url0",
+                            "title0",
+                            /* customTitle= */ null,
+                            1,
+                            0,
+                            false,
+                            0),
                     new InstanceInfo(
-                            1, 58, InstanceInfo.Type.OTHER, "ur11", "title1", 2, 0, false, 0),
+                            1,
+                            58,
+                            InstanceInfo.Type.OTHER,
+                            "ur11",
+                            "title1",
+                            /* customTitle= */ null,
+                            2,
+                            0,
+                            false,
+                            0),
                     new InstanceInfo(
-                            2, 59, InstanceInfo.Type.OTHER, "url2", "title2", 0, 0, false, 0)
+                            2,
+                            59,
+                            InstanceInfo.Type.OTHER,
+                            "url2",
+                            "title2",
+                            /* customTitle= */ null,
+                            0,
+                            0,
+                            false,
+                            0)
                 };
         final CallbackHelper closeCallbackHelper = new CallbackHelper();
         Callback<InstanceInfo> closeCallback = (item) -> closeCallbackHelper.notifyCalled();
@@ -913,7 +944,10 @@ public class InstanceSwitcherCoordinatorTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+    @EnableFeatures({
+        ChromeFeatureList.INSTANCE_SWITCHER_V2,
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+    })
     public void testRenameWindow() throws Exception {
         InstanceInfo[] instances =
                 createPersistedInstances(
@@ -979,7 +1013,10 @@ public class InstanceSwitcherCoordinatorTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+    @EnableFeatures({
+        ChromeFeatureList.INSTANCE_SWITCHER_V2,
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+    })
     public void testRenameWindow_inactiveInstance() {
         // Initialize instance list with 2 active instances and 1 inactive instance.
         InstanceInfo[] instances =
@@ -1014,11 +1051,26 @@ public class InstanceSwitcherCoordinatorTest {
         onView(allOf(withId(R.id.more), isDescendantOfA(withId(R.id.inactive_instance_list))))
                 .inRoot(isDialog())
                 .check(matches(not(isDisplayed())));
+
+        // Verify content description of the close button on the single inactive instance.
+        onView(withId(R.id.inactive_instance_list))
+                .inRoot(isDialog())
+                .check(
+                        matches(
+                                atPosition(
+                                        0,
+                                        hasDescendant(
+                                                allOf(
+                                                        withId(R.id.close_button),
+                                                        withContentDescription("Close title2"))))));
     }
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+    @EnableFeatures({
+        ChromeFeatureList.INSTANCE_SWITCHER_V2,
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+    })
     public void testRenameWindowWithEmptyName() throws Exception {
         InstanceInfo[] instances =
                 createPersistedInstances(
@@ -1080,7 +1132,10 @@ public class InstanceSwitcherCoordinatorTest {
 
     @Test
     @SmallTest
-    @EnableFeatures(ChromeFeatureList.INSTANCE_SWITCHER_V2)
+    @EnableFeatures({
+        ChromeFeatureList.INSTANCE_SWITCHER_V2,
+        ChromeFeatureList.ROBUST_WINDOW_MANAGEMENT
+    })
     public void testCancelRenameWindow() throws Exception {
         InstanceInfo[] instances =
                 createPersistedInstances(
@@ -1140,7 +1195,16 @@ public class InstanceSwitcherCoordinatorTest {
         // Set instance0 as the current instance.
         instances[0] =
                 new InstanceInfo(
-                        0, taskId++, InstanceInfo.Type.CURRENT, "url0", "title0", 1, 1, false, 0);
+                        0,
+                        taskId++,
+                        InstanceInfo.Type.CURRENT,
+                        "url0",
+                        "title0",
+                        /* customTitle= */ null,
+                        1,
+                        1,
+                        false,
+                        0);
 
         // Create other active instances.
         for (int i = 1; i < numActiveInstances; i++) {
@@ -1151,6 +1215,7 @@ public class InstanceSwitcherCoordinatorTest {
                             InstanceInfo.Type.OTHER,
                             "url" + i,
                             "title" + i,
+                            /* customTitle= */ null,
                             1,
                             0,
                             false,
@@ -1161,7 +1226,16 @@ public class InstanceSwitcherCoordinatorTest {
         for (int i = numActiveInstances; i < totalInstances; i++) {
             instances[i] =
                     new InstanceInfo(
-                            i, -1, InstanceInfo.Type.OTHER, "url" + i, "title" + i, 1, 0, false, 0);
+                            i,
+                            -1,
+                            InstanceInfo.Type.OTHER,
+                            "url" + i,
+                            "title" + i,
+                            /* customTitle= */ null,
+                            1,
+                            0,
+                            false,
+                            0);
         }
 
         return instances;

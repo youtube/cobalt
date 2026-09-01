@@ -83,7 +83,11 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
   DCHECK_EQ(heap_->isolate(), Isolate::TryGetCurrent());
 #if DEBUG
   local_heap_->VerifyCurrent();
-#endif
+#endif  // DEBUG
+
+#if V8_VERIFY_WRITE_BARRIERS
+  local_heap_->AssertNoWriteBarrierModeScope();
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
   if (v8_flags.single_generation.value() && type == AllocationType::kYoung) {
     return AllocateRaw(size_in_bytes, AllocationType::kOld, origin, alignment);
@@ -154,6 +158,14 @@ HeapAllocator::AllocateRaw(int size_in_bytes, AllocationOrigin origin,
         break;
     }
   }
+
+#if V8_VERIFY_WRITE_BARRIERS
+  if (type == AllocationType::kYoung && !allocation.IsFailure()) {
+    last_young_allocation_ = allocation.ToAddress();
+  } else {
+    last_young_allocation_ = kNullAddress;
+  }
+#endif  // V8_VERIFY_WRITE_BARRIERS
 
   if (allocation.To(&object)) {
     if (heap::ShouldZapGarbage() && AllocationType::kCode == type) {

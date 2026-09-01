@@ -362,9 +362,9 @@ ShellContentBrowserClient::GetWebContentsViewDelegate(
 bool ShellContentBrowserClient::IsIsolatedContextAllowedForUrl(
     BrowserContext* browser_context,
     const GURL& lock_url) {
-  static base::flat_set<url::Origin> isolated_context_origins =
-      GetIsolatedContextOriginSetFromFlag();
-  return isolated_context_origins.contains(url::Origin::Create(lock_url));
+  static base::NoDestructor<base::flat_set<url::Origin>> isolated_context_origins(
+      GetIsolatedContextOriginSetFromFlag());
+  return isolated_context_origins->contains(url::Origin::Create(lock_url));
 }
 
 bool ShellContentBrowserClient::IsSharedStorageAllowed(

@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tasks.tab_management;
 
+import static android.view.View.GONE;
+
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ALPHA;
 
 import android.content.Context;
@@ -33,12 +35,11 @@ import org.chromium.chrome.browser.tab_ui.TabCardThemeUtil;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFavicon;
 import org.chromium.chrome.browser.tab_ui.TabListFaviconProvider.TabFaviconFetcher;
 import org.chromium.chrome.browser.tab_ui.TabThumbnailView;
+import org.chromium.chrome.browser.tasks.tab_management.TabActionButtonData.TabActionButtonType;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.ShoppingPersistedTabDataFetcher;
-import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData;
-import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionButtonData.TabActionButtonType;
-import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabActionState;
+import org.chromium.chrome.browser.tasks.tab_management.TabProperties.TabCardHighlightState;
 import org.chromium.chrome.tab_ui.R;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.browser_ui.util.motion.OnPeripheralClickListener;
@@ -109,6 +110,8 @@ class TabGridViewBinder {
             FrameLayout container =
                     tabGridView.fastFindViewById(R.id.tab_group_color_view_container);
             TabCardViewBinderUtils.detachTabGroupColorView(container);
+
+            tabGridView.clearHighlight();
         }
     }
 
@@ -218,6 +221,9 @@ class TabGridViewBinder {
         } else if (TabProperties.TAB_LONG_CLICK_LISTENER == propertyKey) {
             setNullableLongClickListener(
                     model.get(TabProperties.TAB_LONG_CLICK_LISTENER), view, model);
+        } else if (TabProperties.TAB_CONTEXT_CLICK_LISTENER == propertyKey) {
+            setNullableContextClickListener(
+                    model.get(TabProperties.TAB_CONTEXT_CLICK_LISTENER), view, model);
         } else if (TabProperties.MEDIA_INDICATOR == propertyKey) {
             ((TabGridView) view).setMediaIndicator(model.get(TabProperties.MEDIA_INDICATOR));
         }
@@ -269,11 +275,14 @@ class TabGridViewBinder {
                                     model.get(TabProperties.TAB_GROUP_CARD_COLOR)));
         } else if (TabProperties.TAB_CARD_LABEL_DATA == propertyKey) {
             updateTabCardLabel(view, model.get(TabProperties.TAB_CARD_LABEL_DATA));
-        } else if (TabProperties.IS_HIGHLIGHTED == propertyKey) {
+        } else if (TabProperties.HIGHLIGHT_STATE == propertyKey) {
+            @TabCardHighlightState int highlightState = model.get(TabProperties.HIGHLIGHT_STATE);
             ((TabGridView) view)
-                    .setIsHighlighted(
-                            model.get(TabProperties.IS_HIGHLIGHTED),
-                            model.get(TabProperties.IS_INCOGNITO));
+                    .setIsHighlighted(highlightState, model.get(TabProperties.IS_INCOGNITO));
+            if (model.get(TabProperties.HIGHLIGHT_STATE)
+                    == TabCardHighlightState.TO_BE_HIGHLIGHTED) {
+                model.set(TabProperties.HIGHLIGHT_STATE, TabCardHighlightState.HIGHLIGHTED);
+            }
         }
     }
 
@@ -357,6 +366,22 @@ class TabGridViewBinder {
         }
     }
 
+    static void setNullableContextClickListener(
+            @Nullable TabActionListener listener, View view, PropertyModel propertyModel) {
+        if (listener == null) {
+            view.setContextClickable(false);
+            view.setOnContextClickListener(null);
+        } else {
+            view.setContextClickable(true);
+            view.setOnContextClickListener(
+                    v -> {
+                        runTabActionListener(
+                                listener, v, propertyModel, /* triggeringMotion= */ null);
+                        return true;
+                    });
+        }
+    }
+
     private static void runTabActionListener(
             TabActionListener tabActionListener,
             View view,
@@ -424,7 +449,7 @@ class TabGridViewBinder {
         } else {
             PriceCardView priceCardView = rootView.fastFindViewById(R.id.price_info_box_outer);
             if (priceDrop == null) {
-                priceCardView.setVisibility(View.GONE);
+                priceCardView.setVisibility(GONE);
                 return;
             }
             priceCardView.setPriceStrings(priceDrop.price, priceDrop.previousPrice);
@@ -490,7 +515,7 @@ class TabGridViewBinder {
         final TabFaviconFetcher fetcher = model.get(TabProperties.FAVICON_FETCHER);
         ImageView faviconView = rootView.fastFindViewById(R.id.tab_favicon);
         if (fetcher == null) {
-            faviconView.setVisibility(View.GONE);
+            faviconView.setVisibility(GONE);
             setFavicon(faviconView, model, null);
             return;
         }

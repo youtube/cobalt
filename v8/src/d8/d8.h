@@ -634,6 +634,13 @@ class Shell : public i::AllStatic {
   static void SerializerDeserialize(
       const v8::FunctionCallbackInfo<v8::Value>& info);
 
+#if V8_ENABLE_WEBASSEMBLY
+  static void WasmSerializeModule(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+  static void WasmDeserializeModule(
+      const v8::FunctionCallbackInfo<v8::Value>& info);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   static void ProfilerSetOnProfileEndListener(
       const v8::FunctionCallbackInfo<v8::Value>& info);
   static void ProfilerTriggerSample(
@@ -665,7 +672,7 @@ class Shell : public i::AllStatic {
   static MaybeLocal<PrimitiveArray> ReadLines(Isolate* isolate,
                                               const char* name);
   static void ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static Local<String> ReadFromStdin(Isolate* isolate);
+  static MaybeLocal<String> ReadFromStdin(Isolate* isolate);
   static void ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void WriteChars(const char* name, uint8_t* buffer, size_t buffer_size);
   static void ExecuteFile(const v8::FunctionCallbackInfo<v8::Value>& info);

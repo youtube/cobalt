@@ -76,6 +76,7 @@
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/packet_socket_factory.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/pending_task_safety_flag.h"
@@ -161,10 +162,10 @@ Connection* TCPPort::CreateConnection(const Candidate& address,
     // so we need to hand off the "read packet" responsibility to
     // TCPConnection.
     socket->DeregisterReceivedPacketCallback();
-    conn = new TCPConnection(NewWeakPtr(), address, socket);
+    conn = new TCPConnection(env(), NewWeakPtr(), address, socket);
   } else {
     // Outgoing connection, which will create a new socket.
-    conn = new TCPConnection(NewWeakPtr(), address);
+    conn = new TCPConnection(env(), NewWeakPtr(), address);
   }
   AddOrReplaceConnection(conn);
   return conn;
@@ -343,10 +344,11 @@ void TCPPort::OnReadyToSend(AsyncPacketSocket* socket) {
 // `ice_unwritable_timeout` in IceConfig when determining the writability state.
 // Replace this constant with the config parameter assuming the default value if
 // we decide it is also applicable here.
-TCPConnection::TCPConnection(WeakPtr<Port> tcp_port,
+TCPConnection::TCPConnection(const Environment& env,
+                             WeakPtr<Port> tcp_port,
                              const Candidate& candidate,
                              AsyncPacketSocket* socket)
-    : Connection(std::move(tcp_port), 0, candidate),
+    : Connection(env, std::move(tcp_port), 0, candidate),
       socket_(socket),
       error_(0),
       outgoing_(socket == nullptr),

@@ -28,9 +28,6 @@ RtcEventBeginLog::RtcEventBeginLog(Timestamp timestamp,
                                    Timestamp utc_start_time)
     : RtcEvent(timestamp.us()), utc_start_time_ms_(utc_start_time.ms()) {}
 
-RtcEventBeginLog::RtcEventBeginLog(const RtcEventBeginLog& other)
-    : RtcEvent(other.timestamp_us_) {}
-
 RtcEventBeginLog::~RtcEventBeginLog() = default;
 
 std::string RtcEventBeginLog::Encode(ArrayView<const RtcEvent*> batch) {

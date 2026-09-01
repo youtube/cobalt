@@ -39,8 +39,6 @@ DesktopFrame::DesktopFrame(DesktopSize size,
       capturer_id_(DesktopCapturerId::kUnknown) {
   RTC_DCHECK(size_.width() >= 0);
   RTC_DCHECK(size_.height() >= 0);
-  // TODO(bugs.webrtc.org/436974448): Support other pixel formats.
-  RTC_CHECK_EQ(FOURCC_ARGB, pixel_format_);
 }
 
 DesktopFrame::DesktopFrame(DesktopSize size,

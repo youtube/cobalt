@@ -174,4 +174,21 @@ BASE_FEATURE(kDevToolsAiDebugWithAi,
              "DevToolsAiDebugWithAi",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Whether the global AI entrypoint is enabled.
+BASE_FEATURE(kDevToolsGlobalAiButton,
+             "DevToolsGlobalAiButton",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Whether the promotion animation is enabled.
+const base::FeatureParam<bool> kDevToolsGlobalAiButtonPromotionEnabled{
+    &kDevToolsGlobalAiButton, "promotion_enabled",
+    /*default_value=*/false};
+
+// Whether the Google Developer Program integration is enabled.
+BASE_FEATURE(kDevToolsGdpProfiles,
+             "DevToolsGdpProfiles",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+// Whether the starter badge for the Google Developer Program is enabled.
+const base::FeatureParam<bool> kDevToolsGdpProfilesStarterBadgeEnabled{
+    &kDevToolsGdpProfiles, "starter_badge_enabled",
+    /*default_value=*/false};
 }  // namespace features

@@ -772,6 +772,7 @@ rtc_library("rtc_stats_counters") {
     "../api/units:data_rate",
     "../api/units:time_delta",
     "../api/units:timestamp",
+    "../system_wrappers",
   ]
 }
 

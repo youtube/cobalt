@@ -218,4 +218,4 @@ reported to work, as has MSYS Perl.
 to `PATH`, which can confuse some build tools when identifying the compiler
 (removing `C:\Strawberry\c\bin` from `PATH` should resolve any problems).
 
-See (gen/README.md)[./gen/README.md] for more details.
+See [gen/README.md](./gen/README.md) for more details.

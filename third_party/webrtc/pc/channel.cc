@@ -938,6 +938,7 @@ bool VoiceChannel::SetLocalContent_w(const MediaContentDescription* content,
   RtpHeaderExtensions header_extensions =
       GetDeduplicatedRtpHeaderExtensions(content->rtp_header_extensions());
   bool update_header_extensions = true;
+  // TODO: issues.webrtc.org/383078466 - remove if pushdown on answer is enough.
   media_send_channel()->SetExtmapAllowMixed(content->extmap_allow_mixed());
 
   AudioReceiverParameters recv_params = last_recv_params_;
@@ -964,6 +965,19 @@ bool VoiceChannel::SetLocalContent_w(const MediaContentDescription* content,
   }
 
   last_recv_params_ = recv_params;
+
+  if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
+    AudioSenderParameter send_params = last_send_params_;
+    send_params.extensions = header_extensions;
+    send_params.extmap_allow_mixed = content->extmap_allow_mixed();
+    if (!media_send_channel()->SetSenderParameters(send_params)) {
+      error_desc = StringFormat(
+          "Failed to set send parameters for m-section with mid='%s'.",
+          mid().c_str());
+      return false;
+    }
+    last_send_params_ = send_params;
+  }
 
   if (!UpdateLocalStreams_w(content->streams(), type, error_desc)) {
     RTC_DCHECK(!error_desc.empty());
@@ -1008,6 +1022,18 @@ bool VoiceChannel::SetRemoteContent_w(const MediaContentDescription* content,
         "with mid='%s'.",
         mid().c_str());
     return false;
+  }
+
+  if (type == SdpType::kAnswer || type == SdpType::kPrAnswer) {
+    AudioReceiverParameters recv_params = last_recv_params_;
+    recv_params.extensions = send_params.extensions;
+    if (!media_receive_channel()->SetReceiverParameters(recv_params)) {
+      error_desc = StringFormat(
+          "Failed to set recv parameters for m-section with mid='%s'.",
+          mid().c_str());
+      return false;
+    }
+    last_recv_params_ = recv_params;
   }
   // The receive channel can send RTCP packets in the reverse direction. It
   // should use the reduced size mode if a peer has requested it through the
@@ -1079,14 +1105,13 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
                                      SdpType type,
                                      std::string& error_desc) {
   TRACE_EVENT0("webrtc", "VideoChannel::SetLocalContent_w");
-  RTC_DLOG(LS_INFO) << "Setting local video description for " << ToString();
 
   RTC_LOG_THREAD_BLOCK_COUNT();
 
   RtpHeaderExtensions header_extensions =
       GetDeduplicatedRtpHeaderExtensions(content->rtp_header_extensions());
   bool update_header_extensions = true;
-  // TODO: issues.webrtc.org/396640 - remove if pushdown on answer is enough.
+  // TODO: issues.webrtc.org/383078466 - remove if pushdown on answer is enough.
   media_send_channel()->SetExtmapAllowMixed(content->extmap_allow_mixed());
 
   VideoReceiverParameters recv_params = last_recv_params_;
@@ -1096,6 +1121,7 @@ bool VideoChannel::SetLocalContent_w(const MediaContentDescription* content,
       RtpTransceiverDirectionHasRecv(content->direction()), &recv_params);
 
   VideoSenderParameters send_params = last_send_params_;
+  send_params.extensions = header_extensions;
   send_params.extmap_allow_mixed = content->extmap_allow_mixed();
 
   // Ensure that there is a matching packetization for each send codec. If the

@@ -36,7 +36,6 @@
 #include "rtc_base/socket_address.h"
 #include "rtc_base/third_party/sigslot/sigslot.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/virtual_socket_server.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
@@ -291,8 +290,8 @@ TEST_F(TCPPortTest, SignalSentPacket) {
                         {.timeout = webrtc::TimeDelta::Millis(kTimeout)}),
       webrtc::IsRtcOk());
 
-  client_conn->Ping(webrtc::TimeMillis());
-  server_conn->Ping(webrtc::TimeMillis());
+  client_conn->Ping(env_.clock().TimeInMilliseconds());
+  server_conn->Ping(env_.clock().TimeInMilliseconds());
   ASSERT_THAT(
       webrtc::WaitUntil([&] { return client_conn->writable(); }, IsTrue(),
                         {.timeout = webrtc::TimeDelta::Millis(kTimeout)}),
@@ -355,7 +354,7 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
                         {.timeout = webrtc::TimeDelta::Millis(kTimeout)}),
       webrtc::IsRtcOk());
   EXPECT_FALSE(client_conn->writable());
-  client_conn->Ping(webrtc::TimeMillis());
+  client_conn->Ping(env_.clock().TimeInMilliseconds());
   ASSERT_THAT(
       webrtc::WaitUntil([&] { return client_conn->writable(); }, IsTrue(),
                         {.timeout = webrtc::TimeDelta::Millis(kTimeout)}),
@@ -423,7 +422,7 @@ TEST_F(TCPPortTest, SignalSentPacketAfterReconnect) {
       webrtc::IsRtcOk());
 
   // Send Stun Binding request.
-  client_conn->Ping(webrtc::TimeMillis());
+  client_conn->Ping(env_.clock().TimeInMilliseconds());
   // The Stun Binding request is reported as sent.
   EXPECT_THAT(
       webrtc::WaitUntil([&] { return client_counter.sent_packets(); }, Eq(2),

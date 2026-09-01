@@ -98,12 +98,15 @@ void CrossMediaMetricsReporter::OnStatsReports(
                                       *video_stat->estimated_playout_timestamp;
     if (audio_video_playout_diff > 0) {
       stats_info_[sync_group].audio_ahead_ms.AddSample(
-          audio_video_playout_diff);
-      stats_info_[sync_group].video_ahead_ms.AddSample(0);
-    } else {
-      stats_info_[sync_group].audio_ahead_ms.AddSample(0);
+          {.value = audio_video_playout_diff, .time = report->timestamp()});
       stats_info_[sync_group].video_ahead_ms.AddSample(
-          std::abs(audio_video_playout_diff));
+          {.value = 0., .time = report->timestamp()});
+    } else {
+      stats_info_[sync_group].audio_ahead_ms.AddSample(
+          {.value = 0., .time = report->timestamp()});
+      stats_info_[sync_group].video_ahead_ms.AddSample(
+          {.value = std::abs(audio_video_playout_diff),
+           .time = report->timestamp()});
     }
   }
 }

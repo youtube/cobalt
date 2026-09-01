@@ -100,7 +100,7 @@ class RtcEventGenericPacketSent final : public RtcEvent {
   }
 
  private:
-  RtcEventGenericPacketSent(const RtcEventGenericPacketSent& packet);
+  RtcEventGenericPacketSent(const RtcEventGenericPacketSent&) = default;
 
   const int64_t packet_number_;
   const size_t overhead_length_;

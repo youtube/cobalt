@@ -30,6 +30,10 @@ namespace signin_metrics {
 enum class AccessPoint;
 }
 
+namespace ui {
+class TrackedElement;
+}  // namespace ui
+
 namespace views {
 class Button;
 }
@@ -49,7 +53,7 @@ class Browser;
 class ProfileMenuView : public ProfileMenuViewBase {
  public:
   // `browser` must not be nullptr.
-  ProfileMenuView(views::Button* anchor_button,
+  ProfileMenuView(ui::TrackedElement* anchor_element,
                   Browser* browser,
                   std::optional<signin_metrics::AccessPoint>
                       explicit_signin_access_point = std::nullopt);
@@ -82,6 +86,7 @@ class ProfileMenuView : public ProfileMenuViewBase {
   void OnGuestProfileButtonClicked();
   void OnExitProfileButtonClicked();
   void OnSyncSettingsButtonClicked();
+  void OnAccountSettingsButtonClicked();
   void OnSyncErrorButtonClicked(AvatarSyncErrorType error);
   void OnSigninButtonClicked(CoreAccountInfo account,
                              ActionableItem button_type,
@@ -105,6 +110,7 @@ class ProfileMenuView : public ProfileMenuViewBase {
   void MaybeBuildBatchUploadButton();
   void BuildAutofillSettingsButton();
   void BuildCustomizeProfileButton();
+  void MaybeBuildChromeAccountSettingsButtonWithSync();
   void MaybeBuildChromeAccountSettingsButton();
   void MaybeBuildManageGoogleAccountButton();
   void MaybeBuildCloseBrowsersButton();

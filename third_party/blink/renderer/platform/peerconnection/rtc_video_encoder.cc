@@ -219,7 +219,6 @@ class EncodedDataWrapper : public webrtc::EncodedImageBufferInterface {
     std::move(reuse_buffer_callback_).Run();
   }
   const uint8_t* data() const override { return mapping_->front(); }
-  uint8_t* data() override { return mapping_->front(); }
   size_t size() const override { return size_; }
 
  private:
@@ -385,8 +384,7 @@ namespace features {
 
 // Enabled-by-default, except for Android where SW encoder for H264 and AV1 are
 // not available. The existence of this flag remains only for testing purposes.
-BASE_FEATURE(kForceSoftwareForLowResolutions,
-             "ForceSoftwareForLowResolutions",
+BASE_FEATURE(ForceSoftwareForLowResolutions,
 #if !BUILDFLAG(IS_ANDROID)
              base::FEATURE_ENABLED_BY_DEFAULT);
 #else
@@ -396,21 +394,17 @@ BASE_FEATURE(kForceSoftwareForLowResolutions,
 // Avoids large latencies to build up by dropping frames when the number of
 // frames that are sent to a hardware video encoder reaches a certain limit.
 // See b/298660336 for details.
-BASE_FEATURE(kVideoEncoderLimitsFramesInEncoder,
-             "VideoEncoderLimitsFramesInEncoder",
+BASE_FEATURE(VideoEncoderLimitsFramesInEncoder,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the encoder instance is preserved on Release() call.
 // Reinitialization of the encoder will reuse the instance with the new
 // resolution. See b/1466102 for details.
-BASE_FEATURE(kKeepEncoderInstanceOnRelease,
-             "KeepEncoderInstanceOnRelease",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(KeepEncoderInstanceOnRelease, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, the supports_simulcast will be always reported to webrtc
 // and incoming simulcast codec config will be rewritten as an SVC config.
-BASE_FEATURE(kRtcVideoEncoderConvertSimulcastToSvc,
-             "RtcVideoEncoderConvertSimulcastToSvc",
+BASE_FEATURE(RtcVideoEncoderConvertSimulcastToSvc,
              base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace features
 
@@ -738,9 +732,7 @@ scoped_refptr<gpu::ClientSharedImage> CreateClientSharedImage(
 namespace features {
 // Fallback from hardware encoder (if available) to software, for WebRTC
 // screensharing that uses temporal scalability.
-BASE_FEATURE(kWebRtcScreenshareSwEncoding,
-             "WebRtcScreenshareSwEncoding",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(WebRtcScreenshareSwEncoding, base::FEATURE_DISABLED_BY_DEFAULT);
 }  // namespace features
 
 // This private class of RTCVideoEncoder does the actual work of communicating
@@ -1035,7 +1027,7 @@ class RTCVideoEncoder::Impl : public media::VideoEncodeAccelerator::Client {
 
   // The spatial layer resolutions configured in VEA::Initialize(). This is set
   // only in CreateAndInitializeVEA().
-  WTF::Vector<gfx::Size> init_spatial_layer_resolutions_;
+  Vector<gfx::Size> init_spatial_layer_resolutions_;
 
   // The current active spatial layer range. This is set in
   // CreateAndInitializeVEA() and updated in RequestEncodingParametersChange().
@@ -2146,7 +2138,7 @@ RTCVideoEncoder::Impl::CreateI420SharedMemoryFrameByLibyuv(
   frame->BackWithSharedMemory(&region);
   input_buffers_free_.pop_back();
   frame->AddDestructionObserver(
-      base::BindPostTaskToCurrentDefault(WTF::BindOnce(
+      base::BindPostTaskToCurrentDefault(blink::BindOnce(
           &RTCVideoEncoder::Impl::InputBufferReleased, weak_this_, index)));
   return frame;
 }
@@ -2247,7 +2239,7 @@ RTCVideoEncoder::Impl::CreateNV12SharedImageFrame(
 
   input_buffers_free_.pop_back();
   frame->AddDestructionObserver(
-      base::BindPostTaskToCurrentDefault(WTF::BindOnce(
+      base::BindPostTaskToCurrentDefault(blink::BindOnce(
           &RTCVideoEncoder::Impl::InputBufferReleased, weak_this_, index)));
 
   return frame;

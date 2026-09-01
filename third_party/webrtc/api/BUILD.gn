@@ -233,6 +233,7 @@ rtc_source_set("ice_transport_interface") {
     ":ref_count",
     ":rtc_error",
     ":scoped_refptr",
+    "environment",
     "rtc_event_log",
   ]
 }
@@ -1653,6 +1654,9 @@ if (rtc_include_tests) {
       "video:rtp_video_frame_assembler_unittests",
       "video:video_frame",
       "video:video_frame_metadata_unittest",
+      "video/corruption_detection:frame_instrumentation_data_reader_unittest",
+      "video/corruption_detection:frame_instrumentation_data_unittest",
+      "video/corruption_detection:frame_instrumentation_evaluation_unittest",
       "//third_party/abseil-cpp/absl/functional:any_invocable",
       "//third_party/abseil-cpp/absl/strings",
       "//third_party/abseil-cpp/absl/strings:string_view",

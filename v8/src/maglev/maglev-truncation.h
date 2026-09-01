@@ -7,10 +7,12 @@
 
 #include <type_traits>
 
+#include "src/base/logging.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/maglev/maglev-reducer.h"
 
 namespace v8 {
 namespace internal {
@@ -83,10 +85,9 @@ class PropagateTruncationProcessor {
   ProcessResult Process(Identity* node) { return ProcessResult::kContinue; }
   ProcessResult Process(Dead* node) { return ProcessResult::kContinue; }
 
-  ProcessResult Process(CheckedTruncateFloat64ToInt32* node) {
-    // We can always truncate the input of this node.
-    return ProcessResult::kContinue;
-  }
+  // TODO(victorgomes): We can only truncate CheckedTruncateFloat64ToInt32
+  // inputs if we statically know they are in Int32 range.
+
   ProcessResult Process(TruncateFloat64ToInt32* node) {
     // We can always truncate the input of this node.
     return ProcessResult::kContinue;
@@ -146,24 +147,26 @@ class PropagateTruncationProcessor {
 //  2. All of its inputs have already been converted/truncated to int32.
 class TruncationProcessor {
  public:
-  explicit TruncationProcessor(Graph* graph) : graph_(graph) {}
+  explicit TruncationProcessor(Graph* graph) : reducer_(this, graph) {}
 
   void PreProcessGraph(Graph* graph) {}
-  void PostProcessBasicBlock(BasicBlock* block) {}
-  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
-    return BlockProcessResult::kContinue;
-  }
+  void PostProcessBasicBlock(BasicBlock* block);
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
   void PostPhiProcessing() {}
   void PostProcessGraph(Graph* graph) {}
 
   template <typename NodeT>
   ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    PreProcessNode(node, state);
+    PostProcessNode(node);
     return ProcessResult::kContinue;
   }
 
 #define PROCESS_BINOP(Op)                                                  \
   ProcessResult Process(Float64##Op* node, const ProcessingState& state) { \
+    PreProcessNode(node, state);                                           \
     ProcessFloat64BinaryOp<Int32##Op>(node);                               \
+    PostProcessNode(node);                                                 \
     return ProcessResult::kContinue;                                       \
   }
   PROCESS_BINOP(Add)
@@ -172,30 +175,64 @@ class TruncationProcessor {
   PROCESS_BINOP(Divide)
 #undef PROCESS_BINOP
 
-  ProcessResult Process(CheckedTruncateFloat64ToInt32* node,
-                        const ProcessingState& state);
-  ProcessResult Process(TruncateFloat64ToInt32* node,
-                        const ProcessingState& state);
-  ProcessResult Process(UnsafeTruncateFloat64ToInt32* node,
-                        const ProcessingState& state);
+#define PROCESS_TRUNC_CONV(Node)                                    \
+  ProcessResult Process(Node* node, const ProcessingState& state) { \
+    PreProcessNode(node, state);                                    \
+    ProcessResult result = ProcessTruncatedConversion(node);        \
+    PostProcessNode(node);                                          \
+    return result;                                                  \
+  }
+  PROCESS_TRUNC_CONV(TruncateFloat64ToInt32)
+  PROCESS_TRUNC_CONV(UnsafeTruncateFloat64ToInt32)
+#undef PROCESS_BINOP
 
  private:
-  Graph* graph_;
+  MaglevReducer<TruncationProcessor> reducer_;
+  int current_node_index_ = 0;
 
-  bool AllInputsAreValid(ValueNode* node);
+  void PreProcessNode(Node*, const ProcessingState& state);
+  void PostProcessNode(Node*);
+
+  // Phis are treated differently since they are not stored directly in the
+  // basic block.
+  void PreProcessNode(Phi*, const ProcessingState& state);
+  void PostProcessNode(Phi*);
+
+  // Control nodes are singletons in the basic block.
+  void PreProcessNode(ControlNode*, const ProcessingState& state);
+  void PostProcessNode(ControlNode*);
+
+  int NonInt32InputCount(ValueNode* node);
   ValueNode* GetUnwrappedInput(ValueNode* node, int index);
   void UnwrapInputs(ValueNode* node);
+  void ConvertInputsToFloat64(ValueNode* node);
+
+  ProcessResult ProcessTruncatedConversion(ValueNode* node);
 
   template <typename NodeT>
   void ProcessFloat64BinaryOp(ValueNode* node) {
-    if (!node->can_truncate_to_int32() || !AllInputsAreValid(node)) return;
-    UnwrapInputs(node);
-    node->OverwriteWith<NodeT>();
+    if (!node->can_truncate_to_int32()) return;
+    switch (NonInt32InputCount(node)) {
+      case 0:
+        // All inputs are Int32, truncate node.
+        UnwrapInputs(node);
+        node->OverwriteWith<NodeT>();
+        break;
+      case 1:
+        // Convert nodes back to float64 and don't truncate.
+        ConvertInputsToFloat64(node);
+        break;
+      case 2:
+        // Don't truncate.
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
 
   ValueNode* GetTruncatedInt32Constant(double constant);
 
-  bool is_tracing_enabled() { return graph_->is_tracing_enabled(); }
+  bool is_tracing_enabled();
 };
 
 }  // namespace maglev

@@ -76,7 +76,6 @@ static const char kDummySdpType[] = "dummy type";
 
 using testing::_;
 using testing::ElementsAre;
-using testing::Invoke;
 using testing::IsNull;
 using testing::NiceMock;
 using testing::NotNull;
@@ -588,7 +587,7 @@ TEST_F(RTCPeerConnectionHandlerTest, NoCallbacksToClientAfterStop) {
   pc_handler_->observer()->OnRenegotiationNeeded();
 
   EXPECT_CALL(*mock_client_.Get(), DidGenerateICECandidate(_)).Times(0);
-  std::unique_ptr<webrtc::IceCandidateInterface> native_candidate(
+  std::unique_ptr<webrtc::IceCandidate> native_candidate(
       mock_dependency_factory_->CreateIceCandidate("sdpMid", 1, kDummySdp));
   pc_handler_->observer()->OnIceCandidate(native_candidate.get());
 
@@ -941,7 +940,7 @@ TEST_F(RTCPeerConnectionHandlerTest, OnIceCandidate) {
                                    PeerConnectionTracker::kSourceLocal, true));
   EXPECT_CALL(*mock_client_.Get(), DidGenerateICECandidate(_));
 
-  std::unique_ptr<webrtc::IceCandidateInterface> native_candidate(
+  std::unique_ptr<webrtc::IceCandidate> native_candidate(
       mock_dependency_factory_->CreateIceCandidate("sdpMid", 1, kDummySdp));
   pc_handler_->observer()->OnIceCandidate(native_candidate.get());
   RunMessageLoopsUntilIdle();
@@ -1112,7 +1111,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(RTCPeerConnectionHandlerTest, CandidatesIgnoredWheHandlerDeleted) {
   auto* observer = pc_handler_->observer();
-  std::unique_ptr<webrtc::IceCandidateInterface> native_candidate(
+  std::unique_ptr<webrtc::IceCandidate> native_candidate(
       mock_dependency_factory_->CreateIceCandidate("sdpMid", 1, kDummySdp));
   pc_handler_.reset();
   observer->OnIceCandidate(native_candidate.get());
@@ -1121,10 +1120,10 @@ TEST_F(RTCPeerConnectionHandlerTest, CandidatesIgnoredWheHandlerDeleted) {
 TEST_F(RTCPeerConnectionHandlerTest,
        CandidatesIgnoredWheHandlerDeletedFromEvent) {
   auto* observer = pc_handler_->observer();
-  std::unique_ptr<webrtc::IceCandidateInterface> native_candidate(
+  std::unique_ptr<webrtc::IceCandidate> native_candidate(
       mock_dependency_factory_->CreateIceCandidate("sdpMid", 1, kDummySdp));
   EXPECT_CALL(*mock_client_, DidChangeSessionDescriptions(_, _, _, _))
-      .WillOnce(testing::Invoke([&] { pc_handler_.reset(); }));
+      .WillOnce([&] { pc_handler_.reset(); });
   observer->OnIceCandidate(native_candidate.get());
 }
 
@@ -1136,7 +1135,7 @@ TEST_F(RTCPeerConnectionHandlerTest,
                                    PeerConnectionTracker::kSourceLocal, true))
       .Times(0);
 
-  std::unique_ptr<webrtc::IceCandidateInterface> native_candidate(
+  std::unique_ptr<webrtc::IceCandidate> native_candidate(
       mock_dependency_factory_->CreateIceCandidate("sdpMid", 1, kDummySdp));
   mock_client_ = nullptr;
   WebHeap::CollectAllGarbageForTesting();

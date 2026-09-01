@@ -2553,6 +2553,7 @@ class TestQuicPathValidationContext : public QuicPathValidationContext {
         writer_(writer) {}
 
   QuicPacketWriter* WriterToUse() override { return writer_; }
+  bool ShouldConnectionOwnWriter() const override { return false; }
 
  private:
   QuicPacketWriter* writer_;
@@ -10122,6 +10123,106 @@ TEST_P(QuicConnectionTest, PtoSkipsPacketNumber) {
   EXPECT_EQ(1u, writer_->stream_frames().size());
   EXPECT_EQ(QuicPacketNumber(4), writer_->last_packet_header().packet_number);
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+}
+
+TEST_P(QuicConnectionTest, EnablingBlackHoleAvoidanceViaFlowLabel) {
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kCFLS);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
+  EXPECT_EQ(0, connection_.outgoing_flow_label());
+  connection_.EnableBlackholeAvoidanceViaFlowLabel();
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  const uint32_t flow_label = connection_.outgoing_flow_label();
+  EXPECT_NE(0, flow_label);
+
+  QuicStreamId stream_id = 2;
+  QuicPacketNumber last_packet;
+  SendStreamDataToPeer(stream_id, "foooooo", 0, NO_FIN, &last_packet);
+  SendStreamDataToPeer(stream_id, "foooooo", 7, NO_FIN, &last_packet);
+  EXPECT_EQ(QuicPacketNumber(2), last_packet);
+  EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
+
+  // Fire PTO and verify the flow label has changed.
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  connection_.GetRetransmissionAlarm()->Fire();
+  EXPECT_NE(flow_label, connection_.outgoing_flow_label());
+  EXPECT_EQ(1, connection_.GetStats().num_flow_label_changes);
+
+  EXPECT_CALL(visitor_, OnForwardProgressMadeAfterFlowLabelChange());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _));
+  QuicAckFrame frame = InitAckFrame(last_packet);
+  ProcessAckPacket(1, &frame);
+  EXPECT_EQ(
+      1, connection_.GetStats().num_forward_progress_after_flow_label_change);
+}
+
+TEST_P(QuicConnectionTest, ReceivingNewFlowLabelWithGapChangesFlowLabel) {
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kCFLS);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(0, connection_.outgoing_flow_label());
+  connection_.EnableBlackholeAvoidanceViaFlowLabel();
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  const uint32_t flow_label = connection_.outgoing_flow_label();
+  EXPECT_NE(0, flow_label);
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+
+  // Receive the first packet to initialize the flow label.
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL, 0);
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
+
+  // Receive the second packet with the same flow label
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_INITIAL, flow_label);
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
+
+  // Receive a packet with gap and a new flow label and verify the outgoing
+  // flow label has changed.
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  ProcessDataPacketAtLevel(4, !kHasStopWaiting, ENCRYPTION_INITIAL,
+                           flow_label + 1);
+  EXPECT_NE(flow_label, connection_.outgoing_flow_label());
+}
+
+TEST_P(QuicConnectionTest,
+       ReceivingNewFlowLabelWithNoGapDoesNotChangeFlowLabel) {
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kCFLS);
+  config.SetConnectionOptionsToSend(connection_options);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(0, connection_.outgoing_flow_label());
+  connection_.EnableBlackholeAvoidanceViaFlowLabel();
+  static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
+  const uint32_t flow_label = connection_.outgoing_flow_label();
+  EXPECT_NE(0, flow_label);
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
+
+  // Receive the first packet to initialize the flow label.
+  ProcessDataPacketAtLevel(1, !kHasStopWaiting, ENCRYPTION_INITIAL, 0);
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
+
+  // Receive the second packet with the same flow label
+  ProcessDataPacketAtLevel(2, !kHasStopWaiting, ENCRYPTION_INITIAL, flow_label);
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
+
+  // Receive a packet with no gap and a new flow label and verify the outgoing
+  // flow label has not changed.
+  ProcessDataPacketAtLevel(3, !kHasStopWaiting, ENCRYPTION_INITIAL, flow_label);
+  EXPECT_EQ(flow_label, connection_.outgoing_flow_label());
 }
 
 TEST_P(QuicConnectionTest, PtoChangesFlowLabel) {
@@ -17974,6 +18075,20 @@ TEST_P(QuicConnectionTest, ConfigEnablesAckFrequency) {
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
   EXPECT_TRUE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
+}
+
+TEST_P(QuicConnectionTest, ConfigHardCodedPeerReorderingThreshold) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  QuicConfig config;
+  EXPECT_EQ(QuicConnectionPeer::GetPeerReorderingThreshold(&connection_), 1);
+  config.set_peer_reordering_threshold(10);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerReorderingThreshold(&connection_), 10);
 }
 
 // Regression test for b/424538505.

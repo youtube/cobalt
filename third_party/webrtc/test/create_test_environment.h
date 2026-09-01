@@ -18,7 +18,9 @@
 #include "api/environment/environment.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
+#include "api/rtc_event_log/rtc_event_log.h"
 #include "api/test/time_controller.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -33,7 +35,10 @@ struct CreateTestEnvironmentOptions {
                absl_nonnull std::unique_ptr<FieldTrialsView>,
                FieldTrials>
       field_trials;
-  TimeController* time = nullptr;
+  std::variant<Clock * absl_nullable,  //
+               TimeController * absl_nonnull>
+      time;
+  RtcEventLog* event_log = nullptr;
 };
 Environment CreateTestEnvironment(CreateTestEnvironmentOptions o = {});
 

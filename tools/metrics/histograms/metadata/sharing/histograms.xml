@@ -73,7 +73,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SharedHighlights.LinkGenerated.Error"
-    enum="LinkGenerationError" expires_after="2025-12-14">
+    enum="LinkGenerationError" expires_after="2026-02-15">
   <owner>jeffreycohen@chromium.org</owner>
   <owner>chrome-shared-highlighting@google.com</owner>
   <summary>
@@ -94,7 +94,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="SharedHighlights.LinkGenerated.Error.Requested"
-    enum="LinkGenerationError" expires_after="2025-12-14">
+    enum="LinkGenerationError" expires_after="2026-02-15">
   <owner>jeffreycohen@chromium.org</owner>
   <owner>chrome-shared-highlighting@google.com</owner>
   <summary>
@@ -222,24 +222,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.DefaultSharesheetAndroid.Opened" enum="ShareOrigin"
-    expires_after="2025-12-21">
+    expires_after="2026-02-22">
   <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>
   <summary>
     Records the origin of the share that opened the default sharesheet. Recorded
     when the sharesheeet is opened.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.LocalSharingTargetInfoSupportsSync" enum="Boolean"
-    expires_after="2025-08-27">
-  <owner>rushans@google.com</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Records whether the local device contains sharing information to use sync
-    (as opposed to FCM) from other devices. Recorded during device registration
-    on every browser startup or after sync reset.
   </summary>
 </histogram>
 
@@ -286,7 +275,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sharing.ScrollCapture.BitmapGeneratorStatus"
     enum="SharingScrollCaptureBitmapGenerationStatus"
-    expires_after="2025-10-01">
+    expires_after="2026-04-01">
   <owner>ckitagawa@chromium.org</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -298,7 +287,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.ScrollCapture.SuccessfulCaptureDuration" units="ms"
-    expires_after="2025-10-01">
+    expires_after="2026-04-01">
   <owner>ckitagawa@chromium.org</owner>
   <owner>src/components/paint_preview/OWNERS</owner>
   <summary>
@@ -309,7 +298,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SendMessageResult{DevicePlatform}{PulseInterval}"
-    enum="SharingSendMessageResult" expires_after="2025-12-14">
+    enum="SharingSendMessageResult" expires_after="2026-02-22">
   <owner>peter@chromium.org</owner>
   <owner>knollr@chromium.org</owner>
   <summary>
@@ -377,7 +366,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sharing.SharingHubAndroid.Opened" enum="ShareOrigin"
-    expires_after="2025-12-21">
+    expires_after="2026-02-22">
   <owner>wenyufu@chromium.org</owner>
   <owner>sophey@chromium.org</owner>
   <owner>src/chrome/browser/share/OWNERS</owner>

@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.customtabs.content;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -26,7 +25,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Intent;
-import android.net.Network;
 import android.os.Bundle;
 
 import org.junit.Before;
@@ -59,7 +57,7 @@ import org.chromium.net.NetId;
 @Config(
         manifest = Config.NONE,
         shadows = {ShadowUrlUtilities.class})
-@Features.EnableFeatures({ChromeFeatureList.CCT_PREWARM_TAB, ChromeFeatureList.CCT_EARLY_NAV})
+@Features.EnableFeatures({ChromeFeatureList.CCT_EARLY_NAV})
 public class CustomTabActivityTabControllerUnitTest {
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
@@ -70,7 +68,6 @@ public class CustomTabActivityTabControllerUnitTest {
     private CustomTabActivityTabController mTabController;
 
     @Mock private PrivacyPreferencesManagerImpl mPrivacyPreferencesManager;
-    @Mock private Network mNetwork;
     @Mock private UserPrefsJni mMockUserPrefsJni;
 
     @Mock private CookiesFetcher.Natives mCookiesFetcherJni;
@@ -309,24 +306,6 @@ public class CustomTabActivityTabControllerUnitTest {
         mTabController.setUpInitialTab(null);
         mTabController.finishNativeInitialization();
         assertEquals(transferredWebcontents, env.webContentsCaptor.getValue());
-    }
-
-    @Test
-    public void usesSpareWebContents_IfAvailable() {
-        WebContents spareWebcontents = env.prepareSpareWebcontents();
-        mTabController.setUpInitialTab(null);
-        mTabController.finishNativeInitialization();
-        assertEquals(spareWebcontents, env.webContentsCaptor.getValue());
-    }
-
-    @Test
-    public void prefersTransferredWebContents_ToSpareWebContents() {
-        WebContents transferredWebcontents = env.prepareTransferredWebcontents();
-        WebContents spareWebcontents = env.prepareSpareWebcontents();
-        mTabController.setUpInitialTab(null);
-        mTabController.finishNativeInitialization();
-        assertEquals(transferredWebcontents, env.webContentsCaptor.getValue());
-        assertNotEquals(spareWebcontents, env.webContentsCaptor.getValue());
     }
 
     // This is important so that the tab doesn't get hidden, see ChromeActivity#onStopWithNative

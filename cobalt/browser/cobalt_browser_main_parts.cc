@@ -111,8 +111,8 @@ void InitializeBrowserMemoryInstrumentationClient() {
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 void RegisterCobaltHeapProfilerOnDumpThread() {
-  [[maybe_unused]] static base::SequenceChecker sequence_checker;
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker);
+  [[maybe_unused]] static base::NoDestructor<base::SequenceChecker> sequence_checker;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(*sequence_checker);
 
   static bool initialized = false;
   if (initialized) {

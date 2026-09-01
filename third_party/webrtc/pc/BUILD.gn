@@ -2841,6 +2841,7 @@ if (rtc_include_tests && !build_with_chromium) {
       ":rtp_transport_internal",
       ":sctp_data_channel",
       ":sctp_utils",
+      ":sdp_utils",
       ":session_description",
       ":simulcast_description",
       ":stream_collection",

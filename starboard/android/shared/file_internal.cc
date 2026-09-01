@@ -56,7 +56,7 @@ using jni_zero::ScopedJavaGlobalRef;
 // instance. This global reference ensures the AssetManager Java object
 // remains valid and accessible throughout the native application's lifetime,
 // allowing native code to load assets packaged within the APK.
-ScopedJavaGlobalRef<jobject> g_java_asset_manager;
+[[clang::no_destroy]] ScopedJavaGlobalRef<jobject> g_java_asset_manager;
 AAssetManager* g_asset_manager;
 }  // namespace
 

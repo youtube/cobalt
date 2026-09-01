@@ -39,8 +39,6 @@
 #include "api/video/video_layers_allocation.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
-#include "common_video/corruption_detection_converters.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/absolute_capture_time_sender.h"
 #include "modules/rtp_rtcp/source/corruption_detection_extension.h"
@@ -483,26 +481,9 @@ void RTPSenderVideo::AddRtpHeaderExtensions(const RTPVideoHeader& video_header,
   }
 
   if (last_packet && video_header.frame_instrumentation_data) {
-    std::optional<CorruptionDetectionMessage> message;
-    if (const auto* data = std::get_if<FrameInstrumentationData>(
-            &(*video_header.frame_instrumentation_data))) {
-      message =
-          ConvertFrameInstrumentationDataToCorruptionDetectionMessage(*data);
-    } else if (const auto* sync_data =
-                   std::get_if<FrameInstrumentationSyncData>(
-                       &(*video_header.frame_instrumentation_data))) {
-      message = ConvertFrameInstrumentationSyncDataToCorruptionDetectionMessage(
-          *sync_data);
-    } else {
-      RTC_DCHECK_NOTREACHED();
-    }
-
-    if (message.has_value()) {
-      packet->SetExtension<CorruptionDetectionExtension>(*message);
-    } else {
-      RTC_LOG(LS_WARNING) << "Failed to convert frame instrumentation data to "
-                             "corruption detection message.";
-    }
+    packet->SetExtension<CorruptionDetectionExtension>(
+        CorruptionDetectionMessage::FromFrameInstrumentationData(
+            *video_header.frame_instrumentation_data));
   }
 }
 

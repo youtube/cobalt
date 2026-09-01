@@ -27,19 +27,13 @@
 static int dsa_pub_decode(EVP_PKEY *out, CBS *params, CBS *key) {
   // See RFC 3279, section 2.3.2.
 
-  // Parameters may or may not be present.
-  bssl::UniquePtr<DSA> dsa;
-  if (CBS_len(params) == 0) {
-    dsa.reset(DSA_new());
-    if (dsa == nullptr) {
-      return 0;
-    }
-  } else {
-    dsa.reset(DSA_parse_parameters(params));
-    if (dsa == nullptr || CBS_len(params) != 0) {
-      OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
-      return 0;
-    }
+  // Decode parameters. RFC 3279 permits DSA parameters to be omitted, in which
+  // case they are implicitly determined from the issuing certificate, or
+  // somewhere unspecified and out-of-band. We do not support this mode.
+  bssl::UniquePtr<DSA> dsa(DSA_parse_parameters(params));
+  if (dsa == nullptr || CBS_len(params) != 0) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    return 0;
   }
 
   dsa->pub_key = BN_new();
@@ -257,13 +251,15 @@ int EVP_PKEY_set1_DSA(EVP_PKEY *pkey, DSA *key) {
 }
 
 int EVP_PKEY_assign_DSA(EVP_PKEY *pkey, DSA *key) {
-  evp_pkey_set_method(pkey, &dsa_asn1_meth);
-  pkey->pkey = key;
-  return key != nullptr;
+  if (key == nullptr) {
+    return 0;
+  }
+  evp_pkey_set0(pkey, &dsa_asn1_meth, key);
+  return 1;
 }
 
 DSA *EVP_PKEY_get0_DSA(const EVP_PKEY *pkey) {
-  if (pkey->type != EVP_PKEY_DSA) {
+  if (EVP_PKEY_id(pkey) != EVP_PKEY_DSA) {
     OPENSSL_PUT_ERROR(EVP, EVP_R_EXPECTING_A_DSA_KEY);
     return nullptr;
   }

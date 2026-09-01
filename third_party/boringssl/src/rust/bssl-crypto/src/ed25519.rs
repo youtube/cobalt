@@ -161,32 +161,23 @@ impl PublicKey {
             // Safety: cbs is valid per `parse_with_cbs`.
             |cbs| unsafe { bssl_sys::EVP_parse_public_key(cbs) },
         )?);
-
-        let mut out_len = 0;
-        // When the out buffer is null, `out_len` is set to the size of the raw public key.
-        // Safety: the arguments are valid.
-        let result = unsafe {
-            bssl_sys::EVP_PKEY_get_raw_public_key(
-                pkey.as_ffi_ptr(),
-                core::ptr::null_mut(),
-                &mut out_len,
-            )
-        };
-        if result != 1 {
-            return None;
-        }
-        if out_len != PUBLIC_KEY_LEN {
+        // Safety: `pkey` is a valid `EVP_PKEY`.
+        if unsafe { bssl_sys::EVP_PKEY_id(pkey.as_ffi_ptr()) } != bssl_sys::EVP_PKEY_ED25519 {
             return None;
         }
 
-        // When the out buffer is not null, the raw public key is written into it.
-        // Safety: the arguments are valid.
+        // Safety: `EVP_PKEY_get_raw_public_key` is passed a valid buffer. The
+        // (always true) assertion ensures the closure always initializes the
+        // array.
         let raw_pkey: [u8; PUBLIC_KEY_LEN] = unsafe {
-            with_output_array(|out, _| {
+            with_output_array(|out, mut out_len| {
+                // If `pkey` is an Ed25519 key, checked above, the raw public
+                // key must be available, and must be `PUBLIC_KEY_LEN` bytes.
                 assert_eq!(
                     1,
                     bssl_sys::EVP_PKEY_get_raw_public_key(pkey.as_ffi_ptr(), out, &mut out_len)
                 );
+                assert_eq!(out_len, PUBLIC_KEY_LEN);
             })
         };
         Some(PublicKey(raw_pkey))
@@ -266,6 +257,14 @@ mod test {
         .is_none());
 
         assert!(PublicKey::from_der_subject_public_key_info(b"").is_none());
+    }
+
+    #[test]
+    fn der_subject_public_key_info_wrong_type() {
+        // This is an X25519 key, not an Ed25519 key.
+        let spki = test_helpers::decode_hex_into_vec("302a300506032b656e032100e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c");
+        // `from_der_subject_public_key_info` should reject it.
+        assert!(PublicKey::from_der_subject_public_key_info(&spki).is_none());
     }
 
     #[test]

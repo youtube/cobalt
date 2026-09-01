@@ -386,13 +386,10 @@ TEST_P(PerAEADTest, TestVectorScatterGather) {
         out.size(), out_tag.data(), out_tag.size(), ad.data(), ad.size());
 
     // Skip decryption for AEADs that don't implement open_gather().
-    if (!ret) {
-      uint32_t err = ERR_peek_error();
-      if (ERR_GET_LIB(err) == ERR_LIB_CIPHER &&
-          ERR_GET_REASON(err) == CIPHER_R_CTRL_NOT_IMPLEMENTED) {
-        t->SkipCurrent();
-        return;
-      }
+    if (!ret && ERR_equals(ERR_peek_error(), ERR_LIB_CIPHER,
+                           CIPHER_R_CTRL_NOT_IMPLEMENTED)) {
+      t->SkipCurrent();
+      return;
     }
 
     if (t->HasAttribute("FAILS")) {

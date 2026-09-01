@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/actions/chrome_actions.h"
 #include "chrome/browser/ui/autofill/address_bubbles_icon_controller.h"
 #include "chrome/browser/ui/autofill/autofill_bubble_base.h"
+#include "chrome/browser/ui/autofill/payments/mandatory_reauth_bubble_controller_impl.h"
 #include "chrome/browser/ui/autofill/payments/save_payment_icon_controller.h"
 #include "chrome/browser/ui/bookmarks/bookmark_utils.h"
 #include "chrome/browser/ui/browser.h"
@@ -49,7 +50,6 @@
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/commerce/discounts_page_action_view_controller.h"
-#include "chrome/browser/ui/views/commerce/product_specifications_page_action_view_controller.h"
 #include "chrome/browser/ui/views/file_system_access/file_system_access_bubble_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
@@ -100,6 +100,11 @@
 
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/views/download/bubble/download_toolbar_ui_controller.h"
+#endif
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/browser_ui/glic_vector_icon_manager.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
 #endif
 
 namespace {
@@ -423,31 +428,14 @@ void BrowserActions::InitializeBrowserActions() {
           base::BindRepeating(
               [](BrowserWindowInterface* bwi, actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
-                auto* tab_features =
-                    bwi->GetActiveTabInterface()->GetTabFeatures();
-                CHECK(tab_features);
+                auto* tab_interface = bwi->GetActiveTabInterface();
+                CHECK(tab_interface);
 
-                tab_features
-                    ->commerce_product_specifications_page_action_view_controller()
-                    ->ShowConfirmationToast();
+                autofill::MandatoryReauthBubbleControllerImpl::FromWebContents(
+                    tab_interface->GetContents())
+                    ->ShowBubble();
               },
               bwi))
-          .SetActionId(kActionCommerceProductSpecifications)
-          .SetText(
-              l10n_util::GetStringUTF16(IDS_COMPARE_PAGE_ACTION_ADD_DEFAULT))
-          .SetTooltipText(
-              l10n_util::GetStringUTF16(IDS_COMPARE_PAGE_ACTION_ADD_DEFAULT))
-          .SetImage(ui::ImageModel::FromVectorIcon(
-              omnibox::kProductSpecificationsAddIcon))
-          .Build());
-
-  // Clicking the Mandatory Reauth page action is a no-op. This is because the
-  // icon is always shown with a dialog bubble. The expected behavior is to
-  // simply close this bubble, which happens automatically due to focus change
-  // when the user clicks the icon. Therefore, a `base::DoNothing()` callback is
-  // used.
-  root_action_item_->AddChild(
-      actions::ActionItem::Builder(base::DoNothing())
           .SetActionId(kActionAutofillMandatoryReauth)
           .SetTooltipText(l10n_util::GetStringUTF16(
               IDS_AUTOFILL_MANDATORY_REAUTH_ICON_TOOLTIP))
@@ -552,10 +540,12 @@ void BrowserActions::InitializeBrowserActions() {
     root_action_item_->AddChild(
         ChromeMenuAction(
             base::BindRepeating(
-                [](send_tab_to_self::SendTabToSelfToolbarBubbleController*
-                       bubble_controller,
-                   TabStripModel* tab_strip_model, actions::ActionItem* item,
+                [](BrowserWindowInterface* bwi, TabStripModel* tab_strip_model,
+                   actions::ActionItem* item,
                    actions::ActionInvocationContext context) {
+                  auto* const bubble_controller =
+                      bwi->GetFeatures()
+                          .send_tab_to_self_toolbar_bubble_controller();
                   if (bubble_controller->IsBubbleShowing()) {
                     bubble_controller->HideBubble();
                   } else {
@@ -563,8 +553,7 @@ void BrowserActions::InitializeBrowserActions() {
                         tab_strip_model->GetActiveWebContents());
                   }
                 },
-                bwi->GetFeatures().send_tab_to_self_toolbar_bubble_controller(),
-                tab_strip_model),
+                bwi, tab_strip_model),
             kActionSendTabToSelf, IDS_SEND_TAB_TO_SELF, IDS_SEND_TAB_TO_SELF,
             kDevicesChromeRefreshIcon)
             .SetEnabled(chrome::CanSendTabToSelf(bwi))
@@ -981,6 +970,7 @@ void BrowserActions::InitializeBrowserActions() {
                  actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
                 browser_command_controller->ShowCustomizeChromeSidePanel(
+                    SidePanelOpenTrigger::kNewTabFooter,
                     CustomizeChromeSection::kFooter);
               },
               bwi->GetFeatures().browser_command_controller()))
@@ -996,6 +986,18 @@ void BrowserActions::InitializeBrowserActions() {
                         bwi, false)
             .Build());
   }
+
+#if BUILDFLAG(ENABLE_GLIC)
+  if (glic::GlicEnabling::IsEnabledForProfile(profile)) {
+    root_action_item_->AddChild(
+        SidePanelAction(SidePanelEntryId::kGlic, IDS_SETTINGS_GLIC_PAGE_TITLE,
+                        IDS_SETTINGS_GLIC_PAGE_TITLE,
+                        glic::GlicVectorIconManager::GetVectorIcon(
+                            IDR_GLIC_BUTTON_VECTOR_ICON),
+                        kActionSidePanelShowGlic, bwi, /*is_pinnable=*/true)
+            .Build());
+  }
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
   AddListeners();
 }

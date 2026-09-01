@@ -17,6 +17,7 @@ load("//lib/siso.star", "siso")
 
 ci.defaults.set(
     executable = ci_constants.DEFAULT_EXECUTABLE,
+    # TODO(crbug.com/439887309): Enable on ANDROID_BRANCHES
     builder_group = "chromium.android.desktop",
     builder_config_settings = builder_config.ci_settings(
         retry_failed_shards = True,
@@ -293,10 +294,8 @@ ci.thin_tester(
                 ],
                 ci_only = True,
             ),
-            # TODO(crbug.com/436488951): Promote out of experimental.
             "android_chrome_wpt_tests": targets.mixin(
                 ci_only = True,
-                experiment_percentage = 100,
             ),
             "unit_tests": targets.mixin(
                 args = [

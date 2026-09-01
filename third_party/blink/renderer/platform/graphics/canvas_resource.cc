@@ -63,8 +63,7 @@ namespace {
 // image backed CanvasResources so that they can be imported into WebGPU without
 // an intermediate copy. This could cause a different shared image backing type
 // to be used in the GPU process based on the OS platform.
-BASE_FEATURE(kCanvasResourceIsWebGPUCompatible,
-             "CanvasResourceIsWebGPUCompatible",
+BASE_FEATURE(CanvasResourceIsWebGPUCompatible,
 #if BUILDFLAG(IS_APPLE)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
@@ -547,6 +546,7 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
 
     auto image = UnacceleratedStaticBitmapImage::Create(sk_image);
     image->SetOriginClean(OriginClean());
+    image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
     return image;
   }
 
@@ -591,6 +591,7 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
       std::move(release_callback));
 
   DCHECK(image);
+  image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
   return image;
 }
 
@@ -782,10 +783,13 @@ scoped_refptr<StaticBitmapImage> ExternalCanvasResource::Bitmap() {
       },
       base::RetainedRef(this));
 
-  return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-      client_si_, GetSyncToken(), /*shared_image_texture_id=*/0u,
-      GetAlphaType(), context_provider_wrapper_, owning_thread_ref_,
-      owning_thread_task_runner_, std::move(release_callback));
+  scoped_refptr<StaticBitmapImage> image =
+      AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
+          client_si_, GetSyncToken(), /*shared_image_texture_id=*/0u,
+          GetAlphaType(), context_provider_wrapper_, owning_thread_ref_,
+          owning_thread_task_runner_, std::move(release_callback));
+  image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
+  return image;
 }
 
 const gpu::SyncToken
@@ -910,10 +914,13 @@ scoped_refptr<StaticBitmapImage> CanvasResourceSwapChain::Bitmap() {
       },
       base::RetainedRef(this));
 
-  return AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
-      back_buffer_shared_image_, GetSyncToken(), shared_texture_id,
-      GetAlphaType(), context_provider_wrapper_, owning_thread_ref_,
-      owning_thread_task_runner_, std::move(release_callback));
+  scoped_refptr<StaticBitmapImage> image =
+      AcceleratedStaticBitmapImage::CreateFromCanvasSharedImage(
+          back_buffer_shared_image_, GetSyncToken(), shared_texture_id,
+          GetAlphaType(), context_provider_wrapper_, owning_thread_ref_,
+          owning_thread_task_runner_, std::move(release_callback));
+  image->SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpTypes());
+  return image;
 }
 
 const scoped_refptr<gpu::ClientSharedImage>&

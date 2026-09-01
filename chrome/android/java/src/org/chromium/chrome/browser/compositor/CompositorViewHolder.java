@@ -42,12 +42,13 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.customview.widget.ExploreByTouchHelper;
 
-import org.chromium.base.BuildInfo;
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.InputHintChecker;
 import org.chromium.base.ObserverList;
 import org.chromium.base.SysUtils;
 import org.chromium.base.TraceEvent;
+import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
 import org.chromium.build.annotations.EnsuresNonNullIf;
@@ -77,6 +78,7 @@ import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
+import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ControlContainer;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
@@ -124,10 +126,11 @@ public class CompositorViewHolder extends FrameLayout
                 TabObscuringHandler.Observer,
                 ViewGroup.OnHierarchyChangeListener {
     private static final long SYSTEM_UI_VIEWPORT_UPDATE_DELAY_MS = 500;
+    private static final long BACKGROUND_REMOVAL_TIMEOUT_MS = 2500;
 
     /**
-     * Initializer interface used to decouple initialization from the class that owns
-     * the CompositorViewHolder.
+     * Initializer interface used to decouple initialization from the class that owns the
+     * CompositorViewHolder.
      */
     public interface Initializer {
         /**
@@ -480,9 +483,9 @@ public class CompositorViewHolder extends FrameLayout
     }
 
     private static boolean isFullscreenApiMigrationEnabled() {
-        return ChromeFeatureList.sFullscreenInsetsApiMigration.isEnabled()
-                || (BuildInfo.getInstance().isAutomotive
-                        && ChromeFeatureList.sFullscreenInsetsApiMigrationOnAutomotive.isEnabled());
+        if (ChromeFeatureList.sFullscreenInsetsApiMigration.isEnabled()) return true;
+        return DeviceInfo.isAutomotive()
+                && ChromeFeatureList.sFullscreenInsetsApiMigrationOnAutomotive.isEnabled();
     }
 
     private boolean isInFullscreenMode(int uiVisibility, View view) {
@@ -563,8 +566,32 @@ public class CompositorViewHolder extends FrameLayout
 
         mSetBackgroundRunnable = this::removeTempBackground;
         // Request a render. The temporary background will be removed once we are confident that the
-        // composited frame has been drawn.
-        requestRender();
+        // composited frame has been drawn. We'll also post a runnable to remove the background
+        // after a timeout, if the requested render is still not yet effective.
+        requestRender(this::runSetBackgroundRunnable);
+        new Handler()
+                .postDelayed(this::timeoutRunSetBackgroundRunnable, BACKGROUND_REMOVAL_TIMEOUT_MS);
+    }
+
+    private void timeoutRunSetBackgroundRunnable() {
+        if (mSetBackgroundRunnable == null) {
+            // The background was already removed, so mark that we did not time out.
+            RecordHistogram.recordBooleanHistogram(
+                    "Android.TabStrip.TempBackgroundTimedOut", false);
+            return;
+        }
+        // The background has not yet been removed, so mark that we timed out and remove the
+        // background now.
+        RecordHistogram.recordBooleanHistogram("Android.TabStrip.TempBackgroundTimedOut", true);
+        runSetBackgroundRunnable();
+    }
+
+    private void runSetBackgroundRunnable() {
+        // This runnable should only be run once.
+        if (mSetBackgroundRunnable == null) return;
+
+        new Handler().post(mSetBackgroundRunnable);
+        mSetBackgroundRunnable = null;
     }
 
     private void removeTempBackground() {
@@ -827,7 +854,7 @@ public class CompositorViewHolder extends FrameLayout
     /**
      * @return The SurfaceView proxy used by the Compositor.
      */
-    public @Nullable CompositorView getCompositorView() {
+    public CompositorView getCompositorView() {
         return mCompositorView;
     }
 
@@ -867,8 +894,7 @@ public class CompositorViewHolder extends FrameLayout
         if (mTabModelSelector == null) return;
 
         for (TabModel tabModel : mTabModelSelector.getModels()) {
-            for (int i = 0; i < tabModel.getCount(); ++i) {
-                Tab tab = tabModel.getTabAt(i);
+            for (Tab tab : tabModel) {
                 if (tab == null) continue;
                 updateWebContentsSize(tab);
             }
@@ -1108,7 +1134,7 @@ public class CompositorViewHolder extends FrameLayout
             if (!BrowserControlsUtils.areBrowserControlsIdle(mBrowserControlsManager)) return;
 
             boolean controlsResizeView =
-                    BrowserControlsUtils.controlsResizeView(mBrowserControlsManager, mActivity);
+                    BrowserControlsUtils.controlsResizeView(mBrowserControlsManager);
             if (controlsResizeView != mControlsResizeView) {
                 mControlsResizeView = controlsResizeView;
                 controlsResizeViewChanged = true;
@@ -1256,7 +1282,6 @@ public class CompositorViewHolder extends FrameLayout
         TraceEvent.instant("didSwapFrame");
 
         mHasDrawnOnce = true;
-        if (mSetBackgroundRunnable != null) requestRender();
 
         mDidSwapBuffersCallbacks.addAll(mDidSwapFrameCallbacks);
         mDidSwapFrameCallbacks.clear();
@@ -1265,31 +1290,11 @@ public class CompositorViewHolder extends FrameLayout
 
     @Override
     public void didSwapBuffers(boolean swappedCurrentSize, int framesUntilHideBackground) {
-        // Wait until the second frame to turn off the placeholder background for the CompositorView
-        // and the tab strip, to ensure the compositor frame has been drawn.
-        if (mSetBackgroundRunnable != null) {
-            if (mHasDrawnOnce && framesUntilHideBackground == 0) {
-                // Remove temporary background if tab state is ready.
-                runSetBackgroundRunnable();
-            } else {
-                // If tab state is not yet ready, request another render.
-                requestRender();
-            }
-        }
-
         for (Runnable runnable : mDidSwapBuffersCallbacks) {
             runnable.run();
         }
         mDidSwapBuffersCallbacks.clear();
         updateNeedsSwapBuffersCallback();
-    }
-
-    private void runSetBackgroundRunnable() {
-        // This runnable should only be run once.
-        if (mSetBackgroundRunnable == null) return;
-
-        new Handler().post(mSetBackgroundRunnable);
-        mSetBackgroundRunnable = null;
     }
 
     @Override

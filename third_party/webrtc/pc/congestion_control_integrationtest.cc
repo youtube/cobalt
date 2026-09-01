@@ -178,17 +178,26 @@ TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
   ASSERT_TRUE(CreatePeerConnectionWrappers());
   ConnectFakeSignalingForSdpOnly();
   callee()->AddVideoTrack();
+  callee()->AddAudioTrack();
   // Add transceivers to caller in order to accomodate reception
   caller()->pc()->AddTransceiver(MediaType::VIDEO);
-  auto parameters = caller()->pc()->GetSenders()[0]->GetParameters();
+  caller()->pc()->AddTransceiver(MediaType::AUDIO);
+
   caller()->CreateAndSetAndSignalOffer();
   ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
               IsRtcOk());
 
-  std::vector<RtpHeaderExtensionCapability> negotiated_header_extensions =
-      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions();
+  ASSERT_THAT(caller()->pc()->GetTransceivers().size(), Eq(2));
   EXPECT_THAT(
-      negotiated_header_extensions,
+      caller()->pc()->GetTransceivers()[0]->GetNegotiatedHeaderExtensions(),
+      Not(Contains(
+          AllOf(Field("uri", &RtpHeaderExtensionCapability::uri,
+                      RtpExtension::kTransportSequenceNumberUri),
+                Not(Field("direction", &RtpHeaderExtensionCapability::direction,
+                          RtpTransceiverDirection::kStopped))))))
+      << " in caller negotiated header extensions";
+  EXPECT_THAT(
+      caller()->pc()->GetTransceivers()[1]->GetNegotiatedHeaderExtensions(),
       Not(Contains(
           AllOf(Field("uri", &RtpHeaderExtensionCapability::uri,
                       RtpExtension::kTransportSequenceNumberUri),
@@ -196,28 +205,51 @@ TEST_F(PeerConnectionCongestionControlTest, NegotiatingCcfbRemovesTsn) {
                           RtpTransceiverDirection::kStopped))))))
       << " in caller negotiated header extensions";
 
-  parameters = caller()->pc()->GetSenders()[0]->GetParameters();
-  EXPECT_THAT(parameters.header_extensions,
-              Not(Contains(Field("uri", &RtpExtension::uri,
-                                 RtpExtension::kTransportSequenceNumberUri))))
+  ASSERT_THAT(caller()->pc()->GetSenders().size(), Eq(2));
+  EXPECT_THAT(
+      caller()->pc()->GetSenders()[0]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
       << " in caller sender parameters";
-  parameters = caller()->pc()->GetReceivers()[0]->GetParameters();
-  EXPECT_THAT(parameters.header_extensions,
-              Not(Contains(Field("uri", &RtpExtension::uri,
-                                 RtpExtension::kTransportSequenceNumberUri))))
+  EXPECT_THAT(
+      caller()->pc()->GetSenders()[1]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller sender parameters";
+  EXPECT_THAT(
+      caller()->pc()->GetReceivers()[0]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
       << " in caller receiver parameters";
-  /* Callee senders are not fixed yet.
-     TODO: issues.webrtc.org/383078466 - enable
-  parameters = callee()->pc()->GetSenders()[0]->GetParameters();
-  EXPECT_THAT(parameters.header_extensions,
-              Not(Contains(Field("uri", &RtpExtension::uri,
-                                 RtpExtension::kTransportSequenceNumberUri))))
+  EXPECT_THAT(caller()->pc()->GetReceivers()[1]->media_type(),
+              Eq(MediaType::AUDIO));
+  EXPECT_THAT(
+      caller()->pc()->GetReceivers()[1]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
+      << " in caller receiver parameters";
+
+  EXPECT_THAT(
+      callee()->pc()->GetSenders()[0]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
       << " in callee sender parameters";
-  */
-  parameters = callee()->pc()->GetReceivers()[0]->GetParameters();
-  EXPECT_THAT(parameters.header_extensions,
-              Not(Contains(Field("uri", &RtpExtension::uri,
-                                 RtpExtension::kTransportSequenceNumberUri))))
+  EXPECT_THAT(
+      callee()->pc()->GetSenders()[1]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee sender parameters";
+
+  ASSERT_THAT(callee()->pc()->GetReceivers().size(), Eq(2));
+  EXPECT_THAT(
+      callee()->pc()->GetReceivers()[0]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
+      << " in callee receiver parameters";
+  EXPECT_THAT(
+      callee()->pc()->GetReceivers()[1]->GetParameters().header_extensions,
+      Not(Contains(Field("uri", &RtpExtension::uri,
+                         RtpExtension::kTransportSequenceNumberUri))))
       << " in callee receiver parameters";
 }
 

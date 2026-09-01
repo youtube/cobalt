@@ -62,7 +62,9 @@ Tagged<FreeSpace> FreeListCategory::SearchForNodeInList(const Heap* heap,
         set_top(cur_node->next());
       }
       if (!prev_non_evac_node.is_null()) {
-        if (MemoryChunk::FromHeapObject(prev_non_evac_node)->executable()) {
+        if (MemoryChunk::FromHeapObject(prev_non_evac_node)
+                ->Metadata()
+                ->is_executable()) {
           WritableJitPage jit_page(prev_non_evac_node->address(),
                                    prev_non_evac_node->Size());
           WritableFreeSpace free_space = jit_page.FreeRange(
@@ -463,7 +465,7 @@ void FreeList::ResetForNonBlackAllocatedPages() {
   ForAllFreeListCategories([this](FreeListCategory* category) {
     if (!category->is_empty()) {
       auto* chunk = MemoryChunk::FromHeapObject(category->top());
-      if (chunk->IsFlagSet(MemoryChunk::BLACK_ALLOCATED)) {
+      if (chunk->IsBlackAllocatedPage()) {
         category->Unlink(this);
         return;
       }

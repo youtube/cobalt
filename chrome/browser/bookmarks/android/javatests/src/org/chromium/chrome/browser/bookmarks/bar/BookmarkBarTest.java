@@ -266,8 +266,10 @@ public class BookmarkBarTest {
                         .map(Optional::get)
                         .collect(Collectors.toList());
         onViewWaiting(bookmarkBarOverflowButton()).check(matches(isDisplayed())).perform(click());
-        onViewWaiting(bookmarkManagerToolbarWithText("Bookmarks bar"))
-                .check(matches(isDisplayed()));
+        // The full-screen Bookmark Manager should not appear.
+        onView(bookmarkManagerToolbarWithText("Bookmarks bar")).check(doesNotExist());
+        // Check that a popup menu list is displayed.
+        onView(withId(R.id.menu_list)).inRoot(isPlatformPopup()).check(matches(isDisplayed()));
     }
 
     private @Nullable BookmarkId addBookmark(int index, @NonNull String title, @NonNull GURL url)
@@ -399,7 +401,7 @@ public class BookmarkBarTest {
     private void setBookmarkBarSetting(boolean enabled) {
         final var activity = mCtaTestRule.getActivity();
         final var profile = activity.getProfileProviderSupplier().get().getOriginalProfile();
-        BookmarkBarUtils.setSettingEnabled(profile, enabled);
+        BookmarkBarUtils.setUserPrefsShowBookmarksBar(profile, enabled);
     }
 
     private void waitForBookmarkBarVisibility(boolean visible) {

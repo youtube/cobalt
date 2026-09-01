@@ -3007,7 +3007,10 @@ bool SdpOfferAnswerHandler::RemoveIceCandidates(
   RTC_DCHECK_RUN_ON(signaling_thread());
 
   for (const auto& c : candidates) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     IceCandidate candidate(c.transport_name(), /*sdp_mline_index=*/-1, c);
+#pragma clang diagnostic pop
     if (!RemoveIceCandidate(&candidate)) {
       RTC_LOG(LS_ERROR) << "RemoveIceCandidates: Failed to remove candidate: "
                         << c.ToSensitiveString();

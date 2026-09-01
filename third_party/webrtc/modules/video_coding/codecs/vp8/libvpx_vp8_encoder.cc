@@ -556,7 +556,7 @@ int LibvpxVp8Encoder::InitEncode(const VideoCodec* inst,
   RTC_DCHECK(!frame_buffer_controller_);
   Vp8TemporalLayersFactory factory;
   frame_buffer_controller_ =
-      factory.Create(*inst, settings, fec_controller_override_);
+      factory.Create(env_, *inst, settings, fec_controller_override_);
   RTC_DCHECK(frame_buffer_controller_);
 
   number_of_cores_ = settings.number_of_cores;

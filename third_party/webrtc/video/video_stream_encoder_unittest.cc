@@ -18,7 +18,6 @@
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -46,6 +45,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/builtin_video_bitrate_allocator_factory.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/i420_buffer.h"
 #include "api/video/nv12_buffer.h"
@@ -78,7 +78,6 @@
 #include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_adapter.h"
 #include "call/video_send_stream.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "common_video/h264/h264_common.h"
 #include "media/base/video_adapter.h"
 #include "media/engine/webrtc_video_engine.h"
@@ -1344,7 +1343,7 @@ class VideoStreamEncoderTest : public ::testing::Test {
         // cycle of these objects.
         Vp8TemporalLayersFactory factory;
         frame_buffer_controller_ =
-            factory.Create(*config, settings, &fec_controller_override_);
+            factory.Create(env_, *config, settings, &fec_controller_override_);
       }
 
       last_encoder_complexity_ = config->GetVideoEncoderComplexity();
@@ -1553,9 +1552,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
       return number_of_layers_allocations_;
     }
 
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-    GetLastFrameInstrumentationData() const {
+    std::optional<FrameInstrumentationData> GetLastFrameInstrumentationData()
+        const {
       MutexLock lock(&mutex_);
       return last_frame_instrumentation_data_;
     }
@@ -1654,9 +1652,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
     int number_of_bitrate_allocations_ RTC_GUARDED_BY(&mutex_) = 0;
     VideoLayersAllocation last_layers_allocation_ RTC_GUARDED_BY(&mutex_);
     int number_of_layers_allocations_ RTC_GUARDED_BY(&mutex_) = 0;
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        last_frame_instrumentation_data_ RTC_GUARDED_BY(&mutex_);
+    std::optional<FrameInstrumentationData> last_frame_instrumentation_data_
+        RTC_GUARDED_BY(&mutex_);
   };
 
   class VideoBitrateAllocatorProxyFactory

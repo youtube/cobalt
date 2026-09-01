@@ -209,7 +209,8 @@ class TestPort : public Port {
 
   Connection* CreateConnection(const Candidate& remote_candidate,
                                CandidateOrigin /* origin */) override {
-    Connection* conn = new ProxyConnection(NewWeakPtr(), 0, remote_candidate);
+    Connection* conn =
+        new ProxyConnection(env(), NewWeakPtr(), 0, remote_candidate);
     AddOrReplaceConnection(conn);
     // Set use-candidate attribute flag as this will add USE-CANDIDATE attribute
     // in STUN binding requests.

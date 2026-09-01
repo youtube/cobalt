@@ -498,7 +498,7 @@ constexpr size_t kMinimumCodeRangeSize = 0 * MB;
 constexpr size_t kMinExpectedOSPageSize = 64 * KB;  // OS page on PPC Linux
 #elif V8_TARGET_ARCH_RISCV32
 constexpr bool kPlatformRequiresCodeRange = false;
-constexpr size_t kMaximalCodeRangeSize = 2048LL * MB;
+constexpr size_t kMaximalCodeRangeSize = 256 * MB;
 constexpr size_t kMinimumCodeRangeSize = 0 * MB;
 constexpr size_t kMinExpectedOSPageSize = 4 * KB;  // OS page.
 #else
@@ -594,6 +594,13 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #define V8_COMPRESS_POINTERS_8GB_BOOL true
 #else
 #define V8_COMPRESS_POINTERS_8GB_BOOL false
+#endif
+
+// In slow debug builds, write barrier verification is always enabled.
+#ifdef ENABLE_SLOW_DCHECKS
+#if !defined(V8_VERIFY_WRITE_BARRIERS) && !V8_DISABLE_WRITE_BARRIERS
+#define V8_VERIFY_WRITE_BARRIERS true
+#endif
 #endif
 
 // This type defines the raw storage type for external (or off-V8 heap) pointers
@@ -1333,7 +1340,7 @@ constexpr bool IsAnyTrustedSpace(AllocationSpace space) {
   return space == TRUSTED_SPACE || space == TRUSTED_LO_SPACE ||
          space == SHARED_TRUSTED_SPACE || space == SHARED_TRUSTED_LO_SPACE;
 }
-constexpr bool IsAnySharedSpace(AllocationSpace space) {
+constexpr bool IsAnyWritableSharedSpace(AllocationSpace space) {
   return space == SHARED_SPACE || space == SHARED_LO_SPACE ||
          space == SHARED_TRUSTED_SPACE || space == SHARED_TRUSTED_LO_SPACE;
 }

@@ -27,9 +27,6 @@ namespace webrtc {
 RtcEventEndLog::RtcEventEndLog(Timestamp timestamp)
     : RtcEvent(timestamp.us()) {}
 
-RtcEventEndLog::RtcEventEndLog(const RtcEventEndLog& other)
-    : RtcEvent(other.timestamp_us_) {}
-
 RtcEventEndLog::~RtcEventEndLog() = default;
 
 std::string RtcEventEndLog::Encode(ArrayView<const RtcEvent*> batch) {

@@ -1351,21 +1351,10 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, RestrictedEnabled) {
           "runMochaSuite('RestrictedEnabled')");
 }
 
-// TODO(crbug.com/437872601): Flaky on Linux bots.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_TopicsSubpage DISABLED_TopicsSubpage
-#else
-#define MAYBE_TopicsSubpage TopicsSubpage
-#endif
-IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, MAYBE_TopicsSubpage) {
+// TODO(crbug.com/437872601, crbug.com/40866505): Flaky everywhere.
+IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, DISABLED_TopicsSubpage) {
   RunTest("settings/privacy_sandbox_page_test.js",
           "runMochaSuite('TopicsSubpage')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest,
-                       TopicsSubpageAdsApiUxEnhancementsDisabled) {
-  RunTest("settings/privacy_sandbox_page_test.js",
-          "runMochaSuite('TopicsSubpageAdsApiUxEnhancementsDisabled')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest,
@@ -1396,20 +1385,9 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest,
           "runMochaSuite('AdMeasurementSubpageAdsApiUxEnhancements')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest,
-                       AdMeasurementSubpageAdsApiUxEnhancementsDisabled) {
-  RunTest("settings/privacy_sandbox_page_test.js",
-          "runMochaSuite('AdMeasurementSubpageAdsApiUxEnhancementsDisabled')");
-}
-
 IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, ManageTopics) {
   RunTest("settings/privacy_sandbox_page_test.js",
           "runMochaSuite('ManageTopics')");
-}
-
-IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest, FledgeSubpage) {
-  RunTest("settings/privacy_sandbox_page_test.js",
-          "runMochaSuite('FledgeSubpage')");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest,
@@ -1434,14 +1412,6 @@ IN_PROC_BROWSER_TEST_F(SettingsPrivacySandboxPageTest,
                        TopicsSubpageAdTopicsContentParityDisabled) {
   RunTest("settings/privacy_sandbox_page_test.js",
           "runMochaSuite('TopicsSubpageAdTopicsContentParityDisabled')");
-}
-
-IN_PROC_BROWSER_TEST_F(
-    SettingsPrivacySandboxPageTest,
-    TopicsSubpageAdTopicsContentParityAdsApiUxEnhancementDisabled) {
-  RunTest("settings/privacy_sandbox_page_test.js",
-          "runMochaSuite('"
-          "TopicsSubpageAdTopicsContentParityAdsApiUxEnhancementDisabled')");
 }
 
 using SettingsRouteTest = SettingsBrowserTest;

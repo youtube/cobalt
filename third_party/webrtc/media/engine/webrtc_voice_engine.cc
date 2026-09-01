@@ -99,7 +99,6 @@
 #include "rtc_base/strings/string_format.h"
 #include "rtc_base/system/file_wrapper.h"
 #include "rtc_base/thread_annotations.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -2555,7 +2554,7 @@ void WebRtcVoiceReceiveChannel::OnPacketReceived(
         // applied directly in RtpTransport::DemuxPacket;
         packet.IdentifyExtensions(recv_rtp_extension_map_);
         if (!packet.arrival_time().IsFinite()) {
-          packet.set_arrival_time(Timestamp::Micros(TimeMicros()));
+          packet.set_arrival_time(call_->env().clock().CurrentTime());
         }
 
         call_->Receiver()->DeliverRtpPacket(
@@ -2728,11 +2727,10 @@ bool WebRtcVoiceReceiveChannel::GetStats(VoiceMediaReceiveInfo* info,
 void WebRtcVoiceReceiveChannel::FillReceiveCodecStats(
     VoiceMediaReceiveInfo* voice_media_info) {
   for (const auto& receiver : voice_media_info->receivers) {
-    auto codec =
-        absl::c_find_if(recv_codecs_, [&receiver](const Codec& c) {
-          return receiver.codec_payload_type &&
-                 *receiver.codec_payload_type == c.id;
-        });
+    auto codec = absl::c_find_if(recv_codecs_, [&receiver](const Codec& c) {
+      return receiver.codec_payload_type &&
+             *receiver.codec_payload_type == c.id;
+    });
     if (codec != recv_codecs_.end()) {
       voice_media_info->receive_codecs.insert(
           std::make_pair(codec->id, codec->ToCodecParameters()));

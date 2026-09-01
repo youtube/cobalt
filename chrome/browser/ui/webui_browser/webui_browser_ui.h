@@ -19,17 +19,21 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "ui/webui/mojo_web_ui_controller.h"
+#include "ui/webui/resources/js/tracked_element/tracked_element.mojom.h"
 
 class Browser;
 
 namespace content {
 class BrowserContext;
-class WebContents;
 }  // namespace content
 
 namespace searchbox::mojom {
 class PageHandler;
 }  // namespace searchbox::mojom
+
+namespace ui {
+class TrackedElementHandler;
+}  // namespace ui
 
 class RealboxHandler;
 class WebUIBrowserUI;
@@ -64,6 +68,9 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
       mojo::PendingReceiver<guest_contents::mojom::GuestContentsHost> receiver);
   void BindInterface(
       mojo::PendingReceiver<tabs_api::mojom::TabStripService> receiver);
+  void BindInterface(
+      mojo::PendingReceiver<tracked_element::mojom::TrackedElementHandler>
+          receiver);
 
   void BookmarkBarStateChanged(BookmarkBar::AnimateChangeType change_type);
   void ShowSidePanel(SidePanelEntryKey side_panel_entry_key);
@@ -74,12 +81,15 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
     return static_cast<WebUIBrowserWindow*>(browser_->window());
   }
 
+  webui_browser::mojom::Page* page() { return page_.get(); }
+
   base::WeakPtr<WebUIBrowserUI> GetWeakPtr();
 
  private:
   WEB_UI_CONTROLLER_TYPE_DECL();
   // webui_browser::mojom::PageHandlerFactory:
   void CreatePageHandler(
+      mojo::PendingRemote<webui_browser::mojom::Page> page,
       mojo::PendingReceiver<webui_browser::mojom::PageHandler> receiver)
       override;
 
@@ -88,17 +98,20 @@ class WebUIBrowserUI : public ui::MojoWebUIController,
                          mojo::PendingReceiver<bookmark_bar::mojom::PageHandler>
                              receiver) override;
 
+  // Returns the list of known element identifiers. These elements are HTML
+  // elements tracked by ui/webui/tracked_element. Used for anchoring secondary
+  // UIs.
+  const std::vector<ui::ElementIdentifier>& GetKnownElementIdentifiers() const;
+
   MetricsReporter metrics_reporter_;
   std::unique_ptr<RealboxHandler> realbox_handler_;
   std::unique_ptr<WebUIBrowserBookmarkBarPageHandler>
       bookmark_bar_page_handler_;
+  std::unique_ptr<ui::TrackedElementHandler> tracked_element_handler_;
 
+  mojo::Remote<webui_browser::mojom::Page> page_;
   mojo::Receiver<webui_browser::mojom::PageHandlerFactory>
       page_factory_receiver_{this};
-
-  // TODO(webium): this is for testing guest contents embedding. Remove once
-  // the tab strip is integrated.
-  std::unique_ptr<content::WebContents> test_guest_contents_;
 
   mojo::Receiver<bookmark_bar::mojom::PageHandlerFactory>
       bookmark_bar_page_factory_receiver_{this};

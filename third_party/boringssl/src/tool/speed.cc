@@ -38,8 +38,6 @@
 #include <openssl/ecdsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
-#define OPENSSL_UNSTABLE_EXPERIMENTAL_KYBER
-#include <openssl/experimental/kyber.h>
 #include <openssl/hrss.h>
 #include <openssl/mem.h>
 #include <openssl/mldsa.h>
@@ -1079,55 +1077,6 @@ static bool SpeedHRSS(const std::string &selected) {
   return true;
 }
 
-static bool SpeedKyber(const std::string &selected) {
-  if (!selected.empty() && selected != "Kyber") {
-    return true;
-  }
-
-  TimeResults results;
-
-  uint8_t ciphertext[KYBER_CIPHERTEXT_BYTES];
-  // This ciphertext is nonsense, but Kyber decap is constant-time so, for the
-  // purposes of timing, it's fine.
-  memset(ciphertext, 42, sizeof(ciphertext));
-  if (!TimeFunctionParallel(&results, [&]() -> bool {
-        KYBER_private_key priv;
-        uint8_t encoded_public_key[KYBER_PUBLIC_KEY_BYTES];
-        KYBER_generate_key(encoded_public_key, &priv);
-        uint8_t shared_secret[KYBER_SHARED_SECRET_BYTES];
-        KYBER_decap(shared_secret, ciphertext, &priv);
-        return true;
-      })) {
-    fprintf(stderr, "Failed to time KYBER_generate_key + KYBER_decap.\n");
-    return false;
-  }
-
-  results.Print("Kyber generate + decap");
-
-  KYBER_private_key priv;
-  uint8_t encoded_public_key[KYBER_PUBLIC_KEY_BYTES];
-  KYBER_generate_key(encoded_public_key, &priv);
-  KYBER_public_key pub;
-  if (!TimeFunctionParallel(&results, [&]() -> bool {
-        CBS encoded_public_key_cbs;
-        CBS_init(&encoded_public_key_cbs, encoded_public_key,
-                 sizeof(encoded_public_key));
-        if (!KYBER_parse_public_key(&pub, &encoded_public_key_cbs)) {
-          return false;
-        }
-        uint8_t shared_secret[KYBER_SHARED_SECRET_BYTES];
-        KYBER_encap(ciphertext, shared_secret, &pub);
-        return true;
-      })) {
-    fprintf(stderr, "Failed to time KYBER_encap.\n");
-    return false;
-  }
-
-  results.Print("Kyber parse + encap");
-
-  return true;
-}
-
 static bool SpeedMLDSA(const std::string &selected) {
   if (!selected.empty() && selected != "ML-DSA") {
     return true;
@@ -1857,7 +1806,6 @@ bool Speed(const std::vector<std::string> &args) {
       !SpeedScrypt(selected) ||       //
       !SpeedRSAKeyGen(selected) ||    //
       !SpeedHRSS(selected) ||         //
-      !SpeedKyber(selected) ||        //
       !SpeedMLDSA(selected) ||        //
       !SpeedMLKEM(selected) ||        //
       !SpeedMLKEM1024(selected) ||    //

@@ -347,7 +347,7 @@
     {
         "name": "core",
         "group": "androidx.core",
-        "version": "1.17.0"
+        "version": "1.18.0-SNAPSHOT"
     },
     {
         "name": "core-animation",
@@ -362,12 +362,12 @@
     {
         "name": "core-ktx",
         "group": "androidx.core",
-        "version": "1.17.0"
+        "version": "1.18.0-SNAPSHOT"
     },
     {
         "name": "core-viewtree",
         "group": "androidx.core",
-        "version": "1.0.0"
+        "version": "1.1.0-SNAPSHOT"
     },
     {
         "name": "registry-provider",
@@ -1110,11 +1110,6 @@
         "version": "1.15.0-SNAPSHOT"
     },
     {
-        "name": "extensions",
-        "group": "androidx.window.extensions",
-        "version": "1.5.0-SNAPSHOT"
-    },
-    {
         "name": "sidecar",
         "group": "androidx.window.sidecar",
         "version": "1.0.0-SNAPSHOT"
@@ -1135,24 +1130,34 @@
         "version": "1.5.0-SNAPSHOT"
     },
     {
+        "name": "window-extensions",
+        "group": "androidx.window",
+        "version": "1.0.0-alpha01"
+    },
+    {
         "name": "arcore",
         "group": "androidx.xr.arcore",
-        "version": "1.0.0-alpha04"
+        "version": "1.0.0-alpha05"
     },
     {
         "name": "runtime",
         "group": "androidx.xr.runtime",
-        "version": "1.0.0-alpha04"
+        "version": "1.0.0-alpha05"
+    },
+    {
+        "name": "runtime-manifest",
+        "group": "androidx.xr.runtime",
+        "version": "1.0.0-alpha05"
     },
     {
         "name": "runtime-openxr",
         "group": "androidx.xr.runtime",
-        "version": "1.0.0-alpha04"
+        "version": "1.0.0-alpha05"
     },
     {
         "name": "scenecore",
         "group": "androidx.xr.scenecore",
-        "version": "1.0.0-alpha04"
+        "version": "1.0.0-alpha05"
     },
     {
         "name": "lottie",
@@ -1327,7 +1332,7 @@
     {
         "name": "material",
         "group": "com.google.android.material",
-        "version": "1.14.0-alpha03"
+        "version": "1.14.0-alpha04"
     },
     {
         "name": "core-common",
@@ -1347,7 +1352,7 @@
     {
         "name": "impress",
         "group": "com.google.ar",
-        "version": "0.0.3"
+        "version": "0.0.5"
     },
     {
         "name": "auto-service-annotations",
@@ -1372,7 +1377,7 @@
     {
         "name": "error_prone_annotation",
         "group": "com.google.errorprone",
-        "version": "2.38.0"
+        "version": "2.41.0"
     },
     {
         "name": "error_prone_annotations",
@@ -1507,12 +1512,12 @@
     {
         "name": "wire-runtime",
         "group": "com.squareup.wire",
-        "version": "5.2.1"
+        "version": "5.3.11"
     },
     {
         "name": "wire-runtime-jvm",
         "group": "com.squareup.wire",
-        "version": "5.2.1"
+        "version": "5.3.11"
     },
     {
         "name": "javapoet",
@@ -1527,32 +1532,32 @@
     {
         "name": "grpc-api",
         "group": "io.grpc",
-        "version": "1.74.0"
+        "version": "1.75.0"
     },
     {
         "name": "grpc-binder",
         "group": "io.grpc",
-        "version": "1.74.0"
+        "version": "1.75.0"
     },
     {
         "name": "grpc-context",
         "group": "io.grpc",
-        "version": "1.74.0"
+        "version": "1.75.0"
     },
     {
         "name": "grpc-core",
         "group": "io.grpc",
-        "version": "1.74.0"
+        "version": "1.75.0"
     },
     {
         "name": "grpc-protobuf-lite",
         "group": "io.grpc",
-        "version": "1.74.0"
+        "version": "1.75.0"
     },
     {
         "name": "grpc-stub",
         "group": "io.grpc",
-        "version": "1.74.0"
+        "version": "1.75.0"
     },
     {
         "name": "perfmark-api",
@@ -1568,11 +1573,6 @@
         "name": "rxjava",
         "group": "io.reactivex.rxjava2",
         "version": "2.2.6"
-    },
-    {
-        "name": "rxjava",
-        "group": "io.reactivex.rxjava3",
-        "version": "3.0.2"
     },
     {
         "name": "javax.annotation-api",
@@ -1607,7 +1607,7 @@
     {
         "name": "bcprov-jdk18on",
         "group": "org.bouncycastle",
-        "version": "1.80"
+        "version": "1.81"
     },
     {
         "name": "tagsoup",
@@ -1730,16 +1730,6 @@
         "version": "1.9.0"
     },
     {
-        "name": "kotlinx-coroutines-reactive",
-        "group": "org.jetbrains.kotlinx",
-        "version": "1.8.1"
-    },
-    {
-        "name": "kotlinx-coroutines-rx3",
-        "group": "org.jetbrains.kotlinx",
-        "version": "1.8.1"
-    },
-    {
         "name": "kotlinx-coroutines-test",
         "group": "org.jetbrains.kotlinx",
         "version": "1.8.1"
@@ -1822,67 +1812,67 @@
     {
         "name": "annotations",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "junit",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "nativeruntime",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "nativeruntime-dist-compat",
         "group": "org.robolectric",
-        "version": "1.0.17"
+        "version": "1.0.18"
     },
     {
         "name": "pluginapi",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "plugins-maven-dependency-resolver",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "resources",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "robolectric",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "sandbox",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "shadowapi",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "shadows-framework",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "utils",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "utils-reflector",
         "group": "org.robolectric",
-        "version": "4.15.1"
+        "version": "4.16-beta-1"
     },
     {
         "name": "snakeyaml",

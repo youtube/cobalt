@@ -27,6 +27,7 @@ class IndirectPointerSlot;
 class ExposedTrustedObject;
 class ObjectVisitor;
 class WritableFreeSpace;
+class WriteBarrierModeScope;
 
 // A safe HeapObject size is a uint32_t that's guaranteed to yield in OOB within
 // the sandbox. The alias exists to force appropriate conversions at the
@@ -106,7 +107,7 @@ V8_OBJECT class HeapObjectLayout {
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(
+  inline WriteBarrierModeScope GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
 
 #if V8_ENABLE_SANDBOX
@@ -397,11 +398,61 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // ExposedTrustedObject as (only) these objects can be referenced through the
   // trusted pointer table.
   template <IndirectPointerTag tag>
-  inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate) const;
+  inline auto CastExposedTrustedObjectByTag(Tagged<Object> object) const {
+    if constexpr (tag == kCodeIndirectPointerTag) {
+      return TrustedCast<Code>(object);
+    }
+    if constexpr (tag == kBytecodeArrayIndirectPointerTag) {
+      return TrustedCast<BytecodeArray>(object);
+    }
+    if constexpr (tag == kInterpreterDataIndirectPointerTag) {
+      return TrustedCast<InterpreterData>(object);
+    }
+    if constexpr (tag == kUncompiledDataIndirectPointerTag) {
+      return TrustedCast<UncompiledData>(object);
+    }
+    if constexpr (tag == kRegExpDataIndirectPointerTag) {
+      return TrustedCast<RegExpData>(object);
+    }
+#if V8_ENABLE_WEBASSEMBLY
+    if constexpr (tag == kWasmDispatchTableIndirectPointerTag ||
+                  tag == kSharedWasmDispatchTableIndirectPointerTag) {
+      return TrustedCast<WasmDispatchTable>(object);
+    }
+    if constexpr (tag == kWasmTrustedInstanceDataIndirectPointerTag ||
+                  tag == kSharedWasmTrustedInstanceDataIndirectPointerTag) {
+      return TrustedCast<WasmTrustedInstanceData>(object);
+    }
+    if constexpr (tag == kWasmInternalFunctionIndirectPointerTag) {
+      return TrustedCast<WasmInternalFunction>(object);
+    }
+    if constexpr (tag == kWasmSuspenderIndirectPointerTag) {
+      return TrustedCast<WasmSuspenderObject>(object);
+    }
+    if constexpr (tag == kWasmFunctionDataIndirectPointerTag) {
+      return TrustedCast<WasmFunctionData>(object);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+    UNREACHABLE();
+  }
+
   template <IndirectPointerTag tag>
-  inline Tagged<ExposedTrustedObject> ReadTrustedPointerField(
-      size_t offset, IsolateForSandbox isolate, AcquireLoadTag) const;
+  inline auto ReadTrustedPointerField(size_t offset,
+                                      IsolateForSandbox isolate) const {
+    // Currently, trusted pointer loads always use acquire semantics as the
+    // under-the-hood indirect pointer loads use acquire loads anyway.
+    return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
+  }
+
+  template <IndirectPointerTag tag>
+  inline auto ReadTrustedPointerField(size_t offset, IsolateForSandbox isolate,
+                                      AcquireLoadTag acquire_load) const {
+    Tagged<Object> object =
+        ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
+
+    return CastExposedTrustedObjectByTag<tag>(object);
+  }
+
   // Like ReadTrustedPointerField, but if the field is cleared, this will
   // return Smi::zero().
   template <IndirectPointerTag tag>
@@ -471,7 +522,7 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // object as a sign that they are not going to use this function
   // from code that allocates and thus invalidates the returned write
   // barrier mode.
-  inline WriteBarrierMode GetWriteBarrierMode(
+  inline WriteBarrierModeScope GetWriteBarrierMode(
       const DisallowGarbageCollection& promise);
 
   // Dispatched behavior.
@@ -605,6 +656,7 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DECL(PropertyDictionary)
+IS_TYPE_FUNCTION_DECL(AnyHole)
 #undef IS_TYPE_FUNCTION_DECL
 
 // Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst

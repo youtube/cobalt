@@ -23,6 +23,7 @@ import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Build.VERSION_CODES;
 import android.util.SparseIntArray;
@@ -52,6 +53,7 @@ import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
+import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtils.InstanceAllocationType;
@@ -77,6 +79,7 @@ import org.chromium.ui.util.XrUtils;
 import org.chromium.url.GURL;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -242,6 +245,68 @@ public class MultiWindowUtilsUnitTest {
         mOverrideOpenInNewWindowSupported = false;
         ChromeSharedPreferences.getInstance()
                 .removeKey(ChromePreferenceKeys.MULTI_INSTANCE_RESTORATION_MESSAGE_SHOWN);
+    }
+
+    @Test
+    public void testGetExtraPreferNewFromIntent_IntentExtraValue() {
+        // EXTRA_PREFER_NEW is present and true.
+        Intent intent = new Intent();
+        intent.putExtra(IntentHandler.EXTRA_PREFER_NEW, true);
+        assertTrue(
+                "Should be true when EXTRA_PREFER_NEW is true.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
+
+        // EXTRA_PREFER_NEW is present and false.
+        intent.putExtra(IntentHandler.EXTRA_PREFER_NEW, false);
+        assertFalse(
+                "Should be false when EXTRA_PREFER_NEW is false.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
+    }
+
+    @Test
+    @Config(sdk = 35)
+    public void testGetExtraPreferNewFromIntent_DefaultValue_BelowThresholdSDK() {
+        // EXTRA_PREFER_NEW is not present, conditions for preferNew are met but SDK is too low.
+        Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        assertFalse(
+                "Should be false when SDK is not high enough.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
+    }
+
+    @Test
+    @Config(sdk = 37)
+    @DisabledTest(message = "crbug.com/440643534: Enable when SDK support is available.")
+    public void testGetExtraPreferNewFromIntent_UpdatedDefaultValue() {
+        // EXTRA_PREFER_NEW is not present, conditions for preferNew are met.
+        Intent intent = new Intent();
+        intent = new Intent(Intent.ACTION_MAIN);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        assertTrue(
+                "Should be true when conditions are met.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
+
+        // Test with different conditions not being met.
+        // Wrong action.
+        intent = new Intent(Intent.ACTION_VIEW);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        assertFalse(
+                "Should be false for wrong action.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
+
+        // No NEW_TASK flag.
+        intent = new Intent(Intent.ACTION_MAIN);
+        intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+        assertFalse(
+                "Should be false without NEW_TASK.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
+
+        // No MULTIPLE_TASK flag.
+        intent = new Intent(Intent.ACTION_MAIN);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        assertFalse(
+                "Should be false without MULTIPLE_TASK.",
+                MultiWindowUtils.getExtraPreferNewFromIntent(intent));
     }
 
     @Test
@@ -1052,6 +1117,7 @@ public class MultiWindowUtilsUnitTest {
         List<TabModel> models = Arrays.asList(mNormalTabModel, mIncognitoTabModel);
         when(mTabModelSelector.getModels()).thenReturn(models);
         when(mIncognitoTabModel.getCount()).thenReturn(0);
+        when(mIncognitoTabModel.iterator()).thenAnswer(inv -> Collections.emptyList().iterator());
 
         // Test if recordTabCountForRelaunchWhenActivityPaused() returns the correct value for
         // standard tabs.
@@ -1062,6 +1128,7 @@ public class MultiWindowUtilsUnitTest {
         when(mTab1.getUrl()).thenReturn(TEST_GURL);
         when(mTab2.isNativePage()).thenReturn(false);
         when(mTab2.getUrl()).thenReturn(TEST_GURL);
+        when(mNormalTabModel.iterator()).thenAnswer(inv -> List.of(mTab1, mTab2).iterator());
         MultiWindowUtils.recordTabCountForRelaunchWhenActivityPaused(mTabModelSelector, windowId);
         Assert.assertEquals(
                 /* expected= */ 2,
@@ -1069,6 +1136,7 @@ public class MultiWindowUtilsUnitTest {
 
         // Test the case of adding a non-NTP tab to the tab model.
         when(mNormalTabModel.getCount()).thenReturn(3);
+        when(mNormalTabModel.iterator()).thenAnswer(inv -> List.of(mTab1, mTab2, mTab3).iterator());
         when(mNormalTabModel.getTabAtChecked(2)).thenReturn(mTab3);
         when(mTab3.isNativePage()).thenReturn(false);
         when(mTab3.getUrl()).thenReturn(TEST_GURL);

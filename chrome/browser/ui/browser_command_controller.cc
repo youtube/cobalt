@@ -68,7 +68,6 @@
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
@@ -466,6 +465,7 @@ void BrowserCommandController::WebContentsFocusChanged() {
 }
 
 void BrowserCommandController::ShowCustomizeChromeSidePanel(
+    SidePanelOpenTrigger trigger,
     std::optional<CustomizeChromeSection> section) {
   tabs::TabInterface* tab = browser_->tab_strip_model()->GetActiveTab();
   if (!tab || !tab->GetTabFeatures() ||
@@ -481,7 +481,7 @@ void BrowserCommandController::ShowCustomizeChromeSidePanel(
     return;
   }
 
-  side_panel_controller->OpenSidePanel(SidePanelOpenTrigger::kAppMenu, section);
+  side_panel_controller->OpenSidePanel(trigger, section);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -742,6 +742,11 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
       break;
     case IDC_TURN_ON_SYNC:
       signin_ui_util::EnableSyncFromSingleAccountPromo(
+          browser_->profile(), GetAccountInfoFromProfile(browser_->profile()),
+          signin_metrics::AccessPoint::kMenu);
+      break;
+    case IDC_SHOW_SIGNIN:
+      signin_ui_util::SignInFromSingleAccountPromo(
           browser_->profile(), GetAccountInfoFromProfile(browser_->profile()),
           signin_metrics::AccessPoint::kMenu);
       break;
@@ -1196,12 +1201,14 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     }
 
     case IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL: {
-      ShowCustomizeChromeSidePanel(CustomizeChromeSection::kAppearance);
+      ShowCustomizeChromeSidePanel(SidePanelOpenTrigger::kAppMenu,
+                                   CustomizeChromeSection::kAppearance);
       break;
     }
 
     case IDC_SHOW_CUSTOMIZE_CHROME_TOOLBAR: {
-      ShowCustomizeChromeSidePanel(CustomizeChromeSection::kToolbar);
+      ShowCustomizeChromeSidePanel(SidePanelOpenTrigger::kAppMenu,
+                                   CustomizeChromeSection::kToolbar);
       break;
     }
 
@@ -1502,6 +1509,7 @@ void BrowserCommandController::InitCommandState() {
   command_updater_.UpdateCommandEnabled(IDC_SHOW_SYNC_SETTINGS, true);
   command_updater_.UpdateCommandEnabled(IDC_TURN_ON_SYNC, true);
   command_updater_.UpdateCommandEnabled(IDC_SHOW_SIGNIN_WHEN_PAUSED, true);
+  command_updater_.UpdateCommandEnabled(IDC_SHOW_SIGNIN, true);
   command_updater_.UpdateCommandEnabled(IDC_SHOW_ADDRESSES, !guest_session);
   command_updater_.UpdateCommandEnabled(IDC_HELP_MENU, true);
   command_updater_.UpdateCommandEnabled(IDC_HELP_PAGE_VIA_KEYBOARD, true);
@@ -1749,8 +1757,10 @@ void BrowserCommandController::UpdateCommandsForTabState() {
   }
 
   // Navigation commands
-  command_updater_.UpdateCommandEnabled(IDC_BACK, CanGoBack(browser_));
-  command_updater_.UpdateCommandEnabled(IDC_FORWARD, CanGoForward(browser_));
+  command_updater_.UpdateCommandEnabled(IDC_BACK,
+                                        ShouldEnableBackButton(browser_));
+  command_updater_.UpdateCommandEnabled(IDC_FORWARD,
+                                        ShouldEnableForwardButton(browser_));
   const bool can_reload = CanReload(browser_);
   command_updater_.UpdateCommandEnabled(IDC_RELOAD, can_reload);
   command_updater_.UpdateCommandEnabled(IDC_RELOAD_BYPASSING_CACHE, can_reload);

@@ -804,8 +804,21 @@ CreateOutboundRTPStreamStatsFromVideoSenderInfo(
       static_cast<uint32_t>(video_sender_info.firs_received);
   outbound_video->pli_count =
       static_cast<uint32_t>(video_sender_info.plis_received);
-  if (video_sender_info.qp_sum.has_value())
+  if (video_sender_info.qp_sum.has_value()) {
     outbound_video->qp_sum = *video_sender_info.qp_sum;
+  }
+  // psnrSum is gated on psnrMeasurements > 0.
+  if (video_sender_info.psnr_measurements > 0) {
+    outbound_video->psnr_measurements = video_sender_info.psnr_measurements;
+    outbound_video->psnr_sum = {
+        {"y", video_sender_info.psnr_sum.y},
+        {"u", video_sender_info.psnr_sum.u},
+        {"v", video_sender_info.psnr_sum.v},
+    };
+  }
+  if (video_sender_info.psnr_measurements > 0) {
+    outbound_video->psnr_measurements = video_sender_info.psnr_measurements;
+  }
   if (video_sender_info.target_bitrate.has_value()) {
     outbound_video->target_bitrate = video_sender_info.target_bitrate->bps();
   }
@@ -1207,7 +1220,7 @@ void RTCStatsCollector::GetStatsReportInternal(
   requests_.push_back(std::move(request));
 
   // "Now" using a monotonically increasing timer.
-  int64_t cache_now_us = TimeMicros();
+  int64_t cache_now_us = env_.clock().TimeInMicroseconds();
   if (cached_report_ &&
       cache_now_us - cache_timestamp_us_ <= cache_lifetime_us_) {
     // We have a fresh cached report to deliver. Deliver asynchronously, since
@@ -1704,11 +1717,12 @@ void RTCStatsCollector::ProduceRTPStreamStats_n(
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
 
+  bool spec_lifetime = env_.field_trials().IsEnabled("WebRTC-RTP-Lifetime");
   for (const RtpTransceiverStatsInfo& stats : transceiver_stats_infos) {
     if (stats.media_type == MediaType::AUDIO) {
-      ProduceAudioRTPStreamStats_n(timestamp, stats, report);
+      ProduceAudioRTPStreamStats_n(timestamp, stats, spec_lifetime, report);
     } else if (stats.media_type == MediaType::VIDEO) {
-      ProduceVideoRTPStreamStats_n(timestamp, stats, report);
+      ProduceVideoRTPStreamStats_n(timestamp, stats, spec_lifetime, report);
     } else {
       RTC_DCHECK_NOTREACHED();
     }
@@ -1718,6 +1732,7 @@ void RTCStatsCollector::ProduceRTPStreamStats_n(
 void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
     Timestamp timestamp,
     const RtpTransceiverStatsInfo& stats,
+    bool spec_lifetime,
     RTCStatsReport* report) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
@@ -1734,8 +1749,12 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
   // remote endpoint providing metrics about the remote outbound streams.
   for (const VoiceReceiverInfo& voice_receiver_info :
        stats.track_media_info_map.voice_media_info()->receivers) {
-    if (!voice_receiver_info.connected())
+    if (!voice_receiver_info.connected()) {
       continue;
+    }
+    if (spec_lifetime && voice_receiver_info.packets_received == 0) {
+      continue;
+    }
     // Inbound.
     auto inbound_audio = CreateInboundAudioStreamStats(
         *stats.track_media_info_map.voice_media_info(), voice_receiver_info,
@@ -1823,6 +1842,7 @@ void RTCStatsCollector::ProduceAudioRTPStreamStats_n(
 void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
     Timestamp timestamp,
     const RtpTransceiverStatsInfo& stats,
+    bool spec_lifetime,
     RTCStatsReport* report) const {
   RTC_DCHECK_RUN_ON(network_thread_);
   Thread::ScopedDisallowBlockingCalls no_blocking_calls;
@@ -1837,8 +1857,12 @@ void RTCStatsCollector::ProduceVideoRTPStreamStats_n(
   // Inbound and remote-outbound.
   for (const VideoReceiverInfo& video_receiver_info :
        stats.track_media_info_map.video_media_info()->receivers) {
-    if (!video_receiver_info.connected())
+    if (!video_receiver_info.connected()) {
       continue;
+    }
+    if (spec_lifetime && video_receiver_info.packets_received == 0) {
+      continue;
+    }
     auto inbound_video = CreateInboundRTPStreamStatsFromVideoReceiverInfo(
         transport_id, mid, *stats.track_media_info_map.video_media_info(),
         video_receiver_info, timestamp, report);

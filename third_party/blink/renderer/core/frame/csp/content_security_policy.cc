@@ -1706,7 +1706,7 @@ bool ContentSecurityPolicy::ShouldBypassContentSecurityPolicy(
   return should_bypass_csp;
 }
 
-const WTF::Vector<network::mojom::blink::ContentSecurityPolicyPtr>&
+const Vector<network::mojom::blink::ContentSecurityPolicyPtr>&
 ContentSecurityPolicy::GetParsedPolicies() const {
   return policies_;
 }

@@ -11,10 +11,10 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/image_fetcher/core/image_fetcher.h"
 #import "components/image_fetcher/core/image_fetcher_service.h"
-#import "ios/chrome/browser/home_customization/model/background_collection_configuration.h"
-#import "ios/chrome/browser/home_customization/model/background_customization_configuration_item.h"
+#import "ios/chrome/browser/home_customization/coordinator/background_customization_configuration_item.h"
 #import "ios/chrome/browser/home_customization/model/home_background_customization_service.h"
 #import "ios/chrome/browser/home_customization/model/home_background_image_service.h"
+#import "ios/chrome/browser/home_customization/ui/background_collection_configuration.h"
 #import "ios/chrome/browser/home_customization/ui/home_customization_background_preset_gallery_picker_consumer.h"
 #import "ui/gfx/image/image.h"
 #import "url/gurl.h"
@@ -122,20 +122,18 @@
     BackgroundCollectionConfiguration* section =
         [[BackgroundCollectionConfiguration alloc] init];
     section.collectionName = base::SysUTF8ToNSString(collectionName);
-    NSMutableArray<BackgroundCustomizationConfigurationItem*>*
-        imageConfigurations = [[NSMutableArray alloc] init];
     for (const auto& image : collectionImages) {
       BackgroundCustomizationConfigurationItem* config =
           [[BackgroundCustomizationConfigurationItem alloc]
               initWithCollectionImage:image];
-      [imageConfigurations addObject:config];
+      [section.configurations setObject:config forKey:config.configurationID];
+      [section.configurationOrder addObject:config.configurationID];
 
       if (ntpCustomBackground &&
           image.image_url == ntpCustomBackground->url()) {
         selectedBackgroundId = config.configurationID;
       }
     }
-    section.configurations = [NSArray arrayWithArray:imageConfigurations];
     [collectionConfigurations addObject:section];
   }
 

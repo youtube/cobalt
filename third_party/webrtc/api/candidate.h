@@ -192,8 +192,12 @@ class RTC_EXPORT Candidate {
   void set_tcptype(absl::string_view tcptype) { Assign(tcptype_, tcptype); }
 
   // The name of the transport channel of this candidate.
-  // TODO(phoglund): remove.
-  const std::string& transport_name() const { return transport_name_; }
+  // TODO(bugs.webrtc.org/42233526): remove.
+  [[deprecated("Use IceCandidate::sdp_mid")]]
+  const std::string& transport_name() const {
+    return transport_name_;
+  }
+  [[deprecated("Use the IceCandidate type for sdp_mid")]]
   void set_transport_name(absl::string_view transport_name) {
     Assign(transport_name_, transport_name);
   }

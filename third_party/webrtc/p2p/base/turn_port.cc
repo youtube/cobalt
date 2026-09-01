@@ -623,7 +623,7 @@ Connection* TurnPort::CreateConnection(const Candidate& remote_candidate,
     if (local_candidate.is_relay() && local_candidate.address().family() ==
                                           remote_candidate.address().family()) {
       ProxyConnection* conn =
-          new ProxyConnection(NewWeakPtr(), index, remote_candidate);
+          new ProxyConnection(env(), NewWeakPtr(), index, remote_candidate);
       // Create an entry, if needed, so we can get our permissions set up
       // correctly.
       if (CreateOrRefreshEntry(conn, next_channel_number_)) {
@@ -940,8 +940,7 @@ void TurnPort::OnAllocateError(int error_code, absl::string_view reason) {
     port = 0;
   }
   if (error_code != STUN_ERROR_NOT_AN_ERROR) {
-    SignalCandidateError(
-        this,
+    SendCandidateError(
         IceCandidateErrorEvent(address, port, server_url_, error_code, reason));
   }
 }

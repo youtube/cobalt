@@ -33,6 +33,7 @@
 #include "api/array_view.h"
 #include "api/async_dns_resolver.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/ice_transport_interface.h"
 #include "api/local_network_access_permission.h"
 #include "api/rtc_error.h"
@@ -106,6 +107,13 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
 
   // For testing only.
   // TODO(zstein): Remove once AsyncDnsResolverFactory is required.
+  P2PTransportChannel(const Environment& env,
+                      absl::string_view transport_name,
+                      int component,
+                      PortAllocator* allocator);
+
+  // TODO: bugs.webrtc.org/42223992 - Remove this constructor when chromium is
+  // updated not to use it.
   P2PTransportChannel(absl::string_view transport_name,
                       int component,
                       PortAllocator* allocator,
@@ -285,6 +293,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
   };
 
   P2PTransportChannel(
+      std::optional<Environment> env,
       absl::string_view transport_name,
       int component,
       PortAllocator* allocator,
@@ -443,6 +452,7 @@ class RTC_EXPORT P2PTransportChannel : public IceTransportInternal,
       const StunByteStringAttribute*);
   void GoogDeltaAckReceived(RTCErrorOr<const StunUInt64Attribute*>);
 
+  const std::optional<Environment> env_;
   std::string transport_name_ RTC_GUARDED_BY(network_thread_);
   int component_ RTC_GUARDED_BY(network_thread_);
   PortAllocator* allocator_ RTC_GUARDED_BY(network_thread_);

@@ -43,6 +43,7 @@
 #import "components/dom_distiller/core/dom_distiller_switches.h"
 #import "components/download/public/background_service/features.h"
 #import "components/enterprise/browser/enterprise_switches.h"
+#import "components/enterprise/buildflags/buildflags.h"
 #import "components/enterprise/connectors/core/features.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/feature_list.h"
@@ -73,6 +74,7 @@
 #import "components/segmentation_platform/public/features.h"
 #import "components/send_tab_to_self/features.h"
 #import "components/shared_highlighting/core/common/shared_highlighting_features.h"
+#import "components/sharing_message/features.h"
 #import "components/signin/core/browser/account_reconcilor.h"
 #import "components/signin/ios/browser/features.h"
 #import "components/signin/public/base/signin_switches.h"
@@ -91,6 +93,7 @@
 #import "crypto/features.h"
 #import "ios/chrome/app/background_mode_buildflags.h"
 #import "ios/chrome/browser/aim/prototype/public/features.h"
+#import "ios/chrome/browser/badges/model/features.h"
 #import "ios/chrome/browser/browsing_data/model/browsing_data_features.h"
 #import "ios/chrome/browser/crash_report/model/features.h"
 #import "ios/chrome/browser/credential_provider/model/features.h"
@@ -131,6 +134,10 @@
 #import "ios/web/common/features.h"
 #import "ios/web/common/user_agent.h"
 #import "ios/web/common/web_view_creation_util.h"
+
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
+#import "ios/chrome/browser/enterprise/data_controls/features.h"
+#endif
 
 #if BUILDFLAG(IOS_SCREEN_TIME_ENABLED)
 #import "ios/chrome/browser/screen_time/model/features.h"
@@ -1418,6 +1425,53 @@ const FeatureEntry::FeatureVariation kAimPrototypeDevToolsVariations[] = {
     {"Slow Upload (3s)", kAimPrototypeDevToolsSlowUpload,
      std::size(kAimPrototypeDevToolsSlowUpload), nullptr}};
 
+const FeatureEntry::FeatureParam kMobilePromoOnDesktopLens[] = {
+    {kMobilePromoOnDesktopPromoTypeParam, "1"},
+    {kMobilePromoOnDesktopNotificationParam, "false"}};
+const FeatureEntry::FeatureParam kMobilePromoOnDesktopLensNotification[] = {
+    {kMobilePromoOnDesktopPromoTypeParam, "1"},
+    {kMobilePromoOnDesktopNotificationParam, "true"}};
+const FeatureEntry::FeatureParam kMobilePromoOnDesktopESB[] = {
+    {kMobilePromoOnDesktopPromoTypeParam, "2"},
+    {kMobilePromoOnDesktopNotificationParam, "false"}};
+const FeatureEntry::FeatureParam kMobilePromoOnDesktopESBNotification[] = {
+    {kMobilePromoOnDesktopPromoTypeParam, "2"},
+    {kMobilePromoOnDesktopNotificationParam, "true"}};
+const FeatureEntry::FeatureParam kMobilePromoOnDesktopAutofill[] = {
+    {kMobilePromoOnDesktopPromoTypeParam, "3"},
+    {kMobilePromoOnDesktopNotificationParam, "false"}};
+const FeatureEntry::FeatureParam kMobilePromoOnDesktopAutofillNotification[] = {
+    {kMobilePromoOnDesktopPromoTypeParam, "3"},
+    {kMobilePromoOnDesktopNotificationParam, "true"}};
+
+const FeatureEntry::FeatureVariation kMobilePromoOnDesktopVariations[] = {
+    {" - Lens Promo", kMobilePromoOnDesktopLens,
+     std::size(kMobilePromoOnDesktopLens), nullptr},
+    {" - Lens Promo with push notification",
+     kMobilePromoOnDesktopLensNotification,
+     std::size(kMobilePromoOnDesktopLensNotification), nullptr},
+    {" - ESB", kMobilePromoOnDesktopESB, std::size(kMobilePromoOnDesktopESB),
+     nullptr},
+    {" - ESB with push notification", kMobilePromoOnDesktopESBNotification,
+     std::size(kMobilePromoOnDesktopESBNotification), nullptr},
+    {" - PW Autofill", kMobilePromoOnDesktopAutofill,
+     std::size(kMobilePromoOnDesktopAutofill), nullptr},
+    {" - PW Autofill with push notification",
+     kMobilePromoOnDesktopAutofillNotification,
+     std::size(kMobilePromoOnDesktopAutofillNotification), nullptr},
+};
+
+const FeatureEntry::FeatureParam kDefaultBrowserMagicStackDeviceSettings[] = {
+    {kDefaultBrowserMagicStackVariation, "0"}};
+const FeatureEntry::FeatureParam kDefaultBrowserMagicStackInAppSettings[] = {
+    {kDefaultBrowserMagicStackVariation, "1"}};
+
+const FeatureEntry::FeatureVariation kDefaultBrowserMagicStackVariations[] = {
+    {" - Tap to Device Settings", kDefaultBrowserMagicStackDeviceSettings,
+     std::size(kDefaultBrowserMagicStackDeviceSettings), nullptr},
+    {" - Tap to In App Settings", kDefaultBrowserMagicStackInAppSettings,
+     std::size(kDefaultBrowserMagicStackInAppSettings), nullptr}};
+
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
 // . ENABLE_DISABLE_VALUE: entry is either enabled, disabled, or uses the
@@ -1766,12 +1820,6 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(
          segmentation_platform::features::
              kSegmentationPlatformIosModuleRankerSplitBySurface)},
-    {"ios-password-bottom-sheet-autofocus",
-     flag_descriptions::kIOSPasswordBottomSheetAutofocusName,
-     flag_descriptions::kIOSPasswordBottomSheetAutofocusDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         password_manager::features::kIOSPasswordBottomSheetAutofocus)},
     {"ios-proactive-password-generation-bottom-sheet",
      flag_descriptions::kIOSProactivePasswordGenerationBottomSheetName,
      flag_descriptions::kIOSProactivePasswordGenerationBottomSheetDescription,
@@ -1823,6 +1871,11 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kDefaultBrowserOffCyclePromoName,
      flag_descriptions::kDefaultBrowserOffCyclePromoDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSDefaultBrowserOffCyclePromo)},
+    {"use-default-apps-page-for-promos",
+     flag_descriptions::kUseDefaultAppsDestinationForPromosName,
+     flag_descriptions::kUseDefaultAppsDestinationForPromosDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIOSUseDefaultAppsDestinationForPromos)},
     {"default-browser-promo-trigger-criteria-experiment",
      flag_descriptions::kDefaultBrowserTriggerCriteriaExperimentName,
      flag_descriptions::kDefaultBrowserTriggerCriteriaExperimentDescription,
@@ -1906,7 +1959,9 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
     {"bwg-precise-location", flag_descriptions::kBWGPreciseLocationName,
      flag_descriptions::kBWGPreciseLocationDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kBWGPreciseLocation)},
-
+    {"ai-hub-new-badge", flag_descriptions::kAIHubNewBadgeName,
+     flag_descriptions::kAIHubNewBadgeDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAIHubNewBadge)},
     {"enable-identity-in-auth-error",
      flag_descriptions::kEnableIdentityInAuthErrorName,
      flag_descriptions::kEnableIdentityInAuthErrorDescription, flags_ui::kOsIos,
@@ -2804,11 +2859,13 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kCredentialProviderPasskeyLargeBlobName,
      flag_descriptions::kCredentialProviderPasskeyLargeBlobDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kCredentialProviderPasskeyLargeBlob)},
+#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
     {"enable-clipboard-data-controls-ios",
      flag_descriptions::kEnableClipboardDataControlsIOSName,
      flag_descriptions::kEnableClipboardDataControlsIOSDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(data_controls::kEnableClipboardDataControlsIOS)},
+#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
     {"autofill-credit-card-scanner-ios",
      flag_descriptions::kAutofillCreditCardScannerIosName,
      flag_descriptions::kAutofillCreditCardScannerIosDescription,
@@ -2832,6 +2889,20 @@ const flags_ui::FeatureEntry kFeatureEntries[] = {
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          autofill::features::kAutofillEnableSupportForNameAndEmail)},
+    {"mobile-promo-on-desktop", flag_descriptions::kMobilePromoOnDesktopName,
+     flag_descriptions::kMobilePromoOnDesktopDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kMobilePromoOnDesktop,
+                                    kMobilePromoOnDesktopVariations,
+                                    "MobilePromoOnDesktop")},
+    {"remove-autofill-badges", flag_descriptions::kRemoveAutofillBadgesName,
+     flag_descriptions::kRemoveAutofillBadgesDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kAutofillBadgeRemoval)},
+    {"ios-default-browser-magic-stack",
+     flag_descriptions::kDefaultBrowserMagicStackName,
+     flag_descriptions::kDefaultBrowserMagicStackDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kDefaultBrowserMagicStack,
+                                    kDefaultBrowserMagicStackVariations,
+                                    "DefaultBrowserMagicStack")},
 };
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

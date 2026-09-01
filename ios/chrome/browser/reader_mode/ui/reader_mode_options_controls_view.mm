@@ -7,6 +7,7 @@
 #import <UIKit/UIAccessibility.h>
 
 #import "base/task/sequenced_task_runner.h"
+#import "base/time/time.h"
 #import "components/dom_distiller/core/mojom/distilled_page_prefs.mojom.h"
 #import "ios/chrome/browser/reader_mode/ui/constants.h"
 #import "ios/chrome/browser/reader_mode/ui/reader_mode_options_mutator.h"
@@ -48,8 +49,6 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
 - (instancetype)initWithFrame:(CGRect)frame {
   self = [super initWithFrame:frame];
   if (self) {
-    self.layer.cornerRadius = kCornerRadius;
-
     _fontFamilyButton = [self createFontFamilyButton];
     _decreaseFontSizeButton = [self createDecreaseFontSizeButton];
     _increaseFontSizeButton = [self createIncreaseFontSizeButton];
@@ -158,8 +157,42 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
   firstRowStack.spacing = kSpacing;
   firstRowStack.distribution = UIStackViewDistributionFillEqually;
 
-  [firstRowStack addArrangedSubview:_fontFamilyButton];
-  [firstRowStack addArrangedSubview:[self createFontSizeStack]];
+  UIView* fontFamilyButton = _fontFamilyButton;
+  UIView* fontFamilyButtonContainer = [[UIView alloc] init];
+  fontFamilyButtonContainer.clipsToBounds = YES;
+  fontFamilyButtonContainer.translatesAutoresizingMaskIntoConstraints = NO;
+  [fontFamilyButtonContainer addSubview:fontFamilyButton];
+  AddSameConstraints(fontFamilyButtonContainer, fontFamilyButton);
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    fontFamilyButtonContainer.cornerConfiguration = [UICornerConfiguration
+        configurationWithUniformRadius:[UICornerRadius
+                                           containerConcentricRadius]];
+  } else {
+#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
+        // __IPHONE_26_0
+    fontFamilyButtonContainer.layer.cornerRadius = kCornerRadius;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  }
+#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
+        // __IPHONE_26_0
+  [firstRowStack addArrangedSubview:fontFamilyButtonContainer];
+
+  UIView* fontSizeStack = [self createFontSizeStack];
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  if (@available(iOS 26, *)) {
+    fontSizeStack.cornerConfiguration = [UICornerConfiguration
+        configurationWithUniformRadius:[UICornerRadius
+                                           containerConcentricRadius]];
+  } else {
+#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
+        // __IPHONE_26_0
+    fontSizeStack.layer.cornerRadius = kCornerRadius;
+#if defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_26_0
+  }
+#endif  // defined(__IPHONE_26_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >=
+        // __IPHONE_26_0
+  [firstRowStack addArrangedSubview:fontSizeStack];
 
   NSLayoutConstraint* heightConstraint = [firstRowStack.heightAnchor
       constraintGreaterThanOrEqualToConstant:kFirstRowHeight];
@@ -194,7 +227,6 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
   fontSizeStack.axis = UILayoutConstraintAxisHorizontal;
   fontSizeStack.spacing = kFontSizeStackSpacing;
   fontSizeStack.distribution = UIStackViewDistributionFillEqually;
-  fontSizeStack.layer.cornerRadius = kCornerRadius;
   fontSizeStack.clipsToBounds = YES;
 
   [fontSizeStack addArrangedSubview:_decreaseFontSizeButton];
@@ -213,9 +245,10 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
   configuration.baseForegroundColor = [UIColor colorNamed:kTextPrimaryColor];
   configuration.baseBackgroundColor =
       [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
-  configuration.background.cornerRadius = kCornerRadius;
+  configuration.background.cornerRadius = 0;
   UIButton* button = [UIButton buttonWithConfiguration:configuration
                                          primaryAction:nil];
+  button.translatesAutoresizingMaskIntoConstraints = NO;
   button.maximumContentSizeCategory = UIContentSizeCategoryExtraExtraLarge;
   button.contentHorizontalAlignment =
       UIControlContentHorizontalAlignmentLeading;
@@ -450,7 +483,7 @@ constexpr base::TimeDelta kA11yAnnouncementQueueDelay = base::Seconds(2);
                : [UIColor colorNamed:kGroupedPrimaryBackgroundColor];
   configuration.background.strokeWidth =
       selected ? kSelectedThemeBorderWidth : kUnselectedThemeBorderWidth;
-  configuration.background.cornerRadius = kSecondRowHeight / 2.0;
+  configuration.cornerStyle = UIButtonConfigurationCornerStyleCapsule;
   return configuration;
 }
 

@@ -183,7 +183,7 @@
       },
       'MacARM64 M1 Release': {
         'os_type': 'mac',
-        'mixins': ['mac_14_arm64', 'mac-m1-cpu', 'resultdb-json-format'],
+        'mixins': ['mac_15_arm64', 'mac-m1-cpu', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
@@ -550,7 +550,7 @@
       },
       'mac_dbg_m1': {
         'os_type': 'mac',
-        'mixins': ['mac_14_arm64', 'mac-m1-cpu', 'resultdb-json-format'],
+        'mixins': ['mac_15_arm64', 'mac-m1-cpu', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },
@@ -564,7 +564,7 @@
       },
       'mac_rel_m1': {
         'os_type': 'mac',
-        'mixins': ['mac_14_arm64', 'mac-m1-cpu', 'resultdb-json-format'],
+        'mixins': ['mac_15_arm64', 'mac-m1-cpu', 'resultdb-json-format'],
         'test_suites': {
           'isolated_scripts': 'desktop_tests',
         },

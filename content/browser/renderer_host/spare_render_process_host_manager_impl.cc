@@ -33,15 +33,13 @@ using SpareProcessMaybeTakeAction =
 namespace {
 
 // Enables killing spare renders when memory pressure signal is received.
-BASE_FEATURE(kKillSpareRenderOnMemoryPressure,
-             "KillSpareRenderOnMemoryPressure",
+BASE_FEATURE(KillSpareRenderOnMemoryPressure,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, MEMORY_PRESSURE_LEVEL_CRITICAL is used as the threshold that
 // determines when a spare RPH can be created or killed. By default,
 // MEMORY_PRESSURE_LEVEL_MODERATE is used.
-BASE_FEATURE(kSpareRPHUseCriticalMemoryPressure,
-             "SpareRPHUseCriticalMemoryPressure",
+BASE_FEATURE(SpareRPHUseCriticalMemoryPressure,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, only the extra RPHs (controlled by the MultipleSpareRPHs
@@ -694,7 +692,7 @@ SpareRenderProcessHostManagerImpl::DoesEmbedderAllowSpareUsage(
   // is disabled for the site then it's not possible to use this as the JIT
   // policy will differ.
   if (GetContentClient()->browser()->IsJitDisabledForSite(
-          browser_context, site_instance->GetSiteInfo().process_lock_url())) {
+          browser_context, site_instance->GetSiteInfo().GetProcessLockURL())) {
     return ContentBrowserClient::SpareProcessRefusedByEmbedderReason::
         JitDisabled;
   }
@@ -703,7 +701,7 @@ SpareRenderProcessHostManagerImpl::DoesEmbedderAllowSpareUsage(
   // and spare renderers always have V8 optimizations enabled, so we can never
   // use them if they're supposed to be disabled for this site.
   if (GetContentClient()->browser()->AreV8OptimizationsDisabledForSite(
-          browser_context, site_instance->GetSiteInfo().process_lock_url())) {
+          browser_context, site_instance->GetSiteInfo().GetProcessLockURL())) {
     return ContentBrowserClient::SpareProcessRefusedByEmbedderReason::
         V8OptimizationsDisabled;
   }
@@ -713,7 +711,7 @@ SpareRenderProcessHostManagerImpl::DoesEmbedderAllowSpareUsage(
   // As such spare renderers should not be used when v8 flag overrides are
   // disabled.
   if (GetContentClient()->browser()->DisallowV8FeatureFlagOverridesForSite(
-          site_instance->GetSiteInfo().process_lock_url())) {
+          site_instance->GetSiteInfo().GetProcessLockURL())) {
     return ContentBrowserClient::SpareProcessRefusedByEmbedderReason::
         DisallowV8FeatureFlagOverrides;
   }

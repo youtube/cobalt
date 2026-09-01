@@ -46,7 +46,7 @@
 #include "ui/chromeos/devicetype_utils.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 
 using sync_pb::UserConsentTypes;
 
@@ -820,7 +820,7 @@ void ArcSupportHost::OnMessage(const base::Value::Dict& message) {
   } else if (*event == kEventOnOpenPrivacySettingsPageClicked) {
     chrome::ShowSettingsSubPageForProfile(profile_, chrome::kPrivacySubPage);
   } else if (*event == kEventRequestWindowBounds) {
-    SetWindowBound(display::Screen::GetScreen()->GetDisplayForNewWindows());
+    SetWindowBound(display::Screen::Get()->GetDisplayForNewWindows());
   } else {
     NOTREACHED() << "Unknown message: " << *event;
   }

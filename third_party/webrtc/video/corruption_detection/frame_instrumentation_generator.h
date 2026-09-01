@@ -15,12 +15,11 @@
 #include <map>
 #include <optional>
 #include <queue>
-#include <variant>
 
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 #include "video/corruption_detection/halton_frame_sampler.h"
@@ -39,9 +38,8 @@ class FrameInstrumentationGenerator {
   ~FrameInstrumentationGenerator() = default;
 
   void OnCapturedFrame(VideoFrame frame) RTC_LOCKS_EXCLUDED(mutex_);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-  OnEncodedImage(const EncodedImage& encoded_image) RTC_LOCKS_EXCLUDED(mutex_);
+  std::optional<FrameInstrumentationData> OnEncodedImage(
+      const EncodedImage& encoded_image) RTC_LOCKS_EXCLUDED(mutex_);
 
   // Returns `std::nullopt` if there is no context for the given layer.
   std::optional<int> GetHaltonSequenceIndex(int layer_id) const

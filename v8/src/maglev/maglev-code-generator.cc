@@ -1731,10 +1731,7 @@ MaglevCodeGenerator::MaglevCodeGenerator(
 
 bool MaglevCodeGenerator::Assemble() {
   if (!EmitCode()) {
-#ifdef V8_TARGET_ARCH_ARM
-    // Even if we fail, we force emit the constant pool, so that it is empty.
-    __ CheckConstPool(true, false);
-#endif
+    __ ClearInternalState();
     return false;
   }
 
@@ -2063,7 +2060,8 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
         &protected_deopt_literals_);
     for (auto it = iterate.begin(); it != iterate.end(); ++it) {
-      raw_protected_literals->set(*it.entry(), Cast<TrustedObject>(it.key()));
+      raw_protected_literals->set(*it.entry(),
+                                  TrustedCast<TrustedObject>(it.key()));
     }
   }
 

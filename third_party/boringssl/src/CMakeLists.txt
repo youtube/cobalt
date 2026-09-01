@@ -713,6 +713,9 @@ if(BUILD_TESTING)
 
   add_executable(test_fips util/fipstools/test_fips.cc)
   target_link_libraries(test_fips crypto)
+
+  add_executable(jitter_deltas util/fipstools/entropy/jitter_deltas.cc)
+  target_link_libraries(jitter_deltas crypto)
 endif()
 
 if(FIPS)

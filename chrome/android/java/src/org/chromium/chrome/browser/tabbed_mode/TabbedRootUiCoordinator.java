@@ -75,6 +75,8 @@ import org.chromium.chrome.browser.data_sharing.DataSharingTabManager;
 import org.chromium.chrome.browser.data_sharing.InstantMessageDelegateFactory;
 import org.chromium.chrome.browser.data_sharing.InstantMessageDelegateImpl;
 import org.chromium.chrome.browser.desktop_site.DesktopSiteSettingsIphController;
+import org.chromium.chrome.browser.dom_distiller.ReaderModeActionRateLimiter;
+import org.chromium.chrome.browser.dom_distiller.ReaderModeIphController;
 import org.chromium.chrome.browser.dragdrop.ChromeTabbedOnDragListener;
 import org.chromium.chrome.browser.ephemeraltab.EphemeralTabCoordinator;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
@@ -185,9 +187,6 @@ import org.chromium.chrome.browser.webapps.PwaRestorePromoUtils;
 import org.chromium.components.browser_ui.accessibility.PageZoomCoordinator;
 import org.chromium.components.browser_ui.bottomsheet.EmptyBottomSheetObserver;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeManager;
-import org.chromium.components.browser_ui.edge_to_edge.EdgeToEdgeStateProvider;
-import org.chromium.components.browser_ui.edge_to_edge.SystemBarColorHelper;
 import org.chromium.components.browser_ui.widget.CoordinatorLayoutForPointer;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
@@ -216,6 +215,9 @@ import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.LocalizationUtils;
 import org.chromium.ui.display.DisplayUtil;
 import org.chromium.ui.dragdrop.DragDropGlobalState;
+import org.chromium.ui.edge_to_edge.EdgeToEdgeManager;
+import org.chromium.ui.edge_to_edge.EdgeToEdgeStateProvider;
+import org.chromium.ui.edge_to_edge.SystemBarColorHelper;
 import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.url.GURL;
@@ -239,6 +241,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private OfflineIndicatorInProductHelpController mOfflineIndicatorInProductHelpController;
     private ReadAloudIphController mReadAloudIphController;
     private ReadLaterIphController mReadLaterIphController;
+    private ReaderModeIphController mReaderModeIphController;
     private DesktopSiteSettingsIphController mDesktopSiteSettingsIphController;
     private PdfPageIphController mPdfPageIphController;
     private RtlGestureNavIphController mRtlGestureNavIphController;
@@ -621,6 +624,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         if (mReadAloudIphController != null) {
             mReadAloudIphController.destroy();
+        }
+
+        if (mReaderModeIphController != null) {
+            mReaderModeIphController.destroy();
+            mReaderModeIphController = null;
         }
 
         if (mWebFeedFollowIntroController != null) {
@@ -1161,6 +1169,13 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         profile,
                         getToolbarManager().getMenuButtonView(),
                         mAppMenuCoordinator.getAppMenuHandler());
+        mReaderModeIphController =
+                new ReaderModeIphController(
+                        mActivity,
+                        profile,
+                        getToolbarManager().getMenuButtonView(),
+                        mAppMenuCoordinator.getAppMenuHandler(),
+                        ReaderModeActionRateLimiter.getInstance());
 
         // Initializes Privacy Sandbox related logic
         recordPrivacySandboxActivityType(profile);
@@ -1300,8 +1315,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                 .getDimensionPixelSize(R.dimen.toolbar_height_no_shadow)
                         : 0;
         final int tabStripHeight = mToolbarManager.getTabStripHeightSupplier().get();
-        final int bookmarkBarHeight =
-                mBookmarkBarCoordinator != null ? mBookmarkBarCoordinator.getTopControlHeight() : 0;
+        final int bookmarkBarHeight = getBookmarkBarHeight();
 
         // When the refactor feature is enabled, fetch height from the TopControlsStacker.
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.TOP_CONTROLS_REFACTOR)) {
@@ -1806,6 +1820,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mBookmarkBarCoordinator =
                     new BookmarkBarCoordinator(
                             mActivity,
+                            mLayoutManager,
+                            mLayoutManager::requestUpdate,
+                            mFullscreenManager,
+                            mCompositorViewHolderSupplier.get().getResourceManager(),
                             mBrowserControlsManager,
                             /* heightChangeCallback= */ result -> updateTopControlsHeight(),
                             mProfileSupplier,
@@ -1818,6 +1836,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 mBookmarkBarVisibilityProvider.addObserver(mBookmarkBarCoordinator);
             }
             mBookmarkBarHeightSupplier = mBookmarkBarCoordinator::getTopControlHeight;
+            mLayoutManager.addSceneOverlay(mBookmarkBarCoordinator.getSceneLayer());
+            mLayoutManager.requestUpdate();
         } else {
             mBookmarkBarCoordinator.setVisibility(true);
             // When toggling the visibility of the existing view, the LayoutChangeListener will not
@@ -1838,12 +1858,24 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             // be 0). The BookmarkBarCoordinator adds a LayoutChangeListener to the view; during
             // onLayoutChange we will have the correct height and update the top controls then.
             createBookmarkBarIfNecessary();
+            if (mToolbarManager != null) {
+                mToolbarManager.setProgressBarAnchorView(R.id.bookmark_bar);
+            }
         } else {
             if (mBookmarkBarCoordinator != null) {
                 mBookmarkBarCoordinator.setVisibility(false);
                 updateTopControlsHeight();
+                if (mToolbarManager != null) {
+                    mToolbarManager.setProgressBarAnchorView(R.id.control_container);
+                }
             }
         }
+    }
+
+    public int getBookmarkBarHeight() {
+        return mBookmarkBarCoordinator != null && mBookmarkBarCoordinator.isVisible()
+                ? mBookmarkBarCoordinator.getTopControlHeight()
+                : 0;
     }
 
     public static void setDisableTopControlsAnimationsForTesting(boolean disable) {
@@ -1873,7 +1905,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             return true;
         } else if (id == R.id.toggle_bookmark_bar) {
             if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(mActivity)) {
-                BookmarkBarUtils.toggleSettingEnabled(mProfileSupplier.get());
+                BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(mProfileSupplier.get());
                 return true;
             }
         }

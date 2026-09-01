@@ -574,8 +574,7 @@ void ThrowRangeException(v8::Isolate* isolate, const char* message) {
   isolate->ThrowException(NewRangeException(isolate, message));
 }
 
-BASE_FEATURE(kWebAssemblyUnlimitedSyncCompilation,
-             "WebAssemblyUnlimitedSyncCompilation",
+BASE_FEATURE(WebAssemblyUnlimitedSyncCompilation,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool WasmModuleOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -628,12 +627,12 @@ bool WasmInstanceOverride(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return false;
 }
 
-bool WasmJSStringBuiltinsEnabledCallback(v8::Local<v8::Context> context) {
+bool WasmCustomDescriptorsEnabledCallback(v8::Local<v8::Context> context) {
   ExecutionContext* execution_context = ToExecutionContext(context);
   if (!execution_context) {
     return false;
   }
-  return RuntimeEnabledFeatures::WebAssemblyJSStringBuiltinsEnabled(
+  return RuntimeEnabledFeatures::WebAssemblyCustomDescriptorsEnabled(
       execution_context);
 }
 
@@ -804,8 +803,8 @@ void V8Initializer::InitializeV8Common(v8::Isolate* isolate) {
   isolate->SetUseCounterCallback(&UseCounterCallback);
   isolate->SetWasmModuleCallback(WasmModuleOverride);
   isolate->SetWasmInstanceCallback(WasmInstanceOverride);
-  isolate->SetWasmImportedStringsEnabledCallback(
-      WasmJSStringBuiltinsEnabledCallback);
+  isolate->SetWasmCustomDescriptorsEnabledCallback(
+      WasmCustomDescriptorsEnabledCallback);
   isolate->SetWasmJSPIEnabledCallback(WasmJSPromiseIntegrationEnabledCallback);
   isolate->SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback);

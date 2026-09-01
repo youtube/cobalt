@@ -1207,6 +1207,18 @@ enum class TaggedToFloat64ConversionType : uint8_t {
   kNumberOrOddball,
 };
 
+constexpr TaggedToFloat64ConversionType GetTaggedToFloat64ConversionType(
+    NodeType type) {
+  if (NodeTypeIs(type, NodeType::kNumber)) {
+    return TaggedToFloat64ConversionType::kOnlyNumber;
+  }
+  if (NodeTypeIs(type, NodeType::kNumberOrBoolean)) {
+    return TaggedToFloat64ConversionType::kNumberOrBoolean;
+  }
+  DCHECK(NodeTypeIs(type, NodeType::kNumberOrOddball));
+  return TaggedToFloat64ConversionType::kNumberOrOddball;
+}
+
 constexpr Condition ConditionFor(Operation cond);
 constexpr Condition ConditionForNaN();
 
@@ -1687,6 +1699,7 @@ class DeoptFrame {
     const MaglevCompilationUnit& unit;
     const CompactInterpreterFrameState* frame_state;
     ValueNode* closure;
+    VirtualObject* last_virtual_object;
     const BytecodeOffset bytecode_position;
     const SourcePosition source_position;
   };
@@ -1761,9 +1774,10 @@ class InterpretedDeoptFrame : public DeoptFrame {
  public:
   InterpretedDeoptFrame(const MaglevCompilationUnit& unit,
                         const CompactInterpreterFrameState* frame_state,
-                        ValueNode* closure, BytecodeOffset bytecode_position,
+                        ValueNode* closure, VirtualObject* last_vo,
+                        BytecodeOffset bytecode_position,
                         SourcePosition source_position, DeoptFrame* parent)
-      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure,
+      : DeoptFrame(InterpretedFrameData{unit, frame_state, closure, last_vo,
                                         bytecode_position, source_position},
                    parent) {}
 
@@ -1775,6 +1789,9 @@ class InterpretedDeoptFrame : public DeoptFrame {
   ValueNode* closure() const { return data().closure; }
   BytecodeOffset bytecode_position() const { return data().bytecode_position; }
   SourcePosition source_position() const { return data().source_position; }
+  VirtualObject* last_virtual_object() const {
+    return data().last_virtual_object;
+  }
 
   int ComputeReturnOffset(interpreter::Register result_location,
                           int result_size) const;
@@ -2245,7 +2262,7 @@ constexpr const T* ObjectPtrBeforeAddress(const void* address) {
     return ReasonField::decode(bitfield());                                 \
   }
 
-struct KnownNodeAspects;
+class KnownNodeAspects;
 class NodeBase : public ZoneObject {
  private:
   // Bitfield specification.
@@ -6359,6 +6376,8 @@ class VirtualObjectList {
  public:
   VirtualObjectList() : head_(nullptr) {}
 
+  explicit VirtualObjectList(VirtualObject* head) : head_(head) {}
+
   class Iterator final {
    public:
     explicit Iterator(VirtualObject* entry) : entry_(entry) {}
@@ -6445,6 +6464,8 @@ class VirtualObjectList {
     }
     return true;
   }
+
+  VirtualObject* head() const { return head_; }
 
   Iterator begin() const { return Iterator(head_); }
   Iterator end() const { return Iterator(nullptr); }

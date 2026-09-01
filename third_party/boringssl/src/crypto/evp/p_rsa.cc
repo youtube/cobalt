@@ -460,7 +460,7 @@ static int pkey_rsa_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey) {
 
 }  // namespace
 
-const EVP_PKEY_METHOD rsa_pkey_meth = {
+const EVP_PKEY_CTX_METHOD rsa_pkey_meth = {
     EVP_PKEY_RSA,
     pkey_rsa_init,
     pkey_rsa_copy,

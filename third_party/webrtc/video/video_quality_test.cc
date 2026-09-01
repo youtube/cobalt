@@ -1376,7 +1376,7 @@ scoped_refptr<AudioDeviceModule> VideoQualityTest::CreateAudioDevice() {
   RTC_CHECK(com_initializer_->Succeeded());
   RTC_CHECK(webrtc_win::core_audio_utility::IsSupported());
   RTC_CHECK(webrtc_win::core_audio_utility::IsMMCSSSupported());
-  return CreateWindowsCoreAudioAudioDeviceModule(&env_.task_queue_factory());
+  return CreateWindowsCoreAudioAudioDeviceModule(env_);
 #else
   // Use legacy factory method on all platforms except Windows.
   return CreateAudioDeviceModule(env_,

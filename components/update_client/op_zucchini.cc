@@ -27,6 +27,7 @@
 #include "components/update_client/pipeline_util.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/task_traits.h"
+#include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "components/zucchini/zucchini.h"
@@ -181,6 +182,7 @@ base::OnceClosure ZucchiniOperation(
     scoped_refptr<CrxCache> crx_cache,
     scoped_refptr<Patcher> patcher,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+    base::RepeatingCallback<void(ComponentState)> state_tracker,
     const std::string& previous_hash,
     const std::string& output_hash,
 #if BUILDFLAG(IS_STARBOARD)
@@ -191,6 +193,7 @@ base::OnceClosure ZucchiniOperation(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback) {
+state_tracker.Run(ComponentState::kPatching);
 #if defined(IN_MEMORY_UPDATES)
   LOG(ERROR) << "Zucchini delta patching Operation not supported with Cobalt IN_MEMORY_UPDATES";
   PatchDone(std::move(callback), event_adder,

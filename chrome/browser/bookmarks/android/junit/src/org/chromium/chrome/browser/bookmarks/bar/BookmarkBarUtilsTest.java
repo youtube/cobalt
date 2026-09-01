@@ -54,8 +54,6 @@ import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.components.bookmarks.BookmarkItem;
-import org.chromium.components.prefs.PrefChangeRegistrar;
-import org.chromium.components.prefs.PrefChangeRegistrar.PrefObserver;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefsJni;
 import org.chromium.content_public.browser.test.util.TouchCommon;
@@ -86,8 +84,6 @@ public class BookmarkBarUtilsTest {
     @Mock private Drawable mFavicon;
     @Mock private BookmarkImageFetcher mImageFetcher;
     @Mock private BookmarkItem mItem;
-    @Mock private PrefChangeRegistrar mPrefChangeRegistrar;
-    @Mock private PrefObserver mPrefObserver;
     @Mock private PrefService mPrefService;
     @Mock private Profile mProfile;
     @Mock private ProfileProvider mProfileProvider;
@@ -234,40 +230,40 @@ public class BookmarkBarUtilsTest {
 
     @Test
     @SmallTest
-    public void testIsSettingEnabled() {
+    public void testIsUserPrefsShowBookmarksBarEnabled() {
         mSetting.set(false);
-        assertFalse(BookmarkBarUtils.isSettingEnabled(mProfile));
-        assertFalse(BookmarkBarUtils.isSettingEnabled(null));
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(null));
 
         mSetting.set(true);
-        assertTrue(BookmarkBarUtils.isSettingEnabled(mProfile));
-        assertFalse(BookmarkBarUtils.isSettingEnabled(null));
+        assertTrue(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(null));
     }
 
     @Test
     @SmallTest
-    public void testSetSettingEnabled() {
+    public void testSetUserPrefsShowBookmarksBar() {
         mSetting.set(false);
-        assertFalse(BookmarkBarUtils.isSettingEnabled(mProfile));
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
 
-        BookmarkBarUtils.setSettingEnabled(mProfile, true);
-        assertTrue(BookmarkBarUtils.isSettingEnabled(mProfile));
+        BookmarkBarUtils.setUserPrefsShowBookmarksBar(mProfile, true);
+        assertTrue(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
 
-        BookmarkBarUtils.setSettingEnabled(mProfile, false);
-        assertFalse(BookmarkBarUtils.isSettingEnabled(mProfile));
+        BookmarkBarUtils.setUserPrefsShowBookmarksBar(mProfile, false);
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
     }
 
     @Test
     @SmallTest
-    public void testToggleSettingEnabled() {
+    public void testToggleUserPrefsShowBookmarksBar() {
         mSetting.set(false);
-        assertFalse(BookmarkBarUtils.isSettingEnabled(mProfile));
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
 
-        BookmarkBarUtils.toggleSettingEnabled(mProfile);
-        assertTrue(BookmarkBarUtils.isSettingEnabled(mProfile));
+        BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(mProfile);
+        assertTrue(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
 
-        BookmarkBarUtils.toggleSettingEnabled(mProfile);
-        assertFalse(BookmarkBarUtils.isSettingEnabled(mProfile));
+        BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(mProfile);
+        assertFalse(BookmarkBarUtils.isUserPrefsShowBookmarksBarEnabled(mProfile));
     }
 
     @Test

@@ -89,8 +89,7 @@ int32_t AudioDeviceModuleIOS::Init() {
   AudioDeviceIOSRenderErrorHandler error_handler = ^(OSStatus error) {
     ReportError(kRecordingDeviceFailed);
   };
-  audio_device_buffer_ =
-      std::make_unique<AudioDeviceBuffer>(&env_.task_queue_factory());
+  audio_device_buffer_ = std::make_unique<AudioDeviceBuffer>(env_);
   audio_device_ =
       std::make_unique<ios_adm::AudioDeviceIOS>(env_,
                                                 bypass_voice_processing_,

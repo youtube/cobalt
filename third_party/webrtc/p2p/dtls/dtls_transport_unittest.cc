@@ -731,8 +731,8 @@ static const struct {
   int version_bytes;
   const std::vector<HandshakeTestEvent>& events;
 } kEventsPerVersion[] = {
-    {kDtls12VersionBytes, dtls_12_handshake_events},
-    {kDtls13VersionBytes, dtls_13_handshake_events},
+    {.version_bytes = kDtls12VersionBytes, .events = dtls_12_handshake_events},
+    {.version_bytes = kDtls13VersionBytes, .events = dtls_13_handshake_events},
 };
 
 struct EndpointConfig {

@@ -252,6 +252,7 @@ include_rules = [
   "+components/performance_manager/embedder",
   "+components/performance_manager/test_support",
   "+components/permissions",
+  "+components/push_messaging",
   "+components/sampling_profiler",
   "+components/server_certificate_database",
   "+components/webid",
@@ -288,6 +289,7 @@ include_rules = [
   "+components/themes",
   "+components/tpcd/metadata",
   "+components/safe_search_api",
+  "+components/safety_check",
   "+components/saved_tab_groups/public",
   "+components/shared_highlighting/core/common",
   "+components/search",
@@ -469,6 +471,7 @@ include_rules = [
   "+third_party/widevine/cdm/buildflags.h",
   "+third_party/widevine/cdm/widevine_cdm_common.h",
   "+chrome/services/speech",
+  "+ui/edge_to_edge",
 
   # Code under //ash should be accessed via its public API. See //ash/README.md.
   "-ash",

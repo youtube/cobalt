@@ -600,7 +600,7 @@ void StyleEngine::MediaQueryAffectingValueChanged(
     return;
   }
 
-  for (auto text_track : text_tracks) {
+  for (auto& text_track : text_tracks) {
     bool style_needs_recalc = false;
     auto style_sheets = text_track->GetCSSStyleSheets();
     for (const auto& sheet : style_sheets) {
@@ -746,14 +746,7 @@ MixinMap StyleEngine::EffectiveMixinsForTreeScope(TreeScope& tree_scope) {
     return collection->Mixins();
   }
 
-  const MixinMap& child_mixins = collection->Mixins();
-  for (const auto& [name, value] : child_mixins.mixins) {
-    inherited_mixins.mixins.insert(name, value);
-  }
-  inherited_mixins.media_query_result_flags.Add(
-      child_mixins.media_query_result_flags);
-  inherited_mixins.media_query_set_results.AppendVector(
-      child_mixins.media_query_set_results);
+  inherited_mixins.Merge(collection->Mixins());
   return inherited_mixins;
 }
 
@@ -2495,7 +2488,7 @@ void StyleEngine::ApplyRuleSetInvalidationForTreeScope(
       // recalc, or if the host is not rendered.
       return;
     }
-    for (auto rule_set : rule_sets) {
+    for (const auto& rule_set : rule_sets) {
       if (rule_set->HasSlottedRules()) {
         invalidate_slotted = true;
         break;
@@ -2513,7 +2506,7 @@ void StyleEngine::ApplyRuleSetInvalidationForTreeScope(
   //
   // We do a similar thing for :part(), descending into all shadows.
   if (invalidation_scope != kInvalidateAllScopes) {
-    for (auto rule_set : rule_sets) {
+    for (const auto& rule_set : rule_sets) {
       if (rule_set->HasUAShadowPseudoElementRules() ||
           rule_set->HasPartPseudoRules()) {
         invalidation_scope = kInvalidateAllScopes;

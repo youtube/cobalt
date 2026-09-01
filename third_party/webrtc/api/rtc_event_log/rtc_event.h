@@ -61,6 +61,8 @@ class RtcEvent {
   };
 
   RtcEvent();
+  RtcEvent(const RtcEvent&) = default;
+  RtcEvent& operator=(const RtcEvent&) = delete;
   virtual ~RtcEvent() = default;
 
   virtual Type GetType() const = 0;
@@ -80,6 +82,7 @@ class RtcEvent {
  protected:
   explicit RtcEvent(int64_t timestamp_us) : timestamp_us_(timestamp_us) {}
 
+ private:
   const int64_t timestamp_us_;
 };
 

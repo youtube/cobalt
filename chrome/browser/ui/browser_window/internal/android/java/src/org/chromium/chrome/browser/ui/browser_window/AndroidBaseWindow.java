@@ -53,10 +53,30 @@ final class AndroidBaseWindow {
     }
 
     @CalledByNative
+    private boolean isMaximized() {
+        return mChromeAndroidTask.isMaximized();
+    }
+
+    @CalledByNative
+    private boolean isMinimized() {
+        return mChromeAndroidTask.isMinimized();
+    }
+
+    @CalledByNative
+    private boolean isFullscreen() {
+        return mChromeAndroidTask.isFullscreen();
+    }
+
+    @CalledByNative
     @JniType("std::vector<int>")
     private int[] getBounds() {
         Rect bounds = mChromeAndroidTask.getBounds();
         return new int[] {bounds.left, bounds.top, bounds.width(), bounds.height()};
+    }
+
+    @CalledByNative
+    private boolean isVisible() {
+        return mChromeAndroidTask.isVisible();
     }
 
     @CalledByNative
@@ -67,6 +87,21 @@ final class AndroidBaseWindow {
     @CalledByNative
     private void activate() {
         mChromeAndroidTask.activate();
+    }
+
+    @CalledByNative
+    private void maximize() {
+        mChromeAndroidTask.maximize();
+    }
+
+    @CalledByNative
+    private void minimize() {
+        mChromeAndroidTask.minimize();
+    }
+
+    @CalledByNative
+    private void setBounds(int left, int top, int width, int height) {
+        mChromeAndroidTask.setBounds(new Rect(left, top, width, height));
     }
 
     @CalledByNative

@@ -644,19 +644,20 @@ class RtpReplayer final {
       worker_thread_->PostTask([&]() {
         if (IsRtcpPacket(packet_buffer)) {
           call_->Receiver()->DeliverRtcpPacket(std::move(packet_buffer));
-        }
-        RtpPacketReceived received_packet(&extensions,
-                                          Timestamp::Millis(CurrentTimeMs()));
-        if (!received_packet.Parse(std::move(packet_buffer))) {
-          result = Result::kParsingFailed;
         } else {
-          call_->Receiver()->DeliverRtpPacket(
-              MediaType::VIDEO, received_packet,
-              [&result](const RtpPacketReceived& parsed_packet) -> bool {
-                result = Result::kUnknownSsrc;
-                // No point in trying to demux again.
-                return false;
-              });
+          RtpPacketReceived received_packet(&extensions,
+                                            Timestamp::Millis(CurrentTimeMs()));
+          if (!received_packet.Parse(std::move(packet_buffer))) {
+            result = Result::kParsingFailed;
+          } else {
+            call_->Receiver()->DeliverRtpPacket(
+                MediaType::VIDEO, received_packet,
+                [&result](const RtpPacketReceived& parsed_packet) -> bool {
+                  result = Result::kUnknownSsrc;
+                  // No point in trying to demux again.
+                  return false;
+                });
+          }
         }
         event.Set();
       });

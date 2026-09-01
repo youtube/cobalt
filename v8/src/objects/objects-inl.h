@@ -16,6 +16,7 @@
 
 #include "include/v8-internal.h"
 #include "src/base/bits.h"
+#include "src/base/bounds.h"
 #include "src/base/memory.h"
 #include "src/base/numbers/double.h"
 #include "src/builtins/builtins.h"
@@ -124,13 +125,8 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 IS_TYPE_FUNCTION_DEF(PropertyDictionary)
+IS_TYPE_FUNCTION_DEF(AnyHole)
 #undef IS_TYPE_FUNCTION_DEF
-
-bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
-  return IsHole(obj, cage_base);
-}
-
-bool IsAnyHole(Tagged<Object> obj) { return IsHole(obj); }
 
 #define IS_TYPE_FUNCTION_DEF(Type, ...)                          \
   bool Is##Type(Tagged<Object> obj, Isolate* isolate) {          \
@@ -178,6 +174,35 @@ HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(UndefinedContextCell, undefined_context_cell,
                      UndefinedContextCell)
 #undef IS_TYPE_FUNCTION_DEF
+
+bool IsAnyHole(Tagged<HeapObject> obj) {
+#if V8_STATIC_ROOTS_BOOL
+#define GET_HOLE_ROOT(Type, Value, CamelName) StaticReadOnlyRoot::k##CamelName,
+  constexpr Tagged_t kMinHole = std::min({HOLE_LIST(GET_HOLE_ROOT)});
+  constexpr Tagged_t kMaxHole = std::max({HOLE_LIST(GET_HOLE_ROOT)});
+#undef GET_HOLE_ROOT
+  // Compressed object tests need to be done on a matching compression scheme.
+  DCHECK(!HeapLayout::SafeInCodeSpace(obj));
+  // We allow trusted space comparisons, because the first 1MB is unmapped there
+  // anyway, so no trusted object can alias a hole.
+  DCHECK_IMPLIES(
+      HeapLayout::SafeInTrustedSpace(obj),
+      TrustedSpaceCompressionScheme::CompressObject(obj.ptr()) >= kMaxHole);
+  // Use a direct cast to Tagged_t rather than CompressObject to allow
+  // TrustedSpace comparisons in here.
+  return base::IsInRange(static_cast<Tagged_t>(obj.ptr()), kMinHole, kMaxHole);
+#else
+  return obj->map()->instance_type() == HOLE_TYPE;
+#endif
+}
+
+bool IsAnyHole(Tagged<HeapObject> obj, PtrComprCageBase) {
+  return IsAnyHole(obj);
+}
+
+bool IsHole(Tagged<HeapObject> obj) { return IsAnyHole(obj); }
+
+bool IsHole(Tagged<HeapObject> obj, PtrComprCageBase) { return IsAnyHole(obj); }
 
 bool IsNullOrUndefined(Tagged<Object> obj, Isolate* isolate) {
   return IsNullOrUndefined(obj, ReadOnlyRoots(isolate));
@@ -526,14 +551,14 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsJSSegmentDataObjectWithIsWordLike) {
 #endif  // V8_INTL_SUPPORT
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
-  // Must be a (protected) fixed array.
-  if (!IsProtectedFixedArray(obj, cage_base)) return false;
+  Tagged<ProtectedFixedArray> array;
+  if (!TryCast(obj, &array)) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = Cast<ProtectedFixedArray>(obj)->length();
+  int length = array->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -1115,24 +1140,6 @@ void HeapObjectLayout::InitSelfIndirectPointerField(
 #endif  // V8_ENABLE_SANDBOX
 
 template <IndirectPointerTag tag>
-Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate) const {
-  // Currently, trusted pointer loads always use acquire semantics as the
-  // under-the-hood indirect pointer loads use acquire loads anyway.
-  return ReadTrustedPointerField<tag>(offset, isolate, kAcquireLoad);
-}
-
-template <IndirectPointerTag tag>
-Tagged<ExposedTrustedObject> HeapObject::ReadTrustedPointerField(
-    size_t offset, IsolateForSandbox isolate,
-    AcquireLoadTag acquire_load) const {
-  Tagged<Object> object =
-      ReadMaybeEmptyTrustedPointerField<tag>(offset, isolate, acquire_load);
-  DCHECK(IsExposedTrustedObject(object));
-  return Cast<ExposedTrustedObject>(object);
-}
-
-template <IndirectPointerTag tag>
 Tagged<Object> HeapObject::ReadMaybeEmptyTrustedPointerField(
     size_t offset, IsolateForSandbox isolate,
     AcquireLoadTag acquire_load) const {
@@ -1194,8 +1201,7 @@ void HeapObject::ClearTrustedPointerField(size_t offset, ReleaseStoreTag) {
 
 Tagged<Code> HeapObject::ReadCodePointerField(size_t offset,
                                               IsolateForSandbox isolate) const {
-  return Cast<Code>(
-      ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate));
+  return ReadTrustedPointerField<kCodeIndirectPointerTag>(offset, isolate);
 }
 
 void HeapObject::WriteCodePointerField(size_t offset, Tagged<Code> value) {
@@ -1395,7 +1401,8 @@ Tagged<Map> HeapObject::map() const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !HeapLayout::SafeInCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map(cage_base);
 }
@@ -1592,7 +1599,8 @@ MapWord HeapObject::map_word(RelaxedLoadTag tag) const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !HeapLayout::SafeInCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1615,7 +1623,8 @@ MapWord HeapObject::map_word(AcquireLoadTag tag) const {
   // This method is never used for objects located in code space
   // (InstructionStream and free space fillers) and thus it is fine to use
   // auto-computed cage base value.
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !HeapLayout::SafeInCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::map_word(cage_base, tag);
 }
@@ -1666,7 +1675,8 @@ int HeapObjectLayout::Size() const { return Tagged<HeapObject>(this)->Size(); }
 
 // TODO(v8:11880): consider dropping parameterless version.
 int HeapObject::Size() const {
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !HeapLayout::SafeInCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::Size(cage_base);
 }
@@ -1675,7 +1685,8 @@ int HeapObject::Size(PtrComprCageBase cage_base) const {
 }
 
 SafeHeapObjectSize HeapObject::SafeSize() const {
-  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !HeapLayout::InCodeSpace(*this));
+  DCHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL,
+                 !HeapLayout::SafeInCodeSpace(*this));
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return HeapObject::SafeSize(cage_base);
 }
@@ -1740,12 +1751,12 @@ bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
   return false;
 }
 
-WriteBarrierMode HeapObjectLayout::GetWriteBarrierMode(
+WriteBarrierModeScope HeapObjectLayout::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
-  return WriteBarrier::GetWriteBarrierModeForObject(this, promise);
+  return WriteBarrier::GetWriteBarrierModeForObject(Tagged(this), promise);
 }
 
-WriteBarrierMode HeapObject::GetWriteBarrierMode(
+WriteBarrierModeScope HeapObject::GetWriteBarrierMode(
     const DisallowGarbageCollection& promise) {
   return WriteBarrier::GetWriteBarrierModeForObject(*this, promise);
 }
@@ -1754,7 +1765,8 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
 AllocationAlignment HeapObject::RequiredAlignment(AllocationSpace space,
                                                   Tagged<Map> map) {
   return RequiredAlignment(
-      IsAnySharedSpace(space) ? kInSharedSpace : kNotInSharedSpace, map);
+      IsAnyWritableSharedSpace(space) ? kInSharedSpace : kNotInSharedSpace,
+      map);
 }
 
 // static
@@ -1951,7 +1963,7 @@ Tagged<Object> Object::GetSimpleHash(Tagged<Object> object) {
     return Smi::FromInt(hash);
   }
 
-  DCHECK(!InstanceTypeChecker::IsHole(instance_type));
+  DCHECK_NE(instance_type, HOLE_TYPE);
   DCHECK(IsJSReceiver(object));
   return object;
 }

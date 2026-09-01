@@ -45,9 +45,7 @@ static int ed25519_set_priv_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
   uint8_t pubkey_unused[32];
   ED25519_keypair_from_seed(pubkey_unused, key->key, in);
   key->has_private = 1;
-
-  ed25519_free(pkey);
-  pkey->pkey = key;
+  evp_pkey_set0(pkey, &ed25519_asn1_meth, key);
   return 1;
 }
 
@@ -65,9 +63,7 @@ static int ed25519_set_pub_raw(EVP_PKEY *pkey, const uint8_t *in, size_t len) {
 
   OPENSSL_memcpy(key->key + ED25519_PUBLIC_KEY_OFFSET, in, 32);
   key->has_private = 0;
-
-  ed25519_free(pkey);
-  pkey->pkey = key;
+  evp_pkey_set0(pkey, &ed25519_asn1_meth, key);
   return 1;
 }
 

@@ -17,6 +17,7 @@
 #include "components/update_client/op_zucchini.h"
 #include "components/update_client/protocol_definition.h"
 #include "components/update_client/unzipper.h"
+#include "components/update_client/update_client.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/zucchini/zucchini.h"
 
@@ -75,6 +76,7 @@ void Done(base::OnceCallback<
 base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
+base::RepeatingCallback<void(ComponentState)> state_tracker,
 #if BUILDFLAG(IS_STARBOARD)
     const OperationResult& in_file_result,
     base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
@@ -91,6 +93,7 @@ base::OnceClosure XzOperation(
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
+  state_tracker.Run(ComponentState::kDecompressing);
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
 #endif  // BUILDFLAG(IS_STARBOARD)
 #if !defined(IN_MEMORY_UPDATES)

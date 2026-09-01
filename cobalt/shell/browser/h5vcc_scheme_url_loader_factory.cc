@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/no_destructor.h"
 #include "cobalt/shell/browser/h5vcc_scheme_url_loader_factory.h"
 
 #include <cstdint>
@@ -468,7 +469,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
-std::optional<std::string>
+base::NoDestructor<std::optional<std::string>>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
 std::optional<int>
     H5vccSchemeURLLoaderFactory::global_splash_content_size_test_;
@@ -478,7 +479,7 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
     : splash_domain_(url::Origin::Create(
-                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
+                         GURL(global_splash_domain_test_->value_or(kDefaultURL)))
                          .GetURL()
                          .spec()),
       splash_content_size_limit_(
@@ -521,7 +522,7 @@ void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
 
 void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
     const std::optional<std::string>& domain) {
-  global_splash_domain_test_ = domain;
+  *global_splash_domain_test_ = domain;
 }
 
 void H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(

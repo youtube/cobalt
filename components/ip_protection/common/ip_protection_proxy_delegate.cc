@@ -259,16 +259,21 @@ net::Error IpProtectionProxyDelegate::OnTunnelHeadersReceived(
     return net::OK;
   }
 
+  if (!base::FeatureList::IsEnabled(
+          net::features::kEnableIpPrivacyProxyAdvancedFallbackLogic)) {
+    return net::OK;
+  }
+
   std::optional<std::string> proxy_status_header_value =
       response_headers.GetNormalizedHeader("Proxy-Status");
   if (!proxy_status_header_value) {
-    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+    return net::OK;
   }
 
   std::optional<net::structured_headers::List> proxy_status_list =
       net::structured_headers::ParseList(*proxy_status_header_value);
   if (!proxy_status_list) {
-    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+    return net::OK;
   }
 
   net::structured_headers::List parsed_list = proxy_status_list.value();
@@ -278,22 +283,21 @@ net::Error IpProtectionProxyDelegate::OnTunnelHeadersReceived(
   // visible by Proxy A and thus the Proxy-Status header can't be modified by
   // it.
   if (parsed_list.size() != 1) {
-    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+    return net::OK;
   }
   const net::structured_headers::ParameterizedMember& p_member = parsed_list[0];
   // `p_member` can either be a single Item or an inner list, and we expect the
   // format here for this Proxy-Status header to be considered valid.
   if (p_member.member_is_inner_list) {
-    return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+    return net::OK;
   }
 
   bool error_is_dns_error = false;
-  bool rcode_is_nxdomain = false;
+  bool rcode_is_nxdomain_or_nodata = false;
   for (const auto& [name, item] : p_member.params) {
     if (name == "error" && item.is_token()) {
       static constexpr auto kDestinationErrors =
           base::MakeFixedFlatSet<std::string_view>({
-              "dns_timeout",
               "destination_not_found",
               "destination_unavailable",
               "destination_ip_unroutable",
@@ -306,7 +310,7 @@ net::Error IpProtectionProxyDelegate::OnTunnelHeadersReceived(
       // These RFC 9209 errors indicate a destination-side problem.
       // For these, we should NOT fall back.
       if (kDestinationErrors.contains(error_val)) {
-        return net::ERR_TUNNEL_CONNECTION_FAILED;
+        return net::ERR_PROXY_UNABLE_TO_CONNECT_TO_DESTINATION;
       }
       if (error_val == "dns_error") {
         error_is_dns_error = true;
@@ -317,19 +321,19 @@ net::Error IpProtectionProxyDelegate::OnTunnelHeadersReceived(
     // type once all proxy B providers adhere to the spec for this.
     if (name == "rcode" && (item.is_token() || item.is_string())) {
       const std::string& rcode_val = item.GetString();
-      if (rcode_val == "NXDOMAIN") {
-        rcode_is_nxdomain = true;
+      if (rcode_val == "NXDOMAIN" || rcode_val == "NODATA") {
+        rcode_is_nxdomain_or_nodata = true;
       }
       continue;
     }
   }
-  if (error_is_dns_error && rcode_is_nxdomain) {
-    return net::ERR_TUNNEL_CONNECTION_FAILED;
+  if (error_is_dns_error && rcode_is_nxdomain_or_nodata) {
+    return net::ERR_PROXY_UNABLE_TO_CONNECT_TO_DESTINATION;
   }
 
   // If no specific destination error was found, we assume it's a proxy
   // failure and should fall back.
-  return net::ERR_PROXY_TUNNEL_REQUEST_FAILED;
+  return net::OK;
 }
 
 void IpProtectionProxyDelegate::SetProxyResolutionService(

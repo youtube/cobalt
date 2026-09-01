@@ -25,6 +25,8 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
+        "module_name": "//chrome/test:android_browsertests/",
+        "module_scheme": "gtest",
         "name": "android_browsertests",
         "resultdb": {
           "enable": true,
@@ -76,6 +78,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
+        "module_name": "//chrome/android:chrome_public_unit_test_apk/",
         "name": "chrome_public_unit_test_apk",
         "precommit_args": [
           "--gerrit-issue=${patch_issue}",
@@ -129,6 +132,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
+        "module_name": "//extensions:extensions_unittests/",
         "name": "extensions_unittests",
         "resultdb": {
           "enable": true,
@@ -177,6 +181,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
+        "module_name": "//chrome/test:unit_tests/",
         "name": "unit_tests",
         "resultdb": {
           "enable": true,
@@ -225,6 +230,7 @@
           ],
           "script": "//build/android/pylib/results/presentation/test_results_presentation.py"
         },
+        "module_name": "//media/gpu/test:video_encode_accelerator_tests/",
         "name": "video_encode_accelerator_tests",
         "resultdb": {
           "enable": true,
@@ -271,13 +277,13 @@
         ],
         "ci_only": true,
         "description": "Run with android_35_google_apis_tablet_x64",
-        "experiment_percentage": 100,
         "merge": {
           "args": [
             "--verbose"
           ],
           "script": "//third_party/blink/tools/merge_web_test_results.py"
         },
+        "module_name": "//chrome/android:chrome_public_wpt/",
         "name": "android_chrome_wpt_tests",
         "resultdb": {
           "enable": true,
@@ -314,6 +320,8 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"
         },
+        "module_name": "//chrome/android:chrome_junit_tests/",
+        "module_scheme": "junit",
         "name": "chrome_junit_tests",
         "resultdb": {
           "enable": true,

@@ -16,9 +16,11 @@
 #include "pdf/test/test_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/input/web_keyboard_event.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 
 namespace chrome_pdf {
 
@@ -40,12 +42,15 @@ constexpr gfx::Rect kTestChar1ScreenRect{22, 10, 12, 14};
 constexpr gfx::Rect kTestChar0Caret{10, 10, 1, 14};
 constexpr gfx::Rect kTestChar0EndCaret{22, 10, 1, 14};
 constexpr gfx::Rect kTestChar1Caret = kTestChar0EndCaret;
+constexpr gfx::Rect kTestChar1EndCaret{34, 10, 1, 14};
 
 constexpr gfx::Rect kTestMultiPage1Char0ScreenRect{15, 15, 8, 4};
 constexpr gfx::Rect kTestMultiPage1Char1ScreenRect{23, 15, 8, 4};
+constexpr gfx::Rect kTestMultiPage2NonTextScreenRect{40, 40, 1, 12};
 constexpr gfx::Rect kTestMultiPage3Char0ScreenRect{50, 50, 16, 20};
 constexpr gfx::Rect kTestMultiPage1Char0Caret{15, 15, 1, 4};
 constexpr gfx::Rect kTestMultiPage1Char1Caret{23, 15, 1, 4};
+constexpr gfx::Rect kTestMultiPage1Char1EndCaret{31, 15, 1, 4};
 constexpr gfx::Rect kTestMultiPage3Char0Caret{50, 50, 1, 20};
 constexpr gfx::Rect kTestMultiPage3Char0EndCaret{66, 50, 1, 20};
 
@@ -69,6 +74,13 @@ class MockTestClient : public PdfCaretClient {
   void InvalidateRect(const gfx::Rect& rect) override {
     invalidated_rect_ = rect;
   }
+
+  MOCK_METHOD(bool,
+              IsSynthesizedNewline,
+              (const PageCharacterIndex& index),
+              (const override));
+
+  MOCK_METHOD(bool, PageIndexInBounds, (int index), (const override));
 
  private:
   gfx::Rect invalidated_rect_;
@@ -180,7 +192,9 @@ class PdfCaretTest : public testing::Test {
   }
 
   void SetUpPagesWithCharCounts(const std::vector<uint32_t>& char_counts) {
+    EXPECT_CALL(client(), PageIndexInBounds(_)).WillRepeatedly(Return(false));
     for (size_t i = 0; i < char_counts.size(); ++i) {
+      EXPECT_CALL(client(), PageIndexInBounds(i)).WillRepeatedly(Return(true));
       EXPECT_CALL(client(), GetCharCount(i))
           .WillRepeatedly(Return(char_counts[i]));
     }
@@ -191,7 +205,16 @@ class PdfCaretTest : public testing::Test {
     SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
     SetUpChar({1, 0}, 'b', {kTestMultiPage1Char0ScreenRect});
     SetUpChar({1, 1}, 'c', {kTestMultiPage1Char1ScreenRect});
+    SetUpChar({2, 0}, '\0', {});
     SetUpChar({3, 0}, 'd', {kTestMultiPage3Char0ScreenRect});
+  }
+
+  blink::WebKeyboardEvent GenerateKeyboardEvent(ui::KeyboardCode key) {
+    blink::WebKeyboardEvent event(
+        blink::WebInputEvent::Type::kRawKeyDown, 0,
+        blink::WebInputEvent::GetStaticTimeStampForTests());
+    event.windows_key_code = key;
+    return event;
   }
 
  private:
@@ -504,6 +527,268 @@ TEST_F(PdfCaretTest, SetCharMultiPage) {
 
   caret().SetChar({1, 0});
   TestDrawCaret(kTestMultiPage1Char0Caret);
+}
+
+class PdfCaretMoveTest : public PdfCaretTest {
+ public:
+  void SetUp() override {
+    PdfCaretTest::SetUp();
+    EXPECT_CALL(client(), IsSynthesizedNewline(_))
+        .WillRepeatedly(Return(false));
+  }
+};
+
+TEST_F(PdfCaretMoveTest, OnKeyDown) {
+  SetUpPagesWithCharCounts({1});
+  SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
+  SetUpChar({0, 1}, '\0', {});
+  InitializeCaretAtChar(kTestChar0);
+
+  // Relevant key events still handled even when caret is not visible.
+  caret().SetVisibility(false);
+
+  EXPECT_FALSE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_0)));
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+
+  caret().SetVisibility(true);
+
+  EXPECT_FALSE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_0)));
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+}
+
+TEST_F(PdfCaretMoveTest, MoveCharLeftRight) {
+  SetUpPagesWithCharCounts({2});
+  SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
+
+  // Start at left of char 0.
+  InitializeCaretAtChar(kTestChar0);
+  caret().SetVisibility(true);
+
+  // Left of char 1.
+  SetUpChar({0, 1}, 'b', {kTestChar1ScreenRect});
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar1Caret);
+
+  // Right of char 1.
+  SetUpChar({0, 2}, '\0', {});
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar1EndCaret);
+
+  // Right of char 1.
+  PageCharacterIndex kTestLastCaret{0, 2};
+  EXPECT_CALL(client(), IsSynthesizedNewline(kTestLastCaret)).Times(0);
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar1EndCaret);
+
+  // Left of char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar1Caret);
+
+  // Left of char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0Caret);
+
+  // Left of char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0Caret);
+}
+
+TEST_F(PdfCaretMoveTest, MoveCharLeftRightMultiPage) {
+  SetUpMultiPageTest();
+
+  // Start at left of page 1, char 0.
+  InitializeCaretAtChar({1, 0});
+  caret().SetVisibility(true);
+
+  // Right of page 0, char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0EndCaret);
+
+  // Left of page 1, char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestMultiPage1Char0Caret);
+
+  // Left of page 1, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestMultiPage1Char1Caret);
+
+  // Right of page 1, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestMultiPage1Char1EndCaret);
+
+  // Top-left of page 2. Page 2 does not have any chars.
+  SetUpChar({2, 0}, '\0', {kTestMultiPage2NonTextScreenRect});
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestMultiPage2NonTextScreenRect);
+
+  // Left of page 3, char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestMultiPage3Char0Caret);
+
+  // Top-left of page 2.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestMultiPage2NonTextScreenRect);
+
+  // Right of page 1, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestMultiPage1Char1EndCaret);
+}
+
+TEST_F(PdfCaretMoveTest, MoveCharLeftRightSkipNewlines) {
+  constexpr PageCharacterIndex kTestSynthesizedChar1{0, 1};
+  constexpr PageCharacterIndex kTestSynthesizedChar2{0, 2};
+  EXPECT_CALL(client(), IsSynthesizedNewline(kTestSynthesizedChar1))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(client(), IsSynthesizedNewline(kTestSynthesizedChar2))
+      .WillRepeatedly(Return(true));
+
+  SetUpPagesWithCharCounts({4});
+  SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
+  SetUpChar(kTestSynthesizedChar1, '\r', {});
+  SetUpChar(kTestSynthesizedChar2, '\n', {});
+  SetUpChar({0, 3}, 'b', {gfx::Rect(10, 26, 12, 14)});
+
+  // Start at left of page 0, char 0.
+  InitializeCaretAtChar(kTestChar0);
+  caret().SetVisibility(true);
+
+  // Right of page 0, char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar0EndCaret);
+
+  // Left of page 0, char 3 'b', skipping one newline.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(gfx::Rect(10, 26, 1, 14));
+
+  // Right of page 0, char 0, skipping one newline.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0EndCaret);
+}
+
+TEST_F(PdfCaretMoveTest, MoveCharLeftRightStartEndNewlines) {
+  SetUpPagesWithCharCounts({2});
+  SetUpChar(kTestChar0, '\n', {kTestChar0ScreenRect});
+  SetUpChar({0, 1}, '\n', {kTestChar1ScreenRect});
+
+  // Start at left of page 0, char 0.
+  InitializeCaretAtChar(kTestChar0);
+  caret().SetVisibility(true);
+
+  // Left of page 0, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar1Caret);
+
+  // Right of page 0, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar1EndCaret);
+
+  // Left of page 0, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar1Caret);
+
+  // Left of page 0, char 0.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0Caret);
+}
+
+TEST_F(PdfCaretMoveTest, MoveCharLeftRightConsecutiveNewlines) {
+  constexpr PageCharacterIndex kTestSynthesizedChar1{0, 1};
+  constexpr PageCharacterIndex kTestSynthesizedChar2{0, 2};
+  EXPECT_CALL(client(), IsSynthesizedNewline(kTestSynthesizedChar1))
+      .WillRepeatedly(Return(true));
+  EXPECT_CALL(client(), IsSynthesizedNewline(kTestSynthesizedChar2))
+      .WillRepeatedly(Return(true));
+
+  SetUpPagesWithCharCounts({5});
+  SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
+  SetUpChar(kTestSynthesizedChar1, '\r', {});
+  SetUpChar(kTestSynthesizedChar2, '\n', {});
+  SetUpChar({0, 3}, '\n', {gfx::Rect(10, 26, 12, 14)});
+  SetUpChar({0, 4}, 'b', {gfx::Rect(22, 26, 12, 14)});
+
+  // Start at left of page 0, char 1.
+  InitializeCaretAtChar({0, 1});
+  caret().SetVisibility(true);
+
+  // Left of page 0, char 3 '\n', skipping one newline.
+  constexpr gfx::Rect kTestChar3Caret{10, 26, 1, 14};
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar3Caret);
+
+  // Left of page 0, char 4 'b'.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(gfx::Rect(22, 26, 1, 14));
+
+  // Left of page 0, char 3.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar3Caret);
+
+  // Right of page 0, char 0, skipping one newline.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0EndCaret);
+}
+
+TEST_F(PdfCaretMoveTest, MoveCharLeftRightSingleSyntheticNewline) {
+  constexpr PageCharacterIndex kTestSynthesizedChar1{0, 1};
+  EXPECT_CALL(client(), IsSynthesizedNewline(kTestSynthesizedChar1))
+      .WillRepeatedly(Return(true));
+
+  SetUpPagesWithCharCounts({3});
+  SetUpChar(kTestChar0, 'a', {kTestChar0ScreenRect});
+  SetUpChar(kTestSynthesizedChar1, '\n', {});
+  SetUpChar({0, 2}, 'b', {gfx::Rect(10, 26, 12, 14)});
+
+  // Start at left of page 0, char 0.
+  InitializeCaretAtChar(kTestChar0);
+  caret().SetVisibility(true);
+
+  // Right of page 0, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(kTestChar0EndCaret);
+
+  // Left of page 0, char 2 'b'.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_RIGHT)));
+  TestDrawCaret(gfx::Rect(10, 26, 1, 14));
+
+  // Right of page 0, char 1.
+  EXPECT_TRUE(
+      caret().OnKeyDown(GenerateKeyboardEvent(ui::KeyboardCode::VKEY_LEFT)));
+  TestDrawCaret(kTestChar0EndCaret);
 }
 
 }  // namespace

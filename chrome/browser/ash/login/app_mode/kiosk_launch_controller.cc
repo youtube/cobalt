@@ -330,11 +330,13 @@ class KioskLaunchController::ScopedAcceleratorDisabler {
 };
 
 KioskLaunchController::KioskLaunchController(
+    PrefService* local_state,
     LoginDisplayHost* host,
     AppLaunchedCallback app_launched_callback,
     AppLaunchSplashScreen* splash_screen,
     LaunchCompleteCallback done_callback)
     : KioskLaunchController(
+          local_state,
           host,
           splash_screen,
           /*profile_loader=*/base::BindOnce(&LoadProfile),
@@ -347,6 +349,7 @@ KioskLaunchController::KioskLaunchController(
           std::make_unique<DefaultAcceleratorController>()) {}
 
 KioskLaunchController::KioskLaunchController(
+    PrefService* local_state,
     LoginDisplayHost* host,
     AppLaunchSplashScreen* splash_screen,
     LoadProfileCallback profile_loader,
@@ -357,7 +360,8 @@ KioskLaunchController::KioskLaunchController(
     KioskAppLauncherFactory app_launcher_factory,
     std::unique_ptr<NetworkUiController::NetworkMonitor> network_monitor,
     std::unique_ptr<AcceleratorController> accelerator_controller)
-    : host_(host),
+    : local_state_(CHECK_DEREF(local_state)),
+      host_(host),
       splash_screen_(splash_screen),
       app_launcher_factory_(std::move(app_launcher_factory)),
       network_ui_controller_(std::make_unique<NetworkUiController>(
@@ -407,24 +411,26 @@ void KioskLaunchController::Start(KioskApp kiosk_app, bool auto_launch) {
 
   profile_loader_handle_ =
       std::move(profile_loader_)
-          .Run(kiosk_app_id().account_id, kiosk_app_id().type,
-               /*on_done=*/
-               base::BindOnce(
-                   [](KioskLaunchController* self, LoadProfileResult result) {
-                     CHECK(!self->profile_) << "Kiosk profile loaded twice";
-                     self->profile_loader_handle_.reset();
+          .Run(
+              /*local_state=*/&local_state_.get(), kiosk_app_id().account_id,
+              kiosk_app_id().type,
+              /*on_done=*/
+              base::BindOnce(
+                  [](KioskLaunchController* self, LoadProfileResult result) {
+                    CHECK(!self->profile_) << "Kiosk profile loaded twice";
+                    self->profile_loader_handle_.reset();
 
-                     if (!result.has_value()) {
-                       self->HandleProfileLoadError(std::move(result.error()));
-                       return;
-                     }
+                    if (!result.has_value()) {
+                      self->HandleProfileLoadError(std::move(result.error()));
+                      return;
+                    }
 
-                     SYSLOG(INFO) << "Profile loaded... Starting app launch.";
-                     self->profile_ = result.value();
-                     self->StartAppLaunch(*self->profile_);
-                   },
-                   // Safe because `this` owns `profile_loader_handle_`.
-                   base::Unretained(this)));
+                    SYSLOG(INFO) << "Profile loaded... Starting app launch.";
+                    self->profile_ = result.value();
+                    self->StartAppLaunch(*self->profile_);
+                  },
+                  // Safe because `this` owns `profile_loader_handle_`.
+                  base::Unretained(this)));
 }
 
 void KioskLaunchController::AddKioskProfileLoadFailedObserver(
@@ -615,7 +621,7 @@ void KioskLaunchController::OnLaunchFailed(KioskAppLaunchError::Error error) {
               : AppLaunchSplashScreenView::AppLaunchState::
                     kIsolatedAppNotAllowed);
       splash_screen_->HideThrobber();
-      KioskAppLaunchError::Save(error);
+      KioskAppLaunchError::Save(local_state_.get(), error);
       return;
     case Error::kHasPendingLaunch:
     case Error::kUnableToMount:
@@ -638,7 +644,7 @@ void KioskLaunchController::OnLaunchFailed(KioskAppLaunchError::Error error) {
       }
 
       // Save the error to prevent re-launch and show the error-toast.
-      KioskAppLaunchError::Save(error);
+      KioskAppLaunchError::Save(local_state_.get(), error);
       std::move(attempt_logout_).Run();
       break;
   }

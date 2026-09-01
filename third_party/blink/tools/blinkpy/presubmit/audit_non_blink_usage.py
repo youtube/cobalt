@@ -1054,6 +1054,14 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/renderer/core/timing/performance_resource_timing.cc'
+        ],
+        'allowed': [
+            'base::MakeFixedFlatSet',
+        ],
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/core',
             'third_party/blink/public/common/messaging/accelerated_image_info.h',
             'third_party/blink/public/common/messaging/accelerated_static_bitmap_image_mojom_traits.h',
@@ -1950,12 +1958,12 @@ _CONFIG = [
         ],
         'allowed': [
             'base::CommandLine',
-            'switches::kEnableUnsafeWebGPU',
-            # The WebGPU Blink module needs access to the WebGPU control
-            # command buffer interface.
+            'gpu::WebGPUTextureScopedAccess',
             'gpu::webgpu::PowerPreference',
+            'gpu::webgpu::WEBGPU_MAILBOX_NONE',
             'gpu::webgpu::WebGPUInterface',
             'media::PIXEL_FORMAT_NV12',
+            'switches::kEnableUnsafeWebGPU',
         ],
     },
     {
@@ -2469,6 +2477,15 @@ _CONFIG = [
     },
     {
         'paths': [
+            'third_party/blink/renderer/core/frame/ad_tracker.cc',
+            'third_party/blink/renderer/core/frame/ad_tracker.h',
+        ],
+        'allowed': [
+            'subresource_filter::ScopedRule',
+        ]
+    },
+    {
+        'paths': [
             'third_party/blink/renderer/core/frame/attribution_src_loader.cc',
             'third_party/blink/renderer/core/frame/attribution_src_loader.h',
         ],
@@ -2670,6 +2687,15 @@ _CONFIG = [
         ],
         'allowed': [
             'mojom::OriginTrialFeature',
+        ]
+    },
+    {
+        'paths': [
+            'third_party/blink/renderer/modules/canvas/canvas_noise_test_util.h',
+            'third_party/blink/renderer/modules/canvas/canvas_noise_test_util.cc',
+        ],
+        'allowed': [
+            'viz::TestRasterInterface',
         ]
     }
 ]

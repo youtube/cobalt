@@ -172,7 +172,9 @@ rtc_library("create_test_environment") {
     "../api:time_controller",
     "../api/environment",
     "../api/environment:environment_factory",
+    "../api/rtc_event_log",
     "../rtc_base:checks",
+    "../system_wrappers",
     "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]

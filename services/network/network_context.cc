@@ -3580,6 +3580,33 @@ void NetworkContext::GetDeviceBoundSessionManager(
   }
 }
 
+void NetworkContext::GetIpProxyStatus(GetIpProxyStatusCallback callback) {
+  ip_protection::IpProxyStatus status =
+      ip_protection::IpProxyStatus::kUnavailable;
+
+  if (!base::FeatureList::IsEnabled(net::features::kEnableIpProtectionProxy)) {
+    status = ip_protection::IpProxyStatus::kFeatureNotEnabled;
+    std::move(callback).Run(status);
+    return;
+  }
+  if (!base::FeatureList::IsEnabled(features::kMaskedDomainList)) {
+    status = ip_protection::IpProxyStatus::kMaskedDomainListNotEnabled;
+    std::move(callback).Run(status);
+    return;
+  }
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+  if (ip_protection_core()) {
+    // ip_protection_core() should be null if either of the above features are
+    // disabled, so check beforehand
+    status = ip_protection_core()->GetIpProxyStatus();
+    std::move(callback).Run(status);
+    return;
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+
+  std::move(callback).Run(status);
+}
+
 bool NetworkContext::IsNetworkForNonceAndUrlAllowed(
     const base::UnguessableToken& nonce,
     const GURL& url) const {

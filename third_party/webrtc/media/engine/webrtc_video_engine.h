@@ -68,6 +68,7 @@
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/no_unique_address.h"
 #include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/clock.h"
 #include "video/config/video_encoder_config.h"
 
 namespace webrtc {
@@ -396,6 +397,7 @@ class WebRtcVideoSendChannel : public MediaChannelUtil,
     const std::vector<uint32_t> ssrcs_ RTC_GUARDED_BY(&thread_checker_);
     const std::vector<SsrcGroup> ssrc_groups_ RTC_GUARDED_BY(&thread_checker_);
     Call* const call_;
+    Clock* const clock_;
     const bool enable_cpu_overuse_detection_;
     VideoSourceInterface<VideoFrame>* source_ RTC_GUARDED_BY(&thread_checker_);
 
@@ -860,6 +862,5 @@ class WebRtcVideoChannel : public WebRtcVideoSendChannel {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // MEDIA_ENGINE_WEBRTC_VIDEO_ENGINE_H_

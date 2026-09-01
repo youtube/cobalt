@@ -32,6 +32,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabId;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
@@ -39,7 +40,6 @@ import org.chromium.chrome.browser.tabmodel.TabGroupUtils;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tasks.tab_management.TabGridItemLongPressOrchestrator.OnLongPressTabItemEventListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListCoordinator.TabListMode;
-import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabActionListener;
 import org.chromium.chrome.browser.tasks.tab_management.TabListMediator.TabGridDialogHandler;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
 import org.chromium.chrome.browser.tasks.tab_management.TabSwitcherMessageManager.MessageType;
@@ -75,9 +75,9 @@ public class TabGridItemTouchHelperCallback extends ItemTouchHelper2.SimpleCallb
     private final Supplier<TabGroupModelFilter> mCurrentTabGroupModelFilterSupplier;
     private final ObservableSupplierImpl<Integer> mRecentlySwipedTabIdSupplier =
             new ObservableSupplierImpl<>(Tab.INVALID_TAB_ID);
-    private final TabListMediator.TabActionListener mTabClosedListener;
+    private final TabActionListener mTabClosedListener;
     private final String mComponentName;
-    private final TabListMediator.TabGridDialogHandler mTabGridDialogHandler;
+    private final TabListMediator.@Nullable TabGridDialogHandler mTabGridDialogHandler;
     private final int mLongPressDpThresholdSquared;
     private final TabGroupCreationDialogManager mTabGroupCreationDialogManager;
     private final ObservableSupplierImpl<RecyclerView> mRecyclerViewSupplier =
@@ -124,7 +124,7 @@ public class TabGridItemTouchHelperCallback extends ItemTouchHelper2.SimpleCallb
             TabListModel tabListModel,
             Supplier<TabGroupModelFilter> currentTabGroupModelFilterSupplier,
             TabActionListener tabClosedListener,
-            TabGridDialogHandler tabGridDialogHandler,
+            @Nullable TabGridDialogHandler tabGridDialogHandler,
             String componentName,
             boolean actionsOnAllRelatedTabs,
             @TabListMode int mode) {
@@ -150,9 +150,9 @@ public class TabGridItemTouchHelperCallback extends ItemTouchHelper2.SimpleCallb
     /**
      * @param listener the handler for longpress actions.
      */
-    void setOnLongPressTabItemEventListener(OnLongPressTabItemEventListener listener) {
+    void setOnLongPressTabItemEventListener(@Nullable OnLongPressTabItemEventListener listener) {
         assert mTabGridItemLongPressOrchestrator == null;
-        if (ChromeFeatureList.sTabGroupParityBottomSheetAndroid.isEnabled()) {
+        if (ChromeFeatureList.sTabGroupParityBottomSheetAndroid.isEnabled() && listener != null) {
             setTabGridItemLongPressOrchestrator(
                     new TabGridItemLongPressOrchestrator(
                             mRecyclerViewSupplier,
@@ -167,7 +167,7 @@ public class TabGridItemTouchHelperCallback extends ItemTouchHelper2.SimpleCallb
      * @param listener the handler for dropping tabs on top of an archival message card.
      */
     void setOnDropOnArchivalMessageCardEventListener(
-            OnDropOnArchivalMessageCardEventListener listener) {
+            @Nullable OnDropOnArchivalMessageCardEventListener listener) {
         mOnDropOnArchivalMessageCardEventListener = listener;
     }
 
@@ -760,9 +760,9 @@ public class TabGridItemTouchHelperCallback extends ItemTouchHelper2.SimpleCallb
 
         // If user has used drop-to-merge, send a signal to disable
         // FeatureConstants.TAB_GROUPS_DRAG_AND_DROP_FEATURE.
-        final Tracker tracker =
-                TrackerFactory.getTrackerForProfile(
-                        mCurrentTabGroupModelFilterSupplier.get().getTabModel().getProfile());
+        Profile profile = mCurrentTabGroupModelFilterSupplier.get().getTabModel().getProfile();
+        assert profile != null;
+        Tracker tracker = TrackerFactory.getTrackerForProfile(profile);
         tracker.notifyEvent(EventConstants.TAB_DRAG_AND_DROP_TO_GROUP);
     }
 

@@ -102,7 +102,9 @@ class RtcpRttStatsTestImpl : public RtcpRttStats {
   ~RtcpRttStatsTestImpl() override = default;
 
   void OnRttUpdate(int64_t rtt_ms) override { rtt_ms_ = rtt_ms; }
-  int64_t LastProcessedRtt() const override { return rtt_ms_; }
+  int64_t LastProcessedRtt() const { return rtt_ms_; }
+
+ private:
   int64_t rtt_ms_;
 };
 

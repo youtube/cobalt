@@ -97,11 +97,6 @@ type ShimConfiguration struct {
 	// expect before half-RTT data when testing 0-RTT.
 	HalfRTTTickets int
 
-	// AllCurves is the list of all curve code points supported by the shim.
-	// This is currently used to control tests that enable all curves but may
-	// automatically disable tests in the future.
-	AllCurves []int
-
 	// MaxACKBuffer is the maximum number of received records the shim is
 	// expected to retain when ACKing.
 	MaxACKBuffer int
@@ -290,6 +285,14 @@ func flagInts(flagName string, vals []int) []string {
 	ret := make([]string, 0, 2*len(vals))
 	for _, val := range vals {
 		ret = append(ret, flagName, strconv.Itoa(val))
+	}
+	return ret
+}
+
+func flagCurves(flagName string, vals []CurveID) []string {
+	ret := make([]string, 0, 2*len(vals))
+	for _, val := range vals {
+		ret = append(ret, flagName, strconv.Itoa(int(val)))
 	}
 	return ret
 }
@@ -2188,12 +2191,6 @@ func main() {
 		if err := json.Unmarshal(encoded, &shimConfig); err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't decode config file %q: %s\n", *shimConfigFile, err)
 			os.Exit(1)
-		}
-	}
-
-	if shimConfig.AllCurves == nil {
-		for _, curve := range testCurves {
-			shimConfig.AllCurves = append(shimConfig.AllCurves, int(curve.id))
 		}
 	}
 
