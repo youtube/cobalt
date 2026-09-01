@@ -92,7 +92,6 @@ std::optional<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
       int channels = interleaved_resampler_.channels();
       int resampled_audio_size = out_num_of_frames * channels * sizeof(float);
       DecodedAudio resampled_audio(channels, kSbMediaAudioSampleTypeFloat32,
-                                   kSbMediaAudioFrameStorageTypeInterleaved,
                                    audio_inputs_.front().timestamp(),
                                    resampled_audio_size);
 
@@ -144,7 +143,6 @@ std::optional<DecodedAudio> AudioResamplerImpl::Resample(
   if (interleaved_resampler_.HasEnoughData(num_of_output_frames)) {
     int output_audio_size = num_of_output_frames * channels * sizeof(float);
     DecodedAudio output(channels, kSbMediaAudioSampleTypeFloat32,
-                        kSbMediaAudioFrameStorageTypeInterleaved,
                         next_audio_to_output.timestamp(), output_audio_size);
     float* dst = reinterpret_cast<float*>(output.data());
     interleaved_resampler_.Resample(dst, num_of_output_frames);
