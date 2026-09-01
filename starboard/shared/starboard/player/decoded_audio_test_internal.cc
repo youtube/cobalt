@@ -426,8 +426,8 @@ TEST_F(DecodedAudioNeonTest, SwitchFormatTo_NeonSimdUnaligned) {
 }
 
 TEST(DecodedAudioTest, MoveConstructor) {
-  DecodedAudio original(kChannels, kSampleTypes[0], kStorageTypes[0],
-                        kTimestampUsec, kSizeInBytes);
+  DecodedAudio original(kChannels, kSampleTypes[0], kTimestampUsec,
+                        kSizeInBytes);
   Fill(&original);
 
   const uint8_t* original_data = original.data();
@@ -455,8 +455,8 @@ TEST(DecodedAudioTest, MoveConstructor) {
 }
 
 TEST(DecodedAudioTest, MoveAssignment) {
-  DecodedAudio original(kChannels, kSampleTypes[0], kStorageTypes[0],
-                        kTimestampUsec, kSizeInBytes);
+  DecodedAudio original(kChannels, kSampleTypes[0], kTimestampUsec,
+                        kSizeInBytes);
   Fill(&original);
 
   const uint8_t* original_data = original.data();
