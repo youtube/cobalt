@@ -208,7 +208,6 @@ class GClientSyncResolver(BaseResolver):
       expert_guidance: str = "",
       **kwargs,
   ) -> Tuple[str, str, str]:
-    del history_records  # Unused for single DEPS resolution
     if not isinstance(diagnostic, GClientSyncDiagnostic):
       return "", self.model, "DEPS"
 
@@ -262,30 +261,31 @@ class GClientSyncResolver(BaseResolver):
       context_snippet = current_deps if len(lines) <= 250 else "".join(
           lines[:250])
 
-    instruction = (
-        f"gclient sync failed on {rel_deps} with the following diagnostic:\n"
-        f"--------------------------------------------------\n"
-        f"{diagnostic.diagnostic_trace}\n"
-        f"--------------------------------------------------\n\n"
-        f"Instructions:\n"
-        f"- If an unresolved CIPD package or missing git_revision tag is "
-        f"reported, check upstream {rel_deps} or use "
-        f"TOOL_UPSTREAM_DIFF: {rel_deps} to find the valid upstream revision.\n"
-        f"- If duplicate keys or syntax errors exist, resolve them in "
-        f"{rel_deps}.\n"
-        f"- Output the standard SEARCH / REPLACE block:\n"
-        f"FILE: {rel_deps}\n"
-        f"<<<<<<< SEARCH\n"
-        f"<exact lines from {rel_deps} to replace>\n"
-        f"=======\n"
-        f"<fixed replacement lines>\n"
-        f">>>>>>> REPLACE\n")
+    history_items = []
+    investigation_items = []
+    for h in history_records[-6:]:
+      it = str(h.get("iteration", ""))
+      hf = h.get("file", "")
+      he = h.get("error", "")
+      if it.startswith("Tool-"):
+        investigation_items.append(
+            f"Tool Call: `{hf}`\nResult:\n```\n{he}\n```")
+      else:
+        history_items.append(f"- Iteration {it}: Modified {hf} to fix \"{he}\"")
+    history_str = "\n".join(history_items)
+    investigation_str = "\n\n".join(investigation_items)
 
-    res = self.reasoning_engine.resolve_conflict(
-        file_path=rel_deps,
-        language="Python",
-        raw_conflict=context_snippet,
-        instruction=instruction,
+    deps_context = (
+        f"### Excerpt from {rel_deps} (around line {target_line or 1}):\n"
+        f"```python\n{context_snippet}\n```")
+
+    res = self.reasoning_engine.heal_compiler_error(
+        target=rel_deps,
+        target_file=deps_path,
+        error_trace=diagnostic.diagnostic_trace,
+        source_contexts=deps_context,
+        history=history_str,
+        investigation_history=investigation_str,
         expert_guidance=expert_guidance,
         use_expert=use_expert,
     )
