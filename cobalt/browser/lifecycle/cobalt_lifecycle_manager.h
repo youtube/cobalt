@@ -237,13 +237,6 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     void DidFinishNavigation(
         content::NavigationHandle* navigation_handle) override;
 
-    // Methods to update the tracked state of a specific frame.
-    void SetResumed(content::RenderFrameHost* frame);
-    void SetVisible(content::RenderFrameHost* frame, bool visible);
-    void SetFocused(content::RenderFrameHost* frame, bool focused);
-
-    bool IsComplete(PendingAck ack_type) const;
-
     // Checks if the remote controller for the specified frame is bound and
     // connected.
     bool IsConnected(content::RenderFrameHost* frame) const;
@@ -261,12 +254,6 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
     absl::flat_hash_map<content::RenderFrameHost*,
                         mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
         controllers_;
-
-    // Sets to track the current state of each frame. A frame is considered
-    // to have achieved the state if it is present in the corresponding set.
-    absl::flat_hash_set<content::RenderFrameHost*> resumed_frames_;
-    absl::flat_hash_set<content::RenderFrameHost*> visible_frames_;
-    absl::flat_hash_set<content::RenderFrameHost*> focused_frames_;
   };
 
   WebContentsTracker* GetOrCreateTracker(content::WebContents* web_contents);
@@ -274,15 +261,6 @@ class CobaltLifecycleManager : public cobalt::mojom::CobaltLifecycleObserver {
                                    WebContentsTracker* tracker,
                                    PendingAck ack_type);
 
-  // Note: We use raw WebContents* as keys here instead of WeakPtr<WebContents>
-  // because base::WeakPtr does not implement operator< in this version of base,
-  // making it unusable as a std::map key without a custom comparator. A custom
-  // comparator comparing raw pointers would be unsafe because once the
-  // WebContents is destroyed, all WeakPtrs pointing to it become null and
-  // compare equal, violating strict weak ordering. We rely on
-  // OnWebContentsDestroyed for cleanup.
-  absl::flat_hash_map<content::WebContents*, content::RenderFrameHost*>
-      main_frames_;
   absl::flat_hash_map<content::WebContents*,
                       absl::flat_hash_set<content::RenderFrameHost*>>
       frames_;
