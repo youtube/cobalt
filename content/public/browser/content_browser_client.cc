@@ -80,6 +80,9 @@
 #include "services/network/public/mojom/web_transport.mojom.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/quota/quota_manager.h"
+#if BUILDFLAG(IS_COBALT)
+#include "storage/browser/quota/quota_settings.h"
+#endif
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/features_generated.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
@@ -780,6 +783,24 @@ GeneratedCodeCacheSettings ContentBrowserClient::GetGeneratedCodeCacheSettings(
   // By default, code cache is disabled, embedders should override.
   return GeneratedCodeCacheSettings(false, 0, base::FilePath());
 }
+
+#if BUILDFLAG(IS_COBALT)
+base::FilePath ContentBrowserClient::GetCacheStoragePath(
+    BrowserContext* browser_context,
+    const base::FilePath& partition_path,
+    const base::FilePath& relative_partition_path) {
+  return base::FilePath();
+}
+
+void ContentBrowserClient::GetCacheQuotaSettings(
+    BrowserContext* browser_context,
+    const base::FilePath& cache_path,
+    storage::OptionalQuotaSettingsCallback callback) {
+  storage::GetNominalDynamicSettings(
+      cache_path, browser_context ? browser_context->IsOffTheRecord() : false,
+      storage::GetDefaultDeviceInfoHelper(), std::move(callback));
+}
+#endif  // BUILDFLAG(IS_COBALT)
 
 std::string ContentBrowserClient::GetWebUIHostnameForCodeCacheMetrics(
     const GURL& webui_url) const {
