@@ -22,6 +22,8 @@ import os
 import sys
 from typing import Any, Dict, List, Optional, Tuple
 
+import grpc
+
 _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..'))
 if _REPO_ROOT not in sys.path:
@@ -31,8 +33,7 @@ _DEVINFRA_DIR = os.path.abspath(
 if _DEVINFRA_DIR not in sys.path:
   sys.path.insert(0, _DEVINFRA_DIR)
 
-import grpc
-
+# pylint: disable=wrong-import-position
 try:
   from cobalt.devinfra.github.test_filter import get_gtest_filter
 except ImportError:
@@ -43,6 +44,7 @@ except ImportError:
 
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
+# pylint: enable=wrong-import-position
 
 _WORK_DIR = '/on_device_tests_gateway'
 

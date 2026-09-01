@@ -29,8 +29,10 @@ _REPO_ROOT = os.path.abspath(
 if _REPO_ROOT not in sys.path:
   sys.path.insert(0, _REPO_ROOT)
 
+# pylint: disable=wrong-import-position
 from cobalt.devinfra.github.test_filter import get_gtest_filter
 from cobalt.devinfra.github.test_filter import main
+# pylint: enable=wrong-import-position
 
 
 class TestGetGtestFilter(unittest.TestCase):
