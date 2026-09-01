@@ -16,11 +16,12 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_RENDERER_PASSTHROUGH_H_
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <queue>
 
-#include "starboard/android/shared/audio_track_bridge.h"
+#include "starboard/android/shared/audio_track.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
@@ -47,16 +48,34 @@ class AudioRendererPassthrough : public AudioRenderer,
                                  public MediaTimeProvider,
                                  private JobQueue::JobOwner {
  public:
+  static int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size);
+
+  using AudioTrackFactory = std::function<std::unique_ptr<AudioTrack>(
+      SbMediaAudioCodingType coding_type,
+      std::optional<SbMediaAudioSampleType> sample_type,
+      int channels,
+      int sampling_frequency_hz,
+      int preferred_buffer_size_in_bytes,
+      std::optional<int> tunnel_mode_audio_session_id,
+      bool is_web_audio)>;
+
   static NonNullResult<std::unique_ptr<AudioRendererPassthrough>> Create(
       JobQueue* job_queue,
       const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system,
       bool enable_flush_during_seek);
 
+  static std::unique_ptr<AudioRendererPassthrough> CreateForTesting(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info,
+      std::unique_ptr<AudioDecoder> decoder,
+      AudioTrackFactory audio_track_factory);
+
   AudioRendererPassthrough(PassKey<AudioRendererPassthrough>,
                            JobQueue* job_queue,
                            const AudioStreamInfo& audio_stream_info,
-                           std::unique_ptr<AudioDecoder> decoder);
+                           std::unique_ptr<AudioDecoder> decoder,
+                           AudioTrackFactory audio_track_factory);
   ~AudioRendererPassthrough() override;
 
   // AudioRenderer methods
@@ -144,10 +163,12 @@ class AudioRendererPassthrough : public AudioRenderer,
 
   std::atomic_bool audio_track_paused_{true};
 
+  const AudioTrackFactory audio_track_factory_;
+
   // |audio_track_thread_| must be declared after |audio_track_bridge_| to
   // ensure the thread completes all tasks before |audio_track_bridge_| is
   // invalidated.
-  std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
+  std::unique_ptr<AudioTrack> audio_track_bridge_;
   std::unique_ptr<JobThread> audio_track_thread_;
 };
 

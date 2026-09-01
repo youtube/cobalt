@@ -38,11 +38,16 @@ constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
 
+}  // namespace
+
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
 // The ExoPlayer implementation is based on
 // https://www.etsi.org/deliver/etsi_ts/102300_102399/102366/01.04.01_60/ts_102366v010401p.pdf.
-int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
+// static
+int AudioRendererPassthrough::ParseAc3SyncframeAudioSampleCount(
+    const uint8_t* buffer,
+    int size) {
   SB_CHECK(buffer);
 
   constexpr int kAudioSamplesPerAudioBlock = 256;
@@ -70,8 +75,6 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
   }
 }
 
-}  // namespace
-
 // static
 NonNullResult<std::unique_ptr<AudioRendererPassthrough>>
 AudioRendererPassthrough::Create(JobQueue* job_queue,
@@ -97,20 +100,36 @@ AudioRendererPassthrough::Create(JobQueue* job_queue,
 
   return std::make_unique<AudioRendererPassthrough>(
       PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
-      std::move(decoder));
+      std::move(decoder), &AudioTrack::Create);
+}
+
+// static
+std::unique_ptr<AudioRendererPassthrough>
+AudioRendererPassthrough::CreateForTesting(
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info,
+    std::unique_ptr<AudioDecoder> decoder,
+    AudioTrackFactory audio_track_factory) {
+  SB_CHECK(audio_track_factory);
+  return std::make_unique<AudioRendererPassthrough>(
+      PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
+      std::move(decoder), std::move(audio_track_factory));
 }
 
 AudioRendererPassthrough::AudioRendererPassthrough(
     PassKey<AudioRendererPassthrough>,
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
-    std::unique_ptr<AudioDecoder> decoder)
+    std::unique_ptr<AudioDecoder> decoder,
+    AudioTrackFactory audio_track_factory)
     : JobOwner(job_queue),
       audio_stream_info_(audio_stream_info),
-      decoder_(std::move(decoder)) {
+      decoder_(std::move(decoder)),
+      audio_track_factory_(std::move(audio_track_factory)) {
   SB_CHECK(decoder_);
-  SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
-            audio_stream_info_.codec == kSbMediaAudioCodecEac3);
+  SB_CHECK(audio_track_factory_);
+  SB_CHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
+           audio_stream_info_.codec == kSbMediaAudioCodecEac3);
 }
 
 AudioRendererPassthrough::~AudioRendererPassthrough() {
@@ -411,25 +430,24 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
     return;
   }
 
-  std::unique_ptr<AudioTrackBridge> audio_track_bridge =
-      AudioTrackBridge::Create(
-          audio_stream_info_.codec == kSbMediaAudioCodecAc3
-              ? kSbMediaAudioCodingTypeAc3
-              : kSbMediaAudioCodingTypeDolbyDigitalPlus,
-          /*sample_type=*/std::nullopt,  // Not required in passthrough mode
-          audio_stream_info_.number_of_channels,
-          audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-          /*tunnel_mode_audio_session_id=*/std::nullopt,
-          /*is_web_audio=*/false);
+  std::unique_ptr<AudioTrack> audio_track = audio_track_factory_(
+      audio_stream_info_.codec == kSbMediaAudioCodecAc3
+          ? kSbMediaAudioCodingTypeAc3
+          : kSbMediaAudioCodingTypeDolbyDigitalPlus,
+      /*sample_type=*/std::nullopt,  // Not required in passthrough mode
+      audio_stream_info_.number_of_channels,
+      audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*is_web_audio=*/false);
 
-  if (!audio_track_bridge) {
-    error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");
+  if (!audio_track) {
+    error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrack");
     return;
   }
 
   {
     std::lock_guard scoped_lock(mutex_);
-    audio_track_bridge_ = std::move(audio_track_bridge);
+    audio_track_bridge_ = std::move(audio_track);
   }
 
   AudioTrackState initial_state;
@@ -551,7 +569,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
           MakeSpan(sample_buffer, samples_to_write), sync_time);
       // Error code returned as negative value, like kAudioTrackErrorDeadObject.
       if (samples_written < 0) {
-        if (samples_written == AudioTrackBridge::kAudioTrackErrorDeadObject) {
+        if (samples_written == AudioTrack::kAudioTrackErrorDeadObject) {
           // Inform the audio end point change.
           SB_LOG(INFO)
               << "Write error for dead audio track, audio device capability "
