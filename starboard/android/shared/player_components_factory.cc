@@ -20,6 +20,8 @@
 #include <string>
 #include <utility>
 
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track.h"
@@ -62,6 +64,7 @@ using jni_zero::AttachCurrentThread;
 
 constexpr int kAndroidApiLevelU = 34;
 
+#if !BUILDFLAG(IS_STARBOARD)
 bool IsFeatureEnabledOrDefaultOnAndroidU(
     const SbFeature& feature,
     const ExperimentalFeatures& experimental_features,
@@ -70,19 +73,30 @@ bool IsFeatureEnabledOrDefaultOnAndroidU(
          FeatureList::IsEnabled(feature) ||
          experimental_features.GetBool(experimental_feature_key);
 }
+#endif
 
 bool ShouldEnableFlushDuringSeek(
     const ExperimentalFeatures& experimental_features) {
+#if !BUILDFLAG(IS_STARBOARD)
   return IsFeatureEnabledOrDefaultOnAndroidU(
       features::kForceFlushDecoderDuringReset, experimental_features,
       kMediaEnableFlushDuringSeek);
+#else
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         experimental_features.GetBool(kMediaEnableFlushDuringSeek);
+#endif
 }
 
 bool ShouldEnableResetAudioDecoder(
     const ExperimentalFeatures& experimental_features) {
+#if !BUILDFLAG(IS_STARBOARD)
   return IsFeatureEnabledOrDefaultOnAndroidU(features::kForceResetAudioDecoder,
                                              experimental_features,
                                              kMediaEnableResetAudioDecoder);
+#else
+  return android_get_device_api_level() >= kAndroidApiLevelU ||
+         experimental_features.GetBool(kMediaEnableResetAudioDecoder);
+#endif
 }
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
@@ -334,11 +348,15 @@ class PlayerComponentsPassthrough : public PlayerComponents {
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
   PlayerComponentsFactory()
+#if !BUILDFLAG(IS_STARBOARD)
       : force_platform_opus_decoder_(features::FeatureList::IsEnabled(
             features::kForcePlatformOpusDecoder)) {
     SB_LOG_IF(INFO, force_platform_opus_decoder_)
         << "kForcePlatformOpusDecoder is set to true, force using platform opus"
         << " codec instead of libopus.";
+#else
+      : force_platform_opus_decoder_(false) {
+#endif
   }
 
   NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
@@ -465,8 +483,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+#if !BUILDFLAG(IS_STARBOARD)
       const bool force_tunnel_mode =
           FeatureList::IsEnabled(features::kForceTunnelMode);
+#else
+      const bool force_tunnel_mode = false;
+#endif
       enable_tunnel_mode =
           force_tunnel_mode ||
           (video_mime_type &&
@@ -538,9 +560,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                             : "<not provided>")
         << ".";
 
+#if !BUILDFLAG(IS_STARBOARD)
     bool allow_flush_audio_track_during_seek =
         FeatureList::IsEnabled(features::kForceFlushAudioTrackDuringReset) ||
         experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+#else
+    bool allow_flush_audio_track_during_seek =
+        experimental_features.GetBool(kMediaFlushAudioTrackDuringSeek);
+#endif
     SB_LOG_IF(INFO, allow_flush_audio_track_during_seek)
         << "`kForceFlushAudioTrackDuringReset` is set to true, force flushing"
         << " audio track during Reset().";
@@ -642,8 +669,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     bool enable_flush_during_seek =
         ShouldEnableFlushDuringSeek(experimental_features);
+#if !BUILDFLAG(IS_STARBOARD)
     int64_t flush_delay_usec = features::kFlushDelayUsec.Get();
     int64_t reset_delay_usec = features::kResetDelayUsec.Get();
+#else
+    int64_t flush_delay_usec = 0;
+    int64_t reset_delay_usec = 0;
+#endif
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {

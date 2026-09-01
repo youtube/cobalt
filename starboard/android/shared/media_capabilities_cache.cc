@@ -21,6 +21,8 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "cobalt/android/jni_headers/MediaCodecUtil_jni.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/display_util.h"
@@ -338,8 +340,12 @@ bool MediaCapabilitiesCache::IsAv18kCappedAt30() {
     return true;
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   const bool enable_av1_startup_optimization =
       FeatureList::IsEnabled(features::kEnableAv1StartupOptimization);
+#else
+  const bool enable_av1_startup_optimization = false;
+#endif
   if (!enable_av1_startup_optimization && !is_av1_opt_enabled_) {
     return true;
   }
