@@ -96,8 +96,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          running_statuses=("in_progress" "queued" "requested")
-          if [[ " ${running_statuses[*]} " == *" ${STATUS} "* ]] || [[ "${CONCLUSION}" == "null" ]]; then
+          # Query live workflow run status from the API to handle out-of-order/delayed event delivery.
+          live_run=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json status,conclusion,attempt 2>/dev/null || true)
+          if [[ -n "${live_run}" ]]; then
+            live_status=$(echo "${live_run}" | jq -r '.status // empty')
+            live_conclusion=$(echo "${live_run}" | jq -r '.conclusion // empty')
+            live_attempt=$(echo "${live_run}" | jq -r '.attempt // empty')
+            if [[ -n "${live_status}" ]]; then
+              STATUS="${live_status}"
+              CONCLUSION="${live_conclusion:-null}"
+            fi
+            if [[ -n "${live_attempt}" ]]; then
+              RUN_ATTEMPT="${live_attempt}"
+            fi
+          fi
+
+          running_statuses=("in_progress" "queued" "requested" "waiting" "pending")
+          if [[ " ${running_statuses[*]} " == *" ${STATUS} "* ]] || [[ "${CONCLUSION}" == "null" || -z "${CONCLUSION}" ]]; then
             state="pending"
             desc="Checks are running"
             if [[ "${RUN_ATTEMPT}" -gt 1 ]]; then
