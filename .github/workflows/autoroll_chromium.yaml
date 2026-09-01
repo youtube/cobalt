@@ -137,6 +137,14 @@ jobs:
             echo ""
             echo "Original pull requests:"
             echo "${PR_LINKS}"
+            echo ""
+            echo "To merge these changes, run the autoroll script:"
+            echo ""
+            echo '```bash'
+            echo "cobalt/devinfra/github/autoroll/merge_autoroll.py \\"
+            echo "  --source-branch ${SOURCE_BRANCH} \\"
+            echo "  --target-branch ${TARGET_BRANCH}"
+            echo '```'
           } > "${PR_BODY_FILE}"
 
           if [[ -f "${AUTOROLL_FILE}" ]] && grep -q "^CONFLICTED:" "${AUTOROLL_FILE}"; then
