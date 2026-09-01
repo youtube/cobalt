@@ -209,7 +209,7 @@ base::OnceClosure PuffOperation(
 #if BUILDFLAG(IS_STARBOARD)
   const base::FilePath& patch_file = patch_operation_result.response;
 #endif
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   crx_cache->GetByHash(
       old_hash,
       base::BindOnce(&CacheLookupDone, event_adder, patcher, patch_file,

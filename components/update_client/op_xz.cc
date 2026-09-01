@@ -92,7 +92,7 @@ base::OnceClosure XzOperation(
   base::FilePath dest_file = in_file.DirName().AppendUTF8("decoded_xz");
 #endif  // defined(IN_MEMORY_UPDATES)
 #else
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+>>>>>>> parent of 9c4438fede8 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
         callback) {
