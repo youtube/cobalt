@@ -170,13 +170,12 @@ public class ScreenshotCaptureTest {
             throws IOException, TimeoutException, InterruptedException {
         mActivityTestRule.startOnNtp();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
-        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
+        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivityTab());
 
         CallbackHelper callbackHelper = new CallbackHelper();
         int currentNavIndex =
                 mActivityTestRule
-                        .getActivity()
-                        .getCurrentWebContents()
+                        .getWebContents()
                         .getNavigationController()
                         .getNavigationHistory()
                         .getCurrentEntryIndex();
@@ -216,8 +215,7 @@ public class ScreenshotCaptureTest {
         CallbackHelper callbackHelper = new CallbackHelper();
         int currentNavIndex =
                 mActivityTestRule
-                        .getActivity()
-                        .getCurrentWebContents()
+                        .getWebContents()
                         .getNavigationController()
                         .getNavigationHistory()
                         .getCurrentEntryIndex();
@@ -252,13 +250,12 @@ public class ScreenshotCaptureTest {
             throws IOException, TimeoutException, InterruptedException {
         mActivityTestRule.startOnNtp();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
-        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
+        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivityTab());
 
         CallbackHelper callbackHelper = new CallbackHelper();
         int currentNavIndex =
                 mActivityTestRule
-                        .getActivity()
-                        .getCurrentWebContents()
+                        .getWebContents()
                         .getNavigationController()
                         .getNavigationHistory()
                         .getCurrentEntryIndex();
@@ -295,7 +292,7 @@ public class ScreenshotCaptureTest {
             throws IOException, TimeoutException, InterruptedException {
         mActivityTestRule.startOnNtp();
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
-        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
+        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivityTab());
 
         mActivityTestRule.loadUrl(mTestServer.getURL(TEST_PAGE));
 
@@ -379,12 +376,11 @@ public class ScreenshotCaptureTest {
         UiUtils.settleDownUI(InstrumentationRegistry.getInstrumentation());
 
         // Sad tab is not considered as a native page.
-        Assert.assertFalse(mActivityTestRule.getActivity().getActivityTab().isNativePage());
+        Assert.assertFalse(mActivityTestRule.getActivityTab().isNativePage());
         CallbackHelper callbackHelper = new CallbackHelper();
         int currentNavIndex =
                 mActivityTestRule
-                        .getActivity()
-                        .getCurrentWebContents()
+                        .getWebContents()
                         .getNavigationController()
                         .getNavigationHistory()
                         .getCurrentEntryIndex();
@@ -421,8 +417,7 @@ public class ScreenshotCaptureTest {
         CallbackHelper callbackHelper = new CallbackHelper();
         int currentNavIndex =
                 mActivityTestRule
-                        .getActivity()
-                        .getCurrentWebContents()
+                        .getWebContents()
                         .getNavigationController()
                         .getNavigationHistory()
                         .getCurrentEntryIndex();
@@ -443,7 +438,7 @@ public class ScreenshotCaptureTest {
                 });
 
         onView(withId(R.id.home_button)).perform(click());
-        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivity().getActivityTab());
+        NewTabPageTestUtils.waitForNtpLoaded(mActivityTestRule.getActivityTab());
 
         // Expect to capture a screenshot of TEST_PAGE
         callbackHelper.waitForOnly();

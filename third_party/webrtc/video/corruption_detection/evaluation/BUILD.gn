@@ -11,7 +11,10 @@ import("../../../webrtc.gni")
 rtc_library("file_based_decoder") {
   testonly = true
   sources = [ "file_based_decoder.h" ]
-  deps = [ "//third_party/abseil-cpp/absl/strings:string_view" ]
+  deps = [
+    "../../../api:rtc_error",
+    "//third_party/abseil-cpp/absl/strings:string_view",
+  ]
 }
 
 rtc_library("file_based_encoder") {
@@ -19,6 +22,7 @@ rtc_library("file_based_encoder") {
   sources = [ "file_based_encoder.h" ]
   deps = [
     ":test_clip",
+    "../../../api:rtc_error",
     "../../../api/units:data_rate",
     "../../../api/video:video_frame",
   ]

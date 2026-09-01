@@ -292,6 +292,7 @@ class ComputedStyle final : public ComputedStyleBase {
   friend class css_longhand::BorderTopWidth;
   friend class css_longhand::ColumnRuleWidth;
   friend class css_longhand::OutlineWidth;
+  friend class ComputedStylePropertyMap;
   // Access to private Appearance() and HasAppearance().
   friend class LayoutTheme;
   friend class StyleAdjuster;
@@ -842,7 +843,8 @@ class ComputedStyle final : public ComputedStyleBase {
   // If true, the ComputedStyle must be recalculated when fonts are updated.
   bool DependsOnFontMetrics() const {
     return HasGlyphRelativeUnits() || HasFontSizeAdjust() ||
-           CustomStyleCallbackDependsOnFont();
+           CustomStyleCallbackDependsOnFont() ||
+           (StyleType() == kPseudoIdFirstLetter && !InitialLetter().IsNormal());
   }
 
   template <typename Functor>
@@ -2580,6 +2582,10 @@ class ComputedStyle final : public ComputedStyleBase {
     return (static_cast<int>(GetPositionVisibility()) &
             static_cast<int>(visibility)) == static_cast<int>(visibility);
   }
+
+  // Returns whether the animation-trigger property names a trigger. The name
+  // might refer to a trigger elsewhere in the DOM.
+  bool HasAnimationTrigger() const;
 
  private:
   bool IsInlineSizeContainer() const {

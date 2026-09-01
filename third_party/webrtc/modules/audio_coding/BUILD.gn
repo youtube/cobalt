@@ -423,6 +423,7 @@ rtc_library("audio_network_adaptor") {
   deps = [
     "../../api:array_view",
     "../../api/audio_codecs:audio_codecs_api",
+    "../../api/environment",
     "../../api/rtc_event_log",
     "../../common_audio",
     "../../logging:rtc_event_audio",
@@ -430,7 +431,6 @@ rtc_library("audio_network_adaptor") {
     "../../rtc_base:logging",
     "../../rtc_base:protobuf_utils",
     "../../rtc_base:safe_conversions",
-    "../../rtc_base:timeutils",
     "../../rtc_base/system:file_wrapper",
     "../../system_wrappers",
     "//third_party/abseil-cpp/absl/algorithm:container",
@@ -1549,6 +1549,7 @@ if (rtc_include_tests) {
         "../../system_wrappers",
         "../../test:audio_codec_mocks",
         "../../test:audio_test_common",
+        "../../test:create_test_environment",
         "../../test:create_test_field_trials",
         "../../test:fileutils",
         "../../test:rtc_expect_death",

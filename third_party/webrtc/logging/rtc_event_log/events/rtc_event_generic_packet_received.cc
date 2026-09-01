@@ -23,9 +23,6 @@ RtcEventGenericPacketReceived::RtcEventGenericPacketReceived(
     size_t packet_length)
     : packet_number_(packet_number), packet_length_(packet_length) {}
 
-RtcEventGenericPacketReceived::RtcEventGenericPacketReceived(
-    const RtcEventGenericPacketReceived& packet) = default;
-
 RtcEventGenericPacketReceived::~RtcEventGenericPacketReceived() = default;
 
 std::unique_ptr<RtcEventGenericPacketReceived>

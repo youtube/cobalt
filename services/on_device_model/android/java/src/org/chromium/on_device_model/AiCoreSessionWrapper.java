@@ -17,6 +17,7 @@ import org.chromium.on_device_model.mojom.InputPiece;
 @NullMarked
 class AiCoreSessionWrapper {
     private final AiCoreSessionBackend mBackend;
+    private final JniSafeCallback mJniSafeCallback = new JniSafeCallback();
 
     public AiCoreSessionWrapper(AiCoreSessionBackend backend) {
         mBackend = backend;
@@ -33,12 +34,20 @@ class AiCoreSessionWrapper {
                 new SessionResponder() {
                     @Override
                     public void onResponse(String response) {
-                        AiCoreSessionWrapperJni.get().onResponse(nativeBackendSession, response);
+                        mJniSafeCallback.run(
+                                () -> {
+                                    AiCoreSessionWrapperJni.get()
+                                            .onResponse(nativeBackendSession, response);
+                                });
                     }
 
                     @Override
                     public void onComplete(@GenerateResult int result) {
-                        AiCoreSessionWrapperJni.get().onComplete(nativeBackendSession, result);
+                        mJniSafeCallback.run(
+                                () -> {
+                                    AiCoreSessionWrapperJni.get()
+                                            .onComplete(nativeBackendSession, result);
+                                });
                     }
                 };
         mBackend.generate(castedGenerateOptions, castedInputPieces, responder);
@@ -46,7 +55,7 @@ class AiCoreSessionWrapper {
 
     @CalledByNative
     public void onNativeDestroyed() {
-        mBackend.onNativeDestroyed();
+        mJniSafeCallback.onNativeDestroyed(() -> mBackend.onNativeDestroyed());
     }
 
     @NativeMethods

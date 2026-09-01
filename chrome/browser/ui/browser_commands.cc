@@ -719,6 +719,13 @@ bool CanGoBack(content::WebContents* web_contents) {
   return web_contents->GetController().CanGoBack();
 }
 
+bool ShouldEnableBackButton(const Browser* browser) {
+  return browser->tab_strip_model()
+      ->GetActiveWebContents()
+      ->GetController()
+      .ShouldEnableBackButton();
+}
+
 enum class BackNavigationMenuIPHTrigger : int {
   kUserPerformsManyBackNavigation = 0,
   kUserPerformsChainedBackNavigation,
@@ -794,6 +801,13 @@ bool CanGoForward(const Browser* browser) {
 
 bool CanGoForward(content::WebContents* web_contents) {
   return web_contents->GetController().CanGoForward();
+}
+
+bool ShouldEnableForwardButton(const Browser* browser) {
+  return browser->tab_strip_model()
+      ->GetActiveWebContents()
+      ->GetController()
+      .ShouldEnableForwardButton();
 }
 
 void GoForward(Browser* browser, WindowOpenDisposition disposition) {
@@ -1014,8 +1028,16 @@ content::WebContents& NewTab(Browser* browser) {
       NewTabGroupingUserData::kNewTabGroupingUserDataKey,
       std::make_unique<NewTabGroupingUserData>(
           browser->tab_strip_model()->GetActiveTabGroupId()));
+
   if (browser->SupportsWindowFeature(Browser::FEATURE_TABSTRIP)) {
-    return *AddAndReturnTabAt(browser, GURL(), -1, true);
+    std::optional<tab_groups::TabGroupId> group_id = std::nullopt;
+
+    if (features::IsNewTabAddsToActiveGroupEnabled()) {
+      const int index = browser->tab_strip_model()->active_index();
+      group_id = browser->tab_strip_model()->GetTabGroupForTab(index);
+    }
+
+    return *AddAndReturnTabAt(browser, GURL(), -1, true, group_id);
   }
 
   ScopedTabbedBrowserDisplayer displayer(browser->profile());

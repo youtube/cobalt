@@ -469,7 +469,8 @@ class Heap final {
   V8_EXPORT_PRIVATE void CreateFillerObjectAt(
       Address addr, int size,
       ClearFreedMemoryMode clear_memory_mode =
-          ClearFreedMemoryMode::kDontClearFreedMemory);
+          ClearFreedMemoryMode::kDontClearFreedMemory,
+      std::optional<AllocationType> allocation_type = {});
 
   // Initialize a filler object at a specific address. Unlike
   // `CreateFillerObjectAt` this method will not perform slot verification since
@@ -479,8 +480,6 @@ class Heap final {
   bool CanMoveObjectStart(Tagged<HeapObject> object);
 
   bool IsImmovable(Tagged<HeapObject> object);
-
-  V8_EXPORT_PRIVATE static bool IsLargeObject(Tagged<HeapObject> object);
 
   // Trim the given array from the left. Note that this relocates the object
   // start and hence is only valid if there is only a single reference to it.
@@ -1992,8 +1991,6 @@ class Heap final {
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
-  void NotifyBackgrounded();
-
   V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime() const;
   V8_EXPORT_PRIVATE bool IsLoading() const;
   void NotifyLoadingStarted();
@@ -2062,7 +2059,6 @@ class Heap final {
     size_t global_allocation_limit;
   };
   static LimitsComputationResult ComputeNewAllocationLimits(Heap* heap);
-  V8_EXPORT_PRIVATE void ComputeAndSetNewAllocationLimits();
 
   // ===========================================================================
   // GC Tasks. =================================================================

@@ -98,14 +98,17 @@ int CreateReliableCacheFd(const char* name, size_t size) {
 
 // static
 MemFdMediaBufferPool* MemFdMediaBufferPool::Get() {
-  static MemFdMediaBufferPool instance;
+  // Use a heap-allocated singleton to avoid an exit-time destructor
+  // (-Wexit-time-destructors). The object lives for the lifetime of the
+  // process and is intentionally never freed.
+  static MemFdMediaBufferPool* const instance = new MemFdMediaBufferPool();
 
-  if (instance.fd_ < 0) {
+  if (instance->fd_ < 0) {
     SB_LOG(WARNING) << "Failed to create memfd for MediaBufferPool.";
     return nullptr;
   }
 
-  return &instance;
+  return instance;
 }
 
 void MemFdMediaBufferPool::ShrinkToZero() {

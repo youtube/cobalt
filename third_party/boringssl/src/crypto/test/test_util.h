@@ -76,5 +76,9 @@ std::string EncodeHex(bssl::Span<const uint8_t> in);
 // |reason|.
 testing::AssertionResult ErrorEquals(uint32_t err, int lib, int reason);
 
+// HexToBignum decodes |hex| as a hexadecimal, big-endian, unsigned integer and
+// returns it as a |BIGNUM|, or nullptr on error.
+bssl::UniquePtr<BIGNUM> HexToBIGNUM(const char *hex);
+
 
 #endif  // OPENSSL_HEADER_CRYPTO_TEST_TEST_UTIL_H

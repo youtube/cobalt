@@ -31,7 +31,8 @@ class MaglevGraphOptimizer {
   ProcessResult Visit##NodeT();                                       \
   ProcessResult Process(NodeT* node, const ProcessingState& state) {  \
     ScopedModification<NodeBase*> current_node(&current_node_, node); \
-    PreProcessNode(node);                                             \
+    UnwrapInputs();                                                   \
+    PreProcessNode(node, state);                                      \
     ProcessResult result = Visit##NodeT();                            \
     PostProcessNode(node);                                            \
     return result;                                                    \
@@ -52,23 +53,36 @@ class MaglevGraphOptimizer {
   KnownNodeAspects empty_known_node_aspects_;
 
   NodeBase* current_node_;
-  int current_node_index_;  // Initial index position in basic block.
 
   NodeBase* current_node() const {
     CHECK_NOT_NULL(current_node_);
     return current_node_;
   }
 
-  void PreProcessNode(Node*);
+  // Iterates the deopt frames unwrapping its inputs, ie, removing Identity or
+  // ReturnedValue nodes.
+  void UnwrapDeoptFrames();
+  void UnwrapInputs();
+
+  ValueNode* GetConstantWithRepresentation(ValueNode* node,
+                                           ValueRepresentation repr);
+
+  // Returns a variant of the node with the value representation given. It
+  // returns nullptr if we need to emit a tagged conversion.
+  ValueNode* GetUntaggedValueWithRepresentation(ValueNode* node,
+                                                ValueRepresentation repr,
+                                                NodeType allowed_type);
+
+  void PreProcessNode(Node*, const ProcessingState& state);
   void PostProcessNode(Node*);
 
   // Phis are treated differently since they are not stored directly in the
   // basic block.
-  void PreProcessNode(Phi*);
+  void PreProcessNode(Phi*, const ProcessingState& state);
   void PostProcessNode(Phi*);
 
   // Control nodes are singletons in the basic block.
-  void PreProcessNode(ControlNode*);
+  void PreProcessNode(ControlNode*, const ProcessingState& state);
   void PostProcessNode(ControlNode*);
 
   ValueNode* GetInputAt(int index) const;

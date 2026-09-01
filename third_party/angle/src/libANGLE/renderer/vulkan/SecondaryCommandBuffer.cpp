@@ -258,7 +258,9 @@ void SecondaryCommandBuffer::executeCommands(PrimaryCommandBuffer *primary)
                         GetFirstArrayParameter<VkDescriptorSet>(params);
                     const uint32_t *dynamicOffsets =
                         GetNextArrayParameter<uint32_t>(descriptorSets, params->descriptorSetCount);
-                    vkCmdBindDescriptorSets(cmdBuffer, params->pipelineBindPoint, params->layout,
+                    const VkPipelineBindPoint pipelineBindPoint =
+                        static_cast<VkPipelineBindPoint>(params->pipelineBindPoint);
+                    vkCmdBindDescriptorSets(cmdBuffer, pipelineBindPoint, params->layout,
                                             params->firstSet, params->descriptorSetCount,
                                             descriptorSets, params->dynamicOffsetCount,
                                             dynamicOffsets);
@@ -749,7 +751,8 @@ void SecondaryCommandBuffer::executeCommands(PrimaryCommandBuffer *primary)
                         getParamPtr<SetFragmentShadingRateParams>(currentCommand);
                     const VkExtent2D fragmentSize = {params->fragmentWidth, params->fragmentHeight};
                     const VkFragmentShadingRateCombinerOpKHR ops[2] = {
-                        VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR,
+                        static_cast<VkFragmentShadingRateCombinerOpKHR>(
+                            params->vkFragmentShadingRateCombinerOp0),
                         static_cast<VkFragmentShadingRateCombinerOpKHR>(
                             params->vkFragmentShadingRateCombinerOp1)};
                     vkCmdSetFragmentShadingRateKHR(cmdBuffer, &fragmentSize, ops);

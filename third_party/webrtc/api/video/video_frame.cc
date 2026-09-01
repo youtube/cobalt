@@ -92,7 +92,7 @@ VideoFrame::UpdateRect VideoFrame::UpdateRect::ScaleWithFrame(
   // Check if update rect is out of the cropped area.
   if (offset_x + width < crop_x || offset_x > crop_x + crop_width ||
       offset_y + height < crop_y || offset_y > crop_y + crop_width) {
-    return {0, 0, 0, 0};
+    return {.offset_x = 0, .offset_y = 0, .width = 0, .height = 0};
   }
 
   int x = offset_x - crop_x;
@@ -162,7 +162,7 @@ VideoFrame::UpdateRect VideoFrame::UpdateRect::ScaleWithFrame(
     y = 0;
   }
 
-  return {x, y, w, h};
+  return {.offset_x = x, .offset_y = y, .width = w, .height = h};
 }
 
 VideoFrame::Builder::Builder() = default;

@@ -38,6 +38,7 @@
 #include "api/units/data_rate.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_constants.h"
 #include "api/video/video_codec_type.h"
@@ -45,7 +46,6 @@
 #include "api/video/video_layers_allocation.h"
 #include "api/video/video_rotation.h"
 #include "api/video/video_timing.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "modules/rtp_rtcp/include/rtp_cvo.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -272,13 +272,13 @@ TEST_F(RtpSenderVideoTest,
                                          kCorruptionDetectionExtensionId);
   RTPVideoHeader hdr;
   hdr.frame_type = VideoFrameType::kVideoFrameKey;
-  hdr.frame_instrumentation_data = FrameInstrumentationData{
-      .sequence_index = 130,  // 128 + 2
-      .communicate_upper_bits = false,
-      .std_dev = 2.0,
-      .luma_error_threshold = 3,
-      .chroma_error_threshold = 2,
-      .sample_values = {12.0, 12.0, 12.0, 12.0, 12.0, 12.0, 12.0, 12.0}};
+  FrameInstrumentationData data;
+  data.SetSequenceIndex(130);  // 128 + 2
+  data.SetStdDev(2.0);
+  data.SetLumaErrorThreshold(3);
+  data.SetChromaErrorThreshold(2);
+  data.SetSampleValues({12.0, 12.0, 12.0, 12.0, 12.0, 12.0, 12.0, 12.0});
+  hdr.frame_instrumentation_data = data;
   CorruptionDetectionMessage message;
 
   rtp_sender_video_->SendVideo(
@@ -310,10 +310,9 @@ TEST_F(RtpSenderVideoTest,
                                          kCorruptionDetectionExtensionId);
   RTPVideoHeader hdr;
   hdr.frame_type = VideoFrameType::kVideoFrameKey;
-  hdr.frame_instrumentation_data = FrameInstrumentationSyncData{
-      .sequence_index = 130,  // 128 + 2
-      .communicate_upper_bits = true,
-  };
+  // Send data with sequence index divisible by 2^7 and no sample values in
+  // order create a sync message with upper bits set.
+  hdr.frame_instrumentation_data.emplace().SetSequenceIndex(128);
   CorruptionDetectionMessage message;
 
   rtp_sender_video_->SendVideo(

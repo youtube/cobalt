@@ -18,7 +18,6 @@
 #include <string>
 #include <tuple>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -39,6 +38,7 @@
 #include "api/units/data_size.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/render_resolution.h"
 #include "api/video/video_adaptation_counters.h"
@@ -65,7 +65,6 @@
 #include "call/adaptation/resource_adaptation_processor.h"
 #include "call/adaptation/video_source_restrictions.h"
 #include "call/adaptation/video_stream_adapter.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "media/base/media_channel.h"
 #include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/include/video_codec_initializer.h"
@@ -2253,10 +2252,8 @@ EncodedImageCallback::Result VideoStreamEncoder::OnEncodedImage(
 
   std::unique_ptr<CodecSpecificInfo> codec_specific_info_copy;
   if (codec_specific_info && frame_instrumentation_generator_) {
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        frame_instrumentation_data =
-            frame_instrumentation_generator_->OnEncodedImage(image_copy);
+    std::optional<FrameInstrumentationData> frame_instrumentation_data =
+        frame_instrumentation_generator_->OnEncodedImage(image_copy);
     RTC_CHECK(!codec_specific_info->frame_instrumentation_data.has_value())
         << "CodecSpecificInfo must not have frame_instrumentation_data set.";
     if (frame_instrumentation_data.has_value()) {

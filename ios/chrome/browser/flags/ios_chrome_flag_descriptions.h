@@ -26,6 +26,12 @@ extern const char kAIMPrototypeDevToolsDescription[];
 extern const char kAIMPrototypeName[];
 extern const char kAIMPrototypeDescription[];
 
+extern const char kAIHubNewBadgeName[];
+extern const char kAIHubNewBadgeDescription[];
+
+extern const char kOmniboxDRSPrototypeName[];
+extern const char kOmniboxDRSPrototypeDescription[];
+
 extern const char kAppBackgroundRefreshName[];
 extern const char kAppBackgroundRefreshDescription[];
 
@@ -257,8 +263,14 @@ extern const char kDataSharingSharedDataTypesEnabledWithUi[];
 extern const char kDefaultBrowserBannerPromoName[];
 extern const char kDefaultBrowserBannerPromoDescription[];
 
+extern const char kDefaultBrowserMagicStackName[];
+extern const char kDefaultBrowserMagicStackDescription[];
+
 extern const char kDefaultBrowserOffCyclePromoName[];
 extern const char kDefaultBrowserOffCyclePromoDescription[];
+
+extern const char kUseDefaultAppsDestinationForPromosName[];
+extern const char kUseDefaultAppsDestinationForPromosDescription[];
 
 extern const char kDefaultBrowserPromoPropensityModelName[];
 extern const char kDefaultBrowserPromoPropensityModelDescription[];
@@ -438,9 +450,6 @@ extern const char kIOSMiniMapUniversalLinkDescription[];
 extern const char kIOSOneTapMiniMapRestrictionsName[];
 extern const char kIOSOneTapMiniMapRestrictionsDescription[];
 
-extern const char kIOSPasswordBottomSheetAutofocusName[];
-extern const char kIOSPasswordBottomSheetAutofocusDescription[];
-
 extern const char kIOSProactivePasswordGenerationBottomSheetName[];
 extern const char kIOSProactivePasswordGenerationBottomSheetDescription[];
 
@@ -609,6 +618,9 @@ extern const char kLockBottomToolbarDescription[];
 
 extern const char kMagicStackName[];
 extern const char kMagicStackDescription[];
+
+extern const char kMobilePromoOnDesktopName[];
+extern const char kMobilePromoOnDesktopDescription[];
 
 // Title and description for the flag to enable UMA log uploads after each page
 // in the FRE.
@@ -810,6 +822,10 @@ extern const char kReaderModeDefaultBrowserPromoDescription[];
 // Title and description for the flag to refactor the toolbarsSize.
 extern const char kRefactorToolbarsSizeName[];
 extern const char kRefactorToolbarsSizeDescription[];
+
+// Title and description for the flag to remove autofill badges.
+extern const char kRemoveAutofillBadgesName[];
+extern const char kRemoveAutofillBadgesDescription[];
 
 extern const char kRemoveExcessNTPsExperimentName[];
 extern const char kRemoveExcessNTPsExperimentDescription[];

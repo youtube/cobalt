@@ -223,7 +223,7 @@ TEST_F(HeapTest, HeapLayout) {
 
 #if V8_ENABLE_SANDBOX
   Address trusted_space_base =
-      TrustedRange::GetProcessWideTrustedRange()->base();
+      i_isolate()->isolate_group()->GetTrustedPtrComprCageBase();
   EXPECT_TRUE(IsAligned(trusted_space_base, size_t{4} * GB));
   base::AddressRegion trusted_reservation(trusted_space_base, size_t{4} * GB);
 #endif
@@ -686,7 +686,7 @@ TEST_F(HeapTest, BlackAllocatedPages) {
   EXPECT_FALSE(in_free_list(page, next));
 
   // The page allocated before incremental marking is not black.
-  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  EXPECT_FALSE(page->Chunk()->IsBlackAllocatedPage());
 
   // Allocate a new object on a BLACK_ALLOCATED page.
   arr = iso->factory()->NewFixedArray(1, AllocationType::kOld);
@@ -694,13 +694,13 @@ TEST_F(HeapTest, BlackAllocatedPages) {
 
   // Expect the page to be black.
   page = PageMetadata::FromHeapObject(*arr);
-  EXPECT_TRUE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  EXPECT_TRUE(page->Chunk()->IsBlackAllocatedPage());
 
   // Invoke GC.
   InvokeMajorGC();
 
   // The page is not black now.
-  EXPECT_FALSE(page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
+  EXPECT_FALSE(page->Chunk()->IsBlackAllocatedPage());
   // After the GC the next free-space object must be in freelist.
   EXPECT_TRUE(in_free_list(page, next));
 }

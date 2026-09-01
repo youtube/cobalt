@@ -27,14 +27,16 @@ extern "C" {
 
 
 typedef struct evp_pkey_asn1_method_st EVP_PKEY_ASN1_METHOD;
-typedef struct evp_pkey_method_st EVP_PKEY_METHOD;
+typedef struct evp_pkey_ctx_method_st EVP_PKEY_CTX_METHOD;
 
 struct evp_pkey_asn1_method_st {
+  // pkey_id contains one of the |EVP_PKEY_*| values and corresponds to the OID
+  // in the key type's AlgorithmIdentifier.
   int pkey_id;
   uint8_t oid[9];
   uint8_t oid_len;
 
-  const EVP_PKEY_METHOD *pkey_method;
+  const EVP_PKEY_CTX_METHOD *pkey_method;
 
   // pub_decode decodes |params| and |key| as a SubjectPublicKeyInfo
   // and writes the result into |out|. It returns one on success and zero on
@@ -94,15 +96,11 @@ struct evp_pkey_asn1_method_st {
 struct evp_pkey_st {
   CRYPTO_refcount_t references;
 
-  // type contains one of the EVP_PKEY_* values or NID_undef and determines
-  // the type of |pkey|.
-  int type;
-
-  // pkey contains a pointer to a structure dependent on |type|.
+  // pkey contains a pointer to a structure dependent on |ameth|.
   void *pkey;
 
-  // ameth contains a pointer to a method table that contains many ASN.1
-  // methods for the key type.
+  // ameth contains a pointer to a method table that determines the key type, or
+  // nullptr if the key is empty.
   const EVP_PKEY_ASN1_METHOD *ameth;
 } /* EVP_PKEY */;
 
@@ -167,7 +165,7 @@ OPENSSL_EXPORT int EVP_PKEY_CTX_ctrl(EVP_PKEY_CTX *ctx, int keytype, int optype,
 #define EVP_PKEY_CTRL_GET_RSA_MGF1_MD (EVP_PKEY_ALG_CTRL + 10)
 #define EVP_PKEY_CTRL_RSA_OAEP_LABEL (EVP_PKEY_ALG_CTRL + 11)
 #define EVP_PKEY_CTRL_GET_RSA_OAEP_LABEL (EVP_PKEY_ALG_CTRL + 12)
-#define EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID (EVP_PKEY_ALG_CTRL + 13)
+#define EVP_PKEY_CTRL_EC_PARAMGEN_GROUP (EVP_PKEY_ALG_CTRL + 13)
 #define EVP_PKEY_CTRL_HKDF_MODE (EVP_PKEY_ALG_CTRL + 14)
 #define EVP_PKEY_CTRL_HKDF_MD (EVP_PKEY_ALG_CTRL + 15)
 #define EVP_PKEY_CTRL_HKDF_KEY (EVP_PKEY_ALG_CTRL + 16)
@@ -179,9 +177,7 @@ struct evp_pkey_ctx_st {
   ~evp_pkey_ctx_st();
 
   // Method associated with this operation
-  const EVP_PKEY_METHOD *pmeth = nullptr;
-  // Engine that implements this method or nullptr if builtin
-  ENGINE *engine = nullptr;
+  const EVP_PKEY_CTX_METHOD *pmeth = nullptr;
   // Key: may be nullptr
   bssl::UniquePtr<EVP_PKEY> pkey;
   // Peer key for key agreement, may be nullptr
@@ -195,7 +191,7 @@ struct evp_pkey_ctx_st {
   void *data = nullptr;
 } /* EVP_PKEY_CTX */;
 
-struct evp_pkey_method_st {
+struct evp_pkey_ctx_method_st {
   int pkey_id;
 
   int (*init)(EVP_PKEY_CTX *ctx);
@@ -230,7 +226,7 @@ struct evp_pkey_method_st {
   int (*paramgen)(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey);
 
   int (*ctrl)(EVP_PKEY_CTX *ctx, int type, int p1, void *p2);
-} /* EVP_PKEY_METHOD */;
+} /* EVP_PKEY_CTX_METHOD */;
 
 typedef struct {
   // key is the concatenation of the private seed and public key. It is stored
@@ -256,16 +252,18 @@ extern const EVP_PKEY_ASN1_METHOD ed25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD x25519_asn1_meth;
 extern const EVP_PKEY_ASN1_METHOD dh_asn1_meth;
 
-extern const EVP_PKEY_METHOD rsa_pkey_meth;
-extern const EVP_PKEY_METHOD ec_pkey_meth;
-extern const EVP_PKEY_METHOD ed25519_pkey_meth;
-extern const EVP_PKEY_METHOD x25519_pkey_meth;
-extern const EVP_PKEY_METHOD hkdf_pkey_meth;
-extern const EVP_PKEY_METHOD dh_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD rsa_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD ec_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD ed25519_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD x25519_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD hkdf_pkey_meth;
+extern const EVP_PKEY_CTX_METHOD dh_pkey_meth;
 
-// evp_pkey_set_method behaves like |EVP_PKEY_set_type|, but takes a pointer to
-// a method table. This avoids depending on every |EVP_PKEY_ASN1_METHOD|.
-void evp_pkey_set_method(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method);
+// evp_pkey_set0 sets |pkey|'s method to |method| and data to |pkey_data|,
+// freeing any key that may previously have been configured. This function takes
+// ownership of |pkey_data|, which must be of the type expected by |method|.
+void evp_pkey_set0(EVP_PKEY *pkey, const EVP_PKEY_ASN1_METHOD *method,
+                   void *pkey_data);
 
 
 #if defined(__cplusplus)

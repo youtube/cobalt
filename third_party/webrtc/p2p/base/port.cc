@@ -53,7 +53,6 @@
 #include "rtc_base/string_encode.h"
 #include "rtc_base/string_utils.h"
 #include "rtc_base/strings/string_builder.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "rtc_base/weak_ptr.h"
 
@@ -164,22 +163,27 @@ const Network* Port::Network() const {
 }
 
 IceRole Port::GetIceRole() const {
+  RTC_DCHECK_RUN_ON(thread_);
   return ice_role_;
 }
 
 void Port::SetIceRole(IceRole role) {
+  RTC_DCHECK_RUN_ON(thread_);
   ice_role_ = role;
 }
 
 void Port::SetIceTiebreaker(uint64_t tiebreaker) {
+  RTC_DCHECK_RUN_ON(thread_);
   tiebreaker_ = tiebreaker;
 }
 
 uint64_t Port::IceTiebreaker() const {
+  RTC_DCHECK_RUN_ON(thread_);
   return tiebreaker_;
 }
 
 bool Port::SharedSocket() const {
+  RTC_DCHECK_RUN_ON(thread_);
   return shared_socket_;
 }
 
@@ -208,6 +212,7 @@ const std::vector<Candidate>& Port::Candidates() const {
 }
 
 Connection* Port::GetConnection(const SocketAddress& remote_addr) {
+  RTC_DCHECK_RUN_ON(thread_);
   AddressMap::const_iterator iter = connections_.find(remote_addr);
   if (iter != connections_.end())
     return iter->second;
@@ -240,7 +245,7 @@ void Port::AddAddress(const SocketAddress& address,
 
   c.set_priority(
       c.GetPriority(type_preference, network_->preference(), relay_preference,
-                    field_trials().IsEnabled(
+                    env().field_trials().IsEnabled(
                         "WebRTC-IncreaseIceCandidatePriorityHostSrflx")));
 #if RTC_DCHECK_IS_ON
   if (protocol == TCP_PROTOCOL_NAME && c.is_local()) {
@@ -310,7 +315,19 @@ void Port::PostAddAddress(bool is_final) {
   }
 }
 
+void Port::SubscribeCandidateError(
+    std::function<void(Port*, const IceCandidateErrorEvent&)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  candidate_error_callback_list_.AddReceiver(std::move(callback));
+}
+
+void Port::SendCandidateError(const IceCandidateErrorEvent& event) {
+  RTC_DCHECK_RUN_ON(thread_);
+  candidate_error_callback_list_.Send(this, event);
+}
+
 void Port::AddOrReplaceConnection(Connection* conn) {
+  RTC_DCHECK_RUN_ON(thread_);
   auto ret = connections_.insert(
       std::make_pair(conn->remote_candidate().address(), conn));
   // If there is a different connection on the same remote address, replace
@@ -329,6 +346,8 @@ void Port::AddOrReplaceConnection(Connection* conn) {
 }
 
 void Port::OnReadPacket(const ReceivedIpPacket& packet, ProtocolType proto) {
+  RTC_DCHECK_RUN_ON(thread_);
+
   const char* data = reinterpret_cast<const char*>(packet.payload().data());
   size_t size = packet.payload().size();
   const SocketAddress& addr = packet.source_address();
@@ -384,6 +403,7 @@ void Port::OnReadPacket(const ReceivedIpPacket& packet, ProtocolType proto) {
 }
 
 void Port::OnReadyToSend() {
+  RTC_DCHECK_RUN_ON(thread_);
   AddressMap::iterator iter = connections_.begin();
   for (; iter != connections_.end(); ++iter) {
     iter->second->OnReadyToSend();
@@ -792,6 +812,8 @@ void Port::SendUnknownAttributesErrorResponse(
 }
 
 void Port::KeepAliveUntilPruned() {
+  RTC_DCHECK_RUN_ON(thread_);
+
   // If it is pruned, we won't bring it up again.
   if (state_ == State::INIT) {
     state_ = State::KEEP_ALIVE_UNTIL_PRUNED;
@@ -799,6 +821,7 @@ void Port::KeepAliveUntilPruned() {
 }
 
 void Port::Prune() {
+  RTC_DCHECK_RUN_ON(thread_);
   state_ = State::PRUNED;
   PostDestroyIfDead(/*delayed=*/false);
 }
@@ -811,6 +834,7 @@ void Port::CancelPendingTasks() {
 }
 
 void Port::PostDestroyIfDead(bool delayed) {
+  RTC_DCHECK_RUN_ON(thread_);
   WeakPtr<Port> weak_ptr = NewWeakPtr();
   auto task = [weak_ptr = std::move(weak_ptr)] {
     if (weak_ptr) {
@@ -830,7 +854,8 @@ void Port::DestroyIfDead() {
   bool dead =
       (state_ == State::INIT || state_ == State::PRUNED) &&
       connections_.empty() &&
-      TimeMillis() - last_time_all_connections_removed_ >= timeout_delay_;
+      env_.clock().TimeInMilliseconds() - last_time_all_connections_removed_ >=
+          timeout_delay_;
   if (dead) {
     Destroy();
   }
@@ -838,10 +863,12 @@ void Port::DestroyIfDead() {
 
 void Port::SubscribePortDestroyed(
     std::function<void(PortInterface*)> callback) {
-  port_destroyed_callback_list_.AddReceiver(callback);
+  RTC_DCHECK_RUN_ON(thread_);
+  port_destroyed_callback_list_.AddReceiver(std::move(callback));
 }
 
 void Port::SendPortDestroyed(Port* port) {
+  RTC_DCHECK_RUN_ON(thread_);
   port_destroyed_callback_list_.Send(port);
 }
 void Port::OnNetworkTypeChanged(const ::webrtc::Network* network) {
@@ -851,6 +878,7 @@ void Port::OnNetworkTypeChanged(const ::webrtc::Network* network) {
 }
 
 std::string Port::ToString() const {
+  RTC_DCHECK_RUN_ON(thread_);
   StringBuilder ss;
   ss << "Port[" << ToHex(reinterpret_cast<uintptr_t>(this)) << ":"
      << content_name_ << ":" << component_ << ":" << generation_ << ":"
@@ -861,7 +889,7 @@ std::string Port::ToString() const {
 // TODO(honghaiz): Make the network cost configurable from user setting.
 void Port::UpdateNetworkCost() {
   RTC_DCHECK_RUN_ON(thread_);
-  uint16_t new_cost = network_->GetCost(field_trials());
+  uint16_t new_cost = network_->GetCost(env().field_trials());
   if (network_cost_ == new_cost) {
     return;
   }
@@ -879,10 +907,12 @@ void Port::UpdateNetworkCost() {
 }
 
 void Port::EnablePortPackets() {
+  RTC_DCHECK_RUN_ON(thread_);
   enable_port_packets_ = true;
 }
 
 bool Port::OnConnectionDestroyed(Connection* conn) {
+  RTC_DCHECK_RUN_ON(thread_);
   if (connections_.erase(conn->remote_candidate().address()) == 0) {
     // This could indicate a programmer error outside of webrtc so while we
     // do have this check here to alert external developers, we also need to
@@ -899,7 +929,7 @@ bool Port::OnConnectionDestroyed(Connection* conn) {
   // fails and is removed before kPortTimeoutDelay, then this message will
   // not cause the Port to be destroyed.
   if (connections_.empty()) {
-    last_time_all_connections_removed_ = TimeMillis();
+    last_time_all_connections_removed_ = env_.clock().TimeInMilliseconds();
     PostDestroyIfDead(/*delayed=*/true);
   }
 
@@ -926,6 +956,7 @@ void Port::DestroyConnectionInternal(Connection* conn, bool async) {
 }
 
 void Port::Destroy() {
+  RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(connections_.empty());
   RTC_LOG(LS_INFO) << ToString() << ": Port deleted";
   SendPortDestroyed(this);
@@ -945,6 +976,7 @@ void Port::CopyPortInformationToPacketInfo(PacketInfo* info) const {
 void Port::MaybeRequestLocalNetworkAccessPermission(
     const SocketAddress& address,
     absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
   if (!lna_permission_factory_) {
     std::move(callback)(LocalNetworkAccessPermissionStatus::kGranted);
     return;
@@ -975,6 +1007,7 @@ void Port::OnRequestLocalNetworkAccessPermission(
     LocalNetworkAccessPermissionInterface* permission_query,
     absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback,
     LocalNetworkAccessPermissionStatus status) {
+  RTC_DCHECK_RUN_ON(thread_);
   auto it =
       absl::c_find_if(permission_queries_, [permission_query](const auto& q) {
         return q.get() == permission_query;

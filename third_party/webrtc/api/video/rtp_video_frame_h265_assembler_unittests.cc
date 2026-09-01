@@ -107,8 +107,8 @@ ArrayView<int64_t> References(const std::unique_ptr<EncodedFrame>& frame) {
   return MakeArrayView(frame->references, frame->num_references);
 }
 
-ArrayView<uint8_t> Payload(const std::unique_ptr<EncodedFrame>& frame) {
-  return ArrayView<uint8_t>(*frame->GetEncodedData());
+ArrayView<const uint8_t> Payload(const std::unique_ptr<EncodedFrame>& frame) {
+  return *frame->GetEncodedData();
 }
 
 TEST(RtpVideoFrameH265Assembler, H265Packetization) {

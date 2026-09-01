@@ -844,7 +844,9 @@ MaybeDirectHandle<WasmSuspenderObject> TryGetWasmSuspender(
     Tagged<SharedFunctionInfo> shared = Cast<JSFunction>(handler)->shared();
     if (shared->HasWasmResumeData()) {
       return direct_handle(
-          shared->wasm_resume_data()->trusted_suspender(isolate), isolate);
+          TrustedCast<WasmSuspenderObject>(
+              shared->wasm_resume_data()->trusted_suspender(isolate)),
+          isolate);
     }
   }
   return MaybeDirectHandle<WasmSuspenderObject>();
@@ -1812,7 +1814,7 @@ void Isolate::PrintStack(StringStream* accumulator, PrintStackMode mode) {
   DCHECK(accumulator->IsMentionedObjectCacheClear(this));
 
   // Avoid printing anything if there are no frames.
-  if (c_entry_fp(thread_local_top()) == 0) return;
+  if (c_entry_fp(thread_local_top()) == 0 && !InFastCCall()) return;
 
   accumulator->Add(
       "\n==== JS stack trace =========================================\n\n");
@@ -2318,7 +2320,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // Otherwise the exception should have been caught by the JSPI builtin.
         // TODO(388533754): Revisit this for core stack-switching when the
         // suspender can encapsulate multiple stacks.
-        auto suspender = Tagged<WasmSuspenderObject>::cast(maybe_suspender);
+        auto suspender = TrustedCast<WasmSuspenderObject>(maybe_suspender);
         if (suspender->has_parent()) {
           maybe_suspender = suspender->parent();
         } else {
@@ -3564,9 +3566,9 @@ bool CallsCatchMethod(const StackFrameSummaryIterator& iterator) {
   }
   if (iterator.frame_summary().IsJavaScript()) {
     auto& js_summary = iterator.frame_summary().AsJavaScript();
-    if (IsBytecodeArray(*js_summary.abstract_code())) {
-      if (CallsCatchMethod(iterator.isolate(),
-                           Cast<BytecodeArray>(js_summary.abstract_code()),
+    if (Handle<BytecodeArray> bytecode_array;
+        TryCast(js_summary.abstract_code(), &bytecode_array)) {
+      if (CallsCatchMethod(iterator.isolate(), bytecode_array,
                            js_summary.code_offset())) {
         return true;
       }
@@ -3798,6 +3800,21 @@ bool Isolate::IsWasmImportedStringsEnabled(
     if (callback(api_context)) return true;
   }
   return v8_flags.experimental_wasm_imported_strings;
+#else
+  return false;
+#endif
+}
+
+bool Isolate::IsWasmCustomDescriptorsEnabled(
+    DirectHandle<NativeContext> context) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  v8::WasmCustomDescriptorsEnabledCallback callback =
+      wasm_custom_descriptors_enabled_callback();
+  if (callback) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback(api_context)) return true;
+  }
+  return v8_flags.experimental_wasm_custom_descriptors;
 #else
   return false;
 #endif
@@ -4341,7 +4358,7 @@ Isolate::Isolate(IsolateGroup* isolate_group)
   // TODO(ahaas): The code of the landing pad does not have to be a builtin,
   // we could also just move it to the trap handler, and implement it e.g. with
   // inline assembly. It's not clear if that's worth it.
-  if (Isolate::CurrentEmbeddedBlobCodeSize()) {
+  if (Isolate::CurrentEmbeddedBlobCodeSize() && !v8_flags.wasm_jitless) {
     Address landing_pad =
         Builtins::EmbeddedEntryOf(Builtin::kWasmTrapHandlerLandingPad);
     i::trap_handler::SetLandingPad(landing_pad);
@@ -4788,6 +4805,9 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   V8HeapCompressionScheme::InitBase(isolate ? isolate->cage_base()
                                             : kNullAddress);
+  TrustedSpaceCompressionScheme::InitBase(
+      isolate ? isolate->isolate_group()->GetTrustedPtrComprCageBase()
+              : kNullAddress);
   IsolateGroup::set_current(isolate ? isolate->isolate_group() : nullptr);
 #ifdef V8_EXTERNAL_CODE_SPACE
   ExternalCodeCompressionScheme::InitBase(isolate ? isolate->code_cage_base()
@@ -7340,7 +7360,7 @@ void Isolate::SetPriority(v8::Isolate::Priority priority) {
   priority_ = priority;
   heap()->tracer()->UpdateCurrentEventPriority(priority_);
   if (priority_ == v8::Isolate::Priority::kBestEffort) {
-    heap()->NotifyBackgrounded();
+    heap()->ActivateMemoryReducerIfNeeded();
   }
 }
 
@@ -7765,7 +7785,7 @@ void Isolate::LocalsBlockListCacheSet(
   } else {
     CHECK(IsUndefined(heap()->locals_block_list_cache()));
     constexpr int kInitialCapacity = 8;
-    cache = EphemeronHashTable::New(this, kInitialCapacity).ToHandleChecked();
+    cache = EphemeronHashTable::New(this, kInitialCapacity);
   }
   DCHECK(IsEphemeronHashTable(*cache));
 
@@ -7782,7 +7802,7 @@ void Isolate::LocalsBlockListCacheSet(
   heap()->set_locals_block_list_cache(*cache);
 }
 
-Tagged<Object> Isolate::LocalsBlockListCacheGet(
+Tagged<UnionOf<TheHole, StringSet>> Isolate::LocalsBlockListCacheGet(
     DirectHandle<ScopeInfo> scope_info) {
   DisallowGarbageCollection no_gc;
 
@@ -7793,10 +7813,13 @@ Tagged<Object> Isolate::LocalsBlockListCacheGet(
   Tagged<Object> maybe_value =
       Cast<EphemeronHashTable>(heap()->locals_block_list_cache())
           ->Lookup(scope_info);
-  if (IsTuple2(maybe_value)) return Cast<Tuple2>(maybe_value)->value2();
+  if (IsTheHole(maybe_value)) return Cast<TheHole>(maybe_value);
+  if (Tagged<Tuple2> tuple; TryCast<Tuple2>(maybe_value, &tuple)) {
+    return Cast<StringSet>(tuple->value2());
+  }
 
-  CHECK(IsStringSet(maybe_value) || IsTheHole(maybe_value));
-  return maybe_value;
+  CHECK(IsStringSet(maybe_value));
+  return Cast<StringSet>(maybe_value);
 }
 
 std::list<std::unique_ptr<detail::WaiterQueueNode>>&

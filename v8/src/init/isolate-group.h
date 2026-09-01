@@ -27,6 +27,7 @@
 
 #ifdef V8_ENABLE_SANDBOX
 #include "src/base/region-allocator.h"
+#include "src/heap/trusted-range.h"
 #endif  // V8_ENABLE_SANDBOX
 
 namespace v8 {
@@ -159,7 +160,11 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
           reinterpret_cast<Isolate*>(kReadOnlyOrSharedEntryIsolateSentinel)) {
         return;
       }
-      SBXCHECK_EQ(isolate_, isolate);
+      // This should be a `SBXCHECK_EQ()` which doesn't currently work as we
+      // don't allow nesting of DisallowSandboxAccess in AllowSandboxAccess
+      // scopes. There's no sandbox access in the condition so this replacement
+      // is fine.
+      CHECK_EQ(isolate_, isolate);
     }
 
     void SetMetadata(MemoryChunkMetadata* metadata, Isolate* isolate);
@@ -412,6 +417,7 @@ class V8_EXPORT_PRIVATE IsolateGroup final {
 #else
   SandboxedArrayBufferAllocator backend_allocator_;
 #endif
+  TrustedRange trusted_range_;
 #endif  // V8_ENABLE_SANDBOX
 
 #ifdef V8_ENABLE_LEAPTIERING

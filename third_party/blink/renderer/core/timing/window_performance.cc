@@ -206,7 +206,7 @@ bool IsEventTypeForInteractionId(const AtomicString& type) {
 base::TimeDelta TotalNonOverlappingProcessingDuration(
     HeapVector<Member<PerformanceEventTiming>> event_timing_entries) {
   base::TimeDelta processing_duration;
-  for (auto entry : event_timing_entries) {
+  for (const auto& entry : event_timing_entries) {
     const auto& processing_start_time =
         entry->GetEventTimingReportingInfo()->processing_start_time;
     const auto& processing_end_time =
@@ -342,8 +342,7 @@ MemoryInfo* WindowPerformance::memory(ScriptState* script_state) const {
 
 namespace {
 
-BASE_FEATURE(kAdjustNavigationalPrefetchTiming,
-             "AdjustNavigationalPrefetchTiming",
+BASE_FEATURE(AdjustNavigationalPrefetchTiming,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 enum class AdjustNavigationalPrefetchTimingBehavior {
@@ -725,7 +724,7 @@ void WindowPerformance::EventTimingProcessingEnd(
 
 void WindowPerformance::SetCommitFinishTimeStampForPendingEvents(
     base::TimeTicks commit_finish_time) {
-  for (auto entry : event_timing_entries_) {
+  for (const auto& entry : event_timing_entries_) {
     // Skip events that already have a commit time
     if (!entry->GetEventTimingReportingInfo()->commit_finish_time.is_null()) {
       continue;
@@ -746,7 +745,7 @@ void WindowPerformance::SetCommitFinishTimeStampForPendingEvents(
 
 void WindowPerformance::SetRenderStartTimeForPendingEvents(
     base::TimeTicks render_start_time) {
-  for (auto entry : event_timing_entries_) {
+  for (const auto& entry : event_timing_entries_) {
     // Skip events that already have a render start time.
     if (!entry->GetEventTimingReportingInfo()->render_start_time.is_null()) {
       continue;
@@ -802,7 +801,7 @@ void WindowPerformance::OnPresentationPromiseResolved(
     }
   }
 
-  for (auto entry : event_timing_entries_) {
+  for (const auto& entry : event_timing_entries_) {
     auto* timing = entry->GetEventTimingReportingInfo();
     if (timing->presentation_index == presentation_index) {
       timing->presentation_time =
@@ -868,7 +867,7 @@ void WindowPerformance::OnPresentationPromiseResolved(
 
 void WindowPerformance::ReportEventTimingsWithoutNextPaint(
     base::TimeTicks fallback_time) {
-  for (auto event_timing_entry : event_timing_entries_) {
+  for (const auto& event_timing_entry : event_timing_entries_) {
     if (event_timing_entry->GetEventTimingReportingInfo()->presentation_index ==
         event_presentation_promise_count_) {
       event_timing_entry->UpdateFallbackTime(
@@ -913,7 +912,7 @@ void WindowPerformance::ReportAllPendingEventTimingsOnPageHidden() {
   // Ideally the fallback time could be the last_hidden_timestamp_, but we don't
   // actually have an accurate value for that (it would need to come from
   // browser IPC).
-  for (auto event_timing_entry : event_timing_entries_) {
+  for (const auto& event_timing_entry : event_timing_entries_) {
     auto* entryInfo = event_timing_entry->GetEventTimingReportingInfo();
     bool has_no_known_end_time = !event_timing_entry->HasKnownEndTime();
     bool has_processing_end_time = !entryInfo->processing_end_time.is_null();
@@ -932,6 +931,8 @@ void WindowPerformance::ReportEventTimings() {
       InteractiveDetector::From(*(DomWindow()->document()));
 
   bool tracing_enabled = TRACE_EVENT_CATEGORY_ENABLED("latency");
+  const auto parent_track =
+      perfetto::NamedTrack::ThreadScoped("EventTimingsByAnimationFrame", this);
 
   while (!event_timing_entries_.empty()) {
     // Find the range [first, last) of events with the same presentation_index
@@ -975,13 +976,12 @@ void WindowPerformance::ReportEventTimings() {
                                      : last_event_reporting_info->fallback_time;
 
     if (tracing_enabled) {
-      auto scope = perfetto::Track::ThreadScoped(this);
       auto flowid = perfetto::Flow::ProcessScoped(presentation_index);
 
-      TRACE_EVENT_BEGIN("latency", "EventsInAnimationFrame", scope,
+      TRACE_EVENT_BEGIN("latency", "EventsInAnimationFrame", parent_track,
                         first_event_processing_start, flowid);
 
-      TRACE_EVENT_INSTANT("latency", "EventCreation", scope,
+      TRACE_EVENT_INSTANT("latency", "EventCreation", parent_track,
                           first_event_creation_time, flowid);
     }
 
@@ -1003,13 +1003,12 @@ void WindowPerformance::ReportEventTimings() {
     });
 
     if (tracing_enabled) {
-      auto scope = perfetto::Track::ThreadScoped(this);
       auto flowid = perfetto::Flow::ProcessScoped(presentation_index);
 
-      TRACE_EVENT_END("latency", scope, frame_end_time);
+      TRACE_EVENT_END("latency", parent_track, frame_end_time);
 
       if (!last_event_presentation_time.is_null()) {
-        TRACE_EVENT_INSTANT("latency", "EventPresentation", scope,
+        TRACE_EVENT_INSTANT("latency", "EventPresentation", parent_track,
                             last_event_presentation_time, flowid);
       }
 
@@ -1020,7 +1019,7 @@ void WindowPerformance::ReportEventTimings() {
                                          ->fallback_time.is_null();
                            });
           first_entry_with_fallback != last) {
-        TRACE_EVENT_INSTANT("latency", "EventFallbackTime", scope,
+        TRACE_EVENT_INSTANT("latency", "EventFallbackTime", parent_track,
                             first_entry_with_fallback->Get()
                                 ->GetEventTimingReportingInfo()
                                 ->fallback_time,
@@ -1221,31 +1220,22 @@ void WindowPerformance::NotifyAndAddEventTimingBuffer(
   bool latency_tracing_enabled = TRACE_EVENT_CATEGORY_ENABLED("latency");
   bool devtools_tracing_enabled =
       TRACE_EVENT_CATEGORY_ENABLED("devtools.timeline");
+  const auto parent_track =
+      perfetto::NamedTrack::ThreadScoped("EventTimingsByAnimationFrame", this);
 
   if (latency_tracing_enabled || devtools_tracing_enabled) {
     auto* entryInfo = entry->GetEventTimingReportingInfo();
-    base::TimeTicks unsafe_start_time = entryInfo->creation_time;
-    base::TimeTicks unsafe_end_time = entry->GetEndTime();
-    unsigned hash = GetHash(entry->name());
-    AddFloatToHash(hash, entry->startTime());
-    auto track_id = perfetto::Track::ThreadScoped(this);
     auto flow_id = perfetto::Flow::FromPointer(entry);
-    TRACE_EVENT_INSTANT("latency", "EventCreation", track_id,
+
+    TRACE_EVENT_INSTANT("latency", "EventCreation", parent_track,
                         entryInfo->creation_time, flow_id);
     auto enqueued_to_main_thread_time = entryInfo->enqueued_to_main_thread_time;
-    if (!enqueued_to_main_thread_time.is_null()) {
-      TRACE_EVENT_INSTANT("latency", "EventEnqueuedToMainThread", track_id,
-                          enqueued_to_main_thread_time, flow_id);
-    }
-
-    // Add EventTimingMeasurementComplete trace event to report when Event
-    // Timing was measured and reported to the Performance Timeline. This helps
-    // track the delay between frame presentation and timeline reporting.
-    TRACE_EVENT_INSTANT("latency", "EventTimingMeasurementComplete", track_id,
-                        base::TimeTicks::Now(), flow_id);
+    CHECK(!enqueued_to_main_thread_time.is_null(), base::NotFatalUntil(143));
+    TRACE_EVENT_INSTANT("latency", "EventEnqueuedToMainThread", parent_track,
+                        enqueued_to_main_thread_time, flow_id);
 
     TRACE_EVENT_BEGIN(
-        "latency", "EventProcessing", track_id,
+        "latency", "EventProcessing", parent_track,
         entryInfo->processing_start_time, flow_id, "fallback_reason",
         PerformanceEventTiming::FallbackReasonToString(
             entryInfo->fallback_reason),
@@ -1256,15 +1246,27 @@ void WindowPerformance::NotifyAndAddEventTimingBuffer(
           entry->SetPerfettoData(DomWindow()->GetFrame(), data,
                                  GetTimeOriginInternal());
         });
-    TRACE_EVENT_END("latency", track_id, entryInfo->processing_end_time);
+    TRACE_EVENT_END("latency", parent_track, entryInfo->processing_end_time);
+
+    TRACE_EVENT_INSTANT("latency", "EventEndTime", parent_track,
+                        entry->GetEndTime(), flow_id);
+
+    // Add EventTimingMeasurementComplete trace event to report when Event
+    // Timing was measured and reported to the Performance Timeline. This helps
+    // track the delay between frame presentation and timeline reporting.
+    TRACE_EVENT_INSTANT("latency", "EventTimingMeasurementComplete",
+                        parent_track, base::TimeTicks::Now(), flow_id);
+
     // TODO(sullivan): Remove these events when DevTools migrates to the above
     // perfetto events.
+    unsigned hash = GetHash(entry->name());
+    AddFloatToHash(hash, entry->startTime());
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN_WITH_TIMESTAMP1(
-        "devtools.timeline", "EventTiming", hash, unsafe_start_time, "data",
-        entry->ToTracedValue(DomWindow()->GetFrame()));
+        "devtools.timeline", "EventTiming", hash, entryInfo->creation_time,
+        "data", entry->ToTracedValue(DomWindow()->GetFrame()));
 
     TRACE_EVENT_NESTABLE_ASYNC_END_WITH_TIMESTAMP0(
-        "devtools.timeline", "EventTiming", hash, unsafe_end_time);
+        "devtools.timeline", "EventTiming", hash, entry->GetEndTime());
   }
 }
 

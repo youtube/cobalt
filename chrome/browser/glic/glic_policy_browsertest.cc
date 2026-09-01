@@ -24,9 +24,11 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/profiles/profile_test_util.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/common/chrome_features.h"
@@ -61,8 +63,9 @@ class PanelStateObserver : public GlicWindowController::StateObserver {
   PanelStateObserver(mojom::PanelState::Kind kind, base::OnceClosure callback)
       : kind_(kind), callback_(std::move(callback)) {}
 
-  void PanelStateChanged(const mojom::PanelState& panel_state,
-                         Browser* attached_browser) override {
+  void PanelStateChanged(
+      const mojom::PanelState& panel_state,
+      const GlicWindowController::PanelStateContext& context) override {
     if (panel_state.kind == kind_) {
       std::move(callback_).Run();
     }
@@ -179,12 +182,8 @@ class GlicPolicyTest : public PolicyTest {
   }
 
   GlicButton* GetGlicButtonForBrowser(Browser* browser) {
-    TabStripActionContainer* container =
-        BrowserView::GetBrowserViewForBrowser(browser)
-            ->tab_strip_region_view()
-            ->GetTabStripActionContainer();
-    CHECK(container);
-    return container->GetGlicButton();
+    return BrowserElementsViews::From(browser)->GetViewAs<glic::GlicButton>(
+        kGlicButtonElementId);
   }
 
   void SetGlicPolicy(
@@ -531,14 +530,8 @@ IN_PROC_BROWSER_TEST_F(GlicPolicyTest, DisableGlicWhenIsOpen) {
         mojom::PanelState::Kind::kDetached,
         wait_for_panel.GetCallback());
     service->window_controller().AddStateObserver(&panel_state_observer);
-    BrowserWindowInterface* bwi = browser()
-                                      ->window()
-                                      ->AsBrowserView()
-                                      ->tabstrip()
-                                      ->controller()
-                                      ->GetBrowserWindowInterface();
-    service->ToggleUI(bwi, /*prevent_close=*/false,
-                      mojom::InvocationSource::kOsButton);
+    service->ToggleUI(/*bwi=*/browser(), /*prevent_close=*/false,
+                      /*source=*/mojom::InvocationSource::kOsButton);
 
     EXPECT_TRUE(wait_for_panel.Wait());
     service->window_controller().RemoveStateObserver(&panel_state_observer);

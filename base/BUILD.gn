@@ -1203,8 +1203,6 @@ component("base") {
       "android/background_thread_pool_field_trial.cc",
       "android/background_thread_pool_field_trial.h",
       "android/base_feature_map.cc",
-      "android/build_info.cc",
-      "android/build_info.h",
       "android/bundle_utils.cc",
       "android/bundle_utils.h",
       "android/child_process_binding_types.h",
@@ -1314,7 +1312,6 @@ component("base") {
     ]
 
     deps += [
-      ":android_info_jni",
       ":base_jni",
       ":base_shared_preferences_jni",
       ":build_info_jni",
@@ -1338,10 +1335,7 @@ component("base") {
     ]
 
     if (android_ndk_api_level >= 29) {
-      deps += [
-        ":android_info_aidl_native",
-        ":build_info_aidl_native",
-      ]
+      deps += [ ":build_info_aidl_native" ]
     }
 
     if (use_clang_profiling) {
@@ -4752,8 +4746,8 @@ if (is_android) {
       ":process_launcher_jni",
     ]
     deps = [
-      ":android_info_java",
       ":base_java",
+      ":build_info_java",
       "//base/version_info/android:version_constants_java",
       "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
       "//third_party/androidx:androidx_annotation_annotation_experimental_java",
@@ -4853,7 +4847,6 @@ if (is_android) {
     # The current list were grandfathered during the refactoring of base_java.
     public_deps = [
       ":activity_state_java",
-      ":android_info_java",
       ":base_jni_java",
       ":base_minimal_jni_java",
       ":base_switches_java",
@@ -5328,6 +5321,7 @@ if (is_android) {
   android_library("content_uri_utils_java") {
     srcjar_deps = [ ":content_uri_utils_jni" ]
     deps = [
+      ":base_java",
       ":log_java",
       ":stream_util_java",
       ":tasks_java",
@@ -5383,6 +5377,7 @@ if (is_android) {
 
   generate_jni("build_info_jni") {
     sources = [
+      "android/java/src/org/chromium/base/AndroidInfo.java",
       "android/java/src/org/chromium/base/ApkInfo.java",
       "android/java/src/org/chromium/base/DeviceInfo.java",
     ]
@@ -5394,7 +5389,6 @@ if (is_android) {
       ":build_info_jni",
     ]
     deps = [
-      ":android_info_java",
       ":base_switches_java",
       ":command_line_java",
       ":log_java",
@@ -5407,34 +5401,11 @@ if (is_android) {
       "//third_party/jni_zero:jni_zero_java",
     ]
     sources = [
-      # BuildInfo depend on both ApkInfo and DeviceInfo, those two classes
-      # also depend on PackageUtils which depends on BuildInfo. This result
-      # in a cyclic dependency of four element.
-      # There is a cyclic dependency between BuildInfo and PackageUtils.
+      "android/java/src/org/chromium/base/AndroidInfo.java",
       "android/java/src/org/chromium/base/ApkInfo.java",
-      "android/java/src/org/chromium/base/BuildInfo.java",
       "android/java/src/org/chromium/base/DeviceInfo.java",
       "android/java/src/org/chromium/base/PackageUtils.java",
     ]
-  }
-
-  generate_jni("android_info_jni") {
-    sources = [ "android/java/src/org/chromium/base/AndroidInfo.java" ]
-  }
-
-  android_library("android_info_java") {
-    srcjar_deps = [
-      ":android_info_aidl",
-      ":android_info_jni",
-    ]
-    deps = [
-      ":tasks_java",
-      "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-      "//third_party/androidx:androidx_annotation_annotation_experimental_java",
-      "//third_party/androidx:androidx_annotation_annotation_java",
-      "//third_party/jni_zero:jni_zero_java",
-    ]
-    sources = [ "android/java/src/org/chromium/base/AndroidInfo.java" ]
   }
 
   generate_jni("sys_utils_jni") {
@@ -5561,20 +5532,15 @@ if (is_android) {
     ]
   }
 
-  android_aidl("android_info_aidl") {
-    import_include = [ "android/java/src" ]
-    sources = [ "android/java/src/org/chromium/base/IAndroidInfo.aidl" ]
-    cpp_root_names = [ "AndroidInfo" ]
-    cpp_package_name = "org/chromium/base"
-  }
-
   android_aidl("build_info_aidl") {
     import_include = [ "android/java/src" ]
     sources = [
+      "android/java/src/org/chromium/base/IAndroidInfo.aidl",
       "android/java/src/org/chromium/base/IApkInfo.aidl",
       "android/java/src/org/chromium/base/IDeviceInfo.aidl",
     ]
     cpp_root_names = [
+      "AndroidInfo",
       "ApkInfo",
       "DeviceInfo",
     ]
@@ -5597,7 +5563,6 @@ if (is_android) {
     ]
     cpp_package_name = "org/chromium/base/process_launcher"
     deps = [
-      ":android_info_aidl",
       ":build_info_aidl",
       ":relro_aidl",
     ]
@@ -5850,6 +5815,7 @@ if (is_android) {
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestListener.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestRule.java",
       "test/android/junit/src/org/chromium/base/test/BaseRobolectricTestRunner.java",
+      "test/android/junit/src/org/chromium/base/test/BaseTimeLimitedStatement.java",
       "test/android/junit/src/org/chromium/base/test/util/BaseFlagTestRule.java",
       "test/android/junit/src/org/chromium/base/test/util/TestRunnerTestRule.java",
     ]
@@ -5874,7 +5840,6 @@ if (is_android) {
     shared_libraries = [ ":libbase_junit_tests($robolectric_toolchain)" ]
     sources = [
       "android/junit/src/org/chromium/base/ApplicationStatusTest.java",
-      "android/junit/src/org/chromium/base/BuildInfoTest.java",
       "android/junit/src/org/chromium/base/CallbackControllerTest.java",
       "android/junit/src/org/chromium/base/CollectionUtilTest.java",
       "android/junit/src/org/chromium/base/CommandLineTest.java",
@@ -5971,11 +5936,12 @@ if (is_android) {
   java_cpp_enum("base_android_java_enums_srcjar") {
     sources = [
       "android/child_process_binding_types.h",
+      "files/file_enumerator.h",
       "power_monitor/power_observer.h",
       "process/kill.h",
       "task/task_traits.h",
+      "trace_event/trace_config.h",
     ]
-    sources += [ "trace_event/trace_config.h" ]
   }
 
   generate_jni("base_profiler_test_support_jni") {

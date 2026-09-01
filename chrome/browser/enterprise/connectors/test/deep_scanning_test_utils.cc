@@ -116,6 +116,53 @@ void EventReportValidator::ExpectUnscannedFileEvent(
 }
 
 void EventReportValidator::ExpectUnscannedFileEvents(
+    chrome::cros::reporting::proto::UnscannedFileEvent
+        expected_unscanned_file_event,
+    const std::vector<std::string>& expected_filenames,
+    const std::vector<std::string>& expected_sha256s,
+    const std::set<std::string>* expected_mimetypes) {
+  DCHECK_EQ(expected_filenames.size(), expected_sha256s.size());
+  base::flat_map<std::string, std::string> filenames_and_hashes;
+  for (size_t i = 0; i < expected_filenames.size(); ++i) {
+    filenames_and_hashes[expected_filenames[i]] = expected_sha256s[i];
+  }
+
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .Times(expected_filenames.size())
+      .WillRepeatedly(
+          [this, expected_unscanned_file_event, filenames_and_hashes,
+           expected_mimetypes](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_unscanned_file_event());
+            auto unscanned_file_event =
+                request.events().Get(0).unscanned_file_event();
+
+            EXPECT_TRUE(base::Contains(*expected_mimetypes,
+                                       unscanned_file_event.content_type()));
+            EXPECT_EQ(filenames_and_hashes.at(unscanned_file_event.file_name()),
+                      unscanned_file_event.download_digest_sha_256());
+
+            // Clear the validated fields, so that the captured proto can match
+            // the expected protos.
+            unscanned_file_event.clear_content_type();
+            unscanned_file_event.clear_file_name();
+            unscanned_file_event.clear_download_digest_sha_256();
+
+            EXPECT_THAT(unscanned_file_event,
+                        EqualsProto(expected_unscanned_file_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
+}
+
+void EventReportValidator::ExpectUnscannedFileEvents(
     const std::string& expected_url,
     const std::string& expected_tab_url,
     const std::string& expected_source,
@@ -443,6 +490,67 @@ void EventReportValidator::ExpectSensitiveDataEventWarnThenBypass(
 
 void EventReportValidator::
     ExpectDangerousDeepScanningResultAndSensitiveDataEvent(
+        chrome::cros::reporting::proto::SafeBrowsingDangerousDownloadEvent
+            expected_dangerous_download_event,
+        chrome::cros::reporting::proto::DlpSensitiveDataEvent
+            expected_sensitive_data_event,
+        const std::set<std::string>* expected_mimetypes) {
+  EXPECT_CALL(*client_, UploadSecurityEvent)
+      .WillOnce(
+          [expected_dangerous_download_event, expected_mimetypes](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_dangerous_download_event());
+            auto dangerous_download_event =
+                request.events().Get(0).dangerous_download_event();
+
+            if (expected_mimetypes) {
+              EXPECT_TRUE(
+                  base::Contains(*expected_mimetypes,
+                                 dangerous_download_event.content_type()));
+              // Reset the `content_type` field, so that we can check if the
+              // rest of the fields match.
+              dangerous_download_event.clear_content_type();
+            }
+
+            EXPECT_THAT(dangerous_download_event,
+                        EqualsProto(expected_dangerous_download_event));
+          })
+      .WillOnce(
+          [this, expected_sensitive_data_event, expected_mimetypes](
+              bool include_device_info,
+              ::chrome::cros::reporting::proto::UploadEventsRequest request,
+              base::OnceCallback<void(policy::CloudPolicyClient::Result)>
+                  callback) {
+            // There should only be 1 event per test.
+            ASSERT_EQ(1, request.events_size());
+            ASSERT_TRUE(request.events().Get(0).has_sensitive_data_event());
+            auto sensitive_data_event =
+                request.events().Get(0).sensitive_data_event();
+
+            if (expected_mimetypes) {
+              EXPECT_TRUE(base::Contains(*expected_mimetypes,
+                                         sensitive_data_event.content_type()));
+              // Reset the `content_type` field, so that we can check if the
+              // rest of the fields match.
+              sensitive_data_event.clear_content_type();
+            }
+
+            EXPECT_THAT(sensitive_data_event,
+                        EqualsProto(expected_sensitive_data_event));
+
+            if (!done_closure_.is_null()) {
+              done_closure_.Run();
+            }
+          });
+}
+
+void EventReportValidator::
+    ExpectDangerousDeepScanningResultAndSensitiveDataEvent(
         const std::string& expected_url,
         const std::string& expected_tab_url,
         const std::string& expected_source,
@@ -545,10 +653,11 @@ void EventReportValidator::
 
 void EventReportValidator::ExpectDangerousDownloadEvent(
     chrome::cros::reporting::proto::SafeBrowsingDangerousDownloadEvent
-        expected_dangerous_download_event) {
+        expected_dangerous_download_event,
+    const std::set<std::string>* expected_mimetypes) {
   EXPECT_CALL(*client_, UploadSecurityEvent)
       .WillOnce(
-          [this, expected_dangerous_download_event](
+          [this, expected_dangerous_download_event, expected_mimetypes](
               bool include_device_info,
               ::chrome::cros::reporting::proto::UploadEventsRequest request,
               base::OnceCallback<void(policy::CloudPolicyClient::Result)>
@@ -558,6 +667,16 @@ void EventReportValidator::ExpectDangerousDownloadEvent(
             ASSERT_TRUE(request.events().Get(0).has_dangerous_download_event());
             auto dangerous_download_event =
                 request.events().Get(0).dangerous_download_event();
+
+            if (expected_mimetypes) {
+              EXPECT_TRUE(
+                  base::Contains(*expected_mimetypes,
+                                 dangerous_download_event.content_type()));
+              // Reset the `content_type` field, so that we can check if the
+              // rest of the fields match.
+              dangerous_download_event.clear_content_type();
+            }
+
             EXPECT_THAT(dangerous_download_event,
                         EqualsProto(expected_dangerous_download_event));
 
@@ -608,6 +727,11 @@ void EventReportValidator::ExpectActiveUser(const std::string& user) {
 
 void EventReportValidator::ExpectSourceActiveUser(const std::string& user) {
   source_active_content_area_user_ = user;
+}
+
+void EventReportValidator::ExpectFrameUrlChain(
+    const std::vector<std::string>& frame_urls) {
+  frame_urls_ = frame_urls;
 }
 
 void EventReportValidator::ValidateReport(const base::Value::Dict* report) {
@@ -665,6 +789,7 @@ void EventReportValidator::ValidateReport(const base::Value::Dict* report) {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   ValidateDataMaskingAttributes(event);
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+  ValidateFrameUrlChain(event);
 }
 
 void EventReportValidator::ValidateFederatedOrigin(
@@ -862,6 +987,23 @@ void EventReportValidator::ValidateDataMaskingAttributes(
   }
 }
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+
+void EventReportValidator::ValidateFrameUrlChain(
+    const base::Value::Dict* value) {
+  const base::Value::List* frame_urls = value->FindList(kKeyIframeUrls);
+  if (!frame_urls_.has_value()) {
+    EXPECT_TRUE(!frame_urls || frame_urls->empty());
+    return;
+  }
+
+  ASSERT_NE(nullptr, frame_urls);
+  std::vector<std::string> actual_urls;
+  for (const auto& url_value : *frame_urls) {
+    actual_urls.push_back(url_value.GetString());
+  }
+
+  EXPECT_THAT(actual_urls, testing::ElementsAreArray(frame_urls_.value()));
+}
 
 EventReportValidatorHelper::EventReportValidatorHelper(Profile* profile,
                                                        bool browser_test)

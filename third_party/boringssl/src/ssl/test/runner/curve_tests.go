@@ -59,6 +59,8 @@ func addCurveTests() {
 		TLS_AES_256_GCM_SHA384,
 	}
 
+	// Not all curves are enabled by default, so these tests explicitly enable
+	// the curve under test in the shim.
 	for _, curve := range testCurves {
 		for _, ver := range tlsVersions {
 			if isPqGroup(curve.id) && ver.version < VersionTLS13 {
@@ -77,7 +79,7 @@ func addCurveTests() {
 					},
 					flags: append(
 						[]string{"-expect-curve-id", strconv.Itoa(int(curve.id))},
-						flagInts("-curves", shimConfig.AllCurves)...,
+						flagCurves("-curves", []CurveID{curve.id})...,
 					),
 					expectations: connectionExpectations{
 						curveID: curve.id,
@@ -104,7 +106,7 @@ func addCurveTests() {
 							TruncateKeyShare: true,
 						},
 					},
-					flags:              flagInts("-curves", shimConfig.AllCurves),
+					flags:              flagCurves("-curves", []CurveID{curve.id}),
 					shouldFail:         true,
 					expectedError:      ":BAD_ECPOINT:",
 					expectedLocalError: badKeyShareLocalError,
@@ -121,7 +123,7 @@ func addCurveTests() {
 							PadKeyShare: true,
 						},
 					},
-					flags:              flagInts("-curves", shimConfig.AllCurves),
+					flags:              flagCurves("-curves", []CurveID{curve.id}),
 					shouldFail:         true,
 					expectedError:      ":BAD_ECPOINT:",
 					expectedLocalError: badKeyShareLocalError,
@@ -139,7 +141,7 @@ func addCurveTests() {
 								SendCompressedCoordinates: true,
 							},
 						},
-						flags:              flagInts("-curves", shimConfig.AllCurves),
+						flags:              flagCurves("-curves", []CurveID{curve.id}),
 						shouldFail:         true,
 						expectedError:      ":BAD_ECPOINT:",
 						expectedLocalError: badKeyShareLocalError,
@@ -155,7 +157,7 @@ func addCurveTests() {
 								ECDHPointNotOnCurve: true,
 							},
 						},
-						flags:              flagInts("-curves", shimConfig.AllCurves),
+						flags:              flagCurves("-curves", []CurveID{curve.id}),
 						shouldFail:         true,
 						expectedError:      ":BAD_ECPOINT:",
 						expectedLocalError: badKeyShareLocalError,
@@ -175,7 +177,7 @@ func addCurveTests() {
 								SetX25519HighBit: true,
 							},
 						},
-						flags: flagInts("-curves", shimConfig.AllCurves),
+						flags: flagCurves("-curves", []CurveID{curve.id}),
 						expectations: connectionExpectations{
 							curveID: curve.id,
 						},
@@ -193,7 +195,7 @@ func addCurveTests() {
 								LowOrderX25519Point: true,
 							},
 						},
-						flags:              flagInts("-curves", shimConfig.AllCurves),
+						flags:              flagCurves("-curves", []CurveID{curve.id}),
 						shouldFail:         true,
 						expectedError:      ":BAD_ECPOINT:",
 						expectedLocalError: badKeyShareLocalError,
@@ -212,7 +214,7 @@ func addCurveTests() {
 								MLKEMEncapKeyNotReduced: true,
 							},
 						},
-						flags:              flagInts("-curves", shimConfig.AllCurves),
+						flags:              flagCurves("-curves", []CurveID{curve.id}),
 						shouldFail:         true,
 						expectedError:      ":BAD_ECPOINT:",
 						expectedLocalError: badKeyShareLocalError,

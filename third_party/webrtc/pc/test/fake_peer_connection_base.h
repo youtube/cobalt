@@ -233,10 +233,6 @@ class FakePeerConnectionBase : public PeerConnectionInternal {
     return false;
   }
 
-  bool RemoveIceCandidates(const std::vector<Candidate>& candidates) override {
-    return false;
-  }
-
   RTCError SetBitrate(const BitrateSettings& bitrate) override {
     return RTCError(RTCErrorType::UNSUPPORTED_OPERATION, "Not implemented");
   }

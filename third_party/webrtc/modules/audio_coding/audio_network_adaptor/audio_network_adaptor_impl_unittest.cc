@@ -25,6 +25,7 @@
 #include "modules/audio_coding/audio_network_adaptor/mock/mock_controller_manager.h"
 #include "modules/audio_coding/audio_network_adaptor/mock/mock_debug_dump_writer.h"
 #include "rtc_base/fake_clock.h"
+#include "test/create_test_environment.h"
 #include "test/gmock.h"
 #include "test/gtest.h"
 
@@ -94,18 +95,17 @@ AudioNetworkAdaptorStates CreateAudioNetworkAdaptor() {
   EXPECT_CALL(*controller_manager, GetSortedControllers(_))
       .WillRepeatedly(Return(controllers));
 
-  states.event_log.reset(new NiceMock<MockRtcEventLog>());
+  states.event_log = std::make_unique<NiceMock<MockRtcEventLog>>();
 
   auto debug_dump_writer =
       std::unique_ptr<MockDebugDumpWriter>(new NiceMock<MockDebugDumpWriter>());
   EXPECT_CALL(*debug_dump_writer, Die());
   states.mock_debug_dump_writer = debug_dump_writer.get();
 
-  AudioNetworkAdaptorImpl::Config config;
-  config.event_log = states.event_log.get();
   // AudioNetworkAdaptorImpl governs the lifetime of controller manager.
-  states.audio_network_adaptor.reset(new AudioNetworkAdaptorImpl(
-      config, std::move(controller_manager), std::move(debug_dump_writer)));
+  states.audio_network_adaptor = std::make_unique<AudioNetworkAdaptorImpl>(
+      CreateTestEnvironment({.event_log = states.event_log.get()}),
+      std::move(controller_manager), std::move(debug_dump_writer));
 
   return states;
 }

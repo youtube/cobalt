@@ -20,7 +20,9 @@
 #include "api/environment/environment_factory.h"
 #include "api/field_trials.h"
 #include "api/field_trials_view.h"
+#include "api/test/time_controller.h"
 #include "rtc_base/checks.h"
+#include "system_wrappers/include/clock.h"
 #include "test/create_test_field_trials.h"
 
 namespace webrtc {
@@ -48,17 +50,24 @@ struct SetFieldTrials {
   EnvironmentFactory& factory;
 };
 
+struct SetTime {
+  void operator()(Clock* clock) { factory.Set(clock); }
+  void operator()(TimeController* absl_nonnull time) {
+    factory.Set(time->GetClock());
+    factory.Set(time->GetTaskQueueFactory());
+  }
+
+  EnvironmentFactory& factory;
+};
+
 }  // namespace
 
 Environment CreateTestEnvironment(CreateTestEnvironmentOptions o) {
   EnvironmentFactory factory;
 
-  std::visit(SetFieldTrials{factory}, std::move(o.field_trials));
-
-  if (o.time != nullptr) {
-    factory.Set(o.time->GetClock());
-    factory.Set(o.time->GetTaskQueueFactory());
-  }
+  std::visit(SetFieldTrials{.factory = factory}, std::move(o.field_trials));
+  std::visit(SetTime{.factory = factory}, o.time);
+  factory.Set(o.event_log);
   return factory.Create();
 }
 

@@ -95,7 +95,7 @@ mojom::blink::RemoteInvocationArgumentPtr JSValueToMojom(
 
   if (js_value->IsArray()) {
     auto array = js_value.As<v8::Array>();
-    WTF::Vector<mojom::blink::RemoteInvocationArgumentPtr> nested_arguments;
+    Vector<mojom::blink::RemoteInvocationArgumentPtr> nested_arguments;
     for (uint32_t i = 0; i < array->Length(); ++i) {
       v8::Local<v8::Value> element_v8;
 
@@ -219,7 +219,7 @@ mojom::blink::RemoteInvocationArgumentPtr JSValueToMojom(
           mojom::blink::SingletonJavaScriptValue::kNull);
     }
 
-    WTF::Vector<mojom::blink::RemoteInvocationArgumentPtr> nested_arguments(
+    Vector<mojom::blink::RemoteInvocationArgumentPtr> nested_arguments(
         base::checked_cast<wtf_size_t>(length));
     for (uint32_t i = 0; i < property_names->Length(); ++i) {
       v8::Local<v8::Value> key;
@@ -351,7 +351,7 @@ void RemoteObject::RemoteObjectInvokeCallback(
     return;
   }
 
-  WTF::Vector<mojom::blink::RemoteInvocationArgumentPtr> arguments;
+  Vector<mojom::blink::RemoteInvocationArgumentPtr> arguments;
   arguments.ReserveInitialCapacity(info.Length());
 
   for (int i = 0; i < info.Length(); i++) {
@@ -402,7 +402,7 @@ void RemoteObject::EnsureRemoteIsBound() {
 v8::Local<v8::Value> RemoteObject::GetNamedProperty(
     v8::Isolate* isolate,
     const std::string& property) {
-  auto wtf_property = WTF::String::FromUTF8(property);
+  auto wtf_property = String::FromUTF8(property);
 
   v8::Local<v8::String> v8_property = V8AtomicString(isolate, wtf_property);
   v8::Local<v8::Object> method_cache =
@@ -438,7 +438,7 @@ v8::Local<v8::Value> RemoteObject::GetNamedProperty(
 std::vector<std::string> RemoteObject::EnumerateNamedProperties(
     v8::Isolate* isolate) {
   EnsureRemoteIsBound();
-  WTF::Vector<WTF::String> methods;
+  Vector<String> methods;
   object_->GetMethods(&methods);
   std::vector<std::string> result;
   for (const auto& method : methods)

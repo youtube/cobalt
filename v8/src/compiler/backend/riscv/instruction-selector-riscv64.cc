@@ -1061,6 +1061,19 @@ void EmitSignExtendWord(InstructionSelector* selector, OpIndex node) {
     selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
     return;
   }
+  if ((input_op.Is<Opmask::kWord64Add>() ||
+       input_op.Is<Opmask::kWord64Sub>())) {
+    if (selector->CanCover(node, value)) {
+      const WordBinopOp& binop = input_op.Cast<WordBinopOp>();
+      OpIndex left = binop.left();
+      OpIndex right = binop.right();
+      InstructionCode opcode =
+          input_op.Is<Opmask::kWord64Add>() ? kRiscvAdd32 : kRiscvSub32;
+      selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+                     g.UseOperand(right, opcode));
+      return;
+    }
+  }
   selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
                  g.UseRegister(value));
 }
@@ -1157,9 +1170,10 @@ void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
   DCHECK_EQ(op.input_count, 1);
   auto value = op.input(0);
   if (CanCover(node, value)) {
-    if (Get(value).Is<Opmask::kWord64ShiftRightArithmetic>()) {
-      auto shift_value = Get(value).input(1);
-      if (CanCover(value, Get(value).input(0)) &&
+    const Operation& input_op = Get(value);
+    if (input_op.Is<Opmask::kWord64ShiftRightArithmetic>()) {
+      auto shift_value = input_op.input(1);
+      if (CanCover(value, input_op.input(0)) &&
           TryEmitExtendingLoad(this, value, node)) {
         return;
       } else if (int64_t constant;
@@ -1167,10 +1181,21 @@ void InstructionSelector::VisitTruncateInt64ToInt32(OpIndex node) {
         if (constant <= 63 && constant >= 32) {
           // After smi untagging no need for truncate. Combine sequence.
           Emit(kRiscvSar64, g.DefineSameAsFirst(node),
-               g.UseRegister(Get(value).input(0)), g.UseImmediate64(constant));
+               g.UseRegister(input_op.input(0)), g.UseImmediate64(constant));
           return;
         }
       }
+    }
+    if ((input_op.Is<Opmask::kWord64Add>() ||
+         input_op.Is<Opmask::kWord64Sub>())) {
+      const WordBinopOp& binop = input_op.Cast<WordBinopOp>();
+      OpIndex left = binop.left();
+      OpIndex right = binop.right();
+      InstructionCode opcode =
+          input_op.Is<Opmask::kWord64Add>() ? kRiscvAdd32 : kRiscvSub32;
+      Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+           g.UseOperand(right, opcode));
+      return;
     }
   }
   // Semantics of this machine IR is not clear. For example, x86 zero-extend
@@ -1905,16 +1930,37 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
                 TryCast<OverflowCheckedBinopOp>(node);
             binop && CanDoBranchIfOverflowFusion(node)) {
           const bool is64 = binop->rep == WordRepresentation::Word64();
+          OpIndex right_node = binop->input(1);
+          RiscvOperandGenerator g(this);
+          // Check if the right-hand side operand can be encoded as an immediate
+          // value for a 32-bit operand add/sub. This is used to
+          // determine whether we can utilize the more efficient overflow
+          // checking path specifically designed for 32-bit operations with
+          // immediate operands.
+          const bool use_32 = g.CanBeImmediate(right_node, kRiscvAdd32);
           switch (binop->kind) {
-            case OverflowCheckedBinopOp::Kind::kSignedAdd:
+            case OverflowCheckedBinopOp::Kind::kSignedAdd: {
               cont->OverwriteAndNegateIfEqual(kOverflow);
-              return VisitBinop<Int32BinopMatcher>(
-                  this, node, is64 ? kRiscvAddOvfWord : kRiscvAdd64, cont);
-            case OverflowCheckedBinopOp::Kind::kSignedSub:
+              ArchOpcode opcode = kRiscvAddOvfWord;
+              if (!is64) {
+                if (use_32)
+                  opcode = kRiscvAdd32;
+                else
+                  opcode = kRiscvAdd64;
+              }
+              return VisitBinop<Int32BinopMatcher>(this, node, opcode, cont);
+            }
+            case OverflowCheckedBinopOp::Kind::kSignedSub: {
               cont->OverwriteAndNegateIfEqual(kOverflow);
-
-              return VisitBinop<Int32BinopMatcher>(
-                  this, node, is64 ? kRiscvSubOvfWord : kRiscvSub64, cont);
+              ArchOpcode opcode = kRiscvSubOvfWord;
+              if (!is64) {
+                if (use_32)
+                  opcode = kRiscvSub32;
+                else
+                  opcode = kRiscvSub64;
+              }
+              return VisitBinop<Int32BinopMatcher>(this, node, opcode, cont);
+            }
             case OverflowCheckedBinopOp::Kind::kSignedMul:
               cont->OverwriteAndNegateIfEqual(kOverflow);
               return VisitBinop<Int32BinopMatcher>(
@@ -1922,6 +1968,20 @@ void InstructionSelector::VisitWordCompareZero(OpIndex user, OpIndex value,
           }
         }
       }
+    } else if (value_op.Is<StackPointerGreaterThanOp>()) {
+      // Matching these IR:
+      // StackPointerGreaterThan(#6)[CodeStubAssembler]
+      // Branch(#7)[B2, B1, True]
+      cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+      VisitStackPointerGreaterThan(value, cont);
+      return;
+    } else if (value_op.Is<Opmask::kWord32BitwiseAnd>() ||
+               value_op.Is<Opmask::kWord64BitwiseAnd>()) {
+      // Matching IR:
+      // 7: Word64And
+      // 8: Word64Equal(#7)
+      VisitWordCompare(this, value, kRiscvTst64, cont, true);
+      return;
     }
   }
 
@@ -2014,9 +2074,19 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
   if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    // If enable COMPRESS_POINTERS, smi will zero extend to
-    // 64 bit, kRiscvAdd64 can't process smi overflow.
-    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
+    const Operation& binop = Get(node);
+    OpIndex right_node = binop.input(1);
+    RiscvOperandGenerator g(this);
+    // Check if the right-hand side operand can be encoded as an immediate
+    // value for a 32-bit operand add/sub. This is used to
+    // determine whether we can utilize the more efficient overflow
+    // checking path specifically designed for 32-bit operations with
+    // immediate operands.
+    // TODO(yahan): Implement the 32-bit overflow fast check with Constant which
+    // don't be encoded into instructions.
+    const bool use_32 = g.CanBeImmediate(right_node, kRiscvAdd32);
+    return VisitBinop<Int32BinopMatcher>(
+        this, node, use_32 ? kRiscvAdd32 : kRiscvAdd64, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvAdd64, &cont);
@@ -2024,11 +2094,14 @@ void InstructionSelector::VisitInt32AddWithOverflow(OpIndex node) {
 
 void InstructionSelector::VisitInt32SubWithOverflow(OpIndex node) {
   OptionalOpIndex ovf = FindProjection(node, 1);
-  if (ovf.valid()) {
+  if (ovf.valid() && IsUsed(ovf.value())) {
     FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf.value());
-    // If enable COMPRESS_POINTERS, smi will zero extend to
-    // 64 bit, kRiscvSub64 can't process smi overflow.
-    return VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);
+    const Operation& binop = Get(node);
+    OpIndex right_node = binop.input(1);
+    RiscvOperandGenerator g(this);
+    const bool use_32 = g.CanBeImmediate(right_node, kRiscvSub32);
+    return VisitBinop<Int32BinopMatcher>(
+        this, node, use_32 ? kRiscvSub32 : kRiscvSub64, &cont);
   }
   FlagsContinuation cont;
   VisitBinop<Int32BinopMatcher>(this, node, kRiscvSub64, &cont);

@@ -78,8 +78,6 @@ import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.content_settings.CookieControlsMode;
 import org.chromium.components.content_settings.ProviderType;
 import org.chromium.components.embedder_support.util.UrlUtilities;
-import org.chromium.components.permissions.PermissionsAndroidFeatureList;
-import org.chromium.components.permissions.PermissionsAndroidFeatureMap;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.content_public.browser.BrowserContextHandle;
@@ -340,8 +338,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
      * @param website The website to check.
      */
     private boolean isOnBlockList(WebsitePreference website) {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         @ContentSettingsType.EnumType int type = mCategory.getContentSettingsType();
         if (type == ContentSettingsType.GEOLOCATION_WITH_OPTIONS) {
             PermissionInfo permissionInfo = website.site().getPermissionInfo(type);
@@ -477,8 +474,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
             @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         // Read which category we should be showing.
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         if (getArguments() != null) {
             SiteSettingsCategory category =
                     SiteSettingsCategory.createFromPreferenceKey(
@@ -670,8 +666,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     // OnPreferenceChangeListener:
     @Override
     public boolean onPreferenceChange(Preference preference, Object newValue) {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         PrefService prefService = UserPrefs.get(browserContextHandle);
         if (BINARY_RADIO_BUTTON_KEY.equals(preference.getKey())
                 || BINARY_TOGGLE_KEY.equals(preference.getKey())) {
@@ -737,7 +732,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                         switch (buttonType) {
                             case ButtonType.POSITIVE:
                                 WebsitePreferenceBridge.setCategoryEnabled(
-                                        getSiteSettingsDelegate().getBrowserContextHandle(),
+                                        getBrowserContextHandle(),
                                         mCategory.getContentSettingsType(),
                                         false);
                                 getInfoForOrigins();
@@ -795,14 +790,12 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         if (mode == CookieControlsMode.BLOCK_THIRD_PARTY) {
             getSiteSettingsDelegate().maybeDisplayPrivacySandboxSnackbar();
         }
-        PrefService prefService =
-                UserPrefs.get(getSiteSettingsDelegate().getBrowserContextHandle());
+        PrefService prefService = UserPrefs.get(getBrowserContextHandle());
         prefService.setInteger(COOKIE_CONTROLS_MODE, mode);
     }
 
     private boolean isCategoryEnabled() {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         return WebsitePreferenceBridge.isCategoryEnabled(
                 browserContextHandle, mCategory.getContentSettingsType());
     }
@@ -830,10 +823,8 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                         ? R.string.website_settings_site_data_page_add_block_exception_description
                         : R.string.website_settings_site_data_page_add_allow_exception_description;
             case SiteSettingsCategory.Type.THIRD_PARTY_COOKIES:
-                return (getCookieControlsMode() == CookieControlsMode.OFF)
-                        ? 0
-                        : R.string
-                                .website_settings_third_party_cookies_page_add_allow_exception_description;
+                return R.string
+                        .website_settings_third_party_cookies_page_add_allow_exception_description;
             case SiteSettingsCategory.Type.AUTO_DARK_WEB_CONTENT:
                 return isCategoryEnabled()
                         ? R.string.website_settings_add_site_description_auto_dark_block
@@ -888,8 +879,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     // AddExceptionPreference.SiteAddedCallback:
     @Override
     public void onAddSite(String primaryPattern, String secondaryPattern) {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         int setting = ContentSettingValues.DEFAULT;
         switch (mGlobalToggleLayout) {
             case GlobalToggleLayout.TRI_STATE_COOKIE_TOGGLE:
@@ -956,6 +946,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
             case SiteSettingsCategory.Type.FEDERATED_IDENTITY_API:
             case SiteSettingsCategory.Type.REQUEST_DESKTOP_SITE:
             case SiteSettingsCategory.Type.JAVASCRIPT_OPTIMIZER:
+            case SiteSettingsCategory.Type.THIRD_PARTY_COOKIES:
                 shouldAddExceptionButton = true;
                 break;
             case SiteSettingsCategory.Type.BACKGROUND_SYNC:
@@ -964,9 +955,6 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 break;
             case SiteSettingsCategory.Type.AUTO_DARK_WEB_CONTENT:
                 shouldAddExceptionButton = isCategoryEnabled();
-                break;
-            case SiteSettingsCategory.Type.THIRD_PARTY_COOKIES:
-                shouldAddExceptionButton = getCookieControlsMode() != CookieControlsMode.OFF;
                 break;
             default:
                 break;
@@ -1360,7 +1348,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         if (mCategory.getType() == SiteSettingsCategory.Type.DEVICE_LOCATION) {
             if (getSiteSettingsDelegate().isPermissionDedicatedCpssSettingAndroidFeatureEnabled()) {
                 mLocationTriStatePref.initialize(
-                        UserPrefs.get(getSiteSettingsDelegate().getBrowserContextHandle()),
+                        UserPrefs.get(getBrowserContextHandle()),
                         getSiteSettingsDelegate()
                                 .isPermissionSiteSettingsRadioButtonFeatureEnabled());
                 updateLocationSecondaryControls();
@@ -1405,7 +1393,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
             if (getSiteSettingsDelegate().isPermissionDedicatedCpssSettingAndroidFeatureEnabled()) {
                 screen.removePreference(mNotificationsQuietUiPref);
                 mNotificationsTriStatePref.initialize(
-                        UserPrefs.get(getSiteSettingsDelegate().getBrowserContextHandle()),
+                        UserPrefs.get(getBrowserContextHandle()),
                         getSiteSettingsDelegate()
                                 .isPermissionSiteSettingsRadioButtonFeatureEnabled());
             } else {
@@ -1551,17 +1539,13 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                 new TriStateCookieSettingsPreference.Params();
         params.cookieControlsMode = getCookieControlsMode();
         params.cookieControlsModeEnforced = mCategory.isManaged();
-        params.isIncognitoModeEnabled = getSiteSettingsDelegate().isIncognitoModeEnabled();
         params.isRelatedWebsiteSetsDataAccessEnabled =
                 getSiteSettingsDelegate().isRelatedWebsiteSetsDataAccessEnabled();
-        params.isAlwaysBlock3pcsIncognitoEnabled =
-                getSiteSettingsDelegate().isAlwaysBlock3pcsIncognitoEnabled();
         triStateCookieToggle.setState(params);
     }
 
     private int getCookieControlsMode() {
-        PrefService prefService =
-                UserPrefs.get(getSiteSettingsDelegate().getBrowserContextHandle());
+        PrefService prefService = UserPrefs.get(getBrowserContextHandle());
         return prefService.getInteger(COOKIE_CONTROLS_MODE);
     }
 
@@ -1571,7 +1555,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         @ContentSettingValues
         int setting =
                 WebsitePreferenceBridge.getDefaultContentSetting(
-                        getSiteSettingsDelegate().getBrowserContextHandle(), contentType);
+                        getBrowserContextHandle(), contentType);
         int[] descriptionIds =
                 ContentSettingsResources.getTriStateSettingDescriptionIDs(
                         contentType,
@@ -1594,8 +1578,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         binaryToggle.setTitle(ContentSettingsResources.getTitle(contentType));
 
         // Set summary on or off.
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         if (mCategory.getType() == SiteSettingsCategory.Type.DEVICE_LOCATION
                 && WebsitePreferenceBridge.isLocationAllowedByPolicy(browserContextHandle)) {
             binaryToggle.setSummaryOn(ContentSettingsResources.getGeolocationAllowedSummary());
@@ -1623,8 +1606,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
             BinaryStatePermissionPreference binaryRadioButton, int contentType) {
         binaryRadioButton.setOnPreferenceChangeListener(this);
 
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         @ContentSettingValues
         int setting =
                 WebsitePreferenceBridge.getDefaultContentSetting(browserContextHandle, contentType);
@@ -1660,8 +1642,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     }
 
     private void updateNotificationsSecondaryControls() {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         Boolean categoryEnabled =
                 WebsitePreferenceBridge.isCategoryEnabled(
                         browserContextHandle, ContentSettingsType.NOTIFICATIONS);
@@ -1692,8 +1673,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     }
 
     private void updateLocationSecondaryControls() {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         Boolean categoryEnabled =
                 WebsitePreferenceBridge.isCategoryEnabled(
                         browserContextHandle, getGeolocationType());
@@ -1709,8 +1689,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     // TODO(crbug.com/40852484): Looking at a different class setup for SingleCategorySettings that
     // allows category specific logic to live in separate files.
     private void updateDesktopSiteWindowSetting() {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         Boolean categoryEnabled =
                 WebsitePreferenceBridge.isCategoryEnabled(
                         browserContextHandle, ContentSettingsType.REQUEST_DESKTOP_SITE);
@@ -1739,16 +1718,27 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
     }
 
     /**
-     * Builds an alert dialog which can be used to change the preference value or remove
-     * for the exception for the current categories ContentSettingType on a Website.
+     * Builds an alert dialog which can be used to change the preference value or remove for the
+     * exception for the current categories ContentSettingType on a Website.
      */
     private AlertDialog buildPreferenceDialog(Website site) {
-        BrowserContextHandle browserContextHandle =
-                getSiteSettingsDelegate().getBrowserContextHandle();
+        BrowserContextHandle browserContextHandle = getBrowserContextHandle();
         @ContentSettingsType.EnumType int contentSettingsType = mCategory.getContentSettingsType();
 
+        boolean isApproxGeoPermission =
+                contentSettingsType == ContentSettingsType.GEOLOCATION_WITH_OPTIONS;
+
+        @Nullable
         @ContentSettingValues
-        Integer value = site.getContentSetting(browserContextHandle, contentSettingsType);
+        Integer value = null;
+        @Nullable GeolocationSetting geo_setting = null;
+        if (isApproxGeoPermission) {
+            geo_setting =
+                    assumeNonNull(site.getPermissionInfo(contentSettingsType))
+                            .getGeolocationSetting(browserContextHandle);
+        } else {
+            value = site.getContentSetting(browserContextHandle, contentSettingsType);
+        }
 
         AlertDialog alertDialog =
                 new AlertDialog.Builder(getContext(), R.style.ThemeOverlay_BrowserUI_AlertDialog)
@@ -1760,11 +1750,15 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                         .setNegativeButton(
                                 R.string.remove,
                                 (dialog, which) -> {
-                                    site.setContentSetting(
-                                            browserContextHandle,
-                                            contentSettingsType,
-                                            ContentSettingValues.DEFAULT);
-
+                                    if (isApproxGeoPermission) {
+                                        assumeNonNull(site.getPermissionInfo(contentSettingsType))
+                                                .setGeolocationSetting(browserContextHandle, null);
+                                    } else {
+                                        site.setContentSetting(
+                                                browserContextHandle,
+                                                contentSettingsType,
+                                                ContentSettingValues.DEFAULT);
+                                    }
                                     if (mCategory.getType()
                                             == SiteSettingsCategory.Type.AUTO_DARK_WEB_CONTENT) {
                                         AutoDarkMetrics.recordAutoDarkSettingsChangeSource(
@@ -1782,14 +1776,11 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         // RadioButtonWithDescriptionLayout.
         var inflater =
                 (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        boolean isLocationPermission =
-                PermissionsAndroidFeatureMap.isEnabled(
-                                PermissionsAndroidFeatureList.APPROXIMATE_GEOLOCATION_PERMISSION)
-                        && contentSettingsType == ContentSettingsType.GEOLOCATION_WITH_OPTIONS;
+
         var contentView =
                 (LinearLayout)
                         inflater.inflate(
-                                isLocationPermission
+                                isApproxGeoPermission
                                         ? R.layout.approximate_geolocation_permission_dialog
                                         : R.layout.edit_site_dialog_content,
                                 null);
@@ -1815,7 +1806,9 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                         ContentSettingsResources.getSiteSummary(
                                 ContentSettingValues.BLOCK, contentSettingsType)));
 
-        if (assumeNonNull(value) == ContentSettingValues.ALLOW) {
+        if (geo_setting != null
+                ? geo_setting.mApproximate == ContentSettingValues.ALLOW
+                : assumeNonNull(value) == ContentSettingValues.ALLOW) {
             allowButton.setChecked(true);
         } else {
             blockButton.setChecked(true);
@@ -1829,29 +1822,57 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
                                     ? ContentSettingValues.ALLOW
                                     : ContentSettingValues.BLOCK;
 
-                    site.setContentSetting(browserContextHandle, contentSettingsType, permission);
-
+                    if (isApproxGeoPermission) {
+                        updateGeolocationSetting(site, contentView);
+                    } else {
+                        site.setContentSetting(
+                                browserContextHandle, contentSettingsType, permission);
+                    }
                     DesktopSiteMetrics.recordDesktopSiteSettingsChanged(
                             mCategory.getType(), permission, site);
                     getInfoForOrigins();
+                    // TODO(crbug.com/410752725): Change UI to have a confirm button instead of
+                    // applying changes immediately.
                     alertDialog.dismiss();
                 });
 
-        if (isLocationPermission) {
+        if (geo_setting != null) {
             RadioButtonWithDescriptionLayout location_access =
                     contentView.findViewById(R.id.location_access_group);
-            // TODO(crbug.com/410752725): Fetch the geolocation permission from the backend and set
-            // whether the location access radio group should be enabled or disabled as well as the
-            // precise/approximate selection.
-            location_access.setEnabled(false);
+            int selectedPrecision = R.id.precise;
+            if (geo_setting.mApproximate == ContentSettingValues.ALLOW
+                    && geo_setting.mPrecise != ContentSettingValues.ALLOW) {
+                selectedPrecision = R.id.approximate;
+            }
+            RadioButtonWithDescription selectedButton = contentView.findViewById(selectedPrecision);
+            selectedButton.setChecked(true);
+
+            location_access.setOnCheckedChangeListener(
+                    (group, newValue) -> updateGeolocationSetting(site, contentView));
         }
         alertDialog.setView(contentView);
         return alertDialog;
     }
 
+    private void updateGeolocationSetting(Website site, LinearLayout permissionDialog) {
+        RadioButtonWithDescription allowButton = permissionDialog.findViewById(R.id.allow);
+        RadioButtonWithDescription preciseButton = permissionDialog.findViewById(R.id.precise);
+        int approximate =
+                allowButton.isChecked() ? ContentSettingValues.ALLOW : ContentSettingValues.BLOCK;
+        int precise = preciseButton.isChecked() ? approximate : ContentSettingValues.BLOCK;
+        assumeNonNull(site.getPermissionInfo(ContentSettingsType.GEOLOCATION_WITH_OPTIONS))
+                .setGeolocationSetting(
+                        getBrowserContextHandle(), new GeolocationSetting(approximate, precise));
+    }
+
+    private BrowserContextHandle getBrowserContextHandle() {
+        return getSiteSettingsDelegate().getBrowserContextHandle();
+    }
+
     /**
      * Always returns true unless a category uses custom logic to show/hide exceptions on the
      * category settings page.
+     *
      * @return Whether exceptions should be added for the category.
      */
     private boolean shouldAddExceptionsForCategory() {

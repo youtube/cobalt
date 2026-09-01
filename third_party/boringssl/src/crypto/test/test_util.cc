@@ -16,6 +16,7 @@
 
 #include <ostream>
 
+#include <openssl/bn.h>
 #include <openssl/err.h>
 
 #include "../internal.h"
@@ -70,7 +71,7 @@ std::string EncodeHex(bssl::Span<const uint8_t> in) {
 }
 
 testing::AssertionResult ErrorEquals(uint32_t err, int lib, int reason) {
-  if (ERR_GET_LIB(err) == lib && ERR_GET_REASON(err) == reason) {
+  if (ERR_equals(err, lib, reason)) {
     return testing::AssertionSuccess();
   }
 
@@ -81,4 +82,10 @@ testing::AssertionResult ErrorEquals(uint32_t err, int lib, int reason) {
          << ERR_error_string_n(ERR_PACK(lib, reason), expected,
                                sizeof(expected))
          << "\"";
+}
+
+bssl::UniquePtr<BIGNUM> HexToBIGNUM(const char *hex) {
+  BIGNUM *bn = nullptr;
+  BN_hex2bn(&bn, hex);
+  return bssl::UniquePtr<BIGNUM>(bn);
 }

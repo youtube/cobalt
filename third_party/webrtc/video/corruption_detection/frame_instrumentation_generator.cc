@@ -15,17 +15,17 @@
 #include <cstdint>
 #include <iterator>
 #include <optional>
-#include <variant>
+#include <utility>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "api/video/corruption_detection/corruption_detection_filter_settings.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_frame_type.h"
 #include "api/video_codecs/video_codec.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "modules/include/module_common_types_public.h"
 #include "modules/video_coding/utility/qp_parser.h"
 #include "rtc_base/checks.h"
@@ -84,15 +84,13 @@ void FrameInstrumentationGenerator::OnCapturedFrame(VideoFrame frame) {
   captured_frames_.push(frame);
 }
 
-std::optional<
-    std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
+std::optional<FrameInstrumentationData>
 FrameInstrumentationGenerator::OnEncodedImage(
     const EncodedImage& encoded_image) {
   uint32_t rtp_timestamp_encoded_image = encoded_image.RtpTimestamp();
   std::optional<VideoFrame> captured_frame;
   int layer_id;
-  int sequence_index;
-  bool communicate_upper_bits;
+  FrameInstrumentationData data;
   std::vector<HaltonFrameSampler::Coordinates> sample_coordinates;
   {
     MutexLock lock(&mutex_);
@@ -141,23 +139,22 @@ FrameInstrumentationGenerator::OnEncodedImage(
       return std::nullopt;
     }
 
-    sequence_index = contexts_[layer_id].frame_sampler.GetCurrentIndex();
-    communicate_upper_bits = false;
-    if (is_key_frame) {
-      communicate_upper_bits = true;
+    int sequence_index = contexts_[layer_id].frame_sampler.GetCurrentIndex();
+    if (is_key_frame && ((sequence_index & 0b0111'1111) != 0)) {
       // Increase until all the last 7 bits are zeroes.
-
-      // If this would overflow to 15 bits, reset to 0.
-      if (sequence_index > 0b0011'1111'1000'0000) {
-        sequence_index = 0;
-      } else if ((sequence_index & 0b0111'1111) != 0) {
-        // Last 7 bits are not all zeroes.
-        sequence_index >>= 7;
-        sequence_index += 1;
-        sequence_index <<= 7;
-      }
+      sequence_index >>= 7;
+      sequence_index += 1;
+      sequence_index <<= 7;
       contexts_[layer_id].frame_sampler.SetCurrentIndex(sequence_index);
     }
+
+    if (sequence_index >= (1 << 14)) {
+      // Overflow of 14 bit counter, reset to 0.
+      sequence_index = 0;
+      contexts_[layer_id].frame_sampler.SetCurrentIndex(sequence_index);
+    }
+
+    RTC_CHECK(data.SetSequenceIndex(sequence_index));
 
     // TODO: bugs.webrtc.org/358039777 - Maybe allow other sample sizes as well
     sample_coordinates =
@@ -169,8 +166,7 @@ FrameInstrumentationGenerator::OnEncodedImage(
       if (!is_key_frame) {
         return std::nullopt;
       }
-      return FrameInstrumentationSyncData{.sequence_index = sequence_index,
-                                          .communicate_upper_bits = true};
+      return data;
     }
   }
   RTC_DCHECK(captured_frame.has_value());
@@ -182,18 +178,21 @@ FrameInstrumentationGenerator::OnEncodedImage(
     return std::nullopt;
   }
 
-  FrameInstrumentationData data = {
-      .sequence_index = sequence_index,
-      .communicate_upper_bits = communicate_upper_bits,
-      .std_dev = filter_settings->std_dev,
-      .luma_error_threshold = filter_settings->luma_error_threshold,
-      .chroma_error_threshold = filter_settings->chroma_error_threshold};
+  RTC_CHECK(data.SetStdDev(filter_settings->std_dev));
+  RTC_CHECK(data.SetLumaErrorThreshold(filter_settings->luma_error_threshold));
+  RTC_CHECK(
+      data.SetChromaErrorThreshold(filter_settings->chroma_error_threshold));
+
+  std::vector<double> plain_values;
   std::vector<FilteredSample> samples = GetSampleValuesForFrame(
       *captured_frame, sample_coordinates, encoded_image._encodedWidth,
       encoded_image._encodedHeight, filter_settings->std_dev);
-  data.sample_values.reserve(samples.size());
-  absl::c_transform(samples, std::back_inserter(data.sample_values),
+  plain_values.reserve(samples.size());
+  absl::c_transform(samples, std::back_inserter(plain_values),
                     [](const FilteredSample& sample) { return sample.value; });
+
+  RTC_CHECK(data.SetSampleValues(std::move(plain_values)));
+
   return data;
 }
 

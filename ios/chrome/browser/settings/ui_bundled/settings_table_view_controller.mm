@@ -566,7 +566,7 @@ struct EnhancedSafeBrowsingActivePromoData
     [model addItem:[self downloadsSettingsDetailItem]
         toSectionWithIdentifier:SettingsSectionIdentifierInfo];
   }
-  if (ShouldShowSafariImportWorkflow()) {
+  if (ShouldShowSafariImportWorkflow(_profile)) {
     [model addItem:[self safariDataImportSettingsDetailItem]
         toSectionWithIdentifier:SettingsSectionIdentifierInfo];
   }
@@ -1381,7 +1381,7 @@ struct EnhancedSafeBrowsingActivePromoData
       [self showTabsSettings];
       break;
     case SettingsItemTypeSafariDataImport: {
-      CHECK(ShouldShowSafariImportWorkflow());
+      CHECK(ShouldShowSafariImportWorkflow(_profile));
       base::RecordAction(base::UserMetricsAction("Settings.SafariImport"));
       id<ApplicationCommands> handler = HandlerForProtocol(
           _browser->GetCommandDispatcher(), ApplicationCommands);
@@ -2167,12 +2167,10 @@ struct EnhancedSafeBrowsingActivePromoData
 #pragma mark - Sign in
 
 - (void)showSignIn {
-  if (_signinAndHistorySyncCoordinator) {
-    // According to crbug.com/1498153, it is possible for the user to tap twice
-    // on the sign-in cell from the settings to open the sign-in dialog.
-    // If this happens, the second tap should ignored.
+  if (_signinAndHistorySyncCoordinator.viewWillPersist) {
     return;
   }
+  [_signinAndHistorySyncCoordinator stop];
   __weak __typeof(self) weakSelf = self;
   ChangeProfileContinuationProvider provider =
       base::BindRepeating(&CreateChangeProfileSettingsContinuation);
@@ -2537,8 +2535,8 @@ struct EnhancedSafeBrowsingActivePromoData
 
 - (void)safariDataImportDidDismiss {
   NSIndexPath* indexPath = [self.tableView indexPathForSelectedRow];
-  if ([self.tableViewModel itemTypeForIndexPath:indexPath] ==
-      SettingsItemTypeSafariDataImport) {
+  if (indexPath && [self.tableViewModel itemTypeForIndexPath:indexPath] ==
+                       SettingsItemTypeSafariDataImport) {
     [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
   }
 }

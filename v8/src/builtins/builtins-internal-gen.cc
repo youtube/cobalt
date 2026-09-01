@@ -110,9 +110,10 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
-  // TODO(saelo): this is not safe. We either need to validate the parameter
-  // count here or obtain the code from the dispatch table.
   TNode<Code> code = GetSharedFunctionInfoCode(shared);
+
+  // TailCallJSCode will take care of parameter count validation between the
+  // code and dispatch handle.
   TailCallJSCode(code, context, function, new_target, arg_count,
                  dispatch_handle);
 }
@@ -162,7 +163,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
     TNode<IntPtrT> chunk = MemoryChunkFromAddress(object);
-    TNode<IntPtrT> page = PageMetadataFromMemoryChunk(chunk);
+    TNode<IntPtrT> page = MemoryChunkMetadataFromMemoryChunk(chunk);
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);

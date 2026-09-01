@@ -12,6 +12,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "content/browser/preloading/prefetch/prefetch_document_manager.h"
 #include "content/browser/preloading/prefetch/prefetch_features.h"
+#include "content/browser/preloading/prefetch/prefetch_request.h"
 #include "content/browser/preloading/prefetch/prefetch_test_util_internal.h"
 #include "content/browser/preloading/prefetcher.h"
 #include "content/browser/preloading/preloading.h"
@@ -587,8 +588,11 @@ TEST_F(PreloadingDeciderTest,
   const auto& prefetches = GetPrefetchService()->prefetches_;
   preloading_decider->OnPointerDown(url);
 
-  EXPECT_TRUE(prefetches[0]->HasSpeculationRulesTags());
-  EXPECT_EQ(prefetches[0]->GetSpeculationRulesTagsHeaderString().value(),
+  EXPECT_TRUE(prefetches[0]->request().speculation_rules_tags());
+  EXPECT_EQ(prefetches[0]
+                ->request()
+                .speculation_rules_tags()
+                ->ConvertStringToHeaderString(),
             "\"tag1\", \"tag2\"");
   EXPECT_FALSE(preloading_decider->IsOnStandByForTesting(
       url, blink::mojom::SpeculationAction::kPrefetch));
@@ -629,8 +633,11 @@ TEST_F(PreloadingDeciderTest,
           /*mouse_acceleration=*/0.0),
       blink::mojom::SpeculationEagerness::kModerate);
 
-  EXPECT_TRUE(prefetches[0]->HasSpeculationRulesTags());
-  EXPECT_EQ(prefetches[0]->GetSpeculationRulesTagsHeaderString().value(),
+  EXPECT_TRUE(prefetches[0]->request().speculation_rules_tags());
+  EXPECT_EQ(prefetches[0]
+                ->request()
+                .speculation_rules_tags()
+                ->ConvertStringToHeaderString(),
             "\"tag2\"");
   EXPECT_FALSE(preloading_decider->IsOnStandByForTesting(
       url, blink::mojom::SpeculationAction::kPrefetch));
@@ -660,8 +667,11 @@ TEST_F(PreloadingDeciderTest, SpeculationRulesTagsMergingForImmediatePrefetch) {
   preloading_decider->UpdateSpeculationCandidates(candidates);
   const auto& prefetches = GetPrefetchService()->prefetches_;
 
-  EXPECT_TRUE(prefetches[0]->HasSpeculationRulesTags());
-  EXPECT_EQ(prefetches[0]->GetSpeculationRulesTagsHeaderString().value(),
+  EXPECT_TRUE(prefetches[0]->request().speculation_rules_tags());
+  EXPECT_EQ(prefetches[0]
+                ->request()
+                .speculation_rules_tags()
+                ->ConvertStringToHeaderString(),
             "\"tag1\", \"tag2\"");
   EXPECT_FALSE(preloading_decider->IsOnStandByForTesting(
       url, blink::mojom::SpeculationAction::kPrefetch));
@@ -778,7 +788,8 @@ TEST_P(PreloadingDeciderWithParameterizedSpeculationActionTest,
       case blink::mojom::SpeculationAction::kPrefetch:
         return GetPrefetchService()
             ->prefetches_[0]
-            ->GetPrefetchType()
+            ->request()
+            .prefetch_type()
             .GetEagerness();
       case blink::mojom::SpeculationAction::kPrefetchWithSubresources:
       case blink::mojom::SpeculationAction::kPrerenderUntilScript:
@@ -1024,8 +1035,9 @@ TEST_F(PreloadingDeciderTest,
 
 TEST_F(PreloadingDeciderTest, ViewportHeuristicPredictionIsNotEnacted) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeature(
-      blink::features::kPreloadingViewportHeuristics);
+  feature_list.InitAndEnableFeatureWithParameters(
+      blink::features::kPreloadingViewportHeuristics,
+      {{"enact_candidates", "false"}});
 
   auto* preloading_decider =
       PreloadingDecider::GetOrCreateForCurrentDocument(&GetPrimaryMainFrame());

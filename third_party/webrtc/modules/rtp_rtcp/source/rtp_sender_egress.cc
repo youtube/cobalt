@@ -132,9 +132,6 @@ RtpSenderEgress::RtpSenderEgress(const Environment& env,
       use_ntp_time_for_absolute_send_time_(!env_.field_trials().IsDisabled(
           "WebRTC-UseNtpTimeAbsoluteSendTime")) {
   RTC_DCHECK(worker_queue_);
-  RTC_DCHECK(config.transport_feedback_callback == nullptr)
-      << "transport_feedback_callback is no longer used and will soon be "
-         "deleted.";
   if (bitrate_callback_) {
     update_task_ = RepeatingTaskHandle::DelayedStart(worker_queue_,
                                                      kUpdateInterval, [this]() {

@@ -125,6 +125,9 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   aw_feature_overrides.DisableFeature(
       blink::features::kSecurePaymentConfirmationAvailabilityAPI);
 
+  // WebView does not support handling payment links.
+  aw_feature_overrides.DisableFeature(blink::features::kPaymentLinkDetection);
+
   // WebView does not support overlay fullscreen yet for video overlays.
   aw_feature_overrides.DisableFeature(media::kOverlayFullscreenVideo);
 
@@ -293,4 +296,11 @@ void AwFieldTrials::RegisterFeatureOverrides(base::FeatureList* feature_list) {
   // AAudio per-stream device selection is not supported on WebView.
   aw_feature_overrides.DisableFeature(
       features::kAAudioPerStreamDeviceSelection);
+
+  // Disable background media. This is not used in WebView, and also it
+  // side-steps an issue where JNI calls in renderer does not reliably work.
+  // Long-term fix is to plumb this info to the renderer and remove Java calls
+  // there. crbug.com/438910961
+  aw_feature_overrides.DisableFeature(
+      features::kAndroidEnableBackgroundMediaLargeFormFactors);
 }

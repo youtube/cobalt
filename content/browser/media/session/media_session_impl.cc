@@ -1584,6 +1584,7 @@ void MediaSessionImpl::OnMediaSessionInfoChanged(
     return;
 
   RebuildAndNotifyMediaSessionInfoChanged();
+  RebuildAndNotifyActionsChanged();
 }
 
 void MediaSessionImpl::DidReceiveAction(
@@ -2132,6 +2133,17 @@ void MediaSessionImpl::SetShouldThrottleDurationUpdateForTest(
   should_throttle_duration_update_ = should_throttle;
 }
 
+bool MediaSessionImpl::IsActivelyUsingCameraOrMicrophone() const {
+  if (!routed_service_) {
+    return false;
+  }
+
+  return routed_service_->microphone_state() ==
+             media_session::mojom::MicrophoneState::kUnmuted ||
+         routed_service_->camera_state() ==
+             media_session::mojom::CameraState::kTurnedOn;
+}
+
 bool MediaSessionImpl::CouldEnterBrowserInitiatedAutomaticPictureInPicture()
     const {
   if (!base::FeatureList::IsEnabled(
@@ -2140,6 +2152,10 @@ bool MediaSessionImpl::CouldEnterBrowserInitiatedAutomaticPictureInPicture()
   }
 
   if (!IsPictureInPictureAvailable()) {
+    return false;
+  }
+
+  if (IsActivelyUsingCameraOrMicrophone()) {
     return false;
   }
 

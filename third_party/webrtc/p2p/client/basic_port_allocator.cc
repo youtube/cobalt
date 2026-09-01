@@ -922,8 +922,10 @@ void BasicPortAllocatorSession::AddAllocatedPort(Port* port,
 
   port->SignalCandidateReady.connect(
       this, &BasicPortAllocatorSession::OnCandidateReady);
-  port->SignalCandidateError.connect(
-      this, &BasicPortAllocatorSession::OnCandidateError);
+  port->SubscribeCandidateError(
+      [this](Port* port, const IceCandidateErrorEvent& event) {
+        OnCandidateError(port, event);
+      });
   port->SignalPortComplete.connect(this,
                                    &BasicPortAllocatorSession::OnPortComplete);
   port->SubscribePortDestroyed(

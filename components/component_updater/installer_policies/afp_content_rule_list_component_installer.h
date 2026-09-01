@@ -39,16 +39,35 @@ class AntiFingerprintingContentRuleListComponentInstallerPolicy
   enum class InstallationResult {
     kSuccess = 0,
     kMissingJsonFile = 1,
-    kMaxValue = kMissingJsonFile,
+    kFileReadError = 2,
+    kMaxValue = kFileReadError,
   };
   // LINT.ThenChange(//tools/metrics/histograms/enums.xml:FingerprintingProtectionWKComponentInstallationResult)
+
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  // LINT.IfChange(IOSDryRunTransformResult)
+  enum class IOSDryRunTransformResult {
+    kSuccessRulesTransformed = 0,
+    kSuccessNoRulesToTransform = 1,
+    kJsonParseFailed = 2,
+    kMaxValue = kJsonParseFailed,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/enums.xml:FingerprintingProtectionIOSDryRunTransformResult)
 
   explicit AntiFingerprintingContentRuleListComponentInstallerPolicy(
       OnLoadCompleteCallback on_load_complete);
   ~AntiFingerprintingContentRuleListComponentInstallerPolicy() override;
 
+  static void Register(ComponentUpdateService* cus);
+
  private:
   friend class AntiFingerprintingContentRuleListComponentInstallerPolicyTest;
+
+  // TODO(crbug.com/436881800): For testing only. Remove after the experiment.
+  static std::string TransformJsonForDryRun(std::string json);
+
+  static void PopulateContentRuleListData(std::optional<std::string> json);
 
   // ComponentInstallerPolicy:
   bool SupportsGroupPolicyEnabledComponentUpdates() const override;
@@ -71,9 +90,6 @@ class AntiFingerprintingContentRuleListComponentInstallerPolicy
 
   OnLoadCompleteCallback on_load_complete_;
 };
-
-void RegisterAntiFingerprintingContentRuleListComponent(
-    ComponentUpdateService* cus);
 
 }  // namespace component_updater
 

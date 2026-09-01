@@ -192,9 +192,6 @@ class ProfileKeyedServiceBrowserTest : public InProcessBrowserTest {
 #if BUILDFLAG(IS_WIN)
           switches::kEnableBoundSessionCredentials,
 #endif  // BUILDFLAG(IS_WIN)
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-          features::kEnableCertManagementUIV2Write,
-#endif
           network::features::kBrowsingTopics,
           blink::features::kBuiltInAIAPI,
           extensions_features::kForceWebRequestProxyForTest,
@@ -439,6 +436,7 @@ IN_PROC_BROWSER_TEST_F(ProfileKeyedServiceGuestBrowserTest,
     "PrivacySandboxSettings",
     "ProcessManager",
     "ProfileNetworkContextService",
+    "ReadAnythingServiceFactory",
     "RealtimeReportingClient",
     "ReduceAcceptLanguage",
     "RendererUpdater",

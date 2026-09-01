@@ -8,9 +8,12 @@
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
+#include "base/memory/weak_ptr.h"
+#include "base/sequence_checker.h"
 #include "components/optimization_guide/proto/model_execution.pb.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/on_device_model/backend_session.h"
+#include "services/on_device_model/android/sequence_checker_helper.h"
 
 namespace on_device_model {
 
@@ -56,13 +59,16 @@ class BackendSessionImplAndroid : public BackendSession {
                      response) override;
   void AsrAddAudioChunk(on_device_model::mojom::AudioDataPtr data) override;
 
-  // Called by Java:
+  // Called by Java (can be called on any thread):
   // Called when the response of `Generate` is received from the AiCoreSession.
   void OnResponse(const std::string& response);
   // Called when the response of `Generate` is completed from the AiCoreSession.
   void OnComplete(GenerateResult generate_result);
 
  private:
+  void OnResponseOnSequence(const std::string& response);
+  void OnCompleteOnSequence(GenerateResult generate_result);
+
   // The Java counterpart of this object.
   base::android::ScopedJavaGlobalRef<jobject> java_session_;
 
@@ -72,6 +78,16 @@ class BackendSessionImplAndroid : public BackendSession {
   mojo::Remote<on_device_model::mojom::StreamingResponder> responder_;
   // The accumulated context of the current session.
   std::vector<ml::InputPiece> context_input_pieces_;
+
+  // The feature for which this session was created.
+  const optimization_guide::proto::ModelExecutionFeature feature_;
+
+  SEQUENCE_CHECKER(sequence_checker_);
+  SequenceCheckerHelper sequence_checker_helper_;
+
+  // The weak pointer created on the main sequence.
+  base::WeakPtr<BackendSessionImplAndroid> weak_ptr_;
+  base::WeakPtrFactory<BackendSessionImplAndroid> weak_factory_{this};
 };
 
 }  // namespace on_device_model

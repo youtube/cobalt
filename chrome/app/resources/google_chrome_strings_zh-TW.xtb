@@ -259,7 +259,7 @@
 <translation id="4111566860456076004">Chrome 無法驗證擴充功能的來源，因此可能不安全。請從 Chrome 中移除這項擴充功能，使其無法再查看及變更你瀏覽網站時留下的資料，包括個人資訊。</translation>
 <translation id="4128488089242627000">提高 Chrome 執行速度，讓使用 JavaScript 的功能正常運作 (建議採用)</translation>
 <translation id="4147555960264124640">你已登入管理化環境下的帳戶，並將管理控制權授予你的 Chrome 設定檔。你的 Chrome 資料 (例如應用程式、書籤、記錄、密碼和其他設定) 均將永久與 <ph name="USER_NAME" /> 建立關聯。你可以透過 Google 帳戶資訊主頁刪除這些資料，但你無法將這些資料與其他帳戶建立關聯。<ph name="LEARN_MORE" /></translation>
-<translation id="4148957013307229264">安裝中...</translation>
+<translation id="4148957013307229264">正在安裝...</translation>
 <translation id="4149882025268051530">安裝程式無法解壓縮封存檔案，請再次下載 Google Chrome。</translation>
 <translation id="415112847282352845">如要在所有裝置上使用你的地址和其他資料，請登入 Chrome。登入後，這個地址就會儲存到 Google 帳戶。</translation>
 <translation id="4153934450158521343">Chrome 即將關閉並刪除資料</translation>
@@ -584,6 +584,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8077579734294125741">其他 Chrome 設定檔</translation>
 <translation id="8086881907087796310">安裝失敗，因為電腦不符合最低硬體需求。</translation>
 <translation id="8113883687556086139">請驗證身分，才能將 Chrome 資料儲存到帳戶 (<ph name="ACCOUNT_EMAIL" />)，或使用帳戶中的 Chrome 資料</translation>
+<translation id="8115695070094288807">打造個人專屬的 Chrome...</translation>
 <translation id="8118331347066725040">提供你對智慧鏡頭搜尋功能的意見</translation>
 <translation id="8129812357326543296">關於 Google Chrome(&amp;G)</translation>
 <translation id="813913629614996137">正在初始化...</translation>

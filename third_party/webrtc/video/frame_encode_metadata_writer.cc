@@ -51,7 +51,6 @@ class EncodedImageBufferWrapper : public EncodedImageBufferInterface {
       : buffer_(std::move(buffer)) {}
 
   const uint8_t* data() const override { return buffer_.data(); }
-  uint8_t* data() override { return buffer_.data(); }
   size_t size() const override { return buffer_.size(); }
 
  private:
@@ -66,19 +65,10 @@ FrameEncodeMetadataWriter::TimingFramesLayerInfo::~TimingFramesLayerInfo() =
     default;
 
 FrameEncodeMetadataWriter::FrameEncodeMetadataWriter(
-    const Environment& /*env*/,
+    const Environment& env,
     EncodedImageCallback* frame_drop_callback)
-// TODO: bugs.webrtc.org/42223992 - Save `Environment` into member and use
-// it to query current time when deprecated constructor is removed.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    : FrameEncodeMetadataWriter(frame_drop_callback) {
-}
-#pragma clang diagnostic pop
-
-FrameEncodeMetadataWriter::FrameEncodeMetadataWriter(
-    EncodedImageCallback* frame_drop_callback)
-    : frame_drop_callback_(frame_drop_callback),
+    : env_(env),
+      frame_drop_callback_(frame_drop_callback),
       framerate_fps_(0),
       last_timing_frame_time_ms_(-1),
       reordered_frames_logged_messages_(0),
@@ -130,7 +120,7 @@ void FrameEncodeMetadataWriter::OnEncodeStarted(const VideoFrame& frame) {
   timing_frames_info_.resize(num_spatial_layers_);
   FrameMetadata metadata;
   metadata.rtp_timestamp = frame.rtp_timestamp();
-  metadata.encode_start_time_ms = TimeMillis();
+  metadata.encode_start_time_ms = env_.clock().TimeInMilliseconds();
   metadata.ntp_time_ms = frame.ntp_time_ms();
   metadata.timestamp_us = frame.timestamp_us();
   metadata.rotation = frame.rotation();
@@ -174,7 +164,7 @@ void FrameEncodeMetadataWriter::FillMetadataAndTimingInfo(
   std::optional<int64_t> encode_start_ms;
   uint8_t timing_flags = VideoSendTiming::kNotTriggered;
 
-  int64_t encode_done_ms = TimeMillis();
+  int64_t encode_done_ms = env_.clock().TimeInMilliseconds();
 
   encode_start_ms =
       ExtractEncodeStartTimeAndFillMetadata(simulcast_svc_idx, encoded_image);
@@ -213,7 +203,7 @@ void FrameEncodeMetadataWriter::FillMetadataAndTimingInfo(
 
   // If encode start is not available that means that encoder uses internal
   // source. In that case capture timestamp may be from a different clock with a
-  // drift relative to TimeMillis(). We can't use it for Timing frames,
+  // drift relative to `env_.clock()`. We can't use it for Timing frames,
   // because to being sent in the network capture time required to be less than
   // all the other timestamps.
   if (encode_start_ms) {

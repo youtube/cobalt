@@ -97,8 +97,10 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
     DCHECK_LT(offset >> kPageSizeBits, MemoryChunkConstants::kPagesInMainCage);
     index = MemoryChunkConstants::kMainCageMetadataOffset +
             (offset >> kPageSizeBits);
-  } else if (TrustedRange::GetProcessWideTrustedRange()->region().contains(
-                 chunk_address)) {
+  } else if (IsolateGroup::current()
+                 ->GetTrustedPtrComprCage()
+                 ->region()
+                 .contains(chunk_address)) {
     Tagged_t offset = TrustedSpaceCompressionScheme::CompressAny(chunk_address);
     DCHECK_LT(offset >> kPageSizeBits,
               MemoryChunkConstants::kPagesInTrustedCage);
@@ -114,6 +116,21 @@ uint32_t MemoryChunk::MetadataTableIndex(Address chunk_address) {
   }
   DCHECK_LT(index, MemoryChunkConstants::kMetadataPointerTableSize);
   return index;
+}
+
+bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
+  // For the sandbox only flags from writable pages can be corrupted so we can
+  // use the flag check as a fast path in this case.
+  // It also helps making TSAN happy, since it doesn't like the way we
+  // initialize the MemoryChunks.
+  // (See MemoryChunkMetadata::SynchronizedHeapLoad).
+  if (!InReadOnlySpace()) {
+    return false;
+  }
+  SBXCHECK_EQ(
+      static_cast<const ReadOnlyPageMetadata*>(Metadata())->ChunkAddress(),
+      address());
+  return true;
 }
 
 #endif  // V8_ENABLE_SANDBOX
@@ -181,15 +198,6 @@ bool MemoryChunk::InReadOnlySpace() const {
 
 #ifdef DEBUG
 
-bool MemoryChunk::IsTrusted() const {
-  bool is_trusted = IsFlagSet(IS_TRUSTED);
-#if DEBUG
-  AllocationSpace id = Metadata()->owner()->identity();
-  DCHECK_EQ(is_trusted, IsAnyTrustedSpace(id) || IsAnyCodeSpace(id));
-#endif
-  return is_trusted;
-}
-
 size_t MemoryChunk::Offset(Address addr) const {
   DCHECK_GE(addr, Metadata()->area_start());
   DCHECK_LE(addr, address() + Metadata()->size());
@@ -202,36 +210,6 @@ size_t MemoryChunk::OffsetMaybeOutOfRange(Address addr) const {
 }
 
 #endif  // DEBUG
-
-#ifdef V8_ENABLE_SANDBOX
-bool MemoryChunk::SandboxSafeInReadOnlySpace() const {
-  // For the sandbox only flags from writable pages can be corrupted so we can
-  // use the flag check as a fast path in this case.
-  // It also helps making TSAN happy, since it doesn't like the way we
-  // initialize the MemoryChunks.
-  // (See MemoryChunkMetadata::SynchronizedHeapLoad).
-  if (!InReadOnlySpace()) {
-    return false;
-  }
-
-  // When the sandbox is enabled, only the ReadOnlyPageMetadata are stored
-  // inline in the MemoryChunk.
-  // ReadOnlyPageMetadata::ChunkAddress() is a special version that boils down
-  // to `metadata_address - kMemoryChunkHeaderSize`.
-  IsolateGroup::MemoryChunkMetadataTableEntry* metadata_pointer_table =
-      MetadataTableAddress();
-  MemoryChunkMetadata* metadata =
-      metadata_pointer_table
-          [metadata_index_ &
-           MemoryChunkConstants::kMetadataPointerTableSizeMask]
-              .metadata();
-  SBXCHECK_EQ(
-      static_cast<const ReadOnlyPageMetadata*>(metadata)->ChunkAddress(),
-      address());
-
-  return true;
-}
-#endif
 
 }  // namespace internal
 }  // namespace v8

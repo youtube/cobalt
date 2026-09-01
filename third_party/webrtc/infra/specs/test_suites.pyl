@@ -89,7 +89,9 @@
         'mixins': ['shards-4'],
       },
       'system_wrappers_unittests': {},
-      'test_support_unittests': {},
+      'test_support_unittests': {
+        'mixins': ['shards-2'],
+      },
       'tools_unittests': {},
       'video_engine_tests': {
         'mixins': ['shards-4'],

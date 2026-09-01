@@ -70,7 +70,7 @@ VideoCodec::VideoCodec()
       spatialLayers(),
       mode(VideoCodecMode::kRealtimeVideo),
       expect_encode_from_texture(false),
-      timing_frame_thresholds({0, 0}),
+      timing_frame_thresholds({.delay_ms = 0, .outlier_ratio_percent = 0}),
       legacy_conference_mode(false),
       codec_specific_(),
       complexity_(VideoCodecComplexity::kComplexityNormal) {}

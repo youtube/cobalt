@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "absl/memory/memory.h"
+#include "api/array_view.h"
 #include "api/rtc_event_log/rtc_event.h"
 #include "rtc_base/time_utils.h"
 
@@ -24,7 +25,7 @@ namespace webrtc {
 std::vector<std::unique_ptr<RtcEventGenericAckReceived>>
 RtcEventGenericAckReceived::CreateLogs(
     int64_t packet_number,
-    const std::vector<AckedPacket>& acked_packets) {
+    ArrayView<const AckedPacket> acked_packets) {
   std::vector<std::unique_ptr<RtcEventGenericAckReceived>> result;
   int64_t time_us = TimeMicros();
   result.reserve(acked_packets.size());
@@ -50,9 +51,6 @@ std::unique_ptr<RtcEventGenericAckReceived> RtcEventGenericAckReceived::Copy()
     const {
   return absl::WrapUnique(new RtcEventGenericAckReceived(*this));
 }
-
-RtcEventGenericAckReceived::RtcEventGenericAckReceived(
-    const RtcEventGenericAckReceived& packet) = default;
 
 RtcEventGenericAckReceived::~RtcEventGenericAckReceived() = default;
 

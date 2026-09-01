@@ -9,6 +9,8 @@
 #include "src/builtins/builtins-inl.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/codegen/macro-assembler.h"
+#include "src/codegen/register.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/register-configuration.h"
@@ -398,52 +400,31 @@ static void AssertCodeIsBaseline(MacroAssembler* masm, Register code,
 static void GetSharedFunctionInfoBytecodeOrBaseline(
     MacroAssembler* masm, Register sfi, Register bytecode, Register scratch1,
     Label* is_baseline, Label* is_unavailable) {
-  DCHECK(!AreAliased(bytecode, scratch1));
   ASM_CODE_COMMENT(masm);
-  Label done;
+  DCHECK(!AreAliased(bytecode, scratch1));
+  Label is_interpreter_data, is_bytecode_array;
 
   Register data = bytecode;
-  __ LoadTrustedPointerField(
+  __ LoadTrustedUnknownPointerField(
       data,
       FieldMemOperand(sfi, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
+      scratch1,
+      {
+          {INTERPRETER_DATA_TYPE, &is_interpreter_data},
+          {BYTECODE_ARRAY_TYPE, &is_bytecode_array},
+#if !V8_JITLESS_BOOL
+          {CODE_TYPE, is_baseline},
+#endif
+      });
+  // Fallthrough means none of the types matched. The destination register is
+  // zeroed.
+  __ B(is_unavailable);
 
-  if (V8_JITLESS_BOOL) {
-    __ IsObjectType(data, scratch1, scratch1, INTERPRETER_DATA_TYPE);
-    __ B(ne, &done);
-  } else {
-#if V8_STATIC_ROOTS_BOOL
-    __ IsObjectTypeFast(data, scratch1, CODE_TYPE);
-#else
-    __ CompareObjectType(data, scratch1, scratch1, CODE_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-
-    if (v8_flags.debug_code) {
-      Label not_baseline;
-      __ B(ne, &not_baseline);
-      AssertCodeIsBaseline(masm, data, scratch1);
-      __ B(eq, is_baseline);
-      __ Bind(&not_baseline);
-    } else {
-      __ B(eq, is_baseline);
-    }
-
-#if V8_STATIC_ROOTS_BOOL
-    // scratch already contains the compressed map.
-    __ CompareInstanceTypeWithUniqueCompressedMap(scratch1, Register::no_reg(),
-                                                  INTERPRETER_DATA_TYPE);
-#else
-    // scratch already contains the instance type.
-    __ Cmp(scratch1, INTERPRETER_DATA_TYPE);
-#endif  // V8_STATIC_ROOTS_BOOL
-    __ B(ne, &done);
-  }
-
+  __ bind(&is_interpreter_data);
   __ LoadInterpreterDataBytecodeArray(bytecode, data);
 
-  __ Bind(&done);
-  __ IsObjectType(bytecode, scratch1, scratch1, BYTECODE_ARRAY_TYPE);
-  __ B(ne, is_unavailable);
+  __ bind(&is_bytecode_array);
+  // In this case, the bytecode register already contains the bytecode array.
 }
 
 // static
@@ -2041,13 +2022,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ Ldr(x1, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
   __ LoadTaggedField(
       x1, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadTrustedPointerField(
+  Label is_interpreter_data;
+  __ LoadTrustedUnknownPointerField(
       x1, FieldMemOperand(x1, SharedFunctionInfo::kTrustedFunctionDataOffset),
-      kUnknownIndirectPointerTag);
-  __ IsObjectType(x1, kInterpreterDispatchTableRegister,
-                  kInterpreterDispatchTableRegister, INTERPRETER_DATA_TYPE);
-  __ B(ne, &builtin_trampoline);
+      kInterpreterDispatchTableRegister,
+      {{INTERPRETER_DATA_TYPE, &is_interpreter_data}});
+  __ B(&builtin_trampoline);
 
+  __ bind(&is_interpreter_data);
   __ LoadInterpreterDataInterpreterTrampoline(x1, x1);
   __ LoadCodeInstructionStart(x1, x1, kJSEntrypointTag);
   __ B(&trampoline_loaded);
@@ -2762,25 +2744,28 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     Register scratch = x13;
     __ Add(src, arguments_list,
            OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag);
-#if !V8_STATIC_ROOTS_BOOL
-    // We do not use the CompareRoot macro without static roots as it would do a
-    // LoadRoot behind the scenes and we want to avoid that in a loop.
+    // We do not use the CompareRoot macro as it would do either a load of the
+    // static root value into a register or a LoadRoot behind the scenes, and we
+    // want to avoid that in a loop.
+#if V8_STATIC_ROOTS_BOOL
+    // If TheHoleValue became small enough for an ImmAddSub, we should use an
+    // immediate compare in the loop.
+    static_assert(!Assembler::IsImmAddSub(StaticReadOnlyRoot::kTheHoleValue));
+#endif
     Register the_hole_value = x11;
     __ LoadTaggedRoot(the_hole_value, RootIndex::kTheHoleValue);
-#endif  // !V8_STATIC_ROOTS_BOOL
     __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
     // TODO(all): Consider using Ldp and Stp.
-    Register dst = x16;
+    Register dst = x15;
+    // None of the temp registers should be clobbered by a temporary.
+    DCHECK(!masm->TmpList()->IncludesAliasOf(src, undefined_value, scratch,
+                                             the_hole_value, dst));
     __ SlotAddress(dst, argc);
     __ Add(argc, argc, len);  // Update new argc.
     __ Bind(&loop);
     __ Sub(len, len, 1);
     __ LoadTaggedField(scratch, MemOperand(src, kTaggedSize, PostIndex));
-#if V8_STATIC_ROOTS_BOOL
-    __ CompareRoot(scratch, RootIndex::kTheHoleValue);
-#else
     __ CmpTagged(scratch, the_hole_value);
-#endif
     __ Csel(scratch, scratch, undefined_value, ne);
     __ Str(scratch, MemOperand(dst, kSystemPointerSize, PostIndex));
     __ Cbnz(len, &loop);

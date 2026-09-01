@@ -42,6 +42,8 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
+#include "api/video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
 #include "api/video/recordable_encoded_frame.h"
@@ -64,7 +66,6 @@
 #include "call/rtx_receive_stream.h"
 #include "call/syncable.h"
 #include "call/video_receive_stream.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "modules/rtp_rtcp/include/receive_statistics.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
 #include "modules/rtp_rtcp/source/rtp_rtcp_interface.h"
@@ -81,12 +82,10 @@
 #include "rtc_base/strings/string_builder.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/system/file_wrapper.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/clock.h"
 #include "system_wrappers/include/ntp_time.h"
 #include "video/call_stats2.h"
-#include "video/corruption_detection/frame_instrumentation_evaluation.h"
 #include "video/decode_synchronizer.h"
 #include "video/frame_decode_scheduler.h"
 #include "video/frame_dumping_decoder.h"
@@ -267,7 +266,7 @@ VideoReceiveStream2::VideoReceiveStream2(
       max_wait_for_frame_(DetermineMaxWaitForFrame(
           TimeDelta::Millis(config_.rtp.nack.rtp_history_ms),
           false)),
-      frame_evaluator_(&stats_proxy_),
+      frame_evaluator_(FrameInstrumentationEvaluation::Create(&stats_proxy_)),
       decode_queue_(env_.task_queue_factory().CreateTaskQueue(
           "DecodingQueue",
           TaskQueueFactory::Priority::HIGH)) {
@@ -587,7 +586,7 @@ void VideoReceiveStream2::CreateAndRegisterExternalDecoder(
     char filename_buffer[256];
     SimpleStringBuilder ssb(filename_buffer);
     ssb << decoded_output_file << "/webrtc_receive_stream_" << remote_ssrc()
-        << "-" << TimeMicros() << ".ivf";
+        << "-" << env_.clock().TimeInMicroseconds() << ".ivf";
     video_decoder = CreateFrameDumpingDecoderWrapper(
         std::move(video_decoder), FileWrapper::OpenWriteOnly(ssb.str()));
   }
@@ -658,8 +657,8 @@ void VideoReceiveStream2::CalculateCorruptionScore(
     const FrameInstrumentationData& frame_instrumentation_data,
     VideoContentType content_type) {
   RTC_DCHECK_RUN_ON(&decode_sequence_checker_);
-  frame_evaluator_.OnInstrumentedFrame(frame_instrumentation_data, frame,
-                                       content_type);
+  frame_evaluator_->OnInstrumentedFrame(frame_instrumentation_data, frame,
+                                        content_type);
 }
 
 bool VideoReceiveStream2::SetBaseMinimumPlayoutDelayMs(int delay_ms) {

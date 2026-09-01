@@ -16,6 +16,7 @@
 #include "base/no_destructor.h"
 #include "base/scoped_multi_source_observation.h"
 #include "base/scoped_observation.h"
+#include "base/types/pass_key.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/views/view.h"
@@ -35,6 +36,13 @@ TrackedElementViews::~TrackedElementViews() = default;
 
 gfx::Rect TrackedElementViews::GetScreenBounds() const {
   return view()->GetBoundsInScreen();
+}
+
+gfx::NativeView TrackedElementViews::GetNativeView() const {
+  if (!view()->GetWidget()) {
+    return gfx::NativeView();
+  }
+  return view()->GetWidget()->GetNativeView();
 }
 
 std::string TrackedElementViews::ToString() const {
@@ -326,7 +334,7 @@ ui::ElementContext ElementTrackerViews::GetContextForWidget(Widget* widget) {
       return context;
     }
   }
-  return ui::ElementContext(primary);
+  return ui::ElementContext(primary, base::PassKey<ElementTrackerViews>());
 }
 
 TrackedElementViews* ElementTrackerViews::GetElementForView(

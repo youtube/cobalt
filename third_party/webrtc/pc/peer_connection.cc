@@ -1594,6 +1594,11 @@ RTCError PeerConnection::SetBitrate(const BitrateSettings& bitrate) {
   }
   RTC_DCHECK_RUN_ON(worker_thread());
 
+  if (!call_) {
+    LOG_AND_RETURN_ERROR(RTCErrorType::INVALID_STATE,
+                         "PeerConnection is closed.");
+  }
+
   const bool has_min = bitrate.min_bitrate_bps.has_value();
   const bool has_start = bitrate.start_bitrate_bps.has_value();
   const bool has_max = bitrate.max_bitrate_bps.has_value();
@@ -1623,7 +1628,6 @@ RTCError PeerConnection::SetBitrate(const BitrateSettings& bitrate) {
     }
   }
 
-  RTC_DCHECK(call_.get());
   call_->SetClientBitratePreferences(bitrate);
 
   return RTCError::OK();
@@ -2084,7 +2088,10 @@ void PeerConnection::OnIceCandidatesRemoved(
   for (Candidate candidate : candidates) {  // Get a copy to set the transport.
     // For backwards compatibility reasons, all candidate instances still need
     // to have the transport_name() property set to the `mid`.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     candidate.set_transport_name(mid);
+#pragma clang diagnostic pop
     IceCandidate c(mid, -1, candidate);
     RunWithObserver([&](auto o) { o->OnIceCandidateRemoved(&c); });
   }

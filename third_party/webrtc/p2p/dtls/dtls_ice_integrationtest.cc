@@ -165,8 +165,8 @@ class DtlsIceIntegrationTest : public ::testing::TestWithParam<std::tuple<
       ep.allocator->set_flags(ep.allocator->flags() |
                               PORTALLOCATOR_DISABLE_TCP);
       ep.ice = std::make_unique<P2PTransportChannel>(
-          client ? "client_transport" : "server_transport", 0,
-          ep.allocator.get(), &ep.env.field_trials());
+          ep.env, client ? "client_transport" : "server_transport", 0,
+          ep.allocator.get());
       CryptoOptions crypto_options;
       if (ep.pqc) {
         FieldTrials field_trials("WebRTC-EnableDtlsPqc/Enabled/");

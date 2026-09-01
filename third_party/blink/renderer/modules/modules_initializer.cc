@@ -8,7 +8,6 @@
 
 #include <memory>
 
-#include "base/feature_list.h"
 #include "base/task/thread_pool.h"
 #include "base/trace_event/trace_event.h"
 #include "build/android_buildflags.h"
@@ -130,16 +129,6 @@
 
 namespace blink {
 namespace {
-
-// Serves as a kill switch.
-BASE_FEATURE(kBlinkEnableInnerTextAgent,
-             "BlinkEnableInnerTextAgent",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Serves as a kill switch.
-BASE_FEATURE(kBlinkEnableInnerHtmlAgent,
-             "BlinkEnableInnerHtmlAgent",
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_DESKTOP_ANDROID)
 
@@ -283,15 +272,11 @@ void ModulesInitializer::InitLocalFrame(LocalFrame& frame) const {
                     WrapCrossThreadWeakPersistent(&frame)));
 #endif  // BUILDFLAG(USE_WEBRTC_PEER_CONNECTION)
 
-  if (base::FeatureList::IsEnabled(kBlinkEnableInnerTextAgent)) {
-    frame.GetInterfaceRegistry()->AddInterface(BindRepeating(
-        &InnerTextAgent::BindReceiver, WrapWeakPersistent(&frame)));
-  }
+  frame.GetInterfaceRegistry()->AddInterface(
+      BindRepeating(&InnerTextAgent::BindReceiver, WrapWeakPersistent(&frame)));
 
-  if (base::FeatureList::IsEnabled(kBlinkEnableInnerHtmlAgent)) {
-    frame.GetInterfaceRegistry()->AddInterface(BindRepeating(
-        &InnerHtmlAgent::BindReceiver, WrapWeakPersistent(&frame)));
-  }
+  frame.GetInterfaceRegistry()->AddInterface(
+      BindRepeating(&InnerHtmlAgent::BindReceiver, WrapWeakPersistent(&frame)));
 
   if (base::FeatureList::IsEnabled(features::kFrameMetadataObserver)) {
     frame.GetInterfaceRegistry()->AddInterface(

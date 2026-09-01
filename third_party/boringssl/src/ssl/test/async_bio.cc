@@ -102,12 +102,22 @@ static int AsyncRead(BIO *bio, char *out, int outl) {
 }
 
 static long AsyncCtrl(BIO *bio, int cmd, long num, void *ptr) {
+  AsyncBio *a = GetData(bio);
   BIO *next = BIO_next(bio);
   if (next == nullptr) {
     return 0;
   }
   BIO_clear_retry_flags(bio);
+  // Model an async flush as consuming one byte of write quota.
+  if (cmd == BIO_CTRL_FLUSH && a->write_quota == 0) {
+    BIO_set_retry_write(bio);
+    errno = EAGAIN;
+    return -1;
+  }
   long ret = BIO_ctrl(next, cmd, num, ptr);
+  if (cmd == BIO_CTRL_FLUSH && ret > 0) {
+    a->write_quota--;
+  }
   BIO_copy_next_retry(bio);
   return ret;
 }

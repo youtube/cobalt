@@ -24,8 +24,6 @@
 #include <openssl/curve25519.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
-#define OPENSSL_UNSTABLE_EXPERIMENTAL_KYBER
-#include <openssl/experimental/kyber.h>
 #include <openssl/hrss.h>
 #include <openssl/mem.h>
 #include <openssl/mlkem.h>
@@ -34,6 +32,7 @@
 #include <openssl/span.h>
 
 #include "../crypto/internal.h"
+#include "../crypto/kyber/internal.h"
 #include "internal.h"
 
 BSSL_NAMESPACE_BEGIN

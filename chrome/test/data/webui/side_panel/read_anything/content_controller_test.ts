@@ -7,7 +7,7 @@
 
 import 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 
-import {ContentController, HIGHLIGHTED_LINK_CLASS, NodeStore, previousReadHighlightClass, SpeechBrowserProxyImpl, SpeechController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
+import {AxReadAloudNode, ContentController, HIGHLIGHTED_LINK_CLASS, NodeStore, previousReadHighlightClass, SpeechBrowserProxyImpl, SpeechController} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {microtasksFinished} from 'chrome-untrusted://webui-test/test_util.js';
 
@@ -145,6 +145,22 @@ suite('ContentController', () => {
       const altText = 'how it\'s done done done';
       chrome.readingMode.imagesEnabled = true;
       readingMode.getHtmlTag = () => 'img';
+      readingMode.getAltText = () => altText;
+
+      const root = contentController.buildSubtree(nodeId);
+
+      assertTrue(root instanceof HTMLCanvasElement);
+      assertEquals(altText, root.getAttribute('alt'));
+      assertEquals('', root.style.display);
+      assertTrue(nodeStore.hasImagesToFetch());
+      nodeStore.fetchImages();
+      assertArrayEquals([nodeId], readingMode.fetchedImages);
+    });
+
+    test('builds a video as a <canvas> tag', () => {
+      const altText = 'Huntrx';
+      chrome.readingMode.imagesEnabled = true;
+      readingMode.getHtmlTag = () => 'video';
       readingMode.getAltText = () => altText;
 
       const root = contentController.buildSubtree(nodeId);
@@ -418,7 +434,7 @@ suite('ContentController', () => {
 
       assertEquals('none', canvas.style.display);
       assertEquals('none', figure.style.display);
-      assertTrue(nodeStore.areNodesAllHidden([textId]));
+      assertTrue(nodeStore.areNodesAllHidden([new AxReadAloudNode(textId)]));
     });
 
     test('shows images and clears hidden nodes when enabled', async () => {
@@ -433,7 +449,7 @@ suite('ContentController', () => {
 
       assertEquals('', canvas.style.display);
       assertEquals('', figure.style.display);
-      assertFalse(nodeStore.areNodesAllHidden([textId]));
+      assertFalse(nodeStore.areNodesAllHidden([new AxReadAloudNode(textId)]));
     });
   });
 });

@@ -16,7 +16,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <variant>
 #include <vector>
 
 #include "api/array_view.h"
@@ -35,6 +34,7 @@
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/video_codec_type.h"
 #include "api/video/video_frame_type.h"
@@ -42,7 +42,6 @@
 #include "call/rtp_packet_sink_interface.h"
 #include "call/test/mock_rtp_packet_sink_interface.h"
 #include "call/video_receive_stream.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "common_video/h264/h264_common.h"
 #include "media/base/media_constants.h"
 #include "modules/include/module_common_types.h"
@@ -493,12 +492,20 @@ TEST_F(RtpVideoStreamReceiver2Test,
   // Have corruption header on the key frame.
   RtpPacketReceived key_frame_packet =
       received_packet_generator.NextPacket(/*include_corruption_header=*/true);
+
   // Generate delta frame packet.
   received_packet_generator.SetPayload(kDeltaFramePayload,
                                        VideoFrameType::kVideoFrameDelta);
-  // Don't have corruption header on the delta frame (is not a general rule).
+
+  // Second message sets the LSB instead of MSB, increasing the counter by the
+  // number of samples in the first message.
+  corruption_detection_msg = GetCorruptionDetectionMessage(
+      /*sequence_idx=*/kNumSamples, /*interpret_as_MSB*/ false);
+  ASSERT_TRUE(corruption_detection_msg.has_value());
+  received_packet_generator.SetCorruptionDetectionHeader(
+      *corruption_detection_msg);
   RtpPacketReceived delta_frame_packet =
-      received_packet_generator.NextPacket(/*include_corruption_header=*/false);
+      received_packet_generator.NextPacket(/*include_corruption_header=*/true);
 
   rtp_video_stream_receiver_->StartReceive();
   mock_on_complete_frame_callback_.AppendExpectedBitstream(
@@ -512,26 +519,20 @@ TEST_F(RtpVideoStreamReceiver2Test,
       });
   rtp_video_stream_receiver_->OnRtpPacket(key_frame_packet);
   ASSERT_TRUE(key_encoded_frame != nullptr);
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      data_key_frame =
-          key_encoded_frame->CodecSpecific()->frame_instrumentation_data;
-  ASSERT_TRUE(data_key_frame.has_value());
-  ASSERT_TRUE(
-      std::holds_alternative<FrameInstrumentationData>(*data_key_frame));
-  FrameInstrumentationData frame_inst_data_key_frame =
-      std::get<FrameInstrumentationData>(*data_key_frame);
-  EXPECT_EQ(frame_inst_data_key_frame.sequence_index, 0);
-  EXPECT_TRUE(frame_inst_data_key_frame.communicate_upper_bits);
-  EXPECT_THAT(frame_inst_data_key_frame.std_dev, DoubleNear(kStd, 0.1));
-  EXPECT_EQ(frame_inst_data_key_frame.luma_error_threshold, kLumaThreshold);
-  EXPECT_EQ(frame_inst_data_key_frame.chroma_error_threshold, kChormaThreshold);
+  std::optional<FrameInstrumentationData> frame_inst_data_key_frame =
+      key_encoded_frame->CodecSpecific()->frame_instrumentation_data;
+  ASSERT_TRUE(frame_inst_data_key_frame.has_value());
+  EXPECT_EQ(frame_inst_data_key_frame->sequence_index(), 0);
+  EXPECT_THAT(frame_inst_data_key_frame->std_dev(), DoubleNear(kStd, 0.1));
+  EXPECT_EQ(frame_inst_data_key_frame->luma_error_threshold(), kLumaThreshold);
+  EXPECT_EQ(frame_inst_data_key_frame->chroma_error_threshold(),
+            kChormaThreshold);
 
   mock_on_complete_frame_callback_.ClearExpectedBitstream();
   mock_on_complete_frame_callback_.AppendExpectedBitstream(
       kDeltaFramePayload.data(), kDeltaFramePayload.size());
 
-  EXPECT_FALSE(delta_frame_packet.GetExtension<CorruptionDetectionExtension>());
+  EXPECT_TRUE(delta_frame_packet.GetExtension<CorruptionDetectionExtension>());
   std::unique_ptr<EncodedFrame> delta_encoded_frame;
   EXPECT_CALL(mock_on_complete_frame_callback_, DoOnCompleteFrame(_))
       .WillOnce([&](EncodedFrame* encoded_frame) {
@@ -539,10 +540,18 @@ TEST_F(RtpVideoStreamReceiver2Test,
       });
   rtp_video_stream_receiver_->OnRtpPacket(delta_frame_packet);
   ASSERT_TRUE(delta_encoded_frame != nullptr);
-  // Not delta frame specific but as this test is designed, second frame
-  // shouldnt have corruption header.
-  EXPECT_FALSE(delta_encoded_frame->CodecSpecific()
-                   ->frame_instrumentation_data.has_value());
+  ASSERT_TRUE(delta_encoded_frame->CodecSpecific()
+                  ->frame_instrumentation_data.has_value());
+
+  std::optional<FrameInstrumentationData> frame_inst_data_delta_frame =
+      delta_encoded_frame->CodecSpecific()->frame_instrumentation_data;
+  ASSERT_TRUE(frame_inst_data_delta_frame.has_value());
+  EXPECT_EQ(frame_inst_data_delta_frame->sequence_index(), kNumSamples);
+  EXPECT_THAT(frame_inst_data_delta_frame->std_dev(), DoubleNear(kStd, 0.1));
+  EXPECT_EQ(frame_inst_data_delta_frame->luma_error_threshold(),
+            kLumaThreshold);
+  EXPECT_EQ(frame_inst_data_delta_frame->chroma_error_threshold(),
+            kChormaThreshold);
 }
 
 TEST_F(RtpVideoStreamReceiver2Test,
@@ -608,17 +617,13 @@ TEST_F(RtpVideoStreamReceiver2Test,
         });
     rtp_video_stream_receiver_->OnRtpPacket(delta_frame_packet);
     ASSERT_TRUE(delta_encoded_frame != nullptr);
-    std::optional<
-        std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-        data = delta_encoded_frame->CodecSpecific()->frame_instrumentation_data;
-    ASSERT_TRUE(data.has_value());
-    ASSERT_TRUE(std::holds_alternative<FrameInstrumentationData>(*data));
-    FrameInstrumentationData frame_inst_data =
-        std::get<FrameInstrumentationData>(*data);
-    if (frame_inst_data.sequence_index < (kMaxSequenceIdx + 1)) {
-      EXPECT_EQ(frame_inst_data.sequence_index, sequence_idx);
+    std::optional<FrameInstrumentationData> frame_inst_data =
+        delta_encoded_frame->CodecSpecific()->frame_instrumentation_data;
+    ASSERT_TRUE(frame_inst_data.has_value());
+    if (frame_inst_data->sequence_index() < (kMaxSequenceIdx + 1)) {
+      EXPECT_EQ(frame_inst_data->sequence_index(), sequence_idx);
     } else {
-      EXPECT_EQ(frame_inst_data.sequence_index,
+      EXPECT_EQ(frame_inst_data->sequence_index(),
                 sequence_idx + kMaxSequenceIdx + 1);
     }
   }

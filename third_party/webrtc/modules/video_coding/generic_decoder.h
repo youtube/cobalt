@@ -16,13 +16,13 @@
 #include <deque>
 #include <optional>
 #include <utility>
-#include <variant>
 
 #include "api/field_trials_view.h"
 #include "api/rtp_packet_infos.h"
 #include "api/sequence_checker.h"
 #include "api/units/timestamp.h"
 #include "api/video/color_space.h"
+#include "api/video/corruption_detection/frame_instrumentation_data.h"
 #include "api/video/encoded_frame.h"
 #include "api/video/encoded_image.h"
 #include "api/video/video_content_type.h"
@@ -30,7 +30,6 @@
 #include "api/video/video_frame_type.h"
 #include "api/video/video_rotation.h"
 #include "api/video_codecs/video_decoder.h"
-#include "common_video/frame_instrumentation_data.h"
 #include "common_video/include/corruption_score_calculator.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "modules/video_coding/timing/timing.h"
@@ -62,9 +61,7 @@ struct FrameInfo {
   RtpPacketInfos packet_infos;
   // ColorSpace is not stored here, as it might be modified by decoders.
   VideoFrameType frame_type;
-  std::optional<
-      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
-      frame_instrumentation_data;
+  std::optional<FrameInstrumentationData> frame_instrumentation_data;
   std::optional<ColorSpace> color_space;
 };
 
@@ -142,8 +139,7 @@ class VCMGenericDecoder {
   int32_t Decode(const EncodedImage& frame,
                  Timestamp now,
                  int64_t render_time_ms,
-                 const std::optional<std::variant<FrameInstrumentationSyncData,
-                                                  FrameInstrumentationData>>&
+                 const std::optional<FrameInstrumentationData>&
                      frame_instrumentation_data);
   VCMDecodedFrameCallback* _callback = nullptr;
   VideoDecoder* const decoder_;

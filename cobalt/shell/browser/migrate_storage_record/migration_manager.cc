@@ -30,6 +30,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -71,7 +72,7 @@ namespace {
 // Shared Utilities
 // ============================================================================
 
-std::string g_migration_status_param;
+base::NoDestructor<std::string> g_migration_status_param;
 
 // A thread-safe, reference-counted wrapper around a base::OnceClosure.
 // This is used to ensure a callback is executed exactly once, even if
@@ -254,7 +255,7 @@ void DeleteOldCacheDirectoryAsync() {
 }
 
 void SetMigrationStatusUrlParameter(scoped_refptr<MigrationState> state) {
-  g_migration_status_param = "migration_status=" + state->GetStatusString();
+  *g_migration_status_param = "migration_status=" + state->GetStatusString();
 }
 
 // Triggers the deletion of old cache directories, deletes the legacy storage
@@ -443,12 +444,12 @@ std::vector<uint8_t> FormatStringForLocalStorage(const std::string& input) {
 
 // static
 std::string MigrationManager::GetMigrationStatusUrlParameter() {
-  return g_migration_status_param;
+  return *g_migration_status_param;
 }
 
 // static
 void MigrationManager::ResetMigrationStatusForTesting() {
-  g_migration_status_param.clear();
+  g_migration_status_param->clear();
 }
 
 // static

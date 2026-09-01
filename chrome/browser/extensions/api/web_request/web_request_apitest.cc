@@ -1860,25 +1860,35 @@ IN_PROC_BROWSER_TEST_P(ExtensionWebRequestApiTestWithContextType,
                                               ReplyBehavior::kWillReply);
   ExtensionTestMessageListener listener_main2("web_request_status2",
                                               ReplyBehavior::kWillReply);
-
+// Android does not support platform apps, so tests for requests from apps are
+// omitted. See https://crbug.com/440452765 for more details.
+#if !BUILDFLAG(IS_ANDROID)
   ExtensionTestMessageListener listener_app("app_done");
+#endif  // !BUILDFLAG(IS_ANDROID)
   ExtensionTestMessageListener listener_extension("extension_done");
 
   // Set up webRequest listener
   ASSERT_TRUE(
       LoadExtension(test_data_dir_.AppendASCII("webrequest_extensions/main")));
+#if !BUILDFLAG(IS_ANDROID)
   EXPECT_TRUE(listener_main1.WaitUntilSatisfied());
+#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_TRUE(listener_main2.WaitUntilSatisfied());
 
-  // Perform some network activity in an app and another extension.
+#if !BUILDFLAG(IS_ANDROID)
+  // Perform some network activity in an app.
   ASSERT_TRUE(
       LoadExtension(test_data_dir_.AppendASCII("webrequest_extensions/app"),
                     {.context_type = ContextType::kFromManifest}));
+#endif  // !BUILDFLAG(IS_ANDROID)
+  // Perform some network activity in another extension.
   ASSERT_TRUE(LoadExtension(
       test_data_dir_.AppendASCII("webrequest_extensions/extension"),
       {.context_type = ContextType::kFromManifest}));
 
+#if !BUILDFLAG(IS_ANDROID)
   EXPECT_TRUE(listener_app.WaitUntilSatisfied());
+#endif  // !BUILDFLAG(IS_ANDROID)
   EXPECT_TRUE(listener_extension.WaitUntilSatisfied());
 
   // Load a page, a content script from "webrequest_extensions/extension" will
@@ -6849,6 +6859,116 @@ IN_PROC_BROWSER_TEST_F(ManifestV3WebRequestApiTest,
 
   // ... and the extension should have seen the request.
   EXPECT_EQ(2, get_request_count());
+}
+
+// Verifies that a failed dispatch to an inactive, non-blocking listener does
+// not cause a request to bypass a blocking listener. Regression test for
+// crbug.com/412695438.
+IN_PROC_BROWSER_TEST_F(
+    ManifestV3WebRequestApiTest,
+    NonBlockingListenerFailureDoesNotBypassBlockingListener) {
+  ASSERT_TRUE(StartEmbeddedTestServer());
+
+  // An extension with a listener that cancels any requests that include
+  // example.com.
+  static constexpr char kBlockingManifest[] =
+      R"({
+           "name": "MV3 WebRequest",
+           "version": "0.1",
+           "manifest_version": 3,
+           "permissions": ["webRequest", "webRequestBlocking"],
+           "host_permissions": [
+             "http://example.com/*"
+           ],
+           "background": {"service_worker": "background.js"}
+         })";
+  static constexpr char kBlockingBackgroundJs[] =
+      R"(chrome.webRequest.onBeforeRequest.addListener(
+             (details) => {
+               if (details.url.includes('example.com')) {
+                 return {cancel: true}
+               }
+               return {};
+             },
+             {urls: ['<all_urls>'], types: ['main_frame']},
+             ['blocking']);
+         chrome.test.sendMessage('ready');)";
+
+  TestExtensionDir blocking_test_dir;
+  blocking_test_dir.WriteManifest(kBlockingManifest);
+  blocking_test_dir.WriteFile(FILE_PATH_LITERAL("background.js"),
+                              kBlockingBackgroundJs);
+  const Extension* blocking_extension = LoadPolicyExtension(blocking_test_dir);
+  ASSERT_TRUE(blocking_extension);
+
+  EXPECT_EQ(1u, web_request_router()->GetListenerCountForTesting(
+                    profile(), "webRequest.onBeforeRequest"));
+  EXPECT_EQ(0u, web_request_router()->GetInactiveListenerCountForTesting(
+                    profile(), "webRequest.onBeforeRequest"));
+
+  // An extension with a non-blocking listener that registers the first
+  // time it's activated, but fails to do it the subsequent times.
+  static constexpr char kNonBlockingManifest[] =
+      R"({
+           "name": "MV3 WebRequest",
+           "version": "0.1",
+           "manifest_version": 3,
+           "permissions": ["webRequest", "storage"],
+           "host_permissions": [
+             "http://example.com/*"
+           ],
+           "background": {"service_worker": "background.js"}
+         })";
+  static constexpr char kNonBlockingBackgroundJs[] =
+      R"(const key = 'listenerRegistered';
+         chrome.storage.local.get([key], async (result) => {
+           if (!result[key]) {
+             chrome.webRequest.onBeforeRequest.addListener(
+                 async (details) => {},
+                 {urls: ['<all_urls>'], types: ['main_frame']});
+             await chrome.storage.local.set({[key]: true});
+           }
+           chrome.test.sendMessage('ready');
+         });)";
+
+  TestExtensionDir non_blocking_test_dir;
+  non_blocking_test_dir.WriteManifest(kNonBlockingManifest);
+  non_blocking_test_dir.WriteFile(FILE_PATH_LITERAL("background.js"),
+                                  kNonBlockingBackgroundJs);
+  ExtensionTestMessageListener ready_listener("ready");
+  const Extension* non_blocking_extension =
+      LoadExtension(non_blocking_test_dir.UnpackedPath());
+  ASSERT_TRUE(non_blocking_extension);
+  ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
+
+  EXPECT_EQ(2u, web_request_router()->GetListenerCountForTesting(
+                    profile(), "webRequest.onBeforeRequest"));
+  EXPECT_EQ(0u, web_request_router()->GetInactiveListenerCountForTesting(
+                    profile(), "webRequest.onBeforeRequest"));
+
+  // Stop the non-blocking extension's service worker, making its listener
+  // inactive.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(
+      profile(), non_blocking_extension->id());
+  // Note: the task to remove listeners from ExtensionWebRequestEventRouter
+  // is async; run to flush the posted task.
+  base::RunLoop().RunUntilIdle();
+
+  // There should now be one active listener (blocking) and one inactive
+  // listener (non-blocking).
+  EXPECT_EQ(1u, web_request_router()->GetListenerCountForTesting(
+                    profile(), "webRequest.onBeforeRequest"));
+  EXPECT_EQ(1u, web_request_router()->GetInactiveListenerCountForTesting(
+                    profile(), "webRequest.onBeforeRequest"));
+
+  // Stop the blocking extension's service worker too.
+  browsertest_util::StopServiceWorkerForExtensionGlobalScope(
+      profile(), blocking_extension->id());
+
+  // Navigation to example.com should be correctly blocked.
+  auto* web_contents = GetActiveWebContents();
+  EXPECT_FALSE(NavigateToURL(web_contents, embedded_test_server()->GetURL(
+                                               "example.com", "/simple.html")));
 }
 
 // Tests unloading an extension with lazy listeners while the worker is

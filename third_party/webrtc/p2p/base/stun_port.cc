@@ -287,7 +287,7 @@ Connection* UDPPort::CreateConnection(const Candidate& address,
              mdns_name_registration_status() !=
                  MdnsNameRegistrationStatus::kNotStarted);
 
-  Connection* conn = new ProxyConnection(NewWeakPtr(), 0, address);
+  Connection* conn = new ProxyConnection(env(), NewWeakPtr(), 0, address);
   AddOrReplaceConnection(conn);
   return conn;
 }
@@ -445,7 +445,7 @@ void UDPPort::ResolveStunAddress(const SocketAddress& stun_addr) {
 
   RTC_LOG(LS_INFO) << ToString() << ": Starting STUN host lookup for "
                    << stun_addr.ToSensitiveString();
-  resolver_->Resolve(stun_addr, Network()->family(), field_trials());
+  resolver_->Resolve(stun_addr, Network()->family(), env().field_trials());
 }
 
 void UDPPort::OnResolveResult(const SocketAddress& input, int error) {
@@ -574,10 +574,9 @@ void UDPPort::OnStunBindingOrResolveRequestFailed(
   if (error_code != STUN_ERROR_NOT_AN_ERROR) {
     StringBuilder url;
     url << "stun:" << stun_server_addr.ToString();
-    SignalCandidateError(
-        this, IceCandidateErrorEvent(
-                  GetLocalAddress().HostAsSensitiveURIString(),
-                  GetLocalAddress().port(), url.str(), error_code, reason));
+    SendCandidateError(IceCandidateErrorEvent(
+        GetLocalAddress().HostAsSensitiveURIString(), GetLocalAddress().port(),
+        url.str(), error_code, reason));
   }
   if (bind_request_failed_servers_.find(stun_server_addr) !=
       bind_request_failed_servers_.end()) {

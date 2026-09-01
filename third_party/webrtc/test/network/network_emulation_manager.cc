@@ -310,7 +310,7 @@ NetworkEmulationManagerImpl::CreateEmulatedNetworkManagerInterface(
     endpoint_impls.push_back(static_cast<EmulatedEndpointImpl*>(endpoint));
   }
   auto endpoints_container = std::make_unique<EndpointsContainer>(
-      endpoint_impls, stats_gathering_mode_);
+      clock_, endpoint_impls, stats_gathering_mode_);
   auto network_manager = std::make_unique<EmulatedNetworkManager>(
       time_controller_.get(), task_queue_.Get(), endpoints_container.get());
   for (auto* endpoint : endpoints) {
@@ -328,9 +328,9 @@ NetworkEmulationManagerImpl::CreateEmulatedNetworkManagerInterface(
 void NetworkEmulationManagerImpl::GetStats(
     ArrayView<EmulatedEndpoint* const> endpoints,
     std::function<void(EmulatedNetworkStats)> stats_callback) {
-  task_queue_.PostTask([endpoints, stats_callback,
+  task_queue_.PostTask([endpoints, stats_callback, clock = clock_,
                         stats_gathering_mode = stats_gathering_mode_]() {
-    EmulatedNetworkStatsBuilder stats_builder(stats_gathering_mode);
+    EmulatedNetworkStatsBuilder stats_builder(*clock, stats_gathering_mode);
     for (auto* endpoint : endpoints) {
       // It's safe to cast here because EmulatedEndpointImpl can be the only
       // implementation of EmulatedEndpoint, because only it has access to
@@ -345,14 +345,14 @@ void NetworkEmulationManagerImpl::GetStats(
 void NetworkEmulationManagerImpl::GetStats(
     ArrayView<EmulatedNetworkNode* const> nodes,
     std::function<void(EmulatedNetworkNodeStats)> stats_callback) {
-  task_queue_.PostTask(
-      [nodes, stats_callback, stats_gathering_mode = stats_gathering_mode_]() {
-        EmulatedNetworkNodeStatsBuilder stats_builder(stats_gathering_mode);
-        for (auto* node : nodes) {
-          stats_builder.AddEmulatedNetworkNodeStats(node->stats());
-        }
-        stats_callback(stats_builder.Build());
-      });
+  task_queue_.PostTask([nodes, stats_callback, clock = clock_,
+                        stats_gathering_mode = stats_gathering_mode_]() {
+    EmulatedNetworkNodeStatsBuilder stats_builder(*clock, stats_gathering_mode);
+    for (auto* node : nodes) {
+      stats_builder.AddEmulatedNetworkNodeStats(node->stats());
+    }
+    stats_callback(stats_builder.Build());
+  });
 }
 
 std::optional<IPAddress> NetworkEmulationManagerImpl::GetNextIPv4Address() {

@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <stdio.h>
 
+#include <sstream>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -22,8 +23,12 @@
 
 namespace {
 pthread_mutex_t log_line_mutex = PTHREAD_MUTEX_INITIALIZER;
-std::stringstream log_line;
 const int kFormatBufferSizeBytes = 16 * 1024;
+
+std::stringstream& GetLogLine() {
+  static std::stringstream* log_line = new std::stringstream;
+  return *log_line;
+}
 
 }  // namespace
 
@@ -41,6 +46,7 @@ void SbLogFormat(const char* format, va_list arguments) {
   const char* newline = strchr(formatted_buffer, '\n');
 
   pthread_mutex_lock(&log_line_mutex);
+  std::stringstream& log_line = GetLogLine();
   std::string buffer_string(formatted_buffer);
   log_line << buffer_string;
   if (newline != NULL) {

@@ -262,6 +262,8 @@ if (!is_android) {
     sources = [
       "tab_strip_model.h",
       "tab_strip_model_delegate.h",
+      "tab_strip_model_selection_adapter.h",
+      "tab_strip_model_selection_state.h",
       "tab_strip_model_stats_recorder.h",
       "tab_strip_prefs.h",
       "tab_strip_scrubbing_metrics.h",
@@ -286,6 +288,8 @@ if (!is_android) {
     sources = [
       "tab_strip_model.cc",
       "tab_strip_model_delegate.cc",
+      "tab_strip_model_selection_adapter.cc",
+      "tab_strip_model_selection_state.cc",
       "tab_strip_model_stats_recorder.cc",
       "tab_strip_prefs.cc",
       "tab_strip_scrubbing_metrics.cc",
@@ -336,7 +340,6 @@ if (!is_android) {
 
   source_set("glic") {
     sources = [
-      "glic_actor_task_icon_controller.h",
       "glic_nudge_controller.h",
       "glic_nudge_delegate.h",
     ]
@@ -347,13 +350,21 @@ if (!is_android) {
       "//ui/base/unowned_user_data",
     ]
     if (enable_glic) {
-      public_deps += [ "//chrome/browser/glic" ]
+      sources += [
+        "glic_actor_task_icon_controller.h",
+        "glic_actor_task_icon_manager.h",
+        "glic_actor_task_icon_manager_factory.h",
+      ]
+
+      public_deps += [
+        "//chrome/browser/glic",
+        "//chrome/browser/glic:mojo_bindings",
+      ]
     }
   }
 
   source_set("glic_impl") {
     sources = [
-      "glic_actor_task_icon_controller.cc",
       "glic_nudge_controller.cc",
       "glic_nudge_delegate.cc",
     ]
@@ -369,6 +380,12 @@ if (!is_android) {
       "//content/public/browser",
     ]
     if (enable_glic) {
+      sources += [
+        "glic_actor_task_icon_controller.cc",
+        "glic_actor_task_icon_manager.cc",
+        "glic_actor_task_icon_manager_factory.cc",
+      ]
+
       deps += [ "//chrome/browser/glic" ]
     }
   }
@@ -721,6 +738,8 @@ if (!is_android) {
       "tab_model_unittest.cc",
       "tab_renderer_data_unittest.cc",
       "tab_strip_model_context_menu_unittest.cc",
+      "tab_strip_model_selection_adapter_unittest.cc",
+      "tab_strip_model_selection_state_unittest.cc",
       "tab_strip_model_stats_recorder_unittest.cc",
       "tab_strip_model_unittest.cc",
       "vertical_tab_strip_state_controller_unittest.cc",
@@ -776,6 +795,7 @@ if (!is_android) {
       "//components/sync/protocol",
       "//components/sync/service",
       "//components/sync_sessions",
+      "//components/tabs:test_support",
       "//components/web_modal",
       "//content/public/browser",
       "//content/test:test_support",
@@ -787,5 +807,16 @@ if (!is_android) {
       "//ui/views",
       "//url",
     ]
+
+    if (enable_glic) {
+      sources += [ "glic_actor_task_icon_manager_unittest.cc" ]
+
+      deps += [
+        "//chrome/browser/actor:test_support",
+        "//chrome/browser/glic",
+        "//chrome/browser/glic/test_support",
+        "//chrome/browser/ui/tabs:glic",
+      ]
+    }
   }
 }

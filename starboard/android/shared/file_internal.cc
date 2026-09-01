@@ -23,6 +23,7 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/no_destructor.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -56,7 +57,7 @@ using jni_zero::ScopedJavaGlobalRef;
 // instance. This global reference ensures the AssetManager Java object
 // remains valid and accessible throughout the native application's lifetime,
 // allowing native code to load assets packaged within the APK.
-ScopedJavaGlobalRef<jobject> g_java_asset_manager;
+base::NoDestructor<ScopedJavaGlobalRef<jobject>> g_java_asset_manager;
 AAssetManager* g_asset_manager;
 }  // namespace
 
@@ -66,10 +67,10 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
                              const std::string& native_library_dir) {
   JNIEnv* env = jni_zero::AttachCurrentThread();
 
-  SB_DCHECK(g_java_asset_manager.is_null());
+  SB_DCHECK(g_java_asset_manager->is_null());
   SB_DCHECK_EQ(g_asset_manager, nullptr);
 
-  g_java_asset_manager = asset_manager;
+  *g_java_asset_manager = asset_manager;
   g_asset_manager = AAssetManager_fromJava(env, asset_manager.obj());
 
   SB_DCHECK_EQ(g_app_files_dir, nullptr);
@@ -86,8 +87,8 @@ void SbFileAndroidInitialize(ScopedJavaGlobalRef<jobject> asset_manager,
 }
 
 void SbFileAndroidTeardown() {
-  if (g_java_asset_manager) {
-    g_java_asset_manager.Reset();
+  if (*g_java_asset_manager) {
+    g_java_asset_manager->Reset();
     g_asset_manager = NULL;
   }
 
@@ -118,7 +119,7 @@ AAsset* OpenAndroidAsset(const char* path) {
 
 std::vector<std::string> ListAndroidAssetDir(const char* path) {
   std::vector<std::string> names;
-  if (!IsAndroidAssetPath(path) || g_java_asset_manager.is_null()) {
+  if (!IsAndroidAssetPath(path) || g_java_asset_manager->is_null()) {
     return names;
   }
   const char* asset_path = path + strlen(g_app_assets_dir);
@@ -139,7 +140,7 @@ std::vector<std::string> ListAndroidAssetDir(const char* path) {
       jni_zero::ScopedJavaLocalRef<jobjectArray>::Adopt(
           env,
           static_cast<jobjectArray>(env->CallObjectMethod(
-              g_java_asset_manager.obj(), list_method, j_asset_path.obj())));
+              g_java_asset_manager->obj(), list_method, j_asset_path.obj())));
   // On error, return "no entries".
   if (jni_zero::ClearException(env) || j_names.is_null()) {
     return names;

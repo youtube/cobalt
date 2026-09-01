@@ -922,10 +922,8 @@ static bool DoConnection(bssl::UniquePtr<SSL_SESSION> *out_session,
       fprintf(stderr, "Expected ECH rejection, but connection succeeded.\n");
       return false;
     }
-    uint32_t err = ERR_peek_error();
     if (SSL_get_error(ssl.get(), -1) != SSL_ERROR_SSL ||
-        ERR_GET_LIB(err) != ERR_LIB_SSL ||
-        ERR_GET_REASON(err) != SSL_R_ECH_REJECTED) {
+        !ERR_equals(ERR_peek_error(), ERR_LIB_SSL, SSL_R_ECH_REJECTED)) {
       fprintf(stderr, "Expected ECH rejection, but connection succeeded.\n");
       return false;
     }

@@ -186,11 +186,11 @@ rtc_library("encoded_frame") {
   deps = [
     ":encoded_image",
     ":video_frame",
-    "../../common_video:frame_instrumentation_data",
     "../../modules/rtp_rtcp:rtp_video_header",
     "../../modules/video_coding:codec_globals_headers",
     "../../modules/video_coding:video_codec_interface",
     "../units:timestamp",
+    "corruption_detection:frame_instrumentation_data",
   ]
 }
 

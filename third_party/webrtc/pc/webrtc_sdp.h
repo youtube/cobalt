@@ -66,6 +66,8 @@ bool SdpDeserialize(absl::string_view message,
 // candidate - The cricket Candidate from the SDP string.
 // error - The detail error information when parsing fails.
 // return - true on success, false on failure.
+// TODO(bugs.webrtc.org/42233526): Remove.
+[[deprecated("Use IceCandidate::Create instead.")]]
 RTC_EXPORT bool SdpDeserializeCandidate(absl::string_view transport_name,
                                         absl::string_view message,
                                         Candidate* candidate,

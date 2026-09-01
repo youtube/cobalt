@@ -7,6 +7,7 @@
 #include "services/webnn/public/cpp/webnn_types.h"
 #include "services/webnn/public/mojom/webnn_context_provider.mojom.h"
 #include "services/webnn/public/mojom/webnn_graph.mojom-shared.h"
+#include "services/webnn/scoped_sequence.h"
 #include "services/webnn/tflite/graph_builder_tflite.h"
 #include "services/webnn/tflite/graph_impl_tflite.h"
 #include "services/webnn/tflite/tensor_impl_tflite.h"
@@ -17,13 +18,19 @@
 namespace webnn::tflite {
 
 ContextImplTflite::ContextImplTflite(
-    mojo::PendingReceiver<mojom::WebNNContext> receiver,
+    mojo::PendingAssociatedReceiver<mojom::WebNNContext> receiver,
     WebNNContextProviderImpl* context_provider,
-    mojom::CreateContextOptionsPtr options)
+    mojom::CreateContextOptionsPtr options,
+    gpu::CommandBufferId command_buffer_id,
+    std::unique_ptr<ScopedSequence> sequence,
+    scoped_refptr<gpu::SchedulerTaskRunner> task_runner)
     : WebNNContextImpl(std::move(receiver),
                        context_provider,
                        GraphBuilderTflite::GetContextProperties(),
-                       std::move(options)) {}
+                       std::move(options),
+                       command_buffer_id,
+                       std::move(sequence),
+                       std::move(task_runner)) {}
 
 ContextImplTflite::~ContextImplTflite() = default;
 

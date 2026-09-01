@@ -77,13 +77,17 @@ bool HeapLayout::InAnySharedSpace(Tagged<HeapObject> object) {
 }
 
 // static
-bool HeapLayout::InCodeSpace(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->InCodeSpace();
+bool HeapLayout::SafeInCodeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)
+      ->MetadataNoIsolateCheck()
+      ->is_executable();
 }
 
 // static
-bool HeapLayout::InTrustedSpace(Tagged<HeapObject> object) {
-  return MemoryChunk::FromHeapObject(object)->InTrustedSpace();
+bool HeapLayout::SafeInTrustedSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)
+      ->MetadataNoIsolateCheck()
+      ->is_trusted();
 }
 
 bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
@@ -95,6 +99,11 @@ bool HeapLayout::InBlackAllocatedPage(Tagged<HeapObject> object) {
 // static
 bool HeapLayout::IsOwnedByAnyHeap(Tagged<HeapObject> object) {
   return MemoryChunk::FromHeapObject(object)->Metadata()->heap();
+}
+
+// static
+bool HeapLayout::InAnyLargeSpace(Tagged<HeapObject> object) {
+  return MemoryChunk::FromHeapObject(object)->IsLargePage();
 }
 
 }  // namespace v8::internal

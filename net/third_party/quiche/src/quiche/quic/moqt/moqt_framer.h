@@ -39,10 +39,15 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
   quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
   // Returns an empty buffer if there is an illegal combination of locations.
-  quiche::QuicheBuffer SerializeSubscribe(const MoqtSubscribe& message);
-  quiche::QuicheBuffer SerializeSubscribeOk(const MoqtSubscribeOk& message);
+  quiche::QuicheBuffer SerializeSubscribe(
+      const MoqtSubscribe& message,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribe);
+  quiche::QuicheBuffer SerializeSubscribeOk(
+      const MoqtSubscribeOk& message,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
   quiche::QuicheBuffer SerializeSubscribeError(
-      const MoqtSubscribeError& message);
+      const MoqtSubscribeError& message,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializeSubscribeDone(const MoqtSubscribeDone& message);
   quiche::QuicheBuffer SerializeSubscribeUpdate(
@@ -53,18 +58,19 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
   quiche::QuicheBuffer SerializeAnnounceCancel(
       const MoqtAnnounceCancel& message);
-  quiche::QuicheBuffer SerializeTrackStatusRequest(
-      const MoqtTrackStatusRequest& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
+  quiche::QuicheBuffer SerializeTrackStatusOk(const MoqtTrackStatusOk& message);
+  quiche::QuicheBuffer SerializeTrackStatusError(
+      const MoqtTrackStatusError& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
-  quiche::QuicheBuffer SerializeSubscribeAnnounces(
-      const MoqtSubscribeAnnounces& message);
-  quiche::QuicheBuffer SerializeSubscribeAnnouncesOk(
-      const MoqtSubscribeAnnouncesOk& message);
-  quiche::QuicheBuffer SerializeSubscribeAnnouncesError(
-      const MoqtSubscribeAnnouncesError& message);
-  quiche::QuicheBuffer SerializeUnsubscribeAnnounces(
-      const MoqtUnsubscribeAnnounces& message);
+  quiche::QuicheBuffer SerializeSubscribeNamespace(
+      const MoqtSubscribeNamespace& message);
+  quiche::QuicheBuffer SerializeSubscribeNamespaceOk(
+      const MoqtSubscribeNamespaceOk& message);
+  quiche::QuicheBuffer SerializeSubscribeNamespaceError(
+      const MoqtSubscribeNamespaceError& message);
+  quiche::QuicheBuffer SerializeUnsubscribeNamespace(
+      const MoqtUnsubscribeNamespace& message);
   quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);
   quiche::QuicheBuffer SerializeFetch(const MoqtFetch& message);
   quiche::QuicheBuffer SerializeFetchCancel(const MoqtFetchCancel& message);

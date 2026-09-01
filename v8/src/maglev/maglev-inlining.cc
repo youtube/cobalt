@@ -125,20 +125,11 @@ void MaglevInliner::Run() {
         PrintGraph(std::cout, graph_);
       }
     }
-
-    // Sweep identities.
-    // TODO(victorgomes): After inlining, the result of the previous inlined
-    // function is an identity. Although we guarantee that all arguments to the
-    // inlined function will not be an identity, their inputs could. However,
-    // the graph builder does not expect identities at any point. We need to
-    // either get rid of the identities before another inline function (either
-    // via the sweeper or the optimizer), or support identities in the graph
-    // builder.
-    {
-      GraphProcessor<SweepIdentityNodes> sweeper;
-      sweeper.ProcessGraph(graph_);
-    }
   }
+
+  GraphProcessor<ClearReturnedValueUsesFromDeoptFrames>
+      clear_returned_value_uses(zone());
+  clear_returned_value_uses.ProcessGraph(graph_);
 
   // Otherwise we print just once at the end.
   if (V8_UNLIKELY(v8_flags.print_maglev_graphs && is_tracing_enabled())) {
@@ -238,7 +229,7 @@ MaybeReduceResult MaglevInliner::BuildInlineFunction(
   // TODO(victorgomes): Check if we should maintain this. We could also clear
   // unstable maps here.
   call_site->caller_details.known_node_aspects
-      ->any_map_for_any_node_is_unstable = true;
+      ->MarkAnyMapForAnyNodeIsUnstable();
 
   // Create a new graph builder for the inlined function.
   LocalIsolate* local_isolate = broker()->local_isolate_or_isolate();

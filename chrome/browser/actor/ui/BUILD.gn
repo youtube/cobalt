@@ -33,6 +33,7 @@ source_set("ui") {
     "actor_ui_state_manager_prefs.h",
     "actor_ui_tab_controller.cc",
     "actor_ui_tab_controller.h",
+    "actor_ui_tab_controller_interface.cc",
     "actor_ui_tab_controller_interface.h",
     "handoff_button_controller.cc",
     "handoff_button_controller.h",
@@ -118,6 +119,8 @@ source_set("test_support") {
     "mocks/mock_actor_ui_state_manager.h",
     "mocks/mock_actor_ui_tab_controller.cc",
     "mocks/mock_actor_ui_tab_controller.h",
+    "mocks/mock_actor_ui_tab_controller_factory.cc",
+    "mocks/mock_actor_ui_tab_controller_factory.h",
     "mocks/mock_event_dispatcher.cc",
     "mocks/mock_event_dispatcher.h",
     "mocks/mock_handoff_button_controller.cc",
@@ -126,6 +129,8 @@ source_set("test_support") {
   testonly = true
   public_deps = [
     "//base",
+    "//chrome/browser/ui:test_support",
+    "//components/tabs:test_support",
     "//testing/gmock",
   ]
   deps = [
@@ -245,5 +250,25 @@ source_set("browser_tests") {
     "//testing/gmock",
     "//testing/gtest",
     "//ui/views:view_pixel_diff_test_support",
+  ]
+}
+
+source_set("interactive_ui_tests") {
+  testonly = true
+
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "handoff_button_controller_interactive_uitest.cc" ]
+
+  deps = [
+    ":ui",
+    "//base/test:test_support",
+    "//chrome/browser/actor",
+    "//chrome/browser/actor:test_support",
+    "//chrome/browser/profiles:profile",
+    "//chrome/browser/ui",
+    "//chrome/common",
+    "//chrome/test:test_support_ui",
+    "//content/test:test_support",
+    "//ui/base",
   ]
 }

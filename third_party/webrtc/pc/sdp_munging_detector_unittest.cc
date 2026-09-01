@@ -1443,4 +1443,15 @@ TEST_F(SdpMungingTest, NumberOfCandidates) {
       ElementsAre(Pair(SdpMungingType::kIceCandidateCount, 1)));
 }
 
+#ifdef WEBRTC_HAVE_SCTP
+TEST_F(SdpMungingTest, NoMungingForDataChannels) {
+  auto pc = CreatePeerConnection();
+  pc->CreateDataChannel("somelabel");
+  EXPECT_TRUE(pc->CreateOfferAndSetAsLocal());
+  EXPECT_THAT(
+      metrics::Samples("WebRTC.PeerConnection.SdpMunging.Offer.Initial"),
+      ElementsAre(Pair(SdpMungingType::kNoModification, 1)));
+}
+#endif  // WEBRTC_HAVE_SCTP
+
 }  // namespace webrtc

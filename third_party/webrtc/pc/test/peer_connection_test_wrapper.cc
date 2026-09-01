@@ -57,6 +57,7 @@
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 #include "media/engine/simulcast_encoder_adapter.h"
 #include "p2p/test/fake_port_allocator.h"
+#include "pc/sdp_utils.h"
 #include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/fake_periodic_video_source.h"
 #include "pc/test/fake_periodic_video_track_source.h"
@@ -138,6 +139,17 @@ void PeerConnectionTestWrapper::Connect(PeerConnectionTestWrapper* caller,
                                    &PeerConnectionTestWrapper::ReceiveOfferSdp);
   callee->SignalOnSdpReady.connect(
       caller, &PeerConnectionTestWrapper::ReceiveAnswerSdp);
+}
+
+void PeerConnectionTestWrapper::AwaitNegotiation(
+    PeerConnectionTestWrapper* caller,
+    PeerConnectionTestWrapper* callee) {
+  auto offer = caller->AwaitCreateOffer();
+  caller->AwaitSetLocalDescription(offer.get());
+  callee->AwaitSetRemoteDescription(offer.get());
+  auto answer = callee->AwaitCreateAnswer();
+  callee->AwaitSetLocalDescription(answer.get());
+  caller->AwaitSetRemoteDescription(answer.get());
 }
 
 PeerConnectionTestWrapper::PeerConnectionTestWrapper(
@@ -260,6 +272,83 @@ void PeerConnectionTestWrapper::WaitForNegotiation() {
                   [&] { return !pending_negotiation_; }, ::testing::IsTrue(),
                   {.timeout = webrtc::TimeDelta::Millis(kMaxWait)}),
               webrtc::IsRtcOk());
+}
+
+std::unique_ptr<webrtc::SessionDescriptionInterface>
+PeerConnectionTestWrapper::AwaitCreateOffer() {
+  auto observer =
+      webrtc::make_ref_counted<webrtc::MockCreateSessionDescriptionObserver>();
+  peer_connection_->CreateOffer(observer.get(), {});
+  EXPECT_THAT(webrtc::WaitUntil([&] { return observer->called(); },
+                                ::testing::IsTrue()),
+              webrtc::IsRtcOk());
+  return observer->MoveDescription();
+}
+
+std::unique_ptr<webrtc::SessionDescriptionInterface>
+PeerConnectionTestWrapper::AwaitCreateAnswer() {
+  auto observer =
+      webrtc::make_ref_counted<webrtc::MockCreateSessionDescriptionObserver>();
+  peer_connection_->CreateAnswer(observer.get(), {});
+  EXPECT_THAT(webrtc::WaitUntil([&] { return observer->called(); },
+                                ::testing::IsTrue()),
+              webrtc::IsRtcOk());
+  return observer->MoveDescription();
+}
+
+void PeerConnectionTestWrapper::AwaitSetLocalDescription(
+    webrtc::SessionDescriptionInterface* sdp) {
+  auto observer =
+      webrtc::make_ref_counted<webrtc::MockSetSessionDescriptionObserver>();
+  peer_connection_->SetLocalDescription(
+      observer.get(), webrtc::CloneSessionDescription(sdp).release());
+  EXPECT_THAT(webrtc::WaitUntil([&] { return observer->called(); },
+                                ::testing::IsTrue()),
+              webrtc::IsRtcOk());
+}
+
+void PeerConnectionTestWrapper::AwaitSetRemoteDescription(
+    webrtc::SessionDescriptionInterface* sdp) {
+  auto observer =
+      webrtc::make_ref_counted<webrtc::MockSetSessionDescriptionObserver>();
+  peer_connection_->SetRemoteDescription(
+      observer.get(), webrtc::CloneSessionDescription(sdp).release());
+  EXPECT_THAT(webrtc::WaitUntil([&] { return observer->called(); },
+                                ::testing::IsTrue()),
+              webrtc::IsRtcOk());
+}
+
+void PeerConnectionTestWrapper::ListenForRemoteIceCandidates(
+    webrtc::scoped_refptr<PeerConnectionTestWrapper> remote_wrapper) {
+  remote_wrapper_ = remote_wrapper;
+  remote_wrapper_->SignalOnIceCandidateReady.connect(
+      this, &PeerConnectionTestWrapper::OnRemoteIceCandidate);
+}
+
+void PeerConnectionTestWrapper::AwaitAddRemoteIceCandidates() {
+  EXPECT_TRUE(remote_wrapper_);
+  EXPECT_THAT(
+      webrtc::WaitUntil(
+          [&] {
+            return remote_wrapper_->pc()->ice_gathering_state() ==
+                   webrtc::PeerConnectionInterface::kIceGatheringComplete;
+          },
+          ::testing::IsTrue(),
+          {.timeout = webrtc::TimeDelta::Millis(kMaxWait)}),
+      webrtc::IsRtcOk());
+  for (const auto& remote_ice_candidate : remote_ice_candidates_) {
+    peer_connection_->AddIceCandidate(remote_ice_candidate.get());
+  }
+  remote_wrapper_ = nullptr;
+  remote_ice_candidates_.clear();
+}
+
+void PeerConnectionTestWrapper::OnRemoteIceCandidate(
+    const std::string& sdp_mid,
+    int sdp_mline_index,
+    const std::string& candidate) {
+  remote_ice_candidates_.emplace_back(
+      webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, nullptr));
 }
 
 void PeerConnectionTestWrapper::OnSignalingChange(

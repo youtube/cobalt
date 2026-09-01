@@ -10,7 +10,9 @@
 #include "base/notimplemented.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/types/node_id.h"
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/tab_search_bubble_host.h"
@@ -21,7 +23,9 @@
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/views/controls/menu/menu_runner.h"
+#include "ui/views/interaction/element_tracker_views.h"
 
 namespace {
 
@@ -49,10 +53,15 @@ void WebUIBrowserPageHandler::CreateForRenderFrameHost(
 }
 
 void WebUIBrowserPageHandler::GetGuestIdForTabId(
-    int tab_id,
+    const tabs_api::NodeId& tab_id,
     GetGuestIdForTabIdCallback callback) {
-  tabs::TabInterface* tab = tabs::TabHandle(tab_id).Get();
-  if (tab == nullptr) {
+  tabs::TabInterface* tab = nullptr;
+  std::optional<tabs::TabHandle> maybe_tab_handle = tab_id.ToTabHandle();
+  if (maybe_tab_handle) {
+    tab = maybe_tab_handle->Get();
+  }
+
+  if (!tab) {
     mojo::ReportBadMessage("Invalid tab id");
     return;
   }
@@ -133,19 +142,38 @@ void WebUIBrowserPageHandler::GoForward(int guest_id) {
   }
 }
 
+void WebUIBrowserPageHandler::Refresh(int guest_id) {
+  auto* navigation_controller = GetGuestNavigationController(guest_id);
+  if (navigation_controller) {
+    navigation_controller->Reload(content::ReloadType::NORMAL, true);
+  } else {
+    mojo::ReportBadMessage("Invalid guest id");
+  }
+}
+
 void WebUIBrowserPageHandler::OpenAppMenu() {
   menu_.reset();
 
-  // TODO(webium): Find app menu button and call
-  // menu_->RunMenu(nullptr, app_menu_button.GetScreenBounds()).
-  NOTIMPLEMENTED();
+  // TODO(webium): use BrowserElements::From(browser)->GetElement(). This
+  // requires adding a BrowserElementsWebUI.
+  ui::TrackedElement* app_menu_button =
+      ui::ElementTracker::GetElementTracker()->GetFirstMatchingElement(
+          kToolbarAppMenuButtonElementId,
+          views::ElementTrackerViews::GetContextForWidget(
+              GetBrowserWindow()->widget()));
+  CHECK(app_menu_button) << "App menu button not found";
+  menu_model_ =
+      std::make_unique<AppMenuModel>(GetBrowserWindow(), GetBrowser());
+  menu_model_->Init();
+  menu_ = std::make_unique<AppMenu>(GetBrowser(), menu_model_.get(),
+                                    views::MenuRunner::NO_FLAGS);
+  menu_->RunMenu(GetBrowserWindow()->widget(),
+                 app_menu_button->GetScreenBounds());
 }
 
 void WebUIBrowserPageHandler::OpenProfileMenu() {
-  // TODO(webium): Find profile menu button and call
-  // GetBrowser()->GetFeatures().profile_menu_coordinator()->Show(
-  //    /*is_source_accelerator=*/false, avatar_button);
-  NOTIMPLEMENTED();
+  GetBrowser()->GetFeatures().profile_menu_coordinator()->Show(
+      /*is_source_accelerator=*/false);
 }
 
 void WebUIBrowserPageHandler::LaunchDevToolsForBrowser() {

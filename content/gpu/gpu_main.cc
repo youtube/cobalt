@@ -586,7 +586,10 @@ bool StartSandboxWindows(const sandbox::SandboxInterfaceInfo* sandbox_info) {
   TRACE_EVENT("gpu,startup", "Lower token");
 
   // Set up DirectReceiver before the sandbox is enabled.
-  if (features::IsVizDirectCompositorThreadIpcNonRootEnabled()) {
+  const bool should_init_transport =
+      features::IsVizDirectCompositorThreadIpcNonRootEnabled() ||
+      features::IsVizDirectCompositorThreadIpcFrameSinkManagerEnabled();
+  if (should_init_transport) {
     // This pre-initializes a transport to be used for direct receiver since a
     // feature that will use it is enabled.
     mojo::CreateDirectReceiverTransportBeforeSandbox();

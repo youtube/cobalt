@@ -212,11 +212,13 @@ void MultiContentsDropTargetView::UpdateVisibility(bool should_be_open) {
   } else {
     animation_.Reset(should_be_open ? 1 : 0);
     SetVisible(should_be_open);
+    InvalidateLayout();
   }
 }
 
 bool MultiContentsDropTargetView::ShouldShowAnimation() const {
-  return gfx::Animation::ShouldRenderRichAnimation();
+  return gfx::Animation::ShouldRenderRichAnimation() &&
+         !gfx::Animation::PrefersReducedMotion();
 }
 
 void MultiContentsDropTargetView::OnThemeChanged() {

@@ -203,8 +203,9 @@ static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
 
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
-  static const std::string user_agent_str = platform_info.ToString();
-  return user_agent_str;
+  static const base::NoDestructor<std::string> user_agent_str(
+      platform_info.ToString());
+  return *user_agent_str;
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {

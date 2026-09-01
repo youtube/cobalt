@@ -22,7 +22,6 @@
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "components/keyed_service/core/keyed_service.h"
-#include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "content/public/browser/web_contents.h"
 
 class BrowserWindowInterface;
@@ -32,6 +31,10 @@ class ProfileManager;
 namespace contextual_cueing {
 class ContextualCueingService;
 }  // namespace contextual_cueing
+
+namespace optimization_guide::proto {
+class ScriptToolResult;
+}  // namespace optimization_guide::proto
 
 namespace signin {
 class IdentityManager;
@@ -49,8 +52,9 @@ class GlicProfileManager;
 class GlicScreenshotCapturer;
 class GlicSharingManagerImpl;
 class GlicWindowController;
-class GlicWindowControllerImpl;
 class Host;
+
+class GlicPanelCoordinatorImpl;
 
 enum class GlicPrewarmingChecksResult;
 
@@ -143,12 +147,6 @@ class GlicKeyedService : public KeyedService {
                  const std::optional<int32_t>& window_id,
                  glic::mojom::WebClientHandler::CreateTabCallback callback);
   virtual void ClosePanel();
-  void AttachPanel();
-  void DetachPanel();
-  void ResizePanel(const gfx::Size& size,
-                   base::TimeDelta duration,
-                   base::OnceClosure callback);
-  void SetPanelDraggableAreas(const std::vector<gfx::Rect>& draggable_areas);
   void SetContextAccessIndicator(bool show);
 
   // Callback for changes to the context access indicator status.
@@ -262,7 +260,7 @@ class GlicKeyedService : public KeyedService {
   std::unique_ptr<GlicMetrics> metrics_;
   std::unique_ptr<GlicFreController> fre_controller_;
   std::unique_ptr<Host> host_;
-  std::unique_ptr<GlicWindowControllerImpl> window_controller_;
+  std::unique_ptr<GlicPanelCoordinatorImpl> panel_controller_;
   std::unique_ptr<GlicSharingManagerImpl> sharing_manager_;
   std::unique_ptr<GlicScreenshotCapturer> screenshot_capturer_;
   std::unique_ptr<AuthController> auth_controller_;

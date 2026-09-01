@@ -82,8 +82,7 @@ int32_t ObjCAudioDeviceModule::Init() {
   io_record_thread_checker_.Detach();
 
   thread_ = Thread::Current();
-  audio_device_buffer_ =
-      std::make_unique<webrtc::AudioDeviceBuffer>(&env_.task_queue_factory());
+  audio_device_buffer_ = std::make_unique<webrtc::AudioDeviceBuffer>(env_);
 
   if (![audio_device_ isInitialized]) {
     if (audio_device_delegate_ == nil) {

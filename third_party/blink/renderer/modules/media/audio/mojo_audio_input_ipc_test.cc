@@ -31,7 +31,6 @@
 
 using testing::_;
 using testing::AtLeast;
-using testing::Invoke;
 using testing::Mock;
 using testing::StrictMock;
 
@@ -491,7 +490,7 @@ TEST(MojoAudioInputIPC, Controls_Called_AfterStreamCreated_WithProcessing) {
 
   media_controls->SetPreferredNumCaptureChannels(1);
   media_controls->GetStats(
-      WTF::BindOnce([](const media::AudioProcessingStats& stats) {}));
+      BindOnce([](const media::AudioProcessingStats& stats) {}));
   base::RunLoop().RunUntilIdle();
 
   ipc->CloseStream();

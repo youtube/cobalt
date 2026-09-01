@@ -3113,6 +3113,8 @@ struct DTLS1_STATE {
   // a handshake flight and ACK, respectively.
   bool sending_flight : 1;
   bool sending_ack : 1;
+  // pending_flush is whether we have a pending flush on the transport.
+  bool pending_flush : 1;
 
   // queued_key_update, if not kNone, indicates we've queued a KeyUpdate message
   // to send after the current flight is ACKed.

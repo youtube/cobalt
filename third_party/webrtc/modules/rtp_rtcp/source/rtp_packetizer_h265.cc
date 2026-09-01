@@ -29,8 +29,9 @@ namespace webrtc {
 RtpPacketizerH265::RtpPacketizerH265(ArrayView<const uint8_t> payload,
                                      PayloadSizeLimits limits)
     : limits_(limits), num_packets_left_(0) {
-  for (const auto& nalu : H264::FindNaluIndices(payload)) {
-    if (!nalu.payload_size) {
+  for (const H264::NaluIndex& nalu : H264::FindNaluIndices(payload)) {
+    if (nalu.payload_size < 2) {
+      // Payload size has to include NALU header which is fixed 2 bytes.
       input_fragments_.clear();
       return;
     }
@@ -139,12 +140,8 @@ bool RtpPacketizerH265::PacketizeFu(size_t fragment_index) {
 
 int RtpPacketizerH265::PacketizeAp(size_t fragment_index) {
   // Aggregate fragments into one packet.
+  const bool includes_first = fragment_index == 0;
   size_t payload_size_left = limits_.max_payload_len;
-  if (input_fragments_.size() == 1) {
-    payload_size_left -= limits_.single_packet_reduction_len;
-  } else if (fragment_index == 0) {
-    payload_size_left -= limits_.first_packet_reduction_len;
-  }
   int aggregated_fragments = 0;
   size_t fragment_headers_length = 0;
   ArrayView<const uint8_t> fragment = input_fragments_[fragment_index];
@@ -153,16 +150,16 @@ int RtpPacketizerH265::PacketizeAp(size_t fragment_index) {
 
   auto payload_size_needed = [&] {
     size_t fragment_size = fragment.size() + fragment_headers_length;
-    if (input_fragments_.size() == 1) {
-      // Single fragment, single packet, payload_size_left already adjusted
-      // with limits_.single_packet_reduction_len.
+    bool includes_last = (fragment_index == input_fragments_.size() - 1);
+    if (includes_first && includes_last) {
+      return fragment_size + limits_.single_packet_reduction_len;
+    } else if (includes_first) {
+      return fragment_size + limits_.first_packet_reduction_len;
+    } else if (includes_last) {
+      return fragment_size + limits_.last_packet_reduction_len;
+    } else {
       return fragment_size;
     }
-    if (fragment_index == input_fragments_.size() - 1) {
-      // Last fragment, so this might be the last packet.
-      return fragment_size + limits_.last_packet_reduction_len;
-    }
-    return fragment_size;
   };
 
   uint16_t header = (fragment[0] << 8) | fragment[1];

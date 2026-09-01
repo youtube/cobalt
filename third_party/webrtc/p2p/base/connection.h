@@ -23,6 +23,7 @@
 #include "absl/functional/any_invocable.h"
 #include "absl/strings/string_view.h"
 #include "api/candidate.h"
+#include "api/environment/environment.h"
 #include "api/rtc_error.h"
 #include "api/sequence_checker.h"
 #include "api/task_queue/task_queue_base.h"
@@ -371,7 +372,13 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
   class ConnectionRequest;
 
   // Constructs a new connection to the given remote port.
+  [[deprecated("bugs.webrtc.org/42223992")]]
   Connection(WeakPtr<PortInterface> port,
+             size_t index,
+             const Candidate& candidate);
+
+  Connection(const Environment& env,
+             WeakPtr<PortInterface> port,
              size_t index,
              const Candidate& candidate);
 
@@ -528,7 +535,13 @@ class RTC_EXPORT Connection : public CandidatePairInterface {
 // ProxyConnection defers all the interesting work to the port.
 class ProxyConnection : public Connection {
  public:
+  [[deprecated("bugs.webrtc.org/42223992")]]
   ProxyConnection(WeakPtr<PortInterface> port,
+                  size_t index,
+                  const Candidate& remote_candidate);
+
+  ProxyConnection(const Environment& env,
+                  WeakPtr<PortInterface> port,
                   size_t index,
                   const Candidate& remote_candidate);
 

@@ -33,7 +33,6 @@
 #include "api/transport/ecn_marking.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
-#include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_transport_state.h"
 #include "logging/rtc_event_log/events/rtc_event_dtls_writable_state.h"
 #include "p2p/base/ice_transport_internal.h"
@@ -56,7 +55,6 @@
 #include "rtc_base/ssl_stream_adapter.h"
 #include "rtc_base/stream.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 
 namespace webrtc {
 
@@ -192,10 +190,9 @@ void StreamInterfaceChannel::Close() {
 }
 
 DtlsTransportInternalImpl::DtlsTransportInternalImpl(
-    std::optional<Environment> env,
+    const Environment& env,
     IceTransportInternal* ice_transport,
     const CryptoOptions& crypto_options,
-    RtcEventLog* event_log,
     SSLProtocolVersion max_version)
     : env_(std::move(env)),
       component_(ice_transport->component()),
@@ -205,7 +202,6 @@ DtlsTransportInternalImpl::DtlsTransportInternalImpl(
       ephemeral_key_exchange_cipher_groups_(
           crypto_options.ephemeral_key_exchange_cipher_groups.GetEnabled()),
       ssl_max_version_(max_version),
-      event_log_(event_log),
       dtls_stun_piggyback_controller_(
           [this](ArrayView<const uint8_t> piggybacked_dtls_packet) {
             if (piggybacked_dtls_callback_ == nullptr) {
@@ -894,10 +890,10 @@ void DtlsTransportInternalImpl::OnDtlsEvent(int sig, int err) {
         // TODO(bugs.webrtc.org/15368): It should be possible to use information
         // from the original packet here to populate socket address and
         // timestamp.
-        NotifyPacketReceived(ReceivedIpPacket(
-            MakeArrayView(buf, read), SocketAddress(),
-            Timestamp::Micros(TimeMicros()), EcnMarking::kNotEct,
-            ReceivedIpPacket::kDtlsDecrypted));
+        NotifyPacketReceived(
+            ReceivedIpPacket(MakeArrayView(buf, read), SocketAddress(),
+                             env_.clock().CurrentTime(), EcnMarking::kNotEct,
+                             ReceivedIpPacket::kDtlsDecrypted));
       } else if (ret == SR_EOS) {
         // Remote peer shut down the association with no error.
         RTC_LOG(LS_INFO) << ToString() << ": DTLS transport closed by remote";
@@ -1015,9 +1011,7 @@ void DtlsTransportInternalImpl::set_writable(bool writable) {
     return;
   }
 
-  if (event_log_) {
-    event_log_->Log(std::make_unique<RtcEventDtlsWritableState>(writable));
-  }
+  env_.event_log().Log(std::make_unique<RtcEventDtlsWritableState>(writable));
   RTC_LOG(LS_VERBOSE) << ToString() << ": set_writable to: " << writable;
   writable_ = writable;
   if (writable_) {
@@ -1030,9 +1024,7 @@ void DtlsTransportInternalImpl::set_dtls_state(DtlsTransportState state) {
   if (dtls_state_ == state) {
     return;
   }
-  if (event_log_) {
-    event_log_->Log(std::make_unique<RtcEventDtlsTransportState>(state));
-  }
+  env_.event_log().Log(std::make_unique<RtcEventDtlsTransportState>(state));
   RTC_LOG(LS_VERBOSE) << ToString() << ": set_dtls_state from:"
                       << static_cast<int>(dtls_state_) << " to "
                       << static_cast<int>(state);

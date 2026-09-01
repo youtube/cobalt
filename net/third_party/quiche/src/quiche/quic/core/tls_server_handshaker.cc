@@ -14,6 +14,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -49,11 +50,12 @@
 #include "quiche/quic/core/tls_handshaker.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 #define RECORD_LATENCY_IN_US(stat_name, latency, comment)                   \
   do {                                                                      \
@@ -73,8 +75,12 @@ uint16_t kDefaultPort = 443;
 }  // namespace
 
 TlsServerHandshaker::DefaultProofSourceHandle::DefaultProofSourceHandle(
-    TlsServerHandshaker* handshaker, ProofSource* proof_source)
-    : handshaker_(handshaker), proof_source_(proof_source) {}
+    TlsServerHandshaker* absl_nonnull handshaker,
+    ProofSource* absl_nonnull proof_source)
+    : handshaker_(handshaker), proof_source_(proof_source) {
+  QUICHE_DCHECK(handshaker_);
+  QUICHE_DCHECK(proof_source_);
+}
 
 TlsServerHandshaker::DefaultProofSourceHandle::~DefaultProofSourceHandle() {
   CloseHandle();
@@ -213,6 +219,7 @@ TlsServerHandshaker::TlsServerHandshaker(
     : TlsHandshaker(this, session),
       QuicCryptoServerStreamBase(session),
       proof_source_(crypto_config->proof_source()),
+      proof_verifier_(crypto_config->proof_verifier()),
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
@@ -290,6 +297,7 @@ void TlsServerHandshaker::InfoCallback(int type, int value) {
 
 std::unique_ptr<ProofSourceHandle>
 TlsServerHandshaker::MaybeCreateProofSourceHandle() {
+  QUICHE_DCHECK(proof_source_);
   return std::make_unique<DefaultProofSourceHandle>(this, proof_source_);
 }
 
@@ -675,15 +683,22 @@ void TlsServerHandshaker::FinishHandshake() {
   // appropriate time.
 }
 
+// VerifyCertChain is called to verify the client's certificate chain. If the
+// proof verifier is not set, the method will assume the certificate chain is
+// valid and return QUIC_SUCCESS.
 QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
-    const std::vector<std::string>& /*certs*/, std::string* /*error_details*/,
-    std::unique_ptr<ProofVerifyDetails>* /*details*/, uint8_t* /*out_alert*/,
-    std::unique_ptr<ProofVerifierCallback> /*callback*/) {
-  QUIC_DVLOG(1) << "VerifyCertChain returning success";
+    const std::vector<std::string>& certs, std::string* error_details,
+    std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
+    std::unique_ptr<ProofVerifierCallback> callback) {
+  if (proof_verifier_ == nullptr) {
+    QUIC_DVLOG(1) << "Proof verifier is not set, skipping cert verification";
+    return QUIC_SUCCESS;
+  }
 
-  // No real verification here. A subclass can override this function to verify
-  // the client cert if needed.
-  return QUIC_SUCCESS;
+  return proof_verifier_->VerifyCertChain(
+      /*hostname=*/"", /*port=*/0, certs, /*ocsp_response=*/"", /*cert_sct=*/"",
+      /*context=*/nullptr, error_details, details, out_alert,
+      std::move(callback));
 }
 
 void TlsServerHandshaker::OnProofVerifyDetailsAvailable(
@@ -928,7 +943,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
     int use_alps_new_codepoint = 0;
 
-#if BORINGSSL_API_VERSION >= 27
     alps_new_codepoint_received_ = SSL_early_callback_ctx_extension_get(
         client_hello, TLSEXT_TYPE_application_settings, &unused_extension_bytes,
         &unused_extension_len);
@@ -939,7 +953,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     }
     QUIC_DLOG(INFO) << "ALPS use new codepoint: " << use_alps_new_codepoint;
     SSL_set_alps_use_new_codepoint(ssl(), use_alps_new_codepoint);
-#endif  // BORINGSSL_API_VERSION
 
     if (use_alps_new_codepoint == 0) {
       QUIC_CODE_COUNT(quic_gfe_alps_use_old_codepoint);

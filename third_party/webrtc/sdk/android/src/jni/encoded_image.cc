@@ -39,19 +39,17 @@ class JavaEncodedImageBuffer : public EncodedImageBufferInterface {
                          const uint8_t* payload,
                          size_t size)
       : j_encoded_image_(ScopedJavaRefCounted::Retain(env, j_encoded_image)),
-        data_(const_cast<uint8_t*>(payload)),
+        data_(payload),
         size_(size) {}
 
   const uint8_t* data() const override { return data_; }
-  uint8_t* data() override { return data_; }
   size_t size() const override { return size_; }
 
  private:
   // The Java object owning the buffer.
   const ScopedJavaRefCounted j_encoded_image_;
 
-  // TODO(bugs.webrtc.org/9378): Make const, and delete above const_cast.
-  uint8_t* const data_;
+  const uint8_t* const data_;
   size_t const size_;
 };
 }  // namespace

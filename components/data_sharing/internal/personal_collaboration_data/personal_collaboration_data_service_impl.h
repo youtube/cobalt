@@ -39,17 +39,25 @@ class PersonalCollaborationDataServiceImpl
   std::optional<sync_pb::SharedTabGroupAccountDataSpecifics> GetSpecifics(
       SpecificsType specifics_type,
       const std::string& storage_key) override;
+  std::vector<const sync_pb::SharedTabGroupAccountDataSpecifics*>
+  GetAllSpecifics() const override;
   void CreateOrUpdateSpecifics(
       SpecificsType specifics_type,
       const std::string& storage_key,
-      const sync_pb::SharedTabGroupAccountDataSpecifics& specifics) override;
+      base::OnceCallback<void(sync_pb::SharedTabGroupAccountDataSpecifics*
+                                  specifics)> mutator) override;
   void DeleteSpecifics(SpecificsType specifics_type,
                        const std::string& storage_key) override;
   bool IsInitialized() const override;
 
   // PersonalCollaborationDataSyncBridge::Observer implementation.
+  void OnInitialized() override;
   void OnEntityAddedOrUpdatedFromSync(
+      const std::string& storage_key,
       const sync_pb::SharedTabGroupAccountDataSpecifics& data) override;
+
+  void SetBridgeForTesting(
+      std::unique_ptr<PersonalCollaborationDataSyncBridge> bridge);
 
  private:
   base::ObserverList<PersonalCollaborationDataService::Observer> observers_;
