@@ -52,7 +52,7 @@ ContentBrowserTestShellMainDelegate::CreateContentBrowserClient() {
   base::FilePath app_data_dir;
   if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
     base::FilePath storage_dir = app_data_dir.Append("storage");
-    base::ScopedAllowBlocking allow_blocking;
+    base::ScopedAllowBlockingForTesting allow_blocking;
     base::CreateDirectory(storage_dir);
     base::FilePath xml_path = storage_dir.Append("cobalt_android_fonts.xml");
     if (!base::PathExists(xml_path)) {
