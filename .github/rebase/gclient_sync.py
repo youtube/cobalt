@@ -18,6 +18,7 @@ import warnings
 from base_resolver import (
     BaseResolver,
     get_clean_build_env,
+    resolve_repo_file_path,
 )
 # Suppress google.auth UserWarning about ADC quota project on Cloudtop
 warnings.filterwarnings("ignore", category=UserWarning, module="google.auth")
@@ -211,16 +212,30 @@ class GClientSyncResolver(BaseResolver):
     if not isinstance(diagnostic, GClientSyncDiagnostic):
       return "", self.model, "DEPS"
 
+    # Dynamically extract target DEPS file path from diagnostic trace
     deps_path = os.path.join(self.repo_path, "DEPS")
+    rel_deps = "DEPS"
+    file_match = re.search(
+        r"(?:file\s+['\"]?|in\s+['\"]?)([^'\"\n\r]+DEPS[^'\"\n\r]*)",
+        diagnostic.diagnostic_trace,
+        re.IGNORECASE,
+    )
+    if file_match:
+      cand_raw = file_match.group(1).strip().rstrip(":,")
+      cand_abs = resolve_repo_file_path(cand_raw, self.repo_path)
+      if os.path.isfile(cand_abs):
+        deps_path = cand_abs
+        rel_deps = os.path.relpath(cand_abs, self.repo_path)
+
     if not os.path.isfile(deps_path):
-      return "", self.model, "DEPS"
+      return "", self.model, rel_deps
 
     try:
       with open(deps_path, "r", encoding="utf-8", errors="replace") as f:
         lines = f.readlines()
         current_deps = "".join(lines)
     except OSError:
-      return "", self.model, "DEPS"
+      return "", self.model, rel_deps
 
     line_match = re.search(r"(?:line\s+|:)(\d+)", diagnostic.diagnostic_trace)
     if line_match and len(lines) > 250:
@@ -233,21 +248,21 @@ class GClientSyncResolver(BaseResolver):
           lines[:250])
 
     instruction = (
-        f"gclient sync failed on DEPS with the following diagnostic:\n"
+        f"gclient sync failed on {rel_deps} with the following diagnostic:\n"
         f"--------------------------------------------------\n"
         f"{diagnostic.diagnostic_trace}\n"
         f"--------------------------------------------------\n\n"
-        "Resolve the syntax error or duplicate key in DEPS.\n"
-        "Output the standard SEARCH / REPLACE block:\n"
-        "FILE: DEPS\n"
-        "<<<<<<< SEARCH\n"
-        "<exact lines from DEPS to replace>\n"
-        "=======\n"
-        "<fixed replacement lines>\n"
-        ">>>>>>> REPLACE\n")
+        f"Resolve the syntax error or duplicate key in {rel_deps}.\n"
+        f"Output the standard SEARCH / REPLACE block:\n"
+        f"FILE: {rel_deps}\n"
+        f"<<<<<<< SEARCH\n"
+        f"<exact lines from {rel_deps} to replace>\n"
+        f"=======\n"
+        f"<fixed replacement lines>\n"
+        f">>>>>>> REPLACE\n")
 
     res = self.reasoning_engine.resolve_conflict(
-        file_path="DEPS",
+        file_path=rel_deps,
         language="Python",
         raw_conflict=context_snippet,
         instruction=instruction,
@@ -261,4 +276,4 @@ class GClientSyncResolver(BaseResolver):
       raw_patch = str(res)
       model_used = self.model
 
-    return raw_patch, model_used, "DEPS"
+    return raw_patch, model_used, rel_deps
