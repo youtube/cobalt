@@ -326,6 +326,7 @@ if (is_cobalt) {
       "*current_user_details_options*",
       "*dialog_button*",
       "*digital_credential*",
+      "*fed_cm*",
       "*federated_credential*",
       "*fencedframeconfig*",
       "*identity_credential*",

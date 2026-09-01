@@ -14,6 +14,7 @@
 
 #include "content/browser/devtools/devtools_instrumentation.h"
 
+#include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/public/browser/certificate_request_result_type.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -48,7 +49,6 @@ using CertErrorCallback =
 enum class InterestGroupAuctionEventType;
 enum class InterestGroupAuctionFetchType;
 
-class RenderFrameHostImpl;
 class RenderProcessHost;
 class StoragePartition;
 class NavigationRequest;

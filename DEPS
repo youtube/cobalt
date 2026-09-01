@@ -268,16 +268,12 @@ vars = {
   # REAPI address for REAPI backends.
   'reapi_address': Str(''),
   # siso CIPD package version.
-<<<<<<< HEAD
-  'siso_version': 'git_revision:15568691576f74b11a3c73c85a3c8dd5efb72f05',
-=======
   # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
   # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
   # modifications to build/config/siso/configure_siso.py can also be removed
   # in favor of setting the '--reapi_backend_config_path' argument to
   # 'cobalt.star'
   'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
   # reclient options.
   # RBE project to download rewrapper config files for. Only needed if
@@ -2673,14 +2669,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'e211477f1be2b384ddadeed4df22623a961a1cc4',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'eaea6f0e8df6cd2c7a131058f8606a02d489e163',
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'e211477f1be2b384ddadeed4df22623a961a1cc4',
 
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
@@ -3051,14 +3042,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + 'bb7239ecea3db0e41b8fa6eb26c3a749deb41076',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
-#    Var('webrtc_git') + '/src.git' + '@' + '771386d09d464bd2fd22205b629f9ac9356584c4',
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+#    Var('webrtc_git') + '/src.git' + '@' + 'bb7239ecea3db0e41b8fa6eb26c3a749deb41076',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

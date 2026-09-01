@@ -215,12 +215,12 @@ class Component {
           return "Checking";
         case ComponentState::kCanUpdate:
           return "CanUpdate";
-        case ComponentState::kDownloadingDiff:
-          return "DownloadingDiff";
         case ComponentState::kDownloading:
           return "Downloading";
-        case ComponentState::kUpdatingDiff:
-          return "UpdatingDiff";
+        case ComponentState::kDecompressing:
+          return "Decompressing";
+        case ComponentState::kPatching:
+          return "Patching";
         case ComponentState::kUpdating:
           return "Updating";
         case ComponentState::kUpdated:
@@ -231,8 +231,6 @@ class Component {
           return "UpdateError";
         case ComponentState::kRun:
           return "Run";
-        case ComponentState::kLastStatus:
-          return "LastStatus";
       }
       NOTREACHED();
       return "Unknown";

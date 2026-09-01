@@ -1105,21 +1105,6 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 #else
       return ParseResult::kError;
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-<<<<<<< HEAD
-    } else {
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-      if (runs_->audio_description().format == FOURCC_IAMF) {
-        heap_frame_buf =
-            PrependIADescriptors(runs_->audio_description().iacb,
-                                 buf.first(sample_size), &subsamples);
-        if (heap_frame_buf.empty()) {
-          MEDIA_LOG(ERROR, media_log_)
-              << "Failed to prepare IA sample for decode";
-        }
-      }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-=======
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
     }
   }
 
@@ -1148,15 +1133,13 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf = StreamParserBuffer::FromExternalMemory(
-          alloc->CopyFrom(
-              frame_buf.empty()
-                  ? (heap_frame_buf.empty()
-                         ? base::span<const uint8_t>{buf, buf + sample_size}
-                         : heap_frame_buf)
-                  : frame_buf,
-              buffer_type),
+          alloc->CopyFrom(frame_buf.empty()
+                              ? (heap_frame_buf.empty() ? buf.first(sample_size)
+                                                        : heap_frame_buf)
+                              : frame_buf,
+                          buffer_type),
           is_keyframe, buffer_type, runs_->track_id());
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
       stream_buf = StreamParserBuffer::FromExternalMemory(
           alloc->CopyFrom(frame_buf.empty()
                               ? (heap_frame_buf.empty() ? buf.first(sample_size)

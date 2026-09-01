@@ -176,7 +176,6 @@ component("modules") {
   if (!enable_privacy_sandbox_apis) {
     sub_modules -= [
       "//third_party/blink/renderer/modules/browsing_topics",
-      "//third_party/blink/renderer/modules/private_attribution",
       "//third_party/blink/renderer/modules/shared_storage",
       "//third_party/blink/renderer/modules/storage_access",
       "//third_party/blink/renderer/modules/ad_auction",
@@ -744,6 +743,7 @@ source_set("unit_tests") {
     sources -= [
       "ai/ai_utils_test.cc",
       "ai/model_execution_responder_test.cc",
+      "ai/proofreader_test.cc",
     ]
   }
 

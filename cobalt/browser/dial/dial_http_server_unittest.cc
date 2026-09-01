@@ -161,7 +161,7 @@ TEST_F(DialHttpServerTest, CurrentRunningAppRedirect) {
 
   ASSERT_TRUE(request->response_headers());
   EXPECT_EQ(net::HTTP_OK, request->response_headers()->response_code());
-  EXPECT_EQ(0, request->response_headers()->GetContentLength());
+  EXPECT_EQ(0, request->response_headers()->GetContentLength()->InBytes());
 }
 
 TEST_F(DialHttpServerTest, DdXmlWrongHttpMethod) {

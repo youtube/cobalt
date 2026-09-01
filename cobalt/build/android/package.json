@@ -14,7 +14,6 @@
                 "libchrome_crashpad_handler.so",
                 "libchrobalt.so",
                 "obj/base/activity_state_java.javac.jar",
-                "obj/base/android_info_java.javac.jar",
                 "obj/base/base_cached_flags_java.javac.jar",
                 "obj/base/base_java.javac.jar",
                 "obj/base/base_jni_java.javac.jar",
@@ -195,10 +194,6 @@
                 {
                     "from_file": "obj/base/activity_state_java.javac.jar",
                     "to_file": "jar/base_activity_state_java.jar"
-                },
-                {
-                    "from_file": "obj/base/android_info_java.javac.jar",
-                    "to_file": "jar/base_android_info_java.jar"
                 },
                 {
                     "from_file": "obj/base/base_cached_flags_java.javac.jar",

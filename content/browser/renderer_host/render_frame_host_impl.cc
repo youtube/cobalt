@@ -84,7 +84,9 @@
 #include "content/browser/cookie_deprecation_label/cookie_deprecation_label_manager_impl.h"
 #include "content/browser/data_url_loader_factory.h"
 #include "content/browser/devtools/devtools_instrumentation.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/digital_credentials/digital_identity_request_impl.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
 #include "content/browser/dom_storage/dom_storage_context_wrapper.h"
 #include "content/browser/download/data_url_blob_reader.h"
 #include "content/browser/feature_observer.h"
@@ -181,11 +183,7 @@
 #include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/browser/webauth/authenticator_impl.h"
 #include "content/browser/webauth/webauth_request_security_checker.h"
-<<<<<<< HEAD
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)
-#include "content/browser/webid/digital_credentials/digital_identity_request_impl.h"
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 #include "content/browser/webid/federated_auth_request_impl.h"
 #include "content/browser/webid/flags.h"
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS)

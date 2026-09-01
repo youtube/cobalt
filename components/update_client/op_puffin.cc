@@ -195,9 +195,6 @@ base::OnceClosure PuffOperation(
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
 #endif
         callback) {
-<<<<<<< HEAD
-  state_tracker.Run(ComponentState::kPatching);
-=======
 #if defined(IN_MEMORY_UPDATES)
   LOG(ERROR) << "Puffin delta patching Operation not supported with Cobalt IN_MEMORY_UPDATES";
   PatchDone(std::move(callback), event_adder,
@@ -209,7 +206,7 @@ base::OnceClosure PuffOperation(
 #if BUILDFLAG(IS_STARBOARD)
   const base::FilePath& patch_file = patch_operation_result.response;
 #endif
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
+  state_tracker.Run(ComponentState::kPatching);
   crx_cache->GetByHash(
       old_hash,
       base::BindOnce(&CacheLookupDone, event_adder, patcher, patch_file,
