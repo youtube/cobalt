@@ -40,8 +40,7 @@ class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
 
 DecodedAudio MakeDecodedAudio(int channels, int64_t timestamp) {
   DecodedAudio decoded_audio(
-      channels, kSbMediaAudioSampleTypeFloat32,
-      kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
+      channels, kSbMediaAudioSampleTypeFloat32, timestamp,
       GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) * channels * 1536);
 
   memset(decoded_audio.data(), timestamp % 256, decoded_audio.size_in_bytes());

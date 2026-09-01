@@ -32,9 +32,6 @@ constexpr double kPi = 3.1415926535897932384626;
 
 constexpr SbMediaAudioSampleType kSampleTypes[] = {
     kSbMediaAudioSampleTypeInt16Deprecated, kSbMediaAudioSampleTypeFloat32};
-constexpr SbMediaAudioFrameStorageType kStorageTypes[] = {
-    kSbMediaAudioFrameStorageTypeInterleaved,
-    kSbMediaAudioFrameStorageTypePlanar};
 
 // The following two functions fill `data` with audio samples of a sine wave
 // starting from `initial_angle`.  `stride` is the number of samples per group.
@@ -179,22 +176,21 @@ TEST(DecodedAudioTest, CreateEOSBuffer) {
 
 TEST(DecodedAudioTest, CtorWithSize) {
   for (auto sample_type : kSampleTypes) {
-    for (auto storage_type : kStorageTypes) {
-      DecodedAudio decoded_audio(kChannels, sample_type, storage_type,
-                                 kTimestampUsec, kSizeInBytes);
+    DecodedAudio decoded_audio(kChannels, sample_type, kTimestampUsec,
+                               kSizeInBytes);
 
-      EXPECT_FALSE(decoded_audio.is_end_of_stream());
-      EXPECT_EQ(decoded_audio.channels(), kChannels);
-      EXPECT_EQ(decoded_audio.sample_type(), sample_type);
-      EXPECT_EQ(decoded_audio.storage_type(), storage_type);
-      EXPECT_EQ(decoded_audio.size_in_bytes(), kSizeInBytes);
-      EXPECT_EQ(decoded_audio.frames(),
-                kSizeInBytes / GetBytesPerSample(decoded_audio.sample_type()) /
-                    kChannels);
+    EXPECT_FALSE(decoded_audio.is_end_of_stream());
+    EXPECT_EQ(decoded_audio.channels(), kChannels);
+    EXPECT_EQ(decoded_audio.sample_type(), sample_type);
+    EXPECT_EQ(decoded_audio.storage_type(),
+              kSbMediaAudioFrameStorageTypeInterleaved);
+    EXPECT_EQ(decoded_audio.size_in_bytes(), kSizeInBytes);
+    EXPECT_EQ(decoded_audio.frames(),
+              kSizeInBytes / GetBytesPerSample(decoded_audio.sample_type()) /
+                  kChannels);
 
-      Fill(&decoded_audio);
-      Verify(decoded_audio);
-    }
+    Fill(&decoded_audio);
+    Verify(decoded_audio);
   }
 }
 
@@ -204,8 +200,8 @@ TEST(DecodedAudioTest, CtorWithMoveCtor) {
 
   const uint8_t* original_data_pointer = original.data();
 
-  DecodedAudio decoded_audio(kChannels, kSampleTypes[0], kStorageTypes[0],
-                             kTimestampUsec, 128, std::move(original));
+  DecodedAudio decoded_audio(kChannels, kSampleTypes[0], kTimestampUsec, 128,
+                             std::move(original));
   ASSERT_EQ(decoded_audio.size_in_bytes(), 128);
   ASSERT_NE(decoded_audio.data(), nullptr);
   ASSERT_EQ(decoded_audio.data(), original_data_pointer);
@@ -218,9 +214,8 @@ TEST(DecodedAudioTest, CtorWithMoveCtor) {
 TEST(DecodedAudioTest, AdjustForSeekTime) {
   for (int channels = 1; channels <= 6; ++channels) {
     for (auto sample_type : kSampleTypes) {
-      DecodedAudio original_decoded_audio(
-          kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-          kTimestampUsec, kSizeInBytes);
+      DecodedAudio original_decoded_audio(kChannels, sample_type,
+                                          kTimestampUsec, kSizeInBytes);
       Fill(&original_decoded_audio);
 
       DecodedAudio adjusted_decoded_audio =
@@ -273,9 +268,8 @@ TEST(DecodedAudioTest, AdjustForSeekTime) {
 TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
   for (int channels = 1; channels <= 6; ++channels) {
     for (auto sample_type : kSampleTypes) {
-      DecodedAudio original_decoded_audio(
-          kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-          kTimestampUsec, kSizeInBytes);
+      DecodedAudio original_decoded_audio(kChannels, sample_type,
+                                          kTimestampUsec, kSizeInBytes);
       Fill(&original_decoded_audio);
 
       DecodedAudio adjusted_decoded_audio =
@@ -315,34 +309,26 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
 
 TEST(DecodedAudioTest, SwitchFormatTo) {
   for (auto original_sample_type : kSampleTypes) {
-    for (auto original_storage_type : kStorageTypes) {
-      DecodedAudio original_decoded_audio(kChannels, original_sample_type,
-                                          original_storage_type, kTimestampUsec,
-                                          kSizeInBytes);
+    DecodedAudio original_decoded_audio(kChannels, original_sample_type,
+                                        kTimestampUsec, kSizeInBytes);
 
-      Fill(&original_decoded_audio);
+    Fill(&original_decoded_audio);
 
-      for (auto new_sample_type : kSampleTypes) {
-        for (auto new_storage_type : kStorageTypes) {
-          if (!original_decoded_audio.IsFormat(new_sample_type,
-                                               new_storage_type)) {
-            DecodedAudio new_decoded_audio =
-                original_decoded_audio.SwitchFormatTo(new_sample_type,
-                                                      new_storage_type);
+    for (auto new_sample_type : kSampleTypes) {
+      if (original_decoded_audio.sample_type() != new_sample_type) {
+        DecodedAudio new_decoded_audio = original_decoded_audio.SwitchFormatTo(
+            new_sample_type, kSbMediaAudioFrameStorageTypeInterleaved);
 
-            EXPECT_FALSE(new_decoded_audio.is_end_of_stream());
-            EXPECT_EQ(new_decoded_audio.channels(),
-                      original_decoded_audio.channels());
-            EXPECT_EQ(new_decoded_audio.timestamp(),
-                      original_decoded_audio.timestamp());
-            EXPECT_EQ(new_decoded_audio.frames(),
-                      original_decoded_audio.frames());
-            EXPECT_TRUE(
-                new_decoded_audio.IsFormat(new_sample_type, new_storage_type));
+        EXPECT_FALSE(new_decoded_audio.is_end_of_stream());
+        EXPECT_EQ(new_decoded_audio.channels(),
+                  original_decoded_audio.channels());
+        EXPECT_EQ(new_decoded_audio.timestamp(),
+                  original_decoded_audio.timestamp());
+        EXPECT_EQ(new_decoded_audio.frames(), original_decoded_audio.frames());
+        EXPECT_TRUE(new_decoded_audio.IsFormat(
+            new_sample_type, kSbMediaAudioFrameStorageTypeInterleaved));
 
-            ASSERT_NO_FATAL_FAILURE(Verify(new_decoded_audio));
-          }
-        }
+        ASSERT_NO_FATAL_FAILURE(Verify(new_decoded_audio));
       }
     }
   }
@@ -350,9 +336,8 @@ TEST(DecodedAudioTest, SwitchFormatTo) {
 
 TEST(DecodedAudioTest, Clone) {
   for (auto sample_type : kSampleTypes) {
-    DecodedAudio decoded_audio(kChannels, sample_type,
-                               kSbMediaAudioFrameStorageTypeInterleaved,
-                               kTimestampUsec, kSizeInBytes);
+    DecodedAudio decoded_audio(kChannels, sample_type, kTimestampUsec,
+                               kSizeInBytes);
     Fill(&decoded_audio);
     auto copy = decoded_audio.CloneForTesting();
     ASSERT_EQ(copy, decoded_audio);
@@ -364,11 +349,10 @@ TEST(DecodedAudioTest, Clone) {
 
 class DecodedAudioNeonTest : public ::testing::Test {
  protected:
-  DecodedAudio CreateInt16PlanarRamp(int total_samples) {
+  DecodedAudio CreateInt16InterleavedRamp(int total_samples) {
     int size_in_bytes = total_samples * sizeof(int16_t);
     DecodedAudio base(kChannels, kSbMediaAudioSampleTypeInt16Deprecated,
-                      kSbMediaAudioFrameStorageTypePlanar, kTimestampUsec,
-                      size_in_bytes);
+                      kTimestampUsec, size_in_bytes);
     int16_t* data = base.data_as_int16();
     for (int i = 0; i < total_samples; ++i) {
       data[i] = static_cast<int16_t>(i - 32768);
@@ -378,8 +362,7 @@ class DecodedAudioNeonTest : public ::testing::Test {
 
   DecodedAudio CreateFloat32InterleavedRamp(int total_samples) {
     int size_in_bytes = total_samples * sizeof(float);
-    DecodedAudio base(kChannels, kSbMediaAudioSampleTypeFloat32,
-                      kSbMediaAudioFrameStorageTypeInterleaved, kTimestampUsec,
+    DecodedAudio base(kChannels, kSbMediaAudioSampleTypeFloat32, kTimestampUsec,
                       size_in_bytes);
     float* data = base.data_as_float32();
     for (int i = 0; i < total_samples; ++i) {
@@ -419,93 +402,26 @@ class DecodedAudioNeonTest : public ::testing::Test {
 };
 
 TEST_F(DecodedAudioNeonTest, SwitchFormatTo_NeonSimdExhaustive) {
-  // 1. Test conversions starting from Int16 Planar (65536 samples)
-  auto int16_planar_base = CreateInt16PlanarRamp(65536);
-
-  // Test Case 1: Int16 Planar -> Float32 Interleaved
-  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeFloat32,
+  // 1. Test Int16 Interleaved -> Float32 Interleaved
+  auto int16_interleaved = CreateInt16InterleavedRamp(65536);
+  VerifySwitchFormat(int16_interleaved, kSbMediaAudioSampleTypeFloat32,
                      kSbMediaAudioFrameStorageTypeInterleaved);
 
-  // Test Case 2: Int16 Planar -> Float32 Planar
-  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeFloat32,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // 2. Test conversions starting from Float32 Interleaved (8000 samples)
-  auto float_interleaved_base = CreateFloat32InterleavedRamp(8000);
-
-  // Test Case 3: Float32 Interleaved -> Int16 Planar
-  VerifySwitchFormat(float_interleaved_base,
-                     kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // Test Case 4: Float32 Interleaved -> Int16 Interleaved
-  VerifySwitchFormat(float_interleaved_base,
-                     kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypeInterleaved);
-
-  // Test Case 5: Int16 Planar -> Int16 Interleaved
-  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypeInterleaved);
-
-  // Test Case 6: Int16 Interleaved -> Int16 Planar
-  auto int16_interleaved = int16_planar_base.SwitchFormatTo(
-      kSbMediaAudioSampleTypeInt16Deprecated,
-      kSbMediaAudioFrameStorageTypeInterleaved, /*force_simd=*/false);
-  VerifySwitchFormat(int16_interleaved, kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // Test Case 7: Float32 Interleaved -> Float32 Planar
-  VerifySwitchFormat(float_interleaved_base, kSbMediaAudioSampleTypeFloat32,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // Test Case 8: Float32 Planar -> Float32 Interleaved
-  auto float_planar = float_interleaved_base.SwitchFormatTo(
-      kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
-      /*force_simd=*/false);
-  VerifySwitchFormat(float_planar, kSbMediaAudioSampleTypeFloat32,
+  // 2. Test Float32 Interleaved -> Int16 Interleaved
+  auto float_interleaved = CreateFloat32InterleavedRamp(8000);
+  VerifySwitchFormat(float_interleaved, kSbMediaAudioSampleTypeInt16Deprecated,
                      kSbMediaAudioFrameStorageTypeInterleaved);
 }
 
 TEST_F(DecodedAudioNeonTest, SwitchFormatTo_NeonSimdUnaligned) {
   // Test with unaligned sizes (non-multiples of 8/16) to verify C++ scalar
-  // fallbacks. 65536 + 14 is non-multiple of 16 (for Int16 -> Float32)
-  auto int16_planar_base = CreateInt16PlanarRamp(65536 + 14);
-
-  // Int16 Planar -> Float32 Interleaved
-  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeFloat32,
+  // fallbacks.
+  auto int16_interleaved = CreateInt16InterleavedRamp(65536 + 14);
+  VerifySwitchFormat(int16_interleaved, kSbMediaAudioSampleTypeFloat32,
                      kSbMediaAudioFrameStorageTypeInterleaved);
 
-  // Float32 Interleaved -> Int16 Planar
-  auto float_interleaved_base = CreateFloat32InterleavedRamp(8000 + 14);
-  VerifySwitchFormat(float_interleaved_base,
-                     kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // Float32 Interleaved -> Int16 Interleaved
-  VerifySwitchFormat(float_interleaved_base,
-                     kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypeInterleaved);
-
-  // Int16 Planar -> Int16 Interleaved
-  VerifySwitchFormat(int16_planar_base, kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypeInterleaved);
-
-  // Int16 Interleaved -> Int16 Planar
-  auto int16_interleaved = int16_planar_base.SwitchFormatTo(
-      kSbMediaAudioSampleTypeInt16Deprecated,
-      kSbMediaAudioFrameStorageTypeInterleaved, /*force_simd=*/false);
-  VerifySwitchFormat(int16_interleaved, kSbMediaAudioSampleTypeInt16Deprecated,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // Float32 Interleaved -> Float32 Planar
-  VerifySwitchFormat(float_interleaved_base, kSbMediaAudioSampleTypeFloat32,
-                     kSbMediaAudioFrameStorageTypePlanar);
-
-  // Float32 Planar -> Float32 Interleaved
-  auto float_planar = float_interleaved_base.SwitchFormatTo(
-      kSbMediaAudioSampleTypeFloat32, kSbMediaAudioFrameStorageTypePlanar,
-      /*force_simd=*/false);
-  VerifySwitchFormat(float_planar, kSbMediaAudioSampleTypeFloat32,
+  auto float_interleaved = CreateFloat32InterleavedRamp(8000 + 14);
+  VerifySwitchFormat(float_interleaved, kSbMediaAudioSampleTypeInt16Deprecated,
                      kSbMediaAudioFrameStorageTypeInterleaved);
 }
 

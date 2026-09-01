@@ -187,7 +187,6 @@ class OpusAVSampleBufferBuilder : public AVAudioSampleBufferBuilder {
 
     DecodedAudio decoded_audio(
         audio_stream_info_.number_of_channels, kSbMediaAudioSampleTypeFloat32,
-        kSbMediaAudioFrameStorageTypeInterleaved,
         input_buffer->timestamp() + media_time_offset,
         audio_stream_info_.number_of_channels * frams_size *
             GetBytesPerSample(kSbMediaAudioSampleTypeFloat32));
