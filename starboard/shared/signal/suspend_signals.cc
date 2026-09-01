@@ -131,11 +131,14 @@ class SignalHandlerThread : public ::starboard::Thread {
 };
 
 void ConfigureSignalHandlerThread(bool start) {
-  static SignalHandlerThread handlerThread;
+  // Use a heap-allocated singleton to avoid an exit-time destructor
+  // (-Wexit-time-destructors). The object lives for the lifetime of the
+  // process and is intentionally never freed.
+  static SignalHandlerThread* const handlerThread = new SignalHandlerThread();
   if (start) {
-    handlerThread.Start();
+    handlerThread->Start();
   } else {
-    handlerThread.Join();
+    handlerThread->Join();
   }
 }
 

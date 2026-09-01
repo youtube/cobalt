@@ -489,18 +489,12 @@ void AudioManagerAndroid::GetDeviceNames(AudioDeviceNames* device_names,
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
 
-<<<<<<< HEAD
-  UpdateDeviceCache(direction);
-  const DeviceCache& devices = GetDeviceCache(direction);
-=======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // simplified flow - just return, device_names is set to default.
   return;
 #else
-  std::vector<JniAudioDevice> j_devices =
-      GetJniDelegate().GetDevices(direction == AudioDeviceDirection::kInput);
->>>>>>> parent of a34276e76d4 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
+  UpdateDeviceCache(direction);
+  const DeviceCache& devices = GetDeviceCache(direction);
   for (auto& pair : devices) {
     const AudioDevice& device = pair.second;
 
@@ -590,7 +584,9 @@ void AudioManagerAndroid::UpdateDeviceCache(AudioDeviceDirection direction) {
   // both present, remove the SCO device from `devices`, and instead make it
   // "associated" with the A2DP device.
   if (direction == AudioDeviceDirection::kOutput) {
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
     CombineBluetoothClassicDevices(devices);
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   auto device_map = base::MakeFlatMap<AudioDeviceId, AudioDevice>(

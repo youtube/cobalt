@@ -468,7 +468,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
-std::optional<std::string>
+base::NoDestructor<std::optional<std::string>>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
 std::optional<int>
     H5vccSchemeURLLoaderFactory::global_splash_content_size_test_;
@@ -477,10 +477,11 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(url::Origin::Create(
-                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
-                         .GetURL()
-                         .spec()),
+    : splash_domain_(
+          url::Origin::Create(
+              GURL(global_splash_domain_test_->value_or(kDefaultURL)))
+              .GetURL()
+              .spec()),
       splash_content_size_limit_(
           global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
       browser_context_(browser_context) {
@@ -521,7 +522,7 @@ void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
 
 void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
     const std::optional<std::string>& domain) {
-  global_splash_domain_test_ = domain;
+  *global_splash_domain_test_ = domain;
 }
 
 void H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(

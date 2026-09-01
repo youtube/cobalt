@@ -281,6 +281,7 @@ static_library("cobalt_shell_lib") {
   configs += [
     ":cobalt_shell_lib_warnings",
     "//build/config:precompiled_headers",
+    "//build/config/compiler:no_exit_time_destructors",
   ]
 
   defines = [

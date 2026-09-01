@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 
+#include "base/no_destructor.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -85,7 +86,8 @@ class H5vccSchemeURLLoaderFactory final
   static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;
   uint64_t splash_content_size_limit_;
-  static std::optional<std::string> global_splash_domain_test_;
+  static base::NoDestructor<std::optional<std::string>>
+      global_splash_domain_test_;
   static std::optional<int> global_splash_content_size_test_;
   BrowserContext* browser_context_;
 };

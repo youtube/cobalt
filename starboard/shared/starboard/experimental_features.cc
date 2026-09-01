@@ -27,10 +27,11 @@ namespace starboard {
 namespace {
 
 std::optional<ExperimentalFeatures>& GetThreadLocalExperimentalFeatures() {
-  thread_local std::optional<ExperimentalFeatures> instance;
-  static_assert(sizeof(instance) < 256,
+  thread_local std::optional<ExperimentalFeatures>* instance =
+      new std::optional<ExperimentalFeatures>;
+  static_assert(sizeof(*instance) < 256,
                 "ExperimentalFeatures is too large for thread-local storage.");
-  return instance;
+  return *instance;
 }
 
 const StarboardExtensionExperimentalFeaturesConfigurationApi

@@ -68,12 +68,12 @@ void SetVideoBufferSizeReductionPercent(int reduction_pct) {
   g_video_buffer_size_reduction_percent = reduction_pct;
 }
 
-size_t GetDemuxerStreamAudioMemoryLimit(
+base::ByteCount GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
-  return GetAudioDecoderBufferLimitBytes();
+  return base::ByteCount(GetAudioDecoderBufferLimitBytes());
 }
 
-size_t GetDemuxerStreamVideoMemoryLimit(
+base::ByteCount GetDemuxerStreamVideoMemoryLimit(
     DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   size_t limit;
@@ -89,7 +89,7 @@ size_t GetDemuxerStreamVideoMemoryLimit(
   std::optional<int> reduction_pct =
       g_video_buffer_size_reduction_percent.load();
   if (!reduction_pct.has_value()) {
-    return limit;
+    return base::ByteCount(limit);
   }
 
   // Multiplying limit by uint64_t remaining_pct preserves full precision and
@@ -97,10 +97,10 @@ size_t GetDemuxerStreamVideoMemoryLimit(
   // overflow.
   const uint64_t remaining_pct = 100 - reduction_pct.value();
 
-  return static_cast<size_t>((limit * remaining_pct) / 100);
+  return base::ByteCount(static_cast<size_t>((limit * remaining_pct) / 100));
 }
 
-size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
+base::ByteCount GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
   return GetDemuxerStreamAudioMemoryLimit(nullptr) +
          GetDemuxerStreamVideoMemoryLimit(demuxer_type, nullptr);
 }
