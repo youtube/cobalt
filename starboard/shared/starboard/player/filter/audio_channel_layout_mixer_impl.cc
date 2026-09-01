@@ -255,6 +255,8 @@ class AudioChannelLayoutMixerImpl : public AudioChannelLayoutMixer {
   DecodedAudio MixMonoToStereoOptimized(const DecodedAudio& input);
 
   SbMediaAudioSampleType sample_type_;
+  // TODO: b/272837615 - Remove storage_type_ and planar branches, once
+  // planar storage type cleanup is completed.
   SbMediaAudioFrameStorageType storage_type_;
   int output_channels_;
 };
@@ -334,7 +336,7 @@ DecodedAudio AudioChannelLayoutMixerImpl::Mix(const DecodedAudio& input,
                                               const float* matrix) {
   size_t frames = input.frames();
   DecodedAudio output(
-      output_channels_, sample_type_, storage_type_, input.timestamp(),
+      output_channels_, sample_type_, input.timestamp(),
       frames * output_channels_ * GetBytesPerSample(sample_type_));
   SampleType aux_buffer[8];
   SampleType output_buffer[8];
@@ -353,8 +355,8 @@ DecodedAudio AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
   SB_DCHECK_EQ(output_channels_, 2);
   SB_DCHECK_EQ(input.channels(), 1);
 
-  DecodedAudio output(output_channels_, sample_type_, storage_type_,
-                      input.timestamp(), input.size_in_bytes() * 2);
+  DecodedAudio output(output_channels_, sample_type_, input.timestamp(),
+                      input.size_in_bytes() * 2);
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {
     size_t frames_left = input.frames();
     size_t bytes_per_sample = GetBytesPerSample(sample_type_);

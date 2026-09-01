@@ -215,7 +215,7 @@ class AudioRendererTest : public ::testing::Test {
 
   DecodedAudio CreateDecodedAudio(int64_t timestamp, int frames) {
     DecodedAudio decoded_audio(
-        kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
+        kDefaultNumberOfChannels, sample_type_, timestamp,
         frames * kDefaultNumberOfChannels * GetBytesPerSample(sample_type_));
     memset(decoded_audio.data(), 0, decoded_audio.size_in_bytes());
     return decoded_audio;
