@@ -56,9 +56,13 @@ bool LibraryLoaded(base::android::LibraryProcessType library_process_type) {
   // CommandLine has been initialized to allow java and tests to use GURL before
   // running ContentMain.
 #if BUILDFLAG(IS_COBALT)
-  // For Cobalt Android: We disable this early eager call to prevent a Catch-22 crash
-  // where it reaches for GetContentClient() before ContentMain initializes the delegate.
-  // It will instead be safely called later by ContentMainRunnerImpl::Initialize().
+  // For Cobalt Android: In production (Starboard lifecycle), schemes are registered
+  // during ContentMainRunnerImpl::Initialize() after the delegate is configured.
+  // In tests (non-Starboard lifecycle), we must register schemes here early.
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          "use-starboard-lifecycle")) {
+    RegisterContentSchemes();
+  }
 #else
   RegisterContentSchemes();
 #endif
