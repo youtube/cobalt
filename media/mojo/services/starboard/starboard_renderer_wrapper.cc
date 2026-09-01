@@ -19,6 +19,7 @@
 #include "base/compiler_specific.h"
 #include "base/functional/callback_helpers.h"
 #include "base/task/bind_post_task.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "media/base/demuxer_stream.h"
@@ -215,16 +216,22 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(init_cb);
 
-  DCHECK(video_geometry_setter_service_);
-  video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
-      video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
-  DCHECK(video_geometry_change_subcriber_remote_);
-  video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
-      overlay_plane_id_,
-      video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
-      base::BindOnce(
-          &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
-          base::Unretained(this), media_resource, client));
+  base::OnceClosure subscribe_cb = base::BindOnce(
+      &StarboardRendererWrapper::OnSubscribeToVideoGeometryChange,
+      weak_factory_.GetWeakPtr(), media_resource, client);
+
+  if (video_geometry_setter_service_) {
+    video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
+        video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
+    DCHECK(video_geometry_change_subcriber_remote_);
+    video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
+        overlay_plane_id_,
+        video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
+        std::move(subscribe_cb));
+  } else {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(subscribe_cb));
+  }
 
   GetRenderer()->SetStarboardRendererCallbacks(
       base::BindRepeating(
