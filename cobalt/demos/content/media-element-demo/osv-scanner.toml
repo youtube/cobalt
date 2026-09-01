@@ -1,9 +1,23 @@
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # OSV-Scanner configuration for cobalt/demos/content/media-element-demo
 #
 # Context:
 # The media-element-demo is an isolated demonstration and test web application
 # used to verify HTML5 <video> and MediaSource API behavior in Cobalt.
-# The 53 vulnerabilities suppressed below reside in build-time tooling (webpack,
+# The 54 vulnerabilities suppressed below reside in build-time tooling (webpack,
 # copy-webpack-plugin, terser-webpack-plugin, ts-loader) and local dev server
 # utilities (http-server, portfinder).
 #
@@ -251,4 +265,3 @@ reason = "Transitive devDependency (http-server -> ecstatic). media-element-demo
 [[IgnoredVulns]]
 id = "GHSA-vcc3-ghjq-m6fr"
 reason = "Transitive devDependency (webpack -> watchpack -> chokidar -> anymatch -> micromatch -> snapdragon -> source-map-resolve -> decode-uri-component). media-element-demo is an optional standalone developer demo not deployed to production or packaged in Cobalt binaries. decode-uri-component is invoked only during offline build/watch asset processing on trusted local files, never on untrusted or external URI inputs."
-
