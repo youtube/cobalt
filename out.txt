@@ -1,0 +1,306 @@
+[3725619:3725619:20230828,121842.935723:WARNING wrapper.cc:193] crashpad_handler not at expected location of /usr/local/google/home/austinosagie/cobalt/out/linux-x64x11_devel/crashpad_handler
+[cobalt/3725619:0828/121842.941791:INFO:audio_sink_type_dispatcher.cc(28)] Use PulseAudio
+[LinkReceiver/3725623:0828/121842.944544:ERROR:stats_tracker.h(55)] [once] StatsTracker is not defined.
+[cobalt/3725619:0828/121842.956422:INFO:main.cc(80)] Starting application.
+[cobalt/3725619:0828/121842.957209:ERROR:device_authentication.cc(90)] Unable to get kSbSystemPropertyCertificationScope
+[cobalt/3725619:0828/121842.957323:WARNING:device_authentication.cc(108)] Error retrieving certification scope required for device authentication.
+[cobalt/3725619:0828/121842.957399:INFO:application.cc(659)] Initial URL: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/stream-switch-demo.html
+[cobalt/3725619:0828/121842.957519:INFO:application.cc(664)] Fallback splash screen URL: h5vcc-embedded://black_splash_screen.html
+[cobalt/3725619:0828/121842.957737:ERROR:localized_strings.cc(91)] [once] Error reading i18n file.
+[cobalt/3725619:0828/121842.960976:INFO:persistent_settings.cc(51)] Persistent settings file path: /usr/local/google/home/austinosagie/.cache/cobalt/settings.json
+[cobalt/3725619:0828/121842.962624:INFO:pref_service.cc(101)] PrefService::PrefService
+[cobalt/3725619:0828/121842.963406:ERROR:build_time.cc(18)] Not implemented reached in Time base::GetBuildTime()
+[cobalt/3725619:0828/121842.964266:INFO:application.cc(1532)] Cobalt Telemetry initialized with settings: is_metrics_enabled: 0, metric_event_interval: 300
+[cobalt/3725619:0828/121842.964523:INFO:watchdog.cc(148)] [Watchdog] Violations filepath: /usr/local/google/home/austinosagie/.cache/cobalt/watchdog.json
+[cobalt/3725619:0828/121842.964631:INFO:watchdog.cc(355)] [Watchdog] No previous violations JSON.
+[cobalt/3725619:0828/121842.964871:INFO:watchdog.cc(477)] [Watchdog] Registered: stats
+[cobalt/3725619:0828/121842.965021:INFO:application.cc(707)] Initial deep link:
+[NetworkModule/3725629:0828/121842.968585:INFO:persistent_settings.cc(51)] Persistent settings file path: /usr/local/google/home/austinosagie/.cache/cobalt/cache_settings.json
+[NetworkModule/3725629:0828/121842.971488:INFO:dial_http_server.cc(130)] [once] In-App DIAL Address http://100.106.157.22:42101
+[3725619:3725619:20230828,121842.973019:ERROR crashpad_client_linux.cc:771] Crashpad isn't enabled
+[3725619:3725619:20230828,121842.973103:ERROR crashpad_client_linux.cc:771] Crashpad isn't enabled
+[3725619:3725619:20230828,121842.973206:ERROR crashpad_client_linux.cc:771] Crashpad isn't enabled
+[cobalt/3725619:0828/121842.973239:ERROR:application.cc(593)] Could not send some annotation(s) to crash handler.
+[cobalt/3725619:0828/121842.974616:INFO:auto_mem.cc(340)] AutoMem (resolution: {width=1920 height=1080}):
+ _______________________________________________________________________________
+|SETTING NAME                          |VALUE        |         |TYPE  |SOURCE   |
+| encoded_image_cache_size_in_bytes    |     1048576 |  1.0 MB |  CPU |   Build |
+| image_cache_size_in_bytes            |    16777216 | 16.0 MB |  GPU | AutoSet |
+| offscreen_target_cache_size_in_bytes |     4194304 |  4.0 MB |  GPU | AutoSet |
+| remote_typeface_cache_size_in_bytes  |     4194304 |  4.0 MB |  CPU |   Build |
+| skia_atlas_texture_dimensions        | 2048x2048x2 |  8.0 MB |  GPU | AutoSet |
+| skia_cache_size_in_bytes             |     4194304 |  4.0 MB |  GPU |   Build |
+|______________________________________|_____________|_________|______|_________|
+ _______________________________________________________________________
+|MEMORY                |SOURCE         |TOTAL        |SETTINGS CONSUME  |
+| max_cobalt_cpu_usage | Starboard API | 192023.0 MB |           5.0 MB |
+| max_cobalt_gpu_usage |         Unset |   <UNKNOWN> |          32.0 MB |
+|______________________|_______________|_____________|__________________|
+
+[cobalt/3725619:0828/121842.975046:INFO:watchdog.cc(477)] [Watchdog] Registered: ServiceWorkerRegistry
+[ServiceWorkerRegistry/3725634:0828/121842.976856:INFO:persistent_settings.cc(51)] Persistent settings file path: /usr/local/google/home/austinosagie/.cache/cobalt/service_worker_settings.json
+[dial_udp_server/3725631:0828/121843.033272:INFO:dial_udp_server.cc(254)] [once] In-App DIAL Discovery response : HTTP/1.1 200 OK
+LOCATION: http://100.106.157.22:42101/dd.xml
+CACHE-CONTROL: max-age=1800
+EXT:
+BOOTID.UPNP.ORG: 1
+CONFIGID.UPNP.ORG: 15240413
+SERVER: Cobalt/2.0 UPnP/1.1
+ST: urn:dial-multiscreen-org:service:dial:1
+USN: uuid:6eeef4f2-0fbb-2758e214::urn:dial-multiscreen-org:service:dial:1
+
+
+[cobalt/3725619:0828/121843.114069:INFO:graphics_system.cc(152)] eglInitialize returned 12288
+[Rasterizer/3725702:0828/121843.179364:INFO:SkFontStyleSet_cobalt.cc(526)] Scanned font from file: Roboto(400, 5, 0)
+[Rasterizer/3725702:0828/121843.179460:INFO:SkTypeface_cobalt.cc(119)] Created static SkTypeface_CobaltStreamProvider: sans-serif(400, 5, 0); File: "/usr/local/google/home/austinosagie/cobalt/out/linux-x64x11_devel/content/fonts/Roboto-Regular.woff2"
+[Rasterizer/3725702:0828/121843.179529:INFO:hardware_rasterizer.cc(665)] Max renderer surface size: 2048
+[cobalt/3725619:0828/121843.201751:INFO:decoder_buffer_allocator.cc(56)] Allocated media buffer pool on demand.
+[cobalt/3725619:0828/121843.202326:INFO:watchdog.cc(477)] [Watchdog] Registered: DebugConsoleWebModule
+[cobalt/3725619:0828/121843.202640:INFO:browser_module.cc(478)] In BrowserModule::Navigate http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/stream-switch-demo.html
+[cobalt/3725619:0828/121843.202781:INFO:watchdog.cc(594)] [Watchdog] No violations.
+[cobalt/3725619:0828/121843.203553:INFO:watchdog.cc(477)] [Watchdog] Registered: SplashScreenWebModule
+[DebugConsoleWeb/3725704:0828/121843.203766:ERROR:stack_trace_starboard.cc(29)] Not implemented reached in bool v8::base::debug::EnableInProcessStackDumping()
+[cobalt/3725619:0828/121843.204663:INFO:watchdog.cc(477)] [Watchdog] Registered: MainWebModule
+[cobalt/3725619:0828/121843.205349:INFO:application.cc(1409)] User Agent: Mozilla/5.0 (X11; Linux x86_64) Cobalt/25.master.0.1032795-devel (unlike Gecko) v8/8.8.278.17-jit gles Starboard/16, SystemIntegratorName_DESKTOP_ChipsetModelNumber_2023/FirmwareVersion (BrandName, ModelName)
+[cobalt/3725619:0828/121843.215725:INFO:cobalt_metrics_services_manager.cc(96)] Cobalt Telemetry metric upload interval changed to: 300
+[cobalt/3725619:0828/121843.215896:INFO:cobalt_metrics_services_manager.cc(78)] Cobalt Telemetry enabled state toggled to: 0
+[WebDriverThread/3725728:0828/121843.216600:INFO:server.cc(206)] Starting WebDriver server on port 4444
+[DebugWebServer/3725729:0828/121843.217043:INFO:debug_web_server.cc(320)]
+---------------------------------
+ Connect to the web debugger at:
+ http://[::1]:9222
+---------------------------------
+[cobalt/3725619:0828/121843.228216:INFO:application_x11.cc(1375)] Unrecognized event type = 21
+[DebugConsoleWeb/3725704:0828/121843.229155:ERROR:platform-starboard.cc(270)] Not implemented reached in static int v8::base::OS::GetCurrentProcessId()
+[DebugConsoleWebModule/3725704:0828/121843.237848:INFO:application_lifecycle_state.cc(85)] ApplicationLifecycleState: app_state=kApplicationStateStarted (1)
+[SplashScreenWebModule/3725706:0828/121843.245914:INFO:application_lifecycle_state.cc(85)] ApplicationLifecycleState: app_state=kApplicationStateStarted (1)
+[MainWebModule/3725709:0828/121843.246879:INFO:application_lifecycle_state.cc(85)] ApplicationLifecycleState: app_state=kApplicationStateStarted (1)
+[DebugConsoleWebModule/3725704:0828/121843.282336:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/debug_console.html
+[cobalt/3725619:0828/121843.285601:INFO:application_x11.cc(1375)] Unrecognized event type = 19
+[cobalt/3725619:0828/121843.285862:INFO:application_x11.cc(1375)] Unrecognized event type = 15
+[DebugConsoleWebModule/3725704:0828/121843.288054:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/debug_console.css
+[cobalt/3725619:0828/121843.289921:INFO:application_x11.cc(1375)] Unrecognized event type = 12
+[DebugConsoleWebModule/3725704:0828/121843.290347:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/console_manager.js
+[DebugConsoleWebModule/3725704:0828/121843.296343:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/debug_console.js
+[MainWebModule/3725709:0828/121843.296578:INFO:fetcher_factory.cc(101)] Fetching: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/stream-switch-demo.html
+[NetworkModule/3725629:0828/121843.297683:WARNING:network_delegate.cc(46)] [once] Pages must be served over secure scheme, otherwise it will fail to load in production builds of Cobalt.
+[DebugConsoleWebModule/3725704:0828/121843.299406:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/console_values.js
+[TaskSchedulerForegroundBlockingWorker/3725626:0828/121843.301458:ERROR:sys_info_starboard.cc(35)] Not implemented reached in static int64_t base::SysInfo::AmountOfFreeDiskSpace(const FilePath &)
+[SplashScreenWebModule/3725706:0828/121843.302097:INFO:fetcher_factory.cc(101)] Fetching: h5vcc-embedded://black_splash_screen.html
+[DebugConsoleWebModule/3725704:0828/121843.303346:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/message_log.js
+[DebugConsoleWebModule/3725704:0828/121843.306429:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/command_input.js
+[DebugConsoleWebModule/3725704:0828/121843.308150:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/debug_commands.js
+[DebugConsoleWebModule/3725704:0828/121843.309529:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/debugger_client.js
+[DebugConsoleWebModule/3725704:0828/121843.311357:INFO:fetcher_factory.cc(101)] Fetching: file:///debug_console/media_console.js
+[MainWebModule/3725709:0828/121843.314630:WARNING:v8c_script_debugger.cc(396)] [console.warn()] A request to synchronously load a script is being made as a result of a non-async <script> tag inlined within HTML. You should avoid this in Cobalt because if the app is suspended while loading the script, Cobalt's current logic is to abort the load and without any retries or signals. To avoid difficult to diagnose suspend/resume bugs, it is recommended to use JavaScript to create a script element and load it async. The <script> reference appears at: "http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/stream-switch-demo.html(31,62)" and its src is "stream-switch-demo.js"
+[SynchronousLoad/3725738:0828/121843.314975:INFO:fetcher_factory.cc(101)] Fetching: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/stream-switch-demo.js
+[MainWebModule/3725709:0828/121843.322750:INFO:html_media_element.cc(161)] Create HTMLMediaElement with volume 1, playback rate 1.
+[MainWebModule/3725709:0828/121843.322850:INFO:html_media_element.cc(163)] New instance of HTMLMediaElement is created. We have 1 instances in total.
+[MainWebModule/3725709:0828/121843.323126:INFO:html_media_element.cc(161)] Create HTMLMediaElement with volume 1, playback rate 1.
+[MainWebModule/3725709:0828/121843.323200:INFO:html_media_element.cc(163)] New instance of HTMLMediaElement is created. We have 2 instances in total.
+[Rasterizer/3725702:0828/121843.328066:INFO:watchdog.cc(477)] [Watchdog] Registered: renderer
+[cobalt/3725619:0828/121843.328057:INFO:browser_module.cc(755)] Loaded WebModule
+[StorageManager/3725632:0828/121843.331701:INFO:local_storage_database.cc(31)] local_storage Init
+[StorageManager/3725632:0828/121843.331821:INFO:local_storage_database.cc(38)] LocalStorageReadValues
+[cobalt/3725619:0828/121843.374091:INFO:watchdog.cc(493)] [Watchdog] Unregistered: SplashScreenWebModule
+[SplashScreenWeb/3725706:0828/121843.401565:ERROR:log-utils.cc(90)] Not implemented reached in FILE *v8::internal::Log::Close()
+[MainWebModule/3725709:0828/121843.961358:ERROR:platform-starboard.cc(230)] Not implemented reached in static bool v8::base::OS::HasLazyCommits()
+[MainWebModule/3725709:0828/121844.632393:INFO:v8c_script_debugger.cc(390)] [console.info(): http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/stream-switch-demo.js, Line 201, Col 11] Playing with codec: aac
+[MainWebModule/3725709:0828/121844.634059:INFO:media_source.cc(151)] Algorithm offloading is disabled
+[MainWebModule/3725709:0828/121844.634247:INFO:media_source.cc(153)] Asynchronous reduction is disabled
+[MainWebModule/3725709:0828/121844.634374:INFO:media_source.cc(155)] Max size of immediate job is set to 0
+[MainWebModule/3725709:0828/121844.634660:INFO:html_media_element.cc(185)] Set src to "blob:d48d1ae8-64d6-402a-a035-9c524a24e80b".
+[MainWebModule/3725709:0828/121844.635124:INFO:html_media_element.cc(923)] Clear media player.
+[MainWebModule/3725709:0828/121844.635300:INFO:html_media_element.cc(923)] Clear media player.
+[MainWebModule/3725709:0828/121844.635483:INFO:html_media_element.cc(666)] Create media player.
+[MainWebModule/3725709:0828/121844.635722:INFO:web_media_player_impl.cc(144)] New instance of WebMediaPlayerImpl is created. We have 1 instances in total.
+[MainWebModule/3725709:0828/121844.636595:INFO:html_media_element.cc(419)] Change playback rate from 1 to 1.
+[MainWebModule/3725709:0828/121844.640752:INFO:html_media_element.cc(842)] HTMLMediaElement::LoadResource(blob:d48d1ae8-64d6-402a-a035-9c524a24e80b, ,
+[MainWebModule/3725709:0828/121844.640901:WARNING:csp_delegate.cc(83)] Page must include Content-Security-Policy header, it will fail to load in production builds of Cobalt!
+[MainWebModule/3725709:0828/121844.641061:INFO:media_source.cc(429)] Algorithm offloading disabled.
+[MainWebModule/3725709:0828/121844.641294:INFO:web_media_player_impl.cc(254)] Start MEDIASOURCE playback
+[MainWebModule/3725709:0828/121844.641433:INFO:html_media_element.cc(1206)] Set network state from 2 to 2.
+[MainWebModule/3725709:0828/121844.641578:INFO:html_media_element.cc(1113)] Set ready state from 0 to 0.
+[MainWebModule/3725709:0828/121844.641786:INFO:chunk_demuxer.cc(626)] ChunkDemuxer
+[MainWebModule/3725709:0828/121844.642017:INFO:html_media_element.cc(1696)] PreferDecodeToTexture() get filter property: none.
+[MainWebModule/3725709:0828/121844.642241:INFO:html_media_element.cc(834)] HTMLMediaElement::LoadInternal, using 'src' attribute url
+[MainWebModule/3725709:0828/121844.643551:INFO:media_source.cc(235)] add SourceBuffer with type video/mp4; codecs="avc1.4d002a"; width=426; height=240
+[MainWebModule/3725709:0828/121844.644009:INFO:format_support_query_metrics.cc(78)] MediaSource::IsTypeSupported(video/mp4; codecs="avc1.4d002a"; width=426; height=240) -> probably/true, 238 us
+[MainWebModule/3725709:0828/121844.645617:INFO:source_buffer.cc(181)] Evict extra in bytes is set to 0
+[MainWebModule/3725709:0828/121844.645730:INFO:source_buffer.cc(182)] Max append size in bytes is set to 131072
+[MainWebModule/3725709:0828/121844.646167:INFO:media_source.cc(235)] add SourceBuffer with type audio/mp4; codecs="mp4a.40.2"
+[MainWebModule/3725709:0828/121844.646329:INFO:format_support_query_metrics.cc(78)] MediaSource::IsTypeSupported(audio/mp4; codecs="mp4a.40.2") -> probably/true, 57 us
+[MainWebModule/3725709:0828/121844.646628:INFO:source_buffer.cc(181)] Evict extra in bytes is set to 0
+[MainWebModule/3725709:0828/121844.646695:INFO:source_buffer.cc(182)] Max append size in bytes is set to 131072
+[MainWebModule/3725709:0828/121844.647276:WARNING:csp_delegate.cc(83)] Page must include Content-Security-Policy header, it will fail to load in production builds of Cobalt!
+[MainWebModule/3725709:0828/121844.647486:INFO:xml_http_request.cc(1377)] Fetching: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/133_BODe_h264_240p.mp4
+[MainWebModule/3725709:0828/121844.664357:INFO:decoder_buffer_allocator.cc(230)] Allocated 22020096 bytes for media buffer pool.
+[MainWebModule/3725709:0828/121844.690629:WARNING:csp_delegate.cc(83)] Page must include Content-Security-Policy header, it will fail to load in production builds of Cobalt!
+[MainWebModule/3725709:0828/121844.690784:INFO:xml_http_request.cc(1377)] Fetching: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/140_BODe_aac.mp4
+[MainWebModule/3725709:0828/121844.696652:INFO:media_source.cc(151)] Algorithm offloading is disabled
+[MainWebModule/3725709:0828/121844.696724:INFO:media_source.cc(153)] Asynchronous reduction is disabled
+[MainWebModule/3725709:0828/121844.696773:INFO:media_source.cc(155)] Max size of immediate job is set to 0
+[MainWebModule/3725709:0828/121844.696870:INFO:html_media_element.cc(185)] Set src to "blob:348c14f2-4b67-4629-a768-fb6130a67f21".
+[MainWebModule/3725709:0828/121844.697013:INFO:html_media_element.cc(923)] Clear media player.
+[MainWebModule/3725709:0828/121844.697072:INFO:html_media_element.cc(923)] Clear media player.
+[MainWebModule/3725709:0828/121844.697134:INFO:html_media_element.cc(666)] Create media player.
+[MainWebModule/3725709:0828/121844.697196:INFO:web_media_player_impl.cc(144)] New instance of WebMediaPlayerImpl is created. We have 2 instances in total.
+[MainWebModule/3725709:0828/121844.697541:INFO:html_media_element.cc(419)] Change playback rate from 1 to 1.
+[MainWebModule/3725709:0828/121844.697768:INFO:html_media_element.cc(842)] HTMLMediaElement::LoadResource(blob:348c14f2-4b67-4629-a768-fb6130a67f21, ,
+[MainWebModule/3725709:0828/121844.697835:WARNING:csp_delegate.cc(83)] Page must include Content-Security-Policy header, it will fail to load in production builds of Cobalt!
+[MainWebModule/3725709:0828/121844.697893:INFO:media_source.cc(429)] Algorithm offloading disabled.
+[MainWebModule/3725709:0828/121844.697971:INFO:web_media_player_impl.cc(254)] Start MEDIASOURCE playback
+[MainWebModule/3725709:0828/121844.698017:INFO:html_media_element.cc(1206)] Set network state from 2 to 2.
+[MainWebModule/3725709:0828/121844.698071:INFO:html_media_element.cc(1113)] Set ready state from 0 to 0.
+[MainWebModule/3725709:0828/121844.698134:INFO:chunk_demuxer.cc(626)] ChunkDemuxer
+[MainWebModule/3725709:0828/121844.698242:INFO:html_media_element.cc(1696)] PreferDecodeToTexture() get filter property: none.
+[MainWebModule/3725709:0828/121844.698323:INFO:html_media_element.cc(834)] HTMLMediaElement::LoadInternal, using 'src' attribute url
+[MainWebModule/3725709:0828/121844.698557:INFO:media_source.cc(235)] add SourceBuffer with type video/mp4; codecs="avc1.4d002a"; width=426; height=240
+[MainWebModule/3725709:0828/121844.698639:INFO:format_support_query_metrics.cc(78)] MediaSource::IsTypeSupported(video/mp4; codecs="avc1.4d002a"; width=426; height=240) -> probably/true, 21 us
+[MainWebModule/3725709:0828/121844.698808:INFO:source_buffer.cc(181)] Evict extra in bytes is set to 0
+[MainWebModule/3725709:0828/121844.698847:INFO:source_buffer.cc(182)] Max append size in bytes is set to 131072
+[MainWebModule/3725709:0828/121844.698944:INFO:media_source.cc(235)] add SourceBuffer with type audio/mp4; codecs="mp4a.40.2"
+[MainWebModule/3725709:0828/121844.699009:INFO:format_support_query_metrics.cc(78)] MediaSource::IsTypeSupported(audio/mp4; codecs="mp4a.40.2") -> probably/true, 11 us
+[MainWebModule/3725709:0828/121844.699142:INFO:source_buffer.cc(181)] Evict extra in bytes is set to 0
+[MainWebModule/3725709:0828/121844.699178:INFO:source_buffer.cc(182)] Max append size in bytes is set to 131072
+[MainWebModule/3725709:0828/121844.699322:WARNING:csp_delegate.cc(83)] Page must include Content-Security-Policy header, it will fail to load in production builds of Cobalt!
+[MainWebModule/3725709:0828/121844.699432:INFO:xml_http_request.cc(1377)] Fetching: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/133_BODe_h264_240p.mp4
+[MainWebModule/3725709:0828/121844.731421:WARNING:csp_delegate.cc(83)] Page must include Content-Security-Policy header, it will fail to load in production builds of Cobalt!
+[MainWebModule/3725709:0828/121844.731583:INFO:xml_http_request.cc(1377)] Fetching: http://0.0.0.0:8000/cobalt/demos/content/stream-switch-demo/140_BODe_aac.mp4
+[media_pipeline/3725759:0828/121844.745396:INFO:playback_statistics.cc(182)] Playback statistics on config change: current_codec: h264, drm: N, width: 426, height: 240, active_players (max): 1 (1), av1: ~0, h264: ~1, hevc: ~0, vp8: ~0, vp9: ~0, min_width: 426, min_height: 240, max_width: 426, max_height: 240, last_working_codec: unknown, seek_time: 0 s, first_audio_time: ~-1, first_video_time: ~-1, last_audio_time: ~-1, last_video_time: ~-1
+[media_pipeline/3725759:0828/121844.746037:INFO:sbplayer_pipeline.cc(822)] Creating SbPlayerBridge.
+[media_pipeline/3725759:0828/121844.746484:INFO:sbplayer_bridge.cc(301)] Updated AudioDecoderConfig -- codec: aac, profile: unknown, bytes_per_channel: 2, channel_layout: STEREO, channels: 2, samples_per_second: 44100, sample_format: Signed 16-bit, bytes_per_frame: 4, seek_preroll: 0us, codec_delay: 0, has extra data: false, encryption scheme: Unencrypted, discard decoder delay: false, target_output_channel_layout: NONE, has aac extra data: true
+[media_pipeline/3725759:0828/121844.746655:INFO:sbplayer_bridge.cc(308)] Converted to SbMediaAudioStreamInfo -- codec: aac, mime: audio/mp4; codecs="mp4a.40.2"channels: 2, sample rate: 44100, config: 16 bytes, [12 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ]
+[media_pipeline/3725759:0828/121844.746879:INFO:sbplayer_bridge.cc(316)] Updated VideoDecoderConfig -- codec: h264, profile: h264 main, level: not available, alpha_mode: is_opaque, coded size: [426,240], visible rect: [0,0,426,240], natural size: [426,240], has extra data: false, encryption scheme: Unencrypted, rotation: 0°, flipped: 0, color space:
+[media_pipeline/3725759:0828/121844.747088:INFO:sbplayer_bridge.cc(332)] Converted to SbMediaVideoStreamInfo -- codec: avc, mime: video/mp4; codecs="avc1.4d002a"; width=426; height=240, max video capabilities: width=426; height=240, 426x240 (8 bits, mastering metadata: r(0, 0), g(0, 0), b(0, 0), white(0, 0), luminance(0 to 0), chroma subsampling horizontal: 0, chroma subsampling vertical: 0, cb subsampling horizontal: 0, cb subsampling vertical: 0, chroma sitting horizontal: 0, chroma sitting vertical: 0, max cll: 0, max fall: 0, primary: Bt709, transfer: Bt709, matrix: Bt709, range: Limited)
+[media_pipeline/3725759:0828/121844.747370:INFO:player_create.cc(103)] SbPlayerCreate() called with audio mime "audio/mp4; codecs="mp4a.40.2"", video mime "video/mp4; codecs="avc1.4d002a"; width=426; height=240", and max video capabilities "width=426; height=240".
+[media_pipeline/3725759:0828/121844.747698:INFO:player_worker.cc(121)] New instance of PlayerWorker is created. We have 1 instances in total.
+[media_pipeline/3725759:0828/121844.748421:INFO:player_internal.cc(65)] Creating SbPlayerPrivate. There are 1 players.
+[media_pipeline/3725759:0828/121844.748647:INFO:sbplayer_bridge.cc(782)] Playing in punch-out mode.
+[media_pipeline/3725759:0828/121844.748798:INFO:player_internal.cc(209)] GetAudioConfiguration(): Updating audio configurations takes 3 microseconds.
+[media_pipeline/3725759:0828/121844.748871:INFO:player_internal.cc(213)] Found audio configuration unknown, channels 6
+[media_pipeline/3725759:0828/121844.748954:INFO:sbplayer_pipeline.cc(65)] Encountered local audio connector: unknown
+[media_pipeline/3725759:0828/121844.749080:INFO:sbplayer_pipeline.cc(78)] No remote audio outputs found.
+[media_pipeline/3725759:0828/121844.749169:INFO:sbplayer_pipeline.cc(839)] SbPlayerBridge created, with audio write duration at 500000
+[media_pipeline/3725759:0828/121844.749330:INFO:sbplayer_bridge.cc(301)] Updated AudioDecoderConfig -- codec: aac, profile: unknown, bytes_per_channel: 2, channel_layout: STEREO, channels: 2, samples_per_second: 44100, sample_format: Signed 16-bit, bytes_per_frame: 4, seek_preroll: 0us, codec_delay: 0, has extra data: false, encryption scheme: Unencrypted, discard decoder delay: false, target_output_channel_layout: NONE, has aac extra data: true
+[media_pipeline/3725759:0828/121844.749429:INFO:sbplayer_bridge.cc(308)] Converted to SbMediaAudioStreamInfo -- codec: aac, mime: audio/mp4; codecs="mp4a.40.2"channels: 2, sample rate: 44100, config: 16 bytes, [12 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ]
+[media_pipeline/3725759:0828/121844.749539:INFO:sbplayer_bridge.cc(316)] Updated VideoDecoderConfig -- codec: h264, profile: h264 main, level: not available, alpha_mode: is_opaque, coded size: [426,240], visible rect: [0,0,426,240], natural size: [426,240], has extra data: false, encryption scheme: Unencrypted, rotation: 0°, flipped: 0, color space:
+[media_pipeline/3725759:0828/121844.749671:INFO:sbplayer_bridge.cc(332)] Converted to SbMediaVideoStreamInfo -- codec: avc, mime: video/mp4; codecs="avc1.4d002a"; width=426; height=240, max video capabilities: width=426; height=240, 426x240 (8 bits, mastering metadata: r(0, 0), g(0, 0), b(0, 0), white(0, 0), luminance(0 to 0), chroma subsampling horizontal: 0, chroma subsampling vertical: 0, cb subsampling horizontal: 0, cb subsampling vertical: 0, chroma sitting horizontal: 0, chroma sitting vertical: 0, max cll: 0, max fall: 0, primary: Bt709, transfer: Bt709, matrix: Bt709, range: Limited)
+[media_pipeline/3725759:0828/121844.749796:INFO:playback_statistics.cc(182)] Playback statistics on config change: current_codec: h264, drm: N, width: 426, height: 240, active_players (max): 1 (1), av1: ~0, h264: ~1, hevc: ~0, vp8: ~0, vp9: ~0, min_width: 426, min_height: 240, max_width: 426, max_height: 240, last_working_codec: unknown, seek_time: 0 s, first_audio_time: ~-1, first_video_time: ~-1, last_audio_time: ~-1, last_video_time: ~-1
+[player_worker/3725765:0828/121844.753036:INFO:player_components_factory.cc(141)] Playing video using openh264::VideoDecoder.
+[player_worker/3725765:0828/121844.753430:INFO:video_render_algorithm_impl.cc(29)] VideoRenderAlgorithmImpl will render with cadence control with display refresh rate set at 60
+[player_worker/3725765:0828/121844.753807:INFO:audio_renderer_internal_pcm.cc(85)] Creating AudioRendererPcm with 2 channels, 8 bytes per frame, 8192 max cached frames, and 1024 min frames per append.
+[player_worker/3725765:0828/121844.753941:INFO:filter_based_player_worker_handler.cc(165)] Initialize audio renderer with volume 1
+[player_worker/3725765:0828/121844.754054:INFO:filter_based_player_worker_handler.cc(175)] Set playback rate to 1
+[player_worker/3725765:0828/121844.754138:INFO:filter_based_player_worker_handler.cc(178)] Initialize video renderer.
+[player_worker/3725765:0828/121844.754468:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 1 to 0, and media time provider is 0x61900039fd88
+[player_worker/3725765:0828/121844.754628:INFO:filter_based_player_worker_handler.cc(378)] Set volume from 1 to 1, and audio renderer is 0x61900039fd80
+[player_worker/3725765:0828/121844.754754:INFO:player_worker.cc(225)] Try to seek to 0 microseconds.
+[player_worker/3725765:0828/121844.754826:INFO:filter_based_player_worker_handler.cc(196)] Seek to 0, and media time provider is 0x61900039fd88
+[player_worker/3725765:0828/121844.755036:INFO:filter_based_player_worker_handler.cc(378)] Set volume from 1 to 1, and audio renderer is 0x61900039fd80
+[player_worker/3725765:0828/121844.755134:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 0, and media time provider is 0x61900039fd88
+[MainWebModule/3725709:0828/121844.755577:INFO:html_media_element.cc(1113)] Set ready state from 0 to 1.
+[player_worker/3725765:0828/121844.756152:INFO:player_components_factory.cc(86)] Playing audio using FdkAacAudioDecoder.
+[player_worker/3725765:0828/121844.769835:INFO:filter_based_player_worker_handler.cc(439)] Audio prerolled.
+[player_worker/3725765:0828/121844.772063:INFO:filter_based_player_worker_handler.cc(396)] Set bounds to x: 0, y: 60, width: 640, height: 360, z_index: 0
+[MainWebModule/3725709:0828/121844.774573:INFO:html_media_element.cc(1272)] Seek to 0.
+[MainWebModule/3725709:0828/121844.774751:INFO:html_media_element.cc(502)] Play.
+[player_worker/3725765:0828/121844.784134:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 0, and media time provider is 0x61900039fd88
+[player_worker/3725765:0828/121844.784262:INFO:player_worker.cc(225)] Try to seek to 0 microseconds.
+[player_worker/3725765:0828/121844.784341:INFO:filter_based_player_worker_handler.cc(196)] Seek to 0, and media time provider is 0x61900039fd88
+[player_worker/3725765:0828/121844.786716:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 0, and media time provider is 0x61900039fd88
+[MainWebModule/3725709:0828/121844.786836:INFO:html_media_element.cc(1113)] Set ready state from 1 to 1.
+[player_worker/3725765:0828/121844.787094:INFO:player_components_factory.cc(86)] Playing audio using FdkAacAudioDecoder.
+[player_worker/3725765:0828/121844.799537:INFO:filter_based_player_worker_handler.cc(439)] Audio prerolled.
+[player_worker/3725765:0828/121844.882315:INFO:video_renderer_internal_impl.cc(290)] Video preroll takes 94392 microseconds.
+[player_worker/3725765:0828/121844.882519:INFO:filter_based_player_worker_handler.cc(441)] Video prerolled.
+[media_pipeline/3725759:0828/121844.882904:INFO:sbplayer_bridge.cc(1308)]
+SbPlayer startup latencies: 135335 us
+  Event name                              time since last event
+  SbPlayerCreate() called                 0 us
+  kSbPlayerStateInitialized received      7224 us
+  kSbPlayerStatePrerolling received       430 us
+  First media sample(s) written [a/v]     517/629 us
+  kSbPlayerStatePresenting received       127052 us
+  Startup latency statistics (us):        min: 135335, median: 135335, average: 135335, max: 135335
+[media_pipeline/3725759:0828/121844.883200:INFO:sbplayer_pipeline.cc(65)] Encountered local audio connector: unknown
+[MainWebModule/3725709:0828/121844.883222:INFO:html_media_element.cc(1113)] Set ready state from 1 to 4.
+[media_pipeline/3725759:0828/121844.883316:INFO:sbplayer_pipeline.cc(78)] No remote audio outputs found.
+[MainWebModule/3725709:0828/121844.883436:INFO:html_media_element.cc(1356)] Finish seek.
+[media_pipeline/3725759:0828/121844.883474:INFO:sbplayer_pipeline.cc(1165)] SbPlayerBridge reaches kSbPlayerStatePresenting, with audio write duration at 500000
+[player_worker/3725765:0828/121844.883820:INFO:filter_based_player_worker_handler.cc(378)] Set volume from 1 to 1, and audio renderer is 0x61900039fd80
+[player_worker/3725765:0828/121844.883999:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 1, and media time provider is 0x61900039fd88
+[MainWebModule/3725709:0828/121847.085868:INFO:html_media_element.cc(529)] Pause.
+[MainWebModule/3725709:0828/121847.086389:INFO:html_media_element.cc(529)] Pause.
+[player_worker/3725765:0828/121847.086456:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 1 to 0, and media time provider is 0x61900039fd88
+[cobalt/3725619:0828/121847.231394:INFO:application.cc(1202)] Got blur event.
+[DebugConsoleWebModule/3725704:0828/121847.231748:INFO:application_lifecycle_state.cc(153)] SetApplicationState: kApplicationStateStarted (1) -> kApplicationStateBlurred (2)
+[MainWebModule/3725709:0828/121847.232204:INFO:application_lifecycle_state.cc(153)] SetApplicationState: kApplicationStateStarted (1) -> kApplicationStateBlurred (2)
+[cobalt/3725619:0828/121847.232610:INFO:application.cc(1204)] Finished blurring.
+[3725619:3725619:20230828,121847.232799:ERROR crashpad_client_linux.cc:771] Crashpad isn't enabled
+[cobalt/3725619:0828/121847.232849:ERROR:application.cc(607)] Could not send application state to crash handler.
+[media_pipeline/3725762:0828/121847.856890:INFO:playback_statistics.cc(182)] Playback statistics on config change: current_codec: h264, drm: N, width: 426, height: 240, active_players (max): 2 (2), av1: ~0, h264: ~2, hevc: ~0, vp8: ~0, vp9: ~0, min_width: 426, min_height: 240, max_width: 426, max_height: 240, last_working_codec: h264, seek_time: 0 s, first_audio_time: ~-1, first_video_time: ~-1, last_audio_time: ~-1, last_video_time: ~-1
+[media_pipeline/3725762:0828/121847.857363:INFO:sbplayer_pipeline.cc(822)] Creating SbPlayerBridge.
+[media_pipeline/3725762:0828/121847.857635:INFO:sbplayer_bridge.cc(301)] Updated AudioDecoderConfig -- codec: aac, profile: unknown, bytes_per_channel: 2, channel_layout: STEREO, channels: 2, samples_per_second: 44100, sample_format: Signed 16-bit, bytes_per_frame: 4, seek_preroll: 0us, codec_delay: 0, has extra data: false, encryption scheme: Unencrypted, discard decoder delay: false, target_output_channel_layout: NONE, has aac extra data: true
+[media_pipeline/3725762:0828/121847.857745:INFO:sbplayer_bridge.cc(308)] Converted to SbMediaAudioStreamInfo -- codec: aac, mime: audio/mp4; codecs="mp4a.40.2"channels: 2, sample rate: 44100, config: 16 bytes, [12 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ]
+[media_pipeline/3725762:0828/121847.857877:INFO:sbplayer_bridge.cc(316)] Updated VideoDecoderConfig -- codec: h264, profile: h264 main, level: not available, alpha_mode: is_opaque, coded size: [426,240], visible rect: [0,0,426,240], natural size: [426,240], has extra data: false, encryption scheme: Unencrypted, rotation: 0°, flipped: 0, color space:
+[media_pipeline/3725762:0828/121847.858015:INFO:sbplayer_bridge.cc(332)] Converted to SbMediaVideoStreamInfo -- codec: avc, mime: video/mp4; codecs="avc1.4d002a"; width=426; height=240, max video capabilities: width=426; height=240, 426x240 (8 bits, mastering metadata: r(0, 0), g(0, 0), b(0, 0), white(0, 0), luminance(0 to 0), chroma subsampling horizontal: 0, chroma subsampling vertical: 0, cb subsampling horizontal: 0, cb subsampling vertical: 0, chroma sitting horizontal: 0, chroma sitting vertical: 0, max cll: 0, max fall: 0, primary: Bt709, transfer: Bt709, matrix: Bt709, range: Limited)
+[media_pipeline/3725762:0828/121847.858244:INFO:player_create.cc(103)] SbPlayerCreate() called with audio mime "audio/mp4; codecs="mp4a.40.2"", video mime "video/mp4; codecs="avc1.4d002a"; width=426; height=240", and max video capabilities "width=426; height=240".
+[media_pipeline/3725762:0828/121847.858442:INFO:player_worker.cc(121)] New instance of PlayerWorker is created. We have 2 instances in total.
+[media_pipeline/3725762:0828/121847.859277:INFO:player_internal.cc(65)] Creating SbPlayerPrivate. There are 2 players.
+[media_pipeline/3725762:0828/121847.859407:INFO:sbplayer_bridge.cc(782)] Playing in punch-out mode.
+[media_pipeline/3725762:0828/121847.859502:INFO:player_internal.cc(209)] GetAudioConfiguration(): Updating audio configurations takes 2 microseconds.
+[media_pipeline/3725762:0828/121847.859572:INFO:player_internal.cc(213)] Found audio configuration unknown, channels 6
+[media_pipeline/3725762:0828/121847.859682:INFO:sbplayer_pipeline.cc(65)] Encountered local audio connector: unknown
+[player_worker/3725830:0828/121847.859585:INFO:player_components_factory.cc(141)] Playing video using openh264::VideoDecoder.
+[media_pipeline/3725762:0828/121847.859810:INFO:sbplayer_pipeline.cc(78)] No remote audio outputs found.
+[media_pipeline/3725762:0828/121847.859915:INFO:sbplayer_pipeline.cc(839)] SbPlayerBridge created, with audio write duration at 500000
+[player_worker/3725830:0828/121847.859913:INFO:video_render_algorithm_impl.cc(29)] VideoRenderAlgorithmImpl will render with cadence control with display refresh rate set at 60
+[media_pipeline/3725762:0828/121847.860211:INFO:sbplayer_bridge.cc(301)] Updated AudioDecoderConfig -- codec: aac, profile: unknown, bytes_per_channel: 2, channel_layout: STEREO, channels: 2, samples_per_second: 44100, sample_format: Signed 16-bit, bytes_per_frame: 4, seek_preroll: 0us, codec_delay: 0, has extra data: false, encryption scheme: Unencrypted, discard decoder delay: false, target_output_channel_layout: NONE, has aac extra data: true
+[player_worker/3725830:0828/121847.860322:INFO:audio_renderer_internal_pcm.cc(85)] Creating AudioRendererPcm with 2 channels, 8 bytes per frame, 8192 max cached frames, and 1024 min frames per append.
+[media_pipeline/3725762:0828/121847.860333:INFO:sbplayer_bridge.cc(308)] Converted to SbMediaAudioStreamInfo -- codec: aac, mime: audio/mp4; codecs="mp4a.40.2"channels: 2, sample rate: 44100, config: 16 bytes, [12 10 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ]
+[player_worker/3725830:0828/121847.860474:INFO:filter_based_player_worker_handler.cc(165)] Initialize audio renderer with volume 1
+[media_pipeline/3725762:0828/121847.860458:INFO:sbplayer_bridge.cc(316)] Updated VideoDecoderConfig -- codec: h264, profile: h264 main, level: not available, alpha_mode: is_opaque, coded size: [426,240], visible rect: [0,0,426,240], natural size: [426,240], has extra data: false, encryption scheme: Unencrypted, rotation: 0°, flipped: 0, color space:
+[player_worker/3725830:0828/121847.860584:INFO:filter_based_player_worker_handler.cc(175)] Set playback rate to 1
+[media_pipeline/3725762:0828/121847.860606:INFO:sbplayer_bridge.cc(332)] Converted to SbMediaVideoStreamInfo -- codec: avc, mime: video/mp4; codecs="avc1.4d002a"; width=426; height=240, max video capabilities: width=426; height=240, 426x240 (8 bits, mastering metadata: r(0, 0), g(0, 0), b(0, 0), white(0, 0), luminance(0 to 0), chroma subsampling horizontal: 0, chroma subsampling vertical: 0, cb subsampling horizontal: 0, cb subsampling vertical: 0, chroma sitting horizontal: 0, chroma sitting vertical: 0, max cll: 0, max fall: 0, primary: Bt709, transfer: Bt709, matrix: Bt709, range: Limited)
+[player_worker/3725830:0828/121847.860683:INFO:filter_based_player_worker_handler.cc(178)] Initialize video renderer.
+[media_pipeline/3725762:0828/121847.860720:INFO:playback_statistics.cc(182)] Playback statistics on config change: current_codec: h264, drm: N, width: 426, height: 240, active_players (max): 2 (2), av1: ~0, h264: ~2, hevc: ~0, vp8: ~0, vp9: ~0, min_width: 426, min_height: 240, max_width: 426, max_height: 240, last_working_codec: h264, seek_time: 0 s, first_audio_time: ~-1, first_video_time: ~-1, last_audio_time: ~-1, last_video_time: ~-1
+[player_worker/3725830:0828/121847.861014:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 1 to 0, and media time provider is 0x6190003efd88
+[player_worker/3725830:0828/121847.861141:INFO:filter_based_player_worker_handler.cc(378)] Set volume from 1 to 1, and audio renderer is 0x6190003efd80
+[player_worker/3725830:0828/121847.861268:INFO:player_worker.cc(225)] Try to seek to 0 microseconds.
+[player_worker/3725830:0828/121847.861437:INFO:filter_based_player_worker_handler.cc(196)] Seek to 0, and media time provider is 0x6190003efd88
+[player_worker/3725830:0828/121847.861598:INFO:filter_based_player_worker_handler.cc(378)] Set volume from 1 to 1, and audio renderer is 0x6190003efd80
+[player_worker/3725830:0828/121847.861687:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 0, and media time provider is 0x6190003efd88
+[player_worker/3725830:0828/121847.861947:INFO:player_components_factory.cc(86)] Playing audio using FdkAacAudioDecoder.
+[MainWebModule/3725709:0828/121847.868317:INFO:html_media_element.cc(1113)] Set ready state from 0 to 1.
+[player_worker/3725830:0828/121847.875646:INFO:filter_based_player_worker_handler.cc(439)] Audio prerolled.
+[MainWebModule/3725709:0828/121847.882377:INFO:html_media_element.cc(1272)] Seek to 0.
+[MainWebModule/3725709:0828/121847.882517:INFO:html_media_element.cc(502)] Play.
+[player_worker/3725830:0828/121847.888519:INFO:filter_based_player_worker_handler.cc(396)] Set bounds to x: 654, y: 65, width: 640, height: 360, z_index: 4
+[player_worker/3725830:0828/121847.889916:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 0, and media time provider is 0x6190003efd88
+[player_worker/3725830:0828/121847.890036:INFO:player_worker.cc(225)] Try to seek to 0 microseconds.
+[player_worker/3725830:0828/121847.890136:INFO:filter_based_player_worker_handler.cc(196)] Seek to 0, and media time provider is 0x6190003efd88
+[player_worker/3725830:0828/121847.892372:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 0, and media time provider is 0x6190003efd88
+[MainWebModule/3725709:0828/121847.892433:INFO:html_media_element.cc(1113)] Set ready state from 1 to 1.
+[player_worker/3725830:0828/121847.892636:INFO:player_components_factory.cc(86)] Playing audio using FdkAacAudioDecoder.
+[player_worker/3725765:0828/121847.904551:INFO:filter_based_player_worker_handler.cc(396)] Set bounds to x: 0, y: 65, width: 640, height: 360, z_index: 5
+[player_worker/3725830:0828/121847.905349:INFO:filter_based_player_worker_handler.cc(439)] Audio prerolled.
+[player_worker/3725830:0828/121847.909561:INFO:filter_based_player_worker_handler.cc(396)] Set bounds to x: 644, y: 60, width: 640, height: 360, z_index: 6
+[player_worker/3725830:0828/121847.994211:INFO:video_renderer_internal_impl.cc(290)] Video preroll takes 100466 microseconds.
+[player_worker/3725830:0828/121847.994402:INFO:filter_based_player_worker_handler.cc(441)] Video prerolled.
+[media_pipeline/3725762:0828/121847.994626:INFO:sbplayer_bridge.cc(1308)]
+SbPlayer startup latencies: 136348 us
+  Event name                              time since last event
+  SbPlayerCreate() called                 0 us
+  kSbPlayerStateInitialized received      2799 us
+  kSbPlayerStatePrerolling received       572 us
+  First media sample(s) written [a/v]     262/370 us
+  kSbPlayerStatePresenting received       132607 us
+  Startup latency statistics (us):        min: 135335, median: 136348, average: 135841, max: 136348
+[media_pipeline/3725762:0828/121847.994932:INFO:sbplayer_pipeline.cc(65)] Encountered local audio connector: unknown
+[MainWebModule/3725709:0828/121847.994959:INFO:html_media_element.cc(1113)] Set ready state from 1 to 4.
+[media_pipeline/3725762:0828/121847.995030:INFO:sbplayer_pipeline.cc(78)] No remote audio outputs found.
+[MainWebModule/3725709:0828/121847.995120:INFO:html_media_element.cc(1356)] Finish seek.
+[media_pipeline/3725762:0828/121847.995158:INFO:sbplayer_pipeline.cc(1165)] SbPlayerBridge reaches kSbPlayerStatePresenting, with audio write duration at 500000
+[player_worker/3725830:0828/121847.995469:INFO:filter_based_player_worker_handler.cc(378)] Set volume from 1 to 1, and audio renderer is 0x6190003efd80
+[player_worker/3725830:0828/121847.995624:INFO:filter_based_player_worker_handler.cc(361)] Set playback rate from 0 to 1, and media time provider is 0x6190003efd88
