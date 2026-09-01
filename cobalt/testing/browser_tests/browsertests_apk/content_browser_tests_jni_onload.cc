@@ -16,8 +16,11 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/library_loader/library_loader_hooks.h"
+#include "base/base_paths_android.h"
+#include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump.h"
+#include "base/path_service.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
@@ -29,6 +32,18 @@ JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
   base::android::InitVM(vm);
   if (!content::android::OnJNIOnLoadInit()) {
     return -1;
+  }
+
+  // Skia needs cobalt_android_fonts.xml to exist on Android, but tests
+  // don't run CobaltActivity to copy it. Copy the OS config.
+  base::FilePath app_data_dir;
+  if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
+    base::FilePath storage_dir = app_data_dir.Append("storage");
+    base::CreateDirectory(storage_dir);
+    base::FilePath xml_path = storage_dir.Append("cobalt_android_fonts.xml");
+    if (!base::PathExists(xml_path)) {
+      base::CopyFile(base::FilePath("/system/etc/fonts.xml"), xml_path);
+    }
   }
 
   // This needs to be done before base::TestSuite::Initialize() is called,
