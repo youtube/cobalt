@@ -18,13 +18,24 @@
 #include <android/native_window.h>
 #include <jni.h>
 
+#include <condition_variable>
+#include <mutex>
+
+#include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "third_party/jni_zero/jni_zero.h"
 
 namespace starboard {
 
+class SurfaceDestroyNotifier;
+
 class VideoSurfaceHolder {
  public:
+  struct AcquiredSurface {
+    scoped_refptr<SurfaceDestroyNotifier> destroy_notifier;
+    jni_zero::ScopedJavaGlobalRef<jobject> surface;
+  }
   // Return true only if the video surface is available.
   static bool IsVideoSurfaceAvailable();
 
@@ -37,9 +48,14 @@ class VideoSurfaceHolder {
  protected:
   ~VideoSurfaceHolder() {}
 
-  // Returns the surface which video should be rendered. Surface cannot be
-  // acquired before last holder release the surface.
-  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface();
+  // Returns an AcquiredSurface to which video should be rendered.
+  // Surface cannot be acquired before last holder releases the surface.
+  // |job_queue| is used by SurfaceDestroyNotifier to schedule teardown task on
+  // the player worker thread.
+  jni_zero::ScopedJavaLocalRef<jobject> AcquireVideoSurface(
+      JobQueue* job_queue);
+
+  AcquiredSurface AcquireVideoSurface(JobQueue* job_queue);
 
   // Release the surface to make the surface available for other holder.
   void ReleaseVideoSurface();
@@ -50,6 +66,38 @@ class VideoSurfaceHolder {
   // Reset the video surface by re-creating video surface.
   void ResetVideoSurface();
 };
+
+class SurfaceDestroyNotifier : public RefCountedSafe<SurfaceDestroyNotifier> {
+ public:
+  SurfaceDestroyNotifier(VideoSurfaceHolder* holder, JobQueue* job_queue)
+      : holder_(holder), job_queue_(job_queue) {}
+
+  void Disconnect();
+  void Notify();
+
+  bool IsCurrentHolder(VideoSurfaceHolder* holder) {
+    std::lock_guard lock(mutex_);
+    return holder_ == holder;
+  }
+
+ private:
+  ~SurfaceDestroyNotifier() = default;
+
+  void NotifyDestroyed();
+
+  enum class State {
+    kIdle,       // initial state
+    kWaiting,    // JNI thread waiting  on cv_
+    kExecuting,  // NotifyDestroyed running on player
+    kDone,       // completed or disconnected
+  };
+
+  mutable std::mutex mutex_;
+  std::condition_variable cv_;
+  State state_ = State::kIdle;
+  VideoSurfaceHolder* holder_ = nullptr;
+  JobQueue* job_queue_ = nullptr;
+}
 
 }  // namespace starboard
 
