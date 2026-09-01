@@ -84,7 +84,9 @@
 #include "services/network/public/mojom/websocket.mojom-forward.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/file_system/file_system_context.h"
+#if BUILDFLAG(IS_COBALT)
 #include "storage/browser/quota/quota_settings.h"
+#endif
 #include "third_party/blink/public/common/mediastream/media_devices.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom-forward.h"
@@ -1332,6 +1334,7 @@ class CONTENT_EXPORT ContentBrowserClient {
   virtual GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       BrowserContext* context);
 
+#if BUILDFLAG(IS_COBALT)
   // Returns the cache storage directory path for the given BrowserContext,
   // partition path, and relative partition path. If this returns an empty
   // FilePath, Cache Storage will use the default partition path and share the
@@ -1347,6 +1350,7 @@ class CONTENT_EXPORT ContentBrowserClient {
       BrowserContext* browser_context,
       const base::FilePath& cache_path,
       storage::OptionalQuotaSettingsCallback callback);
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Gets the metrics appropriate hostname for a given WebUI URL for code cache
   // metrics. Returns an empty string if no relevant mapping has been defined.
