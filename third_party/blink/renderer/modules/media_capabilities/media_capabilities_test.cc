@@ -492,7 +492,6 @@ TEST(MediaCapabilitiesTests, BasicAudio) {
   EXPECT_TRUE(info->powerEfficient());
 }
 
-<<<<<<< HEAD
 TEST(MediaCapabilitiesTests, BasicAudioWithProfile) {
   test::TaskEnvironment task_environment;
   MediaCapabilitiesTestContext context;
@@ -509,7 +508,6 @@ TEST(MediaCapabilitiesTests, BasicAudioWithProfile) {
   }
 }
 
-=======
 #if BUILDFLAG(IS_COBALT)
 TEST(MediaCapabilitiesTests, CobaltExtraMimeParameters) {
   test::TaskEnvironment task_environment;
@@ -530,8 +528,8 @@ TEST(MediaCapabilitiesTests, CobaltExtraMimeParameters) {
     MediaCapabilitiesTestContext context;
 
     MediaDecodingConfiguration* decoding_config =
-        CreateAudioConfig<MediaDecodingConfiguration>(mime_type,
-                                                      "media-source");
+        CreateAudioConfig<MediaDecodingConfiguration>(
+            mime_type, V8MediaDecodingType::Enum::kMediaSource);
 
     MediaCapabilitiesInfo* info = DecodingInfo(decoding_config, &context);
     EXPECT_TRUE(info->supported())
@@ -548,8 +546,8 @@ TEST(MediaCapabilitiesTests, CobaltMissingCodecsWithParameters) {
       "audio/webm; enableflushduringseek=true; enableresetaudiodecoder=true";
 
   MediaDecodingConfiguration* decoding_config =
-      CreateAudioConfig<MediaDecodingConfiguration>(kInvalidCobaltMimeType,
-                                                    "media-source");
+      CreateAudioConfig<MediaDecodingConfiguration>(
+          kInvalidCobaltMimeType, V8MediaDecodingType::Enum::kMediaSource);
 
   context.GetMediaCapabilities()->decodingInfo(
       context.GetScriptState(), decoding_config,
@@ -557,10 +555,7 @@ TEST(MediaCapabilitiesTests, CobaltMissingCodecsWithParameters) {
 
   EXPECT_TRUE(context.GetExceptionState().HadException());
 }
-#endif  // BUILDFLAG(IS_COBALT)
-
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-// Other tests will assume these match. Test to be sure they stay in sync.
+#endif  // BUILDFLAG(IS_COBALT)// Other tests will assume these match. Test to be sure they stay in sync.
 TEST(MediaCapabilitiesTests, ConfigMatchesFeatures) {
   test::TaskEnvironment task_environment;
   const MediaDecodingConfiguration* kDecodingConfig = CreateDecodingConfig();

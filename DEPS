@@ -238,115 +238,13 @@ vars = {
 
   # By default, check out the latest press benchmark versions for local
   # testing and debugging. Benchmarks are also hosted on publicly accessible
-  # sites as backup solution.
-  'checkout_press_benchmarks': 'checkout_configuration != "small"',
-
-  # luci-go CIPD package version.
-  # Make sure the revision is uploaded by infra-packagers builder.
-  # https://ci.chromium.org/p/infra-internal/g/infra-packagers/console
-  'luci_go': 'git_revision:230495e01666a7468ff6803179519a5c93317083',
-
-  # This can be overridden, e.g. with custom_vars, to build clang from HEAD
-  # instead of downloading the prebuilt pinned revision.
-  'llvm_force_head_revision': False,
-
-  # Make Dawn skip its standalone dependencies
-  'dawn_standalone': False,
-
-  # Fetch configuration files required for the 'use_remoteexec' gn arg
-  'download_remoteexec_cfg': False,
-  # RBE instance to use for running remote builds
-  # Ignored if reapi_instance is configured for non-RBE address.
-  'rbe_instance': Str('projects/rbe-chrome-untrusted/instances/default_instance'),
-  # REAPI instance for non-RBE backends.
-  # need to set reapi_address too.
-  'reapi_instance': Str(''),
-  # REAPI address for REAPI backends.
-  'reapi_address': Str(''),
-  # siso CIPD package version.
-  'siso_version': 'git_revision:7e3433bde6dcf9d760b0423c5f47c51e65c7c0fa',
-
-  # reclient options.
-  # RBE project to download rewrapper config files for. Only needed if
-  # different from the project used in 'rbe_instance'
-  'rewrapper_cfg_project': Str(''),
-  # reclient CIPD package
-  'reclient_package': 'infra/rbe/client/',
-  # reclient CIPD package version
-  'reclient_version': 're_client_version:0.179.0.28341fc7-gomaip',
-
-  # screen-ai CIPD packages
-  'screen_ai_linux': 'version:140.02',
-  'screen_ai_macos_amd64': 'version:140.02',
-  'screen_ai_macos_arm64': 'version:140.02',
-  'screen_ai_windows_amd64': 'version:140.02',
-  'screen_ai_windows_386': 'version:140.02',
-
-<<<<<<< HEAD
-=======
-  # siso CIPD package version.
+# siso CIPD package version.
   # Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
   # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
   # modifications to build/config/siso/configure_siso.py can also be removed
   # in favor of setting the '--reapi_backend_config_path' argument to
   # 'cobalt.star'
   'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
-
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-  # download libaom test data
-  'download_libaom_testdata': False,
-
-  # download libvpx test data
-  'download_libvpx_testdata': False,
-
-  'android_git': 'https://android.googlesource.com',
-  'aomedia_git': 'https://aomedia.googlesource.com',
-  'boringssl_git': 'https://boringssl.googlesource.com',
-  'chrome_git': 'https://chrome-internal.googlesource.com',
-  'chromium_git': 'https://chromium.googlesource.com',
-  'cobalt_internal_git': 'https://lbshell-internal.googlesource.com',
-  'dawn_git': 'https://dawn.googlesource.com',
-  'pdfium_git': 'https://pdfium.googlesource.com',
-  'quiche_git': 'https://quiche.googlesource.com',
-  'skia_git': 'https://skia.googlesource.com',
-  'swiftshader_git': 'https://swiftshader.googlesource.com',
-  'webrtc_git': 'https://webrtc.googlesource.com',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling V8
-  # and whatever else without interference from each other.
-  'src_internal_revision': '6a927c3ca6a6a8e8a68405b4d01af250d5c1b80b',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling Skia
-  # and whatever else without interference from each other.
-  'skia_revision': '1eb4cad6fcbbcb92361ebdf5b80cae1568fdf44f',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling V8
-  # and whatever else without interference from each other.
-  'v8_revision': 'ebc4771a4e19ba73db4cfdf6d388d82add27f168',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling ANGLE
-  # and whatever else without interference from each other.
-  'angle_revision': '7febacfe73be37bfa843ca0f420381658dc23be3',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling SwiftShader
-  # and whatever else without interference from each other.
-  'swiftshader_revision': '7cd1022cdc50fa3ac4f0ca5d0cdd64ce20af3c4f',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling PDFium
-  # and whatever else without interference from each other.
-  'pdfium_revision': '40111e6fed154aeab93ea26a3e0a691745d13419',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling BoringSSL
-  # and whatever else without interference from each other.
-  'boringssl_revision': '71147d3763466094df692df97afef42e4ce26a4f',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling Fuchsia sdk
-  # and whatever else without interference from each other.
-  'fuchsia_version': 'version:29.20250815.6.1',
-  # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling google-toolbox-for-mac
-  # and whatever else without interference from each other.
-  'google_toolbox_for_mac_revision': '42b12f10cd8342f5cb41a1e3e3a2f13fd9943b0d',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling googletest
   # and whatever else without interference from each other.
@@ -369,6 +267,7 @@ vars = {
   'freetype_revision': 'cff66748990592a27853792b8fc563650687bd43',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling HarfBuzz
+'chromium_git': 'https://chromium.googlesource.com',
   # and whatever else without interference from each other.
   'harfbuzz_revision': '6ec1b2790c55ec7ec363bd00e295f08910c52ee2',
   # Three lines of non-changing comments so that
@@ -410,7 +309,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling libprotobuf-mutator
   # and whatever else without interference from each other.
-  'libprotobuf-mutator': '7bf98f78a30b067e22420ff699348f084f802e12',
+  'libprotobuf-mutator': '7bf98f78a30b067e22420ff699348f0802e12',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
   # and whatever else without interference from each other.
@@ -469,7 +368,69 @@ vars = {
   'crabbyavif_revision': '644c9d84c123ac811a611760a9adc807e3eb5be5',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Speedometer main
+  'speedometer_main_revision': '87f9ed88c8f8abe3a3bb19b9ec5ea49623d803ad',
+  # Three lines of non-changing comments so that
+  # the commit queue can handle CLs rolling Speedometer v3.1
+
+  'luci_go': 'git_revision:230495e01666a7468ff6803179519a5c93317083',
+
+  # This can be overridden, e.g. with custom_vars, to build clang from HEAD
+  # instead of downloading the prebuilt pinned revision.
+  'llvm_force_head_revision': False,
+
+  # Make Dawn skip its standalone dependencies
+  'dawn_standalone': False,
+
+  # Fetch configuration files required for the 'use_remoteexec' gn arg
+  'download_remoteexec_cfg': False,
+  # RBE instance to use for running remote builds
+  # Ignored if reapi_instance is configured for non-RBE address.
+  'rbe_instance': Str('projects/rbe-chrome-untrusted/instances/default_instance'),
+  # REAPI instance for non-RBE backends.
+  # need to set reapi_address too.
+  'reapi_instance': Str(''),
+  # REAPI address for REAPI backends.
+  'reapi_address': Str(''),
+
+  # siso CIPD package version.
+# Cobalt: Update siso_version to milestone 141.0.7390.0, to support gcloud
+  # credentials. Remove after rebasing to 141.0.7390.0 or newer. Cobalt
+  # modifications to build/config/siso/configure_siso.py can also be removed
+  # in favor of setting the '--reapi_backend_config_path' argument to
+  # 'cobalt.star'
+  'siso_version': 'git_revision:8863265a67843154872be2be1fc0c37339691405',
+
+  # reclient options.
+  # RBE project to download rewrapper config files for. Only needed if
+  # different from the project used in 'rbe_instance'
+  'rewrapper_cfg_project': Str(''),
+  # reclient CIPD package
+  'reclient_package': 'infra/rbe/client/',
+  # reclient CIPD package version
+  'reclient_version': 're_client_version:0.179.0.28341fc7-gomaip',
+
+  # screen-ai CIPD packages
+  'screen_ai_linux': 'version:140.02',
+  'screen_ai_macos_amd64': 'version:140.02',
+  'screen_ai_macos_arm64': 'version:140.02',
+  'screen_ai_windows_amd64': 'version:140.02',
+  'screen_ai_windows_386': 'version:140.02',
+
+  # download libaom test data
+  'download_libaom_testdata': False,
+
+  # download libvpx test data
+
+  'src/base/tracing/test/data': {
+    'bucket': 'perfetto',
+
+  'src/third_party/webpagereplay':
+    Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
+
+  # Wuffs' canonical repository is at github.com/google/wuffs, but we use
+  # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
   # and whatever else without interference from each other.
+  'speedometer_main_revision': '0000000000000000000000000000000000000000',
   'speedometer_main_revision': '87f9ed88c8f8abe3a3bb19b9ec5ea49623d803ad',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Speedometer v3.1
@@ -2670,15 +2631,9 @@ deps = {
   'src/third_party/pdfium':
     Var('pdfium_git') + '/pdfium.git' + '@' +  Var('pdfium_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/perfetto':
-    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'eaea6f0e8df6cd2c7a131058f8606a02d489e163',
-=======
 # Cobalt: imported
 #  'src/third_party/perfetto':
-#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + '5f2921ff088067a01d6d0f7c0b0107146c15578c',
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
+#    Var('chromium_git') + '/external/github.com/google/perfetto.git' + '@' + 'eaea6f0e8df6cd2c7a131058f8606a02d489e163',
   'src/base/tracing/test/data': {
     'bucket': 'perfetto',
     'objects': [
@@ -3048,15 +3003,9 @@ deps = {
   'src/third_party/webpagereplay':
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
-<<<<<<< HEAD
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '771386d09d464bd2fd22205b629f9ac9356584c4',
-=======
 # Cobalt: imported
 #  'src/third_party/webrtc':
 #    Var('webrtc_git') + '/src.git' + '@' + '684e8494e08b4376f356c9d1beb635ca7e071499',
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
   #

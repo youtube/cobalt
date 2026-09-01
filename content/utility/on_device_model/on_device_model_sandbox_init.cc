@@ -117,18 +117,7 @@ bool PreSandboxInit() {
   }
 #endif
 
-<<<<<<< HEAD
-  if (ShouldWarmDrivers()) {
-=======
-#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) && \
-    !(BUILDFLAG(IS_LINUX) && BUILDFLAG(ENABLE_CAST_RECEIVER))
-  if (base::FeatureList::IsEnabled(kOnDeviceModelWarmDrivers)
-#if defined(ENABLE_ML_INTERNAL)
-      && !ml::IsGpuBlocked(ml::ChromeML::Get()->api(), /*log_histogram=*/false)
-#endif
-  ) {
->>>>>>> parent of 3b645d9dfd5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-    // Warm any relevant drivers before attempting to bring up the sandbox. For
+if (ShouldWarmDrivers()) {    // Warm any relevant drivers before attempting to bring up the sandbox. For
     // good measure we initialize a device instance for any adapter with an
     // appropriate backend on top of any integrated or discrete GPU.
 #if !BUILDFLAG(IS_FUCHSIA) && \
