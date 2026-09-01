@@ -24,11 +24,7 @@
 #include "build/build_config.h"
 #include "cc/paint/paint_op_reader.h"
 #include "cc/paint/paint_op_writer.h"
-<<<<<<< HEAD
 #include "third_party/skia/include/core/SkCPURecorder.h"
-=======
-
->>>>>>> d9da0d3cba (cobalt: Implement zero-copy in-process image transfer path (#12138))
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkPixmap.h"

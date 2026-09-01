@@ -1029,10 +1029,7 @@ class CC_EXPORT GpuImageDecodeCache
   std::vector<uint32_t> ids_pending_unlock_;
   std::vector<uint32_t> ids_pending_deletion_;
 
-<<<<<<< HEAD
   std::unique_ptr<base::AsyncMemoryPressureListener> memory_pressure_listener_;
-=======
-  std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
 #if BUILDFLAG(IS_COBALT)
   // `weak_ptr_factory_.GetWeakPtr()` must be called on the sequence that
   // created the factory (the compositor thread) to avoid sequence checker
@@ -1041,7 +1038,6 @@ class CC_EXPORT GpuImageDecodeCache
   // callbacks.
   base::WeakPtr<GpuImageDecodeCache> weak_ptr_;
 #endif  // BUILDFLAG(IS_COBALT)
->>>>>>> d9da0d3cba (cobalt: Implement zero-copy in-process image transfer path (#12138))
   base::WeakPtrFactory<GpuImageDecodeCache> weak_ptr_factory_{this};
 };
 

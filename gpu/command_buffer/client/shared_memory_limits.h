@@ -7,11 +7,8 @@
 
 #include <stddef.h>
 
-<<<<<<< HEAD
 #include "base/byte_count.h"
-=======
 #include "base/feature_list.h"
->>>>>>> d9da0d3cba (cobalt: Implement zero-copy in-process image transfer path (#12138))
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
 #include "ui/gfx/geometry/size.h"
@@ -40,8 +37,6 @@ struct SharedMemoryLimits {
       min_transfer_buffer_size = 32 * 1024;
       mapped_memory_chunk_size = 256 * 1024;
     }
-<<<<<<< HEAD
-=======
 #endif
 
 #if BUILDFLAG(IS_COBALT)
@@ -54,7 +49,6 @@ struct SharedMemoryLimits {
       mapped_memory_chunk_size = 64 * 1024;
     }
 #endif
->>>>>>> d9da0d3cba (cobalt: Implement zero-copy in-process image transfer path (#12138))
   }
 
   uint32_t command_buffer_size = 1024 * 1024;

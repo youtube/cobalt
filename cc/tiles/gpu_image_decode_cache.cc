@@ -2499,12 +2499,6 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
     ImageData* image_data) {
   DCHECK(image_data);
   uint32_t size = image_entry.SerializedSize();
-<<<<<<< HEAD
-  base::span<uint8_t> data =
-      context_->ContextSupport()->MapTransferCacheEntry(size);
-  if (!data.empty()) {
-    bool succeeded = image_entry.Serialize(data);
-=======
 
 #if BUILDFLAG(IS_COBALT)
   bool use_in_process_transfer = false;
@@ -2516,9 +2510,9 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
   }
 #endif  // BUILDFLAG(IS_COBALT)
 
-  void* data = context_->ContextSupport()->MapTransferCacheEntry(size);
-  if (data) {
-    // TODO(crbug.com/40285824): Have MapTransferCacheEntry() return a span.
+  base::span<uint8_t> data =
+      context_->ContextSupport()->MapTransferCacheEntry(size);
+  if (!data.empty()) {
     bool succeeded = false;
 #if BUILDFLAG(IS_COBALT)
     if (use_in_process_transfer) {
@@ -2536,7 +2530,6 @@ void GpuImageDecodeCache::InsertTransferCacheEntry(
       succeeded = image_entry.Serialize(
           UNSAFE_TODO(base::span(static_cast<uint8_t*>(data), size)));
     }
->>>>>>> d9da0d3cba (cobalt: Implement zero-copy in-process image transfer path (#12138))
     DCHECK(succeeded);
     context_->ContextSupport()->UnmapAndCreateTransferCacheEntry(
         image_entry.UnsafeType(), image_entry.Id());
