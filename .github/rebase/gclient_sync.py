@@ -44,6 +44,8 @@ SYNC_ERROR_KEYWORDS = (
 # Default robust flags for CI and local automated sync
 DEFAULT_SYNC_FLAGS = [
     "-D",
+    "--no-history",
+    "--shallow",
     "--delete_unversioned_trees",
 ]
 
