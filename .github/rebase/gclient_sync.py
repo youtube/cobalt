@@ -44,9 +44,6 @@ SYNC_ERROR_KEYWORDS = (
 # Default robust flags for CI and local automated sync
 DEFAULT_SYNC_FLAGS = [
     "-D",
-    "--no-history",
-    "--shallow",
-    "--nohooks",
     "--delete_unversioned_trees",
 ]
 
@@ -103,6 +100,31 @@ class GClientSyncResolver(BaseResolver):
   def name(self) -> str:
     return "Phase 2 (Toolchain & Dependency Sync)"
 
+  def _ensure_siso_configured(self, env: Dict[str, str]) -> None:
+    """Ensures build/config/siso/.sisoenv exists and is configured for Siso."""
+    sisoenv_path = os.path.join(self.repo_path, "build", "config", "siso",
+                                ".sisoenv")
+    if os.path.exists(sisoenv_path):
+      return
+    rbe_inst = os.environ.get(
+        "RBE_instance",
+        "projects/cobalt-actions-prod/instances/default_instance")
+    cfg_script = os.path.join(self.repo_path, "build", "config", "siso",
+                              "configure_siso.py")
+    if os.path.exists(cfg_script):
+      print(
+          f"[{self.name}] Configuring Siso environment via "
+          "configure_siso.py...",
+          file=sys.stderr,
+      )
+      subprocess.run(
+          [sys.executable, cfg_script, f"--rbe_instance={rbe_inst}"],
+          cwd=self.repo_path,
+          env=env,
+          capture_output=True,
+          check=False,
+      )
+
   def run_command(self, iteration: int) -> Tuple[bool, str, str]:
     del iteration  # Unused in standard sync command execution
     clean_env = get_clean_build_env()
@@ -123,6 +145,7 @@ class GClientSyncResolver(BaseResolver):
       )
       combined_output = f"{proc.stdout}\n{proc.stderr}"
       if proc.returncode == 0:
+        self._ensure_siso_configured(clean_env)
         return True, combined_output, ""
 
       # Auto-recover with --force --reset
@@ -147,6 +170,8 @@ class GClientSyncResolver(BaseResolver):
             f"{proc_retry.returncode}:\n{retry_output.strip()}",
             file=sys.stderr,
         )
+      else:
+        self._ensure_siso_configured(clean_env)
       return proc_retry.returncode == 0, retry_output, ""
     except Exception as e:  # pylint: disable=broad-exception-caught
       return False, f"Subprocess execution failed: {e}", ""
