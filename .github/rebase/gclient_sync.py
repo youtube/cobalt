@@ -220,13 +220,15 @@ class GClientSyncResolver(BaseResolver):
         diagnostic.diagnostic_trace,
         re.IGNORECASE,
     )
+    repo_abs = os.path.abspath(self.repo_path)
     for cand_raw in reversed(file_matches):
       cand_clean = cand_raw.strip().rstrip(":,")
-      cand_abs = resolve_repo_file_path(cand_clean, self.repo_path)
-      if os.path.isfile(cand_abs) and os.path.commonpath(
-          [self.repo_path, cand_abs]) == self.repo_path:
+      cand_abs = os.path.abspath(
+          resolve_repo_file_path(cand_clean, self.repo_path))
+      if (os.path.isfile(cand_abs) and
+          os.path.commonpath([repo_abs, cand_abs]) == repo_abs):
         deps_path = cand_abs
-        rel_deps = os.path.relpath(cand_abs, self.repo_path)
+        rel_deps = os.path.relpath(cand_abs, repo_abs)
         break
 
     if not os.path.isfile(deps_path):
