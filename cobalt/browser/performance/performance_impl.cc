@@ -123,6 +123,10 @@ void PerformanceImpl::MeasureSystemMemoryInfo(
         if (limit > 0) {
           info->application_limit_memory = static_cast<uint64_t>(limit);
         }
+        int64_t usage = SbSystemGetUsedCPUMemory();
+        if (usage > 0) {
+          info->application_usage_memory = static_cast<uint64_t>(usage);
+        }
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)

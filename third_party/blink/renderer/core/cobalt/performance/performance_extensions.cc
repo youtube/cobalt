@@ -63,6 +63,7 @@ SystemMemoryInfo* PerformanceExtensions::measureSystemMemoryInfo(
     result->setTotalCpuMemory(info->total_cpu_memory);
     result->setUsedPssMemory(info->used_pss_memory);
     result->setApplicationLimitMemory(info->application_limit_memory);
+    result->setApplicationUsageMemory(info->application_usage_memory);
     if (info->used_gpu_memory.has_value()) {
       result->setUsedGpuMemory(info->used_gpu_memory.value());
     }

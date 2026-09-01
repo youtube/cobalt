@@ -24,6 +24,7 @@ struct SystemMemoryInfo {
   uint64 total_cpu_memory;
   uint64 used_pss_memory;
   uint64 application_limit_memory;
+  uint64 application_usage_memory;
   uint64? used_gpu_memory;
 };
 
