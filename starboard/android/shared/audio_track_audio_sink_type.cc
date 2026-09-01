@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
@@ -266,8 +268,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   int64_t last_playback_head_position = 0;
 
+#if !BUILDFLAG(IS_STARBOARD)
   bool release_frames_after_audio_starts = features::FeatureList::IsEnabled(
       features::kReleaseVideoFramesAfterAudioStarts);
+#else
+  bool release_frames_after_audio_starts = false;
+#endif
 
   while (!quit_) {
     if (flush_requested_) {
