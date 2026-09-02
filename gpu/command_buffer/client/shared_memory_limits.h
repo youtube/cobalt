@@ -8,14 +8,9 @@
 #include <stddef.h>
 
 #include "base/byte_count.h"
-#include "base/feature_list.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
 #include "ui/gfx/geometry/size.h"
-
-#if BUILDFLAG(IS_COBALT)
-#include "base/features.h"
-#endif
 
 namespace gpu {
 
@@ -37,18 +32,6 @@ struct SharedMemoryLimits {
       min_transfer_buffer_size = 32 * 1024;
       mapped_memory_chunk_size = 256 * 1024;
     }
-#endif
-
-#if BUILDFLAG(IS_COBALT)
-    // When in-process image transfer is enabled, decoded images bypass
-    // transfer cache serialization and no longer use MappedMemoryManager.
-    // MappedMemoryManager is therefore only used for lightweight operations.
-    // Reducing the chunk size to 64KB avoids wasting shared memory.
-    if (base::FeatureList::IsEnabled(
-            base::features::kCobaltInProcessImageTransferCache)) {
-      mapped_memory_chunk_size = 64 * 1024;
-    }
-#endif
   }
 
   uint32_t command_buffer_size = 1024 * 1024;
@@ -60,13 +43,6 @@ struct SharedMemoryLimits {
   uint32_t mapped_memory_reclaim_limit = kNoLimit;
   uint32_t mapped_memory_chunk_size = 2 * 1024 * 1024;
   uint32_t max_mapped_memory_for_texture_upload = 0;
-#if BUILDFLAG(IS_STARBOARD)
-  // The threshold for in-flight mapped memory that triggers backpressure.
-  // When total allocated mapped memory exceeds this, the client will wait
-  // for the GPU to finish work before allocating more. This is a tunable
-  // trade-off between memory usage and performance.
-  uint32_t mapped_memory_allocated_bytes_cleanup_threshold = 24 * 1024 * 1024;
-#endif
 
   // These are limits for contexts only used for creating textures, mailboxing
   // them and dealing with synchronization.
@@ -97,7 +73,7 @@ struct SharedMemoryLimits {
     return limits;
   }
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_ANDROID)
   static SharedMemoryLimits ForDisplayCompositor(const gfx::Size& screen_size) {
     DCHECK(!screen_size.IsEmpty());
 

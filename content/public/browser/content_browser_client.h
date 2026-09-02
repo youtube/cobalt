@@ -29,9 +29,7 @@
 #include "components/browsing_topics/common/common_types.h"
 #include "components/download/public/common/quarantine_connection.h"
 #include "components/file_access/scoped_file_access.h"
-#if !BUILDFLAG(IS_COBALT)
-#include "components/language_detection/content/common/language_detection.mojom-forward.h"  // nogncheck
-#endif  // !BUILDFLAG(IS_COBALT)
+#include "components/language_detection/content/common/language_detection.mojom-forward.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/allow_service_worker_result.h"
 #include "content/public/browser/auction_result.h"
@@ -83,9 +81,6 @@
 #include "services/network/public/mojom/websocket.mojom-forward.h"
 #include "services/video_effects/public/cpp/buildflags.h"
 #include "storage/browser/file_system/file_system_context.h"
-#if BUILDFLAG(IS_COBALT)
-#include "storage/browser/quota/quota_settings.h"
-#endif
 #include "third_party/blink/public/common/mediastream/media_devices.h"
 #include "third_party/blink/public/common/user_agent/user_agent_metadata.h"
 #include "third_party/blink/public/mojom/ai/ai_manager.mojom-forward.h"
@@ -1373,24 +1368,6 @@ class CONTENT_EXPORT ContentBrowserClient {
   // can be cached and the amount of disk space used for caching generated code.
   virtual GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       BrowserContext* context);
-
-#if BUILDFLAG(IS_COBALT)
-  // Returns the cache storage directory path for the given BrowserContext,
-  // partition path, and relative partition path. If this returns an empty
-  // FilePath, Cache Storage will use the default partition path and share the
-  // primary QuotaManager.
-  virtual base::FilePath GetCacheStoragePath(
-      BrowserContext* browser_context,
-      const base::FilePath& partition_path,
-      const base::FilePath& relative_partition_path);
-
-  // Returns quota settings for Cache Storage when a custom cache storage path is
-  // used. By default, computes nominal dynamic settings on the cache directory.
-  virtual void GetCacheQuotaSettings(
-      BrowserContext* browser_context,
-      const base::FilePath& cache_path,
-      storage::OptionalQuotaSettingsCallback callback);
-#endif  // BUILDFLAG(IS_COBALT)
 
   // Gets the metrics appropriate hostname for a given WebUI URL for code cache
   // metrics. Returns an empty string if no relevant mapping has been defined.
@@ -3243,7 +3220,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       const url::Origin& origin,
       mojo::PendingReceiver<blink::mojom::TranslationManager> receiver);
 
-#if !BUILDFLAG(IS_COBALT)
   // Binds to a singleton new instance of
   // `language_detection::ContentLanguageDetectionDriver` which receives the
   // model from a local file specified by a flag param..
@@ -3252,7 +3228,6 @@ class CONTENT_EXPORT ContentBrowserClient {
       base::SupportsUserData* context_user_data,
       mojo::PendingReceiver<
           language_detection::mojom::ContentLanguageDetectionDriver> receiver);
-#endif  // !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_ANDROID)
   // Given the last committed URL of the RenderFrameHost, |frame_url|, and the
