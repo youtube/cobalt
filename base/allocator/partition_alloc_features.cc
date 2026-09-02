@@ -292,14 +292,15 @@ BASE_FEATURE(kAsanBrpInstantiationCheck,
 // If enabled, switches the bucket distribution to a denser one.
 //
 // We enable this by default everywhere except for 32-bit Android, since we saw
-// regressions there.
+// regressions there. In Cobalt, enable denser distribution by default to reduce
+// internal memory fragmentation on living room / TV devices.
 BASE_FEATURE(kPartitionAllocUseDenserDistribution,
              "PartitionAllocUseDenserDistribution",
-#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS) && !BUILDFLAG(IS_COBALT)
              FEATURE_DISABLED_BY_DEFAULT
 #else
              FEATURE_ENABLED_BY_DEFAULT
-#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS) && !BUILDFLAG(IS_COBALT)
 );
 const FeatureParam<BucketDistributionMode>::Option
     kPartitionAllocBucketDistributionOption[] = {
@@ -310,11 +311,11 @@ const FeatureParam<BucketDistributionMode>::Option
 constinit const FeatureParam<BucketDistributionMode>
     kPartitionAllocBucketDistributionParam{
         &kPartitionAllocUseDenserDistribution, "mode",
-#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS) && !BUILDFLAG(IS_COBALT)
         BucketDistributionMode::kDefault,
 #else
         BucketDistributionMode::kDenser,
-#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS)
+#endif  // BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_32_BITS) && !BUILDFLAG(IS_COBALT)
         &kPartitionAllocBucketDistributionOption};
 
 BASE_FEATURE(kPartitionAllocMemoryReclaimer,
@@ -365,7 +366,12 @@ BASE_FEATURE(kPartitionAllocSortSmallerSlotSpanFreeLists,
 // Whether to sort the active slot spans in PurgeMemory().
 BASE_FEATURE(kPartitionAllocSortActiveSlotSpans,
              "PartitionAllocSortActiveSlotSpans",
-             FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_COBALT)
+             FEATURE_ENABLED_BY_DEFAULT
+#else
+             FEATURE_DISABLED_BY_DEFAULT
+#endif
+);
 
 #if BUILDFLAG(IS_WIN)
 // Whether to retry allocations when commit fails.
