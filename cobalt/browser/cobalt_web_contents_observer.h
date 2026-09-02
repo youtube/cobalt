@@ -18,6 +18,7 @@
 #include <map>
 
 #include "base/memory/weak_ptr.h"
+#include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "cobalt/browser/lifecycle/public/mojom/cobalt_lifecycle.mojom.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -50,6 +51,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void OnVisibilityChanged(content::Visibility visibility) override;
+  void DocumentOnLoadCompletedInPrimaryMainFrame() override;
   virtual void RaisePlatformError(int64_t navigation_id,
                                   const std::string& url);
   virtual void SetStartupDiagnosisInfo(const char* key, const char* value);
@@ -59,12 +61,15 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
  private:
   void OnNavigationTimeout(int64_t navigation_id, const std::string& url);
+  void TriggerMemoryReclaim();
   std::unique_ptr<base::OneShotTimer> timeout_timer_;
   base::WeakPtrFactory<CobaltWebContentsObserver> weak_factory_{this};
   std::map<content::RenderFrameHost*,
            mojo::Remote<cobalt::mojom::CobaltLifecycleController>>
       controllers_;
   int64_t latest_navigation_id_ = 0;
+  base::OneShotTimer memory_reclaim_timer_;
+  base::TimeTicks last_reclaim_time_;
 #if BUILDFLAG(IS_ANDROIDTV) || BUILDFLAG(IS_STARBOARD)
   int platform_error_raised_count_ = 0;
 #endif  // BUILDFLAG(IS_ANDROIDTV)
