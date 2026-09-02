@@ -72,7 +72,6 @@ template("loader_final_target") {
 
     shared_library(original_target_name) {
       forward_variables_from(invoker, "*")
-      not_needed("*")
     }
 
     # TODO: b/421951995 - Use original loader target instead of copy target.
@@ -244,10 +243,7 @@ template("modular_executable") {
   }
 
   if (is_android) {
-    target("executable", _name) {
-      forward_variables_from(invoker, "*")
-      not_needed("*")
-    }
+    not_needed(invoker, "*", [ "testonly" ])
     modular_apk("${_name}_apk") {
       forward_variables_from(invoker, [ "testonly" ])
       module_name = _name
