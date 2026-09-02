@@ -47,15 +47,18 @@ class NewTabPagePreloadPipelineManager
     return weak_factory_.GetWeakPtr();
   }
 
-  // Returns true if prerender is started successfully or is present, false
-  // otherwise.
-  bool StartPrerender(const GURL& url, content::PreloadingPredictor predictor);
+  void StartPrerender(const GURL& url, content::PreloadingPredictor predictor);
 
   void ResetPrerender();
 
  private:
   friend content::WebContentsUserData<NewTabPagePreloadPipelineManager>;
   WEB_CONTENTS_USER_DATA_KEY_DECL();
+
+  // Resets the pipeline to allow another preloading attempt if a given url is
+  // different from the started one. Pipeline creation will follow the check if
+  // a pipeline hasn't existed.
+  void EnsurePipelineForUrl(const GURL& url);
 
   std::unique_ptr<NewTabPagePreloadPipeline> pipeline_;
 

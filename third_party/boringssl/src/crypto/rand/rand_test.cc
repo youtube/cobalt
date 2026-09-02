@@ -16,6 +16,8 @@
 
 #include <stdio.h>
 
+#include <iterator>
+
 #include <gtest/gtest.h>
 
 #include <openssl/span.h>
@@ -155,7 +157,7 @@ TEST(RandTest, Fork) {
   for (const auto &buf : bufs) {
     EXPECT_NE(Bytes(buf), Bytes(kZeros));
   }
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(bufs); i++) {
+  for (size_t i = 0; i < std::size(bufs); i++) {
     for (size_t j = 0; j < i; j++) {
       EXPECT_NE(Bytes(bufs[i]), Bytes(bufs[j]))
           << "buffers " << i << " and " << j << " matched";

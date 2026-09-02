@@ -532,8 +532,7 @@ const LayoutResult* BlockNode::Layout(
 
 #if DCHECK_IS_ON()
     if (layout_result) {
-      layout_result->CheckSameForSimplifiedLayout(
-          *previous_result, /* check_same_block_size */ !block_flow);
+      layout_result->CheckSameForSimplifiedLayout(*previous_result);
     }
 #endif
   } else if (cache_status == LayoutCacheStatus::kCanReuseLines) {
@@ -563,7 +562,7 @@ const LayoutResult* BlockNode::Layout(
   std::optional<PhysicalSize> optional_old_box_size;
   if (layout_result->Status() == LayoutResult::kSuccess &&
       !layout_result->GetPhysicalFragment().GetBreakToken()) {
-    optional_old_box_size = box_->Size();
+    optional_old_box_size = box_->StitchedSize();
   }
 
   FinishLayout(block_flow, constraint_space, break_token, layout_result,
@@ -610,7 +609,7 @@ const LayoutResult* BlockNode::Layout(
       // We need to clear any previous results when scrollbars change. For
       // example - we may have stored a "measure" layout result which will be
       // incorrect if we try and reuse it.
-      PhysicalSize old_box_size = box_->Size();
+      PhysicalSize old_box_size = box_->StitchedSize();
       params.previous_result = nullptr;
       box_->SetShouldSkipLayoutCache(true);
 
@@ -900,7 +899,7 @@ void BlockNode::FinishLayout(
 
   if (!layout_result->GetPhysicalFragment().GetBreakToken()) {
     DCHECK(old_box_size);
-    if (box_->Size() != *old_box_size) {
+    if (box_->StitchedSize() != *old_box_size) {
       box_->SizeChanged();
     }
   }

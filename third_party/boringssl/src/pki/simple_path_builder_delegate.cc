@@ -100,12 +100,7 @@ bool SimplePathBuilderDelegate::IsPublicKeyAcceptable(EVP_PKEY *public_key,
   int pkey_id = EVP_PKEY_id(public_key);
   if (pkey_id == EVP_PKEY_RSA) {
     // Extract the modulus length from the key.
-    RSA *rsa = EVP_PKEY_get0_RSA(public_key);
-    if (!rsa) {
-      return false;
-    }
-    unsigned int modulus_length_bits = RSA_bits(rsa);
-
+    unsigned int modulus_length_bits = EVP_PKEY_bits(public_key);
     if (modulus_length_bits < min_rsa_modulus_length_bits_) {
       errors->AddWarning(
           kRsaModulusTooSmall,

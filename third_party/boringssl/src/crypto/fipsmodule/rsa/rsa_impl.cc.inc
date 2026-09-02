@@ -18,6 +18,8 @@
 #include <limits.h>
 #include <string.h>
 
+#include <iterator>
+
 #include <openssl/bn.h>
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -840,7 +842,7 @@ const BN_ULONG kBoringSSLRSASqrtTwo[] = {
     TOBN(0xed17ac85, 0x83339915), TOBN(0x1d6f60ba, 0x893ba84c),
     TOBN(0x597d89b3, 0x754abe9f), TOBN(0xb504f333, 0xf9de6484),
 };
-const size_t kBoringSSLRSASqrtTwoLen = OPENSSL_ARRAY_SIZE(kBoringSSLRSASqrtTwo);
+const size_t kBoringSSLRSASqrtTwoLen = std::size(kBoringSSLRSASqrtTwo);
 
 // generate_prime sets |out| to a prime with length |bits| such that |out|-1 is
 // relatively prime to |e|. If |p| is non-NULL, |out| will also not be close to

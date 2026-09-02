@@ -90,6 +90,9 @@ inline constexpr char kCrashHandlerSwitch[] = "crash-handler";
 // Updates the updater.
 inline constexpr char kUpdateSwitch[] = "update";
 
+// Updates the apps.
+inline constexpr char kUpdateAppsSwitch[] = "update-apps";
+
 // Run as an unzip worker.
 inline constexpr char kUnzipWorkerSwitch[] = "unzip-worker";
 
@@ -658,6 +661,9 @@ inline constexpr char kInstallSourceTaggedMetainstaller[] = "taggedmi";
 inline constexpr char kInstallSourceOffline[] = "offline";
 inline constexpr char kInstallSourcePolicy[] = "policy";
 inline constexpr char kInstallSourceOnDemand[] = "ondemand";
+
+inline constexpr int kRegistrationSuccess = 0;
+inline constexpr int kRegistrationError = 1;
 
 }  // namespace updater
 

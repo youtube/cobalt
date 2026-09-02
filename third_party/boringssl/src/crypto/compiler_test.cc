@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <stdint.h>
 
+#include <iterator>
 #include <type_traits>
 
 #include <gtest/gtest.h>
@@ -204,7 +205,7 @@ TEST(CompilerTest, PointerRepresentation) {
   }
 
   int ints[256];
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(ints); i++) {
+  for (size_t i = 0; i < std::size(ints); i++) {
     EXPECT_EQ(reinterpret_cast<uintptr_t>(ints) + i * sizeof(int),
               reinterpret_cast<uintptr_t>(ints + i));
   }

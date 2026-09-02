@@ -23,6 +23,7 @@
 #include "api/array_view.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
+#include "api/environment/environment.h"
 #include "api/jsep.h"
 #include "api/media_types.h"
 #include "api/rtc_error.h"
@@ -88,7 +89,8 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // channel set.
   // `media_type` specifies the type of RtpTransceiver (and, by transitivity,
   // the type of senders, receivers, and channel). Can either by audio or video.
-  RtpTransceiver(webrtc::MediaType media_type,
+  RtpTransceiver(const Environment& env,
+                 MediaType media_type,
                  ConnectionContext* context,
                  CodecLookupHelper* codec_lookup_helper);
   // Construct a Unified Plan-style RtpTransceiver with the given sender and
@@ -97,6 +99,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   // `HeaderExtensionsToNegotiate` is used for initializing the return value of
   // HeaderExtensionsToNegotiate().
   RtpTransceiver(
+      const Environment& env,
       scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>> sender,
       scoped_refptr<RtpReceiverProxyWithInternal<RtpReceiverInternal>> receiver,
       ConnectionContext* context,
@@ -258,7 +261,7 @@ class RtpTransceiver : public RtpTransceiverInterface {
   void StopTransceiverProcedure();
 
   // RtpTransceiverInterface implementation.
-  webrtc::MediaType media_type() const override;
+  MediaType media_type() const override;
   std::optional<std::string> mid() const override;
   scoped_refptr<RtpSenderInterface> sender() const override;
   scoped_refptr<RtpReceiverInterface> receiver() const override;
@@ -317,10 +320,11 @@ class RtpTransceiver : public RtpTransceiverInterface {
   RTCError UpdateCodecPreferencesCaches(
       const std::vector<RtpCodecCapability>& codecs);
 
+  const Environment env_;
   // Enforce that this object is created, used and destroyed on one thread.
   TaskQueueBase* const thread_;
   const bool unified_plan_;
-  const webrtc::MediaType media_type_;
+  const MediaType media_type_;
   scoped_refptr<PendingTaskSafetyFlag> signaling_thread_safety_;
   std::vector<scoped_refptr<RtpSenderProxyWithInternal<RtpSenderInternal>>>
       senders_;

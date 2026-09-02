@@ -111,7 +111,6 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     private final ObservableSupplierImpl<Integer> mBrowserControlsOffsetSupplier;
     private final View mToolbarProgressBarContainer;
     private final KeyboardVisibilityDelegate mKeyboardVisibilityDelegate;
-    private final Context mContext;
     private final ObservableSupplier<Integer> mKeyboardAccessoryHeightSupplier;
     private final ObservableSupplier<Integer> mControlContainerTranslationSupplier;
     private final ObservableSupplier<Integer> mControlContainerHeightSupplier;
@@ -205,7 +204,6 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mControlContainerTranslationSupplier = controlContainerTranslationSupplier;
         mControlContainerHeightSupplier = controlContainerHeightSupplier;
         mTopInsetCoordinatorSupplier = topInsetCoordinatorSupplier;
-        mContext = context;
         mCurrentPosition = controlsPosition;
         mCurrentPosition.set(mBrowserControlsSizer.getControlsPosition());
 
@@ -332,8 +330,9 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mIsFormFieldFocusedSupplier.addObserver(mFormFieldViewOffsetCallback);
         mControlContainerTranslationSupplier.addObserver(mControlContainerTranslationCallback);
 
-        if (mTopInsetCoordinatorSupplier.hasValue()) {
-            onTopInsetCoordinatorAvailable(mTopInsetCoordinatorSupplier.get());
+        var topInsetCoordinator = mTopInsetCoordinatorSupplier.get();
+        if (topInsetCoordinator != null) {
+            onTopInsetCoordinatorAvailable(topInsetCoordinator);
         } else {
             mTopInsetCoordinatorAvailableCallback = this::onTopInsetCoordinatorAvailable;
             mTopInsetCoordinatorSupplier.addObserver(mTopInsetCoordinatorAvailableCallback);
@@ -359,8 +358,9 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         mControlContainerTranslationSupplier.removeObserver(mControlContainerTranslationCallback);
         mControlContainerHeightSupplier.removeObserver(mControlContainerHeightCallback);
         if (mTopInsetCoordinatorObserver != null) {
-            if (mTopInsetCoordinatorSupplier.hasValue()) {
-                mTopInsetCoordinatorSupplier.get().removeObserver(mTopInsetCoordinatorObserver);
+            var topInsetCoordinator = mTopInsetCoordinatorSupplier.get();
+            if (topInsetCoordinator != null) {
+                topInsetCoordinator.removeObserver(mTopInsetCoordinatorObserver);
             }
             mTopInsetCoordinatorObserver = null;
         }
@@ -443,7 +443,7 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
         boolean isFormFieldFocusedWithKeyboardVisible =
                 mIsFormFieldFocusedSupplier.get()
                         && mKeyboardVisibilityDelegate.isKeyboardShowing(
-                                mContext, mControlContainer.getView());
+                                mControlContainer.getView());
         @StateTransition
         int stateTransition =
                 calculateStateTransition(
@@ -654,12 +654,8 @@ public class ToolbarPositionController implements OnSharedPreferenceChangeListen
     }
 
     private void updateControlContainerHeight(int height) {
-        if (height == LayoutParams.WRAP_CONTENT) {
-            mControlContainerHeight = mControlContainer.getToolbarHeight();
-        } else {
-            mControlContainerHeight = height;
-        }
-
+        assert height >= 0;
+        mControlContainerHeight = height;
         mBottomControlsStacker.requestLayerUpdate(false);
     }
 

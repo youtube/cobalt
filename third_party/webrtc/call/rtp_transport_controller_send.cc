@@ -635,6 +635,24 @@ void RtpTransportControllerSend::
   packet_router_.ConfigureForRfc8888Feedback(sending_packets_as_ect1_);
 }
 
+std::optional<int>
+RtpTransportControllerSend::ReceivedCongestionControlFeedbackCount() const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  if (!transport_maybe_support_ecn_) {
+    return std::nullopt;
+  }
+  return feedback_count_;
+}
+
+std::optional<int>
+RtpTransportControllerSend::ReceivedTransportCcFeedbackCount() const {
+  RTC_DCHECK_RUN_ON(&sequence_checker_);
+  if (transport_maybe_support_ecn_) {
+    return std::nullopt;
+  }
+  return transport_cc_feedback_count_;
+}
+
 void RtpTransportControllerSend::OnTransportFeedback(
     Timestamp receive_time,
     const rtcp::TransportFeedback& feedback) {

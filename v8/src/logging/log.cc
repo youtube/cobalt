@@ -2277,7 +2277,7 @@ void V8FileLogger::LogAllMaps() {
   CombinedHeapObjectIterator iterator(heap);
   for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (!IsMap(obj)) continue;
+    if (IsAnyHole(obj) || !IsMap(obj)) continue;
     Tagged<Map> map = Cast<Map>(obj);
     MapCreate(map);
     MapDetails(map);
@@ -2587,6 +2587,10 @@ void ExistingCodeLogger::LogCodeObject(Tagged<AbstractCode> object) {
       description = "A Wasm to JavaScript adapter";
       tag = CodeTag::kStub;
       break;
+    case CodeKind::WASM_STACK_ENTRY:
+      description = "A Wasm continuation adapter";
+      tag = CodeTag::kStub;
+      break;
     case CodeKind::C_WASM_ENTRY:
       description = "A C to Wasm entry stub";
       tag = CodeTag::kStub;
@@ -2658,7 +2662,7 @@ void ExistingCodeLogger::LogCompiledFunctions(
     // objects are also in trusted space. Currently this breaks because we must
     // not compare objects in trusted space with ones inside the sandbox.
     static_assert(!kAllCodeObjectsLiveInTrustedSpace);
-    if (!HeapLayout::SafeInTrustedSpace(*pair.second) &&
+    if (!TrustedHeapLayout::InTrustedSpace(*pair.second) &&
         pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy))) {
       continue;
     }

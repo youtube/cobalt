@@ -66,6 +66,7 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
   composebox->set_max_num_files(1);
   composebox->set_input_placeholder_text(
       l10n_util::GetStringUTF8(IDS_NTP_COMPOSE_PLACEHOLDER_TEXT));
+  composebox->set_is_pdf_upload_enabled(true);
 
   // Attempt to parse the config proto from the feature parameter if it is set.
   omnibox::NTPComposeboxConfig fieldtrial_config;
@@ -159,6 +160,15 @@ const base::FeatureParam<bool> kSendLnsSurfaceParam(&kNtpComposebox,
 const base::FeatureParam<bool> kShowComposeboxZps(&kNtpComposebox,
                                                   "ShowComposeboxZps",
                                                   false);
+
+const base::FeatureParam<bool> kShowComposeboxTypedSuggest(
+    &kNtpComposebox,
+    "ShowComposeboxTypedSuggest",
+    false);
+
+const base::FeatureParam<bool> kShowContextMenu(&kNtpComposebox,
+                                                "ShowContextMenu",
+                                                false);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 

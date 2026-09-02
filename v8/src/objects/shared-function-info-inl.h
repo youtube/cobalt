@@ -112,7 +112,7 @@ Tagged<BytecodeArray> InterpreterData::bytecode_array() const {
 }
 void InterpreterData::set_bytecode_array(Tagged<BytecodeArray> value,
                                          WriteBarrierMode mode) {
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   bytecode_array_.store(this, value, mode);
 }
 bool InterpreterData::has_bytecode_array() const {
@@ -128,7 +128,7 @@ Tagged<Code> InterpreterData::interpreter_trampoline() const {
 }
 void InterpreterData::set_interpreter_trampoline(Tagged<Code> value,
                                                  WriteBarrierMode mode) {
-  DCHECK(HeapLayout::IsOwnedByAnyHeap(this));
+  DCHECK(TrustedHeapLayout::IsOwnedByAnyHeap(this));
   interpreter_trampoline_.store(this, value, mode);
 }
 bool InterpreterData::has_interpreter_trampoline() const {
@@ -627,7 +627,9 @@ bool SharedFunctionInfo::HasOuterScopeInfo() const {
   Tagged<ScopeInfo> info = scope_info(kAcquireLoad);
   if (info->IsEmpty()) {
     if (is_compiled()) return false;
-    if (!IsScopeInfo(outer_scope_info())) return false;
+    Tagged<UnionOf<ScopeInfo, TheHole>> maybe_outer_info = outer_scope_info();
+    if (IsTheHole(maybe_outer_info) || !IsScopeInfo(outer_scope_info()))
+      return false;
     outer_info = Cast<ScopeInfo>(outer_scope_info());
   } else {
     if (!info->HasOuterScopeInfo()) return false;
@@ -653,11 +655,15 @@ void SharedFunctionInfo::set_outer_scope_info(
 }
 
 bool SharedFunctionInfo::HasFeedbackMetadata() const {
-  return IsFeedbackMetadata(raw_outer_scope_info_or_feedback_metadata());
+  Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> raw =
+      raw_outer_scope_info_or_feedback_metadata();
+  return !IsTheHole(raw) && IsFeedbackMetadata(raw);
 }
 
 bool SharedFunctionInfo::HasFeedbackMetadata(AcquireLoadTag tag) const {
-  return IsFeedbackMetadata(raw_outer_scope_info_or_feedback_metadata(tag));
+  Tagged<UnionOf<ScopeInfo, FeedbackMetadata, TheHole>> raw =
+      raw_outer_scope_info_or_feedback_metadata(tag);
+  return !IsTheHole(raw) && IsFeedbackMetadata(raw);
 }
 
 DEF_GETTER(SharedFunctionInfo, feedback_metadata, Tagged<FeedbackMetadata>) {

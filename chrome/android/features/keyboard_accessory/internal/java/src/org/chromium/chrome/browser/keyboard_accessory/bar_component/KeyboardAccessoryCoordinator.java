@@ -11,11 +11,9 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
-import android.view.Gravity;
 import android.view.View;
 
 import androidx.annotation.Nullable;
-import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 import androidx.viewpager.widget.ViewPager;
 
@@ -23,7 +21,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.autofill.AutofillImageFetcher;
 import org.chromium.chrome.browser.autofill.AutofillImageFetcherFactory;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
@@ -54,6 +51,7 @@ import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.RecyclerViewAdapter;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * Creates and owns all elements which are part of the keyboard accessory component. It's part of
@@ -340,16 +338,15 @@ public class KeyboardAccessoryCoordinator implements KeyboardAccessoryVisualStat
     }
 
     /**
-     * Sets the vertical offset and gravity for the component.
+     * Applies a new style to the keyboard accessory component.
      *
-     * <p>The gravity determines whether the offset is applied from the top ({@link Gravity#TOP}) or
-     * the bottom ({@link Gravity#BOTTOM}) of the view.
+     * <p>The style object encapsulates visual properties for the component, such as its vertical
+     * offset or maximum width.
      *
-     * @param offset The vertical offset in pixels.
-     * @param gravity The gravity flag, either {@link Gravity#TOP} or {@link Gravity#BOTTOM}.
+     * @param style The {@link KeyboardAccessoryStyle} containing the visual attributes to apply.
      */
-    public void setOffsetAndGravity(@Px int offset, int gravity) {
-        mMediator.setOffsetAndGravity(offset, gravity);
+    public void setStyle(KeyboardAccessoryStyle style) {
+        mMediator.setStyle(style);
     }
 
     /**

@@ -60,16 +60,19 @@ std::string RegistrationRequestToString(
   value.Set("brand_code", registration.brand_code);
   value.Set("brand_path", registration.brand_path.AsUTF8Unsafe());
   value.Set("ap", registration.ap);
-  value.Set("ap_path", registration.ap_path.AsUTF8Unsafe());
-  value.Set("ap_key", registration.ap_key);
-  value.Set("version", registration.version.GetString());
-  value.Set("version_path", registration.version_path.AsUTF8Unsafe());
-  value.Set("version_key", registration.version_key);
+  value.Set("ap_path",
+            registration.ap_path.value_or(base::FilePath()).AsUTF8Unsafe());
+  value.Set("ap_key", registration.ap_key.value_or(""));
+  value.Set("version", registration.version);
+  value.Set(
+      "version_path",
+      registration.version_path.value_or(base::FilePath()).AsUTF8Unsafe());
+  value.Set("version_key", registration.version_key.value_or(""));
   value.Set("existence_checker_path",
             registration.existence_checker_path.AsUTF8Unsafe());
-  value.Set("cohort", registration.cohort);
-  value.Set("cohort_name", registration.cohort_name);
-  value.Set("cohort_hint", registration.cohort_hint);
+  value.Set("cohort", registration.cohort.value_or(""));
+  value.Set("cohort_name", registration.cohort_name.value_or(""));
+  value.Set("cohort_hint", registration.cohort_hint.value_or(""));
   return StringFromValue(base::Value(value.Clone()));
 }
 
@@ -383,6 +386,13 @@ class IntegrationTestCommandsSystem : public IntegrationTestCommands {
     RunCommand("run_server",
                {Param("internal", BoolToString(internal)),
                 Param("exit_code", base::NumberToString(expected_exit_code))});
+  }
+
+  void RunUpdateApps(int expected_exit_code,
+                     const base::Version& version) const override {
+    RunCommand("run_update_apps",
+               {Param("exit_code", base::NumberToString(expected_exit_code)),
+                Param("version", version.GetString())});
   }
 
   void RegisterApp(const RegistrationRequest& registration) const override {

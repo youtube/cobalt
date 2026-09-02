@@ -40,6 +40,8 @@
 #include "api/sequence_checker.h"
 #include "api/transport/enums.h"
 #include "api/transport/stun.h"
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "logging/rtc_event_log/events/rtc_event_ice_candidate_pair_config.h"
 #include "logging/rtc_event_log/ice_logger.h"
 #include "p2p/base/active_ice_controller_factory_interface.h"
@@ -64,16 +66,15 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/net_helper.h"
-#include "rtc_base/net_helpers.h"
 #include "rtc_base/network.h"
 #include "rtc_base/network/received_packet.h"
 #include "rtc_base/network/sent_packet.h"
 #include "rtc_base/network_constants.h"
 #include "rtc_base/network_route.h"
+#include "rtc_base/platform_thread_types.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/thread.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/trace_event.h"
 #include "system_wrappers/include/metrics.h"
 
@@ -90,14 +91,11 @@ PortInterface::CandidateOrigin GetOrigin(PortInterface* port,
     return PortInterface::ORIGIN_OTHER_PORT;
 }
 
-uint32_t GetWeakPingIntervalInFieldTrial(const FieldTrialsView* field_trials) {
-  if (field_trials != nullptr) {
-    uint32_t weak_ping_interval =
-        ::strtoul(field_trials->Lookup("WebRTC-StunInterPacketDelay").c_str(),
-                  nullptr, 10);
-    if (weak_ping_interval) {
-      return static_cast<int>(weak_ping_interval);
-    }
+uint32_t GetWeakPingIntervalInFieldTrial(const FieldTrialsView& field_trials) {
+  uint32_t weak_ping_interval = ::strtoul(
+      field_trials.Lookup("WebRTC-StunInterPacketDelay").c_str(), nullptr, 10);
+  if (weak_ping_interval) {
+    return static_cast<int>(weak_ping_interval);
   }
   return WEAK_PING_INTERVAL;
 }
@@ -141,9 +139,8 @@ std::unique_ptr<P2PTransportChannel> P2PTransportChannel::Create(
   return absl::WrapUnique(new P2PTransportChannel(
       init.env(), transport_name, component, init.port_allocator(),
       init.async_dns_resolver_factory(), /*owned_dns_resolver_factory=*/nullptr,
-      init.lna_permission_factory(), init.event_log(),
-      init.ice_controller_factory(), init.active_ice_controller_factory(),
-      init.field_trials()));
+      init.lna_permission_factory(), init.ice_controller_factory(),
+      init.active_ice_controller_factory()));
 }
 
 P2PTransportChannel::P2PTransportChannel(const Environment& env,
@@ -157,30 +154,12 @@ P2PTransportChannel::P2PTransportChannel(const Environment& env,
                           /* async_dns_resolver_factory= */ nullptr,
                           /* owned_dns_resolver_factory= */ nullptr,
                           /* lna_permission_factory= */ nullptr,
-                          &env.event_log(),
                           /* ice_controller_factory= */ nullptr,
-                          /* active_ice_controller_factory= */ nullptr,
-                          &env.field_trials()) {}
-
-P2PTransportChannel::P2PTransportChannel(absl::string_view transport_name,
-                                         int component,
-                                         PortAllocator* allocator,
-                                         const FieldTrialsView* field_trials)
-    : P2PTransportChannel(/*env=*/std::nullopt,
-                          transport_name,
-                          component,
-                          allocator,
-                          /* async_dns_resolver_factory= */ nullptr,
-                          /* owned_dns_resolver_factory= */ nullptr,
-                          /* lna_permission_factory= */ nullptr,
-                          /* event_log= */ nullptr,
-                          /* ice_controller_factory= */ nullptr,
-                          /* active_ice_controller_factory= */ nullptr,
-                          field_trials) {}
+                          /* active_ice_controller_factory= */ nullptr) {}
 
 // Private constructor, called from Create()
 P2PTransportChannel::P2PTransportChannel(
-    std::optional<Environment> env,
+    const Environment& env,
     absl::string_view transport_name,
     int component,
     PortAllocator* allocator,
@@ -188,10 +167,8 @@ P2PTransportChannel::P2PTransportChannel(
     std::unique_ptr<AsyncDnsResolverFactoryInterface>
         owned_dns_resolver_factory,
     LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory,
-    RtcEventLog* event_log,
     IceControllerFactoryInterface* ice_controller_factory,
-    ActiveIceControllerFactoryInterface* active_ice_controller_factory,
-    const FieldTrialsView* field_trials)
+    ActiveIceControllerFactoryInterface* active_ice_controller_factory)
     : env_(env),
       transport_name_(transport_name),
       component_(component),
@@ -209,7 +186,7 @@ P2PTransportChannel::P2PTransportChannel(
       remote_ice_mode_(ICEMODE_FULL),
       ice_role_(ICEROLE_UNKNOWN),
       gathering_state_(kIceGatheringNew),
-      weak_ping_interval_(GetWeakPingIntervalInFieldTrial(field_trials)),
+      weak_ping_interval_(GetWeakPingIntervalInFieldTrial(env_.field_trials())),
       config_(RECEIVING_TIMEOUT,
               BACKUP_CONNECTION_PING_INTERVAL,
               GATHER_ONCE /* continual_gathering_policy */,
@@ -217,8 +194,7 @@ P2PTransportChannel::P2PTransportChannel(
               STRONG_AND_STABLE_WRITABLE_CONNECTION_PING_INTERVAL,
               true /* presume_writable_when_fully_relayed */,
               REGATHER_ON_FAILED_NETWORKS_INTERVAL,
-              RECEIVING_SWITCHING_DELAY),
-      field_trials_(field_trials) {
+              RECEIVING_SWITCHING_DELAY) {
   TRACE_EVENT0("webrtc", "P2PTransportChannel::P2PTransportChannel");
   RTC_DCHECK(allocator_ != nullptr);
   RTC_DCHECK(!transport_name_.empty());
@@ -234,9 +210,9 @@ P2PTransportChannel::P2PTransportChannel(
   // the transport.
   allocator_->SignalCandidateFilterChanged.connect(
       this, &P2PTransportChannel::OnCandidateFilterChanged);
-  ice_event_log_.set_event_log(event_log);
+  ice_event_log_.set_event_log(&env_.event_log());
 
-  ParseFieldTrials(field_trials);
+  ParseFieldTrials(env_.field_trials());
 
   IceControllerFactoryArgs args{
       .ice_transport_state_func = [this] { return GetState(); },
@@ -248,8 +224,7 @@ P2PTransportChannel::P2PTransportChannel(
           },
       .ice_field_trials = &ice_field_trials_,
       .ice_controller_field_trials =
-          field_trials ? field_trials->Lookup("WebRTC-IceControllerFieldTrials")
-                       : ""};
+          env_.field_trials().Lookup("WebRTC-IceControllerFieldTrials")};
 
   if (active_ice_controller_factory) {
     ActiveIceControllerFactoryArgs active_args{.legacy_args = args,
@@ -734,12 +709,8 @@ void P2PTransportChannel::SetIceConfig(const IceConfig& config) {
 }
 
 void P2PTransportChannel::ParseFieldTrials(
-    const FieldTrialsView* field_trials) {
-  if (field_trials == nullptr) {
-    return;
-  }
-
-  if (field_trials->IsEnabled("WebRTC-ExtraICEPing")) {
+    const FieldTrialsView& field_trials) {
+  if (field_trials.IsEnabled("WebRTC-ExtraICEPing")) {
     RTC_LOG(LS_INFO) << "Set WebRTC-ExtraICEPing: Enabled";
   }
 
@@ -778,7 +749,7 @@ void P2PTransportChannel::ParseFieldTrials(
       // GOOG_DELTA
       "enable_goog_delta", &ice_field_trials_.enable_goog_delta,
       "answer_goog_delta", &ice_field_trials_.answer_goog_delta)
-      ->Parse(field_trials->Lookup("WebRTC-IceFieldTrials"));
+      ->Parse(field_trials.Lookup("WebRTC-IceFieldTrials"));
 
   if (ice_field_trials_.dead_connection_timeout_ms < 30000) {
     RTC_LOG(LS_WARNING) << "dead_connection_timeout_ms set to "
@@ -811,14 +782,14 @@ void P2PTransportChannel::ParseFieldTrials(
   // that will be used for tagging all packets.
   StructParametersParser::Create("override_dscp",
                                  &ice_field_trials_.override_dscp)
-      ->Parse(field_trials->Lookup("WebRTC-DscpFieldTrial"));
+      ->Parse(field_trials.Lookup("WebRTC-DscpFieldTrial"));
 
   if (ice_field_trials_.override_dscp) {
     SetOption(Socket::OPT_DSCP, *ice_field_trials_.override_dscp);
   }
 
   std::string field_trial_string =
-      field_trials->Lookup("WebRTC-SetSocketReceiveBuffer");
+      field_trials.Lookup("WebRTC-SetSocketReceiveBuffer");
   int receive_buffer_size_kb = 0;
   sscanf(field_trial_string.c_str(), "Enabled-%d", &receive_buffer_size_kb);
   if (receive_buffer_size_kb > 0) {
@@ -828,16 +799,16 @@ void P2PTransportChannel::ParseFieldTrials(
   }
 
   ice_field_trials_.piggyback_ice_check_acknowledgement =
-      field_trials->IsEnabled("WebRTC-PiggybackIceCheckAcknowledgement");
+      field_trials.IsEnabled("WebRTC-PiggybackIceCheckAcknowledgement");
 
   ice_field_trials_.extra_ice_ping =
-      field_trials->IsEnabled("WebRTC-ExtraICEPing");
+      field_trials.IsEnabled("WebRTC-ExtraICEPing");
 
   if (!ice_field_trials_.enable_goog_delta) {
     stun_dict_writer_.Disable();
   }
 
-  if (field_trials->IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
+  if (field_trials.IsEnabled("WebRTC-RFC8888CongestionControlFeedback")) {
     int desired_recv_esn = 1;
     RTC_LOG(LS_INFO) << "Set WebRTC-RFC8888CongestionControlFeedback: Enable "
                         "and set ECN recving mode";
@@ -894,17 +865,16 @@ void P2PTransportChannel::MaybeStartGathering() {
                                       ice_parameters_.ufrag,
                                       ice_parameters_.pwd);
     if (pooled_session) {
+      PortAllocatorSession* raw_session = pooled_session.get();
       AddAllocatorSession(std::move(pooled_session));
-      PortAllocatorSession* raw_pooled_session =
-          allocator_sessions_.back().get();
+      RTC_DCHECK_EQ(raw_session, allocator_sessions_.back().get());
       // Process the pooled session's existing candidates/ports, if they exist.
-      OnCandidatesReady(raw_pooled_session,
-                        raw_pooled_session->ReadyCandidates());
-      for (PortInterface* port : allocator_sessions_.back()->ReadyPorts()) {
-        OnPortReady(raw_pooled_session, port);
+      OnCandidatesReady(raw_session, raw_session->ReadyCandidates());
+      for (PortInterface* port : raw_session->ReadyPorts()) {
+        OnPortReady(raw_session, port);
       }
-      if (allocator_sessions_.back()->CandidatesAllocationDone()) {
-        OnCandidatesAllocationDone(raw_pooled_session);
+      if (raw_session->CandidatesAllocationDone()) {
+        OnCandidatesAllocationDone(raw_session);
       }
     } else {
       AddAllocatorSession(allocator_->CreateSession(
@@ -941,15 +911,14 @@ void P2PTransportChannel::OnPortReady(PortAllocatorSession* /* session */,
   ports_.push_back(port);
   port->SignalUnknownAddress.connect(this,
                                      &P2PTransportChannel::OnUnknownAddress);
+  port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
+
   port->SubscribePortDestroyed(
       [this](PortInterface* port) { OnPortDestroyed(port); });
-
-  port->SignalRoleConflict.connect(this, &P2PTransportChannel::OnRoleConflict);
-  port->SignalSentPacket.connect(this, &P2PTransportChannel::OnSentPacket);
+  port->SubscribeRoleConflict([this]() { NotifyRoleConflict(); });
 
   // Attempt to create a connection from this new port to all of the remote
   // candidates that we were given so far.
-
   std::vector<RemoteCandidate>::iterator iter;
   for (iter = remote_candidates_.begin(); iter != remote_candidates_.end();
        ++iter) {
@@ -1153,7 +1122,7 @@ void P2PTransportChannel::OnCandidateFilterChanged(uint32_t prev_filter,
   }
 }
 
-void P2PTransportChannel::OnRoleConflict(PortInterface* /* port */) {
+void P2PTransportChannel::NotifyRoleConflict() {
   SignalRoleConflict(this);  // STUN ping will be sent when SetRole is called
                              // from Transport.
 }
@@ -1745,7 +1714,7 @@ void P2PTransportChannel::RemoveConnectionForTest(Connection* connection) {
 // Monitor connection states.
 void P2PTransportChannel::UpdateConnectionStates() {
   RTC_DCHECK_RUN_ON(network_thread_);
-  int64_t now = TimeMillis();
+  Timestamp now = env_.clock().CurrentTime();
 
   // We need to copy the list of connections since some may delete themselves
   // when we call UpdateState.
@@ -1903,12 +1872,12 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
     CandidatePairChangeEvent pair_change = {
         .transport_name = transport_name(),
         .selected_candidate_pair = *GetSelectedCandidatePair(),
-        .last_data_received_ms = selected_connection_->last_data_received(),
+        .last_data_received_ms = selected_connection_->LastDataReceived().ms(),
         .reason = IceSwitchReasonToString(reason),
         .estimated_disconnected_time_ms =
-            old_selected_connection ? ComputeEstimatedDisconnectedTimeMs(
-                                          TimeMillis(), old_selected_connection)
-                                    : 0};
+            old_selected_connection != nullptr
+                ? ComputeEstimatedDisconnectedTime(old_selected_connection).ms()
+                : 0};
     candidate_pair_change_callback_(pair_change);
   }
 
@@ -1917,14 +1886,14 @@ void P2PTransportChannel::SwitchSelectedConnectionInternal(
   ice_controller_->OnConnectionSwitched(selected_connection_);
 }
 
-int64_t P2PTransportChannel::ComputeEstimatedDisconnectedTimeMs(
-    int64_t now_ms,
+TimeDelta P2PTransportChannel::ComputeEstimatedDisconnectedTime(
     Connection* old_connection) {
+  Timestamp now = Connection::AlignTime(env_.clock().CurrentTime());
   // TODO(jonaso): nicer keeps estimate of how frequently data _should_ be
   // received, this could be used to give better estimate (if needed).
-  int64_t last_data_or_old_ping =
-      std::max(old_connection->last_received(), last_data_received_ms_);
-  return (now_ms - last_data_or_old_ping);
+  Timestamp last_data_or_old_ping =
+      std::max(old_connection->LastReceived(), last_data_received_);
+  return now - last_data_or_old_ping;
 }
 
 // Warning: UpdateTransportState should eventually be called whenever a
@@ -2075,7 +2044,7 @@ Connection* P2PTransportChannel::FindNextPingableConnection() {
 
 int64_t P2PTransportChannel::GetLastPingSentMs() const {
   RTC_DCHECK_RUN_ON(network_thread_);
-  return last_ping_sent_ms_;
+  return last_ping_sent_.ms();
 }
 
 void P2PTransportChannel::SendPingRequest(const Connection* connection) {
@@ -2116,8 +2085,8 @@ void P2PTransportChannel::PingConnection(Connection* conn) {
   }
   conn->set_nomination(nomination);
   conn->set_use_candidate_attr(use_candidate_attr);
-  last_ping_sent_ms_ = TimeMillis();
-  conn->Ping(last_ping_sent_ms_, stun_dict_writer_.CreateDelta());
+  last_ping_sent_ = Connection::AlignTime(env_.clock().CurrentTime());
+  conn->Ping(last_ping_sent_, stun_dict_writer_.CreateDelta());
 }
 
 uint32_t P2PTransportChannel::GetNominationAttr(Connection* conn) const {
@@ -2270,9 +2239,9 @@ void P2PTransportChannel::OnReadPacket(Connection* connection,
   // Let the client know of an incoming packet
   packets_received_++;
   bytes_received_ += packet.payload().size();
-  RTC_DCHECK(connection->last_data_received() >= last_data_received_ms_);
-  last_data_received_ms_ =
-      std::max(last_data_received_ms_, connection->last_data_received());
+  RTC_DCHECK_GE(connection->LastDataReceived(), last_data_received_);
+  last_data_received_ =
+      std::max(last_data_received_, connection->LastDataReceived());
 
   NotifyPacketReceived(packet);
 

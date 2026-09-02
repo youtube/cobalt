@@ -96,8 +96,9 @@ VideoCodec VideoCodecInitializer::SetupCodec(
   video_codec.active = codec_active;
   if (video_codec.minBitrate < kEncoderMinBitrateKbps)
     video_codec.minBitrate = kEncoderMinBitrateKbps;
-  video_codec.timing_frame_thresholds = {kDefaultTimingFramesDelayMs,
-                                         kDefaultOutlierFrameSizePercent};
+  video_codec.timing_frame_thresholds = {
+      .delay_ms = kDefaultTimingFramesDelayMs,
+      .outlier_ratio_percent = kDefaultOutlierFrameSizePercent};
   RTC_DCHECK_LE(streams.size(), kMaxSimulcastStreams);
 
   int max_framerate = 0;
@@ -170,7 +171,7 @@ VideoCodec VideoCodecInitializer::SetupCodec(
     video_codec.maxBitrate = kEncoderMinBitrateKbps;
 
   video_codec.maxFramerate = max_framerate;
-  video_codec.spatialLayers[0] = {0};
+  video_codec.spatialLayers[0] = {};
   video_codec.spatialLayers[0].width = video_codec.width;
   video_codec.spatialLayers[0].height = video_codec.height;
   video_codec.spatialLayers[0].maxFramerate = max_framerate;

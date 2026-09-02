@@ -1321,29 +1321,37 @@ void PageInfo::PopulatePermissionInfo(PermissionInfo& permission_info,
   // Check embargo status if the content setting supports embargo.
   if (permissions::PermissionDecisionAutoBlocker::IsEnabledForContentSetting(
           permission_info.type) &&
-      !permission_info.setting &&
       permission_info.source == content_settings::SettingSource::kUser) {
     if (delegate_->GetPermissionDecisionAutoblocker()->IsEmbargoed(
             site_url_, permission_info.type)) {
-      // TODO(crbug.com/439550565): Support embargoed PermissionSettings.
-      permission_info.setting = CONTENT_SETTING_BLOCK;
+      permission_info.setting = setting_info->delegate().ApplyPermissionEmbargo(
+          permission_info.setting.value_or(permission_info.default_setting));
     }
+    DCHECK(!permission_info.setting ||
+           setting_info->delegate().IsValid(*permission_info.setting))
+        << permission_info.setting;
+    DCHECK(setting_info->delegate().IsValid(permission_info.default_setting))
+        << permission_info.default_setting;
   }
 
 #if BUILDFLAG(IS_ANDROID)
   if (base::FeatureList::IsEnabled(media::kAutoPictureInPictureAndroid) &&
-      permission_info.type == ContentSettingsType::AUTO_PICTURE_IN_PICTURE) {
-    // On Android, Auto-PiP does not have a prompt. Set the effective default
-    // setting based on the profile type and global default. Auto-PiP is blocked
-    // in Incognito for privacy, or if turned off globally. The global default
-    // is already in permission_info.default_setting. This logic should be
-    // removed when a prompt is implemented for parity with desktop.
-    ContentSetting default_setting =
+      permission_info.type == ContentSettingsType::AUTO_PICTURE_IN_PICTURE &&
+      delegate_->HasAutoPictureInPictureBeenRegistered()) {
+    // On Android, Auto-PiP does not have a prompt. For sites that have
+    // registered for Auto-PiP, set the effective default setting based on the
+    // profile type and global default. Auto-PiP is blocked in Incognito for
+    // privacy, or if turned off globally. The global default is already in
+    // permission_info.default_setting. This logic should be removed when a
+    // prompt is implemented for parity with desktop.
+    const ContentSetting global_default_setting =
         std::get<ContentSetting>(permission_info.default_setting);
-    permission_info.default_setting = (delegate_->IsIncognitoProfile() ||
-                                       default_setting == CONTENT_SETTING_BLOCK)
-                                          ? CONTENT_SETTING_BLOCK
-                                          : CONTENT_SETTING_ALLOW;
+    const ContentSetting effective_default_setting =
+        (delegate_->IsIncognitoProfile() ||
+         global_default_setting == CONTENT_SETTING_BLOCK)
+            ? CONTENT_SETTING_BLOCK
+            : CONTENT_SETTING_ALLOW;
+    permission_info.default_setting = effective_default_setting;
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 }

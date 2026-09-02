@@ -925,6 +925,10 @@ DEFINE_BOOL(trace_compilation_dependencies, false, "trace code dependencies")
 // Depend on --trace-deopt-verbose for reporting dependency invalidations.
 DEFINE_IMPLICATION(trace_compilation_dependencies, trace_deopt_verbose)
 
+DEFINE_EXPERIMENTAL_FEATURE(assert_hole_checked_by_value,
+                            "assert that we always check for holes by value, "
+                            "never dereferencing their map.")
+
 #ifdef V8_ALLOCATION_SITE_TRACKING
 #define V8_ALLOCATION_SITE_TRACKING_BOOL true
 #else
@@ -1623,6 +1627,9 @@ DEFINE_EXPERIMENTAL_FEATURE(experimental_wasm_simd_opt,
 DEFINE_BOOL(turbolev, false,
             "use Turbolev (≈ Maglev + Turboshaft combined) as the 4th tier "
             "compiler instead of Turbofan")
+
+DEFINE_BOOL(print_turbolev_frontend, false,
+            "print Turbolev frontend (Maglev graphs)")
 
 DEFINE_EXPERIMENTAL_FEATURE(
     turbolev_future,
@@ -3039,6 +3046,9 @@ DEFINE_INT(regexp_tier_up_ticks, 1,
 DEFINE_BOOL(regexp_peephole_optimization, REGEXP_PEEPHOLE_OPTIMIZATION_BOOL,
             "enable peephole optimization for regexp bytecode")
 DEFINE_BOOL(regexp_results_cache, true, "enable the regexp results cache")
+DEFINE_BOOL(regexp_assemble_from_bytecode, false,
+            "assemble regexp JIT-code from bytecode")
+DEFINE_IMPLICATION(regexp_assemble_from_bytecode, experimental)
 DEFINE_BOOL(trace_regexp_peephole_optimization, false,
             "trace regexp bytecode peephole optimization")
 DEFINE_BOOL(trace_regexp_bytecodes, false, "trace regexp bytecode execution")

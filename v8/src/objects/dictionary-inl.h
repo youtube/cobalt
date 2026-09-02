@@ -57,6 +57,9 @@ std::optional<Tagged<Object>> Dictionary<Derived, Shape>::TryValueAt(
   Isolate* isolate;
   GetIsolateFromHeapObject(this, &isolate);
   DCHECK_NE(isolate, nullptr);
+  // TODO(431584880): Replace `GetIsolateFromHeapObject` by
+  // `Isolate::Current()`.
+  DCHECK_EQ(isolate, Isolate::TryGetCurrent());
   SLOW_DCHECK(!isolate->heap()->IsPendingAllocation(Tagged(this)));
 #endif  // DEBUG
   // We can read length() in a non-atomic way since we are reading an
@@ -168,7 +171,8 @@ void Dictionary<Derived, Shape>::SetEntry(InternalIndex entry,
                                           Tagged<Object> value,
                                           PropertyDetails details) {
   DCHECK(Dictionary::kEntrySize == 2 || Dictionary::kEntrySize == 3);
-  DCHECK(!IsName(key) || details.dictionary_index() > 0 || !Shape::kHasDetails);
+  DCHECK(IsAnyHole(key) || !IsName(key) || details.dictionary_index() > 0 ||
+         !Shape::kHasDetails);
   int index = DerivedHashTable::EntryToIndex(entry);
   DisallowGarbageCollection no_gc;
   WriteBarrierModeScope mode = this->GetWriteBarrierMode(no_gc);

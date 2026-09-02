@@ -37,13 +37,13 @@
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_install_source.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_trust_checker.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_discovery_task.h"
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_update_server_mixin.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_installer.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_constants.h"
 #include "chrome/browser/web_applications/isolated_web_apps/policy/isolated_web_app_policy_manager.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/integrity_block_data_matcher.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_builder.h"
+#include "chrome/browser/web_applications/isolated_web_apps/test/isolated_web_app_test_update_server.h"
 #include "chrome/browser/web_applications/isolated_web_apps/test/key_distribution/test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_icon_test_utils.h"
 #include "chrome/browser/web_applications/test/web_app_test_observers.h"
@@ -178,7 +178,7 @@ class IsolatedWebAppUpdateManagerBrowserTest
                                   std::string_view app_version,
                                   std::optional<std::vector<UpdateChannel>>
                                       update_channels = std::nullopt) {
-    update_server_mixin_.AddBundle(
+    iwa_test_update_server_.AddBundle(
         IsolatedWebAppBuilder(
             ManifestBuilder().SetName(app_name).SetVersion(app_version))
             .AddHtml("/", kIndexHtml706)
@@ -207,7 +207,7 @@ class IsolatedWebAppUpdateManagerBrowserTest
   }
 
   void AddInitialBundle() {
-    update_server_mixin_.AddBundle(
+    iwa_test_update_server_.AddBundle(
         IsolatedWebAppBuilder(
             ManifestBuilder().SetName("app-3.0.4").SetVersion("3.0.4"))
             .AddHtml("/", kIndexHtml304WithServiceWorker)
@@ -216,7 +216,7 @@ class IsolatedWebAppUpdateManagerBrowserTest
             .BuildBundle(GetWebBundleId(), {test::GetDefaultEd25519KeyPair()}));
   }
 
-  IsolatedWebAppUpdateServerMixin update_server_mixin_{&mixin_host_};
+  IsolatedWebAppTestUpdateServer iwa_test_update_server_;
 };
 
 IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Succeeds) {
@@ -225,7 +225,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Succeeds) {
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
@@ -247,7 +247,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Succeeds) {
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("7.0.6")),
+                              Eq(*IwaVersion::Create("7.0.6")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -268,7 +268,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
                 /*web_bundle_id=*/GetWebBundleId(),
                 /*update_channel=*/std::nullopt,
                 /*pinned_version=*/*IwaVersion::Create("3.0.4"))));
@@ -278,7 +278,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   }
 
   EXPECT_THAT(GetIsolatedWebApp(GetAppId())->isolation_data()->version(),
-              base::Version("3.0.4"));
+              *IwaVersion::Create("3.0.4"));
 
   AddNewBundleToUpdateServer("app-7.0.6", "7.0.6");
 
@@ -294,7 +294,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("3.0.4")),
+                              Eq(*IwaVersion::Create("3.0.4")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -315,7 +315,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
                 /*web_bundle_id=*/GetWebBundleId(),
                 /*update_channel=*/std::nullopt,
                 /*pinned_version=*/*IwaVersion::Create("3.0.4"),
@@ -326,7 +326,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   }
 
   EXPECT_THAT(GetIsolatedWebApp(GetAppId())->isolation_data()->version(),
-              base::Version("3.0.4"));
+              *IwaVersion::Create("3.0.4"));
 
   AddNewBundleToUpdateServer("app-7.0.6", "7.0.6");
 
@@ -342,7 +342,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("3.0.4")),
+                              Eq(*IwaVersion::Create("3.0.4")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -359,20 +359,20 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
       .BeginListeningAndWait({GetAppId()});
 
   EXPECT_EQ(GetIsolatedWebApp(GetAppId())->isolation_data()->version(),
-            base::Version("3.0.4"));
+            *IwaVersion::Create("3.0.4"));
 
   // Pin IWA to version 1.0.0 and allow downgrading.
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/std::nullopt,
               /*pinned_version=*/*IwaVersion::Create("1.0.0"),
@@ -406,7 +406,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("1.0.0")),
+                              Eq(*IwaVersion::Create("1.0.0")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -417,20 +417,20 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
       .BeginListeningAndWait({GetAppId()});
 
   EXPECT_EQ(GetIsolatedWebApp(GetAppId())->isolation_data()->version(),
-            base::Version("3.0.4"));
+            *IwaVersion::Create("3.0.4"));
 
   // Pin IWA to version 1.0.0 and allow downgrading.
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/kBetaChannel,
               /*pinned_version=*/*IwaVersion::Create("1.0.0"),
@@ -455,20 +455,20 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
       .BeginListeningAndWait({GetAppId()});
 
   EXPECT_EQ(GetIsolatedWebApp(GetAppId())->isolation_data()->version(),
-            base::Version("3.0.4"));
+            *IwaVersion::Create("3.0.4"));
 
   // Pin IWA to version 5.0.5 and allow downgrading.
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/std::nullopt,
               /*pinned_version=*/*IwaVersion::Create("1.0.5"),
@@ -490,7 +490,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("1.0.5")),
+                              Eq(*IwaVersion::Create("1.0.5")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -501,7 +501,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   EXPECT_THAT(provider().iwa_update_manager().DiscoverUpdatesNow(), Eq(0ul));
 
   EXPECT_EQ(GetIsolatedWebApp(GetAppId())->isolation_data()->version(),
-            base::Version("1.0.5"));
+            *IwaVersion::Create("1.0.5"));
 
   histogram_tester.ExpectBucketCount("WebApp.Isolated.UpdateSuccess",
                                      /*sample=*/true, /*expected_count=*/1);
@@ -517,7 +517,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
                 /*web_bundle_id=*/GetWebBundleId())));
 
     web_app::WebAppTestInstallObserver(browser()->profile())
@@ -528,7 +528,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/std::nullopt,
               /*pinned_version=*/*IwaVersion::Create("7.0.6"))));
@@ -554,7 +554,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("3.0.4")),
+                              Eq(*IwaVersion::Create("3.0.4")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -585,7 +585,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
             test::IsolationDataIs(
                 Property("variant", &IsolatedWebAppStorageLocation::variant,
                          VariantWith<IwaStorageOwnedBundle>(_)),
-                Eq(base::Version("7.0.6")),
+                Eq(*IwaVersion::Create("7.0.6")),
                 /*controlled_frame_partitions=*/_,
                 /*pending_update_info=*/Eq(std::nullopt),
                 /*integrity_block_data=*/_)));
@@ -599,7 +599,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/std::nullopt,
               /*pinned_version=*/*IwaVersion::Create("3.0.4"))));
@@ -617,7 +617,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/std::nullopt,
               /*pinned_version=*/*IwaVersion::Create("5.0.5"))));
@@ -633,7 +633,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("5.0.5")),
+                              Eq(*IwaVersion::Create("5.0.5")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -650,7 +650,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Unpinning) {
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/std::nullopt,
               /*pinned_version=*/*IwaVersion::Create("3.0.4"))));
@@ -675,7 +675,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Unpinning) {
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
                 /*web_bundle_id=*/GetWebBundleId())));
 
     EXPECT_THAT(provider().iwa_update_manager().DiscoverUpdatesNow(), Eq(1ul));
@@ -689,7 +689,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest, Unpinning) {
             test::IsolationDataIs(
                 Property("variant", &IsolatedWebAppStorageLocation::variant,
                          VariantWith<IwaStorageOwnedBundle>(_)),
-                Eq(base::Version("7.0.6")),
+                Eq(*IwaVersion::Create("7.0.6")),
                 /*controlled_frame_partitions=*/_,
                 /*pending_update_info=*/Eq(std::nullopt),
                 /*integrity_block_data=*/_)));
@@ -703,7 +703,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
@@ -716,7 +716,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               /*web_bundle_id=*/GetWebBundleId(),
               /*update_channel=*/kBetaChannel,
               /*pinned_version=*/*IwaVersion::Create("5.0.5"))));
@@ -735,7 +735,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("5.0.5")),
+                              Eq(*IwaVersion::Create("5.0.5")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -755,7 +755,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
@@ -767,7 +767,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
                 /*web_bundle_id=*/GetWebBundleId(),
                 /*update_channel=*/kBetaChannel,
                 /*pinned_version=*/*IwaVersion::Create("6.0.0"))));
@@ -804,7 +804,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
             test::IsolationDataIs(
                 Property("variant", &IsolatedWebAppStorageLocation::variant,
                          VariantWith<IwaStorageOwnedBundle>(_)),
-                Eq(base::Version("6.0.0")),
+                Eq(*IwaVersion::Create("6.0.0")),
                 /*controlled_frame_partitions=*/_,
                 /*pending_update_info=*/Eq(std::nullopt),
                 /*integrity_block_data=*/_)));
@@ -829,8 +829,8 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(GetWebBundleId(),
-                                                               kBetaChannel)));
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
+                GetWebBundleId(), kBetaChannel)));
 
     web_app::WebAppTestInstallObserver(browser()->profile())
         .BeginListeningAndWait({GetAppId()});
@@ -860,7 +860,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("7.0.6")),
+                              Eq(*IwaVersion::Create("7.0.6")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -884,7 +884,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
@@ -907,7 +907,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("3.0.4")),
+                              Eq(*IwaVersion::Create("3.0.4")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -927,7 +927,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
@@ -955,7 +955,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("3.0.4")),
+                              Eq(*IwaVersion::Create("3.0.4")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -968,8 +968,8 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(GetWebBundleId(),
-                                                             kBetaChannel)));
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
+              GetWebBundleId(), kBetaChannel)));
 
   EXPECT_THAT(provider().iwa_update_manager().DiscoverUpdatesNow(), Eq(1ul));
 
@@ -980,7 +980,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("7.0.6")),
+                              Eq(*IwaVersion::Create("7.0.6")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -1006,7 +1006,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
@@ -1046,7 +1046,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("7.0.6")),
+                              Eq(*IwaVersion::Create("7.0.6")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -1060,7 +1060,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   SessionStartupPref pref(SessionStartupPref::LAST);
@@ -1088,7 +1088,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                        AppliesUpdateOnStartupIfAppWindowNeverCloses) {
   // Wait for the update to be applied if it hasn't already.
   const auto* web_app = GetIsolatedWebApp(GetAppId());
-  if (web_app->isolation_data()->version() != base::Version("7.0.6")) {
+  if (web_app->isolation_data()->version() != *IwaVersion::Create("7.0.6")) {
     WebAppTestManifestUpdatedObserver manifest_updated_observer(
         &provider().install_manager());
     manifest_updated_observer.BeginListening({GetAppId()});
@@ -1102,7 +1102,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
                               Property("variant",
                                        &IsolatedWebAppStorageLocation::variant,
                                        VariantWith<IwaStorageOwnedBundle>(_)),
-                              Eq(base::Version("7.0.6")),
+                              Eq(*IwaVersion::Create("7.0.6")),
                               /*controlled_frame_partitions=*/_,
                               /*pending_update_info=*/Eq(std::nullopt),
                               /*integrity_block_data=*/_)));
@@ -1123,7 +1123,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
               GetWebBundleId())));
 
   SessionStartupPref pref(SessionStartupPref::LAST);
@@ -1190,7 +1190,7 @@ class IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest
 
  protected:
   void AddBundleSignedBy(const web_package::test::KeyPair& key_pair) {
-    update_server_mixin_.AddBundle(
+    iwa_test_update_server_.AddBundle(
         IsolatedWebAppBuilder(
             ManifestBuilder().SetName("app-1.0.0").SetVersion("1.0.0"))
             .AddHtml("/", R"(
@@ -1206,7 +1206,7 @@ class IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest
             .BuildBundle(web_bundle_id_, {key_pair}));
   }
 
-  IsolatedWebAppUpdateServerMixin update_server_mixin_{&mixin_host_};
+  IsolatedWebAppTestUpdateServer iwa_test_update_server_;
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   base::test::ScopedFeatureList features_{
       component_updater::kIwaKeyDistributionComponent};
@@ -1237,7 +1237,8 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(web_bundle_id_)));
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
+              web_bundle_id_)));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
       .BeginListeningAndWait({app_id});
@@ -1246,7 +1247,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
       GetIsolatedWebApp(app_id),
       test::IwaIs(Eq("app-1.0.0"),
                   test::IsolationDataIs(
-                      /*location=*/_, Eq(base::Version("1.0.0")),
+                      /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/Eq(std::nullopt),
                       /*integrity_block_data=*/
@@ -1272,7 +1273,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
       GetIsolatedWebApp(app_id),
       test::IwaIs(Eq("app-1.0.0"),
                   test::IsolationDataIs(
-                      /*location=*/_, Eq(base::Version("1.0.0")),
+                      /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/Eq(std::nullopt),
                       /*integrity_block_data=*/
@@ -1293,7 +1294,8 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(web_bundle_id_)));
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
+              web_bundle_id_)));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
       .BeginListeningAndWait({app_id});
@@ -1302,7 +1304,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
       GetIsolatedWebApp(app_id),
       test::IwaIs(Eq("app-1.0.0"),
                   test::IsolationDataIs(
-                      /*location=*/_, Eq(base::Version("1.0.0")),
+                      /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/Eq(std::nullopt),
                       /*integrity_block_data=*/
@@ -1380,7 +1382,8 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
   profile()->GetPrefs()->SetList(
       prefs::kIsolatedWebAppInstallForceList,
       base::Value::List().Append(
-          update_server_mixin_.CreateForceInstallPolicyEntry(web_bundle_id_)));
+          iwa_test_update_server_.CreateForceInstallPolicyEntry(
+              web_bundle_id_)));
 
   web_app::WebAppTestInstallObserver(browser()->profile())
       .BeginListeningAndWait({app_id});
@@ -1389,7 +1392,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
       GetIsolatedWebApp(app_id),
       test::IwaIs(Eq("app-1.0.0"),
                   test::IsolationDataIs(
-                      /*location=*/_, Eq(base::Version("1.0.0")),
+                      /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/Eq(std::nullopt),
                       /*integrity_block_data=*/
@@ -1463,7 +1466,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
     profile()->GetPrefs()->SetList(
         prefs::kIsolatedWebAppInstallForceList,
         base::Value::List().Append(
-            update_server_mixin_.CreateForceInstallPolicyEntry(
+            iwa_test_update_server_.CreateForceInstallPolicyEntry(
                 web_bundle_id_)));
 
     auto [web_bundle_id, result] = future.Take();
@@ -1494,7 +1497,7 @@ IN_PROC_BROWSER_TEST_F(IsolatedWebAppUpdateManagerWithKeyRotationBrowserTest,
       GetIsolatedWebApp(app_id),
       test::IwaIs(Eq("app-1.0.0"),
                   test::IsolationDataIs(
-                      /*location=*/_, Eq(base::Version("1.0.0")),
+                      /*location=*/_, Eq(*IwaVersion::Create("1.0.0")),
                       /*controlled_frame_partitions=*/_,
                       /*pending_update_info=*/Eq(std::nullopt),
                       /*integrity_block_data=*/

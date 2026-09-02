@@ -533,7 +533,7 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
   }
 
   scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-  GetOrCreateFirstTransceiverOfType(webrtc::MediaType media_type) {
+  GetOrCreateFirstTransceiverOfType(MediaType media_type) {
     for (auto transceiver : transceivers_) {
       if (transceiver->internal()->media_type() == media_type) {
         return transceiver;
@@ -543,11 +543,13 @@ class FakePeerConnectionForStats : public FakePeerConnectionBase {
   }
 
   scoped_refptr<RtpTransceiverProxyWithInternal<RtpTransceiver>>
-  CreateTransceiverOfType(webrtc::MediaType media_type) {
+  CreateTransceiverOfType(MediaType media_type) {
     auto transceiver = RtpTransceiverProxyWithInternal<RtpTransceiver>::Create(
-        signaling_thread_,
-        make_ref_counted<RtpTransceiver>(media_type, context_.get(),
-                                         &codec_lookup_helper_));
+        signaling_thread_, make_ref_counted<RtpTransceiver>(
+                               context_->env(), media_type, context_.get(),
+                               &codec_lookup_helper_));
+    transceiver->internal()->set_current_direction(
+        RtpTransceiverDirection::kSendRecv);
     transceivers_.push_back(transceiver);
     return transceiver;
   }

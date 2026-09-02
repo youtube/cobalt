@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "base/callback_list.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
@@ -40,6 +41,7 @@
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
 #include "components/autofill/core/browser/ml_model/field_classification_model_handler.h"
+#include "components/autofill/core/browser/ml_model/model_predictions.h"
 #endif
 
 namespace autofill {
@@ -113,14 +115,10 @@ bool CachedFormNeedsUpdate(const FormData& live_form,
 
   for (auto [cached_field, live_field] :
        base::zip(cached_form.fields(), live_form.fields())) {
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillUseDeepEqualInsteadOfSameFieldAs)
-            ? !FormFieldData::DeepEqual(*cached_field, live_field)
-            : !cached_field->SameFieldAs(live_field)) {
+    if (!FormFieldData::DeepEqual(*cached_field, live_field)) {
       return true;
     }
   }
-
   return false;
 }
 
@@ -130,23 +128,57 @@ bool IsCreditCardFormForSignaturePurposes(const FormStructure& form_structure) {
 }
 
 #if BUILDFLAG(BUILD_WITH_TFLITE_LIB)
-// Retrieves the ML model handler form the `client` using `get_handler`, and
-// requests ML predictions for `forms` if the handler is available. Passes
-// `callback` to the handler so it is invoked once predictions are available.
-void GetMlPredictionsIfNeeded(
-    base::WeakPtr<AutofillClient> client,
-    FieldClassificationModelHandler* (AutofillClient::*get_handler)(),
+// Applies a field classification ML model to `forms`.
+// The model execution is performed on a background thread. Upon completion, the
+// `callback` is invoked with the `forms`. The `optimization_target` selects
+// either the Autofill or Password Manager model. Since this function can be
+// called asynchronously (triggering a second classifier after a first one
+// completes), it takes a `WeakPtr<AutofillManager>` to handle cases where the
+// manager might be destroyed before execution.
+void ApplyMlModel(
+    base::WeakPtr<AutofillManager> manager,
+    optimization_guide::proto::OptimizationTarget optimization_target,
     base::OnceCallback<void(std::vector<std::unique_ptr<FormStructure>>)>
         callback,
-    std::vector<std::unique_ptr<FormStructure>> forms) {
-  if (!client) {
+    std::vector<std::unique_ptr<FormStructure>> form_structures) {
+  if (!manager) {
     return;
   }
-  if (FieldClassificationModelHandler* ml_handler = (*client.*get_handler)()) {
-    ml_handler->GetModelPredictionsForForms(std::move(forms),
-                                            std::move(callback));
+  AutofillClient& client = manager->client();
+  FieldClassificationModelHandler* ml_handler = nullptr;
+  switch (optimization_target) {
+    case optimization_guide::proto::
+        OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
+      ml_handler = client.GetAutofillFieldClassificationModelHandler();
+      break;
+    case optimization_guide::proto::
+        OPTIMIZATION_TARGET_PASSWORD_MANAGER_FORM_CLASSIFICATION:
+      ml_handler = client.GetPasswordManagerFieldClassificationModelHandler();
+      break;
+    default:
+      NOTREACHED();
+  }
+  if (ml_handler) {
+    manager->SubscribeToMlModelChanges(*ml_handler, optimization_target);
+    std::vector<FormData> form_datas = base::ToVector(
+        form_structures,
+        [](auto& form_structure) { return form_structure->ToFormData(); });
+    ml_handler->GetModelPredictionsForForms(
+        std::move(form_datas),
+        manager->client().GetVariationConfigCountryCode(),
+        base::BindOnce(
+            [](std::vector<std::unique_ptr<FormStructure>> form_structures,
+               std::vector<ModelPredictions> all_predictions) {
+              for (const auto [form_structure, predictions] :
+                   base::zip(form_structures, all_predictions)) {
+                predictions.ApplyTo(form_structure->fields());
+              }
+              return form_structures;
+            },
+            std::move(form_structures))
+            .Then(std::move(callback)));
   } else {
-    std::move(callback).Run(std::move(forms));
+    std::move(callback).Run(std::move(form_structures));
   }
 }
 #endif  // BUILDFLAG(BUILD_WITH_TFLITE_LIB)
@@ -526,6 +558,21 @@ void AutofillManager::TriggerFormExtractionInAllFrames(
       std::move(form_extraction_finished_callback));
 }
 
+void AutofillManager::ReparseKnownForms() {
+  std::vector<FormData> forms;
+  forms.reserve(form_structures_.size());
+  for (const auto& [id, form_structure] : form_structures_) {
+    forms.push_back(form_structure->ToFormData());
+  }
+  auto ProcessParsedForms = [](AutofillManager& self,
+                               const std::vector<FormData>& parsed_forms) {
+    if (!parsed_forms.empty()) {
+      self.OnFormsParsed(parsed_forms);
+    }
+  };
+  ParseFormsAsync(forms, base::BindOnce(ProcessParsedForms));
+}
+
 base::flat_map<FieldGlobalId, AutofillType::ServerPrediction>
 AutofillManager::GetServerPredictionsForForm(
     FormGlobalId form_id,
@@ -603,7 +650,6 @@ void AutofillManager::ParseFormsAsync(
       }
     }
 
-    form_structure->set_current_page_language(GetCurrentPageLanguage());
     form_structures.push_back(std::move(form_structure));
     parsed_forms.push_back(form_data);
   }
@@ -669,7 +715,6 @@ void AutofillManager::ParseFormAsync(
         *cached_form_structure,
         FormStructure::RetrieveFromCacheReason::kFormCacheUpdateAfterParsing);
   }
-  form_structure->set_current_page_language(GetCurrentPageLanguage());
 
   std::vector<std::unique_ptr<FormStructure>> form_structures;
   form_structures.push_back(std::move(form_structure));
@@ -690,14 +735,17 @@ void AutofillManager::ParseFormsAsyncCommon(
   struct AsyncContext {
     AsyncContext(std::vector<std::unique_ptr<FormStructure>> form_structures,
                  GeoIpCountryCode country_code,
+                 LanguageCode current_page_language,
                  LogManager* log_manager)
         : form_structures(std::move(form_structures)),
           country_code(std::move(country_code)),
+          current_page_language(std::move(current_page_language)),
           log_manager(IsLoggingActive(log_manager)
                           ? LogManager::CreateBuffering()
                           : nullptr) {}
     std::vector<std::unique_ptr<FormStructure>> form_structures;
     GeoIpCountryCode country_code;
+    LanguageCode current_page_language;
     std::unique_ptr<BufferingLogManager> log_manager;
   };
 
@@ -707,6 +755,7 @@ void AutofillManager::ParseFormsAsyncCommon(
     SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.ParseFormsAsync.RunHeuristics");
     for (auto& form_structure : context.form_structures) {
       form_structure->DetermineHeuristicTypes(context.country_code,
+                                              context.current_page_language,
                                               context.log_manager.get());
     }
     return context;
@@ -726,13 +775,13 @@ void AutofillManager::ParseFormsAsyncCommon(
           context.log_manager->Flush(*self->log_manager());
         }
         for (auto& form_structure : context.form_structures) {
-          FormStructure* raw_form_structure = form_structure.get();
-          self->form_structures_[raw_form_structure->global_id()] =
+          FormStructure& raw_form_structure = *form_structure;
+          self->form_structures_[raw_form_structure.global_id()] =
               std::move(form_structure);
-          self->LogCurrentFieldTypes(*raw_form_structure);
+          raw_form_structure.LogDeveloperEngagementMetric();
+          self->LogCurrentFieldTypes(raw_form_structure);
           self->NotifyObservers(
-              &Observer::OnFieldTypesDetermined,
-              raw_form_structure->global_id(),
+              &Observer::OnFieldTypesDetermined, raw_form_structure.global_id(),
               Observer::FieldTypeSource::kHeuristicsOrAutocomplete);
         }
         std::move(callback).Run(*self);
@@ -754,6 +803,7 @@ void AutofillManager::ParseFormsAsyncCommon(
                 run_heuristics,
                 AsyncContext(std::move(forms),
                              self->client().GetVariationConfigCountryCode(),
+                             self->GetCurrentPageLanguage(),
                              self->log_manager())),
             std::move(update_cache));
       },
@@ -770,16 +820,17 @@ void AutofillManager::ParseFormsAsyncCommon(
   // Chain running heuristics and updating cache after running the Password
   // Manager model.
   auto run_password_manager_model_if_needed = base::BindOnce(
-      &GetMlPredictionsIfNeeded, client().GetWeakPtr(),
-      &AutofillClient::GetPasswordManagerFieldClassificationModelHandler,
+      &ApplyMlModel, GetWeakPtr(),
+      optimization_guide::proto::
+          OPTIMIZATION_TARGET_PASSWORD_MANAGER_FORM_CLASSIFICATION,
       std::move(run_heuristics_and_update_cache));
 
   // Chain running the Password Manager model after running the Autofill model.
-  GetMlPredictionsIfNeeded(
-      client().GetWeakPtr(),
-      &AutofillClient::GetAutofillFieldClassificationModelHandler,
-      std::move(run_password_manager_model_if_needed),
-      std::move(form_structures));
+  ApplyMlModel(GetWeakPtr(),
+               optimization_guide::proto::
+                   OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION,
+               std::move(run_password_manager_model_if_needed),
+               std::move(form_structures));
 #else
   std::move(run_heuristics_and_update_cache).Run(std::move(form_structures));
 #endif
@@ -830,7 +881,9 @@ void AutofillManager::OnLoadedServerPredictions(
   }
 
   for (const raw_ptr<FormStructure, VectorExperimental> form : queried_forms) {
-    form->RationalizeAndAssignSections(log_manager(), /*legacy_order=*/true);
+    form->RationalizeAndAssignSections(client().GetVariationConfigCountryCode(),
+                                       GetCurrentPageLanguage(), log_manager(),
+                                       /*legacy_order=*/true);
 
     autofill_metrics::LogQualityMetricsBasedOnAutocomplete(
         *form, client().GetFormInteractionsUkmLogger(),
@@ -850,6 +903,31 @@ void AutofillManager::LogCurrentFieldTypes(const FormStructure& form) {
   if (base::FeatureList::IsEnabled(
           features::test::kAutofillShowTypePredictions)) {
     driver().SendTypePredictionsToRenderer(form);
+  }
+}
+
+void AutofillManager::SubscribeToMlModelChanges(
+    FieldClassificationModelHandler& handler,
+    optimization_guide::proto::OptimizationTarget optimization_target) {
+  switch (optimization_target) {
+    case optimization_guide::proto::OptimizationTarget::
+        OPTIMIZATION_TARGET_AUTOFILL_FIELD_CLASSIFICATION:
+      if (!autofill_model_change_subscription_) {
+        autofill_model_change_subscription_ =
+            handler.RegisterModelChangeCallback(base::BindRepeating(
+                &AutofillManager::ReparseKnownForms, base::Unretained(this)));
+      }
+      break;
+    case optimization_guide::proto::OptimizationTarget::
+        OPTIMIZATION_TARGET_PASSWORD_MANAGER_FORM_CLASSIFICATION:
+      if (!password_manager_model_change_subscription_) {
+        password_manager_model_change_subscription_ =
+            handler.RegisterModelChangeCallback(base::BindRepeating(
+                &AutofillManager::ReparseKnownForms, base::Unretained(this)));
+      }
+      break;
+    default:
+      NOTREACHED();
   }
 }
 

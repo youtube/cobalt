@@ -43,7 +43,7 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/image/image_skia.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 #include "ui/views/accessibility/tree/widget_ax_manager.h"
 #include "ui/views/controls/menu/menu_controller.h"
 #include "ui/views/drag_controller.h"
@@ -2487,6 +2487,12 @@ void Widget::UpdateAccessibleURLForRootView(const GURL& url) {
   }
 }
 
+void Widget::SaveWindowPlacementIfNeeded() {
+  if (native_widget_initialized_ && save_window_placement_allowed_) {
+    SaveWindowPlacement();
+  }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Widget, protected:
 
@@ -2526,12 +2532,6 @@ const ui::NativeTheme* Widget::GetNativeTheme() const {
 #endif
 
   return ui::NativeTheme::GetInstanceForNativeUi();
-}
-
-void Widget::SaveWindowPlacementIfNeeded() {
-  if (native_widget_initialized_ && save_window_placement_allowed_) {
-    SaveWindowPlacement();
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

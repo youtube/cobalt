@@ -164,14 +164,6 @@ bool RtpTransport::SendPacket(bool rtcp,
   int ret = transport->SendPacket(packet->cdata<char>(), packet->size(),
                                   options, flags);
   if (ret != static_cast<int>(packet->size())) {
-    if (set_ready_to_send_false_if_send_fail_) {
-      // TODO: webrtc:361124449 - Remove SetReadyToSend if field trial
-      // WebRTC-SetReadyToSendFalseIfSendFail succeed 2024-12-01.
-      if (transport->GetError() == ENOTCONN) {
-        RTC_LOG(LS_WARNING) << "Got ENOTCONN from transport.";
-        SetReadyToSend(rtcp, false);
-      }
-    }
     return false;
   }
   return true;

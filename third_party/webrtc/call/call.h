@@ -12,15 +12,15 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/adaptation/resource.h"
-#include "api/environment/environment.h"
 #include "api/fec_controller.h"
-#include "api/field_trials_view.h"
 #include "api/media_types.h"
 #include "api/rtp_headers.h"
+#include "api/rtp_parameters.h"
 #include "api/scoped_refptr.h"
 #include "api/task_queue/task_queue_base.h"
 #include "api/transport/bitrate_settings.h"
@@ -59,6 +59,7 @@ class Call {
     int recv_bandwidth_bps = 0;       // Estimated available receive bandwidth.
     int64_t pacer_delay_ms = 0;
     int64_t rtt_ms = -1;
+    std::optional<int64_t> ccfb_messages_received = std::nullopt;
   };
 
   static std::unique_ptr<Call> Create(CallConfig config);
@@ -154,18 +155,16 @@ class Call {
   virtual void SetClientBitratePreferences(
       const BitrateSettings& preferences) = 0;
 
-  virtual void EnableSendCongestionControlFeedbackAccordingToRfc8888() = 0;
-  virtual int FeedbackAccordingToRfc8888Count() = 0;
-  virtual int FeedbackAccordingToTransportCcCount() = 0;
-
-  // TODO(bugs.webrtc.org/440271885): Use env() instead.
-  virtual const FieldTrialsView& trials() const = 0;
-  virtual const Environment& env() const = 0;
+  // Decides which RTCP feedback type to use for congestion control.
+  virtual void SetPreferredRtcpCcAckType(
+      RtcpFeedbackType preferred_rtcp_cc_ack_type) = 0;
+  virtual std::optional<int> FeedbackAccordingToRfc8888Count() = 0;
+  virtual std::optional<int> FeedbackAccordingToTransportCcCount() = 0;
 
   virtual TaskQueueBase* network_thread() const = 0;
   virtual TaskQueueBase* worker_thread() const = 0;
 
-  virtual ~Call() {}
+  virtual ~Call() = default;
 };
 
 }  // namespace webrtc

@@ -347,6 +347,7 @@ void CallTest::CreateAudioAndFecSendConfigs(size_t num_audio_streams,
     audio_send_config.rtp.ssrc = VideoTestConstants::kAudioSendSsrc;
     AddRtpExtensionByUri(RtpExtension::kTransportSequenceNumberUri,
                          &audio_send_config.rtp.extensions);
+    audio_send_config.include_in_congestion_control_allocation = true;
 
     audio_send_config.send_codec_spec = AudioSendStream::Config::SendCodecSpec(
         VideoTestConstants::kAudioSendPayloadType,

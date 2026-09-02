@@ -20,7 +20,6 @@ import androidx.annotation.StringRes;
 import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplier;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.commerce.ShoppingServiceFactory;
@@ -34,11 +33,13 @@ import org.chromium.components.commerce.core.ShoppingService;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.Toast;
 
+import java.util.function.Supplier;
+
 /** Mediator for price tracking bottom sheet responsible for property model update. */
 @NullMarked
 public class PriceTrackingBottomSheetContentMediator {
     private final Context mContext;
-    private final Supplier<Tab> mTabSupplier;
+    private final Supplier<@Nullable Tab> mTabSupplier;
     private final PropertyModel mPropertyModel;
     private final PriceInsightsDelegate mPriceInsightsDelegate;
     private final Callback<Boolean> mUpdatePriceTrackingButtonModelCallback =
@@ -49,7 +50,7 @@ public class PriceTrackingBottomSheetContentMediator {
 
     public PriceTrackingBottomSheetContentMediator(
             Context context,
-            Supplier<Tab> tabSupplier,
+            Supplier<@Nullable Tab> tabSupplier,
             PropertyModel propertyModel,
             PriceInsightsDelegate priceInsightsDelegate) {
         mContext = context;
@@ -59,19 +60,22 @@ public class PriceTrackingBottomSheetContentMediator {
     }
 
     public void requestShowContent(Callback<Boolean> contentReadyCallback) {
-        ShoppingService shoppingService =
-                ShoppingServiceFactory.getForProfile(mTabSupplier.get().getProfile());
-        if (shoppingService == null
-                || !CommerceFeatureUtils.isShoppingListEligible(shoppingService)) {
+        Tab tab = mTabSupplier.get();
+        if (tab == null) {
             contentReadyCallback.onResult(false);
+            return;
+        }
+        ShoppingService shoppingService = ShoppingServiceFactory.getForProfile(tab.getProfile());
+        if (!CommerceFeatureUtils.isShoppingListEligible(shoppingService)) {
+            contentReadyCallback.onResult(false);
+            return;
         }
 
-        mPriceTrackingStateSupplier =
-                mPriceInsightsDelegate.getPriceTrackingStateSupplier(mTabSupplier.get());
+        mPriceTrackingStateSupplier = mPriceInsightsDelegate.getPriceTrackingStateSupplier(tab);
         mPriceTrackingStateSupplier.addObserver(mUpdatePriceTrackingButtonModelCallback);
 
         shoppingService.getProductInfoForUrl(
-                mTabSupplier.get().getUrl(),
+                tab.getUrl(),
                 (url, info) -> {
                     boolean hasProductInfo = info != null && info.productClusterId.isPresent();
                     if (hasProductInfo) {
@@ -84,7 +88,11 @@ public class PriceTrackingBottomSheetContentMediator {
     }
 
     private void updatePriceTrackingButtonModel(boolean isPriceTracked) {
-        mPropertyModel.set(PRICE_TRACKING_TITLE, mTabSupplier.get().getTitle());
+        Tab tab = mTabSupplier.get();
+        if (tab == null) {
+            return;
+        }
+        mPropertyModel.set(PRICE_TRACKING_TITLE, tab.getTitle());
 
         updatePriceTrackingButtonState(isPriceTracked);
         mPropertyModel.set(
@@ -93,9 +101,13 @@ public class PriceTrackingBottomSheetContentMediator {
     }
 
     private void fetchPriceBucket() {
-        ShoppingServiceFactory.getForProfile(mTabSupplier.get().getProfile())
+        Tab tab = mTabSupplier.get();
+        if (tab == null) {
+            return;
+        }
+        ShoppingServiceFactory.getForProfile(tab.getProfile())
                 .getPriceInsightsInfoForUrl(
-                        mTabSupplier.get().getUrl(),
+                        tab.getUrl(),
                         (url, info) -> {
                             if (info != null) {
                                 mPriceBucket = info.priceBucket;
@@ -145,8 +157,12 @@ public class PriceTrackingBottomSheetContentMediator {
                         showToastMessage(shouldBeTracked, success);
                     };
             updatePriceTrackingButtonState(shouldBeTracked);
-            mPriceInsightsDelegate.setPriceTrackingStateForTab(
-                    mTabSupplier.get(), shouldBeTracked, callback);
+            Tab tab = mTabSupplier.get();
+            if (tab == null) {
+                callback.onResult(false);
+                return;
+            }
+            mPriceInsightsDelegate.setPriceTrackingStateForTab(tab, shouldBeTracked, callback);
         };
     }
 

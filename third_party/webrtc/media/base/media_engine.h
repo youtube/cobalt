@@ -23,6 +23,7 @@
 #include "api/audio_codecs/audio_encoder_factory.h"
 #include "api/audio_options.h"
 #include "api/crypto/crypto_options.h"
+#include "api/environment/environment.h"
 #include "api/field_trials_view.h"
 #include "api/rtc_error.h"
 #include "api/rtp_parameters.h"
@@ -96,18 +97,20 @@ class VoiceEngineInterface : public RtpHeaderExtensionQueryInterface {
   virtual scoped_refptr<AudioState> GetAudioState() const = 0;
 
   virtual std::unique_ptr<VoiceMediaSendChannelInterface> CreateSendChannel(
-      Call* /* call */,
-      const MediaConfig& /* config */,
-      const AudioOptions& /* options */,
-      const CryptoOptions& /* crypto_options */,
-      AudioCodecPairId /* codec_pair_id */) = 0;
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const AudioOptions& options,
+      const CryptoOptions& crypto_options,
+      AudioCodecPairId codec_pair_id) = 0;
 
   virtual std::unique_ptr<VoiceMediaReceiveChannelInterface>
-  CreateReceiveChannel(Call* /* call */,
-                       const MediaConfig& /* config */,
-                       const AudioOptions& /* options */,
-                       const CryptoOptions& /* crypto_options */,
-                       AudioCodecPairId /* codec_pair_id */) = 0;
+  CreateReceiveChannel(const Environment& env,
+                       Call* call,
+                       const MediaConfig& config,
+                       const AudioOptions& options,
+                       const CryptoOptions& crypto_options,
+                       AudioCodecPairId codec_pair_id) = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be
@@ -146,18 +149,19 @@ class VideoEngineInterface : public RtpHeaderExtensionQueryInterface {
   VideoEngineInterface& operator=(const VideoEngineInterface&) = delete;
 
   virtual std::unique_ptr<VideoMediaSendChannelInterface> CreateSendChannel(
-      Call* /* call */,
-      const MediaConfig& /* config */,
-      const VideoOptions& /* options */,
-      const CryptoOptions& /* crypto_options */,
-      VideoBitrateAllocatorFactory*
-      /* video_bitrate_allocator_factory */) = 0;
+      const Environment& env,
+      Call* call,
+      const MediaConfig& config,
+      const VideoOptions& options,
+      const CryptoOptions& crypto_options,
+      VideoBitrateAllocatorFactory* video_bitrate_allocator_factory) = 0;
 
   virtual std::unique_ptr<VideoMediaReceiveChannelInterface>
-  CreateReceiveChannel(Call* /* call */,
-                       const MediaConfig& /* config */,
-                       const VideoOptions& /* options */,
-                       const CryptoOptions& /* crypto_options */) = 0;
+  CreateReceiveChannel(const Environment& env,
+                       Call* call,
+                       const MediaConfig& config,
+                       const VideoOptions& options,
+                       const CryptoOptions& crypto_options) = 0;
 
   // Legacy: Retrieve list of supported codecs.
   // + protection codecs, and assigns PT numbers that may have to be

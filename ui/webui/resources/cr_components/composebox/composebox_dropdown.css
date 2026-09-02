@@ -13,4 +13,9 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding-inline-end: 24px;
+}
+
+:host([hidden]) {
+  display: none;
 }

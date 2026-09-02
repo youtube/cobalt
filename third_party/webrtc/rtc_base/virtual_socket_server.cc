@@ -677,7 +677,8 @@ VirtualSocketServer::VirtualSocketServer(ThreadProcessingFakeClock* fake_clock)
       delay_mean_(0),
       delay_stddev_(0),
       delay_samples_(NUM_SAMPLES),
-      drop_prob_(0.0) {
+      drop_prob_(0.0),
+      ready_to_send_trampoline_(this) {
   UpdateDelayDistribution();
 }
 

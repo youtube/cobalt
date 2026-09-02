@@ -1255,6 +1255,7 @@ rtc_library("audio_codec_mocks") {
     "../api/units:time_delta",
     "../rtc_base:buffer",
     "../rtc_base:checks",
+    "//third_party/abseil-cpp/absl/strings:string_view",
   ]
 }
 

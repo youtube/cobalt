@@ -262,13 +262,14 @@ bool ssl_cert_matches_issuer(const CBS *in, const CBS *dn) {
 }
 
 UniquePtr<EVP_PKEY> ssl_cert_parse_pubkey(const CBS *in) {
-  CBS buf = *in, tbs_cert;
-  if (!ssl_cert_skip_to_spki(&buf, &tbs_cert)) {
+  CBS buf = *in, tbs_cert, spki;
+  if (!ssl_cert_skip_to_spki(&buf, &tbs_cert) ||
+      !CBS_get_asn1_element(&tbs_cert, &spki, CBS_ASN1_SEQUENCE)) {
     OPENSSL_PUT_ERROR(SSL, SSL_R_CANNOT_PARSE_LEAF_CERT);
     return nullptr;
   }
 
-  return UniquePtr<EVP_PKEY>(EVP_parse_public_key(&tbs_cert));
+  return ssl_parse_peer_subject_public_key_info(spki);
 }
 
 bool ssl_compare_public_and_private_key(const EVP_PKEY *pubkey,

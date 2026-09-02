@@ -9,6 +9,10 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_VK_HELPERS_H_
 #define LIBANGLE_RENDERER_VULKAN_VK_HELPERS_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_libc_calls
+#endif
+
 #include "common/MemoryBuffer.h"
 #include "common/SimpleMutex.h"
 #include "libANGLE/renderer/vulkan/MemoryTracking.h"
@@ -1062,6 +1066,10 @@ class BufferHelper : public ReadWriteResource
         const VkBufferCreateInfo &requestedCreateInfo,
         const VkExternalMemoryHandleTypeFlagBits externalMemoryHandleType,
         const int32_t sharedBufferFD);
+    angle::Result initHostExternal(ErrorContext *context,
+                                   VkMemoryPropertyFlags memoryProperties,
+                                   const VkBufferCreateInfo &requestedCreateInfo,
+                                   void *hostPtr);
     VkResult initSuballocation(Context *context,
                                uint32_t memoryTypeIndex,
                                size_t size,
@@ -1274,7 +1282,7 @@ class BufferPool : angle::NonCopyable
 
     // Frees resources immediately, or orphan the non-empty BufferBlocks if allowed. If orphan is
     // not allowed, it will assert if BufferBlock is still not empty.
-    void destroy(Renderer *renderer, bool orphanAllowed);
+    void destroy(Renderer *renderer, bool orphanNonEmptyBufferBlock);
     // Remove and destroy empty BufferBlocks
     void pruneEmptyBuffers(Renderer *renderer);
 

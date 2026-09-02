@@ -150,6 +150,14 @@ struct StructTraits<webnn::mojom::DataTypeLimitsDataView,
       const webnn::DataTypeLimits& data_type_limits) {
     return data_type_limits.logical_not_input;
   }
+  static webnn::SupportedTensors is_nan_input(
+      const webnn::DataTypeLimits& data_type_limits) {
+    return data_type_limits.is_nan_input;
+  }
+  static webnn::SupportedTensors is_infinite_input(
+      const webnn::DataTypeLimits& data_type_limits) {
+    return data_type_limits.is_infinite_input;
+  }
   static webnn::SupportedDataTypes logical_output(
       const webnn::DataTypeLimits& data_type_limits) {
     return data_type_limits.logical_output;
@@ -193,6 +201,10 @@ struct StructTraits<webnn::mojom::DataTypeLimitsDataView,
   static webnn::SupportedTensors reciprocal_input(
       const webnn::DataTypeLimits& data_type_limits) {
     return data_type_limits.reciprocal_input;
+  }
+  static webnn::SupportedTensors round_even_input(
+      const webnn::DataTypeLimits& data_type_limits) {
+    return data_type_limits.round_even_input;
   }
   static webnn::SupportedTensors sign_input(
       const webnn::DataTypeLimits& data_type_limits) {
@@ -507,6 +519,8 @@ struct StructTraits<webnn::mojom::DataTypeLimitsDataView,
            data.ReadLogicalOrInput(&out->logical_or_input) &&
            data.ReadLogicalXorInput(&out->logical_xor_input) &&
            data.ReadLogicalNotInput(&out->logical_not_input) &&
+           data.ReadIsNanInput(&out->is_nan_input) &&
+           data.ReadIsInfiniteInput(&out->is_infinite_input) &&
            data.ReadLogicalOutput(&out->logical_output) &&
            data.ReadAbsInput(&out->abs_input) &&
            data.ReadCeilInput(&out->ceil_input) &&
@@ -518,6 +532,7 @@ struct StructTraits<webnn::mojom::DataTypeLimitsDataView,
            data.ReadLogInput(&out->log_input) &&
            data.ReadNegInput(&out->neg_input) &&
            data.ReadReciprocalInput(&out->reciprocal_input) &&
+           data.ReadRoundEvenInput(&out->round_even_input) &&
            data.ReadSignInput(&out->sign_input) &&
            data.ReadSinInput(&out->sin_input) &&
            data.ReadSqrtInput(&out->sqrt_input) &&

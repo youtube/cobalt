@@ -82,6 +82,7 @@
 #include "api/task_queue/pending_task_safety_flag.h"
 #include "api/transport/stun.h"
 #include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
 #include "p2p/base/connection.h"
 #include "p2p/base/connection_info.h"
 #include "p2p/base/p2p_constants.h"
@@ -98,7 +99,6 @@
 #include "rtc_base/rate_tracker.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
-#include "rtc_base/time_utils.h"
 #include "rtc_base/weak_ptr.h"
 
 namespace webrtc {
@@ -355,7 +355,7 @@ TCPConnection::TCPConnection(const Environment& env,
       connection_pending_(false),
       pretending_to_be_writable_(false),
       reconnection_timeout_(CONNECTION_WRITE_CONNECT_TIMEOUT) {
-  RTC_DCHECK_RUN_ON(network_thread_);
+  RTC_DCHECK_RUN_ON(network_thread());
   RTC_DCHECK_EQ(port()->GetProtocol(),
                 PROTO_TCP);  // Needs to be TCPPort.
 
@@ -370,7 +370,7 @@ TCPConnection::TCPConnection(const Environment& env,
                         << socket_->GetLocalAddress().ToSensitiveString()
                         << ", port() Network:" << port()->Network()->ToString();
     RTC_DCHECK(absl::c_any_of(
-        port_->Network()->GetIPs(), [this](const InterfaceAddress& addr) {
+        port()->Network()->GetIPs(), [this](const InterfaceAddress& addr) {
           return socket_->GetLocalAddress().ipaddr() == addr;
         }));
     ConnectSocketSignals(socket);
@@ -378,7 +378,7 @@ TCPConnection::TCPConnection(const Environment& env,
 }
 
 TCPConnection::~TCPConnection() {
-  RTC_DCHECK_RUN_ON(network_thread_);
+  RTC_DCHECK_RUN_ON(network_thread());
 }
 
 int TCPConnection::Send(const void* data,
@@ -405,19 +405,19 @@ int TCPConnection::Send(const void* data,
     error_ = ENOTCONN;
     return SOCKET_ERROR;
   }
-  stats_.sent_total_packets++;
+  mutable_stats().sent_total_packets++;
   AsyncSocketPacketOptions modified_options(options);
   tcp_port()->CopyPortInformationToPacketInfo(
       &modified_options.info_signaled_after_sent);
   int sent = socket_->Send(data, size, modified_options);
-  int64_t now = TimeMillis();
+  Timestamp now = Connection::AlignTime(env().clock().CurrentTime());
   if (sent < 0) {
-    stats_.sent_discarded_packets++;
+    mutable_stats().sent_discarded_packets++;
     error_ = socket_->GetError();
   } else {
-    send_rate_tracker_.AddSamplesAtTime(now, sent);
+    send_rate_tracker().AddSamplesAtTime(now.ms(), sent);
   }
-  last_send_data_ = now;
+  set_last_send_data(now);
   return sent;
 }
 
@@ -451,7 +451,7 @@ void TCPConnection::OnConnectionRequestResponse(StunRequest* req,
 void TCPConnection::OnConnect(AsyncPacketSocket* socket) {
   RTC_DCHECK_EQ(socket, socket_.get());
 
-  if (!port_) {
+  if (port() == nullptr) {
     RTC_LOG(LS_ERROR) << "TCPConnection: Port has been deleted.";
     return;
   }
@@ -471,7 +471,7 @@ void TCPConnection::OnConnect(AsyncPacketSocket* socket) {
   // Note that, aside from minor differences in log statements, this logic is
   // identical to that in TurnPort.
   const SocketAddress& socket_address = socket->GetLocalAddress();
-  if (absl::c_any_of(port_->Network()->GetIPs(),
+  if (absl::c_any_of(port()->Network()->GetIPs(),
                      [socket_address](const InterfaceAddress& addr) {
                        return socket_address.ipaddr() == addr;
                      })) {
@@ -482,21 +482,21 @@ void TCPConnection::OnConnect(AsyncPacketSocket* socket) {
       RTC_LOG(LS_WARNING) << "Socket is bound to the address:"
                           << socket_address.ipaddr().ToSensitiveString()
                           << ", rather than an address associated with network:"
-                          << port_->Network()->ToString()
+                          << port()->Network()->ToString()
                           << ". Still allowing it since it's localhost.";
-    } else if (IPIsAny(port_->Network()->GetBestIP())) {
+    } else if (IPIsAny(port()->Network()->GetBestIP())) {
       RTC_LOG(LS_WARNING)
           << "Socket is bound to the address:"
           << socket_address.ipaddr().ToSensitiveString()
           << ", rather than an address associated with network:"
-          << port_->Network()->ToString()
+          << port()->Network()->ToString()
           << ". Still allowing it since it's the 'any' address"
              ", possibly caused by multiple_routes being disabled.";
     } else {
       RTC_LOG(LS_WARNING) << "Dropping connection as TCP socket bound to IP "
                           << socket_address.ipaddr().ToSensitiveString()
                           << ", rather than an address associated with network:"
-                          << port_->Network()->ToString();
+                          << port()->Network()->ToString();
       OnClose(socket, 0);
       return;
     }
@@ -512,7 +512,7 @@ void TCPConnection::OnClose(AsyncPacketSocket* socket, int error) {
   RTC_DCHECK_EQ(socket, socket_.get());
   RTC_LOG(LS_INFO) << ToString() << ": Connection closed with error " << error;
 
-  if (!port_) {
+  if (port() == nullptr) {
     RTC_LOG(LS_ERROR) << "TCPConnection: Port has been deleted.";
     return;
   }

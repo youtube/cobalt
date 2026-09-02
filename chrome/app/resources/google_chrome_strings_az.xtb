@@ -2,6 +2,7 @@
 <!DOCTYPE translationbundle>
 <translationbundle lang="az">
 <translation id="1001534784610492198">Quraşdırıcı arxivi zədələnib və ya yanlışdır. Lütfən, Google Chrome'u yenidən endirin.</translation>
+<translation id="1006034097353797313">Qaldığınız yerdən davam edin: Chrome hər dəfə yenidən başladıldıqda tablarınızı bərpa edir. Bunu deaktiv etmək üçün keçin:</translation>
 <translation id="1018937009655463387">Pəncərəni paylaşmaq üçün Sistem Ayarlarında Chrome üçün ekranın qeydə alınmasına icazə verin.</translation>
 <translation id="1026101648481255140">Quraşdırmaya davam edin</translation>
 <translation id="102763973188675173">Google Chrome'u fərdiləşdirin və idarə edin. Güncəlləmə əlçatandır.</translation>
@@ -81,6 +82,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2018879682492276940">Quraşdırma alınmadı. Yenidən sınayın.</translation>
 <translation id="2024959665595762054">Chrome datasını Google Hesabınızda istifadə etmək və yadda saxlamaq üçün kimliyinizi doğrulayın</translation>
 <translation id="2034233344106846793">Chrome mümkün olduqda güvənsiz bağlantıları avtomatik olaraq HTTPS-ə təkmilləşdirir</translation>
+<translation id="2039417478970545937">Ayarlar.</translation>
 <translation id="207902854391093810">Sınaqlar aktiv olduqda, reklamın ölçülməsi ziyarət etdiyiniz saytlara Chrome'dan sayta reklamlarının performansını ölçməyə kömək edən məlumat tələb etməyə imkan verir. Reklamın ölçülməsi saytlar arasında mümkün qədər az məlumat ötürməklə saytlararası izləməni məhdudlaşdırır.</translation>
 <translation id="2091012649849228750">Google Chrome güncəlləmələrini əldə etmək üçün Windows 10 və ya daha yeni versiya tələb olunur. Bu kompüter Windows 8 istifadə edir.</translation>
 <translation id="2094648590148273905">ChromeOS Flex şərtləri</translation>
@@ -350,6 +352,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 
 Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstərin və ya yeni Chrome versiyası işlədin.</translation>
 <translation id="5174969993834422967">Adətən bildirişləri bloklayırsınız. Bu saytın sizi xəbərdar etməsi üçün məkan panelinin sağ küncündəki bildiriş işarəsinə klikləyin.</translation>
+<translation id="5174983315706567306">Kifayət qədər disk ölçüsü yoxdur.</translation>
 <translation id="5201744974236816379">Chrome güncəllənməsi</translation>
 <translation id="521447420733633466">Cihaz paylaşsanız, dostlarınız və ailəniz ayrıca baxış keçirə bilər və Chrome'u istədikləri kimi ayarlaya bilər.</translation>
 <translation id="5234764350956374838">Kənarlaşdırın</translation>
@@ -430,6 +433,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6173637689840186878"><ph name="PAGE_TITLE" /> - Google Chrome Beta</translation>
 <translation id="6180522807229584611">Bu tab əlavə resurslardan istifadə edir. Performansı təkmilləşdirmək üçün Chrome-a onu deaktiv etmək imkanı verin.</translation>
 <translation id="6182736845697986886">Yeniləmə serverində daxili xəta səbəbindən quraşdırma alınmadı.</translation>
+<translation id="6192058120268468905">Chrome-dakı Hesabınız</translation>
 <translation id="6235018212288296708">mDNS trafikinə icazə vermək üçün Google Chrome üçün qaydanı daxil edin.</translation>
 <translation id="624230925347970731">Chrome tezliklə bağlanacaq</translation>
 <translation id="6247557882553405851">Google Parol Meneceri</translation>
@@ -458,6 +462,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="6515495397637126556"><ph name="PAGE_TITLE" /> - Google Chrome Dev</translation>
 <translation id="6520670145826811516">Məkandan istifadə etmək üçün Chrome-a <ph name="BEGIN_LINK" />sistem ayarlarında<ph name="END_LINK" /> giriş imkanı verin</translation>
 <translation id="659498884637196217">Bu cihazda Google Parol Menecerində</translation>
+<translation id="6631524303639368205">Qaldığınız yerdən davam edin: Chrome tablarınızı son sessiyadan bərpa etdi. Burada deaktiv edə bilərsiniz:</translation>
 <translation id="6632473616050862500">ChromeOS Flex əlavə <ph name="BEGIN_LINK_CROS_OSS" />açıq mənbə proqramı<ph name="END_LINK_CROS_OSS" /> ilə əlçatan edilib.</translation>
 <translation id="6634299872736643004">Bu ayara edilən dəyişikliklər Chrome yenidən başladıqda tətbiq olunacaq.</translation>
 <translation id="6660596345553328257">Chrome-a daxil olursunuz?</translation>
@@ -561,10 +566,12 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="778331955594035129">Chrome bu sayt üçün məkan icazəsi tələb edir</translation>
 <translation id="7787950393032327779">Bu profil digər Google Chrome prosesi (<ph name="PROCESS_ID" />) və ya digər kompüter tərəfindən (<ph name="HOST_NAME" />) istifadə olunana oxşayır.</translation>
 <translation id="7801699035218095297">Google Chrome parolları kopyalamağa çalışır. Buna icazə vermək üçün Windows parolunuzu yazın.</translation>
+<translation id="7804364787702057554">Chrome-dakı hesabınız</translation>
 <translation id="7808348361785373670">Chrome'dan silin...</translation>
 <translation id="7825851276765848807">Naməlum xəta üzündən quraşdırmaq alınmadı. Google Chrome'u yenidən endirin.</translation>
 <translation id="7827099906024714326">Müəyyən datanın Google Hesabında yadda saxlanılması və bütün cihazlarda istifadə edilməsi üçün Chrome kimliyinizi doğrulamalıdır. İndi çıxsanız, bu data silinəcək.</translation>
 <translation id="7845233973568007926">Quraşdırdığınız üçün təşəkkür edirik. <ph name="BUNDLE_NAME" /> istifadə etməzdən əvvəl kompüterinizi yenidən başlatmalısınız.</translation>
+<translation id="7849037457735762883">Qaldığınız yerdən davam edin: Chrome hər dəfə yenidən başladıldıqda tablarınızı bərpa edə bilər. Bunu aktiv etmək üçün keçin:</translation>
 <translation id="7872446069773932638">Endirilir... <ph name="SECONDS" /> saniyə qalıb</translation>
 <translation id="7886087451482920026">Google Linza ilə mətn seçin</translation>
 <translation id="7890208801193284374">Kompüteri paylaşsanız dostlarınız və ailəniz ayrıca brauzer ilə Chrome'u istədikləri kimi ayarlaya bilər.</translation>

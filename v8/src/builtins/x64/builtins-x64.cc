@@ -3415,8 +3415,7 @@ void Builtins::Generate_WasmDebugBreak(MacroAssembler* masm) {
 }
 
 namespace {
-void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
-                    wasm::JumpBuffer::StackState expected_state) {
+void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc) {
   __ movq(rsp, MemOperand(stack, wasm::kStackSpOffset));
   __ movq(rbp, MemOperand(stack, wasm::kStackFpOffset));
   if (load_pc) {
@@ -3425,13 +3424,12 @@ void LoadJumpBuffer(MacroAssembler* masm, Register stack, bool load_pc,
   // The stack limit is set separately under the ExecutionAccess lock.
 }
 
-void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack,
-                          wasm::JumpBuffer::StackState expected_state) {
+void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_stack) {
   MemOperand GCScanSlotPlace =
-      MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
+      MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
   // Switch stack!
-  LoadJumpBuffer(masm, target_stack, false, expected_state);
+  LoadJumpBuffer(masm, target_stack, false);
 }
 
 // Updates the stack limit and central stack info, and validates the switch.
@@ -3487,7 +3485,7 @@ void ReloadParentStack(MacroAssembler* masm, Register promise,
   // Switch stack!
   SwitchStacks(masm, ExternalReference::wasm_return_stack(), active_stack,
                nullptr, no_reg, {promise, return_value, context, parent});
-  LoadJumpBuffer(masm, parent, false, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, parent, false);
 }
 
 // Loads the context field of the WasmTrustedInstanceData or WasmImportData
@@ -3516,11 +3514,11 @@ void RestoreParentSuspender(MacroAssembler* masm, Register tmp1) {
   __ StoreRootRelative(IsolateData::active_suspender_offset(), suspender);
 }
 
-void ResetStackSwitchFrameStackSlots(MacroAssembler* masm) {
+void ResetWasmJspiFrameStackSlots(MacroAssembler* masm) {
   __ Move(kScratchRegister, Smi::zero());
-  __ movq(MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset),
+  __ movq(MemOperand(rbp, WasmJspiFrameConstants::kImplicitArgOffset),
           kScratchRegister);
-  __ movq(MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset),
+  __ movq(MemOperand(rbp, WasmJspiFrameConstants::kResultArrayOffset),
           kScratchRegister);
 }
 
@@ -3528,7 +3526,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
                             Register wrapper_buffer, Register original_fp,
                             Register new_wrapper_buffer, Register scratch,
                             Label* suspend) {
-  ResetStackSwitchFrameStackSlots(masm);
+  ResetWasmJspiFrameStackSlots(masm);
   Register parent_stack = new_wrapper_buffer;
   __ LoadRootRelative(parent_stack, IsolateData::active_stack_offset());
   __ Move(parent_stack, MemOperand(parent_stack, wasm::kStackParentOffset));
@@ -3540,7 +3538,7 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   // Save the old stack's rbp in r9, and use it to access the parameters in
   // the parent frame.
   __ movq(original_fp, rbp);
-  LoadTargetJumpBuffer(masm, target_stack, wasm::JumpBuffer::Suspended);
+  LoadTargetJumpBuffer(masm, target_stack);
   // Return address slot. The builtin itself returns by switching to the parent
   // jump buffer and does not actually use this slot, but it is read by the
   // profiler.
@@ -3548,9 +3546,9 @@ void SwitchToAllocatedStack(MacroAssembler* masm, Register wasm_instance,
   // Push the loaded rbp. We know it is null, because there is no frame yet,
   // so we could also push 0 directly. In any case we need to push it, because
   // this marks the base of the stack segment for the stack frame iterator.
-  __ EnterFrame(StackFrame::STACK_SWITCH);
+  __ EnterFrame(StackFrame::WASM_JSPI);
   int stack_space =
-      StackSwitchFrameConstants::kNumSpillSlots * kSystemPointerSize +
+      WasmJspiFrameConstants::kNumSpillSlots * kSystemPointerSize +
       JSToWasmWrapperFrameConstants::kWrapperBufferSize;
   __ AllocateStackSpace(stack_space);
   __ movq(new_wrapper_buffer, rsp);
@@ -3595,14 +3593,13 @@ void SwitchBackAndReturnPromise(MacroAssembler* masm, Register tmp1,
   }
 
   __ movq(kContextRegister,
-          MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset));
+          MemOperand(rbp, WasmJspiFrameConstants::kImplicitArgOffset));
   GetContextFromImplicitArg(masm, kContextRegister);
   ReloadParentStack(masm, promise, return_value, kContextRegister, tmp1, tmp2);
   RestoreParentSuspender(masm, tmp1);
 
   if (mode == wasm::kPromise) {
-    __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
-            1);
+    __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 1);
     __ Push(promise);
     __ CallBuiltin(Builtin::kFulfillPromise);
     __ Pop(promise);
@@ -3618,7 +3615,7 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ endbr64();
 
   // Restore rsp to free the reserved stack slots for the sections.
-  __ leaq(rsp, MemOperand(rbp, StackSwitchFrameConstants::kLastSpillOffset));
+  __ leaq(rsp, MemOperand(rbp, WasmJspiFrameConstants::kLastSpillOffset));
 
   // The exception becomes the parameter of the RejectPromise builtin, and the
   // promise is the return value of this wrapper.
@@ -3631,14 +3628,13 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
   __ LoadTaggedField(
       promise, FieldOperand(promise, WasmSuspenderObject::kPromiseOffset));
   __ movq(kContextRegister,
-          MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset));
+          MemOperand(rbp, WasmJspiFrameConstants::kImplicitArgOffset));
   GetContextFromImplicitArg(masm, kContextRegister);
 
   ReloadParentStack(masm, promise, reason, kContextRegister, r8, rdi);
   RestoreParentSuspender(masm, r8);
 
-  __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
-          1);
+  __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 1);
   __ Push(promise);
   __ LoadRoot(debug_event, RootIndex::kTrueValue);
   __ CallBuiltin(Builtin::kRejectPromise);
@@ -3653,10 +3649,9 @@ void GenerateExceptionHandlingLandingPad(MacroAssembler* masm,
 
 void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   bool stack_switch = mode == wasm::kPromise || mode == wasm::kStressSwitch;
-  __ EnterFrame(stack_switch ? StackFrame::STACK_SWITCH
-                             : StackFrame::JS_TO_WASM);
+  __ EnterFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
 
-  __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
+  __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
 
   // Load the implicit argument (instance data or import data) from the frame.
@@ -3676,13 +3671,13 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   __ movq(MemOperand(rbp, JSToWasmWrapperFrameConstants::kWrapperBufferOffset),
           new_wrapper_buffer);
   if (stack_switch) {
-    __ movq(MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset),
+    __ movq(MemOperand(rbp, WasmJspiFrameConstants::kImplicitArgOffset),
             kWasmImplicitArgRegister);
     Register result_array = kScratchRegister;
     __ movq(result_array,
             MemOperand(original_fp,
                        JSToWasmWrapperFrameConstants::kResultArrayParamOffset));
-    __ movq(MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset),
+    __ movq(MemOperand(rbp, WasmJspiFrameConstants::kResultArrayOffset),
             result_array);
   }
 
@@ -3755,8 +3750,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   DCHECK_EQ(next_offset, stack_params_offset);
 
   if (stack_switch) {
-    __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
-            0);
+    __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 0);
   }
 
   // We do the call without a signature check here, since the wrapper loaded the
@@ -3796,10 +3790,8 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   // rbx: the result JSArray for multi-return.
   // rcx: pointer to the byte buffer which contains all parameters.
   if (stack_switch) {
-    __ movq(rbx,
-            MemOperand(rbp, StackSwitchFrameConstants::kResultArrayOffset));
-    __ movq(rax,
-            MemOperand(rbp, StackSwitchFrameConstants::kImplicitArgOffset));
+    __ movq(rbx, MemOperand(rbp, WasmJspiFrameConstants::kResultArrayOffset));
+    __ movq(rax, MemOperand(rbp, WasmJspiFrameConstants::kImplicitArgOffset));
   } else {
     __ movq(rbx,
             MemOperand(rbp,
@@ -3817,8 +3809,7 @@ void JSToWasmWrapperHelper(MacroAssembler* masm, wasm::Promise mode) {
   __ bind(&suspend);
   __ endbr64();
 
-  __ LeaveFrame(stack_switch ? StackFrame::STACK_SWITCH
-                             : StackFrame::JS_TO_WASM);
+  __ LeaveFrame(stack_switch ? StackFrame::WASM_JSPI : StackFrame::JS_TO_WASM);
   __ ret(0);
 
   // Catch handler for the stack-switching wrapper: reject the promise with the
@@ -3889,14 +3880,14 @@ void Builtins::Generate_WasmTrapHandlerLandingPad(MacroAssembler* masm) {
 
 void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
-  __ EnterFrame(StackFrame::STACK_SWITCH);
+  __ EnterFrame(StackFrame::WASM_JSPI);
 
   Register suspender = rax;
 
-  __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
+  __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
   // Set a sentinel value for the spill slots visited by the GC.
-  ResetStackSwitchFrameStackSlots(masm);
+  ResetWasmJspiFrameStackSlots(masm);
 
   // -------------------------------------------
   // Save current state in active jump buffer.
@@ -3947,13 +3938,13 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       kReturnRegister0,
       FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
   MemOperand GCScanSlotPlace =
-      MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset);
+      MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
-  LoadJumpBuffer(masm, caller, true, wasm::JumpBuffer::Inactive);
+  LoadJumpBuffer(masm, caller, true);
   __ Trap();
   __ bind(&resume);
   __ endbr64();
-  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  __ LeaveFrame(StackFrame::WASM_JSPI);
   __ ret(0);
 }
 
@@ -3963,16 +3954,16 @@ namespace {
 // forwards the value, the onRejected variant throws the value.
 
 void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
-  __ EnterFrame(StackFrame::STACK_SWITCH);
+  __ EnterFrame(StackFrame::WASM_JSPI);
 
   Register param_count = rax;
   __ decq(param_count);                    // Exclude receiver.
   Register closure = kJSFunctionRegister;  // rdi
 
-  __ AllocateStackSpace(StackSwitchFrameConstants::kNumSpillSlots *
+  __ AllocateStackSpace(WasmJspiFrameConstants::kNumSpillSlots *
                         kSystemPointerSize);
   // Set a sentinel value for the spill slots visited by the GC.
-  ResetStackSwitchFrameStackSlots(masm);
+  ResetWasmJspiFrameStackSlots(masm);
 
   param_count = no_reg;
 
@@ -4023,26 +4014,25 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   // -------------------------------------------
   // Move resolved value to return register.
   __ movq(kReturnRegister0, Operand(rbp, 3 * kSystemPointerSize));
-  __ Move(MemOperand(rbp, StackSwitchFrameConstants::kGCScanSlotCountOffset),
-          0);
+  __ Move(MemOperand(rbp, WasmJspiFrameConstants::kGCScanSlotCountOffset), 0);
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the target stack without restoring the PC.
-    LoadJumpBuffer(masm, target_stack, false, wasm::JumpBuffer::Suspended);
-    // Pop this frame now. The unwinder expects that the first STACK_SWITCH
+    LoadJumpBuffer(masm, target_stack, false);
+    // Pop this frame now. The unwinder expects that the first WASM_JSPI
     // frame is the outermost one.
-    __ LeaveFrame(StackFrame::STACK_SWITCH);
+    __ LeaveFrame(StackFrame::WASM_JSPI);
     // Forward the onRejected value to kThrow.
     __ pushq(kReturnRegister0);
     __ Move(kContextRegister, Smi::zero());
     __ CallRuntime(Runtime::kThrow);
   } else {
     // Resume the stack normally.
-    LoadJumpBuffer(masm, target_stack, true, wasm::JumpBuffer::Suspended);
+    LoadJumpBuffer(masm, target_stack, true);
   }
   __ Trap();
   __ bind(&suspend);
   __ endbr64();
-  __ LeaveFrame(StackFrame::STACK_SWITCH);
+  __ LeaveFrame(StackFrame::WASM_JSPI);
   // Pop receiver + parameter.
   __ ret(2 * kSystemPointerSize);
 }

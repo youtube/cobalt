@@ -362,10 +362,11 @@ CustomPatternWithAlias kCustomPatternsWithContext[] = {
 
     // Redacts PII from kernel logs for virtual input devices (e.g., Bluetooth).
     // Matches lines like:
-    //   input: Edman Paes dos Anjos’s Keyboard as /devices/virtual/...
+    //   input: Edman Paes dos Anjos’s Keyboard as
+    //   /devices/virtual/misc/uhid/0005:...
     // Redacts the name part only.
     {"Bluetooth HID Device",
-     "(input: )([^\\r\\n]+?)(\\s+as\\s+/devices/virtual/misc/uhid/.*?)",
+     "(input: )([^\\r\\n]+?)(\\s+as\\s+/devices/virtual/misc/uhid/0005:.*?)",
      PIIType::kBluetoothHidDevice},
 
     // Redacts PII from kernel logs for explicit Bluetooth HID devices.
@@ -464,7 +465,7 @@ std::string MaybeScrubIPAddress(const std::string& addr) {
   IPAddress input_addr;
   if (input_addr.AssignFromIPLiteral(addr) && input_addr.IsValid()) {
     bool mapped = MaybeUnmapAddress(&input_addr);
-    bool translated = !mapped ? MaybeUntranslateAddress(&input_addr) : false;
+    bool translated = !mapped && MaybeUntranslateAddress(&input_addr);
     for (const auto& range : *kNonIdentifyingIPRanges) {
       if (IPAddressMatchesPrefix(input_addr, range.ip_addr,
                                  range.prefix_length)) {

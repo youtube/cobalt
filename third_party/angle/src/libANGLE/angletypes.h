@@ -9,6 +9,10 @@
 #ifndef LIBANGLE_ANGLETYPES_H_
 #define LIBANGLE_ANGLETYPES_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include <anglebase/sha1.h>
 #include "common/Color.h"
 #include "common/FixedVector.h"

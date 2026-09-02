@@ -4,10 +4,8 @@
 
 #include "third_party/blink/renderer/core/html/display_ad_element_monitor.h"
 
-#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
-#include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/layout/hit_test_location.h"
 #include "third_party/blink/renderer/core/layout/hit_test_result.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
@@ -64,18 +62,15 @@ void DisplayAdElementMonitor::EnsureStarted() {
   element_->GetDocument().View()->RegisterForLifecycleNotifications(this);
 }
 
-void DisplayAdElementMonitor::OnElementRemoved() {
+void DisplayAdElementMonitor::OnElementRemovedOrUntagged() {
   if (!started_) {
     return;
   }
 
   if (element_->InActiveDocument() && !last_reported_rect_.IsEmpty()) {
     gfx::Rect empty_rect;
-    element_->GetDocument()
-        .GetFrame()
-        ->Client()
-        ->OnMainFrameImageAdRectangleChanged(element_->GetDomNodeId(),
-                                             empty_rect);
+    element_->GetDocument().GetFrame()->Client()->OnMainFrameAdRectangleChanged(
+        element_->GetDomNodeId(), empty_rect);
     last_reported_rect_ = empty_rect;
   }
 
@@ -110,17 +105,8 @@ void DisplayAdElementMonitor::DidFinishLifecycleUpdate(
     gfx::Rect rect_in_viewport =
         r->AbsoluteBoundingBoxRect(kTraverseDocumentBoundaries);
 
-    // Exclude image ads that are invisible or too small (e.g. tracking pixels).
+    // Exclude ads that are invisible or too small (e.g. tracking pixels).
     if (rect_in_viewport.width() > 1 && rect_in_viewport.height() > 1) {
-      if (!ad_use_counter_recorded_) {
-        // Currently, only image element is supported.
-        CHECK(IsA<HTMLImageElement>(*element_));
-
-        UseCounter::Count(element_->GetDocument(), WebFeature::kImageAd);
-
-        ad_use_counter_recorded_ = true;
-      }
-
       OverlayVisibility overlay_visibility =
           CheckOverlayVisibility(local_root_main_frame, rect_in_viewport);
 
@@ -143,7 +129,7 @@ void DisplayAdElementMonitor::DidFinishLifecycleUpdate(
   }
 
   if (last_reported_rect_ != rect_to_report) {
-    local_root_main_frame.Client()->OnMainFrameImageAdRectangleChanged(
+    local_root_main_frame.Client()->OnMainFrameAdRectangleChanged(
         element_->GetDomNodeId(), rect_to_report);
     last_reported_rect_ = rect_to_report;
   }

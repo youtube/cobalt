@@ -185,40 +185,34 @@ void FrameAutoAttacher::UpdateAutoAttach(base::OnceClosure callback) {
   if (auto_attach()) {
     UpdateFrames();
     if (render_frame_host_ && !render_frame_host_->GetParent() &&
-        !observing_service_workers_) {
-      observing_service_workers_ = true;
-      ServiceWorkerDevToolsManager::GetInstance()->AddObserver(this);
+        !service_worker_devtools_manager_observation_.IsObserving()) {
+      service_worker_devtools_manager_observation_.Observe(
+          ServiceWorkerDevToolsManager::GetInstance());
     }
-    if (observing_service_workers_) {
+    if (service_worker_devtools_manager_observation_.IsObserving()) {
       // Update service workers even if we've already been observing them,
       // to notify new clients about existing service workers.
       // This is similar to frames and pages above.
       ReattachServiceWorkers();
     }
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-    if (render_frame_host_ && !observing_auction_worklets_) {
-      observing_auction_worklets_ = true;
-      DebuggableAuctionWorkletTracker::GetInstance()->AddObserver(this);
+    if (render_frame_host_ &&
+        !debuggable_auction_worklet_worklet_devtools_manager_observation_
+             .IsObserving()) {
+      debuggable_auction_worklet_worklet_devtools_manager_observation_.Observe(
+          DebuggableAuctionWorkletTracker::GetInstance());
     }
-    if (render_frame_host_ && !observing_shared_storage_worklets_) {
-      observing_shared_storage_worklets_ = true;
-      SharedStorageWorkletDevToolsManager::GetInstance()->AddObserver(this);
+    if (render_frame_host_ &&
+        !shared_storage_worklet_devtools_manager_observation_.IsObserving()) {
+      shared_storage_worklet_devtools_manager_observation_.Observe(
+          SharedStorageWorkletDevToolsManager::GetInstance());
     }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   } else {
-    if (observing_service_workers_) {
-      ServiceWorkerDevToolsManager::GetInstance()->RemoveObserver(this);
-      observing_service_workers_ = false;
-    }
+    service_worker_devtools_manager_observation_.Reset();
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
-    if (observing_auction_worklets_) {
-      DebuggableAuctionWorkletTracker::GetInstance()->RemoveObserver(this);
-      observing_auction_worklets_ = false;
-    }
-    if (observing_shared_storage_worklets_) {
-      SharedStorageWorkletDevToolsManager::GetInstance()->RemoveObserver(this);
-      observing_shared_storage_worklets_ = false;
-    }
+    debuggable_auction_worklet_worklet_devtools_manager_observation_.Reset();
+    shared_storage_worklet_devtools_manager_observation_.Reset();
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   }
   RendererAutoAttacherBase::UpdateAutoAttach(std::move(callback));
@@ -286,8 +280,10 @@ void FrameAutoAttacher::SharedStorageWorkletDestroyed(
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 void FrameAutoAttacher::ReattachServiceWorkers() {
-  if (!observing_service_workers_ || !render_frame_host_)
+  if (!service_worker_devtools_manager_observation_.IsObserving() ||
+      !render_frame_host_) {
     return;
+  }
   BrowserContext* browser_context =
       render_frame_host_->GetProcess()->GetBrowserContext();
   auto matching = GetMatchingServiceWorkers(browser_context,

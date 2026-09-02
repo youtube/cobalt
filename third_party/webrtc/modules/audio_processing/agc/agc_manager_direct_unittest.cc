@@ -509,7 +509,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
   // controller read the input volume. That is needed because clipping input
   // causes the controller to stay in idle state for
   // `AnalogAgcConfig::clipped_wait_frames` frames.
-  WriteAudioBufferSamples(/*samples_value=*/0.0f, /*clipping_ratio=*/0.0f,
+  WriteAudioBufferSamples(/*samples_value=*/0.0f, /*clipped_ratio=*/0.0f,
                           audio_buffer);
   manager_no_analog_agc.AnalyzePreProcess(audio_buffer);
   manager_with_analog_agc.AnalyzePreProcess(audio_buffer);
@@ -521,7 +521,7 @@ TEST_P(AgcManagerDirectParametrizedTest,
                                   GetOverrideOrEmpty(-18.0f));
 
   // Feed clipping input to trigger a downward adapation of the analog level.
-  WriteAudioBufferSamples(/*samples_value=*/0.0f, /*clipping_ratio=*/0.2f,
+  WriteAudioBufferSamples(/*samples_value=*/0.0f, /*clipped_ratio=*/0.2f,
                           audio_buffer);
   manager_no_analog_agc.AnalyzePreProcess(audio_buffer);
   manager_with_analog_agc.AnalyzePreProcess(audio_buffer);

@@ -156,6 +156,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="1749561566933687563">ブックマークの同期</translation>
 <translation id="1750238553597293878">Google アカウントのパスワードを引き続き使用してください</translation>
 <translation id="17513872634828108">開いているタブ</translation>
+<translation id="1753744496844366747">Aあ</translation>
 <translation id="1755203724116202818">広告のパフォーマンスを測定するため、サイトにアクセスした後に購入したかどうかなど、限定的な種類のデータがサイト間で共有されます。</translation>
 <translation id="1760873718737761808">{FILE_COUNT,plural, =1{ページ、リストの 1 件のページ}other{ページ、リストの # 件のページ}}</translation>
 <translation id="1771929606532798550">Chrome の使用状況に関する情報が Google に送信されますが、ユーザーとは関連付けられません\n\nChrome がクラッシュした場合、クラッシュに関する情報として一部の個人情報が送信されることがあります\n\n履歴を Google アカウントと同期した場合、アクセスした URL に関する情報も送信されることがあります</translation>
@@ -321,6 +322,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="253498598929009420">ウェブサイトは画面上のコンテンツを読み取ることができます</translation>
 <translation id="2535807170289627159">すべてのタブ</translation>
 <translation id="2536728043171574184">このページのオフライン コピーを表示しています</translation>
+<translation id="2539002604555291451">Sans serif</translation>
 <translation id="2542548955756682219"><ph name="TAB_TITLE" />、タブ</translation>
 <translation id="2546283357679194313">Cookie とサイトデータ</translation>
 <translation id="2547843573592965873">プロフィールのロックを使用すると、Google アカウントに保存されている同期済みのパスワードやお支払い情報などを車内で安全に保護できます。</translation>
@@ -499,7 +501,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="3384347053049321195">画像を共有</translation>
 <translation id="3387650086002190359">ファイル システムでエラーが発生したため、<ph name="FILE_NAME" /> をダウンロードできませんでした。</translation>
 <translation id="3414952576877147120">サイズ:</translation>
-<translation id="3421726884497337397">サードパーティの Cookie をどのようなときにブロックするかを選択する</translation>
 <translation id="3430670036890315772">プロフィールのロックをオフにすると、保存した情報が削除されます</translation>
 <translation id="3435465986463792564">ウィンドウの数が多くてお困りの場合も、ここで管理できます</translation>
 <translation id="3435575784518354875">パスワードを引き続き使用できるようにするには、今すぐパスワードをエクスポートし、Google Play 開発者サービスを更新してから、Google パスワード マネージャーに再度インポートしてください。<ph name="BEGIN_LINK" />詳細な手順はこちらをご覧ください<ph name="END_LINK" />。</translation>
@@ -760,7 +761,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4640331037679501949">{NUM_PASSWORDS,plural, =1{不正使用されたパスワード: 1 件}other{不正使用されたパスワード: # 件}}</translation>
 <translation id="4641919525231168205">次のページに移動</translation>
 <translation id="4642472735733036929">価格のトラッキングを停止しました</translation>
-<translation id="4645146721047390964">シークレット モードのとき、サイトは Cookie を使用して別のサイトでのあなたの閲覧アクティビティを確認できず、広告のカスタマイズなどを行えなくなります。一部サイトの機能が使用できなくなる可能性もあります。</translation>
 <translation id="465657074423018424">セーフ ブラウジングでは不正なウェブサイトからデバイスを保護します。オフにする場合は、パスワード入力時など、ブラウジングの際は十分に気を付けてください。</translation>
 <translation id="4662373422909645029">ニックネームに数字を含めることはできません</translation>
 <translation id="4663756553811254707"><ph name="NUMBER_OF_BOOKMARKS" /> 件のブックマークを削除しました</translation>
@@ -911,7 +911,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="5233638681132016545">新しいタブ</translation>
 <translation id="5235196193381275927">ログイン中に問題が発生しました</translation>
 <translation id="5246093389635966745">ツールバー ショートカットの編集</translation>
-<translation id="5252768492075585080">サードパーティ Cookie の設定</translation>
 <translation id="5264813352784073502">過去 24 時間</translation>
 <translation id="5267572070504076962">セーフ ブラウジングをオンにすると危険なサイトから保護されます</translation>
 <translation id="5271967389191913893">デバイスでダウンロード コンテンツを開くことができません。</translation>
@@ -1220,7 +1219,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6633067410344541938">シークレット モードのロックを解除</translation>
 <translation id="6636623428211296678">下で他の設定を確認するか、ここで終了できます</translation>
 <translation id="6637100877383020115">アプリを改善するため、Chrome では使用状況とクラッシュに関するデータが Google に送信されます。<ph name="BEGIN_UMA_LINK" />管理<ph name="END_UMA_LINK" /></translation>
-<translation id="6640207029842583248">常にブロックする</translation>
 <translation id="6641780377503683465"><ph name="INTEREST" /> を削除</translation>
 <translation id="6647441008198474441">アクセスした URL が Google に送信され、次にアクセスするサイトの予測が行われます</translation>
 <translation id="6648977384226967773">{CONTACT,plural, =1{<ph name="CONTACT_PREVIEW" />\u2026 他 <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> 件}other{<ph name="CONTACT_PREVIEW" />\u2026 他 <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> 件}}</translation>
@@ -1232,6 +1230,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6674571176963658787">同期を開始するには、パスフレーズを入力してください</translation>
 <translation id="6676927815633975364">このサイトと Chrome にログインします</translation>
 <translation id="6684809838922667136">Chrome の品質を向上</translation>
+<translation id="6689436252814043643">リーディング モードは使用できません</translation>
 <translation id="6700279777779583398">選択内容を保存しました</translation>
 <translation id="670498945988402717">前回の確認: 昨日</translation>
 <translation id="6710213216561001401">前へ</translation>
@@ -1240,6 +1239,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6723740634201835758">Google アカウント</translation>
 <translation id="6734310707649923383">アクセスしたページを確認したり履歴から削除したりできます</translation>
 <translation id="6738867403308150051">ダウンロードしています…</translation>
+<translation id="6745063744988317486">Mono</translation>
 <translation id="6746338529702829275">アカウントのデータを確認します</translation>
 <translation id="6751521182688001123">新しいタブをすばやく開きます。このショートカットを編集するには、長押ししてください。</translation>
 <translation id="6752130751133944215">新しいウィンドウを復元するには、アクティブなウィンドウとアクティブでないウィンドウの合計数を <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個以下に減らしてください。アクティブでないウィンドウは 6 か月後に削除されます。</translation>
@@ -1342,6 +1342,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7111822978084196600">このウィンドウに名前を付ける</translation>
 <translation id="7115358764509798967">システムのデフォルト</translation>
 <translation id="7117485132243600300">フォローしているコンテンツ、おすすめのトピックと検索候補を管理します</translation>
+<translation id="7119984597597798764"><ph name="INSTANCE_TITLE" /> を閉じる</translation>
 <translation id="7136902389402789299">{NUM_SITES,plural, =1{1 件のサイトの権限を確認しました}other{# 件のサイトの権限を確認しました}}</translation>
 <translation id="7138678301420049075">その他</translation>
 <translation id="7140829094791862589">手動で並べ替え</translation>
@@ -1443,7 +1444,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="751961395872307827">サイトに接続できません</translation>
 <translation id="7523960634226602883">Google レンズを使ってカメラで検索します</translation>
 <translation id="7525248386620136756"><ph name="TAB_GROUPS_AND_TABS_PART" /> を閉じて保存しました</translation>
-<translation id="752731652852882757">シークレット モードのときはブロックする</translation>
 <translation id="7545347190366646170">アクセス権があるユーザー</translation>
 <translation id="7554643625247105821">Chrome のバージョンを確認できません</translation>
 <translation id="7557508262441527045">ログアウトしました</translation>
@@ -1609,7 +1609,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8243077599929149377">ユーザー名を追加</translation>
 <translation id="8244387390464017490">新しいタブページをカスタマイズ</translation>
 <translation id="8250920743982581267">ドキュメント</translation>
-<translation id="8255617931166444521">サイトは、そのサイトにおけるあなたの閲覧アクティビティの確認のみに Cookie を使用できます</translation>
 <translation id="8258999165172757081">追加済み</translation>
 <translation id="8259179246279078674">プリロードされたページは暗号化されているため、Google はプリロードされたページのコンテンツを一切把握できません。Google サーバーは、どのサイトが非公開でプリロードされたかを把握します。この情報はページをプリロードするためにのみ使用され、Google アカウントから他の情報にリンクされることはありません。</translation>
 <translation id="8260126382462817229">もう一度ログインしてみてください</translation>

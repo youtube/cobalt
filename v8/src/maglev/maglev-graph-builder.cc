@@ -929,6 +929,22 @@ ValueNode* MaglevGraphBuilder::Select(FCond cond, FTrue if_true,
   return subgraph.get(ret_val);
 }
 
+ValueNode* MaglevGraphBuilder::BuildInt32Max(ValueNode* a, ValueNode* b) {
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
+      },
+      [&]() -> ValueNode* { return b; }, [&]() -> ValueNode* { return a; });
+}
+
+ValueNode* MaglevGraphBuilder::BuildInt32Min(ValueNode* a, ValueNode* b) {
+  return Select(
+      [&](BranchBuilder& builder) {
+        return BuildBranchIfInt32Compare(builder, Operation::kLessThan, a, b);
+      },
+      [&]() -> ValueNode* { return a; }, [&]() -> ValueNode* { return b; });
+}
+
 ReduceResult MaglevGraphBuilder::SelectReduction(
     base::FunctionRef<BranchResult(BranchBuilder&)> cond,
     base::FunctionRef<ReduceResult()> if_true,
@@ -1658,109 +1674,7 @@ ReduceResult MaglevGraphBuilder::GetInternalizedString(
 
 ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(
     ValueNode* value, NodeType allowed_input_type) {
-  value->MaybeRecordUseReprHint(UseRepresentation::kTruncatedInt32);
-
-  ValueRepresentation representation =
-      value->properties().value_representation();
-  if (representation == ValueRepresentation::kInt32) return value;
-  if (representation == ValueRepresentation::kUint32) {
-    // This node is cheap (no code gen, just a bitcast), so don't cache it.
-    return AddNewNodeNoInputConversion<TruncateUint32ToInt32>({value});
-  }
-
-  // Process constants first to avoid allocating NodeInfo for them.
-  switch (value->opcode()) {
-    case Opcode::kConstant: {
-      compiler::ObjectRef object = value->Cast<Constant>()->object();
-      if (!object.IsHeapNumber()) break;
-      int32_t truncated_value = DoubleToInt32(object.AsHeapNumber().value());
-      if (!Smi::IsValid(truncated_value)) break;
-      return GetInt32Constant(truncated_value);
-    }
-    case Opcode::kSmiConstant:
-      return GetInt32Constant(value->Cast<SmiConstant>()->value().value());
-    case Opcode::kRootConstant: {
-      Tagged<Object> root_object =
-          local_isolate_->root(value->Cast<RootConstant>()->index());
-      if (!IsOddball(root_object, local_isolate_)) break;
-      int32_t truncated_value =
-          DoubleToInt32(Cast<Oddball>(root_object)->to_number_raw());
-      // All oddball ToNumber truncations are valid Smis.
-      DCHECK(Smi::IsValid(truncated_value));
-      return GetInt32Constant(truncated_value);
-    }
-    case Opcode::kFloat64Constant: {
-      int32_t truncated_value =
-          DoubleToInt32(value->Cast<Float64Constant>()->value().get_scalar());
-      if (!Smi::IsValid(truncated_value)) break;
-      return GetInt32Constant(truncated_value);
-    }
-
-    // We could emit unconditional eager deopts for other kinds of constant, but
-    // it's not necessary, the appropriate checking conversion nodes will deopt.
-    default:
-      break;
-  }
-
-  NodeInfo* node_info = GetOrCreateInfoFor(value);
-  auto& alternative = node_info->alternative();
-
-  // If there is an int32_alternative, then that works as a truncated value
-  // too.
-  if (ValueNode* alt = alternative.int32()) {
-    return alt;
-  }
-  if (ValueNode* alt = alternative.truncated_int32_to_number()) {
-    return alt;
-  }
-
-  switch (representation) {
-    case ValueRepresentation::kTagged: {
-      NodeType old_type;
-      EnsureType(value, allowed_input_type, &old_type);
-      if (NodeTypeIsSmi(old_type)) {
-        // Smi untagging can be cached as an int32 alternative, not just a
-        // truncated alternative.
-        return alternative.set_int32(BuildSmiUntag(value));
-      }
-      if (allowed_input_type == NodeType::kSmi) {
-        return alternative.set_int32(
-            AddNewNodeNoInputConversion<CheckedSmiUntag>({value}));
-      }
-      if (NodeTypeIs(old_type, allowed_input_type)) {
-        return alternative.set_truncated_int32_to_number(
-            AddNewNodeNoInputConversion<TruncateNumberOrOddballToInt32>(
-                {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
-      }
-      return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<CheckedTruncateNumberOrOddballToInt32>(
-              {value}, GetTaggedToFloat64ConversionType(allowed_input_type)));
-    }
-    case ValueRepresentation::kFloat64:
-    // Ignore conversion_type for HoleyFloat64, and treat them like Float64.
-    // ToNumber of undefined is anyway a NaN, so we'll simply truncate away
-    // the NaN-ness of the hole, and don't need to do extra oddball checks so
-    // we can ignore the hint (though we'll miss updating the feedback).
-    case ValueRepresentation::kHoleyFloat64: {
-      return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<TruncateFloat64ToInt32>({value}));
-    }
-
-    case ValueRepresentation::kIntPtr: {
-      // This is not an efficient implementation, but this only happens in
-      // corner cases.
-      ValueNode* value_to_number =
-          AddNewNodeNoInputConversion<IntPtrToNumber>({value});
-      return alternative.set_truncated_int32_to_number(
-          AddNewNodeNoInputConversion<TruncateNumberOrOddballToInt32>(
-              {value_to_number}, TaggedToFloat64ConversionType::kOnlyNumber));
-    }
-    case ValueRepresentation::kInt32:
-    case ValueRepresentation::kUint32:
-    case ValueRepresentation::kNone:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
+  return reducer_.GetTruncatedInt32ForToNumber(value, allowed_input_type);
 }
 
 std::optional<uint32_t> MaglevGraphBuilder::TryGetUint32Constant(
@@ -1905,8 +1819,8 @@ ValueNode* MaglevGraphBuilder::GetUint8ClampedForToNumber(ValueNode* value) {
       // rounding for clamping.
       return AddNewNodeNoInputConversion<Float64ToUint8Clamped>({value});
     case ValueRepresentation::kInt32:
-      if (Int32Constant* constant = value->TryCast<Int32Constant>()) {
-        return GetInt32Constant(ClampToUint8(constant->value()));
+      if (auto constant = TryGetInt32Constant(value)) {
+        return GetInt32Constant(ClampToUint8(*constant));
       }
       return AddNewNodeNoInputConversion<Int32ToUint8Clamped>({value});
     case ValueRepresentation::kUint32:
@@ -5578,6 +5492,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
 
   bool has_deprecated_map_without_migration_target = false;
   if (compiler::OptionalHeapObjectRef c = TryGetConstant(lookup_start_object)) {
+    if (c.value().IsTheHole()) return {};
     compiler::MapRef constant_map = c.value().map(broker());
     if (c.value().IsJSFunction() &&
         feedback.name().equals(broker()->prototype_string())) {
@@ -5755,21 +5670,20 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       return AddNewNodeNoInputConversion<CheckedInt32ToUint32>({index});
     }
     case ValueRepresentation::kInt32:
-      if (Int32Constant* constant = object->TryCast<Int32Constant>()) {
-        int32_t value = constant->value();
-        if (value < 0) {
+      if (auto constant = TryGetInt32Constant(object)) {
+        if (*constant < 0) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
         }
-        return GetUint32Constant(value);
+        return GetUint32Constant(*constant);
       }
       return AddNewNodeNoInputConversion<CheckedInt32ToUint32>({object});
     case ValueRepresentation::kUint32:
       return object;
     case ValueRepresentation::kFloat64:
-      if (Float64Constant* constant = object->TryCast<Float64Constant>()) {
-        double value = constant->value().get_scalar();
+      if (auto constant = TryGetFloat64Constant(
+              object, TaggedToFloat64ConversionType::kOnlyNumber)) {
         uint32_t uint32_value;
-        if (!DoubleToUint32IfEqualToSelf(value, &uint32_value)) {
+        if (!DoubleToUint32IfEqualToSelf(*constant, &uint32_value)) {
           return EmitUnconditionalDeopt(DeoptimizeReason::kNotUint32);
         }
         if (Smi::IsValid(uint32_value)) {
@@ -5778,9 +5692,8 @@ ReduceResult MaglevGraphBuilder::GetUint32ElementIndex(ValueNode* object) {
       }
       [[fallthrough]];
     case ValueRepresentation::kHoleyFloat64: {
-      // CheckedTruncateFloat64ToUint32 will gracefully deopt on holes.
-      return AddNewNodeNoInputConversion<CheckedTruncateFloat64ToUint32>(
-          {object});
+      // CheckedHoleyFloat64ToUint32 will gracefully deopt on holes.
+      return AddNewNodeNoInputConversion<CheckedHoleyFloat64ToUint32>({object});
       case ValueRepresentation::kNone:
         UNREACHABLE();
     }
@@ -8972,9 +8885,9 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceArrayIteratorPrototypeNext(
           // This is not necessary for JSTypedArray's, since the length of those
           // cannot change later and so if we were ever out of bounds for them
           // we will stay out-of-bounds forever.
-          return BuildStoreTaggedField(receiver, GetFloat64Constant(kMaxUInt32),
-                                       JSArrayIterator::kNextIndexOffset,
-                                       StoreTaggedMode::kDefault);
+          return BuildStoreTaggedField(
+              receiver, GetRootConstant(RootIndex::kMaxUInt32),
+              JSArrayIterator::kNextIndexOffset, StoreTaggedMode::kDefault);
         }
         return ReduceResult::Done();
       }));
@@ -9294,18 +9207,6 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   // And index is below length.
   ValueNode* length;
   GET_VALUE_OR_ABORT(length, BuildLoadStringLength(receiver));
-  auto GetCharCodeAt = [&]() -> ValueNode* {
-    bool is_seq_one_byte =
-        v8_flags.specialize_code_for_one_byte_seq_strings &&
-        NodeTypeIs(GetType(receiver), NodeType::kSeqOneByteString);
-    if (is_seq_one_byte) {
-      return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({receiver, index});
-    } else {
-      return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
-          {receiver, index},
-          BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
-    }
-  };
 
   if (current_speculation_mode_ ==
       SpeculationMode::kDisallowBoundsCheckSpeculation) {
@@ -9320,14 +9221,14 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
               AddNewNode<UnsafeInt32ToUint32>({index}),
               AddNewNode<UnsafeInt32ToUint32>({length}));
         },
-        [&]() -> ValueNode* { return GetCharCodeAt(); },
+        [&]() -> ValueNode* { return BuildGetCharCodeAt(receiver, index); },
         [&]() { return GetRootConstant(RootIndex::kNanValue); });
   }
 
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
-  return GetCharCodeAt();
+  return BuildGetCharCodeAt(receiver, index);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
@@ -9386,6 +9287,90 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
       index, length, AssertCondition::kUnsignedLessThan,
       DeoptimizeReason::kOutOfBounds));
   return GetCodePointAt();
+}
+
+MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeStartsWith(
+    compiler::JSFunctionRef target, CallArguments& args) {
+  if (!CanSpeculateCall()) return {};
+  ValueNode* receiver = GetValueOrUndefined(args.receiver());
+  ValueNode* search_element =
+      BuildToString(GetValueOrUndefined(args[0]), ToString::kThrowOnSymbol);
+  ValueNode* start_arg = GetValueOrUndefined(args[1]);
+  ValueNode* start =
+      IsUndefinedValue(start_arg) ? GetInt32Constant(0) : start_arg;
+
+  RETURN_IF_ABORT(BuildCheckString(receiver));
+  RETURN_IF_ABORT(BuildCheckSmi(start));
+
+  ValueNode* receiver_length;
+  GET_VALUE_OR_ABORT(receiver_length, BuildLoadStringLength(receiver));
+
+  // min(max(start, 0), receiver_length)
+  ValueNode* clamped_start = GetInt32(BuildInt32Min(
+      BuildInt32Max(start, GetInt32Constant(0)), receiver_length));
+
+  ValueNode* search_length;
+  GET_VALUE_OR_ABORT(search_length, BuildLoadStringLength(search_element));
+
+  // TODO: Introduce a ForInt32 helper.
+  MaglevSubGraphBuilder sub_graph(this, 2);
+  MaglevSubGraphBuilder::Variable ret_val(0);
+  MaglevSubGraphBuilder::Variable var_i(1);
+  MaglevSubGraphBuilder::Label done(&sub_graph, 2, {&ret_val});
+  MaglevSubGraphBuilder::Label return_false(&sub_graph, 2);
+
+  // receiver_length - clamped_start < search_length
+  ValueNode* remaining =
+      AddNewNode<Int32Subtract>({receiver_length, clamped_start});
+  sub_graph.GotoIfTrue<BranchIfInt32Compare>(
+      &return_false, {remaining, search_length}, Operation::kLessThan);
+
+  // i = 0
+  sub_graph.set(var_i, GetInt32Constant(0));
+  MaglevSubGraphBuilder::LoopLabel loop_header = sub_graph.BeginLoop({&var_i});
+  MaglevSubGraphBuilder::Label return_true(&sub_graph, 1);
+
+  ValueNode* index_int32 = sub_graph.get(var_i);
+
+  // if (i < search_length) continue; else exit loop
+  sub_graph.GotoIfFalse<BranchIfInt32Compare>(
+      &return_true, {index_int32, search_length}, Operation::kLessThan);
+
+  // pos = clamped_start + i
+  ValueNode* pos = AddNewNode<Int32Add>({clamped_start, index_int32});
+
+  // TODO(dmercadier): without static knowledge about maps shapes (which we
+  // probably don't have), BuildGetCharCodeAt generates fairly expensive code
+  // since it needs to handle all string shapes. It would be more efficient to
+  // have a pre-processing before the loop that computes a single linear buffer
+  // for each string (+ maybe an index, for SlicedString in particular), that's
+  // then accessed directly in the loop (cf StringPrepareForGetCodeUnit in
+  // Turboshaft). Here in particular, the loop doesn't contain anything that can
+  // trigger a GC, so this should be safe.
+  ValueNode* lhs_ch = BuildGetCharCodeAt(receiver, pos);
+  ValueNode* rhs_ch = BuildGetCharCodeAt(search_element, index_int32);
+  ValueNode* is_equal = BuildTaggedEqual(lhs_ch, rhs_ch);
+
+  // If chars are not equal, return false.
+  sub_graph.GotoIfFalse<BranchIfRootConstant>(&return_false, {is_equal},
+                                              RootIndex::kTrueValue);
+
+  // i++; goto loop_header
+  ValueNode* next_index_int32 =
+      AddNewNode<Int32Add>({sub_graph.get(var_i), GetInt32Constant(1)});
+  sub_graph.set(var_i, next_index_int32);
+  sub_graph.EndLoop(&loop_header);
+
+  sub_graph.Bind(&return_true);
+  sub_graph.set(ret_val, GetRootConstant(RootIndex::kTrueValue));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&return_false);
+  sub_graph.set(ret_val, GetRootConstant(RootIndex::kFalseValue));
+  sub_graph.Goto(&done);
+
+  sub_graph.Bind(&done);
+  return sub_graph.get(ret_val);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
@@ -10734,8 +10719,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForApiFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      mode, api_callback, GetTaggedValue(GetContext()),
-      GetTaggedValue(receiver));
+      mode, api_callback, GetTaggedValue(receiver));
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
@@ -13021,7 +13005,11 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
     // via the boilerplate_migration_access lock.
     compiler::ObjectRef boilerplate_value = maybe_boilerplate_value.value();
 
-    if (boilerplate_value.IsJSObject()) {
+    if (IsUninitializedHole(*boilerplate_value.object())) {
+      // It's fine to store the 'uninitialized' Hole into a Smi field since
+      // it will get overwritten anyway.
+      fast_literal->set(offset, GetConstant(boilerplate_value));
+    } else if (boilerplate_value.IsJSObject()) {
       compiler::JSObjectRef boilerplate_object = boilerplate_value.AsJSObject();
       std::optional<VirtualObject*> maybe_object_value =
           TryReadBoilerplateForFastLiteral(boilerplate_object, allocation,
@@ -13033,11 +13021,6 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
                         CreateHeapNumber(Float64::FromBits(
                             boilerplate_value.AsHeapNumber().value_as_bits())));
     } else {
-      // It's fine to store the 'uninitialized' Oddball into a Smi field since
-      // it will get overwritten anyway.
-      DCHECK_IMPLIES(property_details.representation().IsSmi() &&
-                         !boilerplate_value.IsSmi(),
-                     IsUninitializedHole(*boilerplate_value.object()));
       fast_literal->set(offset, GetConstant(boilerplate_value));
     }
     index++;
@@ -13088,7 +13071,10 @@ MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
         compiler::OptionalObjectRef element_value =
             boilerplate_elements_as_fixed_array.TryGet(broker(), i);
         if (!element_value.has_value()) return {};
-        if (element_value->IsJSObject()) {
+        if (element_value->IsTheHole()) {
+          elements->set(FixedArray::OffsetOfElementAt(i),
+                        GetConstant(*element_value));
+        } else if (element_value->IsJSObject()) {
           std::optional<VirtualObject*> object =
               TryReadBoilerplateForFastLiteral(element_value->AsJSObject(),
                                                allocation, max_depth - 1,
@@ -16506,6 +16492,20 @@ bool MaglevGraphBuilder::IsInsideLoop() const {
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
   return reducer_.BuildSmiUntag(node);
+}
+
+ValueNode* MaglevGraphBuilder::BuildGetCharCodeAt(ValueNode* string,
+                                                  ValueNode* index) {
+  bool is_seq_one_byte =
+      v8_flags.specialize_code_for_one_byte_seq_strings &&
+      NodeTypeIs(GetType(string), NodeType::kSeqOneByteString);
+  if (is_seq_one_byte) {
+    return AddNewNode<BuiltinSeqOneByteStringCharCodeAt>({string, index});
+  } else {
+    return AddNewNode<BuiltinStringPrototypeCharCodeOrCodePointAt>(
+        {string, index},
+        BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+  }
 }
 
 }  // namespace v8::internal::maglev

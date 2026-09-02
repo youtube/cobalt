@@ -310,11 +310,11 @@ static bool SpeedRSA(const std::string &selected) {
       {"RSA 4096", kDERRSAPrivate4096, kDERRSAPrivate4096Len},
   };
 
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kRSAKeys); i++) {
-    const std::string name = kRSAKeys[i].name;
+  for (const auto &key_info : kRSAKeys) {
+    const std::string name = key_info.name;
 
     bssl::UniquePtr<RSA> key(
-        RSA_private_key_from_bytes(kRSAKeys[i].key, kRSAKeys[i].key_len));
+        RSA_private_key_from_bytes(key_info.key, key_info.key_len));
     if (key == nullptr) {
       fprintf(stderr, "Failed to parse %s key.\n", name.c_str());
       ERR_print_errors_fp(stderr);
@@ -385,7 +385,7 @@ static bool SpeedRSA(const std::string &selected) {
 
     if (!TimeFunctionParallel(&results, [&]() -> bool {
           return bssl::UniquePtr<RSA>(RSA_private_key_from_bytes(
-                     kRSAKeys[i].key, kRSAKeys[i].key_len)) != nullptr;
+                     key_info.key, key_info.key_len)) != nullptr;
         })) {
       fprintf(stderr, "Failed to parse %s key.\n", name.c_str());
       ERR_print_errors_fp(stderr);
@@ -1480,9 +1480,9 @@ static bool SpeedTrustToken(std::string name, const TRUST_TOKEN_METHOD *method,
   uint8_t public_key[32], private_key[64];
   ED25519_keypair(public_key, private_key);
   bssl::UniquePtr<EVP_PKEY> priv(
-      EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, private_key, 32));
+      EVP_PKEY_from_raw_private_key(EVP_pkey_ed25519(), private_key, 32));
   bssl::UniquePtr<EVP_PKEY> pub(
-      EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, public_key, 32));
+      EVP_PKEY_from_raw_public_key(EVP_pkey_ed25519(), public_key, 32));
   if (!priv || !pub) {
     fprintf(stderr, "failed to generate trust token SRR key.\n");
     return false;

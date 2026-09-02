@@ -119,7 +119,7 @@ class CodecVendor {
 class CodecLookupHelper {
  public:
   virtual ~CodecLookupHelper() = default;
-  virtual PayloadTypeSuggester* PayloadTypeSuggester() = 0;
+  virtual ::webrtc::PayloadTypeSuggester* PayloadTypeSuggester() = 0;
   // Look up the codec vendor to use, depending on context.
   // This call may get additional arguments in the future, to aid
   // in selection of the correct context.
@@ -127,6 +127,5 @@ class CodecLookupHelper {
 };
 
 }  //  namespace webrtc
-
 
 #endif  // PC_CODEC_VENDOR_H_

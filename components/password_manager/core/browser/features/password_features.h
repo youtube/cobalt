@@ -73,11 +73,20 @@ BASE_DECLARE_FEATURE(kClearUndecryptablePasswords);
 // Delete undecryptable passwords from the store when Sync is active.
 BASE_DECLARE_FEATURE(kClearUndecryptablePasswordsOnSync);
 
+// Enables debug data popups on OTP fields for manual testing of
+// one-time-passwords. Only for OTP detection testing, not intended to be
+// launched.
+BASE_DECLARE_FEATURE(kDebugUiForOtps);
+
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
 // Enables the Mojo JavaScript API for the password manager, replacing the
 // legacy passwordsPrivate extension API.
 BASE_DECLARE_FEATURE(kEnablePasswordManagerMojoApi);
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+
+// Fetches change password url if the credential has been identified as leaked.
+// Later change password url is used during password change.
+BASE_DECLARE_FEATURE(kFetchChangePasswordUrlForPasswordChange);
 
 // Enables the experiment for the password manager to only fill on account
 // selection, rather than autofilling on page load, with highlighting of fields.
@@ -181,6 +190,11 @@ BASE_DECLARE_FEATURE(kMarkAllCredentialsAsLeaked);
 
 // Enables improvements to password change functionality.
 BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
+
+// In the automatic password change flow, Chrome will try to submit the change
+// password form with Enter key at the first place (still with the fall back of
+// calling the model to find the Submit button).
+BASE_DECLARE_FEATURE(kSubmitWithEnterDuringPasswordChange);
 
 #if BUILDFLAG(IS_ANDROID)
 // The feature flag for reloading passwords when the trusted vault encryption

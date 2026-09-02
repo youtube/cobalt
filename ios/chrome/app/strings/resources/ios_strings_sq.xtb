@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Komentet bazohen në interesat e tu</translation>
 <translation id="1074827084851510304">Je gati të fshish {password_count} fjalëkalime dhe listën e sajteve dhe aplikacioneve për të cilat ke zgjedhur që të mos i ruash asnjëherë informacionet e identifikimit. Nuk do të fshihet asnjë llogari që ke krijuar për sajtet dhe aplikacionet.</translation>
 <translation id="1076421457278169141">Kodi u skanua</translation>
+<translation id="1081114897601629648">Fjalëkalimet e mëposhtme nuk u importuan te "Menaxheri i fjalëkalimeve i Google" pasi nuk përputhen me kërkesat.</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} skedë}other{{count} skeda}}</translation>
 <translation id="1082554859195167538">Komentet për produktet për ty</translation>
 <translation id="1084365883616172403">Postimi në Facebook u krye.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">Llogaria jote menaxhohet nga prindi yt.
 <ph name="BEGIN_LINK" />Mëso më shumë<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Ndryshuar</translation>
-<translation id="1485907716209290998">Gjurmimi i paketës</translation>
 <translation id="1486096554574027028">Kërko fjalëkalimet</translation>
 <translation id="1491277525950327607">Trokit dy herë për të ndryshuar cilësimin</translation>
 <translation id="1491965206608166851">Identifikohu me çelësat e kalimit dhe fjalëkalimet e ruajtura nga çdo aplikacion</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">Zbulimi i adresës është joaktiv. Riaktivizoje atë te "Cilësimet".</translation>
 <translation id="1904580727789512086">URL-të që viziton ruhen në "Llogarinë tënde të Google"</translation>
 <translation id="1911619930368729126">Ngarko në "Diskun e Google"</translation>
+<translation id="1925706052394657380">Hap cilësimet për <ph name="BEGIN_BOLD" />Default Apps<ph name="END_BOLD" /> në iOS</translation>
 <translation id="1941314575388338491">Trokit dy herë për të kopjuar.</translation>
 <translation id="1943478190258551035">Menyja → Cilësimet</translation>
 <translation id="1952728750904661634">Identifikohu me llogari të menaxhuar</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> ka ndarë një fjalëkalim me ty për <ph name="WEBSITE" /></translation>
 <translation id="1962969542251276847">Ekrani i kyçjes</translation>
 <translation id="1963976881984600709">Mbrojtja standarde</translation>
+<translation id="1964507856799750384">Trokit te <ph name="BEGIN_BOLD" />Browser App<ph name="END_BOLD" /></translation>
 <translation id="1966313166384086081">të dhënat e sajtit</translation>
 <translation id="1967461193809857427">{count,plural, =1{Të vazhdohet me skedën ku e ke lënë në Android?}other{Të vazhdohet me skedat ku e ke lënë në Android?}}</translation>
 <translation id="1972325230031091483">Do të shfletosh më shpejt sepse përmbajtja ngarkohet në mënyrë proaktive bazuar në vizitën aktuale në faqen e uebit</translation>
@@ -599,7 +601,6 @@ Shiko udhëzimet e motorit të kërkimit për fshirjen e historikut të kërkimi
 <translation id="333229797575847124">Si ta aktivizosh këtë veçori</translation>
 <translation id="3344485292736684439">{count,plural, =1{Faqeshënuesi u ruajt te "{title}" në llogarinë tënde, {email}}other{Faqeshënuesit u ruajtën te "{title}" në llogarinë tënde, {email}}}</translation>
 <translation id="334690320928261823">Skedat e fundit</translation>
-<translation id="3348387552617855658">Kjo kartë të ndihmon të gjurmosh pakot e tua dhe të jep përditësime të rëndësishme për dorëzimin.</translation>
 <translation id="3349031117032695619">Blloko dritaret kërcyese</translation>
 <translation id="3349676726073650389">Sajtet dhe kërkimet që ndjek ruhen në "Llogarinë tënde të Google". Mund t'i menaxhosh ndjekjet te cilësimet në çdo kohë.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Kjo llogari është e menaxhuar.</translation>
@@ -1398,7 +1399,6 @@ Handoff duhet gjithashtu të jetë i aktivizuar në seksionin "Të përgjithshme
 <translation id="6406506848690869874">Sinkronizo</translation>
 <translation id="6410390304316730527">"Shfletimi i sigurt" të mbron kundër sulmuesve që mund të të mashtrojnë që të bësh diçka të rrezikshme si instalimi i softuerëve keqdashës ose të zbulosh informacion personal si fjalëkalime, numra telefoni ose karta krediti. Nëse e çaktivizon, ki kujdes kur shfleton sajte të panjohura ose pa reputacion.</translation>
 <translation id="6410883413783534063">Hap skedat për të vizituar faqe të ndryshme njëkohësisht</translation>
-<translation id="6416807286621280684">Pakot e tua të gjurmuara dhe përditësimet për dorëzimin.</translation>
 <translation id="6418346271604475326">Po përgatit PDF</translation>
 <translation id="6421038304268477484">Teksti i përkthyer</translation>
 <translation id="6429213933892582367">Hap "Opsionet e fjalëkalimeve"</translation>

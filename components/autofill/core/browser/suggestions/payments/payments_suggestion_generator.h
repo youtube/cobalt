@@ -28,13 +28,10 @@ namespace autofill {
 
 class AutofillClient;
 class AutofillOfferData;
+class BrowserAutofillManager;
 class CreditCard;
 class FormFieldData;
 class Iban;
-
-namespace autofill_metrics {
-class CreditCardFormEventLogger;
-}
 
 // Describes the suggestions returned by
 // `GetCreditCardOrCvcFieldSuggestions()`.
@@ -52,7 +49,7 @@ struct CreditCardSuggestionSummary {
   autofill_metrics::SuggestionRankingContext ranking_context;
 };
 
-// Holds the result of `MaybeUpdateSuggestionsWithBnpl`.
+// Holds the result of `MaybeUpdateDesktopSuggestionsWithBnpl`.
 struct BnplSuggestionUpdateResult {
   BnplSuggestionUpdateResult();
 
@@ -131,7 +128,7 @@ std::vector<CreditCard> GetTouchToFillCardsToSuggest(
 // end (but before footer items) of the given suggestion list
 // `current_suggestions`. `BnplSuggestionUpdateResult::is_bnpl_suggestion_added`
 // is true if a BNPL suggestion is inserted successfully.
-BnplSuggestionUpdateResult MaybeUpdateSuggestionsWithBnpl(
+BnplSuggestionUpdateResult MaybeUpdateDesktopSuggestionsWithBnpl(
     const base::span<const Suggestion>& current_suggestions,
     const std::vector<BnplIssuer>& bnpl_issuers,
     uint64_t extracted_amount_in_micros);
@@ -139,11 +136,10 @@ BnplSuggestionUpdateResult MaybeUpdateSuggestionsWithBnpl(
 // Generates touch-to-fill suggestions for all available credit cards to be
 // used in the bottom sheet. Benefits information, containing instrument IDs and
 // issuer IDs, will be added to the `metadata_logging_context` and assigned to
-// the `credit_card_form_event_logger`.
+// the BrowserAutofillManager's `credit_card_form_event_logger`.
 std::vector<Suggestion> GetCreditCardSuggestionsForTouchToFill(
     base::span<const CreditCard> credit_cards,
-    const AutofillClient& client,
-    autofill_metrics::CreditCardFormEventLogger& credit_card_form_event_logger);
+    BrowserAutofillManager& manager);
 
 // Generates a footer suggestion "Manage payment methods..." menu item which
 // will redirect to Chrome payment settings page. `with_gpay_logo` is used to

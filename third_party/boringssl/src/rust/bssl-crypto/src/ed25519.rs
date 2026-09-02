@@ -35,8 +35,7 @@
 //! ```
 
 use crate::{
-    cbb_to_buffer, parse_with_cbs, scoped, with_output_array, Buffer, FfiMutSlice, FfiSlice,
-    InvalidSignatureError,
+    cbb_to_buffer, scoped, with_output_array, Buffer, FfiMutSlice, FfiSlice, InvalidSignatureError,
 };
 
 /// The length in bytes of an Ed25519 public key.
@@ -154,25 +153,15 @@ impl PublicKey {
 
     /// Parse a public key in SubjectPublicKeyInfo format.
     pub fn from_der_subject_public_key_info(spki: &[u8]) -> Option<Self> {
-        let mut pkey = scoped::EvpPkey::from_ptr(parse_with_cbs(
-            spki,
-            // Safety: `pkey` is a non-null result from `EVP_parse_public_key` here.
-            |pkey| unsafe { bssl_sys::EVP_PKEY_free(pkey) },
-            // Safety: cbs is valid per `parse_with_cbs`.
-            |cbs| unsafe { bssl_sys::EVP_parse_public_key(cbs) },
-        )?);
-        // Safety: `pkey` is a valid `EVP_PKEY`.
-        if unsafe { bssl_sys::EVP_PKEY_id(pkey.as_ffi_ptr()) } != bssl_sys::EVP_PKEY_ED25519 {
-            return None;
-        }
-
-        // Safety: `EVP_PKEY_get_raw_public_key` is passed a valid buffer. The
-        // (always true) assertion ensures the closure always initializes the
-        // array.
+        // Safety: `EVP_pkey_ed25519` is always safe to call.
+        let alg = unsafe { bssl_sys::EVP_pkey_ed25519() };
+        let mut pkey =
+            scoped::EvpPkey::from_der_subject_public_key_info(spki, core::slice::from_ref(&alg))?;
         let raw_pkey: [u8; PUBLIC_KEY_LEN] = unsafe {
             with_output_array(|out, mut out_len| {
-                // If `pkey` is an Ed25519 key, checked above, the raw public
-                // key must be available, and must be `PUBLIC_KEY_LEN` bytes.
+                // We only passed one key type, so `pkey` must be an Ed25519
+                // key. The raw public key then must be available, and must be
+                // `PUBLIC_KEY_LEN` bytes.
                 assert_eq!(
                     1,
                     bssl_sys::EVP_PKEY_get_raw_public_key(pkey.as_ffi_ptr(), out, &mut out_len)
@@ -187,9 +176,8 @@ impl PublicKey {
     pub fn to_der_subject_public_key_info(&self) -> Buffer {
         // Safety: this only copies from the `self.0` buffer.
         let mut pkey = scoped::EvpPkey::from_ptr(unsafe {
-            bssl_sys::EVP_PKEY_new_raw_public_key(
-                bssl_sys::EVP_PKEY_ED25519,
-                /*unused=*/ core::ptr::null_mut(),
+            bssl_sys::EVP_PKEY_from_raw_public_key(
+                bssl_sys::EVP_pkey_ed25519(),
                 self.0.as_ffi_ptr(),
                 PUBLIC_KEY_LEN,
             )

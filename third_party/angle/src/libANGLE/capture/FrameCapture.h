@@ -10,6 +10,10 @@
 #ifndef LIBANGLE_FRAME_CAPTURE_H_
 #define LIBANGLE_FRAME_CAPTURE_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include <fstream>
 #include "sys/stat.h"
 

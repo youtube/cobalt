@@ -10462,6 +10462,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="DomDistiller.Android.OnStoppedReaderMode">
+  <owner>wylieb@google.com</owner>
+  <owner>evanluo@google.com</owner>
+  <owner>chrome-reader-mode-team@google.com</owner>
+  <description>
+    Recorded when a user stopped reader mode. This could be because of a
+    navigation away from the page, switching tabs, or closing the browser.
+  </description>
+</action>
+
 <action name="DomDistiller.Android.ThemeChanged">
   <owner>wylieb@google.com</owner>
   <owner>chrome-reader-mode-team@google.com</owner>
@@ -13508,6 +13518,24 @@ should be able to be added at any place in this file.
   <description>Please enter the description of this user action.</description>
 </action>
 
+<action name="HistoryPage_SideBarFooterGeminiAppsActivityClick">
+  <owner>lamzin@google.com</owner>
+  <owner>rainhard@chromium.org</owner>
+  <description>
+    User clicked the &quot;Gemini Apps Activity&quot; link in the footer of the
+    history page sidebar.
+  </description>
+</action>
+
+<action name="HistoryPage_SideBarFooterGoogleMyActivityClick">
+  <owner>lamzin@google.com</owner>
+  <owner>rainhard@chromium.org</owner>
+  <description>
+    User clicked the &quot;My Activity&quot; link in the footer of the history
+    page sidebar.
+  </description>
+</action>
+
 <action name="Home">
   <owner>mpearson@chromium.org</owner>
   <description>User pressed the Home button.</description>
@@ -15605,6 +15633,10 @@ should be able to be added at any place in this file.
 </action>
 
 <action name="IOS.HomeCustomization.MagicStackPage.ParcelTracking.Toggled">
+  <obsolete>
+    Unused as of 08/2025, as ParcelTracking code has been turned down and
+    removed from the codebase
+  </obsolete>
   <owner>adamta@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <description>
@@ -15760,6 +15792,16 @@ should be able to be added at any place in this file.
     Recorded when the user taps the ShopCard in the Magic Stack (which opens the
     price tracking URL) when the ShopCard contains a price drop from a user's
     tracked products.
+  </description>
+</action>
+
+<action name="IOS.MagicStack.ShopCard.PriceTracking.Track">
+  <owner>davidjm@chromium.org</owner>
+  <owner>chrome-shopping@google.com</owner>
+  <description>
+    Recorded when the user taps 'track' in a the ShopCard in the magic stack
+    which gives the user the option to price track a recently visited shopping
+    URL.
   </description>
 </action>
 
@@ -50154,6 +50196,7 @@ should be able to be added at any place in this file.
       label="For AddToHomescreen IPH feature."/>
   <suffix name="AddToHomescreenTextBubble"
       label="For AddToHomescreen IPH feature using text bubble (obsolete)."/>
+  <suffix name="AIHubNewBadge" label="For AI Hub New Badge feature."/>
   <suffix name="AndroidTabDeclutter" label="For archived tabs on android."/>
   <suffix name="AppSpecificHistory" label="For App Specific History feature."/>
   <suffix name="AutoDarkOptOut" label="For AutoDarkOptOut dialog feature."/>
@@ -50161,6 +50204,8 @@ should be able to be added at any place in this file.
       label="For AutoDarkUserEducationMessage feature."/>
   <suffix name="AutoDarkUserEducationMessageOptIn"
       label="For AutoDarkUserEducationMessageOptIn feature."/>
+  <suffix name="AutofillAccountNameEmailSuggestion"
+      label="For AutofillAccountNameEmailSuggestion feature."/>
   <suffix name="AutofillAiOptIn" label="For AutofillAiOptIn feature."/>
   <suffix name="AutofillBnplAffirmOrZipSuggestion"
       label="For AutofillBnplAffirmOrZipSuggestion IPH feature."/>
@@ -50183,6 +50228,8 @@ should be able to be added at any place in this file.
   <suffix name="AutofillVirtualCardSuggestion"
       label="For AutofillVirtualCardSuggestion feature."/>
   <suffix name="BackNavigationMenu" label="For BackNavigationMenu feature."/>
+  <suffix name="BadgedReaderMode"
+      label="For What's New badge in Reading Mode feature."/>
   <suffix name="BadgedReadingList" label="For BadgedReadingList feature."/>
   <suffix name="BadgedTranslateManualTrigger"
       label="For BadgedTranslateManualTrigger feature."/>

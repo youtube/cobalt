@@ -22,6 +22,19 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<histogram name="Glic.Actor.JournalEvent.{EventType}" units="ms"
+    expires_after="2026-08-29">
+  <owner>dtapuska@google.com</owner>
+  <owner>erikchen@google.com</owner>
+  <owner>chrome-synapse-team@google.com</owner>
+  <summary>Recorded whenever a glic async journal event is ended.</summary>
+  <token key="EventType">
+    <variant name="Turn"/>
+    <variant name="UploadContext"/>
+    <variant name="UploadScreenshot"/>
+  </token>
+</histogram>
+
 <histogram name="Glic.Api.FetchZeroStateSuggestionsLatency" units="ms"
     expires_after="2026-01-15">
   <owner>sophiechang@chromium.org</owner>
@@ -96,6 +109,7 @@ chromium-metrics-reviews@google.com.
     <variant name="LogInstantEvent"/>
     <variant name="MaybeRefreshUserStatus"/>
     <variant name="OnClosedCaptionsShown"/>
+    <variant name="OnModelChanged"/>
     <variant name="OnResponseRated"/>
     <variant name="OnResponseStarted"/>
     <variant name="OnResponseStopped"/>
@@ -558,6 +572,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Glic.PageContextFetcher.GetEncodedScreenshot.TimeoutAgnostic"
+    units="ms" expires_after="2026-01-15">
+  <owner>cfredric@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <summary>
+    Recorded when a page context receives screenshot data (post-encoding and
+    scaling) regardless of whether the timeout has already fired. Measure the
+    time from start.
+  </summary>
+</histogram>
+
 <histogram name="Glic.PageContextFetcher.GetInnerText" units="ms"
     expires_after="2026-01-15">
   <owner>carlosk@chromium.org</owner>
@@ -576,6 +601,17 @@ chromium-metrics-reviews@google.com.
   <summary>
     Recorded when a page context gets screenshot (pre-encoding and scaling).
     Measure the time from start.
+  </summary>
+</histogram>
+
+<histogram name="Glic.PageContextFetcher.GetScreenshot.TimeoutAgnostic"
+    units="ms" expires_after="2026-01-15">
+  <owner>cfredric@chromium.org</owner>
+  <owner>erikchen@chromium.org</owner>
+  <summary>
+    Recorded when a page context receives screenshot data (pre-encoding and
+    scaling) regardless of whether the timeout has already fired. Measure the
+    time from start.
   </summary>
 </histogram>
 

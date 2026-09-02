@@ -4,6 +4,10 @@
 // found in the LICENSE file.
 //
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "compiler/translator/ParseContext.h"
 
 #include <stdarg.h>
@@ -240,6 +244,11 @@ bool UsesDerivatives(TIntermAggregate *functionCall)
         default:
             return false;
     }
+}
+
+bool IsSamplerOrStructWithOnlySamplers(const TType *type)
+{
+    return IsSampler(type->getBasicType()) || type->isStructureContainingOnlySamplers();
 }
 }  // namespace
 
@@ -6567,18 +6576,18 @@ TTypeSpecifierNonArray TParseContext::addStructure(const TSourceLoc &structLine,
     }
 
     // To simplify pulling samplers out of structs, reorder the struct fields to put the samplers at
-    // the end.
+    // the end.  Structures that *only* contain samplers are also put last.
     TFieldList *reorderedFields = new TFieldList;
     for (TField *field : *fieldList)
     {
-        if (!IsSampler(field->type()->getBasicType()))
+        if (!IsSamplerOrStructWithOnlySamplers(field->type()))
         {
             reorderedFields->push_back(field);
         }
     }
     for (TField *field : *fieldList)
     {
-        if (IsSampler(field->type()->getBasicType()))
+        if (IsSamplerOrStructWithOnlySamplers(field->type()))
         {
             reorderedFields->push_back(field);
         }

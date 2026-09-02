@@ -5,9 +5,11 @@
 package org.chromium.chrome.browser.compositor.overlays.strip;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
+import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.ANIM_TAB_MOVE_MS;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.INVALID_TIME;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MAX_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.MIN_TAB_WIDTH_DP;
+import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.PINNED_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_OVERLAP_WIDTH_DP;
 import static org.chromium.chrome.browser.tasks.tab_management.TabUiThemeUtil.FOLIO_FOOT_LENGTH_DP;
 
@@ -51,7 +53,6 @@ import org.chromium.base.Token;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.Contract;
@@ -145,6 +146,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * This class handles managing the positions and behavior of all tabs in a tab strip. It is
@@ -232,9 +234,6 @@ public class StripLayoutHelper
     @VisibleForTesting static final int MIN_HOVER_CARD_DELAY_MS = 300;
     private static final int SHOW_HOVER_CARD_WITHOUT_DELAY_TIME_BUFFER = 300;
 
-    // Pinned tab strip.
-    private static final float PINNED_TAB_WIDTH_DP = MIN_TAB_WIDTH_DP;
-
     // An observer that is notified of changes to a {@link TabGroupModelFilter} object.
     private final TabGroupModelFilterObserver mTabGroupModelFilterObserver =
             new TabGroupModelFilterObserver() {
@@ -302,8 +301,10 @@ public class StripLayoutHelper
                                     && !mTabGroupModelFilter.tabGroupExists(mSourceTabGroupId);
 
                     // Skip if the rebuild will be handled elsewhere after reaching a "proper" tab
-                    // state, such as confirming the group deletion.
-                    if (!removedHiddenLastTabInGroup) onTabMergeToOrMoveOutOfGroup();
+                    // state, such as confirming the group deletion or tab is being pinned.
+                    if (!removedHiddenLastTabInGroup && !movedTab.getIsPinned()) {
+                        onTabMergeToOrMoveOutOfGroup();
+                    }
 
                     // Expand the tab if necessary.
                     StripLayoutTab tab = findTabById(movedTab.getId());
@@ -399,11 +400,39 @@ public class StripLayoutHelper
                     stripTab.setIsPinned(isPinned);
                     mPinnedTabCount += isPinned ? 1 : -1;
 
-                    // TODO(crbug.com/436264203) Add animation.
-                    computeAndUpdateTabWidth(
-                            /* animate= */ false,
-                            /* deferAnimations= */ false,
-                            /* closedTab= */ null);
+                    // Compute each view's ideal position to get ready for the tab move animation
+                    // below.
+                    computeIdealViewPositions();
+
+                    // Foreground the pinned/unpinned tab to start animation.
+                    stripTab.setIsForegrounded(/* isForegrounded= */ true);
+                    mTabDelegate.setIsTabNonDragReordering(
+                            stripTab, /* isNonDragReordering= */ true);
+                    List<Animator> pinnedAnimations =
+                            computeAndUpdateTabWidth(
+                                    /* animate= */ true,
+                                    /* deferAnimations= */ true,
+                                    /* closedTab= */ null);
+                    assumeNonNull(pinnedAnimations);
+                    pinnedAnimations.add(
+                            CompositorAnimator.ofFloatProperty(
+                                    mUpdateHost.getAnimationHandler(),
+                                    stripTab,
+                                    StripLayoutView.X_OFFSET,
+                                    stripTab.getDrawX() - stripTab.getIdealX(),
+                                    0f,
+                                    ANIM_TAB_MOVE_MS));
+
+                    queueAnimations(
+                            pinnedAnimations,
+                            new AnimatorListenerAdapter() {
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    stripTab.setIsForegrounded(/* isForegrounded= */ false);
+                                    mTabDelegate.setIsTabNonDragReordering(
+                                            stripTab, /* isNonDragReordering= */ false);
+                                }
+                            });
                 }
             };
 
@@ -914,7 +943,7 @@ public class StripLayoutHelper
                 width += getEffectiveTabWidth(/* isPinned= */ true) + tab.getTrailingMargin();
             }
         }
-        return width;
+        return width == 0.f ? 0.f : width + mScrollDelegate.getReorderStartMargin();
     }
 
     /** Returns The visual offset to be applied to the new tab button. */
@@ -987,20 +1016,45 @@ public class StripLayoutHelper
         return mScrollDelegate.getScrollOffset();
     }
 
-    float getVisibleLeftBound() {
-        return mLeftPadding;
+    /**
+     * Returns the visible left bound of the tab strip for pinned or unpinned views. Pinned views
+     * begin at {@code mLeftPadding} and remain fixed (do not scroll), while unpinned views scroll
+     * and are positioned after the pinned tabs. Pass {@code false} for the entire tab strip bound,
+     * or {@code true} for the scrolling portion.
+     *
+     * @param clampToUnpinnedViews true to return the bound for unpinned views; false for pinned
+     *     views.
+     * @return the tab strip's visible left bound.
+     */
+    float getVisibleLeftBound(boolean clampToUnpinnedViews) {
+        if (!clampToUnpinnedViews) {
+            return mLeftPadding;
+        }
+        return mLeftPadding + (LocalizationUtils.isLayoutRtl() ? 0.f : getTotalPinnedTabsWidth());
     }
 
-    float getVisibleRightBound() {
-        return mWidth - mRightPadding;
+    /**
+     * See {@link #getVisibleLeftBound(boolean)} for details on difference between pinned and
+     * unpinned bounds.
+     *
+     * @param clampToUnpinnedViews true to return the bound for unpinned views; false for pinned
+     *     views.
+     * @return the tab strip's visible right bound.
+     */
+    float getVisibleRightBound(boolean clampToUnpinnedViews) {
+        float baseRightBound = mWidth - mRightPadding;
+        if (!clampToUnpinnedViews) {
+            return baseRightBound;
+        }
+        return baseRightBound - (LocalizationUtils.isLayoutRtl() ? getTotalPinnedTabsWidth() : 0.f);
     }
 
-    /** Returns Tab strip's visible left padding accounting for pinned tab background. */
+    /** Returns tab strip's visible left padding accounting for pinned tab background. */
     protected float getLeftPaddingToDraw() {
         return mLeftPadding + (LocalizationUtils.isLayoutRtl() ? 0.f : getTotalPinnedTabsWidth());
     }
 
-    /** Returns Tab strip's visible right padding accounting for pinned tab background. */
+    /** Returns tab strip's visible right padding accounting for pinned tab background. */
     protected float getRightPaddingToDraw() {
         return mRightPadding + (LocalizationUtils.isLayoutRtl() ? getTotalPinnedTabsWidth() : 0.f);
     }
@@ -1929,8 +1983,8 @@ public class StripLayoutHelper
                             isLastTab,
                             mLeftFadeWidth,
                             mRightFadeWidth,
-                            getVisibleLeftBound(),
-                            getVisibleRightBound(),
+                            getVisibleLeftBound(/* clampToUnpinnedViews= */ true),
+                            getVisibleRightBound(/* clampToUnpinnedViews= */ true),
                             mNewTabButton,
                             mIsFirstLayoutPass);
         }
@@ -1995,7 +2049,11 @@ public class StripLayoutHelper
         // Make the entire strip touchable when during dragging / reordering mode.
         boolean isTabDraggingInProgress = isViewDraggingInProgress();
         if (isTabStripFull() || mReorderDelegate.getInReorderMode() || isTabDraggingInProgress) {
-            mTouchableRect.set(getVisibleLeftBound(), 0, getVisibleRightBound(), mHeight);
+            mTouchableRect.set(
+                    getVisibleLeftBound(/* clampToUnpinnedViews= */ false),
+                    0,
+                    getVisibleRightBound(/* clampToUnpinnedViews= */ false),
+                    mHeight);
             return;
         }
 
@@ -2017,8 +2075,8 @@ public class StripLayoutHelper
         }
 
         // Clamp the bounding box to the visible area.
-        float left = Math.max(leftBound, getVisibleLeftBound());
-        float right = Math.min(rightBound, getVisibleRightBound());
+        float left = Math.max(leftBound, getVisibleLeftBound(/* clampToUnpinnedViews= */ false));
+        float right = Math.min(rightBound, getVisibleRightBound(/* clampToUnpinnedViews= */ false));
 
         // Ensure left is not greater than right, which can happen if all tabs are off-screen.
         if (left > right) {
@@ -4546,8 +4604,11 @@ public class StripLayoutHelper
         computeIdealViewPositions();
 
         // 3. Calculate view stacking - update view draw properties and visibility.
-        float stripWidth = getVisibleRightBound() - getVisibleLeftBound();
-        mStripStacker.pushDrawPropertiesToViews(mStripViews, getVisibleLeftBound(), stripWidth);
+        float stripWidth =
+                getVisibleRightBound(/* clampToUnpinnedViews= */ false)
+                        - getVisibleLeftBound(/* clampToUnpinnedViews= */ false);
+        mStripStacker.pushDrawPropertiesToViews(
+                mStripViews, getVisibleLeftBound(/* clampToUnpinnedViews= */ false), stripWidth);
 
         // 4. Create render list.
         createRenderList();
@@ -4574,8 +4635,8 @@ public class StripLayoutHelper
     }
 
     private float getStartPositionForStripViews() {
-        // Shift all of the strip views over by the the left margin because we're
-        // no longer base lined at 0
+        // Shift all of the strip views over by the the left margin because we're no longer base
+        // lined at 0.
         if (!LocalizationUtils.isLayoutRtl()) {
             return mLeftMargin + mScrollDelegate.getReorderStartMargin();
         } else {
@@ -4764,8 +4825,10 @@ public class StripLayoutHelper
 
         // 3. Hide the new tab button if it's not visible on the screen.
         boolean isRtl = LocalizationUtils.isLayoutRtl();
-        if ((isRtl && offset + mNewTabButtonWidth < getVisibleLeftBound())
-                || (!isRtl && offset > getVisibleRightBound())) {
+        if ((isRtl
+                        && offset + mNewTabButtonWidth
+                                < getVisibleLeftBound(/* clampToUnpinnedViews= */ true))
+                || (!isRtl && offset > getVisibleRightBound(/* clampToUnpinnedViews= */ true))) {
             mNewTabButton.setVisible(false);
             return;
         }
@@ -4786,17 +4849,18 @@ public class StripLayoutHelper
         if (view.equals(mNewTabButton) || view.equals(mModelSelectorButton)) return 0.f;
         if (view instanceof StripLayoutTab tab && tab.getIsPinned()) return 0.f;
 
-        // 1. Calculate offsets to fully show the regular view on the left/right side of the
-        // strip after the pinned tabs section. These offsets are scalars.
+        // 1. Calculate the bounds to fully show the regular view on the left/right side of the
+        // strip.
         // TODO(wenyufu): Account for offsetX{Left,Right} result too much offset. Is this expected?
-        final float rightOffset =
-                mRightFadeWidth
-                        + mRightMargin
-                        + (LocalizationUtils.isLayoutRtl() ? getTotalPinnedTabsWidth() : 0.f);
-        final float leftOffset =
-                mLeftFadeWidth
-                        + mLeftMargin
-                        + (LocalizationUtils.isLayoutRtl() ? 0.f : getTotalPinnedTabsWidth());
+        boolean rtl = LocalizationUtils.isLayoutRtl();
+        final float rightBound =
+                getVisibleRightBound(/* clampToUnpinnedViews= */ true)
+                        - mRightFadeWidth
+                        - (rtl ? 0f : mReservedEndMargin);
+        final float leftBound =
+                getVisibleLeftBound(/* clampToUnpinnedViews= */ true)
+                        + mLeftFadeWidth
+                        - (rtl ? mReservedEndMargin : 0f);
 
         // 2. Calculate vectors from the view's ideal position to the farthest left/right point
         // where the view can be visible.
@@ -4805,9 +4869,9 @@ public class StripLayoutHelper
                 && closeButton.getParentView() instanceof StripLayoutTab stripTab) {
             view = stripTab;
         }
-        final float deltaToFarLeft = leftOffset - view.getIdealX();
+        final float deltaToFarLeft = leftBound - view.getIdealX();
         final float deltaToFarRight =
-                mWidth - rightOffset - getCachedTabWidth(/* isPinned= */ false) - view.getIdealX();
+                rightBound - getCachedTabWidth(/* isPinned= */ false) - view.getIdealX();
 
         // 3. The following case means the view is already completely in the visible area of the
         // strip, i.e., it needs to be:
@@ -4911,17 +4975,18 @@ public class StripLayoutHelper
                         || StripLayoutTabDelegate.isTabVisible(stripLayoutTab));
     }
 
-    // TODO(crbug.com/436263003): Update to account for pinned tabs.
+    // TODO(crbug.com/441132620): Update to account for pinned tabs.
     private void handleReorderAutoScrolling(long time) {
         if (!mReorderDelegate.getInReorderMode()) return;
+        boolean rtl = LocalizationUtils.isLayoutRtl();
+        float leftBound =
+                getVisibleLeftBound(/* clampToUnpinnedViews= */ true)
+                        + (rtl ? mReservedEndMargin : 0f);
+        float rightBound =
+                getVisibleRightBound(/* clampToUnpinnedViews= */ true)
+                        + (rtl ? 0f : mReservedEndMargin);
         mReorderDelegate.updateReorderPositionAutoScroll(
-                mStripViews,
-                mStripGroupTitles,
-                mStripTabs,
-                time,
-                mWidth,
-                mLeftMargin,
-                mRightMargin);
+                mStripViews, mStripGroupTitles, mStripTabs, time, leftBound, rightBound);
     }
 
     private @Nullable Tab getTabById(int tabId) {
@@ -5139,8 +5204,11 @@ public class StripLayoutHelper
     }
 
     private boolean isViewCompletelyVisible(StripLayoutView view) {
-        float leftBound = getVisibleLeftBound() + mLeftFadeWidth;
-        float rightBound = getVisibleRightBound() - mRightFadeWidth;
+        boolean isPinned = (view instanceof StripLayoutTab tab) && tab.getIsPinned();
+        float leftBound =
+                getVisibleLeftBound(/* clampToUnpinnedViews= */ !isPinned) + mLeftFadeWidth;
+        float rightBound =
+                getVisibleRightBound(/* clampToUnpinnedViews= */ !isPinned) - mRightFadeWidth;
         float viewStart = 0f;
         float viewEnd = 0f;
         if (view instanceof StripLayoutTab tab) {
@@ -5162,7 +5230,9 @@ public class StripLayoutHelper
      */
     @VisibleForTesting
     boolean isViewCompletelyHidden(StripLayoutView view) {
-        return !view.isVisible() || isViewCompletelyHiddenAt(view.getDrawX(), view.getWidth());
+        boolean isPinned = (view instanceof StripLayoutTab tab) && tab.getIsPinned();
+        return !view.isVisible()
+                || isViewCompletelyHiddenAt(view.getDrawX(), view.getWidth(), isPinned);
     }
 
     /**
@@ -5173,14 +5243,19 @@ public class StripLayoutHelper
      * @return {@code true} if the view will be completely hidden, {@code false} otherwise.
      */
     private boolean willViewBeCompletelyHidden(StripLayoutView view) {
-        return isViewCompletelyHiddenAt(view.getIdealX(), view.getWidth());
+        boolean isPinned = (view instanceof StripLayoutTab tab) && tab.getIsPinned();
+        return isViewCompletelyHiddenAt(view.getIdealX(), view.getWidth(), isPinned);
     }
 
-    private boolean isViewCompletelyHiddenAt(float viewX, float viewWidth) {
+    private boolean isViewCompletelyHiddenAt(float viewX, float viewWidth, boolean isPinned) {
+        float leftBound =
+                getVisibleLeftBound(/* clampToUnpinnedViews= */ !isPinned) + mLeftFadeWidth;
+        float rightBound =
+                getVisibleRightBound(/* clampToUnpinnedViews= */ !isPinned) - mRightFadeWidth;
         // Check if the tab is outside the visible bounds to the left...
-        return viewX + viewWidth <= getVisibleLeftBound() + mLeftFadeWidth
+        return viewX + viewWidth <= leftBound
                 // ... or to the right.
-                || viewX >= getVisibleRightBound() - mRightFadeWidth;
+                || viewX >= rightBound;
     }
 
     /** Returns true if the close button menu is showing */
@@ -5359,7 +5434,11 @@ public class StripLayoutHelper
 
             // 2. StartX indicates where the external drag enters the  tab strip.
             // Adjust by a half tab-width so that we target the nearest tab gap.
-            float startX = StripLayoutUtils.adjustXForTabDrop(currX, mCachedTabWidthSupplier);
+            float startX =
+                    StripLayoutUtils.adjustXForTabDrop(
+                            currX,
+                            mCachedTabWidthSupplier,
+                            TabStripDragHandler.isDraggedItemPinned());
 
             // 3. Mark the "interacting" view. This is not the DnD dragged view, but rather the view
             // in the strip that is currently being hovered by the DnD drag.

@@ -10,6 +10,10 @@
 #ifndef ANGLE_TESTS_ANGLE_TEST_H_
 #define ANGLE_TESTS_ANGLE_TEST_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <array>

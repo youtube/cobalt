@@ -4,6 +4,10 @@
 // found in the LICENSE file.
 //
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 // utilities.cpp: Conversion functions and other utility routines.
 
 #include "common/utilities.h"
@@ -1448,7 +1452,7 @@ bool IsQueryEntryPoint(EntryPoint entryPoint)
 }
 }  // namespace angle
 
-void writeFile(const char *path, const void *content, size_t size)
+void writeFile(const char *path, std::string_view content)
 {
 #if !defined(ANGLE_ENABLE_WINDOWS_UWP)
     FILE *file = fopen(path, "w");
@@ -1458,7 +1462,7 @@ void writeFile(const char *path, const void *content, size_t size)
         return;
     }
 
-    fwrite(content, sizeof(char), size, file);
+    fwrite(content.data(), sizeof(char), content.size(), file);
     fclose(file);
 #else
     UNREACHABLE();

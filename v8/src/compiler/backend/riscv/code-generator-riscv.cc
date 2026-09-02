@@ -781,7 +781,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchCallWasmFunction:
-    case kArchCallWasmFunctionIndirect: {
+    case kArchCallWasmFunctionIndirect:
+    case kArchResumeWasmContinuation: {
       if (instr->InputAt(0)->IsImmediate()) {
         DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
@@ -792,6 +793,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             i.InputRegister(0),
             i.InputInt64(instr->WasmSignatureHashInputIndex()));
       } else {
+        // TODO(thibaudm): Use a WasmCodePointer for
+        // kArchResumeWasmContinuation. Can this be merged with
+        // kArchCallWasmFunctionIndirect?
         __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
@@ -1708,8 +1712,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ fcvt_d_s(i.OutputDoubleRegister(), i.InputSingleRegister(0));
       __ Branch(&done, ne, kScratchReg, Operand(zero_reg));
 #if V8_TARGET_ARCH_RISCV64
-      __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
-      __ slli(kScratchReg2, kScratchReg2, 32);
+      if (CpuFeatures::IsSupported(ZBS)) {
+        __ bexti(kScratchReg2, kScratchReg2, 31);
+        __ slli(kScratchReg2, kScratchReg2, 63);
+      } else {
+        __ And(kScratchReg2, kScratchReg2, Operand(0x80000000));
+        __ slli(kScratchReg2, kScratchReg2, 32);
+      }
       __ fmv_d_x(kScratchDoubleReg, kScratchReg2);
 #elif V8_TARGET_ARCH_RISCV32
       __ Lw(kScratchReg2, MemOperand(sp, -kFloatSize));
@@ -4758,6 +4767,27 @@ void CodeGenerator::AssembleArchConditionalBranch(Instruction* instr,
   UNREACHABLE();
 }
 
+#ifdef V8_TARGET_ARCH_RISCV64
+void CodeGenerator::AssembleArchBinarySearchSwitchRange(
+    Register input, RpoNumber def_block, std::pair<int32_t, Label*>* begin,
+    std::pair<int32_t, Label*>* end) {
+  if (end - begin < kBinarySearchSwitchMinimalCases) {
+    while (begin != end) {
+      masm()->JumpIfEqual(input, begin->first, begin->second, false);
+      ++begin;
+    }
+    AssembleArchJumpRegardlessOfAssemblyOrder(def_block);
+    return;
+  }
+  auto middle = begin + (end - begin) / 2;
+  Label less_label;
+  masm()->JumpIfLessThan(input, middle->first, &less_label, false);
+  AssembleArchBinarySearchSwitchRange(input, def_block, middle, end);
+  masm()->bind(&less_label);
+  AssembleArchBinarySearchSwitchRange(input, def_block, begin, middle);
+}
+#endif
+
 void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   RiscvOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -4765,6 +4795,17 @@ void CodeGenerator::AssembleArchBinarySearchSwitch(Instruction* instr) {
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     cases.push_back({i.InputInt32(index + 0), GetLabel(i.InputRpo(index + 1))});
   }
+#ifdef V8_COMPRESS_POINTERS
+  // AssembleArchBinarySearchSwitchRange use JumpIfEqual and JumpIfLessThan to
+  // compare the input value with the case values.
+  // In V8_COMPRESS_POINTERS, the compare is done with the lower 32 bits of the
+  // input, requiring a sign extension.
+  // Since the input value remains unchanged throughout
+  // AssembleArchBinarySearchSwitch, we perform the sign extension once here,
+  // rather than repeatedly in JumpIfEqual and JumpIfLessThan. This reduces the
+  // total number of sign extension operations and improves efficiency.
+  __ SignExtendWord(input, input);
+#endif
   AssembleArchBinarySearchSwitchRange(input, i.InputRpo(1), cases.data(),
                                       cases.data() + cases.size());
 }
@@ -5052,24 +5093,28 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
     // We must pop all arguments from the stack (including the receiver). This
     // number of arguments is given by max(1 + argc_reg, parameter_slots).
     if (parameter_slots > 1) {
-      Label done;
       __ li(kScratchReg, parameter_slots);
-      __ BranchShort(&done, ge, t0, Operand(kScratchReg));
-      __ Move(t0, kScratchReg);
-      __ bind(&done);
+      if (CpuFeatures::IsSupported(ZBB)) {
+        __ max(t0, t0, kScratchReg);
+      } else {
+        Label done;
+        __ BranchShort(&done, ge, t0, Operand(kScratchReg));
+        __ Move(t0, kScratchReg);
+        __ bind(&done);
+      }
     }
-    __ SllWord(t0, t0, kSystemPointerSizeLog2);
-    __ AddWord(sp, sp, t0);
+    __ CalcScaledAddress(sp, sp, t0, kSystemPointerSizeLog2);
   } else if (additional_pop_count->IsImmediate()) {
     // it should be a kInt32 or a kInt64
     DCHECK_LE(g.ToConstant(additional_pop_count).type(), Constant::kInt64);
     int additional_count = g.ToConstant(additional_pop_count).ToInt32();
     __ Drop(parameter_slots + additional_count);
   } else {
+    // TODO(kasperl): Maybe {additional_pop_count} is guaranteed to be zero if
+    // {parameter_slots != 0}. Need to verify that.
     Register pop_reg = g.ToRegister(additional_pop_count);
     __ Drop(parameter_slots);
-    __ SllWord(pop_reg, pop_reg, kSystemPointerSizeLog2);
-    __ AddWord(sp, sp, pop_reg);
+    __ CalcScaledAddress(sp, sp, pop_reg, kSystemPointerSizeLog2);
   }
   __ Ret();
 }

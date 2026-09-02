@@ -132,6 +132,9 @@ class AudioSendStream : public AudioSender {
 
     double bitrate_priority = 1.0;
     bool has_dscp = false;
+    // If true, the stream will allocate bandwidth from the bandwidth estimate
+    // created by the congestion controller.
+    bool include_in_congestion_control_allocation = false;
 
     // Defines whether to turn on audio network adaptor, and defines its config
     // string.

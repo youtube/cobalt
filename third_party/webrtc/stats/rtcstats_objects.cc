@@ -432,7 +432,8 @@ WEBRTC_RTCSTATS_IMPL(RTCTransportStats, RTCStats, "transport",
                   &selected_candidate_pair_changes),
     AttributeInit("iceRole", &ice_role),
     AttributeInit("iceLocalUsernameFragment", &ice_local_username_fragment),
-    AttributeInit("iceState", &ice_state))
+    AttributeInit("iceState", &ice_state),
+    AttributeInit("ccfbMessagesReceived", &ccfb_messages_received))
 // clang-format on
 
 RTCTransportStats::RTCTransportStats(std::string id, Timestamp timestamp)

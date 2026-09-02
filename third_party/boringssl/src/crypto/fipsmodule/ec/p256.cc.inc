@@ -26,6 +26,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include <iterator>
+
 #include "../../internal.h"
 #include "../delocate.h"
 #include "./internal.h"
@@ -434,7 +436,7 @@ static void ec_GFp_nistp256_point_mul_public(const EC_GROUP *group,
   fiat_p256_felem p2[3];
   fiat_p256_point_double(p2[0], p2[1], p2[2], p_pre_comp[0][0],
                          p_pre_comp[0][1], p_pre_comp[0][2]);
-  for (size_t i = 1; i < OPENSSL_ARRAY_SIZE(p_pre_comp); i++) {
+  for (size_t i = 1; i < std::size(p_pre_comp); i++) {
     fiat_p256_point_add(p_pre_comp[i][0], p_pre_comp[i][1], p_pre_comp[i][2],
                         p_pre_comp[i - 1][0], p_pre_comp[i - 1][1],
                         p_pre_comp[i - 1][2], p2[0], p2[1], p2[2]);

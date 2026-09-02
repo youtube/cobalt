@@ -726,8 +726,8 @@ void VideoReceiveStream2::OnFrame(const VideoFrame& video_frame) {
           << video_frame.height();
     }
     pending_resolution_ = RecordableEncodedFrame::EncodedResolution{
-        static_cast<unsigned>(video_frame.width()),
-        static_cast<unsigned>(video_frame.height())};
+        .width = static_cast<unsigned>(video_frame.width()),
+        .height = static_cast<unsigned>(video_frame.height())};
   }
 }
 
@@ -1011,8 +1011,8 @@ int VideoReceiveStream2::DecodeAndMaybeDispatchEncodedFrame(
       // Flush the buffered frames.
       for (const auto& buffered_frame : buffered_encoded_frames_) {
         RecordableEncodedFrame::EncodedResolution resolution{
-            buffered_frame->EncodedImage()._encodedWidth,
-            buffered_frame->EncodedImage()._encodedHeight};
+            .width = buffered_frame->EncodedImage()._encodedWidth,
+            .height = buffered_frame->EncodedImage()._encodedHeight};
         if (IsKeyFrameAndUnspecifiedResolution(*buffered_frame)) {
           RTC_DCHECK(!pending_resolution->empty());
           resolution = *pending_resolution;

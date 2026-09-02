@@ -496,8 +496,8 @@ TEST(EncoderStreamFactory, VP9TemporalLayerCountTransferToStreamSettings) {
   encoder_config.number_of_streams = 1;
   encoder_config.simulcast_layers.resize(1);
   encoder_config.simulcast_layers[0].num_temporal_layers = 3;
-  auto streams = CreateEncoderStreams(CreateTestFieldTrials(), {1280, 720},
-                                      encoder_config);
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
   ASSERT_THAT(streams, SizeIs(1));
   EXPECT_EQ(streams[0].num_temporal_layers, 3);
 }
@@ -508,8 +508,8 @@ TEST(EncoderStreamFactory, AV1TemporalLayerCountTransferToStreamSettings) {
   encoder_config.number_of_streams = 1;
   encoder_config.simulcast_layers.resize(1);
   encoder_config.simulcast_layers[0].num_temporal_layers = 3;
-  auto streams = CreateEncoderStreams(CreateTestFieldTrials(), {1280, 720},
-                                      encoder_config);
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
   ASSERT_THAT(streams, SizeIs(1));
   EXPECT_EQ(streams[0].num_temporal_layers, 3);
 }
@@ -520,8 +520,8 @@ TEST(EncoderStreamFactory, H264TemporalLayerCountTransferToStreamSettings) {
   encoder_config.number_of_streams = 1;
   encoder_config.simulcast_layers.resize(1);
   encoder_config.simulcast_layers[0].num_temporal_layers = 3;
-  auto streams = CreateEncoderStreams(CreateTestFieldTrials(), {1280, 720},
-                                      encoder_config);
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
   ASSERT_THAT(streams, SizeIs(1));
   EXPECT_EQ(streams[0].num_temporal_layers, std::nullopt);
 }
@@ -533,8 +533,8 @@ TEST(EncoderStreamFactory, H265TemporalLayerCountTransferToStreamSettings) {
   encoder_config.number_of_streams = 1;
   encoder_config.simulcast_layers.resize(1);
   encoder_config.simulcast_layers[0].num_temporal_layers = 3;
-  auto streams = CreateEncoderStreams(CreateTestFieldTrials(), {1280, 720},
-                                      encoder_config);
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
   ASSERT_THAT(streams, SizeIs(1));
   EXPECT_EQ(streams[0].num_temporal_layers, 3);
 }
@@ -550,8 +550,8 @@ TEST(EncoderStreamFactory, VP9SetsMaxBitrateToConfiguredEncodingValue) {
   encoder_config.number_of_streams = 1;
   encoder_config.simulcast_layers.resize(3);
   encoder_config.simulcast_layers[0].max_bitrate_bps = 5000000;
-  auto streams = CreateEncoderStreams(CreateTestFieldTrials(), {1280, 720},
-                                      encoder_config);
+  auto streams = CreateEncoderStreams(
+      CreateTestFieldTrials(), {.width = 1280, .height = 720}, encoder_config);
   ASSERT_THAT(streams, SizeIs(1));
   EXPECT_EQ(streams[0].max_bitrate_bps, 5000000);
 }

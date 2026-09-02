@@ -668,9 +668,9 @@ TEST_F(RtpVideoStreamReceiver2Test, PacketInfoIsPropagatedIntoVideoFrames) {
   rtp_packet.SetSequenceNumber(1);
   rtp_packet.SetTimestamp(1);
   rtp_packet.SetSsrc(kSsrc);
-  rtp_packet.SetExtension<AbsoluteCaptureTimeExtension>(
-      AbsoluteCaptureTime{kAbsoluteCaptureTimestamp,
-                          /*estimated_capture_clock_offset=*/std::nullopt});
+  rtp_packet.SetExtension<AbsoluteCaptureTimeExtension>(AbsoluteCaptureTime{
+      .absolute_capture_timestamp = kAbsoluteCaptureTimestamp,
+      .estimated_capture_clock_offset = std::nullopt});
 
   RTPVideoHeader video_header =
       GetGenericVideoHeader(VideoFrameType::kVideoFrameKey);
@@ -701,9 +701,9 @@ TEST_F(RtpVideoStreamReceiver2Test,
   rtp_packet.SetSequenceNumber(sequence_number);
   rtp_packet.SetTimestamp(rtp_timestamp);
   rtp_packet.SetSsrc(kSsrc);
-  rtp_packet.SetExtension<AbsoluteCaptureTimeExtension>(
-      AbsoluteCaptureTime{kAbsoluteCaptureTimestamp,
-                          /*estimated_capture_clock_offset=*/std::nullopt});
+  rtp_packet.SetExtension<AbsoluteCaptureTimeExtension>(AbsoluteCaptureTime{
+      .absolute_capture_timestamp = kAbsoluteCaptureTimestamp,
+      .estimated_capture_clock_offset = std::nullopt});
 
   RTPVideoHeader video_header =
       GetGenericVideoHeader(VideoFrameType::kVideoFrameKey);

@@ -6,9 +6,12 @@
 #include "base/files/file_path.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
 #include "components/paint_preview/common/file_stream.h"
+#include "components/paint_preview/common/mojom/paint_preview_recorder.mojom-data-view.h"
+#include "components/paint_preview/common/mojom/paint_preview_recorder.mojom-forward.h"
 #include "components/paint_preview/common/mojom/paint_preview_recorder.mojom.h"
 #include "components/paint_preview/common/mojom/paint_preview_types.mojom.h"
 #include "components/paint_preview/renderer/paint_preview_recorder_impl.h"
@@ -38,18 +41,6 @@ using testing::Gt;
 using testing::Lt;
 
 constexpr char kCompositeAfterPaint[] = "CompositeAfterPaint";
-
-// Checks that |status| == |expected_status| and loads |response| into
-// |out_response| if |expected_status| == kOk. If |expected_status| != kOk
-// |out_response| can safely be nullptr.
-void OnCaptureFinished(mojom::PaintPreviewStatus expected_status,
-                       mojom::PaintPreviewCaptureResponsePtr* out_response,
-                       mojom::PaintPreviewStatus status,
-                       mojom::PaintPreviewCaptureResponsePtr response) {
-  EXPECT_EQ(status, expected_status);
-  if (expected_status == mojom::PaintPreviewStatus::kOk)
-    *out_response = std::move(response);
-}
 
 std::string CompositeAfterPaintToString(
     const ::testing::TestParamInfo<bool>& cap_enabled) {
@@ -92,24 +83,27 @@ class PaintPreviewRecorderRenderViewTest
     return temp_dir_.GetPath().AppendASCII(filename);
   }
 
-  base::FilePath RunCapture(content::RenderFrame* frame,
-                            mojom::PaintPreviewCaptureResponsePtr* out_response,
-                            bool is_main_frame = true,
-                            gfx::Rect clip_rect = gfx::Rect(),
-                            mojom::ClipCoordOverride clip_x_coord_override =
-                                mojom::ClipCoordOverride::kNone,
-                            mojom::ClipCoordOverride clip_y_coord_override =
-                                mojom::ClipCoordOverride::kNone) {
+  std::tuple<base::FilePath, mojom::PaintPreviewCaptureResponsePtr> RunCapture(
+      content::RenderFrame* frame,
+      bool is_main_frame = true,
+      gfx::Rect clip_rect = gfx::Rect(),
+      mojom::ClipCoordOverride clip_x_coord_override =
+          mojom::ClipCoordOverride::kNone,
+      mojom::ClipCoordOverride clip_y_coord_override =
+          mojom::ClipCoordOverride::kNone) {
     base::FilePath skp_path = MakeTestFilePath("test.skp");
 
     mojom::PaintPreviewCaptureParamsPtr params =
         mojom::PaintPreviewCaptureParams::New();
     auto token = base::UnguessableToken::Create();
     params->guid = token;
-    params->clip_rect = clip_rect;
-    params->clip_x_coord_override = clip_x_coord_override;
-    params->clip_y_coord_override = clip_y_coord_override;
-    params->clip_rect_is_hint = false;
+    params->geometry_metadata_params = mojom::GeometryMetadataParams::New();
+    params->geometry_metadata_params->clip_rect = clip_rect;
+    params->geometry_metadata_params->clip_x_coord_override =
+        clip_x_coord_override;
+    params->geometry_metadata_params->clip_y_coord_override =
+        clip_y_coord_override;
+    params->geometry_metadata_params->clip_rect_is_hint = false;
     params->is_main_frame = is_main_frame;
     params->capture_links = true;
     base::File skp_file(
@@ -117,12 +111,35 @@ class PaintPreviewRecorderRenderViewTest
     params->file = std::move(skp_file);
 
     PaintPreviewRecorderImpl paint_preview_recorder(frame);
-    paint_preview_recorder.CapturePaintPreview(
-        std::move(params),
-        base::BindOnce(&OnCaptureFinished, mojom::PaintPreviewStatus::kOk,
-                       out_response));
-    content::RunAllTasksUntilIdle();
-    return skp_path;
+    base::test::TestFuture<mojom::PaintPreviewStatus,
+                           mojom::PaintPreviewCaptureResponsePtr>
+        future;
+    paint_preview_recorder.CapturePaintPreview(std::move(params),
+                                               future.GetCallback());
+    auto [status, response] = future.Take();
+
+    EXPECT_EQ(status, mojom::PaintPreviewStatus::kOk);
+    return {skp_path, std::move(response)};
+  }
+
+  mojom::GeometryMetadataResponsePtr GetGeometryMetadata(
+      content::RenderFrame* frame,
+      gfx::Rect clip_rect = gfx::Rect(),
+      mojom::ClipCoordOverride clip_x_coord_override =
+          mojom::ClipCoordOverride::kNone,
+      mojom::ClipCoordOverride clip_y_coord_override =
+          mojom::ClipCoordOverride::kNone) {
+    auto params = mojom::GeometryMetadataParams::New();
+    params->clip_rect = clip_rect;
+    params->clip_x_coord_override = clip_x_coord_override;
+    params->clip_y_coord_override = clip_y_coord_override;
+    params->clip_rect_is_hint = false;
+
+    base::test::TestFuture<mojom::GeometryMetadataResponsePtr> future;
+    PaintPreviewRecorderImpl paint_preview_recorder(frame);
+    paint_preview_recorder.GetGeometryMetadata(std::move(params),
+                                               future.GetCallback());
+    return future.Take();
   }
 
  private:
@@ -146,9 +163,8 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureMainFrameAndClipping) {
       "  </div>"
       "</body>");
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path = RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -210,9 +226,8 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureMainFrameWithScroll) {
   ExecuteJavaScriptForTests("window.scrollTo(0,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path = RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -259,10 +274,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 500),
                  mojom::ClipCoordOverride::kCenterOnScrollOffset,
                  mojom::ClipCoordOverride::kCenterOnScrollOffset);
 
@@ -272,12 +286,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // Scroll offset should be within the [0, 500] bounds.
-  EXPECT_THAT(out_response->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
-  EXPECT_THAT(out_response->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.x(),
+              AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.y(),
+              AllOf(Gt(0), Lt(500)));
 
   // Both frame offsets should be > 0 in this case.
-  EXPECT_GT(out_response->frame_offsets.x(), 0);
-  EXPECT_GT(out_response->frame_offsets.y(), 0);
+  EXPECT_GT(out_response->geometry_metadata->frame_offsets.x(), 0);
+  EXPECT_GT(out_response->geometry_metadata->frame_offsets.y(), 0);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
   // intended to intensively test the rendering behavior of the page.
@@ -314,10 +330,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 500),
                  /*clip_x_coord_override=*/
                  mojom::ClipCoordOverride::kNone, /*clip_y_coord_override=*/
                  mojom::ClipCoordOverride::kCenterOnScrollOffset);
@@ -328,12 +343,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // Scroll offset should be within the [0, 500] bounds.
-  EXPECT_THAT(out_response->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
-  EXPECT_THAT(out_response->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.x(),
+              AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.y(),
+              AllOf(Gt(0), Lt(500)));
 
   // Only Y frame offset should be > 0 in this case.
-  EXPECT_EQ(out_response->frame_offsets.x(), 0);
-  EXPECT_GT(out_response->frame_offsets.y(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.x(), 0);
+  EXPECT_GT(out_response->geometry_metadata->frame_offsets.y(), 0);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
   // intended to intensively test the rendering behavior of the page.
@@ -370,10 +387,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 500),
                  /*clip_x_coord_override=*/
                  mojom::ClipCoordOverride::
                      kCenterOnScrollOffset, /*clip_y_coord_override=*/
@@ -385,12 +401,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // Scroll offset should be within the [0, 500] bounds.
-  EXPECT_THAT(out_response->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
-  EXPECT_THAT(out_response->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.x(),
+              AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.y(),
+              AllOf(Gt(0), Lt(500)));
 
   // Only X frame offset should be > 0 in this case.
-  EXPECT_GT(out_response->frame_offsets.x(), 0);
-  EXPECT_EQ(out_response->frame_offsets.y(), 0);
+  EXPECT_GT(out_response->geometry_metadata->frame_offsets.x(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.y(), 0);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
   // intended to intensively test the rendering behavior of the page.
@@ -427,10 +445,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 2000),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 2000),
                  mojom::ClipCoordOverride::kCenterOnScrollOffset,
                  mojom::ClipCoordOverride::kCenterOnScrollOffset);
 
@@ -441,10 +458,11 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
 
   // Scroll offset should be within the [0, 2000] bounds and closer to the
   // bottom as it was clamped.
-  EXPECT_THAT(out_response->scroll_offsets.y(), AllOf(Gt(1100), Lt(2000)));
+  EXPECT_THAT(out_response->geometry_metadata->scroll_offsets.y(),
+              AllOf(Gt(1100), Lt(2000)));
 
   // Frame offset should be > 0 in this case.
-  EXPECT_GT(out_response->frame_offsets.y(), 0);
+  EXPECT_GT(out_response->geometry_metadata->frame_offsets.y(), 0);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
   // intended to intensively test the rendering behavior of the page.
@@ -483,23 +501,21 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(),
-                 mojom::ClipCoordOverride::kCenterOnScrollOffset,
-                 mojom::ClipCoordOverride::kCenterOnScrollOffset);
+  auto [skp_path, out_response] = RunCapture(
+      frame, true, gfx::Rect(), mojom::ClipCoordOverride::kCenterOnScrollOffset,
+      mojom::ClipCoordOverride::kCenterOnScrollOffset);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
             out_response->embedding_token.value());
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
-  EXPECT_GT(out_response->scroll_offsets.y(), 0);
+  EXPECT_GT(out_response->geometry_metadata->scroll_offsets.y(), 0);
 
   // Frame offset should be 0 in this case.
-  EXPECT_EQ(out_response->frame_offsets.x(), 0);
-  EXPECT_EQ(out_response->frame_offsets.y(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.x(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.y(), 0);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
   // intended to intensively test the rendering behavior of the page.
@@ -535,10 +551,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "document.body.scrollHeight / 2);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 500),
                  mojom::ClipCoordOverride::kScrollOffset,
                  mojom::ClipCoordOverride::kScrollOffset);
 
@@ -548,13 +563,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // The capture origin is positioned *at* the scroll offsets.
-  EXPECT_EQ(out_response->scroll_offsets.x(), 0);
-  EXPECT_EQ(out_response->scroll_offsets.y(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->scroll_offsets.x(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->scroll_offsets.y(), 0);
 
   // The capture origin is exactly halfway down each dimension (since we
   // scrolled halfway in each direction).
-  EXPECT_EQ(out_response->frame_offsets.x(), 5000 / 2);
-  EXPECT_EQ(out_response->frame_offsets.y(), (200 + 5000) / 2);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.x(), 5000 / 2);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.y(),
+            (200 + 5000) / 2);
 
   // Relaxed checks on dimensions and no checks on positions. This is not
   // intended to intensively test the rendering behavior of the page.
@@ -588,10 +604,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   ExecuteJavaScriptForTests("window.scrollTo(0, 200);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 500),
                  mojom::ClipCoordOverride::kScrollOffset,
                  mojom::ClipCoordOverride::kScrollOffset);
 
@@ -601,12 +616,12 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // The capture origin is positioned *at* the scroll offsets.
-  EXPECT_EQ(out_response->scroll_offsets.x(), 0);
-  EXPECT_EQ(out_response->scroll_offsets.y(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->scroll_offsets.x(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->scroll_offsets.y(), 0);
 
   // The frame offsets are the same as the window's scroll offsets.
-  EXPECT_EQ(out_response->frame_offsets.x(), 0);
-  EXPECT_EQ(out_response->frame_offsets.y(), 200);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.x(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->frame_offsets.y(), 200);
 
   sk_sp<SkPicture> pic;
   {
@@ -641,10 +656,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
       "document.body.scrollHeight);");
   content::RunAllTasksUntilIdle();
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
-  base::FilePath skp_path =
-      RunCapture(frame, &out_response, true, gfx::Rect(0, 0, 500, 500),
+  auto [skp_path, out_response] =
+      RunCapture(frame, true, gfx::Rect(0, 0, 500, 500),
                  mojom::ClipCoordOverride::kScrollOffset,
                  mojom::ClipCoordOverride::kScrollOffset);
 
@@ -654,13 +668,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest,
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
 
   // The capture origin is positioned *at* the scroll offsets.
-  EXPECT_EQ(out_response->scroll_offsets.x(), 0);
-  EXPECT_EQ(out_response->scroll_offsets.y(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->scroll_offsets.x(), 0);
+  EXPECT_EQ(out_response->geometry_metadata->scroll_offsets.y(), 0);
 
   // The capture origin is more than halfway scrolled in each dimension. The
   // exact placement depends on the size of the viewport.
-  EXPECT_THAT(out_response->frame_offsets.x(), AllOf(Gt(5000 / 2), Lt(5000)));
-  EXPECT_THAT(out_response->frame_offsets.y(),
+  EXPECT_THAT(out_response->geometry_metadata->frame_offsets.x(),
+              AllOf(Gt(5000 / 2), Lt(5000)));
+  EXPECT_THAT(out_response->geometry_metadata->frame_offsets.y(),
               AllOf(Gt((200 + 5000) / 2), Lt(200 + 5000)));
 
   // Relaxed checks on dimensions and no checks on positions. This is not
@@ -691,10 +706,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureFragment) {
       "   height: 30px;' href='#fragment'>Foo</a>"
       "  <h1 id='fragment'>I'm a fragment</h1>"
       "</body>");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -716,7 +730,8 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureInvalidFile) {
       mojom::PaintPreviewCaptureParams::New();
   auto token = base::UnguessableToken::Create();
   params->guid = token;
-  params->clip_rect = gfx::Rect();
+  params->geometry_metadata_params = mojom::GeometryMetadataParams::New();
+  params->geometry_metadata_params->clip_rect = gfx::Rect();
   params->is_main_frame = true;
   params->capture_links = true;
   params->max_capture_size = 0;
@@ -724,12 +739,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureInvalidFile) {
   params->file = std::move(skp_file);
 
   content::RenderFrame* frame = GetMainRenderFrame();
+  base::test::TestFuture<mojom::PaintPreviewStatus,
+                         mojom::PaintPreviewCaptureResponsePtr>
+      future;
   PaintPreviewRecorderImpl paint_preview_recorder(frame);
-  paint_preview_recorder.CapturePaintPreview(
-      std::move(params),
-      base::BindOnce(&OnCaptureFinished,
-                     mojom::PaintPreviewStatus::kCaptureFailed, nullptr));
-  content::RunAllTasksUntilIdle();
+  paint_preview_recorder.CapturePaintPreview(std::move(params),
+                                             future.GetCallback());
+  auto [status, response] = future.Take();
+  EXPECT_EQ(mojom::PaintPreviewStatus::kCaptureFailed, status);
 }
 
 TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureInvalidXYClip) {
@@ -739,7 +756,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureInvalidXYClip) {
       mojom::PaintPreviewCaptureParams::New();
   auto token = base::UnguessableToken::Create();
   params->guid = token;
-  params->clip_rect = gfx::Rect(1000000, 1000000, 10, 10);
+  params->geometry_metadata_params = mojom::GeometryMetadataParams::New();
+  params->geometry_metadata_params->clip_rect =
+      gfx::Rect(1000000, 1000000, 10, 10);
   params->is_main_frame = true;
   params->capture_links = true;
   params->max_capture_size = 0;
@@ -749,12 +768,14 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureInvalidXYClip) {
   params->file = std::move(skp_file);
 
   content::RenderFrame* frame = GetMainRenderFrame();
+  base::test::TestFuture<mojom::PaintPreviewStatus,
+                         mojom::PaintPreviewCaptureResponsePtr>
+      future;
   PaintPreviewRecorderImpl paint_preview_recorder(frame);
-  paint_preview_recorder.CapturePaintPreview(
-      std::move(params),
-      base::BindOnce(&OnCaptureFinished,
-                     mojom::PaintPreviewStatus::kCaptureFailed, nullptr));
-  content::RunAllTasksUntilIdle();
+  paint_preview_recorder.CapturePaintPreview(std::move(params),
+                                             future.GetCallback());
+  auto [status, response] = future.Take();
+  EXPECT_EQ(mojom::PaintPreviewStatus::kCaptureFailed, status);
 }
 
 TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureMainFrameAndLocalFrame) {
@@ -765,10 +786,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureMainFrameAndLocalFrame) {
       "          srcdoc=\"<div style='width: 100px; height: 100px;"
       "          background-color: #000000'>&nbsp;</div>\"></iframe>"
       "</body>");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -784,12 +804,11 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureLocalFrame) {
       "          srcdoc=\"<div style='width: 100px; height: 100px;"
       "          background-color: #000000'>&nbsp;</div>\"></iframe>"
       "</body>");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   auto* child_frame = content::RenderFrame::FromWebFrame(
       GetMainRenderFrame()->GetWebFrame()->FirstChild()->ToWebLocalFrame());
   ASSERT_TRUE(child_frame);
 
-  RunCapture(child_frame, &out_response, false);
+  auto [skp_path, out_response] = RunCapture(child_frame, false);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
@@ -805,7 +824,6 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureUnclippedLocalFrame) {
       "          <div style='width: 500px; height: 900px;"
       "          background-color: #FF0000'>&nbsp;</div>\"></iframe>"
       "</body>");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   auto* child_web_frame =
       GetMainRenderFrame()->GetWebFrame()->FirstChild()->ToWebLocalFrame();
   auto* child_frame = content::RenderFrame::FromWebFrame(child_web_frame);
@@ -813,7 +831,7 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureUnclippedLocalFrame) {
 
   child_web_frame->SetScrollOffset(gfx::PointF(0, 400));
 
-  base::FilePath skp_path = RunCapture(child_frame, &out_response, false);
+  auto [skp_path, out_response] = RunCapture(child_frame, false);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(out_response->content_id_to_embedding_token.size(), 0U);
@@ -849,10 +867,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureCustomClipRect) {
       "   height: 30px;' href='http://www.example.com'>Foo</a>"
       "</body>");
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
   gfx::Rect clip_rect = gfx::Rect(150, 150, 300, 300);
-  base::FilePath skp_path = RunCapture(frame, &out_response, true, clip_rect);
+  auto [skp_path, out_response] = RunCapture(frame, true, clip_rect);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -895,11 +912,10 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureWithClamp) {
       "   height: 30px;' href='http://www.example.com'>Foo</a>"
       "</body>");
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
   const size_t kLarge = 1000000;
   gfx::Rect clip_rect = gfx::Rect(0, 0, kLarge, kLarge);
-  base::FilePath skp_path = RunCapture(frame, &out_response, true, clip_rect);
+  auto [skp_path, out_response] = RunCapture(frame, true, clip_rect);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -929,10 +945,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, TestCaptureFullIfWidthHeightAre0) {
       "   height: 30px;' href='http://www.example.com'>Foo</a>"
       "</body>");
 
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
   gfx::Rect clip_rect = gfx::Rect(1, 1, 0, 0);
-  base::FilePath skp_path = RunCapture(frame, &out_response, true, clip_rect);
+  auto [skp_path, out_response] = RunCapture(frame, true, clip_rect);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -972,10 +987,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, CaptureWithTranslate) {
         </div>
       </div>
     </body>)");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -1012,10 +1026,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, CaptureWithTranslateThenRotate) {
         </div>
       </div>
     </body>)");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -1054,10 +1067,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, CaptureWithRotateThenTranslate) {
         </div>
       </div>
     </body>)");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -1096,10 +1108,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, CaptureWithScale) {
         </div>
       </div>
     </body>)");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -1147,10 +1158,9 @@ TEST_P(PaintPreviewRecorderRenderViewTest, CaptureSaveRestore) {
         </div>
       </div>
     </body>)");
-  auto out_response = mojom::PaintPreviewCaptureResponse::New();
   content::RenderFrame* frame = GetMainRenderFrame();
 
-  RunCapture(frame, &out_response);
+  auto [skp_path, out_response] = RunCapture(frame);
 
   EXPECT_TRUE(out_response->embedding_token.has_value());
   EXPECT_EQ(frame->GetWebFrame()->GetEmbeddingToken(),
@@ -1169,6 +1179,37 @@ TEST_P(PaintPreviewRecorderRenderViewTest, CaptureSaveRestore) {
   EXPECT_NEAR(out_response->links[1]->rect.y(), 40, 3);
   EXPECT_NEAR(out_response->links[1]->rect.width(), 70, 3);
   EXPECT_NEAR(out_response->links[1]->rect.height(), 20, 3);
+}
+
+TEST_P(PaintPreviewRecorderRenderViewTest, TestGetGeometryMetadata) {
+  LoadHTML(
+      "<!doctype html>"
+      "<body>"
+      "  <div style='width: 600px; height: 200px; "
+      "              background-color: #ff0000'>&nbsp;</div>"
+      "  <div style='width: 5000px; height: 5000px; "
+      "              background-color: #00ff00'>&nbsp;</div>"
+      "</body>");
+
+  // Scroll to bottom right of page.
+  ExecuteJavaScriptForTests(
+      "window.scrollTo(document.body.scrollWidth,document.body.scrollHeight);");
+  content::RunAllTasksUntilIdle();
+
+  mojom::GeometryMetadataResponsePtr metadata =
+      GetGeometryMetadata(GetMainRenderFrame(), gfx::Rect(0, 0, 500, 500),
+                          mojom::ClipCoordOverride::kCenterOnScrollOffset,
+                          mojom::ClipCoordOverride::kCenterOnScrollOffset);
+
+  ASSERT_TRUE(metadata);
+
+  // Scroll offset should be within the [0, 500] bounds.
+  EXPECT_THAT(metadata->scroll_offsets.x(), AllOf(Gt(0), Lt(500)));
+  EXPECT_THAT(metadata->scroll_offsets.y(), AllOf(Gt(0), Lt(500)));
+
+  // Both frame offsets should be > 0 in this case.
+  EXPECT_GT(metadata->frame_offsets.x(), 0);
+  EXPECT_GT(metadata->frame_offsets.y(), 0);
 }
 
 INSTANTIATE_TEST_SUITE_P(All,

@@ -17,6 +17,7 @@
 #include <openssl/ssl.h>
 
 #include <algorithm>
+#include <iterator>
 
 #include <assert.h>
 #include <limits.h>
@@ -3273,11 +3274,9 @@ static int Configure(SSL_CTX *ctx) {
       // Encrypt-then-MAC extension is required for all CBC cipher suites and so
       // it's easier to drop them.
       SSL_CTX_set_strict_cipher_list(ctx, kTLS12Ciphers) &&
-      SSL_CTX_set1_group_ids(ctx, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
-      SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
-                                          OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
-      SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs,
-                                         OPENSSL_ARRAY_SIZE(kSigAlgs));
+      SSL_CTX_set1_group_ids(ctx, kGroups, std::size(kGroups)) &&
+      SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs, std::size(kSigAlgs)) &&
+      SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs, std::size(kSigAlgs));
 }
 
 static int Configure(SSL *ssl) {
@@ -3287,11 +3286,9 @@ static int Configure(SSL *ssl) {
   return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
          SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
          SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&
-         SSL_set1_group_ids(ssl, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
-         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs,
-                                         OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
-         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs,
-                                        OPENSSL_ARRAY_SIZE(kSigAlgs));
+         SSL_set1_group_ids(ssl, kGroups, std::size(kGroups)) &&
+         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs)) &&
+         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs));
 }
 
 }  // namespace fips202205
@@ -3320,11 +3317,10 @@ static int Configure(SSL_CTX *ctx) {
   return SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION) &&
          SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION) &&
          SSL_CTX_set_strict_cipher_list(ctx, kTLS12Ciphers) &&
-         SSL_CTX_set1_group_ids(ctx, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
+         SSL_CTX_set1_group_ids(ctx, kGroups, std::size(kGroups)) &&
          SSL_CTX_set_signing_algorithm_prefs(ctx, kSigAlgs,
-                                             OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
-         SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs,
-                                            OPENSSL_ARRAY_SIZE(kSigAlgs));
+                                             std::size(kSigAlgs)) &&
+         SSL_CTX_set_verify_algorithm_prefs(ctx, kSigAlgs, std::size(kSigAlgs));
 }
 
 static int Configure(SSL *ssl) {
@@ -3333,11 +3329,9 @@ static int Configure(SSL *ssl) {
   return SSL_set_min_proto_version(ssl, TLS1_2_VERSION) &&
          SSL_set_max_proto_version(ssl, TLS1_3_VERSION) &&
          SSL_set_strict_cipher_list(ssl, kTLS12Ciphers) &&
-         SSL_set1_group_ids(ssl, kGroups, OPENSSL_ARRAY_SIZE(kGroups)) &&
-         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs,
-                                         OPENSSL_ARRAY_SIZE(kSigAlgs)) &&
-         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs,
-                                        OPENSSL_ARRAY_SIZE(kSigAlgs));
+         SSL_set1_group_ids(ssl, kGroups, std::size(kGroups)) &&
+         SSL_set_signing_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs)) &&
+         SSL_set_verify_algorithm_prefs(ssl, kSigAlgs, std::size(kSigAlgs));
 }
 
 }  // namespace wpa202304

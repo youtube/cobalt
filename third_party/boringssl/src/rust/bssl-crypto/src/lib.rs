@@ -79,15 +79,15 @@ pub struct InvalidSignatureError;
 /// the pointer. When passing pointers into C/C++ code, that is not a valid
 /// pointer. Thus this method should be used whenever passing a pointer to a
 /// slice into BoringSSL code.
-trait FfiSlice {
-    fn as_ffi_ptr(&self) -> *const u8;
+trait FfiSlice<T> {
+    fn as_ffi_ptr(&self) -> *const T;
     fn as_ffi_void_ptr(&self) -> *const c_void {
         self.as_ffi_ptr() as *const c_void
     }
 }
 
-impl FfiSlice for [u8] {
-    fn as_ffi_ptr(&self) -> *const u8 {
+impl<T> FfiSlice<T> for [T] {
+    fn as_ffi_ptr(&self) -> *const T {
         if self.is_empty() {
             core::ptr::null()
         } else {
@@ -96,8 +96,8 @@ impl FfiSlice for [u8] {
     }
 }
 
-impl<const N: usize> FfiSlice for [u8; N] {
-    fn as_ffi_ptr(&self) -> *const u8 {
+impl<T, const N: usize> FfiSlice<T> for [T; N] {
+    fn as_ffi_ptr(&self) -> *const T {
         if N == 0 {
             core::ptr::null()
         } else {

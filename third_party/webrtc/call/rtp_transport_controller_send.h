@@ -145,14 +145,8 @@ class RtpTransportControllerSend final
   // Called once it's known that the remote end supports RFC 8888.
   void EnableCongestionControlFeedbackAccordingToRfc8888() override;
 
-  int ReceivedCongestionControlFeedbackCount() const override {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    return feedback_count_;
-  }
-  int ReceivedTransportCcFeedbackCount() const override {
-    RTC_DCHECK_RUN_ON(&sequence_checker_);
-    return transport_cc_feedback_count_;
-  }
+  std::optional<int> ReceivedCongestionControlFeedbackCount() const override;
+  std::optional<int> ReceivedTransportCcFeedbackCount() const override;
 
  private:
   void MaybeCreateControllers() RTC_RUN_ON(sequence_checker_);

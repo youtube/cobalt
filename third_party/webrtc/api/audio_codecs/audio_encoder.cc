@@ -14,7 +14,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 
 #include "absl/strings/string_view.h"
 #include "api/array_view.h"
@@ -81,11 +80,6 @@ void AudioEncoder::SetTargetBitrate(int /* target_bps */) {}
 ArrayView<std::unique_ptr<AudioEncoder>>
 AudioEncoder::ReclaimContainedEncoders() {
   return nullptr;
-}
-
-bool AudioEncoder::EnableAudioNetworkAdaptor(const std::string& config_string,
-                                             RtcEventLog* /* event_log */) {
-  return EnableAudioNetworkAdaptor(config_string);
 }
 
 bool AudioEncoder::EnableAudioNetworkAdaptor(absl::string_view /*config*/) {

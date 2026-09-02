@@ -363,8 +363,7 @@ TEST(RtpTransportTest, DontSignalUnhandledRtpPayloadType) {
 }
 
 TEST(RtpTransportTest, DontChangeReadyToSendStateOnSendFailure) {
-  // ReadyToSendState should only care about if transport is writable unless the
-  // field trial WebRTC-SetReadyToSendFalseIfSendFail/Enabled/ is set.
+  // ReadyToSendState should only care about if transport is writable.
   RtpTransport transport(kMuxEnabled, CreateTestFieldTrials());
   TransportObserver observer(&transport);
 
@@ -383,36 +382,6 @@ TEST(RtpTransportTest, DontChangeReadyToSendStateOnSendFailure) {
   // Ready to send state should not have changed.
   EXPECT_TRUE(observer.ready_to_send());
   EXPECT_EQ(observer.ready_to_send_signal_count(), 1);
-}
-
-TEST(RtpTransportTest, RecursiveSetSendDoesNotCrash) {
-  const int kShortTimeout = 100;
-  test::RunLoop loop;
-
-  RtpTransport transport(
-      kMuxEnabled,
-      CreateTestFieldTrials("WebRTC-SetReadyToSendFalseIfSendFail/Enabled/"));
-  FakePacketTransport fake_rtp("fake_rtp");
-  transport.SetRtpPacketTransport(&fake_rtp);
-  TransportObserver observer(&transport);
-  observer.SetActionOnReadyToSend([&](bool ready) {
-    const AsyncSocketPacketOptions options;
-    const int flags = 0;
-    CopyOnWriteBuffer rtp_data(kRtpData, kRtpLen);
-    transport.SendRtpPacket(&rtp_data, options, flags);
-  });
-  // The fake RTP will have no destination, so will return -1.
-  fake_rtp.SetError(ENOTCONN);
-  fake_rtp.SetWritable(true);
-  // At this point, only the initial ready-to-send is observed.
-  EXPECT_TRUE(observer.ready_to_send());
-  EXPECT_EQ(observer.ready_to_send_signal_count(), 1);
-  // After the wait, the ready-to-send false is observed.
-  EXPECT_THAT(WaitUntil([&] { return observer.ready_to_send_signal_count(); },
-                        ::testing::Eq(2),
-                        {.timeout = TimeDelta::Millis(kShortTimeout)}),
-              IsRtcOk());
-  EXPECT_FALSE(observer.ready_to_send());
 }
 
 TEST(RtpTransportTest, RecursiveOnSentPacketDoesNotCrash) {

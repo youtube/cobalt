@@ -1306,7 +1306,7 @@ TEST_F(PeerConnectionEncodingsIntegrationTest, VP9_TargetBitrate_StandardL1T3) {
 }
 
 TEST_F(PeerConnectionEncodingsIntegrationTest,
-       SimulcastProducesUniqueSsrcAndRtxSsrcs) {
+       SimulcastProducesUniqueSsrcAndRtxSsrcsWhenConnected) {
   scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper = CreatePc();
   scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper = CreatePc();
   ExchangeIceCandidates(local_pc_wrapper, remote_pc_wrapper);
@@ -1345,6 +1345,54 @@ TEST_F(PeerConnectionEncodingsIntegrationTest,
   }
   EXPECT_EQ(ssrcs.size(), 3u);
   EXPECT_EQ(rtx_ssrcs.size(), 3u);
+}
+
+// Similar to the above test, but we never exchange ICE candidates such that
+// simulcast never has a chance to "ramp up". Despite this, we should see one
+// outbound-rtp per encoding.
+TEST_F(PeerConnectionEncodingsIntegrationTest,
+       SimulcastProducesUniqueSsrcAndRtxSsrcsWhenDisconnected) {
+  scoped_refptr<PeerConnectionTestWrapper> local_pc_wrapper = CreatePc();
+  scoped_refptr<PeerConnectionTestWrapper> remote_pc_wrapper = CreatePc();
+
+  std::vector<SimulcastLayer> layers =
+      CreateLayers({"f", "h", "q"}, /*active=*/true);
+  scoped_refptr<RtpTransceiverInterface> transceiver =
+      AddTransceiverWithSimulcastLayers(local_pc_wrapper, remote_pc_wrapper,
+                                        layers);
+
+  // Inactive the middle layer.
+  auto sender = transceiver->sender();
+  auto parameters = sender->GetParameters();
+  parameters.encodings[0].active = true;
+  parameters.encodings[1].active = false;
+  parameters.encodings[2].active = true;
+  EXPECT_TRUE(sender->SetParameters(parameters).ok());
+
+  NegotiateWithSimulcastTweaks(local_pc_wrapper, remote_pc_wrapper);
+
+  // We have three outbound-rtps.
+  scoped_refptr<const RTCStatsReport> report = GetStats(local_pc_wrapper);
+  std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
+      report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  ASSERT_EQ(outbound_rtps.size(), 3u);
+  // SSRC and RTX is unique.
+  std::set<uint32_t> ssrcs;
+  std::set<uint32_t> rtx_ssrcs;
+  for (const auto& outbound_rtp : outbound_rtps) {
+    ASSERT_TRUE(outbound_rtp->ssrc.has_value());
+    ASSERT_TRUE(outbound_rtp->rtx_ssrc.has_value());
+    ssrcs.insert(*outbound_rtp->ssrc);
+    rtx_ssrcs.insert(*outbound_rtp->rtx_ssrc);
+  }
+  EXPECT_EQ(ssrcs.size(), 3u);
+  EXPECT_EQ(rtx_ssrcs.size(), 3u);
+  // RIDs and active are set.
+  auto outbound_rtp_by_rid = GetOutboundRtpStreamStatsByRid(report);
+  EXPECT_THAT(
+      outbound_rtp_by_rid,
+      UnorderedElementsAre(Pair("q", Active()), Pair("h", Not(Active())),
+                           Pair("f", Active())));
 }
 
 TEST_F(PeerConnectionEncodingsIntegrationTest,
@@ -2441,10 +2489,14 @@ TEST_P(PeerConnectionEncodingsIntegrationParameterizedTest, Simulcast) {
   // GetParameters() does not report any fallback.
   parameters = sender->GetParameters();
   ASSERT_THAT(parameters.encodings, SizeIs(3));
+
+  EXPECT_TRUE(parameters.encodings[0].scalability_mode.has_value());
   EXPECT_THAT(parameters.encodings[0].scalability_mode,
               Optional(std::string("L1T3")));
+  EXPECT_TRUE(parameters.encodings[1].scalability_mode.has_value());
   EXPECT_THAT(parameters.encodings[1].scalability_mode,
               Optional(std::string("L1T3")));
+  EXPECT_TRUE(parameters.encodings[2].scalability_mode.has_value());
   EXPECT_THAT(parameters.encodings[2].scalability_mode,
               Optional(std::string("L1T3")));
 

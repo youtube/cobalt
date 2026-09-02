@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <iterator>
+
 #include <openssl/aead.h>
 #include <openssl/aes.h>
 #include <openssl/bn.h>
@@ -269,7 +271,7 @@ static DH *self_test_dh(void) {
   };
 
   bn_set_static_words(priv, kFFDHE2048PrivateKeyData,
-                      OPENSSL_ARRAY_SIZE(kFFDHE2048PrivateKeyData));
+                      std::size(kFFDHE2048PrivateKeyData));
 
   if (!DH_set0_key(dh, NULL, priv)) {
     goto err;
@@ -569,7 +571,7 @@ static int boringssl_self_test_ffdh(void) {
   ffdhe2048_value = BN_new();
   if (ffdhe2048_value) {
     bn_set_static_words(ffdhe2048_value, kFFDHE2048PublicValueData,
-                        OPENSSL_ARRAY_SIZE(kFFDHE2048PublicValueData));
+                        std::size(kFFDHE2048PublicValueData));
   }
 
   dh = self_test_dh();

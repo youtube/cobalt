@@ -28,7 +28,22 @@ TEST(FrameSampler, SamplesBasedOnRtpTimestamp) {
   EXPECT_TRUE(sampler.ShouldBeSampled(frame));
   frame.set_rtp_timestamp(45'000);
   EXPECT_FALSE(sampler.ShouldBeSampled(frame));
-  frame.set_rtp_timestamp(90'000);
+  frame.set_rtp_timestamp(90'000 - 3'000);
+  EXPECT_TRUE(sampler.ShouldBeSampled(frame));
+}
+
+TEST(FrameSampler, SamplesBasedOnRtpTimestampDeltaLessThanOneSecond) {
+  FrameSampler sampler;
+
+  auto buffer = make_ref_counted<I420Buffer>(320, 240);
+  VideoFrame frame =
+      VideoFrame::Builder().set_video_frame_buffer(buffer).build();
+
+  frame.set_rtp_timestamp(0);
+  EXPECT_TRUE(sampler.ShouldBeSampled(frame));
+  frame.set_rtp_timestamp(3'000);
+  EXPECT_FALSE(sampler.ShouldBeSampled(frame));
+  frame.set_rtp_timestamp(90'000 - 3'000);
   EXPECT_TRUE(sampler.ShouldBeSampled(frame));
 }
 
@@ -40,7 +55,7 @@ TEST(FrameSampler, RtpTimestampWraparound) {
       VideoFrame::Builder().set_video_frame_buffer(buffer).build();
 
   // RTP timestamp wraps at 2**32.
-  frame.set_rtp_timestamp(0xffff'ffff - 4000);
+  frame.set_rtp_timestamp(0xffff'ffff - 3'000);
   EXPECT_TRUE(sampler.ShouldBeSampled(frame));
   frame.set_rtp_timestamp(41'000);
   EXPECT_FALSE(sampler.ShouldBeSampled(frame));

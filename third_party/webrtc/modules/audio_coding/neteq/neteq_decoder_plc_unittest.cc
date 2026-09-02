@@ -233,7 +233,8 @@ TestStatistics RunTest(int loss_cadence,
   auto lifetime_stats = neteq_test.LifetimeStats();
   EXPECT_EQ(dec.concealed_samples(), lifetime_stats.concealed_samples);
   EXPECT_EQ(dec.concealment_events(), lifetime_stats.concealment_events);
-  return {neteq_test.SimulationStats(), neteq_test.LifetimeStats()};
+  return {.network = neteq_test.SimulationStats(),
+          .lifetime = neteq_test.LifetimeStats()};
 }
 }  // namespace
 

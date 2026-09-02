@@ -649,11 +649,11 @@ class TrustTokenProtocolTestBase : public ::testing::Test {
 
     uint8_t public_key[32], private_key[64];
     ED25519_keypair(public_key, private_key);
-    bssl::UniquePtr<EVP_PKEY> priv(EVP_PKEY_new_raw_private_key(
-        EVP_PKEY_ED25519, nullptr, private_key, 32));
+    bssl::UniquePtr<EVP_PKEY> priv(
+        EVP_PKEY_from_raw_private_key(EVP_pkey_ed25519(), private_key, 32));
     ASSERT_TRUE(priv);
     bssl::UniquePtr<EVP_PKEY> pub(
-        EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, public_key, 32));
+        EVP_PKEY_from_raw_public_key(EVP_pkey_ed25519(), public_key, 32));
     ASSERT_TRUE(pub);
 
     TRUST_TOKEN_CLIENT_set_srr_key(client.get(), pub.get());
@@ -899,10 +899,10 @@ TEST_P(TrustTokenProtocolTest, IssuedWithBadKeyID) {
   uint8_t public_key[32], private_key[64];
   ED25519_keypair(public_key, private_key);
   bssl::UniquePtr<EVP_PKEY> priv(
-      EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, private_key, 32));
+      EVP_PKEY_from_raw_private_key(EVP_pkey_ed25519(), private_key, 32));
   ASSERT_TRUE(priv);
   bssl::UniquePtr<EVP_PKEY> pub(
-      EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, public_key, 32));
+      EVP_PKEY_from_raw_public_key(EVP_pkey_ed25519(), public_key, 32));
   ASSERT_TRUE(pub);
 
   TRUST_TOKEN_CLIENT_set_srr_key(client.get(), pub.get());

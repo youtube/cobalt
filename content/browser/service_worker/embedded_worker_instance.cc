@@ -881,7 +881,7 @@ EmbeddedWorkerInstance::CreateFactoryBundle(
           rph, origin, isolation_info, std::move(coep_reporter),
           std::move(dip_reporter),
           static_cast<StoragePartitionImpl*>(rph->GetStoragePartition())
-              ->CreateURLLoaderNetworkObserverForServiceWorker(
+              ->CreateURLLoaderNetworkObserverForServiceOrSharedWorker(
                   rph->GetDeprecatedID(), origin),
           NetworkServiceDevToolsObserver::MakeSelfOwned(devtools_worker_token),
           std::move(client_security_state),

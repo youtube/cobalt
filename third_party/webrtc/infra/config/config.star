@@ -1,6 +1,7 @@
 #!/usr/bin/env lucicfg
 
 #  Copyright (c) 2019 The WebRTC project authors. All Rights Reserved.
+#
 #  Use of this source code is governed by a BSD-style license
 #  that can be found in the LICENSE file in the root of the source
 #  tree. An additional intellectual property rights grant can be found
@@ -16,7 +17,7 @@ lucicfg.check_version("1.30.9")
 WEBRTC_GIT = "https://webrtc.googlesource.com/src"
 WEBRTC_GERRIT = "https://webrtc-review.googlesource.com/src"
 WEBRTC_TROOPER_EMAIL = "webrtc-troopers-robots@google.com"
-WEBRTC_XCODE = "15f31d"
+WEBRTC_XCODE = "17a5305f"
 DEFAULT_CPU = "x86-64"
 
 # Helpers:
@@ -461,7 +462,6 @@ def recipe(recipe, pkg = "infra/recipe_bundles/chromium.googlesource.com/chromiu
         cipd_package = pkg,
         cipd_version = "refs/heads/main",
         recipe = recipe,
-        use_python3 = True,
     )
 
 recipe("chromium_trybot")
@@ -912,8 +912,9 @@ lkgr_config = {
                 "WebRTC Chromium FYI Win Builder (dbg)",
                 "WebRTC Chromium FYI Win Builder",
                 "WebRTC Chromium FYI Win10 Tester",
-                "WebRTC Chromium FYI ios-device",
-                "WebRTC Chromium FYI ios-simulator",
+                # TODO: b/441273941 - Re-enable once the ios infra issue is resolved
+                #"WebRTC Chromium FYI ios-device",
+                #"WebRTC Chromium FYI ios-simulator",
             ],
         },
     },

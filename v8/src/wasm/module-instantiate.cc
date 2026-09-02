@@ -664,6 +664,8 @@ ResolvedWasmImport::ResolvedWasmImport(
     DirectHandle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
     DirectHandle<JSReceiver> callable, const wasm::CanonicalSig* expected_sig,
     CanonicalTypeIndex expected_sig_id, WellKnownImport preknown_import) {
+  // TODO(clemensb): Remove expected_sig_id.
+  DCHECK_EQ(expected_sig_id, expected_sig->index());
   DCHECK_EQ(expected_sig, wasm::GetTypeCanonicalizer()->LookupFunctionSignature(
                               expected_sig_id));
   SetCallable(Isolate::Current(), callable);
@@ -2388,7 +2390,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 
       imported_entry.SetWasmToWrapper(isolate_, callable,
                                       std::move(wrapper_handle), kNoSuspend,
-                                      expected_sig, sig_index);
+                                      expected_sig);
       return true;
 #else
       UNREACHABLE();
@@ -2404,7 +2406,7 @@ bool InstanceBuilder::ProcessImportedFunction(
 
   if (v8_flags.wasm_jitless) {
     imported_entry.SetWasmToWrapper(isolate_, callable, {}, kNoSuspend,
-                                    expected_sig, sig_index);
+                                    expected_sig);
     return true;
   }
 
@@ -2416,12 +2418,11 @@ bool InstanceBuilder::ProcessImportedFunction(
   }
 
   WasmImportWrapperCache* cache = GetWasmImportWrapperCache();
-  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->Get(isolate_, kind, sig_index, expected_arity, resolved.suspend(),
-                 expected_sig);
+  std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle = cache->Get(
+      isolate_, kind, expected_arity, resolved.suspend(), expected_sig);
 
   imported_entry.SetWasmToWrapper(isolate_, callable, std::move(wrapper_handle),
-                                  resolved.suspend(), expected_sig, sig_index);
+                                  resolved.suspend(), expected_sig);
 
   return true;
 }

@@ -9,6 +9,10 @@
 #ifndef COMMON_ANGLEUTILS_H_
 #define COMMON_ANGLEUTILS_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "common/platform.h"
 
 #if defined(ANGLE_WITH_LSAN)

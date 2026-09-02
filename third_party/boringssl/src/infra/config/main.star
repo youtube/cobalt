@@ -156,7 +156,6 @@ def ci_builder(
         executable = luci.recipe(
             name = recipe,
             cipd_package = RECIPE_BUNDLE,
-            use_python3 = True,
         ),
         service_account = "boringssl-ci-builder@chops-service-accounts.iam.gserviceaccount.com",
         dimensions = dimensions,
@@ -202,7 +201,6 @@ def cq_builder(
         executable = luci.recipe(
             name = recipe,
             cipd_package = RECIPE_BUNDLE,
-            use_python3 = True,
         ),
         service_account = "boringssl-try-builder@chops-service-accounts.iam.gserviceaccount.com",
         dimensions = dimensions,

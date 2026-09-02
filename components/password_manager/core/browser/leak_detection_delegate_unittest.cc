@@ -722,7 +722,7 @@ TEST_F(LeakDetectionDelegateTest, PassesChromeChannel) {
 
 TEST_F(LeakDetectionDelegateTest, StartCheckTriggersChangePwdUrlPrefetch) {
   base::test::ScopedFeatureList feature(
-      features::kImprovedPasswordChangeService);
+      features::kFetchChangePasswordUrlForPasswordChange);
 
   SetLeakDetectionEnabled(true);
   EXPECT_CALL(client(), IsOffTheRecord).WillOnce(Return(false));
@@ -755,7 +755,7 @@ TEST_F(LeakDetectionDelegateTest, StartCheckTriggersChangePwdUrlPrefetch) {
 
 TEST_F(LeakDetectionDelegateTest, LeakNotifiedAfterChangePwdUrlIsFetched) {
   base::test::ScopedFeatureList feature(
-      features::kImprovedPasswordChangeService);
+      features::kFetchChangePasswordUrlForPasswordChange);
 
   SetLeakDetectionEnabled(true);
   EXPECT_CALL(client(), IsOffTheRecord).WillOnce(Return(false));
@@ -844,7 +844,7 @@ TEST_F(LeakDetectionDelegateTest,
   features.InitWithFeatures(
       {
           features::kMarkAllCredentialsAsLeaked,
-          features::kImprovedPasswordChangeService,
+          features::kFetchChangePasswordUrlForPasswordChange,
       },
       {});
 

@@ -81,12 +81,11 @@ chromium-metrics-reviews@google.com.
 <!-- LINT.IfChange(FingerprintingProtectionRuleListApplyTrigger) -->
 
 <enum name="FingerprintingProtectionRuleListApplyTrigger">
-  <int value="0" label="Rules were applied on initial load."/>
-  <int value="1" label="Rules were applied because the component was updated."/>
-  <int value="2"
+  <int value="0" label="Rules were applied because the component was updated."/>
+  <int value="1"
       label="Rules were applied because Fingerprinting Protection was
              toggled."/>
-  <int value="3"
+  <int value="2"
       label="Rules were applied because a site exception was changed."/>
 </enum>
 
@@ -732,6 +731,7 @@ chromium-metrics-reviews@google.com.
   <int value="19" label="Obsolete - Set Up List Docking"/>
   <int value="20" label="Obsolete - Set Up List Address Bar"/>
   <int value="21" label="ShopCard"/>
+  <int value="22" label="App Bundle Promo"/>
 </enum>
 
 <enum name="IOSMiniMapConsentOutcome">

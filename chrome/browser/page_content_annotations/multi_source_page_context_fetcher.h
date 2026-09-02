@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/types/expected.h"
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
@@ -45,6 +46,7 @@ struct ScreenshotResult {
   ~ScreenshotResult();
   std::vector<uint8_t> jpeg_data;
   gfx::Size dimensions;
+  base::TimeTicks end_time;
 };
 
 struct InnerTextResultWithTruncation
@@ -56,14 +58,20 @@ struct InnerTextResultWithTruncation
   bool truncated = false;
 };
 
+struct PageContentResultWithEndTime
+    : public optimization_guide::AIPageContentResult {
+  explicit PageContentResultWithEndTime(
+      optimization_guide::AIPageContentResult&& result);
+  base::TimeTicks end_time;
+};
+
 struct FetchPageContextResult {
   FetchPageContextResult();
   ~FetchPageContextResult();
-  std::optional<ScreenshotResult> screenshot_result;
+  base::expected<ScreenshotResult, std::string> screenshot_result;
   std::optional<InnerTextResultWithTruncation> inner_text_result;
   std::optional<PdfResult> pdf_result;
-  std::optional<optimization_guide::AIPageContentResult>
-      annotated_page_content_result;
+  std::optional<PageContentResultWithEndTime> annotated_page_content_result;
 };
 
 enum class FetchPageContextError {
@@ -98,6 +106,19 @@ extern const base::FeatureParam<base::TimeDelta> kScreenshotTimeout;
 
 // Enables the Paint Preview backend for taking screenshots.
 BASE_DECLARE_FEATURE(kGlicTabScreenshotPaintPreviewBackend);
+
+enum class ScreenshotIframeRedactionScope {
+  // No redaction.
+  kNone,
+  // Redact cross-site iframes.
+  kCrossSite,
+  // Redact cross-origin iframes.
+  kCrossOrigin,
+};
+
+// Controls whether iframe redaction is enabled, and which scope is used if so.
+extern const base::FeatureParam<ScreenshotIframeRedactionScope>
+    kScreenshotIframeRedaction;
 
 // Enables page context eligibility checks.
 BASE_DECLARE_FEATURE(kGlicPageContextEligibility);

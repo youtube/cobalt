@@ -713,6 +713,7 @@ class RTCStatsCollectorTest : public ::testing::Test {
     video_media_info.receivers[0].local_stats.push_back(SsrcReceiverInfo());
     video_media_info.receivers[0].local_stats[0].ssrc = 4;
     video_media_info.receivers[0].codec_payload_type = recv_codec.payload_type;
+    video_media_info.receivers[0].packets_received = 123;
     // transport
     graph.transport_id = "TTransportName1";
     pc_->AddVideoChannel("VideoMid", "TransportName", video_media_info);
@@ -799,6 +800,7 @@ class RTCStatsCollectorTest : public ::testing::Test {
     media_info.receivers.push_back(VoiceReceiverInfo());
     media_info.receivers[0].local_stats.push_back(SsrcReceiverInfo());
     media_info.receivers[0].local_stats[0].ssrc = kRemoteSsrc;
+    media_info.receivers[0].packets_received = 123;
     media_info.receivers[0].codec_payload_type = recv_codec.payload_type;
     // remote-outbound-rtp
     if (add_remote_outbound_stats) {
@@ -994,12 +996,14 @@ TEST_F(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
   VoiceMediaInfo mid1_info;
   mid1_info.receivers.emplace_back();
   mid1_info.receivers[0].add_ssrc(1);
+  mid1_info.receivers[0].packets_received = 123;
   mid1_info.senders.emplace_back();
   mid1_info.senders[0].add_ssrc(2);
   pc_->AddVoiceChannel("Mid1", "Transport1", mid1_info);
   VideoMediaInfo mid2_info;
   mid2_info.receivers.emplace_back();
   mid2_info.receivers[0].add_ssrc(3);
+  mid2_info.receivers[0].packets_received = 123;
   mid2_info.senders.emplace_back();
   mid2_info.senders[0].add_ssrc(4);
   pc_->AddVideoChannel("Mid2", "Transport1", mid2_info);
@@ -1008,12 +1012,14 @@ TEST_F(RTCStatsCollectorTest, ValidSsrcCollisionDoesNotCrash) {
   VoiceMediaInfo mid3_info;
   mid3_info.receivers.emplace_back();
   mid3_info.receivers[0].add_ssrc(1);
+  mid3_info.receivers[0].packets_received = 123;
   mid3_info.senders.emplace_back();
   mid3_info.senders[0].add_ssrc(2);
   pc_->AddVoiceChannel("Mid3", "Transport2", mid3_info);
   VideoMediaInfo mid4_info;
   mid4_info.receivers.emplace_back();
   mid4_info.receivers[0].add_ssrc(3);
+  mid4_info.receivers[0].packets_received = 123;
   mid4_info.senders.emplace_back();
   mid4_info.senders[0].add_ssrc(4);
   pc_->AddVideoChannel("Mid4", "Transport2", mid4_info);
@@ -1111,6 +1117,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCCodecStatsOnlyIfReferenced) {
   VoiceReceiverInfo inbound_audio_info;
   inbound_audio_info.add_ssrc(10);
   inbound_audio_info.codec_payload_type = 1;
+  inbound_audio_info.packets_received = 123;
   voice_media_info.receivers.push_back(inbound_audio_info);
 
   VoiceSenderInfo outbound_audio_info;
@@ -1121,6 +1128,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCCodecStatsOnlyIfReferenced) {
   VideoReceiverInfo inbound_video_info;
   inbound_video_info.add_ssrc(30);
   inbound_video_info.codec_payload_type = 3;
+  inbound_video_info.packets_received = 123;
   video_media_info.receivers.push_back(inbound_video_info);
 
   VideoSenderInfo outbound_video_info;
@@ -1298,6 +1306,7 @@ TEST_F(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
       inbound_codec_pt111_nofec.payload_type, inbound_codec_pt111_nofec));
   info_nofec.receivers.emplace_back();
   info_nofec.receivers[0].add_ssrc(123);
+  info_nofec.receivers[0].packets_received = 123;
   info_nofec.receivers[0].codec_payload_type =
       inbound_codec_pt111_nofec.payload_type;
   VideoMediaInfo info_fec;
@@ -1305,6 +1314,7 @@ TEST_F(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
       inbound_codec_pt111_fec.payload_type, inbound_codec_pt111_fec));
   info_fec.receivers.emplace_back();
   info_fec.receivers[0].add_ssrc(321);
+  info_fec.receivers[0].packets_received = 123;
   info_fec.receivers[0].codec_payload_type =
       inbound_codec_pt111_fec.payload_type;
 
@@ -1345,6 +1355,7 @@ TEST_F(RTCStatsCollectorTest, SamePayloadTypeButDifferentFmtpLines) {
       inbound_codec_pt112_fec.payload_type, inbound_codec_pt112_fec));
   info_fec_pt112.receivers.emplace_back();
   info_fec_pt112.receivers[0].add_ssrc(112);
+  info_fec_pt112.receivers[0].packets_received = 123;
   info_fec_pt112.receivers[0].codec_payload_type =
       inbound_codec_pt112_fec.payload_type;
   pc_->AddVideoChannel("Mid5", "BundledTransport", info_fec_pt112);
@@ -2267,6 +2278,7 @@ TEST_F(RTCStatsCollectorTest, CollectRTCInboundRtpStreamStats_Audio_PlayoutId) {
   voice_media_info.receivers.push_back(VoiceReceiverInfo());
   voice_media_info.receivers[0].local_stats.push_back(SsrcReceiverInfo());
   voice_media_info.receivers[0].local_stats[0].ssrc = 1;
+  voice_media_info.receivers[0].packets_received = 123;
 
   pc_->AddVoiceChannel("AudioMid", "TransportName", voice_media_info);
   stats_->SetupRemoteTrackAndReceiver(MediaType::AUDIO, "RemoteAudioTrackID",
@@ -2495,6 +2507,7 @@ TEST_F(RTCStatsCollectorTest, CollectGoogTimingFrameInfo) {
   video_media_info.receivers.push_back(VideoReceiverInfo());
   video_media_info.receivers[0].local_stats.push_back(SsrcReceiverInfo());
   video_media_info.receivers[0].local_stats[0].ssrc = 1;
+  video_media_info.receivers[0].packets_received = 123;
   TimingFrameInfo timing_frame_info;
   timing_frame_info.rtp_timestamp = 1;
   timing_frame_info.capture_time_ms = 2;
@@ -2942,18 +2955,22 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
   rtp_transport_channel_stats.dtls_state = DtlsTransportState::kConnected;
   rtp_transport_channel_stats.ice_transport_stats
       .selected_candidate_pair_changes = 1;
-  rtp_transport_channel_stats.ssl_version_bytes = 0x0203;
-  rtp_transport_channel_stats.dtls_role = SSL_CLIENT;
   rtp_transport_channel_stats.ice_transport_stats.ice_role =
       ICEROLE_CONTROLLING;
   rtp_transport_channel_stats.ice_transport_stats.ice_local_username_fragment =
       "thelocalufrag";
   rtp_transport_channel_stats.ice_transport_stats.ice_state =
       IceTransportState::kConnected;
+  rtp_transport_channel_stats.ssl_version_bytes = 0x0203;
+  rtp_transport_channel_stats.dtls_role = SSL_CLIENT;
   rtp_transport_channel_stats.tls_cipher_suite_name =
       "TLS_RSA_WITH_AES_128_CBC_SHA";
   rtp_transport_channel_stats.srtp_crypto_suite = kSrtpAes128CmSha1_80;
   pc_->SetTransportStats(kTransportName, {rtp_transport_channel_stats});
+
+  Call::Stats call_stats;
+  call_stats.ccfb_messages_received = 5;
+  pc_->SetCallStats(call_stats);
 
   // Get stats
   scoped_refptr<const RTCStatsReport> report = stats_->GetStatsReport();
@@ -2976,6 +2993,8 @@ TEST_F(RTCStatsCollectorTest, CollectRTCTransportStatsWithCrypto) {
   expected_rtp_transport.dtls_role = "client";
   expected_rtp_transport.dtls_cipher = "TLS_RSA_WITH_AES_128_CBC_SHA";
   expected_rtp_transport.srtp_cipher = "AES_CM_128_HMAC_SHA1_80";
+  // CCFB stats.
+  expected_rtp_transport.ccfb_messages_received = 5;
 
   ASSERT_TRUE(report->Get(expected_rtp_transport.id()));
   EXPECT_EQ(

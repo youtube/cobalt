@@ -41,7 +41,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   // TODO(sashab): Remove this method and move logic to the caller.
   static CSSValue* Create(const Length& value, float zoom);
 
-  WTF::String CssText() const;
+  String CssText() const;
   unsigned Hash() const;
 
   bool IsNumericLiteralValue() const {
@@ -125,8 +125,9 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   bool IsUnsetValue() const { return class_type_ == kUnsetClass; }
   bool IsRevertValue() const { return class_type_ == kRevertClass; }
   bool IsRevertLayerValue() const { return class_type_ == kRevertLayerClass; }
+  bool IsRevertRuleValue() const { return class_type_ == kRevertRuleClass; }
   bool IsCSSWideKeyword() const {
-    return class_type_ >= kInheritedClass && class_type_ <= kRevertLayerClass;
+    return class_type_ >= kInheritedClass && class_type_ <= kRevertRuleClass;
   }
   bool IsLayoutFunctionValue() const {
     return class_type_ == kLayoutFunctionClass;
@@ -247,7 +248,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
   bool IsScopedValue() const { return !needs_tree_scope_population_; }
 
 #if DCHECK_IS_ON()
-  WTF::String ClassTypeToString() const;
+  String ClassTypeToString() const;
 #endif
 
   void TraceAfterDispatch(blink::Visitor* visitor) const {}
@@ -320,6 +321,7 @@ class CORE_EXPORT CSSValue : public GarbageCollected<CSSValue> {
     kUnsetClass,
     kRevertClass,
     kRevertLayerClass,
+    kRevertRuleClass,
 
     kReflectClass,
     kShadowClass,

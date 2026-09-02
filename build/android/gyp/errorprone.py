@@ -28,9 +28,6 @@ TESTONLY_ERRORPRONE_WARNINGS_TO_DISABLE = [
 
 # Full list of checks: https://errorprone.info/bugpatterns
 ERRORPRONE_WARNINGS_TO_DISABLE = [
-    # High priority to enable:
-    'DirectInvocationOnMock',
-    'AssignmentExpression',
     # High priority to enable in non-tests:
     'JdkObsolete',
     'ReturnValueIgnored',
@@ -46,7 +43,6 @@ ERRORPRONE_WARNINGS_TO_DISABLE = [
     'IdentityHashMapUsage',
     'JavaUtilDate',
     'OverrideThrowableToString',
-    'NonCanonicalType',
     'PatternMatchingInstanceof',
     'RedundantControlFlow',
     'StatementSwitchToExpressionSwitch',
@@ -208,6 +204,16 @@ def main():
     ]
     errorprone_flags += [
         '-XepOpt:NullAway:KnownInitializers=' + ','.join(init_methods)
+    ]
+    # Exclude fields with these annotations from null-checking.
+    mock_annotations = [
+        'org.mockito.Captor',
+        'org.mockito.Mock',
+        'org.mockito.Spy',
+    ]
+    errorprone_flags += [
+        '-XepOpt:NullAway:ExcludedFieldAnnotations=' +
+        ','.join(mock_annotations)
     ]
 
   # Make everything a warning so that when treat_warnings_as_errors is false,

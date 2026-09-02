@@ -216,56 +216,60 @@ int EVP_PKEY_set_type(EVP_PKEY *pkey, int type) {
   return 1;
 }
 
+EVP_PKEY *EVP_PKEY_from_raw_private_key(const EVP_PKEY_ALG *alg,
+                                        const uint8_t *in, size_t len) {
+  if (alg->method->set_priv_raw == nullptr) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
+    return nullptr;
+  }
+  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
+  if (ret == nullptr || !alg->method->set_priv_raw(ret.get(), in, len)) {
+    return nullptr;
+  }
+  return ret.release();
+}
+
+EVP_PKEY *EVP_PKEY_from_raw_public_key(const EVP_PKEY_ALG *alg,
+                                       const uint8_t *in, size_t len) {
+  if (alg->method->set_pub_raw == nullptr) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
+    return nullptr;
+  }
+  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
+  if (ret == nullptr || !alg->method->set_pub_raw(ret.get(), in, len)) {
+    return nullptr;
+  }
+  return ret.release();
+}
+
 EVP_PKEY *EVP_PKEY_new_raw_private_key(int type, ENGINE *unused,
                                        const uint8_t *in, size_t len) {
   // To avoid pulling in all key types, look for specifically the key types that
   // support |set_priv_raw|.
-  const EVP_PKEY_ASN1_METHOD *method;
   switch (type) {
     case EVP_PKEY_X25519:
-      method = &x25519_asn1_meth;
-      break;
+      return EVP_PKEY_from_raw_private_key(EVP_pkey_x25519(), in, len);
     case EVP_PKEY_ED25519:
-      method = &ed25519_asn1_meth;
-      break;
+      return EVP_PKEY_from_raw_private_key(EVP_pkey_ed25519(), in, len);
     default:
       OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
       return nullptr;
   }
-
-  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr ||  //
-      !method->set_priv_raw(ret.get(), in, len)) {
-    return nullptr;
-  }
-
-  return ret.release();
 }
 
 EVP_PKEY *EVP_PKEY_new_raw_public_key(int type, ENGINE *unused,
                                       const uint8_t *in, size_t len) {
   // To avoid pulling in all key types, look for specifically the key types that
   // support |set_pub_raw|.
-  const EVP_PKEY_ASN1_METHOD *method;
   switch (type) {
     case EVP_PKEY_X25519:
-      method = &x25519_asn1_meth;
-      break;
+      return EVP_PKEY_from_raw_public_key(EVP_pkey_x25519(), in, len);
     case EVP_PKEY_ED25519:
-      method = &ed25519_asn1_meth;
-      break;
+      return EVP_PKEY_from_raw_public_key(EVP_pkey_ed25519(), in, len);
     default:
       OPENSSL_PUT_ERROR(EVP, EVP_R_UNSUPPORTED_ALGORITHM);
       return nullptr;
   }
-
-  bssl::UniquePtr<EVP_PKEY> ret(EVP_PKEY_new());
-  if (ret == nullptr ||  //
-      !method->set_pub_raw(ret.get(), in, len)) {
-    return nullptr;
-  }
-
-  return ret.release();
 }
 
 int EVP_PKEY_get_raw_private_key(const EVP_PKEY *pkey, uint8_t *out,

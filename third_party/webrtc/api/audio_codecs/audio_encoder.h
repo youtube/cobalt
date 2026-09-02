@@ -16,7 +16,6 @@
 
 #include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -30,8 +29,6 @@
 #include "rtc_base/buffer.h"
 
 namespace webrtc {
-
-class RtcEventLog;
 
 // Statistics related to Audio Network Adaptation.
 struct ANAStats {
@@ -202,9 +199,6 @@ class AudioEncoder {
   virtual ArrayView<std::unique_ptr<AudioEncoder>> ReclaimContainedEncoders();
 
   // Enables audio network adaptor. Returns true if successful.
-  [[deprecated]]
-  virtual bool EnableAudioNetworkAdaptor(const std::string& config_string,
-                                         RtcEventLog* event_log);
   virtual bool EnableAudioNetworkAdaptor(absl::string_view config);
 
   // Disables audio network adaptor.

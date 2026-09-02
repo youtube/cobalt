@@ -3,9 +3,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// TracePerf:
+// TracePerfTest.cpp:
 //   Performance test for ANGLE replaying traces.
 //
+
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
 
 #include "tests/perf_tests/TracePerfTest.h"
 #include <gtest/gtest.h>
@@ -1312,6 +1316,11 @@ TracePerfTest::TracePerfTest(std::unique_ptr<const TracePerfParams> params)
     if (traceNameIs("passmark_simple"))
     {
         addExtensionPrerequisite("GL_OES_framebuffer_object");
+    }
+
+    if (traceNameIs("minecraft_vibrant_visuals"))
+    {
+        addIntegerPrerequisite(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, 1024);
     }
 
     // GL_KHR_debug does not work on Android for GLES1

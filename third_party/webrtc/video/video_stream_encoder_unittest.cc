@@ -1008,7 +1008,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
         .set_ntp_time_ms(ntp_time_ms)
         .set_timestamp_ms(ntp_time_ms)
         .set_rotation(kVideoRotation_0)
-        .set_update_rect(VideoFrame::UpdateRect{offset_x, 0, 1, 1})
+        .set_update_rect(VideoFrame::UpdateRect{
+            .offset_x = offset_x, .offset_y = 0, .width = 1, .height = 1})
         .build();
   }
 
@@ -1413,8 +1414,8 @@ class VideoStreamEncoderTest : public ::testing::Test {
     uint32_t last_framerate_ RTC_GUARDED_BY(local_mutex_) = 0;
     std::optional<VideoEncoder::RateControlParameters>
         last_rate_control_settings_;
-    VideoFrame::UpdateRect last_update_rect_ RTC_GUARDED_BY(local_mutex_) = {
-        0, 0, 0, 0};
+    VideoFrame::UpdateRect last_update_rect_ RTC_GUARDED_BY(
+        local_mutex_) = {.offset_x = 0, .offset_y = 0, .width = 0, .height = 0};
     std::vector<VideoFrameType> last_frame_types_;
     bool expect_null_frame_ = false;
     EncodedImageCallback* encoded_image_callback_ RTC_GUARDED_BY(local_mutex_) =
@@ -9334,12 +9335,13 @@ TEST_F(VideoStreamEncoderTest, RecreatesEncoderWhenEnableVp9SpatialLayer) {
   video_encoder_config.encoder_specific_settings =
       make_ref_counted<VideoEncoderConfig::Vp9EncoderSpecificSettings>(
           vp9_settings);
-  video_encoder_config.spatial_layers = GetSvcConfig(1280, 720,
-                                                     /*fps=*/30.0,
-                                                     /*first_active_layer=*/0,
-                                                     /*num_spatial_layers=*/2,
-                                                     /*num_temporal_layers=*/3,
-                                                     /*is_screenshare=*/false);
+  video_encoder_config.spatial_layers =
+      GetSvcConfig(1280, 720,
+                   /*fps=*/30.0,
+                   /*first_active_layer=*/0,
+                   /*num_spatial_layers=*/2,
+                   /*num_temporal_layers=*/3,
+                   /*is_screen_sharing=*/false);
   ConfigureEncoder(video_encoder_config.Copy(),
                    VideoStreamEncoder::BitrateAllocationCallbackType::
                        kVideoLayersAllocation);
@@ -9510,7 +9512,7 @@ TEST_P(VideoStreamEncoderWithRealEncoderTest, HandlesLayerToggling) {
                                          /*first_active_layer=*/0,
                                          /*num_spatial_layers=*/3,
                                          /*num_temporal_layers=*/3,
-                                         /*is_screenshare=*/false);
+                                         /*is_screen_sharing=*/false);
   } else if (codec_type_ == VideoCodecType::kVideoCodecAV1) {
     test::FillEncoderConfiguration(codec_type_, 1, &config);
     config.max_bitrate_bps = kSimulcastTargetBitrate.bps();
@@ -9519,7 +9521,7 @@ TEST_P(VideoStreamEncoderWithRealEncoderTest, HandlesLayerToggling) {
                                          /*first_active_layer=*/0,
                                          /*num_spatial_layers=*/3,
                                          /*num_temporal_layers=*/3,
-                                         /*is_screenshare=*/false);
+                                         /*is_screen_sharing=*/false);
     config.simulcast_layers[0].scalability_mode = ScalabilityMode::kL3T3_KEY;
   } else {
     // Simulcast for VP8/H264.
@@ -10164,7 +10166,8 @@ TEST(VideoStreamEncoderFrameCadenceTest,
   EXPECT_CALL(mock_source, RequestRefreshFrame);
   video_stream_encoder->SendKeyFrame();
   constexpr int kMaxFps = 30;
-  adapter_ptr->OnConstraintsChanged(VideoTrackSourceConstraints{0, kMaxFps});
+  adapter_ptr->OnConstraintsChanged(
+      VideoTrackSourceConstraints{.min_fps = 0, .max_fps = kMaxFps});
   factory.GetTimeController()->AdvanceTime(
       TimeDelta::Seconds(1) *
       FrameCadenceAdapterInterface::kOnDiscardedFrameRefreshFramePeriod /

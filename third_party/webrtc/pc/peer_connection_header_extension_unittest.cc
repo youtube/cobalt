@@ -72,13 +72,16 @@ class PeerConnectionHeaderExtensionTest
 
   std::unique_ptr<PeerConnectionWrapper> CreatePeerConnection(
       MediaType media_type,
-      std::optional<SdpSemantics> semantics) {
+      std::optional<SdpSemantics> semantics,
+      std::string field_trials_string = "") {
     auto media_engine = std::make_unique<FakeMediaEngine>();
     if (media_type == MediaType::AUDIO)
       media_engine->fake_voice_engine()->SetRtpHeaderExtensions(extensions_);
     else
       media_engine->fake_video_engine()->SetRtpHeaderExtensions(extensions_);
     PeerConnectionFactoryDependencies factory_dependencies;
+    factory_dependencies.env =
+        CreateEnvironment(CreateTestFieldTrialsPtr(field_trials_string));
     factory_dependencies.network_thread = Thread::Current();
     factory_dependencies.worker_thread = Thread::Current();
     factory_dependencies.signaling_thread = Thread::Current();
@@ -269,10 +272,10 @@ TEST_P(PeerConnectionHeaderExtensionTest, OfferedExtensionsArePerTransceiver) {
   std::unique_ptr<PeerConnectionWrapper> pc1 =
       CreatePeerConnection(media_type, semantics);
   auto transceiver1 = pc1->AddTransceiver(media_type);
+  auto transceiver2 = pc1->AddTransceiver(media_type);
   auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
   modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
   transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
-  auto transceiver2 = pc1->AddTransceiver(media_type);
 
   auto session_description = pc1->CreateOffer();
   EXPECT_THAT(session_description->description()
@@ -422,8 +425,8 @@ TEST_P(PeerConnectionHeaderExtensionTest,
   std::tie(media_type, semantics) = GetParam();
   if (semantics != SdpSemantics::kUnifiedPlan)
     return;
-  std::unique_ptr<PeerConnectionWrapper> pc =
-      CreatePeerConnection(media_type, semantics);
+  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -472,6 +475,62 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                           Field(&RtpExtension::uri, "uri3"),
                           Field(&RtpExtension::uri, "uri4")));
 }
+TEST_P(PeerConnectionHeaderExtensionTest,
+       SdpMungingAnswerWithoutApiUsageEnablesExtensionsWithMemory) {
+  MediaType media_type;
+  SdpSemantics semantics;
+  std::tie(media_type, semantics) = GetParam();
+  if (semantics != SdpSemantics::kUnifiedPlan)
+    return;
+  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 0 3 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=fingerprint:sha-256 "
+      "A7:24:72:CA:6E:02:55:39:BA:66:DF:6E:CC:4C:D8:B0:1A:BF:1A:56:65:7D:F4:03:"
+      "AD:7E:77:43:2A:29:EC:93\r\n"
+      "a=ice-ufrag:6HHHdzzeIhkE0CKj\r\n"
+      "a=ice-pwd:XYDGVpfvklQIEnZ6YnyLsAew\r\n";
+  if (media_type == MediaType::AUDIO) {
+    sdp +=
+        "m=audio 9 RTP/AVPF 111\r\n"
+        "a=rtpmap:111 fake_audio_codec/8000\r\n";
+  } else {
+    sdp +=
+        "m=video 9 RTP/AVPF 111\r\n"
+        "a=rtpmap:111 fake_video_codec/90000\r\n";
+  }
+  sdp +=
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp-mux\r\n"
+      "a=sendrecv\r\n"
+      "a=mid:audio\r\n"
+      "a=setup:actpass\r\n"
+      "a=extmap:1 uri1\r\n";
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
+  pc->SetRemoteDescription(std::move(offer));
+  std::unique_ptr<SessionDescriptionInterface> answer =
+      pc->CreateAnswer(PeerConnectionInterface::RTCOfferAnswerOptions());
+  std::string modified_sdp;
+  ASSERT_TRUE(answer->ToString(&modified_sdp));
+  modified_sdp += "a=extmap:1 uri1\r\n";
+  auto modified_answer =
+      CreateSessionDescription(SdpType::kAnswer, modified_sdp);
+  ASSERT_TRUE(pc->SetLocalDescription(std::move(modified_answer)));
+
+  auto session_description = pc->CreateOffer();
+  // With memory enabled, next offer will only contain the extensions
+  // that were agreed to in previous offer/answer.
+  EXPECT_THAT(session_description->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri1")));
+}
 
 TEST_P(PeerConnectionHeaderExtensionTest,
        SdpMungingOfferWithoutApiUsageEnablesExtensions) {
@@ -504,14 +563,15 @@ TEST_P(PeerConnectionHeaderExtensionTest,
                           Field(&RtpExtension::uri, "uri1")));
 }
 
-TEST_P(PeerConnectionHeaderExtensionTest, EnablingExtensionsAfterRemoteOffer) {
+TEST_P(PeerConnectionHeaderExtensionTest,
+       EnablingExtensionsAfterRemoteOfferWithoutHeaderExtensionMemory) {
   MediaType media_type;
   SdpSemantics semantics;
   std::tie(media_type, semantics) = GetParam();
   if (semantics != SdpSemantics::kUnifiedPlan)
     return;
-  std::unique_ptr<PeerConnectionWrapper> pc =
-      CreatePeerConnection(media_type, semantics);
+  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
   std::string sdp =
       "v=0\r\n"
       "o=- 0 3 IN IP4 127.0.0.1\r\n"
@@ -564,6 +624,64 @@ TEST_P(PeerConnectionHeaderExtensionTest, EnablingExtensionsAfterRemoteOffer) {
   EXPECT_EQ(extensions[0].id, 5);
 }
 
+TEST_P(PeerConnectionHeaderExtensionTest,
+       EnablingExtensionsAfterRemoteOfferWithHeaderExtensionMemory) {
+  MediaType media_type;
+  SdpSemantics semantics;
+  std::tie(media_type, semantics) = GetParam();
+  if (semantics != SdpSemantics::kUnifiedPlan)
+    return;
+  std::unique_ptr<PeerConnectionWrapper> pc = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  std::string sdp =
+      "v=0\r\n"
+      "o=- 0 3 IN IP4 127.0.0.1\r\n"
+      "s=-\r\n"
+      "t=0 0\r\n"
+      "a=fingerprint:sha-256 "
+      "A7:24:72:CA:6E:02:55:39:BA:66:DF:6E:CC:4C:D8:B0:1A:BF:1A:56:65:7D:F4:03:"
+      "AD:7E:77:43:2A:29:EC:93\r\n"
+      "a=ice-ufrag:6HHHdzzeIhkE0CKj\r\n"
+      "a=ice-pwd:XYDGVpfvklQIEnZ6YnyLsAew\r\n";
+  if (media_type == MediaType::AUDIO) {
+    sdp +=
+        "m=audio 9 RTP/AVPF 111\r\n"
+        "a=rtpmap:111 fake_audio_codec/8000\r\n";
+  } else {
+    sdp +=
+        "m=video 9 RTP/AVPF 111\r\n"
+        "a=rtpmap:111 fake_video_codec/90000\r\n";
+  }
+  sdp +=
+      "c=IN IP4 0.0.0.0\r\n"
+      "a=rtcp-mux\r\n"
+      "a=sendrecv\r\n"
+      "a=mid:audio\r\n"
+      "a=setup:actpass\r\n"
+      "a=extmap:5 uri1\r\n";
+  std::unique_ptr<SessionDescriptionInterface> offer =
+      CreateSessionDescription(SdpType::kOffer, sdp);
+  pc->SetRemoteDescription(std::move(offer));
+
+  ASSERT_GT(pc->pc()->GetTransceivers().size(), 0u);
+  auto transceiver = pc->pc()->GetTransceivers()[0];
+  auto modified_extensions = transceiver->GetHeaderExtensionsToNegotiate();
+  modified_extensions[0].direction = RtpTransceiverDirection::kSendRecv;
+  transceiver->SetHeaderExtensionsToNegotiate(modified_extensions);
+
+  pc->CreateAnswerAndSetAsLocal(
+      PeerConnectionInterface::RTCOfferAnswerOptions());
+
+  auto session_description = pc->CreateOffer();
+  auto extensions = session_description->description()
+                        ->contents()[0]
+                        .media_description()
+                        ->rtp_header_extensions();
+  EXPECT_THAT(extensions, ElementsAre(Field(&RtpExtension::uri, "uri1")));
+  // Check uri1's id still matches the remote id.
+  EXPECT_EQ(extensions[0].id, 5);
+}
+
 TEST_P(PeerConnectionHeaderExtensionTest, SenderParametersReflectNegotiation) {
   SdpSemantics semantics;
   MediaType media_type;
@@ -598,6 +716,71 @@ TEST_P(PeerConnectionHeaderExtensionTest, SenderParametersReflectNegotiation) {
                                      Field(&RtpExtension::uri, "uri2"),
                                      Field(&RtpExtension::uri, "uri3")));
   }
+}
+
+TEST_P(PeerConnectionHeaderExtensionTest,
+       TransceiversAddedAfterFirstDoNotCopy) {
+  MediaType media_type;
+  SdpSemantics semantics;
+  std::tie(media_type, semantics) = GetParam();
+  if (semantics != SdpSemantics::kUnifiedPlan) {
+    GTEST_SKIP() << "This test only works with Unified Plan";
+  }
+  std::unique_ptr<PeerConnectionWrapper> pc1 = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Disabled/");
+
+  auto transceiver1 = pc1->AddTransceiver(media_type);
+  auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
+  modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
+  transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
+  auto transceiver2 = pc1->AddTransceiver(media_type);
+
+  auto session_description = pc1->CreateOffer();
+  EXPECT_THAT(session_description->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3")));
+  EXPECT_THAT(session_description->description()
+                  ->contents()[1]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3"),
+                          Field(&RtpExtension::uri, "uri4")));
+}
+
+TEST_P(PeerConnectionHeaderExtensionTest,
+       TransceiversAddedAfterFirstTransceiverCopyExtensions) {
+  MediaType media_type;
+  SdpSemantics semantics;
+  std::tie(media_type, semantics) = GetParam();
+  if (semantics != SdpSemantics::kUnifiedPlan) {
+    GTEST_SKIP() << "This test only works with Unified Plan";
+  }
+  std::unique_ptr<PeerConnectionWrapper> pc1 = CreatePeerConnection(
+      media_type, semantics, "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  auto transceiver1 = pc1->AddTransceiver(media_type);
+  auto modified_extensions = transceiver1->GetHeaderExtensionsToNegotiate();
+  modified_extensions[3].direction = RtpTransceiverDirection::kStopped;
+  transceiver1->SetHeaderExtensionsToNegotiate(modified_extensions);
+  auto transceiver2 = pc1->AddTransceiver(media_type);
+
+  auto session_description = pc1->CreateOffer();
+  EXPECT_THAT(session_description->description()
+                  ->contents()[0]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3")));
+  // the uri4 extension is disabled in the newly added transceiver too
+  EXPECT_THAT(session_description->description()
+                  ->contents()[1]
+                  .media_description()
+                  ->rtp_header_extensions(),
+              ElementsAre(Field(&RtpExtension::uri, "uri2"),
+                          Field(&RtpExtension::uri, "uri3")));
 }
 
 INSTANTIATE_TEST_SUITE_P(

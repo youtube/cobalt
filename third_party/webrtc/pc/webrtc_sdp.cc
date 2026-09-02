@@ -1994,8 +1994,8 @@ struct StaticPayloadAudioCodec {
 };
 const StaticPayloadAudioCodec kStaticPayloadAudioCodecs[] = {
     {.name = "PCMU", .clockrate = 8000, .channels = 1},
-    {.name = "reserved", .clockrate = 0, .channels = 0},
-    {.name = "reserved", .clockrate = 0, .channels = 0},
+    {.name = "x-illegal-value-1", .clockrate = 8000, .channels = 0},
+    {.name = "x-illegal-value-2", .clockrate = 8000, .channels = 0},
     {.name = "GSM", .clockrate = 8000, .channels = 1},
     {.name = "G723", .clockrate = 8000, .channels = 1},
     {.name = "DVI4", .clockrate = 8000, .channels = 1},

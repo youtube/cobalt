@@ -339,7 +339,8 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
   /* Ignore 'undefined' roots that are not the undefined value itself. */ \
   if (roots.name() != roots.undefined_value() ||                          \
       RootIndex::k##CamelName == RootIndex::kUndefinedValue) {            \
-    DCHECK_EQ(Object::BooleanValue(roots.name(), local_isolate),          \
+    DCHECK_EQ(IsAnyHole(roots.name()) ||                                  \
+                  Object::BooleanValue(roots.name(), local_isolate),      \
               RootToBoolean(RootIndex::k##CamelName));                    \
   }
   READ_ONLY_ROOT_LIST(DO_CHECK)
@@ -732,7 +733,7 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kCheckedSmiUntag:
     case Opcode::kUnsafeSmiUntag:
     case Opcode::kCheckedObjectToIndex:
-    case Opcode::kCheckedTruncateNumberOrOddballToInt32:
+    case Opcode::kTruncateCheckedNumberOrOddballToInt32:
     case Opcode::kCheckedInt32ToUint32:
     case Opcode::kCheckedIntPtrToUint32:
     case Opcode::kUnsafeInt32ToUint32:
@@ -741,14 +742,14 @@ NodeType ValueNode::GetStaticType(compiler::JSHeapBroker* broker) {
     case Opcode::kChangeInt32ToFloat64:
     case Opcode::kChangeUint32ToFloat64:
     case Opcode::kChangeIntPtrToFloat64:
-    case Opcode::kCheckedTruncateFloat64ToInt32:
-    case Opcode::kCheckedTruncateFloat64ToUint32:
-    case Opcode::kTruncateNumberOrOddballToInt32:
+    case Opcode::kCheckedHoleyFloat64ToInt32:
+    case Opcode::kCheckedHoleyFloat64ToUint32:
+    case Opcode::kTruncateUnsafeNumberOrOddballToInt32:
     case Opcode::kCheckedNumberToInt32:
     case Opcode::kTruncateUint32ToInt32:
-    case Opcode::kTruncateFloat64ToInt32:
-    case Opcode::kUnsafeTruncateUint32ToInt32:
-    case Opcode::kUnsafeTruncateFloat64ToInt32:
+    case Opcode::kTruncateHoleyFloat64ToInt32:
+    case Opcode::kUnsafeUint32ToInt32:
+    case Opcode::kUnsafeHoleyFloat64ToInt32:
     case Opcode::kInt32ToUint8Clamped:
     case Opcode::kUint32ToUint8Clamped:
     case Opcode::kFloat64ToUint8Clamped:
@@ -2283,11 +2284,11 @@ void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
   __ bind(*done);
 }
 
-void CheckedTruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
+void TruncateCheckedNumberOrOddballToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void CheckedTruncateNumberOrOddballToInt32::GenerateCode(
+void TruncateCheckedNumberOrOddballToInt32::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   Register result_reg = ToRegister(result());
@@ -2298,11 +2299,11 @@ void CheckedTruncateNumberOrOddballToInt32::GenerateCode(
                                      deopt_label);
 }
 
-void TruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
+void TruncateUnsafeNumberOrOddballToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void TruncateNumberOrOddballToInt32::GenerateCode(
+void TruncateUnsafeNumberOrOddballToInt32::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   Register value = ToRegister(input());
   Register result_reg = ToRegister(result());
@@ -2953,6 +2954,7 @@ void LoadTaggedFieldForContextSlot::GenerateCode(MaglevAssembler* masm,
 
   // Check if an ContextCell
   __ JumpIfSmi(value, *done);
+  __ JumpIfRoot(value, RootIndex::kTheHoleValue, *done);
   __ CompareMapWithRoot(value, RootIndex::kContextCellMap, scratch);
   __ JumpToDeferredIf(
       kEqual,
@@ -3948,6 +3950,7 @@ void StoreContextSlotWithWriteBarrier::GenerateCode(
   __ LoadTaggedField(old_value, context, offset());
 
   __ JumpIfSmi(old_value, *do_normal_store);
+  __ JumpIfRoot(old_value, RootIndex::kTheHoleValue, *do_normal_store);
   __ CompareMapWithRoot(old_value, RootIndex::kContextCellMap, scratch);
   __ JumpToDeferredIf(
       kEqual,
@@ -6097,43 +6100,43 @@ void TruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   DCHECK_EQ(ToRegister(input()), ToRegister(result()));
 }
 
-void TruncateFloat64ToInt32::SetValueLocationConstraints() {
+void TruncateHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void TruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
+void TruncateHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
 }
 
-void CheckedTruncateFloat64ToInt32::SetValueLocationConstraints() {
+void CheckedHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void CheckedTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
+void CheckedHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
   __ TryTruncateDoubleToInt32(
       ToRegister(result()), ToDoubleRegister(input()),
       __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 }
 
-void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
+void CheckedHoleyFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void CheckedTruncateFloat64ToUint32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void CheckedHoleyFloat64ToUint32::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
   __ TryTruncateDoubleToUint32(
       ToRegister(result()), ToDoubleRegister(input()),
       __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
 }
 
-void UnsafeTruncateFloat64ToInt32::SetValueLocationConstraints() {
+void UnsafeHoleyFloat64ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
 }
-void UnsafeTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
+void UnsafeHoleyFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
 #ifdef DEBUG
   Label fail, start;
   __ Jump(&start);
@@ -6146,7 +6149,7 @@ void UnsafeTruncateFloat64ToInt32::GenerateCode(MaglevAssembler* masm,
 #else
   // TODO(dmercadier): TruncateDoubleToInt32 does additional work when the
   // double doesn't fit in a 32-bit integer. This is not necessary for
-  // UnsafeTruncateFloat64ToInt32 (since we statically know that it the double
+  // UnsafeHoleyFloat64ToInt32 (since we statically know that it the double
   // fits in a 32-bit int) and could be instead just a Cvttsd2si (x64) or Fcvtzs
   // (arm64).
   __ TruncateDoubleToInt32(ToRegister(result()), ToDoubleRegister(input()));
@@ -6164,12 +6167,12 @@ void CheckedUint32ToInt32::GenerateCode(MaglevAssembler* masm,
   __ CompareInt32AndJumpIf(input_reg, 0, kLessThan, fail);
 }
 
-void UnsafeTruncateUint32ToInt32::SetValueLocationConstraints() {
+void UnsafeUint32ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
 }
-void UnsafeTruncateUint32ToInt32::GenerateCode(MaglevAssembler* masm,
-                                               const ProcessingState& state) {
+void UnsafeUint32ToInt32::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
 #ifdef DEBUG
   Register input_reg = ToRegister(input());
   __ CompareInt32AndAssert(input_reg, 0, kGreaterThanEqual,
@@ -6578,7 +6581,6 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
   for (int i = 0; i < num_args(); i++) {
     UseAny(arg(i));
   }
-  UseFixed(context(), kContextRegister);
 
   DefineAsFixed(this, kReturnRegister0);
 
@@ -6589,8 +6591,44 @@ void CallKnownApiFunction::SetValueLocationConstraints() {
 
 void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   __ PushReverse(receiver(), args());
+
+  if (inline_builtin()) {
+    GenerateCallApiCallbackOptimizedInline(masm, state);
+    return;
+  }
+
+  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
+  ApiFunction function(function_template_info_.callback(broker));
+  ExternalReference reference =
+      ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
+
+  switch (mode()) {
+    case kNoProfiling:
+      __ CallBuiltin<Builtin::kCallApiCallbackOptimizedNoProfiling>(
+          masm->native_context().object(),  // context
+          reference,                        // Api function address
+          num_args(),  // actual arguments count not including receiver
+          function_template_info_.object()  // function template info
+      );
+      break;
+    case kNoProfilingInlined:
+      UNREACHABLE();
+    case kGeneric:
+      __ CallBuiltin<Builtin::kCallApiCallbackOptimized>(
+          masm->native_context().object(),  // context
+          reference,                        // Api function address
+          num_args(),  // actual arguments count not including receiver
+          function_template_info_.object()  // function template info
+      );
+      break;
+  }
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
+void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
+    MaglevAssembler* masm, const ProcessingState& state) {
+  MaglevAssembler::TemporaryRegisterScope temps(masm);
 
   // From here on, we're going to do a call, so all registers are valid temps,
   // except for the ones we're going to write. This is needed in case one of the
@@ -6604,42 +6642,7 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
           CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
           CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister()});
-  DCHECK_EQ(kContextRegister, ToRegister(context()));
 
-  if (inline_builtin()) {
-    GenerateCallApiCallbackOptimizedInline(masm, state);
-    return;
-  }
-
-  __ Move(CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
-          num_args());  // not including receiver
-
-  __ Move(CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister(),
-          i::Cast<HeapObject>(function_template_info_.object()));
-
-  compiler::JSHeapBroker* broker = masm->compilation_info()->broker();
-  ApiFunction function(function_template_info_.callback(broker));
-  ExternalReference reference =
-      ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
-  __ Move(CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister(),
-          reference);
-
-  switch (mode()) {
-    case kNoProfiling:
-      __ CallBuiltin(Builtin::kCallApiCallbackOptimizedNoProfiling);
-      break;
-    case kNoProfilingInlined:
-      UNREACHABLE();
-    case kGeneric:
-      __ CallBuiltin(Builtin::kCallApiCallbackOptimized);
-      break;
-  }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
-}
-
-void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MaglevAssembler::TemporaryRegisterScope temps(masm);
   Register scratch = temps.Acquire();
   Register scratch2 = temps.Acquire();
 
@@ -6667,6 +6670,9 @@ void CallKnownApiFunction::GenerateCallApiCallbackOptimizedInline(
   // Existing state:
   //   sp[6 * kSystemPointerSize]:          <= FCA:::values_
 
+  // We do not inline Api calls cross native context, so native_context()
+  // is the context here.
+  __ Move(kContextRegister, masm->native_context().object());
   __ StoreRootRelative(IsolateData::topmost_script_having_context_offset(),
                        kContextRegister);
 
@@ -8231,12 +8237,12 @@ void UncheckedNumberOrOddballToFloat64::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void CheckedTruncateNumberOrOddballToInt32::PrintParams(
+void TruncateCheckedNumberOrOddballToInt32::PrintParams(
     std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 
-void TruncateNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
+void TruncateUnsafeNumberOrOddballToInt32::PrintParams(std::ostream& os) const {
   os << "(" << conversion_type() << ")";
 }
 

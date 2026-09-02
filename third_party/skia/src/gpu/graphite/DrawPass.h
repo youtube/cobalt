@@ -78,8 +78,10 @@ public:
     // Instantiate and prepare any resources used by the DrawPass that require the Recorder's
     // ResourceProvider. This includes things likes GraphicsPipelines, sampled Textures, Samplers,
     // etc.
+    // Note that, due to possible threaded compilation, the Pipelines are not guaranteed to be
+    // complete until Context::insertRecording time.
     bool prepareResources(ResourceProvider*,
-                          const RuntimeEffectDictionary*,
+                          sk_sp<const RuntimeEffectDictionary>,
                           const RenderPassDesc&);
 
     DrawPassCommands::List::Iter commands() const {
@@ -95,7 +97,7 @@ public:
     // Not valid until after prepareResources() is called
     SkSpan<const sk_sp<GraphicsPipeline>> pipelines() const { return fFullPipelines; }
 
-    void addResourceRefs(CommandBuffer*) const;
+    [[nodiscard]] bool addResourceRefs(ResourceProvider*, CommandBuffer*);
 
 private:
     class SortKey;

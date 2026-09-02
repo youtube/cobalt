@@ -19,7 +19,7 @@
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registrar.h"
 #include "extensions/browser/extension_system.h"
-#include "ui/gfx/native_widget_types.h"
+#include "ui/gfx/native_window_types.h"
 
 #if !BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/ui/profiles/profile_picker.h"
@@ -106,10 +106,7 @@ void ExtensionEnableFlow::CheckPermissionAndMaybePromptUser() {
         base::BindOnce(&ExtensionEnableFlow::OnExtensionApprovalDone,
                        weak_ptr_factory_.GetWeakPtr());
     supervised_user_extensions_delegate->RequestToEnableExtensionOrShowError(
-        *extension, parent_contents_,
-        SupervisedUserExtensionParentApprovalEntryPoint::
-            kOnTerminatedExtensionEnableFlowOperation,
-        std::move(extension_approval_callback));
+        *extension, parent_contents_, std::move(extension_approval_callback));
     return;
   }
 

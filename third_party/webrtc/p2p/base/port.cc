@@ -121,6 +121,7 @@ Port::Port(const PortParametersRef& args,
       network_(args.network),
       min_port_(min_port),
       max_port_(max_port),
+      content_name_(args.content_name),
       component_(ICE_CANDIDATE_COMPONENT_DEFAULT),
       generation_(0),
       ice_username_fragment_(args.ice_username_fragment),
@@ -131,6 +132,7 @@ Port::Port(const PortParametersRef& args,
       tiebreaker_(0),
       shared_socket_(shared_socket),
       network_cost_(args.network->GetCost(env_.field_trials())),
+      role_conflict_callback_(nullptr),
       weak_factory_(this) {
   RTC_DCHECK_RUN_ON(thread_);
   RTC_DCHECK(factory_ != nullptr);
@@ -147,6 +149,12 @@ Port::Port(const PortParametersRef& args,
   PostDestroyIfDead(/*delayed=*/true);
   RTC_LOG(LS_INFO) << ToString() << ": Port created with network cost "
                    << network_cost_;
+
+  // This is a temporary solution to support SignalCandidateReady signals from
+  // downstream. We also register a method to send the callbacks in callback
+  // list. This will no longer be needed once downstream stops using
+  // SignalCandidateReady.
+  SignalCandidateReady.connect(this, &Port::SendCandidateReadyCallbackList);
 }
 
 Port::~Port() {
@@ -304,7 +312,7 @@ bool Port::MaybeObfuscateAddress(const Candidate& c, bool is_final) {
 
 void Port::FinishAddingAddress(const Candidate& c, bool is_final) {
   candidates_.push_back(c);
-  SignalCandidateReady(this, c);
+  SendCandidateReady(c);
 
   PostAddAddress(is_final);
 }
@@ -324,6 +332,25 @@ void Port::SubscribeCandidateError(
 void Port::SendCandidateError(const IceCandidateErrorEvent& event) {
   RTC_DCHECK_RUN_ON(thread_);
   candidate_error_callback_list_.Send(this, event);
+}
+
+void Port::SubscribeCandidateReadyCallback(
+    absl::AnyInvocable<void(Port*, const Candidate&)> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  candidate_ready_callback_list_.AddReceiver(std::move(callback));
+}
+
+void Port::SendCandidateReadyCallbackList(Port*, const Candidate& candidate) {
+  RTC_DCHECK_RUN_ON(thread_);
+  candidate_ready_callback_list_.Send(this, candidate);
+}
+
+void Port::SendCandidateReady(const Candidate& candidate) {
+  RTC_DCHECK_RUN_ON(thread_);
+  // Once we remove SignalCandidateReady we'll replace the invocation of
+  // SignalCandidateReady callback with
+  // candidate_ready_callback_list_.Send(this, c);
+  SignalCandidateReady(this, candidate);
 }
 
 void Port::AddOrReplaceConnection(Connection* conn) {
@@ -682,7 +709,7 @@ bool Port::MaybeIceRoleConflict(const SocketAddress& addr,
     case ICEROLE_CONTROLLING:
       if (ICEROLE_CONTROLLING == remote_ice_role) {
         if (remote_tiebreaker >= tiebreaker_) {
-          SignalRoleConflict(this);
+          NotifyRoleConflict();
         } else {
           // Send Role Conflict (487) error response.
           SendBindingErrorResponse(stun_msg, addr, STUN_ERROR_ROLE_CONFLICT,
@@ -694,7 +721,7 @@ bool Port::MaybeIceRoleConflict(const SocketAddress& addr,
     case ICEROLE_CONTROLLED:
       if (ICEROLE_CONTROLLED == remote_ice_role) {
         if (remote_tiebreaker < tiebreaker_) {
-          SignalRoleConflict(this);
+          NotifyRoleConflict();
         } else {
           // Send Role Conflict (487) error response.
           SendBindingErrorResponse(stun_msg, addr, STUN_ERROR_ROLE_CONFLICT,
@@ -1019,6 +1046,24 @@ void Port::OnRequestLocalNetworkAccessPermission(
 
   permission_queries_.erase(it);
   std::move(callback)(status);
+}
+
+void Port::SubscribeRoleConflict(absl::AnyInvocable<void()> callback) {
+  RTC_DCHECK_RUN_ON(thread_);
+  RTC_DCHECK(callback);
+  RTC_DCHECK(!role_conflict_callback_);
+  RTC_DCHECK(SignalRoleConflict.is_empty());
+  role_conflict_callback_ = std::move(callback);
+}
+
+void Port::NotifyRoleConflict() {
+  RTC_DCHECK_RUN_ON(thread_);
+  if (role_conflict_callback_) {
+    RTC_DCHECK(SignalRoleConflict.is_empty());
+    role_conflict_callback_();
+  } else {
+    SignalRoleConflict(this);
+  }
 }
 
 }  // namespace webrtc

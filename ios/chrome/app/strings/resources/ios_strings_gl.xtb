@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Recensións en función dos teus intereses</translation>
 <translation id="1074827084851510304">Vas eliminar {password_count} contrasinais e a lista de sitios e aplicacións dos que elixises non gardar nunca a información de inicio de sesión. Non se eliminarán as contas que creases para sitios e aplicacións.</translation>
 <translation id="1076421457278169141">Escaneouse o código</translation>
+<translation id="1081114897601629648">Non se importaron os seguintes contrasinais ao xestor de contrasinais de Google porque non cumpren os requisitos.</translation>
 <translation id="1081932398873105675">{count,plural, =1{{count} pestana}other{{count} pestanas}}</translation>
 <translation id="1082554859195167538">Recensións de produtos para ti</translation>
 <translation id="1084365883616172403">Completouse a publicación de Facebook.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">A túa conta está xestionada polo teu pai ou pola túa nai.
 <ph name="BEGIN_LINK" />Máis información<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Cambiada</translation>
-<translation id="1485907716209290998">Seguimento de paquetes</translation>
 <translation id="1486096554574027028">Buscar contrasinais</translation>
 <translation id="1491277525950327607">Toca dúas veces para activar ou desactivar a configuración</translation>
 <translation id="1491965206608166851">Inicia sesión en calquera aplicación cos contrasinais e claves de acceso gardadas</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">A detección de enderezos está desactivada. Volve activala en Configuración.</translation>
 <translation id="1904580727789512086">Os URL que visitas gárdanse na túa Conta de Google</translation>
 <translation id="1911619930368729126">Cargar en Google Drive</translation>
+<translation id="1925706052394657380">Abre a opción de configuración <ph name="BEGIN_BOLD" />Default Apps<ph name="END_BOLD" /> (Aplicacións predeterminadas) en iOS</translation>
 <translation id="1941314575388338491">Toca dúas veces para copiar.</translation>
 <translation id="1943478190258551035">Menú → Configuración</translation>
 <translation id="1952728750904661634">Iniciar sesión cunha conta xestionada</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> compartiu contigo un contrasinal para <ph name="WEBSITE" /></translation>
 <translation id="1962969542251276847">Pantalla de bloqueo</translation>
 <translation id="1963976881984600709">Protección estándar</translation>
+<translation id="1964507856799750384">Toca <ph name="BEGIN_BOLD" />Browser App<ph name="END_BOLD" /> (Aplicación de navegación)</translation>
 <translation id="1966313166384086081">datos dos sitios</translation>
 <translation id="1967461193809857427">{count,plural, =1{Queres seguir usando a pestana que deixaches en Android?}other{Queres seguir usando as pestanas que deixaches en Android?}}</translation>
 <translation id="1972325230031091483">Navegarás máis rápido porque o contido se cargará de maneira proactiva en función da túa visita á páxina web na que te atopes</translation>
@@ -556,7 +558,7 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="3140825265190223781">Contrasinais e claves de acceso gardados</translation>
 <translation id="3143515551205905069">Cancelar sincronización</translation>
 <translation id="3144126448740580210">LISTO</translation>
-<translation id="3148052723910099040">Grade normal de pestanas</translation>
+<translation id="3148052723910099040">Grade de pestanas normal</translation>
 <translation id="3157387275655328056">Engadir á lista de lectura</translation>
 <translation id="315778507796115851">Historial</translation>
 <translation id="31652791196570636">Pechar</translation>
@@ -599,7 +601,6 @@ En caso aplicable, consulta as instrucións do teu motor de busca para eliminar 
 <translation id="333229797575847124">Como activar esta función</translation>
 <translation id="3344485292736684439">{count,plural, =1{O marcador gardouse no cartafol "{title}" da túa conta ({email})}other{Os marcadores gardáronse no cartafol "{title}" da túa conta ({email})}}</translation>
 <translation id="334690320928261823">Pestanas recentes</translation>
-<translation id="3348387552617855658">Nesta tarxeta podes facer un seguimento dos paquetes e consultar as actualizacións de entrega importantes.</translation>
 <translation id="3349031117032695619">Bloquear ventás emerxentes</translation>
 <translation id="3349676726073650389">Os sitios e as buscas que segues gárdanse na túa Conta de Google. Para xestionar o que segues, accede cando queiras á configuración.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Esta conta está xestionada.</translation>
@@ -1398,7 +1399,6 @@ Handoff tamén debe estar activado na sección Xeral da configuración e os teus
 <translation id="6406506848690869874">Sincronización</translation>
 <translation id="6410390304316730527">A función Navegación segura protéxete contra os piratas informáticos que poden enganarte para que realices accións perigosas, como instalar un software malicioso ou revelar información persoal (por exemplo, contrasinais, números de teléfono ou tarxetas de crédito). Se a desactivas, ten coidado ao consultar sitios descoñecidos ou con mala reputación.</translation>
 <translation id="6410883413783534063">Abre pestanas para visitar páxinas diferentes ao mesmo tempo</translation>
-<translation id="6416807286621280684">Paquetes dos que se está facendo un seguimento e información actualizada da entrega.</translation>
 <translation id="6418346271604475326">Preparando PDF</translation>
 <translation id="6421038304268477484">Texto traducido</translation>
 <translation id="6429213933892582367">Abre Password Options (Opcións de contrasinais)</translation>

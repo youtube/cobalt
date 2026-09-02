@@ -24,9 +24,12 @@
 #include "api/field_trials.h"
 #include "api/make_ref_counted.h"
 #include "api/media_stream_interface.h"
+#include "api/media_types.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtp_receiver_interface.h"
 #include "api/rtp_sender_interface.h"
+#include "api/rtp_transceiver_direction.h"
+#include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
 #include "api/stats/attribute.h"
 #include "api/stats/rtc_stats.h"
@@ -1015,6 +1018,8 @@ class RTCStatsReportVerifier {
     verifier.TestAttributeIsDefined(transport.ice_role);
     verifier.TestAttributeIsDefined(transport.ice_local_username_fragment);
     verifier.TestAttributeIsDefined(transport.ice_state);
+    // TODO: bugs.webrtc.org/437303401 - Flip when enabling L4S by default.
+    verifier.TestAttributeIsUndefined(transport.ccfb_messages_received);
     return verifier.ExpectAllAttributesSuccessfullyTested();
   }
 
@@ -1236,19 +1241,82 @@ TEST_F(RTCStatsIntegrationTest, ExperimentalPsnrStats) {
   }
 }
 
+TEST_F(RTCStatsIntegrationTest, ExperimentalTransportCcfbStats) {
+  StartCall("WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+
+  // This assumes all other stats are ok and tests the stats which should be
+  // different under the field trial.
+  scoped_refptr<const RTCStatsReport> report = GetStatsFromCaller();
+  for (const RTCStats& stats : *report) {
+    if (stats.type() == RTCTransportStats::kType) {
+      const RTCTransportStats& transport(stats.cast_to<RTCTransportStats>());
+      RTCStatsVerifier verifier(report.get(), &transport);
+      verifier.TestAttributeIsNonNegative<int>(
+          transport.ccfb_messages_received);
+    }
+  }
+}
+
 class RTCStatsRtpLifetimeTest : public RTCStatsIntegrationTest {
  public:
   RTCStatsRtpLifetimeTest() : RTCStatsIntegrationTest() {
-    FieldTrials field_trials =
-        CreateTestFieldTrials("WebRTC-RTP-Lifetime/Enabled/");
+    // Field trial "WebRTC-RTP-Lifetime" is enabled-by-default.
     EXPECT_TRUE(caller_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory(),
-                                  std::make_unique<FieldTrials>(field_trials)));
+                                  CreateBuiltinAudioDecoderFactory()));
     EXPECT_TRUE(callee_->CreatePc({}, CreateBuiltinAudioEncoderFactory(),
-                                  CreateBuiltinAudioDecoderFactory(),
-                                  std::make_unique<FieldTrials>(field_trials)));
+                                  CreateBuiltinAudioDecoderFactory()));
   }
 };
+
+TEST_F(RTCStatsRtpLifetimeTest, AudioOutboundRtpMissingBeforeStable) {
+  // Caller to send audio.
+  scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(
+      /*audio=*/true, {}, /*video=*/false);
+  scoped_refptr<AudioTrackInterface> track = stream->GetAudioTracks()[0];
+  caller_->pc()->AddTransceiver(track, {});
+
+  // Setting the offer is not enough to make the outbound-rtp appear.
+  auto offer = caller_->AwaitCreateOffer();
+  caller_->AwaitSetLocalDescription(offer.get());
+  scoped_refptr<const RTCStatsReport> report = GetStats(caller_->pc());
+  std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
+      report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(0));
+
+  // Once the O/A completes, the outbound-rtp immediately appears (the stats
+  // cache is cleared).
+  callee_->AwaitSetRemoteDescription(offer.get());
+  auto answer = callee_->AwaitCreateAnswer();
+  caller_->AwaitSetRemoteDescription(answer.get());
+  report = GetStats(caller_->pc());
+  outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(1));
+}
+
+TEST_F(RTCStatsRtpLifetimeTest, VideoOutboundRtpMissingBeforeStable) {
+  // Caller to send video.
+  scoped_refptr<MediaStreamInterface> stream = caller_->GetUserMedia(
+      /*audio=*/false, {}, /*video=*/true);
+  scoped_refptr<VideoTrackInterface> track = stream->GetVideoTracks()[0];
+  caller_->pc()->AddTransceiver(track, {});
+
+  // Setting the offer is not enough to make the outbound-rtp appear.
+  auto offer = caller_->AwaitCreateOffer();
+  caller_->AwaitSetLocalDescription(offer.get());
+  scoped_refptr<const RTCStatsReport> report = GetStats(caller_->pc());
+  std::vector<const RTCOutboundRtpStreamStats*> outbound_rtps =
+      report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(0));
+
+  // Once the O/A completes, the outbound-rtp immediately appears (the stats
+  // cache is cleared).
+  callee_->AwaitSetRemoteDescription(offer.get());
+  auto answer = callee_->AwaitCreateAnswer();
+  caller_->AwaitSetRemoteDescription(answer.get());
+  report = GetStats(caller_->pc());
+  outbound_rtps = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
+  EXPECT_THAT(outbound_rtps, SizeIs(1));
+}
 
 TEST_F(RTCStatsRtpLifetimeTest, AudioInboundRtpMissingBeforeFirstPacket) {
   // Caller to send audio.
@@ -1310,6 +1378,58 @@ TEST_F(RTCStatsRtpLifetimeTest, VideoInboundRtpMissingBeforeFirstPacket) {
   EXPECT_THAT(WaitUntil(
                   [&] {
                     report = GetStats(callee_->pc());
+                    inbound_rtps =
+                        report->GetStatsOfType<RTCInboundRtpStreamStats>();
+                    return inbound_rtps.size() > 0;
+                  },
+                  IsTrue(), {.timeout = TimeDelta::Millis(kGetStatsTimeoutMs)}),
+              IsRtcOk());
+  ASSERT_THAT(inbound_rtps, SizeIs(1));
+  EXPECT_GT(inbound_rtps[0]->packets_received.value_or(0), 0u);
+}
+
+TEST_F(RTCStatsRtpLifetimeTest, InboundRtpForEarlyMedia) {
+  // Dummy m-section needed for DTLS to be established. Early media is not
+  // possible before then. Also exchange ICE candidates.
+  RtpTransceiverInit init;
+  init.direction = RtpTransceiverDirection::kSendOnly;
+  caller_->pc()->AddTransceiver(MediaType::VIDEO, init);
+  caller_->ListenForRemoteIceCandidates(callee_);
+  callee_->ListenForRemoteIceCandidates(caller_);
+  PeerConnectionTestWrapper::AwaitNegotiation(caller_.get(), callee_.get());
+  caller_->AwaitAddRemoteIceCandidates();
+  callee_->AwaitAddRemoteIceCandidates();
+
+  // In a follow-up exchange, offer to receive.
+  init.direction = RtpTransceiverDirection::kRecvOnly;
+  caller_->pc()->AddTransceiver(MediaType::VIDEO, init);
+  auto offer = caller_->AwaitCreateOffer();
+  caller_->AwaitSetLocalDescription(offer.get());
+  callee_->AwaitSetRemoteDescription(offer.get());
+  // Answer to send.
+  scoped_refptr<MediaStreamInterface> stream = callee_->GetUserMedia(
+      /*audio=*/false, {}, /*video=*/true);
+  scoped_refptr<VideoTrackInterface> track = stream->GetVideoTracks()[0];
+  auto transceivers = callee_->pc()->GetTransceivers();
+  ASSERT_EQ(transceivers.size(), 2u);
+  transceivers[1]->sender()->SetTrack(track.get());
+  EXPECT_THAT(transceivers[1]->SetDirectionWithError(
+                  RtpTransceiverDirection::kSendOnly),
+              IsRtcOk());
+  auto answer = callee_->AwaitCreateAnswer();
+  callee_->AwaitSetLocalDescription(answer.get());
+
+  // We never set the remote answer...
+  ASSERT_EQ(caller_->pc()->signaling_state(),
+            PeerConnectionInterface::SignalingState::kHaveLocalOffer);
+  // But because of early media, we're still able to receive packets.
+  // - Whether or not we unmute the track in response to this is outside the
+  //   scope of this stats test.
+  scoped_refptr<const RTCStatsReport> report;
+  std::vector<const RTCInboundRtpStreamStats*> inbound_rtps;
+  EXPECT_THAT(WaitUntil(
+                  [&] {
+                    report = GetStats(caller_->pc());
                     inbound_rtps =
                         report->GetStatsOfType<RTCInboundRtpStreamStats>();
                     return inbound_rtps.size() > 0;

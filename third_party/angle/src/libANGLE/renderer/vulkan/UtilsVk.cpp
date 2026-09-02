@@ -7,6 +7,10 @@
 //    Implements the UtilsVk class.
 //
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "libANGLE/renderer/vulkan/UtilsVk.h"
 
 #include "common/spirv/spirv_instruction_builder_autogen.h"
@@ -1594,7 +1598,7 @@ angle::Result UtilsVk::ensureImageCopyResourcesInitializedWithSampler(
 
     vk::SharedSamplerPtr sampler;
     ANGLE_TRY(
-        contextVk->getRenderer()->getSamplerCache().getSampler(contextVk, samplerDesc, &sampler));
+        contextVk->getShareGroup()->getSamplerCache().getSampler(contextVk, samplerDesc, &sampler));
 
     vk::DescriptorSetLayoutDesc descriptorSetDesc;
     descriptorSetDesc.addBinding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,

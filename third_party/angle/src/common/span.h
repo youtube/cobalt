@@ -10,6 +10,10 @@
 #ifndef COMMON_SPAN_H_
 #define COMMON_SPAN_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include <type_traits>
 
 #include "common/log_utils.h"

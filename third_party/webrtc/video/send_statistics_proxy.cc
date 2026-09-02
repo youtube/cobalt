@@ -1100,9 +1100,10 @@ void SendStatisticsProxy::OnSendEncodedImage(
 void SendStatisticsProxy::OnEncoderImplementationChanged(
     EncoderImplementation implementation) {
   MutexLock lock(&mutex_);
-  encoder_changed_ =
-      EncoderChangeEvent{stats_.encoder_implementation_name.value_or("unknown"),
-                         implementation.name};
+  encoder_changed_ = EncoderChangeEvent{
+      .previous_encoder_implementation =
+          stats_.encoder_implementation_name.value_or("unknown"),
+      .new_encoder_implementation = implementation.name};
   stats_.encoder_implementation_name = implementation.name;
   stats_.power_efficient_encoder = implementation.is_hardware_accelerated;
   // Clear cached scalability mode values, they may no longer be accurate.

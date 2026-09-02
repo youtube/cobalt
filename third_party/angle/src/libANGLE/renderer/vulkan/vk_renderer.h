@@ -210,6 +210,12 @@ class Renderer : angle::NonCopyable
                                               VkSurfaceKHR surface,
                                               bool *supportedOut);
 
+    const VkPhysicalDeviceExternalMemoryHostPropertiesEXT &
+    getPhysicalDeviceExternalMemoryHostProperties() const
+    {
+        return mExternalMemoryHostProperties;
+    }
+
     const gl::Caps &getNativeCaps() const;
     const gl::TextureCapsMap &getNativeTextureCaps() const;
     const gl::Extensions &getNativeExtensions() const;
@@ -409,9 +415,6 @@ class Renderer : angle::NonCopyable
     bool enableDebugUtils() const { return mEnableDebugUtils; }
     bool angleDebuggerMode() const { return mAngleDebuggerMode; }
 
-    SamplerCache &getSamplerCache() { return mSamplerCache; }
-    SamplerYcbcrConversionCache &getYuvConversionCache() { return mYuvConversionCache; }
-
     void onAllocateHandle(vk::HandleType handleType);
     void onDeallocateHandle(vk::HandleType handleType, uint32_t count);
 
@@ -587,6 +590,8 @@ class Renderer : angle::NonCopyable
     }
 
     void addBufferBlockToOrphanList(vk::BufferBlock *block) { mOrphanedBufferBlockList.add(block); }
+    void addSamplerToOrphanList(SharedSamplerPtr sampler);
+    void addSamplerYcbcrConversionToOrphanList(VkSamplerYcbcrConversion conversion);
 
     VkDeviceSize getSuballocationDestroyedSize() const
     {
@@ -706,6 +711,11 @@ class Renderer : angle::NonCopyable
 
     bool supportsAstcHdr() const;
 
+    uint32_t getNativeVectorWidthDouble() const { return mNativeVectorWidthDouble; }
+    uint32_t getNativeVectorWidthHalf() const { return mNativeVectorWidthHalf; }
+    uint32_t getPreferredVectorWidthDouble() const { return mPreferredVectorWidthDouble; }
+    uint32_t getPreferredVectorWidthHalf() const { return mPreferredVectorWidthHalf; }
+
   private:
     angle::Result setupDevice(vk::ErrorContext *context,
                               const angle::FeatureOverrides &featureOverrides,
@@ -786,6 +796,8 @@ class Renderer : angle::NonCopyable
     // Find the threshold for pending suballocation and image garbage sizes before the context
     // should be flushed.
     void calculatePendingGarbageSizeLimit();
+
+    bool cleanupOrphanedSamplers();
 
     template <typename CommandBufferHelperT, typename RecyclerT>
     angle::Result getCommandBufferImpl(vk::ErrorContext *context,
@@ -908,6 +920,7 @@ class Renderer : angle::NonCopyable
     VkPhysicalDeviceShaderIntegerDotProductFeatures mShaderIntegerDotProductFeatures;
     VkPhysicalDeviceShaderIntegerDotProductProperties mShaderIntegerDotProductProperties;
     VkPhysicalDeviceGlobalPriorityQueryFeaturesEXT mPhysicalDeviceGlobalPriorityQueryFeatures;
+    VkPhysicalDeviceExternalMemoryHostPropertiesEXT mExternalMemoryHostProperties;
 
     uint32_t mLegacyDitheringVersion = 0;
 
@@ -934,6 +947,11 @@ class Renderer : angle::NonCopyable
     vk::BufferBlockGarbageList mOrphanedBufferBlockList;
     // Holds RefCountedEvent that are free and ready to reuse
     vk::RefCountedEventRecycler mRefCountedEventRecycler;
+
+    // Holds orphaned VkSampler and VkSamplerYcbcrConversion objects when ShareGroup gets destroyed
+    angle::SimpleMutex mOrphanedSamplerMutex;
+    std::vector<SharedSamplerPtr> mOrphanedSamplers;
+    std::vector<VkSamplerYcbcrConversion> mOrphanedSamplerYcbcrConversions;
 
     VkDeviceSize mPendingGarbageSizeLimit;
 
@@ -1022,8 +1040,6 @@ class Renderer : angle::NonCopyable
         mOutsideRenderPassCommandBufferRecycler;
     vk::CommandBufferRecycler<vk::RenderPassCommandBufferHelper> mRenderPassCommandBufferRecycler;
 
-    SamplerCache mSamplerCache;
-    SamplerYcbcrConversionCache mYuvConversionCache;
     angle::HashMap<VkFormat, uint32_t> mVkFormatDescriptorCountMap;
     vk::ActiveHandleCounter mActiveHandleCounts;
     angle::SimpleMutex mActiveHandleCountsMutex;
@@ -1089,6 +1105,12 @@ class Renderer : angle::NonCopyable
 
     // Record submitted queue serials not belongs to any context.
     vk::ResourceUse mSubmittedResourceUse;
+
+    // Potentially vendor & feature-specific device info.
+    uint32_t mNativeVectorWidthDouble;
+    uint32_t mNativeVectorWidthHalf;
+    uint32_t mPreferredVectorWidthDouble;
+    uint32_t mPreferredVectorWidthHalf;
 };
 
 ANGLE_INLINE Serial Renderer::generateQueueSerial(SerialIndex index)

@@ -169,6 +169,7 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
     const ::webrtc::Network* network;
     absl::string_view ice_username_fragment;
     absl::string_view ice_password;
+    absl::string_view content_name;
     LocalNetworkAccessPermissionFactoryInterface* lna_permission_factory =
         nullptr;
   };
@@ -268,6 +269,13 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
 
   // Fired when candidates are discovered by the port. When all candidates
   // are discovered that belong to port SignalAddressReady is fired.
+  void SubscribeCandidateReadyCallback(
+      absl::AnyInvocable<void(Port*, const Candidate&)> callback);
+
+  void SendCandidateReady(const Candidate& candidate);
+  // Downstream code uses this signal. We will continue firing it along with the
+  // callback list. The signal can be deleted once all downstream usages are
+  // replaced with the new CallbackList implementation.
   sigslot::signal2<Port*, const Candidate&> SignalCandidateReady;
   // Provides all of the above information in one handy object.
   const std::vector<Candidate>& Candidates() const override;
@@ -382,6 +390,10 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
   }
 
   void GetStunStats(std::optional<StunStats>* /* stats */) override {}
+
+  // Signals for ICE role conflicts.
+  void SubscribeRoleConflict(absl::AnyInvocable<void()> callback) override;
+  void NotifyRoleConflict() override;
 
  protected:
   void UpdateNetworkCost() override;
@@ -503,6 +515,8 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
       absl::AnyInvocable<void(LocalNetworkAccessPermissionStatus)> callback,
       LocalNetworkAccessPermissionStatus status);
 
+  void SendCandidateReadyCallbackList(Port*, const Candidate&);
+
   const Environment env_;
   TaskQueueBase* const thread_;
   PacketSocketFactory* const factory_;
@@ -551,6 +565,10 @@ class RTC_EXPORT Port : public PortInterface, public sigslot::has_slots<> {
       RTC_GUARDED_BY(thread_);
   CallbackList<Port*, const IceCandidateErrorEvent&>
       candidate_error_callback_list_ RTC_GUARDED_BY(thread_);
+  CallbackList<Port*, const Candidate&> candidate_ready_callback_list_
+      RTC_GUARDED_BY(thread_);
+
+  absl::AnyInvocable<void()> role_conflict_callback_ RTC_GUARDED_BY(thread_);
 
   // Keep as the last member variable.
   WeakPtrFactory<Port> weak_factory_ RTC_GUARDED_BY(thread_);

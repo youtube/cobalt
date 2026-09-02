@@ -101,6 +101,7 @@ void MediaChannelParametersFromMediaDescription(
   params->extensions = extensions;
   params->rtcp.reduced_size = desc->rtcp_reduced_size();
   params->rtcp.remote_estimate = desc->remote_estimate();
+  params->rtcp_cc_ack_type = desc->preferred_rtcp_cc_ack_type();
 }
 
 void RtpSendParametersFromMediaDescription(

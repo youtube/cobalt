@@ -31,7 +31,9 @@
 #include "components/segmentation_platform/public/features.h"
 #if BUILDFLAG(IS_IOS)
 #include "components/segmentation_platform/embedder/home_modules/address_bar_position_ephemeral_module.h"
+#include "components/segmentation_platform/embedder/home_modules/app_bundle_promo_ephemeral_module.h"
 #include "components/segmentation_platform/embedder/home_modules/autofill_passwords_ephemeral_module.h"
+#include "components/segmentation_platform/embedder/home_modules/default_browser_promo_ephemeral_module.h"
 #include "components/segmentation_platform/embedder/home_modules/enhanced_safe_browsing_ephemeral_module.h"
 #include "components/segmentation_platform/embedder/home_modules/ephemeral_module_utils.h"
 #include "components/segmentation_platform/embedder/home_modules/lens_ephemeral_module.h"
@@ -91,6 +93,12 @@ const char kLensEphemeralModuleImpressionCounterPref[] =
 // Impression counter for the Send Tab ephemeral module.
 const char kSendTabPromoImpressionCounterPref[] =
     "ephemeral_pref_counter.send_tab_promo_counter";
+// Impression counter for the App Bundle promo ephemeral module.
+const char kAppBundlePromoEphemeralModuleImpressionCounterPref[] =
+    "ephemeral_pref_counter.app_bundle_promo_ephemeral_module_counter";
+// Impression counter for the Default Browser promo ephemeral module.
+const char kDefaultBrowserPromoEphemeralModuleImpressionCounterPref[] =
+    "ephemeral_pref_counter.default_browser_promo_ephemeral_module_counter";
 
 // Creates a card corresponding to the given ephemeral `tip` module and adds
 // it to the `cards` list if the module is enabled.
@@ -151,20 +159,38 @@ void AddCardForTip(TipIdentifier tip,
 
 }  // namespace
 
-HomeModulesCardRegistry::HomeModulesCardRegistry(PrefService* profile_prefs)
-    : profile_prefs_(profile_prefs) {
+HomeModulesCardRegistry::HomeModulesCardRegistry(PrefService* profile_prefs,
+                                                 PrefService* local_state_prefs)
+    : profile_prefs_(profile_prefs), local_state_prefs_(local_state_prefs) {
+  CHECK(profile_prefs);
+  CHECK(local_state_prefs);
   CreateAllCards();
 }
 
 HomeModulesCardRegistry::HomeModulesCardRegistry(
     PrefService* profile_prefs,
+    PrefService* local_state_prefs,
     std::vector<std::unique_ptr<CardSelectionInfo>> cards)
-    : profile_prefs_(profile_prefs) {
+    : profile_prefs_(profile_prefs), local_state_prefs_(local_state_prefs) {
+  CHECK(profile_prefs);
+  CHECK(local_state_prefs);
   all_cards_by_priority_.swap(cards);
   InitializeAfterAddingCards();
 }
 
 HomeModulesCardRegistry::~HomeModulesCardRegistry() = default;
+
+// static
+void HomeModulesCardRegistry::RegisterLocalStatePrefs(
+    PrefRegistrySimple* registry) {
+#if BUILDFLAG(IS_IOS)
+  // Local state prefs are used for the `AppBundleEphemeralModule` because this
+  // promo relates to app installations on the device level, meaning impressions
+  // should be tracked per-device rather than per profile.
+  registry->RegisterIntegerPref(
+      kAppBundlePromoEphemeralModuleImpressionCounterPref, 0);
+#endif
+}
 
 //  static
 void HomeModulesCardRegistry::RegisterProfilePrefs(
@@ -196,6 +222,8 @@ void HomeModulesCardRegistry::RegisterProfilePrefs(
                                 false);
   registry->RegisterBooleanPref(
       kLensEphemeralModuleTranslateVariationInteractedPref, false);
+  registry->RegisterIntegerPref(
+      kDefaultBrowserPromoEphemeralModuleImpressionCounterPref, 0);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
@@ -222,7 +250,10 @@ bool HomeModulesCardRegistry::IsEphemeralTipsModuleLabel(
          AutofillPasswordsEphemeralModule::IsModuleLabel(label) ||
          EnhancedSafeBrowsingEphemeralModule::IsModuleLabel(label) ||
          SavePasswordsEphemeralModule::IsModuleLabel(label) ||
-         LensEphemeralModule::IsModuleLabel(label);
+         LensEphemeralModule::IsModuleLabel(label) ||
+         LensEphemeralModule::IsModuleLabel(label) ||
+         AppBundlePromoEphemeralModule::IsModuleLabel(label) ||
+         DefaultBrowserPromoEphemeralModule::IsModuleLabel(label);
 #else
   return false;
 #endif
@@ -272,6 +303,18 @@ void HomeModulesCardRegistry::NotifyCardShown(const char* card_name) {
         profile_prefs_->GetInteger(kSendTabPromoImpressionCounterPref);
     profile_prefs_->SetInteger(kSendTabPromoImpressionCounterPref,
                                impression_count + 1);
+  } else if (strcmp(card_name, kAppBundlePromoEphemeralModule) == 0) {
+    int local_impression_count = local_state_prefs_->GetInteger(
+        kAppBundlePromoEphemeralModuleImpressionCounterPref);
+    local_state_prefs_->SetInteger(
+        kAppBundlePromoEphemeralModuleImpressionCounterPref,
+        local_impression_count + 1);
+  } else if (strcmp(card_name, kDefaultBrowserPromoEphemeralModule) == 0) {
+    int impression_count = profile_prefs_->GetInteger(
+        kDefaultBrowserPromoEphemeralModuleImpressionCounterPref);
+    profile_prefs_->SetInteger(
+        kDefaultBrowserPromoEphemeralModuleImpressionCounterPref,
+        impression_count + 1);
   }
 #endif
 
@@ -379,11 +422,15 @@ void HomeModulesCardRegistry::CreateAllCards() {
       profile_prefs_->GetInteger(kPriceTrackingPromoImpressionCounterPref);
   int send_tab_promo_count =
       profile_prefs_->GetInteger(kSendTabPromoImpressionCounterPref);
+  int app_bundle_promo_count = local_state_prefs_->GetInteger(
+      kAppBundlePromoEphemeralModuleImpressionCounterPref);
   if (PriceTrackingNotificationPromo::IsEnabled(price_tracking_promo_count)) {
     all_cards_by_priority_.push_back(
         std::make_unique<PriceTrackingNotificationPromo>(
             price_tracking_promo_count));
   }
+  int default_browser_promo_count = profile_prefs_->GetInteger(
+      kDefaultBrowserPromoEphemeralModuleImpressionCounterPref);
 
   if (base::FeatureList::IsEnabled(
           features::kSegmentationPlatformTipsEphemeralCard)) {
@@ -429,6 +476,17 @@ void HomeModulesCardRegistry::CreateAllCards() {
   if (SendTabNotificationPromo::IsEnabled(send_tab_promo_count)) {
     all_cards_by_priority_.push_back(
         std::make_unique<SendTabNotificationPromo>(send_tab_promo_count));
+  }
+
+  if (AppBundlePromoEphemeralModule::IsEnabled(app_bundle_promo_count)) {
+    all_cards_by_priority_.push_back(
+        std::make_unique<AppBundlePromoEphemeralModule>());
+  }
+
+  if (DefaultBrowserPromoEphemeralModule::IsEnabled(
+          default_browser_promo_count)) {
+    all_cards_by_priority_.push_back(
+        std::make_unique<DefaultBrowserPromoEphemeralModule>());
   }
 #endif
 

@@ -63,7 +63,7 @@ class PeerConnectionDataChannelOpenTest
       : background_thread_(std::make_unique<Thread>(&vss_)) {
     RTC_CHECK(background_thread_->Start());
     // Delay is set to 50ms so we get a 100ms RTT.
-    vss_.set_delay_mean(/*delay_ms=*/50);
+    vss_.set_delay_mean(/*delay_mean=*/50);
     vss_.UpdateDelayDistribution();
   }
 

@@ -28,6 +28,7 @@
 #include "rtc_base/event.h"
 #include "rtc_base/fake_clock.h"
 #include "rtc_base/ip_address.h"
+#include "rtc_base/sigslot_trampoline.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 #include "rtc_base/socket_address_pair.h"
@@ -380,7 +381,13 @@ class VirtualSocketServer : public SocketServer {
   uint32_t SendDelay(uint32_t size) RTC_LOCKS_EXCLUDED(mutex_);
 
   // Sending was previously blocked, but now isn't.
+  // Deprecated interface
   sigslot::signal0<> SignalReadyToSend;
+  // New interface
+  void NotifyReadyToSend() { SignalReadyToSend(); }
+  void SubscribeReadyToSend(absl::AnyInvocable<void()> callback) {
+    ready_to_send_trampoline_.Subscribe(std::move(callback));
+  }
 
  protected:
   // Returns a new IP not used before in this network.
@@ -485,6 +492,8 @@ class VirtualSocketServer : public SocketServer {
   size_t max_udp_payload_ RTC_GUARDED_BY(mutex_) = 65507;
 
   bool sending_blocked_ RTC_GUARDED_BY(mutex_) = false;
+  SignalTrampoline<VirtualSocketServer, &VirtualSocketServer::SignalReadyToSend>
+      ready_to_send_trampoline_;
 };
 
 }  // namespace webrtc

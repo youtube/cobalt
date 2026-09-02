@@ -151,15 +151,17 @@ bool ParsePublicKey(der::Input public_key_spki,
                     bssl::UniquePtr<EVP_PKEY> *public_key) {
   // Parse the SPKI to an EVP_PKEY.
   OpenSSLErrStackTracer err_tracer;
-
-  CBS cbs;
-  CBS_init(&cbs, public_key_spki.data(), public_key_spki.size());
-  public_key->reset(EVP_parse_public_key(&cbs));
-  if (!*public_key || CBS_len(&cbs) != 0) {
-    public_key->reset();
-    return false;
-  }
-  return true;
+  const EVP_PKEY_ALG *const algs[] = {
+      EVP_pkey_rsa(),
+      EVP_pkey_ec_p256(),
+      EVP_pkey_ec_p384(),
+      // TODO(davidben): Remove P-521 from here, or let callers configure this.
+      // We don't advertise it in TLS.
+      EVP_pkey_ec_p521(),
+  };
+  public_key->reset(EVP_PKEY_from_subject_public_key_info(
+      public_key_spki.data(), public_key_spki.size(), algs, std::size(algs)));
+  return *public_key != nullptr;
 }
 
 bool VerifySignedData(SignatureAlgorithm algorithm, der::Input signed_data,

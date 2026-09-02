@@ -32,8 +32,6 @@ class AutofillOfferData;
 class AutofillOfferManager;
 enum class AutofillProgressDialogType;
 class AutofillSaveCardBottomSheetBridge;
-class BnplIssuer;
-struct BnplTosModel;
 struct CardUnmaskChallengeOption;
 class CardUnmaskDelegate;
 struct CardUnmaskPromptOptions;
@@ -58,8 +56,8 @@ enum class WebauthnDialogCallbackType;
 
 namespace payments {
 
-struct BnplIssuerContext;
 class BnplStrategy;
+class BnplUiDelegate;
 class MandatoryReauthManager;
 class MultipleRequestPaymentsNetworkInterface;
 class PaymentsNetworkInterface;
@@ -501,16 +499,6 @@ class PaymentsAutofillClient : public RiskDataLoader {
       base::WeakPtr<CardUnmaskDelegate> delegate);
   virtual void OnUnmaskVerificationResult(PaymentsRpcResult result);
 
-  // Shows a view that presents the Buy-Now-Pay-Later Terms of Service to the
-  // user to accept or decline.
-  virtual void ShowBnplTos(BnplTosModel bnpl_tos_model,
-                           base::OnceClosure accept_callback,
-                           base::OnceClosure cancel_callback);
-
-  // Closes the Buy-Now-Pay-Later Terms of Service dialog that was displayed in
-  // `ShowBnplTos()`.
-  virtual void CloseBnplTos();
-
   // Returns a pointer to a VirtualCardEnrollmentManager that is owned by
   // PaymentsAutofillClient. VirtualCardEnrollmentManager is used for virtual
   // card enroll and unenroll related flows. This function will return a nullptr
@@ -656,23 +644,16 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // used to handle the Save and Fill dialog.
   virtual payments::SaveAndFillManager* GetSaveAndFillManager();
 
-  // Shows the issuer selection dialog for BNPL when the BNPL suggestion is
-  // selected to let users choose a BNPL issuer.
-  virtual void ShowSelectBnplIssuerDialog(
-      std::vector<BnplIssuerContext> bnpl_issuer_context,
-      std::string app_locale,
-      base::OnceCallback<void(BnplIssuer)> selected_issuer_callback,
-      base::OnceClosure cancel_callback);
-
-  // Dismiss the issuer selection dialog for BNPL.
-  virtual void DismissSelectBnplIssuerDialog();
-
   // Checks if the browser popup is a tab modal popup.
   virtual bool IsTabModalPopupDeprecated() const;
 
-  // Gets the BnplStrategy instance associated with the client. Helps determines
-  // the next step in the BNPL flow depending on the platform.
+  // Gets the `BnplStrategy` instance associated with the client. Helps
+  // determines the next step in the BNPL flow depending on the platform.
   virtual BnplStrategy* GetBnplStrategy();
+
+  // Gets the `BnplUiDelegate` instance associated with the client. Handles the
+  // UI in the BNPL flow depending on the platform.
+  virtual BnplUiDelegate* GetBnplUiDelegate();
 };
 
 }  // namespace payments

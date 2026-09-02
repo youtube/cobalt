@@ -60,7 +60,7 @@ BASE_FEATURE(kOfferPinToTaskbarWhenSettingToDefault,
              base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kOfferPinToTaskbarInFirstRunExperience,
              "OfferPinToTaskbarInFirstRunExperience",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(OfferPinToTaskbarInSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
@@ -123,6 +123,13 @@ BASE_FEATURE(KScrimForTabModal,
              "ScrimForTabModal",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_MAC)
+// Add tab group colours when viewing tab groups using the top mac OS menu bar.
+BASE_FEATURE(kShowTabGroupsMacSystemMenu,
+             "ShowTabGroupsMacSystemMenu",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_MAC)
+
 BASE_FEATURE(kSideBySide, "SideBySide", base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The delay before showing the drop target for the side-by-side drag-and-drop
@@ -160,6 +167,17 @@ BASE_FEATURE_PARAM(int,
                    32
 #elif BUILDFLAG(IS_LINUX)
                    50
+#else
+                   0
+#endif
+);
+
+BASE_FEATURE_PARAM(double,
+                   kSideBySideDropTargetHideForOSPercentage,
+                   &kSideBySide,
+                   "drop_target_hide_for_os_percentage",
+#if BUILDFLAG(IS_WIN)
+                   1.4
 #else
                    0
 #endif
@@ -223,7 +241,7 @@ BASE_FEATURE_PARAM(int,
                    kSideBySideSnapDistance,
                    &kSideBySide,
                    "snap_distance",
-                   5);
+                   15);
 
 // When enabled along with SideBySide flag, split tabs will be restored on
 // startup.
@@ -258,6 +276,19 @@ BASE_FEATURE(kTabScrollingButtonPosition,
 BASE_FEATURE(kTabGroupsCollapseFreezing,
              "TabGroupsCollapseFreezing",
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+#if !BUILDFLAG(IS_ANDROID)
+// General improvements to tab group menus
+BASE_FEATURE(kTabGroupMenuImprovements,
+             "TabGroupMenuImprovements",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Update menus to use tab group menus in the action menu
+BASE_FEATURE(kTabGroupMenuMoreEntryPoints,
+             "TabGroupMenuMoreEntryPoints",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables preview images in tab-hover cards.
 // https://crbug.com/928954

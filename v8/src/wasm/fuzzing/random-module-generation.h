@@ -43,10 +43,22 @@ struct ExportData {
 
 struct WasmModuleGenerationOptions
     : public base::EnumSet<WasmModuleGenerationOption> {
+  // Implicitly construct from a `base::EnumSet` (this allows to use `EnumSet`'s
+  // operators on a `WasmModuleGenerationOptions` object).
+  constexpr WasmModuleGenerationOptions(
+      base::EnumSet<WasmModuleGenerationOption> options)
+      : base::EnumSet<WasmModuleGenerationOption>(options) {}
+
   bool generate_simd() const { return contains(kGenerateSIMD); }
   bool generate_wasm_gc() const { return contains(kGenerateWasmGC); }
 
   static constexpr WasmModuleGenerationOptions MVP() { return {{}}; }
+  static constexpr WasmModuleGenerationOptions Simd() {
+    return {{kGenerateSIMD}};
+  }
+  static constexpr WasmModuleGenerationOptions WasmGC() {
+    return {{kGenerateWasmGC}};
+  }
   static constexpr WasmModuleGenerationOptions All() {
     return {{kGenerateSIMD, kGenerateWasmGC}};
   }

@@ -1661,7 +1661,7 @@ void HTMLElement::ShowPopoverInternal(Element* invoker,
   after_event->SetTarget(this);
   GetPopoverData()->setPendingToggleEventTask(PostCancellableTask(
       *original_document.GetTaskRunner(TaskType::kDOMManipulation), FROM_HERE,
-      WTF::BindOnce(
+      BindOnce(
           [](HTMLElement* element, ToggleEvent* event) {
             CHECK(element);
             CHECK(event);
@@ -2028,7 +2028,7 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
     after_event->SetTarget(this);
     GetPopoverData()->setPendingToggleEventTask(PostCancellableTask(
         *document.GetTaskRunner(TaskType::kDOMManipulation), FROM_HERE,
-        WTF::BindOnce(
+        BindOnce(
             [](HTMLElement* element, ToggleEvent* event) {
               CHECK(element);
               CHECK(event);
@@ -2481,7 +2481,10 @@ bool HTMLElement::IsValidBuiltinPopoverCommand(HTMLElement& invoker,
                                                CommandEventType command) {
   return command == CommandEventType::kTogglePopover ||
          command == CommandEventType::kHidePopover ||
-         command == CommandEventType::kShowPopover;
+         command == CommandEventType::kShowPopover ||
+         command == CommandEventType::kToggleMenu ||
+         command == CommandEventType::kHideMenu ||
+         command == CommandEventType::kShowMenu;
 }
 
 bool HTMLElement::IsValidBuiltinCommand(HTMLElement& invoker,

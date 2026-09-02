@@ -14,6 +14,7 @@
 #include "base/observer_list.h"
 #include "base/observer_list_types.h"
 #include "base/types/pass_key.h"
+#include "content/browser/preloading/preload_serving_metrics_holder.h"
 #include "content/browser/preloading/prerender/prerender_attributes.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/preloading/speculation_rules/speculation_rules_tags.h"
@@ -430,6 +431,13 @@ class CONTENT_EXPORT PrerenderHost {
 
   void NotifyReused();
 
+  // Called just before cancellation
+  void OnWillBeCancelled(const PrerenderCancellationReason& reason);
+
+  const PreloadPipelineInfo& preload_pipeline_info() const {
+    return *attributes_.preload_pipeline_info.get();
+  }
+
   base::WeakPtr<PrerenderHost> GetWeakPtr();
 
  private:
@@ -587,6 +595,9 @@ class CONTENT_EXPORT PrerenderHost {
   bool were_headers_received_ = false;
 
   const bool host_reused_ = false;
+
+  std::unique_ptr<PreloadServingMetrics>
+      prerender_initial_preload_serving_metrics_;
 
   base::WeakPtrFactory<PrerenderHost> weak_factory_{this};
 };

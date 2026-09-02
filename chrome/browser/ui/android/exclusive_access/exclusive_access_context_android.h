@@ -5,14 +5,21 @@
 #ifndef CHROME_BROWSER_UI_ANDROID_EXCLUSIVE_ACCESS_EXCLUSIVE_ACCESS_CONTEXT_ANDROID_H_
 #define CHROME_BROWSER_UI_ANDROID_EXCLUSIVE_ACCESS_EXCLUSIVE_ACCESS_CONTEXT_ANDROID_H_
 
+#include <memory>
+
+#include "base/memory/weak_ptr.h"
+#include "base/task/cancelable_task_tracker.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "third_party/jni_zero/jni_zero.h"
+
+class ExclusiveAccessBubbleAndroid;
 
 // Delegate of the ExclusiveAccessManagerAndroid
 class ExclusiveAccessContextAndroid : public ExclusiveAccessContext {
  public:
   ExclusiveAccessContextAndroid(
       JNIEnv* env,
+      const jni_zero::JavaRef<jobject>& j_activity,
       const jni_zero::JavaRef<jobject>& j_fullscreen_manager,
       const jni_zero::JavaRef<jobject>& j_activity_tab_provider);
   ~ExclusiveAccessContextAndroid() override;
@@ -31,7 +38,7 @@ class ExclusiveAccessContextAndroid : public ExclusiveAccessContext {
   // Enters fullscreen and updates the exclusive access bubble.
   void EnterFullscreen(const url::Origin& origin,
                        ExclusiveAccessBubbleType bubble_type,
-                       const int64_t display_id) override;
+                       FullscreenTabParams fullscreen_tab_params) override;
 
   // Exits fullscreen and updates the exclusive access bubble.
   void ExitFullscreen() override;
@@ -59,8 +66,20 @@ class ExclusiveAccessContextAndroid : public ExclusiveAccessContext {
   // their own, and this function allows us to check for that.
   bool CanUserExitFullscreen() const override;
 
+  base::WeakPtr<ExclusiveAccessContextAndroid> GetAsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
+  void DestroyAnyExclusiveAccessBubble();
+
   base::android::ScopedJavaGlobalRef<jobject> java_context_;
+  std::unique_ptr<ExclusiveAccessBubbleAndroid> exclusive_access_bubble_;
+  base::CancelableTaskTracker exclusive_access_bubble_cancelable_task_tracker_;
+  std::optional<base::CancelableTaskTracker::TaskId>
+      exclusive_access_bubble_destruction_task_id_;
+  base::WeakPtrFactory<ExclusiveAccessContextAndroid> weak_ptr_factory_{
+      this};
 };
 
 #endif  // CHROME_BROWSER_UI_ANDROID_EXCLUSIVE_ACCESS_EXCLUSIVE_ACCESS_CONTEXT_ANDROID_H_

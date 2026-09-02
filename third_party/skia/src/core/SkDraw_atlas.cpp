@@ -56,7 +56,7 @@ static void fill_rect(const SkMatrix& ctm, const SkRasterClip& rc,
         ctm.mapPoints(raw.fStorage);
         if (auto bounds = SkRect::Bounds(raw.fStorage)) {
             raw.fBounds = *bounds;
-            SkScan::FillPathRaw(raw, rc, blitter);
+            SkScan::FillPath(raw, rc, blitter);
         }
     }
 }
@@ -69,11 +69,12 @@ static void load_color(SkRasterPipelineContexts::UniformColorCtx* ctx, const flo
     ctx->rgba[3] = SkScalarRoundToInt(rgba[3]*255); ctx->a = rgba[3];
 }
 
-void SkDraw::drawAtlas(SkSpan<const SkRSXform> xform,
-                       SkSpan<const SkRect> textures,
-                       SkSpan<const SkColor> colors,
-                       sk_sp<SkBlender> blender,
-                       const SkPaint& paint) {
+namespace skcpu {
+void Draw::drawAtlas(SkSpan<const SkRSXform> xform,
+                     SkSpan<const SkRect> textures,
+                     SkSpan<const SkColor> colors,
+                     sk_sp<SkBlender> blender,
+                     const SkPaint& paint) {
     SkASSERT(xform.size() == textures.size());
     SkASSERT(colors.empty() || (xform.size() == colors.size()));
 
@@ -151,3 +152,4 @@ void SkDraw::drawAtlas(SkSpan<const SkRSXform> xform,
         }
     }
 }
+}  // namespace skcpu

@@ -104,6 +104,7 @@ if (rtc_include_tests) {
       "../../test/time_controller",
       "../rtp_rtcp:mock_rtp_rtcp",
       "../rtp_rtcp:rtp_rtcp_format",
+      "//third_party/abseil-cpp/absl/cleanup",
     ]
   }
 }

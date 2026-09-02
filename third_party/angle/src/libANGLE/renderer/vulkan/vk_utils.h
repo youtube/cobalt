@@ -10,6 +10,10 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_VK_UTILS_H_
 #define LIBANGLE_RENDERER_VULKAN_VK_UTILS_H_
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include <atomic>
 #include <limits>
 #include <queue>
@@ -623,6 +627,20 @@ angle::Result InitExternalSharedFDMemory(
     uint32_t *memoryTypeIndexOut,
     DeviceMemory *deviceMemoryOut,
     VkDeviceSize *sizeOut);
+
+angle::Result GetHostPointerMemoryRequirements(ErrorContext *context,
+                                               void *hostPtr,
+                                               VkMemoryRequirements &memRequirements,
+                                               Buffer *buffer);
+
+angle::Result InitExternalHostMemory(ErrorContext *context,
+                                     void *hostPtr,
+                                     VkMemoryPropertyFlags memoryProperties,
+                                     Buffer *buffer,
+                                     VkMemoryPropertyFlags *memoryPropertyFlagsOut,
+                                     uint32_t *memoryTypeIndexOut,
+                                     DeviceMemory *deviceMemoryOut,
+                                     VkDeviceSize *sizeOut);
 
 gl::TextureType Get2DTextureType(uint32_t layerCount, GLint samples);
 
@@ -1444,6 +1462,9 @@ void InitSynchronization2Functions(VkDevice device);
 
 // VK_KHR_external_memory_fd
 void InitExternalMemoryFdFunctions(VkDevice device);
+
+// VK_EXT_external_memory_host
+void InitExternalMemoryHostFunctions(VkDevice device);
 
 #endif  // !defined(ANGLE_SHARED_LIBVULKAN)
 

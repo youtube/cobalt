@@ -5,6 +5,8 @@
 #ifndef V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 #define V8_REGEXP_REGEXP_MACRO_ASSEMBLER_H_
 
+#include <string_view>
+
 #include "src/base/strings.h"
 #include "src/execution/frame-constants.h"
 #include "src/objects/fixed-array.h"
@@ -156,7 +158,10 @@ class RegExpMacroAssembler {
   // will go to this label. Always checks the backtrack stack limit.
   virtual void PushBacktrack(Label* label) = 0;
   virtual void PushCurrentPosition() = 0;
-  enum StackCheckFlag { kNoStackLimitCheck = false, kCheckStackLimit = true };
+  enum class StackCheckFlag : uint8_t {
+    kNoStackLimitCheck = false,
+    kCheckStackLimit = true
+  };
   virtual void PushRegister(int register_index,
                             StackCheckFlag check_stack_limit) = 0;
   virtual void ReadCurrentPositionFromRegister(int reg) = 0;
@@ -168,6 +173,8 @@ class RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
+  virtual void RecordComment(std::string_view comment) = 0;
+  virtual MacroAssembler* masm() = 0;
 
   // Check that we are not in the middle of a surrogate pair.
   void CheckNotInSurrogatePair(int cp_offset, Label* on_failure);
@@ -228,21 +235,21 @@ class RegExpMacroAssembler {
                                           Address raw_byte_array);
 
   // Controls the generation of large inlined constants in the code.
-  void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
+  virtual void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
   bool slow_safe() const { return slow_safe_compiler_; }
 
   // Controls after how many backtracks irregexp should abort execution.  If it
   // can fall back to the experimental engine (see `set_can_fallback`), it will
   // return the appropriate error code, otherwise it will return the number of
   // matches found so far (perhaps none).
-  void set_backtrack_limit(uint32_t backtrack_limit) {
+  virtual void set_backtrack_limit(uint32_t backtrack_limit) {
     backtrack_limit_ = backtrack_limit;
   }
 
   // Set whether or not irregexp can fall back to the experimental engine on
   // excessive backtracking.  The number of backtracks considered excessive can
   // be controlled with set_backtrack_limit.
-  void set_can_fallback(bool val) { can_fallback_ = val; }
+  virtual void set_can_fallback(bool val) { can_fallback_ = val; }
 
   enum GlobalMode {
     NOT_GLOBAL,
@@ -252,7 +259,7 @@ class RegExpMacroAssembler {
   };
   // Set whether the regular expression has the global flag.  Exiting due to
   // a failure in a global regexp may still mean success overall.
-  inline void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
+  inline virtual void set_global_mode(GlobalMode mode) { global_mode_ = mode; }
   inline bool global() const { return global_mode_ != NOT_GLOBAL; }
   inline bool global_with_zero_length_check() const {
     return global_mode_ == GLOBAL || global_mode_ == GLOBAL_UNICODE;

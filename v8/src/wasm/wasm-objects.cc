@@ -690,14 +690,15 @@ void WasmTableObject::UpdateDispatchTable(
   const wasm::CanonicalSig* sig = func_data->sig();
   DCHECK(wasm::GetTypeCanonicalizer()->Contains(sig));
   wasm::CanonicalTypeIndex sig_index = func_data->sig_index();
+  // TODO(clemensb): Drop `WasmCapiFunctionData::sig_index`.
+  DCHECK_EQ(sig_index, sig->index());
 
   wasm::WasmImportWrapperCache* cache = wasm::GetWasmImportWrapperCache();
   auto kind = wasm::ImportCallKind::kWasmToCapi;
   int param_count = static_cast<int>(sig->parameter_count());
 
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->GetCompiled(isolate, kind, sig_index, param_count,
-                         wasm::kNoSuspend, sig);
+      cache->GetCompiled(isolate, kind, param_count, wasm::kNoSuspend, sig);
 
   Tagged<WasmImportData> implicit_arg =
       TrustedCast<WasmImportData>(func_data->internal()->implicit_arg());
@@ -1513,8 +1514,7 @@ FunctionTargetAndImplicitArg::FunctionTargetAndImplicitArg(
 void ImportedFunctionEntry::SetWasmToWrapper(
     Isolate* isolate, DirectHandle<JSReceiver> callable,
     std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle,
-    wasm::Suspend suspend, const wasm::CanonicalSig* sig,
-    wasm::CanonicalTypeIndex sig_id) {
+    wasm::Suspend suspend, const wasm::CanonicalSig* sig) {
 #if V8_ENABLE_DRUMBRAKE
   if (v8_flags.wasm_jitless) {
     // Ignores wrapper_handle.
@@ -1524,7 +1524,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
     {
       DisallowGarbageCollection no_gc;
       instance_data_->dispatch_table_for_imports()->SetForWrapper(
-          index_, *import_data, {}, sig_id, -1,
+          index_, *import_data, {}, sig->index(), -1,
           WasmDispatchTable::kExistingEntry);
     }
     instance_data_->imported_function_indices()->set(index_, -1);
@@ -1563,7 +1563,7 @@ void ImportedFunctionEntry::SetWasmToWrapper(
       instance_data_->dispatch_table_for_imports();
 
   dispatch_table->SetForWrapper(index_, *import_data, std::move(wrapper_handle),
-                                sig_id,
+                                sig->index(),
 #if V8_ENABLE_DRUMBRAKE
                                 WasmDispatchTable::kInvalidFunctionIndex,
 #endif  // V8_ENABLE_DRUMBRAKE
@@ -3279,7 +3279,7 @@ DirectHandle<WasmJSFunction> WasmJSFunction::New(
   // Initialize the import wrapper cache if that hasn't happened yet.
   cache->LazyInitialize(isolate);
   std::shared_ptr<wasm::WasmImportWrapperHandle> wrapper_handle =
-      cache->Get(isolate, kind, sig_id, expected_arity, suspend, canonical_sig);
+      cache->Get(isolate, kind, expected_arity, suspend, canonical_sig);
 
   bool should_clear_call_origin = wrapper_handle->has_code();
 

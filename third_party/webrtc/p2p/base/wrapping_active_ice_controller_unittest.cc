@@ -82,8 +82,7 @@ TEST(WrappingActiveIceControllerTest, CreateLegacyIceControllerFromFactory) {
 TEST(WrappingActiveIceControllerTest, PassthroughIceControllerInterface) {
   AutoThread main;
   MockIceAgent agent;
-  std::unique_ptr<MockIceController> will_move =
-      std::make_unique<MockIceController>(IceControllerFactoryArgs{});
+  auto will_move = std::make_unique<MockIceController>();
   MockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -119,8 +118,7 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSwitchRequest) {
   AutoThread main;
   ScopedFakeClock clock;
   NiceMock<MockIceAgent> agent;
-  std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
+  auto will_move = std::make_unique<NiceMockIceController>();
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -164,8 +162,7 @@ TEST(WrappingActiveIceControllerTest, HandlesImmediateSortAndSwitchRequest) {
   AutoThread main;
   ScopedFakeClock clock;
   NiceMock<MockIceAgent> agent;
-  std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
+  auto will_move = std::make_unique<NiceMockIceController>();
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -222,8 +219,7 @@ TEST(WrappingActiveIceControllerTest, HandlesSortAndSwitchRequest) {
   main.PostTask([&init, &init_delay] { init.Wait(init_delay); });
 
   NiceMock<MockIceAgent> agent;
-  std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
+  auto will_move = std::make_unique<NiceMockIceController>();
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 
@@ -267,8 +263,7 @@ TEST(WrappingActiveIceControllerTest, StartPingingAfterSortAndSwitch) {
   main.PostTask([&init, &init_delay] { init.Wait(init_delay); });
 
   NiceMock<MockIceAgent> agent;
-  std::unique_ptr<NiceMockIceController> will_move =
-      std::make_unique<NiceMockIceController>(IceControllerFactoryArgs{});
+  auto will_move = std::make_unique<NiceMockIceController>();
   NiceMockIceController* wrapped = will_move.get();
   WrappingActiveIceController controller(&agent, std::move(will_move));
 

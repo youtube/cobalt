@@ -73,7 +73,8 @@ FrameEncodeMetadataWriter::FrameEncodeMetadataWriter(
       last_timing_frame_time_ms_(-1),
       reordered_frames_logged_messages_(0),
       stalled_encoder_logged_messages_(0) {
-  codec_settings_.timing_frame_thresholds = {-1, 0};
+  codec_settings_.timing_frame_thresholds = {.delay_ms = -1,
+                                             .outlier_ratio_percent = 0};
 }
 FrameEncodeMetadataWriter::~FrameEncodeMetadataWriter() {}
 

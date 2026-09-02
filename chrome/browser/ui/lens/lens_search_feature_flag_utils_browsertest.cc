@@ -38,7 +38,8 @@ class TestingAimEligibilityService : public ChromeAimEligibilityService {
       TemplateURLService* template_url_service)
       : ChromeAimEligibilityService(pref_service,
                                     template_url_service,
-                                    /*url_loader_factory=*/nullptr),
+                                    /*url_loader_factory=*/nullptr,
+                                    /*identity_manager=*/nullptr),
         is_locally_eligible_(is_locally_eligible),
         is_server_eligible_(is_server_eligible),
         server_eligibility_enabled_(server_eligibility_enabled) {}
@@ -161,8 +162,16 @@ IN_PROC_BROWSER_TEST_F(
 class LensSearchFeatureFlagsUtilsAimM3DisabledTest
     : public LensSearchFeatureFlagsUtilsBrowserTestBase {
  public:
-  LensSearchFeatureFlagsUtilsAimM3DisabledTest() = default;
+  LensSearchFeatureFlagsUtilsAimM3DisabledTest() {
+    // Initialize the feature list to disable kLensSearchAimM3.
+    feature_list_.InitWithFeatures(/*enabled_features=*/{},
+                                   /*disabled_features=*/
+                                   {lens::features::kLensSearchAimM3});
+  }
   ~LensSearchFeatureFlagsUtilsAimM3DisabledTest() override = default;
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(LensSearchFeatureFlagsUtilsAimM3DisabledTest,
@@ -171,4 +180,33 @@ IN_PROC_BROWSER_TEST_F(LensSearchFeatureFlagsUtilsAimM3DisabledTest,
                              /*is_server_eligible=*/true,
                              /*server_eligibility_enabled=*/true);
   EXPECT_FALSE(lens::IsAimM3Enabled(browser()->profile()));
+}
+
+class LensSearchFeatureFlagsUtilsEduActionChipEnabledTest
+    : public LensSearchFeatureFlagsUtilsBrowserTestBase {
+ public:
+  LensSearchFeatureFlagsUtilsEduActionChipEnabledTest() = default;
+  ~LensSearchFeatureFlagsUtilsEduActionChipEnabledTest() override = default;
+
+ protected:
+  base::test::ScopedFeatureList feature_list_{
+      lens::features::kLensOverlayEduActionChip};
+};
+
+IN_PROC_BROWSER_TEST_F(LensSearchFeatureFlagsUtilsEduActionChipEnabledTest,
+                       TestEduActionChipEnabled_TrueWhenEnglish) {
+  g_browser_process->SetApplicationLocale("en");
+  EXPECT_TRUE(lens::IsLensOverlayEduActionChipEnabled());
+
+  g_browser_process->SetApplicationLocale("en-US");
+  EXPECT_TRUE(lens::IsLensOverlayEduActionChipEnabled());
+}
+
+IN_PROC_BROWSER_TEST_F(LensSearchFeatureFlagsUtilsEduActionChipEnabledTest,
+                       TestEduActionChipEnabled_FalseWhenNotEnglish) {
+  g_browser_process->SetApplicationLocale("es");
+  EXPECT_FALSE(lens::IsLensOverlayEduActionChipEnabled());
+
+  g_browser_process->SetApplicationLocale("enq");
+  EXPECT_FALSE(lens::IsLensOverlayEduActionChipEnabled());
 }

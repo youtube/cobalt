@@ -122,6 +122,72 @@ TEST_F(PeerConnectionCongestionControlTest, SendOnlySupportDoesNotEnableCcFb) {
   EXPECT_THAT(answer_str, HasSubstr("transport-cc"));
 }
 
+TEST_F(PeerConnectionCongestionControlTest,
+       ReNegotiationCalleeDoesNotSupportCcfb) {
+  // Enable CCFB for sender, do not enable it for receiver
+  SetFieldTrials(kCallerName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/");
+  SetFieldTrials(kCalleeName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Disabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  caller()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+
+  // Check that the callee answer does contain transport-cc
+  std::string answer_str = absl::StrCat(*caller()->pc()->remote_description());
+  ASSERT_THAT(answer_str, HasSubstr("transport-cc"));
+
+  // Callee re-negotiates
+  callee()->AddVideoTrack();
+  callee()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  // Check that the caller's answer does contain CCFB.
+  answer_str = absl::StrCat(*caller()->pc()->local_description());
+  EXPECT_THAT(answer_str, Not(HasSubstr("ccfb")));
+}
+
+TEST_F(PeerConnectionCongestionControlTest, ReNegotiationBothSupportCcfb) {
+  SetFieldTrials(kCallerName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/"
+                 "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  SetFieldTrials(kCalleeName,
+                 "WebRTC-RFC8888CongestionControlFeedback/Enabled/"
+                 "WebRTC-HeaderExtensionNegotiateMemory/Enabled/");
+  ASSERT_TRUE(CreatePeerConnectionWrappers());
+  ConnectFakeSignalingForSdpOnly();
+  caller()->AddAudioVideoTracks();
+  caller()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+
+  // Check that the callee's answer does  not contain transport-cc
+  std::string answer_str = absl::StrCat(*caller()->pc()->remote_description());
+  ASSERT_THAT(answer_str, Not(HasSubstr("transport-cc")));
+
+  // Callee re-negotiates
+  callee()->AddVideoTrack();
+  callee()->CreateAndSetAndSignalOffer();
+  ASSERT_THAT(WaitUntil([&] { return SignalingStateStable(); }, IsTrue()),
+              IsRtcOk());
+  std::string offer_str = absl::StrCat(*callee()->pc()->local_description());
+  EXPECT_THAT(offer_str, Not(HasSubstr("transport-cc")));
+  EXPECT_THAT(
+      offer_str,
+      Not(HasSubstr("http://www.ietf.org/id/"
+                    "draft-holmer-rmcat-transport-wide-cc-extensions-01")));
+
+  answer_str = absl::StrCat(*caller()->pc()->local_description());
+  EXPECT_THAT(answer_str, Not(HasSubstr("transport-cc")));
+  EXPECT_THAT(
+      answer_str,
+      Not(HasSubstr("http://www.ietf.org/id/"
+                    "draft-holmer-rmcat-transport-wide-cc-extensions-01")));
+}
+
 #ifdef WEBRTC_HAVE_SCTP
 TEST_F(PeerConnectionCongestionControlTest,
        ReceiveOfferWithDataChannelsSetsCcfbFlag) {

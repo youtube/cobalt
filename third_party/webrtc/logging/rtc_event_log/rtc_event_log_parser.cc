@@ -2676,14 +2676,16 @@ std::vector<LoggedIceEvent> ParsedRtcEventLog::GetIceEvents() const {
        {ConfigType::kSelected, Combined::kSelected}});
   std::vector<LoggedIceEvent> log_events;
   auto handle_check = [&](const LoggedIceCandidatePairEvent& check) {
-    log_events.push_back(LoggedIceEvent{check.candidate_pair_id,
-                                        Timestamp::Millis(check.log_time_ms()),
-                                        check_map[check.type]});
+    log_events.push_back(
+        LoggedIceEvent{.candidate_pair_id = check.candidate_pair_id,
+                       .log_time = Timestamp::Millis(check.log_time_ms()),
+                       .event_type = check_map[check.type]});
   };
   auto handle_config = [&](const LoggedIceCandidatePairConfig& conf) {
-    log_events.push_back(LoggedIceEvent{conf.candidate_pair_id,
-                                        Timestamp::Millis(conf.log_time_ms()),
-                                        config_map[conf.type]});
+    log_events.push_back(
+        LoggedIceEvent{.candidate_pair_id = conf.candidate_pair_id,
+                       .log_time = Timestamp::Millis(conf.log_time_ms()),
+                       .event_type = config_map[conf.type]});
   };
   RtcEventProcessor process;
   process.AddEvents(ice_candidate_pair_events(), handle_check);

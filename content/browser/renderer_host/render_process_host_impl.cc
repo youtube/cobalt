@@ -771,6 +771,17 @@ class SiteProcessCountTracker : public base::SupportsUserData::Data,
         continue;
       }
 
+      if (process_reuse_policy ==
+          ProcessReusePolicy::REUSE_PRERENDERING_PROCESS_FOR_MAIN_FRAME) {
+        // TODO(crbug.com/434845948): Avoid downcasting to
+        // RenderProcessHostImpl. This policy should not be used with
+        // MockRenderProcessHost.
+        if (!static_cast<RenderProcessHostImpl*>(host)
+                 ->IsOnlyHostingPrerenderedFramesOrEmpty()) {
+          continue;
+        }
+      }
+
       if (host->VisibleClientCount())
         foreground_processes->insert(host);
       else
@@ -1317,6 +1328,7 @@ void RecordMissedReuseOpportunityMetric(
     return;
   }
 
+  CHECK(allocation_context.navigation_context);
   auto context = allocation_context.navigation_context->is_outermost_main_frame
                      ? RecentlyDestroyedHosts::Context::kMainFrame
                      : RecentlyDestroyedHosts::Context::kSubframe;
@@ -2806,6 +2818,10 @@ void RenderProcessHostImpl::RegisterRenderFrameHost(
   }
 
   render_frame_host_id_set_.insert(render_frame_host_id);
+  RenderFrameHostImpl* rfh = RenderFrameHostImpl::FromID(render_frame_host_id);
+  rfh->SetPrerenderStateChangedCallback(base::BindRepeating(
+      &RenderProcessHostImpl::OnRenderFrameHostPrerenderStateChanged,
+      instance_weak_factory_.GetWeakPtr()));
 }
 
 void RenderProcessHostImpl::UnregisterRenderFrameHost(
@@ -2813,9 +2829,21 @@ void RenderProcessHostImpl::UnregisterRenderFrameHost(
     bool is_outermost_main_frame) {
   DCHECK(base::Contains(render_frame_host_id_set_, render_frame_host_id));
   render_frame_host_id_set_.erase(render_frame_host_id);
+  prerendering_frame_host_id_set_.erase(render_frame_host_id);
   if (is_outermost_main_frame) {
     CHECK_NE(outermost_main_frame_count_, 0u);
     --outermost_main_frame_count_;
+  }
+}
+
+void RenderProcessHostImpl::OnRenderFrameHostPrerenderStateChanged(
+    const GlobalRenderFrameHostId& render_frame_host_id,
+    bool is_prerendering) {
+  CHECK(base::Contains(render_frame_host_id_set_, render_frame_host_id));
+  if (is_prerendering) {
+    prerendering_frame_host_id_set_.insert(render_frame_host_id);
+  } else {
+    prerendering_frame_host_id_set_.erase(render_frame_host_id);
   }
 }
 
@@ -3570,7 +3598,6 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
       switches::kTargetDeviceScaleForTesting,
       switches::kTestType,
       switches::kTouchEventFeatureDetection,
-      switches::kTraceToConsole,
       switches::kUseCmdDecoder,
       switches::kUseFakeCodecForPeerConnection,
       switches::kUseFakeUIForMediaStream,
@@ -4919,7 +4946,6 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
 
   bool is_unmatched_service_worker = site_instance->is_for_service_worker();
   BrowserContext* browser_context = site_instance->GetBrowserContext();
-
   // First, attempt to reuse an existing RenderProcessHost if necessary.
   switch (process_reuse_policy) {
     case ProcessReusePolicy::PROCESS_PER_SITE: {
@@ -4944,6 +4970,9 @@ RenderProcessHost* RenderProcessHostImpl::GetProcessHostForSiteInstance(
         REUSE_PENDING_OR_COMMITTED_SITE_WITH_MAIN_FRAME_THRESHOLD: {
       CHECK(base::FeatureList::IsEnabled(
           features::kProcessPerSiteUpToMainFrameThreshold));
+      [[fallthrough]];
+    }
+    case ProcessReusePolicy::REUSE_PRERENDERING_PROCESS_FOR_MAIN_FRAME: {
       render_process_host = FindReusableProcessHostForSiteInstance(
           site_instance, process_reuse_policy);
       if (render_process_host) {
@@ -5969,6 +5998,11 @@ void RenderProcessHostImpl::SetHasSpareRendererPriority(
     has_spare_renderer_priority_ = has_spare_renderer_priority;
     UpdateProcessPriority();
   }
+}
+
+bool RenderProcessHostImpl::IsOnlyHostingPrerenderedFramesOrEmpty() {
+  return prerendering_frame_host_id_set_.size() ==
+         render_frame_host_id_set_.size();
 }
 
 }  // namespace content

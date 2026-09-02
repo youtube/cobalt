@@ -1782,7 +1782,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   {
     // This method is invoked from a microtask, where in general we may have
-    // an non-trivial stack. Emptying the message queue below may trigger the
+    // a non-trivial stack. Emptying the message queue below may trigger the
     // execution of a stackless GC. We need to override the embedder stack
     // state, to force scanning the stack, if this happens.
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
@@ -2986,8 +2986,14 @@ void Shell::WasmDeserializeModule(
       i::Cast<i::JSArrayBuffer>(Utils::OpenHandle(*info[0]));
   i::DirectHandle<i::JSTypedArray> wire_bytes =
       i::Cast<i::JSTypedArray>(Utils::OpenHandle(*info[1]));
-  CHECK(!buffer->was_detached());
-  CHECK(!wire_bytes->WasDetached());
+  if (buffer->was_detached()) {
+    ThrowError(isolate, "First argument is detached");
+    return;
+  }
+  if (wire_bytes->WasDetached()) {
+    ThrowError(isolate, "Second argument's buffer is detached");
+    return;
+  }
 
   i::DirectHandle<i::JSArrayBuffer> wire_bytes_buffer =
       wire_bytes->GetBuffer(i_isolate);
@@ -3226,21 +3232,24 @@ MaybeLocal<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
   char buffer[kBufferSize];
   Local<String> accumulator = String::NewFromUtf8Literal(isolate, "");
-  int length;
   // Flush stdout before reading stdin, as stdout isn't guaranteed to be flushed
   // automatically.
   fflush(stdout);
   while (true) {
     // Continue reading if the line ends with an escape '\\' or the line has
     // not been fully read into the buffer yet (does not end with '\n').
-    // If fgets gets an error, just give up.
+    // If fgets gets an error, throw and give up.
     char* input = nullptr;
     input = fgets(buffer, kBufferSize, stdin);
-    if (input == nullptr) {
+    if (ferror(stdin)) {
       ThrowError(isolate, "Error while reading from stdin");
       return {};
     }
-    length = static_cast<int>(strlen(buffer));
+    if (input == nullptr) {
+      if (accumulator->Length() == 0) return {};
+      return accumulator;
+    }
+    int length = static_cast<int>(strlen(buffer));
     if (length == 0) {
       return accumulator;
     } else if (buffer[length - 1] != '\n') {
@@ -5103,7 +5112,8 @@ void Shell::ReadLine(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   Local<v8::String> input;
   if (!ReadFromStdin(info.GetIsolate()).ToLocal(&input)) {
-    // In case of an error, the empty handle will set the default return value.
+    // In case of an error or EOF, the empty handle will set the default return
+    // value.
     CHECK(input.IsEmpty());
   }
   info.GetReturnValue().Set(input);
@@ -6457,8 +6467,7 @@ bool ProcessMessages(
   try_catch.SetVerbose(true);
 
   while (true) {
-    bool ran_a_task;
-    ran_a_task =
+    bool ran_a_task =
         v8::platform::PumpMessageLoop(g_default_platform, isolate, behavior());
     if (isolate->IsExecutionTerminating()) return true;
     if (try_catch.HasCaught()) return false;

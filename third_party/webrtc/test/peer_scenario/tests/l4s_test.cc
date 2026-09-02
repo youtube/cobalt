@@ -126,6 +126,17 @@ DataRate GetAvailableSendBitrate(
   return DataRate::BitsPerSec(*stats[0]->available_outgoing_bitrate);
 }
 
+TimeDelta GetAverageRoundTripTime(
+    const scoped_refptr<const RTCStatsReport>& report) {
+  auto stats = report->GetStatsOfType<RTCIceCandidatePairStats>();
+  if (stats.empty() || (stats[0]->responses_received.value_or(0) == 0)) {
+    return TimeDelta::Zero();
+  }
+
+  return TimeDelta::Seconds(*stats[0]->total_round_trip_time /
+                            *stats[0]->responses_received);
+}
+
 std::optional<int64_t> GetPacketsSentWithEct1(
     const scoped_refptr<const RTCStatsReport>& report) {
   auto stats = report->GetStatsOfType<RTCOutboundRtpStreamStats>();
@@ -254,12 +265,12 @@ TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
 
   auto caller_to_callee = s.net()
                               ->NodeBuilder()
-                              .capacity(DataRate::KilobitsPerSec(600))
+                              .capacity(DataRate::KilobitsPerSec(250))
                               .Build()
                               .node;
   auto callee_to_caller = s.net()
                               ->NodeBuilder()
-                              .capacity(DataRate::KilobitsPerSec(600))
+                              .capacity(DataRate::KilobitsPerSec(250))
                               .Build()
                               .node;
   RtcpFeedbackCounter callee_feedback_counter;
@@ -280,10 +291,12 @@ TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
                                       {callee_to_caller});
   PeerScenarioClient::VideoSendTrackConfig video_conf;
   video_conf.generator.squares_video->framerate = 30;
-  video_conf.generator.squares_video->width = 640;
-  video_conf.generator.squares_video->height = 360;
+  video_conf.generator.squares_video->width = 320;
+  video_conf.generator.squares_video->height = 240;
   caller->CreateVideo("FROM_CALLER", video_conf);
   callee->CreateVideo("FROM_CALLEE", video_conf);
+  caller->CreateAudio("FROM_CALLER", AudioOptions());
+  callee->CreateAudio("FROM_CALLEE", AudioOptions());
 
   signaling.StartIceSignaling();
   std::atomic<bool> offer_exchange_done(false);
@@ -295,13 +308,16 @@ TEST_P(FeedbackFormatTest, AdaptToLinkCapacityWithoutEcn) {
 
   DataRate caller_available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, caller));
-  EXPECT_GT(caller_available_bwe.kbps(), 450);
-  EXPECT_LT(caller_available_bwe.kbps(), 610);
+  EXPECT_GT(caller_available_bwe.kbps(), 150);
+  EXPECT_LT(caller_available_bwe.kbps(), 260);
 
   DataRate callee_available_bwe =
       GetAvailableSendBitrate(GetStatsAndProcess(s, callee));
-  EXPECT_GT(callee_available_bwe.kbps(), 450);
-  EXPECT_LT(callee_available_bwe.kbps(), 610);
+  EXPECT_GT(callee_available_bwe.kbps(), 150);
+  EXPECT_LT(callee_available_bwe.kbps(), 260);
+
+  EXPECT_LT(GetAverageRoundTripTime(GetStatsAndProcess(s, caller)),
+            TimeDelta::Millis(200));
 
   if (params.caller_supports_rfc8888 && params.callee_supports_rfc8888) {
     EXPECT_GT(caller_feedback_counter.FeedbackAccordingToRfc8888(), 0);

@@ -2125,8 +2125,6 @@ BASE_FEATURE(SecPurposePrefetchHeaderNoStatePrefetch,
 BASE_FEATURE(SecPurposePrefetchHeaderRelPrefetch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(SelectiveInOrderScript, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // When enabled, the SubresourceFilter receives calls from the ResourceLoader
 // to perform additional checks against any aliases found from DNS CNAME records
 // for the requested URL.
@@ -2380,7 +2378,7 @@ BASE_FEATURE(UrgentMainFrameForInput, base::FEATURE_DISABLED_BY_DEFAULT);
 // to canonicalize URL properties. See https://crbug.com/409350827
 BASE_FEATURE(kURLPatternDummyURLCanonicalization,
              "URLPatternDummyURLCanonicalization",
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Flag guard for changes in how navigation code handles the URL to commit.
 // https://crbug.com/422803238

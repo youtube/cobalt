@@ -736,8 +736,7 @@ class Heap final {
   void ReplaceReadOnlySpace(SharedReadOnlySpace* shared_ro_space);
 
   // Sets up the heap memory without creating any objects.
-  void SetUpSpaces(LinearAllocationArea& new_allocation_info,
-                   LinearAllocationArea& old_allocation_info);
+  void SetUpSpaces();
 
   // Prepares the heap, setting up for deserialization.
   void InitializeMainThreadLocalHeap(LocalHeap* main_thread_local_heap);
@@ -2015,6 +2014,8 @@ class Heap final {
   size_t max_old_generation_size() const {
     return max_old_generation_size_.load(std::memory_order_relaxed);
   }
+
+  size_t max_global_memory_size() const { return max_global_memory_size_; }
 
   size_t min_old_generation_size() const { return min_old_generation_size_; }
 

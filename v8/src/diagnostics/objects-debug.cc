@@ -146,7 +146,8 @@ void Object::ObjectVerify(Tagged<Object> obj, Isolate* isolate) {
     Cast<HeapObject>(obj)->HeapObjectVerify(isolate);
   }
   PtrComprCageBase cage_base(isolate);
-  CHECK(!IsConstructor(obj, cage_base) || IsCallable(obj, cage_base));
+  CHECK(SafeIsAnyHole(obj) || !IsConstructor(obj, cage_base) ||
+        IsCallable(obj, cage_base));
 }
 
 void Object::VerifyPointer(Isolate* isolate, Tagged<Object> p) {
@@ -192,6 +193,18 @@ void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject(*this));
+
+  if (SafeIsAnyHole(Tagged(*this))) {
+    ReadOnlyRoots roots(isolate);
+#define COMPARE_ROOTS_VALUE(_, Value, __) \
+  if (*this == roots.Value()) {           \
+    return;                               \
+  }
+    HOLE_LIST(COMPARE_ROOTS_VALUE);
+#undef COMPARE_ROOTS_VALUE
+    UNREACHABLE();
+  }
+
   PtrComprCageBase cage_base(isolate);
   Object::VerifyPointer(isolate, map(cage_base));
   CHECK(IsMap(map(cage_base), cage_base));
@@ -200,7 +213,7 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
 
   // Only TrustedObjects live in trusted space. See also TrustedObjectVerify.
   CHECK_IMPLIES(!IsTrustedObject(*this) && !IsFreeSpaceOrFiller(*this),
-                !HeapLayout::SafeInTrustedSpace(*this));
+                !TrustedHeapLayout::InTrustedSpace(*this));
 
   switch (map(cage_base)->instance_type()) {
 #define STRING_TYPE_CASE(TYPE, size, name, CamelName) case TYPE:
@@ -378,6 +391,7 @@ void HeapObject::VerifyHeapPointer(Isolate* isolate, Tagged<Object> p) {
   // If you crashed here and {isolate->is_shared()}, there is a bug causing the
   // host of {p} to point to a non-shared object.
   CHECK(IsValidHeapObject(isolate->heap(), Cast<HeapObject>(p)));
+  if (SafeIsAnyHole(p)) return;
   CHECK_IMPLIES(V8_EXTERNAL_CODE_SPACE_BOOL, !IsInstructionStream(p));
 }
 
@@ -1590,7 +1604,7 @@ void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
-  CHECK(HeapLayout::SafeInTrustedSpace(*this) || IsCode(*this));
+  CHECK(TrustedHeapLayout::InTrustedSpace(*this) || IsCode(*this));
 #endif
 }
 

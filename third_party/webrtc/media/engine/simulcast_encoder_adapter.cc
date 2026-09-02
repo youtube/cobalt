@@ -591,8 +591,10 @@ int SimulcastEncoderAdapter::Encode(
       VideoFrame frame(input_image);
       frame.set_video_frame_buffer(dst_buffer);
       frame.set_rotation(kVideoRotation_0);
-      frame.set_update_rect(
-          VideoFrame::UpdateRect{0, 0, frame.width(), frame.height()});
+      frame.set_update_rect(VideoFrame::UpdateRect{.offset_x = 0,
+                                                   .offset_y = 0,
+                                                   .width = frame.width(),
+                                                   .height = frame.height()});
       int ret = layer.encoder().Encode(frame, &stream_frame_types);
       if (ret != WEBRTC_VIDEO_CODEC_OK) {
         return ret;

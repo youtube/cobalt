@@ -4569,7 +4569,9 @@ void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
         SignExtendWord(scratch1, r2.rm());
       } else {
         li(scratch1, r2);
-        SignExtendWord(scratch1, scratch1);
+        if (!base::IsInRange(r2.immediate(), 0, 0x7FFFFFFF)) {
+          SignExtendWord(scratch1, scratch1);
+        }
       }
       Branch(label, cond, scratch0, Operand(scratch1));
     }
@@ -7803,7 +7805,11 @@ void MacroAssembler::DecompressTagged(const Register& destination,
 void MacroAssembler::DecompressTagged(const Register& destination,
                                       const Register& source) {
   ASM_CODE_COMMENT(this);
-  And(destination, source, Operand(0xFFFFFFFF));
+  if (CpuFeatures::IsSupported(ZBA)) {
+    ZeroExtendWord(destination, source);
+  } else {
+    And(destination, source, Operand(0xFFFFFFFF));
+  }
   AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
 }
 

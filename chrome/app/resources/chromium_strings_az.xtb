@@ -84,6 +84,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="2008474315282236005">1 element cihazdan silinəcək. Sonradan datanızı bərpa etmək üçün <ph name="USER_EMAIL" /> kimi Chromiuma daxil olun.</translation>
 <translation id="2018879682492276940">Quraşdırma alınmadı. Yenidən sınayın.</translation>
 <translation id="2020032459870799438">Digər parollarınızın data pozuntuları və digər güvənlik məsələlərinə qarşı güvəndə olduğunu yoxlamaq üçün <ph name="BEGIN_LINK" />Chromium'a daxil olun<ph name="END_LINK" />.</translation>
+<translation id="2039417478970545937">Ayarlar.</translation>
 <translation id="2049376729098081731">Google xidmətlərində daha çox fərdiləşdirilmiş təcrübə üçün Chromium tarixçəsinin daxil edilib-edilməməsini seçin</translation>
 <translation id="2054039611381840095">Chromium güncəlləmələri əldə etmək üçün macOS 12 və ya yeni versiya tələb olunur. Bu kompüter macOS 11 istifadə edir.</translation>
 <translation id="2086476982681781442">Bu fayl aldadıcı olduğu və cihaza gözlənilməz dəyişikliklər edə biləcəyi üçün Chromium endirməni blokladı</translation>
@@ -310,10 +311,12 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="494490797786467921">Klikləyərək Chromium giriş dialoqunu bağlayın</translation>
 <translation id="4950660488495335294">Chromium profilləri ilə bütün Chromium elementlərinizi ayıra bilərsiniz. Dostlarınız və ailəniz üçün profillər yaradın, yaxud iş və əyləncə olaraq ayırın.</translation>
 <translation id="4987820182225656817">Qonaqlar geridə heç nə buraxmadan Chromium istifadə edə bilər.</translation>
+<translation id="4992938037305302429">Chromium-dakı Hesabınız</translation>
 <translation id="4994636714258228724">Özünüzü Chromium'a əlavə edin</translation>
 <translation id="5123973130450702873">Chromium əllərinizi izləmək üçün icazə istəyir</translation>
 <translation id="5141988424377517949">Bu yaxınlarda daxil olmamısınız. Chromium sildi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />, <ph name="PERMISSION_3" />.</translation>
 <translation id="5174969993834422967">Adətən bildirişləri bloklayırsınız. Bu saytın sizi xəbərdar etməsi üçün məkan panelinin sağ küncündəki bildiriş işarəsinə klikləyin.</translation>
+<translation id="5174983315706567306">Kifayət qədər disk ölçüsü yoxdur.</translation>
 <translation id="5187123684706427865">Chromium hesabı təkrar doğrulama tələb edir</translation>
 <translation id="5224391634244552924">Yadda saxlanmış parol yoxdur. Parollarınızı yadda saxladıqda Chromium onları yoxlaya bilər.</translation>
 <translation id="5231355151045086930">Chromium hesabından çıxın</translation>
@@ -387,6 +390,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="6072463441809498330">Chromium'u sürətli edin</translation>
 <translation id="6096348254544841612">Chromium'u fərdiləşdirin və idarə edin. Güncəlləmə əlçatandır.</translation>
 <translation id="6107893135096467929">Yanılı • Chromium bu artırmanın mənbəyini doğrulaya bilmir</translation>
+<translation id="611228897408671387">Chromium-dakı hesabınız</translation>
 <translation id="6119438414301547735">Chromium alətlər panelində artırmanın giriş sorğularını göstərməsinə icazə verin</translation>
 <translation id="6129621093834146363"><ph name="FILE_NAME" /> təklükəli olduğu üçün Chromium onu blok etdi.</translation>
 <translation id="6132897690380286411">Chromium tezliklə bağlanacaq və datanı siləcək</translation>
@@ -441,6 +445,7 @@ Bəzi funksiyalar əlçatmaz ola bilər ki, nəticədə tərcihlərə edilən d�
 <translation id="6598877126913850652">Chromium bildiriş ayarlarına keçin</translation>
 <translation id="6600016381025017075">Bu səhifədə istədiyinizi axtarın</translation>
 <translation id="6613594504749178791">Dəyişiklikləriniz gələn dəfə Chromium'u başlatdıqda qüvvəyə minəcək.</translation>
+<translation id="6648212540664651655">Qaldığınız yerdən davam edin: Chromium tablarınızı son sessiyadan bərpa etdi. Burada deaktiv edə bilərsiniz:</translation>
 <translation id="665732753414869868">Chromium ətrafınızın 3D xəritəsini yaratmaq üçün kameranıza giriş icazəsi tələb edir</translation>
 <translation id="6669284030132180248">Chromium-da məhsul qiymətlərini izləmək və qiymət enəndə bildiriş almaq üçün əlfəcinləri Google Hesabında da saxlayın</translation>
 <translation id="6676384891291319759">İnternet</translation>
@@ -503,6 +508,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="7352651011704765696">Xəta oldu</translation>
 <translation id="7376384068949534168">Bu yaxınlarda daxil olmamısınız. Chromium sildi: <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" />.</translation>
 <translation id="7384121030444253939">Bu artırma artıq dəstəklənmir. Chromium onu silməyinizi tövsiyə edir.</translation>
+<translation id="7413153308467572558">Qaldığınız yerdən davam edin: Chromium hər dəfə yenidən başladıldıqda tablarınızı bərpa edir. Bunu deaktiv etmək üçün keçin:</translation>
 <translation id="7449453770951226939"><ph name="PAGE_TITLE" /> - Chromium Dev</translation>
 <translation id="7450541714075000668">Mətn kopyalandı</translation>
 <translation id="7451052299415159299">Chromium bu sayt üçün kameraya giriş tələb edir</translation>
@@ -634,6 +640,7 @@ Bəzi funksiyalar əlçatmaz ola bilər. Xüsusi profil direktoriyası göstəri
 <translation id="911206726377975832">Brauzinq datanız da silinsin?</translation>
 <translation id="9134482777260927479">Ev tapşırığı ilə bağlı yardım</translation>
 <translation id="9148058034647219655">Çıxış</translation>
+<translation id="9155105544013854680">Qaldığınız yerdən davam edin: Chromium hər dəfə yenidən başladıldıqda tablarınızı bərpa edə bilər. Bunu aktiv etmək üçün keçin:</translation>
 <translation id="9158494823179993217">Sistem administratoru Chromium'u <ph name="TARGET_URL_HOSTNAME" /> ünvanına daxil olmaq məqsədilə alternativ brauzer açmaq üçün konfiqurasiya edib.</translation>
 <translation id="9185526690718004400">&amp;Chromium'u güncəlləmək üçün yenidən başladın</translation>
 <translation id="9190841055450128916">Chromium (mDNS-In)</translation>

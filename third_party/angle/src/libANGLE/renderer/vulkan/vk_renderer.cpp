@@ -7,6 +7,10 @@
 //    Implements the class methods for Renderer.
 //
 
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 // Placing this first seems to solve an intellisense bug.
@@ -1896,7 +1900,11 @@ Renderer::Renderer()
       mSupportedBufferWritePipelineStageMask(0),
       mSupportedVulkanShaderStageMask(0),
       mMemoryAllocationTracker(MemoryAllocationTracker(this)),
-      mMaxBufferMemorySizeLimit(0)
+      mMaxBufferMemorySizeLimit(0),
+      mNativeVectorWidthDouble(0),
+      mNativeVectorWidthHalf(0),
+      mPreferredVectorWidthDouble(0),
+      mPreferredVectorWidthHalf(0)
 {
     VkFormatProperties invalid = {0, 0, kInvalidFormatFeatureFlags};
     mFormatProperties.fill(invalid);
@@ -1948,6 +1956,8 @@ void Renderer::onDestroy(vk::ErrorContext *context)
     cleanupGarbage(nullptr);
     ASSERT(!hasSharedGarbage());
     ASSERT(mOrphanedBufferBlockList.empty());
+    ASSERT(mOrphanedSamplers.empty());
+    ASSERT(mOrphanedSamplerYcbcrConversions.empty());
 
     mRefCountedEventRecycler.destroy(mDevice);
 
@@ -1959,8 +1969,6 @@ void Renderer::onDestroy(vk::ErrorContext *context)
     mPipelineCacheInitialized = false;
     mPipelineCache.destroy(mDevice);
 
-    mSamplerCache.destroy(this);
-    mYuvConversionCache.destroy(this);
     mVkFormatDescriptorCountMap.clear();
 
     mOutsideRenderPassCommandBufferRecycler.onDestroy();
@@ -2734,6 +2742,7 @@ angle::Result Renderer::initializeMemoryAllocator(vk::ErrorContext *context)
 //                                                     deviceFaultVendorBinary (feature)
 // - VK_EXT_astc_decode_mode                           decodeModeSharedExponent (feature)
 // - VK_EXT_global_priority_query                      globalPriorityQuery (feature)
+// - VK_EXT_external_memory_host                       minImportedHostPointerAlignment (property)
 //
 
 void Renderer::appendDeviceExtensionFeaturesNotPromoted(
@@ -2930,6 +2939,10 @@ void Renderer::appendDeviceExtensionFeaturesNotPromoted(
     if (ExtensionFound(VK_EXT_GLOBAL_PRIORITY_QUERY_EXTENSION_NAME, deviceExtensionNames))
     {
         vk::AddToPNextChain(deviceFeatures, &mPhysicalDeviceGlobalPriorityQueryFeatures);
+    }
+    if (ExtensionFound(VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME, deviceExtensionNames))
+    {
+        vk::AddToPNextChain(deviceProperties, &mExternalMemoryHostProperties);
     }
 }
 
@@ -3351,6 +3364,10 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mPhysicalDeviceGlobalPriorityQueryFeatures.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_EXT;
 
+    mExternalMemoryHostProperties = {};
+    mExternalMemoryHostProperties.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT;
+
 #if defined(ANGLE_PLATFORM_ANDROID)
     mExternalFormatResolveFeatures = {};
     mExternalFormatResolveFeatures.sType =
@@ -3442,6 +3459,7 @@ void Renderer::queryDeviceExtensionFeatures(const vk::ExtensionNameList &deviceE
     mShaderIntegerDotProductFeatures.pNext            = nullptr;
     mShaderIntegerDotProductProperties.pNext          = nullptr;
     mPhysicalDeviceGlobalPriorityQueryFeatures.pNext  = nullptr;
+    mExternalMemoryHostProperties.pNext               = nullptr;
 #if defined(ANGLE_PLATFORM_ANDROID)
     mExternalFormatResolveFeatures.pNext   = nullptr;
     mExternalFormatResolveProperties.pNext = nullptr;
@@ -6358,6 +6376,19 @@ void Renderer::initFeatures(const vk::ExtensionNameList &deviceExtensionNames,
         mFeatures.supportsGlobalPriority.enabled &&
             mPhysicalDeviceGlobalPriorityQueryFeatures.globalPriorityQuery == VK_TRUE &&
             IsAndroid());
+
+    // Set limits to expose to OpenCL.
+    // This information cannot yet be queried from the Vulkan device.
+    if (isSamsung && mFeatures.supportsShaderFloat64.enabled)
+    {
+        mNativeVectorWidthDouble    = 1;
+        mPreferredVectorWidthDouble = 1;
+    }
+    if (isSamsung && mFeatures.supportsShaderFloat16.enabled)
+    {
+        mNativeVectorWidthHalf    = 2;
+        mPreferredVectorWidthHalf = 8;
+    }
 }
 
 void Renderer::appBasedFeatureOverrides(const vk::ExtensionNameList &extensions) {}
@@ -6810,22 +6841,69 @@ void Renderer::cleanupGarbage(bool *anyGarbageCleanedOut)
     bool anyCleaned = false;
 
     // Clean up general garbage
-    anyCleaned = (mSharedGarbageList.cleanupSubmittedGarbage(this) > 0) || anyCleaned;
+    anyCleaned = mSharedGarbageList.cleanupSubmittedGarbage(this) > 0 || anyCleaned;
 
     // Clean up suballocation garbages
-    anyCleaned = (mSuballocationGarbageList.cleanupSubmittedGarbage(this) > 0) || anyCleaned;
+    anyCleaned = mSuballocationGarbageList.cleanupSubmittedGarbage(this) > 0 || anyCleaned;
 
     // Note: do this after clean up mSuballocationGarbageList so that we will have more chances to
     // find orphaned blocks being empty.
-    anyCleaned = (mOrphanedBufferBlockList.pruneEmptyBufferBlocks(this) > 0) || anyCleaned;
+    anyCleaned = mOrphanedBufferBlockList.pruneEmptyBufferBlocks(this) > 0 || anyCleaned;
 
     // Clean up RefCountedEvent that are done resetting
-    anyCleaned = (mRefCountedEventRecycler.cleanupResettingEvents(this) > 0) || anyCleaned;
+    anyCleaned = mRefCountedEventRecycler.cleanupResettingEvents(this) > 0 || anyCleaned;
+
+    // Clean up samplers that couldn't be destroyed when the share group was.
+    anyCleaned = cleanupOrphanedSamplers() || anyCleaned;
 
     if (anyGarbageCleanedOut != nullptr)
     {
         *anyGarbageCleanedOut = anyCleaned;
     }
+}
+
+bool Renderer::cleanupOrphanedSamplers()
+{
+    std::unique_lock<angle::SimpleMutex> lock(mOrphanedSamplerMutex);
+
+    if (mOrphanedSamplers.empty() && mOrphanedSamplerYcbcrConversions.empty())
+    {
+        return false;
+    }
+
+    // Destroy any sampler that is no longer referenced.
+    std::vector<SharedSamplerPtr> remainingSamplers;
+    for (SharedSamplerPtr &sampler : mOrphanedSamplers)
+    {
+        if (!sampler.unique())
+        {
+            remainingSamplers.push_back(sampler);
+        }
+    }
+    const uint32_t destroyedSamplerCount =
+        static_cast<uint32_t>(mOrphanedSamplers.size() - remainingSamplers.size());
+    onDeallocateHandle(vk::HandleType::Sampler, destroyedSamplerCount);
+    mOrphanedSamplers = std::move(remainingSamplers);
+
+    bool anyCleaned = destroyedSamplerCount > 0;
+
+    // If all samplers are gone, destroy all the ycbcr conversion objects too.  We don't track which
+    // samplers use which ycbcr conversion objects, so they are destroyed conservatively.
+    if (remainingSamplers.empty())
+    {
+        anyCleaned = anyCleaned || !mOrphanedSamplerYcbcrConversions.empty();
+        for (VkSamplerYcbcrConversion handle : mOrphanedSamplerYcbcrConversions)
+        {
+            vk::SamplerYcbcrConversion conversion;
+            conversion.setHandle(handle);
+            conversion.destroy(mDevice);
+        }
+        onDeallocateHandle(vk::HandleType::SamplerYcbcrConversion,
+                           static_cast<uint32_t>(mOrphanedSamplerYcbcrConversions.size()));
+        mOrphanedSamplerYcbcrConversions.clear();
+    }
+
+    return anyCleaned;
 }
 
 void Renderer::cleanupPendingSubmissionGarbage()
@@ -7258,6 +7336,18 @@ void Renderer::releaseQueueSerialIndex(SerialIndex index)
 angle::Result Renderer::cleanupSomeGarbage(ErrorContext *context, bool *anyGarbageCleanedOut)
 {
     return mCommandQueue.cleanupSomeGarbage(context, 0, anyGarbageCleanedOut);
+}
+
+void Renderer::addSamplerToOrphanList(SharedSamplerPtr sampler)
+{
+    std::unique_lock<angle::SimpleMutex> lock(mOrphanedSamplerMutex);
+    mOrphanedSamplers.push_back(sampler);
+}
+
+void Renderer::addSamplerYcbcrConversionToOrphanList(VkSamplerYcbcrConversion conversion)
+{
+    std::unique_lock<angle::SimpleMutex> lock(mOrphanedSamplerMutex);
+    mOrphanedSamplerYcbcrConversions.push_back(conversion);
 }
 
 // static

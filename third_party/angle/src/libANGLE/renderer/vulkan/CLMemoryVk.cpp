@@ -4,10 +4,16 @@
 // found in the LICENSE file.
 //
 // CLMemoryVk.cpp: Implements the class methods for CLMemoryVk.
+//
 
-#include "libANGLE/renderer/vulkan/CLMemoryVk.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+#    pragma allow_unsafe_buffers
+#endif
+
 #include "common/log_utils.h"
+
 #include "libANGLE/renderer/vulkan/CLContextVk.h"
+#include "libANGLE/renderer/vulkan/CLMemoryVk.h"
 #include "libANGLE/renderer/vulkan/vk_cl_utils.h"
 #include "libANGLE/renderer/vulkan/vk_renderer.h"
 #include "libANGLE/renderer/vulkan/vk_utils.h"
@@ -22,6 +28,7 @@
 #include "libANGLE/CLImage.h"
 #include "libANGLE/CLMemory.h"
 #include "libANGLE/Error.h"
+#include "libANGLE/cl_types.h"
 #include "libANGLE/cl_utils.h"
 
 #include "CL/cl_half.h"
@@ -239,6 +246,20 @@ CLBufferVk::~CLBufferVk()
     mBuffer.destroy(mRenderer);
 }
 
+bool CLBufferVk::isHostPtrAligned() const
+{
+    VkDeviceSize alignment =
+        mRenderer->getPhysicalDeviceExternalMemoryHostProperties().minImportedHostPointerAlignment;
+    return reinterpret_cast<uintptr_t>(mMemory.getHostPtr()) % alignment == 0 &&
+           getSize() % alignment == 0;
+}
+
+bool CLBufferVk::supportsZeroCopy() const
+{
+    return mRenderer->getFeatures().supportsExternalMemoryHost.enabled &&
+           mMemory.getFlags().intersects(CL_MEM_USE_HOST_PTR) && isHostPtrAligned();
+}
+
 vk::BufferHelper &CLBufferVk::getBuffer()
 {
     if (isSubBuffer())
@@ -246,6 +267,58 @@ vk::BufferHelper &CLBufferVk::getBuffer()
         return getParent()->getBuffer();
     }
     return mBuffer;
+}
+
+angle::Result CLBufferVk::syncHost(CLBufferVk::SyncHostDirection direction,
+                                   size_t offset,
+                                   size_t size)
+{
+    switch (direction)
+    {
+        case CLBufferVk::SyncHostDirection::FromHost:
+            if (getFlags().intersects(CL_MEM_USE_HOST_PTR) && !supportsZeroCopy())
+            {
+                ANGLE_CL_IMPL_TRY_ERROR(
+                    setDataImpl(static_cast<const uint8_t *>(getHostPtr()), getSize(), 0),
+                    CL_OUT_OF_RESOURCES);
+            }
+            break;
+        case CLBufferVk::SyncHostDirection::ToHost:
+            if (getFlags().intersects(CL_MEM_USE_HOST_PTR) && !supportsZeroCopy())
+            {
+                ANGLE_TRY(copyTo(getHostPtr(), offset, size));
+            }
+            break;
+        default:
+            UNREACHABLE();
+            break;
+    }
+    return angle::Result::Continue;
+}
+
+angle::Result CLBufferVk::syncHost(CLBufferVk::SyncHostDirection direction,
+                                   cl::BufferRect bufferRect,
+                                   cl::BufferRect hostRect)
+{
+    switch (direction)
+    {
+        case CLBufferVk::SyncHostDirection::FromHost:
+            if (getFlags().intersects(CL_MEM_USE_HOST_PTR) && !supportsZeroCopy())
+            {
+                ANGLE_TRY(setRect(getHostPtr(), bufferRect, hostRect));
+            }
+            break;
+        case CLBufferVk::SyncHostDirection::ToHost:
+            if (getFlags().intersects(CL_MEM_USE_HOST_PTR) && !supportsZeroCopy())
+            {
+                ANGLE_TRY(getRect(bufferRect, hostRect, getHostPtr()));
+            }
+            break;
+        default:
+            UNREACHABLE();
+            break;
+    }
+    return angle::Result::Continue;
 }
 
 angle::Result CLBufferVk::create(void *hostPtr)
@@ -266,16 +339,20 @@ angle::Result CLBufferVk::create(void *hostPtr)
         VkBufferCreateInfo createInfo  = mDefaultBufferCreateInfo;
         createInfo.size                = getSize();
         VkMemoryPropertyFlags memFlags = getVkMemPropertyFlags();
-        if (IsError(mBuffer.init(mContext, createInfo, memFlags)))
+
+        if (supportsZeroCopy())
         {
-            ANGLE_CL_RETURN_ERROR(CL_OUT_OF_RESOURCES);
+            return mBuffer.initHostExternal(mContext, memFlags, createInfo, hostPtr);
         }
-        if (mMemory.getFlags().intersects(CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))
+
+        ANGLE_CL_IMPL_TRY_ERROR(mBuffer.init(mContext, createInfo, memFlags), CL_OUT_OF_RESOURCES);
+        // We need to copy the data from hostptr in the case of CHP buffer.
+        if (getFlags().intersects(CL_MEM_COPY_HOST_PTR))
         {
-            ASSERT(hostPtr);
             ANGLE_CL_IMPL_TRY_ERROR(setDataImpl(static_cast<uint8_t *>(hostPtr), getSize(), 0),
                                     CL_OUT_OF_RESOURCES);
         }
+        ANGLE_TRY(syncHost(CLBufferVk::SyncHostDirection::FromHost, 0, getSize()));
     }
     return angle::Result::Continue;
 }
@@ -420,22 +497,6 @@ angle::Result CLBufferVk::getRect(const cl::BufferRect &srcRect,
     }
 
     return angle::Result::Continue;
-}
-
-std::vector<VkBufferCopy> CLBufferVk::rectCopyRegions(const cl::BufferRect &bufferRect)
-{
-    std::vector<VkBufferCopy> copyRegions;
-    for (unsigned int slice = 0; slice < bufferRect.mSize.depth; slice++)
-    {
-        for (unsigned int row = 0; row < bufferRect.mSize.height; row++)
-        {
-            VkBufferCopy copyRegion = {};
-            copyRegion.size         = bufferRect.mSize.width * bufferRect.mElementSize;
-            copyRegion.srcOffset = copyRegion.dstOffset = bufferRect.getRowOffset(slice, row);
-            copyRegions.push_back(copyRegion);
-        }
-    }
-    return copyRegions;
 }
 
 // offset is for mapped pointer

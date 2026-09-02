@@ -28,13 +28,10 @@ import static org.chromium.chrome.browser.keyboard_accessory.bar_component.Keybo
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_STICKY_LAST_ITEM;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.HAS_SUGGESTIONS;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.OBFUSCATED_CHILD_AT_CALLBACK;
-import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.OFFSET_AND_GRAVITY;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SHOW_SWIPING_IPH;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.SKIP_CLOSING_ANIMATION;
+import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.STYLE;
 import static org.chromium.chrome.browser.keyboard_accessory.bar_component.KeyboardAccessoryProperties.VISIBLE;
-
-import android.util.Pair;
-import android.view.Gravity;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,7 +46,6 @@ import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.base.task.test.CustomShadowAsyncTask;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Features;
@@ -88,6 +84,7 @@ import org.chromium.ui.modelutil.PropertyObservable.PropertyObserver;
 import org.chromium.ui.test.util.modelutil.FakeViewProvider;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Controller tests for the keyboard accessory component. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -643,12 +640,10 @@ public class KeyboardAccessoryControllerTest {
     }
 
     @Test
-    public void testOffsetAndGravity() {
-        final int testOffset = 123;
-        final int testGravity = Gravity.BOTTOM;
-        Pair<Integer, Integer> testOffsetAndGravity = new Pair<>(testOffset, testGravity);
-        mCoordinator.setOffsetAndGravity(testOffset, testGravity);
-        assertThat(mModel.get(OFFSET_AND_GRAVITY), is(testOffsetAndGravity));
+    public void testStyle() {
+        KeyboardAccessoryStyle style = new KeyboardAccessoryStyle(true, 1, 1);
+        mCoordinator.setStyle(style);
+        assertThat(mModel.get(STYLE), is(equalTo(style)));
     }
 
     @Test

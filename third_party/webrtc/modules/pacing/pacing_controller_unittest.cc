@@ -2320,7 +2320,7 @@ TEST_F(PacingControllerTest, BudgetDoesNotAffectRetransmissionInsTrial) {
   // Send a video packet so that we have a bit debt.
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kVideoSsrc,
                                   /*sequence_number=*/1,
-                                  /*capture_time=*/1, kPacketSize.bytes()));
+                                  /*capture_time_ms=*/1, kPacketSize.bytes()));
   EXPECT_CALL(callback_, SendPacket);
   pacer.ProcessPackets();
   EXPECT_GT(pacer.NextSendTime(), clock_.CurrentTime());
@@ -2330,7 +2330,7 @@ TEST_F(PacingControllerTest, BudgetDoesNotAffectRetransmissionInsTrial) {
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kRetransmission,
                                   kVideoSsrc,
                                   /*sequence_number=*/1,
-                                  /*capture_time=*/1, kPacketSize.bytes()));
+                                  /*capture_time_ms=*/1, kPacketSize.bytes()));
   pacer.ProcessPackets();
 }
 
@@ -2349,10 +2349,10 @@ TEST_F(PacingControllerTest, AbortsAfterReachingCircuitBreakLimit) {
   // Send two packets.
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kVideoSsrc,
                                   /*sequence_number=*/1,
-                                  /*capture_time=*/1, kPacketSize.bytes()));
+                                  /*capture_time_ms=*/1, kPacketSize.bytes()));
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kVideoSsrc,
                                   /*sequence_number=*/2,
-                                  /*capture_time=*/2, kPacketSize.bytes()));
+                                  /*capture_time_ms=*/2, kPacketSize.bytes()));
 
   // Advance time to way past where both should be eligible for sending.
   clock_.AdvanceTime(TimeDelta::Seconds(1));
@@ -2370,7 +2370,7 @@ TEST_F(PacingControllerTest, DoesNotPadIfProcessThreadIsBorked) {
   // Add one packet to the queue, but do not send it yet.
   pacer.EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kVideoSsrc,
                                   /*sequence_number=*/1,
-                                  /*capture_time=*/1,
+                                  /*capture_time_ms=*/1,
                                   /*size=*/1000));
 
   // Advance time to waaay after the packet should have been sent.
@@ -2402,17 +2402,17 @@ TEST_F(PacingControllerTest, FlushesPacketsOnKeyFrames) {
 
   // Enqueue a video packet and a retransmission of that video stream.
   pacer->EnqueuePacket(BuildPacket(RtpPacketMediaType::kVideo, kSsrc,
-                                   /*sequence_number=*/1, /*capture_time=*/1,
+                                   /*sequence_number=*/1, /*capture_time_ms=*/1,
                                    /*size_bytes=*/100));
-  pacer->EnqueuePacket(BuildPacket(RtpPacketMediaType::kRetransmission,
-                                   kRtxSsrc,
-                                   /*sequence_number=*/10, /*capture_time=*/1,
-                                   /*size_bytes=*/100));
+  pacer->EnqueuePacket(
+      BuildPacket(RtpPacketMediaType::kRetransmission, kRtxSsrc,
+                  /*sequence_number=*/10, /*capture_time_ms=*/1,
+                  /*size_bytes=*/100));
   EXPECT_EQ(pacer->QueueSizePackets(), 2u);
 
   // Enqueue the first packet of a keyframe for said stream.
   auto packet = BuildPacket(RtpPacketMediaType::kVideo, kSsrc,
-                            /*sequence_number=*/2, /*capture_time=*/2,
+                            /*sequence_number=*/2, /*capture_time_ms=*/2,
                             /*size_bytes=*/1000);
   packet->set_is_key_frame(true);
   packet->set_first_packet_of_frame(true);

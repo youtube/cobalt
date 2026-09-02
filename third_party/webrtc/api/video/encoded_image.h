@@ -43,13 +43,6 @@ class EncodedImageBufferInterface : public RefCountInterface {
   using value_type = uint8_t;
 
   virtual const uint8_t* data() const = 0;
-  // TODO: bugs.webrtc.org/42234570 - Make interface essentially read-only,
-  // delete this non-const data method when an implementation in chromium is
-  // updated not to override it.
-  virtual uint8_t* data() {
-    return const_cast<uint8_t*>(
-        static_cast<const EncodedImageBufferInterface*>(this)->data());
-  }
   virtual size_t size() const = 0;
 
   const uint8_t* begin() const { return data(); }
@@ -66,7 +59,7 @@ class RTC_EXPORT EncodedImageBuffer : public EncodedImageBufferInterface {
   static scoped_refptr<EncodedImageBuffer> Create(Buffer buffer);
 
   const uint8_t* data() const override;
-  uint8_t* data() override;
+  uint8_t* data();
   size_t size() const override;
   void Realloc(size_t t);
 

@@ -13,7 +13,6 @@ import androidx.annotation.Nullable;
 
 import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSupplierImpl;
-import org.chromium.base.supplier.Supplier;
 import org.chromium.chrome.browser.compositor.overlays.strip.AnimationHost;
 import org.chromium.chrome.browser.compositor.overlays.strip.ScrollDelegate;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
@@ -30,6 +29,7 @@ import org.chromium.ui.base.LocalizationUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.Supplier;
 
 /** Drag and drop reorder - drag external view onto / out-of strip and reorder within strip. */
 public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
@@ -82,12 +82,17 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
         // inserted should the drag be dropped.
         ArrayList<Animator> animationList = new ArrayList<>();
         setInteractingStateForView(
-                interactingView, stripGroupTitles, /* isInteracting= */ true, animationList);
+                interactingView,
+                stripGroupTitles,
+                stripTabs,
+                /* isInteracting= */ true,
+                animationList);
 
         // 3. Kick-off animations and request an update.
         mAnimationHost.startAnimations(animationList, null);
     }
 
+    // TODO(crbug.com/441144131): Investigate supporting mixed pin state for multi-select.
     @Override
     public void updateReorderPosition(
             StripLayoutView[] stripViews,
@@ -97,7 +102,9 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             float deltaX,
             @ReorderType int reorderType) {
         // 1. Adjust by a half tab-width so that we target the nearest tab gap.
-        float adjustedXForDrop = StripLayoutUtils.adjustXForTabDrop(endX, mTabWidthSupplier);
+        boolean isDraggedItemPinned = TabStripDragHandler.isDraggedItemPinned();
+        float adjustedXForDrop =
+                StripLayoutUtils.adjustXForTabDrop(endX, mTabWidthSupplier, isDraggedItemPinned);
 
         // 2. Clear previous "interacting" view if inserting at the start of the strip.
         final float leftEdge;
@@ -115,14 +122,21 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
                         ? adjustedXForDrop > rightEdge
                         : adjustedXForDrop < leftEdge;
 
-        if (inStartGap && mInteractingView != null) {
+        if (inStartGap
+                && mInteractingView != null
+                && isDraggedItemPinned == isHoveredViewPinned(stripViews[0])) {
             mScrollDelegate.setReorderStartMargin(
-                    /* newStartMargin= */ StripLayoutUtils.getHalfTabWidth(mTabWidthSupplier));
+                    /* newStartMargin= */ StripLayoutUtils.getHalfTabWidth(
+                            mTabWidthSupplier, isDraggedItemPinned));
 
             mAnimationHost.finishAnimations();
             ArrayList<Animator> animationList = new ArrayList<>();
             setInteractingStateForView(
-                    mInteractingView, groupTitles, /* isInteracting= */ false, animationList);
+                    mInteractingView,
+                    groupTitles,
+                    stripTabs,
+                    /* isInteracting= */ false,
+                    animationList);
             mInteractingView = null;
             mAnimationHost.startAnimations(animationList, null);
 
@@ -141,12 +155,16 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             ArrayList<Animator> animationList = new ArrayList<>();
             if (mInteractingView != null) {
                 setInteractingStateForView(
-                        mInteractingView, groupTitles, /* isInteracting= */ false, animationList);
+                        mInteractingView,
+                        groupTitles,
+                        stripTabs,
+                        /* isInteracting= */ false,
+                        animationList);
             }
 
             // 3.b. Set state for the new "interacting" view.
             setInteractingStateForView(
-                    hoveredView, groupTitles, /* isInteracting= */ true, animationList);
+                    hoveredView, groupTitles, stripTabs, /* isInteracting= */ true, animationList);
             mInteractingView = hoveredView;
 
             // 3.c. Animate.
@@ -174,6 +192,13 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     @Override
     public StripLayoutView getInteractingView() {
         return mInteractingView;
+    }
+
+    @Override
+    public boolean shouldAllowAutoScroll() {
+        // Do not allow auto-scroll when a pinned tab is dragged over unpinned tabs; pinned tabs can
+        // only be dropped into the pinned section.
+        return !TabStripDragHandler.isDraggedItemPinned();
     }
 
     /** Merges dropped tabs to interacting view's tab group, if one exists. */
@@ -235,23 +260,23 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
     protected void setInteractingStateForView(
             StripLayoutView stripView,
             StripLayoutGroupTitle[] groupTitles,
+            StripLayoutTab[] stripTabs,
             boolean isInteracting,
             List<Animator> animationList) {
         setTrailingMarginForView(
                 stripView,
                 groupTitles,
-                shouldHaveTrailingMargin(stripView, isInteracting),
+                shouldHaveTrailingMargin(stripTabs, stripView, isInteracting),
                 animationList);
     }
 
-    //TODO:(crbug.com/438523986) Add trailing margin if an unpinned tab hovered on last hovered tab.
     private boolean shouldHaveTrailingMargin(
-            StripLayoutView interactingView, boolean isInteracting) {
+            StripLayoutTab[] stripTabs, StripLayoutView interactingView, boolean isInteracting) {
         if (!isInteracting) return false;
 
-        boolean isHoveredViewPinned =
-                (interactingView instanceof StripLayoutTab tab) && tab.getIsPinned();
-        if (TabStripDragHandler.isDraggedTabPinned() != isHoveredViewPinned) return false;
+        if (TabStripDragHandler.isDraggedItemPinned() != isHoveredViewPinned(interactingView)) {
+            return StripLayoutUtils.isLastPinnedTab(stripTabs, interactingView);
+        }
 
         if (TabStripDragHandler.canMergeIntoGroupOnDrop()) return true;
 
@@ -264,6 +289,10 @@ public class ExternalViewDragDropReorderStrategy extends ReorderStrategyBase {
             return !StripLayoutUtils.isNonTrailingTabInGroup(
                     mTabGroupModelFilter, mModel, (StripLayoutTab) interactingView);
         }
+    }
+
+    private boolean isHoveredViewPinned(StripLayoutView hoveredView) {
+        return (hoveredView instanceof StripLayoutTab tab) && tab.getIsPinned();
     }
 
     // ============================================================================================

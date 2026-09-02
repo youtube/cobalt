@@ -21,6 +21,7 @@
 <translation id="1072476005125066234">Maoni kulingana na mambo yanayokuvutia</translation>
 <translation id="1074827084851510304">Unakaribia kufuta manenosiri {password_count} pamoja na orodha ya tovuti na programu ulizochagua kutohifadhi kamwe maelezo ya kuingia katika akaunti. Akaunti yoyote uliyofungua kwenye tovuti au programu haitafutwa.</translation>
 <translation id="1076421457278169141">Msimbo umechanganuliwa</translation>
+<translation id="1081114897601629648">Manenosiri yafuatayo hayakuhamishiwa kwenye Kidhibiti cha Manenosiri cha Google, kwa sababu hayatimizi masharti.</translation>
 <translation id="1081932398873105675">{count,plural, =1{Kichupo {count}}other{Vichupo {count}}}</translation>
 <translation id="1082554859195167538">Maoni yanayokufaa kuhusu bidhaa</translation>
 <translation id="1084365883616172403">Chapisho la Facebook limekamilika.</translation>
@@ -121,7 +122,6 @@
 <translation id="1469381646033328562">Akaunti yako inadhibitiwa na mzazi wako.
 <ph name="BEGIN_LINK" />Pata maelezo zaidi<ph name="END_LINK" /></translation>
 <translation id="147982357559798527">Kimebadilishwa</translation>
-<translation id="1485907716209290998">Ufuatiliaji wa kifurushi</translation>
 <translation id="1486096554574027028">Tafuta manenosiri</translation>
 <translation id="1491277525950327607">Gusa mara mbili ili ugeuze mipangilio</translation>
 <translation id="1491965206608166851">Ingia katika akaunti ukitumia funguo za siri na manenosiri yako kwenye programu yoyote</translation>
@@ -241,6 +241,7 @@
 <translation id="1902277226107477495">Umezima kipengele cha kutambua anwani. Kiwashe tena kwenye Mipangilio.</translation>
 <translation id="1904580727789512086">URL unazotembelea huhifadhiwa kwenye Akaunti yako ya Google</translation>
 <translation id="1911619930368729126">Pakia kwenye Hifadhi ya Google</translation>
+<translation id="1925706052394657380">Fungua mipangilio ya <ph name="BEGIN_BOLD" />Programu Chaguomsingi<ph name="END_BOLD" /> katika iOS</translation>
 <translation id="1941314575388338491">Gusa mara mbili ili unakili.</translation>
 <translation id="1943478190258551035">Menyu → Mipangilio</translation>
 <translation id="1952728750904661634">Ingia ukitumia akaunti inayodhibitiwa</translation>
@@ -250,6 +251,7 @@
 <translation id="1962348300797608157"><ph name="BEGIN_BOLD" /><ph name="FULL_NAME" /><ph name="END_BOLD" /> ameruhusu ufikie nenosiri la <ph name="WEBSITE" /></translation>
 <translation id="1962969542251276847">Skrini Iliyofungwa</translation>
 <translation id="1963976881984600709">Ulinzi wa kawaida</translation>
+<translation id="1964507856799750384">Gusa <ph name="BEGIN_BOLD" />Programu ya Kivinjari<ph name="END_BOLD" /></translation>
 <translation id="1966313166384086081">data ya tovuti</translation>
 <translation id="1967461193809857427">{count,plural, =1{Ungependa kuendelea kutumia kichupo ulipoachia katika Android?}other{Ungependa kuendelea kutumia vichupo ulipoachia katika Android?}}</translation>
 <translation id="1972325230031091483">Utavinjari kwa haraka zaidi kwa sababu maudhui hupakiwa kabla hujayaomba, kulingana na jinsi unavyotembelea ukurasa wa wavuti ulioufungua</translation>
@@ -599,7 +601,6 @@ Angalia maagizo ya mtambo wako wa kutafuta, ikiwa yapo, kuhusu jinsi ya kufuta h
 <translation id="333229797575847124">Jinsi ya kuwasha kipengele hiki</translation>
 <translation id="3344485292736684439">{count,plural, =1{Alamisho imehifadhiwa kwenye "{title}" katika akaunti yako, {email}}other{Alamisho zimehifadhiwa kwenye "{title}" katika akaunti yako, {email}}}</translation>
 <translation id="334690320928261823">Vichupo vya Hivi Majuzi</translation>
-<translation id="3348387552617855658">Kadi hii hukusaidia kufuatilia vifurushi vyako na kukupa taarifa muhimu za ufikishaji.</translation>
 <translation id="3349031117032695619">Kuzuia madirisha ibukizi</translation>
 <translation id="3349676726073650389">Utafutaji na tovuti unazofuatilia zinahifadhiwa kwenye Akaunti yako ya Google. Unaweza kudhibiti mambo unayofuatilia katika mipangilio wakati wowote.</translation>
 <translation id="3353037916374303415"><ph name="EMAIL" />. Akaunti hii inadhibitiwa.</translation>
@@ -1398,7 +1399,6 @@ Lazima Handoff iwashwe pia katika sehemu ya Jumla ya Mipangilio, na lazima vifaa
 <translation id="6406506848690869874">Sawazisha</translation>
 <translation id="6410390304316730527">Kipengele cha Kuvinjari Salama hukulinda dhidi ya washambulizi ambao wanaweza kukulaghai ufanye kitu hatari kama vile kusakinisha programu hasidi au kufichua taarifa binafsi kama vile manenosiri, namba za simu au kadi za mikopo. Ukikizima, kuwa makini unapovinjari tovuti zisizo za kawaida au zisizo na sifa nzuri.</translation>
 <translation id="6410883413783534063">Fungua vichupo ili utembelee kurasa mbalimbali kwa wakati mmoja</translation>
-<translation id="6416807286621280684">Taarifa kuhusu vifurushi unavyofuatilia pamoja na maelezo ya kuletewa.</translation>
 <translation id="6418346271604475326">Inaandaa PDF</translation>
 <translation id="6421038304268477484">Maandishi yaliyotafsiriwa</translation>
 <translation id="6429213933892582367">Fungua Chaguo za Nenosiri</translation>

@@ -124,18 +124,6 @@
         </settings-subpage>
       </template>
 
-      <template is="dom-if" route-path="/content">
-        <settings-subpage
-            associated-control="[[$$('#permissionsLinkRow')]]"
-            id="site-settings"
-            page-title="$i18n{siteSettings}"
-            learn-more-url="$i18n{exceptionsLearnMoreURL}">
-          <settings-site-settings-page focus-config="[[focusConfig_]]"
-              prefs="{{prefs}}">
-          </settings-site-settings-page>
-        </settings-subpage>
-      </template>
-
       <template is="dom-if" route-path="/security">
         <settings-subpage id="security" page-title="$i18n{securityPageTitle}"
             associated-control="[[$$('#securityLinkRow')]]"
@@ -268,17 +256,6 @@
           </category-setting-exceptions>
         </settings-subpage>
       </template>
-      <template is="dom-if" if="[[enableIncognitoTrackingProtections_]]">
-        <template is="dom-if" route-path="/incognito" no-search>
-          <settings-subpage id="incognito-tracking-protections"
-                page-title="$i18n{incognitoTrackingProtectionsPageTitle}"
-                learn-more-url="$i18n{incognitoTrackingProtectionsLearnMoreUrl}"
-                associated-control="[[$$('#incognitoTrackingProtectionsLinkRow')]]">
-            <incognito-tracking-protections-page prefs="{{prefs}}">
-            </incognito-tracking-protections-page>
-          </settings-subpage>
-        </template>
-      </template>
       <template is="dom-if" route-path="/content/images" no-search>
         <settings-subpage page-title="$i18n{siteSettingsCategoryImages}"
             search-label="$i18n{siteSettingsAllSitesSearch}"
@@ -353,46 +330,6 @@
             </category-setting-exceptions>
           </settings-subpage>
         </template>
-      </template>
-      <template is="dom-if" route-path="/content/siteData" no-search>
-        <settings-subpage page-title="$i18n{siteDataPageTitle}"
-              search-label="$i18n{siteSettingsAllSitesSearch}"
-              search-term="{{searchFilter_}}">
-          <settings-site-data prefs="{{prefs}}"
-              search-term="[[searchFilter_]]">
-          </settings-site-data>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/content/location" no-search>
-        <settings-subpage page-title="$i18n{siteSettingsCategoryLocation}"
-            search-label="$i18n{siteSettingsAllSitesSearch}"
-            search-term="{{searchFilter_}}">
-          <settings-geolocation-page prefs="{{prefs}}"
-              search-term="[[searchFilter_]]">
-          </settings-location-page>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/handlers" no-search>
-        <settings-subpage page-title="$i18n{siteSettingsCategoryHandlers}">
-          <protocol-handlers
-              toggle-off-label="$i18n{siteSettingsHandlersBlocked}"
-              toggle-on-label="$i18n{siteSettingsHandlersAskRecommended}">
-          </protocol-handlers>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/content/zoomLevels" no-search>
-        <settings-subpage page-title="$i18n{siteSettingsCategoryZoomLevels}">
-          <div class="content-settings-header secondary">
-            $i18n{siteSettingsZoomLevelsDescription}
-          </div>
-          <zoom-levels></zoom-levels>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/content/pdfDocuments" no-search>
-        <settings-subpage page-title="$i18n{siteSettingsPdfDocuments}">
-          <settings-pdf-documents-page prefs="{{prefs}}">
-          </settings-pdf-documents-page>
-        </settings-subpage>
       </template>
       <template is="dom-if" route-path="/content/javascript" no-search>
         <settings-subpage page-title="$i18n{siteSettingsCategoryJavascript}"
@@ -502,15 +439,6 @@
               block-header="$i18n{siteSettingsMotionSensorsBlockedExceptions}"
               search-filter="[[searchFilter_]]">
           </category-setting-exceptions>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" route-path="/content/notifications" no-search>
-        <settings-subpage page-title="$i18n{siteSettingsCategoryNotifications}"
-            search-label="$i18n{siteSettingsAllSitesSearch}"
-            search-term="{{searchFilter_}}">
-          <settings-notifications-page prefs="{{prefs}}"
-              search-term="[[searchFilter_]]">
-          </settings-notifications-page>
         </settings-subpage>
       </template>
       <template is="dom-if" route-path="/content/popups" no-search>
@@ -1037,105 +965,7 @@
               <settings-smart-card-readers-page filter="[[searchFilter_]]">
               </settings-smart-card-readers-page>
             </settings-subpage>
-        </template>
+          </template>
         </template>
       </if>
-      <template is="dom-if" route-path="/content/automaticFullScreen" no-search>
-        <settings-subpage
-            page-title="$i18n{siteSettingsCategoryAutomaticFullscreen}"
-            search-label="$i18n{siteSettingsAllSitesSearch}"
-            search-term="{{searchFilter_}}">
-          <div class="content-settings-header secondary">
-            $i18n{siteSettingsAutomaticFullscreenDescription}
-          </div>
-          <category-setting-exceptions read-only-list
-              category="[[contentSettingsTypesEnum_.AUTOMATIC_FULLSCREEN]]"
-              allow-header=
-                  "$i18n{siteSettingsAutomaticFullscreenAllowedExceptions}"
-              block-header=
-                  "$i18n{siteSettingsAutomaticFullscreenBlockedExceptions}"
-                  search-filter="[[searchFilter_]]">
-          </category-setting-exceptions>
-        </settings-subpage>
-      </template>
-      <template is="dom-if" if="[[enableKeyboardLockPrompt_]]">
-        <template is="dom-if" route-path="/content/keyboardLock" no-search>
-          <settings-subpage page-title="$i18n{siteSettingsKeyboardLock}"
-              search-label="$i18n{siteSettingsAllSitesSearch}"
-              search-term="{{searchFilter_}}">
-            <div class="content-settings-header secondary">
-              $i18n{siteSettingsKeyboardLockDescription}
-            </div>
-            <settings-category-default-radio-group
-                category="[[contentSettingsTypesEnum_.KEYBOARD_LOCK]]"
-                allow-option-label=
-                    "$i18n{siteSettingsKeyboardLockAllowed}"
-                allow-option-icon="settings20:keyboard-lock"
-                block-option-label="$i18n{siteSettingsKeyboardLockBlocked}"
-                block-option-icon="settings20:keyboard-lock-off">
-            </settings-category-default-radio-group>
-            <category-setting-exceptions
-                category="[[contentSettingsTypesEnum_.KEYBOARD_LOCK]]"
-                allow-header=
-                    "$i18n{siteSettingsKeyboardLockAllowedExceptions}"
-                block-header=
-                    "$i18n{siteSettingsKeyboardLockBlockedExceptions}"
-                search-filter="[[searchFilter_]]">
-            </category-setting-exceptions>
-          </settings-subpage>
-        </template>
-      </template>
-      <template is="dom-if" if="[[enableWebAppInstallation_]]">
-        <template is="dom-if" route-path="/content/webApplications" no-search>
-          <settings-subpage page-title="$i18n{siteSettingsWebAppInstallation}"
-              search-label="$i18n{siteSettingsAllSitesSearch}"
-              search-term="{{searchFilter_}}">
-            <div class="content-settings-header secondary">
-              $i18n{siteSettingsWebAppInstallationDescription}
-            </div>
-            <settings-category-default-radio-group
-                category="[[contentSettingsTypesEnum_.WEB_APP_INSTALLATION]]"
-                allow-option-label="$i18n{siteSettingsWebAppInstallationAsk}"
-                allow-option-icon="settings:install-desktop"
-                block-option-label="$i18n{siteSettingsWebAppInstallationBlock}"
-                block-option-icon="settings:install-desktop-off">
-            </settings-category-default-radio-group>
-            <category-setting-exceptions
-                category="[[contentSettingsTypesEnum_.WEB_APP_INSTALLATION]]"
-                block-header=
-                    "$i18n{siteSettingsWebAppInstallationBlockedExceptions}"
-                allow-header=
-                    "$i18n{siteSettingsWebAppInstallationAllowedExceptions}"
-                search-filter="[[searchFilter_]]">
-            </category-setting-exceptions>
-          </settings-subpage>
-        </template>
-      </template>
-      <template is="dom-if" if="[[enableLocalNetworkAccessSetting_]]">
-        <template is="dom-if" route-path="/content/localNetworkAccess"
-            no-search>
-          <settings-subpage page-title="$i18n{siteSettingsLocalNetworkAccess}"
-              search-label="$i18n{siteSettingsAllSitesSearch}"
-              search-term="{{searchFilter_}}">
-            <div class="content-settings-header secondary">
-              $i18n{siteSettingsLocalNetworkAccessDescription}
-            </div>
-            <settings-category-default-radio-group
-                category="[[contentSettingsTypesEnum_.LOCAL_NETWORK_ACCESS]]"
-                allow-option-label="$i18n{siteSettingsLocalNetworkAccessAsk}"
-                allow-option-icon="settings20:router"
-                block-option-label="$i18n{siteSettingsLocalNetworkAccessBlock}"
-                block-option-icon="settings20:router-off">
-            </settings-category-default-radio-group>
-            <category-setting-exceptions
-                category="[[contentSettingsTypesEnum_.LOCAL_NETWORK_ACCESS]]"
-                block-header=
-                    "$i18n{siteSettingsLocalNetworkAccessBlockedExceptions}"
-                allow-header=
-                    "$i18n{siteSettingsLocalNetworkAccessAllowedExceptions}"
-                search-filter="[[searchFilter_]]">
-            </category-setting-exceptions>
-          </settings-subpage>
-        </template>
-      </template>
     </settings-animated-pages>

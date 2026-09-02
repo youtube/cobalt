@@ -56,7 +56,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/session_service_tab_group_sync_observer.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/shared_tab_group_feedback_controller.h"
-#include "chrome/browser/ui/tabs/split_tab_scrim_controller.h"
+#include "chrome/browser/ui/tabs/split_tab_highlight_controller.h"
 #include "chrome/browser/ui/tabs/tab_group_deletion_dialog_controller.h"
 #include "chrome/browser/ui/tabs/tab_list_bridge.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/tab_strip_service_impl.h"
@@ -73,6 +73,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/contents_border_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
+#include "chrome/browser/ui/views/frame/scrim_view_controller.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/fullscreen_control/fullscreen_control_host.h"
 #include "chrome/browser/ui/views/incognito_clear_browsing_data_dialog_coordinator.h"
@@ -101,6 +102,8 @@
 #include "chrome/browser/ui/web_applications/web_app_launch_utils.h"
 #include "chrome/browser/ui/webui_browser/browser_elements_webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_side_panel_ui.h"
+#include "chrome/browser/ui/webui_browser/webui_browser_window.h"
 #include "chrome/common/chrome_features.h"
 #include "components/breadcrumbs/core/breadcrumbs_status.h"
 #include "components/collaboration/public/collaboration_service.h"
@@ -287,6 +290,9 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       std::make_unique<ReadingListSidePanelCoordinator>(
           profile, browser->GetTabStripModel());
 
+  bookmarks_side_panel_coordinator_ =
+      std::make_unique<BookmarksSidePanelCoordinator>();
+
   signin_view_controller_ = std::make_unique<SigninViewController>(
       browser, profile, tab_strip_model_);
 
@@ -449,8 +455,9 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     if (base::FeatureList::IsEnabled(features::kSideBySide)) {
       if (browser_view) {
-        split_tab_scrim_controller_ =
-            std::make_unique<split_tabs::SplitTabScrimController>(browser_view);
+        split_tab_highlight_controller_ =
+            std::make_unique<split_tabs::SplitTabHighlightController>(
+                browser_view);
       }
     }
   }
@@ -498,12 +505,24 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
               extensions::ExtensionKeybindingRegistry::ALL_EXTENSIONS,
               browser_view);
     }
+
+    // BrowserView is an AcceleratorProvider.
+    accelerator_provider_ = browser_view;
   }
 
   if (auto* const provider =
           browser_elements_->AsA<BrowserElementsWebUiBrowser>()) {
     provider->Init(views::Widget::GetWidgetForNativeWindow(
         browser->window()->GetNativeWindow()));
+  }
+
+  if (WebUIBrowserWindow* webui_browser_window =
+          WebUIBrowserWindow::FromBrowser(browser)) {
+    webui_browser_side_panel_ui_ =
+        std::make_unique<WebUIBrowserSidePanelUI>(browser);
+
+    // WebUIBrowserWindow is an AcceleratorProvider.
+    accelerator_provider_ = webui_browser_window;
   }
 }
 
@@ -513,6 +532,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
           browser_elements_->AsA<BrowserElementsViewsImpl>()) {
     provider->Init(browser_view);
   }
+
+  scrim_view_controller_ = std::make_unique<ScrimViewController>(browser_view);
 
   // TODO(crbug.com/346148093): Move SidePanelCoordinator construction to Init.
   // TODO(crbug.com/346148554): Do not create a SidePanelCoordinator for most
@@ -532,9 +553,6 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
   history_clusters_side_panel_coordinator_ =
       std::make_unique<HistoryClustersSidePanelCoordinator>(
           browser_, browser_->GetProfile(), side_panel_coordinator_.get());
-
-  bookmarks_side_panel_coordinator_ =
-      std::make_unique<BookmarksSidePanelCoordinator>();
 
   if (CommentsSidePanelCoordinator::IsSupported()) {
     comments_side_panel_coordinator_ =
@@ -596,12 +614,17 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
     }
 
     if (features::kGlicActorUiOverlay.Get()) {
-      // TODO(crbug.com/433999185): Handle split view.
+      std::vector<std::pair<views::WebView*, views::View*>>
+          container_overlay_view_pairs;
+      for (auto* contents_container :
+           browser_view->GetContentsContainerViews()) {
+        container_overlay_view_pairs.emplace_back(
+            contents_container->contents_view(),
+            contents_container->actor_overlay_view());
+      }
       actor_overlay_window_controller_ =
           GetUserDataFactory().CreateInstance<ActorOverlayWindowController>(
-              *browser_, browser_,
-              browser_view->GetActiveContentsContainerView()
-                  ->actor_overlay_view());
+              *browser_, browser_, std::move(container_overlay_view_pairs));
     }
 
     data_protection_ui_controller_ =
@@ -635,6 +658,7 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 }
 
 void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
+  accelerator_provider_ = nullptr;
   extension_keybinding_registry_.reset();
   contents_border_controller_.reset();
   live_tab_context_.reset();
@@ -707,7 +731,7 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   // deterministically constructed.
   find_bar_controller_.reset();
 
-  split_tab_scrim_controller_.reset();
+  split_tab_highlight_controller_.reset();
 
 #if BUILDFLAG(IS_WIN)
   windows_taskbar_icon_updater_.reset();
@@ -721,12 +745,18 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
 
   exclusive_access_manager_.reset();
 
+  scrim_view_controller_.reset();
+
   if (auto* const provider = browser_elements_->AsA<BrowserElementsViews>()) {
     provider->TearDown();
   }
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {
+  if (webui_browser::IsWebUIBrowserEnabled()) {
+    return webui_browser_side_panel_ui_.get();
+  }
+
   return side_panel_coordinator_.get();
 }
 

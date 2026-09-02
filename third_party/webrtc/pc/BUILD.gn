@@ -476,7 +476,7 @@ rtc_source_set("media_stream_track_proxy") {
 }
 
 rtc_source_set("peer_connection_factory_proxy") {
-  visibility = [ ":*" ]
+  visibility = [ "../api:create_modular_peer_connection_factory" ]
   sources = [ "peer_connection_factory_proxy.h" ]
   deps = [
     ":proxy",
@@ -1375,6 +1375,7 @@ rtc_library("legacy_stats_collector") {
     "../rtc_base:stringutils",
     "../rtc_base:threading",
     "../rtc_base:timeutils",
+    "../system_wrappers",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
   ]
@@ -1550,7 +1551,6 @@ rtc_library("peer_connection_factory") {
     ":media_stream_proxy",
     ":media_stream_track_proxy",
     ":peer_connection",
-    ":peer_connection_factory_proxy",
     ":peer_connection_proxy",
     ":rtp_parameters_conversion",
     ":video_track",
@@ -1662,6 +1662,7 @@ rtc_library("rtp_transceiver") {
     "../api:sequence_checker",
     "../api/audio_codecs:audio_codecs_api",
     "../api/crypto:options",
+    "../api/environment",
     "../api/task_queue",
     "../api/task_queue:pending_task_safety_flag",
     "../api/video:video_bitrate_allocator_factory",
@@ -2440,7 +2441,6 @@ if (rtc_include_tests && !build_with_chromium) {
       ":pc_test_utils",
       ":peer_connection",
       ":peer_connection_factory",
-      ":peer_connection_factory_proxy",
       ":peer_connection_internal",
       ":peer_connection_proxy",
       ":peerconnection_wrapper",
@@ -2619,6 +2619,7 @@ if (rtc_include_tests && !build_with_chromium) {
       "../system_wrappers",
       "../system_wrappers:metrics",
       "../test:audio_codec_mocks",
+      "../test:create_test_environment",
       "../test:create_test_field_trials",
       "../test:rtc_expect_death",
       "../test:run_loop",

@@ -18,6 +18,8 @@
 #include <openssl/hkdf.h>
 #include <openssl/kdf.h>
 
+#include <iterator>
+
 #include <gtest/gtest.h>
 
 #include "../../test/file_test.h"
@@ -253,7 +255,7 @@ static const HKDFTestVector kTests[] = {
 };
 
 TEST(HKDFTest, TestVectors) {
-  for (size_t i = 0; i < OPENSSL_ARRAY_SIZE(kTests); i++) {
+  for (size_t i = 0; i < std::size(kTests); i++) {
     SCOPED_TRACE(i);
     const HKDFTestVector *test = &kTests[i];
 

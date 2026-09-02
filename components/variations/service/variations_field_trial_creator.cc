@@ -174,18 +174,6 @@ void MaybeExtendVariationsSafeMode(
       /*has_session_shutdown_cleanly=*/false,
       /*is_extended_safe_mode=*/true);
 }
-}  // namespace
-
-BASE_FEATURE(kForceFieldTrialSetupCrashForTesting,
-             "ForceFieldTrialSetupCrashForTesting",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool CreateTrialsResult::AppliedSeedHasActiveLimitedLayer() const {
-  if (!applied_seed) {
-    return false;
-  }
-  return seed_has_active_limited_layer.value_or(false);
-}
 
 Study::Channel ConvertProductChannelToStudyChannel(
     version_info::Channel product_channel) {
@@ -202,6 +190,19 @@ Study::Channel ConvertProductChannelToStudyChannel(
       return Study::UNKNOWN;
   }
   NOTREACHED();
+}
+
+}  // namespace
+
+BASE_FEATURE(kForceFieldTrialSetupCrashForTesting,
+             "ForceFieldTrialSetupCrashForTesting",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool CreateTrialsResult::AppliedSeedHasActiveLimitedLayer() const {
+  if (!applied_seed) {
+    return false;
+  }
+  return seed_has_active_limited_layer.value_or(false);
 }
 
 VariationsFieldTrialCreator::VariationsFieldTrialCreator(
@@ -823,12 +824,11 @@ void VariationsFieldTrialCreator::LoadSeedFromJsonFile(
         base::StrCat({"Failed to decode seed data in contents of \"",
                       json_seed_path.AsUTF8Unsafe(), "\""}));
   }
-  seed_store_->StoreSeedData(decoded_seed, seed_signature->GetString(),
-                             /*country_code=*/"",
+  seed_store_->StoreSeedData(/*done_callback=*/base::DoNothing(), decoded_seed,
+                             seed_signature->GetString(), /*country_code=*/"",
                              /*date_fetched=*/base::Time(),
                              /*is_delta_compressed=*/false,
                              /*is_gzip_compressed=*/true,
-                             /*done_callback=*/base::DoNothing(),
                              /*require_synchronous=*/true);
 }
 

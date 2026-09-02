@@ -46,6 +46,7 @@
 #include "chrome/common/pref_names.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/branded_strings.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/bookmarks/common/bookmark_pref_names.h"
@@ -877,6 +878,106 @@ IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest,
                    ->multi_contents_view()
                    ->drop_target_controller()
                    .IsDropTimerRunningForTesting());
+}
+
+IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest, ScrimForTabModalInSplitView) {
+  if (!base::FeatureList::IsEnabled(features::KScrimForTabModal)) {
+    GTEST_SKIP();
+  }
+
+  // Create a split view with two tabs followed by a third that will show the
+  // scrim.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+
+  // Show a tab modal dialog on the third tab (not part of the split).
+  browser()->tab_strip_model()->ActivateTabAt(2);
+  content::WebContents* contents = browser_view()->GetActiveWebContents();
+  auto delegate = std::make_unique<TestTabModalConfirmDialogDelegate>(contents);
+  TabModalConfirmDialog::Create(std::move(delegate), contents);
+  EXPECT_TRUE(
+      active_contents_container_view()->contents_scrim_view()->GetVisible());
+
+  // Activating a tab in the split will cause the scrim to hide.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  EXPECT_FALSE(
+      active_contents_container_view()->contents_scrim_view()->GetVisible());
+
+  // Swapping the tab with the tab modal dialog into the inactive spot in the
+  // split should make that view active and show the scrim.
+  browser()->tab_strip_model()->UpdateTabInSplit(
+      browser()->tab_strip_model()->GetTabAtIndex(1), 2,
+      TabStripModel::SplitUpdateType::kSwap);
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
+  EXPECT_TRUE(
+      active_contents_container_view()->contents_scrim_view()->GetVisible());
+  EXPECT_FALSE(
+      inactive_contents_container_view()->contents_scrim_view()->GetVisible());
+}
+
+// Tests that GetAccessibleTabLabel correctly labels each tab in a split.
+IN_PROC_BROWSER_TEST_F(SideBySideBrowserViewTest, AccessibleTabLabel) {
+  // Create a pinned split.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  browser()->tab_strip_model()->SetTabPinned(0, true);
+  browser()->tab_strip_model()->SetTabPinned(1, true);
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {1}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_TAB_AX_LABEL_PINNED_FORMAT,
+                l10n_util::GetStringFUTF16(
+                    IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
+                    browser()->GetTitleForTab(0))),
+            browser_view()->GetAccessibleTabLabel(0));
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_TAB_AX_LABEL_PINNED_FORMAT,
+                l10n_util::GetStringFUTF16(
+                    IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
+                    browser()->GetTitleForTab(1))),
+            browser_view()->GetAccessibleTabLabel(1));
+
+  // Create a split.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  browser()->tab_strip_model()->ActivateTabAt(2);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {3}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  EXPECT_EQ(
+      l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
+                                 browser()->GetTitleForTab(2)),
+      browser_view()->GetAccessibleTabLabel(2));
+  EXPECT_EQ(
+      l10n_util::GetStringFUTF16(IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
+                                 browser()->GetTitleForTab(3)),
+      browser_view()->GetAccessibleTabLabel(3));
+
+  // Create a grouped split.
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  chrome::AddTabAt(browser(), GURL(), -1, true);
+  browser()->tab_strip_model()->ActivateTabAt(4);
+  browser()->tab_strip_model()->AddToNewSplit(
+      {5}, split_tabs::SplitTabVisualData(),
+      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  browser()->tab_strip_model()->AddToNewGroup({4, 5});
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_TAB_AX_LABEL_UNNAMED_GROUP_FORMAT,
+                l10n_util::GetStringFUTF16(
+                    IDS_TAB_AX_LABEL_SPLIT_TAB_LEFT_VIEW_FORMAT,
+                    browser()->GetTitleForTab(4))),
+            browser_view()->GetAccessibleTabLabel(4));
+  EXPECT_EQ(l10n_util::GetStringFUTF16(
+                IDS_TAB_AX_LABEL_UNNAMED_GROUP_FORMAT,
+                l10n_util::GetStringFUTF16(
+                    IDS_TAB_AX_LABEL_SPLIT_TAB_RIGHT_VIEW_FORMAT,
+                    browser()->GetTitleForTab(5))),
+            browser_view()->GetAccessibleTabLabel(5));
 }
 
 #if BUILDFLAG(IS_MAC)

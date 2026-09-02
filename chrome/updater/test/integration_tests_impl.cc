@@ -489,7 +489,7 @@ void RegisterAppByValue(UpdaterScope scope, const base::Value::Dict& value) {
   registration.ap_path =
       base::FilePath::FromUTF8Unsafe(*value.FindString("ap_path"));
   registration.ap_key = *value.FindString("ap_key");
-  registration.version = base::Version(*value.FindString("version"));
+  registration.version = *value.FindString("version");
   registration.version_path =
       base::FilePath::FromUTF8Unsafe(*value.FindString("version_path"));
   registration.version_key = *value.FindString("version_key");
@@ -940,6 +940,13 @@ void RunServer(UpdaterScope scope, int expected_exit_code, bool internal) {
   ASSERT_EQ(exit_code, expected_exit_code);
 }
 
+void RunUpdateApps(UpdaterScope scope,
+                   int expected_exit_code,
+                   const base::Version& version) {
+  RunUpdaterWithSwitches(version, scope, {kUpdateAppsSwitch},
+                         expected_exit_code);
+}
+
 void CheckForUpdate(UpdaterScope scope, const std::string& app_id) {
   scoped_refptr<UpdateService> update_service = CreateUpdateServiceProxy(scope);
   base::RunLoop loop;
@@ -968,7 +975,8 @@ void ExpectCheckForUpdateOppositeScopeFails(UpdaterScope scope,
       }));
   loop.Run();
   ASSERT_TRUE(result == UpdateService::Result::kServiceFailed ||
-              result == UpdateService::Result::kIPCConnectionFailed)
+              result == UpdateService::Result::kIPCConnectionFailed ||
+              result == UpdateService::Result::kInvalidArgument)
       << "result == " << result;
 }
 
@@ -1001,7 +1009,7 @@ void InstallAppViaService(UpdaterScope scope,
                           const base::Value::Dict& expected_final_values) {
   RegistrationRequest registration;
   registration.app_id = appid;
-  registration.version = base::Version({0, 0, 0, 0});
+  registration.version = kNullVersion;
   scoped_refptr<UpdateService> update_service = CreateUpdateServiceProxy(scope);
   UpdateService::UpdateState final_update_state;
   UpdateService::Result final_result;

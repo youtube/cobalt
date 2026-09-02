@@ -299,10 +299,10 @@ class WebRtcVoiceEngineTestFake : public ::testing::TestWithParam<bool> {
 
   bool SetupChannel() {
     send_channel_ = engine_->CreateSendChannel(
-        &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
+        env_, &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
         webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
     receive_channel_ = engine_->CreateReceiveChannel(
-        &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
+        env_, &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
         webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
     send_channel_->SetSsrcListChangedCallback(
         [receive_channel =
@@ -3225,7 +3225,7 @@ TEST_P(WebRtcVoiceEngineTestFake, InitRecordingOnSend) {
 
   std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> send_channel(
       engine_->CreateSendChannel(
-          &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
+          env_, &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
           webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create()));
 
   send_channel->SetSend(true);
@@ -3240,7 +3240,7 @@ TEST_P(WebRtcVoiceEngineTestFake, SkipInitRecordingOnSend) {
   options.init_recording_on_send = false;
 
   std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> send_channel(
-      engine_->CreateSendChannel(&call_, webrtc::MediaConfig(), options,
+      engine_->CreateSendChannel(env_, &call_, webrtc::MediaConfig(), options,
                                  webrtc::CryptoOptions(),
                                  webrtc::AudioCodecPairId::Create()));
 
@@ -3267,11 +3267,11 @@ TEST_P(WebRtcVoiceEngineTestFake, SetOptionOverridesViaChannels) {
 
   std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> send_channel1(
       engine_->CreateSendChannel(
-          &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
+          env_, &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
           webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create()));
   std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> send_channel2(
       engine_->CreateSendChannel(
-          &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
+          env_, &call_, webrtc::MediaConfig(), webrtc::AudioOptions(),
           webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create()));
 
   // Have to add a stream to make SetSend work.
@@ -3387,18 +3387,18 @@ TEST_P(WebRtcVoiceEngineTestFake, TestSetDscpOptions) {
   std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> channel;
   webrtc::RtpParameters parameters;
 
-  channel = engine_->CreateSendChannel(&call_, config, webrtc::AudioOptions(),
-                                       webrtc::CryptoOptions(),
-                                       webrtc::AudioCodecPairId::Create());
+  channel = engine_->CreateSendChannel(
+      env_, &call_, config, webrtc::AudioOptions(), webrtc::CryptoOptions(),
+      webrtc::AudioCodecPairId::Create());
   channel->SetInterface(&network_interface);
   // Default value when DSCP is disabled should be DSCP_DEFAULT.
   EXPECT_EQ(webrtc::DSCP_DEFAULT, network_interface.dscp());
   channel->SetInterface(nullptr);
 
   config.enable_dscp = true;
-  channel = engine_->CreateSendChannel(&call_, config, webrtc::AudioOptions(),
-                                       webrtc::CryptoOptions(),
-                                       webrtc::AudioCodecPairId::Create());
+  channel = engine_->CreateSendChannel(
+      env_, &call_, config, webrtc::AudioOptions(), webrtc::CryptoOptions(),
+      webrtc::AudioCodecPairId::Create());
   channel->SetInterface(&network_interface);
   EXPECT_EQ(webrtc::DSCP_DEFAULT, network_interface.dscp());
 
@@ -3427,9 +3427,9 @@ TEST_P(WebRtcVoiceEngineTestFake, TestSetDscpOptions) {
   // Verify that setting the option to false resets the
   // DiffServCodePoint.
   config.enable_dscp = false;
-  channel = engine_->CreateSendChannel(&call_, config, webrtc::AudioOptions(),
-                                       webrtc::CryptoOptions(),
-                                       webrtc::AudioCodecPairId::Create());
+  channel = engine_->CreateSendChannel(
+      env_, &call_, config, webrtc::AudioOptions(), webrtc::CryptoOptions(),
+      webrtc::AudioCodecPairId::Create());
   channel->SetInterface(&network_interface);
   // Default value when DSCP is disabled should be DSCP_DEFAULT.
   EXPECT_EQ(webrtc::DSCP_DEFAULT, network_interface.dscp());
@@ -3831,12 +3831,12 @@ TEST(WebRtcVoiceEngineTest, StartupShutdown) {
     std::unique_ptr<Call> call = Call::Create(CallConfig(env));
     std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> send_channel =
         engine.CreateSendChannel(
-            call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
+            env, call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
             webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
     EXPECT_TRUE(send_channel);
     std::unique_ptr<webrtc::VoiceMediaReceiveChannelInterface> receive_channel =
         engine.CreateReceiveChannel(
-            call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
+            env, call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
             webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
     EXPECT_TRUE(receive_channel);
   }
@@ -3860,12 +3860,12 @@ TEST(WebRtcVoiceEngineTest, StartupShutdownWithExternalADM) {
       std::unique_ptr<Call> call = Call::Create(CallConfig(env));
       std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> send_channel =
           engine.CreateSendChannel(
-              call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
+              env, call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
               webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
       EXPECT_TRUE(send_channel);
       std::unique_ptr<webrtc::VoiceMediaReceiveChannelInterface>
           receive_channel = engine.CreateReceiveChannel(
-              call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
+              env, call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
               webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
       EXPECT_TRUE(receive_channel);
     }
@@ -3944,7 +3944,7 @@ TEST(WebRtcVoiceEngineTest, Has32Channels) {
     while (channels.size() < 32) {
       std::unique_ptr<webrtc::VoiceMediaSendChannelInterface> channel =
           engine.CreateSendChannel(
-              call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
+              env, call.get(), webrtc::MediaConfig(), webrtc::AudioOptions(),
               webrtc::CryptoOptions(), webrtc::AudioCodecPairId::Create());
       if (!channel)
         break;
@@ -3977,7 +3977,7 @@ TEST(WebRtcVoiceEngineTest, SetRecvCodecs) {
     engine.Init();
     std::unique_ptr<Call> call = Call::Create(CallConfig(env));
     webrtc::WebRtcVoiceReceiveChannel channel(
-        &engine, webrtc::MediaConfig(), webrtc::AudioOptions(),
+        env, &engine, webrtc::MediaConfig(), webrtc::AudioOptions(),
         webrtc::CryptoOptions(), call.get(),
         webrtc::AudioCodecPairId::Create());
     webrtc::AudioReceiverParameters parameters;
@@ -4006,7 +4006,7 @@ TEST(WebRtcVoiceEngineTest, SetRtpSendParametersMaxBitrate) {
   }
   std::unique_ptr<Call> call = Call::Create(std::move(call_config));
   webrtc::WebRtcVoiceSendChannel channel(
-      &engine, webrtc::MediaConfig(), webrtc::AudioOptions(),
+      env, &engine, webrtc::MediaConfig(), webrtc::AudioOptions(),
       webrtc::CryptoOptions(), call.get(), webrtc::AudioCodecPairId::Create());
   {
     webrtc::AudioSenderParameter params;
@@ -4035,20 +4035,21 @@ TEST(WebRtcVoiceEngineTest, CollectRecvCodecs) {
   Environment env = CreateEnvironment();
   for (bool use_null_apm : {false, true}) {
     std::vector<webrtc::AudioCodecSpec> specs;
-    webrtc::AudioCodecSpec spec1{{"codec1", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec1 = {
+        .format = {"codec1", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000},
+    };
     spec1.info.allow_comfort_noise = false;
     spec1.info.supports_network_adaption = true;
     specs.push_back(spec1);
-    webrtc::AudioCodecSpec spec2{{"codec2", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec2 = {
+        .format = {"codec2", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000}};
     // We do not support 48khz CN.
     spec2.info.allow_comfort_noise = true;
     specs.push_back(spec2);
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec3", 8000, 1}, {8000, 1, 64000}});
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec4", 8000, 2}, {8000, 1, 64000}});
+    specs.push_back({.format = {"codec3", 8000, 1}, .info = {8000, 1, 64000}});
+    specs.push_back({.format = {"codec4", 8000, 2}, .info = {8000, 1, 64000}});
 
     webrtc::scoped_refptr<webrtc::MockAudioEncoderFactory>
         unused_encoder_factory =
@@ -4124,20 +4125,20 @@ TEST(WebRtcVoiceEngineTest, CollectRecvCodecsWithLatePtAssignment) {
 
   for (bool use_null_apm : {false, true}) {
     std::vector<webrtc::AudioCodecSpec> specs;
-    webrtc::AudioCodecSpec spec1{{"codec1", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec1 = {
+        .format = {"codec1", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000}};
     spec1.info.allow_comfort_noise = false;
     spec1.info.supports_network_adaption = true;
     specs.push_back(spec1);
-    webrtc::AudioCodecSpec spec2{{"codec2", 48000, 2, {{"param1", "value1"}}},
-                                 {48000, 2, 16000, 10000, 20000}};
+    webrtc::AudioCodecSpec spec2 = {
+        .format = {"codec2", 48000, 2, {{"param1", "value1"}}},
+        .info = {48000, 2, 16000, 10000, 20000}};
     // We do not support 48khz CN.
     spec2.info.allow_comfort_noise = true;
     specs.push_back(spec2);
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec3", 8000, 1}, {8000, 1, 64000}});
-    specs.push_back(
-        webrtc::AudioCodecSpec{{"codec4", 8000, 2}, {8000, 1, 64000}});
+    specs.push_back({.format = {"codec3", 8000, 1}, .info = {8000, 1, 64000}});
+    specs.push_back({.format = {"codec4", 8000, 2}, .info = {8000, 1, 64000}});
 
     webrtc::scoped_refptr<webrtc::MockAudioEncoderFactory>
         unused_encoder_factory =
