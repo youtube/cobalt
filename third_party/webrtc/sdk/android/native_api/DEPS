@@ -1,6 +1,0 @@
-include_rules = [
-  "+modules/audio_device/include/audio_device.h",
-  "+modules/utility/include/jvm_android.h",
-  "+system_wrappers/include",
-  "+third_party/jni_zero",
-]
