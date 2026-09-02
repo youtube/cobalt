@@ -73,10 +73,7 @@ if (is_android) {
 
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
-<<<<<<< HEAD
-    default_min_sdk_version = 29
-=======
-    default_min_sdk_version = 26
+default_min_sdk_version = 26
     if (is_asan) {
       default_min_sdk_version = 27
     }
@@ -91,8 +88,6 @@ if (is_android) {
       # disabled at runtime. See b/508072838, b/422247849.
       default_min_sdk_version = 24
     }
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This
     # needs to be in a separate declare_args as it determines some of the args

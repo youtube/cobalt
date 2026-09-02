@@ -47,14 +47,9 @@
 #include "components/services/storage/privileged/mojom/indexed_db_control.mojom.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
-<<<<<<< HEAD
-#include "content/browser/attribution_reporting/aggregatable_result.mojom.h"
-#include "content/browser/attribution_reporting/attribution_debug_report.h"
-=======
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/attribution_reporting/aggregatable_result.mojom.h"  // nogncheck
->>>>>>> parent of ac523b90299 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
-#include "content/browser/attribution_reporting/attribution_manager.h"
+#include "content/browser/attribution_reporting/attribution_debug_report.h"  // nogncheck#include "content/browser/attribution_reporting/attribution_manager.h"
 #include "content/browser/attribution_reporting/attribution_observer.h"
 #include "content/browser/attribution_reporting/attribution_report.h"
 #include "content/browser/attribution_reporting/attribution_trigger.h"
@@ -2573,6 +2568,7 @@ void StorageHandler::OnReportSent(const AttributionReport& report,
 }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
                                        int status,
                                        base::Time time) {
@@ -2600,6 +2596,7 @@ void StorageHandler::OnDebugReportSent(const AttributionDebugReport& report,
       report.ReportUrl().spec(), std::move(body), net_error,
       std::move(net_error_name), http_status_code);
 }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
 Response StorageHandler::SetAttributionReportingTracking(bool enable) {
 #if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
