@@ -20,6 +20,7 @@
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
@@ -151,8 +152,8 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest, PutTwoMegabyteToCache) {
 
   content::EvalJsResult eval_result =
       content::EvalJs(shell()->web_contents(), kScript);
-  ASSERT_TRUE(eval_result.value.is_dict());
-  const base::Value::Dict& dict = eval_result.value.GetDict();
+  ASSERT_TRUE(eval_result.is_dict());
+  const base::Value::Dict& dict = eval_result.ExtractDict();
 
   std::optional<bool> success = dict.FindBool("success");
   ASSERT_TRUE(success.has_value())
@@ -231,8 +232,8 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest, PutAndOverwriteOneMegabyte) {
 
   content::EvalJsResult eval_result =
       content::EvalJs(shell()->web_contents(), kScript);
-  ASSERT_TRUE(eval_result.value.is_dict());
-  const base::Value::Dict& dict = eval_result.value.GetDict();
+  ASSERT_TRUE(eval_result.is_dict());
+  const base::Value::Dict& dict = eval_result.ExtractDict();
 
   std::optional<bool> success = dict.FindBool("success");
   ASSERT_TRUE(success.has_value())
@@ -354,8 +355,8 @@ IN_PROC_BROWSER_TEST_F(CacheStorageBrowserTest,
 
   content::EvalJsResult eval_result =
       content::EvalJs(shell()->web_contents(), kScript);
-  ASSERT_TRUE(eval_result.value.is_dict());
-  const base::Value::Dict& dict = eval_result.value.GetDict();
+  ASSERT_TRUE(eval_result.is_dict());
+  const base::Value::Dict& dict = eval_result.ExtractDict();
 
   std::optional<bool> failed_as_expected = dict.FindBool("failedAsExpected");
   ASSERT_TRUE(failed_as_expected.has_value())
