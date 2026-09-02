@@ -10,7 +10,7 @@ inputs:
     default: projects/cobalt-actions-prod/instances/default_instance
   reapi_backend_config_path:
     description: The path to the REAPI backend star configuration file.
-    default: src/build/config/siso/cobalt.star
+    default: cobalt.star
   use_cache:
     description: Whether or not to use runner cache.
     default: 'false'

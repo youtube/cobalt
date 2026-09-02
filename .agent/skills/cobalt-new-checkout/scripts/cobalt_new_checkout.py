@@ -399,7 +399,7 @@ class CobaltCheckoutSetup:
                 "--custom-var=rbe_instance="
                 "\"projects/cobalt-actions-prod/instances/default_instance\"")
             config_args.append("--custom-var=reapi_backend_config_path="
-                               "\"src/build/config/siso/cobalt.star\"")
+                               "\"cobalt.star\"")
         else:
             print("Configuring for external user...")
 
