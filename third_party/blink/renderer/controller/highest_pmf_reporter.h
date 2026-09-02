@@ -87,6 +87,8 @@ class CONTROLLER_EXPORT HighestPmfReporter
   };
   WTF::Vector<MetricInfo> metrics_;
 
+  // True when measuring metrics after resuming from background state into
+  // foreground. False when measuring during initial startup navigation.
   bool is_foreground_measuring_ = false;
   base::CancelableOnceClosure cancelable_report_task_;
 #endif

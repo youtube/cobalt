@@ -194,6 +194,8 @@ void HighestPmfReporter::OnMemoryPing(MemoryUsage usage) {
   DCHECK(IsMainThread());
   if (FirstNavigationStarted()) {
 #if BUILDFLAG(IS_COBALT)
+    // Only schedule initial startup reporting if we are not actively measuring
+    // a resumed-from-background session.
     if (!is_foreground_measuring_) {
       cancelable_report_task_.Reset(WTF::BindOnce(
           &HighestPmfReporter::OnReportMetrics, WTF::Unretained(this)));
@@ -231,6 +233,8 @@ void HighestPmfReporter::OnProcessBackgrounded() {
   }
 }
 
+// Handles transition into background: cancel in-flight reporting tasks and
+// stop observing memory usage.
 void HighestPmfReporter::ProcessBackgrounded() {
   DCHECK(IsMainThread());
   cancelable_report_task_.Cancel();
@@ -246,9 +250,11 @@ void HighestPmfReporter::OnProcessForegrounded() {
   }
 }
 
+// Handles transition when resumed from background into foreground: reset
+// peak tracking and start a new measuring window for foreground metrics.
 void HighestPmfReporter::ProcessForegrounded() {
   DCHECK(IsMainThread());
-  
+
   cancelable_report_task_.Cancel();
   current_highest_pmf_ = 0.0;
   peak_resident_bytes_at_current_highest_pmf_ = 0.0;
@@ -318,19 +324,24 @@ void HighestPmfReporter::OnReportMetrics() {
 void HighestPmfReporter::ReportMetrics() {
 #if BUILDFLAG(IS_COBALT)
   const MetricInfo& metric_info = metrics_[report_count_];
-  const std::string metric_name =
-      is_foreground_measuring_ ? metric_info.pmf_foregrounded_name.Utf8()
-                               : metric_info.pmf_name.Utf8();
-  const std::string peak_name =
-      is_foreground_measuring_ ? metric_info.peak_rss_foregrounded_name.Utf8()
-                               : metric_info.peak_rss_name.Utf8();
+  const auto highest_pmf_mb = base::saturated_cast<base::Histogram::Sample32>(
+      current_highest_pmf_ / 1024 / 1024);
+  const auto peak_resident_mb =
+      base::saturated_cast<base::Histogram::Sample32>(
+          peak_resident_bytes_at_current_highest_pmf_ / 1024 / 1024);
 
-  base::UmaHistogramMemoryMB(
-      metric_name, base::saturated_cast<base::Histogram::Sample32>(
-                       current_highest_pmf_ / 1024 / 1024));
-  base::UmaHistogramMemoryMB(
-      peak_name, base::saturated_cast<base::Histogram::Sample32>(
-                     peak_resident_bytes_at_current_highest_pmf_ / 1024 / 1024));
+  if (is_foreground_measuring_) {
+    // Resumed from background state.
+    base::UmaHistogramMemoryMB(metric_info.pmf_foregrounded_name.Utf8(),
+                               highest_pmf_mb);
+    base::UmaHistogramMemoryMB(metric_info.peak_rss_foregrounded_name.Utf8(),
+                               peak_resident_mb);
+  } else {
+    // Initial startup / navigation state.
+    base::UmaHistogramMemoryMB(metric_info.pmf_name.Utf8(), highest_pmf_mb);
+    base::UmaHistogramMemoryMB(metric_info.peak_rss_name.Utf8(),
+                               peak_resident_mb);
+  }
 #else
   base::UmaHistogramMemoryMB(kHighestPmfMetricNames[report_count_],
                              base::saturated_cast<base::Histogram::Sample32>(
