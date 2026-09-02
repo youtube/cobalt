@@ -188,22 +188,13 @@ public class JavaSwitches {
       jsFlags.add("--max-old-space-size=" + DEFAULT_MAX_OLD_SPACE_SIZE);
     }
 
-<<<<<<< HEAD
-    if (javaSwitches.containsKey(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB)) {
-      extraCommandLineArgs.add(
-          "--force-gpu-mem-available-mb="
-              + javaSwitches.get(JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB).replaceAll("[^0-9]", ""));
-    } else if (!"arm64".equals(DeviceInfo.getArch()) && !"x86_64".equals(DeviceInfo.getArch())) {
-      extraCommandLineArgs.add("--force-gpu-mem-available-mb=64");
-=======
     String forceGpuMem =
         getSanitizedNumericValue(javaSwitches, JavaSwitches.FORCE_GPU_MEM_AVAILABLE_MB);
     if (forceGpuMem != null) {
       extraCommandLineArgs.add("--force-gpu-mem-available-mb=" + forceGpuMem);
-    } else if (!"arm64".equals(BuildInfo.getArch()) && !"x86_64".equals(BuildInfo.getArch())) {
+    } else if (!"arm64".equals(DeviceInfo.getArch()) && !"x86_64".equals(DeviceInfo.getArch())) {
       extraCommandLineArgs.add(
           "--force-gpu-mem-available-mb=" + DEFAULT_FORCE_GPU_MEM_AVAILABLE_MB);
->>>>>>> 451e7dcd0d (Refactor command line switch parsing and sanitization in JavaSwitches (#12393))
     }
 
     if (javaSwitches.containsKey(JavaSwitches.DISABLE_GPU_MEMORY_BUFFER_COMPOSITOR_RESOURCES)) {
