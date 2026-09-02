@@ -78,12 +78,10 @@ DecodedAudio::DecodedAudio()
 
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
-                           SbMediaAudioFrameStorageType storage_type,
                            int64_t timestamp,
                            int size_in_bytes)
     : channels_(channels),
       sample_type_(sample_type),
-      storage_type_(storage_type),
       timestamp_(timestamp),
       storage_(size_in_bytes),
       offset_in_bytes_(0),
@@ -98,13 +96,11 @@ DecodedAudio::DecodedAudio(int channels,
 
 DecodedAudio::DecodedAudio(int channels,
                            SbMediaAudioSampleType sample_type,
-                           SbMediaAudioFrameStorageType storage_type,
                            int64_t timestamp,
                            int size_in_bytes,
                            Buffer&& storage)
     : channels_(channels),
       sample_type_(sample_type),
-      storage_type_(storage_type),
       timestamp_(timestamp),
       storage_(std::move(storage)),
       offset_in_bytes_(0),
@@ -113,6 +109,31 @@ DecodedAudio::DecodedAudio(int channels,
   SB_DCHECK_GE(size_in_bytes_, 0);
   SB_DCHECK_EQ(size_in_bytes_ % (GetBytesPerSample(sample_type_) * channels_),
                0);
+}
+
+DecodedAudio::DecodedAudio(DecodedAudio&& other) noexcept
+    : channels_(std::exchange(other.channels_, 0)),
+      sample_type_(other.sample_type_),
+      storage_type_(other.storage_type_),
+      timestamp_(std::exchange(other.timestamp_, 0)),
+      storage_(std::move(other.storage_)),
+      offset_in_bytes_(std::exchange(other.offset_in_bytes_, 0)),
+      size_in_bytes_(std::exchange(other.size_in_bytes_, 0)) {}
+
+DecodedAudio& DecodedAudio::operator=(DecodedAudio&& other) noexcept {
+  if (this == &other) {
+    return *this;
+  }
+
+  channels_ = std::exchange(other.channels_, 0);
+  sample_type_ = other.sample_type_;
+  storage_type_ = other.storage_type_;
+  timestamp_ = std::exchange(other.timestamp_, 0);
+  storage_ = std::move(other.storage_);
+  offset_in_bytes_ = std::exchange(other.offset_in_bytes_, 0);
+  size_in_bytes_ = std::exchange(other.size_in_bytes_, 0);
+
+  return *this;
 }
 
 void DecodedAudio::EnableSimdBasedAudioFormatSwitching() {
@@ -244,8 +265,8 @@ DecodedAudio DecodedAudio::SwitchFormatTo(
 
   // Both sample types and storage types are different, use the slowest way.
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
-  DecodedAudio new_decoded_audio(channels(), new_sample_type, new_storage_type,
-                                 timestamp(), new_size);
+  DecodedAudio new_decoded_audio(channels(), new_sample_type, timestamp(),
+                                 new_size);
 
 #if defined(USE_NEON_FOR_AUDIO)
   if (enable_simd && channels() == 2 && IsAligned(frames(), 8)) {
@@ -315,8 +336,7 @@ DecodedAudio DecodedAudio::SwitchFormatTo(
 }
 
 DecodedAudio DecodedAudio::CloneForTesting() const {
-  DecodedAudio copy(channels(), sample_type(), storage_type(), timestamp(),
-                    size_in_bytes());
+  DecodedAudio copy(channels(), sample_type(), timestamp(), size_in_bytes());
 
   if (size_in_bytes() > 0) {
     memcpy(copy.data(), data(), size_in_bytes());
@@ -329,8 +349,8 @@ DecodedAudio DecodedAudio::SwitchSampleTypeTo(
     SbMediaAudioSampleType new_sample_type,
     bool enable_simd) const {
   int new_size = GetBytesPerSample(new_sample_type) * frames() * channels();
-  DecodedAudio new_decoded_audio(channels(), new_sample_type, storage_type(),
-                                 timestamp(), new_size);
+  DecodedAudio new_decoded_audio(channels(), new_sample_type, timestamp(),
+                                 new_size);
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
       new_sample_type == kSbMediaAudioSampleTypeFloat32) {
@@ -371,11 +391,13 @@ DecodedAudio DecodedAudio::SwitchSampleTypeTo(
   return new_decoded_audio;
 }
 
+// TODO: b/272837615 - Remove SwitchStorageTypeTo and planar format switching
+// support once planar audio frame cleanup is completed.
 DecodedAudio DecodedAudio::SwitchStorageTypeTo(
     SbMediaAudioFrameStorageType new_storage_type,
     bool enable_simd) const {
-  DecodedAudio new_decoded_audio(channels(), sample_type(), new_storage_type,
-                                 timestamp(), size_in_bytes());
+  DecodedAudio new_decoded_audio(channels(), sample_type(), timestamp(),
+                                 size_in_bytes());
   int bytes_per_sample = GetBytesPerSample(sample_type());
   const uint8_t* old_samples = this->data();
   uint8_t* new_samples = new_decoded_audio.data();

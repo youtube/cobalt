@@ -22,6 +22,21 @@ java_cpp_features("java_features_srcjar") {
   template = "//cobalt/android/java_templates/StarboardFeatures.java.tmpl"
 }
 
+java_cpp_strings("cobalt_experiment_names_java") {
+  sources = [ "//cobalt/browser/constants/cobalt_experiment_names.h" ]
+  template =
+      "apk/app/src/main/java/dev/cobalt/util/CobaltExperimentNames.java.tmpl"
+}
+
+java_cpp_strings("cobalt_pref_names_java") {
+  sources = [ "//cobalt/browser/constants/cobalt_pref_names.h" ]
+  template = "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNames.java.tmpl"
+}
+
+java_cpp_enum("cobalt_crash_streak_thresholds_java") {
+  sources = [ "//cobalt/browser/constants/cobalt_experiment_names.h" ]
+}
+
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
@@ -42,6 +57,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
+    "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
   ]
 
@@ -98,6 +114,9 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":cobalt_crash_streak_thresholds_java",
+    ":cobalt_experiment_names_java",
+    ":cobalt_pref_names_java",
     ":java_features_srcjar",
     ":jni_headers",
     "//starboard/android/shared:java_enums",
@@ -144,6 +163,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
     "apk/app/src/main/java/dev/cobalt/util/AssetLoader.java",
+    "apk/app/src/main/java/dev/cobalt/util/CobaltPrefNamesTestHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
@@ -325,6 +345,7 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/coat/PlatformErrorTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
     "apk/app/src/test/java/dev/cobalt/media/MediaCodecOutputTrackerTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/JavaSwitchesTest.java",
     "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]
   deps = [

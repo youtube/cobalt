@@ -215,9 +215,11 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // Enable the workaround to ignore stale/dirty MediaCodec callback messages
   // queued on the main thread during a flush.
   const bool ignore_mediacodec_callbacks_during_flushing_;
+  const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
   const bool enable_ndk_video_;
   const bool fix_need_more_input_backpressure_;
+  const int max_pending_inputs_size_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
