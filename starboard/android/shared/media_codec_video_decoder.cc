@@ -345,6 +345,12 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               kMediaEnableTrivialOptimizations)),
       enable_ndk_video_(
           pipeline_config.experimental_features.GetBool(kMediaNdkVideo)),
+      // Reusing a codec requires SurfaceView.applyTransactionToFrame() to show
+      // the video surface together with the first frame of the next playback,
+      // which is only available on Android 14 (API level 34) and above.
+      enable_reuse_video_codec_(pipeline_config.experimental_features.GetBool(
+                                    kMediaReuseVideoCodec) &&
+                                android_get_device_api_level() >= 34),
       is_video_frame_tracker_enabled_(android_get_device_api_level() >= 34 ||
                                       tunnel_mode_audio_session_id_),
       media_codec_factory_(std::move(media_codec_factory)),
@@ -354,6 +360,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
               .Get(kMediaVideoDecoderInitialPrerollCount)
               .value_or(kInitialPrerollFrameCount)),
       number_of_preroll_frames_(initial_number_of_preroll_frames_),
+      is_hdr_playback_(
+          !IsIdentity(stream_config.video_stream_info.color_metadata)),
       surface_texture_bridge_(
           output_mode_ == kSbPlayerOutputModeDecodeToTexture
               ? std::make_unique<VideoSurfaceTextureBridge>(this)
@@ -419,7 +427,8 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   // video distortion on some platforms. For details, see http://b/182610842.
   if (tunnel_mode_audio_session_id_.has_value()) {
     ResetVideoSurface();
-  } else if (output_mode_ == kSbPlayerOutputModePunchOut) {
+  } else if (output_mode_ == kSbPlayerOutputModePunchOut &&
+             (!enable_reuse_video_codec_ || is_hdr_playback_)) {
     CleanUpVideoSurface(decode_target_graphics_context_provider_);
   }
 }
@@ -544,6 +553,7 @@ void MediaCodecVideoDecoder::WriteInputBuffers(
       SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
       SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
+      is_hdr_playback_ = true;
       color_metadata_ = color_metadata;
     }
 
@@ -887,7 +897,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       tunnel_mode_audio_session_id_, is_video_frame_tracker_enabled_,
       max_video_input_size_, flush_delay_usec_, use_dual_threads_,
       skip_video_frames_over_60_fps_, enable_ndk_video_,
-      enable_trivial_optimizations_);
+      enable_trivial_optimizations_, enable_reuse_video_codec_);
   if (result) {
     media_decoder_ = std::move(result.value());
     if (error_cb_) {

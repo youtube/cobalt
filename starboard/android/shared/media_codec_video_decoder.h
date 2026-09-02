@@ -216,6 +216,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool ignore_stale_rendered_frames_after_seek_;
   const bool enable_trivial_optimizations_;
   const bool enable_ndk_video_;
+  const bool enable_reuse_video_codec_;
 
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
@@ -287,6 +288,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   std::optional<VideoOutputFormat> output_format_;
   const size_t initial_number_of_preroll_frames_;
   size_t number_of_preroll_frames_;
+  bool is_hdr_playback_ = false;
 
   static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> CreateInternal(
       std::unique_ptr<MediaCodec::Factory> media_codec_factory,
