@@ -79,12 +79,7 @@ BASE_FEATURE(kTemporalSkipOverlaysWithRootCopyOutputRequests,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseMultipleOverlays,
-<<<<<<< HEAD
-#if BUILDFLAG(IS_CHROMEOS)
-=======
-             "UseMultipleOverlays",
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(USE_STARBOARD_MEDIA)
->>>>>>> parent of 3ba5470e7e5 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
