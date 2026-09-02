@@ -16,15 +16,6 @@
 
 #include <optional>
 
-#include "build/build_config.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "base/base_paths_android.h"
-#include "base/files/file_util.h"
-#include "base/path_service.h"
-#include "base/threading/thread_restrictions.h"
-#endif
-
 #include "base/test/task_environment.h"
 #include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
@@ -46,32 +37,6 @@ void ContentBrowserTestShellMainDelegate::CreateThreadPool(
 
 ContentBrowserClient*
 ContentBrowserTestShellMainDelegate::CreateContentBrowserClient() {
-#if BUILDFLAG(IS_ANDROID)
-  // Skia needs cobalt_android_fonts.xml to exist on Android, but tests
-  // don't run CobaltActivity to copy it. Copy the OS config and otherwise
-  // provide a dummy XML config.
-  base::FilePath app_data_dir;
-  if (base::PathService::Get(base::DIR_ANDROID_APP_DATA, &app_data_dir)) {
-    base::FilePath storage_dir = app_data_dir.Append("storage");
-    base::ScopedAllowBlockingForTesting allow_blocking;
-    base::CreateDirectory(storage_dir);
-    base::FilePath xml_path = storage_dir.Append("cobalt_android_fonts.xml");
-    if (!base::PathExists(xml_path)) {
-      if (!base::CopyFile(base::FilePath("/system/etc/fonts.xml"), xml_path)) {
-        std::string dummy_xml =
-            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
-            "<familyset version=\"22\">\n"
-            "  <family name=\"sans-serif\">\n"
-            "    <font weight=\"400\" "
-            "style=\"normal\">Roboto-Regular.ttf</font>\n"
-            "  </family>\n"
-            "</familyset>\n";
-        base::WriteFile(xml_path, dummy_xml);
-      }
-    }
-  }
-#endif
-
   browser_client_ = std::make_unique<ContentBrowserTestContentBrowserClient>();
   return browser_client_.get();
 }
