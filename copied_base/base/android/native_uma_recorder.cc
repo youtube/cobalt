@@ -51,7 +51,7 @@ static HistogramBase* HistogramFromHint(jlong j_histogram_hint) {
 }
 
 void CheckHistogramArgs(JNIEnv* env,
-                        jstring j_histogram_name,
+                        const JavaRef<jstring>& j_histogram_name,
                         int32_t expected_min,
                         int32_t expected_max,
                         size_t expected_bucket_count,
@@ -68,9 +68,9 @@ void CheckHistogramArgs(JNIEnv* env,
 }
 
 HistogramBase* BooleanHistogram(JNIEnv* env,
-                                jstring j_histogram_name,
+                                const JavaRef<jstring>& j_histogram_name,
                                 jlong j_histogram_hint) {
-  DCHECK(j_histogram_name);
+  DCHECK(j_histogram_name.obj());
   HistogramBase* histogram = HistogramFromHint(j_histogram_hint);
   if (histogram)
     return histogram;
@@ -82,12 +82,12 @@ HistogramBase* BooleanHistogram(JNIEnv* env,
 }
 
 HistogramBase* ExponentialHistogram(JNIEnv* env,
-                                    jstring j_histogram_name,
+                                    const JavaRef<jstring>& j_histogram_name,
                                     jlong j_histogram_hint,
                                     jint j_min,
                                     jint j_max,
                                     jint j_num_buckets) {
-  DCHECK(j_histogram_name);
+  DCHECK(j_histogram_name.obj());
   int32_t min = static_cast<int32_t>(j_min);
   int32_t max = static_cast<int32_t>(j_max);
   size_t num_buckets = static_cast<size_t>(j_num_buckets);
@@ -106,12 +106,12 @@ HistogramBase* ExponentialHistogram(JNIEnv* env,
 }
 
 HistogramBase* LinearHistogram(JNIEnv* env,
-                               jstring j_histogram_name,
+                               const JavaRef<jstring>& j_histogram_name,
                                jlong j_histogram_hint,
                                jint j_min,
                                jint j_max,
                                jint j_num_buckets) {
-  DCHECK(j_histogram_name);
+  DCHECK(j_histogram_name.obj());
   int32_t min = static_cast<int32_t>(j_min);
   int32_t max = static_cast<int32_t>(j_max);
   size_t num_buckets = static_cast<size_t>(j_num_buckets);
@@ -129,9 +129,9 @@ HistogramBase* LinearHistogram(JNIEnv* env,
 }
 
 HistogramBase* SparseHistogram(JNIEnv* env,
-                               jstring j_histogram_name,
+                               const JavaRef<jstring>& j_histogram_name,
                                jlong j_histogram_hint) {
-  DCHECK(j_histogram_name);
+  DCHECK(j_histogram_name.obj());
   HistogramBase* histogram = HistogramFromHint(j_histogram_hint);
   if (histogram)
     return histogram;
@@ -156,7 +156,7 @@ static void OnActionRecorded(const JavaRef<jobject>& callback,
 
 jlong JNI_NativeUmaRecorder_RecordBooleanHistogram(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_histogram_name,
+    const JavaRef<jstring>& j_histogram_name,
     jlong j_histogram_hint,
     jboolean j_sample) {
   bool sample = static_cast<bool>(j_sample);
@@ -168,7 +168,7 @@ jlong JNI_NativeUmaRecorder_RecordBooleanHistogram(
 
 jlong JNI_NativeUmaRecorder_RecordExponentialHistogram(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_histogram_name,
+    const JavaRef<jstring>& j_histogram_name,
     jlong j_histogram_hint,
     jint j_sample,
     jint j_min,
@@ -183,7 +183,7 @@ jlong JNI_NativeUmaRecorder_RecordExponentialHistogram(
 
 jlong JNI_NativeUmaRecorder_RecordLinearHistogram(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_histogram_name,
+    const JavaRef<jstring>& j_histogram_name,
     jlong j_histogram_hint,
     jint j_sample,
     jint j_min,
@@ -198,7 +198,7 @@ jlong JNI_NativeUmaRecorder_RecordLinearHistogram(
 
 jlong JNI_NativeUmaRecorder_RecordSparseHistogram(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_histogram_name,
+    const JavaRef<jstring>& j_histogram_name,
     jlong j_histogram_hint,
     jint j_sample) {
   int sample = static_cast<int>(j_sample);
@@ -210,7 +210,7 @@ jlong JNI_NativeUmaRecorder_RecordSparseHistogram(
 
 void JNI_NativeUmaRecorder_RecordUserAction(
     JNIEnv* env,
-    const JavaParamRef<jstring>& j_user_action_name,
+    const JavaRef<jstring>& j_user_action_name,
     jlong j_millis_since_event) {
   // Time values coming from Java need to be synchronized with TimeTick clock.
   RecordComputedActionSince(ConvertJavaStringToUTF8(env, j_user_action_name),
@@ -223,7 +223,7 @@ void JNI_NativeUmaRecorder_RecordUserAction(
 // targets - see http://crbug.com/415945.
 jint JNI_NativeUmaRecorder_GetHistogramValueCountForTesting(
     JNIEnv* env,
-    const JavaParamRef<jstring>& histogram_name,
+    const JavaRef<jstring>& histogram_name,
     jint sample,
     jlong snapshot_ptr) {
   std::string name = android::ConvertJavaStringToUTF8(env, histogram_name);
@@ -246,7 +246,7 @@ jint JNI_NativeUmaRecorder_GetHistogramValueCountForTesting(
 
 jint JNI_NativeUmaRecorder_GetHistogramTotalCountForTesting(
     JNIEnv* env,
-    const JavaParamRef<jstring>& histogram_name,
+    const JavaRef<jstring>& histogram_name,
     jlong snapshot_ptr) {
   std::string name = android::ConvertJavaStringToUTF8(env, histogram_name);
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
@@ -270,7 +270,7 @@ jint JNI_NativeUmaRecorder_GetHistogramTotalCountForTesting(
 ScopedJavaLocalRef<jlongArray>
 JNI_NativeUmaRecorder_GetHistogramSamplesForTesting(
     JNIEnv* env,
-    const JavaParamRef<jstring>& histogram_name) {
+    const JavaRef<jstring>& histogram_name) {
   std::string name = android::ConvertJavaStringToUTF8(env, histogram_name);
   HistogramBase* histogram = StatisticsRecorder::FindHistogram(name);
   std::vector<int64_t> buckets;

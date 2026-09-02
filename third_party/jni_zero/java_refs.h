@@ -17,10 +17,12 @@
 #include "third_party/jni_zero/jni_export.h"
 #include "third_party/jni_zero/logging.h"
 
-#if !defined(JNI_ZERO_ENABLE_COMPAT_API) && defined(WEBRTC_ANDROID)
+#if !defined(JNI_ZERO_ENABLE_COMPAT_API)
+#if defined(WEBRTC_ANDROID) || defined(ENABLE_BUILDFLAG_IS_COBALT) || defined(COBALT)
 #define JNI_ZERO_ENABLE_COMPAT_API 1
 #else
 #define JNI_ZERO_ENABLE_COMPAT_API 0
+#endif
 #endif
 
 namespace jni_zero {

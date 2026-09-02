@@ -269,7 +269,7 @@ Span<uint8_t> MediaCodecBridge::GetInputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer);
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
   return {span.data(), span.size()};
 }
 
@@ -339,7 +339,7 @@ Span<uint8_t> MediaCodecBridge::GetOutputBufferAddress(jint index) {
   if (!byte_buffer) {
     return {};
   }
-  auto span = JavaByteBufferToMutableSpan(env, byte_buffer);
+  auto span = JavaByteBufferToMutableSpan(env, byte_buffer.obj());
   return {span.data(), span.size()};
 }
 

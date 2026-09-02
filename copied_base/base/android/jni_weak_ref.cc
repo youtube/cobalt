@@ -63,7 +63,7 @@ base::android::ScopedJavaLocalRef<jobject> GetRealObject(
   jobject real = nullptr;
   if (obj)
     real = env->NewLocalRef(obj);
-  return base::android::ScopedJavaLocalRef<jobject>(env, real);
+  return base::android::ScopedJavaLocalRef<jobject>::Adopt(env, real);
 }
 
 void JavaObjectWeakGlobalRef::Assign(const JavaObjectWeakGlobalRef& other) {

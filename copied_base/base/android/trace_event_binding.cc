@@ -160,9 +160,11 @@ namespace {
 // Boilerplate for safely converting Java data to TRACE_EVENT data.
 class TraceEventDataConverter {
  public:
-  TraceEventDataConverter(JNIEnv* env, jstring jname, jstring jarg)
+  TraceEventDataConverter(JNIEnv* env,
+                          const JavaRef<jstring>& jname,
+                          const JavaRef<jstring>& jarg)
       : name_(ConvertJavaStringToUTF8(env, jname)),
-        has_arg_(jarg != nullptr),
+        has_arg_(jarg.obj() != nullptr),
         arg_(jarg ? ConvertJavaStringToUTF8(env, jarg) : "") {}
 
   TraceEventDataConverter(const TraceEventDataConverter&) = delete;

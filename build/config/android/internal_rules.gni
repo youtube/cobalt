@@ -207,6 +207,7 @@ template("write_build_config") {
         _dep_name = get_label_info(_dep, "name")
         _dep_config = "$_dep_gen_dir/$_dep_name.params.json"
         _deps_configs += [ _dep_config ]
+        _deps += [ _dep ]
       }
     }
     if (defined(invoker.possible_config_deps)) {
@@ -219,6 +220,7 @@ template("write_build_config") {
           _dep_name = get_label_info(_possible_dep, "name")
           _dep_config = "$_dep_gen_dir/$_dep_name.params.json"
           _deps_configs += [ _dep_config ]
+          _deps += [ _possible_dep ]
           if (_is_bundle) {
             _inputs += [ "$_dep_gen_dir/$_dep_name.build_config.json" ]
             _deps += [ "$_dep_label$build_config_target_suffix" ]
@@ -247,6 +249,7 @@ template("write_build_config") {
         _dep_name = get_label_info(_possible_dep, "name")
         _dep_config = "$_dep_gen_dir/$_dep_name.params.json"
         _public_deps_configs += [ _dep_config ]
+        _deps += [ _possible_dep ]
       }
       _inputs += _public_deps_configs
     }
@@ -258,6 +261,7 @@ template("write_build_config") {
         _dep_name = get_label_info(_dep_label, "name")
         _dep_config = "$_dep_gen_dir/$_dep_name.params.json"
         _processor_configs += [ _dep_config ]
+        _deps += [ _dep_label ]
       }
       _inputs += _processor_configs
     }
