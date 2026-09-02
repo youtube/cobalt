@@ -21,13 +21,10 @@
 #include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
-<<<<<<< HEAD
-#include "base/notimplemented.h"
-=======
 #include "base/metrics/persistent_histogram_allocator.h"
+#include "base/notimplemented.h"
 #include "base/path_service.h"
 #include "base/process/process_handle.h"
->>>>>>> 53c7eb01b1 (cobalt/metrics: Add 512KB Persistent Allocator for startup stability metrics (#12307))
 #include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
