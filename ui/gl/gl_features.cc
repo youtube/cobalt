@@ -198,7 +198,8 @@ bool UsePassthroughCommandDecoder() {
   if (base::MatchPattern(build_info->manufacturer(), "NVIDIA") &&
       base::MatchPattern(build_info->model(), "SHIELD*"))
     return false;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_ANDROID)
 
   return true;
 #endif  // defined(PASSTHROUGH_COMMAND_DECODER_LAUNCHED)

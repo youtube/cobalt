@@ -283,14 +283,14 @@ std::optional<SmapsRollup> ParseSmapsRollup(const std::string& buffer) {
   }
 
   SmapsRollup smaps_rollup;
-  smaps_rollup.rss = tmp["Rss"];
-  smaps_rollup.pss = tmp["Pss"];
-  smaps_rollup.pss_anon = tmp["Pss_Anon"];
-  smaps_rollup.pss_file = tmp["Pss_File"];
-  smaps_rollup.pss_shmem = tmp["Pss_Shmem"];
-  smaps_rollup.private_dirty = tmp["Private_Dirty"];
-  smaps_rollup.swap = tmp["Swap"];
-  smaps_rollup.swap_pss = tmp["SwapPss"];
+  smaps_rollup.rss = ByteCount::FromUnsigned(tmp["Rss"]);
+  smaps_rollup.pss = ByteCount::FromUnsigned(tmp["Pss"]);
+  smaps_rollup.pss_anon = ByteCount::FromUnsigned(tmp["Pss_Anon"]);
+  smaps_rollup.pss_file = ByteCount::FromUnsigned(tmp["Pss_File"]);
+  smaps_rollup.pss_shmem = ByteCount::FromUnsigned(tmp["Pss_Shmem"]);
+  smaps_rollup.private_dirty = ByteCount::FromUnsigned(tmp["Private_Dirty"]);
+  smaps_rollup.swap = ByteCount::FromUnsigned(tmp["Swap"]);
+  smaps_rollup.swap_pss = ByteCount::FromUnsigned(tmp["SwapPss"]);
 
   return smaps_rollup;
 }

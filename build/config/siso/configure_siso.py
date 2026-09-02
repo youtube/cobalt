@@ -95,12 +95,12 @@ def main():
     if reapi_address:
       f.write("SISO_REAPI_ADDRESS=%s\n" % reapi_address)
 
-if project:
+  if project:
     if project in _KNOWN_COBALT_PROJECTS:
       if os.path.exists(_BACKEND_STAR):
         os.remove(_BACKEND_STAR)
       shutil.copy2(_COBALT_STAR, _BACKEND_STAR)
-    if project in _KNOWN_GOOGLE_PROJECTS:
+    elif project in _KNOWN_GOOGLE_PROJECTS:
       if os.path.exists(_BACKEND_STAR):
         os.remove(_BACKEND_STAR)
       shutil.copy2(_GOOGLE_STAR, _BACKEND_STAR)

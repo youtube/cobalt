@@ -174,7 +174,6 @@ blink::BindOnce(&HighestPmfReporter::OnReportMetrics,
         time_to_report_[0]);
 #else
         kTimeToReport[0]);
-#endif        kTimeToReport[0]);
 #endif
   }
 

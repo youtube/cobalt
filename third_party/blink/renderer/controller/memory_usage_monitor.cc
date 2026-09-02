@@ -74,7 +74,8 @@ void MemoryUsageMonitor::StartMonitoringIfNeeded() {
   timer_.Start(FROM_HERE, kPingInterval,
                BindRepeating(&MemoryUsageMonitor::TimerFired,
                              Unretained(this)));
-#endif}
+#endif
+}
 
 void MemoryUsageMonitor::StopMonitoring() {
   timer_.Stop();

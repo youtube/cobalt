@@ -318,10 +318,6 @@ if (!is_cronet_build || is_ios) {
       sources += [ "clean_exit_beacon_ios.mm" ]
     }
 
-if (is_ios) {
-      sources += [ "clean_exit_beacon_ios.mm" ]
-    }
-
     if (is_linux && !is_starboard || is_chromeos) {
       sources += [
         "psi_memory_parser.h",
@@ -329,7 +325,7 @@ if (is_ios) {
       ]
     }
 
-    if (is_chromeos) {    if (is_chromeos) {
+    if (is_chromeos) {
       sources += [
         "call_stacks/stack_sampling_recorder.cc",
         "call_stacks/stack_sampling_recorder.h",

@@ -120,8 +120,8 @@ void GetSmapsRollup(base::ProcessHandle handle,
     *swap_pss = size_t(0);
     return;
   }
-  *pss = value->pss;
-  *swap_pss = value->swap_pss;
+  *pss = value->pss.InBytesUnsigned();
+  *swap_pss = value->swap_pss.InBytesUnsigned();
 }
 #else   // !BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
@@ -131,8 +131,8 @@ void GetSmapsRollup(size_t* pss, size_t* swap_pss) {
     *swap_pss = 0;
     return;
   }
-  *pss = value->pss;
-  *swap_pss = value->swap_pss;
+  *pss = value->pss.InBytesUnsigned();
+  *swap_pss = value->swap_pss.InBytesUnsigned();
 }
 #endif  // BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
 
@@ -860,8 +860,8 @@ bool OSMetrics::FillOSMemoryDump(base::ProcessHandle handle,
 #if BUILDFLAG(COBALT_DETAILED_MEMORY_METRICS)
     size_t pss_raw, swap_pss_raw;
     GetSmapsRollup(handle, &pss_raw, &swap_pss_raw);
-    base::ByteCount pss = base::ByteCount::FromBytes(pss_raw);
-    base::ByteCount swap_pss = base::ByteCount::FromBytes(swap_pss_raw);
+    base::ByteCount pss = base::ByteCount::FromUnsigned(pss_raw);
+    base::ByteCount swap_pss = base::ByteCount::FromUnsigned(swap_pss_raw);
 #else
     base::ByteCount pss, swap_pss;
     GetSmapsRollup(&pss, &swap_pss);

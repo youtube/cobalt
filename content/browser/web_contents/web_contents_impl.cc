@@ -1456,11 +1456,14 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
   }
 #endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   if (base::FeatureList::IsEnabled(
           fingerprinting_protection_interventions::features::kCanvasNoise)) {
     renderer_preferences_.canvas_noise_token =
         CanvasNoiseTokenData::GetToken(browser_context);
-  }}
+  }
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+}
 
 WebContentsImpl::~WebContentsImpl() {
   TRACE_EVENT0("content", "WebContentsImpl::~WebContentsImpl");
