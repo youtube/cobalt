@@ -22,7 +22,7 @@ import androidx.annotation.Nullable;
  * @param <T> The type of the object to hold.
  */
 public class Holder<T> {
-  private T mInstance;
+  private volatile T mInstance;
 
   public Holder() {
     this.mInstance = null;
