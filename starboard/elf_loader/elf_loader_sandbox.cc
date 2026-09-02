@@ -19,6 +19,7 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
+#include "starboard/common/no_destructor.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/crashpad_wrapper/annotations.h"
@@ -33,7 +34,10 @@
 #include "starboard/shared/starboard/features_test_util.h"
 #endif
 
-elf_loader::ElfLoader g_elf_loader;
+elf_loader::ElfLoader& GetElfLoader() {
+  static starboard::NoDestructor<elf_loader::ElfLoader> s_elf_loader;
+  return *s_elf_loader;
+}
 
 void (*g_sb_event_func)(const SbEvent*) = NULL;
 
@@ -58,14 +62,15 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   } else if (starboard::EndsWith(library_path, elf_loader::kZstdSuffix)) {
     compression_type = elf_loader::CompressionType::kZstd;
   }
-  if (!g_elf_loader.Load(library_path, content_path, /*is_relative_path=*/true,
-                         /*custom_get_extension=*/nullptr, compression_type)) {
+  if (!GetElfLoader().Load(
+          library_path, content_path, /*is_relative_path=*/true,
+          /*custom_get_extension=*/nullptr, compression_type)) {
     SB_NOTREACHED() << "Failed to load library at '"
-                    << g_elf_loader.GetLibraryPath() << "'.";
+                    << GetElfLoader().GetLibraryPath() << "'.";
     return;
   }
 
-  SB_LOG(INFO) << "Successfully loaded '" << g_elf_loader.GetLibraryPath()
+  SB_LOG(INFO) << "Successfully loaded '" << GetElfLoader().GetLibraryPath()
                << "'.";
 
   EvergreenInfo evergreen_info;
@@ -77,7 +82,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   }
 
   auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
-      g_elf_loader.LookupSymbol("GetEvergreenSabiString"));
+      GetElfLoader().LookupSymbol("GetEvergreenSabiString"));
 
   if (!CheckSabi(get_evergreen_sabi_string_func)) {
     SB_LOG(ERROR) << "CheckSabi failed";
@@ -85,10 +90,10 @@ void LoadLibraryAndInitialize(const std::string& library_path,
   }
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
-      g_elf_loader.LookupSymbol("SbEventHandle"));
+      GetElfLoader().LookupSymbol("SbEventHandle"));
 
   auto get_user_agent_func = reinterpret_cast<const char* (*)()>(
-      g_elf_loader.LookupSymbol("GetCobaltUserAgentString"));
+      GetElfLoader().LookupSymbol("GetCobaltUserAgentString"));
   if (!get_user_agent_func) {
     SB_LOG(ERROR) << "Failed to get user agent string";
   } else {
