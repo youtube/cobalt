@@ -930,6 +930,8 @@ void AutofillManager::SubscribeToMlModelChanges(
     default:
       NOTREACHED();
   }
+#else
+  NOTREACHED();
 #endif
 }
 
