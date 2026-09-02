@@ -26,8 +26,8 @@ namespace jni_zero {
   "the header that declares the specialization is #included before the "   \
   "_jni.h one."
 
-#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 namespace internal {
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
 template <typename T>
 concept IsJavaRef = std::is_base_of_v<JavaRef<jobject>, T>;
 
@@ -71,6 +71,7 @@ concept HasSpecificSpecialization = requires(T t) {
   requires IsMap<T> || IsObjectContainer<T> || IsOptional<T> ||
                IsPrimitive<T> || IsJavaRef<T>;
 };
+#endif
 
 // Used to allow for the c++ type to be non-primitive even if the java type is
 // primitive, when doing type conversions. primitive<->primitive conversions use
@@ -80,22 +81,27 @@ struct PrimitiveConvert {
   static constexpr CppType FromJniType(JNIEnv* env, JavaType v) {
     if constexpr (std::is_arithmetic_v<CppType> || std::is_enum_v<CppType>) {
       return static_cast<CppType>(v);
-    } else {
+    }
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+    else {
       return FromJniType<CppType>(env, v);
     }
+#endif
   }
 
   static constexpr JavaType ToJniType(JNIEnv* env, CppType v) {
     if constexpr (std::is_arithmetic_v<CppType> || std::is_enum_v<CppType>) {
       return static_cast<JavaType>(v);
-    } else {
+    }
+#if defined(__cpp_concepts) && __cpp_concepts >= 201907L
+    else {
       return ToJniType<JavaType>(env, v);
     }
+#endif
   }
 };
 
 }  // namespace internal
-#endif
 
 template <typename T>
 inline T FromJniType(JNIEnv* env, const JavaRef<jobject>& obj) {
