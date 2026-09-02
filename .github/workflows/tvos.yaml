@@ -250,7 +250,7 @@ jobs:
     needs: [wait-for-kokoro-build, run-tests]
     if: always() && !cancelled() && needs.wait-for-kokoro-build.result == 'success'
     runs-on: ubuntu-latest
-    name: tvos_validation
+    name: tvos_tests_passing
     steps:
       - name: Check test results
         env:
