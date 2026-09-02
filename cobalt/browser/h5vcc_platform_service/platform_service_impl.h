@@ -18,6 +18,7 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
 #include "content/public/browser/document_service.h"
@@ -70,6 +71,9 @@ class PlatformServiceImpl
   // This is a handle to the service: a pointer to the private struct.
   CobaltExtensionPlatformService platform_service_ =
       kCobaltExtensionPlatformServiceInvalid;
+
+  base::RepeatingCallback<void(std::vector<uint8_t>)>
+      on_data_received_callback_;
 
   base::WeakPtrFactory<PlatformServiceImpl> weak_factory_{this};
 };
