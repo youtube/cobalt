@@ -38,9 +38,8 @@ const char kUseStubAudioSink[] = "use_stub_audio_sink";
 
 void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
                            int frames_consumed,
-                           int64_t frames_consumed_at,
+                           int64_t /*frames_consumed_at*/,
                            void* context) {
-  SB_UNREFERENCED_PARAMETER(frames_consumed_at);
   sb_consume_frames_func(frames_consumed, context);
 }
 
