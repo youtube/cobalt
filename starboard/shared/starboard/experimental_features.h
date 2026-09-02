@@ -209,7 +209,8 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaForceDualThreads(
 
 inline constexpr ExperimentalFeatureKey<bool>
     kMediaIgnoreMediaCodecCallbacksDuringFlushing(
-        "Media.IgnoreMediaCodecCallbacksDuringFlushing");
+        "Media.IgnoreMediaCodecCallbacksDuringFlushing",
+        true);
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaNdkAudioTrack(
     "Media.NdkAudioTrack");
@@ -225,6 +226,10 @@ inline constexpr ExperimentalFeatureKey<bool> kMediaSkipVideoFramesOver60Fps(
 inline constexpr ExperimentalFeatureKey<int>
     kMediaVideoDecoderInitialPrerollCount(
         "Media.VideoDecoderInitialPrerollCount");
+
+inline constexpr ExperimentalFeatureKey<int>
+    kMediaVideoDecoderMaxPendingInputsSize(
+        "Media.VideoDecoderMaxPendingInputsSize");
 
 inline constexpr ExperimentalFeatureKey<bool> kMediaVideoFrameImplPool(
     "Media.VideoFrameImplPool");

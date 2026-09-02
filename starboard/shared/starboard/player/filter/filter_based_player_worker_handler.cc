@@ -19,14 +19,11 @@
 #include <optional>
 #include <utility>
 
-#include "build/build_config.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/common/murmurhash2.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/media/media_tracing.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -40,32 +37,6 @@ using std::placeholders::_2;
 
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
-
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-
-void DumpInputHash(const InputBuffer* input_buffer) {}
-
-#else  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-
-void DumpInputHash(const InputBuffer* input_buffer) {
-  static const bool s_dump_input_hash =
-      Application::Get()->GetCommandLine()->HasSwitch("dump_video_input_hash");
-
-  if (!s_dump_input_hash) {
-    return;
-  }
-
-  bool is_audio = input_buffer->sample_type() == kSbMediaTypeAudio;
-  SB_LOG(ERROR) << "Dump "
-                << (input_buffer->drm_info() ? "encrypted " : "clear ")
-                << (is_audio ? "audio input hash @ " : "video input hash @ ")
-                << input_buffer->timestamp() << ": "
-                << MurmurHash2_32(input_buffer->data(), input_buffer->size(),
-                                  0);
-}
-
-#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-
 }  // namespace
 
 FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
@@ -238,7 +209,6 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
           if (!SbDrmSystemIsValid(drm_system_)) {
             return Failure("Invalid DRM system.");
           }
-          DumpInputHash(input_buffer);
           SbDrmSystemPrivate::DecryptStatus decrypt_status =
               drm_system_->Decrypt(input_buffer);
           if (decrypt_status == SbDrmSystemPrivate::kRetry) {
@@ -253,7 +223,6 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
             return Failure("Sample decryption failure.");
           }
         }
-        DumpInputHash(input_buffer);
         ++*samples_written;
       }
       audio_renderer_->WriteSamples(input_buffers);
@@ -276,7 +245,6 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
           if (!SbDrmSystemIsValid(drm_system_)) {
             return Failure("Invalid DRM system.");
           }
-          DumpInputHash(input_buffer);
           SbDrmSystemPrivate::DecryptStatus decrypt_status =
               drm_system_->Decrypt(input_buffer);
           if (decrypt_status == SbDrmSystemPrivate::kRetry) {
@@ -291,7 +259,6 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
             return Failure("Sample decryption failure.");
           }
         }
-        DumpInputHash(input_buffer);
         ++*samples_written;
       }
       video_renderer_->WriteSamples(input_buffers);

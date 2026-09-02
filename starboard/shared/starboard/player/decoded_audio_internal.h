@@ -34,24 +34,22 @@ class DecodedAudio {
   // samples to interleaved on creation.
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
-               SbMediaAudioFrameStorageType storage_type,
                int64_t timestamp,
                int size_in_bytes);
 
   DecodedAudio(int channels,
                SbMediaAudioSampleType sample_type,
-               SbMediaAudioFrameStorageType storage_type,
                int64_t timestamp,
                int size_in_bytes,
                Buffer&& storage);
 
   // Move-only semantics
-  DecodedAudio(DecodedAudio&& other) = default;
-  DecodedAudio& operator=(DecodedAudio&& other) = default;
+  DecodedAudio(DecodedAudio&& other) noexcept;
+  DecodedAudio& operator=(DecodedAudio&& other) noexcept;
 
   // Disable copy and assignment.
   DecodedAudio(const DecodedAudio&) = delete;
-  void operator=(const DecodedAudio&) = delete;
+  DecodedAudio& operator=(const DecodedAudio&) = delete;
 
   static void EnableSimdBasedAudioFormatSwitching();
 
@@ -109,6 +107,8 @@ class DecodedAudio {
 
   DecodedAudio SwitchSampleTypeTo(SbMediaAudioSampleType new_sample_type,
                                   bool enable_simd) const;
+  // TODO: b/272837615 - Remove SwitchStorageTypeTo and planar format switching
+  // support once planar audio frame cleanup is completed.
   DecodedAudio SwitchStorageTypeTo(
       SbMediaAudioFrameStorageType new_storage_type,
       bool enable_simd) const;
@@ -127,7 +127,9 @@ class DecodedAudio {
 
   int channels_;
   SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
+  // TODO: b/272837615 - Remove this member variable once cleanup is completed.
+  SbMediaAudioFrameStorageType storage_type_ =
+      kSbMediaAudioFrameStorageTypeInterleaved;
   // The timestamp of the first audio frame in microseconds.
   int64_t timestamp_;
   Buffer storage_;
