@@ -16,6 +16,7 @@
 #include "include/v8-locker.h"
 #include "src/api/api-inl.h"
 #include "src/base/bits.h"
+#include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
@@ -4226,6 +4227,16 @@ void Heap::CheckMemoryPressure() {
 }
 
 void Heap::CollectGarbageOnMemoryPressure() {
+#if BUILDFLAG(IS_COBALT)
+  std::optional<EmbedderStackStateScope> stack_scope;
+  const bool is_executing_js =
+      isolate()->c_entry_fp(isolate()->thread_local_top()) != kNullAddress;
+  if (v8_flags.cppgc_compaction_on_memory_pressure && !is_executing_js) {
+    stack_scope.emplace(
+        this, EmbedderStackStateOrigin::kExplicitInvocation,
+        StackState::kNoHeapPointers);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
   const int kGarbageThresholdInBytes = 8 * MB;
   const double kGarbageThresholdAsFractionOfTotalMemory = 0.1;
   // This constant is the maximum response time in RAIL performance model.

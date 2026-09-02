@@ -121,6 +121,10 @@ public class JavaSwitches {
   public static final String ALLOW_CRITICAL_MEMORY_PRESSURE_HANDLING_IN_FOREGROUND =
       "AllowCriticalMemoryPressureHandlingInForeground";
 
+  /** flag to enable cppgc compaction on memory pressure. */
+  public static final String ENABLE_CPPGC_COMPACTION_ON_MEMORY_PRESSURE =
+      "EnableCppgcCompactionOnMemoryPressure";
+
   /** flag to evict blink memory cache on critical memory pressure. */
   public static final String EVICT_MEMORY_CACHE_ON_CRITICAL_MEMORY_PRESSURE =
       "EvictMemoryCacheOnCriticalMemoryPressure";
@@ -162,6 +166,11 @@ public class JavaSwitches {
         jsFlags.add("--flush-bytecode");
         jsFlags.add("--bytecode-old-time=" + oldTime);
       }
+    }
+
+    if (javaSwitches.containsKey(JavaSwitches.ENABLE_CPPGC_COMPACTION_ON_MEMORY_PRESSURE)) {
+      extraCommandLineArgs.add("--allow-critical-memory-pressure-handling-in-foreground");
+      jsFlags.add("--cppgc-compaction-on-memory-pressure");
     }
 
     if (javaSwitches.containsKey(JavaSwitches.V8_INITIAL_OLD_SPACE_SIZE)) {
