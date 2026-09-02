@@ -21,6 +21,9 @@ if (is_android) {
   import("//cobalt/aosp/modular_apk.gni")
 }
 
+assert(!is_android || prebuilt_libcobalt_path == "",
+       "prebuilt_libcobalt_path is not supported on Android")
+
 _is_aosp =
     string_replace(starboard_path, "starboard/aosp/", "", 1) != starboard_path
 
@@ -70,9 +73,39 @@ template("loader_final_target") {
       write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
 
-    shared_library(original_target_name) {
-      forward_variables_from(invoker, "*")
-      not_needed("*")
+    if (prebuilt_libcobalt_path != "" && original_target_name == "cobalt") {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "testonly",
+                   "visibility",
+                 ])
+      action(original_target_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        script = "//cobalt/build/copy_prebuilt_libcobalt.py"
+        inputs = [ prebuilt_libcobalt_path ]
+        outputs = [
+          "$root_out_dir/lib${original_target_name}.so",
+          "$root_out_dir/lib.unstripped/lib${original_target_name}.so",
+        ]
+        args = [
+          "--input",
+          prebuilt_libcobalt_path,
+          "--output",
+          rebase_path(outputs[0], root_build_dir),
+          "--repo-root",
+          rebase_path("//", root_build_dir),
+          "--build-dir",
+          rebase_path(root_build_dir, root_build_dir),
+          "--unstripped-output",
+          rebase_path(outputs[1], root_build_dir),
+        ]
+      }
+    } else {
+      shared_library(original_target_name) {
+        forward_variables_from(invoker, "*")
+        not_needed("*")
+      }
     }
 
     # TODO: b/421951995 - Use original loader target instead of copy target.
@@ -221,8 +254,39 @@ template("evergreen_final_target") {
       data_deps = deps  # Needed for the .runtime_deps file.
     }
 
-    shared_library(original_target_name) {
-      forward_variables_from(invoker, "*", [ "lib_name" ])
+    if (prebuilt_libcobalt_path != "" &&
+        (original_target_name == "cobalt" || lib_name == "libcobalt")) {
+      not_needed(invoker,
+                 "*",
+                 [
+                   "testonly",
+                   "visibility",
+                 ])
+      action(original_target_name) {
+        forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+        script = "//cobalt/build/copy_prebuilt_libcobalt.py"
+        inputs = [ prebuilt_libcobalt_path ]
+        outputs = [
+          "$root_out_dir/${lib_name}.so",
+          "$root_out_dir/lib.unstripped/${lib_name}.so",
+        ]
+        args = [
+          "--input",
+          prebuilt_libcobalt_path,
+          "--output",
+          rebase_path(outputs[0], root_build_dir),
+          "--repo-root",
+          rebase_path("//", root_build_dir),
+          "--build-dir",
+          rebase_path(root_build_dir, root_build_dir),
+          "--unstripped-output",
+          rebase_path(outputs[1], root_build_dir),
+        ]
+      }
+    } else {
+      shared_library(original_target_name) {
+        forward_variables_from(invoker, "*", [ "lib_name" ])
+      }
     }
   }
 }

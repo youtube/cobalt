@@ -33,6 +33,12 @@ declare_args() {
   use_evergreen = false
 
   use_tsan = false
+
+  # Optional path to a prebuilt libcobalt file (.so, .lz4, or .zstd/.zst).
+  # When specified, the Evergreen build will copy and decompress (if necessary)
+  # this prebuilt library into libcobalt.so rather than compiling it from source.
+  # Supports absolute, repository-relative (//path or path), and build-relative paths.
+  prebuilt_libcobalt_path = ""
 }
 
 declare_args() {
